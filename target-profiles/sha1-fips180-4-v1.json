@@ -1,0 +1,24 @@
+{
+  "id": "sha1-fips180-4-v1",
+  "status": "pilot",
+  "primitive": "SHA-1",
+  "specification": "FIPS PUB 180-4",
+  "rounds": 80,
+  "digest_bits": 160,
+  "attack_class": "ordinary-collision",
+  "relation": {
+    "preconditions": [
+      "m0 and m1 are finite byte strings",
+      "m0 is not byte-for-byte equal to m1"
+    ],
+    "postcondition": "SHA1(m0) equals SHA1(m1) using standard SHA-1 padding, IV, feed-forward, and 160-bit output"
+  },
+  "out_of_scope": [
+    "compression-function collisions without a full hash collision",
+    "free-start collisions",
+    "near-collisions",
+    "chosen-prefix claims not yielding an ordinary collision",
+    "implementation or side-channel attacks"
+  ]
+}
+

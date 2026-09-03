@@ -1,0 +1,142 @@
+name: Benchmark
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: hashsmash-benchmark-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  intake:
+    name: Setup and deterministic intake
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout dispatched commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+          clean: true
+
+      - name: Setup
+        run: bash .yukon/setup.sh
+
+      - name: Verify submission surface
+        run: bash scripts/check-editable-surface.sh
+
+      - name: Benchmark deterministic intake
+        run: python3 scripts/hashsmash_pipeline.py intake
+
+      - name: Upload sanitized intake
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: hashsmash-intake
+          path: .yukon/work/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+
+  judge:
+    name: Benchmark AI review
+    needs: intake
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout dispatched commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          clean: true
+
+      - name: Download sanitized intake
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        with:
+          name: hashsmash-intake
+          path: .yukon/work
+
+      - name: Benchmark OpenRouter review
+        if: ${{ vars.HASHSMASH_JUDGE_PROVIDER != 'bedrock' }}
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          HASHSMASH_JUDGE_PROVIDER: "openrouter"
+          HASHSMASH_OPENROUTER_ZDR: "true"
+          HASHSMASH_JUDGE_MODE: "single"
+          HASHSMASH_JUDGE_MODEL: "openai/gpt-5.6-sol"
+          HASHSMASH_JUDGE_STRATEGY: "formal-proof-v1"
+          HASHSMASH_REASONING_EFFORT: "high"
+        run: python3 scripts/hashsmash_pipeline.py judge
+
+      - name: Benchmark Amazon Bedrock review
+        if: ${{ vars.HASHSMASH_JUDGE_PROVIDER == 'bedrock' }}
+        env:
+          AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
+          HASHSMASH_JUDGE_PROVIDER: "bedrock"
+          HASHSMASH_BEDROCK_MODEL: ${{ vars.HASHSMASH_BEDROCK_MODEL || 'us.anthropic.claude-opus-4-6-v1' }}
+          HASHSMASH_BEDROCK_REGION: ${{ vars.HASHSMASH_BEDROCK_REGION || 'us-east-1' }}
+          HASHSMASH_JUDGE_MODE: "single"
+          HASHSMASH_JUDGE_STRATEGY: "formal-proof-v1"
+          HASHSMASH_REASONING_EFFORT: "high"
+        run: python3 scripts/hashsmash_pipeline.py judge
+
+      - name: Publish review summary
+        if: always()
+        run: |
+          if [[ -f .yukon/reports/aggregate.json ]]; then
+            python3 scripts/hashsmash_pipeline.py summary >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload review dossier
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: hashsmash-review
+          path: .yukon/reports/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30
+
+  score:
+    name: Benchmark trusted score
+    needs: judge
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout dispatched commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          clean: true
+
+      - name: Download review dossier
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        with:
+          name: hashsmash-review
+          path: .yukon/reports
+
+      - name: Benchmark score
+        run: python3 scripts/hashsmash_pipeline.py score
+
+      - name: Publish summary
+        run: python3 scripts/hashsmash_pipeline.py summary >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload score
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: benchmark-score
+          path: .yukon/score.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30

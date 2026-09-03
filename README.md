@@ -1,0 +1,95 @@
+# HashSmash Yukon MVP
+
+This repository is an initial Yukon-compatible benchmark for AI-assisted review of
+Markdown cryptanalytic proofs. The pilot fixes one track:
+
+- target: full-round SHA-1 (`sha1-fips180-4-v1`);
+- attack class: ordinary collisions;
+- rounds: 80; and
+- score: `log2(time in SHA-1 compressions) + log2(peak memory bytes)`, lower is better.
+
+The MVP is deliberately conservative. Deterministic code validates the submission and
+optional concrete collision witnesses. Independent provider calls review scope,
+correctness, and complexity. OpenRouter and Amazon Bedrock are supported through the same
+validated review interface. OpenRouter defaults to `openai/gpt-5.6-sol`; Bedrock defaults
+to Claude Opus 4.6. Both use the `formal-proof-v1` strategy and high reasoning effort. An
+optional committee can run several models or prompting strategies without sharing one
+member's output with another. Trusted aggregation may label a submission `ai_qualified`;
+that label is not human acceptance or formal verification.
+
+## Repository contract
+
+Only [`candidate/`](./candidate) is participant-editable. It contains a strict JSON claim,
+a Markdown proof, and optional certificate data. Everything that interprets or scores the
+submission is outside that directory.
+
+The generated Yukon score is `.yukon/score.json`. Verification failures exit nonzero and
+do not write a placeholder score.
+
+## Local setup and tests
+
+```bash
+bash .yukon/setup.sh
+```
+
+This uses only Python's standard library and runs all deterministic and mocked-provider
+tests. It does not contact either provider.
+
+## Local live integration
+
+For OpenRouter, place `OPENROUTER_API_KEY` in `.env`, then run:
+
+```bash
+bash scripts/run-local-live.sh
+```
+
+For Amazon Bedrock, place the API key in AWS's standard
+`AWS_BEARER_TOKEN_BEDROCK` variable in `.env`, then run:
+
+```bash
+bash scripts/run-local-bedrock.sh
+```
+
+The scripts load `.env` without printing it, validate `candidate/`, send the inert proof
+evidence to the selected provider, aggregate the structured reviews, and write a score
+only if the result is `ai_qualified`. Reports are written under `.yukon/reports/` and are
+ignored by Git.
+
+For the bounded three-member calibration committee, run:
+
+```bash
+HASHSMASH_JUDGE_PROVIDER=bedrock bash scripts/run-local-committee.sh
+```
+
+The Bedrock committee runs three independent Opus 4.6 panels using formal-proof,
+adversarial, and cost-skeptic strategies. Omitting the provider variable selects the
+OpenRouter committee combining Sol, Opus, and Gemini. Both require unanimous qualification
+and give technical-blocker and clarification results veto power. The script selects the
+appropriate one-attempt calibration profile; production profiles allow bounded retries.
+
+Provider choice, model IDs, regions, and privacy or routing settings are controlled through
+environment variables documented in [`judge/README.md`](./judge/README.md). Both backends
+use JSON-schema structured output followed by the same strict local validation. OpenRouter
+requests Zero Data Retention by default. Do not disable it unless the proof package is
+approved for OpenRouter's non-ZDR retention policy.
+
+## Yukon
+
+[`benchmark.json`](./benchmark.json) is a schema-v1 GitHub Actions benchmark manifest.
+The ranked workflow is [`.github/workflows/benchmark.yml`](./.github/workflows/benchmark.yml).
+It separates deterministic intake from the secret-bearing judge job and uploads the exact
+score path expected by Yukon.
+
+The workflow has not been imported into Yukon as part of this MVP. Before production:
+
+1. Select OpenRouter or Bedrock. Configure either an OpenRouter ZDR-compatible route and
+   `OPENROUTER_API_KEY`, or a Bedrock API key and the desired model access. Evaluate AWS
+   temporary credentials or role-based authentication before production hardening.
+2. Decide whether improving PRs can be held for human review.
+3. Replace the provisional generic baseline with a cryptographer-ratified frontier entry.
+4. Create the GitHub repository, install the appropriate Yukon GitHub App, and obtain a
+   Yukon dev importer API key from the allowlisted deployment operator.
+
+See [`YUKON_CHALLENGE_PLAN.md`](./YUKON_CHALLENGE_PLAN.md) for the full design and rollout
+plan. See [`MVP_VALIDATION.md`](./MVP_VALIDATION.md) for the offline and live provider test
+record, certificate decision, and remaining production gates.

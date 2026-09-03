@@ -1,0 +1,22 @@
+{
+  "id": "sha1-generic-birthday-radix-pilot",
+  "status": "provisional-organizer-baseline",
+  "target_profile": "sha1-fips180-4-v1",
+  "attack_class": "ordinary-collision",
+  "rounds": 80,
+  "claim": {
+    "time_log2": 92.0,
+    "memory_log2_bytes": 87.0,
+    "data_log2": 80.0,
+    "preprocessing_log2": 0.0,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 0.0
+  },
+  "score": 179.0,
+  "restrictions": [
+    "Uses the standard random-function heuristic for SHA-1 outputs on independently sampled messages.",
+    "Uses two packed 32-byte-per-record radix-sort buffers.",
+    "Uses an abstract 128-bit word-RAM and charges each non-hash primitive operation as one SHA-1-compression-equivalent time unit."
+  ],
+  "note": "MVP integration ceiling only. Replace or ratify before a production competition."
+}

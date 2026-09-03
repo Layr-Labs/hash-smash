@@ -1,0 +1,1 @@
+"""HashSmash verifier tests."""
