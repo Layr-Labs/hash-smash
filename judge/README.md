@@ -1,7 +1,7 @@
 # HashSmash AI judge
 
 This package runs three independent provider reviews—triage, correctness, and
-complexity—through either OpenRouter Chat Completions or Amazon Bedrock Converse. It maps
+complexity—through OpenRouter Chat Completions or Amazon Bedrock Converse/Responses. It maps
 their strict structured records to one of:
 
 - `ai_qualified`
@@ -49,6 +49,56 @@ these with `HASHSMASH_BEDROCK_MODEL` and `HASHSMASH_BEDROCK_REGION`. No AWS SDK 
 The Bedrock request uses JSON-Schema structured output and Claude 4.6 adaptive thinking.
 Unsupported wire-schema constraints are removed only from the provider request; the full
 organizer-owned schema is always enforced locally on the result.
+
+### GPT-5.6 Sol on Bedrock
+
+Set `HASHSMASH_BEDROCK_MODEL=us.openai.gpt-5.6-sol` to select Sol with US cross-region
+inference; `global.openai.gpt-5.6-sol` is also supported when global processing is
+explicitly intended. The adapter automatically uses
+`https://bedrock-runtime.<region>.amazonaws.com/openai/v1/responses`, with native
+`reasoning.effort` (default `high`), `max_output_tokens`, and `store=false`. It never
+sends Claude thinking parameters, enables tools, or changes providers on failure.
+The short `openai.gpt-5.6-sol` ID belongs to the Mantle route and is rejected here.
+This integration does not require an OpenAI key or any new dependency.
+
+AWS currently lists structured outputs as unsupported for Sol on Bedrock Runtime.
+The organizer-owned `prompts/bedrock-sol-json-v1.md` instructions therefore include the
+stage-specific schema. The response must complete with exactly one assistant JSON
+review; refusals, tool calls, truncated responses, fenced JSON, duplicate keys, schema
+violations, and semantic inconsistencies fail closed. Only stage-inapplicable null/empty
+fields are supplied by normalization; claims and verdicts are never repaired. Effective
+prompt hashes, API route, actual returned model, request IDs, and token usage are recorded.
+
+`store=false` disables Responses conversation storage; it is not a claim of account-wide
+zero retention or disabled AWS abuse monitoring. Confirm the account's data-retention,
+logging, model-access, and quota policy before accepting private participant proofs.
+The IAM principal behind the existing Bedrock API key needs `bedrock:InvokeModel` on
+the inference target and the default project
+`arn:aws:bedrock:<region>:<account-id>:project/default`. This adapter does not change IAM.
+
+Run the complete local single-panel pipeline with:
+
+```sh
+bash .yukon/setup.sh
+bash scripts/run-local-bedrock.sh --model us.openai.gpt-5.6-sol --region us-east-1
+```
+
+For a one-stage smoke test, first prepare evidence with
+`python3 scripts/hashsmash_pipeline.py intake`, then use `scripts/run-bedrock-smoke.sh`
+with `--model us.openai.gpt-5.6-sol --reasoning-effort high --max-attempts 1`.
+The full local runner accepts `--model` and `--region` after loading `.env`; the smoke
+runner additionally accepts `--max-attempts`, `--max-tokens`, and `--timeout-seconds`.
+
+For GitHub Actions, use repository variables `HASHSMASH_JUDGE_PROVIDER=bedrock`,
+`HASHSMASH_BEDROCK_MODEL=us.openai.gpt-5.6-sol`, and
+`HASHSMASH_BEDROCK_REGION=us-east-1`, retaining the `AWS_BEARER_TOKEN_BEDROCK` secret.
+The default Claude model and existing committee profiles are unchanged. An explicitly
+selected committee can mix Sol and Claude model IDs; each member independently selects
+its API route. No live committee qualification is implied by a single-panel test.
+
+Sources: [AWS Sol model card](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-56-sol.html),
+[AWS Responses API](https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-mantle.html),
+and [OpenAI Bedrock guidance](https://developers.openai.com/api/docs/guides/amazon-bedrock).
 
 Both backends use `formal-proof-v1` and high reasoning effort by default. Override them
 with `HASHSMASH_JUDGE_STRATEGY` and `HASHSMASH_REASONING_EFFORT`.

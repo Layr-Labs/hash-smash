@@ -79,7 +79,7 @@ class UrllibTransport:
                 body=exc.read(),
             )
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            raise TransportError(f"OpenRouter transport failed: {type(exc).__name__}") from exc
+            raise TransportError(f"Judge HTTP transport failed: {type(exc).__name__}") from exc
 
 
 @dataclass(frozen=True)

@@ -79,6 +79,35 @@ class CommitteeTests(unittest.TestCase):
         self.assertEqual(configured.strategy, member.strategy)
         self.assertNotIn("secret", repr(configured))
 
+    def test_mixed_bedrock_committee_routes_each_member_independently(self) -> None:
+        from judge.bedrock_adapter import BedrockClient
+        from judge.tests.test_bedrock_adapter import (
+            FakeTransport as BedrockTransport,
+            bedrock_response,
+            sol_response,
+        )
+
+        path = Path(__file__).parents[1] / "committees" / "committee-bedrock-v1.json"
+        config = load_committee(path)
+        sol = replace(config.members[0], model="us.openai.gpt-5.6-sol")
+        mixed = replace(config, members=(sol, *config.members[1:]))
+        seen = []
+
+        def factory(member_config):
+            seen.append(member_config)
+            response = sol_response if member_config.api == "responses" else bedrock_response
+            transport = BedrockTransport([
+                response(review(stage)) for stage in ("triage", "correctness", "complexity")
+            ])
+            return BedrockClient(member_config, transport=transport)
+
+        result = run_committee({}, mixed, BedrockConfig(api_key="secret"), client_factory=factory)
+        self.assertEqual(result["aggregate"]["status"], "ai_qualified")
+        self.assertEqual({config.api for config in seen}, {"responses", "converse"})
+        self.assertEqual(len({config.strategy for config in seen}), 3)
+        for member in result["members"].values():
+            self.assertEqual(set(member["reviews"]), {"triage", "correctness", "complexity"})
+
     def test_unknown_configuration_field_is_rejected(self) -> None:
         raw = json.loads(
             (Path(__file__).parents[1] / "committees" / "committee-v1.json").read_text()

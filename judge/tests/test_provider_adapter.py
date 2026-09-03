@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import urllib.error
 import unittest
 from unittest.mock import patch
 
@@ -12,6 +13,7 @@ from judge.provider_adapter import (
     OpenRouterConfig,
     _schema_for_stage,
     TransportError,
+    UrllibTransport,
 )
 from judge.run_review import run_mvp
 from judge.tests.helpers import provider_response, review
@@ -61,6 +63,21 @@ def client(transport, *, attempts=3, sleeps=None):
 
 
 class ProviderAdapterTests(unittest.TestCase):
+    def test_shared_transport_error_is_provider_neutral_and_redacted(self) -> None:
+        with patch(
+            "urllib.request.urlopen",
+            side_effect=urllib.error.URLError("sensitive transport detail"),
+        ):
+            with self.assertRaisesRegex(TransportError, "Judge HTTP transport failed") as caught:
+                UrllibTransport().request(
+                    "https://bedrock-runtime.us-east-1.amazonaws.com/model/test/converse",
+                    headers={},
+                    body=b"{}",
+                    timeout_seconds=1,
+                )
+        self.assertNotIn("OpenRouter", str(caught.exception))
+        self.assertNotIn("sensitive transport detail", str(caught.exception))
+
     def test_wire_schema_forbids_cross_stage_fields(self) -> None:
         base_schema = client(FakeTransport([])).schema
         correctness = _schema_for_stage(base_schema, "correctness")

@@ -11,18 +11,25 @@ The local MVP now implements the pilot described below:
 - a schema-v1 Yukon manifest and pinned GitHub Actions workflow;
 - strict participant intake limited to `candidate/`;
 - optional typed SHA-1 collision-witness verification;
-- a three-stage structured judge with OpenRouter/Sol and Amazon Bedrock/Opus backends;
+- a three-stage judge with OpenRouter/Sol and Amazon Bedrock/Opus or Sol backends;
 - four versioned prompt strategies and a configurable three-model committee;
 - deterministic, fail-closed aggregation and trusted score emission; and
-- 70 credential-free tests plus targeted live OpenRouter calibration.
+- 88 credential-free tests plus targeted live provider calibration.
 
 The workflow remains intentionally single-judge by default while committees are
 calibrated. Repository variable `HASHSMASH_JUDGE_PROVIDER=bedrock` selects Bedrock without
 exposing the OpenRouter secret to that workflow step. Committee mode is implemented and
 locally selectable through strict provider-specific JSON profiles. Production remains
-gated on cryptographer ratification, selected-provider credentials and model access, a
-GitHub repository and dev App installation, and an allowlisted Yukon dev importer
+gated on cryptographer ratification, selected-provider validation, dev App access to the
+existing GitHub repository, and an allowlisted Yukon dev importer
 credential. See `MVP_VALIDATION.md` for the current evidence and exact blockers.
+
+Bedrock Sol uses the Responses API with a versioned prompt-supplied JSON schema and the
+same strict local validation, while Claude retains Converse structured output. Select
+Sol explicitly with `HASHSMASH_BEDROCK_MODEL=us.openai.gpt-5.6-sol`; the default model and
+existing committee profiles remain unchanged. The Responses request disables stored
+conversation state (`store=false`) and enables no tools. This does not replace a review
+of the account's AWS data-retention and abuse-monitoring settings.
 
 ## Executive recommendation
 

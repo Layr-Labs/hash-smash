@@ -50,6 +50,16 @@ For Amazon Bedrock, place the API key in AWS's standard
 bash scripts/run-local-bedrock.sh
 ```
 
+For GPT-5.6 Sol on Bedrock (the override wins over `.env` model settings):
+
+```bash
+bash .yukon/setup.sh
+bash scripts/run-local-bedrock.sh --model us.openai.gpt-5.6-sol --region us-east-1
+```
+
+This selects Bedrock Runtime's Responses API. Claude continues to use Converse.
+The existing Bedrock key must have Sol inference-profile and default-project access.
+
 The scripts load `.env` without printing it, validate `candidate/`, send the inert proof
 evidence to the selected provider, aggregate the structured reviews, and write a score
 only if the result is `ai_qualified`. Reports are written under `.yukon/reports/` and are
@@ -68,8 +78,11 @@ and give technical-blocker and clarification results veto power. The script sele
 appropriate one-attempt calibration profile; production profiles allow bounded retries.
 
 Provider choice, model IDs, regions, and privacy or routing settings are controlled through
-environment variables documented in [`judge/README.md`](./judge/README.md). Both backends
-use JSON-schema structured output followed by the same strict local validation. OpenRouter
+environment variables documented in [`judge/README.md`](./judge/README.md). OpenRouter and
+Bedrock Claude use provider JSON-schema output. Bedrock Sol receives the schema in trusted
+instructions because this route does not advertise constrained structured outputs. Every
+route enforces the same strict local schema and semantic validation; Sol output is never
+repaired or accepted merely because it parses. OpenRouter
 requests Zero Data Retention by default. Do not disable it unless the proof package is
 approved for OpenRouter's non-ZDR retention policy.
 

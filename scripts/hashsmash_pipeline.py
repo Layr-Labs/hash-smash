@@ -20,7 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from judge.bedrock_adapter import BedrockClient, BedrockConfig  # noqa: E402
+from judge.bedrock_adapter import BedrockClient, BedrockConfig, bedrock_system_prompt  # noqa: E402
 from judge.committee import (  # noqa: E402
     DEFAULT_BEDROCK_COMMITTEE_PATH,
     DEFAULT_COMMITTEE_PATH,
@@ -140,9 +140,15 @@ def _safe_config(config: Any) -> dict[str, Any]:
     value = asdict(config)
     value.pop("api_key", None)
     value["prompt_sha256"] = {
-        stage: sha256_bytes(load_system_prompt(stage, config.strategy).encode("utf-8"))
+        stage: sha256_bytes(
+            (bedrock_system_prompt(config, stage) if isinstance(config, BedrockConfig)
+             else load_system_prompt(stage, config.strategy)).encode("utf-8")
+        )
         for stage in ("triage", "correctness", "complexity")
     }
+    if isinstance(config, BedrockConfig):
+        value["api"] = config.api
+        value["endpoint"] = config.endpoint
     value["review_schema_sha256"] = sha256_bytes(
         (REPO_ROOT / "schemas" / "review-v1.schema.json").read_bytes()
     )

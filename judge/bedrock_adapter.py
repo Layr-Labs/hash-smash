@@ -1,4 +1,4 @@
-"""Amazon Bedrock Converse adapter for strict HashSmash reviews.
+"""Amazon Bedrock Converse/Responses adapter for strict HashSmash reviews.
 
 This uses Bedrock API-key bearer authentication directly over HTTPS so the judge keeps
 its standard-library-only runtime.  Local validation remains authoritative even when
@@ -15,9 +15,10 @@ import time
 import urllib.parse
 from copy import deepcopy
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Mapping
 
-from .prompts import DEFAULT_STRATEGY, build_messages, load_strategy_prompt
+from .prompts import DEFAULT_STRATEGY, build_messages, load_strategy_prompt, load_system_prompt
 from .provider_adapter import (
     HttpResponse,
     JudgeInfraError,
@@ -32,6 +33,8 @@ from .schema_validation import load_review_schema, validate_review
 
 DEFAULT_BEDROCK_MODEL = "us.anthropic.claude-opus-4-6-v1"
 DEFAULT_BEDROCK_REGION = "us-east-1"
+BEDROCK_SOL_MODELS = {"us.openai.gpt-5.6-sol", "global.openai.gpt-5.6-sol"}
+SOL_OUTPUT_CONTRACT = Path(__file__).resolve().with_name("prompts") / "bedrock-sol-json-v1.md"
 BEDROCK_REASONING_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 REGION_RE = re.compile(r"[a-z]{2}(?:-gov)?-[a-z]+-\d+\Z")
 
@@ -95,7 +98,7 @@ def _retry_after(headers: Mapping[str, str], maximum: float) -> float | None:
     return min(seconds, maximum)
 
 
-def _safe_bedrock_error(response: HttpResponse) -> str:
+def _safe_bedrock_error(response: HttpResponse, api_key: str) -> str:
     """Extract only bounded AWS error identifiers and messages."""
 
     try:
@@ -104,16 +107,45 @@ def _safe_bedrock_error(response: HttpResponse) -> str:
         return ""
     if not isinstance(payload, dict):
         return ""
+    if isinstance(payload.get("error"), dict):
+        payload = payload["error"]
     error_type = payload.get("__type") or payload.get("code")
     message = payload.get("message") or payload.get("Message")
     parts: list[str] = []
     if isinstance(error_type, (str, int)) and not isinstance(error_type, bool):
-        parts.append(f"type={str(error_type)[:120]}")
+        parts.append(f"type={str(error_type).replace(api_key, '[REDACTED]')[:120]}")
     if isinstance(message, str):
-        normalized = " ".join(message.split())
+        normalized = " ".join(message.replace(api_key, "[REDACTED]").split())
         if normalized:
             parts.append(f"message={normalized[:300]}")
     return f" ({'; '.join(parts)})" if parts else ""
+
+
+def _strict_json(text: str) -> Any:
+    """Reject ambiguous JSON rather than repairing unconstrained model output."""
+
+    def object_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate JSON property")
+            result[key] = value
+        return result
+
+    def invalid_constant(_: str) -> None:
+        raise ValueError("non-finite JSON constant")
+
+    return json.loads(text, object_pairs_hook=object_pairs, parse_constant=invalid_constant)
+
+
+def bedrock_system_prompt(config: "BedrockConfig", stage: str) -> str:
+    """Include the Sol JSON contract in the actual prompt and its provenance hash."""
+    prompt = load_system_prompt(stage, config.strategy)
+    if config.api == "responses":
+        schema = _schema_for_stage(load_review_schema(), stage)
+        prompt += "\n\n" + SOL_OUTPUT_CONTRACT.read_text(encoding="utf-8").strip()
+        prompt += "\n\n" + json.dumps(schema, ensure_ascii=True, sort_keys=True)
+    return prompt
 
 
 @dataclass(frozen=True)
@@ -140,6 +172,10 @@ class BedrockConfig:
             raise ValueError("Amazon Bedrock API key is required")
         if not self.model or len(self.model) > 2048 or any(char.isspace() for char in self.model):
             raise ValueError("Amazon Bedrock model ID is invalid")
+        if "openai.gpt-5.6" in self.model and self.model not in BEDROCK_SOL_MODELS:
+            raise ValueError(
+                "Bedrock Sol requires us.openai.gpt-5.6-sol or global.openai.gpt-5.6-sol"
+            )
         if not REGION_RE.fullmatch(self.region):
             raise ValueError("Amazon Bedrock region is invalid")
         if self.max_attempts < 1:
@@ -152,13 +188,23 @@ class BedrockConfig:
             raise ValueError("temperature must be between 0 and 1")
         if (
             self.reasoning_effort is not None
-            and self.reasoning_effort not in BEDROCK_REASONING_EFFORTS
+            and self.reasoning_effort not in (
+                BEDROCK_REASONING_EFFORTS | ({"none"} if self.api == "responses" else set())
+            )
         ):
             raise ValueError("Bedrock reasoning_effort is not supported")
+        if self.api == "responses" and self.temperature is not None:
+            raise ValueError("Bedrock Sol temperature must be unset; use reasoning_effort")
         load_strategy_prompt(self.strategy)
 
     @property
+    def api(self) -> str:
+        return "responses" if self.model in BEDROCK_SOL_MODELS else "converse"
+
+    @property
     def endpoint(self) -> str:
+        if self.api == "responses":
+            return f"https://bedrock-runtime.{self.region}.amazonaws.com/openai/v1/responses"
         model_path = urllib.parse.quote(self.model, safe="")
         return (
             f"https://bedrock-runtime.{self.region}.amazonaws.com/"
@@ -171,11 +217,13 @@ class BedrockConfig:
         model = os.environ.get("HASHSMASH_BEDROCK_MODEL") or DEFAULT_BEDROCK_MODEL
         effort = os.environ.get("HASHSMASH_REASONING_EFFORT")
         if effort is None:
-            effort = "high" if "anthropic.claude" in model else None
-        elif effort.strip().lower() in {"", "none", "none-disabled", "off"}:
+            effort = "high" if "anthropic.claude" in model or model in BEDROCK_SOL_MODELS else None
+        elif effort.strip().lower() in {"", "none-disabled", "off"}:
             effort = None
         else:
             effort = effort.strip().lower()
+            if effort == "none" and model not in BEDROCK_SOL_MODELS:
+                effort = None
         return cls(
             api_key=api_key,
             model=model,
@@ -217,6 +265,19 @@ class BedrockClient:
 
     def _request_body(self, stage: str, evidence: Mapping[str, Any]) -> bytes:
         messages = build_messages(stage, evidence, self.config.strategy)
+        if self.config.api == "responses":
+            # Bedrock runtime does not advertise Sol structured outputs. Supply the
+            # schema as trusted instructions; the full local validator is mandatory.
+            body: dict[str, Any] = {
+                "model": self.config.model,
+                "instructions": bedrock_system_prompt(self.config, stage),
+                "input": [messages[1]],
+                "max_output_tokens": self.config.max_tokens,
+                "store": False,
+            }
+            if self.config.reasoning_effort is not None:
+                body["reasoning"] = {"effort": self.config.reasoning_effort}
+            return json.dumps(body, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
         response_schema = _bedrock_schema_for_stage(self.schema, stage)
         body: dict[str, Any] = {
             "system": [{"text": messages[0]["content"]}],
@@ -247,7 +308,7 @@ class BedrockClient:
         }
         if self.config.temperature is not None:
             body["inferenceConfig"]["temperature"] = self.config.temperature
-        if self.config.reasoning_effort is not None:
+        if self.config.reasoning_effort is not None and "anthropic.claude" in self.config.model:
             body["additionalModelRequestFields"] = {
                 "thinking": {"type": "adaptive"},
                 "output_config": {"effort": self.config.reasoning_effort},
@@ -266,6 +327,8 @@ class BedrockClient:
         return exponential * (0.75 + 0.5 * self.random_source())
 
     def _parse_response(self, response: HttpResponse, stage: str) -> ReviewResult:
+        if self.config.api == "responses":
+            return self._parse_sol_response(response, stage)
         try:
             payload = json.loads(response.body.decode("utf-8"))
             if not isinstance(payload, dict):
@@ -305,6 +368,8 @@ class BedrockClient:
             review=review,
             provenance={
                 "provider": "amazon-bedrock",
+                "api": "converse",
+                "output_validation": "provider-json-schema-and-local",
                 "requested_model": self.config.model,
                 "returned_model": self.config.model,
                 "response_id": _header(response.headers, "x-amzn-requestid"),
@@ -313,6 +378,82 @@ class BedrockClient:
                 "metrics": metrics,
                 "strategy": self.config.strategy,
                 "reasoning_effort": self.config.reasoning_effort,
+            },
+        )
+
+    def _parse_sol_response(self, response: HttpResponse, stage: str) -> ReviewResult:
+        try:
+            payload = _strict_json(response.body.decode("utf-8"))
+            if not isinstance(payload, dict):
+                raise ValueError("root is not an object")
+            if payload.get("status") != "completed":
+                raise ValueError("response did not complete")
+            if payload.get("error") is not None or payload.get("incomplete_details") is not None:
+                raise ValueError("response reports an error or incomplete output")
+            returned_model = payload.get("model")
+            if returned_model not in BEDROCK_SOL_MODELS | {"openai.gpt-5.6-sol", "gpt-5.6-sol"}:
+                raise ValueError("response model does not match Sol")
+            response_id = payload.get("id")
+            if not isinstance(response_id, str) or not response_id:
+                raise ValueError("response ID is missing")
+            output = payload.get("output")
+            if not isinstance(output, list):
+                raise ValueError("output is not an array")
+            texts: list[str] = []
+            for item in output:
+                if not isinstance(item, dict):
+                    raise ValueError("invalid output item")
+                if item.get("type") == "reasoning":
+                    continue  # Never publish internal reasoning or encrypted content.
+                if (
+                    item.get("type") != "message"
+                    or item.get("role") != "assistant"
+                    or item.get("status") != "completed"
+                ):
+                    raise ValueError("unexpected tool, role, or incomplete message")
+                content = item.get("content")
+                if not isinstance(content, list) or len(content) != 1:
+                    raise ValueError("expected one message content block")
+                block = content[0]
+                if (
+                    not isinstance(block, dict)
+                    or block.get("type") != "output_text"
+                    or not isinstance(block.get("text"), str)
+                ):
+                    raise ValueError("refused or non-text response")
+                texts.append(block["text"])
+            if len(texts) != 1:
+                raise ValueError("expected exactly one JSON review")
+            review = _strict_json(texts[0])
+            if isinstance(review, dict):
+                review.setdefault("decision", None)
+                review.setdefault("verdict", None)
+                review.setdefault("submitted_cost", None)
+                review.setdefault("recomputed_cost", None)
+                review.setdefault("calculation_trace", [])
+            validate_review(review, expected_stage=stage, schema=self.schema)
+            usage = payload.get("usage", {})
+            if not isinstance(usage, dict):
+                raise ValueError("usage is not an object")
+        except (KeyError, TypeError, ValueError, UnicodeDecodeError) as exc:
+            reason = str(exc).replace(self.config.api_key, "[REDACTED]")
+            raise JudgeInfraError(f"Amazon Bedrock returned an invalid Sol response: {reason}") from exc
+
+        return ReviewResult(
+            review=review,
+            provenance={
+                "provider": "amazon-bedrock",
+                "api": "responses",
+                "output_validation": "prompt-json-schema-and-local",
+                "requested_model": self.config.model,
+                "returned_model": returned_model,
+                "response_id": response_id,
+                "aws_request_id": _header(response.headers, "x-amzn-requestid"),
+                "region": self.config.region,
+                "usage": usage,
+                "strategy": self.config.strategy,
+                "reasoning_effort": self.config.reasoning_effort,
+                "store": False,
             },
         )
 
@@ -353,7 +494,7 @@ class BedrockClient:
             if response.status < 200 or response.status > 299:
                 raise JudgeInfraError(
                     f"Amazon Bedrock non-retryable HTTP status {response.status}"
-                    f"{_safe_bedrock_error(response)}",
+                    f"{_safe_bedrock_error(response, self.config.api_key)}",
                     attempts=attempt,
                 )
 

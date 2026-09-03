@@ -8,9 +8,12 @@ The Yukon-compatible MVP passes its complete offline suite. It has interchangeab
 OpenRouter and Amazon Bedrock provider backends behind the same judge, aggregation, and
 score interface. Live OpenRouter calibration established that Sol can perform the full
 three-stage review and that each proposed OpenRouter committee member can produce valid
-structured reviews for the current public fixture. Bedrock is fully tested with fake HTTP
-transports but has not been exercised live because no `AWS_BEARER_TOKEN_BEDROCK` is present
-in the local `.env`.
+structured reviews for the current public fixture. Bedrock Sol now also passes its live
+smoke test and full three-stage pipeline, returning `ai_qualified` and generating the
+Yukon score `179.0`. All three calls succeeded on their first attempts. The earlier
+Bedrock Opus run completed its three reviews but correctly withheld a score because
+triage misspelled the canonical target-profile identifier; that historical result is
+retained below rather than reclassified as a pass.
 
 The checked-in deterministic radix-sort fixture is mechanically valid and claims the
 lower-is-better score `179.0` (`log2(time) = 92`, `log2(memory bytes) = 87`). This is an
@@ -20,11 +23,11 @@ human acceptance.
 
 ## Offline tests
 
-`bash .yukon/setup.sh` passes 70 credential-free tests:
+`bash .yukon/setup.sh` passes 88 credential-free tests:
 
 - 19 deterministic verifier tests;
-- 45 judge, schema, fake-provider, and committee tests; and
-- 6 repository-level Yukon and pipeline tests.
+- 61 judge, schema, fake-provider, and committee tests; and
+- 8 repository-level Yukon and pipeline tests.
 
 The verifier tests cover closed schemas, filesystem and size restrictions, line-numbered
 proof intake, optional certificate checking, and the exact AI-qualification score gate.
@@ -35,6 +38,10 @@ infrastructure-failure handling. Bedrock coverage additionally checks bearer
 authentication, regional endpoint construction, Converse request and response shapes,
 wire-schema adaptation, adaptive reasoning configuration, retry behavior, bounded error
 reporting, provider selection, and a complete mocked three-stage aggregation.
+Sol coverage adds Responses request/response handling, prompt-supplied schemas, refusal
+and truncation rejection, strict JSON parsing, returned-model checks, no stored
+conversation state, effective prompt hashing, removal of stale scores after failure,
+and an independent mixed Sol/Claude committee with three prompting strategies.
 
 The optional `sha1-collision-witness-v1` checker was also exercised outside the repository
 against the published SHAttered PDF pair. It accepted the distinct files with their common
@@ -121,14 +128,82 @@ The GitHub Actions judge job selects Bedrock when repository variable
 steps, so only the chosen provider secret is exposed. Bedrock committee profiles run Opus
 4.6 independently with formal-proof, adversarial, and cost-skeptic strategies.
 
-The next live check is deliberately only a one-stage smoke test:
+The live smoke test succeeded on its first attempt:
 
 ```sh
 bash scripts/run-bedrock-smoke.sh --stage triage --max-attempts 1
 ```
 
-It is blocked only on adding a valid `AWS_BEARER_TOKEN_BEDROCK` to `.env` and having model
-access in the configured AWS region.
+It returned a schema-valid `pass_to_review`. The subsequent full local run used
+`bash scripts/run-local-bedrock.sh` with the checked-in fixture, the US Opus 4.6 inference
+profile, `us-east-1`, formal-proof prompting, and high reasoning effort:
+
+| Stage | Result | Attempts | Client latency | Total tokens |
+| --- | --- | ---: | ---: | ---: |
+| Triage | `pass_to_review` | 1 | 58.2 s | 9,507 |
+| Correctness | `supported` | 1 | 144.3 s | 13,809 |
+| Complexity | `supported` | 1 | 234.4 s | 19,841 |
+
+The full panel consumed 43,157 reported tokens and approximately 7 minutes 17 seconds of
+client request time. These figures exclude the separate smoke call. There were no provider,
+authentication, schema, truncation, or retry failures in the full panel, and all recorded
+issues were minor.
+
+The triage review transcribed the target as `sha1-fip180-4-v1`, omitting the `s` in
+`sha1-fips180-4-v1`. The other reviews and deterministic intake used the correct identifier.
+Aggregation therefore returned `clarification_required`, and `.yukon/score.json` was not
+created. The response was not silently corrected and the proof was not changed to obtain a
+pass. This is a judge-output reliability issue to address during calibration, not a
+Bedrock access or transport blocker.
+
+The complexity reviewer proposed tighter resource bounds, but they were not promoted to a
+score. The original claim remains time exponent 92, memory exponent 87, and score 179.
+The complete validated reviews, AWS request IDs, token usage, and timing remain in ignored
+local artifacts under `.yukon/reports/`. A post-run credential scan found no configured API
+key outside `.env`.
+
+The initial sandbox-only request failed before reaching AWS. It also exposed a misleading
+OpenRouter-specific label in the shared HTTP transport; that label is now provider-neutral
+and covered by a credential-redaction regression test.
+
+## Live Bedrock Sol integration
+
+After the deterministic suite passed, the one-stage smoke used
+`us.openai.gpt-5.6-sol`, `us-east-1`, formal-proof prompting, high reasoning, and one
+attempt. It returned a locally schema-valid `pass_to_review` on its first attempt.
+The complete local pipeline then ran with:
+
+```sh
+bash scripts/run-local-bedrock.sh --model us.openai.gpt-5.6-sol --region us-east-1
+```
+
+| Stage | Result | Attempts | Client latency | Total tokens |
+| --- | --- | ---: | ---: | ---: |
+| Triage | `pass_to_review` | 1 | 47.1 s | 9,476 |
+| Correctness | `supported` | 1 | 42.1 s | 8,281 |
+| Complexity | `supported` | 1 | 99.6 s | 13,859 |
+
+The panel used 31,616 reported tokens (15,220 input, 16,396 output) and approximately
+3 minutes 9 seconds of client request time, excluding the separate smoke call. The
+actual returned model was `us.openai.gpt-5.6-sol` in all three stages. There were no
+retries, infrastructure failures, refusals, truncations, or local validation failures.
+Triage recorded two minor evidence/accounting notes; both specialists reported no issues.
+
+The adapter uses Bedrock Runtime's Responses API with `store=false`, no tools, and a
+versioned prompt-supplied schema. AWS does not advertise constrained structured outputs
+for this route; local JSON/schema/semantic checks remain mandatory. No claim identifiers,
+proof text, substantive verdicts, or score-gate rules were altered to obtain this result.
+
+Aggregation returned `ai_qualified`, and `.yukon/score.json` was emitted with the original
+submitted score **179.0**. The reviewer's tighter estimated resource bounds were recorded
+but did not replace the submitted score. This remains an explicitly heuristic generic
+birthday-search calibration fixture, not a novel attack or mathematically verified proof.
+
+The validated dossier is `.yukon/reports/judge-dossier.json`; the earlier Opus dossier was
+preserved in an ignored `previous-run.*` subdirectory before regenerating the standard
+outputs. This test used the local key only. No GitHub variables, secrets, deployments,
+workflow defaults, or existing committee profiles were changed. The mixed Sol/Claude
+committee was tested with mocked provider calls, not as a live committee calibration.
 
 ## Certificate conclusion
 
@@ -167,13 +242,13 @@ success-probability lower bounds are handled explicitly.
 - Decide how an improving AI-qualified entry is held for mandatory human review.
 - Calibrate false-positive and false-negative rates on known-good, flawed, ambiguous, and
   prompt-injection fixtures before opening the challenge.
-- Select the production provider. For OpenRouter, enable a ZDR-compatible route; for
-  Bedrock, complete the live smoke/panel calibration and confirm model access, region, data
-  governance, quotas, and cost.
+- Select the production provider/model. For OpenRouter, enable a ZDR-compatible route;
+  for Bedrock, broaden Sol/Opus panel calibration and confirm production region, data
+  governance, quotas, and cost. One Sol fixture pass is not a reliability measurement.
 - Configure only the selected GitHub Actions provider secret and repository permissions.
 - Complete the combined post-fix committee run and retain its calibration dossier.
-- Create the GitHub repository, install the Yukon dev GitHub App, obtain an allowlisted dev
-  importer API key, and run a non-ranking canary submission.
+- Grant the Yukon dev GitHub App access to the existing repository, obtain an allowlisted
+  dev importer API key, and run a non-ranking canary submission.
 
 The Yukon integration follows the
 [GitHub Actions benchmark author guide](https://github.com/Layr-Labs/yukon/blob/master/docs/github-actions-benchmark-author-guide.md)
