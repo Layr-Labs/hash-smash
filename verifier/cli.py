@@ -13,6 +13,7 @@ from .errors import VerificationError
 from .intake import validate_candidate
 from .io import canonical_json_bytes, load_json_bytes
 from .score import build_score
+from .tracks import get_track
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -31,23 +32,26 @@ def _parser() -> argparse.ArgumentParser:
     score.add_argument("--candidate", required=True, type=Path)
     score.add_argument("--aggregate", required=True, type=Path)
     score.add_argument("--output", required=True, type=Path)
+    for command in (intake, certificates, score):
+        command.add_argument("--track", help="explicit organizer-defined local track")
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = _parser().parse_args(argv)
     try:
+        track = get_track(arguments.track) if arguments.track else None
         if arguments.command == "intake":
-            result = validate_candidate(arguments.candidate, arguments.output_dir)
+            result = validate_candidate(arguments.candidate, arguments.output_dir, track=track)
         elif arguments.command == "certificates":
-            result = verify_certificates(arguments.candidate, arguments.output)
+            result = verify_certificates(arguments.candidate, arguments.output, track=track)
         else:
             try:
                 aggregate_data = arguments.aggregate.read_bytes()
             except OSError as error:
                 raise VerificationError(f"judge aggregate: could not read: {error}") from error
             aggregate = load_json_bytes(aggregate_data, "judge aggregate")
-            result = build_score(arguments.candidate, aggregate, arguments.output)
+            result = build_score(arguments.candidate, aggregate, arguments.output, track=track)
         sys.stdout.buffer.write(canonical_json_bytes(result))
         return 0
     except VerificationError as error:
@@ -60,4 +64,3 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
-

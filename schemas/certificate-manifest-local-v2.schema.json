@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hashsmash.example/schemas/certificate-manifest-local-v2.schema.json",
+  "title": "HashSmash local selected-target collision certificate manifest v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "certificates"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "certificates": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "message_a",
+          "message_b",
+          "expected_digest",
+          "target_profile"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+          },
+          "type": {
+            "const": "hash-collision-witness-v2"
+          },
+          "message_a": {
+            "type": "string",
+            "pattern": "^certificates/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+            "not": {
+              "const": "certificates/manifest.json"
+            }
+          },
+          "message_b": {
+            "type": "string",
+            "pattern": "^certificates/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+            "not": {
+              "const": "certificates/manifest.json"
+            }
+          },
+          "expected_digest": {
+            "type": "string",
+            "pattern": "^(?:[0-9a-f]{32}|[0-9a-f]{40}|[0-9a-f]{64})$"
+          },
+          "target_profile": {
+            "enum": [
+              "md5-s8-prefix-v1",
+              "md5-s24-prefix-v1",
+              "md5-s64-prefix-v1",
+              "sha1-r8-prefix-v1",
+              "sha1-r40-prefix-v1",
+              "sha1-r80-prefix-v1",
+              "sha256-r8-prefix-v1",
+              "sha256-r24-prefix-v1",
+              "sha256-r64-prefix-v1"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "description": "Python validation additionally binds target_profile and digest length to the organizer-selected track."
+}

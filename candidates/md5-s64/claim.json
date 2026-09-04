@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "submission_state": "draft",
+  "target_profile": "md5-s64-prefix-v1",
+  "attack_class": "ordinary-collision",
+  "rounds": 64,
+  "claim": {
+    "time_log2": 64,
+    "time_unit": "target-compressions",
+    "memory_log2_bytes": 64,
+    "data_log2": 64,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 0
+  },
+  "restrictions": [],
+  "baseline_improved": "md5-s64-nominal-v1",
+  "certificate_manifest": "certificates/manifest.json"
+}

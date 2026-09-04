@@ -9,6 +9,8 @@ from typing import Any, Mapping
 
 PROMPT_DIR = Path(__file__).resolve().with_name("prompts")
 STRATEGY_DIR = Path(__file__).resolve().with_name("strategies")
+QUALIFICATION_POLICY_ID = "unconditional-v1"
+POLICY_PATH = Path(__file__).resolve().with_name("policies") / f"{QUALIFICATION_POLICY_ID}.md"
 PROMPT_FILES = {
     "triage": "triage-v1.md",
     "correctness": "correctness-v1.md",
@@ -23,6 +25,11 @@ STRATEGY_FILES = {
     "cost-skeptic-v1": "cost-skeptic-v1.md",
 }
 DEFAULT_STRATEGY = "formal-proof-v1"
+
+
+def load_qualification_policy() -> str:
+    """Load organizer-owned policy, never policy supplied inside candidate evidence."""
+    return POLICY_PATH.read_text(encoding="utf-8").strip()
 
 
 def load_strategy_prompt(strategy: str) -> str:
@@ -41,10 +48,12 @@ def load_system_prompt(stage: str, strategy: str = DEFAULT_STRATEGY) -> str:
     except KeyError as exc:
         raise ValueError(f"unknown review stage: {stage!r}") from exc
     common = (PROMPT_DIR / "common-v1.md").read_text(encoding="utf-8").strip()
+    policy = load_qualification_policy()
+    tracks = (PROMPT_DIR / "local-tracks-v1.md").read_text(encoding="utf-8").strip()
     strategy_prompt = load_strategy_prompt(strategy)
     rubric = (PROMPT_DIR / stage_file).read_text(encoding="utf-8").strip()
     return (
-        f"{common}\n\nREVIEW STRATEGY: {strategy}\n\n{strategy_prompt}"
+        f"{common}\n\n{policy}\n\n{tracks}\n\nREVIEW STRATEGY: {strategy}\n\n{strategy_prompt}"
         f"\n\nREVIEW STAGE: {stage}\n\n{rubric}"
     )
 

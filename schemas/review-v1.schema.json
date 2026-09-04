@@ -105,6 +105,7 @@
     },
     "assumptions": {
       "type": "array",
+      "description": "Under qualification policy unconditional-v1, list only required unproved premises beyond the organizer's common problem definitions. A nonempty array blocks qualification. Proven lemmas and common model definitions belong in verified_steps instead.",
       "items": {
         "type": "object",
         "additionalProperties": false,

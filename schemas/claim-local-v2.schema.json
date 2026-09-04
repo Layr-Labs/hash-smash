@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hashsmash.example/schemas/claim-local-v2.schema.json",
+  "title": "HashSmash local multi-track claim v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "target_profile",
+    "attack_class",
+    "rounds",
+    "claim",
+    "restrictions",
+    "baseline_improved",
+    "submission_state"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "target_profile": {
+      "enum": [
+        "md5-s8-prefix-v1",
+        "md5-s24-prefix-v1",
+        "md5-s64-prefix-v1",
+        "sha1-r8-prefix-v1",
+        "sha1-r40-prefix-v1",
+        "sha1-r80-prefix-v1",
+        "sha256-r8-prefix-v1",
+        "sha256-r24-prefix-v1",
+        "sha256-r64-prefix-v1"
+      ]
+    },
+    "attack_class": {
+      "const": "ordinary-collision"
+    },
+    "rounds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 80
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "time_log2",
+        "time_unit",
+        "memory_log2_bytes",
+        "data_log2",
+        "preprocessing_log2",
+        "success_probability",
+        "nonuniform_advice_log2_bytes"
+      ],
+      "properties": {
+        "time_log2": {
+          "type": "number",
+          "minimum": 0
+        },
+        "time_unit": {
+          "const": "target-compressions"
+        },
+        "memory_log2_bytes": {
+          "type": "number",
+          "minimum": 0
+        },
+        "data_log2": {
+          "type": "number",
+          "minimum": 0
+        },
+        "preprocessing_log2": {
+          "type": "number",
+          "minimum": 0
+        },
+        "success_probability": {
+          "type": "number",
+          "minimum": 0.39,
+          "maximum": 1
+        },
+        "nonuniform_advice_log2_bytes": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "restrictions": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1024
+      }
+    },
+    "baseline_improved": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "certificate_manifest": {
+      "const": "certificates/manifest.json"
+    },
+    "submission_state": {
+      "enum": [
+        "draft",
+        "ready"
+      ]
+    }
+  },
+  "description": "Selected track is an organizer argument. Python validation additionally enforces the exact selected profile, rounds and reference id; this structural schema alone cannot choose a track."
+}

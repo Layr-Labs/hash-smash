@@ -1,7 +1,15 @@
 # HashSmash deterministic verifier
 
 This package is the credential-free, standard-library-only verification layer for the
-fixed `sha1-fips180-4-v1` / `ordinary-collision` / 80-round Yukon pilot.
+legacy `sha1-fips180-4-v1` / `ordinary-collision` / 80-round Yukon pilot, plus the nine
+explicitly selected local tracks in [LOCAL_TRACKS.md](../LOCAL_TRACKS.md).
+
+Add `--track md5-s8` (or another registered ID) to each CLI gate for local v2 inputs.
+That selection—not participant text—binds the target, round count, digest width, units
+and nominal reference. `hash-collision-witness-v2` supports the selected complete-message
+hash through the organizer-owned reference implementation. No candidate code executes.
+Local scores additionally require `submission_state: ready` and a matching reviewed
+package/configuration fingerprint. Draft and nominal-reference values never emit scores.
 
 Run its three workflow gates from the repository root:
 

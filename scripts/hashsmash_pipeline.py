@@ -11,7 +11,7 @@ import argparse
 import json
 import os
 import sys
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -28,7 +28,9 @@ from judge.committee import (  # noqa: E402
     member_client_config,
     run_committee,
 )
-from judge.prompts import load_system_prompt  # noqa: E402
+from judge.prompts import (  # noqa: E402
+    QUALIFICATION_POLICY_ID, load_qualification_policy, load_system_prompt,
+)
 from judge.provider_adapter import OpenRouterClient, OpenRouterConfig  # noqa: E402
 from judge.run_review import run_mvp  # noqa: E402
 from verifier.certificates import verify_certificates  # noqa: E402
@@ -41,6 +43,8 @@ from verifier.io import (  # noqa: E402
     sha256_bytes,
 )
 from verifier.score import build_score  # noqa: E402
+from verifier.tracks import Track, get_track  # noqa: E402
+from scripts.local_state import TrackBusyError, track_session  # noqa: E402
 
 
 CANDIDATE_ROOT = REPO_ROOT / "candidate"
@@ -62,6 +66,38 @@ GENERATED_FILES = (
 )
 
 
+@dataclass(frozen=True)
+class RunPaths:
+    candidate: Path
+    work: Path
+    reports: Path
+    score: Path
+    evidence: Path
+    dossier: Path
+    aggregate: Path
+    track: Track | None = None
+
+    @property
+    def generated(self) -> tuple[Path, ...]:
+        return (self.score, self.work / "intake-report.json", self.work / "proof-numbered.md",
+                self.work / "certificate-report.json", self.evidence, self.dossier, self.aggregate)
+
+    @classmethod
+    def for_track(cls, track: Track, *, state_root: Path | None = None, candidate: Path | None = None) -> "RunPaths":
+        root = state_root if state_root is not None else REPO_ROOT / ".yukon"
+        work, reports = root / "work" / "tracks" / track.id, root / "reports" / "tracks" / track.id
+        return cls(candidate if candidate is not None else track.candidate,
+                   work, reports, root / "scores" / f"{track.id}.json",
+                   work / "judge-evidence.json", reports / "judge-dossier.json",
+                   reports / "aggregate.json", track)
+
+
+def _paths(paths: RunPaths | None) -> RunPaths:
+    # Legacy default remains unchanged for the existing single-track Yukon workflow.
+    return paths or RunPaths(CANDIDATE_ROOT, WORK_ROOT, REPORT_ROOT, SCORE_PATH,
+                             EVIDENCE_PATH, DOSSIER_PATH, AGGREGATE_PATH)
+
+
 def _display_path(path: Path) -> str:
     try:
         return str(path.relative_to(REPO_ROOT))
@@ -71,11 +107,11 @@ def _display_path(path: Path) -> str:
 
 def _load_json(path: Path) -> dict[str, Any]:
     try:
-        value = load_json_bytes(path.read_bytes(), str(path.relative_to(REPO_ROOT)))
+        value = load_json_bytes(path.read_bytes(), _display_path(path))
     except OSError as error:
-        raise VerificationError(f"could not read {path.relative_to(REPO_ROOT)}: {error}") from error
+        raise VerificationError(f"could not read {_display_path(path)}: {error}") from error
     if not isinstance(value, dict):
-        raise VerificationError(f"{path.relative_to(REPO_ROOT)}: JSON root must be an object")
+        raise VerificationError(f"{_display_path(path)}: JSON root must be an object")
     return value
 
 
@@ -87,12 +123,17 @@ def _remove_known_outputs(paths: Sequence[Path]) -> None:
 
 
 def _build_evidence(
-    intake_report: Mapping[str, Any], certificate_report: Mapping[str, Any]
+    intake_report: Mapping[str, Any], certificate_report: Mapping[str, Any], paths: RunPaths | None = None,
 ) -> dict[str, Any]:
+    p = _paths(paths)
     try:
-        numbered_proof = (WORK_ROOT / "proof-numbered.md").read_text(encoding="utf-8")
+        numbered_proof = (p.work / "proof-numbered.md").read_text(encoding="utf-8")
     except OSError as error:
         raise VerificationError(f"could not read numbered proof: {error}") from error
+    if sha256_bytes(numbered_proof.encode()) != intake_report["proof"]["line_numbered_sha256"]:
+        raise VerificationError("numbered proof does not match current intake")
+    if intake_report["package_sha256"] != certificate_report["package_sha256"]:
+        raise VerificationError("candidate changed between intake and certificate verification")
     return {
         "schema_version": "hashsmash-evidence-v1",
         "submission": {
@@ -100,7 +141,7 @@ def _build_evidence(
             "proof_markdown_line_numbered": numbered_proof,
             "certificate_report": dict(certificate_report),
         },
-        "benchmark": {
+        "benchmark": p.track.benchmark() if p.track else {
             "target_profile": _load_json(
                 REPO_ROOT / "target-profiles" / "sha1-fips180-4-v1.json"
             ),
@@ -114,31 +155,37 @@ def _build_evidence(
     }
 
 
-def run_intake() -> int:
-    _remove_known_outputs(GENERATED_FILES)
-    intake_report = validate_candidate(CANDIDATE_ROOT, WORK_ROOT)
+def run_intake(paths: RunPaths | None = None) -> int:
+    p = _paths(paths)
+    _remove_known_outputs(p.generated)
+    intake_report = validate_candidate(p.candidate, p.work, track=p.track)
     certificate_report = verify_certificates(
-        CANDIDATE_ROOT, WORK_ROOT / "certificate-report.json"
+        p.candidate, p.work / "certificate-report.json", track=p.track,
     )
-    evidence = _build_evidence(intake_report, certificate_report)
-    atomic_write_json(EVIDENCE_PATH, evidence)
+    evidence = _build_evidence(intake_report, certificate_report, p)
+    atomic_write_json(p.evidence, evidence)
+    draft = p.track is not None and intake_report["submission_state"] == "draft"
     print(
         json.dumps(
             {
-                "status": "mechanically_valid",
+                "status": "draft_not_submitted" if draft else "mechanically_valid",
                 "package_sha256": intake_report["package_sha256"],
                 "certificates_verified": len(certificate_report["certificates"]),
-                "evidence": _display_path(EVIDENCE_PATH),
+                "evidence": _display_path(p.evidence),
             },
             sort_keys=True,
         )
     )
-    return 0
+    return 2 if draft else 0
 
 
 def _safe_config(config: Any) -> dict[str, Any]:
     value = asdict(config)
     value.pop("api_key", None)
+    value["qualification_policy_id"] = QUALIFICATION_POLICY_ID
+    value["qualification_policy_sha256"] = sha256_bytes(
+        load_qualification_policy().encode("utf-8")
+    )
     value["prompt_sha256"] = {
         stage: sha256_bytes(
             (bedrock_system_prompt(config, stage) if isinstance(config, BedrockConfig)
@@ -164,16 +211,17 @@ def _provider_from_env() -> tuple[str, Any, Any]:
     raise ValueError("HASHSMASH_JUDGE_PROVIDER must be 'openrouter' or 'bedrock'")
 
 
-def _write_infrastructure_failure(reason: str) -> None:
+def _write_infrastructure_failure(reason: str, paths: RunPaths | None = None) -> None:
+    p = _paths(paths)
     aggregate = {
         "status": "judge_infra_failed",
         "reasons": [reason],
         "claim": None,
         "recomputed_cost": None,
     }
-    atomic_write_json(AGGREGATE_PATH, aggregate)
+    atomic_write_json(p.aggregate, aggregate)
     atomic_write_json(
-        DOSSIER_PATH,
+        p.dossier,
         {
             "schema_version": "judge-dossier-v1",
             "aggregate": aggregate,
@@ -184,9 +232,23 @@ def _write_infrastructure_failure(reason: str) -> None:
     )
 
 
-def run_judge() -> int:
-    _remove_known_outputs((SCORE_PATH, DOSSIER_PATH, AGGREGATE_PATH))
-    evidence = _load_json(EVIDENCE_PATH)
+def _check_current_evidence(p: RunPaths, evidence: Mapping[str, Any]) -> None:
+    if p.track is None:
+        return
+    intake = validate_candidate(p.candidate, track=p.track)
+    if intake["submission_state"] != "ready":
+        raise VerificationError("draft templates are not submitted to the judge")
+    certificates = verify_certificates(p.candidate, track=p.track)
+    current = _build_evidence(intake, certificates, p)
+    if canonical_json_bytes(current) != canonical_json_bytes(evidence):
+        raise VerificationError("stale or mismatched evidence: rerun intake for this track")
+
+
+def run_judge(paths: RunPaths | None = None) -> int:
+    p = _paths(paths)
+    _remove_known_outputs((p.score, p.dossier, p.aggregate))
+    evidence = _load_json(p.evidence)
+    _check_current_evidence(p, evidence)
     try:
         provider, base_config, client_factory = _provider_from_env()
         mode = os.environ.get("HASHSMASH_JUDGE_MODE", "single").strip().lower()
@@ -238,11 +300,19 @@ def run_judge() -> int:
             raise ValueError("HASHSMASH_JUDGE_MODE must be 'single' or 'committee'")
     except (OSError, ValueError) as error:
         reason = f"judge configuration failed: {type(error).__name__}: {error}"
-        _write_infrastructure_failure(reason)
+        _write_infrastructure_failure(reason, p)
         print(json.dumps({"status": "judge_infra_failed", "reason": reason}, sort_keys=True))
         return 3
 
     aggregate = dict(dossier["aggregate"])
+    if p.track:
+        safe_config["track_id"] = p.track.id
+        safe_config["target_config_sha256"] = p.track.config_sha256()
+        safe_config["claim_schema_sha256"] = sha256_bytes((REPO_ROOT / "schemas" / "claim-local-v2.schema.json").read_bytes())
+        safe_config["certificate_schema_sha256"] = sha256_bytes((REPO_ROOT / "schemas" / "certificate-manifest-local-v2.schema.json").read_bytes())
+        aggregate["input_package_sha256"] = evidence["submission"]["intake_report"]["package_sha256"]
+        aggregate["target_config_sha256"] = p.track.config_sha256()
+        aggregate["judge_evidence_sha256"] = sha256_bytes(canonical_json_bytes(evidence))
     config_hash = sha256_bytes(canonical_json_bytes(safe_config))
     dossier_core = {key: value for key, value in dossier.items() if key != "aggregate"}
     dossier_core["judge_configuration_sha256"] = config_hash
@@ -251,15 +321,15 @@ def run_judge() -> int:
     dossier["aggregate"] = aggregate
     dossier["judge_configuration"] = safe_config
 
-    atomic_write_json(DOSSIER_PATH, dossier)
-    atomic_write_json(AGGREGATE_PATH, aggregate)
+    atomic_write_json(p.dossier, dossier)
+    atomic_write_json(p.aggregate, aggregate)
     status = aggregate["status"]
     print(
         json.dumps(
             {
                 "status": status,
                 "judge": judge_label,
-                "dossier": _display_path(DOSSIER_PATH),
+                "dossier": _display_path(p.dossier),
             },
             sort_keys=True,
         )
@@ -271,16 +341,22 @@ def run_judge() -> int:
     return 2
 
 
-def run_score() -> int:
-    SCORE_PATH.unlink(missing_ok=True)
-    aggregate = _load_json(AGGREGATE_PATH)
-    score = build_score(CANDIDATE_ROOT, aggregate, SCORE_PATH)
+def run_score(paths: RunPaths | None = None) -> int:
+    p = _paths(paths)
+    p.score.unlink(missing_ok=True)
+    aggregate = _load_json(p.aggregate)
+    if p.track:
+        evidence = _load_json(p.evidence)
+        _check_current_evidence(p, evidence)
+        if aggregate.get("judge_evidence_sha256") != sha256_bytes(canonical_json_bytes(evidence)):
+            raise VerificationError("judge aggregate does not bind this evidence")
+    score = build_score(p.candidate, aggregate, p.score, track=p.track)
     print(
         json.dumps(
             {
                 "status": "scored",
                 "score": score["score"],
-                "output": _display_path(SCORE_PATH),
+                "output": _display_path(p.score),
             },
             sort_keys=True,
         )
@@ -288,11 +364,12 @@ def run_score() -> int:
     return 0
 
 
-def render_summary() -> str:
-    aggregate = _load_json(AGGREGATE_PATH)
+def render_summary(paths: RunPaths | None = None) -> str:
+    p = _paths(paths)
+    aggregate = _load_json(p.aggregate)
     lines = ["## HashSmash review", "", f"Status: `{aggregate['status']}`"]
-    if SCORE_PATH.exists():
-        score = _load_json(SCORE_PATH)
+    if p.score.exists():
+        score = _load_json(p.score)
         lines.extend(("", f"Yukon score: `{score['score']}` (lower is better)"))
     reasons = aggregate.get("reasons")
     if isinstance(reasons, list) and reasons:
@@ -307,45 +384,64 @@ def render_summary() -> str:
     return "\n".join(lines) + "\n"
 
 
-def run_all() -> int:
-    intake_status = run_intake()
+def run_all(paths: RunPaths | None = None) -> int:
+    p = _paths(paths)
+    intake_status = run_intake(p)
     if intake_status:
         return intake_status
-    judge_status = run_judge()
+    judge_status = run_judge(p)
     if judge_status:
-        print(render_summary(), end="")
+        print(render_summary(p), end="")
         return judge_status
-    score_status = run_score()
-    print(render_summary(), end="")
+    score_status = run_score(p)
+    print(render_summary(p), end="")
     return score_status
 
 
 def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the HashSmash Yukon MVP")
     parser.add_argument("command", choices=("intake", "judge", "score", "summary", "all"))
+    parser.add_argument("--track", help="explicit local track; omission keeps the legacy Yukon pilot")
     return parser.parse_args(argv)
+
+
+def _execute(command: str, p: RunPaths, record: dict | None = None) -> int:
+    try:
+        if command == "intake":
+            return run_intake(p)
+        if command == "judge":
+            return run_judge(p)
+        if command == "score":
+            return run_score(p)
+        if command == "summary":
+            print(render_summary(p), end="")
+            return 0
+        return run_all(p)
+    except VerificationError as error:
+        p.score.unlink(missing_ok=True)
+        if record is not None:
+            record.update(error_category="verification_failed", error=str(error))
+        print(f"verification failed: {error}", file=sys.stderr)
+        return 2
+    except OSError as error:
+        p.score.unlink(missing_ok=True)
+        if record is not None:
+            record.update(error_category="infrastructure_failed", error=str(error))
+        print(f"pipeline infrastructure error: {error}", file=sys.stderr)
+        return 3
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parse_args(argv)
     try:
-        if args.command == "intake":
-            return run_intake()
-        if args.command == "judge":
-            return run_judge()
-        if args.command == "score":
-            return run_score()
-        if args.command == "summary":
-            print(render_summary(), end="")
-            return 0
-        return run_all()
-    except VerificationError as error:
-        SCORE_PATH.unlink(missing_ok=True)
-        print(f"verification failed: {error}", file=sys.stderr)
-        return 2
-    except OSError as error:
-        SCORE_PATH.unlink(missing_ok=True)
-        print(f"pipeline infrastructure error: {error}", file=sys.stderr)
+        p = RunPaths.for_track(get_track(args.track)) if args.track else _paths(None)
+        with track_session(p, args.command) as record:
+            result = _execute(args.command, p, record)
+            record["exit_code"] = result
+            return result
+    except (TrackBusyError, VerificationError, OSError) as error:
+        # Unknown tracks and lock failures must not erase another run's score.
+        print(f"local run unavailable: {error}", file=sys.stderr)
         return 3
 
 

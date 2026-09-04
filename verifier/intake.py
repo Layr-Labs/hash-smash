@@ -31,6 +31,7 @@ from .io import (
     sha256_bytes,
 )
 from .schema_validation import validate_claim, validate_manifest
+from .tracks import Track
 
 
 def _scan_candidate(candidate: Path) -> dict[str, os.stat_result]:
@@ -142,7 +143,7 @@ def _file_limit(relative: str) -> int:
     return MAX_CERTIFICATE_FILE_BYTES
 
 
-def validate_candidate(candidate_root: str | os.PathLike[str], output_dir: str | os.PathLike[str] | None = None) -> dict[str, Any]:
+def validate_candidate(candidate_root: str | os.PathLike[str], output_dir: str | os.PathLike[str] | None = None, *, track: Track | None = None) -> dict[str, Any]:
     """Validate a candidate and optionally write the trusted intake artifacts.
 
     The candidate is never modified.  If ``output_dir`` is provided, the function
@@ -163,7 +164,7 @@ def validate_candidate(candidate_root: str | os.PathLike[str], output_dir: str |
         relative: _read_regular_file(candidate / relative, info, _file_limit(relative), relative)
         for relative, info in sorted(file_stats.items())
     }
-    claim = validate_claim(load_json_bytes(contents[CLAIM_PATH], CLAIM_PATH))
+    claim = validate_claim(load_json_bytes(contents[CLAIM_PATH], CLAIM_PATH), track=track)
 
     manifest_present = MANIFEST_PATH in contents
     manifest_declared = "certificate_manifest" in claim
@@ -177,7 +178,7 @@ def validate_candidate(candidate_root: str | os.PathLike[str], output_dir: str |
     manifest: dict[str, Any] | None = None
     declared_certificate_files: set[str] = set()
     if manifest_present:
-        manifest = validate_manifest(load_json_bytes(contents[MANIFEST_PATH], MANIFEST_PATH))
+        manifest = validate_manifest(load_json_bytes(contents[MANIFEST_PATH], MANIFEST_PATH), track=track)
         for certificate in manifest["certificates"]:
             declared_certificate_files.add(certificate["message_a"])
             declared_certificate_files.add(certificate["message_b"])
@@ -207,9 +208,9 @@ def validate_candidate(candidate_root: str | os.PathLike[str], output_dir: str |
         "schema_version": SCHEMA_VERSION,
         "status": "mechanically_valid",
         "track": {
-            "target_profile": TARGET_PROFILE,
+            "target_profile": track.profile_id if track else TARGET_PROFILE,
             "attack_class": ATTACK_CLASS,
-            "rounds": ROUNDS,
+            "rounds": track.rounds if track else ROUNDS,
         },
         "claim": claim,
         "certificate_manifest": manifest,
@@ -222,6 +223,10 @@ def validate_candidate(candidate_root: str | os.PathLike[str], output_dir: str |
         },
         "package_sha256": package_sha256,
     }
+    if track:
+        report["track"]["id"] = track.id
+        report["target_config_sha256"] = track.config_sha256()
+        report["submission_state"] = claim["submission_state"]
 
     if output_dir is not None:
         destination = Path(output_dir)

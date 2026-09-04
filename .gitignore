@@ -1,6 +1,7 @@
 .env
 .vscode/
 .yukon/score.json
+.yukon/scores/
 .yukon/reports/
 .yukon/work/
 __pycache__/

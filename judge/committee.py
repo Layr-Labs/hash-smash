@@ -13,6 +13,7 @@ from typing import Any, Callable, Mapping
 from .prompts import STRATEGY_FILES
 from .provider_adapter import OpenRouterClient, REASONING_EFFORTS
 from .run_review import run_mvp
+from .schema_validation import ReviewValidationError, validate_review
 
 
 DEFAULT_COMMITTEE_PATH = Path(__file__).resolve().with_name("committees") / "committee-v1.json"
@@ -222,8 +223,26 @@ def aggregate_committee(
 
     statuses: dict[str, str] = {}
     aggregates: dict[str, Mapping[str, Any]] = {}
+    assumption_vetoes: list[str] = []
     for member in config.members:
         dossier = member_dossiers[member.id]
+        # Qualification policy is not a configurable voting preference. Check even
+        # partial panels: a transport failure in one stage cannot erase another
+        # stage's valid finding of an unproved premise.
+        reviews = dossier.get("reviews", {})
+        if isinstance(reviews, Mapping):
+            for stage in ("triage", "correctness", "complexity"):
+                record = reviews.get(stage)
+                if not isinstance(record, Mapping):
+                    continue
+                try:
+                    reviewed = validate_review(dict(record), expected_stage=stage)
+                except (ReviewValidationError, TypeError, ValueError):
+                    continue
+                if reviewed["assumptions"] or any(
+                    issue["category"] == "unproved_assumption" for issue in reviewed["issues"]
+                ):
+                    assumption_vetoes.append(f"{member.id}/{stage}")
         aggregate = dossier.get("aggregate")
         if not isinstance(aggregate, Mapping):
             statuses[member.id] = "judge_infra_failed"
@@ -269,6 +288,9 @@ def aggregate_committee(
     elif blockers and config.policy.technical_blocker_veto:
         status = "technical_blocker"
         reasons = [f"technical-blocker veto from: {', '.join(blockers)}"]
+    elif assumption_vetoes:
+        status = "clarification_required"
+        reasons = [f"unconditional-v1 unproved-assumption veto from: {', '.join(assumption_vetoes)}"]
     elif clarifications and config.policy.clarification_veto:
         status = "clarification_required"
         reasons = [f"clarification veto from: {', '.join(clarifications)}"]

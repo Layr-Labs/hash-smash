@@ -21,6 +21,7 @@ from .constants import (
     TARGET_PROFILE,
 )
 from .errors import VerificationError
+from .tracks import Track
 
 _CERTIFICATE_PATH_RE = re.compile(r"certificates/[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 _CERTIFICATE_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
@@ -78,7 +79,7 @@ def _exact_string(value: Any, expected: str, path: str) -> None:
         _fail(path, f"must equal {expected!r}")
 
 
-def validate_claim(value: Any) -> dict[str, Any]:
+def validate_claim(value: Any, *, track: Track | None = None) -> dict[str, Any]:
     """Validate and return a claim conforming to claim-v1.schema.json."""
 
     claim = _object(
@@ -92,13 +93,15 @@ def validate_claim(value: Any) -> dict[str, Any]:
             "claim",
             "restrictions",
             "baseline_improved",
-        },
+        } | ({"submission_state"} if track else set()),
         {"certificate_manifest"},
     )
-    _exact_integer(claim["schema_version"], SCHEMA_VERSION, "$.schema_version")
-    _exact_string(claim["target_profile"], TARGET_PROFILE, "$.target_profile")
+    _exact_integer(claim["schema_version"], 2 if track else SCHEMA_VERSION, "$.schema_version")
+    _exact_string(claim["target_profile"], track.profile_id if track else TARGET_PROFILE, "$.target_profile")
     _exact_string(claim["attack_class"], ATTACK_CLASS, "$.attack_class")
-    _exact_integer(claim["rounds"], ROUNDS, "$.rounds")
+    _exact_integer(claim["rounds"], track.rounds if track else ROUNDS, "$.rounds")
+    if track and claim["submission_state"] not in ("draft", "ready"):
+        _fail("$.submission_state", "must equal draft or ready")
 
     costs = _object(
         claim["claim"],
@@ -114,7 +117,7 @@ def validate_claim(value: Any) -> dict[str, Any]:
         },
     )
     _number(costs["time_log2"], "$.claim.time_log2", minimum=0)
-    _exact_string(costs["time_unit"], "sha1-compressions", "$.claim.time_unit")
+    _exact_string(costs["time_unit"], "target-compressions" if track else "sha1-compressions", "$.claim.time_unit")
     _number(costs["memory_log2_bytes"], "$.claim.memory_log2_bytes", minimum=0)
     _number(costs["data_log2"], "$.claim.data_log2", minimum=0)
     _number(costs["preprocessing_log2"], "$.claim.preprocessing_log2", minimum=0)
@@ -142,17 +145,19 @@ def validate_claim(value: Any) -> dict[str, Any]:
     baseline = _string(claim["baseline_improved"], "$.baseline_improved")
     if len(baseline) > 256:
         _fail("$.baseline_improved", "must contain no more than 256 characters")
+    if track:
+        _exact_string(baseline, track.reference_id, "$.baseline_improved")
 
     if "certificate_manifest" in claim:
         _exact_string(claim["certificate_manifest"], MANIFEST_PATH, "$.certificate_manifest")
     return claim
 
 
-def validate_manifest(value: Any) -> dict[str, Any]:
+def validate_manifest(value: Any, *, track: Track | None = None) -> dict[str, Any]:
     """Validate and return a certificate manifest."""
 
     manifest = _object(value, "$", {"schema_version", "certificates"})
-    _exact_integer(manifest["schema_version"], SCHEMA_VERSION, "$.schema_version")
+    _exact_integer(manifest["schema_version"], 2 if track else SCHEMA_VERSION, "$.schema_version")
     certificates = manifest["certificates"]
     if not isinstance(certificates, list):
         _fail("$.certificates", "must be an array")
@@ -165,7 +170,7 @@ def validate_manifest(value: Any) -> dict[str, Any]:
         certificate = _object(
             item,
             path,
-            {"id", "type", "message_a", "message_b", "expected_digest"},
+            {"id", "type", "message_a", "message_b", "expected_digest"} | ({"target_profile"} if track else set()),
         )
         certificate_id = _string(certificate["id"], f"{path}.id")
         if not _CERTIFICATE_ID_RE.fullmatch(certificate_id):
@@ -175,9 +180,11 @@ def validate_manifest(value: Any) -> dict[str, Any]:
         ids.add(certificate_id)
         _exact_string(
             certificate["type"],
-            "sha1-collision-witness-v1",
+            "hash-collision-witness-v2" if track else "sha1-collision-witness-v1",
             f"{path}.type",
         )
+        if track:
+            _exact_string(certificate["target_profile"], track.profile_id, f"{path}.target_profile")
         for field in ("message_a", "message_b"):
             certificate_path = _string(certificate[field], f"{path}.{field}")
             if not _CERTIFICATE_PATH_RE.fullmatch(certificate_path):
@@ -188,8 +195,9 @@ def validate_manifest(value: Any) -> dict[str, Any]:
             if certificate_path == MANIFEST_PATH:
                 _fail(f"{path}.{field}", "must not refer to the manifest")
         digest = _string(certificate["expected_digest"], f"{path}.expected_digest")
-        if not _SHA1_RE.fullmatch(digest):
-            _fail(f"{path}.expected_digest", "must be 40 lowercase hexadecimal characters")
+        digest_length = track.digest_bits // 4 if track else 40
+        if not re.fullmatch(r"[0-9a-f]{%d}" % digest_length, digest):
+            _fail(f"{path}.expected_digest", f"must be {digest_length} lowercase hexadecimal characters")
     return manifest
 
 

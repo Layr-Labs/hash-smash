@@ -1,7 +1,13 @@
 # HashSmash Yukon MVP
 
 This repository is an initial Yukon-compatible benchmark for AI-assisted review of
-Markdown cryptanalytic proofs. The pilot fixes one track:
+Markdown cryptanalytic proofs. There are now **nine local experimental tracks** covering
+MD5, SHA-1 and SHA-256 from shallow controls to full-round endpoints. Start with
+[LOCAL_TRACKS.md](./LOCAL_TRACKS.md) for the roster, exact definitions, nominal reference
+scores and per-track commands. No qualified baselines or overnight workers are created
+by that setup.
+
+The existing Yukon manifest and GitHub deployment remain the legacy pilot:
 
 - target: full-round SHA-1 (`sha1-fips180-4-v1`);
 - attack class: ordinary collisions;
@@ -17,14 +23,25 @@ optional committee can run several models or prompting strategies without sharin
 member's output with another. Trusted aggregation may label a submission `ai_qualified`;
 that label is not human acceptance or formal verification.
 
+The active policy is [`unconditional-v1`](./judge/policies/unconditional-v1.md): no
+unproved cryptanalytic assumptions are admitted. The historical heuristic candidate is
+retained as a negative control and cannot currently serve as a qualified baseline.
+See [the unconditional birthday argument](./UNCONDITIONAL_BASELINE.md) for the proposed
+replacement and [the multi-track plan](./YUKON_MULTITRACK_PLAN.md) for verified Yukon
+schema-v2 support. The unconditional birthday replacement is not implemented; the nine
+new tracks are local only, not an activated Yukon multi-track deployment. The scalar
+time-memory objective is intentional and is not a Pareto-frontier implementation.
+
 ## Repository contract
 
-Only [`candidate/`](./candidate) is participant-editable. It contains a strict JSON claim,
+For the legacy pilot, only [`candidate/`](./candidate) is participant-editable. A local
+solver instead edits only its assigned `candidates/<track>/`. Each contains a strict JSON claim,
 a Markdown proof, and optional certificate data. Everything that interprets or scores the
 submission is outside that directory.
 
 The generated Yukon score is `.yukon/score.json`. Verification failures exit nonzero and
-do not write a placeholder score.
+do not write a placeholder score. Local scores are isolated at `.yukon/scores/<track>.json`;
+nominal references and unsubmitted drafts never create these files.
 
 ## Local setup and tests
 

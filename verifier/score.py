@@ -12,12 +12,14 @@ from .errors import VerificationError
 from .intake import validate_candidate
 from .io import atomic_write_json, canonical_json_bytes, ensure_output_outside_root, sha256_bytes
 from .schema_validation import require_sha256
+from .tracks import Track
 
 
 def build_score(
     candidate_root: str | os.PathLike[str],
     aggregate: Mapping[str, Any],
     output_path: str | os.PathLike[str] | None = None,
+    *, track: Track | None = None,
 ) -> dict[str, Any]:
     """Build a score only for an explicitly AI-qualified judge aggregate.
 
@@ -40,7 +42,14 @@ def build_score(
     if "dossier_sha256" in aggregate:
         dossier_sha256 = require_sha256(aggregate["dossier_sha256"], "$.dossier_sha256")
 
-    intake = validate_candidate(candidate_root)
+    intake = validate_candidate(candidate_root, track=track)
+    if track:
+        if intake["submission_state"] != "ready":
+            raise VerificationError("draft templates cannot be scored")
+        if aggregate.get("input_package_sha256") != intake["package_sha256"]:
+            raise VerificationError("judge aggregate: stale or mismatched candidate package")
+        if aggregate.get("target_config_sha256") != track.config_sha256():
+            raise VerificationError("judge aggregate: stale or mismatched target configuration")
     aggregate_claim = aggregate.get("claim")
     if not isinstance(aggregate_claim, Mapping):
         raise VerificationError("judge aggregate: AI-qualified result must include a claim object")
@@ -50,7 +59,7 @@ def build_score(
             raise VerificationError(
                 f"judge aggregate: reconstructed claim differs from submission at {field}"
             )
-    certificate_report = verify_certificates(candidate_root)
+    certificate_report = verify_certificates(candidate_root, track=track)
     if certificate_report["package_sha256"] != intake["package_sha256"]:
         raise VerificationError("candidate package changed between deterministic gates")
     costs = intake["claim"]["claim"]
@@ -73,6 +82,15 @@ def build_score(
         "inputPackageSha256": intake["package_sha256"],
         "certificateReportSha256": sha256_bytes(canonical_json_bytes(certificate_report)),
     }
+    if track:
+        metrics.update({
+            "trackId": track.id,
+            "targetConfigSha256": track.config_sha256(),
+            "timeUnit": "target-compressions",
+            "nominalReferenceScore": float(track.digest_bits),
+            "improvesNominalReference": time_memory_log2 < track.digest_bits,
+            "referenceIsQualifiedBaseline": False,
+        })
     if judge_config_sha256 is not None:
         metrics["judgeConfigSha256"] = judge_config_sha256
     if dossier_sha256 is not None:

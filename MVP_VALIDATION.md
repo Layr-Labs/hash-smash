@@ -4,30 +4,36 @@ Date: 2026-09-03
 
 ## Result
 
-The Yukon-compatible MVP passes its complete offline suite. It has interchangeable
-OpenRouter and Amazon Bedrock provider backends behind the same judge, aggregation, and
-score interface. Live OpenRouter calibration established that Sol can perform the full
-three-stage review and that each proposed OpenRouter committee member can produce valid
-structured reviews for the current public fixture. Bedrock Sol now also passes its live
-smoke test and full three-stage pipeline, returning `ai_qualified` and generating the
-Yukon score `179.0`. All three calls succeeded on their first attempts. The earlier
-Bedrock Opus run completed its three reviews but correctly withheld a score because
-triage misspelled the canonical target-profile identifier; that historical result is
-retained below rather than reclassified as a pass.
+The repository now includes nine local MD5/SHA-1/SHA-256 tracks and passes 136 offline
+tests. `LOCAL_TRACKS.md` is the current local experiment guide. Each new track starts with
+an unsubmitted draft and a nominal reference, not a qualified baseline. No new live
+provider reviews, overnight agents, pushes, or deployments were performed for this setup.
 
-The checked-in deterministic radix-sort fixture is mechanically valid and claims the
-lower-is-better score `179.0` (`log2(time) = 92`, `log2(memory bytes) = 87`). This is an
-organizer plumbing and calibration fixture, not a new SHA-1 attack. These results validate
-the workflow contracts; they do not formally verify the proof or turn `ai_qualified` into
-human acceptance.
+The pilot enforces `unconditional-v1`: no additional
+unproved cryptanalytic assumptions are admitted. The earlier policy ambiguity is
+resolved; the heuristic organizer candidate must not qualify. Historical mixed results
+are retained below, not promoted under the new policy. A distribution-free probability
+argument for a randomized replacement has been derived and tested with exact arithmetic;
+the replacement algorithm and resource ledger remain to be implemented.
+
+The MVP has interchangeable OpenRouter and Amazon Bedrock provider backends behind the
+same judge, aggregation, and score interface. Earlier live provider successes and
+failures are retained below as historical results, not substituted for the latest batch.
+
+The checked-in deterministic radix-sort fixture remains mechanically valid and claims
+score `179.0`, but its unproved heuristic makes it a negative calibration fixture under
+the active policy, not an admissible baseline. This distinction matters for Yukon import,
+which requires a qualifying baseline. No mathematical or human acceptance is claimed.
 
 ## Offline tests
 
-`bash .yukon/setup.sh` passes 88 credential-free tests:
+`bash .yukon/setup.sh` passes 136 credential-free tests:
 
 - 19 deterministic verifier tests;
-- 61 judge, schema, fake-provider, and committee tests; and
-- 8 repository-level Yukon and pipeline tests.
+- 68 judge, schema, fake-provider, policy, and committee tests;
+- 8 repository-level Yukon and pipeline tests;
+- 21 organizer baseline instruction, sorting, resource, and probability tests; and
+- 20 local-track, reference-hash, witness, isolation, history, and integration tests.
 
 The verifier tests cover closed schemas, filesystem and size restrictions, line-numbered
 proof intake, optional certificate checking, and the exact AI-qualification score gate.
@@ -43,7 +49,44 @@ and truncation rejection, strict JSON parsing, returned-model checks, no stored
 conversation state, effective prompt hashing, removal of stale scores after failure,
 and an independent mixed Sol/Claude committee with three prompting strategies.
 
-The optional `sha1-collision-witness-v1` checker was also exercised outside the repository
+### Nine-track local setup validation
+
+The new registry selects MD5 at 8/24/64 steps, SHA-1 at 8/40/80 rounds, and SHA-256 at
+8/24/64 rounds. Exact profile definitions retain standard full-message padding, IV,
+feed-forward and output width, reducing every compression block to its prefix steps.
+The shared local v2 cost model standardizes 256-bit machine words and charged random
+coins. Existing legacy target/model/candidate/workflow semantics were not migrated.
+
+Validation includes:
+
+- Full reference hashes agree with independent `hashlib` implementations on 15 message
+  lengths per function, including one/two-block padding boundaries.
+- Reduced SHA-1 (8/40) and SHA-256 (8/24) agree with published NIST intermediate-state
+  examples plus the defined feed-forward. Reduced MD5 (8/24) agrees with an independent
+  direct-register implementation of RFC 1321's update order.
+- Small full-message collision fixtures verify on each 8-step/round control, including
+  multi-block inputs, but not on the corresponding full-round target. Witness relabeling,
+  identical messages, wrong digests, incorrect round counts and cross-track claims fail.
+- Every track completes intake, three-stage **fake Bedrock transport**, aggregation and
+  score construction in temporary test directories. This validates plumbing only; the
+  mock provider's deliberate positive votes do not qualify any real submission.
+- Drafts cannot reach the provider or emit a score. Nominal references cannot substitute
+  for a review. Submitted cost reconstruction must match deterministic intake.
+- Concurrent track intakes have isolated state; per-track CLI locks reject overlapping
+  same-track runs. Archives contain only enumerated generated files, preserving failed
+  runs without copying credentials. Stale input/configuration scores fail closed.
+- Historical status excludes failed or wrong-configuration scores and distinguishes an
+  old best AI-reviewed candidate from the current input. Tests use organizer-owned
+  temporary fixtures so solver edits do not invalidate the deterministic suite.
+- Credential-free `local_tracks.py check` validates all nine real draft folders, and
+  `status` reports no AI-reviewed result or qualified baseline for any new track.
+
+The nominal scalars 128/160/256 are coarse output-width-derived starting references, not
+measured security, established birthday-attack ledgers or hidden approved assumptions.
+No score artifact was installed for a draft, and no full attack was attempted. Live
+positive/negative judge calibration on actual future submissions remains experiment work.
+
+The optional legacy `sha1-collision-witness-v1` checker was also exercised outside the repository
 against the published SHAttered PDF pair. It accepted the distinct files with their common
 SHA-1 digest. The files were temporary and are not included here.
 
@@ -205,6 +248,167 @@ outputs. This test used the local key only. No GitHub variables, secrets, deploy
 workflow defaults, or existing committee profiles were changed. The mixed Sol/Claude
 committee was tested with mocked provider calls, not as a live committee calibration.
 
+## Baseline accounting revision after GitHub Actions
+
+The first GitHub Actions run on commit `baa8740` completed intake and all three
+Bedrock Sol calls, but returned `clarification_required`: triage passed and correctness
+was supported, while complexity was unclear. This differed from the earlier local pass
+on identical evidence and effective judge configuration. The run was a substantive
+review disagreement, not a development-setup failure:
+[Actions run 33807847289](https://github.com/Layr-Labs/hash-smash/actions/runs/33807847289).
+Its complete intake/review artifacts remain under
+`.yukon/reports/github-actions-33807847289/`.
+
+The complexity objections were actionable: informal per-record operation ceilings and
+an unitemized fixed-memory allowance. The organizer baseline now contains a complete
+149-instruction word-RAM program, exact loop/setup counts, explicit rehash/output costs,
+and a fixed-memory layout that charges every reserved byte. Its bounds are
+`716n + 77352` time units and `64n + 65536` bytes, for `n = 2^80`. The submitted
+time exponent 92, memory exponent 87, probability 0.39, and score 179 are unchanged.
+The target, cost model, prompts, provider implementation, schemas, workflow, aggregation,
+and score gates were not modified.
+
+The proof also specifies the 22-byte domain prefix, 34-byte messages, all 20 LSD radix
+positions, stable-scatter invariants, finite-n rational probability inequality, data
+units, output interface, and absence of required numerical certificates. It remains
+explicitly conditional on the SHA-1 random-function heuristic.
+
+The trusted small-n interpreter in `calibration/birthday_wordram.py` runs only its
+organizer-owned literal program. A read-only comparison confirmed that the revised
+proof documents exactly that program. Offline tests check real SHA-1 record encoding,
+every digest-byte sorting position, stable permutations, forced synthetic collisions,
+reverification failure, exact operation counts, fixed-state/address bounds, and the
+probability threshold using exact rational arithmetic. The full-size checks are symbolic;
+the interpreter refuses more than 4096 records. Synthetic digests are testing fixtures,
+not certificates. The tests neither execute candidate input nor require future
+participant submissions to retain this organizer proof.
+
+Before any revised live calls, all 102 deterministic tests passed. Repeatability testing
+uses three predeclared independent Sol panels on one unchanged evidence package, with
+one attempt per stage, high reasoning, `formal-proof-v1`, `us-east-1`, and the existing
+strict acceptance rules. Each panel's dossier and score (only if qualified) are retained
+separately; the test is not a retry-until-pass loop. Historical standard outputs were
+preserved in `.yukon/reports/before-wordram-gz4ohde0/`.
+
+The first revised batch returned `ai_qualified`, `clarification_required`, and
+`ai_qualified`, with score 179 for each qualified trial. All six substantive specialists
+returned `supported`. In trial 2, triage identified an ambiguity in the full-word result
+of the SHA instruction: the digest suffix was described as occupying the low 32 bits,
+without explicitly defining the upper 96 bits. That matters when rehash results are
+compared as full words. The trusted reference already zero-extended this value; the
+proof now specifies that behavior explicitly for every SHA result, and a fifteenth
+baseline test pins it. No instruction or resource count changed. Trial 2's complexity
+review also labeled the already-disclosed random-function assumption as material despite
+returning `supported`; this separate rubric inconsistency was not suppressed or
+reclassified. All first-batch results and their original evidence are preserved in
+`.yukon/reports/baseline-wordram-1x_hfq70/`.
+
+After the zero-extension clarification, all **103** offline tests passed. A final,
+predeclared three-panel batch ran concurrently with independent clients, identical
+evidence and configuration, and no cross-reviewer context. No further revision or
+retry-until-pass was performed. All triages returned `pass_to_review`, and all six
+correctness/complexity reviews returned `supported`:
+
+| Final trial | Aggregate | Score emitted | Reported tokens | Summed request time |
+| --- | --- | ---: | ---: | ---: |
+| 1 | `clarification_required` | No | 47,165 | 261.670 s |
+| 2 | `ai_qualified` | 179.0 | 50,494 | 339.196 s |
+| 3 | `clarification_required` | No | 48,520 | 276.142 s |
+
+All nine calls succeeded on their first attempts with the requested/returned model
+`us.openai.gpt-5.6-sol`, no infrastructure or schema failures, and 146,179 total reported
+tokens. Request times are summed client latencies, not the concurrent batch's wall time.
+Trial 1's triage and complexity reviewers, and trial 3's complexity reviewer, classified
+the explicitly declared random-function assumption as material. Trial 2 did not. Those
+material flags correctly vetoed qualification despite the positive specialist verdicts.
+There were no material instruction-semantics or resource-accounting objections in the
+final batch. Minor comments about deliberately loose resource bounds were not promoted
+to lower scores.
+
+Final evidence package SHA-256:
+`5f2a884a71af7d66a8c89a70584b3b0dfad4be4eeb0f5fba6d2a5d196f4e2454`.
+Both batches used judge configuration SHA-256
+`dcd9cc120d73d266f45cec749337be80563291f9e1aa10fcf5b82e29a43c8d2d`.
+The final evidence, all dossiers, and summary are under
+`.yukon/reports/baseline-wordram-zeroextended-yr893j86/`.
+All six panels were independently revalidated, reaggregated, and checked against their
+configuration/dossier hashes and score-presence rules after completion. The standard
+report paths now reflect final trial 3, not the selected passing trial; consequently
+`.yukon/score.json` remains absent. The passing trial's score is retained in its own
+directory. No `.env` content or API key was included in changed files or generated
+artifacts. These revisions and tests are local; they have not been pushed or rerun in
+GitHub Actions or a Yukon dev deployment.
+
+**Historical decision point (resolved by the policy update below):** explicitly decide whether
+this particular random-function heuristic is an allowed, disclosed condition for
+`ai_qualified`, or require a baseline that does not depend on it. Merely declaring an
+arbitrary assumption must not exempt a participant from review. The current proof cannot
+establish that concrete SHA-1 satisfies the heuristic, and this revision does not claim
+otherwise. Any approved-assumption policy should be organizer-owned, narrowly scoped,
+versioned, and tested with disallowed-assumption negative controls before changing the
+judge rubric. Broad multi-model/strategy committee calibration is still outstanding.
+
+## Unconditional policy and multi-track follow-up
+
+The user chose not to admit conditional cryptanalytic results. The active versioned
+policy is `judge/policies/unconditional-v1.md`, loaded into the trusted prompt for every
+stage and strategy and hashed in the judge configuration. It excludes unproved premises
+about the target, while distinguishing common problem definitions, proved lemmas, and
+explicit algorithmic randomness. A nonempty `assumptions` array now blocks qualification
+deterministically; an explicit `unproved_assumption` issue also blocks even if mislabeled
+minor. The committee also applies a mandatory premise veto even with relaxed voting
+thresholds, including a valid premise finding from a partially failed panel. The schema's
+array shape is unchanged, but the versioned policy narrows its meaning
+to unresolved premises. This is an intentional tightening, not a waiver for the baseline.
+
+Seven new policy regression tests cover those gates, trusted-policy placement, all
+strategies/stages, evidence injection isolation, and effective policy hashing. Six new
+mathematical tests cover finite output distributions, exhaustive toy input sampling,
+repeated-input false collisions, and exact rational bounds. All 115 then-current tests
+passed before live validation; the final suite of 116 passed after the additional committee
+veto regression. The strict rule still depends on AI review to detect missing premises;
+it is not a formal proof checker and needs continued positive/negative calibration.
+
+### Live negative control
+
+The existing heuristic fixture was reviewed with Bedrock `us.openai.gpt-5.6-sol`,
+`us-east-1`, high reasoning, and `formal-proof-v1`, under the new trusted policy.
+Triage returned `clarification_needed` and correctness returned `unclear`; both identified
+the same single required, unproved uniform/independent-output premise. Complexity's first
+call ended with `ConnectionResetError`, so that original panel correctly remains
+`judge_infra_failed`. No score was emitted.
+
+Exactly one isolated complexity retry completed successfully, returning `unclear` and
+the same unproved premise. It took 82,495 ms and used 10,342 input plus 7,462 output tokens
+(17,804 total). This is not a fresh full-panel pass or a replacement of the failed panel.
+All three completed stage reviews identified the intended negative control; this narrow
+test does not establish false-positive/false-negative rates or qualify a new baseline.
+
+Ignored local artifacts are retained separately:
+
+- Original: `.yukon/reports/unconditional-policy-negative-z_4sjzw0/judge-dossier.json`.
+- Evidence: `.yukon/reports/unconditional-policy-negative-z_4sjzw0/judge-evidence.json`.
+- Retry: `.yukon/reports/unconditional-policy-negative-z_4sjzw0/complexity-retry.json`.
+- Original configuration SHA-256:
+  `60e1e2fb05bde643638eeb7cf51afedd3e2a736c6b5bcd374a7d2e7adc029548`.
+- Original dossier SHA-256:
+  `2254c2a02b50791af2d719fdc4f3a7fcc17e866395acc2a94ee7fb0dd257ae8c`.
+
+### Replacement baseline and track plan
+
+`UNCONDITIONAL_BASELINE.md` proves a conservative probability lower bound for iid
+sampling of 192-bit nonces against any fixed 160-bit-output function. It subtracts
+duplicate-input probability explicitly and exceeds 0.39 at `2^80` draws without a
+random-oracle assumption. It is a proposed replacement, not a changed candidate or a
+new score: common random-bit accounting, three-word records, and the instruction ledger
+must still be implemented and validated.
+
+`YUKON_MULTITRACK_PLAN.md` records verified schema-v2 support at Yukon commit
+`d9471fe70a431a3c424758c3eb58d51d38e73d67`, including the 20-track limit, disjoint editable
+paths, shared branch, and lack of track inputs in workflow dispatch. The active manifest
+remains v1, and no actual dev deployment was inspected or changed. Native promotion is
+scalar; storing a cost vector in metrics does not implement Pareto dominance.
+
 ## Certificate conclusion
 
 Numerical certificates should remain optional for the proof-first v1 challenge. A
@@ -237,6 +441,8 @@ success-probability lower bounds are handled explicitly.
 
 ## Remaining production gates
 
+- Implement the unconditional randomized baseline, standardize its random-bit accounting,
+  and repeat qualification calibration under `unconditional-v1`.
 - Ratify the target profile, cost model, generic frontier, and public calibration fixture
   with a cryptographer.
 - Decide how an improving AI-qualified entry is held for mandatory human review.

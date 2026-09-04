@@ -12,6 +12,13 @@ their strict structured records to one of:
 `ai_qualified` is an AI screening result, not mathematical verification or human
 acceptance.
 
+Local multi-track evidence contains a selected target profile, common cost model and
+an explicitly unqualified nominal reference. `prompts/local-tracks-v1.md` instructs the
+reviewer not to treat that reference as a proved baseline or a premise. The active
+unconditional policy still vetoes unproved cryptanalytic assumptions, including at
+committee aggregation. Complexity must reconstruct the actual submitted cost vector.
+See [LOCAL_TRACKS.md](../LOCAL_TRACKS.md) for per-track runners and experiment boundaries.
+
 The importable high-level calls are:
 
 ```python

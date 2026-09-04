@@ -62,11 +62,21 @@ def aggregate_reviews(
     clarification_reasons: list[str] = []
     for stage in REQUIRED_STAGES:
         review = validated[stage]
+        # unconditional-v1 reserves this array for unproved premises beyond the
+        # common problem definition. A model cannot waive one with a positive vote.
+        for assumption in review["assumptions"]:
+            evidence = ", ".join(assumption["evidence"]) or "no evidence location supplied"
+            clarification_reasons.append(
+                f"{stage}: unproved assumption: {assumption['description']} ({evidence})"
+            )
         for issue in review["issues"]:
             rendered = f"{stage}: {issue['description']}"
             if issue["severity"] == "fatal":
                 fatal_reasons.append(rendered)
             elif issue["severity"] == "material":
+                clarification_reasons.append(rendered)
+            elif issue["category"] == "unproved_assumption":
+                # Fail closed if the reviewer mislabels an explicit dependency minor.
                 clarification_reasons.append(rendered)
 
     triage = validated["triage"]
@@ -96,6 +106,13 @@ def aggregate_reviews(
             clarification_reasons.append(
                 "a specialist reconstructed a target claim different from deterministic intake"
             )
+        expected_cost = expected_claim.get("claim")
+        if isinstance(expected_cost, Mapping):
+            for field, value in expected_cost.items():
+                if complexity["submitted_cost"].get(field) != value:
+                    clarification_reasons.append(
+                        f"complexity: submitted cost differs from deterministic intake at {field}"
+                    )
 
     if fatal_reasons:
         status = "technical_blocker"

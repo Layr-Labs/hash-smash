@@ -1,20 +1,23 @@
 # HashSmash Yukon Challenge Plan
 
-Status: local MVP implemented and calibrated, 2026-09-03  
+Status: local MVP and nine experimental tracks implemented; qualification calibration remains open, 2026-09-03
+
 Scope: first Yukon deployment for Markdown-described collision attacks  
-Yukon documentation revision reviewed: `ae0ecd5650dcc394769c4c4810237647d29f078b`
+Latest Yukon documentation/source revision reviewed: `d9471fe70a431a3c424758c3eb58d51d38e73d67`
 
 ## Implementation update
 
-The local MVP now implements the pilot described below:
+The local MVP now implements the pilot described below plus the experiment roster in
+`LOCAL_TRACKS.md`:
 
 - a schema-v1 Yukon manifest and pinned GitHub Actions workflow;
-- strict participant intake limited to `candidate/`;
-- optional typed SHA-1 collision-witness verification;
+- strict participant intake limited to `candidate/` (legacy) or one `candidates/<track>/`;
+- typed collision witnesses with trusted MD5/SHA-1/SHA-256 prefix-round checkers;
 - a three-stage judge with OpenRouter/Sol and Amazon Bedrock/Opus or Sol backends;
 - four versioned prompt strategies and a configurable three-model committee;
 - deterministic, fail-closed aggregation and trusted score emission; and
-- 88 credential-free tests plus targeted live provider calibration.
+- 136 credential-free tests, plus historical targeted live provider calibration;
+- nine isolated local tracks with nominal references, draft gates and archived runs.
 
 The workflow remains intentionally single-judge by default while committees are
 calibrated. Repository variable `HASHSMASH_JUDGE_PROVIDER=bedrock` selects Bedrock without
@@ -23,6 +26,20 @@ locally selectable through strict provider-specific JSON profiles. Production re
 gated on cryptographer ratification, selected-provider validation, dev App access to the
 existing GitHub repository, and an allowlisted Yukon dev importer
 credential. See `MVP_VALIDATION.md` for the current evidence and exact blockers.
+
+The policy decision is now resolved: no additional unproved cryptanalytic assumptions
+are allowed. `unconditional-v1` is trusted, versioned judge policy; reported unproved
+premises block aggregation regardless of positive votes. The older heuristic candidate
+is not exempt and is currently a negative control, not a qualified baseline. A
+distribution-free birthday argument for a randomized replacement is documented in
+`UNCONDITIONAL_BASELINE.md`; its new program/resource ledger remains to be implemented.
+
+Yukon natively supports schema-v2 independently scored tracks on one shared branch.
+`YUKON_MULTITRACK_PLAN.md` records the current 20-track limit, workflow routing, and
+per-primitive/per-round profile layout. Local tracks are now implemented, but the active
+Yukon manifest is still v1. The user chose the scalar time-memory objective for the local
+experiment, not Pareto-frontier promotion. Nominal reference values are not qualified
+baselines and do not waive Yukon's import requirement.
 
 Bedrock Sol uses the Responses API with a versioned prompt-supplied JSON schema and the
 same strict local validation, while Claude retains Converse structured output. Select
