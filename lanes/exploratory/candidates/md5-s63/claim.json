@@ -1,20 +1,26 @@
 {
   "schema_version": 3,
-  "submission_state": "draft",
+  "submission_state": "ready",
   "target_profile": "md5-s63-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 63,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 64,
+    "time_log2": 79,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 0,
-    "data_log2": 64,
-    "preprocessing_log2": 0,
+    "memory_log2_bytes": 72,
+    "data_log2": 65,
+    "preprocessing_log2": 73,
     "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
-  "restrictions": [],
+  "restrictions": [
+    "Only 32-byte messages encoded from independently sampled uniform 256-bit words; q=2^64 fixed samples and no restart.",
+    "Exact md5-s63-prefix-v1 full-message hashing: fixed IV, required padding, steps 0 through 62, feed-forward, and all 128 digest bits.",
+    "Classical 256-bit word RAM with charged ideal independent uniform random-word primitive; no seeded PRNG or hash-distribution heuristic.",
+    "Resource fields are conservative upper bounds: time and preprocessing in charged RAM/target-compression units, memory and advice in bytes, data in complete input-message evaluations.",
+    "No nonuniform advice, precomputed collision, external corpus, or empirical premise. The nominal reference identifier does not assert an established baseline or an improvement."
+  ],
   "baseline_improved": "md5-s63-nominal-v2",
   "heuristics": [],
   "certificate_manifest": "certificates/manifest.json"
