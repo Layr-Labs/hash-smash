@@ -1,20 +1,27 @@
 {
   "schema_version": 3,
-  "submission_state": "draft",
+  "submission_state": "ready",
   "target_profile": "sha1-r80-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 80,
   "lane": "rigorous",
   "claim": {
-    "time_log2": 80,
+    "time_log2": 94,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 0,
-    "data_log2": 80,
-    "preprocessing_log2": 0,
+    "memory_log2_bytes": 88,
+    "data_log2": 81,
+    "preprocessing_log2": 20,
     "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
-  "restrictions": [],
+  "restrictions": [
+    "Exactly sha1-r80-prefix-v1: fixed standard IV, all 80 prefix rounds, standard padding and feed-forward, full 160-bit digest.",
+    "One batch of 2^80 independent uniform 32-byte messages using fresh 256-bit model random words; no PRNG or SHA-1 randomness hypothesis.",
+    "Two 64-byte-record buffers, iterative lexicographic mergesort, full distinct-message check and at most two complete hash recomputations.",
+    "Worst-case charged resource upper bounds include all failed draws, code, constants, scratch state, sorting, verification and preprocessing; no restarts or nonuniform advice.",
+    "data_log2 bounds complete message evaluations; preprocessing_log2 bounds primitive setup work; advice_log2_bytes=0 bounds actual zero advice by one byte because the schema excludes negative logarithms.",
+    "Analytic baseline only: no full-size execution, explicit collision certificate, nominal-reference improvement or cryptanalytic novelty is claimed."
+  ],
   "baseline_improved": "sha1-r80-nominal-v2",
   "heuristics": [],
   "certificate_manifest": "certificates/manifest.json"
