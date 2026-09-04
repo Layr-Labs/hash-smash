@@ -30,6 +30,13 @@ def load_review_schema(path: Path | str = DEFAULT_SCHEMA_PATH) -> dict[str, Any]
     return schema
 
 
+def review_schema_for_stage(stage: str) -> dict[str, Any]:
+    """Choose the organizer schema without changing archived review-v1 behavior."""
+    from .lanes import LANE_STAGES, load_lane_schema
+
+    return load_lane_schema() if stage in LANE_STAGES else load_review_schema()
+
+
 def _join(path: str, component: str | int) -> str:
     if isinstance(component, int):
         return f"{path}[{component}]"
@@ -86,6 +93,8 @@ def _validate(instance: Any, schema: Mapping[str, Any], path: str) -> None:
     if isinstance(instance, list):
         if "minItems" in schema and len(instance) < schema["minItems"]:
             raise ReviewValidationError(f"{path}: requires at least {schema['minItems']} items")
+        if "maxItems" in schema and len(instance) > schema["maxItems"]:
+            raise ReviewValidationError(f"{path}: exceeds maximum item count")
         item_schema = schema.get("items")
         if item_schema is not None:
             for index, item in enumerate(instance):
@@ -220,6 +229,11 @@ def validate_review(
     schema: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Validate schema and semantic invariants, returning ``review`` unchanged."""
+
+    from .lanes import LANE_STAGES, validate_lane_review
+
+    if expected_stage in LANE_STAGES or (isinstance(review, dict) and review.get("schema_version") == "review-lanes-v1"):
+        return validate_lane_review(review, expected_stage=expected_stage, schema=schema)
 
     active_schema = schema if schema is not None else load_review_schema()
     _validate(review, active_schema, "$")

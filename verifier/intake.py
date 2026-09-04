@@ -34,7 +34,7 @@ from .schema_validation import validate_claim, validate_manifest
 from .tracks import Track
 
 
-def _scan_candidate(candidate: Path) -> dict[str, os.stat_result]:
+def _scan_candidate(candidate: Path, *, allow_experiments: bool = False) -> dict[str, os.stat_result]:
     """Return every candidate file after rejecting ambiguous filesystem objects."""
 
     try:
@@ -54,10 +54,10 @@ def _scan_candidate(candidate: Path) -> dict[str, os.stat_result]:
             if stat.S_ISREG(entry_stat.st_mode):
                 files[relative] = entry_stat
                 continue
-            if stat.S_ISDIR(entry_stat.st_mode) and relative == "certificates":
+            if stat.S_ISDIR(entry_stat.st_mode) and (relative == "certificates" or allow_experiments and relative == "experiments"):
                 with os.scandir(entry.path) as certificate_entries:
                     for certificate_entry in certificate_entries:
-                        certificate_relative = f"certificates/{certificate_entry.name}"
+                        certificate_relative = f"{relative}/{certificate_entry.name}"
                         certificate_stat = certificate_entry.stat(follow_symlinks=False)
                         if stat.S_ISLNK(certificate_stat.st_mode):
                             raise VerificationError(f"{certificate_relative}: symlinks are not allowed")
@@ -151,7 +151,8 @@ def validate_candidate(candidate_root: str | os.PathLike[str], output_dir: str |
     """
 
     candidate = Path(candidate_root)
-    file_stats = _scan_candidate(candidate)
+    paired = bool(getattr(track, "lane", None))
+    file_stats = _scan_candidate(candidate, allow_experiments=paired)
     missing = {CLAIM_PATH, PROOF_PATH} - set(file_stats)
     if missing:
         raise VerificationError(f"candidate: missing required file(s): {', '.join(sorted(missing))}")
@@ -187,6 +188,22 @@ def validate_candidate(candidate_root: str | os.PathLike[str], output_dir: str |
     if manifest_present:
         allowed.add(MANIFEST_PATH)
     allowed.update(declared_certificate_files)
+    experiment_manifest = None
+    experiment_path = "experiments/manifest.json"
+    if paired and (experiment_path in contents or "experiment_manifest" in claim):
+        if experiment_path not in contents or "experiment_manifest" not in claim:
+            raise VerificationError("experiment manifest must exist and be explicitly declared by the claim")
+        from experiments import declared_files, validate_manifest as validate_experiments
+        try:
+            experiment_manifest = validate_experiments(load_json_bytes(contents[experiment_path], experiment_path))
+            experiment_files = declared_files(experiment_manifest)
+        except ValueError as error:
+            raise VerificationError(f"invalid experiment manifest: {error}") from error
+        if sum(len(contents.get(name, b"")) for name in experiment_files) > 65536:
+            raise VerificationError("experiment source texts exceed the total 64 KiB review budget")
+        allowed.add(experiment_path)
+        allowed.update(experiment_files)
+        declared_certificate_files.update(experiment_files)
     unexpected = set(contents) - allowed
     absent = declared_certificate_files - set(contents)
     if unexpected:
@@ -195,6 +212,17 @@ def validate_candidate(candidate_root: str | os.PathLike[str], output_dir: str |
         raise VerificationError(f"candidate: declared certificate file(s) missing: {', '.join(sorted(absent))}")
 
     numbered_proof, line_count = _number_proof(contents[PROOF_PATH])
+    if paired:
+        experiment_ids = {item["id"] for item in experiment_manifest["experiments"]} if experiment_manifest else set()
+        for heuristic in claim["heuristics"]:
+            for ref in heuristic["evidence_ids"]:
+                kind, value = ref.split(":", 1)
+                if kind == "experiment" and value not in experiment_ids:
+                    raise VerificationError(f"heuristic {heuristic['id']}: unknown experiment {value}")
+                if kind == "proof":
+                    ends = [int(part) for part in value.split("-")]
+                    if ends[0] > ends[-1] or ends[-1] > line_count:
+                        raise VerificationError(f"heuristic {heuristic['id']}: proof reference outside document")
     files = [
         {
             "path": relative,
@@ -227,6 +255,9 @@ def validate_candidate(candidate_root: str | os.PathLike[str], output_dir: str |
         report["track"]["id"] = track.id
         report["target_config_sha256"] = track.config_sha256()
         report["submission_state"] = claim["submission_state"]
+    if paired:
+        report["lane"] = track.lane
+        report["experiment_manifest"] = experiment_manifest
 
     if output_dir is not None:
         destination = Path(output_dir)

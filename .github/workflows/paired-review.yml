@@ -1,0 +1,136 @@
+name: Paired HashSmash review
+
+on:
+  workflow_call:
+    inputs:
+      track:
+        required: true
+        type: string
+      lane:
+        required: true
+        type: string
+    secrets:
+      OPENROUTER_API_KEY:
+        required: false
+      AWS_BEARER_TOKEN_BEDROCK:
+        required: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  intake:
+    name: Setup and deterministic experiments
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      HASHSMASH_SELECTED_TRACK: ${{ inputs.track }}
+      HASHSMASH_SELECTED_LANE: ${{ inputs.lane }}
+    steps:
+      - name: Checkout dispatched commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup
+        run: bash .yukon/setup.sh
+      - name: Verify selected lane and editable surface
+        run: |
+          python3 scripts/validate_frontier_config.py --track "$HASHSMASH_SELECTED_TRACK" --lane "$HASHSMASH_SELECTED_LANE"
+          python3 scripts/check-frontier-surface.py --track "$HASHSMASH_SELECTED_TRACK"
+      - name: Prepare isolated experiment runtime
+        run: python3 scripts/prepare_experiment_image.py --track "$HASHSMASH_SELECTED_TRACK"
+      - name: Benchmark deterministic intake and experiments
+        run: python3 scripts/hashsmash_pipeline.py intake --track "$HASHSMASH_SELECTED_TRACK"
+      - name: Upload trusted experiment artifacts
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: hashsmash-intake-${{ inputs.track }}
+          path: lanes/${{ inputs.lane }}/.yukon/work/tracks/${{ inputs.track }}/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+
+  judge:
+    name: Benchmark paired judges
+    needs: intake
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      HASHSMASH_SELECTED_TRACK: ${{ inputs.track }}
+    steps:
+      - name: Checkout dispatched commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Download this run's experiment artifacts
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        with:
+          name: hashsmash-intake-${{ inputs.track }}
+          path: lanes/${{ inputs.lane }}/.yukon/work/tracks/${{ inputs.track }}/
+      - name: Benchmark Amazon Bedrock paired review
+        if: ${{ vars.HASHSMASH_JUDGE_PROVIDER == 'bedrock' }}
+        env:
+          AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
+          HASHSMASH_JUDGE_PROVIDER: bedrock
+          HASHSMASH_BEDROCK_MODEL: ${{ vars.HASHSMASH_BEDROCK_MODEL || 'us.openai.gpt-5.6-sol' }}
+          HASHSMASH_BEDROCK_REGION: ${{ vars.HASHSMASH_BEDROCK_REGION || 'us-east-1' }}
+          HASHSMASH_JUDGE_MODE: committee
+          HASHSMASH_REASONING_EFFORT: high
+        run: python3 scripts/hashsmash_pipeline.py judge --track "$HASHSMASH_SELECTED_TRACK"
+      - name: Benchmark OpenRouter paired review
+        if: ${{ vars.HASHSMASH_JUDGE_PROVIDER != 'bedrock' }}
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          HASHSMASH_JUDGE_PROVIDER: openrouter
+          HASHSMASH_JUDGE_MODEL: openai/gpt-5.6-sol
+          HASHSMASH_JUDGE_MODE: committee
+          HASHSMASH_OPENROUTER_ZDR: 'true'
+          HASHSMASH_REASONING_EFFORT: high
+        run: python3 scripts/hashsmash_pipeline.py judge --track "$HASHSMASH_SELECTED_TRACK"
+      - name: Upload review dossier
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: hashsmash-review-${{ inputs.track }}
+          path: lanes/${{ inputs.lane }}/.yukon/reports/tracks/${{ inputs.track }}/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30
+
+  score:
+    name: Benchmark selected lane score
+    needs: judge
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      HASHSMASH_SELECTED_TRACK: ${{ inputs.track }}
+    steps:
+      - name: Checkout dispatched commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Download this run's experiment artifacts
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        with:
+          name: hashsmash-intake-${{ inputs.track }}
+          path: lanes/${{ inputs.lane }}/.yukon/work/tracks/${{ inputs.track }}/
+      - name: Download this run's review dossier
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        with:
+          name: hashsmash-review-${{ inputs.track }}
+          path: lanes/${{ inputs.lane }}/.yukon/reports/tracks/${{ inputs.track }}/
+      - name: Benchmark trusted score
+        run: python3 scripts/hashsmash_pipeline.py score --track "$HASHSMASH_SELECTED_TRACK"
+      - name: Upload score
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: benchmark-score-${{ inputs.track }}
+          path: lanes/${{ inputs.lane }}/.yukon/scores/${{ inputs.track }}.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30

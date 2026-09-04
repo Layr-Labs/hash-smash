@@ -1,0 +1,18 @@
+{
+  "id": "collision-frontier-v3",
+  "version": 3,
+  "attack_class": "ordinary-collision",
+  "time_unit": "target-compressions",
+  "score": "log2(total charged time) + log2(peak memory bytes)",
+  "direction": "lower-is-better",
+  "minimum_success_probability": 0.39,
+  "computation_model": "Classical probabilistic 256-bit word RAM. One selected-round target compression or sponge permutation costs one unit; every other primitive word operation costs one unit. BLAKE3, when defined, must charge all chunk/parent/root compressions. A field-specific model is required before Poseidon activation.",
+  "primitive_operations": ["256-bit load or store", "addition/subtraction modulo 2^256", "bitwise AND/OR/XOR/NOT", "shift or rotation", "comparison", "conditional branch", "independent uniform random 256-bit word"],
+  "total_time_includes": ["preprocessing", "message and differential construction", "randomness", "all trials including failures", "sorting and lookup", "collision checking", "restart and success amplification"],
+  "memory_includes": ["code", "nonuniform advice", "precomputed data", "messages", "working state", "tables", "randomness retained in memory"],
+  "probability_space": "Fresh independent algorithmic coins, fixed selected target. A seeded experiment is reproducibility evidence; its deterministic seed expansion does not establish independent ideal random coins for the full attack.",
+  "heuristics": "Explicitly declared, evidence-linked heuristic premises are adjudicated under paired-lanes-v1. Epistemic judgment of a premise is distinct from algorithmic success probability.",
+  "nominal_reference": "The organizer nominal exponent is 64 for MD5, 80 for SHA-1, and 128 for selected 256-bit modern targets, as in the mockup. This is a reference security claim, not a qualified baseline or a proof of a particular time-memory implementation. Constants and bytes remain charged in actual submissions.",
+  "nonuniform_advice": "A stored precomputed collision is not a cheap construction. All construction/preprocessing and advice must be accounted for, including any search omitted from the submitted program.",
+  "quantum": "Quantum algorithms are out of scope."
+}

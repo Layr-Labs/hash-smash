@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "paired-roles-v1",
+  "roles": {
+    "lane_evaluability": {"strategy": "balanced-v1"},
+    "lane_cryptanalysis": {"strategy": "formal-proof-v1"},
+    "lane_cost": {"strategy": "cost-skeptic-v1"},
+    "lane_experiments": {"strategy": "adversarial-v1"},
+    "lane_defender": {"strategy": "balanced-v1"},
+    "lane_adjudicator": {"strategy": "formal-proof-v1"}
+  }
+}

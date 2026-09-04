@@ -43,6 +43,11 @@ def load_strategy_prompt(strategy: str) -> str:
 def load_system_prompt(stage: str, strategy: str = DEFAULT_STRATEGY) -> str:
     """Return the common guardrails and the requested stage rubric."""
 
+    from .lanes import LANE_STAGES, load_lane_prompt
+
+    if stage in LANE_STAGES:
+        return load_lane_prompt(stage, strategy)
+
     try:
         stage_file = PROMPT_FILES[stage]
     except KeyError as exc:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 from pathlib import Path
 from typing import Any, Mapping
@@ -30,8 +31,13 @@ def build_score(
 
     if not isinstance(aggregate, Mapping):
         raise VerificationError("judge aggregate: must be an object")
-    if aggregate.get("status") != "ai_qualified":
-        raise VerificationError("judge aggregate: top-level status must equal 'ai_qualified'")
+    accepted_status = getattr(track, "accepted_status", "ai_qualified")
+    if aggregate.get("status") != accepted_status:
+        raise VerificationError(f"judge aggregate: top-level status must equal '{accepted_status}'")
+    if getattr(track, "lane", None) and (
+        aggregate.get("lane") != track.lane or aggregate.get("policy_id") != "paired-lanes-v1"
+    ):
+        raise VerificationError("judge aggregate: wrong lane or qualification policy")
 
     judge_config_sha256: str | None = None
     dossier_sha256: str | None = None
@@ -54,6 +60,8 @@ def build_score(
     if not isinstance(aggregate_claim, Mapping):
         raise VerificationError("judge aggregate: AI-qualified result must include a claim object")
     submitted_claim = intake["claim"]
+    if getattr(track, "lane", None) and canonical_json_bytes(aggregate_claim) != canonical_json_bytes(submitted_claim):
+        raise VerificationError("paired judge aggregate must bind the entire submitted claim")
     for field in ("target_profile", "attack_class", "rounds", "restrictions"):
         if aggregate_claim.get(field) != submitted_claim[field]:
             raise VerificationError(
@@ -66,9 +74,11 @@ def build_score(
     time_log2 = float(costs["time_log2"])
     memory_log2_bytes = float(costs["memory_log2_bytes"])
     time_memory_log2 = time_log2 + memory_log2_bytes
+    if not math.isfinite(time_memory_log2):
+        raise VerificationError("time-memory score must be finite")
 
     metrics: dict[str, Any] = {
-        "reviewStatus": "ai_qualified",
+        "reviewStatus": accepted_status,
         "targetProfile": intake["track"]["target_profile"],
         "attackClass": intake["track"]["attack_class"],
         "rounds": intake["track"]["rounds"],
@@ -87,10 +97,14 @@ def build_score(
             "trackId": track.id,
             "targetConfigSha256": track.config_sha256(),
             "timeUnit": "target-compressions",
-            "nominalReferenceScore": float(track.digest_bits),
-            "improvesNominalReference": time_memory_log2 < track.digest_bits,
+            "nominalReferenceScore": getattr(track, "nominal_score", float(track.digest_bits)),
+            "improvesNominalReference": time_memory_log2 < getattr(track, "nominal_score", track.digest_bits),
             "referenceIsQualifiedBaseline": False,
         })
+        if getattr(track, "lane", None):
+            metrics.update({"lane": track.lane, "qualificationPolicy": "paired-lanes-v1",
+                            "targetId": track.target_id, "unresolvedObligations": aggregate.get("reasons", []),
+                            "humanAccepted": False, "formallyVerified": False})
     if judge_config_sha256 is not None:
         metrics["judgeConfigSha256"] = judge_config_sha256
     if dossier_sha256 is not None:

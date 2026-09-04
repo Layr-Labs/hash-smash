@@ -1,5 +1,10 @@
 # HashSmash Yukon Challenge Plan
 
+2026-09-04 update: [FRONTIER_LANES.md](./FRONTIER_LANES.md) supersedes the roster and
+unconditional-only policy in this historical plan for new paired lanes.
+The legacy pilot remains unchanged. New lanes support heuristic evidence, independent
+review roles, a defender/adjudicator, and separate exploratory/rigorous decisions.
+
 Status: local MVP and nine experimental tracks implemented; qualification calibration remains open, 2026-09-03
 
 Scope: first Yukon deployment for Markdown-described collision attacks  

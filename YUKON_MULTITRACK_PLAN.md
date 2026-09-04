@@ -1,5 +1,11 @@
 # Yukon multi-problem and round-count support
 
+2026-09-04 update: the current paired-lane implementation is in
+[FRONTIER_LANES.md](./FRONTIER_LANES.md). Two schema-v2 leaf challenges avoid Yukon's
+20-track limit: eight runnable tracks each, with six further slots each deferred.
+Their manifests pass Yukon's actual local parser. No new deployment or baseline
+import has been performed. The design below is retained as historical context.
+
 Status: nine local tracks are implemented; the Yukon migration below is **not activated**.
 See [LOCAL_TRACKS.md](./LOCAL_TRACKS.md) for the selected MD5/SHA-1/SHA-256 roster,
 registry, deterministic checkers and isolated local runner. Our active `benchmark.json`

@@ -17,7 +17,7 @@ def sha256_bytes(data: bytes) -> str:
 
 
 def canonical_json_bytes(value: Any) -> bytes:
-    return (json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True) + "\n").encode("ascii")
+    return (json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False) + "\n").encode("ascii")
 
 
 def ensure_output_outside_root(root: Path, destination: Path) -> None:

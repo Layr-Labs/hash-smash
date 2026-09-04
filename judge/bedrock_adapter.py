@@ -28,7 +28,7 @@ from .provider_adapter import (
     UrllibTransport,
     _schema_for_stage,
 )
-from .schema_validation import load_review_schema, validate_review
+from .schema_validation import load_review_schema, review_schema_for_stage, validate_review
 
 
 DEFAULT_BEDROCK_MODEL = "us.anthropic.claude-opus-4-6-v1"
@@ -346,13 +346,13 @@ class BedrockClient:
             if len(text_blocks) != 1:
                 raise ValueError("expected exactly one structured text block")
             review = json.loads(text_blocks[0])
-            if isinstance(review, dict):
+            if isinstance(review, dict) and not stage.startswith("lane_"):
                 review.setdefault("decision", None)
                 review.setdefault("verdict", None)
                 review.setdefault("submitted_cost", None)
                 review.setdefault("recomputed_cost", None)
                 review.setdefault("calculation_trace", [])
-            validate_review(review, expected_stage=stage, schema=self.schema)
+            validate_review(review, expected_stage=stage, schema=review_schema_for_stage(stage))
             usage = payload.get("usage", {})
             metrics = payload.get("metrics", {})
             if not isinstance(usage, dict):
@@ -425,13 +425,13 @@ class BedrockClient:
             if len(texts) != 1:
                 raise ValueError("expected exactly one JSON review")
             review = _strict_json(texts[0])
-            if isinstance(review, dict):
+            if isinstance(review, dict) and not stage.startswith("lane_"):
                 review.setdefault("decision", None)
                 review.setdefault("verdict", None)
                 review.setdefault("submitted_cost", None)
                 review.setdefault("recomputed_cost", None)
                 review.setdefault("calculation_trace", [])
-            validate_review(review, expected_stage=stage, schema=self.schema)
+            validate_review(review, expected_stage=stage, schema=review_schema_for_stage(stage))
             usage = payload.get("usage", {})
             if not isinstance(usage, dict):
                 raise ValueError("usage is not an object")

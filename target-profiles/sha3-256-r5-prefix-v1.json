@@ -1,0 +1,38 @@
+{
+  "id": "sha3-256-r5-prefix-v1",
+  "status": "frontier-experiment",
+  "algorithm": "sha3_256",
+  "primitive": "SHA3-256",
+  "specification": "FIPS 202",
+  "specification_url": "https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf",
+  "rounds": 5,
+  "full_rounds": 24,
+  "round_count_unit": "Keccak permutation rounds",
+  "round_selection": "Prefix rounds 0 through 4, inclusive, in every sponge permutation. This differs from the last-round convention of Keccak-p.",
+  "digest_bits": 256,
+  "attack_class": "ordinary-collision",
+  "message_domain": "Finite byte strings of bit length below 2^64.",
+  "state_bits": 1600,
+  "rate_bits": 1088,
+  "capacity_bits": 512,
+  "word_bits": 64,
+  "padding": "SHA3 domain suffix01 followed by pad10*1; delimited suffix byte0x06. Standard little-endian Keccak lane and bit encoding.",
+  "initialization": "All-zero1600-bit sponge state.",
+  "schedule": "Apply theta,rho,pi,chi,iota with original first-round constants.",
+  "feed_forward": "Sponge absorbs message blocks by XOR into the rate; no Davies-Meyer feed-forward.",
+  "digest_encoding": "First32 squeeze bytes in standard SHA3 order.",
+  "reference_implementation": "verifier/keccak.py:sha3_256",
+  "relation": {
+    "preconditions": [
+      "Both messages satisfy the domain",
+      "Messages are distinct"
+    ],
+    "postcondition": "The two complete sha3-256-r5 sponge hashes agree on all256 output bits."
+  },
+  "out_of_scope": [
+    "Raw permutation distinguishers",
+    "Free-start or compression-only collisions",
+    "Quantum attacks",
+    "Changing rate,capacity,suffix,IV,round range or output length"
+  ]
+}

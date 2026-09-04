@@ -1,0 +1,18 @@
+name: sha1-r80-exploratory
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: hashsmash-sha1-r80-exploratory-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  review:
+    uses: ./.github/workflows/paired-review.yml
+    with:
+      track: sha1-r80-exploratory
+      lane: exploratory
+    secrets:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}

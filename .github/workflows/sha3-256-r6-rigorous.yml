@@ -1,0 +1,18 @@
+name: sha3-256-r6-rigorous
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: hashsmash-sha3-256-r6-rigorous-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  review:
+    uses: ./.github/workflows/paired-review.yml
+    with:
+      track: sha3-256-r6-rigorous
+      lane: rigorous
+    secrets:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}

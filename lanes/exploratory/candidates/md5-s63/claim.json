@@ -1,0 +1,21 @@
+{
+  "schema_version": 3,
+  "submission_state": "draft",
+  "target_profile": "md5-s63-prefix-v1",
+  "attack_class": "ordinary-collision",
+  "rounds": 63,
+  "lane": "exploratory",
+  "claim": {
+    "time_log2": 64,
+    "time_unit": "target-compressions",
+    "memory_log2_bytes": 0,
+    "data_log2": 64,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 0
+  },
+  "restrictions": [],
+  "baseline_improved": "md5-s63-nominal-v2",
+  "heuristics": [],
+  "certificate_manifest": "certificates/manifest.json"
+}

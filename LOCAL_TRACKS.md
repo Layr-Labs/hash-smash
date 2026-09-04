@@ -1,5 +1,10 @@
 # Local multi-track experiment
 
+Historical nine-track suite. The active paired frontier roster is documented in
+[FRONTIER_LANES.md](./FRONTIER_LANES.md). Use `--collection legacy` with this document's
+list/check/status commands; explicit old track IDs still work. The policy and
+nominal reference convention below apply only to the historical suite.
+
 Nine local tracks are ready for solver experiments. The score remains
 `log2(total time) + log2(peak memory bytes)`, lower is better **within one track**.
 The unconditional policy is unchanged. No agents or recurring overnight jobs have been

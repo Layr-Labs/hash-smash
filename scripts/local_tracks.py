@@ -15,11 +15,12 @@ from verifier.errors import VerificationError
 from verifier.intake import validate_candidate
 from verifier.io import load_json_bytes
 from verifier.tracks import all_tracks, get_track
+from verifier.frontier_tracks import frontier_tracks, planned_slots
 
 
 def status(track) -> dict:
     current = validate_candidate(track.candidate, track=track)
-    report_root = ROOT / ".yukon" / "reports" / "tracks" / track.id
+    report_root = getattr(track, "state_root", ROOT / ".yukon") / "reports" / "tracks" / track.id
     scored = []
     run_count = 0
     # Score only successful score/all invocations, bound to this exact current model.
@@ -32,29 +33,35 @@ def status(track) -> dict:
             continue
         score = load_json_bytes(score_path.read_bytes(), str(score_path))
         metrics = score.get("metrics", {})
-        if (metrics.get("trackId") != track.id or metrics.get("reviewStatus") != "ai_qualified"
+        if (metrics.get("trackId") != track.id or metrics.get("reviewStatus") != getattr(track, "accepted_status", "ai_qualified")
                 or metrics.get("targetConfigSha256") != track.config_sha256()):
             continue
         scored.append({"score": score["score"], "run_id": run["run_id"],
                        "current_candidate": metrics.get("inputPackageSha256") == current["package_sha256"]})
     return {"track": track.id, "submission_state": current["submission_state"],
-            "nominal_reference_score": track.digest_bits, "qualified_baseline": None,
+            "nominal_reference_score": getattr(track, "nominal_score", track.digest_bits), "qualified_baseline": None,
             "archived_runs": run_count, "best_ai_reviewed": min(scored, key=lambda r: r["score"]) if scored else None}
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("list", "show", "check", "status"))
+    parser.add_argument("command", choices=("list", "show", "check", "status", "catalog"))
     parser.add_argument("track", nargs="?")
+    parser.add_argument("--collection", choices=("frontier", "legacy", "all"), default="frontier")
     args = parser.parse_args(argv)
     try:
-        selected = (get_track(args.track),) if args.track else all_tracks()
+        selected = (get_track(args.track),) if args.track else (
+            frontier_tracks() if args.collection == "frontier" else all_tracks() if args.collection == "legacy"
+            else (*frontier_tracks(), *all_tracks()))
         if args.command == "show" and not args.track:
             parser.error("show requires a track ID")
-        if args.command == "list":
-            print("TRACK         FUNCTION  STEPS/ROUNDS  DIFFICULTY       NOMINAL LOG2(T*M)")
+        if args.command == "catalog":
+            slots = planned_slots()
+            print(json.dumps({"planned_tracks": len(slots), "runnable_tracks": len(frontier_tracks()), "slots": slots}, indent=2))
+        elif args.command == "list":
+            print("TRACK                            FUNCTION   STEPS/ROUNDS  LANE/DIFFICULTY   NOMINAL LOG2(T*M)")
             for track in selected:
-                print(f"{track.id:13} {track.algorithm:8} {track.rounds:12}  {track.difficulty:16} {track.digest_bits}")
+                print(f"{track.id:32} {track.algorithm:10} {track.rounds:12}  {getattr(track, 'lane', track.difficulty):16} {getattr(track, 'nominal_score', track.digest_bits)}")
         elif args.command == "show":
             track = selected[0]
             print(json.dumps({"purpose": track.purpose, "candidate": str(track.candidate),

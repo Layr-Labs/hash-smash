@@ -1,0 +1,21 @@
+{
+  "schema_version": 3,
+  "submission_state": "draft",
+  "target_profile": "sha3-256-r6-prefix-v1",
+  "attack_class": "ordinary-collision",
+  "rounds": 6,
+  "lane": "exploratory",
+  "claim": {
+    "time_log2": 128,
+    "time_unit": "target-compressions",
+    "memory_log2_bytes": 0,
+    "data_log2": 128,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 0
+  },
+  "restrictions": [],
+  "baseline_improved": "sha3-256-r6-nominal-v2",
+  "heuristics": [],
+  "certificate_manifest": "certificates/manifest.json"
+}

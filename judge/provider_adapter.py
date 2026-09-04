@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Protocol
 
 from .prompts import DEFAULT_STRATEGY, build_messages, load_strategy_prompt
-from .schema_validation import load_review_schema, validate_review
+from .schema_validation import load_review_schema, review_schema_for_stage, validate_review
 
 
 OPENROUTER_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -157,13 +157,16 @@ class ReviewResult:
 def _schema_for_stage(base_schema: Mapping[str, Any], stage: str) -> dict[str, Any]:
     """Specialize the wire schema so the provider cannot fill in forbidden fields."""
 
-    schema = deepcopy(dict(base_schema))
+    from .lanes import LANE_STAGES
+    schema = deepcopy(dict(review_schema_for_stage(stage) if stage in LANE_STAGES else base_schema))
     # Provider structured-output implementations accept the validation schema, but
     # some reject draft/document annotations that are useful only to local tooling.
     for annotation in ("$schema", "$id", "title"):
         schema.pop(annotation, None)
     properties = schema["properties"]
     properties["stage"] = {"type": "string", "enum": [stage]}
+    if stage in LANE_STAGES:
+        return schema
 
     def remove_wire_fields(*fields: str) -> None:
         for field in fields:
@@ -331,7 +334,7 @@ class OpenRouterClient:
             if not isinstance(message, dict) or not isinstance(message.get("content"), str):
                 raise ValueError("missing string message content")
             review = json.loads(message["content"])
-            if isinstance(review, dict):
+            if isinstance(review, dict) and not stage.startswith("lane_"):
                 # The provider-facing schema omits stage-inapplicable null/empty fields.
                 # Restore the canonical review record before strict local validation.
                 review.setdefault("decision", None)
@@ -339,7 +342,7 @@ class OpenRouterClient:
                 review.setdefault("submitted_cost", None)
                 review.setdefault("recomputed_cost", None)
                 review.setdefault("calculation_trace", [])
-            validate_review(review, expected_stage=stage, schema=self.schema)
+            validate_review(review, expected_stage=stage, schema=review_schema_for_stage(stage))
             response_id = payload["id"]
             returned_model = payload["model"]
             if not isinstance(response_id, str) or not response_id:

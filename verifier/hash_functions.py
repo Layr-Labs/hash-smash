@@ -97,6 +97,9 @@ def _compress(algorithm: str, state: tuple[int, ...], block: bytes, rounds: int)
 
 def digest(data: bytes, algorithm: str, rounds: int) -> bytes:
     """Hash bytes with the pinned prefix-step/full-message semantics."""
+    if algorithm in ("sha3_256", "keccak800"):
+        from .keccak import sha3_256, keccak800
+        return {"sha3_256": sha3_256, "keccak800": keccak800}[algorithm](data, rounds)
     if algorithm not in FULL_ROUNDS or type(rounds) is not int or not 1 <= rounds <= FULL_ROUNDS[algorithm]:
         raise ValueError("unsupported algorithm or round count")
     if not isinstance(data, bytes) or len(data) >= 1 << 61:

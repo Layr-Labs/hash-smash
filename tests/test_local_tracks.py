@@ -338,7 +338,7 @@ class LocalTrackTests(unittest.TestCase):
         self.assertIn("prefix round range applies on every block", prompt)
 
     def test_credential_free_cli_lists_and_shows_without_reading_mutable_candidates(self):
-        for arguments in (("list",), ("show", "sha256-r64")):
+        for arguments in (("list", "--collection", "legacy"), ("show", "sha256-r64")):
             result = subprocess.run([sys.executable, "scripts/local_tracks.py", *arguments], cwd=ROOT,
                                     capture_output=True, text=True, check=False)
             self.assertEqual(result.returncode, 0, result.stderr)

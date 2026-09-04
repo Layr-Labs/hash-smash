@@ -33,6 +33,8 @@ from judge.prompts import (  # noqa: E402
 )
 from judge.provider_adapter import OpenRouterClient, OpenRouterConfig  # noqa: E402
 from judge.run_review import run_mvp  # noqa: E402
+from judge.paired_review import run_paired_review, select_lane_aggregate  # noqa: E402
+from judge.lanes import LANE_STAGES, POLICY_ID as PAIRED_POLICY_ID  # noqa: E402
 from verifier.certificates import verify_certificates  # noqa: E402
 from verifier.errors import VerificationError  # noqa: E402
 from verifier.intake import validate_candidate  # noqa: E402
@@ -44,6 +46,8 @@ from verifier.io import (  # noqa: E402
 )
 from verifier.score import build_score  # noqa: E402
 from verifier.tracks import Track, get_track  # noqa: E402
+from verifier.experiment_evidence import execute as execute_experiments, validate_stored as validate_experiment_evidence  # noqa: E402
+from experiments import ExperimentError, ExperimentSetupError, judge_view  # noqa: E402
 from scripts.local_state import TrackBusyError, track_session  # noqa: E402
 
 
@@ -80,11 +84,12 @@ class RunPaths:
     @property
     def generated(self) -> tuple[Path, ...]:
         return (self.score, self.work / "intake-report.json", self.work / "proof-numbered.md",
-                self.work / "certificate-report.json", self.evidence, self.dossier, self.aggregate)
+                self.work / "certificate-report.json", self.evidence, self.dossier, self.aggregate,
+                *((self.work / "experiment-report.json",) if getattr(self.track, "lane", None) else ()))
 
     @classmethod
     def for_track(cls, track: Track, *, state_root: Path | None = None, candidate: Path | None = None) -> "RunPaths":
-        root = state_root if state_root is not None else REPO_ROOT / ".yukon"
+        root = state_root if state_root is not None else getattr(track, "state_root", REPO_ROOT / ".yukon")
         work, reports = root / "work" / "tracks" / track.id, root / "reports" / "tracks" / track.id
         return cls(candidate if candidate is not None else track.candidate,
                    work, reports, root / "scores" / f"{track.id}.json",
@@ -134,7 +139,7 @@ def _build_evidence(
         raise VerificationError("numbered proof does not match current intake")
     if intake_report["package_sha256"] != certificate_report["package_sha256"]:
         raise VerificationError("candidate changed between intake and certificate verification")
-    return {
+    evidence = {
         "schema_version": "hashsmash-evidence-v1",
         "submission": {
             "intake_report": dict(intake_report),
@@ -153,6 +158,16 @@ def _build_evidence(
             ),
         },
     }
+    if getattr(p.track, "lane", None):
+        report = _load_json(p.work / "experiment-report.json")
+        if intake_report["submission_state"] == "ready":
+            validate_experiment_evidence(report, p.candidate, intake_report, p.track)
+        if report["execution"] is not None:
+            report = {**report, "execution": judge_view(report["execution"])}
+        evidence["submission"]["experiment_report"] = report
+    if len(canonical_json_bytes(evidence)) > 512 * 1024:
+        raise VerificationError("judge evidence exceeds the 512 KiB review budget")
+    return evidence
 
 
 def run_intake(paths: RunPaths | None = None) -> int:
@@ -162,6 +177,10 @@ def run_intake(paths: RunPaths | None = None) -> int:
     certificate_report = verify_certificates(
         p.candidate, p.work / "certificate-report.json", track=p.track,
     )
+    if getattr(p.track, "lane", None):
+        experiment_report = execute_experiments(p.candidate, intake_report, p.track,
+                                               holdout_nonce=os.environ.get("HASHSMASH_EXPERIMENT_HOLDOUT_NONCE"))
+        atomic_write_json(p.work / "experiment-report.json", experiment_report)
     evidence = _build_evidence(intake_report, certificate_report, p)
     atomic_write_json(p.evidence, evidence)
     draft = p.track is not None and intake_report["submission_state"] == "draft"
@@ -179,26 +198,31 @@ def run_intake(paths: RunPaths | None = None) -> int:
     return 2 if draft else 0
 
 
-def _safe_config(config: Any) -> dict[str, Any]:
+def _safe_config(config: Any, *, paired: bool = False) -> dict[str, Any]:
     value = asdict(config)
     value.pop("api_key", None)
-    value["qualification_policy_id"] = QUALIFICATION_POLICY_ID
+    value["qualification_policy_id"] = PAIRED_POLICY_ID if paired else QUALIFICATION_POLICY_ID
     value["qualification_policy_sha256"] = sha256_bytes(
-        load_qualification_policy().encode("utf-8")
+        (REPO_ROOT / "judge" / "policies" / "paired-lanes-v1.md").read_bytes() if paired else load_qualification_policy().encode("utf-8")
     )
     value["prompt_sha256"] = {
         stage: sha256_bytes(
             (bedrock_system_prompt(config, stage) if isinstance(config, BedrockConfig)
              else load_system_prompt(stage, config.strategy)).encode("utf-8")
         )
-        for stage in ("triage", "correctness", "complexity")
+        for stage in (LANE_STAGES if paired else ("triage", "correctness", "complexity"))
     }
     if isinstance(config, BedrockConfig):
         value["api"] = config.api
         value["endpoint"] = config.endpoint
     value["review_schema_sha256"] = sha256_bytes(
-        (REPO_ROOT / "schemas" / "review-v1.schema.json").read_bytes()
+        (REPO_ROOT / "schemas" / ("review-lanes-v1.schema.json" if paired else "review-v1.schema.json")).read_bytes()
     )
+    if paired:
+        value["aggregation_sha256"] = sha256_bytes(canonical_json_bytes({
+            name: sha256_bytes((REPO_ROOT / "judge" / name).read_bytes())
+            for name in ("lanes.py", "paired_review.py", "schema_validation.py")
+        }))
     return value
 
 
@@ -252,7 +276,17 @@ def run_judge(paths: RunPaths | None = None) -> int:
     try:
         provider, base_config, client_factory = _provider_from_env()
         mode = os.environ.get("HASHSMASH_JUDGE_MODE", "single").strip().lower()
-        if mode == "single":
+        paired = bool(getattr(p.track, "lane", None))
+        if paired:
+            from judge.role_committee import build_role_clients
+            role_clients, committee_record = build_role_clients(base_config, client_factory, mode=mode)
+            safe_config = {"mode": mode, "provider": provider,
+                           "judge": _safe_config(base_config, paired=True),
+                           "role_committee": committee_record}
+            dossier = run_paired_review(evidence, client_factory(base_config), role_clients=role_clients)
+            dossier["aggregate"] = select_lane_aggregate(dossier, p.track.lane)
+            judge_label = f"paired:{provider}:{base_config.model}"
+        elif mode == "single":
             safe_config: dict[str, Any] = {
                 "mode": "single",
                 "provider": provider,
@@ -308,7 +342,8 @@ def run_judge(paths: RunPaths | None = None) -> int:
     if p.track:
         safe_config["track_id"] = p.track.id
         safe_config["target_config_sha256"] = p.track.config_sha256()
-        safe_config["claim_schema_sha256"] = sha256_bytes((REPO_ROOT / "schemas" / "claim-local-v2.schema.json").read_bytes())
+        claim_schema = "claim-frontier-v3.schema.json" if paired else "claim-local-v2.schema.json"
+        safe_config["claim_schema_sha256"] = sha256_bytes((REPO_ROOT / "schemas" / claim_schema).read_bytes())
         safe_config["certificate_schema_sha256"] = sha256_bytes((REPO_ROOT / "schemas" / "certificate-manifest-local-v2.schema.json").read_bytes())
         aggregate["input_package_sha256"] = evidence["submission"]["intake_report"]["package_sha256"]
         aggregate["target_config_sha256"] = p.track.config_sha256()
@@ -334,9 +369,9 @@ def run_judge(paths: RunPaths | None = None) -> int:
             sort_keys=True,
         )
     )
-    if status == "ai_qualified":
+    if status in ("ai_qualified", "plausible_not_refuted", "ai_rigor_qualified"):
         return 0
-    if status == "judge_infra_failed":
+    if status in ("judge_infra_failed", "infra_failed"):
         return 3
     return 2
 
@@ -350,6 +385,27 @@ def run_score(paths: RunPaths | None = None) -> int:
         _check_current_evidence(p, evidence)
         if aggregate.get("judge_evidence_sha256") != sha256_bytes(canonical_json_bytes(evidence)):
             raise VerificationError("judge aggregate does not bind this evidence")
+        if getattr(p.track, "lane", None):
+            from judge.paired_review import aggregate_paired_reviews, evidence_binding
+            dossier = _load_json(p.dossier)
+            binding = evidence_binding(evidence)
+            if dossier.get("binding") != binding or dossier.get("claim") != evidence["submission"]["intake_report"]["claim"]:
+                raise VerificationError("paired dossier does not bind this exact evidence and claim")
+            config_hash = sha256_bytes(canonical_json_bytes(dossier["judge_configuration"]))
+            core = {key: value for key, value in dossier.items() if key not in ("aggregate", "judge_configuration")}
+            core["judge_configuration_sha256"] = config_hash
+            if (aggregate.get("judge_config_sha256") != config_hash
+                    or aggregate.get("dossier_sha256") != sha256_bytes(canonical_json_bytes(core))
+                    or dossier.get("aggregate") != aggregate):
+                raise VerificationError("paired dossier/configuration integrity mismatch")
+            outcomes = aggregate_paired_reviews(dossier["reviews"], binding=binding,
+                claim=evidence["submission"]["intake_report"]["claim"],
+                infrastructure_failures=dossier.get("infrastructure_failures"))
+            if outcomes != dossier["lanes"]:
+                raise VerificationError("stored paired decisions differ from deterministic aggregation")
+            selected = select_lane_aggregate(dossier, p.track.lane)
+            if any(aggregate.get(key) != value for key, value in selected.items()):
+                raise VerificationError("score aggregate differs from selected lane dossier")
     score = build_score(p.candidate, aggregate, p.score, track=p.track)
     print(
         json.dumps(
@@ -417,7 +473,13 @@ def _execute(command: str, p: RunPaths, record: dict | None = None) -> int:
             print(render_summary(p), end="")
             return 0
         return run_all(p)
-    except VerificationError as error:
+    except ExperimentSetupError as error:
+        p.score.unlink(missing_ok=True)
+        if record is not None:
+            record.update(error_category="experiment_setup_failed", error=str(error))
+        print(f"experiment dev setup unavailable: {error}", file=sys.stderr)
+        return 3
+    except (VerificationError, ExperimentError) as error:
         p.score.unlink(missing_ok=True)
         if record is not None:
             record.update(error_category="verification_failed", error=str(error))

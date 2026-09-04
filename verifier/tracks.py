@@ -120,6 +120,9 @@ def all_tracks() -> tuple[Track, ...]:
 
 
 def get_track(track_id: str) -> Track:
+    if track_id.endswith(("-exploratory", "-rigorous")):
+        from .frontier_tracks import get_frontier_track
+        return get_frontier_track(track_id)
     for track in all_tracks():
         if track.id == track_id:
             return track

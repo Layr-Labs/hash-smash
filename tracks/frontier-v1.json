@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "selection_date": "2026-09-04",
+  "mockup": "https://zooko.github.io/hashsmash-webdesigns/small-multiples.html",
+  "planned_lane_count": 28,
+  "families": [
+    {
+      "id": "md5", "algorithm": "md5", "label": "MD5", "full_rounds": 64,
+      "digest_bits": 128, "nominal_security_bits": 64, "round_pair": [63, 64],
+      "first_unbroken_round": null, "selection_status": "full_round_control",
+      "selection_note": "Full MD5 is already broken. Steps 63/64 are explicit reproduction/improvement controls, an exception to the first-unbroken rule."
+    },
+    {
+      "id": "sha1", "algorithm": "sha1", "label": "SHA-1", "full_rounds": 80,
+      "digest_bits": 160, "nominal_security_bits": 80, "round_pair": [79, 80],
+      "first_unbroken_round": null, "selection_status": "full_round_control",
+      "selection_note": "Full SHA-1 is already broken. Rounds 79/80 are explicit reproduction/improvement controls, an exception to the first-unbroken rule."
+    },
+    {
+      "id": "sha256", "algorithm": "sha256", "label": "SHA-256", "full_rounds": 64,
+      "digest_bits": 256, "nominal_security_bits": 128, "round_pair": [31, 32],
+      "first_unbroken_round": 32, "selection_status": "selected",
+      "selection_note": "User-selected ordinary-collision frontier experiment at rounds 31/32; literature boundaries must match the complete padded hash and charged time-memory model."
+    },
+    {
+      "id": "sha3-256", "algorithm": "sha3_256", "label": "Keccak[1600] / SHA3-256", "full_rounds": 24,
+      "digest_bits": 256, "nominal_security_bits": 128, "round_pair": [5, 6],
+      "first_unbroken_round": 6, "selection_status": "selected",
+      "selection_note": "SHA3-256 sponge: width1600/rate1088/capacity512, suffix01, prefix rounds. Classical five-round collision literature motivates 5/6; quantum six-round results are outside this classical model."
+    },
+    {
+      "id": "blake3", "algorithm": "blake3", "label": "BLAKE3", "full_rounds": 7,
+      "digest_bits": 256, "nominal_security_bits": 128, "round_pair": null,
+      "first_unbroken_round": null, "selection_status": "needs_definition",
+      "selection_note": "Reserve two round counts and both lanes. Compression-function trails and distinguishers do not establish an ordinary unkeyed tree-hash collision boundary. Await a supported ordinary-collision pair."
+    },
+    {
+      "id": "keccak800", "algorithm": "keccak800", "label": "Keccak[800] r544/c256", "full_rounds": 22,
+      "digest_bits": 256, "nominal_security_bits": 128, "round_pair": null,
+      "first_unbroken_round": null, "selection_status": "needs_definition",
+      "selection_note": "The mockup supplies rate544/capacity256 but no authoritative collision frontier or domain suffix. Other Keccak[800] capacities cannot establish this pair."
+    },
+    {
+      "id": "poseidon", "algorithm": "poseidon", "label": "Poseidon", "full_rounds": null,
+      "digest_bits": null, "nominal_security_bits": 128, "round_pair": null,
+      "first_unbroken_round": null, "selection_status": "needs_definition",
+      "selection_note": "Mockup is provisional. Choose field, width, exponent, constants, sponge/compression encoding, full/partial schedule and reduction convention before selecting or executing two round counts."
+    }
+  ]
+}

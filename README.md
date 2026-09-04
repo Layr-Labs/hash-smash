@@ -1,11 +1,18 @@
 # HashSmash Yukon MVP
 
 This repository is an initial Yukon-compatible benchmark for AI-assisted review of
-Markdown cryptanalytic proofs. There are now **nine local experimental tracks** covering
-MD5, SHA-1 and SHA-256 from shallow controls to full-round endpoints. Start with
-[LOCAL_TRACKS.md](./LOCAL_TRACKS.md) for the roster, exact definitions, nominal reference
-scores and per-track commands. No qualified baselines or overnight workers are created
-by that setup.
+Markdown cryptanalytic proofs. The current setup has **16 runnable paired lanes**:
+exploratory and rigorous review for two settings each of MD5, SHA-1, SHA-256 and
+SHA3-256. Twelve additional slots are reserved for BLAKE3, Keccak[800] and Poseidon,
+whose exact frontier definitions remain open. Start with [FRONTIER_LANES.md](./FRONTIER_LANES.md)
+for the roster, commands, two Yukon leaf manifests and deployment gates.
+[JUDGE_LANES.md](./JUDGE_LANES.md) defines the shared review dossier and lane policies;
+[HEURISTIC_EXPERIMENTS.md](./HEURISTIC_EXPERIMENTS.md) defines isolated executable evidence.
+No qualified baselines, new deployments, or overnight workers are created by this setup.
+
+The previous nine local tracks remain available with `--collection legacy`;
+[LOCAL_TRACKS.md](./LOCAL_TRACKS.md) documents their unchanged policy and score conventions.
+The sections below describe the legacy pilot unless stated otherwise.
 
 The existing Yukon manifest and GitHub deployment remain the legacy pilot:
 
@@ -23,25 +30,27 @@ optional committee can run several models or prompting strategies without sharin
 member's output with another. Trusted aggregation may label a submission `ai_qualified`;
 that label is not human acceptance or formal verification.
 
-The active policy is [`unconditional-v1`](./judge/policies/unconditional-v1.md): no
+The legacy policy is [`unconditional-v1`](./judge/policies/unconditional-v1.md): no
 unproved cryptanalytic assumptions are admitted. The historical heuristic candidate is
 retained as a negative control and cannot currently serve as a qualified baseline.
 See [the unconditional birthday argument](./UNCONDITIONAL_BASELINE.md) for the proposed
 replacement and [the multi-track plan](./YUKON_MULTITRACK_PLAN.md) for verified Yukon
 schema-v2 support. The unconditional birthday replacement is not implemented; the nine
-new tracks are local only, not an activated Yukon multi-track deployment. The scalar
+legacy local tracks are not an activated Yukon multi-track deployment. The scalar
 time-memory objective is intentional and is not a Pareto-frontier implementation.
 
 ## Repository contract
 
 For the legacy pilot, only [`candidate/`](./candidate) is participant-editable. A local
-solver instead edits only its assigned `candidates/<track>/`. Each contains a strict JSON claim,
+solver instead edits only its assigned `candidates/<track>/`, or
+`lanes/<lane>/candidates/<target>/` for the new lanes. Each contains a strict JSON claim,
 a Markdown proof, and optional certificate data. Everything that interprets or scores the
 submission is outside that directory.
 
 The generated Yukon score is `.yukon/score.json`. Verification failures exit nonzero and
 do not write a placeholder score. Local scores are isolated at `.yukon/scores/<track>.json`;
-nominal references and unsubmitted drafts never create these files.
+paired-lane scores are under `lanes/<lane>/.yukon/scores/<track>.json`.
+Nominal references and unsubmitted drafts never create these files.
 
 ## Local setup and tests
 

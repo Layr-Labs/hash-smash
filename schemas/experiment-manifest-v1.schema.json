@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hashsmash.example/schemas/experiment-manifest-v1.schema.json",
+  "title": "HashSmash empirical experiment manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "experiments"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "experiments": {
+      "type": "array", "minItems": 1, "maxItems": 16,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object", "additionalProperties": false,
+            "required": ["id", "kind", "scope", "hypothesis", "word_bits", "input_xor_a", "input_xor_b", "output_xor"],
+            "properties": {
+              "id": {"$ref": "#/$defs/id"},
+              "kind": {"enum": ["addition-xor-exact-v1", "addition-xor-sampled-v1"]},
+              "scope": {"$ref": "#/$defs/text"}, "hypothesis": {"$ref": "#/$defs/text"},
+              "word_bits": {"type": "integer", "minimum": 1, "maximum": 32},
+              "input_xor_a": {"type": "integer", "minimum": 0, "maximum": 4294967295},
+              "input_xor_b": {"type": "integer", "minimum": 0, "maximum": 4294967295},
+              "output_xor": {"type": "integer", "minimum": 0, "maximum": 4294967295}
+            }
+          },
+          {
+            "type": "object", "additionalProperties": false,
+            "required": ["id", "kind", "scope", "hypothesis", "program", "event"],
+            "properties": {
+              "id": {"$ref": "#/$defs/id"}, "kind": {"const": "python-message-pairs-v1"},
+              "scope": {"$ref": "#/$defs/text"}, "hypothesis": {"$ref": "#/$defs/text"},
+              "program": {"type": "string", "pattern": "^experiments/[A-Za-z0-9][A-Za-z0-9_-]{0,63}\\.py$"},
+              "event": {
+                "oneOf": [
+                  {"type": "object", "additionalProperties": false, "required": ["kind"], "properties": {"kind": {"const": "full-collision"}}},
+                  {
+                    "type": "object", "additionalProperties": false,
+                    "required": ["kind", "mask_hex", "expected_hex"],
+                    "properties": {
+                      "kind": {"const": "digest-xor-mask"},
+                      "mask_hex": {"$ref": "#/$defs/hex"}, "expected_hex": {"$ref": "#/$defs/hex"}
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"},
+    "text": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "hex": {"type": "string", "minLength": 2, "maxLength": 256, "pattern": "^(?:[0-9a-f]{2})+$"}
+  },
+  "description": "Organizer validation also enforces unique ids, word bounds, exact event mask/target length, expected bits inside a nonzero mask, UTF-8 direct-file sources, and hard execution budgets. The candidate cannot choose target callbacks, image, seeds or trial budgets."
+}
