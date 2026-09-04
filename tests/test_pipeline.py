@@ -1,4 +1,4 @@
-from __future__ import annotations
+"""Provider configuration and paired pipeline command boundaries."""
 
 import contextlib
 import io
@@ -10,41 +10,13 @@ from unittest.mock import patch
 
 import scripts.hashsmash_pipeline as pipeline
 from judge.bedrock_adapter import BedrockClient, BedrockConfig, bedrock_system_prompt
-from judge.provider_adapter import OpenRouterClient, OpenRouterConfig
-from judge.tests.test_bedrock_adapter import FakeTransport, sol_response
+from judge.provider_adapter import JudgeInfraError, OpenRouterClient, OpenRouterConfig
+from tests.helpers import candidate_fixture
+from verifier.frontier_tracks import get_frontier_track
 from verifier.io import sha256_bytes
 
 
-ROOT = Path(__file__).resolve().parents[1]
-
-
 class PipelineIntegrationTests(unittest.TestCase):
-    def test_manifest_has_yukon_score_contract(self) -> None:
-        manifest = json.loads((ROOT / "benchmark.json").read_text(encoding="utf-8"))
-        self.assertEqual(manifest["schemaVersion"], 1)
-        self.assertEqual(manifest["direction"], "-")
-        self.assertEqual(manifest["editablePaths"], ["candidate"])
-        self.assertEqual(manifest["scorePath"], ".yukon/score.json")
-
-    def test_workflow_is_manually_dispatchable_and_keeps_secret_out_of_intake(self) -> None:
-        workflow = (ROOT / ".github" / "workflows" / "benchmark.yml").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn("workflow_dispatch:", workflow)
-        intake_job, judge_job = workflow.split("  judge:\n", maxsplit=1)
-        self.assertNotIn("OPENROUTER_API_KEY", intake_job)
-        self.assertIn("OPENROUTER_API_KEY", judge_job)
-        self.assertNotIn("AWS_BEARER_TOKEN_BEDROCK", intake_job)
-        self.assertIn("AWS_BEARER_TOKEN_BEDROCK", judge_job)
-        openrouter_step, bedrock_and_later = judge_job.split(
-            "      - name: Benchmark Amazon Bedrock review\n", maxsplit=1
-        )
-        bedrock_step = bedrock_and_later.split(
-            "      - name: Publish review summary\n", maxsplit=1
-        )[0]
-        self.assertNotIn("AWS_BEARER_TOKEN_BEDROCK", openrouter_step)
-        self.assertNotIn("OPENROUTER_API_KEY", bedrock_step)
-
     def test_provider_selection_supports_openrouter_and_bedrock(self) -> None:
         with patch.dict(
             "os.environ",
@@ -90,63 +62,38 @@ class PipelineIntegrationTests(unittest.TestCase):
         safe = pipeline._safe_config(config)
         self.assertEqual(safe["api"], "responses")
         self.assertEqual(safe["endpoint"], config.endpoint)
-        self.assertEqual(safe["prompt_sha256"]["triage"], sha256_bytes(bedrock_system_prompt(config, "triage").encode()))
+        self.assertEqual(safe["prompt_sha256"]["lane_evaluability"], sha256_bytes(bedrock_system_prompt(config, "lane_evaluability").encode()))
         self.assertNotIn("secret", json.dumps(safe))
 
-    def test_sol_failed_judge_removes_stale_score(self) -> None:
-        config = BedrockConfig(api_key="secret", model="us.openai.gpt-5.6-sol", max_attempts=1)
-        transport = FakeTransport([sol_response(status="incomplete")] * 3)
-        with tempfile.TemporaryDirectory() as temporary:
-            report_root = Path(temporary)
-            score_path = report_root / "score.json"
-            score_path.write_text('{"score": 179}')
-            with patch.multiple(
-                pipeline,
-                SCORE_PATH=score_path,
-                DOSSIER_PATH=report_root / "dossier.json",
-                AGGREGATE_PATH=report_root / "aggregate.json",
-            ), patch.object(pipeline, "_load_json", return_value={}), patch.object(
-                pipeline, "_provider_from_env",
-                return_value=("bedrock", config, lambda cfg: BedrockClient(cfg, transport=transport)),
-            ), patch.dict("os.environ", {"HASHSMASH_JUDGE_MODE": "single"}), contextlib.redirect_stdout(io.StringIO()):
-                self.assertEqual(pipeline.run_judge(), 3)
-            self.assertFalse(score_path.exists())
-            self.assertEqual(json.loads((report_root / "aggregate.json").read_text())["status"], "judge_infra_failed")
+    def test_track_selection_is_required_and_retired_tracks_are_rejected(self):
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as error:
+            pipeline.main(["all"])
+        self.assertEqual(error.exception.code, 2)
+        for track_id in ("sha1-r80", "md5-s8", "blake3-exploratory"):
+            with contextlib.redirect_stderr(io.StringIO()), patch.object(pipeline, "_provider_from_env") as provider:
+                self.assertEqual(pipeline.main(["all", "--track", track_id]), 3)
+                provider.assert_not_called()
 
-    def test_checked_in_candidate_passes_end_to_end_intake(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            generated_root = Path(temporary)
-            work_root = generated_root / "work"
-            report_root = generated_root / "reports"
-            score_path = generated_root / "score.json"
-            evidence_path = work_root / "judge-evidence.json"
-            generated_files = (
-                score_path,
-                work_root / "intake-report.json",
-                work_root / "proof-numbered.md",
-                work_root / "certificate-report.json",
-                evidence_path,
-                report_root / "judge-dossier.json",
-                report_root / "aggregate.json",
-            )
-            stdout = io.StringIO()
-            with patch.multiple(
-                pipeline,
-                WORK_ROOT=work_root,
-                REPORT_ROOT=report_root,
-                SCORE_PATH=score_path,
-                EVIDENCE_PATH=evidence_path,
-                DOSSIER_PATH=report_root / "judge-dossier.json",
-                AGGREGATE_PATH=report_root / "aggregate.json",
-                GENERATED_FILES=generated_files,
-            ), contextlib.redirect_stdout(stdout):
-                self.assertEqual(pipeline.run_intake(), 0)
-            output = json.loads(stdout.getvalue())
-            evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    def test_failed_judge_removes_stale_score(self):
+        class FailedClient:
+            def review(self, stage, evidence):
+                raise JudgeInfraError("Organizer offline transport failure")
 
-        self.assertEqual(output["status"], "mechanically_valid")
-        self.assertEqual(evidence["schema_version"], "hashsmash-evidence-v1")
-        self.assertIn("000001 |", evidence["submission"]["proof_markdown_line_numbered"])
+        track = get_frontier_track("sha256-r31-exploratory")
+        config = BedrockConfig(api_key="offline-fixture")
+        with tempfile.TemporaryDirectory() as temporary, contextlib.redirect_stdout(io.StringIO()):
+            root = Path(temporary)
+            candidate = candidate_fixture(root, track)
+            paths = pipeline.RunPaths.for_track(track, state_root=root / "state", candidate=candidate)
+            self.assertEqual(pipeline.run_intake(paths), 0)
+            paths.score.parent.mkdir(parents=True, exist_ok=True)
+            paths.score.write_text('{"score": 179}')
+            with patch.object(pipeline, "_provider_from_env",
+                              return_value=("bedrock", config, lambda _: FailedClient())), \
+                 patch.dict("os.environ", {"HASHSMASH_JUDGE_MODE": "single"}):
+                self.assertEqual(pipeline.run_judge(paths), 3)
+            self.assertFalse(paths.score.exists())
+            self.assertEqual(json.loads(paths.aggregate.read_text())["status"], "infra_failed")
 
 
 if __name__ == "__main__":

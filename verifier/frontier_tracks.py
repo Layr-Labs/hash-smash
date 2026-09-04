@@ -6,7 +6,8 @@ import re
 
 from .errors import VerificationError
 from .io import canonical_json_bytes, load_json_bytes, sha256_bytes
-from .tracks import ROOT, Track
+
+ROOT = Path(__file__).resolve().parents[1]
 
 CATALOG_PATH = ROOT / "tracks" / "frontier-v1.json"
 LANES = {"exploratory": "plausible_not_refuted", "rigorous": "ai_rigor_qualified"}
@@ -42,7 +43,12 @@ def catalog() -> dict:
 
 
 @dataclass(frozen=True)
-class LaneTrack(Track):
+class LaneTrack:
+    id: str
+    algorithm: str
+    rounds: int
+    difficulty: str
+    purpose: str
     lane: str
     target_id: str
     output_bits: int
@@ -71,6 +77,10 @@ class LaneTrack(Track):
         return self.output_bits
 
     @property
+    def profile_path(self) -> Path:
+        return ROOT / "target-profiles" / f"{self.profile_id}.json"
+
+    @property
     def cost_path(self) -> Path:
         return ROOT / "cost-models" / "collision-frontier-v3.json"
 
@@ -87,10 +97,18 @@ class LaneTrack(Track):
         return float(self.nominal_security_bits)
 
     def draft_claim(self) -> dict:
-        claim = super().draft_claim()
-        claim.update(schema_version=3, lane=self.lane, heuristics=[])
-        claim["claim"]["memory_log2_bytes"] = 0
-        return claim
+        """Organizer template, independent of the mutable solver candidate."""
+        return {
+            "schema_version": 3, "submission_state": "draft", "target_profile": self.profile_id,
+            "attack_class": "ordinary-collision", "rounds": self.rounds,
+            "claim": {"time_log2": self.digest_bits / 2, "time_unit": "target-compressions",
+                      "memory_log2_bytes": 0, "data_log2": self.digest_bits / 2,
+                      "preprocessing_log2": 0, "success_probability": 0.39,
+                      "nonuniform_advice_log2_bytes": 0},
+            "restrictions": [], "baseline_improved": self.reference_id,
+            "certificate_manifest": "certificates/manifest.json",
+            "lane": self.lane, "heuristics": [],
+        }
 
     def benchmark(self) -> dict:
         profile = load_json_bytes(self.profile_path.read_bytes(), str(self.profile_path))
@@ -136,6 +154,9 @@ class LaneTrack(Track):
                 "note": "Organizer nominal security exponent, matching the mockup. It is neither an executed or qualified baseline nor a proved time-memory bound; byte and instruction constants require accounting in each submission.",
             },
         }
+
+    def config_sha256(self) -> str:
+        return sha256_bytes(canonical_json_bytes(self.benchmark()))
 
 
 def frontier_tracks() -> tuple[LaneTrack, ...]:

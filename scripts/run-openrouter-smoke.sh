@@ -9,6 +9,8 @@ if [[ ! -f .env ]]; then
   exit 2
 fi
 
+bash .yukon/setup.sh
+
 set -a
 # shellcheck disable=SC1091
 source .env

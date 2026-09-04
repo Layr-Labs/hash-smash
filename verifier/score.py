@@ -13,14 +13,14 @@ from .errors import VerificationError
 from .intake import validate_candidate
 from .io import atomic_write_json, canonical_json_bytes, ensure_output_outside_root, sha256_bytes
 from .schema_validation import require_sha256
-from .tracks import Track
+from .frontier_tracks import LaneTrack
 
 
 def build_score(
     candidate_root: str | os.PathLike[str],
     aggregate: Mapping[str, Any],
     output_path: str | os.PathLike[str] | None = None,
-    *, track: Track | None = None,
+    *, track: LaneTrack,
 ) -> dict[str, Any]:
     """Build a score only for an explicitly AI-qualified judge aggregate.
 
@@ -31,12 +31,10 @@ def build_score(
 
     if not isinstance(aggregate, Mapping):
         raise VerificationError("judge aggregate: must be an object")
-    accepted_status = getattr(track, "accepted_status", "ai_qualified")
+    accepted_status = track.accepted_status
     if aggregate.get("status") != accepted_status:
         raise VerificationError(f"judge aggregate: top-level status must equal '{accepted_status}'")
-    if getattr(track, "lane", None) and (
-        aggregate.get("lane") != track.lane or aggregate.get("policy_id") != "paired-lanes-v1"
-    ):
+    if aggregate.get("lane") != track.lane or aggregate.get("policy_id") != "paired-lanes-v1":
         raise VerificationError("judge aggregate: wrong lane or qualification policy")
 
     judge_config_sha256: str | None = None
@@ -49,24 +47,18 @@ def build_score(
         dossier_sha256 = require_sha256(aggregate["dossier_sha256"], "$.dossier_sha256")
 
     intake = validate_candidate(candidate_root, track=track)
-    if track:
-        if intake["submission_state"] != "ready":
-            raise VerificationError("draft templates cannot be scored")
-        if aggregate.get("input_package_sha256") != intake["package_sha256"]:
-            raise VerificationError("judge aggregate: stale or mismatched candidate package")
-        if aggregate.get("target_config_sha256") != track.config_sha256():
-            raise VerificationError("judge aggregate: stale or mismatched target configuration")
+    if intake["submission_state"] != "ready":
+        raise VerificationError("draft templates cannot be scored")
+    if aggregate.get("input_package_sha256") != intake["package_sha256"]:
+        raise VerificationError("judge aggregate: stale or mismatched candidate package")
+    if aggregate.get("target_config_sha256") != track.config_sha256():
+        raise VerificationError("judge aggregate: stale or mismatched target configuration")
     aggregate_claim = aggregate.get("claim")
     if not isinstance(aggregate_claim, Mapping):
         raise VerificationError("judge aggregate: AI-qualified result must include a claim object")
     submitted_claim = intake["claim"]
-    if getattr(track, "lane", None) and canonical_json_bytes(aggregate_claim) != canonical_json_bytes(submitted_claim):
+    if canonical_json_bytes(aggregate_claim) != canonical_json_bytes(submitted_claim):
         raise VerificationError("paired judge aggregate must bind the entire submitted claim")
-    for field in ("target_profile", "attack_class", "rounds", "restrictions"):
-        if aggregate_claim.get(field) != submitted_claim[field]:
-            raise VerificationError(
-                f"judge aggregate: reconstructed claim differs from submission at {field}"
-            )
     certificate_report = verify_certificates(candidate_root, track=track)
     if certificate_report["package_sha256"] != intake["package_sha256"]:
         raise VerificationError("candidate package changed between deterministic gates")
@@ -91,20 +83,19 @@ def build_score(
         "successProbability": float(costs["success_probability"]),
         "inputPackageSha256": intake["package_sha256"],
         "certificateReportSha256": sha256_bytes(canonical_json_bytes(certificate_report)),
+        "trackId": track.id,
+        "targetConfigSha256": track.config_sha256(),
+        "timeUnit": "target-compressions",
+        "nominalReferenceScore": track.nominal_score,
+        "improvesNominalReference": time_memory_log2 < track.nominal_score,
+        "referenceIsQualifiedBaseline": False,
+        "lane": track.lane,
+        "qualificationPolicy": "paired-lanes-v1",
+        "targetId": track.target_id,
+        "unresolvedObligations": aggregate.get("reasons", []),
+        "humanAccepted": False,
+        "formallyVerified": False,
     }
-    if track:
-        metrics.update({
-            "trackId": track.id,
-            "targetConfigSha256": track.config_sha256(),
-            "timeUnit": "target-compressions",
-            "nominalReferenceScore": getattr(track, "nominal_score", float(track.digest_bits)),
-            "improvesNominalReference": time_memory_log2 < getattr(track, "nominal_score", track.digest_bits),
-            "referenceIsQualifiedBaseline": False,
-        })
-        if getattr(track, "lane", None):
-            metrics.update({"lane": track.lane, "qualificationPolicy": "paired-lanes-v1",
-                            "targetId": track.target_id, "unresolvedObligations": aggregate.get("reasons", []),
-                            "humanAccepted": False, "formallyVerified": False})
     if judge_config_sha256 is not None:
         metrics["judgeConfigSha256"] = judge_config_sha256
     if dossier_sha256 is not None:

@@ -9,7 +9,6 @@ import struct
 
 MASK = 0xffffffff
 FULL_ROUNDS = {"md5": 64, "sha1": 80, "sha256": 64}
-DIGEST_BITS = {"md5": 128, "sha1": 160, "sha256": 256}
 MD5_K = (
     0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee, 0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
     0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be, 0x6b901122, 0xfd987193, 0xa679438e, 0x49b40821,

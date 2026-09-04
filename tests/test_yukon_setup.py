@@ -22,9 +22,9 @@ class ScoreArtifactTests(unittest.TestCase):
         self.benchmark = self.root / "benchmark"
         self.benchmark.mkdir()
 
-    def fixture(self, path, value=b'{"score": 12.5, "metrics": {"fixture": true}}', *, paired=True):
-        row = {"scorePath": path, "editablePaths": ["candidate"]}
-        manifest = {"schemaVersion": 2, "tracks": [row]} if paired else {"schemaVersion": 1, **row}
+    def fixture(self, path, value=b'{"score": 12.5, "metrics": {"fixture": true}}'):
+        row = {"scorePath": path, "editablePaths": ["candidates/sha256-r31"]}
+        manifest = {"schemaVersion": 2, "tracks": [row]}
         (self.benchmark / "benchmark.json").write_text(json.dumps(manifest))
         source = self.benchmark / path
         source.parent.mkdir(parents=True, exist_ok=True)
@@ -32,19 +32,28 @@ class ScoreArtifactTests(unittest.TestCase):
         return source
 
     def test_uploaded_directory_preserves_exact_manifest_entry_and_only_score(self):
-        for paired, path in [(False, ".yukon/score.json"), (True, ".yukon/scores/sha256-r31-exploratory.json")]:
-            with self.subTest(path=path):
-                source = self.fixture(path, paired=paired)
-                destination = self.root / ("paired" if paired else "legacy")
-                stage_score(self.benchmark, path, destination)
-                archive = io.BytesIO()
-                with zipfile.ZipFile(archive, "w") as zipped:
-                    for item in destination.rglob("*"):
-                        if item.is_file():
-                            zipped.write(item, str(item.relative_to(destination)))
-                with zipfile.ZipFile(archive) as zipped:
-                    self.assertEqual(zipped.namelist(), [path])
-                    self.assertEqual(zipped.read(path), source.read_bytes())
+        path = ".yukon/scores/sha256-r31-exploratory.json"
+        source = self.fixture(path)
+        destination = self.root / "paired"
+        stage_score(self.benchmark, path, destination)
+        archive = io.BytesIO()
+        with zipfile.ZipFile(archive, "w") as zipped:
+            for item in destination.rglob("*"):
+                if item.is_file():
+                    zipped.write(item, str(item.relative_to(destination)))
+        with zipfile.ZipFile(archive) as zipped:
+            self.assertEqual(zipped.namelist(), [path])
+            self.assertEqual(zipped.read(path), source.read_bytes())
+
+    def test_retired_pilot_manifest_cannot_create_an_artifact(self):
+        path = ".yukon/score.json"
+        self.fixture(path)
+        (self.benchmark / "benchmark.json").write_text(json.dumps({
+            "schemaVersion": 1, "scorePath": path, "editablePaths": ["candidate"],
+        }))
+        with self.assertRaises(ValueError):
+            stage_score(self.benchmark, path, self.root / "artifact")
+        self.assertFalse((self.root / "artifact").exists())
 
     def test_invalid_scores_cannot_create_an_artifact(self):
         for value in [b'{"score":true}', b'{"score":NaN}', b'{"score":1e999}', b'{"metrics":{}}']:
