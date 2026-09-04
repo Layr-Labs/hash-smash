@@ -1,20 +1,26 @@
 {
   "schema_version": 3,
-  "submission_state": "draft",
+  "submission_state": "ready",
   "target_profile": "sha256-r32-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 32,
   "lane": "rigorous",
   "claim": {
-    "time_log2": 128,
+    "time_log2": 148,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 0,
-    "data_log2": 128,
-    "preprocessing_log2": 0,
-    "success_probability": 0.39,
+    "memory_log2_bytes": 138,
+    "data_log2": 137,
+    "preprocessing_log2": 20,
+    "success_probability": 0.8,
     "nonuniform_advice_log2_bytes": 0
   },
-  "restrictions": [],
+  "restrictions": [
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v3; fresh independent random words, not seeded PRNG expansion.",
+    "Exactly q=2^129 sampled 64-byte messages; complete SHA-256 with fixed IV, prefix rounds 0 through 31 on both padded blocks, feed-forward and all 256 digest bits.",
+    "One finite run with at most 2^148 total charged operations and 2^138 peak bytes; no restarts, nonuniform advice or precomputed collision.",
+    "data_log2 bounds bytes of complete padded hash inputs including final verification re-reads, as specified in proof.md.",
+    "Analytic resource and success bounds; no full-scale execution, cryptanalytic improvement or nominal-reference improvement is claimed."
+  ],
   "baseline_improved": "sha256-r32-nominal-v2",
   "heuristics": [],
   "certificate_manifest": "certificates/manifest.json"
