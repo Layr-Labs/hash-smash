@@ -61,6 +61,10 @@ bash .yukon/setup.sh
 This uses only Python's standard library and runs all deterministic and mocked-provider
 tests. It does not contact either provider.
 
+For the participant-supplied Python → isolated execution → numerical evidence →
+paired judge → diagnostic score test, see
+[PARTICIPANT_HEURISTIC_TEST.md](./PARTICIPANT_HEURISTIC_TEST.md).
+
 ## Local live integration
 
 For OpenRouter, place `OPENROUTER_API_KEY` in `.env`, then run:

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "birthday-batches",
+      "kind": "python-message-pairs-v1",
+      "scope": "256 fixed-budget birthday batches on the exact md5-s8-prefix-v1 target. Each batch uses one organizer seed and 256 counter-derived 16-bit values. All trials, including failures, are returned.",
+      "hypothesis": "The submitted batch algorithm returns a full ordinary collision with probability at least 0.39 over a fresh uniform 256-bit attack seed. Finite frequencies are supporting evidence, not a certified population probability.",
+      "program": "experiments/birthday.py",
+      "event": {"kind": "full-collision"}
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "schema_version": "participant-heuristic-validation-summary-v1",
+  "date_utc": "2026-09-04",
+  "fixture_id": "participant-birthday-heuristic-v1",
+  "calibration_only": true,
+  "registered_frontier_track": false,
+  "is_qualified_baseline": false,
+  "run_id": "20260904T210454Z-2b47fa53",
+  "target_profile": "md5-s8-prefix-v1",
+  "package_sha256": "2b62ffade42925389dea20308f9ff556599192d2aa17d08e787b91190ecc76c8",
+  "target_config_sha256": "1532334e29e552a459a9af9523ee4ee85519ecd0b0986b16b151032ad95ee35c",
+  "experiment_report_sha256": "9300aa7f7dc01daf180e7ffd6791fa68b4a90379acdaaba1c7e6ec0f82fe8087",
+  "offline_suite": {
+    "discovered": 226,
+    "passed": 221,
+    "docker_skipped": 5
+  },
+  "real_docker_integration": {
+    "status": "passed",
+    "model": "explicitly_fake_offline_reviewer",
+    "initial_attempt": "Docker daemon/image preflight failed",
+    "retry": "Unchanged test passed after exact preflight succeeded; no isolation relaxation"
+  },
+  "preserved_experiment": {
+    "trials": 256,
+    "full_collisions": 82,
+    "no_pair_returned": 174,
+    "observed_fraction": 0.3203125,
+    "fresh_sandbox_executions": 2,
+    "stdout_byte_identical": true,
+    "independent_audit": "All 256 seeds, first duplicates, failures, and full-digest predicates reconstructed by organizer test code",
+    "scope": "Finite execution evidence, not population success probability or attack cost"
+  },
+  "post_run_model_conditional_diagnostic": {
+    "iid_ideal_birthday_probability": 0.39267752673178724,
+    "iid_binomial_lower_tail_at_claimed_p_0_39": 0.012413293797324747,
+    "iid_binomial_lower_tail_at_ideal_birthday_p": 0.009880122523012675,
+    "assumption": "Independent Bernoulli trials, not established for this deterministic seed set",
+    "included_in_judge_evidence": false,
+    "fixture_or_seed_tuned_after_observation": false
+  },
+  "live_review": {
+    "status": "awaiting_explicit_payload_transfer_approval",
+    "provider_requested": "bedrock",
+    "model_requested": "us.openai.gpt-5.6-sol",
+    "actual_model_calls": 0,
+    "outcomes": null,
+    "live_diagnostic_score_emitted": false,
+    "reason": "App permission review blocked the wrapper before execution; approval requested to send the fixture source, proof, and numerical evidence to Bedrock"
+  },
+  "limitations": [
+    "Noncompetitive shallow MD5 integration fixture, not a cryptanalytic advance",
+    "One diagnostic is not a measured false-positive or false-negative rate",
+    "Public deterministic seeds are not a blinded holdout",
+    "No full Yukon workflow was exercised"
+  ]
+}

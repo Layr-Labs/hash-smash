@@ -1,0 +1,32 @@
+{
+  "schema_version": 3,
+  "submission_state": "ready",
+  "lane": "exploratory",
+  "target_profile": "md5-s8-prefix-v1",
+  "attack_class": "ordinary-collision",
+  "rounds": 8,
+  "claim": {
+    "time_log2": 23,
+    "time_unit": "target-compressions",
+    "memory_log2_bytes": 17,
+    "data_log2": 8,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 0
+  },
+  "restrictions": [],
+  "baseline_improved": "md5-s8-nominal-v2",
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json",
+  "heuristics": [
+    {
+      "id": "H-birthday-seed-expansion",
+      "statement": "For a uniform 256-bit seed S, the 256 16-bit prefixes of SHA-256('HS-BATCH-v1' || S || uint16le(j)), j=0..255, have a repeated value with probability at least 0.39. The iid-uniform birthday model motivates this concrete population claim but is not an identity for fixed SHA-256.",
+      "role": "score-critical",
+      "scope": "Exactly the submitted single-batch sampler, fixed full SHA-256 seed expansion, 256 counters, 16-bit prefix, uniform 256-bit algorithmic seed, and complete eight-step MD5 target.",
+      "extrapolation": "From 256 reproducible organizer-selected seeds to the probability over all 2^256 seeds; no larger batch, longer MD5 prefix, or full MD5 extrapolation.",
+      "evidence_ids": ["experiment:birthday-batches", "proof:1-54"],
+      "limitations": "Finite checked collisions support the sampler but do not establish uniformity, independence, or a population lower bound of 0.39. Public seeds are not a blinded holdout; no confidence interval or measured runtime is asserted as a proof."
+    }
+  ]
+}
