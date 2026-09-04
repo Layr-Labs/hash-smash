@@ -1,20 +1,25 @@
 {
   "schema_version": 3,
-  "submission_state": "draft",
+  "submission_state": "ready",
   "target_profile": "sha3-256-r6-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 6,
   "lane": "rigorous",
   "claim": {
-    "time_log2": 128,
+    "time_log2": 150,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 0,
-    "data_log2": 128,
-    "preprocessing_log2": 0,
-    "success_probability": 0.39,
+    "memory_log2_bytes": 138,
+    "data_log2": 130,
+    "preprocessing_log2": 142,
+    "success_probability": 0.5,
     "nonuniform_advice_log2_bytes": 0
   },
-  "restrictions": [],
+  "restrictions": [
+    "Classical 256-bit word RAM with fresh independent uniform random-word primitive.",
+    "One batch of 2^129 independent uniform 64-byte messages; no restarts or nonuniform advice.",
+    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06, prefix rounds 0 through 5, all 256 output bits.",
+    "Generic analytic upper bound; infeasible resource use, no improvement over the nominal reference claimed."
+  ],
   "baseline_improved": "sha3-256-r6-nominal-v2",
   "heuristics": [],
   "certificate_manifest": "certificates/manifest.json"
