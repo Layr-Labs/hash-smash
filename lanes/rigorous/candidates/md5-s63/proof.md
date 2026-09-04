@@ -300,11 +300,9 @@ for an unknown mathematical property. The model explicitly supplies independent
 uniform random words; replacing them with a deterministic seed expander would
 be a different claim needing a different success analysis.
 
-The certificate manifest is a valid empty set. No particular collision is claimed
-to have been produced at this infeasible scale. No experiment manifest or source
-is declared because finite sampled experiments are unnecessary to this analytic
-argument and would not establish its full-scale success probability. The proof
-contains the necessary finite probability argument and exact target computation;
-review does not require fetching any external source. Empty certificates and no
-experiments do not by themselves establish qualification: the complete analytic
-and resource obligations remain subject to the selected lane's review.
+The package contains an empty certificate manifest and declares no experiment
+manifest or executable experiment source. Its analytic evidence consists of the
+exact target definition, collision-search algorithm, finite probability argument,
+and RAM resource ledger above. No full-scale execution, sampled experiment, or
+concrete collision certificate is reported. The probability calculation uses the
+independent uniform random-word primitive specified by the cost model.
