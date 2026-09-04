@@ -1,20 +1,25 @@
 {
   "schema_version": 3,
-  "submission_state": "draft",
+  "submission_state": "ready",
   "target_profile": "sha1-r79-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 79,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 80,
+    "time_log2": 94,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 0,
-    "data_log2": 80,
-    "preprocessing_log2": 0,
+    "memory_log2_bytes": 88,
+    "data_log2": 81,
+    "preprocessing_log2": 20,
     "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
-  "restrictions": [],
+  "restrictions": [
+    "Complete fixed-IV SHA-1 with prefix rounds 0 through 78, standard padding and feed-forward, and all 160 output bits.",
+    "Inputs are independent uniform 32-byte messages; ideal random-word access is the charged primitive in collision-frontier-v3.",
+    "A single bounded N=2^80 attempt uses two arrays and deterministic merge sort; identical-input matches are excluded.",
+    "Analytic upper bounds only: no executed full-scale search, stored collision advice, cryptanalytic heuristic, or claimed improvement over the nominal reference."
+  ],
   "baseline_improved": "sha1-r79-nominal-v2",
   "heuristics": [],
   "certificate_manifest": "certificates/manifest.json"
