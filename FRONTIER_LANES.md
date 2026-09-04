@@ -185,12 +185,17 @@ reaggregates and scores. Only that run's selected score is uploaded. Artifact or
 not just a self-reported hash, is part of the trust boundary. Local generated
 artifacts must likewise remain organizer-controlled.
 
-Before import/publication:
+For dev setup and exact import commands, use [YUKON_DEV_SETUP.md](./YUKON_DEV_SETUP.md).
+Candidate authors should follow [CANDIDATE_QUALIFICATION.md](./CANDIDATE_QUALIFICATION.md).
+
+Before activating the current sixteen lanes:
 
 1. Confirm the explicit MD5/SHA-1 control exception and SHA3-256 instantiation.
-2. Set the three deferred families' exact definitions and defensible or explicitly
-   provisional round pairs; update catalog, profiles, templates, schemas, manifests,
-   wrappers and independent checker tests. `--require-complete` fails until all 28 exist.
+2. Keep the twelve undefined slots deferred. Their definitions are not a gate for
+   importing the current eight tracks per leaf. To activate them later, establish
+   exact definitions and defensible or explicitly provisional round pairs, then
+   update catalog, profiles, templates, schemas, manifests, wrappers and checker
+   tests. `--require-complete` checks that eventual full roster only.
 3. Establish an admissible baseline separately for each activated lane, or obtain a
    supported Yukon change allowing an initially empty frontier. Drafts/nominal
    references cannot be passed off as successful baselines.

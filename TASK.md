@@ -1,5 +1,10 @@
 # Tasks
 
+For the current paired research lanes, read [FRONTIER_LANES.md](./FRONTIER_LANES.md),
+[CANDIDATE_QUALIFICATION.md](./CANDIDATE_QUALIFICATION.md), and
+[YUKON_SOLVER_GUIDE.md](./YUKON_SOLVER_GUIDE.md). Your assigned
+`tracks/<target>-<lane>/TASK.md` selects the exact candidate directory and policy.
+
 For the nine local experiments, read [LOCAL_TRACKS.md](./LOCAL_TRACKS.md) and your assigned
 `tracks/<track>/TASK.md`. Use `--track` explicitly. Each local track has its own draft
 submission, trusted target, standard cost model and nominal (not qualified) reference.

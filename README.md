@@ -14,7 +14,7 @@ The previous nine local tracks remain available with `--collection legacy`;
 [LOCAL_TRACKS.md](./LOCAL_TRACKS.md) documents their unchanged policy and score conventions.
 The sections below describe the legacy pilot unless stated otherwise.
 
-The existing Yukon manifest and GitHub deployment remain the legacy pilot:
+The repository-root Yukon manifest and `benchmark.yml` still describe the legacy pilot:
 
 - target: full-round SHA-1 (`sha1-fips180-4-v1`);
 - attack class: ordinary collisions;
@@ -118,20 +118,28 @@ approved for OpenRouter's non-ZDR retention policy.
 
 ## Yukon
 
-[`benchmark.json`](./benchmark.json) is a schema-v1 GitHub Actions benchmark manifest.
-The ranked workflow is [`.github/workflows/benchmark.yml`](./.github/workflows/benchmark.yml).
-It separates deterministic intake from the secret-bearing judge job and uploads the exact
-score path expected by Yukon.
+For the current paired challenges, follow [YUKON_DEV_SETUP.md](./YUKON_DEV_SETUP.md).
+The two schema-v2 imports use `lanes/exploratory` and `lanes/rigorous` as their
+explicit `rootDir`; importing the repository root selects the legacy pilot.
+[CANDIDATE_QUALIFICATION.md](./CANDIDATE_QUALIFICATION.md) is the handoff for completing
+and qualifying the sixteen candidate packages, and
+[YUKON_SOLVER_GUIDE.md](./YUKON_SOLVER_GUIDE.md) covers leaf selection, notes and tracing.
 
-The workflow has not been imported into Yukon as part of this MVP. Before production:
+The existing private GitHub repository, Actions settings and Bedrock secret/model
+configuration are in place. Yukon dev import and full submission/promotion
+validation remain outstanding. The twelve undefined slots remain deferred.
 
-1. Select OpenRouter or Bedrock. Configure either an OpenRouter ZDR-compatible route and
-   `OPENROUTER_API_KEY`, or a Bedrock API key and the desired model access. Evaluate AWS
-   temporary credentials or role-based authentication before production hardening.
-2. Decide whether improving PRs can be held for human review.
-3. Replace the provisional generic baseline with a cryptographer-ratified frontier entry.
-4. Create the GitHub repository, install the appropriate Yukon GitHub App, and obtain a
-   Yukon dev importer API key from the allowlisted deployment operator.
+[`benchmark.json`](./benchmark.json) and
+[`.github/workflows/benchmark.yml`](./.github/workflows/benchmark.yml) retain the
+schema-v1 legacy contract. Both legacy and paired workflows separate deterministic
+intake, secret-bearing review, and final scoring. They upload the selected score at
+its exact manifest-relative path and withhold it when qualification fails.
+
+Before opening the real dev challenges, qualify each imported lane's baseline,
+verify the dev App and importer account access, and test Yukon-driven validation,
+non-editable-path rejection, and promotion across both leaf challenges. Public
+publication additionally needs the documented cryptanalytic calibration and human
+review decisions. Human acceptance remains distinct from an AI review outcome.
 
 See [`YUKON_CHALLENGE_PLAN.md`](./YUKON_CHALLENGE_PLAN.md) for the full design and rollout
 plan. See [`MVP_VALIDATION.md`](./MVP_VALIDATION.md) for the offline and live provider test

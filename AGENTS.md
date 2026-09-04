@@ -31,3 +31,12 @@ pilot and nine unconditional local tracks remain available; see LOCAL_TRACKS.md.
 - Use Python's standard library unless a dependency is explicitly justified and pinned.
 - Run the deterministic unit tests before any live OpenRouter or Amazon Bedrock
   integration test.
+- Use `YUKON_DEV_SETUP.md` for operator imports and `YUKON_SOLVER_GUIDE.md` for
+  paired solver commands, submission notes and CLI-managed tracing. A Yukon track
+  name omits the lane suffix; organizer Python track IDs include it. Select the
+  intended leaf and trace session before editing.
+- Keep submission notes and research discussions free of secrets, private paths
+  and unrelated session data. Do not use retired standalone Notes commands.
+- Land harness changes through a feature branch and human-reviewed PR. Label
+  harness PRs `yukon-unsafe` when they invalidate pending scores. Never manually
+  merge Yukon submission PRs; Yukon promotes only its scored content.

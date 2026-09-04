@@ -131,12 +131,18 @@ jobs:
       - name: Publish summary
         run: python3 scripts/hashsmash_pipeline.py summary >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Stage exact Yukon score path
+        run: |
+          python3 scripts/stage_yukon_score.py \
+            --benchmark-root . \
+            --score-path .yukon/score.json \
+            --destination "$RUNNER_TEMP/yukon-score-artifact"
+
       - name: Upload score
-        if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: benchmark-score
-          path: .yukon/score.json
+          path: ${{ runner.temp }}/yukon-score-artifact/
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
