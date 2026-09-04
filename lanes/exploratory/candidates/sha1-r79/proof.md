@@ -4,8 +4,6 @@ This package selects `sha1-r79-prefix-v1`, ordinary collisions, 79 rounds,
 and the exploratory lane under `paired-lanes-v1` and `collision-frontier-v3`.
 Its claim is an upper bound for a finite randomized RAM algorithm, not a
 measurement, an executed collision search, or a cryptanalytic improvement.
-The rigorous counterpart is a separate package with its own lane binding.
-No verdict or score from that package qualifies this package.
 
 ## 1. Parameters and claimed bounds
 
@@ -31,11 +29,13 @@ There is no external dataset. Exactly N random-word draws consume 256N
 random bits; the sampled input bytes counting multiplicity total 32N; the
 bytes submitted to hash evaluations total at most 32(N+2). No random tape is
 stored separately from the messages. The scalar is 94+88 = 182, a conservative
-upper bound rather than an optimality claim. The required identifier
-`sha1-r79-nominal-v2` names an organizer nominal reference, not an established
-attack, qualified baseline, or security bound. Despite the historical field
-name `baseline_improved`, no improvement over that reference or Pareto
-dominance is claimed.
+upper bound rather than an optimality claim. The schema-required field
+`baseline_improved` contains the reference identifier `sha1-r79-nominal-v2`.
+The nominal reference value is 80; this construction's scalar is 182 > 80,
+which is worse under the lower-is-better numerical comparison. The identifier
+is metadata, and the candidate makes no assertion of improvement over that
+reference or of Pareto dominance. The nominal entry is not an established
+attack, qualified baseline, or security bound.
 
 ## 2. Exact complete-message target
 
@@ -300,6 +300,4 @@ search has been executed and no stored collision is used as advice. No
 experiment manifest is declared: this analytic argument does not rely on
 empirical support, and toy or seeded experiments cannot establish a
 full-scale randomness premise. The enormous memory bound is not a claim
-of practical feasibility. Mechanical readiness and AI qualification are
-separate from mathematical proof checking and human acceptance. Only fresh
-review bound to this exact package can authorize its selected lane score.
+of practical feasibility.
