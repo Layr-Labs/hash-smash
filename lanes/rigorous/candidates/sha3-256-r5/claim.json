@@ -1,20 +1,27 @@
 {
   "schema_version": 3,
-  "submission_state": "draft",
+  "submission_state": "ready",
   "target_profile": "sha3-256-r5-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 5,
   "lane": "rigorous",
   "claim": {
-    "time_log2": 128,
+    "time_log2": 149,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 0,
-    "data_log2": 128,
-    "preprocessing_log2": 0,
-    "success_probability": 0.39,
+    "memory_log2_bytes": 137,
+    "data_log2": 130,
+    "preprocessing_log2": 137,
+    "success_probability": 0.5,
     "nonuniform_advice_log2_bytes": 0
   },
-  "restrictions": [],
+  "restrictions": [
+    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
+    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
+    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
+    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
+    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
+    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 286."
+  ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
   "heuristics": [],
   "certificate_manifest": "certificates/manifest.json"
