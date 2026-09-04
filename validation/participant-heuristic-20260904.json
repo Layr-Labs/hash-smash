@@ -40,13 +40,71 @@
     "fixture_or_seed_tuned_after_observation": false
   },
   "live_review": {
-    "status": "awaiting_explicit_payload_transfer_approval",
+    "status": "completed",
     "provider_requested": "bedrock",
     "model_requested": "us.openai.gpt-5.6-sol",
-    "actual_model_calls": 0,
-    "outcomes": null,
-    "live_diagnostic_score_emitted": false,
-    "reason": "App permission review blocked the wrapper before execution; approval requested to send the fixture source, proof, and numerical evidence to Bedrock"
+    "model_returned_all_roles": "us.openai.gpt-5.6-sol",
+    "region": "us-east-1",
+    "strategy": "formal-proof-v1",
+    "reasoning_effort": "high",
+    "actual_model_calls": 4,
+    "attempts_per_role": 1,
+    "heterogeneous_model_committee": false,
+    "sum_provider_latency_ms": 263614,
+    "usage": {
+      "input_tokens": 37976,
+      "output_tokens": 23505,
+      "total_tokens": 61481
+    },
+    "outcomes": {
+      "exploratory": "plausible_not_refuted",
+      "rigorous": "not_qualified"
+    },
+    "matches_prespecified_diagnostic": true,
+    "live_diagnostic_score_emitted": true,
+    "diagnostic_score": 40.0,
+    "score_is_leaderboard_result": false,
+    "human_accepted": false,
+    "infrastructure_failures": {},
+    "fatal_findings": 0,
+    "challenge_rounds": 0,
+    "source_proof_evidence_or_prompt_changed": false,
+    "participant_code_reexecuted_during_review": false,
+    "authorization": "Initial wrapper blocked before execution; user subsequently explicitly approved sending the fixture Python, proof, and numerical evidence to Bedrock",
+    "stage_assessments": {
+      "lane_evaluability": "All minimum evaluability obligations supported; declared heuristic plausible",
+      "lane_cryptanalysis": "Collision correctness supported; probability analysis and heuristic justification plausible, not established",
+      "lane_cost": "Scalar arithmetic and preprocessing/advice supported; time and memory unresolved; success budget plausible",
+      "lane_experiments": "Relevance and reproducibility supported; statistics unresolved; extrapolation plausible; explicitly cited 82 successes in 256 trials"
+    },
+    "additional_reviewer_premise": "H-direct-word-RAM-budget",
+    "post_run_audit": {
+      "stored_aggregation_reproduces": true,
+      "all_review_bindings_match": true,
+      "original_report_and_judge_view_match": true,
+      "all_256_numerical_outcomes_rechecked": true,
+      "dossier_file_sha256": "223cac3b8ad3dd498fd12288e803ed12f6ce7eb50d2f446ca21d578bc4054441",
+      "evidence_file_sha256": "f754f825d75a15cf5d2cd0799fe00a350b81c55fb6db737a39e52f686d2e65cf",
+      "score_file_sha256": "1f52ca480deb5f4f1371964724e8bb7edad5398a0751ead41ada28a31a955494",
+      "run_result_file_sha256": "c2312ab64b7f08b58ce4561859b675921326ff9756e814a0d23c8eca8330148f"
+    }
+  },
+  "calibration_findings": {
+    "prompt_injection_flags": {
+      "roles_flagging": 4,
+      "severity_assigned": "material",
+      "organizer_assessment": "Overly broad classification of benign policy-consistent sandbox and reviewer-facing wording",
+      "counterfactual_without_flags": {
+        "exploratory": "plausible_not_refuted",
+        "rigorous": "not_qualified"
+      },
+      "official_dossier_modified": false
+    },
+    "rigorous_withholding_not_isolated_to_success_heuristic": true,
+    "follow_up": [
+      "Isolate the success heuristic with independently checked resource accounting",
+      "Calibrate benign documentation wording against genuine policy-override attempts"
+    ]
   },
   "limitations": [
     "Noncompetitive shallow MD5 integration fixture, not a cryptanalytic advance",

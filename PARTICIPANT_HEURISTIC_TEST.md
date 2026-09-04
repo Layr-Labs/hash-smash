@@ -143,17 +143,68 @@ Recorded on 2026-09-04; machine-readable summary:
 - New real-Docker integration case: passed with fake reviewers and real scoring
   gates. An initial daemon/image preflight failed; the exact preflight then
   succeeded and the unchanged test passed. No isolation policy was relaxed.
-- Preserved prepare-only run: `20260904T210454Z-2b47fa53`.
+- Preserved run, subsequently reviewed without re-execution:
+  `20260904T210454Z-2b47fa53`.
 - Two byte-identical sandbox executions; 82 full collisions and 174 failures in
   256 trials, observed fraction **0.3203125**.
 - Independent organizer reconstruction confirmed every trial, including all
   failures and first-duplicate selection. The returned pairs' full 128-bit
   reduced-MD5 digests were checked again.
-- **No live model call occurred for this fixture.** The app's permission reviewer
-  rejected the live wrapper before execution because it required explicit
-  authorization to send the source, proof, and evidence to Bedrock. The saved
-  numerical report is ready for a separately authorized review. There is no
-  live lane verdict or live diagnostic score to report.
+- The initial live wrapper was blocked before execution by the app's permission
+  reviewer. After the user explicitly authorized sending the fixture's Python,
+  proof, and numerical evidence to Bedrock, the offline suite passed again and
+  the **same saved report** received a live review. No source, seed, proof,
+  numerical evidence, or judge prompt was changed.
+- Bedrock returned `us.openai.gpt-5.6-sol` in `us-east-1` for all four independent
+  roles, using `formal-proof-v1`, high reasoning effort, and one attempt per role.
+  There were no infrastructure failures, retries, fatal findings, or challenge
+  rounds. Summed provider latency was 263.614 seconds; usage was 37,976 input and
+  23,505 output tokens (61,481 total). This was one model across four roles, not a
+  heterogeneous model committee.
+- Exploratory: **`plausible_not_refuted`**. Rigorous: **`not_qualified`**. The normal
+  score gate emitted scalar **40** only in the isolated exploratory calibration
+  directory. No live track, leaderboard, qualified baseline, or human acceptance
+  was affected.
+- Post-run audit reproduced the deterministic lane aggregation, verified all
+  four exact evidence bindings, and matched the judge view to the unchanged
+  full numerical report. The full-dossier file SHA-256 is
+  `223cac3b8ad3dd498fd12288e803ed12f6ce7eb50d2f446ca21d578bc4054441`.
+
+### What the live reviewers actually checked
+
+The cryptanalysis role supported the full-collision argument and explicitly
+distinguished it from the seed-expansion probability premise. The experiments
+role cited **82/256**, supported exact-target relevance and reproducibility, and
+left statistics unresolved and population extrapolation merely plausible. All
+four roles assessed the declared birthday heuristic as plausible rather than
+established. None converted the unfavorable frequency into a concrete refutation.
+
+The cost role independently reconstructed the submitted scalar `23 + 17 = 40`,
+but requested more auditable support for the logical word-RAM operation and
+memory budgets. It recorded an additional plausible premise,
+`H-direct-word-RAM-budget`. Thus the rigorous withholding is **not isolated to
+the probability heuristic alone**: there are also unresolved resource-accounting
+obligations. The numerical program was correctly not treated as a cost certificate.
+
+### Calibration issues retained for follow-up
+
+All four roles labeled benign, policy-consistent wording as material prompt
+injection: for example the source docstring's instruction to execute only in the
+organizer sandbox, and the proof's statements about what the judge must decide.
+The organizer assessment is that this classification is overly broad. Treating
+participant directions as inert is appropriate; their mere presence does not
+demonstrate a mathematical flaw or an attempted policy override. Material findings
+can independently block rigorous qualification under the current aggregator, so
+this should receive a separate wording/false-alarm calibration test.
+
+A read-only counterfactual audit removed only those injection flags/findings
+from a detached copy of the review records and reaggregated. The lane split was
+unchanged because the probability and cost obligations remained unresolved. The
+official dossier, prompts, and score were not altered or rerun. A future fixture
+with independently checked resource accounting would isolate the success-heuristic
+decision more cleanly; a separate benign-versus-adversarial wording corpus would
+test the injection warnings. These are follow-up recommendations, not fixes
+silently applied to this run.
 
 The observed frequency is below both the 0.39 claim and the approximately 0.39268
 ideal model. This is not favorable confirmation. Under an *additional iid
