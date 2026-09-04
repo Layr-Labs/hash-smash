@@ -1,20 +1,26 @@
 {
   "schema_version": 3,
-  "submission_state": "draft",
+  "submission_state": "ready",
   "target_profile": "sha256-r31-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 31,
   "lane": "rigorous",
   "claim": {
-    "time_log2": 128,
+    "time_log2": 148,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 0,
-    "data_log2": 128,
-    "preprocessing_log2": 0,
-    "success_probability": 0.39,
+    "memory_log2_bytes": 138,
+    "data_log2": 137,
+    "preprocessing_log2": 20,
+    "success_probability": 0.6,
     "nonuniform_advice_log2_bytes": 0
   },
-  "restrictions": [],
+  "restrictions": [
+    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
+    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
+    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
+    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
+    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+  ],
   "baseline_improved": "sha256-r31-nominal-v2",
   "heuristics": [],
   "certificate_manifest": "certificates/manifest.json"
