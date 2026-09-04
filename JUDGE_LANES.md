@@ -20,6 +20,16 @@ is a promising claim; it does not become an established baseline for the rigorou
 lane. The scalar remains `time_log2 + memory_log2_bytes` for a common target,
 round count, success requirement, and organizer cost model.
 
+The paired claim field `baseline_improved` is a required reference identifier,
+not an assertion that the candidate improves it. Intake requires the organizer's
+nominal reference ID even for an initial baseline. A fully supported construction
+can qualify with a scalar equal to or greater than the nominal display value;
+qualification and Yukon's subsequent incumbent comparison are separate decisions.
+An honest disclaimer of improvement is consistent with this metadata. Explicit
+false comparisons, unsupported novelty claims and incorrect bounds remain subject
+to the normal review rules. This meaning is supplied in the trusted common prompt
+for all six roles, rather than relying on candidate prose to establish the rules.
+
 ## Review sequence
 
 Four independent initial roles inspect the same immutable evidence:

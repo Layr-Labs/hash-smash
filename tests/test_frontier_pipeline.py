@@ -139,6 +139,45 @@ class FrontierPipelineTests(unittest.TestCase):
             with self.subTest(undefined=undefined), self.assertRaises(VerificationError):
                 get_track(undefined)
 
+    def test_supported_baseline_above_nominal_can_score_without_claiming_improvement(self):
+        for lane in ("exploratory", "rigorous"):
+            with self.subTest(lane=lane):
+                paths = self.paths(f"sha1-r80-{lane}")
+                claim = read_json(paths.candidate / "claim.json")
+                claim["claim"].update(time_log2=94, memory_log2_bytes=88)
+                atomic_write_json(paths.candidate / "claim.json", claim)
+                self.assertEqual(claim["baseline_improved"], paths.track.reference_id)
+                with fake_provider():
+                    self.assertEqual(pipeline.run_all(paths), 0)
+                score = read_json(paths.score)
+                self.assertEqual(score["score"], 182)
+                self.assertEqual(score["metrics"]["nominalReferenceScore"], 80)
+                self.assertFalse(score["metrics"]["improvesNominalReference"])
+                self.assertFalse(score["metrics"]["referenceIsQualifiedBaseline"])
+
+    def test_material_false_comparison_is_not_filtered_out_as_reference_metadata(self):
+        paths = self.paths("sha1-r80-rigorous")
+        claim = read_json(paths.candidate / "claim.json")
+        claim["claim"].update(time_log2=94, memory_log2_bytes=88)
+        atomic_write_json(paths.candidate / "claim.json", claim)
+        (paths.candidate / "proof.md").write_text(
+            "Organizer negative fixture: falsely asserts that 182 is less than 80.\n"
+        )
+
+        def false_comparison(stage, review, _):
+            if stage == "lane_evaluability":
+                review["findings"].append({
+                    "id": "EVAL-001", "severity": "material", "category": "invalid_inference",
+                    "statement": "The explicit comparison 182 < 80 is false.",
+                    "obligation_ids": ["evidence_relevant"], "heuristic_ids": [],
+                    "evidence": ["proof.md:L1"],
+                })
+
+        with fake_provider(false_comparison):
+            self.assertEqual(pipeline.run_all(paths), 2)
+        self.assertEqual(read_json(paths.aggregate)["reasons"], ["lane_evaluability/EVAL-001"])
+        self.assertFalse(paths.score.exists())
+
     def test_exact_experiment_and_declared_heuristic_reach_both_reviews_and_score(self):
         paths = self.paths("sha256-r31-rigorous")
         add_experiment(paths.candidate, addition(), heuristic=True)

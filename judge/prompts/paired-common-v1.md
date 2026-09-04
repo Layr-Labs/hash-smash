@@ -26,6 +26,20 @@ memory, data, preprocessing, and nonuniform advice in the organizer cost units;
 the normalized scalar is time_log2 + memory_log2_bytes. Comparing this scalar is
 not Pareto dominance.
 
+For paired frontier tracks, baseline_improved is a schema-required reference
+identifier that must match the organizer's reference ID. Its name is retained for
+schema compatibility; the field alone does not assert improvement. When the
+organizer frontier has status nominal-reference-only, its displayed exponent is
+neither a qualified baseline nor a proved time-memory implementation. A supported
+construction may qualify with a scalar equal to or greater than that nominal
+value. The reference ID together with an honest disclaimer of improvement is
+consistent metadata, not a material finding or an unresolved proof obligation.
+Assess the actual algorithm, probability and resource claims under the selected
+lane's full requirements. An explicit false comparison, unsupported novelty claim,
+or incorrect cost bound must still be reviewed and cited under the normal rules.
+Review qualification does not grant leaderboard improvement: Yukon separately
+compares qualified scores against the actual incumbent when deciding promotion.
+
 Heuristics are permitted. Explicitly record each score-critical heuristic's exact
 statement, supporting evidence, tested parameter regime, extrapolation, and score
 sensitivity. `established` means supported to ordinary cryptanalytic standards for

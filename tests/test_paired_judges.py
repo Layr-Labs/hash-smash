@@ -4,9 +4,9 @@ from copy import deepcopy
 import json
 import unittest
 
-from judge.lanes import INITIAL_STAGES, OBLIGATIONS, load_lane_schema, validate_lane_review
+from judge.lanes import INITIAL_STAGES, LANE_STAGES, OBLIGATIONS, load_lane_schema, validate_lane_review
 from judge.paired_review import aggregate_paired_reviews, evidence_binding, run_paired_review, select_lane_aggregate
-from judge.prompts import load_system_prompt
+from judge.prompts import build_messages, load_system_prompt
 from judge.provider_adapter import JudgeInfraError, ReviewResult
 from judge.schema_validation import ReviewValidationError, review_schema_for_stage, validate_review
 
@@ -85,6 +85,17 @@ class FixtureClient:
 
 
 class PairedJudgeTests(unittest.TestCase):
+    def test_all_roles_receive_nominal_reference_semantics_as_trusted_instructions(self):
+        for stage in LANE_STAGES:
+            with self.subTest(stage=stage):
+                messages = build_messages(stage, fixture_evidence())
+                self.assertEqual(messages[0]["role"], "system")
+                instructions = " ".join(messages[0]["content"].split())
+                self.assertIn("baseline_improved is a schema-required reference identifier", instructions)
+                self.assertIn("does not assert improvement", instructions)
+                self.assertIn("An explicit false comparison", instructions)
+        self.assertNotIn("schema-required reference identifier", load_system_prompt("correctness"))
+
     def test_analytic_pass_runs_four_independent_reviews(self):
         client = FixtureClient()
         dossier = run_paired_review(fixture_evidence(), client)
