@@ -126,11 +126,19 @@ jobs:
           path: lanes/${{ inputs.lane }}/.yukon/reports/tracks/${{ inputs.track }}/
       - name: Benchmark trusted score
         run: python3 scripts/hashsmash_pipeline.py score --track "$HASHSMASH_SELECTED_TRACK"
+      - name: Stage exact Yukon score path
+        env:
+          HASHSMASH_SCORE_LANE: ${{ inputs.lane }}
+        run: |
+          python3 scripts/stage_yukon_score.py \
+            --benchmark-root "lanes/$HASHSMASH_SCORE_LANE" \
+            --score-path ".yukon/scores/$HASHSMASH_SELECTED_TRACK.json" \
+            --destination "$RUNNER_TEMP/yukon-score-artifact"
       - name: Upload score
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: benchmark-score-${{ inputs.track }}
-          path: lanes/${{ inputs.lane }}/.yukon/scores/${{ inputs.track }}.json
+          path: ${{ runner.temp }}/yukon-score-artifact/
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
