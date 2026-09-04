@@ -1,20 +1,25 @@
 {
   "schema_version": 3,
-  "submission_state": "draft",
+  "submission_state": "ready",
   "target_profile": "md5-s64-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 64,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 64,
+    "time_log2": 82,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 0,
-    "data_log2": 64,
-    "preprocessing_log2": 0,
-    "success_probability": 0.39,
+    "memory_log2_bytes": 73,
+    "data_log2": 66,
+    "preprocessing_log2": 72,
+    "success_probability": 0.5,
     "nonuniform_advice_log2_bytes": 0
   },
-  "restrictions": [],
+  "restrictions": [
+    "Exactly 2^65 independent uniform 256-bit model words, each encoded as a fixed-length 32-byte message; no seeded expansion or restart.",
+    "Complete fixed-IV MD5 with all steps 0 through 63, RFC 1321 padding, feed-forward and all 128 digest bits.",
+    "Two flat two-word-record arrays and iterative merge sort; all initialization, failed samples, verification, code and retained randomness are charged.",
+    "The baseline_improved value identifies the required nominal reference and does not assert improvement over an established attack."
+  ],
   "baseline_improved": "md5-s64-nominal-v2",
   "heuristics": [],
   "certificate_manifest": "certificates/manifest.json"
