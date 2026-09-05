@@ -19,32 +19,6 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class PipelineIntegrationTests(unittest.TestCase):
-    def test_manifest_has_yukon_score_contract(self) -> None:
-        manifest = json.loads((ROOT / "benchmark.json").read_text(encoding="utf-8"))
-        self.assertEqual(manifest["schemaVersion"], 1)
-        self.assertEqual(manifest["direction"], "-")
-        self.assertEqual(manifest["editablePaths"], ["candidate"])
-        self.assertEqual(manifest["scorePath"], ".yukon/score.json")
-
-    def test_workflow_is_manually_dispatchable_and_keeps_secret_out_of_intake(self) -> None:
-        workflow = (ROOT / ".github" / "workflows" / "benchmark.yml").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn("workflow_dispatch:", workflow)
-        intake_job, judge_job = workflow.split("  judge:\n", maxsplit=1)
-        self.assertNotIn("OPENROUTER_API_KEY", intake_job)
-        self.assertIn("OPENROUTER_API_KEY", judge_job)
-        self.assertNotIn("AWS_BEARER_TOKEN_BEDROCK", intake_job)
-        self.assertIn("AWS_BEARER_TOKEN_BEDROCK", judge_job)
-        openrouter_step, bedrock_and_later = judge_job.split(
-            "      - name: Benchmark Amazon Bedrock review\n", maxsplit=1
-        )
-        bedrock_step = bedrock_and_later.split(
-            "      - name: Publish review summary\n", maxsplit=1
-        )[0]
-        self.assertNotIn("AWS_BEARER_TOKEN_BEDROCK", openrouter_step)
-        self.assertNotIn("OPENROUTER_API_KEY", bedrock_step)
-
     def test_provider_selection_supports_openrouter_and_bedrock(self) -> None:
         with patch.dict(
             "os.environ",

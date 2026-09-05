@@ -5,7 +5,7 @@ Markdown cryptanalytic proofs. The current setup has **16 runnable paired lanes*
 exploratory and rigorous review for two settings each of MD5, SHA-1, SHA-256 and
 SHA3-256. Twelve additional slots are reserved for BLAKE3, Keccak[800] and Poseidon,
 whose exact frontier definitions remain open. Start with [FRONTIER_LANES.md](./FRONTIER_LANES.md)
-for the roster, commands, two Yukon leaf manifests and deployment gates.
+for the roster, commands, single Yukon manifest and deployment gates.
 [JUDGE_LANES.md](./JUDGE_LANES.md) defines the shared review dossier and lane policies;
 [HEURISTIC_EXPERIMENTS.md](./HEURISTIC_EXPERIMENTS.md) defines isolated executable evidence.
 No qualified baselines, new deployments, or overnight workers are created by this setup.
@@ -14,7 +14,8 @@ The previous nine local tracks remain available with `--collection legacy`;
 [LOCAL_TRACKS.md](./LOCAL_TRACKS.md) documents their unchanged policy and score conventions.
 The sections below describe the legacy pilot unless stated otherwise.
 
-The repository-root Yukon manifest and `benchmark.yml` still describe the legacy pilot:
+The legacy local pilot uses the following contract. Its retired Yukon workflow
+is removed; this pilot is not part of the current import:
 
 - target: full-round SHA-1 (`sha1-fips180-4-v1`);
 - attack class: ordinary collisions;
@@ -118,29 +119,37 @@ approved for OpenRouter's non-ZDR retention policy.
 
 ## Yukon
 
-For the current paired challenges, follow [YUKON_DEV_SETUP.md](./YUKON_DEV_SETUP.md).
-The two schema-v2 imports use `lanes/exploratory` and `lanes/rigorous` as their
-explicit `rootDir`; importing the repository root selects the legacy pilot.
-[CANDIDATE_QUALIFICATION.md](./CANDIDATE_QUALIFICATION.md) is the handoff for completing
-and qualifying the sixteen candidate packages, and
-[YUKON_SOLVER_GUIDE.md](./YUKON_SOLVER_GUIDE.md) covers leaf selection, notes and tracing.
+Follow [YUKON_DEV_SETUP.md](./YUKON_DEV_SETUP.md) to import the repository root once
+as `hashsmash`. The schema-v2 [`benchmark.json`](./benchmark.json) declares all
+sixteen tracks with unique names such as `sha256-r31-exploratory` and
+`sha256-r31-rigorous`. There is no `rootDir` override or separate lane import.
+Lane metadata remains in the protected registry, the validated claim binding,
+and each generated score's `metrics.lane`. Yukon track names include the lane
+suffix; its strict manifest schema has no arbitrary metadata field.
 
-The existing private GitHub repository, Actions settings and Bedrock secret/model
-configuration are in place. Yukon dev import and full submission/promotion
-validation remain outstanding. The twelve undefined slots remain deferred.
+[CANDIDATE_QUALIFICATION.md](./CANDIDATE_QUALIFICATION.md) describes qualification,
+and [YUKON_SOLVER_GUIDE.md](./YUKON_SOLVER_GUIDE.md) covers root-based track
+selection, setup, local runs, submission notes and CLI-managed tracing. Each
+track keeps its own `lanes/<lane>/candidates/<target>` editable directory and
+`lanes/<lane>/.yukon/scores/<target>-<lane>.json` score path. The literal per-track
+workflow wrappers separate deterministic intake, secret-bearing review, and
+final scoring. The score artifact contains that exact repository-relative path;
+qualification failures withhold a score.
 
-[`benchmark.json`](./benchmark.json) and
-[`.github/workflows/benchmark.yml`](./.github/workflows/benchmark.yml) retain the
-schema-v1 legacy contract. Both legacy and paired workflows separate deterministic
-intake, secret-bearing review, and final scoring. They upload the selected score at
-its exact manifest-relative path and withhold it when qualification fails.
+One import queues sixteen baseline workflows. All sixteen must qualify before
+the challenge is ready to open. The existing private repository, Actions settings
+and Bedrock configuration are in place; verify the new single import through
+Yukon before opening submissions. Archive the previous lane deployments before
+the fresh import. The twelve undefined slots remain deferred; the current
+20-track platform limit would need an upstream change before all 28 slots could
+be active in this one challenge.
 
-Before opening the real dev challenges, qualify each imported lane's baseline,
-verify the dev App and importer account access, and test Yukon-driven validation,
-non-editable-path rejection, and promotion across both leaf challenges. Public
-publication additionally needs the documented cryptanalytic calibration and human
-review decisions. Human acceptance remains distinct from an AI review outcome.
+Before opening, test Yukon-driven validation, non-editable-path rejection, and
+promotion while preserving sibling tracks in both lanes. Humans review harness
+PRs; Yukon manages promotion of its own submission PRs. Public publication
+additionally needs cryptanalytic calibration and human review decisions. Human
+acceptance remains distinct from an AI review outcome.
 
-See [`YUKON_CHALLENGE_PLAN.md`](./YUKON_CHALLENGE_PLAN.md) for the full design and rollout
-plan. See [`MVP_VALIDATION.md`](./MVP_VALIDATION.md) for the offline and live provider test
-record, certificate decision, and remaining production gates.
+See [`YUKON_CHALLENGE_PLAN.md`](./YUKON_CHALLENGE_PLAN.md) and
+[`MVP_VALIDATION.md`](./MVP_VALIDATION.md) for the historical pilot design and
+validation record. They do not define the current import contract.

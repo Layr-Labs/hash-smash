@@ -131,8 +131,8 @@ jobs:
           HASHSMASH_SCORE_LANE: ${{ inputs.lane }}
         run: |
           python3 scripts/stage_yukon_score.py \
-            --benchmark-root "lanes/$HASHSMASH_SCORE_LANE" \
-            --score-path ".yukon/scores/$HASHSMASH_SELECTED_TRACK.json" \
+            --benchmark-root . \
+            --score-path "lanes/$HASHSMASH_SCORE_LANE/.yukon/scores/$HASHSMASH_SELECTED_TRACK.json" \
             --destination "$RUNNER_TEMP/yukon-score-artifact"
       - name: Upload score
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f

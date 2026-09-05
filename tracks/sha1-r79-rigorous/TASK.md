@@ -1,5 +1,9 @@
 # sha1-r79-rigorous
 
+From the repository root, select `yukon switch sha1-r79-rigorous` and verify
+`yukon trace status` before editing. The same full track ID is used by Yukon and
+organizer commands.
+
 Edit only `lanes/rigorous/candidates/sha1-r79/`. The target is `sha1-r79-prefix-v1`; the lane is
 `rigorous`. Use `python3 scripts/local_tracks.py show sha1-r79-rigorous` for its fixed
 profile, cost model and reference. The nominal reference is 80, not an established

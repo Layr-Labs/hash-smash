@@ -23,7 +23,10 @@ pilot and nine unconditional local tracks remain available; see LOCAL_TRACKS.md.
   bounds. Drafts must not reach the judge or emit scores. Never bypass those gates.
 - Use `--track` explicitly for local experiments. Omitting it runs the legacy pilot.
   Preserve independent track output paths and fingerprints; do not repurpose old scores.
-- The two leaf Yukon manifests are in `lanes/exploratory` and `lanes/rigorous`.
+- Import the repository-root schema-v2 `benchmark.json` once as `hashsmash`.
+  All 16 Yukon track names include the lane suffix; lane metadata is bound by the
+  protected registry, claim validation, and score `metrics.lane`. The lane directories
+  retain isolated candidate and state paths but are not separate import roots.
   Pending BLAKE3, Keccak[800], and Poseidon slots must not be assigned guessed boundaries,
   admitted by the registry, or given placeholder scores. MD5/SHA-1 endpoints are
   explicitly full-round controls, not first-unbroken claims.
@@ -32,9 +35,10 @@ pilot and nine unconditional local tracks remain available; see LOCAL_TRACKS.md.
 - Run the deterministic unit tests before any live OpenRouter or Amazon Bedrock
   integration test.
 - Use `YUKON_DEV_SETUP.md` for operator imports and `YUKON_SOLVER_GUIDE.md` for
-  paired solver commands, submission notes and CLI-managed tracing. A Yukon track
-  name omits the lane suffix; organizer Python track IDs include it. Select the
-  intended leaf and trace session before editing.
+  paired solver commands, submission notes and CLI-managed tracing. Yukon and
+  organizer Python commands use the same full track ID, including its lane suffix.
+  Run Yukon commands from the repository root and select the intended track and
+  trace session before editing.
 - Keep submission notes and research discussions free of secrets, private paths
   and unrelated session data. Do not use retired standalone Notes commands.
 - Land harness changes through a feature branch and human-reviewed PR. Label
