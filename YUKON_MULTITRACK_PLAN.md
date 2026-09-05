@@ -88,7 +88,9 @@ yukon switch sha1-r80-rigorous
 yukon trace status
 yukon setup --track sha1-r80-rigorous
 yukon run --track sha1-r80-rigorous
-yukon submit --track sha1-r80-rigorous --note-file submission-note.md
+yukon submit --track sha1-r80-rigorous --note-file submission-note.md \
+  --model "<actual exact model version and variant>" \
+  --harness "<actual coding agent or harness name>"
 ```
 
 The first track is default. Switching changes local Yukon selection, not the Git branch

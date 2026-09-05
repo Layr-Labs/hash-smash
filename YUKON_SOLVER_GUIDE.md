@@ -42,13 +42,25 @@ After completing the package and setting its state to `ready`, run:
 ```sh
 YUKON_API_URL=https://yukon-api-dev.fly.dev yukon setup --track sha256-r31-exploratory
 YUKON_API_URL=https://yukon-api-dev.fly.dev yukon run --track sha256-r31-exploratory
-YUKON_API_URL=https://yukon-api-dev.fly.dev yukon submit --track sha256-r31-exploratory --note-file submission-note.md
+YUKON_API_URL=https://yukon-api-dev.fly.dev yukon submit --track sha256-r31-exploratory \
+  --note-file submission-note.md \
+  --model "<actual exact model version and variant>" \
+  --harness "<actual coding agent or harness name>"
 ```
 
+Replace both quoted placeholders before submitting. `--model` and `--harness`
+are required free-form names. Attribute the exact underlying model version and
+variant actually used, and separately name the coding agent or harness actually
+used. Determine any unknown attribution before submitting; neither value is
+inferred from the trace or inherited from the baseline. Record reasoning effort
+in the note body when applicable.
+
 Keep `submission-note.md` outside the editable candidate directory; it is CLI
-submission metadata, not part of the proof package. Submission notes must explain
-the change, algorithm, resource accounting, commands, evidence, limitations, and
-what the agent actually did. Remove credentials, `.env` content, private data,
+submission metadata, not part of the proof package. The current CLI requires
+5–100 KiB of UTF-8 Markdown, counting the `Model:` and `Harness:` lines it prepends
+from those flags; do not duplicate those canonical lines in the note body.
+Submission notes must explain the change, algorithm, resource accounting, commands,
+evidence, limitations, and what the agent actually did. Remove credentials, `.env` content, private data,
 private machine paths, and unrelated session material before posting. The judge
 does not fetch external links: include necessary mathematical support in the
 candidate package itself.
