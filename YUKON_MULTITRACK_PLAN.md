@@ -1,16 +1,24 @@
-# Yukon multi-problem and round-count support
+# Yukon multi-track contract and historical design
 
-2026-09-04 update: the current paired-lane implementation is in
-[FRONTIER_LANES.md](./FRONTIER_LANES.md). Two schema-v2 leaf challenges avoid Yukon's
-20-track limit: eight runnable tracks each, with six further slots each deferred.
-Their manifests pass Yukon's actual local parser. No new deployment or baseline
-import has been performed. The design below is retained as historical context.
+2026-09-04 update: HashSmash now uses one repository-root schema-v2
+[`benchmark.json`](./benchmark.json) named `hashsmash`, with sixteen uniquely named
+`<target>-<lane>` tracks. See [FRONTIER_LANES.md](./FRONTIER_LANES.md) for the current
+roster and [YUKON_DEV_SETUP.md](./YUKON_DEV_SETUP.md) for import instructions. The
+previous two-leaf import plan is superseded: Yukon source-repository exclusivity
+requires a single challenge for the fresh deployment.
 
-Status: nine local tracks are implemented; the Yukon migration below is **not activated**.
-See [LOCAL_TRACKS.md](./LOCAL_TRACKS.md) for the selected MD5/SHA-1/SHA-256 roster,
-registry, deterministic checkers and isolated local runner. Our active `benchmark.json`
-is still schema v1 with one full-round SHA-1 benchmark. Nominal local reference scores
-are not qualified baselines and do not satisfy Yukon's baseline import gate.
+Both lanes retain disjoint candidate and generated-state directories. The protected
+registry and validated claim bind the lane, while score `metrics.lane` stores it
+with the result. Yukon manifests reject arbitrary metadata fields, so the lane
+also appears in each supported track name and description. Sixteen tracks fit the
+current 20-track limit. The twelve undefined slots remain inactive; eventually
+activating all 28 would require an upstream track-limit increase.
+
+One import queues a baseline for every declared track. All sixteen must qualify
+before opening. The schema-v1 pilot and nine local tracks are historical code
+pending separate cleanup; they are not part of the root Yukon import. The rest
+of this document records the earlier design investigation and alternatives, not
+additional active challenges or instructions for the current deployment.
 
 Source checked through authenticated GitHub: Yukon master
 `d9471fe70a431a3c424758c3eb58d51d38e73d67`. The older local Yukon checkout was not changed.
@@ -32,7 +40,7 @@ branch or arbitrary `rounds` field. Round semantics belong in trusted external p
 - [Manifest parser and track limit](https://github.com/Layr-Labs/yukon/blob/d9471fe70a431a3c424758c3eb58d51d38e73d67/src/benchmark/manifest.ts#L111)
 - [Overview](https://github.com/Layr-Labs/yukon/blob/d9471fe70a431a3c424758c3eb58d51d38e73d67/OVERVIEW.md)
 
-## HashSmash mapping
+## Historical HashSmash mapping
 
 Use one track per fixed `(primitive, round semantics, attack class, cost model,
 success criterion)`. These names and round counts are illustrative, not a chosen roster:
@@ -69,20 +77,24 @@ Upload only the selected score. A shared workflow can produce all tracks' scores
 the guide's shared-workflow example does not imply automatic track-input routing.
 Preserve provider-specific credentials and the intake/judge/score trust boundary.
 
-## Solver experience after migration
+## Current solver experience
 
 For schema v2, the documented commands are:
 
 ```sh
 yukon clone <setter>/hashsmash
-yukon switch sha1-r40
-yukon setup --track sha1-r40
-yukon run --track sha1-r40
-yukon submit --track sha1-r40
+cd hashsmash
+yukon switch sha1-r80-rigorous
+yukon trace status
+yukon setup --track sha1-r80-rigorous
+yukon run --track sha1-r80-rigorous
+yukon submit --track sha1-r80-rigorous --note-file submission-note.md
 ```
 
 The first track is default. Switching changes local Yukon selection, not the Git branch
-or worktree. These are future v2 instructions, not commands for our current v1 manifest.
+or worktree. Run from the cloned repository root and select the intended full track ID
+before editing so trace attribution follows that track. See
+[YUKON_SOLVER_GUIDE.md](./YUKON_SOLVER_GUIDE.md) for submission notes and tracing details.
 
 ## Scalar promotion is not Pareto promotion
 
@@ -106,7 +118,7 @@ options below are historical alternatives, not planned work for this setup:
   Concurrent promotions require incumbent-frontier freshness checks, not just evaluation
   against a stale snapshot. Human acceptance remains a separate promotion gate.
 
-## Migration work
+## Historical migration work
 
 1. Select the primitive/round roster and fully specify each target. The historical
    heuristic fixture cannot serve as a qualified baseline under `unconditional-v1`.
@@ -121,7 +133,9 @@ options below are historical alternatives, not planned work for this setup:
    per track. Then coordinate the actual dev import and confirm deployed v2 support.
 
 The local runner now implements registry-based target selection, new reduced-round
-certificate checkers, disjoint candidate directories and isolated reports/scores. Remote
-workflow wrappers, a v2 manifest activation, baseline import handling and dev deployment
-remain future work. No repositories, branches, deployments or Pareto promotion rules
-were created; see LOCAL_TRACKS.md for the actual local configuration.
+certificate checkers, disjoint candidate directories and isolated reports/scores.
+The current paired-lane implementation also supplies the remote workflow wrappers,
+a root schema-v2 manifest, and a dev import helper. A fresh deployment must validate
+that complete contract through Yukon; local tests cannot establish remote promotion
+behavior. No Pareto promotion rules were introduced. See FRONTIER_LANES.md for the
+current configuration.

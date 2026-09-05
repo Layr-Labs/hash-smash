@@ -1,5 +1,9 @@
 # sha3-256-r6-rigorous
 
+From the repository root, select `yukon switch sha3-256-r6-rigorous` and verify
+`yukon trace status` before editing. The same full track ID is used by Yukon and
+organizer commands.
+
 Edit only `lanes/rigorous/candidates/sha3-256-r6/`. The target is `sha3-256-r6-prefix-v1`; the lane is
 `rigorous`. Use `python3 scripts/local_tracks.py show sha3-256-r6-rigorous` for its fixed
 profile, cost model and reference. The nominal reference is 128, not an established

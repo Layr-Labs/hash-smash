@@ -1,5 +1,9 @@
 # md5-s64-exploratory
 
+From the repository root, select `yukon switch md5-s64-exploratory` and verify
+`yukon trace status` before editing. The same full track ID is used by Yukon and
+organizer commands.
+
 Edit only `lanes/exploratory/candidates/md5-s64/`. The target is `md5-s64-prefix-v1`; the lane is
 `exploratory`. Use `python3 scripts/local_tracks.py show md5-s64-exploratory` for its fixed
 profile, cost model and reference. The nominal reference is 64, not an established

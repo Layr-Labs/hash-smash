@@ -12,10 +12,12 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+import zipfile
 
 from judge.bedrock_adapter import BedrockConfig
 from judge.lanes import INITIAL_STAGES, LANE_STAGES
 from scripts import hashsmash_pipeline as pipeline
+from scripts.stage_yukon_score import stage_score
 from tests.test_experiments import addition, program
 from tests.test_local_tracks import candidate_fixture
 from tests.test_paired_judges import FixtureClient, add_fatal
@@ -89,10 +91,17 @@ class FrontierPipelineTests(unittest.TestCase):
     def test_every_active_track_runs_end_to_end_with_independent_bound_outputs(self):
         tracks = frontier_tracks()
         self.assertEqual(len(tracks), 16)
+        manifest = read_json(ROOT / "benchmark.json")
+        atomic_write_json(self.root / "benchmark.json", manifest)
+        manifest_tracks = {row["name"]: row for row in manifest["tracks"]}
         outputs, configs, packages = set(), set(), set()
         for track in tracks:
             with self.subTest(track=track.id):
                 paths = self.paths(track.id)
+                paths = pipeline.RunPaths.for_track(
+                    track, state_root=self.root / track.state_root.relative_to(ROOT),
+                    candidate=paths.candidate,
+                )
                 with fake_provider() as (client, _):
                     self.assertEqual(pipeline.run_all(paths), 0)
                 score, aggregate = read_json(paths.score), read_json(paths.aggregate)
@@ -104,6 +113,17 @@ class FrontierPipelineTests(unittest.TestCase):
                 self.assertFalse(score["metrics"]["humanAccepted"])
                 self.assertEqual(aggregate["target_config_sha256"], track.config_sha256())
                 self.assertEqual([stage for stage, _ in client.calls], list(INITIAL_STAGES))
+                # Exercise the actual manifest-to-pipeline-to-upload handoff for
+                # every track. Yukon reads this exact ZIP entry, including lanes/.
+                score_path = manifest_tracks[track.id]["scorePath"]
+                artifact = self.root / "artifacts" / track.id
+                staged = stage_score(self.root, score_path, artifact)
+                archive = io.BytesIO()
+                with zipfile.ZipFile(archive, "w") as zipped:
+                    zipped.write(staged, staged.relative_to(artifact).as_posix())
+                with zipfile.ZipFile(archive) as zipped:
+                    self.assertEqual(zipped.namelist(), [score_path])
+                    self.assertEqual(json.loads(zipped.read(score_path)), score)
                 outputs.add(paths.score)
                 configs.add(score["metrics"]["targetConfigSha256"])
                 packages.add(score["metrics"]["inputPackageSha256"])
@@ -121,19 +141,21 @@ class FrontierPipelineTests(unittest.TestCase):
             self.assertEqual(families[family]["selection_status"], "full_round_control")
             self.assertIsNone(families[family]["first_unbroken_round"])
         manifest_ids = set()
+        manifest = read_json(ROOT / "benchmark.json")
+        self.assertEqual(manifest["schemaVersion"], 2)
+        self.assertEqual(manifest["name"], "hashsmash")
+        self.assertEqual(len(manifest["tracks"]), 16)
+        for row in manifest["tracks"]:
+            track = get_track(row["name"])
+            self.assertEqual(row["benchmarkCommand"], ["python3", "scripts/hashsmash_pipeline.py", "all", "--track", track.id])
+            self.assertEqual(row["setupCommand"], ["bash", ".yukon/setup.sh"])
+            self.assertEqual(row["editablePaths"], [f"lanes/{track.lane}/candidates/{track.target_id}"])
+            self.assertEqual((ROOT / row["scorePath"]).resolve(), pipeline.RunPaths.for_track(track).score.resolve())
+            self.assertEqual(row["runner"]["workflow"], track.id + ".yml")
+            self.assertEqual(row["direction"], "-")
+            manifest_ids.add(track.id)
         for lane in ("exploratory", "rigorous"):
-            challenge_root = ROOT / "lanes" / lane
-            manifest = read_json(challenge_root / "benchmark.json")
-            self.assertEqual(manifest["schemaVersion"], 2)
-            self.assertEqual(len(manifest["tracks"]), 8)
-            for row in manifest["tracks"]:
-                track = get_track(f"{row['name']}-{lane}")
-                self.assertEqual(row["benchmarkCommand"][-2:], ["--track", track.id])
-                self.assertEqual(row["editablePaths"], [f"candidates/{track.target_id}"])
-                self.assertEqual((challenge_root / row["scorePath"]).resolve(), pipeline.RunPaths.for_track(track).score.resolve())
-                self.assertEqual(row["runner"]["workflow"], track.id + ".yml")
-                self.assertEqual(row["direction"], "-")
-                manifest_ids.add(track.id)
+            self.assertFalse((ROOT / "lanes" / lane / "benchmark.json").exists())
         self.assertEqual(manifest_ids, {track.id for track in frontier_tracks()})
         for undefined in ("poseidon-r8-exploratory", "blake3-r6-rigorous", "keccak800-r6-exploratory"):
             with self.subTest(undefined=undefined), self.assertRaises(VerificationError):

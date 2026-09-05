@@ -1,8 +1,7 @@
-# Solver workflow for the paired Yukon challenges
+# Solver workflow for the HashSmash Yukon challenge
 
-Use this guide after the organizer has imported and opened the dev challenges.
-The root schema-v1 pilot still has its separate `TASK.md`; it is not a paired
-challenge. Read `AGENTS.md`, `FRONTIER_LANES.md`, and your assigned
+Use this guide after the organizer has imported and opened the single dev challenge.
+Read `AGENTS.md`, `FRONTIER_LANES.md`, and your assigned
 `tracks/<target>-<lane>/TASK.md` before editing. Only the assigned candidate
 directory is editable; shared code and judge configuration are protected.
 
@@ -10,22 +9,25 @@ Use the actual setter/challenge name returned by import. In these examples,
 replace `SETTER` with that confirmed namespace:
 
 ```sh
-YUKON_API_URL=https://yukon-api-dev.fly.dev yukon clone SETTER/hashsmash-exploratory
-cd hashsmash-exploratory/lanes/exploratory
-YUKON_API_URL=https://yukon-api-dev.fly.dev yukon switch sha256-r31
+YUKON_API_URL=https://yukon-api-dev.fly.dev yukon clone SETTER/hashsmash
+cd hashsmash
+YUKON_API_URL=https://yukon-api-dev.fly.dev yukon tracks
+YUKON_API_URL=https://yukon-api-dev.fly.dev yukon switch sha256-r31-exploratory
 YUKON_API_URL=https://yukon-api-dev.fly.dev yukon trace status
 ```
 
-The CLI prints the leaf work directory after cloning. Stay in it for Yukon
-commands. The public Yukon track name is `sha256-r31`; organizer Python commands
-from the repository root instead use `sha256-r31-exploratory`. Here the editable
-directory is `candidates/sha256-r31` relative to the leaf, or
-`lanes/exploratory/candidates/sha256-r31` from the repository root.
+The CLI prints the repository root as the benchmark work directory after cloning.
+Stay at that root for Yukon commands. Public Yukon and organizer Python track
+names are identical: `sha256-r31-exploratory` includes the selected lane. Its
+editable directory is `lanes/exploratory/candidates/sha256-r31`. The manifest,
+trusted registry, setup and benchmark commands all bind that same selection.
 
 `yukon switch` changes local Yukon selection only, preserving your Git branch,
 HEAD, index and worktree. It does not convert an exploratory claim into a rigorous
-one or overwrite sibling work. For the rigorous challenge, clone its confirmed
-`SETTER/hashsmash-rigorous` name and use `lanes/rigorous` as the leaf work directory.
+one or overwrite sibling work. To work on the rigorous track, select
+`yukon switch sha256-r31-rigorous` in the same clone before starting that work;
+its editable directory is `lanes/rigorous/candidates/sha256-r31`. The lane is also
+recorded in the validated claim binding and generated score `metrics.lane`.
 
 The current Yukon CLI supplies agent/session tracing integrations. Use the current
 organizer-supported CLI and inspect `yukon trace status` in the selected challenge
@@ -38,9 +40,9 @@ failures to the organizer; a passing score is not evidence that tracing worked.
 After completing the package and setting its state to `ready`, run:
 
 ```sh
-YUKON_API_URL=https://yukon-api-dev.fly.dev yukon setup --track sha256-r31
-YUKON_API_URL=https://yukon-api-dev.fly.dev yukon run --track sha256-r31
-YUKON_API_URL=https://yukon-api-dev.fly.dev yukon submit --track sha256-r31 --note-file submission-note.md
+YUKON_API_URL=https://yukon-api-dev.fly.dev yukon setup --track sha256-r31-exploratory
+YUKON_API_URL=https://yukon-api-dev.fly.dev yukon run --track sha256-r31-exploratory
+YUKON_API_URL=https://yukon-api-dev.fly.dev yukon submit --track sha256-r31-exploratory --note-file submission-note.md
 ```
 
 Keep `submission-note.md` outside the editable candidate directory; it is CLI
@@ -65,4 +67,4 @@ human acceptance, or that scalar improvement establishes Pareto dominance.
 
 Yukon opens and manages submission PRs. Do not merge them using GitHub's merge,
 squash, or rebase buttons. Let Yukon promote the scored content; an improving
-submission must also preserve the other tracks and other leaf challenge.
+submission must also preserve every sibling track, including those in the other lane.
