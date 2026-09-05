@@ -9,7 +9,7 @@ from unittest.mock import patch
 from verifier.errors import VerificationError
 from verifier.io import canonical_json_bytes
 from verifier.schema_validation import validate_claim
-from verifier.tracks import get_track
+from verifier.frontier_tracks import get_frontier_track
 
 
 SPEC = importlib.util.spec_from_file_location("frontier_surface", Path(__file__).resolve().parents[1] / "scripts/check-frontier-surface.py")
@@ -46,7 +46,7 @@ class FrontierSurfaceTests(unittest.TestCase):
             self.check(b"", run_error=subprocess.CalledProcessError(1, "git"))
 
     def test_nonfinite_scalar_never_passes_intake_or_json_serialization(self):
-        track = get_track("sha256-r31-exploratory")
+        track = get_frontier_track("sha256-r31-exploratory")
         claim = track.draft_claim()
         claim["claim"].update(time_log2=1e308, memory_log2_bytes=1e308)
         with self.assertRaisesRegex(VerificationError, "score must be finite"):

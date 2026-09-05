@@ -13,7 +13,7 @@ controls; they do not have an unbroken standard-round boundary.
 Provide claim.json, proof.md and declared certificates. Heuristic-dependent claims
 must disclose their premises and evidence. Optional `experiments/manifest.json`
 selects organizer exact/sampled checks or isolated Python message-pair experiments.
-Read JUDGE_LANES.md and HEURISTIC_EXPERIMENTS.md for evidence requirements.
+Read docs/JUDGE_LANES.md and docs/HEURISTIC_EXPERIMENTS.md for evidence requirements.
 
 Run `bash scripts/run-local-track.sh md5-s64-rigorous` only after replacing the draft with a
 complete evaluable submission. That wrapper runs tests before a live judge call.

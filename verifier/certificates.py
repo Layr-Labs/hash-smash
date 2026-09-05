@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
 import stat
 from pathlib import Path
@@ -13,7 +12,7 @@ from .errors import VerificationError
 from .intake import validate_candidate
 from .io import atomic_write_json, ensure_output_outside_root, sha256_bytes
 from .hash_functions import digest
-from .tracks import Track
+from .frontier_tracks import LaneTrack
 
 
 def _read_certificate_file(candidate: Path, relative: str) -> bytes:
@@ -43,7 +42,7 @@ def _read_certificate_file(candidate: Path, relative: str) -> bytes:
         os.close(descriptor)
 
 
-def verify_certificates(candidate_root: str | os.PathLike[str], output_path: str | os.PathLike[str] | None = None, *, track: Track | None = None) -> dict[str, Any]:
+def verify_certificates(candidate_root: str | os.PathLike[str], output_path: str | os.PathLike[str] | None = None, *, track: LaneTrack) -> dict[str, Any]:
     """Verify every declared certificate, or succeed with an empty result if absent."""
 
     candidate = Path(candidate_root)
@@ -65,12 +64,8 @@ def verify_certificates(candidate_root: str | os.PathLike[str], output_path: str
                 raise VerificationError(
                     f"certificate {certificate['id']}: ordinary collision messages must differ"
                 )
-            if track:
-                digest_a = digest(message_a, track.algorithm, track.rounds).hex()
-                digest_b = digest(message_b, track.algorithm, track.rounds).hex()
-            else:
-                digest_a = hashlib.sha1(message_a, usedforsecurity=False).hexdigest()
-                digest_b = hashlib.sha1(message_b, usedforsecurity=False).hexdigest()
+            digest_a = digest(message_a, track.algorithm, track.rounds).hex()
+            digest_b = digest(message_b, track.algorithm, track.rounds).hex()
             expected = certificate["expected_digest"]
             if digest_a != expected:
                 raise VerificationError(
@@ -95,20 +90,19 @@ def verify_certificates(candidate_root: str | os.PathLike[str], output_path: str
                         "size_bytes": len(message_b),
                         "sha256": sha256_bytes(message_b),
                     },
-                    "digest" if track else "sha1_digest": expected,
+                    "digest": expected,
                 }
             )
 
     report = {
         "schema_version": SCHEMA_VERSION,
         "status": "passed",
-        "checker": f"hashsmash-{track.profile_id}" if track else "hashsmash-sha1-collision-v1",
+        "checker": f"hashsmash-{track.profile_id}",
         "package_sha256": intake["package_sha256"],
         "certificates": results,
     }
-    if track:
-        report["target_profile"] = track.profile_id
-        report["target_config_sha256"] = track.config_sha256()
+    report["target_profile"] = track.profile_id
+    report["target_config_sha256"] = track.config_sha256()
     if output_path is not None:
         destination = Path(output_path)
         ensure_output_outside_root(candidate, destination)

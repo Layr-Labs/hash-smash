@@ -32,7 +32,9 @@ def stage_score(benchmark_root, score_path, destination):
             or "\\" in score_path or not relative.parts):
         raise ValueError("score path must be a normalized relative POSIX path")
     manifest = json.loads((root / "benchmark.json").read_bytes())
-    tracks = manifest["tracks"] if manifest["schemaVersion"] == 2 else [manifest]
+    if manifest.get("schemaVersion") != 2:
+        raise ValueError("score staging requires a schema-v2 paired benchmark manifest")
+    tracks = manifest["tracks"]
     if score_path not in {track["scorePath"] for track in tracks}:
         raise ValueError("score path is not declared in this benchmark manifest")
     source = root

@@ -1,4 +1,4 @@
-"""Small, explicit JSON validators for the pinned v1 schemas.
+"""Small, explicit JSON validators for the paired-lane schemas.
 
 The project deliberately avoids a runtime JSON Schema dependency.  The JSON Schema
 documents remain the public contract, while these functions implement the same closed
@@ -16,16 +16,12 @@ from .constants import (
     MANIFEST_PATH,
     MAX_CERTIFICATES,
     MINIMUM_SUCCESS_PROBABILITY,
-    ROUNDS,
-    SCHEMA_VERSION,
-    TARGET_PROFILE,
 )
 from .errors import VerificationError
-from .tracks import Track
+from .frontier_tracks import LaneTrack
 
 _CERTIFICATE_PATH_RE = re.compile(r"certificates/[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 _CERTIFICATE_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
-_SHA1_RE = re.compile(r"[0-9a-f]{40}\Z")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 
 
@@ -82,10 +78,9 @@ def _exact_string(value: Any, expected: str, path: str) -> None:
         _fail(path, f"must equal {expected!r}")
 
 
-def validate_claim(value: Any, *, track: Track | None = None) -> dict[str, Any]:
-    """Validate and return a claim conforming to claim-v1.schema.json."""
+def validate_claim(value: Any, *, track: LaneTrack) -> dict[str, Any]:
+    """Validate and return a claim conforming to claim-frontier-v3.schema.json."""
 
-    paired = bool(getattr(track, "lane", None))
     claim = _object(
         value,
         "$",
@@ -97,14 +92,15 @@ def validate_claim(value: Any, *, track: Track | None = None) -> dict[str, Any]:
             "claim",
             "restrictions",
             "baseline_improved",
-        } | ({"submission_state"} if track else set()) | ({"lane", "heuristics"} if paired else set()),
-        {"certificate_manifest"} | ({"experiment_manifest"} if paired else set()),
+            "submission_state", "lane", "heuristics",
+        },
+        {"certificate_manifest", "experiment_manifest"},
     )
-    _exact_integer(claim["schema_version"], 3 if paired else 2 if track else SCHEMA_VERSION, "$.schema_version")
-    _exact_string(claim["target_profile"], track.profile_id if track else TARGET_PROFILE, "$.target_profile")
+    _exact_integer(claim["schema_version"], 3, "$.schema_version")
+    _exact_string(claim["target_profile"], track.profile_id, "$.target_profile")
     _exact_string(claim["attack_class"], ATTACK_CLASS, "$.attack_class")
-    _exact_integer(claim["rounds"], track.rounds if track else ROUNDS, "$.rounds")
-    if track and claim["submission_state"] not in ("draft", "ready"):
+    _exact_integer(claim["rounds"], track.rounds, "$.rounds")
+    if claim["submission_state"] not in ("draft", "ready"):
         _fail("$.submission_state", "must equal draft or ready")
 
     costs = _object(
@@ -121,7 +117,7 @@ def validate_claim(value: Any, *, track: Track | None = None) -> dict[str, Any]:
         },
     )
     _number(costs["time_log2"], "$.claim.time_log2", minimum=0)
-    _exact_string(costs["time_unit"], "target-compressions" if track else "sha1-compressions", "$.claim.time_unit")
+    _exact_string(costs["time_unit"], "target-compressions", "$.claim.time_unit")
     _number(costs["memory_log2_bytes"], "$.claim.memory_log2_bytes", minimum=0)
     if not math.isfinite(float(costs["time_log2"]) + float(costs["memory_log2_bytes"])):
         _fail("$.claim", "time-memory score must be finite")
@@ -151,45 +147,43 @@ def validate_claim(value: Any, *, track: Track | None = None) -> dict[str, Any]:
     baseline = _string(claim["baseline_improved"], "$.baseline_improved")
     if len(baseline) > 256:
         _fail("$.baseline_improved", "must contain no more than 256 characters")
-    if track:
-        _exact_string(baseline, track.reference_id, "$.baseline_improved")
+    _exact_string(baseline, track.reference_id, "$.baseline_improved")
 
     if "certificate_manifest" in claim:
         _exact_string(claim["certificate_manifest"], MANIFEST_PATH, "$.certificate_manifest")
-    if paired:
-        _exact_string(claim["lane"], track.lane, "$.lane")
-        if "experiment_manifest" in claim:
-            _exact_string(claim["experiment_manifest"], "experiments/manifest.json", "$.experiment_manifest")
-        heuristics = claim["heuristics"]
-        if not isinstance(heuristics, list) or len(heuristics) > 32:
-            _fail("$.heuristics", "requires an array of at most 32 declared heuristics")
-        seen = set()
-        for index, heuristic in enumerate(heuristics):
-            path = f"$.heuristics[{index}]"
-            item = _object(heuristic, path, {"id", "statement", "role", "scope", "extrapolation", "evidence_ids", "limitations"})
-            hid = _string(item["id"], path + ".id")
-            if not _CERTIFICATE_ID_RE.fullmatch(hid) or hid in seen:
-                _fail(path + ".id", "requires a unique safe identifier")
-            seen.add(hid)
-            if item["role"] not in ("score-critical", "supporting"):
-                _fail(path + ".role", "must equal score-critical or supporting")
-            for field in ("statement", "scope", "extrapolation", "limitations"):
-                if len(_string(item[field], path + "." + field)) > 4096:
-                    _fail(path + "." + field, "maximum length is 4096 characters")
-            refs = item["evidence_ids"]
-            if not isinstance(refs, list) or not 1 <= len(refs) <= 32:
-                _fail(path + ".evidence_ids", "requires 1 to 32 references to experiments or proof lines")
-            for ref in refs:
-                if not isinstance(ref, str) or not re.fullmatch(r"(?:experiment:[A-Za-z0-9][A-Za-z0-9._-]{0,63}|proof:[1-9][0-9]*(?:-[1-9][0-9]*)?)", ref):
-                    _fail(path + ".evidence_ids", "reference must be experiment:<id> or proof:<line>[-<line>]")
+    _exact_string(claim["lane"], track.lane, "$.lane")
+    if "experiment_manifest" in claim:
+        _exact_string(claim["experiment_manifest"], "experiments/manifest.json", "$.experiment_manifest")
+    heuristics = claim["heuristics"]
+    if not isinstance(heuristics, list) or len(heuristics) > 32:
+        _fail("$.heuristics", "requires an array of at most 32 declared heuristics")
+    seen = set()
+    for index, heuristic in enumerate(heuristics):
+        path = f"$.heuristics[{index}]"
+        item = _object(heuristic, path, {"id", "statement", "role", "scope", "extrapolation", "evidence_ids", "limitations"})
+        hid = _string(item["id"], path + ".id")
+        if not _CERTIFICATE_ID_RE.fullmatch(hid) or hid in seen:
+            _fail(path + ".id", "requires a unique safe identifier")
+        seen.add(hid)
+        if item["role"] not in ("score-critical", "supporting"):
+            _fail(path + ".role", "must equal score-critical or supporting")
+        for field in ("statement", "scope", "extrapolation", "limitations"):
+            if len(_string(item[field], path + "." + field)) > 4096:
+                _fail(path + "." + field, "maximum length is 4096 characters")
+        refs = item["evidence_ids"]
+        if not isinstance(refs, list) or not 1 <= len(refs) <= 32:
+            _fail(path + ".evidence_ids", "requires 1 to 32 references to experiments or proof lines")
+        for ref in refs:
+            if not isinstance(ref, str) or not re.fullmatch(r"(?:experiment:[A-Za-z0-9][A-Za-z0-9._-]{0,63}|proof:[1-9][0-9]*(?:-[1-9][0-9]*)?)", ref):
+                _fail(path + ".evidence_ids", "reference must be experiment:<id> or proof:<line>[-<line>]")
     return claim
 
 
-def validate_manifest(value: Any, *, track: Track | None = None) -> dict[str, Any]:
+def validate_manifest(value: Any, *, track: LaneTrack) -> dict[str, Any]:
     """Validate and return a certificate manifest."""
 
     manifest = _object(value, "$", {"schema_version", "certificates"})
-    _exact_integer(manifest["schema_version"], 2 if track else SCHEMA_VERSION, "$.schema_version")
+    _exact_integer(manifest["schema_version"], 2, "$.schema_version")
     certificates = manifest["certificates"]
     if not isinstance(certificates, list):
         _fail("$.certificates", "must be an array")
@@ -202,7 +196,7 @@ def validate_manifest(value: Any, *, track: Track | None = None) -> dict[str, An
         certificate = _object(
             item,
             path,
-            {"id", "type", "message_a", "message_b", "expected_digest"} | ({"target_profile"} if track else set()),
+            {"id", "type", "message_a", "message_b", "expected_digest", "target_profile"},
         )
         certificate_id = _string(certificate["id"], f"{path}.id")
         if not _CERTIFICATE_ID_RE.fullmatch(certificate_id):
@@ -212,11 +206,10 @@ def validate_manifest(value: Any, *, track: Track | None = None) -> dict[str, An
         ids.add(certificate_id)
         _exact_string(
             certificate["type"],
-            "hash-collision-witness-v2" if track else "sha1-collision-witness-v1",
+            "hash-collision-witness-v2",
             f"{path}.type",
         )
-        if track:
-            _exact_string(certificate["target_profile"], track.profile_id, f"{path}.target_profile")
+        _exact_string(certificate["target_profile"], track.profile_id, f"{path}.target_profile")
         for field in ("message_a", "message_b"):
             certificate_path = _string(certificate[field], f"{path}.{field}")
             if not _CERTIFICATE_PATH_RE.fullmatch(certificate_path):
@@ -227,7 +220,7 @@ def validate_manifest(value: Any, *, track: Track | None = None) -> dict[str, An
             if certificate_path == MANIFEST_PATH:
                 _fail(f"{path}.{field}", "must not refer to the manifest")
         digest = _string(certificate["expected_digest"], f"{path}.expected_digest")
-        digest_length = track.digest_bits // 4 if track else 40
+        digest_length = track.digest_bits // 4
         if not re.fullmatch(r"[0-9a-f]{%d}" % digest_length, digest):
             _fail(f"{path}.expected_digest", f"must be {digest_length} lowercase hexadecimal characters")
     return manifest

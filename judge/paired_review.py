@@ -13,8 +13,7 @@ import json
 from typing import Any, Mapping
 
 from .lanes import CHALLENGE_STAGES, INITIAL_STAGES, LANE_STAGES, POLICY_ID, validate_lane_review
-from .provider_adapter import JudgeInfraError
-from .run_review import ReviewClient
+from .provider_adapter import JudgeInfraError, ReviewClient
 from .schema_validation import ReviewValidationError
 
 SUCCESS_STATUSES = {"plausible_not_refuted", "ai_rigor_qualified"}

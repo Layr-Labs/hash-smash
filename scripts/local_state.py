@@ -15,7 +15,7 @@ class TrackBusyError(VerificationError):
 
 @contextmanager
 def track_session(paths, command):
-    if paths.track is None or command == "summary":
+    if command == "summary":
         yield {}
         return
     paths.work.mkdir(parents=True, exist_ok=True)

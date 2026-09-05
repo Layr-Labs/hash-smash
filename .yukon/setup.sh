@@ -8,5 +8,5 @@ python3 -m unittest discover -s verifier/tests -p 'test_*.py'
 python3 -m unittest discover -s judge/tests -p 'test_*.py'
 python3 -m unittest discover -s tests -p 'test_*.py'
 
-echo "HashSmash MVP setup and tests passed"
+echo "HashSmash paired-lane setup and tests passed"
 
