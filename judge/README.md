@@ -1,41 +1,37 @@
 # HashSmash AI judge
 
-This package runs three independent provider reviews—triage, correctness, and
-complexity—through OpenRouter Chat Completions or Amazon Bedrock Converse/Responses. It maps
-their strict structured records to one of:
+This package reviews the [paired frontier lanes](../docs/JUDGE_LANES.md) through
+OpenRouter Chat Completions or Amazon Bedrock Converse/Responses. Four independent
+roles inspect evaluability, cryptanalysis, cost and experiments. A proposed fatal
+finding triggers defender and adjudicator reviews. One evidence package produces
+both lane decisions; only the selected lane can emit a score.
 
-- `ai_qualified`
-- `clarification_required`
-- `technical_blocker`
-- `judge_infra_failed`
-
-`ai_qualified` is an AI screening result, not mathematical verification or human
-acceptance.
-
-Local multi-track evidence contains a selected target profile, common cost model and
-an explicitly unqualified nominal reference. `prompts/local-tracks-v1.md` instructs the
-reviewer not to treat that reference as a proved baseline or a premise. The active
-unconditional policy still vetoes unproved cryptanalytic assumptions, including at
-committee aggregation. Complexity must reconstruct the actual submitted cost vector.
-See [LOCAL_TRACKS.md](../LOCAL_TRACKS.md) for per-track runners and experiment boundaries.
+Exploratory qualification is `plausible_not_refuted`; rigorous qualification is
+`ai_rigor_qualified`. Other outcomes include `refuted`, `not_evaluable`,
+`not_qualified` and `infra_failed`. These are AI review outcomes, not mathematical
+proof or human acceptance. Relevant heuristic support, explicit scope and
+resource accounting are required; model confidence never replaces an obligation.
 
 The importable high-level calls are:
 
 ```python
-from judge import OpenRouterClient, OpenRouterConfig, run_mvp
+from judge import OpenRouterClient, OpenRouterConfig
+from judge import run_paired_review, select_lane_aggregate
 
-dossier = run_mvp(evidence, OpenRouterClient(OpenRouterConfig.from_env()))
-status = dossier["aggregate"]["status"]
+dossier = run_paired_review(evidence, OpenRouterClient(OpenRouterConfig.from_env()))
+aggregate = select_lane_aggregate(dossier, "exploratory")
 
 from judge import BedrockClient, BedrockConfig
 
-bedrock_dossier = run_mvp(evidence, BedrockClient(BedrockConfig.from_env()))
+bedrock_dossier = run_paired_review(evidence, BedrockClient(BedrockConfig.from_env()))
 ```
 
-The runner expects a trusted JSON evidence object containing the normalized claim,
-line-numbered Markdown proof, target profile, cost model, frontier, and sanitized
-certificate reports. The entire object is JSON-serialized and labeled untrusted before
-it is sent to the model. No participant text is placed in the system prompt.
+The runner expects a trusted evidence envelope containing the normalized claim,
+line-numbered proof, selected target, cost model, nominal reference, certificate
+reports and any bound experiment results. Participant content is serialized as
+untrusted evidence, never inserted into system instructions. Judge calls never
+execute participant code. The dossier retains review records, provider provenance,
+bindings, unresolved obligations and both decisions.
 
 ## Provider backends
 
@@ -83,108 +79,94 @@ The IAM principal behind the existing Bedrock API key needs `bedrock:InvokeModel
 the inference target and the default project
 `arn:aws:bedrock:<region>:<account-id>:project/default`. This adapter does not change IAM.
 
-Run the complete local single-panel pipeline with:
+Run the complete local pipeline for a ready, explicitly selected candidate with:
 
 ```sh
-bash .yukon/setup.sh
-bash scripts/run-local-bedrock.sh --model us.openai.gpt-5.6-sol --region us-east-1
+HASHSMASH_JUDGE_PROVIDER=bedrock \
+HASHSMASH_BEDROCK_MODEL=us.openai.gpt-5.6-sol \
+HASHSMASH_BEDROCK_REGION=us-east-1 \
+bash scripts/run-local-track.sh sha256-r31-exploratory
 ```
 
-For a one-stage smoke test, first prepare evidence with
-`python3 scripts/hashsmash_pipeline.py intake`, then use `scripts/run-bedrock-smoke.sh`
-with `--model us.openai.gpt-5.6-sol --reasoning-effort high --max-attempts 1`.
-The full local runner accepts `--model` and `--region` after loading `.env`; the smoke
-runner additionally accepts `--max-attempts`, `--max-tokens`, and `--timeout-seconds`.
+The wrapper runs deterministic setup before loading `.env`. Direct pipeline calls
+require credentials already configured in the trusted shell; they do not load
+`.env`. See the [qualification sequence](../docs/CANDIDATE_QUALIFICATION.md) for
+separate intake, review and score commands.
 
-For GitHub Actions, use repository variables `HASHSMASH_JUDGE_PROVIDER=bedrock`,
-`HASHSMASH_BEDROCK_MODEL=us.openai.gpt-5.6-sol`, and
-`HASHSMASH_BEDROCK_REGION=us-east-1`, retaining the `AWS_BEARER_TOKEN_BEDROCK` secret.
-The default Claude model and existing committee profiles are unchanged. An explicitly
-selected committee can mix Sol and Claude model IDs; each member independently selects
-its API route. No live committee qualification is implied by a single-panel test.
+For GitHub Actions, the paired workflow uses repository variables
+`HASHSMASH_JUDGE_PROVIDER=bedrock`, `HASHSMASH_BEDROCK_MODEL=us.openai.gpt-5.6-sol`
+and `HASHSMASH_BEDROCK_REGION=us-east-1`, retaining the `AWS_BEARER_TOKEN_BEDROCK`
+secret only in the review job. Each configured role independently selects its
+provider API route; live qualification is not implied by a connectivity test.
 
-Sources: [AWS Sol model card](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-56-sol.html),
+Sources for the existing adapter design: [AWS Sol model card](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-56-sol.html),
 [AWS Responses API](https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-mantle.html),
 and [OpenAI Bedrock guidance](https://developers.openai.com/api/docs/guides/amazon-bedrock).
 
-Both backends use `formal-proof-v1` and high reasoning effort by default. Override them
-with `HASHSMASH_JUDGE_STRATEGY` and `HASHSMASH_REASONING_EFFORT`.
+## Prompt strategies and role committees
+
+Both adapters use `formal-proof-v1` and high reasoning effort by default. Override
+these with `HASHSMASH_JUDGE_STRATEGY` and `HASHSMASH_REASONING_EFFORT`.
+The organizer-owned strategies in `judge/strategies/` are:
+
+- `balanced-v1`: neutral review against the rubric;
+- `formal-proof-v1`: theorem, lemma and dependency checking;
+- `adversarial-v1`: counterexample and hidden-assumption search;
+- `cost-skeptic-v1`: resource accounting and model consistency.
+
+Set `HASHSMASH_JUDGE_MODE=committee` to configure each role independently using
+`judge/committees/paired-roles-v1.json`. `HASHSMASH_ROLE_COMMITTEE_PATH` may select
+another organizer configuration directly in that directory. All six roles must
+be configured; credentials and provider selection cannot be overridden by a role.
+The default profile applies these strategies to the configured provider/model:
+
+| Role | Strategy |
+| --- | --- |
+| Evaluability | `balanced-v1` |
+| Cryptanalysis | `formal-proof-v1` |
+| Cost | `cost-skeptic-v1` |
+| Experiments | `adversarial-v1` |
+| Defender | `balanced-v1` |
+| Adjudicator | `formal-proof-v1` |
+
+Individual roles may override model, strategy, reasoning effort and output budget.
+The default `single` mode uses independent calls to one client. Both modes use the
+same proof obligations and adjudication rules; neither uses majority voting.
+The dossier records effective models, prompt hashes and role configuration.
+
+## Diagnostics and tests
+
+Run deterministic tests before any live diagnostic:
 
 ```sh
-python3 -m judge \
-  --provider bedrock \
-  --evidence build/judge-evidence.json \
-  --output build/judge-dossier.json
+bash .yukon/setup.sh
+python3 scripts/hashsmash_pipeline.py intake --track sha256-r31-exploratory
 ```
 
-Exit status is 0 only for `ai_qualified`, 2 for a clarification or technical blocker,
-and 3 for judge infrastructure failure. Provider errors never become proof verdicts.
-
-## Prompt strategies
-
-Strategies are organizer-owned overlays in `judge/strategies/`. Four versioned options
-are checked in:
-
-- `balanced-v1`: neutral review against the common rubric;
-- `formal-proof-v1`: theorem/lemma and dependency-oriented checking;
-- `adversarial-v1`: active counterexample and hidden-assumption search; and
-- `cost-skeptic-v1`: resource accounting and model-consistency scrutiny.
-
-The strategy name and prompt hashes are retained in judge provenance. Participant text is
-always serialized in the untrusted user evidence envelope and never interpolated into a
-system prompt.
-
-## Judge committees
-
-Set `HASHSMASH_JUDGE_MODE=committee` to run a committee. The optional
-`HASHSMASH_COMMITTEE_PATH` selects a strict JSON configuration. The OpenRouter production
-profile is `judge/committees/committee-v1.json`:
-
-| Member | Model | Strategy | Reasoning |
-| --- | --- | --- | --- |
-| `sol-formal` | `openai/gpt-5.6-sol` | `formal-proof-v1` | high |
-| `opus-adversarial` | `anthropic/claude-opus-4.6` | `adversarial-v1` | high |
-| `gemini-cost` | `google/gemini-2.5-flash` | `cost-skeptic-v1` | provider default |
-
-Members run concurrently, but each member's triage, correctness, and complexity reviews
-remain sequential. Members receive only the trusted evidence envelope, not other judges'
-reviews. The v1 policy requires all three members to complete and qualify the same claim;
-any technical blocker or clarification is a veto. Infrastructure failures cannot become a
-proof verdict or score.
-
-For local calibration, `bash scripts/run-local-committee.sh` selects
-`committee-calibration-v1.json`, which uses one attempt per stage to bound cost and time.
-With `HASHSMASH_JUDGE_PROVIDER=bedrock`, the same script selects
-`committee-bedrock-calibration-v1.json`: three Opus 4.6 panels with formal-proof,
-adversarial, and cost-skeptic prompts. Its retry-enabled production counterpart is
-`committee-bedrock-v1.json`. The ordinary local runners remain single-model so committee
-use is always explicit.
-
-For a one-stage connectivity and schema smoke test after deterministic setup:
+A ready candidate and successful intake are required for these one-stage provider
+diagnostics. Select the same track and a paired role explicitly:
 
 ```sh
 bash scripts/run-openrouter-smoke.sh \
-  --stage triage \
+  --track sha256-r31-exploratory \
+  --stage lane_evaluability \
   --model openai/gpt-5.6-sol \
   --strategy formal-proof-v1 \
   --reasoning-effort high \
   --max-attempts 1
-```
 
-The equivalent Bedrock smoke test is:
-
-```sh
 bash scripts/run-bedrock-smoke.sh \
-  --stage triage \
-  --model us.anthropic.claude-opus-4-6-v1 \
+  --track sha256-r31-exploratory \
+  --stage lane_evaluability \
+  --model us.openai.gpt-5.6-sol \
   --region us-east-1 \
   --strategy formal-proof-v1 \
   --reasoning-effort high \
   --max-attempts 1
 ```
 
-Run the fake-transport unit suite without credentials or network access:
-
-```sh
-python3 -m unittest discover -s judge/tests -v
-```
+The bounded [paired calibration](../docs/FRONTIER_LANES.md#executable-heuristic-evidence)
+uses organizer toy cases and preserves both policy outcomes without scoring any
+challenge candidates. Use the [participant heuristic test](../docs/PARTICIPANT_HEURISTIC_TEST.md)
+to exercise the isolated source-to-evidence path. These diagnostics establish
+integration behavior, not cryptanalytic accuracy or qualified research baselines.

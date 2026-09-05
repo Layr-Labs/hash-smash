@@ -28,7 +28,7 @@ from .provider_adapter import (
     UrllibTransport,
     _schema_for_stage,
 )
-from .schema_validation import load_review_schema, review_schema_for_stage, validate_review
+from .schema_validation import review_schema_for_stage, validate_review
 
 
 DEFAULT_BEDROCK_MODEL = "us.anthropic.claude-opus-4-6-v1"
@@ -57,8 +57,8 @@ UNSUPPORTED_WIRE_SCHEMA_KEYS = {
 }
 
 
-def _bedrock_schema_for_stage(base_schema: Mapping[str, Any], stage: str) -> dict[str, Any]:
-    schema = deepcopy(_schema_for_stage(base_schema, stage))
+def _bedrock_schema_for_stage(stage: str) -> dict[str, Any]:
+    schema = deepcopy(_schema_for_stage(stage))
 
     def sanitize(value: Any) -> None:
         if isinstance(value, dict):
@@ -142,7 +142,7 @@ def bedrock_system_prompt(config: "BedrockConfig", stage: str) -> str:
     """Include the Sol JSON contract in the actual prompt and its provenance hash."""
     prompt = load_system_prompt(stage, config.strategy)
     if config.api == "responses":
-        schema = _schema_for_stage(load_review_schema(), stage)
+        schema = _schema_for_stage(stage)
         prompt += "\n\n" + SOL_OUTPUT_CONTRACT.read_text(encoding="utf-8").strip()
         prompt += "\n\n" + json.dumps(schema, ensure_ascii=True, sort_keys=True)
     return prompt
@@ -253,7 +253,6 @@ class BedrockClient:
         self.sleeper = sleeper
         self.clock = clock
         self.random_source = random_source
-        self.schema = load_review_schema()
 
     def _headers(self) -> dict[str, str]:
         return {
@@ -278,7 +277,7 @@ class BedrockClient:
             if self.config.reasoning_effort is not None:
                 body["reasoning"] = {"effort": self.config.reasoning_effort}
             return json.dumps(body, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
-        response_schema = _bedrock_schema_for_stage(self.schema, stage)
+        response_schema = _bedrock_schema_for_stage(stage)
         body: dict[str, Any] = {
             "system": [{"text": messages[0]["content"]}],
             "messages": [
@@ -346,12 +345,6 @@ class BedrockClient:
             if len(text_blocks) != 1:
                 raise ValueError("expected exactly one structured text block")
             review = json.loads(text_blocks[0])
-            if isinstance(review, dict) and not stage.startswith("lane_"):
-                review.setdefault("decision", None)
-                review.setdefault("verdict", None)
-                review.setdefault("submitted_cost", None)
-                review.setdefault("recomputed_cost", None)
-                review.setdefault("calculation_trace", [])
             validate_review(review, expected_stage=stage, schema=review_schema_for_stage(stage))
             usage = payload.get("usage", {})
             metrics = payload.get("metrics", {})
@@ -425,12 +418,6 @@ class BedrockClient:
             if len(texts) != 1:
                 raise ValueError("expected exactly one JSON review")
             review = _strict_json(texts[0])
-            if isinstance(review, dict) and not stage.startswith("lane_"):
-                review.setdefault("decision", None)
-                review.setdefault("verdict", None)
-                review.setdefault("submitted_cost", None)
-                review.setdefault("recomputed_cost", None)
-                review.setdefault("calculation_trace", [])
             validate_review(review, expected_stage=stage, schema=review_schema_for_stage(stage))
             usage = payload.get("usage", {})
             if not isinstance(usage, dict):

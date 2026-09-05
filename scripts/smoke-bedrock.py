@@ -17,10 +17,16 @@ if str(REPO_ROOT) not in sys.path:
 from judge.bedrock_adapter import BedrockClient, BedrockConfig
 from judge.provider_adapter import JudgeInfraError
 
+from judge.lanes import INITIAL_STAGES, POLICY_ID
+from judge.paired_review import evidence_binding
+from scripts.hashsmash_pipeline import RunPaths, _check_current_evidence, _load_json
+from verifier.frontier_tracks import get_frontier_track
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--stage", choices=("triage", "correctness", "complexity"), default="triage")
+    parser.add_argument("--track", required=True, help="paired frontier track with current ready intake evidence")
+    parser.add_argument("--stage", choices=INITIAL_STAGES, default="lane_evaluability")
     parser.add_argument("--model")
     parser.add_argument("--region")
     parser.add_argument("--strategy")
@@ -29,8 +35,10 @@ def main() -> int:
     parser.add_argument("--max-attempts", type=int)
     parser.add_argument("--timeout-seconds", type=float)
     args = parser.parse_args()
-    evidence_path = REPO_ROOT / ".yukon" / "work" / "judge-evidence.json"
-    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    paths = RunPaths.for_track(get_frontier_track(args.track))
+    evidence = _load_json(paths.evidence)
+    _check_current_evidence(paths, evidence)
+    evidence["review_context"] = {"policy_id": POLICY_ID, "binding": evidence_binding(evidence)}
     config = BedrockConfig.from_env()
     overrides = {
         field: value
@@ -57,9 +65,8 @@ def main() -> int:
             {
                 "status": "ok",
                 "stage": result.review["stage"],
-                "decision": result.review["decision"],
-                "verdict": result.review["verdict"],
-                "issues": len(result.review["issues"]),
+                "findings": len(result.review["findings"]),
+                "obligations": len(result.review["obligations"]),
                 "requested_model": result.provenance["requested_model"],
                 "returned_model": result.provenance["returned_model"],
                 "region": result.provenance["region"],

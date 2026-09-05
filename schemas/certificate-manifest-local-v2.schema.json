@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://hashsmash.example/schemas/certificate-manifest-local-v2.schema.json",
-  "title": "HashSmash local selected-target collision certificate manifest v2",
+  "title": "HashSmash selected-target collision certificate manifest v2",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -55,14 +55,14 @@
           "target_profile": {
             "enum": [
               "md5-s8-prefix-v1",
-              "md5-s24-prefix-v1",
+              "md5-s63-prefix-v1",
               "md5-s64-prefix-v1",
-              "sha1-r8-prefix-v1",
-              "sha1-r40-prefix-v1",
+              "sha1-r79-prefix-v1",
               "sha1-r80-prefix-v1",
-              "sha256-r8-prefix-v1",
-              "sha256-r24-prefix-v1",
-              "sha256-r64-prefix-v1"
+              "sha256-r31-prefix-v1",
+              "sha256-r32-prefix-v1",
+              "sha3-256-r5-prefix-v1",
+              "sha3-256-r6-prefix-v1"
             ]
           }
         }

@@ -10,7 +10,7 @@ from verifier.constants import MAX_PROOF_BYTES
 from verifier.errors import VerificationError
 from verifier.intake import validate_candidate
 
-from verifier.tests.common import add_manifest, make_candidate, valid_claim, write_json
+from verifier.tests.common import TRACK, add_manifest, make_candidate, valid_claim, write_json
 
 
 class IntakeTests(unittest.TestCase):
@@ -19,10 +19,10 @@ class IntakeTests(unittest.TestCase):
             root = Path(directory)
             candidate = make_candidate(root, proof="# Claim\nsecond line\n")
             output = root / "artifacts"
-            report = validate_candidate(candidate, output)
+            report = validate_candidate(candidate, output, track=TRACK)
 
             self.assertEqual(report["status"], "mechanically_valid")
-            self.assertEqual(report["track"]["target_profile"], "sha1-fips180-4-v1")
+            self.assertEqual(report["track"]["target_profile"], "sha1-r80-prefix-v1")
             self.assertEqual(report["proof"]["line_count"], 2)
             self.assertEqual(
                 (output / "proof-numbered.md").read_text(encoding="utf-8"),
@@ -37,14 +37,14 @@ class IntakeTests(unittest.TestCase):
             root = Path(directory)
             top = valid_claim(extra=True)
             with self.assertRaisesRegex(VerificationError, "unknown field.*extra"):
-                validate_candidate(make_candidate(root, top))
+                validate_candidate(make_candidate(root, top), track=TRACK)
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             nested = valid_claim()
             nested["claim"]["hidden_cost"] = 1
             with self.assertRaisesRegex(VerificationError, "unknown field.*hidden_cost"):
-                validate_candidate(make_candidate(root, nested))
+                validate_candidate(make_candidate(root, nested), track=TRACK)
 
     def test_fixed_track_and_finite_numeric_constraints(self):
         cases = []
@@ -62,21 +62,15 @@ class IntakeTests(unittest.TestCase):
         for claim, message in cases:
             with self.subTest(message=message), tempfile.TemporaryDirectory() as directory:
                 with self.assertRaisesRegex(VerificationError, message):
-                    validate_candidate(make_candidate(Path(directory), claim))
+                    validate_candidate(make_candidate(Path(directory), claim), track=TRACK)
 
         with tempfile.TemporaryDirectory() as directory:
             candidate = make_candidate(Path(directory))
-            (candidate / "claim.json").write_text(
-                '{"schema_version":1,"target_profile":"sha1-fips180-4-v1",'
-                '"attack_class":"ordinary-collision","rounds":80,"claim":{'
-                '"time_log2":NaN,"time_unit":"sha1-compressions",'
-                '"memory_log2_bytes":0,"data_log2":0,"preprocessing_log2":0,'
-                '"success_probability":1,"nonuniform_advice_log2_bytes":0},'
-                '"restrictions":[],"baseline_improved":"x"}',
-                encoding="utf-8",
-            )
+            claim = valid_claim()
+            claim["claim"]["time_log2"] = float("nan")
+            write_json(candidate / "claim.json", claim)
             with self.assertRaisesRegex(VerificationError, "invalid JSON"):
-                validate_candidate(candidate)
+                validate_candidate(candidate, track=TRACK)
 
     def test_proof_must_be_nonempty_utf8_lf_text_within_limit(self):
         invalid_proofs = [
@@ -91,26 +85,26 @@ class IntakeTests(unittest.TestCase):
                 candidate = make_candidate(Path(directory))
                 (candidate / "proof.md").write_bytes(proof)
                 with self.assertRaisesRegex(VerificationError, message):
-                    validate_candidate(candidate)
+                    validate_candidate(candidate, track=TRACK)
 
     def test_unexpected_missing_and_executable_files_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             candidate = make_candidate(Path(directory))
             (candidate / "extra.txt").write_text("no")
             with self.assertRaisesRegex(VerificationError, "unexpected file.*extra.txt"):
-                validate_candidate(candidate)
+                validate_candidate(candidate, track=TRACK)
 
         with tempfile.TemporaryDirectory() as directory:
             candidate = make_candidate(Path(directory))
             (candidate / "proof.md").unlink()
             with self.assertRaisesRegex(VerificationError, "missing required file.*proof.md"):
-                validate_candidate(candidate)
+                validate_candidate(candidate, track=TRACK)
 
         with tempfile.TemporaryDirectory() as directory:
             candidate = make_candidate(Path(directory))
             os.chmod(candidate / "proof.md", 0o755)
             with self.assertRaisesRegex(VerificationError, "executable files"):
-                validate_candidate(candidate)
+                validate_candidate(candidate, track=TRACK)
 
     def test_symlinks_and_nested_directories_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -119,7 +113,7 @@ class IntakeTests(unittest.TestCase):
             linked_root = root / "linked-candidate"
             linked_root.symlink_to(candidate, target_is_directory=True)
             with self.assertRaisesRegex(VerificationError, "candidate root.*symlink"):
-                validate_candidate(linked_root)
+                validate_candidate(linked_root, track=TRACK)
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -127,33 +121,34 @@ class IntakeTests(unittest.TestCase):
             (candidate / "proof.md").unlink()
             (candidate / "proof.md").symlink_to(root / "outside.md")
             with self.assertRaisesRegex(VerificationError, "symlinks are not allowed"):
-                validate_candidate(candidate)
+                validate_candidate(candidate, track=TRACK)
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             candidate = make_candidate(root)
             (candidate / "unexpected").mkdir()
             with self.assertRaisesRegex(VerificationError, "unexpected directory"):
-                validate_candidate(candidate)
+                validate_candidate(candidate, track=TRACK)
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             candidate = make_candidate(root)
             (candidate / "certificates" / "nested").mkdir(parents=True)
             with self.assertRaisesRegex(VerificationError, "only direct regular files"):
-                validate_candidate(candidate)
+                validate_candidate(candidate, track=TRACK)
 
         if hasattr(os, "mkfifo"):
             with tempfile.TemporaryDirectory() as directory:
                 candidate = make_candidate(Path(directory))
                 os.mkfifo(candidate / "pipe")
                 with self.assertRaisesRegex(VerificationError, "only regular files"):
-                    validate_candidate(candidate)
+                    validate_candidate(candidate, track=TRACK)
 
     def test_manifest_declaration_and_declared_file_set_are_exact(self):
         certificate = {
             "id": "witness-1",
-            "type": "sha1-collision-witness-v1",
+            "type": "hash-collision-witness-v2",
+            "target_profile": TRACK.profile_id,
             "message_a": "certificates/a.bin",
             "message_b": "certificates/b.bin",
             "expected_digest": "0" * 40,
@@ -163,14 +158,14 @@ class IntakeTests(unittest.TestCase):
             add_manifest(candidate, [certificate])
             (candidate / "certificates" / "a.bin").write_bytes(b"a")
             with self.assertRaisesRegex(VerificationError, "declared certificate file.*b.bin"):
-                validate_candidate(candidate)
+                validate_candidate(candidate, track=TRACK)
 
         with tempfile.TemporaryDirectory() as directory:
             candidate = make_candidate(Path(directory))
             add_manifest(candidate, [])
             (candidate / "certificates" / "undeclared.bin").write_bytes(b"x")
             with self.assertRaisesRegex(VerificationError, "unexpected file.*undeclared.bin"):
-                validate_candidate(candidate)
+                validate_candidate(candidate, track=TRACK)
 
         with tempfile.TemporaryDirectory() as directory:
             candidate = make_candidate(Path(directory))
@@ -180,12 +175,13 @@ class IntakeTests(unittest.TestCase):
                 {"schema_version": 1, "certificates": []},
             )
             with self.assertRaisesRegex(VerificationError, "does not declare"):
-                validate_candidate(candidate)
+                validate_candidate(candidate, track=TRACK)
 
     def test_manifest_rejects_unknown_fields_unsafe_paths_and_duplicate_ids(self):
         base = {
             "id": "witness-1",
-            "type": "sha1-collision-witness-v1",
+            "type": "hash-collision-witness-v2",
+            "target_profile": TRACK.profile_id,
             "message_a": "certificates/a.bin",
             "message_b": "certificates/b.bin",
             "expected_digest": "0" * 40,
@@ -204,7 +200,7 @@ class IntakeTests(unittest.TestCase):
                 candidate = make_candidate(Path(directory))
                 add_manifest(candidate, certificates)
                 with self.assertRaisesRegex(VerificationError, message):
-                    validate_candidate(candidate)
+                    validate_candidate(candidate, track=TRACK)
 
         with tempfile.TemporaryDirectory() as directory:
             candidate = make_candidate(Path(directory))
@@ -215,13 +211,13 @@ class IntakeTests(unittest.TestCase):
                 {"schema_version": 1, "certificates": [], "extra": True},
             )
             with self.assertRaisesRegex(VerificationError, "unknown field.*extra"):
-                validate_candidate(candidate)
+                validate_candidate(candidate, track=TRACK)
 
     def test_output_directory_cannot_be_inside_candidate(self):
         with tempfile.TemporaryDirectory() as directory:
             candidate = make_candidate(Path(directory))
             with self.assertRaisesRegex(VerificationError, "outside the candidate"):
-                validate_candidate(candidate, candidate / "reports")
+                validate_candidate(candidate, candidate / "reports", track=TRACK)
 
 
 if __name__ == "__main__":

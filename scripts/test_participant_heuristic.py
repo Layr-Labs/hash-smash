@@ -108,7 +108,7 @@ def calibration_track() -> CalibrationTrack:
 
 
 def paths_for(run_directory: Path) -> pipeline.RunPaths:
-    # These paths can never be the active/legacy output paths, even if callers
+    # These paths can never be the registered lane output paths, even if callers
     # select a directory in the repository. The registry rejects TRACK_ID.
     return pipeline.RunPaths.for_track(calibration_track(),
         state_root=run_directory / "calibration-state",

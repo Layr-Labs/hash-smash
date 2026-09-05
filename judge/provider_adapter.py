@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Protocol
 
 from .prompts import DEFAULT_STRATEGY, build_messages, load_strategy_prompt
-from .schema_validation import load_review_schema, review_schema_for_stage, validate_review
+from .schema_validation import review_schema_for_stage, validate_review
 
 
 OPENROUTER_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -154,54 +154,19 @@ class ReviewResult:
     provenance: dict[str, Any]
 
 
-def _schema_for_stage(base_schema: Mapping[str, Any], stage: str) -> dict[str, Any]:
+class ReviewClient(Protocol):
+    def review(self, stage: str, evidence: Mapping[str, Any]) -> ReviewResult: ...
+
+
+def _schema_for_stage(stage: str) -> dict[str, Any]:
     """Specialize the wire schema so the provider cannot fill in forbidden fields."""
 
-    from .lanes import LANE_STAGES
-    schema = deepcopy(dict(review_schema_for_stage(stage) if stage in LANE_STAGES else base_schema))
+    schema = deepcopy(dict(review_schema_for_stage(stage)))
     # Provider structured-output implementations accept the validation schema, but
     # some reject draft/document annotations that are useful only to local tooling.
     for annotation in ("$schema", "$id", "title"):
         schema.pop(annotation, None)
-    properties = schema["properties"]
-    properties["stage"] = {"type": "string", "enum": [stage]}
-    if stage in LANE_STAGES:
-        return schema
-
-    def remove_wire_fields(*fields: str) -> None:
-        for field in fields:
-            properties.pop(field, None)
-        schema["required"] = [field for field in schema["required"] if field not in fields]
-
-    if stage == "triage":
-        properties["decision"] = {
-            "type": "string",
-            "enum": ["pass_to_review", "clarification_needed", "out_of_scope"],
-        }
-        remove_wire_fields("verdict")
-    else:
-        remove_wire_fields("decision")
-        verdicts = {
-            "correctness": ["supported", "unsupported", "unclear"],
-            "complexity": ["supported", "unsupported", "unclear"],
-            "adversarial": [
-                "no_known_blocker",
-                "author_response_required",
-                "major_blocker",
-            ],
-            "synthesis": ["advance", "request_revision", "seek_specialist", "reject"],
-        }
-        try:
-            properties["verdict"] = {"type": "string", "enum": verdicts[stage]}
-        except KeyError as exc:
-            raise ValueError(f"unknown review stage: {stage!r}") from exc
-
-    if stage == "complexity":
-        for field in ("submitted_cost", "recomputed_cost"):
-            properties[field]["type"] = "object"
-        properties["calculation_trace"]["minItems"] = 1
-    else:
-        remove_wire_fields("submitted_cost", "recomputed_cost", "calculation_trace")
+    schema["properties"]["stage"] = {"type": "string", "enum": [stage]}
     return schema
 
 
@@ -263,7 +228,6 @@ class OpenRouterClient:
         self.sleeper = sleeper
         self.clock = clock
         self.random_source = random_source
-        self.schema = load_review_schema()
 
     def _headers(self) -> dict[str, str]:
         headers = {
@@ -279,7 +243,7 @@ class OpenRouterClient:
         return headers
 
     def _request_body(self, stage: str, evidence: Mapping[str, Any]) -> bytes:
-        response_schema = _schema_for_stage(self.schema, stage)
+        response_schema = _schema_for_stage(stage)
         body: dict[str, Any] = {
             "model": self.config.model,
             "messages": build_messages(stage, evidence, self.config.strategy),
@@ -334,14 +298,6 @@ class OpenRouterClient:
             if not isinstance(message, dict) or not isinstance(message.get("content"), str):
                 raise ValueError("missing string message content")
             review = json.loads(message["content"])
-            if isinstance(review, dict) and not stage.startswith("lane_"):
-                # The provider-facing schema omits stage-inapplicable null/empty fields.
-                # Restore the canonical review record before strict local validation.
-                review.setdefault("decision", None)
-                review.setdefault("verdict", None)
-                review.setdefault("submitted_cost", None)
-                review.setdefault("recomputed_cost", None)
-                review.setdefault("calculation_trace", [])
             validate_review(review, expected_stage=stage, schema=review_schema_for_stage(stage))
             response_id = payload["id"]
             returned_model = payload["model"]

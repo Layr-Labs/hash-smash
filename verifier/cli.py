@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 from typing import Sequence
@@ -13,7 +12,7 @@ from .errors import VerificationError
 from .intake import validate_candidate
 from .io import canonical_json_bytes, load_json_bytes
 from .score import build_score
-from .tracks import get_track
+from .frontier_tracks import get_frontier_track
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -33,14 +32,14 @@ def _parser() -> argparse.ArgumentParser:
     score.add_argument("--aggregate", required=True, type=Path)
     score.add_argument("--output", required=True, type=Path)
     for command in (intake, certificates, score):
-        command.add_argument("--track", help="explicit organizer-defined local track")
+        command.add_argument("--track", required=True, help="explicit organizer-defined paired lane")
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = _parser().parse_args(argv)
     try:
-        track = get_track(arguments.track) if arguments.track else None
+        track = get_frontier_track(arguments.track)
         if arguments.command == "intake":
             result = validate_candidate(arguments.candidate, arguments.output_dir, track=track)
         elif arguments.command == "certificates":

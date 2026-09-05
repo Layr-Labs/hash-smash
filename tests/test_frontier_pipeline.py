@@ -19,13 +19,13 @@ from judge.lanes import INITIAL_STAGES, LANE_STAGES
 from scripts import hashsmash_pipeline as pipeline
 from scripts.stage_yukon_score import stage_score
 from tests.test_experiments import addition, program
-from tests.test_local_tracks import candidate_fixture
+from tests.helpers import candidate_fixture
 from tests.test_paired_judges import FixtureClient, add_fatal
 from verifier.errors import VerificationError
 from verifier.frontier_tracks import catalog, frontier_tracks, planned_slots
 from verifier.intake import validate_candidate
 from verifier.io import atomic_write_json, sha256_bytes
-from verifier.tracks import ROOT, get_track
+from verifier.frontier_tracks import ROOT, get_frontier_track
 
 
 def read_json(path):
@@ -83,7 +83,7 @@ class FrontierPipelineTests(unittest.TestCase):
         self.addCleanup(self.stderr.__exit__, None, None, None)
 
     def paths(self, track_id="sha256-r31-exploratory", *, ready=True, suffix=""):
-        track = get_track(track_id)
+        track = get_frontier_track(track_id)
         root = self.root / suffix if suffix else self.root
         candidate = candidate_fixture(root, track, ready=ready)
         return pipeline.RunPaths.for_track(track, state_root=root / "state", candidate=candidate)
@@ -146,7 +146,7 @@ class FrontierPipelineTests(unittest.TestCase):
         self.assertEqual(manifest["name"], "hashsmash")
         self.assertEqual(len(manifest["tracks"]), 16)
         for row in manifest["tracks"]:
-            track = get_track(row["name"])
+            track = get_frontier_track(row["name"])
             self.assertEqual(row["benchmarkCommand"], ["python3", "scripts/hashsmash_pipeline.py", "all", "--track", track.id])
             self.assertEqual(row["setupCommand"], ["bash", ".yukon/setup.sh"])
             self.assertEqual(row["editablePaths"], [f"lanes/{track.lane}/candidates/{track.target_id}"])
@@ -157,9 +157,13 @@ class FrontierPipelineTests(unittest.TestCase):
         for lane in ("exploratory", "rigorous"):
             self.assertFalse((ROOT / "lanes" / lane / "benchmark.json").exists())
         self.assertEqual(manifest_ids, {track.id for track in frontier_tracks()})
-        for undefined in ("poseidon-r8-exploratory", "blake3-r6-rigorous", "keccak800-r6-exploratory"):
+        for undefined in (
+            "poseidon-r8-exploratory", "blake3-r6-rigorous", "keccak800-r6-exploratory",
+            "md5-s8", "md5-s24", "md5-s64", "sha1-r8", "sha1-r40", "sha1-r80",
+            "sha256-r8", "sha256-r24", "sha256-r64",
+        ):
             with self.subTest(undefined=undefined), self.assertRaises(VerificationError):
-                get_track(undefined)
+                get_frontier_track(undefined)
 
     def test_supported_baseline_above_nominal_can_score_without_claiming_improvement(self):
         for lane in ("exploratory", "rigorous"):

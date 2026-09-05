@@ -26,7 +26,7 @@ from tests.test_paired_judges import FixtureClient
 from verifier.errors import VerificationError
 from verifier.hash_functions import digest
 from verifier.io import atomic_write_json
-from verifier.tracks import get_track
+from verifier.frontier_tracks import get_frontier_track
 
 
 def canonical(value):
@@ -147,7 +147,7 @@ class ParticipantHeuristicTests(unittest.TestCase):
         schema["properties"]["target_profile"]["enum"] = [driver.TARGET_PROFILE]
         self.assertEqual(driver.instantiated_claim_schema(), schema)
         with self.assertRaises(VerificationError):
-            get_track(driver.TRACK_ID)
+            get_frontier_track(driver.TRACK_ID)
         paths = driver.paths_for(self.run)
         self.assertTrue(paths.candidate.is_relative_to(self.run))
         self.assertTrue(paths.score.is_relative_to(self.run))
