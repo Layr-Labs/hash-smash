@@ -5,8 +5,13 @@ collision claims. Each target has independent exploratory and rigorous lanes.
 The roster has **28 planned slots: 16 runnable lanes and 12 reserved slots** for
 BLAKE3, Keccak[800] and Poseidon, whose exact target definitions remain unresolved.
 
-Start with the [paired-lane guide](./docs/FRONTIER_LANES.md) for the roster, target
-boundaries, commands and deployment gates. The [review contract](./docs/JUDGE_LANES.md)
+Solvers start with [TASK.md](./TASK.md), the single entry point for assigned-track
+instructions and HashSmash's differences from the generic Yukon CLI workflow.
+Builders and deployment operators start with the
+[builder guide](./docs/BUILDER_GUIDE.md); [AGENTS.md](./AGENTS.md) routes these roles.
+
+The [paired-lane guide](./docs/FRONTIER_LANES.md) covers the roster, target
+boundaries and deployment gates. The [review contract](./docs/JUDGE_LANES.md)
 defines the two acceptance policies, and the
 [experiment protocol](./docs/HEURISTIC_EXPERIMENTS.md) defines isolated executable
 evidence. The [documentation index](./docs/README.md) covers operator guides,
@@ -37,7 +42,7 @@ Scores are written to `lanes/<lane>/.yukon/scores/<target>-<lane>.json`, with
 reports under `lanes/<lane>/.yukon/reports/tracks/<target>-<lane>/`. These generated
 outputs are ignored by Git. Failed validation or qualification emits no score.
 
-## Local setup and workflow
+## Builder setup and local workflow
 
 Run commands from the repository root. Deterministic tests use Python's standard
 library and organizer fixtures, without contacting providers:
@@ -80,9 +85,9 @@ Lane metadata remains in the protected registry, the validated claim binding,
 and each generated score's `metrics.lane`. Yukon track names include the lane
 suffix; its strict manifest schema has no arbitrary metadata field.
 
-[CANDIDATE_QUALIFICATION.md](./docs/CANDIDATE_QUALIFICATION.md) describes qualification,
-and [YUKON_SOLVER_GUIDE.md](./docs/YUKON_SOLVER_GUIDE.md) covers root-based track
-selection, setup, local runs, submission notes and CLI-managed tracing. Each
+[CANDIDATE_QUALIFICATION.md](./docs/CANDIDATE_QUALIFICATION.md) describes organizer
+baseline qualification. [TASK.md](./TASK.md) covers solver-specific rules and
+delegates generic commands, notes and tracing to the Yukon CLI skill. Each
 track keeps its own `lanes/<lane>/candidates/<target>` editable directory and
 `lanes/<lane>/.yukon/scores/<target>-<lane>.json` score path. The literal per-track
 workflow wrappers separate deterministic intake, secret-bearing review, and

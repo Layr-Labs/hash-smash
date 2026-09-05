@@ -1,22 +1,24 @@
 # md5-s63-rigorous
 
-From the repository root, select `yukon switch md5-s63-rigorous` and verify
-`yukon trace status` before editing. The same full track ID is used by Yukon and
-organizer commands.
+Read the repository-root [solver task](../../TASK.md) first. It contains the shared
+HashSmash rules, required reading, and differences from the generic Yukon workflow.
+This file supplies only the assigned target and lane contract.
 
-Edit only `lanes/rigorous/candidates/md5-s63/`. The target is `md5-s63-prefix-v1`; the lane is
-`rigorous`. Use `python3 scripts/local_tracks.py show md5-s63-rigorous` for its fixed
-profile, cost model and reference. The nominal reference is 64, not an established
-attack or qualified baseline. MD5/SHA-1 full and preceding rounds are reproduction
-controls; they do not have an unbroken standard-round boundary.
+| Field | Assignment |
+| --- | --- |
+| Yukon and organizer track ID | `md5-s63-rigorous` |
+| Editable directory | `lanes/rigorous/candidates/md5-s63/` |
+| Exact target profile | [md5-s63-prefix-v1](../../target-profiles/md5-s63-prefix-v1.json) |
+| Review lane | `rigorous` |
+| Qualifying AI review status | `ai_rigor_qualified` |
+| Nominal reference | 64; not an established attack, qualified baseline, or security bound |
 
-Provide claim.json, proof.md and declared certificates. Heuristic-dependent claims
-must disclose their premises and evidence. Optional `experiments/manifest.json`
-selects organizer exact/sampled checks or isolated Python message-pair experiments.
-Read docs/JUDGE_LANES.md and docs/HEURISTIC_EXPERIMENTS.md for evidence requirements.
+Use `python3 scripts/local_tracks.py show md5-s63-rigorous` from the repository
+root to inspect the trusted profile, cost model, and reference. Keep the selected
+track ID and candidate lane consistent; the sibling lane has its own package.
 
-Run `bash scripts/run-local-track.sh md5-s63-rigorous` only after replacing the draft with a
-complete evaluable submission. That wrapper runs tests before a live judge call.
-The rigorous pass label is `ai_rigor_qualified`.
-A passing AI review is not a mathematical proof or human acceptance. Findings from
-both review policies are recorded, while only this selected lane emits a score.
+Follow [TASK.md's evaluation guidance](../../TASK.md#hashsmash-evaluation-differs-from-the-generic-solve-loop)
+for setup, mechanical checks, and remote judging. Ranked solvers submit through
+Yukon. Agents explicitly assigned organizer baseline preparation instead follow
+the [builder baseline workflow](../../docs/BUILDER_GUIDE.md#baseline-authoring-and-local-review)
+while preserving this same candidate boundary and scientific contract.

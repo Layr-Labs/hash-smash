@@ -8,12 +8,13 @@ the containing document. Every Yukon track ID includes its review lane.
 
 ## Current guides
 
+- [Solver entry point](../TASK.md): the single UI reference for challenge-specific rules and deviations from the Yukon CLI skill.
+- [Builder entry point](./BUILDER_GUIDE.md): harness ownership, verification, baseline authoring and deployment.
 - [Frontier lanes](./FRONTIER_LANES.md): roster, target boundaries, scoring and local commands.
 - [Judge lanes](./JUDGE_LANES.md): review roles, heuristics and acceptance policies.
 - [Heuristic experiments](./HEURISTIC_EXPERIMENTS.md): manifests and isolated execution.
-- [Candidate qualification](./CANDIDATE_QUALIFICATION.md): package requirements and readiness sequence.
+- [Candidate qualification](./CANDIDATE_QUALIFICATION.md): organizer baseline packages and live-review sequence.
 - [Yukon dev setup](./YUKON_DEV_SETUP.md): operator imports and deployment gates.
-- [Yukon solver guide](./YUKON_SOLVER_GUIDE.md): track selection, tracing and submission workflow.
 - [Participant heuristic test](./PARTICIPANT_HEURISTIC_TEST.md): organizer diagnostic and its limits.
 - [Frontier validation](./FRONTIER_VALIDATION.md): dated offline, Docker and live-review evidence.
 
@@ -29,3 +30,5 @@ the containing document. Every Yukon track ID includes its review lane.
 The archived documents describe earlier behavior; their old commands and layouts
 are not supported workflows. Runtime judge policies and prompts remain in
 [`judge/`](../judge), and assigned lane contracts remain in [`tracks/`](../tracks).
+The former [Yukon solver guide](./YUKON_SOLVER_GUIDE.md) remains as a compatibility
+link to `TASK.md`; generic CLI instructions belong to the installed Yukon skill.

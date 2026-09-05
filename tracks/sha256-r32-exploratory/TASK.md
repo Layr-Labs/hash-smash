@@ -1,22 +1,24 @@
 # sha256-r32-exploratory
 
-From the repository root, select `yukon switch sha256-r32-exploratory` and verify
-`yukon trace status` before editing. The same full track ID is used by Yukon and
-organizer commands.
+Read the repository-root [solver task](../../TASK.md) first. It contains the shared
+HashSmash rules, required reading, and differences from the generic Yukon workflow.
+This file supplies only the assigned target and lane contract.
 
-Edit only `lanes/exploratory/candidates/sha256-r32/`. The target is `sha256-r32-prefix-v1`; the lane is
-`exploratory`. Use `python3 scripts/local_tracks.py show sha256-r32-exploratory` for its fixed
-profile, cost model and reference. The nominal reference is 128, not an established
-attack or qualified baseline. MD5/SHA-1 full and preceding rounds are reproduction
-controls; they do not have an unbroken standard-round boundary.
+| Field | Assignment |
+| --- | --- |
+| Yukon and organizer track ID | `sha256-r32-exploratory` |
+| Editable directory | `lanes/exploratory/candidates/sha256-r32/` |
+| Exact target profile | [sha256-r32-prefix-v1](../../target-profiles/sha256-r32-prefix-v1.json) |
+| Review lane | `exploratory` |
+| Qualifying AI review status | `plausible_not_refuted` |
+| Nominal reference | 128; not an established attack, qualified baseline, or security bound |
 
-Provide claim.json, proof.md and declared certificates. Heuristic-dependent claims
-must disclose their premises and evidence. Optional `experiments/manifest.json`
-selects organizer exact/sampled checks or isolated Python message-pair experiments.
-Read docs/JUDGE_LANES.md and docs/HEURISTIC_EXPERIMENTS.md for evidence requirements.
+Use `python3 scripts/local_tracks.py show sha256-r32-exploratory` from the repository
+root to inspect the trusted profile, cost model, and reference. Keep the selected
+track ID and candidate lane consistent; the sibling lane has its own package.
 
-Run `bash scripts/run-local-track.sh sha256-r32-exploratory` only after replacing the draft with a
-complete evaluable submission. That wrapper runs tests before a live judge call.
-The exploratory pass label is `plausible_not_refuted`.
-A passing AI review is not a mathematical proof or human acceptance. Findings from
-both review policies are recorded, while only this selected lane emits a score.
+Follow [TASK.md's evaluation guidance](../../TASK.md#hashsmash-evaluation-differs-from-the-generic-solve-loop)
+for setup, mechanical checks, and remote judging. Ranked solvers submit through
+Yukon. Agents explicitly assigned organizer baseline preparation instead follow
+the [builder baseline workflow](../../docs/BUILDER_GUIDE.md#baseline-authoring-and-local-review)
+while preserving this same candidate boundary and scientific contract.

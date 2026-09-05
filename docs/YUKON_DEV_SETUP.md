@@ -1,7 +1,8 @@
 # HashSmash Yukon dev setup
 
-This is the operator runbook for the existing paired research candidates. It
-retargets the reusable Yukon challenge setup instructions to HashSmash. There is
+This operator runbook is reached through the [builder guide](./BUILDER_GUIDE.md).
+It applies the reusable Yukon setup instructions to HashSmash's paired research
+candidates. There is
 one schema-v2 challenge imported from the repository root. Its sixteen tracks
 include both review lanes; do not create a second import for the other lane.
 
@@ -149,7 +150,15 @@ stage only the validated selected score under a fresh artifact root; hidden-file
 upload preserves `.yukon`. Failure must leave no successful score artifact.
 
 After every required baseline qualifies, the organizer can explicitly open the
-dev challenge and run the [solver loop](./YUKON_SOLVER_GUIDE.md).
+dev challenge and direct solvers to [TASK.md](../TASK.md). Generic UI instructions
+need only reference that file for all HashSmash-specific requirements and deviations.
+
+Suggested UI wording:
+
+> Before running evaluations or editing files, read the repository-root TASK.md.
+> Follow its linked instructions and apply its challenge-specific exceptions to
+> the generic Yukon workflow.
+
 Test a legitimate candidate change, a non-editable-path rejection through Yukon,
 and promotion. Confirm that a promotion preserves all sibling tracks, including
 the other lane's candidates, and the harness. Save the before/after commit and

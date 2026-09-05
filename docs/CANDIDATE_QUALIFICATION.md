@@ -1,7 +1,11 @@
 # Qualifying the existing candidate packages
 
-This handoff concerns the sixteen existing research lanes. It does not introduce a
-diagnostic benchmark or activate the twelve undefined slots.
+This is an organizer baseline-authoring handoff, reached through the
+[builder guide](./BUILDER_GUIDE.md). Its feature-branch/PR deliverables and local
+provider review are for explicitly assigned import preparation. Ranked Yukon
+solvers follow [TASK.md](../TASK.md) and submit through Yukon instead.
+This handoff concerns the sixteen existing research lanes; it does not introduce
+a diagnostic benchmark or activate the twelve undefined slots.
 
 `submission_state: ready` means that a complete package is submitted for review.
 It does not mean the package has qualified or can seed a successful Yukon import.
@@ -27,7 +31,7 @@ or generated scores to get a candidate accepted. Do not invent definitions for
 BLAKE3, Keccak[800], or Poseidon. Keep all sixteen packages
 independent even when they adapt the same underlying argument.
 
-Read `AGENTS.md`, `docs/FRONTIER_LANES.md`, `docs/JUDGE_LANES.md`,
+Read `docs/BUILDER_GUIDE.md`, `docs/FRONTIER_LANES.md`, `docs/JUDGE_LANES.md`,
 `docs/HEURISTIC_EXPERIMENTS.md`, `schemas/claim-frontier-v3.schema.json`,
 `cost-models/collision-frontier-v3.json`, the assigned `tracks/<track>/TASK.md`,
 and that track's exact target profile. Yukon and organizer commands use the same
