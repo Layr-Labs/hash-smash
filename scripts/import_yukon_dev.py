@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plan or submit one real HashSmash leaf import to Yukon dev. Never opens it."""
+"""Plan or submit the single HashSmash repository import to Yukon dev. Never opens it."""
 
 import argparse
 import json
@@ -13,7 +13,8 @@ from urllib import error, parse, request
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from verifier.frontier_tracks import get_frontier_track
+from scripts.validate_frontier_config import validate_configuration
+from verifier.frontier_tracks import frontier_tracks
 from verifier.intake import validate_candidate
 
 API_URL = "https://yukon-api-dev.fly.dev"
@@ -30,13 +31,11 @@ class NoRedirect(request.HTTPRedirectHandler):
         return None
 
 
-def import_request(lane, branch="main", name=None):
-    if lane not in {"exploratory", "rigorous"}:
-        raise ImportFailure("select a defined HashSmash lane")
+def import_request(branch="main", name=None):
     if not branch or len(branch) > 255 or any(ord(char) < 32 for char in branch):
         raise ImportFailure("invalid source branch")
-    payload = {"sourceUrl": SOURCE_URL, "sourceBranch": branch,
-               "rootDir": f"lanes/{lane}"}
+    # Omit rootDir so Yukon reads the one root manifest containing both lanes.
+    payload = {"sourceUrl": SOURCE_URL, "sourceBranch": branch}
     if name is not None:
         if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*/[a-z0-9]+(?:-[a-z0-9]+)*", name):
             raise ImportFailure("name must be the confirmed setter/challenge slug")
@@ -44,11 +43,10 @@ def import_request(lane, branch="main", name=None):
     return payload
 
 
-def draft_tracks(lane):
-    manifest = json.loads((ROOT / "lanes" / lane / "benchmark.json").read_bytes())
+def draft_tracks():
     drafts = []
-    for entry in manifest["tracks"]:
-        track = get_frontier_track(f"{entry['name']}-{lane}")
+    # The organizer registry, never a lane selector, determines the full intake set.
+    for track in frontier_tracks():
         intake = validate_candidate(track.candidate, track=track)
         if intake["submission_state"] != "ready":
             drafts.append(track.id)
@@ -139,9 +137,8 @@ def wait_for_baselines(client, tracks, timeout):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--lane", required=True, choices=("exploratory", "rigorous"))
     parser.add_argument("--source-branch", default="main")
-    parser.add_argument("--name", help="confirmed setter/challenge slug; otherwise Yukon chooses it")
+    parser.add_argument("--name", help="confirmed setter/challenge slug; otherwise Yukon uses the root manifest name")
     parser.add_argument("--api-key-file", help="private key file outside the repository; never printed")
     parser.add_argument("--submit", action="store_true", help="create the dev import; default only prints a plan")
     parser.add_argument("--wait", action="store_true", help="wait for baseline validation after submitting")
@@ -150,11 +147,11 @@ def main(argv=None):
     if args.timeout <= 0 or (args.wait and not args.submit):
         parser.error("timeout must be positive; --wait requires --submit")
     try:
-        payload = import_request(args.lane, args.source_branch, args.name)
-        drafts = draft_tracks(args.lane)
-        manifest = json.loads((ROOT / payload["rootDir"] / "benchmark.json").read_bytes())
+        payload = import_request(args.source_branch, args.name)
+        configuration = validate_configuration()
+        drafts = draft_tracks()
         print(json.dumps({"api": API_URL, "request": payload,
-                          "baseline_workflows": len(manifest["tracks"]),
+                          "baseline_workflows": configuration["runnable_tracks"],
                           "local_drafts": drafts, "opens_challenge": False}, indent=2), flush=True)
         if not args.submit:
             return 0

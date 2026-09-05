@@ -30,8 +30,10 @@ independent even when they adapt the same underlying argument.
 Read `AGENTS.md`, `docs/FRONTIER_LANES.md`, `docs/JUDGE_LANES.md`,
 `docs/HEURISTIC_EXPERIMENTS.md`, `schemas/claim-frontier-v3.schema.json`,
 `cost-models/collision-frontier-v3.json`, the assigned `tracks/<track>/TASK.md`,
-and that track's exact target profile. The internal track ID includes the lane,
-for example `sha256-r31-exploratory`.
+and that track's exact target profile. Yukon and organizer commands use the same
+full track ID including the lane, for example `sha256-r31-exploratory`. All sixteen
+tracks belong to one repository-root import; its baseline validations remain
+independent, and all must qualify before the challenge is ready to open.
 
 ## What must replace each scaffold
 

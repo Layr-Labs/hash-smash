@@ -2,20 +2,26 @@
 
 This is the operator runbook for the existing paired research candidates. It
 retargets the reusable Yukon challenge setup instructions to HashSmash. There is
-no separate diagnostic benchmark. Import the intended lane leaf explicitly; the
-repository root has no challenge manifest.
+one schema-v2 challenge imported from the repository root. Its sixteen tracks
+include both review lanes; do not create a second import for the other lane.
 
 ## Contract and current scope
 
-| Contract | Exploratory | Rigorous |
-| --- | --- | --- |
-| Challenge manifest name | `hashsmash-exploratory` | `hashsmash-rigorous` |
-| Import `rootDir` | `lanes/exploratory` | `lanes/rigorous` |
-| Schema | 2 | 2 |
-| Current tracks per import | 8 | 8 |
-| Required review outcome | `plausible_not_refuted` | `ai_rigor_qualified` |
-| Editable path, relative to the leaf | `candidates/<target>` | `candidates/<target>` |
-| Score path, relative to the leaf | `.yukon/scores/<target>-exploratory.json` | `.yukon/scores/<target>-rigorous.json` |
+| Contract | Value |
+| --- | --- |
+| Challenge manifest name | `hashsmash` |
+| Manifest / import root | Repository-root `benchmark.json`; omit `rootDir` |
+| Schema / current tracks | 2 / 16 (eight exploratory, eight rigorous) |
+| Yukon and organizer track ID | `<target>-<lane>`, such as `sha1-r80-rigorous` |
+| Required exploratory / rigorous outcome | `plausible_not_refuted` / `ai_rigor_qualified` |
+| Editable path, relative to repository root | `lanes/<lane>/candidates/<target>` |
+| Score path, relative to repository root | `lanes/<lane>/.yukon/scores/<target>-<lane>.json` |
+
+The protected registry records the lane, claim validation binds each package to
+it, and successful scores include `metrics.lane`. Track names and descriptions
+also identify the lane. Yukon's strict manifest schema does not accept an arbitrary
+`metadata` field; do not add one. Lane directories remain isolated storage for
+candidates and generated state, and no longer contain import manifests.
 
 Each track has a literal `<target>-<lane>.yml` workflow. All workflows check out
 the dispatched commit and run on GitHub-hosted `ubuntu-24.04`. The submission cap
@@ -24,14 +30,16 @@ The target, cost, and acceptance definitions remain in `docs/FRONTIER_LANES.md`,
 `docs/JUDGE_LANES.md`, and their linked trusted profiles; this runbook does not change
 them. MD5/SHA-1 endpoints are explicitly controls.
 
-The twelve pending BLAKE3, Keccak[800], and Poseidon slots are excluded from both
-manifests. Resolving them is not a prerequisite for deploying the current sixteen
-lanes. Do not manufacture boundaries or scores to make `--require-complete` pass.
+The twelve pending BLAKE3, Keccak[800], and Poseidon slots are excluded from the
+manifest. Resolving them is not a prerequisite for deploying the current sixteen
+tracks. Yukon's present limit is 20 tracks per challenge; activating all 28 slots
+would first require an upstream limit increase as well as exact target definitions.
+Do not manufacture boundaries or scores to make `--require-complete` pass.
 
 HashSmash needs neither Willow's M3 Max runner group and JIT App nor its Rust
 toolchain, Seatbelt bridge, private leaf tarball, or wall-time attack score.
 `.yukon/setup.sh` and the Python pipeline are the operator entry points already
-declared in the manifests. Do not rename them to match another challenge.
+declared in the root manifest. Do not rename them to match another challenge.
 
 ## GitHub and provider access
 
@@ -77,45 +85,51 @@ Yukon dispatches baseline validation against the source it actually resolves.
 
 The [local participant heuristic test](./PARTICIPANT_HEURISTIC_TEST.md) can help
 diagnose the harness, but it is outside the production registry and cannot seed
-these challenges. A draft rejection is an expected negative test, not a successful
+this challenge. A draft rejection is an expected negative test, not a successful
 end-to-end baseline.
 
 ## Import through Yukon dev
 
-Ask the deployment operator to confirm that dev supports schema v2 and leaf roots,
-and that the importing account's **email** is in `YUKON_BENCHMARK_IMPORTER_EMAILS`.
-Create its importer key in the dev setter UI's API keys view. Keep the key in a
+Confirm that the dev deployment supports schema v2 and that the importing account's
+**email** is in `YUKON_BENCHMARK_IMPORTER_EMAILS`. Close and archive the prior lane
+deployments in the setter UI before this fresh repository import; Yukon does not
+allow concurrent open challenges for the same source repository.
+
+Create the account's importer key in the dev setter UI's API keys view. Keep the key in a
 private file outside this repository (`chmod 600`), or supply `YUKON_API_KEY` in
 the calling process environment. Never paste it into notes or commit it.
 
-Inspect both requests without credentials or network access:
+Inspect the one import request without credentials or network access:
 
 ```sh
-python3 scripts/import_yukon_dev.py --lane exploratory
-python3 scripts/import_yukon_dev.py --lane rigorous
+python3 scripts/import_yukon_dev.py --source-branch main
 ```
 
-Each request uses the fixed `https://yukon-api-dev.fly.dev` API, repository
-`https://github.com/Layr-Labs/hash-smash`, source branch `main`, and its explicit
-leaf `rootDir`. Each import queues eight baseline workflows. The checked upstream
-`bun run import-benchmark` helper did not expose `rootDir`; a bare repository URL
-does not select either leaf. The local helper sends the supported
-`POST /api/benchmarks` JSON body directly with an explicit `rootDir`.
+The request uses the fixed `https://yukon-api-dev.fly.dev` API, repository
+`https://github.com/Layr-Labs/hash-smash`, and source branch `main`. It omits
+`rootDir`, so Yukon reads the sixteen-track schema-v2 manifest at the repository
+root. The helper sends the supported `POST /api/benchmarks` JSON body directly.
+If using the setter UI instead, choose the same repository and branch, leave its
+root-directory field empty, and use the challenge name `hashsmash`.
+
+Submitting that import activates validation: Yukon queues sixteen baseline
+workflows against the resolved source commit. There is no separate per-lane
+activation step. All sixteen baselines must qualify for the challenge to become
+ready; an exploratory success does not substitute for its rigorous sibling.
 
 After baseline readiness and credential setup, run the real import:
 
 ```sh
-python3 scripts/import_yukon_dev.py --lane exploratory --submit --wait
-python3 scripts/import_yukon_dev.py --lane rigorous --submit --wait
+python3 scripts/import_yukon_dev.py --source-branch main --submit --wait
 ```
 
-Those commands use `YUKON_API_KEY`/`YUKON_API_TOKEN`; alternatively add
+That command uses `YUKON_API_KEY`/`YUKON_API_TOKEN`; alternatively add
 `--api-key-file /absolute/path/to/private-key-file`. The helper does not load
 `.env`, print the key, follow redirects, or retry an uncertain import request.
 It refuses imports while local candidates are drafts. `--source-branch` selects
 an explicitly intended existing branch; do not create a parallel ranked branch
 per track. If a setter slug has been agreed, `--name setter/challenge` can set it;
-otherwise record the actual names returned by Yukon rather than guessing that
+otherwise record the actual name returned by Yukon rather than guessing that
 the GitHub organization equals the setter namespace.
 
 There is deliberately no production or opening option. Successful baselines
@@ -130,15 +144,15 @@ cause, and import again; never delete/recreate the GitHub repository.
 
 For each track, record the source commit, Yukon baseline job ID, GitHub workflow
 run URL, App actor, exact score ZIP entry, review label and scalar. The score ZIP
-must contain the leaf-relative `scorePath`, not only its basename. The workflows
+must contain the repository-relative `scorePath`, not only its basename. The workflows
 stage only the validated selected score under a fresh artifact root; hidden-file
 upload preserves `.yukon`. Failure must leave no successful score artifact.
 
 After every required baseline qualifies, the organizer can explicitly open the
-dev challenges and run the solver loop described in `docs/YUKON_SOLVER_GUIDE.md`.
+dev challenge and run the [solver loop](./YUKON_SOLVER_GUIDE.md).
 Test a legitimate candidate change, a non-editable-path rejection through Yukon,
-and promotion. Confirm that a promotion preserves both sibling tracks and the
-other leaf challenge's candidates and harness. Save the before/after commit and
+and promotion. Confirm that a promotion preserves all sibling tracks, including
+the other lane's candidates, and the harness. Save the before/after commit and
 path hashes; local surface-check tests alone do not establish this platform result.
 
 Humans review and merge harness PRs. Humans must **not** merge Yukon submission

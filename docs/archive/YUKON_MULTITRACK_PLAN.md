@@ -4,6 +4,11 @@
 > have been retired. Commands, paths, test counts and deployment plans below
 > describe that earlier system. Use the [current documentation](../README.md)
 > and [paired-lane guide](../FRONTIER_LANES.md) for supported workflows.
+> The two-leaf deployment plan below is also superseded. The current contract is
+> one repository-root `hashsmash` import with sixteen lane-suffixed tracks, protected
+> lane metadata and score `metrics.lane`; see the [dev runbook](../YUKON_DEV_SETUP.md).
+> All sixteen baseline workflows must qualify. The twelve undefined slots remain
+> inactive, and the current 20-track limit must be raised before all 28 can be active.
 
 2026-09-04 update: the current paired-lane implementation is in
 [FRONTIER_LANES.md](../FRONTIER_LANES.md). Two schema-v2 leaf challenges avoid Yukon's

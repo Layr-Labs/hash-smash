@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the two Yukon leaf manifests and list unresolved research slots."""
+"""Validate the single Yukon import manifest and unresolved research slots."""
 
 import argparse
 import json
@@ -13,18 +13,18 @@ from verifier.errors import VerificationError
 from verifier.io import load_json_bytes
 
 
-def manifest_for(lane):
-    tracks = [track for track in frontier_tracks() if track.lane == lane]
+def manifest_for():
+    tracks = frontier_tracks()
     return {
-        "schemaVersion": 2, "name": f"hashsmash-{lane}",
+        "schemaVersion": 2, "name": "hashsmash",
         "tracks": [{
-            "name": track.target_id,
-            "description": f"{track.target_id} ordinary collisions; {lane} AI review. Minimize log2(time * memory bytes). Pass means {track.accepted_status}.",
+            "name": track.id,
+            "description": f"{track.target_id} ordinary collisions; {track.lane} AI review. Minimize log2(time * memory bytes). Pass means {track.accepted_status}.",
             "category": "cryptanalysis", "direction": "-",
-            "editablePaths": [f"candidates/{track.target_id}"],
-            "setupCommand": ["bash", "../../.yukon/setup.sh"],
-            "benchmarkCommand": ["python3", "../../scripts/hashsmash_pipeline.py", "all", "--track", track.id],
-            "scorePath": f".yukon/scores/{track.id}.json",
+            "editablePaths": [track.candidate.relative_to(ROOT).as_posix()],
+            "setupCommand": ["bash", ".yukon/setup.sh"],
+            "benchmarkCommand": ["python3", "scripts/hashsmash_pipeline.py", "all", "--track", track.id],
+            "scorePath": (track.state_root / "scores" / f"{track.id}.json").relative_to(ROOT).as_posix(),
             "maxSubmissionBytes": 4194304,
             "runner": {"provider": "github-actions", "workflow": f"{track.id}.yml", "maxConcurrentWorkflows": 2},
         } for track in tracks],
@@ -36,13 +36,15 @@ def validate_configuration(*, require_complete=False):
     if require_complete and len(tracks) != 28:
         raise VerificationError("the requested roster still has unresolved target/round definitions")
     candidate_paths, score_paths = set(), set()
+    path = ROOT / "benchmark.json"
+    manifest = load_json_bytes(path.read_bytes(), str(path))
+    if manifest != manifest_for():
+        raise VerificationError("root manifest is stale or inconsistent with the organizer catalog")
+    if not 1 <= len(manifest["tracks"]) <= 20:
+        raise VerificationError("Yukon supports at most 20 tracks in one challenge; raise its limit before expanding this roster")
     for lane in LANES:
-        path = ROOT / "lanes" / lane / "benchmark.json"
-        manifest = load_json_bytes(path.read_bytes(), str(path))
-        if manifest != manifest_for(lane):
-            raise VerificationError(f"{lane} manifest is stale or inconsistent with the organizer catalog")
-        if not 1 <= len(manifest["tracks"]) <= 20:
-            raise VerificationError("Yukon supports at most 20 tracks in one challenge")
+        if (ROOT / "lanes" / lane / "benchmark.json").exists():
+            raise VerificationError("lane manifests must not create separate Yukon imports")
     for track in tracks:
         track.benchmark()
         candidate_path = track.candidate
@@ -56,8 +58,7 @@ def validate_configuration(*, require_complete=False):
         if f"track: {track.id}\n" not in text or f"lane: {track.lane}\n" not in text:
             raise VerificationError("workflow must route the literal organizer-selected track and lane")
     return {"planned_tracks": len(planned_slots()), "runnable_tracks": len(tracks),
-            "pending_tracks": 28 - len(tracks), "yukon_challenges": 2,
-            "qualified_baselines": 0, "deployed": False}
+            "pending_tracks": len(planned_slots()) - len(tracks), "yukon_challenges": 1}
 
 
 def main():

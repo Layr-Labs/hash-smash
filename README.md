@@ -70,21 +70,39 @@ organizer fixtures outside the production registry.
 
 ## Yukon
 
-The two schema-v2 challenges use explicit leaf roots:
+The SHA-1 pilot and nine local tracks have been retired.
 
-| Challenge | Import `rootDir` | Runnable tracks / eventual |
-| --- | --- | --- |
-| `hashsmash-exploratory` | `lanes/exploratory` | 8 / 14 |
-| `hashsmash-rigorous` | `lanes/rigorous` | 8 / 14 |
+Follow [YUKON_DEV_SETUP.md](./docs/YUKON_DEV_SETUP.md) to import the repository root once
+as `hashsmash`. The schema-v2 [`benchmark.json`](./benchmark.json) declares all
+sixteen tracks with unique names such as `sha256-r31-exploratory` and
+`sha256-r31-rigorous`. There is no `rootDir` override or separate lane import.
+Lane metadata remains in the protected registry, the validated claim binding,
+and each generated score's `metrics.lane`. Yukon track names include the lane
+suffix; its strict manifest schema has no arbitrary metadata field.
 
-Follow the [dev setup runbook](./docs/YUKON_DEV_SETUP.md) for imports and deployment
-gates, and the [solver guide](./docs/YUKON_SOLVER_GUIDE.md) for leaf selection,
-submission notes and tracing. The repository root is not a Yukon challenge.
-The retired SHA-1 pilot and nine local tracks are no longer runnable.
+[CANDIDATE_QUALIFICATION.md](./docs/CANDIDATE_QUALIFICATION.md) describes qualification,
+and [YUKON_SOLVER_GUIDE.md](./docs/YUKON_SOLVER_GUIDE.md) covers root-based track
+selection, setup, local runs, submission notes and CLI-managed tracing. Each
+track keeps its own `lanes/<lane>/candidates/<target>` editable directory and
+`lanes/<lane>/.yukon/scores/<target>-<lane>.json` score path. The literal per-track
+workflow wrappers separate deterministic intake, secret-bearing review, and
+final scoring. The score artifact contains that exact repository-relative path;
+qualification failures withhold a score.
 
-Each imported lane needs a substantive baseline that qualifies under its own
-policy. The twelve undefined slots remain deferred. Before opening challenges,
-verify Yukon-driven baseline validation, submission rejection and promotion across
-both leaves; see the [validation record](./docs/FRONTIER_VALIDATION.md) for existing
-evidence and its limits. Human-reviewed PRs land harness changes; Yukon alone
-promotes scored submission content.
+One import queues sixteen baseline workflows. All sixteen must qualify before
+the challenge is ready to open. The existing private repository, Actions settings
+and Bedrock configuration are in place; verify the new single import through
+Yukon before opening submissions. Archive the previous lane deployments before
+the fresh import. The twelve undefined slots remain deferred; the current
+20-track platform limit would need an upstream change before all 28 slots could
+be active in this one challenge.
+
+Before opening, test Yukon-driven validation, non-editable-path rejection, and
+promotion while preserving sibling tracks in both lanes. Humans review harness
+PRs; Yukon manages promotion of its own submission PRs. Public publication
+additionally needs cryptanalytic calibration and human review decisions. Human
+acceptance remains distinct from an AI review outcome.
+
+See [`YUKON_CHALLENGE_PLAN.md`](./docs/archive/YUKON_CHALLENGE_PLAN.md) and
+[`MVP_VALIDATION.md`](./docs/archive/MVP_VALIDATION.md) for the historical pilot design and
+validation record. They do not define the current import contract.

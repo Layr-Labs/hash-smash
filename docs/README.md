@@ -2,9 +2,9 @@
 
 The supported system is the paired exploratory/rigorous frontier: 16 runnable
 lanes, with 12 reserved slots awaiting exact definitions. Shell commands and
-plain file paths in these guides are relative to the repository root unless a
-section explicitly selects a Yukon leaf directory. Markdown links resolve from
-the containing document.
+plain file paths in current guides are relative to the repository root, which
+is the single Yukon import and CLI work directory. Markdown links resolve from
+the containing document. Every Yukon track ID includes its review lane.
 
 ## Current guides
 
@@ -13,7 +13,7 @@ the containing document.
 - [Heuristic experiments](./HEURISTIC_EXPERIMENTS.md): manifests and isolated execution.
 - [Candidate qualification](./CANDIDATE_QUALIFICATION.md): package requirements and readiness sequence.
 - [Yukon dev setup](./YUKON_DEV_SETUP.md): operator imports and deployment gates.
-- [Yukon solver guide](./YUKON_SOLVER_GUIDE.md): leaf selection, tracing and submission workflow.
+- [Yukon solver guide](./YUKON_SOLVER_GUIDE.md): track selection, tracing and submission workflow.
 - [Participant heuristic test](./PARTICIPANT_HEURISTIC_TEST.md): organizer diagnostic and its limits.
 - [Frontier validation](./FRONTIER_VALIDATION.md): dated offline, Docker and live-review evidence.
 

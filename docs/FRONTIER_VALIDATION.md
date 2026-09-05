@@ -1,5 +1,11 @@
 # Paired-lane validation record
 
+> Historical validation record: these dated checks describe the earlier two-leaf
+> layout and its then-current test suite. That import plan is superseded by one
+> root `hashsmash` manifest with sixteen lane-suffixed tracks. These recorded tests
+> do not establish remote baseline validation or promotion for the new contract;
+> follow the [current dev runbook](./YUKON_DEV_SETUP.md) for those checks.
+
 Date: 2026-09-04. Local validation only; no new Yukon dev deployment or
 challenge import has been exercised. This record describes the initial paired-lane
 implementation before the legacy cleanup; its test counts are historical. Run

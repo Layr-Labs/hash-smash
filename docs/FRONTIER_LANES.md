@@ -84,9 +84,10 @@ python3 scripts/local_tracks.py check sha256-r31-exploratory
 ```
 
 For that example, a solver may edit only
-`lanes/exploratory/candidates/sha256-r31/`. The template is deliberately `draft`.
-Once a substantive claim/proof and optional evidence are ready, set its state to
-`ready`; this enables review, not automatic acceptance.
+`lanes/exploratory/candidates/sha256-r31/`. New templates start as `draft`; inspect
+the selected package for its current state. Once a substantive claim/proof and
+optional evidence are ready, set its state to `ready`; this enables review, not
+automatic acceptance.
 
 ```sh
 python3 scripts/hashsmash_pipeline.py intake --track sha256-r31-exploratory
@@ -160,23 +161,32 @@ differential condition. Such measurements remain source-reviewed observations
 until a new organizer-owned typed evaluator is added with tests and a versioned
 fingerprint. Do not generalize a checked output predicate to unmeasured heuristics.
 
-## Yukon manifests and deployment gates
+## Yukon manifest and deployment gates
 
-Yukon's schema v2 currently permits at most 20 tracks per challenge. Use two
-leaf-root imports in the same repository/branch:
+Import the repository root once as `hashsmash`. The root schema-v2
+[`benchmark.json`](../benchmark.json) contains all sixteen runnable tracks:
+eight targets times two independent review lanes. Every track uses its full
+`<target>-<lane>` ID, such as `sha256-r31-exploratory` or
+`sha256-r31-rigorous`, in both Yukon and organizer commands. No `rootDir`
+override or separate lane import is needed.
 
-| Challenge | Import `rootDir` | Manifest | Runnable now / eventual |
-| --- | --- | --- | --- |
-| `hashsmash-exploratory` | `lanes/exploratory` | `lanes/exploratory/benchmark.json` | 8 / 14 |
-| `hashsmash-rigorous` | `lanes/rigorous` | `lanes/rigorous/benchmark.json` | 8 / 14 |
+The protected track registry stores each lane. Claim validation and review
+fingerprints bind a package to that lane, and generated scores retain it in
+`metrics.lane`. Yukon's strict manifest schema has no arbitrary metadata field;
+track names and descriptions expose the distinction using supported fields.
+The lane directories retain their separate candidate, score and report paths.
 
 The literal per-track `workflow_dispatch` wrappers call one reusable workflow.
-No participant-controlled track input is needed. Editable and score paths in the
-manifests are leaf-relative; GitHub jobs use repository-root paths. Commands in
-the leaf manifests explicitly reach the shared organizer code. There is no root
-challenge manifest. Source inspected for the initial integration: Yukon master
-`7530a1dc94dcd7d1d24e3b6c758b59dadc231c4b`; the two manifests also pass the real
-local Yukon parser at `d9471fe70a431a3c424758c3eb58d51d38e73d67`.
+No participant-controlled track input is needed. Editable paths, commands and
+score paths in the manifest are repository-relative. For example, the exploratory
+SHA-256 r31 track edits `lanes/exploratory/candidates/sha256-r31` and uploads only
+`lanes/exploratory/.yukon/scores/sha256-r31-exploratory.json` at that exact path.
+
+Yukon currently permits at most 20 tracks per challenge. Sixteen runnable tracks
+fit this limit; the twelve undefined slots remain inactive. Activating the full
+28-slot roster later requires both exact target definitions and an upstream
+track-limit increase. Splitting this repository into multiple lane imports is
+not the deployment contract.
 
 Workflow separation is intentional: a credential-free job validates and executes
 experiments, a fresh secret-bearing job reviews immutable same-run artifacts
@@ -192,16 +202,18 @@ Before activating the current sixteen lanes:
 
 1. Confirm the explicit MD5/SHA-1 control exception and SHA3-256 instantiation.
 2. Keep the twelve undefined slots deferred. Their definitions are not a gate for
-   importing the current eight tracks per leaf. To activate them later, establish
-   exact definitions and defensible or explicitly provisional round pairs, then
-   update catalog, profiles, templates, schemas, manifests, wrappers and checker
+   importing the current sixteen tracks. To activate them later, raise Yukon's
+   track limit, establish exact definitions and defensible or explicitly provisional
+   round pairs, then
+   update catalog, profiles, templates, schemas, manifest, wrappers and checker
    tests. `--require-complete` checks that eventual full roster only.
 3. Establish an admissible baseline separately for each activated lane, or obtain a
    supported Yukon change allowing an initially empty frontier. Drafts/nominal
    references cannot be passed off as successful baselines.
 4. Arrange the Yukon dev GitHub App/importer access and confirm the deployment supports
-   schema v2 and leaf roots. Run an end-to-end dev import, submission and promotion test;
-   two leaf challenges on one branch require explicit cross-challenge preservation checks.
+   schema v2. One import queues all sixteen baseline workflows; all must qualify
+   before the challenge is ready. Run an end-to-end dev import, submission and
+   promotion test, including preservation of sibling tracks across both lanes.
 5. Calibrate both lane policies on labeled real cryptanalysis, with human review of
    false positives, false negatives and disagreements. Toy/fake-provider tests establish
    integration behavior, not real-world judge quality.
