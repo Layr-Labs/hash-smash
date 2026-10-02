@@ -102,10 +102,10 @@ def build_case(case: str) -> dict[str, Any]:
         "definition": "int.from_bytes(hashlib.sha256(message).digest()[:2], 'big') >> 6" if heuristic else "message[0] & 15",
     }
     cost_model = {
-        "id": "toy-operations-v1", "time_unit": "toy-operations",
+        "id": "toy-operations-v2", "time_unit": "toy-operations",
         "one_unit": "one fixed-width byte/int primitive, uniform input draw, comparison, output, or complete toy hash call",
         "memory": "all logical byte storage including inputs, outputs, counters, and scratch; Python interpreter excluded",
-        "score": "log2(time * memory_bytes)", "note": "diagnostic metadata; no score is emitted",
+        "score": "log2(total charged time)", "note": "diagnostic metadata; no score is emitted",
     }
     heuristics = [{
         "id": "H1", "statement": "The specified 32-message batch succeeds with probability at least 0.5.",
@@ -120,7 +120,7 @@ def build_case(case: str) -> dict[str, Any]:
         "target_profile": profile["id"], "attack_class": "ordinary-collision", "rounds": 1,
         "claim": {
             "time_log2": exponent, "time_unit": "toy-operations", "memory_log2_bytes": exponent,
-            "data_log2": 0, "preprocessing_log2": 0, "success_probability": 0.5 if heuristic else 1.0,
+            "preprocessing_log2": 0, "success_probability": 0.5 if heuristic else 1.0,
             "nonuniform_advice_log2_bytes": 0,
         },
         "restrictions": [], "baseline_improved": "none-organizer-calibration-only", "heuristics": heuristics,

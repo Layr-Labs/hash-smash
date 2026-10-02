@@ -1,7 +1,10 @@
 # A distribution-free baseline for complete SHA-1 with 79 prefix rounds
 
+The scalar below is `time_log2` under `collision-frontier-v4`. Memory remains
+a separately reported resource bound.
+
 This package selects `sha1-r79-prefix-v1`, ordinary collisions, 79 rounds,
-and the rigorous lane under `paired-lanes-v1` and `collision-frontier-v3`.
+and the rigorous lane under `paired-lanes-v1` and `collision-frontier-v4`.
 Its claim is an upper bound for a finite randomized RAM algorithm, not a
 measurement, an executed collision search, or a cryptanalytic improvement.
 
@@ -28,10 +31,10 @@ The data field counts chosen-message evaluations, not bytes or entropy bits.
 There is no external dataset. Exactly N random-word draws consume 256N
 random bits; the sampled input bytes counting multiplicity total 32N; the
 bytes submitted to hash evaluations total at most 32(N+2). No random tape is
-stored separately from the messages. The scalar is 94+88 = 182, a conservative
+stored separately from the messages. The scalar is 94, a conservative
 upper bound rather than an optimality claim. The schema-required field
 `baseline_improved` contains the reference identifier `sha1-r79-nominal-v2`.
-The nominal reference value is 80; this construction's scalar is 182 > 80,
+The nominal reference value is 80; this construction's scalar is 94 > 80,
 which is worse under the lower-is-better numerical comparison. The identifier
 is metadata, and the candidate makes no assertion of improvement over that
 reference or of Pareto dominance. The nominal entry is not an established

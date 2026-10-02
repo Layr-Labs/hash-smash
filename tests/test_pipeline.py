@@ -51,9 +51,9 @@ class PipelineIntegrationTests(unittest.TestCase):
                 pipeline._provider_from_env()
 
     def test_bedrock_safe_configuration_does_not_retain_key(self) -> None:
-        safe = pipeline._safe_config(BedrockConfig(api_key="bedrock-super-secret"))
+        safe = pipeline._safe_config(BedrockConfig(api_key="fixture-key"))
         self.assertNotIn("api_key", safe)
-        self.assertNotIn("bedrock-super-secret", json.dumps(safe))
+        self.assertNotIn("fixture-key", json.dumps(safe))
         self.assertEqual(safe["region"], "us-east-1")
         self.assertIn("prompt_sha256", safe)
 

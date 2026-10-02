@@ -1,7 +1,10 @@
 # MD5-s63: rigorous complete-message generic collision construction
 
+The scalar below is `time_log2` under `collision-frontier-v4`. Memory remains
+a separately reported resource bound.
+
 This package fixes `md5-s63-prefix-v1`, 63 steps, ordinary collisions,
-`collision-frontier-v3`, and the rigorous lane. The result below is a
+`collision-frontier-v4`, and the rigorous lane. The result below is a
 self-contained analytic upper bound for a concrete finite randomized algorithm.
 It uses no cryptanalytic heuristic, precomputed collision, or empirical premise.
 It is deliberately conservative and computationally infeasible in practice.
@@ -181,7 +184,7 @@ than an exact success estimate, reviewer confidence, or physical feasibility.
 
 ## 4. Explicit 256-bit word-RAM resource ledger
 
-Every primitive listed by `collision-frontier-v3` costs one unit, as does one
+Every primitive listed by `collision-frontier-v4` costs one unit, as does one
 selected 63-step target compression. A 32-byte message requires exactly one
 such compression. Target-internal steps in Section 1 specify this trusted
 primitive, whose one-unit cost is stipulated by the model. Padding, loading the
@@ -286,7 +289,7 @@ separately but included in T. There is no hash search before the charged batch.
 with actual zero bytes of nonuniform advice (the schema does not permit log(0)).
 Fixed public code/constants are counted in memory and setup even though they
 are uniform, not advice. No stored collision is given free of construction cost.
-The proposed scalar is therefore 79+72 = 151, only if the selected lane qualifies;
+The proposed scalar is therefore 79, only if the selected lane qualifies;
 it is not an already emitted score and does not assert Pareto improvement.
 
 ## 5. Evidence, applicability, and limitations

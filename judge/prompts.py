@@ -30,6 +30,16 @@ def load_system_prompt(stage: str, strategy: str = DEFAULT_STRATEGY) -> str:
     """Return the common guardrails and requested paired-stage rubric."""
     from .lanes import load_lane_prompt
 
+    if stage == "lane_rescore":
+        from .lanes import LANE_STAGES
+        rules = [(PROMPT_DIR.parent / "policies/paired-lanes-v1.md").read_text().strip(),
+                 (PROMPT_DIR / "paired-common-v1.md").read_text().strip()]
+        rules.extend((PROMPT_DIR / f"{role.replace('_', '-')}-v1.md").read_text().strip()
+                     for role in LANE_STAGES)
+        return ("CURRENT ORDINARY-REVIEW RULES\nApply their substantive evaluation criteria. "
+                "Their role procedures, output formats and score-selection instructions are "
+                "replaced by the reorg procedure below.\n\n" + "\n\n".join(rules)
+                + "\n\nREORG PROCEDURE\n" + (PROMPT_DIR / "rescore-v1.md").read_text().strip())
     return load_lane_prompt(stage, strategy)
 
 

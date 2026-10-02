@@ -2,8 +2,13 @@
 
 HashSmash is a Yukon-compatible benchmark for AI-assisted review of cryptanalytic
 collision claims. Each target has independent exploratory and rigorous lanes.
-The roster has **28 planned slots: 16 runnable lanes and 12 reserved slots** for
-BLAKE3, Keccak[800] and Poseidon, whose exact target definitions remain unresolved.
+The Yukon manifest declares **six exploratory tracks**: SHA-256 rounds 31/32,
+SHA3-256 rounds 5/6, and BLAKE3 rounds 1/2. Two Poseidon targets remain deferred
+until their parameters and round pair are defined. The local research catalog
+retains 24 runnable lanes and four historical Poseidon slots; it does not define
+active Yukon membership. Rigorous, MD5, SHA-1, and Keccak[800] tracks are excluded
+from the manifest.
+The organizer selected BLAKE3 rounds 1/2 and Keccak[800] rounds 5/6 on 2026-09-13.
 
 Solvers start with [TASK.md](./TASK.md), the single entry point for assigned-track
 instructions and HashSmash's differences from the generic Yukon CLI workflow.
@@ -20,7 +25,7 @@ research context and historical plans.
 The exploratory outcome `plausible_not_refuted` means relevant support exists and
 no fatal flaw survives adjudication. Rigorous qualification is `ai_rigor_qualified`.
 Both are AI review outcomes, not mathematical proof or human acceptance. A score is
-`log2(total charged time) + log2(peak memory bytes)`, lower is better, under the
+`log2(total charged computation)`, lower is better, under the
 selected target and common cost model. Nominal references are neither established
 attacks nor qualified baselines, and scalar improvement does not establish Pareto
 dominance.
@@ -75,12 +80,16 @@ organizer fixtures outside the production registry.
 
 ## Yukon
 
+For the private `Layr-Labs/hash-smash` production repository, follow the
+[production operator runbook](./docs/YUKON_PROD_SETUP.md). The dev guide and
+helper below continue to target `mooselumph/hash-smash`.
+
 The SHA-1 pilot and nine local tracks have been retired.
 
 Follow [YUKON_DEV_SETUP.md](./docs/YUKON_DEV_SETUP.md) to import the repository root once
 as `hashsmash`. The schema-v2 [`benchmark.json`](./benchmark.json) declares all
-sixteen tracks with unique names such as `sha256-r31-exploratory` and
-`sha256-r31-rigorous`. There is no `rootDir` override or separate lane import.
+six exploratory tracks with unchanged names such as `sha256-r31-exploratory`
+and `blake3-r1-exploratory`. There is no `rootDir` override or separate lane import.
 Lane metadata remains in the protected registry, the validated claim binding,
 and each generated score's `metrics.lane`. Yukon track names include the lane
 suffix; its strict manifest schema has no arbitrary metadata field.
@@ -94,13 +103,13 @@ workflow wrappers separate deterministic intake, secret-bearing review, and
 final scoring. The score artifact contains that exact repository-relative path;
 qualification failures withhold a score.
 
-One import queues sixteen baseline workflows. All sixteen must qualify before
-the challenge is ready to open. The existing private repository, Actions settings
-and Bedrock configuration are in place; verify the new single import through
-Yukon before opening submissions. Archive the previous lane deployments before
-the fresh import. The twelve undefined slots remain deferred; the current
-20-track platform limit would need an upstream change before all 28 slots could
-be active in this one challenge.
+For the existing challenge, use **Reconcile challenge** as documented in the
+[operator runbook](./docs/YUKON_DEV_SETUP.md). It retains the six track identities
+and their results while archiving the fourteen omitted tracks after closure and
+completion of their jobs and reviews. A membership-only reconciliation does not
+rescore retained submissions. A fresh import, if separately intended, queues six
+baseline workflows. Add the two exploratory Poseidon tracks only after definition
+and qualification; do not archive and reimport the existing challenge.
 
 Before opening, test Yukon-driven validation, non-editable-path rejection, and
 promotion while preserving sibling tracks in both lanes. Humans review harness

@@ -203,7 +203,7 @@ class BedrockAdapterTests(unittest.TestCase):
         result = client(transport, attempts=4, sleeps=sleeps).review("lane_evaluability", {})
         self.assertEqual(result.provenance["attempts"], 4)
         self.assertEqual(len(transport.calls), 4)
-        self.assertEqual(sleeps[1], 0.2)
+        self.assertEqual(sleeps[1], 120.0)
 
     def test_nonretryable_error_is_bounded_and_plain_body_is_not_echoed(self) -> None:
         error = HttpResponse(
@@ -283,9 +283,10 @@ class BedrockSolTests(unittest.TestCase):
         config = BedrockConfig(api_key="key", model="us.openai.gpt-5.6-sol")
         for stage in LANE_STAGES:
             schema = json.loads(bedrock_system_prompt(config, stage).split("JSON Schema:\n", 1)[1])
-            self.assertEqual(schema["properties"]["stage"]["enum"], [stage])
-            self.assertIn("binding", schema["required"])
-            self.assertIn("cost_reconstruction", schema["required"])
+            self.assertNotIn("stage", schema["properties"])
+            self.assertNotIn("binding", schema["properties"])
+            self.assertNotIn("binding", schema["required"])
+            self.assertEqual("cost_reconstruction" in schema["required"], stage == "lane_cost")
             self.assertNotIn("decision", schema["required"])
 
     def test_sol_preserves_records_and_requires_binding(self):
@@ -334,15 +335,17 @@ class BedrockSolTests(unittest.TestCase):
     def test_sol_enforces_local_semantic_invariants(self):
         record = review("lane_cost")
         record["cost_reconstruction"]["normalized_score_log2"] += 1
-        with self.assertRaisesRegex(JudgeInfraError, "must equal"):
-            sol_client(FakeTransport([sol_response(record)])).review("lane_cost", {})
+        result = sol_client(FakeTransport([sol_response(record)])).review("lane_cost", {})
+        self.assertEqual(result.review["cost_reconstruction"]["normalized_score_log2"],
+                         result.review["cost_reconstruction"]["time_log2"])
 
     def test_sol_retries_invalid_response_but_never_changes_route(self):
         transport = FakeTransport([sol_response(status="incomplete"), sol_response()])
         result = sol_client(transport, max_attempts=2).review("lane_evaluability", {})
         self.assertEqual(result.provenance["attempts"], 2)
         self.assertEqual(transport.calls[0]["url"], transport.calls[1]["url"])
-        self.assertEqual(transport.calls[0]["body"], transport.calls[1]["body"])
+        self.assertNotEqual(transport.calls[0]["body"], transport.calls[1]["body"])
+        self.assertIn("previous response could not be processed", transport.calls[1]["body"].decode())
 
     def test_sol_nested_error_redacts_credentials_and_does_not_retry_403(self):
         error = HttpResponse(403, {}, json.dumps({"error": {"code": "AccessDenied", "message": "Denied test-bedrock-secret"}}).encode())

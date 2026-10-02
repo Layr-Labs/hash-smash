@@ -75,6 +75,9 @@ def fixture_hashes() -> dict[str, str]:
 class CalibrationTrack(LaneTrack):
     """Never registered: exact existing hash, paired policy, isolated score path."""
 
+    def reference_operation_cost(self, cost):
+        return 120  # Eight MD5 steps plus feed-forward; diagnostic fixture only.
+
     def benchmark(self) -> dict[str, Any]:
         benchmark = super().benchmark()
         schema_path = REPO_ROOT / "schemas" / "claim-frontier-v3.schema.json"

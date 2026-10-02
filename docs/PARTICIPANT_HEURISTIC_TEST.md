@@ -170,6 +170,10 @@ Recorded on 2026-09-04; machine-readable summary:
   full numerical report. The full-dossier file SHA-256 is
   `223cac3b8ad3dd498fd12288e803ed12f6ce7eb50d2f446ca21d578bc4054441`.
 
+The results in this historical run used `collision-frontier-v3`. Its scalar 40
+is not a current score. The v4 fixture reports time 23 and memory 17 separately
+and requires fresh evidence and review; it does not reuse this live qualification.
+
 ### What the live reviewers actually checked
 
 The cryptanalysis role supported the full-collision argument and explicitly

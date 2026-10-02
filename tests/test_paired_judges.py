@@ -155,14 +155,14 @@ class PairedJudgeTests(unittest.TestCase):
         def mutate(stage, review, _):
             if stage == "lane_cost":
                 review["cost_reconstruction"]["time_log2"] = 11
-                review["cost_reconstruction"]["normalized_score_log2"] = 19
+                review["cost_reconstruction"]["normalized_score_log2"] = 11
         dossier = run_paired_review(fixture_evidence(), FixtureClient(mutate))
         self.assertFalse(dossier["lanes"]["rigorous"]["eligible"])
         self.assertEqual(dossier["lanes"]["exploratory"]["status"], "infra_failed")
 
     def test_supported_cost_contradictions_cannot_receive_exploratory_score(self):
         fields = {
-            "time_log2": 11.0, "memory_log2_bytes": 9.0, "data_log2": 1.0,
+            "time_log2": 11.0, "memory_log2_bytes": 9.0,
             "preprocessing_log2": 1.0, "nonuniform_advice_log2_bytes": 1.0,
             "success_probability": 0.25, "time_unit": "wrong-units",
         }
@@ -172,18 +172,49 @@ class PairedJudgeTests(unittest.TestCase):
                     if stage == "lane_cost":
                         cost = review["cost_reconstruction"]
                         cost[field] = value
-                        cost["normalized_score_log2"] = cost["time_log2"] + cost["memory_log2_bytes"]
+                        cost["normalized_score_log2"] = cost["time_log2"]
                 client = FixtureClient(mutate)
                 dossier = run_paired_review(fixture_evidence(), client)
                 self.assertEqual(dossier["lanes"]["exploratory"]["status"], "infra_failed")
                 self.assertFalse(dossier["lanes"]["exploratory"]["eligible"])
                 self.assertEqual(len(client.calls), 4)
 
+    def test_data_is_optional_and_never_compared_in_either_lane(self):
+        for claim_has_data in (False, True):
+            for review_has_data in (False, True):
+                with self.subTest(claim=claim_has_data, review=review_has_data):
+                    evidence = fixture_evidence()
+                    if not claim_has_data:
+                        del evidence["submission"]["intake_report"]["claim"]["claim"]["data_log2"]
+
+                    def mutate(stage, review, _):
+                        if stage == "lane_cost":
+                            cost = review["cost_reconstruction"]
+                            cost.pop("data_log2", None)
+                            if review_has_data:
+                                # Deliberately exceeds the legacy submitted bound of zero.
+                                cost["data_log2"] = 999
+
+                    client = FixtureClient(mutate)
+                    dossier = run_paired_review(evidence, client)
+                    for lane in ("exploratory", "rigorous"):
+                        self.assertTrue(dossier["lanes"][lane]["eligible"])
+                        self.assertEqual(dossier["lanes"][lane]["reasons"], [])
+                    self.assertEqual(len(client.calls), 4)
+
+    def test_optional_review_data_still_has_numeric_shape_constraints(self):
+        for value in (None, True, "12", -1, float("nan"), float("inf")):
+            with self.subTest(value=value):
+                review = fixture_review("lane_cost", fixture_evidence())
+                review["cost_reconstruction"]["data_log2"] = value
+                with self.assertRaises(ReviewValidationError):
+                    validate_lane_review(review)
+
     def test_uncertain_cost_reconstruction_remains_exploratory(self):
         def mutate(stage, review, _):
             if stage == "lane_cost":
                 review["cost_reconstruction"]["time_log2"] = 11
-                review["cost_reconstruction"]["normalized_score_log2"] = 19
+                review["cost_reconstruction"]["normalized_score_log2"] = 11
                 review["obligations"][0]["status"] = "unresolved"
         dossier = run_paired_review(fixture_evidence(), FixtureClient(mutate))
         self.assertTrue(dossier["lanes"]["exploratory"]["eligible"])
@@ -193,7 +224,7 @@ class PairedJudgeTests(unittest.TestCase):
         def mutate(stage, review, _):
             if stage == "lane_cost":
                 review["cost_reconstruction"]["time_log2"] = 11
-                review["cost_reconstruction"]["normalized_score_log2"] = 19
+                review["cost_reconstruction"]["normalized_score_log2"] = 11
                 add_fatal(review)
             if stage == "lane_adjudicator":
                 review["challenge_resolutions"][0]["result"] = "confirmed"
@@ -292,6 +323,7 @@ class PairedJudgeTests(unittest.TestCase):
         from judge.tests.test_bedrock_adapter import FakeTransport, bedrock_response, sol_response
 
         evidence = fixture_evidence()
+        del evidence["submission"]["intake_report"]["claim"]["claim"]["data_log2"]
         record = fixture_review("lane_cost", evidence)
         configurations = [
             (OpenRouterClient, OpenRouterConfig(api_key="organizer-fixture", max_attempts=1), provider_response(record)),

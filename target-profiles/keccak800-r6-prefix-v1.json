@@ -1,0 +1,38 @@
+{
+  "id": "keccak800-r6-prefix-v1",
+  "status": "organizer-selected-experiment",
+  "algorithm": "keccak800",
+  "primitive": "Keccak[800] r544/c256",
+  "specification": "Keccak specification, organizer-defined sponge instance",
+  "specification_url": "https://keccak.team/keccak_specs_summary.html",
+  "rounds": 6,
+  "full_rounds": 22,
+  "round_count_unit": "Keccak permutation rounds",
+  "round_selection": "Prefix rounds 0 through 5, inclusive, in every sponge permutation; not Keccak-p last rounds.",
+  "digest_bits": 256,
+  "attack_class": "ordinary-collision",
+  "message_domain": "Finite byte strings of bit length below 2^64.",
+  "word_bits": 32,
+  "reference_implementation": "verifier/keccak.py:keccak800",
+  "relation": {
+    "preconditions": [
+      "Both messages satisfy the domain",
+      "Messages are distinct"
+    ],
+    "postcondition": "The two complete keccak800-r6 hashes agree on all 256 output bits."
+  },
+  "out_of_scope": [
+    "Free-start or compression-only collisions",
+    "Quantum attacks",
+    "Changing rounds, IV, padding, mode or output length"
+  ],
+  "selection_note": "Organizer-selected exploration target; no first-unbroken boundary is asserted.",
+  "state_bits": 800,
+  "rate_bits": 544,
+  "capacity_bits": 256,
+  "padding": "Legacy Keccak pad10*1 with no extra domain suffix; delimited suffix byte 0x01. Standard little-endian lane/bit encoding.",
+  "initialization": "All-zero 800-bit sponge state.",
+  "schedule": "Theta, rho, pi, chi, iota using first-round constants truncated to 32 bits and rho offsets modulo32.",
+  "feed_forward": "XOR message blocks into the rate; no Davies-Meyer feed-forward.",
+  "digest_encoding": "First 32 squeeze bytes, little-endian Keccak lanes."
+}

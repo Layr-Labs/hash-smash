@@ -35,8 +35,8 @@ class OfflineCalibrationClient:
         }
         if stage == "lane_cost":
             cost = deepcopy(evidence["submission"]["intake_report"]["claim"]["claim"])
-            cost.update(normalized_score_log2=cost["time_log2"] + cost["memory_log2_bytes"],
-                        calculation_trace=["Sum the two submitted exponents."])
+            cost.update(normalized_score_log2=cost["time_log2"],
+                        calculation_trace=["Use the submitted total computation exponent."])
             review["cost_reconstruction"] = cost
         if self.false_proof and stage == "lane_cryptanalysis":
             review["obligations"][0]["status"] = "fatal"

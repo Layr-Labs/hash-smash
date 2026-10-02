@@ -49,9 +49,14 @@ class FrontierSurfaceTests(unittest.TestCase):
         track = get_frontier_track("sha256-r31-exploratory")
         claim = track.draft_claim()
         claim["claim"].update(time_log2=1e308, memory_log2_bytes=1e308)
-        with self.assertRaisesRegex(VerificationError, "score must be finite"):
+        validate_claim(claim, track=track)
+        claim["claim"]["time_log2"] = float("inf")
+        with self.assertRaisesRegex(VerificationError, "finite"):
             validate_claim(claim, track=track)
         claim["claim"]["time_log2"] = 10 ** 500
+        with self.assertRaisesRegex(VerificationError, "finite"):
+            validate_claim(claim, track=track)
+        claim["claim"].update(time_log2=64, memory_log2_bytes=float("inf"))
         with self.assertRaisesRegex(VerificationError, "finite"):
             validate_claim(claim, track=track)
         with self.assertRaises(ValueError):

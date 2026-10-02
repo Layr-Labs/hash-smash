@@ -1,0 +1,112 @@
+{
+  "date": "2026-09-13",
+  "source_commit": "c165a7f19f80bcec8ab41c782befd28201c65842",
+  "provider": "amazon-bedrock",
+  "model": "us.openai.gpt-5.6-sol",
+  "mode": "committee",
+  "reasoning_effort": "high",
+  "offline_tests": {
+    "total": 214,
+    "passed": 209,
+    "skipped": 5
+  },
+  "imported_manifest_tracks": 12,
+  "locally_runnable_tracks": 24,
+  "yukon_import_submitted": false,
+  "tracks": [
+    {
+      "track": "blake3-r1-exploratory",
+      "source_commit": "c165a7f19f80bcec8ab41c782befd28201c65842",
+      "package_sha256": "f344e2274d19fa431d2105e7ae5e13583f3201a73dd007fade061838f157e40b",
+      "target_config_sha256": "f9bb320259db7941fe8dd168d7df1071c8d7fc062a52100e64b8a6ffa7bb5f50",
+      "review_status": "plausible_not_refuted",
+      "score": 149.0,
+      "score_path": "lanes/exploratory/.yukon/scores/blake3-r1-exploratory.json",
+      "evidence_sha256": "1c401e773701807b6a7da337c474b1446145722ef45f722c1c2d531829dd6c10",
+      "judge_runs": [
+        "20260913T225114.099470Z-e386d41e"
+      ],
+      "judge_attempts": [
+        {
+          "run_id": "20260913T225114.099470Z-e386d41e",
+          "status": "plausible_not_refuted"
+        }
+      ],
+      "unresolved_obligations": [],
+      "dossier_file_sha256": "0da46203dacd61c68d1c5fa8d37bbeb7f27fa7b80d9f12145345896884c552ed"
+    },
+    {
+      "track": "blake3-r2-exploratory",
+      "source_commit": "c165a7f19f80bcec8ab41c782befd28201c65842",
+      "package_sha256": "bc5f741d43c675493fa11123375f7e8bc7552b326bcb59b4cb5a3389fec8b8d8",
+      "target_config_sha256": "5207e7b78d18f48c2ee2c6fa22b84ac5af10cf8521fd52c167a3b0d3e171ffbf",
+      "review_status": "plausible_not_refuted",
+      "score": 149.0,
+      "score_path": "lanes/exploratory/.yukon/scores/blake3-r2-exploratory.json",
+      "evidence_sha256": "efd065b6fd8f88a8fb7616d85c6cd986159fddd67cd3ff6d22799d611646effc",
+      "judge_runs": [
+        "20260913T225131.105805Z-ba023cba"
+      ],
+      "judge_attempts": [
+        {
+          "run_id": "20260913T225131.105805Z-ba023cba",
+          "status": "plausible_not_refuted"
+        }
+      ],
+      "unresolved_obligations": [],
+      "dossier_file_sha256": "60ff9a86040c8d97b009590fc3725ef3f6489f621742714520196f27ee5b4325"
+    },
+    {
+      "track": "keccak800-r5-exploratory",
+      "source_commit": "c165a7f19f80bcec8ab41c782befd28201c65842",
+      "package_sha256": "623a76c91903ac292574caeb65500cfad4b15f8fdcdc32f161130cbe89145d11",
+      "target_config_sha256": "ece80079c3af324b6fde9efdffaf8779147911706c242ad2a4b36057906b1917",
+      "review_status": "plausible_not_refuted",
+      "score": 149.0,
+      "score_path": "lanes/exploratory/.yukon/scores/keccak800-r5-exploratory.json",
+      "evidence_sha256": "f3511d8d3491fad32b11662d8be4e878b9c104b81fa63e276adb5fea57bcb059",
+      "judge_runs": [
+        "20260913T225134.677810Z-0306dc8f"
+      ],
+      "judge_attempts": [
+        {
+          "run_id": "20260913T225134.677810Z-0306dc8f",
+          "status": "plausible_not_refuted"
+        }
+      ],
+      "unresolved_obligations": [],
+      "dossier_file_sha256": "e06b7e668959c8400a1f08c0684809069352dbe5deb53fe098801ff0c536e878"
+    },
+    {
+      "track": "keccak800-r6-exploratory",
+      "source_commit": "c165a7f19f80bcec8ab41c782befd28201c65842",
+      "package_sha256": "6369be3cfd4436ac4610cb1c52300439619d7882e1c2a3d88468c77eebfa9b14",
+      "target_config_sha256": "4001ca4634c83e2ad9030b4952494440ab05317e31ae83ec6149504f8eae9bf6",
+      "review_status": "plausible_not_refuted",
+      "score": 149.0,
+      "score_path": "lanes/exploratory/.yukon/scores/keccak800-r6-exploratory.json",
+      "evidence_sha256": "0448b429b2fe823437eb029b9696566464d3abf9a4c50ea4639d2451e50c5d59",
+      "judge_runs": [
+        "20260913T225138.225971Z-765a6c92",
+        "20260913T225614.932548Z-4d1544c9",
+        "20260913T230410.906894Z-1c602d0b"
+      ],
+      "judge_attempts": [
+        {
+          "run_id": "20260913T225138.225971Z-765a6c92",
+          "status": "infra_failed"
+        },
+        {
+          "run_id": "20260913T225614.932548Z-4d1544c9",
+          "status": "infra_failed"
+        },
+        {
+          "run_id": "20260913T230410.906894Z-1c602d0b",
+          "status": "plausible_not_refuted"
+        }
+      ],
+      "unresolved_obligations": [],
+      "dossier_file_sha256": "b71398ae0c3df41b0fa096f6b827f0e0e5f0a95b58ef9b5ebe289c83bc917d59"
+    }
+  ]
+}

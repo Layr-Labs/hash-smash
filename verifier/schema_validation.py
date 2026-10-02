@@ -110,18 +110,18 @@ def validate_claim(value: Any, *, track: LaneTrack) -> dict[str, Any]:
             "time_log2",
             "time_unit",
             "memory_log2_bytes",
-            "data_log2",
             "preprocessing_log2",
             "success_probability",
             "nonuniform_advice_log2_bytes",
         },
+        {"data_log2"},
     )
     _number(costs["time_log2"], "$.claim.time_log2", minimum=0)
     _exact_string(costs["time_unit"], "target-compressions", "$.claim.time_unit")
     _number(costs["memory_log2_bytes"], "$.claim.memory_log2_bytes", minimum=0)
-    if not math.isfinite(float(costs["time_log2"]) + float(costs["memory_log2_bytes"])):
-        _fail("$.claim", "time-memory score must be finite")
-    _number(costs["data_log2"], "$.claim.data_log2", minimum=0)
+    # Legacy metadata is optional; retain its shape checks without inventing a value.
+    if "data_log2" in costs:
+        _number(costs["data_log2"], "$.claim.data_log2", minimum=0)
     _number(costs["preprocessing_log2"], "$.claim.preprocessing_log2", minimum=0)
     _number(
         costs["success_probability"],

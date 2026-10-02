@@ -107,7 +107,7 @@ def plausible_fixture_review(stage, review, evidence):
             "evidence": item["evidence_ids"],
         } for item in evidence["submission"]["intake_report"]["claim"]["heuristics"]]
     if stage == "lane_cost":
-        review["cost_reconstruction"]["calculation_trace"] = ["Submitted upper bounds: 23 + 17 = 40."]
+        review["cost_reconstruction"]["calculation_trace"] = ["Total computation score: 23. Memory exponent: 17 (metric only)."]
 
 
 class ParticipantHeuristicTests(unittest.TestCase):
@@ -180,7 +180,7 @@ class ParticipantHeuristicTests(unittest.TestCase):
             self.assertEqual(view["experiments"][0]["successes"], summary["full_collisions"])
             self.assertEqual(view["sources"][0]["untrusted_source_text"], report["sources"][0]["untrusted_source_text"])
         score = json.loads(paths.score.read_text())
-        self.assertEqual(score["score"], 40)
+        self.assertEqual(score["score"], 23)
         self.assertFalse(score["metrics"]["humanAccepted"])
         self.assertEqual(score["metrics"]["trackId"], driver.TRACK_ID)
         dossier = json.loads(paths.dossier.read_text())

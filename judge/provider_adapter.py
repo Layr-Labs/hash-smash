@@ -14,6 +14,7 @@ from typing import Any, Callable, Mapping, Protocol
 
 from .prompts import DEFAULT_STRATEGY, build_messages, load_strategy_prompt
 from .schema_validation import review_schema_for_stage, validate_review
+from .output import complete_review, validate_response, validation_detail, retry_body
 
 
 OPENROUTER_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -24,9 +25,10 @@ REASONING_EFFORTS = {"none", "minimal", "low", "medium", "high", "xhigh", "max"}
 class JudgeInfraError(RuntimeError):
     """No valid review was produced because the judge infrastructure failed."""
 
-    def __init__(self, message: str, *, attempts: int = 0) -> None:
+    def __init__(self, message: str, *, attempts: int = 0, diagnostics=None) -> None:
         super().__init__(message)
         self.attempts = attempts
+        self.diagnostics = diagnostics or []
 
 
 class TransportError(JudgeInfraError):
@@ -166,7 +168,19 @@ def _schema_for_stage(stage: str) -> dict[str, Any]:
     # some reject draft/document annotations that are useful only to local tooling.
     for annotation in ("$schema", "$id", "title"):
         schema.pop(annotation, None)
-    schema["properties"]["stage"] = {"type": "string", "enum": [stage]}
+    omitted = {"schema_version", "stage", "binding", "prompt_injection_detected"}
+    if stage != "lane_rescore":
+        if stage != "lane_cost":
+            omitted.add("cost_reconstruction")
+        else:
+            cost = schema["properties"]["cost_reconstruction"]
+            cost["properties"].pop("normalized_score_log2", None)
+            cost["required"].remove("normalized_score_log2")
+        omitted.update({"obligations", "heuristics", "findings"} if stage in {"lane_defender", "lane_adjudicator"}
+                       else {"challenge_resolutions"})
+    for field in omitted:
+        schema["properties"].pop(field, None)
+    schema["required"] = [field for field in schema["required"] if field not in omitted]
     return schema
 
 
@@ -283,7 +297,7 @@ class OpenRouterClient:
         )
         return exponential * (0.75 + 0.5 * self.random_source())
 
-    def _parse_response(self, response: HttpResponse, stage: str) -> ReviewResult:
+    def _parse_response(self, response: HttpResponse, stage: str, evidence=None) -> ReviewResult:
         try:
             payload = json.loads(response.body.decode("utf-8"))
             if not isinstance(payload, dict):
@@ -297,8 +311,8 @@ class OpenRouterClient:
             message = choice["message"]
             if not isinstance(message, dict) or not isinstance(message.get("content"), str):
                 raise ValueError("missing string message content")
-            review = json.loads(message["content"])
-            validate_review(review, expected_stage=stage, schema=review_schema_for_stage(stage))
+            review = complete_review(json.loads(message["content"]), stage, evidence or {})
+            validate_response(review, stage, evidence or {})
             response_id = payload["id"]
             returned_model = payload["model"]
             if not isinstance(response_id, str) or not response_id:
@@ -312,7 +326,8 @@ class OpenRouterClient:
             if not isinstance(metadata, dict):
                 raise ValueError("openrouter_metadata is not an object")
         except (KeyError, TypeError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise JudgeInfraError(f"OpenRouter returned an invalid structured response: {exc}") from exc
+            detail = validation_detail(exc)
+            raise JudgeInfraError("OpenRouter returned an invalid review", diagnostics=[detail]) from exc
 
         provenance = {
             "provider": "openrouter",
@@ -334,10 +349,12 @@ class OpenRouterClient:
         """Run one independent review with bounded infrastructure retries."""
 
         body = self._request_body(stage, evidence)
+        original_body = body
         headers = self._headers()
         started = self.clock()
         attempt_latencies: list[int] = []
         last_error: JudgeInfraError | None = None
+        diagnostics = []
 
         for attempt in range(1, self.config.max_attempts + 1):
             attempt_started = self.clock()
@@ -352,6 +369,7 @@ class OpenRouterClient:
             except TransportError as exc:
                 attempt_latencies.append(round((self.clock() - attempt_started) * 1000))
                 last_error = exc
+                diagnostics.append({"category": "transport", "attempt": attempt, "stage": stage})
                 if attempt == self.config.max_attempts:
                     break
                 self.sleeper(self._retry_delay(attempt))
@@ -361,6 +379,8 @@ class OpenRouterClient:
                 last_error = JudgeInfraError(
                     f"OpenRouter retryable HTTP status {response.status}", attempts=attempt
                 )
+                diagnostics.append({"category": "http", "status": response.status,
+                                    "attempt": attempt, "stage": stage})
                 if attempt == self.config.max_attempts:
                     break
                 self.sleeper(self._retry_delay(attempt, response.headers))
@@ -370,12 +390,18 @@ class OpenRouterClient:
                     f"OpenRouter non-retryable HTTP status {response.status}"
                     f"{_safe_provider_error(response)}",
                     attempts=attempt,
+                    diagnostics=[{"category": "http", "status": response.status,
+                                  "attempt": attempt, "stage": stage}],
                 )
 
             try:
-                result = self._parse_response(response, stage)
+                result = self._parse_response(response, stage, evidence)
             except JudgeInfraError as exc:
                 last_error = exc
+                for detail in exc.diagnostics:
+                    diagnostics.append({**detail, "attempt": attempt, "stage": stage})
+                if exc.diagnostics:
+                    body = retry_body(original_body, exc.diagnostics[-1])
                 if attempt == self.config.max_attempts:
                     break
                 self.sleeper(self._retry_delay(attempt))
@@ -387,9 +413,10 @@ class OpenRouterClient:
                     "attempts": attempt,
                     "latency_ms": round((self.clock() - started) * 1000),
                     "attempt_latencies_ms": attempt_latencies,
+                    "retry_diagnostics": diagnostics,
                 }
             )
             return ReviewResult(review=result.review, provenance=provenance)
 
         message = str(last_error) if last_error else "OpenRouter did not produce a response"
-        raise JudgeInfraError(message, attempts=self.config.max_attempts)
+        raise JudgeInfraError(message, attempts=self.config.max_attempts, diagnostics=diagnostics)

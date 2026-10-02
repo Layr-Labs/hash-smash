@@ -1,7 +1,10 @@
 # SHA-256, 31 prefix rounds: unconditional collision construction
 
+The scalar below is `time_log2` under `collision-frontier-v4`. Memory remains
+a separately reported resource bound.
+
 This independent **exploratory** package selects `sha256-r31-exploratory`, target
-`sha256-r31-prefix-v1`, cost model `collision-frontier-v3`, and policy
+`sha256-r31-prefix-v1`, cost model `collision-frontier-v4`, and policy
 `paired-lanes-v1`. It submits a complete analytic algorithm, not an already
 computed collision. Readiness requests review; it does not assert an AI outcome
 or human acceptance. The full argument also addresses the rigorous review obligations.
@@ -12,7 +15,7 @@ or experimental-extrapolation premise is used. The required `baseline_improved`
 value `sha256-r31-nominal-v2` only identifies the organizer's nominal display
 reference; it is not an established attack, qualified baseline, or security
 bound. This package does not claim improvement over that reference. Its declared
-scalar is 148 + 138 = 286, with all bounds explained below.
+scalar is 148, with all bounds explained below.
 
 ## 1. Exact message and complete-hash definition
 
@@ -303,7 +306,7 @@ Including setup, all trials, all 129 merge passes, scanning and verification,
 
 This proves `time_log2: 148` in the model's `target-compressions` unit, which
 also charges every ordinary primitive operation. The submitted upper bounds
-rather than the sharper internal ledger define scalar 286. Setup is inside T.
+rather than the sharper internal ledger define scalar 148. Setup is inside T.
 
 To fix units for the otherwise untyped data field, `data_log2: 137` bounds
 **bytes of complete padded input presented to hashing**, including final

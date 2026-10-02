@@ -17,7 +17,7 @@ the other result is retained for calibration.
 These are AI review outcomes. They do not certify mathematical truth, human
 acceptance, or measured false-positive/false-negative rates. An exploratory winner
 is a promising claim; it does not become an established baseline for the rigorous
-lane. The scalar remains `time_log2 + memory_log2_bytes` for a common target,
+lane. The scalar is `time_log2` for a common target,
 round count, success requirement, and organizer cost model.
 
 The paired claim field `baseline_improved` is a required reference identifier,
@@ -38,10 +38,19 @@ Four independent initial roles inspect the same immutable evidence:
    space, disclosed heuristics, and relevant evidence.
 2. **Cryptanalysis:** collision construction, probability argument, dependence
    assumptions, and heuristic justification.
-3. **Cost:** time, memory, preprocessing, data, advice, success budget, and scalar
-   arithmetic. A lower replacement model estimate never sets the score.
+3. **Cost:** time, memory, preprocessing, advice, success budget, and scalar
+   arithmetic, explained in prose. Normal reviews score the submitted bound.
+   Organizer-pinned [reorgs](./RESCORING.md) reuse previous reasoning and adjust
+   the accepted score only when the public scoring policy changes.
 4. **Experiments:** relevance and reproducibility of organizer execution, finite
    counts, statistical interpretation, and extrapolation.
+
+`data_log2` is optional legacy metadata in claims and cost reconstructions. Its
+presence, absence, units, or reconstructed value do not create a review obligation
+or affect the score. The legacy obligation ID `data_preprocessing_advice` is
+retained for compatibility and covers only preprocessing and nonuniform advice.
+Message generation/processing and retained storage remain charged to time and
+memory. Existing recorded outcomes are not retroactively reinterpreted.
 
 A cited fatal finding triggers a defender, then an adjudicator who sees both the
 original objection and its defense. Every fatal finding must be resolved exactly
@@ -123,6 +132,16 @@ Changing costs while retaining the same textual target is therefore detectable.
 Organizer prompts and schemas are versioned with the paired policy. Historical
 artifacts from the retired unconditional tracks must not be reinterpreted as
 paired review outcomes.
+
+## Reorg decisions
+
+An organizer-pinned reorg supplies previous judgments and the current substantive
+judging rules to a single reviewer. Prior reasoning can be reused, but the reviewer
+must decide current qualification: accept, reject, or request missing evidence.
+This applies to both validity-prompt changes and scoring-policy changes. Rejection
+means the selected lane does not qualify; it is not a formal refutation. Only
+accepted results receive a score, preserved exactly when scoring policy is unchanged.
+See [reorg judgments](./RESCORING.md#reorg-judgments) for history and scoring rules.
 
 ## Calibration
 

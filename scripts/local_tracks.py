@@ -55,7 +55,7 @@ def main(argv=None):
             slots = planned_slots()
             print(json.dumps({"planned_tracks": len(slots), "runnable_tracks": len(frontier_tracks()), "slots": slots}, indent=2))
         elif args.command == "list":
-            print("TRACK                            FUNCTION   STEPS/ROUNDS  LANE   NOMINAL LOG2(T*M)")
+            print("TRACK                            FUNCTION   STEPS/ROUNDS  LANE   NOMINAL SECURITY BITS")
             for track in selected:
                 print(f"{track.id:32} {track.algorithm:10} {track.rounds:12}  {track.lane:16} {track.nominal_score}")
         elif args.command == "show":

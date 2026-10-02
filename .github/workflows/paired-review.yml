@@ -40,6 +40,21 @@ jobs:
         run: |
           python3 scripts/validate_frontier_config.py --track "$HASHSMASH_SELECTED_TRACK" --lane "$HASHSMASH_SELECTED_LANE"
           python3 scripts/check-frontier-surface.py --track "$HASHSMASH_SELECTED_TRACK"
+      - name: Select pinned prior judgment
+        id: prior
+        run: python3 scripts/rescore_artifacts.py select --track "$HASHSMASH_SELECTED_TRACK"
+      - name: Download pinned prior judgment
+        if: steps.prior.outputs.artifact_id != ''
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        with:
+          artifact-ids: ${{ steps.prior.outputs.artifact_id }}
+          run-id: ${{ steps.prior.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/prior-review
+          merge-multiple: true
+      - name: Verify prior judgment and retain its history
+        if: steps.prior.outputs.artifact_id != ''
+        run: python3 scripts/rescore_artifacts.py restore --track "$HASHSMASH_SELECTED_TRACK" --downloaded "$RUNNER_TEMP/prior-review"
       - name: Prepare isolated experiment runtime
         run: python3 scripts/prepare_experiment_image.py --track "$HASHSMASH_SELECTED_TRACK"
       - name: Benchmark deterministic intake and experiments

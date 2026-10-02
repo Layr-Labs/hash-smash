@@ -1,11 +1,14 @@
 # MD5, all 64 steps: a complete generic collision construction
 
+The scalar below is `time_log2` under `collision-frontier-v4`. Memory remains
+a separately reported resource bound.
+
 This is the rigorous package for `md5-s64-prefix-v1`, ordinary collisions,
-under `collision-frontier-v3`. It proposes a conservative analytic baseline,
+under `collision-frontier-v4`. It proposes a conservative analytic baseline,
 not a practical attack, novelty claim, or improvement over published MD5
 cryptanalysis. The required `baseline_improved` value `md5-s64-nominal-v2`
 identifies nominal display metadata, not an established attack, qualified
-baseline, or security bound. The claimed resource sum is 82 + 73 = 155, with
+baseline, or security bound. The claimed total-computation scalar is 82, with
 algorithmic success probability at least 1/2. Readiness requests review;
 neither readiness nor AI qualification is human acceptance or a formal proof.
 
@@ -161,7 +164,7 @@ extrapolation. It needs only a deterministic map with 128 output bits.
 
 ## 4. Charged implementation ledger
 
-A word is 256 bits = 32 bytes. Under `collision-frontier-v3`, a selected
+A word is 256 bits = 32 bytes. Under `collision-frontier-v4`, a selected
 64-step MD5 compression costs one `target-compressions` unit, and every
 OTHER primitive word operation also costs one unit. The selected compression
 includes its step function. Below, input construction, IV, feed-forward and
@@ -266,7 +269,7 @@ The data field counts evaluations, not memory bytes or free oracle answers;
 every answer is computed and charged. Fixed public constants and program are
 charged as preprocessing and memory even though they are not nonuniform
 advice. No precomputed target table, differential trail or imported collision
-exists. The score 155 is a conservative time-plus-byte-memory upper bound,
+exists. The score 82 is a conservative total-computation upper bound,
 not a birthday exponent used as a complete ledger or Pareto-dominance claim.
 
 ## 5. Evidence, assumptions and limits

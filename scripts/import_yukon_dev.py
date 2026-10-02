@@ -13,12 +13,11 @@ from urllib import error, parse, request
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.validate_frontier_config import validate_configuration
-from verifier.frontier_tracks import frontier_tracks
+from scripts.validate_frontier_config import import_tracks, validate_configuration
 from verifier.intake import validate_candidate
 
-API_URL = "https://yukon-api-dev.fly.dev"
-SOURCE_URL = "https://github.com/Layr-Labs/hash-smash"
+API_URL = "https://api-dev.yukon.org"
+SOURCE_URL = "https://github.com/mooselumph/hash-smash"
 
 
 class ImportFailure(Exception):
@@ -34,7 +33,7 @@ class NoRedirect(request.HTTPRedirectHandler):
 def import_request(branch="main", name=None):
     if not branch or len(branch) > 255 or any(ord(char) < 32 for char in branch):
         raise ImportFailure("invalid source branch")
-    # Omit rootDir so Yukon reads the one root manifest containing both lanes.
+    # Omit rootDir so Yukon reads the one root manifest containing the selected exploratory tracks.
     payload = {"sourceUrl": SOURCE_URL, "sourceBranch": branch}
     if name is not None:
         if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*/[a-z0-9]+(?:-[a-z0-9]+)*", name):
@@ -45,12 +44,18 @@ def import_request(branch="main", name=None):
 
 def draft_tracks():
     drafts = []
-    # The organizer registry, never a lane selector, determines the full intake set.
-    for track in frontier_tracks():
+    # Check exactly the organizer-selected import surface, not local-only lanes.
+    for track in import_tracks():
         intake = validate_candidate(track.candidate, track=track)
         if intake["submission_state"] != "ready":
             drafts.append(track.id)
     return drafts
+
+
+def append_path(reference):
+    if not re.fullmatch(r"(?:[a-z0-9]+(?:-[a-z0-9]+)*/[a-z0-9]+(?:-[a-z0-9]+)*|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})", reference):
+        raise ImportFailure("append target must be an existing challenge setter/name or benchmark UUID")
+    return "/api/benchmarks/" + parse.quote(reference, safe="") + "/import-tracks"
 
 
 def importer_token(filename=None):
@@ -102,9 +107,9 @@ class DevClient:
             raise ImportFailure(message) from None
 
 
-def queued_tracks(response):
+def queued_tracks(response, *, allow_empty=False):
     tracks = response.get("tracks")
-    if not isinstance(tracks, list) or not tracks:
+    if not isinstance(tracks, list) or (not tracks and not allow_empty):
         raise ImportFailure("unexpected import response; inspect dev before retrying")
     for track in tracks:
         if not isinstance(track, dict) or not isinstance(track.get("id"), str):
@@ -138,6 +143,7 @@ def wait_for_baselines(client, tracks, timeout):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-branch", default="main")
+    parser.add_argument("--append-to", help="existing challenge setter/name or benchmark UUID; import only newly declared tracks using its saved source")
     parser.add_argument("--name", help="confirmed setter/challenge slug; otherwise Yukon uses the root manifest name")
     parser.add_argument("--api-key-file", help="private key file outside the repository; never printed")
     parser.add_argument("--submit", action="store_true", help="create the dev import; default only prints a plan")
@@ -146,19 +152,24 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.timeout <= 0 or (args.wait and not args.submit):
         parser.error("timeout must be positive; --wait requires --submit")
+    if args.append_to and (args.source_branch != "main" or args.name):
+        parser.error("--append-to uses the existing challenge's saved source and name")
     try:
-        payload = import_request(args.source_branch, args.name)
+        endpoint = append_path(args.append_to) if args.append_to else "/api/benchmarks"
+        payload = {} if args.append_to else import_request(args.source_branch, args.name)
         configuration = validate_configuration()
         drafts = draft_tracks()
-        print(json.dumps({"api": API_URL, "request": payload,
-                          "baseline_workflows": configuration["runnable_tracks"],
+        print(json.dumps({"api": API_URL, "endpoint": endpoint, "request": payload,
+                          "baseline_workflows": None if args.append_to else configuration["import_tracks"],
+                          "import_track_count": configuration["import_tracks"],
+                          "baseline_scope": "newly declared tracks only; server resolves the saved source" if args.append_to else "all manifest tracks",
                           "local_drafts": drafts, "opens_challenge": False}, indent=2), flush=True)
         if not args.submit:
             return 0
         if drafts:
             raise ImportFailure("Complete and qualify the real candidates before importing; local drafts remain.")
         client = DevClient(importer_token(args.api_key_file))
-        tracks = queued_tracks(client.call("/api/benchmarks", payload))
+        tracks = queued_tracks(client.call(endpoint, payload), allow_empty=bool(args.append_to))
         for track in tracks:
             print(json.dumps({"id": track["id"], "name": track.get("name"),
                               "jobs_url": API_URL + "/api/benchmarks/" + parse.quote(track["id"], safe="") + "/jobs"}), flush=True)

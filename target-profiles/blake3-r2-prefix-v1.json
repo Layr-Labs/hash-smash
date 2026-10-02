@@ -1,0 +1,44 @@
+{
+  "id": "blake3-r2-prefix-v1",
+  "status": "organizer-selected-experiment",
+  "algorithm": "blake3",
+  "primitive": "BLAKE3",
+  "specification": "BLAKE3 specification",
+  "specification_url": "https://github.com/BLAKE3-team/BLAKE3-specs/blob/master/blake3.tex",
+  "rounds": 2,
+  "full_rounds": 7,
+  "round_count_unit": "BLAKE3 compression rounds",
+  "round_selection": "Prefix rounds 0 through 1, inclusive, in every chunk, parent and root compression.",
+  "digest_bits": 256,
+  "attack_class": "ordinary-collision",
+  "message_domain": "Finite byte strings of bit length below 2^64.",
+  "word_bits": 32,
+  "reference_implementation": "verifier/blake3.py:blake3",
+  "relation": {
+    "preconditions": [
+      "Both messages satisfy the domain",
+      "Messages are distinct"
+    ],
+    "postcondition": "The two complete blake3-r2 hashes agree on all 256 output bits."
+  },
+  "out_of_scope": [
+    "Free-start or compression-only collisions",
+    "Quantum attacks",
+    "Changing rounds, IV, padding, mode or output length"
+  ],
+  "selection_note": "Organizer-selected exploration target; no first-unbroken boundary is asserted.",
+  "initialization": "Standard BLAKE3 IV; unkeyed mode. No keyed hashing or key derivation.",
+  "padding": "Blocks of at most 64 bytes, zero filled only for compression word loading; true block length encoded. Empty input is one empty chunk/block.",
+  "schedule": "Standard eight G calls per round and BLAKE3 message permutation between rounds, retaining only the first r rounds.",
+  "feed_forward": "Standard 16-word compression output: v[i] XOR v[i+8], then v[i+8] XOR input_cv[i], for i=0..7.",
+  "chunk_bytes": 1024,
+  "block_bytes": 64,
+  "tree": "Standard binary tree over 1024-byte chunks with 64-bit zero-based chunk counters. Largest power-of-two left subtree for non-power-of-two chunk counts. Parent CV=IV, block=left CV || right CV, length64, counter0, PARENT flag.",
+  "flags": {
+    "CHUNK_START": 1,
+    "CHUNK_END": 2,
+    "PARENT": 4,
+    "ROOT": 8
+  },
+  "digest_encoding": "First 32 little-endian root output bytes. Root compression uses output counter0 and ROOT together with chunk or parent flags; never hash an already finalized root CV."
+}
