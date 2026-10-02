@@ -1,12 +1,12 @@
 # SHA3-256 prefix rounds 0 through 5: unconditional generic collision package
 
-The scalar below is `time_log2` under `collision-frontier-v4`. Memory remains
+The scalar below is `time_log2` under `collision-frontier-v5`. Memory remains
 a separately reported resource bound.
 
 Selected lane: exploratory. Target: `sha3-256-r6-prefix-v1`.
-This finite classical algorithm has total charged time at most 2^150,
+This finite classical algorithm has total charged time at most 2^137.4,
 peak memory at most 2^138 bytes, and success probability at least 1/2.
-The proposed scalar is 150. It is a generic analytic construction
+The proposed scalar is 137.4. It is a generic analytic construction
 with infeasible resource use, not a claimed cryptanalytic advance.
 The required `baseline_improved` identifier `sha3-256-r6-nominal-v2`
 identifies the organizer's nominal reference only. That nominal 128 is not
@@ -80,7 +80,7 @@ convention, raw permutation hashing, a free initial state, different padding,
 or truncated output. Numeric ordering of d in the search changes no equality
 test: equality means all 256 output bits agree.
 The six-round transformation costs one selected-target sponge permutation
-under collision-frontier-v4; surrounding construction and serialization
+under collision-frontier-v5; surrounding construction and serialization
 operations are charged separately.
 
 ## 2. Algorithm, data structures and stopping rule
@@ -193,6 +193,10 @@ This is algorithmic success, not confidence in the proof or an AI reviewer.
 
 ## 4. 256-bit RAM implementation and complete charged time
 
+Instruction budgets in this section are counts of ordinary word operations,
+priced at 1/1626 each. Permutation calls are counted separately at cost 1;
+their internal round operations are not part of those instruction budgets.
+
 All actual scalar values fit in a word: Q, widths, indices, endpoint Q,
 3*i, 6*Q, counters and byte addresses below 2^138. The proof cardinalities
 N and |D| and the large total-time bounds are not machine registers.
@@ -212,11 +216,12 @@ Including loads/stores for every scalar temporary and pointer swap gives
 a conservative bound of 512 primitives per output before fetch allowance.
 The adjacent scan likewise fits in 512 primitives per inspected pair.
 
-For H, 25 zero stores, eight lane extractions, two padding stores, one
-selected permutation, four output-lane loads, three shifts/ORs and call
-bookkeeping total below 512 primitives. The two random draws and three
-record stores also fit within 512 per generated record. Explicit copying
-of all 25 lanes at the permutation interface, if charged in addition to
+For H, 25 zero stores, eight lane extractions, two padding stores, dispatch
+of one selected permutation, four output-lane loads, three shifts/ORs and
+call bookkeeping total below 512 ordinary primitives. The permutation call
+itself is counted separately at one target-compression unit. The two random
+draws and three record stores also fit within 512 per generated record.
+Explicit copying of all 25 lanes at the permutation interface, if charged in addition to
 that primitive, fits this envelope. Every constant shift 64*j can be
 precomputed; no variable integer multiplication is needed.
 
@@ -242,14 +247,18 @@ Reserve the larger 2^24-byte fixed area for all of them.
 Loading this code/constants and clearing the fixed area costs at most
 2^30 charged operations. These are uniform data, not searched advice.
 
-| Phase | Worst-case charged units including addressing, loops and fetches |
-| --- | ---: |
-| Load fixed code/constants and initialize fixed workspace | 2^30 |
-| Zero both Q-record arrays, six word stores per record index | 2^12 Q |
-| Draw, construct, hash and store every message | 2^12 Q |
-| Every copy in all 129 bottom-up merge passes | 129 * 2^12 Q |
-| Scan all adjacent pairs, including repeated-message checks | 2^12 Q |
-| Recompute both witness hashes, verify and emit output or failure | 2^14 |
+| Phase | Permutation calls, at cost 1 each | Ordinary operations, at cost 1/1626 each |
+| --- | ---: | ---: |
+| Load fixed code/constants and initialize fixed workspace | 0 | 2^30 |
+| Zero both Q-record arrays, six word stores per record index | 0 | 2^12 Q |
+| Draw, construct, hash and store every message | Q | 2^12 Q |
+| Every copy in all 129 bottom-up merge passes | 0 | 129 * 2^12 Q |
+| Scan all adjacent pairs, including repeated-message checks | 0 | 2^12 Q |
+| Recompute both witness hashes, verify and emit output or failure | at most 2 | 2^14 |
+
+The ordinary-operation column retains the stated finite instruction envelopes,
+including addressing, loops, fetches and spare allowance. Internal permutation
+rounds belong only to the separate permutation calls.
 
 Explicit table zeroing is easily within 512 primitives per index before
 fetch allowance, so allocation assumes no free zero-fill.
@@ -257,15 +266,30 @@ The table charges all samples, failed comparisons, merge passes and
 verification regardless of success. There is no hidden restart cost.
 These are worst-case bounds for one run, hence also bound expected time.
 
-    T <= 132 * 2^12 Q + 2^30 + 2^14 < 2^21 Q = 2^150.
+    H_calls <= Q+2
+    W <= 132 * 2^12 Q + 2^30 + 2^14 = 540672Q + 1073758208
+    T = H_calls + W/1626
+      <= (1 + 540672/1626)Q + 2 + 1073758208/1626
+       < (333517/1000)Q
+       < 2^8.4 Q = 2^137.4,  for Q=2^129.
+
+The first strict inequality follows by clearing denominators with Q=2^129;
+the second is the integer inequality `333517^5 < 2^42 * 1000^5`.
+The leading coefficient is approximately 333.516605; the displayed bound
+also includes fixed setup and final verification. It is an upward bound,
+not division of the former rounded scalar by C.
 
 The organizer unit is named `target-compressions`: one selected six-round
 sponge permutation costs one unit and each other listed primitive word
-operation costs one unit. T is not merely the number of hashes.
+operation costs 1/1626 units. T is not merely the number of hashes.
 Preprocessing is the fixed initialization and array zeroing, already
 included in T:
 
-    P <= 2^12 Q + 2^30 < 2^142.
+    P <= (2^12 Q + 2^30)/1626 < 2^131 < 2^142.
+
+The retained `preprocessing_log2: 142` is a loose independent upper bound.
+Actual preprocessing is below 2^131 and is included in the new total bound
+2^137.4; the metadata does not assert that setup takes 2^142 units.
 
 No earlier search chooses messages, favorable coins, collisions, parameters
 or advice. No failed trials or preparation steps are left outside T.
@@ -287,14 +311,14 @@ or a statement of physical practicality.
 
 The JSON fields have these explicit units and meanings:
 
-* `time_log2: 150` means T <= 2^150 total charged operations.
+* `time_log2: 137.4` means T <= 2^137.4 target-compression units of total work.
 * `memory_log2_bytes: 138` means M <= 2^138 peak bytes, including code.
 * `data_log2: 130` means at most Q+2 < 2^130 complete-message hash
   evaluations including both final verification evaluations.
   All messages are generated internally; external input data is zero.
   Their 64-byte input traffic is at most 64(Q+2) < 2^136 bytes.
   Repeated table traffic is accounted for in time and memory above.
-* `preprocessing_log2: 142` means P < 2^142 charged setup operations,
+* `preprocessing_log2: 142` means P < 2^142 target-compression units of setup,
   already included in T, not an extra omitted phase.
 * `success_probability: 0.5` is a proved one-batch lower bound.
 * `nonuniform_advice_log2_bytes: 0` bounds advice by 2^0 bytes.
@@ -303,7 +327,7 @@ The JSON fields have these explicit units and meanings:
   precomputed collision. Uniform program/constants are charged above.
 
 Resource logarithms describe conservative upper bounds; success describes
-a lower bound. The proposed scalar is 150. No scalar improvement or Pareto
+a lower bound. The proposed scalar is 137.4. No scalar improvement or Pareto
 dominance over an established attack is claimed.
 
 ## 6. Evidence, heuristic disclosures and limitations
@@ -330,3 +354,14 @@ Exploratory qualification is `plausible_not_refuted`; rigorous qualification
 is `ai_rigor_qualified`. Neither is mathematical proof or human acceptance.
 This candidate does not assert a review outcome, trusted score or successful
 Yukon baseline import.
+
+## 7. Source and accounting revision
+
+This is an accounting revision of the organizer's SHA3-256 r6 package
+`24cf87f71dd43350628faece8df634e6f8dac8c574f1715123452e649c5397c8`
+in production base `0455d2b52f4f920fe5c3a6af8c71592a824e6a57`.
+The complete hash, lane-oriented wrapper, array zeroing, three-word records,
+merge sort, probability proof, success lower bound and memory bound are
+retained. The former v4 declaration was 150; its explicit counts support
+137.4 at v5 prices. This new package requires fresh ordinary review and
+asserts neither an inherited qualification nor a new cryptanalytic algorithm.

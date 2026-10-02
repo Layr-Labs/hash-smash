@@ -46,22 +46,34 @@ does not create that category or establish App eligibility.
 ## Six fresh baselines
 
 Import repository-root `benchmark.json` with no `rootDir` override. The six
-exploratory track names and donor-declared `time_log2` bounds are:
+exploratory track names and submitted `time_log2` bounds are:
 
-| Track | Declared bound |
-| --- | ---: |
-| `sha256-r31-exploratory` | 148 |
-| `sha256-r32-exploratory` | 148 |
-| `sha3-256-r5-exploratory` | 149 |
-| `sha3-256-r6-exploratory` | 150 |
-| `blake3-r1-exploratory` | 149 |
-| `blake3-r2-exploratory` | 140 |
+| Track | Declared bound | Accounting |
+| --- | ---: | --- |
+| `sha256-r31-exploratory` | 136 | Existing algorithm, v5 costs with C=2140 |
+| `sha256-r32-exploratory` | 136 | Existing algorithm, v5 costs with C=2224 |
+| `sha3-256-r5-exploratory` | 137.785 | Existing algorithm, v5 costs with C=1355 |
+| `sha3-256-r6-exploratory` | 137.4 | Existing algorithm, v5 costs with C=1626 |
+| `blake3-r1-exploratory` | 149 | Unchanged declaration |
+| `blake3-r2-exploratory` | 140 | Unchanged declaration |
 
-These declarations describe donor `94a9c97fc047bf8f00ed892f0e5c51e69d6c7e1a`,
-not newly qualified production scores. Ordinary judging checks the submitted
-bound; a fresh import does not inherit dev's tighter historical rescores, IDs,
-submission histories or manual-review backlog. The donor's active reorg plan is
-empty; historical artifact mappings are not current qualification evidence.
+The four SHA packages refine the declarations in production base
+`0455d2b52f4f920fe5c3a6af8c71592a824e6a57` (tree
+`fc77941c70bde24a95105147a816cea4e6f50513`), whose donor was
+`94a9c97fc047bf8f00ed892f0e5c51e69d6c7e1a`. Each proof separates target
+compression/permutation calls H from ordinary word operations W and justifies
+`log2(H + W/C)` under [v5 accounting](./RESCORING.md). Targets, algorithms,
+success lower bounds and memory bounds are unchanged; these are replacement
+claims with self-contained derivations, not new cryptanalytic algorithms.
+
+These declarations are not newly qualified production scores. They match the
+four historical dev policy-change rescores, but ordinary judging checks the
+submitted bound and must review these changed packages afresh. Historical
+exploratory `plausible_not_refuted` judgments with `humanAccepted: false` do not
+qualify the replacement packages. All six exact-source production qualifications
+remain pending. A fresh import does not inherit dev IDs, submission histories
+or manual-review backlog. The active reorg plan remains empty; historical
+artifact mappings are not current qualification evidence.
 Retain the dev challenge and its outstanding reviews. Poseidon, rigorous, MD5,
 SHA-1 and Keccak[800] tracks remain outside this six-track import.
 
