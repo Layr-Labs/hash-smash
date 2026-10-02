@@ -1,10 +1,10 @@
 # SHA-256, 31 prefix rounds: unconditional collision construction
 
-The scalar below is `time_log2` under `collision-frontier-v4`. Memory remains
+The scalar below is `time_log2` under `collision-frontier-v5`. Memory remains
 a separately reported resource bound.
 
 This independent **exploratory** package selects `sha256-r31-exploratory`, target
-`sha256-r31-prefix-v1`, cost model `collision-frontier-v4`, and policy
+`sha256-r31-prefix-v1`, cost model `collision-frontier-v5`, and policy
 `paired-lanes-v1`. It submits a complete analytic algorithm, not an already
 computed collision. Readiness requests review; it does not assert an AI outcome
 or human acceptance. The full argument also addresses the rigorous review obligations.
@@ -15,7 +15,7 @@ or experimental-extrapolation premise is used. The required `baseline_improved`
 value `sha256-r31-nominal-v2` only identifies the organizer's nominal display
 reference; it is not an established attack, qualified baseline, or security
 bound. This package does not claim improvement over that reference. Its declared
-scalar is 148, with all bounds explained below.
+scalar is 136, with all bounds explained below.
 
 ## 1. Exact message and complete-hash definition
 
@@ -205,7 +205,10 @@ restarts to account for beyond the single fully charged execution.
 These are worst-case bounds for every random tape in the specified classical
 256-bit word RAM. Each selected compression costs one unit. Every other word
 load, store, arithmetic/Boolean operation, shift, comparison, branch, and random
-word costs one. Constants and bytes are retained in the bounds below.
+word costs 1/2140 target-compression units. In the instruction budgets below,
+ordinary-operation counts are unpriced counts W, not target-compression units.
+Compression calls are counted separately as H_calls; their expansion and round
+internals are not included in W. Constants and bytes are retained below.
 
 ### 5.1 Instruction and interface budgets
 
@@ -239,15 +242,17 @@ exit again, the pass cost is at most
 
     8*(128q + 64(q/2) + 64) <= 2048q.
 
-The generation wrapper uses at most 200 core operations per message, plus two
-random-word instructions and two compression calls. A direct wrapper uses at
-most 32 shifts/masks to unpack the first block, 24 shifts/ORs to pack the final
+The generation wrapper uses at most 200 ordinary core operations per message,
+plus two random-word instructions and dispatch of two compression calls. A
+direct wrapper uses at most 32 shifts/masks to unpack the first block, 24 shifts/ORs to pack the final
 digest, and 144 further operations for IV/state copies, access to the already
 initialized padding block, record addressing/stores and loop control. Transfers
 of primitive input/output state and scalar scratch are covered by the eight-operation
 allowance. Fetching and dispatching the two random-word instructions and two
 compression calls can each be allowed eight operations. This is at most
-8*200+8*4<2048 charged operations per sampled message.
+8*200+8*4<2048 ordinary operations per sampled message. The two compression
+calls themselves cost two additional target-compression units. Random draws,
+call dispatch, operand transfer and instruction fetches remain inside W.
 The second block is a fixed scratch constant; a packed-block interface costs
 no more. Expansion and 31 rounds are inside each compression's unit cost.
 
@@ -255,7 +260,8 @@ Each scan position needs at most 64 core operations (six field loads, bounded
 address calculations, equality tests, branches and index updates). Its cap of
 2048 charged operations includes copying a prospective output pair. Final
 verification happens at most once; two hashes through the same wrapper, full
-digest/message comparisons and output stores cost less than 8192 operations.
+digest/message comparisons and output stores cost less than 8192 ordinary
+operations, plus four compression calls.
 The possible final FAIL path is within the same cap.
 
 ### 5.2 Code, setup, peak storage, and address width
@@ -278,8 +284,10 @@ words, eight-word input/output states, indices, saved records, counters and
 output. These listed objects require fewer than 256 words; the larger cap
 covers all spills and even unused schedule positions. A loader may read/write
 every code/constant word, initialize all fixed scratch, and establish array
-base addresses in fewer than 2^20 charged instructions. This is the declared
-`preprocessing_log2: 20`, also included in total time. No message-dependent
+base addresses in fewer than 2^20 ordinary operations. The declared
+`preprocessing_log2: 20` remains a conservative bound in target-compression
+units: the actual setup costs less than 2^20/2140. Setup is included in total
+time. No message-dependent
 setup, precomputed search or stored collision is omitted.
 
 The two arrays occupy exactly 6q words=192q bytes. Large arrays are not assumed
@@ -299,14 +307,28 @@ algorithm stores q, which fits in one word and can be formed by a shift.
 ### 5.3 Total time and auxiliary claim fields
 
 Including setup, all trials, all 129 merge passes, scanning and verification,
+the following separates compression calls from every other charged operation:
 
-    T <= 2^20 + 2048q + 129*2048q + 2048q + 8192
-       = 2^20 + 131*2048q + 8192
-       < 2^19*q = 2^148 charged units.
+| Phase | Compression calls, at cost 1 each | Ordinary operations, at cost 1/2140 each |
+| --- | ---: | ---: |
+| Fixed setup | 0 | 2^20 |
+| Generate all q records | 2q | 2048q |
+| All 129 merge passes | 0 | 129*2048q |
+| Scan | 0 | 2048q |
+| Final verification and output | at most 4 | 8192 |
 
-This proves `time_log2: 148` in the model's `target-compressions` unit, which
-also charges every ordinary primitive operation. The submitted upper bounds
-rather than the sharper internal ledger define scalar 148. Setup is inside T.
+Thus H_calls <= 2q+4 and W <= 268288q+1056768. These ordinary caps retain
+spare allowance from the explicit instruction budgets; they do not count the
+compression internals. With C=2140, v5 gives
+
+    T = H_calls + W/2140
+      <= (2 + 268288/2140)q + 4 + 1056768/2140
+       < 128q = 2^136,  for q=2^129.
+
+The last strict inequality is rational arithmetic, including the constant
+terms; 2+268288/2140 is approximately 127.368224. This proves the submitted
+`time_log2: 136`. All setup is inside T. This reconstructs the phase counts,
+rather than dividing the old rounded scalar by C or discounting hash calls.
 
 To fix units for the otherwise untyped data field, `data_log2: 137` bounds
 **bytes of complete padded input presented to hashing**, including final
@@ -338,3 +360,14 @@ external-link dependence or participant-code execution. This is an
 astronomically expensive theoretical RAM construction, not a measured run,
 practical attack, or new SHA-256 security result. Any eventual selected-lane AI
 qualification remains distinct from mathematical proof or human acceptance.
+
+## 7. Source and accounting revision
+
+This is an accounting revision of the organizer's SHA-256 r31 package
+`35a8a47f2601b035331d7db4b6275f5c36b1d1be00e379f5e58d54e5328696a8`
+in production base `0455d2b52f4f920fe5c3a6af8c71592a824e6a57`.
+Its complete-hash definition, three-word records, lexicographic merge sort,
+probability proof, success lower bound and memory bound are retained. The
+former v4 declaration was 148; the explicit counts now support 136 at v5
+prices. This is a new package requiring fresh ordinary review, not a replay
+of an earlier qualification or a new cryptanalytic algorithm.

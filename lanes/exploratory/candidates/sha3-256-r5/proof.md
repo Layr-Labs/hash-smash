@@ -1,13 +1,13 @@
 # A fixed-function collision baseline for five-round SHA3-256
 
-The scalar below is `time_log2` under `collision-frontier-v4`. Memory remains
+The scalar below is `time_log2` under `collision-frontier-v5`. Memory remains
 a separately reported resource bound.
 
 This independent exploratory package targets sha3-256-r5-prefix-v1. It proposes
 a classical randomized algorithm with success at least 1/2, total charged time
-at most 2^149 units, and peak memory at most 2^137 bytes under
-collision-frontier-v4. These are conservative analytical upper bounds, not
-measured execution costs. The claimed scalar is 149.
+at most 2^137.785 units, and peak memory at most 2^137 bytes under
+collision-frontier-v5. These are conservative analytical upper bounds, not
+measured execution costs. The claimed scalar is 137.785.
 
 The proof uses no distributional property of SHA3: every fixed function from
 the chosen message domain to 256-bit strings satisfies its probability bound.
@@ -191,7 +191,9 @@ The number concerns algorithmic success, not confidence in a proof or review.
 ## 5. Fully charged RAM implementation
 
 One 256-bit word is 32 bytes. Each selected five-round permutation costs one
-unit; every other listed RAM primitive costs one unit. All bounds include
+unit; every other listed RAM primitive costs 1/1355 units. Ordinary-operation
+counts W below are separate from permutation calls H_calls. The permutation's
+internal rounds are not counted again in W. All bounds include
 message construction, failed samples, randomness, memory initialization,
 sorting, verification, and fixed code/constants. There is no external disk,
 unaccounted preprocessing service, whole-hash oracle, or free sorting step.
@@ -220,20 +222,24 @@ The following large caps allow redundant copying, instruction decoding,
 explicit operand loading/storing and address arithmetic. They do not depend
 on treating high-level sort/serialization as unit-cost operations.
 
-| Activity | Charged-unit upper bound |
-| --- | ---: |
-| Initialize code, constants and all fixed workspace | 2^24 |
-| Initialize both record arrays | 128n |
-| Generate, hash and retain n messages | 65536n |
-| Exactly 129 merge passes | 129 * 4096n |
-| Scan adjacent records | 2048n |
-| Final reconstruction, verification and output | 2^18 |
+| Activity | Permutation calls, at cost 1 each | Ordinary operations, at cost 1/1355 each |
+| --- | ---: | ---: |
+| Initialize code, constants and all fixed workspace | 0 | 2^24 |
+| Initialize both record arrays | 0 | 128n |
+| Generate, hash and retain n messages | n | 65536n |
+| Exactly 129 merge passes | 0 | 129 * 4096n |
+| Scan adjacent records | 0 | 2048n |
+| Final reconstruction, verification and output | at most 2 | 2^18 |
 
-For fixed initialization, 2^19 words with at most 16 units per word costs
-at most 2^23, within the stated 2^24 cap. This loads the finite explicit code
+The counts in the last column are ordinary-operation envelopes; their
+instruction fetches, memory traffic and spare allowance are retained. The
+permutation calls in the middle column are priced independently.
+
+For fixed initialization, processing 2^19 words at at most 16 ordinary
+operations per word takes at most 2^23 operations, within the stated 2^24 cap. This loads the finite explicit code
 and public constants; it does not assume a target-dependent advice oracle.
 Array initialization uses six stores per index and fewer than 120 additional
-load/address/counter/control units, fitting the 128n cap.
+load/address/counter/control operations, fitting the 128n cap.
 
 Here is an explicit wrapper construction justifying 65536 per generated
 record. Store each 64-bit lane in its own RAM word. Extract message bytes
@@ -243,11 +249,12 @@ and XOR those lanes into the state. At most 512 constant-size loop iterations
 suffice in total: 64 byte extraction, 136 padding/block initialization, 25
 state initialization, 136 byte-to-lane packing, 17 absorptions, and 32 output
 byte encodings sum to 410. Each iteration can be implemented in fewer than
-64 charged units including operand access, bit operations, loop control and
-address arithmetic. These cost at most 32768. Two random-word draws, the one
-selected permutation, output-word packing, sample-loop control, and storing
-the three-word record fit within a further 1024 units. Total <65536. Every
-selected permutation is charged; its code and buffers are in the fixed reserve.
+64 ordinary operations including operand access, bit operations, loop control
+and address arithmetic. These take at most 32768 ordinary operations. Two random-word draws, the one
+selected permutation's dispatch, output-word packing, sample-loop control,
+and storing the three-word record fit within a further 1024 ordinary
+operations. Ordinary total <65536; add one target-permutation unit per hash.
+The permutation's code and buffers remain in the fixed reserve.
 
 For merges, each output record requires at most two exhaustion comparisons
 with branches, two key loads and a comparison/branch, three record loads and
@@ -264,15 +271,24 @@ The scan uses fewer operations per pair than this merge loop and so fits
 
 Final verification uses at most two complete hash wrappers, message
 distinctness, full digest comparisons and output serialization: less than
-2*65536+1024 <2^18. There is no restart cost because no restart occurs.
+2*65536+1024 <2^18 ordinary operations, plus two permutation calls.
+There is no restart cost because no restart occurs.
 
 Summing all phases, including the cost of batches that fail to find a collision,
 
-    T <= (128 + 65536 + 129*4096 + 2048)n + 2^24 + 2^18
-       = 596096n + 2^24 + 2^18
-       < 1048576n
-       = 2^149.
+    H_calls <= n+2
+    W <= (128 + 65536 + 129*4096 + 2048)n + 2^24 + 2^18
+       = 596096n + 17039360
+    T = H_calls + W/1355
+      <= (1 + 596096/1355)n + 2 + 17039360/1355
+       < (440924/1000)n
+       < 2^8.785 n = 2^137.785,  for n=2^129.
 
+Both strict inequalities can be checked with integers: substitute n=2^129
+in the first and clear denominators; the second is exactly
+`440924^200 < 2^1757 * 1000^200`, since 8.785=1757/200. This rounds upward
+with the fixed setup and final verification included, not just the leading
+coefficient (approximately 440.923247). No old rounded total is divided by C.
 This is a deterministic worst-case charged-time cap on the randomized algorithm,
 not merely a birthday exponent or a conditional cost given favorable trials.
 
@@ -289,14 +305,15 @@ The memory figure is an abstract RAM allowance, not a claim of physical feasibil
 
 The claim fields have these precise meanings:
 
-- time_log2=149 bounds total charged time by 2^149 units.
+- time_log2=137.785 bounds total charged time by 2^137.785 units.
 - memory_log2_bytes=137 bounds simultaneous storage by 2^137 bytes.
 - data_log2=130 bounds complete-hash evaluations by n+2 <=2^130, including
   the two final re-evaluations. It counts evaluated message instances, not
   bytes or distinct messages. Every repeated sample is counted; external
   supplied data is zero and all retained data bytes are in peak memory.
 - preprocessing_log2=137 bounds fixed setup plus both-array initialization:
-  2^24+128n <2^137 units. It is already included in T, not an omitted phase.
+  (2^24+128n)/1355 <2^137 target-compression units. This retained upper
+  bound is deliberately loose; actual setup is included in T, not an omitted phase.
 - nonuniform_advice_log2_bytes=0 means at most 2^0=1 byte of advice; actual
   nonuniform advice is zero. The schema cannot express log2(0). Public
   constants and code are fully charged in the fixed storage and initialization.
@@ -315,7 +332,7 @@ experiment manifest or participant executable is supplied.
 The required baseline_improved identifier sha3-256-r5-nominal-v2 names the
 organizer's nominal display reference 128. It is not an established attack,
 qualified baseline or security bound; the identifier's field name is not a
-claim of improvement. This candidate's scalar bound 149 exceeds 128. No
+claim of improvement. This candidate's scalar bound 137.785 exceeds 128. No
 Pareto dominance claim follows from scalar scoring.
 
 submission_state=ready means this independent exploratory package is complete
@@ -323,3 +340,14 @@ for review. It does not assert an actual qualifying review, an emitted score,
 human acceptance, or Yukon promotion. Its substantive obligations and evidence
 are intended to meet rigorous standards, while each lane still requires its own
 correctly bound package and selected-lane review outcome.
+
+## 7. Source and accounting revision
+
+This is an accounting revision of the organizer's SHA3-256 r5 package
+`79dcf0c2f0e1b4448c0cdf2f77b769a59ae738c637e07b120bc451be9af50ec7`
+in production base `0455d2b52f4f920fe5c3a6af8c71592a824e6a57`.
+The complete hash, byte-oriented wrapper, array initialization, three-word
+records, stable merge sort, probability proof, success lower bound and memory
+bound are retained. The former v4 declaration was 149; the same phase counts
+support 137.785 under v5. This new package requires fresh ordinary review;
+no historical qualification or new cryptanalytic algorithm is asserted.

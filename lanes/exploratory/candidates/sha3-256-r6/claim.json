@@ -6,7 +6,7 @@
   "rounds": 6,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 150,
+    "time_log2": 137.4,
     "time_unit": "target-compressions",
     "memory_log2_bytes": 138,
     "data_log2": 130,

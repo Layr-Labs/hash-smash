@@ -1,18 +1,18 @@
 # SHA-256, first 32 rounds: exploratory analytic candidate
 
-The scalar below is `time_log2` under `collision-frontier-v4`. Memory remains
+The scalar below is `time_log2` under `collision-frontier-v5`. Memory remains
 a separately reported resource bound.
 
 This package is bound to `sha256-r32-exploratory`, target profile
-`sha256-r32-prefix-v1`, and cost model `collision-frontier-v4`. It gives a
-classical probabilistic algorithm with worst-case charged time at most `2^148`,
+`sha256-r32-prefix-v1`, and cost model `collision-frontier-v5`. It gives a
+classical probabilistic algorithm with worst-case charged time at most `2^136`,
 peak memory at most `2^138` bytes, and algorithmic success probability at least
 `0.8`. It is a complete analytic candidate; no full-scale execution or concrete
 collision certificate is claimed. All necessary arguments appear below.
 
 The required identifier `sha256-r32-nominal-v2` names an organizer display
 reference, not an established attack, qualified baseline, or security bound.
-The claimed total-computation scalar is `148`. This candidate does not
+The claimed total-computation scalar is `136`. This candidate does not
 claim an improvement over the nominal number 128 or a cryptanalytic advance.
 Readiness is a request for review, not a claim of AI qualification or acceptance.
 
@@ -213,10 +213,12 @@ fixed SHA-256 target, not confidence in the proof or in an AI review.
 
 ## 5. Charged time: a deliberately loose concrete instruction ledger
 
-Every number in this section counts unit operations in the organizer's 256-bit
-RAM, including a selected C32 compression at one unit. Loads, stores, random
-words, arithmetic, masks, shifts, comparisons, and branches each count. Fixed
-register transfers are charged as load/store operations rather than free moves.
+A selected C32 compression costs one target-compression unit. Each other
+primitive costs 1/2224 units under v5. The budgets below count ordinary
+operations W separately from compression calls H_calls. Loads, stores, random
+words, arithmetic, masks, shifts, comparisons, and branches all count in W.
+Compression expansion, rounds and feed-forward are internal to H_calls and
+are not also included in W. Fixed register transfers are charged as load/store operations rather than free moves.
 Constants can be read from fixed RAM storage; their accesses are included.
 A fixed-register transfer or arithmetic instruction with operands/results in
 RAM expands to at most eight primitive operations (at most two operand
@@ -226,26 +228,28 @@ A call to H requires exactly two C32 operations. An explicit wrapper loads the
 eight IV words, places u,v and the two constant padding words in block registers,
 passes the first feed-forward state to the second compression, and packs the
 eight final 32-bit words by shifts and ORs into a digest word. Reserving 256
-wrapper instructions, each at most eight operations, plus two compression
-operations is below 4096 operations per H. This covers block loading/unpacking
-if the primitive uses sixteen 32-bit input registers: at most 32 input fields
+ordinary wrapper instructions, each at most eight operations, is below 4096
+ordinary operations per H, including call dispatch and operand transfers.
+The two compression calls cost two additional target-compression units. The
+wrapper allowance covers block loading/unpacking if the primitive uses sixteen 32-bit input registers: at most 32 input fields
 are extracted using two shifts/masks or fewer each. Padding is fixed and its
 original length is 512 bits on every invocation. C32 itself is the selected
 unit-cost primitive explicitly allowed by the model, with Section 1 specifying
 its complete semantics. No separate full-hash unit-cost primitive is assumed.
 
-The following implementation budgets are sufficient; all are upper bounds,
-not measured costs or asymptotic notation:
+The following implementation budgets are sufficient; all ordinary counts are
+unpriced upper bounds, not measured costs or asymptotic notation. Hash calls
+are listed separately and never divided by C:
 
-| Phase or loop component | Upper bound and justification |
+| Phase or loop component | Ordinary-operation upper bound and separate hash calls |
 | --- | --- |
 | Fixed initialization/preprocessing | `2^20` operations: load/initialize the finite program, IV/constants, padding and scratch described in Section 6; set array bases, q and counters. No offline search. |
-| Sampling and storing one record | `8192` operations: two random-word draws, one H call below 4096, four record stores, and fewer than 128 remaining instructions of at most eight operations for word transfers, pointers, and loop control. |
+| Sampling and storing one record | `8192` operations: two random-word draws, one H wrapper below 4096 plus two separate compression calls, four record stores, and fewer than 128 remaining instructions of at most eight operations for word transfers, pointers, and loop control. |
 | One merge emission | `1024` operations: at most 16 exhaustion-test/control instructions, 16 field-load/address instructions, 16 lexicographic comparison/branch instructions, 24 instructions to load/address/store four copied fields, 16 cursor/loop updates, and 16 extra transfers; at most 104 instructions, each expanded to at most eight operations, gives 832 with 192 spare. |
 | One merge's setup and finish | `1024` operations: fewer than 128 instructions of at most eight operations to load bases, form boundaries by shifts/additions, initialize cursors and advance outer-loop position. |
 | One sort pass | `2048q + 1024` operations: q emissions and at most q merges, with 1024 operations for swapping base variables, doubling width and pass control. |
 | One adjacent scan position | `1024` operations: up to six field loads with addressing, full-word digest equality, two message-word comparisons, boolean/branch operations and cursor control; fewer than 128 instructions at eight operations. |
-| Final verification/output | `2^16` operations total: two H calls, message/digest comparisons, copying four message words and serialization to at most 128 output bytes; even byte-at-a-time shifts, masks, stores and loop control fit. |
+| Final verification/output | `2^16` ordinary operations total plus four compression calls: two H wrappers, message/digest comparisons, copying four message words and serialization to at most 128 output bytes; even byte-at-a-time shifts, masks, stores and loop control fit. |
 
 There is no comparison of more than three words hidden in the merge count.
 When an input run is exhausted, the same emission budget copies from the other
@@ -256,20 +260,26 @@ these time bounds. Choosing direct conditional-branch targets needs no indirect
 comparison oracle or uncharged sorting/library routine.
 
 There are q samples, exactly 129 merge passes, at most q-1 scan positions, and
-at most one final verification. Thus the total, on every choice of coins, is
+at most one final verification. On every choice of coins,
 
 ```
-T <= 2^20 + 8192q + 129(2048q+1024) + 1024q + 2^16
+H_calls <= 2q+4
+W <= 2^20 + 8192q + 129(2048q+1024) + 1024q + 2^16
    = 273408q + 1246208
-   < 2^19 q
-   = 2^148.
+T = H_calls + W/2224
+  <= (2 + 273408/2224)q + 4 + 1246208/2224
+   < 128q = 2^136,  for q=2^129.
 ```
 
-(The constant is `1048576 + 132096 + 65536 = 1246208`.) Every sample, failure,
-random draw, lookup, verification, construction and preprocessing operation is
-inside T. There is one finite run, so there are no restart costs or expected-
-time truncation assumptions. `time_log2=148` is a worst-case upper-bound
-exponent expressed in the cost model's `target-compressions` unit.
+The constant is `1048576 + 132096 + 65536 = 1246208`. The last inequality
+includes every constant and is exact rational arithmetic;
+`2+273408/2224` is approximately 124.935252. The ordinary-operation caps
+retain their spare allowances without including compression internals.
+Every sample, failure, random draw, lookup, verification, construction and
+preprocessing operation is inside T. There is one finite run, so there are
+no restart costs or expected-time truncation assumptions. `time_log2=136`
+is the submitted worst-case upper-bound exponent in target-compression
+units. This prices the phase counts, not the old rounded scalar.
 
 ## 6. Memory, code, data, and advice
 
@@ -306,9 +316,10 @@ This is why `memory_log2_bytes=138` counts actual bytes, rather than the
 collision exponent 128 or a nominal constant-memory value. Every address and
 integer needed by this storage plan fits within the model's word width.
 
-`preprocessing_log2=20` bounds fixed preprocessing in the same time units as T,
-and those `2^20` units are already included in T. Array writes performed during
-sampling and sorting are also already charged; there is no prior table build.
+`preprocessing_log2=20` remains a conservative fixed-preprocessing bound in
+the same time units as T: at most `2^20` ordinary operations cost `2^20/2224`
+target-compression units. That cost is already included in T. Array writes
+performed during sampling and sorting are also already charged; there is no prior table build.
 No nonuniform advice is used, so its actual size is zero bytes. The schema
 requires a finite nonnegative logarithm; `nonuniform_advice_log2_bytes=0`
 means a conservative upper bound of one byte, not the literal logarithm of
@@ -344,3 +355,14 @@ full-scale practical feasibility, measured wall time, or a known message-pair
 collision. Abstract resources are enormous but fit the stated RAM and message
 domains. A reduced toy experiment would not strengthen the distribution-free
 full-size proof and is not substituted for it.
+
+## 8. Source and accounting revision
+
+This is an accounting revision of the organizer's SHA-256 r32 package
+`1ea1b56755dba6fe670f3a436fa788c34dac8f5b93b4a312819a22a33c5a9163`
+in production base `0455d2b52f4f920fe5c3a6af8c71592a824e6a57`.
+The complete-hash definition, four-word records, lexicographic merge sort,
+probability proof, 0.8 success lower bound and memory bound are retained.
+The former v4 declaration was 148; the explicit counts support 136 at v5
+prices. This new package needs fresh ordinary review and does not inherit
+an earlier qualification or claim a new cryptanalytic algorithm.
