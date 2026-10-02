@@ -9,11 +9,34 @@ from pathlib import Path
 from verifier.constants import MAX_PROOF_BYTES
 from verifier.errors import VerificationError
 from verifier.intake import validate_candidate
+from verifier.schema_validation import validate_claim
 
 from verifier.tests.common import TRACK, add_manifest, make_candidate, valid_claim, write_json
 
 
 class IntakeTests(unittest.TestCase):
+    def test_optional_legacy_data_is_preserved_without_normalizing_claim(self):
+        for value in (None, 0, 137.5):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as directory:
+                claim = valid_claim()
+                claim["claim"].pop("data_log2", None)
+                if value is not None:
+                    claim["claim"]["data_log2"] = value
+                candidate = make_candidate(Path(directory), claim)
+                before = (candidate / "claim.json").read_bytes()
+                report = validate_candidate(candidate, track=TRACK)
+                self.assertEqual(report["claim"], claim)
+                self.assertEqual((candidate / "claim.json").read_bytes(), before)
+                self.assertEqual("data_log2" in report["claim"]["claim"], value is not None)
+
+    def test_optional_data_still_rejects_invalid_supplied_values(self):
+        for value in (None, True, "12", -1, float("nan"), float("inf")):
+            with self.subTest(value=value):
+                claim = valid_claim()
+                claim["claim"]["data_log2"] = value
+                with self.assertRaisesRegex(VerificationError, "data_log2"):
+                    validate_claim(claim, track=TRACK)
+
     def test_valid_candidate_writes_hashed_line_numbered_artifacts(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

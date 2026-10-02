@@ -68,8 +68,8 @@ AWS currently lists structured outputs as unsupported for Sol on Bedrock Runtime
 The organizer-owned `prompts/bedrock-sol-json-v1.md` instructions therefore include the
 stage-specific schema. The response must complete with exactly one assistant JSON
 review; refusals, tool calls, truncated responses, fenced JSON, duplicate keys, schema
-violations, and semantic inconsistencies fail closed. Only stage-inapplicable null/empty
-fields are supplied by normalization; claims and verdicts are never repaired. Effective
+violations, and semantic inconsistencies fail closed. The harness supplies request metadata, stage-inapplicable null/empty fields and
+derived bookkeeping values. Substantive judgments are never filled in or repaired. Effective
 prompt hashes, API route, actual returned model, request IDs, and token usage are recorded.
 
 `store=false` disables Responses conversation storage; it is not a claim of account-wide
@@ -134,12 +134,85 @@ The default `single` mode uses independent calls to one client. Both modes use t
 same proof obligations and adjudication rules; neither uses majority voting.
 The dossier records effective models, prompt hashes and role configuration.
 
+Organizer-pinned [reorgs](../docs/RESCORING.md#reorg-judgments) supply the original
+submission, previous judgments and current judging instructions to one reviewer.
+It can accept, reject, or request missing evidence. Previous reasoning is reusable;
+the verdict is reconsidered under current rules. Accepted results preserve the last
+accepted score unless the scoring policy changed. Other results emit no score and
+remain in history.
+
 ## Diagnostics and tests
+
+The provider contract contains only the selected role's substantive outputs.
+The harness attaches stage, version and evidence binding, derives the duplicate
+normalized score and prompt-injection flag, and supplies inapplicable empty fields.
+Normal cost reviews explain their calculation without a required resource ledger.
+
+JSON, schema, context and declared-heuristic coverage errors share the configured
+provider retry budget. Retries receive validator-generated feedback and ask for a
+complete review, never a more favorable verdict. Valid rejections are not retried.
+Successful provenance retains retry diagnostics; failures retain category, location
+where available, stage, attempt count and request ID. Arbitrary provider exceptions
+remain redacted. Workflow output exposes the final diagnostic as infrastructure
+failure rather than a cryptanalytic rejection.
+
+### Bedrock HTTP recovery and diagnostics
+
+Bedrock keeps a single `max_attempts` budget of **three total requests per role**.
+HTTP/transport failures and invalid JSON, schema or semantic outputs all consume
+that budget. `max_attempts=1` remains exactly one request, including smoke and
+calibration probes. Valid rejections are never retried, and no failure changes the
+model, provider, API route or qualification gates.
+
+HTTP 408, 429 and 5xx responses and transport failures use
+`transient_base_retry_seconds=60` and `transient_max_retry_seconds=120`.
+Exponential backoff uses the request attempt number with 0.75–1.25 jitter and a
+hard 120-second cap **after jitter**: absent a server hint, the two default waits
+are 45–75 seconds and 90–120 seconds. `Retry-After` accepts numeric seconds or an
+HTTP-date as a minimum delay, capped at 120 seconds; shorter hints do not reduce
+backoff. Invalid, negative and nonfinite values are ignored. The maximum added
+sleep is 240 seconds per role with the default budget, excluding request time
+(the existing per-request timeout is 300 seconds). This bounded window cannot
+guarantee recovery from a longer outage. Validation retries keep the original
+`base_retry_seconds=0.5` and `max_retry_seconds=8` with bounded jitter. Terminal
+attempts and nonretryable HTTP errors never sleep or issue another request.
+
+Every HTTP failure retains `status`, `stage`, `attempt`, `latency_ms`, and
+`request_id` (null if absent). Recognized structured fields add `error_code`
+(up to 120 characters) and `message` (up to 300). The parser accepts top-level
+AWS errors and nested `error` objects, with an `x-amzn-errortype` header fallback.
+Only recognized AWS request-ID headers are retained, capped at 128 characters.
+Configured credentials, including URL-encoded forms, and common authentication
+patterns are redacted before truncation; control characters are removed and
+whitespace normalized. No raw response bodies or header maps, reasoning fields,
+request content or arbitrary transport-exception text are published. Non-JSON,
+malformed, ambiguous or oversized error envelopes (over 64 KiB) contribute no
+body fields; safe header identifiers, status and latency remain available.
+
+Per-attempt latency measures the transport call, excluding retry sleep. Transport
+and validation failures retain it too. A successful retry includes all previous
+failures in `provenance[stage].retry_diagnostics`, all call latencies in
+`attempt_latencies_ms`, and total elapsed `latency_ms` including sleeps. A failed
+role preserves its entire history in `failure_diagnostics[stage].errors`, even
+when a nonretryable error follows transient failures. Paired dossiers continue to
+mark both lanes `infra_failed` and ineligible if any required role fails.
+
+The new transient timing settings are included automatically in the serialized
+`judge_configuration` and its fingerprint. Target/qualification policy identity
+is unchanged by this adapter-only hardening. Scoring authenticates the
+configuration stored in a dossier rather than comparing it with current client
+defaults, so valid historical dossiers remain verifiable without new timing or
+diagnostic fields. Do not rewrite their settings or diagnostics. A different hash
+on a newly generated configuration alone does not invalidate pending scores or
+require a `yukon-unsafe` label; assess the actual harness/policy diff at handoff.
+
 
 Run deterministic tests before any live diagnostic:
 
 ```sh
+python3 -m unittest judge.tests.test_bedrock_adapter judge.tests.test_bedrock_failures tests.test_frontier_pipeline
 bash .yukon/setup.sh
+python3 scripts/validate_frontier_config.py
 python3 scripts/hashsmash_pipeline.py intake --track sha256-r31-exploratory
 ```
 

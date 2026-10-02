@@ -17,7 +17,7 @@ comparison, and one output action cost at most 11 operations. A loop-free
 implementation using four additional one-byte scratch registers uses at most
 10 bytes. The submitted conservative bounds are 16 operations and 16 bytes.
 The time unit is toy-operations. There is no input data, preprocessing, advice,
-or randomness. Success probability is exactly 1, and log2(T*M)=4+4=8.
+or randomness. Success probability is exactly 1, and log2(T)=4; memory_log2_bytes=4 remains a reported metric.
 
 No heuristic or empirical extrapolation is required. The elementary algebra above
 establishes the result independently of running an experiment.

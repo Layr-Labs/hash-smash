@@ -7,15 +7,18 @@ Builder work does not grant an unassigned candidate directory to edit.
 
 ## Context and ownership
 
-The [frontier guide](./FRONTIER_LANES.md) defines 16 runnable paired tracks and
-12 reserved slots, for 28 eventual slots. The SHA-1 pilot and nine unpaired local
+The [frontier guide](./FRONTIER_LANES.md) retains a local research catalog of
+24 runnable paired tracks and 4 historical Poseidon slots. The active manifest
+selects six exploratory SHA-256, SHA3-256, and BLAKE3 tracks; two exploratory
+Poseidon targets remain deferred pending definition. The SHA-1 pilot and nine unpaired local
 tracks are retired. Preserve the single repository-root schema-v2
 [manifest](../benchmark.json), lane-suffixed public track IDs, and independent
 candidate, score, and report paths. Lane metadata is bound by the protected
 registry, claim validation, review fingerprints, and score `metrics.lane`.
 
-Do not assign guessed boundaries to pending BLAKE3, Keccak[800], or Poseidon slots,
-admit them to the runnable registry, or emit placeholder scores. MD5/SHA-1 endpoints
+BLAKE3 1/2 and Keccak[800] 5/6 are organizer-selected exploration pairs, not
+assertions of a first-unbroken boundary. Keep the four Poseidon slots deferred
+until their exact definition is assigned. Never emit placeholder scores. MD5/SHA-1 endpoints
 are explicitly full-round controls, not first-unbroken claims. Follow the frontier
 guide and [research context](./FRONTIER_RESEARCH.md) for target-definition work.
 
@@ -23,7 +26,7 @@ Use these guides for the assigned subsystem:
 
 | Work | Required context |
 | --- | --- |
-| Target/claim/certificate verification and score construction | [Verifier](../verifier/README.md), [claim schema](../schemas/claim-frontier-v3.schema.json), [cost model](../cost-models/collision-frontier-v3.json), and the selected target profile |
+| Target/claim/certificate verification and score construction | [Verifier](../verifier/README.md), [claim schema](../schemas/claim-frontier-v3.schema.json), [cost model](../cost-models/collision-frontier-v5.json), and the selected target profile |
 | Judge providers, roles, or qualification | [Judge implementation](../judge/README.md) and [review policy](./JUDGE_LANES.md) |
 | Candidate experiments | [Experiment protocol](./HEURISTIC_EXPERIMENTS.md) |
 | Yukon App, imports, Actions, baseline validation, or promotion checks | [Dev operator runbook](./YUKON_DEV_SETUP.md) |
@@ -90,6 +93,9 @@ provide local judge access. A local score does not replace Yukon's validation of
 the exact imported or submitted content.
 
 For deployment, use the [Dev runbook](./YUKON_DEV_SETUP.md): one import at the
-repository root, with no lane-specific import root. Keep all 16 baseline checks
-independent. The 12 unresolved slots stay inactive; current platform limits and
-target-definition prerequisites are documented there.
+repository root, with no lane-specific import root. Reconcile the existing
+challenge against the six-track manifest, preserving retained names, paths,
+settings, and results. Close the fourteen omitted tracks and resolve their jobs
+and reviews before archival. No reorg is needed for membership changes alone.
+Keep all undefined Poseidon slots inactive; only two exploratory targets are
+planned for the active challenge.

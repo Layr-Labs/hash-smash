@@ -5,6 +5,7 @@ Docker case executes an organizer probe and makes no cryptanalytic claim.
 """
 
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
+from dataclasses import replace
 import io
 import json
 import os
@@ -14,8 +15,11 @@ import unittest
 from unittest.mock import patch
 import zipfile
 
-from judge.bedrock_adapter import BedrockConfig
+from judge.bedrock_adapter import BedrockClient, BedrockConfig
 from judge.lanes import INITIAL_STAGES, LANE_STAGES
+from judge.tests.helpers import fixture_review
+from judge.tests.test_bedrock_adapter import FakeTransport, StepClock, sol_response
+from judge.tests.test_bedrock_failures import http_error
 from scripts import hashsmash_pipeline as pipeline
 from scripts.stage_yukon_score import stage_score
 from tests.test_experiments import addition, program
@@ -24,7 +28,7 @@ from tests.test_paired_judges import FixtureClient, add_fatal
 from verifier.errors import VerificationError
 from verifier.frontier_tracks import catalog, frontier_tracks, planned_slots
 from verifier.intake import validate_candidate
-from verifier.io import atomic_write_json, sha256_bytes
+from verifier.io import atomic_write_json, canonical_json_bytes, sha256_bytes
 from verifier.frontier_tracks import ROOT, get_frontier_track
 
 
@@ -90,7 +94,7 @@ class FrontierPipelineTests(unittest.TestCase):
 
     def test_every_active_track_runs_end_to_end_with_independent_bound_outputs(self):
         tracks = frontier_tracks()
-        self.assertEqual(len(tracks), 16)
+        self.assertEqual(len(tracks), 24)
         manifest = read_json(ROOT / "benchmark.json")
         atomic_write_json(self.root / "benchmark.json", manifest)
         manifest_tracks = {row["name"]: row for row in manifest["tracks"]}
@@ -98,6 +102,9 @@ class FrontierPipelineTests(unittest.TestCase):
         for track in tracks:
             with self.subTest(track=track.id):
                 paths = self.paths(track.id)
+                claim = read_json(paths.candidate / "claim.json")
+                claim["claim"]["memory_log2_bytes"] = 100
+                atomic_write_json(paths.candidate / "claim.json", claim)
                 paths = pipeline.RunPaths.for_track(
                     track, state_root=self.root / track.state_root.relative_to(ROOT),
                     candidate=paths.candidate,
@@ -106,6 +113,9 @@ class FrontierPipelineTests(unittest.TestCase):
                     self.assertEqual(pipeline.run_all(paths), 0)
                 score, aggregate = read_json(paths.score), read_json(paths.aggregate)
                 self.assertEqual(score["score"], track.nominal_score)
+                self.assertEqual(score["metrics"]["memoryLog2Bytes"], 100)
+                self.assertEqual(score["metrics"]["costModelId"], "collision-frontier-v5")
+                self.assertEqual(score["metrics"]["scoreMetric"], "timeLog2")
                 self.assertEqual(score["metrics"]["reviewStatus"], track.accepted_status)
                 self.assertEqual(score["metrics"]["lane"], track.lane)
                 self.assertFalse(score["metrics"]["referenceIsQualifiedBaseline"])
@@ -115,28 +125,37 @@ class FrontierPipelineTests(unittest.TestCase):
                 self.assertEqual([stage for stage, _ in client.calls], list(INITIAL_STAGES))
                 # Exercise the actual manifest-to-pipeline-to-upload handoff for
                 # every track. Yukon reads this exact ZIP entry, including lanes/.
-                score_path = manifest_tracks[track.id]["scorePath"]
-                artifact = self.root / "artifacts" / track.id
-                staged = stage_score(self.root, score_path, artifact)
-                archive = io.BytesIO()
-                with zipfile.ZipFile(archive, "w") as zipped:
-                    zipped.write(staged, staged.relative_to(artifact).as_posix())
-                with zipfile.ZipFile(archive) as zipped:
-                    self.assertEqual(zipped.namelist(), [score_path])
-                    self.assertEqual(json.loads(zipped.read(score_path)), score)
+                if track.id in manifest_tracks:
+                    score_path = manifest_tracks[track.id]["scorePath"]
+                    artifact = self.root / "artifacts" / track.id
+                    staged = stage_score(self.root, score_path, artifact)
+                    archive = io.BytesIO()
+                    with zipfile.ZipFile(archive, "w") as zipped:
+                        zipped.write(staged, staged.relative_to(artifact).as_posix())
+                    with zipfile.ZipFile(archive) as zipped:
+                        self.assertEqual(zipped.namelist(), [score_path])
+                        self.assertEqual(json.loads(zipped.read(score_path)), score)
                 outputs.add(paths.score)
                 configs.add(score["metrics"]["targetConfigSha256"])
                 packages.add(score["metrics"]["inputPackageSha256"])
-        self.assertEqual(len(outputs), 16)
-        self.assertEqual(len(configs), 16)
-        self.assertEqual(len(packages), 16)
+        self.assertEqual(len(outputs), 24)
+        self.assertEqual(len(configs), 24)
+        self.assertEqual(len(packages), 24)
 
     def test_catalog_and_yukon_manifests_preserve_pending_slots_and_literal_routes(self):
         slots = planned_slots()
         self.assertEqual(len(slots), 28)
-        self.assertEqual(sum(slot["rounds"] is None for slot in slots), 12)
+        self.assertEqual(sum(slot["rounds"] is None for slot in slots), 4)
+        self.assertEqual({slot["cost_model_id"] for slot in slots}, {"collision-frontier-v5"})
         families = {family["id"]: family for family in catalog()["families"]}
         self.assertEqual(families["sha256"]["round_pair"], [31, 32])
+        for family, pair in (("blake3", [1, 2]), ("keccak800", [5, 6])):
+            self.assertEqual(families[family]["round_pair"], pair)
+            self.assertEqual(families[family]["selection_status"], "organizer_selected")
+            self.assertIsNone(families[family]["first_unbroken_round"])
+            for rounds in pair:
+                track = get_frontier_track(f"{family}-r{rounds}-exploratory")
+                self.assertIn(track.boundary_role, ("lower-exploration", "upper-exploration"))
         for family in ("md5", "sha1"):
             self.assertEqual(families[family]["selection_status"], "full_round_control")
             self.assertIsNone(families[family]["first_unbroken_round"])
@@ -144,7 +163,7 @@ class FrontierPipelineTests(unittest.TestCase):
         manifest = read_json(ROOT / "benchmark.json")
         self.assertEqual(manifest["schemaVersion"], 2)
         self.assertEqual(manifest["name"], "hashsmash")
-        self.assertEqual(len(manifest["tracks"]), 16)
+        self.assertEqual(len(manifest["tracks"]), 6)
         for row in manifest["tracks"]:
             track = get_frontier_track(row["name"])
             self.assertEqual(row["benchmarkCommand"], ["python3", "scripts/hashsmash_pipeline.py", "all", "--track", track.id])
@@ -156,14 +175,50 @@ class FrontierPipelineTests(unittest.TestCase):
             manifest_ids.add(track.id)
         for lane in ("exploratory", "rigorous"):
             self.assertFalse((ROOT / "lanes" / lane / "benchmark.json").exists())
-        self.assertEqual(manifest_ids, {track.id for track in frontier_tracks()})
+        self.assertEqual(manifest_ids, {
+            "sha256-r31-exploratory", "sha256-r32-exploratory",
+            "sha3-256-r5-exploratory", "sha3-256-r6-exploratory",
+            "blake3-r1-exploratory", "blake3-r2-exploratory",
+        })
         for undefined in (
-            "poseidon-r8-exploratory", "blake3-r6-rigorous", "keccak800-r6-exploratory",
+            "poseidon-r8-exploratory", "blake3-r6-rigorous", "keccak800-r7-exploratory",
             "md5-s8", "md5-s24", "md5-s64", "sha1-r8", "sha1-r40", "sha1-r80",
             "sha256-r8", "sha256-r24", "sha256-r64",
         ):
             with self.subTest(undefined=undefined), self.assertRaises(VerificationError):
                 get_frontier_track(undefined)
+
+    def test_old_and_new_claims_score_identically_without_rewriting_candidates(self):
+        for lane in ("exploratory", "rigorous"):
+            for value in (None, 0, 137.5):
+                with self.subTest(lane=lane, data=value):
+                    paths = self.paths(f"sha256-r31-{lane}", suffix=f"{lane}-{value}")
+                    claim_path = paths.candidate / "claim.json"
+                    claim = read_json(claim_path)
+                    self.assertNotIn("data_log2", claim["claim"])
+                    claim["claim"]["memory_log2_bytes"] = 17
+                    if value is not None:
+                        claim["claim"]["data_log2"] = value
+                    atomic_write_json(claim_path, claim)
+                    before = claim_path.read_bytes()
+
+                    def omit_data(stage, review, _):
+                        if stage == "lane_cost":
+                            review["cost_reconstruction"].pop("data_log2", None)
+
+                    with fake_provider(omit_data):
+                        self.assertEqual(pipeline.run_all(paths), 0)
+                    score = read_json(paths.score)
+                    self.assertEqual(score["score"], 128)
+                    self.assertEqual(score["metrics"]["memoryLog2Bytes"], 17)
+                    self.assertEqual(score["metrics"]["scoreMetric"], "timeLog2")
+                    self.assertNotIn("timeMemoryLog2", score["metrics"])
+                    if value is None:
+                        self.assertNotIn("dataLog2", score["metrics"])
+                    else:
+                        self.assertEqual(score["metrics"]["dataLog2"], value)
+                    self.assertEqual(claim_path.read_bytes(), before)
+                    self.assertEqual(read_json(paths.aggregate)["claim"], claim)
 
     def test_supported_baseline_above_nominal_can_score_without_claiming_improvement(self):
         for lane in ("exploratory", "rigorous"):
@@ -176,7 +231,7 @@ class FrontierPipelineTests(unittest.TestCase):
                 with fake_provider():
                     self.assertEqual(pipeline.run_all(paths), 0)
                 score = read_json(paths.score)
-                self.assertEqual(score["score"], 182)
+                self.assertEqual(score["score"], 94)
                 self.assertEqual(score["metrics"]["nominalReferenceScore"], 80)
                 self.assertFalse(score["metrics"]["improvesNominalReference"])
                 self.assertFalse(score["metrics"]["referenceIsQualifiedBaseline"])
@@ -187,14 +242,14 @@ class FrontierPipelineTests(unittest.TestCase):
         claim["claim"].update(time_log2=94, memory_log2_bytes=88)
         atomic_write_json(paths.candidate / "claim.json", claim)
         (paths.candidate / "proof.md").write_text(
-            "Organizer negative fixture: falsely asserts that 182 is less than 80.\n"
+            "Organizer negative fixture: falsely asserts that 94 is less than 80.\n"
         )
 
         def false_comparison(stage, review, _):
             if stage == "lane_evaluability":
                 review["findings"].append({
                     "id": "EVAL-001", "severity": "material", "category": "invalid_inference",
-                    "statement": "The explicit comparison 182 < 80 is false.",
+                    "statement": "The explicit comparison 94 < 80 is false.",
                     "obligation_ids": ["evidence_relevant"], "heuristic_ids": [],
                     "evidence": ["proof.md:L1"],
                 })
@@ -293,15 +348,18 @@ class FrontierPipelineTests(unittest.TestCase):
         self.assertFalse(paths.score.exists())
 
     def test_claim_or_dossier_tamper_after_judgment_blocks_score_and_clears_stale_file(self):
-        for kind in ("claim", "review", "configuration", "aggregate_lane"):
+        for kind in ("claim", "legacy_metadata", "review", "configuration", "aggregate_lane"):
             with self.subTest(kind=kind):
                 paths = self.paths(suffix=kind)
                 with fake_provider():
                     self.assertEqual(pipeline.run_all(paths), 0)
-                if kind == "claim":
+                if kind in ("claim", "legacy_metadata"):
                     target = paths.candidate / "claim.json"
                     content = read_json(target)
-                    content["claim"]["time_log2"] -= 1
+                    if kind == "claim":
+                        content["claim"]["time_log2"] -= 1
+                    else:
+                        content["claim"]["data_log2"] = 123
                 elif kind == "aggregate_lane":
                     target = paths.aggregate
                     content = read_json(target)
@@ -317,6 +375,86 @@ class FrontierPipelineTests(unittest.TestCase):
                 with patch.object(pipeline, "_provider_from_env", side_effect=AssertionError("unexpected provider")), patch("verifier.experiment_evidence.run_experiments", side_effect=AssertionError("unexpected execution")):
                     self.assertEqual(pipeline._execute("score", paths), 2)
                 self.assertFalse(paths.score.exists())
+
+    def test_bedrock_retry_config_is_bound_but_adapter_does_not_change_target_policy(self):
+        config = BedrockConfig(api_key="offline-fixture-no-credential", model="us.openai.gpt-5.6-sol")
+        original = pipeline._safe_config(config)
+        changed = pipeline._safe_config(replace(config, transient_base_retry_seconds=30,
+                                                transient_max_retry_seconds=60))
+        self.assertNotIn("api_key", original)
+        self.assertNotIn(config.api_key, json.dumps(original))
+        self.assertNotEqual(sha256_bytes(canonical_json_bytes(original)),
+                            sha256_bytes(canonical_json_bytes(changed)))
+        self.assertEqual({k for k in original if original[k] != changed[k]},
+                         {"transient_base_retry_seconds", "transient_max_retry_seconds"})
+        tracks = frontier_tracks()
+        before = [track.benchmark() for track in tracks]
+        read_bytes = Path.read_bytes
+
+        def changed_adapter(path):
+            if path == ROOT / "judge/bedrock_adapter.py":
+                return b"organizer fixture: different adapter implementation"
+            return read_bytes(path)
+
+        with patch.object(Path, "read_bytes", changed_adapter):
+            self.assertEqual([track.benchmark() for track in tracks], before)
+
+    def test_prior_bedrock_dossier_still_scores_with_current_retry_defaults(self):
+        paths = self.paths()
+        config = BedrockConfig(api_key="offline-fixture-no-credential", model="us.openai.gpt-5.6-sol")
+        # Reproduce the pre-hardening serialized config: short shared retry delays,
+        # no transient timing fields. Its historical provenance needs no new fields.
+        prior_config = pipeline._safe_config(config)
+        prior_config.pop("transient_base_retry_seconds")
+        prior_config.pop("transient_max_retry_seconds")
+        self.assertEqual(prior_config["base_retry_seconds"], 0.5)
+        self.assertEqual(prior_config["max_retry_seconds"], 8)
+        before = paths.track.benchmark()
+        with fake_provider(), patch.object(pipeline, "_safe_config", return_value=prior_config):
+            self.assertEqual(pipeline.run_all(paths), 0)
+        old_dossier = paths.dossier.read_bytes()
+        old_score = paths.score.read_bytes()
+        self.assertEqual(read_json(paths.dossier)["judge_configuration"]["judge"], prior_config)
+        self.assertNotEqual(prior_config, pipeline._safe_config(config))
+        # Current scoring authenticates the recorded settings; no new inference or
+        # reinterpretation under current client defaults is necessary.
+        with patch.object(pipeline, "_provider_from_env", side_effect=AssertionError("unexpected inference")), \
+             patch.object(pipeline, "_safe_config", side_effect=AssertionError("current defaults used")):
+            self.assertEqual(pipeline.run_score(paths), 0)
+        self.assertEqual(paths.dossier.read_bytes(), old_dossier)
+        self.assertEqual(paths.score.read_bytes(), old_score)
+        self.assertEqual(paths.track.benchmark(), before)
+        # Adding new settings to an old record without rebinding is still tampering.
+        dossier = read_json(paths.dossier)
+        dossier["judge_configuration"]["judge"]["transient_base_retry_seconds"] = 60
+        atomic_write_json(paths.dossier, dossier)
+        self.assertEqual(pipeline._execute("score", paths), 2)
+        self.assertFalse(paths.score.exists())
+
+    def test_bedrock_terminal_http_dossier_cannot_score_and_keeps_diagnostics(self):
+        paths = self.paths()
+        self.assertEqual(pipeline.run_intake(paths), 0)
+        evidence = read_json(paths.evidence)
+        outcomes = [http_error(request_id=f"aws-failed-{i}") for i in (1, 2, 3)]
+        outcomes += [sol_response(fixture_review(stage, evidence)) for stage in INITIAL_STAGES[1:]]
+        transport = FakeTransport(outcomes)
+        sleeps = []
+        def maker(config):
+            return BedrockClient(config, transport=transport, sleeper=sleeps.append,
+                                 clock=StepClock(), random_source=lambda: 0.5)
+        with fake_provider(factory=maker):
+            self.assertEqual(pipeline.run_judge(paths), 3)
+        dossier = read_json(paths.dossier)
+        errors = dossier["failure_diagnostics"]["lane_evaluability"]["errors"]
+        self.assertEqual(len(errors), 3)
+        self.assertEqual([d["request_id"] for d in errors], [f"aws-failed-{i}" for i in (1, 2, 3)])
+        self.assertEqual([d["latency_ms"] for d in errors], [10] * 3)
+        self.assertEqual(sleeps, [60, 120])
+        self.assertEqual(len(transport.calls), 6)
+        self.assertIn("aws-failed-3", self.log.getvalue())
+        self.assertEqual(pipeline._execute("score", paths), 2)
+        self.assertFalse(paths.score.exists())
+        self.assertEqual(read_json(paths.aggregate)["status"], "infra_failed")
 
     def test_wrong_lane_legacy_schema_and_undeclared_files_fail_intake(self):
         for kind in ("wrong_lane", "legacy_schema", "undeclared_manifest", "extra_file", "symlink"):

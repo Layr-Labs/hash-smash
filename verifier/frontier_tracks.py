@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 CATALOG_PATH = ROOT / "tracks" / "frontier-v1.json"
 LANES = {"exploratory": "plausible_not_refuted", "rigorous": "ai_rigor_qualified"}
+COST_MODEL_ID = "collision-frontier-v5"
 
 
 def catalog() -> dict:
@@ -18,6 +19,8 @@ def catalog() -> dict:
     if (not isinstance(data, dict) or data.get("schema_version") != 1
             or not isinstance(data.get("families"), list) or len(data["families"]) != 7):
         raise VerificationError("frontier catalog must describe seven algorithm families")
+    if data.get("cost_model_id") != COST_MODEL_ID:
+        raise VerificationError("all planned frontier slots must use the current cost model")
     ids = set()
     for family in data["families"]:
         key = family.get("id")
@@ -33,12 +36,14 @@ def catalog() -> dict:
                 or any(type(r) is not int for r in pair) or pair[0] < 1
                 or pair[1] != pair[0] + 1 or pair[1] > family["full_rounds"]):
             raise VerificationError("frontier round pair must be consecutive valid round counts")
-        if family.get("selection_status") not in ("selected", "full_round_control"):
+        if family.get("selection_status") not in ("selected", "full_round_control", "organizer_selected"):
             raise VerificationError("unconfirmed frontier family cannot become a runnable track")
         if family["selection_status"] == "full_round_control" and family.get("first_unbroken_round") is not None:
             raise VerificationError("broken full-round controls have no first-unbroken round")
         if family["selection_status"] == "selected" and family.get("first_unbroken_round") != pair[1]:
             raise VerificationError("selected frontier boundary must match upper round count")
+        if family["selection_status"] == "organizer_selected" and family.get("first_unbroken_round") is not None:
+            raise VerificationError("organizer exploration pairs do not assert a first-unbroken round")
     return data
 
 
@@ -82,7 +87,7 @@ class LaneTrack:
 
     @property
     def cost_path(self) -> Path:
-        return ROOT / "cost-models" / "collision-frontier-v3.json"
+        return ROOT / "cost-models" / f"{COST_MODEL_ID}.json"
 
     @property
     def reference_id(self) -> str:
@@ -102,7 +107,7 @@ class LaneTrack:
             "schema_version": 3, "submission_state": "draft", "target_profile": self.profile_id,
             "attack_class": "ordinary-collision", "rounds": self.rounds,
             "claim": {"time_log2": self.digest_bits / 2, "time_unit": "target-compressions",
-                      "memory_log2_bytes": 0, "data_log2": self.digest_bits / 2,
+                      "memory_log2_bytes": 0,
                       "preprocessing_log2": 0, "success_probability": 0.39,
                       "nonuniform_advice_log2_bytes": 0},
             "restrictions": [], "baseline_improved": self.reference_id,
@@ -117,8 +122,15 @@ class LaneTrack:
             self.profile_id, self.algorithm, self.rounds, self.digest_bits,
         ):
             raise VerificationError(f"{self.id}: frontier registry/profile mismatch")
-        if cost.get("id") != "collision-frontier-v3":
+        if cost.get("id") != COST_MODEL_ID:
             raise VerificationError("unexpected frontier cost model")
+        from .costs import validate_weights
+        reference_cost = self.reference_operation_cost(cost)
+        if type(reference_cost) not in (int, float) or reference_cost < 1:
+            raise VerificationError("selected target needs a reference operation cost")
+        cost["operation_weights"] = validate_weights({
+            "target_compression": 1, "word_operation": 1 / reference_cost,
+        })
         # Bind every organizer experiment/checker implementation, including dependencies.
         implementation_files = sorted((ROOT / "verifier").glob("*.py"))
         implementation_files += sorted((ROOT / "experiments").glob("*.py"))
@@ -133,7 +145,9 @@ class LaneTrack:
         policy_files += [ROOT / "judge" / "prompts" / "paired-common-v1.md"]
         policy_files += sorted((ROOT / "judge" / "strategies").glob("*.md"))
         policy_files += [ROOT / "schemas" / name for name in (
-            "review-lanes-v1.schema.json", "claim-frontier-v3.schema.json", "experiment-manifest-v1.schema.json")]
+            "review-lanes-v1.schema.json", "claim-frontier-v3.schema.json", "experiment-manifest-v1.schema.json",
+            "review-rescore-v2.schema.json")]
+        policy_files += [ROOT / "judge/rescore.py", ROOT / "judge/output.py", ROOT / "judge/prompts/rescore-v1.md"]
         return {
             "track_id": self.id, "lane": self.lane, "target_id": self.target_id,
             "target_profile": profile, "cost_model": cost,
@@ -151,9 +165,12 @@ class LaneTrack:
                 "rounds": self.rounds, "digest_bits": self.digest_bits,
                 "nominal_collision_security_bits": self.nominal_security_bits,
                 "score": self.nominal_score,
-                "note": "Organizer nominal security exponent, matching the mockup. It is neither an executed or qualified baseline nor a proved time-memory bound; byte and instruction constants require accounting in each submission.",
+                "note": "Organizer nominal security exponent, matching the mockup. It is neither an executed or qualified baseline nor a proved total-computation bound; instruction constants require accounting in each submission. Memory is reported separately.",
             },
         }
+
+    def reference_operation_cost(self, cost: dict):
+        return cost.get("reference_operation_costs", {}).get(self.target_id)
 
     def config_sha256(self) -> str:
         return sha256_bytes(canonical_json_bytes(self.benchmark()))
@@ -174,7 +191,9 @@ def frontier_tracks() -> tuple[LaneTrack, ...]:
                     nominal_security_bits=family["nominal_security_bits"],
                     selection_status=family["selection_status"],
                     boundary_role=("predecessor", "boundary")[index] if family["selection_status"] == "selected"
-                    else ("penultimate-control", "full-round-control")[index],
+                    else (("lower-exploration", "upper-exploration")[index]
+                          if family["selection_status"] == "organizer_selected"
+                          else ("penultimate-control", "full-round-control")[index]),
                 ))
     return tuple(result)
 
@@ -190,6 +209,7 @@ def planned_slots() -> list[dict]:
     """All 28 requested slots, without inventing numbers for unresolved targets."""
     return [{"family": f["id"], "lane": lane, "position": position,
              "rounds": f["round_pair"][index] if f["round_pair"] else None,
-             "selection_status": f["selection_status"], "note": f["selection_note"]}
+             "selection_status": f["selection_status"], "note": f["selection_note"],
+             "cost_model_id": COST_MODEL_ID}
             for f in catalog()["families"]
             for index, position in enumerate(("lower", "upper")) for lane in LANES]

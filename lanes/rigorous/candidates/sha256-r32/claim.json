@@ -15,7 +15,7 @@
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical probabilistic 256-bit word RAM under collision-frontier-v3; fresh independent random words, not seeded PRNG expansion.",
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v4; fresh independent random words, not seeded PRNG expansion.",
     "Exactly q=2^129 sampled 64-byte messages; complete SHA-256 with fixed IV, prefix rounds 0 through 31 on both padded blocks, feed-forward and all 256 digest bits.",
     "One finite run with at most 2^148 total charged operations and 2^138 peak bytes; no restarts, nonuniform advice or precomputed collision.",
     "data_log2 bounds bytes of complete padded hash inputs including final verification re-reads, as specified in proof.md.",

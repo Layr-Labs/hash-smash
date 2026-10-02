@@ -1,9 +1,12 @@
 # SHA3-256 prefix rounds 0 through 5: unconditional generic collision package
 
+The scalar below is `time_log2` under `collision-frontier-v4`. Memory remains
+a separately reported resource bound.
+
 Selected lane: exploratory. Target: `sha3-256-r6-prefix-v1`.
 This finite classical algorithm has total charged time at most 2^150,
 peak memory at most 2^138 bytes, and success probability at least 1/2.
-The proposed scalar is 150 + 138 = 288. It is a generic analytic construction
+The proposed scalar is 150. It is a generic analytic construction
 with infeasible resource use, not a claimed cryptanalytic advance.
 The required `baseline_improved` identifier `sha3-256-r6-nominal-v2`
 identifies the organizer's nominal reference only. That nominal 128 is not
@@ -77,7 +80,7 @@ convention, raw permutation hashing, a free initial state, different padding,
 or truncated output. Numeric ordering of d in the search changes no equality
 test: equality means all 256 output bits agree.
 The six-round transformation costs one selected-target sponge permutation
-under collision-frontier-v3; surrounding construction and serialization
+under collision-frontier-v4; surrounding construction and serialization
 operations are charged separately.
 
 ## 2. Algorithm, data structures and stopping rule
@@ -300,7 +303,7 @@ The JSON fields have these explicit units and meanings:
   precomputed collision. Uniform program/constants are charged above.
 
 Resource logarithms describe conservative upper bounds; success describes
-a lower bound. The proposed scalar is 288. No scalar improvement or Pareto
+a lower bound. The proposed scalar is 150. No scalar improvement or Pareto
 dominance over an established attack is claimed.
 
 ## 6. Evidence, heuristic disclosures and limitations

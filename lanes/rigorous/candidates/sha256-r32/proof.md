@@ -1,7 +1,10 @@
 # SHA-256, first 32 rounds: rigorous analytic candidate
 
+The scalar below is `time_log2` under `collision-frontier-v4`. Memory remains
+a separately reported resource bound.
+
 This package is bound to `sha256-r32-rigorous`, target profile
-`sha256-r32-prefix-v1`, and cost model `collision-frontier-v3`. It gives a
+`sha256-r32-prefix-v1`, and cost model `collision-frontier-v4`. It gives a
 classical probabilistic algorithm with worst-case charged time at most `2^148`,
 peak memory at most `2^138` bytes, and algorithmic success probability at least
 `0.8`. It is a complete analytic candidate; no full-scale execution or concrete
@@ -9,7 +12,7 @@ collision certificate is claimed. All necessary arguments appear below.
 
 The required identifier `sha256-r32-nominal-v2` names an organizer display
 reference, not an established attack, qualified baseline, or security bound.
-The claimed time-memory scalar is `148 + 138 = 286`. This candidate does not
+The claimed total-computation scalar is `148`. This candidate does not
 claim an improvement over the nominal number 128 or a cryptanalytic advance.
 Readiness is a request for review, not a claim of AI qualification or acceptance.
 
@@ -340,7 +343,4 @@ is supplied because no empirical premise is used. This analysis does not claim
 full-scale practical feasibility, measured wall time, or a known message-pair
 collision. Abstract resources are enormous but fit the stated RAM and message
 domains. A reduced toy experiment would not strengthen the distribution-free
-full-size proof and is not substituted for it. The rigorous and exploratory
-packages require their own lane-bound organizer reviews; one lane's readiness
-or score is not evidence that the other has qualified. AI review outcomes do
-not constitute formal proof certification or human acceptance.
+full-size proof and is not substituted for it.

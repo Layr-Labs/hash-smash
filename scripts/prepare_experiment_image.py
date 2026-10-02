@@ -22,6 +22,10 @@ def main():
     if intake["submission_state"] != "ready":
         print("Draft candidate: no experiment runtime preparation")
         return 2
+    from judge.rescore import find_source
+    if find_source(track, intake["package_sha256"]) is not None:
+        print("Cost-only review: original experiment evidence will be inherited")
+        return 0
     manifest = intake.get("experiment_manifest")
     if manifest and any(item["kind"] == "python-message-pairs-v1" for item in manifest["experiments"]):
         subprocess.run(["docker", "pull", "--platform", "linux/amd64", DEFAULT_DOCKER_IMAGE], check=True)

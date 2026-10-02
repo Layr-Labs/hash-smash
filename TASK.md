@@ -22,7 +22,7 @@ Read `tracks/<assigned-track>/TASK.md`, such as the
 It links the exact target profile. Also read the
 [review policy](./docs/JUDGE_LANES.md),
 [claim schema](./schemas/claim-frontier-v3.schema.json), and
-[cost model](./cost-models/collision-frontier-v3.json).
+[cost model](./cost-models/collision-frontier-v5.json).
 The [frontier guide](./docs/FRONTIER_LANES.md) supplies target and lane context.
 These define the problem; a candidate's assertions cannot redefine it.
 
@@ -30,7 +30,10 @@ Edit only the selected manifest entry's `editablePaths`, normally
 `lanes/<lane>/candidates/<target>/`. Sibling candidates, this file, agent guidance,
 the registry, target profiles, cost models, schemas, verifier, judge prompts,
 workflows, and generated scores remain protected. Switching lanes does not convert
-a claim or move its evidence. The twelve undefined slots are not solver targets.
+a claim or move its evidence. The root manifest exposes only the six exploratory
+SHA-256 31/32, SHA3-256 5/6, and BLAKE3 1/2 tracks. Undefined Poseidon targets
+are not solver assignments. Rigorous and retired hash-family lanes remain in
+the local research catalog but are not active manifest tracks.
 
 ## HashSmash evaluation differs from the generic solve loop
 
@@ -72,14 +75,23 @@ empty. The judge does not fetch external links, so include the mathematical
 support needed to assess your claim. Disclose every heuristic's scope, role,
 supporting evidence, extrapolation, and limitations under the review policy.
 
+Explain operation counts and their prices in `proof.md`, including preprocessing,
+failed trials and the required success probability. No structured operation ledger
+is required. Use the current [scoring rules and target prices](./docs/RESCORING.md)
+to submit the tightest `time_log2` bound you can justify. Ordinary judging checks
+that bound; it does not automatically tighten it. If a reorg accepts the submission,
+it preserves the latest accepted score unless the scoring policy changes.
+
 Keep incomplete work in `submission_state: draft`. Set it to `ready` only when
 the package is complete, preserving the selected target and lane. Drafts must
 not reach the judge or emit scores; `ready` means submitted for review, not
 qualified. Changed inputs need fresh evidence and review. Never edit or reuse
 generated score files to claim a result.
 
-The score is `time_log2 + memory_log2_bytes`, lower is better within the selected
-track. Account for all charged resources under the cost model and justify the
+The score is `time_log2`, lower is better within the selected
+track. Memory remains required and reviewed, but contributes nothing to the scalar
+and does not break ties. Time means total computation across all processors.
+Account for all charged resources under the cost model and justify the
 required algorithmic success probability of at least 0.39. Nominal references
 are not established attacks, qualified baselines, or security bounds. Keep the
 required `baseline_improved` reference identifier; it does not itself assert an
@@ -106,6 +118,14 @@ Mechanical validity, review qualification, and improvement over Yukon's current
 incumbent are separate outcomes. A qualified submission may fail to improve the
 incumbent. Report these outcomes separately and address substantive findings in
 the candidate; never manufacture an improved score or relax the gates.
+
+All tracks declare `promotionMode: manual`. After the owner applies that mode to
+the Yukon registration, a qualifying score that improves the promoted best enters
+`review` ("awaiting review") without merging. The benchmark owner must inspect the
+recorded candidate commit and accept it through Yukon's review API before Yukon
+queues promotion. A passing result that does not improve the best does not enter
+review. Check the registered mode when working with an existing deployment;
+changing the repository manifest alone does not update it.
 
 Yukon creates and promotes its submission PRs. Do not push candidate changes
 directly to the benchmark branch, open a replacement submission PR manually, or

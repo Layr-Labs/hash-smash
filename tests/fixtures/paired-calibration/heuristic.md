@@ -16,7 +16,7 @@ small integer operation, byte access, or output each costs one toy operation.
 pair fit within 4096 operations. Store 32 three-byte messages, 32 two-byte digest
 containers, fixed counters and scratch bytes; this fits within 4096 bytes. There
 is no reusable preprocessing or nonuniform advice, and no external data. The
-conservative submitted cost is time_log2=12, memory_log2_bytes=12, score_log2=24.
+conservative submitted cost is time_log2=12, memory_log2_bytes=12, score_log2=12.
 
 H1: For this exact map and the specified uniform input distribution, a batch of
 32 messages has distinct-message collision probability at least 0.5. This is a

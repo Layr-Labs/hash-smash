@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 import unittest
 
 from judge.bedrock_adapter import BedrockConfig, bedrock_system_prompt
@@ -9,6 +10,26 @@ from judge.prompts import PROMPT_DIR, STRATEGY_FILES, build_messages, load_syste
 
 
 class QualificationPolicyTests(unittest.TestCase):
+    def test_v3_migration_rule_matches_the_actual_resource_models(self):
+        root = Path(__file__).resolve().parents[2]
+        legacy = json.loads((root / "cost-models/collision-frontier-v3.json").read_text())
+        current = json.loads((root / "cost-models/collision-frontier-v4.json").read_text())
+        # The trusted prompt promises equivalence for these resource rules. A
+        # future resource change must not silently retain that migration promise.
+        presentation_fields = {
+            "id", "version", "score", "score_metric", "memory_scoring",
+            "nominal_reference", "parallel_computation",
+        }
+        self.assertEqual(
+            {key: value for key, value in legacy.items() if key not in presentation_fields},
+            {key: value for key, value in current.items() if key not in presentation_fields},
+        )
+        self.assertEqual(legacy["score"], "log2(total charged time) + log2(peak memory bytes)")
+        self.assertEqual(current["score"], "log2(total charged time)")
+        self.assertEqual(current["score_metric"], "timeLog2")
+        self.assertEqual(current["parallel_computation"],
+                         "Charge total work summed across all processors, not parallel wall-clock latency.")
+
     def test_every_strategy_and_stage_gets_the_trusted_paired_guardrails(self):
         common = (PROMPT_DIR / "paired-common-v1.md").read_text().strip()
         for strategy in STRATEGY_FILES:
@@ -17,6 +38,8 @@ class QualificationPolicyTests(unittest.TestCase):
                     prompt = load_system_prompt(stage, strategy)
                     self.assertEqual(prompt.count(common), 1)
                     self.assertIn("Heuristics are permitted", prompt)
+                    self.assertIn("A bound expressed in v3 charged units uses the same units in v4.", prompt)
+                    self.assertIn("Do not\ninvent a cost-transfer heuristic", prompt)
                     self.assertNotIn("qualification_policy: unconditional-v1", prompt)
         self.assertNotIn("candidate", PROMPT_DIR.parts)
 

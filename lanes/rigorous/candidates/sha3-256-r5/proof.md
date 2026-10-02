@@ -1,10 +1,13 @@
 # A fixed-function collision baseline for five-round SHA3-256
 
+The scalar below is `time_log2` under `collision-frontier-v4`. Memory remains
+a separately reported resource bound.
+
 This independent rigorous package targets sha3-256-r5-prefix-v1. It proposes
 a classical randomized algorithm with success at least 1/2, total charged time
 at most 2^149 units, and peak memory at most 2^137 bytes under
-collision-frontier-v3. These are conservative analytical upper bounds, not
-measured execution costs. The claimed scalar is 149 + 137 = 286.
+collision-frontier-v4. These are conservative analytical upper bounds, not
+measured execution costs. The claimed scalar is 149.
 
 The proof uses no distributional property of SHA3: every fixed function from
 the chosen message domain to 256-bit strings satisfies its probability bound.
@@ -312,7 +315,7 @@ experiment manifest or participant executable is supplied.
 The required baseline_improved identifier sha3-256-r5-nominal-v2 names the
 organizer's nominal display reference 128. It is not an established attack,
 qualified baseline or security bound; the identifier's field name is not a
-claim of improvement. This candidate's scalar bound 286 exceeds 128. No
+claim of improvement. This candidate's scalar bound 149 exceeds 128. No
 Pareto dominance claim follows from scalar scoring.
 
 submission_state=ready means this independent rigorous package is complete

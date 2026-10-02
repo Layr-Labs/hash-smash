@@ -1,8 +1,11 @@
 # sha1-r80: a fully accounted finite-domain collision search
 
+The scalar below is `time_log2` under `collision-frontier-v4`. Memory remains
+a separately reported resource bound.
+
 Selected lane: **exploratory**. Selected track: **sha1-r80-exploratory**.
 This package claims an ordinary complete-message collision algorithm for exactly
-`sha1-r80-prefix-v1` under `collision-frontier-v3`. All resource figures below are
+`sha1-r80-prefix-v1` under `collision-frontier-v4`. All resource figures below are
 upper bounds, not measurements. This is an analytic baseline proposed for review;
 `ready` is not qualification, an AI verdict is not mathematical proof or human
 acceptance, and no executed collision or completed full-size search is asserted.
@@ -297,7 +300,7 @@ encode log2(0); nonuniform_advice_log2_bytes = 0 means the safe upper bound of
 one byte on the actual zero advice bytes. The uniform program and public fixed
 hash constants remain charged in memory and setup, independent of that field.
 
-The claimed scalar would be 94 + 88 = 182 if the selected lane qualifies and
+The claimed scalar would be 94 if the selected lane qualifies and
 the organizer emits a score. The required baseline_improved identifier
 `sha1-r80-nominal-v2` points to an organizer nominal reference exponent 80.
 That entry is not an established attack, qualified baseline, security bound

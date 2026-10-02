@@ -85,8 +85,9 @@ class ProviderAdapterTests(unittest.TestCase):
             self.assertNotIn("$schema", schema)
             self.assertNotIn("$id", schema)
             self.assertNotIn("title", schema)
-            self.assertEqual(schema["properties"]["stage"]["enum"], [stage])
-            self.assertEqual(schema["properties"]["schema_version"]["enum"], ["review-lanes-v1"])
+            self.assertNotIn("stage", schema["properties"])
+            self.assertNotIn("binding", schema["properties"])
+            self.assertNotIn("schema_version", schema["properties"])
             for field in ("decision", "verdict", "submitted_cost", "recomputed_cost", "calculation_trace"):
                 self.assertNotIn(field, schema["properties"])
 

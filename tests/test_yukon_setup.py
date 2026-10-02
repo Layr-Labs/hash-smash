@@ -83,15 +83,42 @@ class ScoreArtifactTests(unittest.TestCase):
 
 
 class DevImportTests(unittest.TestCase):
+    def test_append_uses_saved_source_and_accepts_no_new_tracks(self):
+        client = Mock()
+        client.call.return_value = {"tracks": []}
+        output = io.StringIO()
+        with patch.object(dev, "validate_configuration", return_value={"import_tracks": 12}), \
+                patch.object(dev, "draft_tracks", return_value=[]), \
+                patch.object(dev, "importer_token", return_value="fixture-token"), \
+                patch.object(dev, "DevClient", return_value=client), redirect_stdout(output):
+            self.assertEqual(dev.main(["--append-to", "setter/hashsmash", "--submit", "--wait"]), 0)
+        client.call.assert_called_once_with("/api/benchmarks/setter%2Fhashsmash/import-tracks", {})
+        self.assertIsNone(json.loads(output.getvalue())["baseline_workflows"])
+        for ref in ("", "../hashsmash", "setter/hashsmash?x=1", "setter/hashsmash/rigorous"):
+            with self.assertRaises(dev.ImportFailure):
+                dev.append_path(ref)
+
+    def test_append_plan_is_offline_and_drafts_still_block_submission(self):
+        for submit in (False, True):
+            with patch.object(dev, "validate_configuration", return_value={"import_tracks": 12}), \
+                    patch.object(dev, "draft_tracks", return_value=["blake3-r1-exploratory"]), \
+                    patch.object(dev, "importer_token") as token, \
+                    patch.object(dev, "DevClient") as client, \
+                    redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                args = ["--append-to", "setter/hashsmash"] + (["--submit"] if submit else [])
+                self.assertEqual(dev.main(args), 2 if submit else 0)
+                token.assert_not_called()
+                client.assert_not_called()
+
     def test_request_imports_one_repo_root_with_no_lane_or_prod_selector(self):
         self.assertEqual(dev.import_request(), {
-            "sourceBranch": "main", "sourceUrl": "https://github.com/Layr-Labs/hash-smash",
+            "sourceBranch": "main", "sourceUrl": "https://github.com/mooselumph/hash-smash",
         })
         self.assertEqual(dev.import_request("release", "setter/hashsmash"), {
-            "sourceBranch": "release", "sourceUrl": "https://github.com/Layr-Labs/hash-smash",
+            "sourceBranch": "release", "sourceUrl": "https://github.com/mooselumph/hash-smash",
             "name": "setter/hashsmash",
         })
-        self.assertEqual(dev.API_URL, "https://yukon-api-dev.fly.dev")
+        self.assertEqual(dev.API_URL, "https://api-dev.yukon.org")
         for branch in ("", "main\n", "x" * 256):
             with self.assertRaises(dev.ImportFailure):
                 dev.import_request(branch)
@@ -99,10 +126,10 @@ class DevImportTests(unittest.TestCase):
             with self.assertRaises(dev.ImportFailure):
                 dev.import_request(name=name)
 
-    def test_draft_scan_checks_every_registered_track_in_both_lanes(self):
-        tracks = dev.frontier_tracks()
-        self.assertEqual(len(tracks), 16)
-        self.assertEqual({track.lane for track in tracks}, {"exploratory", "rigorous"})
+    def test_draft_scan_checks_only_selected_exploratory_tracks(self):
+        tracks = dev.import_tracks()
+        self.assertEqual(len(tracks), 6)
+        self.assertEqual({track.lane for track in tracks}, {"exploratory"})
         drafts = {tracks[0].id, tracks[-1].id}
 
         def intake(candidate, *, track):
@@ -115,7 +142,7 @@ class DevImportTests(unittest.TestCase):
     def test_default_plan_and_draft_guard_make_no_network_calls(self):
         for args, expected in [([], 0), (["--submit"], 2)]:
             output = io.StringIO()
-            with patch.object(dev, "validate_configuration", return_value={"runnable_tracks": 16}), \
+            with patch.object(dev, "validate_configuration", return_value={"runnable_tracks": 24, "import_tracks": 12}), \
                     patch.object(dev, "draft_tracks", return_value=["sha1-r80-rigorous"]), \
                     patch.object(dev, "importer_token") as token, \
                     patch.object(dev, "DevClient") as client, \
@@ -124,7 +151,7 @@ class DevImportTests(unittest.TestCase):
                 token.assert_not_called()
                 client.assert_not_called()
             plan = json.loads(output.getvalue())
-            self.assertEqual(plan["baseline_workflows"], 16)
+            self.assertEqual(plan["baseline_workflows"], 12)
             self.assertEqual(plan["local_drafts"], ["sha1-r80-rigorous"])
             self.assertEqual(plan["request"], dev.import_request())
             self.assertFalse(plan["opens_challenge"])
@@ -132,7 +159,7 @@ class DevImportTests(unittest.TestCase):
     def test_manifest_or_candidate_errors_stop_before_credentials_or_network(self):
         for gate in ("validate_configuration", "draft_tracks"):
             with self.subTest(gate=gate), \
-                    patch.object(dev, "validate_configuration", return_value={"runnable_tracks": 16}), \
+                    patch.object(dev, "validate_configuration", return_value={"runnable_tracks": 24, "import_tracks": 12}), \
                     patch.object(dev, "draft_tracks", return_value=[]), \
                     patch.object(dev, gate, side_effect=ValueError("fixture validation failure")), \
                     patch.object(dev, "importer_token") as token, \
@@ -145,7 +172,7 @@ class DevImportTests(unittest.TestCase):
     def test_import_submits_once_and_never_opens(self):
         client = Mock()
         client.call.return_value = {"tracks": [{"id": "fixture-id", "name": "fixture/track"}]}
-        with patch.object(dev, "validate_configuration", return_value={"runnable_tracks": 16}), \
+        with patch.object(dev, "validate_configuration", return_value={"runnable_tracks": 24, "import_tracks": 12}), \
                 patch.object(dev, "draft_tracks", return_value=[]), \
                 patch.object(dev, "importer_token", return_value="fixture-token"), \
                 patch.object(dev, "DevClient", return_value=client), redirect_stdout(io.StringIO()):

@@ -1,0 +1,61 @@
+{
+  "schema_version": 3,
+  "submission_state": "ready",
+  "target_profile": "blake3-r1-prefix-v1",
+  "attack_class": "ordinary-collision",
+  "rounds": 1,
+  "lane": "rigorous",
+  "claim": {
+    "time_log2": 149,
+    "time_unit": "target-compressions",
+    "memory_log2_bytes": 137,
+    "data_log2": 130,
+    "preprocessing_log2": 137,
+    "success_probability": 0.5,
+    "nonuniform_advice_log2_bytes": 0
+  },
+  "restrictions": [
+    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
+    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
+    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
+    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
+    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
+    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+  ],
+  "baseline_improved": "blake3-r1-nominal-v2",
+  "heuristics": [],
+  "certificate_manifest": "certificates/manifest.json",
+  "resource_ledger": {
+    "schema_version": "resource-ledger-v1",
+    "success_probability": 0.5,
+    "coverage": "Entire one-batch algorithm, including setup, all failed samples, sorting, scan and final verification. Disjoint target compression and other word-operation categories.",
+    "components": [
+      {
+        "id": "hashes",
+        "phase": "Sampling and final verification",
+        "operation": "target_compression",
+        "count_log2": 130,
+        "bound_kind": "upper_bound",
+        "status": "supported",
+        "source_weights": null,
+        "evidence": [
+          "proof:279"
+        ],
+        "assumptions": []
+      },
+      {
+        "id": "ram",
+        "phase": "All non-compression work, including initialization",
+        "operation": "word_operation",
+        "count_log2": 149,
+        "bound_kind": "upper_bound",
+        "status": "supported",
+        "source_weights": null,
+        "evidence": [
+          "proof:279"
+        ],
+        "assumptions": []
+      }
+    ]
+  }
+}

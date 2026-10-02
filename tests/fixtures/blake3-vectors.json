@@ -1,0 +1,337 @@
+[
+  {
+    "rounds": 7,
+    "length": 0,
+    "digest": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"
+  },
+  {
+    "rounds": 7,
+    "length": 1,
+    "digest": "2d3adedff11b61f14c886e35afa036736dcd87a74d27b5c1510225d0f592e213"
+  },
+  {
+    "rounds": 7,
+    "length": 2,
+    "digest": "7b7015bb92cf0b318037702a6cdd81dee41224f734684c2c122cd6359cb1ee63"
+  },
+  {
+    "rounds": 7,
+    "length": 3,
+    "digest": "e1be4d7a8ab5560aa4199eea339849ba8e293d55ca0a81006726d184519e647f"
+  },
+  {
+    "rounds": 7,
+    "length": 4,
+    "digest": "f30f5ab28fe047904037f77b6da4fea1e27241c5d132638d8bedce9d40494f32"
+  },
+  {
+    "rounds": 7,
+    "length": 5,
+    "digest": "b40b44dfd97e7a84a996a91af8b85188c66c126940ba7aad2e7ae6b385402aa2"
+  },
+  {
+    "rounds": 7,
+    "length": 6,
+    "digest": "06c4e8ffb6872fad96f9aaca5eee1553eb62aed0ad7198cef42e87f6a616c844"
+  },
+  {
+    "rounds": 7,
+    "length": 7,
+    "digest": "3f8770f387faad08faa9d8414e9f449ac68e6ff0417f673f602a646a891419fe"
+  },
+  {
+    "rounds": 7,
+    "length": 8,
+    "digest": "2351207d04fc16ade43ccab08600939c7c1fa70a5c0aaca76063d04c3228eaeb"
+  },
+  {
+    "rounds": 7,
+    "length": 63,
+    "digest": "e9bc37a594daad83be9470df7f7b3798297c3d834ce80ba85d6e207627b7db7b"
+  },
+  {
+    "rounds": 7,
+    "length": 64,
+    "digest": "4eed7141ea4a5cd4b788606bd23f46e212af9cacebacdc7d1f4c6dc7f2511b98"
+  },
+  {
+    "rounds": 7,
+    "length": 65,
+    "digest": "de1e5fa0be70df6d2be8fffd0e99ceaa8eb6e8c93a63f2d8d1c30ecb6b263dee"
+  },
+  {
+    "rounds": 7,
+    "length": 127,
+    "digest": "d81293fda863f008c09e92fc382a81f5a0b4a1251cba1634016a0f86a6bd640d"
+  },
+  {
+    "rounds": 7,
+    "length": 128,
+    "digest": "f17e570564b26578c33bb7f44643f539624b05df1a76c81f30acd548c44b45ef"
+  },
+  {
+    "rounds": 7,
+    "length": 129,
+    "digest": "683aaae9f3c5ba37eaaf072aed0f9e30bac0865137bae68b1fde4ca2aebdcb12"
+  },
+  {
+    "rounds": 7,
+    "length": 1023,
+    "digest": "10108970eeda3eb932baac1428c7a2163b0e924c9a9e25b35bba72b28f70bd11"
+  },
+  {
+    "rounds": 7,
+    "length": 1024,
+    "digest": "42214739f095a406f3fc83deb889744ac00df831c10daa55189b5d121c855af7"
+  },
+  {
+    "rounds": 7,
+    "length": 1025,
+    "digest": "d00278ae47eb27b34faecf67b4fe263f82d5412916c1ffd97c8cb7fb814b8444"
+  },
+  {
+    "rounds": 7,
+    "length": 2048,
+    "digest": "e776b6028c7cd22a4d0ba182a8bf62205d2ef576467e838ed6f2529b85fba24a"
+  },
+  {
+    "rounds": 7,
+    "length": 2049,
+    "digest": "5f4d72f40d7a5f82b15ca2b2e44b1de3c2ef86c426c95c1af0b6879522563030"
+  },
+  {
+    "rounds": 7,
+    "length": 3072,
+    "digest": "b98cb0ff3623be03326b373de6b9095218513e64f1ee2edd2525c7ad1e5cffd2"
+  },
+  {
+    "rounds": 7,
+    "length": 3073,
+    "digest": "7124b49501012f81cc7f11ca069ec9226cecb8a2c850cfe644e327d22d3e1cd3"
+  },
+  {
+    "rounds": 7,
+    "length": 4096,
+    "digest": "015094013f57a5277b59d8475c0501042c0b642e531b0a1c8f58d2163229e969"
+  },
+  {
+    "rounds": 7,
+    "length": 4097,
+    "digest": "9b4052b38f1c5fc8b1f9ff7ac7b27cd242487b3d890d15c96a1c25b8aa0fb995"
+  },
+  {
+    "rounds": 7,
+    "length": 5120,
+    "digest": "9cadc15fed8b5d854562b26a9536d9707cadeda9b143978f319ab34230535833"
+  },
+  {
+    "rounds": 7,
+    "length": 5121,
+    "digest": "628bd2cb2004694adaab7bbd778a25df25c47b9d4155a55f8fbd79f2fe154cff"
+  },
+  {
+    "rounds": 7,
+    "length": 6144,
+    "digest": "3e2e5b74e048f3add6d21faab3f83aa44d3b2278afb83b80b3c35164ebeca205"
+  },
+  {
+    "rounds": 7,
+    "length": 6145,
+    "digest": "f1323a8631446cc50536a9f705ee5cb619424d46887f3c376c695b70e0f0507f"
+  },
+  {
+    "rounds": 7,
+    "length": 7168,
+    "digest": "61da957ec2499a95d6b8023e2b0e604ec7f6b50e80a9678b89d2628e99ada77a"
+  },
+  {
+    "rounds": 7,
+    "length": 7169,
+    "digest": "a003fc7a51754a9b3c7fae0367ab3d782dccf28855a03d435f8cfe74605e7817"
+  },
+  {
+    "rounds": 7,
+    "length": 8192,
+    "digest": "aae792484c8efe4f19e2ca7d371d8c467ffb10748d8a5a1ae579948f718a2a63"
+  },
+  {
+    "rounds": 7,
+    "length": 8193,
+    "digest": "bab6c09cb8ce8cf459261398d2e7aef35700bf488116ceb94a36d0f5f1b7bc3b"
+  },
+  {
+    "rounds": 7,
+    "length": 16384,
+    "digest": "f875d6646de28985646f34ee13be9a576fd515f76b5b0a26bb324735041ddde4"
+  },
+  {
+    "rounds": 7,
+    "length": 31744,
+    "digest": "62b6960e1a44bcc1eb1a611a8d6235b6b4b78f32e7abc4fb4c6cdcce94895c47"
+  },
+  {
+    "rounds": 7,
+    "length": 102400,
+    "digest": "bc3e3d41a1146b069abffad3c0d44860cf664390afce4d9661f7902e7943e085"
+  },
+  {
+    "rounds": 1,
+    "length": 0,
+    "digest": "111b0e9672ca328b7216e00d36bc0449f86e5e5f919ef9ba0c70ddd58581b23c"
+  },
+  {
+    "rounds": 1,
+    "length": 1,
+    "digest": "aaa5ad08818bf5b2e947b32da4fb197a11a90f5a8bdedadc8e965d95d99fdf3b"
+  },
+  {
+    "rounds": 1,
+    "length": 63,
+    "digest": "a88352860d5f627109bc7d7f88bcf25994423bcedb57354ee0f419df564b0c5b"
+  },
+  {
+    "rounds": 1,
+    "length": 64,
+    "digest": "daa3818e90978f7be4d1386c972be2ccbde74b1680a14a5a3450503d7c5b26f0"
+  },
+  {
+    "rounds": 1,
+    "length": 65,
+    "digest": "d6e70bce4f860c9767df1b41853bd19e6323abc3ac6dfbce9f1c350caadab206"
+  },
+  {
+    "rounds": 1,
+    "length": 1023,
+    "digest": "41083ceea3980b079acc9a4581c9c4f059daf04c22006d122541150b31d55e50"
+  },
+  {
+    "rounds": 1,
+    "length": 1024,
+    "digest": "f48e1d0474fcf8cb2ae42dd69a6f05e78ffa12446c5c8b3100fe79008252f832"
+  },
+  {
+    "rounds": 1,
+    "length": 1025,
+    "digest": "853e922c2c9f52915d6930890d18c65d51c648a52e8c98818c06ca9fddd86bbc"
+  },
+  {
+    "rounds": 1,
+    "length": 2048,
+    "digest": "016ff061aa013b31ef3b7f1e6646ca3e0c8d8d05c88218bdbcfe1b4091492b93"
+  },
+  {
+    "rounds": 1,
+    "length": 2049,
+    "digest": "e97ed3bd53fead978041c550d6c6767202b030e7e939b9e24e52fdc8954b847c"
+  },
+  {
+    "rounds": 1,
+    "length": 3072,
+    "digest": "914819a5a042543ea1db8040d08e0469a8e301ddfb18e3672e56801dbeb780d5"
+  },
+  {
+    "rounds": 1,
+    "length": 4096,
+    "digest": "64f620081cf44ea9d6ac03a9da83d2dea5688e06a128959b24d97407eb2b79b4"
+  },
+  {
+    "rounds": 1,
+    "length": 5120,
+    "digest": "8b0689b9d5a83982757a7183fa102932a01023f234d5c3f2e09911fa7915b8fd"
+  },
+  {
+    "rounds": 1,
+    "length": 7168,
+    "digest": "9533fc3998a37bcb046fca98bae0c004cf7bfc314ae031f074e1540de76d0a92"
+  },
+  {
+    "rounds": 1,
+    "length": 8193,
+    "digest": "e9445fd2cb4af8786c6b1d5e27a27eb91e19312a6338252429bdf93b94e25937"
+  },
+  {
+    "rounds": 1,
+    "length": 16385,
+    "digest": "859f8fb074b8e0dc78f30dc94dbccb73127005a4ff0273f78c5bd35bf73909df"
+  },
+  {
+    "rounds": 2,
+    "length": 0,
+    "digest": "10db78433bdbf567c9fe51bde752212755c64729b78dc4979dcf8b23010650f6"
+  },
+  {
+    "rounds": 2,
+    "length": 1,
+    "digest": "86080bd6fda77648e526630c65bedd4a9c779c3711d2ab3ca209d69118a22931"
+  },
+  {
+    "rounds": 2,
+    "length": 63,
+    "digest": "497abc02c1f5df11a0af36f1bea961f1005441f66114221483b51c2e541b586a"
+  },
+  {
+    "rounds": 2,
+    "length": 64,
+    "digest": "f4bccfa0dad3dba53dad94ab20f344afa19337c6e4e8dfe496cd0fbdbc9013e4"
+  },
+  {
+    "rounds": 2,
+    "length": 65,
+    "digest": "84e0ca8564ee6a8b2cdb1d40e5129e9d1a7dbaa7f625e29d96adfbd34410789e"
+  },
+  {
+    "rounds": 2,
+    "length": 1023,
+    "digest": "2cef12f0dddc2dd992eeff93705f3dfc000ed137a99abcaccf550b65ab542b36"
+  },
+  {
+    "rounds": 2,
+    "length": 1024,
+    "digest": "d9eaadd8f7a9e67d82930e72dbf1611479d07d4adbac09315e3d60b12163614e"
+  },
+  {
+    "rounds": 2,
+    "length": 1025,
+    "digest": "a5d1e757f6a508b37bf826a4859adca4618960ebc67a8aa6829ee05158073ead"
+  },
+  {
+    "rounds": 2,
+    "length": 2048,
+    "digest": "7280980649bb8a96cb32f7bd799d2dc6b7f48b25d3af123379a10aeadc4a1c1c"
+  },
+  {
+    "rounds": 2,
+    "length": 2049,
+    "digest": "c66be9d98cbb5438a02073864a3f5364730c58f223e3cd1fee66d158c78ac4e9"
+  },
+  {
+    "rounds": 2,
+    "length": 3072,
+    "digest": "242364511e4e39ef696c5ffafb89403a19e6d918cdb757d7b7f94f2128d64568"
+  },
+  {
+    "rounds": 2,
+    "length": 4096,
+    "digest": "2cd8aeb0e0042b88151b0d30fae2cf79419c1eabe704280c1abb089bae6d0358"
+  },
+  {
+    "rounds": 2,
+    "length": 5120,
+    "digest": "6c8e2dc4a3e46d6e4cae99978bb5fa4591501bf91735ab612a1a130d1223a6c6"
+  },
+  {
+    "rounds": 2,
+    "length": 7168,
+    "digest": "21c9d6874249c7a385de88d40b3045fec3d4310299e3fe14bc4fcce76ced7dab"
+  },
+  {
+    "rounds": 2,
+    "length": 8193,
+    "digest": "cb43120e4b5687240c1e28e2717f68bf1a3ace698d469f3a6fe6b4845de06c04"
+  },
+  {
+    "rounds": 2,
+    "length": 16385,
+    "digest": "29fd710aeab8f982a5f8f9f2c61667d6ca0c57e8e83a195b01788dc9b7629557"
+  }
+]

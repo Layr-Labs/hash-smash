@@ -13,14 +13,22 @@ from verifier.errors import VerificationError
 from verifier.io import load_json_bytes
 
 
+def import_tracks():
+    """Declare the six retained exploratory tracks for manifest reconciliation."""
+    return tuple(track for track in frontier_tracks()
+                 if track.lane == "exploratory"
+                 and track.algorithm in {"sha256", "sha3_256", "blake3"})
+
+
 def manifest_for():
-    tracks = frontier_tracks()
+    tracks = import_tracks()
     return {
         "schemaVersion": 2, "name": "hashsmash",
         "tracks": [{
             "name": track.id,
-            "description": f"{track.target_id} ordinary collisions; {track.lane} AI review. Minimize log2(time * memory bytes). Pass means {track.accepted_status}.",
+            "description": f"{track.target_id} ordinary collisions; {track.lane} AI review. Minimize log2(total charged computation); memory is a reported metric only. Pass means {track.accepted_status}.",
             "category": "cryptanalysis", "direction": "-",
+            "promotionMode": "manual",
             "editablePaths": [track.candidate.relative_to(ROOT).as_posix()],
             "setupCommand": ["bash", ".yukon/setup.sh"],
             "benchmarkCommand": ["python3", "scripts/hashsmash_pipeline.py", "all", "--track", track.id],
@@ -58,6 +66,7 @@ def validate_configuration(*, require_complete=False):
         if f"track: {track.id}\n" not in text or f"lane: {track.lane}\n" not in text:
             raise VerificationError("workflow must route the literal organizer-selected track and lane")
     return {"planned_tracks": len(planned_slots()), "runnable_tracks": len(tracks),
+            "import_tracks": len(manifest["tracks"]),
             "pending_tracks": len(planned_slots()) - len(tracks), "yukon_challenges": 1}
 
 

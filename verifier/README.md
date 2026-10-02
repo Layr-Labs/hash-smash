@@ -38,11 +38,24 @@ manifest is used by the paired v3 claims.
 
 Scores require `submission_state: ready`, the selected lane's qualifying review
 outcome, and matching package, evidence and configuration bindings. The score
-builder ignores model-provided scores and computes
-`time_log2 + memory_log2_bytes` from the validated claim. Drafts, failed review and
+builder uses the validated submitted `time_log2` bound under `collision-frontier-v5`.
+An organizer-pinned [reorg](../docs/RESCORING.md) uses previous judgments: it retains
+the latest accepted score unless the scoring policy changes, in which case it uses
+the judge's final reviewed bound. No new intermediate operation ledger is required.
+Memory is still required and reviewed, and emitted as `metrics.memoryLog2Bytes`;
+it neither contributes to the scalar nor breaks ties. New score artifacts carry
+`metrics.costModelId` and `metrics.scoreMetric` and omit the former `timeMemoryLog2`. Drafts, failed review and
 nominal-reference values never emit scores. Follow the
 [qualification sequence](../docs/CANDIDATE_QUALIFICATION.md) to generate and review
 the complete evidence before scoring.
+
+Claims may omit the legacy `data_log2` field. If present, it must still be a finite
+nonnegative number and is preserved as optional `metrics.dataLog2` metadata, but
+is not scored or reviewed as a resource bound. If absent, score output omits that
+metric rather than synthesizing zero. New draft claims omit it. Exact claim and
+configuration bindings still apply, including any supplied legacy metadata.
+See the [rollout and UI handoff](../docs/OPTIONAL_DATA_METRIC.md) for retiring the
+displayed metric without a Yukon reorg.
 
 Run the organizer tests with:
 

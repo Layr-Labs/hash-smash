@@ -20,7 +20,7 @@
     "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
     "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
     "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 286."
+    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
   "heuristics": [],

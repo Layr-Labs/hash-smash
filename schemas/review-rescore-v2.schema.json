@@ -1,0 +1,12 @@
+{
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "stage", "binding", "status", "time_log2", "calculation_trace"],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["review-rescore-v2"]},
+    "stage": {"type": "string", "enum": ["lane_rescore"]},
+    "binding": {"$ref": "review-lanes-v1.schema.json#/properties/binding"},
+    "status": {"type": "string", "enum": ["complete", "rejected", "needs_evidence"]},
+    "time_log2": {"type": ["number", "null"], "minimum": 0},
+    "calculation_trace": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"type": "string", "minLength": 1}}
+  }
+}

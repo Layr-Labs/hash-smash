@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import math
 import os
+import math
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -21,12 +21,13 @@ def build_score(
     aggregate: Mapping[str, Any],
     output_path: str | os.PathLike[str] | None = None,
     *, track: LaneTrack,
+    rescore_result: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a score only for an explicitly AI-qualified judge aggregate.
 
-    The leaderboard value is recomputed from the validated claim.  It is never accepted
-    from the model or aggregate.  The caller may attach hashes of the judge configuration
-    and dossier; other aggregate content is deliberately ignored.
+    Ordinary reviews use the validated submitted bound. Reorgs use the final
+    reviewed bound whose source and scoring policy the pipeline has verified.
+    The caller may attach hashes of the judge configuration and dossier.
     """
 
     if not isinstance(aggregate, Mapping):
@@ -65,9 +66,12 @@ def build_score(
     costs = intake["claim"]["claim"]
     time_log2 = float(costs["time_log2"])
     memory_log2_bytes = float(costs["memory_log2_bytes"])
-    time_memory_log2 = time_log2 + memory_log2_bytes
-    if not math.isfinite(time_memory_log2):
-        raise VerificationError("time-memory score must be finite")
+    if rescore_result is not None:
+        require_sha256(rescore_result["source"], "rescore source")
+        value = rescore_result["time_log2"]
+        if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+            raise VerificationError("reviewed score must be a finite nonnegative number")
+        time_log2 = float(value)
 
     metrics: dict[str, Any] = {
         "reviewStatus": accepted_status,
@@ -76,8 +80,8 @@ def build_score(
         "rounds": intake["track"]["rounds"],
         "timeLog2": time_log2,
         "memoryLog2Bytes": memory_log2_bytes,
-        "timeMemoryLog2": time_memory_log2,
-        "dataLog2": float(costs["data_log2"]),
+        "scoreMetric": "timeLog2",
+        "costModelId": track.benchmark()["cost_model"]["id"],
         "preprocessingLog2": float(costs["preprocessing_log2"]),
         "nonuniformAdviceLog2Bytes": float(costs["nonuniform_advice_log2_bytes"]),
         "successProbability": float(costs["success_probability"]),
@@ -87,7 +91,7 @@ def build_score(
         "targetConfigSha256": track.config_sha256(),
         "timeUnit": "target-compressions",
         "nominalReferenceScore": track.nominal_score,
-        "improvesNominalReference": time_memory_log2 < track.nominal_score,
+        "improvesNominalReference": time_log2 < track.nominal_score,
         "referenceIsQualifiedBaseline": False,
         "lane": track.lane,
         "qualificationPolicy": "paired-lanes-v1",
@@ -96,14 +100,28 @@ def build_score(
         "humanAccepted": False,
         "formallyVerified": False,
     }
+    # Preserve legacy metadata for consumers of existing claims; absence is not zero.
+    if "data_log2" in costs:
+        metrics["dataLog2"] = float(costs["data_log2"])
     if judge_config_sha256 is not None:
         metrics["judgeConfigSha256"] = judge_config_sha256
     if dossier_sha256 is not None:
         metrics["dossierSha256"] = dossier_sha256
+    if rescore_result is not None:
+        from .costs import UNIT_WEIGHTS
+        original_model = rescore_result["declared_cost_model"]
+        metrics.update(declaredTimeLog2=float(costs["time_log2"]),
+                       declaredPreprocessingLog2=metrics.pop("preprocessingLog2"),
+                       declaredCostModelId=original_model["id"],
+                       declaredOperationWeights=original_model.get("operation_weights", dict(UNIT_WEIGHTS)),
+                       operationWeights=track.benchmark()["cost_model"]["operation_weights"],
+                       rescoreSourceSha256=rescore_result["source"],
+                       rescorePreviousScore=rescore_result["previous_score"],
+                       rescoreMode="policy_change" if rescore_result["score_policy_changed"] else "preserve_score")
 
     score = {
         "schema_version": SCHEMA_VERSION,
-        "score": time_memory_log2,
+        "score": time_log2,
         "metrics": metrics,
     }
     if output_path is not None:

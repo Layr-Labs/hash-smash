@@ -1,6 +1,6 @@
 # Collision-frontier roster research
 
-Research date: 2026-09-04. This is an organizer research note, not a qualified
+Research date: 2026-09-04; organizer selection update: 2026-09-13. This is an organizer research note, not a qualified
 baseline, proof of security, or substitute for a frozen target profile.
 
 ## What the mockup establishes
@@ -26,8 +26,8 @@ can be reserved without claiming that its target or frontier has been establishe
 | SHA-1 | 79 / 80 steps | Explicit full-round-control exception for the same reason. |
 | SHA-256 | 31 / 32 steps | User-selected pair, consistent with the classical ordinary-collision literature inspected. Freeze standard IV, first `r` steps in every compression call, full 256-bit output, and normal message padding. |
 | Keccak[1600] | 5 / 6 rounds of SHA3-256 | Recommended concrete instance: width 1600, rate 1088, capacity 512, output 256, SHA-3 domain suffix `01`, first `r` rounds. Actual 5-round collisions exist; the inspected literature does not provide a classical ordinary-collision attack on 6-round SHA3-256. |
-| BLAKE3 | Unresolved | The inspected sources do not establish an exact ordinary-collision boundary. Reserve both round slots pending a matching result; do not infer it from compression-function or keyed-permutation attacks. |
-| Keccak[800], r544/c256 | Unresolved | Preserve these requested rate/capacity values. The common 800-bit Crunchy result is instead r640/c160 and cannot establish this boundary. Output length and padding also need freezing. |
+| BLAKE3 | 1 / 2 rounds | Organizer-selected exploration pair (2026-09-13); unkeyed BLAKE3-256 with standard complete tree-hash semantics and prefix reduction. No matching ordinary-collision frontier is asserted. |
+| Keccak[800], r544/c256 | 5 / 6 rounds | Organizer-selected exploration pair (2026-09-13); output256, zero state, legacy pad10*1, prefix rounds. Crunchy r640/c160 results do not establish this boundary. |
 | Poseidon | Unresolved | A concrete parameter set, mode, output, and full/partial round reduction rule are needed before a meaningful boundary can be named. |
 
 The MD5/SHA-1 exception requires organizer acknowledgment because it changes the
@@ -50,7 +50,7 @@ full MD5 collisions. [SHA-1 is a Shambles](https://eprint.iacr.org/2020/014)
 reports both ordinary identical-prefix and chosen-prefix collision methods
 against full SHA-1, including an executed chosen-prefix result. These are good
 positive controls for judging established cryptanalysis. Published operation
-figures are not automatically this repository's time-memory scores.
+figures are not automatically this repository's total-computation scores.
 
 ### SHA-256
 
@@ -81,10 +81,10 @@ SHA3-256 is only one possible instantiation of the mockup's Keccak[1600] row.
 Selecting SHAKE128 with rate 1344/capacity 256/output 256 instead gives a
 time-based literature pair of 6/7. Its 6-round result is close enough to the
 nominal 128-bit threshold that exact memory and cost accounting are material;
-do not silently copy `123.5` as `log2(T*M)`. Selecting legacy Keccak padding
+do not silently copy `123.5` as the current `log2(T)` score. Selecting legacy Keccak padding
 instead of SHAKE padding also requires a matching attack/transfer argument.
 
-## Why the remaining boundaries are unresolved
+## Exploration selections and remaining unresolved boundaries
 
 ### BLAKE3
 
@@ -103,9 +103,8 @@ checking changes in initialization, flags, schedule, and output formation.
 
 A concrete BLAKE3 profile is straightforward: unkeyed BLAKE3, standard IV,
 256-bit output, prefix round reduction in every compression invocation, and
-unchanged tree/chunk/counter/flag/output semantics. Choosing two numerical
-rounds remains an organizer exploration choice until a matching attack is
-located or established. A fixed-length one-block simplification is a distinct
+unchanged tree/chunk/counter/flag/output semantics. The organizer selected rounds 1/2 on 2026-09-13 as exploration targets.
+This selection does not establish a collision boundary. A fixed-length one-block simplification is a distinct
 target and must be named as such.
 
 ### Keccak[800], r544/c256
@@ -121,12 +120,12 @@ likewise specifies the actual 800-bit target as `[640,160,160]`; the paper's
 round and capacity assumptions are explicit. No inspected primary result
 established a 5/6 or 6/7 boundary for the requested `[544,256,256]` instance.
 
-Recommended concrete definition if retaining the requested family: width 800,
+The organizer target now uses this concrete definition: width 800,
 32-bit lanes, rate 544, capacity 256, output 256, zero initialization,
 `pad10*1`, no extra domain suffix, first `r` rounds, and ordinary sponge
 messages. This is an organizer-defined Keccak instance, not SHA3-256 or
-SHAKE128. Its full permutation has 22 rounds. Fixing that definition makes
-implementation possible but does not supply the missing frontier evidence.
+SHAKE128. Its full permutation has 22 rounds. The organizer selected rounds 5/6 on
+2026-09-13; that selection does not supply the missing frontier evidence.
 
 ### Poseidon
 
@@ -154,20 +153,19 @@ an additional limitation. A guessed 30/31 pair from the mockup has no authority.
 ## Cost and round conventions required before publication
 
 The literature commonly compares time against the nominal birthday exponent
-`n/2`. This repository ranks `log2(T*M)` in explicit time and memory units.
-A table birthday search has approximately `T=2^(n/2)` and
-`M=2^(n/2)` entries, hence product exponent near `n`, before overheads. A
-constant-memory cycle search has a different analysis and can have a different
-product. Consequently a nominal 128-bit display reference must not be
-presented as the measured score of a particular table algorithm. Preserve both
-the conventional nominal collision-security exponent and the cost-model
-reference, and label which criterion selected the rounds.
+`n/2`. The current `collision-frontier-v5` policy ranks `log2(T)`, where T is
+all charged computation in the organizer's explicit units, including preprocessing,
+failed trials, memory access operations and success amplification. Memory bytes
+remain a reviewed metric. Neither parallel wall-clock time nor a count of only
+hash calls automatically equals this score.
 
-For SHAKE128's reported `2^123.5` time, even a few additional memory bits in
-the exponent can change whether the attack beats a literal `T*M < 2^128`
-threshold. That audit is necessary if 6/7 is chosen instead of SHA3-256 5/6.
-For the latter, the practical 5-round result has a much larger margin, but a
-qualified score still needs the ordinary resource review.
+The former v3 policy ranked `log2(T*M)`: a table birthday search had product
+exponent near `n` before overheads. That historical product must not be used as
+the current score. Conversely, the nominal `n/2` reference does not guarantee an
+exact implementation score once instruction constants are charged. Keep nominal
+references distinct from qualified constructions and identify the cost model
+used by each result. The reported SHAKE128 time still needs normalization to the
+selected target, success threshold and operation units before selecting a frontier.
 
 The [Keccak specification summary](https://keccak.team/keccak_specs_summary.html)
 defines lane layout, round constants, padding, and standardized domain

@@ -8,6 +8,7 @@ Bedrock structured output is enabled.
 from __future__ import annotations
 
 import json
+import math
 import os
 import random
 import re
@@ -15,6 +16,7 @@ import time
 import urllib.parse
 from copy import deepcopy
 from dataclasses import dataclass, field
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
@@ -29,6 +31,7 @@ from .provider_adapter import (
     _schema_for_stage,
 )
 from .schema_validation import review_schema_for_stage, validate_review
+from .output import complete_review, validate_response, validation_detail, retry_body
 
 
 DEFAULT_BEDROCK_MODEL = "us.anthropic.claude-opus-4-6-v1"
@@ -85,40 +88,74 @@ def _header(headers: Mapping[str, str], name: str) -> str | None:
     return None
 
 
-def _retry_after(headers: Mapping[str, str], maximum: float) -> float | None:
+def _retry_after(headers: Mapping[str, str], maximum: float, now: float) -> float | None:
     value = _header(headers, "Retry-After")
-    if value is None:
+    if not isinstance(value, str) or len(value) > 128:
         return None
     try:
         seconds = float(value)
     except ValueError:
-        return None
-    if seconds < 0:
+        try:
+            date = parsedate_to_datetime(value)
+            if date.tzinfo is None:
+                return None
+            seconds = max(0.0, date.timestamp() - now)
+        except (ValueError, TypeError, OverflowError):
+            return None
+    if not math.isfinite(seconds) or seconds < 0:
         return None
     return min(seconds, maximum)
 
 
-def _safe_bedrock_error(response: HttpResponse, api_key: str) -> str:
-    """Extract only bounded AWS error identifiers and messages."""
+def _safe_error_text(value: Any, api_key: str, limit: int) -> str | None:
+    """Redact before bounding; never retain terminal/control characters."""
+    if not isinstance(value, (str, int)) or isinstance(value, bool):
+        return None
+    text = str(value)
+    for secret in (api_key, urllib.parse.quote(api_key, safe="")):
+        text = text.replace(secret, "[REDACTED]")
+    # Provider messages sometimes echo authentication other than the configured key.
+    text = re.sub(r"(?i)\b(?:bearer|basic)\s+[a-z0-9._~+/=-]+", "[REDACTED]", text)
+    text = re.sub(
+        r"""(?ix)\b(?:authorization|(?:x[-_])?api[-_]?key|(?:access[-_]|secret[-_])?token|
+        password|secret|aws_bearer_token_bedrock|aws_secret_access_key|x-amz-security-token)
+        ["']?\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)""",
+        "[REDACTED]", text,
+    )
+    text = " ".join("".join(char if char.isprintable() else " " for char in text).split())
+    return text[:limit] or None
 
+
+def _request_id(headers: Mapping[str, str], api_key: str) -> str | None:
+    value = (_header(headers, "x-amzn-requestid")
+             or _header(headers, "x-amzn-request-id")
+             or _header(headers, "x-amz-request-id"))
+    return _safe_error_text(value, api_key, 128)
+
+
+def _safe_bedrock_error(response: HttpResponse, api_key: str) -> dict[str, Any]:
+    """Allowlist structured fields, never raw bodies, headers or reasoning."""
+    detail: dict[str, Any] = {"request_id": _request_id(response.headers, api_key)}
+    code = _header(response.headers, "x-amzn-errortype")
+    message = None
     try:
-        payload = json.loads(response.body.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        return ""
-    if not isinstance(payload, dict):
-        return ""
-    if isinstance(payload.get("error"), dict):
-        payload = payload["error"]
-    error_type = payload.get("__type") or payload.get("code")
-    message = payload.get("message") or payload.get("Message")
-    parts: list[str] = []
-    if isinstance(error_type, (str, int)) and not isinstance(error_type, bool):
-        parts.append(f"type={str(error_type).replace(api_key, '[REDACTED]')[:120]}")
-    if isinstance(message, str):
-        normalized = " ".join(message.replace(api_key, "[REDACTED]").split())
-        if normalized:
-            parts.append(f"message={normalized[:300]}")
-    return f" ({'; '.join(parts)})" if parts else ""
+        # Refuse oversized/ambiguous error envelopes rather than publishing a fragment.
+        payload = _strict_json(response.body.decode("utf-8")) if len(response.body) <= 65536 else None
+        if isinstance(payload, dict):
+            if isinstance(payload.get("error"), dict):
+                payload = payload["error"]
+            code = next((payload[key] for key in ("code", "__type", "type")
+                         if isinstance(payload.get(key), (str, int))
+                         and not isinstance(payload[key], bool)), code)
+            message = next((payload[key] for key in ("message", "Message")
+                            if isinstance(payload.get(key), str)), None)
+    except (UnicodeDecodeError, ValueError, RecursionError):
+        pass
+    for key, value, limit in (("error_code", code, 120), ("message", message, 300)):
+        safe = _safe_error_text(value, api_key, limit)
+        if safe is not None:
+            detail[key] = safe
+    return detail
 
 
 def _strict_json(text: str) -> Any:
@@ -159,9 +196,12 @@ class BedrockConfig:
     max_tokens: int = 32768
     # First-use structured-output schema compilation can take several minutes.
     timeout_seconds: float = 300.0
+    # One total request budget; validation and transient failures only differ in wait time.
     max_attempts: int = 3
     base_retry_seconds: float = 0.5
     max_retry_seconds: float = 8.0
+    transient_base_retry_seconds: float = 60.0
+    transient_max_retry_seconds: float = 120.0
     temperature: float | None = None
     reasoning_effort: str | None = "high"
     strategy: str = DEFAULT_STRATEGY
@@ -178,8 +218,14 @@ class BedrockConfig:
             )
         if not REGION_RE.fullmatch(self.region):
             raise ValueError("Amazon Bedrock region is invalid")
-        if self.max_attempts < 1:
+        if type(self.max_attempts) is not int or self.max_attempts < 1:
             raise ValueError("max_attempts must be at least 1")
+        for base, maximum in (
+            (self.base_retry_seconds, self.max_retry_seconds),
+            (self.transient_base_retry_seconds, self.transient_max_retry_seconds),
+        ):
+            if not (math.isfinite(base) and math.isfinite(maximum) and 0 < base <= maximum):
+                raise ValueError("retry delays must be finite, positive and base <= maximum")
         if self.max_tokens < 1:
             raise ValueError("max_tokens must be at least 1")
         if self.timeout_seconds <= 0:
@@ -246,12 +292,14 @@ class BedrockClient:
         transport: Transport | None = None,
         sleeper: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.monotonic,
+        wall_clock: Callable[[], float] = time.time,
         random_source: Callable[[], float] = random.random,
     ) -> None:
         self.config = config
         self.transport = transport or UrllibTransport()
         self.sleeper = sleeper
         self.clock = clock
+        self.wall_clock = wall_clock
         self.random_source = random_source
 
     def _headers(self) -> dict[str, str]:
@@ -314,20 +362,22 @@ class BedrockClient:
             }
         return json.dumps(body, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
 
-    def _retry_delay(self, attempt: int, headers: Mapping[str, str] | None = None) -> float:
+    def _retry_delay(
+        self, attempt: int, headers: Mapping[str, str] | None = None, *, transient: bool = False,
+    ) -> float:
+        base = self.config.transient_base_retry_seconds if transient else self.config.base_retry_seconds
+        maximum = self.config.transient_max_retry_seconds if transient else self.config.max_retry_seconds
+        exponential = min(maximum, base * (2.0 ** min(attempt - 1, 1023)))
+        delay = min(maximum, exponential * (0.75 + 0.5 * self.random_source()))
         if headers is not None:
-            retry_after = _retry_after(headers, self.config.max_retry_seconds)
+            retry_after = _retry_after(headers, maximum, self.wall_clock())
             if retry_after is not None:
-                return retry_after
-        exponential = min(
-            self.config.max_retry_seconds,
-            self.config.base_retry_seconds * (2 ** (attempt - 1)),
-        )
-        return exponential * (0.75 + 0.5 * self.random_source())
+                delay = max(delay, retry_after)
+        return delay
 
-    def _parse_response(self, response: HttpResponse, stage: str) -> ReviewResult:
+    def _parse_response(self, response: HttpResponse, stage: str, evidence=None) -> ReviewResult:
         if self.config.api == "responses":
-            return self._parse_sol_response(response, stage)
+            return self._parse_sol_response(response, stage, evidence)
         try:
             payload = json.loads(response.body.decode("utf-8"))
             if not isinstance(payload, dict):
@@ -344,8 +394,8 @@ class BedrockClient:
             ]
             if len(text_blocks) != 1:
                 raise ValueError("expected exactly one structured text block")
-            review = json.loads(text_blocks[0])
-            validate_review(review, expected_stage=stage, schema=review_schema_for_stage(stage))
+            review = complete_review(json.loads(text_blocks[0]), stage, evidence or {})
+            validate_response(review, stage, evidence or {})
             usage = payload.get("usage", {})
             metrics = payload.get("metrics", {})
             if not isinstance(usage, dict):
@@ -353,9 +403,8 @@ class BedrockClient:
             if not isinstance(metrics, dict):
                 raise ValueError("metrics is not an object")
         except (KeyError, TypeError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise JudgeInfraError(
-                f"Amazon Bedrock returned an invalid structured response: {exc}"
-            ) from exc
+            raise JudgeInfraError("Amazon Bedrock returned an invalid review",
+                                  diagnostics=[validation_detail(exc)]) from exc
 
         return ReviewResult(
             review=review,
@@ -365,7 +414,7 @@ class BedrockClient:
                 "output_validation": "provider-json-schema-and-local",
                 "requested_model": self.config.model,
                 "returned_model": self.config.model,
-                "response_id": _header(response.headers, "x-amzn-requestid"),
+                "response_id": _request_id(response.headers, self.config.api_key),
                 "region": self.config.region,
                 "usage": usage,
                 "metrics": metrics,
@@ -374,7 +423,7 @@ class BedrockClient:
             },
         )
 
-    def _parse_sol_response(self, response: HttpResponse, stage: str) -> ReviewResult:
+    def _parse_sol_response(self, response: HttpResponse, stage: str, evidence=None) -> ReviewResult:
         try:
             payload = _strict_json(response.body.decode("utf-8"))
             if not isinstance(payload, dict):
@@ -417,14 +466,14 @@ class BedrockClient:
                 texts.append(block["text"])
             if len(texts) != 1:
                 raise ValueError("expected exactly one JSON review")
-            review = _strict_json(texts[0])
-            validate_review(review, expected_stage=stage, schema=review_schema_for_stage(stage))
+            review = complete_review(_strict_json(texts[0]), stage, evidence or {})
+            validate_response(review, stage, evidence or {})
             usage = payload.get("usage", {})
             if not isinstance(usage, dict):
                 raise ValueError("usage is not an object")
         except (KeyError, TypeError, ValueError, UnicodeDecodeError) as exc:
-            reason = str(exc).replace(self.config.api_key, "[REDACTED]")
-            raise JudgeInfraError(f"Amazon Bedrock returned an invalid Sol response: {reason}") from exc
+            raise JudgeInfraError("Amazon Bedrock returned an invalid Sol response",
+                                  diagnostics=[validation_detail(exc)]) from exc
 
         return ReviewResult(
             review=review,
@@ -435,7 +484,7 @@ class BedrockClient:
                 "requested_model": self.config.model,
                 "returned_model": returned_model,
                 "response_id": response_id,
-                "aws_request_id": _header(response.headers, "x-amzn-requestid"),
+                "aws_request_id": _request_id(response.headers, self.config.api_key),
                 "region": self.config.region,
                 "usage": usage,
                 "strategy": self.config.strategy,
@@ -446,10 +495,12 @@ class BedrockClient:
 
     def review(self, stage: str, evidence: Mapping[str, Any]) -> ReviewResult:
         body = self._request_body(stage, evidence)
+        original_body = body
         headers = self._headers()
         started = self.clock()
         attempt_latencies: list[int] = []
         last_error: JudgeInfraError | None = None
+        diagnostics = []
 
         for attempt in range(1, self.config.max_attempts + 1):
             attempt_started = self.clock()
@@ -461,34 +512,42 @@ class BedrockClient:
                     timeout_seconds=self.config.timeout_seconds,
                 )
                 attempt_latencies.append(round((self.clock() - attempt_started) * 1000))
-            except TransportError as exc:
+            except TransportError:
                 attempt_latencies.append(round((self.clock() - attempt_started) * 1000))
-                last_error = exc
+                last_error = JudgeInfraError("Amazon Bedrock HTTP transport failed")
+                diagnostics.append({"category": "transport", "attempt": attempt, "stage": stage,
+                                    "latency_ms": attempt_latencies[-1]})
                 if attempt == self.config.max_attempts:
                     break
-                self.sleeper(self._retry_delay(attempt))
+                self.sleeper(self._retry_delay(attempt, transient=True))
                 continue
 
-            if response.status in {408, 429} or 500 <= response.status <= 599:
-                last_error = JudgeInfraError(
-                    f"Amazon Bedrock retryable HTTP status {response.status}",
-                    attempts=attempt,
-                )
-                if attempt == self.config.max_attempts:
-                    break
-                self.sleeper(self._retry_delay(attempt, response.headers))
-                continue
             if response.status < 200 or response.status > 299:
-                raise JudgeInfraError(
-                    f"Amazon Bedrock non-retryable HTTP status {response.status}"
-                    f"{_safe_bedrock_error(response, self.config.api_key)}",
-                    attempts=attempt,
+                detail = _safe_bedrock_error(response, self.config.api_key)
+                diagnostics.append({"category": "http", "status": response.status,
+                                    "attempt": attempt, "stage": stage,
+                                    "latency_ms": attempt_latencies[-1], **detail})
+                retryable = response.status in {408, 429} or 500 <= response.status <= 599
+                label = "retryable" if retryable else "non-retryable"
+                last_error = JudgeInfraError(
+                    f"Amazon Bedrock {label} HTTP status {response.status}: "
+                    + json.dumps(detail, ensure_ascii=True, sort_keys=True),
                 )
+                if not retryable or attempt == self.config.max_attempts:
+                    break
+                self.sleeper(self._retry_delay(attempt, response.headers, transient=True))
+                continue
 
             try:
-                result = self._parse_response(response, stage)
+                result = self._parse_response(response, stage, evidence)
             except JudgeInfraError as exc:
                 last_error = exc
+                for detail in exc.diagnostics:
+                    diagnostics.append({**detail, "attempt": attempt, "stage": stage,
+                                        "latency_ms": attempt_latencies[-1],
+                                        "request_id": _request_id(response.headers, self.config.api_key)})
+                if exc.diagnostics:
+                    body = retry_body(original_body, exc.diagnostics[-1])
                 if attempt == self.config.max_attempts:
                     break
                 self.sleeper(self._retry_delay(attempt))
@@ -500,9 +559,10 @@ class BedrockClient:
                     "attempts": attempt,
                     "latency_ms": round((self.clock() - started) * 1000),
                     "attempt_latencies_ms": attempt_latencies,
+                    "retry_diagnostics": diagnostics,
                 }
             )
             return ReviewResult(review=result.review, provenance=provenance)
 
         message = str(last_error) if last_error else "Amazon Bedrock did not produce a response"
-        raise JudgeInfraError(message, attempts=self.config.max_attempts)
+        raise JudgeInfraError(message, attempts=attempt, diagnostics=diagnostics)

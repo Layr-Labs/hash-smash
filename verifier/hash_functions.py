@@ -96,6 +96,9 @@ def _compress(algorithm: str, state: tuple[int, ...], block: bytes, rounds: int)
 
 def digest(data: bytes, algorithm: str, rounds: int) -> bytes:
     """Hash bytes with the pinned prefix-step/full-message semantics."""
+    if algorithm == "blake3":
+        from .blake3 import blake3
+        return blake3(data, rounds)
     if algorithm in ("sha3_256", "keccak800"):
         from .keccak import sha3_256, keccak800
         return {"sha3_256": sha3_256, "keccak800": keccak800}[algorithm](data, rounds)

@@ -50,7 +50,7 @@ def fixture_review(stage: str, evidence: dict) -> dict:
     }
     if stage == "lane_cost":
         cost = deepcopy(evidence["submission"]["intake_report"]["claim"]["claim"])
-        cost.update(normalized_score_log2=cost["time_log2"] + cost["memory_log2_bytes"], calculation_trace=["10 + 8 = 18"])
+        cost.update(normalized_score_log2=cost["time_log2"], calculation_trace=["Use the submitted total computation exponent."])
         result["cost_reconstruction"] = cost
     for finding_id in evidence.get("review_context", {}).get("fatal_findings", {}):
         result["challenge_resolutions"].append({

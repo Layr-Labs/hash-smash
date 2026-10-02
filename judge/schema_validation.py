@@ -20,6 +20,9 @@ def review_schema_for_stage(stage: str) -> dict[str, Any]:
     """Load the organizer schema for a supported paired-review stage."""
     from .lanes import LANE_STAGES, load_lane_schema
 
+    if stage == "lane_rescore":
+        from .rescore import review_schema
+        return review_schema()
     if stage not in LANE_STAGES:
         raise ValueError(f"unknown paired review stage: {stage!r}")
     return load_lane_schema()
@@ -93,7 +96,10 @@ def _validate(instance: Any, schema: Mapping[str, Any], path: str) -> None:
             raise ReviewValidationError(f"{path}: string is too short")
 
     if isinstance(instance, (int, float)) and not isinstance(instance, bool):
-        numeric = float(instance)
+        try:
+            numeric = float(instance)
+        except OverflowError:
+            raise ReviewValidationError(f"{path}: number must be finite") from None
         if not math.isfinite(numeric):
             raise ReviewValidationError(f"{path}: number must be finite")
         if "minimum" in schema and numeric < schema["minimum"]:
@@ -114,4 +120,7 @@ def validate_review(
 
     from .lanes import validate_lane_review
 
+    if expected_stage == "lane_rescore":
+        from .rescore import validate_review as validate_rescore
+        return validate_rescore(review)
     return validate_lane_review(review, expected_stage=expected_stage, schema=schema)

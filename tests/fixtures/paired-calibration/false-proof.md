@@ -14,5 +14,5 @@ an ordinary collision for this toy map.
 One toy operation is a byte write, byte read, bitwise AND, equality comparison,
 or output action. The same straight-line algorithm uses at most 16 operations
 and 16 bytes. The time unit is toy-operations. There is no input data, preprocessing,
-advice, or randomness. Success probability is claimed to be 1 and log2(T*M)=8.
+advice, or randomness. Success probability is claimed to be 1 and log2(T)=4.
 There are no heuristic assumptions or experimental extrapolations.

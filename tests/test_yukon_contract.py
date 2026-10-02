@@ -14,8 +14,9 @@ class YukonContractTests(unittest.TestCase):
     def test_one_import_routes_every_track_to_a_dispatchable_workflow(self):
         configuration = validate_configuration()
         self.assertEqual(configuration["yukon_challenges"], 1)
-        self.assertEqual(configuration["runnable_tracks"], 16)
-        self.assertEqual(configuration["pending_tracks"], 12)
+        self.assertEqual(configuration["import_tracks"], 6)
+        self.assertEqual(configuration["runnable_tracks"], 24)
+        self.assertEqual(configuration["pending_tracks"], 4)
         for track in frontier_tracks():
             workflow = (ROOT / ".github/workflows" / f"{track.id}.yml").read_text()
             self.assertIn("workflow_dispatch:", workflow)
@@ -42,6 +43,17 @@ class YukonContractTests(unittest.TestCase):
         self.assertIn("include-hidden-files: true", score)
         self.assertIn("if-no-files-found: error", score)
         self.assertNotIn("persist-credentials: true", workflow)
+
+    def test_prior_artifact_download_is_pinned_and_its_token_stays_in_the_action(self):
+        workflow = (ROOT / ".github/workflows/paired-review.yml").read_text()
+        prior = workflow.split("      - name: Download pinned prior judgment\n")[1].split("      - name:")[0]
+        self.assertIn("artifact-ids: ${{ steps.prior.outputs.artifact_id }}", prior)
+        self.assertIn("run-id: ${{ steps.prior.outputs.run_id }}", prior)
+        self.assertIn("github-token: ${{ github.token }}", prior)
+        self.assertNotIn("run:", prior)
+        self.assertEqual(workflow.count("${{ github.token }}"), 1)
+        self.assertLess(workflow.index("Verify prior judgment"), workflow.index("Prepare isolated experiment runtime"))
+        self.assertIn("actions: read", workflow)
 
 
 if __name__ == "__main__":

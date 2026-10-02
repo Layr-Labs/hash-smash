@@ -27,7 +27,7 @@ The runner's fixed public seeds provide reproducibility, not independent ideal c
 The source's simplicity and a finite frequency near the birthday prediction can support plausibility. They do not independently certify the0.39 lower bound, statistical independence, or ordinary-rigor sufficiency. The judge must decide whether this evidence discharges the claim's required obligation under each lane.
 If the true probability is below0.39, this particular stated single-batch claim fails the required success threshold. The reported time does not silently add restarts. Nothing is extrapolated to more MD5 steps, another target, or larger batches.
 
-## Resource accounting in collision-frontier-v3
+## Resource accounting in collision-frontier-v4
 The bounds concern a direct logical256-bit word-RAM implementation of the stated algorithm, not CPython, JSON transport, experiment orchestration, or observed wall time. The experiment is evidence for the algorithm, not a runtime certificate.
 All full SHA-256 seed-expansion work is charged as primitive word operations. A non-target SHA-256 compression is not a free or unit-cost MD5 target compression.
 Each expansion input has45 bytes (11-byte domain,32-byte seed,2-byte counter), hence one SHA-256 padded block. A direct implementation of its64 rounds and48 expanded words, including masking32-bit arithmetic on the256-bit RAM, has fewer than2^14 primitive operations per hash: budget128 per round,64 per schedule word, and2048 for input/output and setup gives13312<16384.
@@ -37,7 +37,7 @@ Two final target hash verifications take four selected-target compressions. They
 Peak logical memory is below2^17 bytes:256 stored values at32 bytes each=8192 bytes, at most128 words of SHA-256 working/constant storage=4096 bytes, messages/seed/counters/stack at most8192 bytes, and at most65536 bytes of fixed machine code and constants. These sum86016<131072. Reuse scratch space between hashes; do not retain all digest states or experiment batches.
 Code-size budget65536 bytes can hold this bounded loop-based arithmetic implementation; it is not uncharged nonuniform advice. No precomputed collision, input-specific table, or hidden data is used. All table initialization occurs online and is included above.
 `data_log2=8` conservatively permits256 internally generated message descriptions per batch, though at most two complete target messages are returned. There is no external data. `preprocessing_log2=0` and `nonuniform_advice_log2_bytes=0` mean no separate preprocessing or advice; the nonnegative log schema represents the absent categories by their unit upper bounds.
-The submitted scalar is23+17=40. Both exponents are conservative upper bounds, not an optimized cost or Pareto claim. A lower model-reconstructed bound must not silently change the submitted score.
+The submitted scalar is23; memory_log2_bytes=17 is a reported metric only. Both exponents are conservative upper bounds, not an optimized cost or Pareto claim. A lower model-reconstructed bound must not silently change the submitted score.
 
 ## Interpretation and noncompetitiveness
 This construction deliberately uses an inefficient randomized search where deterministic ignored-word collisions are easy. It creates no cryptanalytic advance; it isolates whether the protocol connects a genuine full-collision experiment to a genuinely heuristic success claim.

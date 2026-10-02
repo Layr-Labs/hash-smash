@@ -19,6 +19,7 @@ OBLIGATIONS = {
         "heuristics_disclosed", "evidence_relevant",
     ),
     "lane_cryptanalysis": ("collision_correctness", "probability_analysis", "heuristic_justification"),
+    # Retain the legacy ID; it now covers preprocessing and advice only.
     "lane_cost": ("time_bound", "memory_bound", "data_preprocessing_advice", "success_budget", "score_arithmetic"),
     "lane_experiments": ("experiment_relevance", "experiment_reproducibility", "statistics", "extrapolation"),
     "lane_defender": (),
@@ -112,6 +113,6 @@ def validate_lane_review(
     if stage == "lane_cost":
         if cost is None:
             raise ReviewValidationError("lane_cost must reconstruct the resource claim")
-        if not math.isclose(cost["normalized_score_log2"], cost["time_log2"] + cost["memory_log2_bytes"], abs_tol=1e-6):
-            raise ReviewValidationError("reconstructed score must equal time_log2 + memory_log2_bytes")
+        if not math.isclose(cost["normalized_score_log2"], cost["time_log2"], abs_tol=1e-6):
+            raise ReviewValidationError("reconstructed score must equal time_log2")
     return review
