@@ -6,23 +6,54 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 127.467,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Messages are exactly 64 bytes (one root block, flags 11, length 64, counter 0).",
+    "Grouped birthday: 2^96 groups; shared m0..m14; enumerate all m15.",
+    "K_full is the full 256-bit partial-eval digest. Briggs-Torczon sparse set indexes by top 140 bits, stores K_full, never clears sparse[]; membership via dense[sparse[idx]]==idx and sparse[idx]<n.",
+    "Unequal-K index hits discard with Word ops only (no target compression). Equal K_full triggers two reference compressions; V_max=8.",
+    "Per-message Word ops = 297 = 252 inner + 14 pack + 28 BT/K-compare + 3 loop. T_ver<=16. No expectations in T.",
+    "Declared score-critical cost heuristic H-COST-BT-SPARSE for the 28-op BT envelope (replaces unsupported implicit H-COST-SPARSE-21 from c36797d2).",
+    "F2 is selected-pair displacement (Pr<=2^-12), not run-wide unequal-K hit probability.",
+    "Repair of c367 not_evaluable; retains c145/4dd cost repairs. Unkeyed BLAKE3-256; 2 rounds."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-grouped-digests",
+      "statement": "For uniformly random independent group prefixes and exhaustive m15 enumeration, the 2^128 digests behave like independent uniform 256-bit strings for bounding F1, selected-pair F2, and F4, up to a negligible additive gap covered by the allowance between the model bound (>0.3932) and claimed success probability 0.39.",
+      "role": "score-critical",
+      "scope": "Success-probability claim only. Does not justify expectation-for-worst-case substitutions in the time bound.",
+      "extrapolation": "Organizer matched-scale digest-xor-mask experiments at widths 16, 20, and 24 with N_t^2/2^w=1, plus single-group stress, extrapolated to full 256-bit collision statistics under H1.",
+      "evidence_ids": [
+        "experiment:b3r2-grouped-spread",
+        "experiment:b3r2-single-group",
+        "experiment:b3r2-grouped-spread-16",
+        "experiment:b3r2-grouped-spread-24",
+        "proof:1-80",
+        "proof:81-181"
+      ],
+      "limitations": "H1 unproved. Truncation cannot detect almost-permutations. No full-scale collision known."
+    },
+    {
+      "id": "H-COST-BT-SPARSE",
+      "statement": "On the classical 256-bit word RAM of collision-frontier-v5, the Briggs-Torczon procedure in proof \u00a72.1 implements membership test, insert, and unequal-K discard for a top-140-bit index with never-cleared sparse[] in at most 28 charged primitive word operations per message, including one 256-bit K_full compare and address arithmetic margin.",
+      "role": "score-critical",
+      "scope": "Only the 28-op BT envelope inside the 297-ops/msg candidate ledger for this algorithm. Does not cover partial-eval inner body (separately counted) or reference compressions (T_ver).",
+      "extrapolation": "Standard Briggs-Torczon correctness (dense[sparse[i]]==i filter) is extrapolated from the classical data-structure argument to word-addressable sparse[0..2^140) without an initialization pass. No experiment measures RAM op counts; the bound is analytic from the op list.",
+      "evidence_ids": [
+        "proof:1-90",
+        "proof:40-100"
+      ],
+      "limitations": "Not empirically microbenchmarked. If word-addressing a 2^140 sparse table were deemed to require multi-op page walks beyond the 28-op margin, the ledger would need a higher BT charge (possibly losing the undercut of ~127.481)."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
