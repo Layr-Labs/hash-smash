@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "half-collision",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact blake3-r2-prefix-v1 target. One run of steps S1 to S3 of proof.md Section 4 per organizer seed, each returning a 60-byte message and a 62-byte message. Nine state words are taken from the seed. Every trial is returned. The program does not call a hash; the organizer recomputes both digests.",
+      "hypothesis": "For every trial the two complete 2-round digests agree on digest words 0, 2, 5 and 7, that is on the 128 masked bits, as the theorem of proof.md Section 5 states for every choice of the nine state words. This is an exact claim; the run checks it on concrete inputs.",
+      "program": "experiments/halfsearch.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffff00000000ffffffff0000000000000000ffffffff00000000ffffffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "residual-search",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact blake3-r2-prefix-v1 target. The search of proof.md Section 6 at toy scale: per organizer seed one context and one alpha, then at most 8192 consecutive gamma values, stopping at the first trial whose residual has a zero low byte in digest word 1. Failed trials are returned as null pairs.",
+      "hypothesis": "Every returned pair agrees on 136 digest bits: the 128 bits of the half-collision and the low byte of digest word 1. Under heuristic H1 a trial has this extra byte zero with probability near 2^-8 or above, so nearly all seeds return a pair within 8192 values. This is small-scale evidence about the residual; it does not measure the 128-bit hit rate and is not evidence of attack cost.",
+      "program": "experiments/halfsearch.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffffff000000ffffffff0000000000000000ffffffff00000000ffffffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}

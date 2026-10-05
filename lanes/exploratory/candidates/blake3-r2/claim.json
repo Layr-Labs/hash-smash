@@ -6,23 +6,42 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 124.5,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 20,
+    "preprocessing_log2": 63,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 5
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "The two messages have 60 and 62 bytes: each is one chunk, one block, one root compression with flags 11, counter 0 and its true block length; the 62-byte message ends in two zero bytes.",
+    "Unkeyed BLAKE3-256 with 2 prefix rounds, standard IV, permutation and feed-forward, full 256-bit digest; an ordinary collision between two distinct complete messages.",
+    "Exact part: for every choice of nine state words the two digests agree on digest words 0, 2, 5 and 7. Heuristic part: a search over 2^128 such pairs for one whose remaining 128 digest bits agree.",
+    "Classical 256-bit word RAM under collision-frontier-v5; seven trials per 256-bit word in 36-bit lanes on a 16-register load/store machine, 178 arithmetic, logical and shift operations plus 79 constant loads per batch, charged as 266; no table, sorting or lookup; at most 2^100 early-test passes are processed before the algorithm halts with failure.",
+    "Randomized by one fresh uniform 256-bit word. The success probability 0.39 holds only under heuristics H1 and H2. No full 2-round collision is exhibited and none was computed.",
+    "Six 32-bit constants are stored in the program (24 bytes of advice); recomputing them is bounded by 2^63 units and included in the time. No priority or novelty claim is made; the gain over a generic birthday search is a constant factor."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-residual-hit-rate",
+      "statement": "Over the algorithm's one random word, the 2^128 enumerated trials behave with respect to the event that the 128-bit residual R is zero like independent events of probability at least 2^-129 each (half the rate of a uniform 128-bit value), to the extent that the probability that no trial has R = 0 is at most exp(-1/2) + 0.002.",
+      "role": "score-critical",
+      "scope": "Exactly the trials of proof.md Section 6.4: lengths 60 and 62, the six constants of Section 3.2, contexts indexed by (X13, X14), and the D0 and D1 families with parameters alpha and gamma.",
+      "extrapolation": "From organizer-checked trials with 8 additional vanishing residual bits, and participant measurements on 2^38 trials with up to 36 vanishing bits, to all 128 residual bits and to 2^128 trials.",
+      "evidence_ids": ["experiment:residual-search", "experiment:half-collision", "proof:410-432", "proof:499-540"],
+      "limitations": "The residual is measurably non-uniform, with single-bit frequencies between about 0.32 and 0.65, and one residual word was zero about half as often as a uniform word in the participant measurement; the assumed rate is therefore half the uniform rate. The measured range ends at 36 bits, far below 128. A structural reason making R = 0 rarer than 2^-129 over these trials is not excluded, and independence of the residual words and of the trials is assumed. The solver evidence that the final call pair can reach R = 0 for these constants is participant-run and concerns free inputs, not messages."
+    },
+    {
+      "id": "H2-early-test-passes",
+      "statement": "With probability at least 0.999 over the random word, fewer than 2^100 of the 2^128 trials pass the 32-bit early test of proof.md Lemma E without having R = 0.",
+      "role": "supporting",
+      "scope": "The early test of Section 6.3 on the trials of Section 6.4. A pass rate of 2^-32 would give 2^96 passes; the budget allows 16 times more.",
+      "extrapolation": "From a participant measurement of the pass rate on 2^38 trials (40 passes against 64 at rate 2^-32) to 2^128 trials.",
+      "evidence_ids": ["proof:313-329", "proof:421-432", "proof:499-540"],
+      "limitations": "Not organizer-verified. If the budget were exceeded the algorithm halts with failure, which lowers the success probability but does not raise the time bound."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
