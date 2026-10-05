@@ -6,23 +6,60 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 64,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
+    "memory_log2_bytes": 30,
+    "preprocessing_log2": 64,
     "success_probability": 0.5,
-    "nonuniform_advice_log2_bytes": 0
+    "nonuniform_advice_log2_bytes": 13
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Messages are exactly 135 bytes; each pads to m || 0x86 (LSB-first bits 0,1,1,0,0,0,0,1 at state bits 1080..1087) in a single 136-byte rate block, capacity zero.",
+    "Uses the complete fixed-zero-state SHA3-256 sponge with prefix Keccak-f[1600] rounds 0 through 4 on every permutation call.",
+    "Self-contained algorithm in proof.md: embedded trail masks beta2, beta3, beta4 and connector target alpha2 (Section 3); exact two-round connector constraint system over message difference d and message values m (Section 4.3); per-instance message difference d_i is a connector output.",
+    "Finite caps: at most R = 2^13 connector successes, A = 2^4 attempts per success at a fixed per-attempt budget of 2^46.8 units, and at most E = 2^33 enumerated messages per affine space; failure is returned when caps are exhausted.",
+    "Charged: trail-search precomputation (2^60 envelope), all connector attempts including failures, brute-force hashing, scanning and final verification.",
+    "Analytical construction; a byte-aligned round-0 connector instance was produced and verified locally, but no complete two-round p = 8 connector instance, no full-scale execution, and no certificate are supplied.",
+    "The nominal reference identifier does not assert an improvement; the bound 64 under collision-frontier-v5 rests on declared heuristics h1-h4."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "h1-byte-aligned-two-round-connector",
+      "statement": "With the 0x86 byte-string tail (p = 8), a two-round connector for alpha2 succeeds within A = 2^4 attempts of 2^46.8 units each and returns an affine message space of dimension DF >= 25.",
+      "role": "score-critical",
+      "scope": "Prefix rounds 0-1 of Keccak-f[1600], rate 1088 / capacity 512, 135-byte messages; constraint system of proof Section 4.3.",
+      "extrapolation": "Published p = 4 connector: DF = 37 for 428.8 core-hours (about 2^46.2 units at 2^36 word-ops per core-second). Measured locally at p = 8: the round-0 layer for the published alpha1 is satisfiable (instance in proof Appendix A). Four extra fixed bits remove at most four degrees of freedom linearly.",
+      "evidence_ids": ["proof:4", "proof:7"],
+      "limitations": "Measured pad sensitivity: with the witness's round-0 difference pattern fixed, the two-round system is satisfiable under tail 0xEE but not under 0x86; 25 other fixed patterns and a 240-280 s unpinned solve produced no p = 8 two-round instance. If p = 8 success needs more than about 2^4.6 times the published per-success connector work, the bound fails."
+    },
+    {
+      "id": "h2-tail-probability",
+      "statement": "Each pair (m, m XOR d_i) in a connector space satisfies the zero digest-difference condition after rounds 2-4 with probability at least 2^-36.70.",
+      "role": "score-critical",
+      "scope": "Prefix rounds 2, 3, 4 of the exact profile; per-pair event over connector-produced pairs.",
+      "extrapolation": "Embedded beta2 -> alpha3 and beta3 -> alpha4 weights were recomputed exactly (24 and 19); the 2^-36.70 aggregate over compatible final-round trails is the published figure; the verified published witness follows beta2 and beta3 bit-for-bit.",
+      "evidence_ids": ["proof:3", "proof:7"],
+      "limitations": "Published differential estimate, not a proof for the connector's output distribution."
+    },
+    {
+      "id": "h3-cross-space-independence",
+      "statement": "Collision events across the R connector spaces count as approximately independent, so at least 2^37 tested pairs give expected collisions at least 1.23 and success above 0.70 under a Poisson approximation.",
+      "role": "score-critical",
+      "scope": "Success accounting of proof Section 8 (h3).",
+      "extrapolation": "Standard counting convention for differential attacks; each space is built from fresh coins and a freshly drawn alpha1.",
+      "evidence_ids": ["proof:8"],
+      "limitations": "Not proven. The declared 0.5 tolerates an effective-mean loss of only about 0.8 bit; no larger correlation tolerance is claimed."
+    },
+    {
+      "id": "h4-cost-conventions",
+      "statement": "The conversion of 2^36 word operations per core-second and the 2^60-unit envelope for trail-core search are upper-bound conventions for the respective work.",
+      "role": "supporting",
+      "scope": "Connector budget and trail-search charge in proof Section 6.",
+      "extrapolation": "Published timing data; trail-search cost is not separately reported, so a large flat envelope is charged.",
+      "evidence_ids": ["proof:6"],
+      "limitations": "Stated envelopes rather than instruction traces."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
