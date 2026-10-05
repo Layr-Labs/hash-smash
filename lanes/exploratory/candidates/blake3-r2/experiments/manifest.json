@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "scaled-multi-trail-dp",
+      "kind": "python-message-pairs-v1",
+      "scope": "Complete scaled copy of the salted multi-trail distinguished-point collision search on the exact 2-round BLAKE3 root compression. Point space is 16 bits; distinguished points have low 2 bits zero (theta=2^-2). Parameters K=2^8+2^5, L_max=2^6, M_max=2^12 were fixed before production runs. Recovery re-walks two distinct starts with the L_max cap, matching the full-scale O(L_max) recovery (not birthday-scale single-trail lockstep). Each organizer trial supplies one 256-bit seed expanded to salt and a start stream. The checked event is equality of the first 16 digest bits (digest-xor-mask), matching the truncated walk map. Disclosed: L_max*theta=16 at this scale versus 256 at full scale (both >> 1). Default organizer trial budget applies.",
+      "hypothesis": "Under the salted random-mapping premise H1, the full-scale multi-trail algorithm's success probability is at least the random-function bound (>0.3934) for the resource-bounded procedure (including O(L_max) recovery caps). At this scale the same control flow yields an empirical success frequency near the random-mapping prediction, supporting that the truncated 2-round root map behaves like a random function for multi-trail DP collision statistics. Finite frequencies are supporting evidence, not a certified full-scale probability.",
+      "program": "experiments/scaled_multi_trail_dp.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffff000000000000000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
