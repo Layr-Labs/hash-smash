@@ -1,353 +1,451 @@
-# A fixed-function collision baseline for five-round SHA3-256
+# Four-way packed birthday search for five-round SHA3-256
 
-The scalar below is `time_log2` under `collision-frontier-v5`. Memory remains
-a separately reported resource bound.
+## 1. Claim and scope
 
-This independent exploratory package targets sha3-256-r5-prefix-v1. It proposes
-a classical randomized algorithm with success at least 1/2, total charged time
-at most 2^137.785 units, and peak memory at most 2^137 bytes under
-collision-frontier-v5. These are conservative analytical upper bounds, not
-measured execution costs. The claimed scalar is 137.785.
+Target: `sha3-256-r5-prefix-v1`. Lane: exploratory. Attack class:
+ordinary collision. The selected hash has all-zero IV, rate 1088, capacity
+512, SHA3 suffix 0x06, the first five Keccak-f[1600] rounds (0 through 4),
+and the complete 256-bit digest. Neither the round convention nor the hash
+domain is changed.
 
-The proof uses no distributional property of SHA3: every fixed function from
-the chosen message domain to 256-bit strings satisfies its probability bound.
-Fresh independent uniform coins are the explicit RAM model's random-word
-primitive. No PRNG, random-oracle, round-independence, or differential heuristic
-is assumed. Accordingly the heuristic list is empty.
+Under `collision-frontier-v5`, with C=1355, the algorithm below has:
 
-## 1. Exact complete hash
+| Resource | Upper bound |
+| --- | --- |
+| Total computation | 2^127.215 selected-permutation equivalents |
+| Peak memory | 2^136 bytes |
+| Preprocessing, already included in total | 2^122 equivalents |
+| Probability of returning an ordinary collision | at least 0.39 |
+| Nonuniform advice | zero bytes |
 
-Each message is exactly 64 bytes, of bit length 512 < 2^64. Two 256-bit words
-u,v encode m=LE32(u)||LE32(v), where LE32 includes all 32 little-endian bytes,
-including zeros. These encodings bijectively cover a domain D of size 2^512.
-There is no unknown IV, free-start state, or supplied prefix/advice.
+This is an analytical algorithm with astronomically large memory and work.
+It is not a measured collision or a practical break. It makes no claim about
+the full 24-round standard. Its improvement is implementation and accounting
+within the specified 256-bit RAM, not a new differential attack.
 
-H is the following complete hash. Initialize a 1600-bit state to zero, as
-25 lanes A[x,y] of 64 bits indexed x+5y. Pad m to the one 136-byte rate block
+The probability bound holds for every fixed deterministic 256-bit-output
+function on the chosen 512-bit domain. There is no random-function,
+independence-between-rounds, PRNG, or differential heuristic. The only random
+primitive is the model's fresh independent uniform 256-bit word.
 
-    m || 0x06 || (70 zero bytes) || 0x80.
+## 2. Exact messages, padding, and digest
 
-This is SHA3's domain suffix 01 followed by pad10*1, with delimited suffix
-0x06. There is no length trailer. XOR the 17 little-endian 8-byte lanes of
-this block into A[0],...,A[16]. The remaining eight capacity lanes are zero.
-Apply rounds 0,1,2,3,4, in order, each with the following formulas; x,y and
-coordinate subscripts are modulo 5:
+Set n=2^128. Draw 2n independent random 256-bit words. A message is
+LE32(u) || LE32(v), exactly 64 bytes; thus the sampling domain D has
+size 2^512. Repeated messages are retained and charged. There is one batch
+of n messages, no adaptive sampling, no rejection sampling, and no restart.
 
-    C[x] = XOR over y of A[x,y]
-    D[x] = C[x-1] XOR ROT64(C[x+1],1)
-    A[x,y] = A[x,y] XOR D[x]
-    B[y,2x+3y] = ROT64(A[x,y],rho[x,y])
+Every message pads to one 136-byte block:
+
+    message[64 bytes] || 06 || 00[70 bytes] || 80
+
+The block is XORed into the all-zero state. In 64-bit little-endian lane
+order i=x+5*y, lanes 0 through 7 contain the message, lane 8 equals 6,
+lane 16 equals 0x8000000000000000, and every other lane equals zero.
+The capacity remains zero before the permutation. Execute exactly rounds
+0,1,2,3,4. The first four resulting lanes, serialized little-endian,
+are the complete digest. No second absorption or squeezing permutation is
+needed. Each final witness verification uses this same complete hash.
+
+For completeness the underlying round maps are:
+
+    C[x] = A[x,0] XOR A[x,1] XOR A[x,2] XOR A[x,3] XOR A[x,4]
+    D[x] = C[x-1] XOR rot64(C[x+1], 1)
+    B[y, (2*x+3*y) mod 5] = rot64(A[x,y] XOR D[x], rho[x,y])
     A[x,y] = B[x,y] XOR ((NOT64 B[x+1,y]) AND B[x+2,y])
-    A[0,0] = A[0,0] XOR RC[round].
+    A[0,0] = A[0,0] XOR RC[round]
 
-All chi right-hand sides read the temporary B array. ROT64 rotates left
-within 64 bits; NOT64 complements only those bits. The rho offsets, with
-rows y=0,...,4 and columns x=0,...,4, are:
+All x and y additions in indices are modulo 5. The rho offsets in i=x+5*y
+order are:
 
-    0   1  62  28  27
-   36  44   6  55  20
-    3  10  43  25  39
-   41  45  15  21   8
-   18   2  61  56  14
+    0, 1, 62, 28, 27,
+    36, 44, 6, 55, 20,
+    3, 10, 43, 25, 39,
+    41, 45, 15, 21, 8,
+    18, 2, 61, 56, 14.
 
-The five hexadecimal round constants, in order, are:
+The five constants, as 64-bit hexadecimal integers, are:
 
-    0000000000000001
-    0000000000008082
-    800000000000808a
-    8000000080008000
-    000000000000808b
+    0000000000000001, 0000000000008082, 800000000000808a,
+    8000000080008000, 000000000000808b.
 
-After round 4, H(m)=LE8(A[0])||LE8(A[1])||LE8(A[2])||LE8(A[3]).
-These are all 256 output bits, the first 32 squeeze bytes in SHA3 order.
-No additional permutation is required because 32 < 136. Absorption XORs into
-the 1088-bit rate; the capacity is 512 bits and there is no Davies-Meyer
-feed-forward. Thus each complete hash uses exactly one selected five-round
-permutation. This specifies the profile's complete padded, fixed-IV hash on
-every message the algorithm can generate. The prefix is the first five
-Keccak-f rounds, not Keccak-p's last-round convention.
+These are public FIPS 202 constants. The target uses prefix rounds rather
+than Keccak-p's last-round convention.
 
-## 2. Algorithm and representation
+## 3. Four independent states in one word
 
-Set n=2^129. A record is three 256-bit words (h,u,v), with h the little-endian
-integer encoding of H(LE32(u)||LE32(v)). Unsigned comparison of h is a total
-order whose equality is full digest equality. Use two flat arrays A and B,
-each of n records. Explicitly initialize all six words per index across the
-two arrays; allocation and initialization are charged.
+For four 64-bit values define
 
-1. For i=0,...,n-1, draw fresh independent uniform 256-bit words u and v,
-   construct their 64-byte message, compute its complete H, and store
-   (h,u,v) in A[i]. Retain repeated inputs; there is no resampling.
-2. Sort by full h using stable, iterative bottom-up merge sort with A and B
-   as alternating source/destination arrays. For widths w=1,2,4,...,2^128,
-   merge successive pairs of sorted runs of length w. Choose the left run
-   on digest ties, copy all three words of every record, and exchange the
-   two array base pointers at the end of each pass. Exactly 129 passes
-   each write exactly n records.
-3. Scan all adjacent positions j-1,j in the sorted source array, from j=1
-   through n-1. Test h equality and inequality of the pair (u,v), testing
-   both message words. On the first qualifying pair, reconstruct both
-   messages and recompute both complete hashes from the all-zero state.
-   Check message distinctness and equality of all 256 recomputed output
-   bits. Return the two messages if verified; otherwise halt with failure.
-4. If the scan finishes without such a pair, halt with failure.
+    pack(a0,a1,a2,a3) = a0 + (a1<<64) + (a2<<128) + (a3<<192).
 
-There is one batch, no restart, and at most one final verification of two
-messages. Verification failure cannot occur in the exact RAM model because
-the original digests came from the same deterministic H. This explicit
-defensive check is still charged. Every outcome halts within the same budget.
+All attack registers hold 256-bit values, with arithmetic reduced modulo
+2^256. There are no wider-word operations. A fixed finite register bank
+holds the 25 packed lanes, 25 scratch lanes, five parities, five theta
+values, message words, pointers, and scalar temporaries. Main-memory
+accesses are charged separately below. Primitive operations read their
+register operands and write the result register; there are no hidden
+data-memory lookups inside the packed core.
 
-For a concrete merge, maintain w, run start b, source cursors i=b,j=b+w,
-ends b+w,b+2w, and destination cursor k=b. While k<b+2w, choose the nonempty
-run if the other is exhausted; otherwise load and compare both h words.
-Copy all three words of the selected record, advance its source cursor, and
-advance k. When the run is complete, advance b by 2w. When the pass ends,
-swap source/destination base pointers and double w. All boundaries are exact
-because n is a power of two. There is no recursive stack or library sort.
+XOR, AND, OR and 256-bit NOT act independently on the four disjoint
+64-bit fields. In particular 256-bit NOT is exactly four simultaneous
+64-bit complements. No addition is used on packed Keccak state words.
+The additions in the mathematical definition of pack combine disjoint
+bit fields; the implementation uses shifts and OR.
 
-Record i starts at byte address base+96i, calculated as
-base+(i<<6)+(i<<5), without multiplication. Word offsets are 0,32,64.
-Indices, counters, sentinels, run boundaries and byte addresses are less than
-2^138, far below 2^256. The value n is made by 1<<129. Message contents occupy
-two words; no 512-bit single-word arithmetic is assumed. The proof's symbolic
-domain/codomain cardinalities need not be represented in the machine.
+The only operation needing boundary isolation is a 64-bit rotation.
+For 0<r<64 define two fixed public 256-bit masks:
 
-## 3. Correctness of any returned collision
+    L_r = pack(2^64-2^r, 2^64-2^r, 2^64-2^r, 2^64-2^r)
+    R_r = pack(2^r-1, 2^r-1, 2^r-1, 2^r-1).
 
-The standard merge invariant says each output prefix contains the smallest
-remaining keys of its two sorted inputs. Copying entire records preserves
-each digest's associated message. Induction over the passes therefore sorts
-all original records without deleting any.
+Use the following five primitive word operations:
 
-Every fixed digest occupies a contiguous interval in the sorted array. If
-that interval contains distinct messages, some adjacent messages differ:
-otherwise equality of every adjacent pair would make the entire interval
-one repeated message by transitivity. Thus the scan finds a distinct-message
-collision whenever the sample contains one, including samples with repeated
-inputs. Repeated inputs alone are never accepted as collisions.
+    t0 = X << r                 # word shift, high bits discarded
+    t1 = t0 AND L_r
+    t2 = X >> (64-r)
+    t3 = t2 AND R_r
+    Y  = t1 OR t3.
 
-Every returned message is in the profile's allowed domain. The explicit final
-checks establish inequality of the messages and equality of the entire
-complete-message hash from Section 1. This is an ordinary collision, not a
-compression-only, free-start, raw-permutation, truncated-output, or
-different-round result.
+For r=0 use the existing register without a shift. Masks and rotation
+amounts are literal operands of the fixed straight-line program. Their
+construction and program storage are accounted for in setup; the algorithm
+does not construct masks in every round. There is no extra SIMD instruction
+or target-hash oracle in this operation sequence.
 
-## 4. Success for every fixed function
+### Rotation lemma
 
-The sole probability space consists of 2n independent uniform 256-bit words
-drawn in Step 1. Hence the messages M_1,...,M_n are independent uniform samples
-from D. For fixed deterministic H, the Y_i=H(M_i) are iid with probabilities
+Consider bit position 64*j+k, with 0<=j<4 and 0<=k<64. The L_r term is
+nonzero only for k>=r, when it takes bit 64*j+k-r of X. The R_r term
+is nonzero only for k<r, when it takes bit 64*j+k+64-r of X. Both are
+from field j. Every cross-field bit is removed by the corresponding
+mask. The two terms have disjoint support. Consequently
 
-    p_y = |{m in D : H(m)=y}| / 2^512.
+    Y = pack(rot64(a0,r), rot64(a1,r), rot64(a2,r), rot64(a3,r)).
 
-There are Q=2^256 possible output strings, including any with probability zero.
-These probabilities may be arbitrarily nonuniform. Independence here follows
-from applying a fixed function separately to independent inputs, not from
-assuming independent internal rounds or assuming a randomly chosen hash.
+At the first and last field boundaries, the global shifts may discard bits
+outside the word; the retained terms above still have their source inside
+the same field. The formula therefore also holds for j=0 and j=3.
 
-For any probability vector p of length Q, let e_n(p) denote the sum of products
-of n distinct coordinates. Independence gives
+### Packed-round lemma
 
-    Pr[all Y_i distinct] = n! e_n(p).
+Replace each ordinary 64-bit XOR, AND and NOT in Section 2 by the
+corresponding 256-bit operation, each rotation by the five-operation
+formula, and each round constant by four identical copies in one word.
+Every resulting field equals its ordinary round result, by the rotation
+lemma and the bitwise identities. Pi only relabels lane registers. Induction
+over the five rounds proves equality with four independently evaluated
+complete target hashes, including the exact padding and all output bits.
+This is an algebraic identity, not an empirical extrapolation.
 
-For completeness, uniform p maximizes e_n. A maximum exists by continuity on
-the compact simplex. Among maximizers choose one minimizing the sum of squared
-coordinates. If coordinates a,b differ, average them. With other coordinates
-r fixed,
+## 4. Explicit packed-round instruction bound
 
-    e_n(p) = ab e_(n-2)(r) + (a+b)e_(n-1)(r) + e_n(r).
+The 25 lane indices and all round/rotation constants are public and fixed.
+Generate a straight-line instruction sequence with no run-time x/y/rho
+loops. Temporary registers are reused. There is no per-lane memory array.
 
-All coefficients are nonnegative. Averaging cannot decrease e_n, so it remains
-maximal, while the sum of squared coordinates strictly decreases. This
-contradicts the choice. The maximizing vector is therefore uniform, and
+| Data-path operations per packed round | Count |
+| --- | ---: |
+| Five parity reductions, four XORs each | 20 |
+| Five rotate-by-one operations, five primitives each | 25 |
+| Five theta XORs | 5 |
+| XOR theta into each of 25 state lanes | 25 |
+| 24 nonzero rho rotations, five primitives each | 120 |
+| 25 chi outputs, NOT/AND/XOR | 75 |
+| Iota XOR with repeated round constant | 1 |
+| Total | 271 |
 
-    Pr[all Y_i distinct]
-      <= Q(Q-1)...(Q-n+1)/Q^n
-       = product_(j=0,...,n-1) (1-j/Q)
-      <= exp(-n(n-1)/(2Q))
-       = exp(-(2-2^-128))
-       < exp(-1).
+The zero rho offset needs no rotation primitive. Chi needs no mask after
+NOT, because all four complete fields are used. The packed data-path
+count 271 is derived here independently of the organizer's reference count.
+It happens to equal C/5; that equality is not needed for correctness.
 
-Here n<Q and 1-t<=exp(-t) on 0<=t<1, obtained by integrating the derivative
--1/(1-t)<=-1 of log(1-t). This also covers distributions with small support.
+An additional 70 word moves per packed round is charged, even though many
+can be eliminated by assigning output names at code-generation time:
+five parity-result placements, five theta-result placements, 25 rho/pi
+result placements, 25 chi/state result placements, and ten spare moves
+for round transition and temporary/result placement. Every binary/unary
+instruction already writes its result register. The five-operation
+rotation has two temporaries and does not require a data-memory spill.
+No dynamic addressing or branch is used within these five unrolled rounds.
 
-Let E be the event that some input messages repeat. The union bound gives
+Thus one group of four messages costs at most 5*(271+70)=1705 ordinary
+word operations for its packed permutation. They cost 1705/C units;
+four additional unit-cost target permutations are NOT charged, because
+no such target-compression instructions are invoked here. This is a
+primitive-word implementation of the function. Final verification below
+does invoke two unit-cost target permutations and is charged as such.
 
-    Pr[E] <= n(n-1)/(2|D|) < 2^258/(2*2^512) = 2^-255.
+This reduces total work, rather than parallel wall-clock latency: the
+whole group executes sequentially on one word RAM. Every primitive in
+the group is included once in its total work.
 
-No independence of the pair-events is required. If outputs collide and E
-does not occur, the algorithm succeeds. Thus
+## 5. Record generation, memory and grouping
 
-    Pr[success] >= 1 - Pr[all Y_i distinct] - Pr[E]
-                > 1 - exp(-1) - 2^-255
-                > 1/2.
+Record i consists of three 256-bit words (h,u,v), in that order. The two
+message words remain attached to their digest throughout all rearrangements.
+There are two record arrays A and B, each of n records. A group of four
+uses eight fresh independent random words. n is divisible by four.
 
-Indeed e=sum_(k>=0)1/k! > 8/3, so exp(-1)<3/8, and 2^-255<1/8.
-This intentionally conservative bound proves the declared 0.5 and exceeds
-the required 0.39. Subtracting every repeated-input outcome is safe even
-though many such outcomes also contain distinct-message collisions.
-The number concerns algorithmic success, not confidence in a proof or review.
+Input packing extracts the eight 64-bit message lanes of each message.
+For each packed lane, start from zero, then for each of four messages
+shift its source word by the public lane offset, AND with 2^64-1,
+shift by the public packing offset, and OR into the packed lane.
+Shifts by zero may be retained and charged. Set the remaining packed
+lanes to the repeated padding constants or zero. Run Section 4.
 
-## 5. Fully charged RAM implementation
+Digest unpacking reverses this layout: for each message, take the relevant
+field of each of packed output lanes 0..3 using shift and AND, shift to
+the digest's lane offset, and OR. Retain all 256 digest bits. Write the
+three words (h,u,v) to the record array. Repeated input messages are not
+discarded, nor is any hash result selected according to its value.
 
-One 256-bit word is 32 bytes. Each selected five-round permutation costs one
-unit; every other listed RAM primitive costs 1/1355 units. Ordinary-operation
-counts W below are separate from permutation calls H_calls. The permutation's
-internal rounds are not counted again in W. All bounds include
-message construction, failed samples, randomness, memory initialization,
-sorting, verification, and fixed code/constants. There is no external disk,
-unaccounted preprocessing service, whole-hash oracle, or free sorting step.
+The following 512-operation envelope per group covers all work outside
+the packed permutation:
 
-Code and fixed storage are bounded explicitly. The algorithm above can use
-fewer than 100 loop-body statements outside the selected permutation, each
-expandable into fewer than 64 primitive instruction templates. A direct
-implementation of the displayed permutation formulas needs fewer than 2,000
-additional templates, retaining a fixed loop over the five rounds; operations on constant
-64-bit lane positions use shifts, masks and fixed addresses. The loops over
-records and merge widths remain loops. A ceiling of 2^16 instruction templates
-therefore exceeds the required code. Encode each template in at most four
-256-bit words (opcode and up to three operands), using separate primitive
-instructions for loads, stores and branches. Its size is at most 2^23 bytes.
+| Work per group | Bound |
+| --- | ---: |
+| Eight random words, including eight register placements | 16 |
+| Eight packed input lanes: four extract/mask/shift/OR sequences each | 128 |
+| Packed accumulator initialization and input/padding/state placements | 64 |
+| Four full digests: four extract/mask/shift/OR sequences each | 64 |
+| Digest accumulator/result placements and message retention moves | 32 |
+| Four record writes, address arithmetic and offsets | 64 |
+| Group pointer/index updates, comparison and branch | 16 |
+| Additional spare register moves and loop setup allocation | 128 |
+| Envelope | 512 |
 
-Reserve another 2^23 bytes for public target constants, working state,
-register spills, loop counters, address variables, the current message/records,
-verification scratch and final output. In particular the permutation may keep
-25 A lanes, 25 B lanes and 10 C/D lanes in individual RAM words. Thus all fixed
-storage is at most 2^24 bytes, or 2^19 words. This bound includes the program;
-no precomputed collision, target advice, large lookup table or hidden runtime
-is present. The bound refers to the specified RAM program, not Python or a
-host library. All fixed storage is initialized and its cost is charged below.
+The row bounds sum to 512. Public loops over four messages and eight input
+lanes are fully unrolled in the fixed program; only the n/4-group loop
+needs dynamic control. The spare row is larger than its finite setup.
+The group envelope includes generation, packing, padding, unpacking, storing,
+randomness and all message-address arithmetic.
 
-The following large caps allow redundant copying, instruction decoding,
-explicit operand loading/storing and address arithmetic. They do not depend
-on treating high-level sort/serialization as unit-cost operations.
+Before generation, initialize both full record arrays to zero, although
+they are subsequently overwritten. One joint loop holds a pointer into
+each array. For each array it uses three stores, two offset additions,
+and one 96-byte pointer increment: six operations. A shared index
+increment, comparison and branch add three, giving 15 per paired record.
+Charge 16n operations, including loop initialization. Static address
+reservation and array base/pointer initialization are included in setup.
+No array cell is read before being initialized or written by the algorithm.
 
-| Activity | Permutation calls, at cost 1 each | Ordinary operations, at cost 1/1355 each |
-| --- | ---: | ---: |
-| Initialize code, constants and all fixed workspace | 0 | 2^24 |
-| Initialize both record arrays | 0 | 128n |
-| Generate, hash and retain n messages | n | 65536n |
-| Exactly 129 merge passes | 0 | 129 * 4096n |
-| Scan adjacent records | 0 | 2048n |
-| Final reconstruction, verification and output | at most 2 | 2^18 |
+## 6. Stable radix sorting with four 64-bit digits
 
-The counts in the last column are ordinary-operation envelopes; their
-instruction fetches, memory traffic and spare allowance are retained. The
-permutation calls in the middle column are priced independently.
+Let b=2^64. Allocate one array Q of b counters, each a 256-bit word.
+It is reused for all passes. A count or prefix sum can be n, which is
+still representable in one 256-bit word. Records are stably sorted by
+four consecutive least-significant digits of their complete digest:
+shifts s=0,64,128,192, mask b-1. No shorter digest is treated as a collision.
 
-For fixed initialization, processing 2^19 words at at most 16 ordinary
-operations per word takes at most 2^23 operations, within the stated 2^24 cap. This loads the finite explicit code
-and public constants; it does not assume a target-dependent advice oracle.
-Array initialization uses six stores per index and fewer than 120 additional
-load/address/counter/control operations, fitting the 128n cap.
+For each of the four passes:
 
-Here is an explicit wrapper construction justifying 65536 per generated
-record. Store each 64-bit lane in its own RAM word. Extract message bytes
-from u,v by shifts and masks, store the padding bytes, initialize the 25-lane
-state, combine successive groups of eight bytes into the 17 rate lanes,
-and XOR those lanes into the state. At most 512 constant-size loop iterations
-suffice in total: 64 byte extraction, 136 padding/block initialization, 25
-state initialization, 136 byte-to-lane packing, 17 absorptions, and 32 output
-byte encodings sum to 410. Each iteration can be implemented in fewer than
-64 ordinary operations including operand access, bit operations, loop control
-and address arithmetic. These take at most 32768 ordinary operations. Two random-word draws, the one
-selected permutation's dispatch, output-word packing, sample-loop control,
-and storing the three-word record fit within a further 1024 ordinary
-operations. Ordinary total <65536; add one target-permutation unit per hash.
-The permutation's code and buffers remain in the fixed reserve.
+1. Set every Q[j] to zero.
+2. Scan all n source records. Extract j=(h>>s) AND (b-1), increment Q[j].
+3. In digit order, replace counts by exclusive prefix sums: with sum=0,
+   read count, store sum into that cell, then add count to sum.
+4. Scan source records in their existing order. Extract the same digit,
+   read destination index k=Q[j], write the complete three-word record to
+   destination record k, and replace Q[j] by k+1.
+5. Swap the two source/destination base-register names.
 
-For merges, each output record requires at most two exhaustion comparisons
-with branches, two key loads and a comparison/branch, three record loads and
-three stores, plus cursor/address updates and loop control. There are fewer
-than 64 such logical operations, each implementable with at most 16 charged
-primitive operations even allowing instruction/operand memory accesses and
-spills. This costs at most 1024 per record. Run setup is at most 64 such
-operations, or 1024 per run; every run emits at least two records. Pass setup
-is also at most 1024 per pass, which emits n>=2 records. Hence the per-output
-charge is at most 1024+512+512=2048, below the chosen 4096. This includes
-pointer swaps, run/pass endings and initialization of merge cursors.
-The scan uses fewer operations per pair than this merge loop and so fits
-2048n. Address calculation by stride 96 is expanded into shifts/adds as above.
+### Sorting correctness
 
-Final verification uses at most two complete hash wrappers, message
-distinctness, full digest comparisons and output serialization: less than
-2*65536+1024 <2^18 ordinary operations, plus two permutation calls.
-There is no restart cost because no restart occurs.
+Prefix sums partition [0,n) into disjoint intervals of exactly the digit
+frequencies. Step 4 writes each record into its digit's interval, once,
+without losing its message fields. Its traversal order makes the pass
+stable. Inductively the first pass sorts by the low digit; pass t sorts by
+digit t and preserves the ordering of lower digits among ties. Four passes
+therefore sort by the full 256-bit digest. Repeated keys remain adjacent.
 
-Summing all phases, including the cost of batches that fail to find a collision,
+### Instruction bound for one pass
 
-    H_calls <= n+2
-    W <= (128 + 65536 + 129*4096 + 2048)n + 2^24 + 2^18
-       = 596096n + 17039360
-    T = H_calls + W/1355
-      <= (1 + 596096/1355)n + 2 + 17039360/1355
-       < (440924/1000)n
-       < 2^8.785 n = 2^137.785,  for n=2^129.
+Byte-addressed word RAM uses a 32-byte stride for Q and a 96-byte stride
+for records. To construct 96*k use (k<<6)+(k<<5), then add the destination
+base: two shifts and two additions. All pointers and indices fit in one word.
 
-Both strict inequalities can be checked with integers: substitute n=2^129
-in the first and clear denominators; the second is exactly
-`440924^200 < 2^1757 * 1000^200`, since 8.785=1757/200. This rounds upward
-with the fixed setup and final verification included, not just the leading
-coefficient (approximately 440.923247). No old rounded total is divided by C.
-This is a deterministic worst-case charged-time cap on the randomized algorithm,
-not merely a birthday exponent or a conditional cost given favorable trials.
+Frequency loop, per record:
 
-Each array uses n*3*32=96n bytes. With all fixed storage included,
+    load h                                      1
+    digit shift and mask                        2
+    counter-address shift and add               2
+    load count; increment; store count           3
+    advance record pointer                      1
+    increment index; compare; branch             3
+                                                 = 12
 
-    peak bytes <= 192n + 2^24 < 256n = 2^137.
+Scatter loop, per record:
 
-The arrays contain every retained message, digest and sampled random word.
-There is no extra index array, recursion, message database or pointer per record.
-The reserve includes all temporary randomness, state, code/advice/constants,
-verification state and final output. Both arrays and the reserve fit below
-byte address 2^138. This validates the one-word pointer/counter assumption.
-The memory figure is an abstract RAM allowance, not a claim of physical feasibility.
+    load h,u,v (including two offset additions)  5
+    digit shift and mask                        2
+    counter-address shift and add               2
+    load position                               1
+    destination record-address arithmetic       4
+    three stores plus two offset additions      5
+    position increment and counter store        2
+    source-pointer advance                      1
+    index increment; compare; branch            3
+                                                 = 25
 
-The claim fields have these precise meanings:
+Charge 44n operations per pass, seven more per record than the listed
+37. This covers initialization of the two scans, pass transition, pointer
+moves, address rematerialization and any final boundary handling. Array
+values never alter the number of iterations or this envelope.
 
-- time_log2=137.785 bounds total charged time by 2^137.785 units.
-- memory_log2_bytes=137 bounds simultaneous storage by 2^137 bytes.
-- data_log2=130 bounds complete-hash evaluations by n+2 <=2^130, including
-  the two final re-evaluations. It counts evaluated message instances, not
-  bytes or distinct messages. Every repeated sample is counted; external
-  supplied data is zero and all retained data bytes are in peak memory.
-- preprocessing_log2=137 bounds fixed setup plus both-array initialization:
-  (2^24+128n)/1355 <2^137 target-compression units. This retained upper
-  bound is deliberately loose; actual setup is included in T, not an omitted phase.
-- nonuniform_advice_log2_bytes=0 means at most 2^0=1 byte of advice; actual
-  nonuniform advice is zero. The schema cannot express log2(0). Public
-  constants and code are fully charged in the fixed storage and initialization.
-- success_probability=0.5 is the lower bound proved in Section 4.
+For the b counter cells, clearing uses at most five operations per cell
+(store, pointer increment, index increment, compare, branch); prefix summing
+uses at most seven (load, store, sum-add, pointer/index increments, compare,
+branch). Charge 12b operations per pass, hence 48b across all four.
+Only the counter cells need this clearing between passes; the destination
+record array is completely overwritten before becoming a source again.
 
-## 6. Evidence and interpretation
+## 7. Recovering and checking a collision
 
-This is a conservative generic baseline proposal, not a new cryptanalytic
-advance. The complete algorithm, target definition, probability proof and RAM
-ledger are the supporting evidence. No full-scale execution, observed collision
-pair, measured success rate, experimental independence or measured resource
-usage is asserted. No sampled experiment is needed for the universal finite
-probability argument. The certificate manifest is valid and empty; no
-experiment manifest or participant executable is supplied.
+Scan every adjacent record pair. Test equality of the complete h word and
+inequality of the two-word message. If both hold, reconstruct the two
+64-byte messages and independently recompute both complete five-round
+SHA3-256 digests using the target-permutation primitive. Verify all 256
+bits, then return the distinct messages. Halt on this first qualifying pair.
+If none exists, halt with failure. There is at most one final verification.
 
-The required baseline_improved identifier sha3-256-r5-nominal-v2 names the
-organizer's nominal display reference 128. It is not an established attack,
-qualified baseline or security bound; the identifier's field name is not a
-claim of improvement. This candidate's scalar bound 137.785 exceeds 128. No
-Pareto dominance claim follows from scalar scoring.
+Charge 40n ordinary operations for the entire scan. Even loading six
+record words, forming all offsets, comparing the three word pairs, forming
+the distinctness predicate, branching, and advancing pointers/indexes fits
+within 40 per adjacent pair. This envelope covers the worst case where
+every adjacent digest is equal and both message comparisons are performed.
+Charge two selected permutations plus 200 operations for reconstruction,
+padding, full-digest comparison and writing the output messages. No hash
+internals are charged a second time for these two primitive invocations.
 
-submission_state=ready means this independent exploratory package is complete
-for review. It does not assert an actual qualifying review, an emitted score,
-human acceptance, or Yukon promotion. Its substantive obligations and evidence
-are intended to meet rigorous standards, while each lane still requires its own
-correctly bound package and selected-lane review outcome.
+If a digest interval contains two distinct messages, some adjacent pair
+of messages must differ: otherwise equality along the entire interval
+would make all its messages identical. Sorting preserves records, so the
+scan finds a collision whenever the sample contains one between distinct
+messages. The packed-round lemma proves that its stored digests are exact.
+Independent recomputation prevents accepting either a repeated input or
+a truncated/compression-only result. In the mathematical RAM these checks
+cannot fail on a correctly identified pair, but their cost is included.
 
-## 7. Source and accounting revision
+## 8. Success probability for the fixed target
 
-This is an accounting revision of the organizer's SHA3-256 r5 package
-`79dcf0c2f0e1b4448c0cdf2f77b769a59ae738c637e07b120bc451be9af50ec7`
-in production base `0455d2b52f4f920fe5c3a6af8c71592a824e6a57`.
-The complete hash, byte-oriented wrapper, array initialization, three-word
-records, stable merge sort, probability proof, success lower bound and memory
-bound are retained. The former v4 declaration was 149; the same phase counts
-support 137.785 under v5. This new package requires fresh ordinary review;
-no historical qualification or new cryptanalytic algorithm is asserted.
+Let H be the selected deterministic complete hash. Write q=2^256 and
+p_y=|H^-1(y) intersect D| / |D|. The sampled messages M_i are iid uniform
+on D. Thus their outputs Y_i=H(M_i) are iid with probability vector p;
+p need not be uniform and H is not randomized. Packing four independent
+inputs into one evaluation changes neither input independence nor H.
+
+For n<=q, the probability that all Y_i differ is n! e_n(p), where e_n is
+the sum of products of n distinct coordinates. Here is a short proof that
+this is maximized by uniform p, rather than an assumption of uniformity.
+
+On the compact probability simplex e_n has a maximum. Among maximizers
+choose one minimizing the sum of squared coordinates. Replace unequal
+coordinates a,b by their mean, keeping other coordinates r. The expansion
+
+    e_n(p)=ab e_(n-2)(r)+(a+b)e_(n-1)(r)+e_n(r)
+
+has nonnegative coefficients. This replacement cannot decrease e_n, and
+strictly decreases the sum of squares, a contradiction. Consequently the
+maximizer is uniform. Therefore
+
+    Pr[all output values distinct]
+      <= product_{j=0}^{n-1}(1-j/q)
+      <= exp(-n(n-1)/(2q)).
+
+The second inequality follows from 1-t<=exp(-t) for 0<=t<1.
+For n=2^128, its exponent is -(1/2-2^-129).
+
+A repeated output alone might be a repeated input. By the union bound,
+
+    Pr[some repeated input] <= n(n-1)/(2*2^512) < 2^-257.
+
+Subtracting that bad event gives the probability of a distinct-input
+collision found by the algorithm:
+
+    Pr[success] >= 1-exp(-(1/2-2^-129))-2^-257 > 0.39.
+
+For an elementary strict numerical margin, 1/2-2^-129 > 0.499. The Taylor
+lower bound 1+x+x^2/2+x^3/6 at x=0.499 is greater than 100/61, so
+exp(-0.499)<0.61, with a margin much larger than 2^-257. The limiting
+birthday success is approximately 0.3934693403. No observed rate is used
+to replace this fixed-function argument.
+
+All runs stop within the same charged budget. There are no successful-only
+trial counts, expected-time substitutions, uncharged failures or restarts.
+
+## 9. Total computation, preprocessing and memory
+
+There are n/4 groups, four sorting passes, and one bounded scan. Charge
+2^20 additional ordinary operations for one-time constants, public masks,
+program setup, base/register initialization and final finite boundary
+work. This generous constant envelope permits generating every public
+mask using at most six shifts/ORs per repeated 64-bit constant and storing
+every instruction and constant. The fixed program is below 2^14 instructions
+and its entire instruction encoding and fixed workspace occupy less than
+2^24 bytes. Fewer than 2^20 initialization operations cover that storage.
+
+The complete bound is
+
+    W <= ((5*341+512)/4 + 16 + 4*44 + 40)*n
+         + 48*2^64 + 2^20 + 200
+       = 786.25*n + 48*2^64 + 2^20 + 200 ordinary operations.
+
+    T <= W/1355 + 2 selected-permutation equivalents.
+
+The leading coefficient is 786.25/1355. The leading logarithm is
+
+    128 + log2(786.25/1355) = 127.21476716552542...
+
+The counter/setup/checking terms are less than 2^-57 of the leading
+term. Hence T<2^127.215, with more than 0.00023 bits of rounding margin.
+Every allocation initialization, message, random word, primitive core
+operation, radix lookup, failed run, full digest check and output write
+is included. Total computation on one processor is the priced quantity.
+
+Preprocessing includes array zero initialization, initial counter clearing,
+fixed constants and program setup. A valid bound is
+
+    P <= (16*n + 5*2^64 + 2^20)/1355 < 2^122.
+
+These costs are already part of W; preprocessing is not added twice.
+There is no precomputed collision, secret table, advice, omitted search,
+or externally supplied differential. Zero bytes of advice are represented
+by schema value zero, a conservative bound of at most one byte.
+
+Peak main storage is two three-word record arrays:
+
+    2*3*n*32 = 192*n bytes,
+
+plus 32*2^64 counter bytes and less than 2^24 bytes of fixed program,
+registers, constants and output. Their sum is less than 256*n=2^136.
+For example place A at byte address 2^24, B directly after A, and Q
+after B; their highest address is below 2^136, far below 2^256. All
+96*i addresses, bucket offsets, n-valued sums and sentinels fit in a
+256-bit word. No infeasible-size object is treated as a unit-cost wider
+word, and no preinitialized giant table is assumed.
+
+## 10. Evidence, provenance and limits
+
+The construction is specified and supported by the algebraic rotation
+identity, round-by-round equivalence, stable radix invariant and the
+fixed-function probability proof. The certificate manifest is empty.
+There is no executable experiment declaration and no claimed measured
+collision. Infeasibility of a full-scale run is disclosed, not replaced
+by a model's confidence or a smaller-output experiment.
+
+The target definitions and numerical primitive price are organizer-owned
+contract facts. FIPS 202 supplies the public Keccak maps, rho offsets and
+round constants. The four-way masked-word implementation, sorting choice,
+finite instruction envelopes and bound in this package are independently
+derived. It contains no copied organizer implementation or peer program.
+The organizer candidate's generic-birthday direction supplies context;
+this document gives the necessary probability argument in full.
+
+The required `baseline_improved` identifier denotes the organizer's
+nominal reference. The supported scalar is below that nominal exponent,
+but this is not a mathematical security boundary or a practical defeat
+of SHA3. The larger memory compared with a distinguished-point search is
+an explicit tradeoff; no Pareto dominance is claimed.
+
+Mechanical intake cannot certify these resource or probability arguments.
+Exploratory AI qualification, rigorous AI qualification, official scoring,
+manual organizer acceptance and promotion remain separate outcomes.

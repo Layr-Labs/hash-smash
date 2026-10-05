@@ -6,21 +6,21 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 127.215,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 136,
+    "preprocessing_log2": 122,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Classical probabilistic 256-bit word RAM, fresh independent uniform random-word primitive, total computation on one processor.",
+    "One batch of 2^128 iid uniform 64-byte messages from a 512-bit domain; repetitions retained; no restarts or advice.",
+    "Complete fixed-IV SHA3-256, rate1088, capacity512, suffix0x06, prefix rounds0..4, all256 digest bits; one padded absorption block per message.",
+    "Four independently sampled messages evaluated together by masked 256-bit word operations implementing four disjoint 64-bit Keccak lane fields; no cross-field rotation or addition.",
+    "Stable four-pass 64-bit-digit radix sort of full digest/message records, with initialized counters, followed by a distinct-input full-digest scan and two charged target verifications.",
+    "Analytical upper bound with infeasible storage, no measured full-width collision, no PRNG, random-function, differential or round-independence heuristic.",
+    "All primitive construction, program/constant setup, memory initialization, lookup, sorting, randomness, failures and verification are charged at C=1355."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
   "heuristics": [],
