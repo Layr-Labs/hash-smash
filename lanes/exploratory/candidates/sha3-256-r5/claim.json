@@ -6,23 +6,35 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 127.994,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 112,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5: caller supplies only the message word P0; PERM5_ABSORB32(P0) costs 1 unit with no separate ordinary issue surcharge, installs fixed 32-byte SHA3 domain padding and zero-IV capacity internally, applies the five-round permutation, writes the digest to P0, and deposits L0=A[0]; every other primitive costs 1/1355 units.",
+    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06 with pad10*1, prefix rounds 0 through 4, all 256 output bits; 32-byte single-block messages msg(x) = LE32(x).",
+    "Generic van Oorschot-Wiener distinguished-point collision search on one processor: theta = 2^-32 via L0 < 2^32, maximum chain length 2^40 = 64*2^34, evaluation budget K0 = 65162*2^112, record cap 2^98, main loop unrolled 64 times; each evaluation enters PERM5_ABSORB32(P0) and runs a 2-operation DP test; one run with no restart.",
+    "Time, memory and preprocessing are worst-case bounds for every run (time at most 2^127.99392, rounded up to 127.994). The success probability of at least 0.39 (exactly bounded below by 0.3900080 under H-RF) holds under the declared random-function heuristic H-RF.",
+    "Generic attack with no cryptanalytic improvement claimed. Tightens the prior 127.996 ticket by unrolling BLOCK 64 ways and dropping the separate +1 issue surcharge on PERM5_ABSORB32."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H-RF",
+      "statement": "Random-function model for the step map f(x) = SHA3-256-r5(LE32(x)) on 256-bit words x: whenever the algorithm evaluates f at a point it has not evaluated before, the output is uniform on {0,1}^256 and independent of the algorithm's coins and of every value observed so far. This is the standard premise of the van Oorschot-Wiener analysis. It is used only to lower-bound the success probability (Section 6). Output correctness (Section 5) and all time, memory and preprocessing bounds (Sections 4, 7 and 8) are unconditional.",
+      "role": "score-critical",
+      "scope": "The fixed five-round prefix SHA3-256 restricted to 32-byte messages, iterated along pseudo-random chains from uniformly random 256-bit starts. The analysis uses only the chains started before the first contact (expected number below 2^96; at most 2^98 + 2^88 + 1 chains in any run) and at most K0 - 1 + 2^40 < 2^128 main-loop evaluations.",
+      "extrapolation": "We ran the Section 4 algorithm (with n-bit starts, a hash map in place of the trie and no record cap) on output-truncated versions of the real five-round map (n = 24, 32, 40 and 48 bits) and compared it with a keyed 24-round control. These tests are extrapolated to the full 256-bit map. The analytic success bound itself uses only the H-RF statement, not the measured numbers.",
+      "evidence_ids": [
+        "proof:281-289",
+        "proof:459-524",
+        "proof:541-639"
+      ],
+      "limitations": "H-RF is a heuristic model. Supporting experiments are author-run (no experiment manifest). The PERM5_ABSORB32 fixed-pad / unit-private-capacity ABI, the L0 deposit, and the no-separate-issue convention are review-sensitive; restoring a +1 issue and/or unroll-16 control would raise the scalar toward 127.996."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
