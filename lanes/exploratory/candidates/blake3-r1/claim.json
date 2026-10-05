@@ -6,21 +6,21 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 149,
+    "time_log2": 4,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 16,
+    "preprocessing_log2": 0,
+    "success_probability": 1,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "Messages are exactly 64 bytes; both share message words w0..w7, w8, w10, w11, w12, w14, w15 and differ only in w9 and w13.",
+    "Unkeyed BLAKE3-256 with 1 prefix round; one 64-byte root block with IV chaining value, flags 11, block length 64, counter 0; standard IV, mode, padding and full 256-bit output (first 32 root-output bytes).",
+    "Deterministic straight-line algorithm: closed-form choice of w8, w12 forces an internal addition summand to 0 or 2^31 and two choices of w9, w13 give all-ones differences on all outputs of diagonal G calls (0,5,10,15) and (2,7,8,13), which cancel in the feed-forward; no randomness, search, restart or heuristic.",
+    "Classical 256-bit word RAM under collision-frontier-v5, charged conservatively with no registers and byte-cell output: an explicit register-free program (every operand loaded, every result stored, each message also written as 64 byte cells) uses 2 target compressions plus exactly 2570 other primitives at 1/222 each, T = 1507/111 ~ 13.58 units (log2 3.763); the claimed bound is T <= 2^4 = 16 (at most 3108 primitives). The 16-register program needs only 468 (log2 2.04; informative, not claimed).",
+    "Peak memory including code, a one-round compression subroutine, all data cells (including the 128 byte cells and 16 cells replacing registers) is at most 61073 bytes for the register-free program (47788 for the 16-register program); preprocessing and nonuniform advice are zero.",
+    "The collision is specific to the 1-round target; the certificate pairs differ at every round count from 2 to 7, and no claim is made for more rounds.",
+    "The nominal reference identifier does not by itself assert an improvement; the claimed scalar 4 is below the nominal display reference 128."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
   "heuristics": [],
