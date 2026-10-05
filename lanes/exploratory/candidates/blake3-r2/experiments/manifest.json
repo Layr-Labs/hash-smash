@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "b3r2-grouped-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "Scaled grouped birthday on exact 2-round BLAKE3 root compression via m15 partial evaluation. 32 groups x 32 consecutive m15 (N_t=2^10). Distinguished event is a 20-bit digest-xor-mask with N_t^2/2^w = 1, matching full-scale N^2/2^256 = 1. Parameters fixed before production runs. Digests computed only by the partial evaluator; organizer re-verifies pairs with the trusted digest.",
+      "hypothesis": "Under H1-grouped-digests, the masked collision-detection frequency at this scale is near the random-model success probability (~0.393 for the birthday coverage event with N_t^2/2^w = 1), supporting that structured group prefixes do not grossly suppress masked collisions for the truncated 2-round map.",
+      "program": "experiments/grouped_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ff000000ff0000000f0000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "b3r2-single-group",
+      "kind": "python-message-pairs-v1",
+      "scope": "Most structured layout: one group with m15 = 0..1023 on the same partial evaluator. Different 20-bit digest-xor-mask (lanes o3,o4,o5). Parameters fixed before production runs.",
+      "hypothesis": "Even a single shared prefix with exhaustive m15 does not show large masked-collision deviation from the random model at this scale under H1.",
+      "program": "experiments/grouped_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000000000000000ff000000ff0000000f0000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
