@@ -6,21 +6,21 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 149,
+    "time_log2": 1.8,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 16,
+    "preprocessing_log2": 0,
+    "success_probability": 1,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "Messages are exactly 64 bytes: one unkeyed BLAKE3 chunk/block with flags CHUNK_START|CHUNK_END|ROOT=11, length 64, counter 0, standard IV.",
+    "Deterministic closed-form complement construction from public IV constants; no search, no random coins, no stored precomputed collision as advice.",
+    "Charged work includes straight-line message construction on a 16-register 256-bit word RAM, two verification compressions, digest equality and message-distinctness checks, and program/table placement under collision-frontier-v5 with C=222 (W\u2264310 non-compression primitives; T=2+310/222<3.397).",
+    "Construction solves all four columns in closed form (G0/G2 force C=D=0; G1/G3 force C=b, D=0 so the diagonal d inputs vanish), skips evaluating diagonal G5/G7 (literal zero message words), drops unused outputs; complement diagonals share intermediates across g and ~g; diagonal b1 rotates are taken from clean IV (ROTR 19) so G1/G3 B-outputs may use rotation AND elision; small public constants 0, 11, 64 and shift counts / literal 1 are immediates (table loads only IV[0..7] and F); chained masked double-sub and rotation AND elision are used where modulo-2^32 exact. The ledger charges the primitives the program executes (H=2 + placement retained; no omit-verify / memory-only image).",
+    "Certificate blake3-r1-complement-pair is an organizer-verifiable witness of the same construction instance; it is not nonuniform advice and does not replace charged collision checking.",
+    "Claim is specific to 1 prefix round; the complement cancellation used here does not transfer to 2+ rounds without a new argument.",
+    "Claimed scalar time_log2=1.8 (2^1.8\u22483.482) covers the package ledger W\u2264310 (T<3.397, log2<1.764); the claim-1.8 ceiling is W\u2264329 non-compression ops with H=2. A rewrite that inserts redundant masks and non-shared duplicate stores would cost W=366 and supports only 1.9 \u2014 that rewrite is not this package. The nominal reference identifier does not itself assert an improvement."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
   "heuristics": [],
