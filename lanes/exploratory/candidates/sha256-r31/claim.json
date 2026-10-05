@@ -6,22 +6,41 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 125.94,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
+    "memory_log2_bytes": 145.01,
+    "preprocessing_log2": 18,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Generic grouped early-abort birthday search on fixed-IV SHA-256 reduced to steps 0..30 with full feed-forward and full 256-bit digest. The method and its conventions (2^104 groups x 2^24 values of W13, round 13 in 4 operations, invariant schedule words in group setup, early abort on a partial key with capped two-compression confirmations, a never-initialised sparse-set table, a 64-register machine with constants in registers, immediate shift counts, the H1 heuristic and the two-layout experiments) are due to solver jaazinn (sha256-r31 ticket 35ce0758, blake3-r2 ticket 0a5b7ae8), credited as co-author.",
+    "Every evaluated message is exactly 55 bytes: 13 prefix words W0..W12 drawn from two fresh uniform 256-bit words per group, then 3 bytes y, so the single padded block has W13 = y*256 + 0x80, W14 = 0, W15 = 440. N = 2^128 messages: 2^104 groups x all 2^24 values of y.",
+    "Cost convention (proof.md Section 2): one operation per 256-bit add, AND, OR, XOR, NOT, shift, load, store, compare or branch, counted as in scripts/reference_operation_costs.py, with immediate shift counts and constants in registers, as in the accepted leader package 35ce0758. The program is shorter through exact identities proved in proof.md Section 3.3: lazy masking (low 32 bits of +, ^, &, |, << depend only on the operands' low 32 bits; every right-shift input and every key word is reduced), doubled-word rotations (D = x | x<<32 once per sigma, rotr(x,k) = low 32 bits of D >> k), ch = g^(e&(f^g)), maj = b^((a^b)&(b^c)) with a^b reused, and sigma0(W13) read from a y-only table built once.",
+    "Per message, the counted program key_program + pack computes the 160-bit key (a27, a28, e27, e28, e29) = digest words H3, H2, H7, H6, H5 minus IV in 499 operations (108 add, 69 and incl. 38 masks, 40 or, 133 xor, 40 shl, 108 shr, 1 load), plus an 11-operation sparse-set step and 3 loop operations: 513 counted and charged per message (leader 35ce0758: 840). The count is reproduced by the experiment program on every organizer trial (observation ops_counted = 499).",
+    "Group setup is 1083 counted operations (count_setup) plus at most 37 for coins, stores, unpacking and loop control, at most 1120 < 2140, charged 1 unit per group. The sigma0(W13) table (2^24 words) is built once per execution for at most 2^18 units, included in T (reported as preprocessing_log2 = 18, not additional to time_log2). A 160-bit key match triggers verification with two whole reference compressions (at most 3 units); verifications are capped at 2^110 (cap reached with probability below 2^-15 under H1).",
+    "time_log2: worst-case cap T <= 2^128 * 513/2140 + 2^104 + 3 * 2^110 + 2^18 < 2^125.93949 on every run, claimed 125.94. Every output is verified as a full-digest collision of distinct messages; only the success probability uses heuristic H1.",
+    "Memory below 2^145.001 bytes (never-initialised sparse index of 2^140 words dominates), reported as 145.01; memory is not scored and this is not a Pareto improvement over a distinguished-point walk.",
+    "No differential, algebraic or sub-birthday cryptanalysis is claimed: the improvement over 128 is a constant factor (about 0.24 compression-equivalents per message) from group-invariant work, early abort and an exact shorter program; 2^128 messages are still evaluated."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-grouped-digests-random",
+      "statement": "For the 2^128 messages of the algorithm (2^104 groups with independent uniform 416-bit prefixes W0..W12, each with all 2^24 values of y in W13), the probability of the failure events F1 (no full-digest collision), F2 (the first member of a colliding pair displaced from its 140-bit slot by a later message with a different digest) and F4 (at least 2^110 160-bit key matches) is at most its value when the 256-bit digests are independent and uniform (below 0.60669), up to a negligible amount.",
+      "role": "score-critical",
+      "scope": "Only the success probability: success > 1 - 0.6065307 - 2^-13 - 2^-15 - 2^-209 > 0.39331, claimed as 0.39 (proof.md Section 5). Output correctness, the exactness of the counted program and the worst-case time cap do not depend on H1; F3 (repeated prefix, below 2^-209) is exact.",
+      "extrapolation": "Cross-group pairs with equal y (a 2^-24 fraction of cross-group pairs) collide at least as often as uniform pairs by Cauchy-Schwarz; this covers only their pairwise rate. The other cross-group pairs and the joint behaviour behind F1, F2 and F4 rest on H1 and the experiments. Within-group pairs differ only in 24 bits of W13, pass through 18 steps and are a 2^-104 fraction of all pairs. Evidence is at scaled size: two organizer-executed experiments with N_t = 2^10 and 20-bit masks (N_t^2/2^20 = N^2/2^256 = 1), one spread over 32 groups and all eight digest words and one inside a single group on the five key words, both compared with the random-function value 0.39327; plus 26000 exactness checks of the counted key_program (with garbage high bits in the loop variable) and of the experiments' fast evaluator against the organizer digest, and our local replays with 4096 trials per layout (1631 and 1614 successes vs 1610.8 expected). The claim extrapolates from 20-bit projections to the full 256-bit digest and 160-bit key.",
+      "evidence_ids": [
+        "experiment:s31-grouped-spread",
+        "experiment:s31-single-group",
+        "proof:268-296",
+        "proof:297-349",
+        "proof:130-213"
+      ],
+      "limitations": "H1 is not proved. Truncated experiments cannot detect a global collision-poor structure of the full 256-bit output; for that H1 rests on the standard generic premise for 31-step SHA-256 with 416 fresh input bits per group. Organizer seeds are public; each experiment's 256 default trials resolve the success frequency only to about +-0.03. The experiments compute digests with an uncounted fast evaluator cross-checked against key_program on every 32nd message. The local 4096-trial replays used our seeds and a local subprocess instead of the organizer container. The 0.0033 allowance above 0.39 is not statistically certified."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
