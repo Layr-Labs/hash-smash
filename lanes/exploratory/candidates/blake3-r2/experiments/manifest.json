@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "fixed-a3-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact two-round BLAKE3 on64-byte messages with fourteen448-bit-prefix words. Choose m14=t-A and m15=-t-bh mod2^32 to force final round-zero a3=0. 32 prefixes and32 t values each. Seven-way packed evaluator, sparse-set with stale garbage, independent scalar checks of14 edge/initial lane instances per trial, and full digest rehash before returning a projected pair. Twenty-bit event within o0..o3,o5; source reports untrusted212/101 operation counts.",
+      "hypothesis": "The new constrained family has projected birthday behavior near the independent model0.39327. This supports assessing Hfixed but does not establish independence, full-width recovery, or the0.003 allowance.",
+      "program": "experiments/fixed_a3.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0f00000000f0000000000f00000000f000000000000f00000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "fixed-a3-single",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact two-round BLAKE3 on64-byte messages with fourteen448-bit-prefix words. Choose m14=t-A and m15=-t-bh mod2^32 to force final round-zero a3=0. One prefix and1024 t values. Seven-way packed evaluator, sparse-set with stale garbage, independent scalar checks of14 edge/initial lane instances per trial, and full digest rehash before returning a projected pair. Twenty-bit event within o0..o3,o5; source reports untrusted212/101 operation counts.",
+      "hypothesis": "The new constrained family has projected birthday behavior near the independent model0.39327. This supports assessing Hfixed but does not establish independence, full-width recovery, or the0.003 allowance.",
+      "program": "experiments/fixed_a3.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000f00f000000000f00000000f00000000000f00000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "fixed-a3-fullword",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact two-round BLAKE3 on64-byte messages with fourteen448-bit-prefix words. Choose m14=t-A and m15=-t-bh mod2^32 to force final round-zero a3=0. 32 prefixes and32 t values each. Seven-way packed evaluator, sparse-set with stale garbage, independent scalar checks of14 edge/initial lane instances per trial, and full digest rehash before returning a projected pair. Evidence-only eight-output packed path tests all output words.",
+      "hypothesis": "The new constrained family has projected birthday behavior near the independent model0.39327. This supports assessing Hfixed but does not establish independence, full-width recovery, or the0.003 allowance.",
+      "program": "experiments/fixed_a3.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "07000000000e000000001c000000003830000000006000000000c000000000c0",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
