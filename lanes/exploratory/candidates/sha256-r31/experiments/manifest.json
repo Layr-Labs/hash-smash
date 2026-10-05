@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "s31-grouped-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact sha256-r31-prefix-v1 digests of 55-byte messages (prefix words W0..W12, then 3 bytes y; W13 = y<<8|0x80, W14 = 0, W15 = 440). Per organizer seed: 32 groups with fresh seed-derived prefixes, each with 32 consecutive y from a seed-derived start (N_t = 2^10 messages). Digests come from the grouped evaluator of proof.md Section 3: group_setup once per group, then an uncounted plain-int evaluator of the same function per message, whose five key words are compared on every 32nd message with the counted lazy-masked key_program of proof.md Section 3.3 (run at v = TB + W13 with a seed-derived garbage TB, multiple of 2^32; the program raises on any mismatch and reports ops_counted = 499). The first pair with equal masked digests is returned, failures as two nulls.",
+      "hypothesis": "H1 at scaled size: on a 20-bit mask spread over all eight digest words (N_t^2 / 2^20 = 1, the same ratio as N^2 / 2^256 at full scale), the success frequency of the grouped search agrees within sampling error with the random-function value 0.3933, and every returned pair is a pair of distinct messages whose digests agree on the mask.",
+      "program": "experiments/s31_grouped_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "8000200108040020004002044001008001000008200008000010000204004000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "s31-single-group",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact sha256-r31-prefix-v1 digests of 55-byte messages. Per organizer seed: one group (one seed-derived prefix W0..W12) with y = 0..1023, the most structured layout (pairs differ only in bytes 52..54). The event mask is 4 bits in each of the digest words H2, H3, H5, H6, H7; each is IV plus a key word that the counted lazy-masked key_program of proof.md Section 3.3 computes, so the event depends on the key alone (evaluated by the same uncounted fast path, cross-checked against key_program at v = TB + W13 with garbage TB on every 32nd message); the first pair with equal masked digest words is returned, failures as two nulls.",
+      "hypothesis": "H1 within a group: with a 20-bit mask on the five key words, the success frequency agrees within sampling error with the random-function value 0.3933, and every returned pair is a pair of distinct messages whose digests agree on the mask.",
+      "program": "experiments/s31_grouped_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000000000000100804104080100200000000802080400202010121002008",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
