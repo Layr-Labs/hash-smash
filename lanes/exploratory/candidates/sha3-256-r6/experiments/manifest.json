@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "bitslice-padding-equivalence",
+      "kind": "python-message-pairs-v1",
+      "scope": "One 256-message bit-sliced evaluation per organizer request. Compare every complete digest with an independent scalar reference, test transpose involution and count logical operations in padding-specialized first and output-projected last rounds. Returns null witnesses; no collision search is performed.",
+      "hypothesis": "The specialized Boolean circuit computes the exact complete six-round SHA3-256 digest for the tested 64-byte messages; actual first-round logical count is 5831 and final-round logical count is at most 2752.",
+      "program": "experiments/check_bitslice.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
