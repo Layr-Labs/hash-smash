@@ -6,21 +6,41 @@
   "rounds": 6,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.4,
+    "time_log2": 125.58,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 130,
-    "preprocessing_log2": 142,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 112,
+    "preprocessing_log2": 9,
+    "success_probability": 0.42,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical 256-bit word RAM with fresh independent uniform random-word primitive.",
-    "One batch of 2^129 independent uniform 64-byte messages; no restarts or nonuniform advice.",
-    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06, prefix rounds 0 through 5, all 256 output bits.",
-    "Generic analytic upper bound; infeasible resource use, no improvement over the nominal reference claimed."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5, C = 1626. Fixed register-bank convention as stated in #178 (used by #148/#170): a static bank of at most 2050 words (liveness lemma) holds the circuit values; each gate reads named bank operands and is charged 1 plus one placement per result; START/SB arrays and the trie are main memory, every access charged. Prior acceptance is reported, not verifiable here; not a narrow 64-register file.",
+    "Complete SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06 with pad10*1, prefix rounds 0-5, all 256 output bits; 32-byte messages msg(x) = LE32(x); step map f(x) = digest of msg(x).",
+    "Van Oorschot-Wiener distinguished-point search with 256 concurrent chains in the bit slots of a bit-sliced six-round circuit (XOR 23424, AND 6643, OR 1613, NOT 5023, 129 fix-ups per 256 evaluations); digests become the next inputs; no transposes or sorting.",
+    "DP = digest bits 224..255 zero; trie keyed on bits 0..223; abandonment at 2^40 via sweeps every 2^38 batches; K0 = 68600*2^112; record cap 2^98; drain after the budget; halt at the first RELOCATE; one run.",
+    "Charged 290 operations per slot-evaluation (289.05 itemised) and 2^13 per chain; T <= 2^125.5787186 in every run, claimed 125.58. Memory < 2^112 bytes. Preprocessing (SETUP + 256 initial SEEDs) 2^8.1485 units, declared 9.",
+    "Success >= 0.4218060 under H-RF only (concurrent-chain lemmas, proof Section 7); reported 0.42 (rounded down). Correctness and all resource bounds are unconditional.",
+    "Credits: #28 (winglock) DP walk, trie and lemma structure; #148 (may93182) bit slicing; #170 (ercumentyildirim) last-round projection; #178 (zeeshan8281) padding folding and the bank-convention wording. Unpromoted work, authors credited as coauthors of the reused ideas. No structural cryptanalytic advance claimed.",
+    "Three organizer-executed experiments: a 12-bit circuit cross-check, the full algorithm at n=14 (absolute 14-bit collisions), and one n=18 contact run whose count is compared descriptively with the exact random-function prediction 0.28850. No full-width probability is inferred from them."
   ],
   "baseline_improved": "sha3-256-r6-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H-RF",
+      "statement": "Random-function model for f(x) = SHA3-256-r6(LE32(x)): whenever the algorithm evaluates f at a point not evaluated before, the output is uniform on {0,1}^256 and independent of the coins and of every value revealed earlier in the batch-major, slot-minor order of proof Section 7. Used only to lower-bound the success probability; correctness and resource bounds are unconditional.",
+      "role": "score-critical",
+      "scope": "Six-round prefix SHA3-256 on 32-byte messages (4 variable, 21 constant lanes), iterated from uniform 256-bit starts in 256 concurrent slots, over at most K0 + 256L < 1.0468 * 2^128 evaluations.",
+      "extrapolation": "Standard van Oorschot-Wiener premise, judged plausible for this map in #28. One organizer-executed reduced-width contact experiment on the real map (n = 18) gives a count matching the exact random-function prediction for that harness (proof Section 10). Extrapolated qualitatively to the full 256-bit map; no full-width probability is inferred from the experiment.",
+      "evidence_ids": [
+        "proof:228-303",
+        "proof:350-398",
+        "proof:399-424",
+        "experiment:slot-dp-walk-n14",
+        "experiment:contact-n18-k00"
+      ],
+      "limitations": "H-RF is a heuristic: it is false as a literal statement about a fixed function, and six-round SHA3-256 has known differential structure; no evidence that the iterated map departs measurably from a random mapping was found in this survey. The experiments are finite, reduced-width and descriptive, and make no full-width probability inference. The success bound 0.4218060 holds under H-RF alone."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
