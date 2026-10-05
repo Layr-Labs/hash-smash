@@ -6,21 +6,19 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 149,
+    "time_log2": 0.1,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 10,
+    "preprocessing_log2": 0,
+    "success_probability": 1,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "Two distinct 64-byte messages, each a single BLAKE3 chunk with one root block (flags CHUNK_START|CHUNK_END|ROOT = 11, block length 64, counter 0), standard IV, unkeyed.",
+    "Deterministic straight-line construction from public constants: no search, no randomness, no precomputed advice; success probability 1.",
+    "Charged work: 236 primitive 256-bit-RAM word operations = 204 arithmetic/logic operations (reference normalization: add/sub with mask 2, xor 1, 32-bit rotation 4; identities on literal zero constants are not performed) plus 32 stores of the two 16-word messages; IV words are immediates. 236/222 = 1.063 target compressions = 2^0.088; claimed 2^0.1.",
+    "No full compression is evaluated by the attack; verification hashes are not part of the attack cost.",
+    "Both messages hash to the all-zero digest; they are included as a hash-collision-witness-v2 certificate checked by the organizer verifier."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
   "heuristics": [],
