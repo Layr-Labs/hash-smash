@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "b3r2-scaled-walk",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact blake3-r2-prefix-v1 root compression on 64-byte messages. Per organizer seed, one run of Steps 1-6 of proof.md Section 2 scaled to a 16-bit point (two bits in each of the eight walk lanes, the other message bits fresh per-trial coins and a fresh salt in words 8-15), distinguished points on the two lane-0 bits, k' = 2^8, g = 2^5. Every organizer trial is returned, failures as two nulls.",
+      "hypothesis": "The success frequency of the scaled program on the real map agrees, within sampling error, with its success probability for a uniformly random function on 2^16 points (0.449 from 10^6 trials of the program's own model mode, proof.md Section 5), as H1 predicts at full scale. Each success is a pair of distinct messages whose digests agree on the low two bits of all eight digest lanes.",
+      "program": "experiments/b3r2_scaled_walk.py",
+      "event": {"kind": "digest-xor-mask", "mask_hex": "0300000003000000030000000300000003000000030000000300000003000000", "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"}
+    }
+  ]
+}

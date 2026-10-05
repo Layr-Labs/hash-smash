@@ -6,23 +6,43 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 128.1,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 118,
+    "preprocessing_log2": 12,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Unkeyed BLAKE3-256 with prefix rounds 0-1; every evaluated message is exactly 64 bytes, i.e. one root compression with flags 11, block length 64, counter 0, and the full 256-bit digest.",
+    "Messages are eight walk lanes followed by eight lanes of a random salt, as little-endian 32-bit words; the salt is fixed for the run and drawn from fresh uniform coins.",
+    "Generic salted distinguished-point rho search: one walk of exactly k = 2^128 + 2^37 compressions, a point is distinguished iff its first lane is zero (theta = 2^-32), at most 2^110 records, then sort, first-revisit scan and bounded relocation; no restarts.",
+    "Classical probabilistic 256-bit word RAM with 64 registers: one 2-round compression costs 1 unit and every other listed primitive costs 1/430; each walk step is charged 30 word operations, which cover all 16 lane loads and 8 lane stores.",
+    "The time bound is a worst-case cap on every run, and every output is checked to be a full-digest collision of distinct messages; only the success probability relies on the declared heuristic H1.",
+    "No sub-birthday cryptanalysis, executed full-scale search or collision certificate is claimed, and no improvement over the nominal reference 128 is asserted. The declared experiment is a 16-bit scaled analogue that produces partial (masked) digest agreements only."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-salted-random-mapping",
+      "statement": "For a uniformly random 256-bit salt s and an independent uniform start point, iterating f_s (x -> the eight digest lanes of the 2-round BLAKE3 hash of the 64-byte message made of x's eight lanes followed by s's eight lanes) has failure probability for events A-G of Section 4 at most the value computed for a uniformly random function on 2^256 points (below 0.6066), up to a negligible amount. Equivalently, averaged over the salt, rho, the tail and cycle lengths, and the positions and number of distinguished points (o[0] = 0) behave as for a random mapping.",
+      "role": "score-critical",
+      "scope": "The success probability of the walk with k' = 2^128, used only to support success_probability = 0.39; it covers all events A-G: A-C (rho, tail and cycle length) and D-G (distinguished-point windows and record count). Output correctness (each output is verified as a full collision of distinct messages) and the worst-case time cap do not depend on H1.",
+      "extrapolation": "Evidence is at small scale only: an organizer-run end-to-end copy of the algorithm on the exact target with a 16-bit point spread over all eight lanes (Section 5.3); our measurement of the o[0] distinguished-point rate along 2^34 points of full-width trajectories, at widths b <= 32 (5.4); and our rho measurements on salted maps restricted and truncated to t = 24 to 56 bits (5.5). The claim applies random-mapping behaviour to the full 256-bit map and to DP windows of length 2^37 at rate 2^-32, an extrapolation of about 200 bits; it relies on the standard van Oorschot-Wiener premise used for generic collision search on any 256-bit hash.",
+      "evidence_ids": [
+        "experiment:b3r2-scaled-walk",
+        "proof:112-188",
+        "proof:190-228",
+        "proof:229-281",
+        "proof:282-304",
+        "proof:305-367",
+        "proof:368-382",
+        "proof:529-561",
+        "proof:573-672"
+      ],
+      "limitations": "H1 is not proved. Truncated or restricted experiments cannot detect permutation-like (or otherwise collision-poor) global structure of the full 256-bit map: even a permutation looks like a random mapping after truncation, so for that failure mode H1 rests on the generic premise alone. Only the scaled experiment is executed by the organizer (at submission); its 256 default trials resolve success only to about +-0.03, and it is compared with its own random-function value (0.449), not with 0.3934. The DP-rate and rho measurements were run by us (source in Appendices A-B) and not reproduced by the organizer. The DP rate 2^-32 itself is probed only by 2 observed o[0] = 0 points (4 expected), and no experiment reaches DP gaps of length 2^37. The rho tables stop at t = 56 (21 trials); one follow-up batch was run after a roughly 2 s.e. deviation at t = 24 and did not reproduce it; about 32 comparisons were made, so isolated 2 s.e. excursions are expected. Unsalted (fixed-function) measurements show that one fixed function can differ widely from the average (0.26 to 0.93), which is why the salt is part of the algorithmic coins. The 0.0034 allowance above 0.39 is not statistically certified by any measurement."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
