@@ -6,22 +6,39 @@
   "rounds": 32,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 126.44,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.8,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent random words, not seeded PRNG expansion.",
-    "Exactly q=2^129 sampled 64-byte messages; complete SHA-256 with fixed IV, prefix rounds 0 through 31 on both padded blocks, feed-forward and all 256 digest bits.",
-    "One finite run with at most 2^136 target-compression equivalents of total charged computation and 2^138 peak bytes; no restarts, nonuniform advice or precomputed collision.",
-    "data_log2 bounds bytes of complete padded hash inputs including final verification re-reads, as specified in proof.md.",
-    "Analytic resource and success bounds; no full-scale execution, cryptanalytic improvement or nominal-reference improvement is claimed."
+    "Messages are exactly 55 bytes, so each complete hash is one padded block (W13 = u<<8 | 0x80, W14 = 0, W15 = 440) and one 32-round compression with the standard IV and feed-forward.",
+    "2^104 groups of 2^24 messages; each group shares fresh uniform words W0..W12 and enumerates u = 0..2^24-1; N = 2^128 messages in one pass, no restart.",
+    "Each message is evaluated by a counted 708-operation word-RAM program (rounds 13..30 with group-invariant work reused), using three standard value-exact identities: deferred masks in S0/S1/s0/s1 rotations (output reduced downstream), Ch = g^(e&(f^g)), and Maj = b^((a^b)&(b^c)) with (b^c) carried from the previous round's (a^b); the same counter reproduces 856 under the masked, non-identity round and the reduced body is verified bit-for-bit against the reference digest. Candidates matching on the 192-bit after-round-30 state are confirmed with two whole reference compressions.",
+    "Collision detection uses an uninitialised sparse-set table indexed by the top 140 key bits; every operation is charged at 1/C with C = 2224 (collision-frontier-v5); at most 2^90 confirmations; per-message charged 752 = 743 counted + 9.",
+    "Classical 256-bit word RAM with 64 registers, three-address operations and immediate shift counts; proof.md Section 10 gives bounds under stricter readings (2^126.485 with all 35 constants reloaded; 2^126.628 with masked 4-operation rotations; 2^126.695 under the non-identity 856/900 reading; 2^126.810 with 5-operation rotations as in the reference script _rol). The Ch and Maj identities are rotation-convention-independent, so every reading stays below the 856/900 bound.",
+    "Score-critical heuristic H1 (grouped digests behave like independent uniform values for the collision events used); success 0.39 includes a 0.0033 allowance below the model value 0.3933.",
+    "Generic constant-factor improvement (single block, amortisation, early abort), not a structural weakness of SHA-256; the nominal reference identifier is metadata, not a claimed improvement over a qualified baseline."
   ],
   "baseline_improved": "sha256-r32-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-grouped-random-digests",
+      "statement": "For the N = 2^128 messages of the algorithm (2^104 groups, each with fresh uniform prefix words W0..W12 and the 24-bit field u of W13 enumerated), the probability that the 32-round SHA-256 digests contain no equal pair, plus the probabilities of events F2 and F4 in proof.md Section 7 (a colliding pair whose first member was displaced from its 140-bit table slot; more than 2^90 candidate confirmations), exceeds the independent-uniform-model value 0.606654 by at most 0.0033.",
+      "role": "score-critical",
+      "scope": "Exactly the submitted grouped single-block message family, 192-bit early-abort key and sparse-set table.",
+      "extrapolation": "From scaled analogues (18-bit masked events with N_t = 2^9 over digest words H1,H2,H3,H5,H6,H7, organizer seeds, group sizes 32 and 512), in which N_t^2/2^w = N^2/2^256 = 1, to the full 256-bit event with N = 2^128 and group size 2^24.",
+      "evidence_ids": [
+        "experiment:s256-grouped-spread",
+        "experiment:s256-single-group",
+        "proof:225-246",
+        "proof:316-336"
+      ],
+      "limitations": "Masked projections are tested, not the full 256-bit event; H0 and H4 are not covered by the experiments because the evaluator does not compute round 31. Organizer seeds are public. Finite frequencies support but do not prove the population bound. Same-u cross-group pairs provably collide with probability >= 2^-256; other pairs rely on H1."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
