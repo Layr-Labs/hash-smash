@@ -6,23 +6,23 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 149,
+    "time_log2": 0,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 15,
+    "preprocessing_log2": 0,
+    "success_probability": 1,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "The two messages have 23 and 24 bytes: each is one chunk, one block, one root compression with flags 11, counter 0 and its true block length.",
+    "Unkeyed BLAKE3-256 with 1 prefix round, standard IV and feed-forward, full 256-bit digest; an ordinary collision between two distinct complete messages.",
+    "Randomized by one fresh uniform 256-bit word; the output is a collision for every value of this coin, so there is no failed trial and no restart.",
+    "Classical 256-bit word RAM under collision-frontier-v5; a straight-line program of at most 80 primitive operations, with memory traffic charged at four primitive operations per data operation. It evaluates no target compression and performs no collision check, because its output is a collision for every coin value.",
+    "No preprocessing, table, stored collision or nonuniform advice; the preprocessing and advice fields are zero-valued upper bounds because the schema cannot express log2(0). The time field is the schema minimum; the counted work is below 0.37 units.",
+    "Specific to the 1-round prefix; the pairs produced do not collide when two or more rounds are kept, and no priority or novelty claim is made."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
   "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
