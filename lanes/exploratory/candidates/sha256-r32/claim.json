@@ -6,22 +6,156 @@
   "rounds": 32,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 53.38,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.8,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 32.78,
+    "preprocessing_log2": 53.33,
+    "success_probability": 0.63,
+    "nonuniform_advice_log2_bytes": 9.98
   },
   "restrictions": [
-    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent random words, not seeded PRNG expansion.",
-    "Exactly q=2^129 sampled 64-byte messages; complete SHA-256 with fixed IV, prefix rounds 0 through 31 on both padded blocks, feed-forward and all 256 digest bits.",
-    "One finite run with at most 2^136 target-compression equivalents of total charged computation and 2^138 peak bytes; no restarts, nonuniform advice or precomputed collision.",
-    "data_log2 bounds bytes of complete padded hash inputs including final verification re-reads, as specified in proof.md.",
-    "Analytic resource and success bounds; no full-scale execution, cryptanalytic improvement or nominal-reference improvement is claimed."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5 (C = 2224). Logged program work is charged as retired instructions x lambda / C with lambda = 1; hardware SHA-256 trials are charged one unit per compression.",
+    "Two 128-byte messages M0 || M1 and M0 || M1' with the standard IV and FIPS 180-4 padding; rounds 0 through 31 on every block, including the common padding block; all 256 digest bits.",
+    "Fixed advice: the 32-step truncation of the ePrint 2026/1080 characteristic and its published start point (1004 bytes). One finite run of 2^43.761 first-block trials, each charged one full target compression (no midstate credit), with tail calls capped at 2 times the expected number; the run stops at the first pair with equal 32-round digests.",
+    "Trail-search charge P0 = 2^53.324 units: a declared envelope of 14,976 thread-hours (the paper states no time) at the ARMv8 hardware rate, 2^53.324 units, plus our measured 56.01 CPU-hours of unsuccessful re-derivation at lambda = 1, 2^38.828 units (trail runs logged up to ledger snapshot ce6b5c15c96e5e08). Start point charged at the 2^41 cap, not at the paper's unitless figure.",
+    "time_log2 = conservative ledger 2^53.3265 plus 0.05 bit declared slack, rounded up. Everything except the trail search costs 2^43.960 at central and 2^44.042 at conservative rates; the trail-search envelope dominates the total.",
+    "Success probability rests on the declared heuristics. No end-to-end 32-round two-block witness is claimed; measured second-block successes are compression collisions from resampled chaining values, not target collisions."
   ],
   "baseline_improved": "sha256-r32-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "q-real-c32",
+      "role": "score-critical",
+      "statement": "For a uniformly random first block M0, one trial (compute CV = C32(IV, M0), look up every TAB2 record whose key equals the CV word A-1, and run the exact two-branch check through step 13 plus the prefix-determined expansion conditions on W19, W21, W23 and W28) yields on average q = 2^-17.324 valid L2 prefixes. The ledger and the trial budget use the 95% worst end 2^-17.333.",
+      "scope": "Real C32(IV, M0) outputs against the full TAB2 (2^29.1824 records): 91,629 L2 accepts in 2^33.807 trials over three seeded runs (seeds 2, 3, 9), counted as lines of the saved accept files; per distinct accepting M0 2^-17.327. Base slice separately: 416 accepts in 2^37.322 trials. Sampled accepts were rechecked with the trusted verifier (CV equality) and an independent trail checker.",
+      "extrapolation": "From 2^33.807 measured trials to the 2^43.761 trials of the run: the same i.i.d. process on the same table, with no change of regime.",
+      "limitations": "The paper states 2^-20.92 at 35 steps (ePrint 2026/1080 p. 17), 3.60 bits lower. Our transcription of the paper's Figure 6 gives at most 2^-16.818 from its 14 printed matching conditions and exactly 2^-17.3254 with the one unprinted step-5 IF condition. A lower q would not contradict the printed bound, and the paper does not say how it counted its value, so the paper's stated 2^-20.92 is treated as an unexplained discrepancy. With the paper's q and our yield the total would be 53.348 (not claimed). Seeded PRNG trials are reproducibility evidence, not ideal independent coins.",
+      "evidence_ids": [
+        "proof:839-888",
+        "proof:800-837",
+        "proof:890-901",
+        "proof:346-387",
+        "proof:389-481",
+        "proof:483-522",
+        "proof:1646-1661"
+      ]
+    },
+    {
+      "id": "tail-yield",
+      "role": "score-critical",
+      "statement": "For a valid L2 prefix with chaining value CV = C32(IV, M0), trying the tail set of 2^17.585 pairs (W14, W15) yields on average 2^-26.409 second-block pairs (M1, M1') with C32(CV, M1) = C32(CV, M1'), M1 != M1'. The ledger uses 2^-26.428, the smallest of four 95% lower ends.",
+      "scope": "Fixed-effort splitting estimator with exact importance factors on 78,489 prefixes taken from real matcher accepts with W0..W3 resampled, so their chaining values are resampled and not C32(IV, M0) outputs (627,912 paths), with synthetic prefixes (23,050 prefixes, 368,800 paths), the wide tail set (11,682 prefixes, 186,912 paths) and a plain estimator without importance factors (-26.454) as controls. Every counted success was re-verified as an actual 32-round compression collision from its own CV that follows the trail. Measured per-candidate rate 2^-43.994 equals the 44 tail conditions of Figure 6 after its errata are corrected.",
+      "extrapolation": "The mean per-prefix yield measured on resampled real prefixes is applied to the 2^26.428 prefixes of the run; the resampling relies on uniform-cv-ewords.",
+      "limitations": "An importance-weighted estimate, not a count of finished target collisions. The counted successes are compression collisions from resampled chaining values, not two-block collisions from the IV, and no end-to-end 32-round witness exists. The paper's per-tuple figure 2^-27.415 (45 conditions) is about 1 bit lower; with the paper's q and yield the total would be 53.371, 0.01 bit below the claim, or 0.04 bit above it with the 0.05-bit slack added (not claimed).",
+      "evidence_ids": [
+        "proof:977-1021",
+        "proof:1023-1065",
+        "proof:1067-1082",
+        "proof:346-387",
+        "proof:389-481",
+        "proof:483-522",
+        "proof:1646-1661",
+        "experiment:r32-w20-w13-w4-pairing",
+        "experiment:r32-w20-s0w5-carry",
+        "experiment:r32-w22-s1w20-s0w7-cancel",
+        "experiment:r32-w22-w6-carry"
+      ]
+    },
+    {
+      "id": "uniform-cv-ewords",
+      "role": "score-critical",
+      "statement": "For uniformly random M0, the chaining-value words E-4..E-1 of C32(IV, M0) are uniform and independent of A-4..A-1 and of the matched TAB2 record. Hence resampling W0..W3 of a real prefix (keeping A-4..A-1 and E0..E3 and solving back for E-4..E-1) preserves the distribution that the tail yield depends on.",
+      "scope": "Exact parts: W_i is a bijective function of E_(i-4) for i = 0..3, and given a record the L2 conditions involve only W4..W6, which are a bijection of (E0, E1, E2). Empirical parts: real-C32 q (2^-17.324) agrees with the exact analytic sum under uniform CV (-17.325) and with an independent per-record estimator; the exhaustive funnel on real prefixes with their true W0..W3 agrees with the synthetic funnel as far as it reaches (E19).",
+      "extrapolation": "From agreement of measured statistics to distributional uniformity of four CV words over all M0.",
+      "limitations": "Not proved. The checks are first-moment agreements; a bias of C32 outputs correlated with the tail conditions would change the yield and is not excluded by them.",
+      "evidence_ids": [
+        "proof:1067-1082",
+        "proof:800-837",
+        "proof:839-888",
+        "proof:890-901",
+        "proof:1186-1301"
+      ]
+    },
+    {
+      "id": "poisson-success",
+      "role": "score-critical",
+      "statement": "The number of collisions output by the fixed-budget run (2^43.761 first-block trials, tail calls capped at 2 times the expected 2^26.428) is approximately Poisson with mean mu = 1.0000 at the charged rates, so the success probability is 1 - exp(-mu) = 0.6321, at least the claimed 0.63.",
+      "scope": "Matcher accept counts per chunk (variance/mean about 1); tail estimator core dispersion index 1.012, design effect 0.983 over core clusters, dependence gap between stages 0.0066 bit.",
+      "extrapolation": "Independence of disjoint first-block trials and of distinct prefixes, from the measured clusters to the 2^26.428 prefixes of the run.",
+      "limitations": "Prefixes that share a TAB2 record or key are dependent; that dependence is bounded only empirically. At the central rates the probability is 0.6394. Running only to the v5 minimum 0.39 would need 1.02 bits less work; that saving is not taken.",
+      "evidence_ids": [
+        "proof:1122-1133",
+        "proof:1135-1151",
+        "proof:1153-1184",
+        "proof:1023-1065"
+      ]
+    },
+    {
+      "id": "trail-search-envelope",
+      "role": "score-critical",
+      "statement": "We assume that the authors' search for the 35-step characteristic, which the algorithm uses as hard-coded advice, used at most 14,976 thread-hours in total, for example at most 8 sequential solver calls of at most 72 h each on 26 threads (576 h of 26-thread solver time). The paper states no time. Priced at the ARMv8 SHA-256 hardware rate of 2^39.45 target compressions per thread-hour (2^53.324 units), plus the 2^38.828 units (56.01 CPU-hours at lambda = 1) of our own unsuccessful re-derivation, the charge is 2^53.324 units.",
+      "scope": "ePrint 2026/1080 states no running time for its trail search. The 14,976 thread-hours are a declared assumption, not a stated time. They multiply three checked facts: Steps 1-4 of the procedure are 4 sequential minimisations, each ending with a satisfiable call at its optimum and a failing call below it, so at least 8 calls; the example per-call solver time limit \"e.g., 72 hours\" of the authors' earlier SAT/SMT procedure (ePrint 2024/349, EUROCRYPT 2024, Sect. 4.3), which ePrint 2026/1080 says it used; and 26 solver threads per call, the setting of every STP call in the public Peace9911/sha_2_attack repository (commit 6a9f35f; its content and code tag match ePrint 2024/349, authorship not confirmed). 26 threads fit on the 128-thread server of the paper's attack experiments; the paper does not say where or how its trail search ran. Our own search reproduced Step 1 (minimum nabla-W weight 22, bounds 9..21 proved UNSAT); stream T stopped after 40.39 thread-hours (wall time x thread cap; 38.62 CPU-hours) of its 48 thread-hour box without finding a characteristic, and follow-up trail streams added 17.39 CPU-hours (107 logged and 6 unrecorded runs, all charged) without one up to the ledger snapshot.",
+      "extrapolation": "From the published procedure and the public code's settings to an assumed total: each of the minimal calls is assumed to run to the time limit, and no further call is assumed to be slow. One thread-hour of SAT/SMT solving is priced at no more than the 32-step compressions one thread computes per hour with ARMv8 SHA-256 instructions (the strictest of our conversions).",
+      "limitations": "A declared assumption, not a measured or published running time, and not a proof. The public code does not run the minimal sequence: each objective is a descending loop that asserts weight = k from 60 or 90 down to the optimum, one fresh STP call per integer, and its correct_dc step repeats an identical call up to 61 times. If the authors' search made N such calls on 26 threads, the envelope holds only if they averaged at most 576/N hours. More, longer or wider calls exceed it, and the claim has almost no margin over it (twice the envelope adds about 1 bit). Measured work is priced at lambda = 1 and the envelope at the ARMv8 rate; pricing ours at the ARMv8 rate as well gives 53.332 before slack. Alternative, not charged: the envelope at lambda = 1 instructions gives 47.991. Our measured search alone gives 44.081; it is a lower bound on the cost of our re-derivation, not on the authors' search.",
+      "evidence_ids": [
+        "proof:1434-1554",
+        "proof:1663-1761",
+        "proof:1186-1301",
+        "proof:1872-1923"
+      ]
+    },
+    {
+      "id": "start-point-cost",
+      "role": "supporting",
+      "statement": "The cost of finding the published start point (A1..A13, E5..E13, W9..W13) is at most the charged 2^41 units. The paper's 2^34.3 has no unit and is not used.",
+      "scope": "Our independent start-point search found a start point T' satisfying the same characteristic: 44 runs, 23 of them solver runs, measured 2^33.938 units (2.71 CPU-hours at lambda = 1); the full-CNF portfolio had 1 success in 12 solver runs, giving a 95% upper bound of 2^39.00 units on its expected cost. T' was verified and run through the whole pipeline (its own TAB2, q and yield).",
+      "extrapolation": "From the search for T' to the cost of finding a start point like the published T. T' moves q and the yield by more than 0.5 bit each, so its search does not measure the cost of finding T; the cap is charged instead and T' is corroboration that the cap is not exceeded.",
+      "limitations": "One solver success. The cap is a conservative choice, not a measured cost of T; the T' search runs are also charged as logged development work. With the start point at the paper's figure read as compressions the total would be 53.326 (not claimed).",
+      "evidence_ids": [
+        "proof:551-674",
+        "proof:579-635",
+        "proof:637-674",
+        "proof:1186-1301",
+        "proof:1565-1587"
+      ]
+    },
+    {
+      "id": "instruction-pricing",
+      "role": "supporting",
+      "statement": "Each retired machine instruction of the logged programs costs at most lambda = 1 primitive operation of the v5 RAM, that is 1/2224 unit; hardware SHA-256 trials are instead charged one unit per compression.",
+      "scope": "Retired-instruction counts summed over all threads of each run, from the operating system's counters; every logged run is charged in the conservative ledger.",
+      "extrapolation": "From instruction counts to word-RAM primitive operations through one fixed factor.",
+      "limitations": "A convention, not a verified compilation: multiplications, SIMD and crypto instructions emulate to more than one primitive, and per-class emulation tables give lambda of several units. Every lambda-dependent term of the claim basis is at least 14.25 bits below the total, and together they are 13.16 bits below it; lambda = 325 would add 0.05 bit. The trail-search envelope is priced in compressions and does not depend on lambda.",
+      "evidence_ids": [
+        "proof:1350-1375",
+        "proof:1377-1425",
+        "proof:1186-1301"
+      ]
+    },
+    {
+      "id": "H-local-expansion-additions",
+      "role": "supporting",
+      "statement": "At the XOR differences of the published pair, each listed message-expansion addition has the exact XOR-differential probability stated in its experiment, and once the trail fixes one operand's signs the other operand needs exactly the listed sigma0/sigma1 two-bit sign relations (W4, W5, W6 equal to Figure 6) plus the stated W20/W22 value bits.",
+      "scope": "Single 32-bit modular additions of the message expansion (W19-W24, W27-W29), uniform operands, organizer seeds.",
+      "extrapolation": "None to the attack cost: q and the tail yield are measured end to end with exact two-branch checks. These experiments only corroborate the per-word condition counts used to explain q (Figure 6) and the W20/W22 part of the tail count.",
+      "limitations": "Sampled at the organizer budget (256 trials, Hoeffding alpha 0.01), so events of probability 2^-9 only receive an upper bound; uniform independent operands are not the attack's distribution; per-addition probabilities are not multiplied into a trail probability; public seeds, no holdout.",
+      "evidence_ids": [
+        "proof:320-344",
+        "proof:1303-1346",
+        "experiment:r32-w20-w13-w4-pairing",
+        "experiment:r32-w20-s0w5-carry",
+        "experiment:r32-w22-s1w20-s0w7-cancel",
+        "experiment:r32-w22-w6-carry",
+        "experiment:r32-w19-s0w4-cancel",
+        "experiment:r32-w21-s0w6-cancel",
+        "experiment:r32-w23-s0w8-cancel",
+        "experiment:r32-w28-s0w13-cancel",
+        "experiment:r32-w27-s0w12-cancel",
+        "experiment:r32-w24-s1w22-cancel",
+        "experiment:r32-w29-w22-w13-cancel"
+      ]
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }

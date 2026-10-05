@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "r32-w20-w13-w4-pairing",
+      "kind": "addition-xor-sampled-v1",
+      "scope": "One 32-bit modular addition of the sha256-r32 message expansion, (W13) + (W4) inside W20 (e1080:271), at the XOR differences realized by the published pair (e1080:826-830). Uniform independent operands, organizer seeds and budget. W20: W13 and W4 differences (bit 29) must cancel modularly. In the attack the operands are not uniform (other trail conditions fix their signs); that link is the exact derivation stated in the hypothesis, not something this sample checks. Local evidence only: no full-trail, round-independence or global probability conclusion.",
+      "hypothesis": "For uniform 32-bit a, b: P[((a+b) xor ((a xor 0x20000000)+(b xor 0x20000000))) == 0x00000000] = 1/2 = 2^-1 exactly (Lipmaa-Moriai; exact carry count). The sample frequency's interval is expected to contain 0.5. Given the pair's input signs the remaining value-condition probability is 2^0; the sign pairing accounts for the other 2^-1.",
+      "word_bits": 32,
+      "input_xor_a": 536870912,
+      "input_xor_b": 536870912,
+      "output_xor": 0
+    },
+    {
+      "id": "r32-w20-s0w5-carry",
+      "kind": "addition-xor-sampled-v1",
+      "scope": "One 32-bit modular addition of the sha256-r32 message expansion, (s1(W18) + W13 + W4) + (s0(W5)) inside W20 (e1080:271), at the XOR differences realized by the published pair (e1080:826-830). Uniform independent operands, organizer seeds and budget. W20 carry condition: the s0(W5) difference (signs fixed by the W5 two-bit relations of Figure 6, e1080:759) must land on the trail's W20 XOR row 01808000. In the attack the operands are not uniform (other trail conditions fix their signs); that link is the exact derivation stated in the hypothesis, not something this sample checks. Local evidence only: no full-trail, round-independence or global probability conclusion.",
+      "hypothesis": "For uniform 32-bit a, b: P[((a+b) xor ((a xor 0x00000000)+(b xor 0x02808000))) == 0x01808000] = 1/16 = 2^-4 exactly (Lipmaa-Moriai; exact carry count). The sample frequency's interval is expected to contain 0.0625. Given the pair's input signs the remaining value-condition probability is 2^-3; the sign pairing accounts for the other 2^-1.",
+      "word_bits": 32,
+      "input_xor_a": 0,
+      "input_xor_b": 41975808,
+      "output_xor": 25198592
+    },
+    {
+      "id": "r32-w22-s1w20-s0w7-cancel",
+      "kind": "addition-xor-sampled-v1",
+      "scope": "One 32-bit modular addition of the sha256-r32 message expansion, (s1(W20)) + (s0(W7)) inside W22 (e1080:271), at the XOR differences realized by the published pair (e1080:826-830). Uniform independent operands, organizer seeds and budget. W22: s1(W20) and s0(W7) differences must cancel (one of the W20/W22 tail conditions of e1080:795-796). In the attack the operands are not uniform (other trail conditions fix their signs); that link is the exact derivation stated in the hypothesis, not something this sample checks. Local evidence only: no full-trail, round-independence or global probability conclusion.",
+      "hypothesis": "For uniform 32-bit a, b: P[((a+b) xor ((a xor 0x500060d0)+(b xor 0x5000a070))) == 0x00000000] = 1/512 = 2^-9 exactly (Lipmaa-Moriai; exact carry count). The sample frequency's interval is expected to contain 0.00195312. Given the pair's input signs the remaining value-condition probability is 2^0; the sign pairing accounts for the other 2^-9. With operand b's signs fixed as in the trail, the other operand's signs must satisfy 7 sign relations of s1(W20) (W20[21,14] xor = 1; W20[25,16] xor = 1; W20[26,17] xor = 0; W20[30,0] xor = 1; W20[31,1] xor = 1; W20[13] xor = 1; W20[17] xor = 0), exactly 2^-7 of sign patterns.",
+      "word_bits": 32,
+      "input_xor_a": 1342202064,
+      "input_xor_b": 1342218352,
+      "output_xor": 0
+    },
+    {
+      "id": "r32-w22-w6-carry",
+      "kind": "addition-xor-sampled-v1",
+      "scope": "One 32-bit modular addition of the sha256-r32 message expansion, (s1(W20) + s0(W7) + W15) + (W6) inside W22 (e1080:271), at the XOR differences realized by the published pair (e1080:826-830). Uniform independent operands, organizer seeds and budget. W22 carry condition: W6 bit-29 difference must not propagate. In the attack the operands are not uniform (other trail conditions fix their signs); that link is the exact derivation stated in the hypothesis, not something this sample checks. Local evidence only: no full-trail, round-independence or global probability conclusion.",
+      "hypothesis": "For uniform 32-bit a, b: P[((a+b) xor ((a xor 0x00000000)+(b xor 0x20000000))) == 0x20000000] = 1/2 = 2^-1 exactly (Lipmaa-Moriai; exact carry count). The sample frequency's interval is expected to contain 0.5. Given the pair's input signs the remaining value-condition probability is 2^-1; the sign pairing accounts for the other 2^0.",
+      "word_bits": 32,
+      "input_xor_a": 0,
+      "input_xor_b": 536870912,
+      "output_xor": 536870912
+    },
+    {
+      "id": "r32-w19-s0w4-cancel",
+      "kind": "addition-xor-sampled-v1",
+      "scope": "One 32-bit modular addition of the sha256-r32 message expansion, (W12) + (s0(W4)) inside W19 (e1080:271), at the XOR differences realized by the published pair (e1080:826-830). Uniform independent operands, organizer seeds and budget. W19: s0(W4) must cancel W12; signs of s0(W4) are the W4 two-bit relations (Figure 6, e1080:759). In the attack the operands are not uniform (other trail conditions fix their signs); that link is the exact derivation stated in the hypothesis, not something this sample checks. Local evidence only: no full-trail, round-independence or global probability conclusion.",
+      "hypothesis": "For uniform 32-bit a, b: P[((a+b) xor ((a xor 0x04400800)+(b xor 0x04400800))) == 0x00000000] = 1/8 = 2^-3 exactly (Lipmaa-Moriai; exact carry count). The sample frequency's interval is expected to contain 0.125. Given the pair's input signs the remaining value-condition probability is 2^0; the sign pairing accounts for the other 2^-3. With operand a's signs fixed as in the trail, the other operand's signs must satisfy 3 sign relations of s0(W4) (W4[18,14] xor = 0; W4[8,25] xor = 1; W4[1,12] xor = 1), exactly 2^-3 of sign patterns.",
+      "word_bits": 32,
+      "input_xor_a": 71305216,
+      "input_xor_b": 71305216,
+      "output_xor": 0
+    },
+    {
+      "id": "r32-w21-s0w6-cancel",
+      "kind": "addition-xor-sampled-v1",
+      "scope": "One 32-bit modular addition of the sha256-r32 message expansion, (W5) + (s0(W6)) inside W21 (e1080:271), at the XOR differences realized by the published pair (e1080:826-830). Uniform independent operands, organizer seeds and budget. W21: s0(W6) must cancel W5; signs of s0(W6) are the W6 two-bit relations (Figure 6, e1080:759). In the attack the operands are not uniform (other trail conditions fix their signs); that link is the exact derivation stated in the hypothesis, not something this sample checks. Local evidence only: no full-trail, round-independence or global probability conclusion.",
+      "hypothesis": "For uniform 32-bit a, b: P[((a+b) xor ((a xor 0x04400800)+(b xor 0x04400800))) == 0x00000000] = 1/8 = 2^-3 exactly (Lipmaa-Moriai; exact carry count). The sample frequency's interval is expected to contain 0.125. Given the pair's input signs the remaining value-condition probability is 2^0; the sign pairing accounts for the other 2^-3. With operand a's signs fixed as in the trail, the other operand's signs must satisfy 3 sign relations of s0(W6) (W6[18,14] xor = 1; W6[8,25] xor = 0; W6[1,12] xor = 0), exactly 2^-3 of sign patterns.",
+      "word_bits": 32,
+      "input_xor_a": 71305216,
+      "input_xor_b": 71305216,
+      "output_xor": 0
+    },
+    {
+      "id": "r32-w23-s0w8-cancel",
+      "kind": "addition-xor-sampled-v1",
+      "scope": "One 32-bit modular addition of the sha256-r32 message expansion, (W7) + (s0(W8)) inside W23 (e1080:271), at the XOR differences realized by the published pair (e1080:826-830). Uniform independent operands, organizer seeds and budget. W23: s0(W8) must cancel W7. In the attack the operands are not uniform (other trail conditions fix their signs); that link is the exact derivation stated in the hypothesis, not something this sample checks. Local evidence only: no full-trail, round-independence or global probability conclusion.",
+      "hypothesis": "For uniform 32-bit a, b: P[((a+b) xor ((a xor 0x0101108a)+(b xor 0x0301119a))) == 0x00000000] = 1/512 = 2^-9 exactly (Lipmaa-Moriai; exact carry count). The sample frequency's interval is expected to contain 0.00195312. Given the pair's input signs the remaining value-condition probability is 2^0; the sign pairing accounts for the other 2^-9. With operand a's signs fixed as in the trail, the other operand's signs must satisfy 9 sign relations of s0(W8) (W8[8,4] xor = 1; W8[21,6] xor = 0; W8[22,7] xor = 1; W8[14,25] xor = 0; W8[15,26] xor = 1; W8[30,15] xor = 1; W8[23,2] xor = 1; W8[31,27] xor = 1; W8[0,28] xor = 0), exactly 2^-9 of sign patterns.",
+      "word_bits": 32,
+      "input_xor_a": 16846986,
+      "input_xor_b": 50401690,
+      "output_xor": 0
+    },
+    {
+      "id": "r32-w28-s0w13-cancel",
+      "kind": "addition-xor-sampled-v1",
+      "scope": "One 32-bit modular addition of the sha256-r32 message expansion, (W12) + (s0(W13)) inside W28 (e1080:271), at the XOR differences realized by the published pair (e1080:826-830). Uniform independent operands, organizer seeds and budget. W28: s0(W13) must cancel W12. In the attack the operands are not uniform (other trail conditions fix their signs); that link is the exact derivation stated in the hypothesis, not something this sample checks. Local evidence only: no full-trail, round-independence or global probability conclusion.",
+      "hypothesis": "For uniform 32-bit a, b: P[((a+b) xor ((a xor 0x04400800)+(b xor 0x04400800))) == 0x00000000] = 1/8 = 2^-3 exactly (Lipmaa-Moriai; exact carry count). The sample frequency's interval is expected to contain 0.125. Given the pair's input signs the remaining value-condition probability is 2^0; the sign pairing accounts for the other 2^-3. With operand a's signs fixed as in the trail, the other operand's signs must satisfy 3 sign relations of s0(W13) (W13[18,14] xor = 1; W13[8,25] xor = 0; W13[1,12] xor = 0), exactly 2^-3 of sign patterns.",
+      "word_bits": 32,
+      "input_xor_a": 71305216,
+      "input_xor_b": 71305216,
+      "output_xor": 0
+    },
+    {
+      "id": "r32-w27-s0w12-cancel",
+      "kind": "addition-xor-sampled-v1",
+      "scope": "One 32-bit modular addition of the sha256-r32 message expansion, (W20) + (s0(W12)) inside W27 (e1080:271), at the XOR differences realized by the published pair (e1080:826-830). Uniform independent operands, organizer seeds and budget. W27: s0(W12) must cancel W20; W20 inherits the signs of s0(W5), so its signs are the W5 two-bit relations. In the attack the operands are not uniform (other trail conditions fix their signs); that link is the exact derivation stated in the hypothesis, not something this sample checks. Local evidence only: no full-trail, round-independence or global probability conclusion.",
+      "hypothesis": "For uniform 32-bit a, b: P[((a+b) xor ((a xor 0x01808000)+(b xor 0x02808000))) == 0x00000000] = 1/16 = 2^-4 exactly (Lipmaa-Moriai; exact carry count). The sample frequency's interval is expected to contain 0.0625. Given the pair's input signs the remaining value-condition probability is 2^0; the sign pairing accounts for the other 2^-4. With operand b's signs fixed as in the trail, the other operand's signs must satisfy 3 sign relations of s0(W5) (W5[1,18] xor = 0; W5[30,9] xor = 0; W5[0,28] xor = 0), exactly 2^-3 of sign patterns.",
+      "word_bits": 32,
+      "input_xor_a": 25198592,
+      "input_xor_b": 41975808,
+      "output_xor": 0
+    },
+    {
+      "id": "r32-w24-s1w22-cancel",
+      "kind": "addition-xor-sampled-v1",
+      "scope": "One 32-bit modular addition of the sha256-r32 message expansion, (W8) + (s1(W22)) inside W24 (e1080:271), at the XOR differences realized by the published pair (e1080:826-830). Uniform independent operands, organizer seeds and budget. W24: s1(W22) must cancel W8. In the attack the operands are not uniform (other trail conditions fix their signs); that link is the exact derivation stated in the hypothesis, not something this sample checks. Local evidence only: no full-trail, round-independence or global probability conclusion.",
+      "hypothesis": "For uniform 32-bit a, b: P[((a+b) xor ((a xor 0x00080c00)+(b xor 0x00081400))) == 0x00000000] = 1/16 = 2^-4 exactly (Lipmaa-Moriai; exact carry count). The sample frequency's interval is expected to contain 0.0625. Given the pair's input signs the remaining value-condition probability is 2^0; the sign pairing accounts for the other 2^-4. With operand a's signs fixed as in the trail, the other operand's signs must satisfy 3 sign relations of s1(W22) (W22[27,20] xor = 1; W22[31,22] xor = 0; W22[4,6] xor = 0), exactly 2^-3 of sign patterns.",
+      "word_bits": 32,
+      "input_xor_a": 527360,
+      "input_xor_b": 529408,
+      "output_xor": 0
+    },
+    {
+      "id": "r32-w29-w22-w13-cancel",
+      "kind": "addition-xor-sampled-v1",
+      "scope": "One 32-bit modular addition of the sha256-r32 message expansion, (W22) + (W13) inside W29 (e1080:271), at the XOR differences realized by the published pair (e1080:826-830). Uniform independent operands, organizer seeds and budget. W29: W22 and W13 bit-29 differences must cancel. In the attack the operands are not uniform (other trail conditions fix their signs); that link is the exact derivation stated in the hypothesis, not something this sample checks. Local evidence only: no full-trail, round-independence or global probability conclusion.",
+      "hypothesis": "For uniform 32-bit a, b: P[((a+b) xor ((a xor 0x20000000)+(b xor 0x20000000))) == 0x00000000] = 1/2 = 2^-1 exactly (Lipmaa-Moriai; exact carry count). The sample frequency's interval is expected to contain 0.5. Given the pair's input signs the remaining value-condition probability is 2^0; the sign pairing accounts for the other 2^-1.",
+      "word_bits": 32,
+      "input_xor_a": 536870912,
+      "input_xor_b": 536870912,
+      "output_xor": 0
+    }
+  ]
+}
