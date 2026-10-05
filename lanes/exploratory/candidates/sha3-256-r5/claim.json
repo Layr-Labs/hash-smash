@@ -6,21 +6,21 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 129,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
+    "memory_log2_bytes": 136,
+    "data_log2": 129,
+    "preprocessing_log2": 120,
     "success_probability": 0.5,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
     "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
+    "One batch of 1.25*2^128 samples; all repeated messages are retained and charged; no restart.",
     "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
+    "Classical 256-bit word RAM with independent uniform random words; collision lookup uses a deterministic 16-pass least-significant-digit radix sort whose operation count depends only on n, not on the output distribution.",
     "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 129."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
   "heuristics": [],
