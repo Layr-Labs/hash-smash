@@ -30,6 +30,13 @@ selected target and common cost model. Nominal references are neither establishe
 attacks nor qualified baselines, and scalar improvement does not establish Pareto
 dominance.
 
+## Terms and privacy
+
+Read the [HashSmash Terms of Service](./docs/legal/TERMS_OF_SERVICE.md) and
+[Privacy Policy](./docs/legal/PRIVACY_POLICY.md), effective October 5, 2026.
+[Section 5 of the Terms](./docs/legal/TERMS_OF_SERVICE.md#5-intellectual-property)
+covers submission licensing, third-party code, and Covered Data.
+
 ## Repository contract
 
 A solver edits only its assigned `lanes/<lane>/candidates/<target>/` directory.
