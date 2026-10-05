@@ -6,20 +6,23 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 129,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
+    "memory_log2_bytes": 136,
+    "preprocessing_log2": 123,
+    "success_probability": 0.393,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Use only 55-byte messages, defined as the first 55 bytes of the big-endian concatenation of two fresh independent uniform 256-bit RAM words. 55 bytes pad to exactly one 64-byte block under FIPS 180-4, so the fixed standard IV is used once and rounds 0 through 30 execute exactly once per message.",
+    "The target is executed at most once per sampled message plus two verification calls. Schedule expansion for W[16..30] and all 31 round internals stay inside the single one-unit compression price and are not charged a second time.",
+    "Duplicate detection is a two-pass least-significant-digit radix sort of the q records on two 128-bit digits of the full 256-bit digest, with stable descending-order scatter and two 2^128-word counter arrays reused across passes. The charged cost is a fixed function of q alone: exactly two counter increments and two scatter stores per record per pass, plus one clear and one prefix scan per pass. No branch, comparison or memory access in either pass depends on any digest value.",
+    "Because the detection cost is distribution-independent, this package contains no expected-work term, no tail bound and no timeout, and its success bound is not traded against any resource cap. Every ordinary-operation budget is a worst case on every random tape.",
+    "The algorithm returns a valid ordinary collision on the event that some sampled digest repeats while no sampled message repeats. If an identical message is drawn twice it does not accept that pair and may return FAIL; the probability of that event is bounded separately by the repeated-input union bound and is below 2^-185.",
+    "Total time charges all M = 2^128 sampled messages including every failed trial, both counter clears and prefix scans, every counter increment and scatter store, the adjacent scan and the final re-verification. There are no restarts, no rejection loop and no success amplification.",
+    "memory_log2_bytes bounds peak resident bytes: both record arrays, the counter array, code and scratch. Memory is a reported metric only and contributes nothing to time_log2.",
+    "nonuniform_advice_log2_bytes = 0 is a one-byte upper bound with zero actual advice. Every array is regenerated on every execution; no favorable seed, cached collision, precomputed search or omitted work is supplied.",
+    "This is an unconditional analytic construction with no experiment, no computed witness, no hidden precomputed search and no heuristic premise. It does not claim improvement over the nominal reference."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
   "heuristics": [],
