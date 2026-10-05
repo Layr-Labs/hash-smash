@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "bitslice-fullwidth-equivalence",
+      "kind": "python-message-pairs-v1",
+      "scope": "Per trial: 256 seeded uniform 256-bit inputs x, messages LE32(x), one batch of the compiled bit-sliced six-round circuit (proof Section 3, Appendix A). Returns two slots whose bit-sliced digests agree on digest bits 0-2 of each of the four digest lanes. A mechanical cross-check, not a full-width equivalence test.",
+      "hypothesis": "Every returned pair agrees on the 12 masked digest bits when the organizer recomputes both digests. Reported gate counts are untrusted observations.",
+      "program": "experiments/slot_dp_walk.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0700000000000000070000000000000007000000000000000700000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "slot-dp-walk-n14",
+      "kind": "python-message-pairs-v1",
+      "scope": "The Section 5 algorithm at reduced width n=14 on the real target: step x <- digest planes 0..13 of LE32(x); 256 slots; DP = digest bit 13 zero; table keyed on bits 0..12; abandonment at 16; reseeding stops after 256 evaluations, then drain; same-batch DPs in slot order; halt at the first RELOCATE (scalar f). One walk per trial.",
+      "hypothesis": "Every returned pair is two distinct 32-byte messages whose complete six-round SHA3-256 digests agree on digest bits 0..13 (an absolute 14-bit collision). Failed RELOCATEs and drained walks return null.",
+      "program": "experiments/slot_dp_walk.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ff3f000000000000000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "contact-n18-k00",
+      "kind": "python-message-pairs-v1",
+      "scope": "Contact test on the real target at reduced width n=18: N=2^18, exactly K=512 evaluations (2 batches), 256 distinct uniform starts, 256 slots in batch-major slot-minor order. Input window: message bits (7k+11i) mod 256; output window: digest bits {0,12,24,36,48,60,72,84,96,108,120,132,144,156,168,180,192,204} (the six windows are disjoint). A trial returns the first-contact collision pair, or null if the first contact is a start or no contact occurs within K.",
+      "hypothesis": "Every returned pair is an absolute 18-bit collision of the real target on the output window. The success frequency is compared descriptively with the random-function prediction for this exact harness (proof Section 10); no iid interval is inferred.",
+      "program": "experiments/slot_dp_walk.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0110000110000110000110000110000110000110000110000110000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "contact-n18-k02",
+      "kind": "python-message-pairs-v1",
+      "scope": "Contact test on the real target at reduced width n=18: N=2^18, exactly K=512 evaluations (2 batches), 256 distinct uniform starts, 256 slots in batch-major slot-minor order. Input window: message bits (7k+11i) mod 256; output window: digest bits {2,14,26,38,50,62,74,86,98,110,122,134,146,158,170,182,194,206} (the six windows are disjoint). A trial returns the first-contact collision pair, or null if the first contact is a start or no contact occurs within K.",
+      "hypothesis": "Every returned pair is an absolute 18-bit collision of the real target on the output window. The success frequency is compared descriptively with the random-function prediction for this exact harness (proof Section 10); no iid interval is inferred.",
+      "program": "experiments/slot_dp_walk.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0440000440000440000440000440000440000440000440000440000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "contact-n18-k04",
+      "kind": "python-message-pairs-v1",
+      "scope": "Contact test on the real target at reduced width n=18: N=2^18, exactly K=512 evaluations (2 batches), 256 distinct uniform starts, 256 slots in batch-major slot-minor order. Input window: message bits (7k+11i) mod 256; output window: digest bits {4,16,28,40,52,64,76,88,100,112,124,136,148,160,172,184,196,208} (the six windows are disjoint). A trial returns the first-contact collision pair, or null if the first contact is a start or no contact occurs within K.",
+      "hypothesis": "Every returned pair is an absolute 18-bit collision of the real target on the output window. The success frequency is compared descriptively with the random-function prediction for this exact harness (proof Section 10); no iid interval is inferred.",
+      "program": "experiments/slot_dp_walk.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "1000011000011000011000011000011000011000011000011000010000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "contact-n18-k06",
+      "kind": "python-message-pairs-v1",
+      "scope": "Contact test on the real target at reduced width n=18: N=2^18, exactly K=512 evaluations (2 batches), 256 distinct uniform starts, 256 slots in batch-major slot-minor order. Input window: message bits (7k+11i) mod 256; output window: digest bits {6,18,30,42,54,66,78,90,102,114,126,138,150,162,174,186,198,210} (the six windows are disjoint). A trial returns the first-contact collision pair, or null if the first contact is a start or no contact occurs within K.",
+      "hypothesis": "Every returned pair is an absolute 18-bit collision of the real target on the output window. The success frequency is compared descriptively with the random-function prediction for this exact harness (proof Section 10); no iid interval is inferred.",
+      "program": "experiments/slot_dp_walk.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "4000044000044000044000044000044000044000044000044000040000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "contact-n18-k08",
+      "kind": "python-message-pairs-v1",
+      "scope": "Contact test on the real target at reduced width n=18: N=2^18, exactly K=512 evaluations (2 batches), 256 distinct uniform starts, 256 slots in batch-major slot-minor order. Input window: message bits (7k+11i) mod 256; output window: digest bits {8,20,32,44,56,68,80,92,104,116,128,140,152,164,176,188,200,212} (the six windows are disjoint). A trial returns the first-contact collision pair, or null if the first contact is a start or no contact occurs within K.",
+      "hypothesis": "Every returned pair is an absolute 18-bit collision of the real target on the output window. The success frequency is compared descriptively with the random-function prediction for this exact harness (proof Section 10); no iid interval is inferred.",
+      "program": "experiments/slot_dp_walk.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0001100001100001100001100001100001100001100001100001100000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "contact-n18-k10",
+      "kind": "python-message-pairs-v1",
+      "scope": "Contact test on the real target at reduced width n=18: N=2^18, exactly K=512 evaluations (2 batches), 256 distinct uniform starts, 256 slots in batch-major slot-minor order. Input window: message bits (7k+11i) mod 256; output window: digest bits {10,22,34,46,58,70,82,94,106,118,130,142,154,166,178,190,202,214} (the six windows are disjoint). A trial returns the first-contact collision pair, or null if the first contact is a start or no contact occurs within K.",
+      "hypothesis": "Every returned pair is an absolute 18-bit collision of the real target on the output window. The success frequency is compared descriptively with the random-function prediction for this exact harness (proof Section 10); no iid interval is inferred.",
+      "program": "experiments/slot_dp_walk.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0004400004400004400004400004400004400004400004400004400000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
