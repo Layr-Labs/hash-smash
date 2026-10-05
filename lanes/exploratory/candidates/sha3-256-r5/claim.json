@@ -6,23 +6,52 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 44.9,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 30,
+    "preprocessing_log2": 0,
+    "success_probability": 0.6,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Two-block ordinary collision attack of Guo, Liao, Liu, Liu, Qiao and Song (Journal of Cryptology 2020) on 5-round SHA3-256, with real collisions published: 2-round connector (428.8 core-hours, converted at the top of the quoted 2^20-2^22 full-round range: 2^44.821) plus 2^36.70 pairs (2^37.7 five-round evaluations); total 2^44.831, claimed 44.9.",
+    "Success probability 0.6 at time_log2 44.9 under H3; >= 0.39 at time_log2 45.544 without H3 (Markov)."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H1-source-analysis",
+      "statement": "The 3-round trail core No. 3 of the source holds with probability 2^-36.70 over the connector's affine message space, and the 2-round connector is solved within the reported 428.8 core-hours.",
+      "role": "score-critical",
+      "scope": "The cited attack of Journal of Cryptology 2020 (Guo, Liao, Liu, Liu, Qiao, Song), applied to this exact target (standard IV, full message, all digest bits).",
+      "extrapolation": "The source reports real 5-round SHA3-256 collisions (Table 17) found within the stated Tc and Tb.",
+      "evidence_ids": [
+        "proof:1"
+      ],
+      "limitations": "The trail probability and connector solving time are the source's empirical results; this package re-prices but does not re-derive them."
+    },
+    {
+      "id": "H2-first-block-state",
+      "statement": "For a fresh free first block after the fixed prefix, the 2-round connector's linear system is solvable often enough that the source's reported connector time Tc (including its restarts) applies to this target.",
+      "role": "score-critical",
+      "scope": "The 5-round SHA3-256 connector of the source applied after the hashsmash prefix.",
+      "extrapolation": "The source found real 5-round SHA3-256 collisions with this two-block structure (Table 17).",
+      "evidence_ids": [
+        "proof:1"
+      ],
+      "limitations": "The first-block state has at most 1088 bits of input entropy, not a uniform 1600-bit state; only solvability of the connector is assumed."
+    },
+    {
+      "id": "H3-independent-trials",
+      "statement": "Brute-force candidates from the connector's affine space and connector restarts behave as independent trials with a fixed per-trial success probability, so running for the expected work succeeds with probability at least 1-(1-1/n)^n.",
+      "role": "score-critical",
+      "scope": "The success probability 0.6 at time_log2 44.9 only.",
+      "extrapolation": "Without this premise Markov's inequality gives success >= 0.39 at time_log2 45.544.",
+      "evidence_ids": [
+        "proof:1"
+      ],
+      "limitations": "Not re-derived here; the assumption-free bound is stated alongside."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
