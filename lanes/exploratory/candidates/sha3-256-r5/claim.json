@@ -6,23 +6,136 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 50.3,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 34,
+    "preprocessing_log2": 48.6,
+    "success_probability": 0.44,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Messages are 271-byte strings M0||X: a uniformly random 136-byte first block M0 and a 135-byte second-block message X. The final padded block is X||0x86, so p = 8 bits are fixed in the final block plus the 512 capacity bits.",
+    "Complete SHA3-256 sponge from the all-zero state with prefix rounds 0-4 (RC[0..4]) in both permutation calls, 0x06/0x80 padding, and the full 256-bit digest. No free-start, truncation or raw-permutation shortcut.",
+    "Method: the 2-round linear connector and trail core No. 3 of Guo, Liao, Liu, Liu, Qiao, Song (J. Cryptology 33, 2020; ePrint 2019/147), adapted by us from p = 4 to p = 8 and to random first blocks. Each connector attempt uses a fresh first block and fresh coins. Hard work budget: connector attempts stop at 23 * mu = 2^49.670 units, at most 1024 successful spaces are enumerated at 2^32 pairs each, and the trail-extension search is run as preprocessing. The stated time is this cap, not an expected time.",
+    "Derived heuristic estimate, not an executed attack. No byte-aligned colliding pair exists yet, the certificate manifest is empty, and no experiment is declared.",
+    "Costs are charged in units of one 5-round permutation. The published connecting time (428.8 core-hours) is multiplied by a slowdown factor f = 1.25 (H4; G7 p=8 slope) and converted at 2^24.263 units per core-second (H7; paper G5 upper end: 2^22 full Keccak-f/s x 24/5). The trail search of Appendix C.2 of the cited paper, with an explicit relaxed filter and a deterministic selection rule, is charged at 2^48.585 units for priced tree extensions only (H6; KeccakTools core generation is unpublished and is not charged). Every connector retry and every enumerated failure is included.",
+    "The success probability 0.44 is computed for the budget-truncated algorithm (proof Section 5). Without heuristic H8, the Markov-only fallback costs about 2^52.42 (proof Section 6.3); this is not claimed.",
+    "The nominal reference identifier is required metadata and does not assert an improvement or Pareto dominance."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H1-pair-probability",
+      "statement": "A pair (X, X xor Delta) from a successful p = 8 connector attempt, which reaches the trail-core-3 input difference alpha2 after two rounds, gives a full 256-bit digest collision after five rounds with probability at least 2^-37.22. This is our exhaustive Markov-model sum over all 2^19 alpha4 for the fixed alpha3 (procedure given in the proof). The published figure is 2^-36.70, and we did not reproduce it.",
+      "role": "score-critical",
+      "scope": "Rounds 3-5 of trail core No. 3 for the SHA3-256 digest (lanes 0-3), for pairs that satisfy the 2-round connector.",
+      "extrapolation": "Assumes the Markov (independent-round) model holds on connector output spaces at p = 8 with random fixed-bit values, as in the published p = 4 attack.",
+      "evidence_ids": [
+        "proof:71-85",
+        "proof:86-123",
+        "proof:192-207",
+        "proof:285-288"
+      ],
+      "limitations": "No p = 8 experiment. The published single success (one collision in a 2^36-pair space) is consistent with both 2^-37.22 and 2^-36.70 but cannot tell them apart. Round dependence could raise or lower the true value. Sensitivity: p_pair 2^-37.5 needs K = 23 (50.28), and 2^-38 needs K = 32 (50.61). The K = 22 margin covers p_pair down to 2^-37.46."
+    },
+    {
+      "id": "H2-within-space-poisson",
+      "statement": "Within one connector space of 2^32 distinct candidate pairs, the number of colliding pairs is close to Poisson, so the space contains a collision with probability s = 1 - exp(-2^32 * p_pair) = 0.02647. Independence across spaces is exact by construction (fresh first block and coins per attempt).",
+      "role": "score-critical",
+      "scope": "Each successful connector space enumerated by the algorithm in proof Section 4.",
+      "extrapolation": "Treats the nonlinear rounds 3-5 on a 32-dimensional affine message space as behaving like independent pair trials.",
+      "evidence_ids": [
+        "proof:173-175",
+        "proof:208-221",
+        "proof:289-291"
+      ],
+      "limitations": "If collisions cluster inside spaces, s is smaller than its Poisson value and the success probability falls. No empirical clustering data exists for this trail."
+    },
+    {
+      "id": "H3-df-p8",
+      "statement": "Successful p = 8 connector attempts for trail core No. 3 return solution spaces of dimension DF >= 33. Basis: the published p = 4 connector returned DF = 37; four extra fixed bits add four rows and lower the dimension of any consistent system by at most four. The published SHA3-224 to SHA3-256 data on the same core (DF 83 -> 37 for 64 more fixed bits, 0.72 per bit) predicts DF of about 34.",
+      "role": "score-critical",
+      "scope": "2-round connectors for SHA3-256 with 520 fixed bits (512 capacity + 8 padding) holding the known values of a random first-block output.",
+      "extrapolation": "From one published DF value per target at p = 4 with zero capacity to typical attempts at p = 8 with random capacity values.",
+      "evidence_ids": [
+        "proof:71-85",
+        "proof:177-190",
+        "proof:292-294"
+      ],
+      "limitations": "The published DF values are single runs, and Eq. (10) of the cited paper would give at most 15 here, so DF relies on dependencies that may vary. An attempt with DF < 33 counts as failed, so a shortfall lowers the attempt success rate and must be absorbed by H4. Sensitivity: DF = 32 / 31 (K = 44 / 88) gives 50.96 / 51.79."
+    },
+    {
+      "id": "H4-connector-cost",
+      "statement": "The expected work E[C] to obtain one successful p = 8 connector attempt (consistent system with DF >= 33) from fresh random first blocks, failures included, is at most f * Tc with f = 1.25 (536.0 core-hours from the G7 SHA3-224/256 slope over four extra fixed bits), i.e. at most mu = 2^45.146 units under H7.",
+      "role": "score-critical",
+      "scope": "The connector of the cited paper (Algorithms 1-3, non-full linearisation) for trail core No. 3 with c + p = 520 and random fixed-bit values.",
+      "extrapolation": "From a single published p = 4, zero-capacity run. f = 1.25 x 1.6: 1.25 is the log-linear p = 4 -> 8 scaling from the published SHA3-224 (11.7 h) to SHA3-256 (428.8 h) times on the same core (factor 36.65 for 64 bits). 1.6 rounds up the median-unbiased factor 1/ln 2 = 1.443 for one exponential sample.",
+      "evidence_ids": [
+        "proof:71-85",
+        "proof:177-190",
+        "proof:223-239",
+        "proof:251-262",
+        "proof:295-300"
+      ],
+      "limitations": "One published run at p = 4; two-point G7 fit; never run at p = 8 with random fixed values. Prior f = 2 = 1.25 x 1.6 is omitted; sensitivity shows f = 2 -> 50.73. A 90% one-sided exponential-sample bound would need ~9.5. Sensitivity: f = 1 / 2 / 4 / 8 / 16 -> 50.03 / 50.73 / 51.55 / 52.45 / 53.40."
+    },
+    {
+      "id": "H5-difference-side",
+      "statement": "The connector's difference system can still choose beta0 with zero difference on all 8 fixed padding bits as well as the capacity.",
+      "role": "supporting",
+      "scope": "Round-1 difference system for trail core No. 3 at p = 8.",
+      "extrapolation": "From slack counts (120 at p = 4, 116 at p = 8, using the published pair's round-1 activity pattern) and the published beta0, which already has zero difference on those 8 bits.",
+      "evidence_ids": [
+        "proof:86-123",
+        "proof:177-190",
+        "proof:301-303"
+      ],
+      "limitations": "The slack count treats the 3 equations per active S-box as independent. It is a counting argument, not a solved p = 8 instance."
+    },
+    {
+      "id": "H6-trail-search",
+      "statement": "Step P (the Appendix C.2 search of the cited paper with the SHA3-224 threshold 188 in Requirement (2), Requirement (3), and a deterministic min-w1 selection rule) costs at most 2^48.585 units for the priced forward/backward tree extensions and outputs trail core No. 3. KeccakTools core-generation wall-clock is unpublished and is not included in the charge.",
+      "role": "score-critical",
+      "scope": "Preprocessing charge and output of the trail search (proof Section 4 step P and Section 6.1).",
+      "extrapolation": "Takes the paper's branching caps and 'more than 3000' starting cores as at most 8192. Core No. 3 passes every filter (C1 = 2^19, C2 = 2^31.70, AS(alpha2) = 59, sum 170 <= 188, w2+w3+w4d = 43). It has the smallest w1 among the d = 256 cores in Table 5 of the cited paper, and the authors used it for their two tightest targets.",
+      "evidence_ids": [
+        "proof:71-85",
+        "proof:86-123",
+        "proof:130-144",
+        "proof:223-250",
+        "proof:304-308"
+      ],
+      "limitations": "At most 2^13 starting cores are assumed. Published trail search used KeccakTools and an unstated GPU step with no time given; a fabricated 2^48 pad is omitted and shown in sensitivity (+2^48 pad -> 50.51; T_trail 2^50 / 2^51 -> 50.85 / 51.49). A cheaper-w1 core than No. 3 could be selected; figures are for No. 3."
+    },
+    {
+      "id": "H7-time-conversion",
+      "statement": "One CPU core-second of the published connector implementation corresponds to at most about 2^24.263 units: the upper end of [GLL+20] G5 (2^22 full 24-round Keccak-f evaluations per second) scaled by 24/5 to 5-round units. Tc wall-clock is therefore charged as if the core sustained that permutation rate for the whole connecting stage (linear algebra, memory traffic, retries included).",
+      "role": "score-critical",
+      "scope": "Converting the published connector time Tc into collision-frontier-v5 units.",
+      "extrapolation": "The CPU model and instruction mix are unpublished. Cross-checks from the same paper: its single-core Keccak speed of at most 2^22 Keccak-f/s is 2^34.67 primitive-equivalents per second, 2.2x below the 2^35.80 primitives/s charged. Its brute-force stage ran at most 2^20.68 five-round permutations per core-second, 2^4.7 below the charged rate.",
+      "evidence_ids": [
+        "proof:71-85",
+        "proof:223-239",
+        "proof:251-262",
+        "proof:309-310"
+      ],
+      "limitations": "Connector work is GF(2) elimination, not Keccak; the conversion is a standard wall-clock bound, not a cycle-accurate count. The paper quotes a range 2^20-2^22; we take the upper end (more units/s). Microarch 2^25.400 would raise the claim to about 51.09. Sensitivity: R x2 / x4 -> 50.98 / 51.83."
+    },
+    {
+      "id": "H8-attempt-structure",
+      "statement": "The work C to obtain one successful connector attempt is a geometric number of i.i.d. attempt costs, and its tail is no heavier than in the equal-cost case (each attempt costs the same) or the exponential case. Either case gives Pr[no collision within budget (K+1)*mu] <= exp(-K*s) + (1-s)^1024, hence success probability at least 0.4415 for K = 22.",
+      "role": "score-critical",
+      "scope": "Phase A of the algorithm (budget-truncated connector attempts), proof Sections 4 and 5.",
+      "extrapolation": "From the retry structure of the published connector (repeat random beta1 picks until success, bounded work per pick) to the distribution of total connector work. Attempts are i.i.d. by construction. For small per-attempt success probability, a compound-geometric sum of bounded costs is close to exponential. For large success probability it is less dispersed.",
+      "evidence_ids": [
+        "proof:71-85",
+        "proof:146-175",
+        "proof:208-221",
+        "proof:263-275",
+        "proof:311-315"
+      ],
+      "limitations": "No attempt-level timings are published. If attempt costs are very unequal (rare very long attempts), the success count within the budget is more dispersed and the success probability lower. Without H8 only Markov's inequality applies, and the fallback costs about 2^52.42."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
