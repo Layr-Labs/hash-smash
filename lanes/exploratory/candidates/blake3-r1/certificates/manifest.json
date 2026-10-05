@@ -1,4 +1,13 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "blake3r1-zero-001",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/msg_a.bin",
+      "message_b": "certificates/msg_b.bin",
+      "expected_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "target_profile": "blake3-r1-prefix-v1"
+    }
+  ]
 }
