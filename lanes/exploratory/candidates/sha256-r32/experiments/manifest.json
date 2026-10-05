@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "fixed-witness-derivation",
+      "kind": "python-message-pairs-v1",
+      "scope": "Organizer-executed reconstruction of one committed SHA-256/32 witness from the embedded tuple record, exact lookup-table slices, and tail record. The program repeats the same deterministic derivation for every organizer trial, while the organizer independently checks the full-collision event.",
+      "hypothesis": "The committed embedded slices deterministically derive two distinct 128-byte messages with equal complete-message sha256-r32-prefix-v1 digests matching the committed expected digest. This experiment tests one-record witness derivation only and makes no inference about attack cost, search success probability, lookup-table completeness, or resource use.",
+      "program": "experiments/replay.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
