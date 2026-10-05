@@ -6,23 +6,55 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 127.437,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Messages are exactly 64 bytes (one root block, flags 11, length 64, counter 0).",
+    "Grouped birthday: 2^96 groups; shared m0..m14; enumerate all m15.",
+    "Retained prefixes[g] table stores packed m0..m14 (two 256-bit words) per group; written at group setup; read on VERIFY. Live BT record recs[s]=(g||m15) reconstructs the 64-byte message via prefixes[g] — repairs 7212 EVAL-F1/F-MSG-RECONSTRUCTION.",
+    "K_full is the full 256-bit partial-eval digest. Briggs-Torczon sparse set indexes by top 140 bits; sparse entries are 256-bit words; never clears sparse[]; membership via dense[sparse[idx]]==idx and sparse[idx]<n.",
+    "Unequal-K index hits discard with Word ops only (no target compression). Equal K_full triggers VERIFY (§2.5): rebuild both messages via prefix table, then two reference compressions; V_max=8.",
+    "Per-message Word ops = 291 = 252 inner + 14 pack + 24 BT/K-compare + 1 m15-increment; outer unroll control 3/256 charged in the T inequality. Group setup <=512 Word/group => <2^97 units. VERIFY Word work <=640 => <2 units. T_ver compressions <=16. No expectations in T.",
+    "Declared score-critical heuristics: H1-grouped-digests (probability only) and H-COST-BT-SPARSE (24-op BT envelope, same Briggs-Torczon procedure as c1a7e1b9 / 03e49dc5).",
+    "F2 is earliest-completing colliding-pair displacement (Pr<=2^-12 under H1), with pair selection defined in proof §4.",
+    "Undercut of c1a7e1b9 (293→291) by honest loop-control amortization only (m15+=1 per message; compare/branch every 256 unrolled copies). Does NOT shrink BT below 24, does NOT revive c367 H-COST-SPARSE-21, does NOT claim pack=0. Retains c145/4dd/c367-BT/7212 repairs. Unkeyed BLAKE3-256; 2 rounds."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-grouped-digests",
+      "statement": "For uniformly random independent group prefixes and exhaustive m15 enumeration, the 2^128 digests behave like independent uniform 256-bit strings for bounding F1, the earliest-completing-pair F2 displacement probability conditional on existence of a collision, and F4, up to a negligible additive gap covered by the allowance between the model bound (>0.3932) and claimed success probability 0.39.",
+      "role": "score-critical",
+      "scope": "Success-probability claim only. Does not justify expectation-for-worst-case substitutions in the time bound. Includes the F2 conditioning claim that earliest-completing-pair selection does not inflate the N/2^140 occupancy bound under this independent-uniform model.",
+      "extrapolation": "Organizer matched-scale digest-xor-mask experiments at widths 16, 20, and 24 with N_t^2/2^w=1, plus single-group stress, are consistency checks only. They do not rigorously establish full-scale 256-bit iid behavior over 2^128 structured messages; that step remains the modeling content of this heuristic.",
+      "evidence_ids": [
+        "experiment:b3r2-grouped-spread",
+        "experiment:b3r2-single-group",
+        "experiment:b3r2-grouped-spread-16",
+        "experiment:b3r2-grouped-spread-24",
+        "proof:1-100",
+        "proof:160-280"
+      ],
+      "limitations": "H1 unproved. Truncation cannot detect almost-permutations. No full-scale collision known. Experiments expressly do not support iid success-probability or full-scale inference (CRYPT-H1 / EXP-EXT gaps acknowledged)."
+    },
+    {
+      "id": "H-COST-BT-SPARSE",
+      "statement": "On the classical 256-bit word RAM of collision-frontier-v5, the Briggs-Torczon procedure in proof §2.4 implements membership test (dense[sparse[idx]]==idx and sparse[idx]<n), insert of (idx,K_full,g||m15), and unequal-K discard for a top-140-bit index with never-cleared sparse[] of 256-bit words in at most 24 charged primitive word operations per message, including one 256-bit K_full compare and address-arithmetic margin. Message reconstruction is out of scope for this heuristic (it uses the prefixes table in VERIFY, charged separately).",
+      "role": "score-critical",
+      "scope": "Only the 24-op BT envelope inside the 291-ops/msg candidate ledger. Does not cover partial-eval inner body, pack, loop increment, group-setup prefix writes, VERIFY reconstruction Word ops, or reference compressions. Same 24-op envelope as c1a7e1b9; this package does not further trim BT.",
+      "extrapolation": "Standard Briggs-Torczon correctness (dense[sparse[i]]==i filter) extrapolated to word-addressable sparse[0..2^140) without an initialization pass. Analytic from the §2.4 op list and path table; no empirical RAM microbenchmark.",
+      "evidence_ids": [
+        "proof:50-160",
+        "proof:1-100"
+      ],
+      "limitations": "Not empirically microbenchmarked. If word-addressing a 2^140 sparse table required multi-op page walks beyond the 24-op margin, the ledger would need a higher BT charge (fallback: restore 28-op / 297 / 127.467 via 03e49dc5)."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
