@@ -1,27 +1,50 @@
 {
   "schema_version": 3,
-  "submission_state": "ready",
   "target_profile": "sha256-r31-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 31,
   "lane": "exploratory",
+  "baseline_improved": "sha256-r31-nominal-v2",
+  "submission_state": "ready",
+  "certificate_manifest": "certificates/manifest.json",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 41,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 32,
+    "preprocessing_log2": 40.92,
+    "success_probability": 1,
+    "nonuniform_advice_log2_bytes": 9
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Target sha256-r31-prefix-v1: SHA-256 compression steps 0..30 inclusive on every padded block, standard fixed IV once at the start, FIPS 180-4 padding, full feed-forward, full 256-bit big-endian digest; ordinary collision of two distinct finite byte strings.",
+    "The online algorithm is a DETERMINISTIC REPLAY of exactly the two 128-byte messages written out in proof.md Section 3 (first block M0 shared; second blocks M1 and M1' differing only in words W5..W9 by d5..d9). It is not a submitted generator for new collisions.",
+    "Algorithmic success_probability is exactly 1: the online algorithm performs no random draws and no search, so there is no trial-count, amplification, chaining-value, matching, or completion-rate term anywhere in the cost argument.",
+    "PROVENANCE: the replayed pair's first block M0 and second-block words W0..W12 are the ATTRIBUTED published Li-Liu-Wang matched prefix; only W13,W14,W15 (and hence the five distinct colliding pairs) are our own completion. We did not perform the first-block matching search; the pairs are distinct from the published pair but share its matched prefix. No new or cheaper attack is claimed.",
+    "The two-block construction that produced the replayed pair is fully specified in proof.md (characteristic and signed condition table, exact message/expansion differences and constants, the exact admissible sets V5..V8/G16/G18/S with their enumerated sizes, the Phase-1 table equations, the Phase-2 first-block match, and the capped Phase-3 completion). No external paper is relied upon. The characteristic and the matched prefix are the attributed Li-Liu-Wang EUROCRYPT 2024 Sect 4.2 results.",
+    "COMPLETE LEDGER: all work that produced the replayed pair is charged once as preprocessing and included in total time, with no cross-target amortization and no parallel wall-time discount. This includes the dominant attributed first-block/practical-attack phase (the published ~2^40.5 target-compressions, whose cost is dominated by the first-block search), our own differential-trail re-derivation (including failed/abandoned branches), the starting-point solve, the table generation, the completion, and all serialization and verification. One target compression costs 1 unit; every other 256-bit word primitive (load, store, add/sub, AND/OR/XOR/NOT, shift/rotate, compare, branch) costs 1/2140 unit. The construction CPU-seconds we measured are converted at 2^24 units per CPU-second; the published first-block phase is charged at its published complexity.",
+    "time_log2 is a hard upper bound that holds on every run: the honest construction total is 2^40.914 (attributed first-block 2^40.5 + our trail 2^38.894 + starting-point 2^32.29 + table <=2^30 + completion <=2^18.34), the online replay is <=2^2.67 units (every load, store, compare and the six verification compressions charged), and the sum is <=2^41. There is no probabilistic step.",
+    "Memory is a reported metric only, with no scalar contribution and no tie-break; memory_log2_bytes reflects the peak storage of the one-time construction (the SAT solver). baseline_improved = sha256-r31-nominal-v2 is a required reference identifier and does not itself assert an improvement.",
+    "Certificates are five distinct colliding pairs with the organizer target profile; the online algorithm replays certificate selfgen-1-replayed. Each shares the attributed published matched prefix but carries our own W13..W15, so each is distinct from the published pair and from the others, and each is re-hashed by the organizer. The stored replayed pair (256 bytes) is the only nonuniform advice the online algorithm consults.",
+    "No organizer experiment is requested: a deterministic replay has no empirical or probabilistic premise to test, and H-CONSTRUCTION-COST is a one-time cost bound discharged by the published complexity and our cited measurements, not by a repeated-trial experiment."
   ],
-  "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H-CONSTRUCTION-COST",
+      "role": "score-critical",
+      "statement": "All one-time work that produced the replayed collision pair is at most 2^40.92 collision-frontier-v5 target-compression units, and the total charged time after the deterministic replay is at most 2^41 units. This construction cost includes the ATTRIBUTED published Li-Liu-Wang first-block/practical-attack phase that produced the matched prefix M0 and W0..W12 (~2^40.5 target-compressions, whose dominant cost is the first-block search), together with our own differential-trail re-derivation (including failed and abandoned branches), the starting-point solve, the table enumeration, the capped completion, and all serialization and verification.",
+      "scope": "The one-time two-block construction specified in proof.md Sections 4-8 that produced the five certificates: the attributed published first-block match (not ours), plus our own trail re-derivation, starting-point solve, table build, and completion of W13..W15. Plus the deterministic online replay of certificate selfgen-1-replayed. Not a per-call or amortized attack cost.",
+      "extrapolation": "The dominant term is the published Li-Liu-Wang 31-step practical-attack complexity ~2^40.5 target-compressions (charged in full, as the two passing replay packages charged it under H-HISTORICAL-TIME), whose cost is dominated by exactly the first-block search that produced M0. To it we add our own measured work: trail re-derivation 41 solver calls / 30437.3 CPU-seconds = 2^38.894 units, starting-point generation 313.56 CPU-seconds = 2^32.29 units, table build <= 2^30, and completion per call <= 2^16.02 (five pairs <= 2^18.34), all converted at 2^24 target-compression units per CPU-second. The honest sum is 2^40.914; the online replay adds <= 2^2.67, keeping the total <= 2^41. No allowance factor is needed because the attributed published term already dominates.",
+      "evidence_ids": ["proof:219-277", "proof:190-217", "proof:113-140"],
+      "limitations": "The published 2^40.5 figure is the authors' reported practical-attack complexity, not an organizer-model instruction trace, and the unit-conversion from a publication work unit is not independently calibrated here; the 2^24 units-per-CPU-second figure for our own measured work is a stated machine calibration, and our trail search is a single heuristic run. Sensitivity: the construction cost enters the total additively and the replay term is negligible; the honest sum 2^40.914 leaves about 6% headroom under 2^41, so the bound tolerates a construction up to ~2^41 before time_log2 = 41 is threatened. If the true first-block/practical-attack cost exceeds ~2^40.9 (for example a conversion factor pushing the published phase materially above 2^40.5), time_log2 must rise to 42; correctness takes priority over the round number."
+    },
+    {
+      "id": "H-CONSTRUCTION-MEMORY",
+      "role": "supporting",
+      "statement": "The peak simultaneously retained storage over the entire one-time construction (including the attributed first-block phase as it would be run) and the deterministic replay -- code, the stored pair, solver and tool state, table and working storage -- is at most 2^32 bytes.",
+      "scope": "The one-time construction specified in proof.md plus the online replay; the dominant term is the SAT/SMT solver's peak resident memory in our measured trail re-derivation.",
+      "extrapolation": "From the measured SAT-solver peak child resident set size of about 2.5e9 bytes (2^31.3) during our trail search, rounded up to 2^32 bytes to cover tool and allocator overhead; the online replay retains only the 256-byte pair.",
+      "evidence_ids": ["proof:266-277", "proof:190-217"],
+      "limitations": "Peak RSS is a measured process figure, not a complete organizer-model storage ledger, and the attributed published first-block phase's peak memory is not separately measured by us; it is reported for the memory metric only and does not affect the scored time_log2. Sensitivity: memory is not scored and has no tie-break, so a higher true peak changes only the reported memory metric, not the score."
+    }
+  ]
 }
