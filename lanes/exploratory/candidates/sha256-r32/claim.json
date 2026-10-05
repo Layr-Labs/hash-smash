@@ -6,22 +6,69 @@
   "rounds": 32,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 56.091,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.8,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 40,
+    "preprocessing_log2": 55,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 20
   },
   "restrictions": [
-    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent random words, not seeded PRNG expansion.",
-    "Exactly q=2^129 sampled 64-byte messages; complete SHA-256 with fixed IV, prefix rounds 0 through 31 on both padded blocks, feed-forward and all 256 digest bits.",
-    "One finite run with at most 2^136 target-compression equivalents of total charged computation and 2^138 peak bytes; no restarts, nonuniform advice or precomputed collision.",
-    "data_log2 bounds bytes of complete padded hash inputs including final verification re-reads, as specified in proof.md.",
-    "Analytic resource and success bounds; no full-scale execution, cryptanalytic improvement or nominal-reference improvement is claimed."
+    "Classical probabilistic 256-bit word-RAM search against complete sha256-r32-prefix-v1: standard IV, FIPS padding, feed-forward, rounds 0 through 31 on every padded block, and all 256 output bits.",
+    "The output pair consists of distinct 128-byte strings B0||B1 and B0||B1-prime. A common third padding block is included, and both complete hashes are replayed before return.",
+    "The frozen repaired table contains 8,025,600 records at 4,088,007 keys from 65 preselected variants, has maximum key multiplicity 16, and uses canonical order (key,variant_id,W7,W8,E3,E4,A0).",
+    "Finite caps are N=2^55 first blocks, B=2^29 accepted bridges, L=196608 tails per bridge, R=2^48 examined records, and record cap 16. The algorithm aborts before exceeding any cap.",
+    "The 0.39 success claim is conditional on q>=2^-25, pi>=2^-30, mean examined-record load<=2^-8, and fresh independent first-block words. Bridge shortage, tail misses, and record-budget overflow are separately charged.",
+    "Total work includes a 2^55 historical-and-finite preprocessing premise. Peak memory 2^40 bytes and nonuniform advice 2^20 bytes are declared bounds; the historical preprocessing time and peak memory remain explicit premises.",
+    "Participant seeded streams are reproducibility evidence, not organizer execution or calibrated confidence. Reconstructed importance-sampling E halves have no standard-IV first-block preimages. No actual standard-IV r32 collision is claimed."
   ],
   "baseline_improved": "sha256-r32-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "certificate_manifest": "certificates/manifest.json",
+  "heuristics": [
+    {
+      "id": "repaired-subtable-c32-bridge-density",
+      "statement": "For a fresh uniform 64-byte B0, the exact frozen repaired table with canonical first-valid-record selection accepts with probability q at least 2^-25.",
+      "role": "score-critical",
+      "scope": "The 65-variant, 8,025,600-record table and exact bridge algorithm specified in proof.md.",
+      "extrapolation": "A precommitted 2^33 standard-IV C32 stream produced 351 canonical accepts: q_hat=4.0861777961e-8 (2^-24.54467), with nominal iid Wilson 99.9% diagnostic [3.4287633500e-8,4.8696416919e-8]. Every accepted block, CV, variant prefix, and canonical record was independently replayed.",
+      "evidence_ids": ["proof:110-132", "proof:248-286"],
+      "limitations": "The deterministic seeded stream is reproducibility evidence, not a proof or calibrated lower confidence bound for the fresh-coin population."
+    },
+    {
+      "id": "repaired-subtable-record-load",
+      "statement": "The mean number of records examined per actual-C32 first-block trial is at most 2^-8.",
+      "role": "score-critical",
+      "scope": "The same table, direct key index, record cap 16, canonical order, and bridge filter.",
+      "extrapolation": "The exact maximum multiplicity is 16. The same completed 2^33 stream examined 16,043,350 records, mean 0.0018676917534=2^-9.06453 per trial; the finite proof uses the bounded-variable variance inequality.",
+      "evidence_ids": ["proof:110-117", "proof:248-297"],
+      "limitations": "A deterministic-stream measurement does not prove the fresh-input mean, and a target-distribution shift could increase record-cap abort probability."
+    },
+    {
+      "id": "accepted-bridge-tail-yield",
+      "statement": "Over canonical accepted bridges for the repaired table, a complete 196,608-tail sweep succeeds with average probability pi at least 2^-30.",
+      "role": "score-critical",
+      "scope": "The corrected Figure 6 path, variant-specific W9 through W13, common W14/W15 list, complete named late path, and exact C32 equality event.",
+      "extrapolation": "The fixed-variant cohort produced 209 K=1 successes in 100,000,000 weighted proposals, estimating 2^-28.283. A separately precommitted run over all 351 repaired standard-IV accepted A-half/variant/record rows produced 43 K=1 successes in 20,000,000 proposals, estimating 3.1494140625e-9 (about 2^-28.24); all 43 replay through the pinned compressor.",
+      "evidence_ids": ["proof:299-406"],
+      "limitations": "The fixed deterministic empirical 351-row cohort does not prove the accepted-bridge population mean. Separately, uniform reconstructed E halves still must transfer to the actual accepted C32 E-half law; those halves lack standard-IV first-block preimages. Fixed seeds and post-pilot threshold choice preclude calibrated confidence."
+    },
+    {
+      "id": "historical-preprocessing-resource-bound",
+      "statement": "All historical discovery and finite construction fit within 2^55 collision-frontier-v5 target-compression equivalents.",
+      "role": "score-critical",
+      "scope": "Characteristic discovery, starting-point search, failed searches, repair enumeration, table construction, sorting, indexing, tail construction, and validation.",
+      "extrapolation": "The source reports Step-1 work about 2^34.3 and overall bridge-search work about 2^48.335; finite construction is counted directly. The remaining allowance is charged as a declared premise.",
+      "evidence_ids": ["proof:26-58", "proof:490-499"],
+      "limitations": "The source supplies neither a collision-frontier-v5 conversion nor a numeric total for characteristic search. The 2^55 ceiling is not measured."
+    },
+    {
+      "id": "historical-peak-memory-bound",
+      "statement": "Every historical and online phase fits within 2^40 bytes.",
+      "role": "supporting",
+      "scope": "All preprocessing and online phases charged by this claim.",
+      "extrapolation": "The finite construction is bounded below 2^37 bytes, and the source reports a 378 GB server capacity.",
+      "evidence_ids": ["proof:501-507"],
+      "limitations": "Capacity is not a peak trace, and the historical algorithms are not fully specified."
+    }
+  ]
 }
