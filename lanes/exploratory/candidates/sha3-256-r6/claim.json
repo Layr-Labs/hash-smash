@@ -6,21 +6,39 @@
   "rounds": 6,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.4,
+    "time_log2": 125.58,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 130,
-    "preprocessing_log2": 142,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 112,
+    "preprocessing_log2": 0,
+    "success_probability": 0.41,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical 256-bit word RAM with fresh independent uniform random-word primitive.",
-    "One batch of 2^129 independent uniform 64-byte messages; no restarts or nonuniform advice.",
-    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06, prefix rounds 0 through 5, all 256 output bits.",
-    "Generic analytic upper bound; infeasible resource use, no improvement over the nominal reference claimed."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5 with C = 1626. Fixed register-bank convention of the accepted bit-sliced r6 packages (#148/#170/#178, restated by winglock 377eebd): a fixed finite register bank of fewer than 2^14 words holds the working state, each primitive reads its named bank operands as part of the operation, and one placement (bank store) is charged per gate result; only genuinely indirect main memory (the depth-224 trie, the START/SB slot arrays and per-DP slot extraction) is charged as loads/stores. This is the broad fixed-bank convention three r6 packages passed, not a narrow 64-register file.",
+    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06 with pad10*1, prefix rounds 0 through 5, all 256 output bits; 32-byte single-block messages msg(x) = LE32(x); step map f(x) = digest integer of msg(x).",
+    "Van Oorschot-Wiener distinguished-point collision search with 256 concurrent chains carried in the 256 bit slots of a bit-sliced six-round circuit (exact compiled count XOR 23424, AND 6643, OR 1613, NOT 5023 per 256 evaluations, 129 fix-ups); digest planes feed back in place as next input planes; no transposes or sorting.",
+    "DP = digest bits 224..255 all zero (theta = 2^-32); trie keyed on exactly digest bits 0..223; abandonment at 2^40 via sweeps every 2^38 batches, chain length < 2^40 + 2^38; reseeding stops after K0 = 67400*2^112 evaluations, in-flight chains drained; record cap 2^98; halt at the first RELOCATE; one run, no restart.",
+    "Charged 290 word operations per slot-evaluation (288.05 itemised: 36703 gates + 36703 placements + fix-ups + DP test + control per 256-batch) and 2^13 per chain; T <= 2^125.5533 in every run, claimed 125.58. Memory < 2^111.81 + 2^24 bytes.",
+    "Success probability >= 0.4107158 under the declared random-function heuristic H-RF only (concurrent-chain lemmas in proof Section 7); reported 0.41, rounded down, 0.0207 above the 0.39 gate. Output correctness and all resource bounds are unconditional.",
+    "Reuses with credit: the DP walk, trie and lemma structure of #28 (winglock); 256-message bit slicing of #148 (may93182); last-round four-lane projection of #170 (ercumentyildirim); first-round padding folding of #178 (zeeshan8281). All four are credited as coauthors of the reused ideas, which are unpromoted work. The fixed register-bank accounting convention follows #148/#170/#178 and winglock 377eebd (which states it then adds a stricter per-direct-access charge); under winglock's stricter narrow 64-register per-access rule this six-round circuit does not beat 125.655, so the broad accepted bank convention is used, made conservative with a placement per result. Generic attack; no structural cryptanalytic advance claimed.",
+    "Declared organizer-executed experiments are mechanical (circuit equivalence and a 20-bit reduced slot-DP walk with host-verified output events); no statistical inference about full-width success is drawn from them."
   ],
   "baseline_improved": "sha3-256-r6-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H-RF",
+      "statement": "Random-function model for the step map f(x) = SHA3-256-r6(LE32(x)) on 256-bit words: whenever the algorithm evaluates f at a point not evaluated before, the output is uniform on {0,1}^256 and independent of the algorithm's coins and of every value revealed earlier in the batch-major, slot-minor evaluation order of proof Section 7.2. Used only to lower-bound the success probability (Lemma 1 and bad events B1-B5). Output correctness and all time, memory and preprocessing bounds are unconditional.",
+      "role": "score-critical",
+      "scope": "Fixed six-round prefix SHA3-256 restricted to 32-byte messages (4 variable input lanes, 21 constant lanes), iterated along chains from uniform 256-bit starts in 256 concurrent slots, over at most K0 + 256L < 2^128 evaluations.",
+      "extrapolation": "Standard van Oorschot-Wiener premise, accepted as plausible for the same step map in #28. Organizer-verified reduced-width (20-bit) runs of the same bit-sliced slot-DP walk on the real target support the mechanics; they are extrapolated qualitatively, not numerically, to the full 256-bit map. Published 5- and 6-round SHA3 cryptanalysis uses chosen differences, which a random walk does not produce.",
+      "evidence_ids": [
+        "proof:409-582",
+        "proof:724-768",
+        "experiment:slot-dp-walk-n20"
+      ],
+      "limitations": "H-RF is false as a literal statement about a fixed deterministic function. The experiments make no full-width probability estimate and their frequencies are descriptive only. The success bound 0.4107158 exceeds 0.39 by 0.0207, so a contact-probability shortfall of up to 0.0207 relative to H-RF still leaves the stated algorithm at or above 0.39; the 0.027 bits of time slack under 125.58 could raise K0 by about 0.06 bits if ever needed, but the claim is for the stated K0. Six-round SHA3-256 has known differential structure (a 6-bit near-collision is reported in ePrint 2026/2107); no evidence that the iterated map departs measurably from a random mapping was found in this survey."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }

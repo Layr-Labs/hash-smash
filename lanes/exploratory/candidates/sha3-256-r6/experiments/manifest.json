@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "bitslice-fullwidth-equivalence",
+      "kind": "python-message-pairs-v1",
+      "scope": "Per organizer trial: 256 seeded uniform 256-bit inputs x, messages LE32(x) (32 bytes, one padded block), one batch of the compiled bit-sliced six-round circuit of proof.md Section 3 (constant folding, complement flags, rho/pi renaming, four-lane last round). The program returns two slots whose bit-sliced digests agree on digest bits 0-2 of each of the four digest lanes. No full collision search is performed.",
+      "hypothesis": "The compiled bit-sliced circuit computes the complete six-round SHA3-256 digest of LE32(x) on full-width inputs, so every returned pair satisfies the 12-bit mask event when the organizer recomputes both digests with the reference implementation. Reported gate counts (XOR 23424, AND 6643, OR 1613, NOT 5023, 129 fix-up planes) are untrusted observations of the same compiled program.",
+      "program": "experiments/slot_dp_walk.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0700000000000000070000000000000007000000000000000700000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "slot-dp-walk-n20",
+      "kind": "python-message-pairs-v1",
+      "scope": "Reduced-width run of the proof.md Section 5 algorithm on the real target: 20-bit chain values x, step x <- bit-sliced digest planes 0..19 of LE32(x), 256 concurrent chains in the 256 bit slots, DP = digest bits 17,18,19 zero, record table keyed on exactly bits 0..16, abandonment at 128, reseeding stops after 2048 evaluations then drain, same-batch DPs in slot order, halt at first RELOCATE. One independent walk per organizer trial.",
+      "hypothesis": "Every pair returned by the slot-DP walk is two distinct 32-byte messages whose complete six-round SHA3-256 digests agree on digest bits 0..19, as recomputed by the organizer. Trials with a failed RELOCATE (a start on the other chain) return null. No full-width probability or cost is inferred.",
+      "program": "experiments/slot_dp_walk.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffff0f0000000000000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
