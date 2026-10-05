@@ -6,20 +6,20 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 128.060215,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
+    "memory_log2_bytes": 198,
+    "preprocessing_log2": 8.936605,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "One batch of ceil(9943*2^128/10000) iid uniform 36-byte messages (BE32(u)||BE4(w)); repeated inputs are retained and rejected as collisions; no restart.",
+    "Complete standard-IV target hash with the official prefix round window, padding, mode and all 256 output bits; one selected target compression/permutation per trial.",
+    "Classical 256-bit word RAM; exact two-level sparse direct-address dictionary, correct for arbitrary initial contents; every reserved cell included in memory.",
+    "Worst-case 104 ordinary operations per trial, plus 2^20 setup and 2^14 final verification/output operations; every ordinary operation uses the official selected-target weight.",
+    "Generic fixed-function probability proof; no random-oracle, output-balance, differential, extrapolation or PRNG independence premise.",
+    "Analytic infeasible-memory construction, not a measured full-scale attack. Native code and wrapper/table operation envelopes remain review obligations."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
   "heuristics": [],
