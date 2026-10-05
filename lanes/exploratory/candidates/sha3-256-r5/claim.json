@@ -6,23 +6,34 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 128.13,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 112,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5: PERM5 on an already-installed 25-lane state costs exactly 1 unit; every other word operation costs 1/1355 units. Pad, zero-IV install, digest extract, L0 deposit, DP tests and loop control are ordinary ops (F-COST-ABI-1 repair; no fused absorb ABI).",
+    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06 with pad10*1, prefix rounds 0 through 4, all 256 output bits; 32-byte single-block messages msg(x) = LE32(x).",
+    "Generic van Oorschot-Wiener distinguished-point collision search on one processor: theta = 2^-32 via L0 < 2^32, maximum chain length 2^40 = 64*2^34, evaluation budget K0 = 65162*2^112, record cap 2^98, main loop unrolled 64 times; each evaluation charges 1 PERM5 unit plus 114.09375 ordinary ops (2x honest 57+3/64 inventory); one run with no restart.",
+    "Worst-case time at most 2^128.10837689 units; claimed time_log2 128.13 with >=0.02 bits headroom. Success probability at least 0.39 under H-RF. Memory_log2_bytes 112 (reported). Preprocessing_log2 0.",
+    "Generic attack; no cryptanalytic improvement. Conservative DP recharge after fused-ABI refute; GLL parked."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H-RF",
+      "statement": "Random-function model for the step map f(x) = SHA3-256-r5(LE32(x)) on 256-bit words x: whenever the algorithm evaluates f at a point it has not evaluated before, the output is uniform on {0,1}^256 and independent of the algorithm's coins and of every value observed so far. This is the standard premise of the van Oorschot-Wiener analysis. It is used only to lower-bound the success probability (Section 6). Output correctness (Section 5) and all time, memory and preprocessing bounds (Sections 4, 7 and 8) are unconditional.",
+      "role": "score-critical",
+      "scope": "The fixed target profile sha3-256-r5-prefix-v1 with 32-byte single-block messages and the DP/rho algorithm of Sections 3-4.",
+      "extrapolation": "From standard generic-hash modeling and author-run reduced-output DP experiments (Section 9) to the full 256-bit map.",
+      "evidence_ids": [
+        "proof:241-354",
+        "proof:397-462"
+      ],
+      "limitations": "Reduced-output experiments cover 24-48 bits with restricted inputs and are not organizer-executed (F-HRF-EXTRAP-1 / F-HRF-FULLWIDTH-EVIDENCE / F-EXP-*). Material uncertainty remains for the full-width 0.39 claim; prior DP review judged H-RF plausible despite those gaps. No proof rules out a global structure that would suppress collisions."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
