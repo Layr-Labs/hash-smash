@@ -27,6 +27,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from experiments import ExperimentError, ExperimentSetupError
 from judge.bedrock_adapter import BedrockClient, BedrockConfig
+from judge.openai_adapter import OpenAIClient, OpenAIConfig
 from judge.lanes import LANE_STAGES
 from judge.provider_adapter import JudgeInfraError, OpenRouterClient, OpenRouterConfig
 from scripts import hashsmash_pipeline as pipeline
@@ -44,7 +45,7 @@ EXPERIMENT_ID = "birthday-batches"
 PREPARE_FILENAME = "prepared-run.json"
 RESULT_FILENAME = "result.json"
 CREDENTIAL_NAMES = (
-    "OPENROUTER_API_KEY", "AWS_BEARER_TOKEN_BEDROCK",
+    "OPENAI_API_KEY", "OPENROUTER_API_KEY", "AWS_BEARER_TOKEN_BEDROCK",
     "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
     "AWS_SECURITY_TOKEN", "AWS_PROFILE", "AWS_DEFAULT_PROFILE",
     "AWS_WEB_IDENTITY_TOKEN_FILE", "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
@@ -250,8 +251,10 @@ def review_run(run_directory: Path, *, provider: str = "bedrock", model: str | N
                max_tokens: int = 16384, timeout_seconds: float = 180.0,
                config: Any = None, client_factory: Any = None) -> dict[str, Any]:
     """Real adapters by default; explicit config/factory injection for offline tests."""
-    if provider not in {"bedrock", "openrouter"}:
+    if provider not in {"bedrock", "openrouter", "openai"}:
         raise ValueError("unsupported calibration provider")
+    if provider == "openai" and model is not None:
+        raise ValueError("model override is not accepted for openai; set HASHSMASH_OPENAI_MODEL")
     if not 1024 <= max_tokens <= 32768 or not 1 <= timeout_seconds <= 300:
         raise ValueError("provider limits outside finite calibration budget")
     run_directory = run_directory.resolve(strict=True)
@@ -261,9 +264,14 @@ def review_run(run_directory: Path, *, provider: str = "bedrock", model: str | N
         # test requires a separate explicitly chosen run; no quiet overwrite.
         if (run_directory / "review-started.json").exists() or paths.dossier.exists():
             raise VerificationError("review already attempted; use a new run directory for an explicit repeat")
-        factory = client_factory or (BedrockClient if provider == "bedrock" else OpenRouterClient)
+        config_type, default_factory = {
+            "bedrock": (BedrockConfig, BedrockClient),
+            "openrouter": (OpenRouterConfig, OpenRouterClient),
+            "openai": (OpenAIConfig, OpenAIClient),
+        }[provider]
+        factory = client_factory or default_factory
         if config is None:
-            config = BedrockConfig.from_env() if provider == "bedrock" else OpenRouterConfig.from_env()
+            config = config_type.from_env()
         updates = {"max_attempts": 1, "max_tokens": max_tokens, "timeout_seconds": timeout_seconds}
         if model:
             updates["model"] = model
@@ -320,7 +328,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("prepare", "review", "inspect"))
     parser.add_argument("--run-directory", type=Path)
-    parser.add_argument("--provider", choices=("bedrock", "openrouter"), default="bedrock")
+    parser.add_argument("--provider", choices=("bedrock", "openrouter", "openai"), default="bedrock")
     parser.add_argument("--model")
     parser.add_argument("--max-tokens", type=int, default=16384)
     parser.add_argument("--timeout-seconds", type=float, default=180.0)

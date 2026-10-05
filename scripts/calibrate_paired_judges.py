@@ -25,6 +25,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from judge.bedrock_adapter import BedrockClient, BedrockConfig
+from judge.openai_adapter import OpenAIClient, OpenAIConfig
 from judge.lanes import LANE_STAGES
 from judge.paired_review import run_paired_review
 from judge.provider_adapter import OpenRouterClient, OpenRouterConfig
@@ -173,7 +174,7 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--case", choices=(*CASES, "all"), default="positive")
-    parser.add_argument("--provider", choices=("bedrock", "openrouter"),
+    parser.add_argument("--provider", choices=("bedrock", "openrouter", "openai"),
                         default=os.environ.get("HASHSMASH_JUDGE_PROVIDER", "bedrock"))
     parser.add_argument("--mode", choices=("single", "committee"),
                         default=os.environ.get("HASHSMASH_JUDGE_MODE", "single"))
@@ -184,13 +185,21 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if not 1024 <= args.max_tokens <= 32768 or not 1 <= args.timeout_seconds <= 300:
         parser.error("max-tokens must be 1024..32768 and timeout-seconds 1..300")
+    if args.provider not in {"bedrock", "openrouter", "openai"}:
+        parser.error("unsupported calibration provider")
+    if args.provider == "openai" and args.model is not None:
+        parser.error("--model is not accepted for openai; set HASHSMASH_OPENAI_MODEL")
     cases = CASES if args.case == "all" else (args.case,)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
     client, role_clients, config_record, committee_record = None, {}, {}, {}
     if not args.dry_run:
         try:
-            config = BedrockConfig.from_env() if args.provider == "bedrock" else OpenRouterConfig.from_env()
-            factory = BedrockClient if args.provider == "bedrock" else OpenRouterClient
+            config_type, factory = {
+                "bedrock": (BedrockConfig, BedrockClient),
+                "openrouter": (OpenRouterConfig, OpenRouterClient),
+                "openai": (OpenAIConfig, OpenAIClient),
+            }[args.provider]
+            config = config_type.from_env()
             overrides = {"max_attempts": 1, "max_tokens": args.max_tokens, "timeout_seconds": args.timeout_seconds}
             if args.model:
                 overrides["model"] = args.model

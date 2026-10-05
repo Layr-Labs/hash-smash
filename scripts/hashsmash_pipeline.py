@@ -21,6 +21,8 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from judge.bedrock_adapter import BedrockClient, BedrockConfig, bedrock_system_prompt  # noqa: E402
+from judge.openai_adapter import (OpenAIClient, OpenAIConfig, openai_system_prompt,
+                                  openai_contract_provenance)  # noqa: E402
 from judge.prompts import load_system_prompt  # noqa: E402
 from judge.provider_adapter import JudgeInfraError, OpenRouterClient, OpenRouterConfig  # noqa: E402
 from judge.paired_review import run_paired_review, select_lane_aggregate  # noqa: E402
@@ -176,6 +178,7 @@ def _safe_config(config: Any) -> dict[str, Any]:
     value["prompt_sha256"] = {
         stage: sha256_bytes(
             (bedrock_system_prompt(config, stage) if isinstance(config, BedrockConfig)
+             else openai_system_prompt(config, stage) if isinstance(config, OpenAIConfig)
              else load_system_prompt(stage, config.strategy)).encode("utf-8")
         )
         for stage in (*LANE_STAGES, "lane_rescore")
@@ -183,6 +186,15 @@ def _safe_config(config: Any) -> dict[str, Any]:
     if isinstance(config, BedrockConfig):
         value["api"] = config.api
         value["endpoint"] = config.endpoint
+    if isinstance(config, OpenAIConfig):
+        value["api"] = "responses"
+        value["endpoint"] = config.endpoint
+        value["store"] = False
+        value["output_validation"] = "provider-json-schema-and-local"
+        value["stage_contracts"] = {
+            stage: openai_contract_provenance(config, stage)
+            for stage in (*LANE_STAGES, "lane_rescore")
+        }
     value["review_schema_sha256"] = sha256_bytes(
         (REPO_ROOT / "schemas" / "review-lanes-v1.schema.json").read_bytes()
     )
@@ -202,7 +214,9 @@ def _provider_from_env() -> tuple[str, Any, Any]:
         return provider, OpenRouterConfig.from_env(), OpenRouterClient
     if provider == "bedrock":
         return provider, BedrockConfig.from_env(), BedrockClient
-    raise ValueError("HASHSMASH_JUDGE_PROVIDER must be 'openrouter' or 'bedrock'")
+    if provider == "openai":
+        return provider, OpenAIConfig.from_env(), OpenAIClient
+    raise ValueError("HASHSMASH_JUDGE_PROVIDER must be 'openrouter', 'bedrock', or 'openai'")
 
 
 def _write_infrastructure_failure(reason: str, paths: RunPaths) -> None:

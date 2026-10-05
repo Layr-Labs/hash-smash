@@ -21,19 +21,31 @@ class YukonContractTests(unittest.TestCase):
             workflow = (ROOT / ".github/workflows" / f"{track.id}.yml").read_text()
             self.assertIn("workflow_dispatch:", workflow)
             self.assertIn("uses: ./.github/workflows/paired-review.yml", workflow)
+            self.assertIn("OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}", workflow)
 
     def test_root_score_artifact_and_secret_free_intake_and_score_are_preserved(self):
         workflow = (ROOT / ".github/workflows/paired-review.yml").read_text()
         intake, rest = workflow.split("jobs:\n", 1)[1].split("  judge:\n", 1)
         judge, score = rest.split("  score:\n", 1)
-        for secret in ("OPENROUTER_API_KEY", "AWS_BEARER_TOKEN_BEDROCK"):
+        for secret in ("OPENROUTER_API_KEY", "AWS_BEARER_TOKEN_BEDROCK", "OPENAI_API_KEY"):
             self.assertNotIn(secret, intake)
             self.assertNotIn(secret, score)
             self.assertIn(secret, judge)
-        bedrock, openrouter = judge.split("      - name: Benchmark Amazon Bedrock paired review\n", 1)[1].split(
-            "      - name: Benchmark OpenRouter paired review\n", 1)
-        self.assertNotIn("OPENROUTER_API_KEY", bedrock)
-        self.assertNotIn("AWS_BEARER_TOKEN_BEDROCK", openrouter)
+        providers = {"Amazon Bedrock": "AWS_BEARER_TOKEN_BEDROCK",
+                     "OpenRouter": "OPENROUTER_API_KEY", "OpenAI": "OPENAI_API_KEY"}
+        for provider, selected_key in providers.items():
+            step = judge.split(f"      - name: Benchmark {provider} paired review\n", 1)[1].split("      - name:", 1)[0]
+            self.assertIn(selected_key, step)
+            for other_key in set(providers.values()) - {selected_key}:
+                self.assertNotIn(other_key, step)
+        self.assertIn("vars.HASHSMASH_JUDGE_PROVIDER == '' || vars.HASHSMASH_JUDGE_PROVIDER == 'openrouter'", judge)
+        self.assertNotIn("vars.HASHSMASH_JUDGE_PROVIDER != 'bedrock'", judge)
+        self.assertIn("openrouter|bedrock|openai)", judge)
+        self.assertIn('*) echo "Unsupported HASHSMASH_JUDGE_PROVIDER" >&2; exit 2', judge)
+        self.assertLess(judge.index("Validate judge provider"), judge.index("Benchmark Amazon Bedrock"))
+        direct = judge.split("      - name: Benchmark OpenAI paired review\n", 1)[1].split("      - name:", 1)[0]
+        self.assertIn("HASHSMASH_OPENAI_MODEL: ${{ vars.HASHSMASH_OPENAI_MODEL }}", direct)
+        self.assertIn("HASHSMASH_REASONING_EFFORT: high", direct)
         self.assertIn('scripts/check-frontier-surface.py --track "$HASHSMASH_SELECTED_TRACK"', intake)
         self.assertIn("needs: intake", judge)
         self.assertIn("needs: judge", score)

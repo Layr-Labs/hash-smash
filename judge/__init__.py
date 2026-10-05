@@ -1,6 +1,7 @@
 """HashSmash's paired-lane untrusted-evidence AI review harness."""
 
 from .bedrock_adapter import BedrockClient, BedrockConfig
+from .openai_adapter import OpenAIClient, OpenAIConfig
 from .paired_review import aggregate_paired_reviews, run_paired_review, select_lane_aggregate
 from .provider_adapter import OpenRouterClient, OpenRouterConfig
 from .schema_validation import ReviewValidationError, validate_review
@@ -8,6 +9,8 @@ from .schema_validation import ReviewValidationError, validate_review
 __all__ = [
     "BedrockClient",
     "BedrockConfig",
+    "OpenAIClient",
+    "OpenAIConfig",
     "OpenRouterClient",
     "OpenRouterConfig",
     "ReviewValidationError",
