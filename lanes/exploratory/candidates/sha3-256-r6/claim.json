@@ -6,21 +6,34 @@
   "rounds": 6,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.4,
+    "time_log2": 128.17,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 130,
-    "preprocessing_log2": 142,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 120,
+    "preprocessing_log2": 20,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical 256-bit word RAM with fresh independent uniform random-word primitive.",
-    "One batch of 2^129 independent uniform 64-byte messages; no restarts or nonuniform advice.",
-    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06, prefix rounds 0 through 5, all 256 output bits.",
-    "Generic analytic upper bound; infeasible resource use, no improvement over the nominal reference claimed."
+    "Classical 256-bit word RAM; collision-frontier-v5 (C=1626).",
+    "Single-processor van Oorschot\u2013Wiener DP on f(x)=SHA3-256-r6(LE32(x)); K0=1.10*2^128.",
+    "Success \u22650.39 under score-critical H-RF. Resource bounds unconditional.",
+    "Ordinary ops/eval w=34 with visible spare (+4 over frozen tight \u226430). Tightens prior 128.18 (w=36). Not zero-spare.",
+    "No classical 6-round SHA3-256 differential below birthday claimed."
   ],
   "baseline_improved": "sha3-256-r6-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H-RF",
+      "statement": "Random-function model for unevaluated queries to f(x)=SHA3-256-r6(32-byte LE x). Used only for success probability. Correctness and resource bounds unconditional.",
+      "role": "score-critical",
+      "scope": "Six-round SHA3-256 prefix; DP chains; K0=1.10*2^128.",
+      "extrapolation": "Unchanged from 128.18: sha3r6 n=32\u00d7120 at k0=1.10 \u2192 collision_rate 0.400. Opcount-only revision (w 36\u219234).",
+      "evidence_ids": [
+        "proof:9",
+        "proof:6"
+      ],
+      "limitations": "H-RF unproven; truncated n\u226432 only; RF@0.9944 failed for sha3r6 so K0 stays 1.10*2^128. Exploratory only."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
