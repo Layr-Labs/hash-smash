@@ -6,22 +6,38 @@
   "rounds": 32,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 124.6,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.8,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent random words, not seeded PRNG expansion.",
-    "Exactly q=2^129 sampled 64-byte messages; complete SHA-256 with fixed IV, prefix rounds 0 through 31 on both padded blocks, feed-forward and all 256 digest bits.",
-    "One finite run with at most 2^136 target-compression equivalents of total charged computation and 2^138 peak bytes; no restarts, nonuniform advice or precomputed collision.",
-    "data_log2 bounds bytes of complete padded hash inputs including final verification re-reads, as specified in proof.md.",
-    "Analytic resource and success bounds; no full-scale execution, cryptanalytic improvement or nominal-reference improvement is claimed."
+    "Complete fixed-IV SHA-256, steps 0 through 31, standard expansion, feed-forward, FIPS 180-4 padding and all 256 digest bits. Every message is 55 bytes: W0..W12 are the group prefix, W13 = (y<<8)|0x80, W14 = 0, W15 = 440.",
+    "Generic grouped birthday search extended from jaazinn 6b88bdb7 and winglock 68ca8e4f, both unpromoted and credited as co-authors: 2^104 groups from two fresh uniform words, y = 0..2^24-1, N = 2^128. New here: four messages share each body instruction in one 256-bit word (proof Section 3). The 160-bit key (A28, A29, E28, E29, D30) with D30 = A30 - E30 = T2_30 - A26 is a fixed function of the digest. Each key match is verified with two whole reference compressions. At most 2^110 verifications.",
+    "Classical probabilistic 256-bit word RAM, 64 registers, collision-frontier-v5, C = 2224. One 256-bit add, subtract, AND, OR, XOR, NOT, shift, compare, branch, load, store or random word costs 1/2224. A packed instruction is one primitive. Sigma/sigma are the doubling formulas plus an M4 mask, 8 operations. Per batch of 4: 563 counted body operations, 71 extract-and-pack, 52 table, 3 loop, total 689, which is 172.25 per message. Charged 196 per message.",
+    "Group setup is under 1000 operations and is charged 1 unit per group. Each verification is 3 units. T <= 2^128*196/2224 + 2^104 + 3*2^110 + 1 < 2^124.5, so the claimed time_log2 is 124.60. This cap holds on every run. Only the success probability uses heuristic H1. A reconstruction of 210 operations per message is still under 124.60.",
+    "No differential weakness, full-scale execution or stored collision is claimed, and no improvement over the nominal reference identifier is asserted. The declared experiments are 20-bit masked analogues. They check lane agreement with a plain compression; they are not an attack-cost measurement."
   ],
   "baseline_improved": "sha256-r32-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-grouped-uniform",
+      "statement": "For the 2^128 messages of the algorithm (independent uniform 416-bit prefixes, y = 0..2^24-1), the failure events F1 (no full-digest collision), F2 (every colliding pair has its earlier member overwritten in the 140-bit index slot) and F4 (more than 2^110 key matches) have probabilities at most the independent-uniform-digest values: Pr[F1] < 0.6065307, Pr[F2] < 4.07e-5, Pr[F4] <= 2^-15, so success > 0.39339. The 160-bit key and its top 140 bits are uniform images of a uniform digest.",
+      "role": "score-critical",
+      "scope": "Used only for the success probability (proof Section 7). Output correctness, the worst-case time cap, memory, lane isolation and the operation count do not depend on H1. Within-group pairs are a 2^-104 fraction of all pairs. Multiplying N by 1.0108 adds 0.0155 to log2 T and lifts model success to about 0.3998. Two independent runs repair a shortfall below 0.39 at a cost of at most 1.0 in log2 T.",
+      "extrapolation": "Evidence is two organizer-executed scaled analogues on the real target, N_t = 2^10 messages and 20-bit masks, in the same N_t^2/2^w = 1 regime as N^2/2^256 = 1, compared with the random-model values 0.3926 and 0.3918. The claim applies that model to the full 256-bit digest and 2^128 messages, an extrapolation of more than 220 bits. It is the standard random-function premise of a generic 256-bit collision bound, also used by the grouped packages this one extends.",
+      "evidence_ids": [
+        "experiment:sha256r32-swar4-spread",
+        "experiment:sha256r32-swar4-single-group",
+        "proof:349-372",
+        "proof:374-391",
+        "proof:393-418"
+      ],
+      "limitations": "H1 is not proved. Masked experiments cannot detect structure that appears only at full width or at 2^128 messages, and the organizer seeds are public. With 256 trials each experiment resolves success only to about +-0.03. Observations are participant-reported; the organizer independently checks returned pairs against the real digest. The 0.0034 allowance between 0.39339 and 0.39 is a judgement. Lane isolation is not part of H1: it is a bit-position argument, and a mismatched lane in the organizer check would be a concrete counterexample to the program, not to H1."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
