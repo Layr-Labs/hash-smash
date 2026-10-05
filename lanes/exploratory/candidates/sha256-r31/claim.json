@@ -6,22 +6,31 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 40.5,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
+    "memory_log2_bytes": 24,
+    "preprocessing_log2": 0,
     "success_probability": 0.6,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Two-block ordinary collision attack of Li, Liu, Wang, Dong and Sun (ASIACRYPT 2024): time 2^40.5, memory 2^19.8 (tables), on 31-step SHA-256 from the standard IV.",
+    "The published colliding pair is attached as a hash-collision-witness-v2 certificate verified by the organizer verifier.",
+    "Success probability 0.6 at the stated expected work (geometric trials)."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H1-source-analysis",
+      "statement": "The source time complexity 2^40.5 (with 2^19.8 memory) for its 31-step two-block attack holds as stated: the per-trial success rates of its first-block and second-block phases are those of the source analysis.",
+      "role": "score-critical",
+      "scope": "The cited attack of ASIACRYPT 2024 (Li, Liu, Wang, Dong, Sun), applied to this exact target (standard IV, full message, all digest bits).",
+      "extrapolation": "The source found a real colliding pair in 1.2 hours on 64 threads, consistent with 2^40.5; that pair is attached as a verified certificate.",
+      "evidence_ids": [
+        "proof:1"
+      ],
+      "limitations": "The probability estimates are the source's (standard independence assumptions); this package re-prices but does not re-derive them."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
