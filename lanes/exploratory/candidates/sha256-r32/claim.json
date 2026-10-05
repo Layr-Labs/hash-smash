@@ -6,22 +6,34 @@
   "rounds": 32,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 128.02,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.8,
+    "memory_log2_bytes": 112,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent random words, not seeded PRNG expansion.",
-    "Exactly q=2^129 sampled 64-byte messages; complete SHA-256 with fixed IV, prefix rounds 0 through 31 on both padded blocks, feed-forward and all 256 digest bits.",
-    "One finite run with at most 2^136 target-compression equivalents of total charged computation and 2^138 peak bytes; no restarts, nonuniform advice or precomputed collision.",
-    "data_log2 bounds bytes of complete padded hash inputs including final verification re-reads, as specified in proof.md.",
-    "Analytic resource and success bounds; no full-scale execution, cryptanalytic improvement or nominal-reference improvement is claimed."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent uniform 256-bit words, not seeded PRNG expansion.",
+    "Exactly 32-byte messages msg(x)=BE32(x), one 64-byte padded block per hash; complete SHA-256 with fixed IV, prefix rounds 0 through 31, feed-forward and all 256 digest bits.",
+    "Single-processor van Oorschot-Wiener distinguished-point search with theta=2^-32, chain cap L=2^40, budget K0=65300*2^112 evaluations and record cap 2^98; one finite run, no restarts.",
+    "One finite run with at most 2^128.02 target-compression equivalents of total charged computation and at most 2^112 peak bytes; no nonuniform advice or precomputed collision.",
+    "Analytic resource and success bounds under score-critical heuristic H-RF; no full-scale execution, cryptanalytic weakness or nominal-reference improvement is claimed."
   ],
   "baseline_improved": "sha256-r32-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H-RF",
+      "statement": "Each evaluation of the 32-round SHA-256 ordinary-collision map f at a fresh input returns a value uniform on {0,1}^256, independent of all previous coins and outputs.",
+      "role": "score-critical",
+      "scope": "Used only for the success-probability bound of the distinguished-point walk (first-contact and bad-event estimates). Correctness and all time, memory and preprocessing bounds hold for every run without this premise.",
+      "extrapolation": "From standard generic-search modeling to the fixed 32-round prefix target; no differential, independence-across-rounds or balance premise about SHA-256 structure is assumed beyond generic random-function behavior for contact statistics.",
+      "evidence_ids": [
+        "proof:6",
+        "proof:7"
+      ],
+      "limitations": "H-RF is a modeling heuristic, not a proved property of the fixed function. Supporting discussion is analytic (birthday contact arithmetic plus standard DP literature); no organizer-executed scaled experiment is declared. The claimed margin above 0.39 is about 0.0012 before deducting bad events below 2.4e-10. A shortfall in contact rate would require a larger budget at about 2.4 times the shortfall in bits."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
