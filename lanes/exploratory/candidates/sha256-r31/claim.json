@@ -6,22 +6,53 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 41,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 25.25,
+    "preprocessing_log2": 40.75,
+    "success_probability": 1,
+    "nonuniform_advice_log2_bytes": 9
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "The online algorithm is deterministic replay of exactly the two 128-byte messages in proof.md; it is not a submitted generator for new collisions.",
+    "The selected target has the standard fixed SHA-256 IV, original round indices 0 through 30 on every padded block, full eight-word feed-forward, FIPS padding, and all 256 output bits.",
+    "The cost-bearing two-phase construction is precisely specified in proof.md. All characteristic search, solver work, failed branches, random draws, table generation, sorting, matching, fulfillment, construction, and checking are charged once as preprocessing and included in total time; no cross-target amortization is claimed.",
+    "The time score is conditional on H-HISTORICAL-TIME, while the separately reviewed memory metric is conditional on H-HISTORICAL-MEMORY; neither bound has an authoritative organizer-model trace or resource receipt.",
+    "The organizer experiment checks the exact collision relation and deterministically executes the finite 32-byte codec self-check. Repeated replay rows and participant observations do not measure expected attack work, preprocessing, whole-process peak memory, novelty, or historical generator reproducibility.",
+    "This exploratory package claims no new cryptanalysis, no full-SHA-256 or 32-round collision, no lower security bound, and no rigorous qualification.",
+    "The memory premise requires no more than 912839 aligned 32-byte table records, no separate index or second live table, in-place sorting, at most 10692321 other simultaneously live bytes in the table phase, and every other phase below the same cap.",
+    "The 209-bit payload and aligned 32-byte codec are exact representation results, not a peak-RSS trace. The published approximate cardinality, whole-process overhead, historical unit conversion, omitted work, and success-path realization remain disclosed exploratory extrapolations."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H-HISTORICAL-TIME",
+      "statement": "All computational work that led to the fixed witness, including differential-trail discovery, SAT/SMT and other tool runs, failed or abandoned trials, table construction, matching, message construction, serialization, and verification, is less than 2^40.75 collision-frontier-v5 target-compression equivalents; total time after deterministic replay is less than 2^41 target-compression equivalents.",
+      "role": "score-critical",
+      "scope": "Exactly the fixed two-message 31-round-prefix SHA-256 collision in proof.md, with all one-time historical construction paid once and no amortization across targets or outputs.",
+      "extrapolation": "The primary sources report complexity 2^40.5 and a 1.2-hour run with 64 threads for the same two-phase construction pattern specified in proof.md. Writing C=2^40.5, preprocessing must satisfy c*C+D<2^40.75 in v5 target-compression equivalents, where c is the unmeasured conversion from the publication's work unit and D includes all otherwise omitted work, the publisher's disclosed additional experiments, and the proposed codec and in-place table administration. Thus c+D/C<1.189207115002721. The specified codec/table administration is separately bounded below 2^31 primitive word operations, priced by v5 at 1/2140 target compression each. No runtime-to-RAM calibration is inferred.",
+      "evidence_ids": [
+        "proof:116-200",
+        "proof:356-456"
+      ],
+      "limitations": "Neither c nor D has an authoritative measured value. The publisher notes additional experiments, so the selected 1.2-hour run cannot stand for all historical work. Precise construction control flow and a bounded codec do not supply a complete organizer-model operation ledger. Crossing 2^40.75 preprocessing or 2^41 total units invalidates the corresponding fields and score."
+    },
+    {
+      "id": "H-HISTORICAL-MEMORY",
+      "statement": "Peak simultaneously retained storage over every paid construction phase and deterministic replay is less than 2^25.25 bytes, approximately 39903169.27 decimal bytes, including code, advice, the aligned 32-byte table, messages, thread state, constants, allocator overhead, solver and tool state, random state, and all other working storage.",
+      "role": "supporting",
+      "scope": "Exactly the paid two-phase construction and replay specified in proof.md, including characteristic search and all practical-attack phases rather than only the final online program.",
+      "extrapolation": "The primary source reports approximately 2^19.8 ten-field table records. The proof derives a lossless 209-bit payload from the exact signed characteristic and specifies one aligned 32-byte record with exact round trip, key order, duplicate preservation, in-place sorting, and no separate index. At N0=ceil(2^19.8)=912839, the table is 29210848 bytes, leaving 10692321 bytes under floor(2^25.25) for all other simultaneously live storage. The premise additionally bounds every other phase below the same cap.",
+      "evidence_ids": [
+        "proof:122-139",
+        "proof:202-253",
+        "proof:286-354",
+        "proof:356-456",
+        "experiment:published-r31-witness-replay"
+      ],
+      "limitations": "The executable codec and arithmetic prove representation compatibility, not actual cardinality or whole-process peak memory. The publisher's approximate cardinality does not bind code, allocator, worker, random, or solver state, and no peak-RSS receipt is available. The exact restrictions on table count, index-free in-place layout, non-table allowance, and other phases are therefore heuristic premises. If any paid phase reaches 2^25.25 bytes, the memory metric fails; under v5 this does not by itself change the time-only score."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
