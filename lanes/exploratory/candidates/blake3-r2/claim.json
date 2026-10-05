@@ -6,23 +6,40 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 126.1,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 167,
+    "preprocessing_log2": 101,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Messages are exactly 64 bytes: 2^96 independent 480-bit prefixes, fifteen uniform words m0..m14, and every m15 in each group.",
+    "Unkeyed BLAKE3-256, prefix rounds 0 and 1, one root block, flags 11, length 64, counter 0.",
+    "Four consecutive t-values are evaluated together by packing four 32-bit lanes into each 256-bit word.",
+    "A 160-bit Briggs-Torczon sparse set stores the first occupant of each key. Full 256-bit equality is rechecked with two target compressions.",
+    "Verification attempts are capped at 2^110. The run aborts after that cap.",
+    "Word primitives are charged at 115 per message, above a listed 108.5, with C=430.",
+    "Success probability 0.39 is conditional on heuristic H1. The time cap is not.",
+    "baseline_improved names the nominal reference only and does not assert that a promoted qualified attack was improved."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H1",
+      "statement": "For events F1, F2, and Fcap, the 2^128 digests of the grouped messages may be treated as mutually independent and uniform on 256-bit strings.",
+      "role": "score-critical",
+      "scope": "Only the success probability of this message family. Not used to justify the time cap, lane packing, or the final rehash.",
+      "extrapolation": "From 20-bit projections of 2^10-message grouped samples to independence of the full 256-bit digests at 2^128 messages.",
+      "evidence_ids": [
+        "experiment:b3r2-spread",
+        "experiment:b3r2-one-group",
+        "proof:220-231",
+        "proof:233-303"
+      ],
+      "limitations": "Shared prefixes make independence unproved. The experiments are small masked projections with public seeds, not a full-scale trial and not a confidence interval. The claim keeps the model probability above 0.393 and submits 0.39."
+    }
+  ],
+  "experiment_manifest": "experiments/manifest.json",
   "certificate_manifest": "certificates/manifest.json"
 }
