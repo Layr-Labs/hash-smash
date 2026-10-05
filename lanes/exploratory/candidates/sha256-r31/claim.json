@@ -6,22 +6,39 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 126.91,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Messages are exactly 55 bytes, so each complete hash is one FIPS 180-4 padded block (W13 = (u<<8)|0x80, W14 = 0, W15 = 440) and one 31-round compression with the standard IV and feed-forward.",
+    "2^104 groups of 2^24 messages; each group shares fresh uniform words W0..W12 and enumerates u = 0..2^24-1; N = 2^128 messages in one pass, no restart.",
+    "White-box word operations are priced with the SAME convention that yields organizer C = 2140 for sha256-r31 (5-op narrow rotate as in verifier _ror/_rol, 5-op reference Maj, &MASK on t1/t2). Independently counted inner body = 953 ordinary ops; pack+id+sparse-set+loop <= 35; charged envelope = 1000 ordinary ops/message.",
+    "Collisions are detected on the 192-bit after-round-29 state (A29,A28,A27,E29,E28,E27); candidates are confirmed with two whole reference compressions. At most 2^90 confirmations.",
+    "Classical 256-bit word RAM with 64 registers, three-address operations and immediate shift counts. Proof Section 10 gives reload and no-amortisation sensitivity bounds.",
+    "Score-critical heuristic H1 (grouped digests behave like independent uniform values for the collision events used); claimed success 0.39 is below the model value > 0.3933.",
+    "Generic constant-factor improvement (single block, group amortisation, early abort), not a structural weakness of SHA-256. Independent rewrite of the algorithm family audited from public submission 35ce075; claimed ledger deliberately rejects that submission's cheaper 4-op-rotate / 1770-whitebox yardstick."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-grouped-random-digests",
+      "statement": "For the N = 2^128 messages of the algorithm (2^104 groups, each with fresh uniform prefix words W0..W12 and the 24-bit field u of W13 enumerated), the probability that the 31-round SHA-256 digests contain no equal pair, plus the probabilities of events F2 and F4 in proof.md Section 7 (a colliding pair whose first member was displaced from its 140-bit table slot; more than 2^90 candidate confirmations), exceeds the independent-uniform-model value 0.606654 by at most 0.0033.",
+      "role": "score-critical",
+      "scope": "Exactly the submitted grouped single-block message family, 192-bit early-abort key and sparse-set table under the C=2140-priced evaluator.",
+      "extrapolation": "From scaled analogues (18-bit masked events with N_t = 2^9 over digest words H1,H2,H3,H5,H6,H7, organizer seeds, group sizes 32 and 512), in which N_t^2/2^w = N^2/2^256 = 1, to the full 256-bit event with N = 2^128 and group size 2^24.",
+      "evidence_ids": [
+        "experiment:r31-grouped-spread",
+        "experiment:r31-single-group",
+        "proof:222-250",
+        "proof:314-330"
+      ],
+      "limitations": "Masked projections are tested, not the full 256-bit event; H0 and H4 are not covered by the experiments because the evaluator does not compute round 30. Organizer seeds are public. Finite frequencies support but do not prove the population bound. Same-u cross-group pairs provably collide with probability >= 2^-256; other pairs rely on H1. Cost accounting is independent of H1 and uses the C=2140 Word convention."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
