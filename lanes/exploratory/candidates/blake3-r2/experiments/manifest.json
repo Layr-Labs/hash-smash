@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "guarded-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "1024 seeded iid-shaped 64-byte messages evaluated by seven-lane guarded SWAR; selected two-round hash, 20-bit output projection.",
+      "hypothesis": "Masked collision frequencies are consistent with the random-output model used only for the table failure bounds.",
+      "program": "experiments/guarded.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0f0000000f0000000f0000000f0000000f000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "guarded-lowbits",
+      "kind": "python-message-pairs-v1",
+      "scope": "1024 seeded iid-shaped 64-byte messages evaluated by seven-lane guarded SWAR; selected two-round hash, 20-bit output projection.",
+      "hypothesis": "Masked collision frequencies are consistent with the random-output model used only for the table failure bounds.",
+      "program": "experiments/guarded.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffff0f0000000000000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
