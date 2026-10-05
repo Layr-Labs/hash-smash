@@ -6,23 +6,45 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 127.417,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Messages are exactly 64 bytes (one root block, flags 11, length 64, counter 0).",
+    "Grouped birthday search: 2^96 groups with shared m0..m14; each group enumerates all 2^32 values of m15.",
+    "Digests computed by partial evaluation of the 2-round compression (shared group-invariant G work), not by charging one full compression unit per message.",
+    "Collision filter: Briggs-Torczon sparse set keyed by the top 140 digest bits; matches re-verified with two full reference compressions.",
+    "Unkeyed BLAKE3-256; 2 prefix rounds only.",
+    "Classical 256-bit word RAM with 64 registers. Claimed ledger: inner 252 Word ops (FF = 8 xors, no trailing & MASK) + 14 pack + 21 table = 287 ops/msg; no 14-op spare. Full G still counted at organizer-faithful 30 ops.",
+    "Fallbacks disclosed: restore FF & MASK without spare \u2192 295 ops \u2192 127.457; restore spare on 309 ops \u2192 127.524 (package 8e870aed); reload 27 group constants \u2192 314 ops \u2192 127.546.",
+    "Success probability 0.39 under score-critical H1-grouped-digests; time/memory caps are worst-case and heuristic-free.",
+    "Analytical construction; no full-scale collision certificate.",
+    "Independent derivation; does not adopt public 247-op inner body (that undercounts organizer _g=30 as 29 on several segments).",
+    "Tightening of awaiting-review 8e870aed (127.524): drop spare + omit redundant FF masks only; algorithm and probability unchanged."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-grouped-digests",
+      "statement": "For uniformly random independent group prefixes (m0..m14) and exhaustive m15 enumeration, the 2^128 digests behave like independent uniform 256-bit strings for bounding (i) the probability of no full-digest collision among them and (ii) the probability that a colliding pair is missed because an earlier distinct digest occupied the same top-140-bit sparse-set slot, up to a negligible additive gap covered by the allowance between the model bound (>0.3932) and the claimed success probability 0.39.",
+      "role": "score-critical",
+      "scope": "Applies only to this grouped birthday search with N=2^128 messages, sparse-set index of 140 bits, and the stated partial-evaluation digest map. Does not assert differential weakness, rho statistics, or sub-birthday structure.",
+      "extrapolation": "Organizer matched-scale digest-xor-mask experiments at widths 16, 20, and 24 with N_t^2/2^w=1, plus a single-group structured stress layout, are extrapolated to the full 256-bit collision event under H1. The leap crosses about 232-240 untested digest bits. Single-group dependence is disclosed; full-scale uses 2^96 independent prefixes so within-group pairs are a 2^-96 fraction of pair mass.",
+      "evidence_ids": [
+        "experiment:b3r2-grouped-spread",
+        "experiment:b3r2-single-group",
+        "experiment:b3r2-grouped-spread-16",
+        "experiment:b3r2-grouped-spread-24",
+        "proof:1-120",
+        "proof:121-150"
+      ],
+      "limitations": "H1 is not proved. Truncation cannot detect almost-permutation structure. Within-group pairs are more dependent; local non-organizer checks showed lower hit rates in the single-group layout. No full-scale collision is known. Organizer report is authoritative for experiment frequencies."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
