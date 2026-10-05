@@ -6,22 +6,32 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 127.85,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 136,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 0,
+    "preprocessing_log2": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Generic birthday collision search over N=2^128 fresh independent uniform 55-byte messages; the coins are the message draws and the target is fixed.",
+    "Each complete 31-round SHA-256 hash (fixed IV, steps 0..30 on one padded block, feed-forward, full 256-bit digest) is computed by CHARGED WORD OPERATIONS (1850 per message), not by invoking the one-unit compression primitive; the only one-unit charges are the two whole compressions of the single final verification.",
+    "Collisions are detected on the full 256-bit digest with a Briggs-Torczon sparse-set table (sparse index width s=160); memory is reported only and does not affect the scalar.",
+    "Success probability at least 0.39 is proved DISTRIBUTION-FREE for the fixed target (no random-function, ideal-hash, or round-independence premise); one supporting heuristic H-IDX bounds only detection work (the 2^-33 F2 term), not success.",
+    "One run, no restart; all draws, failed and discarded messages, table work and verification are charged. No certificate, experiment, precomputed collision, or nonuniform advice.",
+    "The nominal reference identifier does not assert an improvement over an established attack or security bound."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H-IDX",
+      "statement": "The top s=160 bits of the complete 31-round SHA-256 digest distribute the N=2^128 evaluated messages with bounded clustering, so the expected number of sparse-set slot events (F2, F4) is within a constant factor of the uniform value. Used only to bound detection work and the 2^-33 F2 term; the dominant success terms are distribution-free and the dominant time term is the deterministic 1850-operation body.",
+      "role": "supporting",
+      "scope": "The at most N=2^128 digest evaluations of one run on the fixed complete 31-round SHA-256 map (target sha256-r31-prefix-v1).",
+      "extrapolation": "From the standard behaviour of a cryptographic digest's high bits as a balanced hash index to this specific 31-round map; no ideal behaviour is claimed, and the scalar's sensitivity to H-IDX is below 2^-33.",
+      "evidence_ids": ["proof:30-78", "proof:150-190"],
+      "limitations": "A modelling assumption used ONLY for detection-structure work and the F2 term; success probability's dominant terms (F1, FR) are distribution-free and the time bound's dominant term is deterministic, so H-IDX cannot materially change the claimed scalar."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
