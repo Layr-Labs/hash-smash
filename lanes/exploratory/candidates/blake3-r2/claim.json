@@ -6,23 +6,43 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 127.457,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Messages are exactly 64 bytes (one root block, flags 11, length 64, counter 0).",
+    "Grouped birthday: 2^96 groups; shared m0..m14; enumerate all m15 in 0..2^32-1.",
+    "K_full is the full 256-bit partial-eval digest. Sparse set indexes by top 140 bits and stores K_full.",
+    "Every message is charged 8 Word ops of full-K compare budget (worst-case envelope). Compressions are NOT used for unequal-K index hits.",
+    "Equal K_full: two reference compressions; halt on success; at most V_max=8 verification attempts per run.",
+    "Candidate ops/msg = 295 = 252 (inner, FF xor-only) + 14 pack + 21 table + 8 compare. Plus T_ver<=16. No expectations in the time inequality.",
+    "Repair of 4dd74401 fatal F-COST-INDEX-COMPARE-TAIL (and retains c145 F-COST-VERIFY-OMITTED repair). Doomed 127.417 path without worst-case compare is not resubmitted.",
+    "Success 0.39 under H1-grouped-digests only; time bound is heuristic-free worst-case.",
+    "Unkeyed BLAKE3-256; 2 rounds; classical 256-bit word RAM."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-grouped-digests",
+      "statement": "For uniformly random independent group prefixes and exhaustive m15 enumeration, the 2^128 digests behave like independent uniform 256-bit strings for bounding F1, F2, and F4 (V_max exhaustion), up to a negligible additive gap covered by the allowance between the model bound (>0.3932) and claimed success probability 0.39.",
+      "role": "score-critical",
+      "scope": "Success-probability claim only for this algorithm with V_max=8 and 140-bit indexing. Does not support replacing worst-case compare charges by expectations in the time bound.",
+      "extrapolation": "Organizer matched-scale digest-xor-mask experiments at widths 16, 20, and 24 with N_t^2/2^w=1, plus single-group stress, extrapolated to full 256-bit collision statistics under H1.",
+      "evidence_ids": [
+        "experiment:b3r2-grouped-spread",
+        "experiment:b3r2-single-group",
+        "experiment:b3r2-grouped-spread-16",
+        "experiment:b3r2-grouped-spread-24",
+        "proof:1-120",
+        "proof:121-125"
+      ],
+      "limitations": "H1 unproved. Time bound does not rely on H1. Truncation cannot detect almost-permutations. No full-scale collision known."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
