@@ -6,23 +6,36 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 126.362,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 167,
+    "preprocessing_log2": 20,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Exactly 64-byte unkeyed messages; counter0, length64, ROOT|CHUNK_START|CHUNK_END=11; exactly two prefix rounds.",
+    "N=2^128 independent uniform 512-bit messages, generated in batches of seven using seven guarded 32-bit fields at stride36.",
+    "At most 2^110 key confirmations; two whole target hashes independently verify every returned full collision.",
+    "Classical 256-bit word RAM; guarded arithmetic is charged in ordinary operations, not as uncharged compression calls.",
+    "Analytical total-work cap; no practical full-width collision or full-scale experiment is claimed."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "Htable",
+      "statement": "For iid uniform 64-byte messages under the fixed two-round target, the 160-bit key K=(o0,o1,o2,o3,o4) has the triple-interference and key-match tail bounds derived in proof Sections 7-8, within a total additional failure allowance of 0.003.",
+      "role": "score-critical",
+      "scope": "The fixed BLAKE3-r2 complete-message map on iid uniform 64-byte inputs, N=2^128, five-word 160-bit key.",
+      "extrapolation": "Uniform-output model yields Pr[Finterference]<2^-32 and Pr[Fcap]<=2^-15; bounded 20-bit projection experiments are relevant finite support, not proof at 256 bits.",
+      "evidence_ids": [
+        "proof:1-348",
+        "experiment:guarded-spread",
+        "experiment:guarded-lowbits"
+      ],
+      "limitations": "Full-width key distributions and conditional key/digest dependence are not proved. A deviation beyond 0.003 would invalidate the success claim; no confidence probability is asserted."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
