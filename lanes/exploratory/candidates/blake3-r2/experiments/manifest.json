@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "b3r2-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "32 groups of 32 consecutive final message words. A 20-bit digest mask makes the scaled pair count match a 2^128 search of a 256-bit digest.",
+      "hypothesis": "Masked collisions of this grouped 2-round BLAKE3 family occur at the independent-uniform birthday rate.",
+      "program": "experiments/grouped_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "00000000000000000000000000000000000000000000000000000000000fffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "b3r2-one-group",
+      "kind": "python-message-pairs-v1",
+      "scope": "One group and 1024 consecutive final message words, the most dependent layout, under the same 20-bit mask.",
+      "hypothesis": "A single varying message word still produces masked collisions at the independent-uniform birthday rate.",
+      "program": "experiments/grouped_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "00000000000000000000000000000000000000000000000000000000000fffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
