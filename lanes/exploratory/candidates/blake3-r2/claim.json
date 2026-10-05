@@ -6,23 +6,43 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 127.417,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Messages are exactly 64 bytes (one root block, flags 11, length 64, counter 0).",
+    "Grouped birthday: 2^96 groups with shared m0..m14; enumerate all 2^32 values of m15.",
+    "Digests by partial evaluation; K_full is the full 256-bit digest. Sparse set indexes by top 140 bits of K_full but stores K_full.",
+    "On occupied index: compare full K_full (Word ops only). Compressions are NOT charged on 140-bit-only collisions.",
+    "Only when stored K_full equals new K_full: rebuild messages and run two full reference compressions; halt on success. At most V_max=8 such verification attempts per run (heuristic-free cap).",
+    "Candidate ledger 287 Word ops/msg (inner 252 = FF xor only; pack 14; table 21; no spare). Plus T_ver<=16 and negligible index-hit compare charge.",
+    "Repair of refuted c1454726 fatal F-COST-VERIFY-OMITTED; not a reopen of FF-mask/spare dispute.",
+    "Fallbacks: 127.457 (keep FF masks); ~127.524 (restore spare); ~127.546 (reload-all).",
+    "Success 0.39 under H1-grouped-digests; Unkeyed BLAKE3-256; 2 rounds; classical 256-bit word RAM."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-grouped-digests",
+      "statement": "For uniformly random independent group prefixes (m0..m14) and exhaustive m15 enumeration, the 2^128 digests behave like independent uniform 256-bit strings for bounding F1 (no full collision), F2 (140-bit index displacement with different K_full), and F4 (V_max exhausted before verifying a true collision), up to a negligible additive gap covered by the allowance between the model bound (>0.3932) and claimed success probability 0.39.",
+      "role": "score-critical",
+      "scope": "This grouped birthday search with N=2^128, 140-bit indexing, full-K store/compare, V_max=8, and the stated partial-evaluation map. Does not assert differentials or sub-birthday structure.",
+      "extrapolation": "Organizer matched-scale digest-xor-mask experiments at widths 16, 20, and 24 with N_t^2/2^w=1, plus single-group stress, are extrapolated to full 256-bit collision statistics under H1 across ~232-240 untested bits.",
+      "evidence_ids": [
+        "experiment:b3r2-grouped-spread",
+        "experiment:b3r2-single-group",
+        "experiment:b3r2-grouped-spread-16",
+        "experiment:b3r2-grouped-spread-24",
+        "proof:1-120",
+        "proof:121-137"
+      ],
+      "limitations": "H1 unproved. Truncation cannot detect almost-permutations. V_max is a hard resource cap; under adversarial maps success may drop (time bound still holds). No full-scale collision known."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
