@@ -6,22 +6,78 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 51.0,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 57,
+    "data_log2": 16,
+    "preprocessing_log2": 32,
+    "success_probability": 0.5,
+    "nonuniform_advice_log2_bytes": 16
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Ordinary complete-message collision of sha256-r31-prefix-v1: standard FIPS 180-4 IV, standard padding, feed-forward after every block, original steps 0 through 30, all 256 output bits.",
+    "Scored procedure is the improved two-block attack of Li, Liu, and Wang, ePrint 2024/349 Section 4.2: one starting point, a 2^48 solution list, and phase-4 success about 2^{-1.3}, giving about 2^{49.8} reduced compressions.",
+    "The claimed 2^50 bound adds that estimate and a word-operation surcharge under collision-frontier-v5. It is an upper bound, not a claim that no faster attack exists.",
+    "The certificate is a checked witness that this organizer target admits an ordinary 31-step collision. Replaying the witness is not the scored algorithm.",
+    "No quantum model, free-start substitution, shortened output, or uncharged precomputation is used."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H-WORD-COUNTS",
+      "statement": "The early-solution list has 2^48 records, from 2^14 W5 values, 2^23 W6 values, and 2^11 surviving (W7, W8) pairs.",
+      "role": "score-critical",
+      "scope": "Phase 2 of the two-block search on the characteristic in section 3.",
+      "extrapolation": "These counts are the source paper's reported figures, used as the list size, not remeasured in this package.",
+      "evidence_ids": [
+        "proof:95-114"
+      ],
+      "limitations": "A smaller surviving set would raise the true first-block search. The 2^51 ceiling does not absorb an arbitrary reduction of the list."
+    },
+    {
+      "id": "H-PHASE4",
+      "statement": "Given a list hit, assigning W13, W14, and W15 meets the remaining signed conditions with probability about 2^{-1.3}.",
+      "role": "score-critical",
+      "scope": "Phase 4, after a match on (A_{-3}, A_{-2}, A_{-1}).",
+      "extrapolation": "The rate is the source paper's 100-test estimate, not a new local sample.",
+      "evidence_ids": [
+        "proof:115-128"
+      ],
+      "limitations": "The sample is small. A substantially worse rate would increase the number of phase-3 trials above 2^{49.3}."
+    },
+    {
+      "id": "H-GEOMETRIC",
+      "statement": "Two independent searches, each run for one expectation of a geometric trial process, succeed with probability at least 1-exp(-2).",
+      "role": "score-critical",
+      "scope": "The success-probability claim of 0.5 at the two-search budget.",
+      "extrapolation": "Independence of the two searches is assumed. Early stopping is not credited in the time bound.",
+      "evidence_ids": [
+        "proof:166-173"
+      ],
+      "limitations": "If trials inside one search are strongly dependent, one expectation may succeed with probability below 1-exp(-1). The recorded probability 0.5 is below 1-exp(-2), not a measurement of that dependence."
+    },
+    {
+      "id": "H-PHASE1",
+      "statement": "A starting-point model of the section 3 conditions on steps 5 through 12 exists and is found within 2^32 compression-equivalents.",
+      "role": "score-critical",
+      "scope": "Phase 1 SAT solve specified in section 9.",
+      "extrapolation": "Cited from the source attack's reported model solve of about 2^31.7, charged here at 2^32. Not remeasured in this package.",
+      "evidence_ids": [
+        "proof:208-214"
+      ],
+      "limitations": "If the SAT solver returns no model inside the budget, the run fails and the success probability does not apply."
+    },
+    {
+      "id": "H-LIST-COVERAGE",
+      "statement": "The 2^48 stored records have distinct 96-bit keys and a first-block key is uniform on those bits and independent of phase-4 acceptance.",
+      "role": "score-critical",
+      "scope": "The expected phase-3 trial count of 2^{49.3}.",
+      "extrapolation": "Cardinality of the list is not itself a uniformity proof. This premise is what turns 2^48 records into a 2^{-48} hit probability.",
+      "evidence_ids": [
+        "proof:222-226"
+      ],
+      "limitations": "Key collisions or bias would increase the expected trial count above 2^{49.3}."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
