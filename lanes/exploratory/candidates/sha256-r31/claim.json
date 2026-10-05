@@ -6,20 +6,22 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 129,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
+    "memory_log2_bytes": 136,
+    "preprocessing_log2": 120,
+    "success_probability": 0.393,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Use only 55-byte messages, drawn as the low 440 bits of two fresh independent uniform 256-bit RAM words. 55 bytes pad to exactly one 64-byte block under FIPS 180-4, so the fixed standard IV is used once and rounds 0 through 30 execute exactly once per message.",
+    "The target is executed at most once per sampled message plus two verification calls. Schedule expansion for W[16..30] and all 31 round internals stay inside the single one-unit compression price and are not charged a second time.",
+    "Duplicate detection uses a chained hash table on the full 256-bit digest with 2^128 buckets. There is no comparison sort and no full-table scan. Every previously stored digest sharing the query digest's bucket is compared, so a collision present among the samples is always found.",
+    "Total time charges all M = 2^128 sampled messages including every failed trial, the head-table clearing, every table store, the expected chain-probe work and the final re-verification. There are no restarts, no rejection loop and no success amplification.",
+    "The chain-probe term is an expectation over the algorithm's own fresh message coins with the fixed target held fixed, which is exactly the cost model's probability space. The per-sample fixed cost is bounded, not expected.",
+    "memory_log2_bytes bounds peak resident bytes: the head table, digest array, message array, chain links, code and scratch. Memory is a reported metric only and contributes nothing to time_log2.",
+    "nonuniform_advice_log2_bytes = 0 is a one-byte upper bound with zero actual advice. Every table is regenerated on every execution; no favorable seed, cached collision, precomputed search or omitted work is supplied.",
+    "This is an unconditional analytic construction with no experiment, no computed witness, no hidden precomputed search and no heuristic premise. It does not claim improvement over the nominal reference."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
   "heuristics": [],
