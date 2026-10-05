@@ -6,21 +6,22 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 149,
+    "time_log2": 0,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 13,
+    "preprocessing_log2": 0,
+    "success_probability": 1,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "Messages are exactly 64 bytes: one root chunk block, flags 11 (CHUNK_START|CHUNK_END|ROOT), block length 64, counter 0, one prefix round.",
+    "Deterministic straight-line construction: 203 data-path word operations, no randomness, no trials, no branches, no compression evaluation, no collision check, no restart.",
+    "Unkeyed BLAKE3-256 with 1 prefix round; the pair is produced by closed-form solving of the eight G functions of the single compression.",
+    "Narrow arithmetic follows scripts/reference_operation_costs.py norms: masked add/sub = 2 ops, xor/or/and/shift = 1 op, 32-bit rotation = 4 ops (shl, shr, or, and); no native rotate.",
+    "Instruction-stream constants are immediate operands (program text, counted in memory); no data table lookup is performed by the construction.",
+    "Memory traffic (loads/stores) and program placement are excluded from the 203 under the organizer's reference-count convention; proof.md Section 7 discloses the total and the stated bound under readings that charge them (<= 0.5).",
+    "success_probability = 1: the pair identity is a proved algebraic identity evaluated for the fixed disclosed constants; the attached certificate lets the organizer verifier recompute both digests.",
+    "No precomputed collision, no experiment, no heuristic is used or claimed; heuristics is empty."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
   "heuristics": [],
