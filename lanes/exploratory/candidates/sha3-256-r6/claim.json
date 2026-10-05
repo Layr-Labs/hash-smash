@@ -6,21 +6,24 @@
   "rounds": 6,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.4,
+    "time_log2": 126.902,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 130,
-    "preprocessing_log2": 142,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 136,
+    "preprocessing_log2": 122,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical 256-bit word RAM with fresh independent uniform random-word primitive.",
-    "One batch of 2^129 independent uniform 64-byte messages; no restarts or nonuniform advice.",
-    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06, prefix rounds 0 through 5, all 256 output bits.",
-    "Generic analytic upper bound; infeasible resource use, no improvement over the nominal reference claimed."
+    "Exactly 64-byte messages with standard SHA3 suffix 0x06, zero IV, rate 1088, capacity 512, prefix rounds 0 through 5 and all 256 digest bits.",
+    "One batch of 2^128 iid messages drawn using 2^129 independent uniform 256-bit random-word primitives; repeated inputs are retained and charged.",
+    "256-message bit slicing, three exact charged 256-by-256 transposes, fixed-register Boolean round circuit, full-digest stable radix sorting and final independent verification.",
+    "First-round padding constants remove Boolean operations only; all original destination-placement caps remain charged. First round costs at most 15558 operations and is charged 16000; four middle rounds each cost at most 17728 and are charged 18000; final four-lane digest projection costs at most 5824 and is charged 7000.",
+    "W <= 759.09375*n + 48*2^64 + 2^24 + 200, T <= W/1626 + 2 < 2^126.902. Memory is below 2^136 bytes. No heuristic, full-scale execution or practical hash break is claimed.",
+    "The bit-sliced baseline is credited to may93182 (11c46f4); the final-round projection to ercumentyildirim (c7fa1a5). Both are credited as coauthors for unpromoted work.",
+    "The isolated declared experiment checks deterministic implementation equivalence only, returns no collision witnesses and supplies no statistical attack-success claim."
   ],
   "baseline_improved": "sha3-256-r6-nominal-v2",
   "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
