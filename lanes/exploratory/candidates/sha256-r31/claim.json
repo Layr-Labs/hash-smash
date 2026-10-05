@@ -6,20 +6,19 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 128.06,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
+    "memory_log2_bytes": 199,
+    "preprocessing_log2": 1,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Hash 36-byte messages with the fixed SHA-256 IV, FIPS padding, indices 0 through 30 on the single padded block, full feed-forward, and the full 256-bit digest.",
+    "Draw n = 2^128 independent uniform messages, two fresh 256-bit words each. One batch, no restarts, no deterministic seed expansion.",
+    "Detect collisions with the two-level Briggs-Torczon dictionary in the proof. Charge both control-flow arms, at most 80 ordinary word operations per sample plus one compression.",
+    "Return only after recomputing both digests. Repeated messages are not collisions. No differential, stored pair, or undeclared heuristic is used.",
+    "baseline_improved names the nominal display reference sha256-r31-nominal-v2. It is not an established attack or a qualified baseline. data_log2 is omitted."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
   "heuristics": [],
