@@ -6,23 +6,41 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 128.11,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 118,
+    "preprocessing_log2": 12,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Messages are exactly 64 bytes: eight 32-bit point lanes followed by eight 32-bit salt lanes, little-endian.",
+    "Salted multi-trail van Oorschot-Wiener distinguished-point collision search: total of K=2^128+2^48 compressions across trails of length at most L_max=2^40; no single-trail birthday-scale Pollard lockstep from x0.",
+    "Recovery on a DP match between two distinct starts costs at most 3·L_max compressions (re-walk both trails and compare); fail if either trail exceeds L_max.",
+    "Unkeyed BLAKE3-256; 2 prefix rounds; one 64-byte root block with flags 11, length 64, counter 0.",
+    "Classical 256-bit word RAM; distinguished when point lane 0 is zero (theta=2^-32); M_max=2^110 trail records of 64 bytes each (packed DP + packed start).",
+    "Success probability 0.39 depends on score-critical heuristic H1-salted-random-mapping; time and memory caps are worst-case and heuristic-free.",
+    "Analytical generic construction near the birthday bound; no full-scale execution or precomputed collision is claimed.",
+    "Redesign after refuted 1e53125f and while 60ac8137 (single-trail 130.18) was in flight: replaces birthday-scale single-trail relocation by multi-trail O(L_max) recovery; keeps 64-byte records; does not assume λ≤2^41.",
+    "The nominal reference identifier does not assert an improvement over 128; the claimed scalar 128.11 is a charged-overhead bound slightly above the birthday exponent."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-salted-random-mapping",
+      "statement": "For a uniformly random salt and independent uniform trail starts, the failure probability of the multi-trail distinguished-point events A,B,D,E,G on the real salted 2-round BLAKE3 walk map f_s is at most the corresponding probability for a uniform random function on 2^256 points, up to a negligible additive gap covered by the 0.0034 allowance between the random-function bound (>0.3934) and the claimed success probability 0.39.",
+      "role": "score-critical",
+      "scope": "Applies only to the success-probability claim for this salted multi-trail DP collision search with the stated parameters (K=2^128+2^48, theta=2^-32, L_max=2^40, M_max=2^110, recovery cap 3·L_max). It does not assert anything about unsalted fixed maps, single-trail Pollard lockstep accounting, differential cryptanalysis, or sub-birthday structure.",
+      "extrapolation": "The organizer-scaled experiment uses a 16-bit truncation of the same 2-round root compression with proportional multi-trail DP parameters and the same recovery discipline (trails capped by L_max, recover by re-walking two starts). Agreeing collision-detection statistics there, together with the standard generic-hash modeling premise for salted walks, are extrapolated across about 240 bits of digest to the full 256-bit map. No proof rules out a global permutation-like structure that would suppress collisions. Relative L_max·theta is matched in order of magnitude at both scales; remaining mismatch in K/sqrt(N) slack is disclosed.",
+      "evidence_ids": [
+        "experiment:scaled-multi-trail-dp",
+        "proof:1-120",
+        "proof:121-240",
+        "proof:241-380"
+      ],
+      "limitations": "H1 is not proved. Truncated experiments cannot detect global injectivity or other large-structure deviations of the full map. The 0.0034 allowance above 0.39 is not statistically certified at full scale. Only the scaled experiment is organizer-executed; no full-scale collision is known. A map closer to a permutation would lower success probability below the claim."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
