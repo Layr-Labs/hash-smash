@@ -6,20 +6,18 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 127.99,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
+    "memory_log2_bytes": 199,
+    "preprocessing_log2": 14,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Independent uniform 40-byte messages; standard fixed IV, full padding, feed-forward and all 256 digest bits; rounds 0 through 30.",
+    "Seven-way exact packed word implementation with 36-bit lane spacing and separately masked rotations; full charged word-operation costs.",
+    "Two-level validated direct-address dictionary with all reserved memory counted and no zero-initialization assumption.",
+    "Analytic algorithm only; no computed collision, no uncharged advice, no random-oracle heuristic."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
   "heuristics": [],
