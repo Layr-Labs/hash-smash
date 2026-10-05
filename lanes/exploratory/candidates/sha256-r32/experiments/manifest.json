@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "sha256r32-swar4-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact sha256-r32-prefix-v1, 55-byte messages. Per organizer seed: 32 groups (52-byte prefixes from SHAKE-256 of the seed) times y=0..31, so N_t=2^10. Every message is evaluated only by body4, the 4-lane program of proof.md Section 4. The first batch of every group and every key match is recomputed with a counting word type and compared lane by lane to a plain 32-step compression. Observations body_ops_min/max are expected to be 563 and evaluator_mismatches 0. Scaled key = 16 mask bits on H2, H3, H6 and H7 plus bit 0 of D30. The table keeps the latest message per scaled key and inserts lanes in order. A key match is checked with two plain compressions against the whole 20-bit mask.",
+      "hypothesis": "H1 at small scale: the success frequency of this scaled program on the real target agrees, within sampling error, with its random-digest value 0.3926. N_t^2/2^20 = 1 = N^2/2^256. Each success is a pair of distinct messages whose digests agree on the 20 mask bits.",
+      "program": "experiments/grouped_swar.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0040000000000001801004081002020200010000000000014040202004008084",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "sha256r32-swar4-single-group",
+      "kind": "python-message-pairs-v1",
+      "scope": "Same program and target, all N_t=2^10 messages in one group (y=0..1023), so every pair differs only in W13. The mask has 14 bits on H2, H3, H6 and H7, bits 0 and 1 on both H1 and H5, and one bit each on H0 and H4. The scaled key carries the low 2 bits of D30.",
+      "hypothesis": "Within-group digests show no excess or deficit of masked agreements: the success frequency agrees, within sampling error, with the random-model value 0.3918 of this scaled program.",
+      "program": "experiments/grouped_swar.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000800000003200400410100101000080000000000030801010202004800",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
