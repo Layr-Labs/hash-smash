@@ -6,21 +6,21 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 149,
+    "time_log2": 1.63,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 15,
+    "data_log2": 8,
+    "preprocessing_log2": 0,
+    "success_probability": 1,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "Unkeyed BLAKE3-256 with exactly 1 prefix round in the single root compression; 64-byte messages, one chunk, block length 64, counter 0, flags CHUNK_START|CHUNK_END|ROOT=11, standard IV, full 256-bit root output.",
+    "Deterministic straight-line construction of two distinct 64-byte messages by closed-form G inversion; no random coins, no search, no seed expansion, no duplicate-rejection loop.",
+    "Charged time includes construction (at most 176 ordinary operations), deterministic verification by two complete 1-round recomputations plus message-inequality and digest-equality checks; total below 4 target compressions.",
+    "Peak memory below 2^15 bytes including code, constants, messages, state and scratch; memory is reported separately and scores nothing.",
+    "data_log2 bounds complete input bytes hashed including verification (256 bytes); preprocessing is zero with all work online; nonuniform advice is zero.",
+    "Analytic exact construction with explicit messages verifiable by verifier/blake3.py:blake3; no heuristic, no experiment, no stored precomputed collision beyond the constructed pair; qualification requires fresh review."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
   "heuristics": [],
