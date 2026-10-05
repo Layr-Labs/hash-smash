@@ -6,23 +6,32 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 128.03,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 120,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Generic van Oorschot-Wiener distinguished-point collision search on one processor; every instruction charged under collision-frontier-v5 with C=1355.",
+    "Messages are exactly 32 bytes, msg(x)=LE32(x); iteration f(x)=H(msg(x)) on the complete fixed-zero-state five-round SHA3-256 sponge with 0x06 padding, injective so any f-collision is an ordinary collision of two distinct messages.",
+    "Distinguished point iff low 32 output bits are zero (theta=2^-32); maximum chain L=2^40; evaluation budget K0=65300*2^112 plus at most L to complete the final chain; distinguished-record cap 2^98 (bounds the number of distinguished points and hence per-chain lookup work).",
+    "Worst-case charged time below 2^128.023 for every run; success probability at least 0.39 under declared heuristic H-RF only; all other bounds are heuristic-free.",
+    "One run, no restart; failed trials, abandoned chains, the relocation walk and final re-hash verification are all charged. No certificate, experiment, precomputed collision, or nonuniform advice.",
+    "The nominal reference identifier does not assert an improvement over an established attack or security bound."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H-RF",
+      "statement": "An evaluation of f = H . msg at a point not previously evaluated returns a value uniform on {0,1}^256, independent of the algorithm's coins and of all previously observed values. Used only to lower-bound the success probability; the time, memory and preprocessing bounds hold for every run without it.",
+      "role": "score-critical",
+      "scope": "The at most K0 < 2^128 evaluations of f in one run on the fixed complete five-round SHA3-256 map (target sha3-256-r5-prefix-v1).",
+      "extrapolation": "From standard modelling of a fixed cryptographic permutation's output as uniform to the specific five-round map; no proof of ideal behaviour is claimed, and the required success budget changes log2(T) by well under one bit even under a constant-factor correction.",
+      "evidence_ids": ["proof:26-110", "proof:176-214"],
+      "limitations": "A modelling assumption, plausible rather than established; a proven bias in the five-round image distribution could change the exact success probability. Only the 0.39 figure depends on it, not correctness or the time bound."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
