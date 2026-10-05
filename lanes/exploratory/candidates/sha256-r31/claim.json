@@ -6,22 +6,36 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 128.00996,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
+    "memory_log2_bytes": 112,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5: the compression works on 24 registers holding the 16 message words and the 8 chaining words, one 31-step CF31 call on them costs 1 unit, and every other primitive costs 1/2140 units, with jumps, moves, immediate register writes and the call issue each charged as one operation.",
+    "Complete fixed-IV SHA-256 with steps 0 through 30 and full feed-forward, standard FIPS 180-4 padding, all 256 output bits; 32-byte single-block messages msg(x) = BE32(x).",
+    "Generic van Oorschot-Wiener distinguished-point collision search run on one processor: theta = 2^-32, maximum chain length 2^40, evaluation budget K0 = 65162*2^112, record cap 2^98, main loop unrolled 16 times with a DP test after every evaluation, one run with no restart.",
+    "Time, memory and preprocessing are worst-case bounds for every run. The success probability of at least 0.39 (exactly bounded below by 0.3900080 under H-RF) holds under the declared random-function heuristic H-RF.",
+    "Generic attack with no cryptanalytic improvement claimed; no stored collision, advice or precomputation.",
+    "Peer-conservative CF31 ABI (FIPS-style in-place chaining into R16..R23): 8 pad + 8 IV + 1 issue + 8 digest-to-message moves + 2 DP + 3/16 control = 27.1875 ordinary ops/eval. This package deliberately abandons the lean ABI (digest into R0..R7, IV read-only) that failed as not_evaluable in 7252657."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H-RF",
+      "statement": "Random-function model for the step map f(x) = SHA-256-r31(BE32(x)) on 256-bit words x: whenever the algorithm evaluates f at a point it has not evaluated before, the output is uniform on {0,1}^256 and independent of the algorithm's coins and of every value observed so far. This is the standard premise of the van Oorschot-Wiener analysis. It is used only to lower-bound the success probability (Section 6). Output correctness (Section 5) and all time, memory and preprocessing bounds (Sections 4, 7 and 8) are unconditional.",
+      "role": "score-critical",
+      "scope": "The fixed 31-step SHA-256 (standard IV, padding and feed-forward) restricted to 32-byte messages, iterated along pseudo-random chains from uniformly random 256-bit starts. The analysis uses only the chains started before the first contact (expected number at most 1 + K0*2^-32 + K0*2^-40 < 2^96; at most 2^98 + 2^88 + 2 chains in any run) and at most K0 - 1 + 2^40 < 2^128 main-loop evaluations.",
+      "extrapolation": "We ran the Section 4 algorithm (with n-bit starts, a hash map in place of the trie and no record cap) on output-truncated versions of the real 31-step map (n = 24, 32, 40 and 48 bits) and compared it with a keyed 64-step control. These tests are extrapolated to the full 256-bit map. The analytic success bound itself uses only the H-RF statement, not the measured numbers.",
+      "evidence_ids": [
+        "proof:276-285",
+        "proof:497-589",
+        "proof:591-692"
+      ],
+      "limitations": "H-RF is false as a literal statement about a fixed deterministic function; it is a heuristic model. Published 31-step SHA-256 collision attacks show differential structure on chosen message pairs; the walk does not choose such pairs. The supporting experiments are our own and are not organizer-executed (no experiment manifest is declared); their full source and exact arguments are in the proof so every row can be regenerated. They cover only output widths of 24-48 bits on n-bit input subsets and cannot exclude a structural property that appears only at full width. The success bound exceeds 0.39 by only 8.0e-6; if H-RF overstated the contact probability by a small delta, restoring 0.39 would add about 2.4*delta bits to the scalar."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
