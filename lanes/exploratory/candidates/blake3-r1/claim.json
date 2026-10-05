@@ -6,21 +6,22 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 149,
+    "time_log2": 1.85,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 16,
+    "preprocessing_log2": 0,
+    "success_probability": 1,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "Messages are exactly 64 bytes: one unkeyed BLAKE3 chunk/block with flags CHUNK_START|CHUNK_END|ROOT=11, length 64, counter 0, standard IV.",
+    "Deterministic closed-form complement construction from public IV constants; no search, no random coins, no stored precomputed collision as advice; the constant table holds only IV[0..7] and F.",
+    "Columns: G0 zero-a1 column with C=0; G2 Lemma-1 with C=D=0; G1 and G3 force B=0 (Lemmas 4b, 5) so the diagonal G4/G6 b-inputs vanish; G4/G6 are complemented (g=0 vs g=~0) via closed forms with no rotation; G5/G7 use zero message words and are not evaluated during construction.",
+    "Charged work: straight-line construction on a 16-register 256-bit word RAM, two verification compressions (H=2), 8x32-bit digest equality and message-distinctness checks, program placement (1 op/instruction) and constant-table placement (2 ops/word), under collision-frontier-v5 with C=222. Ledger W = 2(LD+ALU+ST+V) + 2LD with LD=9, V=37.",
+    "Narrow rotations use explicit SHL/SHR/OR/AND (no native rotate). Primary stream (chained masked double-sub, rotation AND elision, 20 shared-buffer stores): ALU=75, W=300. Harshest stress lattice row (no chaining, no elision, 32 stores): ALU=87, W=348.",
+    "Claimed scalar time_log2=1.85 (2^1.85~3.605) covers every row of the 2^3 stress lattice: ceiling W <= (2^1.85-2)*222 ~ 356.31 with H=2; harshest W=348 (T~3.568, log2~1.835). With 11 and 64 also loaded from the table, harshest W=356 still fits. Claim 1.8 is not made (32-store rows exceed W<=329).",
+    "Certificate blake3-r1-complement-pair is an organizer-verifiable witness of the same construction instance; it is not nonuniform advice and does not replace charged collision checking. No omit-verify, memory-only placement, or native-ROT reading is used.",
+    "Claim is specific to 1 prefix round; the complement cancellation does not transfer to 2+ rounds without a new argument. The nominal reference identifier does not itself assert an improvement."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
   "heuristics": [],
