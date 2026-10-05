@@ -6,23 +6,37 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 106.5,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
+    "memory_log2_bytes": 112,
+    "preprocessing_log2": 80,
     "success_probability": 0.5,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Classical probabilistic 256-bit word RAM; total computation summed across all processors; one five-round sponge permutation = one unit and every other primitive 256-bit word operation = 1/C with C=1355.",
+    "Complete fixed-IV SHA3-256: all-zero 1600-bit state, rate 1088, capacity 512, suffix 0x06 then pad10*1, prefix rounds 0..4 with original round constants in every permutation, full 256-bit digest. Rate, capacity, suffix, IV, round range and output length are unchanged.",
+    "Ordinary full collision of the complete SHA3-256 hash; NOT a raw-permutation distinguisher, free-start/compression-only collision, near-collision, or reduced-capacity (c=160) contest instance.",
+    "Dedicated five-round attack by conditional internal differentials: an improved-TIDA connector over the first two rounds (reached by ~2^25 first-block trials), a 3.5-round conditional internal-differential characteristic (Characteristic 3 of the paper's Section 6.3) with transition condition numbers (k2,k3,k4)=(21,18,16) that the paper states applies identically to SHA3-256, and a variant birthday search over disjoint collision subsets. Two-block messages; degrees of freedom of the initial message space >= 540.",
+    "For output length d=256 the collision is placed on the first five lanes before the last chi, which propagates to equal first-320 output bits and hence a full 256-bit digest collision.",
+    "Published all-in total time complexity for d=256 is 2^105 (Zhang-Hou-Liu, EUROCRYPT 2023, Table 5; the Section 6.3 formula 2^(A+(m+16)/2), A already covering connector oversampling and Stage-2 rejection, verified against the paper's d=384 case 2^(18+(224+16)/2)=2^138); corroborated by Dinur-Dunkelman-Shamir FSE 2013 (2^115) and by the real five-round SHA3-256 collision of Guo et al., J. Cryptology 2020.",
+    "Conservative charge: the paper's all-in 2^105 doubled to 2^106 (no-early-stop/full-pool convention) + sorting/lookup < 2^103 + connector slack <= 2^80, total < 2^106.01; claimed time_log2 = 106.5 is a strict upper bound (F-COST-1).",
+    "Analytic complexity bound with infeasible work and large memory; no colliding pair is exhibited (a witness would be rejected and the claim is deliberately analytic). Success probability >= 0.5 for the stated budget is the algorithmic success event; it is separate from the epistemic status of the declared heuristic."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "conditional-internal-differential-r5",
+      "statement": "The 3.5-round conditional internal-differential characteristic with transition condition numbers (k2,k3,k4)=(21,18,16), connected deterministically to the SHA3-256 initial state by the improved target internal difference algorithm, partitions the 2^106 constructed inputs into disjoint collision subsets on which the map through the final rounds behaves as a random function; consequently the variant-birthday argument of Zhang-Hou-Liu (EUROCRYPT 2023, Eqs. 2-5) returns a full 256-bit five-round SHA3-256 collision with probability >= 0.5 at input count N=2^106 (reported complexity 2^105). This is the standard working premise of internal-differential collision cryptanalysis of Keccak/SHA-3.",
+      "role": "score-critical",
+      "scope": "Five-round SHA3-256, capacity 512, output 256 bits, prefix rounds 0..4 with original round constants; the specific 3.5-round characteristic (k2,k3,k4)=(21,18,16) and output length d=256 with the collision taken on the first five lanes before the last chi.",
+      "extrapolation": "The same technique lineage (generalized internal differentials of Dinur-Dunkelman-Shamir, FSE 2013, giving 2^115 for this target) is empirically confirmed at lower rounds: EUROCRYPT 2023 reports that for its three-round instance the observed number of colliding subsets matched the theoretical value, and Guo et al. (J. Cryptology 2020) exhibit an actual five-round SHA3-256 colliding pair. The 2^105 five-round figure is the peer-reviewed theoretical estimate obtained by this characteristic; we charge 2^106.5 as a strict upper bound over it.",
+      "evidence_ids": [
+        "proof:27-101",
+        "proof:131-145"
+      ],
+      "limitations": "The five-round complexity is a theoretical estimate backed by peer review and by corroborating practical/near-scale results, not machine-reproduced at full five-round scale in this package. It assumes the random-function-within-subset behaviour standard to internal-differential cryptanalysis. It concerns only the five-round prefix variant and implies nothing about full 24-round SHA3-256."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
