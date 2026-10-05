@@ -6,19 +6,19 @@
   "rounds": 6,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.4,
+    "time_log2": 128.2465,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 130,
-    "preprocessing_log2": 142,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 136,
+    "data_log2": 128,
+    "preprocessing_log2": 30,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
     "Classical 256-bit word RAM with fresh independent uniform random-word primitive.",
-    "One batch of 2^129 independent uniform 64-byte messages; no restarts or nonuniform advice.",
+    "One batch of Q=ceil(9943*2^128/10000) independent uniform 64-byte messages; LSD 32-bit radix sort of digests (8 counting-sort passes); no restarts or nonuniform advice.",
     "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06, prefix rounds 0 through 5, all 256 output bits.",
-    "Generic analytic upper bound; infeasible resource use, no improvement over the nominal reference claimed."
+    "Unconditional generic birthday under collision-frontier-v5 (C=1626). Visible ordinary-operation spare above itemized minima (generate 65=+1, per-pass 29=+1, scan 17=+1); not zero-spare 128.24. Improves on awaiting-review 128.2473 spare profile. No improvement over an established attack claimed. Nominal 128 is not an established attack."
   ],
   "baseline_improved": "sha3-256-r6-nominal-v2",
   "heuristics": [],
