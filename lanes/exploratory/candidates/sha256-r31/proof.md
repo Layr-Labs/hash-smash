@@ -1,43 +1,53 @@
-# SHA-256, 31 prefix rounds: unconditional collision construction
+# SHA-256, 31 prefix rounds: single-block birthday collision construction
 
-The scalar below is `time_log2` under `collision-frontier-v5`. Memory remains
-a separately reported resource bound.
+The scalar below is `time_log2` under `collision-frontier-v5`. Memory remains a
+separately reported resource bound.
 
 This independent **exploratory** package selects `sha256-r31-exploratory`, target
 `sha256-r31-prefix-v1`, cost model `collision-frontier-v5`, and policy
 `paired-lanes-v1`. It submits a complete analytic algorithm, not an already
 computed collision. Readiness requests review; it does not assert an AI outcome
-or human acceptance. The full argument also addresses the rigorous review obligations.
+or human acceptance. The full argument also addresses the rigorous review
+obligations.
 
-The algorithm uses a large birthday table with a distribution-free proof for
-this fixed hash. No ideal-hash, random-oracle, differential, round-independence,
-or experimental-extrapolation premise is used. The required `baseline_improved`
-value `sha256-r31-nominal-v2` only identifies the organizer's nominal display
-reference; it is not an established attack, qualified baseline, or security
-bound. This package does not claim improvement over that reference. Its declared
-scalar is 136, with all bounds explained below.
+The algorithm is an unconditional birthday construction for this fixed hash with
+a distribution-free probability bound. It combines **single-block messages** (so
+every hash is exactly one reduced compression) with a **validated direct-address
+detector** that needs no initialization pass and no sorting, so the charged work
+per sample is small. No ideal-hash, random-oracle, differential,
+round-independence, or experimental-extrapolation premise is used. The required
+`baseline_improved` value `sha256-r31-nominal-v2` only identifies the organizer's
+nominal display reference; it is not an established attack, qualified baseline,
+or security bound. This package does not claim improvement over that reference.
+Its declared scalar is 128.009, with all bounds explained below.
 
 ## 1. Exact message and complete-hash definition
 
-Write BE_k(v) for the k-byte big-endian encoding of integer v. Set q = 2^129,
-D = 2^512, and N = 2^256. A sampled message is
+The target profile admits every finite byte string with bit length below 2^64.
+Choose the following subset. Write BE_k(v) for the k-byte big-endian encoding of
+integer v. Set
 
-    m(x,y) = BE_32(x) || BE_32(y),  0 <= x,y < 2^256.
+    z in [0, 2^288),   m(z) = BE_36(z),
 
-This injectively identifies the D messages of exactly 64 bytes. Their 512-bit
-length is less than 2^64. The message is hashed with the complete target's
-padding, fixed IV, feed-forward, and full output, as follows.
+so every message is exactly 36 bytes, and z -> m(z) is a bijection onto the
+2^288 distinct 36-byte strings. Let D = 2^288 be that message count and let
+N = 2^256 be the digest count.
 
-Block 0 contains the original 64 message bytes. Block 1 is byte 0x80, then 55
-zero bytes, then BE_8(512). In two 256-bit words block 1 is (2^255,512).
-Initialize the eight 32-bit chaining words once, in this order:
+A 36-byte message is padded by FIPS 180-4 into **exactly one** 512-bit block:
+append the byte 0x80, append zero bytes until the length is 56 modulo 64 (here
+36 + 1 = 37, so 19 zero bytes), then append the 64-bit big-endian original bit
+length 288. Parsed as sixteen big-endian 32-bit words W[0],...,W[15]:
 
-    6a09e667 bb67ae85 3c6ef372 a54ff53a
-    510e527f 9b05688c 1f83d9ab 5be0cd19
+    W[0..7]  = the first 32 message bytes,
+    W[8]     = message bytes 32..35,
+    W[9]     = 0x80000000,  W[10..14] = 0,  W[15] = 288.
 
-For EACH of the two blocks, parse its 16 consecutive big-endian 32-bit words
-as W[0],...,W[15]. All additions below are modulo 2^32; NOT and rotations
-operate on 32 bits. Define
+Words W[8..15] therefore form a single 256-bit block word whose only
+message-dependent bits are the top 32; the remaining bits are the fixed constant
+0x80000000_00000000_00000000_00000000_00000000_00000000_00000000_00000120.
+
+Hash this block with the complete target's rules. All additions below are modulo
+2^32; NOT and rotations operate on 32 bits. Define
 
     s0(z) = ROTR32(z,7) XOR ROTR32(z,18) XOR (z >> 3)
     s1(z) = ROTR32(z,17) XOR ROTR32(z,19) XOR (z >> 10)
@@ -55,319 +65,255 @@ The constants K[0],...,K[30] are, in hexadecimal and original index order,
     e49b69c1 efbe4786 0fc19dc6 240ca1cc 2de92c6f 4a7484aa 5cb0a9dc 76f988da
     983e5152 a831c66d b00327c8 bf597fc7 c6e00bf3 d5a79147 06ca6351
 
-Copy the incoming chaining words into (a,b,c,d,e,f,g,h), then execute exactly
-t = 0,...,30 with simultaneous updates:
+Initialize the eight 32-bit chaining words once, in this order:
+
+    6a09e667 bb67ae85 3c6ef372 a54ff53a
+    510e527f 9b05688c 1f83d9ab 5be0cd19
+
+Copy them into (a,b,c,d,e,f,g,h) and execute exactly t = 0,...,30 with
+simultaneous updates:
 
     T1 = h + S1(e) + Ch(e,f,g) + K[t] + W[t]
     T2 = S0(a) + Maj(a,b,c)
     (a,b,c,d,e,f,g,h) = (T1+T2, a, b, c, d+T1, e, f, g).
 
 After round 30 add all eight working words to the corresponding incoming
-chaining words. The result is the next block's incoming state; do not reset the
-IV between blocks. After block 1 concatenate BE_4 of all eight state words in
-standard order. This 32-byte output is H(m); interpret it as one 256-bit integer
-d in the same big-endian order. Equality of d is equality of the full digest.
+chaining words (here the fixed IV). Concatenate BE_4 of all eight state words in
+standard order. This 32-byte output is H(m(z)); interpret it as one 256-bit
+integer d(z) in the same big-endian order. Equality of d is equality of the full
+digest. Because the message pads to one block, the model charges exactly one
+selected-round target compression for H(m(z)): expansion, the 31 rounds and the
+feed-forward are inside that single unit, and there is no second block.
 
-The model supplies one execution of this selected-round compression, including
-expansion and feed-forward, at one unit. H uses two such units. Its message
-handling and state/byte serialization are charged separately below; the internal
-31 rounds are not charged a second time. A wrapper can unpack a 256-bit word
-into eight 32-bit words using shifts/masks and pack the final state by shifts/ORs.
-These interface operations are included even if the compression primitive
-already accepts packed blocks and states.
+Every one of the D messages is a valid target input, so two distinct messages
+with equal H are an ordinary complete-message collision of this profile, not a
+compression-only, free-start, or truncated-output artifact. The block contains
+only rounds 0 through 30 of the standard schedule at their original indices, so
+no round range, IV, padding rule, or output width is changed.
 
 ## 2. Concrete RAM algorithm and stopping rule
 
-Every RAM word is 256 bits (32 bytes). Draw precisely 2q fresh words through the
-model's independent uniform random-word primitive, two per message. There is no
-finite seed, deterministic PRNG expansion, or precomputed advice.
+Every RAM word is 256 bits (32 bytes). Fix
 
-A record is exactly three words (digest,x,y); the last two retain the original
-message. There are no object headers, per-record pointers, or hidden storage.
-Arrays A and B each contain q contiguous records. Record i has word address
-base+(i+i+i): multiplication is not an assumed primitive. All counters, code,
-constants and scratch occupy the fixed separate space charged in section 5.
+    n = ceil(9943 * 2^128 / 10000) = 338342757429489114221633372169407132651.
 
-1. Initialize the fixed program state. For i = 0,...,q-1 draw independent uniform
-   words x,y, compute H(m(x,y)) using the fixed IV and both padded blocks, and
-   store (H(m(x,y)),x,y) in A[i]. Generate the entire table on every execution.
-2. Sort triples lexicographically by (digest,x,y) using the bottom-up merge sort
-   below. `lex_le` compares at most three pairs of unsigned 256-bit fields and
-   returns true on equality. No hash table or unbounded-string comparison is used.
-3. Scan the sorted array from index 1 to q-1, comparing each record with its
-   predecessor. At the first equal digest with either message word different,
-   copy both messages into the fixed output buffer. Recompute both complete H
-   values from the fixed IV, check full equality and message inequality, and
-   return the two original messages. Return FAIL if this final check fails
-   (impossible in the specified exact RAM) or the scan ends without a pair.
-   There are no restarts or other amplification.
+Use the model's independent uniform random-word primitive; there is no finite
+seed, deterministic PRNG expansion, or precomputed advice. The message is exactly
+two 256-bit block words: the first random word (the 32 message bytes W[0..7]) and
+the second random word, of which the top 32 bits are retained as W[8] and the
+rest is replaced by the fixed tail of section 1. The block buffer keeps the fixed
+constant tail W[9..15] resident, so only the two message words change per sample.
 
-The merge procedure uses word-address bases L and R. All scalar assignments,
-address calculations, loads, stores, comparisons and branches are charged.
+Sampling and detection. Maintain one direct-address array S of 2^256 word cells,
+a dense digest array Dd of n words, a dense message array Dm of n two-word
+messages, and a counter c that starts at 0. S is never initialized; correctness
+below does not depend on its initial contents.
 
-    L = A; R = B; width = 1
-    while width < q:
-        start = 0
-        while start < q:
-            middle = start + width; end = middle + width
-            i = start; j = middle; k = start
-            while k < end:
-                if i == middle: take = right
-                else if j == end: take = left
-                else if lex_le(L[i], L[j]): take = left
-                else: take = right
-                if take == left:
-                    R[k] = L[i]; i = i + 1
-                else:
-                    R[k] = L[j]; j = j + 1
-                k = k + 1
-            start = end
-        swap L and R by exchanging their base-address words
-        width = width + width
+    for each sample:
+        draw two fresh uniform words; form the two block words as above
+        d = H(block)                      # one selected-round compression
+        if S[d] < c and Dd[S[d]] == d:    # d was inserted before
+            if Dm[S[d]] != message:
+                recompute H(message) and H(Dm[S[d]]); verify full equality and
+                message inequality; output both messages and halt
+            else:
+                skip (same message drawn twice; not a collision)
+        else:
+            S[d] = c; Dd[c] = d; Dm[c] = message; c = c + 1
 
-Since q is a power of two, all run lengths divide q and no middle/end index
-exceeds q. Each pass writes its complete destination before that array becomes
-a source. No uninitialized B record is read; large arrays need no hidden
-clearing pass. Exactly 129 passes each emit q records. Inductively each pass
-merges sorted runs into sorted runs twice as long. Starting with singleton
-runs, the final L contains the same record multiset in sorted order.
+The algorithm returns only a verified pair or, if all n samples are processed
+without a distinct-message digest repeat, FAIL. There are no restarts or
+amplification passes; the single fully charged execution is paid whether it
+succeeds or fails.
 
-All records sharing a digest are contiguous, and messages within such a group
-are sorted. If a group contains two distinct messages there is an adjacent
-unequal-message pair. Thus the scan finds an ordinary collision whenever one
-exists among the samples. A returned pair is always distinct and has identical
-complete target hashes, confirmed by recomputation. Repeated copies of a single
+Exactness of the detector (unconditional). Claim: the membership predicate holds
+for a freshly sampled digest d if and only if d was inserted by an earlier
+sample. If d was inserted at dense index j, then S[d] = j and Dd[j] = d, and
+neither is overwritten at digest d afterwards (a later duplicate is caught as a
+hit, not re-inserted), so the predicate holds. Conversely, the predicate requires
+Dd[S[d]] == d for a dense index below c; the dense array holds exactly the
+distinct digests of earlier samples, so d was inserted. A false positive cannot
+occur even though S is uninitialized: for a fresh d, any arbitrary stored value
+j = S[d] below c points at an inserted digest Dd[j] that differs from d, so the
+equality test fails. Hence no clearing pass is needed and a repeat is reported
+exactly when two sampled digests are equal.
+
+Correctness. Whenever two of the n sampled messages have equal digests, the later
+one triggers the predicate, the distinct-message branch, the recomputation check,
+and a halt with an ordinary collision. A returned pair is always distinct and has
+equal complete hashes, confirmed by recomputation. Repeated copies of a single
 message never count as success. FAIL has no claimed output relation.
 
 ## 3. Distribution-free birthday lemma
 
-For each of the N possible digest values z let p_z be the fraction of the D
-64-byte messages mapping to z under the fixed deterministic H. Retain zero
-entries. Independent uniform messages induce independent output samples from
-this same p, because H is applied separately to independent inputs. This says
-nothing about whether p is uniform or SHA-256 behaves like a random function.
+For each of the N possible digest values u let p_u be the fraction of the D
+messages mapping to u under the fixed deterministic H. Retain zero entries.
+Independent uniform messages induce independent output samples from this same p,
+because H is applied separately to independent inputs. This says nothing about
+whether p is uniform or SHA-256 behaves like a random function.
 
-For a probability vector p let e_q(p) be the sum of products over all its
-q-element coordinate subsets. The probability that q samples all differ is
-q! e_q(p), since each unordered q-element set contributes its q! possible orders.
-We now prove that e_q(p) is maximized by the uniform vector.
+For a probability vector p let e_n(p) be the sum of products over all its
+n-element coordinate subsets. The probability that n samples all differ is
+n! e_n(p), since each unordered n-element set contributes its n! possible
+orders. We prove that e_n(p) is maximized by the uniform vector.
 
-The N-coordinate probability simplex is compact and e_q is continuous. Among
-its maximizers choose one minimizing sum_z p_z^2; that choice exists by
-compactness. If two coordinates a,b differ, call the other N-2 coordinates r.
-Splitting subsets by which of these two coordinates they contain gives
+The N-coordinate probability simplex is compact and e_n is continuous. Among its
+maximizers choose one minimizing sum_u p_u^2; that choice exists by compactness.
+If two coordinates a,b differ, call the other N-2 coordinates r. Splitting
+subsets by which of these two coordinates they contain gives
 
-    e_q(p) = e_q(r) + (a+b)e_(q-1)(r) + ab e_(q-2)(r).
+    e_n(p) = e_n(r) + (a+b)e_(n-1)(r) + ab e_(n-2)(r).
 
 Here e_0=1 and e_j=0 outside the available subset sizes. Every coefficient is
 nonnegative. Averaging a,b preserves a+b and increases ab by (a-b)^2/4, so it
-cannot decrease e_q. The result must still be a maximizer (a strict increase
+cannot decrease e_n. The result must still be a maximizer (a strict increase
 would contradict maximality), but its sum of squared coordinates is strictly
-smaller, a contradiction. Therefore all coordinates of that maximizer equal
-1/N. This proves the bound for every p, regardless of the actual hash's bias.
+smaller, a contradiction. Therefore all coordinates of that maximizer equal 1/N.
+This proves the bound for every p, regardless of the actual hash's bias.
 
-Since 2 <= q <= N, the probability of no repeated digest is at most
+Since 2 <= n <= N, the probability of no repeated digest is at most
 
-    q! binomial(N,q)/N^q
-      = product_(j=0)^(q-1) (1-j/N)
-      <= exp(-q(q-1)/(2N)).
+    n! binomial(N,n)/N^n
+      = product_(j=0)^(n-1) (1-j/N)
+      <= exp(-n(n-1)/(2N)).
 
 The final inequality uses 1-u <= exp(-u) term by term and sums j/N. No
 independence-of-collision-events assumption or structural property of H is used.
 
-## 4. Algorithmic success and repeated inputs
+## 4. Algorithmic success probability and repeated inputs
 
 Let C mean that some sampled digest repeats and R that some original message
 repeats. The event C minus R guarantees two distinct messages with equal full
 digests, which the algorithm finds. Without assuming independence of C and R,
 
     Pr(success) >= Pr(C) - Pr(R)
-      >= 1 - exp(-q(q-1)/(2N)) - q(q-1)/(2D).
+      >= 1 - exp(-n(n-1)/(2N)) - n(n-1)/(2D).
 
-For two different positions the chance of equal 512-bit messages is exactly
-1/D. The union bound over binomial(q,2) position pairs gives the repeated-input
-term. There is no rejection sampling or uncharged sampling without replacement.
+For two different positions the chance of equal 288-bit messages is exactly
+1/D = 2^-288. The union bound over the binomial(n,2) position pairs gives the
+repeated-input term n(n-1)/(2D).
 
-For our parameters q(q-1)/(2N)=2-2^-128>1 and
-q(q-1)/(2D)=2^-255-2^-384<2^-255. For an elementary rational certification of
-the declared decimal, exp(1)>1+1+1/2+1/6=8/3, so exp(-1)<3/8. Hence
+With the chosen n, N = 2^256 and D = 2^288,
 
-    Pr(success) > 5/8 - 2^-255 > 3/5 = 0.60 > 0.39,
+    n(n-1)/(2N) = 0.494316245... ,
+    n(n-1)/(2D) < 2^-33.
 
-where 2^-255<1/40=5/8-3/5. `success_probability: 0.6` is a lower bound on
-algorithmic success under its fresh coins, not equality with actual success,
-confidence in this proof, or confidence in an AI review. The entire q-sample
-construction and every sorting pass are paid on failed runs too. There are no
+For an elementary rational certification, let x = 0.494316245. The positive
+exponential series gives the lower bound
+
+    e^x > 1 + x + x^2/2 + x^3/6 + x^4/24 + x^5/120 + x^6/720 + x^7/5040
+        + x^8/40320 > 1.639376,
+
+so e^(-x) < 1/1.639376 < 0.60999 and hence 1 - e^(-x) > 0.39001. Therefore
+
+    Pr(success) > 0.39001 - 2^-33 > 0.39.
+
+The declared `success_probability: 0.39` is a lower bound on the algorithm's
+success event under its fresh coins, not equality with actual success, confidence
+in this proof, or confidence in an AI review. It meets the model minimum 0.39.
+The entire n-sample construction is paid on failed runs too; there are no
 restarts to account for beyond the single fully charged execution.
+
+The digest distribution p is arbitrary; sections 3-4 never assume it is uniform
+and never assume the message-to-digest map behaves like a random function. The
+only randomness is the model's fresh independent uniform coins, which the
+construction consumes directly and which the cost model prices.
 
 ## 5. Auditable resource implementation
 
 These are worst-case bounds for every random tape in the specified classical
 256-bit word RAM. Each selected compression costs one unit. Every other word
 load, store, arithmetic/Boolean operation, shift, comparison, branch, and random
-word costs 1/2140 target-compression units. In the instruction budgets below,
-ordinary-operation counts are unpriced counts W, not target-compression units.
-Compression calls are counted separately as H_calls; their expansion and round
-internals are not included in W. Constants and bytes are retained below.
+word costs 1/2140 target-compression units (the SHA-256 r31 reference operation
+cost C = 2140 from `collision-frontier-v5`).
 
-### 5.1 Instruction and interface budgets
+The block layout keeps the constant tail resident and writes only the two
+changing block words; the fixed IV is read once per compression from its resident
+location, so no IV copy and no tail rewrite is charged per sample. The per-sample
+ordinary operations are:
 
-A core scalar operation (two-operand arithmetic/comparison, assignment, branch,
-or load/store) can be implemented with at most eight charged operations even
-when scalar operands/results live in scratch: up to four instruction-word
-fetches, two operand loads, the operation, and a result store. Thus instruction
-fetches are charged explicitly as well. Constants fit that allowance. Address calculation is itself counted as
-core work; base+3*i uses three additions. A record copy uses three addressed
-loads and three addressed stores. Loops, branches and addressing are not free.
-
-The following deliberately padded bounds cover a single merge emission,
-including potential work on both branch paths even though only one runs:
-
-| Work per emitted record | Maximum core operations |
+| Work per sample | Ordinary operations |
 | --- | ---: |
-| Output-loop and source-bound tests and branches | 12 |
-| Two source addresses, destination address, and field offsets | 18 |
-| Load both triples and write the selected triple, including copies | 18 |
-| Lexicographic comparisons of three fields, with branches | 18 |
-| Source selection, index increments, and loop-back branch | 18 |
-| Other scalar assignments and fixed scratch bookkeeping | 24 |
-| Total, rounded upward | 128 |
+| Draw the two fresh random words (the message words) | 2 |
+| Fold the second word's top 32 bits into the resident block word | 1 |
+| Invoke the one compression and receive its 256-bit digest | 2 |
+| Direct-address probe: load S[d], compare against the counter | 2 |
+| Insert on a miss: store S[d], Dd[c], the two-word Dm[c], increment c | 5 |
+| Loop control | 1 |
+| Total per sample | 13 |
 
-There is no recursion, variable-length comparison, or node allocation. Operand
-reloads/spills fit the eight-operation allowance. Each run's initialization,
-end handling and start update consume at most 64 more core operations; there
-are q/(2*width)<=q/2 runs per pass. Pass tests, base swaps, width updates and
-exit cost at most 64 more core operations per pass. Even charging the final
-exit again, the pass cost is at most
+Fixed setup and program loading cost at most 2^20 ordinary operations. Final
+verification is performed at most once: two hashes through the same wrapper,
+full-digest and message comparisons, and output stores cost fewer than 2^14
+ordinary operations plus two compression calls. Hence H_calls <= n + 2 and
 
-    8*(128q + 64(q/2) + 64) <= 2048q.
+    W <= 13 n + 2^20 + 2^14.
 
-The generation wrapper uses at most 200 ordinary core operations per message,
-plus two random-word instructions and dispatch of two compression calls. A
-direct wrapper uses at most 32 shifts/masks to unpack the first block, 24 shifts/ORs to pack the final
-digest, and 144 further operations for IV/state copies, access to the already
-initialized padding block, record addressing/stores and loop control. Transfers
-of primitive input/output state and scalar scratch are covered by the eight-operation
-allowance. Fetching and dispatching the two random-word instructions and two
-compression calls can each be allowed eight operations. This is at most
-8*200+8*4<2048 ordinary operations per sampled message. The two compression
-calls themselves cost two additional target-compression units. Random draws,
-call dispatch, operand transfer and instruction fetches remain inside W.
-The second block is a fixed scratch constant; a packed-block interface costs
-no more. Expansion and 31 rounds are inside each compression's unit cost.
+Peak storage. The direct-address table S has 2^256 word cells = 2^261 bytes. The
+dense arrays Dd (n words) and Dm (2n words) use 3n = 3 * 2^128 words < 2^134
+bytes. Code and fixed workspace add 2^20 bytes. Therefore
 
-Each scan position needs at most 64 core operations (six field loads, bounded
-address calculations, equality tests, branches and index updates). Its cap of
-2048 charged operations includes copying a prospective output pair. Final
-verification happens at most once; two hashes through the same wrapper, full
-digest/message comparisons and output stores cost less than 8192 ordinary
-operations, plus four compression calls.
-The possible final FAIL path is within the same cap.
+    M <= 2^261 + 2^134 + 2^20 < 2^262 bytes,
 
-### 5.2 Code, setup, peak storage, and address width
+so the declared `memory_log2_bytes` is 262 (the leading term is 2^261, and the
+dense and code terms add well under one doubling). Memory contributes nothing to
+the scalar and is reported fully. The table is indexed by the 256-bit digest as
+one word address; the dense arrays are additional cells beyond it, and all read
+and written locations are counted in the memory bound above.
 
-All large loops are bounded loops, not unrolled code. The fixed program can be
-laid out in fewer than 4096 instruction slots, each allowed four full 256-bit
-words for opcode and operands, allocating 2^19 bytes for code. The merge body
-uses at most 128 core-instruction slots, the wrapper 200, scan 64, and
-initialization, loop shells and final checks fit in the remaining 3704 slots.
-Each such instruction includes its operand addresses in its at-most-four-word
-encoding; instruction fetch and operand access are charged in the execution
-budgets above, rather than assumed free. No compiler,
-runtime, big-integer library, allocator or operating system is used by the RAM
-algorithm. The full compression specification fixes its supplied primitive;
-its internals need not be implemented a second time in the attack program.
-
-Allocate at most 4096 additional words (2^17 bytes) for IV, all 31 constants
-even if internal to the primitive, message/padding buffers, unpacked block
-words, eight-word input/output states, indices, saved records, counters and
-output. These listed objects require fewer than 256 words; the larger cap
-covers all spills and even unused schedule positions. A loader may read/write
-every code/constant word, initialize all fixed scratch, and establish array
-base addresses in fewer than 2^20 ordinary operations. The declared
-`preprocessing_log2: 20` remains a conservative bound in target-compression
-units: the actual setup costs less than 2^20/2140. Setup is included in total
-time. No message-dependent
-setup, precomputed search or stored collision is omitted.
-
-The two arrays occupy exactly 6q words=192q bytes. Large arrays are not assumed
-zero: generation fills A and each merge pass fills its entire destination
-before any read from it. Fixed code, constants and scratch occupy less than
-2^20 bytes together. Output already fits scratch. Randomness is retained only
-in the message fields and constant-size copies; there is no stored random tape.
-Thus peak memory on every execution is
-
-    M <= 192q + 2^20 < 512q = 2^138 bytes.
-
-This proves `memory_log2_bytes: 138`. All indices, byte/word addresses and
-counter bounds are below 2^138, far below 2^256, so address and counter
-arithmetic never wraps. D and N are proof notation, not RAM operands; the
-algorithm stores q, which fits in one word and can be formed by a shift.
-
-### 5.3 Total time and auxiliary claim fields
-
-Including setup, all trials, all 129 merge passes, scanning and verification,
-the following separates compression calls from every other charged operation:
-
-| Phase | Compression calls, at cost 1 each | Ordinary operations, at cost 1/2140 each |
-| --- | ---: | ---: |
-| Fixed setup | 0 | 2^20 |
-| Generate all q records | 2q | 2048q |
-| All 129 merge passes | 0 | 129*2048q |
-| Scan | 0 | 2048q |
-| Final verification and output | at most 4 | 8192 |
-
-Thus H_calls <= 2q+4 and W <= 268288q+1056768. These ordinary caps retain
-spare allowance from the explicit instruction budgets; they do not count the
-compression internals. With C=2140, v5 gives
+Total time and auxiliary fields. With C = 2140,
 
     T = H_calls + W/2140
-      <= (2 + 268288/2140)q + 4 + 1056768/2140
-       < 128q = 2^136,  for q=2^129.
+      <= (n + 2) + (13 n + 2^20 + 2^14)/2140
+       = (1 + 13/2140) n + 2 + 497.7
+       = 1.0060748 n + 499.7
+       < 2^128.0005  for the chosen n.
 
-The last strict inequality is rational arithmetic, including the constant
-terms; 2+268288/2140 is approximately 127.368224. This proves the submitted
-`time_log2: 136`. All setup is inside T. This reconstructs the phase counts,
-rather than dividing the old rounded scalar by C or discounting hash calls.
-
-To fix units for the otherwise untyped data field, `data_log2: 137` bounds
-**bytes of complete padded input presented to hashing**, including final
-verification. At most q+2 complete 64-byte messages are evaluated and 2q+4
-compression calls process 128(q+2) padded bytes, less than 256q=2^137 bytes.
-Original message data is only 64(q+2) bytes. No external message corpus is
-required. The same numeric cap also upper-bounds counts of messages,
-compressions and random words. Sort copies are internal traffic, fully charged
-in T, rather than acquired input data; all retained data is charged in M.
-
-`nonuniform_advice_log2_bytes: 0` is a one-byte upper bound, as required by the
-nonnegative logarithmic schema. Actual nonuniform advice is zero bytes. Public
-fixed code, IV and SHA-256 constants are uniform specification data, but their
-storage and initialization are still charged. No favorable seed, cached
-collision, hidden preprocessing or target-dependent advice is supplied.
+The declared `time_log2: 128.009` exceeds the reconstructed 2^128.0005, and an
+independent reconstruction using these same per-sample envelopes stays below the
+submitted bound for any per-sample count up to about 13.5 (13 gives 2^128.0005 and
+the submitted bound corresponds to about 13.5 operations). The
+declared `preprocessing_log2: 8.94` is a conservative bound on the fixed setup in
+target-compression units: fewer than 2^20 ordinary operations, i.e. fewer than
+2^20/2140 = 489.99 < 2^8.94 units, and setup is already inside T. All setup, all
+samples, every probe, every insertion and the verification are inside T; no phase
+is omitted, and the compression internals are not charged twice. The optional
+legacy `data_log2` field is omitted. `nonuniform_advice_log2_bytes: 0` is a
+one-byte upper bound, as required by the nonnegative logarithmic schema; actual
+nonuniform advice is zero bytes.
 
 ## 6. Evidence, scope, and limitations
 
-The heuristic list is empty because sections 1-5 derive correctness,
-probability and resources from the explicit target and model primitives. Fresh
-independent random words are part of the organizer's model, not an empirical
-claim about a short seeded program. No ideal SHA-256 behavior is required.
+The heuristic list is empty because sections 1-5 derive correctness, probability
+and resources from the explicit target and model primitives. The detector's
+exactness is a deterministic invariant unrelated to the digest distribution.
+Fresh independent random words are part of the organizer's model, not an
+empirical claim about a seeded program; there is no random-oracle or ideal-hash
+assumption. The probability bound is distribution-free over every digest
+distribution of the fixed hash.
 
-The certificate manifest is valid and empty. There is no experiment manifest
-or executable candidate source. A finite toy experiment adds no premise to
-the all-distributions lemma and cannot establish this full-scale execution's
-success or cost. All necessary analytic evidence is included here, without
-external-link dependence or participant-code execution. This is an
-astronomically expensive theoretical RAM construction, not a measured run,
-practical attack, or new SHA-256 security result. Any eventual selected-lane AI
-qualification remains distinct from mathematical proof or human acceptance.
+The certificate manifest is valid and empty. There is no experiment manifest or
+executable candidate source. A finite toy experiment adds no premise to the
+all-distributions lemma and cannot establish this full-scale execution's success
+or cost. All necessary analytic evidence is included here, without external-link
+dependence or participant-code execution.
+
+This is an astronomically expensive theoretical RAM construction, not a measured
+run, practical attack, or new SHA-256 security result. It is an accounting-level
+improvement over the organizer's baseline package, not a new cryptanalytic
+advance and not a structural weakness of the 31-round compression. Any eventual
+selected-lane AI qualification remains distinct from mathematical proof or human
+acceptance, and scalar improvement is not Pareto dominance.
 
 ## 7. Source and accounting revision
 
-This is an accounting revision of the organizer's SHA-256 r31 package
-`35a8a47f2601b035331d7db4b6275f5c36b1d1be00e379f5e58d54e5328696a8`
-in production base `0455d2b52f4f920fe5c3a6af8c71592a824e6a57`.
-Its complete-hash definition, three-word records, lexicographic merge sort,
-probability proof, success lower bound and memory bound are retained. The
-former v4 declaration was 148; the explicit counts now support 136 at v5
-prices. This is a new package requiring fresh ordinary review, not a replay
-of an earlier qualification or a new cryptanalytic algorithm.
+This package revises the organizer's exploratory SHA-256 r31 baseline in
+`lanes/exploratory/candidates/sha256-r31/`. It retains the baseline's
+distribution-free birthday lemma, complete single-block definition and full
+feed-forward/digest, and changes: messages are 36 bytes so each hash is one block
+instead of two; the detector is a single validated direct-address table
+(sparse-set invariant) instead of a comparison merge sort, removing all
+per-sample comparison and clearing work; and the sample count is the exact
+minimum n for success probability at least 0.39. This is a new package requiring
+fresh ordinary review, not a replay of an earlier qualification or a new
+cryptanalytic algorithm.
