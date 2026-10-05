@@ -6,23 +6,30 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 44,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 30,
+    "preprocessing_log2": 0,
+    "success_probability": 0.6,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Two-block ordinary collision attack of Guo, Liao, Liu, Liu, Qiao and Song (Journal of Cryptology 2020) on 5-round SHA3-256, with real collisions published: 2-round connector (428.8 core-hours, converted conservatively) plus 2^36.70 pairs in the brute-force stage.",
+    "Success probability 0.6 at the stated expected work."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H1-source-analysis",
+      "statement": "The 3-round trail core No. 3 of the source holds with probability 2^-36.70 over the connector's affine message space, and the 2-round connector is solved within the reported 428.8 core-hours.",
+      "role": "score-critical",
+      "scope": "The cited attack of Journal of Cryptology 2020 (Guo, Liao, Liu, Liu, Qiao, Song), applied to this exact target (standard IV, full message, all digest bits).",
+      "extrapolation": "The source reports real 5-round SHA3-256 collisions (Table 17) found within the stated Tc and Tb.",
+      "evidence_ids": [
+        "proof:1"
+      ],
+      "limitations": "The probability estimates are the source's (standard independence assumptions); this package re-prices but does not re-derive them."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
