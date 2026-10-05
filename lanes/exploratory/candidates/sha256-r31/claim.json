@@ -6,22 +6,78 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 46.3,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
+    "memory_log2_bytes": 36,
+    "preprocessing_log2": 46.2,
     "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "nonuniform_advice_log2_bytes": 12
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Two-block ordinary collision M0||M1 versus M0||M1' (128-byte messages, common standard padding block) on fixed-IV SHA-256 reduced to step indices 0..30 with full feed-forward and full 256-bit digest.",
+    "Attack framework, characteristic and pair are published (Li, Liu, Wang, Dong, Sun, ASIACRYPT 2024; Li, Liu, Wang, EUROCRYPT 2024, Table 6); no novelty or improvement over the nominal reference is claimed. The declared time exceeds the published 2^40.5 because the historical characteristic search is charged (H1), the measured mean starting-point yield over random starts is only 2^10.61 distinct keys (proof Section 4.3), each start is charged a conservative average SAT cost (H3), and our exact count of this algorithm's completion step gives beta = 2.88 instead of the published gamma ~ 1.3 (proof Section 4.2).",
+    "time_log2 = log2(T0 + T1 + T_aux + T2 + T3 + T4) = log2(2^45.920 + 2^43.170 + 2^28 + 2^42.964 + 2^29.5 + 8) = 46.273, rounded up to 46.3. T0 charges the historical search that produced the stored characteristic (H1): 32 solver calls x 72 single-thread hours at 2^34.75 units per thread-hour. T1 is the expected Phase-1 cost: E[N_start] <= (2^19 + 2^16)/2^10.5 = 407.3 accepted starts at 2^34.5 + 2^20 units each (Wald's identity, H3). T2 is 2^42.88 first blocks at 1 + 128/2140 units each. T3 is at most 1024 capped completion calls. T4 is final verification. T1 is an expected cost (H3 is itself an average-cost premise); all other terms are worst cases under the stated caps. Worst-case start-count check (proof Section 7, 'T1 accounting'): capping Phase 1 at 460 starts gives total 2^46.295 <= 2^46.3, preprocessing 2^46.144 <= 2^46.2, and success >= 0.632 x 0.9737 - 2^-108 = 0.615 > 0.6 under the Section 4.3 yield model (Scarf mean-variance bound with per-start SD 4318).",
+    "Table convention: success is credited only for distinct A[-1] keys; Phase 1 stops when the table holds D >= 2^19 distinct keys, so D >= 2^19 holds deterministically. Additional tuples sharing a key are tested but not counted.",
+    "Certificate 1 is the published pair. Certificates 2 and 3 reuse its first block and second-block words 0..12 with fresh (W13, W14, W15) from our exact completion routine. All three are re-verified with the organizer reference digest at 31 rounds, and none is used as a cost.",
+    "memory_log2_bytes = 36 is declared under heuristic H4 for the SAT/SMT processes; the attack phases themselves use under 2^28.3 bytes."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H1-characteristic-search-cost",
+      "statement": "The historical SAT/SMT search of Li-Liu-Wang (EUROCRYPT 2024, Section 4.2) that produced the stored 31-step characteristic (Table 6) used at most 32 solver calls of at most 72 single-thread hours each (2304 thread-hours), and one thread-second of that search is worth at most 2^34 primitive word operations (a calibrated estimate, not an upper bound). This gives T0 = 2304 x 2^34.75 = 2^45.920 target compressions.",
+      "role": "score-critical",
+      "scope": "Charged because the collision-frontier-v5 nonuniform_advice rule requires construction of stored advice to be charged, including any search omitted from the submitted program. The one-time construction of the advice (Table 6), which the attack reads as stored data and does not recompute; the attack cannot fail for lack of it. Call model: three minimisation stages (sum H(dW), then sum H(dA), then sum H(dE) with value transitions on steps 7..10), each establishing its optimum (48, 21, 51) by a binary search over thresholds 0..255 in 8 calls, plus one full repeat of stage 3 for the repair reported by the authors: 4 x 8 = 32 calls, every call charged at the 72-hour cap.",
+      "extrapolation": "The run time of this search is not published. 72 hours is the per-call time-out that the same authors use for the 64-bit SHA-512 31-step search (EUROCRYPT 2024, Section 4.3); it is a time-out, not a measured run time. The SHA-256 instance has half the word size and a fixed difference pattern, and the related starting-point SAT model (value transitions on steps 5..12) solves in about 2^31.7. Charging every call at the cap, including quick calls far from the optimum, is the margin for unrecorded calls. The rate 2^34 operations per thread-second is 4 primitive operations per cycle at 4 GHz; CDCL/SMT solvers are dominated by memory-latency-bound propagation and typically run well below this, but the hardware ceiling of a current core is about 2^35.8 and no solver was measured.",
+      "evidence_ids": [
+        "proof:274-287",
+        "proof:308-315",
+        "proof:233-270",
+        "proof:85-113"
+      ],
+      "limitations": "An estimate, not a measurement; the open-source tool was not rerun and no SAT solver was available. A multi-threaded solver would turn 72 wall-clock hours into more thread-hours. Searches over other local-collision positions or other characteristics before Table 6, and the authors' later experiments, are not counted. The score is directly sensitive to this premise: S thread-hours -> time_log2 (rounded up) 72 -> 44.23, 504 -> 44.91, 1000 -> 45.43, 2304 -> 46.28 (claimed), 5000 -> 47.22, 10000 -> 48.13; at S = 2304, a rate of 2^35 -> 47.11 and 2^35.8 -> 47.84."
+    },
+    {
+      "id": "H2-matching-and-completion",
+      "statement": "For distinct counters j, CV1 = f31(IV, M0(j)) behaves as an independent uniform 256-bit value. Given a matched key, the W5 and W6 equations then hold with exact probabilities 2^-18 and 2^-9, and c18 = W11 + s0(W3) + W2 lies in the good set S with exact probability 0.13613. Given a good W14, our exact completion routine (uniformly random Weyl-sequence enumeration of E13 and W15 under the stated caps) succeeds with probability close to 1 on every starting point that Phase 1 produces.",
+      "role": "score-critical",
+      "scope": "Phases 2-3 with N = 2^42.88 and D >= 2^19 (proof Sections 5 and 6). The resulting per-trial success is p >= 2^(19 - 32 - 27 - 2.88) = 2^-42.88, so pN >= 1 and success >= 1 - exp(-1) - 2^-108 > 0.6.",
+      "extrapolation": "W5, W6 and c18 are uniform and independent over A[-3], A[-2] and E[-2] (proof Section 6). The counts 2^14, 2^23, |G16| = 64 and |S| = 584683520 are exhaustive derivations. Completion given a good W14 was measured in 600000 simulated Phase-2 outputs on the published starting point (uniform W0..W4): 81473 had a good W14, and all 81473 were completed to a zero state difference (failure rate below 2^-14.7, already inside beta = 2.88). Two fresh colliding pairs are included as certificates.",
+      "evidence_ids": [
+        "proof:145-163",
+        "proof:205-210",
+        "proof:212-231",
+        "proof:289-294",
+        "proof:63-82"
+      ],
+      "limitations": "Completion was measured on only one starting point, and that start is favourable for yield (proof Section 4.3), so it may also be favourable for completion. The uniformity of CV1 is the standard random-function assumption for a 31-step compression. The published gamma ~ 1.3 is not used, because our exact count bounds this algorithm's completion success by 0.1361. If p fell short by a factor f, success would be 1 - exp(-f), which is still >= 0.39 for f >= 0.495 (e.g. f = 1/2 gives 0.3935)."
+    },
+    {
+      "id": "H3-starting-point-cost-and-yield",
+      "statement": "An accepted starting point (randomised by a fresh uniform W12, including the two added step-13 relations) costs on average at most 2^34.5 target compressions, including abandoned (timed-out at 2^35 units, or unsatisfiable) calls and starts rejected by the step-13 filter. Conditioned on earlier starts, it adds on average at least mu = 2^10.5 new distinct A[-1] keys, as in the random-offset model of proof Section 4.3.",
+      "role": "score-critical",
+      "scope": "Phase 1: E[N_start] <= (2^19 + 2^16)/2^10.5 = 407.3 by Wald's identity, and T1 = E[N_start] x (2^34.5 + 2^20) = 2^43.170 (expected). D >= 2^19 is enforced by the stopping rule, so this premise affects cost, not success probability, in the claimed accounting; in the 460-start worst-case-count check of proof Section 7 the yield model (mean >= mu, SD <= 4318 per start) also enters success, which stays >= 0.615.",
+      "extrapolation": "The published T_model ~ 2^31.7 'SHA-256 computations' has no stated benchmark. Readings: 2^31.7 (31-step compressions), 2^32.8 (full SHA-256, 64/31), 2^33.64 (a slow 2^21-per-second SHA-256 benchmark converted at our rate of 2^22.937 units per second); 2^34.5 adds a factor 1.82 over the slowest reading for abandoned calls, rejected starts and the added constraints. Yield: 20000 random-offset samples (E5, E6, E7 at published values, of which Table 6 fixes 31, 25 and 30 bits; off8 and A1..A4 uniform; exact enumeration) give a mean of 1565.9 = 2^10.613 distinct keys per start, standard error 30.5, mean minus three standard errors 2^10.526; 68.9% of samples yield no key. The published start gives 2336 = 2^11.19, exceeded by only 17.4% of samples.",
+      "evidence_ids": [
+        "proof:165-185",
+        "proof:189-199",
+        "proof:233-270",
+        "proof:296-303"
+      ],
+      "limitations": "Average-cost premise, not a per-call bound; SAT run times are heavy-tailed, and the starting-point SAT model is imported, not reproduced. The yield model fixes the 10 free bits of E5, E6, E7 and treats off8 and A1..A4 as uniform; SAT-generated starts may differ. Sensitivity (time_log2 rounded up, table size re-optimised): cost per start 2^32.8 -> 46.13, 2^34 -> 46.22, 2^35 -> 46.34, 2^36 -> 46.50; yield mu = 2^9.5 -> 46.41, 2^10 -> 46.34, 2^11 -> 46.22."
+    },
+    {
+      "id": "H4-solver-memory",
+      "statement": "The SAT/SMT processes of Phase 1 and of the historical characteristic search use at most 2^36 bytes (64 GiB) each.",
+      "role": "supporting",
+      "scope": "memory_log2_bytes = 36 only; the attack phases themselves use under 2^28.3 bytes (proof Section 9). Memory is not scored under collision-frontier-v5.",
+      "extrapolation": "The source reports no solver memory. The SAT instances cover at most 31 steps of 32-bit SHA-256 state and message variables plus difference and condition variables, a size for which CDCL/SMT memory is normally far below 64 GiB.",
+      "evidence_ids": [
+        "proof:305-306",
+        "proof:317-322"
+      ],
+      "limitations": "Not measured. A larger footprint would change only the reported memory, not time_log2."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
