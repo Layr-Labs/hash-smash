@@ -6,21 +6,41 @@
   "rounds": 6,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.4,
+    "time_log2": 125.635,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 130,
-    "preprocessing_log2": 142,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical 256-bit word RAM with fresh independent uniform random-word primitive.",
-    "One batch of 2^129 independent uniform 64-byte messages; no restarts or nonuniform advice.",
-    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06, prefix rounds 0 through 5, all 256 output bits.",
-    "Generic analytic upper bound; infeasible resource use, no improvement over the nominal reference claimed."
+    "Complete fixed-IV SHA3-256 sponge (rate 1088, capacity 512, suffix 0x06, pad10*1), prefix rounds 0 through 5, all 256 output bits; every message is exactly 64 bytes (one block).",
+    "Generic birthday search over N = 255*2^120 messages in 255*2^88 groups of 2^32: group g has a fresh uniform 64-byte prefix P_g (two random 256-bit words) and message m(g,z) is P_g with LE32(z) XORed into bytes 0..3 and 40..43 (low halves of lanes 0 and 5, one theta column). Exactly 255*2^80 batches are processed, each containing 256 groups (one group per bit position of every 256-bit word, bitsliced), z = gray(t) for t = 0..2^32-1.",
+    "Each z-step of a batch (256 messages) is an exact counted straight-line word-RAM program of at most 61,583 operations on its worst path: Gray update of the round-2 theta output A2 on 62 words, bitsliced rounds 2-5 with theta parities/D words formed in the same pass (rotations are address renamings, never executed), the digest-only part of round 6, a 256x256 delta-swap bit transpose to per-message 256-bit keys, one Briggs-Torczon sparse-set step per message on the top 140 key bits, and loop control (ctz dispatch by a branch tree, no indirect jump). The claimed charge adds one address addition for each of its 19,490 direct-address loads/stores and one immediate move for each of its 12 ALU immediates (81,085 per z-step, 316.74 per message) and charges exactly (81,085/256 + 2^-20)/1626 units per message, including per-batch setup (< 2^20 operations per 2^40 messages).",
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5 with 64 registers as our stated assumption (the program uses at most 48; table bases and constants are held in registers): one six-round permutation costs 1 unit; every load, store, address addition, logic operation, shift, comparison, conditional branch, immediate move and random word costs 1/1626.",
+    "Time bound T <= (255*2^120)*(81,085/256 + 2^-20)/1626 + 2^30/1626 + 3 < 2^125.635 holds in every run. A 2^30-operation reserve covers one-time global startup. No restarts; at most two verification permutations. Success probability >= 0.390978 under declared H1; claimed 0.39. Correctness and resource accounting are unconditional.",
+    "Credit: winglock unpromoted submission 377eebd (commit 8ace5566b9451c6639d70bcb90bcd839ebf6f0d2) supplies the SHA3 grouped bitsliced evaluator, 62-word support, fused round schedule, sparse-set program, operation ledger and experiment source. may93182 supplies the earlier unpromoted bitslicing/transpose work. jaazinn is cited as the originator of the grouped framework and probability argument from promoted BLAKE3 submission 0a5b7ae8. Our changes tighten the exact charge, reduce the fixed batch count by 1/256 while retaining >=0.39 success under H1, and test matching 510-message scaled analogues. No prior author has reviewed these changes.",
+    "No cryptanalytic weakness of SHA3 is claimed: this is a constant-factor improvement of a full-digest birthday search under the operation-level cost model. Memory is about 2^145 bytes (reported only, not a Pareto improvement)."
   ],
   "baseline_improved": "sha3-256-r6-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1",
+      "statement": "For the failure events F1 and F2 (Section 7), the N = 255*2^120 keys of the grouped message set {m(g, z)} (independent uniform prefixes P_g, all z in {0,1}^32, processed in any fixed order chosen independently of the digests, in particular the order of Section 2: batch by batch, t = 0..2^32-1 with z = gray(t), slots p = r + 32i for r = 0..31 and i = 0..7) behave like N independent uniform 256-bit values, i.e. Pr[F1] <= exp(-N(N-1)/2^257) and Pr[F2] <= N^3/6 * 2^-396.",
+      "role": "score-critical",
+      "scope": "Only the success probability (Section 7) uses H1. Evaluator exactness, verification of every output, and all time, memory and preprocessing bounds are unconditional. Cross-group pairs (all but less than a 2^-95 fraction of pairs) provably collide with probability >= 2^-256 each (Cauchy-Schwarz over the uniform prefixes), so the expected number of colliding pairs is at least (1-2^-95)*N(N-1)/2^257 without H1; H1 is needed for the second-moment behaviour behind Pr[F1] and for F2. Bitslicing and batching change neither the message set nor any digest value; they fix only the processing order, which depends on (batch, t, slot) and never on digests.",
+      "extrapolation": "Four fresh organizer-sandboxed scaled analogues use N_t = 510 messages and 18-bit masks, matching N_t^2/2^18 = (255/256)^2 = N^2/2^256. Each layout takes the first 510 messages from the inherited 512-message fixed order. Digests come from the grouped bitplane evaluator; each trial self-checks four full-width keys against a direct sponge and coefficient support. Returned mask pairs are independently verified by the host. Internal assertions and counts remain participant evidence. This does not prove H1, full-width behavior, or the >=0.39 success guarantee.",
+      "evidence_ids": [
+        "experiment:k6r6-bs-full-width",
+        "experiment:k6r6-bs-spread",
+        "experiment:k6r6-bs-single-group",
+        "experiment:k6r6-bs-high-z",
+        "proof:336-386",
+        "proof:426-491"
+      ],
+      "limitations": "H1 is not proved. Within a group the round-2 theta output A2 is exactly affine in z (Lemma 2), a stronger structure than in a generic search; four further nonlinear chi layers follow, but masked low-width experiments cannot exclude a structural effect that appears only at full width. Organizer seeds are public. The scaled experiments resolve the success frequency only to about +-0.03 at 256 trials. The approximately 0.000978 allowance between the conservative H1 lower bound 0.390978 and the claimed 0.39 is not statistically certified."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }

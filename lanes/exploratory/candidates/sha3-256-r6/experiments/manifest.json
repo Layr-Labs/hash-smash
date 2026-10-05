@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "k6r6-bs-full-width",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact sha3-256-r6-prefix-v1 on 64-byte single-block messages. Per organizer seed, 256 groups with SHA-256-derived 64-byte prefixes, one per bit position of a full 256-position batch, 2 messages each (z = gray(t), t = 0, 1; LE32(z) XORed into bytes 0..3 and 40..43), original layout capacity 512. Digests used for matching come only from the bitsliced grouped evaluator of proof.md Sections 4-5 (Gray-updated A2 from coefficient words on the 62-word support, bitsliced rounds 2-5, row-0 round 6, delta-swap transpose to 256-bit keys). The first pair agreeing on an 18-bit mask spread over digest lanes 0-3 is returned; failures return two nulls. In every trial the first 4 keys are checked at full 256-bit width against an independent direct 6-round sponge, and the z-dependence of A2 is checked to vanish outside the 62 support words; any failure aborts the run. Updated budget: only the first 510 messages in this fixed layout order participate; the final two are skipped. Thus N_t = 510 and N_t^2/2^18 = (255/256)^2, matching the full attack ratio.",
+      "hypothesis": "For the fixed first 510 messages of this grouped layout, the masked success frequency is consistent, within sampling error, with the independent uniform 18-bit birthday model (approximately 0.3907), supporting but not proving H1 at full width.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "1f00000000000000001f00000000000000000f00000000000000000f00000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "k6r6-bs-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "As k6r6-bs-full-width, but each trial has 16 groups of 32 messages (z = gray(t), t = 0..31, so A2 is Gray-updated on z bits 0..4); 16 trials share one 256-position batch, each owning 16 bit positions (bitwise operations never mix positions, so trials stay independent). 18-bit mask on digest bytes 2, 12, 21, 28. Same full-width exactness and support checks; any failure aborts the run. Updated budget: only the first 510 messages in this fixed layout order participate; the final two are skipped. Thus N_t = 510 and N_t^2/2^18 = (255/256)^2, matching the full attack ratio.",
+      "hypothesis": "For the fixed first 510 messages of this grouped layout, the masked success frequency is consistent, within sampling error, with the independent uniform 18-bit birthday model (approximately 0.3907), supporting but not proving H1 at full width.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000f80000000000000000001f0000000000000000f00000000000000f000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "k6r6-bs-single-group",
+      "kind": "python-message-pairs-v1",
+      "scope": "As k6r6-bs-full-width, but all original layout capacity 512 messages of a trial lie in one group (one bit position; z = gray(t), t = 0..511, Gray updates on z bits 0..8): the strongest within-group structure, a negligible share of pairs at full scale. 256 trials share one batch. 18-bit mask on the top bits of digest lanes 0-3. Same full-width exactness and support checks; any failure aborts the run. Updated budget: only the first 510 messages in this fixed layout order participate; the final two are skipped. Thus N_t = 510 and N_t^2/2^18 = (255/256)^2, matching the full attack ratio.",
+      "hypothesis": "For the fixed first 510 messages of this grouped layout, the masked success frequency is consistent, within sampling error, with the independent uniform 18-bit birthday model (approximately 0.3907), supporting but not proving H1 at full width.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "00000000000000f800000000000000f800000000000000f000000000000000f0",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "k6r6-bs-high-z",
+      "kind": "python-message-pairs-v1",
+      "scope": "As k6r6-bs-full-width, but each trial has 4 groups of 128 messages with z = gray(t) << 25, t = 0..127, so every Gray update uses a coefficient column of z bits 25..31 (for bit j >= 27 the support positions j+36 and j+37 wrap around the 64-bit lane); 64 trials share one batch. 18-bit mask on digest bytes 4, 13, 22, 25. Same full-width exactness and support checks; any failure aborts the run. Updated budget: only the first 510 messages in this fixed layout order participate; the final two are skipped. Thus N_t = 510 and N_t^2/2^18 = (255/256)^2, matching the full attack ratio.",
+      "hypothesis": "For the fixed first 510 messages of this grouped layout, the masked success frequency is consistent, within sampling error, with the independent uniform 18-bit birthday model (approximately 0.3907), supporting but not proving H1 at full width.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000001f00000000000000001f00000000000000000f00000f000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
