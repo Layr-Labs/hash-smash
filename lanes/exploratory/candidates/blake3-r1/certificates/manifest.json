@@ -1,4 +1,13 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "blake3-r1-swar-lemma5-pair",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/swar-a.bin",
+      "message_b": "certificates/swar-b.bin",
+      "expected_digest": "0000000033fbbe7300000000dd3cea93ad1e92c800000000f91286d500000000",
+      "target_profile": "blake3-r1-prefix-v1"
+    }
+  ]
 }
