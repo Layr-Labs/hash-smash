@@ -6,23 +6,42 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 127.524,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Messages are exactly 64 bytes (one root block, flags 11, length 64, counter 0).",
+    "Grouped birthday search: 2^96 groups with shared m0..m14; each group enumerates all 2^32 values of m15.",
+    "Digests computed by partial evaluation of the 2-round compression (shared group-invariant G work), not by charging one full compression unit per message.",
+    "Collision filter: Briggs-Torczon sparse set keyed by the top 140 digest bits; matches re-verified with two full reference compressions.",
+    "Unkeyed BLAKE3-256; 2 prefix rounds only.",
+    "Classical 256-bit word RAM with 64 registers. Claimed ledger uses register-resident group constants; a reload-all fallback bound of 127.583 is disclosed.",
+    "Success probability 0.39 under score-critical H1-grouped-digests; time/memory caps are worst-case and heuristic-free.",
+    "Analytical construction; no full-scale collision certificate.",
+    "Independent derivation of m15 amortization; public awaiting-review notes near 127.481 were research pointers only and were re-counted (honest inner body 260 Word ops).",
+    "Cancel+replace candidate vs awaiting-review 18ad754c (128.11 multi-trail VOW): ~0.59 bits lower with a different algorithm. Memory ~2^146 is reported only (unscored)."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-grouped-digests",
+      "statement": "For uniform independent group prefixes (m0..m14) and exhaustive m15 enumeration, the 2^128 digests behave like independent uniform 256-bit strings for the purpose of bounding (i) the probability of no full-digest collision among them and (ii) the probability that a colliding pair is missed because an earlier distinct digest occupied the same top-140-bit sparse-set slot, up to a negligible additive gap covered by the allowance between the model bound (>0.3933) and the claimed success probability 0.39.",
+      "role": "score-critical",
+      "scope": "Applies only to this grouped birthday search with N=2^128 messages, sparse-set index of 140 bits, and the stated partial-evaluation digest map. Does not assert differential weakness, rho statistics, or sub-birthday structure.",
+      "extrapolation": "Organizer-scaled experiments use truncated digest masks with N_t^2/2^w matched to N^2/2^256. Agreement of collision-detection frequencies with the random model at 20-bit masks is extrapolated across the remaining digest bits. Truncation cannot rule out global algebraic dependence induced by fixing 15 message words.",
+      "evidence_ids": [
+        "experiment:b3r2-grouped-spread",
+        "experiment:b3r2-single-group",
+        "proof:1-100",
+        "proof:101-217"
+      ],
+      "limitations": "H1 is not proved. Within-group messages share structure; only a 2^-96 fraction of pairs are within-group. Masked experiments cannot detect full-size anomalies. Memory footprint is huge. No full-scale run exists."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
