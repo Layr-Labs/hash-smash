@@ -1,4 +1,13 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "blake3-r1-column-diagonal-pair",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/message-a.bin",
+      "message_b": "certificates/message-b.bin",
+      "expected_digest": "0000000021fa412d00000000ef3de981afe12ffa00000000fb15a2c700000000",
+      "target_profile": "blake3-r1-prefix-v1"
+    }
+  ]
 }
