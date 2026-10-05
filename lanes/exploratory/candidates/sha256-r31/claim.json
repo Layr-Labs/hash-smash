@@ -6,22 +6,40 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 41.0,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 40,
+    "preprocessing_log2": 41.0,
+    "success_probability": 1,
+    "nonuniform_advice_log2_bytes": 9
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Two-block 128-byte messages with FIPS 180-4 padding; execute standard SHA-256 indices 0 through 30 with the fixed IV, full feed-forward, and the full 256-bit digest on every padded block.",
+    "The collision is the published 31-step SHA-256 pair; the certificate witnesses it and the construction that produced it is specified in proof.md.",
+    "The construction is charged once, as whole-algorithm preprocessing and time, under the declared historical premise H-CONSTRUCTION-TIME; replaying the stored pair is charged separately.",
+    "Only the published starting point and characteristic are used as nonuniform advice; nonuniform_advice_log2_bytes=9 is an upper bound (about 188 bytes).",
+    "This package claims no new attack; it charges the published construction and does not claim improvement over the nominal reference."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H-CONSTRUCTION-TIME",
+      "statement": "All work that constructs the collision (the differential-characteristic search, the starting-point generation, and the published collision-finding run) is below 2^41.0 target-compression units, charged once.",
+      "role": "score-critical",
+      "scope": "The selected 31-step SHA-256 target and the construction specified in section 3 of proof.md, charged a single time.",
+      "extrapolation": "The publication reports a time complexity of 2^40.5 and a practical run of 1.2 hours on 64 threads; the 2^41.0 bound multiplies the reported complexity by about 1.41 to cover unit translation and implementation overhead.",
+      "evidence_ids": ["proof:77-92"],
+      "limitations": "No v5 trace, attempt ledger, seed list, or whole-process memory trace exists; the bound is inferred from the published complexity and run, not measured."
+    },
+    {
+      "id": "H-TRAIL",
+      "statement": "The 31-step differential characteristic used by the attack exists and corrects the two messages by step 18.",
+      "role": "supporting",
+      "scope": "The second-block local collision over message words W5..W9, W16 and W18, exercised by the verified certificate.",
+      "extrapolation": "The authors' public search model and the verified certificate witness the characteristic; it is checked on the actual colliding pair.",
+      "evidence_ids": ["proof:41-58"],
+      "limitations": "The characteristic is taken from the publication and the authors' public model; it is not re-derived in this package."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
