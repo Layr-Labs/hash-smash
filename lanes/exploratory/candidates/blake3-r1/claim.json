@@ -6,23 +6,34 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 149,
+    "time_log2": 128.3,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 112,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent uniform 256-bit words, not seeded PRNG expansion.",
+    "Exactly 32-byte messages msg(x)=LE32(x), one chunk with one 64-byte block (zero-filled word loading, true length 32, counter 0, flags CHUNK_START|CHUNK_END|ROOT); complete unkeyed BLAKE3-256 with 1 prefix round and all 256 digest bits.",
+    "Single-processor van Oorschot-Wiener distinguished-point search with theta=2^-32, chain cap L=2^40, budget K0=65300*2^112 evaluations and record cap 2^98; one finite run, no restarts.",
+    "One finite run with at most 2^128.3 target-compression equivalents of total charged computation and at most 2^112 peak bytes; no nonuniform advice or precomputed collision.",
+    "Analytic resource and success bounds under score-critical heuristic H-RF; no full-scale execution, cryptanalytic weakness or nominal-reference improvement is claimed."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H-RF",
+      "statement": "Each evaluation of the 1-round BLAKE3 ordinary-collision map f at a fresh input returns a value uniform on {0,1}^256, independent of all previous coins and outputs.",
+      "role": "score-critical",
+      "scope": "Used only for the success-probability bound of the distinguished-point walk (first-contact and bad-event estimates). Correctness and all time, memory and preprocessing bounds hold for every run without this premise.",
+      "extrapolation": "From standard generic-search modeling to the fixed 1-round prefix target; no differential, independence-across-rounds or balance premise about BLAKE3 structure is assumed beyond generic random-function behavior for contact statistics.",
+      "evidence_ids": [
+        "proof:6",
+        "proof:7"
+      ],
+      "limitations": "H-RF is a modeling heuristic, not a proved property of the fixed function. Supporting discussion is analytic (birthday contact arithmetic plus standard DP literature); no organizer-executed scaled experiment is declared. The claimed margin above 0.39 is about 0.0012 before deducting bad events below 7e-10."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
