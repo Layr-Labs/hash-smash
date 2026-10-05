@@ -6,22 +6,69 @@
   "rounds": 32,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 67.487,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.8,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 39,
+    "preprocessing_log2": 36,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 16
   },
   "restrictions": [
-    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent random words, not seeded PRNG expansion.",
-    "Exactly q=2^129 sampled 64-byte messages; complete SHA-256 with fixed IV, prefix rounds 0 through 31 on both padded blocks, feed-forward and all 256 digest bits.",
-    "One finite run with at most 2^136 target-compression equivalents of total charged computation and 2^138 peak bytes; no restarts, nonuniform advice or precomputed collision.",
-    "data_log2 bounds bytes of complete padded hash inputs including final verification re-reads, as specified in proof.md.",
-    "Analytic resource and success bounds; no full-scale execution, cryptanalytic improvement or nominal-reference improvement is claimed."
+    "Classical probabilistic 256-bit word-RAM search against complete SHA-256 with the standard IV, FIPS 180-4 padding, feed-forward, rounds 0 through 31 on every padded block, and all 256 output bits.",
+    "The output pair is B0 || M1 and B0 || M1-prime, each 128 bytes before its common padding block. Accept only distinct byte strings whose complete target digests agree.",
+    "The 0.39 algorithmic success claim is conditional on the unresolved fixed-slice-c32-bridge-density premise q >= 2^-31, the unresolved fixed-slice-average-tail-yield premise pi >= 2^-34, and fresh independent first-block coins.",
+    "The time_log2 67.487 and preprocessing_log2 36 claims are conditional on the unresolved Step 1 search cost conversion and four-stage characteristic search ceiling. The finite table and tail setup is separately counted and charged within preprocessing.",
+    "The full memory_log2_bytes 39 peak is an unresolved premise. Online data structures are counted below 2^35 bytes; the historical 378 GB server figure is capacity, not a peak measurement or proof of the claimed ceiling.",
+    "The nonuniform advice ceiling is 2^16 bytes. An itemized inventory totals 936 bytes and is rounded to 1,024 bytes; the generated table and tail list are charged preprocessing data.",
+    "Participant-side finite scripts and raw JSON are supplied for audit and rerun. No organizer execution report, full-scale attack run, or complete standard-IV r32 collision is claimed."
   ],
   "baseline_improved": "sha256-r32-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "certificate_manifest": "certificates/manifest.json",
+  "heuristics": [
+    {
+      "id": "fixed-slice-c32-bridge-density",
+      "statement": "For a fresh uniform 64-byte first block B0, C32(IV,B0) passes the exact fixed-slice lookup and bridge filter with probability q at least 2^-31.",
+      "role": "score-critical",
+      "scope": "The 593,920-record Table 3 fixed-slice reconstruction, first-valid-record rule, and W4 through W6 filters in proof.md.",
+      "extrapolation": "The 2^22 seeded conditional uniform-CV stream produced 127 accepts. Its nominal iid one-sided 99.9% binomial lower diagnostic, multiplied by the exact 408,576/2^32 key fraction, is 2.15470219e-9, above 2^-31. The deterministic stream does not establish calibrated confidence; q transfers this uniform-state observation to actual standard-IV C32 outputs.",
+      "evidence_ids": ["proof:110-128", "proof:240-261"],
+      "limitations": "The sample uses abstract chaining values and no first-block preimages. The seed was inherited; its selection chronology and any other seed/slice trials are unknown. A structural bias in actual C32 outputs could lower q."
+    },
+    {
+      "id": "fixed-slice-average-tail-yield",
+      "statement": "Over the distribution of accepted bridges from fresh uniform first blocks, the average conditional probability that a complete fixed 196,608-tail sweep finds a C32 second-block equality is at least 2^-34.",
+      "role": "score-critical",
+      "scope": "The Table 3 fixed slice, exact prefix table, first-valid-record rule, full tail set, and complete C32 output comparison described in proof.md.",
+      "extrapolation": "The paper's 45 residual bit conditions and 2^17.585 W14/W15 choices yield the model exponent 27.415. This claim takes 6.585 bits of slack and uses pi >= 2^-34. The 16-bridge diagnostic checks exact code paths but does not estimate that rare full-sweep event.",
+      "evidence_ids": ["proof:138-149", "proof:263-289"],
+      "limitations": "The cited 35-step paper does not report this C32 fixed-slice average or a confidence interval. Dependencies among residual conditions or concentration outside this one fixed slice could make the actual average smaller."
+    },
+    {
+      "id": "starting-point-search-resource-bound",
+      "statement": "The Step 1 search for the fixed starting solution fits within 2^35 target-compression equivalents.",
+      "role": "score-critical",
+      "scope": "The single 35-step Table 3 starting solution used to define the finite table and tail set.",
+      "extrapolation": "Li et al. report approximately 2^34.3 generic work for Step 1. The dossier charges 2^35 target-compression equivalents, with the unit conversion and upper-bound interpretation left unresolved.",
+      "evidence_ids": ["proof:29-30", "proof:393-400"],
+      "limitations": "The source does not define its reported work in collision-frontier-v5 units. The 2^35 ceiling is a premise, not a measured or source-proved upper bound."
+    },
+    {
+      "id": "characteristic-search-resource-bound",
+      "statement": "The four-stage characteristic search fits within the residual of the 2^36 aggregate preprocessing ceiling after charging the Step 1 ceiling and finite setup.",
+      "role": "score-critical",
+      "scope": "The differential characteristic and fixed starting point used by the table and tail construction.",
+      "extrapolation": "The paper describes the four-stage SAT/SMT search and a resulting 35-step construction. The finite table and tail setup is separately bounded by 2^40 word operations; the remaining preprocessing allowance is about 3.3865e10 target-compression equivalents.",
+      "evidence_ids": ["proof:361-400"],
+      "limitations": "The paper supplies no numeric characteristic-search work bound. Its fit within the residual allowance remains unresolved and is not presented as measured."
+    },
+    {
+      "id": "peak-memory-capacity-bound",
+      "statement": "Peak storage for the fixed searches, finite table/tail construction, and online algorithm fits within 2^39 bytes.",
+      "role": "supporting",
+      "scope": "All preprocessing and online phases charged by the claim.",
+      "extrapolation": "The dense index, packed table, and tail array use 17,195,696,128 bytes before code, runtime, and scratch space. The source reports a 378 GB server capacity; the 2^39-byte claim is 549.756 decimal GB, about 1.454 times that capacity.",
+      "evidence_ids": ["proof:205-212", "proof:416-436"],
+      "limitations": "The source figure is server capacity, not peak use; it is smaller than the claimed ceiling. There is no complete online high-water measurement, and no peak trace or algorithmic bound covers either search."
+    }
+  ]
 }
