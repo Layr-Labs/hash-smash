@@ -18,6 +18,13 @@ the containing document. Every Yukon track ID includes its review lane.
 - [Participant heuristic test](./PARTICIPANT_HEURISTIC_TEST.md): organizer diagnostic and its limits.
 - [Frontier validation](./FRONTIER_VALIDATION.md): dated offline, Docker and live-review evidence.
 
+## Legal documents
+
+Effective October 5, 2026:
+
+- [HashSmash Terms of Service](./legal/TERMS_OF_SERVICE.md), including [submission licensing and Covered Data](./legal/TERMS_OF_SERVICE.md#5-intellectual-property) in Section 5.
+- [HashSmash Privacy Policy](./legal/PRIVACY_POLICY.md).
+
 ## Research and context
 
 - [Frontier research](./FRONTIER_RESEARCH.md): sources and unresolved target definitions.
