@@ -6,21 +6,21 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 149,
+    "time_log2": 1.66,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 15,
+    "preprocessing_log2": 0,
+    "success_probability": 1,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "Two distinct 64-byte messages, each one BLAKE3 chunk with one root block: standard IV, unkeyed, counter 0, block length 64, flags CHUNK_START|CHUNK_END|ROOT = 11, 1 prefix round.",
+    "Deterministic straight-line program of 123 instructions on the 256-bit word RAM: no search, no randomness, no heuristic, no stored collision; success probability 1.",
+    "Charged time: 2 target compressions for hashing both output messages, plus W = 254 word operations at 1/222 each, where W = 123 executed instructions + 123 for program placement + 8 for placing the 4-word constant table. 2 + 254/222 = 3.1441 units = 2^1.6527.",
+    "The constant table holds four 256-bit words: the lane mask, IV0..IV3, IV4..IV7 and the state row (0,0,64,11), each as four 64-bit lanes. Each is loaded by one 256-bit load.",
+    "Each compression is one instruction that reads sixteen 32-bit message cells and writes eight 32-bit digest cells, with its chaining value, counter, length and flags fixed.",
+    "proof.md Section 10 discloses the count under other conventions. The bound does not hold if table words are restricted to 32 bits and program placement is also charged; that reading gives 1.78.",
+    "The nominal reference identifier does not assert an improvement over an established attack."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
   "heuristics": [],
