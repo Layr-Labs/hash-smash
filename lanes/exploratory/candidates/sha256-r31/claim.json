@@ -6,22 +6,47 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 41.500001,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 40,
+    "preprocessing_log2": 41.5,
+    "success_probability": 1,
+    "nonuniform_advice_log2_bytes": 9
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "The output algorithm deterministically replays exactly the two 128-byte messages in proof.md after charging their one-time historical construction; it is not a submitted fresh-collision generator.",
+    "The target uses the standard SHA-256 IV, original round indices 0 through 30 on every padded block, standard feed-forward and FIPS padding, and the complete 256-bit output.",
+    "All differential and message construction, auxiliary solver work, unsuccessful branches and trials, randomness, table construction and lookup, fulfillment, serialization, and checking are included once in H-HISTORICAL-TIME; no amortization or parallel wall-time discount is used.",
+    "The factor-two translation from the published 2^40.5 complexity to the 2^41.5 v5 preprocessing bound is a score-critical exploratory premise, not a measured operation ledger.",
+    "The reported memory bound includes the historical construction and replay; the publication supplies a table cardinality and a qualitative memory statement, not a whole-process peak trace.",
+    "The collision certificate establishes only the exact witness relation. It does not establish historical time, peak memory, generator success probability, novelty, or rigorous qualification."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H-HISTORICAL-TIME",
+      "statement": "All one-time computation needed to construct the exact retained witness is less than 2^41.5 collision-frontier-v5 target-compression equivalents, including differential and message construction, auxiliary solver work, failed branches and trials, table administration, matching, fulfillment, serialization, and verification.",
+      "role": "score-critical",
+      "scope": "The historical construction of exactly the fixed ASIACRYPT 2024 31-step SHA-256 pair reproduced in proof.md, paid once before deterministic replay and without amortization or a parallel wall-time discount.",
+      "extrapolation": "The authors report time complexity 2^40.5 for the same two-phase 31-step construction and a 1.2-hour run with 64 threads. Writing the historical v5 work as P=c*2^40.5+D, the premise requires c+D/2^40.5<2. The factor-two envelope covers unit translation and work omitted from the headline; the six-call replay is then added separately.",
+      "evidence_ids": [
+        "proof:78-120",
+        "proof:122-211"
+      ],
+      "limitations": "The primary sources do not report c, D, a v5 instruction trace, a raw attempt ledger, or the aggregate cost of the additional experiments disclosed by the publisher. If c+D/2^40.5 reaches 2, preprocessing_log2 41.5 and time_log2 41.500001 fail, although the certified collision remains valid."
+    },
+    {
+      "id": "H-HISTORICAL-MEMORY",
+      "statement": "Peak simultaneously retained storage over all historical construction and replay phases is less than 2^40 bytes, including tables, indices, code, constants, messages, worker and allocator state, solver state, retained randomness, and advice.",
+      "role": "supporting",
+      "scope": "Every phase used to construct and replay exactly the fixed published pair, including the 64-thread practical run rather than only the final two-message replay.",
+      "extrapolation": "The authors report about 2^19.8 ten-word table entries and describe the practical attack's memory as negligible. The raw ten-word payload is about 2^25.121928 bytes; the submitted one-tebibyte ceiling leaves more than 2^14.8 multiplicative headroom for all other simultaneous storage.",
+      "evidence_ids": [
+        "proof:78-120",
+        "proof:213-239"
+      ],
+      "limitations": "The source reports entries rather than bytes and gives no allocator, solver, worker, or whole-process peak trace. If any included phase reaches 2^40 bytes, memory_log2_bytes 40 fails; memory does not contribute to the v5 scalar."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
