@@ -6,22 +6,78 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 47.57,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 32,
+    "preprocessing_log2": 45.01,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 8
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Two-block messages M0||M1 and M0||M1' of 128 bytes; complete SHA-256 with the standard IV, steps 0..30 on all three padded blocks, full feed-forward and all 256 digest bits. M1 and M1' differ in words 5..9.",
+    "Published attack, not new cryptanalysis: Li-Liu-Wang (EUROCRYPT 2024) single-starting-point two-block attack with the Li-Liu-Wang-Dong-Sun (ASIACRYPT 2024) matching. Characteristic, starting point and published pair are theirs. Package structure follows public submission 654cb3d (jagnani73), credited as co-author; all counts re-derived independently.",
+    "First blocks come in G = 238*2^24 groups of L = 2^16: each group draws W0..W15 from fresh uniform coins and trial j uses W15 = r15 + j, so every trial block is marginally exactly uniform (proof Lemma 4); groups are independent. Steps 0..14 and W16, W18, W20 are computed once per group; each trial is charged 1400 word operations at 1/2140 (steps 15..30, twelve schedule words, feed-forward, key test, loop, reload allowance), priced with the organizer C = 2140 convention (5-op rotation, add+mask).",
+    "Hard caps on every run: N = 238*2^40 trials, at most 2^38 key hits (1024 ops each), at most 2^20 Phase-3 calls (< 2^20 units each), no restarts. The time bound is a cap; only the success probability uses heuristics H1-H4.",
+    "Advice: one published starting point, 188 bytes; its construction is charged as T0 = 2^45 units under heuristic H3 (doubled versus 654cb3d).",
+    "Lemma 1 of 654cb3d (pairwise-disjoint acceptance sets) is false; an explicit overlap witness is given and a Bonferroni lower bound (relative deficit < 5.6e-7) is used instead.",
+    "Every output is re-hashed; acceptance tests are exact modular equations. The attack was not executed at full scale; certificates show the construction works, not its cost.",
+    "baseline_improved names the organizer nominal reference as required metadata; comparison with the Yukon incumbent is left to Yukon."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json",
+  "heuristics": [
+    {
+      "id": "H1-near-uniform-chaining-value",
+      "statement": "For one trial (marginally a uniform 512-bit first block M0) and CV = C(IV, M0): (a) the probability that the trial wins is at least half its value for uniform CV; (b) Pr[CV in P] <= 2^10 * 33 * 2^-50; (c) Pr[A_-1 is one of the 2336 table keys] <= 2 * 2336 * 2^-32.",
+      "role": "score-critical",
+      "scope": "Fixed target, advice and tables; the prefix-valid set P (59-bit condition on A_-1, A_-2, A_-3), its winning subset and the 32-bit key event. (a) gives the success bound; (b) and (c) bound the probability of reaching the caps.",
+      "extrapolation": "Our measurements on real 31-step chaining values, for both fresh uniform blocks and the grouped generation actually used, check the 32-bit key event and the 41-bit key+W6 event against uniform predictions; extrapolated to the full 59-bit condition and the c18 completion condition (probability about 2^-45 and 2^-47.8).",
+      "evidence_ids": [
+        "proof:348-394",
+        "proof:395-427",
+        "proof:171-198",
+        "proof:253-281"
+      ],
+      "limitations": "Own measurements, not organizer-executed. Nothing is measured about the last 18 bits (W5 test on A_-3) or about c18. Sensitivity: ratio rho instead of 1/2 in (a) gives success bound 1 - exp(-1.0334*rho) - 0.0085 (0.383 at rho = 0.48, 0.636 at rho = 1)."
+    },
+    {
+      "id": "H2-completion-rate",
+      "statement": "For a uniform chaining value conditioned on lying in P with c18 in S, the capped completion search of proof Section 7 finds (W13, W14, W15) with probability at least 0.99.",
+      "role": "score-critical",
+      "scope": "Phase 3 on the advice states after step 12 for the 64 values of W16 in G16 and uniform c16; |S| = 584683520 is an exact count, not part of the premise.",
+      "extrapolation": "From our simulation over 4*2^22 uniform (c16, c18) (2,282,381 with c18 in S, all completed and verified) and the organizer experiment on the published prefix, to all prefixes Phase 2 can produce.",
+      "evidence_ids": [
+        "experiment:completion",
+        "proof:348-394",
+        "proof:199-226"
+      ],
+      "limitations": "Simulation is our own run (an independent run in 654cb3d agrees). The organizer experiment uses one prefix with many offsets. Sensitivity: completion rate 0.9 gives success bound 0.366; 0.39 needs about 0.975."
+    },
+    {
+      "id": "H3-advice-construction-cost",
+      "statement": "The computations that produced the advice (the 31-step characteristic search of Li-Liu-Wang 2024 and all collision runs of Li-Liu-Wang-Dong-Sun 2024 leading to the published pair) cost at most 2^45 target-compression units.",
+      "role": "score-critical",
+      "scope": "One-time work behind the 188-byte advice, at 2^23 units per thread-second. The published 1.2 h on 64 threads is < 2^41.08 units; the remaining > 2^44.9 units (about 1,000 thread-hours) cover the unpublished characteristic search and the additional runs mentioned by the authors (a first run that succeeded in seconds and further experiments).",
+      "extrapolation": "The characteristic-search time is not published. A partial third-party re-run of the authors' public script reported in 654cb3d took 58,015 CPU-seconds for 24 STP calls (< 2^38.83 units); the allowance is about 64 times that.",
+      "evidence_ids": [
+        "proof:348-394",
+        "proof:282-347"
+      ],
+      "limitations": "Historical and partly third-party evidence; we did not re-run STP. Volume of the authors' additional collision runs is unstated. Sensitivity of the total: T0 = 2^46 gives 2^47.79, 2^47 gives 2^48.16, 2^48 gives 2^48.69."
+    },
+    {
+      "id": "H4-within-group-pairwise",
+      "statement": "For two distinct trials of one group (same W0..W14, W15 differing by a nonzero offset), the probability that both win is at most 2^20 * q_U^2, where q_U is the per-trial win probability for uniform CV.",
+      "role": "supporting",
+      "scope": "Only the Bonferroni correction eps = L * 2^20 * q_U < 2^-11.84 of proof Section 10; per-trial marginal probabilities follow exactly from Lemma 4 and do not use H4.",
+      "extrapolation": "The two chaining values differ through 16 full steps after the first differing word; the premise allows a 2^20-fold correlation excess over independence. Grouped H1 measurements show no excess of 32-bit and 41-bit events.",
+      "evidence_ids": [
+        "proof:253-281",
+        "proof:348-394",
+        "proof:395-427"
+      ],
+      "limitations": "Within-group co-occurrence of the 59-bit event cannot be sampled. Sensitivity: even 2^24 * q_U^2 lowers the success bound by less than 0.002."
+    }
+  ]
 }

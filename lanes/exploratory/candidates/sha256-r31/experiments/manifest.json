@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "completion",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha256-r31-prefix-v1. Phase 3 of proof.md Section 7 only (our implementation), run on the published first block and published second-block words W0..W12, with the search offsets r13 and r15 derived from each organizer seed via SHAKE-256. Phases 1 and 2 (table, first-block search) are not executed.",
+      "hypothesis": "For every organizer seed the capped completion search finds (W13, W14, W15), and the two returned 128-byte messages are distinct with equal complete 31-step SHA-256 digests. This exercises Phase 3 and its caps on one prefix; it is not a cost measurement and does not test the spread over prefixes (heuristic H2's simulation covers that).",
+      "program": "experiments/completion.py",
+      "event": {"kind": "full-collision"}
+    }
+  ]
+}
