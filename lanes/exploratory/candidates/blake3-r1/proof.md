@@ -1,332 +1,451 @@
-# A fixed-function collision baseline for 1-round BLAKE3
+# Deterministic collision for 1-round BLAKE3: uniform Lemma-5 columns in 2-wide SWAR plus y-flip (insurance schedule)
 
-The scalar below is `time_log2` under `collision-frontier-v5`. Memory remains
-a separately reported resource bound.
+The scalar below is `time_log2` under `collision-frontier-v5`. Memory is reported
+separately as a resource bound.
 
-This independent exploratory package targets blake3-r1-prefix-v1. It proposes
-a classical randomized algorithm with success at least 1/2, total charged time
-at most 2^149 units, and peak memory at most 2^137 bytes under
-collision-frontier-v5. These are conservative analytical upper bounds, not
-measured execution costs. The claimed scalar is 149.
+This exploratory package targets `blake3-r1-prefix-v1`. It gives a classical,
+deterministic algorithm. It succeeds with probability 1, its total charged time
+is at most `2^1.81` target-compression units, and its peak memory is at most
+`2^16` bytes. The construction uses only public IV constants and exact modular
+identities of the BLAKE3 `G` function. The heuristic list is empty.
 
-The proof uses no distributional property of the selected hash: every fixed function from
-the chosen message domain to 256-bit strings satisfies its probability bound.
-Fresh independent uniform coins are the explicit RAM model's random-word
-primitive. No PRNG, random-oracle, round-independence, or differential heuristic
-is assumed. Accordingly the heuristic list is empty.
+**Parallel-AR / insurance role.** Algebra and messages are bit-identical to the
+4-way SWAR package awaiting review as `94e5361` @1.77 (harshest `W = 310`).
+This package charges only a **2-lane** word-RAM schedule (harshest `W = 332`)
+so the resource claim survives if reviewers reject 4-wide packing but accept
+2-wide packing. It does **not** cancel or replace `94e5361`.
+
+## 0. Ledger at a glance (for reviewers)
+
+```
+T  = H + W / C,      H = 2 verification compressions,   C = 222 (blake3-r1)
+P  = LD + ALU + ST + V
+W  = 2·(LD + ALU + ST + V) + 2·LD
+V  = 37           (digest EQ 32 + distinctness 4 + HALT 1)
+LD = 9            (IV[0..7] and F; stress also LD = 11 with 11 and 64 loaded)
+```
+
+| Row | ALU | ST | LD | W | T | log2 T |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Primary 2-way program | 74 | 18 | 9 | 294 | 3.324 | 1.733 |
+| Harshest stress (ST 32, LD 11, sub1) | 75 | 32 | 11 | **332** | 3.495 | **1.806** |
+| Claim-1.81 ceiling `(2^1.81 − 2)·222` | | | | 334.43 | 3.506 | 1.81 |
+| Same algebra, 4-way (`94e5361`) | 64 | 32 | 11 | 310 | 3.396 | 1.764 |
+| Same algebra, serial | 87 | 32 | 11 | 356 | 3.604 | 1.849 |
+| Prior scalar y-LSB (`fdc25b2`) | 79 | 32 | 9 | 332 | 3.496 | 1.806 |
+
+We claim **1.81**, sized to lattice max `332 ≤ 334.43`. Claim **1.80** is not
+made (`330/332 > 329.05`). Claim **1.77** is not made on this schedule.
+
+**Construction summary.**
+1. *Algebra.* All four columns use Lemma 5 `(C*,D*)=(0,−b)` so `B=C=0`, `D=−b`.
+   Diagonals see `b=c=0`, `d∈{−IV7,−IV5}`; `M` uses `x=d−a`, `y=−d`; `M'`
+   replaces only `w9,w13` by `~d` (Lemma 6′). Feed-forward pairs cancel.
+2. *2-way schedule.* Pair `(G0,G1)` (`d=0`) and pair `(G2,G3)` (`d=(64,11)`)
+   each run as two 64-bit lanes (32-bit value + 32-bit guard) in one 256-bit
+   word; shared `M=F|(F<<64)`, `Gd=M<<32`; scalar diagonals with limb-mod
+   `x`-words. No native rotate, no chaining, no rotation-AND elision.
+
+Certificate `blake3-r1-swar-lemma5-pair` witnesses the Section 4 instance.
 
 ## 1. Exact complete hash
 
-Each message is exactly 64 bytes, of bit length 512 < 2^64. Two 256-bit words
-u,v encode m=LE32(u)||LE32(v), where LE32 includes all 32 little-endian bytes,
-including zeros. These encodings bijectively cover a domain D of size 2^512.
-There is no unknown IV, free-start state, or supplied prefix/advice.
+Each message is exactly 64 bytes: one chunk, one full block, no parent. There is
+one compression, with flags `CHUNK_START | CHUNK_END | ROOT = 11`, block length 64
+and counter 0. The hash is unkeyed BLAKE3-256 with 1 prefix round.
 
-H is unkeyed BLAKE3-256 with 1 prefix rounds in every compression.
-On these exactly 64-byte messages there is one chunk, one full block, no parent,
-and exactly one compression with CHUNK_START | CHUNK_END | ROOT = 11.
-There is no extra padding block, key, or derivation flag. The true block length
-is 64 and both the chunk index and root-output counter are zero.
+Decode `m` into sixteen little-endian 32-bit words `w[0..15]`. The IV is:
 
-Decode m into sixteen little-endian 32-bit words w[0..15]. The eight-word IV is
+```
+6a09e667 bb67ae85 3c6ef372 a54ff53a
+510e527f 9b05688c 1f83d9ab 5be0cd19.
+```
 
-    6a09e667 bb67ae85 3c6ef372 a54ff53a
-    510e527f 9b05688c 1f83d9ab 5be0cd19.
+`v[0..7]=IV`, `v[8..11]=IV[0..3]`, `v[12..15]=(0,0,64,11)`. Additions are mod
+`2^32`. `G(a,b,c,d,x,y)`:
 
-Initialize v[0..7]=IV, v[8..11]=IV[0..3], and
-v[12..15]=(0,0,64,11). All arithmetic additions below are modulo 2^32;
-ROR rotates right within a 32-bit lane. Define G(a,b,c,d,x,y) on v by
+```
+v[a] = v[a]+v[b]+x; v[d] = ROTR(v[d] XOR v[a],16)
+v[c] = v[c]+v[d];   v[b] = ROTR(v[b] XOR v[c],12)
+v[a] = v[a]+v[b]+y; v[d] = ROTR(v[d] XOR v[a],8)
+v[c] = v[c]+v[d];   v[b] = ROTR(v[b] XOR v[c],7).
+```
 
-    v[a] = v[a]+v[b]+x; v[d] = ROR(v[d] XOR v[a],16)
-    v[c] = v[c]+v[d];   v[b] = ROR(v[b] XOR v[c],12)
-    v[a] = v[a]+v[b]+y; v[d] = ROR(v[d] XOR v[a],8)
-    v[c] = v[c]+v[d];   v[b] = ROR(v[b] XOR v[c],7).
+Round 0 uses schedule `s = w`:
 
-For each round, use the current message schedule s, initially w, and call
+```
+G(0,4,8,12,s[0],s[1]);    G(1,5,9,13,s[2],s[3])     # columns G0..G3
+G(2,6,10,14,s[4],s[5]);   G(3,7,11,15,s[6],s[7])
+G(0,5,10,15,s[8],s[9]);   G(1,6,11,12,s[10],s[11])  # diagonals G4..G7
+G(2,7,8,13,s[12],s[13]);  G(3,4,9,14,s[14],s[15]).
+```
 
-    G(0,4,8,12,s[0],s[1]);    G(1,5,9,13,s[2],s[3])
-    G(2,6,10,14,s[4],s[5]);   G(3,7,11,15,s[6],s[7])
-    G(0,5,10,15,s[8],s[9]);   G(1,6,11,12,s[10],s[11])
-    G(2,7,8,13,s[12],s[13]);  G(3,4,9,14,s[14],s[15]).
+The digest is `o[i] = v[i] XOR v[i+8]`, `i = 0..7`. This matches
+`verifier/blake3.py:blake3(m,1)`.
 
-Between rounds replace s by s[P[i]], where
-P=(2,6,3,10,7,0,4,13,1,11,12,5,9,14,15,8).
-Execute exactly the first 1 rounds, with no later rounds. The full
-compression output is o[i]=v[i] XOR v[i+8], and
-o[i+8]=v[i+8] XOR IV[i], for i=0..7. The digest H(m) is
-LE4(o[0]) || ... || LE4(o[7]), the first 32 root-output bytes.
-This retains the ordinary hash's flags and feed-forward, rather than searching
-for a collision of a free-start or non-root compression function.
+## 2. Exact identities for one G call
 
-The target profile permits other message lengths and preserves the complete
-standard 1024-byte chunk tree, parent nodes, counters and root output, with the
-same prefix reduction in every compression. This algorithm only generates
-64-byte messages, so the one-root-compression description covers every hash
-it evaluates, including final verification. No uncharged parent, chunk or
-second root-output compression is needed on this domain.
+```
+a1 = a+b+x;  d1 = ROTR(d XOR a1,16);  c1 = c+d1;  b1 = ROTR(b XOR c1,12);
+A  = a1+b1+y; D = ROTR(d1 XOR A,8);   C  = c1+D;  B  = ROTR(b1 XOR C,7).
+```
 
-## 2. Algorithm and representation
+**Lemma 1 (choose `C`, `D`).** Fix any inputs and any targets `(C*,D*)`. Set
+`c1 = C*−D*`, `d1 = c1−c`, `a1 = d XOR ROTL(d1,16)`, `x = a1−a−b`,
+`b1 = ROTR(b XOR c1,12)`, `A = ROTL(D*,8) XOR d1`, `y = A−a1−b1`,
+`B = ROTR(b1 XOR C*,7)`. Then `G(a,b,c,d;x,y) = (A,B,C*,D*)`.
+*Proof.* Substitute each line into the next; every step inverts one line of `G`.
 
-Set n=2^129. A record is three 256-bit words (h,u,v), with h the little-endian
-integer encoding of H(LE32(u)||LE32(v)). Unsigned comparison of h is a total
-order whose equality is full digest equality. Use two flat arrays A and B,
-each of n records. Explicitly initialize all six words per index across the
-two arrays; allocation and initialization are charged.
+**Lemma 5 (`B = C = 0`; any `a,b,c,d`).** Lemma 1 with `(C*,D*) = (0,−b)` gives
+`c1 = b`, `b1 = ROTR(0,12) = 0`, `B = ROTR(0 XOR 0,7) = 0`. Explicitly:
 
-1. For i=0,...,n-1, draw fresh independent uniform 256-bit words u and v,
-   construct their 64-byte message, compute its complete H, and store
-   (h,u,v) in A[i]. Retain repeated inputs; there is no resampling.
-2. Sort by full h using stable, iterative bottom-up merge sort with A and B
-   as alternating source/destination arrays. For widths w=1,2,4,...,2^128,
-   merge successive pairs of sorted runs of length w. Choose the left run
-   on digest ties, copy all three words of every record, and exchange the
-   two array base pointers at the end of each pass. Exactly 129 passes
-   each write exactly n records.
-3. Scan all adjacent positions j-1,j in the sorted source array, from j=1
-   through n-1. Test h equality and inequality of the pair (u,v), testing
-   both message words. On the first qualifying pair, reconstruct both
-   messages and recompute both complete hashes from the all-zero state.
-   Check message distinctness and equality of all 256 recomputed output
-   bits. Return the two messages if verified; otherwise halt with failure.
-4. If the scan finishes without such a pair, halt with failure.
+```
+d1 = b − c,   a1 = d XOR ROTL(d1,16),   x = a1 − a − b,
+D  = −b,      A  = ROTL(D,8) XOR d1,    y = A − a1,
+G(a,b,c,d; x,y) = (A, 0, 0, −b).
+```
 
-There is one batch, no restart, and at most one final verification of two
-messages. Verification failure cannot occur in the exact RAM model because
-the original digests came from the same deterministic H. This explicit
-defensive check is still charged. Every outcome halts within the same budget.
+This is the unique `(x,y)` with `B = C = 0`. `B = 0` forces `b1 = C = 0`, hence
+`c1 = b` and `D = C − c1 = −b`.
 
-For a concrete merge, maintain w, run start b, source cursors i=b,j=b+w,
-ends b+w,b+2w, and destination cursor k=b. While k<b+2w, choose the nonempty
-run if the other is exhausted; otherwise load and compare both h words.
-Copy all three words of the selected record, advance its source cursor, and
-advance k. When the run is complete, advance b by 2w. When the pass ends,
-swap source/destination base pointers and double w. All boundaries are exact
-because n is a power of two. There is no recursive stack or library sort.
+**Lemma 6′ (y-flip to `~d` on a zero diagonal; any `d`).** Take `b = c = 0`,
+`x = d − a`, `y = −d`. Then `a1 = d`, `d1 = c1 = b1 = 0`, `A = 0`, `D = C = B = 0`,
+so `G = (0,0,0,0)`. Replace `y` by `y' = ~d = −d − 1` and keep `x`. The first half
+is unchanged, and `A' = d + ~d = 0xFFFFFFFF = F`. So `D' = ROTR(0 XOR F,8) = F`,
+`C' = 0 + F = F` and `B' = ROTR(0 XOR F,7) = F`. Hence `G = (F,F,F,F)`.
+(When `d` is odd, `~d = (−d) XOR 1`. That is the earlier y-LSB lemma. Lemma 6′
+removes the parity condition.)
 
-Record i starts at byte address base+96i, calculated as
-base+(i<<6)+(i<<5), without multiplication. Word offsets are 0,32,64.
-Indices, counters, sentinels, run boundaries and byte addresses are less than
-2^138, far below 2^256. The value n is made by 1<<129. Message contents occupy
-two words; no 512-bit single-word arithmetic is assumed. The proof's symbolic
-domain/codomain cardinalities need not be represented in the machine.
+All lemmas are identities on `(Z/2^32Z)^4`.
 
-## 3. Correctness of any returned collision
+## 3. Collision theorem
 
-The standard merge invariant says each output prefix contains the smallest
-remaining keys of its two sorted inputs. Copying entire records preserves
-each digest's associated message. Induction over the passes therefore sorts
-all original records without deleting any.
+**Theorem.** Choose `(w[2j], w[2j+1])` for each column `Gj` (`j = 0..3`) by
+Lemma 5. Each column's inputs are `(a,b,c,d) = (IVj, IV(j+4), IVj, v[12+j])`
+with `v[12..15] = (0,0,64,11)`. After the column step:
 
-Every fixed digest occupies a contiguous interval in the sorted array. If
-that interval contains distinct messages, some adjacent messages differ:
-otherwise equality of every adjacent pair would make the entire interval
-one repeated message by transitivity. Thus the scan finds a distinct-message
-collision whenever the sample contains one, including samples with repeated
-inputs. Repeated inputs alone are never accepted as collisions.
+```
+v4 = v5 = v6 = v7 = 0     (B outputs)      v8 = v9 = v10 = v11 = 0   (C outputs)
+v12..v15 = (−IV4, −IV5, −IV6, −IV7)        v0..v3 = column A outputs A0..A3
+```
 
-Every returned message is in the profile's allowed domain. The explicit final
-checks establish inequality of the messages and equality of the entire
-complete-message hash from Section 1. This is an ordinary collision, not a
-compression-only, free-start, raw-permutation, truncated-output, or
-different-round result.
+Set `w10 = w11 = w14 = w15 = 0`. Define
 
-## 4. Success for every fixed function
+```
+w8  = −IV7 − A0 ,   w9  = IV7          (G4: a = A0, b = v5 = 0, c = v10 = 0, d = v15 = −IV7)
+w12 = −IV5 − A2 ,   w13 = IV5          (G6: a = A2, b = v7 = 0, c = v8  = 0, d = v13 = −IV5)
+```
 
-The sole probability space consists of 2n independent uniform 256-bit words
-drawn in Step 1. Hence the messages M_1,...,M_n are independent uniform samples
-from D. For fixed deterministic H, the Y_i=H(M_i) are iid with probabilities
+Let `M` use these words. Let `M'` equal `M` except `w9' = ~(−IV7) = IV7 − 1` and
+`w13' = ~(−IV5) = IV5 − 1`. Then `M ≠ M'` and `blake3_r1(M) = blake3_r1(M')`.
 
-    p_y = |{m in D : H(m)=y}| / 2^512.
+*Proof.* Columns: Lemma 5 in each column gives the listed state for both `M` and
+`M'`, because the column words are shared. G4 has `x = d − a`, `y = −d`. By
+Lemma 6′ it outputs `(0,0,0,0)` into lanes `(0,5,10,15)` under `M` and
+`(F,F,F,F)` under `M'`. G6 is the same on lanes `(2,7,8,13)`. G5 reads
+`(1,6,11,12)` and G7 reads `(3,4,9,14)`. Neither set meets `{0,5,10,15,2,7,8,13}`.
+Their message words are shared. So G5 and G7 compute identical values under `M`
+and `M'` (the four diagonals touch disjoint lanes, so their order is
+irrelevant). The final states differ exactly on the eight G4/G6 lanes. The
+affected digest words are
 
-There are Q=2^256 possible output strings, including any with probability zero.
-These probabilities may be arbitrarily nonuniform. Independence here follows
-from applying a fixed function separately to independent inputs, not from
-assuming independent internal rounds or assuming a randomly chosen hash.
+```
+o0 = v0 XOR v8,  o2 = v2 XOR v10,  o5 = v5 XOR v13,  o7 = v7 XOR v15,
+```
 
-For any probability vector p of length Q, let e_n(p) denote the sum of products
-of n distinct coordinates. Independence gives
+and each pairs one G4 lane with one G6 lane. Each word is `0 XOR 0 = 0` under `M`
+and `F XOR F = 0` under `M'`. The other four digest words read only lanes that
+are equal under `M` and `M'`. Distinctness: `w9' = IV7 − 1 ≠ IV7`. ∎
 
-    Pr[all Y_i distinct] = n! e_n(p).
+No IV parity fact is needed. The only IV-specific identities in the program are
+the two small-constant forms of the flip used in Section 5, step 6:
+`IV7 − 1 = IV7 XOR 1` (`IV7` odd) and `IV5 − 1 = IV5 XOR 7` (`IV5 ≡ 0xc mod 16`).
+The stress lattice also has a row that computes both flips by masked subtraction.
 
-For completeness, uniform p maximizes e_n. A maximum exists by continuity on
-the compact simplex. Among maximizers choose one minimizing the sum of squared
-coordinates. If coordinates a,b differ, average them. With other coordinates
-r fixed,
+## 4. Concrete instance
 
-    e_n(p) = ab e_(n-2)(r) + (a+b)e_(n-1)(r) + e_n(r).
+```
+M  = 1eae00b1b20691aa8cc89a63c6ee026b3716478a85d0f8b848f4aed6e079c2d1
+     3145758d19cde05b00000000000000009be3c7c58c68059b0000000000000000
+M' = 1eae00b1b20691aa8cc89a63c6ee026b3716478a85d0f8b848f4aed6e079c2d1
+     3145758d18cde05b00000000000000009be3c7c58b68059b0000000000000000
+```
 
-All coefficients are nonnegative. Averaging cannot decrease e_n, so it remains
-maximal, while the sum of squared coordinates strictly decreases. This
-contradicts the choice. The maximizing vector is therefore uniform, and
+`M'` differs from `M` only in words 9 and 13: `IV7 → IV7−1` and `IV5 → IV5−1`.
+Both messages have the blake3-r1 digest
 
-    Pr[all Y_i distinct]
-      <= Q(Q-1)...(Q-n+1)/Q^n
-       = product_(j=0,...,n-1) (1-j/Q)
-      <= exp(-n(n-1)/(2Q))
-       = exp(-(2-2^-128))
-       < exp(-1).
+```
+0000000033fbbe7300000000dd3cea93ad1e92c800000000f91286d500000000
+```
 
-Here n<Q and 1-t<=exp(-t) on 0<=t<1, obtained by integrating the derivative
--1/(1-t)<=-1 of log(1-t). This also covers distributions with small support.
+so `o0 = o2 = o5 = o7 = 0`, as predicted. An independent scalar re-run of `G`
+confirms these values after the columns: `v4..v11 = 0`, `v13 = −IV5`,
+`v15 = −IV7`. It also confirms G4/G6 outputs `0` under `M` and `F` under `M'`.
+Certificate `blake3-r1-swar-lemma5-pair` stores these exact bytes.
 
-Let E be the event that some input messages repeat. The union bound gives
 
-    Pr[E] <= n(n-1)/(2|D|) < 2^258/(2*2^512) = 2^-255.
 
-No independence of the pair-events is required. If outputs collide and E
-does not occur, the algorithm succeeds. Thus
+## 5. Algorithm (charged 2-way program)
 
-    Pr[success] >= 1 - Pr[all Y_i distinct] - Pr[E]
-                > 1 - exp(-1) - 2^-255
-                > 1/2.
+Straight-line program on the 256-bit word RAM of `collision-frontier-v5`.
+Primitives used: word `ADD`/`SUB` (mod `2^256`), `AND`/`OR`/`XOR`, `SHL`/`SHR`.
+No rotate of any width. Every column `ADD`/`SUB` is lane-masked before further
+arithmetic. Narrow rotations expand to `SHL+SHR+OR+AND`.
 
-Indeed e=sum_(k>=0)1/k! > 8/3, so exp(-1)<3/8, and 2^-255<1/8.
-This intentionally conservative bound proves the declared 0.5 and exceeds
-the required 0.39. Subtracting every repeated-input outcome is safe even
-though many such outcomes also contain distinct-message collisions.
-The number concerns algorithmic success, not confidence in a proof or review.
+### 5.1 Lane layout (2-wide)
 
-## 5. Fully charged RAM implementation
+Each active vector holds **two** 64-bit lanes: bits `[0,32)` and `[64,96)` carry
+values; bits `[32,64)` and `[96,128)` are guard gaps. Mask
+`M = F | (F << 64)` and guard `Gd = M << 32`. Lane lemmas S1–S3 of the sibling
+4-way package apply verbatim with lane count 2 (borrow still lands in an
+all-ones gap; `vadd`/`vrotl` stay gap-clean after `AND M`).
 
-One 256-bit word is 32 bytes. Each selected compression costs one unit; every other listed RAM
-primitive costs 1/C units, where C=222. All bounds include
-message construction, failed samples, randomness, memory initialization,
-sorting, verification, and fixed code/constants. There is no external disk,
-unaccounted preprocessing service, whole-hash oracle, or free sorting step.
+**Limb-mod (diagonal `x`).** For any 256-bit words `a,b`,
+`(a − b) mod 2^32 = (a_lo − b_lo) mod 2^32`. Therefore
+`AND(SUB(nIV, A), F)` equals `AND(SUB(nIV, AND(A,F)), F)` when `nIV` is a clean
+32-bit value. The program uses the shorter form and keeps the output `AND F`.
+This is not rotation-AND elision and not chaining.
 
-Code and fixed storage are bounded explicitly. The algorithm above can use
-fewer than 100 loop-body statements outside the selected permutation, each
-expandable into fewer than 64 primitive instruction templates. A direct
-implementation of the displayed compression formulas needs fewer than 2,000
-additional templates, retaining a fixed loop over the selected rounds; operations on constant
-32-bit lane positions use shifts, masks and fixed addresses. The loops over
-records and merge widths remain loops. A ceiling of 2^16 instruction templates
-therefore exceeds the required code. Encode each template in at most four
-256-bit words (opcode and up to three operands), using separate primitive
-instructions for loads, stores and branches. Its size is at most 2^23 bytes.
+### 5.2 Program
 
-Reserve another 2^23 bytes for public target constants, working state,
-register spills, loop counters, address variables, the current message/records,
-verification scratch and final output. In particular the compression may keep
-16 state words, 16 message words, 16 permuted message words and 8 IV words
-in individual RAM words. Thus all fixed
-storage is at most 2^24 bytes, or 2^19 words. This bound includes the program;
-no precomputed collision, target advice, large lookup table or hidden runtime
-is present. The bound refers to the specified RAM program, not Python or a
-host library. All fixed storage is initialized and its cost is charged below.
+| phase | ops | ALU |
+| --- | --- | ---: |
+| setup | `M = F|(F<<64)`, `Gd = M<<32` | 3 |
+| pair1 `(G0,G1)` | pack Av,Bv (4); Lemma-5 body with `a1=vrotl(d1,16)` (22); unpack X,Y (4) | 30 |
+| pair2 `(G2,G3)` | pack Av,Bv,Dv (6); Lemma-5 body (23); unpack (4) | 33 |
+| diagonals | `nIV7=SHR(N2,64)`, `nIV5=SHR(N1,64)`, `w8=AND(SUB(nIV7,A1),F)`, `w12=AND(SUB(nIV5,A2),F)`, `w9p=XOR(w9,1)`, `w13p=XOR(w13,7)` | 8 |
+| **total (xor7)** | | **74** |
+| sub1 flip variant | `w13p = AND(SUB(w13,1),F)` instead of `XOR 7` | **75** |
 
-The following large caps allow redundant copying, instruction decoding,
-explicit operand loading/storing and address arithmetic. They do not depend
-on treating high-level sort/serialization as unit-cost operations.
+Lane order inside each pair is `(lo,hi) = (G0,G1)` and `(G2,G3)`. Message words
+are the same 16-word instance as Section 4 / the 4-way package.
 
-| Activity | Charged-unit upper bound |
-| --- | ---: |
-| Initialize code, constants and all fixed workspace | 2^24 |
-| Initialize both record arrays | 128n |
-| Generate, hash and retain n messages | 65536n |
-| Exactly 129 merge passes | 129 * 4096n |
-| Scan adjacent records | 2048n |
-| Final reconstruction, verification and output | 2^18 |
+### 5.3 Why `H = 2`, placement, and narrow EQ stay charged
 
-For fixed initialization, 2^19 words with at most 16 units per word costs
-at most 2^23, within the stated 2^24 cap. This loads the finite explicit code
-and public constants; it does not assume a target-dependent advice oracle.
-Array initialization uses six stores per index and fewer than 120 additional
-load/address/counter/control units, fitting the 128n cap.
+Both compressions, program placement (1 op/instruction), constant-table
+placement (2 ops/word), 8×32-bit digest EQ, and message-distinctness are
+charged exactly as in the sibling package. `V = 37`. No omit-verify.
 
-Here is an explicit wrapper construction justifying 65536 per generated
-record. Extract the 64 message bytes from u,v by shifts and masks, pack them
-into sixteen little-endian 32-bit words, initialize the eight IV words and
-sixteen compression-state words, and encode the eight digest words into the
-one 256-bit record key. Fewer than 256 constant-size loop iterations suffice;
-each expands into fewer than 64 word operations including loads, stores,
-address arithmetic and control. Two fresh random-word draws, sample-loop
-control and three record stores fit in a further 1024 word operations.
-Thus all non-compression work fits below 65536 operations. The one selected
-root compression per message is charged separately, including at verification.
-Its code and working buffers are included in the fixed reserve.
+### 5.4 Why 2-wide lane-parallel arithmetic is in-model
 
-For merges, each output record requires at most two exhaustion comparisons
-with branches, two key loads and a comparison/branch, three record loads and
-three stores, plus cursor/address updates and loop control. There are fewer
-than 64 such logical operations, each implementable with at most 16 charged
-primitive operations even allowing instruction/operand memory accesses and
-spills. This costs at most 1024 per record. Run setup is at most 64 such
-operations, or 1024 per run; every run emits at least two records. Pass setup
-is also at most 1024 per pass, which emits n>=2 records. Hence the per-output
-charge is at most 1024+512+512=2048, below the chosen 4096. This includes
-pointer swaps, run/pass endings and initialization of merge cursors.
-The scan uses fewer operations per pair than this merge loop and so fits
-2048n. Address calculation by stride 96 is expanded into shifts/adds as above.
+`cost-models/collision-frontier-v5.json` gives a 256-bit word RAM with word
+`ADD`/`SUB`/`AND`/`OR`/`XOR`/`NOT` and shift or rotation. Using two value
+lanes separated by guard gaps is ordinary word-RAM programming; every mask,
+pack, unpack, and guard is line-itemed above. We do **not** claim 4-wide
+amortisation in this package. Serial same algebra is `W = 356` (below).
 
-Final verification uses at most two complete hash wrappers, message
-distinctness, full digest comparisons and output serialization: less than
-2*65536+1024 <2^18. There is no restart cost because no restart occurs.
+### 5.5 Certificate = witness, not advice
 
-The table uses a conservative unit-price envelope: charge every word operation
-one unit for this upper-bound calculation although v5 charges only 1/C <= 1.
-This includes all memory traffic, control, code initialization and randomness.
-The wrapper budget includes a spare unit for each target compression. Thus
-summing all phases, including batches that fail to find a collision,
+Certificate `blake3-r1-swar-lemma5-pair` (`swar-a.bin` / `swar-b.bin`) is an
+organizer-checked collision witness for the Section 4 instance. It is not
+nonuniform advice and does not replace charged collision checking.
 
-    T <= (128 + 65536 + 129*4096 + 2048)n + 2^24 + 2^18
-       = 596096n + 2^24 + 2^18
-       < 1048576n
-       = 2^149.
+## 6. Cost
 
-This is a deterministic worst-case charged-time cap on the randomized algorithm,
-not merely a birthday exponent or a conditional cost given favorable trials.
-For reusable v5 accounting, the target-compression count is n+2 < 2^130;
-all non-compression primitive operations together are < 2^149 by the same
-expanded loops and table (excluding the separately counted compressions).
-These disjoint operation categories yield T <= 2^130 + 2^149/C < 2^149,
-since C >= 222. The submitted bound 149 is intentionally loose. The raw-count
-ledger can support subsequent repricing without inventing an operation mix.
+### 6.1 Primary program
 
-Each array uses n*3*32=96n bytes. With all fixed storage included,
+`ALU = 74`, `ST = 18`, `LD = 9`, `V = 37` ⇒ `P = 138` ⇒ `W = 2·138 + 18 = 294`
+(`T = 2 + 294/222 ≈ 3.324`, `log2 ≈ 1.733`).
 
-    peak bytes <= 192n + 2^24 < 256n = 2^137.
+### 6.2 Claim ceiling
 
-The arrays contain every retained message, digest and sampled random word.
-There is no extra index array, recursion, message database or pointer per record.
-The reserve includes all temporary randomness, state, code/advice/constants,
-verification state and final output. Both arrays and the reserve fit below
-byte address 2^138. This validates the one-word pointer/counter assumption.
-The memory figure is an abstract RAM allowance, not a claim of physical feasibility.
+`(2^1.81 − 2)·222 ≈ 334.43`. Need harshest `W ≤ 334.43`.
 
-The claim fields have these precise meanings:
+### 6.3 Full stress lattice
 
-- time_log2=149 bounds total charged time by 2^149 units.
-- memory_log2_bytes=137 bounds simultaneous storage by 2^137 bytes.
-- data_log2=130 bounds complete-hash evaluations by n+2 <=2^130, including
-  the two final re-evaluations. It counts evaluated message instances, not
-  bytes or distinct messages. Every repeated sample is counted; external
-  supplied data is zero and all retained data bytes are in peak memory.
-- preprocessing_log2=137 bounds fixed setup plus both-array initialization:
-  2^24+128n <2^137 units. It is already included in T, not an omitted phase.
-- nonuniform_advice_log2_bytes=0 means at most 2^0=1 byte of advice; actual
-  nonuniform advice is zero. The schema cannot express log2(0). Public
-  constants and code are fully charged in the fixed storage and initialization.
-- success_probability=0.5 is the lower bound proved in Section 4.
+Axes: `ST ∈ {18,32}`, `LD ∈ {9,11}`, flip ∈ {xor7, sub1}.
 
-## 6. Evidence and interpretation
+| ST | LD | flip | ALU | P | W | T | log2 T | ≤ 334.43? |
+| ---: | ---: | :---: | ---: | ---: | ---: | ---: | ---: | :---: |
+| 18 | 9 | xor7 | 74 | 138 | 294 | 3.324 | 1.733 | yes |
+| 18 | 11 | xor7 | 74 | 140 | 302 | 3.360 | 1.749 | yes |
+| 18 | 9 | sub1 | 75 | 139 | 296 | 3.333 | 1.737 | yes |
+| 18 | 11 | sub1 | 75 | 141 | 304 | 3.369 | 1.752 | yes |
+| 32 | 9 | xor7 | 74 | 152 | 322 | 3.450 | 1.787 | yes |
+| 32 | 11 | xor7 | 74 | 154 | 330 | 3.486 | 1.802 | yes |
+| 32 | 9 | sub1 | 75 | 153 | 324 | 3.459 | 1.791 | yes |
+| **32** | **11** | **sub1** | **75** | **155** | **332** | **3.495** | **1.806** | **yes** |
 
-This is a conservative generic baseline proposal, not a new cryptanalytic
-advance. The complete algorithm, target definition, probability proof and RAM
-ledger are the supporting evidence. No full-scale execution, observed collision
-pair, measured success rate, experimental independence or measured resource
-usage is asserted. No sampled experiment is needed for the universal finite
-probability argument. The certificate manifest is valid and empty; no
-experiment manifest or participant executable is supplied.
+Maximum `W = 332 ≤ 334.43` (margin ≈ 2.43). Claim **1.80** fails:
+ceiling ≈ 329.05, and LD-11 rows are 330 and 332.
 
-The required baseline_improved identifier blake3-r1-nominal-v2 names the
-organizer's nominal display reference 128. It is not an established attack,
-qualified baseline or security bound; the identifier's field name is not a
-claim of improvement. This candidate's scalar bound 149 exceeds 128. No
-Pareto dominance claim follows from scalar scoring.
+### 6.4 Comparison table (same algebra)
 
-submission_state=ready means this independent exploratory package is complete
-for review. It does not assert an actual qualifying review, an emitted score,
-human acceptance, or Yukon promotion. Its substantive obligations and evidence
-are intended to meet rigorous standards, while each lane still requires its own
-correctly bound package and selected-lane review outcome.
+| Schedule | Harshest ALU | LD | ST | W | Fits claim |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 4-way SWAR (`94e5361`) | 64 | 11 | 32 | 310 | 1.77 |
+| **2-way SWAR (this package)** | **75** | **11** | **32** | **332** | **1.81** |
+| Serial scalar Lemma-5 | 87 | 11 | 32 | 356 | ≈1.85 |
+| Scalar y-LSB (`fdc25b2`) | 79 | 9 | 32 | 332 | 1.83 (LD11 → 340) |
+
+### 6.5 Shaves deliberately not taken
+
+Packed-IV, packed-store, packed-EQ, native ROT, chaining, rotation-AND
+elision, omit-verify, ST=18-only shopping, and 4-wide amortisation are not
+used. Limb-mod on diagonal `x` is used and defended in §5.1.
+
+### 6.6 Why this is worth a parallel AR ticket
+
+1. Same collision witness as `94e5361`, so mechanical validity is unchanged.
+2. Resource claim depends only on **2-wide** packing — a strictly weaker
+   SWAR assumption than 4-wide.
+3. Beats promoted/awaiting scalar `fdc25b2` @1.83 under full locks including
+   `LD = 11` (`332 ≤ 334.43`, whereas y-LSB's `LD = 11` row is `340 > 334.43`).
+4. Does not cancel `94e5361`; if 4-wide is accepted, 1.77 remains the sharper
+   claim. If 4-wide is rejected but 2-wide is accepted, this ticket still
+   improves on 1.83.
+
+## 7. Evidence and interpretation
+
+- Lemmas 1, 5, 6′, S1–S3 and the Theorem are exact.
+- Certificate verified by organizer intake at rounds = 1.
+- Emulator Appendix A reproduces messages, digest, and every lattice row.
+- Heuristic list empty; success probability 1; preprocessing 0.
+
+## 8. Skeptic FAQ
+
+**Q. Is this just the 1.77 package with a worse score?**
+A. Same algebra/messages; different charged schedule. Claim 1.81 is the
+honest 2-wide bound. The 1.77 ticket separately claims 4-wide.
+
+**Q. Does limb-mod undercount masks?**
+A. Output `AND F` is charged. Pre-mask on `A` is redundant for
+`(a−b) mod 2^32` when `nIV` is a clean 32-bit word (§5.1). Emulator asserts
+equality against the pre-masked form.
+
+**Q. What if all SWAR is rejected?**
+A. Serial same algebra is `W = 356` (needs ~1.85). Scalar y-LSB @1.83 remains
+the best SWAR-free package already in AR (`fdc25b2`). This ticket is specifically
+2-wide insurance, not serial insurance.
+
+**Q. Why not claim 1.80?**
+A. Harshest `W = 332 > 329.05`. LD-11 xor7 is already `330 > 329.05`.
+
+## Appendix A. Ledger emulator (reviewer-run; not executed by intake)
+
+```python
+#!/usr/bin/env python3
+"""2-way SWAR insurance emulator for blake3-r1 (Lemma-5 / y-flip).
+
+Two 64-bit lanes (32-bit value + 32-bit guard gap) inside the 256-bit word RAM.
+Pair1 = (G0,G1) with d=0 (skip XOR into a1). Pair2 = (G2,G3) with d=(64,11).
+Diagonals use limb-mod SUB: (a-b) mod 2^32 depends only on low limbs, so the
+pre-mask AND F on a multi-lane minuend/subtrahend is omitted when the result
+is immediately AND-masked with F. No chaining, no rotation-AND elision, no
+native ROT. Same messages as the 4-way package.
+"""
+import math, struct, sys
+from pathlib import Path
+sys.path.insert(0, str(Path('.').resolve()))  # run from repository root
+from verifier.blake3 import blake3, IV
+
+W256 = (1 << 256) - 1
+F = 0xFFFFFFFF
+COUNT = {}
+_phase = ['']
+TRACE = []
+
+def _op(name, r):
+    COUNT[_phase[0]] = COUNT.get(_phase[0], 0) + 1
+    TRACE.append((_phase[0], name))
+    return r
+
+def ADD(a, b): return _op('ADD', (a + b) & W256)
+def SUB(a, b): return _op('SUB', (a - b) & W256)
+def AND(a, b): return _op('AND', a & b)
+def OR(a, b):  return _op('OR', a | b)
+def XOR(a, b): return _op('XOR', a ^ b)
+def SHL(a, k): return _op('SHL', (a << k) & W256)
+def SHR(a, k): return _op('SHR', a >> k)
+
+def program(flip='xor7'):
+    COUNT.clear(); TRACE.clear()
+    _phase[0] = 'setup'
+    M = OR(F, SHL(F, 64))                              # 2  two-lane mask
+    Gd = SHL(M, 32)                                     # 1  gap guards
+    pack2 = lambda lo, hi: OR(lo, SHL(hi, 64))          # 2
+    vsub = lambda x, y: AND(SUB(OR(x, Gd), y), M)       # 3
+    vadd = lambda x, y: AND(ADD(x, y), M)               # 2
+    vrotl = lambda x, k: AND(OR(SHL(x, k), SHR(x, 32 - k)), M)  # 4
+    lanes2 = lambda V: (AND(V, F), SHR(V, 64))          # 2 (top clean)
+
+    # pair1: (G0,G1), d=0 — skip XOR into a1
+    _phase[0] = 'pair1'
+    Av = pack2(IV[0], IV[1])                            # 2
+    Bv = pack2(IV[4], IV[5])                            # 2
+    d1 = vsub(Bv, Av)                                   # 3
+    a1 = vrotl(d1, 16)                                  # 4  (Dv=0)
+    S = vadd(Av, Bv)                                    # 2
+    X = vsub(a1, S)                                     # 3
+    N1 = AND(SUB(Gd, Bv), M)                            # 2  (-IV4,-IV5)
+    A1 = XOR(vrotl(N1, 8), d1)                          # 5
+    Y = vsub(A1, a1)                                    # 3
+    w0, w2 = lanes2(X)                                  # 2
+    w1, w3 = lanes2(Y)                                  # 2
+
+    # pair2: (G2,G3), d=(64,11)
+    _phase[0] = 'pair2'
+    Av = pack2(IV[2], IV[3])                            # 2
+    Bv = pack2(IV[6], IV[7])                            # 2
+    Dv = pack2(64, 11)                                  # 2
+    d1 = vsub(Bv, Av)                                   # 3
+    a1 = XOR(Dv, vrotl(d1, 16))                         # 5
+    S = vadd(Av, Bv)                                    # 2
+    X = vsub(a1, S)                                     # 3
+    N2 = AND(SUB(Gd, Bv), M)                            # 2  (-IV6,-IV7)
+    A2 = XOR(vrotl(N2, 8), d1)                          # 5
+    Y = vsub(A2, a1)                                    # 3
+    w4, w6 = lanes2(X)                                  # 2
+    w5, w7 = lanes2(Y)                                  # 2
+
+    _phase[0] = 'diagonals'
+    # Limb-mod: (a-b) mod 2^32 = (a_lo-b_lo) mod 2^32, so no pre-AND on A1/A2.
+    nIV7 = SHR(N2, 64)                                  # 1  top clean = -IV7
+    nIV5 = SHR(N1, 64)                                  # 1  = -IV5
+    w8 = AND(SUB(nIV7, A1), F)                          # 2  = -IV7 - A0
+    w12 = AND(SUB(nIV5, A2), F)                         # 2  = -IV5 - A2
+    assert w8 == ((nIV7 - (A1 & F)) & F)
+    assert w12 == ((nIV5 - (A2 & F)) & F)
+    w9, w13 = IV[7], IV[5]
+    w9p = XOR(w9, 1)                                    # 1
+    if flip == 'xor7':
+        w13p = XOR(w13, 7)                              # 1
+    else:
+        w13p = AND(SUB(w13, 1), F)                      # 2
+
+    words = [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, 0, 0, w12, w13, 0, 0]
+    words = [w & F for w in words]
+    assert all(0 <= w <= F for w in words)
+    m = struct.pack('<16I', *words)
+    words[9], words[13] = w9p & F, w13p & F
+    mp = struct.pack('<16I', *words)
+    return m, mp, dict(COUNT)
+
+def lattice_table():
+    C, V = 222, 37
+    print('ceilings:', {k: round((2**k - 2) * C, 2) for k in (1.77, 1.80, 1.81, 1.82, 1.83)})
+    rows = []
+    for flip in ('xor7', 'sub1'):
+        m, mp, cnt = program(flip)
+        alu = sum(cnt.values())
+        ok = m != mp and blake3(m, 1) == blake3(mp, 1)
+        print(f'\nflip={flip}: ALU={alu} {cnt} collision={ok}')
+        print(f'  digest={blake3(m,1).hex()}')
+        for ST in (18, 32):
+            for LD in (9, 11):
+                P = LD + alu + ST + V
+                Wt = 2 * P + 2 * LD
+                T = 2 + Wt / C
+                rows.append((flip, ST, LD, alu, Wt, T))
+                print(f'  ST={ST:2d} LD={LD:2d}  P={P}  W={Wt}  T={T:.4f}  log2T={math.log2(T):.4f}'
+                      f'  <=1.81:{Wt <= (2**1.81-2)*C}  <=1.80:{Wt <= (2**1.80-2)*C}')
+    return rows
+
+if __name__ == '__main__':
+    lattice_table()
+    m, mp, _ = program('xor7')
+    print('\nM  =', m.hex())
+    print("M' =", mp.hex())
+    print('differing words:', [i for i in range(16) if m[4*i:4*i+4] != mp[4*i:4*i+4]])
+
+```
