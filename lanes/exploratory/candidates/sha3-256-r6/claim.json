@@ -6,19 +6,20 @@
   "rounds": 6,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.4,
+    "time_log2": 131.39,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 130,
-    "preprocessing_log2": 142,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 137,
+    "preprocessing_log2": 25,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical 256-bit word RAM with fresh independent uniform random-word primitive.",
-    "One batch of 2^129 independent uniform 64-byte messages; no restarts or nonuniform advice.",
-    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06, prefix rounds 0 through 5, all 256 output bits.",
-    "Generic analytic upper bound; infeasible resource use, no improvement over the nominal reference claimed."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent random words, not seeded expansion.",
+    "Exactly q=2^128 iid 64-byte messages encoded little-endian from two random words; complete SHA3-256 sponge with all-zero state, rate 1088, capacity 512, suffix 0x06 and all 256 output bits.",
+    "One selected Keccak-f[1600] permutation executing prefix rounds 0 through 5 per complete message hash; no extra absorption or squeeze permutation on this domain.",
+    "Four stable 64-bit radix passes with R=2^64 buckets; all histogram initialization and prefix scans explicitly charged.",
+    "One finite run; total computation below 2^131.39 selected-permutation equivalents, peak memory below 2^137 bytes, success probability above 0.39.",
+    "Analytic construction only: no full-scale execution, computed collision, nominal-reference improvement, or superiority over all pending submissions is claimed."
   ],
   "baseline_improved": "sha3-256-r6-nominal-v2",
   "heuristics": [],
