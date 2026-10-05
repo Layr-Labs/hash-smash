@@ -6,21 +6,18 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 128.03,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 135,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Uniformly random 64-byte messages (two independent 256-bit words each); every evaluation is one target compression.",
+    "q = 2^127.9917 evaluations give collision probability >= 0.39 for any function (Schur-concavity of the birthday probability), so no randomness heuristic is used.",
+    "Charged per evaluation: 1 compression + 9 word operations (2 random words, 1 mask, 1 load, 1 compare, 1 branch, 3 stores) at 1/C, C = 430.",
+    "Memory 2^134.6 bytes for the table of (digest, message) pairs; reported, not scored."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
   "heuristics": [],
