@@ -6,20 +6,19 @@
   "rounds": 32,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 131.16,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.8,
+    "memory_log2_bytes": 137,
+    "preprocessing_log2": 25,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent random words, not seeded PRNG expansion.",
-    "Exactly q=2^129 sampled 64-byte messages; complete SHA-256 with fixed IV, prefix rounds 0 through 31 on both padded blocks, feed-forward and all 256 digest bits.",
-    "One finite run with at most 2^136 target-compression equivalents of total charged computation and 2^138 peak bytes; no restarts, nonuniform advice or precomputed collision.",
-    "data_log2 bounds bytes of complete padded hash inputs including final verification re-reads, as specified in proof.md.",
-    "Analytic resource and success bounds; no full-scale execution, cryptanalytic improvement or nominal-reference improvement is claimed."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent random words, not seeded expansion.",
+    "Exactly q=2^128 iid 64-byte messages; standard fixed IV, padding, rounds 0 through 31 on both blocks, feed-forward and full 256-bit digests.",
+    "Four stable 64-bit radix passes with R=2^64 buckets; all histogram initialization and prefix scans explicitly charged.",
+    "One finite run; total charged computation below 2^131.16 target-compression equivalents, peak memory below 2^137 bytes, success probability above 0.39.",
+    "Analytic construction only: no full-scale execution, computed collision, nominal-reference improvement, or superiority over all pending submissions is claimed."
   ],
   "baseline_improved": "sha256-r32-nominal-v2",
   "heuristics": [],
