@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "sha256r32-v2-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact sha256-r32-prefix-v1 on 55-byte single-block messages. Per organizer seed, a scaled run of the proof.md Section 2 algorithm: 32 groups (52-byte prefixes W0..W12 from SHAKE-256 of the seed) x 32 values y = 0..31 in W13 = (y<<8)|0x80, so N_t = 2^10 messages. Every message is evaluated only by the per-message program of proof.md Section 3 (setup of steps 0..12 shared per group; the body stops at the key A28, A29, E28, E29 and D' = A30 - E30 - 1). Scaled key = the 16 event-mask bits on H2, H3, H6, H7 plus bit 0 of D' (the mask has bit 0 on both H1 and H5). The table keeps the latest message per scaled key, as in proof.md Section 4. A key match is verified with two plain full 32-step compressions against the whole 20-bit mask (one further bit each on H0 and H4). For y = 0 of every group and on every key match the program reruns the body with an operation-counting 256-bit word type and compares it bit for bit with a plain full compression; it reports body_ops_min/max (expected 532), setup_ops_max, evaluator_checks and evaluator_mismatches (expected 0) as observations.",
+      "hypothesis": "H1 at small scale: the success frequency of the scaled program on the real target agrees, within sampling error, with its exact value when every digest is an independent uniform value, 0.3926 (proof.md Section 8; plain 20-bit birthday value 0.3933). N_t^2 / 2^20 = 1 = N^2 / 2^256, the same collision regime as the full attack. Each success is a pair of distinct messages whose digests agree on the 20 mask bits.",
+      "program": "experiments/grouped_r32.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0040000000000001801004081002020200010000000000014040202004008084",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "sha256r32-v2-single-group",
+      "kind": "python-message-pairs-v1",
+      "scope": "Same program and target in the most structured layout: all N_t = 2^10 messages of a trial lie in ONE group (one 52-byte prefix per seed, y = 0..1023), so every pair differs only in W13. A different 20-bit mask: 14 bits on H2, H3, H6, H7, bits 0 and 1 on both H1 and H5 (so the scaled key carries the low 2 bits of D', 16 key bits in all), and one bit each on H0 and H4.",
+      "hypothesis": "Within-group digests show no excess or deficit of masked agreements: the success frequency agrees, within sampling error, with the exact random-model value of this scaled program, 0.3918 (16-bit key, 4 further mask bits; proof.md Section 8).",
+      "program": "experiments/grouped_r32.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000800000003200400410100101000080000000000030801010202004800",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
