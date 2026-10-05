@@ -6,21 +6,21 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 149,
+    "time_log2": 3,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 16,
+    "preprocessing_log2": 0,
+    "success_probability": 1,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "Messages are exactly 64 bytes: one unkeyed BLAKE3 chunk/block with flags CHUNK_START|CHUNK_END|ROOT=11, length 64, counter 0, standard IV.",
+    "Deterministic closed-form complement construction from public IV constants; no search, no random coins, no stored precomputed collision as advice.",
+    "Charged work includes straight-line message construction on a 16-register 256-bit word RAM, two verification compressions, digest equality and message-distinctness checks under collision-frontier-v5 with C=222.",
+    "Construction skips evaluating diagonal G5/G7 (their message words are the literal 0); verification still hashes complete messages.",
+    "Certificate blake3-r1-complement-pair is an organizer-verifiable witness of the same construction instance; it is not nonuniform advice.",
+    "Claim is specific to 1 prefix round; the complement cancellation used here does not transfer to 2+ rounds without a new argument.",
+    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 3."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
   "heuristics": [],
