@@ -6,23 +6,59 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 60,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
+    "memory_log2_bytes": 30,
+    "preprocessing_log2": 59,
     "success_probability": 0.5,
-    "nonuniform_advice_log2_bytes": 0
+    "nonuniform_advice_log2_bytes": 24
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Messages are exactly 135 bytes; each pads to m || 0x86 in a single 136-byte rate block under the SHA3 0x06 suffix and pad10*1.",
+    "Uses the complete fixed-zero-state SHA3-256 sponge with prefix Keccak-f[1600] rounds 0 through 4 on every permutation call.",
+    "Algorithm: R = 2^13 randomized two-round connector executions for the published trail core No. 3 of Guo et al. (ePrint 2019/147) with fixed-bit parameter p = 8, each producing an affine message space; every message m is hashed as H(m) and H(m XOR delta); first verified distinct-message pair is returned.",
+    "All connector work, retries, randomness, hashing, scanning and final verification are charged; there is no restart beyond the fixed R schedule.",
+    "Analytical construction adapting published results; no full-scale execution, no submitted executable, no certificate; the published 1084-bit witness is cited as permutation-level evidence only and is not in the byte-string domain.",
+    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 60 under collision-frontier-v5 with declared heuristics h1-h4."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "h1-df-byte-aligned-connector",
+      "statement": "A two-round connector for GLL+19 trail core No. 3 with byte-aligned padding (p = 8 fixed tail bits instead of the published p = 4) returns an affine message space of dimension DF >= 25 on the exact profile.",
+      "role": "score-critical",
+      "scope": "Prefix rounds 0-1 of Keccak-f[1600], rate 1088 / capacity 512, 135-byte messages; the DF floor enters the success accounting in proof Section 4.",
+      "extrapolation": "Measured DF = 37 at p = 4 (paper Table 6). Byte alignment adds four linear constraints on message bits, entering the paper's degree-of-freedom bookkeeping additively (their formula (11) and TDF threshold), giving an expected DF near 33; the floor 25 is eight bits below that expectation. The authors note their TDF threshold is pessimistic.",
+      "evidence_ids": ["proof:3"],
+      "limitations": "The paper does not analyze byte-aligned inputs; if DF falls below ~24 the success floor is not met (the algorithm remains correctly charged and simply fails)."
+    },
+    {
+      "id": "h2-trail-probability-byte-aligned",
+      "statement": "Each tested pair (m, m XOR delta) follows trail core No. 3 over prefix rounds 2-4 to a zero difference on the 256 digest bits with probability at least 2^-36.70.",
+      "role": "score-critical",
+      "scope": "Prefix rounds 2,3,4 of the exact profile; per-pair event over the connector-produced pair distribution.",
+      "extrapolation": "The trail acts on state differences, which do not depend on message-bit encoding, so byte alignment does not perturb it. The reported 2^-36.70 figure already aggregates multiple trails of the last two rounds. The published Table 17 pair was verified to traverse this exact permutation under verifier/keccak.py rounds 0-4, confirming round convention and encoding.",
+      "evidence_ids": ["proof:2", "proof:4", "proof:6"],
+      "limitations": "It is a reported differential probability, not a proof of the induced pair distribution; conditional dependence between the connector output distribution and the trail is assumed benign, as in the paper's own accounting."
+    },
+    {
+      "id": "h3-connector-rerun-independence",
+      "statement": "Pair-collision events across the R = 2^13 randomized connector executions and within each affine space count as independent Bernoulli trials for the purpose of summing expected colliding pairs.",
+      "role": "score-critical",
+      "scope": "Randomized connector retry protocol of the paper applied 2^13 times with fresh coins; Poisson/Poisson-trial counting of Section 4.",
+      "extrapolation": "The same sufficiency convention (DF > w) underlies the published attack; each rerun samples a fresh randomized beta1/linear-system instance.",
+      "evidence_ids": ["proof:4"],
+      "limitations": "Systematic correlation between subspaces would shrink the effective pair count; the declared floor absorbs up to ~2^6 adverse correlation before the 0.39 gate fails."
+    },
+    {
+      "id": "h4-corehour-cost-envelope",
+      "statement": "Each connector execution costs at most 2^46 charged units, i.e. the published 428.8 CPU core-hours convert to at most ~2^56.4 ordinary 256-bit word-ops (a ~2^35.8 ops/s/core envelope) plus all retry and bookkeeping overhead.",
+      "role": "supporting",
+      "scope": "The connector stage only; brute force is charged separately at 2^49 units.",
+      "extrapolation": "Published single-core timing converted with a deliberately inflated instruction rate; the claimed total 2^60 has ~2 bits of headroom over the summed terms.",
+      "evidence_ids": ["proof:5"],
+      "limitations": "It is a stated envelope rather than an instruction trace; a reconstruction several times looser still leaves the total below 2^62."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
