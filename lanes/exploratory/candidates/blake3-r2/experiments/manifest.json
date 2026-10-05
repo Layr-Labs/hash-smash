@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "b3r2-grouped-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "Matched-scale grouped birthday: 32 groups x 32 m15 (N_t=2^10) on exact 2-round root compression via m15 partial evaluation. 20-bit digest-xor-mask on o0/o1/o2 low bits with N_t^2/2^w=1, matching full-scale N^2/2^256=1. Digests only from partial evaluator; organizer re-verifies. Parameters fixed before production runs.",
+      "hypothesis": "Under H1-grouped-digests, masked collision detection frequency is near the random-model coverage 1-exp(-1/2)\u22480.393 at this matched scale, supporting that multi-group structured prefixes do not grossly suppress masked collisions for the truncated 2-round map.",
+      "program": "experiments/grouped_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ff000000ff0000000f0000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "b3r2-single-group",
+      "kind": "python-message-pairs-v1",
+      "scope": "Structured stress: one group, m15=0..1023 (N_t=2^10), 20-bit mask on o3/o4/o5. Same partial evaluator. Within-group pairs only \u2014 the most dependent layout. N_t^2/2^w=1 matched scaling still holds formally for the mask event.",
+      "hypothesis": "Even the single-group layout yields masked-collision detections; any material depression relative to 0.393 is disclosed as a limitation of H1 for highly structured sets (within-group pairs are a 2^-96 fraction of full-scale pairs).",
+      "program": "experiments/grouped_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000000000000000ff000000ff0000000f0000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "b3r2-grouped-spread-16",
+      "kind": "python-message-pairs-v1",
+      "scope": "Smaller matched scale: 16 groups x 16 m15 (N_t=2^8), 16-bit mask, N_t^2/2^w=1. Same algorithm/evaluator. Cross-scale consistency check for EXP-EXT.",
+      "hypothesis": "Masked coverage frequency remains near 1-exp(-1/2) at this smaller matched scale under H1.",
+      "program": "experiments/grouped_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ff000000ff000000000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "b3r2-grouped-spread-24",
+      "kind": "python-message-pairs-v1",
+      "scope": "Larger matched scale: 64 groups x 64 m15 (N_t=2^12), 24-bit mask, N_t^2/2^w=1. Same algorithm/evaluator. Cross-scale consistency check for EXP-EXT.",
+      "hypothesis": "Masked coverage frequency remains near 1-exp(-1/2) at this larger matched scale under H1.",
+      "program": "experiments/grouped_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ff000000ff000000ff0000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "b3r2-swar-meter",
+      "kind": "python-message-pairs-v1",
+      "scope": "Word-metered SWAR evaluator (4 lanes x 64-bit slots per 256-bit word) on 32 groups x 32 m15 (N_t=2^10), same 20-bit o0/o1/o2 mask as b3r2-grouped-spread. Every message: counts body Word ops (256-bit rotation charged 3), checks digest bit-equality vs an inlined 2-round root compress identical to verifier/blake3.py, and checks K_full equals the declared bit-permutation of that digest. Host recomputes digests for returned pairs; observation counts are untrusted labels.",
+      "hypothesis": "Under H-COST-SWAR-EVAL the SWAR body costs exactly 103 Word ops per message with bit-exact digests and K_full, and masked birthday detections remain near 1-exp(-1/2) at matched scale.",
+      "program": "experiments/swar_meter.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ff000000ff0000000f0000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
