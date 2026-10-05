@@ -6,21 +6,18 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 149,
+    "time_log2": 4,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 16,
+    "preprocessing_log2": 3,
+    "success_probability": 1,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "Two deterministic 64-byte complete unkeyed BLAKE3 messages; fixed IV, counter zero, true length 64, root flags 11, round zero and all 256 output bits.",
+    "Generate message operands by the stated G inversion and complementary-output identities; no stored collision or search.",
+    "Charge finite constructor, code/constant initialization, scratch traffic, serialization and two complete verification compressions.",
+    "Exact analytic construction, no heuristic or experiment; no claim about two or more rounds."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
   "heuristics": [],
