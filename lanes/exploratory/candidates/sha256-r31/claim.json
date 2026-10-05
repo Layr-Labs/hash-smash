@@ -6,20 +6,20 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 129.953,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
+    "memory_log2_bytes": 136,
     "preprocessing_log2": 20,
-    "success_probability": 0.6,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Use only 55-byte messages, the standard fixed IV, indices 0 through 30 on the single padded block, full feed-forward, and the full 256-bit digest.",
+    "Draw two fresh independent uniform 256-bit RAM words per message; keep all bits of the first and the high 184 bits of the second. Generate exactly 2^128 messages with replacement.",
+    "Use two stable 128-bit counting-sort passes over three-word records, with all 2^128 counters cleared on each pass. Charge both record arrays and the counter array.",
+    "Require distinct messages and verify a returned pair by complete re-hashing. No restarts or sampling-dependent resource discounts are used.",
+    "Preprocessing is included in total time. nonuniform_advice_log2_bytes=0 bounds one byte; actual nonuniform advice is zero.",
+    "This is a distribution-free analytic construction, not a computed collision, empirical attack, claimed improvement over the nominal reference, or claim to beat pending practical-attack submissions."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
   "heuristics": [],
