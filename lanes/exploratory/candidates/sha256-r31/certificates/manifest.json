@@ -1,4 +1,13 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "sha256-r31-organizer-witness",
+      "type": "hash-collision-witness-v2",
+      "target_profile": "sha256-r31-prefix-v1",
+      "message_a": "certificates/a.bin",
+      "message_b": "certificates/b.bin",
+      "expected_digest": "55fdfb37efcbd086e19c3de0f72596300a3acdf48da5b1d0450a592bb2869fcd"
+    }
+  ]
 }

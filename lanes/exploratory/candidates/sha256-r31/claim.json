@@ -6,22 +6,41 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 66.0,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 42,
+    "data_log2": 16,
+    "preprocessing_log2": 64,
+    "success_probability": 0.5,
+    "nonuniform_advice_log2_bytes": 16
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Ordinary complete-message collision of sha256-r31-prefix-v1: standard FIPS 180-4 IV, standard padding, feed-forward after every block, original steps 0 through 30, all 256 output bits.",
+    "Scored procedure is the two-block semi-free-start-to-collision conversion of Mendel, Nad, and Schlaffer, EUROCRYPT 2013, whose published collision complexity is at most 2^65.5 thirty-one-step compressions.",
+    "The claimed 2^66 bound adds the published search, a 2^64 characteristic-regeneration allowance, and non-compression word-operation overhead. It is an upper bound, not a claim that no faster attack exists.",
+    "The certificate is a checked witness that this organizer target admits an ordinary 31-step collision. Replaying the witness is not the scored algorithm and is not charged as the search.",
+    "No quantum model, free-start substitution, shortened output, or uncharged precomputation is used."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H-EUROCRYPT2013-BOUND",
+      "statement": "The EUROCRYPT 2013 two-block attack finds an ordinary 31-step SHA-256 collision in at most 2^65.5 compressions of the reduced compression function.",
+      "role": "score-critical",
+      "scope": "Applies to the first 31 steps, standard IV, and the two-block conversion from a semi-free-start collision to an ordinary collision. It does not by itself price later practical attacks.",
+      "extrapolation": "The published at-most-2^65.5 figure is used as a ceiling on the collision-search phase, not as a measured local runtime.",
+      "evidence_ids": ["proof:69-81"],
+      "limitations": "The figure is taken from the authors' stated bound. This package does not re-derive every differential condition. A faster published attack would only lower the true cost; it cannot make this ceiling false."
+    },
+    {
+      "id": "H-OVERHEAD-ALLOWANCE",
+      "statement": "Adding a 2^64 regeneration allowance and ordinary word-operation overhead to 2^65.5 stays strictly below 2^66 target-compression units.",
+      "role": "score-critical",
+      "scope": "collision-frontier-v5 accounting for one selected-target compression per reduced compression call, with other word operations at 1/2140 unit.",
+      "extrapolation": "The 2^64 term is a declared allowance for characteristic regeneration, not a measured search.",
+      "evidence_ids": ["proof:82-123"],
+      "limitations": "If a reviewer rejects the allowance as too small, the same arithmetic with a 2^65 allowance is still below 2^66.5, but that larger number is not the submitted scalar."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
