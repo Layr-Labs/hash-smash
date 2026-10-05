@@ -1,4 +1,37 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "published-pair",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/published-pair-a.bin",
+      "message_b": "certificates/published-pair-b.bin",
+      "expected_digest": "55fdfb37efcbd086e19c3de0f72596300a3acdf48da5b1d0450a592bb2869fcd",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "fresh-completion-1",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/fresh-completion-1-a.bin",
+      "message_b": "certificates/fresh-completion-1-b.bin",
+      "expected_digest": "d293cd1a02ac826866539210b616e98b5f93c54cba145d2e794856b4bc04c9a3",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "fresh-completion-2",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/fresh-completion-2-a.bin",
+      "message_b": "certificates/fresh-completion-2-b.bin",
+      "expected_digest": "3b9b70b0455e2c6003faa9df67b9e5acf47fb44b1458e725411254baba860969",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "fresh-completion-3",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/fresh-completion-3-a.bin",
+      "message_b": "certificates/fresh-completion-3-b.bin",
+      "expected_digest": "6baba6665362ec3fa1e30ecc864e28f9644bc82bd0d71f0a8567a0d7e96f5e3e",
+      "target_profile": "sha256-r31-prefix-v1"
+    }
+  ]
 }
