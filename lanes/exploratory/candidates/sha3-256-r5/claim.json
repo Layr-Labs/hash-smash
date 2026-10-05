@@ -6,23 +6,35 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 128.018,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 112,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5: the permutation state is held in 25 registers, one five-round PERM5 call on them costs 1 unit, and every other primitive costs 1/1355 units, with jumps, moves, immediate register writes and the call issue each charged as one operation.",
+    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06 with pad10*1, prefix rounds 0 through 4, all 256 output bits; 32-byte single-block messages msg(x) = LE32(x).",
+    "Generic van Oorschot-Wiener distinguished-point collision search on one processor: theta = 2^-32 via the predicate R0 < 2^32 (bits 32..63 of the digest are 0), maximum chain length 2^40, evaluation budget K0 = 65162*2^112, record cap 2^98, main loop unrolled 16 times with a 2-operation DP test after every evaluation, one run with no restart.",
+    "Time, memory and preprocessing are worst-case bounds for every run (time at most 2^128.01728, rounded up to 128.018). The success probability of at least 0.39 (exactly bounded below by 0.3900080 under H-RF) holds under the declared random-function heuristic H-RF.",
+    "Generic attack with no cryptanalytic improvement claimed; no stored collision, advice or precomputation. Published sub-birthday differential attacks on this target are not used. Tightens the public 128.019 DP ticket by shaving one ordinary operation from the per-evaluation DP test."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H-RF",
+      "statement": "Random-function model for the step map f(x) = SHA3-256-r5(LE32(x)) on 256-bit words x: whenever the algorithm evaluates f at a point it has not evaluated before, the output is uniform on {0,1}^256 and independent of the algorithm's coins and of every value observed so far. This is the standard premise of the van Oorschot-Wiener analysis. It is used only to lower-bound the success probability (Section 6). Output correctness (Section 5) and all time, memory and preprocessing bounds (Sections 4, 7 and 8) are unconditional.",
+      "role": "score-critical",
+      "scope": "The fixed five-round prefix SHA3-256 restricted to 32-byte messages, iterated along pseudo-random chains from uniformly random 256-bit starts. The analysis uses only the chains started before the first contact (expected number below 2^96; at most 2^98 + 2^88 + 1 chains in any run) and at most K0 - 1 + 2^40 < 2^128 main-loop evaluations.",
+      "extrapolation": "We ran the Section 4 algorithm (with n-bit starts, a hash map in place of the trie and no record cap) on output-truncated versions of the real five-round map (n = 24, 32, 40 and 48 bits) and compared it with a keyed 24-round control. These tests are extrapolated to the full 256-bit map. The analytic success bound itself uses only the H-RF statement, not the measured numbers.",
+      "evidence_ids": [
+        "proof:267-275",
+        "proof:445-510",
+        "proof:527-625"
+      ],
+      "limitations": "H-RF is false as a literal statement about a fixed deterministic function; it is a heuristic model, and five-round Keccak-f[1600] has known structured-input distinguishers and differential collision attacks, none of which a pseudo-random walk exercises. The supporting experiments are our own and are not organizer-executed (no experiment manifest is declared); their full source and exact arguments are in the proof. They cover only output widths of 24-48 bits on n-bit input subsets and cannot exclude a structural property that appears only at full width. The success bound exceeds 0.39 by only 8.0e-6; if H-RF overstated the contact probability by a small delta, restoring 0.39 would add about 2.4*delta bits to the scalar."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
