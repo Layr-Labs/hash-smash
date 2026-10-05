@@ -1,4 +1,37 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "w0-zero",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/w0-zero-a.bin",
+      "message_b": "certificates/w0-zero-b.bin",
+      "expected_digest": "33f72d1264d9445bbe9c3b8f5ca2283f497c0ecb128bb4d9020d61c6baa07d44",
+      "target_profile": "blake3-r1-prefix-v1"
+    },
+    {
+      "id": "w1-index",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/w1-index-a.bin",
+      "message_b": "certificates/w1-index-b.bin",
+      "expected_digest": "332b2ac9fc46cf59be9c3b0ed2ec8007302b71fc290334189da5b9188728fa0a",
+      "target_profile": "blake3-r1-prefix-v1"
+    },
+    {
+      "id": "w2-ones",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/w2-ones-a.bin",
+      "message_b": "certificates/w2-ones-b.bin",
+      "expected_digest": "32f82ea0f1de2f20b59b3c41eaab0e8dd7951b1f275f7458e6eb99eabecc3dc5",
+      "target_profile": "blake3-r1-prefix-v1"
+    },
+    {
+      "id": "w3-iv-pi",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/w3-iv-pi-a.bin",
+      "message_b": "certificates/w3-iv-pi-b.bin",
+      "expected_digest": "d38973ceaf89ab7a0c837f36eec8848f725a95e8e329a053ade05827bab31c28",
+      "target_profile": "blake3-r1-prefix-v1"
+    }
+  ]
 }
