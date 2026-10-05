@@ -6,22 +6,59 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 52,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
+    "memory_log2_bytes": 57,
+    "preprocessing_log2": 49,
     "success_probability": 0.6,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Two-block messages M0||M1 and M0||M1' of 128 bytes each, standard IV, standard padding (shared third block), rounds 0..30 in every compression, full feed-forward and full 256-bit digest.",
+    "Algorithm is the published Li-Liu-Wang EUROCRYPT 2024 (ePrint 2024/349, Sect. 4.2) 31-step SHA-256 collision attack with one starting point (l = 48); the cryptanalysis is attributed, not original.",
+    "Phase 2 runs exactly N = 2^50.3 independent uniform first blocks and processes at most 64 table matches; every returned pair is re-verified on the complete padded target.",
+    "time_log2 charges the starting-point search (budget 2^40), exhaustive (W7,W8) enumeration, 2^48 table entries, all 2^50.3 trials with a 2048-word-operation surcharge each, Phase-3 budgets and verification at v5 prices (C = 2140).",
+    "success_probability 0.6 is a heuristic lower bound resting on declared heuristics H-table, H-match and H-step3; the paper's estimate is about 0.865 for this N.",
+    "The certificate is the published ASIACRYPT 2024 practical pair, included only as exact-target witness evidence; the algorithm never reads it and it is not nonuniform advice."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H-table",
+      "statement": "A single starting point yields about 2^48 valid solutions of (A_i)_{-3..12}, (E_i)_{1..12}, (W_i)_{5..12}: 2^14 admissible W5, 2^23 admissible W6, and about 2^11 (W7,W8) pairs satisfying the (E_3,E_4) conditions.",
+      "role": "score-critical",
+      "scope": "The EUROCRYPT 2024 31-step characteristic with message differences in W5..W9, W16, W18, for one SAT-generated starting point.",
+      "extrapolation": "The 2^11 count is the paper's experimental enumeration for one starting point and is assumed representative for the starting point found in Phase 0.",
+      "evidence_ids": ["proof:122-132", "proof:53-108", "proof:272-280"],
+      "limitations": "Not proved; a smaller table of 2^(48-d) entries leaves the time bound unchanged but lowers success; the declared 0.6 holds for d <= 1.1."
+    },
+    {
+      "id": "H-match",
+      "statement": "For independent uniform first blocks, the 96-bit word triple (A_-1, A_-2, A_-3) of the 31-round chaining value hits the fixed 2^48-entry key set with probability about 2^-48 per trial, independently across trials.",
+      "role": "score-critical",
+      "scope": "Single 31-round SHA-256 compression from the standard IV, restricted to three output words, against a fixed key set built independently of the trials.",
+      "extrapolation": "Standard random-function behaviour of one compression on independent inputs; no full-scale run of 2^50.3 trials has been performed by this submission.",
+      "evidence_ids": ["proof:134-141", "proof:160-178", "proof:282-287"],
+      "limitations": "Unproved random-function heuristic; the certificate shows a standard-IV match is reachable but is a single instance."
+    },
+    {
+      "id": "H-step3",
+      "statement": "After a match, the free words W13, W14, W15 satisfy the remaining conditions on E_13, E_14, E_15, W16 and W18 with probability about 2^-1.3, each attempt costing well below 2^36 target-compression units.",
+      "role": "score-critical",
+      "scope": "Phase 3 of the EUROCRYPT 2024 attack on 31-step SHA-256.",
+      "extrapolation": "gamma ~ 1.3 was measured by the authors with 100 tests; the success bound tolerates gamma up to about 2.42.",
+      "evidence_ids": ["proof:143-150", "proof:180-184", "proof:225-230", "proof:289-294"],
+      "limitations": "Small published sample; per-attempt cost is a generous budget, not a measured value."
+    },
+    {
+      "id": "H-start",
+      "statement": "One starting point satisfying all differential conditions on rounds 5..12 can be found with the SAT/SMT model within 2^40 target-compression units.",
+      "role": "supporting",
+      "scope": "Phase 0 only.",
+      "extrapolation": "The paper reports about 2^31.7 for this step; the budget adds a large margin.",
+      "evidence_ids": ["proof:117-120", "proof:296-299"],
+      "limitations": "SAT solver running time is empirical; even a much larger value up to about 2^50 would not change the declared scalar."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
