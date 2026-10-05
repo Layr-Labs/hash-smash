@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "b3r2-grouped-swar-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact blake3-r2-prefix-v1 complete 256-bit hash of 64-byte single-block messages (flags 11, block_len 64, counter 0), computed only by the submitted grouped partial-evaluation + 8-way SWAR evaluator (group setup runs round 1 up to the m15-entry point; the inner body — round-1 tail, full round 2, eight-word feed-forward — is 8-way SWAR packed over eight consecutive m15 values with per-field carry-isolated addition, masked 32-bit rotation and field-wise XOR; lane j's digest unpacked from o0..o7 = v[i]^v[i+8]). Per organizer seed: 32 groups x 32 consecutive m15 (N_t = 1024 = 2^10), 20-bit digest-XOR mask spread over all eight output words. All 1024 samples evaluated and all 256 trials returned, including failures.",
+      "hypothesis": "(1) Every returned pair is a genuine masked match of the trusted blake3-r2 digest, so the grouped SWAR evaluator computes the exact 256-bit digest. (2) The success frequency of this scaled analogue (N_t^2/2^w = 1 = N^2/2^256) is consistent with the independent-uniform value 1 - prod_{i<1024}(1 - i/2^20) = 0.39327 that heuristic H1 assumes for the grouped digests at full width. Finite frequencies are supporting evidence, not a certified population probability.",
+      "program": "experiments/grouped_swar.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000042400400080000200000000008042000000020008001502861080000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "b3r2-grouped-swar-single",
+      "kind": "python-message-pairs-v1",
+      "scope": "Same evaluator and target; per organizer seed one group with 1024 consecutive m15 (the most structured case), under a different 20-bit mask concentrated in the low 64 digest bits (output words o6,o7). All 256 trials returned, including failures.",
+      "hypothesis": "Within-group digests, where only m15 varies by small consecutive values, show no masked-collision excess or deficit relative to the independent-uniform value 0.39327; the grouped structure does not change the birthday behaviour heuristic H1 assumes.",
+      "program": "experiments/grouped_swar.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000000000000000000000000000000000000000c140083c060c4b8c",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}

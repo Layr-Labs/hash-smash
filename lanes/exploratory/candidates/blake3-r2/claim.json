@@ -6,23 +6,39 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 125.98,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 167,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Messages are exactly 64 bytes, so each complete hash is one BLAKE3 root block (CHUNK_START|CHUNK_END|ROOT = flags 11, block_len 64, counter 0) and one two-round compression with the standard IV and feed-forward; the 256-bit digest is the first eight output words o0..o7 = v[i] XOR v[i+8], i=0..7.",
+    "N = 2^128 messages in 2^96 groups of 2^32 that share fresh uniform words m0..m14 and enumerate m15 = 0..2^32-1; one pass, repeats retained, no restart. m15 enters the compression only in the second half of round 1's last G call G(3,4,9,14,m14,m15) and in round 2's last G call, so round 1 up to that point is a group constant computed once per group (group setup, scalar, amortised over 2^32; charged <= 2^20 per group).",
+    "The m15-dependent inner body (round-1 tail, full round 2, and the eight-word feed-forward) is evaluated by the submitted 8-way SWAR packed evaluator: eight consecutive m15 values are packed into 256-bit words as eight disjoint 32-bit lanes; per-field carry-isolated addition padd (6 ops/8 lanes) z = ((X & notH) + (Y & notH)) XOR ((X XOR Y) & H); masked 32-bit rotation pror (5 ops/8 lanes); field-wise XOR (1 op/8 lanes). The inner body costs 512 ops per eight-message batch = 64 per message, verified bit-for-bit against verifier/blake3.py:blake3 on 24000 messages with 0 mismatches. No native 32-bit rotate or wider-than-256-bit operation; NOT is not used (BLAKE3 G uses only +, XOR, ror).",
+    "Collision detection uses an uninitialised never-displaced Briggs-Torczon sparse-set table indexed by a 160-bit key (output words o0..o4) at address 2^160 | K; structure and validity test adopted from the prior-art packages jaazinn 0a5b7ae8 (time_log2 127.481) and winglock 3022205 (127.252), both in review on this track. Every load, compare, branch and store charged at 1/C with C = 430 (collision-frontier-v5). Each message is charged 106 word operations = 99 counted (64 inner body + 2 generation + 18 key extraction + 12 table + 3 loop) plus 7 spare; at most 2^110 confirmations, each re-verified with two whole reference compressions.",
+    "Classical 256-bit word RAM with independent uniform random group prefixes; memory reported only. Score-critical heuristic H1 (grouped digests behave like independent uniform values for the collision events): F1 (no full-digest collision), F2' (a colliding pair whose first member's 160-bit slot is held by an earlier different-digest message), and Fcap (> 2^110 confirmations). Identical-group-prefix (F3) is bounded exactly < 2^-289. Success 0.39 keeps a 0.0033 allowance below the model value 0.3934.",
+    "Generic constant-factor improvement (grouped partial-evaluation of the m15-invariant work, 8-way SWAR packing of the 32-bit BLAKE3 word, and an uninitialised sparse-set table), not a differential or algebraic weakness of BLAKE3; the nominal reference identifier is metadata, not a claimed improvement over a qualified baseline.",
+    "proof.md Section 9 gives bounds under stricter readings: 125.879 at the exact 99 counted with no spare; 125.98 claimed at 106; 126.30 with every constant reloaded from memory before use (inner body ~85/msg). Every reading stays below the 126.67 (our prior independent-message package) and 127.252 (frontier) scores."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-grouped-packed-digests",
+      "statement": "For the N = 2^128 messages (2^96 groups with fresh uniform prefix m0..m14 and enumerated m15), the grouped two-round BLAKE3 digests behave like independent uniform 256-bit values for three events of proof.md Sections 6-8, within an allowance of 0.0033: F1 (no full-digest collision), with Pr[F1] < exp(-(1-2^-128)/2) < 0.606531; F2' (a colliding pair whose first member finds its 160-bit slot held by an earlier message with the same 160-bit key and a different digest), with Pr[F2'] < 2^-32; and Fcap (more than 2^110 key-colliding confirmations), with Pr[Fcap] <= 2^-15 by Markov on <= 2^95 expected key-colliding pairs. Identical-group-prefix event F3 is bounded exactly (< 2^-289) and is not part of this heuristic.",
+      "role": "score-critical",
+      "scope": "Exactly the submitted grouped single-block message family (2^96 groups x 2^32 enumerated m15), 8-way SWAR packed inner body, 160-bit sparse-set key, and never-displaced Briggs-Torczon table step.",
+      "extrapolation": "From scaled analogues (20-bit masked birthday events with N_t = 2^10 messages hashed through the same grouped SWAR evaluator, organizer seeds, 32 groups x 32 and 1 group x 1024 layouts, spread and concentrated masks), in which N_t^2/2^w = N^2/2^256 = 1, to the full 256-bit event with N = 2^128 and group size 2^32.",
+      "evidence_ids": [
+        "experiment:b3r2-grouped-swar-spread",
+        "experiment:b3r2-grouped-swar-single",
+        "proof:6",
+        "proof:8"
+      ],
+      "limitations": "Masked 20-bit projections are tested, not the full 256-bit event. Organizer seeds are public. Finite frequencies support but do not prove the population bound. Same-m15 cross-group pairs provably collide with probability >= 2^-256; other pairs rely on H1. A distribution-free fallback (independent-message 8-way SWAR, our prior package, time_log2 126.67) removes H1 from F1 at a higher score; a radix-sort variant removes H1 entirely at time_log2 ~ 127.74."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
