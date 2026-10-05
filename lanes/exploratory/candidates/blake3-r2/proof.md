@@ -4,19 +4,19 @@ The scalar below is `time_log2` under `collision-frontier-v5`. Memory remains
 a separately reported resource bound.
 
 This independent exploratory package targets blake3-r2-prefix-v1. It proposes
-a classical randomized algorithm with success at least 1/2, total charged time
-at most 2^140 units, and peak memory at most 2^137 bytes under
+a classical randomized algorithm with success at least 0.39, total charged time
+at most 2^138.44 units, and peak memory at most 2^136 bytes under
 collision-frontier-v5. These are conservative analytical upper bounds, not
-measured execution costs. The claimed scalar is 140.
+measured execution costs. The claimed scalar is 138.44.
 
-The algorithm, domain, probability argument and RAM loop envelopes are those of
-the organizer generic-birthday package. The only material change is to price
-that same envelope under the published v5 weights: one selected 2-round BLAKE3
-compression costs 1, and every other listed 256-bit RAM primitive costs 1/C
-with C=430 for blake3-r2. Charging those word operations at 1 instead of 1/C
-produced the looser scalar 149; that envelope is retained as an operation
-count, then converted. The nominal display exponent 128 is not used as a
-qualified baseline.
+This package starts from the organizer generic-birthday baseline at commit
+86f1102ff2d6873db29d992599412ae9eb23bda2. It halves the batch from
+2^129 to 2^128 samples, reduces merge passes from 129 to 128, and proves the
+required 0.39 success bound without a random-oracle or target-specific premise.
+The published C=430 operation pricing is retained. Fractional bounds are allowed;
+138.44 is a conservative upward rounding, not a measured execution result.
+The promoted starting bound was 140. Newer unpromoted heuristic submissions
+have lower bounds than this package; this is not a leaderboard-leading claim.
 
 The proof uses no distributional property of the selected hash: every fixed function from
 the chosen message domain to 256-bit strings satisfies its probability bound.
@@ -76,7 +76,7 @@ second root-output compression is needed on this domain.
 
 ## 2. Algorithm and representation
 
-Set n=2^129. A record is three 256-bit words (h,u,v), with h the little-endian
+Set n=2^128. A record is three 256-bit words (h,u,v), with h the little-endian
 integer encoding of H(LE32(u)||LE32(v)). Unsigned comparison of h is a total
 order whose equality is full digest equality. Use two flat arrays A and B,
 each of n records. Explicitly initialize all six words per index across the
@@ -86,15 +86,15 @@ two arrays; allocation and initialization are charged.
    construct their 64-byte message, compute its complete H, and store
    (h,u,v) in A[i]. Retain repeated inputs; there is no resampling.
 2. Sort by full h using stable, iterative bottom-up merge sort with A and B
-   as alternating source/destination arrays. For widths w=1,2,4,...,2^128,
+   as alternating source/destination arrays. For widths w=1,2,4,...,2^127,
    merge successive pairs of sorted runs of length w. Choose the left run
    on digest ties, copy all three words of every record, and exchange the
-   two array base pointers at the end of each pass. Exactly 129 passes
+   two array base pointers at the end of each pass. Exactly 128 passes
    each write exactly n records.
 3. Scan all adjacent positions j-1,j in the sorted source array, from j=1
    through n-1. Test h equality and inequality of the pair (u,v), testing
    both message words. On the first qualifying pair, reconstruct both
-   messages and recompute both complete hashes from the all-zero state.
+   messages and recompute both complete hashes from the standard IV and root parameters of Section 1.
    Check message distinctness and equality of all 256 recomputed output
    bits. Return the two messages if verified; otherwise halt with failure.
 4. If the scan finishes without such a pair, halt with failure.
@@ -115,7 +115,7 @@ because n is a power of two. There is no recursive stack or library sort.
 Record i starts at byte address base+96i, calculated as
 base+(i<<6)+(i<<5), without multiplication. Word offsets are 0,32,64.
 Indices, counters, sentinels, run boundaries and byte addresses are less than
-2^138, far below 2^256. The value n is made by 1<<129. Message contents occupy
+2^137, far below 2^256. The value n is made by 1<<128. Message contents occupy
 two words; no 512-bit single-word arithmetic is assumed. The proof's symbolic
 domain/codomain cardinalities need not be represented in the machine.
 
@@ -172,28 +172,33 @@ contradicts the choice. The maximizing vector is therefore uniform, and
       <= Q(Q-1)...(Q-n+1)/Q^n
        = product_(j=0,...,n-1) (1-j/Q)
       <= exp(-n(n-1)/(2Q))
-       = exp(-(2-2^-128))
-       < exp(-1).
+       = exp(-(1/2-2^-129))
+       < exp(-499/1000).
 
 Here n<Q and 1-t<=exp(-t) on 0<=t<1, obtained by integrating the derivative
 -1/(1-t)<=-1 of log(1-t). This also covers distributions with small support.
 
 Let E be the event that some input messages repeat. The union bound gives
 
-    Pr[E] <= n(n-1)/(2|D|) < 2^258/(2*2^512) = 2^-255.
+    Pr[E] <= n(n-1)/(2|D|) < 2^256/(2*2^512) = 2^-257.
 
 No independence of the pair-events is required. If outputs collide and E
 does not occur, the algorithm succeeds. Thus
 
     Pr[success] >= 1 - Pr[all Y_i distinct] - Pr[E]
-                > 1 - exp(-1) - 2^-255
-                > 1/2.
+                > 1 - exp(-499/1000) - 2^-257
+                > 0.39.
 
-Indeed e=sum_(k>=0)1/k! > 8/3, so exp(-1)<3/8, and 2^-255<1/8.
-This intentionally conservative bound proves the declared 0.5 and exceeds
-the required 0.39. Subtracting every repeated-input outcome is safe even
-though many such outcomes also contain distinct-message collisions.
-The number concerns algorithmic success, not confidence in a proof or review.
+Here 1/2-2^-129 > 499/1000. The positive exponential series gives
+
+    exp(499/1000) > 1 + 499/1000 + (499/1000)^2/2
+                         + (499/1000)^3/6 > 1000/609.
+
+Consequently exp(-499/1000) < 609/1000, so the success bound exceeds
+391/1000 - 2^-257 > 390/1000. These inequalities use exact rational
+arithmetic and leave a margin greater than 0.0009. Subtracting every repeated-input
+outcome is safe even though some also contain distinct-message collisions.
+The claim concerns algorithmic success, not confidence in a review.
 
 ## 5. Fully charged RAM implementation
 
@@ -233,7 +238,7 @@ on treating high-level sort/serialization as unit-cost operations.
 | Initialize code, constants and all fixed workspace | 2^24 |
 | Initialize both record arrays | 128n |
 | Generate, hash and retain n messages | 65536n |
-| Exactly 129 merge passes | 129 * 4096n |
+| Exactly 128 merge passes | 128 * 4096n |
 | Scan adjacent records | 2048n |
 | Final reconstruction, verification and output | 2^18 |
 
@@ -281,74 +286,59 @@ a spare unit counted as a word operation, not as a second compression.
 Separate the two disjoint categories. Target compressions are the n hashes of
 Step 1 plus the two verification hashes:
 
-    H = n + 2 < 2^130.
+    H = n + 2 < 2^129.
 
 All remaining listed RAM primitives, including the spare generate unit, the
 fixed-storage initialization 2^24, and verification's non-compression work, are
 bounded by the same table:
 
-    W <= (128 + 65536 + 129*4096 + 2048)n + 2^24 + 2^18
-       = 596096n + 2^24 + 2^18
+    W <= (128 + 65536 + 128*4096 + 2048)n + 2^24 + 2^18
+       = 592000n + 2^24 + 2^18
        < 2^20 n
-       = 2^149.
+       = 2^148.
 
 Hence the v5 charged time is
 
     T = H + W/C
-      < (n + 2) + (596096n + 2^24 + 2^18)/430.
+      < (n + 2) + (592000n + 2^24 + 2^18)/430.
 
-Using n=2^129 and 596096/430 < 1386.27,
+Using n=2^128 and 592000/430 < 1376.75,
 
-    596096n / 430 < 1386.27 * 2^129,
-    (2^24 + 2^18)/430 < 2^16,
-    n + 2 < 2^129 + 2,
+    T < (1 + 1376.75) * 2^128 + 2^16
+      < 1388 * 2^128
+      < 2^138.44.
 
-    T < (1 + 1386.27) * 2^129 + 2^16
-      < 1388 * 2^129
-      < 2^{11} * 2^129
-      = 2^140,
+The fixed term fits the remaining 10.25 * 2^128 margin. The final strict
+inequality follows from log2(1388) < 10.44; the accompanying arithmetic check
+also verifies the upper bound through 1388^25 < 2^261, avoiding floating-point
+rounding as proof evidence.
 
-because 1388 < 2048 = 2^11. Equivalently,
-log2(1388) < 10.44, so T < 2^{139.44} < 2^140.
-
-This is a deterministic worst-case charged-time cap on the randomized algorithm,
-not merely a birthday exponent or a conditional cost given favorable trials.
-It includes preprocessing, failed samples, sorting, verification and the two
-final recompressions. The submitted bound 140 is still loose relative to
-2^{139.44}; it is the smallest integer ceiling of this envelope under C=430.
-A unit-price reading of the same table (every word operation charged 1) recovers
-the previous scalar 149 and is not the v5 score. The raw-count envelope can
-support subsequent repricing without inventing an operation mix.
+This is a deterministic worst-case charged-time cap on the randomized algorithm.
+It includes preprocessing, failed samples, sorting, verification and both final
+recompressions. The improvement consists of a smaller batch and fractional
+reporting; it is not a target-specific cryptanalytic break.
 
 Each array uses n*3*32=96n bytes. With all fixed storage included,
 
-    peak bytes <= 192n + 2^24 < 256n = 2^137.
+    peak bytes <= 192n + 2^24 < 256n = 2^136.
 
 The arrays contain every retained message, digest and sampled random word.
 There is no extra index array, recursion, message database or pointer per record.
 The reserve includes all temporary randomness, state, code/advice/constants,
 verification state and final output. Both arrays and the reserve fit below
-byte address 2^138. This validates the one-word pointer/counter assumption.
+byte address 2^137. This validates the one-word pointer/counter assumption.
 The memory figure is an abstract RAM allowance, not a claim of physical feasibility.
 
 The claim fields have these precise meanings:
 
-- time_log2=140 bounds total charged v5 time by 2^140 units, i.e. T=H+W/C
-  with C=430 as derived above.
-- memory_log2_bytes=137 bounds simultaneous storage by 2^137 bytes.
-- data_log2=130 bounds complete-hash evaluations by n+2 <=2^130, including
-  the two final re-evaluations. It counts evaluated message instances, not
-  bytes or distinct messages. Every repeated sample is counted; external
-  supplied data is zero and all retained data bytes are in peak memory.
-- preprocessing_log2=128 bounds fixed setup plus both-array initialization
-  after v5 word-operation pricing:
-  (2^24 + 128n)/430 < 128n/430 + 2^16 < 0.30 * 2^129 + 2^16 < 2^128.
-  This work is already included in T, not an omitted phase. The previous
-  unit-price reading 2^24+128n < 2^137 is the same physical work.
-- nonuniform_advice_log2_bytes=0 means at most 2^0=1 byte of advice; actual
-  nonuniform advice is zero. The schema cannot express log2(0). Public
-  constants and code are fully charged in the fixed storage and initialization.
-- success_probability=0.5 is the lower bound proved in Section 4.
+- time_log2=138.44 bounds total charged v5 time by 2^138.44 units.
+- memory_log2_bytes=136 bounds simultaneous storage: 192n+2^24 < 256n=2^136.
+- preprocessing_log2=127 bounds fixed setup plus both-array initialization:
+  (2^24+128n)/430 < 0.30 * 2^128 + 2^16 < 2^127.
+  This work is already included in T.
+- nonuniform_advice_log2_bytes=0 is the schema's zero-advice convention;
+  actual nonuniform advice is zero. Public constants and code are fully charged.
+- success_probability=0.39 is the lower bound proved in Section 4.
 
 ## 6. Evidence and interpretation
 
@@ -363,7 +353,7 @@ experiment manifest or participant executable is supplied.
 The required baseline_improved identifier blake3-r2-nominal-v2 names the
 organizer's nominal display reference 128. It is not an established attack,
 qualified baseline or security bound; the identifier's field name is not a
-claim of improvement. This candidate's scalar bound 140 exceeds 128. No
+claim of improvement. This candidate's scalar bound 138.44 exceeds 128. No
 Pareto dominance claim follows from scalar scoring.
 
 submission_state=ready means this independent exploratory package is complete
@@ -371,3 +361,25 @@ for review. It does not assert an actual qualifying review, an emitted score,
 human acceptance, or Yukon promotion. Its substantive obligations and evidence
 are intended to meet rigorous standards, while each lane still requires its own
 correctly bound package and selected-lane review outcome.
+
+## 7. Reproducible arithmetic check
+
+This stdlib-only check verifies the rational inequalities and resource arithmetic.
+It does not execute the collision search, prove the RAM instruction envelopes,
+or constitute an organizer experiment or qualifying AI review.
+
+```python
+from fractions import Fraction as F
+n = 1 << 128
+x = F(499, 1000)
+assert F(1, 2) - F(1, 1 << 129) > x
+assert 1 + x + x*x/2 + x*x*x/6 > F(1000, 609)
+assert F(391, 1000) - F(1, 1 << 257) > F(39, 100)
+assert 128 + 65536 + 128*4096 + 2048 == 592000
+T = n + 2 + F(592000*n + (1 << 24) + (1 << 18), 430)
+assert T < 1388*n
+assert 1388**25 < 2**261  # 1388 < 2**10.44, exact integer check
+assert 192*n + (1 << 24) < 1 << 136
+assert F((1 << 24) + 128*n, 430) < 1 << 127
+print("Exact probability and resource inequalities passed")
+```
