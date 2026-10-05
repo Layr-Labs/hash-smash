@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "b3r2-grouped-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact blake3-r2-prefix-v1 root compression on 64-byte single-block messages, digests computed only by the submitted grouped partial evaluator (group setup + 247-operation inner body). Per organizer seed: 32 seed-derived 15-word prefixes x y = m15 in 0..31, N_t = 1024 = 2^10 messages, 20-bit digest-XOR mask spread over all eight output words (bits 0,13,26 of o0..o3; bits 5,21 of o4..o7). All 256 trials returned, including failures.",
+      "hypothesis": "(1) Every returned pair is a genuine masked match of the trusted blake3-r2 digest, so the grouped evaluator computes the exact digest. (2) The success frequency of this scaled analogue (N_t^2/2 = 2^w/2, the same ratio as N = 2^128 for 256 bits) is consistent with the random-function value 1 - prod_{i<1024}(1 - i/2^20) = 0.3933 that heuristic H1 assumes at full width. Finite frequencies are supporting evidence, not a certified population probability.",
+      "program": "experiments/grouped_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0120000401200004012000040120000420002000200020002000200020002000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "b3r2-single-group",
+      "kind": "python-message-pairs-v1",
+      "scope": "Same evaluator and target; per organizer seed one seed-derived prefix with consecutive y = m15 in 0..1023 (all N_t = 1024 messages inside one group, the most structured case), 20-bit digest-XOR mask on different positions (bits 7,30 of o0..o3; bits 2,15,28 of o4..o7). All 256 trials returned, including failures.",
+      "hypothesis": "Within-group digests, where only m15 varies by small consecutive values, show no masked-collision excess or deficit relative to the random-function value 0.3933; the grouped structure does not change the birthday behaviour that H1 assumes.",
+      "program": "experiments/grouped_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "8000004080000040800000408000004004800010048000100480001004800010",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}

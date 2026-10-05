@@ -6,23 +6,39 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 127.481,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Messages are exactly 64 bytes: one root block, flags 11, block length 64, counter 0; unkeyed BLAKE3-256 with 2 prefix rounds.",
+    "2^96 groups of 2^32 messages; each group shares fresh uniform words m0..m14 and enumerates m15 = 0..2^32-1; N = 2^128 messages in one pass, no restart.",
+    "Each message is evaluated by a counted 247-operation word-RAM program that reuses group-invariant intermediate values; only the final verification invokes whole compressions (2 units).",
+    "Collision detection uses an uninitialised sparse-set table indexed by the top 140 digest bits; every operation is charged at 1/C with C = 430 (collision-frontier-v5).",
+    "Classical 256-bit word RAM with 64 registers and three-address operations; Section 9 of proof.md gives the bound if all group constants are reloaded per message (2^127.5419).",
+    "Score-critical heuristic H1 (grouped digests behave like independent uniform values for the collision events used); success 0.39 includes a 0.0033 allowance below the model value 0.3933.",
+    "Generic constant-factor improvement from amortisation, not a structural weakness of BLAKE3; the nominal reference identifier is metadata, not a claimed improvement over a qualified baseline."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json",
+  "heuristics": [
+    {
+      "id": "H1-grouped-random-digests",
+      "statement": "For the N = 2^128 messages of the algorithm (2^96 groups, each with fresh uniform prefix words m0..m14 and m15 = 0..2^32-1), the probability that the 2-round BLAKE3 digests contain no equal pair, plus the probability of event F2 in proof.md Section 6 (a colliding pair whose first member was displaced by an earlier message with the same top 140 digest bits), exceeds the independent-uniform-model value 0.606654 by at most 0.0033.",
+      "role": "score-critical",
+      "scope": "Exactly the submitted grouped message family and sparse-set table: single 64-byte root blocks, uniform 480-bit group prefixes, consecutive m15 within a group, 256-bit digests, index width 140.",
+      "extrapolation": "From the scaled analogues (20-bit masked events with N_t = 2^10, organizer seeds; 32-bit events with N_t = 2^16, local seeds), in which N_t^2/2^w equals N^2/2^256 = 1, to the full 256-bit event with N = 2^128 and group size 2^32.",
+      "evidence_ids": [
+        "experiment:b3r2-grouped-spread",
+        "experiment:b3r2-single-group",
+        "proof:190-219",
+        "proof:288-315"
+      ],
+      "limitations": "Masked projections of the digest are tested, not the full 256-bit event. Organizer seeds are public, not a blinded holdout. Finite frequencies support but do not prove the population bound. Same-y cross-group pairs have a provable collision probability >= 2^-256; other pairs rely on H1."
+    }
+  ]
 }
