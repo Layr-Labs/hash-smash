@@ -1,27 +1,64 @@
 {
   "schema_version": 3,
-  "submission_state": "ready",
   "target_profile": "sha256-r31-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 31,
   "lane": "exploratory",
+  "baseline_improved": "sha256-r31-nominal-v2",
+  "submission_state": "ready",
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 47.04,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 30,
+    "preprocessing_log2": 41.0,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 9
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Target sha256-r31-prefix-v1: SHA-256 compression steps 0..30 inclusive on every padded block, standard fixed IV once at the start, FIPS 180-4 padding, full feed-forward, full 256-bit big-endian digest; ordinary collision of two distinct finite byte strings.",
+    "Two-block messages M0||M1 and M0||M1' of 128 bytes each sharing the first block M0 and a shared padding block; the second blocks differ only in words W5..W9 by the fixed differences d5..d9.",
+    "The characteristic, its signed condition table, the message/expansion differences d5..d9, d16, d18, the set constants c5..c8, x18 and the Phase-3 constants c16 = W9 + s0(W1) + W0, c18 = W11 + s0(W3) + W2, WEYL = 0x9e3779b9 are stated in full in proof.md Sections 4-9. No external paper is relied upon; the cryptanalysis, the single starting point and the witness are the attributed Li-Liu-Wang EUROCRYPT 2024 / ASIACRYPT 2024 result, not original.",
+    "The attack uses ONE starting point: the published Li-Liu-Wang point (taken from the published colliding pair, re-verified; its construction is attributed and charged inside T_char). Its table has 16,896 = 33*2^9 tuples over 2,336 distinct keys, max group 16.",
+    "Admissible word sets V5,V6,V7,V8,G16,G18,S are defined by exact modular-difference predicates and enumerated exhaustively over all 2^32 words: |V5|=2^14, |V6|=2^23, |V7|=2^9, |V8|=49408, |G16|=64, |G18|=42467328, |S|/2^32=0.1361322. These exact counts are bundled C programs, not an organizer-runnable artifact (a rigorous-lane limitation, not an exploratory blocker).",
+    "Each table tuple accepts exactly 2^23*2^14 = 2^37 triples (A_-1,A_-2,A_-3) in {0,1}^96. The per-tuple acceptance sets are NOT pairwise disjoint; the EXACT single-point union is computed (sum 16896*2^37 = 33*2^46 minus overlap 1,279,000,576 = 2,322,167,278,862,336), giving Pr_U[CV in P] = |P|/2^96 = 2^-44.955607 EXACTLY. There is no bracket and no merged-union heuristic.",
+    "Solver-generated starting points were tried and found NOT completion-compatible and are excluded: the published point closes 514/514 chaining values with c18 in S, while every sampled solver point closes 0/~530-575, and a live forward search over 12,087 solver points (2^35.3 trials) produced prefix-valid chaining values at the predicted rate but ZERO collisions. Merging many completion-compatible points (to lower the trial count toward the published 2^40.5) is left for future work.",
+    "The analysed N = 2^47 trials each draw a fully fresh uniform random 512-bit first block and are independent by construction; the number of verified collisions, key-hits, and completion-calls are each exactly BINOMIAL in N (no Poisson approximation). Batching takes NO cost credit.",
+    "The time bound is a HARD per-run bound. Each of the N trials is charged one full target compression plus a <=32 word-op miss-path probe; the hit path (<=608 word-ops; max group 16) is charged for up to a hard cap H_cap = 2^28 (= 2*E[hits] rounded up to a power of two, E[hits] = N*2336/2^32 = 2^26.19) key-hit trials, and the run ABORTS (FAIL) if hits reach H_cap. So T2 = N*(1+32/2140) + H_cap*(608/2140) = 2^47.02 holds for every coin sequence. The hit-cap overflow p_hit = Pr[Binomial(N, 2336/2^32) >= 2*E[hits]] <= (e/4)^E[hits] = 2^-4.3e7 is subtracted from success.",
+    "Every loop has a hard cap: N = 2^47 trials; H_cap = 2^28 key-hit trials; per-candidate CAP13 = 2^18 and CAP15 = 2^12; and GLOBAL_PHASE3_CAP = 2^16 TOTAL inner iterations (x-evaluations plus z-iterations, one global counter) per matched prefix, identical in proof.md and experiments/completion.py. No restarts. Per-matched-prefix completion cost <= 2^16*64/2140 <= 2^11 units, derived from the counter.",
+    "time_log2 = 47.04 (exact total 2^47.043) is DOMINATED by the trial term T2 = 2^47.02 (the exact single-point match probability 2^-44.955607 forces N = 2^47). It charges the one-time characteristic search plus published starting-point construction (T_char = 2^41 declared allowance, now immaterial to the scalar), table build (T1 <= 2^30), all N trials incl. failures and the capped hit path (T2 = 2^47.02), completion calls (T3 <= 2^14.5) and verification (T4 <= 2^8) at v5 prices with C = 2140. proof.md Section 12 gives the T_char sensitivity ladder 47.03 / 47.04 / 47.07 for allowances 2^40 / 2^41 / 2^42.",
+    "success_probability 0.39 is a supported lower bound derived as P_success >= 1 - exp(-N*q) - p_cap - p_hit with N = 2^47, q = Pr_U * Pr[c18 in S|match] * r_comp = 2^-44.955607 * 0.1361322 * 0.98 = 2^-47.862, N*q = 0.5503, p_cap = Pr[Binomial(N, Pr_U*0.1361322) >= 12] <= e^-mu (e*mu/12)^12 = 2^-36.5 (mu = 0.561), p_hit <= 2^-4.3e7, giving P_success >= 0.4232 >= 0.39; r_comp = 0.98 is the one-sided 99% binomial lower bound from the 256/256 organizer successes. Rests on H1, H2.",
+    "Memory is a reported metric only (no scalar contribution): memory_log2_bytes = 30 is the whole-process simultaneous-allocation peak, with a per-live-object breakdown in proof.md Section 12 (dominated by the one-time 2^29-byte V6 bitset and the enumeration member lists; the single-point table is ~2^19 bytes). baseline_improved = sha256-r31-nominal-v2 is a required reference identifier and does not itself assert an improvement.",
+    "Certificates: llwds24-31step is the published practical pair (trail witness); compl-seed0..compl-seed9 are ten distinct, organizer-re-hashable collisions produced by this submission's own capped completion step on prefix-valid chaining values of the published point (eleven certificates total). The algorithm never reads any certificate and none is nonuniform advice."
   ],
-  "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-near-uniform-chaining-value",
+      "role": "score-critical",
+      "statement": "For fresh uniform random first blocks M0, the 96-bit value (A_-1,A_-2,A_-3) of CV = C(IV,M0) is close enough to uniform over {0,1}^96 that a single trial lands in the match set P with probability Pr_U[CV in P] = |P|/2^96 = 2^-44.955607 (the EXACT single-point union, not a heuristic value); and the 32-bit c18 of a matched prefix is near-uniform, so Pr[c18 in S | match] equals the exact density |S|/2^32 = 0.1361322.",
+      "scope": "One 31-step reduced SHA-256 compression from the standard IV on a uniform first block, covering (a) the three backward state words (A_-1,A_-2,A_-3) against the fixed single-point table P, and (b) the completion-trigger word c18 of a matched prefix against the set S.",
+      "extrapolation": "From exact enumeration of the condition sets and the EXACT single-point union |P|, plus the organizer completion experiment and a finite own-run check, to the full 96-bit membership probability and to Pr[c18 in S | match] over fresh uniform first blocks. The set cardinalities, the non-disjoint union |P| and the density |S|/2^32 are EXACT; only the near-uniformity of CV on these bits is extrapolated.",
+      "evidence_ids": ["proof:164-218", "proof:302-343", "experiment:completion"],
+      "limitations": "CV is produced by a real 31-step compression, not an ideal permutation. The own-run key-hit check validates only a 32-bit A_-1 marginal, NOT the full 96-bit membership event, which is not directly observable; c18 near-uniformity is not exhaustively checked. Sensitivity: the match probability is exact, so N scales only with any shortfall of CV-uniformity; since the ledger is dominated by the trial term T2 ~ N, time_log2 moves as log2(N)."
+    },
+    {
+      "id": "H2-completion-rate",
+      "role": "score-critical",
+      "statement": "For a matched prefix with c18 in S, the capped Phase-3 search of proof.md Section 9 finds (W13,W14,W15) within CAP13 = 2^18, CAP15 = 2^12 and GLOBAL_PHASE3_CAP = 2^16 total inner iterations with probability at least r_comp = 0.98; the probability that a matched prefix has c18 in S equals the exact density |S|/2^32 = 0.1361322 under the H1 near-uniformity of c18.",
+      "scope": "Phase 3 (completion) of the attack on a matched prefix, with fresh per-candidate offsets and the single global total-inner-iteration cap GLOBAL_PHASE3_CAP = 2^16, on the selected target sha256-r31-prefix-v1 at the published starting point.",
+      "extrapolation": "From the organizer completion experiment on the published prefix (256/256 seeds completed within the 2^16 total-iteration cap; one-sided 99% binomial lower bound 0.01^(1/256) = 0.98217, so r_comp = 0.98) and a direct completability survey (the published point closes 514/514 chaining values with c18 in S), to the completion rate over the matched-prefix distribution of the published point.",
+      "evidence_ids": ["proof:268-301", "proof:302-343", "experiment:completion"],
+      "limitations": "The organizer experiment exercises one fixed prefix with many offsets, so it tests the routine and its caps, not the spread over all matched prefixes (though the 514/514 survey covers the published point's chaining values). Sensitivity: q is linear in r_comp; with N = 2^47 the derived success is 0.4232, so r_comp could fall to ~0.90 before the 0.39 floor is threatened, otherwise N rises proportionally."
+    },
+    {
+      "id": "H3-characteristic-and-table-construction-cost",
+      "role": "score-critical",
+      "statement": "All one-time construction work that is not an individual trial -- the characteristic (trail) search, the published starting-point construction, and the table build (six exhaustive 2^32 enumerations plus the exact single-point union and key-table fill) -- is bounded by T_char + T1 target-compression units at v5 prices, with T1 <= 2^30 and T_char = 2^41 a DECLARED ALLOWANCE (covering the incomplete trail search and the published collision run that produced the starting point, as in the prior passing packages). T_char is immaterial to the scalar (the trial term T2 = 2^47.02 dominates).",
+      "scope": "Phase 0 characteristic search + published starting-point construction and Phase 1 table construction only; charged once, outside the per-trial loop.",
+      "extrapolation": "From the measured enumeration cost (enumerate_seconds = 3.24 on 11 threads) and the direct-address table fill, converted by units_per_cpu_s = 2^24 (2^23.83 compressions/CPU-s, rounded up). The trail search is incomplete; two partial measurements at 2^24 units/CPU-s anchor the allowance: our own partial re-run trail-run/log.csv is 40 completed calls summing 29,786.8 CPU-s = 2^38.86 units (+1 call in progress, call 41, adding 650.4 CPU-s; one logged call returned stp_result=Valid, but the search is still treated as UNFINISHED), and a third-party partial is 58,015 CPU-s = 2^39.82 units; 2^41 is about 2^2.1 / 2^1.2 over these.",
+      "evidence_ids": ["proof:131-163", "proof:368-438"],
+      "limitations": "The trail-search time is measured only partway and charged as an allowance, not a completed count. But because the trial term T2 = 2^47.02 dominates the total, T_char is ~2^6 below it and immaterial to the scalar; proof.md Section 12 shows time_log2 = 47.03 / 47.04 / 47.07 for allowances 2^40 / 2^41 / 2^42."
+    }
+  ]
 }
