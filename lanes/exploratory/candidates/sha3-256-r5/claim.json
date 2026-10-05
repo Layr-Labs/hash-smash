@@ -6,23 +6,66 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 43.5,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
+    "memory_log2_bytes": 31,
+    "preprocessing_log2": 43.5,
     "success_probability": 0.5,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Messages are exactly 135 bytes, so the padded block is M || 0x86; the 520 non-message state bits (padding byte and 512-bit capacity) are fixed in the connector.",
+    "Complete SHA3-256 sponge with suffix 0x06 and pad10*1, prefix Keccak-f rounds 0-4 with the original round constants, full 256-bit digest; one block, one permutation.",
+    "Differential attack of Guo et al. (J. Cryptology 2020, ePrint 2019/147): 2-round connector plus the 3-round tail of trail core No. 3, selected again by our own charged run of their trail search strategy (K = 10 as the paper suggests, W = FW = 20); no published trail, connector or pair is an input.",
+    "Preparation charged from measured retired instructions times a measured-mix lambda under a conservative per-class emulation table (7.0 C, 8.4 Python) over C = 1355; the connector loop uses fresh random seeds and is charged at its expected cost estimated from two executed realisations (2^46.41 instructions), the export for the lowest observed base DF (central estimate); brute force charged analytically (962 operations per pair, 2,403 per stage-2 pair).",
+    "Randomized online search over N = 2^36.69 pairs for success 1/2 under the declared Markov heuristic H1 (p = 2^-37.219); central expected total 2^39.87. The claimed 43.5 is deliberately conservative: it covers the joint worst case 2^42.97 (rate 2^-38.38, i.i.d. connector model at its one-sided 95% lower bound, accepted base at the DF floor 22, lambda doubled, stage 1 priced from measured instructions) with a 0.53-bit margin.",
+    "Peak memory below 2^31 bytes (380 MiB largest step plus retained files; at most 1.7e9 bytes with the 126,232 exported spaces of the joint worst case); no nonuniform advice.",
+    "Three certified collisions from an executed run of the algorithm; their 4-, 6- and 24-round digests differ. The nominal reference identifier does not by itself assert an improvement."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H1-markov-tail",
+      "role": "score-critical",
+      "statement": "For message pairs {x, x xor beta0} enumerated in the exported connector spaces (whose 2-round difference is exactly alpha2 by Lemma 2), the round-2 transition beta2 -> alpha3 and the rounds 3-4 transition to a zero 256-bit digest difference occur with the product of the row-wise DDT probabilities, p = 2^-24 * 2^-13.219 = 2^-37.219 per pair (sum over all alpha4), and distinct pairs behave as independent trials, so N = 2^36.69 pairs succeed with probability at least 1 - exp(-Np) = 1/2.",
+      "scope": "Trail core of Section 3 (beta2/beta3 of Guo et al. core No. 3, translate 8). Measured on the first 33 of the 2,052 exported spaces of base k = 278, seed 1 (base r0, DF 34-38; 2^39.19 pairs) and on research-run spaces of other connector bases for the same trail (2^37.23 pairs), 2^39.52 pairs in total.",
+      "extrapolation": "The online phase draws N = 2^36.69 pairs from randomly ordered spaces of the whole export, including spaces of the second base and, in other realisations, spaces of other bases that were not measured; the per-pair rate is assumed to be the same there. The collision-count evidence (6 observed vs 4.93 expected) supports the rate only to within its Poisson interval [2^-38.38, 2^-35.81].",
+      "evidence_ids": [
+        "proof:144-164",
+        "proof:165-187",
+        "proof:338-355",
+        "proof:381-414",
+        "proof:529-601"
+      ],
+      "limitations": "Independence of the round-2..4 events across pairs of one affine space is not proved; stage-1 independence is measured precisely (2^-23.996 vs 2^-24) but the full 2^-37.219 rests on 6 collisions. At the rate 2^-38.38 the total is 2^40.13 (Section 10.4); the claim covers this rate jointly with the H2 and H3 alternatives (2^42.97, Section 10.5). Other differential paths are ignored, which can only help."
+    },
+    {
+      "id": "H2-instruction-pricing",
+      "role": "score-critical",
+      "statement": "The measured preprocessing programs (phases A-C) can be executed on the collision-frontier-v5 256-bit RAM with at most lambda primitive operations per retired AArch64 instruction, where lambda is the measured dynamic opcode mix priced with the per-class emulation table of Section 10.2 (indirect branch 30, flag-setting ALU 7, 64-bit load 7, store 8, sub-word access 12, pair 14, ALU 5, branch 4, multiply 130), plus 0.25 for scalar/vector shared mnemonics: lambda_C = 7.0 for the C trail search and lambda_Py = 8.4 for the Python phases.",
+      "scope": "Opcode histograms of the same programs on AArch64 Linux (DynamoRIO, every executed opcode): three complete connector attempts (success, difference-phase failure, repair failure) and truncated runs of the two C trail-search programs; Apple PMU FP/SIMD share on the macOS connector runs; macOS vs Linux instruction counts on identical inputs for both C programs.",
+      "extrapolation": "The Python mix was measured on connector attempts only; phases A2, A4, B1-B3 and C use that mix without separate measurement. The Linux (gcc, Debian CPython) mixes are applied to the macOS (clang, Homebrew CPython) runs whose instruction totals are charged; for the C phases the count is scaled by the larger of 1 and the measured gcc/clang instruction ratio.",
+      "evidence_ids": [
+        "proof:415-492",
+        "proof:493-528",
+        "proof:529-601"
+      ],
+      "limitations": "The per-class costs are an emulation convention, not a verified compilation to the RAM. With the earlier, lighter class table (5.89 / 6.06) the total is 2^39.49, and at lambda = 1 it is 2^37.52; a stricter table would raise the total roughly in proportion to lambda. The claim covers lambda doubled jointly with the H1 and H3 alternatives (2^42.97, Section 10.5); that joint case reaches the claim at lambda x 3.04."
+    },
+    {
+      "id": "H3-connector-success-model",
+      "role": "score-critical",
+      "statement": "With fresh random seeds, connector attempts at positions #0-#32 of the k order (k < 278) fail and later attempts succeed independently with probability q' = 3/26, so the expected attempt-loop cost is 33 x 2.26e12 + (1/q') x 2.21e12 = 2^46.41 retired instructions; and the accepted base has mean DF at least 25 on average, so the export needs at most 2^43.43 instructions in expectation.",
+      "scope": "Two executed realisations of the attempt loop over the same k order: seeds 1,2,3 (44 attempts, first success #33) and seeds 4,5,6 (48 attempts, first success #41); 3 successes in 92 attempts, none before position #33; accepted base pairs with DF 36/35, 26/24 and 27/25.",
+      "extrapolation": "Two realisations are taken as representative of the distribution of the attempt-loop cost and of the accepted base DF for fresh coins; the cut at position #33 was chosen after seeing the data.",
+      "evidence_ids": [
+        "proof:296-337",
+        "proof:338-355",
+        "proof:627-680",
+        "proof:529-601"
+      ],
+      "limitations": "The success rate rests on 3 events. With q' at its one-sided (two-sided) 95% Clopper-Pearson lower bound the total is 2^40.25 (2^40.39), within the claim; an i.i.d. model over all 92 attempts at its one-sided 95% lower bound gives 2^40.85, and an accepted base at the DF floor 22 gives 2^40.67; the claim covers both together with the rate 2^-38.38 and doubled lambda (2^42.97, Section 10.5)."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
