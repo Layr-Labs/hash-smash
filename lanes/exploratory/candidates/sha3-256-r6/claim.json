@@ -6,19 +6,22 @@
   "rounds": 6,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.4,
+    "time_log2": 127.01,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 130,
-    "preprocessing_log2": 142,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 136,
+    "preprocessing_log2": 122,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical 256-bit word RAM with fresh independent uniform random-word primitive.",
-    "One batch of 2^129 independent uniform 64-byte messages; no restarts or nonuniform advice.",
-    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06, prefix rounds 0 through 5, all 256 output bits.",
-    "Generic analytic upper bound; infeasible resource use, no improvement over the nominal reference claimed."
+    "Classical probabilistic 256-bit word RAM, fresh independent uniform random-word primitive, total computation on one processor.",
+    "One batch of 2^128 iid uniform 64-byte messages from a 512-bit domain; repetitions retained; no restarts or advice.",
+    "Complete fixed-IV SHA3-256, rate1088, capacity512, suffix0x06, prefix rounds0..5, all256 digest bits; one padded absorption block per message.",
+    "Four independently sampled messages evaluated together by masked 256-bit word operations implementing four disjoint 64-bit Keccak lane fields; no cross-field rotation or addition.",
+    "Last-round early abort: the 256-bit digest is exactly output lanes 0..3, so the final round produces only those four lanes (theta in full; rho/chi only for needed lanes), lowering the packed permutation from 6*341 to 5*341+123 = 1828 operations per four-message group; verified bit-for-bit against the reference digest. Adopts the four-way packing, radix sort and distribution-free birthday argument of prior-art commit cb325773 (127.101, in review), cited as prior art.",
+    "Stable four-pass 64-bit-digit radix sort of full digest/message records, with initialized counters, followed by a distinct-input full-digest scan and two charged target verifications.",
+    "Analytical upper bound with infeasible storage, no measured full-width collision, no PRNG, random-function, differential or round-independence heuristic.",
+    "All primitive construction, program/constant setup, memory initialization, lookup, sorting, randomness, failures and verification are charged at C=1626."
   ],
   "baseline_improved": "sha3-256-r6-nominal-v2",
   "heuristics": [],
