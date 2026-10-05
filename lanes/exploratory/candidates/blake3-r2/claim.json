@@ -6,23 +6,39 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 126.67,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 167,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Messages are exactly 64 bytes, so each complete hash is one BLAKE3 root block (CHUNK_START|CHUNK_END|ROOT = flags 11, block_len 64, counter 0) and one two-round compression with the standard IV and feed-forward; the 256-bit digest is the first eight output words o0..o7 = v[i] XOR v[i+8], i=0..7.",
+    "One batch of N = 2^128 independent uniform 64-byte messages drawn from the 2^512 domain; repeated messages retained and charged; no restart. Messages are processed in 2^125 groups of eight evaluated together by 256-bit word operations implementing eight disjoint 32-bit lanes (8-way SWAR packing of the 32-bit BLAKE3 word).",
+    "Per-field carry-isolated addition padd (6 ops/8 lanes): z = ((X & notH) + (Y & notH)) XOR ((X XOR Y) & H), with H the per-field top bit; masked 32-bit rotation pror (5 ops/8 lanes); field-wise XOR (1 op/8 lanes). The packed two-round compression costs 968 ops per eight-message group (121 per message), verified bit-for-bit against verifier/blake3.py:blake3 on 32000 messages with 0 mismatches. No native 32-bit rotate or wider-than-256-bit operation is used; NOT is not used (BLAKE3 G uses only +, XOR, ror).",
+    "Collision detection uses an uninitialised Briggs-Torczon sparse-set table indexed by a 160-bit key (output words o0..o4 of each message's digest) at address 2^160 | K, never displaced (adopted from the prior-art packages jaazinn 0a5b7ae8 time_log2 127.481 and winglock 3022205 time_log2 127.252, both in review on this track); every load, compare, branch and store is charged at 1/C with C = 430 (collision-frontier-v5). Each message is charged 170 word operations = 158 counted (121 packed compression + 4 generation + 18 key extraction + 12 table + 3 loop) plus 12 spare; at most 2^110 confirmations, each re-verified with two whole reference compressions.",
+    "Classical 256-bit word RAM with independent uniform random words; memory reported only. Score-critical heuristic H1 applies ONLY to the two table events (F2' displacement and Fcap > 2^110 confirmations); the existence of a full-digest collision (event F1) is distribution-free by the simplex-maximiser bound of proof.md Section 8 and needs no heuristic. Success 0.39 keeps a 0.0034 allowance below the independent-uniform model value 0.39343.",
+    "Generic constant-factor improvement (8-way SWAR packing of the 32-bit BLAKE3 word, plus an uninitialised sparse-set table), not a differential or algebraic weakness of BLAKE3; the nominal reference identifier is metadata, not a claimed improvement over a qualified baseline.",
+    "proof.md Section 9 gives bounds under stricter readings: 126.555 at the exact 158 counted with no spare; 126.661 claimed at 170; 126.76 if per-field addition is charged 7 ops each (padd = 7); 126.896 at a fully conservative 200 charged; 126.97 with every constant reloaded from memory before use (no live register bank, compression 161/msg). Every reading stays below the 127.252 frontier."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-packed-random-digests",
+      "statement": "For the N = 2^128 independent uniform messages of the algorithm, the two sparse-set table events of proof.md Section 7 have at most their independent-uniform-model probabilities, within an allowance of 0.0034: F2' (a colliding pair whose first member finds its 160-bit table slot held by an earlier message with a different digest and the same 160-bit key), Pr[F2'] < 2^-32; and Fcap (more than 2^110 key-colliding confirmations), Pr[Fcap] <= 2^-15 by Markov on at most 2^95 expected key-colliding pairs. The existence of a full-digest collision is NOT part of this heuristic: it is bounded distribution-free at >= 0.39343 in Section 8.",
+      "role": "score-critical",
+      "scope": "Exactly the submitted 8-way SWAR packed single-block message family, 160-bit sparse-set key, and never-displaced Briggs-Torczon table step.",
+      "extrapolation": "From scaled analogues (20-bit masked birthday events with N_t = 2^10 messages hashed through the same SWAR packed evaluator, organizer seeds, spread and concentrated masks), in which N_t^2/2^w = N^2/2^256 = 1, to the full 256-bit event with N = 2^128.",
+      "evidence_ids": [
+        "experiment:b3r2-swar-birthday",
+        "experiment:b3r2-swar-lowbits",
+        "proof:7",
+        "proof:8"
+      ],
+      "limitations": "Masked 20-bit projections are tested, not the full 256-bit event. Organizer seeds are public. Finite frequencies support but do not prove the population bound. The distribution-free F1 bound (Section 8) does not depend on H1; only the two table events do, and a radix-sort variant (Section 7, +176 charged per message, time_log2 127.74) removes H1 entirely at a score above the frontier."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
