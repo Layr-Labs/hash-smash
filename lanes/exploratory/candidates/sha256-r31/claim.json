@@ -6,22 +6,32 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 128.02,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
+    "memory_log2_bytes": 112,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Generic van Oorschot-Wiener distinguished-point collision search on one processor; every instruction charged under collision-frontier-v5 with C=2140.",
+    "Messages are exactly 32 bytes, msg(x)=BE32(x), one padded SHA-256 block; iteration f(x)=H(msg(x)) on the complete fixed-IV SHA-256 compression reduced to steps 0..30 with feed-forward, injective so any f-collision is an ordinary collision of two distinct messages.",
+    "Distinguished point iff low 32 output bits are zero (theta=2^-32); maximum chain L=2^40; evaluation budget K0=65300*2^112; distinguished-record cap 2^98.",
+    "Worst-case charged time below 2^128.012 for every run; success probability at least 0.39 under declared heuristic H-RF only; all other bounds are heuristic-free.",
+    "One run, no restart; failed trials, abandoned chains, the relocation walk and final re-hash verification are all charged. No certificate, experiment, precomputed collision, or nonuniform advice.",
+    "The nominal reference identifier does not assert an improvement over an established attack or security bound."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H-RF",
+      "statement": "An evaluation of f = H . msg at a point not previously evaluated returns a value uniform on {0,1}^256, independent of the algorithm's coins and of all previously observed values. Used only to lower-bound the success probability; the time, memory and preprocessing bounds hold for every run without it.",
+      "role": "score-critical",
+      "scope": "The at most K0 < 2^128 evaluations of f in one run on the fixed complete 31-step SHA-256 map (target sha256-r31-prefix-v1).",
+      "extrapolation": "From standard modelling of a fixed cryptographic compression's output as uniform to the specific 31-step map; no proof of ideal behaviour is claimed, and the required success budget changes log2(T) by well under one bit even under a constant-factor correction.",
+      "evidence_ids": ["proof:14-112", "proof:198-240"],
+      "limitations": "A modelling assumption, plausible rather than established; a proven bias in the 31-step image distribution could change the exact success probability. Only the 0.39 figure depends on it, not correctness or the time bound."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
