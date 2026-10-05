@@ -1,4 +1,29 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "llwds24-31step-pair",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/message_a.bin",
+      "message_b": "certificates/message_b.bin",
+      "expected_digest": "55fdfb37efcbd086e19c3de0f72596300a3acdf48da5b1d0450a592bb2869fcd",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "phase3-rerun-w14-e29b9609",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/message_a2.bin",
+      "message_b": "certificates/message_b2.bin",
+      "expected_digest": "2cfb4eead4b36ac67519a1d0dcf754e41bec84bcc1ebfa4f5aa73dd697e58a31",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "phase3-rerun-w14-6557e9a0",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/message_a3.bin",
+      "message_b": "certificates/message_b3.bin",
+      "expected_digest": "5223f5c4be2956efe75e455db2f6ca04e9d5688b6327332f2d53489de5c0d46d",
+      "target_profile": "sha256-r31-prefix-v1"
+    }
+  ]
 }
