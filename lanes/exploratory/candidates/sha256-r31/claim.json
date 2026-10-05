@@ -6,22 +6,36 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 128.0,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
+    "memory_log2_bytes": 112,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5 (C=2140): CF31 is issued on register-resident padded-block and IV words; one issue costs 1 unit plus one ordinary op; every other primitive word operation costs 1/2140.",
+    "Complete fixed-IV SHA-256, steps 0..30 with full feed-forward, FIPS 180-4 padding, all 256 output bits; 32-byte single-block messages msg(x)=BE32(x).",
+    "Generic van Oorschot-Wiener distinguished-point search on one processor: theta=2^-32, L=2^40, K0=65162*2^112, Dcap=2^98, BLOCK unrolled 16 ways with a DP test after every evaluation, one run and no restart.",
+    "Calling convention: CF31 reads W[0..15] from R0..R15 and IV from R16..R23; writes the digest H[0..7] into R0..R7 only; may clobber R8..R15; does not write R16..R23. Padding is rewritten each evaluation; IV is written once in setup.",
+    "Time, memory and preprocessing are worst-case for every run. Success probability >=0.39 depends only on score-critical heuristic H-RF (analytic lower bound 0.3900080).",
+    "Generic construction; no stored collision, nonuniform advice, or claimed cryptanalytic improvement."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H-RF",
+      "statement": "Random-function model for f(x)=SHA-256-r31(BE32(x)): an evaluation of f at a point not previously evaluated returns a value uniform on {0,1}^256 and independent of the algorithm's coins and of all values observed so far. Used only to lower-bound success probability. Output correctness and all resource bounds are unconditional.",
+      "role": "score-critical",
+      "scope": "The fixed 31-step SHA-256 map on 32-byte messages along the charged van Oorschot-Wiener chains of this package (theta=2^-32, L=2^40, K0=65162*2^112, Dcap=2^98), covering at most K0-1+L main-loop evaluations and at most 2^98+2^88+2 chains.",
+      "extrapolation": "Standard generic modelling of a fixed cryptographic compression as a random function on the walk points, consistent with peer exploratory DP packages on this track. Supporting reduced-output measurements (n=24..48) are documented in the proof as non-organizer evidence and do not enter the analytic bound.",
+      "evidence_ids": [
+        "proof:1-50",
+        "proof:140-220",
+        "proof:221-285"
+      ],
+      "limitations": "H-RF is a heuristic, not a theorem about a fixed deterministic function. Published differential attacks on 31-step SHA-256 exhibit structure on chosen pairs; this walk does not select such pairs. Reduced-width experiments cannot exclude a full-width deviation. The analytic margin above 0.39 is only about 8e-6; a small overestimate of contact probability would require a slightly larger K0."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
