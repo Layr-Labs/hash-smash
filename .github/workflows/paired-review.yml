@@ -10,6 +10,8 @@ on:
         required: true
         type: string
     secrets:
+      OPENAI_API_KEY:
+        required: false
       OPENROUTER_API_KEY:
         required: false
       AWS_BEARER_TOKEN_BEDROCK:
@@ -86,6 +88,14 @@ jobs:
         with:
           name: hashsmash-intake-${{ inputs.track }}
           path: lanes/${{ inputs.lane }}/.yukon/work/tracks/${{ inputs.track }}/
+      - name: Validate judge provider
+        env:
+          HASHSMASH_JUDGE_PROVIDER: ${{ vars.HASHSMASH_JUDGE_PROVIDER || 'openrouter' }}
+        run: |
+          case "$HASHSMASH_JUDGE_PROVIDER" in
+            openrouter|bedrock|openai) ;;
+            *) echo "Unsupported HASHSMASH_JUDGE_PROVIDER" >&2; exit 2 ;;
+          esac
       - name: Benchmark Amazon Bedrock paired review
         if: ${{ vars.HASHSMASH_JUDGE_PROVIDER == 'bedrock' }}
         env:
@@ -97,13 +107,22 @@ jobs:
           HASHSMASH_REASONING_EFFORT: high
         run: python3 scripts/hashsmash_pipeline.py judge --track "$HASHSMASH_SELECTED_TRACK"
       - name: Benchmark OpenRouter paired review
-        if: ${{ vars.HASHSMASH_JUDGE_PROVIDER != 'bedrock' }}
+        if: ${{ vars.HASHSMASH_JUDGE_PROVIDER == '' || vars.HASHSMASH_JUDGE_PROVIDER == 'openrouter' }}
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           HASHSMASH_JUDGE_PROVIDER: openrouter
           HASHSMASH_JUDGE_MODEL: openai/gpt-5.6-sol
           HASHSMASH_JUDGE_MODE: committee
           HASHSMASH_OPENROUTER_ZDR: 'true'
+          HASHSMASH_REASONING_EFFORT: high
+        run: python3 scripts/hashsmash_pipeline.py judge --track "$HASHSMASH_SELECTED_TRACK"
+      - name: Benchmark OpenAI paired review
+        if: ${{ vars.HASHSMASH_JUDGE_PROVIDER == 'openai' }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          HASHSMASH_JUDGE_PROVIDER: openai
+          HASHSMASH_OPENAI_MODEL: ${{ vars.HASHSMASH_OPENAI_MODEL }}
+          HASHSMASH_JUDGE_MODE: committee
           HASHSMASH_REASONING_EFFORT: high
         run: python3 scripts/hashsmash_pipeline.py judge --track "$HASHSMASH_SELECTED_TRACK"
       - name: Upload review dossier

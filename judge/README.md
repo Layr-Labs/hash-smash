@@ -1,7 +1,8 @@
 # HashSmash AI judge
 
 This package reviews the [paired frontier lanes](../docs/JUDGE_LANES.md) through
-OpenRouter Chat Completions or Amazon Bedrock Converse/Responses. Four independent
+OpenRouter Chat Completions, Amazon Bedrock Converse/Responses, or direct OpenAI
+Responses. Four independent
 roles inspect evaluability, cryptanalysis, cost and experiments. A proposed fatal
 finding triggers defender and adjudicator reviews. One evidence package produces
 both lane decisions; only the selected lane can emit a score.
@@ -35,7 +36,10 @@ bindings, unresolved obligations and both decisions.
 
 ## Provider backends
 
-Set `HASHSMASH_JUDGE_PROVIDER` to `openrouter` or `bedrock`; the default is `openrouter`.
+Set `HASHSMASH_JUDGE_PROVIDER` to `openrouter`, `bedrock`, or `openai`; the default is `openrouter`.
+Direct [OpenAI setup and contract](../docs/OPENAI_JUDGE.md) requires `OPENAI_API_KEY`
+and an explicit `HASHSMASH_OPENAI_MODEL` (reviewed model: `gpt-5.6-sol`). Unknown
+providers fail without fallback.
 The library and pipeline do not load `.env` themselves. Local wrapper scripts load it
 without printing it.
 
@@ -105,7 +109,7 @@ and [OpenAI Bedrock guidance](https://developers.openai.com/api/docs/guides/amaz
 
 ## Prompt strategies and role committees
 
-Both adapters use `formal-proof-v1` and high reasoning effort by default. Override
+All three adapters use `formal-proof-v1` and high reasoning effort by default. Override
 these with `HASHSMASH_JUDGE_STRATEGY` and `HASHSMASH_REASONING_EFFORT`.
 The organizer-owned strategies in `judge/strategies/` are:
 

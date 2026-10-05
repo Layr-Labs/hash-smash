@@ -26,12 +26,13 @@ class ParticipantHeuristicBoundaryTests(unittest.TestCase):
             shutil.copyfile(WRAPPER, wrapper)
             # Entirely synthetic test input. The repository's real .env is
             # never read, copied, printed, or passed to this subprocess.
-            (root / ".env").write_text("export AWS_BEARER_TOKEN_BEDROCK=fixture-local-only\n")
+            (root / ".env").write_text("export AWS_BEARER_TOKEN_BEDROCK=fixture-local-only\nexport OPENAI_API_KEY=fixture-openai-local-only\n")
             setup = root / ".yukon/setup.sh"
             setup.write_text('''#!/usr/bin/env bash
 set -eu
 test -z "${AWS_BEARER_TOKEN_BEDROCK+x}"
 test -z "${OPENROUTER_API_KEY+x}"
+    test -z "${OPENAI_API_KEY+x}"
 test -z "${AWS_SECRET_ACCESS_KEY+x}"
 echo setup >> "$HASHSMASH_PHASE_TEST_LOG"
 test "${HASHSMASH_PHASE_TEST_FAILURE:-}" != setup
@@ -48,6 +49,7 @@ case "$phase" in
   prepare)
     test -z "${AWS_BEARER_TOKEN_BEDROCK+x}"
     test -z "${OPENROUTER_API_KEY+x}"
+    test -z "${OPENAI_API_KEY+x}"
     test -z "${AWS_SECRET_ACCESS_KEY+x}"
     test -z "${GITHUB_TOKEN+x}"
     echo prepare >> "$HASHSMASH_PHASE_TEST_LOG"
@@ -55,6 +57,7 @@ case "$phase" in
     ;;
   review)
     test "${AWS_BEARER_TOKEN_BEDROCK:-}" == fixture-local-only
+    test "${OPENAI_API_KEY:-}" == fixture-openai-local-only
     echo review >> "$HASHSMASH_PHASE_TEST_LOG"
     ;;
   *) exit 70 ;;
@@ -68,6 +71,7 @@ esac
                 "HASHSMASH_PHASE_TEST_FAILURE": failure or "",
                 "AWS_BEARER_TOKEN_BEDROCK": "fixture-inherited",
                 "OPENROUTER_API_KEY": "fixture-inherited",
+                "OPENAI_API_KEY": "fixture-inherited",
                 "AWS_SECRET_ACCESS_KEY": "fixture-inherited",
                 "GITHUB_TOKEN": "fixture-inherited",
             }
@@ -75,6 +79,7 @@ esac
                                     capture_output=True, text=True, check=False)
             self.assertNotIn("fixture-local-only", result.stdout + result.stderr)
             self.assertNotIn("fixture-inherited", result.stdout + result.stderr)
+            self.assertNotIn("fixture-openai-local-only", result.stdout + result.stderr)
             return result.returncode, log.read_text().splitlines() if log.exists() else []
 
     def test_credentials_are_absent_until_after_preparation(self):

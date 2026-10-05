@@ -18,7 +18,7 @@ done
 # if the caller has already exported them. The participant still runs only in
 # the existing Docker sandbox, with its separately scrubbed environment.
 clean_environment=(env
-  -u OPENROUTER_API_KEY -u AWS_BEARER_TOKEN_BEDROCK
+  -u OPENAI_API_KEY -u OPENROUTER_API_KEY -u AWS_BEARER_TOKEN_BEDROCK
   -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN
   -u AWS_SECURITY_TOKEN -u AWS_PROFILE -u AWS_DEFAULT_PROFILE
   -u AWS_WEB_IDENTITY_TOKEN_FILE -u AWS_CONTAINER_CREDENTIALS_RELATIVE_URI

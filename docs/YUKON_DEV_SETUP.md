@@ -72,6 +72,14 @@ and high reasoning effort. Only the judge step receives the provider key;
 experiments and final scoring run in separate jobs. Check these settings before
 the official run; do not commit or print keys or `.env`.
 
+Direct OpenAI is an opt-in alternative: use Actions secret `OPENAI_API_KEY` and
+variables `HASHSMASH_JUDGE_PROVIDER=openai`, `HASHSMASH_OPENAI_MODEL=gpt-5.6-sol`.
+See [the direct OpenAI contract](./OPENAI_JUDGE.md) for model requirements, schema,
+finite retry budgets and diagnostic limits. Source installation does not change
+provider settings. Absent provider selection retains OpenRouter; unknown values
+fail without contacting another provider. The key remains in its selected judge
+step, separate from intake/experiments and scoring.
+
 Solvers can clone this public repository without a GitHub repository invitation.
 They still authenticate to Yukon for submissions. For research threads, enable
 Discussions and create an Announcement-format category named exactly

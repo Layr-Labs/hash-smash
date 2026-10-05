@@ -53,8 +53,16 @@ class Transport(Protocol):
     ) -> HttpResponse: ...
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 class UrllibTransport:
     """Minimal stdlib HTTP transport; it deliberately performs no logging."""
+
+    def __init__(self, *, follow_redirects: bool = True) -> None:
+        self._opener = None if follow_redirects else urllib.request.build_opener(_NoRedirect())
 
     def request(
         self,
@@ -66,7 +74,8 @@ class UrllibTransport:
     ) -> HttpResponse:
         request = urllib.request.Request(url, data=body, headers=dict(headers), method="POST")
         try:
-            with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+            open_request = urllib.request.urlopen if self._opener is None else self._opener.open
+            with open_request(request, timeout=timeout_seconds) as response:
                 return HttpResponse(
                     status=response.status,
                     headers=dict(response.headers.items()),

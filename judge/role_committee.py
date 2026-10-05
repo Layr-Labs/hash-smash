@@ -9,6 +9,7 @@ import os
 from .lanes import LANE_STAGES
 from .prompts import load_system_prompt
 from .bedrock_adapter import BedrockConfig, bedrock_system_prompt
+from .openai_adapter import OpenAIConfig, openai_system_prompt, openai_contract_provenance
 
 DIRECTORY = Path(__file__).resolve().with_name("committees")
 
@@ -36,12 +37,16 @@ def build_role_clients(base_config, client_factory, *, mode: str):
         effective = replace(base_config, **spec)
         # Dataclass validation and prompt lookup validate every configured value.
         prompt = bedrock_system_prompt(effective, stage) if isinstance(effective, BedrockConfig) else load_system_prompt(stage, effective.strategy)
+        if isinstance(effective, OpenAIConfig):
+            prompt = openai_system_prompt(effective, stage)
         clients[stage] = client_factory(effective)
         records[stage] = {
             "model": effective.model, "strategy": effective.strategy,
             "reasoning_effort": effective.reasoning_effort, "max_tokens": effective.max_tokens,
             "system_prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
         }
+        if isinstance(effective, OpenAIConfig):
+            records[stage].update(openai_contract_provenance(effective, stage))
     return clients, {"id": config["id"], "profile_sha256": hashlib.sha256(raw).hexdigest(),
                      "mode": "role-committee", "roles": records,
                      "aggregation": "shared proof obligations; no majority vote"}
