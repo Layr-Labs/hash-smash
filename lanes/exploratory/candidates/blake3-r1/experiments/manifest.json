@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "blake3-r1-builder",
+      "kind": "python-message-pairs-v1",
+      "scope": "The disclosed deterministic straight-line constructor for the certificate pair, executed by the organizer across 256 isolated trials.",
+      "hypothesis": "The emitted constructor reproduces certificates/msg_a.bin and certificates/msg_b.bin byte-for-byte and the two messages collide under the organizer's trusted rounds=1 digest; its observations report the operation ledger (203 data-path ops over 151 instructions; 323 including 112 packing ops and 8 packed 256-bit stores) and register liveness (144 allocated, 34 peak live).",
+      "program": "experiments/builder.py",
+      "event": { "kind": "full-collision" }
+    }
+  ]
+}

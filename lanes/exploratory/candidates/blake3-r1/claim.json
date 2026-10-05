@@ -6,23 +6,26 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 149,
+    "time_log2": 0.55,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 13,
+    "preprocessing_log2": 0,
+    "success_probability": 1,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "Messages are exactly 64 bytes: one root chunk block, flags 11 (CHUNK_START|CHUNK_END|ROOT), block length 64, counter 0, one prefix round.",
+    "Deterministic straight-line construction. Primary ledger on the selected 256-bit-word machine: 203 data-path ops (151 instructions; masked add/sub = 2, bitwise/shift = 1, rotate = 4) + 112 packing ops (two 64-byte messages packed from 32-bit solved lanes into eight 256-bit words: 2 x 4 words x 7 merges x {shl, or}) + 8 stores of 256-bit words = 323 charged ops; log2(323/222) = 0.541, claimed rounded up to 0.55.",
+    "No randomness, no trials, no branches, no compression evaluation, no collision check, no restart, no preprocessing, no advice; the design constants (C0, D0) = (1, 1) and their closed forms K = 0xFE0000FD, L = 0xFE180100 are arbitrary published immediates.",
+    "Register residency: the emitted program allocates 144 temporary registers with at most 34 simultaneously live values in the emitted order (liveness scan reported by the organizer-executed experiment program); no spill traffic and no intermediate loads or stores; packing reads solved lanes and writes packed words only.",
+    "Instruction-stream constants are immediate operands (program text, charged in memory, not re-read as data); a no-immediates reading charging 21 constant loads and a table preprocessing over-charge are disclosed with bounds in proof.md Section 7.",
+    "proof.md Section 7 also discloses a 32-bit-store machine (235 ops, 0.082), a data-path-only count (203, below one compression), and a self-check variant (<= 1.9); the algorithm itself never self-checks.",
+    "The attached experiment (experiments/builder.py, organizer-run, two byte-identical isolated executions) emits exactly the two certificate files and reports the ledger and liveness numbers as numeric observations; the certificate pair itself is verified by the organizer verifier.",
+    "success_probability = 1: the pair identity is a proved algebraic identity evaluated for the fixed disclosed constants.",
+    "No precomputed collision, no heuristic premise; heuristics is empty."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
   "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
