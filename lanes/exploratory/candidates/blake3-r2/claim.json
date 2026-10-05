@@ -6,23 +6,41 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 130.18,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 118,
+    "preprocessing_log2": 12,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Messages are exactly 64 bytes: eight 32-bit point lanes followed by eight 32-bit salt lanes, little-endian.",
+    "Single salted van Oorschot-Wiener distinguished-point rho walk of exactly k=2^128+2^40 compressions; no restart.",
+    "Relocation from x_0 with known lag: at most k' applications to form b=f^lambda(x_0) and at most k' lockstep iterations; fail if lambda>k'.",
+    "Unkeyed BLAKE3-256; 2 prefix rounds; one 64-byte root block with flags 11, length 64, counter 0.",
+    "Classical 256-bit word RAM; distinguished when point lane 0 is zero (theta=2^-32); D_max=2^110 records of 64 bytes each.",
+    "Success probability 0.39 depends on score-critical heuristic H1-salted-random-mapping; time and memory caps are worst-case and heuristic-free.",
+    "Analytical generic construction near the birthday bound; no full-scale execution or precomputed collision is claimed.",
+    "Revision of refuted 1e53125f: charges birthday-scale relocation, corrects cycle-length analysis, and prices records at 64 bytes.",
+    "The nominal reference identifier does not assert an improvement over 128; the claimed scalar 130.18 is a charged-overhead bound above the birthday exponent."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-salted-random-mapping",
+      "statement": "For a uniformly random salt and an independent uniform start point, the failure probability of the distinguished-point rho events A,B,D,E,F,G on the real salted 2-round BLAKE3 walk map f_s is at most the corresponding probability for a uniform random function on 2^256 points, up to a negligible additive gap covered by the 0.0034 allowance between the random-function bound (>0.3934) and the claimed success probability 0.39.",
+      "role": "score-critical",
+      "scope": "Applies only to the success-probability claim for this salted single-trail DP-rho algorithm with the stated parameters (k'=2^128, theta=2^-32, g=2^40, D_max=2^110, relocation caps lambda<=k' and lockstep<=k'). It does not assert anything about unsalted fixed maps, parallel multi-trail statistics beyond the charged single walk, differential cryptanalysis, or sub-birthday structure.",
+      "extrapolation": "The organizer-scaled experiment uses a 16-bit truncation of the same 2-round root compression with proportional DP parameters and the same relocation caps (lambda<=k', lockstep<=k'). Agreeing rho statistics there, together with the standard generic-hash modeling premise for salted walks, are extrapolated across about 240 bits of digest to the full 256-bit map. No proof rules out a global permutation-like structure that would suppress collisions. Relative slack g/k' is larger at the 16-bit scale than at full scale; that mismatch is disclosed and is why the scaled frequency is only supporting evidence.",
+      "evidence_ids": [
+        "experiment:scaled-dp-walk",
+        "proof:1-100",
+        "proof:110-220",
+        "proof:221-340"
+      ],
+      "limitations": "H1 is not proved. Truncated experiments cannot detect global injectivity or other large-structure deviations of the full map. The 0.0034 allowance above 0.39 is not statistically certified at full scale. Only the scaled experiment is organizer-executed; no full-scale collision is known. A map closer to a permutation would lower success probability below the claim. The scaled g/k' ratio exceeds the full-scale ratio."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }

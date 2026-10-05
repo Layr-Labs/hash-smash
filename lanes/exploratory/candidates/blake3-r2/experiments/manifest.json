@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "scaled-dp-walk",
+      "kind": "python-message-pairs-v1",
+      "scope": "Complete scaled copy of the salted distinguished-point rho walk on the exact 2-round BLAKE3 root compression. Point space is 16 bits; distinguished points have low 2 bits zero (theta=2^-2). Parameters k'=2^8, g=2^5, k=k'+g, D_max=2^12, gap=2g were fixed before production runs. Relocation enforces lambda<=k' and lockstep<=k', matching the full-scale resource-bounded algorithm. Each organizer trial supplies one 256-bit seed expanded to salt and start. The checked event is equality of the first 16 digest bits (digest-xor-mask), matching the truncated walk map. Disclosed mismatch: g/k'=2^-3 at this scale versus 2^-88 at full scale. Default organizer trial budget applies.",
+      "hypothesis": "Under the salted random-mapping premise H1, the full-scale algorithm's success probability is at least the random-function bound (>0.3934) for the resource-bounded procedure (including birthday-scale relocation caps). At this scale the same control flow yields an empirical success frequency near the random-mapping prediction, supporting that the truncated 2-round root map behaves like a random function for rho statistics. Finite frequencies are supporting evidence, not a certified full-scale probability. Relative slack g/k' is larger here than at full scale.",
+      "program": "experiments/scaled_dp_walk.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffff000000000000000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
