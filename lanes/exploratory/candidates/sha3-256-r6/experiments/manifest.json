@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "k6r6-bs-full-width",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact sha3-256-r6-prefix-v1 on 64-byte single-block messages. Per organizer seed, 256 groups with SHA-256-derived structured 64-byte prefixes (256 uniform bits per group in lanes 0, 1, 2, 5; lanes 3, 4, 6, 7 fixed by Lemma 3 so round-1 chi differences satisfy u3 = u4 = v0 = v4 = 0), one per bit position of a full 256-position batch, 2 messages each (z = gray(t), t = 0, 1; LE32(z) XORed into bytes 0..3 and 40..43), N_t = 2^9. Digests used for matching come only from the bitsliced grouped evaluator of proof.md Sections 4-5, in the counted program's order and encodings: Gray update of A2 on the 22 all-ones support words with the AND-free incremental round-2 patch of O2P; lane-complement rounds 3-5 with theta at the store and start planes 2, 39, 34 stored raw and fixed on read (rounds 4-5 computed in full, then every word and fix column outside the Lemma 10 cone replaced by an unrelated constant); the last round on the 35 kept planes (140 digest bits at key rows 4k + x, KEYMASK encoding; rows 140..255 are 0, so the key is the table address); the rotating-frame zero-row transpose of Lemma 9; keys offered in processing order decode_slot(q) = 32*(q mod 8) + floor(q/8). The first pair agreeing on an 18-bit mask of kept digest bits (lane 0 bits 0-4; lane 1 bits 9-11, 16, 17; lane 2 bits 22-25; lane 3 bits 29-32) is returned; failures return two nulls. Self-checks (any failure aborts): the whole 140-bit key of each trial's first 4 messages and of its first message at every step t = 2^i against an independent direct sponge; the 22-word all-ones support of each coefficient column; O2P against a rebuild after the batch; at every step, zero key rows and the transpose against the full 6-op transpose; and every key of the batch through the program's tagged-id table with adversarial never-written words (the verify-and-continue path must be taken; every table word must decode to a message whose key is its address).",
+      "hypothesis": "As heuristic H1 predicts, the masked digests of the grouped message set behave like independent uniform 18-bit values: the success frequency agrees, within sampling error, with the uniform-model value 0.3931 for N_t = 2^9 and w = 18 (N_t^2/2^w = 1, the same ratio as N^2/2^256 in the full attack).",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "1f00000000000000000e0300000000000000c00300000000000000e001000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "k6r6-bs-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "As k6r6-bs-full-width, but each trial has 16 groups of 32 messages (z = gray(t), t = 0..31, so A2 is Gray-updated on z bits 0..4); 16 trials share one 256-position batch, each owning 16 bit positions (bitwise operations never mix positions, so trials stay independent). 18-bit mask on kept digest bits (lane 0 bits 16-18, 22, 23; lane 1 bits 37-40, 44; lane 2 bits 44-47; lane 3 bits 37-40). Same evaluator (start planes, cone replacement and rotating zero-row transpose included) and the same exactness, 22-word support, O2P, zero-row, transpose and tagged-table checks; any failure aborts the run.",
+      "hypothesis": "With 1/16 of the pairs inside a group, the success frequency agrees, within sampling error, with the uniform-model value 0.3931.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000c7000000000000000000e01100000000000000f0000000000000e0010000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "k6r6-bs-single-group",
+      "kind": "python-message-pairs-v1",
+      "scope": "As k6r6-bs-full-width, but all N_t = 2^9 messages of a trial lie in one group (one bit position; z = gray(t), t = 0..511, Gray updates on z bits 0..8): the strongest within-group structure, a negligible share of pairs at full scale. 256 trials share one batch. 18-bit mask on the top kept bits of digest lanes 0-3 (bits 54, 58-61 of lanes 0 and 1; bits 58-61 of lanes 2 and 3). Same evaluator (start planes, cone replacement and rotating zero-row transpose included) and the same exactness, 22-word support, O2P, zero-row, transpose and tagged-table checks; any failure aborts the run.",
+      "hypothesis": "Even when every message shares one prefix and A2 is affine in only 9 varying bits, the success frequency agrees, within sampling error, with the uniform-model value 0.3931.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000403c000000000000403c000000000000003c000000000000003c",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "k6r6-bs-high-z",
+      "kind": "python-message-pairs-v1",
+      "scope": "As k6r6-bs-full-width, but each trial has 4 groups of 128 messages with z = gray(t) << 25, t = 0..127, so every Gray update uses a coefficient column of z bits 25..31 (for bit j >= 27 the support positions j+36 and j+37 wrap around the 64-bit lane); 64 trials share one batch. 18-bit mask on kept digest bits (lane 0 bits 29-32, 37; lane 1 bits 44-47, 51; lane 2 bits 51-54; lane 3 bits 0-3). Same evaluator (start planes, cone replacement and rotating zero-row transpose included) and the same exactness, 22-word support, O2P, zero-row, transpose and tagged-table checks; any failure aborts the run.",
+      "hypothesis": "With the varying bits at the top of z, the success frequency agrees, within sampling error, with the uniform-model value 0.3931.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000e0210000000000000000f0080000000000000078000f00000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
