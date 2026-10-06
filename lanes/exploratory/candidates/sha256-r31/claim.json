@@ -6,22 +6,58 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 28.5,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 31,
+    "preprocessing_log2": 27,
+    "success_probability": 0.55,
+    "nonuniform_advice_log2_bytes": 13
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Complete sha256-r31-prefix-v1 hash: standard IV, FIPS 180-4 padding, steps 0..30 on every block with feed-forward, all 256 digest bits; messages M0||M1 and M0||M1' of 128 bytes.",
+    "One run of proof.md Section 5 with the advice of Section 4 (Table 6 of Li-Liu-Wang EUROCRYPT 2024 and 65 base points) and N = 188345456 random first blocks; collision-frontier-v5 units.",
+    "Time is a sum of exact operation counts times per-iteration bounds (proof.md Section 7), including the construction of the advice with a 4x margin; the one-time search that produced Table 6 is not charged.",
+    "lambda = 1.000 is computed from exact counts (table size 75675936, |V6| = 2^23, exhaustive split probability) under heuristics H1 and H2; run statistics and certificates are supporting evidence only.",
+    "baseline_improved is the required reference identifier only."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
+  "experiment_manifest": "experiments/manifest.json",
+  "heuristics": [
+    {
+      "id": "H1-uniform-cv",
+      "role": "score-critical",
+      "statement": "For uniformly random first blocks the chaining value is uniform: the number of table hits per block has mean E/2^32, and at a hit W6, W5 and the W18 offset W11 + s0(W3) + W2 are uniform and independent, so the per-hit success probability is 2^-9 * p_split with p_split = 2846011149340672/2^64.",
+      "scope": "31-step chaining values of random first blocks from the standard IV, and the words derived from them in P4.",
+      "extrapolation": "Standard random-function behaviour of the reduced compression for the chaining-value words used; exact counts are used for all sets.",
+      "evidence_ids": [
+        "proof:79-100",
+        "proof:138-149"
+      ],
+      "limitations": "Not proved; consistent with the observed hit, W6 and split rates of the runs in Section 6 (ratios near 1)."
+    },
+    {
+      "id": "H2-poisson",
+      "role": "score-critical",
+      "statement": "Successes of distinct (first block, table entry) pairs are rare and nearly independent, so the success probability is 1 - exp(-lambda) with lambda = 1.000.",
+      "scope": "The whole online algorithm at the stated parameters and advice.",
+      "extrapolation": "None beyond the stated parameters.",
+      "evidence_ids": [
+        "proof:138-149"
+      ],
+      "limitations": "Approximation; the observed success frequency of the runs in Section 6 agrees with it and the claim 0.55 is below 0.632."
+    },
+    {
+      "id": "H3-completion",
+      "role": "supporting",
+      "statement": "After a W20-split event, step P5 finds E13 and E15 within its caps, giving a collision.",
+      "scope": "Step P5 for the matched first blocks of the certificates and of the runs.",
+      "extrapolation": "From 16 matched first blocks re-completed under organizer seeds and all split events of the runs.",
+      "evidence_ids": [
+        "experiment:completion",
+        "proof:172-180"
+      ],
+      "limitations": "A rare completion failure would only lower the success probability slightly."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }

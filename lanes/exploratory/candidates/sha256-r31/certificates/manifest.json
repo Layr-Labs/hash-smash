@@ -1,4 +1,133 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "s9000",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/s9000-a.bin",
+      "message_b": "certificates/s9000-b.bin",
+      "expected_digest": "459cab7b99b4ef536a732db7eaba3697731ae581a5aef6dead4ef58d097e5163",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "s9001",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/s9001-a.bin",
+      "message_b": "certificates/s9001-b.bin",
+      "expected_digest": "847b6c4492bba72ea15029593eb2646d7a6f7e04bdc87e4c14013bc3f61ba82d",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "s9002",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/s9002-a.bin",
+      "message_b": "certificates/s9002-b.bin",
+      "expected_digest": "8319956a4767f028c8a4976aea859b2df53662f63ab8c0628884aaa79a0e8749",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "s9003",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/s9003-a.bin",
+      "message_b": "certificates/s9003-b.bin",
+      "expected_digest": "084192889f0baed477b5962f530d02578cce3588db1899494eaffc6f57f3c2ee",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "s9004",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/s9004-a.bin",
+      "message_b": "certificates/s9004-b.bin",
+      "expected_digest": "b3c9ee2e7387b783cae9ada0e007bfc5c26fa39fb1b70a58263730576d9a52b4",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "s9006",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/s9006-a.bin",
+      "message_b": "certificates/s9006-b.bin",
+      "expected_digest": "65a76b0381e68d5f453e0f62ad42fe46fb977dbb1269209555ad024dbbbadb39",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "s9007",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/s9007-a.bin",
+      "message_b": "certificates/s9007-b.bin",
+      "expected_digest": "225156f1d6397bd951e5cbf6c5804748385bbfa64f18223ae4dd47faaa15d188",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "s9008",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/s9008-a.bin",
+      "message_b": "certificates/s9008-b.bin",
+      "expected_digest": "35ae68731aecc140397914d145f5d257b1bbeceae8cb7601d759d59ee4083dbe",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "s9009",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/s9009-a.bin",
+      "message_b": "certificates/s9009-b.bin",
+      "expected_digest": "e8d8a810475be72ed0b665bee9a78bcc2902b63ed7752531f54d9504267ebb38",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "s9012",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/s9012-a.bin",
+      "message_b": "certificates/s9012-b.bin",
+      "expected_digest": "e4f48d5d5df42e8c0f909d6bbb003b78fbeb4e195610d572c5f503165470ed81",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "s9013",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/s9013-a.bin",
+      "message_b": "certificates/s9013-b.bin",
+      "expected_digest": "e9cd1be693d3cc0c56480869fa222f55573a70a7b6a92f8fef215e6c6523f1bf",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "s9017",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/s9017-a.bin",
+      "message_b": "certificates/s9017-b.bin",
+      "expected_digest": "c29ec08eea87dd5a83c93f236bee7386867514410f8dbb583eacf69bc9791a1f",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "s9018",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/s9018-a.bin",
+      "message_b": "certificates/s9018-b.bin",
+      "expected_digest": "7d109332946f83242b866b77830e3a775db2fbb1d5f3200810ec1aa1b51d8f40",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "s9019",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/s9019-a.bin",
+      "message_b": "certificates/s9019-b.bin",
+      "expected_digest": "9958e7b7db824aa254db32ec423242f1514355f5c2fee23e09828336927a838e",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "s9020",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/s9020-a.bin",
+      "message_b": "certificates/s9020-b.bin",
+      "expected_digest": "ee69e6172d67f5578c9ab6994f0571dcd6679e7ef6ea65d58079888e7067f636",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "s9022",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/s9022-a.bin",
+      "message_b": "certificates/s9022-b.bin",
+      "expected_digest": "d17a4aade5f7060d659c3136bdac8863dadd5070744a49ca275e214f004ab3d7",
+      "target_profile": "sha256-r31-prefix-v1"
+    }
+  ]
 }

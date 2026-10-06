@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "completion",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha256-r31-prefix-v1; organizer seeds; each trial re-completes one of the 16 certificate first blocks (trial mod 16) with fresh E13, E15; also re-checks the 65 advice base points.",
+      "hypothesis": "After a first block whose chaining value matched a table entry and passed the W6 and W20-split tests, step P5 yields a fresh full collision for every seed, and all 65 advice base points satisfy the conditions of proof.md Section 4.",
+      "program": "experiments/complete.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
