@@ -6,21 +6,22 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 149,
+    "time_log2": 1.5,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 17,
+    "preprocessing_log2": 0,
+    "success_probability": 1,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "Messages are exactly 64 bytes: one chunk, one block, one root compression with flags CHUNK_START|CHUNK_END|ROOT = 11, block length 64, chunk counter 0 and output counter 0.",
+    "Deterministic straight-line construction with no randomness, search, restart or loop; it always outputs a colliding pair, so success probability is exactly 1.",
+    "The two messages differ only in message words 9 and 13; words 8 and 12 are solved so that the intermediate c1 of diagonal G(0,5,10,15) and of diagonal G(2,7,8,13) is 0.",
+    "Scored algorithm fixes every free message word (0-7, 9, 10, 11, 13, 14, 15) to zero; any other fixed values, and target c1 = 2^31 for either G, work identically (Section 3).",
+    "No full target compression is evaluated. Every G-function step is charged as word operations at 1/222 each, including all loads and stores, under the classical 256-bit word RAM of collision-frontier-v5.",
+    "Explicit tally: 264 arithmetic/logical/shift operations plus 144 loads/stores plus at most 8 control operations, at most 416 operations, i.e. at most 1.874 target-compression units; the claimed 2^1.5 = 2.83 units (628 operations) leaves headroom for stricter operation conventions (Section 5).",
+    "Two executed witnesses are supplied as certificates; they are reproducibility evidence for the construction, not a stored collision used by the algorithm.",
+    "baseline_improved names the organizer nominal reference; the claimed bound 1.5 is below both that nominal 128 and the organizer's generic package (149)."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
   "heuristics": [],
