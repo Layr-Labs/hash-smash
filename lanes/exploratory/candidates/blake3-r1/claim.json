@@ -6,21 +6,21 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 149,
+    "time_log2": 1.75,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 16,
+    "preprocessing_log2": 0,
+    "success_probability": 1,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "Messages are exactly 64 bytes: one unkeyed BLAKE3 chunk/block with flags CHUNK_START|CHUNK_END|ROOT=11, length 64, counter 0, standard IV.",
+    "Deterministic closed-form construction from public IV constants; no search, no random coins, no stored precomputed collision as advice; the constant table holds only IV[0..7] and F as nine narrow words (no pre-packed lane vectors).",
+    "Active diagonals (G5, G7) with odd-parity IV[4]=0x510e527f and IV[6]=0x1f83d9ab: every column G0..G3 uses Lemma 5 ((C*,D*)=(0,-b)), outputting B=C=0 and D=-b. Active diagonals G5(1,6,11,12) and G7(3,4,9,14) see b=c=0 and d=-IV4/-IV6; passive diagonals G4/G6 use x=-IV0, x=-IV2 and y=0 so their outputs are identically zero. M uses w10=-IV2, w11=IV4, w13=-IV5, w15=IV6, and M' replaces w11, w15 by IV4-1 = IV4 XOR 1 and IV6-1 = IV6 XOR 1 (both odd!), making G5 and G7 output all-F so feed-forward pairs (v1,v9),(v3,v11),(v4,v12),(v6,v14) cancel in o1,o3,o4,o6.",
+    "Implementation: the four columns run in parallel in lane order (G2, G3, G0, G1) at bit offsets (0,64,160,224) of a 256-bit word; lanes 0-2 have guard gaps, lane 3 is the top 32 bits of the word (Lemma S4). Dv = OR(64, SHL(11, 64)) takes 2 ops and Xdr = SUB(OR(SHL(N, 64), Gd), A) takes 3 ops.",
+    "Because both active diagonal y-words (IV[4] and IV[6]) are odd constants in [1, 2^32-1], both w11' = IV[4]-1 and w15' = IV[6]-1 are 1-operation LSB flips (XOR 1) and 1-operation borrow-free subtractions (SUB 1), eliminating the +1 ALU mask penalty of even IV[5] on the sub1 stress rows.",
+    "Charged work: straight-line program, two verification compressions (H=2), 8x32-bit digest equality and message-distinctness checks, program placement (1 op/instruction) and constant-table placement (2 ops/word), under collision-frontier-v5 with C=222. Ledger W = 2(LD+ALU+ST+V) + 2LD with V=37. Primary stream (LD=9, ALU=60, 18 stores): W=266 (log2 T = 1.677). Harshest stress row (LD=11, ALU=60, 32 stores): W=302 <= (2^1.75-2)*222 = 302.72 (T = 3.3604, log2 T = 1.7486 <= 1.75).",
+    "Certificate blake3-r1-swar-g5g7-odd-diagonals-pair is an organizer-verifiable witness of the (G5, G7) construction instance with digest 1cf63ad700000000be075a1d00000000000000001d1fa44a00000000ec18ce43."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
   "heuristics": [],
