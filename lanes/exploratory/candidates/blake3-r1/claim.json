@@ -17,12 +17,25 @@
   "restrictions": [
     "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
     "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
+    "Unkeyed BLAKE3-256; 1 prefix round, one 64-byte root block with flags 0x11, length 64, counter 0.",
     "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
     "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "No published one-round BLAKE3 ordinary-collision bound below the generic birthday account exists; the package simply carries the incumbent generic score, issued as an honest submission rather than a new frontier.",
+    "The nominal reference identifier does not assert an improvement; the conservative scalar bound remains 149."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "generic-birthday-blake3-r1",
+      "statement": "No published 1-round BLAKE3 collision algorithm below the generic birthday template is known, so the package retains the incumbent scalar; any improvement detected later needs a re-run under the same cost model.",
+      "role": "supporting",
+      "scope": "Only the exact prefix-v1 target with standard tree/chunk/counter/flags",
+      "extrapolation": "None; candidate makes no advantage assertion.",
+      "evidence_ids": [
+        "proof:2"
+      ],
+      "limitations": "Submission is a participation claim rather than a new result."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
