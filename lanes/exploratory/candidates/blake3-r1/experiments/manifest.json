@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "straightline-self-exec-v1",
+      "kind": "python-message-pairs-v1",
+      "scope": "blake3-r1-prefix-v1 complete-hash ordinary collisions on 64-byte single-root-compression messages; constructor = proof.md section-3 straight-line program, re-deriving the four-column phase from the IV and solving both flipped diagonals per trial.",
+      "hypothesis": "For every trial the executed program emits two distinct 64-byte messages whose complete 1-round BLAKE3 digests are equal; trial 0 emits byte-identical certificate pair46. Success probability 1 (Lemma 1/2, proof.md section 2); any organizer-recomputed failure refutes the constructor.",
+      "program": "experiments/builder.py",
+      "event": { "kind": "full-collision" }
+    }
+  ]
+}
