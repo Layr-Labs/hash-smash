@@ -6,22 +6,112 @@
   "rounds": 32,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 61.0,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.8,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 48,
+    "preprocessing_log2": 60.3,
+    "success_probability": 1,
+    "nonuniform_advice_log2_bytes": 33
   },
   "restrictions": [
-    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent random words, not seeded PRNG expansion.",
-    "Exactly q=2^129 sampled 64-byte messages; complete SHA-256 with fixed IV, prefix rounds 0 through 31 on both padded blocks, feed-forward and all 256 digest bits.",
-    "One finite run with at most 2^136 target-compression equivalents of total charged computation and 2^138 peak bytes; no restarts, nonuniform advice or precomputed collision.",
-    "data_log2 bounds bytes of complete padded hash inputs including final verification re-reads, as specified in proof.md.",
-    "Analytic resource and success bounds; no full-scale execution, cryptanalytic improvement or nominal-reference improvement is claimed."
+    "The target is complete-message SHA-256 with the fixed FIPS 180-4 IV, standard padding, feed-forward, original compression steps 0 through 31 on every padded block, and equality of all 256 output bits.",
+    "The certificate contains two distinct 128-byte messages. The organizer-owned target checker recomputes their common digest f8a3db111360e5ed2e63041ecfa82b01c95a25882910bc0f21671949296a4e77 under sha256-r32-prefix-v1.",
+    "The paid deterministic construction is pinned to runner 4aa2673044202dce8a4da370ab512b8a5ff23cfcc9ac16a179a19a9490595786, configuration 4a86485d80c3609aa488590273f9aa6b0150120c07a5ce16b620a1bb9e969a22, and provenance commit d9afb19649446dc89c92c484e82e17139a4d52e8.",
+    "The winner is bound to chunk 34, seed 202610040034, counter 2149248237, local tuple index 15529, global admitted tuple index 14240177 below 2^30, and tail index 131794 below 196608. The complete tuple file has SHA-256 c3ea41e428beae328693cef62f32beb8f7753f2a7def98280ecd5cf847ba86ad.",
+    "The corrected terminal audit 181b7fe2ba0ce6cfa0bc2733dc6e3f18f385524f1e9100ec7fd05604adf74097 reports a quiescent run with no errors or warnings and binds 35 completed matcher attempts, 35 completed Step-3 attempts, and one independently verified collision.",
+    "The exact upper envelope charges 2^49 matcher slots and 3*2^47 tuple-tail trials. At most 2^47 of the slots are bitmap hits. Every slot pays one C32 and 2^16 ordinary primitives; every hit pays four more C32 calls and 736 entries at 2^14 primitives. Every tail pays two C32 calls and 63488 primitives. With verification below 2^45, non-preprocessing work has base-2 logarithm 59.461429299162354, below 59.6.",
+    "Preprocessing is the published 35-step cost, at most 2^49 compression evaluations, inflated by the full reference cost C=2224, plus receipted local work below 2^51. Thus P < 139*2^53 + 2^51 and log2(P_bound) = 60.12153351734003 < 60.3. The total is below 284669823249438212096/139, whose base-2 logarithm is 60.828910391669645, so time_log2 61.0 is conservative.",
+    "Memory below 2^48 simultaneously live bytes is an exploratory constructive phase and machine-capacity envelope. Current phases are below 2^34 bytes, the campaign host has below 2^36 physical bytes, and the paper reports a below-2^39 server capacity; no historical peak-RSS trace is claimed.",
+    "The post-terminal inventory binds 5,760,270,500 unique retained bytes plus a 234,801-byte inventory and a full 2^26-byte downstream envelope, totaling 5,827,614,165 bytes below 2^33. Material nonuniform files outside the four scanned roots would invalidate the advice bound.",
+    "success_probability 1 describes coinless replay of this fixed, mechanically checked witness after all discovery work is charged. The organizer experiment derives and repeats the committed pair; it is not a fresh-search forecast, resource measurement, or empirical campaign success rate.",
+    "The construction instantiates the two-block framework of Yingxin Li, Fukang Liu, Gaoli Wang, and Jiali Shi (IACR ePrint 2026/1080). The implementation, exact r32 witness, bounded campaign, and HashSmash accounting are project-specific; no broader round or full-SHA-256 claim is made.",
+    "The hit occurred at chunk 34, before review checkpoints 640 and 1292, so no checkpoint approval or consumed-token artifact is part of the winner lineage."
   ],
   "baseline_improved": "sha256-r32-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json",
+  "heuristics": [
+    {
+      "id": "cv0-bitmap-hit-bound",
+      "statement": "Among the 2^49 charged matcher slots, at most one quarter are cv[0] bitmap hits.",
+      "role": "score-critical",
+      "scope": "The pinned matcher over the charged 8192 attempts of 2^36 slots, using the retained table whose bitmap is set only from its 609229824 entry keys.",
+      "extrapolation": "A uniform cv[0] hits at most 609229824/2^32 < 0.14185 of the slots. The charged cap is 1/4, about 1.76 times that maximum and about 5.55 times the winning chunk's measured recompute rate of 0.04506. Each hit is still charged four C32 calls and a 736-entry scan.",
+      "evidence_ids": [
+        "proof:167-206",
+        "proof:813-1082",
+        "proof:1878-2010",
+        "proof:2893-3112"
+      ],
+      "limitations": "This is a count cap on the charged slots, not an expectation and not a fresh-search probability. cv[0] concentration above 1/4, a bucket above 736, or a table with more than 2^30 set bitmap bits would invalidate it. One chunk receipt does not by itself prove the other chunks, and uniformity of cv[0] is not proved."
+    },
+    {
+      "id": "source-path-operation-envelope",
+      "statement": "All non-preprocessing work of the specified finite constructor is below 2^59.6 collision-frontier-v5 target-compression units.",
+      "role": "score-critical",
+      "scope": "The pinned matcher, tuple derivation, tail search, final verification, recovery, hashing, inventory administration, all charged failures, and one complete rerun envelope.",
+      "extrapolation": "With at most 2^47 bitmap hits, N <= 2^49*(1 + 2^16/2224) + (2^49/4)*(4 + 736*2^14/2224) + 3*2^47*(2 + 63488/2224) + 2^45, and log2(N_bound) = 59.461429299162354.",
+      "evidence_ids": [
+        "proof:167-206",
+        "proof:378-404",
+        "proof:813-1236",
+        "proof:1878-2010"
+      ],
+      "limitations": "This envelope uses cv0-bitmap-hit-bound. More than 2^47 bitmap hits, an unbounded reachable path, an omitted paid phase, work outside the specified caps, or an incorrect source-to-operation envelope would invalidate it."
+    },
+    {
+      "id": "bounded-constructor-preprocessing",
+      "statement": "All preprocessing needed for the specified public-route and project construction is below 2^60.3 target-compression units.",
+      "role": "score-critical",
+      "scope": "Starting-route reconstruction, table and tail construction, controls, hashing, source checks, development setup that materially produced the witness, and a complete retry allowance.",
+      "extrapolation": "Receipted local preprocessing is below 2^51. The published 35-step total is at most 2^49 compression evaluations, and inflating by C=2224 gives 139*2^53. Thus P < 139*2^53 + 2^51 and log2(P_bound) = 60.12153351734003 < 60.3.",
+      "evidence_ids": [
+        "proof:208-242",
+        "proof:449-461",
+        "proof:2893-3112",
+        "proof:3114-3217"
+      ],
+      "limitations": "The route ceiling is the published 35-step figure rounded up to 2^49 and multiplied by C=2224, plus local work below 2^51. It is not a historical instruction trace. Route work beyond 139*2^53 target units, or local work of 2^51 or more, would invalidate it."
+    },
+    {
+      "id": "whole-process-memory-envelope",
+      "statement": "Every phase of the specified construction remains below 2^48 simultaneously live bytes.",
+      "role": "supporting",
+      "scope": "Code, mapped table pages, tuple buffers, allocator transients, process trees, verification state, and the route-construction machines described by the retained evidence and public source.",
+      "extrapolation": "Constructive current-phase bounds are below 2^34 bytes, the campaign host capacity is below 2^36 bytes, and the source-reported route host capacity is below 2^39 bytes; phases execute sequentially within the much wider 2^48 ceiling.",
+      "evidence_ids": [
+        "proof:244-271",
+        "proof:463-470",
+        "proof:630-686"
+      ],
+      "limitations": "No complete historical peak-RSS series exists. A hidden concurrent phase or materially larger host requirement would invalidate the envelope."
+    },
+    {
+      "id": "retained-advice-inventory-completeness",
+      "statement": "The canonical four-root inventory and downstream reserve cover all retained nonuniform material in fewer than 2^33 bytes.",
+      "role": "score-critical",
+      "scope": "All regular files in the four retained roots after terminal quiescence, deduplicated aliases, the canonical inventory and receipt, candidate and note snapshots, bundle manifests, and submission metadata.",
+      "extrapolation": "The scanner accounts for 5,760,270,500 unique retained bytes, its 234,801-byte inventory, and a full 67,108,864-byte downstream reserve, totaling 5,827,614,165 bytes.",
+      "evidence_ids": [
+        "proof:272-308",
+        "proof:1790-1876",
+        "proof:2047-2891"
+      ],
+      "limitations": "Material nonuniform data outside the four scanned roots, an incorrect alias treatment, or downstream artifacts exceeding the reserved envelope would invalidate completeness."
+    },
+    {
+      "id": "deterministic-fixed-witness",
+      "statement": "After construction and retained advice are fully charged, the submitted algorithm succeeds with probability 1 on its sole empty random tape.",
+      "role": "score-critical",
+      "scope": "Deterministic derivation and replay of the two distinct 128-byte messages under the selected complete-message SHA-256/32 target.",
+      "extrapolation": "The certificate checker recomputes both full digests, and the isolated organizer experiment derives the pair from the committed tuple, table slices, tail, and coordinates before returning it for organizer recomputation.",
+      "evidence_ids": [
+        "proof:26-70",
+        "proof:113-159",
+        "proof:309-322",
+        "experiment:fixed-witness-derivation"
+      ],
+      "limitations": "This establishes deterministic retained replay only and says nothing about the probability or cost of obtaining a collision in a fresh search."
+    }
+  ]
 }
