@@ -6,23 +6,49 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 40.92,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 29.37,
+    "preprocessing_log2": 40.06,
+    "success_probability": 1.0,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Ordinary collisions of the complete sha3-256-r5-prefix-v1 hash (zero IV, prefix rounds 0..4, SHA3 padding, full 256-bit digest); outputs are two distinct 135-byte messages.",
+    "Deterministic algorithm, no random coins, executed to completion: success probability 1. Cost = cost of that execution.",
+    "Phase A: exhaustive enumeration of CP-kernel alpha_3 of Hamming weight <= 10 with exact slice-local filters, then a CP-SAT feasibility screen (connector load w1 <= 140) in generation order, stopping at the first feasible survivor (position 159); outputs Guo et al. Trail core No. 3.",
+    "Phase B: beta_2 read from Phase A's output; exact 2-round connector solved by single-worker CP-SAT (non-binding time limits) with lazy relation cuts; seeds 100, 101, ... in order; seed 100 succeeds (DF 52); executed twice with bit-identical output.",
+    "Phase C: 10 workers enumerate a 38-dimensional subspace of the connector space in chunk-major Gray order, chunks dispatched in increasing order, stopping dispatch after the first digest collision (index 122745632515); executed as specified (122792443904 pairs evaluated), charged by an upper bound on in-flight work (123094433792 pairs, assuming only that the stop flag becomes visible within one chunk) plus 600 word-RAM primitives per pair outside the permutations; the output pair is replayed by an organizer-executed experiment.",
+    "Costs: permutation calls 1 unit; own C code by explicit operation counts; CP-SAT and Python by hardware-counted retired instructions x 1024 (H3); OS time charged at a ceiling rate x 1024."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H3-instruction-conversion",
+      "statement": "Every retired ARM64 instruction of the black-box CP-SAT/Python processes in Phases A2 and B is simulated by at most 1024 collision-frontier-v5 word-RAM primitives, so retired instructions x 1024 bound their charged work.",
+      "role": "score-critical",
+      "scope": "Phases A2 and B as executed (Apple M4 Pro, OR-Tools 9.15, Python 3.14); instruction counts from the process hardware counter; kernel work charged separately at a ceiling rate.",
+      "extrapolation": "From per-instruction-class emulation bounds (load/store, ALU, multiply, divide, IEEE single and double operations, CRC32, and 128-bit SIMD charged per lane at 8 primitives per lane bit) to every instruction executed; the instruction mix itself was not measured.",
+      "evidence_ids": [
+        "proof:474-516",
+        "proof:313-322"
+      ],
+      "limitations": "A worst-case argument, not a measured instruction mix; it likely overstates cost. An instruction class needing more than 1024 primitives would invalidate the factor for that class."
+    },
+    {
+      "id": "H4-execution-reproducibility",
+      "statement": "The reported instruction counts are the costs of the deterministic executions of Phases A2 and B on the stated platform and software versions; re-execution reproduces the same computation up to a small count spread.",
+      "role": "supporting",
+      "scope": "Phases A2 and B each executed twice with identical outputs and measured instruction-count spreads; Phase A1 counter-based operation bound matches its hardware count; raw time -l records in Appendix B.",
+      "extrapolation": "From the replicated runs to the stated single executions of A2 and B on the same platform and versions.",
+      "evidence_ids": [
+        "proof:210-213",
+        "proof:518-530",
+        "proof:3493-3545"
+      ],
+      "limitations": "Other platforms or library versions execute different instruction streams and may take different solver paths; the claim is tied to the stated execution."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }

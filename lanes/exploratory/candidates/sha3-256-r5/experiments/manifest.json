@@ -1,0 +1,15 @@
+{
+ "schema_version": 1,
+ "experiments": [
+  {
+   "id": "replay-phase-c",
+   "kind": "python-message-pairs-v1",
+   "scope": "The executed Phase C: the embedded enumeration subspace S' of the Phase B output, its fixed chunk-major Gray order, and the index of the first collision. Every trial regenerates the same pair. The replay checks only the output collision; it does not test the declared cost heuristics H3-instruction-conversion or H4-execution-reproducibility, nor Theorem 6.1 (its alpha_2 observations are untrusted).",
+   "hypothesis": "The element of S' at the stated enumeration index and its partner under the message difference alpha_0 are two distinct 135-byte messages with equal sha3-256-r5 digests. The replay makes no cost claim: it does not show that no earlier index collides, and Phase C's charge is the bound on pairs actually evaluated by the parallel execution (proof Section 7).",
+   "program": "experiments/replay.py",
+   "event": {
+    "kind": "full-collision"
+   }
+  }
+ ]
+}
