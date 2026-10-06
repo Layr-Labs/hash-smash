@@ -6,23 +6,24 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 128.65,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 136,
+    "preprocessing_log2": 123,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Messages are exactly 33 bytes: one independent uniform 256-bit word and one independent uniform byte. Groups of 32 bytes are extracted from fresh independent random words.",
+    "One batch of N=511*2^119 independent samples. Repeated messages are retained, charged, and explicitly rejected as collision witnesses. No restart.",
+    "Unkeyed BLAKE3-256, two prefix rounds, one root compression per message, flags 11, true block length 33, counter 0, zero filling only for word loading.",
+    "Partition full digests by their low 128 bits, then detect equal high halves using a direct-address table tagged by the current low half. All tables, initialization, accesses, comparisons, and witness recovery are charged.",
+    "Universal fixed-function probability proof. No random-oracle, internal-round, sparse-bucket, or empirical independence heuristic is assumed.",
+    "The experiment checks a 16-bit output mask of the exact two-round target and finite detector cases. It supplies implementation evidence, not a full collision or a full-scale cost measurement.",
+    "The bound improves the checked-out organizer candidate's 140, not the nominal reference 128 or lower unpromoted structural claims. Huge abstract RAM requirements remain physically infeasible."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
   "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }

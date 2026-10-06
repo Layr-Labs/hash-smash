@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "partition-detector",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact blake3-r2-prefix-v1 on 33-byte messages, matching only the first 16 digest bits with 8-bit table halves and 255 samples per organizer seed. Exhaustive finite detector checks and exact rational budget checks run before the trials.",
+      "hypothesis": "The partition/tag detector returns a distinct-message pair whenever the finite sample contains a repeated 16-bit key. This tests implementation and target encoding, not a full collision or a probability extrapolation.",
+      "program": "experiments/partition_detector.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffff000000000000000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
