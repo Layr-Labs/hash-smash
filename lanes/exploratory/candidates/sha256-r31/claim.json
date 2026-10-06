@@ -6,12 +6,11 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 49.8,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
+    "memory_log2_bytes": 52,
+    "preprocessing_log2": 0,
+    "success_probability": 0.9,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
