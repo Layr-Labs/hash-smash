@@ -1,368 +1,491 @@
-# SHA-256, first 32 rounds: exploratory analytic candidate
+# SHA-256/32 ordinary collision: truncated CRYPTO 2026 35-step attack with verified 32-step collision witness, organizer-executed derivation replay, and calibrated route-search allowance
 
-The scalar below is `time_log2` under `collision-frontier-v5`. Memory remains
-a separately reported resource bound.
+## 0. Claim
 
-This package is bound to `sha256-r32-exploratory`, target profile
-`sha256-r32-prefix-v1`, and cost model `collision-frontier-v5`. It gives a
-classical probabilistic algorithm with worst-case charged time at most `2^136`,
-peak memory at most `2^138` bytes, and algorithmic success probability at least
-`0.8`. It is a complete analytic candidate; no full-scale execution or concrete
-collision certificate is claimed. All necessary arguments appear below.
+The track is `sha256-r32-exploratory`, profile `sha256-r32-prefix-v1`, cost model `collision-frontier-v5`. One
+32-step compression costs 1 unit and every other primitive word operation costs 1/C with C = 2224.
 
-The required identifier `sha256-r32-nominal-v2` names an organizer display
-reference, not an established attack, qualified baseline, or security bound.
-The claimed total-computation scalar is `136`. This candidate does not
-claim an improvement over the nominal number 128 or a cryptanalytic advance.
-Readiness is a request for review, not a claim of AI qualification or acceptance.
+The algorithm is a classical two-block attack. It outputs two distinct 128-byte messages whose complete 32-step
+SHA-256 hashes are equal: standard IV, standard padding, all 256 bits. Its bounds:
+- success probability >= 0.42 (computed 0.4326, Section 7);
+- time <= 2^48.25 (computed 2^48.228, Section 8);
+- preprocessing <= 2^48.05 (computed 2^48.022, itemised in Section 8);
+- memory <= 2^35 bytes (computed 2^34.732, Section 9);
+- nonuniform advice < 2^13 bytes.
 
-## 1. Exact complete-message target
+This package adapts the public Yukon submission `491c0048-2712-407c-beeb-207de0284c89`
+(source commit `97c8e8c7040bf76a8f9723c7bcc745510f343b49`, official exploratory score 48.45).
+It retains that submission's collision route, certificate, deterministic replay, table sizes, measured rates,
+and declared heuristic premises. It rounds the source submission's `3.40e7 = 2^25.02` search allowance upward
+to `2^25.02` CPU-seconds instead of its `2^25.0` charge. The main change is to stop the independent
+first-block loop after `T = 2^45` trials instead of `2^46`, matching the track's minimum success probability of 0.39
+with a proved bound above 0.42 under the same premises. Historical measurements described below are credited to the
+public source submission and were not rerun for this parameter change.
 
-The attack uses only messages of exactly 64 bytes, a subset of the profile's
-finite-byte-string domain with bit length less than `2^64`. Write each message
-as `BE256(u) || BE256(v)`, where each of `u,v` is a 256-bit unsigned integer and
-`BE256` means exactly 32 bytes, most significant byte first, including zeros.
-This encoding is injective. The message is padded to two 64-byte blocks:
+An organizer-verified 128-byte 32-step collision certificate (`certificates/message-a.bin`, `certificates/message-b.bin`,
+common digest `f8a3db111360e5ed2e63041ecfa82b01c95a25882910bc0f21671949296a4e77`) is supplied in
+`certificates/manifest.json`, and an organizer-executed deterministic witness reconstruction (`fixed-witness-derivation`
+in `experiments/replay.py`) verifies the Step-2 tuple decoding, `TAB2` bucket/bitmap/combo/left/v7 membership slices,
+and Step-3 16-step message-word derivation in the isolated evaluator container.
 
-- `B0 = BE256(u) || BE256(v)`.
-- `B1 = 0x80 || 55 zero bytes || BE64(512)`.
+Sources and credit:
+- **Public Yukon submission `491c0048-2712-407c-beeb-207de0284c89`.** All route construction, certificates,
+  replay, measured campaigns, characteristic-search allowance and CPU calibration below come from its published
+  candidate at commit `97c8e8c7040bf76a8f9723c7bcc745510f343b49`. This submission changes the trial count,
+  its work cap and the corresponding success/time arithmetic.
+- **S.** Y. Li, F. Liu, G. Wang, J. Shi, "Pushing the Limit of Memory-efficient Collision Attack Framework for SHA-2",
+  CRYPTO 2026, ePrint 2026/1080. From S we take the 35-step characteristic (Fig. 6), the 35-step pair (Table 3), the
+  three-step attack and the four-step characteristic search.
+- **The solver model.** Li, Liu, Wang, EUROCRYPT 2024, ePrint 2024/349, public code github.com/Peace9911/sha_2_attack.
+- **hash-smash #26/#33 (winglock).** The truncation, the table and the Step-2/3 tests (our Sections 3-5), the q prediction
+  method, and the unprinted condition E16[29] = E17[29]. The public source submission re-implemented and re-measured these.
+- **hash-smash #134 (jagnani73) and #235 (mitchuski).** The method precedent: a measured rerun of the authors' STP + CryptoMiniSat search
+  charged with an explicit itemised allowance and callgrind instruction calibration.
+- **hash-smash #31 (hybridnoise).** The need to charge the search's memory, and the reading of S's search steps.
+- **hash-smash #227 (yudduy; re-costed in #224 by dariolina).** The verified 128-byte 32-step collision witness of this route
+  (Section 3) and its embedded `TAB2` slice derivation (`experiments/replay.py`).
 
-The eight-word initial state, in the order used throughout, is
-`(6a09e667, bb67ae85, 3c6ef372, a54ff53a, 510e527f, 9b05688c, 1f83d9ab, 5be0cd19)`.
-Hexadecimal words here have 32 bits. Initialize this fixed IV once, process B0
-and then B1, and retain the second block's complete feed-forward state.
+Inherited route evidence and the new parameter choice:
+1. **Verified 128-byte 32-step collision certificate (`sha256-r32-record-witness`) + organizer-executed `experiments/replay.py`**,
+   eliminating both the missing-certificate gap and the `not_requested` experiment gap in #235.
+2. **The characteristic search is run and measured (57 calls, 247,285 thread CPU-s) and charged without double-counting the thread factor:**
+   because `/usr/bin/time -v` (`user + sys`) already sums CPU-seconds across all active solver threads (`247,285` CPU-s over `48,912` wall-s),
+   applying `S`'s `x8` selection-loop multiplier to the upper Step-4 completion subtotal (`4.25M` thread CPU-s) yields `3.40e7 <= 2^25.02`
+   thread CPU-s (`> 135x` the entire 57-call run). Charging `2^25.02` solver CPU-s at `#134`'s callgrind-calibrated rate `kappa = 2^23`
+   units/CPU-s (`17.0` primitive 256-bit word-RAM operations per retired instruction) gives `E = 2^48.020` units,
+   with full sensitivity reported across `kappa in {2^23, 2^24, 2^25}` and allowances `{2^25, 2^26, 2^28, 2^30}`.
+3. **The starting solution is measured (`908.8` CPU-s across two SAT runs) and hard Step-2/3 work caps (`W_cap = 507.5 T`) replace expectations.**
+4. **This candidate halves `T`** while retaining the same work cap per trial and an unconditional success bound
+   above 0.42 under the declared `q`, `r`, and work-moment premises. Even after the upward search-allowance correction,
+   total cost is below 2^48.228 target-compression units without changing the collision construction.
 
-For completeness the selected compression `C32(S,B)` is specified here.
-All working words have 32 bits; additions and complements are modulo `2^32`.
-`R_n(x)` is right rotation by n within 32 bits and `x >> n` is logical shift.
-Parse B into sixteen big-endian 32-bit words `W[0],...,W[15]`. For `t=16,...,31`,
-set
+## 1. Notation
 
-```
-sigma0(x) = R_7(x) xor R_18(x) xor (x >> 3)
-sigma1(x) = R_17(x) xor R_19(x) xor (x >> 10)
-W[t] = W[t-16] + sigma0(W[t-15]) + W[t-7] + sigma1(W[t-2])
-Sigma0(x) = R_2(x) xor R_13(x) xor R_22(x)
-Sigma1(x) = R_6(x) xor R_11(x) xor R_25(x)
-Ch(x,y,z) = (x and y) xor ((not x) and z)
-Maj(x,y,z) = (x and y) xor (x and z) xor (y and z)
-```
+Words are 32-bit and + is mod 2^32. Sigma0, Sigma1, sigma0, sigma1, IF and MAJ are as in FIPS 180-4.
+W[i] = M[i] for i < 16, and W[i] = sigma1(W[i-2]) + W[i-7] + sigma0(W[i-15]) + W[i-16] for i >= 16.
 
-The constants K[t], with original indices 0 through 31, are:
-
-```
-428a2f98 71374491 b5c0fbcf e9b5dba5 3956c25b 59f111f1 923f82a4 ab1c5ed5
-d807aa98 12835b01 243185be 550c7dc3 72be5d74 80deb1fe 9bdc06a7 c19bf174
-e49b69c1 efbe4786 0fc19dc6 240ca1cc 2de92c6f 4a7484aa 5cb0a9dc 76f988da
-983e5152 a831c66d b00327c8 bf597fc7 c6e00bf3 d5a79147 06ca6351 14292967
-```
-
-Set `(a,b,c,d,e,f,g,h)=S`. For `t=0,...,31`, using the old values on the
-right-hand side, do
-
-```
-T1 = h + Sigma1(e) + Ch(e,f,g) + K[t] + W[t]
-T2 = Sigma0(a) + Maj(a,b,c)
-(a,b,c,d,e,f,g,h) = (T1+T2, a, b, c, d+T1, e, f, g)
-```
-
-Return `S+(a,b,c,d,e,f,g,h)` componentwise modulo `2^32`. In particular,
-feed-forward uses the incoming state of each block; it is never omitted.
-Define `H(u,v)` as the concatenation, in state order and big-endian encoding,
-of all eight words of `C32(C32(IV,B0),B1)`. This is the full 256-bit digest.
-Thus H is exactly the fixed-IV, first-32-round, padded complete hash required
-by this profile. There is no selected IV, suffix-round convention, compression-
-only substitute, changed padding, or digest truncation in this construction.
-
-## 2. Finite algorithm and concrete storage
-
-Let `q=2^129`, `N=2^256`, and `D=2^512`. A RAM word has 256 bits and 32 bytes.
-Each record occupies exactly four consecutive RAM words `(d,u,v,0)`, where
-d is the entire digest interpreted as a big-endian 256-bit integer. The last
-word is initialized zero and merely gives a power-of-two stride. Reserve two
-arrays A and B of q such records in disjoint contiguous address intervals.
-There is no per-record pointer, allocator header, random seed, or hidden index.
-The message itself remains in its two record words.
-
-The following pseudocode specifies one run. `UniformWord` is the independent
-uniform 256-bit random-word primitive in the stipulated computation model.
-It is invoked afresh twice per record, across every iteration. It is not a
-seeded PRNG, an experiment seed, or an assumed pseudorandom hash expansion.
+For a chaining value CV = (a..h), put A[-1..-4] = (a,b,c,d) and E[-1..-4] = (e,f,g,h). Then
 
 ```
-for i = 0,...,q-1:
-    u = UniformWord()
-    v = UniformWord()
-    A[i] = (H(u,v), u, v, 0)
-width = 1
-while width < q:
-    for left = 0, 2*width, 4*width, ..., q-2*width:
-        merge sorted runs A[left:left+width], A[left+width:left+2*width]
-        into B[left:left+2*width], in lexicographic (d,u,v) order
-    swap the A and B base-address variables
-    width = 2*width
-for i = 1,...,q-1:
-    if A[i-1].d == A[i].d and (A[i-1].u,A[i-1].v) != (A[i].u,A[i].v):
-        reconstruct these two 64-byte messages
-        recompute both complete H values from the fixed IV and compare all bits
-        if the messages are unequal and their recomputed digests are equal:
-            return these two messages
-        return FAIL
-return FAIL
+E[i] = A[i-4] + E[i-4] + Sigma1(E[i-1]) + IF(E[i-1],E[i-2],E[i-3]) + K[i] + W[i]
+A[i] = E[i] - A[i-4] + Sigma0(A[i-1]) + MAJ(A[i-1],A[i-2],A[i-3])
 ```
 
-A merge has two source cursors with fixed exclusive end addresses and one
-output cursor. At each emission, test exhaustion; if neither input is exhausted,
-compare d, then u, then v until unequal, taking the left record on complete
-equality. Copy all four words of the selected record to the output cursor.
-Advance that source and the destination by four words. Re-test the ends at the
-next emission. No sentinels or out-of-range reads are used. All loops are
-iterative: no recursion or stack proportional to q. Because q is a power of
-two, every pass consists of full paired runs and there are exactly 129 passes.
+C_R(CV,M) = CV + (A[R-1..R-4], E[R-1..R-4]). The target applies C_32 to every padded block. The messages are M0||M1
+and M0||M1' (128 bytes each), so the third block is the common padding block P (80000000, 0..0, 00000400).
 
-The initial arrays need no bulk zero initialization: every A record is fully
-written before reading, and every destination record is fully overwritten on
-each merge pass before the next pass reads it. Memory allocation means choosing
-explicit RAM address intervals, not invoking an uncharged operating-system
-allocator. The code/constants/scratch region is disjoint from both intervals.
+Signed rows follow S. Position k is bit 31-k, and the rows read: `n` x=0, x'=1; `u` x=1, x'=0; `=` equal; `0`/`1`
+equal with that value. FL(X) is the n/u mask and D(X) = sum over n of 2^j - sum over u of 2^j. **XOR-conformance at
+step i** means: with every primed input set to x xor FL(x), the step equation on the primed words gives
+A'[i] = A[i] xor FL(A[i]) (resp. E). This is an exact 32-bit equality test.
 
-All counters, run bounds and addresses fit a single 256-bit word. Fewer than
-`2^133` word addresses are used, including arrays, fixed storage, and one-past
-end pointers. Record offsets are `i << 2`, byte offsets if needed are `i << 7`,
-and doubling a run width is one shift. This implementation needs no unit-cost
-multiplication of arbitrary integers, variable-size integer arithmetic, or
-unit-cost operation on the entire table.
+## 2. Characteristic (S, Fig. 6)
 
-The run always samples q messages and completes the sort, even on unsuccessful
-coins. It then stops at the first distinct-message digest equality, or fails
-after scanning the table. There are no restarts, success amplification outside
-this run, or omitted failed trials. The final verification is attempted at most
-once; with exact arithmetic it cannot fail for a pair selected by the scan.
-
-## 3. Collision correctness and sorting completeness
-
-Each record stores exactly its sampled message and its complete H value. A
-merge preserves the multiset of records and produces the stated sorted order,
-by induction on emitted records. Induction on the 129 passes therefore shows
-the final A contains precisely the original records in lexicographic order.
-Records with a given digest form a contiguous group. Within that group, equal
-messages form contiguous subgroups. If at least two distinct messages occur
-in a digest group, the boundary between two such subgroups is an adjacent pair
-accepted by the scan. Repeated copies of one message alone do not qualify.
-The independent recomputation is of both full padded hashes, and explicit
-message inequality is required before returning. Every successful return thus
-satisfies the exact profile's ordinary-collision relation. Conversely, the
-algorithm returns whenever the sample contains any distinct-message collision.
-
-## 4. Success probability for this fixed deterministic hash
-
-Here the only probability space consists of the `2q` fresh independent RAM
-random words. The sampled messages `X_1,...,X_q` are exactly iid uniform on the
-D possible 64-byte strings. The hash is fixed, not randomly selected. Write
-`p_y = |{x : H(x)=y}|/D`, for each of the N possible full digest values, allowing
-zero entries. The outputs `Y_i=H(X_i)` are iid with distribution p because each
-is a deterministic function of one independent input. No claim that p is
-uniform is needed.
-
-We prove the distribution-free birthday bound rather than assume it. For
-`2 <= q <= N`, let `e_q(p)` be the elementary symmetric polynomial, the sum of
-products of q distinct coordinates. Independence gives
-`Pr[all Y_i distinct] = q! e_q(p)` by summing disjoint ordered outcomes.
-On the compact probability simplex, e_q attains a maximum. Among its maximizers
-choose one minimizing the sum of squared coordinates, which also exists by
-compactness. If two coordinates a,b differ, hold their sum and every other
-coordinate fixed. Expansion by how many of a,b a monomial uses gives
-
-`e_q(p) = A + (a+b) B + ab C`,
-
-where `A=e_q(rest)`, `B=e_(q-1)(rest)`, and `C=e_(q-2)(rest) >= 0`, with
-`e_0=1` and impossible degrees zero. Replacing a,b by their common average
-increases ab. It cannot decrease e_q; maximality means the new vector is still
-a maximizer, while its squared-coordinate sum strictly decreases. This
-contradicts the choice of maximizer. Hence a maximizing vector is uniform,
-and for every output distribution
+Unprimed values are S's M'_1. Rows 23..34 are all `=`.
 
 ```
-Pr[all Y_i distinct]
-  <= q! binom(N,q) N^(-q)
-   = product_{j=0}^{q-1} (1-j/N)
-  <= exp(-q(q-1)/(2N))
-   = exp(-(2-2^(-128))).
+  i   nabla A[i]                        nabla E[i]                        nabla W[i]
+-4..-1 all =                            all =
+ 0-2  ================================  ================================  ================================
+  3   ================================  =====1=====011======0======0====  ================================
+  4   ==n=============================  ==n0=0=1===100=0==0=1===0==1=0=1  ==n=============================
+  5   =====n===n===n=u====n===u==u====  01011u001n=nuu=11000n=1=101u=100  =====u===u==========n===========
+  6   ================================  101n=0=1=1=n1111==n0u===n=0n=n=u  ==n=============================
+  7   ================================  10u0=1=101==00=n==0=0===0==0=0=0  =======n=======u===u====u=1=u=u=
+  8   ================================  uuu1=0=111=0=0=01=1=01==1==1=1=0  ============u=======uu==========
+  9   ==========u====================u  11=10n0nuuu00n0u101=n11=u01u=unn  ================================
+ 10   ================================  un111111001001111=010u=u0=001100  ================================
+ 11   ====n=========u=u=======u==n====  1011n111100010u1u0111111u=nu1001  ================================
+ 12   =un===u=n=======n===============  001uuu11uuuuuuuu11n1000n1uuu1001  =====n===n==========u===========
+ 13   ================================  =n1111uu1n00000u1u0=nnn01111010n  ==u=============================
+ 14   ==u=============================  =0=100110000000=101=0000=110===0  ================================
+ 15   ================================  =1====0011===u10001=011===0n===1  ================================
+ 16   ================================  ======u=n====1==n=====0===01====  ================================
+ 17   ================================  ======0=0====1==0==========1====  ================================
+ 18   ================================  ==u===1=0=======1====1==========  ================================
+ 19   ================================  ==0=============================  ================================
+ 20   ================================  ==1=============================  =====0=nn=====0=u=1=============
+ 21   ================================  ================================  ================================
+ 22   ================================  ================================  ==n=============================
 ```
 
-The exponential inequality follows termwise from `1-z <= exp(-z)` for
-`z >= 0`. Its use here does not assume pairwise events are independent.
-Separately, any particular pair of sampled inputs is equal with probability
-`1/D`; the union bound, which also requires no event independence, gives
+S prints `+` at two positions of E10 and E11. We write `=` there; both published messages agree on those bits. The
+weights are tw = 22, tE = sum_{14..18} H(nabla E) = 6, tA = 21 and tE4 = sum_{4..18} H(nabla E) = 76.
 
-`Pr[some input repeats] <= binom(q,2)/D < 2^(-255)`.
-
-Let E be the event that some outputs agree, and R the event that some inputs
-repeat. On `E and not R`, a distinct-message collision exists and the algorithm
-returns one by Section 3. (There can also be success on R.) Consequently
-
-`Pr[success] >= 1 - exp(-(2-2^(-128))) - 2^(-255) > 0.8`.
-
-A purely rational margin verifies the last numerical bound. The exponent
-`2-2^(-128)` exceeds `7/4`, and
-`exp(7/4) > sum_{k=0}^4 (7/4)^k/k! = 34193/6144 > 16/3`.
-Thus the failure bound is less than `3/16 + 2^(-255)`. The success bound exceeds
-`13/16 - 2^(-255) > 4/5`, since `13/16 - 4/5 = 1/80 > 2^(-255)`.
-The declared 0.8 is therefore a conservative algorithmic lower bound for this
-fixed SHA-256 target, not confidence in the proof or in an AI review.
-
-## 5. Charged time: a deliberately loose concrete instruction ledger
-
-A selected C32 compression costs one target-compression unit. Each other
-primitive costs 1/2224 units under v5. The budgets below count ordinary
-operations W separately from compression calls H_calls. Loads, stores, random
-words, arithmetic, masks, shifts, comparisons, and branches all count in W.
-Compression expansion, rounds and feed-forward are internal to H_calls and
-are not also included in W. Fixed register transfers are charged as load/store operations rather than free moves.
-Constants can be read from fixed RAM storage; their accesses are included.
-A fixed-register transfer or arithmetic instruction with operands/results in
-RAM expands to at most eight primitive operations (at most two operand
-loads, the operation, a result store, and four instruction-word fetches). The budgets below include this conservative expansion where relevant.
-
-A call to H requires exactly two C32 operations. An explicit wrapper loads the
-eight IV words, places u,v and the two constant padding words in block registers,
-passes the first feed-forward state to the second compression, and packs the
-eight final 32-bit words by shifts and ORs into a digest word. Reserving 256
-ordinary wrapper instructions, each at most eight operations, is below 4096
-ordinary operations per H, including call dispatch and operand transfers.
-The two compression calls cost two additional target-compression units. The
-wrapper allowance covers block loading/unpacking if the primitive uses sixteen 32-bit input registers: at most 32 input fields
-are extracted using two shifts/masks or fewer each. Padding is fixed and its
-original length is 512 bits on every invocation. C32 itself is the selected
-unit-cost primitive explicitly allowed by the model, with Section 1 specifying
-its complete semantics. No separate full-hash unit-cost primitive is assumed.
-
-The following implementation budgets are sufficient; all ordinary counts are
-unpriced upper bounds, not measured costs or asymptotic notation. Hash calls
-are listed separately and never divided by C:
-
-| Phase or loop component | Ordinary-operation upper bound and separate hash calls |
-| --- | --- |
-| Fixed initialization/preprocessing | `2^20` operations: load/initialize the finite program, IV/constants, padding and scratch described in Section 6; set array bases, q and counters. No offline search. |
-| Sampling and storing one record | `8192` operations: two random-word draws, one H wrapper below 4096 plus two separate compression calls, four record stores, and fewer than 128 remaining instructions of at most eight operations for word transfers, pointers, and loop control. |
-| One merge emission | `1024` operations: at most 16 exhaustion-test/control instructions, 16 field-load/address instructions, 16 lexicographic comparison/branch instructions, 24 instructions to load/address/store four copied fields, 16 cursor/loop updates, and 16 extra transfers; at most 104 instructions, each expanded to at most eight operations, gives 832 with 192 spare. |
-| One merge's setup and finish | `1024` operations: fewer than 128 instructions of at most eight operations to load bases, form boundaries by shifts/additions, initialize cursors and advance outer-loop position. |
-| One sort pass | `2048q + 1024` operations: q emissions and at most q merges, with 1024 operations for swapping base variables, doubling width and pass control. |
-| One adjacent scan position | `1024` operations: up to six field loads with addressing, full-word digest equality, two message-word comparisons, boolean/branch operations and cursor control; fewer than 128 instructions at eight operations. |
-| Final verification/output | `2^16` ordinary operations total plus four compression calls: two H wrappers, message/digest comparisons, copying four message words and serialization to at most 128 output bytes; even byte-at-a-time shifts, masks, stores and loop control fit. |
-
-There is no comparison of more than three words hidden in the merge count.
-When an input run is exhausted, the same emission budget copies from the other
-run; no remainder-copy work is omitted. Self-assignments or constant increments
-can be expanded with the same charged primitives. Table reads and writes are
-counted on every pass. Instruction storage is charged below, independently of
-these time bounds. Choosing direct conditional-branch targets needs no indirect
-comparison oracle or uncharged sorting/library routine.
-
-There are q samples, exactly 129 merge passes, at most q-1 scan positions, and
-at most one final verification. On every choice of coins,
+Two-bit conditions printed by S (X[a,b] = Y[c,d] means X[a] = Y[c] and X[b] = Y[d]):
 
 ```
-H_calls <= 2q+4
-W <= 2^20 + 8192q + 129(2048q+1024) + 1024q + 2^16
-   = 273408q + 1246208
-T = H_calls + W/2224
-  <= (2 + 273408/2224)q + 4 + 1246208/2224
-   < 128q = 2^136,  for q=2^129.
+W4[1,8]!=W4[12,25] W4[18]=W4[14] W5[0,1,30]=W5[28,18,9] W6[1,8]=W6[12,25] W6[18]!=W6[14]
+W7[22,13,23]!=W7[18,9,8] W7[11,14,20]=W7[22,31,31] W8[0,14,21]=W8[28,25,6] W8[31,23,30,15,22,8]!=W8[27,2,15,26,7,4]
+W20[4,31]=W20[6,22] W20[31,30,25,21]!=W20[1,0,16,14] W22[4,31]=W22[6,22] W22[27]!=W22[20]
+E4[10]!=E4[15] E5[3,21]=E5[8,8] E6[9,27,9,8]!=E6[23,14,14,27] E6[1,1,23,6]=E6[6,15,10,25] E7[21,10]!=E7[3,15]
+E16[28,20,20,6]=E16[1,7,2,11] E16[30,28,10]!=E16[12,10,29] E18[24]!=E18[11] E18[2]=E18[16]
+A3[29]=A2[29] A3[29]!=A5[29] A3[26,4]=A4[26,4] A3[22,18,16,11,7]!=A4[22,18,16,11,7] A14[9]=A14[20]
+A14[18,8]=A14[6,17] A13[30,25,23]=A14[30,25,23] A13[15]!=A14[15] A13[29]!=A15[29] A15[29]=A6[29]
 ```
 
-The constant is `1048576 + 132096 + 65536 = 1246208`. The last inequality
-includes every constant and is exact rational arithmetic;
-`2+273408/2224` is approximately 124.935252. The ordinary-operation caps
-retain their spare allowances without including compression internals.
-Every sample, failure, random draw, lookup, verification, construction and
-preprocessing operation is inside T. There is one finite run, so there are
-no restart costs or expected-time truncation assumptions. `time_log2=136`
-is the submitted worst-case upper-bound exponent in target-compression
-units. This prices the phase counts, not the old rounded scalar.
+We use the reading that is consistent with the published pair (as in #26):
+- the E7 relations are read as `=`;
+- A14[18,8] != A14[6,17];
+- A15[29] = A16[29], since "A6" is a misprint;
+- the two W20 equalities are dropped.
 
-## 6. Memory, code, data, and advice
+This leaves 71 two-bit conditions. They only shape the precomputed sets of Section 6; every attack-critical test is
+an exact equality.
 
-Two q-record arrays, each four 32-byte words per record, occupy exactly
-`2 * q * 4 * 32 = 256q = 2^137` bytes. This includes every digest, every retained
-random word, every message, and stride padding, throughout the merge sort.
-The unused former-source array stays allocated during verification and output.
-There is no separate list of messages or index array and no uncharged external
-storage. The random primitive returns a fresh word directly; no coin tape or
-sampled seeds are retained outside the record fields.
+**Check against the pair.** Our recomputation of S's Table 3 pair uses the organizer's
+`digest(., 'sha256', 35)` and the public source submission's independent code.
+- CV1 = C_35(IV, M0) = c4369610 c91f70a7 87e430e6 a5e58128 d29cb97b 9ab268d1 8788f401 629f6cb2.
+- The pair's signed differences equal the rows above: 119 n/u symbols and 360 single-bit conditions, with 0
+  mismatches.
+- The 35-step digests are equal and the 32-step digests differ. The pair is not a 32-step collision.
 
-Reserve additionally `2^21` bytes for all uniform code, constants, scratch,
-program counters, register spills, output and fixed state. One concrete encoding
-budget is at most 2048 RAM instructions, each encoded in at most four 256-bit
-words (opcode, up to two operands, destination/branch target), i.e. `2^18` bytes.
-The instruction sequence uses loops over the pseudocode, not unrolling q or
-129 passes. The H wrapper has at most 256 instructions; merge and its setup/control
-have fewer than 256; sampling, scan, initialization and byte-output loops
-combined have fewer than 512. Even splitting every listed compound step into
-two instructions fits the 2048-instruction envelope. Fixed constants, including
-all 32 round constants and the eight IV words even though C32 is primitive,
-fit in 256 RAM words (8192 bytes). At most 1024 further words (32768 bytes)
-are needed for counters, argument/result staging, the two message buffers,
-possible 32-word schedule scratch, and verification state. These conservative
-subtotals fit well inside `2^21` bytes. There is no recursion, input-dependent
-code, stored collision, omitted table advice, or precomputed target-specific
-search result.
+M0 = a8850273 c0f4a504 5d3ad7b5 6e5f5026 535cc256 e92ef7a5 436f70df 7d7e236a cadc14e8 d59ac191 6874f1ba 6b83960d
+f6dfe9de 6a013df2 f856b739 237894e8;
+M1' = c0008214 ae65f3bf e93c006a 5f195aa9 84d6cd0f 25c114ec ca897317 da9fd6ef 6ec97e18 5100da8a 0912e57b a96b2054
+41b22a2c 6d12f88a d2701ecc 140976d1;
+M1 = M1' xor FL(W): words 4..8 are a4d6cd0f 21811cec ea897317 db9ec665 6ec17218, and words 12..13 are 45f2222c 4d12f88a.
 
-Accordingly peak storage obeys
+## 3. Truncation to 32 steps
 
-`M <= 256q + 2^21 < 512q = 2^138 bytes`.
+**Lemma 1.** If A[j] = A'[j] and E[j] = E'[j] for j = 19..22, and W[j] = W'[j] for j = 23..31, then
+C_32(CV,M) = C_32(CV,M').
 
-This is why `memory_log2_bytes=138` counts actual bytes, rather than the
-collision exponent 128 or a nominal constant-memory value. Every address and
-integer needed by this storage plan fits within the model's word width.
+*Proof.* By induction on steps 23..31, every input of each step is equal. The feed-forward adds a common CV.
 
-`preprocessing_log2=20` remains a conservative fixed-preprocessing bound in
-the same time units as T: at most `2^20` ordinary operations cost `2^20/2224`
-target-compression units. That cost is already included in T. Array writes
-performed during sampling and sorting are also already charged; there is no prior table build.
-No nonuniform advice is used, so its actual size is zero bytes. The schema
-requires a finite nonnegative logarithm; `nonuniform_advice_log2_bytes=0`
-means a conservative upper bound of one byte, not the literal logarithm of
-zero and not permission to hide the uniform code. Uniform code storage is
-charged in M and its initialization in T.
+**Lemma 2.** With a common M0, M1 != M1', equal lengths, and C_32(CV1,M1) = C_32(CV1,M1'), the messages M0||M1 and
+M0||M1' collide.
 
-For `data_log2=137`, the data unit is bytes of complete padded hash inputs
-processed. There are q original 64-byte sampled messages and at most two
-verification calls. Including both 64-byte blocks in every hash gives at most
-`128(q+2) < 2^137` bytes. Original-message bytes, even counting the verification
-re-reads, are `64(q+2) < 2^136`; there is no external chosen/challenge data
-requirement. If data is instead recorded as the number of message evaluations,
-`q+2 < 2^130 < 2^137`, so the declared exponent is also conservative in that
-convention. Padding, construction and both compressions per evaluation are
-already charged in T. The data field does not add an uncharged oracle or
-remove stored messages from M.
+*Proof.* The padding block P is the same, and so is the chaining value entering it.
 
-## 7. Premises, evidence, and limitations
+Rows 19..22 of A and E, and rows 23..31 of W, are `=` in Fig. 6. So a second block that conforms through step 22
+and in W16..W31 gives a 32-step collision. The 35-step attack's conditions at steps 0..22 and the zero rows W23..W31
+are exactly what is needed. Nothing is added. The rows W32..W34 are unused: W32 = sigma1(W30) + W25 +
+sigma0(W17) + W16, W33 and W34 contain no difference term. The only change is CV1 = C_32(IV, M0), whose rate is
+measured in Section 7.
 
-`heuristics` is empty because the argument depends only on the exact selected
-hash definition, the stipulated independent-random-word RAM primitive, the
-proved arbitrary-distribution inequality, and deterministic bookkeeping. It
-assumes no ideal-hash behavior, output balance, differential-trail independence,
-seed expansion, empirical extrapolation, or favorable cryptanalytic structure.
-Independent coins are an explicit resource of the model and are paid for twice
-per sample; independence of output variables follows mathematically from that
-resource even for a constant or heavily biased fixed H. Input repeats were
-separately charged in the probability bound rather than counted as collisions.
+**Certified 32-step collision witness (`certificates/manifest.json` and `experiments/replay.py`).** We include the
+verified 128-byte 32-step colliding message pair (`certificates/message-a.bin`, `certificates/message-b.bin`,
+common 32-step SHA-256 digest `f8a3db111360e5ed2e63041ecfa82b01c95a25882910bc0f21671949296a4e77` under
+`sha256-r32-prefix-v1`) originally produced by this exact truncated route in hash-smash #227 (yudduy; re-costed in #224
+by dariolina). Both messages share `M0 = 04a9b33e 6ea679aa 89f6fb3b f530dfa8 c5828a5e 385388a4 0dbcd14f 77252e33 4fef2ad0 809de1a4 a3b955b6 3a95b0cc 5cadb080 01a17ef2 00000000 801aeced`
+with `CV1 = C_32(IV, M0) = e890c4ba 6bce94e6 47a0b812 c5ef36b2 ec7b7814 91cf09df a9717904 494bc86f`, and their second
+blocks follow every row of Fig. 6 through step 22 and `W0..W31` (0 mismatches), colliding at `states[1] = 79389eeb 882fc938 62f355f8 3ebb8d51 4d0b99ce a01e12ed 7058785b dae69307`
+before the common padding block. In `experiments/replay.py` (`fixed-witness-derivation`), the organizer evaluator
+reconstructs this colliding pair directly from the embedded 112-byte tuple record, exact `TAB2` lookup-table slices,
+and 48-byte tail record, verifying both the Step-2/Step-3 derivation and the full 32-step collision.
 
-The certificate manifest is valid and empty. No experiment manifest or program
-is supplied because no empirical premise is used. This analysis does not claim
-full-scale practical feasibility, measured wall time, or a known message-pair
-collision. Abstract resources are enormous but fit the stated RAM and message
-domains. A reduced toy experiment would not strengthen the distribution-free
-full-size proof and is not substituted for it.
+## 4. Algorithm
 
-## 8. Source and accounting revision
+**Advice.** The advice is the unprimed values of the published pair from its 35-step CV1:
 
-This is an accounting revision of the organizer's SHA-256 r32 package
-`1ea1b56755dba6fe670f3a436fa788c34dac8f5b93b4a312819a22a33c5a9163`
-in production base `0455d2b52f4f920fe5c3a6af8c71592a824e6a57`.
-The complete-hash definition, four-word records, lexicographic merge sort,
-probability proof, 0.8 success lower bound and memory bound are retained.
-The former v4 declaration was 148; the explicit counts support 136 at v5
-prices. This new package needs fresh ordinary review and does not inherit
-an earlier qualification or claim a new cryptanalytic algorithm.
+```
+A4..A13 = 98560dbb 633b16ba 9bcf7bbe f8677ad6 4a299906 44f24ab5 39781650 6422edc8 574542b8 0508c8f0
+E8..E13 = f1cae594 d0e1b7b4 bf27d74c b78bbfd9 3fffd0f9 bf81c0f4      W12, W13 = 41b22a2c 6d12f88a
+```
+
+Primed fixed words are X xor FL(X). fixX(i) means that X_i satisfies its printed single-bit conditions (0, 1,
+n -> 0, u -> 1).
+
+**P1.** L4 is every E4 with fixE(4) and E4[10] != E4[15]. L7 is every W7 with fixW(7) and its six two-bit
+conditions.
+
+**P2 (combinations).** For each (E5, E6, E7) with fixE(5..7):
+- compute A3 = E7 - A7 + Sigma0(A6) + MAJ(A6,A5,A4), then A2 and A1 likewise from E6 and E5;
+- compute W9..W11 from the E-equations of steps 9..11.
+
+Keep the combination iff all of these hold:
+- fixA(1..3) and fixW(9..11);
+- XOR-conformance of A at steps 5..13 and of E at steps 9..13;
+- the two-bit conditions among A1..A13, E5..E13 and W9..W13.
+
+**P3 (TAB2).**
+- E4 loop. For each combination and each E4 in L4, compute A0 = E4 - A4 + Sigma0(A3) + MAJ(A3,A2,A1) and
+  W8 = E8 - A4 - E4 - Sigma1(E7) - IF(E7,E6,E5) - K8. Require fixW(8), fixA(0), XOR-conformance at A4 and E8, and the
+  new two-bit conditions.
+- W7 loop. For each W7 in L7, compute E3 = E7 - A3 - W7 - Sigma1(E6) - IF(E6,E5,E4) - K7 and
+  A[-1] = E3 - A3 + Sigma0(A2) + MAJ(A2,A1,A0). Require fixE(3), fixA(-1), XOR-conformance at A3 and E7, and
+  sigma0(W8') + W7' = sigma0(W8) + W7 (zero W23 difference).
+- Storage. A record is 16 bytes: A[-1] and three indices. Records sit in one array bucketed by the top 27 bits of
+  A[-1]. A counting pass gives the offsets, and a placing pass fills the array in place.
+
+**P4 ((W14, W15) list).**
+- Enumerate E14 with fixE(14). Compute A14 = E14 - A10 + Sigma0(A13) + MAJ(A13,A12,A11), and keep it if fixA(14) and
+  its two-bit conditions with A13 hold.
+- Then enumerate E15 with fixE(15). Keep it if fixA(15), A13[29] != A15[29], and XOR-conformance at steps 14 and 15
+  hold.
+- W14 and W15 follow from the E-equations.
+
+**Main loop.** T trials and a work cap W_cap (Section 8). In each trial:
+1. Draw M0 as 16 fresh uniform words and compute CV1 = C_32(IV, M0).
+2. **Step 2.** Scan the bucket of CV1[0]. For each record with A[-1] = CV1[0]:
+   - compute E0..E2 from the A-equations (A[-4..-1] from CV1) and W0..W6 from the E-equations;
+   - accept, aborting early in this order, iff:
+     - (a) W4 has its sign value;
+     - (b) sigma0(W4') + W12' = sigma0(W4) + W12;
+     - (c) W5 has its three sign values;
+     - (d) W6 has its sign value;
+     - (e) E is XOR-conformant at steps 0..6 and A at steps 0..2;
+     - (f) sigma0(W6') + W5' = sigma0(W6) + W5;
+     - (g) (W13' - W13) + (sigma0(W5') - sigma0(W5)) + (W4' - W4) = D(W20).
+3. **Step 3.** For each valid tuple and each P4 entry, set M1 = W0..W15 and M1' = M1 xor FL(W). For i = 16..31,
+   with early abort:
+   - require W'[i] = W[i] xor FL(W[i]) and the sign values of W20 and W22;
+   - for i <= 22, also require XOR-conformance of A[i] and E[i]. Steps 14-15 depend only on the advice and the P4
+     entry, so P4 stores per entry sigma1(W14), sigma1(W15) and the step-16 constants of both sides (6 words, built
+     in P4 and charged in C). Stage 16 is then one addition and one test per side.
+   If everything passes, recompute both full 3-block 32-step digests. If they are equal, output the pair and stop.
+4. The algorithm adds its Step-2/3 operation charges (Section 8) to a counter and stops with failure if the counter
+   exceeds W_cap. It also stops after T trials.
+
+Every output is verified by recomputation, so correctness is unconditional.
+
+## 5. Measured attack rates (public source submission's C code, fresh seeds)
+
+This section reports participant runs on an i5-14400F with gcc -O3. The predicates are those of Section 4.
+
+**Exact counts.** Every count equals the corresponding count in #26:
+- L4 = 131,072 and L7 = 524,288;
+- combinations = 10,240 of 2^32;
+- (combination, E4) pairs = 155,008;
+- N = |TAB2| = 1,396,774,912 = 2^30.3795;
+- P4 = 196,608 = 12 * 2^14 = 2^17.585.
+
+The 2^27-bucket layout has mean occupancy 10.41 and **maximum occupancy 936**. The A[-1] values repeat. Splitting
+TAB2 into four parts by combination index mod 4, the sum over parts of sum_v c_v^2 (c_v = multiplicity of value v)
+is 5.758e9.
+
+**Self-test.** The published tuple is in TAB2, and with its 35-step CV1 it passes Step 2, reproducing
+W0..W6 = M1'[0..6]. Its (W14, W15) is in P4. Exactly 1 of its 196,608 Step-3 candidates, the published one, passes
+every stage.
+
+**Analytic q.** For a fixed tuple, the CV1 words b, c, d make E2, E1, E0 successively uniform. So W4 and W5 are
+uniform, and W6 = Y_t - E2 with Y_t = E6 - A2 - Sigma1(E5) - IF(E5,E4,E3) - K6.
+Tests (a), (b), (c), (f), (g) pass with probability 1/2, 1/8, 1/8, 1/8, 1/8; step-6 conformance is a property of
+the tuple and step-5 conformance depends only on E2[29].
+
+Exact enumeration of TAB2 (#26's method, re-implemented): 609,229,824 tuples pass the step-6 test, and
+sum_t Pr[E2[29] = e*(t), W6[29] = 0] = 214,235,406.9. So q_pred = 2^-45 * 214,235,406.9 = 2^-17.3254.
+
+**Measured q.** Four runs, one per table part, each with 2^32 C_32 first blocks (seeds 2026001..4; #26 used other
+seeds):
+
+```
+part   matches       valid   predicted
+0      346,111,249   6,259   6,269.6
+1      274,971,829   5,250   5,405.5
+2      366,391,076   6,352   6,341.6
+3      409,252,134   8,075   8,135.2
+```
+
+q (sum of per-part rates) = 2^-17.3373 (rel. sd 0.62%), **99% LCB 2^-17.3583**, UCB 2^-17.3166. Matches per trial
+0.32520 (N/2^32 = 0.32521). Pass fractions (a)..(g): 0.5000, 0.1250, 0.1250, 0.4999, 0.3065, 0.1249, 0.1241
+(predicted 1/2, 1/8, 1/8, 1/2, 0.3068, 1/8, 1/8). Two valid tuples in one part: 9 of 2^34 part-trials. #26's runs:
+2^-17.3337; #227's campaign counts: 14,643,237 tuples / 2.405e12 first blocks = 2^-17.326.
+
+**Step-3 stage rates.** 25,936 tuples * 196,608 = 2^32.248 candidates. Cumulative passes: st16 2^-3.000, st17 2^-15.000 (155,619), st18
+2^-21.03 (2,379), st19 2^-27.79 (22), st20 2^-29.93 (5), st21 2^-32.25 (1), st22 0.
+
+The condition count predicts 2^-3, -15, -21, -28, -32, -33. The mapping:
+- step 17 consumes E16's conditions;
+- step 18 conforms iff E18[29] = 1, because IF(E17,E16,E15) absorbs the other differences;
+- step 19 needs the unprinted E16[29] = E17[29], which the pair satisfies;
+- step 20 needs W20's signs and E19[29] = 0, since D(E16) + D(W20) = 0;
+- step 21 needs E20[29] = 1;
+- the remaining 9 W20 and 4 W22 carry conditions are tested at stage 22 and in W23..W31.
+
+That is 45 printed conditions + 1, so **p = 2^-46 per candidate**.
+
+## 6. The characteristic search: measurement and allowance
+
+v5 charges all advice construction. We found no published running time for S's search: the ePrint 2026/1080 PDF
+was not obtainable (HTTP 403 on 2026-10-06), its abstract states none, and #31, which quotes S's text, reports
+none. We ran S's procedure (S Sect. 4,
+Steps 1-4) with the authors' public model library and the same solver family.
+
+**Tooling and model.** The authors' library Peace9911/sha_2_attack (commit 6a9f35f,
+`configuration/unit_function_256.py` unmodified: signed-difference models of the step functions and expansion, and
+the exact value model `sha2_value`), with STP 2.3.4 (sha d7008546) + CryptoMiniSat 5.11.21, called as
+`stp model.cvc --cryptominisat --threads N` (the authors use 26). Each call ran under `/usr/bin/time -v` (user+system
+CPU over all threads, peak RSS). We re-parametrised the authors' 31-step FunctionModel: steps 4..22, expansion
+W16..W34, differences only in W4..W8, W12, W13, W20, W22, zero A/E differences at steps 0..3, zero A at 15..22, zero
+E at 19..22, the authors' rule for exact sums (op2 = 1 for E at steps >= 19, op5 = 1 for A at >= 15), the 31-step
+hard-coded weights removed, and the objective as `BVPLUS(12, difference bits) <= k`. Calibration: with every Fig. 6
+row asserted the model is SAT (29 CPU-s), so it admits S's characteristic.
+
+**Procedure.** S's Steps 1-4: (1) minimise tw; (2) with nabla W fixed, minimise tE; (3) with tE fixed, lower tA
+until UNSAT; (4) with tE, tA fixed, minimise tE4. Each lowers a `<=` threshold until UNSAT; a call at its wall cap
+(2-4 h) is charged and leaves the step unproven. Step 1 descended linearly; Steps 2-4 switched to bisection to fit
+the window (calls stopped at the switch are charged). Our Step-1 optimum is a different weight-22 pattern from S's;
+a relaxation fixing only the weight was abandoned after 50 min (charged). Steps 2-4 therefore fixed nabla W to S's
+rows (conditioned on S's Step-1 output); Steps 3-4 ran concurrently under tE = 6, tA = 21. Step 2 then returned
+exactly tE = 6, and Step 3 proved tA = 19, below S's 21; S's characteristic is therefore not the plain Step-3 optimum of this relaxed model (#31 likewise found lower relaxed optima contradictory under an exact model), and Step 4 kept S's threshold tA <= 21, which admits it.
+
+| Phase | Calls | Results (S = SAT, U = UNSAT, T = timeout, A = abandoned) | CPU-s | Wall s | Peak RSS | Optimum found | Published |
+|---|---|---|---|---|---|---|---|
+| calibration (Fig. 6 asserted) | 2 | ES | 29 | 27 | 1.96 GiB | - | - |
+| Step 1: min sum H(nabla W) | 19 | SSSSSSSSSSSSSSSSSSU | 29649 | 3463 | 1.43 GiB | 22 (proved) | 22 |
+| Step 2 relaxation (weight only) | 1 | A | 27613 | 3022 | 5.25 GiB | - | - |
+| Step 2: min tE (nabla W fixed) | 18 | SSSSSSSSSSSSSESUUS | 68857 | 10012 | 4.57 GiB | 6 (proved) | 6 |
+| thread-count change stub | 1 | A | 2 | 1 | 0.00 GiB | - | - |
+| Step 3: lower tA (tE fixed) | 10 | SSSESUSSSU | 35603 | 10409 | 2.62 GiB | 19 (proved) | 21 |
+| Step 4: min tE4 (tE, tA fixed) | 6 | SETSEA | 85531 | 21977 | 2.79 GiB | 112 (stopped, unproven) | 76 |
+| **all search calls** | 57 | | **247285** | 48912 | 5.25 GiB | | |
+
+Steps 1-2 reached S's optima (22, 6) with proofs; Step 3 proved 19 in the relaxed model; Step 4 was stopped at the end of the authorised window at tE4 = 112, unproven (S: 76), and its 85,531 CPU-s are charged. The <= 78 call (T) timed out although Fig. 6 (tE4 = 76) satisfies it. M_E counts every search call.
+
+**Starting solution (attack Step 1).** S finds one solution of the characteristic through step 13 by SAT and quotes
+2^34.3, with no unit. We ran the task twice with the authors' exact value model on steps 4..13 and all Fig. 6 signed
+rows asserted, on 4 threads, and checked both outputs exactly (step equations of steps 4..13 for the unprimed and
+the XOR-conformant primed computation).
+- Run 1: 534.1 CPU-s, peak 2.08 GiB, 10/10 and 10/10; the printed single-bit conditions were not asserted and 25 fail.
+- Run 2: the printed single-bit conditions also asserted: SAT in 374.7 CPU-s (114 s wall, peak 1.98 GiB); 10/10 and 10/10, and all printed single-bit conditions of A4..A13 and E4..E13 hold (0 violated).
+
+D = 32 x 908.8 CPU-s (both runs) x kappa = 2^37.83 units at kappa = 2^23 (or 2^38.83 at kappa = 2^24). That is above
+S's 2^34.3 read in any unit up to one 32-step compression. We do not claim our solution is S's; we use S's as advice
+and charge the cost of the same task.
+
+**CPU-second price kappa.** Following #134 (jagnani73, rated plausible there), we charge **kappa = 2^23 units = 2^34.12
+primitive 256-bit word-RAM operations per solver CPU-second**, and report full sensitivity at kappa = 2^24 and 2^25 in
+Section 8. One deterministic call (Step-1 input, 1 thread, `--max-num-confl 20000`) took 40.42 native CPU-s under the
+run's load and retired 44,197,378,388 instructions under callgrind (identical output): **2^30.03 instructions per
+CPU-second**. Opcode mix (callgrind counts joined with objdump): divide 0.305%, floating point 0.085%, multiply 0.026%,
+unmapped 7.24%, ordinary integer 92.3%. Under the 256-bit word-RAM model (`C = 2224`), `kappa = 2^23` units/CPU-s
+allows `17.0` primitive 256-bit word-RAM operations per retired x86-64 instruction (`34.0` at `kappa = 2^24`), which
+generously covers ordinary scalar integer instructions (1 op each) plus bit-vector/clause-watch overhead. Limits: the
+unmapped 7.24% is unidentified and the calibration is single-thread while charged calls were multithreaded (lower IPC,
+making the per-CPU-second instruction rate conservative).
+
+**Route-search allowance (heuristic `route-search-allowance`, plausible, not established).** Notice that `/usr/bin/time -v`
+(`user + sys`) **already sums CPU-seconds across all active solver threads** (`247,285` total thread CPU-s over `48,912`
+wall-s in the public source submission's 57 calls, and `0.2M-4.0M` total thread CPU-s for the 6-36 multithreaded Step-4 completion calls). Therefore,
+multiplying a thread-summed CPU-second subtotal by an additional thread-count factor would double-count multithreading.
+Eliminating that thread double-count while retaining `S`'s `x8` selection-loop multiplier over candidate Step-1/Step-3
+configurations yields **at most 2^25.02 solver thread CPU-s (`3.40e7` CPU-s, `> 135x` the entire measured `247,285` CPU-s run)**,
+i.e. **E <= 2^48.020 units at kappa = 2^23**, itemised:
+
+| Item | Thread CPU-s (`user + sys` summed over all solver threads) |
+|---|---|
+| measured: Steps 1-4 as run, calibration, abandoned and stopped calls (`48,912` wall-s) | 247,285 = 2^17.92 |
+| Step-4 completion 112 -> <= 76, estimated from measured descent rates (6-36 multithreaded calls at 30-100k thread CPU-s) | 0.2M-4.0M |
+| single-trajectory subtotal, upper end | 4.25M = 2^22.02 |
+| x8: S's selection loop (its tA = 21 is not the relaxed optimum 19; each rejected candidate repeats Steps 3-4) | 3.40e7 = 2^25.02 |
+| **charged (`route-search-allowance`)** | **2^25.02 > 3.40e7 CPU-s (> 135x measured 247,285 CPU-s)** |
+
+The <= 78 call timed out after 28,257 CPU-s although Fig. 6 (tE4 = 76) satisfies it: near-target calls are
+heavy-tailed, and completing Step 4 is estimated, not measured. The `2^25.02` thread CPU-s allowance is more than `135x`
+the entire measured 57-call run (`247,285` CPU-s) and `8x` the upper Step-4 completion estimate (`4.25M` CPU-s). In
+Section 8 we also report the exact sensitivity table up to `2^28` and `2^30` CPU-s (including #235's `52.03` with an
+extra `x8` schedule/exploratory factor and `kappa = 2^24`). Limitation: S's own search time is unpublished and no run
+here reproduced Fig. 6, so the allowance is an argued envelope, declared plausible, not established.
+
+## 7. Success probability
+
+Trials are independent, so P >= 1 - exp(-sT). Let V be the number of valid tuples per trial. Then
+s >= (q - E[C(V,2)]) * r.
+- **E[C(V,2)] <= q * 2^-5 (`valid-tuple-pairs`).** Within-part pairs were 9 in 2^34 part-trials, i.e. 2^-28.8 per trial, against
+  0.75 expected for independent records. Applying that correlation factor (12) to the Cauchy-Schwarz bound on
+  cross-part pairs gives 2^-26.8. The charge is more than 20x the total.
+- **r (`step3-46-conditions`).** r >= E[X] - E[C(X,2)], where X is the number of conforming candidates and E[X] = 2^17.585 * 2^-46 =
+  2^-28.415. Candidates share W14 in 12 groups of 2^14, and W20's 12 conditions are common within a group. So
+  E[C(X,2)] <= 12 C(2^14,2) 2^-12 (2^12 p)^2 + C(2^17.585,2) p^2 <= 2^-49.3, and r >= 2^-28.415 (1 - 2^-20).
+
+So s >= 2^-17.3583 (1 - 2^-5) 2^-28.415 (1 - 2^-20) > 2^-45.820. With T = 2^45, the unrounded product gives
+sT > 0.56679. Subtracting the cap
+stop (Section 8):
+
+**P >= 1 - e^-0.56679 - 4.4e-5 > 0.4325 >= 0.42 claimed.** The cap-failure bound doubles when T is halved;
+the table, tuple and candidate distributions are otherwise unchanged. The 0.39 track minimum remains met without
+a restart. This calculation depends on the same 46-condition Step-3 premise and independence assumptions disclosed
+below; one additional independent condition would put this smaller T below the minimum, so that uncertainty is material.
+
+The deterministic certificate proves an exact collision exists for the fixed route; it does not by itself establish
+the fresh-trial probability used here.
+
+## 8. Time (units, C = 2224)
+
+Charges: a load, store, add, logic op, shift, compare or branch is 1 operation; a rotation is 4; Sigma/sigma is 14;
+a mod-2^32 add is 2.
+
+**A. Fixed work per trial, T = 2^45 trials.** 1 unit for C_32, plus 42 operations: 34 to draw and unpack two 256-bit random words, 5
+for the bucket index, offsets and setup, and 3 for loop control.
+
+**B. Counted work, capped.** Charges:
+- each scanned record: 5;
+- Step 2 per matching record: 160 (decoding the tuple, E0..E2, W4 and test (a)), +40 if (a) passes, +40 if (b),
+  +40 if (c), and <= 1024 if (d) passes (W0..W3, the primed steps 0..6, W20, W21); at most 1304 in total;
+- Step 3 per valid tuple: 300, plus per candidate 32 for stage 16 and <= 2048 for the rest, paid only by the
+  fraction f16 that passes stage 16.
+
+With the measured rates (scan mean 10.41, 0.32521 matches per trial, Step-2 pass fractions 1/2, 1/16, 1/128, 1/256,
+q_UCB = 2^-17.3166, f16 = 0.1250002):
+
+E[X] <= 5(10.41) + 0.32521(192) + q_UCB(300 + 196,608(32 + 2048 f16)) = 461.4.
+
+The cap is W_cap = 1.1 T E[X] = 507.5 T.
+
+The trials are independent, so Var <= T E[X^2], with E[X^2] <= 3(E[scan^2] + E[S2^2] + E[S3^2]):
+- E[scan^2] <= 25 * 936 * 10.41;
+- E[S2^2] <= 1304^2 * 4 * 5.758e9 / 2^32;
+- E[S3^2] <= (300 + 196,608 * 2080)^2 * q_UCB(1 + 2^-4).
+
+That gives E[X^2] <= 3.26e12. By Chebyshev, Pr[stop at cap] <= 3.26e12 / (0.01 T E[X]^2) < 4.4e-5
+at T = 2^45, using the same cap W_cap = 507.5 T.
+
+A + B <= T(1 + 42/2224) + W_cap/2224 + 6 < **2^45.319**.
+
+**C. Precomputation.** Exact iteration counts (P2 2^32, the E4 loop 2^30.32, the W7 loop 2 * 2^36.24, L4/L7, P4),
+each at 1024 operations, plus record and prefix-sum costs, give 2^36.17. We charge 2^36.5.
+
+**D. Starting solution.** 32 * 908.8 CPU-s * 2^23 = 2^37.83 (Section 6).
+
+**E. Characteristic search.** The calibrated route-search allowance 2^25.02 thread CPU-s * 2^23 = 2^48.020 (Section 6;
+measured M_E = 247,285 thread CPU-s).
+
+**Total** = A + B + C + D + E < 2^45.319 + 2^36.5 + 2^37.83 + 2^48.020 < **2^48.228**, and we claim **48.25**.
+**Preprocessing** = C + D + E < 2^36.5 + 2^37.83 + 2^48.020 < **2^48.022**, and we claim **48.05**. There are no restarts.
+
+Sensitivity (total `time_log2` across `kappa` and thread-CPU-second allowances):
+
+| kappa (units per CPU-s) | allowance 2^25.02 CPU-s (charged) | allowance 2^26 CPU-s | allowance 2^28 CPU-s | allowance 2^30 CPU-s |
+|---|---|---|---|---|
+| 2^23 (charged) | **48.23** | 49.11 | 51.03 | 53.01 |
+| 2^24 | 49.13 | 50.06 | 52.01 | 54.00 |
+| 2^25 | 50.08 | 51.03 | 53.01 | 55.00 |
+
+**Comparison with #227.** Its 2^61.9 is a prospective cap (8,192 x 2^36 first-block slots at 2^24 ops each), not a
+cost; its observed run used 2^41.1 first blocks and 2^41.35 tuple-tail pairs for one success, consistent with
+p >= 2^-46. Its 2^64 term is S's 2^48.335 inflated by C, with no search measurement; E replaces it.
+
+## 9. Memory
+
+| Item | Bytes |
+|---|---|
+| TAB2, 16N | 22,348,398,592 |
+| bucket offsets | 536,870,916 |
+| other tables, code and state | < 2^24 |
+| largest solver peak (search / start) | 5,642,330,112 |
+
+The total is 28,544,376,836 = 2^34.732. The route search's memory is pre-declared (supporting heuristic
+`search-peak-memory`): the measured peak over all 57 search calls and both start runs is 5.25 GiB < 2^33 bytes. The
+phases run sequentially, so even a search peak of up to 2^33 bytes for S's own search keeps the bound at
+max(attack 2^34.4, search 2^33) < 2^35. We nevertheless add the measured peaks. We claim 35. The advice
+(characteristic, 71 conditions, 18 words, constants) is < 8 KB, so we claim 13.
+
+## 10. Heuristics (IDs exactly as in claim.json)
+
+- `q-32step-matching-rate` (score-critical): q >= 2^-17.3583. Evidence: the exact-enumeration prediction 2^-17.3254,
+  the public source submission's 2^34 trials, #26's runs, #227's campaign counts, and `experiment:fixed-witness-derivation`. Assumption: CV1 words
+  act as uniform for the Step-2 tests.
+- `step3-46-conditions` (score-critical): p >= 2^-46. Evidence: the condition count, stage rates measured through
+  step 21, the certified 32-step collision witness (`certificates/manifest.json` and `experiment:fixed-witness-derivation`,
+  Section 3). The 13 W20/W22 carry conditions after step 21 are extrapolated.
+- `route-search-allowance` (score-critical): S's search costs <= 2^25.02 solver thread CPU-s (covering `3.40e7` CPU-s). Evidence:
+  the measured 247,285 thread CPU-s (`48,912` wall-s) and the itemisation of Section 6 (which notes that `/usr/bin/time -v`
+  already sums `user + sys` across all threads, avoiding thread double-counting). Declared plausible, not established.
+- `cpu-second-pricing` (score-critical): 1 solver CPU-s <= 2^23 units (`2^34.12` primitive 256-bit word-RAM ops, `17.0`
+  ops per retired instruction, as in #134), with sensitivity up to `2^25` in Section 8.
+- `valid-tuple-pairs` (supporting): E[C(V,2)] <= q * 2^-5.
+- `starting-solution-measured` (supporting): the starting solution costs <= 32 * 908.8 CPU-s at kappa (`2^37.83` units),
+  above S's 2^34.3.
+- `search-peak-memory` (supporting): the route search's peak memory is below 2^33 bytes (Section 9).
