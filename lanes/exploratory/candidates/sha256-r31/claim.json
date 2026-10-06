@@ -6,22 +6,80 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 28,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 33,
+    "preprocessing_log2": 27,
+    "success_probability": 0.5,
+    "nonuniform_advice_log2_bytes": 11
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Complete sha256-r31-prefix-v1 hash: standard IV, FIPS 180-4 padding, steps 0..30 on every block with feed-forward, all 256 digest bits; messages are M0||M1 and M0||M1' of 128 bytes.",
+    "One run of the algorithm of proof.md Section 4 with B = 128 base points and N = 8.0e7 random first blocks; collision-frontier-v5 units (one 31-step compression = 1, other word operations = 1/2140).",
+    "Fixed input: the 31-step characteristic of Li-Liu-Wang (EUROCRYPT 2024, Table 6), under 2^11 bytes; the one-time search that produced it is not charged.",
+    "Success probability and per-phase costs rest on the declared heuristics H1-H5 and on 200 independent executions at the stated parameters; certificates are fresh collisions from those executions.",
+    "baseline_improved is the required reference identifier only."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H1-uniform-cv",
+      "role": "score-critical",
+      "statement": "For uniformly random first blocks the chaining value is uniform: A_-1 hits a table of E entries with probability E/2^32, and the derived W6 and W5 are uniform and independent, so W6 lies in V6 with probability |V6|/2^32 = 2^-9.",
+      "scope": "Chaining values of the 31-step compression from the standard IV, first blocks with two fresh random words each.",
+      "extrapolation": "None beyond the measured runs: the attack's parameters are those measured.",
+      "evidence_ids": [
+        "proof:136-154",
+        "proof:175-187"
+      ],
+      "limitations": "Statistical agreement over 200 runs (hit and W6 ratios close to 1), not a proof of uniformity."
+    },
+    {
+      "id": "H2-split",
+      "role": "score-critical",
+      "statement": "After a W6 pass, the probability that some W16 in G16 gives W18 = s1(W16) + W11 + s0(W3) + W2 meeting the W20 cancellation for the actual W5 equals the Monte Carlo value 2^-12.663 obtained for uniform W5 and uniform offset.",
+      "scope": "Split event of Section 3 inside the attack.",
+      "extrapolation": "Monte Carlo over 2^30 uniform inputs applied to the attack's inputs (uniform by H1).",
+      "evidence_ids": [
+        "proof:80-102",
+        "proof:136-154"
+      ],
+      "limitations": "Estimate with about 0.4% relative error; observed split events in the runs are consistent with it."
+    },
+    {
+      "id": "H3-completion",
+      "role": "supporting",
+      "statement": "Whenever a split event occurs, the E13/E15 completion of Section 4 (P5) succeeds within its caps.",
+      "scope": "Completion step P5.",
+      "extrapolation": "From all observed split events in the 200 runs.",
+      "evidence_ids": [
+        "proof:103-135",
+        "proof:136-154"
+      ],
+      "limitations": "Empirical; a rare completion failure would only lower the success probability slightly."
+    },
+    {
+      "id": "H4-base-cost",
+      "role": "score-critical",
+      "statement": "Base-point generation, variant generation and table building have the per-run iteration counts measured in Section 7; with per-iteration operation bounds their charged cost stays below the stated totals.",
+      "scope": "Phases P1-P3 at B = 128.",
+      "extrapolation": "None: the claim uses the measured parameters; the maximum over 200 runs is reported.",
+      "evidence_ids": [
+        "proof:155-174"
+      ],
+      "limitations": "Operation counts per iteration are upper bounds read from the implementation, not organizer-measured."
+    },
+    {
+      "id": "H5-poisson",
+      "role": "score-critical",
+      "statement": "Successful (first block, table entry) events are rare and nearly independent, so the success probability is 1 - exp(-lambda) with lambda = N * E * 2^-53.663.",
+      "scope": "Whole attack at the stated parameters.",
+      "extrapolation": "Model checked against the observed success frequency of 200 runs.",
+      "evidence_ids": [
+        "proof:136-154"
+      ],
+      "limitations": "The claimed 0.5 is below both the model value and the observed rate's 95% lower bound."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
