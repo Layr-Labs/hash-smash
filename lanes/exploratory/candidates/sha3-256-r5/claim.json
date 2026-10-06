@@ -6,23 +6,87 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 43.0,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
+    "memory_log2_bytes": 31,
+    "preprocessing_log2": 42.9,
     "success_probability": 0.5,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "135-byte single-block messages; the padded block ends with byte 0x86 (bits 1080..1087 = 01100001), fixing 520 state bits (8 padding + 512 capacity).",
+    "Standard SHA3-256 IV (all-zero 1600-bit initial state) and prefix rounds 0..4 of Keccak-f[1600].",
+    "All phases (A: trail search, B: 2-round connector with floor mean DF_base >= 25.0, C: space export, E: pairwise disjointness & driver checks, D: online search) are executed and charged under explicit hard primitive-operation counter caps (B_prep = 2^42.8288 < 2^42.9, T_max = 2^42.8611 < 2^43.0); no external trail, connector or message pair is read.",
+    "Preparation charged from measured retired instructions times a measured-mix lambda under a conservative per-class emulation table (7.0 C, 8.4 Python) over C = 1355, enforced on every random tape by hard counter caps B_A = 2^38.82, B_B13 = 2^35.08, B_B4 = 2^42.20, B_C = 2^41.00, and B_E = 2^35.20 units; online pair enumeration is hard-capped at N_cap = 2^37.85 pairs (B_D = 2^37.36 units at 962 ops/pair, or 671 ops/pair with early-abort row projection).",
+    "Unconditional success probability >= 0.6376 >= 0.5 within the hard-capped total work T_max = 2^42.8611 < 2^43.0 units (combining the union-bounded completion probability >= 0.8097 of hard-capped Phases B4 and C at the floor mean DF_base = 25.0 with the online collision probability 1 - exp(-2^37.85 * 2^-37.219) = 0.7875); central expected total is 2^39.87 and joint worst case is 2^42.19.",
+    "Peak memory is strictly below 2^31 bytes on every random tape (380 MiB largest step plus at most M_spaces <= 15,762 retained spaces <= 6.61e8 bytes); no nonuniform advice.",
+    "Three certified 135-byte 5-round collisions from an executed run of the algorithm, plus organizer-executed Docker verification in experiments/r5_connector_verify.py reconstructing the exact DF = 36 connector subspace (rank 1361 -> 1439 -> 1564). The nominal reference identifier does not by itself assert an improvement."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-markov-tail",
+      "role": "score-critical",
+      "statement": "For message pairs {x, x xor beta0} enumerated in the exported connector spaces (whose 2-round difference is exactly alpha2 by Lemma 2), the round-2 transition beta2 -> alpha3 and the rounds 3-4 transition to a zero 256-bit digest difference occur with the product of the row-wise DDT probabilities, p = 2^-24 * 2^-13.219 = 2^-37.219 per pair (sum over all alpha4), and distinct pairs behave as independent trials, so N_cap = 2^37.85 pairs succeed with conditional probability at least 1 - exp(-N_cap * p) = 0.7875 at the central rate (yielding unconditional success >= 0.8097 * 0.7875 = 0.6376 >= 0.5 after the hard preprocessing counter caps, and >= 0.50 conditional success across the entire 95% rate interval down to 2^-38.38).",
+      "scope": "Trail core of Section 3 (beta2/beta3 of Guo et al. core No. 3, translate 8). Measured on the first 33 of the 2,052 exported spaces of base k = 278, seed 1 (base r0, DF 34-38; 2^39.19 pairs), on research-run spaces of other connector bases for the same trail (2^37.23 pairs, 2^39.52 pairs total), and verified on 512 fresh pairs in the organizer-executed experiment r5-stage1-row-filter-audit.",
+      "extrapolation": "The online phase draws up to N_cap = 2^37.85 pairs from randomly ordered spaces of the export, including spaces of the second base and, in other realisations, spaces of other bases that were not measured; the per-pair rate is assumed to be the same there. The collision-count evidence (6 observed vs 4.93 expected) supports the rate within its 95% Poisson interval [2^-38.38, 2^-35.81].",
+      "evidence_ids": [
+        "proof:139-159",
+        "proof:160-182",
+        "proof:376-409",
+        "proof:524-587",
+        "proof:748-816",
+        "experiment:r5-connector-subspace-collision",
+        "experiment:r5-stage1-row-filter-audit"
+      ],
+      "limitations": "Independence of the round-2..4 events across pairs of one affine space is not proved; stage-1 independence is measured precisely (2^-23.996 vs 2^-24) while the full 2^-37.219 rests on 6 collisions. Because N_cap = 2^37.85 is enforced directly in the hard-capped algorithm, both the central rate and the 2^-38.38 lower confidence bound are covered within T_max = 2^42.8611 < 2^43.0."
+    },
+    {
+      "id": "H2-instruction-pricing",
+      "role": "score-critical",
+      "statement": "The measured preprocessing programs (phases A-C and E) can be executed on the collision-frontier-v5 256-bit RAM with at most lambda primitive operations per retired AArch64 instruction, where lambda is the measured dynamic opcode mix priced with the per-class emulation table of Section 10.2 (indirect branch 30, flag-setting ALU 7, 64-bit load 7, store 8, sub-word access 12, pair 14, ALU 5, branch 4, multiply 130), plus 0.25 for scalar/vector shared mnemonics: lambda_C = 7.0 for the C trail search and lambda_Py = 8.4 for the Python phases.",
+      "scope": "Opcode histograms of the same programs on AArch64 Linux (DynamoRIO, every executed opcode): three complete connector attempts (success, difference-phase failure, repair failure) and truncated runs of the two C trail-search programs; Apple PMU FP/SIMD share on the macOS connector runs; macOS vs Linux instruction counts on identical inputs for both C programs.",
+      "extrapolation": "The Python mix was measured on connector attempts only; phases A2, A4, B1-B3, C and E use that mix without separate measurement. The Linux (gcc, Debian CPython) mixes are applied to the macOS (clang, Homebrew CPython) runs whose instruction totals are charged; for the C phases the count is scaled by the larger of 1 and the measured gcc/clang instruction ratio.",
+      "evidence_ids": [
+        "proof:431-487",
+        "proof:488-523",
+        "proof:524-587",
+        "proof:748-816"
+      ],
+      "limitations": "The per-class costs are an emulation convention, not a verified compilation to the RAM. Because Phases A-C and E are enforced by hard primitive-operation counter caps B_A = 2^38.82, B_B13 = 2^35.08, B_B4 = 2^42.20, B_C = 2^41.00, and B_E = 2^35.20 (total B_prep = 2^42.8288 < 2^42.9), any increase in lambda cannot cause charged time to exceed 2^43.0; even if lambda is doubled (lambda_C = 14.0, lambda_Py = 16.8), the hard caps still hold 4.34x above E[T_B4] and 6.68x above the floor E[T_C]."
+    },
+    {
+      "id": "H3-connector-success-model",
+      "role": "score-critical",
+      "statement": "With fresh random seeds under the explicit deterministic specification of Section 10.6.2, connector attempts at positions #0-#32 of the k order (k < 278) fail and later attempts succeed independently with probability q' = 3/26 in producing an accepted base pair with DF >= 24 and mean DF_base >= 25.0, so the expected attempt-loop cost is 33 x 2.26e12 + (1/q') x 2.21e12 = 2^46.41 retired instructions (2^39.08 units), and the hard counter cap B_B4 = 2^42.20 units (6.8455e15 primitive operations at C = 1355, M_att = 96 attempts) fails with probability at most 2^-3.12 + (1 - 3/26)^63 = 0.11503 + 0.00044 = 0.11547.",
+      "scope": "Two executed realisations of the attempt loop over the same k order: seeds 1,2,3 (44 attempts, first success #33) and seeds 4,5,6 (48 attempts, first success #41); 3 successes in 92 attempts, none before position #33; all 3 accepted base pairs satisfy DF >= 24 and mean DF_base >= 25.0 (DF 36/35 -> mean 35.5, DF 26/24 -> mean 25.0, DF 27/25 -> mean 26.0); plus organizer-executed reconstruction of the DF = 36 base r0 in experiment r5-connector-subspace-collision.",
+      "extrapolation": "Two realisations are taken as representative of the distribution of the attempt-loop cost and of the accepted base DF for fresh coins; the cut at position #33 was chosen after seeing the data.",
+      "evidence_ids": [
+        "proof:291-332",
+        "proof:610-661",
+        "proof:524-587",
+        "proof:748-816",
+        "experiment:r5-connector-subspace-collision"
+      ],
+      "limitations": "The success rate rests on 3 events. Because Phase B4 is hard-capped at B_B4 = 2^42.20 units (8.686x the central expectation), any lower success rate reduces success probability rather than raising charged time. Even under an i.i.d. model at its one-sided 95% Clopper-Pearson lower bound jointly with rate 2^-38.38, floor DF 26/24, and doubled lambda, the joint sensitivity bound is 2^42.19 < 2^43.0."
+    },
+    {
+      "id": "H4-export-scaling",
+      "role": "score-critical",
+      "statement": "For an accepted connector base pair with mean degrees of freedom DF_base >= 25.0 (the acceptance floor DF 26/24 enforced by Phase B4), the Phase-C space export keeps at least 85.5% of linearisation seeds as distinct, pairwise-disjoint affine spaces with mean pairs per space at least 2^(DF_base - 1.09) >= 2^23.91, costing at most 1.44e9 retired instructions per seed, so exporting N_cap = 2^37.85 pairs requires at most M_spaces = 15,762 spaces from M_seeds = 18,436 seeds with expected export work at most 18,436 x 1.44e9 = 2^44.59 instructions (2^37.260 units at lambda_Py = 8.4, or 2^36.10 units for N = 2^36.69), completing within the hard counter cap B_C = 2^41.00 units (2.9797e15 primitive operations at C = 1355) with failure probability at most 2^37.260 / 2^41.00 = 2^-3.740 = 0.07484 and pairwise-disjointness/driver work within B_E = 2^35.20 units.",
+      "scope": "Executed Phase-C export on accepted base pair r0/r1 (DF 36/35): 2,400 seeds produced 2,052 distinct pairwise-disjoint spaces (keep rate 0.855, 0 duplicates, all 2,104,326 space pairs verified disjoint) holding 2^45.41 total pairs (mean 2^34.41 = 2^(35.5 - 1.09) pairs/space) at 1.44e9 retired instructions per seed.",
+      "extrapolation": "Extrapolates the keep rate (0.855), per-seed instruction count (1.44e9), and mean space dimension offset (-1.09 bits below base DF) from the executed DF 36/35 export (2,400 seeds) to the acceptance floor DF 26/24 (mean DF_base = 25.0: 8,253 seeds for N = 2^36.69, and 18,436 seeds / 15,762 spaces for N_cap = 2^37.85).",
+      "evidence_ids": [
+        "proof:333-350",
+        "proof:588-609",
+        "proof:610-661",
+        "proof:524-587",
+        "proof:748-816",
+        "experiment:r5-connector-subspace-collision"
+      ],
+      "limitations": "Measured on one complete 2,400-seed export for base pair r0/r1 (DF 36/35). Lower-DF accepted bases (down to the enforced floor mean DF_base = 25.0) could exhibit a different keep rate or dimension offset, but Phase C and Phase E are hard-capped at B_C = 2^41.00 units, B_E = 2^35.20 units, M_seeds <= 18,436, and M_spaces <= 15,762 spaces, so neither time nor memory can exceed the claimed bounds on any random tape."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
