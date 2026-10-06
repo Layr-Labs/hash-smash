@@ -155,7 +155,18 @@ def build_packet(track, *, candidate: Path | None = None, experiment_report: Pat
                 load_json_bytes(data, "experiment report"), snapshot, intake, track,
             )
             if experiment["execution"] is not None:
-                experiment = {**experiment, "execution": judge_view(experiment["execution"])}
+                view = judge_view(experiment["execution"])
+                # The advisory packet carries only this view, not the full report.
+                view["view_limitations"] = (
+                    "Full source text, manifest and summary statistics are included. "
+                    "Raw message pairs and numeric participant observations are omitted; "
+                    "at most three checked-trial previews and canonical table hashes are included. "
+                    "This packet does not include the full experiment report. "
+                    "Review only this packet; do not open .yukon/work, score files, "
+                    "or any other on-disk report. Summaries do not establish algorithm cost, "
+                    "independent trials or extrapolation."
+                )
+                experiment = {**experiment, "execution": view}
             provenance = {
                 "source": "caller_supplied",
                 "report_sha256": sha256_bytes(data),

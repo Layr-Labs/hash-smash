@@ -154,6 +154,25 @@ class ReviewPacketTests(unittest.TestCase):
         self.assertIn("not authenticated", packet["experiment_evidence"]["limitation"])
         self.assertNotIn(str(report_path), json.dumps(packet))
 
+    def test_advisory_experiment_view_keeps_review_inside_packet(self):
+        self.experiment(addition())
+        report_path = self.report()
+        original_report = report_path.read_bytes()
+        trusted_view = exporter.judge_view(json.loads(original_report)["execution"])
+        packet = self.build(experiment_report=report_path)
+        view = packet["evidence"]["submission"]["experiment_report"]["execution"]
+        limitations = view["view_limitations"]
+        self.assertNotIn("Consult the full trusted report", limitations)
+        self.assertIn("This packet does not include the full experiment report", limitations)
+        self.assertIn("Review only this packet", limitations)
+        self.assertIn("do not open .yukon/work, score files, or any other on-disk report", limitations)
+        self.assertIn("Raw message pairs and numeric participant observations are omitted", limitations)
+        self.assertIn("Summaries do not establish algorithm cost, independent trials or extrapolation", limitations)
+        self.assertIn("Consult the full trusted report", trusted_view["view_limitations"])
+        self.assertEqual({**view, "view_limitations": trusted_view["view_limitations"]}, trusted_view)
+        self.assertEqual(report_path.read_bytes(), original_report)
+        self.assertEqual(packet["binding"], exporter.evidence_binding(packet["evidence"]))
+
     def test_stale_explicit_report_is_rejected(self):
         self.experiment(addition())
         report_path = self.report()
