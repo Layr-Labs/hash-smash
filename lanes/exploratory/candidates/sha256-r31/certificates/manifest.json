@@ -1,4 +1,117 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "found-1",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/found-1-a.bin",
+      "message_b": "certificates/found-1-b.bin",
+      "expected_digest": "429b81bff75c0eedf88ba58dca620c7055376189815bd4dfc5df36dde99c5137",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "found-2",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/found-2-a.bin",
+      "message_b": "certificates/found-2-b.bin",
+      "expected_digest": "c5f0bbfff7ce66cdfd3816a1100bfaa56f7c1352152d813e03e09ff6f35cde5f",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "found-3",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/found-3-a.bin",
+      "message_b": "certificates/found-3-b.bin",
+      "expected_digest": "33258f6423132b974c204b5d9a4a37253a994199335d976c390d097c90c4a572",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "found-4",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/found-4-a.bin",
+      "message_b": "certificates/found-4-b.bin",
+      "expected_digest": "21b967a1e4d29dbbd79249f077c43cbf7e0fd5317a54249a65e1a91b62aeac72",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "found-5",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/found-5-a.bin",
+      "message_b": "certificates/found-5-b.bin",
+      "expected_digest": "52543cae1517174ab9fcf4de209fa61b975c07d05711884bd6351ffe8c19d5d6",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "found-6",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/found-6-a.bin",
+      "message_b": "certificates/found-6-b.bin",
+      "expected_digest": "0d44cba8c6e08c2c7c85d739b284961b6dff4690e768d42f9526b2288f6d46cf",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "found-7",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/found-7-a.bin",
+      "message_b": "certificates/found-7-b.bin",
+      "expected_digest": "da61e84c04c883524dac0aee3326d0fb5f361fc94ebb61f9fccc4f2574ccfd9e",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "found-8",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/found-8-a.bin",
+      "message_b": "certificates/found-8-b.bin",
+      "expected_digest": "48906e53f331dccf3c39be6ce7ff7d73e520b84e3af5a3eeef54203d8012f7e1",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "found-9",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/found-9-a.bin",
+      "message_b": "certificates/found-9-b.bin",
+      "expected_digest": "cd239c46a74c34074fe5aac65adba479a547406c1847ac0e3350559ca1e94ebc",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "found-10",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/found-10-a.bin",
+      "message_b": "certificates/found-10-b.bin",
+      "expected_digest": "369ef5e307ec6675a3aa365b1346284f00a3ca07922a54fdb6f32735789b3b9e",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "found-11",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/found-11-a.bin",
+      "message_b": "certificates/found-11-b.bin",
+      "expected_digest": "f2d0b06e229c8f92aeb952a65e758d9c956298418d64042fd5f183d3d42cd700",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "found-12",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/found-12-a.bin",
+      "message_b": "certificates/found-12-b.bin",
+      "expected_digest": "7a83382d08e2eda32494a52202968dcb9556677c5c162265d35cef9630b66ed3",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "found-13",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/found-13-a.bin",
+      "message_b": "certificates/found-13-b.bin",
+      "expected_digest": "075ba19e5f20c9b24587f28110adc6313db95456fc4d9e2b3b95d1360f005212",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "found-14",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/found-14-a.bin",
+      "message_b": "certificates/found-14-b.bin",
+      "expected_digest": "550da68f4b62633e251a0e01158ec45d8b63f9d3c635c9c4b91f9579c0045776",
+      "target_profile": "sha256-r31-prefix-v1"
+    }
+  ]
 }
