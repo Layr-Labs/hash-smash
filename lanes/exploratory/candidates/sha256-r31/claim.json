@@ -1,27 +1,25 @@
 {
   "schema_version": 3,
-  "submission_state": "ready",
   "target_profile": "sha256-r31-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 31,
   "lane": "exploratory",
+  "baseline_improved": "sha256-r31-nominal-v2",
+  "submission_state": "ready",
+  "certificate_manifest": "certificates/manifest.json",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 128.049,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
+    "memory_log2_bytes": 136,
+    "preprocessing_log2": 120,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Target the exact fixed-IV sha256-r31-prefix-v1 hash of complete 40-byte messages, with FIPS one-block padding, original schedule/constants, round indices 0 through 30, full feed-forward and all 256 digest bits.",
+    "Draw q=4073*2^116 independent uniform 40-byte messages from two fresh independent 256-bit words per sample. Independently generate and charge 2^87 random 256-bit table words for a three-character 128-bit tabulation hash of complete digests.",
+    "Use a B=2^128-word initialized bucket-head table, 4q message/record words and 2^87 tabulation words. Stop after at most L=2^127+2^96+2^66 full-digest chain inspections; independently verify any distinct-message digest match. The total all-outcomes bound is q+2+(72q+16L+6B+6*2^87+2^24)/2140 selected-compression equivalents.",
+    "The conditional fourth-moment bound for every set of distinct digests gives cap-failure probability at most 8/2^64. The distribution-free complete-digest birthday bound minus repeated inputs and cap failures exceeds 0.39. There is no nonuniform advice, differential heuristic, random-oracle premise or restart."
   ],
-  "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": []
 }
