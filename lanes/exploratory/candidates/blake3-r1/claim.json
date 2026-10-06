@@ -1,28 +1,43 @@
 {
-  "schema_version": 3,
-  "submission_state": "ready",
-  "target_profile": "blake3-r1-prefix-v1",
-  "attack_class": "ordinary-collision",
-  "rounds": 1,
-  "lane": "exploratory",
-  "claim": {
-    "time_log2": 149,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
-    "nonuniform_advice_log2_bytes": 0
-  },
-  "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
-  ],
-  "baseline_improved": "blake3-r1-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+ "attack_class": "ordinary-collision",
+ "baseline_improved": "blake3-r1-nominal-v2",
+ "certificate_manifest": "certificates/manifest.json",
+ "claim": {
+  "memory_log2_bytes": 72,
+  "nonuniform_advice_log2_bytes": 0,
+  "preprocessing_log2": 80,
+  "success_probability": 0.39,
+  "time_log2": 80,
+  "time_unit": "target-compressions"
+ },
+ "experiment_manifest": "experiments/manifest.json",
+ "heuristics": [
+  {
+   "evidence_ids": [
+    "proof:15-36",
+    "proof:155-167",
+    "experiment:half-uniformity",
+    "experiment:truncated-differential-demo"
+   ],
+   "extrapolation": "Sampled full distinctness (2^16 offline, 256x512 organizer samples) plus ARX avalanche generalize to full 64-bit uniformity; cross-half independence follows from the disjoint variable sets of Section 1.",
+   "id": "H-MITM-UNIFORM",
+   "limitations": "Uniformity is measured, not proved; a hidden structural bias could lower hit rates. Machine-independent property of the fixed function; no timing, solver, or hardware premise is used.",
+   "role": "score-critical",
+   "scope": "Exact G-fragment half-key maps of Section 1 indexed by coin-random attempt prefixes.",
+   "statement": "Over the algorithm's fresh uniform prefix coins C, the exhaustive H1 and H2 table/probe key sets behave as uniform draws over the 128-bit key space (marginally uniform per key, pairwise match rate 2^-128 across disjoint input sets), so the Section 4 coin-probability analysis (per-attempt success above 0.39) holds."
+  }
+ ],
+ "lane": "exploratory",
+ "restrictions": [
+  "Messages are exactly 64 bytes; single-chunk single-compression domain with flags 11, counter 0, length 64.",
+  "Randomized Las Vegas second preimage of the fixed all-zero digest: fresh uniform coins choose the attempt prefix C; table and probe sets within an attempt are exhaustive over 64-bit half-input domains; at most four attempts.",
+  "All operation counts are syntactic bounds over displayed fixed-bound loops priced at 1/222 per word operation, including the prefix coins; no wall-clock or solver premise enters the ledger.",
+  "Uniformity of half-key maps across coin-random prefixes rests on declared heuristic H-MITM-UNIFORM with stated scope and limits.",
+  "Unkeyed BLAKE3-256, 1 prefix round in every compression; classical randomized construction.",
+  "The nominal reference identifier does not assert an improvement; the bound 80 is below 128 and below the promoted best 149."
+ ],
+ "rounds": 1,
+ "schema_version": 3,
+ "submission_state": "ready",
+ "target_profile": "blake3-r1-prefix-v1"
 }
