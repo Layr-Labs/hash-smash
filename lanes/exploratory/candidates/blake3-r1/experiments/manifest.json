@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "blake3-r1-swar-builder",
+      "kind": "python-message-pairs-v1",
+      "scope": "Executes the deterministic 4-wide top-lane SWAR (G5, G7) constructor of proof.md Section 5 across 256 isolated trials.",
+      "hypothesis": "Every trial deterministically reproduces certificates/msg0.bin and certificates/msg1.bin byte-for-byte with identical 1-round BLAKE3 digests, confirming ALU = 60 across both xor1 and sub1 diagonal flips, 125 primitive operations under the 32-store / 11-load / 22-table-op ledger (< 222 = 1 target compression unit, time_log2 = 0), and W = 302 under the harshest H = 2 self-check + code-placement stress row (log2 T = 1.7486 <= 1.75).",
+      "program": "experiments/builder.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}

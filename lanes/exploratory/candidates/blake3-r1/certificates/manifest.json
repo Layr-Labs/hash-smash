@@ -1,4 +1,13 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "blake3-r1-swar-g5g7-odd-diagonals-pair",
+      "type": "hash-collision-witness-v2",
+      "target_profile": "blake3-r1-prefix-v1",
+      "message_a": "certificates/msg0.bin",
+      "message_b": "certificates/msg1.bin",
+      "expected_digest": "1cf63ad700000000be075a1d00000000000000001d1fa44a00000000ec18ce43"
+    }
+  ]
 }
