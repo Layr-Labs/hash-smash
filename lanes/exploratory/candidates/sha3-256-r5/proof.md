@@ -1,353 +1,475 @@
-# A fixed-function collision baseline for five-round SHA3-256
+# Five-round SHA3-256 collisions from a 2-round linearized connector and a 3-round trail
 
-The scalar below is `time_log2` under `collision-frontier-v5`. Memory remains
-a separately reported resource bound.
+This exploratory package claims an ordinary-collision algorithm for the
+`sha3-256-r5-prefix-v1` target with total charged time at most 2^56.6
+target-permutation units under `collision-frontier-v5`, peak memory at most
+2^32 bytes, and heuristic success probability at least 0.5.
 
-This independent exploratory package targets sha3-256-r5-prefix-v1. It proposes
-a classical randomized algorithm with success at least 1/2, total charged time
-at most 2^137.785 units, and peak memory at most 2^137 bytes under
-collision-frontier-v5. These are conservative analytical upper bounds, not
-measured execution costs. The claimed scalar is 137.785.
+The construction is the differential attack of Guo, Liao, Liu, Liu, Qiao and
+Song, "Practical Collision Attacks against Round-Reduced SHA-3", Journal of
+Cryptology 33 (2020) 228-270, IACR ePrint 2019/147 (cited below as GLL+20).
+That paper reports a real 5-round SHA3-256 collision. This package does not
+reuse that pair as a witness. The published messages are 1084 bits long,
+not whole bytes, so they lie outside this target's byte-string domain
+(Section 3). The algorithm below reruns the published construction for
+135-byte messages. That fixes four more input bits than the authors fixed.
+Every phase is charged, including the trail search that produced the
+hard-coded trail core and every connector run, failed or not. The score rests
+on four declared heuristics (Section 8). It is not a proof and it does not
+include a target collision certificate. The certificate manifest is valid and
+empty.
 
-The proof uses no distributional property of SHA3: every fixed function from
-the chosen message domain to 256-bit strings satisfies its probability bound.
-Fresh independent uniform coins are the explicit RAM model's random-word
-primitive. No PRNG, random-oracle, round-independence, or differential heuristic
-is assumed. Accordingly the heuristic list is empty.
+## 1. Exact target
 
-## 1. Exact complete hash
+H is the complete five-round SHA3-256 sponge of the organizer reference
+`verifier/keccak.py:sha3_256(data, 5)`. The state has 1600 bits held as 25
+little-endian 64-bit lanes A[x+5y], with x,y in 0..4. State bit (x,y,z) is bit
+z of lane x+5y. Message byte i, bit j (LSB first) is state bit 8i+j of the
+absorbed block, in lane floor(i/8). The rate is 1088 bits (17 lanes, 136
+bytes) and the capacity is 512 bits. The initial state is all-zero. A byte
+message m is padded with SHA3 domain suffix 01 and pad10*1. For a message of
+exactly 135 bytes, the padded message is the single block m || 0x86. Each
+absorbed block is XORed into lanes 0..16 and followed by rounds 0,1,2,3,4 of
+Keccak-f[1600]. Every round is R = iota o chi o pi o rho o theta:
 
-Each message is exactly 64 bytes, of bit length 512 < 2^64. Two 256-bit words
-u,v encode m=LE32(u)||LE32(v), where LE32 includes all 32 little-endian bytes,
-including zeros. These encodings bijectively cover a domain D of size 2^512.
-There is no unknown IV, free-start state, or supplied prefix/advice.
+    C[x] = A[x,0]^A[x,1]^A[x,2]^A[x,3]^A[x,4]
+    D[x] = C[x-1] ^ ROT64(C[x+1],1);   A[x,y] ^= D[x]
+    B[y,2x+3y] = ROT64(A[x,y], rho[x,y])
+    A[x,y] = B[x,y] ^ (~B[x+1,y] & B[x+2,y]);   A[0,0] ^= RC[i]
 
-H is the following complete hash. Initialize a 1600-bit state to zero, as
-25 lanes A[x,y] of 64 bits indexed x+5y. Pad m to the one 136-byte rate block
+The rho offsets for rows y=0..4 and columns x=0..4 are
+0 1 62 28 27 / 36 44 6 55 20 / 3 10 43 25 39 / 41 45 15 21 8 / 18 2 61 56 14.
+RC[0..4] = 0x1, 0x8082, 0x800000000000808A, 0x8000000080008000, 0x808B.
+These are the first five rounds (prefix reduction), not Keccak-p's last-round
+convention. The digest is the 32 bytes LE64(A[0])||...||LE64(A[3]); no further
+permutation is needed. An ordinary collision is two distinct byte strings with
+equal 256-bit digests. Free-start, raw-permutation, and non-byte-aligned inputs
+are excluded.
 
-    m || 0x06 || (70 zero bytes) || 0x80.
+Let L = pi o rho o theta. It is linear over GF(2) and invertible, and iota
+does not affect XOR differences. Following GLL+20 (Section 3.1), alpha_i is
+the state difference entering round i, and beta_i = L(alpha_i) is the
+difference entering chi in round i. So round i maps
+alpha_i --L--> beta_i --chi--> alpha_{i+1}. Each 5-bit row of the chi input is
+one S-box. "Active" means a nonzero row difference. DDT(din,dout) is the
+5-bit S-box difference distribution table.
 
-This is SHA3's domain suffix 01 followed by pad10*1, with delimited suffix
-0x06. There is no length trailer. XOR the 17 little-endian 8-byte lanes of
-this block into A[0],...,A[16]. The remaining eight capacity lanes are zero.
-Apply rounds 0,1,2,3,4, in order, each with the following formulas; x,y and
-coordinate subscripts are modulo 5:
+All algorithm messages are exactly 135 bytes. In the padded block, bits
+1080..1087 (byte 135 = 0x86, LSB first) are fixed to 0,1,1,0,0,0,0,1, and
+bits 1088..1599 (the capacity) are zero. Thus c+p = 512+8 = 520 bits of the
+initial state are fixed, and 1080 bits are free. This differs from GLL+20,
+which fixed only c+p = 512+4 = 516 bits: their padded block ended in the 4-bit
+pattern 0,1,1,1, so their messages had 1084 bits (GLL+20 Section 3.2,
+"r - 4 free bits" for SHA3-d).
 
-    C[x] = XOR over y of A[x,y]
-    D[x] = C[x-1] XOR ROT64(C[x+1],1)
-    A[x,y] = A[x,y] XOR D[x]
-    B[y,2x+3y] = ROT64(A[x,y],rho[x,y])
-    A[x,y] = B[x,y] XOR ((NOT64 B[x+1,y]) AND B[x+2,y])
-    A[0,0] = A[0,0] XOR RC[round].
+## 2. Hard-coded data: trail core No. 3
 
-All chi right-hand sides read the temporary B array. ROT64 rotates left
-within 64 bits; NOT64 complements only those bits. The rho offsets, with
-rows y=0,...,4 and columns x=0,...,4, are:
+The algorithm hard-codes GLL+20 trail core No. 3 (their Table 5, Table 9). It
+gives the chi-input differences of rounds 2 and 3. Below, rows are y=0..4,
+columns are x=0..4, and each lane is a 16-hex-digit 64-bit integer, most
+significant digit first, with '-' meaning 0. This is the GLL+20 display
+convention. The rows were recomputed from the published colliding pair
+(Section 3) with the organizer round function and match the paper's table
+character for character.
 
-    0   1  62  28  27
-   36  44   6  55  20
-    3  10  43  25  39
-   41  45  15  21   8
-   18   2  61  56  14
+    beta2 (10 active S-boxes; w2 = 24)
+    ---------------1|----------------|---------------4|----------------|----------------
+    ---------------4|---------------4|---------------4|-----------2----|----------------
+    2---------------|----------------|----------2-----|----------------|----------------
+    2---------------|----------------|----------------|-----------2----|----------------
+    ----------2----1|----------------|----------2-----|----------------|---------------1
 
-The five hexadecimal round constants, in order, are:
+    beta3 (9 active S-boxes; w3 = 19)
+    ---------------1|----------------|---------------1|------4---------|----------------
+    ----------------|----------------|---------------1|----------------|-----------4----
+    ----------------|-------------1--|----------------|----------------|-----------4----
+    ----------------|----------------|----------------|----------------|----------------
+    ---------------1|-------------1--|----------------|------4---------|----------------
 
-    0000000000000001
-    0000000000008082
-    800000000000808a
-    8000000080008000
-    000000000000808b
+The connector target is Delta_SI = alpha2 = L^{-1}(beta2). It has 59 active
+S-boxes, and its minimal backward weight is w1 = 127 (GLL+20 Table 5). In
+round 4 the trail only needs the first 256 output bits of alpha5 to be zero.
+The weight of the last three rounds is w2+w3+w4^d = 43 for the single core,
+and 36.70 once the paper aggregates the multiple round-3/round-4 trails that
+also give a digest collision (GLL+20 Table 6, footnote *). The brute-force
+stage tests only digest equality, so no particular round-4 difference has to
+be followed. The hard-coded data is 2*1600 bits, under 2^10 bytes, and its
+search cost is charged in Section 6.
 
-After round 4, H(m)=LE8(A[0])||LE8(A[1])||LE8(A[2])||LE8(A[3]).
-These are all 256 output bits, the first 32 squeeze bytes in SHA3 order.
-No additional permutation is required because 32 < 136. Absorption XORs into
-the 1088-bit rate; the capacity is 512 bits and there is no Davies-Meyer
-feed-forward. Thus each complete hash uses exactly one selected five-round
-permutation. This specifies the profile's complete padded, fixed-IV hash on
-every message the algorithm can generate. The prefix is the first five
-Keccak-f rounds, not Keccak-p's last-round convention.
+## 3. Verified source evidence and why it is not a certificate
 
-## 2. Algorithm and representation
+GLL+20 Table 17 prints the following 5-round SHA3-256 collision. Each line
+lists absorbed lanes 0..4, 5..9, 10..14 and 15..16; lanes 17..24 are zero.
 
-Set n=2^129. A record is three 256-bit words (h,u,v), with h the little-endian
-integer encoding of H(LE32(u)||LE32(v)). Unsigned comparison of h is a total
-order whose equality is full digest equality. Use two flat arrays A and B,
-each of n records. Explicitly initialize all six words per index across the
-two arrays; allocation and initialization are charged.
+    M1: FECA67BD2D3F021A BD10A64A4C2B774F F8EF6FF82DD21FC7 6F4BA4D964A78764 0F4FD1C92A24BC6E
+        FB4B8C0A11C64088 EDA7B9EBC05F50A8 0A71DD08E7F1EB5B 5342D2AE78A8BFB5 6591A9B0CC2E7CE9
+        52A3DD827F4EF6DC 9D89B18362B80DE4 FEA719A1875BFFF7 49A2B95AD7B7D147 B23784B72EB9260A
+        187AEFD07295FD59 EE806366EF9D09FF
+    M2: 16F97050842C2D17 A731EE935A43480A 6D8E356BDBD7CBE9 D62C0B356FFA158A 4FAD968080C7F8C8
+        7C83B8E1C61BC5AB 7E3FCA22B5E29305 5888D4DBE848C840 236DE21CCEF77B8A 69D59EF589070E60
+        E87FCD2BF2C6CCE1 B1E28B821FD93ABC AD5D6FB1860CB45C AB8FC7D1015975D5 24C6B737EE96CC23
+        D3BFB5957965A447 EE31D3F5269F254F
 
-1. For i=0,...,n-1, draw fresh independent uniform 256-bit words u and v,
-   construct their 64-byte message, compute its complete H, and store
-   (h,u,v) in A[i]. Retain repeated inputs; there is no resampling.
-2. Sort by full h using stable, iterative bottom-up merge sort with A and B
-   as alternating source/destination arrays. For widths w=1,2,4,...,2^128,
-   merge successive pairs of sorted runs of length w. Choose the left run
-   on digest ties, copy all three words of every record, and exchange the
-   two array base pointers at the end of each pass. Exactly 129 passes
-   each write exactly n records.
-3. Scan all adjacent positions j-1,j in the sorted source array, from j=1
-   through n-1. Test h equality and inequality of the pair (u,v), testing
-   both message words. On the first qualifying pair, reconstruct both
-   messages and recompute both complete hashes from the all-zero state.
-   Check message distinctness and equality of all 256 recomputed output
-   bits. Return the two messages if verified; otherwise halt with failure.
-4. If the scan finishes without such a pair, halt with failure.
+These lanes were serialized little-endian into 200-byte states and passed to
+the organizer's `verifier.keccak.permutation(state, rounds=5)` (prefix rounds
+0..4, all-zero capacity). Both outputs begin with the same 32 bytes
 
-There is one batch, no restart, and at most one final verification of two
-messages. Verification failure cannot occur in the exact RAM model because
-the original digests came from the same deterministic H. This explicit
-defensive check is still charged. Every outcome halts within the same budget.
+    b440608b2e7c0165d64b3b93bbf84f340320be6833f1a3c6cb5a43334b7b42ab
 
-For a concrete merge, maintain w, run start b, source cursors i=b,j=b+w,
-ends b+w,b+2w, and destination cursor k=b. While k<b+2w, choose the nonempty
-run if the other is exhausted; otherwise load and compare both h words.
-Copy all three words of the selected record, advance its source cursor, and
-advance k. When the run is complete, advance b by 2w. When the pass ends,
-swap source/destination base pointers and double w. All boundaries are exact
-because n is a power of two. There is no recursive stack or library sort.
+that is, lanes 65017C2E8B6040B4 344FF8BB933B4BD6 C6A3F13368BE2003
+AB427B4B33435ACB, matching the paper's printed digest. The paper's round
+convention (rounds 0..4 from the zero state) therefore matches this target's
+permutation. Tracing the pair's differences with the same round function
+reproduces the trail exactly: #AS(beta1) = 59, beta2 and beta3 equal Section 2
+bit for bit, and the first four lanes of alpha5 are zero. The message
+difference has Hamming weight 525, and its byte 135 is zero.
 
-Record i starts at byte address base+96i, calculated as
-base+(i<<6)+(i<<5), without multiplication. Word offsets are 0,32,64.
-Indices, counters, sentinels, run boundaries and byte addresses are less than
-2^138, far below 2^256. The value n is made by 1<<129. Message contents occupy
-two words; no 512-bit single-word arithmetic is assumed. The proof's symbolic
-domain/codomain cardinalities need not be represented in the machine.
+These blocks are not padded byte strings. Byte 135 of both blocks is 0xEE.
+Its upper nibble (bits 1084..1087 = 0,1,1,1) is the SHA3 suffix 01 followed by
+pad10*1 with no zero bits. This is the padding of a 1084-bit message whose
+last four bits (bits 1080..1083) are 0,1,1,1. A byte-string message padded to
+one block ends in 0x86 (135 bytes) or 0x80 (shorter), never 0xEE. A
+multi-block message would absorb this block into a nonzero chaining state.
+As a check, replacing byte 135 by 0x86 in both blocks (the two 135-byte
+prefixes) gives five-round digests that differ in 136 bits. The published pair
+is therefore real evidence that the GLL+20 connector and trail work for the
+1084-bit-input variant. It is not a collision for this target, and the
+package contains no certificate.
 
-## 3. Correctness of any returned collision
+## 4. The algorithm
 
-The standard merge invariant says each output prefix contains the smallest
-remaining keys of its two sorted inputs. Copying entire records preserves
-each digest's associated message. Induction over the passes therefore sorts
-all original records without deleting any.
+The parameters are fixed in advance: K = 128 connector spaces, and a total
+connector budget of B_c = 128 * 8 * 428.8 = 439,091.2 core-hour equivalents.
+Section 6 converts B_c to 2^66.745 RAM primitives. The algorithm runs
+Steps 0-3 below. It stops at the first verified collision, or when K spaces
+have been enumerated, or when the connector budget is exhausted.
 
-Every fixed digest occupies a contiguous interval in the sorted array. If
-that interval contains distinct messages, some adjacent messages differ:
-otherwise equality of every adjacent pair would make the entire interval
-one repeated message by transitivity. Thus the scan finds a distinct-message
-collision whenever the sample contains one, including samples with repeated
-inputs. Repeated inputs alone are never accepted as collisions.
+### Step 0 (preprocessing, run once): trail core
 
-Every returned message is in the profile's allowed domain. The explicit final
-checks establish inequality of the messages and equality of the entire
-complete-message hash from Section 1. This is an ordinary collision, not a
-compression-only, free-start, raw-permutation, truncated-output, or
-different-round result.
+Hard-code beta2 and beta3 from Section 2. Compute alpha2 = L^{-1}(beta2) and
+alpha3 = L^{-1}(beta3). Precompute the 1600x1600 GF(2) matrices of L and
+L^{-1}, the 32x32 DDT, and, for every DDT entry, the affine solution set
+V(din,dout) = {v : S(v)+S(v+din) = dout} written as 5-dim(V) linear equations.
+Also precompute the 80 two-dimensional linearizable affine subspaces of the
+S-box (GLL+20 Observation 1, Table 7) and, for each DDT-8 entry, its six
+linearizable 2-dimensional subsets (Observation 2b). The work that originally
+found the trail core is charged as preprocessing (Section 6.2).
 
-## 4. Success for every fixed function
+### Step 1: one 2-round connector run (GLL+20 Sections 4.3, 4.5, 4.6)
 
-The sole probability space consists of 2n independent uniform 256-bit words
-drawn in Step 1. Hence the messages M_1,...,M_n are independent uniform samples
-from D. For fixed deterministic H, the Y_i=H(M_i) are iid with probabilities
+The unknown is x, the 1600-bit chi0 input of the first message (x = L(S0),
+where S0 is the initial state). Let y = chi0(x), z = L(y + RC0) be the chi1
+input, and E_M be the value system over x.
 
-    p_y = |{m in D : H(m)=y}| / 2^512.
+1a. Choose beta1. For each of the 59 active S-boxes of alpha2, choose din
+    uniformly among inputs that reach the given output difference with the
+    best DDT probability. This gives beta1 and alpha1 = L^{-1}(beta1).
+    Derive the second-round constraint B*z = t_B (Eq. 1). For each active
+    S-box this is the set of 5-dim(V(din,dout)) equations of
+    V(din,dout), with dim V = 1, 2, 3 for DDT entries 2, 4, 8.
 
-There are Q=2^256 possible output strings, including any with probability zero.
-These probabilities may be arbitrarily nonuniform. Independence here follows
-from applying a fixed function separately to independent inputs, not from
-assuming independent internal rounds or assuming a randomly chosen hash.
+1b. Choose beta0 with the target difference algorithm of Dinur et al.
+    (GLL+20 Section 4.6). Keep a difference system E_Delta over beta0.
+    Initialize it with: (i) for all 520 fixed initial-state bits, alpha0 =
+    L^{-1}(beta0) is zero there (520 linear equations in beta0); (ii) rows
+    of beta0 under non-active S-boxes of alpha1 are zero. For each active
+    S-box of alpha1, add the 3 equations of a randomly chosen 2-dimensional
+    affine subset of compatible input differences, keeping only consistent
+    choices. Then, S-box by S-box, add 2 more equations to fix one specific
+    din, and add to E_M the value equations of V(din,dout) on that S-box's
+    five x-bits (Eq. 2, A1*x = t_A1). E_M starts with the 520 fixed-bit value
+    equations of Eq. 3, A2*x = t_A2, which are rows of L^{-1} set equal to the
+    fixed bits. The only difference from GLL+20 is that the fixed-bit set
+    has 520 bits instead of 516.
 
-For any probability vector p of length Q, let e_n(p) denote the sum of products
-of n distinct coordinates. Independence gives
+1c. Set flags. Substitute z = L(y + RC0) in Eq. 1 to get B*L*(y+RC0) = t_B
+    (Eq. 4). Set flag u_i = 1 when y_i has a nonzero coefficient there. The
+    5-bit groups U_j mark which outputs of first-round S-box j must be
+    linear in x.
 
-    Pr[all Y_i distinct] = n! e_n(p).
+1d. Linearize the first round (Algorithms 1-3 of GLL+20). Run preProcess:
+    S-boxes whose marked outputs are already linear under E_M (DDT 2 or 4
+    entries, DDT 8 entries whose single nonlinear output y1 is unmarked, or a
+    linearizing subspace already implied by E_M) need no equation. For each
+    other S-box with U_j != 0, try random linearizing equation sets (Eq. 5,
+    A3*x = t_A3) and keep the first one consistent with E_M:
+      - Non-active S-box: by Observation 3, fix 1 input bit if U_j has one
+        marked bit or two cyclically adjacent marked bits, 2 bits if
+        U_j != 11111 otherwise, and 3 non-adjacent bits (a full
+        linearization) if U_j = 11111. For example, y0 = x0 + (x1+1)x2 is
+        linear once x1 is fixed.
+      - Active DDT-8 S-box: 4 of 5 outputs are already linear on V. If the
+        nonlinear output is marked, add the one equation selecting one of
+        the six linearizable subsets.
+    The result is an affine map y_marked = L_chi0*x + t_chi0 (Eq. 6).
+    Substitute it into Eq. 4 to get Eq. 7,
+    B*L*L_chi0*x + B*L*(t_chi0 + RC0) = t_B. If Eq. 7 is consistent with
+    E_M, add it. Otherwise retry 1d with fresh random choices up to a fixed
+    counter, then restart from 1a with a new beta1.
 
-For completeness, uniform p maximizes e_n. A maximum exists by continuity on
-the compact simplex. Among maximizers choose one minimizing the sum of squared
-coordinates. If coordinates a,b differ, average them. With other coordinates
-r fixed,
+1e. Output. Gaussian elimination of E_M (all of Eqs. 2, 3, 5, 7) gives
+    x0 and a basis x-hat_1..x-hat_DF of its solution space. Map each to
+    the message domain with S0 = L^{-1}(x). Bytes 0..134 of the absorbed
+    block of L^{-1}(x0) form message M_0. The images of the basis vectors,
+    restricted to lanes 0..16, form w_1..w_DF; their byte 135 and capacity
+    are zero by Eq. 3. Delta is bytes 0..134 of alpha0 = L^{-1}(beta0).
+    Every x in the space satisfies the round-0 S-box value conditions (Eq.
+    2) and the round-1 conditions (Eq. 7). Hence, for every message M in
+    the space, R_2(M) + R_2(M + Delta) = alpha2 deterministically. This is
+    the connector property (GLL+20 Section 3.2).
 
-    e_n(p) = ab e_(n-2)(r) + (a+b)e_(n-1)(r) + e_n(r).
+All equation handling is incremental row reduction over GF(2). One 1601-bit
+equation is seven 256-bit words. Each insertion reduces against at most 1600
+pivots.
 
-All coefficients are nonnegative. Averaging cannot decrease e_n, so it remains
-maximal, while the sum of squared coordinates strictly decreases. This
-contradicts the choice. The maximizing vector is therefore uniform, and
+### Step 2: brute-force stage on one space (GLL+20 Section 3.2, Stage 2)
 
-    Pr[all Y_i distinct]
-      <= Q(Q-1)...(Q-n+1)/Q^n
-       = product_(j=0,...,n-1) (1-j/Q)
-      <= exp(-n(n-1)/(2Q))
-       = exp(-(2-2^-128))
-       < exp(-1).
+Enumerate all 2^DF messages M_0 + sum(c_k w_k) in Gray-code order. Each step
+XORs one precomputed 17-lane basis image into M and forms M' = M + Delta with
+17 lane XORs. Absorb both into zero states with byte 135 = 0x86 (lane 16 gets
+0x86 << 56 XORed into its message value), and apply the five-round
+permutation to each, one unit each. Compare lanes 0..3. On equality, run
+Step 3.
 
-Here n<Q and 1-t<=exp(-t) on 0<=t<1, obtained by integrating the derivative
--1/(1-t)<=-1 of log(1-t). This also covers distributions with small support.
+### Step 3: verification
 
-Let E be the event that some input messages repeat. The union bound gives
+For a candidate (M, M'), check M != M' and recompute both digests with the
+complete reference hash on the two 135-byte strings. Output the pair if all
+256 digest bits agree; otherwise continue Step 2. M != M' always holds,
+because Delta is nonzero on the rate. Alpha0 is nonzero, since a zero alpha0
+would make beta0, and hence alpha1 and beta1, zero, contradicting the
+nonzero alpha2. Alpha0 is zero on all 520 fixed bits, so its nonzero bits
+are message bits 0..1079.
 
-    Pr[E] <= n(n-1)/(2|D|) < 2^258/(2*2^512) = 2^-255.
+### Outer loop
 
-No independence of the pair-events is required. If outputs collide and E
-does not occur, the algorithm succeeds. Thus
+Repeat Step 1 (with fresh random choices) and Step 2 until K = 128 spaces
+have been enumerated, the connector budget B_c is spent, or a collision is
+returned. Each run makes fresh random choices of beta1 (among
+best-probability inputs of 59 active S-boxes), of the 2-dimensional
+input-difference subsets in 1b, and of linearizing subspaces in 1d. Spaces may
+overlap. Overlap does not affect correctness; it only lowers the number of
+fresh pairs, which H2 covers. The algorithm halts within the charged budget
+in every outcome.
 
-    Pr[success] >= 1 - Pr[all Y_i distinct] - Pr[E]
-                > 1 - exp(-1) - 2^-255
-                > 1/2.
+## 5. Correctness and success probability
 
-Indeed e=sum_(k>=0)1/k! > 8/3, so exp(-1)<3/8, and 2^-255<1/8.
-This intentionally conservative bound proves the declared 0.5 and exceeds
-the required 0.39. Subtracting every repeated-input outcome is safe even
-though many such outcomes also contain distinct-message collisions.
-The number concerns algorithmic success, not confidence in a proof or review.
+Any returned pair consists of two distinct 135-byte messages whose complete
+5-round SHA3-256 digests were recomputed and agree on all 256 bits. This is an
+ordinary collision in the target, whatever the heuristics say. The heuristics
+affect only the probability of reaching that output within the budget.
 
-## 5. Fully charged RAM implementation
+Under H1 (Section 8), each successful connector run returns a space of
+dimension DF >= 33. The expected connector cost per successful space is at
+most 2 * 428.8 core-hours. The sum of 128 such costs has expectation at most
+128 * 857.6 core-hours = B_c / 4. Markov's inequality on that nonnegative sum
+gives Pr[budget exhausted before 128 spaces] <= 1/4. Markov needs no
+independence assumption between runs.
 
-One 256-bit word is 32 bytes. Each selected five-round permutation costs one
-unit; every other listed RAM primitive costs 1/1355 units. Ordinary-operation
-counts W below are separate from permutation calls H_calls. The permutation's
-internal rounds are not counted again in W. All bounds include
-message construction, failed samples, randomness, memory initialization,
-sorting, verification, and fixed code/constants. There is no external disk,
-unaccounted preprocessing service, whole-hash oracle, or free sorting step.
+Each space contributes at least 2^(DF-1) >= 2^32 distinct unordered pairs
+{M, M+Delta}. A pair is counted twice if both members lie in the space.
+Under H2, each such pair gives a digest collision with probability at least
+q = 2^-37.7, and successes are close enough to independent that the count is
+approximately Poisson. This q is the paper's 2^-36.70 halved. Over 128
+spaces, the expected number of colliding pairs is at least
+lambda = 128 * 2^32 * 2^-37.7 = 2^1.3 = 2.46, and
 
-Code and fixed storage are bounded explicitly. The algorithm above can use
-fewer than 100 loop-body statements outside the selected permutation, each
-expandable into fewer than 64 primitive instruction templates. A direct
-implementation of the displayed permutation formulas needs fewer than 2,000
-additional templates, retaining a fixed loop over the five rounds; operations on constant
-64-bit lane positions use shifts, masks and fixed addresses. The loops over
-records and merge widths remain loops. A ceiling of 2^16 instruction templates
-therefore exceeds the required code. Encode each template in at most four
-256-bit words (opcode and up to three operands), using separate primitive
-instructions for loads, stores and branches. Its size is at most 2^23 bytes.
+    Pr[no collision | 128 spaces] <= exp(-2.46) = 0.0852.
 
-Reserve another 2^23 bytes for public target constants, working state,
-register spills, loop counters, address variables, the current message/records,
-verification scratch and final output. In particular the permutation may keep
-25 A lanes, 25 B lanes and 10 C/D lanes in individual RAM words. Thus all fixed
-storage is at most 2^24 bytes, or 2^19 words. This bound includes the program;
-no precomputed collision, target advice, large lookup table or hidden runtime
-is present. The bound refers to the specified RAM program, not Python or a
-host library. All fixed storage is initialized and its cost is charged below.
+Hence Pr[success] >= 1 - 1/4 - 0.0852 = 0.66. The claim declares 0.5, which
+leaves room for dependence among pairs that share a space. Within one space,
+pairs share the 2-round connector conditions, and their round-2 values form
+an affine family. GLL+20's one observed space (DF = 37, w = 36.70) contained
+exactly one collision (GLL+20 Section 6.2), consistent with the Poisson
+estimate there: an expected 0.6 to 1.2 collisions, depending on whether 2^36
+or 2^37 pairs are counted, at 2^-36.70 per pair.
+The number is algorithmic success probability over the random connector
+choices. It is not confidence in the heuristics.
 
-The following large caps allow redundant copying, instruction decoding,
-explicit operand loading/storing and address arithmetic. They do not depend
-on treating high-level sort/serialization as unit-cost operations.
+DF accounting. GLL+20 Eq. 10 estimates
 
-| Activity | Permutation calls, at cost 1 each | Ordinary operations, at cost 1/1355 each |
+    DF = sum_j DF_j^(1) - (c+p) - sum_j (5 - DF_j^(2)).
+
+The first and last terms depend on the trail and the linearization, not on
+which initial-state bits are fixed. Raising p from 4 to 8 adds four equations
+to Eq. 3. That lowers DF by at most 4, from the measured 37 to at least 33,
+provided the system stays consistent. The added fixed bits can only increase
+the preProcess savings (GLL+20 Algorithm 3, lines 11 and 16, which benefit
+from a larger Eq. 3), so DF can come out higher. Four more zero-difference
+constraints are also added to E_Delta. The published pair happens to have
+zero difference on all of byte 135 already (Section 3). This shows such
+beta0 values exist for core No. 3 under the stronger condition.
+
+## 6. Cost accounting under collision-frontier-v5
+
+One five-round Keccak-f[1600] call costs 1 unit. Every other 256-bit word-RAM
+primitive costs 1/1355 unit. The table lists every phase. Ordinary operations
+are converted at 1/1355 in the total.
+
+| Phase | Permutation calls | Ordinary RAM primitives |
 | --- | ---: | ---: |
-| Initialize code, constants and all fixed workspace | 0 | 2^24 |
-| Initialize both record arrays | 0 | 128n |
-| Generate, hash and retain n messages | n | 65536n |
-| Exactly 129 merge passes | 0 | 129 * 4096n |
-| Scan adjacent records | 0 | 2048n |
-| Final reconstruction, verification and output | at most 2 | 2^18 |
+| 0. Trail-core search (charged preprocessing) | 0 | <= 2^64.0 |
+| 0'. L, L^{-1}, DDT and subspace tables | 0 | <= 2^30 |
+| 1. Connector runs, all successes and failures (budget B_c) | 0 | <= 2^66.745 |
+| 2. Brute force over 128 spaces of dimension <= 33 | <= 2^41 | <= 2^48 |
+| 3. Verification of candidates and output | <= 2^10 | <= 2^20 |
 
-The counts in the last column are ordinary-operation envelopes; their
-instruction fetches, memory traffic and spare allowance are retained. The
-permutation calls in the middle column are priced independently.
+### 6.1 Converting the measured connector time
 
-For fixed initialization, processing 2^19 words at at most 16 ordinary
-operations per word takes at most 2^23 operations, within the stated 2^24 cap. This loads the finite explicit code
-and public constants; it does not assume a target-dependent advice oracle.
-Array initialization uses six stores per index and fewer than 120 additional
-load/address/counter/control operations, fitting the 128n cap.
+GLL+20 Table 6 reports T_c = 428.8 hours on one CPU core for the 5-round
+SHA3-256 connector, including all failed random beta1 and linearization
+attempts until success. Their footnote says CPU times are single-core; GPUs
+were used only for the 6-round row. No operation count is published, so this
+package converts core-hours to RAM primitives with a hardware-throughput
+ceiling (H3). No core sustains more than 2^48 / 3600 = 7.8 * 10^10
+primitive word operations per second. That is 15.6 operations per cycle at
+5 GHz, which exceeds 4-wide retirement even if every micro-op were a 512-bit
+vector operation counted as two 256-bit primitives, with fused memory
+operands counted separately. Every load, store, branch and address
+computation is an instruction and is counted, so memory traffic is covered.
+Thus one core-hour is at most 2^48 primitives, or 2^48/1355 = 2^37.60 units.
 
-Here is an explicit wrapper construction justifying 65536 per generated
-record. Store each 64-bit lane in its own RAM word. Extract message bytes
-from u,v by shifts and masks, store the padding bytes, initialize the 25-lane
-state, combine successive groups of eight bytes into the 17 rate lanes,
-and XOR those lanes into the state. At most 512 constant-size loop iterations
-suffice in total: 64 byte extraction, 136 padding/block initialization, 25
-state initialization, 136 byte-to-lane packing, 17 absorptions, and 32 output
-byte encodings sum to 410. Each iteration can be implemented in fewer than
-64 ordinary operations including operand access, bit operations, loop control
-and address arithmetic. These take at most 32768 ordinary operations. Two random-word draws, the one
-selected permutation's dispatch, output-word packing, sample-loop control,
-and storing the three-word record fit within a further 1024 ordinary
-operations. Ordinary total <65536; add one target-permutation unit per hash.
-The permutation's code and buffers remain in the fixed reserve.
+The budget allows 8 * 428.8 core-hours per required space. H1 bounds the
+expected cost per space for the byte-aligned (p = 8) connector by twice the
+measured 428.8. The 8x budget turns that expectation into the 1/4 Markov
+loss of Section 5. Then B_c = 128 * 8 * 428.8 = 439,091.2 core-hours
+= 2^18.744, and
 
-For merges, each output record requires at most two exhaustion comparisons
-with branches, two key loads and a comparison/branch, three record loads and
-three stores, plus cursor/address updates and loop control. There are fewer
-than 64 such logical operations, each implementable with at most 16 charged
-primitive operations even allowing instruction/operand memory accesses and
-spills. This costs at most 1024 per record. Run setup is at most 64 such
-operations, or 1024 per run; every run emits at least two records. Pass setup
-is also at most 1024 per pass, which emits n>=2 records. Hence the per-output
-charge is at most 1024+512+512=2048, below the chosen 4096. This includes
-pointer swaps, run/pass endings and initialization of merge cursors.
-The scan uses fewer operations per pair than this merge loop and so fits
-2048n. Address calculation by stride 96 is expanded into shifts/adds as above.
+    connector primitives <= 2^18.744 * 2^48 = 2^66.745,  i.e.  <= 2^56.341 units.
 
-Final verification uses at most two complete hash wrappers, message
-distinctness, full digest comparisons and output serialization: less than
-2*65536+1024 <2^18 ordinary operations, plus two permutation calls.
-There is no restart cost because no restart occurs.
+As a consistency check rather than the charge: one mainLinearization attempt
+handles at most about 3,700 equations (Eq. 2 <= 960, Eq. 3 = 520,
+Eq. 5 <= 960, Eq. 7 <= 1,280). Each reduction against at most 1600 pivots
+costs at most 1600 * 25 primitives (7-word XOR, loads, stores, test). That is
+at most 2^27.2 primitives per attempt. The 2^58.74 primitives of one measured
+run would then correspond to at most about 2^31.5 attempts, which is
+compatible with the paper's retry loop.
 
-Summing all phases, including the cost of batches that fail to find a collision,
+### 6.2 Trail-core search (preprocessing)
 
-    H_calls <= n+2
-    W <= (128 + 65536 + 129*4096 + 2048)n + 2^24 + 2^18
-       = 596096n + 17039360
-    T = H_calls + W/1355
-      <= (1 + 596096/1355)n + 2 + 17039360/1355
-       < (440924/1000)n
-       < 2^8.785 n = 2^137.785,  for n=2^129.
+GLL+20 Appendix C.2 describes the search that produced core No. 3.
+KeccakTools TrailCoreInKernelAtC (aMaxWeight 60) generates "more than 3000"
+in-kernel beta3 cores. For each core, at most C1 <= 2^36 forward extensions
+(alpha4 -> beta4 with a digest-compatibility check) and at most C2 <= 2^35
+backward extensions (beta2 compatible with L^{-1}(beta3), with #AS(alpha2)
+and requirement checks) are traversed. This package charges at most 2^13
+cores, at most 2^14 primitives per extension step (a 1600-bit linear layer
+on 25 lane words plus per-S-box DDT checks and requirement tests), and at
+most 2^62 primitives for the KeccakTools core generation (H4):
 
-Both strict inequalities can be checked with integers: substitute n=2^129
-in the first and clear denominators; the second is exactly
-`440924^200 < 2^1757 * 1000^200`, since 8.785=1757/200. This rounds upward
-with the fixed setup and final verification included, not just the leading
-coefficient (approximately 440.923247). No old rounded total is divided by C.
-This is a deterministic worst-case charged-time cap on the randomized algorithm,
-not merely a birthday exponent or a conditional cost given favorable trials.
+    2^13 * (2^36 + 2^35) * 2^14 + 2^62 = 2^63.585 + 2^62 <= 2^64.0 primitives
+                                       = 2^53.60 units.
 
-Each array uses n*3*32=96n bytes. With all fixed storage included,
+GPU acceleration in the paper changes wall time, not the operation count
+charged here. Nothing else in the attack is advice. The trail core is
+recomputable by this search, and the published colliding pair is never used
+by the algorithm.
 
-    peak bytes <= 192n + 2^24 < 256n = 2^137.
+### 6.3 Brute force and verification
 
-The arrays contain every retained message, digest and sampled random word.
-There is no extra index array, recursion, message database or pointer per record.
-The reserve includes all temporary randomness, state, code/advice/constants,
-verification state and final output. Both arrays and the reserve fit below
-byte address 2^138. This validates the one-word pointer/counter assumption.
-The memory figure is an abstract RAM allowance, not a claim of physical feasibility.
+The algorithm enumerates at most 2^33 messages per space. If a connector
+returns DF > 33, it enumerates only the subspace with the extra coordinates
+fixed to 0, so the charge holds. Each message costs two
+permutation calls and at most 256 primitives: 17 basis-lane loads and XORs,
+17 XORs for M', 2 * 25 state initializations, the padding-lane XOR, four lane
+comparisons with branches, the Gray-code counter and loop control, all with
+operand loads and stores. Over 128 spaces this is
 
-The claim fields have these precise meanings:
+    calls <= 2 * 128 * 2^33 = 2^41,  primitives <= 128 * 2^33 * 2^8 = 2^48.
 
-- time_log2=137.785 bounds total charged time by 2^137.785 units.
-- memory_log2_bytes=137 bounds simultaneous storage by 2^137 bytes.
-- data_log2=130 bounds complete-hash evaluations by n+2 <=2^130, including
-  the two final re-evaluations. It counts evaluated message instances, not
-  bytes or distinct messages. Every repeated sample is counted; external
-  supplied data is zero and all retained data bytes are in peak memory.
-- preprocessing_log2=137 bounds fixed setup plus both-array initialization:
-  (2^24+128n)/1355 <2^137 target-compression units. This retained upper
-  bound is deliberately loose; actual setup is included in T, not an omitted phase.
-- nonuniform_advice_log2_bytes=0 means at most 2^0=1 byte of advice; actual
-  nonuniform advice is zero. The schema cannot express log2(0). Public
-  constants and code are fully charged in the fixed storage and initialization.
-- success_probability=0.5 is the lower bound proved in Section 4.
+Lowering the enumeration to 2^32 per space would not change the claimed
+scalar. Verification runs the complete reference hash twice per candidate. A match
+on lanes 0..3 is already a full 256-bit digest match, so Step 3 runs once,
+on the returned pair. The table budgets 2^10 calls anyway.
 
-## 6. Evidence and interpretation
+### 6.4 Total
 
-This is a conservative generic baseline proposal, not a new cryptanalytic
-advance. The complete algorithm, target definition, probability proof and RAM
-ledger are the supporting evidence. No full-scale execution, observed collision
-pair, measured success rate, experimental independence or measured resource
-usage is asserted. No sampled experiment is needed for the universal finite
-probability argument. The certificate manifest is valid and empty; no
-experiment manifest or participant executable is supplied.
+    T <= 2^41 + 2^10 + (2^64.0 + 2^30 + 2^66.745 + 2^48 + 2^20) / 1355
+      = 2^41 + 2^53.596 + 2^56.341 + (smaller terms)
+      = 2^56.541 units  <  2^56.6.
 
-The required baseline_improved identifier sha3-256-r5-nominal-v2 names the
-organizer's nominal display reference 128. It is not an established attack,
-qualified baseline or security bound; the identifier's field name is not a
-claim of improvement. This candidate's scalar bound 137.785 exceeds 128. No
-Pareto dominance claim follows from scalar scoring.
+The claim declares time_log2 = 56.6. Under the v5 prices, the connector is
+about 87% of the total and the trail search about 13%. Brute force is
+negligible: 2^41 units against 2^56.5. The charge is not the paper's
+practical running time. It is a conservative envelope built from the
+measured core-hours with stated margins:
 
-submission_state=ready means this independent exploratory package is complete
-for review. It does not assert an actual qualifying review, an emitted score,
-human acceptance, or Yukon promotion. Its substantive obligations and evidence
-are intended to meet rigorous standards, while each lane still requires its own
-correctly bound package and selected-lane review outcome.
+- 2x on the per-space connector expectation (H1);
+- a further 4x so that Markov's inequality gives a fixed budget (Section 5);
+- 2x on the trail probability (H2);
+- DF floor 33 rather than the formula's DF >= 33 possibly larger;
+- counting 2^(DF-1) pairs per space;
+- a 2^48 core-hour ceiling, about 4x above a realistic 4-wide 5 GHz core
+  (2^46).
 
-## 7. Source and accounting revision
+A central estimate without these margins is about 13 connector runs times
+428.8 core-hours at 2^47 primitives per core-hour, about 2^49 units. This
+package does not claim that figure.
 
-This is an accounting revision of the organizer's SHA3-256 r5 package
-`79dcf0c2f0e1b4448c0cdf2f77b769a59ae738c637e07b120bc451be9af50ec7`
-in production base `0455d2b52f4f920fe5c3a6af8c71592a824e6a57`.
-The complete hash, byte-oriented wrapper, array initialization, three-word
-records, stable merge sort, probability proof, success lower bound and memory
-bound are retained. The former v4 declaration was 149; the same phase counts
-support 137.785 under v5. This new package requires fresh ordinary review;
-no historical qualification or new cryptanalytic algorithm is asserted.
+### 6.5 Memory, preprocessing, advice
+
+The connector keeps L and L^{-1} (2 * 1600 * 1600 bits = 640 KB), E_M and
+E_Delta (each at most 4,000 rows of 1601 bits, under 1 MB), the DDT and
+linearizable-subspace tables (under 64 KB), and the 33 basis images
+(33 * 17 lanes). The trail search is a depth-first traversal over at most 2^36
+extensions per core. Its stack and the kept extension lists are budgeted at
+2^30 bytes (H4). Code and constants are budgeted at 2^24 bytes. The peak is
+at most 2^30 + 2^24 + 2^22 < 2^31 bytes, and the claim declares 2^32.
+preprocessing_log2 = 54 bounds the trail-search phase (2^53.6 units) plus
+table setup. The hard-coded trail core is 400 bytes, and its construction is
+charged in 6.2. nonuniform_advice_log2_bytes = 10 covers it with room to
+spare. All of these are included in T.
+
+## 7. Relation to the nominal reference and other literature
+
+The required `baseline_improved` identifier names the organizer's nominal
+128-bit reference. It is not an established attack or a security bound.
+Generic birthday search costs about 2^128 units. The claimed 2^56.6 depends on
+the heuristics below. Other published 5-round SHA3-256 results are theoretical
+and higher: Dinur-Dunkelman-Shamir FSE 2013 internal differentials (2^115 for
+5-round Keccak-256); Zhang-Hou-Liu EUROCRYPT 2023 conditional internal
+differentials (2^105); Zhang-Hou-Liu CRYPTO 2024 probabilistic linearization
+(2^96.67). Guo-Liu-Song-Tu (ASIACRYPT 2022, SAT-based connectors) report much
+larger first-round degrees of freedom for SHA3-256 connecting trails (330-430
+versus about 124). That supports, but does not prove, the view that
+first-round degrees of freedom are not the binding constraint once the
+connector is tuned. This package does not use their trails.
+
+## 8. Declared heuristics and limitations
+
+H1 (score-critical): byte-aligned connector. With p = 8, the GLL+20 2-round
+connector for trail core No. 3 still succeeds by random beta1 and
+linearization retries. Its expected cost per successful space is at most
+2 * 428.8 core-hours of the authors' implementation, and it returns DF >= 33.
+Evidence: the measured p = 4 run (T_c = 428.8 h, DF = 37), Eq. 10's linear
+dependence on p, and the published pair showing core No. 3 is connectable with
+zero difference on byte 135. Limitation: this package has not run the
+connector, and the p = 4 figure is one reported run, not a mean. The extra
+fixed bits may reduce the rate of consistent linearizations by more than 2x.
+The score moves by log2 of any excess factor: 4x more connector cost adds
+2 bits.
+
+H2 (score-critical): trail probability. Over messages in connector spaces,
+Pr[digest collision of (M, M+Delta)] >= 2^-37.7, and the count over 2^39
+pairs is close to Poisson. Evidence: the paper's multi-trail estimate
+2^-36.70 and its observation of one collision in one DF-37 space. Limitation:
+one observation, and the pairs within a space are correlated. Each halving
+of q needs twice as many spaces, adding 1 bit to the score.
+
+H3 (score-critical): hardware conversion. One core-hour of the authors' CPU
+is at most 2^48 v5 primitives (Section 6.1). Limitation: the paper does not
+name the CPU model. The bound relies on clock frequency below about 5 GHz and
+issue width below 16 primitive-equivalents per cycle.
+
+H4 (supporting): trail-search cost. The Appendix C.2 search that yields
+core No. 3 is bounded as in Section 6.2. Limitation: the paper gives
+thresholds, not run times; "more than 3000" cores is bounded by 2^13 here.
+This term is 2^53.6 units and changes the total by 0.2 bits.
+
+Weaknesses a reviewer may raise: no byte-aligned collision has been
+produced. The connector algorithm is specified at the level of GLL+20
+Algorithms 1-3 and inherits their unpublished implementation choices, such
+as the retry counter and the tie-breaking in beta1 selection. The cost
+conversion rests on a reported wall time, not an operation count. All four
+points are acknowledged in H1-H4. None affects the correctness of a returned
+pair, which is checked with the complete reference hash.
