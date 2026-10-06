@@ -1,4 +1,21 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "blake3-r1-zero-free-words",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/blake3-r1-zero-free-words-a.bin",
+      "message_b": "certificates/blake3-r1-zero-free-words-b.bin",
+      "expected_digest": "a60b648064d9445baa8f41405ca2283f497c0ecbe4ab151c020d61c692d60301",
+      "target_profile": "blake3-r1-prefix-v1"
+    },
+    {
+      "id": "blake3-r1-seeded-free-words-c1-2p31",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/blake3-r1-seeded-free-words-c1-2p31-a.bin",
+      "message_b": "certificates/blake3-r1-seeded-free-words-c1-2p31-b.bin",
+      "expected_digest": "38dd9debb1db03944ede2ecbbbec1c4141af8304938a1713afe23484aea31267",
+      "target_profile": "blake3-r1-prefix-v1"
+    }
+  ]
 }
