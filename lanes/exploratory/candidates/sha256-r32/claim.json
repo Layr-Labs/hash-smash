@@ -6,20 +6,20 @@
   "rounds": 32,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 128.32,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.8,
+    "memory_log2_bytes": 137,
+    "preprocessing_log2": 24,
+    "success_probability": 0.5,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent random words, not seeded PRNG expansion.",
-    "Exactly q=2^129 sampled 64-byte messages; complete SHA-256 with fixed IV, prefix rounds 0 through 31 on both padded blocks, feed-forward and all 256 digest bits.",
-    "One finite run with at most 2^136 target-compression equivalents of total charged computation and 2^138 peak bytes; no restarts, nonuniform advice or precomputed collision.",
-    "data_log2 bounds bytes of complete padded hash inputs including final verification re-reads, as specified in proof.md.",
-    "Analytic resource and success bounds; no full-scale execution, cryptanalytic improvement or nominal-reference improvement is claimed."
+    "Messages are exactly 55 bytes, encoded from two independent uniform 256-bit words.",
+    "One batch of 2^128.25 samples; all repeated messages are retained and charged; no restart or success amplification.",
+    "One selected 32-round compression or permutation per sample; single 55-byte padded block or rate block; no parent or extra compression is ever evaluated.",
+    "Classical 256-bit word RAM with independent uniform random words; linear-probing table of 2^130 slots with occupancy flags, fully charged.",
+    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
+    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 128.32."
   ],
   "baseline_improved": "sha256-r32-nominal-v2",
   "heuristics": [],
