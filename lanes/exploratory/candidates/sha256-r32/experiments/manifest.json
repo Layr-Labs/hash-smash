@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "grouped-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact grouped early abort evaluator (rounds to 30) on 16 groups of 32 consecutive y, 512 messages per trial, pair agreeing on the top 6 bits of each of digest words H1, H2, H3.",
+      "hypothesis": "Grouped messages behave like independent uniform digests for pair counting, so a trial finds a pair with probability about 0.393.",
+      "program": "experiments/grouped_slice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "00000000fc000000fc000000fc00000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "grouped-single",
+      "kind": "python-message-pairs-v1",
+      "scope": "Same evaluator on one group of 512 consecutive y, pair agreeing on the top 18 bits of digest word H5.",
+      "hypothesis": "Messages inside one group behave like independent uniform digests on an 18 bit slice of H5.",
+      "program": "experiments/grouped_slice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000000000000000000000000000000000000ffffc0000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
