@@ -6,23 +6,42 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 123.5,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 20,
+    "preprocessing_log2": 63,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 5
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "The two messages have 60 and 62 bytes: each is one chunk, one block, one root compression with flags 11, counter 0 and its true block length; the 62-byte message ends in two zero bytes.",
+    "Unkeyed BLAKE3-256 with 2 prefix rounds, standard IV, permutation and feed-forward, full 256-bit digest; an ordinary collision between two distinct complete messages.",
+    "Exact part: for every choice of nine state words the two digests agree on digest words 0, 2, 5 and 7. Heuristic part: a search over 2^127 such pairs for one whose remaining 128 digest bits agree.",
+    "Classical 256-bit word RAM under collision-frontier-v5; seven trials per 256-bit word in 36-bit lanes on a 16-register load/store machine; a batch is 178 operations (arithmetic, logical and shift operations, one comparison and one branch) plus 79 constant loads and is charged as 266, which also covers the loop-exit test; no table, sorting or lookup; at most 2^106 early-test passes are processed before the algorithm halts with failure.",
+    "Randomized by one fresh uniform 256-bit word. The success probability 0.39 holds only under heuristics H1 and H2. H1 assumes only the rate of a uniform 128-bit value; that the rate is at least uniform is supported by a participant estimate of about 10.6 times that rate, which the organizer-run experiments do not measure. No full 2-round collision is exhibited and none was computed.",
+    "Six 32-bit constants are stored in the program (24 bytes of advice); they were selected as the best of 4,140 candidate sets by participant measurements, and recomputing and selecting them is bounded by 2^63 units and included in the time. No priority or novelty claim is made; the exponent of the number of trials is reduced by one relative to 2^128."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-residual-hit-rate",
+      "statement": "Over the algorithm's one random word, the 2^127 enumerated trials behave with respect to the event that the 128-bit residual R is zero like independent events of probability at least 2^-128 each (the rate of a uniform 128-bit value), to the extent that the probability that no trial has R = 0 is at most exp(-1/2) + 0.002.",
+      "role": "score-critical",
+      "scope": "Exactly the trials of proof.md Section 6.4: lengths 60 and 62, the six constants of Section 3.2, contexts indexed by (X13, X14) with X14 < 2^31, and the D0 and D1 families with parameters alpha and gamma.",
+      "extrapolation": "From a participant estimate of the number of solutions of the seven-word system that determines R: 2^40 samples, mean 10.6 times the uniform expectation, standard error 1.3 from eight parts. The count per sample is a full enumeration where it fits a work budget and a random-subset estimate otherwise; the estimate was used for 84,443 of the 217,243 samples that passed the necessary conditions, and those carry 13.3% of the sum. An independent model counter has confirmed 55.0% of the sum outcome by outcome (the 40 largest counts made in full, including the largest count 2^39.6, each within 0.10 bits) and a further 10.0% in sum (the 40 largest estimates: ratio of sums 0.986, single differences from -0.86 to +1.32 bits). The run was made after the constants were selected, with a seed different from the selection runs. From comparisons of the seven-word model with real messages on events of probability 2^-32 and above: 2^40 real half-colliding pairs (2^28 independent random contexts with 2^12 trials each, every trial with a fresh random alpha and a fresh random Y4) against 2^40 model draws (13 statistics; early-test passes 2,350 against 2,381; one statistic differs by 3.1 standard deviations and one by 2.3), and eight runs of 2^37 real trials in the layout of Section 6.4 with X14 < 2^29, each run with its own shared seed words (2,298 early-test passes in all against 2,367 in the model). And from a scaled-down end-to-end check in which the whole search was run on the same construction with 8-bit and 10-bit words (ten constant sets, 1,465 runs, 1,813 collisions observed against 1,807.2 predicted by the model). The extrapolation is from these to a rate of R = 0 of at least 2^-128 per trial over 2^127 real trials; the estimate of 10.6 is used only as evidence that the rate is at least uniform, with a factor of about 10 to spare.",
+      "evidence_ids": ["experiment:residual-search", "experiment:half-collision", "proof:467-501", "proof:575-930"],
+      "limitations": "H1 assumes the uniform rate, factor 1, and this is still an assumption: the estimate for an earlier, withdrawn constant set was 0.024 times the uniform rate, so the uniform rate cannot be taken for granted for this construction. The participant estimate of 10.6 with standard error 1.3 is not measured by the organizer-run experiments; the success bound needs a factor of at least 0.9985. The estimate depends on the random-subset branch of the counting program for 13.3% of its sum (84,443 of the 217,243 counted samples). The counting program is the participant's, and so is every check of it. Two first checks (an independent model counter on 30 outcomes enumerated in full, from a separate run of 2^37 samples, and brute force on 400 constant sets with 8-bit words) did not cover that branch. A dedicated check of the branch against the same independent counter on 240 of its outcomes gave ratios of sums of 0.986 (the 40 largest estimates, 10.0% of the sum; log2 differences with standard deviation 0.39) and 1.050 (100 random nonzero estimates; standard deviation 1.12), and 100 of 100 random zero estimates were unsatisfiable. The same check on the outcomes counted in full (3,252 nonzero, 86.7% of the sum) gave 1.005 for the 40 largest, which carry 55.0% of the sum and include the largest count 2^39.6 (log2 differences between -0.08 and +0.10), and 1.000 for 60 further nonzero ones drawn at random (between -0.08 and +0.08). Together, 55.0% of the sum is confirmed outcome by outcome and a further 10.0% is confirmed in sum by an independent counter (the 40 largest estimates differ singly by -0.86 to +1.32 bits); the other 35% is covered by random samples only. The count is a sample mean of a heavy-tailed quantity (the 50 largest of 4,245 nonzero values carry 63% of the sum; the mean of the rest is 3.97, which is not a lower bound), and its standard error may be optimistic. The constants are the best of 4,140 candidate sets by measurements of this kind; smaller earlier runs include the selection run, are biased upwards and are not quoted. The model that the seven words behave like independent uniform words over the trials is tested on real messages only for events of probability 2^-32 and above, there with one of 13 statistics at 3.1 standard deviations from the model, and end to end only at small word sizes (a scaled-down hash with 8-bit and 10-bit words); its use at a rate of 2^-128 per trial over 2^127 trials cannot be tested directly. All trials of a run share the seven seed words and trials of one context share most other words; their independence is assumed. The main 32-bit comparison used 2^28 independent random contexts with 2^12 trials each, every trial with a fresh random alpha and a fresh random Y4, which is a different but equivalent parametrisation of the same half-colliding pairs and not the shared-seed enumeration; the shared-seed layout was run at 32 bits for eight seeds only and on a quarter of the enumerated range of X14, and collisions within one run were counted only in the scaled-down runs. Nothing here is organizer-verified except the two declared experiments, which do not measure the 128-bit rate."
+    },
+    {
+      "id": "H2-early-test-passes",
+      "statement": "With probability at least 0.999 over the random word, fewer than 2^106 of the 2^127 trials pass the 32-bit early test of proof.md Lemma E without having R = 0.",
+      "role": "supporting",
+      "scope": "The early test of Section 6.3 on the trials of Section 6.4. The measured pass rate 2^-28.8 would give 2^98.2 passes; the budget of 2^106 is larger by a factor of about 2^7.8, and processing 2^106 passes is charged in the time bound (2^116 operations).",
+      "extrapolation": "From participant measurements of the pass rate on real messages (2,350 passes in 2^40 half-colliding pairs from 2^28 independent random contexts with 2^12 trials each; 2,298 passes in eight runs of 2^37 trials in the layout of Section 6.4 with X14 < 2^29, between 266 and 311 per run; 2^40 draws of the seven-word model gave 2,381 and 2,367) to the 2^127 trials of one run.",
+      "evidence_ids": ["proof:331-346", "proof:482-501", "proof:575-930"],
+      "limitations": "Not organizer-verified. The measured rate is a mean; that the pass count of a full run of 2^127 trials, whose contexts share seven seed words, stays near that mean is assumed, and eight runs of 2^37 trials are the only test of the shared-seed layout at 32 bits. The budget exceeds the passes expected at the measured rate by a factor of about 2^7.8. If the budget were exceeded the algorithm halts with failure, which lowers the success probability but does not raise the time bound; H2 enters the success bound only through its own failure probability of 0.001."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }

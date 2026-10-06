@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "half-collision",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact blake3-r2-prefix-v1 target. One run of steps S1 to S3 of proof.md Section 4 per organizer seed, each returning a 60-byte message and a 62-byte message. Nine state words are taken from the seed. Every trial is returned. The program never calls BLAKE3 or any implementation of the target and evaluates the quarter-round G directly; SHAKE-256 from the standard library is used only to expand the organizer's seed into the trial's parameters. The organizer recomputes both digests.",
+      "hypothesis": "For every trial the two complete 2-round digests agree on digest words 0, 2, 5 and 7, that is on the 128 masked bits, as the theorem of proof.md Section 5 states for every choice of the nine state words. This is an exact claim; the run checks it on concrete inputs.",
+      "program": "experiments/halfsearch.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffff00000000ffffffff0000000000000000ffffffff00000000ffffffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "residual-search",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact blake3-r2-prefix-v1 target. The search of proof.md Section 6 at toy scale: per organizer seed one context and one alpha, then at most 8192 consecutive gamma values, stopping at the first trial whose residual has a zero low byte in digest word 1. Failed trials are returned as null pairs. Beside the search, and without influence on the returned pair, the program evaluates for the same context and alpha one packed batch of proof.md Section 6.5 (the early test for the first seven gamma values in one 256-bit word of seven 36-bit lanes) on a machine that counts operations and loads. It reports three numeric observations per trial: batch_operations, batch_loads, and batch_lanes_equal, the number of lanes out of 7 whose test word equals the early-test word of Lemma E computed in 32-bit arithmetic. The observation tries is the number of gamma values tried. All observations are participant numbers that the organizer does not verify. The same file has a self-test mode (--selftest N), not used in this run, that repeats the batch check on N contexts and prints the counts per part.",
+      "hypothesis": "Every returned pair agrees on 136 digest bits: the 128 bits of the half-collision and the low byte of digest word 1. The experiment checks the residual computation and the trial generator on real digests. If the low byte of the residual in digest word 1 behaves like a uniform byte, a trial has it zero with probability near 2^-8, so about 256 tries are expected and nearly all seeds return a pair within 8192 values. The three batch observations are expected to be 178, 79 and 7 in every trial: the operation and load counts of the table in proof.md Section 6.5 do not depend on the data, and every lane is expected to equal the scalar word. The experiment is not a test of heuristic H1: it does not measure the 128-bit hit rate. Its observations are untrusted participant numbers, and it is not evidence of attack cost.",
+      "program": "experiments/halfsearch.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffffff000000ffffffff0000000000000000ffffffff00000000ffffffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
