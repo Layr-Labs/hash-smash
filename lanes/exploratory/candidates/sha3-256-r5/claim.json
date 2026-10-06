@@ -6,23 +6,62 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 50,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
+    "memory_log2_bytes": 30,
+    "preprocessing_log2": 49,
     "success_probability": 0.5,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Messages are exactly 135 bytes (1080 bits, below 2^64), drawn from the connector's affine subspace; two returned messages are required to be distinct byte strings.",
+    "Uses the complete fixed-zero-state SHA3-256 sponge with delimited suffix 0x06, pad10*1, and prefix rounds 0 through 4; full 256-bit digest equality is required. No free-start, compression-only, truncated-output, or altered-parameter variant is claimed.",
+    "The construction is the published attack of Guo, Liao, Liu, Liu, Qiao and Song (Journal of Cryptology 33, 2020, 228-270; ePrint 2019/147): a 2-round connector via S-box linearization feeding 3-round trail core No. 3 (w = 36.70). No novelty over that literature is claimed.",
+    "The published witness pair uses 1084-bit padded blocks (last byte 0xEE: four message bits plus '01' suffix and '11' pad) and is therefore outside this target's byte-string domain; the claimed algorithm instead fixes byte 135 to 0x86, adding four fixed bits to the connector constraints.",
+    "Preprocessing budget is 64 independent connector solves at at most 2^43 target-compression units each (paper's 428.8 core-hours converted at 2^22 evaluations/s with each evaluation charged as one full target call): 2^49 units total.",
+    "Pair enumeration is charged at at most 2 units per sampled pair and at most 64 x 2^37 pairs across all solves: below 2^44 units.",
+    "The claimed scalar 50 includes about 2^3.4 of slack over the nominal estimate 46.6, absorbing the connector degree-of-freedom sensitivity and the wall-time conversion interpretation.",
+    "No collision-witness certificate is supplied: the only published pair is not byte-aligned and cannot be hashed as a byte-string witness. Evidence is the transcribed published states, a permutation-level verification against the organizer's reference implementation, and the charged accounting in proof.md.",
+    "This is a reduced-round result on prefix rounds 0-4 and asserts nothing about full 24-round SHA3-256."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "connector-dof",
+      "statement": "Restricting the Guo et al. connector to byte-aligned 135-byte messages (byte 135 fixed to 0x86) adds four fixed bits to the constraint system and reduces the returned solution-space dimension from the measured DF = 37 to an estimated DF' >= 33; each returned space then contains an expected 2^(DF' - 36.70) collisions.",
+      "role": "score-critical",
+      "scope": "SHA3-256 prefix rounds 0-4, rate 1088, trail core No. 3, with eight fixed bits in the last rate byte.",
+      "extrapolation": "Fixed linear constraints over GF(2) remove at most one input-freedom dimension each, so four extra fixed bits lower the paper's measured DF = 37 by at most four. The claim budgets 64 solves and remains valid for DF' >= 30.2; the nominal estimate DF' = 33 gives expected lambda ~ 9.7 collisions.",
+      "evidence_ids": ["proof:169-176", "proof:226-239"],
+      "limitations": "If linearization interactions reduce DF' below ~30, the budgeted solve count gives success below 0.5 and more solves would be needed at roughly 2^43 units each; the scalar 50 still bounds the charged time of the stated procedure."
+    },
+    {
+      "id": "trail-probability-carryover",
+      "statement": "Each message pair sampled from a connector solution space reaches a full 256-bit digest collision with probability about 2^-36.70, the trail weight reported by Guo et al. for trail core No. 3 on this instance.",
+      "role": "score-critical",
+      "scope": "Rounds 2-4 differential propagation over trail core No. 3; the connector construction already guarantees the trail's input difference alpha_2.",
+      "extrapolation": "The weight is a measured property of the fixed trail and does not depend on which bits of the input are fixed by padding, so it carries over to the byte-aligned variant. It aggregates multiple compatible trails over the last two rounds, as reported in the paper.",
+      "evidence_ids": ["proof:73-80", "proof:89-94"],
+      "limitations": "The 36.70 exponent combines the measured per-round transition weights and a multi-trail correction reported by the paper; if the true effective probability were lower, the enumeration count would scale by the reciprocal."
+    },
+    {
+      "id": "runtime-to-units",
+      "statement": "One connector solve, measured by Guo et al. at 428.8 CPU core-hours for SHA3-256, is charged at at most 2^43 target-compression units by converting at 2^22 evaluations per second and pricing each evaluation as one complete target call.",
+      "role": "supporting",
+      "scope": "Preprocessing phase only; applies to the connector construction and its internal restarts, all inside the reported wall time.",
+      "extrapolation": "The paper states usual computers evaluate 2^20-2^22 Keccak evaluations per second; the bound uses the top of that range and charges one full unit per evaluation. If an evaluation were instead a 24-round permutation (~4.8 units), the per-solve bound would rise by about 2^2.3.",
+      "evidence_ids": ["proof:183-190"],
+      "limitations": "The reported wall time may reflect implementation overheads not present in a lean RAM implementation, in which case the charge is conservative rather than tight."
+    },
+    {
+      "id": "solve-space-independence",
+      "statement": "Independent connector solves with fresh random linearization and subspace choices return statistically independent candidate spaces, so cumulative collision probability across solves is governed by the Poisson mean lambda = N_s x 2^(DF' - 36.70).",
+      "role": "supporting",
+      "scope": "Aggregation across the budgeted 64 solves; within each solve pairs are sampled without replacement from a common affine space.",
+      "extrapolation": "Different random linearization choices span different affine subspaces of the message domain; pair-level collision events are driven by the fixed trail probability, making per-solve collision counts approximately independent.",
+      "evidence_ids": ["proof:191-197", "proof:226-236"],
+      "limitations": "Subspaces could overlap in correlated ways if the solver's randomization is weak; the claimed success 0.5 is set well below the nominal 0.9999 to absorb mild correlation."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
