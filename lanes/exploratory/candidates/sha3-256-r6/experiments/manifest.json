@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "bitslice-fullwidth-equivalence",
+      "kind": "python-message-pairs-v1",
+      "scope": "Per trial: 256 seeded uniform 256-bit inputs x, messages LE32(x), one batch of the lane-complemented bit-sliced six-round circuit (proof Section 3, Appendix A). The interface stores message/digest lanes 1 and 2 complemented, then decodes one selected slot for a scalar comparison. Returns two slots whose encoded digests agree on digest bits 0-2 of each of the four digest lanes. A mechanical cross-check, not a full-width equivalence test.",
+      "hypothesis": "Every returned pair agrees on the 12 masked digest bits when the organizer recomputes both digests. Reported gate counts are untrusted observations.",
+      "program": "experiments/slot_dp_walk.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0700000000000000070000000000000007000000000000000700000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "slot-dp-walk-n14",
+      "kind": "python-message-pairs-v1",
+      "scope": "The Section 5 algorithm at reduced width n=14 on the real target: step x <- digest planes 0..13 of LE32(x); 256 slots; DP = digest bit 13 zero; table keyed on bits 0..12; abandonment at 16; reseeding stops after 256 evaluations, then drain; same-batch DPs in slot order; halt at the first RELOCATE (scalar f). The lane-complement encoding initializes unselected true-zero planes correctly and is retained between batches. One walk per trial.",
+      "hypothesis": "Every returned pair is two distinct 32-byte messages whose complete six-round SHA3-256 digests agree on digest bits 0..13 (an absolute 14-bit collision). Failed RELOCATEs and drained walks return null.",
+      "program": "experiments/slot_dp_walk.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ff3f000000000000000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "contact-n18-k00",
+      "kind": "python-message-pairs-v1",
+      "scope": "Contact test on the real target, n=18: N=2^18, exactly K=512 evaluations, 256 distinct uniform starts, 256 slots in batch-major slot-minor order. Input window: message bits 11i mod 256; output window: digest bits 12i (i<18). The fixed lane-complement encoding is converted at the selected input/output planes without a scalar transpose. A trial returns the first-contact collision pair, or null if the first contact is a start or no contact occurs within K.",
+      "hypothesis": "Every returned pair is an absolute 18-bit collision of the real target on the output window. The success count is compared descriptively with the random-function prediction 0.28850 (proof Section 9).",
+      "program": "experiments/slot_dp_walk.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0110000110000110000110000110000110000110000110000110000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
