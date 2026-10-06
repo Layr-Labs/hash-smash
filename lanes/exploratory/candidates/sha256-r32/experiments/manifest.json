@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "fig6-conformance-replay",
+      "kind": "python-message-pairs-v1",
+      "scope": "Organizer-executed replay of one committed SHA-256/32 collision pair (yudduy, hash-smash #227, credited). The program recomputes the second block from CV1 = C_32(IV, M0) and counts mismatches against the embedded Fig. 6 signed rows (A and E steps -4..22, W0..W31); every trial returns the same pair and the organizer checks the full-collision event.",
+      "hypothesis": "The truncated Fig. 6 route of Li, Liu, Wang, Shi (CRYPTO 2026) yields complete-message sha256-r32 collisions: the committed pair collides under the organizer digest and its second block follows every Fig. 6 signed row (0 mismatches). This is corroboration of the route on one pair; it makes no inference about attack cost, success probability or rates.",
+      "program": "experiments/fig6_replay.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
