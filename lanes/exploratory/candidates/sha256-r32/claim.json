@@ -6,22 +6,82 @@
   "rounds": 32,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 47.25,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.8,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 35,
+    "preprocessing_log2": 46.9,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 13
   },
   "restrictions": [
-    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent random words, not seeded PRNG expansion.",
-    "Exactly q=2^129 sampled 64-byte messages; complete SHA-256 with fixed IV, prefix rounds 0 through 31 on both padded blocks, feed-forward and all 256 digest bits.",
-    "One finite run with at most 2^136 target-compression equivalents of total charged computation and 2^138 peak bytes; no restarts, nonuniform advice or precomputed collision.",
-    "data_log2 bounds bytes of complete padded hash inputs including final verification re-reads, as specified in proof.md.",
-    "Analytic resource and success bounds; no full-scale execution, cryptanalytic improvement or nominal-reference improvement is claimed."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5 (C = 2224); total work over all processors, including a charged budget of 2,304 thread-hours (2^46.865 units) for the published characteristic search, whose time is not published. Grouped first-block evaluation (L = 2^16 trials sharing W0..W14, W15 = r15 + j) reduces main-loop work A to 2^44.611 units and total time to 2^47.198 < 2^47.25 units (ungrouped full-compression total is 2^47.385 < 2^47.39).",
+    "Two-block messages M0||M1 and M0||M1' of 128 bytes; complete SHA-256 with standard IV, steps 0..31 on all three padded blocks, feed-forward and all 256 digest bits; outputs are verified by full recomputation and accompanied by an organizer-verified 128-byte 32-step collision certificate.",
+    "Derived (not published) 32-step truncation of the 35-step attack of Li, Liu, Wang, Shi (CRYPTO 2026, ePrint 2026/1080); uses its Fig. 6 characteristic and starting solution as advice whose search costs are charged. No published complexity for an ordinary 32-step collision is known to us.",
+    "Heuristic bound: relies on the declared heuristics q-32step-matching-rate (analytic table prediction plus own measurements), step3-46-conditions and trail-search-budget; a verified 128-byte 32-step colliding message pair (digest f8a3db111360e5ed2e63041ecfa82b01c95a25882910bc0f21671949296a4e77) from an executed run of this 32-step truncated characteristic is attached as certificate sha256-r32-record-witness and reconstructed by the organizer-executed experiment fixed-witness-derivation alongside r32-prob-Verify.",
+    "One run with T = 2^45.3 trials and at most 2^28.4 Step-3 invocations; no restarts; the precomputed table is built in place (no auxiliary sort buffer)."
   ],
   "baseline_improved": "sha256-r32-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "q-32step-matching-rate",
+      "statement": "A uniformly random first block M0, compressed with the 32-step compression from the standard IV, yields at least 2^-17.36 expected valid tuples (Step 2 of proof.md Section 6) against the precomputed table TAB2 of 1,396,774,912 tuples.",
+      "role": "score-critical",
+      "scope": "The exact TAB2 and Step-2 test defined in proof.md Section 6 and Appendix A, with C_32 first blocks.",
+      "extrapolation": "Analytic prediction 2^-17.3254 from an exact enumeration of TAB2 combined with the structure of the Step-2 equations (each test's predicted pass fraction matches its measured fraction, corroborated by r32-prob-Verify and r32-w20-s0w5-carry), assuming the CV1 words of C_32(IV, M0) behave as uniform for these tests; four measurement runs (2^35.2 part-trials, 62,179 valid tuples) give a pooled 2^-17.3337 with 99% lower bound 2^-17.3476, and grouped first-block evaluation is verified bit-for-bit in fixed-witness-derivation.",
+      "evidence_ids": [
+        "proof:394-497",
+        "proof:584-598",
+        "proof:756-842",
+        "experiment:fixed-witness-derivation",
+        "experiment:r32-prob-Verify",
+        "experiment:r32-w20-s0w5-carry"
+      ],
+      "limitations": "The enumeration and the measurements were run with our own C code (predicates given as inert source in Appendix A), while fixed-witness-derivation and r32-prob-Verify verify witness reconstruction, grouped C_32 equivalence, and local carry rates. The prediction treats the W21 sign pattern as independent of the W6/E2 conditioning. Fallback evidence regime: the source paper's published 35-step rate 2^-20.92 would give a total of 2^49.28 (proof.md Section 9); the scored claim uses 2^-17.36."
+    },
+    {
+      "id": "step3-46-conditions",
+      "statement": "For a valid tuple, each of the 196,608 (W14,W15) candidates follows the characteristic through step 22 and W16..W31 with probability at least 2^-46 (45 printed conditions plus the necessary unprinted condition E16[29] = E17[29]), and Step 3 succeeds with probability r >= 2^-28.415 * (1 - 2^-20).",
+      "role": "score-critical",
+      "scope": "Steps 16..22 and expanded words W16..W31 of the second block, conditional on Steps 1-2 and the P4 list of proof.md Section 6. Candidates of one tuple share W14 in 12 groups of 2^14, and the 12 W20 conditions are common to a group; this is charged in the second-moment bound of proof.md Section 8.",
+      "extrapolation": "Measured cumulative rates through steps 16-21 over 2^33.5 candidates (2^-3.000, 2^-14.999, 2^-21.002, 2^-28.15, 2^-31.19, 2^-31.51) agree with the stage-by-stage condition mapping (predicted 2^-3, 2^-15, 2^-21, 2^-28, 2^-32, 2^-33); the 13 conditions after step 21 are extrapolated from the printed count, corroborated by the certified 128-byte 32-step collision witness (certificates/manifest.json and experiment:fixed-witness-derivation) and local carry checks (r32-w22-s1w20-s0w7-cancel, r32-w23-s0w8-cancel).",
+      "evidence_ids": [
+        "proof:170-181",
+        "proof:498-566",
+        "proof:573-590",
+        "proof:816-842",
+        "experiment:fixed-witness-derivation",
+        "experiment:r32-w22-s1w20-s0w7-cancel",
+        "experiment:r32-w23-s0w8-cancel"
+      ],
+      "limitations": "Independence among conditions and among candidates beyond the W14 grouping is not proved; the post-step-21 Monte Carlo used one tuple's (W6, W7, W8) differences; large-scale stage rate measurements are participant C executions, corroborated by the single certified 32-step witness."
+    },
+    {
+      "id": "trail-search-budget",
+      "statement": "The SAT/SMT searches that produced the 35-step characteristic of the source paper (Sect. 3 Model-1/2/3 and Sect. 4 Steps 1-4) cost at most 2,304 thread-hours, charged as 2^57.98 word operations = 2^46.865 target-compression units.",
+      "role": "score-critical",
+      "scope": "Eight minimisation tasks described in ePrint 2026/1080 (Model-1, Model-2 in two phases, Model-3, Steps 1-4), each charged 288 thread-hours (four solver calls at a 72-hour cap on one thread), converted at 2^35 word operations per thread-second, charged once as preprocessing.",
+      "extrapolation": "No search time is published. The 72-hour per-call limit is the example limit stated by the same first three authors for the same tool family (ePrint 2024/349, Sect. 4.3); the number of calls per task is our assumption. The conversion is above the hardware peak of the source paper's server (at most 2^34.82 instructions per thread-second).",
+      "evidence_ids": [
+        "proof:182-194",
+        "proof:653-678",
+        "proof:720-747"
+      ],
+      "limitations": "Unverified budget: the number of calls per task and threads per call are not published. A larger true search cost raises the score: 4,608 thread-hours (or conversion at 2^36) gives 2^48.15 total, 9,216 thread-hours 2^49.01 (sensitivity table in proof.md Section 9)."
+    },
+    {
+      "id": "starting-solution-cost",
+      "statement": "Producing the starting solution T (A4..A13, E8..E13, W12, W13) costs the source paper's reported Step-1 time 2^34.3, charged here as 2^35 units.",
+      "role": "supporting",
+      "scope": "The advice values listed in proof.md Section 6.",
+      "extrapolation": "The paper does not state the unit of 2^34.3; the charged 2^35 covers a 35-step-compression unit.",
+      "evidence_ids": [
+        "proof:195-202",
+        "proof:649-652",
+        "proof:748-751"
+      ],
+      "limitations": "The values are read from the published pair, which arose from the paper's single solution; the paper's SAT time is not independently reproduced. Its contribution to the total is below 2^-12 relative."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
