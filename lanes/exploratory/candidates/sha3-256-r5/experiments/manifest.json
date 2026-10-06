@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "r5-connector-subspace-collision",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/r5_connector_verify.py",
+      "scope": "Exact linearised 2-round connector system (E_pad + E_0 + E_lin + E_1) around base r0 (w0=870, rank 1361 -> 1439 -> 1564, DF=36) and 135-byte 5-round SHA3-256 collision pairs for sha3-256-r5-prefix-v1.",
+      "hypothesis": "Every basis vector and seeded affine combination in the reconstructed DF=36 connector subspace reaches exact 2-round difference alpha2 with probability 1.0, and the three exported 135-byte pairs collide after 5 prefix rounds.",
+      "event": {
+        "kind": "full-collision"
+      }
+    },
+    {
+      "id": "r5-stage1-row-filter-audit",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/r5_connector_verify.py",
+      "scope": "Seeded Gray-code pairs in the DF=36 affine connector subspace, Stage-1 Round-2 active-row conditions (w2=24), and early-abort row-1 projection (testing r=66 and r=81 first, 671 vs 962 ops/pair).",
+      "hypothesis": "All sampled Gray-code pairs in the DF=36 subspace satisfy the 2-round connector invariant alpha2, early-abort row checking requires ~1.07 row checks per pair on average, and all three certified pairs pass all 10 Round-2 conditions and collide at 5 rounds.",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
