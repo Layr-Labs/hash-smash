@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "half-collision",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact blake3-r2-prefix-v1 target. One trial of proof.md Section 6.1 per organizer seed, each returning a 60-byte message and a 62-byte message: nine state words, the parameter alpha and the number of a member of the class of Lemma Q are taken from the seed, and the pair is built by steps S1 to S3 of Section 4 with the seven message words of the trial replaced. Every trial is returned. The program never calls BLAKE3 or any implementation of the target and evaluates the quarter-round G directly; SHAKE-256 from the standard library is used only to expand the organizer's seed into the trial's parameters. The organizer recomputes both digests.",
+      "hypothesis": "For every trial the two complete 2-round digests agree on digest words 0, 2, 5 and 7, that is on the 128 masked bits, as Lemma T of proof.md Section 6.1 states for every context, every alpha and every member of the class. This is an exact claim; the run checks it on concrete inputs.",
+      "program": "experiments/halfsearch.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffff00000000ffffffff0000000000000000ffffffff00000000ffffffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "residual-search",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact blake3-r2-prefix-v1 target. The search of proof.md Section 6 at toy scale: per organizer seed one context and one alpha, then the members of the class in order from a member number taken from the seed, at most all 4096 of them, stopping at the first trial whose residual has a zero low byte in digest word 1. Failed trials are returned as null pairs. The number of members tried is returned as an observation. For the same context and alpha the program also evaluates one packed batch of proof.md Section 6.5, the batch that holds the first member tried, on a machine that counts every operation and every load, and returns three more observations: batch_operations, batch_loads and batch_lanes_equal, the number of its seven lanes whose test word and flag equal the early-test word of Lemma E computed in 32-bit arithmetic from the trial's message words. That batch is not part of the search and has no influence on the returned pair. Outside the organizer protocol the same file has a self-test of the count, python3 experiments/halfsearch.py --selftest N [seed], described in proof.md Section 6.5; the organizer does not run it.",
+      "hypothesis": "Every returned pair agrees on 136 digest bits: the 128 bits of the half-collision and the low byte of digest word 1. This organizer-executed experiment tests the trial generator, the residual computation, and the finite-scale 136-bit residual hit rate inside the Lemma Q class (about 256 members tried on average per seed at probability near 2^-8), providing finite-scale organizer-executed evidence relevant to H1 alongside the packed-batch check (batch_operations = 154, batch_loads = 74, batch_lanes_equal = 7). Extrapolating from the 136-bit organizer-tested regime to the full 256-bit event (R = 0 at rate 2^-117) relies on heuristic H1 and the Section 10 model-counting and scaled-word measurements.",
+      "program": "experiments/halfsearch.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffffff000000ffffffff0000000000000000ffffffff00000000ffffffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "resident-audit",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact blake3-r2-prefix-v1 target and the exact shared-seed run layout of proof.md Section 6.4. Per organizer seed, four contexts share X2,X5,X6,X9 with X10=0 (so S5 is held fixed and shared across all four contexts, exactly as in a full run) and X12 below 256. Verify the Loop-3/Loop-4 bijection (X13, alpha) <-> (pc, alpha) via X8 = (pc - pd) mod 2^32, and audit first and padded final batches, comparing the 64-register pc-hoisted complement-propagated and 12-op upward-carry early-test schedule (143 ALU/control ops, 3 list loads, 39 resident constants, <= 51 registers) and the 32-register resident-mask schedule (154 ops, 31 loads) with the original packed schedule and the scalar early test, and count scalar early-test passes (H2) and low-nibble residual hits (H1) across the shared-seed S5-fixed trials. Return a genuine generated pair from the last context.",
+      "hypothesis": "Both the 64-register pc-hoisted full-resident schedule (143 ALU/control ops, 3 list loads, 39 resident constants, <= 51 registers) and the 32-register resident-mask schedule preserve all seven scalar early-test words and flags in each tested batch, the (X13, alpha) <-> (pc, alpha) bijection recovers X13 exactly, and the returned pair agrees on the exact 128 half-collision bits. Across the shared-seed S5-fixed trials per seed, the observed early-test pass count remains consistent with the 2^-29.6 rate well below the 2^-12 cap rate of H2. Full 256-bit collision probability and full-run tail behavior are extrapolated via H1 and H2.",
+      "program": "experiments/halfsearch.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffff00000000ffffffff0000000000000000ffffffff00000000ffffffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
