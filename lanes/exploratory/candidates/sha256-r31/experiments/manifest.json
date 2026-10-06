@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "trial-replay",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha256-r31-prefix-v1. Sections 5 and 7 of proof.md (one trial and the completion search) run on 15 stored first blocks that our own run of the attack found, one record per organizer seed, with all completion offsets derived from the seed and the caps of the proof. The search for first blocks (Section 9, about 2^36.9 trials per prefix-valid block) and the table construction are not executed.",
+      "hypothesis": "For every seed the program re-derives W0..W12 from the stored first block and starting point with the exact tests of Section 5, the capped completion search finds (W13, W14, W15), and the two returned 128-byte messages are distinct and have equal 31-step SHA-256 digests.",
+      "program": "experiments/replay.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}

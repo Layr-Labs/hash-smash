@@ -6,22 +6,65 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 44.14,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 38,
+    "preprocessing_log2": 44.05,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 16
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Two-block messages M0||M1 and M0||M1' of 128 bytes each; complete SHA-256 with the standard IV, steps 0..30 on all three padded blocks, full feed-forward and all 256 digest bits. M1 and M1' differ in words 5..9, so the messages are distinct.",
+    "Published attack, not a new one: the two-block 31-step collision attack of Li, Liu, Wang (EUROCRYPT 2024) with several starting points and the memory-efficient matching of Li, Liu, Wang, Dong, Sun (ASIACRYPT 2024). The characteristic is theirs, and all starting points share the state words E5, E6, E7 with their published colliding pair. No improvement on the published 2^40.5 is claimed.",
+    "Each of exactly N = 2^40 trials draws its first block from two fresh independent uniform 256-bit RAM words. No counter, seed expansion or chosen first block is used, and no SAT/SMT solver runs inside the algorithm.",
+    "The time bound is a cap on every run: every trial is charged one compression plus 107 word operations whether or not its table key is hit, Phase 3 is called at most 2^16 times with capped loops, and there are no restarts. Only the success probability relies on heuristics H1 and H2.",
+    "Advice is the published characteristic (27 constant words) and 448 starting points of our own, listed in the proof (35948 bytes in all). The starting points were found with an SMT solver before the algorithm runs. That solver time, measured and charged with a margin, and an allowance for the cited authors' work are both included in the time under heuristic H3. 2^44 of the claimed 2^44.14 units are that allowance.",
+    "The table keeps one tuple per key, so the probability that a uniform chaining value is prefix-valid is the exact count 4606337 * 2^-59. No estimate of overlaps between tuples is used.",
+    "Every output is checked by re-hashing both messages; the acceptance tests are exact modular equations, not bit conditions read from a table.",
+    "The attack was executed by us at sixteen times the claimed trial count (2^44 trials, our own run on a processor and a graphics card). The certificates are collisions returned by that run. The organizer experiment replays the trial and completion steps on their first blocks; it does not repeat the search and measures no rate.",
+    "The baseline_improved identifier is required metadata naming the organizer's nominal reference; comparison with the Yukon incumbent is left to Yukon."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json",
+  "heuristics": [
+    {
+      "id": "H1-near-uniform-chaining-value",
+      "statement": "Let CV = C(IV, M0) for a uniform 512-bit block M0, where C is the 31-step compression. (a) The probability that one trial ends in a successful completion is at least half of the same probability computed with CV uniform on 256 bits. (b) The probability that CV lies in the prefix-valid set P is at most 64 times its uniform value 4606337*2^-59.",
+      "role": "score-critical",
+      "scope": "The fixed target and the two fixed sets defined by the advice and the table: the prefix-valid set P (59 bits of exact condition on the chaining words A_-1, A_-2, A_-3 for each of 4606337 keys) and its winning subset. Part (a) gives the success bound; part (b) only bounds the probability of reaching the cap of 2^16 Phase-3 calls. Independence of trials is not part of this premise: it holds because first blocks are fresh coins.",
+      "extrapolation": "From our own run of the algorithm with this table and these caps on real 31-step chaining values: 2^44 trials gave 18867676479 key hits against 18867556352 expected for a uniform CV, 36856301 W6 passes against 36850696, 136 prefix-valid trials against 140.6, 15 of them with c18 in S against 19.1, and 15 collisions. The run is 16 times the claimed trial count, so the claimed event was observed directly; what is extrapolated is that the same rates hold for fresh coins in every run.",
+      "evidence_ids": [
+        "proof:452-483",
+        "proof:240-264",
+        "proof:350-377"
+      ],
+      "limitations": "The run is ours, not organizer-executed; the organizer verifies the returned collisions but not the trial count. First blocks in the run came from splitmix64 streams seeded by the operating system, not from an ideal source. The counts of prefix-valid trials and collisions are small, so only a deviation of a small factor is excluded. Sensitivity: with ratio rho in place of 1/2 the success bound is 1 - exp(-1.1840*rho) - 0.0086 (0.404 at rho = 0.45, 0.390 at rho = 0.43, 0.685 at rho = 1); time scales as 1/rho for a fixed success target."
+    },
+    {
+      "id": "H2-completion-rate",
+      "statement": "For a uniform chaining value conditioned on lying in P with c18 in S, the capped completion search of proof Section 7 (at most 2^18 candidates for E13 per value of W16, at most 2^12 candidates for E15 per accepted E13 and 2^18 per call, fresh uniform offsets) finds (W13, W14, W15) with probability at least 0.99.",
+      "role": "score-critical",
+      "scope": "Phase 3 on the states of each of the 448 starting points after step 12, for the 64 values of W16 in G16 and uniform c16; the set S and its density 0.1361322 are exact counts and are not part of this premise.",
+      "extrapolation": "From our simulation over uniform (c16, c18) for all 448 starting points (6100007 cases with c18 in S, all completed and checked), from our runs of the whole algorithm (every prefix-valid trial with c18 in S was completed) and from the organizer-run experiment on 15 stored prefixes, to all prefixes that Phase 2 can produce.",
+      "evidence_ids": [
+        "experiment:trial-replay",
+        "proof:485-497",
+        "proof:266-318"
+      ],
+      "limitations": "The simulation and the runs are our own. The organizer experiment exercises 15 prefixes with many offsets, so it tests the routine and its caps, not the spread over prefixes. Sensitivity: at a completion rate of 0.9 the success bound falls to 0.407; the claimed 0.39 needs about 0.85 at this trial count."
+    },
+    {
+      "id": "H3-advice-construction-cost",
+      "statement": "(a) The computations by the cited authors that produced the characteristic and the three state words shared by all starting points cost at most 2^44 target-compression units in total: the search for the 31-step characteristic (Li, Liu, Wang, EUROCRYPT 2024, Section 4.2) and the collision run of Li, Liu, Wang, Dong, Sun (ASIACRYPT 2024). (b) Our own solver runs that produced the 448 starting points cost at most 2^39 units.",
+      "role": "score-critical",
+      "scope": "The one-time work behind the 35948 bytes of advice. One CPU-second of one thread is charged as 2^23 units (2^34.06 word operations per second). (a) The collision run is charged at its published 1.2 hours on 64 threads (under 2^41.08 units); the remaining 2^43.796 units (1820672 CPU-seconds) are an allowance for the characteristic search. (b) 2^39 units is 65536 CPU-seconds.",
+      "extrapolation": "(a) The run time of the characteristic search is not published. We ran the authors' public script find_dc_model_31_256.py to its end (STP built from tag 2.3.4, CryptoMiniSat 5.11.21, 26 threads as in the script): 48 solver processes, 113801.5 CPU-seconds; with an aborted first start and 27 calls of their second script, 132289.6 CPU-seconds (under 2^40.02 units). On one solver thread the same search took 10124.1 CPU-seconds. The allowance is 16.0 times the complete 26-thread run and 180 times the single-thread run. (b) Our 489 solver calls took 12046.1 CPU-seconds (2^36.56 units); the charge is 5.4 times that.",
+      "evidence_ids": [
+        "proof:499-544",
+        "proof:379-448"
+      ],
+      "limitations": "Neither re-run outputs the published characteristic (80 characteristics found, none with the published message differences), and the starting-point problem is unsatisfiable on the one characteristic of the script's own that we tried, so the public script is not the authors' whole procedure. Attempts by the authors outside the public scripts are not measured. The measurements are our own runs, not organizer-executed. H3(a) is an allowance anchored to a measurement, not a measurement of the historical search. Sensitivity of the total: T0 = 2^45 gives 2^45.07, 2^46 gives 2^46.04, 2^47 gives 2^47.02, 2^48 gives 2^48.01; a CPU-second at 2^24 or 2^25 units in (b) gives 2^44.18 or 2^44.26."
+    }
+  ]
 }
