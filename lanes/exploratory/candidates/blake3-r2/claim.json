@@ -6,23 +6,44 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 125.149,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 183,
+    "preprocessing_log2": 10,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Unkeyed BLAKE3-256 with prefix rounds 0-1; every evaluated message is exactly 64 bytes, i.e. one root compression with flags 11, block length 64, counter 0, and the full 256-bit digest.",
+    "Grouped partial-evaluation birthday search; the grouping idea, message set and heuristic premise are those of jaazinn's accepted package for this track (ticket 0a5b7ae8, 127.481), credited and listed as co-author; the success analysis is analogous, with events F2' and Fcap in place of their displacement event F2. N = 2^128 messages in 2^96 groups of 2^32: each group shares fresh uniform words m0..m14 and enumerates the round-1 state word t = a3' = 0..2^32-1, i.e. m15 = (t - S_g) mod 2^32 (a bijection onto all m15 values).",
+    "Classical probabilistic 256-bit word RAM: one 2-round compression costs 1 unit and every other primitive costs 1/430. Seven messages are evaluated in parallel in seven 36-bit slots of a 256-bit word. A full batch uses 227 packed-body operations, 97 gapped-key extraction operations, at most 84 sparse-set table operations, 7 scalar record-counter increments and 1 packed-counter increment: 416 counted operations plus aggregate loop control, charged as 417 operations. Four guard bits suffice by the explicit live-value bounds in proof Section 4; five-operation masked rotations normalize every b/d word. The counted evaluator verifies (227,97) and exact equality of 7000 packed lanes with the independent reference. Each group has floor(2^32/7) full batches and one four-message tail batch, also charged 417.",
+    "Group setup (itemized 479) is charged 1024 operations; each of at most 2^110 MATCH entries (itemized at most 115 operations) is charged 2 compressions plus 1024 operations; fixed program installation is conservatively charged 2^18 operations. T < 0.13855493 * 2^128 < 2^125.14853.",
+    "64 registers are assumed (as in jaazinn's accepted package; 63 needed, shift amounts as immediates). The 27 group constants are broadcast once during group setup; PM and broadcast(7) are fixed hot-loop constants; the five scalar-key masks and table temporaries reuse dead packed-body state registers.",
+    "The collision table is a never-initialised Briggs-Torczon sparse set at 2^176 + K, indexed by an injective gapped representation K = o0 + 2^36 o1 + 2^72 o2 + 2^108 o3 + 2^144 o5 of the same full 160-bit key information; the dense array is at multiples of 2^32 below 2^160, group records at 4g+1..4g+3, scalars, output and code at odd addresses in [2^99, 2^100 + 2^18). Every address is below 2^177 words (2^182 bytes; memory_log2_bytes reported as 183); fewer than 2^134.001 bytes are ever written. Records are never displaced and garbage cannot produce a match (proof Section 5).",
+    "The time bound is a worst-case cap on every run; every output is re-hashed with two reference compressions and checked to be a full-digest collision of distinct messages. Only the success probability relies on the declared heuristic H1.",
+    "No sub-birthday cryptanalysis, executed full-scale search or collision certificate is claimed, and no improvement over the nominal reference 128 is asserted. The three declared experiments are 20-bit scaled analogues (2^10 messages) that produce partial (masked) digest agreements only; one of them uses an evidence-only full mode of the evaluator to cover digest words o4, o6, o7, which the counted program never computes."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-grouped-uniform-digests",
+      "statement": "For the message set of proof Section 1 (2^96 groups with independent uniform m0..m14, each containing all 2^32 values of m15), the complete 2-round BLAKE3 digests of the 2^128 messages, and their 160-bit keys (digest words o0..o3 and o5, stored injectively in a gapped 176-bit representation), have failure probability for the events F1 (no full-digest collision), F2' (the first message holding a colliding message's key has a different digest) and Fcap (more than 2^110 key-colliding pairs) at most the value computed for independent uniform 256-bit values, up to a negligible amount. In that model Pr[F1] < 0.6065307, Pr[F2'] < 2^-33 and Pr[Fcap] <= 2^-15, so success > 0.39343.",
+      "role": "score-critical",
+      "scope": "Only the success probability (success_probability = 0.39). Output validity (every output is verified with two reference compressions), the worst-case time cap and all operation counts do not depend on H1. F3 (identical group words, < 2^-289) is bounded exactly.",
+      "extrapolation": "Evidence declared for organizer execution (python-message-pairs-v1): three end-to-end scaled runs of the algorithm on the exact target (2^10 messages, 20-bit masks), using the t-enumeration and operation-counted sparse-set step over adversarial garbage memory: two use the packed grouped evaluator (one spread over 32 groups and one inside a single group, with masks inside o0..o3, o5), and one over 32 groups uses the evidence-only scalar full evaluator with a mask spread over all eight digest words (3,3,3,3,2,2,2,2 bits). Our local replay of experiments.runner with the track's config_sha256 and seed hashsmash-public-seed-v1 gave 107/256, 98/256 and 92/256 (model 100.7, sd 7.8). Our additional runs (our seeds): 4096 trials per layout and mask at 20 bits, the full-word mask on both layouts (1605/4096; 6482/16384, model 6443), and 32-bit masks with 2^16 messages. The claim applies independent-uniform behaviour to 256-bit digests, 160-bit keys and 2^128 messages, an extrapolation of more than 200 bits; within-group pairs are a 2^-96 fraction of all pairs at full scale, and same-t cross-group pairs provably collide with probability at least 2^-256.",
+      "evidence_ids": [
+        "experiment:b3r2-grouped-spread",
+        "experiment:b3r2-single-group",
+        "experiment:b3r2-grouped-fullword",
+        "proof:36-69",
+        "proof:70-100",
+        "proof:288-334",
+        "proof:335-414",
+        "proof:471-493"
+      ],
+      "limitations": "H1 is not proved. Masked projections cannot detect structure visible only in full-width equality. Organizer seeds are public, and each 256-trial experiment resolves success only to about +-0.03; the 0.0034 allowance above 0.39 is not statistically certified. The local replays and the larger runs are ours, not organizer results; Docker was unavailable to us, so the organizer runner was replayed locally with a subprocess executor."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
