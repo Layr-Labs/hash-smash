@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "k6r6-proj-full-width",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact SHA3-256 six-prefix-round target, 64-byte messages. Layout k6r6-proj-full-width uses the inherited grouped Gray sequence, total512 messages per trial. Only digest bits112..255 are computed for production keys. The evaluator compares the pruned path with the full bitsliced path and an independent scalar sponge at selected points. Known-zero transpose stages are specialized. Toy lookup uses16 of18 event bits,14-bit bucket, uninitialized-slot analogue, full18-bit event verification on a projected hit and64 declined confirmations. Store the real projected key and identity after every processed message, including declined hits. Counts/assertions are participant observations, not independent organizer cost verification.",
+      "hypothesis": "Every returned pair has distinct messages and satisfies the declared18-bit output event, independently recomputed by the organizer. Projected evaluation and its transpose must equal the retained bits of the unpruned evaluator. The toy exercises sparse replacement and declined-match identity handling. This is finite implementation evidence, not a statistical certification of Hproj, the2^112 full-run cap or the0.003 allowance.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000000000000000000000000ffff03000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "k6r6-proj-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact SHA3-256 six-prefix-round target, 64-byte messages. Layout k6r6-proj-spread uses the inherited grouped Gray sequence, total512 messages per trial. Only digest bits112..255 are computed for production keys. The evaluator compares the pruned path with the full bitsliced path and an independent scalar sponge at selected points. Known-zero transpose stages are specialized. Toy lookup uses16 of18 event bits,14-bit bucket, uninitialized-slot analogue, full18-bit event verification on a projected hit and64 declined confirmations. Store the real projected key and identity after every processed message, including declined hits. Counts/assertions are participant observations, not independent organizer cost verification.",
+      "hypothesis": "Every returned pair has distinct messages and satisfies the declared18-bit output event, independently recomputed by the organizer. Projected evaluation and its transpose must equal the retained bits of the unpruned evaluator. The toy exercises sparse replacement and declined-match identity handling. This is finite implementation evidence, not a statistical certification of Hproj, the2^112 full-run cap or the0.003 allowance.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000000000000000000000000000ffff030000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "k6r6-proj-single-group",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact SHA3-256 six-prefix-round target, 64-byte messages. Layout k6r6-proj-single-group uses the inherited grouped Gray sequence, total512 messages per trial. Only digest bits112..255 are computed for production keys. The evaluator compares the pruned path with the full bitsliced path and an independent scalar sponge at selected points. Known-zero transpose stages are specialized. Toy lookup uses16 of18 event bits,14-bit bucket, uninitialized-slot analogue, full18-bit event verification on a projected hit and64 declined confirmations. Store the real projected key and identity after every processed message, including declined hits. Counts/assertions are participant observations, not independent organizer cost verification.",
+      "hypothesis": "Every returned pair has distinct messages and satisfies the declared18-bit output event, independently recomputed by the organizer. Projected evaluation and its transpose must equal the retained bits of the unpruned evaluator. The toy exercises sparse replacement and declined-match identity handling. This is finite implementation evidence, not a statistical certification of Hproj, the2^112 full-run cap or the0.003 allowance.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "00000000000000000000000000000000000000000000f0ff3f00000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "k6r6-proj-high-z",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact SHA3-256 six-prefix-round target, 64-byte messages. Layout k6r6-proj-high-z uses the inherited grouped Gray sequence, total512 messages per trial. Only digest bits112..255 are computed for production keys. The evaluator compares the pruned path with the full bitsliced path and an independent scalar sponge at selected points. Known-zero transpose stages are specialized. Toy lookup uses16 of18 event bits,14-bit bucket, uninitialized-slot analogue, full18-bit event verification on a projected hit and64 declined confirmations. Store the real projected key and identity after every processed message, including declined hits. Counts/assertions are participant observations, not independent organizer cost verification.",
+      "hypothesis": "Every returned pair has distinct messages and satisfies the declared18-bit output event, independently recomputed by the organizer. Projected evaluation and its transpose must equal the retained bits of the unpruned evaluator. The toy exercises sparse replacement and declined-match identity handling. This is finite implementation evidence, not a statistical certification of Hproj, the2^112 full-run cap or the0.003 allowance.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "00000000000000000000000000000000000000000000000000000000c0ffff00",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
