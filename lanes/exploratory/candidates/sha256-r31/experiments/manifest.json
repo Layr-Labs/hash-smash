@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "completion",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha256-r31-prefix-v1. Phase 3 (completion) of proof.md only, run on the published first block M0 and published second-block words W0..W12. For each organizer seed the program draws fresh search offsets r13_j and r15_j for every (g, w14) candidate and stops once the global budget GLOBAL_PHASE3_CAP = 2^16 of TOTAL inner iterations (every x-evaluation plus every z-iteration, one global counter) is spent, so it executes exactly the capped randomized completion the proof declares (proof.md Sections 4 and 6; caps CAP13 = 2^18, CAP15 = 2^12, GLOBAL_PHASE3_CAP = 2^16 total inner iterations). Phases 1 and 2 (table build and first-block matching) are not executed.",
+      "hypothesis": "Within the proof-declared global tested-value budget, the fresh-offset completion search finds (W13, W14, W15) for the published prefix and returns two distinct 128-byte messages with equal 31-step SHA-256 digests.",
+      "program": "experiments/completion.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}

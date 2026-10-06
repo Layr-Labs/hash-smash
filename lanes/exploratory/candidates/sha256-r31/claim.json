@@ -1,27 +1,89 @@
 {
   "schema_version": 3,
-  "submission_state": "ready",
   "target_profile": "sha256-r31-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 31,
   "lane": "exploratory",
+  "baseline_improved": "sha256-r31-nominal-v2",
+  "submission_state": "ready",
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 40.52,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 40,
+    "preprocessing_log2": 40.51,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 17
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Selected sha256-r31-prefix-v1 only: fixed standard IV once per complete message; original SHA-256 schedule/constants, steps 0 through 30 inclusive on every padded block, all eight feed-forward words, FIPS padding and full 256-bit digest.",
+    "Fresh-run ordinary collision search: N=9,800,000,000 independent uniform 512-bit first blocks, each drawn as two independent 256-bit RAM words. Distinct 128-byte outputs share their first block, differ only at second-block W5..W9, and are independently rehashed over all three blocks.",
+    "Generate exactly 64,800 recombined points from the attributed 400 source pairs, enumerate full modular V8 and V7, and retain the first up to eight valid tuples in point/W8/W7 order for each of K=195,265,888 distinct A_-1 keys; M=641,616,343 retained records. A full low-16-bit sequential Bonferroni certificate gives uniform-CV prefix lower bound L=649,493,203,868,568/2^20 tuple equivalents. The online algorithm checks all retained records in order and uses the first match.",
+    "Global caps Q_key=2^31 and Q_prefix=2^14 apply across the entire run. Phase 3 uses fresh offsets, local CAP13=2^18 and CAP15=2^12, and one global 2^16 counted x/z candidate-iteration cap per call; stop with FAIL at a cap.",
+    "Success probability >=0.39 is conditional on the explicit real-CV joint-event premise H1 and real conditional first-match completion premise H2. Time includes all online trials and calls plus finite construction, and is conditional on unmetered all-history advice-work bound H3. Peak memory includes H4.",
+    "The 400 source records and eight inherited certificates are attributed unpromoted inputs from @Akashneelesh; ninth and tenth full fixed-IV collisions were found by fresh sampling in this campaign, the tenth through later selected slot 3. Earlier tuple counts, overlap and cost claims are not adopted. Original advice plus certificates stays under 2^17 bytes; H3 also covers ninth/tenth-certificate production if classified as advice."
   ],
-  "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-CV-transfer",
+      "role": "score-critical",
+      "statement": "For fresh uniform first blocks under the actual fixed-IV 31-step target, the real first-eight/first-match selected-prefix and c18-in-S joint probability is at least 0.4 times the certified uniform-CV lower bound (L/2^59)*(584683520/2^32), where L=649493203868568/2^20. Real key-hit probability is at most 4*(K/2^32), K=195265888, and real selected-prefix probability is at most 2^10*(M/2^59), M=641616343.",
+      "scope": "Real first-block chaining-value distribution and deterministic first-eight/first-match rule for all 64,800 generated points and 195,265,888 key groups.",
+      "extrapolation": "The finite full-domain certificate lower-bounds the tuple union by L=619404987.209861755 exact tuple equivalents, with M=641616343 as a trivial upper bound. Four fixed-size 2^30-block real first-eight batches found five exact later-slot prefixes, close to the U expectation [4.615,4.780]; abundant key/all-slot W6 marginals were near U. An additional run stopped on its first later-slot c18 joint prefix after 2816700416 blocks, completed to a tenth full collision. The older first-slot campaign found another joint prefix and ninth collision.",
+      "evidence_ids": [
+        "proof:59",
+        "proof:65",
+        "proof:73",
+        "proof:100",
+        "proof:134",
+        "proof:136",
+        "proof:140",
+        "proof:3481"
+      ],
+      "limitations": "The adaptively extended four-batch exact-prefix sample and two observed c18 joint events cannot establish the 0.4 real joint lower factor; the later-slot joint was found with optional stopping. The upper prefix factor is not directly measured. These are aggregate real-CV assumptions, not independence assumptions. With H2=0.9 at N=9.8 billion, the 0.39 threshold needs H1 factor about 0.38314."
+    },
+    {
+      "id": "H2-capped-completion",
+      "role": "score-critical",
+      "statement": "Conditioned on a real fixed-IV first-block CV having a selected first-eight tuple match and c18 in S, Phase 3 with fresh offsets and one global 2^16 x/z candidate-iteration cap produces an independently verified ordinary collision with probability at least 0.9.",
+      "scope": "The actual fixed-IV conditional distribution across all eight retained tuple slots, selecting the first passing tuple per key.",
+      "extrapolation": "A weighted synthetic uniform-CV-on-union sample completed 1000/1000 cases including later tuple slots 1..7, under the stated cap and with independent full two-lane 31-step compressor equality. Earlier first-tuple studies completed 2000/2000, 5000/5000, and 1000/1000. Two real fixed-IV c18 joint prefixes completed in 7305 and 2052 counted iterations, producing ninth and tenth full-message certificates; the tenth uniquely selected later slot 3.",
+      "evidence_ids": [
+        "proof:88",
+        "proof:132",
+        "proof:134",
+        "proof:136",
+        "proof:142",
+        "experiment:completion"
+      ],
+      "limitations": "Synthetic CVs and a hash-filtered key subsample are not proven to follow the rare real fixed-IV conditional distribution; all 1000 accepted synthetic cases had tuple multiplicity one. Two real completions do not estimate 0.9. At H1=0.4 and N=9.8 billion, H2 below about 0.86206 would break the 0.39 success threshold."
+    },
+    {
+      "id": "H3-advice-work",
+      "role": "score-critical",
+      "statement": "All historical work producing the characteristic, 400 paired source records, and eight inherited certificates, including SAT/SMT searches, failed/abandoned attempts, charged mathematical overlap verification, auxiliary experiments, validation, serialization, and production of the ninth and tenth certificates if treated as nonuniform advice, costs at most 2^40.5 collision-frontier-v5 target-compression units.",
+      "scope": "Complete one-time nonuniform advice generation and charged development/verification across all processors, separate from the fully charged 2^33 finite table setup and online search; includes the new validation campaign and full overlap scans if treated as charged preprocessing.",
+      "extrapolation": "Partial public self-reports total 58015 CPU-seconds for unfinished characteristic-search calls and 8769.7 CPU-seconds for selected source-point solving. At an unvalidated 2^23 v5 units per CPU-second, these price at 560.23 billion units. One full low-16 overlap scan logged 1799034803537 residue iterations and 1249588536 pair calls; illustrative generous charges of 256 and 4096 primitives price it at 217.60 billion units. Three similarly sized scans plus bounded 47.39-billion-unit first-slot and 33.62-billion-unit first-eight validation campaigns give an illustrative subtotal of 1.294 trillion versus H3=1.555 trillion, with missing historical work still unresolved.",
+      "evidence_ids": [
+        "proof:114",
+        "proof:138",
+        "proof:144"
+      ],
+      "limitations": "No complete solver model, historical all-work log, or validated CPU-to-v5 conversion exists. H3 is an unmeasured score-critical premise; if exceeded, the scalar is false. H3=2^40.7 with other terms fixed scores about40.71711 and H3=2^40.72 scores about40.73688."
+    },
+    {
+      "id": "H4-advice-peak-memory",
+      "role": "supporting",
+      "statement": "Peak historical memory producing the characteristic and 400 source points, including solver/allocator/thread state, is below 2^40 bytes.",
+      "scope": "Historical advice generation plus explicit first-eight group table and online buffers.",
+      "extrapolation": "The explicit first-eight group table, direct slots, precomputed constants and bitsets fit below 2^36 bytes; an earlier partial solver report stated 5.8 GB peak.",
+      "evidence_ids": [
+        "proof:61",
+        "proof:126",
+        "proof:146"
+      ],
+      "limitations": "No end-to-end historical RSS receipt exists. If false, the memory metric must change even though memory contributes nothing to the scalar score."
+    }
+  ]
 }
