@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "published-r31-witness-replay",
+      "kind": "python-message-pairs-v1",
+      "scope": "Deterministic replay of one fixed public 128-byte message pair on the complete sha256-r31-prefix-v1 target, preceded once per isolated process by an exhaustive 131072-case round-trip and pinned-digest self-check of the proposed 32-byte tuple representation. The same pair is returned for every organizer trial; duplicate rows are expected and are not independent attack samples. Participant observations about the layout remain untrusted; the organizer independently checks only the collision event.",
+      "hypothesis": "The two fixed messages are distinct and have identical full 256-bit digests under standard-IV SHA-256 with rounds 0 through 30, feed-forward, and FIPS padding on every block. Separately, every joint choice of the 17 free E bits for the pinned six-A fixture round-trips through the proposed 32-byte tuple representation and reproduces the committed layout digest.",
+      "program": "experiments/replay.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
