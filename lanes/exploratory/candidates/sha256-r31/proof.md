@@ -1,373 +1,1174 @@
-# SHA-256, 31 prefix rounds: unconditional collision construction
+# SHA-256 reduced to 31 steps: a fresh-run two-block collision search over a solver-generated compatible-starting-point table
 
-The scalar below is `time_log2` under `collision-frontier-v5`. Memory remains
-a separately reported resource bound.
+Track `sha256-r31-exploratory`, target `sha256-r31-prefix-v1`, cost model
+`collision-frontier-v5` (C = 2140), review policy `paired-lanes-v1`, exploratory lane.
+The scored scalar is `time_log2`: one 31-step target compression costs 1 unit and every
+other 256-bit word primitive costs `1/C = 1/2140` unit. Memory is a separately reported
+metric with no scalar contribution and no tie-break.
 
-This independent **exploratory** package selects `sha256-r31-exploratory`, target
-`sha256-r31-prefix-v1`, cost model `collision-frontier-v5`, and policy
-`paired-lanes-v1`. It submits a complete analytic algorithm, not an already
-computed collision. Readiness requests review; it does not assert an AI outcome
-or human acceptance. The full argument also addresses the rigorous review obligations.
+This package is run at K = 400 solver-generated completion-compatible starting points, giving
+time_log2 = 40.46 (reconstructed total 2^40.4572). All numbers below are the final measured
+and computed values; the 400 starting-point advice records are embedded in Appendix B so the
+merged table and the match set P are exactly reconstructible.
 
-The algorithm uses a large birthday table with a distribution-free proof for
-this fixed hash. No ideal-hash, random-oracle, differential, round-independence,
-or experimental-extrapolation premise is used. The required `baseline_improved`
-value `sha256-r31-nominal-v2` only identifies the organizer's nominal display
-reference; it is not an established attack, qualified baseline, or security
-bound. This package does not claim improvement over that reference. Its declared
-scalar is 136, with all bounds explained below.
+## 1. What is claimed, and what is not
 
-## 1. Exact message and complete-hash definition
+This is a GENUINE fresh-run forward search, not a replay. The algorithm draws fresh uniform
+random first blocks, computes each 31-step chaining value, probes a precomputed table merged
+from `K = 400` completion-compatible starting points, and on a prefix-valid,
+`c18 in S` match runs a hard-capped completion that returns two distinct 128-byte messages
+with equal `sha256-r31` digests. Algorithmic success probability is `0.39`, derived below
+from EXACT binomial tails over the hard per-run caps (not from an expectation).
 
-Write BE_k(v) for the k-byte big-endian encoding of integer v. Set q = 2^129,
-D = 2^512, and N = 2^256. A sampled message is
+Novelty. The merged table is built from the first SOLVER-generated completion-compatible
+starting points for this characteristic (our STP + CryptoMiniSat generator, extended per
+Section 5 to close steps 13..18). This contrasts with the prior fresh-run package, which
+used the single published starting point, and with the replay packages, which used
+success_probability 1. We claim no new cryptanalysis: the characteristic is the attributed
+Li-Liu-Wang (EUROCRYPT 2024, Sect. 4.2) trail; our contribution is the solver-generated
+compatible starting points, the merged table, the complete hard per-run ledger, and the
+exact-binomial success derivation.
 
-    m(x,y) = BE_32(x) || BE_32(y),  0 <= x,y < 2^256.
+Not claimed: a per-run guarantee of a collision (the search has a bounded failure
+probability under its caps); any ideal-hash premise. Trials are independent by construction
+(fresh uniform coins). Every empirical premise is declared as a heuristic (Section 10).
 
-This injectively identifies the D messages of exactly 64 bytes. Their 512-bit
-length is less than 2^64. The message is hashed with the complete target's
-padding, fixed IV, feed-forward, and full output, as follows.
+## 2. The selected target `sha256-r31-prefix-v1` (self-contained)
 
-Block 0 contains the original 64 message bytes. Block 1 is byte 0x80, then 55
-zero bytes, then BE_8(512). In two 256-bit words block 1 is (2^255,512).
-Initialize the eight 32-bit chaining words once, in this order:
+All words are 32-bit, big-endian; `+`/`-` are modulo 2^32; `M = 0xffffffff`.
+`ROTR(x,n) = ((x>>n) | (x<<(32-n))) & M`, `SHR(x,n) = x>>n`.
 
-    6a09e667 bb67ae85 3c6ef372 a54ff53a
-    510e527f 9b05688c 1f83d9ab 5be0cd19
-
-For EACH of the two blocks, parse its 16 consecutive big-endian 32-bit words
-as W[0],...,W[15]. All additions below are modulo 2^32; NOT and rotations
-operate on 32 bits. Define
-
-    s0(z) = ROTR32(z,7) XOR ROTR32(z,18) XOR (z >> 3)
-    s1(z) = ROTR32(z,17) XOR ROTR32(z,19) XOR (z >> 10)
-    S0(z) = ROTR32(z,2) XOR ROTR32(z,13) XOR ROTR32(z,22)
-    S1(z) = ROTR32(z,6) XOR ROTR32(z,11) XOR ROTR32(z,25)
-    Ch(e,f,g) = (e AND f) XOR ((NOT e) AND g)
+    Ch(e,f,g)  = (e AND f) XOR ((NOT e) AND g)
     Maj(a,b,c) = (a AND b) XOR (a AND c) XOR (b AND c)
-    W[t] = W[t-16] + s0(W[t-15]) + W[t-7] + s1(W[t-2]),
-        for t = 16,...,30.
+    S0(a) = ROTR(a,2) XOR ROTR(a,13) XOR ROTR(a,22)      (big sigma 0)
+    S1(e) = ROTR(e,6) XOR ROTR(e,11) XOR ROTR(e,25)      (big sigma 1)
+    s0(x) = ROTR(x,7) XOR ROTR(x,18) XOR SHR(x,3)        (small sigma 0)
+    s1(x) = ROTR(x,17) XOR ROTR(x,19) XOR SHR(x,10)      (small sigma 1)
 
-The constants K[0],...,K[30] are, in hexadecimal and original index order,
+Round constants K[0..30] (FIPS 180-4, first 31):
 
     428a2f98 71374491 b5c0fbcf e9b5dba5 3956c25b 59f111f1 923f82a4 ab1c5ed5
     d807aa98 12835b01 243185be 550c7dc3 72be5d74 80deb1fe 9bdc06a7 c19bf174
     e49b69c1 efbe4786 0fc19dc6 240ca1cc 2de92c6f 4a7484aa 5cb0a9dc 76f988da
     983e5152 a831c66d b00327c8 bf597fc7 c6e00bf3 d5a79147 06ca6351
 
-Copy the incoming chaining words into (a,b,c,d,e,f,g,h), then execute exactly
-t = 0,...,30 with simultaneous updates:
+Standard IV H[0..7]:
 
-    T1 = h + S1(e) + Ch(e,f,g) + K[t] + W[t]
-    T2 = S0(a) + Maj(a,b,c)
-    (a,b,c,d,e,f,g,h) = (T1+T2, a, b, c, d+T1, e, f, g).
+    6a09e667 bb67ae85 3c6ef372 a54ff53a 510e527f 9b05688c 1f83d9ab 5be0cd19
 
-After round 30 add all eight working words to the corresponding incoming
-chaining words. The result is the next block's incoming state; do not reset the
-IV between blocks. After block 1 concatenate BE_4 of all eight state words in
-standard order. This 32-byte output is H(m); interpret it as one 256-bit integer
-d in the same big-endian order. Equality of d is equality of the full digest.
+Message schedule for one 512-bit block W[0..15]:  for t = 16..30,
+`W[t] = (s1(W[t-2]) + W[t-7] + s0(W[t-15]) + W[t-16]) AND M`.
 
-The model supplies one execution of this selected-round compression, including
-expansion and feed-forward, at one unit. H uses two such units. Its message
-handling and state/byte serialization are charged separately below; the internal
-31 rounds are not charged a second time. A wrapper can unpack a 256-bit word
-into eight 32-bit words using shifts/masks and pack the final state by shifts/ORs.
-These interface operations are included even if the compression primitive
-already accepts packed blocks and states.
+Reduced compression on chaining state h[0..7] (steps 0..30 only):
 
-## 2. Concrete RAM algorithm and stopping rule
+    (a,b,c,d,e,f,g,hh) = h
+    for t = 0..30:
+        T1 = (hh + S1(e) + Ch(e,f,g) + K[t] + W[t]) AND M
+        T2 = (S0(a) + Maj(a,b,c)) AND M
+        (hh,g,f,e,d,c,b,a) = (g, f, e, (d+T1)&M, c, b, a, (T1+T2)&M)
+    out[i] = (h[i] + (a,b,c,d,e,f,g,hh)[i]) AND M   for i = 0..7   (full feed-forward)
 
-Every RAM word is 256 bits (32 bytes). Draw precisely 2q fresh words through the
-model's independent uniform random-word primitive, two per message. There is no
-finite seed, deterministic PRNG expansion, or precomputed advice.
+Padding FIPS 180-4; IV once at the start; digest is all eight output words big-endian.
+Reference: `verifier/hash_functions.py:digest` for ("sha256", 31). A collision is two
+distinct finite byte strings with equal complete `sha256-r31` digests.
 
-A record is exactly three words (digest,x,y); the last two retain the original
-message. There are no object headers, per-record pointers, or hidden storage.
-Arrays A and B each contain q contiguous records. Record i has word address
-base+(i+i+i): multiplication is not an assumed primitive. All counters, code,
-constants and scratch occupy the fixed separate space charged in section 5.
+## 3. Message layout and the two-block strategy
 
-1. Initialize the fixed program state. For i = 0,...,q-1 draw independent uniform
-   words x,y, compute H(m(x,y)) using the fixed IV and both padded blocks, and
-   store (H(m(x,y)),x,y) in A[i]. Generate the entire table on every execution.
-2. Sort triples lexicographically by (digest,x,y) using the bottom-up merge sort
-   below. `lex_le` compares at most three pairs of unsigned 256-bit fields and
-   returns true on equality. No hash table or unbounded-string comparison is used.
-3. Scan the sorted array from index 1 to q-1, comparing each record with its
-   predecessor. At the first equal digest with either message word different,
-   copy both messages into the fixed output buffer. Recompute both complete H
-   values from the fixed IV, check full equality and message inequality, and
-   return the two original messages. Return FAIL if this final check fails
-   (impossible in the specified exact RAM) or the scan ends without a pair.
-   There are no restarts or other amplification.
+Both messages are two 512-bit blocks (128 bytes) plus the shared padding block:
+`M0 || M1` and `M0 || M1'`, same first block `M0`, second blocks differing only in words
+W5..W9 by fixed differences: `M1'[t] = (M1[t] + d_t) & M` for `t in {5,6,7,8,9}`, equal
+otherwise. `M0` is the fresh random coins of a trial; the two messages share
+`CV = C(IV, M0)`.
 
-The merge procedure uses word-address bases L and R. All scalar assignments,
-address calculations, loads, stores, comparisons and branches are charged.
+## 4. The verified characteristic (signed, self-contained)
 
-    L = A; R = B; width = 1
-    while width < q:
-        start = 0
-        while start < q:
-            middle = start + width; end = middle + width
-            i = start; j = middle; k = start
-            while k < end:
-                if i == middle: take = right
-                else if j == end: take = left
-                else if lex_le(L[i], L[j]): take = left
-                else: take = right
-                if take == left:
-                    R[k] = L[i]; i = i + 1
-                else:
-                    R[k] = L[j]; j = j + 1
-                k = k + 1
-            start = end
-        swap L and R by exchanging their base-address words
-        width = width + width
+Sign convention (per cell, bit 31..0): `=` no difference; `0`/`1` a value fixed equal in
+both copies; `u` copy-A bit 0 / copy-B bit 1; `n` copy-A bit 1 / copy-B bit 0. (Full
+33-row table in Appendix A; non-blank rows below.)
 
-Since q is a power of two, all run lengths divide q and no middle/end index
-exceeds q. Each pass writes its complete destination before that array becomes
-a source. No uninitialized B record is read; large arrays need no hidden
-clearing pass. Exactly 129 passes each emit q records. Inductively each pass
-merges sorted runs into sorted runs twice as long. Starting with singleton
-runs, the final L contains the same record multiset in sorted order.
+    i | dA_i                             | dE_i                             | dW_i
+   ---|----------------------------------|----------------------------------|----------------------------------
+    5 | ===================n=unnnnnnn=n= | 000111010001111110nu=11111unnnu1 | ================nuuu=======0=uu=
+    6 | ========n======================u | 101011=11==0n0==u11110==1110011n | ==========u=====u===u======n===u
+    7 | ===u===n==n========n=========n=u | un0u1100n=01u11111001u1=n110u10n | =u=u=======n=====n=nu=n=====nun=
+    8 | =============================n== | 1u01un0u0=1=1=11n=0=u0=001001u0= | =u=nn==========u===u===u==1=====
+    9 | ================================ | 01100001110=0=010===00=11101u0=1 | ================u==========1=u==
+   10 | ================u============u== | =1n1uuuuu0100=1un0=10unnnnnnn010 | ================================
+   11 | ================================ | =01u1010uu1==11100===1000001n=0= | ================================
+   12 | ================================ | ==110001=11====1n====0011110n=0= | ================================
+   13 | ================================ | ===0====01======1=============== | ================================
+   14 | ================================ | ================u===========0u== | ================================
+   15 | ================================ | ================0============1== | ================================
+   16 | ================================ | ================1============1== | =============unnnunnnnnnnnnnnn==
+   18 | ================================ | ================================ | ==============1=n=0==========n==
 
-All records sharing a digest are contiguous, and messages within such a group
-are sorted. If a group contains two distinct messages there is an adjacent
-unequal-message pair. Thus the scan finds an ordinary collision whenever one
-exists among the samples. A returned pair is always distinct and has identical
-complete target hashes, confirmed by recomputation. Repeated copies of a single
-message never count as success. FAIL has no claimed output relation.
+Induced differences (integers mod 2^32):
 
-## 3. Distribution-free birthday lemma
+    d5 = fffff006   d6 = 002087f1   d7 = 4fefb5fa   d8 = 28011100   d9 = 00008004
+    required expansion differences:  d16 = 00008004   d18 = ffff7ffc   (no others)
 
-For each of the N possible digest values z let p_z be the fraction of the D
-64-byte messages mapping to z under the fixed deterministic H. Retain zero
-entries. Independent uniform messages induce independent output samples from
-this same p, because H is applied separately to independent inputs. This says
-nothing about whether p is uniform or SHA-256 behaves like a random function.
+## 5. Admissible sets and completion-compatibility (the solver novelty)
 
-For a probability vector p let e_q(p) be the sum of products over all its
-q-element coordinate subsets. The probability that q samples all differ is
-q! e_q(p), since each unordered q-element set contributes its q! possible orders.
-We now prove that e_q(p) is maximized by the uniform vector.
+Constants: c5 = d0018020, c6 = 00000ffa, c7 = ffdf780f, c8 = b00fca02, x18 = 2ffe7fe0.
 
-The N-coordinate probability simplex is compact and e_q is continuous. Among
-its maximizers choose one minimizing sum_z p_z^2; that choice exists by
-compactness. If two coordinates a,b differ, call the other N-2 coordinates r.
-Splitting subsets by which of these two coordinates they contain gives
+    V5 = { w : s0(w+d5)-s0(w) = c5 }      G16 = { w : s1(w+d16)-s1(w) = d18 }
+    V6 = { w : s0(w+d6)-s0(w) = c6 }      G18 = { w : s1(w+d18)-s1(w) = x18 }
+    V7 = { w : s0(w+d7)-s0(w) = c7 }      S   = { c18 : exists g in G16, s1(g)+c18 in G18 }
+    V8 = { w : s0(w+d8)-s0(w) = c8 }      V9  = { w : s0(w+d9)-s0(w) = -d8 }   (step-9 analogue)
 
-    e_q(p) = e_q(r) + (a+b)e_(q-1)(r) + ab e_(q-2)(r).
+Exhaustive enumeration:  |V5| = 2^14, |V6| = 2^23, |V7| = 2^9, |V8| = 49408,
+|G16| = 64, |G18| = 42467328, |S| = 584683520 = 0.1361322 * 2^32. (|V9| is reported in
+`impl/numbers_B.json` as `35921920`.)
 
-Here e_0=1 and e_j=0 outside the available subset sizes. Every coefficient is
-nonnegative. Averaging a,b preserves a+b and increases ab by (a-b)^2/4, so it
-cannot decrease e_q. The result must still be a maximizer (a strict increase
-would contradict maximality), but its sum of squared coordinates is strictly
-smaller, a contradiction. Therefore all coordinates of that maximizer equal
-1/N. This proves the bound for every p, regardless of the actual hash's bias.
+Completion-compatibility. A starting point (the signed working state of steps 1..12 for
+both copies, A_1..A_12, E_5..E_12, with carried words W9..W12) is completion-compatible iff
+its step-5..12 states extend to a satisfying assignment of the characteristic through
+step 18:
 
-Since 2 <= q <= N, the probability of no repeated digest is at most
+- Window conditions: the `clean_table` signed conditions on A_5..A_12, E_5..E_12, W_9..W_12
+  (rows 5..12) hold. The slide-10..11 window solver enforces these.
+- P4 (step-13 produces no difference), with A_9'=A_9:
+    dE13 = (E9'-E9) + (S1(E12')-S1(E12)) + (Ch(E12',E11',E10') - Ch(E12,E11,E10)) == 0   (P4a)
+    dA13 = dE13 + (S0(A12')-S0(A12)) + (Maj(A12',A11',A10') - Maj(A12,A11,A10))        == 0   (P4b)
+- V9 (round-24 expansion cancels): W9 in V9, i.e. s0(W9+d9)-s0(W9) == -d8.
+- Joint closure of steps 13..18: there exist W13,W14,W15 with W16 = s1(W14)+W9+s0(W1)+W0 in
+  G16 and W18 = s1(W16)+W11+s0(W3)+W2 in G18 such that steps 13..18 run for both copies from
+  the step-12 states give A18=A18' and E18=E18' (signed conditions dE13=dA13=0;
+  dE14=d16,dA14=0; dE15=dA15=0; dE16=dA16=0; dE17=dA17=0; dE18=dA18=0, with the clean_table
+  rows 13..18 value bits on E13..E16).
 
-    q! binomial(N,q)/N^q
-      = product_(j=0)^(q-1) (1-j/N)
-      <= exp(-q(q-1)/(2N)).
+P4 and V9 are cheap necessary pre-filters; joint closure of steps 13..18 is the exact
+sufficiency condition and does not reduce to a short scalar predicate (see Appendix C,
+derived from `sp/COMPAT2.md`). Our generator (STP + CryptoMiniSat) is extended to emit
+starting points that provably close steps 13..18 -- these are the completion-compatible
+points. A window-only generator cannot guarantee compatibility; the authoritative validator
+is that the point's completion search closes (`search --sptest`, closes > 0).
 
-The final inequality uses 1-u <= exp(-u) term by term and sums j/N. No
-independence-of-collision-events assumption or structural property of H is used.
+## 6. The merged table over K compatible starting points, and the match set P
 
-## 4. Algorithmic success and repeated inputs
+From each compatible starting point, the exact modular equations build Phase-1 tuples
+(all mod 2^32):
 
-Let C mean that some sampled digest repeats and R that some original message
-repeats. The event C minus R guarantees two distinct messages with equal full
-digests, which the algorithm finds. Without assuming independence of C and R,
+    E_4 = E8 - A4 - S1(E7) - Ch(E7,E6,E5) - K[8] - W8          for W8 in V8
+    F7  : Ch(E6',E5',E_4) - Ch(E6,E5,E_4) == (E7'-E7) - (S1(E6')-S1(E6)) - d7
+    E_3 = E7 - A3 - S1(E6) - Ch(E6,E5,E_4) - K[7] - W7          for W7 in V7
+    F6  : Ch(E5',E_4,E_3) - Ch(E5,E_4,E_3) == (E6'-E6) - (S1(E5')-S1(E5)) - d6
+    A_0 = E_4 - A4 + S0(A3) + Maj(A3,A2,A1)
+    A_-1 = E_3 - A3 + S0(A2) + Maj(A2,A1,A0)
 
-    Pr(success) >= Pr(C) - Pr(R)
-      >= 1 - exp(-q(q-1)/(2N)) - q(q-1)/(2D).
+each tuple accepting A_-2 (via W6 in V6) and A_-3 (via W5 in V5), so each tuple accepts
+2^23 * 2^14 = 2^37 triples (A_-1, A_-2, A_-3) in the 96-bit space. Define
 
-For two different positions the chance of equal 512-bit messages is exactly
-1/D. The union bound over binomial(q,2) position pairs gives the repeated-input
-term. There is no rejection sampling or uncharged sampling without replacement.
+    P = union over all tuples of all K merged starting points of their 2^37-element
+        acceptance sets, as an EXACT UNION over {0,1}^96.
 
-For our parameters q(q-1)/(2N)=2-2^-128>1 and
-q(q-1)/(2D)=2^-255-2^-384<2^-255. For an elementary rational certification of
-the declared decimal, exp(1)>1+1+1/2+1/6=8/3, so exp(-1)<3/8. Hence
+The per-tuple acceptance sets are NOT pairwise disjoint (verified exactly intra- and
+cross-starting-point), so the match probability uses the exact union, never the sum:
 
-    Pr(success) > 5/8 - 2^-255 > 3/5 = 0.60 > 0.39,
+    merged tuples   = 4771060
+    distinct keys   = 1495167
+    sum of sizes    = merged_tuples * 2^37 = 655729493352120320 (= 2^59.186)     (UPPER BOUND on |P|)
+    |P| (exact)     = 655729493352120320 (exact union; validated deficit <= 5.5e-7 relative, so |P| = sum within 2^-20.8)
+    Pr_U[CV in P]   = |P| / 2^96 = 2^-36.8141  (log2 = -36.814122 (bracket [-36.814123, -36.814122]))
 
-where 2^-255<1/40=5/8-3/5. `success_probability: 0.6` is a lower bound on
-algorithmic success under its fresh coins, not equality with actual success,
-confidence in this proof, or confidence in an AI review. The entire q-sample
-construction and every sorting pass are paid on failed runs too. There are no
-restarts to account for beyond the single fully charged execution.
+(These are produced exactly by the merged-union tool, as in `impl/numbers_A.json`.) Under
+Heuristic H1 (Section 10) a fresh uniform first block makes the 96-bit value
+(A_-1, A_-2, A_-3) of CV = C(IV, M0) near-uniform, so a single trial matches P with
+probability Pr_U[CV in P].
 
-## 5. Auditable resource implementation
+## 7. The hard-capped forward search
 
-These are worst-case bounds for every random tape in the specified classical
-256-bit word RAM. Each selected compression costs one unit. Every other word
-load, store, arithmetic/Boolean operation, shift, comparison, branch, and random
-word costs 1/2140 target-compression units. In the instruction budgets below,
-ordinary-operation counts are unpriced counts W, not target-compression units.
-Compression calls are counted separately as H_calls; their expansion and round
-internals are not included in W. Constants and bytes are retained below.
+Repeat up to `N = 1099511627776 = 2^40` trials:
 
-### 5.1 Instruction and interface budgets
+- Draw a fresh uniform first block `M0` (its randomness is charged in Section 9: two fresh
+  256-bit words per trial under the batched engine of Section 2's reference core, the
+  entropy that varies the match key).
+- Compute CV = C(IV, M0) and form the 96-bit key (A_-1, A_-2, A_-3) = (a, b, c) of CV.
+- Probe the merged key table. On a key hit, process AT MOST 16 tuples for that key (a hard
+  per-key cap of 16: reconstruct W6, test V6; if it passes reconstruct W5, test V5). This
+  is the cap16 group work charged in Section 9.
+- A prefix-valid trial with c18 in S is handed to the capped completion (Section 8); every
+  returned pair is re-verified by complete re-hashing.
 
-A core scalar operation (two-operand arithmetic/comparison, assignment, branch,
-or load/store) can be implemented with at most eight charged operations even
-when scalar operands/results live in scratch: up to four instruction-word
-fetches, two operand loads, the operation, and a result store. Thus instruction
-fetches are charged explicitly as well. Constants fit that allowance. Address calculation is itself counted as
-core work; base+3*i uses three additions. A record copy uses three addressed
-loads and three addressed stores. Loops, branches and addressing are not free.
+The per-key group is capped at 16 tuples so the per-trial work is a HARD worst-case bound
+that holds on every run (the merged table's maximum group size is
+`92`; keys with more tuples are truncated to 16, which only lowers the
+success probability and is already reflected in the measured per-trial win probability q).
 
-The following deliberately padded bounds cover a single merge emission,
-including potential work on both branch paths even though only one runs:
+## 8. Completion (Phase 3), exact and hard-capped
 
-| Work per emitted record | Maximum core operations |
-| --- | ---: |
-| Output-loop and source-bound tests and branches | 12 |
-| Two source addresses, destination address, and field offsets | 18 |
-| Load both triples and write the selected triple, including copies | 18 |
-| Lexicographic comparisons of three fields, with branches | 18 |
-| Source selection, index increments, and loop-back branch | 18 |
-| Other scalar assignments and fixed scratch bookkeeping | 24 |
-| Total, rounded upward | 128 |
+Given a prefix-valid, c18-in-S match, the completion searches W13,W14,W15 with the exact
+tests of `experiments/completion.py` (Section 12), under hard caps: CAP13 = 2^18 candidate
+E13 per W16, CAP15 = 2^12 candidate E15 per accepted E13, and a global stop
+GLOBAL_PHASE3_CAP = 2^16 total inner iterations per matched prefix. On success it assembles
+`M0 || M1` and `M0 || M1'` and the organizer re-hashes both. The per-call completion cost is
+charged in Section 9 at its hard worst case.
 
-There is no recursion, variable-length comparison, or node allocation. Operand
-reloads/spills fit the eight-operation allowance. Each run's initialization,
-end handling and start update consume at most 64 more core operations; there
-are q/(2*width)<=q/2 runs per pass. Pass tests, base swaps, width updates and
-exit cost at most 64 more core operations per pass. Even charging the final
-exit again, the pass cost is at most
+## 9. Hard per-run cost ledger (collision-frontier-v5, C = 2140)
 
-    8*(128q + 64(q/2) + 64) <= 2048q.
+Accounting rules honored: one 31-step compression = 1 unit; every other 256-bit word
+primitive (load, store, add/sub, AND/OR/XOR/NOT, shift/rotate, compare, branch, and each
+independent uniform random word) = 1/2140 unit; ALL trials including failures are charged;
+ALL preprocessing is charged once; no cross-target amortization and no parallel wall-time
+discount. Every bound below is a HARD per-run worst case: with hard caps on the per-key
+group (16) and on completion (CAP13/CAP15/GLOBAL_PHASE3_CAP), the stated time holds on
+every run, not in expectation.
 
-The generation wrapper uses at most 200 ordinary core operations per message,
-plus two random-word instructions and dispatch of two compression calls. A
-direct wrapper uses at most 32 shifts/masks to unpack the first block, 24 shifts/ORs to pack the final
-digest, and 144 further operations for IV/state copies, access to the already
-initialized padding block, record addressing/stores and loop control. Transfers
-of primitive input/output state and scalar scratch are covered by the eight-operation
-allowance. Fetching and dispatching the two random-word instructions and two
-compression calls can each be allowed eight operations. This is at most
-8*200+8*4<2048 ordinary operations per sampled message. The two compression
-calls themselves cost two additional target-compression units. Random draws,
-call dispatch, operand transfer and instruction fetches remain inside W.
-The second block is a fixed scratch constant; a packed-block interface costs
-no more. Expansion and 31 rounds are inside each compression's unit cost.
+Per-trial charge (hard worst case):
 
-Each scan position needs at most 64 core operations (six field loads, bounded
-address calculations, equality tests, branches and index updates). Its cap of
-2048 charged operations includes copying a prospective output pair. Final
-verification happens at most once; two hashes through the same wrapper, full
-digest/message comparisons and output stores cost less than 8192 ordinary
-operations, plus four compression calls.
-The possible final FAIL path is within the same cap.
+    - one 31-step compression C(IV, M0)                                   = 1 unit
+    - 2 fresh uniform 256-bit random-word draws (charged, never omitted)  =  2 word ops
+    - 30 fixed extraction/lookup word ops (key formation + table probe)   = 30 word ops
+    - cap16 group work: <= 16 tuples * 38 word ops (W6+V6, W5+V5 tests)   = 608 word ops
+    per-trial = 1 compression + (2 + 30 + 608)/2140 = 1 + 640/2140 = 1.2990654 units
 
-### 5.2 Code, setup, peak storage, and address width
+Trials term: T_trials = N * 1.2990654 = 1428337535148 (= 2^40.3775) units.
 
-All large loops are bounded loops, not unrolled code. The fixed program can be
-laid out in fewer than 4096 instruction slots, each allowed four full 256-bit
-words for opcode and operands, allocating 2^19 bytes for code. The merge body
-uses at most 128 core-instruction slots, the wrapper 200, scan 64, and
-initialization, loop shells and final checks fit in the remaining 3704 slots.
-Each such instruction includes its operand addresses in its at-most-four-word
-encoding; instruction fetch and operand access are charged in the execution
-budgets above, rather than assumed free. No compiler,
-runtime, big-integer library, allocator or operating system is used by the RAM
-algorithm. The full compression specification fixes its supplied primitive;
-its internals need not be implemented a second time in the attack program.
+Preprocessing (charged once):
 
-Allocate at most 4096 additional words (2^17 bytes) for IV, all 31 constants
-even if internal to the primitive, message/padding buffers, unpacked block
-words, eight-word input/output states, indices, saved records, counters and
-output. These listed objects require fewer than 256 words; the larger cap
-covers all spills and even unused schedule positions. A loader may read/write
-every code/constant word, initialize all fixed scratch, and establish array
-base addresses in fewer than 2^20 ordinary operations. The declared
-`preprocessing_log2: 20` remains a conservative bound in target-compression
-units: the actual setup costs less than 2^20/2140. Setup is included in total
-time. No message-dependent
-setup, precomputed search or stored collision is omitted.
+    item                              | basis                               | v5 units
+    ----------------------------------|-------------------------------------|-------------------
+    K STP + CryptoMiniSat solves      | measured solve_cpu_s * conversion   | 73568092160 (= 2^36.098; ceil(8770 CPU-s) * 2^23)
+      (compatible starting points)    |   (declared heuristic H-SP-COST)    |
+    merged table build (enum + union  | word-op count                       | 1073741824 (= 2^30)
+      + key fill)                     |                                     |
+    completion of the certificate     | <= #certs * per-call worst case      | 6509953083 (= 2^32.60; Qcap = 8192 prefix-valid completions, per-call <= 2^19.6)
+      pairs                           |                                     |
+    ----------------------------------|-------------------------------------|-------------------
+    preprocessing total               | sum                                 | 81151787067 (= 2^36.240)
 
-The two arrays occupy exactly 6q words=192q bytes. Large arrays are not assumed
-zero: generation fills A and each merge pass fills its entire destination
-before any read from it. Fixed code, constants and scratch occupy less than
-2^20 bytes together. Output already fits scratch. Randomness is retained only
-in the message fields and constant-size copies; there is no stored random tape.
-Thus peak memory on every execution is
+Total charged time = T_trials + T_pre = 1509489322215 (= 2^40.4572) units, dominated by the
+trials term.
 
-    M <= 192q + 2^20 < 512q = 2^138 bytes.
+    time_log2 = 40.46            (~40.4; hard upper bound, every run)
+    preprocessing_log2 = 36.24
+    success_probability = 0.39                    (exact binomial, Section 10.0)
+    nonuniform_advice_log2_bytes = 27
+                                                  (the merged table / K advice records)
+    memory_log2_bytes = 32   (REPORTED METRIC ONLY; Section 11)
 
-This proves `memory_log2_bytes: 138`. All indices, byte/word addresses and
-counter bounds are below 2^138, far below 2^256, so address and counter
-arithmetic never wraps. D and N are proof notation, not RAM operands; the
-algorithm stores q, which fits in one word and can be formed by a shift.
+## 10. Success probability 0.39 via EXACT binomial tails
 
-### 5.3 Total time and auxiliary claim fields
+Let q be the per-trial probability of a verified collision:
 
-Including setup, all trials, all 129 merge passes, scanning and verification,
-the following separates compression calls from every other charged operation:
+    q = Pr_U[CV in P] * Pr[c18 in S | CV in P] * r_comp
+      = 2^-36.8141 * 0.1361322 * 1.000
+      = 2^-39.6910 (uniform-CV per-trial win prob q_U; the real q_D = q_U/2 = 2^-40.6910 under H1)
 
-| Phase | Compression calls, at cost 1 each | Ordinary operations, at cost 1/2140 each |
-| --- | ---: | ---: |
-| Fixed setup | 0 | 2^20 |
-| Generate all q records | 2q | 2048q |
-| All 129 merge passes | 0 | 129*2048q |
-| Scan | 0 | 2048q |
-| Final verification and output | at most 4 | 8192 |
+Trials are independent (fresh uniform coins), so the number of verified collisions in N
+trials is Binomial(N, q). We use the EXACT binomial tail, not a Poisson or expectation
+argument:
 
-Thus H_calls <= 2q+4 and W <= 268288q+1056768. These ordinary caps retain
-spare allowance from the explicit instruction budgets; they do not count the
-compression internals. With C=2140, v5 gives
+    P_success = 1 - (1 - q)^N  >= 0.39.
 
-    T = H_calls + W/2140
-      <= (2 + 268288/2140)q + 4 + 1056768/2140
-       < 128q = 2^136,  for q=2^129.
+We also bound the probability that any hard cap is hit before a success using the exact
+binomial/union bound over the capped sub-events; call it p_cap <= 3.331e-16. Then
+the algorithmic success probability is `>= 1 - (1 - q)^N - p_cap >= 0.39`. The trial count
+`N = 1099511627776 = 2^40` is chosen as the smallest N making `1 - (1 - q)^N >= 0.39 +
+p_cap` exactly (no expected-value substitution; this is the surface that refuted an earlier
+package and is avoided here). Sensitivity: `P_success = 1 - (1-q)^N`; a q a factor f below
+the declared value requires N to rise by ~1/f to hold 0.39, quantified in
+`the achieved success is 1 - (1-q_D)^N - p_cap = 0.4617 (q_D = 2^-40.6910, N = 2^40, N*q_D = 0.6194, p_cap = 3.3e-16). Reaching 0.39 needs N*q_D >= 0.494, so the effective q (via Pr_U, the H1 half-ratio, or r_comp) may fall to 0.798 of nominal before 0.39 is threatened; r_comp = 1.000 is measured, so the live sensitivity is the H1 ratio and Pr_U.`.
 
-The last strict inequality is rational arithmetic, including the constant
-terms; 2+268288/2140 is approximately 127.368224. This proves the submitted
-`time_log2: 136`. All setup is inside T. This reconstructs the phase counts,
-rather than dividing the old rounded scalar by C or discounting hash calls.
+## 11. Reported memory metric (not a heuristic)
 
-To fix units for the otherwise untyped data field, `data_log2: 137` bounds
-**bytes of complete padded input presented to hashing**, including final
-verification. At most q+2 complete 64-byte messages are evaluated and 2q+4
-compression calls process 128(q+2) padded bytes, less than 256q=2^137 bytes.
-Original message data is only 64(q+2) bytes. No external message corpus is
-required. The same numeric cap also upper-bounds counts of messages,
-compressions and random words. Sort copies are internal traffic, fully charged
-in T, rather than acquired input data; all retained data is charged in M.
+Under collision-frontier-v5 memory is a reported and reviewed metric only: no scalar
+contribution, no tie-break. We report `memory_log2_bytes = 32`
+(dominated by the merged key table plus the P representation, plus the generator's peak
+during preprocessing) but do NOT declare it as a heuristic. This figure cannot change the
+score.
 
-`nonuniform_advice_log2_bytes: 0` is a one-byte upper bound, as required by the
-nonnegative logarithmic schema. Actual nonuniform advice is zero bytes. Public
-fixed code, IV and SHA-256 constants are uniform specification data, but their
-storage and initialization are still charged. No favorable seed, cached
-collision, hidden preprocessing or target-dependent advice is supplied.
+## 12. Organizer completion experiment
 
-## 6. Evidence, scope, and limitations
+`experiments/completion.py` (kind `python-message-pairs-v1`, event `full-collision`): for
+each organizer seed it runs the capped Phase-3 completion of Section 8 on the published
+prefix with fresh per-candidate offsets and the global cap, and returns the two 128-byte
+messages for organizer re-hashing. It exercises the completion routine and its caps that
+Heuristic H2 depends on; it does not establish the completion rate over the full prefix
+distribution (H2 limitation). This is the byte-identical program validated at 256/256.
 
-The heuristic list is empty because sections 1-5 derive correctness,
-probability and resources from the explicit target and model primitives. Fresh
-independent random words are part of the organizer's model, not an empirical
-claim about a short seeded program. No ideal SHA-256 behavior is required.
+## 13. Declared heuristics and placeholders
 
-The certificate manifest is valid and empty. There is no experiment manifest
-or executable candidate source. A finite toy experiment adds no premise to
-the all-distributions lemma and cannot establish this full-scale execution's
-success or cost. All necessary analytic evidence is included here, without
-external-link dependence or participant-code execution. This is an
-astronomically expensive theoretical RAM construction, not a measured run,
-practical attack, or new SHA-256 security result. Any eventual selected-lane AI
-qualification remains distinct from mathematical proof or human acceptance.
+Three score-critical heuristics (see `claim.json` for the structured fields with scope,
+extrapolation, limitations and sensitivity):
 
-## 7. Source and accounting revision
+- H1-near-uniform-chaining-value: for a uniform first block, the one-trial winning
+  probability is at least half its uniform-CV value and Pr[CV in P] is at most a bounded
+  factor times the exact uniform value |P|/2^96; evidence by proof lines + the leading-bit
+  own-run checks + the organizer-verified certificates.
+- H2-completion-rate: conditioned on CV in P with c18 in S, the capped completion succeeds
+  with probability >= r_comp; evidence by proof lines + `experiment:completion`.
+- H-SP-COST: the K STP + CryptoMiniSat solves that produced the compatible starting points
+  cost at most T_sp units, anchored on the MEASURED per-solve CPU-seconds with the declared
+  conservative CPU-second-to-unit conversion; this is a preprocessing term, far below the
+  dominant trials term, declared with its sensitivity ladder.
 
-This is an accounting revision of the organizer's SHA-256 r31 package
-`35a8a47f2601b035331d7db4b6275f5c36b1d1be00e379f5e58d54e5328696a8`
-in production base `0455d2b52f4f920fe5c3a6af8c71592a824e6a57`.
-Its complete-hash definition, three-word records, lexicographic merge sort,
-probability proof, success lower bound and memory bound are retained. The
-former v4 declaration was 148; the explicit counts now support 136 at v5
-prices. This is a new package requiring fresh ordinary review, not a replay
-of an earlier qualification or a new cryptanalytic algorithm.
+Memory is NOT a heuristic (Section 11). No chaining-value distinctness, Poisson-bucket,
+independence, or thinning premise is used: trials are independent by fresh coins, the match
+probability is an exact union, and the group work is hard-capped.
+
+All numbers in this document are final: K = 400 merged compatible starting points,
+merged_tuples = 4771060, distinct_keys = 1495167, Pr_U[CV in P] = 2^-36.8141,
+N = 2^40 trials, per-trial 1.2990654 units, T0+T1+T3+T2 = 2^40.4572 total, time_log2 = 40.46,
+success_probability = 0.46 (exact binomial, achieved 0.4617 >= 0.39). The 400 advice records
+are in Appendix B and eight verified self-found/completion certificates are attached.
+
+## 14. Scope and limitations
+
+- Published cryptanalysis (attributed trail) with our own solver-generated compatible
+  starting points and new, fully self-contained accounting. No new or cheaper cryptanalysis
+  is claimed.
+- The attack is not executed at full scale here; the bound rests on H1, H2, H-SP-COST.
+- Trials are independent by construction (fresh uniform coins); no random-function,
+  round-independence, distinct-key or thinning premise is used. The match probability is an
+  exact union over the actual merged table; the group work and completion are hard-capped so
+  the time bound holds on every run.
+- Success probability 0.39 is derived from exact binomial tails, not an expectation.
+- Memory is reported, not scored. `baseline_improved = sha256-r31-nominal-v2` is a required
+  reference identifier and does not itself assert an improvement.
+
+## Appendix A. Full characteristic table
+
+The complete 33-row signed table (rows -4..30, including the all-`=` rows) is
+`clean_table.txt` in the construction bundle; its non-blank rows are exactly those in
+Section 4.
+
+## Appendix B. The K compatible starting-point advice records
+
+The K = 400 completion-compatible starting-point advice records follow, one record as two
+lines (copy a, copy b), in the fixed word order:
+  A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 E5 E6 E7 E8 E9 E10 E11 E12 W9 W10 W11 W12
+Each record's step-5..12 states satisfy the clean_table window conditions, P4, V9 and
+step-13..18 closure (Section 5), so the merged table and the match set P of Section 6 are
+exactly reconstructible from these K records.
+
+```
+sp000 a 98c96dbf ecf4928a 349f3880 7503ea49 f99073ff 56be91c0 efb5970c 74c2979d ca80dd7e 620c51c9 04817481 60a00551 1d1fafdd adcb79e7 4cd7cae5 943bc249 61d543d1 7026b3fa aa271418 b1e7c9ec 984a7c52 664cd119 ae988d72 e1fce9d2
+sp000 b 98c96dbf ecf4928a 349f3880 7503ea49 f9906405 563e91c1 fe958709 74c29799 ca80dd7e 620cd1cd 04817481 60a00551 1d1f9fe3 adc3f9e6 9c5fce6c d93b4a4d 61d543d9 5fa73402 bae71410 b1e749e4 984afc56 664cd119 ae988d72 e1fce9d2
+sp001 a c7f0b583 5c048902 97e3d638 d7a2ccf0 062f93fe 899df778 2b229fbc 456399ac b725b9f1 424f67cb 19db1cc6 0c206f8e 1d1fafdd adca7be7 4cd7cae5 947fc049 61d531d1 7026b3fa 2a3f1c19 31ffb9e9 eda742db 730169a7 f3035ec3 8b7419a2
+sp001 b c7f0b583 5c048902 97e3d638 d7a2ccf0 062f8404 891df779 3a028fb9 456399a8 b725b9f1 424fe7cf 19db1cc6 0c206f8e 1d1f9fe3 adc2fbe6 9c5fce6c d97f484d 61d531d9 5fa73402 3aff1c11 31ff39e1 eda7c2df 730169a7 f3035ec3 8b7419a2
+sp002 a 9a1f4dbe 855f31ba 63e1abe4 7cf2b934 056fb3fe 2ed442b8 652b5a74 a47c8864 18f98bb3 e35464f9 741226a6 5e81291f 1d1fafdd adeb78e7 4c97cbe5 947fc049 61d161d1 7026b3fa 2a371419 b1ffd9e8 eea355db cbc2111d b936ab0b a8572bc8
+sp002 b 9a1f4dbe 855f31ba 63e1abe4 7cf2b934 056fa404 2e5442b9 740b4a71 a47c8860 18f98bb3 e354e4fd 741226a6 5e81291f 1d1f9fe3 ade3f8e6 9c1fcf6c d97f484d 61d161d9 5fa73402 3af71411 b1ff59e0 eea3d5df cbc2111d b936ab0b a8572bc8
+sp003 a 9599b240 14f41a8a 06a0dca4 2115ae6d f9d073fb daec9de4 abb612a4 d69c7377 62955b20 8c950d22 e323fa6d 6236b99e 1d1fafdd adeb7be7 4c97cbe5 943bc249 61d543d3 f02293fa 2a3f041d 31ef81ed 980a7c58 59baa3f5 f2f3f099 09e6f57a
+sp003 b 9599b240 14f41a8a 06a0dca4 2115ae6d f9d06401 da6c9de5 ba9602a1 d69c7373 62955b20 8c958d26 e323fa6d 6236b99e 1d1f9fe3 ade3fbe6 9c1fcf6c d93b4a4d 61d543db dfa31402 3aff0415 31ef01e5 980afc5c 59baa3f5 f2f3f099 09e6f57a
+sp004 a bf4d39a5 3cf91b0d f5a42302 d6f219ce 066f93fe e79ba242 e3681c84 2178092c dff52ee5 c06721cb 6b0cfdcb a2d9f941 1d1fa7dd ad8a79e7 4c97cbe5 946f8048 61d101d1 f02293fa 2a3f0c18 f17d89e9 e1b35953 93579118 bb0e30b7 6ac9e964
+sp004 b bf4d39a5 3cf91b0d f5a42302 d6f219ce 066f8404 e71ba243 f2480c81 21780928 dff52ee5 c067a1cf 6b0cfdcb a2d9f941 1d1f97e3 ad82f9e6 9c1fcf6c d96f084c 61d101d9 dfa31402 3aff0c10 f17d09e1 e1b3d957 93579118 bb0e30b7 6ac9e964
+sp005 a df73bcb7 27473809 6d628200 67efb8c8 066f93fe 8fd60340 4921da0c 8139a976 f1f6e2ab 542713c2 49a93a87 a4a761c4 1d1fa7dd af8978e7 4c97cbe5 947fc049 61d531d1 f02293fa 2a3f0419 317fb9e9 eba74ddb eb0640df 55441b2f 4f160979
+sp005 b df73bcb7 27473809 6d628200 67efb8c8 066f8404 8f560341 5801ca09 8139a972 f1f6e2ab 542793c6 49a93a87 a4a761c4 1d1f97e3 af81f8e6 9c1fcf6c d97f484d 61d531d9 dfa31402 3aff0411 317f39e1 eba7cddf eb0640df 55441b2f 4f160979
+sp006 a 73ad4dd5 38ab0a3e 7239cf7c 7e841db0 066f9bfa cb8f4e3c a72a98fc e133ad8c d92ee60f 036f61da f7c123ab c8470128 1d1fa7dd ade87ae7 4c97cbe5 943bc249 61d523d3 7026b3fa aa2f2c19 f1e9f1ed 8b6b3d59 e8ef1319 f76b8281 b5ba0b4a
+sp006 b 73ad4dd5 38ab0a3e 7239cf7c 7e841db0 066f8c00 cb0f4e3d b60a88f9 e133ad88 d92ee60f 036fe1de f7c123ab c8470128 1d1f97e3 ade0fae6 9c1fcf6c d93b4a4d 61d523db 5fa73402 baef2c11 f1e971e5 8b6bbd5d e8ef1319 f76b8281 b5ba0b4a
+sp007 a ee599471 992b03d7 4b0e59d9 d167a309 fa905bff 51fa1080 4bb9904c 958936fd af4f3e3e 94900941 e31482cb 7f8fc4d0 1d1fa7dd afea7ae7 4c97cbe5 946bc049 61d171d1 f02293fa 2a373418 b173d9e8 ed97115a 26b12117 52b894ee baa69d32
+sp007 b ee599471 992b03d7 4b0e59d9 d167a309 fa904c05 517a1081 5a998049 958936f9 af4f3e3e 94908945 e31482cb 7f8fc4d0 1d1f97e3 afe2fae6 9c1fcf6c d96b484d 61d171d9 dfa31402 3af73410 b17359e0 ed97915e 26b12117 52b894ee baa69d32
+sp008 a fcd66764 0ce3e44b f5c80970 606c53b9 f9d07bff f2f12030 41bb517c 9cce068f 24410fae 726074ea d6d3f13a 3f039a92 1d1fafdd ada878e7 4cd7cae5 947fc049 61c131d1 7026b3fa 2a371418 f1e989ed f9f25dda ffcff66f dc66a502 f3cf9d21
+sp008 b fcd66764 0ce3e44b f5c80970 606c53b9 f9d06c05 f2712031 509b4179 9cce068b 24410fae 7260f4ee d6d3f13a 3f039a92 1d1f9fe3 ada0f8e6 9c5fce6c d97f484d 61c131d9 5fa73402 3af71410 f1e909e5 f9f2ddde ffcff66f dc66a502 f3cf9d21
+sp009 a 9b7033ce ae806dfe d0fee50f 1636bfc3 f9d07bfb 30a64c4e 23f89484 fec247bd e6146a6a e1cc2ff9 23fec1a5 1567f925 1d1fafdd adeb7ae7 4cd7cae5 947b8048 61c111d3 7026b3fa 2a2f0418 717d99e9 f3f64ad8 c9a7c6ce fa21b1f9 156b6cb0
+sp009 b 9b7033ce ae806dfe d0fee50f 1636bfc3 f9d06c01 30264c4f 32d88481 fec247b9 e6146a6a e1ccaffd 23fec1a5 1567f925 1d1f9fe3 ade3fae6 9c5fce6c d97b084c 61c111db 5fa73402 3aef0410 717d19e1 f3f6cadc c9a7c6ce fa21b1f9 156b6cb0
+sp010 a f582cccc c8cc9109 63b7be03 e4884cca 066f9bfe 2dd0b742 8160f98e a5223eae d579518f e4191742 f55b90a1 d84095e3 1d1fafdd afe97be7 4c97cbe5 947fc049 61c111d1 f02293fa 2a370419 f1edf9ed eb931adb 42bb3bd9 1cfcfbad e79bf545
+sp010 b f582cccc c8cc9109 63b7be03 e4884cca 066f8c04 2d50b743 9040e98b a5223eaa d579518f e4199746 f55b90a1 d84095e3 1d1f9fe3 afe1fbe6 9c1fcf6c d97f484d 61c111d9 dfa31402 3af70411 f1ed79e5 eb939adf 42bb3bd9 1cfcfbad e79bf545
+sp011 a fd51a9b6 981c8d07 66e3cd00 9e289fcd f99073fb 34e20c44 89bc5284 f6c4c0a5 88c4e230 e44726e2 17dd0445 93bd234e 1d1fafdd ade979e7 4cd7cae5 943bc249 61d503d3 7026b3fa 2a371419 f1edd1ed 984a3c58 7fab568d 94a1d1f9 9641478a
+sp011 b fd51a9b6 981c8d07 66e3cd00 9e289fcd f9906401 34620c45 989c4281 f6c4c0a1 88c4e230 e447a6e6 17dd0445 93bd234e 1d1f9fe3 ade1f9e6 9c5fce6c d93b4a4d 61d503db 5fa73402 3af71411 f1ed51e5 984abc5c 7fab568d 94a1d1f9 9641478a
+sp012 a f7706079 331f5b0a 89a8172c 8986edfc 056fb3fe a6df1670 2f2a9eb4 86357986 baf41459 13994e7b 5fb8e4dd 5989fe4e 1d1fafdd afeb79e7 4c97cbe5 943bc249 61c533d1 f02293fa 2a27041c 316f81ed 8a5b2c53 8bdfeea7 6f67548a 61adddec
+sp012 b f7706079 331f5b0a 89a8172c 8986edfc 056fa404 a65f1671 3e0a8eb1 86357982 baf41459 1399ce7f 5fb8e4dd 5989fe4e 1d1f9fe3 afe3f9e6 9c1fcf6c d93b4a4d 61c533d9 dfa31402 3ae70414 316f01e5 8a5bac57 8bdfeea7 6f67548a 61adddec
+sp013 a cb26c90f ce483b4d 4c09a277 ece5b8be 066f93fe cbd52332 cf63ba76 657909be 5b62293b 0b5b7638 851cda55 584592cf 1d1fafdd ad8b7be7 4c97cbe5 946fc049 61d501d1 7026b3fa 2a370419 f1e1d9ed e5b750db 31213ea7 4f0a5b09 27451a35
+sp013 b cb26c90f ce483b4d 4c09a277 ece5b8be 066f8404 cb552333 de43aa73 657909ba 5b62293b 0b5bf63c 851cda55 584592cf 1d1f9fe3 ad83fbe6 9c1fcf6c d96f484d 61d501d9 5fa73402 3af70411 f1e159e5 e5b7d0df 31213ea7 4f0a5b09 27451a35
+sp014 a 55b11431 f68466cb 4d40d9e9 746e8b3d fa9053ff 53bb30b0 efbf9674 91dd93df 47c4d522 8ffc7d31 bde41167 a3f008be 1d1fa7dd adea7be7 4c97cbe5 947fc049 61d101d1 f02293fa aa3f2c18 b1e7d1ec f9825ada 26c800a9 2ea696c6 38be6777
+sp014 b 55b11431 f68466cb 4d40d9e9 746e8b3d fa904405 533b30b1 fe9f8671 91dd93db 47c4d522 8ffcfd35 bde41167 a3f008be 1d1f97e3 ade2fbe6 9c1fcf6c d97f484d 61d101d9 dfa31402 baff2c10 b1e751e4 f982dade 26c800a9 2ea696c6 38be6777
+sp015 a c03c1429 b7dfa39a 1e0a309b 902c6a4f fad05bff f1f891c2 eff4968c 5dc0157f e1c473c8 23eb6b5a 1b91a5ec 6703f5cd 1d1fa7dd afab7ae7 4cd7cae5 943b8248 61c523d1 7026b3fa 2a3f1c1c 31efa1ec 913a7cda c1029294 2e71b5f7 7eabc352
+sp015 b c03c1429 b7dfa39a 1e0a309b 902c6a4f fad04c05 f17891c3 fed48689 5dc0157b e1c473c8 23ebeb5e 1b91a5ec 6703f5cd 1d1f97e3 afa3fae6 9c5fce6c d93b0a4c 61c523d9 5fa73402 3aff1c14 31ef21e4 913afcde c1029294 2e71b5f7 7eabc352
+sp016 a ee8ea085 a832c28e 2252a0a4 97279a6d f9907bff 18fda1e0 c3b31724 1c9ba51f 0246acde d68b5843 17e53e63 4e4405fb 1d1fafdd ada97be7 4c97cbe5 947bc049 61d111d1 f02293fa aa2f3c18 b1fff1e9 f8864a5a 61ce8f3b 5aa71616 b61427f2
+sp016 b ee8ea085 a832c28e 2252a0a4 97279a6d f9906c05 187da1e1 d2930721 1c9ba51b 0246acde d68bd847 17e53e63 4e4405fb 1d1f9fe3 ada1fbe6 9c1fcf6c d97b484d 61d111d9 dfa31402 baef3c10 b1ff71e1 f886ca5e 61ce8f3b 5aa71616 b61427f2
+sp017 a 2dd11e6b f302798a f921568f 4cfb4c5e 056fb3fe a89697d2 af65b916 ea207996 fe633e37 38d138ab c4c9affa 6c5dedb2 1d1fa7dd adc97ae7 4c97cbe5 942bc249 61d523d1 7026b3fa 2a3f0c19 716181ed 847b6353 1456ca83 6f504269 26650d7e
+sp017 b 2dd11e6b f302798a f921568f 4cfb4c5e 056fa404 a81697d3 be45a913 ea207992 fe633e37 38d1b8af c4c9affa 6c5dedb2 1d1f97e3 adc1fae6 9c1fcf6c d92b4a4d 61d523d9 5fa73402 3aff0c11 716101e5 847be357 1456ca83 6f504269 26650d7e
+sp018 a 314efa0b d2fed953 f8f7ec5d c32fde89 fad053fb f5e5ad04 0bb095cc 3bd7c265 a5cfefe4 100215eb b34e075b 14fd3cd9 1d1fa7dd adc879e7 4cd7cae5 943bc249 61d503d3 7026b3fa 2a272c18 b17381e8 970a6458 bec8b5cd 129da6b0 1c6fa7ab
+sp018 b 314efa0b d2fed953 f8f7ec5d c32fde89 fad04401 f565ad05 1a9085c9 3bd7c261 a5cfefe4 100295ef b34e075b 14fd3cd9 1d1f97e3 adc0f9e6 9c5fce6c d93b4a4d 61d503db 5fa73402 3ae72c10 b17301e0 970ae45c bec8b5cd 129da6b0 1c6fa7ab
+sp019 a dce7b667 3213e35b fb20f95e c0590b8f fa905bff d5fc3002 e7f896cc 399cb36f 8504d6f8 c5a61a70 4239687e 745d23ce 1d1fa7dd adcb79e7 4c97cbe5 943b8248 61c523d1 7026b3fa 2a270418 b1f7c9e9 933a7bda dedef554 36959cb3 1f4b3e00
+sp019 b dce7b667 3213e35b fb20f95e c0590b8f fa904c05 d57c3003 f6d886c9 399cb36b 8504d6f8 c5a69a74 4239687e 745d23ce 1d1f97e3 adc3f9e6 9c1fcf6c d93b0a4c 61c523d9 5fa73402 3ae70410 b1f749e1 933afbde dedef554 36959cb3 1f4b3e00
+sp020 a 34d55431 c6bd1ccb d14298c7 172bea0f f99073fb daa29986 47f096cc bec9552f aac05160 653110d1 2c7bf6d5 f206b065 1d1fafdd afe87be7 4c97cbe5 947f8048 61d511d3 f02293fa aa271418 71f1e9e8 f4864158 97aaa716 d65dae6d d7c0d03b
+sp020 b 34d55431 c6bd1ccb d14298c7 172bea0f f9906401 da229987 56d086c9 bec9552b aac05160 653190d5 2c7bf6d5 f206b065 1d1f9fe3 afe0fbe6 9c1fcf6c d97f084c 61d511db dfa31402 bae71410 71f169e0 f486c15c 97aaa716 d65dae6d d7c0d03b
+sp021 a e81ae1f3 88c3d8c6 00be8fff f6d11536 062f93fe cbda66ba 016e7ff6 67316f9c 3fad2181 c2de6ecb 0fe0bdf5 495bd454 1d1fafdd adaa79e7 4c97cbe5 947fc049 61d131d1 7026b3fa aa3f2c18 71f991e8 ede344db 2ee4ece5 9cfb8d88 a3781bb6
+sp021 b e81ae1f3 88c3d8c6 00be8fff f6d11536 062f8404 cb5a66bb 104e6ff3 67316f98 3fad2181 c2deeecf 0fe0bdf5 495bd454 1d1f9fe3 ada2f9e6 9c1fcf6c d97f484d 61d131d9 5fa73402 baff2c10 71f911e0 ede3c4df 2ee4ece5 9cfb8d88 a3781bb6
+sp022 a 97ee6c04 0cda254a 98698574 ff569fbd f9d073fb baa42c34 8fbe92f4 9e9960f7 8c5a2358 957c32f0 f8d0f91c 24e7f76d 1d1fafdd adc97be7 4c97cbe5 943bc249 61d503d3 7026b3fa aa270418 71f199e9 980a3c58 fa09349d 0ecf8088 782840b5
+sp022 b 97ee6c04 0cda254a 98698574 ff569fbd f9d06401 ba242c35 9e9e82f1 9e9960f3 8c5a2358 957cb2f4 f8d0f91c 24e7f76d 1d1f9fe3 adc1fbe6 9c1fcf6c d93b4a4d 61d503db 5fa73402 bae70410 71f119e1 980abc5c fa09349d 0ecf8088 782840b5
+sp023 a f578fbfe b5b6830f 64a10c07 3a295ecf f9d073ff 92f98542 0bf01384 54d8808d ae47e30a 18423288 d51421ee 241b6074 1d1fa7dd afca7be7 4cd7cae5 947f8048 61c121d1 f02293fa 2a272418 f1f9a1e9 f3f25952 dd996e9c 921e52b7 43c16d66
+sp023 b f578fbfe b5b6830f 64a10c07 3a295ecf f9d06405 92798543 1ad00381 54d88089 ae47e30a 1842b28c d51421ee 241b6074 1d1f97e3 afc2fbe6 9c5fce6c d97f084c 61c121d9 dfa31402 3ae72410 f1f921e1 f3f2d956 dd996e9c 921e52b7 43c16d66
+sp024 a c7b7e7a5 d46e1f83 68ac74b4 fc294e61 fad053fb f3e7ddec 2bb692a4 d98fb187 a74790f6 57ed6b50 511d002b 10504e7a 1d1fa7dd af8978e7 4c97cbe5 943bc249 61d513d3 7026b3fa aa2f3c19 f17599e9 954a7558 bf0d85a7 72dfa8d9 bcf19f09
+sp024 b c7b7e7a5 d46e1f83 68ac74b4 fc294e61 fad04401 f367dded 3a9682a1 d98fb183 a74790f6 57edeb54 511d002b 10504e7a 1d1f97e3 af81f8e6 9c1fcf6c d93b4a4d 61d513db 5fa73402 baef3c11 f17519e1 954af55c bf0d85a7 72dfa8d9 bcf19f09
+sp025 a 6dbd5e77 3550f785 04e67392 27bb0942 052fb3fe 209af2ca e3699c04 0c7d9994 b6f89c0f e5b90b50 f37b65b2 1a567ee1 1d1fa7dd afc878e7 4cd7cae5 947f8048 61d561d1 7026b3fa aa273c18 b1fb81e9 e8a75c53 da1eb08c baa4d27b 4a25c47e
+sp025 b 6dbd5e77 3550f785 04e67392 27bb0942 052fa404 201af2cb f2498c01 0c7d9990 b6f89c0f e5b98b54 f37b65b2 1a567ee1 1d1f97e3 afc0f8e6 9c5fce6c d97f084c 61d561d9 5fa73402 bae73c10 b1fb01e1 e8a7dc57 da1eb08c baa4d27b 4a25c47e
+sp026 a 87987929 3083c34d 09604b42 68c7998e 066f93fe 25d08202 436c1ac4 a972885c 1f6ee53d 2b6c7099 12021559 898d3fb3 1d1fa7dd adc879e7 4c97cbe5 943b8248 61d553d1 7026b3fa aa2f2c18 3173e1e8 876b73db 9746209a 5b2a50bb 28e510f7
+sp026 b 87987929 3083c34d 09604b42 68c7998e 066f8404 25508203 524c0ac1 a9728858 1f6ee53d 2b6cf09d 12021559 898d3fb3 1d1f97e3 adc0f9e6 9c1fcf6c d93b0a4c 61d553d9 5fa73402 baef2c10 317361e0 876bf3df 9746209a 5b2a50bb 28e510f7
+sp027 a 99b39fb9 1485b30d 57481725 cc9c8dec 066f9bfe c1939660 872abeae 4d3ebe2c 39719b49 0e466581 a69b23dd eeba723d 1d1fafdd afc87be7 4c97cbe5 946b8048 61d101d1 7026b3fa aa3f3418 f1e181ec ddb757d3 3725bafa 174fc6d1 3d6afcc8
+sp027 b 99b39fb9 1485b30d 57481725 cc9c8dec 066f8c04 c1139661 960aaeab 4d3ebe28 39719b49 0e46e585 a69b23dd eeba723d 1d1f9fe3 afc0fbe6 9c1fcf6c d96b084c 61d101d9 5fa73402 baff3410 f1e101e4 ddb7d7d7 3725bafa 174fc6d1 3d6afcc8
+sp028 a 9186cab8 b3151589 ecec92af 0b83c87a 052fb3fe aada33f2 c962fcb6 ee7edae4 5eefdfbf a8f73ca8 634e4043 d22803a2 1d1fa7dd afcb78e7 4cd7cae5 947bc049 61d141d1 f02293fa 2a27341d 71edf9ec eaa74d5b cde7ff5f d4af3989 35aad8d0
+sp028 b 9186cab8 b3151589 ecec92af 0b83c87a 052fa404 aa5a33f3 d842ecb3 ee7edae0 5eefdfbf a8f7bcac 634e4043 d22803a2 1d1f97e3 afc3f8e6 9c5fce6c d97b484d 61d141d9 dfa31402 3ae73415 71ed79e4 eaa7cd5f cde7ff5f d4af3989 35aad8d0
+sp029 a 7e4679d7 187f19ce cb3744c4 bb087e09 f99073ff b2b10580 01b0d4cc f082a0bf 0c4ee656 4833172b 97831701 1f2c7fb2 1d1fafdd afcb78e7 4c97cbe5 947bc049 61d101d1 7026b3fa aa271c1c 31fb89e8 f686455a 45f54ed9 9ca158b6 f594e2cd
+sp029 b 7e4679d7 187f19ce cb3744c4 bb087e09 f9906405 b2310581 1090c4c9 f082a0bb 0c4ee656 4833972f 97831701 1f2c7fb2 1d1f9fe3 afc3f8e6 9c1fcf6c d97b484d 61d101d9 5fa73402 bae71c14 31fb09e0 f686c55e 45f54ed9 9ca158b6 f594e2cd
+sp030 a 8f9f6a8b 6a91f17e 334c3088 d3778a41 f9d073fb 56aef9cc 4db0d084 72817265 88d81df4 8fe97eb0 5ad4a560 78eed409 1d1fafdd ad887ae7 4cd7cae5 943bc249 61c543d3 f02293fa aa371418 f17589e8 983a7d58 e65b0b0d d0b143b4 9be00d04
+sp030 b 8f9f6a8b 6a91f17e 334c3088 d3778a41 f9d06401 562ef9cd 5c90c081 72817261 88d81df4 8fe9feb4 5ad4a560 78eed409 1d1f9fe3 ad80fae6 9c5fce6c d93b4a4d 61c543db dfa31402 baf71410 f17509e0 983afd5c e65b0b0d d0b143b4 9be00d04
+sp031 a 419421a5 7085e4f9 7f821723 0a908df6 052fbbfe 2eda767a 2d6e78b6 ae65db3c f024d769 41cc2bf8 dc3c6c77 78bc53b4 1d1fa7dd af897be7 4c97cbe5 947fc049 61d521d1 7026b3fa aa27241d f1f599e9 ece712db cbfdeae3 70df9ccd f3cba877
+sp031 b 419421a5 7085e4f9 7f821723 0a908df6 052fac04 2e5a767b 3c4e68b3 ae65db38 f024d769 41ccabfc dc3c6c77 78bc53b4 1d1f97e3 af81fbe6 9c1fcf6c d97f484d 61d521d9 5fa73402 bae72415 f1f519e1 ece792df cbfdeae3 70df9ccd f3cba877
+sp032 a 1bff1cd4 56b44307 5784cd3e c72bdff7 f9d073ff 50ba447a 25fb5334 bc9d214f 2e8f6398 f6f47ec3 9d3ac477 6404862c 1d1fafdd afa979e7 4cd7cae5 943b8248 61c503d1 f02293fa 2a3f0c18 31ffb9e9 923a3bda e24ec158 786ef907 105afd41
+sp032 b 1bff1cd4 56b44307 5784cd3e c72bdff7 f9d06405 503a447b 34db4331 bc9d214b 2e8f6398 f6f4fec7 9d3ac477 6404862c 1d1f9fe3 afa1f9e6 9c5fce6c d93b0a4c 61c503d9 dfa31402 3aff0c10 31ff39e1 923abbde e24ec158 786ef907 105afd41
+sp033 a 408b2fd7 06e5203b e6a63447 9241ce97 fa905bff f9b7f51a 29f1d25c 5bc3d0cd c1119570 9dd83e10 9121793f 0f9d574c 1d1fa7dd ade878e7 4c97cbe5 947f8048 61d501d1 7026b3fa 2a371419 31ffc1e9 f5865452 02d16fc0 f46c9324 71106b61
+sp033 b 408b2fd7 06e5203b e6a63447 9241ce97 fa904c05 f937f51b 38d1c259 5bc3d0c9 c1119570 9dd8be14 9121793f 0f9d574c 1d1f97e3 ade0f8e6 9c1fcf6c d97f084c 61d501d9 5fa73402 3af71411 31ff41e1 f586d456 02d16fc0 f46c9324 71106b61
+sp034 a 63665894 8f9ca35a 798a947b 3b2f8eaf fad05bff fbbdb522 aff71264 b992309d c5071e46 810f05d9 6de7b59b 2661cf13 1d1fa7dd afab79e7 4c97cbe5 943b8248 61d513d1 7026b3fa 2a3f0418 3177f9e9 914a6bda bf55ae72 6eaf311b 12d61dd2
+sp034 b 63665894 8f9ca35a 798a947b 3b2f8eaf fad04c05 fb3db523 bed70261 b9923099 c5071e46 810f85dd 6de7b59b 2661cf13 1d1f97e3 afa3f9e6 9c1fcf6c d93b0a4c 61d513d9 5fa73402 3aff0410 317779e1 914aebde bf55ae72 6eaf311b 12d61dd2
+sp035 a 54409fc8 4c9b2fce a8519bf5 84f6293c 062f93fe 879c12b0 ef2e3dfe 83327abc 1fa21fbf aa174789 5209cdcb 66b08d30 1d1fa7dd af8b78e7 4c97cbe5 942f8248 61d103d1 f02293fa aa2f041c 31efe9ed 7ff3525b b19721a2 2f780541 df1d93f7
+sp035 b 54409fc8 4c9b2fce a8519bf5 84f6293c 062f8404 871c12b1 fe0e2dfb 83327ab8 1fa21fbf aa17c78d 5209cdcb 66b08d30 1d1f97e3 af83f8e6 9c1fcf6c d92f0a4c 61d103d9 dfa31402 baef0414 31ef69e5 7ff3d25f b19721a2 2f780541 df1d93f7
+sp036 a 243332cf 878b29b9 479a8fc7 7fbcf512 052fb3fe 0e90469a 0b683fd6 007c0fae 746b657b bd533532 1d4ffe9c fa869525 1d1fafdd ade87ae7 4cd7cae5 947bc049 61d151d1 7026b3fa aa272c18 f16dc9ec eca7535b ec210a79 92a9eea8 959556a8
+sp036 b 243332cf 878b29b9 479a8fc7 7fbcf512 052fa404 0e10469b 1a482fd3 007c0faa 746b657b bd53b536 1d4ffe9c fa869525 1d1f9fe3 ade0fae6 9c5fce6c d97b484d 61d151d9 5fa73402 bae72c10 f16d49e4 eca7d35f ec210a79 92a9eea8 959556a8
+sp037 a 0ca13c9a 6329927a b7b4afa4 12cb9d70 056fbbfe 4495e6f8 0b2f983c 042f2d34 34b04c33 1d413392 d22f8fa6 38dd9647 1d1fa7dd af8b7be7 4c97cbe5 947fc049 61d121d1 f02293fa aa2f0c18 b167c9ec eca312db 343c4ae5 132674fe cdcc679e
+sp037 b 0ca13c9a 6329927a b7b4afa4 12cb9d70 056fac04 4415e6f9 1a0f8839 042f2d30 34b04c33 1d41b396 d22f8fa6 38dd9647 1d1f97e3 af83fbe6 9c1fcf6c d97f484d 61d121d9 dfa31402 baef0c10 b16749e4 eca392df 343c4ae5 132674fe cdcc679e
+sp038 a 9738e757 e142fb0d beefe225 5387d0ec 066f93fe 839a8360 e326bbae c3664f9c f37a0557 8e626580 90759649 407df811 1d1fafdd adc97be7 4c97cbe5 946f8048 61c111d1 f02293fa 2a2f2419 716981ed e1a35f53 ef116fbc bb3f998e 54d34cdc
+sp038 b 9738e757 e142fb0d beefe225 5387d0ec 066f8404 831a8361 f206abab c3664f98 f37a0557 8e62e584 90759649 407df811 1d1f9fe3 adc1fbe6 9c1fcf6c d96f084c 61c111d9 dfa31402 3aef2411 716901e5 e1a3df57 ef116fbc bb3f998e 54d34cdc
+sp039 a d7f6116a c3f84c82 6126708b ce142a43 f99073ff f2fbd1ca c3f0168c fed7d4ff 6242911a 7a0556a9 df0f12af 8c1e4344 1d1fa7dd ad8b7be7 4cd7cae5 943b8248 61c533d1 7026b3fa 2a273418 b1f781e9 947a73da c227514e 5a5e3df3 5a07c532
+sp039 b d7f6116a c3f84c82 6126708b ce142a43 f9906405 f27bd1cb d2d00689 fed7d4fb 6242911a 7a05d6ad df0f12af 8c1e4344 1d1f97e3 ad83fbe6 9c5fce6c d93b0a4c 61c533d9 5fa73402 3ae73410 b1f701e1 947af3de c227514e 5a5e3df3 5a07c532
+sp040 a 3387958b a31b5a96 db6692b9 bdc32868 056fb3fe 4a9913e0 6927fd2e 0c761d9e 5c287a67 97895ff2 5c38c0c9 73f3bbb2 1d1fa7dd afe87be7 4cd7cae5 943b8248 61c573d1 f02293fa 2a2f3c19 71f989e9 865b73db e8492e40 35326f0e 0c934335
+sp040 b 3387958b a31b5a96 db6692b9 bdc32868 056fa404 4a1913e1 7807ed2b 0c761d9a 5c287a67 9789dff6 5c38c0c9 73f3bbb2 1d1f97e3 afe0fbe6 9c5fce6c d93b0a4c 61c573d9 dfa31402 3aef3c11 71f909e1 865bf3df e8492e40 35326f0e 0c934335
+sp041 a a2cccfdb f203bb9a 405e3f9a dec9454e 056fb3fe a29a36c2 096d5804 2e307b0e 18ab3fd1 ea13470b daccea0f f3c08174 1d1fa7dd afea7ae7 4c97cbe5 946f8048 61d121d1 7026b3fa 2a3f1418 b1ffb9e8 e0b35853 55ed1c1c 150ced7b 1e93779e
+sp041 b a2cccfdb f203bb9a 405e3f9a dec9454e 056fa404 a21a36c3 184d4801 2e307b0a 18ab3fd1 ea13c70f daccea0f f3c08174 1d1f97e3 afe2fae6 9c1fcf6c d96f084c 61d121d9 5fa73402 3aff1410 b1ff39e0 e0b3d857 55ed1c1c 150ced7b 1e93779e
+sp042 a e559a200 f718744a dfc7d941 6c714b89 f99073ff d6f89000 c1b8d6cc 5ed654ff 685a3394 d0841a6b 786a8e43 51a7ec51 1d1fa7dd afeb78e7 4c97cbe5 943bc249 61d533d1 7026b3fa aa372418 31fbb9e8 964a7552 e3cad417 dce52cb2 70157b32
+sp042 b e559a200 f718744a dfc7d941 6c714b89 f9906405 d6789001 d098c6c9 5ed654fb 685a3394 d0849a6f 786a8e43 51a7ec51 1d1f97e3 afe3f8e6 9c1fcf6c d93b4a4d 61d533d9 5fa73402 baf72410 31fb39e0 964af556 e3cad417 dce52cb2 70157b32
+sp043 a 1f6fe890 1429e255 12b1565a cec9cc8a 052fbbfe 809eb702 2165d84c 242ebcc4 d2add0eb d46c23e2 f7880577 5a3151ce 1d1fafdd adca7ae7 4c97cbe5 946f8048 61d531d1 7026b3fa 2a3f0c19 b16ba9ec e2f75853 7c10ab1e fd105534 2c1d2650
+sp043 b 1f6fe890 1429e255 12b1565a cec9cc8a 052fac04 801eb703 3045c849 242ebcc0 d2add0eb d46ca3e6 f7880577 5a3151ce 1d1f9fe3 adc2fae6 9c1fcf6c d96f084c 61d531d9 5fa73402 3aff0c11 b16b29e4 e2f7d857 7c10ab1e fd105534 2c1d2650
+sp044 a f93f8bc3 12f19c52 5ea46d5b 1a21bf8f fa905bfb 55ac8c06 8ffd954c d9d88687 e58489e0 cc941b82 a71b63c4 979c01d7 1d1fa7dd ade97ae7 4c97cbe5 946f8048 61c571d3 f02293fa 2a27041c 317389e8 ed870058 26afb812 0e609ff1 0ddadce5
+sp044 b f93f8bc3 12f19c52 5ea46d5b 1a21bf8f fa904c01 552c8c07 9edd8549 d9d88683 e58489e0 cc949b86 a71b63c4 979c01d7 1d1f97e3 ade1fae6 9c1fcf6c d96f084c 61c571db dfa31402 3ae70414 317309e0 ed87805c 26afb812 0e609ff1 0ddadce5
+sp045 a 43a4160e 3cae53c2 f69c4cea ac0f963b fa9053fb 91adadb6 8df252fc ffdf4725 41050e58 a306577a 099d8ff4 ff00c177 1d1fa7dd af8b7ae7 4c97cbe5 946b8048 61d161d3 f02293fa aa3f3418 f1e1f9ed e99708d8 df14c520 9088223d 0acecbce
+sp045 b 43a4160e 3cae53c2 f69c4cea ac0f963b fa904401 912dadb7 9cd242f9 ffdf4721 41050e58 a306d77e 099d8ff4 ff00c177 1d1f97e3 af83fae6 9c1fcf6c d96b084c 61d161db dfa31402 baff3410 f1e179e5 e99788dc df14c520 9088223d 0acecbce
+sp046 a b48fb41c e978c4fe 8beb2508 c252dfc5 f9d073fb b0a66c4c 89bc528c d2dec0b7 82cec9f4 168b5e62 8f057e1b 6c057938 1d1fafdd ade87be7 4cd7cae5 943bc249 61d503d3 f02293fa 2a271c19 b16f91ec 980a3c58 83e3d485 1495c9ad 81a0c998
+sp046 b b48fb41c e978c4fe 8beb2508 c252dfc5 f9d06401 b0266c4d 989c4289 d2dec0b3 82cec9f4 168bde66 8f057e1b 6c057938 1d1f9fe3 ade0fbe6 9c5fce6c d93b4a4d 61d503db dfa31402 3ae71c11 b16f11e4 980abc5c 83e3d485 1495c9ad 81a0c998
+sp047 a a5e95442 2ed5f4be 86b1f3c9 328b0904 066f93fa 25c25a8c c12c7bce 4724ffa6 9f7f9939 620950eb 2adb4bee 0d9c20b7 1d1fafdd ade87be7 4c97cbe5 946f8048 61c511d3 7026b3fa 2a3f0419 717d89e8 e1a75f59 d68ec810 5d49c9b0 c934e347
+sp047 b a5e95442 2ed5f4be 86b1f3c9 328b0904 066f8400 25425a8d d00c6bcb 4724ffa2 9f7f9939 6209d0ef 2adb4bee 0d9c20b7 1d1f9fe3 ade0fbe6 9c1fcf6c d96f084c 61c511db 5fa73402 3aff0411 717d09e0 e1a7df5d d68ec810 5d49c9b0 c934e347
+sp048 a 0e9ac20d 349cc1b9 8f095be5 52ef4930 052fbbfe 609252b8 c32b3c76 82387f5e da63586d 8a537028 5f87a4cb f916eb69 1d1fafdd adab78e7 4cd7cae5 946f8048 61d121d1 f02293fa aa2f3c1d b1e3c1ed e2b34a53 1a2fe226 5afb41ca 64075b39
+sp048 b 0e9ac20d 349cc1b9 8f095be5 52ef4930 052fac04 601252b9 d20b2c73 82387f5a da63586d 8a53f02c 5f87a4cb f916eb69 1d1f9fe3 ada3f8e6 9c5fce6c d96f084c 61d121d9 dfa31402 baef3c15 b1e341e5 e2b3ca57 1a2fe226 5afb41ca 64075b39
+sp049 a 0601f28f cc93728e 54565084 67656a4d f9907bff b6ffb1c0 4db45084 70983275 8c451634 8ca90a02 c021f3c2 f6bdf078 1d1fa7dd adca7be7 4c97cbe5 943bc249 61d503d1 7026b3fa 2a370418 316399ec 984a3c52 05ecb011 d0e9c2fa 5fbbacfc
+sp049 b 0601f28f cc93728e 54565084 67656a4d f9906c05 b67fb1c1 5c944081 70983271 8c451634 8ca98a06 c021f3c2 f6bdf078 1d1f97e3 adc2fbe6 9c1fcf6c d93b4a4d 61d503d9 5fa73402 3af70410 316319e4 984abc56 05ecb011 d0e9c2fa 5fbbacfc
+sp050 a 62b15698 f2ccd905 dba9820b 2e8738c6 066f93fe 69d2634a 69607d8e c7386916 dda24f7b 58fc2f88 394afb05 c1bef04f 1d1fafdd adcb79e7 4c97cbe5 947fc049 61c501d1 f02293fa 2a2f1c19 717589e9 ed9714db 0acfa28f 34f59fad 5118fc38
+sp050 b 62b15698 f2ccd905 dba9820b 2e8738c6 066f8404 6952634b 78406d8b c7386912 dda24f7b 58fcaf8c 394afb05 c1bef04f 1d1f9fe3 adc3f9e6 9c1fcf6c d97f484d 61c501d9 dfa31402 3aef1c11 717509e1 ed9794df 0acfa28f 34f59fad 5118fc38
+sp051 a 18f3ddc7 727927c6 953246d1 0d83dc00 056fb3fe e0da6788 2b21394e 6c6f0a0c bc210b29 edd23cb0 0179f6fc c2d7950d 1d1fafdd adcb78e7 4c97cbe5 942b8248 61d503d1 f02293fa aa370418 316fd9ec 807b3adb 5c1cdd4a f39109ed e1f555a6
+sp051 b 18f3ddc7 727927c6 953246d1 0d83dc00 056fa404 e05a6789 3a01294b 6c6f0a08 bc210b29 edd2bcb4 0179f6fc c2d7950d 1d1f9fe3 adc3f8e6 9c1fcf6c d92b0a4c 61d503d9 dfa31402 baf70410 316f59e4 807bbadf 5c1cdd4a f39109ed e1f555a6
+sp052 a 0756fe49 151c2d8d 28e296a3 ad82cc6e 066f9bfe a59317e2 23673926 eb705dbe 95323ab9 666c7741 4085a5d5 72c3b456 1d1fa7dd adc878e7 4c97cbe5 947fc049 61d101d1 f02293fa 2a2f3418 b1f3a1e9 eda315db d5121c77 7aeefc14 691b1f72
+sp052 b 0756fe49 151c2d8d 28e296a3 ad82cc6e 066f8c04 a51317e3 32472923 eb705dba 95323ab9 666cf745 4085a5d5 72c3b456 1d1f97e3 adc0f8e6 9c1fcf6c d97f484d 61d101d9 dfa31402 3aef3410 b1f321e1 eda395df d5121c77 7aeefc14 691b1f72
+sp053 a 6db587bf 64b23589 8c39f6af 83c48c7a 052fb3fe 6ed937f2 09667ebe 0c7d9886 1a6fba85 b6124043 65d87c40 b65f09e8 1d1fafdd ade978e7 4cd7cae5 947fc049 61d511d1 f02293fa aa27341d f1fdf9e9 eea705db 0db30ca9 14a7a781 15c85aeb
+sp053 b 6db587bf 64b23589 8c39f6af 83c48c7a 052fa404 6e5937f3 18466ebb 0c7d9882 1a6fba85 b612c047 65d87c40 b65f09e8 1d1f9fe3 ade1f8e6 9c5fce6c d97f484d 61d511d9 dfa31402 bae73415 f1fd79e1 eea785df 0db30ca9 14a7a781 15c85aeb
+sp054 a 1c55e275 b23b4296 ace11e99 b8c1ec48 056fb3fe 4ad537c0 a1247e86 aa64d9cc 7e659793 450f16f1 52027634 49ff13a7 1d1fa7dd afca7be7 4cd7cae5 943b8248 61d573d1 f02293fa aa2f3419 f161f9ec 866b73db f02b4860 7d35e5b6 6c08f6a9
+sp054 b 1c55e275 b23b4296 ace11e99 b8c1ec48 056fa404 4a5537c1 b0046e83 aa64d9c8 7e659793 450f96f5 52027634 49ff13a7 1d1f97e3 afc2fbe6 9c5fce6c d93b0a4c 61d573d9 dfa31402 baef3411 f16179e4 866bf3df f02b4860 7d35e5b6 6c08f6a9
+sp055 a bc05cb69 59fdb9c6 a203ecd6 042a1e07 fa9053fb 17e24d8e 21f452cc 1388e1a5 e55d8fc4 2b6c64b8 ca1059d0 c6b83bf1 1d1fa7dd afa978e7 4c97cbe5 946b8048 61c171d3 f02293fa 2a2f2418 317fc9e8 e9871ad8 60b9e90a 7c76026d c0aac34b
+sp055 b bc05cb69 59fdb9c6 a203ecd6 042a1e07 fa904401 17624d8f 30d442c9 1388e1a1 e55d8fc4 2b6ce4bc ca1059d0 c6b83bf1 1d1f97e3 afa1f8e6 9c1fcf6c d96b084c 61c171db dfa31402 3aef2410 317f49e0 e9879adc 60b9e90a 7c76026d c0aac34b
+sp056 a 2c0ed09e dabba219 777afe38 dbda6cec 052fbbfe 0adf1760 a7261fa4 0c669f86 5063925b 323946eb 32310ffc 8e9c241c 1d1fa7dd adcb7ae7 4cd7cae5 947fc049 61d551d1 7026b3fa aa272c1d b17f99e8 eea743db f1ef4a33 f6e80edf 5558944d
+sp056 b 2c0ed09e dabba219 777afe38 dbda6cec 052fac04 0a5f1761 b6060fa1 0c669f82 5063925b 3239c6ef 32310ffc 8e9c241c 1d1f97e3 adc3fae6 9c5fce6c d97f484d 61d551d9 5fa73402 bae72c15 b17f19e0 eea7c3df f1ef4a33 f6e80edf 5558944d
+sp057 a 2dc1df2a f6d84179 ef577fa2 4ff76d76 052fbbfe e89cf6fa 296bde3c c27b5e44 74e35b91 74ce2f41 1543bd94 cab58067 1d1fafdd afa978e7 4cd7cae5 947f8048 61d561d1 f02293fa aa3f141d 316789ed e8a74c53 92378c5c f4ba7804 9b3426ae
+sp057 b 2dc1df2a f6d84179 ef577fa2 4ff76d76 052fac04 e81cf6fb 384bce39 c27b5e40 74e35b91 74ceaf45 1543bd94 cab58067 1d1f9fe3 afa1f8e6 9c5fce6c d97f084c 61d561d9 dfa31402 baff1415 316709e5 e8a7cc57 92378c5c f4ba7804 9b3426ae
+sp058 a 0f5ed627 d527f20f 200b3924 1e33cbe9 f9d073ff 30fb3060 c9bed0ac bc91b047 4c84f4a4 318e1c7a f4b1037b 4c5e18a3 1d1fa7dd adcb78e7 4cd7cae5 947fc049 61c121d1 f02293fa 2a273c19 716da9ec f9f25dda 4196c67d d44f6d8f 57a7f58e
+sp058 b 0f5ed627 d527f20f 200b3924 1e33cbe9 f9d06405 307b3061 d89ec0a9 bc91b043 4c84f4a4 318e9c7e f4b1037b 4c5e18a3 1d1f97e3 adc3f8e6 9c5fce6c d97f484d 61c121d9 dfa31402 3ae73c11 716d29e4 f9f2ddde 4196c67d d44f6d8f 57a7f58e
+sp059 a 2d890601 d4a4c00a b8a4be2d a58becfc 056fbbfe 60dab770 8327383e ee307c04 58f31f41 39ca3db9 2b4fe6b4 fdfab915 1d1fafdd af8b7ae7 4c97cbe5 946f8048 61d521d1 7026b3fa aa373c19 b17781e9 e0b74853 9a0baaee 1b473542 5c2f5f8f
+sp059 b 2d890601 d4a4c00a b8a4be2d a58becfc 056fac04 605ab771 9207283b ee307c00 58f31f41 39cabdbd 2b4fe6b4 fdfab915 1d1f9fe3 af83fae6 9c1fcf6c d96f084c 61d521d9 5fa73402 baf73c11 b17701e1 e0b7c857 9a0baaee 1b473542 5c2f5f8f
+sp060 a f141dbe9 eaef99c5 00396fff 7bd63536 066f93fe 679d46ba 8d6bf87e ef68cd86 bfaace2b ed841990 f3fc3b0f d6957e5f 1d1fa7dd afe978e7 4c97cbe5 947fc049 61d541d1 7026b3fa aa3f3c19 f1e581ed eba75ddb 930b1d17 10fa5501 9f546d10
+sp060 b f141dbe9 eaef99c5 00396fff 7bd63536 066f8404 671d46bb 9c4be87b ef68cd82 bfaace2b ed849994 f3fc3b0f d6957e5f 1d1f97e3 afe1f8e6 9c1fcf6c d97f484d 61d541d9 5fa73402 baff3c11 f1e501e5 eba7dddf 930b1d17 10fa5501 9f546d10
+sp061 a 101e9706 f14cd806 beffa23e 2accd0f2 062f93fe 8d9f637a 61665bb4 cb764fae 3bad2d05 e06422ea 73eaa831 11c392f2 1d1fafdd afc87ae7 4c97cbe5 947f8048 61d101d1 7026b3fa aa27341d b17bc9e9 e7e31253 6b09eee0 3cec29d0 964993c4
+sp061 b 101e9706 f14cd806 beffa23e 2accd0f2 062f8404 8d1f637b 70464bb1 cb764faa 3bad2d05 e064a2ee 73eaa831 11c392f2 1d1f9fe3 afc0fae6 9c1fcf6c d97f084c 61d101d9 5fa73402 bae73415 b17b49e1 e7e39257 6b09eee0 3cec29d0 964993c4
+sp062 a e8f1a6f3 b0df6505 6ff7ab19 f68a19d4 066f93fe 03dee258 4d2d7b16 a36ac86c 1f6e83ef 5e5f6502 3e917532 90d17fdb 1d1fafdd adaa7be7 4c97cbe5 946f8048 61d111d1 f02293fa aa3f0c18 b1fb81e8 e1b35f53 76fc4ec4 d148c225 27451263
+sp062 b e8f1a6f3 b0df6505 6ff7ab19 f68a19d4 066f8404 035ee259 5c0d6b13 a36ac868 1f6e83ef 5e5fe506 3e917532 90d17fdb 1d1f9fe3 ada2fbe6 9c1fcf6c d96f084c 61d111d9 dfa31402 baff0c10 b1fb01e0 e1b3df57 76fc4ec4 d148c225 27451263
+sp063 a ff30974c 658ef48b a41b3d90 b0584759 f9d07bff 58f734d0 0db9521c b49b3747 c0863600 34ca3fe1 ebccceb7 daa393a6 1d1fa7dd adc979e7 4c97cbe5 943bc249 61d503d1 7026b3fa aa373c18 f1f9d9e8 980a3c52 63f62f01 90e4f962 da5ab8c9
+sp063 b ff30974c 658ef48b a41b3d90 b0584759 f9d06c05 587734d1 1c994219 b49b3743 c0863600 34cabfe5 ebccceb7 daa393a6 1d1f97e3 adc1f9e6 9c1fcf6c d93b4a4d 61d503d9 5fa73402 baf73c10 f1f959e0 980abc56 63f62f01 90e4f962 da5ab8c9
+sp064 a e7f34d07 e2424ebb 36e9a5c7 9303df13 fa9053ff 9dfe449a 2bf9925c 3bca4007 8b0640ac bc9609a1 33d29290 0386fd80 1d1fafdd adaa7be7 4c97cbe5 947f8048 61d101d1 f02293fa 2a37041d b17bc1e8 f5825152 dcc4ecc0 7264b2e4 20020de8
+sp064 b e7f34d07 e2424ebb 36e9a5c7 9303df13 fa904405 9d7e449b 3ad98259 3bca4003 8b0640ac bc9689a5 33d29290 0386fd80 1d1f9fe3 ada2fbe6 9c1fcf6c d97f084c 61d101d9 dfa31402 3af70415 b17b41e0 f582d156 dcc4ecc0 7264b2e4 20020de8
+sp065 a 0cf77975 a60d7001 72630617 ae80bcc2 056fb3fa ce83ef4e 2f64398e cc710f54 b83e6293 512f07f9 2ab0901d 254df257 1d1fa7dd ade978e7 4cd7cae5 943bc249 61c573d3 7026b3fa aa371418 b17bf9e9 8c5b7559 ee2136d1 6ef9baee 81f2c016
+sp065 b 0cf77975 a60d7001 72630617 ae80bcc2 056fa400 ce03ef4f 3e44298b cc710f50 b83e6293 512f87fd 2ab0901d 254df257 1d1f97e3 ade1f8e6 9c5fce6c d93b4a4d 61c573db 5fa73402 baf71410 b17b79e1 8c5bf55d ee2136d1 6ef9baee 81f2c016
+sp066 a dd6d3423 19ea048f 9e74e4a5 160b5e69 f9d07bff 94b525e0 21b2d4ac 9683e007 e6c0ccba e146217b 5a4a7d95 118c7ffc 1d1fa7dd afea7be7 4cd7cae5 947fc049 61c111d1 f02293fa aa2f041c 31ffd9e9 f7f242da dbd5cd3b fc632192 cb9bd2a7
+sp066 b dd6d3423 19ea048f 9e74e4a5 160b5e69 f9d06c05 943525e1 3092c4a9 9683e003 e6c0ccba e146a17f 5a4a7d95 118c7ffc 1d1f97e3 afe2fbe6 9c5fce6c d97f484d 61c111d9 dfa31402 baef0414 31ff59e1 f7f2c2de dbd5cd3b fc632192 cb9bd2a7
+sp067 a 92e80be7 ff006286 8b8584a2 646abe6f f9d073fb baed0de6 2ff3952c 58cb022f 8e1c4eb6 eb1a45b9 8284f3bb 9202fe38 1d1fa7dd afc87be7 4cd7cae5 947b8048 61c101d3 f02293fa aa3f1418 f1fdf1e9 f1f649d8 bd77e474 ee36c10d b1df483c
+sp067 b 92e80be7 ff006286 8b8584a2 646abe6f f9d06401 ba6d0de7 3ed38529 58cb022b 8e1c4eb6 eb1ac5bd 8284f3bb 9202fe38 1d1f97e3 afc0fbe6 9c5fce6c d97b084c 61c101db dfa31402 baff1410 f1fd71e1 f1f6c9dc bd77e474 ee36c10d b1df483c
+sp068 a 869fa908 1b9a0ffa ddf08a25 97cb58f0 056fb3fe ca9e4378 4722bbbe 0a734c3c 54e46bcb 86b34cc2 748b81d5 39a7c96e 1d1fa7dd afe878e7 4cd7cae5 943b8248 61d563d1 f02293fa aa2f0419 71e9b9ec 866b64db 703c3fe6 d737887e 8c6a34f7
+sp068 b 869fa908 1b9a0ffa ddf08a25 97cb58f0 056fa404 ca1e4379 5602abbb 0a734c38 54e46bcb 86b3ccc6 748b81d5 39a7c96e 1d1f97e3 afe0f8e6 9c5fce6c d93b0a4c 61d563d9 dfa31402 baef0411 71e939e4 866be4df 703c3fe6 d737887e 8c6a34f7
+sp069 a fbf6b59d c2d1910d 71fc7721 dc930dec 066f9bfe 21dd3660 af2a38a6 a5791b06 95e25795 443e05c0 c7918c8b 2524dd18 1d1fa7dd afab79e7 4c97cbe5 947f8048 61d141d1 7026b3fa 2a270c1d 316381ed e7a35353 d7095bf2 6f2824de 3e2a710f
+sp069 b fbf6b59d c2d1910d 71fc7721 dc930dec 066f8c04 215d3661 be0a28a3 a5791b02 95e25795 443e85c4 c7918c8b 2524dd18 1d1f97e3 afa3f9e6 9c1fcf6c d97f084c 61d141d9 5fa73402 3ae70c15 316301e5 e7a3d357 d7095bf2 6f2824de 3e2a710f
+sp070 a e23776cf 45520e5b 7769655f b1569f8f fa9053ff 7bfb0402 23fd954c b3d94037 238521e0 ab6c663b 14a59b44 aa9a88c4 1d1fa7dd ade87ae7 4c97cbe5 946b8048 61d161d1 f02293fa 2a37241d f169d1ec eb9708d2 feaa6dd4 7a74cff4 e7e4dd40
+sp070 b e23776cf 45520e5b 7769655f b1569f8f fa904405 7b7b0403 32dd8549 b3d94033 238521e0 ab6ce63f 14a59b44 aa9a88c4 1d1f97e3 ade0fae6 9c1fcf6c d96b084c 61d161d9 dfa31402 3af72415 f16951e4 eb9788d6 feaa6dd4 7a74cff4 e7e4dd40
+sp071 a c6f95457 fc514ed6 6f36a6dd 9d9dbc0c 052fb3fa 60cb0f84 2b20b8ce e667cfa4 9a7580ab ef844b13 1fbe5845 e7ea79e5 1d1fa7dd af8879e7 4c97cbe5 947f8048 61c151d3 7026b3fa aa272418 b1f781e9 e8d34b59 98064590 7331acaf 703b8e8d
+sp071 b c6f95457 fc514ed6 6f36a6dd 9d9dbc0c 052fa400 604b0f85 3a00a8cb e667cfa0 9a7580ab ef84cb17 1fbe5845 e7ea79e5 1d1f97e3 af80f9e6 9c1fcf6c d97f084c 61c151db 5fa73402 bae72410 b1f701e1 e8d3cb5d 98064590 7331acaf 703b8e8d
+sp072 a fd92fd2f 933af106 b8a63401 015fcecd f9d073fb f4ea3d44 05b45384 d4cf9095 0cd1b666 76eb7c61 0c977292 73f97fe3 1d1fafdd adea79e7 4c97cbe5 943bc249 61d503d3 f02293fa aa3f2419 f175a9e9 980a3c58 3f9e058d 18f5cfb5 39ba3e1c
+sp072 b fd92fd2f 933af106 b8a63401 015fcecd f9d06401 f46a3d45 14944381 d4cf9091 0cd1b666 76ebfc65 0c977292 73f97fe3 1d1f9fe3 ade2f9e6 9c1fcf6c d93b4a4d 61d503db dfa31402 baff2411 f17529e1 980abc5c 3f9e058d 18f5cfb5 39ba3e1c
+sp073 a fa665545 9acd9806 99e5ff21 d884edec 066f9bfa 8bc81e64 2f2e38a6 c17d1d26 93eb79a3 6bca7eb8 85c78167 28809edc 1d1fa7dd ad8b78e7 4c97cbe5 947b8048 61d121d3 f02293fa 2a3f1c19 71e9f1ed e7a744d9 e6ca157a 6f3c2494 4f4d0e2b
+sp073 b fa665545 9acd9806 99e5ff21 d884edec 066f8c00 8b481e65 3e0e28a3 c17d1d22 93eb79a3 6bcafebc 85c78167 28809edc 1d1f97e3 ad83f8e6 9c1fcf6c d97b084c 61d121db dfa31402 3aff1c11 71e971e5 e7a7c4dd e6ca157a 6f3c2494 4f4d0e2b
+sp074 a 527da152 a954e059 420dba7e e4a988ae 052fb3fe ead59322 65665de4 8436b95e f224dd2b f01a07ea 205e068d 61ca0007 1d1fafdd af887ae7 4cd7cae5 946b8048 61c101d1 7026b3fa aa3f1c1d f17df9e8 dea740d3 06138138 38d410a0 19a39bb0
+sp074 b 527da152 a954e059 420dba7e e4a988ae 052fa404 ea559323 74464de1 8436b95a f224dd2b f01a87ee 205e068d 61ca0007 1d1f9fe3 af80fae6 9c5fce6c d96b084c 61c101d9 5fa73402 baff1c15 f17d79e0 dea7c0d7 06138138 38d410a0 19a39bb0
+sp075 a bc2993ff 8c5f3fcd 18652ff3 27fe3d3e 066f9bfe 07dea6b2 0b6eb9f6 6b386e26 712a426f 39ab1bbb d7d0b3a1 e2219ca0 1d1fa7dd adca78e7 4cd7cae5 943bc249 61d553d1 7026b3fa aa373c18 317be1e9 8b6b6d53 b535bce9 92ef8288 633f49eb
+sp075 b bc2993ff 8c5f3fcd 18652ff3 27fe3d3e 066f8c04 075ea6b3 1a4ea9f3 6b386e22 712a426f 39ab9bbf d7d0b3a1 e2219ca0 1d1f97e3 adc2f8e6 9c5fce6c d93b4a4d 61d553d9 5fa73402 baf73c10 317b61e1 8b6bed57 b535bce9 92ef8288 633f49eb
+sp076 a 77ea2b01 1a0a9981 3a15e7a8 f2bc5d78 056fbbfa a8830ef4 052f583c 24698f2e d6e88e2b f2e96ec9 cb38253e 9c19348c 1d1fa7dd afeb7ae7 4cd7cae5 942bc249 61d543d3 7026b3fa 2a2f041d 71ede9ed 827b7b59 0a3853e5 1936bc45 0413ffc3
+sp076 b 77ea2b01 1a0a9981 3a15e7a8 f2bc5d78 056fac00 a8030ef5 140f4839 24698f2a d6e88e2b f2e9eecd cb38253e 9c19348c 1d1f97e3 afe3fae6 9c5fce6c d92b4a4d 61d543db 5fa73402 3aef0415 71ed69e5 827bfb5d 0a3853e5 1936bc45 0413ffc3
+sp077 a 702acba7 ba9030c9 133dced2 11883c06 052fbbfe e4db478a 2765194c 003fadf6 9228e621 8397485b 041a7fe6 0b1d798f 1d1fafdd ade979e7 4c97cbe5 947b8048 61d161d1 7026b3fa aa270c1d 717991e8 e8e75bd3 15bd4b4c 76ed2438 216dce5a
+sp077 b 702acba7 ba9030c9 133dced2 11883c06 052fac04 e45b478b 36450949 003fadf2 9228e621 8397c85f 041a7fe6 0b1d798f 1d1f9fe3 ade1f9e6 9c1fcf6c d97b084c 61d161d9 5fa73402 bae70c15 717911e0 e8e7dbd7 15bd4b4c 76ed2438 216dce5a
+sp078 a 9661ae91 88d7358e faed8281 1c88f84c 062f93fe e39503c0 cb253d06 0926a906 77a8c229 475b6152 9cfe63a6 4459696d 1d1fa7dd ad8a78e7 4c97cbe5 947f8048 61d531d1 f02293fa 2a371418 b1ffc9e8 e9e74c53 99464060 d3390835 47917aa6
+sp078 b 9661ae91 88d7358e faed8281 1c88f84c 062f8404 e31503c1 da052d03 0926a902 77a8c229 475be156 9cfe63a6 4459696d 1d1f97e3 ad82f8e6 9c1fcf6c d97f084c 61d531d9 dfa31402 3af71410 b1ff49e0 e9e7cc57 99464060 d3390835 47917aa6
+sp079 a a6b7dbe0 79a84a09 1a136729 96ff95fc 052fb3fe ead62670 0b2f393e 007a8ce4 f42cab33 1bb35b39 81936d46 8b087e07 1d1fa7dd adca7ae7 4c97cbe5 946b8048 61d101d1 f02293fa 2a3f2c19 71e9d1ec e0f748d3 8fdd0bea 934b33fe 1047adb4
+sp079 b a6b7dbe0 79a84a09 1a136729 96ff95fc 052fa404 ea562671 1a0f293b 007a8ce0 f42cab33 1bb3db3d 81936d46 8b087e07 1d1f97e3 adc2fae6 9c1fcf6c d96b084c 61d101d9 dfa31402 3aff2c11 71e951e4 e0f7c8d7 8fdd0bea 934b33fe 1047adb4
+sp080 a c6aff1ea f6c0140f 1ef2d135 970dabf9 f9d07bff b8fd9070 43be16bc 54c5909d 8087dde6 c80f018b e95c5e2a df3a6dc2 1d1fa7dd af8878e7 4cd7cae5 947fc049 61c111d1 f02293fa aa37341d 3177a9e8 f7f245da b7ef65ab da600f83 050a54d3
+sp080 b c6aff1ea f6c0140f 1ef2d135 970dabf9 f9d06c05 b87d9071 529e06b9 54c59099 8087dde6 c80f818f e95c5e2a df3a6dc2 1d1f97e3 af80f8e6 9c5fce6c d97f484d 61c111d9 dfa31402 baf73415 317729e0 f7f2c5de b7ef65ab da600f83 050a54d3
+sp081 a 1fbae9d3 31100dca 1583c5c7 15769f0f f9d07bfb f2af8c86 8ff91244 d0952565 464c04ce cc463602 fa61fa9a dcbea152 1d1fa7dd ada87ae7 4cd7cae5 947f8048 61c121d3 7026b3fa aa370418 f169c9ed f5f25258 07c98758 0e292439 bd710e4c
+sp081 b 1fbae9d3 31100dca 1583c5c7 15769f0f f9d06c01 f22f8c87 9ed90241 d0952561 464c04ce cc46b606 fa61fa9a dcbea152 1d1f97e3 ada0fae6 9c5fce6c d97f084c 61c121db 5fa73402 baf70410 f16949e5 f5f2d25c 07c98758 0e292439 bd710e4c
+sp082 a dc00252c 6ac2b08d 1e637ea1 04f50c6c 066f93fe eb9417e0 0b273f26 81729c9e 7576b62f 3d081633 b30d7c6a 60010132 1d1fa7dd afcb79e7 4cd7cae5 943b8248 61d553d1 7026b3fa 2a3f0419 31fff9e8 856b73db cf7f8abc 133f055a 4f9d7251
+sp082 b dc00252c 6ac2b08d 1e637ea1 04f50c6c 066f8404 eb1417e1 1a072f23 81729c9a 7576b62f 3d089637 b30d7c6a 60010132 1d1f97e3 afc3f9e6 9c5fce6c d93b0a4c 61d553d9 5fa73402 3aff0411 31ff79e0 856bf3df cf7f8abc 133f055a 4f9d7251
+sp083 a 81435d46 c75ecb06 5dd8af00 3ebaddcc 066f93fa a58b8e44 8b29990c 29768cec bba0a44f c3c07cfa 21cc0231 55b65be2 1d1fafdd adeb79e7 4cd7cae5 943bc249 61d553d3 7026b3fa aa3f041d 7179f9e8 8b6b6c59 0f27d557 133c6b75 f4834440
+sp083 b 81435d46 c75ecb06 5dd8af00 3ebaddcc 066f8400 a50b8e45 9a098909 29768ce8 bba0a44f c3c0fcfe 21cc0231 55b65be2 1d1f9fe3 ade3f9e6 9c5fce6c d93b4a4d 61d553db 5fa73402 baff0415 717979e0 8b6bec5d 0f27d557 133c6b75 f4834440
+sp084 a 02d74871 4c517a46 9655fd41 8d130f89 f9d073fb 1eecbc04 a9bdd54c 3884b227 ee81f82a f6d369e3 fdf83a27 06ec26a4 1d1fafdd ad8878e7 4cd7cae5 943bc249 61d543d3 f02293fa aa273418 71f5e1e9 984a7d58 161d88d5 74945eec 5e5ce7c7
+sp084 b 02d74871 4c517a46 9655fd41 8d130f89 f9d06401 1e6cbc05 b89dc549 3884b223 ee81f82a f6d3e9e7 fdf83a27 06ec26a4 1d1f9fe3 ad80f8e6 9c5fce6c d93b4a4d 61d543db dfa31402 bae73410 71f561e1 984afd5c 161d88d5 74945eec 5e5ce7c7
+sp085 a 915df6d1 85f8b006 6a0d560e c0dbecc2 062f9bfe 4bd3d74a 8d61d804 47237e0e 973c5365 3b1e521b 5b599ec0 cc8a8231 1d1fa7dd afa878e7 4c97cbe5 947f8048 61c531d1 f02293fa aa27041d 71e1f1ed e7d74453 26e92ed6 90ec5d3c 5afe8e26
+sp085 b 915df6d1 85f8b006 6a0d560e c0dbecc2 062f8c04 4b53d74b 9c41c801 47237e0a 973c5365 3b1ed21f 5b599ec0 cc8a8231 1d1f97e3 afa0f8e6 9c1fcf6c d97f084c 61c531d9 dfa31402 bae70415 71e171e5 e7d7c457 26e92ed6 90ec5d3c 5afe8e26
+sp086 a 99b4633d 123ab2c2 b2d9d8fa 48780a33 f99073ff b6bc51ba 63f290fc 94d01437 240d1e6e ac423621 bd51f270 03f6f8fb 1d1fafdd afca79e7 4cd7cae5 943b8248 61d503d1 f02293fa aa3f041d f16d81ec 924a3bda 842bf218 ba77b344 8921d4fc
+sp086 b 99b4633d 123ab2c2 b2d9d8fa 48780a33 f9906405 b63c51bb 72d280f9 94d01433 240d1e6e ac42b625 bd51f270 03f6f8fb 1d1f9fe3 afc2f9e6 9c5fce6c d93b0a4c 61d503d9 dfa31402 baff0415 f16d01e4 924abbde 842bf218 ba77b344 8921d4fc
+sp087 a 43be9442 4d2427cd 0aba72c3 78ce880e 066f93fe 0b9a1382 c364bcce e377db24 5d6eb853 570f40d2 6c9c50ae 1a1d3116 1d1fa7dd adab78e7 4c97cbe5 947bc049 61d131d1 f02293fa 2a3f1418 316ff1ed eba75d5b 6f20211d db05486c e8b40f8c
+sp087 b 43be9442 4d2427cd 0aba72c3 78ce880e 066f8404 0b1a1383 d244accb e377db20 5d6eb853 570fc0d6 6c9c50ae 1a1d3116 1d1f97e3 ada3f8e6 9c1fcf6c d97b484d 61d131d9 dfa31402 3aff1410 316f71e5 eba7dd5f 6f20211d db05486c e8b40f8c
+sp088 a 6ae491b4 0e1ac9c7 35202ce3 5f43be2f f99073fb 3ce52da6 0bf71364 b4c1014d 08826fc4 31c03958 954cfa91 90b0e701 1d1fafdd ad8b78e7 4c97cbe5 947f8048 61d511d3 f02293fa aa2f0419 b17b99e8 f6864458 37c515f6 125f21d6 216ab3e0
+sp088 b 6ae491b4 0e1ac9c7 35202ce3 5f43be2f f9906401 3c652da7 1ad70361 b4c10149 08826fc4 31c0b95c 954cfa91 90b0e701 1d1f9fe3 ad83f8e6 9c1fcf6c d97f084c 61d511db dfa31402 baef0411 b17b19e0 f686c45c 37c515f6 125f21d6 216ab3e0
+sp089 a 92b9b1f0 a3a98af6 b06c3e26 1e8a0cf6 052fbbfa 00845f7e 0b6699bc cc7b1cc6 1e6753af 45b909d2 2716e2d0 b0fb9198 1d1fafdd af8b7be7 4c97cbe5 947f8048 61d531d3 7026b3fa aa273c1c 316fa9ed e8e71959 f21a00a2 92e7c3c5 191ca74e
+sp089 b 92b9b1f0 a3a98af6 b06c3e26 1e8a0cf6 052fac00 00045f7f 1a4689b9 cc7b1cc2 1e6753af 45b989d6 2716e2d0 b0fb9198 1d1f9fe3 af83fbe6 9c1fcf6c d97f084c 61d531db 5fa73402 bae73c14 316f29e5 e8e7995d f21a00a2 92e7c3c5 191ca74e
+sp090 a bd718143 60dadb0a d7687710 518a6dc4 056fb3fe 44dc5648 8d29df04 c431388c 52277a99 0d150313 7103dc05 7155864c 1d1fafdd afe879e7 4c97cbe5 943bc249 61d573d1 7026b3fa 2a271c18 3163f9ec 8a6b6c53 760a0bd7 91641c7a 141e5944
+sp090 b bd718143 60dadb0a d7687710 518a6dc4 056fa404 445c5649 9c09cf01 c4313888 52277a99 0d158317 7103dc05 7155864c 1d1f9fe3 afe0f9e6 9c1fcf6c d93b4a4d 61d573d9 5fa73402 3ae71c10 316379e4 8a6bec57 760a0bd7 91641c7a 141e5944
+sp091 a eada09eb 1b245f8d b2866a83 f4d7b84e 066f93fe e99003c2 63653d06 e72b69a6 97e24007 dabe4a8a ba4fb3d3 7469f329 1d1fafdd adc878e7 4c97cbe5 947fc049 61d531d1 7026b3fa 2a373c19 71e5a9ec eda745db 1311605d baf8e079 25825a2f
+sp091 b eada09eb 1b245f8d b2866a83 f4d7b84e 066f8404 e91003c3 72452d03 e72b69a2 97e24007 dabeca8e ba4fb3d3 7469f329 1d1f9fe3 adc0f8e6 9c1fcf6c d97f484d 61d531d9 5fa73402 3af73c11 71e529e4 eda7c5df 1311605d baf8e079 25825a2f
+sp092 a c4439bb3 0e0b4187 94d0c4af 7a2bde63 f9d07bff faf345ea 0ff7132c 5cc4031f a6c32694 958a1e53 6e798499 9531fcb2 1d1fa7dd afc978e7 4cd7cae5 942b8248 61d503d1 7026b3fa aa272c1c b1e381ed 8a1a7ada c00a1ee8 8e676957 0993a539
+sp092 b c4439bb3 0e0b4187 94d0c4af 7a2bde63 f9d06c05 fa7345eb 1ed70329 5cc4031b a6c32694 958a9e57 6e798499 9531fcb2 1d1f97e3 afc1f8e6 9c5fce6c d92b0a4c 61d503d9 5fa73402 bae72c14 b1e301e5 8a1afade c00a1ee8 8e676957 0993a539
+sp093 a 2cb286a1 79f10a46 8e1eb37e 5fcbe1b2 062f93fe e1db523a 4b6e1cf4 c52cbef4 91269293 ba154488 cfc03915 c3793b04 1d1fa7dd ad887ae7 4cd7cae5 947f8048 61d131d1 f02293fa 2a371c19 31e7c1ec e9a34a53 9901e066 52b03148 07975d5e
+sp093 b 2cb286a1 79f10a46 8e1eb37e 5fcbe1b2 062f8404 e15b523b 5a4e0cf1 c52cbef0 91269293 ba15c48c cfc03915 c3793b04 1d1f97e3 ad80fae6 9c5fce6c d97f084c 61d131d9 dfa31402 3af71c11 31e741e4 e9a3ca57 9901e066 52b03148 07975d5e
+sp094 a 9aa940ed 5eabd84e 01562365 08fd71a8 062f93fe ef910220 c92a7ae6 27346e54 f5a74ae1 1d0a1512 9db0fce7 6c08fd3f 1d1fa7dd ad8978e7 4cd7cae5 946f8048 61d101d1 7026b3fa 2a2f041d 31f7c1e8 e1b35a53 0b67523a 54ffdb9e c10f7c9b
+sp094 b 9aa940ed 5eabd84e 01562365 08fd71a8 062f8404 ef110221 d80a6ae3 27346e50 f5a74ae1 1d0a9516 9db0fce7 6c08fd3f 1d1f97e3 ad81f8e6 9c5fce6c d96f084c 61d101d9 5fa73402 3aef0415 31f741e0 e1b3da57 0b67523a 54ffdb9e c10f7c9b
+sp095 a 90ec5201 2b9cb95a 0b92b27e 23e008ae 056fb3fe 2693b322 c7621de4 ce7c5af4 3826301d 6e1953a2 b4dcfe83 ca6aa90b 1d1fa7dd ade979e7 4c97cbe5 946f8048 61d111d1 7026b3fa aa271c19 f1f9f9e8 e2b34953 d40c9ffa d7003f9c c445db1a
+sp095 b 90ec5201 2b9cb95a 0b92b27e 23e008ae 056fa404 2613b323 d6420de1 ce7c5af0 3826301d 6e19d3a6 b4dcfe83 ca6aa90b 1d1f97e3 ade1f9e6 9c1fcf6c d96f084c 61d111d9 5fa73402 bae71c11 f1f979e0 e2b3c957 d40c9ffa d7003f9c c445db1a
+sp096 a c3f9fcfa fe0ee942 7e29365a 1df34c92 062f93fe 6ddbd71a 29645fd4 09731806 132572a5 cfd76932 b4018c33 c9aeffe9 1d1fafdd ad8b7be7 4c97cbe5 946f8048 61d511d1 f02293fa 2a270419 b16fa1ec e1f75f53 0f1e6a82 74f9d568 4accc5ed
+sp096 b c3f9fcfa fe0ee942 7e29365a 1df34c92 062f8404 6d5bd71b 38444fd1 09731802 132572a5 cfd7e936 b4018c33 c9aeffe9 1d1f9fe3 ad83fbe6 9c1fcf6c d96f084c 61d511d9 dfa31402 3ae70411 b16f21e4 e1f7df57 0f1e6a82 74f9d568 4accc5ed
+sp097 a 9bf2db06 83e48c0e 4ef93907 4a7863cf f99073ff 94f29042 c3f81084 7091362d e2cc3a96 9af6798b cc12cde2 62e0861b 1d1fafdd ad8a78e7 4c97cbe5 947f8048 61d521d1 f02293fa aa2f3c1d 7175e9e8 f6865452 e7e0b41c 5a5e6cbc 3530cc65
+sp097 b 9bf2db06 83e48c0e 4ef93907 4a7863cf f9906405 94729043 d2d80081 70913629 e2cc3a96 9af6f98f cc12cde2 62e0861b 1d1f9fe3 ad82f8e6 9c1fcf6c d97f084c 61d521d9 dfa31402 baef3c15 717569e0 f686d456 e7e0b41c 5a5e6cbc 3530cc65
+sp098 a 358eb089 d0aba786 0a282381 54c4594c 066f9bfa c58f2ac4 e32dba0e e53f2e2c f52521cb 775261d3 d700db14 713dbb2e 1d1fa7dd afaa78e7 4c97cbe5 947f8048 61d541d3 f02293fa 2a2f041d 7171a9e8 e7a75459 ad145a0e bb288b30 427264c1
+sp098 b 358eb089 d0aba786 0a282381 54c4594c 066f8c00 c50f2ac5 f20daa0b e53f2e28 f52521cb 7752e1d7 d700db14 713dbb2e 1d1f97e3 afa2f8e6 9c1fcf6c d97f084c 61d541db dfa31402 3aef0415 717129e0 e7a7d45d ad145a0e bb288b30 427264c1
+sp099 a 5406404e b60896c7 d2b995f6 2823673b f99073fb 12e59cb6 a9fad5f4 94d5170f 024c10c6 14fd3b62 3fe3d2d0 09bfc8f0 1d1fa7dd afc87be7 4c97cbe5 947b8048 61d111d3 7026b3fa 2a3f341c 717581e8 f28659d8 dd8bb366 746f9f8d 86c8a61f
+sp099 b 5406404e b60896c7 d2b995f6 2823673b f9906401 12659cb7 b8dac5f1 94d5170b 024c10c6 14fdbb66 3fe3d2d0 09bfc8f0 1d1f97e3 afc0fbe6 9c1fcf6c d97b084c 61d111db 5fa73402 3aff3414 717501e0 f286d9dc dd8bb366 746f9f8d 86c8a61f
+sp100 a 5b706162 fe8b0835 90bcaf42 7e9df592 052fb3fe 6691661a 0f6818d4 8223eadc 5c7aa24f 47ed6ef3 750d7ff0 1c825443 1d1fa7dd afea78e7 4c97cbe5 947f8048 61c151d1 7026b3fa 2a2f041d 71f999e9 e8d34c53 8a1deefa 0ef22cb0 a6218814
+sp100 b 5b706162 fe8b0835 90bcaf42 7e9df592 052fa404 6611661b 1e4808d1 8223ead8 5c7aa24f 47edeef7 750d7ff0 1c825443 1d1f97e3 afe2f8e6 9c1fcf6c d97f084c 61c151d9 5fa73402 3aef0415 71f919e1 e8d3cc57 8a1deefa 0ef22cb0 a6218814
+sp101 a 279d4900 9ccdc04e 52c86644 5dd03c8c 062f9bfe 47992700 8f211844 a361cc26 31a0a461 399b1a39 406f66a6 18f677b6 1d1fafdd ad8a78e7 4cd7cae5 947bc049 61d141d1 f02293fa aa270419 71f9d9e8 eba75d5b 336a0c51 8ef0edf7 ef4bda08
+sp101 b 279d4900 9ccdc04e 52c86644 5dd03c8c 062f8c04 47192701 9e010841 a361cc22 31a0a461 399b9a3d 406f66a6 18f677b6 1d1f9fe3 ad82f8e6 9c5fce6c d97b484d 61d141d9 dfa31402 bae70411 71f959e0 eba7dd5f 336a0c51 8ef0edf7 ef4bda08
+sp102 a 82977892 c53cea81 c54977a9 7ef44d7c 056fbbfa 0e803ef4 8b2e3fbe 0c7a9f7c 7cfeda0f e24d60ca 16bf2879 97330e79 1d1fafdd adeb7be7 4c97cbe5 947f8048 61c121d3 f02293fa aa272c19 31e7a9ed ea930959 6bb1b3ea 93202d7c 4641565b
+sp102 b 82977892 c53cea81 c54977a9 7ef44d7c 056fac00 0e003ef5 9a0e2fbb 0c7a9f78 7cfeda0f e24de0ce 16bf2879 97330e79 1d1f9fe3 ade3fbe6 9c1fcf6c d97f084c 61c121db dfa31402 bae72c11 31e729e5 ea93895d 6bb1b3ea 93202d7c 4641565b
+sp103 a 877b9806 e1ccf29b ec44a0ba a22fda6f fa905bff 15f4a1e2 6bf216a4 d5c50555 090363e0 b4c42ac3 ff99bb77 5c6bf665 1d1fa7dd ad887be7 4c97cbe5 947f8048 61d501d1 7026b3fa 2a3f0c18 31fb81e9 f5865152 e6f4bff8 b27446db f6e6e53b
+sp103 b 877b9806 e1ccf29b ec44a0ba a22fda6f fa904c05 1574a1e3 7ad206a1 d5c50551 090363e0 b4c4aac7 ff99bb77 5c6bf665 1d1f97e3 ad80fbe6 9c1fcf6c d97f084c 61d501d9 5fa73402 3aff0c10 31fb01e1 f586d156 e6f4bff8 b27446db f6e6e53b
+sp104 a 1c30b67c 65e6010a f4e59616 86f60cc2 056fbbfe aed0574a 2f649f84 a2745fcc 12613c77 07875cd1 3742a879 2affb363 1d1fafdd af8a7be7 4c97cbe5 947f8048 61d561d1 f02293fa aa273c18 b177e1e8 e8a74953 cc23290c eee9ddb7 33af7e45
+sp104 b 1c30b67c 65e6010a f4e59616 86f60cc2 056fac04 ae50574b 3e448f81 a2745fc8 12613c77 0787dcd5 3742a879 2affb363 1d1f9fe3 af82fbe6 9c1fcf6c d97f084c 61d561d9 dfa31402 bae73c10 b17761e0 e8a7c957 cc23290c eee9ddb7 33af7e45
+sp105 a 5a58851c 3585538a 91f4e496 4901be47 fad05bff b3fb65ca 25f0d284 5d85217f 650060a0 3f6d6093 0014a9fd 96c79ff4 1d1fafdd af8b7ae7 4cd7cae5 947f8048 61c101d1 7026b3fa 2a3f2c1c 71fd81e8 f2f24a52 3ceaae90 f839abff be98ab94
+sp105 b 5a58851c 3585538a 91f4e496 4901be47 fad04c05 b37b65cb 34d0c281 5d85217b 650060a0 3f6de097 0014a9fd 96c79ff4 1d1f9fe3 af83fae6 9c5fce6c d97f084c 61c101d9 5fa73402 3aff2c14 71fd01e0 f2f2ca56 3ceaae90 f839abff be98ab94
+sp106 a d6df9694 d752934a 7c075140 9079ab89 f9907bff 30bb9000 e3b9974c 5a93f39d 608095f0 d7ed7cd0 7f7e059d da721b85 1d1fafdd af8879e7 4c97cbe5 947fc049 61d521d1 f02293fa aa270419 31f7e9e8 f8864cda 4a19b35d 3a946def f813e291
+sp106 b d6df9694 d752934a 7c075140 9079ab89 f9906c05 303b9001 f2998749 5a93f399 608095f0 d7edfcd4 7f7e059d da721b85 1d1f9fe3 af80f9e6 9c1fcf6c d97f484d 61d521d9 dfa31402 bae70411 31f769e0 f886ccde 4a19b35d 3a946def f813e291
+sp107 a 0e77333e e2a028bd f6afcffa 90925d36 062f93fa 03ce6ebe 256fd87c 81382c04 fdee2ad9 a2e56fc8 69eef0b7 3e25ffbf 1d1fafdd afaa79e7 4cd7cae5 947f8048 61d541d3 7026b3fa 2a2f2c19 f16d91ed e7a75359 eed93514 f8a6a602 16e53093
+sp107 b 0e77333e e2a028bd f6afcffa 90925d36 062f8400 034e6ebf 344fc879 81382c00 fdee2ad9 a2e5efcc 69eef0b7 3e25ffbf 1d1f9fe3 afa2f9e6 9c5fce6c d97f084c 61d541db 5fa73402 3aef2c11 f16d11e5 e7a7d35d eed93514 f8a6a602 16e53093
+sp108 a 0011d982 f707afc5 b2b87eff ffcbec32 066f93fe 0dd1f7ba 23663ef6 836ada16 39bfb667 09533738 87950acb dbb87e42 1d1fafdd adc978e7 4cd7cae5 943bc249 61c553d1 7026b3fa aa372c19 71f9d1e9 8b5b6d53 a7432de1 7af7ed89 87a2cdbe
+sp108 b 0011d982 f707afc5 b2b87eff ffcbec32 066f8404 0d51f7bb 32462ef3 836ada12 39bfb667 0953b73c 87950acb dbb87e42 1d1f9fe3 adc1f8e6 9c5fce6c d93b4a4d 61c553d9 5fa73402 baf72c11 71f951e1 8b5bed57 a7432de1 7af7ed89 87a2cdbe
+sp109 a 3522e4df 449d150e d1173904 f058cbc9 f9907bff bcb01040 e1b9d10c f4d091d7 8ec1f638 adf13e90 905a5c36 36c93ddf 1d1fafdd afc87be7 4cd7cae5 942bc249 61d503d1 f02293fa aa3f1418 71f581e8 8e5a7252 7e4a3191 3cc0432e 96210494
+sp109 b 3522e4df 449d150e d1173904 f058cbc9 f9906c05 bc301041 f099c109 f4d091d3 8ec1f638 adf1be94 905a5c36 36c93ddf 1d1f9fe3 afc0fbe6 9c5fce6c d92b4a4d 61d503d9 dfa31402 baff1410 71f501e0 8e5af256 7e4a3191 3cc0432e 96210494
+sp110 a 6218999c cce86c8f c98b71a7 d9360b6f f9d073ff dcb7b0e2 4bfb1024 1494b2bd 46c3bcce d37073f9 5fda0f21 7b687780 1d1fafdd afc97be7 4cd7cae5 943b8248 61d503d1 f02293fa 2a270c18 f169f1ed 920a3bda 5e3190f0 52573c17 83bd86d7
+sp110 b 6218999c cce86c8f c98b71a7 d9360b6f f9d06405 dc37b0e3 5adb0021 1494b2b9 46c3bcce d370f3fd 5fda0f21 7b687780 1d1f9fe3 afc1fbe6 9c5fce6c d93b0a4c 61d503d9 dfa31402 3ae70c10 f16971e5 920abbde 5e3190f0 52573c17 83bd86d7
+sp111 a 3a94c3e5 5afc731a 5f078d1e 0561ffcf fad053ff d3f52442 03fc948c b99aa20f 8f94ce90 ac250380 76d92d84 bc123bcd 1d1fafdd afab79e7 4c97cbe5 943b8248 61d523d1 f02293fa 2a3f1c18 b1f3e1e9 914a7bda 67021f14 9aadc6af 935974bf
+sp111 b 3a94c3e5 5afc731a 5f078d1e 0561ffcf fad04405 d3752443 12dc8489 b99aa20b 8f94ce90 ac258384 76d92d84 bc123bcd 1d1f9fe3 afa3f9e6 9c1fcf6c d93b0a4c 61d523d9 dfa31402 3aff1c10 b1f361e1 914afbde 67021f14 9aadc6af 935974bf
+sp112 a a0761e0e d02fb2b5 ac838fe3 9ee97d32 052fb3fe 0a98c6ba 836abffe ee7e49bc 766a2fb5 d4880a61 2343915a 45f7da69 1d1fafdd ada87be7 4cd7cae5 946bc049 61c101d1 7026b3fa aa3f2419 b1e781ed e4a7405b e8304c9f 1acf7681 604940fb
+sp112 b a0761e0e d02fb2b5 ac838fe3 9ee97d32 052fa404 0a18c6bb 924aaffb ee7e49b8 766a2fb5 d4888a65 2343915a 45f7da69 1d1f9fe3 ada0fbe6 9c5fce6c d96b484d 61c101d9 5fa73402 baff2411 b1e701e5 e4a7c05f e8304c9f 1acf7681 604940fb
+sp113 a ba549578 cec274b3 068d05e5 703d3f31 fad053fb 71aa4cbc 87bf1474 95d3030f adc40420 9eb85901 0efee69e f7f2d945 1d1fa7dd adab7be7 4cd7cae5 943bc249 61d503d3 7026b3fa aa271419 b1f3e1e9 974a6458 43211415 168f1009 bd18d6dc
+sp113 b ba549578 cec274b3 068d05e5 703d3f31 fad04401 712a4cbd 969f0471 95d3030b adc40420 9eb8d905 0efee69e f7f2d945 1d1f97e3 ada3fbe6 9c5fce6c d93b4a4d 61d503db 5fa73402 bae71411 b1f361e1 974ae45c 43211415 168f1009 bd18d6dc
+sp114 a 2cc31857 6cfd80fa 25b0f607 25802cd6 056fbbfe 46d2f75a 8d657816 6a30ffec d0e79705 c4011162 9b372aaa 868f4ea2 1d1fafdd adeb7be7 4c97cbe5 943bc249 61d573d1 f02293fa 2a271c1c f16581ed 8c6b6453 f60c48c5 112c9328 3da417e5
+sp114 b 2cc31857 6cfd80fa 25b0f607 25802cd6 056fac04 4652f75b 9c456813 6a30ffe8 d0e79705 c4019166 9b372aaa 868f4ea2 1d1f9fe3 ade3fbe6 9c1fcf6c d93b4a4d 61d573d9 dfa31402 3ae71c14 f16501e5 8c6be457 f60c48c5 112c9328 3da417e5
+sp115 a 92184ae7 bcd73cc2 f6f6a4fa dd5dde33 f99073ff 10fc65ba 87f71574 9ede430d 060a2558 e9e02cbb 500fc745 a45fc924 1d1fafdd afaa7be7 4c97cbe5 943b8248 61c503d1 7026b3fa 2a270c18 b1ff81e9 927a3bda a20fbe18 9697460b ba158683
+sp115 b 92184ae7 bcd73cc2 f6f6a4fa dd5dde33 f9906405 107c65bb 96d70571 9ede4309 060a2558 e9e0acbf 500fc745 a45fc924 1d1f9fe3 afa2fbe6 9c1fcf6c d93b0a4c 61c503d9 5fa73402 3ae70c10 b1ff01e1 927abbde a20fbe18 9697460b ba158683
+sp116 a f03fb3bb 70c78fba 612aa7c6 df8e1d12 056fbbfe 6495e69a 2b691854 46356e04 76a26119 ce955e03 9c3695d6 5e50dfac 1d1fafdd afea78e7 4c97cbe5 943b8248 61c533d1 f02293fa 2a271419 f1e1d9ec 865b24db ce2a1f7e 73292ae8 4ec8842d
+sp116 b f03fb3bb 70c78fba 612aa7c6 df8e1d12 056fac04 6415e69b 3a490851 46356e00 76a26119 ce95de07 9c3695d6 5e50dfac 1d1f9fe3 afe2f8e6 9c1fcf6c d93b0a4c 61c533d9 dfa31402 3ae71411 f1e159e4 865ba4df ce2a1f7e 73292ae8 4ec8842d
+sp117 a cca9738c 902d3177 99b44c82 b041de53 fa9053ff f5ffe5da 0ff4949c 5981a28f 89caec38 6be96a3a d2967e24 c0301e05 1d1fafdd ad8878e7 4c97cbe5 947f8048 61d501d1 f02293fa 2a3f3c1c b16bb9ec f5865452 86e55f00 8e71e8a3 021672c6
+sp117 b cca9738c 902d3177 99b44c82 b041de53 fa904405 f57fe5db 1ed48499 5981a28b 89caec38 6be9ea3e d2967e24 c0301e05 1d1f9fe3 ad80f8e6 9c1fcf6c d97f084c 61d501d9 dfa31402 3aff3c14 b16b39e4 f586d456 86e55f00 8e71e8a3 021672c6
+sp118 a 553b851b 0d3e283a 0bc8c244 89e55094 056fb3fe 4c9d6318 cd25da5c ce7ecf9e 5cfae417 8c1802a1 bf7d0eb0 2dc553b9 1d1fafdd af8978e7 4c97cbe5 946fc049 61d511d1 f02293fa aa273c1d b16ba1ed e4b743db 2e5ee183 513852e3 1348cbf8
+sp118 b 553b851b 0d3e283a 0bc8c244 89e55094 056fa404 4c1d6319 dc05ca59 ce7ecf9a 5cfae417 8c1882a5 bf7d0eb0 2dc553b9 1d1f9fe3 af81f8e6 9c1fcf6c d96f484d 61d511d9 dfa31402 bae73c15 b16b21e5 e4b7c3df 2e5ee183 513852e3 1348cbf8
+sp119 a 9ade953d d0345253 8057e47b a0795eaf fad053fb 9fecad26 03f3946c fdc4018f e9de04ba 21be0ffb 5f9adfef e1adbeac 1d1fa7dd afab7ae7 4cd7cae5 947f8048 61c101d3 f02293fa 2a270c18 31efb9ed f2f25a58 d8954634 9a1ab9cd dae00403
+sp119 b 9ade953d d0345253 8057e47b a0795eaf fad04401 9f6cad27 12d38469 fdc4018b e9de04ba 21be8fff 5f9adfef e1adbeac 1d1f97e3 afa3fae6 9c5fce6c d97f084c 61c101db dfa31402 3ae70c10 31ef39e5 f2f2da5c d8954634 9a1ab9cd dae00403
+sp120 a 155787c9 6d0c7a1a cb9f5e1c 67ac64cc 056fb3fe 2a92b740 a3201f84 a4751fae 7ea85c29 0b456418 ecf5c3bd ae4cdf66 1d1fa7dd af8b7ae7 4c97cbe5 946bc049 61d111d1 7026b3fa 2a2f2419 31ffd9e9 e2b7595b ce6b9adb 7b4a05fb 344a74c5
+sp120 b 155787c9 6d0c7a1a cb9f5e1c 67ac64cc 056fa404 2a12b741 b2000f81 a4751faa 7ea85c29 0b45e41c ecf5c3bd ae4cdf66 1d1f97e3 af83fae6 9c1fcf6c d96b484d 61d111d9 5fa73402 3aef2411 31ff59e1 e2b7d95f ce6b9adb 7b4a05fb 344a74c5
+sp121 a f0ebbe1b db4b924e 98c4fb74 efe209bc 062f9bfe 4399b230 e32b1d7c 67217f94 1f601c79 380b17a9 6542b7ac 3679b86d 1d1fafdd afea78e7 4c97cbe5 947fc049 61d141d1 f02293fa 2a37141d b16be9ed ebe34ddb 35098121 bb32f7c3 f4a2669d
+sp121 b f0ebbe1b db4b924e 98c4fb74 efe209bc 062f8c04 4319b231 f20b0d79 67217f90 1f601c79 380b97ad 6542b7ac 3679b86d 1d1f9fe3 afe2f8e6 9c1fcf6c d97f484d 61d141d9 dfa31402 3af71415 b16b69e5 ebe3cddf 35098121 bb32f7c3 f4a2669d
+sp122 a b62e4feb 8c0cd806 f5ab8a3c 6fcb70f0 062f93fe 2b9d6378 eb279a3c c52a2ef4 352c0a47 5913121b 1f17ddb1 fe9498ba 1d1fa7dd afca7ae7 4c97cbe5 947fc049 61d501d1 7026b3fa aa3f0c1c b16be1ed ebe71bdb cf09ff61 b33e8346 9461dddf
+sp122 b b62e4feb 8c0cd806 f5ab8a3c 6fcb70f0 062f8404 2b1d6379 fa078a39 c52a2ef0 352c0a47 5913921f 1f17ddb1 fe9498ba 1d1f97e3 afc2fae6 9c1fcf6c d97f484d 61d501d9 5fa73402 baff0c14 b16b61e5 ebe79bdf cf09ff61 b33e8346 9461dddf
+sp123 a c2a46d63 8fefab5b ff52e55b a029378f fa905bff 77fe8402 87f91544 5bd9c685 c500e3d6 ec7723a2 ea04233b f56b0e61 1d1fafdd ada979e7 4c97cbe5 947b8048 61d101d1 f02293fa 2a273419 716df9ed f3865bd2 02c5af58 16595ff8 b8506f31
+sp123 b c2a46d63 8fefab5b ff52e55b a029378f fa904c05 777e8403 96d90541 5bd9c681 c500e3d6 ec77a3a6 ea04233b f56b0e61 1d1f9fe3 ada1f9e6 9c1fcf6c d97b084c 61d101d9 dfa31402 3ae73411 716d79e5 f386dbd6 02c5af58 16595ff8 b8506f31
+sp124 a e6161984 869cb14a 8726ef6f 49ce5dba 056fbbfe 0e9f0632 a16f797e 2e6bcdae d4adeb9d 245f2060 23bf0ebb 28c171d0 1d1fa7dd af8879e7 4c97cbe5 947fc049 61d121d1 f02293fa 2a27341d f161e1ed eca314db 6a362dab fcdebbc1 752e0e07
+sp124 b e6161984 869cb14a 8726ef6f 49ce5dba 056fac04 0e1f0633 b04f697b 2e6bcdaa d4adeb9d 245fa064 23bf0ebb 28c171d0 1d1f97e3 af80f9e6 9c1fcf6c d97f484d 61d121d9 dfa31402 3ae73415 f16161e5 eca394df 6a362dab fcdebbc1 752e0e07
+sp125 a 486e8e34 0eb17302 d656393d 8d3a83f5 f9d073fb 9cef787c 6dbad0bc 7acad79f 2e06beee a7cd7972 42bf1603 3a1c0e21 1d1fafdd adea79e7 4cd7cae5 943bc249 61d543d3 7026b3fa 2a273c19 f169c9ec 980a7c58 17bceb5d b0937bc1 199a8a34
+sp125 b 486e8e34 0eb17302 d656393d 8d3a83f5 f9d06401 9c6f787d 7c9ac0b9 7acad79b 2e06beee a7cdf976 42bf1603 3a1c0e21 1d1f9fe3 ade2f9e6 9c5fce6c d93b4a4d 61d543db 5fa73402 3ae73c11 f16949e4 980afc5c 17bceb5d b0937bc1 199a8a34
+sp126 a 77830ee0 c278a77a fb1b4286 d3beb852 056fb3fe 60d5c3da 65655d14 8a60cbce 3c7a878d 55171672 dbcb0b42 453b3d43 1d1fa7dd afaa78e7 4c97cbe5 942b8248 61c113d1 f02293fa aa2f3c18 b177e9e8 7ea752db d036323a b9450e27 48273543
+sp126 b 77830ee0 c278a77a fb1b4286 d3beb852 056fa404 6055c3db 74454d11 8a60cbca 3c7a878d 55179676 dbcb0b42 453b3d43 1d1f97e3 afa2f8e6 9c1fcf6c d92b0a4c 61c113d9 dfa31402 baef3c10 b17769e0 7ea7d2df d036323a b9450e27 48273543
+sp127 a 3e3ae88a 48c1ef85 656176bc 66ee2c74 066f9bfe ab9bf7f8 092258b4 87377eec f1e738eb ed7823b2 4cd3a6e7 c2c49ff7 1d1fa7dd adea7ae7 4c97cbe5 946fc049 61d101d1 7026b3fa 2a371c19 b173e9e9 e5b351db 4efb5a61 154fd4cb c524a562
+sp127 b 3e3ae88a 48c1ef85 656176bc 66ee2c74 066f8c04 ab1bf7f9 180248b1 87377ee8 f1e738eb ed78a3b6 4cd3a6e7 c2c49ff7 1d1f97e3 ade2fae6 9c1fcf6c d96f484d 61d101d9 5fa73402 3af71c11 b17369e1 e5b3d1df 4efb5a61 154fd4cb c524a562
+sp128 a a5dcf2d0 ec58d8c5 8217e6fa 43bf1436 066f93fe 659567ba 0367997c ad740d7e 91640d9b 24a51fc1 6f82eec5 5008c647 1d1fafdd af8a79e7 4c97cbe5 946f8048 61c101d1 f02293fa aa27141c b167f1ec dfa35153 0b4d8da0 1af6bbc3 382c1df2
+sp128 b a5dcf2d0 ec58d8c5 8217e6fa 43bf1436 066f8404 651567bb 12478979 ad740d7a 91640d9b 24a59fc5 6f82eec5 5008c647 1d1f9fe3 af82f9e6 9c1fcf6c d96f084c 61c101d9 dfa31402 bae71414 b16771e4 dfa3d157 0b4d8da0 1af6bbc3 382c1df2
+sp129 a 2c4f0e67 bf2fa7fe 53bd4639 368dfcf4 066f9bfa e78aef7c 8922f9be c9768cae 31a1e751 83374259 51447fd7 3443351f 1d1fa7dd afe87ae7 4c97cbe5 947f8048 61d541d3 f02293fa aa27041c b17f91e9 e7a75259 8ada9356 952b4b7f 1c190eff
+sp129 b 2c4f0e67 bf2fa7fe 53bd4639 368dfcf4 066f8c00 e70aef7d 9802e9bb c9768caa 31a1e751 8337c25d 51447fd7 3443351f 1d1f97e3 afe0fae6 9c1fcf6c d97f084c 61d541db dfa31402 bae70414 b17f11e1 e7a7d25d 8ada9356 952b4b7f 1c190eff
+sp130 a d3f7bc7c 3858165a 7a878559 f22ddf8d fad05bff d1fd8400 a7b812c4 f586216f 4b5c63d2 838f5efa 3059971d d1eeb41d 1d1fafdd afab7ae7 4cd7cae5 943bc249 61d523d1 7026b3fa aa37241d 3173e9e8 954a7552 e8fdde55 f6a601bf e47df043
+sp130 b d3f7bc7c 3858165a 7a878559 f22ddf8d fad04c05 d17d8401 b69802c1 f586216b 4b5c63d2 838fdefe 3059971d d1eeb41d 1d1f9fe3 afa3fae6 9c5fce6c d93b4a4d 61d523d9 5fa73402 baf72415 317369e0 954af556 e8fdde55 f6a601bf e47df043
+sp131 a 244204a3 a2b15c8f 0f752da6 696d176f f9d073ff 96b384e2 83ff942c 3ecd46bf ce406dbe 4811062b 9bc792d1 2b91bed0 1d1fa7dd afab7be7 4cd7cae5 947b8048 61c101d1 7026b3fa 2a3f341c b1e781ed f1f649d2 5a128e78 9a2af257 1d427676
+sp131 b 244204a3 a2b15c8f 0f752da6 696d176f f9d06405 963384e3 92df8429 3ecd46bb ce406dbe 4811862f 9bc792d1 2b91bed0 1d1f97e3 afa3fbe6 9c5fce6c d97b084c 61c101d9 5fa73402 3aff3414 b1e701e5 f1f6c9d6 5a128e78 9a2af257 1d427676
+sp132 a 7e55a77f aa6e4359 b22a7e58 ebb8ac8c 052fbbfe 88993700 23251844 08799eb6 f6afb017 cd8f1bb2 a64d1831 6c862663 1d1fafdd af887be7 4c97cbe5 947bc049 61d151d1 7026b3fa aa27341d f1f1f9e9 eae74a5b 70781913 7b2d1d3f 99bff4bb
+sp132 b 7e55a77f aa6e4359 b22a7e58 ebb8ac8c 052fac04 88193701 32050841 08799eb2 f6afb017 cd8f9bb6 a64d1831 6c862663 1d1f9fe3 af80fbe6 9c1fcf6c d97b484d 61d151d9 5fa73402 bae73415 f1f179e1 eae7ca5f 70781913 7b2d1d3f 99bff4bb
+sp133 a 49f5f1af a2c27c1a 93f3513e 064e8beb fad053ff bdbe9062 4dfed0ac f98f3035 27c01588 c61d5041 ca7dbf4f 3c4bca17 1d1fafdd adaa7ae7 4cd7cae5 947f8048 61c501d1 7026b3fa aa271c18 7161e1ec f4f65252 37089478 500f9dd3 1c7aed5c
+sp133 b 49f5f1af a2c27c1a 93f3513e 064e8beb fad04405 bd3e9063 5cdec0a9 f98f3031 27c01588 c61dd045 ca7dbf4f 3c4bca17 1d1f9fe3 ada2fae6 9c5fce6c d97f084c 61c501d9 5fa73402 bae71c10 716161e4 f4f6d256 37089478 500f9dd3 1c7aed5c
+sp134 a 27c6ce88 2273ef52 cfca595a 6606cb8b fa9053fb 9beb1806 41fdd14c 77ca50c5 adca3dd8 27467150 2a89ab96 1ab2d8f6 1d1fa7dd afa87be7 4c97cbe5 947f8048 61d501d3 7026b3fa aa272418 71f589e9 f3865958 569e48d4 5c50a431 9ec7656c
+sp134 b 27c6ce88 2273ef52 cfca595a 6606cb8b fa904401 9b6b1807 50ddc149 77ca50c1 adca3dd8 2746f154 2a89ab96 1ab2d8f6 1d1f97e3 afa0fbe6 9c1fcf6c d97f084c 61d501db 5fa73402 bae72410 71f509e1 f386d95c 569e48d4 5c50a431 9ec7656c
+sp135 a 7d587cde 1070c0ce 6a700ac2 978d980e 062f93fe 45dc8382 e9605ac4 af62ca16 b93bcb87 b10600d9 ec7912b1 46b40338 1d1fa7dd afeb7be7 4cd7cae5 946f8048 61c501d1 f02293fa aa27341c 31ffe9e8 dfa75753 2ca58058 34be1b7b b6e559da
+sp135 b 7d587cde 1070c0ce 6a700ac2 978d980e 062f8404 455c8383 f8404ac1 af62ca12 b93bcb87 b10680dd ec7912b1 46b40338 1d1f97e3 afe3fbe6 9c5fce6c d96f084c 61c501d9 dfa31402 bae73414 31ff69e0 dfa7d757 2ca58058 34be1b7b b6e559da
+sp136 a 0c63b3aa cd5bb4bb 9b0e0dc5 0f387f11 fa905bff ddb96498 87bd1454 dbd6c2f7 0142ae0a 90f83f4a f2dc705e 75f1567e 1d1fafdd afc87be7 4cd7cae5 943bc249 61d513d1 f02293fa 2a2f3418 716de9ec 954a6452 5d38dcfb 169d0fe6 3872fe3c
+sp136 b 0c63b3aa cd5bb4bb 9b0e0dc5 0f387f11 fa904c05 dd396499 969d0451 dbd6c2f3 0142ae0a 90f8bf4e f2dc705e 75f1567e 1d1f9fe3 afc0fbe6 9c5fce6c d93b4a4d 61d513d9 dfa31402 3aef3410 716d69e4 954ae456 5d38dcfb 169d0fe6 3872fe3c
+sp137 a c77c7f58 a908a8da 750962ff abdb582a 056fb3fe ca9283a2 49667ae6 0e376ab4 322365a7 1be36fb8 717add81 71c4be48 1d1fa7dd adeb79e7 4cd7cae5 942bc249 61d533d1 7026b3fa aa370419 f17581e8 847b7253 f240df75 55076999 7c4e2d7a
+sp137 b c77c7f58 a908a8da 750962ff abdb582a 056fa404 ca1283a3 58466ae3 0e376ab0 322365a7 1be3efbc 717add81 71c4be48 1d1f97e3 ade3f9e6 9c5fce6c d92b4a4d 61d533d9 5fa73402 baf70411 f17501e0 847bf257 f240df75 55076999 7c4e2d7a
+sp138 a 5451fe68 55148186 cb9663bf 78ed9972 062f9bfe 8597c2fa 6f6b3a36 093f2e3e 77e84a63 09be1b3b 2854fb35 d2f3bfad 1d1fafdd afe878e7 4c97cbe5 947bc049 61d141d1 f02293fa aa270418 f1e5e9ed e9e75d5b f30d7057 aee6cb04 0d3a8774
+sp138 b 5451fe68 55148186 cb9663bf 78ed9972 062f8c04 8517c2fb 7e4b2a33 093f2e3a 77e84a63 09be9b3f 2854fb35 d2f3bfad 1d1f9fe3 afe0f8e6 9c1fcf6c d97b484d 61d141d9 dfa31402 bae70410 f1e569e5 e9e7dd5f f30d7057 aee6cb04 0d3a8774
+sp139 a 3d6874f5 460feada eb60c4f8 68069e2d fad053ff 73fda5a0 a3b614e4 77c44407 c7d36772 abfe7f18 9a0df8e5 dc4af594 1d1fa7dd afc87be7 4cd7cae5 943bc249 61d503d1 7026b3fa 2a27041d 31e381ed 950a6452 46f0bc31 7a97ff9f 6c9f43ec
+sp139 b 3d6874f5 460feada eb60c4f8 68069e2d fad04405 737da5a1 b29604e1 77c44403 c7d36772 abfeff1c 9a0df8e5 dc4af594 1d1f97e3 afc0fbe6 9c5fce6c d93b4a4d 61d503d9 5fa73402 3ae70415 31e301e5 950ae456 46f0bc31 7a97ff9f 6c9f43ec
+sp140 a f7619617 7287880a a162a215 5dafd8c0 056fb3fe e0d4e348 63243b8e 6c7889a4 70e5e97b 6ff96b12 5abe4e6d 5d635ec7 1d1fa7dd ad8878e7 4c97cbe5 946f8048 61c521d1 f02293fa 2a273419 71e189ed e2a75a53 94002316 3b3a39ae a8413c12
+sp140 b f7619617 7287880a a162a215 5dafd8c0 056fa404 e054e349 72042b8b 6c7889a0 70e5e97b 6ff9eb16 5abe4e6d 5d635ec7 1d1f97e3 ad80f8e6 9c1fcf6c d96f084c 61c521d9 dfa31402 3ae73411 71e109e5 e2a7da57 94002316 3b3a39ae a8413c12
+sp141 a 4e7d64ac 52aae7c6 5e3c8cc2 1f3ede0b f9d073fb dca1ad86 29f4d2cc be88e1bd 665aca36 656b22f2 88c75672 24345c22 1d1fa7dd afab78e7 4cd7cae5 947f8048 61c121d3 7026b3fa 2a2f1c18 7175a1e8 f3f25c58 1bd46858 f4257bb1 55a4bb0e
+sp141 b 4e7d64ac 52aae7c6 5e3c8cc2 1f3ede0b f9d06401 dc21ad87 38d4c2c9 be88e1b9 665aca36 656ba2f6 88c75672 24345c22 1d1f97e3 afa3f8e6 9c5fce6c d97f084c 61c121db 5fa73402 3aef1c10 717521e0 f3f2dc5c 1bd46858 f4257bb1 55a4bb0e
+sp142 a 6bd2a49a 29c3720b c494f810 6e35aad9 f9d07bff d0ff3150 c3b4179c 548fb495 080ad770 72954fe8 6df46307 d8367f8c 1d1fa7dd adc978e7 4cd7cae5 947bc049 61c101d1 7026b3fa aa3f3c19 b16781ec f7f6455a 21a8e509 da7636e3 f9b3c600
+sp142 b 6bd2a49a 29c3720b c494f810 6e35aad9 f9d06c05 d07f3151 d2940799 548fb491 080ad770 7295cfec 6df46307 d8367f8c 1d1f97e3 adc1f8e6 9c5fce6c d97b484d 61c101d9 5fa73402 baff3c11 b16701e4 f7f6c55e 21a8e509 da7636e3 f9b3c600
+sp143 a 7f2e52f3 1624820b dc0ff82e fe358afb fa905bff f5b01172 65f651bc d9d29195 0dd2f51c a88a180b 503b4869 1b135ee0 1d1fa7dd ad8a7ae7 4c97cbe5 947f8048 61d501d1 7026b3fa 2a3f1c18 f1e5a1ec f5865252 07375168 b8701bc3 b2cb693c
+sp143 b 7f2e52f3 1624820b dc0ff82e fe358afb fa904c05 f5301173 74d641b9 d9d29191 0dd2f51c a88a980f 503b4869 1b135ee0 1d1f97e3 ad82fae6 9c1fcf6c d97f084c 61d501d9 5fa73402 3aff1c10 f1e521e4 f586d256 07375168 b8701bc3 b2cb693c
+sp144 a eab6b54a 7fc62aca 1c17cfd0 b2c43504 056fb3fe e2d04688 212d584c 82704e0e 10a225e7 70fa29ea d5cea622 3ee6fe6b 1d1fafdd adea79e7 4c97cbe5 947bc049 61d151d1 f02293fa aa3f2c18 b16f99ed eca7545b 97daeb8b fd3cc4ee 47b72549
+sp144 b eab6b54a 7fc62aca 1c17cfd0 b2c43504 056fa404 e2504689 300d4849 82704e0a 10a225e7 70faa9ee d5cea622 3ee6fe6b 1d1f9fe3 ade2f9e6 9c1fcf6c d97b484d 61d151d9 dfa31402 baff2c10 b16f19e5 eca7d45f 97daeb8b fd3cc4ee 47b72549
+sp145 a db2369b1 25723a46 dea0df76 d7cd2dba 066f9bfa 418b1e36 036e1efc 0f61de4e 55a1b8f7 ca2e5328 8874261b 6c9329db 1d1fa7dd afeb7ae7 4c97cbe5 947f8048 61d501d3 7026b3fa 2a3f0419 b177b1e8 e7a71259 b0bb43a4 1af83682 40e23c9f
+sp145 b db2369b1 25723a46 dea0df76 d7cd2dba 066f8c00 410b1e37 124e0ef9 0f61de4a 55a1b8f7 ca2ed32c 8874261b 6c9329db 1d1f97e3 afe3fae6 9c1fcf6c d97f084c 61d501db 5fa73402 3aff0411 b17731e0 e7a7925d b0bb43a4 1af83682 40e23c9f
+sp146 a 6f3f4031 68563605 ab2ba22e 359938fe 056fbbfa 4cc22b76 67669bb4 02614f84 9c3a026f c63e5363 dceee601 87f5ee50 1d1fafdd af8878e7 4c97cbe5 947f8048 61c161d3 f02293fa 2a3f141c b16ba1ed e8934c59 2bf30b60 36ffb989 59424d2b
+sp146 b 6f3f4031 68563605 ab2ba22e 359938fe 056fac00 4c422b77 76468bb1 02614f80 9c3a026f c63ed367 dceee601 87f5ee50 1d1f9fe3 af80f8e6 9c1fcf6c d97f084c 61c161db dfa31402 3aff1414 b16b21e5 e893cc5d 2bf30b60 36ffb989 59424d2b
+sp147 a 3d406867 bb6f99fb 0b915401 c7620ed5 fa9053ff dfbe7558 85b4d39c 1b9970a7 2d1d3bfa 3e7b6103 8da6f185 b7a98225 1d1fafdd af8978e7 4c97cbe5 947fc049 61d501d1 f02293fa aa3f2c1c 317fb9e9 f78655da 9b25cf81 98b159a2 3e1a74ac
+sp147 b 3d406867 bb6f99fb 0b915401 c7620ed5 fa904405 df3e7559 9494c399 1b9970a3 2d1d3bfa 3e7be107 8da6f185 b7a98225 1d1f9fe3 af81f8e6 9c1fcf6c d97f484d 61d501d9 dfa31402 baff2c14 317f39e1 f786d5de 9b25cf81 98b159a2 3e1a74ac
+sp148 a 34d893f6 69d9ba31 a00b6766 2ae4ddb2 056fbbfa 46c5ee3e ab6e18f4 c6236d74 fa642bab c72b45d2 772ffc4c a358f9ee 1d1fa7dd afcb7ae7 4c97cbe5 947b8048 61d141d3 f02293fa 2a2f041c 31f381e8 e6a742d9 29bc8414 f2ec2c49 1df3fcf8
+sp148 b 34d893f6 69d9ba31 a00b6766 2ae4ddb2 056fac00 4645ee3f ba4e08f1 c6236d70 fa642bab c72bc5d6 772ffc4c a358f9ee 1d1f97e3 afc3fae6 9c1fcf6c d97b084c 61d141db dfa31402 3aef0414 31f301e0 e6a7c2dd 29bc8414 f2ec2c49 1df3fcf8
+sp149 a f412128b 6d2cd899 37b1dbbb adc3a16e 052fb3fe 069692e2 676bbc2e c4353f94 bc2259d5 f6716043 f107d601 b5048510 1d1fafdd adab79e7 4c97cbe5 946fc049 61c511d1 f02293fa 2a3f3418 b1fff9e9 e6e742db 6e3372b9 370a690c 8882d39c
+sp149 b f412128b 6d2cd899 37b1dbbb adc3a16e 052fa404 061692e3 764bac2b c4353f90 bc2259d5 f671e047 f107d601 b5048510 1d1f9fe3 ada3f9e6 9c1fcf6c d96f484d 61c511d9 dfa31402 3aff3410 b1ff79e1 e6e7c2df 6e3372b9 370a690c 8882d39c
+sp150 a c0588f0e 471eb885 7bcd5eb6 3ab02c7a 062f93fa 418d1ff6 2f661ebc c7307fee 31fb3b3b cf536192 b51182dd 9d42f485 1d1fafdd adea7be7 4cd7cae5 946f8048 61c111d3 f02293fa 2a3f3c1d 717d91e9 e1a35f59 38bdd226 6ed04f82 58a96ce3
+sp150 b c0588f0e 471eb885 7bcd5eb6 3ab02c7a 062f8400 410d1ff7 3e460eb9 c7307fea 31fb3b3b cf53e196 b51182dd 9d42f485 1d1f9fe3 ade2fbe6 9c5fce6c d96f084c 61c111db dfa31402 3aff3c15 717d11e1 e1a3df5d 38bdd226 6ed04f82 58a96ce3
+sp151 a 7d4f7507 851f2487 62db2dbd 8f52bf71 f9d07bff 74ffc4f8 adbf5434 7ac6c015 2a0eadde 047b36c0 828c4b31 41332a4b 1d1fafdd ade879e7 4cd7cae5 947fc049 61c531d1 7026b3fa aa370c19 b1e7f9ec f9f65cda 7f816027 f05e9a4b cfe1543e
+sp151 b 7d4f7507 851f2487 62db2dbd 8f52bf71 f9d06c05 747fc4f9 bc9f4431 7ac6c011 2a0eadde 047bb6c4 828c4b31 41332a4b 1d1f9fe3 ade0f9e6 9c5fce6c d97f484d 61c531d9 5fa73402 baf70c11 b1e779e4 f9f6dcde 7f816027 f05e9a4b cfe1543e
+sp152 a 20fa5cea 174922bf 07e2c4cd c55dde01 f99073fb 7ce66d8c 2db5d344 929361dd cccb2c4a fda50e32 b3c2ea84 10aebc86 1d1fafdd adea79e7 4cd7cae5 943bc249 61d503d3 f02293fa aa2f2c1c 31ffb9e8 984a3c58 b7a1d545 f0a458f8 cfd43d73
+sp152 b 20fa5cea 174922bf 07e2c4cd c55dde01 f9906401 7c666d8d 3c95c341 929361d9 cccb2c4a fda58e36 b3c2ea84 10aebc86 1d1f9fe3 ade2f9e6 9c5fce6c d93b4a4d 61d503db dfa31402 baef2c14 31ff39e0 984abc5c b7a1d545 f0a458f8 cfd43d73
+sp153 a a27f9c52 8cad9a32 8fa10c61 dc5c7eb5 fa9053fb 1fe16d3c 87b3927c d3d1c22d 21c8cb5e 45c12d50 e37c7942 83053f50 1d1fa7dd adca78e7 4cd7cae5 943bc249 61d503d3 f02293fa aa271c18 71e189ed 974a6558 14c6d695 969e89bc c2efbf62
+sp153 b a27f9c52 8cad9a32 8fa10c61 dc5c7eb5 fa904401 1f616d3d 96938279 d3d1c229 21c8cb5e 45c1ad54 e37c7942 83053f50 1d1f97e3 adc2f8e6 9c5fce6c d93b4a4d 61d503db dfa31402 bae71c10 71e109e5 974ae55c 14c6d695 969e89bc c2efbf62
+sp154 a 20294692 d8663b0a bce07617 32e94cc2 056fb3fe acd2f74a 0f603f8e 6e3f7834 b2a05b2f 262954e1 8cc0fd99 3664e6b0 1d1fafdd afeb7be7 4c97cbe5 946fc049 61d111d1 f02293fa 2a270418 71f9c1e9 e4b340db cbc739d1 8efdb5ac aa6a453a
+sp154 b 20294692 d8663b0a bce07617 32e94cc2 056fa404 ac52f74b 1e402f8b 6e3f7830 b2a05b2f 2629d4e5 8cc0fd99 3664e6b0 1d1f9fe3 afe3fbe6 9c1fcf6c d96f484d 61d111d9 dfa31402 3ae70410 71f941e1 e4b3c0df cbc739d1 8efdb5ac aa6a453a
+sp155 a 1fc097f8 1a57c04d f659cb60 d4f2b9ac 066f9bfe 4bd28220 e72f1b64 657e0e3e d36401e1 f7925953 38a48f3f 2583e726 1d1fafdd afaa78e7 4c97cbe5 947fc049 61c141d1 7026b3fa aa3f3c18 7171d1e8 eb934ddb a5149331 b73b321a a4ab7cd2
+sp155 b 1fc097f8 1a57c04d f659cb60 d4f2b9ac 066f8c04 4b528221 f60f0b61 657e0e3a d36401e1 f792d957 38a48f3f 2583e726 1d1f9fe3 afa2f8e6 9c1fcf6c d97f484d 61c141d9 5fa73402 baff3c10 717151e0 eb93cddf a5149331 b73b321a a4ab7cd2
+sp156 a c80e6925 159988c6 2529cef1 6fdc7c38 066f93fa 61c40fb4 0526f8f6 0723ef24 57e0e057 6a496709 33bf3848 510c6633 1d1fafdd afeb79e7 4c97cbe5 947f8048 61d531d3 7026b3fa aa3f1c19 b1f781e9 e7a74359 907a526c 993f4488 479bcbe9
+sp156 b c80e6925 159988c6 2529cef1 6fdc7c38 066f8400 61440fb5 1406e8f3 0723ef20 57e0e057 6a49e70d 33bf3848 510c6633 1d1f9fe3 afe3f9e6 9c1fcf6c d97f084c 61d531db 5fa73402 baff1c11 b1f701e1 e7a7c35d 907a526c 993f4488 479bcbe9
+sp157 a 8b0f76e8 e2f7d2fb e53e4823 6d63faf7 fa905bff 19f9417a 49f657b4 f78ce4c7 a9908650 1ab6490a b3a71845 e8b8534d 1d1fafdd af8a7be7 4c97cbe5 947f8048 61d501d1 f02293fa 2a2f3c1d f1e9e1ed f3864952 60ea0060 5460258c b0991610
+sp157 b 8b0f76e8 e2f7d2fb e53e4823 6d63faf7 fa904c05 1979417b 58d647b1 f78ce4c3 a9908650 1ab6c90e b3a71845 e8b8534d 1d1f9fe3 af82fbe6 9c1fcf6c d97f084c 61d501d9 dfa31402 3aef3c15 f1e961e5 f386c956 60ea0060 5460258c b0991610
+sp158 a ad49dd36 2a5e624a ad49e753 f8af3d9a 062f9bfe 0f910612 a569795e 693fad96 9125ce25 842107e1 5fff2143 bebb1e8a 1d1fafdd adab78e7 4c97cbe5 947bc049 61d141d1 7026b3fa aa27241c 717589e9 ebe75d5b eb554d3f f8e8bc24 bc55869c
+sp158 b ad49dd36 2a5e624a ad49e753 f8af3d9a 062f8c04 0f110613 b449695b 693fad92 9125ce25 842187e5 5fff2143 bebb1e8a 1d1f9fe3 ada3f8e6 9c1fcf6c d97b484d 61d141d9 5fa73402 bae72414 717509e1 ebe7dd5f eb554d3f f8e8bc24 bc55869c
+sp159 a a6ba0684 f8cdc14a 4b1b7e51 bef7ec84 056fb3fe 64def708 0124ffc6 c838bc64 d07cbd13 39f63e18 a7d30936 881070e5 1d1fafdd adc879e7 4c97cbe5 943b8248 61d573d1 f02293fa aa372c1c f1edc9ed 886b6bdb d8238b18 1d7d5b79 562d45f4
+sp159 b a6ba0684 f8cdc14a 4b1b7e51 bef7ec84 056fa404 645ef709 1004efc3 c838bc60 d07cbd13 39f6be1c a7d30936 881070e5 1d1f9fe3 adc0f9e6 9c1fcf6c d93b0a4c 61d573d9 dfa31402 baf72c14 f1ed49e5 886bebdf d8238b18 1d7d5b79 562d45f4
+sp160 a 77768af5 2163a547 ce234560 a85f37a9 f99073fb 94ec8c24 2dbfd36c 18dc879f 0e12e264 43064378 988c6e09 8aeb7e39 1d1fafdd adc879e7 4cd7cae5 943bc249 61d533d3 7026b3fa aa271419 71e9a9ed 984a6c58 1fb9d5f3 708e2111 fa04fa50
+sp160 b 77768af5 2163a547 ce234560 a85f37a9 f9906401 946c8c25 3c9fc369 18dc879b 0e12e264 4306c37c 988c6e09 8aeb7e39 1d1f9fe3 adc0f9e6 9c5fce6c d93b4a4d 61d533db 5fa73402 bae71411 71e929e5 984aec5c 1fb9d5f3 708e2111 fa04fa50
+sp161 a 620c7bb0 30b2015b f983505f 3a270a8f fa905bff d9f11102 47f417c4 b584b6cd 070096d6 d2e57f69 93da12db 6a026623 1d1fa7dd afeb79e7 4c97cbe5 943b8248 61c523d1 7026b3fa 2a3f0418 716591ec 913a7bda d8ca1454 d6b21bbb 56d11fa5
+sp161 b 620c7bb0 30b2015b f983505f 3a270a8f fa904c05 d9711103 56d407c1 b584b6c9 070096d6 d2e5ff6d 93da12db 6a026623 1d1f97e3 afe3f9e6 9c1fcf6c d93b0a4c 61c523d9 5fa73402 3aff0410 716511e4 913afbde d8ca1454 d6b21bbb 56d11fa5
+sp162 a 14442e24 3fe08ac5 31b0b2fb 5b85a836 066f93fe 2194d3ba 65677d76 4d7d1a04 f7ec3565 1a00438b 8012b630 51438623 1d1fa7dd adab7be7 4c97cbe5 947bc049 61d131d1 7026b3fa aa373419 3167f9ed eba75a5b d9297de5 38fa9809 7cc2f971
+sp162 b 14442e24 3fe08ac5 31b0b2fb 5b85a836 066f8404 2114d3bb 74476d73 4d7d1a00 f7ec3565 1a00c38f 8012b630 51438623 1d1f97e3 ada3fbe6 9c1fcf6c d97b484d 61d131d9 5fa73402 baf73411 316779e5 eba7da5f d9297de5 38fa9809 7cc2f971
+sp163 a 2457e752 4f1f5541 ad81bf7a 82eccdb2 066f93fe 859af63a a16f5f74 05759836 7762f1bd ebe56999 93c60943 1736757a 1d1fafdd ada87be7 4c97cbe5 946f8048 61c511d1 f02293fa 2a3f0c18 71fd91e8 e1a75f53 ef320d62 fd06ddc7 074c5259
+sp163 b 2457e752 4f1f5541 ad81bf7a 82eccdb2 066f8404 851af63b b04f4f71 05759832 7762f1bd ebe5e99d 93c60943 1736757a 1d1f9fe3 ada0fbe6 9c1fcf6c d96f084c 61c511d9 dfa31402 3aff0c10 71fd11e0 e1a7df57 ef320d62 fd06ddc7 074c5259
+sp164 a 9cfb4d31 fcc2bb4d fe3c4645 1ccab48c 066f93fe 6f9b8700 ab20b9ce 8d36ad64 9d608bef c7b74e72 ab8f16e9 56536ae0 1d1fafdd adcb7be7 4c97cbe5 947b8048 61c121d1 7026b3fa aa371c19 71edc9ed e79741d3 82fa8cde f34193b2 7d8376af
+sp164 b 9cfb4d31 fcc2bb4d fe3c4645 1ccab48c 066f8404 6f1b8701 ba00a9cb 8d36ad60 9d608bef c7b7ce76 ab8f16e9 56536ae0 1d1f9fe3 adc3fbe6 9c1fcf6c d97b084c 61c121d9 5fa73402 baf71c11 71ed49e5 e797c1d7 82fa8cde f34193b2 7d8376af
+sp165 a b0e0b9e5 2787a4b6 68e73be3 75f9e932 056fb3fe 8c94d2ba 4f6a3df6 003fba26 187bb1fd 933b56f9 a96a5348 a40468e1 1d1fa7dd adc87be7 4c97cbe5 942bc249 61d533d1 f02293fa aa3f3419 f175d1e9 847b7253 b05d6e5d cf4fe545 0e622c4b
+sp165 b b0e0b9e5 2787a4b6 68e73be3 75f9e932 056fa404 8c14d2bb 5e4a2df3 003fba22 187bb1fd 933bd6fd a96a5348 a40468e1 1d1f97e3 adc0fbe6 9c1fcf6c d92b4a4d 61d533d9 dfa31402 baff3411 f17551e1 847bf257 b05d6e5d cf4fe545 0e622c4b
+sp166 a ab9363d8 b5d4a246 1e3ea54e b430bf87 f9907bff 16b8c40a 29f8d2c4 98d8015f 0e0d0114 21693159 6ee5864b 46f3d4eb 1d1fa7dd afe878e7 4c97cbe5 943b8248 61d503d1 f02293fa 2a3f3418 316399ec 924a3cda 241180c8 74b1a077 3377edd5
+sp166 b ab9363d8 b5d4a246 1e3ea54e b430bf87 f9906c05 1638c40b 38d8c2c1 98d8015b 0e0d0114 2169b15d 6ee5864b 46f3d4eb 1d1f97e3 afe0f8e6 9c1fcf6c d93b0a4c 61d503d9 dfa31402 3aff3410 316319e4 924abcde 241180c8 74b1a077 3377edd5
+sp167 a d73fdc04 cd7c9cc2 d5f505fb 9b725f33 f99073ff dcb164ba a7fb947c 5ac4c06f 0e00afa6 1e407782 dad34ee0 01ed2f69 1d1fafdd afe979e7 4cd7cae5 943b8248 61d503d1 f02293fa 2a2f141c 31e7f9ed 924a3bda 5e17df18 f65ebfc3 898f4e42
+sp167 b d73fdc04 cd7c9cc2 d5f505fb 9b725f33 f9906405 dc3164bb b6db8479 5ac4c06b 0e00afa6 1e40f786 dad34ee0 01ed2f69 1d1f9fe3 afe1f9e6 9c5fce6c d93b0a4c 61d503d9 dfa31402 3aef1414 31e779e5 924abbde 5e17df18 f65ebfc3 898f4e42
+sp168 a 24fc54f8 844641bd 2e2fe7cd 90d17d00 062f93fa cf866e8c 032d384e 0137ad8c 1168ad3f 30e02ecb 734d51c9 4a004600 1d1fa7dd ad887ae7 4c97cbe5 947f8048 61d541d3 f02293fa 2a3f3c18 31efd9ec e9e75a59 a53f1446 9b3944eb cb6445c7
+sp168 b 24fc54f8 844641bd 2e2fe7cd 90d17d00 062f8400 cf066e8d 120d284b 0137ad88 1168ad3f 30e0aecf 734d51c9 4a004600 1d1f97e3 ad80fae6 9c1fcf6c d97f084c 61d541db dfa31402 3aff3c10 31ef59e4 e9e7da5d a53f1446 9b3944eb cb6445c7
+sp169 a 9c13a524 28991a86 ef25c7b8 40f9fd74 062f93fe 6b9366f8 012a5fb4 ab35698c 39e30ef3 63915cf9 4f229f9c 5741ef25 1d1fafdd adca7be7 4cd7cae5 946fc049 61d101d1 7026b3fa 2a3f041d 317f89e9 e5b350db 8f23ea61 1d0fb6cf 34a64b63
+sp169 b 9c13a524 28991a86 ef25c7b8 40f9fd74 062f8404 6b1366f9 100a4fb1 ab356988 39e30ef3 6391dcfd 4f229f9c 5741ef25 1d1f9fe3 adc2fbe6 9c5fce6c d96f484d 61d101d9 5fa73402 3aff0415 317f09e1 e5b3d0df 8f23ea61 1d0fb6cf 34a64b63
+sp170 a 9839d6a3 d0add287 d88d0893 ee2d5a43 fa905bff 39fe41ca e7f09684 f1c3838d c7448296 d5563650 76875499 fbb621b1 1d1fafdd afea7be7 4c97cbe5 947f8048 61d101d1 7026b3fa aa270419 31fb89e8 f3824952 be890f90 b661befc e0e452a2
+sp170 b 9839d6a3 d0add287 d88d0893 ee2d5a43 fa904c05 397e41cb f6d08681 f1c38389 c7448296 d556b654 76875499 fbb621b1 1d1f9fe3 afe2fbe6 9c1fcf6c d97f084c 61d101d9 5fa73402 bae70411 31fb09e0 f382c956 be890f90 b661befc e0e452a2
+sp171 a 9861332f d1fd317e 3cf350bb 58266a77 f9d073fb 74e4f9fe 49f656b4 34d29507 0c409294 1e0a4720 142a3e4a 38bc5978 1d1fafdd ad8b7ae7 4cd7cae5 947f8048 61c111d3 f02293fa 2a3f1c18 71e1d1ec f5f24258 05c4f91e 542ff785 d7cb95c8
+sp171 b 9861332f d1fd317e 3cf350bb 58266a77 f9d06401 7464f9ff 58d646b1 34d29503 0c409294 1e0ac724 142a3e4a 38bc5978 1d1f9fe3 ad83fae6 9c5fce6c d97f084c 61c111db dfa31402 3aff1c10 71e151e4 f5f2c25c 05c4f91e 542ff785 d7cb95c8
+sp172 a 0e619339 808178cd 225266e0 83ed5c2c 066f93fe cfdd87a0 2b2298ec 6778498c 7f7921bb c6407460 79d4b0d7 d3d998c7 1d1fafdd adcb79e7 4c97cbe5 942bc249 61d513d1 f02293fa aa373c19 b1f3f1e9 837b6a53 6d21bbf3 f38f924f 63abde06
+sp172 b 0e619339 808178cd 225266e0 83ed5c2c 066f8404 cf5d87a1 3a0288e9 67784988 7f7921bb c640f464 79d4b0d7 d3d998c7 1d1f9fe3 adc3f9e6 9c1fcf6c d92b4a4d 61d513d9 dfa31402 baf73c11 b1f371e1 837bea57 6d21bbf3 f38f924f 63abde06
+sp173 a 05e526a3 b61e8fca 8c0007d3 3b95bd06 056fbbfe e4d3e68a a969784e cc242e0e 9c7a2573 bbce7eba 80209d37 ca00c957 1d1fa7dd ada878e7 4c97cbe5 947fc049 61c121d1 f02293fa 2a3f3c19 71f9c1e9 ee9315db 8de11053 f4fcc4ed 44a1acc4
+sp173 b 05e526a3 b61e8fca 8c0007d3 3b95bd06 056fac04 e453e68b b849684b cc242e0a 9c7a2573 bbcefebe 80209d37 ca00c957 1d1f97e3 ada0f8e6 9c1fcf6c d97f484d 61c121d9 dfa31402 3aff3c11 71f941e1 ee9395df 8de11053 f4fcc4ed 44a1acc4
+sp174 a a334eb0a ad0da787 09ebc4a3 7b5efe6f f9907bfb daad0de6 abf294ac 5a9be7d7 ca838bfe c3825bdb 70123939 77021930 1d1fa7dd ad8b78e7 4c97cbe5 947f8048 61d511d3 f02293fa 2a2f1c1c 31eff9ed f6864458 99fd35b6 f263b891 89802af9
+sp174 b a334eb0a ad0da787 09ebc4a3 7b5efe6f f9906c01 da2d0de7 bad284a9 5a9be7d3 ca838bfe c382dbdf 70123939 77021930 1d1f97e3 ad83f8e6 9c1fcf6c d97f084c 61d511db dfa31402 3aef1c14 31ef79e5 f686c45c 99fd35b6 f263b891 89802af9
+sp175 a 79a05118 0a57f313 de128038 fb755ae9 fad053fb bfe60964 67b3962c ff8fe455 c98986d0 42c77fc8 8110757e 7e3d3547 1d1fa7dd afc97be7 4cd7cae5 943bc249 61d503d3 f02293fa 2a273c18 71e5b1ec 950a6458 72c3376d 369ea60c 1935c5fd
+sp175 b 79a05118 0a57f313 de128038 fb755ae9 fad04401 bf660965 76938629 ff8fe451 c98986d0 42c7ffcc 8110757e 7e3d3547 1d1f97e3 afc1fbe6 9c5fce6c d93b4a4d 61d503db dfa31402 3ae73c10 71e531e4 950ae45c 72c3376d 369ea60c 1935c5fd
+sp176 a 0bf01a23 32d0903a b8d38c44 b26bbe95 fad053ff 55b1c518 81b0d3dc 318c2107 6d8007d4 61d12ef9 750af8c1 568bc369 1d1fa7dd adaa78e7 4cd7cae5 947fc049 61c101d1 7026b3fa 2a370418 71eda1ec f8f25dda 9d155141 9c7142a2 df0dca6a
+sp176 b 0bf01a23 32d0903a b8d38c44 b26bbe95 fad04405 5531c519 9090c3d9 318c2103 6d8007d4 61d1aefd 750af8c1 568bc369 1d1f97e3 ada2f8e6 9c5fce6c d97f484d 61c101d9 5fa73402 3af70410 71ed21e4 f8f2ddde 9d155141 9c7142a2 df0dca6a
+sp177 a 5a56c5d2 9663b672 60d26da7 e305b773 fa9053fb 1bea6cfe 2fff923c 51ca879f 45c5878a 55493573 2a1623bc 75506afd 1d1fa7dd af897be7 4c97cbe5 947f8048 61d501d3 7026b3fa aa2f041d 31eba1ec f3865958 d6bdf3dc 6e56c346 944d4392
+sp177 b 5a56c5d2 9663b672 60d26da7 e305b773 fa904401 1b6a6cff 3edf8239 51ca879b 45c5878a 5549b577 2a1623bc 75506afd 1d1f97e3 af81fbe6 9c1fcf6c d97f084c 61d501db 5fa73402 baef0415 31eb21e4 f386d95c d6bdf3dc 6e56c346 944d4392
+sp178 a e7035497 b021d1c2 d23224ee b512363b fa9053fb 11ed0db6 89f2d2f4 f7dcc70f afd28688 e3b44a59 831467e7 6b8618fc 1d1fa7dd afc878e7 4c97cbe5 946b8048 61d161d3 f02293fa 2a270c18 3167f9ec e9970ad8 5e986720 146f7a45 e0431e82
+sp178 b e7035497 b021d1c2 d23224ee b512363b fa904401 116d0db7 98d2c2f1 f7dcc70b afd28688 e3b4ca5d 831467e7 6b8618fc 1d1f97e3 afc0f8e6 9c1fcf6c d96b084c 61d161db dfa31402 3ae70c10 316779e4 e9978adc 5e986720 146f7a45 e0431e82
+sp179 a 96dfb637 f15b80f9 09eb1e23 8e8c4cf6 052fbbfe aa91577a 2566f9be 0a69dd1e 5425df31 85f62d70 1b7a7e85 97887c1e 1d1fa7dd ade979e7 4c97cbe5 947fc049 61d561d1 f02293fa aa2f3419 316f89ec eee754db d202eadb f8ef3b7d 4bcd4756
+sp179 b 96dfb637 f15b80f9 09eb1e23 8e8c4cf6 052fac04 aa11577b 3446e9bb 0a69dd1a 5425df31 85f6ad74 1b7a7e85 97887c1e 1d1f97e3 ade1f9e6 9c1fcf6c d97f484d 61d561d9 dfa31402 baef3411 316f09e4 eee7d4df d202eadb f8ef3b7d 4bcd4756
+sp180 a 97c81b0e d365928a 50ecaeb3 91ba5c66 056fb3fe 8ed8e7ea 8163f926 6e65c924 b065c9d7 b73744d0 35941f18 1e8c4a49 1d1fafdd afeb7be7 4cd7cae5 942bc249 61d503d1 7026b3fa 2a372418 31e3f9ed 827b3a53 2c0279e7 9d0a3b58 626e56d2
+sp180 b 97c81b0e d365928a 50ecaeb3 91ba5c66 056fa404 8e58e7eb 9043e923 6e65c920 b065c9d7 b737c4d4 35941f18 1e8c4a49 1d1f9fe3 afe3fbe6 9c5fce6c d92b4a4d 61d503d9 5fa73402 3af72410 31e379e5 827bba57 2c0279e7 9d0a3b58 626e56d2
+sp181 a 2814208e 4ce26b46 31e1b47f 6203aeb3 f99073ff f2bbf53a 07f7927c 7283f04f 2c0ef416 b45534e0 35030323 cbd111c0 1d1fafdd adc879e7 4c97cbe5 947f8048 61d121d1 7026b3fa 2a2f3419 31f7e9e9 f6825352 07dd5ea4 1662d304 6627f463
+sp181 b 2814208e 4ce26b46 31e1b47f 6203aeb3 f9906405 f23bf53b 16d78279 7283f04b 2c0ef416 b455b4e4 35030323 cbd111c0 1d1f9fe3 adc0f9e6 9c1fcf6c d97f084c 61d121d9 5fa73402 3aef3411 31f769e1 f682d356 07dd5ea4 1662d304 6627f463
+sp182 a 920caf14 8e9d7336 4b534766 ddfc3db6 052fb3fa 0ec16e3e 076a98fc 2a386b06 9e212bc1 acb50f01 9821befc 7af3d376 1d1fafdd af8b7be7 4cd7cae5 946f8048 61d521d3 f02293fa 2a3f0c1d b1f3b1e9 e0b74f59 63e0d220 96cbb542 361f9209
+sp182 b 920caf14 8e9d7336 4b534766 ddfc3db6 052fa400 0e416e3f 164a88f9 2a386b02 9e212bc1 acb58f05 9821befc 7af3d376 1d1f9fe3 af83fbe6 9c5fce6c d96f084c 61d521db dfa31402 3aff0c15 b1f331e1 e0b7cf5d 63e0d220 96cbb542 361f9209
+sp183 a 527c351a 2aa64177 c1bd51a3 182eab73 fa905bff bbf5d0fa 43fa97bc bf83f407 63459a70 752c1671 bbcb7bf5 01f17e9c 1d1fa7dd adab78e7 4c97cbe5 947f8048 61d501d1 f02293fa 2a271418 b17781e9 f5865452 c0cc73e0 5a53bd7f 989bc9a6
+sp183 b 527c351a 2aa64177 c1bd51a3 182eab73 fa904c05 bb75d0fb 52da87b9 bf83f403 63459a70 752c9675 bbcb7bf5 01f17e9c 1d1f97e3 ada3f8e6 9c1fcf6c d97f084c 61d501d9 dfa31402 3ae71410 b17701e1 f586d456 c0cc73e0 5a53bd7f 989bc9a6
+sp184 a 7ba530c9 9e9f4455 bf5c5779 6fb4ada8 052fbbfe 20db3620 892a7ee6 227b5e54 946778fd 8ec96823 2e86d020 6fa9fc3a 1d1fafdd afe97ae7 4cd7cae5 947f8048 61d521d1 f02293fa aa373419 717da1e9 e8a70a53 59990c3e 94f3f756 67dabd1e
+sp184 b 7ba530c9 9e9f4455 bf5c5779 6fb4ada8 052fac04 205b3621 980a6ee3 227b5e50 946778fd 8ec9e827 2e86d020 6fa9fc3a 1d1f9fe3 afe1fae6 9c5fce6c d97f084c 61d521d9 dfa31402 baf73411 717d21e1 e8a78a57 59990c3e 94f3f756 67dabd1e
+sp185 a bd5700d1 72282f8d ae5adfb2 47ee8d7e 066f9bfe 23d616f2 0d6adfb4 a97f9f4e 3337bc53 667576c3 faa9762d a4bd080c 1d1fa7dd af8b78e7 4c97cbe5 947b8048 61d121d1 7026b3fa 2a3f341c 71e9f1ed e5a744d3 d5003dec 10ff85cf 72928de7
+sp185 b bd5700d1 72282f8d ae5adfb2 47ee8d7e 066f8c04 235616f3 1c4acfb1 a97f9f4a 3337bc53 6675f6c7 faa9762d a4bd080c 1d1f97e3 af83f8e6 9c1fcf6c d97b084c 61d121d9 5fa73402 3aff3414 71e971e5 e5a7c4d7 d5003dec 10ff85cf 72928de7
+sp186 a e000c7f3 c60f9945 39d33672 c7f54cbe 062f9bfa cfc63f36 2d66dff4 4b67dffe 9d609bbb e6ad5861 dbf40507 15517c9c 1d1fafdd adaa79e7 4c97cbe5 946f8048 61d501d3 f02293fa 2a2f2418 71fd81e9 e1f74959 a4cd03a4 70ff8545 c935ccf3
+sp186 b e000c7f3 c60f9945 39d33672 c7f54cbe 062f8c00 cf463f37 3c46cff1 4b67dffa 9d609bbb e6add865 dbf40507 15517c9c 1d1f9fe3 ada2f9e6 9c1fcf6c d96f084c 61d501db dfa31402 3aef2410 71fd01e1 e1f7c95d a4cd03a4 70ff8545 c935ccf3
+sp187 a f13b27ac d5706016 efd7be1b c3f1ccca 056fbbfe 80951742 2d61f80e a278de86 bca8d4c7 863f47c3 45a300e3 ae21605b 1d1fafdd adc97ae7 4cd7cae5 943bc249 61d573d1 7026b3fa aa3f3418 717d99e8 8c6b6553 3c7049dd 71041c70 67fc7069
+sp187 b f13b27ac d5706016 efd7be1b c3f1ccca 056fac04 80151743 3c41e80b a278de82 bca8d4c7 863fc7c7 45a300e3 ae21605b 1d1f9fe3 adc1fae6 9c5fce6c d93b4a4d 61d573d9 5fa73402 baff3410 717d19e0 8c6be557 3c7049dd 71041c70 67fc7069
+sp188 a ae3950ec c6d58f8e eebb7ea6 d2c1ec6e 062f9bfe 8fd617e2 29625ea4 4726ffde 5fbcf595 b80711a8 9efe41c2 5a436183 1d1fa7dd afeb78e7 4c97cbe5 947f8048 61c131d1 f02293fa aa370418 b1ffa1e8 e7d34453 e0a3debe f4fbd697 8778fbd0
+sp188 b ae3950ec c6d58f8e eebb7ea6 d2c1ec6e 062f8c04 8f5617e3 38424ea1 4726ffda 5fbcf595 b80791ac 9efe41c2 5a436183 1d1f97e3 afe3f8e6 9c1fcf6c d97f084c 61c131d9 dfa31402 baf70410 b1ff21e0 e7d3c457 e0a3debe f4fbd697 8778fbd0
+sp189 a 43cceb33 3910c682 399109ba b7745b73 f99073ff 50be40fa 6ffa11b4 d49ca2d5 ce05abc8 e96930bb e1827e04 c81609af 1d1fafdd afea7be7 4cd7cae5 943b8248 61d543d1 f02293fa aa27041d f1f1f1e8 924a7bda ea2a3fe0 ae58328c 4dc9555a
+sp189 b 43cceb33 3910c682 399109ba b7745b73 f9906405 503e40fb 7eda01b1 d49ca2d1 ce05abc8 e969b0bf e1827e04 c81609af 1d1f9fe3 afe2fbe6 9c5fce6c d93b0a4c 61d543d9 dfa31402 bae70415 f1f171e0 924afbde ea2a3fe0 ae58328c 4dc9555a
+sp190 a c4115535 329e8347 dbac7068 2c1e0ab9 fa905bff d7ba9130 c5b251fc b7cd5287 8b805b9a 1f427732 bbd1e555 5929d7ac 1d1fa7dd af887be7 4c97cbe5 946bc049 61d171d1 f02293fa aa27341d 7169c1ec ed97105a a1529f67 58afd343 e9f828ed
+sp190 b c4115535 329e8347 dbac7068 2c1e0ab9 fa904c05 d73a9131 d49241f9 b7cd5283 8b805b9a 1f42f736 bbd1e555 5929d7ac 1d1f97e3 af80fbe6 9c1fcf6c d96b484d 61d171d9 dfa31402 bae73415 716941e4 ed97905e a1529f67 58afd343 e9f828ed
+sp191 a a1846e46 acafb3fe fb65d118 5823abd5 f9d073fb 1aa1f85c edbdd11c 7a9671ef ead47656 99f43d99 918d8780 7f9f9f58 1d1fafdd ad8b7ae7 4cd7cae5 943bc249 61d503d3 7026b3fa 2a2f3c1d 31e7e9ed 984a3d58 9a496975 30987b65 6dcd2ce5
+sp191 b a1846e46 acafb3fe fb65d118 5823abd5 f9d06401 1a21f85d fc9dc119 7a9671eb ead47656 99f4bd9d 918d8780 7f9f9f58 1d1f9fe3 ad83fae6 9c5fce6c d93b4a4d 61d503db 5fa73402 3aef3c15 31e769e5 984abd5c 9a496975 30987b65 6dcd2ce5
+sp192 a d97c5c32 a839ba85 38073b85 46f06948 062f93fa ad8b3ac4 ed287b86 c13dbedc 7920bdfb 5f2844b3 696972a4 949e1606 1d1fa7dd af897be7 4cd7cae5 946f8048 61d501d3 7026b3fa aa270c1d b1ffd9e8 dfb75759 452d2616 b0f5e2fc a1026572
+sp192 b d97c5c32 a839ba85 38073b85 46f06948 062f8400 ad0b3ac5 fc086b83 c13dbed8 7920bdfb 5f28c4b7 696972a4 949e1606 1d1f97e3 af81fbe6 9c5fce6c d96f084c 61d501db 5fa73402 bae70c15 b1ff59e0 dfb7d75d 452d2616 b0f5e2fc a1026572
+sp193 a 6b583ee2 9a3dc74b 8a7e5954 0628cb85 fa9053ff bfba5008 c7bd114c dddb90b5 e39a9b64 01b41ed9 0afb1bd1 48281210 1d1fafdd afab7be7 4c97cbe5 947fc049 61d501d1 7026b3fa aa3f2418 b1efb1ed f78652da 3b0c11d1 d6a92432 6cc02a81
+sp193 b 6b583ee2 9a3dc74b 8a7e5954 0628cb85 fa904405 bf3a5009 d69d0149 dddb90b1 e39a9b64 01b49edd 0afb1bd1 48281210 1d1f9fe3 afa3fbe6 9c1fcf6c d97f484d 61d501d9 5fa73402 baff2410 b1ef31e5 f786d2de 3b0c11d1 d6a92432 6cc02a81
+sp194 a 0cb0ba42 fb6eda4a f0ad1f50 95828584 056fb3fe e8907608 ad28dec4 2a3a7dd4 12627aa5 ca1b56a9 31d2c652 500de27b 1d1fafdd adeb78e7 4c97cbe5 947fc049 61c111d1 7026b3fa 2a2f0419 71f991e9 ee9305db 09fda013 713126bb ee8aef1b
+sp194 b 0cb0ba42 fb6eda4a f0ad1f50 95828584 056fa404 e8107609 bc08cec1 2a3a7dd0 12627aa5 ca1bd6ad 31d2c652 500de27b 1d1f9fe3 ade3f8e6 9c1fcf6c d97f484d 61c111d9 5fa73402 3aef0411 71f911e1 ee9385df 09fda013 713126bb ee8aef1b
+sp195 a c853ccd4 48ad0a42 542bf37b 0ebaa1b2 062f93fe 0d9d523a 6f6b3b76 81789e4e 196ddea3 702810c9 c63f1024 0d137b24 1d1fa7dd afea7ae7 4cd7cae5 947fc049 61d141d1 f02293fa aa3f0c1d f175a1e8 eba35bdb 6b05df17 aebad2c9 9c40ef01
+sp195 b c853ccd4 48ad0a42 542bf37b 0ebaa1b2 062f8404 0d1d523b 7e4b2b73 81789e4a 196ddea3 702890cd c63f1024 0d137b24 1d1f97e3 afe2fae6 9c5fce6c d97f484d 61d141d9 dfa31402 baff0c15 f17521e0 eba3dbdf 6b05df17 aebad2c9 9c40ef01
+sp196 a c486e417 77fd250b c1cd9917 1b354bc3 fa905bff 73b6f04a cbfd9704 f18430d5 45033de8 b0ea3feb 0b448166 5d9e894e 1d1fafdd afea7be7 4c97cbe5 947f8048 61d111d1 7026b3fa 2a273419 b1fb99e9 f3825952 84d860d2 5254de7c 632b84dd
+sp196 b c486e417 77fd250b c1cd9917 1b354bc3 fa904c05 7336f04b dadd8701 f18430d1 45033de8 b0eabfef 0b448166 5d9e894e 1d1f9fe3 afe2fbe6 9c1fcf6c d97f084c 61d111d9 5fa73402 3ae73411 b1fb19e1 f382d956 84d860d2 5254de7c 632b84dd
+sp197 a e9ad2e9a 64d18a02 cb163312 81f869c6 052fbbfa ac895a4e 63691d0c 8c7d9f56 b8e4f32f d08f1dc9 05c612a8 c24300c8 1d1fafdd afa878e7 4c97cbe5 947f8048 61d531d3 f02293fa 2a272c1d 317f81e8 e8e71c59 c5f3e8d2 3ae54032 57361c3c
+sp197 b e9ad2e9a 64d18a02 cb163312 81f869c6 052fac00 ac095a4f 72490d09 8c7d9f52 b8e4f32f d08f9dcd 05c612a8 c24300c8 1d1f9fe3 afa0f8e6 9c1fcf6c d97f084c 61d531db dfa31402 3ae72c15 317f01e0 e8e79c5d c5f3e8d2 3ae54032 57361c3c
+sp198 a 33555a54 8fef6503 d49d650c 8857b7c5 f99073fb 16e5cc4c 01b9530c 9ad7c6df 0a8caf86 300c16ea 4e1b7cf9 3a697cd1 1d1fafdd adcb79e7 4c97cbe5 943bc249 61d503d3 7026b3fa 2a3f1c1d f175b9e9 984a3c58 9dc59685 1cecd875 053a0a6d
+sp198 b 33555a54 8fef6503 d49d650c 8857b7c5 f9906401 1665cc4d 10994309 9ad7c6db 0a8caf86 300c96ee 4e1b7cf9 3a697cd1 1d1f9fe3 adc3f9e6 9c1fcf6c d93b4a4d 61d503db 5fa73402 3aff1c15 f17539e1 984abc5c 9dc59685 1cecd875 053a0a6d
+sp199 a a7b1e1d8 87839a4d 076b0266 0fb3f8aa 066f93fe cf96a322 4563dc6c 497e881c 5179ced5 27d76a72 2e1026b8 4eac7a53 1d1fafdd af8a7ae7 4c97cbe5 947f8048 61d541d1 f02293fa aa270c18 f1f9f9e8 e7a75253 ab6cdeb0 d8ea70cf cd0f7db3
+sp199 b a7b1e1d8 87839a4d 076b0266 0fb3f8aa 066f8404 cf16a323 5443cc69 497e8818 5179ced5 27d7ea76 2e1026b8 4eac7a53 1d1f9fe3 af82fae6 9c1fcf6c d97f084c 61d541d9 dfa31402 bae70c10 f1f979e0 e7a7d257 ab6cdeb0 d8ea70cf cd0f7db3
+sp200 a deae0396 56acdd46 10e86d6b 6f40b7a7 f99073ff f0f1442a 8dfb536c 74872545 c8d36bf8 ec623282 30bcb86c a40bd2c7 1d1fafdd ad8979e7 4c97cbe5 947f8048 61d121d1 f02293fa 2a2f0418 f1f1a1e8 f6825352 89e2efb4 105af1cf 200a8729
+sp200 b deae0396 56acdd46 10e86d6b 6f40b7a7 f9906405 f071442b 9cdb4369 74872541 c8d36bf8 ec62b286 30bcb86c a40bd2c7 1d1f9fe3 ad81f9e6 9c1fcf6c d97f084c 61d121d9 dfa31402 3aef0410 f1f121e0 f682d356 89e2efb4 105af1cf 200a8729
+sp201 a 2225fd92 f3088b3e f7546749 0abdbd80 066f9bfa a384ee0c a32d394e 033aebcc b37fe44d 2105035b f0d70292 9432165a 1d1fafdd afeb7be7 4c97cbe5 946f8048 61c101d3 7026b3fa aa2f3419 f16df1ec dfa34759 54c1244e fb3d4c30 931700a7
+sp201 b 2225fd92 f3088b3e f7546749 0abdbd80 066f8c00 a304ee0d b20d294b 033aebc8 b37fe44d 2105835f f0d70292 9432165a 1d1f9fe3 afe3fbe6 9c1fcf6c d96f084c 61c101db 5fa73402 baef3411 f16d71e4 dfa3c75d 54c1244e fb3d4c30 931700a7
+sp202 a 1b012b59 9edf8f89 54631a82 d4b6084a 066f93fe 039433c2 4d64dc8c 2b337afc 77607227 291a153b 93bfcb09 bd0bfb89 1d1fa7dd ade878e7 4cd7cae5 943b8248 61d513d1 f02293fa aa27141c f175d9e8 876b34db 393e10d2 d0ed67b3 fa9e9470
+sp202 b 1b012b59 9edf8f89 54631a82 d4b6084a 066f8404 031433c3 5c44cc89 2b337af8 77607227 291a953f 93bfcb09 bd0bfb89 1d1f97e3 ade0f8e6 9c5fce6c d93b0a4c 61d513d9 dfa31402 bae71414 f17559e0 876bb4df 393e10d2 d0ed67b3 fa9e9470
+sp203 a a92eafc5 1d338b39 74832344 fde81194 052fb3fe a8976218 ed2cdadc a27acdf6 30eca2d1 503607c8 5fd9020f 037d39ef 1d1fa7dd afab7be7 4c97cbe5 946bc049 61c111d1 7026b3fa 2a373419 b17781e8 e2e7585b 4836b103 31455aa3 a9d4cdba
+sp203 b a92eafc5 1d338b39 74832344 fde81194 052fa404 a8176219 fc0ccad9 a27acdf2 30eca2d1 503687cc 5fd9020f 037d39ef 1d1f97e3 afa3fbe6 9c1fcf6c d96b484d 61c111d9 5fa73402 3af73411 b17701e0 e2e7d85f 4836b103 31455aa3 a9d4cdba
+sp204 a c2cd08f3 eed02789 25e80baf 5e88117e 052fb3fe 64d4a2f2 476a3bbe 602caf6c 92e3a50f 900d004b c5616be3 ce0462b2 1d1fafdd ad8878e7 4c97cbe5 947fc049 61d111d1 7026b3fa aa3f1418 71e5f1ed eee305db 961cb129 56ffd9c0 aa5d5b04
+sp204 b c2cd08f3 eed02789 25e80baf 5e88117e 052fa404 6454a2f3 564a2bbb 602caf68 92e3a50f 900d804f c5616be3 ce0462b2 1d1f9fe3 ad80f8e6 9c1fcf6c d97f484d 61d111d9 5fa73402 baff1410 71e571e5 eee385df 961cb129 56ffd9c0 aa5d5b04
+sp205 a f2696a48 71daa502 1cc30518 d03ddfd1 f9907bff 76f46458 0fb91514 92c8c087 42c9c412 932c41f9 074f36ec 6cd6663d 1d1fafdd afc97be7 4cd7cae5 943bc249 61d543d1 7026b3fa aa3f1c1d 71e999ed 964a7452 4418fc81 8ead176f 8bacb08b
+sp205 b f2696a48 71daa502 1cc30518 d03ddfd1 f9906c05 76746459 1e990511 92c8c083 42c9c412 932cc1fd 074f36ec 6cd6663d 1d1f9fe3 afc1fbe6 9c5fce6c d93b4a4d 61d543d9 5fa73402 baff1c15 71e919e5 964af456 4418fc81 8ead176f 8bacb08b
+sp206 a 08c0ddf4 f7233406 ead3d71d 5be36dd4 062f9bfe e39d5658 a52c7e96 cb7ddfa4 776a9591 4ef97923 d3cd17df 3cb164a7 1d1fafdd afc87ae7 4cd7cae5 942f8248 61d513d1 f02293fa 2a3f141c 31f389e8 7fb7525b 5760ec3c f949c5a9 10fe0108
+sp206 b 08c0ddf4 f7233406 ead3d71d 5be36dd4 062f8c04 e31d5659 b40c6e93 cb7ddfa0 776a9591 4ef9f927 d3cd17df 3cb164a7 1d1f9fe3 afc0fae6 9c5fce6c d92f0a4c 61d513d9 dfa31402 3aff1414 31f309e0 7fb7d25f 5760ec3c f949c5a9 10fe0108
+sp207 a 22a76b4d 5467918e 4c3453b7 48d9a97a 062f9bfe 85d4b2f2 696bfc36 252b3fbc d9627aab 7ea65aa2 11b6a4ed 2009c59f 1d1fafdd adea78e7 4c97cbe5 947bc049 61d141d1 f02293fa 2a2f3c19 31f7f9e8 ebe75d5b f4ce805f 34ee4105 b38c5515
+sp207 b 22a76b4d 5467918e 4c3453b7 48d9a97a 062f8c04 8554b2f3 784bec33 252b3fb8 d9627aab 7ea6daa6 11b6a4ed 2009c59f 1d1f9fe3 ade2f8e6 9c1fcf6c d97b484d 61d141d9 dfa31402 3aef3c11 31f779e0 ebe7dd5f f4ce805f 34ee4105 b38c5515
+sp208 a 481fd8b6 c000ca89 5c120b89 befc515c 052fb3fe ac9b02d0 ef2dba16 60372e16 7ceb2ba5 5e767383 49c9ffb3 36cae3f9 1d1fafdd afe97be7 4cd7cae5 946f8048 61d521d1 f02293fa 2a372c18 31ff99e8 e0b74f53 cde93e8e af00b425 707cf5fd
+sp208 b 481fd8b6 c000ca89 5c120b89 befc515c 052fa404 ac1b02d1 fe0daa13 60372e12 7ceb2ba5 5e76f387 49c9ffb3 36cae3f9 1d1f9fe3 afe1fbe6 9c5fce6c d96f084c 61d521d9 dfa31402 3af72c10 31ff19e0 e0b7cf57 cde93e8e af00b425 707cf5fd
+sp209 a 47b769f8 06d12349 108d1e68 03920cbc 052fbbfe 889ab730 2f239874 e421bebe d2bed939 13b559f8 ec0b78f7 71697efe 1d1fa7dd ad887be7 4c97cbe5 947fc049 61c521d1 7026b3fa 2a2f0c19 716d81ed eed712db 6c3e6c2d ef32650b 341b8e56
+sp209 b 47b769f8 06d12349 108d1e68 03920cbc 052fac04 881ab731 3e038871 e421beba d2bed939 13b5d9fc ec0b78f7 71697efe 1d1f97e3 ad80fbe6 9c1fcf6c d97f484d 61c521d9 5fa73402 3aef0c11 716d01e5 eed792df 6c3e6c2d ef32650b 341b8e56
+sp210 a 66f9cf17 4b690d3d 3b31235a 89ca9996 062f9bfa 4f814a1e e76c9adc af29efde bd3ba8bb 140101c1 4f0c2f3f 79e26a57 1d1fafdd af8a7be7 4cd7cae5 946f8048 61c101d3 7026b3fa 2a3f3c18 717da1e8 dfa34759 a925c83c 36cdf3a1 5d0beb71
+sp210 b 66f9cf17 4b690d3d 3b31235a 89ca9996 062f8c00 4f014a1f f64c8ad9 af29efda bd3ba8bb 140181c5 4f0c2f3f 79e26a57 1d1f9fe3 af82fbe6 9c5fce6c d96f084c 61c101db 5fa73402 3aff3c10 717d21e0 dfa3c75d a925c83c 36cdf3a1 5d0beb71
+sp211 a 3b5bcdb6 ef83037f 164805bf 8a343773 f99073fb 7ae9ecfe 8ffa93bc 5a9465d7 6cc20492 fbc07b19 3cd08d1d 3a00da5e 1d1fa7dd afe878e7 4c97cbe5 947b8048 61d101d3 7026b3fa aa37141c b1eb81ec f2864cd8 755f665c 0e67d1c5 037f9797
+sp211 b 3b5bcdb6 ef83037f 164805bf 8a343773 f9906401 7a69ecff 9eda83b9 5a9465d3 6cc20492 fbc0fb1d 3cd08d1d 3a00da5e 1d1f97e3 afe0f8e6 9c1fcf6c d97b084c 61d101db 5fa73402 baf71414 b1eb01e4 f286ccdc 755f665c 0e67d1c5 037f9797
+sp212 a 966014ba 7173d905 e38eca2d 40f2d8fc 056fb3fa 208aab74 e3223bbe 6274cfbc 74b4cb55 067876e3 c4df3ab1 6c3e7468 1d1fafdd afcb79e7 4c97cbe5 946b8048 61c101d3 f02293fa aa2f0418 b16399ed dea741d9 57d748e6 3b48097b 6fa2f4f5
+sp212 b 966014ba 7173d905 e38eca2d 40f2d8fc 056fa400 200aab75 f2022bbb 6274cfb8 74b4cb55 0678f6e7 c4df3ab1 6c3e7468 1d1f9fe3 afc3f9e6 9c1fcf6c d96b084c 61c101db dfa31402 baef0410 b16319e5 dea7c1dd 57d748e6 3b48097b 6fa2f4f5
+sp213 a f06fd941 8fbfeafa 2c2fc227 6ebd78f6 056fb3fe ec9dc37a 6563fc3e 82396a56 58224ba7 c5c92951 245dbe3b 822bfcbb 1d1fafdd afc97be7 4cd7cae5 942bc249 61c503d1 7026b3fa aa3f2c18 71e599ec 826b3a53 c64f6057 39124040 88b03500
+sp213 b f06fd941 8fbfeafa 2c2fc227 6ebd78f6 056fa404 ec1dc37b 7443ec3b 82396a52 58224ba7 c5c9a955 245dbe3b 822bfcbb 1d1f9fe3 afc1fbe6 9c5fce6c d92b4a4d 61c503d9 5fa73402 baff2c10 71e519e4 826bba57 c64f6057 39124040 88b03500
+sp214 a d4947946 3eba01c7 054b8cff 266cbe37 f9d07bff f4bd65ba a1f6d4fc b4d2801d 44c0cace 64a11cc2 68392398 037b7d28 1d1fa7dd adca78e7 4cd7cae5 947f8048 61c111d1 f02293fa aa27041c 716989ec f5f24452 7ded9062 7c176143 f0b74395
+sp214 b d4947946 3eba01c7 054b8cff 266cbe37 f9d06c05 f43d65bb b0d6c4f9 b4d28019 44c0cace 64a19cc6 68392398 037b7d28 1d1f97e3 adc2f8e6 9c5fce6c d97f084c 61c111d9 dfa31402 bae70414 716909e4 f5f2c456 7ded9062 7c176143 f0b74395
+sp215 a a24e63a5 682b6546 ea01ec4a c164be87 f99073ff 50b3450a a5f0d3c4 389d216f 4ac10170 e57827d3 1485ef67 672fd395 1d1fafdd af897be7 4cd7cae5 943b8248 61c503d1 f02293fa 2a3f3418 b16789ed 927a3bda e275bec8 f879a077 13b6bdc6
+sp215 b a24e63a5 682b6546 ea01ec4a c164be87 f9906405 5033450b b4d0c3c1 389d216b 4ac10170 e578a7d7 1485ef67 672fd395 1d1f9fe3 af81fbe6 9c5fce6c d93b0a4c 61c503d9 dfa31402 3aff3410 b16709e5 927abbde e275bec8 f879a077 13b6bdc6
+sp216 a 792c52c9 b831683a 7cbf8645 50d61494 056fb3fe ecdde718 892479d6 ce2d6d04 16a803f9 8bde689a 4f30cad5 b9d7bdcd 1d1fafdd afab78e7 4c97cbe5 947b8048 61d111d1 f02293fa aa272c19 b1ffc1e9 e6a714d3 8bec4d04 952de366 049a90d1
+sp216 b 792c52c9 b831683a 7cbf8645 50d61494 056fa404 ec5de719 980469d3 ce2d6d00 16a803f9 8bdee89e 4f30cad5 b9d7bdcd 1d1f9fe3 afa3f8e6 9c1fcf6c d97b084c 61d111d9 dfa31402 bae72c11 b1ff41e1 e6a794d7 8bec4d04 952de366 049a90d1
+sp217 a f960a7cd 8b5adfcd a695cac4 05e6f808 066f93fe c99ba380 ed205ac4 c774ca0c db29848f ea526209 2bcb6119 85081298 1d1fafdd adea78e7 4cd7cae5 942bc249 61d513d1 7026b3fa 2a270c18 f17199e9 837b6b53 f348c113 313db1ba d0f0c783
+sp217 b f960a7cd 8b5adfcd a695cac4 05e6f808 066f8404 c91ba381 fc004ac1 c774ca08 db29848f ea52e20d 2bcb6119 85081298 1d1f9fe3 ade2f8e6 9c5fce6c d92b4a4d 61d513d9 5fa73402 3ae70c10 f17119e1 837beb57 f348c113 313db1ba d0f0c783
+sp218 a 7054e639 549b6a0a 3721e22e 06c118fe 056fb3fe 02d50372 eb639c34 e6256a7c 3e7e0073 8fc07811 8fc3f68d f3d18504 1d1fa7dd afaa7ae7 4c97cbe5 946f8048 61c111d1 7026b3fa 2a270418 71edc9ec e0a34853 edfa10aa 32fea94b 32849af6
+sp218 b 7054e639 549b6a0a 3721e22e 06c118fe 056fa404 02550373 fa438c31 e6256a78 3e7e0073 8fc0f815 8fc3f68d f3d18504 1d1f97e3 afa2fae6 9c1fcf6c d96f084c 61c111d9 5fa73402 3ae70410 71ed49e4 e0a3c857 edfa10aa 32fea94b 32849af6
+sp219 a 691abfe5 d656f09b cc51c8bc 9671ba69 fa905bff 17f7a1e0 ebb296ac 3f81e55d 0991ad64 33ae4f78 c81e714b 7da90579 1d1fa7dd afc879e7 4c97cbe5 946fc049 61d171d1 f02293fa aa372c19 b1ef89ed ef9302da 60d590b7 32bb868f 8b519e7b
+sp219 b 691abfe5 d656f09b cc51c8bc 9671ba69 fa904c05 1777a1e1 fa9286a9 3f81e559 0991ad64 33aecf7c c81e714b 7da90579 1d1f97e3 afc0f9e6 9c1fcf6c d96f484d 61d171d9 dfa31402 baf72c11 b1ef09e5 ef9382de 60d590b7 32bb868f 8b519e7b
+sp220 a 47e034be ec28cec2 452e91d8 fa078b11 f99073ff dafc7098 45b95654 bac1d15d 2652b2e0 905a346a 86641bb7 a94c3f46 1d1fa7dd adca7be7 4c97cbe5 947bc049 61d101d1 7026b3fa aa371c19 316ff1ed f8864a5a 1faae0c1 58a8d72b 0f7a5ab5
+sp220 b 47e034be ec28cec2 452e91d8 fa078b11 f9906405 da7c7099 54994651 bac1d159 2652b2e0 905ab46e 86641bb7 a94c3f46 1d1f97e3 adc2fbe6 9c1fcf6c d97b484d 61d101d9 5fa73402 baf71c11 316f71e5 f886ca5e 1faae0c1 58a8d72b 0f7a5ab5
+sp221 a 77ed4b3a 84435cca 88b913d6 e28bc906 056fb3fe 4c97f28a 616c5bcc 6e76d924 d2b69fa5 da03422b 0dd86369 574b0e1b 1d1fa7dd afcb7be7 4cd7cae5 943b8248 61d523d1 7026b3fa aa373418 b17bd1e8 866b23db 6e436ecc 3cf208b3 dffd4ecc
+sp221 b 77ed4b3a 84435cca 88b913d6 e28bc906 056fa404 4c17f28b 704c4bc9 6e76d920 d2b69fa5 da03c22f 0dd86369 574b0e1b 1d1f97e3 afc3fbe6 9c5fce6c d93b0a4c 61d523d9 5fa73402 baf73410 b17b51e0 866ba3df 6e436ecc 3cf208b3 dffd4ecc
+sp222 a d938486a 32c512ce 00be97c3 56d4ad0e 062f9bfe 61d73682 036dbe4e 056d1efc 9fbf7163 a6f36bc3 a8c7cd9e 75669cad 1d1fa7dd adc979e7 4c97cbe5 947fc049 61c131d1 7026b3fa aa272c19 f1e981ec edd344db 90c8df1d 9ae44f31 8d4c3edb
+sp222 b d938486a 32c512ce 00be97c3 56d4ad0e 062f8c04 61573683 124dae4b 056d1ef8 9fbf7163 a6f3ebc7 a8c7cd9e 75669cad 1d1f97e3 adc1f9e6 9c1fcf6c d97f484d 61c131d9 5fa73402 bae72c11 f1e901e4 edd3c4df 90c8df1d 9ae44f31 8d4c3edb
+sp223 a 50fdeab9 0adac906 5ebbb238 82d208f4 062f93fe 499e7378 e1225db4 af75594c 79a51693 0e566380 be95fc4e dac18065 1d1fafdd ad897be7 4cd7cae5 947fc049 61c131d1 7026b3fa 2a271c18 317fb1e9 ed9342db a941a027 3cefa0ca 28c23481
+sp223 b 50fdeab9 0adac906 5ebbb238 82d208f4 062f8404 491e7379 f0024db1 af755948 79a51693 0e56e384 be95fc4e dac18065 1d1f9fe3 ad81fbe6 9c5fce6c d97f484d 61c131d9 5fa73402 3ae71c10 317f31e1 ed93c2df a941a027 3cefa0ca 28c23481
+sp224 a c201c50a b301f58a 5cd985af 9b465f7b fad05bff 35bd24f2 09ffd234 9f89e117 4d9d827c be944e81 8a700df1 6d99469b 1d1fa7dd adca7ae7 4c97cbe5 943b8248 61d523d1 7026b3fa aa3f3c18 b16781ec 930a7cda 871f3d64 94a6994b aad9d5fe
+sp224 b c201c50a b301f58a 5cd985af 9b465f7b fad04c05 353d24f3 18dfc231 9f89e113 4d9d827c be94ce85 8a700df1 6d99469b 1d1f97e3 adc2fae6 9c1fcf6c d93b0a4c 61d523d9 5fa73402 baff3c10 b16701e4 930afcde 871f3d64 94a6994b aad9d5fe
+sp225 a 3f1e2a1e e6c49afa ed615e23 f0b644f6 056fb3fe 4cd2777a 0567f83e 88669bf6 507a9939 1b677699 ad013287 fea152ac 1d1fafdd adcb7be7 4c97cbe5 946bc049 61c111d1 f02293fa 2a372c1c f1ed81ed e4a7505b 25d77ba1 990a2500 17bf2221
+sp225 b 3f1e2a1e e6c49afa ed615e23 f0b644f6 056fa404 4c52777b 1447e83b 88669bf2 507a9939 1b67f69d ad013287 fea152ac 1d1f9fe3 adc3fbe6 9c1fcf6c d96b484d 61c111d9 dfa31402 3af72c14 f1ed01e5 e4a7d05f 25d77ba1 990a2500 17bf2221
+sp226 a e6f973a2 acf66ccf 29cf31d7 9b29eb1b f9d073ff dcbfb092 c9fdd054 1a97f0df 6052d58a 5b5072bb 3d507f9f 82800a36 1d1fafdd afa87be7 4c97cbe5 942b8248 61c503d1 7026b3fa aa373418 b173f9e9 8a4a79da d64e7340 d4b0b32b 33e45f12
+sp226 b e6f973a2 acf66ccf 29cf31d7 9b29eb1b f9d06405 dc3fb093 d8ddc051 1a97f0db 6052d58a 5b50f2bf 3d507f9f 82800a36 1d1f9fe3 afa0fbe6 9c1fcf6c d92b0a4c 61c503d9 5fa73402 baf73410 b17379e1 8a4af9de d64e7340 d4b0b32b 33e45f12
+sp227 a 952ea722 2e936c8e 714a55b1 78772f7d f99073ff 18bbb4f0 a3be95b4 549bb2d7 a6479a00 660347c3 57010d9d bff96cc5 1d1fafdd ada879e7 4cd7cae5 943bc249 61c543d1 f02293fa aa37241c 717581e8 987a7c52 1c6e4fe9 7aa38e8a 494dd75a
+sp227 b 952ea722 2e936c8e 714a55b1 78772f7d f9906405 183bb4f1 b29e85b1 549bb2d3 a6479a00 6603c7c7 57010d9d bff96cc5 1d1f9fe3 ada0f9e6 9c5fce6c d93b4a4d 61c543d9 dfa31402 baf72414 717501e0 987afc56 1c6e4fe9 7aa38e8a 494dd75a
+sp228 a 5ac2daa1 9444345b 99382d7e fa28ffaf fa905bff 73b20422 23ff936c 7b97e1af 6704e23a 7ba35c3b 340b38e5 d4284b25 1d1fa7dd ad897ae7 4c97cbe5 943b8248 61c523d1 f02293fa 2a3f041c 31f3b9e9 937a7cda c1670034 7aaaafd3 60d01ec0
+sp228 b 5ac2daa1 9444345b 99382d7e fa28ffaf fa904c05 73320423 32df8369 7b97e1ab 6704e23a 7ba3dc3f 340b38e5 d4284b25 1d1f97e3 ad81fae6 9c1fcf6c d93b0a4c 61c523d9 dfa31402 3aff0414 31f339e1 937afcde c1670034 7aaaafd3 60d01ec0
+sp229 a f069ae4c 569f0ff7 84994c27 447bf6f7 fad053fb 3be9ed7e 85f6d3bc 73cbc69d e1df8fca ce3c54a1 afe412d7 9aa3673d 1d1fafdd ad8b78e7 4cd7cae5 947f8048 61c101d3 7026b3fa 2a273c18 3163f1ed f4f25458 bebc27dc 981bbac1 644047b7
+sp229 b f069ae4c 569f0ff7 84994c27 447bf6f7 fad04401 3b69ed7f 94d6c3b9 73cbc699 e1df8fca ce3cd4a5 afe412d7 9aa3673d 1d1f9fe3 ad83f8e6 9c5fce6c d97f084c 61c101db 5fa73402 3ae73c10 316371e5 f4f2d45c bebc27dc 981bbac1 644047b7
+sp230 a 840a2329 0d2f2a89 c6588397 b9eeb946 052fb3fe c89c42ca e5687b8e 64708906 5424c1b5 578c5ed1 aafe50a8 ba5e230a 1d1fafdd afe87be7 4c97cbe5 946fc049 61d111d1 f02293fa aa2f1419 7169f9ec e4f340db b000ee51 38fd89ad 31c14bea
+sp230 b 840a2329 0d2f2a89 c6588397 b9eeb946 052fa404 c81c42cb f4486b8b 64708902 5424c1b5 578cded5 aafe50a8 ba5e230a 1d1f9fe3 afe0fbe6 9c1fcf6c d96f484d 61d111d9 dfa31402 baef1411 716979e4 e4f3c0df b000ee51 38fd89ad 31c14bea
+sp231 a d97e1b94 dec16387 e66ed9ab 0d5c0b7b fa905bff 1db9b0f2 69fe57bc 5f8df485 891a9eb6 d9940f19 785d2af1 683f09c8 1d1fa7dd adea7ae7 4c97cbe5 946f8048 61d171d1 7026b3fa aa273c18 7179a1e8 ed930052 dcf5e0a6 346405c3 b6a3898c
+sp231 b d97e1b94 dec16387 e66ed9ab 0d5c0b7b fa904c05 1d39b0f3 78de47b9 5f8df481 891a9eb6 d9948f1d 785d2af1 683f09c8 1d1f97e3 ade2fae6 9c1fcf6c d96f084c 61d171d9 5fa73402 bae73c10 717921e0 ed938056 dcf5e0a6 346405c3 b6a3898c
+sp232 a bed83ffd b082c8d5 7d77c2da 659a180a 052fb3fe 02db8382 c7649acc ac292a96 3e2069b5 1eee7aa2 0c44cda3 2168fe78 1d1fa7dd adaa7be7 4c97cbe5 947f8048 61d121d1 f02293fa aa3f1c19 f1ede1ec eae31953 77d7ae5c 5701c270 6290f07c
+sp232 b bed83ffd b082c8d5 7d77c2da 659a180a 052fa404 025b8383 d6448ac9 ac292a92 3e2069b5 1eeefaa6 0c44cda3 2168fe78 1d1f97e3 ada2fbe6 9c1fcf6c d97f084c 61d121d9 dfa31402 baff1c11 f1ed61e4 eae39957 77d7ae5c 5701c270 6290f07c
+sp233 a 56d3c445 374020c6 819dc4fd 632e5e31 f9907bff babae5b8 afb214f4 30da0427 a81e67a0 4c9e0ea1 81428034 f4b5fc7e 1d1fafdd afea79e7 4c97cbe5 943bc249 61d543d1 f02293fa aa3f2c1d 717d81e9 964a7452 802d5d21 6ef8164b 6d3b64ad
+sp233 b 56d3c445 374020c6 819dc4fd 632e5e31 f9906c05 ba3ae5b9 be9204f1 30da0423 a81e67a0 4c9e8ea5 81428034 f4b5fc7e 1d1f9fe3 afe2f9e6 9c1fcf6c d93b4a4d 61d543d9 dfa31402 baff2c15 717d01e1 964af456 802d5d21 6ef8164b 6d3b64ad
+sp234 a 0cf3a78e 4999628e 619b6ba6 77f0b96e 062f93fe 6ddf02e2 436b1c24 c136291c 3d3468e9 9d2110b1 6a7e8bfe 2cbe9a67 1d1fa7dd af887be7 4c97cbe5 942f8248 61d503d1 f02293fa aa2f1419 717db1e8 7ff7515b cd573ef0 db3b3718 d54f9fd1
+sp234 b 0cf3a78e 4999628e 619b6ba6 77f0b96e 062f8404 6d5f02e3 524b0c21 c1362918 3d3468e9 9d2190b5 6a7e8bfe 2cbe9a67 1d1f97e3 af80fbe6 9c1fcf6c d92f0a4c 61d503d9 dfa31402 baef1411 717d31e0 7ff7d15f cd573ef0 db3b3718 d54f9fd1
+sp235 a 7dbbb097 2f46f0f1 bedbc221 07bc18f4 056fb3fa 26c64b7c e1277a36 a630ef04 94a0e1eb d77066d3 621a6714 ebb34355 1d1fa7dd adc979e7 4c97cbe5 946f8048 61d511d3 f02293fa aa370c1d 71f9f1e8 e2b74959 4db5f720 3d46c308 f41d7f4a
+sp235 b 7dbbb097 2f46f0f1 bedbc221 07bc18f4 056fa400 26464b7d f0076a33 a630ef00 94a0e1eb d770e6d7 621a6714 ebb34355 1d1f97e3 adc1f9e6 9c1fcf6c d96f084c 61d511db dfa31402 baf70c15 71f971e0 e2b7c95d 4db5f720 3d46c308 f41d7f4a
+sp236 a 42e0df1d cc7b9a8a 223f1ea6 7bcf0c6e 066f93fa a3c03fe6 a56258a4 2521bf6e f576bc01 b96b3398 588207d7 26333297 1d1fafdd adc87be7 4c97cbe5 946f8048 61c111d3 7026b3fa 2a2f3c19 716da1ed e1a35f59 56b0d236 790824da f323dd67
+sp236 b 42e0df1d cc7b9a8a 223f1ea6 7bcf0c6e 066f8400 a3403fe7 b44248a1 2521bf6a f576bc01 b96bb39c 588207d7 26333297 1d1f9fe3 adc0fbe6 9c1fcf6c d96f084c 61c111db 5fa73402 3aef3c11 716d21e5 e1a3df5d 56b0d236 790824da f323dd67
+sp237 a 9c561a04 34d0bf8a cd5996ae 6ebbec7a 056fbbfe a89ab7f2 2b6618bc a6387f7e ba227c55 f77e7172 84a18549 4f3cfa0b 1d1fafdd afab7ae7 4c97cbe5 942b8248 61d123d1 f02293fa 2a3f341d 71e1a1ec 7eb752db 90687ae4 73545a84 7a457937
+sp237 b 9c561a04 34d0bf8a cd5996ae 6ebbec7a 056fac04 a81ab7f3 3a4608b9 a6387f7a ba227c55 f77ef176 84a18549 4f3cfa0b 1d1f9fe3 afa3fae6 9c1fcf6c d92b0a4c 61d123d9 dfa31402 3aff3415 71e121e4 7eb7d2df 90687ae4 73545a84 7a457937
+sp238 a d3d64158 46cc4afe 8ef5cb09 f48159c4 066f9bfa cfc94a4c c9287c8e 6721ee96 953bef9d db9f5cb8 66a65ee0 99ea2d1b 1d1fafdd af8b7be7 4c97cbe5 946b8048 61c101d3 f02293fa aa3f0418 b17b99e9 dda757d9 a8d8a80e 5551c8ab 630e1417
+sp238 b d3d64158 46cc4afe 8ef5cb09 f48159c4 066f8c00 cf494a4d d8086c8b 6721ee92 953bef9d db9fdcbc 66a65ee0 99ea2d1b 1d1f9fe3 af83fbe6 9c1fcf6c d96b084c 61c101db dfa31402 baff0410 b17b19e1 dda7d7dd a8d8a80e 5551c8ab 630e1417
+sp239 a 9e139f65 26f1394e c8ea8370 60bcf9bc 062f93fe 67db0230 4f2a1afc e730e85c 7b69e85b 331146da cd3d7367 233f05ee 1d1fafdd ade979e7 4cd7cae5 947fc049 61d501d1 f02293fa aa270419 f179e1e9 eda714db 14a941a9 cee3eb3f 2af905d3
+sp239 b 9e139f65 26f1394e c8ea8370 60bcf9bc 062f8404 675b0231 5e0a0af9 e730e858 7b69e85b 3311c6de cd3d7367 233f05ee 1d1f9fe3 ade1f9e6 9c5fce6c d97f484d 61d501d9 dfa31402 bae70411 f17961e1 eda794df 14a941a9 cee3eb3f 2af905d3
+sp240 a 09c24bbb 34fe973f bffad14a c821cb83 f99073fb 94aef80e 43fd174c fcda9347 4c839f1c 0e124621 ee6918f3 9aff07a3 1d1fafdd af887be7 4c97cbe5 947f8048 61d121d3 7026b3fa aa3f3418 b16f81ec f4825158 5bea58d0 5a6d4e31 4d4927ab
+sp240 b 09c24bbb 34fe973f bffad14a c821cb83 f9906401 942ef80f 52dd0749 fcda9343 4c839f1c 0e12c625 ee6918f3 9aff07a3 1d1f9fe3 af80fbe6 9c1fcf6c d97f084c 61d121db 5fa73402 baff3410 b16f01e4 f482d15c 5bea58d0 5a6d4e31 4d4927ab
+sp241 a ad33f373 1d64fb5a 59cff35f f3b2c98a 056fb3fe 82d7b202 e5697b46 ec791a14 50a070d5 a4f628c0 614990b8 a230908b 1d1fa7dd ade879e7 4cd7cae5 943bc249 61c573d1 f02293fa aa272418 71f5e9e8 8c5b7453 b20a521d 38e898f4 aa70881d
+sp241 b ad33f373 1d64fb5a 59cff35f f3b2c98a 056fa404 8257b203 f4496b43 ec791a10 50a070d5 a4f6a8c4 614990b8 a230908b 1d1f97e3 ade0f9e6 9c5fce6c d93b4a4d 61c573d9 dfa31402 bae72410 71f569e0 8c5bf457 b20a521d 38e898f4 aa70881d
+sp242 a a69e737d 92e3e65a 76d6d15c fe2bab89 fad05bff 79fbb000 41b9d74c 5d9f3127 e346149c bc2f05a0 a39cf550 a893d992 1d1fafdd ade87ae7 4cd7cae5 947fc049 61c101d1 7026b3fa 2a2f1418 716d91ec f8f24bda 788d6459 dc604f32 b6823b88
+sp242 b a69e737d 92e3e65a 76d6d15c fe2bab89 fad04c05 797bb001 5099c749 5d9f3123 e346149c bc2f85a4 a39cf550 a893d992 1d1f9fe3 ade0fae6 9c5fce6c d97f484d 61c101d9 5fa73402 3aef1410 716d11e4 f8f2cbde 788d6459 dc604f32 b6823b88
+sp243 a ff2e21f2 572f700d 729afa35 11f5c8fc 066f93fe 0b9f1370 c326bdb6 4d3eb896 53bff66d 401f126a a76c7e32 51213e33 1d1fafdd afaa78e7 4c97cbe5 947b8048 61d131d1 f02293fa aa371c18 716991ed e5a754d3 6d1c2130 5b3b8f85 40db32fc
+sp243 b ff2e21f2 572f700d 729afa35 11f5c8fc 066f8404 0b1f1371 d206adb3 4d3eb892 53bff66d 401f926e a76c7e32 51213e33 1d1f9fe3 afa2f8e6 9c1fcf6c d97b084c 61d131d9 dfa31402 baf71c10 716911e5 e5a7d4d7 6d1c2130 5b3b8f85 40db32fc
+sp244 a 5e521bbf ce30cb16 2e3ab81e 1d6f2acf fa9053fb 3fe81946 43f41184 3f99720d 61805392 19881f98 fa9ff9ed 398680e5 1d1fa7dd afaa79e7 4c97cbe5 947f8048 61d101d3 f02293fa 2a2f0c19 3167f9ec f3825b58 309b1914 5a623bb6 9892b305
+sp244 b 5e521bbf ce30cb16 2e3ab81e 1d6f2acf fa904401 3f681947 52d40181 3f997209 61805392 19889f9c fa9ff9ed 398680e5 1d1f97e3 afa2f9e6 9c1fcf6c d97f084c 61d101db dfa31402 3aef0c11 316779e4 f382db5c 309b1914 5a623bb6 9892b305
+sp245 a 89ff2263 6a879547 ee78917e 9b31cbb3 f9d07bff 9ef5f03a ebfa96fc 5c80b157 a640db72 315a2579 819025de 04d47dfc 1d1fa7dd ada879e7 4cd7cae5 947f8048 61c111d1 7026b3fa 2a3f241d f1fd89e9 f5f24352 53db24e2 322fcf88 43b9131d
+sp245 b 89ff2263 6a879547 ee78917e 9b31cbb3 f9d06c05 9e75f03b fada86f9 5c80b153 a640db72 315aa57d 819025de 04d47dfc 1d1f97e3 ada0f9e6 9c5fce6c d97f084c 61c111d9 5fa73402 3aff2415 f1fd09e1 f5f2c356 53db24e2 322fcf88 43b9131d
+sp246 a 6cc08511 0abcb905 18a8de31 69cc2cfc 062f9bfa 8bce9f74 2327b836 057b1e7e fdec18a1 93d97b7b 77cf94bc 2a0896af 1d1fafdd adaa79e7 4cd7cae5 947f8048 61d501d3 f02293fa aa37041d b173f1e8 e9a70b59 e8b4a366 faf68e08 d4395faf
+sp246 b 6cc08511 0abcb905 18a8de31 69cc2cfc 062f8c00 8b4e9f75 3207a833 057b1e7a fdec18a1 93d9fb7f 77cf94bc 2a0896af 1d1f9fe3 ada2f9e6 9c5fce6c d97f084c 61d501db dfa31402 baf70415 b17371e0 e9a78b5d e8b4a366 faf68e08 d4395faf
+sp247 a ac68621f fee379c5 12cafbc5 fdb86908 062f9bfa a5853a84 c9287bc6 e9779f9c 5d7b915b 47de7853 191b2fa5 7da41af7 1d1fafdd ad8978e7 4c97cbe5 946f8048 61c111d3 7026b3fa 2a372418 b1efe9ec e1e35a59 552ada98 5549e9b7 6724a458
+sp247 b ac68621f fee379c5 12cafbc5 fdb86908 062f8c00 a5053a85 d8086bc3 e9779f98 5d7b915b 47def857 191b2fa5 7da41af7 1d1f9fe3 ad81f8e6 9c1fcf6c d96f084c 61c111db 5fa73402 3af72410 b1ef69e4 e1e3da5d 552ada98 5549e9b7 6724a458
+sp248 a 92d14364 c6e1520a a1e4b803 70410acb f99073ff f8fd9142 65f1d00c 7c8fb0e5 cc09dbcc adbe1911 0c537ad8 59af48fb 1d1fafdd adca78e7 4c97cbe5 947f8048 61d121d1 7026b3fa 2a2f041d b1e3c1ec f6825452 0199c39c b8686578 eb901a0e
+sp248 b 92d14364 c6e1520a a1e4b803 70410acb f9906405 f87d9143 74d1c009 7c8fb0e1 cc09dbcc adbe9915 0c537ad8 59af48fb 1d1f9fe3 adc2f8e6 9c1fcf6c d97f084c 61d121d9 5fa73402 3aef0415 b1e341e4 f682d456 0199c39c b8686578 eb901a0e
+sp249 a d572d64d aa47ae09 5371be32 aeb60cfa 066f9bfe ebdf9772 27631e3c 817a1ed6 bd725aa9 9d351711 abdbfe86 1f32bd64 1d1fa7dd afab78e7 4c97cbe5 947f8048 61d501d1 7026b3fa 2a2f1419 b1ffc1e8 e7a71453 0ee6cd68 f6f34744 d749be57
+sp249 b d572d64d aa47ae09 5371be32 aeb60cfa 066f8c04 eb5f9773 36430e39 817a1ed2 bd725aa9 9d359715 abdbfe86 1f32bd64 1d1f97e3 afa3f8e6 9c1fcf6c d97f084c 61d501d9 5fa73402 3aef1411 b1ff41e0 e7a79457 0ee6cd68 f6f34744 d749be57
+sp250 a e3d79571 8f0d1206 c9ab530e 52b6e9c6 062f9bfe 439f724a 45695d0c e5343eec bfb079ad 751f1472 9c8fc029 a3c8ad30 1d1fa7dd afe878e7 4cd7cae5 946f8048 61d101d1 7026b3fa aa3f3c19 71ede9ed dfb35253 b4f9e210 58d13174 29a1e3ab
+sp250 b e3d79571 8f0d1206 c9ab530e 52b6e9c6 062f8c04 431f724b 54494d09 e5343ee8 bfb079ad 751f9476 9c8fc029 a3c8ad30 1d1f97e3 afe0f8e6 9c5fce6c d96f084c 61d101d9 5fa73402 baff3c11 71ed69e5 dfb3d257 b4f9e210 58d13174 29a1e3ab
+sp251 a 940fe4e8 66b13982 b9384fa9 bddebd7c 052fb3fa a48a2ef4 af2ab9b6 48608c46 7ae78403 96b14ce3 1d79678d e7230886 1d1fa7dd ada87ae7 4c97cbe5 947b8048 61d111d3 7026b3fa 2a3f2c18 71e9c9ec e8e71ad9 4e072228 6f3fb3c7 c42d76cf
+sp251 b 940fe4e8 66b13982 b9384fa9 bddebd7c 052fa400 a40a2ef5 be0aa9b3 48608c42 7ae78403 96b1cce7 1d79678d e7230886 1d1f97e3 ada0fae6 9c1fcf6c d97b084c 61d111db 5fa73402 3aff2c10 71e949e4 e8e79add 4e072228 6f3fb3c7 c42d76cf
+sp252 a 1d2a7f7d b13609fe 17aea308 68c039c0 066f9bfa e3c86a4c e32d9b04 65698ff6 7fa5e441 5dfb3ab3 3302340d 70187fd6 1d1fa7dd adeb7ae7 4cd7cae5 943bc249 61d563d3 f02293fa aa37341c 7165b9ed 8b6b7d59 50ced811 3b349938 387821fc
+sp252 b 1d2a7f7d b13609fe 17aea308 68c039c0 066f8c00 e3486a4d f20d8b01 65698ff2 7fa5e441 5dfbbab7 3302340d 70187fd6 1d1f97e3 ade3fae6 9c5fce6c d93b4a4d 61d563db dfa31402 baf73414 716539e5 8b6bfd5d 50ced811 3b349938 387821fc
+sp253 a 35619b05 523b3387 6003f0bd fd234a71 f9d07bff b4b7f1f8 67b71134 d8ca123f ac4056ca c44f3141 5692fe6c cab3a847 1d1fa7dd ad8b7ae7 4cd7cae5 942bc249 61d503d1 7026b3fa 2a27141d 31fb89e8 905a7b52 088370d9 b6a7134f 0bc96ded
+sp253 b 35619b05 523b3387 6003f0bd fd234a71 f9d06c05 b437f1f9 76970131 d8ca123b ac4056ca c44fb145 5692fe6c cab3a847 1d1f97e3 ad83fae6 9c5fce6c d92b4a4d 61d503d9 5fa73402 3ae71415 31fb09e0 905afb56 088370d9 b6a7134f 0bc96ded
+sp254 a ad47a965 92ca8d07 b78bed33 9e3adffb f9907bfb 3ced2c76 a9ffd334 fcd48557 acddc350 a6d27f61 08404006 247e01f7 1d1fafdd afc87be7 4c97cbe5 947b8048 61d121d3 f02293fa 2a271c19 f161f9ec f28659d8 33680468 f4528a06 975d90f9
+sp254 b ad47a965 92ca8d07 b78bed33 9e3adffb f9906c01 3c6d2c77 b8dfc331 fcd48553 acddc350 a6d2ff65 08404006 247e01f7 1d1f9fe3 afc0fbe6 9c1fcf6c d97b084c 61d121db dfa31402 3ae71c11 f16179e4 f286d9dc 33680468 f4528a06 975d90f9
+sp255 a 6cd96ae6 079c6547 89c35168 a73dabb9 fa905bff b1f1b030 e1bf577c 5dc893af c180b0e6 354f32f2 44524592 8d7e2a13 1d1fafdd adc87be7 4c97cbe5 947fc049 61d101d1 f02293fa aa3f3c18 b17391e9 f9824ada c8b38129 3ca6e5be 6c671762
+sp255 b 6cd96ae6 079c6547 89c35168 a73dabb9 fa904c05 b171b031 f09f4779 5dc893ab c180b0e6 354fb2f6 44524592 8d7e2a13 1d1f9fe3 adc0fbe6 9c1fcf6c d97f484d 61d101d9 dfa31402 baff3c10 b17311e1 f982cade c8b38129 3ca6e5be 6c671762
+sp256 a ca1edab6 8b93c0fe e6b2cc2b d96696e3 f9d073fb 3eabcd6e abf695a4 d49a27c5 4a466e2e 76a85ec1 dfa5b461 3e21f7d3 1d1fa7dd afe879e7 4cd7cae5 947f8048 61c521d3 f02293fa 2a373418 71e189ec f3f65b58 3b8936f0 f227e095 3befdc6d
+sp256 b ca1edab6 8b93c0fe e6b2cc2b d96696e3 f9d06401 3e2bcd6f bad685a1 d49a27c1 4a466e2e 76a8dec5 dfa5b461 3e21f7d3 1d1f97e3 afe0f9e6 9c5fce6c d97f084c 61c521db dfa31402 3af73410 71e109e4 f3f6db5c 3b8936f0 f227e095 3befdc6d
+sp257 a 02c72a17 f4beb497 e07aed9a 3c77bf4b fa905bff 13b104c2 0dfdd20c d7cc4125 cd1b414a 7e646400 a9808ee7 267cb625 1d1fa7dd afc87be7 4cd7cae5 943b8248 61d523d1 f02293fa 2a273419 71e1c1ed 914a7bda 27293c94 9054a230 3d11b891
+sp257 b 02c72a17 f4beb497 e07aed9a 3c77bf4b fa904c05 133104c3 1cddc209 d7cc4121 cd1b414a 7e64e404 a9808ee7 267cb625 1d1f97e3 afc0fbe6 9c5fce6c d93b0a4c 61d523d9 dfa31402 3ae73411 71e141e5 914afbde 27293c94 9054a230 3d11b891
+sp258 a ae3f3ed8 6ef23351 a105877b f4f87daa 056fb3fa 84892e26 256a78e6 8c36ad84 762fc563 d94e21b8 e3ff024c 2fb812b5 1d1fa7dd adc979e7 4cd7cae5 943bc249 61d573d3 f02293fa 2a273418 f1edd1ed 8c6b7459 b03814f9 78e7ab52 0c92dcae
+sp258 b ae3f3ed8 6ef23351 a105877b f4f87daa 056fa400 84092e27 344a68e3 8c36ad80 762fc563 d94ea1bc e3ff024c 2fb812b5 1d1f97e3 adc1f9e6 9c5fce6c d93b4a4d 61d573db dfa31402 3ae73410 f1ed51e5 8c6bf45d b03814f9 78e7ab52 0c92dcae
+sp259 a dd298bfe 18e684cb a47665e1 630e3f29 f9d07bff d8bea4a0 8bbb946c 7ac342f5 86d12002 87576450 83ff81af 9212d88d 1d1fafdd afea79e7 4cd7cae5 943bc249 61d543d1 f02293fa 2a271419 7179b9e8 960a7452 62299e39 12967fcf 99c22f37
+sp259 b dd298bfe 18e684cb a47665e1 630e3f29 f9d06c05 d83ea4a1 9a9b8469 7ac342f1 86d12002 8757e454 83ff81af 9212d88d 1d1f9fe3 afe2f9e6 9c5fce6c d93b4a4d 61d543d9 dfa31402 3ae71411 717939e0 960af456 62299e39 12967fcf 99c22f37
+sp260 a dc2a3199 26170d4d 09c5f367 25d6e9ae 066f93fe 2f9e9222 cb6ebcee 6d31baec d568f143 ea727308 3759576e 50230a16 1d1fafdd afc97be7 4c97cbe5 943bc249 61d513d1 7026b3fa aa3f341c 71e1f9ec 896b2c53 8b56cf71 d3377694 ad283607
+sp260 b dc2a3199 26170d4d 09c5f367 25d6e9ae 066f8404 2f1e9223 da4eaceb 6d31bae8 d568f143 ea72f30c 3759576e 50230a16 1d1f9fe3 afc1fbe6 9c1fcf6c d93b4a4d 61d513d9 5fa73402 baff3414 71e179e4 896bac57 8b56cf71 d3377694 ad283607
+sp261 a 4321eeac 151bc10a 3cf93f0f 29c24dda 056fbbfe a6dd3652 a568fe96 0e2c7fbc 5263731d 117037d9 516a9752 b9c4f94a 1d1fa7dd adc979e7 4c97cbe5 946bc049 61d111d1 7026b3fa aa273c19 f1f9d9e8 e4b7525b 53e31cc9 f8f93ee9 84a935d5
+sp261 b 4321eeac 151bc10a 3cf93f0f 29c24dda 056fac04 a65d3653 b448ee93 0e2c7fb8 5263731d 1170b7dd 516a9752 b9c4f94a 1d1f97e3 adc1f9e6 9c1fcf6c d96b484d 61d111d9 5fa73402 bae73c11 f1f959e0 e4b7d25f 53e31cc9 f8f93ee9 84a935d5
+sp262 a 8387dc96 22d2f041 98ba1678 7ed20cb0 066f9bfe 8bd5d738 8f231e74 012abfce bb3eb3f1 7b09509b 55a27aff 375d5414 1d1fafdd afaa7ae7 4c97cbe5 947fc049 61c511d1 7026b3fa 2a3f0418 31e3d1ed eb971bdb 66f94d63 8f42e70a cb652aa4
+sp262 b 8387dc96 22d2f041 98ba1678 7ed20cb0 066f8c04 8b55d739 9e030e71 012abfca bb3eb3f1 7b09d09f 55a27aff 375d5414 1d1f9fe3 afa2fae6 9c1fcf6c d97f484d 61c511d9 5fa73402 3aff0410 31e351e5 eb979bdf 66f94d63 8f42e70a cb652aa4
+sp263 a 1bed42f8 ac799839 e12cb360 f6cbe1b4 052fb3fe 88d3d238 ed2f5b74 88611e24 3c397ea7 73496278 9ff981e0 3780fc73 1d1fa7dd afa978e7 4cd7cae5 947bc049 61c141d1 7026b3fa 2a273c18 b16b99ec ea974d5b 68144319 30e2f30a cfb61830
+sp263 b 1bed42f8 ac799839 e12cb360 f6cbe1b4 052fa404 8853d239 fc0f4b71 88611e20 3c397ea7 7349e27c 9ff981e0 3780fc73 1d1f97e3 afa1f8e6 9c5fce6c d97b484d 61c141d9 5fa73402 3ae73c10 b16b19e4 ea97cd5f 68144319 30e2f30a cfb61830
+sp264 a bc063fa6 9fa787fa ffb46224 2fca38f4 056fb3fe e0956378 e9225db4 a476092c f4e80a79 82cb7bcb f908c86f dc5c80e4 1d1fafdd afea78e7 4c97cbe5 947fc049 61c561d1 f02293fa 2a3f3418 f1edf9ec ec9755db 91fda1dd b543d786 e81fca07
+sp264 b bc063fa6 9fa787fa ffb46224 2fca38f4 056fa404 e0156379 f8024db1 a4760928 f4e80a79 82cbfbcf f908c86f dc5c80e4 1d1f9fe3 afe2f8e6 9c1fcf6c d97f484d 61c561d9 dfa31402 3aff3410 f1ed79e4 ec97d5df 91fda1dd b543d786 e81fca07
+sp265 a d54ac6b4 4a67b2d1 60a7a7fb e2c2dd2e 056fb3fa 648daea6 2b6ab9ee c634ee8c 58e3a7a3 bbb85898 e4c711bd 0cb42add 1d1fa7dd adc979e7 4c97cbe5 943bc249 61d573d3 7026b3fa 2a373419 f16df1ec 8c6b7459 5037b479 f333598f c640d926
+sp265 b d54ac6b4 4a67b2d1 60a7a7fb e2c2dd2e 056fa400 640daea7 3a4aa9eb c634ee88 58e3a7a3 bbb8d89c e4c711bd 0cb42add 1d1f97e3 adc1f9e6 9c1fcf6c d93b4a4d 61d573db 5fa73402 3af73411 f16d71e4 8c6bf45d 5037b479 f333598f c640d926
+sp266 a 22e945f8 c468429b 47e238be 680caa6b fa9053ff 75f6b1e2 45f3d12c f9c0128d c78d3cc2 a2f36aeb ba56e165 d94ed446 1d1fa7dd afca79e7 4c97cbe5 947f8048 61d501d1 f02293fa aa3f141c f1f981e9 f3865b52 04ac91f8 d8728413 2061c9e0
+sp266 b 22e945f8 c468429b 47e238be 680caa6b fa904405 7576b1e3 54d3c129 f9c01289 c78d3cc2 a2f3eaef ba56e165 d94ed446 1d1f97e3 afc2f9e6 9c1fcf6c d97f084c 61d501d9 dfa31402 baff1414 f1f901e1 f386db56 04ac91f8 d8728413 2061c9e0
+sp267 a 8eed9a1b 287eccc2 6d33bbe9 94898938 052fbbfa 6ccb9ab4 c52afbf6 0a24ffc4 1826f0cb 67104671 1a782366 7f1c67fc 1d1fa7dd afaa7be7 4cd7cae5 946f8048 61d531d3 f02293fa aa273c19 f1edc1ec e0b75f59 05bfa56c 58f37244 08a4fdd0
+sp267 b 8eed9a1b 287eccc2 6d33bbe9 94898938 052fac00 6c4b9ab5 d40aebf3 0a24ffc0 1826f0cb 6710c675 1a782366 7f1c67fc 1d1f97e3 afa2fbe6 9c5fce6c d96f084c 61d531db dfa31402 bae73c11 f1ed41e4 e0b7df5d 05bfa56c 58f37244 08a4fdd0
+sp268 a 0dd3d6f3 0f328085 0be93692 69848c42 052fbbfe 8a97f7ca 8d64d884 2c2e3f06 b47f3b59 dd3c0332 37e588ff d761c02e 1d1fa7dd afc879e7 4c97cbe5 946b8048 61c101d1 7026b3fa aa370419 31efd1ed dee741d3 66111d90 110d7cfc 9e921d2e
+sp268 b 0dd3d6f3 0f328085 0be93692 69848c42 052fac04 8a17f7cb 9c44c881 2c2e3f02 b47f3b59 dd3c8336 37e588ff d761c02e 1d1f97e3 afc0f9e6 9c1fcf6c d96b084c 61c101d9 5fa73402 baf70411 31ef51e5 dee7c1d7 66111d90 110d7cfc 9e921d2e
+sp269 a ab02138b ddb57e5b 4bb6d958 c775438d fa9053ff bdbb9000 41bd5144 35cc16bd 65c21cee 8ea749a2 01cafceb cec4e580 1d1fafdd afa87ae7 4c97cbe5 947fc049 61d501d1 7026b3fa aa270419 f1f581e9 f78653da 3d0dd2d9 5c90c43b 5cd57772
+sp269 b ab02138b ddb57e5b 4bb6d958 c775438d fa904405 bd3b9001 509d4141 35cc16b9 65c21cee 8ea7c9a6 01cafceb cec4e580 1d1f9fe3 afa0fae6 9c1fcf6c d97f484d 61d501d9 5fa73402 bae70411 f1f501e1 f786d3de 3d0dd2d9 5c90c43b 5cd57772
+sp270 a 0458ffc4 11559e4a 8cb5fe57 23c18c82 056fbbfe 829fd70a 2b61384e 40721ccc 9ce217c3 c7646651 16068036 e593abd4 1d1fa7dd adcb78e7 4c97cbe5 947bc049 61d101d1 7026b3fa aa373c19 f16df9ec eca7055b 78067d4f 73011531 49d7f6c9
+sp270 b 0458ffc4 11559e4a 8cb5fe57 23c18c82 056fac04 821fd70b 3a41284b 40721cc8 9ce217c3 c764e655 16068036 e593abd4 1d1f97e3 adc3f8e6 9c1fcf6c d97b484d 61d101d9 5fa73402 baf73c11 f16d79e4 eca7855f 78067d4f 73011531 49d7f6c9
+sp271 a 5d0e507b 7852809b 4905189c cc34ca49 fa905bff 5dbf91c0 47b1970c 978af51d a5cad42c bd350110 8bcd3541 045e1ee1 1d1fafdd adc979e7 4cd7cae5 943bc249 61c523d1 f02293fa 2a270c19 f1f1e9e8 973a7452 d7197395 56a0752f fd7edcf2
+sp271 b 5d0e507b 7852809b 4905189c cc34ca49 fa904c05 5d3f91c1 56918709 978af519 a5cad42c bd358114 8bcd3541 045e1ee1 1d1f9fe3 adc1f9e6 9c5fce6c d93b4a4d 61c523d9 dfa31402 3ae70c11 f1f169e0 973af456 d7197395 56a0752f fd7edcf2
+sp272 a eb442bd2 502b0502 3a6db028 73176afd fa9053fb f9e81974 63b291b4 7bddd1b7 0747b8f8 33044058 18bc6455 9db3111d 1d1fa7dd afc97be7 4cd7cae5 943bc249 61d503d3 f02293fa 2a273c19 7175f9e8 954a6458 38c1275d 3a9faa85 98982018
+sp272 b eb442bd2 502b0502 3a6db028 73176afd fa904401 f9681975 729281b1 7bddd1b3 0747b8f8 3304c05c 18bc6455 9db3111d 1d1f97e3 afc1fbe6 9c5fce6c d93b4a4d 61d503db dfa31402 3ae73c11 717579e0 954ae45c 38c1275d 3a9faa85 98982018
+sp273 a 9cf7d1bc 06907f82 37682aba cac39872 062f93fe 4fd9c3fa 4f671b34 6f32e89c 3fa2eb9b a80f06ab ed2722f6 20556e3c 1d1fafdd afca7ae7 4cd7cae5 946f8048 61d101d1 7026b3fa 2a27241d b1ebb9ed dfb35053 a8dd8e60 cebb5b50 f4f4fadc
+sp273 b 9cf7d1bc 06907f82 37682aba cac39872 062f8404 4f59c3fb 5e470b31 6f32e898 3fa2eb9b a80f86af ed2722f6 20556e3c 1d1f9fe3 afc2fae6 9c5fce6c d96f084c 61d101d9 5fa73402 3ae72415 b1eb39e5 dfb3d057 a8dd8e60 cebb5b50 f4f4fadc
+sp274 a 7a4ad96b 1d4a5f4a 97fcf66d 148b0cb8 056fbbfe 88941730 8527787e 0423be3e de78dc93 dc2504a3 473e5fbd 61737b5e 1d1fafdd afaa79e7 4c97cbe5 942b8248 61c123d1 f02293fa aa3f0c18 31ff81e8 7ea751db a85fdea6 9992d2bd 46d40891
+sp274 b 7a4ad96b 1d4a5f4a 97fcf66d 148b0cb8 056fac04 88141731 9407687b 0423be3a de78dc93 dc2584a7 473e5fbd 61737b5e 1d1f9fe3 afa2f9e6 9c1fcf6c d92b0a4c 61c123d9 dfa31402 baff0c10 31ff01e0 7ea7d1df a85fdea6 9992d2bd 46d40891
+sp275 a 64df9679 e9861985 dd4aa2b8 c79cb874 066f93fe 2dd843f8 ed225ab4 617e89dc 756ba3d5 95371253 de2450b1 88e17553 1d1fafdd afeb7ae7 4cd7cae5 942bc249 61c513d1 7026b3fa aa2f0418 b1f3c9e8 816b6b53 84fae09b b143a9ca f16516d1
+sp275 b 64df9679 e9861985 dd4aa2b8 c79cb874 066f8404 2d5843f9 fc024ab1 617e89d8 756ba3d5 95379257 de2450b1 88e17553 1d1f9fe3 afe3fae6 9c5fce6c d92b4a4d 61c513d9 5fa73402 baef0410 b1f349e0 816beb57 84fae09b b143a9ca f16516d1
+sp276 a 839a1f50 0cf14c8a 953b4b95 c6d75140 056fb3fe c69bc2c8 c7283b8e 6225ef94 162384a1 5e3b5522 0d034414 1cd227a4 1d1fa7dd ada97be7 4c97cbe5 947f8048 61d511d1 f02293fa aa3f0c18 31e3e9ed eaa70953 b6307ed4 573e01ad e8625340
+sp276 b 839a1f50 0cf14c8a 953b4b95 c6d75140 056fa404 c61bc2c9 d6082b8b 6225ef90 162384a1 5e3bd526 0d034414 1cd227a4 1d1f97e3 ada1fbe6 9c1fcf6c d97f084c 61d511d9 dfa31402 baff0c10 31e369e5 eaa78957 b6307ed4 573e01ad e8625340
+sp277 a 519a5f3a 1afefd4d 5ee44374 95bcd9bc 066f93fe 4bdd8230 6b2f1b7c c733ea14 5567aa0d 070c50d1 7c383b00 67c610ca 1d1fafdd afcb7be7 4c97cbe5 943bc249 61d523d1 7026b3fa aa37041d b1ebd1ec 896b3c53 6efddf25 336ed807 9338101e
+sp277 b 519a5f3a 1afefd4d 5ee44374 95bcd9bc 066f8404 4b5d8231 7a0f0b79 c733ea10 5567aa0d 070cd0d5 7c383b00 67c610ca 1d1f9fe3 afc3fbe6 9c1fcf6c d93b4a4d 61d523d9 5fa73402 baf70415 b1eb51e4 896bbc57 6efddf25 336ed807 9338101e
+sp278 a d02b3fd4 f506d991 3a91c3b9 6dbab96c 056fbbfa c8c28ae4 cf2e3ba6 ca36ef66 387e8305 9dd92c10 16ca7f31 d9e01f58 1d1fafdd afa97ae7 4c97cbe5 946f8048 61c121d3 f02293fa 2a372419 f175f1e9 e0a34859 afb168fa cf402994 c20f8c0c
+sp278 b d02b3fd4 f506d991 3a91c3b9 6dbab96c 056fac00 c8428ae5 de0e2ba3 ca36ef62 387e8305 9dd9ac14 16ca7f31 d9e01f58 1d1f9fe3 afa1fae6 9c1fcf6c d96f084c 61c121db dfa31402 3af72411 f17571e1 e0a3c85d afb168fa cf402994 c20f8c0c
+sp279 a 94399bcd 4a93c9c5 c51cafe9 c2883538 052fb3fe c8d8a6b0 ad2e7ffe 4c670f46 9e2647a1 f71043d2 bd93d786 c0b3e5ae 1d1fa7dd adeb7ae7 4c97cbe5 947f8048 61d111d1 7026b3fa aa3f2c18 f1f9a9e9 eae30a53 31b5ab6c f13bed81 3e42d40e
+sp279 b 94399bcd 4a93c9c5 c51cafe9 c2883538 052fa404 c858a6b1 bc0e6ffb 4c670f42 9e2647a1 f710c3d6 bd93d786 c0b3e5ae 1d1f97e3 ade3fae6 9c1fcf6c d97f084c 61d111d9 5fa73402 baff2c10 f1f929e1 eae38a57 31b5ab6c f13bed81 3e42d40e
+sp280 a 68b3cd5c 6f237a06 3f71502a 7d43e2fb fad053ff ddba9172 e1f6d1b4 7fcad79f ad46b5d6 1f627613 062354e9 ed185f59 1d1fafdd ad887ae7 4cd7cae5 947f8048 61c501d1 f02293fa aa3f041c f1ed81ed f4f65252 972a7368 3c2f748b 9a431514
+sp280 b 68b3cd5c 6f237a06 3f71502a 7d43e2fb fad04405 dd3a9173 f0d6c1b1 7fcad79b ad46b5d6 1f62f617 062354e9 ed185f59 1d1f9fe3 ad80fae6 9c5fce6c d97f084c 61c501d9 dfa31402 baff0414 f1ed01e5 f4f6d256 972a7368 3c2f748b 9a431514
+sp281 a 65fda9da 2ac45386 9dff9f88 78988d44 062f9bfe 819af6c8 ad2c5f8c 07625f06 d1607a2d 98ca3f0b 4507c38b cde1ebb9 1d1fafdd af8b7ae7 4c97cbe5 947bc049 61d101d1 7026b3fa 2a3f3c18 31ebd9ec e9e71b5b 774b5b91 713dedf2 c535744e
+sp281 b 65fda9da 2ac45386 9dff9f88 78988d44 062f8c04 811af6c9 bc0c4f89 07625f02 d1607a2d 98cabf0f 4507c38b cde1ebb9 1d1f9fe3 af83fae6 9c1fcf6c d97b484d 61d101d9 5fa73402 3aff3c10 31eb59e4 e9e79b5f 774b5b91 713dedf2 c535744e
+sp282 a a3a223ce 35832cfe fdbd4c3a b976def7 f9d07bfb d2a0ed7e a5f6d3bc 3ccc071d 649c0068 acc32f20 8f8d96e7 83c58116 1d1fafdd adeb7be7 4cd7cae5 947b8048 61c121d3 f02293fa aa2f3419 b17ff9e8 f3f659d8 a7910560 7823a27e 99900d52
+sp282 b a3a223ce 35832cfe fdbd4c3a b976def7 f9d06c01 d220ed7f b4d6c3b9 3ccc0719 649c0068 acc3af24 8f8d96e7 83c58116 1d1f9fe3 ade3fbe6 9c5fce6c d97b084c 61c121db dfa31402 baef3411 b17f79e0 f3f6d9dc a7910560 7823a27e 99900d52
+sp283 a 076f05b1 fc80e2ba 9ec578e3 362eaa37 fad053ff 91f351ba 45f35774 97c7555f 4f401882 fd930cb3 9ad8b17e 898dae2d 1d1fa7dd afab7be7 4cd7cae5 947f8048 61c501d1 f02293fa 2a3f0c1d f1fde9e9 f2f65952 e0ceb220 5832f6cc 088affb2
+sp283 b 076f05b1 fc80e2ba 9ec578e3 362eaa37 fad04405 917351bb 54d34771 97c7555b 4f401882 fd938cb7 9ad8b17e 898dae2d 1d1f97e3 afa3fbe6 9c5fce6c d97f084c 61c501d9 dfa31402 3aff0c15 f1fd69e1 f2f6d956 e0ceb220 5832f6cc 088affb2
+sp284 a 8ee210d5 542093db bdc8a9ff 797a7b2b fa9053ff 73b6a0a2 4dfe51e4 fbd5c1bf 8743c0a6 f82a0528 96c657e0 cfcf075a 1d1fafdd adea78e7 4c97cbe5 947f8048 61d101d1 f02293fa 2a27041c b177e1e8 f5825452 06cc93b8 504ff35b 6bc269af
+sp284 b 8ee210d5 542093db bdc8a9ff 797a7b2b fa904405 7336a0a3 5cde41e1 fbd5c1bb 8743c0a6 f82a852c 96c657e0 cfcf075a 1d1f9fe3 ade2f8e6 9c1fcf6c d97f084c 61d101d9 dfa31402 3ae70414 b17761e0 f582d456 06cc93b8 504ff35b 6bc269af
+sp285 a 3ea79e9e 66829f3b 4ba4b167 c20d23b3 fa9053ff 33ff503a e3ff1174 158eb63d 6993b3ba e74060d1 aa87230c 75bb1594 1d1fa7dd afe97be7 4c97cbe5 947f8048 61d101d1 7026b3fa aa271c1d 717df9e9 f3825952 c4890120 ba535c10 0c277dd2
+sp285 b 3ea79e9e 66829f3b 4ba4b167 c20d23b3 fa904405 337f503b f2df0171 158eb639 6993b3ba e740e0d5 aa87230c 75bb1594 1d1f97e3 afe1fbe6 9c1fcf6c d97f084c 61d101d9 5fa73402 bae71c15 717d79e1 f382d956 c4890120 ba535c10 0c277dd2
+sp286 a af0c958b 48e53b42 e0f2e552 b96c7f87 fa905bfb bdaaec0e 89fcd2c4 dbcc44ff e14c0ad8 5b03561b e6b8e11f 8c0af11e 1d1fa7dd ad8b79e7 4c97cbe5 946f8048 61d171d3 f02293fa 2a270c18 71f981e8 ed930158 b51f878a 14616a75 3ce1188e
+sp286 b af0c958b 48e53b42 e0f2e552 b96c7f87 fa904c01 bd2aec0f 98dcc2c1 dbcc44fb e14c0ad8 5b03d61f e6b8e11f 8c0af11e 1d1f97e3 ad83f9e6 9c1fcf6c d96f084c 61d171db dfa31402 3ae70c10 71f901e0 ed93815c b51f878a 14616a75 3ce1188e
+sp287 a 258802d9 d14b8739 71f70e63 fac034b6 052fb3fe eed8673a ad6679f6 44392f8c d2e068cb f8f03908 8468b5ce 6c5fe04d 1d1fafdd adc879e7 4c97cbe5 947fc049 61c551d1 f02293fa 2a3f1c1c 31ffa1e8 eed744db 85f49d59 f0ff9348 98024d40
+sp287 b 258802d9 d14b8739 71f70e63 fac034b6 052fa404 ee58673b bc4669f3 44392f88 d2e068cb f8f0b90c 8468b5ce 6c5fe04d 1d1f9fe3 adc0f9e6 9c1fcf6c d97f484d 61c551d9 dfa31402 3aff1c14 31ff21e0 eed7c4df 85f49d59 f0ff9348 98024d40
+sp288 a 9dcbef64 3719780e 5ee84b36 28d371fe 062f93fe 25d18272 ef6f9b34 ef2befcc 3523ea57 49d92c3a 3ef87c22 50126683 1d1fa7dd adcb78e7 4c97cbe5 947f8048 61d541d1 7026b3fa 2a273c18 71e589ed e9e75c53 d6f52160 2edef24b 2951768a
+sp288 b 9dcbef64 3719780e 5ee84b36 28d371fe 062f8404 25518273 fe4f8b31 ef2befc8 3523ea57 49d9ac3e 3ef87c22 50126683 1d1f97e3 adc3f8e6 9c1fcf6c d97f084c 61d541d9 5fa73402 3ae73c10 71e509e5 e9e7dc57 d6f52160 2edef24b 2951768a
+sp289 a c903ab37 58298f85 b0db8690 9cb75c40 052fbbfe ccd4c7c8 87209884 e47b0d0e 5e740e69 5eb04d81 fc1f9436 cc93cefc 1d1fa7dd afea78e7 4cd7cae5 947fc049 61d561d1 7026b3fa 2a3f3c19 f1f9f1e8 eca755db 2dc29b8d 970595fb ac469dc3
+sp289 b c903ab37 58298f85 b0db8690 9cb75c40 052fac04 cc54c7c9 96008881 e47b0d0a 5e740e69 5eb0cd85 fc1f9436 cc93cefc 1d1f97e3 afe2f8e6 9c5fce6c d97f484d 61d561d9 5fa73402 3aff3c11 f1f971e0 eca7d5df 2dc29b8d 970595fb ac469dc3
+sp290 a 93c32d61 f6de7085 d38cfebb 5cd4ac76 066f93fe addbf7fa 0166febe 2b6e586e 75a01295 2d3b1331 14758933 15cbba60 1d1fafdd adc979e7 4c97cbe5 947fc049 61d531d1 7026b3fa aa270c1c b167f1ec eda744db 4ec46b25 9ce6eec4 3a097364
+sp290 b 93c32d61 f6de7085 d38cfebb 5cd4ac76 066f8404 ad5bf7fb 1046eebb 2b6e586a 75a01295 2d3b9335 14758933 15cbba60 1d1f9fe3 adc1f9e6 9c1fcf6c d97f484d 61d531d9 5fa73402 bae70c14 b16771e4 eda7c4df 4ec46b25 9ce6eec4 3a097364
+sp291 a ef00feb4 8f10e98f 73f935a0 483a476d f9d073ff b8f534e0 2fba15a4 54cf16c7 04423150 bf4d6332 1296ba25 82d6c4c7 1d1fa7dd adc978e7 4cd7cae5 947fc049 61c111d1 f02293fa aa37341d f1f9f9e8 f9f24dda b9b6c13b ee64109b c5831ea9
+sp291 b ef00feb4 8f10e98f 73f935a0 483a476d f9d06405 b87534e1 3e9a05a1 54cf16c3 04423150 bf4de336 1296ba25 82d6c4c7 1d1f97e3 adc1f8e6 9c5fce6c d97f484d 61c111d9 dfa31402 baf73415 f1f979e0 f9f2cdde b9b6c13b ee64109b c5831ea9
+sp292 a 6767d64f b85c4955 5c8c835b 92e7918a 052fb3fe aa930202 696c7ac6 283aadfc 1427a2a3 3c5e22a3 9f8e2a9e 70f40b3c 1d1fafdd adcb79e7 4c97cbe5 946fc049 61c511d1 7026b3fa 2a371c19 b16389ed e6e742db 4a1b2399 b501a2b9 24111656
+sp292 b 6767d64f b85c4955 5c8c835b 92e7918a 052fa404 aa130203 784c6ac3 283aadf8 1427a2a3 3c5ea2a7 9f8e2a9e 70f40b3c 1d1f9fe3 adc3f9e6 9c1fcf6c d96f484d 61c511d9 5fa73402 3af71c11 b16309e5 e6e7c2df 4a1b2399 b501a2b9 24111656
+sp293 a a2e35d14 cc070306 d1620c39 2a029ef5 f9907bff 3cf7c578 afb295bc 748b2195 2203457c 0822060b 14d8982b 6302c91b 1d1fa7dd af887be7 4c97cbe5 947bc049 61d101d1 f02293fa 2a3f3c18 717db9e8 f686425a 3bed6be1 eeb7a77e 97a2b1bb
+sp293 b a2e35d14 cc070306 d1620c39 2a029ef5 f9906c05 3c77c579 be9285b9 748b2191 2203457c 0822860f 14d8982b 6302c91b 1d1f97e3 af80fbe6 9c1fcf6c d97b484d 61d101d9 dfa31402 3aff3c10 717d39e0 f686c25e 3bed6be1 eeb7a77e 97a2b1bb
+sp294 a 771addfa 62b00909 9b7ee235 61c918e4 052fb3fe ecdc6368 6923fa26 64658904 9025a9f3 20a21ec9 974351d7 43586aed 1d1fafdd ada87be7 4cd7cae5 946b8048 61d121d1 7026b3fa aa271c1c b16fa9ec e0b75fd3 0decee76 34fe545d 01363a8d
+sp294 b 771addfa 62b00909 9b7ee235 61c918e4 052fa404 ec5c6369 7803ea23 64658900 9025a9f3 20a29ecd 974351d7 43586aed 1d1f9fe3 ada0fbe6 9c5fce6c d96b084c 61d121d9 5fa73402 bae71c14 b16f29e4 e0b7dfd7 0decee76 34fe545d 01363a8d
+sp295 a ad4fcf9d 4d37c2d9 b98f3bd8 09b0690c 052fb3fe 0a943280 632c1bc4 047e991e 1269b6f9 3d841810 baf8333e bfdc54ec 1d1fafdd ada87be7 4c97cbe5 947bc049 61d151d1 f02293fa 2a370c18 b1eb99ed ece7525b 7058fd93 3b35e176 4c24fa75
+sp295 b ad4fcf9d 4d37c2d9 b98f3bd8 09b0690c 052fa404 0a143281 720c0bc1 047e991a 1269b6f9 3d849814 baf8333e bfdc54ec 1d1f9fe3 ada0fbe6 9c1fcf6c d97b484d 61d151d9 dfa31402 3af70c10 b1eb19e5 ece7d25f 7058fd93 3b35e176 4c24fa75
+sp296 a fe3bd0d2 6688f14e 465b5f40 ceffed8c 062f93fe 2fd59600 03281ec4 233e787e 31bd3b77 46c87862 be0cff0b e964c62b 1d1fa7dd afaa79e7 4cd7cae5 947fc049 61d131d1 7026b3fa 2a370419 b1f3e1e9 eba34cdb c8e9bd9f 1af9c7bb 29818371
+sp296 b fe3bd0d2 6688f14e 465b5f40 ceffed8c 062f8404 2f559601 12080ec1 233e787a 31bd3b77 46c8f866 be0cff0b e964c62b 1d1f97e3 afa2f9e6 9c5fce6c d97f484d 61d131d9 5fa73402 3af70411 b1f361e1 eba3ccdf c8e9bd9f 1af9c7bb 29818371
+sp297 a 75a7b710 a39ac30d c520cb05 1dc419cc 066f9bfe ef998240 e72cbc8e 4d232f24 316147bb da497789 8b6e87f7 2737bf24 1d1fafdd adcb7be7 4c97cbe5 946b8048 61d101d1 f02293fa 2a37341c 717981e9 dfb757d3 8b18af1a b745b8b1 d292cf0d
+sp297 b 75a7b710 a39ac30d c520cb05 1dc419cc 066f8c04 ef198241 f60cac8b 4d232f20 316147bb da49f78d 8b6e87f7 2737bf24 1d1f9fe3 adc3fbe6 9c1fcf6c d96b084c 61d101d9 dfa31402 3af73414 717901e1 dfb7d7d7 8b18af1a b745b8b1 d292cf0d
+sp298 a da1b4ee0 8c7cccf6 b4253526 6a6b8ff7 fa905bfb 7ba1fc7e 0dfed2bc 1395f6bd 29cdb1e2 320854ea da4e6bf7 68b50cf5 1d1fafdd ade97be7 4c97cbe5 947b8048 61d101d3 7026b3fa aa3f1c19 b17bf9e9 f38659d8 76a653dc 906b9ac2 3ab25c50
+sp298 b da1b4ee0 8c7cccf6 b4253526 6a6b8ff7 fa904c01 7b21fc7f 1cdec2b9 1395f6b9 29cdb1e2 3208d4ee da4e6bf7 68b50cf5 1d1f9fe3 ade1fbe6 9c1fcf6c d97b084c 61d101db 5fa73402 baff1c11 b17b79e1 f386d9dc 76a653dc 906b9ac2 3ab25c50
+sp299 a 2f63da70 88bc984e e5330f44 148eb588 062f93fe c990a600 ad2dd94c 6365cb96 97fb891d 113a02da 0b1a1790 37ec6f02 1d1fa7dd ade978e7 4cd7cae5 947bc049 61c121d1 7026b3fa 2a37041c b1ff99e8 eb974d5b 28e770dd 70f41d36 fcc9f9d7
+sp299 b 2f63da70 88bc984e e5330f44 148eb588 062f8404 c910a601 bc0dc949 6365cb92 97fb891d 113a82de 0b1a1790 37ec6f02 1d1f97e3 ade1f8e6 9c5fce6c d97b484d 61c121d9 5fa73402 3af70414 b1ff19e0 eb97cd5f 28e770dd 70f41d36 fcc9f9d7
+sp300 a d225f429 b0aca231 48715346 d986c992 056fb3fa e887da1e 436d1d54 4a705f44 d07a12a7 d37d7158 8526e6f9 c59e843b 1d1fafdd af8878e7 4c97cbe5 947b8048 61c111d3 f02293fa aa3f0c19 7171f9e9 e69714d9 90251afe dafd1fe6 43c9f40b
+sp300 b d225f429 b0aca231 48715346 d986c992 056fa400 e807da1f 524d0d51 4a705f40 d07a12a7 d37df15c 8526e6f9 c59e843b 1d1f9fe3 af80f8e6 9c1fcf6c d97b084c 61c111db dfa31402 baff0c11 717179e1 e69794dd 90251afe dafd1fe6 43c9f40b
+sp301 a d906347c 6fb4d106 c798be0f 31ec0cc2 062f9bfe 27d4774a 0f64398e 49373cd4 93227b49 0add7809 9d29a796 80c0c2fd 1d1fafdd afc879e7 4c97cbe5 946fc049 61c101d1 f02293fa aa373c19 f16da9ec e3e34adb 48d07e0f 0f0a03ad c122a6c1
+sp301 b d906347c 6fb4d106 c798be0f 31ec0cc2 062f8c04 2754774b 1e44298b 49373cd0 93227b49 0addf80d 9d29a796 80c0c2fd 1d1f9fe3 afc0f9e6 9c1fcf6c d96f484d 61c101d9 dfa31402 baf73c11 f16d29e4 e3e3cadf 48d07e0f 0f0a03ad c122a6c1
+sp302 a aed1dddd 2ca87aba e22113e2 71b8e936 056fb3fe 8490f2ba e76a9dfc 2427bcc6 f23ff36d 69ef3a18 195530c1 1b597a6b 1d1fa7dd afab79e7 4c97cbe5 942b8248 61c113d1 f02293fa 2a3f3419 316381ec 7ea751db ac7a025a b74fc540 ac5819ef
+sp302 b aed1dddd 2ca87aba e22113e2 71b8e936 056fa404 8410f2bb f64a8df9 2427bcc2 f23ff36d 69efba1c 195530c1 1b597a6b 1d1f97e3 afa3f9e6 9c1fcf6c d92b0a4c 61c113d9 dfa31402 3aff3411 316301e4 7ea7d1df ac7a025a b74fc540 ac5819ef
+sp303 a 257daa9d 0ab56286 5c13e1be 033b3b73 f9907bff 5ebac0fa c7fe11b4 b4da0155 4edd2a1c 90432169 5aedffc8 36f1a5d1 1d1fa7dd afe879e7 4cd7cae5 943b8248 61d533d1 f02293fa 2a37041d 31f7f1e8 924a6bda dc07821e d664228c 27b2489a
+sp303 b 257daa9d 0ab56286 5c13e1be 033b3b73 f9906c05 5e3ac0fb d6de01b1 b4da0151 4edd2a1c 9043a16d 5aedffc8 36f1a5d1 1d1f97e3 afe0f9e6 9c5fce6c d93b0a4c 61d533d9 dfa31402 3af70415 31f771e0 924aebde dc07821e d664228c 27b2489a
+sp304 a 288e3dae f5bbad1a 84d66b39 c1fd71ec 056fb3fe e0928260 eb2b3b26 827acffe 72e5a559 52e77cc8 8104480c f2d7565c 1d1fa7dd afea7be7 4cd7cae5 943b8248 61c573d1 7026b3fa aa3f2c18 b16791ed 865b73db d251dfc0 b33b1159 c7e0b75a
+sp304 b 288e3dae f5bbad1a 84d66b39 c1fd71ec 056fa404 e0128261 fa0b2b23 827acffa 72e5a559 52e7fccc 8104480c f2d7565c 1d1f97e3 afe2fbe6 9c5fce6c d93b0a4c 61c573d9 5fa73402 baff2c10 b16711e5 865bf3df d251dfc0 b33b1159 c7e0b75a
+sp305 a d1d07bf5 fce90905 7274560e decb64c2 066f93fe a795f74a a560d984 c334ff46 9ba0da93 fcd03e02 f06b0b8d 3380139f 1d1fa7dd adeb79e7 4c97cbe5 947f8048 61d531d1 7026b3fa aa3f041d 717981e8 e9a74b53 54e86bd6 f9054c00 5a80bde9
+sp305 b d1d07bf5 fce90905 7274560e decb64c2 066f8404 a715f74b b440c981 c334ff42 9ba0da93 fcd0be06 f06b0b8d 3380139f 1d1f97e3 ade3f9e6 9c1fcf6c d97f084c 61d531d9 5fa73402 baff0415 717901e0 e9a7cb57 54e86bd6 f9054c00 5a80bde9
+sp306 a 927e28c7 b55dfb05 89de7709 d5ffc5d8 052fb3fe 20deb650 8928f896 84769c8c fc2bd2ed a29d584b a4e170c2 fd0d1fd3 1d1fa7dd afc87be7 4c97cbe5 942b8248 61d113d1 f02293fa 2a2f2419 31ebf9ec 7eb751db 181f7ac4 15815aa6 547973eb
+sp306 b 927e28c7 b55dfb05 89de7709 d5ffc5d8 052fa404 205eb651 9808e893 84769c88 fc2bd2ed a29dd84f a4e170c2 fd0d1fd3 1d1f97e3 afc0fbe6 9c1fcf6c d92b0a4c 61d113d9 dfa31402 3aef2411 31eb79e4 7eb7d1df 181f7ac4 15815aa6 547973eb
+sp307 a 4bb6fbba d7ee635a 374c197c 4c77eba9 fad053ff 73f3b020 e3bf976c b98cb5b5 4bcc9ce4 2f5e6230 56126423 44c63d1a 1d1fa7dd ad8979e7 4cd7cae5 943bc249 61c503d1 f02293fa aa272419 f1e5e9ec 973a6452 c13555b1 3a928ccf 596d3c01
+sp307 b 4bb6fbba d7ee635a 374c197c 4c77eba9 fad04405 7373b021 f29f8769 b98cb5b1 4bcc9ce4 2f5ee234 56126423 44c63d1a 1d1f97e3 ad81f9e6 9c5fce6c d93b4a4d 61c503d9 dfa31402 bae72411 f1e569e4 973ae456 c13555b1 3a928ccf 596d3c01
+sp308 a 05b5fcaa eec0224a 59dad956 5c436b83 fad053ff 37fef00a 67fd9144 158e3235 8b077480 dace7b2b f3b9ecc7 755fd567 1d1fafdd ade878e7 4c97cbe5 943b8248 61d523d1 7026b3fa aa272418 31fb91e9 930a7cda 84bf744c 3690c23b c14d87fe
+sp308 b 05b5fcaa eec0224a 59dad956 5c436b83 fad04405 377ef00b 76dd8141 158e3231 8b077480 dacefb2f f3b9ecc7 755fd567 1d1f9fe3 ade0f8e6 9c1fcf6c d93b0a4c 61d523d9 5fa73402 bae72410 31fb11e1 930afcde 84bf744c 3690c23b c14d87fe
+sp309 a 027583e0 58bf63c3 2fe1ecd9 b00ebe11 f9d07bff 70f14598 03b014d4 bc80a0cf 84838d72 4837008a fd6850cc 1a0f266c 1d1fa7dd af8b7ae7 4cd7cae5 947fc049 61c511d1 7026b3fa 2a373c1c f1edf9ed f7f643da 81fcdf03 1a6e29ae e3957586
+sp309 b 027583e0 58bf63c3 2fe1ecd9 b00ebe11 f9d06c05 70714599 129004d1 bc80a0cb 84838d72 4837808e fd6850cc 1a0f266c 1d1f97e3 af83fae6 9c5fce6c d97f484d 61c511d9 5fa73402 3af73c14 f1ed79e5 f7f6c3de 81fcdf03 1a6e29ae e3957586
+sp310 a 51e6ccbc 9f17a8ca 30eaa6f4 3c841c3c 066f9bfa 25c6afb4 af2218fc e36c4f9c f7be029d c298596b 395efc4b 9a20e39b 1d1fa7dd afcb7be7 4cd7cae5 943bc249 61c513d3 7026b3fa aa271c18 31ef81ec 895b2c59 94ec72df ef2c0380 f36f29f2
+sp310 b 51e6ccbc 9f17a8ca 30eaa6f4 3c841c3c 066f8c00 2546afb5 be0208f9 e36c4f98 f7be029d c298d96f 395efc4b 9a20e39b 1d1f97e3 afc3fbe6 9c5fce6c d93b4a4d 61c513db 5fa73402 bae71c10 31ef01e4 895bac5d 94ec72df ef2c0380 f36f29f2
+sp311 a 682febbc cdb769be 9f4d2fca 87e21d02 066f9bfa 47c46e8e a969d844 63256e0e 3bb96f0b a6975e61 ec5bff9c e583816d 1d1fa7dd ade87ae7 4c97cbe5 947b8048 61c121d3 7026b3fa aa3f041d f1fd81e9 e79742d9 b274a550 f5005d3e 3b185f20
+sp311 b 682febbc cdb769be 9f4d2fca 87e21d02 066f8c00 47446e8f b849c841 63256e0a 3bb96f0b a697de65 ec5bff9c e583816d 1d1f97e3 ade0fae6 9c1fcf6c d97b084c 61c121db 5fa73402 baff0415 f1fd01e1 e797c2dd b274a550 f5005d3e 3b185f20
+sp312 a 6a21f936 c0e1e1ce c17da4c6 88251e0b f9907bff 18b30582 89f55344 12cbc15f 6286e35a 74371741 4e150dec ae1b52bc 1d1fa7dd afeb7ae7 4c97cbe5 942b8248 61d503d1 f02293fa 2a273c1d 31ff89e8 8a5a7ada 22243d50 14ad27fc d1c3fe73
+sp312 b 6a21f936 c0e1e1ce c17da4c6 88251e0b f9906c05 18330583 98d54341 12cbc15b 6286e35a 74379745 4e150dec ae1b52bc 1d1f97e3 afe3fae6 9c1fcf6c d92b0a4c 61d503d9 dfa31402 3ae73c15 31ff09e0 8a5afade 22243d50 14ad27fc d1c3fe73
+sp313 a c45ea408 d232dfc6 d411c4ff 5b7a7e37 f9907bff 16fc45ba 2df7d57c f6c2c265 04d1eca2 21950858 bf862534 bf950b36 1d1fa7dd afaa78e7 4c97cbe5 947f8048 61d511d1 7026b3fa aa270418 71f1f9e9 f4864452 e3d31ee2 70567003 1fbb734a
+sp313 b c45ea408 d232dfc6 d411c4ff 5b7a7e37 f9906c05 167c45bb 3cd7c579 f6c2c261 04d1eca2 2195885c bf862534 bf950b36 1d1f97e3 afa2f8e6 9c1fcf6c d97f084c 61d511d9 5fa73402 bae70410 71f179e1 f486c456 e3d31ee2 70567003 1fbb734a
+sp314 a 55f0c118 f4afdc3e d512b94b 5975cb83 f9d073fb b4aed80e 47f816cc 78c912ff 4a5b3fba 8a074708 b46bb8d6 c8cbf63d 1d1fa7dd afa97ae7 4cd7cae5 947f8048 61c121d3 f02293fa aa3f1418 f1fdb1e9 f3f25a58 c3c51bd0 d62e3f6d 91dcd76c
+sp314 b 55f0c118 f4afdc3e d512b94b 5975cb83 f9d06401 b42ed80f 56d806c9 78c912fb 4a5b3fba 8a07c70c b46bb8d6 c8cbf63d 1d1f97e3 afa1fae6 9c5fce6c d97f084c 61c121db dfa31402 baff1410 f1fd31e1 f3f2da5c c3c51bd0 d62e3f6d 91dcd76c
+sp315 a c29c8ade ad2f27c7 2f9ad0df 507daa17 f9d073ff 9ab7719a edf1d15c b48db27d ecc1df4e 8867202a 28d81641 7e1735a9 1d1fa7dd adc978e7 4cd7cae5 943b8248 61d523d1 f02293fa 2a37141d f17d89e9 940a64da a221d2bc b07082e4 e78c2fb1
+sp315 b c29c8ade ad2f27c7 2f9ad0df 507daa17 f9d06405 9a37719b fcd1c159 b48db279 ecc1df4e 8867a02e 28d81641 7e1735a9 1d1f97e3 adc1f8e6 9c5fce6c d93b0a4c 61d523d9 dfa31402 3af71415 f17d09e1 940ae4de a221d2bc b07082e4 e78c2fb1
+sp316 a 9c60eb26 665a34c9 231f07d7 33c17d02 052fbbfe 4c94c68a 236c3fce 2c302f34 3ae7405d 9f437092 f3bcc8a1 4c66bb49 1d1fa7dd af8b7be7 4c97cbe5 946fc049 61d111d1 f02293fa aa3f3c19 f1ed81ec e4f340db 2c656a91 fb09ed6d e2a96b61
+sp316 b 9c60eb26 665a34c9 231f07d7 33c17d02 052fac04 4c14c68b 324c2fcb 2c302f30 3ae7405d 9f43f096 f3bcc8a1 4c66bb49 1d1f97e3 af83fbe6 9c1fcf6c d96f484d 61d111d9 dfa31402 baff3c11 f1ed01e4 e4f3c0df 2c656a91 fb09ed6d e2a96b61
+sp317 a ba52e1ee 36a8254f 98114463 5169feaf f9d07bff b0f60522 03f3926c 5298e20f 224bcb0e 41d828fa a02461b2 b3c63563 1d1fafdd ade87be7 4cd7cae5 943b8248 61d533d1 f02293fa aa371c18 b1fbd9e9 940a63da 8bcc3bf6 1a6eb9cf 7c534d7f
+sp317 b ba52e1ee 36a8254f 98114463 5169feaf f9d06c05 b0760523 12d38269 5298e20b 224bcb0e 41d8a8fe a02461b2 b3c63563 1d1f9fe3 ade0fbe6 9c5fce6c d93b0a4c 61d533d9 dfa31402 baf71c10 b1fb59e1 940ae3de 8bcc3bf6 1a6eb9cf 7c534d7f
+sp318 a 1dca0b03 e8a0d40f 7734d935 2233c3f9 f9d07bff 98bdb070 e1bf513c b8d597ff 284594fe bbf2793a 301b1c10 71de7d43 1d1fafdd adc978e7 4cd7cae5 947fc049 61c121d1 7026b3fa aa372c1c 7169f1ec f9f24dda 59da666d bc62cd46 64c48657
+sp318 b 1dca0b03 e8a0d40f 7734d935 2233c3f9 f9d06c05 983db071 f09f4139 b8d597fb 284594fe bbf2f93e 301b1c10 71de7d43 1d1f9fe3 adc1f8e6 9c5fce6c d97f484d 61c121d9 5fa73402 baf72c14 716971e4 f9f2cdde 59da666d bc62cd46 64c48657
+sp319 a d340e63e e77ca932 67fc7e42 dbc04c92 052fbbfa eecd7f1e 2b611e54 642cbf44 1ce7d451 a89b0989 75db2b1e f3550187 1d1fafdd ade979e7 4cd7cae5 947f8048 61d531d3 f02293fa 2a3f0c19 717d99e9 eaa71b59 856ec302 72c51fe6 ac2513cb
+sp319 b d340e63e e77ca932 67fc7e42 dbc04c92 052fac00 ee4d7f1f 3a410e51 642cbf40 1ce7d451 a89b898d 75db2b1e f3550187 1d1f9fe3 ade1f9e6 9c5fce6c d97f084c 61d531db dfa31402 3aff0c11 717d19e1 eaa79b5d 856ec302 72c51fe6 ac2513cb
+sp320 a b0db6f41 ba52391a 0ad69e1d feb1e4cc 056fb3fe a2d53740 af243f86 04213fbe fa7d344f 23a85d5b a07a808b 9679fbf1 1d1fa7dd adcb79e7 4c97cbe5 946b8048 61c111d1 7026b3fa aa2f1c18 f1e199ed e0a759d3 4fd8dddc ef461df9 8e7c74d4
+sp320 b b0db6f41 ba52391a 0ad69e1d feb1e4cc 056fa404 a2553741 be042f83 04213fba fa7d344f 23a8dd5f a07a808b 9679fbf1 1d1f97e3 adc3f9e6 9c1fcf6c d96b084c 61c111d9 5fa73402 baef1c10 f1e119e5 e0a7d9d7 4fd8dddc ef461df9 8e7c74d4
+sp321 a c9b17051 dc0b3681 8dfafebd 0bd16c74 062f93fa 838d7ffc ad22febe e5253fde d3fc3b21 aed66a22 8808c6fc ce229807 1d1fafdd af8879e7 4c97cbe5 947f8048 61c531d3 f02293fa aa2f2418 f16de9ec e7d74359 f70f8424 7133567b 2cf8c556
+sp321 b c9b17051 dc0b3681 8dfafebd 0bd16c74 062f8400 830d7ffd bc02eebb e5253fda d3fc3b21 aed6ea26 8808c6fc ce229807 1d1f9fe3 af80f9e6 9c1fcf6c d97f084c 61c531db dfa31402 baef2410 f16d69e4 e7d7c35d f70f8424 7133567b 2cf8c556
+sp322 a 91aeff33 eb48610a 43911711 acf2cdc4 056fbbfe aadaf648 a92c7e8e 807c1fb6 b2b8146d 951a0271 b00ea21b a75fe2e3 1d1fafdd afeb79e7 4c97cbe5 943b8248 61d573d1 7026b3fa aa3f1c1c b16bb9ed 866b63db 1008abd8 f579bcf5 d95b90dc
+sp322 b 91aeff33 eb48610a 43911711 acf2cdc4 056fac04 aa5af649 b80c6e8b 807c1fb2 b2b8146d 951a8275 b00ea21b a75fe2e3 1d1f9fe3 afe3f9e6 9c1fcf6c d93b0a4c 61d573d9 5fa73402 baff1c14 b16b39e5 866be3df 1008abd8 f579bcf5 d95b90dc
+sp323 a 9cd2c362 f0d93539 88098f67 91ef7db2 052fbbfe 2096463a a76a38f6 ee3aed86 3eefa397 6b875ab9 03bd55f3 09806cb1 1d1fa7dd afeb7be7 4cd7cae5 946fc049 61d521d1 7026b3fa aa373418 31eb81ec e4b750db d9f01b23 f6c3ed88 e074ae6d
+sp323 b 9cd2c362 f0d93539 88098f67 91ef7db2 052fac04 2016463b b64a28f3 ee3aed82 3eefa397 6b87dabd 03bd55f3 09806cb1 1d1f97e3 afe3fbe6 9c5fce6c d96f484d 61d521d9 5fa73402 baf73410 31eb01e4 e4b7d0df d9f01b23 f6c3ed88 e074ae6d
+sp324 a 8ab78821 6e7ddf7a 29335e84 bd820c50 056fb3fe 0c93f7d8 23241e94 4823b9de 36a2f3f9 df646531 b5011494 6e2e5db5 1d1fafdd ad8a78e7 4c97cbe5 946bc049 61d111d1 7026b3fa aa3f1c1d 7179e1e9 e4b7535b ee6b5c43 7b55feef d5b24330
+sp324 b 8ab78821 6e7ddf7a 29335e84 bd820c50 056fa404 0c13f7d9 32040e91 4823b9da 36a2f3f9 df64e535 b5011494 6e2e5db5 1d1f9fe3 ad82f8e6 9c1fcf6c d96b484d 61d111d9 5fa73402 baff1c15 717961e1 e4b7d35f ee6b5c43 7b55feef d5b24330
+sp325 a 2826de4a e7a35c82 e664ebaa 9a91397a 052fbbfa 2c810af6 4b6f1a3c 866ecea6 daa98b55 983f142b b4035299 f7b94fc8 1d1fafdd ad8a7be7 4c97cbe5 947f8048 61d521d3 7026b3fa aa3f341c f175f9e9 eae70959 c8165568 52f74b45 133b6649
+sp325 b 2826de4a e7a35c82 e664ebaa 9a91397a 052fac00 2c010af7 5a4f0a39 866ecea2 daa98b55 983f942f b4035299 f7b94fc8 1d1f9fe3 ad82fbe6 9c1fcf6c d97f084c 61d521db 5fa73402 baff3414 f17579e1 eae7895d c8165568 52f74b45 133b6649
+sp326 a 1758a6e8 e48616bf af1a31d8 69010b15 f99073fb d4e8d89c e9bcd7dc 9cca96c7 c082f44a fd6c2433 8ba13e17 758173d7 1d1fa7dd afea7be7 4c97cbe5 943bc249 61d533d3 f02293fa 2a3f3418 b1ff89e9 964a7458 5d97677b b4ed4b5c b0210867
+sp326 b 1758a6e8 e48616bf af1a31d8 69010b15 f9906401 d468d89d f89cc7d9 9cca96c3 c082f44a fd6ca437 8ba13e17 758173d7 1d1f97e3 afe2fbe6 9c1fcf6c d93b4a4d 61d533db dfa31402 3aff3410 b1ff09e1 964af45c 5d97677b b4ed4b5c b0210867
+sp327 a 76c75b87 8d3ed946 c2d5876e 36fe15a6 062f93fe c99d662a 876b196c 2b7bcd2e f3abcb39 53fa7f5a 1e893334 d4ec10f5 1d1fafdd afa879e7 4cd7cae5 946f8048 61c501d1 f02293fa aa27141c f1edf9ed dfa75153 a9279fb0 96b33cd3 faaa6643
+sp327 b 76c75b87 8d3ed946 c2d5876e 36fe15a6 062f8404 c91d662b 964b0969 2b7bcd2a f3abcb39 53faff5e 1e893334 d4ec10f5 1d1f9fe3 afa0f9e6 9c5fce6c d96f084c 61c501d9 dfa31402 bae71414 f1ed79e5 dfa7d157 a9279fb0 96b33cd3 faaa6643
+sp328 a 0eff7c1d ae82e0cb ef8b98ef b6606a3b fa905bff 5dba31b2 4df7577c b193b55d 4d4ff25a 1e895980 68986844 86020c3f 1d1fa7dd ad8879e7 4c97cbe5 947f8048 61d101d1 f02293fa aa3f2c18 b167f9ec f5825352 1d2b01a8 d06f15bf 1888adfa
+sp328 b 0eff7c1d ae82e0cb ef8b98ef b6606a3b fa904c05 5d3a31b3 5cd74779 b193b559 4d4ff25a 1e89d984 68986844 86020c3f 1d1f97e3 ad80f9e6 9c1fcf6c d97f084c 61d101d9 dfa31402 baff2c10 b16779e4 f582d356 1d2b01a8 d06f15bf 1888adfa
+sp329 a d97e6540 30e0748a e0ba31a5 1726cb6d f9d073fb 90e1b8e4 63be11a4 dc8f30d7 860257fa 3cda3d00 f2bec1ad 16419915 1d1fa7dd afab7be7 4c97cbe5 943bc249 61c523d3 f02293fa 2a2f341d b16fe1ed 963a6458 a9d54971 3adc2199 8b6c85dc
+sp329 b d97e6540 30e0748a e0ba31a5 1726cb6d f9d06401 9061b8e5 729e01a1 dc8f30d3 860257fa 3cdabd04 f2bec1ad 16419915 1d1f97e3 afa3fbe6 9c1fcf6c d93b4a4d 61c523db dfa31402 3aef3415 b16f61e5 963ae45c a9d54971 3adc2199 8b6c85dc
+sp330 a da08336d a9c392c9 e6f00ed5 f280fc00 052fbbfe ccdce788 a72438ce 267a4da4 90a70381 2d9b1990 d357e6d4 3b02d81c 1d1fa7dd afab7be7 4c97cbe5 946f8048 61d121d1 7026b3fa aa3f2c18 71fdf1e9 e0f34f53 2be96a56 f75624b1 e443edb0
+sp330 b da08336d a9c392c9 e6f00ed5 f280fc00 052fac04 cc5ce789 b60428cb 267a4da0 90a70381 2d9b9994 d357e6d4 3b02d81c 1d1f97e3 afa3fbe6 9c1fcf6c d96f084c 61d121d9 5fa73402 baff2c10 71fd71e1 e0f3cf57 2be96a56 f75624b1 e443edb0
+sp331 a 42c3a600 37fb5346 785f334f 378c8986 062f9bfe 8bd0f20a 4d6d7b4e 69253e9e 9f3b5f0b a46d2162 207ac975 55e7f1b7 1d1fa7dd ada879e7 4cd7cae5 947fc049 61c501d1 f02293fa aa2f2419 31ff81e8 ed9714db e8f413cf d0a8aaed edaa2e14
+sp331 b 42c3a600 37fb5346 785f334f 378c8986 062f8c04 8b50f20b 5c4d6b4b 69253e9a 9f3b5f0b a46da166 207ac975 55e7f1b7 1d1f97e3 ada0f9e6 9c5fce6c d97f484d 61c501d9 dfa31402 baef2411 31ff01e0 ed9794df e8f413cf d0a8aaed edaa2e14
+sp332 a 7443dad7 caeac905 8d910622 20aefcee 062f9bfa c9818f66 8f6219a4 697e8e84 b93eef6d 3ec37900 9e990219 5a7d30a1 1d1fa7dd af8879e7 4cd7cae5 946f8048 61c501d3 7026b3fa 2a270419 f1fd81e8 dfa75159 31279574 8ebc3cda 2b5b3f69
+sp332 b 7443dad7 caeac905 8d910622 20aefcee 062f8c00 c9018f67 9e4209a1 697e8e80 b93eef6d 3ec3f904 9e990219 5a7d30a1 1d1f97e3 af80f9e6 9c5fce6c d96f084c 61c501db 5fa73402 3ae70411 f1fd01e0 dfa7d15d 31279574 8ebc3cda 2b5b3f69
+sp333 a 89df5e81 6ecacc45 2c71a366 ec9c19aa 062f9bfa 4d8f8a26 696edaec 6b664df4 b1614a9f c98d1c38 92039628 f32f8a0b 1d1fa7dd afe87ae7 4cd7cae5 947f8048 61d501d3 7026b3fa 2a373c18 31f7e1e9 e7a71259 a4b9d7b4 b4afb391 6539ee5c
+sp333 b 89df5e81 6ecacc45 2c71a366 ec9c19aa 062f8c00 4d0f8a27 784ecae9 6b664df0 b1614a9f c98d9c3c 92039628 f32f8a0b 1d1f97e3 afe0fae6 9c5fce6c d97f084c 61d501db 5fa73402 3af73c10 31f761e1 e7a7925d a4b9d7b4 b4afb391 6539ee5c
+sp334 a 35217550 50c72882 8396f699 9ab3ec50 062f93fe 81d077d8 2b243e96 eb71d9fe b962f40d 5f9859b1 f5960713 e1f67fa1 1d1fafdd afab7be7 4c97cbe5 947f8048 61d531d1 f02293fa 2a3f3c1c 31efa1ec e7e74153 f8e9c948 73422ea9 f0aa2357
+sp334 b 35217550 50c72882 8396f699 9ab3ec50 062f8404 815077d9 3a042e93 eb71d9fa b962f40d 5f98d9b5 f5960713 e1f67fa1 1d1f9fe3 afa3fbe6 9c1fcf6c d97f084c 61d531d9 dfa31402 3aff3c14 31ef21e4 e7e7c157 f8e9c948 73422ea9 f0aa2357
+sp335 a 0dbdaa06 14ea7fb5 2d949fe1 b3fead30 052fb3fe 60d2f6b8 272f3e76 cc33b88e 7a71d11f 0eab4f80 23d06db1 b5771050 1d1fa7dd af8a78e7 4c97cbe5 947f8048 61d511d1 7026b3fa 2a372c19 f1edb9ed e8e70c53 9a1c6de4 f72f2f0a c07a5b0b
+sp335 b 0dbdaa06 14ea7fb5 2d949fe1 b3fead30 052fa404 6052f6b9 360f2e73 cc33b88a 7a71d11f 0eabcf84 23d06db1 b5771050 1d1f97e3 af82f8e6 9c1fcf6c d97f084c 61d511d9 5fa73402 3af72c11 f1ed39e5 e8e78c57 9a1c6de4 f72f2f0a c07a5b0b
+sp336 a ec63f363 dadf5e07 3fb89109 f66a63d9 fa9053ff f1b6b050 63bd111c f5cd97ed 4d45bd6e 53145559 cb1a7921 18e12120 1d1fa7dd adc97ae7 4c97cbe5 943bc249 61d503d1 7026b3fa 2a370c18 f16df9ed 974a6552 cb36b281 bae10a62 9a94a7a6
+sp336 b ec63f363 dadf5e07 3fb89109 f66a63d9 fa904405 f136b051 729d0119 f5cd97e9 4d45bd6e 5314d55d cb1a7921 18e12120 1d1f97e3 adc1fae6 9c1fcf6c d93b4a4d 61d503d9 5fa73402 3af70c10 f16d79e5 974ae556 cb36b281 bae10a62 9a94a7a6
+sp337 a 39bac3e5 0119621a 3df47a3a f685a8ee 056fb3fe 82db1362 ed625da4 826a5b0e b03e7891 df165333 0622dc8e b3baad9f 1d1fa7dd adaa7ae7 4c97cbe5 947b8048 61c111d1 7026b3fa 2a2f3c1d b163f1ed e8971ad3 6ff400ba 30f81fe0 e5458fc9
+sp337 b 39bac3e5 0119621a 3df47a3a f685a8ee 056fa404 825b1363 fc424da1 826a5b0a b03e7891 df16d337 0622dc8e b3baad9f 1d1f97e3 ada2fae6 9c1fcf6c d97b084c 61c111d9 5fa73402 3aef3c15 b16371e5 e8979ad7 6ff400ba 30f81fe0 e5458fc9
+sp338 a 99312e84 8a5f234d ba432a45 00cf188c 066f93fe c5dea300 eb21ba4e 4932293c b7a24dd9 9f786310 bd16845c 3f2ad95c 1d1fa7dd adca7be7 4c97cbe5 943b8248 61d503d1 f02293fa 2a2f3418 717981e9 876b23db 77099ed2 b378b8ed cb236ff5
+sp338 b 99312e84 8a5f234d ba432a45 00cf188c 066f8404 c55ea301 fa01aa4b 49322938 b7a24dd9 9f78e314 bd16845c 3f2ad95c 1d1f97e3 adc2fbe6 9c1fcf6c d93b0a4c 61d503d9 dfa31402 3aef3410 717901e1 876ba3df 77099ed2 b378b8ed cb236ff5
+sp339 a 036283bd eacafb47 1f5e0d7e 680497b3 f9d073ff 5cb5c43a 07fe12f4 f883a6e5 0c40ef0c 99000099 1cd065f3 7e737429 1d1fafdd ade879e7 4cd7cae5 947f8048 61c521d1 7026b3fa 2a3f2418 b17b81e9 f5f65352 97c36124 1628438b 5394240e
+sp339 b 036283bd eacafb47 1f5e0d7e 680497b3 f9d06405 5c35c43b 16de02f1 f883a6e1 0c40ef0c 9900809d 1cd065f3 7e737429 1d1f9fe3 ade0f9e6 9c5fce6c d97f084c 61c521d9 5fa73402 3aff2410 b17b01e1 f5f6d356 97c36124 1628438b 5394240e
+sp340 a c66ce8c9 d0b00a3a f81c8266 43f2d0b6 056fb3fe c0de433a 67679a7c ea3f6f4e 7c2a6ad1 bda21933 6d7b929e e6c49bfc 1d1fa7dd afab7ae7 4c97cbe5 946f8048 61d521d1 7026b3fa 2a271c1d 71f1f9e9 e0b75853 39e81f24 b6f6b308 3a0aa501
+sp340 b c66ce8c9 d0b00a3a f81c8266 43f2d0b6 056fa404 c05e433b 76478a79 ea3f6f4a 7c2a6ad1 bda29937 6d7b929e e6c49bfc 1d1f97e3 afa3fae6 9c1fcf6c d96f084c 61d521d9 5fa73402 3ae71c15 71f179e1 e0b7d857 39e81f24 b6f6b308 3a0aa501
+sp341 a 0bb5d42a 44ee4dca 99be26ef 82cc9c3a 056fbbfe cad027b2 0562f8f6 e4212d44 f8600d91 9c5421a1 dbd3a55c 789ddedf 1d1fa7dd ad8b78e7 4c97cbe5 947fc049 61d521d1 f02293fa aa370419 31e7a1ed eea715db b2021cab 18fb0c45 66869eef
+sp341 b 0bb5d42a 44ee4dca 99be26ef 82cc9c3a 056fac04 ca5027b3 1442e8f3 e4212d40 f8600d91 9c54a1a5 dbd3a55c 789ddedf 1d1f97e3 ad83f8e6 9c1fcf6c d97f484d 61d521d9 dfa31402 baf70411 31e721e5 eea795df b2021cab 18fb0c45 66869eef
+sp342 a d4bac49a b6c07afe 048d1838 bd310af1 f9d073fb d4e0597c c5b651b4 1288741d 02401e22 0fbf4c33 4648995f 1e2ef30d 1d1fafdd adab7be7 4c97cbe5 943bc249 61d543d3 7026b3fa aa2f2c18 f161e1ed 984a7c58 e00b085d d8dfe9c8 7fbcf538
+sp342 b d4bac49a b6c07afe 048d1838 bd310af1 f9d06401 d460597d d49641b1 12887419 02401e22 0fbfcc37 4648995f 1e2ef30d 1d1f9fe3 ada3fbe6 9c1fcf6c d93b4a4d 61d543db 5fa73402 baef2c10 f16161e5 984afc5c e00b085d d8dfe9c8 7fbcf538
+sp343 a 51e88208 5c781af7 eca9d400 815d0ed1 fa9053ff 5bfdf558 87b41394 5b9a72af ed583084 c374667b 80768063 d055c54a 1d1fa7dd afc879e7 4c97cbe5 943bc249 61d513d1 7026b3fa 2a373418 317be9e9 954a7452 5ef86e3b 96ea1fea 74c98d81
+sp343 b 51e88208 5c781af7 eca9d400 815d0ed1 fa904405 5b7df559 96940391 5b9a72ab ed583084 c374e67f 80768063 d055c54a 1d1f97e3 afc0f9e6 9c1fcf6c d93b4a4d 61d513d9 5fa73402 3af73410 317b69e1 954af456 5ef86e3b 96ea1fea 74c98d81
+sp344 a 705ef8d4 aa33b6c9 e2aad6ec d0c80c38 052fb3fe 66d697b0 ad23df74 486f987c 38a19189 f5971b52 314a0fb6 f4692e77 1d1fafdd afeb79e7 4c97cbe5 947fc049 61d151d1 f02293fa 2a273418 3177d9e9 ece344db 11d39a63 f12a45c6 8f9ffdb4
+sp344 b 705ef8d4 aa33b6c9 e2aad6ec d0c80c38 052fa404 665697b1 bc03cf71 486f9878 38a19189 f5979b56 314a0fb6 f4692e77 1d1f9fe3 afe3f9e6 9c1fcf6c d97f484d 61d151d9 dfa31402 3ae73410 317759e1 ece3c4df 11d39a63 f12a45c6 8f9ffdb4
+sp345 a d006ab16 08ed048a 8418bb94 05fe0940 056fb3fe 4c9e72c8 cb2c1d8c 4a775804 b67f3af1 35011552 3906c465 d273a424 1d1fa7dd afa87be7 4c97cbe5 946bc049 61d101d1 7026b3fa aa372419 7169f9ec e2b7485b ac3ade91 d34617f3 bfd2cbb2
+sp345 b d006ab16 08ed048a 8418bb94 05fe0940 056fa404 4c1e72c9 da0c0d89 4a775800 b67f3af1 35019556 3906c465 d273a424 1d1f97e3 afa0fbe6 9c1fcf6c d96b484d 61d101d9 5fa73402 baf72411 716979e4 e2b7c85f ac3ade91 d34617f3 bfd2cbb2
+sp346 a b938a3b5 28d29fba 11cfd8e3 1e7a0a37 fad053ff bfb471ba edf650f4 db92f047 a5c69eb0 e4d33e43 69de7006 5f3612fc 1d1fafdd ada878e7 4cd7cae5 947f8048 61c501d1 f02293fa 2a2f1c1d f16df9ec f4f65452 b5109520 b0200d4c cc37230b
+sp346 b b938a3b5 28d29fba 11cfd8e3 1e7a0a37 fad04405 bf3471bb fcd640f1 db92f043 a5c69eb0 e4d3be47 69de7006 5f3612fc 1d1f9fe3 ada0f8e6 9c5fce6c d97f084c 61c501d9 dfa31402 3aef1c15 f16d79e4 f4f6d456 b5109520 b0200d4c cc37230b
+sp347 a 2c1bd39f dd61bff2 16ebd701 bdcdedd0 052fb3fa 88cdde5c ab283896 2e785b1e b8fd15b3 49c53b9b c2598506 8a86a4e5 1d1fafdd afeb78e7 4c97cbe5 947b8048 61c151d3 7026b3fa 2a3f3419 f16d81ec e6d754d9 6fa077b8 73423ce8 61bd1f95
+sp347 b 2c1bd39f dd61bff2 16ebd701 bdcdedd0 052fa400 884dde5d ba082893 2e785b1a b8fd15b3 49c5bb9f c2598506 8a86a4e5 1d1f9fe3 afe3f8e6 9c1fcf6c d97b084c 61c151db 5fa73402 3aff3411 f16d01e4 e6d7d4dd 6fa077b8 73423ce8 61bd1f95
+sp348 a 62443dcd 8e6c7149 a05fd673 9481ecba 066f9bfe 85921732 8167f876 81619e2c 33f9f28b 2b646698 fbbb5c56 9d341b77 1d1fafdd afaa7be7 4c97cbe5 946fc049 61c111d1 7026b3fa aa3f3c1c 3173f1e8 e3a358db 6b3cfbe9 1d12450c 585a4ee4
+sp348 b 62443dcd 8e6c7149 a05fd673 9481ecba 066f8c04 85121733 9047e873 81619e28 33f9f28b 2b64e69c fbbb5c56 9d341b77 1d1f9fe3 afa2fbe6 9c1fcf6c d96f484d 61c111d9 5fa73402 baff3c14 317371e0 e3a3d8df 6b3cfbe9 1d12450c 585a4ee4
+sp349 a 6e62e505 cb38a34d c690cf62 43fb9dae 066f9bfe 0b92a622 836f1964 ab7dcd2c 9b738cff bf234212 14913a59 781e7568 1d1fafdd afcb7be7 4c97cbe5 946f8048 61d501d1 f02293fa aa37241d b163a9ec dfb74753 6f1f9bb8 9aff4bdc 2e46688b
+sp349 b 6e62e505 cb38a34d c690cf62 43fb9dae 066f8c04 0b12a623 924f0961 ab7dcd28 9b738cff bf23c216 14913a59 781e7568 1d1f9fe3 afc3fbe6 9c1fcf6c d96f084c 61d501d9 dfa31402 baf72415 b16329e4 dfb7c757 6f1f9bb8 9aff4bdc 2e46688b
+sp350 a c7878094 196b20ce f6dbaaf4 90fe9838 062f93fe cd9223b0 4126daf4 a5282a94 fdf909f7 dca30d80 3dc187c2 0230fc21 1d1fa7dd afc97be7 4cd7cae5 947fc049 61c101d1 7026b3fa aa273418 f1f991e8 eb931adb 2315efa9 5ceb6b8a f185435b
+sp350 b c7878094 196b20ce f6dbaaf4 90fe9838 062f8404 cd1223b1 5006caf1 a5282a90 fdf909f7 dca38d84 3dc187c2 0230fc21 1d1f97e3 afc1fbe6 9c5fce6c d97f484d 61c101d9 5fa73402 bae73410 f1f911e0 eb939adf 2315efa9 5ceb6b8a f185435b
+sp351 a f16cba36 bebc7b7b c1b295a6 86248777 fa9053ff d3b0d4fa 2dff5234 718db78f 2fc5d0d8 64b71c43 c9056dee b5e6079c 1d1fa7dd afa878e7 4c97cbe5 946b8048 61d171d1 7026b3fa aa373c1d f16db9ed e9971ad2 2540be9e 70730b50 284c1e08
+sp351 b f16cba36 bebc7b7b c1b295a6 86248777 fa904405 d330d4fb 3cdf4231 718db78b 2fc5d0d8 64b79c47 c9056dee b5e6079c 1d1f97e3 afa0f8e6 9c1fcf6c d96b084c 61d171d9 5fa73402 baf73c15 f16d39e5 e9979ad6 2540be9e 70730b50 284c1e08
+sp352 a 6575f4cb d09e4fc5 2863baff 7ac24832 066f93fe a9d3f3ba c7673d76 677b5d8e dbb512b5 c4d32c61 894e85da 8ae5b272 1d1fafdd afea78e7 4c97cbe5 943bc249 61d553d1 7026b3fa 2a373c19 71f989e8 896b6d53 11206fe1 5736fe09 a58a0243
+sp352 b 6575f4cb d09e4fc5 2863baff 7ac24832 066f8404 a953f3bb d6472d73 677b5d8a dbb512b5 c4d3ac65 894e85da 8ae5b272 1d1f9fe3 afe2f8e6 9c1fcf6c d93b4a4d 61d553d9 5fa73402 3af73c11 71f909e0 896bed57 11206fe1 5736fe09 a58a0243
+sp353 a 7352bede 69425d36 50d8cb65 e98199b4 052fbbfa 6685ea3c c12f7b76 c62deeb4 1666e9e7 60d32acb 72347532 02786242 1d1fa7dd adca7be7 4c97cbe5 946f8048 61d121d3 f02293fa 2a372419 7165a1ec e2f34f59 0bdd46a2 dd3ee9c4 46083cc1
+sp353 b 7352bede 69425d36 50d8cb65 e98199b4 052fac00 6605ea3d d00f6b73 c62deeb0 1666e9e7 60d3aacf 72347532 02786242 1d1f97e3 adc2fbe6 9c1fcf6c d96f084c 61d121db dfa31402 3af72411 716521e4 e2f3cf5d 0bdd46a2 dd3ee9c4 46083cc1
+sp354 a 90b1c20b d05731ba c492afe3 bcb8bd36 056fb3fe 029346ba 856efffe c2336bae feed6009 fe776180 1153adc4 d284f164 1d1fa7dd adcb78e7 4cd7cae5 942bc249 61d533d1 7026b3fa aa2f2418 717d89e9 847b7353 ba601d5d 18f70480 5039d584
+sp354 b 90b1c20b d05731ba c492afe3 bcb8bd36 056fa404 021346bb 944eeffb c2336baa feed6009 fe77e184 1153adc4 d284f164 1d1f97e3 adc3f8e6 9c5fce6c d92b4a4d 61d533d9 5fa73402 baef2410 717d09e1 847bf357 ba601d5d 18f70480 5039d584
+sp355 a 734a9526 331ec509 88a9ab03 fbb419ca 066f93fe a59b8242 41687a86 8375482c 91790585 78653728 2dd1d5c1 ca0fc68a 1d1fafdd ade87be7 4cd7cae5 943bc249 61d553d1 f02293fa aa3f1c19 71e9d9ec 8b6b6c53 9756be59 dd0191b5 0b8466e5
+sp355 b 734a9526 331ec509 88a9ab03 fbb419ca 066f8404 a51b8243 50486a83 83754828 91790585 7865b72c 2dd1d5c1 ca0fc68a 1d1f9fe3 ade0fbe6 9c5fce6c d93b4a4d 61d553d9 dfa31402 baff1c11 71e959e4 8b6bec57 9756be59 dd0191b5 0b8466e5
+sp356 a 89c0a732 3b543d09 77dc6b33 fab191fa 066f93fe 89960272 496afab6 8f3aee24 9deec86b 12fe6ec9 cc1757d5 d0383d0c 1d1fa7dd adc87be7 4c97cbe5 947bc049 61d121d1 f02293fa aa373c18 317ff9e8 eba74a5b f0ff2f6b d4f74284 bf0545ec
+sp356 b 89c0a732 3b543d09 77dc6b33 fab191fa 066f8404 89160273 584aeab3 8f3aee20 9deec86b 12feeecd cc1757d5 d0383d0c 1d1f97e3 adc0fbe6 9c1fcf6c d97b484d 61d121d9 dfa31402 baf73c10 317f79e0 eba7ca5f f0ff2f6b d4f74284 bf0545ec
+sp357 a 93798e16 ab6c1549 4180ff42 3aec8d8a 066f93fe a7903602 8b6c9ecc 477fda86 9d69f29b ac4d3222 3aff241f b9ab4b97 1d1fa7dd afeb7be7 4cd7cae5 943b8248 61d513d1 f02293fa 2a2f2c19 31e791ed 856b33db 933f0b92 12edbd70 915fce13
+sp357 b 93798e16 ab6c1549 4180ff42 3aec8d8a 066f8404 a7103603 9a4c8ec9 477fda82 9d69f29b ac4db226 3aff241f b9ab4b97 1d1f97e3 afe3fbe6 9c5fce6c d93b0a4c 61d513d9 dfa31402 3aef2c11 31e711e5 856bb3df 933f0b92 12edbd70 915fce13
+sp358 a 4a36d620 16e0515a 6830ca5d ef8f188c 056fb3fe a49c0300 cb243bc6 262ce87e 7c6dccf9 c99b0f99 2ddf7d64 d743787c 1d1fa7dd ade879e7 4c97cbe5 947f8048 61d561d1 7026b3fa 2a3f0419 f1edf1ec eaa75b53 57fd9f56 5341f9ba 6a8d1275
+sp358 b 4a36d620 16e0515a 6830ca5d ef8f188c 056fa404 a41c0301 da042bc3 262ce87a 7c6dccf9 c99b8f9d 2ddf7d64 d743787c 1d1f97e3 ade0f9e6 9c1fcf6c d97f084c 61d561d9 5fa73402 3aff0411 f1ed71e4 eaa7db57 57fd9f56 5341f9ba 6a8d1275
+sp359 a 8836cc7f 020a6a5a aa64e47c ce575ea9 fad053ff b7f9a520 83b3926c f7db4015 2f4966f6 79fd2c99 7463df69 e0b0a9e1 1d1fafdd afab7ae7 4cd7cae5 947fc049 61c501d1 f02293fa aa372c18 31f389e8 f6f653da bac85fb9 9a6a9bce 56cc943d
+sp359 b 8836cc7f 020a6a5a aa64e47c ce575ea9 fad04405 b779a521 92938269 f7db4011 2f4966f6 79fdac9d 7463df69 e0b0a9e1 1d1f9fe3 afa3fae6 9c5fce6c d97f484d 61c501d9 dfa31402 baf72c10 31f309e0 f6f6d3de bac85fb9 9a6a9bce 56cc943d
+sp360 a b029974a 763d1f85 aa2faabf ddbbf876 066f93fe 679f43fa e562fabe 057509fe db636b93 f5d32a50 bda19507 eb5ba9bd 1d1fa7dd af8878e7 4c97cbe5 947bc049 61d121d1 7026b3fa aa373c19 31ebf1ed e9a74d5b 913a10e3 b8ff32c1 c5530198
+sp360 b b029974a 763d1f85 aa2faabf ddbbf876 066f8404 671f43fb f442eabb 057509fa db636b93 f5d3aa54 bda19507 eb5ba9bd 1d1f97e3 af80f8e6 9c1fcf6c d97b484d 61d121d9 5fa73402 baf73c11 31eb71e5 e9a7cd5f 913a10e3 b8ff32c1 c5530198
+sp361 a 13778792 74431317 52eb4019 c8013ac9 fa905bff 75fe0140 e1b5d60c 1d852477 cd422358 68c53b08 ecec92ad 5d55ccf6 1d1fa7dd af8b7be7 4c97cbe5 947fc049 61d501d1 f02293fa aa3f1c19 31f7c9e9 f78652da 04e44099 3cb0472f 313ebe97
+sp361 b 13778792 74431317 52eb4019 c8013ac9 fa904c05 757e0141 f095c609 1d852473 cd422358 68c5bb0c ecec92ad 5d55ccf6 1d1f97e3 af83fbe6 9c1fcf6c d97f484d 61d501d9 dfa31402 baff1c11 31f749e1 f786d2de 04e44099 3cb0472f 313ebe97
+sp362 a af01d675 92e1218e 1d386984 0f7c9b49 f9907bff 9ab700c0 c7bd960c d889a33d 8c4283be 56e36f40 21347ed8 8cc03d18 1d1fafdd afeb78e7 4c97cbe5 947fc049 61d521d1 7026b3fa 2a270418 316ff9ec f8864dda 5fbf639d 56905f72 ff824234
+sp362 b af01d675 92e1218e 1d386984 0f7c9b49 f9906c05 9a3700c1 d69d8609 d889a339 8c4283be 56e3ef44 21347ed8 8cc03d18 1d1f9fe3 afe3f8e6 9c1fcf6c d97f484d 61d521d9 5fa73402 3ae70410 316f79e4 f886cdde 5fbf639d 56905f72 ff824234
+sp363 a 568d1eac ba56efca 94fdf0c5 1e20ca0d f9d073fb b0e6b984 ebb51144 d49e3457 880377d2 9923079b 2d0f9145 2589fdfd 1d1fafdd ade878e7 4cd7cae5 943bc249 61d543d3 7026b3fa 2a37041c 71f581e8 980a7d58 03c7ab55 32a9033c 4bc75514
+sp363 b 568d1eac ba56efca 94fdf0c5 1e20ca0d f9d06401 b066b985 fa950141 d49e3453 880377d2 9923879f 2d0f9145 2589fdfd 1d1f9fe3 ade0f8e6 9c5fce6c d93b4a4d 61d543db 5fa73402 3af70414 71f501e0 980afd5c 03c7ab55 32a9033c 4bc75514
+sp364 a 24431f70 b0c2e1c6 c2a97fe8 b5862d38 056fbbfe 62dc16b0 8d2b5e7c 622bfefe 7efebc37 406b20cb 7a33590a a5f0192a 1d1fa7dd adab7ae7 4c97cbe5 946bc049 61c101d1 7026b3fa 2a2f141d f1e5b1ed e4a7415b 8fe9fda9 913ec707 46218c33
+sp364 b 24431f70 b0c2e1c6 c2a97fe8 b5862d38 056fac04 625c16b1 9c0b4e79 622bfefa 7efebc37 406ba0cf 7a33590a a5f0192a 1d1f97e3 ada3fae6 9c1fcf6c d96b484d 61c101d9 5fa73402 3aef1415 f1e531e5 e4a7c15f 8fe9fda9 913ec707 46218c33
+sp365 a fa168235 10f76f8a 17bffca0 67750669 f9907bff 74fab5e0 03b292ac fe8376fd a4883b1c f2d568ea cb3f8bc2 a87fe6da 1d1fafdd adc878e7 4c97cbe5 947fc049 61d121d1 f02293fa 2a2f3c18 b16f81ed fa824dda 059a7efd 9aa3aa8e 5587e658
+sp365 b fa168235 10f76f8a 17bffca0 67750669 f9906c05 747ab5e1 129282a9 fe8376f9 a4883b1c f2d5e8ee cb3f8bc2 a87fe6da 1d1f9fe3 adc0f8e6 9c1fcf6c d97f484d 61d121d9 dfa31402 3aef3c10 b16f01e5 fa82cdde 059a7efd 9aa3aa8e 5587e658
+sp366 a 188981f5 141d354e ca791974 56658bb9 f9907bff d4b19030 c9ba50fc 7495b057 4655dbb0 fb805a19 86625a97 7f5b2fd5 1d1fafdd ade97be7 4c97cbe5 947fc049 61d531d1 f02293fa 2a3f2418 716189ed fa865ada a7cab0ef d4abc43e 976bf29f
+sp366 b 188981f5 141d354e ca791974 56658bb9 f9906c05 d4319031 d89a40f9 7495b053 4655dbb0 fb80da1d 86625a97 7f5b2fd5 1d1f9fe3 ade1fbe6 9c1fcf6c d97f484d 61d531d9 dfa31402 3aff2410 716109e5 fa86dade a7cab0ef d4abc43e 976bf29f
+sp367 a fcd5de8d c7146945 08dcbe7b b0bb04b6 066f93fe 8997d73a 0967f87e cb70dc16 75f3b1bf 4e407323 3b7700c8 fa0f2ae9 1d1fa7dd af8879e7 4c97cbe5 947bc049 61d131d1 f02293fa aa27241d 716d99ed e9a75c5b ef455c65 14ea1cc1 d640b7a1
+sp367 b fcd5de8d c7146945 08dcbe7b b0bb04b6 066f8404 8917d73b 1847e87b cb70dc12 75f3b1bf 4e40f327 3b7700c8 fa0f2ae9 1d1f97e3 af80f9e6 9c1fcf6c d97b484d 61d131d9 dfa31402 bae72415 716d19e5 e9a7dc5f ef455c65 14ea1cc1 d640b7a1
+sp368 a a6f6f415 11105987 029e648c f77fde45 f9d073ff b0bac5c8 25b0548c bacb4207 ec462c8e 34030563 2adec123 db98df1a 1d1fafdd ada87ae7 4cd7cae5 943bc249 61d543d1 7026b3fa aa3f2418 b173b1e9 984a7d52 0c739c11 78b5dff2 8f98352b
+sp368 b a6f6f415 11105987 029e648c f77fde45 f9d06405 b03ac5c9 34904489 bacb4203 ec462c8e 34038567 2adec123 db98df1a 1d1f9fe3 ada0fae6 9c5fce6c d93b4a4d 61d543d9 5fa73402 baff2410 b17331e1 984afd56 0c739c11 78b5dff2 8f98352b
+sp369 a c679f4f5 29e8f24b 56d0f046 f830e28f f99073fb 9ea4b906 ebf1904c 16d95737 20887e3a cc632481 1e83b707 185dce5f 1d1fafdd af8878e7 4c97cbe5 947f8048 61d521d3 f02293fa 2a272418 b16fe9ed f4865458 d3f08a58 b25cd4ed 4126debe
+sp369 b c679f4f5 29e8f24b 56d0f046 f830e28f f9906401 9e24b907 fad18049 16d95733 20887e3a cc63a485 1e83b707 185dce5f 1d1f9fe3 af80f8e6 9c1fcf6c d97f084c 61d521db dfa31402 3ae72410 b16f69e5 f486d45c d3f08a58 b25cd4ed 4126debe
+sp370 a 6d41dd79 e8225a46 4597874a 27f55586 062f93fe 6d92e60a 0f6818cc e17e0ade dfa36b63 7355617b 10d995ff 316bf875 1d1fa7dd adc97ae7 4c97cbe5 946f8048 61d501d1 f02293fa aa3f1418 b17f81e8 e1f75853 0f215cd0 0f0e3c6f e8b9cf8e
+sp370 b 6d41dd79 e8225a46 4597874a 27f55586 062f8404 6d12e60b 1e4808c9 e17e0ada dfa36b63 7355e17f 10d995ff 316bf875 1d1f97e3 adc1fae6 9c1fcf6c d96f084c 61d501d9 dfa31402 baff1410 b17f01e0 e1f7d857 0f215cd0 0f0e3c6f e8b9cf8e
+sp371 a d4f7349e f42c9449 fef4ef6c 88c3fdbc 052fbbfe 269a2630 a32e18fc 8a336b4c b42129af 10830d68 7a89fb88 3cdceb8b 1d1fa7dd ad8a7ae7 4cd7cae5 947bc049 61d101d1 7026b3fa 2a3f0418 b17fa1e8 eca7035b d44d2c29 7afbfd82 c1fc5f21
+sp371 b d4f7349e f42c9449 fef4ef6c 88c3fdbc 052fac04 261a2631 b20e08f9 8a336b48 b42129af 10838d6c 7a89fb88 3cdceb8b 1d1f97e3 ad82fae6 9c5fce6c d97b484d 61d101d9 5fa73402 3aff0410 b17f21e0 eca7835f d44d2c29 7afbfd82 c1fc5f21
+sp372 a bbfe6a69 ce33d4d7 883da5d9 94241f09 fa905bff d9fe0480 87b9924c 3193214d 0388282a fad06e0b a569acc6 8d90f78f 1d1fafdd afc97be7 4cd7cae5 943bc249 61d513d1 f02293fa 2a3f341d b17f91e9 954a6452 60f33d13 16b091f3 2e788764
+sp372 b bbfe6a69 ce33d4d7 883da5d9 94241f09 fa904c05 d97e0481 96998249 31932149 0388282a fad0ee0f a569acc6 8d90f78f 1d1f9fe3 afc1fbe6 9c5fce6c d93b4a4d 61d513d9 dfa31402 3aff3415 b17f11e1 954ae456 60f33d13 16b091f3 2e788764
+sp373 a c71551db cb29428d d99d6aa3 06a9986e 066f93fe 899403e2 6766baae 6b38e9cc 7da4cdd9 7849358a 52990dfc 5eb344f6 1d1fafdd adeb7be7 4cd7cae5 943bc249 61d563d1 f02293fa 2a3f3418 31eff9ed 8b6b7c53 b3433c7b 3703798c 61a2e568
+sp373 b c71551db cb29428d d99d6aa3 06a9986e 066f8404 891403e3 7646aaab 6b38e9c8 7da4cdd9 7849b58e 52990dfc 5eb344f6 1d1f9fe3 ade3fbe6 9c5fce6c d93b4a4d 61d563d9 dfa31402 3aff3410 31ef79e5 8b6bfc57 b3433c7b 3703798c 61a2e568
+sp374 a 8a3eee10 b5932b8e bc5539b4 547f2379 f99073ff 14ffb0f0 61be51bc 1e8576e7 e24234ae 52de7c6b e963e3f1 2006f432 1d1fa7dd ade978e7 4c97cbe5 947bc049 61d101d1 f02293fa aa3f1c1c 71f181e8 f8864d5a 65848369 bcabcb82 7b9c25a5
+sp374 b 8a3eee10 b5932b8e bc5539b4 547f2379 f9906405 147fb0f1 709e41b9 1e8576e3 e24234ae 52defc6f e963e3f1 2006f432 1d1f97e3 ade1f8e6 9c1fcf6c d97b484d 61d101d9 dfa31402 baff1c14 71f101e0 f886cd5e 65848369 bcabcb82 7b9c25a5
+sp375 a 9d28bc05 9b0fc7be 75e2c6cb debc5c02 066f9bfa 4bcccf8e 0361394e 873a6f6c 11e5073b 9178367b 6fa19264 4b18f926 1d1fa7dd afc97ae7 4c97cbe5 943bc249 61d523d3 7026b3fa 2a2f3c1d b1efc9ec 896b3d59 66d091c7 1b34f233 e1310f67
+sp375 b 9d28bc05 9b0fc7be 75e2c6cb debc5c02 066f8c00 4b4ccf8f 1241294b 873a6f68 11e5073b 9178b67f 6fa19264 4b18f926 1d1f97e3 afc1fae6 9c1fcf6c d93b4a4d 61d523db 5fa73402 3aef3c15 b1ef49e4 896bbd5d 66d091c7 1b34f233 e1310f67
+sp376 a ae95d7f3 aed31891 a57d639d 168ff948 056fbbfa e4cb8ac4 ed28fb8e 282aaede 9ebce2e9 baec7f2b 9dc565bc 87b67fe7 1d1fafdd adca79e7 4c97cbe5 947b8048 61c161d3 7026b3fa 2a270c1d f1f181e9 e8975bd9 15abcb12 312941f4 7c1abd31
+sp376 b ae95d7f3 aed31891 a57d639d 168ff948 056fac00 e44b8ac5 fc08eb8b 282aaeda 9ebce2e9 baecff2f 9dc565bc 87b67fe7 1d1f9fe3 adc2f9e6 9c1fcf6c d97b084c 61c161db 5fa73402 3ae70c15 f1f101e1 e897dbdd 15abcb12 312941f4 7c1abd31
+sp377 a d318e9b5 9e63e806 b25e123a 14f9c8f6 062f93fe c5db537a e7629dbc a53abb36 db23969d 5de62c13 cf3a5dba 62b760d1 1d1fa7dd ad8b7ae7 4cd7cae5 947f8048 61c131d1 f02293fa aa27141d 7161f9ec e9934a53 acfea126 36aba884 fc6f58bb
+sp377 b d318e9b5 9e63e806 b25e123a 14f9c8f6 062f8404 c55b537b f6428db9 a53abb32 db23969d 5de6ac17 cf3a5dba 62b760d1 1d1f97e3 ad83fae6 9c5fce6c d97f084c 61c131d9 dfa31402 bae71415 716179e4 e993ca57 acfea126 36aba884 fc6f58bb
+sp378 a 282111e9 610db27e 16b056ba 3f8d6c76 066f93fa 058f5ffe 8162d8bc c93c3f0c 1765729b 30c33a68 8dda85a5 e2c0d714 1d1fafdd afeb7be7 4c97cbe5 947b8048 61d131d3 f02293fa 2a3f3c19 71ed89ed e5a751d9 6aaad0a2 1d07947e 4781a3c9
+sp378 b 282111e9 610db27e 16b056ba 3f8d6c76 066f8400 050f5fff 9042c8b9 c93c3f08 1765729b 30c3ba6c 8dda85a5 e2c0d714 1d1f9fe3 afe3fbe6 9c1fcf6c d97b084c 61d131db dfa31402 3aff3c11 71ed09e5 e5a7d1dd 6aaad0a2 1d07947e 4781a3c9
+sp379 a 4da209b1 531b24bb c8f699e1 5075cb35 fa9053ff 55b870b8 45bfd67c f7967187 e51b5d9a 38f52d08 0cdf872f eb8fa06f 1d1fafdd afca79e7 4c97cbe5 947fc049 61d101d1 7026b3fa aa3f3419 31f3c9e8 f78254da a2eee2a1 58aa6f03 d73150e9
+sp379 b 4da209b1 531b24bb c8f699e1 5075cb35 fa904405 553870b9 549fc679 f7967183 e51b5d9a 38f5ad0c 0cdf872f eb8fa06f 1d1f9fe3 afc2f9e6 9c1fcf6c d97f484d 61d101d9 5fa73402 baff3411 31f349e0 f782d4de a2eee2a1 58aa6f03 d73150e9
+sp380 a 5d1bfa37 1ee9d919 5b165b1f 92e021ce 052fb3fe 429c1242 6769bd0e 202abf5c 16e4fb23 633c467a 3ef06075 56557065 1d1fafdd adeb79e7 4cd7cae5 947fc049 61d511d1 f02293fa 2a273c19 b1f791e9 eea704db 39ee3159 36a4712d 3488ce76
+sp380 b 5d1bfa37 1ee9d919 5b165b1f 92e021ce 052fa404 421c1243 7649ad0b 202abf58 16e4fb23 633cc67e 3ef06075 56557065 1d1f9fe3 ade3f9e6 9c5fce6c d97f484d 61d511d9 dfa31402 3ae73c11 b1f711e1 eea784df 39ee3159 36a4712d 3488ce76
+sp381 a ba38e926 3126e785 3cda368e a6e94c42 066f93fe 45d0d7ca 83609e84 4b38fc7c b1b3f693 44b219c1 bfd31157 05700376 1d1fa7dd afe878e7 4cd7cae5 943b8248 61d513d1 7026b3fa aa3f0c18 71e989ed 856b34db 75058cca 1b05adfb bf94e258
+sp381 b ba38e926 3126e785 3cda368e a6e94c42 066f8404 4550d7cb 92408e81 4b38fc78 b1b3f693 44b299c5 bfd31157 05700376 1d1f97e3 afe0f8e6 9c5fce6c d93b0a4c 61d513d9 5fa73402 baff0c10 71e909e5 856bb4df 75058cca 1b05adfb bf94e258
+sp382 a 74e7e9ad 35ef3d7f b68119bc f82e4b71 f99073fb 90edd8fc e3bf1034 d2d2d24f 68c7bda2 abe06c1a fce0269c 9340798c 1d1fafdd ade87ae7 4cd7cae5 943bc249 61d543d3 f02293fa aa3f0c1c f1ed81ec 984a7d58 a3bc69dd 3aaafc08 47829681
+sp382 b 74e7e9ad 35ef3d7f b68119bc f82e4b71 f9906401 906dd8fd f29f0031 d2d2d24b 68c7bda2 abe0ec1e fce0269c 9340798c 1d1f9fe3 ade0fae6 9c5fce6c d93b4a4d 61d543db dfa31402 baff0c14 f1ed01e4 984afd5c a3bc69dd 3aaafc08 47829681
+sp383 a bceb68ae 7eef247f 03af048b 8520be43 f99073fb d0adcdce 87f49484 389aa06d 20cbead0 b1682358 69101b3e 1e8934bf 1d1fafdd ad887be7 4c97cbe5 947b8048 61d101d3 f02293fa 2a272c18 31fff1e9 f48641d8 a1f7628c 165dd8b5 9ffd9da5
+sp383 b bceb68ae 7eef247f 03af048b 8520be43 f9906401 d02dcdcf 96d48481 389aa069 20cbead0 b168a35c 69101b3e 1e8934bf 1d1f9fe3 ad80fbe6 9c1fcf6c d97b084c 61d101db dfa31402 3ae72c10 31ff71e1 f486c1dc a1f7628c 165dd8b5 9ffd9da5
+sp384 a efed7e98 ecb80919 db6aeb3e 4984d1ee 052fb3fe ac94a262 696b5b24 e63f6df6 74700a57 779c59d2 d90bd613 e9c6e908 1d1fa7dd afa979e7 4c97cbe5 947f8048 61d121d1 7026b3fa aa270419 f16989ed e8e31b53 4c23b17c 34e6da5c abd6483e
+sp384 b efed7e98 ecb80919 db6aeb3e 4984d1ee 052fa404 ac14a263 784b4b21 e63f6df2 74700a57 779cd9d6 d90bd613 e9c6e908 1d1f97e3 afa1f9e6 9c1fcf6c d97f084c 61d121d9 5fa73402 bae70411 f16909e5 e8e39b57 4c23b17c 34e6da5c abd6483e
+sp385 a 9ba51eb5 647c727b b1188087 d22bba57 fa905bff 9bb8e1da c1f5d71c fd87a53d 89158f72 2df03ab0 33ee7dc6 f993556f 1d1fa7dd ade87be7 4c97cbe5 943b8248 61d513d1 7026b3fa 2a370418 f1e9a1ed 934a6bda 211d7fba 5ca86c63 93527236
+sp385 b 9ba51eb5 647c727b b1188087 d22bba57 fa904c05 9b38e1db d0d5c719 fd87a539 89158f72 2df0bab4 33ee7dc6 f993556f 1d1f97e3 ade0fbe6 9c1fcf6c d93b0a4c 61d513d9 5fa73402 3af70410 f1e921e5 934aebde 211d7fba 5ca86c63 93527236
+sp386 a 0aaa8af4 32c6084b 8ec3446e 136916bb fa905bff 77bb0532 89f7547c d992278d 438c2d22 8b47721b 5b83bf3c 455d8455 1d1fafdd af8b78e7 4c97cbe5 947f8048 61d511d1 7026b3fa aa2f041d f169a9ec f3865c52 83335f6a 145ef108 cc039ba6
+sp386 b 0aaa8af4 32c6084b 8ec3446e 136916bb fa904c05 773b0533 98d74479 d9922789 438c2d22 8b47f21f 5b83bf3c 455d8455 1d1f9fe3 af83f8e6 9c1fcf6c d97f084c 61d511d9 5fa73402 baef0415 f16929e4 f386dc56 83335f6a 145ef108 cc039ba6
+sp387 a d5fe8901 446db9cd af15a3f7 34b7f93a 066f93fe 2fd8a2b2 c16f7a7e 4537aaee b969e4e3 f08e18c8 9c066404 037e06fd 1d1fafdd adea78e7 4c97cbe5 943bc249 61c553d1 f02293fa aa3f1418 71f1e1e9 8b5b6d53 051762e9 5d3a88bc 45a60b7e
+sp387 b d5fe8901 446db9cd af15a3f7 34b7f93a 066f8404 2f58a2b3 d04f6a7b 4537aaea b969e4e3 f08e98cc 9c066404 037e06fd 1d1f9fe3 ade2f8e6 9c1fcf6c d93b4a4d 61c553d9 dfa31402 baff1410 71f161e1 8b5bed57 051762e9 5d3a88bc 45a60b7e
+sp388 a 9d122187 2900433a 00ea5f44 698b4d90 056fbbfe 68d7d618 ab2c1ed4 c0751e0e d8ea3319 15f328f2 de45fd54 d8aaeb2e 1d1fafdd afa87be7 4c97cbe5 947bc049 61d151d1 7026b3fa aa2f341c f179f1e9 eaa74a5b 901979fb f32e16ae e12c4ce2
+sp388 b 9d122187 2900433a 00ea5f44 698b4d90 056fac04 6857d619 ba0c0ed1 c0751e0a d8ea3319 15f3a8f6 de45fd54 d8aaeb2e 1d1f9fe3 afa0fbe6 9c1fcf6c d97b484d 61d151d9 5fa73402 baef3414 f17971e1 eaa7ca5f 901979fb f32e16ae e12c4ce2
+sp389 a 032e6b57 785870c6 533930f1 3e1eea3d f9d073fb d0edb9b4 41b6d0f4 749e328d 6a495e0c 4f5c6132 42a680c3 93cc9f70 1d1fafdd adc979e7 4c97cbe5 943bc249 61d503d3 f02293fa 2a3f3419 716dd9ed 980a3c58 63bb891d 5cf36245 9bdbbc26
+sp389 b 032e6b57 785870c6 533930f1 3e1eea3d f9d06401 d06db9b5 5096c0f1 749e3289 6a495e0c 4f5ce136 42a680c3 93cc9f70 1d1f9fe3 adc1f9e6 9c1fcf6c d93b4a4d 61d503db dfa31402 3aff3411 716d59e5 980abc5c 63bb891d 5cf36245 9bdbbc26
+sp390 a 969d9804 73360ece 43bb15e6 9c70672b f99073ff 34b814a2 8dfa55e4 1ad4d79f ae4c92a2 d7185373 49b7152d 8d020b46 1d1fafdd ade97be7 4c97cbe5 947f8048 61d111d1 7026b3fa 2a3f341c b16791ed f6824152 c5d83c7a 90701f9f 40b6f596
+sp390 b 969d9804 73360ece 43bb15e6 9c70672b f9906405 343814a3 9cda45e1 1ad4d79b ae4c92a2 d718d377 49b7152d 8d020b46 1d1f9fe3 ade1fbe6 9c1fcf6c d97f084c 61d111d9 5fa73402 3aff3414 b16711e5 f682c156 c5d83c7a 90701f9f 40b6f596
+sp391 a ae03c4aa 4486dd97 06cab199 30242b49 fa9053ff bdf610c0 6fbc978c b9ce1285 e7437c8c f240706b abcafee9 91a4ab93 1d1fafdd afe87ae7 4c97cbe5 946bc049 61c161d1 f02293fa aa370418 b1ebf9ed ed87015a b29ee315 aeb56dae 14d1d12d
+sp391 b ae03c4aa 4486dd97 06cab199 30242b49 fa904405 bd7610c1 7e9c8789 b9ce1281 e7437c8c f240f06f abcafee9 91a4ab93 1d1f9fe3 afe0fae6 9c1fcf6c d96b484d 61c161d9 dfa31402 baf70410 b1eb79e5 ed87815e b29ee315 aeb56dae 14d1d12d
+sp392 a 8f30651a 7ca8ca8a d22f07ad 9b947d78 056fb3fe 66d426f0 012af9b6 e4322804 72236087 bea64a82 81bcf850 10f29c5b 1d1fa7dd afe979e7 4cd7cae5 943b8248 61d533d1 7026b3fa 2a2f1c18 3173e9e8 866b33db 53f13c28 1d2b42c9 f02db8c9
+sp392 b 8f30651a 7ca8ca8a d22f07ad 9b947d78 056fa404 665426f1 100ae9b3 e4322800 72236087 bea6ca86 81bcf850 10f29c5b 1d1f97e3 afe1f9e6 9c5fce6c d93b0a4c 61d533d9 5fa73402 3aef1c10 317369e0 866bb3df 53f13c28 1d2b42c9 f02db8c9
+sp393 a 4164ae92 e537c881 0cab1689 d5ccec58 056fbbfa aec49fd4 8d24789e 42665cfe d8e23fbb 0ce13880 29cef94f 7459a2fd 1d1fa7dd ada87be7 4c97cbe5 946f8048 61d521d3 7026b3fa 2a370c19 71edf9ed e2b74f59 45c4c08a 9149c4e0 ca680715
+sp393 b 4164ae92 e537c881 0cab1689 d5ccec58 056fac00 ae449fd5 9c04689b 42665cfa d8e23fbb 0ce1b884 29cef94f 7459a2fd 1d1f97e3 ada0fbe6 9c1fcf6c d96f084c 61d521db 5fa73402 3af70c11 71ed79e5 e2b7cf5d 45c4c08a 9149c4e0 ca680715
+sp394 a f6eaca7c ec8eefba 2f1e6ec4 b3b8fc10 056fb3fe 8addc798 0b2498dc 423a6954 1a2c643d 466470c2 e786f99b 642a8702 1d1fafdd afc978e7 4cd7cae5 943bc249 61d573d1 f02293fa 2a370c19 316791ec 8a6b6d53 b0237b87 933d635f 8a44febf
+sp394 b f6eaca7c ec8eefba 2f1e6ec4 b3b8fc10 056fa404 8a5dc799 1a0488d9 423a6950 1a2c643d 4664f0c6 e786f99b 642a8702 1d1f9fe3 afc1f8e6 9c5fce6c d93b4a4d 61d573d9 dfa31402 3af70c11 316711e4 8a6bed57 b0237b87 933d635f 8a44febf
+sp395 a 99d23002 1867808f 7d05c8a1 8e7aba6d f9d073ff b2b821e0 4db656a4 7e86e4ed 4a04edac f847312a 01fa40b2 a81166a3 1d1fafdd ad8a79e7 4c97cbe5 943bc249 61c503d1 f02293fa aa270c18 716591ed 983a3c52 826fe3f1 d0dbb496 17c6b4e6
+sp395 b 99d23002 1867808f 7d05c8a1 8e7aba6d f9d06405 b23821e1 5c9646a1 7e86e4e9 4a04edac f847b12e 01fa40b2 a81166a3 1d1f9fe3 ad82f9e6 9c1fcf6c d93b4a4d 61c503d9 dfa31402 bae70c10 716511e5 983abc56 826fe3f1 d0dbb496 17c6b4e6
+sp396 a e6ec6fdb 30d6e835 d6ae4361 27c711b0 052fb3fe 24d4e238 e72e3af6 687e8de6 d03f81f5 b1371279 571a1efa e51e1532 1d1fa7dd ad8878e7 4c97cbe5 947f8048 61d511d1 7026b3fa 2a3f2c19 71edb9ed eae70c53 d81c8264 3738328a a82f64b3
+sp396 b e6ec6fdb 30d6e835 d6ae4361 27c711b0 052fa404 2454e239 f60e2af3 687e8de2 d03f81f5 b137927d 571a1efa e51e1532 1d1f97e3 ad80f8e6 9c1fcf6c d97f084c 61d511d9 5fa73402 3aff2c11 71ed39e5 eae78c57 d81c8264 3738328a a82f64b3
+sp397 a d7023155 6fe2fd4a 2ea9a562 fa41d7ab f9907bff 9afba422 81fad2ec 9085a4f5 4e5a8608 1fce6933 feda7d9e 3a7f7c5c 1d1fafdd afe87be7 4c97cbe5 947b8048 61d121d1 f02293fa aa370419 3173a1e8 f28659d2 dd798dbc 9c677250 b9b2673a
+sp397 b d7023155 6fe2fd4a 2ea9a562 fa41d7ab f9906c05 9a7ba423 90dac2e9 9085a4f1 4e5a8608 1fcee937 feda7d9e 3a7f7c5c 1d1f9fe3 afe0fbe6 9c1fcf6c d97b084c 61d121d9 dfa31402 baf70411 317321e0 f286d9d6 dd798dbc 9c677250 b9b2673a
+sp398 a d9b15d58 4c8aaf4a da627a40 8ee50888 062f93fe 8fdc1300 cd21dc4c eb277836 11695271 1c071501 e9999905 7380a7df 1d1fafdd adcb79e7 4cd7cae5 947fc049 61d531d1 7026b3fa aa370418 7171d1e9 eda744db 6cc2501f d0fc0a32 22e67378
+sp398 b d9b15d58 4c8aaf4a da627a40 8ee50888 062f8404 8f5c1301 dc01cc49 eb277832 11695271 1c079505 e9999905 7380a7df 1d1f9fe3 adc3f9e6 9c5fce6c d97f484d 61d531d9 5fa73402 baf70410 717151e1 eda7c4df 6cc2501f d0fc0a32 22e67378
+sp399 a 8dab5ed5 5519f349 98b6e751 a7c97d84 052fbbfe c094c608 8d29f946 407f0b3c d2b06115 2d523192 ac8ae22a 2f7ec631 1d1fafdd afaa79e7 4cd7cae5 947f8048 61d121d1 7026b3fa aa3f0c1c 316bf9ec e8a30b53 38228dd6 1100453d 990d3997
+sp399 b 8dab5ed5 5519f349 98b6e751 a7c97d84 052fac04 c014c609 9c09e943 407f0b38 d2b06115 2d52b196 ac8ae22a 2f7ec631 1d1f9fe3 afa2f9e6 9c5fce6c d97f084c 61d121d9 5fa73402 baff0c14 316b79e4 e8a38b57 38228dd6 1100453d 990d3997
+```
+
+## Appendix C. Derivation of the completion-compatibility conditions
+
+A starting point is completion-compatible iff its step-5..12 states (both copies) extend
+to a satisfying assignment of the characteristic through step 18. Factoring the completion
+conditions (all mod 2^32; primes = second copy):
+
+- Expansion cancellations dW20..dW30 = 0 reduce, given the V5..V8 and G16/G18 memberships,
+  to: W5 in V5, W6 in V6 (carried), W7 in V7, W8 in V8 (tuple), W16 in G16 and W18 in G18
+  (free, via g and c18), and the step-9 advice word condition
+      V9:  s0(W9 + d9) - s0(W9) == -d8        (round-24 cancellation, |V9| = 35921920)
+- Step 13 produces no difference (starting-point-determined, with A9' = A9):
+      P4a:  dE13 = (E9'-E9) + (S1(E12')-S1(E12)) + (Ch(E12',E11',E10') - Ch(E12,E11,E10)) == 0
+      P4b:  dA13 = dE13 + (S0(A12')-S0(A12)) + (Maj(A12',A11',A10') - Maj(A12,A11,A10))   == 0
+- Steps 14..18 close: there exist W13,W14,W15 with W16 = s1(W14)+W9+s0(W1)+W0 in G16 and
+  W18 = s1(W16)+W11+s0(W3)+W2 in G18 such that steps 13..18 run for both copies from the
+  step-12 states give A18=A18' and E18=E18' (signed conditions dE13=dA13=0; dE14=d16,dA14=0;
+  dE15=dA15=0; dE16=dA16=0; dE17=dA17=0; dE18=dA18=0, with the clean_table rows 13..18 value
+  bits on E13..E16).
+
+P4a, P4b, V9 and the clean_table rows 5..12 are cheap NECESSARY pre-filters (they reject the
+window-only points, which satisfy rows 5..12 but miss P4/V9). The joint closure of steps
+13..18 is the EXACT sufficiency condition and does not reduce to a short scalar predicate:
+two points can agree on P4, V9 and rows 5..12 and still differ in whether steps 14..18 are
+jointly satisfiable, because that depends on the absolute A5..A12,E5..E12 values through the
+nonlinear S1,Ch. The authoritative validator is that the point's completion search closes
+(closes > 0). Our STP + CryptoMiniSat generator is extended to emit points that provably
+close steps 13..18; the K = 400 records in Appendix B are such points.
