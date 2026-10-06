@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "half-collision",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact blake3-r2-prefix-v1 target. One trial of proof.md Section 3.1 per organizer seed: the run words X2, X5, X6, X9, a context (X12 < 2^10, X13, X14), a group g of seven values of alpha, a lane and a member of the sub-class S (Section 3.3) are taken from the seed, and the 60-byte and 62-byte messages are built by steps S1 to S3. Every trial returns its pair. The program also runs, for the same context, group and member, the counted packed program of Section 5 (group set-up, one batch, continuation) and returns its counts and the number of its seven lanes that equal a forward computation from the trial's message words (c1, filter flag, Lemma E word, Y4, eta and the four half-collision words) as observations.",
+      "hypothesis": "Every returned pair agrees on digest words 0, 2, 5 and 7 (the 128 masked bits), as Theorem T states for every trial. This is exact. The observations are the program's own count and are predicted to be setup_ops 46, setup_loads 12, batch_ops 105, batch_loads 1, cont_ops 53, cont_loads 1 and lanes_equal 7 for every seed; the organizer does not recompute them.",
+      "program": "experiments/classsearch.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffff00000000ffffffff0000000000000000ffffffff00000000ffffffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "class-walk",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact target. Per organizer seed one context, one alpha and a block of 64 consecutive members of the sub-class S (Section 3.3); every member of the block is turned into a trial and evaluated forwards from its message words. The pair of the seed's own member is returned. Observations: members_walked, y4_equal (round-1 state word Y4 of both messages equals the member), eta_equal (the E3 first-half d difference equals e96d6d6b) and filter_passes (trials of the block whose c1 passes the beta filter).",
+      "hypothesis": "Every returned pair agrees on digest words 0, 2, 5 and 7 (exact). Lemma Q and Lemma Y predict members_walked = y4_equal = eta_equal = 64 for every seed; filter_passes is 0 for most seeds (rate 2^-10 per trial). Observations are untrusted participant output.",
+      "program": "experiments/classsearch.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffff00000000ffffffff0000000000000000ffffffff00000000ffffffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "early-test-bits",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact target. Trials in the algorithm's order (Section 4) from a start taken from the seed; at most 256 trials per seed. The first trial whose digest XOR is zero in the low 4 bits of word 1 and in bits 25..28 of word 4 is returned, otherwise a null pair. By Lemma D (Section 3.4) the low 4 bits of the Lemma E test word, which equals dO1 XOR ROL(dO4, 7), are then zero. Observation: tries.",
+      "hypothesis": "Every returned pair agrees on the 136 masked bits. The fraction of seeds that return a pair estimates 1 - (1 - p)^256 for the per-trial rate p of the 8-bit event: the seven-word model M predicts p = 0.003945 (3,156 in 800,000 model draws; uniform bits: 0.00391), so about 0.636 (163 +- 8 of 256). A reduced-width check of the generator and of the early test, not a test of H1.",
+      "program": "experiments/classsearch.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffff0f000000ffffffff000000000000001effffffff00000000ffffffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "filtered-residual",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact target, the search of Section 4 at reduced width. Trials in the algorithm's order from a start taken from the seed, through the packed batch up to the beta filter; the first 8 trials that pass the filter are evaluated forwards, and the first of them whose digest XOR is zero in bits 28, 27, 23, 22 of word 3 and bits 20, 19, 15, 14 of word 6 (event E8) is returned, otherwise a null pair. Observations: filter passes used and whether the returned trial has beta in B2.",
+      "hypothesis": "Every returned pair agrees on the 136 masked bits. The fraction of seeds that return a pair measures, on real trials of the algorithm, the conditional rate q of E8 given the beta filter. Model M (proof.md Section 7) predicts q = 0.0342, 8.7 times the uniform 2^-8, so 1 - (1 - q)^8 = 0.243 of the seeds (62 +- 7 of 256, one binomial standard deviation), against 0.031 (8 of 256) for uniform residual bits. Our own runs on 80,432 real filter passes gave q = 0.0339 +- 0.0006. This tests model M at reduced width on the algorithm's own filtered trials; it does not measure the 128-bit rate of H1.",
+      "program": "experiments/classsearch.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffff00000000ffffffff0000c01800000000ffffffff00c01800ffffffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
