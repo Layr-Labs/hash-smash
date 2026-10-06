@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "witness-replay",
+      "kind": "python-message-pairs-v1",
+      "scope": "Deterministic replay of one fixed public 64-byte message pair on the complete blake3-r1-prefix-v1 target, preceded once per isolated process by a self-check that recomputes the 1-round root compression of the all-zero 64-byte block and compares it with the organizer-reference digest. The same pair is returned for every organizer trial; duplicate rows are expected and are not independent attack samples. Participant observations about the internal check remain untrusted; the organizer independently checks only the collision event.",
+      "hypothesis": "The two fixed messages are distinct and have identical full 256-bit digests under unkeyed BLAKE3-256 with 1 prefix round, standard IV, single 64-byte root block, flags 11, block_len 64, counter 0.",
+      "program": "experiments/replay.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
