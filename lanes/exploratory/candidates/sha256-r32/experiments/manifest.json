@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "fixed-witness-derivation",
+      "kind": "python-message-pairs-v1",
+      "scope": "Organizer-executed reconstruction of one committed SHA-256/32 witness from the embedded tuple record, exact lookup-table slices, and tail record, together with bit-exact verification across 256 organizer seeds that grouped first-block evaluation (L = 64 blocks sharing W0..W14, W15 = r15 + j mod 2^32, steps 0..14 and W16, W18, W20 hoisted) produces identical 32-step chaining values to full compression C_32(IV, M0) and records within-group 5-bit match pair counts (group_hits_64, group_pairs_64) across C(64,2) = 2,016 pairs per group.",
+      "hypothesis": "The committed embedded slices deterministically derive two distinct 128-byte messages with equal complete-message sha256-r32-prefix-v1 digests matching the committed expected digest, every seeded group matches full C_32(IV, M0) bit-for-bit, and within-group pair frequency across 256 * 2,016 = 516,096 pairs matches the independent product rate (502/16,384 hits = 0.03064, 502/516,096 pairs = 0.000973 vs 0.000977). This experiment tests witness derivation, incremental equivalence, and scaled within-group pair rate only and makes no automatic inference about global attack cost or historical search time.",
+      "program": "experiments/replay.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    },
+    {
+      "id": "r32-prob-Verify",
+      "kind": "addition-xor-sampled-v1",
+      "scope": "One 32-bit modular addition of the sha256-r32 message expansion and Step-2 algebraic pre-filter (test (b): W12 + sigma0(W4) inside W19), at the XOR differences realized by the truncated CRYPTO 2026 characteristic (FL(W12) = FL(sigma0(W4)) = 0x04400800). Uniform independent operands under organizer seeds and budget.",
+      "hypothesis": "For uniform 32-bit a, b: P[((a+b) xor ((a xor 0x04400800)+(b xor 0x04400800))) == 0x00000000] = 1/8 = 2^-3 exactly (Lipmaa-Moriai; exact carry count across bits 11, 22, 26), matching the Step-2 test (b) pass fraction 1/8.",
+      "word_bits": 32,
+      "input_xor_a": 71305216,
+      "input_xor_b": 71305216,
+      "output_xor": 0
+    },
+    {
+      "id": "r32-w20-s0w5-carry",
+      "kind": "addition-xor-sampled-v1",
+      "scope": "One 32-bit modular addition of the sha256-r32 message expansion and Step-2 algebraic pre-filter (test (g): (sigma1(W18) + W13 + W4) + sigma0(W5) inside W20), at the XOR differences realized by the truncated characteristic (input_xor_b = 0x02808000, output_xor = FL(W20) = 0x01808000).",
+      "hypothesis": "For uniform 32-bit a, b: P[((a+b) xor ((a xor 0x00000000)+(b xor 0x02808000))) == 0x01808000] = 1/16 = 2^-4 (or 1/8 = 2^-3 given the sign of bit 15), matching the Step-2 test (g) pass fraction.",
+      "word_bits": 32,
+      "input_xor_a": 0,
+      "input_xor_b": 41975808,
+      "output_xor": 25198592
+    },
+    {
+      "id": "r32-w22-s1w20-s0w7-cancel",
+      "kind": "addition-xor-sampled-v1",
+      "scope": "One 32-bit modular addition of the sha256-r32 message expansion (sigma1(W20) + sigma0(W7) inside W22, tested at Step 3 stage 22), at the XOR differences realized by the characteristic (0x500060d0 and 0x5000a070 cancelling to 0).",
+      "hypothesis": "For uniform 32-bit a, b: P[((a+b) xor ((a xor 0x500060d0)+(b xor 0x5000a070))) == 0x00000000] = 1/512 = 2^-9 exactly (Lipmaa-Moriai; exact carry count).",
+      "word_bits": 32,
+      "input_xor_a": 1342202064,
+      "input_xor_b": 1342218352,
+      "output_xor": 0
+    },
+    {
+      "id": "r32-w23-s0w8-cancel",
+      "kind": "addition-xor-sampled-v1",
+      "scope": "One 32-bit modular addition of the sha256-r32 message expansion (W7 + sigma0(W8) inside W23, tested in P3 and Step 3), at the XOR differences realized by the characteristic (0x0101108a and 0x0301119a cancelling to 0).",
+      "hypothesis": "For uniform 32-bit a, b: P[((a+b) xor ((a xor 0x0101108a)+(b xor 0x0301119a))) == 0x00000000] = 1/512 = 2^-9 exactly (Lipmaa-Moriai; exact carry count).",
+      "word_bits": 32,
+      "input_xor_a": 16846986,
+      "input_xor_b": 50401690,
+      "output_xor": 0
+    }
+  ]
+}
