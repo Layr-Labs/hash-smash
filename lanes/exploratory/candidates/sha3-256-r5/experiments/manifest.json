@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "r5-advice",
+      "kind": "python-message-pairs-v1",
+      "scope": "Advice provenance (proof 2.2). No organizer seed is needed for trial 0: it re-runs the pre-registered advice program B' from its label LABEL_B alone (candidate C = 5: its beta1 from SHA-256(LABEL_B || 'beta1' || 5) and its setup; then attempt J = 9). PASS iff the output equals the shipped advice BETA1A, BETA0A with DF 41 and 64 verified points, and the counted row operations of the candidate setup and of the attempt equal the log (9,455,652 and 23,444,127). Trials 1-4 re-run one logged attempt j < 9 of candidate 5 chosen by SHA-256(trial seed); PASS iff its status, DF and row-operation count equal the log ADV_ATT. Trials 5-255 return no pair. A mismatch returns no pair. PASS = (00^135, 01||00^134) satisfies the declared event; FAIL = (00^135, 02||00^134) does not. Both are fixed sentinels, so the host check is vacuous; the evidence is the organizer's execution of the visible code, and the host-counted numbers are successes (PASS) and returned_pairs (PASS + FAIL).",
+      "hypothesis": "H1 cross-check: the shipped advice is the output of B' at the logged exact operation counts (2^27.12 units, proof 2.2), a run inside the window whose whole machine capacity is charged (proof 2.3). Predicted: 5 PASS in 5 returned pairs.",
+      "program": "experiments/r5_connector.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
+      }
+    },
+    {
+      "id": "r5-advice-log",
+      "kind": "python-message-pairs-v1",
+      "scope": "Audit of the earlier candidates of the same B' run. Trial t < 3 re-runs candidate C-1-t (4, 3, 2) from LABEL_B and one of its 16 logged attempts chosen by SHA-256(trial seed); PASS iff the candidate-setup row count and the attempt's status, DF and row count equal the log. Trials 3-255 return no pair. PASS = (00^135, 01||00^134) satisfies the declared event; FAIL = (00^135, 02||00^134) does not. Both are fixed sentinels, so the host check is vacuous; the evidence is the organizer's execution of the visible code, and the host-counted numbers are successes (PASS) and returned_pairs (PASS + FAIL).",
+      "hypothesis": "H1 cross-check: the logged B' run is the run that was executed (stop at the first accepted attempt; no earlier accepted attempt omitted). Predicted: 3 PASS in 3 returned pairs.",
+      "program": "experiments/r5_connector.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
+      }
+    },
+    {
+      "id": "r5-connector",
+      "kind": "python-message-pairs-v1",
+      "scope": "H3 sample. Trial t < 64 runs ONE connector attempt (proof 4.3) whose coin words are the SHAKE-256 expansion of its organizer seed (class Coins). PASS iff the attempt is accepted (consistent, DF >= 33, at most 2^18 work units) and two solutions sampled from its space give distinct valid 135-byte messages with the exact 2-round difference alpha2 (Lemmas 1-2); FAIL otherwise. Trials 64-255 return no pair (time limit). No state is shared between attempts. Before any trial the program recomputes the exact facts of proof Section 3; if one differs, no trial returns a pair. PASS = (00^135, 01||00^134) satisfies the declared event; FAIL = (00^135, 02||00^134) does not. Both are fixed sentinels, so the host check is vacuous; the evidence is the organizer's execution of the visible code, and the host-counted numbers are successes (PASS) and returned_pairs (PASS + FAIL).",
+      "hypothesis": "H3: an attempt with fresh coins is accepted with probability q >= q0 = 0.05. r5-connector and r5-conn-b are pooled (128 attempts, returned_pairs = 128); H3 is supported if the one-sided 99.9% Clopper-Pearson lower bound of the pooled PASS rate is >= 0.05. Predicted rate 0.94 (Phase A of the full-scale run: 960 of 1024), about 60 PASS per experiment; q0 = 0.05 would be 3.2.",
+      "program": "experiments/r5_connector.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
+      }
+    },
+    {
+      "id": "r5-conn-b",
+      "kind": "python-message-pairs-v1",
+      "scope": "H3 sample. Trial t < 64 runs ONE connector attempt (proof 4.3) whose coin words are the SHAKE-256 expansion of its organizer seed (class Coins). PASS iff the attempt is accepted (consistent, DF >= 33, at most 2^18 work units) and two solutions sampled from its space give distinct valid 135-byte messages with the exact 2-round difference alpha2 (Lemmas 1-2); FAIL otherwise. Trials 64-255 return no pair (time limit). No state is shared between attempts. Before any trial the program recomputes the exact facts of proof Section 3; if one differs, no trial returns a pair. PASS = (00^135, 01||00^134) satisfies the declared event; FAIL = (00^135, 02||00^134) does not. Both are fixed sentinels, so the host check is vacuous; the evidence is the organizer's execution of the visible code, and the host-counted numbers are successes (PASS) and returned_pairs (PASS + FAIL).",
+      "hypothesis": "H3: an attempt with fresh coins is accepted with probability q >= q0 = 0.05. r5-connector and r5-conn-b are pooled (128 attempts, returned_pairs = 128); H3 is supported if the one-sided 99.9% Clopper-Pearson lower bound of the pooled PASS rate is >= 0.05. Predicted rate 0.94 (Phase A of the full-scale run: 960 of 1024), about 60 PASS per experiment; q0 = 0.05 would be 3.2.",
+      "program": "experiments/r5_connector.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
+      }
+    },
+    {
+      "id": "r5-den-0",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exhaustive denominator check of the full-scale run (proof 5.3), part 0 of 6: together r5-den-0 .. r5-den-5 re-run every attempt index 0..537. AUDIT_LOG is the shipped Phase-A log of the pre-registered run LABEL for attempts 0..537 (the 512 enumerated spaces are the accepted ones; the last is index 537): per index, rejected or the accepted DF. Trial t < 90 of this part re-runs attempt i = 0 + t (here i = 0..89) with the seed SHA-256(LABEL || i) on the reference code. PASS if it is accepted with the logged DF, FAIL if it is rejected and logged as rejected, no pair if the log is wrong about i. Other trials return no pair. The organizer seeds are not used: every index is covered, so nothing is sampled and no index can be predicted or avoided. Before any trial the program recomputes the exact facts of proof Section 3; if one differs, no trial returns a pair. PASS = (00^135, 01||00^134) satisfies the declared event; FAIL = (00^135, 02||00^134) does not. Both are fixed sentinels, so the host check is vacuous; the evidence is the organizer's execution of the visible code, and the host-counted numbers are successes (PASS) and returned_pairs (PASS + FAIL).",
+      "hypothesis": "The shipped log is the run's log on every index. Predicted for this part: 80 PASS in 90 returned pairs (the log has 80 accepted and 10 rejected attempts in 0..89). Over r5-den-0 .. r5-den-5 the predicted totals are 512 PASS in 538 returned pairs: the whole denominator of H2 (the first 512 accepted attempts, whose spaces were enumerated) is organizer-executed. With r5-replay (numerator, 14 positives) the count 14/512 is organizer-checked for its fixed pre-registered population; a positive missed by the C++ E of the run could only raise it.",
+      "program": "experiments/r5_connector.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
+      }
+    },
+    {
+      "id": "r5-den-1",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exhaustive denominator check of the full-scale run (proof 5.3), part 1 of 6: together r5-den-0 .. r5-den-5 re-run every attempt index 0..537. AUDIT_LOG is the shipped Phase-A log of the pre-registered run LABEL for attempts 0..537 (the 512 enumerated spaces are the accepted ones; the last is index 537): per index, rejected or the accepted DF. Trial t < 90 of this part re-runs attempt i = 90 + t (here i = 90..179) with the seed SHA-256(LABEL || i) on the reference code. PASS if it is accepted with the logged DF, FAIL if it is rejected and logged as rejected, no pair if the log is wrong about i. Other trials return no pair. The organizer seeds are not used: every index is covered, so nothing is sampled and no index can be predicted or avoided. Before any trial the program recomputes the exact facts of proof Section 3; if one differs, no trial returns a pair. PASS = (00^135, 01||00^134) satisfies the declared event; FAIL = (00^135, 02||00^134) does not. Both are fixed sentinels, so the host check is vacuous; the evidence is the organizer's execution of the visible code, and the host-counted numbers are successes (PASS) and returned_pairs (PASS + FAIL).",
+      "hypothesis": "The shipped log is the run's log on every index. Predicted for this part: 84 PASS in 90 returned pairs (the log has 84 accepted and 6 rejected attempts in 90..179). Over r5-den-0 .. r5-den-5 the predicted totals are 512 PASS in 538 returned pairs: the whole denominator of H2 (the first 512 accepted attempts, whose spaces were enumerated) is organizer-executed. With r5-replay (numerator, 14 positives) the count 14/512 is organizer-checked for its fixed pre-registered population; a positive missed by the C++ E of the run could only raise it.",
+      "program": "experiments/r5_connector.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
+      }
+    },
+    {
+      "id": "r5-den-2",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exhaustive denominator check of the full-scale run (proof 5.3), part 2 of 6: together r5-den-0 .. r5-den-5 re-run every attempt index 0..537. AUDIT_LOG is the shipped Phase-A log of the pre-registered run LABEL for attempts 0..537 (the 512 enumerated spaces are the accepted ones; the last is index 537): per index, rejected or the accepted DF. Trial t < 90 of this part re-runs attempt i = 180 + t (here i = 180..269) with the seed SHA-256(LABEL || i) on the reference code. PASS if it is accepted with the logged DF, FAIL if it is rejected and logged as rejected, no pair if the log is wrong about i. Other trials return no pair. The organizer seeds are not used: every index is covered, so nothing is sampled and no index can be predicted or avoided. Before any trial the program recomputes the exact facts of proof Section 3; if one differs, no trial returns a pair. PASS = (00^135, 01||00^134) satisfies the declared event; FAIL = (00^135, 02||00^134) does not. Both are fixed sentinels, so the host check is vacuous; the evidence is the organizer's execution of the visible code, and the host-counted numbers are successes (PASS) and returned_pairs (PASS + FAIL).",
+      "hypothesis": "The shipped log is the run's log on every index. Predicted for this part: 87 PASS in 90 returned pairs (the log has 87 accepted and 3 rejected attempts in 180..269). Over r5-den-0 .. r5-den-5 the predicted totals are 512 PASS in 538 returned pairs: the whole denominator of H2 (the first 512 accepted attempts, whose spaces were enumerated) is organizer-executed. With r5-replay (numerator, 14 positives) the count 14/512 is organizer-checked for its fixed pre-registered population; a positive missed by the C++ E of the run could only raise it.",
+      "program": "experiments/r5_connector.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
+      }
+    },
+    {
+      "id": "r5-den-3",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exhaustive denominator check of the full-scale run (proof 5.3), part 3 of 6: together r5-den-0 .. r5-den-5 re-run every attempt index 0..537. AUDIT_LOG is the shipped Phase-A log of the pre-registered run LABEL for attempts 0..537 (the 512 enumerated spaces are the accepted ones; the last is index 537): per index, rejected or the accepted DF. Trial t < 90 of this part re-runs attempt i = 270 + t (here i = 270..359) with the seed SHA-256(LABEL || i) on the reference code. PASS if it is accepted with the logged DF, FAIL if it is rejected and logged as rejected, no pair if the log is wrong about i. Other trials return no pair. The organizer seeds are not used: every index is covered, so nothing is sampled and no index can be predicted or avoided. Before any trial the program recomputes the exact facts of proof Section 3; if one differs, no trial returns a pair. PASS = (00^135, 01||00^134) satisfies the declared event; FAIL = (00^135, 02||00^134) does not. Both are fixed sentinels, so the host check is vacuous; the evidence is the organizer's execution of the visible code, and the host-counted numbers are successes (PASS) and returned_pairs (PASS + FAIL).",
+      "hypothesis": "The shipped log is the run's log on every index. Predicted for this part: 87 PASS in 90 returned pairs (the log has 87 accepted and 3 rejected attempts in 270..359). Over r5-den-0 .. r5-den-5 the predicted totals are 512 PASS in 538 returned pairs: the whole denominator of H2 (the first 512 accepted attempts, whose spaces were enumerated) is organizer-executed. With r5-replay (numerator, 14 positives) the count 14/512 is organizer-checked for its fixed pre-registered population; a positive missed by the C++ E of the run could only raise it.",
+      "program": "experiments/r5_connector.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
+      }
+    },
+    {
+      "id": "r5-den-4",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exhaustive denominator check of the full-scale run (proof 5.3), part 4 of 6: together r5-den-0 .. r5-den-5 re-run every attempt index 0..537. AUDIT_LOG is the shipped Phase-A log of the pre-registered run LABEL for attempts 0..537 (the 512 enumerated spaces are the accepted ones; the last is index 537): per index, rejected or the accepted DF. Trial t < 90 of this part re-runs attempt i = 360 + t (here i = 360..449) with the seed SHA-256(LABEL || i) on the reference code. PASS if it is accepted with the logged DF, FAIL if it is rejected and logged as rejected, no pair if the log is wrong about i. Other trials return no pair. The organizer seeds are not used: every index is covered, so nothing is sampled and no index can be predicted or avoided. Before any trial the program recomputes the exact facts of proof Section 3; if one differs, no trial returns a pair. PASS = (00^135, 01||00^134) satisfies the declared event; FAIL = (00^135, 02||00^134) does not. Both are fixed sentinels, so the host check is vacuous; the evidence is the organizer's execution of the visible code, and the host-counted numbers are successes (PASS) and returned_pairs (PASS + FAIL).",
+      "hypothesis": "The shipped log is the run's log on every index. Predicted for this part: 88 PASS in 90 returned pairs (the log has 88 accepted and 2 rejected attempts in 360..449). Over r5-den-0 .. r5-den-5 the predicted totals are 512 PASS in 538 returned pairs: the whole denominator of H2 (the first 512 accepted attempts, whose spaces were enumerated) is organizer-executed. With r5-replay (numerator, 14 positives) the count 14/512 is organizer-checked for its fixed pre-registered population; a positive missed by the C++ E of the run could only raise it.",
+      "program": "experiments/r5_connector.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
+      }
+    },
+    {
+      "id": "r5-den-5",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exhaustive denominator check of the full-scale run (proof 5.3), part 5 of 6: together r5-den-0 .. r5-den-5 re-run every attempt index 0..537. AUDIT_LOG is the shipped Phase-A log of the pre-registered run LABEL for attempts 0..537 (the 512 enumerated spaces are the accepted ones; the last is index 537): per index, rejected or the accepted DF. Trial t < 88 of this part re-runs attempt i = 450 + t (here i = 450..537) with the seed SHA-256(LABEL || i) on the reference code. PASS if it is accepted with the logged DF, FAIL if it is rejected and logged as rejected, no pair if the log is wrong about i. Other trials return no pair. The organizer seeds are not used: every index is covered, so nothing is sampled and no index can be predicted or avoided. Before any trial the program recomputes the exact facts of proof Section 3; if one differs, no trial returns a pair. PASS = (00^135, 01||00^134) satisfies the declared event; FAIL = (00^135, 02||00^134) does not. Both are fixed sentinels, so the host check is vacuous; the evidence is the organizer's execution of the visible code, and the host-counted numbers are successes (PASS) and returned_pairs (PASS + FAIL).",
+      "hypothesis": "The shipped log is the run's log on every index. Predicted for this part: 86 PASS in 88 returned pairs (the log has 86 accepted and 2 rejected attempts in 450..537). Over r5-den-0 .. r5-den-5 the predicted totals are 512 PASS in 538 returned pairs: the whole denominator of H2 (the first 512 accepted attempts, whose spaces were enumerated) is organizer-executed. With r5-replay (numerator, 14 positives) the count 14/512 is organizer-checked for its fixed pre-registered population; a positive missed by the C++ E of the run could only raise it.",
+      "program": "experiments/r5_connector.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
+      }
+    },
+    {
+      "id": "r5-replay",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target, full-collision event. Trial t < 14 handles one recorded collision of the pre-registered run (proof 5.3); the first 14 are also the package certificates. It recomputes that attempt's seed SHA-256(LABEL || i) from the recorded index i, re-runs the attempt with the reference code, rebuilds the space's enumeration basis (proof 4.4), runs the Python E on the 2^12 aligned coordinates that contain the recorded coordinate, and returns E's first output if it is the recorded point. Other trials return no pair. Organizer seeds are not used: this is a replay of a recorded run. Before any trial the program recomputes the exact facts of proof Section 3; if one differs, no trial returns a pair. ",
+      "hypothesis": "Numerator of the full-scale count: the 14 recorded positives are outputs of the specified E on the specified spaces built with the B' advice. The host checks 14 full 5-round SHA3-256 collisions of distinct 135-byte messages.",
+      "program": "experiments/r5_connector.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
