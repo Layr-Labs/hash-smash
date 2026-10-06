@@ -1,4 +1,13 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "pair46",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/message-a.bin",
+      "message_b": "certificates/message-b.bin",
+      "expected_digest": "9c3b8fbe64d9445bf72d12335ca2283f497c0ecbd5945d89020d61c63a93124e",
+      "target_profile": "blake3-r1-prefix-v1"
+    }
+  ]
 }

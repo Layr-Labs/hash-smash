@@ -6,23 +6,26 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 149,
+    "time_log2": 1.6,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 12,
+    "preprocessing_log2": 0,
+    "success_probability": 1,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "Messages are exactly 64 bytes: one chunk, one full block, one root compression with counter 0, block_len 64, flags CHUNK_START|CHUNK_END|ROOT = 11 under unkeyed BLAKE3-256 with 1 retained prefix round.",
+    "Deterministic closed-form construction (zero trials, zero evaluated compressions); corrected straight-line program in proof.md section 3 is executed by the declared organizer experiment experiments/builder.py (kind python-message-pairs-v1, event full-collision), which re-derives the column phase from the IV per trial, asserts a1+b1+y = 0 mod 2^32 on both solved diagonals, emits trial 0 byte-identical to certificates/message-a.bin and message-b.bin, and has its digests recomputed by the organizer.",
+    "Machine reading follows the paired-lanes-v1 cost panel arithmetic from refuted ticket ca1bca4: 32-bit lane add/sub are mask-charged (2 ops), lane-wise rotations 4 ops (SHL+SHR+OR+AND), lane unpack from 256-bit registers charged (AND for lane 0, SHR+AND per higher lane), CMP and branches charged.",
+    "Primary ledger: T = 2 (both verification compressions) + (78 construction + 56 message-lane unpack + 52 acceptance-comparison)/222 = 2 + 186/222 = 2.837838; log2 T = 1.504792; claimed 1.60 covers the legitimate worst sensitivity variant W=219 (log2 1.5784) including narrow 32-bit stores and a replayed digest comparison; the disclosed triple-counted reading W=236 (log2 1.6150) is priced in proof.md section 4.",
+    "The ten program-init ops formerly declared as external preprocessing are inside the 78-op construction count; preprocessing_log2 = 0 because no work sits outside the ledger; in-program re-derivation of the six IV-derived post-column constants (+112 ops, log2 1.74) is disclosed, not claimed.",
+    "Success probability 1 is deterministic: Lemma 1 (c1=0/a2=0 inversion with true right rotates) and Lemma 2 (four-way complement flip) are exact mod-2^32 identities; disjoint diagonal slot sets cancel in the feed-forward xor pairing; builder.py asserts the a2=0 invariant numerically.",
+    "The pair is scoped to complete-hash collisions on the selected profile; disclosed NOT to transfer to other contexts (2-chunk tree tested, fails as expected); full 7-round BLAKE3 separates the pair (attack is 1-round specific).",
+    "memory_log2_bytes = 12: 186 x 16-byte instruction templates (2976 B) + 160 B register file + 192 B messages/digests + 64 B stack = 3392 B < 4096 B, explicit per-instruction encoding.",
+    "Same decoupling family as pending track work (winglock 754f0f2/d60b306, jvr0x 93f45e2, jungjipdo af4c65b, AArnott 6109275); independently re-derived; this revision adopts 6109275's H=2 verification-charged convention and 93f45e2's builder-self-execution discipline, and the previously declared floor twin was withdrawn because the panel charged comparison and unpacking even against a probability-1 replay."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
   "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
