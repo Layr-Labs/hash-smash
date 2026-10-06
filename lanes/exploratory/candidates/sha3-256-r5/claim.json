@@ -6,21 +6,22 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 129.31,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 138,
+    "preprocessing_log2": 24,
+    "success_probability": 0.86,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
+    "Messages are exactly 128 bytes, encoded from 4 independent uniform 256-bit words.",
+    "One batch of exactly n = 2^129 samples (an integer loop bound); all repeated messages are retained and charged; no restart or success amplification.",
+    "One selected 5-round compression or permutation per sample; single padded block or rate block; no parent or extra compression is ever evaluated.",
+    "Collision detection by deterministic stable LSD radix sort of the full 256-bit digest (eight 32-bit digit passes, 2^32 native 256-bit word counters that cannot overflow, prefix positions up to n) followed by one linear scan; no hash table, no probing, and no distributional premise on digests.",
+    "Every ledger entry is a deterministic worst-case bound over all coin sequences and every fixed target; loads, additions and stores of counter and position updates are charged separately; no expected value appears anywhere.",
+    "Classical 256-bit word RAM with independent uniform random words; all initialization, sorting, scanning and verification charged.",
     "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 129.31."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
   "heuristics": [],
