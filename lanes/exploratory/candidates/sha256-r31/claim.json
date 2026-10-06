@@ -6,22 +6,75 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 39.34,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 35,
+    "preprocessing_log2": 39.11,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 8
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Two-block messages M0||M1 and M0||M1' of 128 bytes each; complete SHA-256 with the standard IV, steps 0..30 on all three padded blocks, full feed-forward and all 256 digest bits. M1 and M1' differ in words 5..9.",
+    "Published attack structure (Mendel-Nad-Schlaeffer 2013; Li-Liu-Wang 2024; Li-Liu-Wang-Dong-Sun 2024), but no published characteristic, starting point or colliding pair is used: the characteristic is produced by the authors' public correct_dc_model_31_256 model solved with STP, selected among 9 measured outputs, and all of that solver work is charged.",
+    "Stored advice (under 256 bytes): the characteristic, c5 and the base starting point, produced once by a recorded computation whose 6829.6 CPU-seconds of solver work are charged under H-CONV at 2^26 units per CPU-second together with our counted evaluation programs; all per-run preprocessing (160,000 starting points, 1,161,880 tuples, completions, word sets, tables) is deterministic given the advice and charged by instrumented operation counts.",
+    "Each of exactly N = 96*2^30 trials draws its first block from two fresh independent uniform 256-bit RAM words; hard caps on key hits (2^25), prefix-valid trials (2^19) and completion calls (2^15, each with at most 2^18 x and 2^14 z candidates) make the time bound hold for every run.",
+    "The per-trial success probability under a uniform chaining value is a fixed-table quantity bounded with an exact overlap-correct Karp-Luby estimator and a Clopper-Pearson bound (H-SAMPLING); H1 relates the real chaining-value distribution to the uniform one with a factor-2 slack.",
+    "Unused or aborted computations (an earlier find_dc_model run whose outputs admitted no starting point, earlier solver formulations, duplicate deterministic search runs aborted by implementation bugs) produced no input to the algorithm; they are disclosed in proof Section 13 and not charged.",
+    "The baseline_improved identifier is required metadata naming the organizer's nominal reference; comparison with the Yukon incumbent is left to Yukon."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H-CONV-hardware-bound",
+      "role": "score-critical",
+      "statement": "One CPU-second of the STP/CryptoMiniSat runs charged in proof Section 3 costs at most 2^26 collision-frontier-v5 units, i.e. at most 2^37.06 primitive 256-bit word operations.",
+      "scope": "Only the measured solver CPU time (6829.6 CPU-seconds) of the one-time advice construction P0, which produced and selected the stored characteristic and base starting point. All other preprocessing and online work is charged by counted operations.",
+      "extrapolation": "Hardware basis: Intel Core i5-12450H, maximum clock 4.4 GHz, at most 8 instructions retired per cycle, so at most 3.52e10 instructions per CPU-second; premise that a 256-bit word RAM simulates the average executed x86-64 instruction of these solvers in at most 4 word operations. Our dense scalar 31-step compression runs at about 2^33.5 word operations per CPU-second, 12 times below the bound.",
+      "evidence_ids": [
+        "proof:310-321",
+        "proof:70-115"
+      ],
+      "limitations": "No hardware instruction counters were available (perf disabled), so the instruction rate is bounded, not measured, and the ops-per-instruction factor is a modeling premise. Sensitivity: at 2^27 units per CPU-second the total would be 2^40.07."
+    },
+    {
+      "id": "H1-near-uniform-chaining-value",
+      "role": "score-critical",
+      "statement": "For CV = C(IV, M0) with a uniform 512-bit block M0 and the fixed tables of proof Section 6: (a) the per-trial success probability is at least half of its value under a uniform 256-bit CV; (b) the prefix-valid probability is at most 2^4 times its uniform value; (c) the expected number of completion calls per trial is at most 2^4 times its uniform-CV value.",
+      "scope": "The fixed target and the fixed table of 1,161,880 tuples from 160,000 starting points with their completions. Trial independence holds because first blocks are fresh coins.",
+      "extrapolation": "Measured in a full run of this algorithm (2^37.56 trials, ChaCha20 first blocks): 32-bit key hits 45,267,325 vs 45,263,296 expected; 41-bit key+W6 events 107,435 vs 106,986; prefix-valid trials 228 vs 229.4; completion calls 3 vs 2.60; collisions 3 vs 2.23. Extrapolated to the success event at the claimed trial count.",
+      "evidence_ids": [
+        "proof:250-277",
+        "proof:322-330",
+        "proof:340-371"
+      ],
+      "limitations": "Our run, not organizer-executed. Prefix-valid counts are well matched, but only 3 successes were observed, so a small-factor deviation at the full success event is not excluded; the factor-2 slack covers this. Sensitivity: rho = 0.45 instead of 1/2 gives success 0.382."
+    },
+    {
+      "id": "H-KEYHIT-real-hit-rate",
+      "role": "supporting",
+      "statement": "The probability that A_-1 of the real chaining value is one of the 960,237 table keys is at most 1.2 times its uniform value.",
+      "scope": "Only the key-hit cap failure term (below 1e-6 under this premise).",
+      "extrapolation": "Directly sampled at high count: 45,267,325 key hits vs 45,263,296 expected (ratio 1.00009) over 2^37.56 real trials.",
+      "evidence_ids": [
+        "proof:263-277",
+        "proof:331-333",
+        "proof:340-371"
+      ],
+      "limitations": "Our run, not organizer-executed."
+    },
+    {
+      "id": "H-SAMPLING-chacha20",
+      "role": "score-critical",
+      "statement": "ChaCha20 keystream words behave as independent uniform samples, both in our estimator of E[I] (so the exact Clopper-Pearson bound E[I] >= 0.009458 at alpha = 1e-9 applies to 48,593 successes in 5,000,000 samples) and as the first blocks of the evidence run (so its counts sample the real distribution of C(IV, M0)).",
+      "scope": "Our E[I] sampling program and the first-block generator of our evidence run; the attack's own coins are fresh uniform RAM words by definition.",
+      "extrapolation": "ChaCha20 is a standard stream cipher with no known distinguisher; the implementation matches the RFC 8439 test vector; two independent seeds gave consistent rates (0.009741 and 0.009713).",
+      "evidence_ids": [
+        "proof:250-262",
+        "proof:334-339"
+      ],
+      "limitations": "The estimator is our own program and not organizer-executed. The success bound falls below 0.39 only if E[I] < 0.00874, about 10% below the estimate 0.009719 and about 22 standard errors away."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
