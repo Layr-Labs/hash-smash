@@ -6,23 +6,43 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 124.937,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 261,
+    "preprocessing_log2": 10,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Unkeyed BLAKE3-256 with prefix rounds 0-1; every evaluated message is exactly 64 bytes, i.e. one root compression with flags 11, block length 64, counter 0, and the full 256-bit digest.",
+    "Grouped partial-evaluation birthday search on tekkac's seven-lane SWAR evaluator (tickets 1c8c7c53 and 2bf40fb6; layout, delayed-reduction body, live-value bounds and gapped key reused and credited; tekkac is co-author), ercumentyildirim's earlier SWAR packing of BLAKE3 lanes and 5-operation masked-shift rotation (tickets b2508e27 and 2e96a19e; credited; ercumentyildirim is co-author) and jaazinn's grouping, message set, sparse-set table and heuristic premise (public ticket 0a5b7ae8; credited; jaazinn is co-author). All cited tickets are public, AI-screened and in review; none is promoted. N = 2^128 messages in 2^96 groups of 2^32: each group shares fresh uniform words m0..m14 and enumerates the round-1 state word t = a3' = 0..2^32-1, i.e. m15 = (t - S_g) mod 2^32 (a bijection onto all m15 values).",
+    "Classical probabilistic 256-bit word RAM: one 2-round compression costs 1 unit and every other primitive (including loads, stores, compares and branches) costs 1/430; 64 registers, shift amounts as instruction fields (the convention of scripts/reference_operation_costs.py, our public 3022205a and 1c8c7c53). A seven-message batch is the shipped straight-line program PROG_FULL: 227 packed-body operations (tekkac's schedule), 64 key-extraction operations, 7 table steps of at most 9 and 1 T advance: 355 counted in the worst case; a 64-batch block adds a 3-operation loop test; the 4-lane tail batch counts 319. Every batch is charged 360.",
+    "Group setup (counted 499; at most 503 with the group-loop test) is charged 1024 operations; each of at most 2^110 MATCH entries (itemized at most 95 operations, every constant load counted) is charged 2 compressions plus 1024 operations; installation, including writing fewer than 2^18 code words, is charged 2^18 operations (also reported as preprocessing_log2 = 10, already inside T). T < 0.1196181 * 2^128 < 2^124.93651.",
+    "No register spill and no constant reload in the hot loop: r0..r26 hold the broadcast group constants, r27..r46 hold T, CC, broadcast(7), 1, seven rotation masks and nine extraction masks, and the batch program uses only r47..r63 as temporaries; its only memory accesses are the 14 loads and 14 stores of the table steps. Under the stricter reading that charges every shift amount as an extra operation the count is 435 per batch and the bound 2^125.20970; with +1 per direct-addressed access and per ALU immediate it is unchanged at 355 (the loop test becomes 4).",
+    "The collision table is a never-initialised Briggs-Torczon sparse set whose sparse address is the gapped 176-bit key K itself (bits 32..35 of K are zero) and whose dense array grows down from 2^256 - 1: the i-th table step writes its key at 2^256 - 1 - i and, if new, the dense address at K. The record is the dense address itself (i = NOT w = g * 2^32 + t), so no record word, alignment mask or record counter is used. Group records are at (g << 36) | 2^32 | k, scalars and spills at 2^32 + [16, 2^14), code at 2^33 + [0, 2^18); all disjoint from keys and dense entries. Memory is a word-addressed RAM of 256-bit words; every address is below 2^256 words (2^261 bytes, the whole address space, as in 1c8c7c53; memory_log2_bytes = 261); each table step writes exactly one dense word, and fewer than 2^134.001 bytes are ever written. Records are never displaced and garbage cannot produce a match (proof Lemma 4); no zero-initialised memory is assumed.",
+    "The time bound is a worst-case cap on every run; every output is re-hashed with two reference compressions and checked to be a full-digest collision of distinct messages. Only the success probability relies on the declared heuristic H1.",
+    "No sub-birthday cryptanalysis, executed full-scale search or collision certificate is claimed, and no improvement over the nominal reference 128 is asserted. The four declared experiments are 20-bit scaled analogues (2^10 messages) that produce partial (masked) digest agreements only; three execute the exact counted register program through an interpreter (one of them, keysub, with a 16-bit key that is a strict projection of the 20-bit event, so declined MATCHes and dummy entries occur), and one uses an evidence-only full mode to cover digest words o4, o6, o7, which the counted program never computes."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-grouped-uniform-digests",
+      "statement": "For the message set of proof Section 1 (2^96 groups with independent uniform m0..m14, each containing all 2^32 values of m15), the complete 2-round BLAKE3 digests of the 2^128 messages, and their 160-bit keys (digest words o0..o3 and o5, stored injectively in a gapped 176-bit representation), have failure probability for the events F1 (no full-digest collision), F2' (the first message holding a colliding message's key has a different digest) and Fcap (more than 2^110 key-colliding pairs) at most the bound computed for independent uniform 256-bit values plus 0.0034. In that model Pr[F1] < 0.6065307, Pr[F2'] < 2^-33 and Pr[Fcap] <= 2^-15, so Pr[F1 or F2' or Fcap] < 0.6065613 and H1 asserts Pr[F1 or F2' or Fcap] <= 0.6099613 < 0.61; with Pr[F3] < 2^-289, success >= 0.39003 >= 0.39 (model success > 0.39343).",
+      "role": "score-critical",
+      "scope": "Only the success probability (success_probability = 0.39). Output validity (every output is verified with two reference compressions), the worst-case time cap and all operation counts do not depend on H1. F3 (identical group words, < 2^-289) is bounded exactly. The message set, key information and events are identical to those of tickets 3022205a and 1c8c7c53.",
+      "extrapolation": "Evidence declared for organizer execution (python-message-pairs-v1): four end-to-end scaled runs of the algorithm on the exact target (2^10 messages, 20-bit events) with the t-enumeration and the operation-counted table step over adversarial garbage memory: two execute the exact counted register program PROG_FULL through an interpreter (one spread over 32 groups and one inside a single group, masks inside o0..o3, o5); one over 32 groups uses the evidence-only full mode with a mask spread over all eight digest words (3,3,3,3,2,2,2,2 bits); and keysub (32 groups, PROG_FULL) uses a 20-bit event with 4 bits in o4, o6, o7 and a 16-bit key that is its restriction to o0..o3, o5, so declined MATCHes, dummy dense entries and the scaled analogue of F2' are executed (uniform-model value 0.391796 by exact recursion, proof Section 7). Our local replay of experiments.runner with the track's config_sha256 and seed hashsmash-public-seed-v1 gave 101/256, 91/256, 101/256 (model 100.7, sd 7.8) and 109/256 for keysub (model 100.3). Our additional runs (our seeds) are listed in proof Section 7: 4096 trials for each of six layout/mask rows, a second independent set of 8192 trials for three rows, and 16384 keysub trials. The claim applies independent-uniform behaviour to 256-bit digests, 160-bit keys and 2^128 messages, an extrapolation of more than 200 bits; within-group pairs are a 2^-96 fraction of all pairs at full scale, and same-t cross-group pairs provably collide with probability at least 2^-256.",
+      "evidence_ids": [
+        "experiment:b3r2-swar-spread",
+        "experiment:b3r2-swar-single",
+        "experiment:b3r2-swar-fullword",
+        "experiment:b3r2-swar-keysub",
+        "proof:55-83",
+        "proof:312-352",
+        "proof:353-460"
+      ],
+      "limitations": "H1 is not proved. Masked projections cannot detect structure visible only in full-width equality. Organizer seeds are public, and each 256-trial experiment resolves success only to about +-0.03; the 0.0034 allowance above 0.39 is not statistically certified. The local replays and the larger runs are ours, not organizer results; Docker was unavailable to us, so the organizer runner was replayed locally with a subprocess executor. Our own runs pooled (49152 trials) gave 19545 successes against a model of 19330.1 (+2.0 sd; the first 24576-trial set alone was +3.2 sd, the second -0.4 sd); the excess is in the direction of more collisions than the model. Our keysub runs (16384 trials, two seed sets, spread and single-group layouts) gave 6319 successes against 6419.2 (-1.6 sd; lowest row -2.1 sd). Fcap is not exercised at scale (the full-scale cap is 2^15 times the model mean); its bound rests on H1 and Markov only."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }

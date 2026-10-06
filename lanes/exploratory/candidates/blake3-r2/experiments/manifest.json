@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "b3r2-swar-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact blake3-r2-prefix-v1 root compression on 64-byte messages. Per organizer seed, one run of the algorithm of proof.md Section 3 scaled to N_t = 2^10 messages: 32 groups (fresh seed-derived words U0, U1 = m0..m14 per group) x 32 enumerated values t = 0..31 of the round-1 state word a3', m15 = (t - S) mod 2^32. Every batch of seven messages is executed by an interpreter of the exact counted register program of proof.md Section 4 (PROG_FULL: 291 ALU instructions on a 64-register file plus 7 table steps), followed by the 1-operation packed T advance; the scaled key is the program's gapped 160-bit key register ANDed with the 20-bit event mask (4 bits in each of o0, o1, o2, o3, o5). Each table step is the operation-counted transcript of proof.md Section 5 (sparse address = key, dense array growing down from 2^256 - 1, record = dense address) over adversarial garbage memory in which about half of the unwritten words hold the address of a written dense entry. A key match is re-hashed with an independent reference compression before the pair is returned. Every organizer trial is returned, failures as two nulls; observations report the counted ALU operations per batch and the table-step operation range.",
+      "hypothesis": "The success frequency agrees, within sampling error, with the uniform-random value for the same event (1024 values, 20-bit agreement: 0.3933, proof.md Section 7), as heuristic H1 predicts for the full-scale grouped message set. Each success is a pair of distinct messages whose complete 2-round BLAKE3 digests agree on the 20 masked bits.",
+      "program": "experiments/b3r2_swar.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0f00000000f0000000000f00000000f000000000000f00000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "b3r2-swar-single",
+      "kind": "python-message-pairs-v1",
+      "scope": "As b3r2-swar-spread, but all 1024 messages of a trial lie in one group (one seed-derived m0..m14, t = 0..1023): the most structured layout, in which messages differ only in m15. A different 20-bit mask, again 4 bits in each of o0, o1, o2, o3, o5. The counted register program and table step are the same.",
+      "hypothesis": "Within-group digests also behave like independent uniform values for the masked event: the success frequency agrees, within sampling error, with 0.3933. Each success is a pair of distinct messages whose complete 2-round BLAKE3 digests agree on the 20 masked bits.",
+      "program": "experiments/b3r2_swar.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000f00f000000000f00000000f00000000000f00000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "b3r2-swar-fullword",
+      "kind": "python-message-pairs-v1",
+      "scope": "Evidence for the digest words that the counted hot path never computes. As b3r2-swar-spread (32 groups x t = 0..31, same message set, same table step over adversarial garbage), but the seven-lane readable packed body runs in its evidence-only full mode, which also performs the three skipped final b rotations and yields all eight digest words o0..o7 of every lane; the scaled key is a 20-bit mask spread over all eight words (3 bits in each of o0..o3, 2 bits in each of o4..o7) applied to the packed 256-bit digest. The counted program of proof.md Section 4 is unchanged; this experiment only tests the full-digest premise of H1.",
+      "hypothesis": "The grouped digests also behave like independent uniform values on o4, o6 and o7: the success frequency agrees, within sampling error, with the uniform-random value 0.3933 for 1024 values and a 20-bit event. Each success is a pair of distinct messages whose complete 2-round BLAKE3 digests agree on the 20 masked bits.",
+      "program": "experiments/b3r2_swar.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "07000000000e000000001c000000003830000000006000000000c000000000c0",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "b3r2-swar-keysub",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exercises the declined-MATCH path that the other experiments cannot reach. As b3r2-swar-spread (32 groups x t = 0..31, same seed-derived message set, the exact counted register program PROG_FULL through the interpreter, the same table step over adversarial garbage memory), but the 20-bit event mask has 16 bits inside the key words (4 in o0, 3 in each of o1, o2, o3, o5) and 4 bits outside them (2 in o4, 1 in o6, 1 in o7); the scaled key is the program's gapped key register ANDed with the 16-bit restriction of the event mask, mirroring the full-scale key o0..o3, o5 as a strict projection of the full digest. A key match is decoded from the dense address, both messages are rebuilt from the group records and re-hashed with the independent reference compression; the pair is returned only if all 20 event bits agree, otherwise the handler writes the dummy dense entry and the run continues (proof.md Section 5). Key matches with differing event bits therefore occur several times per trial, and the scaled analogue of event F2' (a later event partner hidden behind the first record of its key) can occur. Observations report verifications and dummy entries.",
+      "hypothesis": "The success frequency agrees, within sampling error, with the uniform-random value for this two-level event: 1024 independent uniform 20-bit values whose 16-bit projection is the table key, with a returned pair only when the first record of the key agrees on all 20 bits: 0.39180 (proof.md Section 7; it is below 0.39327 by the scaled F2' effect). Each success is a pair of distinct messages whose complete 2-round BLAKE3 digests agree on the 20 masked bits.",
+      "program": "experiments/b3r2_swar.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000f000e000000000e000000000001c000600000e0000000000004000000200",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
