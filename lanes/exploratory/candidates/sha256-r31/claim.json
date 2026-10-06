@@ -6,22 +6,58 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 50.0,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
+    "memory_log2_bytes": 55,
+    "preprocessing_log2": 48.2,
     "success_probability": 0.6,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Use only the fixed standard IV, steps 0 to 30 on every padded block, full feed-forward and the full 256-bit digest, on 128-byte messages followed by the fixed third padding block.",
+    "The construction is the published two-block attack of Li, Liu and Wang (eprint 2024/349, Section 4.2) using the characteristic of its Table 6, reproduced in proof.md. It is not a new attack and was not executed for this package.",
+    "Draw each first block from fresh independent uniform random coins for at most 2^49.3 trials. Verify any returned pair by complete re-hashing and require distinct messages.",
+    "Preprocessing is inside total time. Table enumeration is charged at one compression per record. Nonuniform advice is zero.",
+    "No experiments, computed witness or precomputed collision is used. The bound is a transcription of published analysis with the cost model's pricing applied."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H-SOLUTION-COUNT",
+      "statement": "One SAT/SMT starting point for the Table 6 characteristic expands to 2^48 valid solutions of (A_i) for -3<=i<=12, (E_i) for 1<=i<=12 and (W_i) for 5<=i<=12.",
+      "role": "score-critical",
+      "scope": "The single characteristic of Table 6 and one starting point, as analysed in eprint 2024/349 Section 4.2.",
+      "extrapolation": "The counts 2^14, 2^23, 2^27 and 2^25 for (W5..W8) and the experimental 2^11 pairs (W7,W8) are taken from the paper and not re-measured here.",
+      "evidence_ids": ["proof:42-50", "proof:118-122"],
+      "limitations": "If the true count were 2^47 the cost would rise by about 0.6 bits and the claimed bound would fail. The 2^11 figure is an experimental count in the source."
+    },
+    {
+      "id": "H-GAMMA",
+      "statement": "After a table match, the free words (W13,W14,W15) satisfy the remaining conditions on (E13,E14,E15,W16,W18) with probability about 2^-1.3.",
+      "role": "score-critical",
+      "scope": "Matches produced by the construction for the Table 6 characteristic.",
+      "extrapolation": "The value 1.3 is the paper's estimate from 100 tests. It is extrapolated to the whole attack without re-measurement.",
+      "evidence_ids": ["proof:57-62", "proof:123-126"],
+      "limitations": "A 100-test estimate has wide error. A true gamma of 2 would raise cost by a factor 2^0.7 and break the claimed bound."
+    },
+    {
+      "id": "H-UNIFORM-POISSON",
+      "statement": "The 96-bit values (A-3,A-2,A-1) derived from fresh random first blocks behave as uniform values independent of the table, and the number of matches is close to Poisson.",
+      "role": "supporting",
+      "scope": "The match phase over 2^49.3 trials against a table of 2^48 records.",
+      "extrapolation": "Uniformity of reduced-round chaining values is assumed for the whole range. No test is submitted.",
+      "evidence_ids": ["proof:63-71", "proof:127-130"],
+      "limitations": "Deviation changes the success probability rather than the cost. The claimed 0.6 sits below the 0.632 given by the Poisson model."
+    },
+    {
+      "id": "H-STARTING-POINT",
+      "statement": "A starting point for the Table 6 characteristic exists and its SAT/SMT search costs at most 2^45 target-compression equivalents.",
+      "role": "supporting",
+      "scope": "One starting point, charged inside preprocessing.",
+      "extrapolation": "The paper reports T_model of about 2^31.7 and calls it negligible, without a defined unit. The allowance of 2^45 is a judgment about 2^13 times larger.",
+      "evidence_ids": ["proof:72-90", "proof:131-134"],
+      "limitations": "The unit of the paper's figure is not defined. A much larger real cost would raise the total, though the allowance has about 0.05 units of the total reserved for it."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
