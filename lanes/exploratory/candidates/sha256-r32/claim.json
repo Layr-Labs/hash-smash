@@ -6,22 +6,102 @@
   "rounds": 32,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 52.1,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.8,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 35,
+    "preprocessing_log2": 52.1,
+    "success_probability": 0.65,
+    "nonuniform_advice_log2_bytes": 13
   },
   "restrictions": [
-    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent random words, not seeded PRNG expansion.",
-    "Exactly q=2^129 sampled 64-byte messages; complete SHA-256 with fixed IV, prefix rounds 0 through 31 on both padded blocks, feed-forward and all 256 digest bits.",
-    "One finite run with at most 2^136 target-compression equivalents of total charged computation and 2^138 peak bytes; no restarts, nonuniform advice or precomputed collision.",
-    "data_log2 bounds bytes of complete padded hash inputs including final verification re-reads, as specified in proof.md.",
-    "Analytic resource and success bounds; no full-scale execution, cryptanalytic improvement or nominal-reference improvement is claimed."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5 (C = 2224); total work over all processors, including the characteristic search (charged as an itemised allowance of 2^28 solver CPU-seconds at 2^24 units per CPU-second = 2^52 units, anchored to 247,285 measured CPU-seconds), the starting-solution search and the table build, all in preprocessing.",
+    "Two-block messages M0||M1 and M0||M1' of 128 bytes; complete SHA-256 with standard IV, steps 0..31 on all three padded blocks, feed-forward and all 256 digest bits; outputs verified by full recomputation.",
+    "32-step truncation of the 35-step attack of Li, Liu, Wang, Shi (CRYPTO 2026, ePrint 2026/1080), using its Fig. 6 characteristic and starting solution as advice; truncation, table and Step-2/3 tests follow hash-smash #26/#33 (winglock), re-implemented and re-measured here.",
+    "One run of T = 2^46.0 trials with a counted Step-2/3 work cap of 507.5 T word operations; no restarts. No certificate is supplied; no own 32-step pair is claimed.",
+    "Heuristic bound: relies on the declared heuristics q-32step-matching-rate, step3-46-conditions, route-search-allowance, cpu-second-pricing (score-critical) and valid-tuple-pairs, starting-solution-measured, search-peak-memory (supporting)."
   ],
   "baseline_improved": "sha256-r32-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "q-32step-matching-rate",
+      "statement": "A uniform first block M0 compressed with C_32 from the IV yields at least 2^-17.3583 expected valid tuples (Step 2) against TAB2 of 1,396,774,912 tuples.",
+      "role": "score-critical",
+      "scope": "The exact TAB2 and Step-2 tests of proof Section 4 with C_32 first blocks.",
+      "extrapolation": "Exact-enumeration prediction 2^-17.3254; four measured runs, 2^34 part-trials, 25,936 valid tuples, pooled 2^-17.3373 with 99% lower bound 2^-17.3583; extrapolated to fresh coins and 2^45 trials.",
+      "evidence_ids": [
+        "proof:233-256"
+      ],
+      "limitations": "Participant runs (own C code), not organizer executions; treats CV1 words as uniform for the Step-2 tests."
+    },
+    {
+      "id": "step3-46-conditions",
+      "statement": "For a valid tuple each of the 196,608 (W14,W15) candidates conforms through step 22 and W16..W31 with probability at least 2^-46, and Step 3 succeeds with r >= 2^-28.415 (1 - 2^-20).",
+      "role": "score-critical",
+      "scope": "Steps 16..22 and W16..W31 of the second block; candidates grouped by W14 (12 groups of 2^14), charged in the second moment.",
+      "extrapolation": "Measured cumulative stage rates through step 21 over 2^32.25 candidates match the condition mapping; the 13 W20/W22 carry conditions after step 21 are extrapolated from the printed count.",
+      "evidence_ids": [
+        "proof:257-269",
+        "proof:346-363",
+        "proof:125-148"
+      ],
+      "limitations": "Independence beyond the W14 grouping is not proved; no full conformance observed in our runs."
+    },
+    {
+      "id": "route-search-allowance",
+      "statement": "The search that produced the published 35-step characteristic (S Sect. 3-4) costs at most 2^28 solver CPU-seconds on the measurement machine (2^52 units at 2^24 units per CPU-second).",
+      "role": "score-critical",
+      "scope": "Characteristic search only; charged once as preprocessing; its memory is declared under search-peak-memory.",
+      "extrapolation": "Itemised from measured data: 247,285 CPU-s for Steps 1-4 as run (Steps 1-2 reach S's optima, Step 3 a lower relaxed optimum, Step 4 stopped at 112 vs 76, with a <= 78 call timing out at 28,257 CPU-s although Fig. 6 satisfies it); Step-4 completion estimated at 0.2M-4M CPU-s; then x8 for S's selection loop and x8 for threads, schedule, exploratory models and abandoned attempts. The allowance exceeds the upper completion estimate by more than 60x. Declared plausible, not established.",
+      "evidence_ids": [
+        "proof:270-307",
+        "proof:328-345"
+      ],
+      "limitations": "S's own search time is unpublished (PDF not obtainable; abstract states none) and no run here reproduced Fig. 6; the completion estimate and the two factors of 8 are argued, not measured."
+    },
+    {
+      "id": "cpu-second-pricing",
+      "statement": "One solver CPU-second on the measurement machine costs at most 2^24 target-compression units (2^35.12 primitive word operations).",
+      "role": "score-critical",
+      "scope": "The STP+CryptoMiniSat runs of the characteristic and starting-solution searches.",
+      "extrapolation": "Measured 2^30.03 instructions per CPU-second (callgrind count of a deterministic call against native CPU time) and opcode mix (multiply/divide/floating point 0.42%, unmapped 7.24%) leave 34 primitive operations per instruction.",
+      "evidence_ids": [
+        "proof:318-327"
+      ],
+      "limitations": "One calibration instance; instruction rate under the run's machine load."
+    },
+    {
+      "id": "valid-tuple-pairs",
+      "statement": "E[C(V,2)] <= q * 2^-5 for the number V of valid tuples in one trial.",
+      "role": "supporting",
+      "scope": "Valid tuples sharing one first block.",
+      "extrapolation": "9 within-part pairs in 2^34 part-trials; cross-part term estimated from multiplicity sums with the observed correlation factor; charge exceeds the estimate by more than 20x.",
+      "evidence_ids": [
+        "proof:346-363"
+      ],
+      "limitations": "Cross-part pairs not observed directly."
+    },
+    {
+      "id": "starting-solution-measured",
+      "statement": "Producing the starting solution costs at most 32 x 908.8 CPU-seconds (two measured SAT runs) at 2^24 units per CPU-second (2^38.83 units), above S's reported 2^34.3 in any unit up to one compression.",
+      "role": "supporting",
+      "scope": "The advice values A4..A13, E8..E13, W12, W13.",
+      "extrapolation": "Two SAT runs of S's attack Step 1 task (solution through step 13, checked exactly), the second with S's printed single-bit conditions asserted; S's own solution is the advice.",
+      "evidence_ids": [
+        "proof:308-317"
+      ],
+      "limitations": "Comparability of our solution to S's is neither claimed nor needed; the anchor is the cost of the same task."
+    },
+    {
+      "id": "search-peak-memory",
+      "statement": "The route search (S's and ours) needs at most 2^33 bytes at its peak.",
+      "role": "supporting",
+      "scope": "Memory of the characteristic and starting-solution searches, which run before the attack phase.",
+      "extrapolation": "Measured peak resident set 5.25 GiB over all 57 search calls and both start runs; S's own search is assumed of the same model size.",
+      "evidence_ids": [
+        "proof:418-432"
+      ],
+      "limitations": "S's historical peak is not reported; the measured peaks are added to the memory bound anyway."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
