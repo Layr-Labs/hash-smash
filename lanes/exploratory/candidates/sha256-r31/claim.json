@@ -6,22 +6,62 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 39.56,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 37,
+    "preprocessing_log2": 39.47,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 8
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Two-block messages M0||M1 and M0||M1' of 128 bytes each; complete SHA-256 with the standard IV, steps 0..30 on all three padded blocks, full feed-forward and all 256 digest bits. M1 and M1' differ in words 5..9.",
+    "Published attack structure and published signed characteristic (Mendel-Nad-Schlaeffer 2013; Li-Liu-Wang 2024; Li-Liu-Wang-Dong-Sun 2024) used as advice; the published colliding pair, its starting point and the published collision run are not used.",
+    "Starting points are produced inside the algorithm by solving a fully specified bit-vector model with STP 2.4.1 (715.1 measured CPU-seconds, charged under H-CONV) and a deterministic local search with exact checks; all of this is preprocessing included in total time.",
+    "Each of exactly N = 40*2^30 trials draws its first block from two fresh independent uniform 256-bit RAM words; hard caps on key hits (2^28), prefix-valid trials (2^12) and completion search make the time bound hold for every run.",
+    "The union measure and the completion rate r are properties of the fixed tables measured by our sampling with Hoeffding bounds at failure probability 1e-9; H1 relates the real chaining-value distribution to the uniform one with a factor-2 slack.",
+    "The score is dominated by H-CHAR (cost of the published characteristic, at most 2^39.5); without it the measured algorithm costs under 2^36.3 units.",
+    "The baseline_improved identifier is required metadata naming the organizer's nominal reference; comparison with the Yukon incumbent is left to Yukon."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-near-uniform-chaining-value",
+      "role": "score-critical",
+      "statement": "For CV = C(IV, M0) with a uniform 512-bit block M0 and the fixed tables of proof Sections 5-6: (a) the probability that one trial ends in a checked collision is at least half of the same probability under a uniform 256-bit CV; (b) the probability that a trial is prefix-valid is at most 2^4 times its value under a uniform CV.",
+      "scope": "The fixed target and the fixed table of 59,279,520 tuples, 4291 starting points and their completions. Only the distribution of the 31-step chaining value of a uniform first block is at issue; trial independence holds because first blocks are fresh coins.",
+      "extrapolation": "Measured on the real function in full runs of the algorithm: 32-bit key hits 1,314,841,618 vs 1,314,755,000 expected; 41-bit key+W6 events 9,208,177 vs 9,202,130 expected; 59-bit prefix-valid events 34 vs 34.3 expected; checked collisions 9 vs 8.8 expected (run 3, 2^38.31 trials). Extrapolated to the full success event at the claimed trial count.",
+      "evidence_ids": [
+        "proof:287-297",
+        "proof:352-366",
+        "proof:390-408"
+      ],
+      "limitations": "Our runs, not organizer-executed. The 59-bit and success counts are small (34 and 9), so only a deviation of a small factor is excluded; the factor-2 slack covers this. Sensitivity: with ratio rho instead of 1/2 the success bound is 1 - exp(-1.1064 rho) - 0.0172 (rho = 0.45 gives 0.375)."
+    },
+    {
+      "id": "H-CHAR-advice-cost",
+      "role": "score-critical",
+      "statement": "All computation that produced the published signed differential characteristic used as advice (proof Section 3) cost at most 2^39.5 collision-frontier-v5 units.",
+      "scope": "Only the characteristic (message and state differences and signed XOR patterns of steps 5..12 and W7, W8). The published colliding pair, its starting point and the published collision run are not used and not needed.",
+      "extrapolation": "We re-ran the authors' public search script find_dc_model_31_256.py (commit 6a9f35f, unmodified) with STP 2.4.1: calls for Hamming weight 60 down to the published 51 all returned characteristics, using 32,357 CPU-seconds, i.e. 2^38.98 units at 2^24 units per CPU-second. 2^39.5 is 1.43 times that.",
+      "evidence_ids": [
+        "proof:367-382",
+        "proof:72-101"
+      ],
+      "limitations": "The re-run produced characteristics of the same shape but not the published one; the authors' actual search effort (possibly including their value-consistency model) is not published. Sensitivity: 2^40 gives total 2^40.11; 2^41 gives 2^41.06."
+    },
+    {
+      "id": "H-CONV-cpu-to-units",
+      "role": "supporting",
+      "statement": "One CPU-second of the STP solver runs used here (base starting points, and the characteristic re-run evidence) costs at most 2^24 units, i.e. 2^35.06 primitive 256-bit word operations per second.",
+      "scope": "The measured STP runs on an Intel Core i5-12450H: 715.1 CPU-seconds for base starting points (charged 2^33.48 units) and the H-CHAR evidence.",
+      "extrapolation": "Calibration: a scalar 31-step SHA-256 compression, a dense ALU workload, runs at 2^22.3-2^22.4 compressions per CPU-second per thread on the same machine, so 2^24 allows about three times the work of the densest code measured.",
+      "evidence_ids": [
+        "proof:383-389",
+        "proof:152-170"
+      ],
+      "limitations": "No hardware instruction counts were available (perf disabled). If one CPU-second were worth 2^25 units, the base starting point term would be 2^34.48 and the total would remain below 2^39.6."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
