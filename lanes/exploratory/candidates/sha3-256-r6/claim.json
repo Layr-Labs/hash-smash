@@ -6,21 +6,42 @@
   "rounds": 6,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.4,
+    "time_log2": 124.491,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 130,
-    "preprocessing_log2": 142,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical 256-bit word RAM with fresh independent uniform random-word primitive.",
-    "One batch of 2^129 independent uniform 64-byte messages; no restarts or nonuniform advice.",
-    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06, prefix rounds 0 through 5, all 256 output bits.",
-    "Generic analytic upper bound; infeasible resource use, no improvement over the nominal reference claimed."
+    "Complete fixed-IV SHA3-256 sponge (rate 1088, capacity 512, suffix 0x06, pad10*1), prefix rounds 0 through 5, all 256 output bits; every message is exactly 64 bytes (one block).",
+    "Generic birthday search over N = 2^128 messages in 2^96 groups of 2^32: group g has a fresh uniform 64-byte prefix P_g (two random 256-bit words) and message m(g,z) is P_g with LE32(z) XORed into bytes 0..3 and 40..43 (low halves of lanes 0 and 5, one theta column). Groups are processed in batches of 256 (one group per bit position of every 256-bit word, bitsliced), z = gray(t) for t = 0..2^32-1, slots offered in the fixed order decode_slot(q) = 32*(q mod 8) + floor(q/8), q = 0..255.",
+    "Each z-step of a batch (256 messages) is an exact counted, fully unrolled word-RAM program (branches only in the ctz tree, the jump after the incremental block, the table step including its candidate path, and the loop test; no indirect jump) of at most 36,449 executed primitives on its worst path (all 32 Gray blocks cost the same): Gray update of the round-2 theta output A2 on 62 words with an exact incremental patch of the stored, theta'd round-3 input, bitsliced round 3 and the dependency cones of rounds 4 and 5 (1,363 and 175 stored words) in a fixed lane-complement encoding with theta added at the store, the digest-row last round on 35 fixed bit planes only (140 digest bits; the other 116 key rows are constant zero) fused with five delta-swap transpose stages, the remaining three stages, one Briggs-Torczon sparse-set step per message on the 140-bit key, and loop control. Rotations are address renamings, never executed. Charge: 36,449/256 + setup (< 2^-20) per message, i.e. 142.37890625/1626 units.",
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5 with 64 registers as our stated assumption (the program uses at most 56; table bases and constants are held in registers; a fixed-size register file whose operands are not memory accesses, 2 KiB, the size of a 32-entry 512-bit SIMD register file; the bound is not claimed under a memory-to-memory reading): one six-round permutation costs 1 unit; every executed load, store (direct or register-addressed), logic operation, shift, add, comparison, conditional branch, immediate move and random word costs 1/1626; constant addresses and immediates are instruction fields. A candidate verification evaluates two messages with the reference six-round function (2 units). Charging also one address addition per direct access and one move per ALU immediate gives 47,144 per z-step and 124.861; also each shift amount 48,716 and 124.909 (proof Section 9).",
+    "The stored key is a fixed bit permutation of 140 digest bits XOR a constant, so a key match is only a candidate: both messages are rebuilt from their ids and stored prefixes and evaluated in full (2 units); the run halts only on equal 256-bit digests of distinct messages, otherwise it counts the candidate and continues, aborting at the hard cap VCAP = 2^115 + 2^91 candidates. Time bound T <= 2^128*(36,449/256 + 2^-20)/1626 + VCAP*(2 + 47/1626) + (2 + 54/1626) < 2^124.49056 holds in every run (no restarts). The success probability 0.39 (model value 0.39334) relies on the declared heuristic H1, which also bounds the abort probability (<= 2^-67); output correctness and all resource bounds are unconditional.",
+    "Credit: grouped partial evaluation, the sparse-set table, failure analysis and scaled-experiment design are due to jaazinn (0a5b7ae8, in review), and the 256-message bit-plane Keccak and delta-swap transpose to may93182 (11c46f4d); both are named as co-authors in that sense. Lane-complement chi with folded round constants was brought to this track by tekkac (b001199a), after the Keccak team; the last-round early abort is ercumentyildirim's (c7fa1a56; r5: 4c969300), and the 35 kept planes with verify and continue extend it; exact per-message charging follows zeeshan8281 (cbf7998d) and tekkac (f58275ef); the claimed reading matches the every-core-load-and-store-charged row of mitchuski's table (02d6a703). None has reviewed this package. Ours: the incremental round 2, theta at the store, the fused last round, the dependency cone, the kept planes with verify and continue, the table layout, the counted program and any errors. This revises our bfc8c418 and does not use Th0rgal's 76ccfa1c changes.",
+    "No cryptanalytic weakness of SHA3 is claimed: this is a constant-factor improvement of a full-digest birthday search under the operation-level cost model. Memory is about 2^145 bytes (reported only, not a Pareto improvement)."
   ],
   "baseline_improved": "sha3-256-r6-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1",
+      "statement": "For the failure events F1, F2 and F4 (Section 7), the 2^128 digests of the grouped message set {m(g, z)} (independent uniform prefixes P_g, all z in {0,1}^32, processed in any fixed order chosen independently of the digests, in particular the order of Section 2: batch by batch, t = 0..2^32-1 with z = gray(t), slots p = decode_slot(q) = 32*(q mod 8) + floor(q/8) for q = 0..255) behave like N independent uniform 256-bit values, i.e. Pr[F1] <= exp(-N(N-1)/2^257), Pr[F2] <= N^3/6 * 2^-396 and, since the 140-bit key is a fixed function of 140 digest bits, Pr[F4] <= 2^-67.",
+      "role": "score-critical",
+      "scope": "Only the success probability (Section 7) uses H1, through Pr[F1], Pr[F2] and the abort probability Pr[F4] <= 2^-67. Evaluator exactness, verification of every output, and all time, memory and preprocessing bounds are unconditional (the candidate cap makes the time bound hold in every run). Cross-group pairs (all but a 2^-96 fraction of pairs) provably collide with probability >= 2^-256 each (Cauchy-Schwarz over the uniform prefixes), so the expected number of colliding pairs is at least (1-2^-96)/2 without H1; H1 is needed for the second-moment behaviour behind Pr[F1], for F2 and for F4. Bitslicing, batching, the incremental round 2, the dependency cone, the 140-bit key and the fixed encodings change neither the message set nor any digest value; they fix only the processing order, which depends on (batch, t, q) and never on digests.",
+      "extrapolation": "Tested at scale only: four organizer-executed scaled analogues with N_t = 2^9 messages and an 18-bit mask of kept digest bits (N_t^2/2^18 = 1 = N^2/2^256), all computing digests with an evaluator that mirrors the counted program (incremental round 2, lane-complement rounds with theta at the store; rounds 4-5 computed in full, then every word outside the Lemma 10 cone replaced by an unrelated constant; last round on the 35 kept planes with the program's key layout; transpose by Lemma 9's zero-row formulas, checked against the full transpose; processing order): 256 groups x 2 (a full batch), 16 groups x 32, a single group of 512 (strongest within-group structure) and 4 groups x 128 with the varying z bits at 25..31. Every organizer trial checks the whole 140-bit key against an independent direct sponge (its first 4 and one at every step t = 2^i), the 62-word support of each Gray coefficient column, and the incrementally maintained round-3 input against a rebuild. Local runs, every one reported in proof Section 10.3 including our internal review's: organizer-runner replays on the public seed (93/98/99/109 of 256; replayed at least seven times, byte-identical) and five fresh seeds, a 256-trial timing run, 8,192 + 2,048 trials per layout and one 256-trial run; pooled over 12,032 / 12,032 / 12,288 / 12,032 trials z +1.0 / -0.1 / -1.2 / -1.8 (full-width/spread/single-group/high-z), largest cell +2.1. The high-z shortfall lies in cross-group pairs (9,723 vs 9,984 over 26,624 trials), whose expected count is provably at least the uniform value (Cauchy-Schwarz); within-group pairs match (3,249 vs 3,302), and a recount with verifier keccak reproduces the evaluator's per-trial counts exactly. masked_pairs is the scaled candidate count Y: per trial over 8,192 trials per layout its variance/mean is 1.003 / 0.982 / 1.015 / 1.013 (uniform model 0.499/0.499), consistent with Var[Y] <= E[Y] used for F4. The claim extrapolates uniform-model behaviour to N = 2^128, the 256-bit digest and its 140-bit truncation.",
+      "evidence_ids": [
+        "experiment:k6r6-bs-full-width",
+        "experiment:k6r6-bs-spread",
+        "experiment:k6r6-bs-single-group",
+        "experiment:k6r6-bs-high-z",
+        "proof:122-275",
+        "proof:403-467",
+        "proof:510-673"
+      ],
+      "limitations": "H1 is not proved. Within a group the round-2 theta output A2 is exactly affine in z (Lemma 2), a stronger structure than in a generic search; five further nonlinear chi layers (rounds 2-6) follow, but masked low-width experiments cannot exclude a structural effect that appears only at full width. Within a group the digest has degree at most 2^5 = 32 in z; z has 32 bits, so no degree-based zero-sum exists on any affine subspace of z (that needs dimension at least 33). The experiments use a full dictionary of masked keys, so the table loss F2 and the candidate count F4 are bounded only under H1. Organizer seeds are public. The scaled experiments resolve the success frequency only to about +-0.03 at 256 trials. The 0.0033 allowance between the model value 0.39334 and the claimed 0.39 is not statistically certified."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
