@@ -1,27 +1,82 @@
 {
   "schema_version": 3,
-  "submission_state": "ready",
   "target_profile": "sha256-r31-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 31,
   "lane": "exploratory",
+  "baseline_improved": "sha256-r31-nominal-v2",
+  "submission_state": "ready",
+  "certificate_manifest": "certificates/manifest.json",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 40.5,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 36,
+    "preprocessing_log2": 40.5,
+    "success_probability": 1.0,
+    "nonuniform_advice_log2_bytes": 26
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Selected sha256-r31-prefix-v1 only: two distinct 128-byte strings sharing their first block; full FIPS-padded three-block digest under standard IV once, original SHA-256 schedule and constants, rounds 0..30 and all eight feed-forward additions.",
+    "One prospective deterministic route: derive 28,848 paired source rows from fixed published modular/signed trail constants with bounded Z3 cubes/fibers and bounded local repair; derive V5..V8 and G16/G18/S; build a 2^32-key direct-address first-eight table and independently regenerate its 1,000-group order-check file in a second bounded table pass with at most eight tuples per key.",
+    "Generate every first block from fixed original ChaCha20 64-bit-counter/64-bit-nonce key/nonce for counters 0..2^35-1, without early stop. For each CV, use first-match exact V6/V5 tuple and c18-in-S check. Sort all JOINT events, make one globally capped Phase-3 completion per event using domain-separated ChaCha20 offsets, and select the lowest-counter verified full collision.",
+    "All seven pairs in the certificate manifest came from the fixed 2^35 run and were independently rehashed over complete padded messages. The exact deterministic route succeeds on this fixed target, but no fresh-seed expected rate is claimed.",
+    "Time_log2=40.50 is conditional on the fixed-public-trail prospective interpretation, 256 ordinary 256-bit primitives per Cachegrind guest instruction-plus-data reference for bounded source workers, a 2^48-primitive kernel/I/O/auxiliary reserve, and the explicit finite operation ceilings. Historical trail discovery and unrelated exploratory campaigns are not in the prospective single-route scalar; a literal all-history reading can invalidate it."
   ],
-  "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H-public-trail-text",
+      "role": "score-critical",
+      "statement": "The published Li-Liu-Wang-Dong-Sun 31-step signed differential and message differences are reusable public algorithm text for this prospective route. Every executed source solve, derivative instantiation, repair, table operation and failed call is charged; the original historical search that discovered the published trail is not charged again.",
+      "scope": "The fixed public DA/DE and signed A/E/W7/W8 constraints that determine the 28,848-row source model and later exact message differences.",
+      "extrapolation": "The published ASIACRYPT 2024 signed trail supplies the constants. The local source model relaxes selected signed bits, reproduces 28,848 numerically audited rows with deterministic caps, and the fixed-seed run yields seven exact full-message collisions. The evidence supports validity and runtime instantiation, while the treatment of original public trail discovery is a cost-model interpretation.",
+      "evidence_ids": [
+        "proof:36-146",
+        "proof:278-358",
+        "proof:382-1087"
+      ],
+      "limitations": "The authors distinguish trail search from pair search; this package has no full historical search runtime for their trail. Collision-frontier-v5 charges differential construction and omitted advice. If reviewers require the original trail search as nonuniform advice work, time_log2=40.50 is not established."
+    },
+    {
+      "id": "H-machine-wordram",
+      "role": "score-critical",
+      "statement": "For the bounded source-solver campaign, 256 ordinary 256-bit word-RAM primitives per Cachegrind instruction-plus-data reference, together with an additional 2^48 ordinary-primitive kernel/I/O/auxiliary reserve, upper-envelopes its v5 cost; the remaining finite stages obey the stated direct operation ceilings.",
+      "scope": "One deterministic 128-cube source pass including failed calls, standalone solve, 56 initial fibers, seven extensions, bounded BFS, derivative scans, two table passes and the 2^35 fixed sampler plus all seven completions.",
+      "extrapolation": "Cachegrind measured 7,140,260,742,107 instruction and 2,992,097,049,978 data references for the bounded source and fiber replays. Two Callgrind opcode pilots were dominated by simple scalar operations. The complete fixed-size sampler recorded 1,185,317,301 key hits and 4,190,434,465 slot visits; the finite ledger charges these exact counts with generous per-event ceilings.",
+      "evidence_ids": [
+        "proof:147-233",
+        "proof:278-358",
+        "proof:1088-1427",
+        "proof:1428-2001"
+      ],
+      "limitations": "Cachegrind references are not themselves 256-bit word-RAM operations and exclude kernel execution. The 256 conversion and 2^48 reserve are not certified upper bounds on all platform work; a different conversion or unexpected hidden work can exceed the declared scalar."
+    },
+    {
+      "id": "H-prospective-route",
+      "role": "score-critical",
+      "statement": "A single fully specified clean-source and fixed-seed replay may be costed as the submitted construction, rather than summing every earlier exploratory, validation, overlap-audit and failed research branch that informed the route.",
+      "scope": "Prospective deterministic algorithm whose final source selection, fixed seed, sample size, table, completion policy and caps are specified in the proof and whose exact fixed-target witnesses are supplied.",
+      "extrapolation": "The clean corpus was independently rebuilt byte for byte, the 2^35 sample completed all counters without early stopping, and every JOINT produced a verified collision. These receipts make the one-route execution concrete. The branch selection was nevertheless informed by previous research.",
+      "evidence_ids": [
+        "proof:82-277",
+        "proof:278-358",
+        "proof:1317-1427",
+        "proof:1629-2001",
+        "proof:2002-2366"
+      ],
+      "limitations": "A strict literal all-executed-history policy adds earlier 2^37 validation, overlap scans, solver searches, failed branches, audits and the post-result hygiene replay. That interpretation may exceed 40.50 even if every current witness is valid."
+    },
+    {
+      "id": "H-peak-memory",
+      "role": "supporting",
+      "statement": "Peak memory of the submitted single-route construction is below 2^36 bytes, including table slots, groups, loaded row/derivative arrays, solver state and retained advice.",
+      "scope": "Source-solver workers and one direct-address-table fixed-size sampler; not all earlier research programs simultaneously.",
+      "extrapolation": "The sampler allocated a 16 GiB slot array, at most 11.52 GB groups, 0.54 GB V6 bitset and small row/derivative arrays; measured peak RSS was 27,225,128 KiB. Source workers ran separately.",
+      "evidence_ids": [
+        "proof:147-171",
+        "proof:278-358",
+        "proof:1677-2001"
+      ],
+      "limitations": "No full historical trail-discovery RSS receipt exists; if earlier work is included, the historical peak needs separate accounting."
+    }
+  ]
 }

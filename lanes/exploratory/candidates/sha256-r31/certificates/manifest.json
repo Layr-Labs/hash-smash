@@ -1,4 +1,61 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "fixedseed-1",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/fixedseed-1-a.bin",
+      "message_b": "certificates/fixedseed-1-b.bin",
+      "expected_digest": "38bfee3b3697ce5531983a3f306d29166f089a4f55858605aa674354d0348e75",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "fixedseed-2",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/fixedseed-2-a.bin",
+      "message_b": "certificates/fixedseed-2-b.bin",
+      "expected_digest": "2032408e18b540953192dedc1119a1ea6e70a474bfc37ac58a792ab814f85bee",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "fixedseed-3",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/fixedseed-3-a.bin",
+      "message_b": "certificates/fixedseed-3-b.bin",
+      "expected_digest": "0be0b2d41db6b6a72b02ec536cb932347e200ca197b6215722bad2f747a5c646",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "fixedseed-4",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/fixedseed-4-a.bin",
+      "message_b": "certificates/fixedseed-4-b.bin",
+      "expected_digest": "dfa2040d9e436bc412f00829d204c9006c23bc12fb860f5c223f2e37fb9bfc32",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "fixedseed-5",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/fixedseed-5-a.bin",
+      "message_b": "certificates/fixedseed-5-b.bin",
+      "expected_digest": "86c968da89768279b585e87272d237793149c39640def6b2870c308096d3dbd6",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "fixedseed-6",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/fixedseed-6-a.bin",
+      "message_b": "certificates/fixedseed-6-b.bin",
+      "expected_digest": "68fa707d79da9e54115a7febde3c90b0b042ec8c3260dfd05d80be9f96870a46",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "fixedseed-7",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/fixedseed-7-a.bin",
+      "message_b": "certificates/fixedseed-7-b.bin",
+      "expected_digest": "dcb3b8bc1a79302a3ad18365e9690ad5dc2fab1a68d4e4e09f40f23bb9507a43",
+      "target_profile": "sha256-r31-prefix-v1"
+    }
+  ]
 }
