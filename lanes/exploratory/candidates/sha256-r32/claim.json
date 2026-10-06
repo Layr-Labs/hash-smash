@@ -6,22 +6,36 @@
   "rounds": 32,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 128.4,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.8,
+    "memory_log2_bytes": 153.1,
+    "preprocessing_log2": 9,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent random words, not seeded PRNG expansion.",
-    "Exactly q=2^129 sampled 64-byte messages; complete SHA-256 with fixed IV, prefix rounds 0 through 31 on both padded blocks, feed-forward and all 256 digest bits.",
-    "One finite run with at most 2^136 target-compression equivalents of total charged computation and 2^138 peak bytes; no restarts, nonuniform advice or precomputed collision.",
-    "data_log2 bounds bytes of complete padded hash inputs including final verification re-reads, as specified in proof.md.",
-    "Analytic resource and success bounds; no full-scale execution, cryptanalytic improvement or nominal-reference improvement is claimed."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5 with fresh independent random words, not seeded expansion.",
+    "Exactly q=2^128 sampled 55-byte messages, each hashed by one complete SHA-256 with fixed IV, rounds 0 through 31, feed-forward and all 256 digest bits.",
+    "One finite run with a hard cap of 2^120 chain steps. Worst case charged time below 2^128.397 target-compression equivalents, no restarts and no nonuniform advice.",
+    "Table memory is never initialised and the address span is about 2^153 bytes. Memory is reported and not scored.",
+    "Heuristic H1 only bounds the chain walk cap. A distribution free proof gives the digest collision probability. No cryptanalytic improvement or nominal-reference improvement is claimed."
   ],
   "baseline_improved": "sha256-r32-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1",
+      "role": "score-critical",
+      "statement": "For a uniformly random 55-byte message, the top 148 bits of its 32-round SHA-256 digest have slice collision probability sum_b c_b^2 at most 8 times 2^-148, within a factor 8 of a uniform slice.",
+      "scope": "Bounds only the expected total chain walk length of the table, hence the probability that the 2^120 step cap is exceeded. Correctness of a returned pair does not depend on it.",
+      "extrapolation": "Experiments test 18 bit slices at 512 messages per trial. The claim extrapolates to a 148 bit slice at 2^128 messages using a diffusion argument over 32 rounds.",
+      "evidence_ids": [
+        "experiment:slice-top18",
+        "experiment:slice-spread",
+        "proof:255-278"
+      ],
+      "limitations": "Experiments are scaled, seed expanded and give no iid interval. A larger bias than eightfold could push chain work above the cap and lower the success probability. It cannot produce an invalid collision."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }

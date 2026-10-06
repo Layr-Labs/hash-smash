@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "slice-top18",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact 32-round SHA-256 of seed-derived 55-byte messages. 512 messages per trial, pair agreeing on the top 18 digest bits.",
+      "hypothesis": "The top 18 digest bits behave like a uniform slice, so a trial finds a pair with probability about 0.393.",
+      "program": "experiments/slice_collision_rate.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffc00000000000000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "slice-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "Same construction. Pair agreeing on the top 6 bits of each of digest words H0, H1 and H3.",
+      "hypothesis": "An 18 bit slice spread over three digest words in the slot region behaves like a uniform slice.",
+      "program": "experiments/slice_collision_rate.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "fc000000fc00000000000000fc00000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
