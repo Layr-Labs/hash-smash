@@ -1,28 +1,57 @@
 {
-  "schema_version": 3,
-  "submission_state": "ready",
-  "target_profile": "blake3-r1-prefix-v1",
-  "attack_class": "ordinary-collision",
-  "rounds": 1,
-  "lane": "exploratory",
-  "claim": {
-    "time_log2": 149,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
-    "nonuniform_advice_log2_bytes": 0
+ "attack_class": "ordinary-collision",
+ "baseline_improved": "blake3-r1-nominal-v2",
+ "certificate_manifest": "certificates/manifest.json",
+ "claim": {
+  "memory_log2_bytes": 32,
+  "nonuniform_advice_log2_bytes": 0,
+  "preprocessing_log2": 37,
+  "success_probability": 1.0,
+  "time_log2": 37,
+  "time_unit": "target-compressions"
+ },
+ "experiment_manifest": "experiments/manifest.json",
+ "heuristics": [
+  {
+   "evidence_ids": [
+    "proof:41-49",
+    "proof:84-99",
+    "proof:154-225",
+    "experiment:fixed-collision-witness"
+   ],
+   "extrapolation": "One 2.6 s observation (rerun 1.9 s) generalized by the 2^2 s ceiling and 2^34 ops/s machine cap with the 1/222 discount foregone; solver counters (11951966 rlimit, 48180 conflicts, 212544 decisions) sit 1000x+ inside the 2^36 cap absorbed by the submitted 37.",
+   "id": "H-SAT-TIME",
+   "limitations": "Solver-version and machine-dependent; wall-to-ops conversion is a generic CPU cap, not an analytic solver bound; rerun times may vary.",
+   "role": "score-critical",
+   "scope": "Exact 16-word bitvector encoding of the 1-round compression for fixed zero target, Z3 5.1.0, modern single CPU.",
+   "statement": "The fixed Z3 preprocessing instance terminates within 2^36 full-price v5 units."
   },
-  "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
-  ],
-  "baseline_improved": "blake3-r1-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  {
+   "evidence_ids": [
+    "proof:47-49",
+    "proof:104-115",
+    "proof:204-225",
+    "experiment:fixed-collision-witness"
+   ],
+   "extrapolation": "Z3 max-memory 44.58 MB and 84 MB process peak with 90x+ headroom to the 2^32 ceiling; memory is metric-only under v5.",
+   "id": "H-SAT-MEM",
+   "limitations": "Machine- and allocator-dependent; does not affect the scalar.",
+   "role": "supporting",
+   "scope": "Same fixed Z3 instance and retained messages, code, and scratch.",
+   "statement": "Preprocessing peak memory stays within 2^32 bytes."
+  }
+ ],
+ "lane": "exploratory",
+ "restrictions": [
+  "Messages are exactly 64 bytes; single-chunk single-compression domain with flags 11, counter 0, length 64.",
+  "Algorithm outputs the two fixed certificate messages and verifies both full blake3-r1 digests match.",
+  "SAT discovery (Z3 5.1.0 bitvector model of one prefix round) is charged once as preprocessing; no restart or hidden search is omitted.",
+  "Preprocessing cost and memory rest on declared heuristics H-SAT-TIME and H-SAT-MEM with stated scope and limits.",
+  "Unkeyed BLAKE3-256, 1 prefix round in every compression; classical deterministic construction.",
+  "The nominal reference identifier does not assert an improvement; the bound 37 is below 128."
+ ],
+ "rounds": 1,
+ "schema_version": 3,
+ "submission_state": "ready",
+ "target_profile": "blake3-r1-prefix-v1"
 }
