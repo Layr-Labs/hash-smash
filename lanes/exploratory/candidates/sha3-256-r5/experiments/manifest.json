@@ -1,0 +1,15 @@
+{
+ "schema_version": 1,
+ "experiments": [
+  {
+   "id": "replay-phase-c",
+   "kind": "python-message-pairs-v1",
+   "scope": "The executed Phase C: the embedded enumeration subspace S' of the Phase B output, its fixed chunk-major Gray order, and the index of the first collision. Every trial regenerates the same pair.",
+   "hypothesis": "The element of S' at the stated enumeration index and its partner under the message difference alpha_0 are two distinct 135-byte messages with equal sha3-256-r5 digests; hence Phase C examines at most INDEX + 1 pairs.",
+   "program": "experiments/replay.py",
+   "event": {
+    "kind": "full-collision"
+   }
+  }
+ ]
+}
