@@ -6,20 +6,22 @@
   "rounds": 31,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 129.11,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
+    "memory_log2_bytes": 137,
+    "preprocessing_log2": 24,
+    "success_probability": 0.86,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Messages are exactly 55 bytes, encoded from 2 independent uniform 256-bit words.",
+    "One batch of exactly n = 2^129 samples (an integer loop bound); all repeated messages are retained and charged; no restart or success amplification.",
+    "One selected 31-round compression or permutation per sample; single padded block or rate block; no parent or extra compression is ever evaluated.",
+    "Collision detection by deterministic stable LSD radix sort of the full 256-bit digest (eight 32-bit digit passes, 2^32 4-byte counters per pass) followed by one linear scan; no hashing table, no probing, and no distributional premise on digests.",
+    "Every ledger entry is a deterministic worst-case bound over all coin sequences and every fixed target; expected values are not used anywhere.",
+    "Classical 256-bit word RAM with independent uniform random words; all initialization, sorting, scanning and verification charged.",
+    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
+    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 129.11."
   ],
   "baseline_improved": "sha256-r31-nominal-v2",
   "heuristics": [],
