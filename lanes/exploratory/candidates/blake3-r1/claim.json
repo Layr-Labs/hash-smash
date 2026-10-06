@@ -1,28 +1,57 @@
 {
-  "schema_version": 3,
-  "submission_state": "ready",
-  "target_profile": "blake3-r1-prefix-v1",
-  "attack_class": "ordinary-collision",
-  "rounds": 1,
-  "lane": "exploratory",
-  "claim": {
-    "time_log2": 149,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
-    "nonuniform_advice_log2_bytes": 0
+ "attack_class": "ordinary-collision",
+ "baseline_improved": "blake3-r1-nominal-v2",
+ "certificate_manifest": "certificates/manifest.json",
+ "claim": {
+  "memory_log2_bytes": 72,
+  "nonuniform_advice_log2_bytes": 0,
+  "preprocessing_log2": 80,
+  "success_probability": 0.39,
+  "time_log2": 80,
+  "time_unit": "target-compressions"
+ },
+ "experiment_manifest": "experiments/manifest.json",
+ "heuristics": [
+  {
+   "evidence_ids": [
+    "proof:41-65",
+    "proof:182-200",
+    "experiment:half-uniformity",
+    "experiment:joint-minijoin",
+    "experiment:truncated-differential-demo"
+   ],
+   "extrapolation": "Sampled, multi-prefix and truncated-scale join behavior plus ARX avalanche generalize to full 64-bit exhaustive joins across random prefixes.",
+   "id": "H-MITM-JOIN",
+   "limitations": "Full-scale occupancy is extrapolated, not executed; a hidden structural bias correlated across prefixes could lower hit rates. No timing, solver, or hardware premise is used.",
+   "role": "score-critical",
+   "scope": "Exact G-fragment digest-relation joins of Section 2 indexed by coin-random attempt prefixes against the fixed target.",
+   "statement": "Over fresh uniform prefix coins, each half's exhaustive join behaves with expected hits E = 1 and hit probability above 0.63, as analyzed in Section 4."
   },
-  "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
-  ],
-  "baseline_improved": "blake3-r1-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  {
+   "evidence_ids": [
+    "proof:16-38",
+    "proof:182-200",
+    "experiment:joint-minijoin"
+   ],
+   "extrapolation": "Truncated-scale joint outcomes (offline 3/64 vs 0.059 product; organizer 256-trial contingency table) plus structural disjointness generalize to full-scale join independence.",
+   "id": "H-CROSS-HALF-INDEPENDENCE",
+   "limitations": "Joint behavior at full scale is extrapolated; residual correlation through the shared prefix cannot be ruled out analytically. Declared separately, not derived from disjointness.",
+   "role": "score-critical",
+   "scope": "The H1 and H2 join-outcome events of Section 2 as functions of the shared random prefix.",
+   "statement": "H1 and H2 join outcomes are independent across coin-random prefixes, so per-attempt success exceeds 0.63^2 = 0.397."
+  }
+ ],
+ "lane": "exploratory",
+ "restrictions": [
+  "Messages are exactly 64 bytes; single-chunk single-compression domain with flags 11, counter 0, length 64.",
+  "Randomized Las Vegas second preimage of the fixed all-zero digest: fresh uniform coins choose the attempt prefix C; table and probe sets within an attempt are exhaustive hash joins over 64-bit half-input domains; at most four attempts.",
+  "All operation counts are syntactic bounds over displayed fixed-bound loops (enumeration, deterministic merge sort, binary search) priced at 1/222 per word operation, including the prefix coins; no wall-clock, hashing, or solver premise enters the ledger.",
+  "Join occupancy across coin-random prefixes rests on H-MITM-JOIN; joint factorization across halves rests on separately declared H-CROSS-HALF-INDEPENDENCE; both with stated scope and limits.",
+  "Unkeyed BLAKE3-256, 1 prefix round in every compression; classical randomized construction.",
+  "The nominal reference identifier does not assert an improvement; the bound 80 is below 128 and below the promoted best 149."
+ ],
+ "rounds": 1,
+ "schema_version": 3,
+ "submission_state": "ready",
+ "target_profile": "blake3-r1-prefix-v1"
 }
