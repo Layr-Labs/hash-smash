@@ -1,4 +1,125 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "collision-01",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/collision-01-a.bin",
+      "message_b": "certificates/collision-01-b.bin",
+      "expected_digest": "b2191a09b7da25595a3b56b8a787108e4d77e04f33e1696a5d6af3372a1f5658",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "collision-02",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/collision-02-a.bin",
+      "message_b": "certificates/collision-02-b.bin",
+      "expected_digest": "5fe8344bccfcf901b68f3a4a6bf7bcebaa27ec6346adc251469ad63752e2c4dd",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "collision-03",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/collision-03-a.bin",
+      "message_b": "certificates/collision-03-b.bin",
+      "expected_digest": "26375c1c7763a232dc1a82681ba81384c37b4692b8d16ca99b0629751b5e1b9b",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "collision-04",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/collision-04-a.bin",
+      "message_b": "certificates/collision-04-b.bin",
+      "expected_digest": "0d35a735a09793ed2ef7edd2055657b1211e9504e4f24db4880348745338aefd",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "collision-05",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/collision-05-a.bin",
+      "message_b": "certificates/collision-05-b.bin",
+      "expected_digest": "6bf4fcb6b5d4fc6396262b1503e5565d547c455d70a7e94ace373f160d947ab0",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "collision-06",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/collision-06-a.bin",
+      "message_b": "certificates/collision-06-b.bin",
+      "expected_digest": "ed6db6ea33dfa9a9a627c2e2753a1141c73c3fd1985aec25dd8ed092545723ff",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "collision-07",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/collision-07-a.bin",
+      "message_b": "certificates/collision-07-b.bin",
+      "expected_digest": "9e1cc33d24fc70551cc06c6d25ee7ce15a4e6cf6009587fb9cbc557d0109f1a2",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "collision-08",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/collision-08-a.bin",
+      "message_b": "certificates/collision-08-b.bin",
+      "expected_digest": "a88619e0218bed25e5e95f5d219327121ec74d29dca438cc07b360241ee795f7",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "collision-09",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/collision-09-a.bin",
+      "message_b": "certificates/collision-09-b.bin",
+      "expected_digest": "3161f7d517ae104f50dab7712d794dc5996ebb86890aa517f81dca479481789d",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "collision-10",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/collision-10-a.bin",
+      "message_b": "certificates/collision-10-b.bin",
+      "expected_digest": "6d4a4e1911c5a09fa6b2dd301ba302d5807d5e12016621e8fe2112c8ca4b4bfa",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "collision-11",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/collision-11-a.bin",
+      "message_b": "certificates/collision-11-b.bin",
+      "expected_digest": "2f5f86fe3b35ef44db62895ac9af05a5a5aa7609b0bdf4739afe9101971d8883",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "collision-12",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/collision-12-a.bin",
+      "message_b": "certificates/collision-12-b.bin",
+      "expected_digest": "6599bf45ff771ec30c421ef3751aec538adbe95e5cae91f1a6cb95280298d45e",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "collision-13",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/collision-13-a.bin",
+      "message_b": "certificates/collision-13-b.bin",
+      "expected_digest": "d70990b0a53de6b2f47fb50a62313a46ec925292fb0fa6351d792667377417c6",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "collision-14",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/collision-14-a.bin",
+      "message_b": "certificates/collision-14-b.bin",
+      "expected_digest": "22f5ac7ab0dcab9829e6c78eb27b552ef3ebe5cf78f842a5f8e1ba76d5d3d79d",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "collision-15",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/collision-15-a.bin",
+      "message_b": "certificates/collision-15-b.bin",
+      "expected_digest": "218312276c438ece45cc8dabc8c7d0ef568ef165a569188216a8bb18202437b6",
+      "target_profile": "sha256-r31-prefix-v1"
+    }
+  ]
 }
