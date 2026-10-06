@@ -6,22 +6,71 @@
   "rounds": 32,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 60.3,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.8,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 20,
+    "preprocessing_log2": 1,
+    "success_probability": 0.63,
+    "nonuniform_advice_log2_bytes": 12
   },
   "restrictions": [
-    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent random words, not seeded PRNG expansion.",
-    "Exactly q=2^129 sampled 64-byte messages; complete SHA-256 with fixed IV, prefix rounds 0 through 31 on both padded blocks, feed-forward and all 256 digest bits.",
-    "One finite run with at most 2^136 target-compression equivalents of total charged computation and 2^138 peak bytes; no restarts, nonuniform advice or precomputed collision.",
-    "data_log2 bounds bytes of complete padded hash inputs including final verification re-reads, as specified in proof.md.",
-    "Analytic resource and success bounds; no full-scale execution, cryptanalytic improvement or nominal-reference improvement is claimed."
+    "The target is complete-message SHA-256 with the fixed FIPS 180-4 IV, standard padding, feed-forward, original compression steps 0 through 31 on every padded block, and equality of all 256 output bits.",
+    "No ordinary-collision certificate is included. Table 6 of ePrint 2026/1080 is a semi-free-start pair for a non-FIPS chaining value. The bound is the cost of converting one Table 5 tuple into an ordinary collision, not a claim that this pair already collides under the target.",
+    "Given one valid tuple, the charged cost is 2^32 for the A-1 match, times 2^17 for the signed conditions on W4, W5, and W6, times 2^11.3 for the tail. The product is 2^60.3 target compressions.",
+    "preprocessing_log2 1 pays two compressions to recheck the published semi-free-start pair. It does not pay for the search that found Table 5 or Table 6.",
+    "The tail cap 11.3 is above the one-sided normal approximation -log2(111.2/262144) < 11.21 from 130 successes in 262144 draws on that one tuple. It is not a fresh-search measurement over many tuples.",
+    "The factor 2^17 treats the 17 signed bits on W4, W5, and W6 as independent unbiased conditions. A joint probability worse than 2^{-17} would invalidate the product.",
+    "E4 has 31 printed conditions and E3 has 30, so the framework count is one tuple per 2^7 starting points. This bound does not buy extra tuples, and it does not divide the 2^32 match.",
+    "success_probability 0.63 is 1-exp(-1) at one expected success under the charged product. It is not a measured campaign rate.",
+    "Memory below 2^20 bytes and advice below 2^12 bytes cover one stored tuple, the message difference, and the published characteristic. They do not cover a multi-tuple table."
   ],
   "baseline_improved": "sha256-r32-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "certificate_manifest": "certificates/manifest.json",
+  "heuristics": [
+    {
+      "id": "one-tuple-conversion-bound",
+      "statement": "Given one valid tuple of the published 32-step characteristic, finding an ordinary 32-round collision costs at most 2^60.3 target compressions.",
+      "role": "score-critical",
+      "scope": "One stored tuple. Each first block is one SHA-256 compression of rounds 0 through 31. The tail is charged one compression per (W14, W15) trial.",
+      "extrapolation": "T <= 2^32 * 2^17 * 2^11.3 = 2^60.3. The 2^32 is a uniform A-1 match, the 2^17 is one factor per signed bit on W4, W5, and W6, and the 2^11.3 is the charged tail cap.",
+      "evidence_ids": [
+        "proof:46-64",
+        "proof:104-112"
+      ],
+      "limitations": "The bound starts from a tuple already in hand. The search that produced Table 5 and Table 6 is not counted. Dependence among the 17 bits, a non-uniform A-1, or a tail rate above 2^{-11.3} on tuples other than the measured one would invalidate it."
+    },
+    {
+      "id": "published-tuple-tail-rate",
+      "statement": "On the published Table 6 tuple, random equal (W14, W15) values make the two branches agree from step 16 through step 31 with probability at least 2^{-11.3}.",
+      "role": "score-critical",
+      "scope": "W0 through W13 fixed to the published pair, the published non-FIPS chaining value, and 262144 uniform tail draws.",
+      "extrapolation": "130 successes give -log2(130/262144) = 10.978. A one-sided normal lower estimate of the count is above 111.2, and -log2(111.2/262144) < 11.21. The claim charges 11.3.",
+      "evidence_ids": [
+        "proof:66-92"
+      ],
+      "limitations": "This is one tuple and one sample. It does not measure the tail rate after a first block that only matches A-1. A true rate above 2^{-11.3} would invalidate the cap."
+    },
+    {
+      "id": "single-tuple-yield",
+      "statement": "The printed Table 5 conditions do not supply a free multi-tuple table, so the match stays at 2^32.",
+      "role": "supporting",
+      "scope": "The symbol counts on W8, E4, W7, and E3 in Table 5, used as the framework parameters n1, n2, n3, and n4.",
+      "extrapolation": "n1+n2+n3+n4 = 2+31+8+30 = 71, and 2^{64-71} = 2^{-7} expected tuples per starting point. The attack is priced at one tuple.",
+      "evidence_ids": [
+        "proof:25-44"
+      ],
+      "limitations": "Symbol counts are not a sampled yield. If those symbols overstate the independent conditions, more tuples exist and the true cost is lower. This claim does not take that discount."
+    },
+    {
+      "id": "one-tuple-memory",
+      "statement": "The online attack and the retained advice stay within 2^20 and 2^12 bytes.",
+      "role": "supporting",
+      "scope": "One tuple, the message difference, the working state of one compression, and the published characteristic.",
+      "extrapolation": "No table of 2^29 entries is built. The stored description of one characteristic and one pair is under 2^12 bytes, and the live state is under 2^20 bytes.",
+      "evidence_ids": [
+        "proof:100-102"
+      ],
+      "limitations": "A later version that stores many tuples has to raise this ceiling. The bound says nothing about the memory of the historical search that found the characteristic."
+    }
+  ]
 }
