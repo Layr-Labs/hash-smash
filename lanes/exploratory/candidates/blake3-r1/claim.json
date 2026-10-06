@@ -6,23 +6,38 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 149,
+    "time_log2": 22,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 15.2,
+    "preprocessing_log2": 21,
+    "success_probability": 1,
+    "nonuniform_advice_log2_bytes": 7
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "The online algorithm is deterministic replay of exactly the two 64-byte messages in proof.md (the all-zero block and the SAT model block); it is not a submitted generator for new collisions.",
+    "Unkeyed BLAKE3-256; 1 prefix round; each message is a single 64-byte root block with flags CHUNK_START|CHUNK_END|ROOT = 11, block_len 64, counter 0, standard IV, and all 256 output bits.",
+    "The cost-bearing construction is one complete CaDiCaL CDCL SAT solve of a Tseitin-encoded CNF transcribed directly from the organizer reference verifier/blake3.py (ripple-carry adders, XOR gates, rotation as wire permutation), plus model extraction and independent verification; encoding, solver work, failed branches, restarts and checking are charged once as preprocessing, with no cross-target amortization.",
+    "The construction process retired 569711958 host instructions (about 2^29.1), measured with Linux perf stat -e instructions on the complete single run; charged one-to-one as primitive word operations at 1/222 units each under collision-frontier-v5 this upper-bounds the charged preprocessing at 2^21.4 target-compression units, claimed at 2^21.",
+    "Success probability 1 is the exact probability of the deterministic replay of the mechanically verified witness; it is not model confidence and is not inferred from repeated experiment rows.",
+    "Peak simultaneously retained storage of the construction process is below 2^15.2 bytes (measured whole-process peak RSS 36884 KiB); the replay program itself retains below 2^13 bytes.",
+    "The claim extends neither to two or more BLAKE3 rounds nor to keyed BLAKE3, and claims no new differential or algebraic cryptanalysis beyond the SAT construction itself.",
+    "The nominal reference identifier does not assert an improvement by itself; the claimed scalar 22 is below the nominal display reference 128 and the incumbent 48."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "instruction-accounting-bound",
+      "statement": "The complete construction (Python CNF encoding of the one-round root compression circuit for one symbolic message, the unit-clause pinning of the second message to the all-zero block, the CaDiCaL solve, model extraction, and witness verification) executes at most 2^30 primitive word RAM operations in total, so at 1/222 units per word operation under collision-frontier-v5 the charged preprocessing is below 2^21.4, claimed at 2^21, target-compression units.",
+      "role": "score-critical",
+      "scope": "Exactly the single CaDiCaL construction run that produced the fixed two-message witness in proof.md; the deterministic replay and the organizer collision check are heuristic-free.",
+      "extrapolation": "The identical construction script was measured end-to-end with Linux perf stat -e instructions, retiring 569711958 instructions (about 2^29.1) in the complete run including Python startup, CNF generation, solve, extraction and verification; the claim rounds up to 2^30 word operations. Because one 256-bit word RAM operation requires at least one host instruction on any physical realization, the host-instruction count upper-bounds the word-operation count, and the 1/222 price then upper-bounds the charged cost.",
+      "evidence_ids": [
+        "proof:95-160",
+        "experiment:witness-replay"
+      ],
+      "limitations": "perf stat is not available inside the organizer container, so the instruction measurement is a disclosed, reproducible host measurement rather than an organizer-executed experiment; the exact witness relation it produced is independently rechecked by the organizer. If the true word-operation count exceeded 2^30, or the conversion argument were rejected, the claimed scalar would be invalid, though the collision witness itself remains valid."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
