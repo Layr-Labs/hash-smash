@@ -6,23 +6,78 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 45.33,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 36,
+    "preprocessing_log2": 45.08,
+    "success_probability": 0.4,
+    "nonuniform_advice_log2_bytes": 9.3
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Messages are exactly 135 bytes; each is one padded block M || 0x86 with zero capacity (520 fixed state bits). Complete fixed-zero-IV SHA3-256 sponge with suffix 0x06 and pad10*1, prefix rounds 0..4, 256-bit digest.",
+    "Nonuniform advice, 614 bytes, none of it published data: the trail core (alpha3, beta2) output by our search P, and (beta1', beta0') output by our deterministic program B' run once from a pre-registered label. No published pair, difference or message value is read anywhere.",
+    "Advice construction is charged in full: P at 32 x its exact leaf-count cost (2^43.937 units, 8 x the measured CPU time of all its runs); all other advice work (the study, the development of B', B' itself, the steering check and an abandoned plan) as the whole capacity of the one 15-core machine it ran on, every core for the whole 6,600 s window 07:30Z-09:20Z on 2026-10-06, at 2^38 primitives per core-second (heuristic H1): 2^44.206 units. B''s own exact count (2^27.12 units) is re-derived by an organizer experiment.",
+    "Connector (unchanged v5 attempt with the advice): a target-difference phase steered to beta0', round-1 conditions of beta1', non-full linearisation (table built and charged in setup S). Accepted iff consistent with DF >= 33. Every random choice is a Fisher-Yates permutation driven by fresh 256-bit coin words. Hard cap of 2^18 work units per attempt; at most 22,150 coin words; 2^25.46 primitives.",
+    "Hard caps on every run: at most 2^16 connector attempts and K = 512 enumerated spaces. Each enumerated space contributes exactly 2^32 distinct pairs, each charged 3 permutations + 256 primitives, with a full 256-bit digest comparison before output. No space test, so the spaces are i.i.d. Total 2^45.328 units, claimed 45.33. No expected-value charge anywhere.",
+    "Probability space: fresh algorithmic coins, fixed target, fixed advice. Success > 1 - (1 - 0.013)^512 - 2^-1600 - 2^-25 > 0.9987 under H2 (per accepted space, E outputs a pair with probability >= 0.013) and H3 (per attempt, acceptance probability >= 0.05); claimed 0.40, which needs s >= 0.0010.",
+    "Memory: the algorithm uses < 2^23 bytes; all advice work ran on one machine with 48 GiB (2^35.6 bytes) of memory (B' peak 42 MB, P 4.1 MB); declared 36.",
+    "Executed evidence (not the claimed cost): the pre-registered run with the B' advice, 1024 attempts (960 accepted) and the first 512 accepted spaces x 2^32 pairs: E output a pair in 14 spaces (14 collisions); the first 14 ship as certificates; organizer experiments re-derive the advice (r5-advice, r5-advice-log), sample 128 fresh attempts (r5-connector, r5-conn-b), re-run all 538 logged attempt indices up to the 512th accepted one (r5-den-0 .. r5-den-5, the whole denominator) and replay all 14 collisions (r5-replay).",
+    "The nominal reference identifier does not assert an improvement over published work; no improvement on the method of Guo et al. is claimed beyond the byte-aligned adaptation and the self-generated advice."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-advice-cost",
+      "statement": "All advice work other than the trail search P - the study, the 75 development processes of B', B' itself, the steering check and the abandoned h23 plan (proof 2.3, 5.4) - ran on one machine, an Apple M5 Pro with 15 cores, inside the window 07:30Z-09:20Z of 2026-10-06 (6,600 s); one core-second of this machine is at most 2^38 word-RAM primitive operations; and every call that costs more than 1/1355 unit per primitive (Keccak-f[1600] at 5 units, a SHA-256 compression at 2, a 5-round evaluation at 1) runs on it at less than 2^27.60 units per core-second. Hence this work, plus 1,000 core-seconds for the organizer-format re-runs of B' made after the window (they only reproduce the advice), costs at most (15 x 6,600 + 1,000) x 2^38 / 1355 = 2^44.206 units: every core is charged for the whole window, busy or not.",
+      "role": "score-critical",
+      "scope": "The advice-construction term other than P: B' and every development and measurement run of the advice work after the review of 189a63b2, including the steering check and the abandoned h23 plan, summarised by category in proof 2.3. P is charged from its exact leaf counts (x 32, which also covers its prototypes and every run of it), and the algorithm's own work from its specification; neither uses H1.",
+      "extrapolation": "A capacity bound, not a sum of process logs. Window: it opens before the organizer's review run of 189a63b2 (20261006T073301Z), whose outcome started this work (first file 07:47:39Z), and closes after the pre-registration of the full-scale run (09:19:04Z); the advice was final at 09:02:07Z. Rate: at most 10 instructions per cycle below 5 GHz is 2^35.54 instructions per second, at most 4 primitives each: 2^37.54; B' measured 2^33.97 instructions per CPU-second. Separation, measured on this machine: Keccak-f calls 2^22.3 per CPU-s (2^24.6 units), SHA-256 compressions 2^25.2 (2^26.2 units), 5-round evaluations at most 2^26.9 units (our C++ E, one thread); all below the 2^27.60 units charged per core-second, so any mix of calls and other work is covered. Cross-checks: the organizer re-derives B''s exact count (2^27.12 units; the charge is 2^17.09 x that), and our per-process ledger of the window totals 12,527 CPU-s, 1/8.0 of the 100,000 core-seconds charged.",
+      "evidence_ids": [
+        "proof:110-154",
+        "proof:155-218",
+        "proof:443-467",
+        "experiment:r5-advice",
+        "experiment:r5-advice-log"
+      ],
+      "limitations": "The window endpoints and the core count are our statements (file times of our working directory; sysctl); the organizer can check the review-run time and B''s exact count, not the window. Sensitivity: charging the window twice gives time_log2 45.88; charging 4 x the per-process ledger instead gives 44.96."
+    },
+    {
+      "id": "H2-space-success",
+      "statement": "For one connector attempt with fresh coins, conditioned on its acceptance, the enumeration E (proof 4.4) run on its space outputs a pair (some enumerated pair passes the 10-row round-2 test and has equal 256-bit digests) with probability at least s0 = 0.013.",
+      "role": "score-critical",
+      "scope": "Only the success probability. Attempts use independent coins, so accepted spaces are i.i.d. and Pr[no output in K = 512 spaces] = (1 - s)^512 <= 0.0012; the claimed 0.40 needs only s >= 0.0010. Output correctness and every cost cap hold without H2.",
+      "extrapolation": "Pre-registered run of the specified algorithm with the B' advice: E output a pair in 14 of the first 512 accepted spaces, each with exactly its 2^32-pair window (s-hat = 0.0273); one-sided 99% Clopper-Pearson lower bound 0.0133 >= s0. Organizer checks: r5-replay re-derives all 14 positives with the Python E at their recorded coordinates, and r5-den-0 .. r5-den-5 re-run every one of the 538 attempts up to the 512th accepted one against the shipped log (the whole denominator; nothing sampled, no seed used). A fault of the C++ E of the run could only have lost positives, so 14/512 is a lower bound for the specified E on this population. Sampling premise: SHAKE-256-expanded coins from distinct seeds SHA-256(label || i) give the same per-attempt probabilities as fresh coins. Run-selection premise: the run, its label and its analysis were fixed in advance and it is the only full-scale run with this advice (proof 5.2, 5.4). Selection is also bounded by compute: if s <= 0.0010, a label with 14 or more positive spaces among 512 has probability <= 2^-50.79, so obtaining one with probability 1/2 needs work on at least 2^49.79 labels in expectation (a label's coins reveal nothing before work is done on it): 2^50.7 units even at one SHA-256 call per label, and, since a positive shows only after a 2^32-pair window is searched, realistically at least 2^81.7 pair evaluations, against 2^41 for this run (proof 5.3).",
+      "evidence_ids": [
+        "proof:331-340",
+        "proof:341-373",
+        "proof:374-391",
+        "proof:424-442",
+        "experiment:r5-replay",
+        "experiment:r5-den-0",
+        "experiment:r5-den-1",
+        "experiment:r5-den-2",
+        "experiment:r5-den-3",
+        "experiment:r5-den-4",
+        "experiment:r5-den-5"
+      ],
+      "limitations": "Collisions are rare, so the interval is wide; s0 is its 99% lower end. All spaces share the fixed advice. The run used the C++ E, whose source is proof Appendix A and which agrees with the Python E on every checked point. The Markov value (0.0265 per space) is context only."
+    },
+    {
+      "id": "H3-attempt-success",
+      "statement": "One connector attempt (proof 4.3) with fresh coins is accepted (consistent, DF >= 33, within the work cap) with probability at least q0 = 0.05.",
+      "role": "score-critical",
+      "scope": "Only Pr[at least K = 512 accepted attempts among 2^16], which is > 1 - 2^-1600 under H3 (Chernoff, mean >= 3,276.8). The time cap does not depend on H3.",
+      "extrapolation": "Organizer-seeded attempts: 123 of 128 accepted and verified (r5-connector, r5-conn-b; one-sided 99.9% Clopper-Pearson lower bound 0.877; if q <= 0.05, 123 or more of 128 has probability < 2^-504). Phase A of the pre-registered run: 960 of 1024. Sampling premise as in H2; the organizer seeds are public, not ours to choose, and the harness draws no inference, so the bound is ours.",
+      "evidence_ids": [
+        "proof:341-373",
+        "proof:401-423",
+        "proof:424-442",
+        "experiment:r5-connector",
+        "experiment:r5-conn-b"
+      ],
+      "limitations": "The rate is specific to the fixed advice. q0 is far below the observed rate, so only a gross failure of the sampling premise would matter."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
