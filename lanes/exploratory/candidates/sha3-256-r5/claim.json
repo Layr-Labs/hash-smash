@@ -6,23 +6,47 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 42.91,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
+    "memory_log2_bytes": 30.59,
+    "preprocessing_log2": 41.25,
     "success_probability": 0.5,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Ordinary collisions of the complete sha3-256-r5-prefix-v1 hash: zero IV, prefix rounds 0..4, SHA3 padding, full 256-bit digest; outputs are two distinct 135-byte messages (one padded block each, byte 135 = 0x86).",
+    "Phase A (deterministic, included in time and preprocessing): exhaustive blind search over CP-kernel alpha_3 of Hamming weight <= 10 with kernel alpha_4 and no digest-plane activity, then a CP-SAT feasibility screen for connector load w1 <= 140; outputs Guo et al. Trail core No. 3 as the unique usable trail.",
+    "Phase B (randomized): random best-probability beta_1, exact 2-round connector solved by CP-SAT with lazy relation cuts; at most K = 3 attempts, each killed by a hardware-counter watchdog after 1.60e+12 retired instructions; success when the realized solution space has dimension >= 41.",
+    "Phase C: Gray-code brute force over N = 2^39.6 pairs of the connector space with final recomputation of both complete hashes.",
+    "Costs: permutation calls at 1 unit; own C code by explicit operation counts; CP-SAT and Python by hardware-counted retired instructions times 1024 primitives per instruction.",
+    "Success probability 0.5 from conservative (95% lower) empirical estimates under heuristics H1 and H2; no nonuniform advice; memory bound includes code, solver and interpreter images."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H1-pair-independence",
+      "statement": "For the connector space S output by Phase B, the pairs (x, x XOR alpha_0), x in S, collide independently with probability at least p_L = 2^-24 * R2_L * P34_L (95% lower bounds), so N = 2^39.6 enumerated pairs contain a collision with probability >= 1 - exp(-N p_L).",
+      "role": "score-critical",
+      "scope": "Spaces produced by connectors for Trail core No. 3; measured on 6 complete enumerations (2^30 to 2^38 pairs), including one space from the exact claimed Phase B, with round-2 hit rates and collision counts recorded per pair.",
+      "extrapolation": "From the measured spaces to the space produced by a fresh attempt, and from pooled frequency to a per-pair probability with Poisson tails.",
+      "evidence_ids": [
+        "proof:315-357",
+        "proof:432-442"
+      ],
+      "limitations": "Empirical; 23 collision events in total. Pairs inside one space share most of their state structure, so independence is a modelling assumption. The per-space counts (1, 0, 2, 11, 8, 1) are consistent with it, but this does not prove it."
+    },
+    {
+      "id": "H2-connector-success",
+      "statement": "A Phase B attempt with fresh beta_1 coins succeeds (consistent system, DF >= 41, within the 1.60e+12-instruction budget) with probability at least r_L = 0.221, the Clopper-Pearson 95% lower bound from a hold-out batch run under the exact algorithm.",
+      "role": "score-critical",
+      "scope": "Hold-out batch of 30 attempts with fresh seeds, all included, run with the watchdog after the budget was fixed from a separate batch of 9; single-threaded solver; Apple M4 Pro.",
+      "extrapolation": "From the recorded attempts to the attempts of a fresh run; instruction counts from this CPU and library version.",
+      "evidence_ids": [
+        "proof:262-280",
+        "proof:421-430"
+      ],
+      "limitations": "Empirical success rate. Instruction counts depend on the solver version (OR-Tools 9.15) and platform. The 1024 primitives-per-instruction bound is argued in Section 9.1, not measured."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
