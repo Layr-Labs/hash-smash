@@ -6,21 +6,19 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 149,
+    "time_log2": 1.3,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 20,
+    "preprocessing_log2": 10,
+    "success_probability": 1,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 1 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 149."
+    "Messages are exactly 64 bytes. The complete hash is unkeyed BLAKE3-256 with 1 prefix round in the single root compression: standard IV, counter 0, block length 64, flags CHUNK_START|CHUNK_END|ROOT = 11, and the first 32 little-endian root-output bytes.",
+    "The algorithm is the straight-line inversion in the proof. It fixes the public constants C0 = 2 and D0 = 5, computes both messages from the standard IV, and returns them. It draws no random words, runs no search, and calls no compression.",
+    "Correctness is the substitution proof that both digests are the 32-byte zero string and that the first message words differ. Success probability is 1 on that single execution. There is no restart and no heuristic.",
+    "Word-RAM accounting expands each 32-bit rotation into two shifts, one OR and one mask, masks 32-bit subtraction chains as specified, and charges lane packing plus four 256-bit stores. C = 222. The counted program is 475 primitives and the submitted time_log2 is the upper bound 1.30.",
+    "baseline_improved names the nominal display reference blake3-r1-nominal-v2. It is not an established attack or a qualified baseline. data_log2 is omitted. Nonuniform advice is empty."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
   "heuristics": [],
