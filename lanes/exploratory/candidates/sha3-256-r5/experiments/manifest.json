@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "r5-connector",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r5-prefix-v1. The source is the reference implementation of the coin map, setup S, one connector attempt and E restricted to a window (proof Sections 4.1-4.5). Before any trial, the program recomputes the exact facts of proof Section 3: the advice's trail, which must equal the output reported for the search P; its weights and counts; P45 = 55/2^19; the published pair's digests; and the p = 8 inconsistency. If any fact differs, no pair is returned at all. Each of the 256 organizer trials runs ONE attempt. Its coin words are the SHAKE-256 expansion of the trial's 32-byte organizer seed, through the specified Fisher-Yates coin map. A trial returns the fixed sentinel pair (00^135, 01||00^134) iff two conditions hold. First, its attempt is accepted: consistent, DF >= 33 and at most 2^18 work units. Second, two solutions sampled from its space give distinct valid 135-byte messages whose blocks differ by L^-1(beta0) and whose differences after rounds 0-1 equal alpha2. The event mask covers all 256 bits, and the expected value is the XOR of the sentinel's two 5-round digests. The host check of the sentinel is therefore vacuous: no 5-round digest predicate can see a 2-round difference. The evidence is the organizer's execution of the visible checking code, and the host count of returned pairs equals the number of verified accepted attempts. The host marks every return after the first as a repeated pair, as expected. The sentinel pair itself has no cryptanalytic meaning.",
+      "hypothesis": "This experiment tests H3 and the connector specification. Among 256 organizer-seeded attempts, the number of verified accepted attempts matches the pre-registered fresh-coin rate of 3.03% (992 of 32,768): 7.8 are expected, and H3 assumes at least 2%, i.e. 5.1 expected. Every accepted space yields valid byte-aligned pairs with the exact 2-round difference alpha2 (proof Lemmas 1-2). At 3.03%, a count of at most 2 has probability about 0.016.",
+      "program": "experiments/r5_connector.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
+      }
+    },
+    {
+      "id": "r5-replay",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target, full-collision event. Each trial t < 21 handles one recorded collision of the pre-registered run (proof 5.2); the first 16 are also the package certificates. It recomputes that attempt's seed SHA-256(label || i) from the recorded attempt index i, re-runs the attempt with the same reference code as r5-connector, and rebuilds the space's enumeration basis exactly as proof 4.5 specifies. It then runs the shipped Python E on the 2^12 aligned coordinates that contain the recorded coordinate, and returns E's first output if that output is the recorded point. The observations report the window's round-2 passes. Other trials return no pair. Organizer seeds are not used: this is a deterministic replay of recorded runs, not a fresh search.",
+      "hypothesis": "The recorded collisions, including the 16 certificates, are outputs of the specified algorithm. The shipped code reproduces the recorded connector spaces from their recorded indices, and E's own tests output the recorded pairs. The returned pairs are full 5-round SHA3-256 collisions of distinct 135-byte messages, which the host checks. This experiment does not measure the collision rate; proof Section 5.2 reports it.",
+      "program": "experiments/r5_connector.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}

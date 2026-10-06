@@ -6,23 +6,68 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 49.35,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 65,
+    "preprocessing_log2": 49.34,
+    "success_probability": 0.4,
+    "nonuniform_advice_log2_bytes": 8.1
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Messages are exactly 135 bytes; each is one padded block M || 0x86 with zero capacity (520 fixed state bits). Complete fixed-zero-IV SHA3-256 sponge with suffix 0x06 and pad10*1, prefix rounds 0..4, 256-bit digest.",
+    "Nonuniform advice: the published 5-round SHA3-256 colliding pair of Guo, Liao, Liu, Liu, Qiao, Song (J. Cryptology 2020, Table 17), 271 bytes. The algorithm reads four differences from it: beta0, beta1, alpha2 and alpha3 (its round-1 and round-2 trail).",
+    "Advice construction is charged in full. Step (a), the trail search, is charged at 32 x the exact leaf-count cost of our executed deterministic search P, which returns the advice's trail core bit for bit: 2^43.94 units. Steps (b)+(c), the published single-core connector and brute-force runs (428.8 h + 45.6 h), are charged at 2 x their sum at <= 2^38 primitives per core-second (heuristic H1): 2^49.300 units.",
+    "Connector at p = 8: a target-difference value phase steered to the published round-0 difference, with the published round-1 difference fixed, and non-full linearisation (its table is built and charged in setup S). An attempt is accepted iff it is consistent with DF >= 33. Every random choice is a Fisher-Yates permutation driven by fresh 256-bit coin words. Hard cap of 2^18 work units per attempt; at most 21,930 coin words; 2^25.46 primitives.",
+    "Hard caps on every run: at most 2^15 connector attempts and K = 256 enumerated spaces. Each enumerated space contributes exactly 2^32 distinct pairs, each charged 3 permutations + 256 primitives, with a full 256-bit digest comparison before output. There is no space test, so the spaces are i.i.d. Total 2^49.341 units, claimed 49.35. No expected-value charge anywhere.",
+    "Probability space: fresh algorithmic coins, fixed target, fixed advice. Success > 1 - (1 - 0.015)^256 - 2^-175.5 - 2^-25 > 0.9791 under H2 (per accepted space, E outputs a pair with probability >= 0.015) and H3 (per attempt, acceptance probability >= 0.02); claimed 0.40.",
+    "Memory: the algorithm itself uses < 2^23 bytes. memory_log2_bytes = 65 also covers the unreported advice runs, through H1's time bound at <= 32 bytes per primitive; no further premise.",
+    "Executed evidence (not the claimed cost): Phase P; a pre-registered fresh-coin run (per-attempt seeds SHA-256(label||i), SHAKE-256 coin expansion) of 32,768 attempts (992 accepted) and 768 spaces x 2^32 pairs (E output a pair in 21 spaces, 21 collisions); the first 16 collisions ship as certificates checked by the organizer verifier, and organizer experiment r5-replay replays all 21; organizer experiment r5-connector (256 organizer-seeded attempts).",
+    "The nominal reference identifier does not assert an improvement over published work; no improvement on the method of Guo et al. is claimed."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-advice-cost",
+      "statement": "The connector run and the brute-force run of Guo et al. that produced the advice pair (Table 6, SHA3-256 row: Tc = 428.8 h, Tb = 45.6 h, one CPU core) took at most 2 x (Tc + Tb) = 3,415,680 core-seconds, and one such core-second is at most 2^38 word-RAM primitive operations. Hence steps (b)+(c) cost at most 3,415,680 x 2^38 / 1355 = 2^49.300 units.",
+      "role": "score-critical",
+      "scope": "Only the advice-construction term for steps (b)+(c), which dominates time_log2. Step (a) is charged from our executed search P with a factor 32; the algorithm's own work is counted from its specification. Neither uses H1.",
+      "extrapolation": "From the published single-core timings of the runs that produced the pair (the factor 2 is slack for unreported preliminary runs and machine differences) to word-RAM primitives. x86 cores up to 2019 run at <= 5.0 GHz and retire <= 8 micro-operations per cycle, i.e. 2^35.22 per second. 2^38 allows an average of 6.9 primitives per micro-operation: 512-bit operations, fused loads, and occasional popcount, bit-scan or multiply instructions. Calibration: the 2^21-2^22 Keccak-f evaluations per second per core reported by Guo et al. is 2^34.7 primitives per second.",
+      "evidence_ids": [
+        "proof:89-129",
+        "proof:464-490",
+        "proof:421-451"
+      ],
+      "limitations": "The CPU and implementation of Guo et al. are not published. Tc and Tb are single reported runs. Exploratory runs before them are not reported and are covered only by the factor 2. The instruction mix is not measured. Sensitivity: 2^37 or 2^39 primitives per core-second gives time_log2 48.39 or 50.33."
+    },
+    {
+      "id": "H2-space-success",
+      "statement": "For one connector attempt with fresh coins, conditioned on its acceptance, the enumeration E (proof Section 4.5) run on its space outputs a pair (some enumerated pair passes the 10-row round-2 test and has equal 256-bit digests) with probability at least s0 = 0.015.",
+      "role": "score-critical",
+      "scope": "Only the success probability. Attempts use independent coins, so accepted spaces are i.i.d. and Pr[no output in K = 256 spaces] = (1 - s)^K <= (1 - s0)^K = 0.0209; the claimed 0.40 needs only s >= 0.0020. Output correctness and every cost cap hold without H2.",
+      "extrapolation": "Pre-registered run of the specified algorithm: E output a pair in 21 of the first 768 accepted spaces, each with exactly its specified 2^32-pair window (s-hat = 0.0273). One-sided 99% Clopper-Pearson lower bound 0.01548 >= s0. The samples are independent: every attempt has its own seed SHA-256(label || i), expanded by SHAKE-256 through the specified coin map. Sampling premise: the XOF expansion gives the same per-attempt probabilities as fresh coins, so a difference would distinguish SHAKE-256 from random. No Markov-model value or clustering allowance is used.",
+      "evidence_ids": [
+        "proof:316-345",
+        "proof:346-355",
+        "proof:398-420",
+        "experiment:r5-replay"
+      ],
+      "limitations": "Collisions are rare events, so the interval is wide; s0 is its 99% lower end. All spaces share the published round-1 difference, which is part of the fixed advice. The run used the C++ E, whose source is embedded as inert text and which agrees with the shipped Python E on every checked point."
+    },
+    {
+      "id": "H3-attempt-success",
+      "statement": "One connector attempt (proof Section 4.4) with fresh coins is accepted (consistent, DF >= 33, within the work cap) with probability at least q0 = 0.02.",
+      "role": "score-critical",
+      "scope": "Only Pr[at least K = 256 accepted attempts among 2^15], which is >= 1 - 2^-175.5 under H3 (Chernoff, mean >= 655.4). The time cap does not depend on H3.",
+      "extrapolation": "Pre-registered run: 992 of 32,768 attempts accepted (3.03%, one-sided 99.9% Clopper-Pearson lower bound 2.74%). Independent per-attempt seeds; homogeneity over 32 blocks has chi-square 23.9 on 31 df. Cross-checks: 256 of 8,192 with os.urandom seeds; 490 of 14,600 with the v4 MT19937 streams (14-stream chi-square 10.66 on 13 df); 8 of 256 organizer public-seed trials. Sampling premise as in H2.",
+      "evidence_ids": [
+        "proof:316-345",
+        "proof:346-355",
+        "proof:374-397",
+        "experiment:r5-connector"
+      ],
+      "limitations": "The margin factor is 1.37 against the 99.9% lower bound. The rate is specific to the fixed advice (the published beta1): with a random beta1 our connector accepted 0 of 18,000 attempts."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
