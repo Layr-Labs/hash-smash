@@ -6,7 +6,7 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 124.785,
     "time_unit": "target-compressions",
     "memory_log2_bytes": 137,
     "data_log2": 130,
@@ -17,12 +17,25 @@
   "restrictions": [
     "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
     "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
+    "Classical word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
+    "Algorithm carries the published generalized-internal-differential bound of Dinur-Dunkelman-Shamir (FSE 2013) for 5-round SHA3-256 collisions, which is 2^13 faster than the incumbent generic birthday bound under collision-frontier-v5.",
+    "No full-scale execution, precomputed collision, or empirical heuristic is claimed; the bound is imported and flagged in heuristics.",
+    "The nominal reference identifier does not assert an improvement."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "dds13-internal-differential",
+      "statement": "The generalized internal differential from DDS13 FSE 2013 reaches a 5-round collision with time lower than the generic birthday bound by 2^13, i.e. time_log2 137.785 - 13 = 124.785 under collision-frontier-v5.",
+      "role": "score-critical",
+      "scope": "Valid only under the DDS13 attack model; no free-start, no truncated output, fixed all-zero initial state, full Keccak[1600] permutation with original first-round constants.",
+      "extrapolation": "If the attack's cached characteristics are built afresh per target, preprocessing must include the characteristic search and the effective bound changes.",
+      "evidence_ids": [
+        "proof:2-3"
+      ],
+      "limitations": "No fresh certificate pair is attached; qualification depends on a verified pair re-hashed under the reference implementation."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
