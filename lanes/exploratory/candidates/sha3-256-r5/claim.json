@@ -6,23 +6,68 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 56.35,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
+    "memory_log2_bytes": 32,
+    "preprocessing_log2": 20,
     "success_probability": 0.5,
-    "nonuniform_advice_log2_bytes": 0
+    "nonuniform_advice_log2_bytes": 10
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Messages are exactly 135 bytes, so the single padded block ends in 0x86; c+p = 520 initial-state bits are fixed.",
+    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 suffix padding and prefix rounds 0 through 4, as in verifier/keccak.py:sha3_256(data, 5).",
+    "Differential construction of Guo-Liao-Liu-Liu-Qiao-Song (JoC 2020, ePrint 2019/147): 2-round linearized connector for rounds 0-1 and trail core No. 3 for rounds 2-4, adapted from their 1084-bit inputs (p = 4) to byte-aligned inputs (p = 8); all randomized connector choices, the retry counter (1024) and the DF acceptance rule are fixed explicitly.",
+    "The published 1084-bit colliding pair is verified with the organizer permutation as evidence only; it is outside the byte-string domain and is not used as a certificate or by the algorithm.",
+    "Charged time is an unconditional upper bound enforced by a hard counter cap of 2^66.745 primitives on all connector work, at most 128 spaces of 2^33 messages, and a fixed setup; heuristics affect only success probability.",
+    "The trail core (400 bytes) is a constant of the algorithm text, checked in Step 0 and declared as nonuniform advice; no trail search is executed or charged.",
+    "Heuristic, exploratory claim: no byte-aligned collision has been produced; success probability depends on declared heuristics H1-H3.",
+    "The nominal reference identifier does not itself assert an improvement."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H1-byte-aligned-connector",
+      "statement": "For trail core No. 3 and byte-aligned 135-byte messages (p = 8 fixed padding bits instead of the paper's p = 4), the GLL+20 2-round connector with the explicitly specified random choices of Step 1 has expected connector work per accepted space (DF >= 33), counting failures, of at most 2 x 428.8 single-core hours of the authors' implementation.",
+      "role": "score-critical",
+      "scope": "Single-block 5-round SHA3-256 from the all-zero state; 2-round connector for rounds 0-1 targeting alpha2 = L^-1(beta2) of trail core No. 3; 520 fixed initial-state bits.",
+      "extrapolation": "Extrapolates the one reported p = 4 connector run (T_c = 428.8 core-hours, DF = 37) to p = 8 using GLL+20 Eq. 10 (DF falls by at most 4 when four fixed bits are added) and assumes the rate of consistent linearizations drops by at most 2x and that the explicit choices of this package (retry counter 1024, uniform tie-breaking) are no worse than the authors' unpublished ones. The 8x cap allowance plus Markov's inequality converts the expectation into Pr[cap reached] <= 0.266.",
+      "evidence_ids": [
+        "proof:68-113",
+        "proof:115-153",
+        "proof:187-275",
+        "proof:307-322",
+        "proof:344-356",
+        "proof:371-413",
+        "proof:502-516"
+      ],
+      "limitations": "The connector has not been run by this submitter for p = 8. The 428.8 h figure is a single reported run, not a mean. More fixed bits could reduce consistent linearizations by more than 2x or make DF fall below 33. Because connector work is hard-capped, any excess lowers success probability rather than raising charged time."
+    },
+    {
+      "id": "H2-trail-probability",
+      "statement": "For message pairs (M, M + Delta) drawn from connector spaces, the probability of a full 256-bit digest collision is at least 2^-37.7 (the paper's multi-trail estimate 2^-36.70 halved), and the number of collisions among the 128 x 2^32 counted pairs is close enough to Poisson that Pr[no collision] <= exp(-2.46).",
+      "role": "score-critical",
+      "scope": "Rounds 2-4 of 5-round SHA3-256 after the connector, trail core No. 3 with all round-3/round-4 continuations that end in digest collisions.",
+      "extrapolation": "Extends the paper's single observation (one collision in one DF-37 space) and its weight estimate to 128 independently generated byte-aligned spaces; within a space the pairs are correlated.",
+      "evidence_ids": [
+        "proof:68-99",
+        "proof:115-153",
+        "proof:323-343",
+        "proof:517-523"
+      ],
+      "limitations": "Supported by one published collision and a trail-weight estimate, not by sampled statistics. Clustering within a space could lower the success probability; the declared 0.5 is below the computed 0.66 for that reason. Each halving of the true probability adds about 1 bit."
+    },
+    {
+      "id": "H3-core-hour-conversion",
+      "statement": "One single-core CPU hour of the authors' connector implementation corresponds to at most 2^48 primitive 256-bit-RAM operations of the v5 model, so the measured connector work fits the cap allowance assumed in the success analysis.",
+      "role": "score-critical",
+      "scope": "Conversion of the paper's measured connector time T_c into v5 primitives for sizing the connector cap; it does not enter the charged-time bound, which is enforced by counters.",
+      "extrapolation": "Assumes a clock frequency at most about 5 GHz and at most about 15.6 primitive-equivalent operations retired per cycle, which is above 4-wide retirement even when every micro-op is a 512-bit operation counted as two 256-bit primitives.",
+      "evidence_ids": [
+        "proof:371-413",
+        "proof:524-531"
+      ],
+      "limitations": "The paper does not name the CPU. The conversion bounds instruction throughput, not the algorithm's intrinsic operation count. An unusually wide or fast core would invalidate the ceiling, but a realistic core is about 4x below it."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
