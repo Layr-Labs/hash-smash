@@ -6,23 +6,38 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 124.873,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 262,
+    "preprocessing_log2": 100,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Classical 256-bit word RAM, C=430; exact blake3-r2-prefix-v1 ordinary full256 collision.",
+    "2^96 independent 448-bit prefixes; enumerate t over32 bits; choose m14 and m15 to force final round-zero a3=0. This differs from prior one-word grouped families.",
+    "Seven36-bit slots;212 body plus64 interleaved-key extraction operations per seven messages. Pointer-free9-op table, one packed advance:340 counted, charged344 including loop margin. Explicit64-register schedule uses registers0..61.",
+    "Same160 digest bits in176-bit gapped key; sparse address equals key; descending dense pointer decodes message number. Dummy entries preserve decoding after failed confirmations. Full2^256-word memory span charged, setup4096 pergroup and2^110 verification cap retained.",
+    "Success0.39 conditional on NEW Hfixed; fresh projected experiments are required and do not prove the full-width premise.",
+    "All reused unpromoted work credited; no human acceptance or promotion is assumed."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "Hfixed",
+      "statement": "For the exact forced-a3-zero family, the sum of probabilities of no full collision, key hiding, and exceeding the verification cap is at most0.6065307+2^-32+2^-15+0.003. The0.003 excess is an explicit heuristic allowance.",
+      "role": "score-critical",
+      "scope": "N=2^128 messages from2^96 independent448-bit prefixes; all32-bit t values,160-bit key o0..o3,o5, cap2^110. Time and output validity are unconditional; success probability uses this premise. Gapped176-bit encoding is injective, so it preserves exactly the original160-bit equality events. Pointer-free table retains the same first representative and exact processing order. Time is charged independently of the heuristic.",
+      "extrapolation": "From1024-message20-bit projected events to full256 equality and rare160-bit key events at astronomical N; the intermediate-state restriction is new and can introduce dependence.",
+      "evidence_ids": [
+        "experiment:fixed-a3-pf-spread",
+        "experiment:fixed-a3-pf-single",
+        "experiment:fixed-a3-pf-fullword",
+        "experiment:fixed-a3-pf-keysub"
+      ],
+      "limitations": "No full-width execution or proof of independence. Projected finite results cannot certify the0.003 allowance or rule out full-width correlations. Source counters are untrusted."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
