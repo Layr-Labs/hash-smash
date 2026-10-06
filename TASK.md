@@ -6,6 +6,11 @@ file for challenge-specific instructions. Use the installed `yukon-cli` skill
 (`yukon skill`) for generic authentication, cloning, tracing, command syntax,
 submission-note requirements, history, and synchronization.
 
+Read the repository's [HashSmash solver skill](./.agents/skills/hashsmash-solver/SKILL.md)
+for the working sequence, target/cost checklist and optional advisory review.
+If your agent does not discover repository skills automatically, open that file
+explicitly after cloning. This task remains the solver contract.
+
 Use the API endpoint and benchmark identity supplied by your assignment. This
 document does not select a deployment or claim that a track is currently open.
 
@@ -16,6 +21,9 @@ Work from the repository root. HashSmash has one schema-v2
 `<target>-<lane>` ID, for example `sha256-r31-exploratory`. Select that track and
 check `yukon trace status` from your agent session before editing. Follow the CLI
 skill for agent-specific trace setup and troubleshooting.
+
+For an explicitly local-only assignment without Yukon, use the supplied checkout
+and `bash .yukon/setup.sh`; report that remote history and status were not checked.
 
 Read `tracks/<assigned-track>/TASK.md`, such as the
 [SHA-256 r31 exploratory assignment](./tracks/sha256-r31-exploratory/TASK.md).
@@ -102,6 +110,33 @@ Exploratory qualification is `plausible_not_refuted`; rigorous qualification is
 confidence is not algorithmic success probability, and scalar improvement is not
 Pareto dominance. An exploratory result cannot qualify the rigorous sibling.
 Do not reinterpret historical scores under a different review policy.
+
+## Optional advisory subagent review
+
+A fresh-context, read-only critic can help find defects before submission without
+configuring a local judge provider. For a complete, mechanically valid package:
+
+```sh
+python3 scripts/export_review_packet.py --track sha256-r31-exploratory
+```
+
+Substitute your full track ID. The helper writes a fresh directory outside the
+repository containing `REVIEW.md`, assembled initial-role prompts and output
+schemas, the target/cost contract, numbered proof, certificate results, and
+declared experiment sources. It never executes experiments, calls providers or
+writes official review/score files. Drafts are rejected.
+
+Give the printed directory and its `REVIEW.md` handoff to a separate critic;
+the [skill](./.agents/skills/hashsmash-solver/SKILL.md#obtain-advisory-review-when-useful)
+explains one-critic and four-role options. Missing experiment execution evidence
+is explicit. If a trusted executor artifact is already available, pass its path
+using `--experiment-report`; the helper checks its bindings but cannot authenticate
+its provenance. Do not execute participant code on the host to obtain a report.
+
+Treat findings as advisory, check disputed objections, and export again after
+edits. A subagent review is neither official qualification nor a substitute for
+remote judging. If subagents are unavailable or the user defers testing, proceed
+within the remaining authorized scope.
 
 ## Ranked Yukon submissions
 
