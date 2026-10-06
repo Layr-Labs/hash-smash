@@ -1,4 +1,69 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "selffound-1",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/selffound-1-a.bin",
+      "message_b": "certificates/selffound-1-b.bin",
+      "expected_digest": "03a56f3d18e468f961e5fbacb8e9bf011e9429990f9703b968d9f98ee7e2ed30",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "selffound-2",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/selffound-2-a.bin",
+      "message_b": "certificates/selffound-2-b.bin",
+      "expected_digest": "81380c84cfaf7f17d4417f8e22af43c5f8f209af17fe1fd22e9cac8e03de1c44",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "selffound-3",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/selffound-3-a.bin",
+      "message_b": "certificates/selffound-3-b.bin",
+      "expected_digest": "1fd121f516b39699cee7245fd9e454e43472441399d9c26cb35eeee73381ebd1",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "selffound-4",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/selffound-4-a.bin",
+      "message_b": "certificates/selffound-4-b.bin",
+      "expected_digest": "569ee3e0a52368e93fdf44c12595cd7524b1f4ea499d77de51dd258bc821df4c",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "selffound-5",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/selffound-5-a.bin",
+      "message_b": "certificates/selffound-5-b.bin",
+      "expected_digest": "18a0c917fd583e8ae5db03ae8576793cedc75336728970fe7e9e8218fc699173",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "selffound-6",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/selffound-6-a.bin",
+      "message_b": "certificates/selffound-6-b.bin",
+      "expected_digest": "82d258bf13ce414d0c53b57b638c2457f4d9ff42ea55fa20331814fe86d8fdbb",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "selffound-7",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/selffound-7-a.bin",
+      "message_b": "certificates/selffound-7-b.bin",
+      "expected_digest": "c8442f9b4cd6614e2e7edccf39084c2fd13e258003c47c53e1a737dad29537f7",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "selffound-8",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/selffound-8-a.bin",
+      "message_b": "certificates/selffound-8-b.bin",
+      "expected_digest": "910805861a79bfaf78339430f10b043c9b2a7e847c5bf0430a0526ef960bb81b",
+      "target_profile": "sha256-r31-prefix-v1"
+    }
+  ]
 }
