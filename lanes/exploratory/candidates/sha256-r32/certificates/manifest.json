@@ -1,4 +1,13 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "sha256-r32-route-corroboration-yudduy-227",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/message-a.bin",
+      "message_b": "certificates/message-b.bin",
+      "expected_digest": "f8a3db111360e5ed2e63041ecfa82b01c95a25882910bc0f21671949296a4e77",
+      "target_profile": "sha256-r32-prefix-v1"
+    }
+  ]
 }
