@@ -1,27 +1,25 @@
 {
   "schema_version": 3,
-  "submission_state": "ready",
   "target_profile": "sha256-r31-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 31,
   "lane": "exploratory",
+  "baseline_improved": "sha256-r31-nominal-v2",
+  "submission_state": "ready",
+  "certificate_manifest": "certificates/manifest.json",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 128.11,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
+    "memory_log2_bytes": 136,
     "preprocessing_log2": 20,
-    "success_probability": 0.6,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Target the exact fixed-IV sha256-r31-prefix-v1 hash of complete 40-byte messages, with FIPS one-block padding, original schedule/constants, round indices 0 through 30, full feed-forward and all 256 digest bits.",
+    "Draw exactly q=255*2^120 independent uniform 40-byte messages from two fresh independent 256-bit words per sample; store full digests and messages and apply two stable 128-bit radix counting-sort passes.",
+    "Charge q sampled target compressions plus at most two verification compressions, all failed samples, all bucket initialization/prefix work, all record scans, and at most 128q+32*2^128+2^24 ordinary word operations.",
+    "Use a 256-bit word RAM with three two-word q-record arrays and one 2^128-word counter array; peak allocated storage is below 2^136 bytes. No nonuniform advice, differential assumption, witness lookup, or restart is used."
   ],
-  "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": []
 }
