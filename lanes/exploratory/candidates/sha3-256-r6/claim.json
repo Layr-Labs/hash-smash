@@ -6,21 +6,41 @@
   "rounds": 6,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.4,
+    "time_log2": 124.648,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 130,
-    "preprocessing_log2": 142,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 207,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical 256-bit word RAM with fresh independent uniform random-word primitive.",
-    "One batch of 2^129 independent uniform 64-byte messages; no restarts or nonuniform advice.",
-    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06, prefix rounds 0 through 5, all 256 output bits.",
-    "Generic analytic upper bound; infeasible resource use, no improvement over the nominal reference claimed."
+    "Complete fixed-IV SHA3-256 sponge with rate1088, capacity512, suffix0x06, pad10*1, prefix rounds0..5 and all256 output bits; messages are64 bytes.",
+    "Independent derivative of winglock bfc8c418, commit6a250bf4c5084458a63c8fe2dd76dbb5538f5ca3. Keep its random512-bit group prefixes,32-bit paired-lane Gray family,256-way bitslicing and processing order. N=2^128 messages. Source pending score is not acceptance or proof.",
+    "Lookup keys retain digestbits112..255 in place, zero below. Prune only exact unused output gates, loads and stores; use compile-time zero-aware transpose. Every proposed output is verified against both complete target digests and distinctness.",
+    "Top140-bit sparse table retains a representative on projected matches. DK[n] always stores the actual key of message n, including declined confirmations. Halt before more than2^112 confirmations. No restarts.",
+    "Proposed256-bit word RAM interpretation:64 registers, direct addresses and immediates are instruction fields; every executed primitive including loads/stores costs1/1626. Proposed40674 operations per256-message step, setup2^20 perbatch, confirmation4096 operations plus2 permutations. Independent three-pass incremental ledger charges5136, explicit57-register allocation. Static phase and register accounting and explicit672-operation cold-path ledger are supplied; no instruction-stream execution is claimed.",
+    "Proposed T=(40674*2^120+2^108+2^20)/1626+2^112*(2+4096/1626), log2T124.6457254552517289, rounded124.648. Success0.39 is conditional on newHproj, which sourceH1 does not imply.",
+    "Memory207 conservatively counts the entire address span, with sparsebase2^200, prefixes2^170, scratch relocated to2^180 and code below2^190. No2^240 source scratch address remains in the proposed schedule. No advice; setup is included in time.",
+    "Material provenance:winglock,jaazinn,may93182,tekkac,ercumentyildirim,zeeshan8281,mitchuski. Source historical tests are not our measurements; new projected experiments are unexecuted pending organizer isolation. Source review obligations remain unresolved."
   ],
   "baseline_improved": "sha3-256-r6-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "Hproj",
+      "statement": "For the fixed grouped message family and processing order, the union of no full256-bit collision, any obstructing triple sharing a140-bit bucket with a full-digest colliding pair, and the event that equal144-bit projected pairs exceed2^112 has probability at most the iid uniform256-bit comparison bound plus0.003.",
+      "role": "score-critical",
+      "scope": "The projected lookup and cap in the proposed derivative. This is stronger in scope than source H1 and is not implied by it.",
+      "extrapolation": "From inherited grouped masked experiments and newly declared finite projected/sparse analogues to the full2^128-message search. New experiments have not yet run. The iid comparison gives no-hit below0.6065307, obstruction below2^-12 and cap below2^-111.",
+      "evidence_ids": [
+        "experiment:k6r6-proj-full-width",
+        "experiment:k6r6-proj-spread",
+        "experiment:k6r6-proj-single-group",
+        "experiment:k6r6-proj-high-z",
+        "proof:1-589"
+      ],
+      "limitations": "Unproved full-run extrapolation. Finite masked tests do not certify independence, rare tails, top140-bit table behavior or the0.003 excess allowance. Source H1 alone does not justify the cap. No full collision or full-scale run is supplied."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
