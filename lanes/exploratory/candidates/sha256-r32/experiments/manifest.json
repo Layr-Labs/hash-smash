@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "fixed-witness-derivation",
+      "kind": "python-message-pairs-v1",
+      "scope": "Organizer-executed reconstruction of one committed SHA-256/32 witness from the embedded tuple record, retained #227 compact-table slices, and tail record, plus bit-exact verification on every organizer trial seed that 8-lane SWAR C_32 evaluation on a 256-bit word RAM (using carry-save CSA32x8 and MSB-masked ADD32x8 across 8 independent 32-bit lanes) matches 8 independent scalar C_32 compressions. The old retained table uses 26-bit buckets and 609,229,824 entries.",
+      "hypothesis": "The committed historic compact-table slices deterministically derive two distinct 128-byte messages with equal complete-message sha256-r32-prefix-v1 digests matching the committed expected digest, and 8-lane SWAR C_32 evaluation on 256-bit words produces bit-identical chaining values to 8 independent scalar C_32 evaluations on every organizer seed. This experiment tests one-record witness lineage and 8-lane SWAR C_32 equivalence only, and makes no inference about the current 27-bit TAB2 cardinalities or completeness, Step-2/3 attack rates, search success probability, or resource use.",
+      "program": "experiments/replay.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
