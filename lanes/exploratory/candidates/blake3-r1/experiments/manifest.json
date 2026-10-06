@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "fixed-listing-exec-v2",
+      "kind": "python-message-pairs-v1",
+      "scope": "blake3-r1-prefix-v1 complete-hash ordinary collisions on 64-byte single-root-compression messages. Executes the CLAIMED construction itself: experiments/fixed.py builds the 78-instruction fixed-constant straight-line listing of proof.md section 3, encodes it to 16-byte fixed-width machine words, DECODES the encoded bytes, and executes the decoded program on the declared 256-bit-word RAM model; emitted messages must equal the certificate files byte-for-byte and the harness recomputes both digests.",
+      "hypothesis": "For every organizer trial the decoded-executed fixed-constant listing emits the certified pair (distinct, 64 bytes) whose complete 1-round BLAKE3 digests are equal, and the program's internal assertion a1+b1+y = 0 mod 2^32 holds on both solved diagonals. Success probability 1 (deterministic listing; seed selects nothing); any recomputed mismatch refutes the construction.",
+      "program": "experiments/fixed.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    },
+    {
+      "id": "family-generalization-v1",
+      "kind": "python-message-pairs-v1",
+      "scope": "Theorem-family generalization (proof.md section 2): for random column words m0..m7 the constructor re-derives the column phase and re-solves both diagonals, emitting a fresh colliding pair per seed. Supplementary evidence of the 'every column choice' clause; NOT the claimed 78-op cheap path (that is fixed-listing-exec-v2).",
+      "hypothesis": "For every trial a distinct-message colliding pair is emitted with probability 1 under the Lemma 1/Lemma 2 identities; organizer-recomputed digest inequality would refute the theorem.",
+      "program": "experiments/builder.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
