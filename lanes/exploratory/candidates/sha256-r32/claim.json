@@ -6,22 +6,121 @@
   "rounds": 32,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 47.51,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.8,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 35,
+    "preprocessing_log2": 47.19,
+    "success_probability": 0.4,
+    "nonuniform_advice_log2_bytes": 13
   },
   "restrictions": [
-    "Classical probabilistic 256-bit word RAM under collision-frontier-v5; fresh independent random words, not seeded PRNG expansion.",
-    "Exactly q=2^129 sampled 64-byte messages; complete SHA-256 with fixed IV, prefix rounds 0 through 31 on both padded blocks, feed-forward and all 256 digest bits.",
-    "One finite run with at most 2^136 target-compression equivalents of total charged computation and 2^138 peak bytes; no restarts, nonuniform advice or precomputed collision.",
-    "data_log2 bounds bytes of complete padded hash inputs including final verification re-reads, as specified in proof.md.",
-    "Analytic resource and success bounds; no full-scale execution, cryptanalytic improvement or nominal-reference improvement is claimed."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5 (C = 2224). Total work over all processors: T = 32,828,179,945,388 first-block C_32 trials at 1 unit plus 64 operations each, a hard counter cap of 400 T operations on all Step-2/3 work, 8 units of output verification, table build C = 2^38, starting solution D = 2^38 and characteristic search E = 32 * 593,858 CPU-s * 2^23 = 2^47.1798 units; total 199,639,523,525,340 units = 2^47.5044.",
+    "Two-block messages M0||M1 and M0||M1' of 128 bytes with M1 != M1'; complete SHA-256 with the standard IV, FIPS 180-4 padding, steps 0..31 on all three padded blocks, feed-forward and all 256 output bits; every output is recomputed before it is returned.",
+    "32-step truncation of the 35-step attack of Li, Liu, Wang and Shi (CRYPTO 2026, ePrint 2026/1080): its Fig. 6 characteristic, its 71 two-bit conditions under the stated readings and its starting solution as advice. The table and Step-2/3 specification follow hash-smash #26/#33 (winglock), restated in proof Sections 4-5.",
+    "One run with no restarts. Success probability >= 0.41069 from fresh independent first blocks, conditional on the declared rate heuristics, after subtracting a Chebyshev bound of 7.56e-6 on stopping at the counter cap. No certificate is supplied.",
+    "Measured inputs are credited public participant measurements (#296, #396, #26, #227), not runs made for this package: the matching rate q, the Step-2/3 stage pass rates, the table moments, the completed characteristic-search ledger and the callgrind CPU-second calibration. Our own checks (proof Section 14) are exact finite checks only."
   ],
   "baseline_improved": "sha256-r32-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "q-32step-matching-rate",
+      "statement": "A first block M0 of fresh uniform words, compressed as CV1 = C_32(IV, M0), yields at least q = 2^-17.3583 expected valid tuples (records passing Step 2 tests (a)-(g)) against TAB2 of 1,396,774,912 records, and at most 2^-17.3166.",
+      "role": "score-critical",
+      "scope": "The exact P1-P4 sets and the Step-2 tests of proof Sections 4-5, with C_32 first blocks from the standard IV.",
+      "extrapolation": "Public participant measurement #296: four runs of 2^32 C_32 first blocks, one per index-part of TAB2, 25,936 valid tuples, pooled 2^-17.3373 with 99% interval [2^-17.3583, 2^-17.3166]. Corroborated by #26's runs (2^-17.3337), the #227 campaign counts (2^-17.326) and the analytic prediction 2^-17.3254. Extrapolated to T = 2^44.9 fresh trials.",
+      "evidence_ids": [
+        "proof:320-320",
+        "proof:402-403",
+        "proof:177-184"
+      ],
+      "limitations": "Credited participant runs, not organizer executions and not repeated for this package. CV1 words are treated as uniform for the Step-2 tests."
+    },
+    {
+      "id": "step3-46-conditions",
+      "statement": "For a valid tuple, each of the 196,608 P4 entries passes Step-3 stages 16..31 with probability at least p = 2^-46, and at least one entry passes with probability r >= 2^-28.415 (1 - 2^-20).",
+      "role": "score-critical",
+      "scope": "Second-block steps 16..22 and schedule words W16..W31 under the Fig. 6 characteristic. Entries share W14 in 12 groups of 2^14; the shared W20 conditions are charged in the second moment.",
+      "extrapolation": "The condition count is 45 printed by S plus the unprinted E16[29] = E17[29] (#26). #296's cumulative stage rates over 2^32.248 candidates match the count through step 21 (2^-3.000, 2^-15.000, then 22, 5 and 1 survivors). The 13 W20/W22 carry conditions after step 21 are extrapolated. Both S's published tuple and the public 32-step pair of #227 pass every stage in our checks.",
+      "evidence_ids": [
+        "proof:323-323",
+        "proof:404-409",
+        "proof:551-553",
+        "proof:157-184"
+      ],
+      "limitations": "Independence beyond the W14 grouping is assumed, not proved. One extra independent condition would lower the success bound to 0.31 at this T (proof Section 13)."
+    },
+    {
+      "id": "valid-tuple-pairs",
+      "statement": "For the number V of valid tuples in one trial, E[C(V,2)] <= q * 2^-5.",
+      "role": "supporting",
+      "scope": "Valid tuples produced from one first block.",
+      "extrapolation": "#296 observed 9 within-part pairs in 2^34 part-trials and bounded the cross-part pairs from multiplicity sums. The charged 2^-5 exceeds that estimate by more than 20x.",
+      "evidence_ids": [
+        "proof:324-324",
+        "proof:402-403"
+      ],
+      "limitations": "Cross-part pairs were not observed directly. This is a credited participant measurement."
+    },
+    {
+      "id": "route-search-measured",
+      "statement": "Constructing the Fig. 6 characteristic by S's four-step SAT/SMT search, without S's intermediate outputs, costs at most 32 * 593,858 solver CPU-seconds on the measurement machine.",
+      "role": "score-critical",
+      "scope": "The one-time characteristic search, charged in preprocessing as E. Its memory is covered by search-peak-memory.",
+      "extrapolation": "#396 ran S's procedure with the authors' public model and STP 2.3.4 + CryptoMiniSat 5.11.21. Its 59 calls, all charged including timeouts and abandoned calls, used 593,858 CPU-s, and the run returned a characteristic whose signed rows equal Fig. 6. Because the run used S's nabla W and S's tA threshold, #396 priced a blind re-derivation from its own call ledger at 6.3-8.4 times that, and added a residual factor 4 for solver variance and model choice. The product 32 is adopted unchanged.",
+      "evidence_ids": [
+        "proof:325-325",
+        "proof:328-360",
+        "proof:373-373"
+      ],
+      "limitations": "S's own search time is unpublished. The factor 32 is argued from a measured ledger, not executed. tE4 = 76 was reached but not proved optimal. Doubling the factor raises the total to 2^48.351."
+    },
+    {
+      "id": "cpu-second-pricing",
+      "statement": "One solver CPU-second on the measurement machine costs at most kappa = 2^23 target-compression units (2^34.12 primitive word operations).",
+      "role": "score-critical",
+      "scope": "The STP + CryptoMiniSat runs priced in E and in D.",
+      "extrapolation": "Callgrind calibration (#296/#396): 44,197,378,388 instructions in 40.42 native CPU-s (repeats 41.07 and 41.10), i.e. 2^30.03 instructions per CPU-s. The opcode mix (92.3% ordinary integer, 7.24% PLT stubs, 0.416% divide/multiply/floating point), priced at 5 and 400 operations, gives 6.6 operations per instruction against the 17 allowed. The calibration is single-threaded and the charged runs were multithreaded, with lower IPC.",
+      "evidence_ids": [
+        "proof:326-326",
+        "proof:362-371"
+      ],
+      "limitations": "One calibration instance, assumed to be on the machine class that ran the charged search calls, as reported by #296/#396. kappa = 2^24 would raise the total to 2^48.351."
+    },
+    {
+      "id": "starting-solution-cost",
+      "statement": "Producing the Step-1 starting solution (the advice words A4..A13, E8..E13, W12, W13) costs at most 2^38 units.",
+      "role": "supporting",
+      "scope": "One SAT solution of the characteristic through step 13, charged once as D.",
+      "extrapolation": "S reports about 2^34.3, with no unit; read as 35-step compressions this is below 2^34.46 units. #296's two exact-value-model runs of the same task took 908.8 CPU-s in total, which gives 2^37.83 units at kappa = 2^23 with a factor 32. D = 2^38 covers both readings.",
+      "evidence_ids": [
+        "proof:377-382"
+      ],
+      "limitations": "S's unit and trace are unpublished. D is below 0.3% of the total, so this does not change the claimed exponent at two decimals."
+    },
+    {
+      "id": "work-moments",
+      "statement": "The per-trial counted Step-2/3 operations X satisfy E[X] <= 238.94 and E[X^2] <= 6.436e12 under the charges of proof Section 5.4.",
+      "role": "supporting",
+      "scope": "Only the probability of stopping at the counter cap of 400 T. The time bound itself is a hard cap and does not depend on this.",
+      "extrapolation": "Inputs are the exact occupancy mean N/2^27, the measured maximum bucket of 936, the multiplicity sum 5.758e9 (Cauchy-Schwarz over 4 parts), the Step-2 cumulative pass fractions bounded by 0.51, 1/15, 1/120 and 1/240, the Step-3 stage-16/17 pass fractions bounded by 2^-2.99 and 2^-14.9, and q at its upper limit. The quantities come from #296. Chebyshev then gives a cap-stop probability <= 7.56e-6.",
+      "evidence_ids": [
+        "proof:318-322",
+        "proof:414-439",
+        "proof:288-311"
+      ],
+      "limitations": "Credited measurements. Even a 100x larger second moment keeps the cap-stop term below 0.001, which leaves the success bound above 0.40."
+    },
+    {
+      "id": "search-peak-memory",
+      "statement": "The characteristic and starting-solution searches need at most 2^33 bytes of memory at their peak.",
+      "role": "supporting",
+      "scope": "Memory only. The searches run before the attack phase.",
+      "extrapolation": "#296 and #396 measured a peak resident set of 5.25 GiB over all calls. It is added to the attack memory anyway: 28,661,817,348 bytes = 2^34.739.",
+      "evidence_ids": [
+        "proof:464-476"
+      ],
+      "limitations": "S's own search memory is not reported. Memory does not affect the score."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
