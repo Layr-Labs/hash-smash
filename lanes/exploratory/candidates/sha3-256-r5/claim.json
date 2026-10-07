@@ -6,23 +6,62 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 53.7,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 24,
+    "preprocessing_log2": 20,
+    "success_probability": 0.4,
+    "nonuniform_advice_log2_bytes": 10
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Single-block 135-byte messages (padded byte 135 = 0x86, p = 8 fixed padding bits), zero initial state, prefix rounds 0..4, all 256 digest bits.",
+    "Algorithm: the GLL+20 (J. Cryptology 2020, ePrint 2019/147) 2-round connector for rounds 0-1 with trail core No. 3 for rounds 2-4, fully specified in proof.md Section 4 with fixed orders, uniform random choices and retry counter cnt = 256; accepted spaces need DF >= 33 and are enumerated on 2^33 messages.",
+    "Hard caps on every random tape: 40 independent connector runs, each stopped by a primitive-operation counter at b = 4.939776e17 (4 x 428.8 core-hours at 2.88e14 primitives per core-hour), plus 2^33 message pairs per accepted space and a 2^30-operation setup; total at most 2^53.6952 units (proof.md Section 6).",
+    "Success probability 0.40 is a lower bound under heuristics H1-H3 (computed 0.4132, proof.md Section 7); the heuristics affect only success, never the charged time.",
+    "No collision was produced; no certificate or experiment is declared. The trail core is a published 400-byte constant re-verified at charged cost.",
+    "The nominal reference identifier does not assert an improvement over any qualified result."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
+  "heuristics": [
+    {
+      "id": "H1-connector-p8",
+      "statement": "For the connector run of proof.md Section 4.3 at p = 8, the expected number of primitive operations until the run returns an accepted space (DF >= 33) is at most 2 x 428.8 core-hours x 2.88e14 = 2.469888e17. With the per-run cap b = 4.939776e17, Markov's inequality then gives that one run returns an accepted space with probability at least 1/2.",
+      "role": "score-critical",
+      "scope": "Trail core No. 3, single-block 135-byte SHA3-256 messages (p = 8), the exact choices of proof.md Section 4.3 (best-probability beta_1, Comp/Lin/Six lists in uniform random order, cnt = 256, acceptance DF >= 33).",
+      "extrapolation": "GLL+20 measured one connector run of 428.8 core-hours returning DF = 37 at p = 4 for the same trail core and algorithm. We allow a factor 2 in mean cost for the four extra fixed bits (Eq. (11) predicts DF 37 -> 33) and use Markov's inequality on top. A public byte-aligned implementation reported DF 36 and 35 at p = 8 for this trail core (proof.md Section 2).",
+      "evidence_ids": [
+        "proof:54-102",
+        "proof:315-364",
+        "proof:381-393",
+        "proof:421-437"
+      ],
+      "limitations": "One source measurement, CPU model unknown; the source does not publish its retry counter or tie-breaking. Four extra fixed bits could reduce the run success rate by more than a factor 2, and accepted DF at p = 8 is sometimes below 33 in the public byte-aligned report. A failure of H1 lowers the success probability (proof.md Section 7: 0.233 at half the per-run rate), not the charged time."
+    },
+    {
+      "id": "H2-trail-rate",
+      "statement": "For an accepted space, the at least 2^32 distinct pairs (M, M XOR Delta) obtained from 2^33 enumerated messages behave, for rounds 2-4, as independent trials, each giving a 256-bit digest collision with probability at least 2^-37.22, so a space yields a collision with probability at least 1 - exp(-2^32 x 2^-37.22) = 0.026473.",
+      "role": "score-critical",
+      "scope": "Pairs with difference alpha_2 = L^-1(beta_2) after round 1, produced by the connector of proof.md Section 4.3, trail core No. 3, digest lanes 0..3 after round 4.",
+      "extrapolation": "GLL+20 computes 2^-36.70 for trail core No. 3 including multiple last-two-round trails and found exactly one collision in a DF-37 connector space; a public byte-aligned implementation of this trail core reports three certified collisions and a central rate estimate of 2^-37.219; ePrint 2026/2107 measured connector-space hit rates equal to the multiple-trail estimate (2^-16 per pair, 59-74 collisions per 2^22 pairs) for the same permutation, rate and capacity. We take the lower of the computed and reported rates.",
+      "evidence_ids": [
+        "proof:54-141",
+        "proof:339-364",
+        "proof:394-408"
+      ],
+      "limitations": "Pairs inside one space are correlated, and the connector constrains values entering round 2. The reported byte-aligned rate rests on few events (lower 95% value 2^-38.38, giving success 0.213 at the same time bound). Spaces from different runs are independent by construction."
+    },
+    {
+      "id": "H3-op-conversion",
+      "statement": "One core-hour of the source's connector computation corresponds to at most R = 2.88e14 primitive operations of the proof.md Section 4.3 procedure on the collision-frontier-v5 256-bit word RAM: the implementation specified here does no more primitive work per unit of progress than the source's single core, which executed at most 16 primitive-equivalent operations per cycle at no more than 5 GHz.",
+      "role": "score-critical",
+      "scope": "Only the translation of the source's 428.8 core-hours into the per-run counter used by H1; it does not enter the hard time bound.",
+      "extrapolation": "A core retiring 4 fused load+operate micro-operations per cycle on 512-bit registers performs at most 16 256-bit operations per cycle; 5 GHz exceeds the sustained clock of CPUs available to the source; Section 4 performs the same GF(2) linear algebra on 256-bit words.",
+      "evidence_ids": [
+        "proof:315-338",
+        "proof:409-420"
+      ],
+      "limitations": "The source's code and CPU are not public, so per-operation efficiency is not measured. If H3 fails, the effective budget per run is smaller and the success probability decreases; the charged time does not change."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json"
 }
