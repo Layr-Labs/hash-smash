@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "k6r6-ls128-full-width",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact sha3-256-r6-prefix-v1 on 128-byte single-block messages. Per organizer seed, 256 groups with SHA-256-derived structured prefixes (5kyguy's 6e715d9a family: 768 free bits in lanes 0-4, 6, 7, 9-11, 13, 14; L8 = 0; L5 = L15 = C4 ^ rotl(C1, 1) and L12 = ~rotl(C4, 1) ^ L2 ^ L7 with C4 = L4 ^ L9 ^ L14, C1 = L1 ^ L6 ^ L11 ^ PAD16, so round 1 is linear in z), one per bit position of a 256-position batch, 2 messages each (z = gray(t), t = 0, 1; LE32(z) XORed into bytes 32..35 and 112..115, the low halves of lanes 4 and 14), N_t = 2^9. Digests used for matching come only from the bitsliced evaluator of proof.md Sections 4-5, in the counted program's order and encodings: Gray update flipping the read A2 support words (polarity PI) and XORing fixed AND-free patches into 499 O2P words; lane-complement rounds 3-5 with theta at the store and start planes 10, 61, 34 (rounds 4-5 computed in full, then every word outside the Lemma 10 cone replaced by an unrelated constant); the last round on the 35 kept planes (140-bit key at rows 4k + x, KEYMASK encoding); the rotating-frame zero-row transpose in the program's 16-row layout; processing order decode_slot(q) = 16*(q mod 16) + floor(q/16). The first pair agreeing on an 18-bit mask of kept digest bits (lane 0 bits 0-4; lane 1 bits 9-11, 16, 17; lane 2 bits 22-25; lane 3 bits 29-32) is returned; failures return two nulls. Self-checks (any failure aborts): the 140-bit key of each trial's first 4 messages and of its first message at every step t = 2^i against an independent direct sponge; for every z-bit used, A2(e_j) ^ A2(0) all-ones exactly on the 22 support words; maintained A2 and O2P against a rebuild after the batch; zero key rows and the transpose against the full transpose at every step; every key through the program's tagged-id table with pair ids and adversarial never-written words (the verify-and-continue path must be taken; every table word must name a pair containing a message whose key is its address).",
+      "hypothesis": "As heuristic H1 predicts, the masked digests of the grouped structured-prefix message set behave like independent uniform 18-bit values: the success frequency agrees, within sampling error, with the uniform-model value 0.3931 for N_t = 2^9 and w = 18 (N_t^2/2^w = 1, the same ratio as N^2/2^256 in the full attack).",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "1f00000000000000000e0300000000000000c00300000000000000e001000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "k6r6-ls128-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "As k6r6-ls128-full-width, but each trial has 16 groups of 32 messages (z = gray(t), t = 0..31, so the Gray updates use z bits 0..4); 16 trials share one 256-position batch, each owning 16 bit positions (bitwise operations never mix positions, so trials stay independent). 18-bit mask on kept digest bits (lane 0 bits 16-18, 22, 23; lane 1 bits 37-40, 44; lane 2 bits 44-47; lane 3 bits 37-40). Same structured 128-byte prefixes, evaluator (linear-structure round 2, start planes, cone replacement and rotating zero-row transpose included) and the same exactness, support, A2/O2P, zero-row, transpose and tagged-table checks; any failure aborts the run.",
+      "hypothesis": "With 1/16 of the pairs inside a group, the success frequency agrees, within sampling error, with the uniform-model value 0.3931.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000c7000000000000000000e01100000000000000f0000000000000e0010000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "k6r6-ls128-single-group",
+      "kind": "python-message-pairs-v1",
+      "scope": "As k6r6-ls128-full-width, but all N_t = 2^9 messages of a trial lie in one group (one bit position; z = gray(t), t = 0..511, Gray updates on z bits 0..8): the strongest within-group structure, a negligible share of pairs at full scale. 256 trials share one batch. 18-bit mask on the top kept bits of digest lanes 0-3 (bits 54, 58-61 of lanes 0 and 1; bits 58-61 of lanes 2 and 3). Same structured 128-byte prefixes, evaluator (linear-structure round 2, start planes, cone replacement and rotating zero-row transpose included) and the same exactness, support, A2/O2P, zero-row, transpose and tagged-table checks; any failure aborts the run.",
+      "hypothesis": "Even when every message shares one prefix and A2 is linear in only 9 varying bits, the success frequency agrees, within sampling error, with the uniform-model value 0.3931.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000403c000000000000403c000000000000003c000000000000003c",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "k6r6-ls128-high-z",
+      "kind": "python-message-pairs-v1",
+      "scope": "As k6r6-ls128-full-width, but each trial has 4 groups of 128 messages with z = gray(t) << 25, t = 0..127, so every Gray update is on one of z bits 25..31 (for these bits the support planes j+39 and j+40 wrap around the 64-bit lane); 64 trials share one batch. 18-bit mask on kept digest bits (lane 0 bits 29-32, 37; lane 1 bits 44-47, 51; lane 2 bits 51-54; lane 3 bits 0-3). Same structured 128-byte prefixes, evaluator (linear-structure round 2, start planes, cone replacement and rotating zero-row transpose included) and the same exactness, support, A2/O2P, zero-row, transpose and tagged-table checks; any failure aborts the run.",
+      "hypothesis": "With the varying bits at the top of z, the success frequency agrees, within sampling error, with the uniform-model value 0.3931.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000e0210000000000000000f0080000000000000078000f00000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
