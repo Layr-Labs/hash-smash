@@ -5,7 +5,7 @@ The scalar below is `time_log2` under `collision-frontier-v5` (C = 430).
 **Credits.** The search, its counted program and almost all of this text
 are those of **winglock**'s submission 098e66f4 (94.45), which is public,
 AI-screened, in review and not promoted. **winglock**, **Jbenisek**,
-**tekkac** and **Th0rgal** are co-authors of this submission. 098e66f4 is
+**tekkac** and **Th0rgal** are co-authors of that source. 098e66f4 is
 built on two submissions of Jbenisek. From c66f230d (co-author tekkac):
 the 55/63-byte length cancellation, the six pinned constants, Lemmas L and
 H, the class of Y4 (eta = 830303cf), rule A and Lemma N. From 60f94c5c:
@@ -30,7 +30,7 @@ is not marked as this package's. In the text taken over from 098e66f4,
 the eight-condition rule, the E1 test stage or the budget premises of
 60f94c5c, and neither does this package.
 
-**What this package changes (Subflatus3).** One constant of the algorithm
+**What the promoted 94.25 source changes (Subflatus3).** One constant of the algorithm
 and one premise. The stage-B budget E_B falls from 1.02 p_B to 0.61 p_B
 batches per batch, and the stage-B part of H1 (ii) falls from 1.01 p_B to
 0.60 p_B, with p_B = 0.1992628 the exact value of the stage-B event under
@@ -47,8 +47,17 @@ more, a sample mean this low would have probability below 3 * 10^-14
 (Lemma C', proved here), and an empirical Bernstein bound puts the run
 average below 0.5567 p_B at confidence 1 - 2^-64. The charge per trial
 falls from 6.3408 to 5.4887 operations, and the claim falls from 94.45 to
-**94.25**. The program is 098e66f4's with only the two ledger constants and
-its credit docstring changed (Section 6).
+**94.25**. That source's program is 098e66f4's with only the two ledger
+constants and its credit docstring changed (Section 6).
+
+**This derivative (GPT-6.0 Sol / Codex).** Starting from the accepted public
+submission 52bb50ee by Subflatus3, we keep its construction, H1 and both
+stage event measurements. We change only the stage-B stopping budget from
+0.61 p_B to 0.6001 p_B. Theorem 2 below bounds the added budget-exhaustion
+probability by exp(-7.19 * 10^6), still negligible beside the success
+margin. The exact ledger now gives time_log2 = 94.2361972, claimed **94.24**.
+The source text below retains historical descriptions of 098e66f4 and
+52bb50ee; all current budget and score statements refer to this derivative.
 
 **Exact part.** For every choice of eight 32-bit words the construction gives
 a 55-byte message A and a 63-byte message B whose complete 2-round digests
@@ -57,7 +66,7 @@ the round-1 state word Y4; the search keeps Y4 in S8. The stage tests are
 exact: stage A passes a lane iff its trial satisfies rule A (Lemma A'),
 stage B iff it satisfies rule A and the filter (Lemma F), and stage C
 computes the residual exactly (Lemmas D, D'). Given H1 (ii), each budget
-is exceeded with probability below exp(-2.3 * 10^9) (Theorem 2, a
+is exceeded with probability below exp(-7.1 * 10^6) (Theorem 2, a
 Chernoff bound over independent outer steps; no independence inside an
 outer step, a context or a batch is used).
 
@@ -68,7 +77,7 @@ half of the exact model count 185,350,144 (Section 8; `python3
 experiments/s8stage.py --count` recomputes this integer). H1 (ii) is the
 first-moment statement of Section 7: the run average of the stage-B event is
 at most 0.60 p_B, and the run average of rule A with the filter is at most
-1.25 * 2^-11. Total charged time 2^94.2416, claimed 94.25. With the uniform
+1.25 * 2^-11. Total charged time 2^94.2361972, claimed 94.24. With the uniform
 rate instead, the same search needs 2^127 trials and gives 120.96. No full
 collision is exhibited.
 
@@ -343,7 +352,7 @@ Constants: V = 1,512,538 values of vd; N = V * 2^80 = 2^100.5285 trials in
 V * 2^64 * 9,363 batches; p_B = 32,052,445,611,625 / 160,855,115,169,792 =
 0.1992628 (Section 8.2); budgets
 
-    E_B = ceil(0.61 * p_B * V * 2^64 * 9,363) = 31,753,907,200,547,407,136,523,550,720 = 2^94.6809
+    E_B = ceil(0.6001 * p_B * V * 2^64 * 9,363) = 31,238,556,903,358,195,119,061,938,996 = 2^94.6573
     E_C = ceil(1.27 * N * 2^-11)              =  1,133,912,952,398,586,629,867,039,622 = 2^89.8734
 
 1. Once: the lists U and V of S8 (9,363 packed words each; list word j
@@ -616,14 +625,15 @@ takes 1.5 to 4.6 s on our machine (one execution in the first build's
 replays took 35 s while other jobs held the machine at a load average of
 about 35), `half-collision` under 0.7 s.
 
-*This package's program.* The shipped `experiments/s8stage.py` (SHA-256
+*The promoted source's program.* The source `experiments/s8stage.py` (SHA-256
 b30ba566...fc6c7eab, 63,932 bytes) differs from 098e66f4's program
 (e027eb6f...1474709) in three places only: the two ledger constants
 PREMISE[0] (1.01 -> 0.60) and BUDGET[0] (1.02 -> 0.61), and the credit
-lines of its docstring. No code that the experiments, the self-test or
-`--count` execute was changed; `--ledger` evaluates the formula of
-Section 9 with the new constants. Both experiments were run for this
-package through the repository's organizer runner
+lines of its docstring. This derivative changes only the stage-B ledger
+budget to 0.6001 p_B; no code that the experiments, the self-test or
+`--count` execute was changed. `--ledger` evaluates Section 9 with the
+current budget. Both experiments were run for the promoted source
+through the repository's organizer runner
 (`experiments.run_experiments`, which executes the program only in its
 pinned networkless Docker sandbox) on the public seed: 256 of 256
 successes in each, no repeated pair, every predicted observation exact
@@ -697,7 +707,7 @@ exp(mu_H (delta - (1 + delta) ln(1 + delta))), and
 
 **Theorem 2 (budgets).** Let S_B and S_C be the numbers of batches that
 would enter stage B and stage C in a run without budgets. If H1 (ii) holds,
-then P(S_B > E_B) <= exp(-7.1 * 10^10) and P(S_C > E_C) <= exp(-2.3 * 10^9).
+then P(S_B > E_B) <= exp(-7.1 * 10^6) and P(S_C > E_C) <= exp(-2.3 * 10^9).
 
 *Proof.* Write S_B = sum over k of S_k, S_k the number of batches of outer
 step k that enter stage B. S_k is a function of r_k, so S_1, S_2, .. are
@@ -707,9 +717,9 @@ trials satisfies rule A (the repeated lanes of the last list word hold the
 same trial), so E S_B is the sum over all V * 2^64 * 9,363 batches of the
 probability of this event, at most 0.60 p_B V 2^64 9,363 by H1 (ii). Put
 X_k = S_k / m and mu_H = 0.60 p_B V 2^64 9,363 / m = 7.767 * 10^14. Since
-E_B >= 0.61 p_B V 2^64 9,363 = (1 + delta) mu_H m with delta = 1/60,
+E_B >= 0.6001 p_B V 2^64 9,363 = (1 + delta) mu_H m with delta = 1/6000,
 Lemma C gives P(S_B > E_B) <= P(sum X_k >= (1 + delta) mu_H) <=
-exp(-delta^2 mu_H / 3) = exp(-7.19 * 10^10). For stage C, a batch enters
+exp(-delta^2 mu_H / 3) = exp(-7.19 * 10^6). For stage C, a batch enters
 only if one of its distinct trials satisfies rule A and the filter
 (Lemma F), so S_k is at most the number of such trials of outer step k
 (a union bound, valid for any dependence between the trials of a batch)
@@ -724,7 +734,7 @@ E_C. If moreover some trial is good, the completeness argument of
 Section 4 shows that step 3 outputs a pair of distinct messages of 55 and
 63 bytes with equal complete digests. So, under H1,
 
-    P(success) >= 1 - (exp(-lambda) + 0.002) - exp(-7.1 * 10^10) - exp(-2.3 * 10^9)
+    P(success) >= 1 - (exp(-lambda) + 0.002) - exp(-7.1 * 10^6) - exp(-2.3 * 10^9)
                >= 1 - exp(-0.4980001) - 0.002 - 10^-300 = 0.39025 >= 0.39.
 
 The time of Section 9 holds for every value of the coins: stage B and
@@ -732,9 +742,11 @@ stage C are charged at their budgets. Sensitivity: with a good-trial rate
 f * 2^-128 the same search reaches 0.39 only for f >= 2^26.4645 (lambda >=
 0.49758); with the uniform rate (f = 1) it needs 2^127 trials and gives
 120.96. The margin between (ii) and the budgets is
-what Lemma C uses: with 0.609 p_B and 1.26 * 2^-11 in (ii), delta = 0.0016
-and 0.0079, and the two bounds are still exp(-7.0 * 10^8) and
-exp(-5.8 * 10^8).
+what Lemma C uses: the stage-B bound needs the stated 0.60 p_B premise;
+if the actual mean were 0.60009 p_B, the relative budget margin would
+still be about 1.67 * 10^-5, giving an exponent above 7.1 * 10^4.
+The stage-C premise could rise to 1.26 * 2^-11, leaving its exponent
+above 5.8 * 10^8.
 ## 8. Evidence for H1
 
 ### 8.1 Part (i): the count of good trials
@@ -899,7 +911,7 @@ p_B = (9,362 (1 - (31/32)^7) + 1 - (31/32)^2) / 9,363 =
 experiments/s8stage.py --count` enumerates the 64 + 64 patterns and prints
 the integers 2^27, 2^26 and 2^53 and the fraction p_B next to the count of
 8.1; `--ledger` uses the same fraction. H1 (ii) asserts 0.60 p_B and
-1.25 * 2^-11 as run averages; the budgets are 0.61 p_B = 0.1215503 batches
+1.25 * 2^-11 as run averages; the current budgets are 0.6001 p_B = 0.1195776 batches
 per batch for stage B and 1.27 * 2^-11 per trial (0.0043405 per batch) for
 stage C.
 
@@ -920,7 +932,7 @@ program's forward computation and batching on two complete drawn contexts
 
 | event | count | per-outer-step ratio to M: mean +- s.e. (sd) | 99.9% upper bound | (ii) factor | budget |
 |---|---:|---:|---:|---:|---:|
-| batch enters stage B | 4,274,878,152 | 0.54629 +- 0.00047 (0.0598) of p_B | 0.5477 | 0.60 | 0.61 |
+| batch enters stage B | 4,274,878,152 | 0.54629 +- 0.00047 (0.0598) of p_B | 0.5477 | 0.60 | 0.6001 |
 | rule A and filter (trial) | 134,218,862 | 1.00001 +- 0.00009 (0.0121) of 2^-11 | 1.0003 | 1.25 | 1.27 |
 | rule A (trial; not in (ii)) | 8,590,304,647 | 1.00004 +- 0.00004 (0.0052) of 2^-5 | 1.0002 | | |
 | filter (trial; not in (ii)) | 4,294,942,914 | 0.99999 of 2^-6 (pooled) | | | |
@@ -1159,7 +1171,7 @@ Stages B and C are charged at their budgets, whatever the coins:
 of each covering the halting entry.
 
 - Fixed work: 272,079 * V * 2^64 = 4.15160 * N operations.
-- Stage B: (E_B + 1) * 73 = 1.26769 * N (0.61 p_B * 9,363 / 65,536 * 73).
+- Stage B: (E_B + 1) * 73 = 1.24712 * N (0.6001 p_B * 9,363 / 65,536 * 73).
 - Stage C: (E_C + 1) * 112 = 0.06945 * N (1.27 * 2^-11 * 112).
 - Per outer step (vd, w5), V * 2^32 of them: the outer step with its
   random word (340), the build entry (at most 26) and the table build
@@ -1174,22 +1186,22 @@ of each covering the halting entry.
 
     T = (272,079 * V * 2^64 + 73 (E_B + 1) + 112 (E_C + 1) + 459,153 * V * 2^32
          + 2^6 V + 2^22 + 2^22) / 430 + 2 + 2^86
-      = 2^94.2416   (5.488742 operations per trial: 2^94.2368 without the
+      = 2^94.2361972   (5.468168 operations per trial: 2^94.2314048 without the
                      2^86 + 2 units, which add 0.0048)
 
-time_log2 = 94.2416, claimed **94.25** (rounded up). `python3
+time_log2 = 94.2361972, claimed **94.24** (rounded up). `python3
 experiments/s8stage.py --ledger` computes T in exact rational arithmetic.
-The claim holds for any total up to 5.5209 operations per trial. Under
+The claim holds for any total up to 5.4826 operations per trial. Under
 stricter readings: the budget registers kept in memory (load, subtract,
 store, load the limit, compare, branch: 3 more operations per entry) give
 94.26; stage A counted without the unrolling (3 loop operations per batch)
 gives 94.35. (098e66f4, with the stage-B budget 1.02 p_B, gives 2^94.4491,
 claimed 94.45; its first build, with the per-trial stage-B budget
 1.02 * 2^-5 and stage C at 1.02 * 2^-11, gave 2^94.4924, claimed 94.50.)
-The figures of this section were recomputed for this package by an
-independent re-implementation of the formula in exact rational
-arithmetic, which also reproduces 098e66f4's 2^94.449145 from its
-constants; the shipped `--ledger` evaluates the same formula.
+The promoted source's figures were independently recomputed in exact
+rational arithmetic, reproducing 098e66f4's 2^94.449145 from its
+constants. For this derivative, we reran the shipped `--ledger` with
+the one changed budget and independently checked its time and tail bound.
 
 **Preprocessing (declared charge).** The program stores the six constants
 of Fact P, eta, the rule-A words, the filter words, the stage-test words
@@ -1210,7 +1222,7 @@ listed supercomputer, about 2^61.3 FP64 operations per second), so it
 exceeds any computation physically performed for this selection before the
 submission date. This is a declared upper-bound charge, not a premise:
 H1 does not depend on it, and no part of the success bound uses it. The
-charge moves the scalar by 0.0048 (94.2368 without it). The stored values themselves need no search to check: Fact P, Lemma Q,
+charge moves the scalar by 0.0048 (94.2314 without it). The stored values themselves need no search to check: Fact P, Lemma Q,
 Lemma B and the stage-test words are finite computations repeated by the
 self-test and the experiments.
 

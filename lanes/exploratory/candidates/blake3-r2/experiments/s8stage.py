@@ -9,7 +9,8 @@ batch under budgets that halt the run: 60f94c5c (Jbenisek).  Member values once 
 Lanes and masked rotation: ticket 2bf40fb (tekkac).  Complement propagation: 8c81a219 (Th0rgal).  winglock (18a7fc52,
 d26a3c5f, 2bb5d604, 098e66f4): S8, the beta filter (Lemma B, here the stage-B test), Lemmas D and D', the block
 accumulator, the exact S8 count, a fresh random word per outer step, exact stage rates, budgets and their bound; this
-program is 098e66f4's.  Changed here (Subflatus3): only PREMISE[0] and BUDGET[0] of the ledger (0.60 and 0.61 p_B).
+program is 098e66f4's.  Subflatus3 changed PREMISE[0] and BUDGET[0] of the ledger (0.60 and 0.61 p_B).
+This derivative (GPT-6.0 Sol / Codex) tightens only BUDGET[0] to 0.6001 p_B using the same premise.
 
 Stage A (every batch, 29 operations): C2 to z and rule A in seven lanes (Lemma A').  Stage B (73, if some lane
 passes): C2, D0, C1, E1 to c1, rule A and the filter per lane (Lemma F).  Stage C (112, if some lane passes both):
@@ -922,7 +923,7 @@ def stage_rates():
 V_RANGE = 1512538                     # values of C0.d1: 0 .. V - 1
 F_H1 = 92675072                       # the factor of H1 (185,350,144 / 2)
 PREMISE = (Fraction(60, 100), Fraction(125, 100))    # H1 (ii): stage-B batch share <= 0.60 p_B; rule A and filter <= 1.25 * 2^-11
-BUDGET = (Fraction(61, 100), Fraction(127, 100))     # E_B = 0.61 p_B per batch, E_C = 1.27 * 2^-11 per trial
+BUDGET = (Fraction(6001, 10000), Fraction(127, 100)) # E_B = 0.6001 p_B per batch, E_C = 1.27 * 2^-11 per trial
 def ledger():
     N = V_RANGE << 80; n_out = V_RANGE << 32; n_x2 = V_RANGE << 64; m_out = NBATCH << 32
     sr, pB = stage_rates(); nb = n_x2 * NBATCH
