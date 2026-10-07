@@ -2,11 +2,11 @@
   "schema_version": 2,
   "certificates": [
     {
-      "id": "relaxed-v3-1",
+      "id": "r31-yield-collision",
       "type": "hash-collision-witness-v2",
-      "message_a": "certificates/relaxed-v3-1-a.bin",
-      "message_b": "certificates/relaxed-v3-1-b.bin",
-      "expected_digest": "aea2562b20b12c5938046802bcc533817087f43c3e4ac864114c2abdd2249ee5",
+      "message_a": "certificates/message-a.bin",
+      "message_b": "certificates/message-b.bin",
+      "expected_digest": "f2fb2a85f72bb62146305407ebea174b9d825760d1c1276776b8bec8cb977536",
       "target_profile": "sha256-r31-prefix-v1"
     }
   ]
