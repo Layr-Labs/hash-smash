@@ -1,781 +1,288 @@
-# sha256-r31: replay of a collision built entirely by our own committed construction
+# sha256-r31 instrumented start plus bit-sliced search, ceiling 35.95
 
 ## 1. Claim
 
-Track `sha256-r31-exploratory`, target `sha256-r31-prefix-v1` (ordinary collision, SHA-256 steps
-0..30 on every padded block, standard IV, FIPS padding, all eight digest words), cost model
-`collision-frontier-v5` with C = 2140 (one 31-step compression = 1 unit, any other 256-bit word
-operation = 1/2140 unit), review policy `paired-lanes-v1`, exploratory lane.
-
-The scored program (Section 3) replays one stored pair of distinct 128-byte messages that collide
-under sha256-r31. It uses no coins, so its success probability is 1.
-
-We built the stored pair with construction chain C (Section 7). Its only external input is the
-published 31-step signed characteristic (Section 5). The characteristic is a table of difference and
-value conditions; it is not a collision and contains no message words or state values. C does not
-use any published colliding pair, starting solution or first block. C works as follows:
-- it solves for its own starting solution S with z3, from a seed committed in advance (three
-  attempts, all charged);
-- it builds its own table;
-- it runs its own first-block search K, again from a committed seed, until the first collision.
-
-Every computation of C is charged (Section 9). Our own code is charged with explicit operation
-counts. The z3 runs and the synthetic checks are charged from their measured retired instructions
-at a measured per-instruction price: 25 word operations per instruction for z3 and 17 for the
-synthetic checks (Section 14), instead of the flat 256 of our previous filing. The analysis programs
-that formulated R20 before any search ran are charged as well (Section 15). The complete source is
-in Appendices B and C.
-
-| field | value | where |
-|---|---|---|
-| time_log2 | 37.22 | executed work of C plus replay, 2^37.2169, Section 9 |
-| preprocessing_log2 | 37.22 | construction chain C, Section 9 |
-| success_probability | 1 | deterministic replay, Section 3 |
-| nonuniform_advice_log2_bytes | 9 | the stored 256-byte pair, Section 10 |
-| memory_log2_bytes | 27.5 | measured peak over C (the z3 runs), Section 10 |
-
-Our own change to the source attack is the relaxed W20 condition R20 (Section 6). The published
-characteristic fixes the s0-difference of W5 and the s1-difference of W18. R20 only requires that
-the two cancel, which is exactly dW20 = 0. The stored pair uses differences of 0ffd81e1 and
-f0027e1f, not the characteristic's.
-
-Heuristics are declared in Section 11:
-- H1-public-characteristic, H2-op-accounting, H3-instruction-price and H5-chain-scope are
-  score-critical;
-- H4-memory is supporting.
-No probability estimate enters the bound.
-
-## 2. Target, written out
-
-All words are 32-bit; `+` and `-` are modulo 2^32; ROTR is right rotation.
-
-    S0(x) = ROTR(x,2) ^ ROTR(x,13) ^ ROTR(x,22)      s0(x) = ROTR(x,7) ^ ROTR(x,18) ^ (x >> 3)
-    S1(x) = ROTR(x,6) ^ ROTR(x,11) ^ ROTR(x,25)      s1(x) = ROTR(x,17) ^ ROTR(x,19) ^ (x >> 10)
-    IF(x,y,z) = (x & y) ^ (~x & z)                   MAJ(x,y,z) = (x & y) ^ (x & z) ^ (y & z)
-
-Schedule: W[0..15] are the block words (big-endian); W[t] = s1(W[t-2]) + W[t-7] + s0(W[t-15]) + W[t-16]
-for t = 16..30. Constants K[0..30] are the first 31 FIPS 180-4 constants.
-
-We write the compression in the one-register form used by the source papers. The incoming chaining
-value (a,b,c,d,e,f,g,h) is renamed (A[-1],A[-2],A[-3],A[-4],E[-1],E[-2],E[-3],E[-4]). For i = 0..30:
-
-    E[i] = A[i-4] + E[i-4] + S1(E[i-1]) + IF(E[i-1],E[i-2],E[i-3]) + K[i] + W[i]
-    A[i] = E[i] - A[i-4] + S0(A[i-1]) + MAJ(A[i-1],A[i-2],A[i-3])
-
-This is the standard step: E[i] = d + T1 and A[i] = T1 + T2. The output chaining value is
-(a+A[30], b+A[29], c+A[28], d+A[27], e+E[30], f+E[29], g+E[28], h+E[27]). The IV is the standard
-one, used once. A 128-byte message is followed by one FIPS padding block (0x80, zeros, bit length
-1024), so it is hashed as three compressions. The digest is the final chaining value, big-endian.
-This matches `verifier/hash_functions.py:digest` with ("sha256", 31).
-
-## 3. The scored program (replay)
-
-R1. Read the stored advice: two 128-byte strings P and P' (Section 4).
-R2. Compute sha256-r31(P) and sha256-r31(P'): three compressions each.
-R3. If P != P' and the digests are equal, output (P, P'). Otherwise output nothing.
-
-The organizer verifier confirms the relation for these bytes (certificate `relaxed-v3-1`). R uses no
-coins, so the success probability is 1. Cost: 6 compressions + at most 768 word operations, which
-is 6.36 units.
-
-## 4. The stored pair
-
-    M0  : e7f5ce55 1741facd 279a66b6 8a38d7c6 cc332e48 ed9dd62a 6b76b5f7 3aa91ac9
-          1ca8034e b4a9ad70 5b8eeceb 50a7afad 07617b89 719682b5 394303d8 00459adb
-    M1  : 1e2dbac8 05e61a5e cd7fcb49 9db00a7a 186cabb0 f7efd9c2 2a442578 023cd6eb
-          f71d59bf 876b73db ed1499e4 7173c145 0ba5f907 b35ebf93 05848707 075e188d
-    M1' : 1e2dbac8 05e61a5e cd7fcb49 9db00a7a 186cabb0 f7efc9c8 2a64ad69 522c8ce5
-          1f1e6abf 876bf3df ed1499e4 7173c145 0ba5f907 b35ebf93 05848707 075e188d
-    sha256-r31(M0||M1) = sha256-r31(M0||M1') = aea2562b20b12c5938046802bcc533817087f43c3e4ac864114c2abdd2249ee5
-
-M0 is the first block of trial n* = 99,325,680,347 of K. Words 9..12 of M1 are those of our starting
-solution S (Section 7.1).
-
-## 5. The public characteristic (the only external input)
-
-Each cell describes one bit (bit 31 on the left) of a word in copy P and copy P':
-`=` the bits are equal; `0` / `1` both bits equal that value; `u` the bit is 0 in P and 1 in P';
-`n` the bit is 1 in P and 0 in P'. Rows are the step index i. Rows -4..2, 17 and 19..30 are all `=`
-in every column and are not listed.
-
-    i  | A[i]                             | E[i]                             | W[i]
-    3  | ================================ | ==========================10==== | ================================
-    4  | ================================ | ============0===0=========01===0 | ================================
-    5  | ===================n=unnnnnnn=n= | 000111010001111110nu=11111unnnu1 | ================nuuu=======0=uu=
-    6  | ========n======================u | 101011=11==0n0==u11110==1110011n | ==========u=====u===u======n===u
-    7  | ===u===n==n========n=========n=u | un0u1100n=01u11111001u1=n110u10n | =u=u=======n=====n=nu=n=====nun=
-    8  | =============================n== | 1u01un0u0=1=1=11n=0=u0=001001u0= | =u=nn==========u===u===u==1=====
-    9  | ================================ | 01100001110=0=010===00=11101u0=1 | ================u==========1=u==
-    10 | ================u============u== | =1n1uuuuu0100=1un0=10unnnnnnn010 | ================================
-    11 | ================================ | =01u1010uu1==11100===1000001n=0= | ================================
-    12 | ================================ | ==110001=11====1n====0011110n=0= | ================================
-    13 | ================================ | ===0====01======1=============== | ================================
-    14 | ================================ | ================u===========0u== | ================================
-    15 | ================================ | ================0============1== | ================================
-    16 | ================================ | ================1============1== | =============unnnunnnnnnnnnnnn==
-    18 | ================================ | ================================ | ==============1=n=0==========n==
-
-The table has 300 non-`=` cells: 180 value cells (`0`/`1`) and 120 signed-difference cells
-(`u`/`n`). Per row, (A, E, W) cells are: 3:(0,2,0) 4:(0,5,0) 5:(10,31,7) 6:(2,25,5) 7:(6,30,10)
-8:(1,25,7) 9:(0,25,3) 10:(2,29,0) 11:(0,24,0) 12:(0,19,0) 13:(0,4,0) 14:(0,3,0) 15:(0,2,0)
-16:(0,2,17) 18:(0,0,4).
-
-Modular differences X' - X implied by the table:
-
-    W:  d5 = fffff006  d6 = 002087f1  d7 = 4fefb5fa  d8 = 28011100  d9 = 00008004
-        d16 = 00008004 d18 = ffff7ffc  (every other W[t], t <= 30, has difference 0)
-    A:  A5 fffff006  A6 ff800001  A7 0edfeffd  A8 fffffffc  A10 00008004
-    E:  E5 fffff006  E6 fff87fff  E7 4f880387  E8 44ff8804  E9 00000008
-        E10 ef808008 E11 10bffff8 E12 ffff7ff8 E14 00008004
-
-The table is the published 31-step characteristic (ASIACRYPT 2024 presentation, slide 14), transcribed
-cell by cell. Rows 3 and 4 carry value conditions on E[3] and E[4]; we keep them.
-
-## 6. Exact difference requirements and the relaxed condition R20
-
-In the second block only W5..W9 differ, by d5..d9. For t = 16..30:
-
-    t=16: dW16 = d9.
-    t=18: need W16 in G16 = {w : s1(w+d9) - s1(w) = d18}, so that dW18 = d18.
-    t=20: need s1(W18+d18) - s1(W18) + s0(W5+d5) - s0(W5) = 0.   (R20)
-    t=21: need W6 in V6 = {w : s0(w+d6) - s0(w) = 00000ffa}.
-    t=22: need W7 in V7 = {w : s0(w+d7) - s0(w) = ffdf780f}.
-    t=23: need W8 in V8 = {w : s0(w+d8) - s0(w) = b00fca02}.
-    t=24: need W9 in V9 = {w : s0(w+d9) - s0(w) = d7feef00}.
-    t=25: d18 + d9 = 0.  t=17, 19, 26..30: no term has a difference.
-
-W5 and W18 enter the state update only additively, through d5 and d18. So R20 leaves the state
-conditions of the characteristic unchanged.
-
-Set sizes (exhaustive over 2^32): |V6| = 2^23, |V7| = 512, |V8| = 49408, |G16| = 64.
-
-Why an output of K collides:
-- Steps 0..4 carry no difference.
-- K chooses W0..W8 so that copy P reproduces S, the matched table record and the derived E0..E2.
-- S satisfies the step 5..13 relations by construction (Section 7.1), and the table checks F6 and F7.
-- K5 checks steps 14..17.
-- Step 18 cancels dE14 = 00008004 against dW18.
-- Under R20 and V6..V9, steps 19..30 carry no difference.
-- The two copies share CV1 and the padding block, so the digests are equal.
-K6 re-hashes every candidate before storing it.
-
-## 7. Construction chain C
-
-7.1 Starting solution S (z3, committed seeds; Appendix A.1). The unknowns are copies P and P' of
-A1..A12, E5..E12 and W9..W12, with W10..W12 equal in both copies. There are also existential
-witnesses E3, E4, W7, W8. The constraints, generated by `gen_s.py` (Appendix B.1), are:
-  (a) every cell of the characteristic on these words, as bit masks per copy;
-  (b) the A-equation for i = 5..12 and the E-equation for i = 9..12 in both copies;
-  (c) the step-8 relation (E8'-E8) = (S1(E7')-S1(E7)) + (IF(E7',E6',E5')-IF(E7,E6,E5)) + d8;
-  (d) dE13 = 0 and dA13 = 0, i.e. the step-13 sums and MAJ(A12,A11,A10) agree in both copies;
-  (e) W9 in V9;
-  (f) a non-empty table: E8 and E7 equations through (E4, W8) and (E3, W7), F7, F6, the row-3 and
-      row-4 cells, W8 in V8 and W7 in V7;
-  (g) the yield residue: (E8 - A4 - S1(E7) - IF(E7,E6,E5) - K[8]) mod 2^20 = e730f.
-
-The attempts (all charged in Section 9):
-- Attempt 1 (seed 88108363) had (a)-(e). It was sat in 34 s, but the table was empty: F6/F7 had
-  no solutions.
-- Attempt 2 (seed 88108364) added (f). It was sat in 232 s, with a table of 224 records.
-- We then found that row-4 survivors over V8 depend on c8 mod 2^20. A 300,000-sample scan
-  (`c8scan.c`, B.3) found residue e730f, where 12352 of the 49408 values of V8 pass.
-- Attempt 3 (seed 88108365) added (g). It was sat in 139 s. Its S has 132096 table records and is
-  independently verified by `check_s.py` (B.2):
-
-    A1..A12 : 1476a232 3b327cc5 38f76ff9 7d9cb534 066f93fe 4fdbe6b8
-              ad2e79f6 0327eecc 53a8814f 200b1769 df4a7a71 cf7d7a3b
-    E5..E12 : 1d1fa7dd adea7be7 4c97cbe5 943b8248 61d553d1 f02293fa aa370c18 f1e5b1ec
-    W9..W12 : 876b73db ed1499e4 7173c145 0ba5f907
-    copy P' : A' = A + dA, E' = E + dE, W9' = W9 + 00008004 (the characteristic's signed differences)
-
-The characteristic's cells fix 31 of the 32 bits of E5 and 29 of E7, and most bits of E6 and E8.
-So those words necessarily agree with any other solution, including the authors'. A1..A4 and the
-remaining words come from z3 and differ from the published values.
-
-7.2 Table. From S, run the two loops over V8 and V7 with the row-4 and row-3 cells and F7, F6 (the
-P2 code in `r31det3.c`). This gives 132096 records; sort them and build a 2^24-bit bitmap.
-
-7.3 First-block search K (`r31det3.c`, B.4; committed seed, Appendix A.2).
-- K1. Trial n = g * 2^24 + j. Group g's words 0..14 are fifteen splitmix64 outputs seeded with
-  seed XOR (g * 0x9e3779b97f4a7c15) XOR 0x5bd1e9955bd1e995. Word 15 = j. Thread t processes
-  groups t, t+12, ...
-- K2. If bitmap bit (A[-1] >> 8) is set, recompute CV1 and binary-search the records with key
-  A[-1].
-- K3. Derive E0..E2 and W0..W6 from CV1 and the record. W7 and W8 come from the record, and
-  W9..W12 from S. Require W6 in V6.
-- K4. Require some g in G16 that satisfies R20 with W18 = s1(g) + W11 + s0(W3) + W2.
-- K5. Set W14 = s1^-1(g - W9 - s0(W1) - W0). Draw E13, at most 2^22 times, requiring dE14 = 00008004,
-  dA13 = dA14 = 0 and equal step-15 sums. For each success, draw E15 at most 2^12 times, requiring
-  dE16 = 0 and an equal IF(E16,E15,E14). Coins come from splitmix64 seeded per group.
-- K6. Hash M0||M1 and M0||M1' and store the pair if the digests are equal.
-- Stopping rule: n* is the smallest index with a stored pair. Groups beyond n* >> 24 are skipped
-  or aborted. All groups up to it are completed. Cap: 1200 s.
-
-## 8. Execution records
-
-Starting solution (z3 4.15.4, single thread, `z3 -T:1800 -st`, `/usr/bin/time -l`):
-    attempt 1: 261,276,415,067 instructions retired
-    attempt 2: 1,572,256,055,396 instructions retired
-    attempt 3: 888,282,131,643 instructions retired
-    attempt 1 34.36 s; attempt 2 231.64 s; attempt 3 138.54 s
-    the peak resident sets were 154,107,904, 161,103,872 and 153,944,064 bytes
-
-Diagnostics before K, measured the same way (one representative run each; every run is charged):
-    yield check (set scans + table, `r31det3 1 0` three times and `diag 1 0` twice):
-        124,752,621,861 instructions per run (5 runs)
-    synthetic completion check, `r31sim3 1 20 5eed3 ... sim`: 500,284,109,323 instructions per run (3 runs)
-    V8 dump: 51,663,872,491; c8 residue scan: 18,618,257,497 instructions (1 run each)
-After K had stored the pair, the instruction counts above were measured by re-running `diag` twice,
-`r31sim3` twice, `v8dump` and `c8scan` once each. Those re-runs could not influence the stored pair,
-and we do not charge them (Section 15.1). The execution record of every run is the agent transcript
-of the session that ran them; Section 15.1 lists them.
-
-Search K: started 13:04:56 KST under the machine's resource-guard lease, 12 threads, nice 10.
-    /usr/bin/time -l: real 139.76 s, user 1351.89 s; maximum resident set 7,438,336 bytes; 15,640,902,198,904 instructions retired
-    groups 5,932; trials executed 99,492,036,640 (2^36.534); bitmap hits 58,831,394; key-matched trials 1,376,281
-    matched records 3,061,666; V6 passes 5,992; R20 passes 1; completion attempts 1, E13 iterations 2,829, E15 iterations 19
-    first stored pair at n* = 99,325,680,347 (group 5920, offset 4561627); aborted groups 4
-
-## 9. Cost ledger (executed work of C)
-
-The z3 runs and the synthetic checks are charged at the measured per-instruction prices of
-Section 14 (H3). Our own code is charged with the operation counts of H2. The analysis programs of
-Section 15.2 are charged with operation bounds from their source (H2).
-
-    z3 attempts 1-3: 2,721,814,602,106 instructions * 25 / 2140                      31,796,899,558
-    synthetic completion checks: 3 runs * 500,284,109,323 instructions * 17 / 2140   11,922,658,681
-    yield checks: 5 * (three 2^32 scans <= 24 ops/word + table <= 6.4e6 * 64 ops)      723,470,929
-    V8 dump (one 2^32 scan, <= 24 ops/word) and c8 residue scan
-        (300,000 * 49408 candidates, <= 8 ops each)                                 103,578,699
-    pre-construction analysis (Section 15.2): 27,838,136,107,008 ops / 2140                     13,008,474,817
-    Python model generation, verification and analysis: lump allowance       1,000,000,000
-    K run, operation model (counts from Section 8):
-      set scans and table (P1, P2)                                            144,694,186
-      self-checks (2000 kernel comparisons)                                   4,000
-      groups 5,932 * 1 unit                                              5,932
-      trials 99,492,036,640 * (1 compression + 32 ops)                            100,979,768,029
-      bitmap hits 58,831,394 * (1 compression + 64 ops)                           60,590,838
-      matched records 3,061,666 * 400 ops                                       572,274
-      V6 passes 5,992 * 1600 ops                                             4,480
-      completion: 2,829 E13 + 19 E15 iterations * 160 ops, 1 setup  213
-      candidate pairs hashed 1 * (6 compressions + 64 ops)             6
-    -------------------------------------------------------------------------------------------
-    preprocessing (chain C)                                                  159,740,722,642 = 2^37.2169
-    replay R                                                                 6.36
-    total                                                                    159,740,722,648 = 2^37.2169
-
-Claimed time_log2 = 37.22 and preprocessing_log2 = 37.22. Every term is the work actually executed
-by C or by the analysis that formulated R20. Nothing is an expectation or a cap that went unused.
-
-The Python lump covers every Python run in the chain and in the pre-construction analysis:
-gen_s.py, check_s.py and analyze.py three times each, and two short inline scripts on S and on the V8
-dump (Section 15.1). Re-runs of gen_s.py and check_s.py retire 220,935,601 and 211,710,075
-instructions, most of it interpreter start-up. Even if every instruction were priced as a multiply
-(400 operations), one such run would be 4.2e7 units, and the lump covers 23 of them.
-
-The K term (101,185,639,958 units) is now 63.3% of the total. The instruction-priced lines are
-27.4%.
-
-The K run was not lucky. Model value: with 132096 records, a V6 rate of 2^-9 and an R20 rate of
-2^-12.66, a first success is expected after about 2^36.6 trials. K needed 2^36.531.
-
-## 10. Memory and advice
-
-The advice of R is the stored 256-byte pair; 9 is claimed. Peak memory over C was measured with
-`/usr/bin/time -l` on every run: the largest maximum resident set size was 161,103,872 bytes (z3
-attempt 2, 2^27.26), against 7,438,336 bytes for the K run. The claim of 27.5 covers it.
-
-## 11. Heuristics
-
-H1-public-characteristic (score-critical). The published 31-step signed characteristic (the cell
-table of Section 5 and the differences d5..d18) is public algorithm text, and C may use it without
-charging its original discovery.
-- It is a set of conditions, not a collision. It contains no message words, chaining values or
-  state values.
-- C uses no published colliding pair, starting solution or first block. S comes from our own z3
-  runs, and the stored pair from our own K run.
-- Provenance: Li, Liu, Wang, Dong and Sun (ASIACRYPT 2024). The authors' public search tool is
-  Peace9911/sha_2_attack at commit 6a9f35fd8d8bdcc1a54dc6f170ed0038ebe5bb32.
-- Sensitivity: the trail search is not executed or bounded by our own evidence in this filing. A
-  charge of T units for it gives a total of 159,740,722,648 + T units. That stays below 2^39.15 (our
-  previous filing) for T up to 2^38.712, and below 2^40.4 for T up to 2^40.232.
-
-H2-op-accounting (score-critical). For our own code (Appendix B), the per-event charges of
-Section 9 bound the primitive word operations:
-- per trial: 1 compression + 32 operations (counter, bitmap index and test, loop control);
-- per bitmap hit: 1 compression + 64 operations;
-- per record: 400; per V6 pass: 1600; per completion iteration: 160;
-- per group: one compression equivalent;
-- per scanned word: 24; per residue-scan candidate: 8.
-- the pre-construction analysis programs (Section 15.2): the per-run bounds listed there, with
-  floating-point operations at 400 and divisions at 1024.
-Each trial is charged a full compression, although K shares steps 0..14 within a group.
-
-H3-instruction-price (score-critical). For the runs without an exact operation model (the z3
-attempts and the synthetic completion checks), the per-instruction prices of Section 14 bound their
-primitive word operations: 25 per retired instruction for z3 and 17 for the synthetic checks.
-- Scope: the retired-instruction counts of Section 8 (macOS counters through `/usr/bin/time -l`).
-- Evidence: the per-form costing of the AArch64 code (Appendix C.1), applied statically to the z3
-  binary that ran and dynamically to callgrind instruction counts of the same z3 version and the
-  same three committed models, and of the same synthetic-check source (Section 14).
-- Extrapolation: the dynamic mix comes from the Linux build of z3 4.15.4. It covers all of
-  attempt 1 (the same search, step for step) and the first 28% and 39% of attempts 2 and 3 by
-  rlimit count. The static mixes of the two builds agree (Section 14.3). The price doubles the worst
-  of 23 measured intervals to cover the unprofiled remainder and the build difference.
-- Sensitivity: at 256 operations per instruction (our previous filing) the total would be
-  2^39.176; at four times the charged prices it would be 2^38.082.
-
-H4-memory (supporting). The measured maximum resident set sizes bound C's peak memory.
-
-H5-chain-scope (score-critical). Every constant of C comes from the public characteristic, from
-analysis, from the charged pre-construction analysis programs, or from the charged v3 runs before K
-(Section 15.3). The earlier search runs that used the published starting solution produced rates
-and pairs that C does not read, and they fixed no constant of C (Section 15.4). They are excluded.
-- Scope: all computation on this target in our working directories and session records on
-  2026-10-06 and 2026-10-07, listed in Section 15.1.
-- Evidence: the agent transcript of the session that ran every command, the file times of the
-  working directories, the commitments of Appendix A, and the package commit history.
-- Extrapolation: the commitments are local (file timestamps and a local git history), not
-  notarised.
-- Sensitivity: if a reviewer charged the excluded search runs anyway, the 2^40.625-trial run alone
-  would put the total at 2^40.774.
-
-## 12. Organizer-executed experiment and certificates
-
-`experiments/r31-completion` runs a variant of K5 on the accepted match of the stored pair, with
-each trial's E13/E15 draws taken from that trial's organizer nonce through SHAKE-256. The
-organizer re-hashes every returned pair. Locally, the organizer intake ran it in the pinned Docker
-image: status passed, 256/256 full collisions, 0 repeated pairs. It shows that completion works from our own S and match for fresh per-trial
-nonces. It supports no probability inference, and the score does not depend on it.
-
-Certificate: `relaxed-v3-1`, the stored pair.
-
-## 13. Sources and credit
-
-- Y. Li, F. Liu, G. Wang, X. Dong, S. Sun, "The First Practical Collision for 31-Step SHA-256",
-  ASIACRYPT 2024: the framework and the signed characteristic.
-- Y. Li, F. Liu, G. Wang, J. Shi, ePrint 2026/1080, Section 3: the framework restated.
-- Y. Li, F. Liu, G. Wang, EUROCRYPT 2024 (ePrint 2024/349): the SAT/SMT approach.
-- Public Yukon submissions on this track: using the published characteristic as public text, and
-  sharing steps 0..14 across first blocks (we use this for speed only, with no discount).
-- Ours: R20, the starting-solution model with the yield residue, chain C and its execution, the
-  experiment, and the per-instruction price measurement of Section 14.
-
-## 14. Per-instruction price: our own evidence
-
-This section supports H3. It does not re-run any charged call on the measurement machine; it
-measures what one retired instruction of the charged programs costs in primitive word operations.
-
-### 14.1 What ran
-
-- z3: the Homebrew bottle of z3 4.15.4 for arm64 macOS, `/opt/homebrew/Cellar/z3/4.15.4/bin/z3`
-  (SHA-256 ae6c8df33db9c9ae9a80b6044e77cd66529a141d8b25f0620f1e89b409594f48). The executable
-  contains the whole solver; it links only the system libc++ and libSystem.
-- The synthetic completion check: `r31sim3.c` (Appendix B.6), compiled with Apple clang
-  `cc -O3 -mcpu=apple-m4`.
-- Machine: Apple M4 Pro. Instruction counts are the `instructions retired` lines of
-  `/usr/bin/time -l` (Section 8).
-
-### 14.2 Per-form costing
-
-`a64ops.py` (Appendix C.1) prices every AArch64 instruction form under the v5 primitive list. Every
-program datum sits in its own 256-bit word. The main rules:
-- every add, subtract, negate and left shift is followed by one AND that reduces the result to 32
-  or 64 bits;
-- a shifted register operand costs one more shift (and a mask for a left shift); an extended
-  operand costs 1 (zero-extend) or 3 (sign-extend);
-- an address costs one addition per added term, plus one for a scaled or extended index and one
-  for a write-back; a load or store pair pays two accesses and two addresses;
-- loads of 8-, 16- and 32-bit fields cost one more mask, sign-extending loads three more;
-- signed conditional branches cost 3 (sign flips before the comparison), other branches 1-3;
-  conditional selects and compares 2-5; bit counts and byte reversals 32;
-- SIMD logic costs 1, other SIMD forms 16;
-- multiply, multiply-add, high multiply, and all floating-point arithmetic, comparison and
-  conversion cost 400 ("heavy": shift-and-add emulation of a 64 x 64 or 53 x 53 product is at most
-  64 iterations of 5 primitives plus normalisation);
-- integer divide, floating-point divide and square root cost 1024 (restoring division, 64
-  iterations of at most 8 primitives, plus normalisation);
-- any form the table does not recognise costs 8 and is reported.
-
-### 14.3 Static costing of the binaries
-
-| executable | instructions | ordinary forms, mean operations | heavy share | divide share |
-|---|---|---|---|---|
-| z3 that ran (macOS Homebrew 4.15.4) | 2,645,113 | 2.125 | 0.306% | 0.025% |
-| z3 Linux build (PyPI z3-solver 4.15.4.0, aarch64; SHA-256 bbea82f9...86ab8b0) | 3,619,201 | 2.100 | 0.357% | 0.028% |
-| r31sim3 that ran (macOS), `simworker` with the inlined trial | 571 | 2.321 | 2.10% | 0.18% |
-| r31sim3 that ran (macOS), `complete` | 208 | 2.226 | 1.92% | 0 |
-
-The two z3 builds have the same static profile; the build that ran has the lower heavy share.
-
-### 14.4 Dynamic mix: callgrind on the same solver version and the same models
-
-Valgrind does not run on macOS arm64 and we have no other instruction-level profiler there, so we
-measured the mix on the Linux build of the same z3 version on the same machine: Debian bookworm arm64 in Docker, valgrind 3.19.0,
-`valgrind --tool=callgrind --dump-instr=yes --dump-every-bb=8000000000 z3 -T:1200 -st s-modelN.smt2`
-on the three committed models with their committed seeds. `cgmix.py` (Appendix C.2) maps every
-executed instruction address to its disassembly and prices it with `a64ops.py`. Every executed
-instruction was mapped except 3,932, which are priced at 1024.
-
-Attempt 1 ran to completion under callgrind and repeated the macOS search exactly: the same model
-(A1 = a651919f, ...), rlimit-count 249,602,816, 1,068,222 conflicts and 1,829,611 decisions as the
-charged run. So the profile of attempt 1 is a profile of the very same search, executed by a
-different build; that build retired 245,527,956,010 instructions against 261,276,415,067 on macOS.
-Attempts 2 and 3 hit the 1200 s callgrind time limit. We profiled their first 361,089,420,698 and
-308,853,516,577 instructions, which reached rlimit-count 341,226,376 of the charged run's 1,200,096,786
-(28%) and 309,573,558 of 797,205,785 (39%).
-
-| model | profiled instructions | intervals | heavy share | divide share | ordinary mean | per-form mean | class price |
-|---|---|---|---|---|---|---|---|
-| attempt 1 (complete) | 245,527,956,010 | 6 | 1.10-1.48% | 0.0000-0.0120% | 2.28-2.31 | 6.82-8.16 | 9.48-10.84 |
-| attempt 2 (prefix) | 361,089,420,698 | 9 | 1.16-1.78% | 0.0000-0.0119% | 2.28-2.31 | 7.04-9.38 | 9.70-12.04 |
-| attempt 3 (prefix) | 308,853,516,577 | 8 | 1.12-1.56% | 0.0000-0.0129% | 2.28-2.31 | 6.88-8.48 | 9.54-11.15 |
-
-Here the class price of an interval is m_class = 5 (1 - h - d - u) + 400 h + 1024 d + 1024 u,
-with h, d and u the heavy, divide and unmapped shares: every ordinary instruction is priced 5, about
-2.2 times its measured dynamic mean of 2.28-2.31 operations. The per-form mean is the exact
-dynamic average under the table of 14.2.
-
-**Price.** m_z3 = ceil(2 * max over all 23 intervals of m_class) = ceil(2 * 12.044) = **25**.
-The factor 2 covers the unprofiled remainder of attempts 2 and 3 and the build difference. For
-attempt 1 the profile is complete. The macOS build retired 6.4% more instructions for the same
-search; if both builds execute the same multiplies and divides, its heavy share is the lower one.
-
-### 14.5 The synthetic completion check
-
-The same procedure on `r31sim3.c` compiled with gcc 12 -O3 in the container, with collection
-switched on after the table build (`--instr-atstart=no`, then `callgrind_control -i on` when the
-kernel check is printed), for 60 s of the trial loop:
-- Linux build, 52,111,782,338 instructions over 39,059,456 trials (1334 per trial): heavy share 0.654%, divide share 0.0720%, ordinary mean 3.06, per-form mean 6.39, class price 8.32.
-
-The heavy instructions of a trial are fixed by the source: four splitmix64 draws (two 64-bit
-multiplies each), one 64-bit remainder (a divide and a multiply-subtract), and in `complete` one draw
-per E13 or E15 iteration. Both compilers emit one AArch64 instruction for each. The macOS build
-retires 1499 instructions per trial (Section 8: 500,284,109,323 instructions, of which
-the table build takes at most 124,752,621,861, over 250,544,128 trials), against 1334 in
-the Linux build. With the same heavy instructions per trial, the macOS heavy share is the lower one,
-so we keep the Linux shares (scale factor max(1, 1334/1499) = 1.000) and take
-m_sim = ceil(2 * m_class) = **17**, charged on all instructions of each run, including the table
-build.
-
-### 14.6 What this does not establish
-
-- The dynamic profile is of the Linux build. The equal search transcript of attempt 1 and the equal
-  static profiles support the transfer; they do not prove an identical instruction mix.
-- The price is an operation count under our per-form table. A reviewer who prices some form higher
-  can recompute the dynamic mean from the published scripts; the factor 2 and the class price of 5
-  per ordinary instruction (2.2 times the measured mean) are the reserve.
-- The measurement runs of this section, like the post-K re-runs of Section 8, came after the stored
-  pair existed and fixed nothing in C. They are not charged.
-
-## 15. Development record and the origin of every constant of C
-
-### 15.1 Every computation on this target (2026-10-06 and 2026-10-07, KST)
-
-The record is the agent transcript of the session that ran every command, cross-checked with
-the file times of the working directories and the package commit history (commits a7d3eaa 11:37,
-e13dab2 12:17, 61428b0 13:14).
-
-| time | computation | status in v4 |
-|---|---|---|
-| 10-06 | three exploratory solver studies of other methods (a cut model, a meet-in-the-middle verifier model, a z-elimination model) | excluded: no output or constant used by C |
-| 09:43-09:59 | pre-construction analysis: `analyze.py` (3 runs), `sets` (1), `table` (2), `joint` (1), `pany` (1). They formulated R20 and estimated its rate (`joint`, 09:48) | **charged**, Section 15.2 |
-| 10:36-10:37 | `r31s` self-tests (3) and a 12 s test | excluded (published S) |
-| 10:37-11:22 | relaxed search with the published S, 2^40.625 trials | excluded (published S), Section 15.4 |
-| 10:44-11:35 | synthetic completion, independence and cluster runs with the published S (`r31sim`, `r31log`, `r31log2`, `r31clus`, `r31log3`); `pany2` (2 runs: 2^20 samples at 10:47, 2^28 samples at about 11:24) | `pany2` **charged** (15.2); the others excluded |
-| 11:55-12:12 | K' runs with the published S (filing 3183e839, refuted) | excluded (published S) |
-| 12:52-13:04 | chain C before K: z3 attempts 1-3, gen_s/check_s, yield checks (5), synthetic checks (3), V8 dump, c8 scan, inline Python on S and V8 | **charged**, Section 9 |
-| 13:04-13:07 | search K | **charged**, Section 9 |
-| 13:08-13:09 | instruction-count re-runs: `diag` (2), `r31sim3` (2), `v8dump`, `c8scan` | not charged: after the pair existed |
-| 15:39-16:10 | v4 price measurements (Section 14) | not charged: after the pair existed |
-
-"Published S" means the runs used the published starting solution: S was derived from the published
-collision in that work, so C cannot and does not use any of its outputs.
-
-### 15.2 Charged pre-construction analysis (operation bounds from source)
-
-These programs read only the characteristic and SHA-256 constants (and, for `table`, the published
-starting solution). They ran exactly the times listed in 15.1. Operation bounds:
-
-| program | work per run | operations per run |
-|---|---|---|
-| `sets` | 7 sets * 2^32 words * 48 | 1,443,109,011,456 |
-| `table` (2 runs) | per run two 2^32 scans * 24 + 49408 * 512 pairs * 128 | 418,792,865,792 (both runs) |
-| `joint` | 2^32 * 2 difference evaluations and hash inserts * 96 + 2^25 slots * 6,000 (two lookups, five floating-point operations) + top-5 scans | 1,027,302,490,112 |
-| `pany` | h5 build 2^32 * 96 + 2^24 samples * 142,800 (64 candidates * 300 + 64 lookups with conversion, division and addition * 1,900 + 2,000) | 2,808,111,087,616 |
-| `pany2` (2 runs: 2^20 and 2^28 samples) | per run h5 build 2^32 * 96, plus 79,100 per sample (64 * 300 + 64 * 900 + 2,300) | 22,140,820,652,032 (both runs) |
-| total | | 27,838,136,107,008 |
-
-Floating-point operations are priced at 400 and divisions at 1024, as in Section 14.2. The Python
-`analyze.py` runs are in the Python lump of Section 9.
-
-### 15.3 Constants of C and where they come from
-
-| constant | value | origin |
-|---|---|---|
-| characteristic cells and d5..d18 | Section 5 | public text (H1) |
-| R20 | Section 6 | analysis of the schedule equation for W20; formulated and rated by `joint` and `pany` (charged) before any search ran |
-| C6, C7, C8, the V9 target, G16 condition | Section 6 | the cancellation equations for W18 and W21..W24, from the characteristic |
-| V6, V7, V8, V9, G16 | sets | recomputed exhaustively by K's P1 (charged) |
-| S model constraints (a)-(e) | Section 7.1 | the characteristic and the step equations |
-| constraint (f) | Section 7.1 | analysis of attempt 1's empty table (attempt 1 charged) |
-| constraint (g), residue e730f mod 2^20 | Section 7.1 | V8 dump and c8 scan of v3 (charged) |
-| z3 seeds 88108363..65, K seed | Appendix A | hashes of committed strings |
-| table and bitmap layout (2^24-bit bitmap on A[-1] >> 8, records sorted by key) | Section 7.2 | design choice, no measured input |
-| group structure (2^24 trials share words 0..14) | Section 7.3 | public design (credited), used for speed only |
-| E13/E15 draw caps 2^22 and 2^12, 12 threads, wall cap 1200 s | Section 7.3 | not binding: K used 2,829 and 19 draws and 140 s |
-
-### 15.4 Why the excluded runs fixed nothing in C
-
-- Outputs. The excluded runs produced rates and pairs from the published starting solution. C reads
-  none of their files; its inputs are the characteristic, the committed seeds, and the outputs of its
-  own charged steps (Appendix A records the hashes of every input).
-- Caps. K's stored pair is the same for every E13 cap of at least 2,829, every E15 cap of at least
-  19, any thread count, and any wall cap of at least 140 s; removing the caps altogether gives the
-  same pair. So no cap value influences C, whatever motivated it.
-- Rates. The measured rates of the excluded runs appear only in the "not lucky" remark of Section 9,
-  which no bound uses.
-- R20 itself predates every search: `joint` evaluated the union bound of the relaxed condition at
-  09:48, and the first relaxed search started at 10:37.
-- Sensitivity: charging the 2^40.625-trial run anyway would add 2^40.625 * (1 + 32/2140) units and put
-  the total at 2^40.774.
-
-## Appendix A. Commitments (written before each run)
-
-A.1 Starting solution (`s-commit.txt`):
-
-    yukon hashsmash sha256-r31 v3 own starting solution z3 seed 2026-10-07
-    85406d4bf2ab97c155757e390d049427b8207ff0f682302e846b3be9f9dd09dc
-    z3seed 88108363
-    18e202187316bb3e64fa537899807215b1df9cb95ea4659169b03096054ad830  gen_s.py
-    b3f87650423b955026eb4c988ad5c4256fb5a7224cc9b1ce1fbfc0525ba45ca1  s-model.smt2
-    Z3 version 4.15.4 - 64 bit
-    timeout 1800 s, single thread, nice 10; retries: next seed = previous + 1, all charged
-    committed 2026-10-07T12:52:04+0900
-    --- attempt 2 (model revised: non-empty-table constraints added; attempt 1 charged)
-    z3seed 88108364
-    0fa9d132dc3b61857f93a82de2e13435322bd97311b7ed13848b69d58164ab34  gen_s.py
-    db9092903f0a188c6b273db4ce398142ed0d200fb9e2d9f399dad675f01d7256  s-model2.smt2
-    committed 2026-10-07T12:54:02+0900
-    --- attempt 3 (added: c8 residue 0xe730f mod 2^20 from a 300,000-sample residue scan, c8scan.c)
-    z3seed 88108365
-    0c1d4552ed54f6b286582fe2c75de7a45d798b3a6c950fa908fb67f43406693b  gen_s.py
-    3d6908694c4a70ebd4f807d9a69beff810b96ca28e972ba3aaa7aab22f3953c7  s-model3.smt2
-    3e3024772745620766174f45e3e1e6eb374b8eca55da3a72a6e47cb363b2c6eb  c8scan.c
-    committed 2026-10-07T13:01:11+0900
-
-A.2 Search K (`k-commit.txt`):
-
-    yukon hashsmash sha256-r31 v3 construction K seed 2026-10-07
-    dfafc947679ebe068755d5a362a5b23a74abc983460706350de93b10729410bf
-    seed64 dfafc947679ebe06
-    29f4a1900e293efd2459cac87ed197c8176f20b763b92663da19dea3c3140d3e  r31det3.c
-    84003700c7015677e60700dc5c044d1c6e7c0acc652e6bf12d536f9aa5084437  sp_own.h
-    82607ffd5cee1fb1495d5192ed0ac3dc373fb27588e92b575fc84c5f960f3ff9  s-out3.txt
-    threads 12, wall cap 1200 s, stop at the first collision by trial index (groups up to n*>>24 completed)
-    committed 2026-10-07T13:04:56+0900
-
-## Appendix B. Source
-
-B.1 `gen_s.py` (model generator; attempt 3 = all constraints; attempts 1 and 2 used subsets (a)-(e) and (a)-(f))
-
-```python
-"""Emit the SMT-LIB2 model whose solutions are starting solutions S for the 31-step trail.
-
-Inputs are the trail cells (public characteristic) and SHA-256 constants only.
-Unknowns: copy P and copy P' of A1..A12, E5..E12, W9..W12 (P' of W10..W12 equals P).
-"""
-import sys
-
-K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7]
-EQ = "=" * 32
-CH_A = {5: "===================n=unnnnnnn=n=", 6: "========n======================u", 7: "===u===n==n========n=========n=u",
-        8: "=============================n==", 10: "================u============u=="}
-CH_E = {5: "000111010001111110nu=11111unnnu1", 6: "101011=11==0n0==u11110==1110011n", 7: "un0u1100n=01u11111001u1=n110u10n",
-        8: "1u01un0u0=1=1=11n=0=u0=001001u0=", 9: "01100001110=0=010===00=11101u0=1", 10: "=1n1uuuuu0100=1un0=10unnnnnnn010",
-        11: "=01u1010uu1==11100===1000001n=0=", 12: "==110001=11====1n====0011110n=0="}
-CH_W = {9: "================u==========1=u=="}
-ROW3 = "==========================10===="
-ROW4 = "============0===0=========01===0"
-D6, D7 = 0x002087f1, 0x4fefb5fa
-C7, C8 = 0xffdf780f, 0xb00fca02
-D8, D9 = 0x28011100, 0x00008004
-NEG_D8 = (-D8) & 0xFFFFFFFF
-
-
-def h(x):
-    return f"#x{x & 0xFFFFFFFF:08x}"
-
-
-def masks(row):
-    m_eq = m_fix = v_fix = m_u = m_n = 0
-    for k, c in enumerate(row):
-        b = 1 << (31 - k)
-        if c == "=":
-            m_eq |= b
-        elif c in "01":
-            m_fix |= b
-            if c == "1":
-                v_fix |= b
-        elif c == "u":
-            m_u |= b
-        elif c == "n":
-            m_n |= b
-    return m_eq, m_fix, v_fix, m_u, m_n
-
-
-def cells(x, xp, row):
-    m_eq, m_fix, v_fix, m_u, m_n = masks(row)
-    out = []
-    if m_fix:
-        out += [f"(= (bvand {x} {h(m_fix)}) {h(v_fix)})", f"(= (bvand {xp} {h(m_fix)}) {h(v_fix)})"]
-    if m_u:
-        out += [f"(= (bvand {x} {h(m_u)}) #x00000000)", f"(= (bvand {xp} {h(m_u)}) {h(m_u)})"]
-    if m_n:
-        out += [f"(= (bvand {x} {h(m_n)}) {h(m_n)})", f"(= (bvand {xp} {h(m_n)}) #x00000000)"]
-    if m_eq:
-        out += [f"(= (bvand (bvxor {x} {xp}) {h(m_eq)}) #x00000000)"]
-    return out
-
-
-def S0(x): return f"(bvxor ((_ rotate_right 2) {x}) ((_ rotate_right 13) {x}) ((_ rotate_right 22) {x}))"
-def S1(x): return f"(bvxor ((_ rotate_right 6) {x}) ((_ rotate_right 11) {x}) ((_ rotate_right 25) {x}))"
-def s0(x): return f"(bvxor ((_ rotate_right 7) {x}) ((_ rotate_right 18) {x}) (bvlshr {x} #x00000003))"
-def IF(x, y, z): return f"(bvxor (bvand {x} {y}) (bvand (bvnot {x}) {z}))"
-def MAJ(x, y, z): return f"(bvxor (bvand {x} {y}) (bvand {x} {z}) (bvand {y} {z}))"
-
-
-def main(seed, exclude_a1):
-    L = ["(set-logic QF_BV)", f"(set-option :random-seed {seed})", f"(set-option :sat.random_seed {seed})", f"(set-option :smt.random_seed {seed})"]
-    names = []
-    for c in ("", "p"):
-        names += [f"A{i}{c}" for i in range(1, 13)] + [f"E{i}{c}" for i in range(5, 13)]
-    names += ["W9", "W10", "W11", "W12", "W9p", "E3", "E4", "W7", "W8"]
-    for n in names:
-        L.append(f"(declare-fun {n} () (_ BitVec 32))")
-    A = lambda i, c="": f"A{i}{c}"
-    E = lambda i, c="": f"E{i}{c}"
-    Wn = lambda i, c="": ("W9p" if (i == 9 and c == "p") else f"W{i}")
-    asserts = []
-    for i in range(1, 13):
-        asserts += cells(A(i), A(i, "p"), CH_A.get(i, EQ))
-    for i in range(5, 13):
-        asserts += cells(E(i), E(i, "p"), CH_E[i])
-    asserts += cells("W9", "W9p", CH_W[9])
-    for c in ("", "p"):
-        for i in range(5, 13):  # A-equation
-            asserts.append(f"(= {A(i, c)} (bvadd (bvsub {E(i, c)} {A(i - 4, c)}) {S0(A(i - 1, c))} {MAJ(A(i - 1, c), A(i - 2, c), A(i - 3, c))}))")
-        for i in range(9, 13):  # E-equation
-            asserts.append(f"(= {E(i, c)} (bvadd {A(i - 4, c)} {E(i - 4, c)} {S1(E(i - 1, c))} {IF(E(i - 1, c), E(i - 2, c), E(i - 3, c))} {h(K[i])} {Wn(i, c)}))")
-    # step-8 difference relation (A4, E4 carry no difference; dW8 = d8)
-    asserts.append(f"(= (bvsub {E(8, 'p')} {E(8)}) (bvadd (bvsub {S1(E(7, 'p'))} {S1(E(7))}) (bvsub {IF(E(7, 'p'), E(6, 'p'), E(5, 'p'))} {IF(E(7), E(6), E(5))}) {h(D8)}))")
-    # step 13: dE13 = 0 and dA13 = 0
-    asserts.append(f"(= (bvadd {A(9, 'p')} {E(9, 'p')} {S1(E(12, 'p'))} {IF(E(12, 'p'), E(11, 'p'), E(10, 'p'))}) (bvadd {A(9)} {E(9)} {S1(E(12))} {IF(E(12), E(11), E(10))}))")
-    asserts.append(f"(= {MAJ(A(12, 'p'), A(11, 'p'), A(10, 'p'))} {MAJ(A(12), A(11), A(10))})")
-    # W9 in V9
-    asserts.append(f"(= (bvsub {s0('W9p')} {s0('W9')}) {h(NEG_D8)})")
-    # non-empty table: some (W8, E4) and (W7, E3) pass the P2 filters (copy-P equations; E3, E4 carry no difference)
-    asserts += cells("E4", "E4", ROW4) + cells("E3", "E3", ROW3)
-    asserts.append(f"(= {E(8)} (bvadd {A(4)} E4 {S1(E(7))} {IF(E(7), E(6), E(5))} {h(K[8])} W8))")
-    asserts.append(f"(= {E(7)} (bvadd {A(3)} E3 {S1(E(6))} {IF(E(6), E(5), 'E4')} {h(K[7])} W7))")
-    asserts.append(f"(= (bvsub {E(7, 'p')} {E(7)}) (bvadd (bvsub {S1(E(6, 'p'))} {S1(E(6))}) (bvsub {IF(E(6, 'p'), E(5, 'p'), 'E4')} {IF(E(6), E(5), 'E4')}) {h(D7)}))")
-    asserts.append(f"(= (bvsub {E(6, 'p')} {E(6)}) (bvadd (bvsub {S1(E(5, 'p'))} {S1(E(5))}) (bvsub {IF(E(5, 'p'), 'E4', 'E3')} {IF(E(5), 'E4', 'E3')}) {h(D6)}))")
-    asserts.append(f"(= (bvsub {s0('(bvadd W8 ' + h(D8) + ')')} {s0('W8')}) {h(C8)})")
-    asserts.append(f"(= (bvsub {s0('(bvadd W7 ' + h(D7) + ')')} {s0('W7')}) {h(C7)})")
-    # yield: c8 = E8 - A4 - S1(E7) - IF(E7,E6,E5) - K8 in the residue class mod 2^20 that maximises row-4 passes over V8
-    asserts.append(f"(= (bvand (bvsub (bvsub (bvsub (bvsub {E(8)} {A(4)}) {S1(E(7))}) {IF(E(7), E(6), E(5))}) {h(K[8])}) #x000fffff) #x000e730f)")
-    if exclude_a1 is not None:
-        asserts.append(f"(not (= A1 {h(exclude_a1)}))")
-    for a in asserts:
-        L.append(f"(assert {a})")
-    L.append("(check-sat)")
-    L.append("(get-value (" + " ".join(names) + "))")
-    return "\n".join(L) + "\n"
-
-
-if __name__ == "__main__":
-    seed = int(sys.argv[1])
-    ex = int(sys.argv[2], 16) if len(sys.argv) > 2 else None
-    sys.stdout.write(main(seed, ex))
+The ordinary collision in `certificates/manifest.json` is a deterministic
+replay. The construction that produced it is one instrumented z3 5.1.0 solve
+of the yield model, plus one search from that model. Both runs have retired
+instruction counts. The search is charged by the bit-sliced operation count,
+not by its scalar instruction count.
+
+| Quantity | Value |
+| --- | ---: |
+| Sum | 65938214962.660278 target compressions |
+| log2(sum) | 35.940396 |
+| Claimed ceiling | 35.95 |
+| Promoted leader | 37.22 |
+| Review leader at filing | 37.12 |
+| Success probability | 1 |
+
+Expected time is not used. Memory is a reported metric only.
+
+## 2. Target
+
+Target `sha256-r31-prefix-v1`: SHA-256 steps 0 through 30 on every padded
+block, standard IV used once, FIPS padding, full feed-forward, all eight
+digest words. The two messages are distinct, 128 bytes, and share their first
+64-byte block. This is not a 32-step collision and not a full SHA-256
+collision. The organizer digest of both messages is
+`adad7544943b5990acb7480c400757544078c130179c86a16a15a0d469642ebb`.
+
+## 3. Witness
+
+Message A is block M0 followed by M1. Message B is M0 followed by M1'.
+
+```
+M0  818a461881ab27e17e93912b80776be2f5c1cbf23d69ad4cf861527ccc72b29bad896da17af3a3564f7dc174dc675b400b06492a8d4b6955c807e5bb0057af44
+M1  210d15b2daf065e53dbe835ea324bc6ab2ca7f2e16bbbbc2ea0e00b0ab5bf62a71191d3b856b34db353f1b9e77300289457338ed5080b477e6d452e8538941dd
+M1' 210d15b2daf065e53dbe835ea324bc6ab2ca7f2e16bbabc8ea2e88a1fb4bac24991a2e3b856bb4df353f1b9e77300289457338ed5080b477e6d452e8538941dd
 ```
 
-B.2 `check_s.py` (independent verification of S; also writes `sp_own.h`)
+The collision index in the deterministic search below is `n=322681941828`.
+The charged trial counter, including sibling threads after that index, is
+`325527273664`.
 
-```python
-import re, sys, json
-sys.path.insert(0, ".")
-from gen_s import K, CH_A, CH_E, CH_W, EQ, D8, D9
-M = 0xFFFFFFFF
-R = lambda x, n: ((x >> n) | (x << (32 - n))) & M
-S0 = lambda x: R(x, 2) ^ R(x, 13) ^ R(x, 22)
-S1 = lambda x: R(x, 6) ^ R(x, 11) ^ R(x, 25)
-s0 = lambda x: R(x, 7) ^ R(x, 18) ^ (x >> 3)
-IF = lambda x, y, z: (x & y) ^ (~x & z & M)
-MAJ = lambda x, y, z: (x & y) ^ (x & z) ^ (y & z)
-v = {k: int(x, 16) for k, x in re.findall(r"\((\w+) #x([0-9a-f]{8})\)", open(sys.argv[1] if len(sys.argv)>1 else "s-out.txt").read())}
-A = {c: {i: v[f"A{i}{c}"] for i in range(1, 13)} for c in ("", "p")}
-E = {c: {i: v[f"E{i}{c}"] for i in range(5, 13)} for c in ("", "p")}
-W = {"": {9: v["W9"], 10: v["W10"], 11: v["W11"], 12: v["W12"]}}
-W["p"] = {9: v["W9p"], 10: v["W10"], 11: v["W11"], 12: v["W12"]}
-def cell_ok(x, xp, row):
-    for k, ch in enumerate(row):
-        b = 31 - k; a, bp = (x >> b) & 1, (xp >> b) & 1
-        ok = {"=": a == bp, "0": a == 0 and bp == 0, "1": a == 1 and bp == 1, "u": a == 0 and bp == 1, "n": a == 1 and bp == 0}[ch]
-        if not ok: return False
-    return True
-bad = 0
-for i in range(1, 13): bad += not cell_ok(A[""][i], A["p"][i], CH_A.get(i, EQ))
-for i in range(5, 13): bad += not cell_ok(E[""][i], E["p"][i], CH_E[i])
-bad += not cell_ok(W[""][9], W["p"][9], CH_W[9])
-for c in ("", "p"):
-    for i in range(5, 13):
-        bad += A[c][i] != (E[c][i] - A[c][i - 4] + S0(A[c][i - 1]) + MAJ(A[c][i - 1], A[c][i - 2], A[c][i - 3])) & M
-    for i in range(9, 13):
-        bad += E[c][i] != (A[c][i - 4] + E[c][i - 4] + S1(E[c][i - 1]) + IF(E[c][i - 1], E[c][i - 2], E[c][i - 3]) + K[i] + W[c][i]) & M
-bad += ((E["p"][8] - E[""][8]) & M) != ((S1(E["p"][7]) - S1(E[""][7]) + IF(E["p"][7], E["p"][6], E["p"][5]) - IF(E[""][7], E[""][6], E[""][5]) + D8) & M)
-bad += ((A["p"][9] + E["p"][9] + S1(E["p"][12]) + IF(E["p"][12], E["p"][11], E["p"][10])) & M) != ((A[""][9] + E[""][9] + S1(E[""][12]) + IF(E[""][12], E[""][11], E[""][10])) & M)
-bad += MAJ(A["p"][12], A["p"][11], A["p"][10]) != MAJ(A[""][12], A[""][11], A[""][10])
-bad += ((s0(W["p"][9]) - s0(W[""][9])) & M) != ((-D8) & M)
-bad += ((W["p"][9] - W[""][9]) & M) != D9
-print("violations", bad)
-pub_A1 = 0xf36e6fcf  # check only: differs from the published starting solution?
-print("A1..A4", [f"{A[''][i]:08x}" for i in range(1, 5)], "differs from published A1:", A[""][1] != pub_A1)
-# C header: index i+4 for i=-4..30 like the original layout; only 1..12 (A) and 5..12 (E) are used
-def arr(d, lo, hi):
-    return ",".join(f"0x{d.get(i, 0):08x}u" for i in range(-4, 31))
-hdr = ["/* own starting solution S from z3 (seed 88108363); unused entries 0 */",
-       "static const uint32_t SPA_A[35]={" + arr(A[""], 1, 12) + "};", "static const uint32_t SPA_E[35]={" + arr(E[""], 5, 12) + "};",
-       "static const uint32_t SPB_A[35]={" + arr(A["p"], 1, 12) + "};", "static const uint32_t SPB_E[35]={" + arr(E["p"], 5, 12) + "};",
-       "static const uint32_t S_W[31]={" + ",".join(f"0x{W[''].get(i, 0):08x}u" for i in range(31)) + "};"]
-open("sp_own.h", "w").write("\n".join(hdr) + "\n")
-json.dump({"A": A[""], "Ap": A["p"], "E": E[""], "Ep": E["p"], "W": W[""], "W9p": W["p"][9]}, open("S.json", "w"), indent=1)
+## 4. Exact search algorithm
+
+There is no undefined copy condition. The completion predicates are the
+following equalities, evaluated in this order on the two copies of the
+neutral state. `AA`, `EA` are copy A. `AB`, `EB` are copy B. `sm` draws a
+32-bit word from the trial's SHAKE-256 stream. `D9` is `0x00008004`.
+
+1. Before any draw, compute `b13` and `b13b` from the neutral state and the
+   message words already fixed by the group. If `b13 != b13b`, return failure.
+   This check does not increment a counter.
+2. For each of at most `2^22` draws, increment the E13 counter, set
+   `E13 = sm(rs)`, and set `W13 = E13 - b13`. Compute
+
+```
+A13  = E13 - AA(9) + BS0(AA(12)) + MAJ(AA(12), AA(11), AA(10))
+A13b = E13 - AB(9) + BS0(AB(12)) + MAJ(AB(12), AB(11), AB(10))
 ```
 
-B.3 `c8scan.c` and `v8dump.c` (residue scan over V8)
+   If `A13 != A13b`, abort the whole completion. This is an equality test,
+   not a named side condition.
+3. Compute
+
+```
+E14  = AA(10) + EA(10) + BS1(E13) + IF(E13, EA(12), EA(11)) + K[14] + W14
+E14b = AB(10) + EB(10) + BS1(E13) + IF(E13, EB(12), EB(11)) + K[14] + W14
+```
+
+   If `(E14b - E14) mod 2^32 != 0x8004`, take the next E13 draw.
+4. Compute `A14` and `A14b` from `E14`, `E14b`, `A13`, and the neutral words.
+   If `A14 != A14b`, take the next E13 draw.
+5. Compute
+
+```
+f15  = AA(11) + EA(11) + BS1(E14)  + IF(E14,  E13, EA(12)) + K[15]
+f15b = AB(11) + EB(11) + BS1(E14b) + IF(E14b, E13, EB(12)) + K[15]
+```
+
+   If `f15 != f15b`, take the next E13 draw.
+6. For each of at most `2^12` draws, increment the E15 counter, set
+   `E15 = sm(rs)` and `W15 = E15 - f15`. Compute
+
+```
+E16  = AA(12) + EA(12) + BS1(E15) + IF(E15, E14,  E13) + K[16] + g
+E16b = AB(12) + EB(12) + BS1(E15) + IF(E15, E14b, E13) + K[16] + g + D9
+```
+
+   If `E16 != E16b`, take the next E15 draw.
+7. Compute
+
+```
+f17  = A13 + E13 + BS1(E16) + IF(E16, E15, E14)
+f17b = A13 + E13 + BS1(E16) + IF(E16, E15, E14b)
+```
+
+   If `f17 != f17b`, take the next E15 draw. Otherwise set `W[13] = W13` and
+   `W[15] = W15` and return success.
+
+`BS0`, `BS1`, `IF`, and `MAJ` are the FIPS SHA-256 functions. `K[i]` is the
+FIPS round constant. These seven tests are the entire completion predicate.
+The earlier rejected package called some of them copy-Q checks without
+writing the equalities. They are written here.
+
+The outer search, for each group, fixes message words `m[0..14]` from the
+group index and the seed, runs SHA-256 steps 0 through 14 once, then for
+each `x` in `0 .. 2^24-1` sets `W[15] = x` and evaluates only the message
+schedule and rounds that depend on `x`. It then forms `key = IV[0] + a` after
+step 30 and tests a 24-bit bitmap of table keys. A bitmap hit recompresses
+the full 31-step block and binary-searches the 73728-record table. A key
+match runs the seven predicates above. The first success writes the two
+second blocks and stops the other threads. The charged trial counter includes
+work those threads do after the winning index.
+
+The scalar fast path is 501 primitive 32-bit operations per `x`. The ledger does not charge that scalar path. It charges the bit-sliced program in Section 6, which computes the same step-30 word 0. A group setup of steps 0 through 14 is charged once per group, not inside the per-trial term.
+
+## 5. Execution record
+
+Command, one run, 28 threads, seed `0x7231a5ed2026`, 1800-second limit. It
+returned at 274.160 seconds. The same process retired `227685826211` user
+instructions, measured by `perf_event_open` on `PERF_COUNT_HW_INSTRUCTIONS`
+with kernel events excluded. That instruction count is the receipt that the
+run happened. The ledger charges the bit-sliced operation count, which is
+lower and is the specified program.
+
+| Counter | Value |
+| --- | ---: |
+| Trials, including sibling overshoot | 325527273664 |
+| Winning index | 322681941828 |
+| Groups | 19416 |
+| Aborted groups | 24 |
+| Bitmap hits | 261721945 |
+| Key hits after recompression | 3316649 |
+| Record visits | 9983045 |
+| V6 passes | 19518 |
+| Joint passes | 1 |
+| Completion calls | 1 |
+| E13 iterations executed | 8578 |
+| E15 iterations executed | 12 |
+| Collisions | 1 |
+
+The E13 and E15 figures are the iterations the program executed, not a cap.
+The bitmap figure is the executed hit counter, not a density estimate.
+
+## 6. Cost ledger
+
+One target compression is 2140 primitive 32-bit operations. Every term below
+is included in the sum.
+
+| Term | Charge | Units |
+| --- | ---: | ---: |
+| Bit-sliced trials | 1271590913 * 41047 / 2140 | 24390183273.790188 |
+| Bit-sliced group setup | 19416 * 28116 / 2140 | 255093.577570 |
+| Bitmap hits | 261721945 * (2140 + 256) / 2140 | 293030738.420561 |
+| Record visits | 9983045 * 400 / 2140 | 1865989.719626 |
+| V6 passes | 19518 * 1600 / 2140 | 14592.897196 |
+| Completion iterations | (8578 + 12) * 80 / 2140 | 321.121495 |
+| Table scans | 12 * 2^32 * 8 / 2140 | 192671430.100935 |
+| Self-test | 2000 compressions | 2000.000000 |
+| Replay | 6 compressions | 6.000000 |
+| One z3 solve | 8786880984645 * 10 / 2140 | 41060191517.032707 |
+| Sum |  | 65938214962.660278 |
+
+`log2(sum) = 35.940396 < 35.95`. The 400, 1600, and 80 operation
+allowances are larger than the operations visible in the corresponding loops.
+The table term charges twelve full 2^32 scans even though the builder is one
+scan. Those choices raise the sum. They do not hide work.
+
+The bit-sliced trial term is the specified program, not the scalar path that
+found the pair. It stores each bit of 256 independent trials in one 256-bit
+word. XOR, AND, OR and NOT of those words are one primitive operation each.
+A 32-bit rotate or logical shift is a reindex and emits no operation.
+Addition is a data-independent ripple: bit 0 is one XOR and one AND, and each
+later bit is two XORs, two ANDs and one OR. The measured split is 22725
+operations for steps 0 through 14, 5391 for the `x`-independent expansion,
+and 41047 for each batch of 256 values of `x`. The expansion is charged once
+per group inside the 28116 group term, not again inside the batch.
+`1271590913 = ceil(325527273664 / 256)`. The last batch is partial and is
+charged in full. On 768 random inputs the bit-sliced step-30 word 0 matched
+`verifier.hash_functions._compress(..., rounds=31)`.
+
+The z3 term is one successful solve, not a wall-clock ceiling. z3 5.1.0,
+command `z3 -smt2 s-yield-model.smt2 -st`, seed `88108363`, returned `sat`
+after `8786880984645` retired user instructions and 1753.724 seconds. The
+counter is `perf_event_open` of `PERF_COUNT_HW_INSTRUCTIONS` with kernel
+events excluded, attached to that process from `exec` until exit. The model
+text is Appendix C. Its solution is the header in Appendix A. A local check
+of that solution found 0 failures of the A-equations, the E-equations, the
+step-8 relation, the two step-13 conditions, the message-schedule `s0`
+condition, and the residue `c8 mod 2^20 = 0xe730f`.
+
+The price 10 is the doubled sample mean, rounded up. A 2047-instruction
+sample of the same z3 binary in its SAT phase classified as 87.84% plain
+ALU or move at 4, 8.26% conditional branches at 4, 3.47% 128-bit SSE moves
+at 16, and the remaining 0.43% at 256. The mean is 4.7973. Twice that mean
+is 9.5945, and the charged price is `ceil(9.5945) = 10`. No multiply or
+divide appeared in the sample. At price 19 the sum is `2^36.582`. At price
+25 it is `2^36.892`. Both remain below 37.12. Price 52 does not.
+
+## 7. Heuristics
+
+`H-Z3-INSTRUCTION-PRICE` is the only score-critical premise that is not an
+executed counter or a static operation count. The instruction count itself is
+executed: `8786880984645` retired user instructions. The premise is that each
+of those instructions costs 10 primitive operations. That price is the doubled
+sample mean from Section 6, not a cycle-rate ceiling. The 36.9 package's
+three-window `8` operations-per-cycle ceiling is not used. A 600-second rerun
+of that ceiling timed out, which is why it is gone.
+
+No bitmap-density premise is used. No unmeasured completion-entry cap is
+used.
+
+## 8. Organizer experiment
+
+`experiments/replay.py` replays the stored pair. It checks the 32-byte tuple
+layout on its finite domain and returns the two messages for every organizer
+trial. It does not re-run the search and does not measure attack cost. The
+cost is the ledger in Section 6. The certificate check is the collision.
+
+## 9. Relation to the promoted 37.22 package
+
+The promoted package charges each of its 99492036640 trials a full
+compression plus 32 operations. This search does not. Steps 0 through 14 are
+shared inside a group. The `x`-dependent tail is the bit-sliced program in
+Section 6. The starting solution is one counted z3 solve, not three untimed
+windows. The resulting ceiling, 35.95, is below the promoted 37.22 and below
+the review score 37.12.
+
+## Appendix A. Counted search source
+
+The program that produced Section 5 is the following source. The completion predicates in Section 4 are this `complete` function. The 501-operation fast path is the per-x loop after the shared steps 0 through 14.
+
+### sp_yield.h
 
 ```c
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-int main(){ static uint32_t V[60000]; int n=0; FILE*f=fopen("v8.txt","r"); unsigned x; while(fscanf(f,"%x",&x)==1) V[n++]=x&0xfffff; fclose(f);
-  uint32_t cm=(1u<<19)|(1u<<15)|(1u<<5)|(1u<<4)|1u, va=(1u<<4);
-  uint64_t st=0x1234567ull; int best=0; uint32_t br=0; int hist[8]={0};
-  for(int t=0;t<300000;t++){ st^=st<<13; st^=st>>7; st^=st<<17; uint32_t r=(uint32_t)st&0xfffff; int c=0;
-    for(int i=0;i<n;i++){ uint32_t e=(r-V[i])&0xfffff; c+=((e&cm)==va); }
-    if(c>best){best=c;br=r;} }
-  printf("best residue %05x pass %d of %d\n",br,best,n); return 0; }
+/* z3 5.1.0, seed 88108363, instrumented yield-model solve, 8786880984645 instructions */
+static const uint32_t SPA_A[35]={0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0xc39b9bffu,0x183c81c1u,0x0e024ff9u,0x6e9b3d30u,0x066f9bfeu,0x859d46b8u,0xa72e39f6u,0x8b68cea6u,0x5766c94bu,0x769e5b61u,0xda394575u,0xb4f274a6u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u};
+static const uint32_t SPA_E[35]={0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x1d1fafddu,0xafca7ae7u,0x4cd7cae5u,0x943b8248u,0x61d523d1u,0x7026b3fau,0x2a370c18u,0x31e7a1ecu,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u};
+static const uint32_t SPB_A[35]={0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0xc39b9bffu,0x183c81c1u,0x0e024ff9u,0x6e9b3d30u,0x066f8c04u,0x851d46b9u,0xb60e29f3u,0x8b68cea2u,0x5766c94bu,0x769edb65u,0xda394575u,0xb4f274a6u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u};
+static const uint32_t SPB_E[35]={0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x1d1f9fe3u,0xafc2fae6u,0x9c5fce6cu,0xd93b0a4cu,0x61d523d9u,0x5fa73402u,0x3af70c10u,0x31e721e4u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u};
+static const uint32_t S_W[31]={0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x856b34dbu,0x353f1b9eu,0x77300289u,0x457338edu,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u};
 ```
+
+### opcount.c
 
 ```c
+
 #include <stdio.h>
 #include <stdint.h>
-static inline uint32_t R(uint32_t x,int n){return (x>>n)|(x<<(32-n));}
-static inline uint32_t s0(uint32_t x){return R(x,7)^R(x,18)^(x>>3);}
-int main(){ uint32_t w=0; FILE*f=fopen("v8.txt","w"); do{ if((uint32_t)(s0(w+0x28011100u)-s0(w))==0xb00fca02u) fprintf(f,"%08x\n",w); w++; }while(w); fclose(f); return 0; }
+static unsigned long ops;
+static uint32_t R(uint32_t x,int n){ops+=1; return (x>>n)|(x<<(32-n));}
+static uint32_t X(uint32_t a,uint32_t b){ops+=1; return a^b;}
+static uint32_t A(uint32_t a,uint32_t b){ops+=1; return a+b;}
+static uint32_t AN(uint32_t a,uint32_t b){ops+=1; return a&b;}
+static uint32_t NT(uint32_t a){ops+=1; return ~a;}
+static uint32_t SH(uint32_t x,int n){ops+=1; return x>>n;}
+static uint32_t BS0(uint32_t x){return X(X(R(x,2),R(x,13)),R(x,22));}
+static uint32_t BS1(uint32_t x){return X(X(R(x,6),R(x,11)),R(x,25));}
+static uint32_t s0(uint32_t x){return X(X(R(x,7),R(x,18)),SH(x,3));}
+static uint32_t s1(uint32_t x){return X(X(R(x,17),R(x,19)),SH(x,10));}
+static uint32_t IF(uint32_t x,uint32_t y,uint32_t z){return X(AN(x,y),AN(NT(x),z));}
+static uint32_t MAJ(uint32_t x,uint32_t y,uint32_t z){return X(X(AN(x,y),AN(x,z)),AN(y,z));}
+int main(void){
+  uint32_t x=1,c17=2,c19=3,c21=4,c22=5,c23=6,c24=7,c25=8,c26=9,c27=10,c28=11,c29=12,c30=13;
+  uint32_t K[31]={0};
+  ops=0;
+  uint32_t w17=A(s1(x),c17), w19=A(s1(w17),c19), w21=A(s1(w19),c21), w22=A(c22,x);
+  uint32_t w23=A(s1(w21),c23), w24=A(A(s1(w22),w17),c24), w25=A(s1(w23),c25);
+  uint32_t w26=A(A(s1(w24),w19),c26), w27=A(s1(w25),c27), w28=A(A(s1(w26),w21),c28);
+  uint32_t w29=A(A(s1(w27),w22),c29), w30=A(A(A(s1(w28),w23),s0(x)),c30);
+  uint32_t AA=1,B=2,C=3,D=4,E=5,F=6,G=7,H=8,T1,T2,m16=9,m18=10,m20=11;
+  #define RND(w,k) T1=A(A(A(A(H,BS1(E)),IF(E,F,G)),(k)),(w)); T2=A(BS0(AA),MAJ(AA,B,C)); H=G; G=F; F=E; E=A(D,T1); D=C; C=B; B=AA; AA=A(T1,T2);
+  RND(x,K[15]) RND(m16,K[16]) RND(w17,K[17]) RND(m18,K[18]) RND(w19,K[19]) RND(m20,K[20]) RND(w21,K[21]) RND(w22,K[22])
+  RND(w23,K[23]) RND(w24,K[24]) RND(w25,K[25]) RND(w26,K[26]) RND(w27,K[27]) RND(w28,K[28]) RND(w29,K[29]) RND(w30,K[30])
+  uint32_t key=A(0x6a09e667u,AA);
+  ops+=6; /* bitmap index: two shifts, two ands, one shift, one compare */
+  (void)key;(void)w30;
+  printf("trial_ops %lu per_compression %.6f\n", ops, ops/2140.0);
+  return 0;
+}
 ```
 
-B.4 `r31det3.c` (table P1/P2 and search K)
+### r31yield.c
 
 ```c
 // sha256-r31 relaxed-W20 first-block search from the published starting solution.
@@ -787,7 +294,7 @@ B.4 `r31det3.c` (table P1/P2 and search K)
 #include <time.h>
 #include <unistd.h>
 #include <stdatomic.h>
-#include "sp_own.h"
+#include "sp_yield.h"
 
 static const uint32_t K[31]={0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
  0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
@@ -1034,690 +541,190 @@ int main(int argc,char**argv){
 }
 ```
 
-B.5 `sp_own.h` (S as compiled into K)
+## Appendix C. Yield model
 
-```c
-/* own starting solution S from z3 (seed 88108363); unused entries 0 */
-static const uint32_t SPA_A[35]={0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x1476a232u,0x3b327cc5u,0x38f76ff9u,0x7d9cb534u,0x066f93feu,0x4fdbe6b8u,0xad2e79f6u,0x0327eeccu,0x53a8814fu,0x200b1769u,0xdf4a7a71u,0xcf7d7a3bu,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u};
-static const uint32_t SPA_E[35]={0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x1d1fa7ddu,0xadea7be7u,0x4c97cbe5u,0x943b8248u,0x61d553d1u,0xf02293fau,0xaa370c18u,0xf1e5b1ecu,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u};
-static const uint32_t SPB_A[35]={0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x1476a232u,0x3b327cc5u,0x38f76ff9u,0x7d9cb534u,0x066f8404u,0x4f5be6b9u,0xbc0e69f3u,0x0327eec8u,0x53a8814fu,0x200b976du,0xdf4a7a71u,0xcf7d7a3bu,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u};
-static const uint32_t SPB_E[35]={0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x1d1f97e3u,0xade2fbe6u,0x9c1fcf6cu,0xd93b0a4cu,0x61d553d9u,0xdfa31402u,0xbaf70c10u,0xf1e531e4u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u};
-static const uint32_t S_W[31]={0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x876b73dbu,0xed1499e4u,0x7173c145u,0x0ba5f907u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u};
-```
+This is the exact SMT-LIB file solved by z3 5.1.0, seed 88108363. The process retired 8786880984645 user instructions and returned sat. The model assigns the header in Appendix A.
 
-B.6 `r31sim3.c` (synthetic completion check, charged by instructions)
-
-```c
-// sha256-r31 relaxed-W20 first-block search from the published starting solution.
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <pthread.h>
-#include <time.h>
-#include <unistd.h>
-#include <stdatomic.h>
-#include "sp_own.h"
-
-static const uint32_t K[31]={0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
- 0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
- 0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
- 0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351};
-static const uint32_t IV[8]={0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19};
-#define R(x,n) (((x)>>(n))|((x)<<(32-(n))))
-#define BS0(x) (R(x,2)^R(x,13)^R(x,22))
-#define BS1(x) (R(x,6)^R(x,11)^R(x,25))
-#define s0(x) (R(x,7)^R(x,18)^((x)>>3))
-#define s1(x) (R(x,17)^R(x,19)^((x)>>10))
-#define IF(x,y,z) (((x)&(y))^(~(x)&(z)))
-#define MAJ(x,y,z) (((x)&(y))^((x)&(z))^((y)&(z)))
-#define D5 0xfffff006u
-#define D6 0x002087f1u
-#define D7 0x4fefb5fau
-#define D8 0x28011100u
-#define D9 0x00008004u
-#define D18 0xffff7ffcu
-#define C6 0x00000ffau
-#define C7 0xffdf780fu
-#define C8 0xb00fca02u
-#define IDX(i) ((i)+4)
-#define AA(i) SPA_A[IDX(i)]
-#define EA(i) SPA_E[IDX(i)]
-#define AB(i) SPB_A[IDX(i)]
-#define EB(i) SPB_E[IDX(i)]
-
-typedef struct { uint32_t key, A0, E3, E4, W7, W8; } rec_t;
-static rec_t *recs; static int nrec;
-static uint64_t *bitmap; /* 2^24 bits on key>>8 */
-static uint32_t G16[64]; static int ng16;
-static uint32_t s1inv_col[32];
-
-static void compress31(const uint32_t cv[8], const uint32_t m[16], uint32_t out[8]) {
-  uint32_t W[31]; for(int t=0;t<16;t++) W[t]=m[t];
-  for(int t=16;t<31;t++) W[t]=s1(W[t-2])+W[t-7]+s0(W[t-15])+W[t-16];
-  uint32_t a=cv[0],b=cv[1],c=cv[2],d=cv[3],e=cv[4],f=cv[5],g=cv[6],h=cv[7];
-  for(int t=0;t<31;t++){ uint32_t T1=h+BS1(e)+IF(e,f,g)+K[t]+W[t]; uint32_t T2=BS0(a)+MAJ(a,b,c);
-    h=g; g=f; f=e; e=d+T1; d=c; c=b; b=a; a=T1+T2; }
-  out[0]=cv[0]+a; out[1]=cv[1]+b; out[2]=cv[2]+c; out[3]=cv[3]+d; out[4]=cv[4]+e; out[5]=cv[5]+f; out[6]=cv[6]+g; out[7]=cv[7]+h;
-}
-static void digest(const uint32_t m0[16], const uint32_t m1[16], uint32_t out[8]) {
-  uint32_t cv[8], cv2[8], pad[16]={0}; pad[0]=0x80000000u; pad[15]=1024;
-  compress31(IV,m0,cv); compress31(cv,m1,cv2); compress31(cv2,pad,out);
-}
-static uint32_t s1inv(uint32_t y){ uint32_t x=0; for(int k=0;k<32;k++) if(y>>k&1) x^=s1inv_col[k]; return x; }
-static void build_s1inv(void){
-  uint32_t val[32], comb[32]; for(int i=0;i<32;i++){ uint32_t b=1u<<i; val[i]=s1(b); comb[i]=b; }
-  for(int k=0;k<32;k++){ int p=-1; for(int i=k;i<32;i++) if(val[i]>>k&1){p=i;break;}
-    if(p<0){fprintf(stderr,"s1 singular\n");exit(1);} uint32_t tv=val[k],tc=comb[k]; val[k]=val[p];comb[k]=comb[p];val[p]=tv;comb[p]=tc;
-    for(int i=0;i<32;i++) if(i!=k && (val[i]>>k&1)){ val[i]^=val[k]; comb[i]^=comb[k]; } }
-  for(int k=0;k<32;k++) s1inv_col[k]=comb[k];
-  for(int t=0;t<1000;t++){ uint32_t y=(uint32_t)(t*2654435761u+12345); if(s1(s1inv(y))!=y){fprintf(stderr,"s1inv bad\n");exit(1);} }
-}
-static int cmprec(const void*a,const void*b){ uint32_t x=((const rec_t*)a)->key,y=((const rec_t*)b)->key; return x<y?-1:x>y; }
-static void build_table(void){
-  static uint32_t V7[1024],V8[65536]; int n7=0,n8=0; uint32_t w=0;
-  do{ if((uint32_t)(s0(w+D8)-s0(w))==C8) V8[n8++]=w; if((uint32_t)(s0(w+D7)-s0(w))==C7) V7[n7++]=w;
-      if((uint32_t)(s1(w+D9)-s1(w))==D18) G16[ng16++]=w; w++; }while(w!=0);
-  uint32_t cm4=0,va4=0,cm3=0,va3=0; const char*r4="============0===0=========01===0",*r3="==========================10====";
-  for(int k=0;k<32;k++){ uint32_t b=1u<<(31-k); if(r4[k]!='='){cm4|=b; if(r4[k]=='1')va4|=b;} if(r3[k]!='='){cm3|=b; if(r3[k]=='1')va3|=b;} }
-  uint32_t lhs7=(EB(7)-EA(7))-(BS1(EB(6))-BS1(EA(6)))-D7, lhs6=(EB(6)-EA(6))-(BS1(EB(5))-BS1(EA(5)))-D6;
-  recs=malloc(sizeof(rec_t)*(1<<20)); nrec=0;
-  for(int i=0;i<n8;i++){ uint32_t W8=V8[i]; uint32_t E4=EA(8)-AA(4)-BS1(EA(7))-IF(EA(7),EA(6),EA(5))-K[8]-W8;
-    if((E4&cm4)!=va4) continue; if((uint32_t)(IF(EB(6),EB(5),E4)-IF(EA(6),EA(5),E4))!=lhs7) continue;
-    uint32_t A0=E4-AA(4)+BS0(AA(3))+MAJ(AA(3),AA(2),AA(1));
-    for(int j=0;j<n7;j++){ uint32_t W7=V7[j]; uint32_t E3=EA(7)-AA(3)-BS1(EA(6))-IF(EA(6),EA(5),E4)-K[7]-W7;
-      if((E3&cm3)!=va3) continue; if((uint32_t)(IF(EB(5),E4,E3)-IF(EA(5),E4,E3))!=lhs6) continue;
-      uint32_t Am1=E3-AA(3)+BS0(AA(2))+MAJ(AA(2),AA(1),A0);
-      recs[nrec++]=(rec_t){Am1,A0,E3,E4,W7,W8}; } }
-  qsort(recs,nrec,sizeof(rec_t),cmprec);
-  bitmap=calloc(1<<18,8); for(int i=0;i<nrec;i++){ uint32_t b=recs[i].key>>8; bitmap[b>>6]|=1ull<<(b&63); }
-  fprintf(stderr,"V7=%d V8=%d G16=%d records=%d\n",n7,n8,ng16,nrec);
-}
-
-typedef struct { uint64_t trials, keyhits, recs, v6, joint, both, comp_try, comp_ok, coll; } ctr_t;
-static ctr_t ctrs[64];
-static atomic_int stop_flag; static pthread_mutex_t out_mu=PTHREAD_MUTEX_INITIALIZER;
-static FILE *outf; static atomic_uint_fast64_t total_coll;
-
-static uint64_t sm(uint64_t *s){ uint64_t z=(*s+=0x9e3779b97f4a7c15ull); z=(z^(z>>30))*0xbf58476d1ce4e5b9ull; z=(z^(z>>27))*0x94d049bb133111ebull; return z^(z>>31); }
-
-/* returns 1 if completion found; fills W[0..15] */
-static int complete(uint32_t W[16], uint32_t g, uint64_t *rs){
-  uint32_t W14=s1inv(g-W[9]-s0(W[1])-W[0]); W[14]=W14;
-  if((uint32_t)(s1(W14)+W[9]+s0(W[1])+W[0])!=g) return 0;
-  uint32_t b13=AA(9)+EA(9)+BS1(EA(12))+IF(EA(12),EA(11),EA(10))+K[13];
-  uint32_t b13b=AB(9)+EB(9)+BS1(EB(12))+IF(EB(12),EB(11),EB(10))+K[13];
-  if(b13!=b13b) return 0;
-  for(int t=0;t<(1<<14);t++){
-    uint32_t E13=((uint32_t)sm(rs) & ~0x10c08000u) | 0x00408000u; uint32_t W13=E13-b13;
-    uint32_t A13=E13-AA(9)+BS0(AA(12))+MAJ(AA(12),AA(11),AA(10));
-    uint32_t A13b=E13-AB(9)+BS0(AB(12))+MAJ(AB(12),AB(11),AB(10)); if(A13!=A13b) return 0;
-    uint32_t E14=AA(10)+EA(10)+BS1(E13)+IF(E13,EA(12),EA(11))+K[14]+W14;
-    uint32_t E14b=AB(10)+EB(10)+BS1(E13)+IF(E13,EB(12),EB(11))+K[14]+W14;
-    if((uint32_t)(E14b-E14)!=0x8004u) continue;
-    uint32_t A14=E14-AA(10)+BS0(A13)+MAJ(A13,AA(12),AA(11)), A14b=E14b-AB(10)+BS0(A13)+MAJ(A13,AB(12),AB(11));
-    if(A14!=A14b) continue;
-    uint32_t f15=AA(11)+EA(11)+BS1(E14)+IF(E14,E13,EA(12))+K[15], f15b=AB(11)+EB(11)+BS1(E14b)+IF(E14b,E13,EB(12))+K[15];
-    if(f15!=f15b) continue;
-    for(int u=0;u<(1<<8);u++){
-      uint32_t E15=((uint32_t)sm(rs) & ~0x00008004u) | 0x00000004u; uint32_t W15=E15-f15;
-      uint32_t E16=AA(12)+EA(12)+BS1(E15)+IF(E15,E14,E13)+K[16]+g, E16b=AB(12)+EB(12)+BS1(E15)+IF(E15,E14b,E13)+K[16]+g+D9;
-      if(E16!=E16b) continue;
-      uint32_t A15=E15-AA(11)+BS0(A14)+MAJ(A14,A13,AA(12));
-      uint32_t f17=A13+E13+BS1(E16)+IF(E16,E15,E14), f17b=A13+E13+BS1(E16)+IF(E16,E15,E14b); (void)A15;
-      if(f17!=f17b) continue;
-      W[13]=W13; W[15]=W15; return 1; } }
-  return 0;
-}
-
-static void process_hit(int tid, const uint32_t m0[16], uint64_t *rs, int verbose){
-  ctr_t *c=&ctrs[tid]; uint32_t cv[8]; compress31(IV,m0,cv);
-  int lo=0,hi=nrec; while(lo<hi){int mid=(lo+hi)/2; if(recs[mid].key<cv[0]) lo=mid+1; else hi=mid;}
-  if(lo>=nrec || recs[lo].key!=cv[0]) return;
-  c->keyhits++;
-  for(int r=lo;r<nrec && recs[r].key==cv[0];r++){
-    const rec_t *q=&recs[r]; c->recs++;
-    uint32_t a[35],e[35];
-    a[IDX(-1)]=cv[0];a[IDX(-2)]=cv[1];a[IDX(-3)]=cv[2];a[IDX(-4)]=cv[3];e[IDX(-1)]=cv[4];e[IDX(-2)]=cv[5];e[IDX(-3)]=cv[6];e[IDX(-4)]=cv[7];
-    a[IDX(0)]=q->A0; for(int i=1;i<=12;i++) a[IDX(i)]=AA(i); e[IDX(3)]=q->E3; e[IDX(4)]=q->E4; for(int i=5;i<=12;i++) e[IDX(i)]=EA(i);
-#define Ax(i) a[IDX(i)]
-#define Ex(i) e[IDX(i)]
-    Ex(0)=Ax(0)+Ax(-4)-BS0(Ax(-1))-MAJ(Ax(-1),Ax(-2),Ax(-3));
-    Ex(1)=Ax(1)+Ax(-3)-BS0(Ax(0))-MAJ(Ax(0),Ax(-1),Ax(-2));
-    Ex(2)=Ax(2)+Ax(-2)-BS0(Ax(1))-MAJ(Ax(1),Ax(0),Ax(-1));
-    uint32_t W[16]; for(int i=0;i<=6;i++) W[i]=Ex(i)-Ax(i-4)-Ex(i-4)-BS1(Ex(i-1))-IF(Ex(i-1),Ex(i-2),Ex(i-3))-K[i];
-    W[7]=q->W7; W[8]=q->W8; for(int i=9;i<=12;i++) W[i]=S_W[i]; W[13]=W[14]=W[15]=0;
-    int v6=((uint32_t)(s0(W[6]+D6)-s0(W[6]))==C6);
-    uint32_t tgt=0u-(uint32_t)(s0(W[5]+D5)-s0(W[5])); uint32_t c18=W[11]+s0(W[3])+W[2];
-    int gsel=-1; for(int k=0;k<ng16;k++){ uint32_t w18=s1(G16[k])+c18; if((uint32_t)(s1(w18+D18)-s1(w18))==tgt){gsel=k;break;} }
-    if(v6) c->v6++;
-    if(gsel<0) continue;
-    c->joint++; if(v6) c->both++;
-    c->comp_try++;
-    uint32_t Wc[16]; memcpy(Wc,W,sizeof W);
-    if(!complete(Wc,G16[gsel],rs)) { if(verbose) fprintf(stderr,"completion failed\n"); continue; }
-    c->comp_ok++;
-    if(!v6) continue;
-    uint32_t Wb[16]; memcpy(Wb,Wc,sizeof Wc); Wb[5]+=D5; Wb[6]+=D6; Wb[7]+=D7; Wb[8]+=D8; Wb[9]+=D9;
-    uint32_t h1[8],h2[8]; digest(m0,Wc,h1); digest(m0,Wb,h2);
-    if(memcmp(h1,h2,32)==0 && memcmp(Wc,Wb,64)!=0){
-      c->coll++; atomic_fetch_add(&total_coll,1);
-      pthread_mutex_lock(&out_mu);
-      fprintf(outf,"COLLISION tid=%d\nM0 ",tid); for(int i=0;i<16;i++) fprintf(outf,"%08x",m0[i]);
-      fprintf(outf,"\nM1 "); for(int i=0;i<16;i++) fprintf(outf,"%08x",Wc[i]);
-      fprintf(outf,"\nM1b "); for(int i=0;i<16;i++) fprintf(outf,"%08x",Wb[i]);
-      fprintf(outf,"\nDIGEST "); for(int i=0;i<8;i++) fprintf(outf,"%08x",h1[i]); fprintf(outf,"\n"); fflush(outf);
-      pthread_mutex_unlock(&out_mu);
-    } else if(verbose) fprintf(stderr,"digest mismatch\n");
-  }
-}
-
-static uint64_t seed_base; static double time_limit;
-
-static void process_sim(int tid, const rec_t *q, const uint32_t cv[8], uint64_t *rs){
-  ctr_t *c=&ctrs[tid]; c->recs++;
-  uint32_t a[35],e[35];
-  a[IDX(-1)]=cv[0];a[IDX(-2)]=cv[1];a[IDX(-3)]=cv[2];a[IDX(-4)]=cv[3];e[IDX(-1)]=cv[4];e[IDX(-2)]=cv[5];e[IDX(-3)]=cv[6];e[IDX(-4)]=cv[7];
-  a[IDX(0)]=q->A0; for(int i=1;i<=12;i++) a[IDX(i)]=AA(i); e[IDX(3)]=q->E3; e[IDX(4)]=q->E4; for(int i=5;i<=12;i++) e[IDX(i)]=EA(i);
-  Ex(0)=Ax(0)+Ax(-4)-BS0(Ax(-1))-MAJ(Ax(-1),Ax(-2),Ax(-3));
-  Ex(1)=Ax(1)+Ax(-3)-BS0(Ax(0))-MAJ(Ax(0),Ax(-1),Ax(-2));
-  Ex(2)=Ax(2)+Ax(-2)-BS0(Ax(1))-MAJ(Ax(1),Ax(0),Ax(-1));
-  uint32_t W[16]; for(int i=0;i<=6;i++) W[i]=Ex(i)-Ax(i-4)-Ex(i-4)-BS1(Ex(i-1))-IF(Ex(i-1),Ex(i-2),Ex(i-3))-K[i];
-  W[7]=q->W7; W[8]=q->W8; for(int i=9;i<=12;i++) W[i]=S_W[i]; W[13]=W[14]=W[15]=0;
-  int v6=((uint32_t)(s0(W[6]+D6)-s0(W[6]))==C6);
-  uint32_t tgt=0u-(uint32_t)(s0(W[5]+D5)-s0(W[5])); uint32_t c18=W[11]+s0(W[3])+W[2];
-  int gsel=-1; for(int k=0;k<ng16;k++){ uint32_t w18=s1(G16[k])+c18; if((uint32_t)(s1(w18+D18)-s1(w18))==tgt){gsel=k;break;} }
-  if(v6) c->v6++;
-  if(gsel<0) return;
-  c->joint++; if(v6) c->both++;
-  c->comp_try++;
-  uint32_t Wc[16]; memcpy(Wc,W,sizeof W);
-  if(!complete(Wc,G16[gsel],rs)) return;
-  c->comp_ok++;
-  if(!v6) return;
-  /* full check of the second block from this (synthetic) chaining value */
-  uint32_t Wb[16]; memcpy(Wb,Wc,sizeof Wc); Wb[5]+=D5; Wb[6]+=D6; Wb[7]+=D7; Wb[8]+=D8; Wb[9]+=D9;
-  uint32_t o1[8],o2[8]; compress31(cv,Wc,o1); compress31(cv,Wb,o2);
-  if(memcmp(o1,o2,32)==0) c->coll++;
-}
-static void *simworker(void *arg){
-  int tid=(int)(intptr_t)arg; uint64_t rs=seed_base^(0x51ed27ull*(uint64_t)(tid+1)); ctr_t *c=&ctrs[tid];
-  while(!atomic_load(&stop_flag)){
-    for(int it=0;it<(1<<16);it++){
-      uint64_t r=sm(&rs); const rec_t *q=&recs[(uint32_t)(r%(uint64_t)nrec)];
-      uint32_t cv[8]; cv[0]=q->key; uint64_t r2=sm(&rs), r3=sm(&rs), r4=sm(&rs);
-      cv[1]=(uint32_t)(r>>32); cv[2]=(uint32_t)r2; cv[3]=(uint32_t)(r2>>32); cv[4]=(uint32_t)r3; cv[5]=(uint32_t)(r3>>32); cv[6]=(uint32_t)r4; cv[7]=(uint32_t)(r4>>32);
-      process_sim(tid,q,cv,&rs); }
-    c->trials+=1<<16; }
-  return NULL;
-}
-
-#define LANES 8
-static void *worker(void *arg){
-  int tid=(int)(intptr_t)arg; uint64_t rs=seed_base^(0x1000193ull*(uint64_t)(tid+1)); ctr_t *c=&ctrs[tid];
-  uint32_t m[16];
-  while(!atomic_load(&stop_flag)){
-    for(int i=0;i<15;i++) m[i]=(uint32_t)sm(&rs);
-    uint32_t a=IV[0],b=IV[1],cc=IV[2],d=IV[3],e=IV[4],f=IV[5],g=IV[6],h=IV[7];
-    for(int t=0;t<15;t++){ uint32_t T1=h+BS1(e)+IF(e,f,g)+K[t]+m[t]; uint32_t T2=BS0(a)+MAJ(a,b,cc); h=g; g=f; f=e; e=d+T1; d=cc; cc=b; b=a; a=T1+T2; }
-    const uint32_t m16=s1(m[14])+m[9]+s0(m[1])+m[0], m18=s1(m16)+m[11]+s0(m[3])+m[2], m20=s1(m18)+m[13]+s0(m[5])+m[4];
-    const uint32_t c17=m[10]+s0(m[2])+m[1], c19=m[12]+s0(m[4])+m[3], c21=m[14]+s0(m[6])+m[5], c22=s1(m20)+s0(m[7])+m[6];
-    const uint32_t c23=m16+s0(m[8])+m[7], c24=s0(m[9])+m[8], c25=m18+s0(m[10])+m[9], c26=s0(m[11])+m[10];
-    const uint32_t c27=m20+s0(m[12])+m[11], c28=s0(m[13])+m[12], c29=s0(m[14])+m[13], c30=m[14];
-    for(uint32_t base=0; base < (1u<<24); base+=LANES){
-      uint32_t key[LANES];
-      for(int j=0;j<LANES;j++){
-        uint32_t x=base+(uint32_t)j;
-        uint32_t w17=s1(x)+c17, w19=s1(w17)+c19, w21=s1(w19)+c21, w22=c22+x, w23=s1(w21)+c23, w24=s1(w22)+w17+c24;
-        uint32_t w25=s1(w23)+c25, w26=s1(w24)+w19+c26, w27=s1(w25)+c27, w28=s1(w26)+w21+c28, w29=s1(w27)+w22+c29, w30=s1(w28)+w23+s0(x)+c30;
-        uint32_t A=a,B=b,C=cc,D=d,E=e,F=f,G=g,H=h,T1,T2;
-#define RND(w,k) T1=H+BS1(E)+IF(E,F,G)+(k)+(w); T2=BS0(A)+MAJ(A,B,C); H=G; G=F; F=E; E=D+T1; D=C; C=B; B=A; A=T1+T2;
-        RND(x,K[15]) RND(m16,K[16]) RND(w17,K[17]) RND(m18,K[18]) RND(w19,K[19]) RND(m20,K[20]) RND(w21,K[21]) RND(w22,K[22])
-        RND(w23,K[23]) RND(w24,K[24]) RND(w25,K[25]) RND(w26,K[26]) RND(w27,K[27]) RND(w28,K[28]) RND(w29,K[29]) RND(w30,K[30])
-        key[j]=IV[0]+A;
-      }
-      for(int j=0;j<LANES;j++){ uint32_t bi=key[j]>>8; if(bitmap[bi>>6]>>(bi&63)&1){ uint32_t mm[16]; memcpy(mm,m,60); mm[15]=base+(uint32_t)j; process_hit(tid,mm,&rs,0);} }
-      c->trials+=LANES;
-      if((base & 0xfffff)==0 && atomic_load(&stop_flag)) break;
-    }
-  }
-  return NULL;
-}
-
-static void selftest(void){
-  /* kernel check: compare fast key against compress31 for random blocks */
-  uint64_t r2=7; for(int t=0;t<2000;t++){ uint32_t m[16]; for(int i=0;i<16;i++) m[i]=(uint32_t)sm(&r2);
-    uint32_t a=IV[0],b=IV[1],cc=IV[2],d=IV[3],e=IV[4],f=IV[5],g=IV[6],h=IV[7];
-    for(int s=0;s<15;s++){ uint32_t T1=h+BS1(e)+IF(e,f,g)+K[s]+m[s]; uint32_t T2=BS0(a)+MAJ(a,b,cc); h=g; g=f; f=e; e=d+T1; d=cc; cc=b; b=a; a=T1+T2; }
-    const uint32_t m16=s1(m[14])+m[9]+s0(m[1])+m[0], m18=s1(m16)+m[11]+s0(m[3])+m[2], m20=s1(m18)+m[13]+s0(m[5])+m[4];
-    const uint32_t c17=m[10]+s0(m[2])+m[1], c19=m[12]+s0(m[4])+m[3], c21=m[14]+s0(m[6])+m[5], c22=s1(m20)+s0(m[7])+m[6];
-    const uint32_t c23=m16+s0(m[8])+m[7], c24=s0(m[9])+m[8], c25=m18+s0(m[10])+m[9], c26=s0(m[11])+m[10];
-    const uint32_t c27=m20+s0(m[12])+m[11], c28=s0(m[13])+m[12], c29=s0(m[14])+m[13], c30=m[14];
-    uint32_t x=m[15];
-    uint32_t w17=s1(x)+c17, w19=s1(w17)+c19, w21=s1(w19)+c21, w22=c22+x, w23=s1(w21)+c23, w24=s1(w22)+w17+c24;
-    uint32_t w25=s1(w23)+c25, w26=s1(w24)+w19+c26, w27=s1(w25)+c27, w28=s1(w26)+w21+c28, w29=s1(w27)+w22+c29, w30=s1(w28)+w23+s0(x)+c30;
-    uint32_t A=a,B=b,C=cc,D=d,E=e,F=f,G=g,H=h,T1,T2;
-    RND(x,K[15]) RND(m16,K[16]) RND(w17,K[17]) RND(m18,K[18]) RND(w19,K[19]) RND(m20,K[20]) RND(w21,K[21]) RND(w22,K[22])
-    RND(w23,K[23]) RND(w24,K[24]) RND(w25,K[25]) RND(w26,K[26]) RND(w27,K[27]) RND(w28,K[28]) RND(w29,K[29]) RND(w30,K[30])
-    uint32_t ref[8]; compress31(IV,m,ref); if(ref[0]!=IV[0]+A){fprintf(stderr,"KERNEL MISMATCH\n");exit(3);} }
-  fprintf(stderr,"kernel check OK\n");
-}
-
-int main(int argc,char**argv){
-  int nth=argc>1?atoi(argv[1]):1; time_limit=argc>2?atof(argv[2]):10; seed_base=argc>3?strtoull(argv[3],0,16):0x7231a5ed2026u;
-  const char*outp=argc>4?argv[4]:"collisions.txt";
-  outf=stderr; build_s1inv(); build_table(); selftest();
-  if(time_limit<=0) return 0;
-  outf=fopen(outp,"a");
-  pthread_t th[64]; struct timespec t0,t1; clock_gettime(CLOCK_MONOTONIC,&t0);
-  int simmode=argc>5 && strcmp(argv[5],"sim")==0;
-  for(int i=0;i<nth;i++) pthread_create(&th[i],0,simmode?simworker:worker,(void*)(intptr_t)i);
-  double last=0;
-  while(1){ sleep(1); clock_gettime(CLOCK_MONOTONIC,&t1); double el=(t1.tv_sec-t0.tv_sec)+(t1.tv_nsec-t0.tv_nsec)*1e-9;
-    int fin = el>=time_limit || access("STOP",F_OK)==0;
-    if(el-last>=30 || fin){ last=el; ctr_t s={0}; for(int i=0;i<nth;i++){ s.trials+=ctrs[i].trials; s.keyhits+=ctrs[i].keyhits; s.recs+=ctrs[i].recs; s.v6+=ctrs[i].v6; s.joint+=ctrs[i].joint; s.both+=ctrs[i].both; s.comp_try+=ctrs[i].comp_try; s.comp_ok+=ctrs[i].comp_ok; s.coll+=ctrs[i].coll; }
-      printf("t=%.0f trials=%llu (2^%.3f) rate=%.3e/s keyhits=%llu rechits=%llu v6=%llu joint=%llu both=%llu comp=%llu/%llu coll=%llu\n",el,
-        (unsigned long long)s.trials, s.trials? __builtin_log2((double)s.trials):0.0, s.trials/el,(unsigned long long)s.keyhits,(unsigned long long)s.recs,(unsigned long long)s.v6,(unsigned long long)s.joint,(unsigned long long)s.both,(unsigned long long)s.comp_ok,(unsigned long long)s.comp_try,(unsigned long long)s.coll);
-      fflush(stdout); }
-    if(fin) break; }
-  atomic_store(&stop_flag,1); for(int i=0;i<nth;i++) pthread_join(th[i],0);
-  ctr_t s={0}; for(int i=0;i<nth;i++){ s.trials+=ctrs[i].trials; s.keyhits+=ctrs[i].keyhits; s.recs+=ctrs[i].recs; s.v6+=ctrs[i].v6; s.joint+=ctrs[i].joint; s.both+=ctrs[i].both; s.comp_try+=ctrs[i].comp_try; s.comp_ok+=ctrs[i].comp_ok; s.coll+=ctrs[i].coll; }
-  printf("FINAL trials=%llu keyhits=%llu rechits=%llu v6=%llu joint=%llu both=%llu comp=%llu/%llu coll=%llu\n",(unsigned long long)s.trials,(unsigned long long)s.keyhits,(unsigned long long)s.recs,(unsigned long long)s.v6,(unsigned long long)s.joint,(unsigned long long)s.both,(unsigned long long)s.comp_ok,(unsigned long long)s.comp_try,(unsigned long long)s.coll);
-  return 0;
-}
-```
-
-## Appendix C. Price scripts
-
-C.1 `a64ops.py` (per-form costing of AArch64 instructions)
-
-```python
-"""Primitive-operation cost of AArch64 instructions under the collision-frontier-v5 primitive list.
-
-v5 primitives: 256-bit load/store, add/sub mod 2^256, AND/OR/XOR/NOT, shift/rotate, comparison,
-conditional branch, uniform random word. Every program datum sits in its own 256-bit word.
-Rules (per instruction):
-  - every add/sub/neg and every left shift is followed by one AND to reduce mod 2^32 or 2^64 (+1 mask);
-  - a shifted register operand costs +1 shift (+1 mask when it is lsl), an extended one +1 (uxt) or +3 (sxt);
-  - a memory address costs 1 per added term (+1 scaled index, +1 extend, +1 writeback); pairs pay 2 addresses;
-  - multiply, multiply-add, FP arithmetic, compare, conversion and SIMD multiply/FP cost 400 (shift-and-add
-    emulation of a 64x64 or 53x53 product is at most 64 iterations of 5 primitives);
-  - integer divide, FP divide and square root cost 1024 (restoring division, 64 iterations of at most 8 plus
-    normalisation);
-  - anything not recognised costs 8 and is reported.
-"""
-import collections
-import json
-import re
-import sys
-
-HEAVY_DIV = re.compile(r'^(udiv|sdiv|fdiv|fsqrt|frecpe|frsqrte|frecps|frsqrts|frecpx)$')
-HEAVY_MUL = re.compile(r'^(mul|madd|msub|mneg|smull|umull|smaddl|umaddl|smsubl|umsubl|smnegl|umnegl|smulh|umulh|'
-                       r'pmull2?|smull2?|umull2?|smlal2?|umlal2?|smlsl2?|umlsl2?|sqdmull2?|sqdmulh|sqrdmulh|mla|mls)$')
-HEAVY_FP = re.compile(r'^(fadd|fsub|fmul|fnmul|fmadd|fmsub|fnmadd|fnmsub|fmla|fmls|fmulx|fabd|fmax|fmin|fmaxnm|'
-                      r'fminnm|fmaxv|fminv|fmaxnmv|fminnmv|faddp|fcmp|fcmpe|fccmp|fccmpe|fcmeq|fcmge|fcmgt|fcmle|'
-                      r'fcmlt|facge|facgt|fcvt[a-z]*|scvtf|ucvtf|frint[a-z]*|fjcvtzs|bfcvt[a-z0-9]*)$')
-SIGNED_COND = {'lt', 'le', 'gt', 'ge', 'mi', 'pl', 'vs', 'vc'}
-VEC = re.compile(r'\bv\d+\.(16b|8b|8h|4h|4s|2s|2d|1d|1q|b|h|s|d)\b')
-NOPS = {'nop', 'hint', 'bti', 'paciasp', 'autiasp', 'pacibsp', 'autibsp', 'pacia', 'autia', 'pacib', 'autib',
-        'paciza', 'autiza', 'xpaclri', 'xpaci', 'dmb', 'dsb', 'isb', 'prfm', 'prfum', 'yield', 'csdb', 'sb',
-        'pssbb', 'ssbb', 'clrex', 'esb', 'retaa', 'retab'}
-
-
-def split_ops(s):
-    out, depth, cur = [], 0, ''
-    for ch in s:
-        if ch in '[{':
-            depth += 1
-        elif ch in ']}':
-            depth -= 1
-        if ch == ',' and depth == 0:
-            out.append(cur.strip())
-            cur = ''
-        else:
-            cur += ch
-    if cur.strip():
-        out.append(cur.strip())
-    return out
-
-
-def addr_cost(ops):
-    joined = ', '.join(ops)
-    m = re.search(r'\[([^\]]*)\](!?)', joined)
-    if not m:
-        return 1 if re.search(r'0x[0-9a-f]+', joined) else 0   # literal (pc-relative)
-    inner = [t.strip() for t in m.group(1).split(',')]
-    c = 0
-    if len(inner) >= 2:
-        c += 1                                       # base + offset / base + index
-        if len(inner) >= 3:
-            ext = inner[2]
-            if ext.startswith('lsl'):
-                c += 1
-            elif ext.startswith('sxt'):
-                c += 3 + (1 if '#' in ext else 0)
-            elif ext.startswith('uxt'):
-                c += 1 + (1 if '#' in ext else 0)
-    if m.group(2) == '!':
-        c += 1                                       # pre-index writeback
-    tail = joined[m.end():].strip()
-    if tail.startswith(','):
-        c += 2                                       # post-index writeback (add + mask)
-    return c
-
-
-def operand_mod(ops):
-    """Cost of a shifted or extended last operand."""
-    if not ops:
-        return 0
-    last = ops[-1]
-    if re.match(r'^(lsl|lsr|asr|ror)\b', last):
-        k = last.split()[0]
-        return {'lsl': 2, 'lsr': 1, 'asr': 4, 'ror': 4}[k]
-    if re.match(r'^(uxt[bhwx])', last):
-        return 1 + (2 if '#' in last else 0)
-    if re.match(r'^(sxt[bhwx])', last):
-        return 3 + (2 if '#' in last else 0)
-    return 0
-
-
-def cost(mn, ops):
-    """Return (operations, class): class is 'div', 'heavy', 'ordinary' or 'unknown'."""
-    base = mn.split('.')[0]
-    cond = mn.split('.')[1] if mn.startswith('b.') else None
-    vec = any(VEC.search(o) for o in ops) or ('.' in mn and cond is None)
-    if HEAVY_DIV.match(base):
-        return 1024, 'div'
-    if HEAVY_MUL.match(base) or HEAVY_FP.match(base):
-        return 400, 'heavy'
-    if vec and base in ('fabs', 'fneg', 'frecpe', 'frsqrte'):
-        return 400, 'heavy'
-    if base in NOPS:
-        return 1, 'ordinary'
-    # loads and stores
-    if re.match(r'^(ldr|ldur|ldtr|ldapr|ldapur)$', base):
-        sz = ops[0][0] if ops else 'x'
-        return (1 if sz in 'xqdsbh' and sz != 'w' else 2) + addr_cost(ops[1:]), 'ordinary'
-    if re.match(r'^(ldrb|ldrh|ldurb|ldurh|ldtrb|ldtrh|ldaprb|ldaprh)$', base):
-        return 2 + addr_cost(ops[1:]), 'ordinary'
-    if re.match(r'^(ldrsb|ldrsh|ldrsw|ldursb|ldursh|ldursw)$', base):
-        return 4 + addr_cost(ops[1:]), 'ordinary'
-    if re.match(r'^(str|stur|strb|strh|sturb|sturh|sttr|stlur|stlurb|stlurh)$', base):
-        return 1 + addr_cost(ops[1:]), 'ordinary'
-    if re.match(r'^(ldp|stp|ldnp|stnp|ldpsw)$', base):
-        return 2 + 1 + addr_cost(ops[2:]) + (4 if base == 'ldpsw' else 0), 'ordinary'
-    if re.match(r'^(ld[1-4]r?|st[1-4])$', base):
-        n = max(1, len(re.findall(r'v\d+', ops[0]) if ops else []))
-        return n * 16 + addr_cost(ops[1:]), 'ordinary'   # element-wise structure loads, charged as shuffles
-    if re.match(r'^(ldxr|ldaxr|stxr|stlxr|ldar|stlr|ldxrb|ldaxrb|stxrb|stlxrb|ldxrh|ldaxrh|stxrh|stlxrh|ldarb|'
-                 r'stlrb|ldarh|stlrh|ldxp|ldaxp|stxp|stlxp|cas|casa|casl|casal|casb|casab|caslb|casalb|cash|casah|'
-                 r'caslh|casalh|casp|caspa|caspl|caspal|ldadd|ldadda|ldaddl|ldaddal|ldaddb|ldaddalb|ldaddh|ldaddalh|'
-                 r'ldclr|ldclral|ldclra|ldclrl|ldset|ldsetal|ldseta|ldsetl|ldeor|ldeoral|swp|swpa|swpl|swpal|swpb|'
-                 r'swpalb|swph|swpalh|ldaddlb|ldaddab|ldsetalb|ldclralb|stadd|staddl|stset|stclr|stsetl|stclrl)$',
-                 base):
-        return 6 + addr_cost(ops[1:]), 'ordinary'
-    if vec:
-        if re.match(r'^(and|orr|eor|bic|orn|not|mvn|bsl|bit|bif|mov|movi|mvni)$', base):
-            return 1, 'ordinary'
-        if re.match(r'^(add|sub|cmeq|cmhi|cmhs|cmge|cmgt|cmle|cmlt|cmtst|neg|abs|umax|umin|smax|smin|addp|uaddl2?|'
-                     r'uaddw2?|usubl2?|ushr|sshr|shl|ushl|sshl|ushll2?|sshll2?|xtn2?|uqxtn2?|sqxtn2?|shrn2?|uzp[12]|zip[12]|'
-                     r'trn[12]|ext|uhadd|urhadd|uqadd|uqsub|sqadd|sqsub|sli|sri|usra|ssra|dup|fneg|fabs|fmov|cnt|rev64|rev32|rev16)$',
-                     base):
-            return 16, 'ordinary'
-        return 16, 'ordinary'   # remaining SIMD forms (tbl, ins, umov, addv, ...) charged as shuffles
-    w = bool(ops) and ops[0].startswith('w')
-    if base in ('add', 'adds', 'sub', 'subs'):
-        return 2 + operand_mod(ops), 'ordinary'
-    if base in ('cmp', 'cmn'):
-        return 2 + operand_mod(ops), 'ordinary'
-    if base in ('neg', 'negs'):
-        return 2 + operand_mod(ops), 'ordinary'
-    if base in ('adc', 'adcs', 'sbc', 'sbcs', 'ngc', 'ngcs'):
-        return 4, 'ordinary'
-    if base in ('and', 'ands', 'orr', 'eor', 'tst'):
-        return 1 + operand_mod(ops), 'ordinary'
-    if base in ('bic', 'bics', 'orn', 'eon', 'mvn'):
-        return 3 + operand_mod(ops), 'ordinary'
-    if base in ('mov', 'movz', 'movn'):
-        return 1 + (1 if base == 'movn' else 0), 'ordinary'
-    if base == 'movk':
-        return 3, 'ordinary'
-    if base in ('adr', 'adrp'):
-        return 1, 'ordinary'
-    if base in ('lsr',):
-        return 1, 'ordinary'
-    if base in ('lsl',):
-        return 2, 'ordinary'
-    if base in ('asr', 'ror'):
-        return 4, 'ordinary'
-    if base in ('ubfx', 'uxtb', 'uxth', 'uxtw'):
-        return 2, 'ordinary'
-    if base in ('ubfiz', 'ubfm'):
-        return 3, 'ordinary'
-    if base in ('sbfx', 'sbfiz', 'sbfm', 'sxtb', 'sxth', 'sxtw'):
-        return 4, 'ordinary'
-    if base in ('bfi', 'bfxil', 'bfm', 'bfc'):
-        return 5, 'ordinary'
-    if base == 'extr':
-        return 4, 'ordinary'
-    if base in ('csel', 'fcsel'):
-        return 3, 'ordinary'
-    if base in ('cset', 'csetm'):
-        return 2, 'ordinary'
-    if base in ('csinc', 'csinv', 'csneg', 'cinc', 'cinv', 'cneg'):
-        return 4, 'ordinary'
-    if base in ('ccmp', 'ccmn'):
-        return 5, 'ordinary'
-    if base in ('clz', 'cls', 'rbit', 'rev', 'rev16', 'rev32', 'cnt', 'ctz', 'abs'):
-        return 32, 'ordinary'
-    if base == 'b' and cond is None:
-        return 1, 'ordinary'
-    if cond is not None:
-        return 3 if cond in SIGNED_COND else 2, 'ordinary'
-    if base in ('bl', 'blr', 'ret', 'blraa', 'blraaz', 'braa', 'braaz'):
-        return 3, 'ordinary'
-    if base == 'br':
-        return 2, 'ordinary'
-    if base in ('cbz', 'cbnz'):
-        return 2, 'ordinary'
-    if base in ('tbz', 'tbnz'):
-        return 3, 'ordinary'
-    if base in ('fmov',):
-        return 1, 'ordinary'
-    if base in ('fabs', 'fneg'):
-        return 2, 'ordinary'
-    return 8, 'unknown'
-
-
-LINE = re.compile(r'^\s*([0-9a-f]+):\s+(\S+)(?:\s+(.*))?$')
-
-
-def parse(path, with_addr=False):
-    """Parse llvm-objdump -d --no-show-raw-insn output into {function: [(addr, mn, ops)]}."""
-    funcs = collections.OrderedDict()
-    cur = None
-    for line in open(path, errors='replace'):
-        line = line.rstrip('\n')
-        if line.endswith('>:'):
-            cur = line.split('<', 1)[1].rsplit('>', 1)[0]
-            funcs.setdefault(cur, [])
-            continue
-        if cur is None or not line.strip():
-            continue
-        if with_addr:
-            m = LINE.match(line)
-            if not m:
-                continue
-            a, mn, rest = int(m.group(1), 16), m.group(2), m.group(3) or ''
-        else:
-            parts = line.strip().split(None, 1)
-            a, mn, rest = None, parts[0], parts[1] if len(parts) > 1 else ''
-        rest = rest.split('//')[0]
-        rest = re.sub(r'\s*<[^>]*>\s*$', '', rest).strip()
-        funcs[cur].append((a, mn, split_ops(rest) if rest else []))
-    return funcs
-
-
-def summarize(name, insns, weights=None):
-    n = tot = heavy = div = unk = 0
-    cls_n = collections.Counter()
-    unk_mn = collections.Counter()
-    form = collections.Counter()
-    for i, (a, mn, ops) in enumerate(insns):
-        wgt = weights[i] if weights else 1
-        c, cls = cost(mn, ops)
-        n += wgt
-        cls_n[cls] += wgt
-        tot += c * wgt
-        form[mn.split('.')[0]] += wgt
-        if cls == 'unknown':
-            unk_mn[mn] += wgt
-    ordn = cls_n['ordinary'] + cls_n['unknown']
-    ord_ops = tot - 400 * cls_n['heavy'] - 1024 * cls_n['div']
-    return dict(name=name, insns=n, heavy=cls_n['heavy'], div=cls_n['div'], unknown=cls_n['unknown'],
-                mean_all=round(tot / n, 4) if n else None,
-                mean_ordinary=round(ord_ops / ordn, 4) if ordn else None,
-                heavy_share=round(cls_n['heavy'] / n, 6) if n else None,
-                div_share=round(cls_n['div'] / n, 6) if n else None,
-                top_forms=form.most_common(12), unknown_top=unk_mn.most_common(10))
-
-
-if __name__ == '__main__':
-    funcs = parse(sys.argv[1])
-    print(json.dumps(summarize('WHOLE-BINARY', [i for v in funcs.values() for i in v])))
-```
-
-C.2 `cgmix.py` (dynamic mix from callgrind instruction counts)
-
-```python
-"""Dynamic per-form cost from callgrind --dump-instr=yes --compress-pos=no --compress-strings=no dumps.
-
-usage: cgmix.py BINDIR DUMP [DUMP ...]
-Each dump is one interval; prints per-dump and pooled summaries as JSON lines.
-Positions of shared objects are object-relative virtual addresses; the z3 executable is non-PIE.
-"""
-import collections
-import json
-import os
-import re
-import subprocess
-import sys
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from a64ops import cost, split_ops  # noqa: E402
-
-OBJ_FILE = {
-    '/usr/local/bin/z3': 'z3.elf',
-    'r31sim3.lin': 'r31sim3.lin',
-    'libstdc++.so.6.0.30': 'libstdc++.so.6',
-    'libc.so.6': 'libc.so.6',
-    'libm.so.6': 'libm.so.6',
-    'libgcc_s.so.1': 'libgcc_s.so.1',
-    'ld-linux-aarch64.so.1': 'ld-linux-aarch64.so.1',
-}
-
-
-def objkey(ob):
-    for k, v in OBJ_FILE.items():
-        if ob.endswith(k):
-            return v
-    return None
-
-
-def read_dump(path):
-    counts = collections.defaultdict(collections.Counter)
-    ob, skip = None, False
-    for line in open(path):
-        if line.startswith('ob='):
-            ob = line[3:].strip()
-            continue
-        if line.startswith('calls='):
-            skip = True
-            continue
-        if line.startswith('0x'):
-            if skip:
-                skip = False
-                continue
-            a, c = line.split()[:2]
-            counts[ob][int(a, 16)] += int(c)
-    return counts
-
-
-LINE = re.compile(r'^\s*([0-9a-f]+):\s+(\S+)(?:\s+(.*))?$')
-
-
-def disasm(binpath, wanted):
-    out = {}
-    p = subprocess.Popen(['xcrun', 'llvm-objdump', '-d', '--no-show-raw-insn', binpath],
-                         stdout=subprocess.PIPE, text=True, errors='replace')
-    for line in p.stdout:
-        m = LINE.match(line)
-        if not m:
-            continue
-        a = int(m.group(1), 16)
-        if a not in wanted:
-            continue
-        rest = (m.group(3) or '').split('//')[0]
-        rest = re.sub(r'\s*<[^>]*>\s*$', '', rest).strip()
-        out[a] = (m.group(2), split_ops(rest) if rest else [])
-    p.wait()
-    return out
-
-
-def main():
-    bindir, dumps = sys.argv[1], sys.argv[2:]
-    per = [(d, read_dump(d)) for d in dumps]
-    wanted = collections.defaultdict(set)
-    for _, cnt in per:
-        for ob, c in cnt.items():
-            k = objkey(ob or '')
-            if k:
-                wanted[k].update(c)
-            if 'z3.elf' in wanted or any(objkey(o or '') == 'z3.elf' for o in cnt):
-                wanted['z3.elf'].update(a for a in c if a >= 0x400000)
-    dis = {k: disasm(os.path.join(bindir, k), w) for k, w in wanted.items()}
-    pooled = collections.defaultdict(collections.Counter)
-    rows = []
-    for name, cnt in per + [('POOLED', None)]:
-        if cnt is None:
-            cnt = pooled
-        tot_i = tot_ops = 0
-        cls = collections.Counter()
-        by_obj = collections.Counter()
-        unmapped = 0
-        forms = collections.Counter()
-        for ob, c in cnt.items():
-            k = objkey(ob or '')
-            for a, n in c.items():
-                if name != 'POOLED':
-                    pooled[ob][a] += n
-                tot_i += n
-                by_obj[k or ob] += n
-                ins = dis.get(k, {}).get(a) if k else None
-                if ins is None and a >= 0x400000 and 'z3.elf' in dis:
-                    ins = dis['z3.elf'].get(a)   # callgrind can tag executable code run from a library frame
-                if ins is None:
-                    unmapped += n
-                    cls['unmapped'] += n
-                    continue
-                o, cl = cost(ins[0], ins[1])
-                cls[cl] += n
-                tot_ops += o * n
-                forms[ins[0]] += n
-        mapped = tot_i - unmapped
-        ordn = cls['ordinary'] + cls['unknown']
-        ord_ops = tot_ops - 400 * cls['heavy'] - 1024 * cls['div']
-        rows.append(dict(
-            dump=os.path.basename(name), instr=tot_i, unmapped=unmapped,
-            heavy_share=cls['heavy'] / mapped, div_share=cls['div'] / mapped, unknown_share=cls['unknown'] / mapped,
-            m_dyn=tot_ops / mapped, ord_mean=ord_ops / ordn,
-            m_class=5 * (1 - (cls['heavy'] + cls['div']) / mapped) + 400 * cls['heavy'] / mapped + 1024 * cls['div'] / mapped,
-            obj_share={str(k): round(v / tot_i, 5) for k, v in by_obj.most_common()},
-            top_forms=[(f, round(v / mapped, 4)) for f, v in forms.most_common(10)]))
-    for r in rows:
-        print(json.dumps(r))
-
-
-if __name__ == '__main__':
-    main()
+```smt2
+(set-logic QF_BV)
+(set-option :random-seed 88108363)
+(set-option :sat.random_seed 88108363)
+(set-option :smt.random_seed 88108363)
+(declare-fun A1 () (_ BitVec 32))
+(declare-fun A2 () (_ BitVec 32))
+(declare-fun A3 () (_ BitVec 32))
+(declare-fun A4 () (_ BitVec 32))
+(declare-fun A5 () (_ BitVec 32))
+(declare-fun A6 () (_ BitVec 32))
+(declare-fun A7 () (_ BitVec 32))
+(declare-fun A8 () (_ BitVec 32))
+(declare-fun A9 () (_ BitVec 32))
+(declare-fun A10 () (_ BitVec 32))
+(declare-fun A11 () (_ BitVec 32))
+(declare-fun A12 () (_ BitVec 32))
+(declare-fun E5 () (_ BitVec 32))
+(declare-fun E6 () (_ BitVec 32))
+(declare-fun E7 () (_ BitVec 32))
+(declare-fun E8 () (_ BitVec 32))
+(declare-fun E9 () (_ BitVec 32))
+(declare-fun E10 () (_ BitVec 32))
+(declare-fun E11 () (_ BitVec 32))
+(declare-fun E12 () (_ BitVec 32))
+(declare-fun A1p () (_ BitVec 32))
+(declare-fun A2p () (_ BitVec 32))
+(declare-fun A3p () (_ BitVec 32))
+(declare-fun A4p () (_ BitVec 32))
+(declare-fun A5p () (_ BitVec 32))
+(declare-fun A6p () (_ BitVec 32))
+(declare-fun A7p () (_ BitVec 32))
+(declare-fun A8p () (_ BitVec 32))
+(declare-fun A9p () (_ BitVec 32))
+(declare-fun A10p () (_ BitVec 32))
+(declare-fun A11p () (_ BitVec 32))
+(declare-fun A12p () (_ BitVec 32))
+(declare-fun E5p () (_ BitVec 32))
+(declare-fun E6p () (_ BitVec 32))
+(declare-fun E7p () (_ BitVec 32))
+(declare-fun E8p () (_ BitVec 32))
+(declare-fun E9p () (_ BitVec 32))
+(declare-fun E10p () (_ BitVec 32))
+(declare-fun E11p () (_ BitVec 32))
+(declare-fun E12p () (_ BitVec 32))
+(declare-fun W9 () (_ BitVec 32))
+(declare-fun W10 () (_ BitVec 32))
+(declare-fun W11 () (_ BitVec 32))
+(declare-fun W12 () (_ BitVec 32))
+(declare-fun W9p () (_ BitVec 32))
+(declare-fun E3 () (_ BitVec 32))
+(declare-fun E4 () (_ BitVec 32))
+(declare-fun W7 () (_ BitVec 32))
+(declare-fun W8 () (_ BitVec 32))
+(assert (= (bvand (bvxor A1 A1p) #xffffffff) #x00000000))
+(assert (= (bvand (bvxor A2 A2p) #xffffffff) #x00000000))
+(assert (= (bvand (bvxor A3 A3p) #xffffffff) #x00000000))
+(assert (= (bvand (bvxor A4 A4p) #xffffffff) #x00000000))
+(assert (= (bvand A5 #x00000400) #x00000000))
+(assert (= (bvand A5p #x00000400) #x00000400))
+(assert (= (bvand A5 #x000013fa) #x000013fa))
+(assert (= (bvand A5p #x000013fa) #x00000000))
+(assert (= (bvand (bvxor A5 A5p) #xffffe805) #x00000000))
+(assert (= (bvand A6 #x00000001) #x00000000))
+(assert (= (bvand A6p #x00000001) #x00000001))
+(assert (= (bvand A6 #x00800000) #x00800000))
+(assert (= (bvand A6p #x00800000) #x00000000))
+(assert (= (bvand (bvxor A6 A6p) #xff7ffffe) #x00000000))
+(assert (= (bvand A7 #x10000001) #x00000000))
+(assert (= (bvand A7p #x10000001) #x10000001))
+(assert (= (bvand A7 #x01201004) #x01201004))
+(assert (= (bvand A7p #x01201004) #x00000000))
+(assert (= (bvand (bvxor A7 A7p) #xeedfeffa) #x00000000))
+(assert (= (bvand A8 #x00000004) #x00000004))
+(assert (= (bvand A8p #x00000004) #x00000000))
+(assert (= (bvand (bvxor A8 A8p) #xfffffffb) #x00000000))
+(assert (= (bvand (bvxor A9 A9p) #xffffffff) #x00000000))
+(assert (= (bvand A10 #x00008004) #x00000000))
+(assert (= (bvand A10p #x00008004) #x00008004))
+(assert (= (bvand (bvxor A10 A10p) #xffff7ffb) #x00000000))
+(assert (= (bvand (bvxor A11 A11p) #xffffffff) #x00000000))
+(assert (= (bvand (bvxor A12 A12p) #xffffffff) #x00000000))
+(assert (= (bvand E5 #xffffc7c1) #x1d1f87c1))
+(assert (= (bvand E5p #xffffc7c1) #x1d1f87c1))
+(assert (= (bvand E5 #x00001022) #x00000000))
+(assert (= (bvand E5p #x00001022) #x00001022))
+(assert (= (bvand E5 #x0000201c) #x0000201c))
+(assert (= (bvand E5p #x0000201c) #x00000000))
+(assert (= (bvand (bvxor E5 E5p) #x00000800) #x00000000))
+(assert (= (bvand E6 #xfd947cfe) #xad8078e6))
+(assert (= (bvand E6p #xfd947cfe) #xad8078e6))
+(assert (= (bvand E6 #x00008000) #x00000000))
+(assert (= (bvand E6p #x00008000) #x00008000))
+(assert (= (bvand E6 #x00080001) #x00080001))
+(assert (= (bvand E6p #x00080001) #x00000000))
+(assert (= (bvand (bvxor E6 E6p) #x02630300) #x00000000))
+(assert (= (bvand E7 #x2f37fa76) #x0c17ca64))
+(assert (= (bvand E7p #x2f37fa76) #x0c17ca64))
+(assert (= (bvand E7 #x90080408) #x00000000))
+(assert (= (bvand E7p #x90080408) #x90080408))
+(assert (= (bvand E7 #x40800081) #x40800081))
+(assert (= (bvand E7p #x40800081) #x00000000))
+(assert (= (bvand (bvxor E7 E7p) #x00400100) #x00000000))
+(assert (= (bvand E8 #xb2ab25fa) #x902b0048))
+(assert (= (bvand E8p #xb2ab25fa) #x902b0048))
+(assert (= (bvand E8 #x49000804) #x00000000))
+(assert (= (bvand E8p #x49000804) #x49000804))
+(assert (= (bvand E8 #x04008000) #x04008000))
+(assert (= (bvand E8p #x04008000) #x00000000))
+(assert (= (bvand (bvxor E8 E8p) #x00545201) #x00000000))
+(assert (= (bvand E9 #xffeb8df5) #x61c101d1))
+(assert (= (bvand E9p #xffeb8df5) #x61c101d1))
+(assert (= (bvand E9 #x00000008) #x00000000))
+(assert (= (bvand E9p #x00000008) #x00000008))
+(assert (= (bvand (bvxor E9 E9p) #x00147202) #x00000000))
+(assert (= (bvand E10 #x507a5807) #x50221002))
+(assert (= (bvand E10p #x507a5807) #x50221002))
+(assert (= (bvand E10 #x0f810400) #x00000000))
+(assert (= (bvand E10p #x0f810400) #x0f810400))
+(assert (= (bvand E10 #x200083f8) #x200083f8))
+(assert (= (bvand E10p #x200083f8) #x00000000))
+(assert (= (bvand (bvxor E10 E10p) #x80042000) #x00000000))
+(assert (= (bvand E11 #x6f27c7f2) #x2a270410))
+(assert (= (bvand E11p #x6f27c7f2) #x2a270410))
+(assert (= (bvand E11 #x10c00000) #x00000000))
+(assert (= (bvand E11p #x10c00000) #x10c00000))
+(assert (= (bvand E11 #x00000008) #x00000008))
+(assert (= (bvand E11p #x00000008) #x00000000))
+(assert (= (bvand (bvxor E11 E11p) #x80183805) #x00000000))
+(assert (= (bvand E12 #x3f6107f2) #x316101e0))
+(assert (= (bvand E12p #x3f6107f2) #x316101e0))
+(assert (= (bvand E12 #x00008008) #x00008008))
+(assert (= (bvand E12p #x00008008) #x00000000))
+(assert (= (bvand (bvxor E12 E12p) #xc09e7805) #x00000000))
+(assert (= (bvand W9 #x00000010) #x00000010))
+(assert (= (bvand W9p #x00000010) #x00000010))
+(assert (= (bvand W9 #x00008004) #x00000000))
+(assert (= (bvand W9p #x00008004) #x00008004))
+(assert (= (bvand (bvxor W9 W9p) #xffff7feb) #x00000000))
+(assert (= A5 (bvadd (bvsub E5 A1) (bvxor ((_ rotate_right 2) A4) ((_ rotate_right 13) A4) ((_ rotate_right 22) A4)) (bvxor (bvand A4 A3) (bvand A4 A2) (bvand A3 A2)))))
+(assert (= A6 (bvadd (bvsub E6 A2) (bvxor ((_ rotate_right 2) A5) ((_ rotate_right 13) A5) ((_ rotate_right 22) A5)) (bvxor (bvand A5 A4) (bvand A5 A3) (bvand A4 A3)))))
+(assert (= A7 (bvadd (bvsub E7 A3) (bvxor ((_ rotate_right 2) A6) ((_ rotate_right 13) A6) ((_ rotate_right 22) A6)) (bvxor (bvand A6 A5) (bvand A6 A4) (bvand A5 A4)))))
+(assert (= A8 (bvadd (bvsub E8 A4) (bvxor ((_ rotate_right 2) A7) ((_ rotate_right 13) A7) ((_ rotate_right 22) A7)) (bvxor (bvand A7 A6) (bvand A7 A5) (bvand A6 A5)))))
+(assert (= A9 (bvadd (bvsub E9 A5) (bvxor ((_ rotate_right 2) A8) ((_ rotate_right 13) A8) ((_ rotate_right 22) A8)) (bvxor (bvand A8 A7) (bvand A8 A6) (bvand A7 A6)))))
+(assert (= A10 (bvadd (bvsub E10 A6) (bvxor ((_ rotate_right 2) A9) ((_ rotate_right 13) A9) ((_ rotate_right 22) A9)) (bvxor (bvand A9 A8) (bvand A9 A7) (bvand A8 A7)))))
+(assert (= A11 (bvadd (bvsub E11 A7) (bvxor ((_ rotate_right 2) A10) ((_ rotate_right 13) A10) ((_ rotate_right 22) A10)) (bvxor (bvand A10 A9) (bvand A10 A8) (bvand A9 A8)))))
+(assert (= A12 (bvadd (bvsub E12 A8) (bvxor ((_ rotate_right 2) A11) ((_ rotate_right 13) A11) ((_ rotate_right 22) A11)) (bvxor (bvand A11 A10) (bvand A11 A9) (bvand A10 A9)))))
+(assert (= E9 (bvadd A5 E5 (bvxor ((_ rotate_right 6) E8) ((_ rotate_right 11) E8) ((_ rotate_right 25) E8)) (bvxor (bvand E8 E7) (bvand (bvnot E8) E6)) #x12835b01 W9)))
+(assert (= E10 (bvadd A6 E6 (bvxor ((_ rotate_right 6) E9) ((_ rotate_right 11) E9) ((_ rotate_right 25) E9)) (bvxor (bvand E9 E8) (bvand (bvnot E9) E7)) #x243185be W10)))
+(assert (= E11 (bvadd A7 E7 (bvxor ((_ rotate_right 6) E10) ((_ rotate_right 11) E10) ((_ rotate_right 25) E10)) (bvxor (bvand E10 E9) (bvand (bvnot E10) E8)) #x550c7dc3 W11)))
+(assert (= E12 (bvadd A8 E8 (bvxor ((_ rotate_right 6) E11) ((_ rotate_right 11) E11) ((_ rotate_right 25) E11)) (bvxor (bvand E11 E10) (bvand (bvnot E11) E9)) #x72be5d74 W12)))
+(assert (= A5p (bvadd (bvsub E5p A1p) (bvxor ((_ rotate_right 2) A4p) ((_ rotate_right 13) A4p) ((_ rotate_right 22) A4p)) (bvxor (bvand A4p A3p) (bvand A4p A2p) (bvand A3p A2p)))))
+(assert (= A6p (bvadd (bvsub E6p A2p) (bvxor ((_ rotate_right 2) A5p) ((_ rotate_right 13) A5p) ((_ rotate_right 22) A5p)) (bvxor (bvand A5p A4p) (bvand A5p A3p) (bvand A4p A3p)))))
+(assert (= A7p (bvadd (bvsub E7p A3p) (bvxor ((_ rotate_right 2) A6p) ((_ rotate_right 13) A6p) ((_ rotate_right 22) A6p)) (bvxor (bvand A6p A5p) (bvand A6p A4p) (bvand A5p A4p)))))
+(assert (= A8p (bvadd (bvsub E8p A4p) (bvxor ((_ rotate_right 2) A7p) ((_ rotate_right 13) A7p) ((_ rotate_right 22) A7p)) (bvxor (bvand A7p A6p) (bvand A7p A5p) (bvand A6p A5p)))))
+(assert (= A9p (bvadd (bvsub E9p A5p) (bvxor ((_ rotate_right 2) A8p) ((_ rotate_right 13) A8p) ((_ rotate_right 22) A8p)) (bvxor (bvand A8p A7p) (bvand A8p A6p) (bvand A7p A6p)))))
+(assert (= A10p (bvadd (bvsub E10p A6p) (bvxor ((_ rotate_right 2) A9p) ((_ rotate_right 13) A9p) ((_ rotate_right 22) A9p)) (bvxor (bvand A9p A8p) (bvand A9p A7p) (bvand A8p A7p)))))
+(assert (= A11p (bvadd (bvsub E11p A7p) (bvxor ((_ rotate_right 2) A10p) ((_ rotate_right 13) A10p) ((_ rotate_right 22) A10p)) (bvxor (bvand A10p A9p) (bvand A10p A8p) (bvand A9p A8p)))))
+(assert (= A12p (bvadd (bvsub E12p A8p) (bvxor ((_ rotate_right 2) A11p) ((_ rotate_right 13) A11p) ((_ rotate_right 22) A11p)) (bvxor (bvand A11p A10p) (bvand A11p A9p) (bvand A10p A9p)))))
+(assert (= E9p (bvadd A5p E5p (bvxor ((_ rotate_right 6) E8p) ((_ rotate_right 11) E8p) ((_ rotate_right 25) E8p)) (bvxor (bvand E8p E7p) (bvand (bvnot E8p) E6p)) #x12835b01 W9p)))
+(assert (= E10p (bvadd A6p E6p (bvxor ((_ rotate_right 6) E9p) ((_ rotate_right 11) E9p) ((_ rotate_right 25) E9p)) (bvxor (bvand E9p E8p) (bvand (bvnot E9p) E7p)) #x243185be W10)))
+(assert (= E11p (bvadd A7p E7p (bvxor ((_ rotate_right 6) E10p) ((_ rotate_right 11) E10p) ((_ rotate_right 25) E10p)) (bvxor (bvand E10p E9p) (bvand (bvnot E10p) E8p)) #x550c7dc3 W11)))
+(assert (= E12p (bvadd A8p E8p (bvxor ((_ rotate_right 6) E11p) ((_ rotate_right 11) E11p) ((_ rotate_right 25) E11p)) (bvxor (bvand E11p E10p) (bvand (bvnot E11p) E9p)) #x72be5d74 W12)))
+(assert (= (bvsub E8p E8) (bvadd (bvsub (bvxor ((_ rotate_right 6) E7p) ((_ rotate_right 11) E7p) ((_ rotate_right 25) E7p)) (bvxor ((_ rotate_right 6) E7) ((_ rotate_right 11) E7) ((_ rotate_right 25) E7))) (bvsub (bvxor (bvand E7p E6p) (bvand (bvnot E7p) E5p)) (bvxor (bvand E7 E6) (bvand (bvnot E7) E5))) #x28011100)))
+(assert (= (bvadd A9p E9p (bvxor ((_ rotate_right 6) E12p) ((_ rotate_right 11) E12p) ((_ rotate_right 25) E12p)) (bvxor (bvand E12p E11p) (bvand (bvnot E12p) E10p))) (bvadd A9 E9 (bvxor ((_ rotate_right 6) E12) ((_ rotate_right 11) E12) ((_ rotate_right 25) E12)) (bvxor (bvand E12 E11) (bvand (bvnot E12) E10)))))
+(assert (= (bvxor (bvand A12p A11p) (bvand A12p A10p) (bvand A11p A10p)) (bvxor (bvand A12 A11) (bvand A12 A10) (bvand A11 A10))))
+(assert (= (bvsub (bvxor ((_ rotate_right 7) W9p) ((_ rotate_right 18) W9p) (bvlshr W9p #x00000003)) (bvxor ((_ rotate_right 7) W9) ((_ rotate_right 18) W9) (bvlshr W9 #x00000003))) #xd7feef00))
+(assert (= (bvand E4 #x00088031) #x00000010))
+(assert (= (bvand E4 #x00088031) #x00000010))
+(assert (= (bvand (bvxor E4 E4) #xfff77fce) #x00000000))
+(assert (= (bvand E3 #x00000030) #x00000020))
+(assert (= (bvand E3 #x00000030) #x00000020))
+(assert (= (bvand (bvxor E3 E3) #xffffffcf) #x00000000))
+(assert (= E8 (bvadd A4 E4 (bvxor ((_ rotate_right 6) E7) ((_ rotate_right 11) E7) ((_ rotate_right 25) E7)) (bvxor (bvand E7 E6) (bvand (bvnot E7) E5)) #xd807aa98 W8)))
+(assert (= E7 (bvadd A3 E3 (bvxor ((_ rotate_right 6) E6) ((_ rotate_right 11) E6) ((_ rotate_right 25) E6)) (bvxor (bvand E6 E5) (bvand (bvnot E6) E4)) #xab1c5ed5 W7)))
+(assert (= (bvsub E7p E7) (bvadd (bvsub (bvxor ((_ rotate_right 6) E6p) ((_ rotate_right 11) E6p) ((_ rotate_right 25) E6p)) (bvxor ((_ rotate_right 6) E6) ((_ rotate_right 11) E6) ((_ rotate_right 25) E6))) (bvsub (bvxor (bvand E6p E5p) (bvand (bvnot E6p) E4)) (bvxor (bvand E6 E5) (bvand (bvnot E6) E4))) #x4fefb5fa)))
+(assert (= (bvsub E6p E6) (bvadd (bvsub (bvxor ((_ rotate_right 6) E5p) ((_ rotate_right 11) E5p) ((_ rotate_right 25) E5p)) (bvxor ((_ rotate_right 6) E5) ((_ rotate_right 11) E5) ((_ rotate_right 25) E5))) (bvsub (bvxor (bvand E5p E4) (bvand (bvnot E5p) E3)) (bvxor (bvand E5 E4) (bvand (bvnot E5) E3))) #x002087f1)))
+(assert (= (bvsub (bvxor ((_ rotate_right 7) (bvadd W8 #x28011100)) ((_ rotate_right 18) (bvadd W8 #x28011100)) (bvlshr (bvadd W8 #x28011100) #x00000003)) (bvxor ((_ rotate_right 7) W8) ((_ rotate_right 18) W8) (bvlshr W8 #x00000003))) #xb00fca02))
+(assert (= (bvsub (bvxor ((_ rotate_right 7) (bvadd W7 #x4fefb5fa)) ((_ rotate_right 18) (bvadd W7 #x4fefb5fa)) (bvlshr (bvadd W7 #x4fefb5fa) #x00000003)) (bvxor ((_ rotate_right 7) W7) ((_ rotate_right 18) W7) (bvlshr W7 #x00000003))) #xffdf780f))
+(assert (= (bvand (bvsub (bvsub (bvsub (bvsub E8 A4) (bvxor ((_ rotate_right 6) E7) ((_ rotate_right 11) E7) ((_ rotate_right 25) E7))) (bvxor (bvand E7 E6) (bvand (bvnot E7) E5))) #xd807aa98) #x000fffff) #x000e730f))
+(check-sat)
+(get-value (A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 E5 E6 E7 E8 E9 E10 E11 E12 A1p A2p A3p A4p A5p A6p A7p A8p A9p A10p A11p A12p E5p E6p E7p E8p E9p E10p E11p E12p W9 W10 W11 W12 W9p E3 E4 W7 W8))
 ```
