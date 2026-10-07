@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "half-collision",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact blake3-r2-prefix-v1 target. One trial of proof.md Section 4 per organizer seed: the seven context words (C0.c1, C0.d1, D3.d1, S15, S9, w5, X2) and a member number of the sub-class S8 are taken from SHAKE-256 of the seed, and the 55-byte and 63-byte messages are built by steps O, M, Y, T, S2, S3 with the quarter-round G only. Every trial returns its pair. The program also runs the counted pieces for that context (the outer step from a 256-bit word whose words 0 to 3 are the four coin words, the table words of the member's list word, the middle step), the three counted stages of the packed batch that holds the member (Section 5; stages B and C are computed whatever the decisions, the accumulator changes only as in the staged flow) and the block test. It compares every word the pieces leave with the construction; for each of the batch's seven lanes it compares bit 32 of the stage-A flag with rule A on h1 and bit 32 of the stage-B flag with rule A and the beta filter on c1 of E1, both from the program's own 2-round compression of that lane's messages, and the four packed residual words (Lemma D') and the zero indicator with the digests of the same compression; it compares both stage decisions with 'some lane passes'. It returns the counts as observations.",
+      "hypothesis": "Every returned pair agrees on digest words 0, 2, 5 and 7 (Theorem 1; exact). Predicted observations for every seed: stage_a_ops 29, stage_b_ops 73, stage_c_ops 112, block_test_ops 4, outer_ops 340, build_ops 49, middle_ops 107, lanes_right 7, flags_right 7, decisions_right 1, tests_right 1, pieces_right 1, member_in_s8 1. Observations are the program's own and are not a verified cost; this does not test H1.",
+      "program": "experiments/s8stage.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffff00000000ffffffff0000000000000000ffffffff00000000ffffffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "class-filter",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact target. Per organizer seed one context and nine consecutive packed batches (63 members of S8 in the algorithm's order) run as one block in the staged flow with the block test, after the counted outer step, table build and middle step of that context; every member is turned into a trial and computed forwards from its messages. The pair of the seed's member is returned. Observations check S8 membership, Y4 of both messages, eta, the words the pieces leave, the stage flags and decisions, the four packed residual words (Lemma D': D1, D3, ROL(D4,7) ^ D1, D6 of A XOR B) and the zero indicator of every lane, the block test and Lemma B, and count the lanes that satisfy rule A, the beta filter, and both, and the batches that enter stage B and stage C.",
+      "hypothesis": "Every returned pair agrees on the 128 masked bits (exact). Predicted for every seed: members 63, in_s8 63, y4_equal 63, eta_equal 63, lanes_right 63, flags_right 63, decisions_right 9, tests_right 1, pieces_right 1, lemma_b 6. rule_a_lanes, filter_lanes and filter_and_rule_a_lanes have means near 63 * 2^-5, 63 * 2^-6 and 63 * 2^-11 per seed under the model M (expected totals 504, 252 and 7.9 over 256 seeds); stage_b_batches and stage_c_batches are at most rule_a_lanes and filter_and_rule_a_lanes for every seed (one entry needs one passing lane), with M values 9 * (1 - (31/32)^7) and about 9 * 7 * 2^-11 per seed (totals 459.1 and 7.9). Rule A clusters by context, so totals vary from run to run and no per-run range is predicted. Reported, not predicted: 41 participant-run local replays using the repository's experiments/runner.py (public seed and 40 nonces of our own, listed in proof.md Section 6; program, harness and nonces hashed before the first run; all reported; repeated for the shipped program, which differs only in its ledger, with identical results) gave totals 419 to 663 (mean 515.4), 209 to 295 (mean 254.4) and 3 to 14 (mean 7.4) lanes and 212 to 316 (mean 259.9) and 3 to 14 (mean 7.3) batches entering stages B and C (public seed 462, 247, 14, 233, 14), every predicted observation exact. Ratios to M over the 41 runs (1 s.e.): stage-B batches 0.566 +- 0.008, rule A and filter 0.94 +- 0.05, rule A 1.023 +- 0.016. The public seed's 14 is the largest of the 41 totals; one run of 256 clustered contexts cannot resolve the margins of H1 (ii) (1.01 p_B, 1.25 * 2^-11), which proof.md Section 8.2 estimates from a uniform 2^38-trial sample (0.546, 1.00001). Nothing here is evidence for F or H1 (ii); each seed is one context, members not independent.",
+      "program": "experiments/s8stage.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffff00000000ffffffff0000000000000000ffffffff00000000ffffffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
