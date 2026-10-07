@@ -6,23 +6,87 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 37.55,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 28,
+    "preprocessing_log2": 37.55,
+    "success_probability": 1,
+    "nonuniform_advice_log2_bytes": 11
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Target sha3-256-r5-prefix-v1 exactly: Keccak-f[1600] rounds 0..4 on the single absorbed block, zero IV, rate 1088, SHA3 suffix 0x06 with pad10*1, full 256-bit digest. Both messages are 135 bytes, so the padded block ends in 0x86 and 520 state bits are fixed. The collision is ordinary.",
+    "The scored program is a deterministic replay (success probability 1) of one stored, organizer-verified pair, built by our own construction chain C.",
+    "C uses no published or third-party colliding pair, connector, subspace or difference beta0/beta1/alpha1. Its only external input is the published trail core No. 3 of GLL+20 Table 9 (beta2, beta3), a difference pattern that is not a collision. C computes its own beta1 order, prefilter, joint CryptoMiniSat witness (committed seed), witness-anchored connector space (DF 58) and its own phase-D enumeration until the first collision.",
+    "Total time is the executed work of C: phase B (Python and CryptoMiniSat) and compilation at 256 word operations per retired instruction, our own phase-D program by explicit per-event operation counts (2 units per enumerated pair, 73615736832 pairs over all 10 threads), plus the replay: 2^37.5491 units. The full source, the commitments and the raw measurement records are in the proof appendices.",
+    "Memory is a reported metric only. baseline_improved names the organizer reference and does not assert an improvement over any submitted score."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-public-trail",
+      "role": "score-critical",
+      "statement": "Trail core No. 3 of GLL+20 (Table 9: beta2 and beta3, the text of proof Appendix B.6) is public algorithm text that C may read without charging its original search. It is a differential characteristic, not a collision, and contains no message, state value, connector or pair.",
+      "scope": "The trail text only; every other object (beta1, alpha1, beta0, witness, space, pair) is computed and charged inside C.",
+      "extrapolation": "Treats a published characteristic like published algorithm text, as the cost model's advice rule is read for characteristics in passing packages.",
+      "evidence_ids": [
+        "proof:3-51",
+        "proof:97-125",
+        "proof:307-333"
+      ],
+      "limitations": "If the trail search must be charged, the bound rises by the cost of that search, which we did not execute. The trail text is also counted in the declared advice size."
+    },
+    {
+      "id": "H2-op-accounting",
+      "role": "score-critical",
+      "statement": "For our phase-D program the per-event charges of proof Section 9 bound its primitive 256-bit word operations including memory traffic: 2 units per enumerated pair (at most 2454 operations with the executed mean of 1.0716 rows checked), 10 units per Stage-1 pass, 8 units per chunk.",
+      "scope": "Phase D as executed (r5search.c and keccak_unrolled.h, proof Appendix B.4-B.5), with the executed pair, pass and per-row check counts printed by the program.",
+      "extrapolation": "Counts data-path operations in the organizer's reference convention and charges each with two operand loads and one result store.",
+      "evidence_ids": [
+        "proof:200-217",
+        "proof:265-300",
+        "proof:218-257"
+      ],
+      "limitations": "Counted by inspection of the source, not by an instrumented RAM simulator; the factor 4 for memory traffic is our convention."
+    },
+    {
+      "id": "H3-instruction-conversion",
+      "role": "score-critical",
+      "statement": "For phase B (Python 3.12 with CryptoMiniSat, one process) and the compilation of r5search.c, 256 primitive 256-bit word operations per retired AArch64 instruction bound their work.",
+      "scope": "The two processes whose /usr/bin/time -l records are in proof Appendix C.1-C.2 (284576788169 and 558963823 retired instructions).",
+      "extrapolation": "Applies a per-instruction emulation bound to every retired instruction of these processes, including library code.",
+      "evidence_ids": [
+        "proof:265-300",
+        "proof:307-333",
+        "proof:1609-1656"
+      ],
+      "limitations": "Not verified by an instrumented emulation; instruction counts are the macOS counters on Apple M4 Pro. Phase B is 26.8% of the total; a factor 1024 would add 0.85 bits."
+    },
+    {
+      "id": "H4-chain-scope",
+      "role": "score-critical",
+      "statement": "The charged chain C covers all computation of this construction, from its tables to the stored pair, including every prefilter test, SAT attempt, thread and check. Development runs with other labels and seeds (disclosed in proof Section 12) are not part of C; C reads none of their outputs and recomputes everything from the trail text and its committed seed.",
+      "scope": "Construction chain C as committed in proof Appendix A before its execution.",
+      "extrapolation": "Treats parameter tuning on development seeds as algorithm design rather than as search omitted from the submitted program.",
+      "evidence_ids": [
+        "proof:218-257",
+        "proof:334-345",
+        "proof:395-417"
+      ],
+      "limitations": "The commitment is a local git commit and file timestamp, not an external notarisation. Development work (about 7e12 retired instructions) is disclosed but not charged."
+    },
+    {
+      "id": "H5-memory",
+      "role": "supporting",
+      "statement": "Peak memory over C is below 2^28 bytes.",
+      "scope": "Measured maximum resident set sizes of phase B and phase D.",
+      "extrapolation": "None beyond the executed runs.",
+      "evidence_ids": [
+        "proof:301-306",
+        "proof:1609-1656"
+      ],
+      "limitations": "Resident set size is the operating system's measure, not a RAM-model word count."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }

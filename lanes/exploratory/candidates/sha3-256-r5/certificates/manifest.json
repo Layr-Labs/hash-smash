@@ -1,4 +1,13 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "r5-exec-1",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/r5-exec-1-a.bin",
+      "message_b": "certificates/r5-exec-1-b.bin",
+      "expected_digest": "56ef19cf743229a41c1b23484d5adf5a4c33ddf18c979b55e9f6c595ccd79ac6",
+      "target_profile": "sha3-256-r5-prefix-v1"
+    }
+  ]
 }

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "r5-connector-replay",
+      "kind": "python-message-pairs-v1",
+      "scope": "Rebuilds the accepted connector space of construction C (E_pad + E_0, witness-anchored linearisation, linearised E_1; ranks 1324 -> 1417 -> 1542, DF 58) from the stored witness, beta0, beta1 and alpha1 with the committed linearisation seed, derives the certificate pair from the stored Gray-code index, and per trial checks a fresh seeded point of the space.",
+      "hypothesis": "Every point of the rebuilt space gives two 135-byte messages with the fixed padding whose state difference after rounds 0 and 1 is exactly alpha2 (reported as observations), and the pair at the stored index is a full 5-round collision. No cost or probability inference.",
+      "program": "experiments/r5_connector_replay.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
