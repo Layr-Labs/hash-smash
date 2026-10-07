@@ -6,23 +6,64 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 95.0,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 35,
+    "preprocessing_log2": 63,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 6
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Messages of 55 and 63 bytes (the 63-byte one ends in eight zero bytes): one chunk, one block, one root compression with flags 11, counter 0 and the true block length; unkeyed BLAKE3-256 with 2 prefix rounds, standard IV, permutation and feed-forward, full 256-bit digest; an ordinary collision of two distinct complete messages.",
+    "Construction, constants, class of Y4, rule A, Lemma N and the batch shape are from submission c66f230d (Jbenisek, co-author tekkac); lanes from ticket 2bf40fb (tekkac); three arithmetic savings follow 8c81a219 (Th0rgal); Jbenisek, tekkac and Th0rgal are co-authors. New: the sub-class S8 (65,536 members), the member order, the beta filter (Lemma B), the X6 and carry identities and the 64-register counted batch.",
+    "Exact part: for every eight 32-bit words the two digests agree on digest words 0, 2, 5 and 7 (Theorem 1), with Y4 in S8. Heuristic part: a search over N = 1,589,345 * 2^80 = 2^100.6 such pairs for one whose 128-bit residual is zero; a trial is examined in full only if it satisfies rule A and the beta filter, and a pair that fails either is not counted in the success bound.",
+    "Classical 256-bit word RAM under collision-frontier-v5 with 64 registers; seven trials per word in 36-bit lanes; stage A 45 operations per batch, stage B 74 for at most 1/5 of the batches, stage C 54 for at most 1/128 of the batches, plus loop and per-X14 set-up: 8.6613 counted, 8.67 charged per trial, every executed primitive including loads counted as 1; no sorting, lookup or growing table; budgets halt the run with failure.",
+    "Randomized by one fresh uniform 256-bit word. Success probability 0.39 holds only under H1, H2 and H3. The factor 2^26.4 in H1 is assumed; it is set against an exact model count of 185,350,144 (margin 2.093), recomputed by the shipped program's --count mode, that the organizer experiments do not measure. With the uniform rate the same search gives 121.37. No full collision is exhibited.",
+    "Preprocessing: constants recomputable within 2^63 units (c66f230d's bound, covering their selection; their reported solver runs: 65 sets of constants, the set used found after 4,770 seconds); our sub-class selection (8,992,320 candidates), filter selection and counts used under 2^50 operations, charged. Advice under 64 bytes."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-good-trial-rate",
+      "role": "score-critical",
+      "statement": "Over the algorithm's one random word, the N = 1,589,345 * 2^80 trials of proof.md Section 4 behave, with respect to the event good (128-bit residual R = 0, rule A, and E1's c1 passes the beta filter), like independent events of probability at least 2^26.4 * 2^-128 each (2^26.4 = 88,550,677), to the extent that the probability that no trial is good is at most exp(-lambda) + 0.002 with lambda = N * 2^26.4 * 2^-128 = 0.5000003.",
+      "scope": "Exactly the trials of proof.md Section 4: lengths 55 and 63, the six constants of Fact P, Y4 in the sub-class S8 of Section 3 (all 65,536 members per context, in the stated order), contexts with four words from the random word, vc over 2^32 values, vd below 1,589,345 and X14 over 2^32 values; rule A as in Lemma A; the filter (c1 AND 00098188) = 00008000.",
+      "extrapolation": "From an exact count under the seven-word model M (proof.md Section 8): restricted to the six betas of T6, which the filter contains by Lemma B, the share of solutions of R = 0 with rule A among Y4 in S8 times 2^192 is 185,350,144 * 2^-128, an exact integer from 57 nonzero of 85 outcomes counted by carry automata in exact integer arithmetic without sampling (equal with and without rule A). The shipped program recomputes it: python3 experiments/s8search.py --count prints N1, N3 and the part of every outcome, the six per-beta parts and the total (about 2.5 minutes). Our C counter, this Python port and a separately written counter (183,119,872 for the four heaviest betas) agree exactly; a sampling estimator by our review agent gives ratio 1.0007 +- 0.0047; every member of S8 has an exact factor of at least 184.57M (all 15 betas); the full-class parts equal the published table of c66f230d; brute force at 8-bit words agrees on every outcome, member split and rule split. On real trials, rule-A, filter and stage rates agree with the model at rates 2^-5 to 2^-11, the E1 part has real/model 1.0086 over 2^33.8 trials, and E3 partial events of probability about 2^-38 show the counter's S8-versus-rest ratios (1, 2.333, 7) on real trials as on model draws. The extrapolation is from the model count and these checks to the rate of good trials among 2^100.6 real trials.",
+      "evidence_ids": [
+        "experiment:half-collision",
+        "experiment:class-filter",
+        "proof:156-224",
+        "proof:225-250",
+        "proof:361-384",
+        "proof:385-541"
+      ],
+      "limitations": "The factor is assumed, set against a model count 2.093 times larger that organizer experiments do not measure. M is untested at probability 2^-100.6; real trials were compared with it for events down to about 2^-38 per trial here (E1 part, E3 partial events) and about 2^-40 for one call in c66f230d; the full E3 event has too few hits at our sample size to test (real 0.80 +- 0.20, model draws 0.51 +- 0.15 with the same estimator). M fails inside one context for rule A; only averages over contexts are measured. The constants, class and rule A were chosen by c66f230d to maximize a count of this kind; S8 is the best under M of 8,992,320 sub-classes given by three one- or two-bit conditions on e1 and supplies a factor 1.29 of the margin (the full class with rule A counts 1.63 times 2^26.4); the filter was chosen to contain the heaviest betas; choices that are best under M may favour parameters where M overstates. 37% of the S8 count (44% in the full class) comes from one beta, 18b0e098. Trials of a run share four seed words and trials of one context differ only in Y4; their independence is assumed. The count program runs on the participant side (about 2.5 minutes), not as an organizer experiment."
+    },
+    {
+      "id": "H2-step-3-passes",
+      "role": "supporting",
+      "statement": "With probability at least 0.9997 over the random word, fewer than 1,589,345 * 2^50 (2^-30 N) trials that lie in batches running stage C have n = 0 (Lemma N).",
+      "scope": "The word n of Lemma N in all lanes of batches that run stage C, over one run.",
+      "extrapolation": "From the measured stage-C batch share 2^-8.21 (participant runs on real S8 trials), the n = 0 rate 2^-31.39 per trial measured by c66f230d for these constants, and the higher rate 2^-28.15 under M for lanes that pass the filter (137 hits in 2^35.25 filter-conditioned model draws): 2^-11 * 2^-28.15 + 2^-8.21 * 2^-31.4 = 2^-38.4 N expected, a factor about 330 below the budget.",
+      "evidence_ids": [
+        "proof:385-541",
+        "proof:542-571"
+      ],
+      "limitations": "Not organizer-verified; the filter-conditioned n = 0 rate is a model estimate, the unconditional one is c66f230d's measurement on the full class; concentration over one run with shared seed words is assumed. Exceeding the budget halts with failure and does not raise the time."
+    },
+    {
+      "id": "H3-stage-budgets",
+      "role": "supporting",
+      "statement": "With probability at least 0.9997 over the random word each: fewer than 9363 * 1,589,345 * 2^64 / 5 batches run stage B, and fewer than 9363 * 1,589,345 * 2^64 / 128 batches run stage C.",
+      "scope": "The batches of proof.md Sections 4 and 5 over one run; averages over all contexts of the run, not per context.",
+      "extrapolation": "From participant measurements on real S8 trials: stage-B batch share 0.1094 over 4,096 random contexts; over 896 draws of the seed words with 256 contexts each, per-run stage-B shares 0.1059 to 0.1123 and stage-C shares 2^-8.258 to 2^-8.164; 0.0915 to 0.1355 and 2^-8.17 to 2^-8.23 in 14 runs of 256 contexts with consecutive X14; rule A 2^-4.9993 of trials and filter 2^-6.006 of rule-A trials. The class-filter experiment reports the stage-B and stage-C batches of nine batches per seed (our dry runs: 1.00 and 0.89 stage-B batches per seed on average, 7 and 6 stage-C batches per 256 seeds).",
+      "evidence_ids": [
+        "experiment:class-filter",
+        "proof:385-541"
+      ],
+      "limitations": "Not organizer-verified beyond the coarse class-filter counts (one context per seed); per-context shares vary with rule-A clustering, and single contexts can exceed the stage-B budget share (largest 0.2136 of 229,376). That the average over the 2^84.6 contexts of a run stays below the budgets (factors 1.8 and 2.3 above the measured means) is assumed. Exceeding a budget halts with failure and does not raise the time."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }

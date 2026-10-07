@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "half-collision",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact blake3-r2-prefix-v1 target. One trial of proof.md Section 4 per organizer seed: seven context words and a member number of the sub-class S8 are taken from SHAKE-256 of the seed, and the 55-byte and 63-byte messages are built by steps S1, T, S2, S3 with the quarter-round G only. Every trial returns its pair. The program also runs the counted packed batch (Section 5) that holds the member, compares each of its seven lanes with the program's own 2-round compression of that lane's messages, and returns the counts as observations.",
+      "hypothesis": "Every returned pair agrees on digest words 0, 2, 5 and 7 (Theorem 1; exact). Predicted observations for every seed: stage_a_ops 45, stage_b_ops 74, stage_c_ops 54, lanes_right 7, branches_right 1, member_in_s8 1. Observations are the program's own and are not a verified cost; this does not test H1.",
+      "program": "experiments/s8search.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffff00000000ffffffff0000000000000000ffffffff00000000ffffffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "class-filter",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact target. Per organizer seed one context and nine consecutive packed batches (63 members of S8 in the algorithm's order); every member is turned into a trial and computed forwards from its messages. The pair of the seed's member is returned. Observations check Lemma Q and S8 membership, Y4 of both messages, eta, the stage flags (rule A, beta filter, n of Lemma N against D3 ^ ROL(D6,8) of the digests) and Lemma B, and count the batches that run stages B and C.",
+      "hypothesis": "Every returned pair agrees on the 128 masked bits (exact). Predicted for every seed: members 63, in_s8 63, y4_equal 63, eta_equal 63, lanes_right 63, branches_right 9, lemma_b 6. rule_a_lanes, filter_lanes and filter_and_rule_a_lanes are near 63 * 2^-5, 63 * 2^-6 and 63 * 2^-11 on average; stage_b_batches is near 9 * 0.11 on average (budget 9 * 0.2) and stage_c_batches near 9 * 2^-8.2 (budget 9 * 2^-7). Each seed is one context and its members are not independent, so these averages are only a coarse check of H3 and not a test of H1.",
+      "program": "experiments/s8search.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffff00000000ffffffff0000000000000000ffffffff00000000ffffffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
