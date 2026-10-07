@@ -1,6 +1,5 @@
-"""v8 experiments (proof 2.1, 2.4, 6).  r5-trail-g: P's counts for the start lanes of group g (T1 nodes per
-lane; for the cores owned by the group: C1, P45 > 0, C2) against GROUP_LOG.  r5-ecount: counted programs of
-E's stage 1 and of one T3 pass.  PASS/FAIL sentinels as in r5_connector.py."""
+"""Experiments (proof 2.1, 2.4, 6).  r5-trail-g: P's counts for group g against GROUP_LOG.  r5-ecount: counted
+FES stage 1 of E, one counted T3 pass, FES exactness.  Sentinels as in r5_connector.py."""
 import hashlib
 import json
 import math
@@ -199,22 +198,10 @@ def test(cond):
     return FORCE[0] >= 0
   return cond
 
-def crot(v, r):
-  return ((v << r) | (v >> (64 - r))) & M64 if r else v
-
 def cchi(a, rc):
   o = [a[x + 5 * y] ^ ((~a[(x + 1) % 5 + 5 * y]) & a[(x + 2) % 5 + 5 * y]) for y in range(5) for x in range(5)]
   o[0] = o[0] ^ rc
   return o
-
-def cround1(a):
-  C = [a[x] ^ a[x + 5] ^ a[x + 10] ^ a[x + 15] ^ a[x + 20] for x in range(5)]
-  D = [C[(x - 1) % 5] ^ crot(C[(x + 1) % 5], 1) for x in range(5)]
-  e = [None] * 25
-  for y in range(5):
-    for x in range(5):
-      e[y + 5 * ((2 * x + 3 * y) % 5)] = crot(a[x + 5 * y] ^ D[x], RHO[x + 5 * y])
-  return cchi(e, RC1)
 
 # The 24 equations <m, u_row> = c of the 10 round-2 rows (u = L(b), b = round-1 output), in the early-abort
 # order: row (1,2) = row 66 first, then row (1,17) = row 81 (order of Th0rgal 7deb1595), then the others.
@@ -222,10 +209,12 @@ EQS = [(1, 2, 8, 1), (1, 2, 16, 1), (1, 2, 3, 0), (1, 2, 5, 1), (1, 17, 4, 1), (
    (0, 0, 16, 1), (0, 2, 2, 1), (0, 2, 8, 0), (2, 21, 2, 1), (2, 21, 8, 0), (2, 61, 2, 0), (2, 61, 16, 1),
    (3, 17, 4, 1), (3, 17, 16, 0), (3, 61, 2, 0), (3, 61, 16, 1), (4, 0, 2, 1), (4, 0, 8, 1), (4, 0, 17, 0),
    (4, 21, 2, 0), (4, 21, 8, 0), (4, 21, 16, 1)]
-COST = [384, 400, 418, 427, 435, 443, 451, 459, 467, 475, 483, 491, 499, 507, 515, 523, 531, 539, 547, 555, 569,
-    577, 585, 593, 593]                     # primitives of stage 1 by exit (24 = all equations hold)
-BLOCK = 15                                      # loop control per block of 16 unrolled Gray steps
-T3_STEP = 1750                                  # T3: one pass, 9 leaves + Gray step (proof 2.1; charged 9 x 512)
+COST_FES = [217, 233, 251, 260, 268, 276, 284, 292, 300, 308, 316, 324, 332, 340, 348, 356, 364, 372, 380, 388, 402,
+    410, 418, 426, 426]                         # FES stage 1 by exit
+BLOCK_FES = 47                                  # block of 16 FES steps
+FES_JK = [(4, None), (5, None), (4, 5), (6, None), (4, 6), (5, 6), (4, 5), (7, None), (4, 7), (5, 7), (4, 5),
+    (6, 7), (4, 6), (5, 6), (4, 5), (8, None)]
+T3_STEP = 1750                                  # T3: one pass, 9 leaves + Gray step (proof 2.1; charged 9 x 256)
 BETA2 = [0x1, 0, 0x4, 0, 0, 0x4, 0x4, 0x4, 0x20000, 0, 0x2000000000000000, 0, 0x200000, 0, 0,
     0x2000000000000000, 0, 0, 0x20000, 0, 0x200001, 0, 0x200000, 0, 0x1]
 ALPHA3_BITS = (0, 130, 450, 529, 701, 789, 1021, 1169, 1280, 1429)
@@ -244,13 +233,7 @@ def eqs_ok():
     good = good and len(V) == DDT[d][o] and sat == V
   return good and len(EQS) == 24
 
-def stage1(xr, bj):
-  """x ^= b_j (25 loads, 25 XOR), round 0 (chi, iota), round 1, then each equation from the bits of
-  u = L(b) it needs: bit u[X,Y,z] = b[i] >> k ^ C[xs-1] >> k ^ C[xs+1] >> (k-1) (bit 0), with lane i = xs + 5ys
-  the rho-pi source of (X, Y), k = z - rho_i mod 64, and column parities C of b computed on first use."""
-  for i in range(25):
-    xr[i] = xr[i] ^ load(bj[i])
-  b = cround1(cchi(xr, RC0))
+def eqs_from(b):
   C, t = {}, {}
 
   def col(x):
@@ -277,43 +260,92 @@ def stage1(xr, bj):
       return k, b
   return 24, b
 
-def block_control(m, end):
-  """Control of one block of 16 unrolled Gray steps: m += 1; the step at the block boundary flips basis
-  vector 4 + ctz(m), found from m & -m by a 5-level comparison tree; loop test."""
-  m = m + 1
-  low = m & (0 - m)
-  j, lo, hi = 4, 0, 32
+# -- E stage 1 by FES (Bouillaguet et al., CHES 2010) of the quadratic f(c) = L(chi(v0 + sum c_i b_i) + RC0):
+# step t, k1 = ctz t, k2 = next set bit of t: D[k1] ^= c[k1][k2] (t != 2^k1); z ^= D[k1]  (proof 2.4)
+
+def fes_f(p):
+  a = chi(p)
+  a[0] ^= RC0
+  return L(a)
+
+def _x(*v):
+  return [_r(w[l] for w in v) for l in range(25)]
+
+def _r(it):
+  r = 0
+  for w in it:
+    r ^= w
+  return r
+
+def fes_check(seed, n=10):
+  s = hashlib.shake_256(seed).digest(200 * (n + 1))
+  wd = [int.from_bytes(s[8 * i:8 * i + 8], "little") for i in range(25 * (n + 1))]
+  v0, B = wd[:25], [wd[25 * (i + 1):25 * (i + 2)] for i in range(n)]
+  z = fes_f(v0)
+  fi = [fes_f(_x(v0, B[i])) for i in range(n)]
+  c = [[_x(fes_f(_x(v0, B[i], B[j])), fi[i], fi[j], z) if i != j else None for j in range(n)] for i in range(n)]
+  D = [_x(fi[k], z, c[k][k - 1]) if k else _x(fi[0], z) for k in range(n)]
+  ok = True
+  for t in range(1, 1 << n):
+    k1 = (t & -t).bit_length() - 1
+    r = t >> (k1 + 1)
+    if r:
+      D[k1] = _x(D[k1], c[k1][k1 + (r & -r).bit_length()])
+    z = _x(z, D[k1])
+    g = t ^ (t >> 1)
+    ok = ok and z == fes_f(_x(v0, *[B[i] for i in range(n) if (g >> i) & 1]))
+  return ok, {"points": 1 << n}
+
+def stage1_fes(zr, Dk, Ck):
+  for i in range(25):
+    d = load(Dk[i]) ^ load(Ck[i])
+    st(d)
+    zr[i] = zr[i] ^ d
+  return eqs_from(cchi(zr, RC1))
+
+def _tree(low):
+  lo, hi = 0, 32
   while hi - lo > 1:
     mid = (lo + hi) // 2
     if test(low >= (1 << mid)):
       lo = mid
     else:
       hi = mid
-  test(m < end)
-  return m, 4 + lo
+  return W(lo) + 4
 
-def ecount_trial(seed, k=None):
-  st = hashlib.shake_256(seed).digest(400)
-  x = [int.from_bytes(st[8 * i:8 * i + 8], "little") for i in range(25)]
-  bj = [int.from_bytes(st[200 + 8 * i:208 + 8 * i], "little") for i in range(25)]
-  xr = [W(v) for v in x]
+def block_control_fes(m, end):
+  """One block of 16 FES steps: j, k2 and the five dynamic addresses."""
+  m = m + 1
+  j, k2 = _tree(m & (0 - m)), None
+  m2 = m & (m - 1)
+  if not test(m2 == 0):
+    k2 = _tree(m2 & (0 - m2))
+    (j << 13) + (k2 << 8) + 0
+  (j << 8) + 0
+  for r in (1, 2, 4, 8):
+    (j << 8) + r
+  test(m < end)
+  return m, int(j), (None if k2 is None else int(k2))
+
+def ecount_fes_trial(seed, k=None):
+  s = hashlib.shake_256(b"fes" + seed).digest(600)
+  w = [int.from_bytes(s[8 * i:8 * i + 8], "little") for i in range(75)]
+  zr = [W(v) for v in w[:25]]
   OPS[0], FORCE[0] = 0, k
-  ex, b = stage1(xr, bj)
-  ops = OPS[0]
-  FORCE[0] = None
+  ex, b = stage1_fes(zr, w[25:50], w[50:75])
+  ops, FORCE[0] = OPS[0], None
   if k is not None:
-    return ex == k and ops == COST[k], {"exit": ex, "ops": ops}
-  a = chi([x[i] ^ bj[i] for i in range(25)])
-  a[0] ^= RC0
-  ref = chi(L(a))
+    return ex == k and ops == COST_FES[k], {"exit": ex, "ops": ops}
+  zn = _x(w[:25], w[25:50], w[50:75])
+  ref = chi(zn)
   ref[0] ^= RC1
   u, kk = L(ref), 0
   for (y, z, m, c) in EQS:
-    row = sum(((u[x + 5 * y] >> z) & 1) << x for x in range(5))
-    if bin(m & row).count("1") % 2 != c:
+    if bin(m & sum(((u[x + 5 * y] >> z) & 1) << x for x in range(5))).count("1") % 2 != c:
       break
     kk += 1
-  return [int(v) for v in b] == ref and ex == kk and ops == COST[ex], {"exit": ex, "ops": ops}
+  return [int(v) for v in zr] == zn and [int(v) for v in b] == ref and ex == kk and ops == COST_FES[ex], {
+    "exit": ex, "ops": ops}
 
 def st(v):
   """store (1 primitive)"""
@@ -331,9 +363,8 @@ def popc(v):
   return v & 127
 
 def t3_step(seed, m0=9):
-  """One pass of T3's loop (trail3c.cpp), counted: step counters and T, m0 leaves on the longest non-full
-  path (5 planes), the Gray step's longest branch.  alpha2 (al), T, loop variables in registers; arrays
-  loaded.  AS per leaf and the alpha2 update are checked against a plain evaluation."""
+  """One counted pass of T3's loop (trail3c.cpp): counters and T, m0 leaves on the longest non-full path,
+  the Gray step's longest branch; AS and the alpha2 update checked against a plain evaluation."""
   s = hashlib.shake_256(seed).digest(200 * (m0 + 1))
   wd = [int.from_bytes(s[8 * i:8 * i + 8], "little") for i in range(25 * (m0 + 1))]
   L0, LI, al = [wd[25 * k:25 * k + 25] for k in range(m0)], wd[25 * m0:], [W(v) for v in wd[:25]]
@@ -384,22 +415,24 @@ def rows_for(mode, trials):
     ok, obs = trail_group(int(mode[9:]))
     out[0] = (SENTINEL if ok else None, obs)
   elif mode == "r5-ecount" and eqs_ok():
-    OPS[0] = 0
-    m, js = W(0), []
-    for _ in range(16):
-      m, j = block_control(m, 1 << 28)
-      js.append(j)
-    ctl = OPS[0]
     for t, tr in enumerate(trials):
       if t < 64:
-        ok, obs = ecount_trial(bytes.fromhex(tr["seed"]))
+        ok, obs = ecount_fes_trial(bytes.fromhex(tr["seed"]))
       elif t < 89:
-        ok, obs = ecount_trial(b"forced", t - 64)
+        ok, obs = ecount_fes_trial(b"forced", t - 64)
       elif t == 89:
-        ok, obs = ctl == 16 * BLOCK and js == [4, 5, 4, 6, 4, 5, 4, 7, 4, 5, 4, 6, 4, 5, 4, 8], {"ops": ctl}
+        OPS[0], m, jk, cs = 0, W(0), [], []
+        for _ in range(16):
+          o = OPS[0]
+          m, j, k2 = block_control_fes(m, 1 << 28)
+          jk.append((j, k2))
+          cs.append(OPS[0] - o)
+        ok, obs = jk == FES_JK and max(cs) == BLOCK_FES, {"ops": max(cs)}
       elif t < 92:
         ok, n = t3_step(bytes.fromhex(tr["seed"]))
-        ok, obs = ok and n == T3_STEP and n <= 9 * 512, {"ops": n}
+        ok, obs = ok and n == T3_STEP and n <= 9 * 256, {"ops": n}
+      elif t < 100:
+        ok, obs = fes_check(bytes.fromhex(tr["seed"]), 10)
       else:
         break
       out[t] = (SENTINEL if ok else FAIL_PAIR, obs)
