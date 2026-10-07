@@ -6,12 +6,12 @@ exact stage rates, ledger and organizer experiments.  Implements proof.md.
 Credits: length cancellation, the six constants, the class of Y4, rule A and Lemma N: c66f230d (Jbenisek, co-author
 tekkac).  The three-level construction (steps O, M, Y, T), its table reused for 2^32 values of X2, and the staged
 batch under budgets that halt the run: 60f94c5c (Jbenisek).  Member values once per outer step: df8bd46d (Th0rgal).
-Lanes and masked rotation: ticket 2bf40fb (tekkac).  Complement propagation: 8c81a219 (Th0rgal).  winglock (18a7fc52,
+Lanes and masked rotation: ticket 2bf40fb (tekkac).  Complement propagation: 8c81a219 (Th0rgal).  Ours (18a7fc52,
 d26a3c5f, 2bb5d604, 098e66f4): S8, the beta filter (Lemma B, here the stage-B test), Lemmas D and D', the block
-accumulator, the exact S8 count, a fresh random word per outer step, exact stage rates, budgets and their bound; this
-program is 098e66f4's.  Changed here (Subflatus3): only PREMISE[0] and BUDGET[0] of the ledger (0.60 and 0.61 p_B).
+accumulator, the exact S8 count, a fresh random word per outer step, exact stage rates, budgets and their bound.
+Stage-B premise 0.60 p_B: 52bb50ee (Subflatus3); budget 0.6001 p_B: 5266c5ce (leech1996).  New: D3.d1 = X3, X14 = 0.
 
-Stage A (every batch, 29 operations): C2 to z and rule A in seven lanes (Lemma A').  Stage B (73, if some lane
+Stage A (every batch, 28 operations): C2 to z and rule A in seven lanes (Lemma A').  Stage B (73, if some lane
 passes): C2, D0, C1, E1 to c1, rule A and the filter per lane (Lemma F).  Stage C (112, if some lane passes both):
 the full 128-bit residual of all lanes (Lemmas D, D') ANDed into the block accumulator, tested once per X2 value.
 Stages B and C count down a budget each and halt the run when it is spent.
@@ -240,8 +240,8 @@ def global_consts():
     return g
 
 def outer_consts(o):
-    """the seven per-outer-step constants that the batch keeps in registers"""
-    return dict(k4=bc((o['S10'] + X15) & M32), X14=bc(o['X14']), X13=bc(o['X13']), X9=bc(o['X9']), S15=bc(o['S15']),
+    """the six per-outer-step constants that the batch keeps in registers (X14 = 0: no register)"""
+    return dict(k4=bc((o['S10'] + X15) & M32), X13=bc(o['X13']), X9=bc(o['X9']), S15=bc(o['S15']),
                 w5=bc(o['w5']), w5d=bc((o['w5'] + DELTA) & M32))
 
 def mid_consts(v):
@@ -262,12 +262,13 @@ class Scalar:
 
 def outer_step(six):
     """Step O in scalar form, every primitive counted, and the packed words that the build, the middle step and
-    the batch read (each broadcast and stored once), the next-w5 loop step and the loads of the seven per-outer
-    batch registers.  Returns (memory, operation count)."""
+    the batch read (each broadcast and stored once), the next-w5 loop step and the loads of the six per-outer
+    batch registers.  D3.d1 = X3 (an instruction constant), so X14 = 0 and X9 = D3.c1.  Returns (memory, count)."""
     S = Scalar(); c0c, c0d, d3d, s15, s9, w5 = six
+    assert d3d == X3
     s2 = S.add(K2A + K2B & M32, w5); s14 = S.ror(S.xor(K2D, s2), 8); s10 = S.add(K2C, s14); s6 = S.ror(S.xor(K2B, s10), 7)
-    d3a = S.xor(S.rol(d3d, 16), s14); d3c = S.add(s9, d3d); d3b = S.sub(X3, d3a); s4 = S.xor(S.rol(d3b, 12), d3c)
-    s3 = S.sub(d3a, s4); x14 = S.ror(S.xor(d3d, X3), 8); x9 = S.add(d3c, x14); x4 = S.ror(S.xor(d3b, x9), 7)
+    d3a = S.xor(rol(X3, 16), s14); d3c = S.add(s9, X3); d3b = S.sub(X3, d3a); s4 = S.xor(S.rol(d3b, 12), d3c)
+    s3 = S.sub(d3a, s4); x9 = d3c; x4 = S.ror(S.xor(d3b, x9), 7)
     k3d = S.xor(S.rol(s15, 8), s3); k3c = S.add(IV[3], k3d); k3b = S.ror(S.xor(IV[7], k3c), 12); s11 = S.add(k3c, s15)
     s7 = S.ror(S.xor(k3b, s11), 7); k3a = S.xor(S.rol(k3d, 16), 11); w6 = S.sub(k3a, IV[3] + IV[7] & M32); w7 = S.sub(S.sub(s3, k3a), k3b)
     x8 = S.sub(c0c, c0d); cb = S.ror(S.xor(x4, c0c), 12); d2b = S.xor(rol(X7, 7), x8); d2c = S.xor(S.rol(d2b, 12), s7)
@@ -280,23 +281,27 @@ def outer_step(six):
                S9p1=S.bc(S.add(s9, 1)), S9=S.bc(s9), omS6=S.bc(S.sub(1, s6)), D2cp1=S.bc(S.add(d2c, 1)), RS4=S.bc(S.rol(s4, 7)),
                w7=S.bc(w7),
                # batch (loaded into registers once per outer step)
-               k4=S.bc(S.add(s10, X15)), X14=S.bc(x14), X13=S.bc(x13), X9=S.bc(x9), S15=S.bc(s15), w5=S.bc(w5),
+               k4=S.bc(S.add(s10, X15)), X13=S.bc(x13), X9=S.bc(x9), S15=S.bc(s15), w5=S.bc(w5),
                w5d=S.bc(S.add(w5, DELTA)))
     S.n += 4 + 2                       # next w5 (add, mask, compare, branch); its store and the store of w5 + delta
-    S.n += 7                           # loads of the seven batch constants into their registers
+    S.n += 6                           # loads of the six batch constants into their registers
     return mem, S.n
 
-OUTER_RAND_OPS = 8
+OUTER_RAND_OPS = 6
 def outer_step_rand(r, c0d, w5):
-    """Outer step of the run: draw a fresh 256-bit word r (1), take C0.c1, D3.d1, S15, S9 from its words 0-3 (7),
+    """Outer step of the run: draw a fresh 256-bit word r (1), take C0.c1, S15, S9 from its words 0-2 (5); D3.d1 = X3;
     then step O.  Returns (memory, operation count, six words)."""
-    six = [r & M32, c0d, (r >> 32) & M32, (r >> 64) & M32, (r >> 96) & M32, w5]
+    six = [r & M32, c0d, X3, (r >> 32) & M32, (r >> 64) & M32, w5]
     mem, n = outer_step(six)
     return mem, n + OUTER_RAND_OPS, six
 
 def rand_word(seven, extra):
-    """the 256-bit word whose words 0..3 are the coin words C0.c1, D3.d1, S15, S9 of a context; extra fills 4..7"""
-    return seven[0] | seven[2] << 32 | seven[3] << 64 | seven[4] << 96 | (extra & ((1 << 128) - 1)) << 128
+    """the 256-bit word whose words 0..2 are the coin words C0.c1, S15, S9 of a context; extra fills 3..7"""
+    return seven[0] | seven[3] << 32 | seven[4] << 64 | (extra & ((1 << 160) - 1)) << 96
+
+def alg(w):
+    """the algorithm's context: D3.d1 (word 2) = X3"""
+    w = list(w); w[2] = X3; return w
 
 BUILD_CONSTS = ('Cb', 'nCc', 'Cd', 'kCa', 'nX4', 'RCd', 'S6', 'nS11')
 def build_machine(mem):
@@ -428,7 +433,7 @@ def run_batch(m, row, V, force=False):
     m.op('add', 'X10', 'fd', 'k4')              # X10 = D0.d1 + S10 + X15
     m.load('X6', row['X6'], 'ptr')              # table word: X6
     m.op('add', 'a1', 'X6', 'k7')               # C2.a1 = X2 + X6 + w7
-    m.op('xor', 'd1', 'a1', 'X14'); m.ror('d1', 'd1', 16)
+    m.ror('d1', 'a1', 16)                       # C2.d1 = ROR(C2.a1 ^ X14, 16), X14 = 0
     m.op('add', 'c1', 'X10', 'd1')
     m.op('xor', 'b1', 'X6', 'c1'); m.ror('b1', 'b1', 12)
     m.op('add', 'z', 'a1', 'b1'); m.op('add', 'z', 'z', 'w0')     # Y2 = C2.a2
@@ -576,7 +581,7 @@ class Rng:
 
 def seed_trial(seed):
     w = struct.unpack('<8I', hashlib.shake_256(seed).digest(32))
-    return list(w[:7]), w[7] & (NMEM - 1)
+    return alg(w[:7]), w[7] & (NMEM - 1)
 
 def forward(v, y):
     A, B, w, wp = trial_words(v, y)
@@ -614,7 +619,7 @@ class Case:
     def __init__(self, seven, js, extra=0):
         self.seven = seven; self.o = outer(seven[:6]); self.v = middle(self.o, seven[6])
         self.mem, self.outer_ops, six = outer_step_rand(rand_word(seven, extra), seven[1], seven[5])
-        ok = six == list(seven[:6]) and self.mem == expected_mem(self.o)
+        ok = six == list(seven[:6]) and self.mem == expected_mem(self.o) and self.o['X14'] == 0
         bm = build_machine(self.mem); self.rows = {}
         for j in js:
             ys = [member(i) for i in batch_members(j)]
@@ -667,9 +672,9 @@ def check_block(seven, js, verify=None, extra=0):
     want = any(f['dA'] == f['dB'] for out, fs in zip(outs, allf) if out['ranC'] for f in fs)
     return case, m, right, flags, decs, int(taken == want), outs, allf
 
-LEDGER = {'A': 29, 'B': 73, 'C': 43, 'D': 48, 'R': 21}   # stage A 29; stage B 73; stage C 43 + 48 + 21 = 112
-STAGE_OPS = (29, 73, 112)
-BUILD_OPS, MID_OPS, OUTER_OPS = 49, 107, 340
+LEDGER = {'A': 28, 'B': 73, 'C': 43, 'D': 48, 'R': 21}   # stage A 28; stage B 73; stage C 43 + 48 + 21 = 112
+STAGE_OPS = (28, 73, 112)
+BUILD_OPS, MID_OPS, OUTER_OPS = 49, 107, 318
 
 def stage_ops(m, nb=1):
     o = m.ops
@@ -921,8 +926,8 @@ def stage_rates():
 # ---------------- the ledger of proof.md Section 9 (participant mode --ledger) ----------------
 V_RANGE = 1512538                     # values of C0.d1: 0 .. V - 1
 F_H1 = 92675072                       # the factor of H1 (185,350,144 / 2)
-PREMISE = (Fraction(60, 100), Fraction(125, 100))    # H1 (ii): stage-B batch share <= 0.60 p_B; rule A and filter <= 1.25 * 2^-11
-BUDGET = (Fraction(61, 100), Fraction(127, 100))     # E_B = 0.61 p_B per batch, E_C = 1.27 * 2^-11 per trial
+PREMISE = (Fraction(60, 100), Fraction(125, 100))    # H1 (ii): stage-B batch share <= 0.60 p_B (52bb50ee); rule A and filter <= 1.25 * 2^-11
+BUDGET = (Fraction(6001, 10000), Fraction(127, 100))  # E_B = 0.6001 p_B per batch (5266c5ce), E_C = 1.27 * 2^-11 per trial
 def ledger():
     N = V_RANGE << 80; n_out = V_RANGE << 32; n_x2 = V_RANGE << 64; m_out = NBATCH << 32
     sr, pB = stage_rates(); nb = n_x2 * NBATCH
@@ -962,6 +967,7 @@ def selftest(N, seed):
     for case in range(N):
         cw = [rng.getrandbits(32) for _ in range(7)]
         if case % 5 == 4: cw = [rng.choice([0, M32, v]) for v in cw]
+        cw = alg(cw)
         j = NBATCH - 1 if case % 4 == 3 else rng.randrange(NBATCH)
         c, m, right, flags, decs, br, outs, allf = check_block(cw, [j], verify, extra=rng.getrandbits(128)); fs = allf[0]
         st['lanes'] += NL; st['lanes_right'] += right; st['flags_right'] += flags; st['decisions_right'] += decs
