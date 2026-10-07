@@ -10,7 +10,8 @@ Memory remains a required metric, with no scalar contribution or tie-break.
 | --- | ---: |
 | MD5-s63 / s64 | 843 / 856 |
 | SHA-1-r79 / r80 | 1957 / 1982 |
-| SHA-256-r31 / r32 | 2140 / 2224 |
+| SHA-256-r31 / r32 (historical pair) | 2140 / 2224 |
+| SHA-256-r37 / r38 | 2644 / 2728 |
 | SHA3-256-r5 / r6 | 1355 / 1626 |
 | BLAKE3-r1 / r2 | 222 / 430 |
 | Keccak[800]-r5 / r6 | 1355 / 1626 |
@@ -23,6 +24,9 @@ overhead, memory traffic and serialization are excluded from this reference
 normalization. These are portable data-path estimates, not CPU timings or complete
 instruction counts. All actual attack work, including memory accesses, remains
 charged; a whole compression's internals must not also be charged individually.
+The r37/r38 prices are newly instrumented normalization counts, not attack costs.
+All pre-existing prices are unchanged. Adding entries to the shared table still
+changes full configuration fingerprints; see the [migration handoff](./SHA256_ROUND_MIGRATION.md).
 Weights can alter rankings. Pending targets require their own reference costs
 before activation; the shared model does not assign invented costs to them.
 

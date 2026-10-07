@@ -1,26 +1,34 @@
 # Paired collision-frontier lanes
 
-Roster update: 2026-09-25. The root Yukon manifest selects **six exploratory
-tracks**: SHA-256 31/32, SHA3-256 5/6, and BLAKE3 1/2. The challenge will add two
-Poseidon targets after their parameters and round pair are defined. The historical
-local catalog below retains **24 runnable lanes and 4 deferred Poseidon slots**
-for research and compatibility; it is not the active Yukon roster. Reconciliation
-archives the fourteen omitted registrations while preserving the six retained
-track identities and results. Editing the manifest alone does not change Yukon.
-See [FRONTIER_VALIDATION.md](./FRONTIER_VALIDATION.md) for test evidence and limits.
+Roster update: 2026-10-07. The root manifest retains **eight exploratory
+registrations**: SHA-256 31/32 and 37/38, SHA3-256 5/6, and BLAKE3 1/2. The intended
+competing roster is six tracks after operators close r31/r32. Closing preserves
+those registrations and public history; no track is to be archived in this rollout.
+A manifest edit does not change live lifecycle state. See the
+[round migration handoff](./SHA256_ROUND_MIGRATION.md).
+
+The local catalog contains **26 runnable lanes**: 22 current research lanes plus
+four historical r31/r32 lanes. Four Poseidon slots remain deferred; two exploratory
+Poseidon targets are eventual challenge additions after definition and qualification.
+The current plan has 26 slots (22 defined plus four deferred), excluding history.
+New r37/r38 targets have exploratory lanes only. See
+[FRONTIER_VALIDATION.md](./FRONTIER_VALIDATION.md) for evidence and limits.
 
 ## Roster and selection limits
 
-Every concrete target below has an independent `exploratory` and `rigorous` lane.
+New SHA-256 37/38 targets have only an `exploratory` lane. Other concrete targets
+retain independent `exploratory` and `rigorous` lanes; local definition does not
+mean that a track is registered or open in Yukon.
 
 | Mockup family | Concrete target / settings | Lane count | Selection status |
 | --- | --- | --- | --- |
 | MD5 | `md5-s63`, `md5-s64` | 4 | Penultimate/full-round controls; full MD5 is broken |
 | SHA-1 | `sha1-r79`, `sha1-r80` | 4 | Penultimate/full-round controls; full SHA-1 is broken |
-| SHA-256 | `sha256-r31`, `sha256-r32` | 4 | User-selected classical ordinary-collision frontier pair |
+| SHA-256 (current) | `sha256-r37`, `sha256-r38` | 2 exploratory | Organizer-selected exploration pair; no first-unbroken claim |
+| SHA-256 (historical) | `sha256-r31`, `sha256-r32` | 4 local / 2 registrations to close | Original target/selection identities preserved; no transfer of attacks or scores |
 | Keccak[1600] | `sha3-256-r5`, `sha3-256-r6` | 4 | Selected SHA3-256 instance; rate 1088, capacity 512, output 256 |
-| BLAKE3 | `blake3-r1`, `blake3-r2` | 4 local / 2 imported | Organizer-selected unkeyed BLAKE3-256 exploration pair; boundary unverified |
-| Keccak[800] r544/c256 | `keccak800-r5`, `keccak800-r6` | 4 local / 2 imported | Organizer-selected exploration pair; output 256, legacy pad10*1, prefix rounds; boundary unverified |
+| BLAKE3 | `blake3-r1`, `blake3-r2` | 4 local / 2 registered | Organizer-selected unkeyed BLAKE3-256 exploration pair; boundary unverified |
+| Keccak[800] r544/c256 | `keccak800-r5`, `keccak800-r6` | 4 local / 0 registered | Organizer-selected exploration pair; output 256, legacy pad10*1, prefix rounds; boundary unverified |
 | Poseidon | Not yet assigned | 4 reserved | Field, width, mode, constants, output and reduction schedule unresolved |
 
 The user approved deferring undefined round pairs. The MD5/SHA-1 control exception
@@ -30,8 +38,9 @@ publication. There is no first-unbroken standard round for MD5 or SHA-1; rounds
 synthetic, not cryptanalytic evidence. See [FRONTIER_RESEARCH.md](./FRONTIER_RESEARCH.md)
 for primary sources, exact problem distinctions, and unresolved choices.
 
-The selected boundaries reflect dated classical collision literature, not proofs
-of security and not yet independently normalized best-known computation scores.
+SHA-256 37/38, BLAKE3 1/2 and Keccak[800] 5/6 are organizer-selected
+exploration pairs without first-unbroken claims. Other selection notes retain their
+dated literature/control context, not proofs of security or normalized best-known scores.
 For every implementation, execute the **first** `r` rounds in every compression
 or sponge permutation, with the fixed initialization, padding, full output and
 serialization in its trusted target profile. SHA3-256 uses the SHA-3 domain suffix,
@@ -65,8 +74,8 @@ The fixed `collision-frontier-v5` cost model ranks
 probability at least 0.39. Preprocessing, failed trials, verification, advice and
 code storage count in the resource ledger. Memory is required and reviewed, but
 does not affect the scalar or break ties. Time sums work across all processors.
-This shared policy applies to all 28 planned slots, including those whose target
-definitions are still pending; it does not activate unresolved slots. A trusted selected-target compression/permutation costs one
+This shared policy applies to the current plan and retained historical lanes,
+including deferred targets; it does not activate unresolved slots. A trusted selected-target compression/permutation costs one
 unit; other 256-bit RAM operations are charged as specified in the model.
 
 The display reference is nominal collision-security exponent: 64 for MD5, 80 for
@@ -86,18 +95,18 @@ bash .yukon/setup.sh
 python3 scripts/local_tracks.py list
 python3 scripts/local_tracks.py catalog
 python3 scripts/validate_frontier_config.py
-python3 scripts/local_tracks.py show sha256-r31-exploratory
-python3 scripts/local_tracks.py check sha256-r31-exploratory
+python3 scripts/local_tracks.py show sha256-r37-exploratory
+python3 scripts/local_tracks.py check sha256-r37-exploratory
 ```
 
 For that example, a solver may edit only
-`lanes/exploratory/candidates/sha256-r31/`. New templates start as `draft`; inspect
+`lanes/exploratory/candidates/sha256-r37/`. New templates start as `draft`; inspect
 the selected package for its current state. Once a substantive claim/proof and
 optional evidence are ready, set its state to `ready`; this enables review, not
 automatic acceptance.
 
 ```sh
-python3 scripts/hashsmash_pipeline.py intake --track sha256-r31-exploratory
+python3 scripts/hashsmash_pipeline.py intake --track sha256-r37-exploratory
 ```
 
 Then, in a trusted shell with provider credentials configured, run `judge` and
@@ -133,7 +142,7 @@ included as inert, untrusted judge evidence. Undeclared files are rejected.
 Docker must be running and the pinned image available for Python experiments:
 
 ```sh
-python3 scripts/prepare_experiment_image.py --track sha256-r31-exploratory
+python3 scripts/prepare_experiment_image.py --track sha256-r37-exploratory
 HASHSMASH_TEST_DOCKER=1 python3 -m unittest tests.test_experiments
 ```
 
@@ -171,11 +180,12 @@ fingerprint. Do not generalize a checked output predicate to unmeasured heuristi
 ## Yukon manifest and deployment gates
 
 Import the repository root once as `hashsmash`. The root schema-v2
-[`benchmark.json`](../benchmark.json) contains six exploratory SHA-256, SHA3-256,
-and BLAKE3 tracks. Other lanes remain local with independent review decisions.
+[`benchmark.json`](../benchmark.json) contains eight exploratory registrations, including two historical SHA-256
+tracks to close. Six tracks are intended to compete. Other lanes remain local
+with independent review decisions.
 Every track uses its full
-`<target>-<lane>` ID, such as `sha256-r31-exploratory` or
-`sha256-r31-rigorous`, in both Yukon and organizer commands. No `rootDir`
+`<target>-<lane>` ID, such as `sha256-r37-exploratory` or
+`sha3-256-r5-rigorous`, in both Yukon and organizer commands. No `rootDir`
 override or separate lane import is needed.
 
 The protected track registry stores each lane. Claim validation and review
@@ -187,15 +197,17 @@ The lane directories retain their separate candidate, score and report paths.
 The literal per-track `workflow_dispatch` wrappers call one reusable workflow.
 No participant-controlled track input is needed. Editable paths, commands and
 score paths in the manifest are repository-relative. For example, the exploratory
-SHA-256 r31 track edits `lanes/exploratory/candidates/sha256-r31` and uploads only
-`lanes/exploratory/.yukon/scores/sha256-r31-exploratory.json` at that exact path.
+SHA-256 r37 track edits `lanes/exploratory/candidates/sha256-r37` and uploads only
+`lanes/exploratory/.yukon/scores/sha256-r37-exploratory.json` at that exact path.
 
-Yukon permits at most 20 active tracks. Use manifest reconciliation to retire
-the fourteen omitted registrations, preserving their history and all retained
-track records. Reorg remains a separate operation for configuration changes.
-Keep the retained names, including their lane suffixes: a rename creates a new
-identity. Poseidon requires exact definitions and qualified baselines before its
-two exploratory targets can be added. Do not split the repository into lane imports.
+Yukon permits at most 20 manifest tracks. Retain all six existing registrations
+and add only r37/r38; the expected reconciliation has no archives. Keep r31/r32
+closed for public historical access. A rename would create a new identity and
+must not transfer old scores to the new round counts. Shared protected hashes
+change for all lanes in this migration: reconciliation alone cannot refresh them.
+Follow the [guarded all-eight refresh](./SHA256_ROUND_MIGRATION.md), preserving
+closed history and restoring admission only on the intended six competing tracks.
+Poseidon still requires exact definitions and qualified baselines.
 
 Workflow separation is intentional: a credential-free job validates and executes
 experiments, a fresh secret-bearing job reviews immutable same-run artifacts
@@ -207,9 +219,10 @@ artifacts must likewise remain organizer-controlled.
 For dev setup and exact import commands, use [YUKON_DEV_SETUP.md](./YUKON_DEV_SETUP.md).
 Candidate authors should follow [CANDIDATE_QUALIFICATION.md](./CANDIDATE_QUALIFICATION.md).
 
-Before activating the imported exploratory lanes:
+Before activating the new exploratory lanes:
 
-1. Preserve the selected SHA-256, SHA3-256, and BLAKE3 target definitions.
+1. Preserve historical definitions and qualify the new SHA-256 37/38 packages
+   separately. Do not relabel a 31/32 result, invent an attack, or assert a first-unbroken boundary.
 2. Keep the undefined Poseidon slots deferred. To add two exploratory targets later,
    establish exact definitions and defensible or explicitly provisional round pairs, then
    update catalog, profiles, templates, schemas, manifest, wrappers and checker
@@ -218,8 +231,9 @@ Before activating the imported exploratory lanes:
    supported Yukon change allowing an initially empty frontier. Drafts/nominal
    references cannot be passed off as successful baselines.
 4. Arrange the Yukon dev GitHub App/importer access and confirm the deployment supports
-   schema v2 and reconciliation. A fresh import queues six baseline workflows;
-   reconciliation queues baselines only for new or eligible retried tracks. Run an end-to-end dev import, submission and
+   schema v2 and reconciliation. A separately intended fresh import queues eight baseline workflows;
+   reconciliation queues baselines only for new or eligible retried tracks.
+   This migration additionally requires configuration refresh for retained records. Run an end-to-end dev import, submission and
    promotion test, including preservation of sibling tracks across both lanes.
 5. Calibrate both lane policies on labeled real cryptanalysis, with human review of
    false positives, false negatives and disagreements. Toy/fake-provider tests establish

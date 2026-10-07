@@ -4,9 +4,12 @@ This is an organizer baseline-authoring handoff, reached through the
 [builder guide](./BUILDER_GUIDE.md). Its feature-branch/PR deliverables and local
 provider review are for explicitly assigned import preparation. Ranked Yukon
 solvers follow [TASK.md](../TASK.md) and submit through Yukon instead.
-The catalog now contains 24 local research lanes; the import manifest includes
-12 exploratory and the 8 already registered rigorous lanes. Four Poseidon slots remain undefined. The new
-organizer assignment covers BLAKE3 1/2 and Keccak[800] 5/6 baselines.
+The registry retains 26 runnable lanes and four deferred Poseidon slots. The
+manifest keeps eight exploratory registrations, including historical SHA-256
+31/32 records to close. The new organizer assignment covers **only the two
+exploratory SHA-256 37/38 starter packages**. Existing candidates remain unchanged.
+See [the migration handoff](./SHA256_ROUND_MIGRATION.md) for the separate all-eight
+configuration refresh; these draft starters cannot qualify it.
 
 `submission_state: ready` means that a complete package is submitted for review.
 It does not mean the package has qualified or can seed a successful Yukon import.
@@ -15,22 +18,23 @@ Exploratory qualification is `plausible_not_refuted`; rigorous qualification is
 
 ## Assignment for the candidate agent
 
-Prepare complete, reviewable baseline candidates for these target pairs:
+Prepare complete, reviewable baseline candidates for the assigned new lanes:
 
-| Targets | Exploratory directories | Rigorous directories |
-| --- | --- | --- |
-| `md5-s63`, `md5-s64` | `lanes/exploratory/candidates/<target>/` | `lanes/rigorous/candidates/<target>/` |
-| `sha1-r79`, `sha1-r80` | `lanes/exploratory/candidates/<target>/` | `lanes/rigorous/candidates/<target>/` |
-| `sha256-r31`, `sha256-r32` | `lanes/exploratory/candidates/<target>/` | `lanes/rigorous/candidates/<target>/` |
-| `sha3-256-r5`, `sha3-256-r6` | `lanes/exploratory/candidates/<target>/` | `lanes/rigorous/candidates/<target>/` |
-| `blake3-r1`, `blake3-r2` | `lanes/exploratory/candidates/<target>/` | `lanes/rigorous/candidates/<target>/` (local only) |
-| `keccak800-r5`, `keccak800-r6` | `lanes/exploratory/candidates/<target>/` | `lanes/rigorous/candidates/<target>/` (local only) |
+| Track | Assigned directory | Reference normalization C |
+| --- | --- | ---: |
+| `sha256-r37-exploratory` | `lanes/exploratory/candidates/sha256-r37/` | 2644 |
+| `sha256-r38-exploratory` | `lanes/exploratory/candidates/sha256-r38/` | 2728 |
+
+There are no rigorous r37/r38 packages or assignments. Retained r31/r32 candidates,
+proofs and reviews must not be relabeled as new attacks. A separately developed
+generic construction is acceptable to propose, but must justify this exact target
+and its full cost under fresh review. The starter numeric values are placeholders.
 
 Assign explicit candidate directories to each worker; a solver edits only its
 assigned directory. Use a separate worktree and feature branch, then open a PR,
 so candidate work does not interfere with the harness branch. Do not change target
 profiles, cost models, schemas, manifests, judge prompts, validators, workflows,
-or generated scores to get a candidate accepted. Use the pinned BLAKE3 and Keccak[800] profiles; do not invent a Poseidon
+or generated scores to get a candidate accepted. Use the pinned SHA-256 37/38 profiles; do not invent a Poseidon
 definition. Keep all packages
 independent even when they adapt the same underlying argument.
 
@@ -38,10 +42,10 @@ Read `docs/BUILDER_GUIDE.md`, `docs/FRONTIER_LANES.md`, `docs/JUDGE_LANES.md`,
 `docs/HEURISTIC_EXPERIMENTS.md`, `schemas/claim-frontier-v3.schema.json`,
 `cost-models/collision-frontier-v5.json`, the assigned `tracks/<track>/TASK.md`,
 and that track's exact target profile. Yukon and organizer commands use the same
-full track ID including the lane, for example `sha256-r31-exploratory`. The twenty imported
+full track ID including the lane, for example `sha256-r37-exploratory`. The eight registered
 tracks belong to one repository-root manifest; baseline validations remain
-independent. Appending new tracks validates those additions without requiring
-new imports of already registered siblings.
+independent. Adding tracks validates those additions. It does not refresh existing protected
+configuration; this migration also needs the guarded refresh in the handoff.
 
 ## What must replace each scaffold
 
@@ -99,8 +103,8 @@ into these paired v3 candidates.
 Work from the repository root. For each assigned track:
 
 ```sh
-python3 scripts/local_tracks.py show sha256-r31-exploratory
-python3 scripts/local_tracks.py check sha256-r31-exploratory
+python3 scripts/local_tracks.py show sha256-r37-exploratory
+python3 scripts/local_tracks.py check sha256-r37-exploratory
 bash .yukon/setup.sh
 ```
 
@@ -110,8 +114,8 @@ the mechanical check. In a credential-free shell, prepare any required runtime
 and create evidence through the organizer pipeline:
 
 ```sh
-python3 scripts/prepare_experiment_image.py --track sha256-r31-exploratory
-python3 scripts/hashsmash_pipeline.py intake --track sha256-r31-exploratory
+python3 scripts/prepare_experiment_image.py --track sha256-r37-exploratory
+python3 scripts/hashsmash_pipeline.py intake --track sha256-r37-exploratory
 ```
 
 Image preparation does not execute candidate code. Intake executes declared Python
@@ -119,21 +123,21 @@ only in the bounded, networkless Docker executor. No experiment manifest is need
 for a self-contained analytic argument that does not rely on experiments.
 
 A trusted operator can then review that frozen evidence in a separate shell with
-the Bedrock credential available securely. Match the current Actions profile:
+the selected provider credential available securely. Read the actual Actions
+provider/model settings first and match them; this is an example for direct OpenAI:
 
 ```sh
-HASHSMASH_JUDGE_PROVIDER=bedrock \
-HASHSMASH_BEDROCK_MODEL=us.openai.gpt-5.6-sol \
-HASHSMASH_BEDROCK_REGION=us-east-1 \
+HASHSMASH_JUDGE_PROVIDER=openai \
+HASHSMASH_OPENAI_MODEL=gpt-5.6-sol \
 HASHSMASH_JUDGE_MODE=committee \
 HASHSMASH_REASONING_EFFORT=high \
-python3 scripts/hashsmash_pipeline.py judge --track sha256-r31-exploratory
+python3 scripts/hashsmash_pipeline.py judge --track sha256-r37-exploratory
 ```
 
 Run the deterministic score phase only after the selected lane qualifies:
 
 ```sh
-python3 scripts/hashsmash_pipeline.py score --track sha256-r31-exploratory
+python3 scripts/hashsmash_pipeline.py score --track sha256-r37-exploratory
 ```
 
 Inspect the complete dossier and unresolved obligations, not only the exit code.
@@ -144,8 +148,8 @@ An exploratory result cannot be copied into a rigorous score: each selected lane
 requires its own correctly bound package, review, and score.
 
 For this example, the dossier and aggregate are under
-`lanes/exploratory/.yukon/reports/tracks/sha256-r31-exploratory/`; the trusted score,
-if emitted, is `lanes/exploratory/.yukon/scores/sha256-r31-exploratory.json`.
+`lanes/exploratory/.yukon/reports/tracks/sha256-r37-exploratory/`; the trusted score,
+if emitted, is `lanes/exploratory/.yukon/scores/sha256-r37-exploratory.json`.
 
 ## Deliverables and completion criteria
 

@@ -1,7 +1,8 @@
 # HashSmash documentation
 
-The supported system is the paired exploratory/rigorous frontier: 16 runnable
-lanes, with 12 reserved slots awaiting exact definitions. Shell commands and
+The local registry contains 26 runnable lanes (22 current and four historical),
+with four deferred Poseidon slots. The root manifest retains eight exploratory
+registrations; six are intended to compete after closing SHA-256 31/32. Shell commands and
 plain file paths in current guides are relative to the repository root, which
 is the single Yukon import and CLI work directory. Markdown links resolve from
 the containing document. Every Yukon track ID includes its review lane.
@@ -15,6 +16,8 @@ the containing document. Every Yukon track ID includes its review lane.
 - [Judge lanes](./JUDGE_LANES.md): review roles, heuristics and acceptance policies.
 - [Heuristic experiments](./HEURISTIC_EXPERIMENTS.md): manifests and isolated execution.
 - [Candidate qualification](./CANDIDATE_QUALIFICATION.md): organizer baseline packages and live-review sequence.
+- [SHA-256 round migration](./SHA256_ROUND_MIGRATION.md): rounds 37/38, closed history, qualification, all-lane fingerprints and separate UI rollout.
+- [Yukon production setup](./YUKON_PROD_SETUP.md): production source and rollout gates.
 - [Yukon dev setup](./YUKON_DEV_SETUP.md): operator imports and deployment gates.
 - [Participant heuristic test](./PARTICIPANT_HEURISTIC_TEST.md): organizer diagnostic and its limits.
 - [Frontier validation](./FRONTIER_VALIDATION.md): dated offline, Docker and live-review evidence.

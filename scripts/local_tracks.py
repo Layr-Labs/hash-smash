@@ -53,14 +53,15 @@ def main(argv=None):
             parser.error("show requires a track ID")
         if args.command == "catalog":
             slots = planned_slots()
-            print(json.dumps({"planned_tracks": len(slots), "runnable_tracks": len(frontier_tracks()), "slots": slots}, indent=2))
+            print(json.dumps({"planned_tracks": len(slots), "runnable_tracks": len(frontier_tracks()),
+                              "retired_tracks": [t.id for t in frontier_tracks() if t.retired], "slots": slots}, indent=2))
         elif args.command == "list":
             print("TRACK                            FUNCTION   STEPS/ROUNDS  LANE   NOMINAL SECURITY BITS")
             for track in selected:
-                print(f"{track.id:32} {track.algorithm:10} {track.rounds:12}  {track.lane:16} {track.nominal_score}")
+                print(f"{track.id:32} {track.algorithm:10} {track.rounds:12}  {track.lane:16} {track.nominal_score}{' (retired pair)' if track.retired else ''}")
         elif args.command == "show":
             track = selected[0]
-            print(json.dumps({"purpose": track.purpose, "candidate": str(track.candidate),
+            print(json.dumps({"purpose": track.purpose, "retired": track.retired, "candidate": str(track.candidate),
                               **track.benchmark()}, indent=2))
         elif args.command == "status":
             results = []

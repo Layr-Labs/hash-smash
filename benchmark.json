@@ -169,6 +169,62 @@
         "workflow": "blake3-r2-exploratory.yml",
         "maxConcurrentWorkflows": 2
       }
+    },
+    {
+      "name": "sha256-r37-exploratory",
+      "description": "sha256-r37 ordinary collisions; exploratory AI review. Minimize log2(total charged computation); memory is a reported metric only. Pass means plausible_not_refuted.",
+      "category": "cryptanalysis",
+      "direction": "-",
+      "promotionMode": "manual",
+      "editablePaths": [
+        "lanes/exploratory/candidates/sha256-r37"
+      ],
+      "setupCommand": [
+        "bash",
+        ".yukon/setup.sh"
+      ],
+      "benchmarkCommand": [
+        "python3",
+        "scripts/hashsmash_pipeline.py",
+        "all",
+        "--track",
+        "sha256-r37-exploratory"
+      ],
+      "scorePath": "lanes/exploratory/.yukon/scores/sha256-r37-exploratory.json",
+      "maxSubmissionBytes": 4194304,
+      "runner": {
+        "provider": "github-actions",
+        "workflow": "sha256-r37-exploratory.yml",
+        "maxConcurrentWorkflows": 2
+      }
+    },
+    {
+      "name": "sha256-r38-exploratory",
+      "description": "sha256-r38 ordinary collisions; exploratory AI review. Minimize log2(total charged computation); memory is a reported metric only. Pass means plausible_not_refuted.",
+      "category": "cryptanalysis",
+      "direction": "-",
+      "promotionMode": "manual",
+      "editablePaths": [
+        "lanes/exploratory/candidates/sha256-r38"
+      ],
+      "setupCommand": [
+        "bash",
+        ".yukon/setup.sh"
+      ],
+      "benchmarkCommand": [
+        "python3",
+        "scripts/hashsmash_pipeline.py",
+        "all",
+        "--track",
+        "sha256-r38-exploratory"
+      ],
+      "scorePath": "lanes/exploratory/.yukon/scores/sha256-r38-exploratory.json",
+      "maxSubmissionBytes": 4194304,
+      "runner": {
+        "provider": "github-actions",
+        "workflow": "sha256-r38-exploratory.yml",
+        "maxConcurrentWorkflows": 2
+      }
     }
   ]
 }

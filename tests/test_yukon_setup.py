@@ -128,7 +128,7 @@ class DevImportTests(unittest.TestCase):
 
     def test_draft_scan_checks_only_selected_exploratory_tracks(self):
         tracks = dev.import_tracks()
-        self.assertEqual(len(tracks), 6)
+        self.assertEqual(len(tracks), 8)
         self.assertEqual({track.lane for track in tracks}, {"exploratory"})
         drafts = {tracks[0].id, tracks[-1].id}
 

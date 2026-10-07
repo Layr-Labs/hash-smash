@@ -7,16 +7,18 @@ Builder work does not grant an unassigned candidate directory to edit.
 
 ## Context and ownership
 
-The [frontier guide](./FRONTIER_LANES.md) retains a local research catalog of
-24 runnable paired tracks and 4 historical Poseidon slots. The active manifest
-selects six exploratory SHA-256, SHA3-256, and BLAKE3 tracks; two exploratory
-Poseidon targets remain deferred pending definition. The SHA-1 pilot and nine unpaired local
-tracks are retired. Preserve the single repository-root schema-v2
+The [frontier guide](./FRONTIER_LANES.md) retains 26 runnable local tracks,
+including four historical SHA-256 31/32 lanes, and four deferred Poseidon slots.
+The manifest retains eight exploratory registrations: six intended competing
+tracks (SHA-256 37/38, SHA3-256 5/6 and BLAKE3 1/2) and two SHA-256 31/32 tracks to
+close while preserving public history. New SHA-256 rounds have exploratory lanes
+only. Two exploratory Poseidon targets remain deferred pending definition.
+The SHA-1 pilot and nine unpaired local tracks are retired. Preserve the single repository-root schema-v2
 [manifest](../benchmark.json), lane-suffixed public track IDs, and independent
 candidate, score, and report paths. Lane metadata is bound by the protected
 registry, claim validation, review fingerprints, and score `metrics.lane`.
 
-BLAKE3 1/2 and Keccak[800] 5/6 are organizer-selected exploration pairs, not
+SHA-256 37/38, BLAKE3 1/2 and Keccak[800] 5/6 are organizer-selected exploration pairs, not
 assertions of a first-unbroken boundary. Keep the four Poseidon slots deferred
 until their exact definition is assigned. Never emit placeholder scores. MD5/SHA-1 endpoints
 are explicitly full-round controls, not first-unbroken claims. Follow the frontier
@@ -92,10 +94,11 @@ credentialed judge phase, and deterministic score phase. A Yukon API key does no
 provide local judge access. A local score does not replace Yukon's validation of
 the exact imported or submitted content.
 
-For deployment, use the [Dev runbook](./YUKON_DEV_SETUP.md): one import at the
-repository root, with no lane-specific import root. Reconcile the existing
-challenge against the six-track manifest, preserving retained names, paths,
-settings, and results. Close the fourteen omitted tracks and resolve their jobs
-and reviews before archival. No reorg is needed for membership changes alone.
-Keep all undefined Poseidon slots inactive; only two exploratory targets are
-planned for the active challenge.
+For deployment, use the [production runbook](./YUKON_PROD_SETUP.md),
+[dev runbook](./YUKON_DEV_SETUP.md), and [round migration handoff](./SHA256_ROUND_MIGRATION.md).
+Keep one repository-root import. Reconcile the eight-track manifest by retaining
+the existing six records and adding two; archive none. Close SHA-256 r31/r32 through
+Yukon and preserve their jobs, reviews and results. Shared registry/schema/cost
+changes invalidate every existing lane's configuration hash; label the harness PR
+`yukon-unsafe` and use the guarded all-track refresh before restoring admission.
+Undefined Poseidon slots remain inactive.
