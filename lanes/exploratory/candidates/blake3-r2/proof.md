@@ -5,18 +5,19 @@ a separately reported resource bound.
 
 This independent exploratory package targets blake3-r2-prefix-v1. It proposes
 a classical randomized algorithm with success at least 1/2, total charged time
-at most 2^140 units, and peak memory at most 2^137 bytes under
+at most 2^137 units, and peak memory at most 2^137 bytes under
 collision-frontier-v5. These are conservative analytical upper bounds, not
-measured execution costs. The claimed scalar is 140.
+measured execution costs. The claimed scalar is 137.
 
-The algorithm, domain, probability argument and RAM loop envelopes are those of
-the organizer generic-birthday package. The only material change is to price
-that same envelope under the published v5 weights: one selected 2-round BLAKE3
-compression costs 1, and every other listed 256-bit RAM primitive costs 1/C
-with C=430 for blake3-r2. Charging those word operations at 1 instead of 1/C
-produced the looser scalar 149; that envelope is retained as an operation
-count, then converted. The nominal display exponent 128 is not used as a
-qualified baseline.
+The domain, sampling, and success argument are those of the organizer
+generic-birthday package. The matching step is not. That package sorts with
+129 merge passes and, under the same v5 prices, has envelope T < 2^139.44,
+submitted as 140. This package replaces those merge passes by 8 least-significant-digit
+radix passes on 32-bit digits of the same 3-word records. One selected
+2-round BLAKE3 compression still costs 1, and every other listed 256-bit RAM
+primitive costs 1/C with C=430. The machine has no multiplication primitive,
+so this is not a modular-hash or subset-sum filter. The nominal display
+exponent 128 is not used as a qualified baseline.
 
 The proof uses no distributional property of the selected hash: every fixed function from
 the chosen message domain to 256-bit strings satisfies its probability bound.
@@ -85,12 +86,13 @@ two arrays; allocation and initialization are charged.
 1. For i=0,...,n-1, draw fresh independent uniform 256-bit words u and v,
    construct their 64-byte message, compute its complete H, and store
    (h,u,v) in A[i]. Retain repeated inputs; there is no resampling.
-2. Sort by full h using stable, iterative bottom-up merge sort with A and B
-   as alternating source/destination arrays. For widths w=1,2,4,...,2^128,
-   merge successive pairs of sorted runs of length w. Choose the left run
-   on digest ties, copy all three words of every record, and exchange the
-   two array base pointers at the end of each pass. Exactly 129 passes
-   each write exactly n records.
+2. Sort by full h using stable least-significant-digit radix sort with A and
+   B as alternating source/destination arrays. For shifts
+   s=0,32,64,96,128,160,192,224, counting-sort every record on the digit
+   (h >> s) AND 0xFFFFFFFF. Copy all three words of every record, and
+   exchange the two array base pointers at the end of each pass. Exactly 8
+   passes each read and write exactly n records. A separate count array of
+   2^32 words is cleared and prefix-summed on every pass.
 3. Scan all adjacent positions j-1,j in the sorted source array, from j=1
    through n-1. Test h equality and inequality of the pair (u,v), testing
    both message words. On the first qualifying pair, reconstruct both
@@ -104,27 +106,30 @@ messages. Verification failure cannot occur in the exact RAM model because
 the original digests came from the same deterministic H. This explicit
 defensive check is still charged. Every outcome halts within the same budget.
 
-For a concrete merge, maintain w, run start b, source cursors i=b,j=b+w,
-ends b+w,b+2w, and destination cursor k=b. While k<b+2w, choose the nonempty
-run if the other is exhausted; otherwise load and compare both h words.
-Copy all three words of the selected record, advance its source cursor, and
-advance k. When the run is complete, advance b by 2w. When the pass ends,
-swap source/destination base pointers and double w. All boundaries are exact
-because n is a power of two. There is no recursive stack or library sort.
+For a concrete radix pass at shift s, clear the 2^32 counters, then for
+i=0,...,n-1 load A[i].h, set d=(h >> s) AND 0xFFFFFFFF, and increment
+count[d]. Replace count by its exclusive prefix sums. Then for i=0,...,n-1
+again, recompute d, write all three words of A[i] to B[count[d]], and
+increment that counter. Swap the A/B base pointers. Digit shifts are the
+eight constants above; the mask is the low 32 bits. Address of count[d] is
+count_base+(d<<5), and address of record i is base+(i<<6)+(i<<5). No
+multiplication primitive is used. The scatter half writes every record exactly once.
+There is no recursive stack or library sort.
 
 Record i starts at byte address base+96i, calculated as
 base+(i<<6)+(i<<5), without multiplication. Word offsets are 0,32,64.
-Indices, counters, sentinels, run boundaries and byte addresses are less than
+Indices, counters, digit shifts and byte addresses are less than
 2^138, far below 2^256. The value n is made by 1<<129. Message contents occupy
 two words; no 512-bit single-word arithmetic is assumed. The proof's symbolic
 domain/codomain cardinalities need not be represented in the machine.
 
 ## 3. Correctness of any returned collision
 
-The standard merge invariant says each output prefix contains the smallest
-remaining keys of its two sorted inputs. Copying entire records preserves
-each digest's associated message. Induction over the passes therefore sorts
-all original records without deleting any.
+Counting sort on one digit writes every record exactly once, at the position
+given by the exclusive prefix sum of its digit, so it is a permutation of
+the input records. It is stable. Composing eight stable digit sorts from
+low digit to high digit therefore sorts every record by the full 256-bit
+digest. Induction over the passes preserves every original record.
 
 Every fixed digest occupies a contiguous interval in the sorted array. If
 that interval contains distinct messages, some adjacent messages differ:
@@ -209,7 +214,7 @@ expandable into fewer than 64 primitive instruction templates. A direct
 implementation of the displayed compression formulas needs fewer than 2,000
 additional templates, retaining a fixed loop over the selected rounds; operations on constant
 32-bit lane positions use shifts, masks and fixed addresses. The loops over
-records and merge widths remain loops. A ceiling of 2^16 instruction templates
+records and radix-pass shifts remain loops. A ceiling of 2^16 instruction templates
 therefore exceeds the required code. Encode each template in at most four
 256-bit words (opcode and up to three operands), using separate primitive
 instructions for loads, stores and branches. Its size is at most 2^23 bytes.
@@ -220,8 +225,10 @@ verification scratch and final output. In particular the compression may keep
 16 state words, 16 message words, 16 permuted message words and 8 IV words
 in individual RAM words. Thus all fixed
 storage is at most 2^24 bytes, or 2^19 words. This bound includes the program;
-no precomputed collision, target advice, large lookup table or hidden runtime
-is present. The bound refers to the specified RAM program, not Python or a
+no precomputed collision, target advice, or hidden runtime
+is present. The 2^32-word count array is zeroed workspace outside this
+2^24 reserve; its bytes and initialization are charged in the peak-memory
+and 2^40 terms below. The bound refers to the specified RAM program, not Python or a
 host library. All fixed storage is initialized and its cost is charged below.
 
 The following large caps allow redundant copying, instruction decoding,
@@ -233,7 +240,8 @@ on treating high-level sort/serialization as unit-cost operations.
 | Initialize code, constants and all fixed workspace | 2^24 |
 | Initialize both record arrays | 128n |
 | Generate, hash and retain n messages | 65536n |
-| Exactly 129 merge passes | 129 * 4096n |
+| Exactly 8 radix passes | 8 * 1024n |
+| Count-array clear and prefix sums | 2^40 |
 | Scan adjacent records | 2048n |
 | Final reconstruction, verification and output | 2^18 |
 
@@ -255,18 +263,18 @@ Thus all non-compression work fits below 65536 operations. The one selected
 root compression per message is charged separately, including at verification.
 Its code and working buffers are included in the fixed reserve.
 
-For merges, each output record requires at most two exhaustion comparisons
-with branches, two key loads and a comparison/branch, three record loads and
-three stores, plus cursor/address updates and loop control. There are fewer
-than 64 such logical operations, each implementable with at most 16 charged
-primitive operations even allowing instruction/operand memory accesses and
-spills. This costs at most 1024 per record. Run setup is at most 64 such
-operations, or 1024 per run; every run emits at least two records. Pass setup
-is also at most 1024 per pass, which emits n>=2 records. Hence the per-output
-charge is at most 1024+512+512=2048, below the chosen 4096. This includes
-pointer swaps, run/pass endings and initialization of merge cursors.
-The scan uses fewer operations per pair than this merge loop and so fits
-2048n. Address calculation by stride 96 is expanded into shifts/adds as above.
+For each radix pass, fewer than 64 enumerated primitives move one record:
+address the source record by shifts and adds, load its digest, extract the
+constant-shift digit, update one counter, then on the scatter loop place all
+three record words at the exclusive prefix-sum slot and advance the index.
+The charged cap is 1024 per record per pass, sixteen times that enumeration,
+which pays for instruction fetch, spills and redundant address reloads.
+Eight passes therefore cost at most 8192n. Clearing and prefix-summing 2^32
+counters takes at most 32 primitives per counter, so eight passes cost at most
+8*32*2^32=2^40 word operations in total, not per record. The scan uses fewer
+operations per pair than one scatter loop and so fits 2048n. Address
+calculation by stride 96 is expanded into shifts and adds, as is count[d]
+addressing by d<<5. No multiplication primitive is required.
 
 Final verification uses at most two complete hash wrappers, message
 distinctness, full digest comparisons and output serialization: less than
@@ -284,57 +292,57 @@ Step 1 plus the two verification hashes:
     H = n + 2 < 2^130.
 
 All remaining listed RAM primitives, including the spare generate unit, the
-fixed-storage initialization 2^24, and verification's non-compression work, are
-bounded by the same table:
+fixed-storage initialization 2^24, count-array maintenance, and verification's
+non-compression work, are bounded by the same table:
 
-    W <= (128 + 65536 + 129*4096 + 2048)n + 2^24 + 2^18
-       = 596096n + 2^24 + 2^18
-       < 2^20 n
-       = 2^149.
+    W <= (128 + 65536 + 8*1024 + 2048)n + 2^24 + 2^18 + 2^40
+       = 75904n + 2^24 + 2^18 + 2^40.
 
 Hence the v5 charged time is
 
     T = H + W/C
-      < (n + 2) + (596096n + 2^24 + 2^18)/430.
+      = (n + 2) + W/430.
 
-Using n=2^129 and 596096/430 < 1386.27,
+The integer comparison C*H + W < C*2^137 is the claimed ceiling. With n=2^129,
 
-    596096n / 430 < 1386.27 * 2^129,
-    (2^24 + 2^18)/430 < 2^16,
-    n + 2 < 2^129 + 2,
+    C*H + W = 430(n+2) + 75904n + 2^24 + 2^18 + 2^40
+            = 76334n + 1099528667996,
+    C*2^137 = 430 * 2^137 = 110080 * 2^129 = 110080n.
 
-    T < (1 + 1386.27) * 2^129 + 2^16
-      < 1388 * 2^129
-      < 2^{11} * 2^129
-      = 2^140,
-
-because 1388 < 2048 = 2^11. Equivalently,
-log2(1388) < 10.44, so T < 2^{139.44} < 2^140.
+The difference is 33746n - 1099528667996 > 0 because 33746*2^129 > 2^144 and
+the additive constant equals 2^40 + 2^24 + 2^18 + 860 < 2^41. The same
+comparison with the radix cap raised from 1024 to 4096 replaces 8192 by 32768
+and 76334 by 100910. Then
+430*2^137 - (100910n + 1099528667996) = 9170n - 1099528667996 > 0 as well.
+Thus a fourfold dispute over the per-pass cap still leaves T < 2^137.
 
 This is a deterministic worst-case charged-time cap on the randomized algorithm,
-not merely a birthday exponent or a conditional cost given favorable trials.
-It includes preprocessing, failed samples, sorting, verification and the two
-final recompressions. The submitted bound 140 is still loose relative to
-2^{139.44}; it is the smallest integer ceiling of this envelope under C=430.
-A unit-price reading of the same table (every word operation charged 1) recovers
-the previous scalar 149 and is not the v5 score. The raw-count envelope can
-support subsequent repricing without inventing an operation mix.
+not an expected-time bound and not a cost conditional on favorable trials.
+It includes preprocessing, failed samples, sorting, the count array,
+verification and the two final recompressions. The submitted bound 137 is the
+smallest integer strictly above this envelope. A unit-price reading of the
+same table is not the v5 score.
 
-Each array uses n*3*32=96n bytes. With all fixed storage included,
+Each array uses n*3*32=96n bytes. The count array uses 2^32 words, hence
+2^37 bytes. It is zero-initialized workspace, not target advice and not a
+precomputed table. With fixed storage included,
 
-    peak bytes <= 192n + 2^24 < 256n = 2^137.
+    peak bytes <= 192n + 2^24 + 2^37 < 2^137,
 
-The arrays contain every retained message, digest and sampled random word.
-There is no extra index array, recursion, message database or pointer per record.
-The reserve includes all temporary randomness, state, code/advice/constants,
-verification state and final output. Both arrays and the reserve fit below
-byte address 2^138. This validates the one-word pointer/counter assumption.
-The memory figure is an abstract RAM allowance, not a claim of physical feasibility.
+because 192n = 3*2^135 and 2^137 - 3*2^135 = 2^135 > 2^37 + 2^24.
+The record arrays contain every retained message, digest and sampled random
+word. There is no extra index array, recursion, or message database. The
+reserve includes all temporary randomness, state, code/advice/constants,
+verification state and final output. Both arrays, the count array and the
+reserve fit below byte address 2^138. This validates the one-word
+pointer/counter assumption. The memory figure is an abstract RAM allowance,
+not a claim of physical feasibility.
 
 The claim fields have these precise meanings:
 
-- time_log2=140 bounds total charged v5 time by 2^140 units, i.e. T=H+W/C
-  with C=430 as derived above.
+- time_log2=137 bounds total charged v5 time by 2^137 units, i.e. T=H+W/C
+  with C=430 as derived above. The same sampling under 129 merge passes had
+  envelope below 2^139.44.
 - memory_log2_bytes=137 bounds simultaneous storage by 2^137 bytes.
 - data_log2=130 bounds complete-hash evaluations by n+2 <=2^130, including
   the two final re-evaluations. It counts evaluated message instances, not
@@ -342,7 +350,7 @@ The claim fields have these precise meanings:
   supplied data is zero and all retained data bytes are in peak memory.
 - preprocessing_log2=128 bounds fixed setup plus both-array initialization
   after v5 word-operation pricing:
-  (2^24 + 128n)/430 < 128n/430 + 2^16 < 0.30 * 2^129 + 2^16 < 2^128.
+  (2^24 + 128n + 2^40)/430 < 0.30 * 2^129 + 2^16 + 2^32 < 2^128.
   This work is already included in T, not an omitted phase. The previous
   unit-price reading 2^24+128n < 2^137 is the same physical work.
 - nonuniform_advice_log2_bytes=0 means at most 2^0=1 byte of advice; actual
@@ -363,8 +371,9 @@ experiment manifest or participant executable is supplied.
 The required baseline_improved identifier blake3-r2-nominal-v2 names the
 organizer's nominal display reference 128. It is not an established attack,
 qualified baseline or security bound; the identifier's field name is not a
-claim of improvement. This candidate's scalar bound 140 exceeds 128. No
-Pareto dominance claim follows from scalar scoring.
+claim of improvement over the nominal reference. This candidate's scalar
+bound 137 exceeds 128 and is strictly below the merge-sort envelope 140
+priced with the same C. No Pareto dominance claim follows from scalar scoring.
 
 submission_state=ready means this independent exploratory package is complete
 for review. It does not assert an actual qualifying review, an emitted score,
