@@ -5,87 +5,54 @@
   "attack_class": "ordinary-collision",
   "rounds": 31,
   "lane": "exploratory",
-  "baseline_improved": "sha256-r31-nominal-v2",
-  "certificate_manifest": "certificates/manifest.json",
-  "experiment_manifest": "experiments/manifest.json",
   "claim": {
-    "time_log2": 37.22,
+    "time_log2": 33.47,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 27.5,
-    "preprocessing_log2": 37.22,
-    "success_probability": 1,
-    "nonuniform_advice_log2_bytes": 9
+    "memory_log2_bytes": 30.4,
+    "preprocessing_log2": 33.4,
+    "success_probability": 0.4,
+    "nonuniform_advice_log2_bytes": 3
   },
   "restrictions": [
-    "Target sha256-r31-prefix-v1 exactly: SHA-256 steps 0..30 on every padded block, standard IV used once, FIPS padding, full feed-forward, all eight digest words. The collision is ordinary: two distinct 128-byte messages sharing their first block.",
-    "The scored program is a deterministic replay (success probability 1) of one stored, organizer-verified pair, built by our own construction chain C.",
-    "C uses no published colliding pair, starting solution or first block. Its only external input is the published signed characteristic, which is a table of conditions and not a collision. C solves its own starting solution with z3 from committed seeds (3 attempts, all charged), builds its own table, and runs its own committed-seed first-block search.",
-    "Total time is the executed work of C: the z3 attempts at 25 and the synthetic checks at 17 primitive word operations per retired instruction (measured per-instruction prices, proof.md Section 14), our own code by explicit operation counts, the analysis programs that formulated R20 by operation bounds (Section 15.2), plus the 6.36-unit replay. That is 159,740,722,648 = 2^37.2169 units. The full source, including the price scripts, and the commitments are in the proof appendices.",
-    "Memory is a reported metric only. baseline_improved names the organizer reference and does not assert an improvement over any submitted score."
+    "Two-block attack on fixed-IV SHA-256 reduced to steps 0..30 (full feed-forward, full 256-bit digest, standard padding). Messages M0||M1 and M0||M1', 128 bytes each; M1' = M1 + DW word-wise with DW nonzero only in words 5..9, DW5..9 = (00000ffa, 001f77ef, b00fb5fa, d800f100, 00008004), the difference of the characteristic that phase P of the algorithm itself finds.",
+    "Every phase runs inside one execution of the shipped algorithm: P-model generation, the characteristic search P (one STP+CryptoMiniSat call), exact sets, the base starting point M (one solver call), local search, tables and the rate model that sets N = 2/q, and the online phase. Each phase runs under a retired-instruction budget enforced by the shipped driver (a kill is a failed run) and is charged at budget + overshoot (100 ms at 5e10 instr/s per thread) x a measured per-instruction price (solver 6, our C 5..17 word ops per AArch64 instruction). The prefix is deterministic; the time is the exact sum of the budgets, the counted SWAR online batches at N and the hit path at its caps (proof Section 2).",
+    "One declared cost premise, P1 (proof Section 4; heuristic H-P1): the seven search-model constants fixed as literals in [LLW24]'s public search program (Peace9911/sha_2_attack@6a9f35fd: HW(dW16)=17, HW(dW18)=2, HW(dE12)=HW(dE14)=2, dE13=0, HW(dE11|dE12)=5, message weight 48) are public algorithm text used without time charge and declared as 2^3 bytes of advice. All seven are quantities of the published characteristic, which the r31 record 50592e75 (PR #467) uses in full without time charge (its H1, plausible in all four lanes; 2^9 bytes of advice). Disclosed: gate G0 showed the constants are load-bearing; our unsubmitted v5 charged an allowance for them. With P1 charged on that basis (1.06e15 solver instructions at price 6) the time is 2^41.45; at price 9, 2^42.03. Besides P1, the development-fixed constants of premise P2 are disclosed with their ledger and sensitivities; no other advice.",
+    "Online: 7-lane SWAR (tekkac 7x36 packing; counted batch 2,235 primitives per 7 trials), fresh first block per trial from 16 AES-128-CTR words under the run's random key; keys looked up in a full 2^32-bit bitmap; every candidate re-hashed from the IV before output."
   ],
+  "baseline_improved": "sha256-r31-nominal-v2",
   "heuristics": [
     {
-      "id": "H1-public-characteristic",
+      "id": "H-SUCC",
+      "statement": "One run of the frozen algorithm (deterministic prefix, online phase with a fresh uniformly random AES key and trial cap N = 3,510,010,448) outputs a pair of distinct messages with equal 31-step SHA-256 digests with probability at least 0.40.",
       "role": "score-critical",
-      "statement": "The published 31-step signed characteristic (the condition table of proof.md Section 5 and the differences d5..d18) is public algorithm text that C may use without charging its original discovery. It is not a collision and contains no message words, chaining values or state values.",
-      "scope": "The characteristic only. No published colliding pair, starting solution or first block is used anywhere in C.",
-      "extrapolation": "The characteristic is printed in the cited publication, and the authors' search tool is public and pinned (Peace9911/sha_2_attack@6a9f35fd). Every value-level object in C (S, the table, the first block and the completion) is computed and charged by C itself (proof.md Sections 7-9).",
+      "scope": "Only the success probability. Cost does not depend on H-SUCC: every phase is budgeted or capped in code and charged at the budget/cap; every output is re-hashed and checked.",
+      "extrapolation": "Direct measurement of the full success event by the shipped program: pre-registered (PREREG2; frozen-file hash list, sha256 b6980f24..., written before the root seed was drawn) 100 online runs on the E-C prefix with keys derived from the root seed gave 91 verified collisions (one-sided 99.5% Clopper-Pearson lower bound 0.8108; per-run table in Appendix A); the pre-registered full-chain run E-C also succeeded. All 92 pairs verified with the official verifier; 16 are the certificates and all 92 are returned by the organizer experiment v6-pairs-and-swar-batch. In-algorithm model: 1 - e^-2 = 0.86; realised per-trial rate 2^-30.640 vs model 2^-30.709; success times consistent with an exponential (KS D = 0.124 < 0.143 at 5%).",
       "evidence_ids": [
-        "proof:290-301",
-        "proof:94-133",
-        "proof:162-213"
+        "proof:67-93",
+        "proof:118-137",
+        "proof:156-182",
+        "proof:183-213",
+        "experiment:v6-pairs-and-swar-batch"
       ],
-      "limitations": "The trail search is not executed or bounded by our own evidence in this filing. A charge of T units adds T to the 159,740,722,648-unit total; the total stays below 2^39.15 for T up to 2^38.71 and below 2^40.4 for T up to 2^40.23."
+      "limitations": "Participant runs on one reference machine (Apple M5 Pro, the frozen binaries and solver library hashes of Appendix B), not organizer-executed (the online phase needs ~2^31 trials and a 2^32-bit bitmap). A machine reboot interrupted run 85 of 100 after 84 runs (k = 78/84 already met the rule); the remaining keys ran exactly as pre-registered after a hashed resume note (proof Section 3). Premise: AES-128-CTR under a fresh random key behaves as the random-word primitive. The statement is for this frozen prefix (deterministic: identical outputs in 5 runs)."
     },
     {
-      "id": "H2-op-accounting",
+      "id": "H-P1",
+      "statement": "The seven [LLW24] search-model constants of premise P1 (HW(dW16)=17, HW(dW18)=2, HW(dE12)=HW(dE14)=2, dE13=0, HW(dE11|dE12)=5, message weight 48) are public algorithm text that the algorithm may use without charging their original discovery: they are literals of the public, pinned search program and quantities of the published characteristic. They are seven integers, not a characteristic, collision, message word, chaining value or state value.",
       "role": "score-critical",
-      "statement": "For our own code (proof.md Appendix B), the per-event charges of proof.md Section 9 bound the primitive word operations. Per trial: 1 compression + 32 ops. Per bitmap hit: 1 compression + 64. Per record: 400. Per V6 pass: 1600. Per completion iteration: 160. Per group: 1 unit. Per scanned word: 24. Per residue-scan candidate: 8. For the pre-construction analysis programs, the per-run operation bounds of proof.md Section 15.2, with floating-point operations at 400 and divisions at 1024.",
-      "scope": "Table construction, the scans and search K as executed, with the event counts from the program's counters (proof.md Section 8), and the pre-construction analysis runs listed in proof.md Section 15.1.",
-      "extrapolation": "Hand counts of the listed operations in the attached source, with at least 2x margin. Each trial is charged a full 31-step compression.",
+      "scope": "Only the time (and preprocessing) claim; success probability and all other charges are unaffected. The seven constants only: the program's fixed signed A and E patterns are not used, no published characteristic, starting point, first block or colliding pair is used, and the characteristic is searched in-chain and charged. Claim 2^33.47 under H-P1; with P1 charged on our unsubmitted v5's allowance basis 2^41.45 at solver price 6 and 2^42.03 at price 9 (proof Section 2, sensitivity rows).",
+      "extrapolation": "The constants are literals of Peace9911/sha_2_attack@6a9f35fd, find_dc/correct_dc_model_31_256.py (lines 71, 78, 156, 163, 170, 184, 193); that file also fixes signed patterns for A5..A10 and E8..E14, which our generator sets to empty (marked r31v6), so only the seven weights are inherited. All seven equal the corresponding quantities of the published characteristic (proof Section 4, P1 provenance), which the r31 record 50592e75 (jungjipdo; PR #467, merged 2026-10-07) uses in full without time charge under the same form of heuristic (its H1-public-characteristic, plausible in all four lanes). Our search output 8_14 (A-weight 20) differs from the published characteristic in its A, E and W rows, and every phase from the characteristic search to the online phase is executed, budgeted and charged in-chain (proof Sections 1-3).",
       "evidence_ids": [
-        "proof:239-281",
-        "proof:303-313",
-        "proof:495-511"
+        "proof:3-13",
+        "proof:15-33",
+        "proof:35-52",
+        "proof:67-93",
+        "proof:94-116",
+        "proof:118-137"
       ],
-      "limitations": "Not an organizer-model instruction trace. The trial term dominates the own-code share."
-    },
-    {
-      "id": "H3-instruction-price",
-      "role": "score-critical",
-      "statement": "For the runs without an exact operation model, 25 primitive 256-bit word operations per retired AArch64 instruction bound the work of the z3 attempts, and 17 bound the work of the synthetic completion checks.",
-      "scope": "The retired-instruction counts of proof.md Section 8 (macOS counters through /usr/bin/time -l): z3 attempts 1-3 (2,721,814,602,106 instructions) and three synthetic checks (3 x 500,284,109,323).",
-      "extrapolation": "Our per-form costing of AArch64 instructions (proof Appendix C.1) gives the same static profile for the z3 binary that ran and for the Linux build of the same version. Callgrind instruction counts of the Linux build on the same three committed models cover all of attempt 1, which repeated the macOS search step for step, and the first 28% and 39% of attempts 2 and 3; the worst of 23 intervals has a class price of 12.04 (5 per ordinary instruction, 400 per multiply or floating-point instruction, 1024 per divide). The charged price doubles it. The synthetic-check price doubles the class price 8.32 measured on the same source.",
-      "evidence_ids": [
-        "proof:364-470",
-        "proof:314-327",
-        "proof:1330-1723"
-      ],
-      "limitations": "The dynamic mix is measured on the Linux build, not on the macOS binary that ran. At 256 operations per instruction the total would be 2^39.18; at four times the charged prices, 2^38.08."
-    },
-    {
-      "id": "H4-memory",
-      "role": "supporting",
-      "statement": "Peak memory over C is at most 2^27.5 bytes.",
-      "scope": "All runs of C.",
-      "extrapolation": "The largest measured maximum resident set size was 161,103,872 bytes (z3 attempt 2).",
-      "evidence_ids": [
-        "proof:282-287"
-      ],
-      "limitations": "Resident set size is the operating system's measure of touched pages."
-    },
-    {
-      "id": "H5-chain-scope",
-      "role": "score-critical",
-      "statement": "Every constant of C comes from the public characteristic, from analysis, from the charged pre-construction analysis programs, or from the charged v3 runs before K (proof.md Section 15.3). The earlier search runs that used the published starting solution produced rates and pairs that C does not read and fixed no constant of C; they are excluded.",
-      "scope": "All computation on this target in our working directories and session records on 2026-10-06 and 2026-10-07, listed in proof.md Section 15.1.",
-      "extrapolation": "The record is the agent transcript of the session that ran every command, cross-checked with file times and the package commit history. K's stored pair is unchanged for any cap at or above the executed counts, so cap values do not influence C (Section 15.4). The commitments are local, not notarised.",
-      "evidence_ids": [
-        "proof:471-542",
-        "proof:330-342",
-        "proof:543-577"
-      ],
-      "limitations": "If a reviewer charged the excluded 2^40.625-trial search run anyway, the total would be 2^40.774."
+      "limitations": "The characteristic-search effort behind the constants is not executed or bounded by our evidence; gate G0 (two characteristic-search calls without the six weight constants) failed, so the constants are load-bearing. All seven are quantities of the published characteristic. Our v5 (never submitted) charged an allowance for them; a charge of T units adds T to the 1.18525e10-unit total, and v5's allowance gives the P1-charged totals 2^41.45 (price 6) and 2^42.03 (price 9) stated next to the claim."
     }
-  ]
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
