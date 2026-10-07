@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "r5-connector-replay",
+      "kind": "python-message-pairs-v1",
+      "scope": "Rebuilds the accepted connector space of construction C (E_pad + E_0, witness-anchored linearisation, linearised E_1; ranks 1324 -> 1417 -> 1542, DF 58) from the stored witness, beta0, beta1 and alpha1 with the committed linearisation seed, derives the certificate pair from the stored Gray-code index, and per trial checks a fresh seeded point of the space.",
+      "hypothesis": "Every point of the rebuilt space gives two 135-byte messages with the fixed padding whose state difference after rounds 0 and 1 is exactly alpha2 (reported as observations), and the pair at the stored index is a full 5-round collision. No cost or probability inference.",
+      "program": "experiments/r5_connector_replay.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    },
+    {
+      "id": "r5-round2-mask",
+      "kind": "python-message-pairs-v1",
+      "scope": "Rebuilds the same connector space and returns 256 distinct pairs of it: the organizer seeds of the request permute the pool of all 506 Stage-1 passes in the index range [0, 2^33) of the committed space, and each trial returns the pair at its assigned pool index, recomputed from the rebuilt space.",
+      "hypothesis": "Every returned pair has state difference alpha3 after round 2, so beta4 can be active only in 25 of the 64 rows of plane y = 0 and the 5-round digest XOR is zero on the 156 digest bits of the other 39 rows (probability 1 for such pairs, 2^-156 for pairs that do not follow the trail).",
+      "program": "experiments/r5_round2_mask.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "fc3c11bf7ec6e717fc3c11bf7ec6e717fc3c11bf7ec6e717fc3c11bf7ec6e717",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
