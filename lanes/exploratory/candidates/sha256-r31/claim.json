@@ -5,23 +5,85 @@
   "attack_class": "ordinary-collision",
   "rounds": 31,
   "lane": "exploratory",
+  "baseline_improved": "sha256-r31-nominal-v2",
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 39.15,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 27.5,
+    "preprocessing_log2": 39.15,
+    "success_probability": 1,
+    "nonuniform_advice_log2_bytes": 9
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Target sha256-r31-prefix-v1 exactly: SHA-256 steps 0..30 on every padded block, standard IV used once, FIPS padding, full feed-forward, all eight digest words. The collision is ordinary: two distinct 128-byte messages sharing their first block.",
+    "The scored program is a deterministic replay (success probability 1) of one stored, organizer-verified pair, built by our own construction chain C.",
+    "C uses no published colliding pair, starting solution or first block. Its only external input is the published signed characteristic, which is a table of conditions and not a collision. C solves its own starting solution with z3 from committed seeds (3 attempts, all charged), builds its own table, and runs its own committed-seed first-block search.",
+    "Total time is the executed work of C: z3 and synthetic checks at 256 word operations per retired instruction, our own code by explicit operation counts, plus the 6.36-unit replay. That is 2^39.1456 units. The full source and the commitments are in the proof appendices.",
+    "Memory is a reported metric only. baseline_improved names the organizer reference and does not assert an improvement over any submitted score."
   ],
-  "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-public-characteristic",
+      "role": "score-critical",
+      "statement": "The published 31-step signed characteristic (the condition table of proof.md Section 5 and the differences d5..d18) is public algorithm text that C may use without charging its original discovery. It is not a collision and contains no message words, chaining values or state values.",
+      "scope": "The characteristic only. No published colliding pair, starting solution or first block is used anywhere in C.",
+      "extrapolation": "The characteristic is printed in the cited publication, and the authors' search tool is public and pinned (Peace9911/sha_2_attack@6a9f35fd). Every value-level object in C (S, the table, the first block and the completion) is computed and charged by C itself (proof.md Sections 7-9).",
+      "evidence_ids": [
+        "proof:271-282",
+        "proof:91-130",
+        "proof:159-210"
+      ],
+      "limitations": "If a reviewer also charges the original characteristic search, the total rises by that amount. At 2^38 it would be 2^39.684."
+    },
+    {
+      "id": "H2-op-accounting",
+      "role": "score-critical",
+      "statement": "For our own code (proof.md Appendix B), the per-event charges of proof.md Section 9 bound the primitive word operations. Per trial: 1 compression + 32 ops. Per bitmap hit: 1 compression + 64. Per record: 400. Per V6 pass: 1600. Per completion iteration: 160. Per group: 1 unit. Per scanned word: 24. Per residue-scan candidate: 8.",
+      "scope": "Table construction, the scans and search K as executed, with the event counts from the program's counters (proof.md Section 8).",
+      "extrapolation": "Hand counts of the listed operations in the attached source, with at least 2x margin. Each trial is charged a full 31-step compression.",
+      "evidence_ids": [
+        "proof:211-230",
+        "proof:231-262",
+        "proof:283-291"
+      ],
+      "limitations": "Not an organizer-model instruction trace. The trial term dominates the own-code share."
+    },
+    {
+      "id": "H3-instruction-conversion",
+      "role": "score-critical",
+      "statement": "For runs without an exact operation model (the z3 solver attempts and the synthetic completion checks), 256 primitive 256-bit word operations per retired AArch64 instruction bound their work.",
+      "scope": "The measured runs listed in proof.md Section 8, with instruction counts from /usr/bin/time -l.",
+      "extrapolation": "Scalar instructions are at most a few primitives, 128-bit SIMD instructions at most 16 lane operations, and emulated multiply and divide stay below 256. The same per-reference conversion appears in an accepted submission on this track.",
+      "evidence_ids": [
+        "proof:211-230",
+        "proof:292-300"
+      ],
+      "limitations": "The instruction counts come from the operating system's performance counters for each process. The z3 term is the largest single line of the ledger."
+    },
+    {
+      "id": "H4-memory",
+      "role": "supporting",
+      "statement": "Peak memory over C is at most 2^27.5 bytes.",
+      "scope": "All runs of C.",
+      "extrapolation": "The largest measured maximum resident set size was 161,103,872 bytes (z3 attempt 2).",
+      "evidence_ids": [
+        "proof:263-268"
+      ],
+      "limitations": "Resident set size is the operating system's measure of touched pages."
+    },
+    {
+      "id": "H5-chain-scope",
+      "role": "score-critical",
+      "statement": "The charged chain C covers all computation of this construction, from model generation to the stored pair, including the failed solver attempts and every diagnostic run. Earlier exploratory work, which used a different (published) starting solution whose outputs C does not use, is not part of C.",
+      "scope": "The v3 construction recorded in proof.md Sections 7-9 and Appendix A.",
+      "extrapolation": "Every step of C after model generation was committed before it ran (Appendix A). The earlier work is disclosed in proof.md Section 11.",
+      "evidence_ids": [
+        "proof:303-312",
+        "proof:334-368"
+      ],
+      "limitations": "If a reviewer summed the earlier exploratory work (mainly one 2^40.625-trial run), the total would be near 2^41.2."
+    }
+  ]
 }
