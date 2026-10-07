@@ -1,6 +1,6 @@
-# 5-round SHA3-256: every phase inside the algorithm under a hard cap, time 2^40.26
+# 5-round SHA3-256: every phase inside the algorithm under a hard cap, time 2^40.23
 
-Exploratory claim, with Th0rgal as co-author: Th0rgal 7deb1595 (with Subflatus3 and rubenmarcus) introduced on this
+Exploratory claim, with winglock as co-author (port of promoted 113fc83 at K = 112): Th0rgal 7deb1595 (with Subflatus3 and rubenmarcus) introduced on this
 track the zero-advice framing and the early-abort row order used in E. The algorithm runs every phase itself (trail
 search P, advice program B', connector, enumeration E); each stops at a hard budget written into its code, and the
 claimed time is the sum of the budgets. The algorithm reads nothing published. [GLL+20] = J. Guo, G. Liao, G. Liu, M.
@@ -11,14 +11,14 @@ Liu, K. Qiao, L. Song, "Practical Collision Attacks against Round-Reduced SHA-3"
 
 | Field | Value | Basis |
 | --- | --- | --- |
-| time_log2 | 40.26 | sum of the phase budgets, 2^40.2557, rounded up (Section 6) |
-| success_probability | 0.40 | >= 0.81 under H1-H3 (Section 5) |
+| time_log2 | 40.23 | sum of the phase budgets, 2^40.2223, rounded up (Section 6) |
+| success_probability | 0.40 | >= 0.76 under H1-H3 (Section 5) |
 | preprocessing_log2 | 39.97 | budgets of P, B' and S: 2^39.9601, rounded up |
 | memory_log2_bytes | 30 | largest measured peak of any phase 113.5 MB (Section 7) |
 | nonuniform_advice_log2_bytes | 0 | the algorithm computes its trail and its connector advice |
 
 Summary: P finds the trail (budget 2 x its counted bound), B' builds the connector advice (budget 2^34 units), the v5
-connector makes K = 128 affine spaces, and E tests 2^32 pairs per space at <= 594 counted primitives each. Success
+connector makes K = 112 affine spaces, and E tests 2^32 pairs per space at <= 594 counted primitives each. Success
 uses s0 = 0.013 from the pre-registered v6 run (H1) and B'/connector rates from nine B' runs under a new
 pre-registration (H2, H3).
 
@@ -106,7 +106,7 @@ the capped T3 reproduces the output core's line (w1, w2, leaves, beta2) on a sub
 ran once, 10,181 CPU-s). r5-trail-0..3 (a partition of the cores) reproduce N1, 1741, C1, 467 and C2 exactly; the T3
 minimisation itself (1.4 x 10^12 leaves) is not re-executed, and Section 3 checks w1 = 127. Context (not the charge):
 the shipped T3 on the output core alone (3^20 leaves) retires 62.5 ARM64 instructions per leaf and reproduces its line.
-If every price of P were doubled, T would be 2^41.11.
+If every price of P were doubled, T would be 2^41.09.
 
 ### 2.2 Advice program B' (budget 2^34 units)
 
@@ -148,7 +148,7 @@ alpha1'_r). M3: linearise each row with masks on an affine W. M4: add the 127 ro
 consistent and DF = 1600 - rank(E_M) >= 33; above 2^18 work units the attempt fails. An attempt costs at most 2^25.46
 primitives (2^18 x 96 + 2^15 coin words x 2^9 + 2^22) and draws at most 22,150 coin words.
 
-Advice rounds: run attempts on the current advice until K = 128 are accepted; if 2^12 attempts give fewer, discard it
+Advice rounds: run attempts on the current advice until K = 112 are accepted; if 2^12 attempts give fewer, discard it
 and resume B'. At most A_max = 2^16 attempts in all, so at most 16 advice rounds.
 
 ### 2.4 Enumeration E (early-abort stage 1, counted)
@@ -186,7 +186,7 @@ largest observed is 307 (256 expected). Our runs used bf8.cpp (Appendix B), chec
 
 ### 2.5 Main loop and correctness
 
-Run P (stop if its budget is exhausted). Base S. Advice rounds (2.2, 2.3) until K = 128 accepted spaces of one advice,
+Run P (stop if its budget is exhausted). Base S. Advice rounds (2.2, 2.3) until K = 112 accepted spaces of one advice,
 or until B''s budget or A_max is exhausted (then fail). Run E on the K spaces in order and halt with the first output;
 if there is none, fail. algorithm() in the experiment file is this driver with every cap (corrected in this version:
 after a discarded advice, B''s budget resumes without the connector's coin work, which the earlier driver counted
@@ -307,10 +307,10 @@ at most 3.4 CPU-s each. With a random nonce in place of the public seed only the
 
 ## 5. Success probability
 
-Theorem (under H1-H3). Pr[the algorithm outputs a collision] >= 0.81. The heuristics (mirrored in claim.json) enter
+Theorem (under H1-H3). Pr[the algorithm outputs a collision] >= 0.76. The heuristics (mirrored in claim.json) enter
 only the success probability; no cost cap depends on them:
 - H1-space-success: for each advice B' can output, per accepted space E outputs a pair with probability >= s0 = 0.013
-  (a bound per advice, not an average over advices: (e) needs s >= 0.0040 for the final advice). Evidence 4.2 (v6 run,
+  (a bound per advice, not an average over advices: (e) needs s >= 0.0046 for the final advice). Evidence 4.2 (v6 run,
   14 of 512; r5-den-0..2, r5-replay, r5-bp-0) and 4.3 (9 advices, round-2 rate 1.033 x the trail value, 3 collisions,
   r5-replay8). Premises: E depends on the advice only through alpha2 (Markov); seeded coins act as fresh; the v6
   decision rule (disclosed) did not bias s-hat beyond the 99% bound. Limits: s0 is measured on one advice; 4.3 shows
@@ -327,15 +327,15 @@ Failure needs one of:
 - (b) B' exhausts 2^34 units before a good advice (connector acceptance q >= 0.10): <= 0.00043 (H2; this includes the
   restarts).
 - (c) More than 15 advice rounds: <= f_up^16 < 2^-29 (H3).
-- (d) A good advice gives fewer than 128 accepted attempts in 2^12: Chernoff with mean >= 409.6, < 2^-139.
-- (e) E outputs nothing on the 128 spaces of the final advice: (1 - s0)^128 = 0.1873 (H1; the spaces are i.i.d. given
+- (d) A good advice gives fewer than 112 accepted attempts in 2^12: Chernoff with mean >= 409.6, < 2^-139.
+- (e) E outputs nothing on the 112 spaces of the final advice: (1 - s0)^112 = 0.2310 (H1; the spaces are i.i.d. given
   the advice, because the attempts use independent coins).
 - (f) Coin map: each Fisher-Yates index is within (i+1)/2^64 of uniform; with at most 2^39.4 coin words in B' (32
   counted primitives each under 2^34 units) and 2^30.5 in the connector, all on lists of fewer than 2^12 elements, the
   total variation is below 2^-12.
 
-So Pr[success] >= 1 - 0.00043 - 2^-29 - 2^-139 - 0.1873 - 2^-12 > 0.81. The claim 0.40 holds for any s >= 0.0040, 3.3
-times below s0. At s-hat = 0.0273 the bound is 0.97.
+So Pr[success] >= 1 - 0.00043 - 2^-29 - 2^-139 - 0.2310 - 2^-12 > 0.76. The claim 0.40 holds for any s >= 0.0046, 2.8
+times below s0. At s-hat = 0.0273 the bound is 0.95.
 
 ## 6. Time (collision-frontier-v5: one 5-round permutation = 1 unit, other primitives 1/1355)
 
@@ -345,15 +345,15 @@ times below s0. At s-hat = 0.0273 the bound is 0.97.
 | B' | WK counter, re-checked on every update | 2^34 units + one update (< 2^13 units) | 34.0000 |
 | S | at most 16 advice rounds | 16 x 2^31 primitives | 24.5959 |
 | Connector | 2^18 work units per attempt, A_max = 2^16 attempts | 2^16 x (2^18 x 96 + 2^15 x 2^9 + 2^22) primitives | 31.0554 |
-| Bases | K = 128 spaces | 128 x 2^24 primitives | 20.5959 |
-| E stage 1 | 2^32-pair window, worst-case path | 128 x 2^32 x 594 primitives | 37.8102 |
-| E stage 2 | S2CAP = 2^11 per space | 128 x 2^11 x (2 units + 2^7 primitives) | 19.0666 |
+| Bases | K = 112 spaces | 112 x 2^24 primitives | 20.4033 |
+| E stage 1 | 2^32-pair window, worst-case path | 112 x 2^32 x 594 primitives | 37.6176 |
+| E stage 2 | S2CAP = 2^11 per space | 112 x 2^11 x (2 units + 2^7 primitives) | 18.8739 |
 | Output | one pair | 2^22 primitives | 11.60 |
-| Total T | | | 40.2557 -> 40.26 |
+| Total T | | | 40.2223 -> 40.23 |
 
 Every term is a cap that holds on every run; no expected value is used. Preprocessing (P + B' + S) = 2^39.9601,
 claimed 39.97. Sensitivity (not the claim): the 64-register model lets E load only the 25 basis lanes; at 671 primitives
-per pair (7deb1595's count) T = 2^40.29, with 150 further loads and stores per pair (744) 2^40.33. Context only: the
+per pair (7deb1595's count) T = 2^40.2527, with 150 further loads and stores per pair (744) 2^40.2809. Context only: the
 measured central cost (P at its count, B' at the mean of the nine runs, about 160 attempts, E at 398.625 + 15/16 per
 pair) is about 2^39.3.
 
@@ -361,10 +361,18 @@ pair) is about 2^39.3.
 
 Measured peaks: P 4.1 MB (T3), B' at most 113.5 MB (run 2; 42-83 MB in the others), connector and reference code under
 2^23 bytes; E keeps 25 lanes and 32 basis vectors. Before E starts, algorithm() keeps the echelon system of each of the
-K accepted spaces (at most 1,600 forms of 1,601 bits each, about 41 MB in all; the bases alone would be 128 x 33 x 200
+K accepted spaces (at most 1,600 forms of 1,601 bits each, about 36 MB in all; the bases alone would be 112 x 33 x 200
 bytes). Declared 2^30 bytes, 9 x the largest measured peak.
 
-## 8. Not claimed; credits
+## 8. Not claimed; credits; lineage
+
+Lineage: this package ports the promoted winglock submission 113fc83 (promoted as 4689e67, time 2^40.26) with one
+parameter change: K = 128 -> 112 accepted spaces, re-sizing E/bases/stage-2 and the success bound. Every other cap,
+count, program and piece of evidence is adopted unchanged from that base (cited, not copied blindly: the ledger was
+recomputed in exact rationals, the 16 certificate pairs re-verified through the organizer verifier, and the
+experiments re-executed locally under the pinned image). The re-sizing arithmetic is ours; the construction,
+zero-advice framing, counted E program and all measurements are winglock's (with Th0rgal), credited here and by
+co-authorship on the submission.
 
 Not claimed: any improvement on [GLL+20] beyond the byte-aligned (p = 8) adaptation, B', the counted early-abort E and
 the accounting. The certificates show that the construction works; they are not the claimed cost. Credits: [GLL+20]
