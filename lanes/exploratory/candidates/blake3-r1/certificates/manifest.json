@@ -2,27 +2,27 @@
   "schema_version": 2,
   "certificates": [
     {
-      "id": "zero-coin-pair",
+      "id": "zero",
       "type": "hash-collision-witness-v2",
-      "message_a": "certificates/zero-coin-a.bin",
-      "message_b": "certificates/zero-coin-b.bin",
-      "expected_digest": "f759c198040e5c92fdd8a52dea06b624254433662bfc29951599a35b626a5ce0",
+      "message_a": "certificates/zero-a.bin",
+      "message_b": "certificates/zero-b.bin",
+      "expected_digest": "b6ae864b76d0e699fcc669240e4e72ed377b108b3dabba4601cdbe37d7e9ba4b",
       "target_profile": "blake3-r1-prefix-v1"
     },
     {
-      "id": "abc-pair",
+      "id": "ones",
       "type": "hash-collision-witness-v2",
-      "message_a": "certificates/abc-a.bin",
-      "message_b": "certificates/abc-b.bin",
-      "expected_digest": "a406784b1f6377cd7acd513b8c4af00bc0b8d7b028ddad36e085043c3d6bab5f",
+      "message_a": "certificates/ones-a.bin",
+      "message_b": "certificates/ones-b.bin",
+      "expected_digest": "13f9b63b7924d76dbea100572bf5962562078d297fe060f6807515bd743c2db1",
       "target_profile": "blake3-r1-prefix-v1"
     },
     {
-      "id": "full-block-pair",
+      "id": "mixed",
       "type": "hash-collision-witness-v2",
-      "message_a": "certificates/full-block-a.bin",
-      "message_b": "certificates/full-block-b.bin",
-      "expected_digest": "a88352860d5f627109bc7d7f88bcf25994423bcedb57354ee0f419df564b0c5b",
+      "message_a": "certificates/mixed-a.bin",
+      "message_b": "certificates/mixed-b.bin",
+      "expected_digest": "26ce560af10f217fe0e815071816519cafd046b092b05232766b32927dea2234",
       "target_profile": "blake3-r1-prefix-v1"
     }
   ]
