@@ -1,367 +1,3011 @@
-# SHA3-256 prefix rounds 0 through 5: unconditional generic collision package
-
-The scalar below is `time_log2` under `collision-frontier-v5`. Memory remains
-a separately reported resource bound.
-
-Selected lane: exploratory. Target: `sha3-256-r6-prefix-v1`.
-This finite classical algorithm has total charged time at most 2^137.4,
-peak memory at most 2^138 bytes, and success probability at least 1/2.
-The proposed scalar is 137.4. It is a generic analytic construction
-with infeasible resource use, not a claimed cryptanalytic advance.
-The required `baseline_improved` identifier `sha3-256-r6-nominal-v2`
-identifies the organizer's nominal reference only. That nominal 128 is not
-an established attack, qualified baseline, or security bound; this package
-does not claim to improve it.
-
-## 1. Exact complete hash and legal messages
-
-Let Q = 2^129 and N = 2^256. The input family D is all 64-byte strings,
-so |D| = 2^512. Every message has legal bit length 512 < 2^64.
-Represent a message by two 256-bit words u,v and serialize it as
-LE32(u) || LE32(v), where LE32 writes exactly 32 little-endian bytes,
-including zero bytes. This is a bijection from pairs of words onto D.
-N and |D| are mathematical cardinalities used only in the proof; the
-algorithm never stores either of those out-of-word-range integers.
-
-The selected complete hash has a 1600-bit state, rate 1088 bits (136 bytes),
-capacity 512, the all-zero initial state, and full 256-bit output.
-Each such message's entire padded input is exactly one 136-byte block:
-
-    LE32(u) || LE32(v) || 06 || (00 repeated 70 times) || 80
-
-This is the SHA3 domain suffix 01 and pad10*1, using delimited suffix 0x06.
-There is exactly one absorption permutation, no extra squeezing permutation,
-and no Davies-Meyer feed-forward.
-
-The complete subroutine H(u,v) is as follows. Store the state as 25 lanes,
-each in the low 64 bits of a separate RAM word; upper bits are zero.
-The lane index is x+5y for 0 <= x,y < 5, in little-endian lane order.
-Set all 25 lanes A to zero, then for j = 0,1,2,3 set
-
-    A[j]   = (u >> (64*j)) AND (2^64-1)
-    A[j+4] = (v >> (64*j)) AND (2^64-1).
-
-Set A[8] = 0x06 and A[16] = 0x8000000000000000.
-These are precisely the padded rate block XORed into the all-zero state.
-Lanes 17 through 24 remain the zero capacity portion.
-
-Apply exactly the first six Keccak-f[1600] rounds, indices 0 through 5.
-For each round use the following stages; within a stage assignments are
-simultaneous, and each stage reads the preceding one. Subscripts x,y are
-modulo 5. All lane arithmetic is on 64 bits, with NOT64 and rot64 restricted
-to those bits, not the entire 256-bit RAM word.
-
-    C[x] = A[x,0] XOR A[x,1] XOR A[x,2] XOR A[x,3] XOR A[x,4]
-    D[x] = C[x-1] XOR rot64(C[x+1],1)
-    T[x,y] = A[x,y] XOR D[x]
-    B[y,2*x+3*y] = rot64(T[x,y],rho[x,y])
-    Anew[x,y] = B[x,y] XOR ((NOT64 B[x+1,y]) AND B[x+2,y])
-    A = Anew
-    A[0,0] = A[0,0] XOR RC[round]
-
-The rho offsets, listed in x+5y order, are
-
-    0, 1,62,28,27, 36,44, 6,55,20, 3,10,43,25,39,
-    41,45,15,21, 8, 18, 2,61,56,14.
-
-Use these six RC constants in this order:
-
-    0x0000000000000001, 0x0000000000008082,
-    0x800000000000808A, 0x8000000080008000,
-    0x000000000000808B, 0x0000000080000001.
-
-Return
-
-    d = A[0] OR (A[1] << 64) OR (A[2] << 128) OR (A[3] << 192).
-
-LE32(d) is exactly the first 32 squeeze bytes, hence the full target digest.
-This is the fixed prefix-round complete hash, not Keccak-p's last-round
-convention, raw permutation hashing, a free initial state, different padding,
-or truncated output. Numeric ordering of d in the search changes no equality
-test: equality means all 256 output bits agree.
-The six-round transformation costs one selected-target sponge permutation
-under collision-frontier-v5; surrounding construction and serialization
-operations are charged separately.
-
-## 2. Algorithm, data structures and stopping rule
-
-Use two arrays A and B of Q records each, unrelated to H's small local lane
-array. Each record is exactly three RAM words (digest,u,v), or 96 bytes.
-No previous collision or input-specific advice is supplied.
-
-Initialize fixed code/constants/workspace and zero all 6Q table words.
-For i = 0,...,Q-1 draw fresh independent uniform 256-bit words u_i,v_i,
-compute d_i=H(u_i,v_i), and store (d_i,u_i,v_i) in A[i].
-Charge all 2Q random draws and all hashes, including unsuccessful samples.
-A deterministic seed expansion is not an implementation of these ideal
-random-word calls.
-
-Sort all records by unsigned full-digest word using iterative bottom-up
-mergesort. Initially source=A, destination=B and width=1.
-For each width<Q merge consecutive pairs of width-record runs, copy every
-three-word record to destination, swap source/destination and double width.
-Q is a power of two, so all pairs are complete and there are exactly 129
-passes, with widths 1,2,...,2^128. For each start s=0,2*width,...,Q-2*width,
-perform this merge:
-
-    left=s; left_end=s+width; right=left_end; right_end=s+2*width; out=s
-    while out<right_end:
-        if left==left_end: chosen=right; right=right+1
-        else if right==right_end: chosen=left; left=left+1
-        else if source[left].digest <= source[right].digest:
-            chosen=left; left=left+1
-        else: chosen=right; right=right+1
-        destination[out] = all three words of source[chosen]
-        out=out+1
-
-The chosen index is saved before incrementing its left/right counter.
-Taking from the left on ties is deterministic. No recursion, hashed lookup,
-expected sorting bound, integer multiplication primitive, or variable-size
-integer representation is needed.
-
-Scan adjacent records of the final source. When two digest words agree,
-compare both message words. If the messages are identical, continue.
-If they differ, recompute H for both from fresh all-zero states, check full
-digest equality, and output the two 64-byte messages.
-On verification failure output failure; this branch is unreachable under
-exact RAM semantics. If the scan ends without a witness, output failure.
-There is one complete batch and no restart or amplification.
-
-Sorting preserves every record and makes each equal-digest class contiguous.
-If a class contains distinct messages, some adjacent messages differ:
-otherwise transitivity of equality would make the whole class one message.
-Thus the algorithm succeeds exactly when its sample contains distinct
-messages with equal target digests. Every output satisfies the exact
-ordinary-collision relation by distinctness and complete-hash recomputation.
-
-## 3. Unconditional success for this fixed function
-
-The only randomness is the 2Q independent uniform RAM words. H remains the
-fixed function in section 1. For each of its N possible digest values y let
-
-    p_y = |{m in D : H(m)=y}| / 2^512.
-
-Some p_y may be zero, and no balance assumption is made. Independent uniform
-messages produce independent outputs with this common distribution p,
-because each output is a deterministic function of its respective input.
-This fact asserts no independence among rounds or internal differences.
-
-Here is the full finite-distribution bound. For q<=N let e_q(p) denote the
-sum of products of probabilities over all q-element subsets of coordinates.
-The probability of all q sampled outputs being distinct is q! e_q(p).
-Hold all coordinates except a,b fixed, and keep a+b fixed. Then
-
-    e_q(p) = a*b*e_(q-2)(rest) + (a+b)*e_(q-1)(rest) + e_q(rest),
-
-where e_0=1 and impossible-size coefficients are zero.
-All coefficients are nonnegative, so replacing a,b by their mean cannot
-decrease e_q: their product increases at fixed sum.
-To obtain a global maximum rigorously, e_q attains one on the compact
-probability simplex. Among maximizers choose one minimizing sum p_i^2.
-If two of its coordinates differ, averaging them does not decrease e_q
-and strictly decreases the sum of squares, a contradiction.
-Therefore the uniform vector maximizes e_q, including over distributions
-with zero coordinates. No limiting repeated-averaging step is assumed.
-
-Let E be the event that some two sampled digests agree. Apply this inequality
-with q=Q and then 1-x<=exp(-x) to each factor:
-
-    Pr(not E) <= Q! * binomial(N,Q) / N^Q
-              = product_(j=0)^(Q-1) (1-j/N)
-              <= exp(-Q*(Q-1)/(2*N)).
-
-Here Q*(Q-1)/(2*N)=2-2^-128>1, so Pr(E)>1-exp(-1).
-Since exp(1)>1+1+1/2+1/6=8/3, we have exp(-1)<3/8 and Pr(E)>5/8.
-
-Repeated inputs do not count as ordinary collisions. Let R be the event
-that any two sampled messages are equal. Each particular pair agrees with
-probability 2^-512; therefore the union bound gives
-
-    Pr(R) <= binomial(Q,2)/2^512 < 2^258/(2*2^512) = 2^-255 < 1/8.
-
-On E without R an equal-digest pair necessarily has distinct messages.
-The scan therefore finds a valid witness. No independence between E and R
-is required for
-
-    Pr(success) >= Pr(E)-Pr(R) > 5/8-1/8 = 1/2.
-
-The JSON reports the weaker lower bound 0.5, above the required 0.39.
-This argument works for every fixed map D to N digests, including unbalanced
-ones. It uses neither a random-oracle premise nor balanced-output,
-pseudorandomness, experimental extrapolation or differential independence.
-This is algorithmic success, not confidence in the proof or an AI reviewer.
-
-## 4. 256-bit RAM implementation and complete charged time
-
-Instruction budgets in this section are counts of ordinary word operations,
-priced at 1/1626 each. Permutation calls are counted separately at cost 1;
-their internal round operations are not part of those instruction budgets.
-
-All actual scalar values fit in a word: Q, widths, indices, endpoint Q,
-3*i, 6*Q, counters and byte addresses below 2^138. The proof cardinalities
-N and |D| and the large total-time bounds are not machine registers.
-Address record i as base+(i<<1)+i and then use offsets 0,1,2.
-For byte addressing additionally shift the word address left by five.
-Only the listed shifts/additions are used; no multiplication is assumed.
-Each record is three individual loads/stores, never a free bulk copy.
-There are no unbounded counters, recursion stacks or multiword addresses.
-
-The following finite envelopes deliberately overcount implementation
-constants. For one merge output, source/destination addressing uses fewer
-than 20 additions/shifts. Two digest loads, three record loads, three
-record stores, eight comparisons/branches and eight counter operations
-suffice. Setup/end control is fewer than 32 additional operations per
-nonempty run pair, chargeable to its first output. These total below 128.
-Including loads/stores for every scalar temporary and pointer swap gives
-a conservative bound of 512 primitives per output before fetch allowance.
-The adjacent scan likewise fits in 512 primitives per inspected pair.
-
-For H, 25 zero stores, eight lane extractions, two padding stores, dispatch
-of one selected permutation, four output-lane loads, three shifts/ORs and
-call bookkeeping total below 512 ordinary primitives. The permutation call
-itself is counted separately at one target-compression unit. The two random
-draws and three record stores also fit within 512 per generated record.
-Explicit copying of all 25 lanes at the permutation interface, if charged in addition to
-that primitive, fits this envelope. Every constant shift 64*j can be
-precomputed; no variable integer multiplication is needed.
-
-An elementary instruction and literal operands can be encoded in at most
-five RAM words: opcode and at most four operands. Allow five additional
-charged instruction-fetch loads for each instruction. The 512-operation
-bound becomes 3072; round upward to 4096=2^12 per record below.
-These fetches are conservatively charged even if the model would not
-separately charge them. No operating system, Python objects, allocator
-metadata or library sorting implementation is being assumed.
-
-The uniform program has the fixed loop bodies specified above. Its
-elementary straight-line/control code needs fewer than 2^14 instructions.
-Even if the selected primitive's code storage is included, six rounds of
-25 lanes require fewer than this number: fixed lane coordinates eliminate
-modulo/index computations, and each round uses fewer than 1024 elementary
-instructions for the displayed XOR, rotation, chi, loads and stores.
-All six rounds plus the generation, merge, scan and loop bodies remain
-below 2^14 instructions. Five-word encoding uses 81920 words.
-Constants, counters, temporary records, output and working lanes together
-use fewer than 4096 further words, totaling less than 2^17 words.
-Reserve the larger 2^24-byte fixed area for all of them.
-Loading this code/constants and clearing the fixed area costs at most
-2^30 charged operations. These are uniform data, not searched advice.
-
-| Phase | Permutation calls, at cost 1 each | Ordinary operations, at cost 1/1626 each |
-| --- | ---: | ---: |
-| Load fixed code/constants and initialize fixed workspace | 0 | 2^30 |
-| Zero both Q-record arrays, six word stores per record index | 0 | 2^12 Q |
-| Draw, construct, hash and store every message | Q | 2^12 Q |
-| Every copy in all 129 bottom-up merge passes | 0 | 129 * 2^12 Q |
-| Scan all adjacent pairs, including repeated-message checks | 0 | 2^12 Q |
-| Recompute both witness hashes, verify and emit output or failure | at most 2 | 2^14 |
-
-The ordinary-operation column retains the stated finite instruction envelopes,
-including addressing, loops, fetches and spare allowance. Internal permutation
-rounds belong only to the separate permutation calls.
-
-Explicit table zeroing is easily within 512 primitives per index before
-fetch allowance, so allocation assumes no free zero-fill.
-The table charges all samples, failed comparisons, merge passes and
-verification regardless of success. There is no hidden restart cost.
-These are worst-case bounds for one run, hence also bound expected time.
-
-    H_calls <= Q+2
-    W <= 132 * 2^12 Q + 2^30 + 2^14 = 540672Q + 1073758208
-    T = H_calls + W/1626
-      <= (1 + 540672/1626)Q + 2 + 1073758208/1626
-       < (333517/1000)Q
-       < 2^8.4 Q = 2^137.4,  for Q=2^129.
-
-The first strict inequality follows by clearing denominators with Q=2^129;
-the second is the integer inequality `333517^5 < 2^42 * 1000^5`.
-The leading coefficient is approximately 333.516605; the displayed bound
-also includes fixed setup and final verification. It is an upward bound,
-not division of the former rounded scalar by C.
-
-The organizer unit is named `target-compressions`: one selected six-round
-sponge permutation costs one unit and each other listed primitive word
-operation costs 1/1626 units. T is not merely the number of hashes.
-Preprocessing is the fixed initialization and array zeroing, already
-included in T:
-
-    P <= (2^12 Q + 2^30)/1626 < 2^131 < 2^142.
-
-The retained `preprocessing_log2: 142` is a loose independent upper bound.
-Actual preprocessing is below 2^131 and is included in the new total bound
-2^137.4; the metadata does not assert that setup takes 2^142 units.
-
-No earlier search chooses messages, favorable coins, collisions, parameters
-or advice. No failed trials or preparation steps are left outside T.
-
-## 5. Memory, data and interpretation of the claim
-
-Each array occupies 3Q words = 96Q bytes, including every retained 64-byte
-message and 32-byte full digest. Both arrays total 6Q words = 192Q bytes.
-Retained random words are the stored message words, not another allocation.
-Uniform code/constants, copying temporaries, state, counters, output and
-other fixed data all fit in the 2^24-byte area justified above.
-There are no additional table copies, external storage, recursive stacks,
-compressed messages or retained randomness outside those areas.
-
-    M <= 192Q + 2^24 = 192 * 2^129 + 2^24 < 2^138 bytes.
-
-This is within 256-bit byte or word addressing. It is not constant memory
-or a statement of physical practicality.
-
-The JSON fields have these explicit units and meanings:
-
-* `time_log2: 137.4` means T <= 2^137.4 target-compression units of total work.
-* `memory_log2_bytes: 138` means M <= 2^138 peak bytes, including code.
-* `data_log2: 130` means at most Q+2 < 2^130 complete-message hash
-  evaluations including both final verification evaluations.
-  All messages are generated internally; external input data is zero.
-  Their 64-byte input traffic is at most 64(Q+2) < 2^136 bytes.
-  Repeated table traffic is accounted for in time and memory above.
-* `preprocessing_log2: 142` means P < 2^142 target-compression units of setup,
-  already included in T, not an extra omitted phase.
-* `success_probability: 0.5` is a proved one-batch lower bound.
-* `nonuniform_advice_log2_bytes: 0` bounds advice by 2^0 bytes.
-  Actual nonuniform advice is zero bytes. The schema cannot encode log2(0),
-  so the nonnegative value 0 is a conservative upper bound, not a hidden
-  precomputed collision. Uniform program/constants are charged above.
-
-Resource logarithms describe conservative upper bounds; success describes
-a lower bound. The proposed scalar is 137.4. No scalar improvement or Pareto
-dominance over an established attack is claimed.
-
-## 6. Evidence, heuristic disclosures and limitations
-
-All needed evidence is the self-contained analytic argument in sections
-1 through 5. The heuristic list is empty: every material probability and
-resource premise is discharged for the fixed target and stipulated RAM.
-Fresh independent uniform random words are an explicit model primitive,
-not an empirical assumption about a device or deterministic PRNG.
-No smaller-round experiment or sibling package is needed for this proof.
-There are no toy-to-full-size extrapolations or unexplained cryptanalytic
-premises, and no external link must be fetched to assess the argument.
-
-The certificate manifest is valid and empty. No computed collision or
-certificate is claimed. No experiment is declared, and no candidate
-program has been executed. Finite sampling would not establish the costs
-or success of this infeasible run and is not used as evidence.
-This is an analytic upper bound in the abstract model, not a measured
-practical attack.
-
-`ready` means complete and available for review. Qualification and score
-emission require organizer review of this exact package.
-Exploratory qualification is `plausible_not_refuted`; rigorous qualification
-is `ai_rigor_qualified`. Neither is mathematical proof or human acceptance.
-This candidate does not assert a review outcome, trusted score or successful
-Yukon baseline import.
-
-## 7. Source and accounting revision
-
-This is an accounting revision of the organizer's SHA3-256 r6 package
-`24cf87f71dd43350628faece8df634e6f8dac8c574f1715123452e649c5397c8`
-in production base `0455d2b52f4f920fe5c3a6af8c71592a824e6a57`.
-The complete hash, lane-oriented wrapper, array zeroing, three-word records,
-merge sort, probability proof, success lower bound and memory bound are
-retained. The former v4 declaration was 150; its explicit counts support
-137.4 at v5 prices. This new package requires fresh ordinary review and
-asserts neither an inherited qualification nor a new cryptanalytic algorithm.
+# sha3-256-r6: bitsliced grouped birthday search on 128-byte linear-structure prefixes, time_log2 = 124.263
+
+## 0. Summary and credit
+
+A generic birthday search over full 256-bit digests. No cryptanalytic
+weakness of SHA3 is claimed. This revises our 5e73af65 (bs5, 124.271) and
+our bs6 (64ee9000, which review found not evaluable). The search, the
+compiler, the table, H1's structure and the experiment layouts are bs5's and
+bs6's. What is new:
+
+- **5kyguy's 128-byte message family (6e715d9a).** z goes into lanes 4 and
+  14 of a 128-byte message with 768 free prefix bits, and four dependent
+  lanes keep round 1 linear in z (Lemmas 1-3). Each z-bit still flips a
+  fixed 22-word set of the round-2 input by all-ones, but only **499**
+  round-3 input words need a patch (bs6: 508), only **975** A2 words are
+  ever read (1,152), and a leaf updates **3-10** of them (13-18). The
+  incremental round 2 costs at most 1,764 operations (1,816).
+- **Start planes re-searched for this family** (Lemma 7): (10, 61, 34)
+  instead of (2, 39, 34), chosen by an exhaustive coordinate search of each
+  plane with the worst compiled leaf as objective.
+- **Worst z-step 31,176 operations** (bs6: 31,223); a candidate now costs
+  3 units + at most 106 operations, since a message is 4 words (bs6: 81).
+- **The counted program is shipped** (Appendix A: generator, compiler,
+  simulator, setup, self-test; about 70 KB). `python3 selftest.py REPO_ROOT`
+  regenerates all 33 bodies, prints the worst-step count 31,176 and checks
+  it on the simulator against `verifier/keccak.py`.
+- **Run selection stated and checkable** (H1(b), Section 10.3): the
+  organizer-executed configuration is unchanged from our 949c283b and
+  5e73af65, the family is 5kyguy's, and the parameters chosen here (pi,
+  start planes) use cost objectives only. Our own runs were pre-registered
+  and hashed before our first trial of this family; every run, including
+  later reviewer runs, is disclosed, with exact Clopper-Pearson intervals
+  and a Bonferroni correction. The organizer's public-seed report should
+  reproduce our R1 hash (Section 10.3).
+
+| quantity | value |
+| --- | --- |
+| messages N | 255 * 2^120 = 255 * 2^80 batches x 256 groups x 2^32 values of z |
+| ops per z-step (256 messages), worst path | 31,176 (every executed primitive; leaves 31,153..31,176) |
+| ops per message charged | 121.78125 (31,176/256) + setup < 2^-20 |
+| candidate verifications | at most VCAP = floor(N^2/2^141) + floor(N^2/2^148) + 2^91 + 2^61, each 3 units + at most 106 ops |
+| total T | < 2^124.262608 (Section 8; exact integer certificate) |
+| claimed time_log2 | **124.26261** |
+| success probability | > 0.39105 under H1 (model value 0.39106); claimed 0.39 |
+| memory | < 2^145.01 bytes; claimed 146 |
+
+**Credit.**
+
+- **Co-authors.**
+  - **5kyguy** (6e715d9a, 124.270): the 128-byte family with z in lanes 4
+    and 14 and its constraints (L5 = L15, L8 = 0, L12), which this package
+    adopts unchanged (Sections 2-3); the per-branch-site candidate copies
+    ending in a charged direct jump back (Section 5.4); the 2^50
+    program-generation allowance (Section 8); and the example of shipping
+    the counted generator and simulator with the package. Their polarity,
+    allocation and schedule are not used: ours are generated by our
+    compiler. Earlier, 78676cf6 independently and concurrently specialised
+    delta swaps for zero rows; nothing from it is used.
+  - **Th0rgal** (4867f093): the linear-structure prefix on this track,
+    which makes round 1 linear in z and round 2 incrementally AND-free.
+    Earlier (76ccfa1c): our table builds on T2, their sparse set at address
+    0, and our compiler subsumes T3.
+  - **jaazinn** (0a5b7ae8): grouped partial evaluation, the Briggs-Torczon
+    sparse set, the failure analysis with H1 and the scaled-experiment
+    design.
+  - **may93182** (11c46f4d): the 256-way bit-plane Keccak and the
+    delta-swap transpose.
+- **Credited.**
+  - Jian Guo, Meicheng Liu and Ling Song, "Linear Structures: Applications
+    to Cryptanalysis of Round-Reduced Keccak", ASIACRYPT 2016: linear
+    structures.
+  - tekkac (b001199a): lane-complement chi on this track, after the Keccak
+    team.
+  - ercumentyildirim (c7fa1a56; r5: 4c969300): the last-round early abort,
+    which the kept planes extend.
+  - zeeshan8281 (cbf7998d): the 255/256 message budget.
+  - zeeshan8281 and tekkac (f58275ef): exact per-message charging.
+  - mitchuski (02d6a703): the every-load-and-store-charged reading.
+- **Not used.** Nothing from newjordan's b54bb98c is used. From GordoAR's
+  e715ab73 and df2619d4 we use only the integer-certificate format of
+  Section 8.
+- **Ours.** Read-only flips with storage polarity, patches merged into
+  round 3, Lemmas 7 and 9-11, the start-plane search, the 16-row transpose
+  layout, pair ids, the kept planes with verify and continue, the
+  tagged-id table, the counted program, the experiment protocol and any
+  errors.
+
+None of them has reviewed this package.
+
+## 1. Target, machine and charging conventions
+
+- **Target.** `sha3-256-r6-prefix-v1`: the complete SHA3-256 sponge (rate
+  1088, capacity 512, suffix 0x06, pad10*1, zero IV) with Keccak rounds
+  0..5 and all 256 output bits, as in `verifier/keccak.py:sha3_256(msg, 6)`.
+  Messages are exactly 128 bytes, so one 136-byte block. Lane k (k < 16) is
+  bytes 8k..8k+7, read little-endian. Lane 16 = PAD16 = 0x8000000000000006
+  (the 0x06 suffix and the final pad bit) and lanes 17..24 are 0. Lane
+  index L = x + 5y. Rounds are numbered 1..6.
+- **Digest and key.** The digest is lanes 0..3 after round 6, and K* =
+  int.from_bytes(digest, "little"). The program stores the **key**
+  K = key_of_digest(K*):
+  - digest bit (x, b), with x < 4 and b in KEEP, moves to key bit
+    ROWOF(x, b) = 4k + x, where b = KEEP[k];
+  - the result is XORed with a public constant KEYMASK;
+  - key bits 140..255 are 0.
+
+  K is a fixed function of 140 digest bits, so **equal keys are only a
+  candidate**.
+- **Cost model.** `collision-frontier-v5`, C = 1626. One permutation costs 1
+  unit. Any other 256-bit word primitive costs 1/1626.
+- **Machine.** A 256-bit word RAM with **64 registers**. This is our stated
+  assumption, and the program uses all 64. An operation on register
+  operands is one primitive, not a memory access. 64 registers of 256 bits
+  are 2 KiB, a 32-entry 512-bit SIMD register file. This reading does not
+  cover a register bank of thousands of words; we claim no bound under such
+  a reading, nor under a memory-to-memory reading.
+- **Charging (claimed).** Every executed primitive of the v5 list costs 1:
+  - every load and store, direct or register-addressed;
+  - XOR, AND, OR, NOT, shift or rotation, add, compare, conditional branch,
+    immediate move and random word.
+
+  A constant address or an immediate is a field of the instruction that
+  executes. A candidate verification evaluates three messages with the
+  reference six-round function, 1 unit each (Section 5.4). Section 9
+  prices address additions, immediates and shift amounts separately.
+
+## 2. Messages, groups, batches and processing order
+
+This is 5kyguy's 128-byte family (6e715d9a). For group g the algorithm
+draws three fresh uniform 256-bit words, i.e. 768 bits, and splits them into
+the twelve free lanes L0, L1, L2, L3, L4, L6, L7, L9, L10, L11, L13, L14.
+With
+
+    C4 = L4 XOR L9 XOR L14,   C1 = L1 XOR L6 XOR L11 XOR PAD16,
+
+the **structured prefix** P_g sets
+
+    L5 = L15 = C4 XOR rotl64(C1, 1),   L8 = 0,
+    L12 = NOT rotl64(C4, 1) XOR L2 XOR L7.
+
+The map from the 768 free bits to P_g is injective, so P_g is uniform over a
+set S of 2^768 prefixes. P_g is stored. For z in {0,1}^32:
+
+    m(g, z) = P_g with LE32(z) XORed into bytes 32..35 and into bytes 112..115.
+
+So z is XORed into the low 32 bits of lane 4 (x=4, y=0) and of lane 14
+(x=4, y=2). Both are free lanes and the same value enters both, so C4, C1
+and the dependent lanes are unchanged: for every z the map P -> m(P, z) is
+a permutation of S.
+
+- **Batches.** Write g = 256*beta + p, with batch beta < 255 * 2^80 and slot
+  p < 256. Batch beta runs t = 0, 1, ..., 2^32 - 1 with z = gray(t) =
+  t XOR (t >> 1).
+- **Processing order.** At each t the batch evaluates the 256 messages
+  m(256*beta + p, gray(t)). It offers them to the table in the order
+  q = 0..255, slot p = decode_slot(q) = 16*(q mod 16) + floor(q/16).
+- **Pair id.** The messages with processing indices q = 2k and q = 2k + 1
+  of batch beta at step t, k < 128, form a pair with id
+  n = beta*2^39 + t*2^7 + k, which is also the count of pairs processed
+  before it. Every message is evaluated once.
+
+**Bit mapping.** Word P(L, b) holds, in bit position p, bit b of lane L of
+m(256*beta + p, z). Padding planes are constants: P(16,1) = P(16,2) =
+P(16,63) = all-ones, P(8, b) = 0, and all planes of lanes 17..24 are 0.
+
+## 3. Dependency analysis (exact)
+
+Every step map except chi is GF(2)-linear. A2 denotes the state after round
+1 and the theta of round 2. Theta: C[x] = XOR_y L(x+5y),
+D[x] = C[x-1] XOR rotl(C[x+1], 1). Chi: out[X] = b[X] XOR (NOT b[X+1] AND
+b[X+2]).
+
+**Lemma 1 (round-1 theta is invariant; two constant lanes).** Lanes 4 and 14
+lie in column 4 and carry the same z, so every column parity, and so every
+D word of round 1, is independent of z. Moreover:
+- D0 = C4 XOR rotl(C1, 1), where the column-1 parity C1 = L1 XOR L6 XOR
+  L11 XOR PAD16 includes lane 16 (lane 21 is 0). Since L5 = L15 =
+  C4 XOR rotl(C1, 1) = D0, lanes 5 and 15 are **0 after theta**.
+- C2 = L2 XOR L7 XOR L12 = NOT rotl(C4, 1) (lanes 17 and 22 are 0), so
+  D3 = C2 XOR rotl(C4, 1) = all-ones. Lane 8 (L8 = 0) and lane 23 (0) are
+  therefore **all-ones after theta**.
+
+**Lemma 2 (round 1 is linear in z; linear structure).** Rho/pi sends lane 4
+(rotation 27) to row Y = 3, X = 0, plane j+27, and lane 14 (rotation 39) to
+row Y = 4, X = 2, plane j+39, for z-bit j. A varying chi input b[X] enters
+out[X-1] through NOT b[X] AND b[X+1] and out[X-2] through NOT b[X-1] AND
+b[X]. Both terms are constant when b[X+1] = 0 and b[X-1] = all-ones on the
+varying plane:
+- Row 3, X = 0: b[1] comes from lane 5 (rotation 36), 0 by Lemma 1, and
+  b[4] from lane 23 (rotation 56), all-ones by Lemma 1.
+- Row 4, X = 2: b[3] comes from lane 15 (rotation 41), 0, and b[1] from
+  lane 8 (rotation 55), all-ones.
+
+So z changes exactly two round-1 outputs, bit j+27 of lane 15 and bit j+39
+of lane 22, each by z_j itself. Hence A2(z) = A2(0) XOR sum_j z_j E_j
+exactly, where E_j is a fixed vector that does not depend on the group.
+
+**Lemma 3 (22-word support, all-ones).** Round-2 theta spreads the two
+flipped bits over 4 D columns. In bitsliced form z_j is the same in all 256
+groups, so E_j is all-ones (W) on exactly these 22 words and 0 elsewhere
+(planes mod 64):
+- bit j+27 of lane 15 and bit j+39 of lane 22 (the chi outputs);
+- D1 at plane j+27: lanes 1, 6, 11, 16, 21;
+- D4 at plane j+28: lanes 4, 9, 14, 19, 24;
+- D3 at plane j+39: lanes 3, 8, 13, 18, 23;
+- D1 at plane j+40: lanes 1, 6, 11, 16, 21.
+
+These sets are disjoint, so there are 22 words. A2(gray(t)) =
+A2(gray(t-1)) XOR E_{ctz(t)}. The counted simulator, the self-test of
+Appendix A and every organizer trial check this support against a
+from-scratch evaluation (Section 10).
+
+## 4. Bitsliced Keccak, encodings, transpose and compiler (exact)
+
+**Lemma 4 (bitsliced round).** On planes the round is bitwise:
+- theta: C[x][b] = XOR_y P(x+5y, b), D[x][b] = C[x-1][b] XOR C[x+1][b-1],
+  and A'(L, b) = P(L, b) XOR D[x][b];
+- rho/pi: B(X, Y, b) = A'(L, b - RHO[L]), with (x, y) = pisrc(X, Y);
+- chi and iota: as in the scalar round.
+
+Bit position p therefore runs the scalar round on message p. A lane
+rotation in a round only changes which address is read. The only executed
+rotations are 256-bit word rotations in the transpose (Lemma 9).
+
+**Lemma 5 (delta swap).** For d in {1, ..., 128} let M_d have bit c set iff
+c AND d = 0. A swap of rows a = R[i] and b = R[i+d] (i AND d = 0) exchanges
+entries (i, c+d) and (i+d, c) for c AND d = 0. Stage d applies it to all 128
+such row pairs and swaps bit log2(d) of the row index with the same bit of
+the column index. The 8 stages act on different index bits, so they
+commute. All 8, in any order, transpose the 256 x 256 matrix.
+
+**Lemma 6 (AND-free incremental round 2).**
+- **What is maintained.** O2P is the round-2 output (chi, iota) with
+  round-3 theta applied, in the encoding Q3 of Lemma 8.
+- **Chi difference.** For a row with old inputs a and input change c, the
+  exact output difference is
+
+      dout[k] = c_k ^ c_{k+2} ^ a_{k+1} c_{k+2} ^ c_{k+1} a_{k+2} ^ c_{k+1} c_{k+2}.
+
+  By Lemma 3 every c is 0 or W, so every product is either 0, W or a single
+  A2 word. Each dout is an XOR of at most two A2 words and possibly W, with
+  no AND. The 22 flipped words lie in 22 distinct round-2 chi rows.
+- **Theta and the patch.** dC[x][b] = XOR_Y dout(x, Y, b), dD[x][b] =
+  dC[x-1][b] XOR dC[x+1][b-1], and O2P(x+5Y, b) ^= dout(x, Y, b) XOR
+  dD[x][b]. Symbolically, for each z-bit j, 499 O2P words get a fixed patch
+  expression: an XOR of at most 4 terms, each an A2 word (44 distinct
+  words per leaf) or W. 128 of them are W alone. A term that is itself
+  flipped by this step is read after its flip, with W toggled.
+- **Read-only flips.** Only the 975 A2 words that some leaf's expression
+  reads are maintained. Leaf j flips the words of its support that lie in
+  this set (3-10 words; load, NOT, store). Other A2 words are never read.
+- **Storage polarity.** A2 word i is stored as A2[i] XOR pi_i W, for a fixed
+  set pi of 359 words chosen by a deterministic local search to minimise
+  the complemented expressions. Each stored term toggles W in its
+  expression. The value is unchanged.
+- **Merged into round 3.** Round 3 loads each patched O2P word once,
+  XORs the expression, stores it back and uses the new value directly.
+  When the expression is W alone, new = NOT old, so both polarities are in
+  registers for the chi gate plans of Lemma 8. Distinct non-trivial
+  expressions are formed once and reused (a small scratch cache).
+- **Exactness.** Theta is linear and every encoding is an XOR with a
+  constant, so the patched O2P equals the encoded, theta'd round-2 output of
+  the new A2.
+- **Cost.** 1,737..1,764 operations per leaf (worst leaf: 590 gates, 640
+  loads, 534 stores).
+
+**Lemma 7 (theta at the store, rotating start plane).** A round processes
+planes b = s, s+1, ..., s+63 (mod 64) for a fixed start plane s.
+- Plane b's 25 chi outputs are in registers, so its parities C'[x][b] are
+  complete before any store.
+- For b != s, D'[x][b] = C'[x-1][b] XOR C'[x+1][b-1] is available, because
+  plane b-1 was processed just before. Each output word is stored with D'
+  already added.
+- Plane s is stored raw. After plane s+63, the 5 fix words fix[x] =
+  D'[x][s] = C'[x-1][s] XOR C'[x+1][s-1] are known.
+- The next round XORs fix[x] into each loaded word whose source plane is s.
+
+The stored state plus the fix is exactly the theta'd state, for every
+choice of s. The start planes of rounds 3, 4, 5 are **(10, 61, 34)**. They
+were chosen for this family by a coordinate search: for each round, all 64
+values of its start plane were compiled for all 32 leaves with the other
+two fixed, and the value with the smallest worst leaf was kept (two passes;
+bs6's (2, 39, 34) gives 31,189 here). The search changes only the program,
+never a computed value.
+
+**Lemma 8 (lane-complement encoding; as in bs4).**
+- Each stored lane L has a compile-time polarity pi_L: the stored word is
+  the true word XOR pi_L * (all-ones).
+- Per chi row the program uses the cheapest exact gate plan for the given
+  input and output polarities: NOT b AND c equals s_b AND s_c, or NOT(s_b OR
+  s_c), with at most one shared complemented copy and the iota bit folded
+  in. The plan comes from an exhaustive search over the 32 complemented-copy
+  sets. Where a complemented input is already in a register (Lemma 6), it
+  costs nothing.
+- The patterns are P34 (output of rounds 2, 3, 4) and P5 (output of round
+  5). Rounds 3-5 read Q3 = fpol(P34), and the last round reads fpol(P5).
+- Every chi row of rounds 3-5 costs at most 1 NOT. The last round takes,
+  per plane, the digest polarities that need no NOT; moved to key rows,
+  these fixed bits form KEYMASK (33 of the 140 bits set).
+
+**Lemma 9 (kept planes, key rows and the rotating-frame transpose; bs4's
+swaps in a 16-row layout).**
+
+    KEEP = (0, 1, 2, 3, 4, 9, 10, 11, 16, 17, 18, 22, 23, 24, 25, 29, 30, 31,
+            32, 37, 38, 39, 40, 44, 45, 46, 47, 51, 52, 53, 54, 58, 59, 60, 61)
+
+- **Key rows.** Plane KEEP[k] gets slot k, and digest bit (x, b) becomes key
+  row 4k + x. Rows 0..139 hold the kept bits and rows 140..255 are
+  constant zero.
+- **Blocks.** Block g holds rows 16g..16g+15 (4 kept planes). Blocks 0-7
+  are full, block 8 holds slots 32-34, and blocks 9-15 are empty.
+- **Frames.** Row r is held in a **frame** OFF[r]: physical bit q holds
+  logical bit (q + OFF[r]) mod 256. A stage-d swap of rows a = R[i] and
+  b = R[i+d] keeps the row of even index parity (popcount) in frame 0 and
+  moves the other.
+  - If b stays in frame 0, then u = rot(a, OFF[a] - d) puts logical bit c+d
+    of a at physical position c. Then t = (u XOR b) AND M_d; b ^= t;
+    a = u XOR t; OFF[a] = d. These are 5 operations, and they exchange
+    exactly the entries of Lemma 5.
+  - The case where a stays in frame 0 is symmetric, with NOT M_d and
+    OFF[b] = -d.
+- **Zero rows.** A statically zero row needs no rotation and is substituted
+  into the formulas: zero mover 2 operations, zero stayer 3, both zero
+  nothing. The zero pattern is known at compile time.
+- **Phase 1.** As soon as a block's 4 kept planes exist, the last round
+  computes that block's 16 rows in registers and applies stages 1, 2, 4, 8
+  in the cheapest static order: 1,410 operations in all.
+- **Phase 2.** For each gi = 0..15 the program takes the 16 rows
+  16i + gi, loads rows i <= 8 only, and applies stages 16, 32, 64, 128:
+  1,880 in all.
+- **Frame fix.** One rotation per row left outside frame 0, 128 in all.
+
+The transpose costs 3,418 ALU operations (1,410 + 1,880 + 128). Its memory
+traffic is counted in Section 5.2 (96 stores and 96 loads of ROWS between
+the phases, and 20 loads of the delta-swap masks). Last round + phase 1 =
+1,896 operations (1,408 gates, 110 loads, 96 stores, 282 rotations);
+phase 2 + frame fix + the 1,408-op table = 3,524. By Lemma 5, row 16i + gi
+is then the key of slot 16i + gi = decode_slot(16gi + i).
+
+**Lemma 10 (dependency cone with start planes).** The last round on plane b
+reads the 5 diagonal lanes at source plane (b - RHO[L]) mod 64. Round 5
+must therefore store only these 175 words. None lies on round 5's start
+plane 34, so no round-5 fix word is needed. For a round with start plane s
+whose input lacks D on plane s_in, needed outputs propagate backwards:
+- a needed stored word (L, b) with b != s needs its chi output, C[x-1][b]
+  and C[x+1][b-1];
+- a needed fix column x needs C[x-1][s] and C[x+1][s-1];
+- a parity needs its 5 chi outputs;
+- a chi output needs its 3 row inputs, plus the fix wherever the source
+  plane is s_in.
+
+Round 5 computes 1,161 chi outputs and 229 parities and reads 1,363 words
+with all 5 fix columns. Round 4 needs all 320 parities and reads all 1,600
+words. Every computed word is given by the same formula from the same
+inputs as in the full round, and no omitted word is ever read.
+
+**Lemma 11 (straight-line compiler).** The code of one ctz leaf is a single
+straight line, compiled in four steps:
+1. It is put in SSA form.
+2. Loads are store-to-load forwarded. A direct load whose word was written
+   or loaded earlier in the block takes the value from the register that
+   still holds it, chosen by an exact max-weight selection under the
+   62-register budget. All addresses are instruction constants, so aliasing
+   is decided exactly. A store to a scratch word of the step is dropped when
+   no later load reads it. Scratch words are never read outside the step.
+3. Registers are allocated by interval colouring. This is exact for
+   straight-line code: the register count is the maximum number of
+   simultaneously live values.
+4. The result runs on the counted simulator.
+
+No step changes a computed value. Every leaf uses at most 62 registers,
+plus the persistent s and c, so 64 in all. The compiler is `ir.py` of
+Appendix A.
+
+## 5. The algorithm and its counted program
+
+### 5.1 Run and batch setup
+
+**Once per run.**
+- c = RAND AND (2^256 - 2^128), i.e. c = TAG*2^128 with TAG its uniform
+  high 128 bits.
+- CNT = 0.
+
+At the start of batch beta, c = TAG*2^128 + beta*2^39 (2^32 steps of 128
+pair ids each carry it over).
+
+**Once per batch** (a counted straight-line program of 76,162 operations,
+62 registers; `setup_gen.py`):
+- draw 768 random words (3 per group) and build the 256 structured
+  prefixes (Section 2); store their four words at PREF + 1024*beta + 4p + w,
+  with 1024*beta = (c AND (2^128 - 1)) >> 29 read from c, and transpose
+  them;
+- store the padding planes;
+- compute round 1 and A2 (stored with polarity pi), and O2P;
+- store the delta-swap masks and set s = 0.
+
+The setup program's prefixes (all constraints of Section 2), A2, O2P and
+masks were compared with an independent reference. With batch-loop control
+this is < 2^-20 per message (76,162 / 2^40 < 2^-23).
+
+### 5.2 Per z-step program (fully unrolled; worst path)
+
+There are two persistent registers: s (the step counter t) and
+c = TAG*2^128 + n, n the current pair id.
+
+    (a) control, t >= 1 (16): s = s + 1 ; 5-level branch tree on ctz(s):
+        v = s AND mask ; (v == 0) ; branch   (5 levels; no indirect jump)
+    (b) leaf j: incremental round 2, block j (Lemma 6), followed in line by
+        its own copy of the step body (32 copies; no jump):
+        R3 (start 10, with the O2P patches merged), R4 (cone, start 61),
+        R5 (cone, start 34) with the last-round blocks and phase 1
+        interleaved as soon as their round-5 planes exist (16-row blocks),
+        phase 2, the frame fix and 256 table steps (5.3)
+    (c) loop test (2): (s < 2^32 - 1) ; branch
+
+At t = 0 the body runs without (a) and round 2 (29,901 operations). The 32
+leaves cost 31,153..31,176. The simulator's measured counts equal the
+static ones on every step run.
+
+**Ledger (one worst-path z-step, leaf j = 4; simulator count).**
+
+| block | bs6 (64-byte) | ops | gates | loads | stores | ROT/ADD/CMP/branch |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| control | 16 | 16 | 5 | 0 | 0 | 11 |
+| incremental round 2 | 1,816 | 1,764 | 590 | 640 | 534 | 0 |
+| round 3 | 9,331 | 9,339 | 6,669 | 1,106 | 1,564 | 0 |
+| round 4 (cone) | 9,368 | 9,369 | 6,488 | 1,562 | 1,319 | 0 |
+| round 5 (cone) | 5,272 | 5,266 | 3,851 | 1,316 | 99 | 0 |
+| last round, 35 planes + phase 1 | 1,894 | 1,896 | 1,408 | 110 | 96 | 282 |
+| phase 2 + frame fix + 256 table steps | 3,524 | 3,524 | 1,760 | 364 | 256 | 1,144 |
+| loop test | 2 | 2 | 0 | 0 | 0 | 2 |
+| **total per 256 messages** | **31,223** | **31,176** | **20,771** | **5,098** | **3,868** | **1,439** |
+
+Gates are XOR/AND/OR/NOT after store-to-load forwarding; each row is
+gates + loads + stores + the last column. Rounds 3-5 differ from bs6 only
+through the new patch set and the start planes.
+
+By opcode:
+
+| loads | stores | XOR | AND | OR | NOT | ROT | ADD | CMP | branch |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 4,842 direct + 256 register | 3,612 direct + 256 register | 14,524 | 3,170 | 2,052 | 1,025 | 786 | 129 | 262 | 262 |
+
+There are no shifts and no MOVI on the step path.
+
+### 5.3 Tagged-id table (bs4's table with pair ids)
+
+S has 2^140 words at address 0 and is never initialised. All other arrays
+lie in [2^140, 2^140 + 2^99) (Section 11). The key K < 2^140 is the
+address. Per message q of a z-step (hot path; 5 operations for even q, 6
+for odd q, 1,408 per z-step):
+
+    w = LOAD [K] ; x = w XOR c ; f = (x < 2^128) ; if f goto CAND_q
+    STORE [K] = c ; (odd q only) c = c + 1
+
+- **Hot path.** x < 2^128 iff the high half of S[K] equals TAG. A written
+  slot always holds TAG*2^128 + (pair id of the last message with key K),
+  so every lookup of a written slot is a **genuine candidate**: an earlier
+  message with an equal 140-bit key, which is a member of the stored pair
+  (Section 5.4).
+- **Garbage candidates.** A never-written slot is a candidate only if its
+  initial high half equals TAG. TAG is uniform and drawn after the initial
+  memory is fixed, so each lookup is a garbage candidate with probability
+  at most 2^-128, whatever the initial memory.
+- **Overwrite rule.** After the step, S[K] = TAG*2^128 + n, as in a
+  Briggs-Torczon set whose stored index is the pair id of the message. Only
+  the last message with each key is remembered (up to its pair partner).
+
+### 5.4 Candidates: verify and continue, halting, cap
+
+- **Calling convention** (5kyguy's, from 6e715d9a). Each of the 33 x 256
+  branch sites has its own out-of-line copy CAND_q of the candidate block.
+  It knows statically the member bit m = q mod 2 of the current message and
+  its return point, and ends with a direct jump back to the site's STORE (1
+  counted branch). The copies are code, not run time (Section 11).
+- **Rebuild.** CAND_q saves 14 registers and takes i = w AND (2^128 - 1)
+  (stored pair id) and n = c AND (2^128 - 1) (current pair id). It decodes
+  a pair id to beta = id >> 39, t = (id >> 7) mod 2^32, k = id mod 128 and
+  z = gray(t). Member m (q = 2k + m) sits in slot p = decode_slot(q) =
+  32(k mod 8) + floor(k/8) + 16m, and its four prefix words are at
+  PREF + 4(256*beta + p) = PREF + 1024*beta + 128(k mod 8) + 4 floor(k/8)
+  + 64m, the address taking beta modulo 2^88 (every real beta is smaller).
+  The decode costs 13 operations per id; loading one message and XORing
+  LE32(z) into bits 0..31 of word 1 and bits 128..159 of word 3 (lanes 4
+  and 14) costs 10 more (11 for m = 1). A garbage id rebuilds some
+  128-byte string.
+- **Verify.** It evaluates the current message (member m of n) and then
+  each member of pair i, in turn, with the reference function (3 units in
+  all). After each stored member it compares the 256-bit digests with the
+  current one (1 compare, 1 branch) and, if they are equal, the four
+  message words (1 compare and 1 branch each, leaving at the first
+  difference).
+- **Halt.** If a stored member has the current digest and is a different
+  message, it outputs the pair and halts.
+- **Continue.** Otherwise it loads CNT, adds 1 and stores it. It aborts the
+  run with failure if CNT >= VCAP. It then restores the registers and
+  jumps back.
+- **Costs** (simulator, and by the count above):
+  - continue: 97 operations above the hot path (98 for odd q) when no
+    digest matches, and 105 / 106 when a stored member is the current
+    message itself (equal digests, same message; this happens when
+    q = 2k + 1 meets the slot that 2k wrote, or in a replay). All include
+    the jump back. We charge 106;
+  - halt: at most 65 + 8 = 73 operations after the branch when stored
+    member 0 matches and at most 78 + 8 = 86 when member 1 matches
+    (measured: 66 and 82); we charge 106;
+  - abort (CNT reaches VCAP): a prefix of the continue path.
+
+  Continue and halt each add at most 3 units.
+- **Around each reference call.** The simulator's `hash4` takes the four
+  message words in registers and returns the 256-bit digest as 1 unit with
+  no word operations. Forming the padded 1600-bit input explicitly (7
+  stores of state words: the four message words, the word holding
+  0x8000000000000006 in lane 16, zeros; 2 immediate moves) and reading the
+  digest (1 load) is at most 10 operations per evaluation, 30 per
+  candidate. They are not in the 106 charged. Charging them (136 per
+  candidate) leaves the claim at 124.263: the bound holds up to 377
+  operations per candidate (Section 8).
+
+The cap is an instruction immediate:
+
+    VCAP = floor(N^2 / 2^141) + floor(N^2 / 2^148) + 2^91 + 2^61.
+
+The term floor(N^2/2^148) = E/128 is a margin for H1 (Section 7).
+
+## 6. Correctness (unconditional)
+
+- **Evaluator exactness.** Lemmas 1-3 and 6 keep every read A2 word and all
+  of O2P exact at every t. Lemmas 4, 7, 8, 10 and 11 make every needed word
+  of rounds 3-5 exact in its encoding. Lemma 9 makes the key of slot p
+  equal key_of_digest(K*) of message p. Section 10 checks this bit for bit.
+- **Outputs.** The run outputs only two distinct 128-byte strings whose
+  256-bit digests were equal under two reference evaluations, which is a
+  full collision. A key match or a garbage word never produces output by
+  itself.
+
+## 7. Success probability
+
+The run halts at the first verified collision. The failure events are:
+
+- **F3:** two groups produce the same message. m(g, z) = m(g', z') needs the
+  ten free lanes other than 4 and 14 to be equal and L4 XOR L4' =
+  L14 XOR L14' in a set of 2^32 values, an event of probability at most
+  2^32/2^768 per pair of groups. There are fewer than 2^191 pairs, so
+  Pr[F3] < 2^-545 (no heuristic).
+- **F1:** no two of the N messages have equal digests.
+- **F2:** for some colliding pair (a, b), a processed before b, some message
+  c between them has a's key and a different digest.
+- **F4:** the number of continued candidates reaches VCAP.
+
+**If none of F1-F4 occurs, the run succeeds.** Take a colliding pair
+(a, b).
+1. When a is processed, it either halts with a collision or sets
+   S[K] = TAG*2^128 + (pair id of a).
+2. Each later message c before b with that key: by not-F2, c has a's
+   digest. The slot holds the pair id of the last earlier message d with
+   a's key (a itself or later), hence (not-F2) d has a's digest. c's
+   candidate rebuilds both members of d's pair, so d among them; d was
+   processed before c, so d is a different index and (not-F3) a different
+   message. Unless an earlier member already gave a verified collision,
+   comparing d with c finds equal digests of distinct messages, and the
+   run succeeds. (A member equal to c itself, the case q = 2k + 1 after
+   2k, is skipped as the same message.)
+3. Otherwise, at b's lookup the slot holds the pair id of such a message d,
+   and the candidate finds the collision in the same way.
+4. Without F4 the run is not aborted before then.
+
+So Pr[fail] <= Pr[F1] + Pr[F2] + Pr[F3] + Pr[F4].
+
+**Heuristic H1 (declared; identical text in claim.json).** (a) For the
+failure events F1, F2 and the genuine-candidate part of F4 (proof Section
+7), the N = 255*2^120 digests of the grouped message set {m(g, z)}
+(independent prefixes P_g, each uniform over the 2^768 structured 128-byte
+prefixes of Section 2, all z in {0,1}^32, processed in any fixed order
+chosen independently of the digests, in particular the order of Section 2:
+batch by batch, t = 0..2^32-1 with z = gray(t), slots p = decode_slot(q) =
+16*(q mod 16) + floor(q/16) for q = 0..255) behave like N independent
+uniform 256-bit values, i.e. Pr[F1] <= exp(-N(N-1)/2^257), Pr[F2] <= N^3/6
+* 2^-396 and, since the 140-bit key is a fixed function of 140 digest bits,
+the number Y1 of message pairs with equal keys has E[Y1] <= N^2/2^141 and
+Var[Y1] <= E[Y1]. (b) Run-selection premise of the evidence: the
+organizer-executed configuration (four layouts, 18-bit masks, N_t = 2^9,
+256 trials per experiment, per-trial seed derivation by the runner) is
+unchanged from our public packages 949c283b and 5e73af65; the message
+family is fixed externally (5kyguy, 6e715d9a; their organizer trials of it
+were not used to choose anything here); the only parameters chosen for this
+package (storage polarity pi, start planes 10, 61, 34, prefix seed label
+s3r6-ls128-v1) were set by cost objectives or fixed before any of our
+trials, never from a digest or masked-collision statistic; and our own runs
+of the experiment script were specified and hashed before our first trial
+of this family and are all reported, with the later reviewer runs, in proof
+Section 10.3, none selected, repeated or dropped according to its outcome.
+
+With N = 255 * 2^120:
+
+- **F1.** Under H1, Pr[F1] <= exp(-N(N-1)/2^257) < 0.6089000.
+- **F2.** Under H1, Pr[F2] <= N^3/6 * 2^-396 < 4.03 * 10^-5 (< 2^-14.6).
+- **F3.** Pr[F3] < 2^-545.
+- **F4.** Continued candidates are Y1 + Y2.
+  - A genuine one is the lookup of a message b at a slot last written by
+    an earlier message d with K(d) = K(b). Each message makes one lookup,
+    so distinct genuine candidates give distinct pairs (d, b) with equal
+    keys, and they number at most Y1. Pair ids change only what is
+    rebuilt, not this count. With E = floor(N^2/2^141) < 2^115 and
+    E' = floor(N^2/2^148) > 2^107.98, Chebyshev gives
+    Pr[Y1 >= E + E' + 2^91] <= E/E'^2 < 2^-100.
+  - **Sensitivity.** F4 is the most sensitive use of H1: by
+    Cauchy-Schwarz any non-uniformity of the 140-bit key can only raise
+    E[Y1]. The cap tolerates a relative excess of 2^-7 (0.78%) over
+    N^2/2^141, plus 2^91 pairs. The scaled experiments resolve the
+    masked-pair mean to about 0.6% (pooled ratio to the uniform model
+    1.0022 +- 0.0061 over the 53,248 pre-registered trials of Section
+    10.3; 1.0010 over all 54,272 trials), so this margin is not certified
+    by them. Within-group pairs would need an
+    average key-collision probability above about 2^-51, or above about
+    2^-19 for the pairs of one z-difference, to matter.
+  - Garbage ones, Y2, satisfy E[Y2] <= N * 2^-128 < 1 for any initial
+    memory (Section 5.3; no heuristic), so Markov gives Pr[Y2 >= 2^61] <=
+    2^-61.
+
+  Hence Pr[F4] <= 2^-100 + 2^-61.
+- **Total.** Success >= 1 - Pr[F1] - Pr[F2] - Pr[F3] - Pr[F4] > 0.39105.
+  We claim 0.39, which leaves an allowance of 0.00106.
+
+The scaled analogue of Y1 is the per-trial `masked_pairs` count. Its
+variance/mean ratio is about 1 (Section 10.3).
+
+**Rigorous partial support (jaazinn's argument, adapted).** For every z,
+P -> m(P, z) permutes S (Section 2), so each m(g, z) is uniform over S. For
+groups g != g' the messages m(g, z) and m(g', z') are independent and
+identically distributed, so by Cauchy-Schwarz they collide with probability
+>= 2^-256. Within-group pairs are a 2^-96 fraction, so the expected number
+of colliding pairs is at least (1 - 2^-96) * N(N-1)/2^257. H1 is needed for
+the second-moment behaviour behind Pr[F1], for F2 and for Y1.
+
+**What does not change the message set.** Bitslicing, batching, the
+incremental round 2, the cone, the start planes, the compiler, the 140-bit
+key, the encodings, the transpose layout and the pair ids fix only how and
+in which order digests are computed and how candidates are rebuilt.
+That order is a function of (beta, t, q), never of digests. The 128-byte
+family does change the message set relative to bs5 and bs6. H1 is stated
+for this set, and the experiments of Section 10 use it.
+
+## 8. Time bound
+
+Per message the main loop charges 31,176/256 = 121.78125 operations plus
+amortised setup (< 2^-20). This covers the Gray and round-2 updates, rounds
+3-6, the transpose, every table load, store, compare and branch, and all
+loop control. On top come at most VCAP continued candidates (3 units + 106
+operations each), one halting candidate (3 units + 106 operations) and the
+per-run initialisation (< 10 operations, bounded by 1 unit), plus an
+allowance of 2^50 units for generating the program once. So, in every run
+(no restarts),
+
+    T <= N (31,176/256 + 2^-20)/1626 + VCAP (3 + 106/1626) + (3 + 106/1626) + 1 + 2^50
+      = 2^124.25539 + 2^116.616 + 4.07 + 2^50 < 2^124.262608.
+
+**Integer certificate.** With K = 2^28 * 1626,
+
+    A = T K = N (31,176/256 * 2^28 + 2^8) + (VCAP + 1) (3*1626 + 106) 2^28 + K + 2^50 K
+
+is an integer (N/256 = 255 * 2^112), and A^1000000 < 2^124262608 *
+K^1000000 holds exactly. The claimed time_log2 is therefore **124.26261**
+(the value our independent recompute supports: log2 T = 124.26260743...;
+and 124.26260 is not reached). GordoAR re-derived this ledger from the
+Appendix A program with exact rationals (fractions module): step count
+31,176, the VCAP continuation pricing, the amortised-setup bound
+(< 2^-20 per message; the counted batch setup 76,162 ops amortises over
+2^40 messages per batch: 76162/(2^40 * 1626) < 2^-34.5) and the integer
+certificate were all re-checked and reproduced.
+
+- **Slack.** The claim would still hold with up to 31,184 ops per z-step,
+  or with up to 377 operations per candidate.
+- **The family pays off.** The bs6 program (64-byte family, 31,223 ops,
+  81 per candidate) gives 2^124.26473 in the same formula; this family with
+  bs6's start planes gives 31,189 and 2^124.26321.
+- **Expected verification work.** Under H1 it is about 2^116.6 units,
+  about 155 operations per z-step on average.
+- **Preprocessing.** preprocessing_log2 = 0: setup is per batch and inside
+  T. The program is a fixed deterministic object. Generating it (polarity,
+  start-plane and layout searches and the compilation; a few CPU minutes,
+  the start-plane search about 10,000 leaf compilations) costs far less
+  than 2^50 operations; the 2^50-unit allowance in T (as in 5kyguy's
+  6e715d9a) changes no digit.
+
+## 9. Sensitivity of the bound to conventions
+
+Same program, worst z-step, the candidate term included. N = 255 * 2^120
+unless stated.
+
+| reading | ops/z-step | ops/message | time_log2 |
+| --- | ---: | ---: | ---: |
+| every executed primitive once, 64 registers (claimed) | 31,176 | 121.78 | 124.26261 -> 124.263 |
+| + one address addition per direct load/store, + one MOVI per ALU immediate | 40,026 | 156.35 | 124.622 |
+| as above, + one op per shift or rotation amount | 40,812 | 159.42 | 124.650 |
+| exact Gray-sequence average instead of the worst leaf | 31,172.2 | 121.77 | 124.263 |
+| N = 2^128 | 31,176 | 121.78 | 124.269 |
+| logic gates only (reference; needs far more than 64 registers) | 20,771 | 81.14 | 123.681 |
+| direct loads/stores to a fixed bank free (**not claimed**) | 22,722 | 88.76 | 123.809 |
+| bs6 program (64-byte family; 3 units + 81 ops per candidate) | 31,223 | 121.96 | 124.265 |
+
+We do not adopt the fixed-bank reading. Under our 64-register reading,
+every one of the 8,454 direct loads and stores per z-step is charged.
+
+## 10. Evidence
+
+### 10.1 Counted simulator and shipped program (participant evidence)
+
+- **Shipped.** Appendix A contains the generator (`gen.py`), the compiler
+  and simulator core (`ir.py`), the run harness with batch setup at
+  reference level, control and the candidate path (`machine.py`), the
+  counted setup generator (`setup_gen.py`), the self-test (`selftest.py`)
+  and two short adapters (`ref.py`, `vkeccak.py`). The reference geometry (rho, gate plans,
+  polarities, kept planes, transpose orders, start planes, cones) is
+  imported from the shipped experiment script, so the program and the
+  organizer-executed evaluator share one definition.
+- **Self-test** (`python3 selftest.py REPO_ROOT`; about 3 minutes; Appendix
+  A.1). It rebuilds the 33 bodies, prints every leaf's count and asserts
+  the worst-step count 31,176 (leaf 4) and the body hash `b15132ca...`;
+  statically checks all 33 x 256 table steps; runs every body once on the
+  simulator against `verifier/keccak.py` (8,448 keys), with measured =
+  static on every body and A2 / O2P equal to a rebuild after every leaf;
+  replays two z-steps (512 genuine candidates), forces the halting path;
+  and checks the counted setup. Our run printed exactly the output listed
+  in Appendix A.1.
+- **The simulator.** The program runs on a counted 256-bit word-RAM
+  simulator with an explicit 64-register file (high-water check) and a
+  counter per primitive. Its `hash4` instruction (1 unit) is
+  `verifier/keccak.py:sha3_256(m, 6)`.
+- **Hostile memory.** Before every z-step, all scratch words of the step
+  and all 62 non-persistent registers are overwritten with random junk. A
+  read outside the cone, or of a word not yet written in the step, would
+  corrupt a key. Never-written table words are set, by batch, to all-ones,
+  random, zero, or adversarial (high half = TAG, low half random or out of
+  range).
+- **Keys.** Beyond the self-test, every key was compared with
+  key_of_digest(int.from_bytes(sha3_256(m, 6), "little")):
+  - for each of the seeds 2026, 4711, 31337, 7, 99 and 5150: 16 batches x
+    4 z-steps from random start steps (16,384 keys), every Gray block
+    j = 0..31 once (8,192 keys) and 40 consecutive steps from t = 0
+    (10,240 keys), so 34,816 keys per seed;
+  - runs of 300 and 200 consecutive steps (76,800 and 51,200 keys).
+
+  There were 0 mismatches. The register high-water mark was 64. Leaf 4
+  measured 31,176 on every run, and no step exceeded it.
+- **Persistent state.** After each leaf j = 0..31 (two seeds, and two
+  steps each) and every 7 steps of the long runs, the stored A2 on all 975
+  read words and all 1,600 words of O2P were equal to a rebuild from the
+  prefixes at the current z (202 checks). A static scan of every compiled
+  leaf shows that each store to A2 or O2P depends only on loads of A2 and
+  O2P through XOR and NOT (also via scratch words of the same step), so a
+  leaf's update of (read A2 words, O2P) is a compile-time affine map,
+  applied per bit position, with no rotations. Checking it against the
+  true update on uniformly random states (two runs for every leaf j =
+  0..31, 0 mismatches) misses a wrong map with probability at most 2^-256
+  per word.
+- **Table words.** Every table word decodes from its pair id (TAG, beta,
+  t, k) to a pair containing a message whose key is its address. 12,288
+  adversarial garbage candidates per seed were verified and continued.
+- **Candidate paths.** Replaying a z-step gives 256 genuine candidates,
+  with and without resetting c. Every rebuilt message equals the true one
+  (1,536 rebuilds per seed), and the current message's member bit and pair
+  id are checked against its true in-step index q. Continue costs 97 / 98
+  operations, or 105 / 106 when a stored member is the current message
+  itself. Test hashes force the halting path through stored member 0 (66
+  operations) and, constant on odd q only, through member 1 (82); they
+  drive control flow only.
+- **Setup.** The counted setup program (76,162 operations) was compared
+  word for word with an independent reference (all prefix constraints,
+  256 distinct prefixes, A2 in polarity pi, O2P, masks) on two seeds.
+- **Mutations.** Dropping an O2P patch store, a round-4 or round-5 state
+  store, or swapping a delta-swap mask is caught by the key comparison.
+  Dropping any one A2 flip store (32 cases in leaves 0, 1, 7, 28) is caught
+  by the persistent-state check; dropped flips and patches and an XOR
+  turned into AND are also caught by the random-state check. A static
+  check confirms that every one of the 33 x 256 table steps is the exact
+  hot path (5 operations for even q, 6 with the increment of c for odd q,
+  and the site's member bit q mod 2), and each simulated step asserts that
+  the number of candidate paths taken equals the number of lookups whose
+  high half is TAG; turning the table XOR into OR is caught by both.
+  Dropping an increment of c, adding one after an even q, or swapping a
+  site's member bit (in the t = 0 body and in leaf 0) is caught by the
+  static check and by the simulator.
+- **Address span.** A further audit runs six steps at the largest batch,
+  with adversarial, random and all-ones garbage: every non-table word
+  touched, including rebuilds from garbage ids, lies in
+  [2^140, 2^140 + 2^99), and every table address is < 2^140.
+- **Experiment evaluator.** The evaluator of 10.2 equals key_of_digest(
+  `sha3_256(m, 6)`) on 76,160 keys (a 1,100-step Gray walk over z bits
+  0..10 and a 300-step walk over z bits 22..30), with 0 mismatches. Its
+  prefixes, flips, polarity, patch expressions, KEEP, ROWOF, KEYMASK, start
+  planes, 16-row layout, stage orders and processing order are the
+  program's (the program imports them).
+
+### 10.2 Declared experiments (organizer-executed, `python-message-pairs-v1`)
+
+All four experiments run `experiments/s3r6_bitslice_birthday.py`. It mirrors
+the counted program:
+- structured 128-byte prefixes (Section 2) derived from the organizer seed
+  with SHA-256 (label `s3r6-ls128-v1`), z in lanes 4 and 14;
+- per-batch A2 (polarity pi) and O2P, and Gray updates that flip the read
+  support words and XOR the fixed patch expressions into the 499 O2P words;
+- lane-complement rounds 3-5 with theta at the store and the start planes
+  (10, 61, 34) stored raw and fixed on read;
+- rounds 4 and 5 computed in full, after which every word and fix column
+  outside the Lemma 10 cone (1,363 and 175 words) is replaced by an
+  unrelated constant;
+- the last round on the 35 kept planes at key rows 4k + x in the KEYMASK
+  encoding;
+- the rotating-frame zero-row transpose in the 16-row layout (asserted at
+  3,418 operations) and the processing order decode_slot(q).
+
+Every digest bit used for matching comes from this evaluator. The script
+maps the digest mask to key rows and refuses a mask bit outside the kept
+planes. It uses only the per-trial seeds of the request, so an organizer
+holdout nonce changes every trial.
+
+**Self-checks** (any failure aborts the run):
+- the whole 140-bit key of each trial's first 4 messages, and of its first
+  message at each step t = 2^i, against an independent direct sponge;
+- for every z-bit used, A2(e_j) XOR A2(0), computed from scratch, is
+  all-ones exactly on the 22 support words;
+- the maintained A2 (read words) and O2P against a rebuild from the
+  prefixes after the batch;
+- at every step, the zero key rows, and the transpose against the full
+  6-op transpose;
+- every key of the batch through the tagged-id table with pair ids, with
+  adversarial never-written words (1/16 carry the run's TAG, so the
+  verify-and-continue path must be taken). Every table word must name a
+  pair containing a message whose key is its address.
+
+Sabotage (in memory, the script unchanged): dropping one patched word,
+corrupting one patch constant, or storing message numbers instead of pair
+ids in the table makes the run fail; dropping any one of the 8 flip words
+of z-bits 0..4 that a patch of a used z-bit reads also fails (spread
+layout; run S2, added after S, Section 10.3). Dropping a flip word that no
+used z-bit reads changes no key and is not detected, as expected.
+
+**Scale.** N_t = 2^9 and an 18-bit mask give N_t^2/2^18 = 1 = N^2/2^256 up
+to (255/256)^2. The uniform-model success probability is 0.393074 (100.6 +-
+7.8 per 256 trials). Layouts:
+- `k6r6-ls128-full-width`: 256 groups x 2;
+- `k6r6-ls128-spread`: 16 x 32;
+- `k6r6-ls128-single-group`: 1 x 512;
+- `k6r6-ls128-high-z`: 4 x 128 with z = gray(t) << 25.
+
+The layouts and masks are bs4's (949c283b), unchanged; they were fixed for
+a different message family, before this family existed in our work.
+
+### 10.3 Run selection (H1(b)) and participant runs (participant runs are untrusted)
+
+**What a reviewer can check without trusting us.**
+1. The organizer-executed configuration (the four layouts, the four 18-bit
+   masks, N_t = 2^9, 256 trials, per-trial seeds derived by the runner) is
+   the one of our public packages 949c283b and 5e73af65 (and 64ee9000),
+   unchanged. Only the message family and the evaluator changed.
+2. The family is 5kyguy's (6e715d9a), fixed outside this package. Their
+   organizer trials of it were not used to choose anything here.
+3. The only parameters chosen for this package are the storage polarity
+   pi (deterministic cost rule `choose_polarity` in Appendix A `gen.py`),
+   the start planes (10, 61, 34) (objective: worst compiled leaf, Section
+   8), and the prefix seed label `s3r6-ls128-v1` (fixed in the frozen
+   script). No objective reads a digest bit or a masked-collision statistic.
+4. The organizer's public-seed run of this package (no nonce) should show:
+   - `manifest_sha256` =
+     `6955f6aedaf54f53f722075f1c499e19900957d8a5c593c3915f26af67cb6fbe`
+     (canonical manifest; the file bytes hash to
+     `6fb0a610bb703bc1f6f0f2812e432417adecda9793500905847b10ccb85ce9e1`);
+   - `sources[0].sha256` =
+     `c5d0dd9b4300ec29eff8aced9e0873c5aab3cc0f9298918e8b448162c17d5edb`;
+   - `full_report_sha256` =
+     `d160f2ea8ffc5f9cdbeceb560805422e5930a0e008e9cd5b0d2b2eb58d05fa44`;
+   - successes 91 / 99 / 105 / 105 (full-width / spread / single-group /
+     high-z),
+
+   which is our R1 below. For bs6 (64ee9000) the same local replay gave
+   exactly the organizer's report hash
+   `83e80e0ecce7637c8239a54f80f24303757b845f6233d68fc8548ec5a635584f`
+   (run 37598515389), so our runner replays, holdout nonces included,
+   reproduce the organizer's executor. R1's intervals are therefore
+   intervals on counts that the organizer report establishes.
+5. A fresh organizer holdout nonce (`HASHSMASH_EXPERIMENT_HOLDOUT_NONCE`)
+   tests the script without any change to it.
+
+**Our protocol.** Before our first trial of this family we froze the script
+and the manifest (hashes above) and recorded a pre-registration
+(Appendix B, verbatim; SHA-256
+`931e662ae5f21abafca60fe829dd769ec1df36f82a6188138fdbb4c9a09ead54`,
+created 2026-10-07T09:50:01Z) listing the runs, the seed labels, the
+analysis and the commitment that nothing is changed, repeated or dropped
+after a result. Before it, only exactness checks without trials were run
+(the 76,160 keys of 10.1). The nonces of R2-R4 were drawn with
+`secrets.token_hex(16)` after the pre-registration hash was recorded. Runs
+used the repository's `experiments/runner.py` (Docker replaced by a local
+`python3 -I` subprocess) or the script's `--local` mode. The self-tests of
+Appendix A import the script's geometry but run no trial.
+
+**Every run of the script**, in time order (2026-10-07, UTC):
+- R1 (09:50): runner, public seed `hashsmash-public-seed-v1`, no nonce,
+  Python 3.9;
+- R2-R4 (09:51-09:53): the same with holdout nonces
+  `bd46009ebe3e0b094c616228743f412c`, `24ddca750d9cab391425191615a7a8c5`,
+  `817e871f5368158322f2f79815bd8c96`;
+- R5 (09:54-09:56): `--local`, 48 chunks x 256 trials per layout (labels
+  `v7stat-<layout>-c<k>`);
+- S (09:56): pre-registered sabotage run (16 trials per case; only caught /
+  not caught is used);
+- S2 (09:57): **added after S, not pre-registered.** S had dropped a flip
+  word that no used z-bit reads, which changes no key; S2 drops each of the
+  8 flip words that a used z-bit reads (all caught). Only caught / not
+  caught is used, no statistic;
+- **after the build, by our review committee (not in the pre-registered
+  analysis):** two public-seed replays on Python 3.12.14 (about 10:15 and
+  10:16:51), each reproducing R1's report hash exactly (not new samples),
+  and C2 (10:17:57), a holdout run with nonce
+  `bc71146c783d88db95d1c7ec012fc7f8` drawn at 10:17:39 (report
+  `7274c95bd11e489eba8e089faa081514d172f5d89f7e5a3113d57465d6b55f26`).
+
+Each runner run executed every experiment twice with byte-identical output.
+No self-check failed and no full collision occurred. Peak resident memory
+was at most 109 MiB (single-group: 101 MiB under Python 3.9, 107-109 MiB
+under 3.12.14, macOS `ru_maxrss`); bs6's script, with the same table
+logic, measured 108.7 MiB the same way and completed in the organizer's
+128 MiB container. The slowest execution took 3.5 s unloaded (8.8 s on a
+heavily loaded machine).
+
+**Results** (successes / 256 unless stated; uniform model 0.393074):
+
+| layout | R1 public | R2 | R3 | R4 | R5 local (/12,288) | C2 (post) | pooled R1-R5 (/13,312), z | pooled all (/13,568), z | masked pairs R1-R5: ratio, var/mean |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| full-width | 91 | 113 | 105 | 96 | 4,845 | 93 | 5,250, +0.31 | 5,343, +0.17 | 0.998, 0.989 |
+| spread | 99 | 102 | 107 | 107 | 4,861 | 86 | 5,276, +0.77 | 5,362, +0.51 | 1.019, 1.003 |
+| single-group | 105 | 100 | 101 | 104 | 4,804 | 96 | 5,214, -0.33 | 5,310, -0.41 | 0.989, 0.989 |
+| high-z | 105 | 101 | 92 | 104 | 4,849 | 105 | 5,251, +0.33 | 5,356, +0.40 | 1.003, 0.995 |
+
+**Intervals and multiple testing.** p-values are exact two-sided binomial
+(twice the smaller tail).
+- Pre-registered analysis (R1-R5; 24 comparisons, 4 layouts x 5 runs + 4
+  pooled): exact Clopper-Pearson intervals at the Bonferroni level
+  1 - 0.05/24 contain 0.393074 in all 24; smallest p-value 0.130 (R2
+  full-width).
+- All runs (with C2; 28 comparisons, 4 x 6 + 4 pooled): intervals at
+  1 - 0.05/28 contain 0.393074 in all 28; smallest p-value 0.069 (C2
+  spread), above the Bonferroni threshold 0.0018 and above 0.05
+  unadjusted. Pooled 95% intervals: full-width [0.3856, 0.4021], spread
+  [0.3870, 0.4035], single-group [0.3831, 0.3996], high-z [0.3865,
+  0.4030].
+- Masked pairs: 1.0022 +- 0.0061 times the uniform value 0.4990 over the
+  53,248 pre-registered trials (variance/mean 0.994), 1.0010 over all
+  54,272 trials.
+
+The intervals assume independent trials: trials of one runner request
+share batches but not bit positions (Section 10.2), and their seeds are
+distinct SHA-256 outputs.
+
+**What this does and does not show.** At this scale a deviation of the
+success probability by more than about 0.015 (pooled, per layout) would
+likely have been visible; a deviation at the 0.00106 allowance of Section
+7, or a 0.78% excess of key pairs at full scale, would not.
+
+## 11. Memory
+
+| array | 32-byte words | bytes |
+| --- | --- | --- |
+| S (tagged ids, at 0) | 2^140 | 2^145 |
+| PREF (at 2^140 + 2^30; 4 words per group; reads from garbage ids stay below 2^140 + 2^30 + 2^98) | < 2^99 written | < 2^104 |
+| A2, O2P, patch cache, masks, state buffers, ROWS, CNT, save area (at 2^140 + k*2^20, k < 27) | < 2^14 | < 2^19 |
+| code (32 fused leaves, t = 0 body, setup, 8,448 candidate copies of <= 106 instructions) | < 2^21 instructions | < 2^26 |
+
+The whole data address span is below 2^140 + 2^99 words, so total
+memory, address span included, is < 2^145.01 bytes; we claim 146.
+Memory is reported only.
+
+## 12. Limitations
+
+- **H1 is a heuristic.** It extends the grouped structure from the tested
+  scale (N_t = 2^9, 18-bit masks) to N = 255 * 2^120 and the 256-bit
+  digest. F2 and Y1 cannot be scaled down faithfully and are bounded only
+  under H1. The 0.00106 allowance is not statistically certified.
+- **Run selection.** H1(b) rests partly on facts a reviewer can check
+  (unchanged organizer configuration, the externally fixed family,
+  cost-only parameter choices in Appendix A, the R1 report hash that the
+  organizer's own public-seed run should reproduce) and partly on our
+  statement about our own runs, whose timing a reviewer cannot check
+  (Appendix B). A holdout-nonce rerun by the organizer is the independent
+  check.
+- **Stronger within-group structure.** Round 1 is linear in z, with fixed
+  group-independent differences (Lemmas 2-3). Five nonlinear chi layers
+  follow. Within a group the digest has degree at most 32 in z; with 32 z
+  bits, this gives no zero-sum on any affine subspace of z. Within-group
+  pairs are a 2^-96 fraction of all pairs.
+- **Source of the gain.** The gain comes from operation-level pricing. All
+  executed work, including all memory traffic and every candidate
+  verification, is charged.
+- **Register assumption.** The 64-register machine is an assumption, and
+  the program uses all 64. Section 9 gives stricter readings, all at most
+  124.650.
+- **Candidate cap.** F4 is the most sensitive use of H1 (Section 7): the
+  cap tolerates a relative excess of 2^-7 of E[Y1] over N^2/2^141, which
+  the experiments do not certify.
+- **Rounding slack.** 8 operations per z-step (Section 8).
+- **Self-test.** Appendix A is participant code; it is reproducible from
+  the package but is not an organizer artifact.
+- **Scope.** No sub-birthday attack, collision certificate or full-scale
+  run is claimed.
+
+## 13. Credit
+
+- **Co-authors**, in the sense of Section 0:
+  - **5kyguy** (6e715d9a: the 128-byte family with z in lanes 4 and 14,
+    the per-branch-site candidate copies with a charged direct jump back,
+    the 2^50 program-generation allowance, and shipping the counted
+    program; 78676cf6: concurrent zero-row delta swaps, not used);
+  - **Th0rgal** (4867f093: the linear-structure prefix on this track;
+    76ccfa1c: the table builds on T2, T3 subsumed by Lemma 11);
+  - **jaazinn** (0a5b7ae8);
+  - **may93182** (11c46f4d).
+- **Credited:**
+  - Guo, Liu and Song (ASIACRYPT 2016), linear structures;
+  - tekkac (b001199a, f58275ef);
+  - ercumentyildirim (c7fa1a56, 4c969300);
+  - zeeshan8281 (cbf7998d, including the 255/256 budget);
+  - mitchuski (02d6a703);
+  - GordoAR (e715ab73, df2619d4: the integer-certificate format of
+    Section 8; nothing else used).
+
+Errors are ours.
+
+## Appendix A. The counted program (source)
+
+These files are the counted program of Sections 4-5 and 10.1, exactly as
+run for this package (Python 3 standard library only). Each block below
+is one file; its SHA-256 is in the marker line. Sizes and roles:
+
+- `ref.py` (197 bytes): adapter: the reference geometry is the shipped experiment script.
+- `vkeccak.py` (132 bytes): adapter: the reference hash is the challenge verifier.
+- `ir.py` (14362 bytes): builder, straight-line compiler (forwarding, interval colouring) and the counted simulator.
+- `gen.py` (20629 bytes): generator of the 33 bodies (patches, polarity, rounds 3-6, cones, transpose, table steps).
+- `setup_gen.py` (8307 bytes): counted per-batch setup program.
+- `machine.py` (14861 bytes): memory layout, run harness, control tree, candidate path, reference checks.
+- `selftest.py` (9581 bytes): self-test entry point.
+
+Together 68069 bytes. The experiment script `experiments/s3r6_bitslice_birthday.py`
+(SHA-256 `c5d0dd9b4300ec29eff8aced9e0873c5aab3cc0f9298918e8b448162c17d5edb`)
+is the eighth file: `ref.py` imports its geometry, and `selftest.py`
+asserts that the generator's storage polarity equals its `PI`.
+
+### A.0 Extraction and self-test
+
+From the repository root, in any sandbox with Python 3 (about 3 minutes;
+the self-test reads `verifier/keccak.py` from the given root):
+
+```sh
+mkdir -p /tmp/s3prog && python3 - <<'EOF'
+import hashlib, re
+C = "lanes/exploratory/candidates/sha3-256-r6/"
+t = open(C + "proof.md").read()
+n = 0
+for name, sha, body in re.findall(r"<!-- file: (\S+) sha256=(\w+) -->\n```python\n(.*?)```\n", t, re.S):
+    assert hashlib.sha256(body.encode()).hexdigest() == sha, name
+    open("/tmp/s3prog/" + name, "w").write(body)
+    n += 1
+assert n == 7
+src = open(C + "experiments/s3r6_bitslice_birthday.py", "rb").read()
+open("/tmp/s3prog/s3r6_bitslice_birthday.py", "wb").write(src)
+EOF
+python3 /tmp/s3prog/selftest.py .
+```
+
+### A.1 Self-test output of our run
+
+```text
+geometry: 22-word supports, 499 patched words, 975 read words, flips 3..10, |pi| = 359 (31s)
+static counts (ops per z-step incl. control 16 + loop test 2): 0:31171 1:31173 2:31174 3:31173 4:31176 5:31174 6:31171 7:31169 8:31166 9:31166 10:31161 11:31164 12:31167 13:31155 14:31164 15:31167 16:31153 17:31157 18:31154 19:31156 20:31157 21:31153 22:31165 23:31163 24:31173 25:31158 26:31162 27:31161 28:31171 29:31169 30:31169 31:31173
+t = 0 body 29901; leaves 31153..31176; WORST leaf 4 = 31176 ops per z-step; bodies sha256 b15132cad007cf188b3576c7f85a06340a440e9adec5a6ed7a98324ef14789bc (150s)
+static table check: 33 x 256 exact hot paths
+simulator: every leaf run once, 8448 keys equal key_of_digest(sha3_256(m, 6)); measured == static on all 33 bodies; A2/O2P equal a rebuild after every leaf (156s)
+candidates: replayed z-steps gave 2 x 256 genuine candidates with exact rebuilds; continue costs [97, 98, 105, 106] ops, (3 units each), forced halt 66 ops
+batch setup: 76162 ops, 62 registers, equal to the reference (168s)
+{"worst_leaf": 4, "ops_per_z_step": 31176, "t0": 29901, "bodies_sha256": "b15132cad007cf188b3576c7f85a06340a440e9adec5a6ed7a98324ef14789bc", "cand_ops_max": 106, "halt_ops": 66, "setup_ops": 76162}
+```
+
+The final JSON line is the machine-readable result: `ops_per_z_step` is
+the 31,176 charged in Section 8, and `bodies_sha256` identifies the 33
+compiled bodies (the same hash as our verification build). A rerun
+prints the same output up to the timings in parentheses.
+
+### A.2 Source files
+
+<!-- file: ref.py sha256=8a643599f0b7da540be2e9ebf0a6bb99c3756df36d6e74f633aef6ccfdb1432c -->
+```python
+"""The counted program's reference geometry is the shipped experiment script."""
+import s3r6_bitslice_birthday as _e
+globals().update({k: v for k, v in vars(_e).items() if not k.startswith('__')})
+```
+
+<!-- file: vkeccak.py sha256=6a875cdc5231175db1c9947a28bcce949d111ec7428c296258318c8712364318 -->
+```python
+"""The reference hash: the challenge verifier (REPO_ROOT/verifier/keccak.py)."""
+from verifier.keccak import sha3_256  # noqa: F401
+```
+
+<!-- file: ir.py sha256=877005938fac4f0982553c8eb01b06ef47c2608f66914a61d7cee82920abf055 -->
+```python
+"""SSA IR, straight-line compiler (store-to-load forwarding under a register
+budget, scratch dead-store elimination, interval-colouring register
+allocation) and a counted 256-bit word-RAM simulator with 64 registers.
+
+Instruction tuple: (op, dst, a, b, imm)
+  ld   dst <- MEM[imm]            imm = (array, index): constant address
+  st   MEM[imm] <- a
+  ldr  dst <- MEM[a]              register-addressed (table)
+  str  MEM[a] <- b
+  xor/and/or dst <- a op b ; not dst <- ~a
+  rot  dst <- rotl256(a, imm)
+  andi dst <- a & imm ; cmplt dst <- (a < imm) ; cmpeq dst <- (a == imm)
+  add  dst <- a + imm (mod 2^256)
+  br   if a: candidate path (out of line), then fall through
+Persistent registers 'S' (step counter) and 'C' (table word) live in physical
+registers 62 and 63; all other values get registers 0..61.
+"""
+import heapq
+
+W = (1 << 256) - 1
+NREG = 62
+PERSIST = ('S', 'C')
+SCRATCH = {'ROWIN', 'TR', 'C1S', 'D1', 'O1', 'C2', 'A2P', 'CSS', 'FIXS', 'B3', 'B4', 'B5', 'FIX3', 'FIX4', 'FIX5', 'CS3', 'CS4', 'CS5', 'DL', 'ROWS', 'LR'}
+
+
+class Bld:
+    def __init__(self):
+        self.ins = []
+        self.tags = []
+        self.tag = None
+        self.n = 0
+
+    def emit(self, op, a=None, b=None, imm=None, dst=True):
+        d = None
+        if dst:
+            d = self.n
+            self.n += 1
+        self.ins.append((op, d, a, b, imm))
+        self.tags.append(self.tag)
+        return d
+
+    def ld(self, arr, i):
+        return self.emit('ld', imm=(arr, i))
+
+    def st(self, arr, i, v):
+        self.emit('st', a=v, imm=(arr, i), dst=False)
+
+    def xor(self, a, b):
+        return self.emit('xor', a, b)
+
+    def and_(self, a, b):
+        return self.emit('and', a, b)
+
+    def or_(self, a, b):
+        return self.emit('or', a, b)
+
+    def not_(self, a):
+        return self.emit('not', a)
+
+    def rot(self, a, k):
+        k %= 256
+        assert k
+        return self.emit('rot', a, imm=k)
+
+
+def _uses(ins):
+    op, d, a, b, imm = ins
+    u = []
+    if a is not None:
+        u.append(a)
+    if b is not None:
+        u.append(b)
+    return u
+
+
+class SegTree:
+    """range add, range max over [0, n)."""
+
+    def __init__(self, vals):
+        n = 1
+        while n < len(vals):
+            n *= 2
+        self.n = n
+        self.mx = [0] * (2 * n)
+        self.lz = [0] * (2 * n)
+        for i, v in enumerate(vals):
+            self.mx[n + i] = v
+        for i in range(n - 1, 0, -1):
+            self.mx[i] = max(self.mx[2 * i], self.mx[2 * i + 1])
+
+    def add(self, l, r, v, node=1, nl=0, nr=None):
+        if nr is None:
+            nr = self.n
+        if r <= nl or nr <= l or l >= r:
+            return
+        if l <= nl and nr <= r:
+            self.mx[node] += v
+            self.lz[node] += v
+            return
+        m = (nl + nr) // 2
+        self.add(l, r, v, 2 * node, nl, m)
+        self.add(l, r, v, 2 * node + 1, m, nr)
+        self.mx[node] = max(self.mx[2 * node], self.mx[2 * node + 1]) + self.lz[node]
+
+    def query(self, l, r, node=1, nl=0, nr=None):
+        if nr is None:
+            nr = self.n
+        if r <= nl or nr <= l or l >= r:
+            return -10 ** 9
+        if l <= nl and nr <= r:
+            return self.mx[node]
+        m = (nl + nr) // 2
+        return max(self.query(l, r, 2 * node, nl, m), self.query(l, r, 2 * node + 1, m, nr)) + self.lz[node]
+
+
+def compile_block(ins, tags=None, nreg=NREG, forward=True):
+    """Forward loads, drop dead scratch stores, allocate registers.
+    Returns (physical instruction list, high-water register count)."""
+    ins = list(ins)
+    n = len(ins)
+    parent = {}
+
+    def find(v):
+        while v in parent and parent[v] != v:
+            nxt = parent[v]
+            if nxt in parent and parent[nxt] != nxt:
+                parent[v] = parent[nxt]
+            v = nxt
+        return v
+    # memval candidates (fixed by program order)
+    cand = []           # (p, prev value)
+    last = {}
+    for p, (op, d, a, b, imm) in enumerate(ins):
+        if op == 'ld':
+            if imm in last:
+                cand.append((p, last[imm]))
+            last[imm] = d
+        elif op == 'st':
+            last[imm] = a
+    alive = [True] * n
+    forwarded = set()
+
+    def intervals():
+        dpos, end = {}, {}
+        for p in range(n):
+            if not alive[p]:
+                continue
+            op, d, a, b, imm = ins[p]
+            for u in _uses(ins[p]):
+                if u in PERSIST:
+                    continue
+                r = find(u)
+                if end.get(r, -1) < p:
+                    end[r] = p
+            if d is not None and d not in PERSIST and find(d) == d:
+                dpos[d] = p
+        iv = {}
+        for v, p in dpos.items():
+            iv[v] = [p, max(end.get(v, p + 1), p + 1)]
+        return iv
+
+    # store groups: loads between a store and the next store to the same address
+    grp = {}
+    cur = {}
+    for p, (op, d, a_, b_, imm) in enumerate(ins):
+        if op == 'st':
+            cur[imm] = p
+        elif op == 'ld' and imm in cur:
+            grp.setdefault(cur[imm], []).append(p)
+    gsize = {}
+    for sp, lds in grp.items():
+        for p in lds:
+            gsize[p] = len(lds) if ins[sp][4][0] in SCRATCH else 0
+    while forward:
+        changed = False
+        # 1. free forwards (the previous value is still live at the load)
+        iv = intervals()
+        for p, pv in cand:
+            if p in forwarded:
+                continue
+            r = find(pv)
+            l = ins[p][1]
+            if iv[r][1] > p:
+                iv[r][1] = max(iv[r][1], iv[l][1])
+                parent[l] = r
+                del iv[l]
+                alive[p] = False
+                forwarded.add(p)
+                changed = True
+        # 2. max-weight forwards under the register budget (min-cost flow)
+        iv = intervals()
+        diff = [0] * (n + 1)
+        for s_, e_ in iv.values():
+            diff[s_] += 1
+            diff[e_] -= 1
+        pres, c = [], 0
+        for p in range(n):
+            c += diff[p]
+            pres.append(c)
+        if max(pres) > nreg:
+            raise RuntimeError("baseline pressure %d exceeds the budget" % max(pres))
+        items = []
+        for p, pv in cand:
+            if p in forwarded:
+                continue
+            r = find(pv)
+            ev = iv[r][1]
+            w = 1000 + (1000 // gsize[p] if gsize.get(p) else 0)
+            items.append((ev, p, w, pv))
+        sel = select_intervals(items, pres, n, nreg)
+        for ev, p, w, pv in sel:
+            r = find(pv)
+            l = ins[p][1]
+            parent[l] = r
+            alive[p] = False
+            forwarded.add(p)
+            changed = True
+        # 3. dead scratch stores
+        nextld = {}
+        for p in range(n - 1, -1, -1):
+            op, d, a_, b_, imm = ins[p]
+            if op == 'ld' and alive[p]:
+                nextld[imm] = True
+            elif op == 'st':
+                if alive[p] and imm[0] in SCRATCH and not nextld.get(imm, False):
+                    alive[p] = False
+                    changed = True
+                nextld[imm] = False
+        if not changed:
+            break
+    # rewrite
+    out = []
+    otags = []
+    for p in range(n):
+        if not alive[p]:
+            continue
+        op, d, a, b, imm = ins[p]
+        a2 = a if a in PERSIST or a is None else find(a)
+        b2 = b if b in PERSIST or b is None else find(b)
+        out.append((op, d, a2, b2, imm))
+        otags.append(tags[p] if tags else None)
+    # check: every scratch load is preceded by a live store in the block
+    written = set()
+    for op, d, a, b, imm in out:
+        if op == 'st':
+            written.add(imm)
+        elif op == 'ld' and imm[0] in SCRATCH and imm not in written:
+            raise RuntimeError("scratch load before store: %r" % (imm,))
+    code, hw = allocate(out, nreg)
+    return code, hw, otags
+
+
+def select_intervals(items, pres, n, nreg):
+    """Max-weight subset of intervals [a, b) (items (a, b, w, key)) such that
+    pres[x] + #chosen covering x <= nreg everywhere (exact, min-cost flow)."""
+    items = [it for it in items if it[0] < it[1]]
+    if not items:
+        return []
+    coords = sorted({0, n} | {it[0] for it in items} | {it[1] for it in items})
+    idx = {c: i for i, c in enumerate(coords)}
+    m = len(coords)
+    INF = float('inf')
+    to, cap, cost, adj = [], [], [], [[] for _ in range(m)]
+
+    def add(u, v, c, w):
+        adj[u].append(len(to)); to.append(v); cap.append(c); cost.append(w)
+        adj[v].append(len(to)); to.append(u); cap.append(0); cost.append(-w)
+    M = 10 ** 9
+    for i in range(m - 1):
+        bm = max(pres[coords[i]:coords[i + 1]])
+        add(i, i + 1, bm, -M)
+        add(i, i + 1, nreg - bm, 0)
+    ie = []
+    for it in items:
+        ie.append(len(to))
+        add(idx[it[0]], idx[it[1]], 1, -it[2])
+    # potentials: DAG shortest paths (all original edges go forward)
+    pot = [INF] * m
+    pot[0] = 0
+    for u in range(m):
+        if pot[u] == INF:
+            continue
+        for e in adj[u]:
+            if cap[e] > 0 and pot[u] + cost[e] < pot[to[e]]:
+                pot[to[e]] = pot[u] + cost[e]
+    flow = 0
+    while flow < nreg:
+        dist = [INF] * m
+        prev = [-1] * m
+        dist[0] = 0
+        h = [(0, 0)]
+        while h:
+            d, u = heapq.heappop(h)
+            if d > dist[u]:
+                continue
+            pu = pot[u]
+            for e in adj[u]:
+                if cap[e] > 0:
+                    v = to[e]
+                    nd = d + cost[e] + pu - pot[v]
+                    if nd < dist[v]:
+                        dist[v] = nd
+                        prev[v] = e
+                        heapq.heappush(h, (nd, v))
+        if dist[m - 1] == INF:
+            break
+        for v in range(m):
+            if dist[v] < INF:
+                pot[v] += dist[v]
+        f = nreg - flow
+        v = m - 1
+        while v != 0:
+            e = prev[v]
+            f = min(f, cap[e])
+            v = to[e ^ 1]
+        v = m - 1
+        while v != 0:
+            e = prev[v]
+            cap[e] -= f
+            cap[e ^ 1] += f
+            v = to[e ^ 1]
+        flow += f
+    return [it for it, e in zip(items, ie) if cap[e] == 0]
+
+
+def allocate(ins, nreg):
+    n = len(ins)
+    dpos, end = {}, {}
+    for p, x in enumerate(ins):
+        for u in _uses(x):
+            if u in PERSIST:
+                continue
+            end[u] = p
+        d = x[1]
+        if d is not None and d not in PERSIST:
+            if d in dpos:
+                raise RuntimeError("SSA violated")
+            dpos[d] = p
+    starts = sorted((p, v) for v, p in dpos.items())
+    free = list(range(nreg))[::-1]
+    import heapq as hq
+    act = []
+    reg = {}
+    hw = 0
+    for p, v in starts:
+        e = max(end.get(v, p + 1), p + 1)
+        while act and act[0][0] <= p:
+            _, r = hq.heappop(act)
+            free.append(r)
+        if not free:
+            raise RuntimeError("register budget exceeded at %d" % p)
+        r = free.pop()
+        reg[v] = r
+        hq.heappush(act, (e, r))
+        hw = max(hw, len(act))
+    phys = {'S': 62, 'C': 63}
+
+    def R(v):
+        if v is None:
+            return None
+        if v in phys:
+            return phys[v]
+        return reg[v]
+    out = [(op, R(d), R(a), R(b), imm) for op, d, a, b, imm in ins]
+    return out, hw
+
+
+class Machine:
+    """Counted simulator: 64 registers of 256 bits, word memory (dict)."""
+
+    def __init__(self, layout):
+        self.reg = [None] * 64
+        self.mem = {}
+        self.layout = layout      # array name -> base address
+        self.count = 0
+        self.hist = {}
+        self.cand_hook = None
+        self.units = 0
+
+    def mem_get(self, a):
+        if a not in self.mem:
+            import random
+            self.mem[a] = random.Random(a).getrandbits(256)
+        return self.mem[a]
+
+    def addr(self, imm):
+        return self.layout[imm[0]] + imm[1]
+
+    def run(self, code):
+        reg, mem = self.reg, self.mem
+        cnt = 0
+        hist = self.hist
+        for op, d, a, b, imm in code:
+            cnt += 1
+            hist[op] = hist.get(op, 0) + 1
+            if op == 'ld':
+                reg[d] = mem[self.addr(imm)]
+            elif op == 'st':
+                mem[self.addr(imm)] = reg[a]
+            elif op == 'xor':
+                reg[d] = reg[a] ^ reg[b]
+            elif op == 'and':
+                reg[d] = reg[a] & reg[b]
+            elif op == 'or':
+                reg[d] = reg[a] | reg[b]
+            elif op == 'not':
+                reg[d] = reg[a] ^ W
+            elif op == 'rot':
+                x = reg[a]
+                reg[d] = ((x << imm) | (x >> (256 - imm))) & W
+            elif op == 'ldr':
+                reg[d] = self.load_table(reg[a]) if imm is None else self.mem_get(reg[a])
+            elif op == 'str':
+                if imm == 'mem':
+                    mem[reg[a]] = reg[b]
+                else:
+                    self.store_table(reg[a], reg[b])
+            elif op == 'cmplt':
+                reg[d] = 1 if reg[a] < imm else 0
+            elif op == 'add':
+                reg[d] = (reg[a] + imm) & W
+            elif op == 'br':
+                if reg[a]:
+                    self.count += cnt
+                    cnt = 0
+                    self.cand_hook(self, b, imm)
+            elif op == 'shr':
+                reg[d] = reg[a] >> imm
+            elif op == 'shl':
+                reg[d] = (reg[a] << imm) & W
+            elif op == 'andi':
+                reg[d] = reg[a] & imm
+            elif op == 'addr':
+                reg[d] = (reg[a] + reg[b]) & W
+            elif op == 'cmpeq':
+                reg[d] = 1 if reg[a] == reg[b] else 0
+            elif op == 'rand':
+                reg[d] = self.rng.getrandbits(256)
+            elif op == 'xori':
+                reg[d] = reg[a] ^ imm
+            elif op == 'hash':
+                cnt -= 1
+                self.units += 1
+                reg[d] = self.hashfn(reg[a], reg[b])
+            elif op == 'hash4':
+                cnt -= 1
+                self.units += 1
+                reg[d] = self.hashfn(*[reg[r] for r in imm])
+            elif op == 'ldi':
+                reg[d] = self.mem_get(self.layout[imm[0]] + imm[1])
+            else:
+                raise RuntimeError(op)
+        self.count += cnt
+
+    def load_table(self, k):
+        return self.table_get(k)
+
+    def store_table(self, k, v):
+        self.table_put(k, v)
+```
+
+<!-- file: gen.py sha256=86cc4c740276ea07350c0eed2dd6a0c0200202d941d7b4c8857221f13b2469c9 -->
+```python
+"""Generator of the per-z-step straight-line program (one leaf per Gray column j).
+
+Message set (linear structures, Guo-Liu-Song 2016; the 128-byte family with
+z in lanes 4 and 14 is 5kyguy's, 6e715d9a): z is XORed into the low 32 bits
+of lanes 4 and 14 (col = (4, 14)).  Each z-bit j then flips a fixed 22-word
+set of A2 (round-1 output + round-2 theta), every word by all-ones, for every
+group (proof Lemmas 1-3).  The reference geometry (rho, chi gate plans,
+polarities, kept planes, transpose orders, start planes, cones) is imported
+from the shipped experiment script through ref.py.
+"""
+import ref
+from ref import (RHO, DIAG, KEEP, ROWOF, RC, W, solve_row, _rowq, P34, P5, Q3, _bsrc,
+                 round_needs, STARTS, LASTPLAN, BLOCKS, KEYROWS, P1ORDER, P2ORDER, _par)
+from ir import Bld
+
+WT = -1     # the all-ones term in a patch expression
+_RC2 = {}
+
+
+def solve_row_free(q, p, iota, outs, free):
+    """As ref.solve_row, but complemented copies of inputs in `free` cost 0
+    (their complement is already in a register).  Same exact gate plans."""
+    key = (q, p, iota, tuple(outs), frozenset(free))
+    if key in _RC2:
+        return _RC2[key]
+    import itertools
+    qb = [(q >> k) & 1 for k in range(5)]
+    pb_ = [(p >> k) & 1 for k in range(5)]
+    best = None
+    for Sm in range(32):
+        S = [k for k in range(5) if (Sm >> k) & 1]
+        cost = len([k for k in S if k not in free])
+        plan = {}
+        for X in outs:
+            ib = iota if X == 0 else 0
+            bo = None
+            for ca, cb, cc in itertools.product((0, 1), repeat=3):
+                if (ca and X not in S) or (cb and (X + 1) % 5 not in S) or (cc and (X + 2) % 5 not in S):
+                    continue
+                pa = qb[X] ^ ca
+                pbb = qb[(X + 1) % 5] ^ cb
+                pcc = qb[(X + 2) % 5] ^ cc
+                if (pbb, pcc) == (1, 0):
+                    gate, pT = "and", 0
+                elif (pbb, pcc) == (0, 1):
+                    gate, pT = "or", 1
+                else:
+                    continue
+                on = int(pa ^ pT ^ ib != pb_[X])
+                if bo is None or on < bo[0]:
+                    bo = (on, (ca, cb, cc, gate, on))
+            if bo is None:
+                cost = 99
+                break
+            cost += bo[0]
+            plan[X] = bo[1]
+        if best is None or cost < best[0]:
+            best = (cost, S, plan)
+    _RC2[key] = best
+    return best
+
+
+def dst_of(L, b):
+    """A2 word (L, b) -> round-2 chi position (X, Y, plane)."""
+    x, y = L % 5, L // 5
+    return y, (2 * x + 3 * y) % 5, (b + RHO[L]) % 64
+
+
+def r1_flips(col, j):
+    """Round-1 output bits flipped by z-bit j (structured prefix): the two
+    z-carrying positions after rho/pi (their chi neighbours are constants)."""
+    out = set()
+    for L in (tuple(col) if isinstance(col, tuple) else (col, col + 5)):
+        X, Y, p = dst_of(L, j)
+        out.add((X + 5 * Y, p))
+    return out
+
+
+def a2_support(col, j):
+    S = set(r1_flips(col, j))
+    dC = {}
+    for L, b in r1_flips(col, j):
+        dC[(L % 5, b)] = dC.get((L % 5, b), 0) ^ 1
+    for (x, b), v in dC.items():
+        if v:
+            for xx, bb in (((x + 1) % 5, b), ((x - 1) % 5, (b + 1) % 64)):
+                for y in range(5):
+                    S ^= {(xx + 5 * y, bb)}
+    return S
+
+
+def src_word(X, Y, bp):
+    L, bs = _bsrc(X, Y, bp)
+    return 64 * L + bs
+
+
+def patch_exprs(col, j):
+    """O2P word index -> frozenset of terms (A2 word indices, WT); plus A2 flip
+    set and A2 read set."""
+    S = a2_support(col, j)
+    flips = {64 * L + b for L, b in S}
+    rows = {}
+    for L, b in S:
+        X, Y, p = dst_of(L, b)
+        rows.setdefault((Y, p), set()).add(X)
+    dout = {}
+    reads = set()
+    for (Y, p), Xs in rows.items():
+        c = [1 if X in Xs else 0 for X in range(5)]
+        for k in range(5):
+            k1, k2 = (k + 1) % 5, (k + 2) % 5
+            e = set()
+            if c[k] ^ c[k2] ^ (c[k1] & c[k2]):
+                e ^= {WT}
+            if c[k2]:
+                e ^= {src_word(k1, Y, p)}
+            if c[k1]:
+                e ^= {src_word(k2, Y, p)}
+            reads |= {t for t in e if t != WT}
+            if e:
+                dout[(k, Y, p)] = frozenset(e)
+    dC = {}
+    for (x, Y, b), v in dout.items():
+        dC[(x, b)] = dC.get((x, b), frozenset()) ^ v
+    patch = {}
+    for (x, Y, b), v in dout.items():
+        patch[64 * (x + 5 * Y) + b] = v
+    for (x, b), v in dC.items():
+        if not v:
+            continue
+        for xx, bb in (((x + 1) % 5, b), ((x - 1) % 5, (b + 1) % 64)):
+            for Y in range(5):
+                w = 64 * (xx + 5 * Y) + bb
+                patch[w] = patch.get(w, frozenset()) ^ v
+    patch = {w: v for w, v in patch.items() if v}
+    # the formulas use OLD A2 values; the program reads A2 after this leaf's
+    # flips, so an old flipped word is (new word) XOR all-ones
+    fixed = {}
+    for w, v in patch.items():
+        v = set(v)
+        for t in list(v):
+            if t != WT and t in flips:
+                v ^= {WT}
+        fixed[w] = frozenset(v)
+    patch = {w: v for w, v in fixed.items() if v}
+    return patch, flips, reads
+
+
+def _wcost(leaves, pi):
+    worst = tot = 0
+    for pe in leaves:
+        ex = set()
+        for e in pe.values():
+            t = set(e)
+            w = WT in t
+            t.discard(WT)
+            if not t:
+                continue
+            for a in t:
+                if a in pi:
+                    w = not w
+            ex.add((frozenset(t), w))
+        c = sum(1 for t, w in ex if w)
+        worst = max(worst, c)
+        tot += c
+    return worst, tot
+
+
+def choose_polarity(leaves):
+    """A2 storage polarity pi (set of words stored complemented), chosen by
+    deterministic local search to minimise complemented patch expressions."""
+    words = sorted({t for pe in leaves for e in pe.values() for t in e if t != WT})
+    pi = set()
+    best = _wcost(leaves, pi)
+    while True:
+        improved = False
+        for a in words:
+            pi ^= {a}
+            c = _wcost(leaves, pi)
+            if c < best:
+                best, improved = c, True
+            else:
+                pi ^= {a}
+        if not improved:
+            return frozenset(pi)
+
+
+class Geometry:
+    def __init__(self, col, prune_flips=True, polar=True):
+        self.col = col
+        self.P = [patch_exprs(col, j) for j in range(32)]
+        allreads = set().union(*[p[2] for p in self.P])
+        self.flips = [sorted(p[1] & allreads) if prune_flips else sorted(p[1]) for p in self.P]
+        self.pi = choose_polarity([p[0] for p in self.P]) if polar else frozenset()
+        # A2 word a is stored as a ^ (a in pi) * all-ones: toggle WT per stored term
+        newP = []
+        for pe, fl, rd in self.P:
+            q = {}
+            for w, e in pe.items():
+                e = set(e)
+                for t in list(e):
+                    if t != WT and t in self.pi:
+                        e ^= {WT}
+                q[w] = frozenset(e)
+            newP.append(({w: e for w, e in q.items() if e}, fl, rd))
+        self.P = newP
+
+
+# ---------------- cones ------------------------------------------------------
+ALLW = frozenset((L, b) for L in range(25) for b in range(64))
+ALLP = frozenset((x, b) for x in range(5) for b in range(64))
+NEED5 = frozenset((L, (b - RHO[L]) % 64) for L in DIAG for b in KEEP)
+_CONES = {}
+
+
+def cones(starts):
+    if starts not in _CONES:
+        fix5 = frozenset(L % 5 for L, b in NEED5 if b == starts[2])
+        chi5, par5, need4, fix4 = round_needs(NEED5, fix5, starts[2], starts[1])
+        chi4, par4, need3, fix3 = round_needs(need4, fix4, starts[1], starts[0])
+        assert need3 == ALLW
+        _CONES[starts] = dict(FIX5=fix5, CHI5=chi5, PAR5=par5, NEED4=need4, FIX4=fix4, CHI4=chi4,
+                              PAR4=par4, NEED3=need3, FIX3=fix3)
+    return _CONES[starts]
+
+
+def gen_round(B, getin, fixin, fp_in, qin, pout, rc, s, outarr, chi_need, par_need, st_need,
+              fix_need, csarr, fixarr, after_plane=None):
+    Cprev = {}
+    for k in range(64):
+        b = (s + k) % 64
+        outs = {}
+        for Y in range(5):
+            Xs = [X for X in range(5) if (X + 5 * Y, b) in chi_need]
+            if not Xs:
+                continue
+            qrow, prow = _rowq(qin, Y), (pout >> (5 * Y)) & 31
+            io = (rc >> b) & 1 if Y == 0 else 0
+            need_in = sorted({(X + t) % 5 for X in Xs for t in (0, 1, 2)})
+            vin = {}
+            comp = {}
+            for X in need_in:
+                L, bs = _bsrc(X, Y, b)
+                v = getin(L, bs)
+                if isinstance(v, tuple):          # (value, its complement)
+                    v, comp[X] = v
+                if fixin is not None and bs == fp_in:
+                    v = B.xor(v, fixin(L % 5))
+                    comp.pop(X, None)
+                vin[X] = v
+            if comp:
+                _, _, plan = solve_row_free(qrow, prow, io, Xs, set(comp))
+            else:
+                _, _, plan = solve_row(qrow, prow, io, Xs)
+
+            def g(X, c):
+                if not c:
+                    return vin[X]
+                if X not in comp:
+                    comp[X] = B.not_(vin[X])
+                return comp[X]
+            for X in Xs:
+                ca, cb, cc, gate, on = plan[X]
+                a_, b_, c_ = g(X, ca), g((X + 1) % 5, cb), g((X + 2) % 5, cc)
+                t = B.or_(b_, c_) if gate == "or" else B.and_(b_, c_)
+                o = B.xor(a_, t)
+                if on:
+                    o = B.not_(o)
+                outs[(X, Y)] = o
+        C = {}
+        for x in range(5):
+            if (x, b) in par_need:
+                c = outs[(x, 0)]
+                for Y in range(1, 5):
+                    c = B.xor(c, outs[(x, Y)])
+                C[x] = c
+                if b == s and ((x + 1) % 5) in fix_need:
+                    B.st(csarr, x, c)
+        D = {}
+        for Y in range(5):
+            for x in range(5):
+                L = x + 5 * Y
+                if (L, b) not in st_need:
+                    continue
+                if b == s:
+                    B.st(outarr, 64 * L + b, outs[(x, Y)])
+                else:
+                    if x not in D:
+                        D[x] = B.xor(C[(x - 1) % 5], Cprev[(x + 1) % 5])
+                    B.st(outarr, 64 * L + b, B.xor(outs[(x, Y)], D[x]))
+        Cprev = C
+        if after_plane:
+            after_plane(b)
+    for x in sorted(fix_need):
+        c1 = B.ld(csarr, (x - 1) % 5)
+        B.st(fixarr, x, B.xor(c1, Cprev[(x + 1) % 5]))
+
+
+MASKIDX = {}
+
+
+def mask(B, d, neg):
+    return B.ld('MASK', d + (256 if neg else 0))
+
+
+class Transposer:
+    def __init__(self, B):
+        self.B = B
+        self.R = {}
+        self.Z = {r: r not in KEYROWS for r in range(256)}
+        self.OFF = [0] * 256
+
+    def swap(self, ia, ib, d):
+        B, R, Z, OFF = self.B, self.R, self.Z, self.OFF
+        za, zb = Z[ia], Z[ib]
+        if za and zb:
+            return
+        if _par(ib) == 0:              # b even: a moves
+            m = mask(B, d, False)
+            if za:
+                t = B.and_(R[ib], m)
+                R[ib] = B.xor(R[ib], t)
+                R[ia] = t
+            else:
+                u = B.rot(R[ia], OFF[ia] - d)
+                if zb:
+                    t = B.and_(u, m)
+                    R[ib] = t
+                    R[ia] = B.xor(u, t)
+                else:
+                    t = B.and_(B.xor(u, R[ib]), m)
+                    R[ib] = B.xor(R[ib], t)
+                    R[ia] = B.xor(u, t)
+            OFF[ia] = d % 256
+        else:                          # a even: b moves
+            m = mask(B, d, True)
+            if zb:
+                t = B.and_(R[ia], m)
+                R[ia] = B.xor(R[ia], t)
+                R[ib] = t
+            else:
+                v = B.rot(R[ib], OFF[ib] + d)
+                if za:
+                    t = B.and_(v, m)
+                    R[ia] = t
+                    R[ib] = B.xor(v, t)
+                else:
+                    t = B.and_(B.xor(R[ia], v), m)
+                    R[ia] = B.xor(R[ia], t)
+                    R[ib] = B.xor(v, t)
+            OFF[ib] = (-d) % 256
+        Z[ia] = Z[ib] = False
+
+
+def slot_planes(g, w1=32):
+    return [KEEP[k] for k in range(len(KEEP)) if k // (w1 // 4) == g]
+
+
+_LAYOUTS = {}
+
+
+def tlayout(w1):
+    """Transpose layout (v6): phase 1 on blocks of w1 consecutive rows (stages
+    1..w1/2), phase 2 on the 256/w1 rows w1*i + gi (stages w1..128).  w1 = 32 is
+    bs5's layout (identical BLOCKS/P1ORDER/P2ORDER); w1 = 16 is the 16-row
+    variant.  Processing index q -> slot w1*(q mod nb) + floor(q/nb), nb = 256/w1."""
+    if w1 not in _LAYOUTS:
+        nb = 256 // w1
+        k = w1.bit_length() - 1
+        bits1 = tuple(1 << i for i in range(k))
+        bits2 = tuple(1 << i for i in range(k, 8))
+        blocks = sorted({r // w1 for r in KEYROWS})
+        p1 = {g: ref._best_order({w1 * g + q: (w1 * g + q) not in KEYROWS for q in range(w1)},
+                                 [w1 * g + q for q in range(w1)], bits1) for g in blocks}
+        p2 = {gi: ref._best_order({w1 * i + gi: i not in blocks for i in range(nb)},
+                                  [w1 * i + gi for i in range(nb)], bits2) for gi in range(w1)}
+        _LAYOUTS[w1] = dict(w1=w1, nb=nb, blocks=blocks, p1=p1, p2=p2,
+                            slot=[w1 * (q % nb) + q // nb for q in range(256)])
+    return _LAYOUTS[w1]
+
+
+assert tlayout(16)['blocks'] == list(BLOCKS) and tlayout(16)['p1'] == P1ORDER and tlayout(16)['p2'] == P2ORDER
+
+
+def build_leaf(geo, j, opts=None):
+    """Straight-line body of leaf j (None: the t = 0 body without round 2)."""
+    opts = opts or {}
+    starts = tuple(opts.get('starts', STARTS))
+    TL = tlayout(opts.get('w1', 32))
+    w1, nb, BLK = TL['w1'], TL['nb'], TL['blocks']
+    pair = opts.get('pair', False)
+    cn = cones(starts)
+    B = Bld()
+    # ---- incremental round 2 (A2 flips; O2P patches merged into round-3 reads)
+    patch = {}
+    if j is not None:
+        B.tag = "r2"
+        pe, _, _ = geo.P[j]
+        patch = pe
+        for w in geo.flips[j]:
+            B.st('A2', w, B.not_(B.ld('A2', w)))
+    cache = {}
+
+    def getexpr(e):
+        if len(e) == 1 and WT not in e:
+            return B.ld('A2', next(iter(e)))
+        if e in cache:
+            return B.ld('DL', cache[e])
+        cmode = opts.get('cache', 'all')
+        r = set(e)
+        v = None
+        while r:
+            best, gain = None, 1
+            for f in cache:
+                gn = len(r) - len(r ^ f)
+                if gn > gain:
+                    best, gain = f, gn
+            if best is not None:
+                piece = B.ld('DL', cache[best])
+                r ^= best
+                v = piece if v is None else B.xor(v, piece)
+                continue
+            ts = sorted(t for t in r if t != WT)
+            if ts:
+                t = ts[0]
+                piece = B.ld('A2', t)
+                r.discard(t)
+                v = piece if v is None else B.xor(v, piece)
+            else:
+                r.discard(WT)
+                v = B.not_(v)
+        if cmode == 'all' or (cmode == 'multi' and len(e - {WT}) >= 2):
+            cache[e] = len(cache)
+            B.st('DL', cache[e], v)
+        return v
+
+    def getin3(L, bs):
+        w = 64 * L + bs
+        if w not in patch:
+            return B.ld('O2P', w)
+        tg = B.tag
+        B.tag = "r2"
+        old = B.ld('O2P', w)
+        e = patch[w]
+        if e == frozenset([WT]):
+            new = B.not_(old)
+            B.st('O2P', w, new)
+            B.tag = tg
+            return (new, old) if opts.get('freecomp', True) else new
+        new = B.xor(old, getexpr(e))
+        B.st('O2P', w, new)
+        B.tag = tg
+        return new
+    # ---- round 3 (full), start plane STARTS[0]
+    B.tag = "r3"
+    gen_round(B, getin3, None, None, Q3, P34, RC[2], starts[0], 'B3', ALLW, ALLP, cn['NEED3'],
+              cn['FIX3'], 'CS3', 'FIX3')
+    # ---- round 4 (cone)
+    B.tag = "r4"
+    gen_round(B, lambda L, bs: B.ld('B3', 64 * L + bs), lambda x: B.ld('FIX3', x), starts[0], Q3, P34,
+              RC[3], starts[1], 'B4', cn['CHI4'], cn['PAR4'], cn['NEED4'], cn['FIX4'], 'CS4', 'FIX4')
+    # ---- round 5 (cone) with the last round and phase 1 interleaved
+    T = Transposer(B)
+    produced = set()
+    lastdone = set()
+    blockdone = set()
+    kslot = {b: k for k, b in enumerate(KEEP)}
+
+    def last_plane(kb):
+        B.tag = "last"
+        (_, _, plan), _ = LASTPLAN[kb]
+        Bv = []
+        for X in range(5):
+            L = DIAG[X]
+            bs = (kb - RHO[L]) % 64
+            v = B.ld('B5', 64 * L + bs)
+            if bs == starts[2]:
+                v = B.xor(v, B.ld('FIX5', L % 5))
+            Bv.append(v)
+        comp = {}
+
+        def g(X, c):
+            if not c:
+                return Bv[X]
+            if X not in comp:
+                comp[X] = B.not_(Bv[X])
+            return comp[X]
+        for x in range(4):
+            ca, cb, cc, gate, on = plan[x]
+            a_, u, v = g(x, ca), g((x + 1) % 5, cb), g((x + 2) % 5, cc)
+            t = B.or_(u, v) if gate == "or" else B.and_(u, v)
+            o = B.xor(a_, t)
+            if on:
+                o = B.not_(o)
+            r = ROWOF[(x, kb)]
+            if opts.get('lr_scratch', True):
+                B.st('LR', r, o)
+            else:
+                T.R[r] = o
+
+    def phase1(gb):
+        B.tag = "p1"
+        rows = [w1 * gb + q for q in range(w1)]
+        if opts.get('lr_scratch', True):
+            for r in rows:
+                if r in KEYROWS:
+                    T.R[r] = B.ld('LR', r)
+        for d in TL['p1'][gb]:
+            for q in range(w1):
+                r = w1 * gb + q
+                if not r & d:
+                    T.swap(r, r + d, d)
+        for r in rows:
+            if not T.Z[r]:
+                B.st('ROWS', r, T.R[r])
+
+    fixready = [False]
+
+    def ready(kb):
+        bss = [(kb - RHO[L]) % 64 for L in DIAG]
+        return all(x in produced for x in bss) and (fixready[0] or starts[2] not in bss)
+
+    def after5(b):
+        if b is not None:
+            produced.add(b)
+        if opts.get('lastmode') == 'block':
+            for gb in BLK:
+                if gb in blockdone:
+                    continue
+                if all(ready(kb) for kb in slot_planes(gb, w1)):
+                    tg = B.tag
+                    for kb in slot_planes(gb, w1):
+                        lastdone.add(kb)
+                        last_plane(kb)
+                    blockdone.add(gb)
+                    phase1(gb)
+                    B.tag = tg
+            return
+        for kb in KEEP:
+            if kb in lastdone:
+                continue
+            if ready(kb):
+                tg = B.tag
+                lastdone.add(kb)
+                last_plane(kb)
+                B.tag = tg
+        for gb in BLK:
+            if gb in blockdone:
+                continue
+            if all(p in lastdone for p in slot_planes(gb, w1)):
+                tg = B.tag
+                blockdone.add(gb)
+                phase1(gb)
+                B.tag = tg
+    B.tag = "r5"
+    gen_round(B, lambda L, bs: B.ld('B4', 64 * L + bs), lambda x: B.ld('FIX4', x), starts[1], Q3, P5,
+              RC[4], starts[2], 'B5', cn['CHI5'], cn['PAR5'], NEED5, cn['FIX5'], 'CS5', 'FIX5',
+              after_plane=after5)
+    fixready[0] = True
+    B.tag = "r5"
+    after5(None)
+    assert blockdone == set(BLK)
+    # ---- phase 2, frame fix, table
+    for gi in range(w1):
+        B.tag = "p2"
+        for i in range(nb):
+            r = w1 * i + gi
+            if not T.Z[r]:
+                T.R[r] = B.ld('ROWS', r)
+        for d in TL['p2'][gi]:
+            for i in range(nb):
+                r = w1 * i + gi
+                if not r & d:
+                    T.swap(r, r + d, d)
+        for i in range(nb):
+            r = w1 * i + gi
+            if T.OFF[r]:
+                T.R[r] = B.rot(T.R[r], T.OFF[r])
+                T.OFF[r] = 0
+        B.tag = "table"
+        for i in range(nb):
+            q = nb * gi + i
+            assert TL['slot'][q] == w1 * i + gi
+            K = T.R[w1 * i + gi]
+            w = B.emit('ldr', a=K)
+            x = B.emit('xor', a=w, b='C')
+            f = B.emit('cmplt', a=x, imm=1 << 128)
+            # br imm: pair-member bit of this site (pair ids: the out-of-line
+            # candidate clone of this site knows statically which member it is)
+            B.emit('br', a=f, b=w, imm=(q & 1) if pair else None, dst=False)
+            B.emit('str', a=K, b='C', dst=False)
+            if not pair or q & 1:
+                B.ins.append(('add', 'C', 'C', None, 1))
+                B.tags.append("table")
+    return B
+```
+
+<!-- file: setup_gen.py sha256=8a207a3c71afe9353eecee09fedd4af51a9e7f838338f8b4edf76dcd0d60fa36 -->
+```python
+"""Counted per-batch setup (z = 0): 256 structured 128-byte prefixes from
+768 random words (3 per prefix), PREF rows, bitsliced transpose, round 1 + round-2 theta (A2, stored
+with polarity pi), O2P (round 2 + round-3 theta, encoding Q3), masks.
+Straight-line IR compiled by ir.compile_block and run on ir.Machine."""
+import ref
+import gen
+from ir import Bld, W
+
+M64 = (1 << 64) - 1
+M128 = (1 << 128) - 1
+ref_PAD16 = 0x8000000000000006   # lane 16 of a 128-byte message
+
+
+class SB(Bld):
+    """Builder with constant folding for the words 0 and all-ones."""
+
+    def c_xor(self, a, b):
+        if a == 0:
+            return b
+        if b == 0:
+            return a
+        if a == 'W':
+            return self.c_not(b)
+        if b == 'W':
+            return self.c_not(a)
+        return self.xor(a, b)
+
+    def c_not(self, a):
+        if a == 0:
+            return 'W'
+        if a == 'W':
+            return 0
+        return self.not_(a)
+
+    def c_and(self, a, b):
+        if a == 0 or b == 0:
+            return 0
+        if a == 'W':
+            return b
+        if b == 'W':
+            return a
+        return self.and_(a, b)
+
+    def un(self, op, a, imm):
+        return self.emit(op, a, imm=imm)
+
+    def mat(self, v):
+        """materialise a folded constant (only 0 / W can occur)"""
+        if v == 0:
+            return self.zero
+        if v == 'W':
+            return self.ones
+        return v
+
+
+PREFBASE = None
+IDSHIFT = 30     # set by machine.set_opts; 4-word prefixes use IDSHIFT - 1 = 29
+
+
+def build_setup(col, pi, prefbase):
+    global PREFBASE
+    PREFBASE = prefbase
+    B = SB()
+    B.tag = "setup"
+    r0 = B.emit('rand')
+    B.zero = B.xor(r0, r0)
+    B.ones = B.not_(B.zero)
+    for d in (1, 2, 4, 8, 16, 32, 64, 128):
+        B.st('MASK', d, B.un('andi', B.ones, ref.MASKD[d]))
+        B.st('MASK', 256 + d, B.un('andi', B.ones, W ^ ref.MASKD[d]))
+    # 1. structured prefixes, row form, stored at PREF + 1024 beta + 4p + w
+    #    (register-addressed; beta read from C = TAG*2^128 + beta*2^39 at t = 0)
+    #    and at ROWIN (direct, for the transpose)
+    nw = 4 if isinstance(col, tuple) else 2
+    ids = IDSHIFT - 1 if nw == 4 else IDSHIFT        # 4 words per prefix: 1024*beta = (C mod 2^128) >> 29
+    pb = B.un('add', B.un('shr', B.un('andi', 'C', M128), ids), PREFBASE)
+
+    def rotl(c, k):
+        return B.un('andi', B.or_(B.un('shl', c, k), B.un('shr', c, 64 - k)), M64)
+    for p in range(256):
+        if nw == 4:       # v7 family (5kyguy 6e715d9a): 3 random words = the 12 free lanes
+            r0, r1, r2 = B.emit('rand'), B.emit('rand'), B.emit('rand')
+            # r0 = lanes 0..3 (word 0 as drawn); r1 = lanes 4, 9, 6, 7; r2 = lanes 14, 13, 10, 11
+            L4 = B.un('andi', r1, M64)
+            L9 = B.un('andi', B.un('shr', r1, 64), M64)
+            L14 = B.un('andi', r2, M64)
+            L1 = B.un('andi', B.un('shr', r0, 64), M64)
+            L2 = B.un('andi', B.un('shr', r0, 128), M64)
+            L6 = B.un('andi', B.un('shr', r1, 128), M64)
+            L7 = B.un('shr', r1, 192)
+            L11 = B.un('shr', r2, 192)
+            C4 = B.xor(B.xor(L4, L9), L14)
+            C1 = B.un('xori', B.xor(B.xor(L1, L6), L11), ref_PAD16)
+            L5 = B.xor(C4, rotl(C1, 1))                  # = L15
+            L12 = B.xor(B.xor(B.un('xori', rotl(C4, 1), M64), L2), L7)
+            w0 = r0
+            w1 = B.or_(B.un('andi', r1, M64 | (M128 << 128)), B.un('shl', L5, 64))
+            w2 = B.or_(B.un('andi', r2, M128 << 128), B.un('shl', L9, 64))
+            w3 = B.or_(B.or_(L12, B.un('andi', r2, M64 << 64)), B.or_(B.un('shl', L14, 128), B.un('shl', L5, 192)))
+            words = (w0, w1, w2, w3)
+        else:
+            raise ValueError('only the 128-byte family (4, 14) is shipped')
+        for w, val in enumerate(words):
+            B.emit('str', a=B.un('add', pb, nw * p + w), b=val, imm='mem', dst=False)
+            B.st('ROWIN', nw * p + w, val)
+    # 2. transpose rows -> planes (ref.transpose semantics), w = 0 .. nw-1
+    S = {}
+    for w in range(nw):
+        for g in range(8):            # stages 1..16 inside blocks of 32 rows
+            R = {q: B.ld('ROWIN', nw * (32 * g + q) + w) for q in range(32)}
+            for d in (1, 2, 4, 8, 16):
+                m = B.ld('MASK', d)
+                for q in range(32):
+                    if not q & d:
+                        a, b = R[q], R[q + d]
+                        t = B.and_(B.xor(B.un('shr', a, d), b), m)
+                        R[q] = B.xor(a, B.un('shl', t, d))
+                        R[q + d] = B.xor(b, t)
+            for q in range(32):
+                B.st('TR', 256 * w + 32 * g + q, R[q])
+        for gi in range(32):          # stages 32, 64, 128 on rows 32 i + gi
+            R = {i: B.ld('TR', 256 * w + 32 * i + gi) for i in range(8)}
+            for d in (32, 64, 128):
+                m = B.ld('MASK', d)
+                for i in range(8):
+                    r_ = 32 * i + gi
+                    if not r_ & d:
+                        a, b = R[i], R[i + d // 32]
+                        t = B.and_(B.xor(B.un('shr', a, d), b), m)
+                        R[i] = B.xor(a, B.un('shl', t, d))
+                        R[i + d // 32] = B.xor(b, t)
+            for i in range(8):
+                B.st('TR', 256 * w + 32 * i + gi, R[i])
+    # state planes: message lanes from TR, padding planes constant, others 0
+    nl = 4 * nw
+    zero_lanes = {8} if nw == 4 else ({0, 7} if col == 1 else {4, 6})
+    padp = ((16, 1), (16, 2), (16, 63)) if nw == 4 else ((8, 1), (8, 2), (16, 63))
+
+    def plane(L, b):
+        if L < nl:
+            if L in zero_lanes:
+                return 0          # structurally zero lane (no z here: z = 0)
+            return ('TR', 64 * L + b)
+        if (L, b) in padp:
+            return 'W'
+        return 0
+
+    def getS(L, b):
+        v = plane(L, b)
+        return B.ld(*v) if isinstance(v, tuple) else v
+    # 3. round 1 (plain) and round-2 theta -> A2 (plain values in A2P scratch)
+    C = {}
+    for x in range(5):
+        for b in range(64):
+            v = 0
+            for y in range(5):
+                v = B.c_xor(v, getS(x + 5 * y, b))
+            if v in (0, 'W'):
+                C[(x, b)] = v
+            else:
+                B.st('C1S', 64 * x + b, v)
+                C[(x, b)] = None
+
+    def getC(x, b):
+        v = C[(x, b)]
+        return v if v is not None else B.ld('C1S', 64 * x + b)
+    Dc = {}
+    for x in range(5):
+        for b in range(64):
+            v = B.c_xor(getC((x - 1) % 5, b), getC((x + 1) % 5, (b - 1) % 64))
+            if v in (0, 'W'):
+                Dc[(x, b)] = v
+            else:
+                B.st('D1', 64 * x + b, v)
+                Dc[(x, b)] = None
+
+    def getD1(x, b):
+        v = Dc[(x, b)]
+        return v if v is not None else B.ld('D1', 64 * x + b)
+    out = {}
+    C2 = {}
+    for Y in range(5):
+        for bp in range(64):
+            Bv = []
+            for X in range(5):
+                L, bs = ref._bsrc(X, Y, bp)
+                Bv.append(B.c_xor(getS(L, bs), getD1(L % 5, bs)))
+            for X in range(5):
+                o = B.c_xor(Bv[X], B.c_and(B.c_not(Bv[(X + 1) % 5]), Bv[(X + 2) % 5]))
+                if Y == 0 and X == 0 and (ref.RC[0] >> bp) & 1:
+                    o = B.c_not(o)
+                B.st('O1', 64 * (X + 5 * Y) + bp, B.mat(o))
+    for x in range(5):
+        for b in range(64):
+            v = B.ld('O1', 64 * x + b)
+            for y in range(1, 5):
+                v = B.xor(v, B.ld('O1', 64 * (x + 5 * y) + b))
+            B.st('C2', 64 * x + b, v)
+    for x in range(5):
+        for b in range(64):
+            d = B.xor(B.ld('C2', 64 * ((x - 1) % 5) + b), B.ld('C2', 64 * ((x + 1) % 5) + (b - 1) % 64))
+            for y in range(5):
+                L = x + 5 * y
+                a2 = B.xor(B.ld('O1', 64 * L + b), d)
+                B.st('A2P', 64 * L + b, a2)
+                B.st('A2', 64 * L + b, B.not_(a2) if 64 * L + b in pi else a2)
+    # 4. O2P = encoded round 2 + round-3 theta (start plane 0, then fix plane 0)
+    gen.gen_round(B, lambda L, bs: B.ld('A2P', 64 * L + bs), None, None, 0, ref.P34, ref.RC[1], 0, 'O2P',
+                  gen.ALLW, gen.ALLP, gen.ALLW, frozenset(range(5)), 'CSS', 'FIXS')
+    for L in range(25):
+        B.st('O2P', 64 * L, B.xor(B.ld('O2P', 64 * L), B.ld('FIXS', L % 5)))
+    return B
+```
+
+<!-- file: machine.py sha256=1f2b8117411d3386ba09e0a28762e849a70727bfe360991f765c5596eec58a8d -->
+```python
+"""Batch setup (reference level), memory layout, control, candidate path and
+the counted run of z-steps on ir.Machine.  Every key is checked against
+verifier/keccak.py sha3_256(m, 6) (copied as vkeccak.py)."""
+import random
+import ref
+import gen
+import ir
+from vkeccak import sha3_256
+
+M64 = (1 << 64) - 1
+W = ir.W
+M128 = (1 << 128) - 1
+
+# ---- v6 options (set from the build pickle): w1 = transpose layout, pair = pair ids
+OPTS = {}
+
+
+def set_opts(opts):
+    OPTS.clear()
+    OPTS.update(opts or {})
+    import setup_gen
+    setup_gen.IDSHIFT = 30 if OPTS.get('pair') else 31
+
+
+def PAIR():
+    return bool(OPTS.get('pair'))
+
+
+def QB():
+    """Low bits of the message number holding the in-step index (q, or the pair k = q >> 1)."""
+    return 7 if PAIR() else 8
+
+
+def slot_of(q):
+    return gen.tlayout(OPTS.get('w1', 32))['slot'][q]
+
+
+def id_of(beta, t, q):
+    return (beta << (32 + QB())) + (t << QB()) + ((q >> 1) if PAIR() else q)
+
+
+def members(n):
+    """Message number -> list of (beta, t, q) it names."""
+    beta, t, k = n >> (32 + QB()), (n >> QB()) & 0xFFFFFFFF, n & ((1 << QB()) - 1)
+    return [(beta, t, 2 * k), (beta, t, 2 * k + 1)] if PAIR() else [(beta, t, k)]
+
+
+def rotl64(v, r):
+    r %= 64
+    return ((v << r) | (v >> (64 - r))) & M64 if r else v
+
+
+PAD16 = 0x8000000000000006     # lane 16 of a 128-byte message (0x06 suffix, final 0x80 bit)
+FREE7 = (0, 1, 2, 3, 4, 6, 7, 9, 10, 11, 13, 14)   # v7 family: the 12 free lanes
+
+
+def is128(col):
+    return isinstance(col, tuple)
+
+
+def NW(col):
+    """256-bit words per message: 4 (128-byte family, z in lanes 4/14) or 2."""
+    return 4 if is128(col) else 2
+
+
+def structured_prefix(rng, col):
+    """Round 1 linear in z (Guo-Liu-Song linear structure).  The 128-byte
+    family col = (4, 14) of 5kyguy's 6e715d9a: 16
+    lanes, 768 uniform bits in the 12 FREE7 lanes; with C4 = L4^L9^L14 and
+    C1 = L1^L6^L11^PAD16: L5 = L15 = C4 ^ rotl(C1, 1), L8 = 0,
+    L12 = ~rotl(C4, 1) ^ L2 ^ L7."""
+    if is128(col):
+        assert col == (4, 14)
+        L = [0] * 16
+        for k in FREE7:
+            L[k] = rng.getrandbits(64)
+        c4 = L[4] ^ L[9] ^ L[14]
+        c1 = L[1] ^ L[6] ^ L[11] ^ PAD16
+        L[5] = L[15] = c4 ^ rotl64(c1, 1)
+        L[8] = 0
+        L[12] = M64 ^ rotl64(c4, 1) ^ L[2] ^ L[7]
+        return L
+    raise ValueError("only the 128-byte family (4, 14) is shipped")
+
+
+def message(lanes, z, col):
+    L = list(lanes)
+    for c in (col if is128(col) else (col, col + 5)):
+        L[c] ^= z
+    return b"".join(x.to_bytes(8, "little") for x in L)
+
+
+def gray(t):
+    return t ^ (t >> 1)
+
+
+def a2_of(prefixes, z, col):
+    msgs = [message(p, z, col) for p in prefixes]
+    S = [0] * 1600
+    nw = NW(col)
+    for w in range(nw):
+        rows = [int.from_bytes(m[32 * w:32 * w + 32], "little") for m in msgs]
+        S[256 * w:256 * w + 256] = ref.transpose(rows, ref.SETUP_ORDER)
+    S[64 * 4 * nw + 1] = W                  # 0x06 suffix right after the message
+    S[64 * 4 * nw + 2] = W
+    S[64 * 16 + 63] = W                     # final pad bit (lane 16, bit 63)
+    D1 = ref.d_words(S)
+    out, D2 = ref.round_pass(S, D1, ref.RC[0])
+    return [out[i] ^ D2[ref.DCOL[i]] for i in range(1600)]
+
+
+ARR = ['ROWIN', 'TR', 'C1S', 'D1', 'O1', 'C2', 'A2P', 'CSS', 'FIXS', 'O2P', 'A2', 'MASK', 'B3', 'B4', 'B5', 'FIX3', 'FIX4', 'FIX5', 'CS3', 'CS4', 'CS5', 'DL', 'ROWS',
+       'LR', 'SAVE', 'CNT', 'PREF']
+# F3: everything outside the table lies in [2^140, 2^140 + 2^99) words
+LAYOUT = {a: (1 << 140) + (k << 20) for k, a in enumerate(ARR)}
+LAYOUT['PREF'] = (1 << 140) + (1 << 30)
+assert max(v for a, v in LAYOUT.items() if a != 'PREF') + (1 << 20) <= LAYOUT['PREF']
+SCRATCH_SIZES = {'B3': 1600, 'B4': 1600, 'B5': 1600, 'FIX3': 5, 'FIX4': 5, 'FIX5': 5, 'CS3': 5, 'CS4': 5,
+                 'CS5': 5, 'DL': 512, 'ROWS': 256, 'LR': 256}
+
+
+class Run:
+    """One batch of 256 groups; runs z-steps with the compiled leaves."""
+
+    def __init__(self, leaves, col, seed, beta, t0, garbage="ones", tag=None, hashfn=None, pi=frozenset()):
+        self.leaves, self.col = leaves, col
+        self.rng = random.Random(seed)
+        rng = self.rng
+        self.prefixes = [structured_prefix(rng, col) for _ in range(256)]
+        self.beta = beta
+        self.t = t0
+        m = ir.Machine(LAYOUT)
+        self.m = m
+        z0 = gray(t0)
+        A2 = a2_of(self.prefixes, z0, col)
+        # support check: every z-bit flips exactly the predicted words, by all-ones
+        for j in range(32):
+            if (t0 * 7 + j) % 8 == 0 or j < 2:
+                A2j = a2_of(self.prefixes, z0 ^ (1 << j), col)
+                sup = {64 * L + b for L, b in gen.a2_support(col, j)}
+                for i in range(1600):
+                    want = W if i in sup else 0
+                    if A2j[i] ^ A2[i] != want:
+                        raise RuntimeError("linear-structure support violated")
+        O2P = ref.build_o2p(A2)
+        for i in range(1600):
+            m.mem[LAYOUT['A2'] + i] = A2[i] ^ (W if i in pi else 0)
+            m.mem[LAYOUT['O2P'] + i] = O2P[i]
+        for d in (1, 2, 4, 8, 16, 32, 64, 128):
+            m.mem[LAYOUT['MASK'] + d] = ref.MASKD[d]
+            m.mem[LAYOUT['MASK'] + 256 + d] = W ^ ref.MASKD[d]
+        nw = NW(col)
+        for p, L in enumerate(self.prefixes):
+            pm = message(L, 0, col)
+            for w in range(nw):
+                m.mem[LAYOUT['PREF'] + nw * (256 * beta + p) + w] = int.from_bytes(pm[32 * w:32 * w + 32], "little")
+        m.mem[LAYOUT['CNT']] = 0
+        self.tag = tag if tag is not None else rng.getrandbits(128)
+        self.table = {}
+        self.garbage = garbage
+        self.garbage_cands = 0
+        self.genuine_cands = 0
+        self.cand_ops = []
+        self.hashfn = hashfn or (lambda msg: sha3_256(msg, 6))
+        m.hashfn = lambda *ws: int.from_bytes(self.hashfn(b"".join(w.to_bytes(32, "little") for w in ws)), "little")
+        m.table_get = self.tget
+        m.table_put = self.tput
+        m.cand_hook = self.candidate
+        m.reg[62] = t0
+        m.reg[63] = (self.tag << 128) + id_of(beta, t0 + (1 if t0 else 0), 0)
+        self.written = []
+        self.expect_cands = 0
+
+    # ---- table memory (never initialised; adversarial contents)
+    def tget(self, K):
+        v = self._tget(K)
+        if v >> 128 == self.tag:
+            self.expect_cands += 1                 # this lookup must take the candidate path
+        return v
+
+    def _tget(self, K):
+        if not 0 <= K < 1 << 140:
+            raise RuntimeError("key is not a 140-bit address")
+        if K in self.table:
+            return self.table[K]
+        g = self.garbage
+        r = random.Random(K * 1000003 + 17)
+        if g == "ones":
+            return W
+        if g == "zero":
+            return 0
+        if g == "random":
+            return r.getrandbits(256)
+        # adversarial: high half = TAG, low half random or an out-of-range id
+        lo = r.getrandbits(128) if r.random() < 0.5 else (r.getrandbits(48) << 40) | r.getrandbits(40)
+        return (self.tag << 128) | lo
+
+    def tput(self, K, v):
+        self.table[K] = v
+        self.written.append((K, v))
+
+    # ---- candidate path (out of line), counted instruction by instruction
+    def candidate(self, m, rw, mem_bit=None):
+        assert PAIR() and is128(self.col)
+        return self.candidate_pair4(m, rw, mem_bit)
+
+
+    def candidate_pair4(self, m, rw, mb):
+        """v7 (128-byte family): as candidate_pair, messages are 4 words.  Save
+        14 registers; r0 = stored pair id, r1 = current pair id (then the
+        current digest), r2 address, r3 z, r4 temp, r5..r8 the current
+        message, r9..r12 a stored member, r13 its digest / compare flag.
+        Rebuild the current message (member mb) and both stored members, 3
+        units; halt only on equal digests of distinct messages; else count,
+        cap check, restore, jump back."""
+        c0 = m.count
+        u0 = m.units
+        idw = m.reg[rw] & M128
+        idc = m.reg[63] & M128
+        NS = 14
+        seg = [('st', None, k, None, ('SAVE', k)) for k in range(NS)]
+        seg += [('andi', 0, rw, None, M128), ('andi', 1, 63, None, M128)]
+        seg += rebuild_addr_pair4(1, 2, 3, 4) + load_msg4(2, mb, (5, 6, 7, 8), 3, 4)
+        seg += [('hash4', 1, None, None, (5, 6, 7, 8))]
+        seg += rebuild_addr_pair4(0, 2, 3, 4)
+        m.run(seg)
+        cur = tuple(m.reg[5:9])
+        q = len(self.written)                           # true in-step index of the current message
+        if mb != (q & 1) or members(idc)[q & 1][2] != q:
+            raise RuntimeError("branch-site member bit / current pair id wrong")
+        self.check_msg(cur, idc, mb)
+        for k in (0, 1):
+            m.run(load_msg4(2, k, (9, 10, 11, 12), 3, 4) + [('hash4', 13, None, None, (9, 10, 11, 12)),
+                                                              ('cmpeq', 13, 13, 1, None)])
+            m.count += 1                                # branch on equal digests
+            st = tuple(m.reg[9:13])
+            self.check_msg(st, idw, k)
+            if m.reg[13]:
+                same = True
+                for i in range(4):                      # word i equal? (branch out on the first difference)
+                    m.run([('cmpeq', 13, 9 + i, 5 + i, None)])
+                    m.count += 1
+                    if not m.reg[13]:
+                        same = False
+                        break
+                if not same:
+                    self.halted = ((st, cur), m.count - c0)
+                    raise Halt()
+                self.cand_same = getattr(self, 'cand_same', 0) + 1
+        m.run([('ld', 4, None, None, ('CNT', 0)), ('add', 4, 4, None, 1), ('st', None, 4, None, ('CNT', 0)),
+               ('cmplt', 4, 4, None, VCAP)])
+        m.count += 1                                    # branch: abort if CNT >= VCAP
+        if not m.reg[4]:
+            raise RuntimeError("candidate cap reached")
+        m.run([('ld', k, None, None, ('SAVE', k)) for k in range(NS)])
+        m.count += 1                                    # jump back to this site's insert
+        self.cand_ops.append(m.count - c0)
+        assert m.units - u0 == 3
+
+    def check_msg(self, words, n, k):
+        """A rebuilt message whose id names a message of this batch must be exact."""
+        beta, t, q = members(n)[k]
+        if beta != self.beta:
+            return
+        want = message(self.prefixes[slot_of(q)], gray(t), self.col)
+        got = b"".join(w.to_bytes(32, "little") for w in words)
+        if got != want:
+            raise RuntimeError("id decode / message rebuild wrong")
+        self.rebuilt_ok = getattr(self, 'rebuilt_ok', 0) + 1
+
+
+    def control(self):
+        m = self.m
+        m.reg[62] = (m.reg[62] + 1) & W            # add
+        s = m.reg[62]
+        lo, size, ops = 0, 32, 1
+        while size > 1:
+            half = size // 2
+            v = s & (((1 << half) - 1) << lo)      # andi
+            f = v == 0                             # cmpeq
+            ops += 3                               # + branch
+            if f:
+                lo += half
+            size = half
+        m.reg[0] = m.reg[1] = None                 # temporaries
+        m.count += ops
+        return lo
+
+    def step(self):
+        """One z-step; returns (leaf, ops) and checks every key."""
+        m = self.m
+        c0 = m.count
+        for a, n in SCRATCH_SIZES.items():
+            for i in range(n):
+                m.mem[LAYOUT[a] + i] = self.rng.getrandbits(256)
+        for k in range(62):
+            m.reg[k] = self.rng.getrandbits(256)
+        if self.t == 0 and m.reg[62] == 0 and not getattr(self, 'started', False):
+            leaf = None
+            code = self.leaves[None]
+        else:
+            leaf = self.control()
+            self.t += 1
+            if leaf != (self.t & -self.t).bit_length() - 1:
+                raise RuntimeError("control tree chose the wrong leaf")
+            code = self.leaves[leaf]
+        self.started = True
+        self.written = []
+        nc = len(self.cand_ops)
+        e0 = self.expect_cands
+        self.run_code(code)
+        if len(self.cand_ops) - nc != self.expect_cands - e0:
+            raise RuntimeError("candidate path count differs from TAG-high lookups")
+        m.count += 2                               # loop test: cmplt, branch
+        ops = m.count - c0 - sum(self.cand_ops[nc:])
+        self.check_step()
+        return leaf, ops
+
+    def run_code(self, code):
+        self.m.run(code)
+
+    def check_step(self):
+        t = self.t
+        z = gray(t)
+        if len(self.written) != 256:
+            raise RuntimeError("expected 256 inserts")
+        for q, (K, v) in enumerate(self.written):
+            n = id_of(self.beta, t, q)
+            if v != (self.tag << 128) + n:
+                raise RuntimeError("table word is not TAG*2^128 + n")
+            p = slot_of(q)
+            msg = message(self.prefixes[p], z, self.col)
+            want = ref.key_of_digest(int.from_bytes(sha3_256(msg, 6), "little"))
+            if K != want:
+                raise RuntimeError("key mismatch: t=%d q=%d" % (t, q))
+        self.keys_checked = getattr(self, 'keys_checked', 0) + 256
+
+
+class Halt(Exception):
+    pass
+
+
+N = 255 << 120
+VCAP = N * N // (1 << 141) + N * N // (1 << 148) + (1 << 91) + (1 << 61)
+
+
+
+def rebuild_addr_pair4(idr, ar, zr, tr):
+    """v7: pair id (beta*2^39 + t*2^7 + k; slot(2k) = 32*(k mod 8) + floor(k/8),
+    slot(2k+1) = slot(2k) + 16) in idr -> ar = PREF + 4*(256*(beta mod 2^88) +
+    slot(2k)), zr = gray(t); member 1 is at ar + 64.  beta is masked to 88 bits
+    (every real beta < 255*2^80 < 2^88), so a garbage id stays in
+    [PREF, PREF + 2^98).  idr is preserved."""
+    assert OPTS.get('w1') == 16
+    return [('shr', ar, idr, None, 29), ('andi', ar, ar, None, ((1 << 98) - 1) ^ 1023),   # 1024*beta
+            ('andi', tr, idr, None, 7), ('shl', tr, tr, None, 7), ('addr', ar, ar, tr, None),
+            ('shr', tr, idr, None, 1), ('andi', tr, tr, None, 60), ('addr', ar, ar, tr, None),
+            ('add', ar, ar, None, LAYOUT['PREF']),
+            ('shr', zr, idr, None, 7), ('andi', zr, zr, None, 0xFFFFFFFF),          # t
+            ('shr', tr, zr, None, 1), ('xor', zr, zr, tr, None)]                    # z = gray(t)
+
+
+def load_msg4(ar, mb, wr, zr, tr):
+    """v7: the 4 words of pair member mb at ar (+64 for mb = 1; ar advanced)
+    into registers wr; z XORed into the low halves of lanes 4 (word 1, bits
+    0..31) and 14 (word 3, bits 128..159)."""
+    c = [('add', ar, ar, None, 64)] if mb else []
+    c += [('ldr', wr[0], ar, None, 'mem'), ('add', tr, ar, None, 1), ('ldr', wr[1], tr, None, 'mem'),
+          ('add', tr, tr, None, 1), ('ldr', wr[2], tr, None, 'mem'),
+          ('add', tr, tr, None, 1), ('ldr', wr[3], tr, None, 'mem'),
+          ('xor', wr[1], wr[1], zr, None), ('shl', tr, zr, None, 128), ('xor', wr[3], wr[3], tr, None)]
+    return c
+```
+
+<!-- file: selftest.py sha256=75bc600ba1629dc555482ba69d3668298657cf055d4b3a23ac3ecb228c3c46cc -->
+```python
+"""Self-test of the counted program (proof.md Appendix A).
+
+    python3 selftest.py REPO_ROOT          # about 3-5 minutes, stdlib only
+
+REPO_ROOT is a checkout of the challenge repository: the reference hash is
+REPO_ROOT/verifier/keccak.py:sha3_256(m, 6) (imported by vkeccak.py).  Run it
+in a directory holding the files of Appendix A and the shipped experiment
+script experiments/s3r6_bitslice_birthday.py (the program's reference
+geometry, imported by ref.py).  The test
+
+ 1. rebuilds the message geometry (22-word supports, 499 patched words, 975
+    read words, 3..10 flips per leaf, storage polarity);
+ 2. generates and compiles all 33 straight-line bodies (t = 0 and leaves
+    j = 0..31) and prints every leaf's static count (body + 16 control + 2
+    loop test), the worst leaf and a SHA-256 of the compiled bodies;
+ 3. statically checks that each of the 33 x 256 table steps is the exact
+    hot path of proof Section 5.3 and that no other table access exists;
+ 4. runs every body once on the counted 64-register simulator (hostile
+    scratch memory and registers, adversarial never-written table words),
+    compares all 256 keys of every step with key_of_digest(sha3_256(m, 6)),
+    asserts that the measured count equals the static count, and checks the
+    maintained A2 / O2P against a rebuild from the prefixes;
+ 5. replays a z-step (256 genuine candidates, rebuilt messages exact),
+    forces the halting path, and reports the candidate costs;
+ 6. runs the counted batch-setup program and compares it with a reference.
+Any mismatch raises.  The printed worst-leaf count is the ops/z-step that
+proof Section 8 charges."""
+import hashlib
+import json
+import os
+import sys
+import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+if len(sys.argv) < 2:
+    sys.exit(__doc__)
+sys.path.insert(1, os.path.abspath(sys.argv[1]))           # verifier/keccak.py
+
+import gen                                                  # noqa: E402
+import ir                                                   # noqa: E402
+import machine                                              # noqa: E402
+import ref                                                  # noqa: E402
+import setup_gen                                            # noqa: E402
+
+COL = (4, 14)
+OPTS = {"lastmode": "block", "lr_scratch": False, "w1": 16, "pair": True, "starts": list(ref.STARTS)}
+EXPECT = {"worst": 31176, "sha256": "b15132cad007cf188b3576c7f85a06340a440e9adec5a6ed7a98324ef14789bc"}   # proof Section 8
+
+
+def canon(leaves):
+    h = hashlib.sha256()
+    for j in [None] + list(range(32)):
+        h.update(json.dumps([j, leaves[j]], separators=(",", ":")).encode())
+    return h.hexdigest()
+
+
+def static_table_check(leaves):
+    """Each table step is ldr w,[K]; xor x,w,C; cmplt f,x,2^128; br f,w,(q mod 2);
+    str [K],C; and add C,C,1 after odd q only; no other table access, branch,
+    compare or write of the persistent registers 62 (s), 63 (C) exists."""
+    for j, code in leaves.items():
+        steps, k = 0, 0
+        while k < len(code):
+            op, d, a, b, imm = code[k]
+            if op == 'ldr' and imm is None:
+                w, K = d, a
+                x, f, br, st = code[k + 1:k + 5]
+                assert x[0] == 'xor' and {x[2], x[3]} == {w, 63} and x[1] not in (w, K, 62, 63), (j, k)
+                assert f[0] == 'cmplt' and f[2] == x[1] and f[4] == 1 << 128 and f[1] not in (w, K, 62, 63), (j, k)
+                assert br[0] == 'br' and br[2] == f[1] and br[3] == w and br[4] == steps & 1, (j, k)
+                assert st[0] == 'str' and st[2] == K and st[3] == 63 and st[4] is None, (j, k)
+                if steps & 1:
+                    assert code[k + 5] == ('add', 63, 63, None, 1), (j, k)
+                    k += 6
+                else:
+                    k += 5
+                steps += 1
+                continue
+            assert op not in ('ldr', 'str', 'br', 'cmplt') and d not in (62, 63), (j, k, code[k])
+            k += 1
+        assert steps == 256, (j, steps)
+
+
+def run_setup(pi, seed):
+    """Counted batch setup (proof Section 5.1) against the reference: prefix
+    constraints, A2 (polarity pi), O2P and the delta-swap masks."""
+    import random
+    M64, lay = (1 << 64) - 1, machine.LAYOUT
+    B = setup_gen.build_setup(COL, pi, lay['PREF'])
+    code, hw, tags = ir.compile_block(B.ins, B.tags)
+    m = ir.Machine(lay)
+    m.rng = random.Random(seed)
+    beta = seed * 977
+    m.reg[63] = (random.Random(seed).getrandbits(128) << 128) + machine.id_of(beta, 0, 0)
+    m.run(code)
+    pref = []
+    for p in range(256):
+        b = b"".join(m.mem[lay['PREF'] + 4 * (256 * beta + p) + w].to_bytes(32, 'little') for w in range(4))
+        L = [int.from_bytes(b[8 * i:8 * i + 8], 'little') for i in range(16)]
+        c4, c1 = L[4] ^ L[9] ^ L[14], L[1] ^ L[6] ^ L[11] ^ machine.PAD16
+        assert L[5] == L[15] == c4 ^ machine.rotl64(c1, 1) and L[8] == 0
+        assert L[12] == M64 ^ machine.rotl64(c4, 1) ^ L[2] ^ L[7]
+        pref.append(L)
+    assert len({tuple(L) for L in pref}) == 256
+    A2 = machine.a2_of(pref, 0, COL)
+    O2P = ref.build_o2p(A2)
+    for i in range(1600):
+        assert m.mem[lay['A2'] + i] == A2[i] ^ (ir.W if i in pi else 0) and m.mem[lay['O2P'] + i] == O2P[i]
+    for d in (1, 2, 4, 8, 16, 32, 64, 128):
+        assert m.mem[lay['MASK'] + d] == ref.MASKD[d] and m.mem[lay['MASK'] + 256 + d] == ir.W ^ ref.MASKD[d]
+    return len(code), hw, m.count
+
+
+def main():
+    t0 = time.time()
+    machine.set_opts(OPTS)
+    geo = gen.Geometry(COL)
+    reads = set().union(*[p[2] for p in geo.P])
+    assert all(len(gen.a2_support(COL, j)) == 22 for j in range(32))
+    assert {len(p[0]) for p in geo.P} == {499} and len(reads) == 975
+    assert (min(map(len, geo.flips)), max(map(len, geo.flips))) == (3, 10)
+    assert geo.pi == ref.PI, "storage polarity differs from the experiment's PI"
+    print("geometry: 22-word supports, 499 patched words, 975 read words, flips 3..10, |pi| = %d (%.0fs)"
+          % (len(geo.pi), time.time() - t0), flush=True)
+    leaves, count = {}, {}
+    for j in [None] + list(range(32)):
+        B = gen.build_leaf(geo, j, OPTS)
+        code, hw, tags = ir.compile_block(B.ins, B.tags)
+        assert hw <= 62, (j, hw)
+        leaves[j] = code
+        count[j] = len(code) + (18 if j is not None else 2)
+    worst = max(range(32), key=lambda j: (count[j], j))
+    digest = canon(leaves)
+    print("static counts (ops per z-step incl. control 16 + loop test 2):",
+          " ".join("%d:%d" % (j, count[j]) for j in range(32)))
+    print("t = 0 body %d; leaves %d..%d; WORST leaf %d = %d ops per z-step; bodies sha256 %s (%.0fs)"
+          % (count[None], min(count[j] for j in range(32)), count[worst], worst, count[worst], digest,
+             time.time() - t0), flush=True)
+    assert EXPECT["worst"] == count[worst] and EXPECT["sha256"] == digest, "differs from the proof"
+    static_table_check(leaves)
+    print("static table check: 33 x 256 exact hot paths", flush=True)
+
+    Run = machine.Run
+    measured = {}
+
+    def state_check(r):
+        A2 = machine.a2_of(r.prefixes, machine.gray(r.t), COL)
+        O2P = ref.build_o2p(A2)
+        lay = machine.LAYOUT
+        assert all(r.m.mem[lay['A2'] + i] == A2[i] ^ (ir.W if i in geo.pi else 0) for i in reads)
+        assert all(r.m.mem[lay['O2P'] + i] == O2P[i] for i in range(1600))
+    keys = 0
+    r = Run(leaves, COL, seed=1, beta=7, t0=0, garbage="adv", pi=geo.pi)
+    leaf, ops = r.step()
+    assert leaf is None and ops == count[None], (ops, count[None])
+    keys += 256
+    cands = set()
+    for j in range(32):
+        r = Run(leaves, COL, seed=100 + j, beta=j, t0=(1 << j) - 1 if j else 2,
+                garbage=("adv", "random", "ones", "zero")[j % 4], pi=geo.pi)
+        leaf, ops = r.step()
+        assert leaf == j and ops == count[j], (j, ops, count[j])
+        assert r.expect_cands == len(r.cand_ops)
+        cands |= set(r.cand_ops)
+        measured[j] = ops
+        state_check(r)
+        keys += r.keys_checked
+    print("simulator: every leaf run once, %d keys equal key_of_digest(sha3_256(m, 6)); measured == static on all"
+          " 33 bodies; A2/O2P equal a rebuild after every leaf (%.0fs)" % (keys, time.time() - t0), flush=True)
+    for reset in (True, False):
+        r = Run(leaves, COL, seed=17 + reset, beta=6, t0=0, garbage="ones", pi=geo.pi)
+        for _ in range(3):
+            r.step()
+        m = r.m
+        m.reg[62] -= 1
+        if reset:
+            m.reg[63] -= 2 * 128
+        before = len(r.cand_ops)
+        leaf = r.control()
+        r.written = []
+        m.run(leaves[leaf])
+        new = r.cand_ops[before:]
+        assert len(new) == 256
+        cands |= set(new)
+    r = Run(leaves, COL, seed=13, beta=9, t0=0, garbage="adv", pi=geo.pi, hashfn=lambda msg: b"\0" * 32)
+    try:
+        for _ in range(3):
+            r.step()
+        raise RuntimeError("halt path not taken")
+    except machine.Halt:
+        halt_ops = r.halted[1]
+    print("candidates: replayed z-steps gave 2 x 256 genuine candidates with exact rebuilds; continue costs %s ops,"
+          " (3 units each), forced halt %d ops" % (sorted(cands), halt_ops), flush=True)
+    n, hw, cnt = run_setup(geo.pi, 5)
+    print("batch setup: %d ops, %d registers, equal to the reference (%.0fs)" % (cnt, hw, time.time() - t0))
+    print(json.dumps({"worst_leaf": worst, "ops_per_z_step": count[worst], "t0": count[None],
+                      "bodies_sha256": digest, "cand_ops_max": max(cands), "halt_ops": halt_ops,
+                      "setup_ops": cnt}))
+
+
+if __name__ == "__main__":
+    main()
+```
+
+## Appendix B. Pre-registration of our runs (verbatim)
+
+The file `PREREG.json` exactly as hashed on 2026-10-07 at 09:50:10Z
+(SHA-256 `931e662ae5f21abafca60fe829dd769ec1df36f82a6188138fdbb4c9a09ead54`, 2497 bytes). Its `exp7/` paths are
+our build directory: `exp7/s3r6_bitslice_birthday.py` is the shipped
+`experiments/s3r6_bitslice_birthday.py`, and its `manifest_sha256` is the
+hash of the manifest file bytes (Section 10.3). Runs after it are listed
+in Section 10.3, including those not planned here (S2 and the review
+committee runs). "Before any trial of this family" there means our own
+trials: 5kyguy's organizer trials of the family (6e715d9a) came earlier
+and were not used to choose anything here.
+
+```json
+{
+ "created_utc": "2026-10-07T09:50:01+00:00",
+ "purpose": "Pre-registration of every experiment run of the v7 (128-byte family) package, fixed before any trial of this family was run. Earlier runs of this script: none. Exactness checks before this file (no trials, no success counts): evalcheck a (59,840 keys) and b (16,320 keys) vs verifier sha3_256(m, 6).",
+ "script": "exp7/s3r6_bitslice_birthday.py",
+ "script_sha256": "c5d0dd9b4300ec29eff8aced9e0873c5aab3cc0f9298918e8b448162c17d5edb",
+ "manifest_sha256": "6fb0a610bb703bc1f6f0f2812e432417adecda9793500905847b10ccb85ce9e1",
+ "experiments": [
+  {
+   "id": "k6r6-ls128-full-width",
+   "mask_hex": "1f00000000000000000e0300000000000000c00300000000000000e001000000"
+  },
+  {
+   "id": "k6r6-ls128-spread",
+   "mask_hex": "0000c7000000000000000000e01100000000000000f0000000000000e0010000"
+  },
+  {
+   "id": "k6r6-ls128-single-group",
+   "mask_hex": "000000000000403c000000000000403c000000000000003c000000000000003c"
+  },
+  {
+   "id": "k6r6-ls128-high-z",
+   "mask_hex": "000000e0210000000000000000f0080000000000000078000f00000000000000"
+  }
+ ],
+ "inherited": "Layouts (256x2, 16x32, 1x512, 4x128 with z << 25), the 18-bit masks and N_t = 2^9 are bs4's (949c283b), unchanged; only the message family, prefix label (s3r6-ls128-v1), PI and start planes changed.",
+ "runs": [
+  "R1: organizer-runner replay (experiments/runner.py, Docker replaced by a local python3 -I subprocess), seed hashsmash-public-seed-v1, holdout_nonce null, 256 trials per experiment.",
+  "R2-R4: the same with holdout nonces H1, H2, H3, each secrets.token_hex(16) drawn after this file's SHA-256 is recorded, in that order; recorded in exp7/runlog.jsonl.",
+  "R5: local statistics, --local mode, 48 chunks x 256 trials per layout, seed labels v7stat-<layout>-c<k>, k = 0..47.",
+  "S: sabotage run of exp7/sabotage.py (16 spread trials per mutation; only caught/not caught is used)."
+ ],
+ "analysis": "Per run and layout and for the pooled R1-R5 counts: successes, exact two-sided Clopper-Pearson intervals at 95% and at the Bonferroni level 1 - 0.05/24 (24 = 4 layouts x 5 runs + 4 pooled), exact two-sided binomial p-value against the uniform-model value 0.393074 (Bonferroni threshold 0.05/24); masked-pair mean and variance/mean ratio (uniform model: mean 0.499, ratio about 1).",
+ "commitments": "No parameter, mask, layout, seed label or trial count is changed after any result; every run is listed (including failed or aborted ones); no run is repeated or dropped."
+}
+```
