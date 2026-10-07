@@ -1,4 +1,21 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "published-31step-pair",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/published-31step-pair-a.bin",
+      "message_b": "certificates/published-31step-pair-b.bin",
+      "expected_digest": "55fdfb37efcbd086e19c3de0f72596300a3acdf48da5b1d0450a592bb2869fcd",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "relaxed-run-1",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/relaxed-run-1-a.bin",
+      "message_b": "certificates/relaxed-run-1-b.bin",
+      "expected_digest": "e9b8143268fa37c004f13d5868da2fb79e18dab74a90d979d6e105891d7470cc",
+      "target_profile": "sha256-r31-prefix-v1"
+    }
+  ]
 }

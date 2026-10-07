@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "r31-completion",
+      "kind": "python-message-pairs-v1",
+      "scope": "Step O5 (completion) of algorithm A on fixed accepted matches: the prefixes of the run-found pairs and the published match. Each organizer seed drives the E13/E15 draws through SHAKE-256; caps L13 = 2^14, L15 = 2^8.",
+      "hypothesis": "For an accepted match, step O5 completes within the caps for nearly every seed, so kappa is close to 1. Every returned pair is a distinct full sha256-r31 collision.",
+      "program": "experiments/completion.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}

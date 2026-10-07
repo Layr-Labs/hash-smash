@@ -5,23 +5,107 @@
   "attack_class": "ordinary-collision",
   "rounds": 31,
   "lane": "exploratory",
+  "baseline_improved": "sha256-r31-nominal-v2",
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 39.65,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 32,
+    "preprocessing_log2": 38.33,
+    "success_probability": 0.4,
+    "nonuniform_advice_log2_bytes": 11
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Target sha256-r31-prefix-v1 exactly: SHA-256 steps 0..30 on every padded block, standard IV used once, FIPS padding, full feed-forward, all eight digest words. The collision is ordinary: two distinct 128-byte messages sharing their first block.",
+    "The scored program is the randomised algorithm A of proof.md Section 7. It tries N = 507124908032 first blocks and succeeds with probability >= 0.4 (Section 8). It is not a replay.",
+    "A runs no search for its advice. It uses the ASIACRYPT 2024 31-step trail and one starting solution (N_start = 1) read off the published pair, and their construction is charged as fixed allowances C0 (2^38) and C1 (2^36) under heuristics H1 and H2.",
+    "The only change to the source attack is the relaxed W20 condition R20: the s0-difference of W5 and the s1-difference of W18 need only cancel, not take the trail's fixed values (proof.md Section 5).",
+    "Ledger total 2^39.6429. Every premise is declared as a heuristic: H1-H5 score-critical, H6-H7 supporting.",
+    "Memory is a reported metric only. baseline_improved names the organizer reference and does not assert an improvement over any submitted score."
   ],
-  "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-trail-cost",
+      "statement": "Constructing the 31-step trail of proof.md Section 4, which algorithm A receives as advice (ledger line C0), costs at most 2^38 target-compression units.",
+      "role": "score-critical",
+      "scope": "This one published trail. It covers the trail search only, not attacks on other step counts.",
+      "extrapolation": "A public re-run of the authors' open-source four-stage search for this trail used 16,580.78 CPU-seconds over 29 solver calls. That is 2^36.60 units at 2^22.58 units per CPU-second, or 2^37.90 at a 6-IPC, 5.5 GHz instruction ceiling; 2^38 is above both.",
+      "evidence_ids": [
+        "proof:350-358",
+        "proof:323-347"
+      ],
+      "limitations": "Third-party measurement, not an organizer trace. The authors' original exploration may have covered more trails than the re-run."
+    },
+    {
+      "id": "H2-start-cost",
+      "statement": "Constructing the starting solution S of proof.md Section 3, which algorithm A receives as advice (ledger line C1), costs at most 2^36 units.",
+      "role": "score-critical",
+      "scope": "One starting solution for this trail, including any selection among the authors' roughly 54 starting points.",
+      "extrapolation": "A public re-run reports 178.4 CPU-seconds for one comparable starting-solution solve, which is 2^30.06 units. 2^36 covers 61 such solves, more than the whole set behind the authors' 2^19.8-record table.",
+      "evidence_ids": [
+        "proof:359-365",
+        "proof:60-91"
+      ],
+      "limitations": "Third-party measurement for a comparable, not identical, solver instance."
+    },
+    {
+      "id": "H3-random-cv",
+      "statement": "For the distinct first blocks of step O1, the 31-step chaining values behave as independent uniform 256-bit values. This gives (a) an expected rho = 16896/2^32 matched records per trial, (b) through Lemma 7.1, independent uniform (W6, W5, c18) after a match, and (c) independent trial outcomes.",
+      "role": "score-critical",
+      "scope": "Algorithm A with the 16896-record table of proof.md Section 6, for the trial counts used (up to N).",
+      "extrapolation": "The run of 2^40.62 trials measured matched records per trial, the V6 rate and the R20 rate. All agree with the predictions 2^-17.958, 2^-9 and 2^-12.662 (proof.md Section 8.2). Chi-square tests of (W6, W5, c18, V6) on real matched records, one per trial, show no dependence (all |z| < 1.7). A cluster model gives c = 0.001 for further R20 passes in the same trial, and a synthetic check under the premise reproduces the joint rate (Sections 8, 8.2-8.3).",
+      "evidence_ids": [
+        "proof:236-246",
+        "proof:275-312"
+      ],
+      "limitations": "A standard random-function premise for 31-step SHA-256 outputs. It is not proved; finite runs cannot rule out small correlations."
+    },
+    {
+      "id": "H4-pany",
+      "statement": "The probability that a matched record passes the relaxed R20 test is at least 2^-12.851. This is the smaller of the model value P_any (proof.md Section 5.3, 99% lower bound 2^-12.663) and the 99% lower bound measured on the real process.",
+      "role": "score-critical",
+      "scope": "The fixed quantity P_any for d5, d18 and G16 of this trail.",
+      "extrapolation": "Real run: 982 R20 passes in 6658886 matched records. Model: exhaustive histogram of the s0-differences combined with 268,435,452 uniform c18 samples, mean 2^-12.662, 99% lower bound 2^-12.663. The two agree.",
+      "evidence_ids": [
+        "proof:167-177",
+        "proof:272-274"
+      ],
+      "limitations": "A sampled estimate of a finite exact value, not the exact value. It uses a normal approximation for the bound."
+    },
+    {
+      "id": "H5-completion",
+      "statement": "Step O5 completes an accepted match within the caps L13 = 2^14 and L15 = 2^8 with probability at least kappa = 0.99999.",
+      "role": "score-critical",
+      "scope": "Accepted matches of algorithm A for this starting solution.",
+      "extrapolation": "The run completed 982/982 R20-passing records (with wider caps). The synthetic check completed 902232/902232 with exactly the O5 caps. The organizer experiment r31-completion runs O5 on fixed accepted matches for 256 organizer seeds.",
+      "evidence_ids": [
+        "proof:313-316",
+        "proof:317-322"
+      ],
+      "limitations": "kappa is a binomial 99% lower bound from finite samples."
+    },
+    {
+      "id": "H6-op-counts",
+      "statement": "The word-operation bounds of proof.md Section 9 cover the specified loops: per trial at most 32 operations besides the compression, per matched record at most 400 (+1600 after V6), per accepted match at most L13*80 + L13*L15*80.",
+      "role": "supporting",
+      "scope": "Algorithm A as specified in proof.md Section 7.",
+      "extrapolation": "These are counts of the listed operations (counter, bitmap index and test, binary search, the O3 formulas, the R20 loop over 64 values, and the O5 draws and checks), each with at least 2x margin.",
+      "evidence_ids": [
+        "proof:323-347"
+      ],
+      "limitations": "Counted by hand from the specification, not from an organizer-model trace."
+    },
+    {
+      "id": "H7-memory",
+      "statement": "Peak memory over preprocessing and the online phase is below 2^32 bytes.",
+      "role": "supporting",
+      "scope": "Construction steps C0/C1 (solver), P1/P2, and A's online loop.",
+      "extrapolation": "The online state is under 2^22 bytes (the records, a 2 MiB bitmap, the sets and the code). The C0/C1 solver peak is the 2.13 GiB (2^31.09 bytes) of the public re-run, with solver calls run one at a time.",
+      "evidence_ids": [
+        "proof:391-395"
+      ],
+      "limitations": "The solver peak is taken from a third-party run."
+    }
+  ]
 }
