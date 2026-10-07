@@ -5,23 +5,85 @@
   "attack_class": "ordinary-collision",
   "rounds": 31,
   "lane": "exploratory",
+  "baseline_improved": "sha256-r31-nominal-v2",
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 38.97,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 22.25,
+    "preprocessing_log2": 38.96,
+    "success_probability": 1,
+    "nonuniform_advice_log2_bytes": 9
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Target sha256-r31-prefix-v1 exactly: SHA-256 steps 0..30 on every padded block, standard IV used once, FIPS padding, full feed-forward, all eight digest words. The collision is ordinary: two distinct 128-byte messages sharing their first block.",
+    "The scored program is a deterministic replay of one stored, organizer-verified pair, with success probability 1. The pair was produced by our own construction K, fixed in advance and executed once.",
+    "Total time is the worst-case cap of K' (K with hard caps: N_B = 526452260864 trials and caps on every inner event) plus the 6.36-unit replay: 2^38.9595 units, valid on every run. The committed execution of K found the stored pair at trial 30706544944, inside every cap; that realised cost is not claimed.",
+    "K uses the published ASIACRYPT 2024 trail and published pair as public algorithm text (H1-public-text). Its own change is the relaxed W20 condition R20: the s0-difference of W5 and the s1-difference of W18 need only cancel, and the stored pair uses values different from the trail's.",
+    "Memory is a reported metric only. baseline_improved names the organizer reference and does not assert an improvement over any submitted score."
   ],
-  "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-public-text",
+      "role": "score-critical",
+      "statement": "The published 31-step signed trail and the published colliding pair (ASIACRYPT 2024) are public algorithm text that construction K' may use without charging their original discovery. K' charges the derivation of its starting solution from that pair (2 compressions) and every operation of its own steps.",
+      "scope": "This trail and pair, used as inputs to K' for the sha256-r31 target. It does not cover any other search.",
+      "extrapolation": "The trail and pair are printed in the cited publication, and the authors' search tool is public and pinned (Peace9911/sha_2_attack@6a9f35fd). Earlier submissions on this track reused the published trail under the same convention.",
+      "evidence_ids": [
+        "proof:316-328",
+        "proof:97-170"
+      ],
+      "limitations": "If a reviewer charges the original trail or starting-solution search, the total rises by that amount. With a 2^38 allowance it would be 2^39.558."
+    },
+    {
+      "id": "H2-op-accounting",
+      "role": "score-critical",
+      "statement": "The per-event charges of proof.md Section 9 bound the 256-bit word operations of each capped step of K': 1 compression + 32 ops per trial, 1 compression + 64 ops per bitmap hit, 400 per matched record, 1600 per V6 pass, 160 per completion iteration, 200 per completion setup, 6 compressions + 64 ops per hashed candidate, and 1 unit per group.",
+      "scope": "Construction K' exactly as specified, with every event count at its hard cap.",
+      "extrapolation": "Each bound counts the listed operations with at least 2x margin. Each trial is charged a full 31-step compression, although K shares steps 0..14 within a group.",
+      "evidence_ids": [
+        "proof:181-250",
+        "proof:278-306",
+        "proof:329-340"
+      ],
+      "limitations": "Hand counts from the specification, not an organizer-model instruction trace. The trial term dominates; doubling every other charge changes the total by less than 0.01 bits."
+    },
+    {
+      "id": "H3-prospective-route",
+      "role": "score-critical",
+      "statement": "The construction charged is K', fully specified and executed once with a committed seed. Earlier research runs that informed its design (disclosed in proof.md Section 11) are not summed into the construction cost.",
+      "scope": "The single committed execution of K that produced the stored pair.",
+      "extrapolation": "The seed, the program hash and the rules were committed before the run (proof.md Section 8). Earlier runs only determined K's design and N_B; K' does not use their outputs. Earlier submissions on this track used the same convention.",
+      "evidence_ids": [
+        "proof:181-250",
+        "proof:251-277",
+        "proof:345-354"
+      ],
+      "limitations": "If a reviewer summed the earlier runs (mainly one 2^40.625-trial run), the total would be about 2^41.116."
+    },
+    {
+      "id": "H4-memory",
+      "role": "supporting",
+      "statement": "The peak memory of K' is at most 2^22.25 bytes.",
+      "scope": "The committed execution of K, which has the same transcript as K', and the replay.",
+      "extrapolation": "The whole-process maximum resident set size measured by /usr/bin/time -l was 4702208 bytes, covering code, tables, sets, thread stacks and allocator state. The caps add only counters.",
+      "evidence_ids": [
+        "proof:251-277",
+        "proof:307-313"
+      ],
+      "limitations": "Resident set size is the operating system's measure of touched pages."
+    },
+    {
+      "id": "H5-budget-rationale",
+      "role": "supporting",
+      "statement": "On a fresh seed, K' succeeds with probability at least 0.40 at budget N_B. This motivates N_B; the claimed time bound does not depend on it.",
+      "scope": "Fresh runs of K' with the published starting solution.",
+      "extrapolation": "Rates are 99% lower bounds measured in the 2^40.625-trial run (records, V6, R20; completion 982/982). The product uses Lemma A (W6, W5 and c18 are bijections of independent CV1 words), with a (1 - 2^-8) correction for records sharing a key. Cap failures are bounded by Chernoff and Markov.",
+      "evidence_ids": [
+        "proof:355-368"
+      ],
+      "limitations": "It rests on the random-CV1 premise and finite measurements. If it is wrong, the score represents a less typical budget, but the claimed bound still holds for the construction actually charged."
+    }
+  ]
 }

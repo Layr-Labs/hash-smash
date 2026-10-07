@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "r31-completion",
+      "kind": "python-message-pairs-v1",
+      "scope": "A tighter variant of completion step K5 (cell-respecting E13/E15 draws, caps 2^14 and 2^8) on fixed accepted matches: the prefix of the stored pair, of relaxed-run-1, and of the published match. Each organizer seed drives the E13/E15 draws through SHAKE-256.",
+      "hypothesis": "For these accepted matches the completion step succeeds for each organizer seed, and every returned pair is a distinct full sha256-r31 collision.",
+      "program": "experiments/completion.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
