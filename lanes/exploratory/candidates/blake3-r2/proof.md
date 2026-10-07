@@ -1,54 +1,81 @@
-# A staged two-level S8 search on the 55/63-byte half-collision of 2-round BLAKE3, with a sampled bound on the stage-B share
+# A staged two-level S8 search on the 55/63-byte half-collision of 2-round BLAKE3, with X14 = 0 and a stage-B premise of 0.545 p_B from a sample of independent uniform batches
 
 The scalar below is `time_log2` under `collision-frontier-v5` (C = 430).
 
-**Credits.** The search, its counted program and almost all of this text
-are those of **winglock**'s submission 098e66f4 (94.45), which is public,
-AI-screened, in review and not promoted. **winglock**, **Jbenisek**,
-**tekkac** and **Th0rgal** are co-authors of this submission. 098e66f4 is
-built on two submissions of Jbenisek. From c66f230d (co-author tekkac):
-the 55/63-byte length cancellation, the six pinned constants, Lemmas L and
-H, the class of Y4 (eta = 830303cf), rule A and Lemma N. From 60f94c5c:
-the three-level construction (steps O, M, Y and T of Section 2: an outer
-step of six words, the middle word X2, the member y), the table of member
-values that is built once per outer step and reused for all 2^32 values of
-X2, and the **staged batch**: a cheap rule-A test after C2 for every batch,
-the rest of the batch only for batches in which some lane passes, and a
-budget on the number of such batches that halts the run. Building
-member-dependent values once per outer step was first published by Th0rgal
-in df8bd46d. The seven 36-bit lanes and the masked rotation are from ticket
-2bf40fb (tekkac); the complement propagation follows 8c81a219 (Th0rgal).
-winglock's (18a7fc52, d26a3c5f, 2bb5d604 and 098e66f4): the sub-class S8,
-the beta filter and Lemma B, Lemmas D and D', the exact S8 count, the block
-accumulator and the branch-free 64-register residual computation (stage C),
-the beta filter as the test of a second stage, a fresh random word for every
-outer step, the exact model values of the two stage events, budgets whose
-overrun probability is bounded by a Chernoff bound (Theorem 2), the uniform
-sample of Section 8.2 and every measurement of Sections 6, 8.1 and 8.2 that
-is not marked as this package's. In the text taken over from 098e66f4,
-"we" and "our" refer to its authors. 098e66f4 does not use the sub-class,
-the eight-condition rule, the E1 test stage or the budget premises of
-60f94c5c, and neither does this package.
+**Credits.** This package is Subflatus3's revision of winglock's 2125212
+(94.1982): its counted program, construction and almost all of its text
+are 2125212's, and only the stage-B premise and budget, with the sample
+that supports them (Section 8.3), are new. winglock, Jbenisek, tekkac,
+Th0rgal and leech1996 are co-authors of this submission. From Jbenisek's
+c66f230d (co-author tekkac): the 55/63-byte length cancellation, the six
+pinned constants, Lemmas L and H, the class of Y4 (eta = 830303cf), rule A
+and Lemma N. From Jbenisek's 60f94c5c: the three-level construction (steps
+O, M, Y and T of Section 2: an outer step of six words, the middle word
+X2, the member y), the table of member values that is built once per outer
+step and reused for all 2^32 values of X2, and the **staged batch**: a
+cheap rule-A test after C2 for every batch, the rest of the batch only for
+batches in which some lane passes, and a budget on the number of such
+batches that halts the run. Building member-dependent values once per
+outer step was first published by Th0rgal in df8bd46d. The seven 36-bit
+lanes and the masked rotation are from ticket 2bf40fb (tekkac); the
+complement propagation follows 8c81a219 (Th0rgal). From winglock's
+18a7fc52, d26a3c5f, 2bb5d604 and 098e66f4: the sub-class S8, the beta
+filter and Lemma B, Lemmas D and D', the exact S8 count, the block
+accumulator, the branch-free 64-register residual computation (stage C),
+the beta filter as the stage-B test, a fresh random word per outer step,
+the exact model values of the two stage events and the Chernoff bound on
+the budgets (Theorem 2). From winglock's 2125212: the fixed coin D3.d1 =
+X3, so X14 = 0 and stage A has 28 operations, the program of this package,
+its 41 replays and a preregistered uniform sample of that configuration
+(Section 8.2). From Subflatus3's 52bb50ee (94.25): the stage-B premise
+0.60 p_B with the budget 0.61 p_B, the lower-tail Chernoff bound (Lemma
+C') as the decision rule for a premise, and a 2^39-trial sample of the
+098e66f4 configuration. From leech1996's 5266c5ce (94.24): a stage-B
+budget just above the premise (0.6001 p_B over 0.60 p_B, delta = 1/6000 in
+Theorem 2). The sub-class, the eight-condition rule, the E1 test stage and
+the budget premises of 60f94c5c are not used.
 
-**What this package changes (Subflatus3).** One constant of the algorithm
-and one premise. The stage-B budget E_B falls from 1.02 p_B to 0.61 p_B
-batches per batch, and the stage-B part of H1 (ii) falls from 1.01 p_B to
-0.60 p_B, with p_B = 0.1992628 the exact value of the stage-B event under
-the seven-word model M (Section 8.2). Everything else is 098e66f4: the
-construction, S8, rule A, the filter, the counted pieces and their
-operation counts, the stage-C budget, H1 (i), F, lambda, N and the
-success bound. The real stage-B share of the run lies far below p_B,
-because rule A clusters by context. 098e66f4's uniform sample gives
-0.54629 +- 0.00047 of p_B. An independent, preregistered uniform sample
-made for this package (Section 8.3: own program, own cross-check against a
-forward compression and `verifier/blake3.py`, 65,536 outer steps, 2^39
-trials) gives 0.54644 +- 0.00023 of p_B. If the run average were 0.60 p_B or
-more, a sample mean this low would have probability below 3 * 10^-14
-(Lemma C', proved here), and an empirical Bernstein bound puts the run
-average below 0.5567 p_B at confidence 1 - 2^-64. The charge per trial
-falls from 6.3408 to 5.4887 operations, and the claim falls from 94.45 to
-**94.25**. The program is 098e66f4's with only the two ledger constants and
-its credit docstring changed (Section 6).
+**New in this version (Subflatus3).** The stage-B part of H1 (ii) is
+lowered from 0.60 p_B to **0.545 p_B** and the stage-B budget from 0.6001
+p_B to **0.5451 p_B** (delta = 1/5450 in Theorem 2; overrun bound
+exp(-7.9 * 10^6)). The support is a new preregistered sample (Section 8.3)
+of 2^34 batches, each drawn independently and uniformly from all
+V * 2^64 * 9,363 batches of the run. The stage-B indicator of such a draw
+is a Bernoulli variable whose mean is exactly the run average that H1 (ii)
+bounds, so Lemma C' applies to the 2^34 draws directly, with no
+[0, 1]-range loss from averaging inside an outer step. The sample gives
+0.53929 p_B (2125212's sample of the same configuration: 0.53912 +-
+0.00022), and Lemma C' bounds the probability of so low a count, if the run
+average were 0.545 p_B or more, by exp(-102,356). The same sample of the
+098e66f4 configuration (random D3.d1) gives 0.54663 p_B, in line with
+the three earlier samples of it. Only PREMISE[0] and BUDGET[0] of the
+program's ledger and its docstring change; no experiment reads them.
+
+**Earlier changes, kept here.** 2125212 changed 098e66f4 (94.45) in
+two ways; the rest (S8, N, the count, the event good, F, lambda, the three
+stages, stage C's budget) is unchanged by 2125212 and by this version.
+
+- **D3.d1 = X3 (2125212).** D3.d1 was one of the four coin words. It is
+  now the constant X3, so X14 = ROR(D3.d1 ^ X3, 8) = 0 for every outer
+  step and C2's d1 = ROR(a1 ^ X14, 16) = ROR(a1, 16) needs no XOR: stage A
+  falls from 29 to 28 operations per batch (the outer step from 340 to
+  318). Theorem 1 holds for all eight words, so this is a restriction of
+  the coins, not a change of the construction; the trials, N and their
+  distinctness are as before, and the random word of each outer step still
+  supplies vc, S15 and S9. The distribution of the stage events changes
+  with it, so 2125212 measured them again on this configuration (Section
+  8.2): stage-B share 0.53912 +- 0.00022 of p_B (control with random
+  D3.d1: 0.54663), rule A with the filter 1.00007 * 2^-11; the E1 events
+  of Section 8.1 keep their rates.
+- **Stage-B premise and budget.** 098e66f4 asserted 1.01 p_B and charged
+  1.02 p_B although its own sample gave 0.546 p_B. 52bb50ee lowered these
+  to 0.60 p_B and 0.61 p_B (delta = 1/60 in Theorem 2); 5266c5ce lowered
+  the budget alone to 0.6001 p_B (delta = 1/6000); 2125212 used 0.60 p_B
+  and 0.6001 p_B. This version uses 0.545 p_B and 0.5451 p_B (above).
+
+The charge per trial falls from 6.3408 (098e66f4), 5.4887 (52bb50ee),
+5.4682 (5266c5ce) and 5.3253 (2125212) to 5.2110, and the claim from
+94.45, 94.25, 94.24 and 94.1982 to **94.1670**.
 
 **Exact part.** For every choice of eight 32-bit words the construction gives
 a 55-byte message A and a 63-byte message B whose complete 2-round digests
@@ -56,8 +83,9 @@ agree on digest words 0, 2, 5 and 7 (Theorem 1). One of the eight words is
 the round-1 state word Y4; the search keeps Y4 in S8. The stage tests are
 exact: stage A passes a lane iff its trial satisfies rule A (Lemma A'),
 stage B iff it satisfies rule A and the filter (Lemma F), and stage C
-computes the residual exactly (Lemmas D, D'). Given H1 (ii), each budget
-is exceeded with probability below exp(-2.3 * 10^9) (Theorem 2, a
+computes the residual exactly (Lemmas D, D'). Given H1 (ii), the budgets
+are exceeded with probability below exp(-7.9 * 10^6) (stage B) and
+exp(-2.3 * 10^9) (stage C) (Theorem 2, a
 Chernoff bound over independent outer steps; no independence inside an
 outer step, a context or a batch is used).
 
@@ -65,29 +93,13 @@ outer step, a context or a batch is used).
 N = 2^100.53). H1 (i) assumes a trial is *good* (R = 0, rule A, beta
 filter) with probability at least F * 2^-128, F = 92,675,072 = 2^26.4657,
 half of the exact model count 185,350,144 (Section 8; `python3
-experiments/s8stage.py --count` recomputes this integer). H1 (ii) is the
-first-moment statement of Section 7: the run average of the stage-B event is
-at most 0.60 p_B, and the run average of rule A with the filter is at most
-1.25 * 2^-11. Total charged time 2^94.2416, claimed 94.25. With the uniform
-rate instead, the same search needs 2^127 trials and gives 120.96. No full
-collision is exhibited.
-
-**History of the margins (098e66f4, reported because the choice of a
-margin after a measurement matters).** A first build of 098e66f4 stated
-(ii) as 1.01 times the per-trial rates 2^-5 (rule A) and 2^-11, charged
-stage B at 1.02 * 2^-5 per trial and claimed 94.50. Its authors' own review
-pointed out that the 41 replays of Section 6 give rule A at 1.023 +- 0.016
-times 2^-5, and that the only measurement of (ii) then covered a narrow
-index range of the run. They replaced the stage-B part by the batch-level
-event, whose run average was 0.51 of p_B in the measurement they had (so
-the batch-level form was chosen after seeing that measurement; its margin
-1.01 and the budget 1.02 were kept), widened the stage-C margin from 1.01
-to 1.25 (budget 1.27), and then preregistered and ran the uniform sample of
-Section 8.2 (0.5463 +- 0.0005 of p_B and 1.00001 +- 0.0001 of 2^-11). For
-this package the value 0.60 p_B (budget 0.61 p_B) was chosen after reading
-098e66f4's published sample and before this package's own sample, whose
-plan fixed the value and the rule "change nothing unless the empirical
-Bernstein bound at delta = 2^-64 is at most 0.60 p_B" (Section 8.3).
+experiments/s8stage.py --count` recomputes this integer). H1 (ii) states
+two run averages: the share of batches entering stage B is at most
+0.545 p_B (p_B = 0.1992628, its exact value under the model M), and the
+rate of rule A with the filter is at most 1.25 * 2^-11. Total charged
+time 2^94.166936, claimed 94.1670 (rounded up). With the uniform rate instead, the same
+search needs 2^127 trials and gives about 120.7. No full collision is
+exhibited.
 
 ## 1. Target
 
@@ -150,13 +162,16 @@ w5, so Z[0,5,10,15] and Z[2,7,8,13] agree, and o0, o2, o5, o7 use only
 these. QED. The **residual** R is the XOR of the two digests on words 1, 3,
 4, 6; these come from E1 and E3 only. A pair collides iff R = 0.
 
-**The construction (60f94c5c).** Eight free words: the
+**The construction (60f94c5c, Section 4 there).** Eight free words: the
 six words of an *outer step* (vc, vd, D3.d1, S15, S9, w5), where vc = C0.c1
 and vd = C0.d1 are the third and second values of the round-1 call C0 and
 D3.d1 is the second value of D3; the *middle word* X2; and the *member*
 y = Y4. For a call, a1, d1, c1, b1 are its first four values (Fact 1). Every
 line is one assignment of the named call solved for its left side;
-w4 = W4, w13 = W13, w14 = w15 = 0.
+w4 = W4, w13 = W13, w14 = w15 = 0. All statements of this section hold for
+every value of the eight words. The algorithm of Section 4 fixes
+D3.d1 = X3, so that X14 = ROR(D3.d1 ^ X3, 8) = 0 and X9 = D3.c1 + X14 = D3.c1
+in every outer step (new in this version).
 
 **Step O (outer step; reads only the six words).**
 
@@ -241,10 +256,10 @@ members (three linear conditions on free bits of e1). Member number i,
 0 <= i < 2^16, has e1 = 030c0303 | 0000000c with the bits of i placed at the
 free positions in the order 14, 30, 31, 4, 5, 6, 7, 10, 11, 12, 13, 20,
 21, 27, 28, 29, then bit 26 set equal to bit 21; Y4 = e1 - Y3. (The order
-is that of 2bb5d604, fixed before any stage measurement; the charge does not
-depend on it, because the budgets of Section 4 follow values of M, which do
-not depend on the order. The real share of batches entering stage B does
-depend on it, Section 8.2.)
+is that of 2bb5d604, fixed before any stage measurement and not changed
+since. The real share of batches entering stage B depends on it, and so
+does the stage-B premise 0.545 p_B (and the budget 0.5451 p_B above it), which rests on samples made in this
+order (Sections 8.2 and 8.3); the stage-C budget follows a value of M.)
 
 **Lemma T.** For a context and y in S8 (a subset of the class), the pair
 of Theorem 1 has eta = 830303cf. (Fact P gives the a inputs Y3, Y3' of E3;
@@ -310,7 +325,7 @@ e2' = e1' + f1' + w8 = (e1 + w8) + f1' + DY3 with DY3 = Y3' - Y3, and
 w8 = fa - S0 - S5 with fa = ROL(fd, 16) ^ S15 (D0, step T).
 
 
-**Lemma A' (packed rule-A test, 098e66f4).** Let a lane hold a value Z < 2^35
+**Lemma A' (packed rule-A test, new).** Let a lane hold a value Z < 2^35
 whose low 32 bits are z = Y2 ^ C2.d1 of the trial. Put zr = Z + 2^26,
 tA = (zr XOR 0A000300) AND 0B000300 and fA = tA + (2^32 - 1). Then fA < 2^33
 and bit 32 of fA is 0 iff the trial satisfies rule A. *Proof.* Adding 2^26
@@ -322,7 +337,7 @@ z8 = 1, z9 = 1, z24 = 0, z25 = 1 and z26 != z27, the five conditions of
 Lemma A. So tA = 0 iff rule A holds; tA < 2^28, so tA + 2^32 - 1 has bit 32
 equal to 1 iff tA != 0, and is below 2^33. QED.
 
-**Lemma F (packed filter test, 098e66f4).** Let a lane hold C < 2^35 whose low
+**Lemma F (packed filter test, new).** Let a lane hold C < 2^35 whose low
 32 bits are E1's c1 of message A. Then wF = (C XOR 00008000) AND 00098188 is
 0 iff the trial passes the filter, fF = wF + 2^32 - 1 < 2^33 has bit 32
 equal to 1 iff it fails, and f = fA OR fF has bit 32 equal to 0 iff the
@@ -341,9 +356,9 @@ trial satisfies rule A and passes the filter.
 
 Constants: V = 1,512,538 values of vd; N = V * 2^80 = 2^100.5285 trials in
 V * 2^64 * 9,363 batches; p_B = 32,052,445,611,625 / 160,855,115,169,792 =
-0.1992628 (Section 8.2); budgets
+0.1992628 (Section 8.2); budgets (E_B just above the premise, as in 5266c5ce)
 
-    E_B = ceil(0.61 * p_B * V * 2^64 * 9,363) = 31,753,907,200,547,407,136,523,550,720 = 2^94.6809
+    E_B = ceil(0.5451 * p_B * V * 2^64 * 9,363) = 28,375,499,696,751,461,688,719,651,636 = 2^94.5186
     E_C = ceil(1.27 * N * 2^-11)              =  1,133,912,952,398,586,629,867,039,622 = 2^89.8734
 
 1. Once: the lists U and V of S8 (9,363 packed words each; list word j
@@ -351,8 +366,8 @@ V * 2^64 * 9,363 batches; p_B = 32,052,445,611,625 / 160,855,115,169,792 =
    65,534, 65,535 and 65,535 repeated): U[j] = ROL(y,7), V[j] = y per lane.
    Set the budget registers cB = E_B + 1 and cC = E_C + 1.
 2. For each vd < V and each w5 in 0..2^32-1 (an *outer step*): draw one
-   fresh uniform 256-bit word and take vc, D3.d1, S15, S9 from its 32-bit
-   words 0 to 3; run step O and build the table: for each list word j, the
+   fresh uniform 256-bit word and take vc, S15, S9 from its 32-bit
+   words 0 to 2; set D3.d1 = X3 (so X14 = 0); run step O and build the table: for each list word j, the
    five packed words XA[j] = va - X4, X6[j], X1[j], R[j] = ROL(gd,16) and
    Y12[j] of step Y for its seven members. Then for each X2 in 0..2^32-1:
    run the middle step (step M and the nine per-X2 registers of the batch;
@@ -375,7 +390,7 @@ V * 2^64 * 9,363 batches; p_B = 32,052,445,611,625 / 160,855,115,169,792 =
 4. Halt with failure when all trials are done.
 
 There are N = V * 2^32 * 2^32 * 2^16 trials, all distinct pairs for every
-value of the coins (Theorem 1: two trials differ in vd, w5, X2 or y, and
+value of the coins (vc, S15, S9 of each outer step) (Theorem 1: two trials differ in vd, w5, X2 or y, and
 each is a value of the forward computation of A). Step 3 runs at most once.
 At most E_B batches complete stage B and at most E_C complete stage C.
 
@@ -416,7 +431,7 @@ executes the same operations.
 | Stage | Computes | Ops |
 |---|---|---:|
 | A | load XA[j] (1); X0 = XA + (-w2), fd = X0 ^ ROL(X15,8), X10 = fd + (S10 + X15) (3); load X6[j] (1) | 5 |
-| A | C2: a1 = X6 + (X2 + w7) (1), d1 = ROR(a1 ^ X14,16) (6), c1 = X10 + d1 (1), b1 = ROR(X6 ^ c1,12) (6), a2 = a1 + b1 + w0 (2), z = a2 ^ d1 (1) | 17 |
+| A | C2: a1 = X6 + (X2 + w7) (1), d1 = ROR(a1 ^ X14,16) = ROR(a1,16) since X14 = 0 (5), c1 = X10 + d1 (1), b1 = ROR(X6 ^ c1,12) (6), a2 = a1 + b1 + w0 (2), z = a2 ^ d1 (1) | 16 |
 | A | rule-A test (Lemma A'): zr = z + 2^26, tA = (zr ^ KA) AND ALLA, fA = tA + M (4); x = fA AND B32, compare with B32, branch (3) | 7 |
 | B | budget: cB = cB - 1, compare with 0, branch to halt (3) | 3 |
 | B | Y14 = ROR(z,8) (5), Y10 = c1 + Y14 (1), Y6 = ROR(b1 ^ Y10,7) (6); fc = X10 + (-X15) (1), X5 = ROR(ROR(fc ^ S5,12) ^ X10,7) (12) | 25 |
@@ -439,7 +454,7 @@ some lane passes rule A; the stage-B branch falls through to stage C iff
 some lane passes rule A and the filter, and otherwise jumps back. Stages B
 and C are parts B, C, D and R of winglock's unsubmitted branch-free batch of 193
 operations in this order, plus the budgets, the second test and the jump;
-stage A is its part A plus the first test. The lines of steps Y and T that the batch
+stage A is its part A (here without the XOR with X14 = 0) plus the first test. The lines of steps Y and T that the batch
 evaluates are exactly those of Section 2 with the table words in place of
 their names: XA - w2 = va - X4 - w2 = X0, R ^ S12 = ROL(gd,16) ^ S12 = ga,
 and X6, X1, Y12 as they stand; w9 and w11 are not needed for R.
@@ -465,13 +480,13 @@ part, all below 2^36, so no carry leaves a lane; XOR, AND and PROR read only
 the low 32 bits of lanes or mask the rest. Table words and per-X2 registers
 are reduced below 2^32 when they are formed.
 
-*Registers.* 44 registers are resident during the batches: the 10 rotation
+*Registers.* 43 registers are resident during the batches: the 10 rotation
 masks A_r, B_r (r = 16, 12, 8, 7, 1), 8 global constants (M, ROL(X15,8),
 -X15, Y11, Y11', eta, Y3, DY3), 6 constants of the stage tests (2^26, KA,
-ALLA, B32, VF, MF), the 2 budget registers, 7 per outer step (S10 + X15,
-X14, X13, X9, S15, w5, w5 + delta), 9 per X2 value (-w2, X2 + w7, w0, S5,
-w3, S12, -S1 - S6, w12, -S0 - S5), the list pointer and acc. With the live
-temporaries the peak is 57 of 64 (the program's liveness count over the
+ALLA, B32, VF, MF), the 2 budget registers, 6 per outer step (S10 + X15,
+X13, X9, S15, w5, w5 + delta; X14 = 0 needs none), 9 per X2 value (-w2,
+X2 + w7, w0, S5, w3, S12, -S1 - S6, w12, -S0 - S5), the list pointer and
+acc. With the live temporaries the peak is 56 of 64 (the program's liveness count over the
 path through all three stages; the other paths are prefixes of it).
 
 **The middle step (per X2 value; 107 operations).** Next X2, mask and end
@@ -480,7 +495,7 @@ per-X2 registers directly (each reduced below 2^32); acc = all ones (one
 load) and the list pointer reset (1). Every word it reads from memory (the
 nine words stored by the outer step for it, the masks for rotations by 24
 and 20, the words 1 and 0 and six IV-derived constants) is charged as one
-load. Peak 51 registers including the 44 above.
+load. Peak 50 registers including the 43 above.
 
 **The table build (per list word; 49 operations).** Load U[j]; the ten
 lines of step Y in all seven lanes (Y12 = (U ^ vb) + (-vc); Y0 =
@@ -491,26 +506,28 @@ and the loop step (3). Before the build of an outer step the eight words
 it reads and its masks are loaded into registers (at most 26 operations);
 peak 25 registers.
 
-**The outer step (340 operations).** One fresh uniform 256-bit word (1) and
-its words 0 to 3 as vc, D3.d1, S15, S9 (AND; shift and AND three times: 7);
-step O in scalar form (each 32-bit addition or subtraction counted 2 with
-its mask, rotation 4, XOR 1), the 24 packed words that the build, the
-middle step and the batch read (each broadcast to seven lanes and stored, 8
-operations), the next-w5 loop step and the loads of the seven per-outer
-registers of the batch.
+**The outer step (318 operations).** One fresh uniform 256-bit word (1) and
+its words 0 to 2 as vc, S15, S9 (AND; shift and AND twice: 5); D3.d1 = X3
+is an instruction constant (so ROL(D3.d1,16) is one too, X14 = 0 is not
+computed and X9 = D3.c1); step O in scalar form (each 32-bit addition or
+subtraction counted 2 with its mask, rotation 4, XOR 1), the 23 packed
+words that the build, the middle step and the batch read (each broadcast to
+seven lanes and stored, 8 operations), the next-w5 loop step and the loads
+of the six per-outer registers of the batch. (098e66f4: 340.)
 
 *Self-test of the shipped program.* `python3 experiments/s8stage.py
 --selftest 2000 9`, run from the repository root, builds 2,000 cases (the
-seven context words from SHAKE-256 of the seed, the random word of the
-outer step holding the four coin words in words 0 to 3 and random words
-4 to 7; every fourth case is the last list word; in every fifth each
-context word is 0, 2^32 - 1 or random). Each case runs the counted outer
+context words from SHAKE-256 of the seed, then D3.d1 = X3 as in the
+algorithm; the random word of the outer step holding the three coin words
+in words 0 to 2 and random words 3 to 7; every fourth case is the last
+list word; in every fifth each context word is 0, 2^32 - 1 or random
+before D3.d1 is set). Each case runs the counted outer
 step from the random word, the table build of one list word, the middle
 step, the three stages of one batch (stages B and C computed whatever the
 decisions, the accumulator changed only as in the staged flow) and the
-block test, and checks: the outer step takes exactly the four coin words
-from the random word and every packed word it stores equals the value of
-step O, every table word equals step Y for its lane's member, every per-X2
+block test, and checks: the outer step takes exactly the three coin words
+from the random word, D3.d1 = X3 and X14 = 0, and every packed word it
+stores equals the value of step O, every table word equals step Y for its lane's member, every per-X2
 register equals step M; and for every lane it builds the trial's messages
 A, B by steps O, M, Y, T, S2, S3, compresses them with the program's own
 2-round compression and with `verifier/blake3.py blake3(m, 2)`, and checks:
@@ -522,13 +539,16 @@ ROL(D4, 7) ^ D1 and D6 computed from the XOR of the two digests on words 1,
 3, 4, 6, the packed T equals their OR, and bit 32 of the lane's indicator
 is 1 iff the digests differ; both decisions equal 'some lane passes'; and
 the block test is taken exactly when some lane of a batch that ran stage C
-has equal digests. Result (`selftest_final`): 14,000 of 14,000 lanes right
+has equal digests. Result (run for this package): 14,000 of 14,000 lanes right
 with the verifier, 14,000 of 14,000 flags right, 2,000 of 2,000 decision
 pairs and block tests right, 2,000 of 2,000 cases with every stored word
-right; 29, 73 and 112 operations in every execution of stages A, B and C
-(parts 29, 73, 43 + 48 + 21) and 4 in every block test; 340, 49 and 107
+right; 28, 73 and 112 operations in every execution of stages A, B and C
+(parts 28, 73, 43 + 48 + 21) and 4 in every block test; 318, 49 and 107
 operations in every outer step, build and middle step; static bounds 4.02,
-8, 10, 5.5, 2 times 2^32; peaks of 57, 25 and 51 registers. Pattern tests
+8, 10, 5.5, 2 times 2^32; peaks of 56, 25 and 50 registers (43 resident);
+about 4 s. (Before it, two development runs of 30 and 40 cases of a draft
+that lacked only the X14 = 0 piece check and one docstring edit passed; the 2,000-case run was repeated in the package
+directory with identical output.) Pattern tests
 on constructed words: the indicator and the block test (blocks of 1, 2 and
 3 batches, all 128 zero/nonzero lane patterns, twice) 768 of 768; the
 stage-A test (all 128 patterns of lanes passing rule A, passing lanes random
@@ -540,29 +560,32 @@ entries pass, k = 1, 2, 3, both budgets) right. The 65,536 member numbers
 give 65,536 distinct members of S8; Lemma B holds for 6 of 6 betas. Exit
 status 0 only if all of these hold, and only if `verifier/blake3.py` was
 imported. No real lane with R = 0 occurs at this size; the taken branch is
-covered by the pattern tests. Three deliberately broken copies fail it (50 cases each): KA
-with bit 24 set (stage-A patterns 2 of 256 right, flags 337 of 350), VF
-with bit 3 set (stage-B patterns 2,108 of 16,384 right), and Y3 in place
-of DY3 in e2' (0 of 350 lanes right).
+covered by the pattern tests. Four deliberately broken copies fail it (50
+cases each): KA with bit 24 set (stage-A patterns 0 of 256 right, flags
+330 of 350), the stage-B test word VF with bit 3 set (stage-B patterns
+2,109 of 16,384 right), Y3 in place of DY3 in e2' (0 of 350 lanes right),
+and a copy whose outer step draws D3.d1 from the random word while stage A
+still omits X14 (0 of 350 lanes right, flags 316 of 350). (A fifth copy,
+with the global VF changed, also exits 1.)
 
 ## 6. Experiments (organizer-run)
 
 `experiments/s8stage.py`, standard library only, seeds expanded by
 SHAKE-256, no BLAKE3 import in organizer mode.
 
-- `half-collision`: per seed, the seven context words (vc, vd, D3.d1, S15,
-  S9, w5, X2) and a member number of S8; returns the pair of Theorem 1.
-  Event: digest words 0, 2, 5, 7 agree (exact, all seeds). Observations:
-  the counted outer step (from a 256-bit word whose words 0 to 3 are the
-  four coin words), table build of the member's list word and middle step,
-  then the three stages of the batch holding the member and the block test:
-  stage_a_ops 29, stage_b_ops 73, stage_c_ops 112, block_test_ops 4,
-  outer_ops 340, build_ops 49, middle_ops 107, pieces_right 1, lanes_right 7
+- `half-collision`: per seed, the context words (vc, vd, S15, S9, w5, X2;
+  D3.d1 = X3 as in the algorithm) and a member number of S8; returns the
+  pair of Theorem 1. Event: digest words 0, 2, 5, 7 agree (exact, all
+  seeds). Observations: the counted outer step (from a 256-bit word whose
+  words 0 to 2 are the three coin words), table build of the member's list
+  word and middle step, then the three stages of the batch holding the
+  member and the block test: stage_a_ops 28, stage_b_ops 73, stage_c_ops
+  112, block_test_ops 4, outer_ops 318, build_ops 49, middle_ops 107, pieces_right 1, lanes_right 7
   (four packed words and the indicator equal to the forward computation),
   flags_right 7 (both stage flags equal rule A, and rule A with the filter,
   of the forward computation), decisions_right 1, tests_right 1,
   member_in_s8 1 (predicted for every seed).
-- `class-filter`: per seed, a context and nine consecutive batches (63
+- `class-filter`: per seed, a context (D3.d1 = X3) and nine consecutive batches (63
   members) of S8 run as one block in the staged flow with the block test,
   after the counted pieces; returns the seed member's pair (same event).
   Observations per seed: members 63, in_s8 63, y4_equal 63, eta_equal 63,
@@ -576,70 +599,39 @@ SHAKE-256, no BLAKE3 import in organizer mode.
   clusters by context, so no per-run range is predicted.
 
 *Replays (preregistered; participant-run local replays using the
-repository's `experiments/runner.py`).* Before any replay of the first
-build of this version, its program (SHA-256 e77c7274...397096b1), the
-harness (which runs `experiments/runner.py` of the repository with
-`verifier/blake3.py` as digest) and the list of 41 nonces (the public seed,
-and holdout_nonce = the first 32 hex digits of SHA-256 of 'blake3-r2-v101
-replay NN', NN = 01 to 40; our own nonces, not organizer holdouts) were
-fixed and hashed, and all 41 runs were then made. Two earlier frozen
-copies: the first (67,811 bytes) was refused by the runner's 64 KiB source
-limit before any experiment ran, and only comments and docstrings were
-shortened; the second (aa60cb33...7587a4) differs from the first build
-only by a blank line at its end, which `git diff --check` rejects; its 41
-runs gave results identical in every field except running time. The
-revision after our review changed only the ledger and the printout of the
-exact stage values (no experiment code); the shipped program (SHA-256
-e027eb6f...1474709) was frozen and hashed in the same way and the same
-41 nonces were rerun one after another: all 41 results are identical to
-those of the first build in every field except running time. (A first
-attempt at this rerun started three harness processes at once; they share
-one temporary program file, and 2 of the 41 ended in harness errors; the
-other 39 were identical as well. It was discarded for that reason and is
-reported here.) In every run both experiments have 256 of 256 successes,
-no repeated pair, and every predicted observation exact for every seed.
-Totals of 16,128 lanes per run: rule A 419 to 663 (mean 515.4, sd 50.4,
-about twice the binomial value because of the context clustering),
-filter 209 to 295 (mean 254.4), both 3 to 14 (mean 7.4, sd 2.7);
-batches entering stage B 212 to 316 of 2,304 (mean 259.9, sd 22.7) and
-stage C 3 to 14 (mean 7.3), never more than the lanes with both; on the
-public seed 462, 247, 14, 233 and 14. As ratios to M over the 41 runs
-(standard error from the run-to-run sd; runs use independent contexts):
-batches entering stage B 0.566 +- 0.008 of 459.1, rule A and the filter
-0.94 +- 0.05 of 7.875, rule A 1.023 +- 0.016 of 504. These agree with the
-uniform sample of Section 8.2 (0.546 and 1.00001; rule A 1.00004, so its
-2.3% excess here is within 1.5 standard errors and rule A alone is not a
-part of H1 (ii)). The public seed's 14 lanes with both is the largest
-total of the 41 runs (1.78 times 7.875); one run of 256 clustered contexts
-cannot resolve the 25% margin of (ii). One execution of `class-filter`
-takes 1.5 to 4.6 s on our machine (one execution in the first build's
-replays took 35 s while other jobs held the machine at a load average of
-about 35), `half-collision` under 0.7 s.
-
-*This package's program.* The shipped `experiments/s8stage.py` (SHA-256
-b30ba566...fc6c7eab, 63,932 bytes) differs from 098e66f4's program
-(e027eb6f...1474709) in three places only: the two ledger constants
-PREMISE[0] (1.01 -> 0.60) and BUDGET[0] (1.02 -> 0.61), and the credit
-lines of its docstring. No code that the experiments, the self-test or
-`--count` execute was changed; `--ledger` evaluates the formula of
-Section 9 with the new constants. Both experiments were run for this
-package through the repository's organizer runner
-(`experiments.run_experiments`, which executes the program only in its
-pinned networkless Docker sandbox) on the public seed: 256 of 256
-successes in each, no repeated pair, every predicted observation exact
-for every seed, and class-filter totals 462, 247, 14, 233 and 14,
-identical to 098e66f4's public-seed run. The same
-40 nonces as 098e66f4's replays (the first 32 hex digits of SHA-256 of
-'blake3-r2-v101 replay NN', NN = 01 to 40) were then run the same way,
-after the program was frozen. All 41 runs have 256 of 256 successes in
-both experiments, no repeated pair, and every predicted observation exact.
-The class-filter totals have the same ranges, means and standard
-deviations as 098e66f4's 41 replays: rule A 419 to 663 (mean 515.4,
-sd 50.4), filter 209 to 295 (mean 254.4), both 3 to 14 (mean 7.4),
-stage-B batches 212 to 316 (mean 259.9, sd 22.7) and stage-C batches 3 to
-14 (mean 7.3). The self-test was not
-rerun for this package; its result above is 098e66f4's, for a program
-that differs only in the lines named.
+repository's `experiments/runner.py`).* Before any replay of this version,
+the program (SHA-256 6a16f9f5...1514182eb; the shipped program,
+2cc3cfeb...234c2fe, differs from it only in the stage-B budget constant of
+the ledger and one docstring line, which no experiment reads; it was hashed
+with the same harness and nonces and all 41 replays were rerun on it one
+after another, with results identical in every field except time), the harness (unchanged
+from 098e66f4: it runs `experiments/runner.py` of the repository with
+`verifier/blake3.py` as digest; 1185392d...24b9bde) and the list of 41
+nonces (the public seed, and holdout_nonce = the first 32 hex digits of
+SHA-256 of 'blake3-r2-v102 replay NN', NN = 01 to 40; winglock's own nonces, not
+organizer holdouts; list 0b2afbf0...831d743f2) were fixed and hashed, and
+all 41 runs were then made one after another (no other replay of this
+version was made; 098e66f4 reports its own 82 replays of its program). In
+every run both experiments have 256 of 256 successes, no repeated pair, and
+every predicted observation exact for every seed. Totals of 16,128 lanes
+per run: rule A 419 to 626 (mean 507.4, sd 43.5, above the binomial value
+because of the context clustering), filter 203 to 281 (mean 254.8), both
+3 to 13 (mean 7.9, sd 2.9); batches entering stage B 212 to 296 of 2,304
+(mean 249.9, sd 21.1) and stage C 3 to 13 (mean 7.9), never more than the
+lanes with both; on the public seed 513, 244, 8, 254 and 8. As ratios to M
+over the 41 runs (standard error from the run-to-run sd; runs use
+independent contexts): batches entering stage B 0.544 +- 0.007 of 459.1,
+rule A and the filter 1.003 +- 0.057 of 7.875, rule A 1.007 +- 0.013 of
+504. These agree with the uniform sample of Section 8.2 (0.539 and
+1.00007); one run of 256 clustered contexts cannot resolve the margins of
+(ii). One execution of `class-filter` takes 1.5 to 1.7 s on winglock's machine,
+`half-collision` under 0.4 s. For this package (whose program differs from
+the replayed one only in the two ledger constants and docstring lines),
+Subflatus3 ran the public seed once more through the repository's
+`experiments/runner.py` in its sandbox: both experiments 256 of 256,
+no repeated pair, every predicted observation exact for every seed
+(stage_a_ops 28, outer_ops 318, ...), and the totals 513, 244, 8, 254 and
+8, equal to 2125212's public-seed values above.
 
 Observations are the program's own and untrusted; they check the
 generator, the class, the stage tests and the counted pieces against a
@@ -648,7 +640,8 @@ forward computation of real messages. They do not measure H1.
 ## 7. Success probability
 
 The probability space is the V * 2^32 random words of step 2, one per outer
-step, independent and uniform. Outer step k (k = 1, .., V * 2^32) is a fixed
+step, independent and uniform (each supplies vc, S15 and S9; D3.d1 = X3 is
+fixed). Outer step k (k = 1, .., V * 2^32) is a fixed
 pair (vd, w5), and all its trials, stage decisions and residuals are a
 function of that pair and its own random word r_k.
 
@@ -664,7 +657,7 @@ good is at most exp(-lambda) + 0.002 with lambda = N * F * 2^-128 =
 
 (ii) averaged over the V * 2^64 * 9,363 batches of the run, the
 probability that a batch has a trial satisfying rule A (and so enters
-stage B) is at most 0.60 p_B, and averaged over the N trials, the
+stage B) is at most 0.545 p_B, and averaged over the N trials, the
 probability that a trial satisfies rule A and passes the filter is at most
 1.25 * 2^-11. Under the same seven-word model M that gives the count of
 (i), with the distinct trials of a batch independent as in (i), these
@@ -673,17 +666,16 @@ probabilities are exactly p_B = (9,362 (1 - (31/32)^7) + 1 - (31/32)^2) /
 satisfy rule A, 2^26 of the 2^32 words c1 pass the filter, h1 and
 c1 = d1 + Y11 are independent uniform words of M, and 9,362 batches hold
 seven distinct trials and one holds two). (ii) asserts, as averages over
-the run, 0.60 times the first and 1.25 times the second. The stage-B value
-lies below its M value because rule A clusters by context. It rests on two
-uniform samples of the run (Sections 8.2 and 8.3), not on M.
+the run, 0.545 times the first (Section 8.3) and 1.25 times the
+second. The stage-B value lies below its M value because rule A clusters
+by context; it rests on uniform samples of the run (Section 8.2), not
+on M (Sections 8.2 and 8.3).
 
 Part (ii) is a statement about first moments only. It says nothing about
 how passing trials are distributed inside a batch, a context or an outer
-step; rule A is known to cluster by context, which lowers the share of
-batches entering stage B well below p_B (Sections 8.2, 8.3). The stage-B
-part of (ii) uses this effect only through the run average that the two
-samples estimate; nothing below depends on how passing trials are
-distributed inside a batch, a context or an outer step.
+step; rule A is known to cluster by context (which lowers the share of
+batches entering stage B well below p_B, Section 8.2), and nothing below
+depends on the contrary.
 
 **Lemma C (Chernoff bound).** Let X_1, .., X_n be independent random
 variables with values in [0, 1], and mu_H >= E[X_1 + .. + X_n]. Then for
@@ -697,7 +689,7 @@ exp(mu_H (delta - (1 + delta) ln(1 + delta))), and
 
 **Theorem 2 (budgets).** Let S_B and S_C be the numbers of batches that
 would enter stage B and stage C in a run without budgets. If H1 (ii) holds,
-then P(S_B > E_B) <= exp(-7.1 * 10^10) and P(S_C > E_C) <= exp(-2.3 * 10^9).
+then P(S_B > E_B) <= exp(-7.9 * 10^6) and P(S_C > E_C) <= exp(-2.3 * 10^9).
 
 *Proof.* Write S_B = sum over k of S_k, S_k the number of batches of outer
 step k that enter stage B. S_k is a function of r_k, so S_1, S_2, .. are
@@ -705,11 +697,11 @@ independent, and 0 <= S_k <= m = 9,363 * 2^32, the number of batches of an
 outer step. By Lemma A' a batch enters stage B iff one of its distinct
 trials satisfies rule A (the repeated lanes of the last list word hold the
 same trial), so E S_B is the sum over all V * 2^64 * 9,363 batches of the
-probability of this event, at most 0.60 p_B V 2^64 9,363 by H1 (ii). Put
-X_k = S_k / m and mu_H = 0.60 p_B V 2^64 9,363 / m = 7.767 * 10^14. Since
-E_B >= 0.61 p_B V 2^64 9,363 = (1 + delta) mu_H m with delta = 1/60,
+probability of this event, at most 0.545 p_B V 2^64 9,363 by H1 (ii). Put
+X_k = S_k / m and mu_H = 0.545 p_B V 2^64 9,363 / m = 7.055 * 10^14. Since
+E_B >= 0.5451 p_B V 2^64 9,363 = (1 + delta) mu_H m with delta = 1/5450,
 Lemma C gives P(S_B > E_B) <= P(sum X_k >= (1 + delta) mu_H) <=
-exp(-delta^2 mu_H / 3) = exp(-7.19 * 10^10). For stage C, a batch enters
+exp(-delta^2 mu_H / 3) = exp(-7.92 * 10^6). For stage C, a batch enters
 only if one of its distinct trials satisfies rule A and the filter
 (Lemma F), so S_k is at most the number of such trials of outer step k
 (a union bound, valid for any dependence between the trials of a batch)
@@ -724,16 +716,16 @@ E_C. If moreover some trial is good, the completeness argument of
 Section 4 shows that step 3 outputs a pair of distinct messages of 55 and
 63 bytes with equal complete digests. So, under H1,
 
-    P(success) >= 1 - (exp(-lambda) + 0.002) - exp(-7.1 * 10^10) - exp(-2.3 * 10^9)
+    P(success) >= 1 - (exp(-lambda) + 0.002) - exp(-7.9 * 10^6) - exp(-2.3 * 10^9)
                >= 1 - exp(-0.4980001) - 0.002 - 10^-300 = 0.39025 >= 0.39.
 
 The time of Section 9 holds for every value of the coins: stage B and
 stage C are charged at their budgets. Sensitivity: with a good-trial rate
 f * 2^-128 the same search reaches 0.39 only for f >= 2^26.4645 (lambda >=
 0.49758); with the uniform rate (f = 1) it needs 2^127 trials and gives
-120.96. The margin between (ii) and the budgets is
-what Lemma C uses: with 0.609 p_B and 1.26 * 2^-11 in (ii), delta = 0.0016
-and 0.0079, and the two bounds are still exp(-7.0 * 10^8) and
+about 120.7. The margin between (ii) and the budgets is
+what Lemma C uses: with 0.54509 p_B and 1.26 * 2^-11 in (ii), delta =
+1.83 * 10^-5 and 0.0079, and the two bounds are still exp(-7.9 * 10^4) and
 exp(-5.8 * 10^8).
 ## 8. Evidence for H1
 
@@ -800,13 +792,13 @@ F = 92,675,072 is 185,350,144 / 2. All 15 betas with k <= 14 and the same counte
 185,355,230.33 for S8 with rule A (162,263,084.49 for the full class without
 rule; 144,123,339.49 with rule A).
 
-*Checks of the count.* (i) Three counting programs agree exactly: our C
+*Checks of the count.* (i) Three counting programs agree exactly: winglock's C
 counter, the shipped Python port (`--count`: all 85 outcomes, 57 nonzero,
-the six parts and 185,350,144 in about 2.5 minutes; `--count all` also
+the six parts and 185,350,144 in about 2 minutes; `--count all` also
 gives the same total without rule A), and a counter written independently
 by another helper agent, which gives 183,119,872 for the four heaviest
 betas in S8 with and without rule A (1.976 F from these four alone).
-A fourth, sampling estimator written by our review agent (Monte Carlo over
+A fourth, sampling estimator written by winglock's review agent (Monte Carlo over
 (y, h1, g1) for E3 and (c1, b1) for E1, exact automaton over e2 and a2)
 gives 185,477,038 +- 878,331 (ratio 1.0007 +- 0.0047), with all 57 nonzero
 outcomes within noise and the 28 zero outcomes zero. Per member of S8 the
@@ -852,7 +844,7 @@ unrelated control 1/8 subset of the class shows the same (z = 21.3), so
 this is the per-context clustering already reported for rule A by
 c66f230d, not a property of S8.
 
-**Real trials in the order of 60f94c5c (participant measurement for our
+**Real trials in the order of 60f94c5c (participant measurement for winglock's
 unsubmitted branch-free draft in this order, `rt2l.c`, a C program whose event counts equal those of the
 shipped program's forward computation on 65,536 trials).** Run layout: per
 run, the four coin words, 4 outer steps (vd = 0, w5 = 0..3), 2^16
@@ -880,6 +872,26 @@ change which trials are run or their residuals, only which are examined; a
 fresh random word per outer step changes the coin words from one per run to
 one set per outer step, which the measurements of 8.2 use.
 
+**With D3.d1 = X3 (this version).** The measurements above have D3.d1
+random. The preregistered sample of Section 8.2 (`rtuni2.c`) also counts,
+on every trial, four E1 events of this table, in the algorithm's
+configuration (2^36 trials) and in a control with random D3.d1 (2^34):
+
+| event | D3.d1 = X3 | random D3.d1 | ratio |
+|---|---:|---:|---:|
+| beta in T6 (model 2^-8.8301) | 2^-8.8300 | 2^-8.8303 | 1.0002 +- 0.0002 |
+| beta in T6 and rule A | 2^-13.8302 | 2^-13.8282 | 0.9986 +- 0.0010 |
+| low 12 bits of n zero | 2^-10.9272 | 2^-10.9278 | 1.0004 +- 0.0004 |
+| beta in T6 and low 8 bits of n zero | 2^-15.4462 | 2^-15.4487 | 1.0017 +- 0.0018 |
+
+and rule A at 1.00003 of 2^-5, the filter at 1.00001 of 2^-6 and both at
+1.00007 of 2^-11. These agree with the values above (2^-8.8299,
+2^-13.8300, 2^-10.9277, 2^-15.4461). The deeper E1 and E3 checks were not
+repeated with D3.d1 = X3. D3.d1 enters E1 and E3 only through the
+round-0 words it changes (X14 through C2; X9, X4 and the words that depend
+on them), all of which also vary with vd, w5, X2 and y; H1 (i) assumes
+the trials of the fixed configuration behave as stated, as before.
+
 ### 8.2 Part (ii): the stage events
 
 **Exact values under M.** Rule A reads bits 0, 1, 2, 3, 16 and 17 of h1;
@@ -898,68 +910,113 @@ p_B = (9,362 (1 - (31/32)^7) + 1 - (31/32)^2) / 9,363 =
 32,052,445,611,625 / 160,855,115,169,792 = 0.1992628. `python3
 experiments/s8stage.py --count` enumerates the 64 + 64 patterns and prints
 the integers 2^27, 2^26 and 2^53 and the fraction p_B next to the count of
-8.1; `--ledger` uses the same fraction. H1 (ii) asserts 0.60 p_B and
-1.25 * 2^-11 as run averages; the budgets are 0.61 p_B = 0.1215503 batches
-per batch for stage B and 1.27 * 2^-11 per trial (0.0043405 per batch) for
-stage C.
+8.1; `--ledger` uses the same fraction. H1 (ii) asserts 0.545 p_B (Section
+8.3) and 1.25 * 2^-11 as run averages; the budgets are 0.5451 p_B =
+0.1086182 batches per batch for stage B and 1.27 * 2^-11 per trial
+(0.0043405 per batch) for stage C.
 
-**Real trials on a uniform sample of the run (098e66f4's participant
-measurement, `rtuni.c`, Appendix A; preregistered).** Before it ran, the program, the
-cross-check, the plan (16 runs of 1,024 outer steps with 256 values of X2
-each, seeds 20261101 to 20261116) and the analysis below were fixed and
-hashed. Each outer step draws vd uniformly below V, w5 uniformly and its
-four coin words fresh (as step 2 does), and each of its 256 values of X2
-uniformly; all 65,536 members of S8 run in the 9,363 batches of the
-algorithm. Together 16,384 outer steps, 2^38.000 trials and 39,271,268,352
-batches. Outer steps are independent and uniform over the run's outer
-steps and X2 is uniform, so the mean over outer steps of each per-outer-step
-ratio is an unbiased estimate of the run average that (ii) bounds, with
-standard error sd / sqrt(16,384). The counts equal those of the shipped
-program's forward computation and batching on two complete drawn contexts
-(`rtunicheck.py`, seeds 7 and 13; 65,536 trials each).
+**What a uniform sample measures.** For outer step k let Z_k be the share
+of its batches that enter stage B, counted over all 9,363 batches of each
+of its sampled values of X2. The run average that H1 (ii) bounds is E Z_k
+when the outer step (vd below V, w5 and its coins) and X2 are uniform.
+Z_k lies in [0, 1]. Outer steps drawn independently and uniformly, each
+with independent uniform values of X2, give independent, identically
+distributed Z_k whose mean is the run average: this is sampling from the
+run's own index space, not a model. The same holds for the per-trial rate
+of rule A with the filter. (This formulation and the two bounds below
+follow 52bb50ee.)
 
-| event | count | per-outer-step ratio to M: mean +- s.e. (sd) | 99.9% upper bound | (ii) factor | budget |
+**Lemma C' (lower-tail Chernoff bound; stated and proved in 52bb50ee).**
+Let X_1, .., X_n be independent random variables with values in [0, 1] and
+mu = E[X_1 + .. + X_n]. Then for 0 < delta < 1,
+P(X_1 + .. + X_n <= (1 - delta) mu) <= exp(-delta^2 mu / 2). *Proof.* For
+t > 0 and x in [0, 1], e^(-tx) <= 1 - x (1 - e^(-t)) (convexity), so
+E e^(-t X_k) <= exp(-(1 - e^(-t)) E X_k), and by independence
+E e^(-t sum X_k) <= exp(-(1 - e^(-t)) mu). Markov's inequality applied to
+e^(-t sum X_k) with t = -ln(1 - delta) gives P(sum <= (1 - delta) mu) <=
+exp(-mu (delta + (1 - delta) ln(1 - delta))), and
+(1 - delta) ln(1 - delta) >= -delta + delta^2 / 2 for 0 <= delta < 1. QED.
+*Consequence.* If the run average m is at least m0 and S is the observed
+sum of n shares with S < n m0, then P(sum <= S) <= exp(-(n m - S)^2 /
+(2 n m)), which is decreasing in m for n m > S, so at most
+exp(-(n m0 - S)^2 / (2 n m0)). The empirical Bernstein inequality (Maurer
+and Pontil 2009, Theorem 4; cited, not proved; Lemma C' does not depend on
+it) gives, for i.i.d. variables in [0, 1] with unbiased sample variance V,
+E Z <= mean + sqrt(2 V ln(2/delta) / n) + 7 ln(2/delta) / (3 (n - 1)) with
+probability at least 1 - delta over the sample.
+
+**2125212's sample of this configuration (winglock; participant measurement, `rtuni2.c`,
+Appendix A; preregistered).** `rtuni2.c` is 098e66f4's `rtuni.c` with
+D3.d1 = X3 (mode `fixed`, the algorithm) or D3.d1 drawn uniformly (mode
+`rand`, the 098e66f4 configuration, as a control), the per-outer-step sums
+of Z_k for the bounds above, and four E1 events (8.1). Before the runs, the
+program, the cross-check `rtunicheck2.py`, the analysis `summarize2.py`
+and the plan were fixed and hashed (SHA-256 a59b7b62...6e1b6,
+28c754f0...88004, 843f9a4c...c28a, plan file b07489b6...995eb). Plan:
+mode fixed, 8 runs `./rtuni2 8192 16 SEED fixed`, SEED = 20261201 ..
+20261208: 65,536 outer steps (vd uniform below V, w5 uniform, fresh vc,
+S15, S9), 16 uniform values of X2 each, all 65,536 members of S8 in the
+9,363 batches of the algorithm: 2^36 trials; control, 2 runs `./rtuni2
+8192 16 SEED rand`, SEED = 20261211, 20261212: 2^34 trials. Decision rule:
+keep 0.60 p_B (budget 0.61 p_B) only if the empirical Bernstein bound at
+delta = 2^-64 is at most 0.60 p_B and the Lemma C' exponent at m0 =
+0.60 p_B is at least 20; otherwise use 098e66f4's 1.01 p_B (budget
+1.02 p_B). Before the plan was fixed, three cross-check runs (one context
+each, all equal) and one timing run of 2^24 trials were made; they are not
+part of the sample. After freezing, `rtunicheck2.py` compared the counts
+of rule A, the filter, both, stage-B and stage-C batches and the four E1
+events of all 65,536 members of three drawn contexts (seeds 7 and 13 mode
+fixed, seed 7 mode rand) with the shipped program's forward computation:
+all equal (e.g. seed 7 fixed: 2045, 985, 38, 1027, 38; T6 124). The
+randomness is SplitMix64 seeded by SEED, a deterministic generator, not
+ideal coins. All 10 runs are reported; none was repeated.
+
+| event (mode fixed, 2^36 trials) | count | per-outer-step ratio: mean +- s.e. (sd) | bounds | premise | budget |
 |---|---:|---:|---:|---:|---:|
-| batch enters stage B | 4,274,878,152 | 0.54629 +- 0.00047 (0.0598) of p_B | 0.5477 | 0.60 | 0.61 |
-| rule A and filter (trial) | 134,218,862 | 1.00001 +- 0.00009 (0.0121) of 2^-11 | 1.0003 | 1.25 | 1.27 |
-| rule A (trial; not in (ii)) | 8,590,304,647 | 1.00004 +- 0.00004 (0.0052) of 2^-5 | 1.0002 | | |
-| filter (trial; not in (ii)) | 4,294,942,914 | 0.99999 of 2^-6 (pooled) | | | |
-| batch enters stage C | 132,822,030 | 0.0033822 per batch | | | 0.0043405 |
+| batch enters stage B | 1,054,691,117 | 0.53912 +- 0.00022 (0.0573) of p_B | emp. Bernstein 0.5493 p_B (2^-64); Lemma C' exp(-40.3) at 0.60 p_B; normal 99.9% 0.5398 | 0.545 p_B (8.3) | 0.5451 p_B |
+| rule A and filter (trial) | 33,556,947 | 1.00007 +- 0.00017 (0.044) of 2^-11 | normal 99.9% 1.0006 | 1.25 * 2^-11 | 1.27 * 2^-11 |
+| rule A (trial; not in (ii)) | 2,147,544,044 | 1.00003 +- 0.00003 of 2^-5 | | | |
+| filter (trial; not in (ii)) | 1,073,750,923 | 1.00001 of 2^-6 (pooled) | | | |
+| batch enters stage C | 33,200,361 | 0.0033816 per batch | | | 0.0043405 |
 
-Per run (1,024 outer steps) the stage-B ratio lies between 0.5428 and
-0.5495 and the stage-C trial ratio between 0.9993 and 1.0007. The largest
-ratio of one outer step is 0.846 for stage B and 1.050 for rule A with the
-filter; the largest stage-B share of one context (one X2 value, 9,363
-batches) is 1.128 p_B, so single contexts can exceed p_B, which (ii) does
-not exclude: it bounds the run average. A first invocation with a
-malformed seed list (on this machine `seq` printed 2.02611e+07, so every
-process ran seed 2) completed one run of the same size before it was
-stopped; it gives 0.5473, 0.9995 and 1.0001 and is not used.
+The decision rule was met, so 2125212 used the premise 0.60 p_B. (Its
+plan named the budget 0.61 p_B; 2125212 shipped 0.6001 p_B, adopted
+afterwards from 5266c5ce.) This version uses 0.545 p_B on the strength of
+the single-batch sample of Section 8.3; at 0.545 p_B the per-outer-step
+sample above gives a Lemma C' exponent of only about 0.4, because the
+[0, 1]-range bound ignores that each Z_k averages 9,363 * 16 batches. Per
+run (8,192 outer steps) the stage-B ratio lies between 0.5386 and 0.5401
+and the stage-C trial ratio between 0.9988 and 1.0013. The largest ratio
+of one outer step is 0.884 for stage B and 1.203 for rule A with the
+filter (16 values of X2 each); the largest stage-B share of one context is
+0.947 p_B. For the rare stage-C event the [0, 1]-range bounds are not
+informative at this size; its premise 1.25 * 2^-11 is 098e66f4's and is
+supported, as there, by the per-outer-step mean (here 1.00007 +- 0.00017,
+in 098e66f4's sample 1.00001 +- 0.00009, in 52bb50ee's 0.99995 +- 0.00007).
+Control (mode rand, 16,384 outer steps, 2^34 trials): stage B 0.54663 +-
+0.00048 of p_B, rule A with the filter 1.00076 +- 0.00038, rule A 1.00002;
+it was not used for the decision (with its smaller n, its Lemma C'
+exponent is 7.8). With D3.d1 = X3 the stage-B share is 0.0075 p_B lower
+than with random D3.d1 (about 14 standard errors); rule A and rule A with
+the filter are unchanged.
 
-**Earlier and other measurements of the same events (all reported).**
+**Earlier samples of the 098e66f4 configuration (random D3.d1; all reported).**
 
-- *Run layout with consecutive indices* (`rtstage.c`, which differs from
-  `rtuni.c` only in how it chooses the indices, vd = 0..15 for its sixteen
-  runs, w5 = 0..63 and 4,096 consecutive values of X2, and in the
-  statistics it prints; fresh coins per outer step; 2^38.000
-  trials, 1,024 outer steps; its counts equal the shipped program's on two
-  contexts, `rtcheck.py`, seeds 5 and 11): stage-B share 0.101710, 0.5104 of
-  p_B (per outer step 0.42 to 0.77 of p_B; largest context 0.989 p_B); rule
-  A and the filter 1.00001 of 2^-11 (per run of 64 outer steps 0.9994 to
-  1.0007); rule A 1.00008 of 2^-5; stage-C share 0.0033793. Consecutive X2
-  values give a lower stage-B share than uniform ones, so this layout is
-  not a sample of the run; Theorem 2 uses neither.
-- *Review-agent run* (a uniform variant of `rtstage.c`; seeds 9101 to
-  9108; 4,096 outer steps of 128 uniform X2 values, 2^35 trials, run once):
-  stage B 0.5469 of p_B, rule A and the filter 0.99978 of 2^-11, rule A
-  1.00013 of 2^-5.
-- *The 41 replays of `class-filter` (Section 6),* 2,304 full batches and
-  16,128 lanes each, one context per seed: stage B 0.566 of the M value
-  (mean 259.9 of 459.1; runs 0.46 to 0.69), rule A and the filter 0.94 of
-  2^-11 (mean 7.4 of 7.9; 1.78 on the public seed, which has the largest
-  of the 41 totals, 14), rule A 1.023 +- 0.016 of 2^-5 (sd 50.4 over the
-  41 runs; rule A alone is not part of (ii)). A run is 256 clustered
-  contexts, so single runs do not resolve these margins.
+- *098e66f4's preregistered uniform sample* (`rtuni.c`, 16,384 outer steps
+  with 256 values of X2, 2^38 trials): stage B 0.54629 +- 0.00047 of p_B,
+  rule A with the filter 1.00001 +- 0.00009 of 2^-11, rule A 1.00004.
+- *52bb50ee's preregistered uniform sample* (Subflatus3; `sbmeas.c`,
+  written independently of `rtuni.c`, 65,536 outer steps with 128 values
+  of X2, 2^39 trials): stage B 0.54644 +- 0.00023 of p_B (empirical
+  Bernstein 0.5567 p_B at 2^-64; Lemma C' exp(-31.2) at 0.60 p_B), rule A
+  with the filter 0.99995 +- 0.00007, rule A 1.00001.
+- *098e66f4's run-layout sample* with consecutive indices (2^38 trials):
+  stage B 0.5104 of p_B, rule A with the filter 1.00001; not a sample of
+  the run (consecutive X2 values lower the share). *A review-agent uniform
+  run* (2^35): 0.5469 and 0.99978. *The 41 replays of 098e66f4*: stage B
+  0.566 +- 0.008, rule A with the filter 0.94 +- 0.05.
+- The replays of this version (Section 6): stage B 0.544 +- 0.007, rule A
+  with the filter 1.003 +- 0.057.
 
 **Scope and limitations of H1.** The factor F = 92,675,072 is assumed; it
 is half of the exact model count 185,350,144 (margin 2.000), which the
@@ -970,7 +1027,7 @@ it was compared with real trials on events of probability down to about
 for one call by c66f230d; the full event is far below anything measured. M fails
 inside one context (rule-A share varies by context); only averages over
 contexts are measured. The constants, the class and rule A were chosen by
-c66f230d to maximize a count of the same kind; S8 was chosen by us from the
+c66f230d to maximize a count of the same kind; S8 was chosen by winglock from the
 exact per-member factors of all 524,288 class members. Recomputed for this
 package, S8 is the best of all 8,992,320 sub-classes of 2^16 members given
 by three independent conditions, each fixing one free bit of e1 or the XOR
@@ -982,168 +1039,175 @@ an artifact of this selection, S8 trials would have the class rate, and the
 class count with rule A (1.555 F) is still at least F. The filter was chosen to
 contain T6. A choice that is best under M says nothing about M and may
 favour parameters where M overstates; the real-trial ratios above are the
-check we have; the order of enumeration (Section 2) was not chosen with
+check available; the order of enumeration (Section 2) was not chosen with
 any count. 37% of the S8 count (44% in the full class) comes from one
-beta, 18b0e098. The trials of one outer step share its four coin words (outer
-steps have independent coins); the trials of one context (outer step and
+beta, 18b0e098. The trials of one outer step share its three coin words
+(outer steps have independent coins; D3.d1 = X3 in all of them); the trials of one context (outer step and
 X2) differ only in Y4, and trials with the same outer step and member share
 Y12 and w5, two of E1's inputs, over all 2^32 values of X2, while E1's a1
 varies with Y1 and Y6; for part (i) independence is assumed. Part (ii) is
 a first-moment statement: its run averages are estimated without bias from
-two independent uniform samples of the run (8.2: 2^38 trials, stage B at
-0.546 p_B, rule A with the filter at 1.00001 * 2^-11; 8.3: 2^39 trials,
-0.54644 +- 0.00023 p_B and 0.99995 * 2^-11; asserted 0.60 p_B and 1.25 * 2^-11),
-and the run has 2^100.5; no independence is assumed for it, and the
-budgets follow from it by Theorem 2. The sample of 8.2 is 098e66f4's and
-that of 8.3 is this package's; both run on the participant side; the organizer experiments see the stage events only
-in 16,128 clustered lanes per run.
+uniform samples of this configuration (8.2: 2^36 trials, stage B at
+0.539 p_B; 8.3: 2^34 independent batches, stage B at 0.53929 p_B; against
+the asserted 0.545 p_B a margin of about 1.011, which rests on the size of
+the 8.3 sample, not on a reserve; rule A with the filter at 1.00007 *
+2^-11 against 1.25 * 2^-11), and the run has 2^97.7 batches; no
+independence is assumed for it, and the budgets follow from it by
+Theorem 2. The sample's probabilities are over a seeded generator's
+choices, the program is a participant program and all samples ran on the
+participant side; the organizer experiments see the stage events only in
+16,128 clustered lanes per run. The two earlier samples (2^38, 2^39) are of
+the 098e66f4 configuration, whose stage-B share is about 0.0074 p_B higher.
 
 **Run selection.** No organizer-run count or frequency supports F, the
 averages of H1 (ii) or the success probability. Every predicted observation
 of Section 6 is an exact per-seed predicate, so no choice among runs can
 make it pass; the rule-A, filter and stage-entry totals are reported for
-information, every recorded replay of this version included (Section 6).
-No parameter, version, seed or nonce was chosen on replay outcomes: S8, the
+information, every replay of this version included (Section 6). No
+parameter, version, seed or nonce was chosen on replay outcomes: S8, the
 filter and F come from the model count, the stage tests from Lemma A and
-the filter. In 098e66f4 the margins of (ii) and the budgets were set twice, and both
-times before a measurement that is reported in full: in the first build
-1.01 and 1.02 times the per-trial rates, before the run-layout measurement
-of 8.2 (a 2^21-trial smoke test of its program before it, stage-B share
-0.104, is not included); after our review, the batch-level stage-B form
-(chosen after that measurement, with the margin 1.01 and budget 1.02 kept)
-and 1.25 and 1.27 for stage C, before the preregistered uniform sample of
-8.2 (two timing runs of 2^19 and 2^24 trials before it are not included;
-the malformed-seed run is reported above). The stage-C change only
-weakens (ii). The stage-B change replaces a per-trial bound by a bound on
-the batch-level event that Theorem 2 needs, which is neither weaker nor
-stronger, and lowers the stage-B budget from about 1.02 * 7 * 2^-5 = 0.2231
-to 1.02 p_B = 0.2032 per batch; the measured run average is 0.1089 per
-batch. This package set the stage-B margin a third time, to 0.60 p_B
-(budget 0.61 p_B = 0.1216 per batch), after reading 098e66f4's sample and
-before running its own; the plan of that sample fixed the value and the
-rule that nothing is changed unless its bound is at most 0.60 p_B
-(Section 8.3). The margin of the premise over the two sample means is
-1.10 and 1.10.
+the filter. D3.d1 = X3 was chosen from the operation count (it removes one
+XOR from stage A) before any measurement of this configuration. The
+stage-C margin 1.25 and budget 1.27 are 098e66f4's, set before its
+preregistered sample. The stage-B premise 0.60 p_B and budget 0.61 p_B
+were chosen by Subflatus3 (52bb50ee) after reading 098e66f4's sample
+(0.546 p_B) and tested there by a preregistered sample; winglock adopted them
+before the preregistered sample of 2125212, with the
+decision rule and the fallback (1.01 p_B, 1.02 p_B) fixed in advance.
+After that sample and the 41 replays, leech1996's 5266c5ce appeared on the
+board with the budget 0.6001 p_B for the same premise, and 2125212 adopted that
+budget: only BUDGET[0] of the program's ledger (61/100 to 6001/10000) and
+one docstring line changed. The budget is not a premise. It does not
+change which trials run or the stage-B share that the sample measured; it
+only sets the halt point, and Theorem 2 bounds the overrun under the
+unchanged premise. The premise was not changed after the sample. The
+edited program (SHA-256 2cc3cfeb...234c2fe) was hashed, and the 2,000-case
+self-test (output identical to that of the 0.61 build), the cross-check on
+three contexts (all equal) and all 41 replays (identical to the earlier
+runs in every field except time) were repeated on it; one further
+public-seed replay of the shipped program, made separately, is identical
+as well.
+Measurements of this configuration made before the preregistration: three
+cross-check runs of one context each and one timing run of 16 outer steps
+with 16 values of X2 (2^24 trials; stage B 0.543 p_B, rule A with the
+filter 1.0017); they are not part of the sample. The history of the
+earlier margins: 098e66f4 used 1.01 and 1.02 p_B, 52bb50ee 0.60 and
+0.61 p_B, 5266c5ce and 2125212 0.60 and 0.6001 p_B. The values 0.545 p_B
+and 0.5451 p_B of this version were fixed in the plan of Section 8.3
+before its runs, after reading 2125212's note (sample 0.53912 p_B), with
+the decision rule fixed in advance (if it failed, the premise would not be
+used and 2125212's 0.60 and 0.6001 p_B would stand); they were not changed
+after the sample.
 
+### 8.3 Part (ii), stage B: a sample of independent uniform batches (Subflatus3)
 
+**Why single batches.** Lemma C' needs only independent variables in
+[0, 1] whose sum has mean mu. The samples of Section 8.2 use one variable
+per outer step (Z_k, a share over 9,363 * 16 or more batches). That is
+valid, but such a Z_k has a range of [0, 1] and a much smaller spread, so
+Lemma C' gives weak bounds close to the mean. Here each variable is the
+stage-B indicator of **one batch drawn uniformly from the whole run**.
 
-### 8.3 This package's sample of the stage events (independent, preregistered)
+**Lemma U (sampling the run's batches).** Let a draw pick vd uniformly
+below V, w5, vc, S15 and S9 uniformly from 32-bit words (D3.d1 = X3), X2
+uniformly from 32-bit words and a batch index j uniformly below 9,363,
+independently of everything else, and let I be 1 if batch j of that outer
+step and that value of X2 has a distinct trial that satisfies rule A
+(by Lemma A' this is exactly the event that the batch enters stage B), and
+0 otherwise. Then E I is the share of batches entering stage B averaged
+over all V * 2^64 * 9,363 batches of the run and over the algorithm's
+random words, that is, the quantity that H1 (ii) bounds by 0.545 p_B.
+*Proof.* In the run, every pair (vd, w5) occurs once, its outer step uses
+a uniform random word whose words supply vc, S15 and S9, and every value
+of X2 and every batch index occurs once for it. The draw picks (vd, w5,
+X2, j) uniformly from the same index set, and (vc, S15, S9) with the
+distribution of the outer step's random word, so by the definition of the
+average, E I equals it. QED.
 
-**What is measured.** For outer step k, let Z_k be the share of its batches
-that enter stage B (some distinct trial of the batch satisfies rule A),
-counted over all 9,363 batches of each of its sampled values of X2. The
-run average that H1 (ii) bounds is E Z_k, where the outer step (vd below
-V, w5, and the four coin words vc, D3.d1, S15, S9) and X2 are uniform.
-Z_k lies in [0, 1]. Outer steps drawn independently and uniformly, each
-with independent uniform X2 values, therefore give independent,
-identically distributed Z_k whose mean is exactly the run average. No
-model is involved: this is sampling from the run's own index space.
-The same holds for the per-trial share of rule A with the filter.
+Independent draws give independent indicators I_1, .., I_n in {0, 1},
+with E(I_1 + .. + I_n) = n s, where s is the run average. By Lemma C' and
+its Consequence, if s >= m0 and the observed count K satisfies K < n m0,
+then P(I_1 + .. + I_n <= K) <= exp(-(n m0 - K)^2 / (2 n m0)). No
+independence inside the run is used: clustering by context only changes s,
+which is what is measured.
 
-**Program and cross-check.** `sbmeas.c` (Appendix B) was written for this
-package. It does not reuse 098e66f4's measuring code. It computes steps O,
-M and Y from the proof text, and for every trial runs C2 forwards as a G
-call, takes Y14 and tests rule A on h1 = ROR(Y14 ^ (Y3 + y), 16) (the
-first two assignments of E3; Lemma A is not used). When rule A holds, it
-runs D0, C1 and E1 forwards to c1 and tests the filter. Batches are
-members 7j .. 7j + 6 in the member order of Section 3, and the last batch
-holds members 65,534 and 65,535. `ref.py` (Appendix B) builds the 16
-message words and both messages from the eight free words. It runs its
-own forward 2-round compression of message A and reads h1 of E3 and c1 of
-E1 from it. On 3,000 random cases it checked these against
-`verifier/blake3.py` (both digests), checked that X3, X7, X11, X15 are the
-constants, that X2 is the chosen word, that Y4 = y in both messages, that
-Y3 and Y11 are the constants of Fact P, and that digest words 0, 2, 5 and
-7 agree. All 3,000 cases passed. `crosscheck.py` runs all 65,536 members
-of one complete drawn context through `ref.py`, checks every 64th digest
-of A against `verifier/blake3.py`, and compares with `sbmeas --context`
-the counts of rule A, rule A with the filter, the stage-B and stage-C
-batches, and a hash over all 65,536 per-trial flags. On seeds 11, 12 and
-13 it found 2091/36/956/35, 2127/29/981/29 and 2330/37/1118/37, all equal,
-with equal flag hashes.
+**The sample (participant measurement, `sbbatch.c`, Appendix B;
+preregistered).** `sbbatch.c` was written by Subflatus3. It shares the
+outer step, the middle step and the member enumeration with Subflatus3's
+`sbmeas.c` (52bb50ee's sample, written independently of winglock's
+`rtuni.c`). It evaluates the seven (last batch: two) members of the drawn
+batch forwards, with rule A on h1 of E3 and the filter on c1 of E1 read
+from forward G evaluations. Configuration Z is the algorithm (D3.d1 = X3,
+X14 = 0). Configuration R draws D3.d1 uniformly (the 098e66f4 program) and
+serves as a control. Before freezing the plan, `crosscheck_bern.py` (with
+the reference `ref.py`, which builds the messages and computes the
+2-round compression forwards, checked against `verifier/blake3.py` on every
+64th member) compared all 9,363 batch decisions for stage B and stage C of
+five full contexts with `sbbatch --context`. These were R with seeds 11 and
+12, and Z with seeds 21, 22 and 23, where X14 = 0 was printed. They agreed
+exactly; for example, seed 21 (Z) gave 1,328 stage-B and 23 stage-C batches
+with equal decision hashes. Also before freezing, sbbatch reproduced
+`sbmeas --context 1 2 3 4 5 6 7` (905 stage-B and 38 stage-C batches), and
+two smoke runs of 10^6 units (seed 5, R and Z) were made. They are not part
+of the sample.
 
-**Plan (preregistered).** Before the run, the program, `ref.py`,
-`crosscheck.py`, the analysis `analyze.py` and the plan were fixed and
-hashed (SHA-256 7b4f22ed...5c037b2, afcde01c...00bba1ce,
-414f513f...6738d6, 48e43aff...47a042, e4d5b4e7...6c26c). The plan was
-8 processes `./sbmeas 8192 128 SEED` with SEED = 3300001 .. 3300008:
-65,536 outer steps with 128 uniform values of X2 each and all 65,536 S8
-members, 2^39 trials and 78,542,536,704 batches. The analysis takes the
-mean, the sample standard deviation and the empirical Bernstein bound at
-delta = 2^-64 of the per-outer-step shares. The decision rule was to state
-the stage-B part of H1 (ii) as 0.60 p_B with budget 0.61 p_B only if that
-bound is at most 0.60 p_B, and otherwise to change nothing. Every run is
-reported and none was repeated with other seeds. Before the plan was
-fixed, one timing run of 4 outer steps with 16 values of X2 (seed 99,
-0.559 of p_B) was made. It is not part of the sample. The randomness is
-SplitMix64 seeded by SEED, a deterministic generator, not ideal coins.
+Plan, fixed before the runs: SHA-256 of the plan file 92b6c8f3...e8ee,
+of `sbbatch.c` 7a634bbe...cfc3, of the analysis `analyze_bern.py`
+e774721d...5c23, of `run.sh` aa4b3f69...b139, of `crosscheck_bern.py`
+fb76228b...63e7 and of `ref.py` afcde01c...ce. Per configuration there
+are 16 runs of 2^30 units, 2^34 units in all. The seed of run kk
+(kk = 00 .. 15) is the first 8 bytes (big-endian) of SHA-256("subflatus3
+bernoulli <CFG> <kk>"), fed to SplitMix64, which is a deterministic
+generator and not ideal coins. Premises tested: 0.545 p_B for Z (the
+algorithm) and 0.55 p_B for R (information only). Decision rule: accept a
+premise m0 iff K < n m0 and exp(-(n m0 - K)^2 / (2 n m0)) <= 2^-64. If it
+is accepted, the budget is 0.5451 p_B (Z). No other value depends on the
+sample.
 
-**Results.**
+Disclosed: the first launch ran all 16 R runs to completion, but its 8
+first Z runs were killed by an interruption of the session before writing
+any output. The Z runs were then started again, unchanged, from the frozen
+`run.sh` with the same seeds; the generator is deterministic, so a restart
+gives the same draws. All 32 runs are reported, and no run was repeated
+after it reported.
 
-| event | count | per-outer-step mean ratio +- s.e. (sd) | empirical Bernstein bound, delta = 2^-64 | min, max of one outer step | premise |
-|---|---:|---:|---:|---:|---:|
-| batch enters stage B | 8,552,141,053 | 0.54644 +- 0.00023 (0.0599) of p_B | 0.5567 p_B | 0.433, 0.879 | 0.60 p_B |
-| rule A and filter (trial) | 268,423,012 | 0.99995 +- 0.00007 (0.0170) of 2^-11 | 4.29 * 2^-11 (not informative) | 0.927, 1.074 | 1.25 * 2^-11 |
-| rule A (trial; not in (ii)) | 17,180,077,139 | 1.00001 +- 0.00003 of 2^-5 | | | |
-| batch enters stage C | 265,630,783 | 0.0033820 per batch | | | budget 0.0043405 |
+| configuration | units | stage-B batches K | share / p_B (1 s.e.) | per-run range of 16 | Lemma C' at the premise | decision |
+|---|---:|---:|---:|---:|---:|---|
+| Z: D3.d1 = X3 (the algorithm) | 2^34 | 1,846,160,514 | 0.53929 +- 0.00001 | 0.53916 .. 0.53939 | exp(-102,356) at 0.545 p_B | accept |
+| R: random D3.d1 (control) | 2^34 | 1,871,275,845 | 0.54663 +- 0.00001 | 0.54657 .. 0.54673 | exp(-35,391) at 0.55 p_B | accept |
 
-Per process (8,192 outer steps) the stage-B ratio lies between 0.5455 and
-0.5476. The decision rule was met (0.5567 <= 0.60), so the package uses
-0.60 p_B and 0.61 p_B. The mean agrees with 098e66f4's independent sample
-(0.54629 +- 0.00047). The two samples differ in X2 values per outer step
-(128 here, 256 there), and the per-outer-step means estimate the same run
-average either way.
+Here 1 s.e. is the binomial standard error of the share. Stage-C batch
+shares (reported, not used): Z 0.0033822 and R 0.0033826 per batch, with
+per-run ranges 0.0033783 .. 0.0033856 and 0.0033792 .. 0.0033848, against
+the M value 1 - (1 - 2^-11)^7 = 0.0034130 per full batch and the budget
+0.0043405 per batch. For information only: the same rule would accept any
+premise down to 0.53941 p_B in Z (0.54675 p_B in R). The premise 0.545 p_B
+was fixed before the sample and was not changed after it.
 
-**Lemma C' (lower-tail Chernoff bound).** Let X_1, .., X_n be independent
-random variables with values in [0, 1] and mu = E[X_1 + .. + X_n]. Then
-for 0 < delta < 1, P(X_1 + .. + X_n <= (1 - delta) mu) <= exp(-delta^2 mu / 2).
-*Proof.* For t > 0 and x in [0, 1], e^(-tx) <= 1 - x (1 - e^(-t))
-(convexity), so E e^(-t X_k) <= exp(-(1 - e^(-t)) E X_k), and by
-independence E e^(-t sum X_k) <= exp(-(1 - e^(-t)) mu). Markov's
-inequality applied to e^(-t sum X_k) with t = -ln(1 - delta) gives
-P(sum <= (1 - delta) mu) <= exp(-mu (delta + (1 - delta) ln(1 - delta))),
-and (1 - delta) ln(1 - delta) >= -delta + delta^2 / 2 for 0 <= delta < 1.
-QED.
+**Agreement with the other samples.** Z: 2125212's preregistered
+per-outer-step sample (Section 8.2), from a separately written program,
+gives 0.53912 +- 0.00022. R: 098e66f4 gives 0.54629 +- 0.00047, 52bb50ee
+0.54644 +- 0.00023 and the 2125212 control 0.54663 +- 0.00048. All agree
+within about 1 s.e. of the older samples. Fixing D3.d1 = X3 lowers the
+share by 0.0073 p_B.
 
-**Consequence.** Let m be the run average of the stage-B share and s the
-observed sum of the n = 65,536 shares Z_k. If m >= m0 = 0.60 p_B, then
-mu = n m > s, and Lemma C' with (1 - delta) mu = s gives
-P(sum <= s) <= exp(-(n m - s)^2 / (2 n m)). This is decreasing in m for
-n m > s, so it is at most exp(-(n m0 - s)^2 / (2 n m0)) = exp(-31.2) < 3 * 10^-14.
-In words: if the run average were 0.60 p_B or more, a uniform sample of
-this size would show a mean as low as 0.54644 p_B with probability below
-3 * 10^-14. The empirical Bernstein inequality of Maurer and Pontil
-(2009, Theorem 4) applies to i.i.d. variables in [0, 1]. It states that,
-with probability at least 1 - delta over the sample,
-E Z <= mean + sqrt(2 V ln(2/delta) / n) + 7 ln(2/delta) / (3 (n - 1)),
-where V is the unbiased sample variance. It gives the sharper bound
-0.5567 p_B at delta = 2^-64. Lemma C' is proved above and does not depend on
-the cited inequality. For the stage-C part, 1.25 * 2^-11 is 098e66f4's
-premise and is unchanged. For this rare event the bounds for variables in
-[0, 1] are not informative at this sample size: the empirical Bernstein
-bound is 4.29 * 2^-11, and Lemma C' gives only exp(-0.80). The
-per-outer-step mean, 0.99995 +- 0.00007 of 2^-11, agrees with 098e66f4's
-sample (1.00001 +- 0.00009), which is the support that 098e66f4 gave for
-this part.
-
-**Scope and limitations of this sample.** The probabilities above are over
-the sampler's random choices. They are not a proof about the run, because
-the sampler is a seeded deterministic generator, the program is a
-participant program, and the run was made on the participant side
-only. The sample holds 2^39 of the run's 2^100.5 trials. It estimates
-the run average by sampling from that same population, not by a model,
-so no extrapolation in the sense of H1 (i) is involved. The value 0.60
-was chosen after reading 098e66f4's sample (0.546 p_B), so the two samples
-are not equally independent of the choice: 098e66f4's sample motivated
-it, and this package's preregistered sample tested it. The margin of the
-premise over the observed means is about 1.10. That is enough for Lemma
-C' and the empirical Bernstein bound at this sample size, but it is much
-smaller than the margin of 098e66f4's 1.01 p_B (about 1.85).
+**What this supports.** For the 2^34 draws, the event "run average at
+least 0.545 p_B and a count this low" has probability at most
+exp(-102,356) over the sampler's choices. It is not a bound over the
+algorithm's random words, which H1 (ii) states as a premise. The premise
+is a statement about the mean only, and Theorem 2 turns it into the
+budget bound. The draws come from a seeded generator, the program is a
+participant program, and the run has 2^97.7 batches against 2^34 drawn.
+The margin 0.545 / 0.53929 = 1.0106 reflects the size of the sample and
+holds no reserve against a systematic error in the sampler. Such an error
+is guarded against by the cross-checks against the forward compression on
+five full contexts and by the agreement with the independently written
+programs of Section 8.2.
 
 ## 9. Charged time
 
 Per X2 value (65,536 trials), fixed work:
-9363 * 29 + 3 * 147 + 107 + 4 = 272,079 operations. (Stage A of every
+9363 * 28 + 3 * 147 + 107 + 4 = 262,716 operations. (Stage A of every
 batch; the batch loop is unrolled 64 times: 146 iterations of 64 batches
 with pointer add, compare and branch, and a straight-line tail of 19
 batches, charged 3 * 147; 107 is the middle step, 4 the block test.)
@@ -1158,12 +1222,12 @@ Stages B and C are charged at their budgets, whatever the coins:
 (E_B + 1) * 73 and (E_C + 1) * 112 operations for the run, the last entry
 of each covering the halting entry.
 
-- Fixed work: 272,079 * V * 2^64 = 4.15160 * N operations.
-- Stage B: (E_B + 1) * 73 = 1.26769 * N (0.61 p_B * 9,363 / 65,536 * 73).
+- Fixed work: 262,716 * V * 2^64 = 4.00873 * N operations.
+- Stage B: (E_B + 1) * 73 = 1.13282 * N (0.5451 p_B * 9,363 / 65,536 * 73).
 - Stage C: (E_C + 1) * 112 = 0.06945 * N (1.27 * 2^-11 * 112).
 - Per outer step (vd, w5), V * 2^32 of them: the outer step with its
-  random word (340), the build entry (at most 26) and the table build
-  9,363 * 49: 459,153 operations per 2^48 trials, under 2^-29 per trial.
+  random word (318), the build entry (at most 26) and the table build
+  9,363 * 49: 459,131 operations per 2^48 trials, under 2^-29 per trial.
 - Per value of vd: next value, end test and loop entry, under 2^6.
 - The lists U and V (18,726 packed words) and the two budget registers:
   under 2^22 operations once.
@@ -1172,37 +1236,39 @@ of each covering the halting entry.
   compressions.
 - Preprocessing: 2^86 units, declared below.
 
-    T = (272,079 * V * 2^64 + 73 (E_B + 1) + 112 (E_C + 1) + 459,153 * V * 2^32
+    T = (262,716 * V * 2^64 + 73 (E_B + 1) + 112 (E_C + 1) + 459,131 * V * 2^32
          + 2^6 V + 2^22 + 2^22) / 430 + 2 + 2^86
-      = 2^94.2416   (5.488742 operations per trial: 2^94.2368 without the
-                     2^86 + 2 units, which add 0.0048)
+      = 2^94.166936 (5.211000 operations per trial: 2^94.1619 without the
+                     2^86 + 2 units, which add 0.0050)
 
-time_log2 = 94.2416, claimed **94.25** (rounded up). `python3
-experiments/s8stage.py --ledger` computes T in exact rational arithmetic.
-The claim holds for any total up to 5.5209 operations per trial. Under
-stricter readings: the budget registers kept in memory (load, subtract,
-store, load the limit, compare, branch: 3 more operations per entry) give
-94.26; stage A counted without the unrolling (3 loop operations per batch)
-gives 94.35. (098e66f4, with the stage-B budget 1.02 p_B, gives 2^94.4491,
-claimed 94.45; its first build, with the per-trial stage-B budget
-1.02 * 2^-5 and stage C at 1.02 * 2^-11, gave 2^94.4924, claimed 94.50.)
-The figures of this section were recomputed for this package by an
-independent re-implementation of the formula in exact rational
-arithmetic, which also reproduces 098e66f4's 2^94.449145 from its
-constants; the shipped `--ledger` evaluates the same formula.
+time_log2 = 94.166936, claimed **94.1670** (rounded up at the fourth
+decimal). `python3 experiments/s8stage.py --ledger` computes T in exact
+rational arithmetic. The claim holds for any total up to 5.21123 operations
+per trial. Under stricter readings: the budget registers kept in memory
+(load, subtract, store, load the limit, compare, branch: 3 more operations
+per entry) give 2^94.1802; stage A counted without the unrolling (3 loop
+operations per batch) gives 2^94.2789. For comparison, the same ledger
+gives 2^94.4491 with 098e66f4's constants (stage A 29, budget 1.02 p_B),
+2^94.2416 with 52bb50ee's (stage A 29, budget 0.61 p_B), 2^94.2362 with
+5266c5ce's (stage A 29, budget 0.6001 p_B), 2^94.2037 with stage A 28 and
+the budget 0.61 p_B, 2^94.4164 with stage A 28 and the budget
+1.02 p_B, and 2^94.198131 with 2125212's (stage A 28, budget 0.6001 p_B).
 
 **Preprocessing (declared charge).** The program stores the six constants
 of Fact P, eta, the rule-A words, the filter words, the stage-test words
 and the S8 conditions. The constants were found by c66f230d with solver
 searches and chosen with model counts; rule A, S8 and the filter were chosen
-with counts of the same kind (S8 by us from the exact per-member factors of
+with counts of the same kind (S8 by winglock from the exact per-member factors of
 all 524,288 class members, best of 8,992,320 candidate sub-classes); the
-order of the construction and the staged batch were found by 60f94c5c.
-This work is not reconstructed from run records. A declared upper bound
-of 2^86 units (2^94.75 word operations) is charged for all of it,
-098e66f4's (winglock's), c66f230d's, 60f94c5c's and this package's,
-including every count and measurement of Section 8 (this package's sample
-of Section 8.3 has 2^39 trials, under 2^47 word operations). It is more than 2^34 times c66f230d's own estimate of their
+order of the construction and the staged batch were found by 60f94c5c, the
+choice D3.d1 = X3 by 2125212, and the stage-B premise and budget values by
+52bb50ee, 5266c5ce and this version (Section 8.3: 2^35 batch evaluations
+in all).
+This work is not reconstructed from run records. A declared
+upper bound of 2^86 units (2^94.75 word operations) is charged for all of it,
+winglock's, c66f230d's, 60f94c5c's, 52bb50ee's, 5266c5ce's, 2125212's and
+this version's, including every count and measurement of
+Section 8. It is more than 2^34 times c66f230d's own estimate of their
 selection (below 2^60 operations, from running times on one desktop
 machine and one graphics card), and more than 2^3.5 times ten years at
 2^63 operations per second (over four times the peak rate of the fastest
@@ -1210,7 +1276,7 @@ listed supercomputer, about 2^61.3 FP64 operations per second), so it
 exceeds any computation physically performed for this selection before the
 submission date. This is a declared upper-bound charge, not a premise:
 H1 does not depend on it, and no part of the success bound uses it. The
-charge moves the scalar by 0.0048 (94.2368 without it). The stored values themselves need no search to check: Fact P, Lemma Q,
+charge moves the scalar by 0.0050 (94.1619 without it). The stored values themselves need no search to check: Fact P, Lemma Q,
 Lemma B and the stage-test words are finite computations repeated by the
 self-test and the experiments.
 
@@ -1218,8 +1284,8 @@ self-test and the experiments.
 
 Search memory: code below 2^19 bytes, the lists U and V 2 * 9,363 * 32
 bytes, the table 5 * 9,363 * 32 bytes, constants, budget registers and
-temporaries below 2^12 bytes: below 2^21 bytes. For the preprocessing we
-use no reported peak: every byte it stores is written by one of its charged
+temporaries below 2^12 bytes: below 2^21 bytes. For the preprocessing no
+reported peak is used: every byte it stores is written by one of its charged
 word operations, so it stored at most 32 * 2^94.75 = 2^99.75 bytes;
 memory_log2_bytes = 100 is this bound and covers the search (the cost model
 gives memory no scalar contribution). Advice: the six constants, eta, the
@@ -1229,18 +1295,28 @@ above.
 
 ## Appendix A. The measuring programs of Section 8.2
 
-`rtuni.c` (compiled with `cc -O3 -march=native`; run as `./rtuni 1024 256
-SEED` for SEED = 20261101 .. 20261116). It computes the trials forwards
-from the context with the lines of steps O, M, Y and T, the member list of
-S8 and the batches of the algorithm, and tests rule A on h1 of E3 and the
-filter on c1 of E1 of message A, exactly as the shipped program's forward
-computation does (checked by `rtunicheck.py`).
+These are the preregistered files (SHA-256 a59b7b62...6e1b6,
+28c754f0...88004 and 843f9a4c...c28a). `rtuni2.c` is compiled with
+`cc -O3 -march=native` and run as `./rtuni2 8192 16 SEED fixed` for SEED =
+20261201 .. 20261208 and `./rtuni2 8192 16 SEED rand` for SEED = 20261211,
+20261212. It computes the trials forwards from the context with the lines
+of steps O, M, Y and T, the member list of S8 and the batches of the
+algorithm, and tests rule A on h1 of E3 and the filter on c1 of E1 of
+message A, exactly as the shipped program's forward computation does
+(checked by `rtunicheck2.py`). It is 098e66f4's `rtuni.c` (Appendix A
+there) with the mode argument, the [0, 1] share sums and the E1 events
+added. In mode fixed it still draws the unused fourth coin, so both modes
+read the generator in the same order.
 
 ```c
-/* rtuni.c -- real-trial rates of the H1 (ii) events of v101 on a uniform sample of the run (steps O, M, Y, T of
-   60f94c5c, S8, batches of seven consecutive members, a fresh random word per outer step).
-   usage: rtuni NOUTER NX2 SEED
-     NOUTER outer steps, each with vd uniform below V = 1,512,538, w5 uniform, fresh coins C0.c1, D3.d1, S15, S9, and
+/* rtuni2.c -- real-trial rates of the H1 (ii) events of v102 on a uniform sample of the run (steps O, M, Y, T of
+   60f94c5c, S8, batches of seven consecutive members, a fresh random word per outer step).  v102 fixes D3.d1 = X3
+   (X14 = 0); MODE "fixed" does so, MODE "rand" draws D3.d1 uniformly as v101 did (control).  Derived from rtuni.c
+   (v101); added: per-outer-step stage-B share sums for [0,1]-range bounds, and the E1 events beta in T6 and
+   low 12 bits of the Lemma N word n zero (not part of H1 (ii); comparison with Section 8.1).
+   usage: rtuni2 NOUTER NX2 SEED MODE
+     NOUTER outer steps, each with vd uniform below V = 1,512,538, w5 uniform, fresh coins C0.c1, S15, S9 (and D3.d1
+     in MODE rand), and
      NX2 values of X2 drawn uniformly (all from a SplitMix64 stream seeded by SEED); all 65,536 S8 members in the
      9,363 batches of the algorithm (members 7j..7j+6, the last word repeating member 65,535).
    Per trial (distinct members): A = rule A on h1 of E3, F = filter on c1 of E1, AF = both.
@@ -1257,7 +1333,9 @@ static inline u32 ror(u32 x,int r){ return (x>>r)|(x<<(32-r)); }
 static inline u32 rol(u32 x,int r){ return (x<<r)|(x>>(32-r)); }
 static const u32 IV[8]={0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19};
 static const u32 X3=0x29d4fa98,X7=0xbee3af28,X11=0x44036000,X15=0x40c58500,W4=0x97475638,W13=0x0007c006;
-static const u32 Y3=0x8127c181,Y11=0x7af77f38;
+static const u32 Y3=0x8127c181,Y11=0x7af77f38,Y11P=0x850000c3,ETA=0x830303cf;
+static const u32 T6[6]={0x18b0e098,0x18b1a098,0x18d0e098,0x18d1a098,0x18b3e098,0x18d3e098};
+static inline int inT6(u32 b){ for(int i=0;i<6;i++) if(b==T6[i]) return 1; return 0; }
 static u64 sm; static inline u64 rnd(void){ u64 z=(sm+=0x9E3779B97F4A7C15ULL); z=(z^(z>>30))*0xBF58476D1CE4E5B9ULL; z=(z^(z>>27))*0x94D049BB133111EBULL; return z^(z>>31); }
 static u32 S8[65536];
 static void members(void){
@@ -1267,16 +1345,19 @@ static void members(void){
 static inline int ruleA(u32 h){ return !(h&1) && !((h>>16)&1) && !((h>>17)&1) && ((h>>1)&1) && (((h>>2)^(h>>3))&1); }
 #define G1(a,d,c,b,x,y) do{ a=a+b+x; d=ror(d^a,16); c=c+d; b=ror(b^c,12); a=a+b+y; d=ror(d^a,8); c=c+d; b=ror(b^c,7);}while(0)
 int main(int argc,char**argv){
-  if(argc<4){ fprintf(stderr,"usage\n"); return 1; }
+  if(argc<5 || (strcmp(argv[4],"fixed") && strcmp(argv[4],"rand"))){ fprintf(stderr,"usage\n"); return 1; }
+  int fixed=!strcmp(argv[4],"fixed");
   long NO=atol(argv[1]), NX=atol(argv[2]); sm=strtoull(argv[3],0,10)*0x1234567ULL+77;
   const double PB=32052445611625.0/160855115169792.0;   /* p_B of --count */
   members();
-  u32 K=IV[2]+IV[6], K2A=K+W4, K2D=ror(K2A^55,16), K2C=IV[2]+K2D, K2B=ror(IV[6]^K2C,12);
+  u32 K=IV[2]+IV[6], DELTA=W4-(((K+W4)^8)-K), K2A=K+W4, K2D=ror(K2A^55,16), K2C=IV[2]+K2D, K2B=ror(IV[6]^K2C,12);
   static u32 tY12[65536], tCa[65536], tX6[65536], tX1[65536], tDd[65536];
   u64 cA=0,cF=0,cAF=0,bB=0,bC=0,nb=0,nt=0; double sB=0,sB2=0,sAF=0,sAF2=0,sA=0,sA2=0,maxB=0,maxAF=0;
   double cmaxB=0; /* largest stage-B share of one context (one X2 value) */
+  double sS=0,sS2=0; u64 cT6=0,cT6A=0,cN12=0,cT6N8=0;   /* s_k = stage-B share of outer step k, in [0,1] */
   for(long oi=0; oi<NO; oi++){
-    u32 c0c=(u32)rnd(), d3d=(u32)rnd(), s15=(u32)rnd(), s9=(u32)rnd();   /* fresh coins for this outer step */
+    u32 c0c=(u32)rnd(), d3r=(u32)rnd(), s15=(u32)rnd(), s9=(u32)rnd();   /* fresh coins for this outer step */
+    u32 d3d=fixed?X3:d3r;                                                  /* v102: D3.d1 = X3, so X14 = 0 */
     u32 w5=(u32)rnd(), c0d=(u32)(rnd()%1512538ULL);
     u32 S2=K2A+K2B+w5, S14=ror(K2D^S2,8), S10=K2C+S14, S6=ror(K2B^S10,7);
     u32 d3a=rol(d3d,16)^S14, d3c=s9+d3d, d3b=X3-d3a, S4=rol(d3b,12)^d3c, S3=d3a-S4, X14=ror(d3d^X3,8), X9=d3c+X14, X4=ror(d3b^X9,7);
@@ -1303,31 +1384,38 @@ int main(int argc,char**argv){
           u32 e1=Y3+S8[i], h1=ror(Y14^e1,16); int A=ruleA(h1);
           u32 a=tX1[i],b=X5,c=X9,d=X13; G1(a,d,c,b,w3,w10); u32 Y1=a;
           u32 ea1=Y1+Y6+w12, ed1=ror(tY12[i]^ea1,16), ec1=Y11+ed1; int F=((ec1&0x00098188)==0x00008000);
+          u32 ec1p=Y11P+ed1, eb1=ror(Y6^ec1,12), eb1p=ror(Y6^ec1p,12), ea2=ea1+eb1+w5, ea2p=ea1+eb1p+w5+DELTA;
+          u32 ec2=ec1+ror(ed1^ea2,8), ec2p=ec1p+ror(ed1^ea2p,8), beta=eb1^eb1p, eps=ec2^ec2p, n=eps^rol(beta^eps,1)^ETA;
+          int t6=inT6(beta); cT6+=t6; cT6A+=t6&A; cN12+=((n&0xfff)==0); cT6N8+=t6&((n&0xff)==0);
           cA+=A; cF+=F; cAF+=A&F; anyA|=A; anyAF|=A&F; nt++; oA+=A; oAF+=A&F; ont++;
         }
         bB+=anyA; bC+=anyAF; obB+=anyA; obC+=anyAF; xbB+=anyA; nb++; onb++;
       }
       double xs=(double)xbB/9363; if(xs>cmaxB) cmaxB=xs;
     }
+    double sk=(double)obB/onb; sS+=sk; sS2+=sk*sk;
     double rB=(double)obB/onb/PB, rAF=(double)oAF/ont*2048.0, rA=(double)oA/ont*32.0;
     sB+=rB; sB2+=rB*rB; sAF+=rAF; sAF2+=rAF*rAF; sA+=rA; sA2+=rA*rA; if(rB>maxB)maxB=rB; if(rAF>maxAF)maxAF=rAF;
   }
   printf("{\"outer\":%ld,\"nx2\":%ld,\"seed\":%s,\"trials\":%llu,\"batches\":%llu,\"A\":%llu,\"F\":%llu,\"AF\":%llu,\"SB\":%llu,\"SC\":%llu,"
-         "\"rB\":[%.9f,%.9f,%.6f],\"rAF\":[%.9f,%.9f,%.6f],\"rA\":[%.9f,%.9f],\"context_max_B\":%.5f}\n",
+         "\"rB\":[%.9f,%.9f,%.6f],\"rAF\":[%.9f,%.9f,%.6f],\"rA\":[%.9f,%.9f],\"context_max_B\":%.5f,"
+         "\"mode\":\"%s\",\"sB\":[%.12f,%.12f],\"T6\":%llu,\"T6A\":%llu,\"N12\":%llu,\"T6N8\":%llu}\n",
          NO,NX,argv[3],(unsigned long long)nt,(unsigned long long)nb,(unsigned long long)cA,(unsigned long long)cF,(unsigned long long)cAF,
-         (unsigned long long)bB,(unsigned long long)bC,sB,sB2,maxB,sAF,sAF2,maxAF,sA,sA2,cmaxB);
+         (unsigned long long)bB,(unsigned long long)bC,sB,sB2,maxB,sAF,sAF2,maxAF,sA,sA2,cmaxB,
+         argv[4],sS,sS2,(unsigned long long)cT6,(unsigned long long)cT6A,(unsigned long long)cN12,(unsigned long long)cT6N8);
   return 0;
 }
 ```
 
-`rtunicheck.py` (run from the measuring directory with the path of the
-shipped `experiments/` as its second argument):
+`rtunicheck2.py` (run in the measuring directory as `python3 rtunicheck2.py
+SEED MODE DIR`, DIR holding the shipped `s8stage.py`):
 
 ```python
-"""Cross-check of rtuni.c against the shipped program's forward computation: one outer step and one X2 value drawn
-as rtuni draws them (seed given), all 65,536 S8 members in the batches of the algorithm; counts A, F, AF, SB, SC."""
+"""Cross-check of rtuni2.c against the shipped program's forward computation: one outer step and one X2 value drawn
+as rtuni2 draws them (seed and mode given), all 65,536 S8 members in the batches of the algorithm; counts A, F, AF,
+SB, SC, T6, T6A, N12, T6N8.  usage: python3 rtunicheck2.py SEED MODE DIR_OF_s8stage.py"""
 import sys, json, subprocess
-sys.path.insert(0, sys.argv[2])
+sys.path.insert(0, sys.argv[3])
 import s8stage as s
 M = (1 << 64) - 1
 class SM:
@@ -1335,74 +1423,83 @@ class SM:
     def __call__(self):
         self.s = (self.s + 0x9E3779B97F4A7C15) & M; z = self.s
         z = ((z ^ (z >> 30)) * 0xBF58476D1CE4E5B9) & M; z = ((z ^ (z >> 27)) * 0x94D049BB133111EB) & M; return (z ^ (z >> 31)) & M
-seed = int(sys.argv[1])
-r = SM(seed); c0c, d3d, s15, s9 = [r() & 0xffffffff for _ in range(4)]
+seed, mode = int(sys.argv[1]), sys.argv[2]
+r = SM(seed); c0c, d3r, s15, s9 = [r() & 0xffffffff for _ in range(4)]
 w5 = r() & 0xffffffff; vd = r() % 1512538; X2 = r() & 0xffffffff
-v = s.context([c0c, vd, d3d, s15, s9, w5, X2])
-A = F = AF = SB = SC = 0
+d3d = s.X3 if mode == 'fixed' else d3r
+w = [c0c, vd, d3d, s15, s9, w5, X2]
+if mode == 'fixed': assert s.alg(w) == w
+v = s.context(w)
+T6 = {0x18b0e098, 0x18b1a098, 0x18d0e098, 0x18d1a098, 0x18b3e098, 0x18d3e098}
+c = dict(A=0, F=0, AF=0, SB=0, SC=0, T6=0, T6A=0, N12=0, T6N8=0)
 for j in range(s.NBATCH):
     anyA = anyAF = False
     for i in sorted(set(s.batch_members(j))):
-        f = s.forward(v, s.member(i)); a, fl = f['ruleA'], f['filt']
-        A += a; F += fl; AF += a and fl; anyA |= a; anyAF |= a and fl
-    SB += anyA; SC += anyAF
-py = dict(A=A, F=F, AF=AF, SB=SB, SC=SC)
-c = json.loads(subprocess.run(['./rtuni', '1', '1', str(seed)], capture_output=True, text=True).stdout)
-print(json.dumps({'seed': seed, 'vd': vd, 'w5': w5, 'X2': X2, 'python': py, 'c': {k: c[k] for k in py}, 'equal': all(py[k] == c[k] for k in py)}))
+        f = s.forward(v, s.member(i)); a, fl = f['ruleA'], f['filt']; t6 = f['beta'] in T6
+        c['A'] += a; c['F'] += fl; c['AF'] += a and fl; anyA |= a; anyAF |= a and fl
+        c['T6'] += t6; c['T6A'] += t6 and a; c['N12'] += f['n'] & 0xfff == 0; c['T6N8'] += t6 and f['n'] & 0xff == 0
+    c['SB'] += anyA; c['SC'] += anyAF
+o = json.loads(subprocess.run(['./rtuni2', '1', '1', str(seed), mode], capture_output=True, text=True).stdout)
+print(json.dumps({'seed': seed, 'mode': mode, 'vd': vd, 'w5': w5, 'X2': X2, 'X14': v['X14'], 'python': c,
+                  'c': {k: o[k] for k in c}, 'equal': all(c[k] == o[k] for k in c)}))
 ```
 
-The preregistered analysis (`summarize.py`):
+`summarize2.py` (run in the measuring directory with the run files
+`runs/r_SEED_MODE.json`, as `python3 summarize2.py fixed`):
 
 ```python
-import json, glob, math
+"""Analysis of the rtuni2 runs (fixed before the runs).  Per outer step k: s_k = stage-B share in [0,1].
+Reports: mean, sd and s.e. of rB_k = s_k / p_B, rAF_k, rA_k; normal 99.9% upper bound (mean + 3.09 s.e.);
+Lemma C' (lower-tail Chernoff for independent [0,1] variables) exponent for the hypothesis 'run average >= 0.60 p_B':
+P(sum s_k <= observed) <= exp(-(mu - obs)^2 / (2 mu)) with mu = n * 0.60 * p_B; the empirical Bernstein upper bound
+(Maurer and Pontil 2009, Thm 4) at delta = 2^-64; pooled ratios of the E1 events.  usage: summarize2.py MODE"""
+import json, glob, math, sys
+mode = sys.argv[1]
 pB = 32052445611625 / 160855115169792
-R = [json.load(open(f)) for f in sorted(glob.glob('runs/r_*.json'))]
+R = [json.load(open(f)) for f in sorted(glob.glob('runs/r_*_%s.json' % mode))]
 n = sum(r['outer'] for r in R); t = sum(r['trials'] for r in R); b = sum(r['batches'] for r in R)
-out = {'runs': len(R), 'outer_steps': n, 'trials_log2': round(math.log2(t), 4), 'batches': b}
+out = {'mode': mode, 'runs': len(R), 'outer_steps': n, 'trials_log2': round(math.log2(t), 4), 'batches': b}
 for k in ('rB', 'rAF', 'rA'):
     s = sum(r[k][0] for r in R); s2 = sum(r[k][1] for r in R)
     m = s / n; sd = math.sqrt((s2 - n * m * m) / (n - 1)); se = sd / math.sqrt(n)
     out[k] = {'mean': round(m, 5), 'sd_outer': round(sd, 5), 'se': round(se, 6), 'upper_99.9': round(m + 3.09 * se, 5),
               'per_run': [round(r[k][0] / r['outer'], 4) for r in R]}
     if len(R[0][k]) > 2: out[k]['max_outer'] = round(max(r[k][2] for r in R), 4)
-A = sum(r['A'] for r in R); AF = sum(r['AF'] for r in R); SB = sum(r['SB'] for r in R); SC = sum(r['SC'] for r in R); F = sum(r['F'] for r in R)
-out['pooled'] = {'A': A, 'F': F, 'AF': AF, 'SB': SB, 'SC': SC, 'A_ratio': round(A / t * 32, 5), 'F_ratio': round(F / t * 64, 5),
-                 'AF_ratio': round(AF / t * 2048, 5), 'SB_share': round(SB / b, 6), 'SB_over_pB': round(SB / b / pB, 5),
-                 'SC_share': round(SC / b, 7), 'SB_budget_share_used': round(SB / b / (1.02 * pB), 4),
-                 'SC_over_budget': round(SC / b / (1.27 * 65536 / 9363 / 2048), 4)}
+S = sum(r['sB'][0] for r in R); S2 = sum(r['sB'][1] for r in R)
+mean = S / n; var = (S2 - n * mean * mean) / (n - 1)
+mu = n * 0.60 * pB
+chern = (mu - S) ** 2 / (2 * mu) if S < mu else 0.0
+ld = math.log(2 * 2 ** 64)
+eb = mean + math.sqrt(2 * var * ld / n) + 7 * ld / (3 * (n - 1))
+out['stageB_share'] = {'mean': mean, 'mean_over_pB': round(mean / pB, 5), 'lemmaC_lower_exponent_at_0.60pB': round(chern, 2),
+                       'emp_bernstein_2^-64_over_pB': round(eb / pB, 4),
+                       'decision_0.60': bool(eb <= 0.60 * pB and chern >= 20)}
+P = {k: sum(r[k] for r in R) for k in ('A', 'F', 'AF', 'SB', 'SC', 'T6', 'T6A', 'N12', 'T6N8')}
+out['pooled'] = dict(P, A_ratio=round(P['A'] / t * 32, 5), F_ratio=round(P['F'] / t * 64, 5), AF_ratio=round(P['AF'] / t * 2048, 5),
+                     SB_over_pB=round(P['SB'] / b / pB, 5), SC_share=round(P['SC'] / b, 7),
+                     T6_log2=round(math.log2(P['T6'] / t), 4), T6_over_model=round(P['T6'] / t / 2 ** -8.8301, 4),
+                     T6A_log2=round(math.log2(P['T6A'] / t), 4), N12_log2=round(math.log2(P['N12'] / t), 4),
+                     T6N8_log2=round(math.log2(P['T6N8'] / t), 4) if P['T6N8'] else None)
 out['context_max_B_over_pB'] = round(max(r['context_max_B'] for r in R) / pB, 4)
 print(json.dumps(out, indent=1))
 ```
 
-## Appendix B. This package's measuring programs (Section 8.3)
+## Appendix B. The measuring programs of Section 8.3
 
-Written for this package; they share no code with 098e66f4's programs.
-The listings are the hashed files of the plan, except that the local path
-of the repository checkout (one string in `ref.py`, two in
-`crosscheck.py`) is shown here as `<repository root>`. `sbmeas.c` was
-compiled with `gcc -O3 -march=native`.
+These are the preregistered files of Section 8.3, with their SHA-256 values
+in the order listed: 7a634bbe...cfc3, e774721d...5c23, aa4b3f69...b139,
+fb76228b...63e7, afcde01c...ce and 92b6c8f3...e8ee. `sbbatch.c` is
+compiled with `gcc -O3 -march=native` and run by `run.sh`. Its output
+lines `CONFIG c units n stageB K stageC K' seed s` are summed by
+`analyze_bern.py`. `crosscheck_bern.py` and `ref.py` are the cross-check
+against forward compressions and `verifier/blake3.py`. `ref.py` gives
+the construction of Section 2 in plain Python (it imports nothing from the
+shipped program).
 
-The plan (`PLAN.md`):
-
-```text
-# Preregistered plan: stage-B share of the 098e66f search on a uniform sample
-
-Fixed before the run (hashes in PLAN.sha256):
-- program sbmeas.c (gcc -O3 -march=native), cross-checked against ref.py (forward 2-round
-  compression; verifier/blake3.py digests) on three complete contexts (crosscheck.py seeds 11, 12, 13).
-- run: 8 processes `./sbmeas 8192 128 SEED`, SEED = 3300001 .. 3300008, outputs out_SEED.txt.
-  65,536 outer steps, 128 uniform X2 values each, all 65,536 S8 members: 2^39 trials.
-- analysis analyze.py: per-outer-step shares, mean, sd, empirical Bernstein upper bound (delta 2^-64).
-- decision: if the bound for the stage-B batch share is <= 0.60 p_B, the package states H1 (ii)
-  stage-B part as 0.60 p_B with budget 0.61 p_B; otherwise no stage-B change is made.
-  The stage-C part (1.25 * 2^-11, budget 1.27) is kept and its bound reported.
-- every run is reported; no rerun with other seeds.
-```
-
-`sbmeas.c`:
+### `sbbatch.c`
 
 ```c
-/* sbmeas.c -- independent measurement of the stage events of the 098e66f search
+/* (shared code taken verbatim from sbmeas.c) sbmeas.c -- independent measurement of the stage events of the 098e66f search
    (steps O, M, Y, T; sub-class S8; batches of seven consecutive members, the last
    batch holding members 65534 and 65535) on a uniform sample of the run.
    usage: sbmeas NOUTER NX2 SEED            -> one line per outer step + totals
@@ -1462,72 +1559,142 @@ static void middle(const Outer *o, u32 X2, Mid *m) {
   u32 S12 = S8 - K0c1, S0 = rol(S12, 8) ^ K0d1, w0 = K0a1 - IV[0] - IV[4];
   Mid t = {w0, w2, w3, w12, S0, S1, S5, S12}; *m = t;
 }
-/* per-member table (step Y) */
-static u32 T_va[NMEM], T_X6[NMEM], T_X1[NMEM], T_gd[NMEM], T_Y12[NMEM], T_gb[NMEM];
-static void build(const Outer *o) {
-  for (int i = 0; i < NMEM; i++) { u32 y = mem_y[i];
-    u32 Y8 = rol(y, 7) ^ o->vb, Y12 = Y8 - o->vc, Y0 = rol(Y12, 8) ^ o->vd, va = Y0 - o->vb - o->w6, X12 = rol(o->vd, 16) ^ va;
-    u32 gc = X11 - X12, gb = ror(o->S6 ^ gc, 12), X6 = ror(gb ^ X11, 7), gd = gc - o->S11, X1 = rol(X12, 8) ^ gd;
-    T_va[i] = va; T_X6[i] = X6; T_X1[i] = X1; T_gd[i] = gd; T_Y12[i] = Y12; T_gb[i] = gb; }
+
+/* step Y for one member */
+typedef struct { u32 va, X6, X1, gd, Y12; } Row;
+static void rowY(const Outer *o, u32 y, Row *r) {
+  u32 Y8 = rol(y, 7) ^ o->vb, Y12 = Y8 - o->vc, Y0 = rol(Y12, 8) ^ o->vd, va = Y0 - o->vb - o->w6, X12 = rol(o->vd, 16) ^ va;
+  u32 gc = X11 - X12, gb = ror(o->S6 ^ gc, 12), X6 = ror(gb ^ X11, 7), gd = gc - o->S11, X1 = rol(X12, 8) ^ gd;
+  r->va = va; r->X6 = X6; r->X1 = X1; r->gd = gd; r->Y12 = Y12;
 }
 static inline int ruleA(u32 h1) { return (h1 & 1) == 0 && ((h1 >> 16) & 3) == 0 && ((h1 >> 1) & 1) == 1 && (((h1 >> 2) ^ (h1 >> 3)) & 1); }
 static inline int filt(u32 c1) { return (c1 & 0x00098188u) == 0x00008000u; }
-/* evaluate member i in context (o, X2, m): bit0 = rule A, bit1 = filter (only computed when rule A holds) */
-static inline int trial(const Outer *o, u32 X2, const Mid *m, int i) {
-  u32 y = mem_y[i];
-  u32 X0 = T_va[i] - o->X4 - m->w2;
+/* bit0 = rule A on h1 of E3, bit1 = filter on c1 of E1 (only when rule A holds); forward G evaluations */
+static inline int trial(const Outer *o, u32 X2, const Mid *m, const Row *r, u32 y) {
+  u32 X0 = r->va - o->X4 - m->w2;
   u32 fd = rol(X15, 8) ^ X0, fc = o->S10 + fd, X10 = fc + X15;
-  /* C2 = G(X2, X6, X10, X14; w7, w0) forward */
-  u32 X6 = T_X6[i];
+  u32 X6 = r->X6;
   u32 a1 = X2 + X6 + o->w7, d1 = ror(o->X14 ^ a1, 16), c1 = X10 + d1, b1 = ror(X6 ^ c1, 12);
   u32 a2 = a1 + b1 + m->w0, Y14 = ror(d1 ^ a2, 8), Y10 = c1 + Y14, Y6 = ror(b1 ^ Y10, 7);
   u32 h1 = ror(Y14 ^ (Y3 + y), 16);
   if (!ruleA(h1)) return 0;
   u32 fb = ror(m->S5 ^ fc, 12), X5 = ror(fb ^ X10, 7);
-  u32 ga = rol(T_gd[i], 16) ^ m->S12, w10 = ga - m->S1 - o->S6;
-  /* C1 = G(X1, X5, X9, X13; w3, w10) forward to a2 = Y1 */
-  u32 p1 = T_X1[i] + X5 + m->w3, q1 = ror(o->X13 ^ p1, 16), r1 = o->X9 + q1, s1 = ror(X5 ^ r1, 12), Y1 = p1 + s1 + w10;
-  /* E1 = G(Y1, Y6, Y11, Y12; w12, w5) forward to c1 */
-  u32 e_a1 = Y1 + Y6 + m->w12, e_d1 = ror(T_Y12[i] ^ e_a1, 16), e_c1 = Y11 + e_d1;
+  u32 ga = rol(r->gd, 16) ^ m->S12, w10 = ga - m->S1 - o->S6;
+  u32 p1 = r->X1 + X5 + m->w3, q1 = ror(o->X13 ^ p1, 16), r1 = o->X9 + q1, s1 = ror(X5 ^ r1, 12), Y1 = p1 + s1 + w10;
+  u32 e_a1 = Y1 + Y6 + m->w12, e_d1 = ror(r->Y12 ^ e_a1, 16), e_c1 = Y11 + e_d1;
   return 1 | (filt(e_c1) << 1);
 }
+/* one batch j of one context: returns bit0 = enters stage B, bit1 = enters stage C */
+static int batch(const Outer *o, u32 X2, const Mid *m, int j) {
+  int lo = 7 * j, hi = lo + 7 > NMEM ? NMEM : lo + 7, eb = 0, ec = 0;
+  for (int i = lo; i < hi; i++) { Row r; rowY(o, mem_y[i], &r); int f = trial(o, X2, m, &r, mem_y[i]); eb |= f & 1; ec |= f == 3; }
+  return eb | (ec << 1);
+}
+/* usage: sbbatch CONFIG NUNITS SEED      CONFIG = R (D3.d1 uniform) or Z (D3.d1 = X3, so X14 = 0)
+          sbbatch --context CONFIG c0..c6  per-batch decisions for one full context (cross-check)
+   One unit = one batch drawn uniformly from the run: vd uniform below V, w5, vc, S15, S9 (and D3.d1 in R)
+   uniform 32-bit words, X2 uniform, batch index j uniform below 9,363; units independent (SplitMix64(SEED)). */
 int main(int argc, char **argv) {
   members();
-  if (argc == 9 && !strcmp(argv[1], "--context")) {
-    u32 c[7]; for (int k = 0; k < 7; k++) c[k] = (u32)strtoul(argv[2 + k], 0, 0);
-    Outer o; Mid m; outer(&o, c[0], c[1], c[2], c[3], c[4], c[5]); middle(&o, c[6], &m); build(&o);
-    u64 h = 1469598103934665603ull; long nA = 0, nAF = 0, nB = 0, nC = 0;
-    for (int j = 0; j < NB; j++) { int lo = 7 * j, hi = lo + 7 > NMEM ? NMEM : lo + 7, eb = 0, ec = 0;
-      for (int i = lo; i < hi; i++) { int f = trial(&o, c[6], &m, i); h = (h ^ (u64)f) * 1099511628211ull;
-        nA += f & 1; nAF += f == 3; eb |= f & 1; ec |= f == 3; }
-      nB += eb; nC += ec; }
-    printf("ruleA %ld ruleA_filter %ld stageB_batches %ld stageC_batches %ld flaghash %016llx\n", nA, nAF, nB, nC, (unsigned long long)h);
+  if (argc == 10 && !strcmp(argv[1], "--context")) {
+    int Z = argv[2][0] == 'Z'; u32 c[7]; for (int k = 0; k < 7; k++) c[k] = (u32)strtoul(argv[3 + k], 0, 0);
+    if (Z) c[2] = X3;
+    Outer o; Mid m; outer(&o, c[0], c[1], c[2], c[3], c[4], c[5]); middle(&o, c[6], &m);
+    long nB = 0, nC = 0; u64 h = 1469598103934665603ull;
+    for (int j = 0; j < NB; j++) { int f = batch(&o, c[6], &m, j); nB += f & 1; nC += f >> 1; h = (h ^ (u64)f) * 1099511628211ull; }
+    printf("X14 %08x stageB_batches %ld stageC_batches %ld batchhash %016llx\n", o.X14, nB, nC, (unsigned long long)h);
     return 0;
   }
   if (argc != 4) { fprintf(stderr, "usage\n"); return 2; }
-  long nout = atol(argv[1]), nx2 = atol(argv[2]); sm = strtoull(argv[3], 0, 10);
-  double sB = 0, sB2 = 0, sAF = 0, sAF2 = 0, sA = 0, sA2 = 0; u64 tB = 0, tC = 0, tA = 0, tAF = 0;
-  for (long k = 0; k < nout; k++) {
+  int Z = argv[1][0] == 'Z'; u64 n = strtoull(argv[2], 0, 10); sm = strtoull(argv[3], 0, 10);
+  u64 kB = 0, kC = 0;
+  for (u64 k = 0; k < n; k++) {
     u32 vd; do vd = next32() & 0x1fffff; while (vd >= VRANGE);
-    u32 w5 = next32(), vc = next32(), D3d1 = next32(), S15 = next32(), S9 = next32();
-    Outer o; outer(&o, vc, vd, D3d1, S15, S9, w5); build(&o);
-    u64 kB = 0, kC = 0, kA = 0, kAF = 0;
-    for (long x = 0; x < nx2; x++) { u32 X2 = next32(); Mid m; middle(&o, X2, &m);
-      for (int j = 0; j < NB; j++) { int lo = 7 * j, hi = lo + 7 > NMEM ? NMEM : lo + 7, eb = 0, ec = 0;
-        for (int i = lo; i < hi; i++) { int f = trial(&o, X2, &m, i); kA += f & 1; kAF += f == 3; eb |= f & 1; ec |= f == 3; }
-        kB += eb; kC += ec; } }
-    double rb = (double)kB / ((double)nx2 * NB), raf = (double)kAF / ((double)nx2 * NMEM), ra = (double)kA / ((double)nx2 * NMEM);
-    printf("%ld %.10f %.10f %.10f %llu %llu\n", k, rb, raf, ra, (unsigned long long)kB, (unsigned long long)kC);
-    sB += rb; sB2 += rb * rb; sAF += raf; sAF2 += raf * raf; sA += ra; sA2 += ra * ra; tB += kB; tC += kC; tA += kA; tAF += kAF;
+    u32 w5 = next32(), vc = next32(), D3d1 = next32(), S15 = next32(), S9 = next32(), X2 = next32();
+    u32 j; do j = next32() & 0x3fff; while (j >= NB);
+    if (Z) D3d1 = X3;
+    Outer o; Mid m; outer(&o, vc, vd, D3d1, S15, S9, w5); middle(&o, X2, &m);
+    int f = batch(&o, X2, &m, (int)j); kB += f & 1; kC += f >> 1;
   }
-  printf("TOTAL nout %ld nx2 %ld batches %llu stageB %llu stageC %llu trials %llu ruleA %llu ruleA_filter %llu sumB %.12f sumB2 %.12f sumAF %.12f sumAF2 %.12f sumA %.12f sumA2 %.12f\n",
-         nout, nx2, (unsigned long long)(nout * nx2 * (u64)NB), (unsigned long long)tB, (unsigned long long)tC, (unsigned long long)(nout * nx2 * (u64)NMEM),
-         (unsigned long long)tA, (unsigned long long)tAF, sB, sB2, sAF, sAF2, sA, sA2);
+  printf("CONFIG %c units %llu stageB %llu stageC %llu seed %s\n", Z ? 'Z' : 'R', (unsigned long long)n, (unsigned long long)kB, (unsigned long long)kC, argv[3]);
   return 0;
 }
 ```
 
-`ref.py` (independent reference; run as `python3 ref.py 1 3000`: 3,000 of 3,000 cases right):
+### `analyze_bern.py`
+
+```python
+"""Analysis of the single-batch samples (PLAN.md). Each unit is one batch drawn uniformly and independently
+from the run, so the stage-B indicators are i.i.d. Bernoulli with mean s = the run's average stage-B batch
+share (the quantity H1 (ii) bounds). Lemma C' (lower tail, X_k in [0,1], independent):
+Pr[sum <= K] <= exp(-(n m0 - K)^2 / (2 n m0)) whenever K < n m0 and s >= m0."""
+import sys, glob, math
+from fractions import Fraction as Fr
+pB = Fr(32052445611625, 160855115169792)
+PREM = {'R': Fr(55, 100), 'Z': Fr(545, 1000)}
+for cfg in 'RZ':
+    n = kB = kC = 0; files = sorted(glob.glob('run_%s_*.txt' % cfg))
+    for f in files:
+        t = open(f).read().split(); n += int(t[3]); kB += int(t[5]); kC += int(t[7])
+    if not n: continue
+    sh = kB / n; se = math.sqrt(sh * (1 - sh) / n)
+    m0 = float(PREM[cfg] * pB); expo = (n * m0 - kB) ** 2 / (2 * n * m0) if kB < n * m0 else 0.0
+    print('config %s files %d units %d (2^%.3f)' % (cfg, len(files), n, math.log2(n)))
+    print('  stage-B batch share %.7f = %.5f +- %.5f p_B' % (sh, sh / float(pB), se / float(pB)))
+    print('  stage-C batch share %.7f (7 * 2^-11 = %.7f)' % (kC / n, 7 / 2048))
+    print('  premise %s p_B: Lemma C\' bound exp(-%.1f) = 2^-%.1f  -> %s' % (float(PREM[cfg]), expo, expo / math.log(2), 'ACCEPT' if expo / math.log(2) >= 64 else 'REJECT'))
+    # smallest m0 (in p_B units, 4 decimals) the same rule would accept, for information only
+    lo = sh / float(pB)
+    while True:
+        m = lo * float(pB)
+        if kB < n * m and (n * m - kB) ** 2 / (2 * n * m) / math.log(2) >= 64: break
+        lo += 1e-5
+    print('  (information: rule would accept down to %.5f p_B)' % lo)
+```
+
+### `run.sh`
+
+```bash
+#!/bin/bash
+# 16 x 2^30 units per configuration, 8 at a time
+cd "$(dirname "$0")"
+./sbbatch R 1073741824 4148410047721055955 > run_R_00.txt & ./sbbatch R 1073741824 2024960218789952936 > run_R_01.txt & ./sbbatch R 1073741824 9316891704409097342 > run_R_02.txt & ./sbbatch R 1073741824 13548330344434951097 > run_R_03.txt & ./sbbatch R 1073741824 799888883887277821 > run_R_04.txt & ./sbbatch R 1073741824 14106893967680650348 > run_R_05.txt & ./sbbatch R 1073741824 2249404116018166651 > run_R_06.txt & ./sbbatch R 1073741824 17641232458262447768 > run_R_07.txt & wait
+./sbbatch R 1073741824 17407186410213513893 > run_R_08.txt & ./sbbatch R 1073741824 4749814787383072261 > run_R_09.txt & ./sbbatch R 1073741824 7916783942611634285 > run_R_10.txt & ./sbbatch R 1073741824 2997669762744368802 > run_R_11.txt & ./sbbatch R 1073741824 1583094839410065114 > run_R_12.txt & ./sbbatch R 1073741824 2459861538730488489 > run_R_13.txt & ./sbbatch R 1073741824 126364236223204385 > run_R_14.txt & ./sbbatch R 1073741824 8781618222231135805 > run_R_15.txt & wait
+./sbbatch Z 1073741824 11549484117612343353 > run_Z_00.txt & ./sbbatch Z 1073741824 4398289961530023393 > run_Z_01.txt & ./sbbatch Z 1073741824 4653476989580852362 > run_Z_02.txt & ./sbbatch Z 1073741824 17865625779090014807 > run_Z_03.txt & ./sbbatch Z 1073741824 14885597026242139591 > run_Z_04.txt & ./sbbatch Z 1073741824 14148897209727851380 > run_Z_05.txt & ./sbbatch Z 1073741824 13581127109903562403 > run_Z_06.txt & ./sbbatch Z 1073741824 15812990352166976192 > run_Z_07.txt & wait
+./sbbatch Z 1073741824 14637702345771971306 > run_Z_08.txt & ./sbbatch Z 1073741824 10328518467136328364 > run_Z_09.txt & ./sbbatch Z 1073741824 14500703449384005714 > run_Z_10.txt & ./sbbatch Z 1073741824 12773959953571441807 > run_Z_11.txt & ./sbbatch Z 1073741824 3230417733898176583 > run_Z_12.txt & ./sbbatch Z 1073741824 13670157642990536509 > run_Z_13.txt & ./sbbatch Z 1073741824 11953833361137563978 > run_Z_14.txt & ./sbbatch Z 1073741824 13793281940484579347 > run_Z_15.txt & wait
+```
+
+### `crosscheck_bern.py`
+
+```python
+"""Cross-check sbbatch --context CONFIG against ref.py: every batch of one full context, stage-B and
+stage-C batch decisions read from forward 2-round compressions of message A (ref.forward); digests of
+A also compared with verifier/blake3.py on every 64th member. CONFIG Z sets D3.d1 = X3 (X14 = 0)."""
+import sys, subprocess, random
+sys.path.insert(0, '/workspace/hashsmash-blake3-r2-challenge')
+from verifier.blake3 import blake3
+import ref
+cfg = sys.argv[1]; seed = int(sys.argv[2]); rng = random.Random(seed)
+cw = [rng.getrandbits(32) for _ in range(7)]; cw[1] %= 1512538
+if cfg == 'Z': cw[2] = 0x29d4fa98
+o = ref.outer(*cw[:6]); m = ref.middle(o, cw[6])
+h = 1469598103934665603; nB = nC = 0; ver = 0
+for j in range(9363):
+    eb = ec = 0
+    for i in range(7 * j, min(7 * j + 7, 65536)):
+        w = ref.words(o, m, ref.member(i)); A, B = ref.messages(w)
+        d, X, Y, h1, c1 = ref.forward(A)
+        if i % 64 == 0: assert d == blake3(A, 2); ver += 1
+        a = ref.ruleA(h1)
+        eb |= 1 if a else 0; ec |= 1 if (a and ref.filt(c1)) else 0
+    f = eb | (ec << 1); h = ((h ^ f) * 1099511628211) % (1 << 64); nB += eb; nC += ec
+c = subprocess.run(['./sbbatch', '--context', cfg] + [str(x) for x in cw], capture_output=True, text=True).stdout.strip()
+py = 'stageB_batches %d stageC_batches %d batchhash %016x' % (nB, nC, h)
+print('config', cfg, 'seed', seed, 'context', ['%08x' % x for x in cw]); print('py', py); print('c ', c)
+print('verifier digests checked', ver, 'EQUAL' if c.endswith(py) else 'MISMATCH')
+```
+
+### `ref.py`
 
 ```python
 """Independent reference for the stage-B / stage-C events of the 098e66f search.
@@ -1617,7 +1784,7 @@ def ruleA(h1): return (h1 & 1) == 0 and (h1 >> 16) & 1 == 0 and (h1 >> 17) & 1 =
 def filt(c1): return (c1 & 0x00098188) == 0x00008000
 
 if __name__ == '__main__':
-    sys.path.insert(0, '<repository root>')
+    sys.path.insert(0, '/workspace/hashsmash-blake3-r2-challenge')
     from verifier.blake3 import blake3
     import random
     rng = random.Random(int(sys.argv[1]) if len(sys.argv) > 1 else 1)
@@ -1637,65 +1804,33 @@ if __name__ == '__main__':
     print({'cases': n, 'bad': bad, 'ruleA': nA, 'ruleA_filter': nAF})
 ```
 
-`crosscheck.py` (run for seeds 11, 12 and 13; all equal):
+### `PLAN.md`
 
-```python
-"""Cross-check sbmeas --context against ref.py: every member of S8 in one context, rule A
-and the filter read from a forward 2-round compression of message A (ref.forward), digests
-of A also compared with verifier/blake3.py on every 64th member."""
-import sys, subprocess
-sys.path.insert(0, '<repository root>')
-from verifier.blake3 import blake3
-import ref, random
-seed = int(sys.argv[1]); rng = random.Random(seed)
-cw = [rng.getrandbits(32) for _ in range(7)]; cw[1] %= 1512538
-o = ref.outer(*cw[:6]); m = ref.middle(o, cw[6])
-h = 1469598103934665603; nA = nAF = nB = nC = 0; ver = 0
-for j in range(9363):
-    eb = ec = 0
-    for i in range(7 * j, min(7 * j + 7, 65536)):
-        w = ref.words(o, m, ref.member(i)); A, B = ref.messages(w)
-        d, X, Y, h1, c1 = ref.forward(A)
-        if i % 64 == 0: assert d == blake3(A, 2); ver += 1
-        a = ref.ruleA(h1); f = 1 if a else 0
-        if a and ref.filt(c1): f = 3
-        h = ((h ^ f) * 1099511628211) % (1 << 64)
-        nA += f & 1; nAF += f == 3; eb |= f & 1; ec |= f == 3
-    nB += eb; nC += ec
-py = 'ruleA %d ruleA_filter %d stageB_batches %d stageC_batches %d flaghash %016x' % (nA, nAF, nB, nC, h)
-c = subprocess.run(['./sbmeas', '--context'] + [str(x) for x in cw], capture_output=True, text=True).stdout.strip()
-print('seed', seed, 'context', ['%08x' % x for x in cw]); print('py', py); print('c ', c); print('verifier digests checked', ver, 'EQUAL' if py == c else 'MISMATCH')
-```
+```text
+# Preregistered plan: single-batch uniform sample of the stage-B batch share (Subflatus3, 2026-10-07 PT)
 
-`analyze.py` (the preregistered analysis):
+Fixed before any run of sbbatch beyond the 10^6-unit timing/smoke runs (seed 5, both configs) and the five
+full-context cross-checks below.
 
-```python
-"""Analysis fixed before the preregistered run. Reads out_*.txt (one line per outer step:
-k, share of batches entering stage B, share of trials with rule A and filter, share with rule A,
-batches B, batches C). Outer steps are i.i.d. uniform over the run's outer steps (fresh coins, vd < V,
-w5) with NX2 uniform X2 values each, so each per-outer-step share Z_k in [0, 1] is an unbiased estimate
-of the run average. Empirical Bernstein bound (Maurer and Pontil 2009, Theorem 4): with probability at
-least 1 - delta over the sample, E Z <= mean + sqrt(2 V ln(2/delta) / n) + 7 ln(2/delta) / (3 (n - 1)),
-V the unbiased sample variance. delta = 2^-64."""
-import glob, math, json
-from fractions import Fraction
-pB = Fraction(32052445611625, 160855115169792)
-rows = []
-for f in sorted(glob.glob('out_*.txt')):
-    for line in open(f):
-        if line.startswith('TOTAL'): continue
-        p = line.split(); rows.append((float(p[1]), float(p[2]), float(p[3]), int(p[4]), int(p[5])))
-n = len(rows); L = math.log(2 / 2.0 ** -64)
-def stats(vals, unit):
-    mu = sum(vals) / n; var = sum((v - mu) ** 2 for v in vals) / (n - 1)
-    ub = mu + math.sqrt(2 * var * L / n) + 7 * L / (3 * (n - 1))
-    return {'mean_over_unit': mu / unit, 'se_over_unit': math.sqrt(var / n) / unit, 'sd_over_unit': math.sqrt(var) / unit,
-            'emp_bernstein_ub_over_unit_delta_2^-64': ub / unit, 'max_over_unit': max(vals) / unit, 'min_over_unit': min(vals) / unit}
-res = {'outer_steps': n, 'stage_B_share_vs_pB': stats([r[0] for r in rows], float(pB)),
-       'ruleA_filter_vs_2^-11': stats([r[1] for r in rows], 2.0 ** -11),
-       'ruleA_vs_2^-5': stats([r[2] for r in rows], 2.0 ** -5),
-       'batches_B': sum(r[3] for r in rows), 'batches_C': sum(r[4] for r in rows)}
-res['accept_stageB_premise_0.60'] = res['stage_B_share_vs_pB']['emp_bernstein_ub_over_unit_delta_2^-64'] <= 0.60
-res['stageC_inherited_premise_1.25_covered'] = res['ruleA_filter_vs_2^-11']['emp_bernstein_ub_over_unit_delta_2^-64'] <= 1.25
-print(json.dumps(res, indent=1))
+Quantity: s = average over the run of the indicator that a batch enters stage B (some distinct member of the
+batch satisfies rule A), the quantity bounded by the stage-B part of H1 (ii); also the stage-C batch share
+(reported, not used).
+
+Configurations:
+- R: D3.d1 uniform (the 52bb50ee / 098e66f4 / 5266c5ce program).
+- Z: D3.d1 = X3, so X14 = 0 (the configuration of winglock 2125212).
+
+Design: each unit draws vd uniform below V = 1,512,538 and w5, vc, S15, S9 (and D3.d1 in R) uniform,
+X2 uniform, and a batch index j uniform below 9,363, from SplitMix64; units are independent. The batch is
+evaluated exactly (all its members). 16 x 2^30 = 2^34 units per configuration, seeds = first 8 bytes
+(big-endian) of SHA-256("subflatus3 bernoulli <CFG> <kk>"), kk = 00..15 (run.sh).
+
+Premises to be tested: R: 0.55 p_B; Z: 0.545 p_B (p_B = 32,052,445,611,625 / 160,855,115,169,792).
+Decision rule: accept the premise for a configuration iff the stage-B count K satisfies K < n m0 and
+exp(-(n m0 - K)^2 / (2 n m0)) <= 2^-64 (Lemma C', lower tail). Otherwise the premise is not used.
+Budgets if accepted: 0.5501 p_B (R) and 0.5451 p_B (Z). No other premise or value is changed by this sample.
+
+Cross-checks done before freezing: sbbatch --context agrees with ref.py forward compressions (and
+verifier/blake3.py on every 64th member) on all 9,363 batch decisions of 5 full contexts (R seeds 11, 12;
+Z seeds 21, 22, 23; xc_*.txt), and reproduces sbmeas --context on context 1..7.
 ```
