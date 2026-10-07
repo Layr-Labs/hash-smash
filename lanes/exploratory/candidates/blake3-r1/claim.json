@@ -6,23 +6,26 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 2,
+    "time_log2": 1.75,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 20,
+    "memory_log2_bytes": 16,
     "preprocessing_log2": 0,
     "success_probability": 1,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "The two messages have 23 and 24 bytes: each is one chunk, one block, one root compression with flags 11, counter 0 and its true block length.",
-    "Unkeyed BLAKE3-256 with 1 prefix round, standard IV and feed-forward, full 256-bit digest; an ordinary collision between two distinct complete messages.",
-    "Randomized by one fresh uniform 256-bit word; the output is a collision for every value of this coin, so there is no failed trial and no restart.",
-    "Classical 256-bit word RAM under collision-frontier-v5; a program with no loop, no restart and no branch before the final collision check (step 4 of the proof, which has one comparison and one conditional branch, both charged), with memory traffic charged at four primitive operations per data operation, and a final verification by two complete hash evaluations included.",
-    "No preprocessing, table, stored collision or nonuniform advice; the preprocessing and advice fields are zero-valued upper bounds because the schema cannot express log2(0).",
-    "Specific to the 1-round prefix: the identity is proved for one round only, nothing is claimed for two or more rounds (the witness pair has different digests there), and no priority or novelty claim is made."
+    "Messages are exactly 64 bytes: one unkeyed BLAKE3 chunk/block with flags CHUNK_START|CHUNK_END|ROOT=11, length 64, counter 0, standard IV.",
+    "Deterministic closed-form construction from public IV constants; no search, no random coins, no stored precomputed collision as advice; the constant table holds only IV[0..7] and F as nine narrow words (no pre-packed lane vectors).",
+    "Columns: every column G0..G3 uses the same identity (Lemma 5, (C*,D*)=(0,-b)), so all four output B=C=0 and D=-b. Diagonals G4/G6 then see b=c=0, d=-IV7/-IV5; M uses x=d-a, y=-d (=IV7, IV5), and M' replaces only w9, w13 by ~d (Lemma 6'), making both diagonals output all-F so the feed-forward pairs (v0,v8),(v2,v10),(v5,v13),(v7,v15) cancel. No IV parity condition is required. Message pair and certificate are bit-identical to the previous 1.77 package.",
+    "Implementation: the four columns run in parallel as 32-bit value fields at bit offsets (0,64,160,224) of a 256-bit word; lanes 0-2 have guard gaps, lane 3 is the top 32 bits of the word (no gap, no guard; arithmetic mod 2^256 reduces it mod 2^32 and SHR 224 is always a clean 32-bit word: Lemma S4). Only 256-bit ADD/SUB/AND/OR/XOR/SHL/SHR are used; lane masks, guards, IV packing and lane extraction are all charged. No rotate instruction of any width is used.",
+    "The column x/y vectors and the diagonal x vector are only unpacked, so they are extracted directly from the raw guarded differences (Lemma S5): lanes 0-2 by SHR+AND F, lane 3 by SHR 224. The dead-mask identity extract(V AND M)=extract(V) holds for every 256-bit V (bit windows inside M; proof.md \u00a75.1), so a vector AND M before extraction is dead code (-3 ALU vs the 1.77 package). This is not chaining: raw differences are never arithmetic operands. Forcing the three AND M back without a new model rule restores W=310 and charges dead code (proof.md \u00a75.2 harsher-readings table and \u00a78 FAQ). Every vector that feeds further ADD/SUB/XOR or a rotation is still AND M clean and every rotation keeps its final AND.",
+    "Charged work: straight-line program, two verification compressions (H=2), 8x32-bit digest equality and message-distinctness checks, program placement (1 op/instruction) and constant-table placement (2 ops/word), under collision-frontier-v5 with C=222. Ledger W = 2(LD+ALU+ST+V) + 2LD with V=37. Primary stream (LD=9, ALU=60, 18 shared-buffer stores): W=266. Harshest stress row (LD=10: table-loads 11; masked-SUB flip ALU=61; 32 stores): W=300. The d-vector top lane 64<<224 is built as SHL(1,230) (literal 1 + shift count), so no value constant 64 exists and the LD stress axis is {9,10} (proof.md \u00a76.7).",
+    "Claimed scalar time_log2=1.75 (2^1.75~3.3636) covers every row of the ST x LD x flip stress lattice: ceiling W <= (2^1.75-2)*222 ~ 302.72 with H=2; harshest W=300 (T~3.351, log2~1.7447). Claim 1.74 is not made (ceiling ~297.56 < 300). The previously refused -1 ALU candidates (unmasked S into SUB, guard-absorbs-carry, chained guarded SUB, unmasked sub1 flip) remain refused and are not used. Under the harsher reading that literal 1 must also be table-loaded, W=304 (fits 1.76, identical to the 1.76 package). Peer packed-table / unmasked-S tricks (9a8d44a) are refused.",
+    "Degradation with the same messages (proof.md 6.6, 6.8, Appendix B): 2-way top-lane SWAR harshest W=322 (fits 1.79); serial top-field scalars harshest W=350 (fits 1.84); serial low-limb W=356. The 1.75 resource claim depends on defended 4-wide word-RAM lane packing.",
+    "No omit-verify, memory-only placement, native narrow rotate, native 256-bit ROT, packed-IV, pre-packed table vectors, packed-store, packed-EQ, chaining, rotation-AND elision, or BSS reading is used. Certificate blake3-r1-swar-lemma5-pair is an organizer-verifiable witness of the same construction instance; it is not nonuniform advice and does not replace charged collision checking. The proof.md Appendix A emulator executes the exact program and reproduces the instance and every lattice row.",
+    "Claim is specific to 1 prefix round; the diagonal cancellation uses the B/C-vanishing column state and does not transfer to 2+ rounds without a new argument. The nominal reference identifier does not itself assert an improvement."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
   "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json",
-  "experiment_manifest": "experiments/manifest.json"
+  "certificate_manifest": "certificates/manifest.json"
 }
