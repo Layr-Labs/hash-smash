@@ -225,7 +225,7 @@ EQS = [(1, 2, 8, 1), (1, 2, 16, 1), (1, 2, 3, 0), (1, 2, 5, 1), (1, 17, 4, 1), (
 COST = [384, 400, 418, 427, 435, 443, 451, 459, 467, 475, 483, 491, 499, 507, 515, 523, 531, 539, 547, 555, 569,
     577, 585, 593, 593]                     # primitives of stage 1 by exit (24 = all equations hold)
 BLOCK = 15                                      # loop control per block of 16 unrolled Gray steps
-T3_STEP = 1750                                  # T3: one pass, 9 leaves + Gray step (proof 2.1; charged 9 x 512)
+T3_STEP = 1750                                  # T3: one pass, 9 leaves + Gray step (proof 2.1; charged 9 x 256)
 BETA2 = [0x1, 0, 0x4, 0, 0, 0x4, 0x4, 0x4, 0x20000, 0, 0x2000000000000000, 0, 0x200000, 0, 0,
     0x2000000000000000, 0, 0, 0x20000, 0, 0x200001, 0, 0x200000, 0, 0x1]
 ALPHA3_BITS = (0, 130, 450, 529, 701, 789, 1021, 1169, 1280, 1429)
@@ -399,7 +399,7 @@ def rows_for(mode, trials):
         ok, obs = ctl == 16 * BLOCK and js == [4, 5, 4, 6, 4, 5, 4, 7, 4, 5, 4, 6, 4, 5, 4, 8], {"ops": ctl}
       elif t < 92:
         ok, n = t3_step(bytes.fromhex(tr["seed"]))
-        ok, obs = ok and n == T3_STEP and n <= 9 * 512, {"ops": n}
+        ok, obs = ok and n == T3_STEP and n <= 9 * 256, {"ops": n}
       else:
         break
       out[t] = (SENTINEL if ok else FAIL_PAIR, obs)
