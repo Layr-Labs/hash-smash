@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "bitsliced-keys-match-target",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r6. For each organizer seed the program expands 512 bit-plane words with SHAKE-256, runs the exact 70,772-instruction bitsliced register program that the ledger charges, and keys 256 64-byte messages at once. It returns two distinct messages whose bitsliced keys agree on 8 digest bits spread over all four output lanes (bits 0 and 7 of digest bytes 0, 8, 16, 24). With more than 512 trials, batches are reused for further pairs. Trial 0 also reports the program's instruction counts and a full 256-message comparison with an independent scalar reference.",
+      "hypothesis": "The straight-line bitsliced program computes sha3-256-r6 of every message in its batch exactly, so pairs selected using only its output keys satisfy the masked digest equality when the organizer hashes them with the official function.",
+      "program": "experiments/keccak_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "8100000000000000810000000000000081000000000000008100000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
