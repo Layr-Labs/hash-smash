@@ -2,11 +2,43 @@
   "schema_version": 2,
   "certificates": [
     {
-      "id": "relaxed-v3-1",
+      "id": "r31-run3-witness-0",
       "type": "hash-collision-witness-v2",
-      "message_a": "certificates/relaxed-v3-1-a.bin",
-      "message_b": "certificates/relaxed-v3-1-b.bin",
-      "expected_digest": "aea2562b20b12c5938046802bcc533817087f43c3e4ac864114c2abdd2249ee5",
+      "message_a": "certificates/witness-0-a.bin",
+      "message_b": "certificates/witness-0-b.bin",
+      "expected_digest": "27d141191ea4ddd7b99c53d33c89a6d7650ff7fe7ea71afd212d37d23305df27",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "r31-run3-witness-1",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/witness-1-a.bin",
+      "message_b": "certificates/witness-1-b.bin",
+      "expected_digest": "1b7372f7eff36ad6c523e67dee8c56b12515d1ac0e447d0c01312b5fe5339974",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "r31-run3-witness-2",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/witness-2-a.bin",
+      "message_b": "certificates/witness-2-b.bin",
+      "expected_digest": "0dd17928d747d5b5fb0add56b6775de97ff7511cdf3759b1ec076cf53b384d42",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "r31-run3-witness-3",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/witness-3-a.bin",
+      "message_b": "certificates/witness-3-b.bin",
+      "expected_digest": "63e695fe513579162cd0d93332d2282c1a823d55c53e1c1f6e50005c2d8ca727",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "r31-run3-witness-4",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/witness-4-a.bin",
+      "message_b": "certificates/witness-4-b.bin",
+      "expected_digest": "a17644a7761444b22202f3e7f4dbd3092f8bee5f8221d25b3fc92702f1d8fbcb",
       "target_profile": "sha256-r31-prefix-v1"
     }
   ]
