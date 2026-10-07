@@ -1,27 +1,40 @@
 {
   "schema_version": 3,
-  "submission_state": "ready",
   "target_profile": "sha256-r31-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 31,
   "lane": "exploratory",
+  "baseline_improved": "sha256-r31-nominal-v2",
+  "submission_state": "ready",
+  "certificate_manifest": "certificates/manifest.json",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 40.7661,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 32,
+    "preprocessing_log2": 40.7661,
+    "success_probability": 0.45,
+    "nonuniform_advice_log2_bytes": 12
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Target sha256-r31-prefix-v1: SHA-256 compression steps 0..30 inclusive on every padded block, standard fixed IV once at the start, FIPS 180-4 padding, full feed-forward, full 256-bit big-endian digest; ordinary collision of two distinct finite byte strings.",
+    "The online algorithm is a CAPPED probabilistic search, not a replay: Phase-2 draws AT MOST K = 1849150772654 = ceil(2^40.75) independent uniform 512-bit first blocks (one 31-step compression each), Phase-3 spends ONE global budget of 4096 completion-offset tests, and every loop terminates with a deterministic FAIL branch. No unbounded retry-until-success construct exists; the worst-case time is a fixed instruction count computed in proof.md Section 8 with no published complexity figure.",
+    "success_probability = 0.45 is a DERIVED ALGORITHMIC floor (proof.md Section 7), not confidence in the argument: per-draw hit floor p2 >= |T|*|V5|*|V6|/2^96 >= 2^-41 from the enumerated |V5| = 2^14, |V6| = 2^23 and the conservative table floor |T| >= 2^18 (disclosed ~2^19.8), then the exact Bernoulli floors K/(2^41+K) >= 0.4567 and (R*p)/(1+R*p) >= 0.9982 for R = 4096 fresh offsets with the EXACT enumerated acceptance p = 584683520/2^32 = 142745/262144, giving 0.4567*0.9982 >= 0.45. It converts to a premise only through the single declared heuristic H-UNIFORM-HIT.",
+    "COMPLETE LEDGER: every phase of one full construction run is charged once inside total time and once as preprocessing (same sum: K*(1+24/2140) + 2^20 + 2^11 + 4 + 6.36 + 2^-10 = 1869889962794.76 units, log2 = 40.7660905131 < 40.7661, the declared scalar rounded UP at the 4th decimal), with no cross-target amortization and no parallel wall-time discount. All terms are this program's own worst-case instruction counts in the v5 unit; the published ~2^40.5 figure is used only as a cross-check of the success floor, never as a cost bound.",
+    "The certificate is the published 31-step collision pair (existential witness for the searched family), re-hashed by the organizer; it is NOT replayed by the algorithm and enters no cost or success bound. Nonuniform advice is the fixed constants only (round constants, IV, characteristic, set definitions, ~1.5 KiB, declared 2^12 bytes); the Phase-1 table and the S bitmap are rebuilt inside the charged time.",
+    "Memory is a reported metric only, with no scalar contribution and no tie-break, and is NOT a declared heuristic. baseline_improved = sha256-r31-nominal-v2 is a required reference identifier and does not assert an improvement."
   ],
-  "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H-UNIFORM-HIT",
+      "role": "score-critical",
+      "statement": "For a fresh uniform 512-bit first block the post-first-block chaining triple (A_-1, A_-2, A_-3) is uniform on 2^96, so the per-draw probability that A_-1 matches one of |T| table keys AND A_-2 lies in the attached V6 AND A_-3 lies in the attached V5 satisfies p2 >= |T|*|V5|*|V6|/2^96 >= 2^18 * 2^14 * 2^23 / 2^96 = 2^-41. With K = ceil(2^40.75) independent draws the Bernoulli floor 1-(1-p)^K >= x/(1+x), x = K*p2, gives P[hit] >= K/(2^41+K) = 924575386327/2024087014103 >= 0.4567; multiplied by the exact completion floor (R*p)/(1+R*p) = 142745/142809 >= 0.9982 for R = 4096 fresh offsets (p = |S|/2^32 exact, |S| enumerated), success >= 0.4558 >= 0.45. The time bound needs no premise at all: it is the program's own capped instruction count, total 1869889962794.76 units, log2 40.7660905131, declared time_log2 40.7661 by round-up.",
+      "scope": "The uniformity premise is applied to the FIRST-BLOCK draws only (Phase 2), against the fixed characteristic and Phase-1 table of proof.md Sections 4-6; it prices the hit probability of the published Li-Liu-Wang-Dong-Sun prefix condition on fresh random first blocks. The completion acceptance |S|/2^32 and all time terms are exact/enumerated or instruction counts, not extrapolated. Not a claim that SHA-256-r31 compression is an ideal function.",
+      "extrapolation": "This is the standard differential-uniformity premise under which the authors' own published practical complexity ~2^40.5 for this exact attack (expected ~1 hit at 2^40.5 draws) was derived: our floor predicts expected hits K*p2 = 2^0.75 ~ 1.68 at K = 2^40.75 draws, the same order as the published calibration, so the premise is consistent with the only published instantiation of this search. Sensitivity at each disclosed table-size reading: |T| = 2^18 -> success 0.4566 (declared); 453261 (reconstructed exact) -> 0.5922; 2^19 -> 0.6268; 2^19.8 -> 0.7451. The declared 0.45 has 0.06 absolute margin above the 0.39 cost-model minimum.",
+      "evidence_ids": [
+        "proof:224-266",
+        "proof:274-320"
+      ],
+      "limitations": "The uniformity of post-first-block chaining words for a fixed characteristic is a premise, not a theorem; if the panel assigns significant chaining-word non-uniformity to this trail, the p2 floor moves and the package is refuted on this heuristic (the time bound would still stand, since it is instruction counts). The table floor |T| >= 2^18 relies on the disclosed ~2^19.8 enumeration (proof.md Section 6); success at |T| = 2^17 would fall to 0.296 < 0.39. No organizer experiment is claimed; the certificate verifies the collision relation of the family, not the search cost."
+    }
+  ]
 }
