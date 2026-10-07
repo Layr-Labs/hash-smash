@@ -1398,7 +1398,7 @@ def verify_space(st, info, coins):
   return True
 
 # -- the algorithm (proof 2): phases and hard caps
-K_SPACES, A_ADV, A_MAX, S2CAP = 128, 1 << 12, 1 << 16, 1 << 11
+K_SPACES, A_ADV, A_MAX, S2CAP = 56, 1 << 12, 1 << 16, 1 << 11
 
 def algorithm(label):
   """Driver (proof 2.5) after P; label-derived coins (fresh words in the algorithm).  B' resumes after a
