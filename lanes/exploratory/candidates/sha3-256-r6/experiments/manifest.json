@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "k6r6-bs-full-width",
+      "kind": "python-message-pairs-v1",
+      "scope": "128-byte SHA3-r6,768-free-bit prefix family and neutral lanes4/14;512 messages and18-bit mask, layout k6r6-bs-full-width. Maintains975 A2 words with492-word polarity and499 affine patches. First batch compiles all32 physical hot leaves one at a time and applies each twice, checking A2,O2P and256 keys;31339..31378 static operations with explicit spill/reload and table/control accounting. Dedicated physical cold audit checks decoding,equal/distinct/future/maximal ids,64-register restore and cap; forced hot/cold branches check integration. Direct sponge,dependency poisoning,two transpose and tagged-table diagnostics remain. Organizer isolation only; no prior execution result for this package. Scaled evidence cannot prove H1 or the full attack.",
+      "hypothesis": "As heuristic H1 predicts, the masked digests of the grouped prefix message set behave like independent uniform18-bit values: success frequency agrees within sampling error with approximately0.3931 for512 messages. Its ratio512^2/2^18=1 is approximately matched to the full-run ratio(255/256)^2=0.9922027587890625, not identical.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "1f00000000000000000e0300000000000000c00300000000000000e001000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "k6r6-bs-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "128-byte SHA3-r6,768-free-bit prefix family and neutral lanes4/14;512 messages and18-bit mask, layout k6r6-bs-spread. Maintains975 A2 words with492-word polarity and499 affine patches. First batch compiles all32 physical hot leaves one at a time and applies each twice, checking A2,O2P and256 keys;31339..31378 static operations with explicit spill/reload and table/control accounting. Dedicated physical cold audit checks decoding,equal/distinct/future/maximal ids,64-register restore and cap; forced hot/cold branches check integration. Direct sponge,dependency poisoning,two transpose and tagged-table diagnostics remain. Organizer isolation only; no prior execution result for this package. Scaled evidence cannot prove H1 or the full attack.",
+      "hypothesis": "With 1/16 of the pairs inside a group, the success frequency agrees, within sampling error, with the uniform-model value 0.3931.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000c7000000000000000000e01100000000000000f0000000000000e0010000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "k6r6-bs-single-group",
+      "kind": "python-message-pairs-v1",
+      "scope": "128-byte SHA3-r6,768-free-bit prefix family and neutral lanes4/14;512 messages and18-bit mask, layout k6r6-bs-single-group. Maintains975 A2 words with492-word polarity and499 affine patches. First batch compiles all32 physical hot leaves one at a time and applies each twice, checking A2,O2P and256 keys;31339..31378 static operations with explicit spill/reload and table/control accounting. Dedicated physical cold audit checks decoding,equal/distinct/future/maximal ids,64-register restore and cap; forced hot/cold branches check integration. Direct sponge,dependency poisoning,two transpose and tagged-table diagnostics remain. Organizer isolation only; no prior execution result for this package. Scaled evidence cannot prove H1 or the full attack.",
+      "hypothesis": "Even when every message shares one prefix and A2 is linear in only 9 varying bits, the success frequency agrees, within sampling error, with the uniform-model value 0.3931.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000403c000000000000403c000000000000003c000000000000003c",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "k6r6-bs-high-z",
+      "kind": "python-message-pairs-v1",
+      "scope": "128-byte SHA3-r6,768-free-bit prefix family and neutral lanes4/14;512 messages and18-bit mask, layout k6r6-bs-high-z. Maintains975 A2 words with492-word polarity and499 affine patches. First batch compiles all32 physical hot leaves one at a time and applies each twice, checking A2,O2P and256 keys;31339..31378 static operations with explicit spill/reload and table/control accounting. Dedicated physical cold audit checks decoding,equal/distinct/future/maximal ids,64-register restore and cap; forced hot/cold branches check integration. Direct sponge,dependency poisoning,two transpose and tagged-table diagnostics remain. Organizer isolation only; no prior execution result for this package. Scaled evidence cannot prove H1 or the full attack.",
+      "hypothesis": "With the varying bits at the top of z, the success frequency agrees, within sampling error, with the uniform-model value 0.3931.",
+      "program": "experiments/s3r6_bitslice_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000e0210000000000000000f0080000000000000078000f00000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}

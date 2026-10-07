@@ -6,21 +6,37 @@
   "rounds": 6,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.4,
+    "time_log2": 124.27,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 130,
-    "preprocessing_log2": 142,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 50,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical 256-bit word RAM with fresh independent uniform random-word primitive.",
-    "One batch of 2^129 independent uniform 64-byte messages; no restarts or nonuniform advice.",
-    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06, prefix rounds 0 through 5, all 256 output bits.",
-    "Generic analytic upper bound; infeasible resource use, no improvement over the nominal reference claimed."
+    "Complete sha3-256-r6-prefix-v1 on 128-byte messages: one rate-1088 permutation, padding at lane16, rounds0..5 and full256-bit output unchanged. Prefix family has768 free bits, with equal32-bit Gray z in lanes4 and14.",
+    "New self-contained physical64-register hot stream:31339..31378 ordinary operations per256-message step, including spills,reloads,affine patch fusion,rounds3..6,transpose,table and18 control. Explicit cold ABI costs at most256 ordinary operations plus2 selected permutations; setup at most2^20 ordinary operations per2^40-message batch; preprocessing separately charged2^50 units.",
+    "Literal scratch addresses and fixed immediates are operands of the listed word-RAM instructions; they do not incur separate fetch instructions. Prefix variable addresses are computed explicitly. Code,constants,prefixes,spill memory and address-space holes are charged in146 memory bits.",
+    "Score and success probability are conditional on explicit new-family H1. No solver-side participant execution occurred. Declared organizer experiments are fresh evidence requests, not prior results. Static generated counts are not an equivalence proof or human acceptance.",
+    "Material unpromoted sources: winglock,Th0rgal,jaazinn,may93182,tekkac,ercumentyildirim,zeeshan8281,mitchuski. Direct base5e73af65. New128-byte family,492-word polarity,complete emitted hot/cold schedule and independent symbolic audits."
   ],
   "baseline_improved": "sha3-256-r6-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1",
+      "statement": "For N=255*2^120 digests from independent uniform prefixes in the new768-dimensional affine family, all32-bit Gray indices in the fixed order, assume Pr[F1]<=exp(-N(N-1)/2^257), Pr[F2]<=N^3/(6*2^396), E[Y1]<=N^2/2^141 and Var[Y1]<=N^2/2^141. F1,F2 and Y1 are defined in proof.md.",
+      "role": "score-critical",
+      "scope": "Full-scale success and genuine candidate-count tail for this128-byte family. This premise does not establish implementation equivalence.",
+      "extrapolation": "Four organizer-only512-message/18-bit experiments examine different grouping and z-bit patterns. None has executed this new package yet. Even successful scaled trials do not establish the full140-bit cap margin,256-bit collision law or full-scale tail.",
+      "evidence_ids": [
+        "experiment:k6r6-bs-full-width",
+        "experiment:k6r6-bs-spread",
+        "experiment:k6r6-bs-single-group",
+        "experiment:k6r6-bs-high-z"
+      ],
+      "limitations": "Unproved full-scale independence/event and moment bounds, highly structured within-group samples, small cap margin0.78%, no prior isolated evidence for this family."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
