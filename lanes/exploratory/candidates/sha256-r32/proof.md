@@ -11,9 +11,9 @@ The algorithm of Sections 4-5 outputs two distinct 128-byte messages whose compl
 
 | Field | Claimed | Computed (Sections 9-11) |
 |---|---|---|
-| time_log2 | 46.57 | total <= 103,964,590,923,548 units = 2^46.56309 |
+| time_log2 | 46.51 | total <= 100,049,727,826,544 units = 2^46.50771 |
 | preprocessing_log2 | 45.87 | C + D + E = 64,287,366,241,344 units = 2^45.86960 |
-| success_probability | 0.40 | >= 0.41069 |
+| success_probability | 0.39 | >= 0.395004 |
 | memory_log2_bytes | 35 | 28,661,817,348 bytes = 2^34.739 |
 | nonuniform_advice_log2_bytes | 13 | < 8,192 bytes |
 
@@ -53,7 +53,7 @@ solver calls. The exception is the evidence for the CPU-second price in Section 
    32-step truncation from our own code, cross-checked with the organizer's `verifier/hash_functions.py:digest`.
 3. A fixed-work schedule whose counter charges are staged per test and per Step-3 stage (Section 5.4). The
    Step-2/3 work therefore costs about 239 counted operations per trial instead of about 461 under a flat per-candidate
-   charge. With T = 2^44.9 trials and a counter cap of 400 T operations, the online phase is 2^45.173 units.
+   charge. With T = 2^44.8307 trials and a counter cap of 254 T operations, the online phase is 2^45.0235 units.
 4. An exact integer ledger (Section 10) and a sensitivity table (Section 13).
 5. Our own evidence for the CPU-second price (Section 15): a per-form costing of the x86-64 CryptoMiniSat 5.11.21
    code under the v5 primitive list, **new: a dynamic callgrind profile of that exact library on four SHA-256 CNF
@@ -253,7 +253,7 @@ Steps 14-15 involve only advice words and the P4 entry, which is why P4 is share
 
 ### 5.1 Parameters
 
-T = ceil(2^44.9) = 32,828,179,945,388 trials, and a counter cap W_cap = 400 T counted operations. Nothing is
+T = ceil(2^44.8307) = 31,288,549,238,972 trials, and a counter cap W_cap = 254 T counted operations. Nothing is
 restarted.
 
 ### 5.2 One trial
@@ -432,7 +432,7 @@ Let V be the number of valid tuples in a trial and X the number of conforming P4
   tuples of the same trial only add chances, so the bound uses one.
 
 Trials use fresh coins and are independent. If U is the event that some trial among the T uncapped trials succeeds,
-then Pr[U] >= 1 - (1 - s)^T >= 1 - exp(-sT). With T = 32,828,179,945,388, sT = 0.528823, so Pr[U] >= 0.410701.
+then Pr[U] >= 1 - (1 - s)^T >= 1 - exp(-sT). With T = 31,288,549,238,972, sT = 0.504034, so Pr[U] >= 0.395911.
 
 **Cap stop.** Let X_t be the counted operations of trial t in the uncapped run, and S = X_1 + ... + X_T. If S <= W_cap,
 the capped run behaves exactly like the uncapped one. So Pr[success] >= Pr[U] - Pr[S > W_cap].
@@ -456,30 +456,30 @@ Here 2^-17.3166 is the upper confidence limit of q. A trial's Step-3 work is at 
 This gives E[X^2] <= 3 (6.234e5 + 1.373e7 + 2.145e12) = 6.436e12. By Chebyshev,
 
 ```
-Pr[S > 400 T] <= T * E[X^2] / (T * (400 - 238.94))^2 = 6.436e12 / (25,940 * T) <= 7.56e-6.
+Pr[S > 254 T] <= T * E[X^2] / (T * (254 - 238.94))^2 = 6.436e12 / (226.804 * T) <= 9.0695e-4.
 ```
 
-**Result.** Pr[success] >= 0.410701 - 0.0000076 = **0.41069 >= 0.40 claimed** (> 0.39 required). The claim does not
-rely on rounding: the margin is 0.0107.
+**Result.** Pr[success] >= 0.395911 - 0.000907 = **0.395004 >= 0.39 claimed** (>= 0.39 required). The claim does not
+rely on rounding: the margin is 0.0050.
 
 ## 10. Time ledger (exact)
 
 All figures are in target-compression units; C = 2224.
 
 ```
-A + B = ceil((T * (2224 + 64) + 400 * T) / 2224) + 8
-      = ceil(32,828,179,945,388 * 2,688 / 2224) + 8
-      = 39,677,224,682,204 units = 2^45.1734
-        (T first-block compressions; 64 fixed ops per trial; the counted cap 400 T;
+A + B = ceil((T * (2224 + 64) + 254 * T) / 2224) + 8
+      = ceil(31,288,549,238,972 * 2,542 / 2224) + 8
+      = 35,762,361,585,200 units = 2^45.0235
+        (T first-block compressions; 64 fixed ops per trial; the counted cap 254 T;
          8 units for the final 6-compression verification, the comparison and the refused-cap test)
 C     =             274,877,906,944 = 2^38
 D     =             274,877,906,944 = 2^38
 E     =          63,737,610,427,456 = 2^45.857210   (32 * 593,858 CPU-s * 3,354,001)
-total =         103,964,590,923,548 = 2^46.563086  <=  2^46.57 = 104,464,059,367,307
+total =         100,049,727,826,544 = 2^46.507710  <=  2^46.51 = 100,208,623,910,122
 C + D + E =      64,287,366,241,344 = 2^45.869600  <=  2^45.87
 ```
 
-The claimed time_log2 = 46.57 leaves a factor of 1.0048 in reserve, about 33 operations per trial beyond the itemised
+The claimed time_log2 = 46.51 leaves a factor of 1.0015 in reserve, about 11 operations per trial beyond the itemised
 charges. It does not depend on rounding the exponent.
 Every term above is a hard bound given its charge: A and B follow from T and W_cap on every coin sequence, and C, D
 and E are one-time charges. Parallel execution does not change these totals.
@@ -521,28 +521,28 @@ signed rows, 71 two-bit conditions, the readings, 18 advice words and the round 
     instructions cost at most 1.956 operations on average, the largest of our four profiled shapes.
 - `starting-solution-cost` (supporting). The Step-1 starting solution costs at most 2^38 units (Section 8).
 - `work-moments` (supporting). These are the occupancy, multiplicity and stage-pass inputs to E[X] and E[X^2].
-  - They affect only the 7.6e-6 cap-stop term, and through it the success bound.
+  - They affect only the 9.07e-4 cap-stop term, and through it the success bound.
 - `search-peak-memory` (supporting). The solver peak is at most 2^33 bytes. This affects memory only.
 
 ## 13. Sensitivity and limitations
 
 | Change | Total time_log2 |
 |---|---|
-| as charged (kappa 2^21.677, factor 32) | 46.563 |
-| ordinary mean 2.5 instead of 1.956 (kappa 2^21.862) | 46.679 |
-| ordinary mean 3 (kappa 2^22.013) | 46.778 |
-| class price of 49f8f6d4 (kappa 2^22.527) | 47.140 |
-| kappa 2^23 (841646f2) | 47.504 |
-| spread S = 1 / 2.5 / 3.63 instead of 1.85 | 46.086 / 46.845 / 47.232 |
-| factor 16 | 46.035 |
-| factor 64 | 47.253 |
-| factor 128 | 48.069 |
+| as charged (kappa 2^21.677, factor 32) | 46.508 |
+| ordinary mean 2.5 instead of 1.956 (kappa 2^21.862) | 46.628 |
+| ordinary mean 3 (kappa 2^22.013) | 46.730 |
+| class price of 49f8f6d4 (kappa 2^22.527) | 47.103 |
+| kappa 2^23 (841646f2) | 47.476 |
+| spread S = 1 / 2.5 / 3.63 instead of 1.85 | 46.008 / 46.799 / 47.197 |
+| factor 16 | 45.954 |
+| factor 64 | 47.219 |
+| factor 128 | 48.049 |
 
-| p per entry | Success bound at T = 2^44.9 |
+| p per entry | Success bound at T = 2^44.8307 |
 |---|---|
-| 2^-46 (charged) | 0.4106 |
-| 2^-46.5 | 0.3120 (below 0.39) |
-| 2^-47 | 0.2323 (below 0.39) |
+| 2^-46 (charged) | 0.3950 |
+| 2^-46.5 | 0.2989 (below 0.39) |
+| 2^-47 | 0.2219 (below 0.39) |
 
 Limitations, stated plainly:
 - No participant run here rebuilt TAB2 or measured q, p or the search. Every rate is a credited public participant
@@ -1047,3 +1047,16 @@ pip install -q pycryptosat==5.11.21
 python -c "import pycryptosat,glob,os;d=os.path.dirname(pycryptosat.__file__);print(d);print(glob.glob(d+'/../pycryptosat*')+glob.glob(d+'/../pycryptosat.libs/*'))"
 valgrind --version
 ```
+
+## 16. Run parameters of this version
+
+This package keeps every algorithm step, price, table and heuristic of the promoted package 6eeefb64 (46.57) and its
+pending sibling 23960a0e (46.53, same family) and retunes the two run parameters only: the trial count T and the
+counter-cap multiplier w in W_cap = w T. Neither change touches the route search, the table, the characteristic, the
+credited rates or the prices. The exact ladder over (T, w) under the Section 9 success model and the proof that the
+optimum is flat at w = 254-255 (the Chebyshev cap-stop grows faster than the charge shrinks below w ~ 254, and the
+charge grows above it) are given in the submission note. At w = 254 the smallest T whose Section 9 bound is at least
+0.395 is 31,288,074,998,660; we run T = ceil(2^44.8307) = 31,288,549,238,972 trials, just above that minimum.
+Success >= 0.395004 (Section 9), online phase A + B = 35,762,361,585,200 units = 2^45.0235, total = 100,049,727,826,544
+units = 2^46.50771, claimed time_log2 = 46.51 (integer-tight: total^100 <= 2^4651 and not <= 2^4650). E, C, D, memory
+and advice are unchanged from 6eeefb64.
