@@ -1,4 +1,21 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "collision-a",
+      "type": "hash-collision-witness-v2",
+      "target_profile": "sha3-256-r5-prefix-v1",
+      "message_a": "certificates/collision-a-m1.bin",
+      "message_b": "certificates/collision-a-m2.bin",
+      "expected_digest": "830bcb0d018bd9555849f1d04b0921d709a6529d7ef6caab9b5bd632d5ece797"
+    },
+    {
+      "id": "collision-b",
+      "type": "hash-collision-witness-v2",
+      "target_profile": "sha3-256-r5-prefix-v1",
+      "message_a": "certificates/collision-b-m1.bin",
+      "message_b": "certificates/collision-b-m2.bin",
+      "expected_digest": "11f6251f376488ce7b2f8607fe71a1887f2fb16c010d3c6a9276ac0706825259"
+    }
+  ]
 }

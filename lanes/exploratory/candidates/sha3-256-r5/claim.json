@@ -6,23 +6,49 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 44.6,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 31,
+    "preprocessing_log2": 42.6,
+    "success_probability": 1,
+    "nonuniform_advice_log2_bytes": 16
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Messages are exactly 135 bytes, so the single padded block ends in 0x86; c+p = 520 initial-state bits are fixed. Complete fixed-zero-state SHA3-256 sponge with 0x06 suffix and prefix rounds 0 through 4, as in verifier/keccak.py:sha3_256(data, 5).",
+    "Two hash-collision-witness-v2 certificates (collision-a, collision-b) are the verified outputs of the executed program; correctness rests on the organizer verifier, not on the proof.",
+    "The claim concerns one fixed deterministic program (fixed seeds, caps and thresholds; no algorithmic coins) that was executed in full. Success probability 1 refers to this program; it is not an expected-cost claim for fresh seeds (context in proof Section 9).",
+    "Charged time is the measured CPU time of all work that produced the pairs, including the trail search, aborted, exploratory and development runs, replay and verification: at most 58.2 core-hours (rusage, or threads x wall time where rusage was lost, plus two bounded estimates). It is charged as a 128 core-hour budget at 2^48 primitives per core-hour and 1/1355 unit per primitive, plus 1 unit per full five-round evaluation.",
+    "The trail core is not hard-coded: a blind, capped search with GLL+20's published thresholds (App. C.2) recovered GLL+20 trail core No. 3 as the unique minimum-w1 core; the search is charged.",
+    "The connector is GLL+20's 2-round linearized connector with changes required for 8 fixed padding bits (path-aware difference phase, interleaved value phase, #AS(alpha1) hill-climb, exact implied-hull preProcess); the paper's literal procedure fails for p = 8.",
+    "The published 1084-bit GLL+20 pair is outside the byte-string domain and is used only as validation evidence.",
+    "Supersedes our earlier heuristic package for this track (time_log2 56.35, no certificate), whose literal connector step does not work as written.",
+    "The nominal reference identifier does not itself assert an improvement."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "certificate_manifest": "certificates/manifest.json",
+  "heuristics": [
+    {
+      "id": "H1-cpu-primitive-ceiling",
+      "statement": "One CPU core-hour of the executed binaries on the Apple M4 Pro used performs at most 2^48 v5 primitive 256-bit word operations, so the charged 128 core-hours correspond to at most 2^55 primitives, i.e. 2^44.596 units at 1/1355 unit per primitive.",
+      "role": "score-critical",
+      "scope": "Conversion of measured CPU time (rusage, or threads x wall time where rusage was lost) into collision-frontier-v5 primitives for every charged item of proof Section 7.1. Full five-round evaluations are additionally charged 1 unit each (< 2^18 units).",
+      "extrapolation": "Hardware counters were recorded for three runs covering every code path (connector + brute force, trail stage A, trail stages B/C): 1.21e10 to 1.40e10 instructions retired per CPU-second. With at most 3 primitives per AArch64 instruction this is at most 4.2e10 primitives per second = 2^47.1 per core-hour. About 90% of the charged CPU time (the other runs of the same binaries and workloads) is extrapolated from these rates.",
+      "evidence_ids": [
+        "proof:258-283",
+        "proof:237-257"
+      ],
+      "limitations": "Instruction counters were not recorded for the largest run (run A, charged at its 13-thread x wall upper bound) or for development runs; their rates are inferred from the same code on the same machine. The at-most-3-primitives-per-instruction mapping is an argument about AArch64 instruction semantics, not a measurement. The ceiling is 1.9x above the highest measured rate, and the 2.2x budget margin is separate."
+    },
+    {
+      "id": "H2-estimated-items",
+      "statement": "The unlogged development and diagnostic work (connector tests, analyses and simulations: at most 4 core-hours; exploratory trail work: at most 4 core-hours, itemized at about 2.9; verification: at most 0.1 core-hours) is within the stated bounds.",
+      "role": "supporting",
+      "scope": "Three of the ten rows of the proof Section 7.1 cost table, 14% of the 58.2 core-hour total.",
+      "extrapolation": "The bounds are reconstructed from logged command lines, short fixed-duration test runs (20 to 60 s each) and partial rusage; they are not complete rusage records.",
+      "evidence_ids": [
+        "proof:237-257"
+      ],
+      "limitations": "Some short development runs were not individually timed. The 2.2x budget margin (128 versus 58.2 core-hours) absorbs these items even if they were about 9 times larger, so an error here does not change time_log2."
+    }
+  ]
 }
