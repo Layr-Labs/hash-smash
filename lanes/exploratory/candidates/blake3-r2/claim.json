@@ -6,23 +6,70 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 126.218,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 0,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Undercut of failed ef428b33 @126.241 (failed at experiment intake; leading cause wall-clock timeout): same SWAR family and ROT_COST=3; only change is fused feed-forward+pack (8 ops) replacing separate H0/H1 then pack (10 ops).",
+    "Messages are exactly 64 bytes (one root block, flags 11, length 64, counter 0).",
+    "Grouped birthday: 2^96 groups; shared m0..m14; enumerate all m15. Search, Briggs-Torczon table, VERIFY and prefixes[g] reconstruction are specified in full in proof §2.1, §2.5 and §2.6; only the per-message digest evaluator differs from the scalar lineage.",
+    "Digest evaluator is lane-parallel (SWAR) on the 256-bit word RAM: the 16-lane BLAKE3 state is held as four 256-bit words A,B,C,D, each carrying four 32-bit lanes in the low halves of four 64-bit slots (high halves zero). One G4 step = 30 Word ops computes four G functions at once; carry isolation by 64-bit slots + &M4 masks (proof §2.2, Lemma S).",
+    "Slot (column/diagonal) realignment uses 256-bit word rotations by 64k bits, CHARGED 3 Word ops each (shr+shl+or); the cost model's 'rotation' primitive is NOT credited at 1.",
+    "Per-message Word ops = 125 = 101 SWAR body (2 counter-register increments + R1 diagonal 2nd half 13 + undiag 9 + R2 column G4 30 + diag 9 + R2 diagonal G4 30 + fused FF+pack 8) + 24 BT/K-compare/counter; outer unroll 3/256 in T. Group setup <=512 Word/group => <2^97 units. VERIFY Word <=640 => <2 units; T_ver compressions <=16. No expectations in T.",
+    "K_full = (A|(B<<32)) ^ rot((C|(D<<32)),128) after R2 diagonal G4 is a fixed public bit-permutation of the 256-bit digest (equal K iff equal digest); algebraically identical to H0|(H1<<32) with H0=A^rot(C,128), H1=B^rot(D,128) under Lemma S cleanliness. Briggs-Torczon sparse set (proof §2.5) indexed by top 140 bits of K_full; never-cleared sparse[]; unequal-K discards without compressions; equal K_full triggers VERIFY with two reference compressions; V_max=8 (proof §2.6).",
+    "Declared score-critical heuristics: H1-grouped-digests (probability only); H-COST-BT-SPARSE (24-op envelope, unchanged); H-COST-SWAR-EVAL (101-op SWAR body, Word-metered, bit-exact vs verifier/blake3.py).",
+    "Does NOT use 21-op sparse, pack=0, BT<24, public 247 undercount, or expectation substitutions. Unkeyed BLAKE3-256; 2 rounds. Does NOT use delayed-reduction / mask-before-rotate."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-grouped-digests",
+      "statement": "For uniformly random independent group prefixes and exhaustive m15 enumeration, the 2^128 digests behave like independent uniform 256-bit strings for bounding F1, the earliest-completing-pair F2 displacement probability conditional on existence of a collision, and F4, up to a negligible additive gap covered by the allowance between the model bound (>0.3932) and claimed success probability 0.39. Because K_full is a fixed bit-permutation of the digest, top140(K_full) is uniform under the same model.",
+      "role": "score-critical",
+      "scope": "Success-probability claim only. Does not justify expectation-for-worst-case substitutions in the time bound.",
+      "extrapolation": "Matched-scale digest-xor-mask experiments (widths 16/20 at N_t=2^8 and 2^10, N_t^2/2^w=1) and single-group stress are consistency checks only; they do not establish full-scale iid behavior.",
+      "evidence_ids": [
+        "experiment:b3r2-grouped-spread",
+        "experiment:b3r2-single-group",
+        "experiment:b3r2-grouped-spread-16",
+        "experiment:b3r2-swar-meter",
+        "proof:222-260"
+      ],
+      "limitations": "H1 unproved. No full-scale collision known. Experiments do not support full-scale inference."
+    },
+    {
+      "id": "H-COST-BT-SPARSE",
+      "statement": "On the classical 256-bit word RAM of collision-frontier-v5, the Briggs-Torczon procedure in proof §2.5 together with the mandatory live (g||m15) counter update implements membership test, insert of (idx,K_full,g||m15), unequal-K discard and counter increment for a top-140-bit index with never-cleared sparse[] of 256-bit words in at most 24 charged primitive word operations per message.",
+      "role": "score-critical",
+      "scope": "Only the 24-op BT+counter envelope written out in proof §2.5 (pseudocode, path table, 13 path + 6 address + 5 edge). Does not cover the SWAR body, its two slot-counter increments (charged separately in the 101), group setup, or VERIFY (§2.6).",
+      "extrapolation": "Standard Briggs-Torczon correctness extrapolated to word-addressable sparse[0..2^140) without initialization. Analytic from the proof §2.5 op list and path table.",
+      "evidence_ids": [
+        "proof:35-47",
+        "proof:127-188",
+        "proof:204-221",
+        "proof:261-268"
+      ],
+      "limitations": "Not microbenchmarked. Fallback: 28-op envelope -> 129 ops -> 126.264."
+    },
+    {
+      "id": "H-COST-SWAR-EVAL",
+      "statement": "On the classical 256-bit word RAM with organizer Word accounting (each +,&,|,^,<<,>> on a 256-bit word counts 1; results mod 2^256; no native 32-bit rotate; 256-bit word rotation charged as shr+shl+or = 3), the per-message SWAR evaluator of proof §2.4 computes K_full, a fixed bit-permutation of the exact 2-round BLAKE3 root digest, in exactly 101 Word ops: counters 2, R1 diag second half 13, undiag 9, R2 column G4 30, diag 9, R2 diagonal G4 30, fused FF+pack 8. The fused programme K=(A|(B<<32))^rot(C|(D<<32),128) equals the 10-op (H0,H1,pack) of the 126.241 sibling whenever A,B,C,D are clean (Lemma S).",
+      "role": "score-critical",
+      "scope": "Only the 101-op SWAR body line of the 125-op ledger. Constants M4 and 1<<192 are register-resident, as MASK is in the organizer meter.",
+      "extrapolation": "Deterministic straight-line programme; the count is identical for every message. Carry isolation (Lemma S) is proved analytically and checked by the meter on the Word-metered message plus a reference sample (first 8 messages of group 0 and both messages of any returned pair; digest and K bit-exact vs inlined reference identical to verifier/blake3.py); the host re-verifies returned pairs. Fusion identity is algebraic under clean slots.",
+      "evidence_ids": [
+        "experiment:b3r2-swar-meter",
+        "proof:48-126",
+        "proof:189-203",
+        "proof:269-274"
+      ],
+      "limitations": "Observation op counts are harness-untrusted labels; adjudicated content is the analytic ledger plus readable meter source. If 256-bit rotation were charged >3 the body grows by 7 per extra op (one rot remains in the fused FF+pack)."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
