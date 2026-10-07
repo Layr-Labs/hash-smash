@@ -6,23 +6,22 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.785,
+    "time_log2": 126.94,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 137,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 136,
+    "preprocessing_log2": 122,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
+  "heuristics": [],
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Uses the complete fixed-zero-state SHA3-256 sponge with 0x06 padding and prefix rounds 0 through 4.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 137.785 under collision-frontier-v5."
+    "Classical probabilistic 256-bit word RAM, fresh independent uniform random-word primitive, total computation on one processor.",
+    "One batch of 2^128 iid uniform 64-byte messages from a 512-bit domain; repetitions retained; no restarts or advice.",
+    "Complete fixed-IV SHA3-256, rate1088, capacity512, suffix0x06, prefix rounds0..4, all256 digest bits; one padded absorption block per message.",
+    "256-message bit-plane Keccak evaluation; rho/pi as plane-index renames; last-round digest-lane early abort; two 128-bit radix passes.",
+    "No H-RF / random-function / H1 heuristic (empty heuristics list). Success is a fixed-function birthday bound for iid uniform messages (proof Section 8). Addresses F-HRF-FIXED-TARGET-PROBABILITY.",
+    "Bulk cost is inventoried word ops plus two unit-cost target permutations at verification only (not a fused 1-unit absorb+PERM5 ABI). Addresses F-COST-ABI-1."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
-  "heuristics": [],
   "certificate_manifest": "certificates/manifest.json"
 }
