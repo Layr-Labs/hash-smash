@@ -6,21 +6,21 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 133,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
+    "memory_log2_bytes": 136,
+    "data_log2": 129,
     "preprocessing_log2": 128,
-    "success_probability": 0.5,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
     "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
+    "One batch of 2^128 samples; all repeated messages are retained and charged; no restart.",
     "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
+    "Classical 256-bit word RAM with independent uniform random words, two stable 128-bit counting-sort passes, a 2^128-word counter array, and two retained record arrays.",
     "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 133 after applying collision-frontier-v5 operation weights with C=430."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
   "heuristics": [],
