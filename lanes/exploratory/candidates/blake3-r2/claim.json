@@ -6,23 +6,68 @@
   "rounds": 2,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 140,
+    "time_log2": 108.9,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 137,
-    "data_log2": 130,
-    "preprocessing_log2": 128,
-    "success_probability": 0.5,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 20,
+    "preprocessing_log2": 63,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 6
   },
   "restrictions": [
-    "Messages are exactly 64 bytes, encoded from two independent uniform 256-bit words.",
-    "One batch of 2^129 samples; all repeated messages are retained and charged; no restart.",
-    "Unkeyed BLAKE3-256; 2 prefix rounds, one 64-byte root block with flags11, length64, counter0.",
-    "Classical 256-bit word RAM with independent uniform random words, fully charged iterative merge sort and two retained record arrays.",
-    "Analytical generic construction; no full-scale execution, precomputed collision, or empirical heuristic is claimed.",
-    "The nominal reference identifier does not assert an improvement; the conservative scalar bound is 140 after applying collision-frontier-v5 operation weights with C=430."
+    "Derivative of pending submission 18a7fc5 by winglock (commit 6f3acb0): the sub-class S, the beta pre-filter, the seven-alpha-lane packing, the exact operation ledger, the model-M reduction and the exact rate bounds are theirs, adopted with co-author credit; their program and proof were re-verified independently by this submitter as described below. That package is itself a derivative of submission 04638ed8 by Jbenisek (co-author tekkac): the free half-collision, the class e96d6d6b of Y4, the D0 family, Lemma E and the shape of the packed batch are theirs; the seven-lane layout and five-operation masked rotation are from public ticket 2bf40fb (tekkac). All are co-authors and credited; their work is unpromoted and is not presented as ours.",
+    "Relationship to our own pending submission 009a42f (time_log2 111.4): that ticket keeps the full 4,096-member class and the 34-operations-per-trial batch of 04638ed8 and assumes a rate factor f = 4,096 justified by Jbenisek's joint estimator (3-sigma lower bound 4,871). This ticket is the same construction family priced through winglock's cheaper batch and sub-class S with the premise f = 10,240, which is exactly winglock's own disclosed premise in 18a7fc5; the two tickets are declared twins and 009a42f remains honest as the full-class fallback.",
+    "The two messages have 60 and 62 bytes: one chunk, one block, one root compression each, with flags 11, counter 0 and the true block length; the 62-byte message ends in two zero bytes. Unkeyed BLAKE3-256 with prefix rounds 0-1, standard IV, permutation and feed-forward, full 256-bit digest.",
+    "Exact part (proof Sections 2-3): for every trial the digests agree on words 0, 2, 5, 7; Y4 lies in the 256-member sub-class S; Lemma B (beta in {953908d0, 953f08d0} implies (c1 AND 008d0953) = 00010811, also checked over all 2^32 c1) and Lemma D (Lemma E test word = dO1 XOR ROL(dO4,7)) hold. Heuristic part: a search over N' = 1792*ceil(2^108/35) >= 2^127/10240 such trials for one with R = 0.",
+    "Classical 256-bit word RAM under collision-frontier-v5, faithful counting: every executed ALU primitive, compare, branch, load and store counts 1; shift amounts, immediates and fixed addresses are instruction fields; 64 registers. Seven 36-bit lanes hold seven values of alpha; the member is a broadcast list word at a fixed address in straight-line code. Per group of 1,792 trials: set-up 46 ALU + 12 loads (of which 6 ALU + 1 load is the group loop including the continuation-cap test; these are the set-up and group-loop figures the shipped program reports as observations), 256 batches of 105 ALU + 1 load: 256*106 + 58 = 27,194 = 15.17522 per trial; continuation 53 + 1 (including the countdown step) for batches with a filter pass, capped at 2^-6 of batches plus 256 (0.1205 per trial).",
+    "Resident registers: 12 rotation masks, 11 fixed constants, 14 per-context and 7 per-group constants (44) + at most 9 live values + 3 loop and counter registers = 56 <= 64; no spills. The shipped program experiments/classsearch.py executes this schedule on a counting machine. Independent replay by this submitter: all four organizer experiments were run with 256 fresh seeds each, all inside organizer budgets (max 1.5 s per 256 trials), and every returned pair re-checked against the organizer's own verifier/blake3.py at 2 prefix rounds: half-collision 256/256 and class-walk 256/256 masked-zero on the 128 half-collision bits, early-test-bits 155/155 with 155 of 256 seeds returning a pair against the predicted 163 +- 8, filtered-residual 58/58, giving an independent estimate q = 0.0316 +- 0.0022 of the E8 rate given the beta filter against winglock's 0.0339 +- 0.0006, model M 0.0342 and uniform 0.0039 (8.1x uniform).",
+    "Hard caps: halt with failure after G_tot groups, at a group end once more than 2^-6*256*G_tot continuations have run (so at most 2^-6*256*G_tot + 256 run), or after 2^96 scalar confirmations (each < 2^12 operations) with R != 0. T <= (G_tot*27194 + (2^-6*256*G_tot + 256)*54 + 2^108 + 2^84.7 + 2^18 + 2^11 + 1)/430 + 2 + 2^63 = 2^108.8668 < 2^108.9 on every run; every output is checked with two complete hash evaluations. This submitter recomputed the ledger in exact rationals independently: log2 T = 108.8668 for G_tot = ceil(2^108/35) and N' = 1792*G_tot >= 2^127/10240, agreeing with winglock; the same ledger with f = 12,288 prices at 108.6041 and is held as the follow-up.",
+    "Randomized by one fresh uniform 256-bit word (run words X2, X5, X6, X9). Success 0.39 only under H1 and H2. H1 assumes a rate factor f = 10,240 for the event R = 0 with beta in B2, 1.97 below winglock's exact model-M lower bound 20,172.0 for S (90 exact terms, reduction stated in proof Section 7.1); S is the best 2 of 32 patterns under M, and without the choice within e1 bit 20 = 0 the bound would be 14,143 (1.38 times f); with the uniform rate the same algorithm gives 122.2. No full collision is exhibited.",
+    "Advice: the six constants and eta of 04638ed8 (28 bytes), the sub-class mask and values (12 bytes), FK and FP (8 bytes): 48 bytes, log2 6. Preprocessing 2^63 units covers recomputing and selecting the constants and eta (their bound), winglock's selection of S, the filter and E8 with all their support computations (< 2^60 word operations, bounded by machine time), and this submitter's independent replay above; included in the time."
   ],
   "baseline_improved": "blake3-r2-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-subclass-residual-rate",
+      "statement": "Over the algorithm's one random 256-bit word, the N' = 1792*ceil(2^108/35) trials of proof.md Section 4 behave, with respect to the event E* that the 128-bit residual R is zero and the E1 first-half difference beta is in {953908d0, 953f08d0}, like independent events of probability at least 10,240 * 2^-128 each, to the extent that the probability that no trial has E* is at most exp(-1/2) + 0.002.",
+      "role": "score-critical",
+      "scope": "Exactly the trials of proof.md Section 4: lengths 60 and 62, the constants of 04638ed8, Y4 in the 256-member sub-class S of class e96d6d6b (Section 3.3), run words X2, X5, X6, X9 from the coins, X1 = X10 = 0 before the trial, contexts (X12 < 2^10, X13, X14), alpha = 7g + i with g < 613,566,756.",
+      "extrapolation": "From winglock's exact model-M lower bound (proof Section 7, adopted with co-author credit): under the leader's seven-word model M (E1 words (d1, b1, a2) and E3 words (h1, Y9, w8) uniform and independent, Y4 uniform on S), R = 0 is equivalent to four explicit conditions (Lemma R), and the rate of E* is at least 20,172.0 * 2^-128, a sum of 90 terms, each an exact E1 probability (enumeration of c1 and a carry automaton) times an exact E3 count (carry-pattern enumeration with a carry DP), split exactly by the e1 bits that define S; the five largest terms are listed for spot checks. Their counting method equals brute force at 8-bit words (9 constant sets, every class, 0 mismatches; 18,432 per-member counts, 0 mismatches). Their Monte Carlo samples the taus with the same counter, so it checks the tau lists, not the counter; the only 32-bit check by other code is the leader's independent full-class estimates (7,003 +- 241; 7,319 +- 816) against the exact 7,124.8. A rerun of the exact programs reproduced all 90 terms. Real trials of the algorithm against model M (Section 7.5): beta-filter pass rate 2^-10.02 (exact 2^-10), beta in B2 among passes 0.622 (0.625), the 8-bit event E8 given the filter 0.0339 +- 0.0006 over 80,432 passes against model 0.0342 and uniform 0.0039, an 8-bit early-test event 0.00399 against 0.003945, and the 32-bit Lemma E pass rate in S at real/model 0.93 (95% CI 0.79-1.08). The choice of S (Section 7.6): on 2^36 real class trials against 2^36 model draws, the member dependence of the E3 conditions matches M (S against the other bit-20 = 0 patterns: 1.186 +- 0.001 real vs 1.185 model at 12 bits; 1.183 +- 0.030 vs 1.176 at 24 bits; per-pattern chi-square 24.7 and 41.0 on 32 df), and the E1 side does not depend on the member (beta in B2: 1.002 vs 1.001). This submitter's independent replay of the two reduced-width organizer experiments on 256 fresh seeds each (restrictions) reproduced the early-test pair fraction at 155/256 against the predicted 163 +- 8 and the conditional E8 rate at q = 0.0316 +- 0.0022 against winglock's 0.0339 +- 0.0006 and model M 0.0342, an 8.1-times-uniform signal on real digests recomputed with the organizer's own verifier. The extrapolation is from these to 2^-114.7 on real trials.",
+      "evidence_ids": [
+        "experiment:filtered-residual",
+        "experiment:early-test-bits",
+        "experiment:half-collision",
+        "experiment:class-walk",
+        "proof:375-397",
+        "proof:401-436",
+        "proof:438-477",
+        "proof:479-506",
+        "proof:508-528",
+        "proof:530-553",
+        "proof:555-563",
+        "proof:608-646",
+        "proof:648-682",
+        "proof:182-191",
+        "proof:193-206"
+      ],
+      "limitations": "H1 is not proved. The bound 20,172.0 is exact only within model M; model M is untested at the full 2^-115 event probability and is tested on real trials only for events of probability 2^-5 to 2^-30 and end to end only at small word sizes (04638ed8, 18a7fc5). This submitter independently verified the ledger arithmetic in exact rationals, the shipped program's organizer-visible behavior on 1,024 fresh seeds against the organizer verifier, and the reduced-width model-vs-real agreement, but the independent rerun of the 90-term exact-sum enumeration itself (whose model-M definition and summands are stated in proof Section 7.1-7.2 but whose enumeration program is not in the candidate tree) was still in progress at submission time, so 20,172.0 and 14,143 are adopted from winglock rather than independently re-enumerated; the claimed f = 10,240 is exactly winglock's own disclosed premise and this package adds no multiplier beyond it. The claimed f = 10,240 leaves a factor 1.97 against the exact bound, not against model error. S is the best 2 of 32 patterns under M; its advantage is not tested on real trials at any width (no digest event the authors found separates S from the rest of the class), only the two parts of M that it uses; without the choice within e1 bit 20 = 0 the bound would be 14,143, 1.38 times f. All trials of a run share the four run words, trials of one context share most other words, and the 1,792 trials of a group differ only in alpha and Y4; their independence is assumed as in 04638ed8. S, the filter constants and the reduced-width event E8 were chosen by winglock's computations; the E8 rate figures are from fresh draws after the choice. The counting programs and every check of them are the authors'; the organizer checks digest events only. With f = 1 (uniform) the claim would be 122.2; with the leader's f = 2,048 it would be 111.2."
+    },
+    {
+      "id": "H2-filter-and-early-test-budgets",
+      "statement": "With probability at least 0.999 over the random word, (a) at most 2^-6 of the 256*G_tot batches have a lane that passes the beta filter, and (b) fewer than 2^96 lanes of continued batches have a zero Lemma E test word without R = 0.",
+      "role": "supporting",
+      "scope": "The caps of proof.md Section 4. Exceeding either cap halts the algorithm with failure; this lowers the success probability, never raises the time bound.",
+      "extrapolation": "(a) For uniform c1 the lane pass rate is exactly 2^-10 (Lemma B, exhaustive), so a batch continues with probability 2^-7.19; the cap is 2.3 times that (checked once per group, so at most 256 more continuations run). Measured on real trials: 2,587 lane passes in 2,688,000 (2^-10.02) and 2,580 continued batches in 384,000 (2^-7.22); winglock's local replay of the organizer-run class-walk shows 15 passes in 16,384 trials, and this submitter's replay of the early-test-bits experiment on 256 fresh seeds found a first-hit fraction of 155/256 against the model prediction 163 +- 8. (b) The early-test pass rate measured on real class trials is 2^-29.6 (04638ed8) and 2^-29.69 in S (winglock's runs), giving about 2^84 passes, 2^12 below the cap.",
+      "evidence_ids": [
+        "experiment:class-walk",
+        "proof:208-221",
+        "proof:223-260",
+        "proof:508-528",
+        "proof:262-373",
+        "proof:375-397"
+      ],
+      "limitations": "Not organizer-verified beyond the class-walk filter counts. That the number of filter passes and early-test passes of one full run stays near the mean is assumed; the measured runs use the algorithm's layout only within single contexts."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
