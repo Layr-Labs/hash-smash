@@ -6,21 +6,37 @@
   "rounds": 6,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.4,
+    "time_log2": 124.26856,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 130,
-    "preprocessing_log2": 142,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 50,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical 256-bit word RAM with fresh independent uniform random-word primitive.",
-    "One batch of 2^129 independent uniform 64-byte messages; no restarts or nonuniform advice.",
-    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06, prefix rounds 0 through 5, all 256 output bits.",
-    "Generic analytic upper bound; infeasible resource use, no improvement over the nominal reference claimed."
+    "Complete sha3-256-r6-prefix-v1 on128-byte messages: one rate1088 permutation, lane16 padding, rounds0..5 and full256-bit output unchanged. The768-free-bit prefix family retains neutral lanes4/14; traversal z=sigma(t xor(t>>1)) swaps coordinates0/15.",
+    "Physical64-register hot leaves retain exact31339..31378 ordinary-operation counts, including18 dispatch/control. Exact traversal charge K=134654837523281 operations per2^32 steps. Cold reconstruction includes six-operation coordinate swap per id;216 ordinary continuation and221 hit, charged256 plus2 permutations. Setup2^20 operations per2^40-message batch and preprocessing2^50 units.",
+    "Literal scratch addresses and fixed immediates are operands of the listed word-RAM instructions; they do not incur separate fetch instructions. Prefix variable addresses are computed explicitly. Code,constants,prefixes,spill memory and address-space holes are charged in146 memory bits.",
+    "Score and success probability are conditional on explicit new-family H1. No solver-side participant execution occurred. Declared organizer experiments are fresh evidence requests, not prior results. Static generated counts are not an equivalence proof or human acceptance.",
+    "Direct base our unpromoted6e715d9a, upstream winglock5e73af65. Material coauthors winglock,Th0rgal,jaazinn,may93182,tekkac,ercumentyildirim,zeeshan8281,mitchuski. New contribution is cost-aware Gray-coordinate traversal, exact frequency accounting, remapped dispatch and audited cold reconstruction."
   ],
   "baseline_improved": "sha3-256-r6-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1",
+      "statement": "For N=255*2^120 digests from independent uniform prefixes in the new768-dimensional affine family, all32-bit Gray indices in the sigma-permuted fixed order, assume Pr[F1]<=exp(-N(N-1)/2^257), Pr[F2]<=N^3/(6*2^396), E[Y1]<=N^2/2^141 and Var[Y1]<=N^2/2^141. F1,F2 and Y1 are defined in proof.md.",
+      "role": "score-critical",
+      "scope": "Full-scale success and candidate-count tail for this128-byte family and changed traversal. F1 and Y1 depend only on the unchanged multiset; the order-dependent F2 bound remains explicitly assumed. This premise does not establish implementation equivalence.",
+      "extrapolation": "Four organizer-only512-message/18-bit experiments examine different grouping and z-bit patterns. None has executed this new package yet. Even successful scaled trials do not establish the full140-bit cap margin,256-bit collision law or full-scale tail.",
+      "evidence_ids": [
+        "experiment:k6r6-bs-full-width",
+        "experiment:k6r6-bs-spread",
+        "experiment:k6r6-bs-single-group",
+        "experiment:k6r6-bs-high-z"
+      ],
+      "limitations": "Unproved full-scale event and moment bounds, highly structured within-group samples, small cap margin0.78%, no isolated execution of this changed traversal. Base AI qualification is not proof or acceptance."
+    }
+  ],
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
