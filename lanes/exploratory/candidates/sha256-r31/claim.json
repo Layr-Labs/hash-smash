@@ -5,23 +5,38 @@
   "attack_class": "ordinary-collision",
   "rounds": 31,
   "lane": "exploratory",
+  "baseline_improved": "sha256-r31-nominal-v2",
+  "certificate_manifest": "certificates/manifest.json",
   "claim": {
-    "time_log2": 136,
+    "time_log2": 40.76,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 137,
-    "preprocessing_log2": 20,
-    "success_probability": 0.6,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 32,
+    "preprocessing_log2": 40.76,
+    "success_probability": 1,
+    "nonuniform_advice_log2_bytes": 9
   },
   "restrictions": [
-    "Use only 64-byte messages, fixed-IV SHA-256 indices 0 through 30 on both padded blocks, full feed-forward, and the full 256-bit digest.",
-    "Draw two fresh independent uniform 256-bit RAM words for each of exactly 2^129 messages; deterministic seed expansion is not a substitute.",
-    "Use the charged three-word records and two-array bottom-up merge sort; require distinct messages and verify a returned pair by complete re-hashing.",
-    "data_log2 bounds padded input bytes including verification; preprocessing is inside total time; nonuniform_advice_log2_bytes=0 is a one-byte upper bound with zero actual advice.",
-    "This is an unconditional analytic construction with no experiments, computed witness, hidden precomputed search, or claimed improvement over the nominal reference."
+    "Target sha256-r31-prefix-v1 exactly: SHA-256 steps 0..30 on every padded block, standard IV used once, FIPS 180-4 padding, full feed-forward, all eight digest words. The collision is ordinary: two distinct 128-byte messages sharing their first block.",
+    "The scored program is a deterministic replay of one stored, organizer-verified colliding pair (proof.md Section 3). It uses no random coins, so success_probability is exactly 1 for the fixed target. It is not a generator and claims no amortised cost.",
+    "The stored pair is the colliding pair published by Li, Liu, Wang, Dong and Sun (ASIACRYPT 2024). Its whole one-time construction is specified step by step in proof.md Section 7 and charged once as preprocessing inside total time (proof.md Section 8). That includes trail search, starting solutions, the lookup table, first-block matching, completion and checking.",
+    "Ledger total 2^40.75317 target-compression units: the published two-phase total 2^40.5, per-trial word operations 2^34.44, trail-search allowance 2^38, set enumerations 2^27.11, the check, and the 6.36-unit replay. Claimed 40.76 leaves about 2^33.0 units of slack.",
+    "One score-critical heuristic, H1, covers the published 2^40.5 figure and the 2^38 trail-search allowance. Collision correctness, distinctness and success probability do not depend on it.",
+    "Memory is a reported metric only. baseline_improved names the organizer reference and does not assert an improvement over any submitted score."
   ],
-  "baseline_improved": "sha256-r31-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "heuristics": [
+    {
+      "id": "H1-construction-cost",
+      "role": "score-critical",
+      "statement": "The one-time construction of the stored pair (proof.md Section 7, steps C0-C5) costs at most L1+L2+L3+L4+L5 of proof.md Section 8, which is 2^40.75317 target-compression units. (a) Starting solutions, table, first-block matching and completion (C1-C4) cost at most the 2^40.5 compressions that the source authors report for this trail, start and step count; per-trial word operations are added separately as L2. (b) The characteristic search C0 costs at most 2^38 units.",
+      "scope": "The ASIACRYPT 2024 31-step SHA-256 trail of proof.md Section 5, standard IV, steps 0..30, and the one-time construction of one colliding pair. It says nothing about other step counts, trails or prefixes, and nothing about repeated or amortised generation.",
+      "extrapolation": "(a) The source states time 2^40.5 and memory 2^19.8, and a practical run of 1.2 hours on 64 threads, which is 2^22.42 compressions per thread-second. Its framework total includes the solver time per starting solution, and a public re-run of a comparable solve suggests about 2^35.9 units for 54 starting points. We reproduced exactly the C2 record of the stored pair, the 2^-27 C3 acceptance probability and every predicate of C1-C5 on the pair. (b) A public re-run of the authors' four-stage trail search took 16,580.78 CPU-seconds, which is 2^36.60 units at 2^22.58 units per CPU-second or 2^36.44 at the source rate. The allowance 2^38 is 2.6x to 2.9x that and above a 6-IPC, 5.5 GHz hardware ceiling (2^37.90).",
+      "evidence_ids": [
+        "proof:163-235",
+        "proof:237-266",
+        "proof:268-320",
+        "proof:85-124"
+      ],
+      "limitations": "The 2^40.5 figure is the authors' analysis plus one practical run, not an organizer-model trace, and we did not reproduce the per-match completion rate inside it. The trail-search bound rests on a re-run of the public tool, not on the authors' original logs. Sensitivity: the claim fails if L1+L3 exceeds 2^40.5+2^38 by more than about 8.8e9 units. A trail search costing 2^39 would give 2^40.95, and a C1-C4 cost of 2^41 would give 2^41.19."
+    }
+  ]
 }
