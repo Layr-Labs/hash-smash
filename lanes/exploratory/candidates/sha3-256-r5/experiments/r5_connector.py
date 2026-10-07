@@ -1,13 +1,14 @@
-"""v8 experiments (proof.md): B' with its budget (2.2), S and the connector (2.3), E on a window (2.4), the
-driver (2.5).  The trail is P's output; each advice is re-derived from its label by B'.  rows_for() follows
-the manifest.  PASS = (00^135, 01||00^134), FAIL = (00^135, 02||00^134); the evidence is this code's run."""
+"""v10 experiments (proof.md): B' with its budget and per-candidate cap (2.2), S and the connector (2.3), E on a
+window (2.4; the plain evaluation, equal to the counted program of r5_trail.py), the driver (2.5).  The trail is
+P's output; each advice is re-derived from its label by B'.  Docstrings and comments of v8 are omitted for the
+64 KiB budget (the code is v8's except bprime, algorithm and the caps).  PASS = (00^135, 01||00^134), FAIL =
+(00^135, 02||00^134); the evidence is this code's run."""
 import hashlib
 import json
 import sys
 import collections
 from fractions import Fraction
 
-# Bit i = 64*(x+5y)+z.  Affine form over x = L(A0): int, bits 0..1599 coefficients, bit 1600 constant.
 
 N = 1600
 MASK = (1 << N) - 1
@@ -29,7 +30,6 @@ def unlanes(A):
   return s
 
 def Lmap(s):
-  """L = pi o rho o theta."""
   A = lanes(s)
   P = [A[x] ^ A[x + 5] ^ A[x + 10] ^ A[x + 15] ^ A[x + 20] for x in range(5)]
   T = [P[(x - 1) % 5] ^ rot(P[(x + 1) % 5], 1) for x in range(5)]
@@ -74,7 +74,6 @@ def getrow(s, y, z):
   return sum(((s >> (64 * (x + 5 * y) + z)) & 1) << x for x in range(5))
 
 def _affine_subsets():
-  """All affine subsets of GF(2)^5, by dimension, each as a sorted list; each list sorted."""
   lin = {0: {(0,)}}
   for k in range(1, 6):
     lin[k] = set()
@@ -101,7 +100,6 @@ AFFIN = {o: {k: [W for W in AFFL[k] if set(W) <= set(COMPAT[o])] for k in (0, 1,
 _ANN = {}
 
 def annih(W):
-  """Basis (m, c) of the equations <m, v> = c satisfied by every v of the affine set W."""
   key = tuple(sorted(W))
   r = _ANN.get(key)
   if r is not None:
@@ -135,9 +133,6 @@ class CapExceeded(Exception):
   pass
 
 class Ech:
-  """Echelon set of affine forms keyed by leading (highest) coefficient bit, with undo log.
-  budget = [work units so far, cap], shared by the systems of one attempt (hard work cap); one unit
-  is one call of reduce() or one row addition inside it."""
 
   def __init__(s, budget=None):
     s.piv = {}
@@ -163,7 +158,6 @@ class Ech:
         raise CapExceeded()
 
   def add(s, f):
-    """1 = added, 0 = implied, -1 = inconsistent (not added)."""
     f = s.reduce(f)
     if not (f & MASK):
       return -1 if f else 0
@@ -183,7 +177,6 @@ class Ech:
     return len(s.piv)
 
 def linear_rows(fn):
-  """rows[j] = form of output bit j of the linear map fn (as coefficients over the input)."""
   rows = [0] * N
   for i in range(N):
     c = fn(1 << i)
@@ -194,7 +187,6 @@ def linear_rows(fn):
   return rows
 
 def Linv_map(s):
-  """L^-1 = theta^-1 o rho^-1 o pi^-1, theta^-1 by solving the column-parity system."""
   B = lanes(s)
   A = [0] * 25
   for y in range(5):
@@ -204,7 +196,6 @@ def Linv_map(s):
   return _theta_inv(unlanes(A))
 
 def _theta_inv_setup():
-  # theta^-1(b) = b + E((I+T)^-1 P(b)), P = column parity; (I+T)^-1 by Gauss-Jordan.
   def T(p):
     P = [(p >> (64 * x)) & M64 for x in range(5)]
     return sum((P[(x - 1) % 5] ^ rot(P[(x + 1) % 5], 1)) << (64 * x) for x in range(5))
@@ -242,7 +233,6 @@ def _theta_inv(b):
   return unlanes([Lb[i] ^ El[i % 5] for i in range(25)])
 
 def linv_rows():
-  """Rows of L^-1 (= linear_rows(Linv_map), checked in facts()) via the rows of (I+T)^-1."""
   rows = [0] * N
   for o in range(N):
     lane, z = divmod(o, 64)
@@ -257,19 +247,14 @@ def linv_rows():
     rows[o] = unlanes(B)
   return rows
 
-# -- advice and trail (proof 2)
-# BETA2 and ALPHA3_BITS: the trail core output by the search P (proof 2.1).
 BETA2 = unlanes([0x1, 0, 0x4, 0, 0, 0x4, 0x4, 0x4, 0x20000, 0, 0x2000000000000000, 0, 0x200000, 0, 0,
         0x2000000000000000, 0, 0, 0x20000, 0, 0x200001, 0, 0x200000, 0, 0x1])
 ALPHA3_BITS = (0, 130, 450, 529, 701, 789, 1021, 1169, 1280, 1429)
 
-# -- work counters (B', proof 2.2)
 class BudgetExceeded(Exception):
   pass
 
 class _WKMeta(type):
-  """Every counter update re-checks the budget: once WK.cap is set (integer, in 1/1355 units),
-  the first update that takes the charged cost above it raises BudgetExceeded (hard cap)."""
 
   def __setattr__(cls, k, v):
     type.__setattr__(cls, k, v)
@@ -277,11 +262,11 @@ class _WKMeta(type):
       raise BudgetExceeded()
 
 class WK(metaclass=_WKMeta):
-  row = 0        # operations on one <= 2585-bit integer (XOR, AND-test, element copy, compare): 256 primitives
-  small = 0      # word operations on <= 64-bit values (table lookups, loop steps): 8 primitives
-  keccak = 0     # Keccak-f[1600] calls (SHAKE-256 coin expansion): 5 units
-  sha256 = 0     # SHA-256 compression calls (seeds): 2 units
-  r2 = 0         # 2-round state evaluations in verification: 1 unit
+  row = 0
+  small = 0
+  keccak = 0
+  sha256 = 0
+  r2 = 0
   cap = None
 
   @staticmethod
@@ -289,18 +274,15 @@ class WK(metaclass=_WKMeta):
     return (WK.row, WK.small, WK.keccak, WK.sha256, WK.r2)
 
   @staticmethod
-  def cost():
-    """Charged cost so far in 1/1355 units (exact integer)."""
-    return 256 * WK.row + 8 * WK.small + 1355 * (5 * WK.keccak + 2 * WK.sha256 + WK.r2)
+  def cost(s=None):
+    r, sm, k, h, r2 = s or WK.snap()
+    return 256 * r + 8 * sm + 1355 * (5 * k + 2 * h + r2)
 
 def sha256(b):
   WK.sha256 += (len(b) + 9 + 63) // 64
   return hashlib.sha256(b).digest()
 
-# -- coins (proof 4.1)
 class Coins:
-  """Coin word j: bytes 32j..32j+31 (little-endian) of SHAKE-256(seed || k)[4096 bytes], k = 0, 1, ...
-  (4 bytes LE).  perm(): Fisher-Yates, j = (low 64 bits of one word) mod (i+1) (proof 4.1)."""
 
   def __init__(s, seed):
     s.seed, s.k, s.buf, s.pos, s.draws = seed, 0, b"", 0, 0
@@ -308,7 +290,7 @@ class Coins:
   def word(s):
     if s.pos >= len(s.buf):
       s.buf = hashlib.shake_256(s.seed + s.k.to_bytes(4, "little")).digest(4096)
-      WK.keccak += 31          # 1 absorb + 30 further squeeze calls for 4096 bytes at rate 136
+      WK.keccak += 31
       s.k += 1
       s.pos = 0
     w = int.from_bytes(s.buf[s.pos:s.pos + 32], "little")
@@ -324,20 +306,17 @@ class Coins:
       WK.small += 4
 
 def run_seed(label, i):
-  """Seed of attempt i of a labelled run: SHA-256(label || i as 8 little-endian bytes)."""
   return hashlib.sha256(label + i.to_bytes(8, "little")).digest()
 
-# -- setup S (proof 2.3)
 class Base:
-  """The advice-independent part of S (also B's base): L, L^-1, fixed bits, trail, E's row tests."""
 
   def __init__(s):
-    for k in range(6):                                 # equations of every affine subset of GF(2)^5
+    for k in range(6):
       for Wl in AFFL[k]:
         annih(Wl)
     WK.small += 2451 * 2048
     s.Lrow = linear_rows(Lmap)
-    s.Linv = linv_rows()                               # = linear_rows(Linv_map); facts() checks it
+    s.Linv = linv_rows()
     WK.row += 2 * N * 30
     s.FIX = list(range(1080, N))
     s.fixval = {j: 0 for j in s.FIX}
@@ -351,12 +330,9 @@ class Base:
     s.alpha3 = a3
     s.a2rows = [(y, z, getrow(s.alpha2, y, z)) for (y, z) in ROWS if getrow(s.alpha2, y, z)]
     assert len(s.a2rows) == 59
-    # round-2 test of E: row r of the round-2 chi input must lie in V(beta2_r, alpha3_r)
     s.e_rows = [(y, z, VSET[(getrow(s.beta2, y, z), getrow(s.alpha3, y, z))])
           for (y, z) in ROWS if getrow(s.beta2, y, z)]
 
-# -- advice run B' (proof 2.2)
-# B' parameters (pre-registered): D2u candidate ordering weights
 KW, MW, LB, PREF = 1.0, 0.25, 1.0, 1.0
 
 def rand_min_beta1(base, coins):
@@ -374,7 +350,6 @@ def rand_min_beta1(base, coins):
   return b
 
 class Cand:
-  """The beta1-dependent part of S (proof 2.3): round-1 conditions, masks, linearisation table."""
 
   def __init__(s, base, beta1):
     s.base = base
@@ -445,9 +420,7 @@ class Cand:
         return (None, opts)
     return (None, [])
 
-# -- affine spaces stored transposed
 class Aff:
-  """T[j]: bit 0 = coordinate j of a particular solution, bit i+1 = coefficient of free parameter i."""
   __slots__ = ("T", "rank")
 
   def __init__(s, T, rank=0):
@@ -491,7 +464,6 @@ def parmw(n):
   return PARMW[n]
 
 def projn(T, cs):
-  """Bit mask (over 2^n values) of the values of coordinates cs allowed by the space."""
   n = len(cs)
   tab = parmw(n)
   piv = []
@@ -525,7 +497,6 @@ def form_idx(f):
   WK.row += len(idx) + 1
   return idx, (f >> N) & 1
 
-# -- difference side: links, D2u
 WT = [0] * 32
 for _d in range(1, 32):
   WT[_d] = 5 - (max(DDT[_d]).bit_length() - 1)
@@ -555,7 +526,6 @@ def own_bits():
   return out
 
 def link_constants(t):
-  """Base value space (fixed bits only), used for the link constants x_b1 + x_b2 = c."""
   X = Aff([1 << (j + 1) for j in range(N)])
   for j in t.FIX:
     idx, _ = form_idx(t.Linv[j])
@@ -611,8 +581,6 @@ def combo_basis(ms):
   return basis
 
 def uniform_info(Wd, o, P):
-  """Port-uniform test of an affine set Wd of differences: same fixed port combos for every d in
-  Wd and constants affine in d.  Returns [(mask, lam, c0)] with kappa_mask(d) = c0 + lam.d."""
   fcs = [fixed_combos(VSET[(d, o)], P) for d in Wd]
   if len(set(tuple(sorted(f)) for f in fcs)) != 1:
     return None
@@ -789,7 +757,6 @@ def d2u(t, D, ports, links, cands, COST, coins):
     A[r] = Wd
   return A, D, len(A), nlinkc
 
-# -- value side: Model, M2
 def mask_basis(masks):
   out = []
   for m in sorted(masks):
@@ -813,7 +780,6 @@ def express(m, basis):
   raise ValueError
 
 class Model:
-  """Coordinates x and u_{r,k} = b_{r,k} . chi(x_r) (basis of the row's masks); candidates (d, W) per row."""
 
   def __init__(s, t):
     s.t = t
@@ -999,7 +965,6 @@ def verify(t, X, beta0, coins, npts=64):
     good += ok
   return good
 
-# -- driver
 class CandSetup:
   def __init__(s, base, OB, label, c):
     s.c = c
@@ -1037,27 +1002,29 @@ def b_attempt(cs, label, j, dmin):
       res["st"] = "verifyfail"
   return res, beta0
 
-B_R, B_DMIN = 16, 40          # B' constants (with KW, MW, LB, PREF): fixed by development runs
-B_BUDGET = 1355 << 34         # hard cap of B' (2^34 units), counted from the start of B'
+B_R, B_DMIN = 16, 40
+B_BUDGET, CCAP = 1355 << 32, 1355 << 26
 
-def bprime(base, OB, label, budget=B_BUDGET, log=None):
-  """B' (proof 2.2): candidates c = 0, 1, ..., R attempts each; (beta1, beta0, c, j, DF) at the first
-  accepted attempt, None when the budget is exhausted."""
-  WK.cap = WK.cost() + budget
+def bprime(base, OB, label, budget=B_BUDGET, log=None, c=0, ccap=CCAP):
+  top = WK.cost() + budget
   try:
-    c = 0
     while True:
+      WK.cap = min(top, WK.cost() + ccap)
       s0 = WK.snap()
-      cs = CandSetup(base, OB, label, c)
-      if log:
-        log("cand", c, -1, {"st": "r1inc" if cs.X0 is None else "setup"}, s0)
-      for j in range(B_R):
-        s1 = WK.snap()
-        res, b0 = b_attempt(cs, label, j, B_DMIN)
+      try:
+        cs = CandSetup(base, OB, label, c)
         if log:
-          log("att", c, j, res, s1)
-        if res["st"] == "ok":
-          return cs.beta1, b0, c, j, res["DF"]
+          log("cand", c, -1, {"st": "r1inc" if cs.X0 is None else "setup"}, s0)
+        for j in range(B_R):
+          s1 = WK.snap()
+          res, b0 = b_attempt(cs, label, j, B_DMIN)
+          if log:
+            log("att", c, j, res, s1)
+          if res["st"] == "ok":
+            return cs.beta1, b0, c, j, res["DF"]
+      except BudgetExceeded:
+        if WK.cap == top:
+          raise
       c += 1
   except BudgetExceeded:
     return None
@@ -1065,15 +1032,11 @@ def bprime(base, OB, label, budget=B_BUDGET, log=None):
     WK.cap = None
 
 def Setup(base, beta1, beta0):
-  """S for one advice (beta1', beta0'): Base plus the round-1 conditions and linearisation table of
-  beta1' (class Cand); D2 and M2 steer toward beta0' (st.ref)."""
   st = Cand(base, beta1)
   st.ref = beta0
   return st
 
-# -- one connector attempt (proof 2.3)
 def attempt(st, coins, dmin=33, xor_cap=1 << 18):
-  """One connector attempt.  Returns (status, info); info["xors"] = work units, info["draws"] = coin words."""
   budget = [0, xor_cap]
   try:
     status, info = _attempt(st, coins, dmin, budget)
@@ -1089,7 +1052,7 @@ def _attempt(st, coins, dmin, budget):
   ref = st.ref
   Linv = st.Linv
   ED = Ech(budget)
-  for j in st.FIX:                                       # D1
+  for j in st.FIX:
     if ED.add(Linv[j]) < 0:
       return "dinc", None
   for (y, z) in ROWS:
@@ -1097,7 +1060,7 @@ def _attempt(st, coins, dmin, budget):
       for b in rowbits(y, z):
         if ED.add(1 << b) < 0:
           return "dinc", None
-  order = list(st.act)                                   # D2
+  order = list(st.act)
   coins.perm(order)
   A2sel = {}
   for (y, z) in order:
@@ -1125,13 +1088,13 @@ def _attempt(st, coins, dmin, budget):
     if sel is None:
       return "dinc", None
     A2sel[(y, z)] = sel
-  EM = Ech(budget)                                       # M1
+  EM = Ech(budget)
   for j in st.FIX:
     if EM.add(Linv[j] | (st.fixval[j] << N)) < 0:
       return "minc", None
   beta0 = 0
   Srow = {}
-  for (y, z) in order:                                   # M2
+  for (y, z) in order:
     o = rows_a1[(y, z)]
     rb = rowbits(y, z)
     rv = getrow(ref, y, z)
@@ -1165,7 +1128,7 @@ def _attempt(st, coins, dmin, budget):
       return "tda", None
   aff = {}
   full = frozenset(range(32))
-  for r in st.lin_rows:                                  # M3
+  for r in st.lin_rows:
     y, z = r
     rb = rowbits(y, z)
     masks = tuple(sorted(st.rowmasks[r]))
@@ -1209,13 +1172,13 @@ def _attempt(st, coins, dmin, budget):
         if par(m & (CHI5[b ^ e] ^ CHI5[b])):
           f ^= (1 << rb[pp]) ^ (((b >> pp) & 1) << N)
       aff[(r, m)] = f
-  for (parts, c) in st.condparts:                        # M4
+  for (parts, c) in st.condparts:
     f = c << N
     for r, m in parts.items():
       f ^= aff[(r, m)]
     if EM.add(f) < 0:
       return "cond", None
-  DF = N - EM.rank()                                     # M5
+  DF = N - EM.rank()
   if DF < dmin:
     return "lowdf", {"DF": DF}
   return "ok", {"EM": EM, "beta0": beta0, "DF": DF}
@@ -1229,9 +1192,7 @@ def solve(EM, xfree):
       xv |= 1 << p
   return xv
 
-# -- space and enumeration E (proof 2.4)
 def enum_basis(EM, beta0, nb=32):
-  """Offset v0 and the enumeration basis b_1..b_nb of proof 2.4 (kept free-variable solutions)."""
   free = [i for i in range(N) if i not in EM.piv]
   v0 = solve(EM, 0)
   piv = {}
@@ -1266,9 +1227,6 @@ def message(A0):
   return (A0 & ((1 << 1080) - 1)).to_bytes(135, "little")
 
 def e_window(st, v0, basis, beta0, lo, count, s2cap=None):
-  """E on coordinates lo..lo+count-1 (c: x = v0 + sum of b_j, j in c): if the 10 rows of beta2 of
-  u = L(chi(L(chi(x) + RC0)) + RC1) lie in V(beta2_r, alpha3_r), compare the 5-round digests of L^-1(x),
-  L^-1(x + beta0).  Returns (round-2 passes, first output)."""
   passes = 0
   out = None
   for c in range(lo, lo + count):
@@ -1286,7 +1244,6 @@ def e_window(st, v0, basis, beta0, lo, count, s2cap=None):
         out = (c, message(A), message(B))
   return passes, out
 
-# -- exact facts (proof Section 3)
 SENTINEL = (bytes(135), b"\x01" + bytes(134))
 STATUS = {"ok": 0, "dinc": 1, "minc": 2, "tda": 3, "lin": 4, "cond": 5, "lowdf": 6, "cap": 7}
 
@@ -1317,7 +1274,6 @@ def facts(st):
   for (_, _, o) in active_rows(a3):
     c2 *= len(COMPAT[o])
   ok.append(c2 == 3486784401)
-  # P45 (proof 3)
   M320 = (1 << 320) - 1
   opts = []
   for (y, z, d) in active_rows(b3):
@@ -1355,7 +1311,6 @@ def facts(st):
         nz += 1
         p45 += Fraction(num, den)
   ok.append(len(ga) * len(gb) == 1 << 19 and nz == 192 and p45 == Fraction(55, 1 << 19))
-  # advice facts of proof 3
   b1, b0 = st.beta1, st.ref
   ok.append([(y, z) for (y, z, _) in active_rows(b1)] == [(y, z) for (y, z, _) in r2])
   ok.append(all(DDT[getrow(b1, y, z)][o] for (y, z, o) in r2)
@@ -1366,7 +1321,6 @@ def facts(st):
   a0 = Linv_map(b0)
   ok.append(a0 != 0 and all(((a0 >> j) & 1) == 0 for j in st.FIX))
   ok.append(len(st.e_rows) == 10)
-  # the fast rows of L^-1 (linv_rows) act as the map Linv_map on 16 fixed states
   good_linv = True
   for k in range(16):
     sv = int.from_bytes(hashlib.shake_256(b"linv" + bytes([k])).digest(200), "little")
@@ -1376,7 +1330,6 @@ def facts(st):
   return all(ok), ok
 
 def verify_space(st, info, coins):
-  """Lemmas 1-2 on two solutions of the accepted space (free variables from coin words)."""
   EM, beta0 = info["EM"], info["beta0"]
   alpha0 = Linv_map(beta0)
   for _ in range(2):
@@ -1397,53 +1350,36 @@ def verify_space(st, info, coins):
       return False
   return True
 
-# -- the algorithm (proof 2): phases and hard caps
-K_SPACES, A_ADV, A_MAX, S2CAP = 128, 1 << 12, 1 << 16, 1 << 11
+K_SPACES, A_ADV, A_MAX, S2CAP = 96, 1 << 11, 1 << 13, 1 << 11
 
 def algorithm(label):
-  """Driver (proof 2.5) after P; label-derived coins (fresh words in the algorithm).  B' resumes after a
-  discarded advice under one 2^34-unit budget; caps K, A_ADV, A_MAX, S2CAP; E on the K spaces in order."""
   base, OB = Base(), own_bits()
-  WK.cap = WK.cost() + B_BUDGET
-  c, att = 0, 0
-  try:
-    while att < A_MAX:
-      adv = None
-      while adv is None:
-        cs = CandSetup(base, OB, label, c)
-        for j in range(B_R):
-          res, b0 = b_attempt(cs, label, j, B_DMIN)
-          if res["st"] == "ok":
-            adv = (cs.beta1, b0)
-            break
-        c += 1
-      WK.cap, cap, h = None, WK.cap, WK.cost()
-      st = Setup(base, *adv)
-      spaces = []
-      for i in range(A_ADV):
-        att += 1
-        status, info = attempt(st, Coins(run_seed(label + b"conn" + c.to_bytes(4, "little"), i)))
-        if status == "ok":
-          spaces.append(info)
-        if len(spaces) == K_SPACES or att == A_MAX:
-          break
-      if len(spaces) == K_SPACES:
-        for info in spaces:
-          v0, basis = enum_basis(info["EM"], info["beta0"], 32)
-          _, out = e_window(st, v0, basis, info["beta0"], 0, 1 << 32, S2CAP)
-          if out:
-            return out[1:]
-        return None
-      WK.cap = cap + WK.cost() - h        # connector and S work is charged to their own terms, not to B'
-  except BudgetExceeded:
-    return None
-  finally:
-    WK.cap = None
+  left, c, att = B_BUDGET, 0, 0
+  while att < A_MAX:
+    h = WK.cost()
+    r = bprime(base, OB, label, left, None, c)
+    if r is None:
+      return None
+    left -= WK.cost() - h
+    c = r[2] + 1
+    st = Setup(base, r[0], r[1])
+    spaces = []
+    for i in range(A_ADV):
+      att += 1
+      status, info = attempt(st, Coins(run_seed(label + b"conn" + c.to_bytes(4, "little"), i)))
+      if status == "ok":
+        spaces.append(info)
+      if len(spaces) == K_SPACES or att == A_MAX:
+        break
+    if len(spaces) == K_SPACES:
+      for info in spaces:
+        v0, basis = enum_basis(info["EM"], info["beta0"], 32)
+        _, out = e_window(st, v0, basis, info["beta0"], 0, 1 << 32, S2CAP)
+        if out:
+          return out[1:]
+      return None
   return None
 
-# -- pre-registered runs (proof 4)
-# B' runs k = 0..8 (label blabel(k)).  BRUNS[k] = (c, j of the output, DF, setup row ops of c, [(BCODE
-# status, DF, row ops) of attempts 0..j of c], whole-run cost in 1/1355 units, advice hash).
 LABEL_B = b"hashsmash sha3-256-r5 v6 B-prime advice run 1"
 BCODE = {"ok": 0, "d2u": 1, "m2": 2, "lowdf": 3, "r1inc": 4, "verifyfail": 5}
 BRUNS = [
@@ -1463,14 +1399,13 @@ def blabel(k):
   return LABEL_B if k == 0 else b"hashsmash sha3-256-r5 v8 B-prime fresh run %d" % k
 
 def b_check(base, OB, k, j, cs=None):
-  """Re-run candidate c of B' run k from its label (unless cs is given) and its attempt j; compare with BRUNS[k]."""
   c, J, df, srow, atts, cost, h = BRUNS[k]
   s0 = WK.row
   if cs is None:
     cs = CandSetup(base, OB, blabel(k), c)
     srow_got = WK.row - s0
   else:
-    srow_got = srow  # cs was built and checked by the previous trial
+    srow_got = srow
   s1 = WK.row
   res, b0 = b_attempt(cs, blabel(k), j, B_DMIN)
   got = (BCODE[res["st"]], res.get("DF", -1), WK.row - s1)
@@ -1479,18 +1414,15 @@ def b_check(base, OB, k, j, cs=None):
     ok = ok and res["st"] == "ok" and hashlib.sha256((hex(cs.beta1) + hex(b0)).encode()).hexdigest()[:16] == h
   return ok, {"k": k, "c": c, "j": j, "status": got[0], "df": got[1], "rows": got[2], "setup_rows": srow_got}, cs, b0
 
-# v6 run (proof 4.2): REPLAYS = (attempt, coordinate); AUDIT_LOG[i] = "-" (rejected) or chr(97 + DF - 33).
 LABEL = b"hashsmash sha3-256-r5 v6 run"
 REPLAYS = [(38, 0x3a3dfc53), (126, 0xe7bb4868), (128, 0x03527ad5), (184, 0x93151f93), (205, 0x17a92e95), (210, 0xc4b6d61e), (232, 0xd83a2af9), (246, 0xbaf5b430), (253, 0x893eed61), (275, 0x03232068), (317, 0x38473f47), (327, 0x8ff14754), (390, 0xb23e6790), (462, 0xb49b4036)]
 WINDOW = 1 << 12
 AUDIT_LOG = "iijijiiiiji--ih-hji-hihhj--iiii-hh-ijiiihiihjhiiihiiihhiihii-ihhiijihijjihjhjjhiiiiijiij-j-jihiijiijiijhiiiiiihiijiiiiijihjijiiihhiihijjjhi-ihiiiiiiiiiiihijiiihhhih-i--j-hjhhiijiih-iihjhijjihjjhhiij-ihhiiihiijihii-ijhiiiiijiiihhiiiiiijhiiiihihiiiihhihhihjiiiijijhijiiiji-iiijjihihiijiijjjihiiiijiijiihhijjjii-hjihjhjhij-hihihhhihhjjjiiihiiiiihjiiiihjjihiiihijjijhjijhhi-hhihhiiijhihijiiiijihiijiihhhijiiijiiijijjhiijiiiijhijihihiiiihhijihiiijiii-ijijiiijihhiihiiiihijiiiiiiiiihhiijhiiiiihijjjjjhiiihiihj-hhiijihiihiijhiihjiiihihijiih-hiii"
 DEN_N = 180
 FAIL_PAIR = (bytes(135), b"\x02" + bytes(134))
-# E-check collisions with fresh advice (proof 4.3): (k, connector attempt index, coordinate)
 REPLAYS8 = [(4, 0, 0x13c3cc2f), (4, 0, 0x9707a665), (7, 2, 0x1e5fa912)]
 
 def replay(st, lab, i, coord):
-  """Re-run attempt i of run lab, rebuild its basis, run E on the 2^12 aligned coordinates containing coord."""
   status, info = attempt(st, Coins(run_seed(lab, i)))
   obs = {"status": STATUS[status], "df": info.get("DF", -1)}
   if status != "ok":
@@ -1509,13 +1441,14 @@ def rows_for(mode, trials):
   base = Base()
   if mode == "r5-bpfull":
     OB, c, J, df, _, _, cost, h = (own_bits(),) + BRUNS[1]
-    for t, bud in enumerate((B_BUDGET, 1355 << 20)):
-      c0 = WK.cost()
-      r = bprime(base, OB, blabel(1), bud)
+    for t, bud in enumerate((B_BUDGET, 1355 << 22)):
+      c0, lg = WK.cost(), []
+      r = bprime(base, OB, blabel(1), bud, lambda *a: lg.append(a), 0, CCAP >> 5 * t)
       sp = WK.cost() - c0
-      ok = (r is None and bud < sp <= bud + (1355 << 13)) if t else (
-        r is not None and r[2:] == (c, J, df) and sp == cost and hashlib.sha256((hex(r[0]) + hex(r[1])).encode()).hexdigest()[:16] == h)
-      out[t] = (SENTINEL if ok else FAIL_PAIR, {"cost": sp})
+      cd = [WK.cost(a[4]) - c0 for a in lg if a[0] == "cand"]
+      ok = (r is None and bud < sp <= bud + (1355 << 13) and len(cd) == 2 and bud / 2 < cd[1] <= bud / 2 + (1355 << 13)
+            ) if t else (r is not None and r[2:] == (c, J, df) and sp == cost and hashlib.sha256((hex(r[0]) + hex(r[1])).encode()).hexdigest()[:16] == h)
+      out[t] = (SENTINEL if ok else FAIL_PAIR, {"cost": sp, "cands": len(cd), "cand1": cd[-1]})
     return out
   if mode.startswith("r5-bp-") or mode == "r5-replay8":
     OB = own_bits()
