@@ -6,21 +6,23 @@
   "rounds": 6,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.4,
+    "time_log2": 125.88,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 130,
-    "preprocessing_log2": 142,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 136,
+    "preprocessing_log2": 40,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical 256-bit word RAM with fresh independent uniform random-word primitive.",
-    "One batch of 2^129 independent uniform 64-byte messages; no restarts or nonuniform advice.",
-    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06, prefix rounds 0 through 5, all 256 output bits.",
-    "Generic analytic upper bound; infeasible resource use, no improvement over the nominal reference claimed."
+    "Messages are uniformly random 64-byte strings; each is one SHA3-256 block. No permutation call is used: every hash is computed by a charged bitsliced program, 256 messages per 256-bit word.",
+    "The hash program is a fixed straight-line sequence of 70,772 instructions per 256 messages using 15 of 16 registers of a 256-bit machine (41,266 ALU, 18,290 loads, 11,216 stores). Its equivalence to the target for every input is shown by exact checks in experiments/keccak_bitslice.py (rewrite rules, translation validation, transpose labels); sixteen organizer experiments check all 256 digest bits as XOR-slice equalities on returned pairs.",
+    "Fixed work: q = 2^128 messages, 3-pass LSD radix sort (digits 86/85/85 bits), one scan; 92,537/256 = 361.47 charged word operations per message at 1/C, C = 1626.",
+    "One-time program construction is charged as preprocessing (below 2^40 operations), included in time.",
+    "Success >= 0.3934 is proved for the fixed target via Schur-concavity of the birthday probability (Munford 1977); no randomness heuristic.",
+    "Memory 2^135.81 bytes (plane archive, key and record arrays, counters); reported, not scored."
   ],
   "baseline_improved": "sha3-256-r6-nominal-v2",
   "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }

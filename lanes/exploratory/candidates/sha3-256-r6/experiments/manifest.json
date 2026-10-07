@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "digest-slice-00",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r6, digest bits 0-15 (digest bytes 0 and 1). The program keys at least 32 batches of 256 64-byte messages (planes expanded from the organizer seeds with SHAKE-256) with the exact 70,772-instruction register program charged in proof.md, and returns, per trial, two distinct messages whose program keys agree on this 16-bit slice. The sixteen experiments digest-slice-00..15 together cover all 256 digest bits.",
+      "hypothesis": "For every returned pair, the official sha3-256-r6 digests agree on digest bits 0-15 exactly where the bitsliced program's keys agree, as they must if the program's key is the digest XOR a fixed constant.",
+      "program": "experiments/keccak_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffff000000000000000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "digest-slice-01",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r6, digest bits 16-31 (digest bytes 2 and 3). The program keys at least 32 batches of 256 64-byte messages (planes expanded from the organizer seeds with SHAKE-256) with the exact 70,772-instruction register program charged in proof.md, and returns, per trial, two distinct messages whose program keys agree on this 16-bit slice. The sixteen experiments digest-slice-00..15 together cover all 256 digest bits.",
+      "hypothesis": "For every returned pair, the official sha3-256-r6 digests agree on digest bits 16-31 exactly where the bitsliced program's keys agree, as they must if the program's key is the digest XOR a fixed constant.",
+      "program": "experiments/keccak_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000ffff00000000000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "digest-slice-02",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r6, digest bits 32-47 (digest bytes 4 and 5). The program keys at least 32 batches of 256 64-byte messages (planes expanded from the organizer seeds with SHAKE-256) with the exact 70,772-instruction register program charged in proof.md, and returns, per trial, two distinct messages whose program keys agree on this 16-bit slice. The sixteen experiments digest-slice-00..15 together cover all 256 digest bits.",
+      "hypothesis": "For every returned pair, the official sha3-256-r6 digests agree on digest bits 32-47 exactly where the bitsliced program's keys agree, as they must if the program's key is the digest XOR a fixed constant.",
+      "program": "experiments/keccak_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "00000000ffff0000000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "digest-slice-03",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r6, digest bits 48-63 (digest bytes 6 and 7). The program keys at least 32 batches of 256 64-byte messages (planes expanded from the organizer seeds with SHAKE-256) with the exact 70,772-instruction register program charged in proof.md, and returns, per trial, two distinct messages whose program keys agree on this 16-bit slice. The sixteen experiments digest-slice-00..15 together cover all 256 digest bits.",
+      "hypothesis": "For every returned pair, the official sha3-256-r6 digests agree on digest bits 48-63 exactly where the bitsliced program's keys agree, as they must if the program's key is the digest XOR a fixed constant.",
+      "program": "experiments/keccak_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000ffff000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "digest-slice-04",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r6, digest bits 64-79 (digest bytes 8 and 9). The program keys at least 32 batches of 256 64-byte messages (planes expanded from the organizer seeds with SHAKE-256) with the exact 70,772-instruction register program charged in proof.md, and returns, per trial, two distinct messages whose program keys agree on this 16-bit slice. The sixteen experiments digest-slice-00..15 together cover all 256 digest bits.",
+      "hypothesis": "For every returned pair, the official sha3-256-r6 digests agree on digest bits 64-79 exactly where the bitsliced program's keys agree, as they must if the program's key is the digest XOR a fixed constant.",
+      "program": "experiments/keccak_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000000000000ffff00000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "digest-slice-05",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r6, digest bits 80-95 (digest bytes 10 and 11). The program keys at least 32 batches of 256 64-byte messages (planes expanded from the organizer seeds with SHAKE-256) with the exact 70,772-instruction register program charged in proof.md, and returns, per trial, two distinct messages whose program keys agree on this 16-bit slice. The sixteen experiments digest-slice-00..15 together cover all 256 digest bits.",
+      "hypothesis": "For every returned pair, the official sha3-256-r6 digests agree on digest bits 80-95 exactly where the bitsliced program's keys agree, as they must if the program's key is the digest XOR a fixed constant.",
+      "program": "experiments/keccak_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "00000000000000000000ffff0000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "digest-slice-06",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r6, digest bits 96-111 (digest bytes 12 and 13). The program keys at least 32 batches of 256 64-byte messages (planes expanded from the organizer seeds with SHAKE-256) with the exact 70,772-instruction register program charged in proof.md, and returns, per trial, two distinct messages whose program keys agree on this 16-bit slice. The sixteen experiments digest-slice-00..15 together cover all 256 digest bits.",
+      "hypothesis": "For every returned pair, the official sha3-256-r6 digests agree on digest bits 96-111 exactly where the bitsliced program's keys agree, as they must if the program's key is the digest XOR a fixed constant.",
+      "program": "experiments/keccak_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000000000000000ffff000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "digest-slice-07",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r6, digest bits 112-127 (digest bytes 14 and 15). The program keys at least 32 batches of 256 64-byte messages (planes expanded from the organizer seeds with SHAKE-256) with the exact 70,772-instruction register program charged in proof.md, and returns, per trial, two distinct messages whose program keys agree on this 16-bit slice. The sixteen experiments digest-slice-00..15 together cover all 256 digest bits.",
+      "hypothesis": "For every returned pair, the official sha3-256-r6 digests agree on digest bits 112-127 exactly where the bitsliced program's keys agree, as they must if the program's key is the digest XOR a fixed constant.",
+      "program": "experiments/keccak_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000000000000000000000000ffff00000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "digest-slice-08",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r6, digest bits 128-143 (digest bytes 16 and 17). The program keys at least 32 batches of 256 64-byte messages (planes expanded from the organizer seeds with SHAKE-256) with the exact 70,772-instruction register program charged in proof.md, and returns, per trial, two distinct messages whose program keys agree on this 16-bit slice. The sixteen experiments digest-slice-00..15 together cover all 256 digest bits.",
+      "hypothesis": "For every returned pair, the official sha3-256-r6 digests agree on digest bits 128-143 exactly where the bitsliced program's keys agree, as they must if the program's key is the digest XOR a fixed constant.",
+      "program": "experiments/keccak_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "00000000000000000000000000000000ffff0000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "digest-slice-09",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r6, digest bits 144-159 (digest bytes 18 and 19). The program keys at least 32 batches of 256 64-byte messages (planes expanded from the organizer seeds with SHAKE-256) with the exact 70,772-instruction register program charged in proof.md, and returns, per trial, two distinct messages whose program keys agree on this 16-bit slice. The sixteen experiments digest-slice-00..15 together cover all 256 digest bits.",
+      "hypothesis": "For every returned pair, the official sha3-256-r6 digests agree on digest bits 144-159 exactly where the bitsliced program's keys agree, as they must if the program's key is the digest XOR a fixed constant.",
+      "program": "experiments/keccak_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000000000000000000000000000ffff000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "digest-slice-10",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r6, digest bits 160-175 (digest bytes 20 and 21). The program keys at least 32 batches of 256 64-byte messages (planes expanded from the organizer seeds with SHAKE-256) with the exact 70,772-instruction register program charged in proof.md, and returns, per trial, two distinct messages whose program keys agree on this 16-bit slice. The sixteen experiments digest-slice-00..15 together cover all 256 digest bits.",
+      "hypothesis": "For every returned pair, the official sha3-256-r6 digests agree on digest bits 160-175 exactly where the bitsliced program's keys agree, as they must if the program's key is the digest XOR a fixed constant.",
+      "program": "experiments/keccak_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000000000000000000000000000000000000ffff00000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "digest-slice-11",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r6, digest bits 176-191 (digest bytes 22 and 23). The program keys at least 32 batches of 256 64-byte messages (planes expanded from the organizer seeds with SHAKE-256) with the exact 70,772-instruction register program charged in proof.md, and returns, per trial, two distinct messages whose program keys agree on this 16-bit slice. The sixteen experiments digest-slice-00..15 together cover all 256 digest bits.",
+      "hypothesis": "For every returned pair, the official sha3-256-r6 digests agree on digest bits 176-191 exactly where the bitsliced program's keys agree, as they must if the program's key is the digest XOR a fixed constant.",
+      "program": "experiments/keccak_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "00000000000000000000000000000000000000000000ffff0000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "digest-slice-12",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r6, digest bits 192-207 (digest bytes 24 and 25). The program keys at least 32 batches of 256 64-byte messages (planes expanded from the organizer seeds with SHAKE-256) with the exact 70,772-instruction register program charged in proof.md, and returns, per trial, two distinct messages whose program keys agree on this 16-bit slice. The sixteen experiments digest-slice-00..15 together cover all 256 digest bits.",
+      "hypothesis": "For every returned pair, the official sha3-256-r6 digests agree on digest bits 192-207 exactly where the bitsliced program's keys agree, as they must if the program's key is the digest XOR a fixed constant.",
+      "program": "experiments/keccak_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000000000000000000000000000000000000000ffff000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "digest-slice-13",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r6, digest bits 208-223 (digest bytes 26 and 27). The program keys at least 32 batches of 256 64-byte messages (planes expanded from the organizer seeds with SHAKE-256) with the exact 70,772-instruction register program charged in proof.md, and returns, per trial, two distinct messages whose program keys agree on this 16-bit slice. The sixteen experiments digest-slice-00..15 together cover all 256 digest bits.",
+      "hypothesis": "For every returned pair, the official sha3-256-r6 digests agree on digest bits 208-223 exactly where the bitsliced program's keys agree, as they must if the program's key is the digest XOR a fixed constant.",
+      "program": "experiments/keccak_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000000000000000000000000000000000000000000000000ffff00000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "digest-slice-14",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r6, digest bits 224-239 (digest bytes 28 and 29). The program keys at least 32 batches of 256 64-byte messages (planes expanded from the organizer seeds with SHAKE-256) with the exact 70,772-instruction register program charged in proof.md, and returns, per trial, two distinct messages whose program keys agree on this 16-bit slice. The sixteen experiments digest-slice-00..15 together cover all 256 digest bits.",
+      "hypothesis": "For every returned pair, the official sha3-256-r6 digests agree on digest bits 224-239 exactly where the bitsliced program's keys agree, as they must if the program's key is the digest XOR a fixed constant.",
+      "program": "experiments/keccak_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "00000000000000000000000000000000000000000000000000000000ffff0000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "digest-slice-15",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected target sha3-256-r6, digest bits 240-255 (digest bytes 30 and 31). The program keys at least 32 batches of 256 64-byte messages (planes expanded from the organizer seeds with SHAKE-256) with the exact 70,772-instruction register program charged in proof.md, and returns, per trial, two distinct messages whose program keys agree on this 16-bit slice. The sixteen experiments digest-slice-00..15 together cover all 256 digest bits.",
+      "hypothesis": "For every returned pair, the official sha3-256-r6 digests agree on digest bits 240-255 exactly where the bitsliced program's keys agree, as they must if the program's key is the digest XOR a fixed constant.",
+      "program": "experiments/keccak_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000000000000000000000000000000000000000000000000000ffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
