@@ -1,4 +1,29 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "published-pair",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/published-pair-a.bin",
+      "message_b": "certificates/published-pair-b.bin",
+      "expected_digest": "55fdfb37efcbd086e19c3de0f72596300a3acdf48da5b1d0450a592bb2869fcd",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "own-completion-1",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/own-completion-1-a.bin",
+      "message_b": "certificates/own-completion-1-b.bin",
+      "expected_digest": "e480bf1f0f4fa024c7ee627ec8af74f92f2e34aaa1479c3ba1196d0c057d3a10",
+      "target_profile": "sha256-r31-prefix-v1"
+    },
+    {
+      "id": "own-completion-2",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/own-completion-2-a.bin",
+      "message_b": "certificates/own-completion-2-b.bin",
+      "expected_digest": "a0c6f6d50a0d1ab4553d26c4f2862169ce991badf1b4703a772dc6a634be66b0",
+      "target_profile": "sha256-r31-prefix-v1"
+    }
+  ]
 }
