@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "published-r31-witness-replay",
+      "kind": "python-message-pairs-v1",
+      "scope": "Deterministic replay of one fixed public 128-byte message pair on the complete sha256-r31-prefix-v1 target, preceded once per isolated process by (1) an exhaustive 131072-case round-trip and pinned-digest self-check of the proposed 32-byte tuple representation and (2) a bit-exact 64-trial equivalence and primitive-operation audit of W[15]-grouped 31-step SHA-256 first-block evaluation (1,240 counted arithmetic/schedule/round operations <= 1,400 primitive-operation ceiling, or c_grouped = 1400/2140 = 0.654206 v5 units per trial). The same pair is returned for every organizer trial; duplicate rows are expected and are not independent attack samples. Participant observations remain untrusted; the organizer independently checks only the collision event.",
+      "hypothesis": "The two fixed messages are distinct and have identical full 256-bit digests under standard-IV SHA-256 with rounds 0 through 30, feed-forward, and FIPS padding on every block. Separately, every joint choice of the 17 free E bits for the pinned six-A fixture round-trips through the proposed 32-byte tuple representation and reproduces the committed layout digest, and W[15]-grouped 31-step first-block evaluation matches standard 31-step compression bit-for-bit across all 64 consecutive W[15] offsets.",
+      "program": "experiments/replay.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    },
+    {
+      "id": "r31-phase3-seeded-completion",
+      "kind": "python-message-pairs-v1",
+      "scope": "Dynamic Phase-3 fulfillment search (Section 10 step 6) on the complete sha256-r31-prefix-v1 target. For each of the 256 organizer seeds, SHAKE-256 derives fresh starting offsets (r13, r15) for E[13] and E[15], and the capped Phase-3 solver searches G16 and (x, z) to find a seed-specific (W[13], W[14], W[15]) completing the prefix M0 and W[0..12] into two distinct 128-byte messages M0||M1 and M0||M1' that collide under the complete 31-step SHA-256 hash. This directly exercises the Phase-3 completion step and its hard caps across 256 organizer seeds.",
+      "hypothesis": "For all 256 organizer seeds, the capped Phase-3 completion search (< 2^18 x-steps and < 2^18 z-steps) finds a valid (W[13], W[14], W[15]) completion yielding a genuine 128-byte full collision on sha256-r31-prefix-v1.",
+      "program": "experiments/completion.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
