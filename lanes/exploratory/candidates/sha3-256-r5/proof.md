@@ -1,6 +1,6 @@
-# 5-round SHA3-256: every phase inside the algorithm under a hard cap, time 2^40.26
+# 5-round SHA3-256: every phase inside the algorithm under a hard cap, FES enumeration, K = 56, time 2^38.45
 
-Exploratory claim, with Th0rgal as co-author: Th0rgal 7deb1595 (with Subflatus3 and rubenmarcus) introduced on this
+Exploratory claim, with GordoAR, winglock and Th0rgal as co-authors: Th0rgal 7deb1595 (with Subflatus3 and rubenmarcus) introduced on this
 track the zero-advice framing and the early-abort row order used in E. The algorithm runs every phase itself (trail
 search P, advice program B', connector, enumeration E); each stops at a hard budget written into its code, and the
 claimed time is the sum of the budgets. The algorithm reads nothing published. [GLL+20] = J. Guo, G. Liao, G. Liu, M.
@@ -11,14 +11,15 @@ Liu, K. Qiao, L. Song, "Practical Collision Attacks against Round-Reduced SHA-3"
 
 | Field | Value | Basis |
 | --- | --- | --- |
-| time_log2 | 40.26 | sum of the phase budgets, 2^40.2557, rounded up (Section 6) |
-| success_probability | 0.40 | >= 0.81 under H1-H3 (Section 5) |
-| preprocessing_log2 | 39.97 | budgets of P, B' and S: 2^39.9601, rounded up |
+| time_log2 | 38.45 | sum of the phase budgets, 2^38.4067, plus 0.043 headroom (Section 6) |
+| success_probability | 0.40 | >= 0.51 under H1-H3 (Section 5) |
+| preprocessing_log2 | 38.10 | budgets of P, B' and S: 2^38.0573, plus headroom |
 | memory_log2_bytes | 30 | largest measured peak of any phase 113.5 MB (Section 7) |
 | nonuniform_advice_log2_bytes | 0 | the algorithm computes its trail and its connector advice |
 
-Summary: P finds the trail (budget 2 x its counted bound), B' builds the connector advice (budget 2^34 units), the v5
-connector makes K = 128 affine spaces, and E tests 2^32 pairs per space at <= 594 counted primitives each. Success
+Summary: P finds the trail (budget equal to its counted bound, with full w1 evaluations capped per core and charged), B' builds the connector advice (budget 2^34 units), the v5
+connector makes K = 56 affine spaces, and E tests 2^32 pairs per space at <= 429 counted primitives each (fast
+exhaustive search of the quadratic round-1 input, Section 2.4). Success
 uses s0 = 0.013 from the pre-registered v6 run (H1) and B'/connector rates from nine B' runs under a new
 pre-registration (H2, H3).
 
@@ -32,13 +33,60 @@ How v8 charges differently from v7 (45.33), and why:
 | E per pair | 3 units + 256 primitives, both digests for every pair | worst-case path of the counted early-abort program, 594 primitives; digests only for round-2 passes, at most 2^11 per space |
 | Spaces | K = 512 | K = 128, with a restart rule for weak advice |
 
+This version (v9) changes one thing relative to v8 (40.26): P's node and leaf counters sit at the exact,
+schedule-independent counts instead of twice them, and the full w1 evaluations of T3, the one schedule-dependent
+quantity of P, get their own counter and charge (Section 2.1a). Every other phase, cap, price, heuristic, experiment and certificate is unchanged.
+
+This version (v10) further changes one price: a T3 leaf is charged 2^8 primitives instead of 2^9. The counted T3
+pass that the organizer executes (r5-ecount, trials 90-91) costs 1,750 primitives for the smallest fan-in m0 = 9, i.e.
+194.5 per leaf, and every larger fan-in amortises the Gray step better; 1,750 <= 9 x 256 is now the asserted check.
+The 2^9 price was safe only because it also absorbed the full w1 evaluations; since v9 those carry their own counter
+(FCAP) and their own 2^12 charge, so the leaf price no longer needs that slack. T3 leaves are 99% of P's count, so P
+drops by one bit (2^38.95 -> 2^37.97) and E becomes the largest term.
+
+This version (v11) changes the algorithm in two places and the width in one:
+- E's stage 1 is a fast exhaustive search (FES) of the quadratic round-1 input f(c) = L(chi(v0 + sum c_i b_i) + RC0)
+  over the 2^32-point window (Section 2.4). It computes exactly the values the v8 program computed, pair by pair, so the
+  set of round-2 passes and every output are unchanged, and it costs at most 429 counted primitives per pair instead
+  of 594 (organizer-checked counted program, r5-ecount trials 0-89 and 92-99).
+- T3 prunes per core instead of against a shared best, which makes its full-evaluation count a fixed number F of the
+  program. FCAP stays charged in full, with no heuristic attached; Section 2.1a gives our partial count of F, and
+  failure item (a) of Section 5 now names FCAP.
+- K = 128 -> 112 spaces, the re-sizing of GordoAR (ed433634): the claim 0.40 now needs s >= 0.0046, 2.8 times below the
+  measured s0 = 0.013 (3.3 times at K = 128).
+Every other phase, cap, price, heuristic, experiment and certificate is unchanged.
+
+This version (v12) changes T3 in two places so that no bound on its full w1 evaluations enters the success
+probability (in v11 the global cap FCAP = 2^30 stopped P if the fixed total F exceeded it, and F was computed only in
+part), adds one organizer check, and halves K:
+- Every core starts T3 with threshold T0 = 127 instead of "infinity", so a leaf gets a full w1 evaluation only if
+  2 AS(alpha2) <= 127. Pruning stays valid, so a core still returns its exact minimum whenever that minimum is at most
+  127, and outputs nothing otherwise.
+- The global cap is replaced by a per-core cap FCC = 2^21: a core that would need more than FCC full evaluations is
+  abandoned (no candidate, P continues). At most 467 x 2^21 = 979,369,984 < 2^30 full evaluations run, so the charge of
+  v11 (2^30 x 2^12 primitives) still bounds them and every number of Section 6 is unchanged. No count can stop P now.
+- r5-ecount trial 100 enumerates, exhaustively and in a few CPU-seconds, every leaf of the output core with
+  2 AS(alpha2) <= 127: there is exactly one, P's output beta2. So the output core needs one full evaluation (cap 2^21)
+  and always returns its trail; abandoning or emptying any other core can only remove competitors. Section 2.1a.
+- K = 112 -> 56 spaces, the width of GordoAR's e3ce051 (with winglock and Subflatus3): the claim 0.40 now needs
+  s >= 1 - 0.6^(1/56) = 0.00908, 1.43 times below the measured s0 = 0.013, and the success bound under H1-H3 is 0.518.
+  We take GordoAR's margin policy as stated there (at least 1.4x; K = 54 would give 1.38x). E stage 1 halves, and P is
+  now the largest term. e3ce051 keeps the 594-primitive E and a heuristic for the full-evaluation cap; this package
+  combines its K with the FES E (429 primitives) and the cap handling above. Nothing is counted twice: K enters only
+  the terms of the bases, E stage 1 and E stage 2 and the success analysis.
+T0 = 127 was set from our earlier runs of T3 (it is the minimum they found); it is a disclosed design constant like
+the B' constants below, and the organizer check above, not those runs, shows that it is reached. T0 lowers no charge:
+P still visits and pays for all C2 leaves, and the full evaluations are charged at their cap (2^30 x 2^12) whatever
+their number; its only effect is to make the output core's full-evaluation count small and organizer-checkable. Every other phase,
+cap, price, heuristic, experiment and certificate is unchanged.
+
 Development runs (not charged). B' has six design constants: R = 16 attempts per candidate, DMIN = 40, and the D2u
 ordering weights KW = 1.0, MW = 0.25, LB = 1.0, PREF = 1.0. Development runs on 2026-10-06 before 09:01Z (75
 processes, 1,559 CPU-s with the steering check in v7's ledger) chose them; some used the published [GLL+20] difference
 as a test case. Uncharged v5 runs (with the published pair) also set the connector's DMIN = 33 and its 2^18 work-unit
 cap. Neither carries information: 33 is the least DF for which E's 32-dimensional window and beta exist, and the cap is
-charged in full and never bound (largest of 1,152 v8 attempts: 179,180). These are the only constants fixed by
-uncharged runs. B''s structure, its budget and every cap were set by analysis and are charged in full; P's rules (cores
+charged in full and never bound (largest of 1,152 v8 attempts: 179,180). T3's initial threshold T0 = 127 (v12) was
+set from our uncharged runs of T3; it changes no charge (above). These are the only constants fixed by uncharged runs. B''s structure, its budget and every cap were set by analysis and are charged in full; P's rules (cores
 of at most 10 bits, least w1) follow [GLL+20] and in-kernel trail practice; trail2c's C1 filter (c1max = 30) never
 applies (largest log2 C1 is 20). v7 said the opposite about the six B' constants (that they "were set by runs inside
 the window and are charged with it"); v8 reverses that statement. Reason: the algorithm reads no output of the
@@ -46,8 +94,8 @@ development runs except these six numbers, and every success rate used here come
 fixed: the v6 full-scale run (pre-registered 09:19Z, after the B' run of 09:01Z) and pre-registrations A and B
 (Section 4). 7deb1595 used this framing (zero advice, development uncharged and disclosed) and was rated
 plausible_not_refuted. Sensitivity (not the claim; 2^38 primitives per core-second as in v7): charging the 1,559 CPU-s
-of B' development gives T = 2^40.57, v7's whole development ledger (12,527 CPU-s) 2^41.81, and v7's machine-capacity
-window (2^44.21) 2^44.30.
+of B' development gives T = 2^39.31, v7's whole development ledger (12,527 CPU-s) 2^41.40, and v7's machine-capacity
+window (2^44.21) 2^44.24.
 
 ## 1. Target, messages, notation
 
@@ -65,7 +113,7 @@ equations on one message's row value. x = L(A0) is the first message's round-0 c
 Phases: trail search P (2.1), advice program B' (2.2), setup S and connector (2.3), enumeration E (2.4), driver
 (2.5). Section 6 lists every hard cap, how the code enforces it, and its charge.
 
-### 2.1 Trail search P (budget 2 x its counted bound)
+### 2.1 Trail search P (budget equal to its counted bound)
 
 P outputs the 2-round in-kernel core alpha3 and the beta2 that minimise w1. T1 (cores): a candidate alpha3 is a set of
 at most 10 bits whose alpha-columns and beta-columns (columns of pi o rho of each bit) all hold an even number of
@@ -75,22 +123,23 @@ over the 64 z-translations), else, below 10 bits, branch on each bit of c not ye
 o rho(alpha3); enumerate every alpha4 compatible with beta3 (C1 leaves), accumulate P45 (Section 3) and keep the cores
 with P45 > 0. T3 (backward): for each kept core enumerate every beta2 compatible with alpha3 (C2 leaves) in reflected
 mixed-radix Gray order with alpha2 = L^-1(beta2) maintained incrementally; compute w1 only when 2 AS(alpha2) does not
-exceed the best w1 so far. Output: least w1, ties to the smaller w2, then the smaller choice vector.
+exceed the core's threshold (T0 = 127 at the start of every core, then the core's best w1); a core that would need more
+than FCC = 2^21 full w1 evaluations is abandoned. Output: least w1, ties to the smaller w2, then the smaller choice
+vector, over the cores that return a candidate.
 
-| Stage | Count | Budget (2 x) | Organizer recomputation |
+| Stage | Count | Budget (1 x; the counts are deterministic) | Organizer recomputation |
 | --- | --- | --- | --- |
-| T1 | N1 = 8,674,833 nodes; 1741 cores; 17,100 core events | 17,349,666 nodes | r5-trail-0..3: every node, per lane, and the core set |
-| T2 | C1 = 1,639,088,128 leaves; 467 cores with P45 > 0 | 3,278,176,256 leaves | C1 per core, and P45 > 0 decided exactly per core |
-| T3 | C2 = 1,379,275,399,350 leaves | 2,758,550,798,700 leaves | C2 per kept core (T3 visits exactly C2 leaves per core) |
+| T1 | N1 = 8,674,833 nodes; 1741 cores; 17,100 core events | 8,674,833 nodes | r5-trail-0..3: every node, per lane, and the core set |
+| T2 | C1 = 1,639,088,128 leaves; 467 cores with P45 > 0 | 1,639,088,128 leaves | C1 per core, and P45 > 0 decided exactly per core |
+| T3 | C2 = 1,379,275,399,350 leaves | 1,379,275,399,350 leaves; full w1 evaluations at most 2^21 per core (467 x 2^21 < 2^30) | C2 per kept core (T3 visits exactly C2 leaves per core) |
 | Output | w1 = 127 by one core and one beta2 (w2 = 24): core No. 3 of [GLL+20] | | facts of Section 3 |
 
-Prices (word RAM, Appendix A); the counts are exact, the prices are per-item upper bounds. A T3 leaf costs at most
-2^9 primitives. r5-ecount (trials 90-91) executes a counted form of one pass of T3's loop: the step counters and
+Prices (word RAM, Appendix A); the counts are exact, the prices are per-item upper bounds. A T3 leaf costs at most 2^8 primitives (it was priced at 2^9 in v8 and v9; the counted program below gives 194.5, so 2^8 has a margin of 1.32). r5-ecount (trials 90-91) executes a counted form of one pass of T3's loop: the step counters and
 threshold, m0 = 9 leaves on the longest path that does not compute w1 in full (per plane 5 loads, 5 XOR, 4 OR, a
 17-operation popcount, add, shift, comparison and branch: 35), and the Gray step on its longest branch (25 loads and
 25 XOR into alpha2, the Gray-state and w2 updates): 1,750 primitives, 194.5 per leaf. 9 is the smallest row-0 fan-in,
-so every Gray step is amortised over at least 9 leaves. The 545 leaves on which w1 is computed in full cost at most
-2^12 each. A T2 leaf costs at most 2^12: 64 row extractions with their loads, test and loop step (at most 30 each);
+so every Gray step is amortised over at least 9 leaves. A full w1 evaluation costs at most 2^12 primitives, and at
+most 467 x 2^21 < 2^30 of them run. A T2 leaf costs at most 2^12: 64 row extractions with their loads, test and loop step (at most 30 each);
 every probability factor is a power of two (DDT entries of chi are powers of two), so each of at most 64 products is
 an exponent addition (at most 9 primitives with the table load); one floating-point addition (at most 2^8 emulated);
 its share of the recursion (at most 60, since every node has at least 4 children); in all at most 2,812. A T1 node
@@ -98,15 +147,56 @@ costs at most 2^9 outside the 17,100 core events; a core event (canonical form o
 costs at most 2^15, and N1 x 2^9 + 17,100 x 2^15 < N1 x 2^12. Setup (DDT, L^-1 by elimination, per-core tables) is
 below 2^31. So P's counted bound is
 
-    C2 x 2^9 + C1 x 2^12 + N1 x 2^12 + 2^31 = 712,940,389,039,104 primitives = 2^38.937 units,
+    C2 x 2^8 + C1 x 2^12 + N1 x 2^12 + 2^31 = 359,845,886,805,504 primitives = 2^37.9503 units,
 
-and its budget is twice that: 1,425,880,778,078,208 primitives = 2^39.937 units. In Appendix A, T1 stops above 2 N1
-nodes, T2 above 2 C1 leaves, T3 above 2 C2 leaves. The capped T1 and T2 reproduce the October 6 outputs byte for byte;
+and its budget adds 2^30 x 2^12 for full w1 evaluations (467 cores x FCC = 2^21 < 2^30): 364,243,933,316,608 primitives = 2^37.9678 units.
+In Appendix A, T1 stops above N1 nodes, T2 above C1 leaves, T3 above C2 leaves, and a core of T3 is abandoned above
+FCC full w1 evaluations (see 2.1a). The capped T1 and T2 reproduce the October 6 outputs byte for byte;
 the capped T3 reproduces the output core's line (w1, w2, leaves, beta2) on a subset of 8 kept cores (the uncapped T3
 ran once, 10,181 CPU-s). r5-trail-0..3 (a partition of the cores) reproduce N1, 1741, C1, 467 and C2 exactly; the T3
 minimisation itself (1.4 x 10^12 leaves) is not re-executed, and Section 3 checks w1 = 127. Context (not the charge):
 the shipped T3 on the output core alone (3^20 leaves) retires 62.5 ARM64 instructions per leaf and reproduces its line.
-If every price of P were doubled, T would be 2^41.11.
+If every price of P were doubled, T would be 2^39.20; with only the T3 leaf price back at 2^9 (v9), 2^39.19.
+
+### 2.1a Why the counters of P can sit at the exact counts, and why the full-evaluation cap cannot change P's output
+
+T1 is a single-threaded depth-first search in a fixed order and has no input, so its node count N1 is the same on
+every run. T2 enumerates every alpha4 compatible with each core in a fixed order, so its leaf count is a fixed sum C1.
+T3 adds m0 to its leaf counter on every Gray step and walks the whole reflected mixed-radix Gray space of each kept
+core: the pruning test only decides whether w1 is computed in full, never whether a leaf is visited, so T3 visits
+exactly C2 leaves under any thread schedule (fewer only if a core is abandoned, below). The three counts were recomputed by the organizer partition r5-trail-0..3,
+so counters at exactly N1, C1 and C2 never stop P.
+
+Full w1 evaluations (changed in v11 and v12). In v9 and v10 the pruning threshold of T3 read a best value shared by
+all threads, so the number of full evaluations depended on the schedule (GordoAR, bc0f7b5, pointed out that a run
+reaching the cap would fail with a probability Section 5 did not list). In v11 each core pruned against its own best
+only, which made the total F a fixed number of the program, but a run with F > 2^30 would still have stopped P, and we
+had computed F only in part. v12 removes that dependence instead of estimating F:
+
+- Threshold T0 = 127 in every core (Appendix A: bw1 starts at T0). A leaf is evaluated in full only if
+  2 AS(alpha2) <= T, and T <= T0 throughout. Since w1 >= 2 AS(alpha2), a core whose minimum w1 is at most 127 still
+  returns exactly that minimum (the leaf attaining it always passes the test), and a core whose minimum exceeds 127
+  returns nothing.
+- Per-core cap FCC = 2^21. A core that would perform more than FCC full evaluations is abandoned: it returns no
+  candidate and P goes on with the next core. Nothing stops P any more, and at most 467 x 2^21 = 979,369,984 < 2^30 full
+  evaluations run, charged as in v11 at 2^30 x 2^12 primitives (2^42, 0.018 bits of P). The time bound holds for
+  every run without any count of F.
+- The output core needs one full evaluation. r5-ecount trial 100 (organizer-executed, about 4 CPU-s) lists every leaf
+  (beta2) of core No. 349 (alpha3 = ALPHA3_BITS, 9^10 = 3,486,784,401 leaves) with AS(alpha2) <= 63, exhaustively:
+  such an alpha2 has at most 63 of its 320 rows active, so at least one of 64 disjoint 5-row blocks of alpha2 is zero;
+  for each block the trial matches the 9^5 half-sums of beta2 rows 0-4 with the 9^5 half-sums of rows 5-9 on that block
+  (alpha2 is linear in beta2), and tests AS of every match. There is exactly one such leaf, and it is P's output beta2
+  (AS = 59, w1 = 127, w2 = 24; facts of Section 3). So under T0 the output core performs exactly one full evaluation
+  (cap 2^21) and returns that trail, in any order of its leaves and in any thread schedule.
+
+So T3 always completes the output core and returns its trail as a candidate. Abandoned cores, and cores whose minimum
+exceeds T0, only remove candidates, so they cannot replace the trail by another one. Which trail is the global
+minimum over the 467 cores is the same statement as in v8-v11 and has the same support: our uncapped runs of T3
+(10,181 CPU-s on October 6, and a complete run of the v11 program over all 467 cores finished on October 7, which
+performed F = 1,748,849 full evaluations in all, at most 84,297 per core) find w1 = 127 on core No. 349 only and at
+least 187 on every other core. That run is participant-reported context, not used above. A run of the v12 program on
+core No. 349 and three other cores reproduces the output line with one full evaluation and returns nothing for the
+other three (zero full evaluations each).
 
 ### 2.2 Advice program B' (budget 2^34 units)
 
@@ -148,7 +238,7 @@ alpha1'_r). M3: linearise each row with masks on an affine W. M4: add the 127 ro
 consistent and DF = 1600 - rank(E_M) >= 33; above 2^18 work units the attempt fails. An attempt costs at most 2^25.46
 primitives (2^18 x 96 + 2^15 coin words x 2^9 + 2^22) and draws at most 22,150 coin words.
 
-Advice rounds: run attempts on the current advice until K = 128 are accepted; if 2^12 attempts give fewer, discard it
+Advice rounds: run attempts on the current advice until K = 56 are accepted; if 2^12 attempts give fewer, discard it
 and resume B'. At most A_max = 2^16 attempts in all, so at most 16 advice rounds.
 
 ### 2.4 Enumeration E (early-abort stage 1, counted)
@@ -157,36 +247,57 @@ Space and window: V = solutions of E_M, beta = beta0; offset v0 = the solution w
 (solution with free variable i set) + v0, kept if independent of beta and the earlier ones; W = span of the first 32
 kept b_i. E enumerates x in v0 + W in Gray order (2^32 pairs (x, x + beta)).
 
-Stage 1, per pair: x ^= b_j (25 loads, 25 XOR); round 0 (chi, iota) on x into 25 fresh registers; round 1 in full;
-then the 24 equations of the 10 rows of beta2 (u_r in V(beta2_r, alpha3_r), u = L(round-1 output)) in this order: row
-(1,2) (= row 66, weight 4), then row (1,17) (= row 81), then the other 8 rows (EQS in r5_trail.py). This row order is
-the early-abort order of Th0rgal 7deb1595. Each equation uses only the bits of u it needs: bit u[X,Y,z] is bit 0 of
-b[i] >> k xor C[xs-1] >> k xor C[xs+1] >> (k-1), where (xs, ys) = (3(Y - 3X) mod 5, X) is the rho-pi source lane i, k
-= z - rho_i, and the column parities C of the round-1 output b are computed on first use. The pair stops at the first
-failing equation.
+Stage 1 (v11: fast exhaustive search). Let f(c) = L(chi(v0 + sum_i c_i b_i) + RC0) for c in GF(2)^32: the round-1
+input after theta, rho and pi. chi has degree 2 and L is linear, so f is a quadratic map in the 32 window variables,
+exactly, for every space. Write a_i = f(e_i) + f(0) and c_ij = f(e_i + e_j) + f(e_i) + f(e_j) + f(0) (25 lanes each).
+Following the fast exhaustive search of Bouillaguet, Chen, Cheng, Chou, Niederhagen, Shamir and Yang (CHES 2010), E
+keeps z = f at the current point and one derivative D[k] per variable, with D[0] = a_0 and D[k] = a_k + c_{k,k-1}.
+Gray step t (the same Gray order and the same basis index j = k1 = ctz t as in v8; k2 = the next set bit of t, if
+any) is
 
-Count (r5_trail.py, organizer-executed as r5-ecount). The counted program uses the organizer convention: every
-XOR/AND/OR/NOT, shift, load, comparison and conditional branch is one primitive, and a 64-bit rotation by r != 0 is
-((v << r) | (v >> (64 - r))) & M (4 primitives). Register use: x (25), the round values (25, written into registers
-freed by their sources), D or C (5), 5 rotation outputs, 2 temporaries and M: at most 63 of the 64 registers, so the
-only loads are the 25 basis lanes. Exit k (first failing equation) costs COST[k] = 384, 400, 418, 427, ..., 593
-primitives (24 = all pass: 593). The Gray loop is unrolled by 16; each block boundary costs 15 (counter, m & -m, a
-5-level comparison tree, loop test). So every pair costs at most 593 + 15/16 < 594 primitives, which is the charge
-(expected 398.625 with uniform round-2 rows; context only).
+    D[k1] ^= c[k1][k2]   (skipped when t = 2^k1),      z ^= D[k1].
 
-Our own count vs 671. 7deb1595 reports 671 primitives per pair with this row order (962 without early abort),
-including 150 loads and stores. Ours is lower because the state stays in registers (only the 25 basis lanes are
-loaded), round 0 needs no theta, chi takes 3 primitives per lane (the mask after chi is redundant on reduced
-operands), and round 2 computes only the bits the tested equations use. We charge our worst case, 594.
+Between two uses of D[k1] exactly one other variable, k2, changes, and the derivative of a quadratic map in direction
+e_k1 is affine and does not depend on c_k1, so D[k1] is the exact derivative at every use and z = f(Gray(t)) at every
+step. This is an identity, not an approximation: E's stage 1 sees the same z, hence the same round-1 output b = chi(z)
++ RC1 and the same 24 equation values, on every pair as the v8 program, which evaluated round 0 and round 1's linear
+layer from x. The set of round-2 passes, the order of the pairs, S2CAP and every output are unchanged; only the work
+per pair falls.
 
-Stage 2: if all 24 equations hold, form x + beta and both complete 5-round digests (round 0 of the first message is
-reused; 2 units and at most 2^7 primitives), compare all 256 bits, and output the pair (bytes 0..134 of L^-1(x) and
+Per pair (worst branch): 25 loads of D[k1], 25 loads of c[k1][k2], 25 XOR, 25 stores of D[k1], 25 XOR into z; then
+chi and iota on z (no round 0, no theta, no rho-pi); then the 24 equations of the 10 rows of beta2 (u_r in V(beta2_r,
+alpha3_r), u = L(b)) in the early-abort order of Th0rgal 7deb1595: row (1,2) (= row 66, weight 4), then row (1,17) (=
+row 81), then the other 8 rows (EQS in r5_trail.py). Each equation uses only the bits of u it needs: bit u[X,Y,z] is
+bit 0 of b[i] >> k xor C[xs-1] >> k xor C[xs+1] >> (k-1), where (xs, ys) = (3(Y - 3X) mod 5, X) is the rho-pi source
+lane i, k = z - rho_i, and the column parities C of b are computed on first use. The pair stops at the first failing
+equation.
+
+Count (r5_trail.py, organizer-executed as r5-ecount, trials 0-89 and 92-99). The counted program uses the organizer convention
+(every XOR/AND/OR/NOT, shift, load, store, comparison and conditional branch is one primitive; a 64-bit rotation by r
+!= 0 is 4 primitives). Registers: z (25), b (25), C (5), rotation outputs and temporaries: at most 63 of 64; the D and
+c tables live in memory and every access to them is counted. Exit k costs COST_FES[k] = 217, 233, 251, ..., 426
+primitives (24 = all pass: 426), against COST[k] = 384, ..., 593 for the v8 program (no longer shipped). The Gray loop is unrolled by 16;
+one block's control costs at most BLOCK_FES = 47 (counter, j = 4 + ctz by a 5-level comparison tree, a zero test and a
+second tree for k2 at the block boundary, and shift-and-add addresses for the five steps whose D or c index is
+dynamic). So every pair costs at most 426 + 47/16 < 429 primitives, which is the charge. Trials 92-99 run plain FES
+over all 2^10 points of eight seeded windows and compare z with a direct evaluation of f at every point; trials
+0-89 check the counted step against a plain evaluation, every forced exit and the block control.
+
+Setup per space: f(0), the 32 a_i and the 496 c_ij take 529 evaluations of round 0 and L, each under 2^9 primitives
+with its point; with D's initialisation, under 2^18 primitives, charged with the bases. Tables: 32 x 32 x 25 words.
+
+Our count vs 671. 7deb1595 reports 671 primitives per pair for the v8-style program (962 without early abort),
+including 150 loads and stores; our v8 count was 594. The FES program saves the 25 basis loads and XOR of v8, round 0
+(76) and round 1's theta, rho and pi (121), and adds 125 table accesses and XOR. Sensitivity: adding the same 77 or
+150 extra primitives per pair to the FES count gives T = 2^38.46 and 2^38.51 (Section 6).
+
+Stage 2: if all 24 equations hold, form x = v0 + sum of the b_i of the Gray point (at most 32 x 52 primitives), x + beta and both complete 5-round digests (2 units and at most 2^11 primitives), compare all 256 bits, and output the pair (bytes 0..134 of L^-1(x) and
 L^-1(x + beta)) if they are equal. At most S2CAP = 2^11 stage-2 pairs per space (then E stops on that space); the
 largest observed is 307 (256 expected). Our runs used bf8.cpp (Appendix B), checked against the counted program.
 
 ### 2.5 Main loop and correctness
 
-Run P (stop if its budget is exhausted). Base S. Advice rounds (2.2, 2.3) until K = 128 accepted spaces of one advice,
+Run P (stop if its budget is exhausted). Base S. Advice rounds (2.2, 2.3) until K = 56 accepted spaces of one advice,
 or until B''s budget or A_max is exhausted (then fail). Run E on the K spaces in order and halt with the first output;
 if there is none, fail. algorithm() in the experiment file is this driver with every cap (corrected in this version:
 after a discarded advice, B''s budget resumes without the connector's coin work, which the earlier driver counted
@@ -299,7 +410,7 @@ is the organizer's execution of the visible code.
 | r5-replay | 14 | full collision: v6 positive replayed | 14 collisions |
 | r5-replay8 | 3 | full collision: v8 E-check positive replayed | 3 collisions |
 | r5-trail-0..3 | 1 each | P's counts of the group equal the log | 4 of 4 |
-| r5-ecount | 92 | counted stage 1 equals a plain evaluation and COST[exit] (64 seeded states, 25 forced exits, block control 15); one counted T3 pass (9 leaves + Gray step) equals a plain evaluation and costs 1,750 <= 9 x 512 | 92 of 92 |
+| r5-ecount | 101 | FES stage-1 step equals a plain evaluation and COST_FES[exit] (64 seeded states, 25 forced exits, block control <= 47); one counted T3 pass (9 leaves + Gray step) equals a plain evaluation and costs 1,750 <= 9 x 256; plain FES equals a direct evaluation on all 2^10 points of 8 seeded windows; trial 100: exactly one leaf of the output core has 2 AS(alpha2) <= T0 = 127, and it is P's beta2 (2.1a) | 101 of 101 (local run of v12; v11's 100 trials passed in the organizer run) |
 
 Local runs of the organizer runner (Python 3.12 and 3.9, each program run twice; identical results): at most 6.0
 CPU-s and 1.4 x 10^11 instructions under 3.12 (7.6 CPU-s under 3.9) and 96 MB per experiment; the four r5-trail parts
@@ -307,10 +418,10 @@ at most 3.4 CPU-s each. With a random nonce in place of the public seed only the
 
 ## 5. Success probability
 
-Theorem (under H1-H3). Pr[the algorithm outputs a collision] >= 0.81. The heuristics (mirrored in claim.json) enter
-only the success probability; no cost cap depends on them:
+Theorem (under H1-H3). Pr[the algorithm outputs a collision]
+> 0.51. The heuristics (mirrored in claim.json) enter only the success probability; no cost cap depends on them:
 - H1-space-success: for each advice B' can output, per accepted space E outputs a pair with probability >= s0 = 0.013
-  (a bound per advice, not an average over advices: (e) needs s >= 0.0040 for the final advice). Evidence 4.2 (v6 run,
+  (a bound per advice, not an average over advices: (e) needs s >= 0.00908 for the final advice). Evidence 4.2 (v6 run,
   14 of 512; r5-den-0..2, r5-replay, r5-bp-0) and 4.3 (9 advices, round-2 rate 1.033 x the trail value, 3 collisions,
   r5-replay8). Premises: E depends on the advice only through alpha2 (Markov); seeded coins act as fresh; the v6
   decision rule (disclosed) did not bias s-hat beyond the 99% bound. Limits: s0 is measured on one advice; 4.3 shows
@@ -321,53 +432,62 @@ only the success probability; no cost cap depends on them:
   mean run cost gives 0.0084 instead.
 - H3-connector-acceptance: a B' advice has connector acceptance q >= 0.10 except with probability <= f_up = 0.2831 (0
   of 9 bad; 45-120 of 128 accepted; 288 organizer-seeded attempts in r5-bp-0..4).
-
 Failure needs one of:
-- (a) P exhausts its budget: impossible, since P is deterministic and its node and leaf counts are half their caps.
+- (a) P exhausts its budget or outputs another trail: probability 0. P is deterministic (2.1a). N1, C1 and C2 equal
+  their counters (organizer-recomputed), so those counters never stop P; the full-evaluation cap is per core and only
+  abandons cores; the output core needs one full evaluation (organizer-executed, r5-ecount trial 100), so it always
+  returns P's trail. (That no other core has w1 <= 127 is the statement of Section 2.1 that P outputs this trail.)
 - (b) B' exhausts 2^34 units before a good advice (connector acceptance q >= 0.10): <= 0.00043 (H2; this includes the
   restarts).
 - (c) More than 15 advice rounds: <= f_up^16 < 2^-29 (H3).
-- (d) A good advice gives fewer than 128 accepted attempts in 2^12: Chernoff with mean >= 409.6, < 2^-139.
-- (e) E outputs nothing on the 128 spaces of the final advice: (1 - s0)^128 = 0.1873 (H1; the spaces are i.i.d. given
+- (d) A good advice gives fewer than 56 accepted attempts in 2^12: Chernoff with mean >= 409.6, < 2^-220.
+- (e) E outputs nothing on the 56 spaces of the final advice: (1 - s0)^56 = 0.4806 (H1; the spaces are i.i.d. given
   the advice, because the attempts use independent coins).
 - (f) Coin map: each Fisher-Yates index is within (i+1)/2^64 of uniform; with at most 2^39.4 coin words in B' (32
   counted primitives each under 2^34 units) and 2^30.5 in the connector, all on lists of fewer than 2^12 elements, the
   total variation is below 2^-12.
 
-So Pr[success] >= 1 - 0.00043 - 2^-29 - 2^-139 - 0.1873 - 2^-12 > 0.81. The claim 0.40 holds for any s >= 0.0040, 3.3
-times below s0. At s-hat = 0.0273 the bound is 0.97.
+So Pr[success] >= 1 - 0.00043 - 2^-29 - 2^-220 - 0.4806 - 2^-12 > 0.51. The claim 0.40 holds for any s >= 0.00908, 1.43
+times below s0. At s-hat = 0.0273 the bound is 0.78. E's change to FES does not enter this section: E outputs exactly
+what the v8 program output on every space (2.4).
 
 ## 6. Time (collision-frontier-v5: one 5-round permutation = 1 unit, other primitives 1/1355)
 
 | Term | Hard cap, enforced by | Count and price | log2 units |
 | --- | --- | --- | --- |
-| P | node and leaf counters at 2 x the exact counts (Appendix A) | 2 x 712,940,389,039,104 primitives (counted bound) | 39.9367 |
+| P | node and leaf counters at the exact counts; full w1 evaluations at most FCC = 2^21 per core, 467 cores (Appendix A) | 359,845,886,805,504 + 2^42 primitives (T3 leaf at 2^8) | 37.9678 |
 | B' | WK counter, re-checked on every update | 2^34 units + one update (< 2^13 units) | 34.0000 |
 | S | at most 16 advice rounds | 16 x 2^31 primitives | 24.5959 |
 | Connector | 2^18 work units per attempt, A_max = 2^16 attempts | 2^16 x (2^18 x 96 + 2^15 x 2^9 + 2^22) primitives | 31.0554 |
-| Bases | K = 128 spaces | 128 x 2^24 primitives | 20.5959 |
-| E stage 1 | 2^32-pair window, worst-case path | 128 x 2^32 x 594 primitives | 37.8102 |
-| E stage 2 | S2CAP = 2^11 per space | 128 x 2^11 x (2 units + 2^7 primitives) | 19.0666 |
+| Bases and FES tables | K = 56 spaces | 56 x (2^24 + 2^18) primitives | 19.4256 |
+| E stage 1 | 2^32-pair window, worst-case FES path | 56 x 2^32 x 429 primitives | 36.1481 |
+| E stage 2 | S2CAP = 2^11 per space | 56 x 2^11 x (2 units + 2^11 primitives) | 18.6194 |
 | Output | one pair | 2^22 primitives | 11.60 |
-| Total T | | | 40.2557 -> 40.26 |
+| Total T | | | 38.4067 -> 38.45 |
 
-Every term is a cap that holds on every run; no expected value is used. Preprocessing (P + B' + S) = 2^39.9601,
-claimed 39.97. Sensitivity (not the claim): the 64-register model lets E load only the 25 basis lanes; at 671 primitives
-per pair (7deb1595's count) T = 2^40.29, with 150 further loads and stores per pair (744) 2^40.33. Context only: the
-measured central cost (P at its count, B' at the mean of the nine runs, about 160 attempts, E at 398.625 + 15/16 per
-pair) is about 2^39.3.
+Every term is a cap that holds on every run; no expected value is used. Preprocessing (P + B' + S) = 2^38.0573, claimed 38.10. Sensitivity (not the claim): 77 or 150 further primitives per pair on top of the FES count (the gaps between
+7deb1595's counts and our v8 count) give T = 2^38.460 and 2^38.508; the v8 per-pair count (594) at K = 56 gives
+2^38.518 (e3ce051's total); 671 per pair at K = 56 gives 2^38.568; every price of P doubled gives 2^39.20. Context
+only: the measured central cost (P at its count, B' at the mean of the nine runs, E at its mean exit) is below
+2^38.41.
 
 ## 7. Memory
 
 Measured peaks: P 4.1 MB (T3), B' at most 113.5 MB (run 2; 42-83 MB in the others), connector and reference code under
 2^23 bytes; E keeps 25 lanes and 32 basis vectors. Before E starts, algorithm() keeps the echelon system of each of the
-K accepted spaces (at most 1,600 forms of 1,601 bits each, about 41 MB in all; the bases alone would be 128 x 33 x 200
-bytes). Declared 2^30 bytes, 9 x the largest measured peak.
+K accepted spaces (at most 1,600 forms of 1,601 bits each, about 36 MB in all; the bases alone would be 56 x 33 x 200
+bytes). E's FES tables take 32 x 32 x 25 words (205 KB) per space in use. Declared 2^30 bytes, 9 x the largest measured peak.
 
 ## 8. Not claimed; credits
 
-Not claimed: any improvement on [GLL+20] beyond the byte-aligned (p = 8) adaptation, B', the counted early-abort E and
-the accounting. The certificates show that the construction works; they are not the claimed cost. Credits: [GLL+20]
+Not claimed: any improvement on [GLL+20] beyond the byte-aligned (p = 8) adaptation, B', the counted early-abort E
+with fast exhaustive search and the accounting. FES is due to Bouillaguet, Chen, Cheng, Chou, Niederhagen, Shamir and
+Yang ("Fast Exhaustive Search for Polynomial Systems in F2", CHES 2010); we apply it to the quadratic round-1 input
+of E's window. GordoAR (ed433634, bc0f7b5): the re-sizing to K = 112 and the observation that FCAP was missing from
+Section 5; GordoAR e3ce051 (with winglock and Subflatus3): K = 56 under a stated 1.4x margin policy, used here.
+GordoAR is a co-author. winglock 113fc83 is the base of the construction, code, evidence and certificates; winglock is a
+co-author. winglock 7f16e46 (with Th0rgal) is a different construction that charges its development; nothing from it
+is used here. The certificates show that the construction works; they are not the claimed cost. Credits: [GLL+20]
 for the connector and linearisation framework and the 5-round trail core that P re-derives; Dinur, Dunkelman, Shamir
 (FSE 2012) for the target-difference algorithm; Qiao, Song, Liu, Guo (EUROCRYPT 2017) for linearisation; Daemen, Van
 Assche (FSE 2012) and KeccakTools for in-kernel trail cores. Th0rgal 7deb1595 (with Subflatus3 and rubenmarcus): the
@@ -459,7 +579,7 @@ static std::vector<int> canon(const std::vector<int>&b){
 static bool inset(int i){for(int j:cur)if(j==i)return true;return false;}
 static void add(int i){cur.push_back(i);cntA[colA(i)]++;cntB[colB(i)]++;}
 static void rem(){int i=cur.back();cur.pop_back();cntA[colA(i)]--;cntB[colB(i)]--;}
-static const unsigned long long CAP1=17349666ULL; // 2 x the 8,674,833 nodes of the executed run (budget of P)
+static const unsigned long long CAP1=8674833ULL; // the 8,674,833 nodes of T1 (deterministic; budget of P)
 static void dfs(){
   if(++nodes>CAP1){fprintf(stderr,"P budget exhausted in T1\n");exit(2);}
   // first unbalanced column in deterministic order: alpha-view columns 0..319 then beta-view 0..319
@@ -497,7 +617,7 @@ static std::vector<Row> rows;
 static std::vector<std::vector<std::pair<int,St>>> outs; // per row: (o, L(row o))
 static std::vector<std::vector<double>> pr;
 static double P45; static unsigned long long leaves;
-static unsigned long long allleaves=0; static const unsigned long long CAP2=3278176256ULL; // 2 x sum C1 (budget of P)
+static unsigned long long allleaves=0; static const unsigned long long CAP2=1639088128ULL; // sum C1 (deterministic; budget of P)
 static void fdfs(size_t k,const St&b4,double p){
   if(k==rows.size()){leaves++;if(++allleaves>CAP2){fprintf(stderr,"P budget exhausted in T2\n");exit(2);}double q=p;
     for(int z=0;z<64&&q>0;z++){int d=0;for(int x=0;x<5;x++)d|=((b4.a[x]>>z)&1)<<x;if(d)q*=PZ[d];}
@@ -533,24 +653,27 @@ int main(int argc,char**argv){
 }
 ```
 
-`trail3c.cpp`:
+`trail3c.cpp` (v12):
 
 ```cpp
 // Stage T3: backward extension. For each core with P45 > 0 (lines of T2 output), enumerate every beta2
 // compatible with alpha3 (row-wise, all compatible input differences) in reflected mixed-radix Gray order,
 // keep alpha2 = L^{-1}(beta2) incrementally, and compute w1 = sum over rows of minrev(alpha2 row).
-// Exact minimum of (w1, w2, beta2 lanes lexicographic) per core. Pruning: w1 >= 2*AS(alpha2).
+// Exact minimum of (w1, w2, beta2 lanes lexicographic) per core among leaves with w1 <= T0. Pruning: w1 >= 2*AS(alpha2).
+// v12: threshold starts at T0 = 127 in every core; a core that needs more than FCC = 2^21 full w1 evaluations is
+// abandoned (no candidate, no exit), so at most 467 x 2^21 < 2^30 full evaluations run and none can stop P.
 #include "kc.h"
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <cmath>
 struct Core{int idx;St a3;double p45;};
 static std::vector<Core> cores;
 static std::atomic<int> nextc(0);
 static std::mutex mu;
 static std::atomic<unsigned long long> totleaves(0),totfull(0);
-static std::atomic<int> gbest(1<<30);
-static std::atomic<unsigned long long> gleaves(0); static const unsigned long long CAP3=2758550798700ULL; // 2 x sum C2 (budget of P)
+static std::atomic<unsigned long long> gleaves(0); static const unsigned long long CAP3=1379275399350ULL; // sum C2 (deterministic; budget of P)
+static const unsigned long long FCC=1ULL<<21; static const int T0=127; // per-core full-w1 cap; initial threshold
 static inline int w1of(const St&s){
   int w=0;
   for(int y=0;y<5;y++){u64 a0=s.a[5*y],a1=s.a[5*y+1],a2=s.a[5*y+2],a3=s.a[5*y+3],a4=s.a[5*y+4];
@@ -580,27 +703,26 @@ static void work(){
     St al;zero(al);for(int j=1;j<n;j++)xr(al,LI[j][ins[j][0]]);
     int w2o=0;for(int j=1;j<n;j++)w2o+=WT[ins[j][0]][ro[j]];
     int m0=ins[0].size();std::vector<St> L0(m0);std::vector<int> w0(m0);for(int k=0;k<m0;k++){L0[k]=LI[0][ins[0][k]];w0[k]=WT[ins[0][k]][ro[0]];}
-    int bw1=1<<30,bw2=1<<30;unsigned long long leaves=0,full=0,nbest=0;int bas=0;
+    int bw1=T0,bw2=1<<30;unsigned long long leaves=0,full=0,nbest=0;int bas=0;bool ab=false;
     std::vector<int> bestsel;
-    for(;;){
+    for(;!ab;){
       leaves+=m0;if((gleaves+=m0)>CAP3){fprintf(stderr,"P budget exhausted in T3\n");exit(2);}
-      int T=std::min(bw1,gbest.load());
+      int T=bw1;
       for(int k=0;k<m0;k++){const St&l0=L0[k];
         int as=0,y=0;
         for(;y<5;y++){int b=5*y;as+=__builtin_popcountll((al.a[b]^l0.a[b])|(al.a[b+1]^l0.a[b+1])|(al.a[b+2]^l0.a[b+2])|(al.a[b+3]^l0.a[b+3])|(al.a[b+4]^l0.a[b+4]));if(2*as>T)break;}
         if(y<5)continue;
-        St t=al;xr(t,l0);full++;int w1=w1of(t);int w2=w2o+w0[k];
-        {int g=gbest.load();while(w1<g&&!gbest.compare_exchange_weak(g,w1));}
+        if(++full>FCC){ab=true;break;}St t=al;xr(t,l0);int w1=w1of(t);int w2=w2o+w0[k];
         std::vector<int> sel;sel.push_back(k);for(int j=0;j<n1;j++)sel.push_back(a[j]);
-        if(w1<bw1||(w1==bw1&&w2<bw2)){bw1=w1;bw2=w2;bestsel=sel;nbest=1;bas=as;T=std::min(bw1,gbest.load());}
+        if(w1<bw1||(w1==bw1&&w2<bw2)){bw1=w1;bw2=w2;bestsel=sel;nbest=1;bas=as;T=bw1;}
         else if(w1==bw1&&w2==bw2){nbest++;if(sel<bestsel)bestsel=sel;}
       }
-      int j=f[0];f[0]=0;if(j==n1)break;
+      if(ab)break;int j=f[0];f[0]=0;if(j==n1)break;
       int old=ins[j+1][a[j]];a[j]+=o[j];int nw=ins[j+1][a[j]];
       xr(al,LI[j+1][old^nw]);w2o+=WT[nw][ro[j+1]]-WT[old][ro[j+1]];
       if(a[j]==0||a[j]==m[j]-1){o[j]=-o[j];f[j]=f[j+1];f[j+1]=j+1;}
     }
-    if(bestsel.empty()){totleaves+=leaves;std::lock_guard<std::mutex> g(mu);printf("%d w1>%d pruned leaves=%llu logP45=%.4f\n",c.idx,gbest.load(),leaves,log2(c.p45));fflush(stdout);continue;}
+    if(ab||bestsel.empty()){totleaves+=leaves;totfull+=full;std::lock_guard<std::mutex> g(mu);printf("%d %s leaves=%llu full=%llu logP45=%.4f\n",c.idx,ab?"abandoned":"w1>T0",leaves,full,log2(c.p45));fflush(stdout);continue;}
     St b2;zero(b2);for(int j=0;j<n;j++)setrow(b2,ry[j],rz[j],ins[j][bestsel[j]]);
     totleaves+=leaves;totfull+=full;
     std::lock_guard<std::mutex> g(mu);

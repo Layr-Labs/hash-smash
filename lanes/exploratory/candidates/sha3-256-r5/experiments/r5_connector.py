@@ -6,28 +6,22 @@ import json
 import sys
 import collections
 from fractions import Fraction
-
 # Bit i = 64*(x+5y)+z.  Affine form over x = L(A0): int, bits 0..1599 coefficients, bit 1600 constant.
-
 N = 1600
 MASK = (1 << N) - 1
 M64 = (1 << 64) - 1
 RHO = (0, 1, 62, 28, 27, 36, 44, 6, 55, 20, 3, 10, 43, 25, 39, 41, 45, 15, 21, 8, 18, 2, 61, 56, 14)
 RCS = (0x1, 0x8082, 0x800000000000808A, 0x8000000080008000, 0x808B)
-
 def rot(v, a):
   a %= 64
   return ((v << a) | (v >> (64 - a))) & M64 if a else v
-
 def lanes(s):
   return [(s >> (64 * i)) & M64 for i in range(25)]
-
 def unlanes(A):
   s = 0
   for i, v in enumerate(A):
     s |= v << (64 * i)
   return s
-
 def Lmap(s):
   """L = pi o rho o theta."""
   A = lanes(s)
@@ -39,7 +33,6 @@ def Lmap(s):
       i = x + 5 * y
       B[y + 5 * ((2 * x + 3 * y) % 5)] = rot(A[i] ^ T[x], RHO[i])
   return unlanes(B)
-
 def chi(s):
   A = lanes(s)
   O = [0] * 25
@@ -47,32 +40,25 @@ def chi(s):
     for x in range(5):
       O[x + 5 * y] = A[x + 5 * y] ^ ((~A[(x + 1) % 5 + 5 * y]) & A[(x + 2) % 5 + 5 * y] & M64)
   return unlanes(O)
-
 def rnd(s, r):
   return chi(Lmap(s)) ^ RCS[r]
-
 def par(v):
   return bin(v).count("1") & 1
-
 def chi5(v):
   o = 0
   for i in range(5):
     o |= (((v >> i) & 1) ^ ((1 ^ ((v >> ((i + 1) % 5)) & 1)) & ((v >> ((i + 2) % 5)) & 1))) << i
   return o
-
 CHI5 = [chi5(v) for v in range(32)]
 DDT = [[0] * 32 for _ in range(32)]
 for _d in range(32):
   for _v in range(32):
     DDT[_d][CHI5[_v] ^ CHI5[_v ^ _d]] += 1
 ROWS = [(y, z) for y in range(5) for z in range(64)]
-
 def rowbits(y, z):
   return [64 * (x + 5 * y) + z for x in range(5)]
-
 def getrow(s, y, z):
   return sum(((s >> (64 * (x + 5 * y) + z)) & 1) << x for x in range(5))
-
 def _affine_subsets():
   """All affine subsets of GF(2)^5, by dimension, each as a sorted list; each list sorted."""
   lin = {0: {(0,)}}
@@ -91,15 +77,12 @@ def _affine_subsets():
         aff.add(tuple(sorted(s ^ b for s in S)))
     out[k] = sorted(list(W) for W in aff)
   return out
-
 AFFL = _affine_subsets()
 VSET = {(d, o): frozenset(v for v in range(32) if CHI5[v] ^ CHI5[v ^ d] == o)
     for d in range(32) for o in range(32) if DDT[d][o]}
 COMPAT = {o: [d for d in range(32) if DDT[d][o]] for o in range(32)}
 AFFIN = {o: {k: [W for W in AFFL[k] if set(W) <= set(COMPAT[o])] for k in (0, 1, 2)} for o in range(1, 32)}
-
 _ANN = {}
-
 def annih(W):
   """Basis (m, c) of the equations <m, v> = c satisfied by every v of the affine set W."""
   key = tuple(sorted(W))
@@ -120,7 +103,6 @@ def annih(W):
   r = [(m, par(m & base)) for m in out]
   _ANN[key] = r
   return r
-
 def row_forms(W, rb):
   fl = []
   for (m, c) in annih(W):
@@ -130,20 +112,16 @@ def row_forms(W, rb):
         f |= 1 << rb[x]
     fl.append(f)
   return fl
-
 class CapExceeded(Exception):
   pass
-
 class Ech:
   """Echelon set of affine forms keyed by leading (highest) coefficient bit, with undo log.
   budget = [work units so far, cap], shared by the systems of one attempt (hard work cap); one unit
   is one call of reduce() or one row addition inside it."""
-
   def __init__(s, budget=None):
     s.piv = {}
     s.log = []
     s.budget = budget if budget is not None else [0, 1 << 62]
-
   def reduce(s, f):
     piv = s.piv
     bud = s.budget
@@ -161,7 +139,6 @@ class Ech:
       bud[0] += 1
       if bud[0] > bud[1]:
         raise CapExceeded()
-
   def add(s, f):
     """1 = added, 0 = implied, -1 = inconsistent (not added)."""
     f = s.reduce(f)
@@ -171,17 +148,13 @@ class Ech:
     s.piv[p] = f
     s.log.append(p)
     return 1
-
   def mark(s):
     return len(s.log)
-
   def undo(s, m):
     while len(s.log) > m:
       del s.piv[s.log.pop()]
-
   def rank(s):
     return len(s.piv)
-
 def linear_rows(fn):
   """rows[j] = form of output bit j of the linear map fn (as coefficients over the input)."""
   rows = [0] * N
@@ -192,7 +165,6 @@ def linear_rows(fn):
       rows[lb.bit_length() - 1] |= 1 << i
       c ^= lb
   return rows
-
 def Linv_map(s):
   """L^-1 = theta^-1 o rho^-1 o pi^-1, theta^-1 by solving the column-parity system."""
   B = lanes(s)
@@ -202,7 +174,6 @@ def Linv_map(s):
       i = x + 5 * y
       A[i] = rot(B[y + 5 * ((2 * x + 3 * y) % 5)], 64 - RHO[i])
   return _theta_inv(unlanes(A))
-
 def _theta_inv_setup():
   # theta^-1(b) = b + E((I+T)^-1 P(b)), P = column parity; (I+T)^-1 by Gauss-Jordan.
   def T(p):
@@ -227,9 +198,7 @@ def _theta_inv_setup():
         A[k] ^= A[col]
         Bm[k] ^= Bm[col]
   return T, Bm
-
 _T, _IPT_ROWS = _theta_inv_setup()
-
 def _theta_inv(b):
   Lb = lanes(b)
   P = sum((Lb[x] ^ Lb[x + 5] ^ Lb[x + 10] ^ Lb[x + 15] ^ Lb[x + 20]) << (64 * x) for x in range(5))
@@ -240,7 +209,6 @@ def _theta_inv(b):
   E = _T(Q)
   El = [(E >> (64 * x)) & M64 for x in range(5)]
   return unlanes([Lb[i] ^ El[i % 5] for i in range(25)])
-
 def linv_rows():
   """Rows of L^-1 (= linear_rows(Linv_map), checked in facts()) via the rows of (I+T)^-1."""
   rows = [0] * N
@@ -256,59 +224,48 @@ def linv_rows():
         B[yy + 5 * ((2 * xx + 3 * yy) % 5)] = rot(A[i], RHO[i])
     rows[o] = unlanes(B)
   return rows
-
 # -- advice and trail (proof 2)
 # BETA2 and ALPHA3_BITS: the trail core output by the search P (proof 2.1).
 BETA2 = unlanes([0x1, 0, 0x4, 0, 0, 0x4, 0x4, 0x4, 0x20000, 0, 0x2000000000000000, 0, 0x200000, 0, 0,
         0x2000000000000000, 0, 0, 0x20000, 0, 0x200001, 0, 0x200000, 0, 0x1])
 ALPHA3_BITS = (0, 130, 450, 529, 701, 789, 1021, 1169, 1280, 1429)
-
 # -- work counters (B', proof 2.2)
 class BudgetExceeded(Exception):
   pass
-
 class _WKMeta(type):
   """Every counter update re-checks the budget: once WK.cap is set (integer, in 1/1355 units),
   the first update that takes the charged cost above it raises BudgetExceeded (hard cap)."""
-
   def __setattr__(cls, k, v):
     type.__setattr__(cls, k, v)
     if cls.cap is not None and cls.cost() > cls.cap:
       raise BudgetExceeded()
-
 class WK(metaclass=_WKMeta):
-  row = 0        # operations on one <= 2585-bit integer (XOR, AND-test, element copy, compare): 256 primitives
-  small = 0      # word operations on <= 64-bit values (table lookups, loop steps): 8 primitives
-  keccak = 0     # Keccak-f[1600] calls (SHAKE-256 coin expansion): 5 units
-  sha256 = 0     # SHA-256 compression calls (seeds): 2 units
-  r2 = 0         # 2-round state evaluations in verification: 1 unit
+  row = 0  # operations on one <= 2585-bit integer (XOR, AND-test, element copy, compare): 256 primitives
+  small = 0  # word operations on <= 64-bit values (table lookups, loop steps): 8 primitives
+  keccak = 0  # Keccak-f[1600] calls (SHAKE-256 coin expansion): 5 units
+  sha256 = 0  # SHA-256 compression calls (seeds): 2 units
+  r2 = 0  # 2-round state evaluations in verification: 1 unit
   cap = None
-
   @staticmethod
   def snap():
     return (WK.row, WK.small, WK.keccak, WK.sha256, WK.r2)
-
   @staticmethod
   def cost():
     """Charged cost so far in 1/1355 units (exact integer)."""
     return 256 * WK.row + 8 * WK.small + 1355 * (5 * WK.keccak + 2 * WK.sha256 + WK.r2)
-
 def sha256(b):
   WK.sha256 += (len(b) + 9 + 63) // 64
   return hashlib.sha256(b).digest()
-
 # -- coins (proof 4.1)
 class Coins:
   """Coin word j: bytes 32j..32j+31 (little-endian) of SHAKE-256(seed || k)[4096 bytes], k = 0, 1, ...
   (4 bytes LE).  perm(): Fisher-Yates, j = (low 64 bits of one word) mod (i+1) (proof 4.1)."""
-
   def __init__(s, seed):
     s.seed, s.k, s.buf, s.pos, s.draws = seed, 0, b"", 0, 0
-
   def word(s):
     if s.pos >= len(s.buf):
       s.buf = hashlib.shake_256(s.seed + s.k.to_bytes(4, "little")).digest(4096)
-      WK.keccak += 31          # 1 absorb + 30 further squeeze calls for 4096 bytes at rate 136
+      WK.keccak += 31  # 1 absorb + 30 further squeeze calls for 4096 bytes at rate 136
       s.k += 1
       s.pos = 0
     w = int.from_bytes(s.buf[s.pos:s.pos + 32], "little")
@@ -316,28 +273,24 @@ class Coins:
     s.draws += 1
     WK.small += 4
     return w
-
   def perm(s, a):
     for i in range(len(a) - 1, 0, -1):
       j = (s.word() & M64) % (i + 1)
       a[i], a[j] = a[j], a[i]
       WK.small += 4
-
 def run_seed(label, i):
   """Seed of attempt i of a labelled run: SHA-256(label || i as 8 little-endian bytes)."""
   return hashlib.sha256(label + i.to_bytes(8, "little")).digest()
-
 # -- setup S (proof 2.3)
 class Base:
   """The advice-independent part of S (also B's base): L, L^-1, fixed bits, trail, E's row tests."""
-
   def __init__(s):
-    for k in range(6):                                 # equations of every affine subset of GF(2)^5
+    for k in range(6):  # equations of every affine subset of GF(2)^5
       for Wl in AFFL[k]:
         annih(Wl)
     WK.small += 2451 * 2048
     s.Lrow = linear_rows(Lmap)
-    s.Linv = linv_rows()                               # = linear_rows(Linv_map); facts() checks it
+    s.Linv = linv_rows()  # = linear_rows(Linv_map); facts() checks it
     WK.row += 2 * N * 30
     s.FIX = list(range(1080, N))
     s.fixval = {j: 0 for j in s.FIX}
@@ -354,11 +307,9 @@ class Base:
     # round-2 test of E: row r of the round-2 chi input must lie in V(beta2_r, alpha3_r)
     s.e_rows = [(y, z, VSET[(getrow(s.beta2, y, z), getrow(s.alpha3, y, z))])
           for (y, z) in ROWS if getrow(s.beta2, y, z)]
-
 # -- advice run B' (proof 2.2)
 # B' parameters (pre-registered): D2u candidate ordering weights
 KW, MW, LB, PREF = 1.0, 0.25, 1.0, 1.0
-
 def rand_min_beta1(base, coins):
   b = 0
   for (y, z, o2) in base.a2rows:
@@ -372,10 +323,8 @@ def rand_min_beta1(base, coins):
         b |= 1 << rb[x]
     WK.small += 64
   return b
-
 class Cand:
   """The beta1-dependent part of S (proof 2.3): round-1 conditions, masks, linearisation table."""
-
   def __init__(s, base, beta1):
     s.base = base
     s.Lrow, s.Linv, s.FIX, s.fixval = base.Lrow, base.Linv, base.FIX, base.fixval
@@ -420,7 +369,6 @@ class Cand:
       Ss = [VSET[(d, o)] for d in COMPAT[o]] if o else [full]
       for S in Ss:
         s.lin[(r, S)] = s._lin_options(S, masks)
-
   def _is_aff(s, Wl, masks):
     Wl = sorted(Wl)
     b = Wl[0]
@@ -431,7 +379,6 @@ class Cand:
           if par(m & (CHI5[u ^ w ^ b] ^ CHI5[u] ^ CHI5[w] ^ CHI5[b])):
             return False
     return True
-
   def _lin_options(s, S, masks):
     if s._is_aff(S, masks):
       return (S, None)
@@ -444,19 +391,15 @@ class Cand:
       if opts:
         return (None, opts)
     return (None, [])
-
 # -- affine spaces stored transposed
 class Aff:
   """T[j]: bit 0 = coordinate j of a particular solution, bit i+1 = coefficient of free parameter i."""
   __slots__ = ("T", "rank")
-
   def __init__(s, T, rank=0):
     s.T, s.rank = T, rank
-
   def copy(s):
     WK.row += len(s.T)
     return Aff(list(s.T), s.rank)
-
   def add(s, idx, c):
     T = s.T
     a = 0
@@ -472,9 +415,7 @@ class Aff:
     WK.row += 2 * len(T)
     s.rank += 1
     return 1
-
 PARMW = {}
-
 def parmw(n):
   if n not in PARMW:
     tab = []
@@ -489,7 +430,6 @@ def parmw(n):
     PARMW[n] = tab
     WK.small += (1 << n) * (1 << n)
   return PARMW[n]
-
 def projn(T, cs):
   """Bit mask (over 2^n values) of the values of coordinates cs allowed by the space."""
   n = len(cs)
@@ -514,7 +454,6 @@ def projn(T, cs):
       mask &= tab[cb][k]
       WK.row += 1
   return mask
-
 def form_idx(f):
   idx = []
   v = f & MASK
@@ -524,12 +463,10 @@ def form_idx(f):
     v ^= lb
   WK.row += len(idx) + 1
   return idx, (f >> N) & 1
-
 # -- difference side: links, D2u
 WT = [0] * 32
 for _d in range(1, 32):
   WT[_d] = 5 - (max(DDT[_d]).bit_length() - 1)
-
 def base_D(t):
   D = Aff([1 << (j + 1) for j in range(N)])
   for j in t.FIX:
@@ -540,7 +477,6 @@ def base_D(t):
       for b in rowbits(*r):
         assert D.add([b], 0) >= 0
   return D
-
 def own_bits():
   out = []
   for b in range(N):
@@ -553,7 +489,6 @@ def own_bits():
     out.append(unlanes(A).bit_length() - 1)
     WK.small += 200
   return out
-
 def link_constants(t):
   """Base value space (fixed bits only), used for the link constants x_b1 + x_b2 = c."""
   X = Aff([1 << (j + 1) for j in range(N)])
@@ -561,7 +496,6 @@ def link_constants(t):
     idx, _ = form_idx(t.Linv[j])
     assert X.add(idx, t.fixval[j]) >= 0
   return X
-
 def build_links(t, OB):
   X0 = link_constants(t)
   fs = set(t.FIX)
@@ -587,7 +521,6 @@ def build_links(t, OB):
     ports[r1].append(i1)
     ports[r2].append(i2)
   return links, {r: sorted(v) for r, v in ports.items()}
-
 def fixed_combos(S, P):
   out = {}
   for m in range(1, 1 << len(P)):
@@ -598,7 +531,6 @@ def fixed_combos(S, P):
     if len(vals) == 1:
       out[m] = vals.pop()
   return out
-
 def combo_basis(ms):
   basis = []
   for m in sorted(ms):
@@ -609,7 +541,6 @@ def combo_basis(ms):
     if v:
       basis.append(m)
   return basis
-
 def uniform_info(Wd, o, P):
   """Port-uniform test of an affine set Wd of differences: same fixed port combos for every d in
   Wd and constants affine in d.  Returns [(mask, lam, c0)] with kappa_mask(d) = c0 + lam.d."""
@@ -632,19 +563,15 @@ def uniform_info(Wd, o, P):
       return None
     out.append((m, lam, fcs[0][m] ^ par(lam & a0)))
   return out
-
 class PortSys:
   __slots__ = ("piv",)
-
   def __init__(s):
     s.piv = {}
-
   def copy(s):
     p = PortSys()
     p.piv = dict(s.piv)
     WK.row += len(s.piv)
     return p
-
   def add(s, lhs, rhs):
     piv = s.piv
     while lhs:
@@ -657,7 +584,6 @@ class PortSys:
       lhs ^= e[0]
       rhs ^= e[1]
     return rhs
-
 def make_cost(t):
   out = {}
   for r in t.act:
@@ -673,7 +599,6 @@ def make_cost(t):
       out[(r, d)] = WT[d] + lc
       WK.small += 8
   return out
-
 def d2u_cands(t, ports):
   cands = {}
   for r in t.act:
@@ -687,7 +612,6 @@ def d2u_cands(t, ports):
           cl.append((k, Wd, ui))
     cands[r] = cl
   return cands
-
 def d2u(t, D, ports, links, cands, COST, coins):
   linkof = collections.defaultdict(list)
   for L in links:
@@ -699,12 +623,10 @@ def d2u(t, D, ports, links, cands, COST, coins):
   A = {}
   rb_of = {r: rowbits(*r) for r in t.act}
   added_links = set()
-
   def viable(Dv, r):
     m = projn(Dv.T, rb_of[r])
     WK.small += 4 * len(cands[r])
     return [c for c in cands[r] if any((m >> d) & 1 for d in c[1])]
-
   dom = {r: viable(D, r) for r in un}
   nlinkc = 0
   while un:
@@ -788,7 +710,6 @@ def d2u(t, D, ports, links, cands, COST, coins):
       added_links.add((L[2], L[5]))
     A[r] = Wd
   return A, D, len(A), nlinkc
-
 # -- value side: Model, M2
 def mask_basis(masks):
   out = []
@@ -800,7 +721,6 @@ def mask_basis(masks):
     if v:
       out.append(m)
   return out
-
 def express(m, basis):
   n = len(basis)
   for c in range(1 << n):
@@ -811,10 +731,8 @@ def express(m, basis):
     if v == m:
       return c
   raise ValueError
-
 class Model:
   """Coordinates x and u_{r,k} = b_{r,k} . chi(x_r) (basis of the row's masks); candidates (d, W) per row."""
-
   def __init__(s, t):
     s.t = t
     s.mb, s.ucoord = {}, {}
@@ -853,7 +771,6 @@ class Model:
           lst.append(s._cand(r, d, frozenset(Wl)))
       s.cands[r] = lst
     s.coords = {r: rowbits(*r) + s.ucoord[r] for r in ROWS}
-
   def _cand(s, r, d, Wl):
     b = s.mb[r]
     k = len(b)
@@ -890,7 +807,6 @@ class Model:
       eqs.append((idx, c))
     WK.small += 512
     return (d, Wl, g, eqs, 5 - (len(Wl).bit_length() - 1))
-
 def base_X(t, M):
   X = Aff([1 << (j + 1) for j in range(M.NC)])
   for j in t.FIX:
@@ -900,13 +816,11 @@ def base_X(t, M):
     if X.add(idx, c) < 0:
       return None
   return X
-
 def dom_of(M, X, D, r, Ar):
   ax = projn(X.T, M.coords[r])
   ad = projn(D.T, rowbits(*r))
   WK.small += 4 * len(M.cands[r])
   return [c for c in M.cands[r] if c[0] in Ar and (ad >> c[0]) & 1 and (c[2] & ax)]
-
 def m2(M, X, D, A, coins):
   un = list(ROWS)
   coins.perm(un)
@@ -964,7 +878,6 @@ def m2(M, X, D, A, coins):
     c, X, D, dom = chosen
     choice[r] = c
   return True, choice, X, D
-
 def point(X, coins):
   T = X.T
   live = 0
@@ -984,7 +897,6 @@ def point(X, coins):
       x |= 1 << j
   WK.row += 3 * N
   return x
-
 def verify(t, X, beta0, coins, npts=64):
   alpha0 = Linv_map(beta0)
   good = 0
@@ -998,7 +910,6 @@ def verify(t, X, beta0, coins, npts=64):
     ok = ok and (rnd(rnd(A1, 0), 1) ^ rnd(rnd(A2, 0), 1)) == t.alpha2
     good += ok
   return good
-
 # -- driver
 class CandSetup:
   def __init__(s, base, OB, label, c):
@@ -1011,7 +922,6 @@ class CandSetup:
     s.D0 = base_D(s.t)
     s.links, s.ports = build_links(s.t, OB)
     s.cands = d2u_cands(s.t, s.ports)
-
 def b_attempt(cs, label, j, dmin):
   coins = Coins(sha256(label + b"att" + cs.c.to_bytes(4, "little") + j.to_bytes(4, "little")))
   if cs.X0 is None:
@@ -1036,10 +946,8 @@ def b_attempt(cs, label, j, dmin):
     if res["verified"] != 64:
       res["st"] = "verifyfail"
   return res, beta0
-
-B_R, B_DMIN = 16, 40          # B' constants (with KW, MW, LB, PREF): fixed by development runs
-B_BUDGET = 1355 << 34         # hard cap of B' (2^34 units), counted from the start of B'
-
+B_R, B_DMIN = 16, 40  # B' constants (with KW, MW, LB, PREF): fixed by development runs
+B_BUDGET = 1355 << 34  # hard cap of B' (2^34 units), counted from the start of B'
 def bprime(base, OB, label, budget=B_BUDGET, log=None):
   """B' (proof 2.2): candidates c = 0, 1, ..., R attempts each; (beta1, beta0, c, j, DF) at the first
   accepted attempt, None when the budget is exhausted."""
@@ -1063,14 +971,12 @@ def bprime(base, OB, label, budget=B_BUDGET, log=None):
     return None
   finally:
     WK.cap = None
-
 def Setup(base, beta1, beta0):
   """S for one advice (beta1', beta0'): Base plus the round-1 conditions and linearisation table of
   beta1' (class Cand); D2 and M2 steer toward beta0' (st.ref)."""
   st = Cand(base, beta1)
   st.ref = beta0
   return st
-
 # -- one connector attempt (proof 2.3)
 def attempt(st, coins, dmin=33, xor_cap=1 << 18):
   """One connector attempt.  Returns (status, info); info["xors"] = work units, info["draws"] = coin words."""
@@ -1083,13 +989,12 @@ def attempt(st, coins, dmin=33, xor_cap=1 << 18):
   info["xors"] = budget[0]
   info["draws"] = coins.draws
   return status, info
-
 def _attempt(st, coins, dmin, budget):
   rows_a1 = st.a1rows
   ref = st.ref
   Linv = st.Linv
   ED = Ech(budget)
-  for j in st.FIX:                                       # D1
+  for j in st.FIX:  # D1
     if ED.add(Linv[j]) < 0:
       return "dinc", None
   for (y, z) in ROWS:
@@ -1097,7 +1002,7 @@ def _attempt(st, coins, dmin, budget):
       for b in rowbits(y, z):
         if ED.add(1 << b) < 0:
           return "dinc", None
-  order = list(st.act)                                   # D2
+  order = list(st.act)  # D2
   coins.perm(order)
   A2sel = {}
   for (y, z) in order:
@@ -1125,13 +1030,13 @@ def _attempt(st, coins, dmin, budget):
     if sel is None:
       return "dinc", None
     A2sel[(y, z)] = sel
-  EM = Ech(budget)                                       # M1
+  EM = Ech(budget)  # M1
   for j in st.FIX:
     if EM.add(Linv[j] | (st.fixval[j] << N)) < 0:
       return "minc", None
   beta0 = 0
   Srow = {}
-  for (y, z) in order:                                   # M2
+  for (y, z) in order:  # M2
     o = rows_a1[(y, z)]
     rb = rowbits(y, z)
     rv = getrow(ref, y, z)
@@ -1165,7 +1070,7 @@ def _attempt(st, coins, dmin, budget):
       return "tda", None
   aff = {}
   full = frozenset(range(32))
-  for r in st.lin_rows:                                  # M3
+  for r in st.lin_rows:  # M3
     y, z = r
     rb = rowbits(y, z)
     masks = tuple(sorted(st.rowmasks[r]))
@@ -1209,17 +1114,16 @@ def _attempt(st, coins, dmin, budget):
         if par(m & (CHI5[b ^ e] ^ CHI5[b])):
           f ^= (1 << rb[pp]) ^ (((b >> pp) & 1) << N)
       aff[(r, m)] = f
-  for (parts, c) in st.condparts:                        # M4
+  for (parts, c) in st.condparts:  # M4
     f = c << N
     for r, m in parts.items():
       f ^= aff[(r, m)]
     if EM.add(f) < 0:
       return "cond", None
-  DF = N - EM.rank()                                     # M5
+  DF = N - EM.rank()  # M5
   if DF < dmin:
     return "lowdf", {"DF": DF}
   return "ok", {"EM": EM, "beta0": beta0, "DF": DF}
-
 def solve(EM, xfree):
   piv = EM.piv
   xv = xfree
@@ -1228,14 +1132,12 @@ def solve(EM, xfree):
     if par(f & ((1 << p) - 1) & xv) ^ ((f >> N) & 1):
       xv |= 1 << p
   return xv
-
 # -- space and enumeration E (proof 2.4)
 def enum_basis(EM, beta0, nb=32):
   """Offset v0 and the enumeration basis b_1..b_nb of proof 2.4 (kept free-variable solutions)."""
   free = [i for i in range(N) if i not in EM.piv]
   v0 = solve(EM, 0)
   piv = {}
-
   def addv(w):
     v = w
     while v:
@@ -1255,16 +1157,13 @@ def enum_basis(EM, beta0, nb=32):
     if addv(b):
       basis.append(b)
   return v0, basis
-
 def digest5(A0):
   s = A0
   for r in range(5):
     s = rnd(s, r)
   return s & ((1 << 256) - 1)
-
 def message(A0):
   return (A0 & ((1 << 1080) - 1)).to_bytes(135, "little")
-
 def e_window(st, v0, basis, beta0, lo, count, s2cap=None):
   """E on coordinates lo..lo+count-1 (c: x = v0 + sum of b_j, j in c): if the 10 rows of beta2 of
   u = L(chi(L(chi(x) + RC0)) + RC1) lie in V(beta2_r, alpha3_r), compare the 5-round digests of L^-1(x),
@@ -1285,21 +1184,16 @@ def e_window(st, v0, basis, beta0, lo, count, s2cap=None):
       if out is None and digest5(A) == digest5(B):
         out = (c, message(A), message(B))
   return passes, out
-
 # -- exact facts (proof Section 3)
 SENTINEL = (bytes(135), b"\x01" + bytes(134))
 STATUS = {"ok": 0, "dinc": 1, "minc": 2, "tda": 3, "lin": 4, "cond": 5, "lowdf": 6, "cap": 7}
-
 def kernel(s):
   L = lanes(s)
   return all((L[x] ^ L[x + 5] ^ L[x + 10] ^ L[x + 15] ^ L[x + 20]) == 0 for x in range(5))
-
 def active_rows(s):
   return [(y, z, getrow(s, y, z)) for (y, z) in ROWS if getrow(s, y, z)]
-
 def wt(d, o):
   return 5 - (DDT[d][o].bit_length() - 1)
-
 def facts(st):
   ok = []
   a3 = st.alpha3
@@ -1330,7 +1224,6 @@ def facts(st):
             s |= 1 << (64 * (x + 5 * y) + z)
         ol.append((Lmap(s) & M320, DDT[d][o]))
     opts.append(ol)
-
   def combos(group):
     out = [(0, 1)]
     for ol in group:
@@ -1374,7 +1267,6 @@ def facts(st):
     good_linv = good_linv and all(par(st.Linv[j] & sv) == (img >> j) & 1 for j in range(N))
   ok.append(good_linv)
   return all(ok), ok
-
 def verify_space(st, info, coins):
   """Lemmas 1-2 on two solutions of the accepted space (free variables from coin words)."""
   EM, beta0 = info["EM"], info["beta0"]
@@ -1396,10 +1288,8 @@ def verify_space(st, info, coins):
     if rnd(rnd(A, 0), 1) ^ rnd(rnd(B, 0), 1) != st.alpha2:
       return False
   return True
-
 # -- the algorithm (proof 2): phases and hard caps
-K_SPACES, A_ADV, A_MAX, S2CAP = 128, 1 << 12, 1 << 16, 1 << 11
-
+K_SPACES, A_ADV, A_MAX, S2CAP = 56, 1 << 12, 1 << 16, 1 << 11
 def algorithm(label):
   """Driver (proof 2.5) after P; label-derived coins (fresh words in the algorithm).  B' resumes after a
   discarded advice under one 2^34-unit budget; caps K, A_ADV, A_MAX, S2CAP; E on the K spaces in order."""
@@ -1434,34 +1324,31 @@ def algorithm(label):
           if out:
             return out[1:]
         return None
-      WK.cap = cap + WK.cost() - h        # connector and S work is charged to their own terms, not to B'
+      WK.cap = cap + WK.cost() - h  # connector and S work is charged to their own terms, not to B'
   except BudgetExceeded:
     return None
   finally:
     WK.cap = None
   return None
-
 # -- pre-registered runs (proof 4)
 # B' runs k = 0..8 (label blabel(k)).  BRUNS[k] = (c, j of the output, DF, setup row ops of c, [(BCODE
 # status, DF, row ops) of attempts 0..j of c], whole-run cost in 1/1355 units, advice hash).
 LABEL_B = b"hashsmash sha3-256-r5 v6 B-prime advice run 1"
 BCODE = {"ok": 0, "d2u": 1, "m2": 2, "lowdf": 3, "r1inc": 4, "verifyfail": 5}
 BRUNS = [
-  (5, 9, 41, 9455652, [(3,28,22643603), (2,-1,16402616), (1,-1,4354998), (1,-1,4179068), (2,-1,11679482), (2,-1,4919172), (1,-1,3925603), (3,20,22051186), (1,-1,4245337), (0,41,23444127)], 197406782652, "df21a71e7c62733c"),
-  (0, 2, 42, 9396804, [(1,-1,4796644), (2,-1,19742471), (0,42,25889567)], 15477633191, "00204020a47686d2"),
-  (14, 5, 42, 9406316, [(1,-1,4720211), (2,-1,8020036), (2,-1,6742127), (2,-1,6343411), (2,-1,5330972), (0,42,25675211)], 422981197118, "9ac1346b704e2c6f"),
-  (9, 10, 49, 9563576, [(2,-1,5618710), (2,-1,6582312), (2,-1,4764262), (1,-1,2305190), (1,-1,2561435), (2,-1,4191856), (1,-1,2342680), (2,-1,9112648), (2,-1,17325648), (2,-1,7156877), (0,49,30730486)], 176961614948, "6b30dc9d72ee95a9"),
-  (11, 2, 66, 9492701, [(2,-1,7858756), (1,-1,3782543), (0,66,26157660)], 308830018024, "ce139e77121543cb"),
-  (2, 11, 40, 9426553, [(1,-1,4651719), (2,-1,17179270), (2,-1,7957189), (3,34,23466530), (2,-1,7588098), (2,-1,7040094), (1,-1,5192853), (1,-1,4655979), (3,39,23684776), (1,-1,5380802), (1,-1,4921839), (0,40,23431698)], 104491855877, "019fb5861f8592f5"),
-  (7, 6, 47, 9562407, [(1,-1,4512662), (2,-1,8851237), (2,-1,7459743), (2,-1,5329546), (1,-1,4771760), (1,-1,4480380), (0,47,29996425)], 302626228894, "22fcc6e37c13fad2"),
-  (6, 10, 50, 9470713, [(2,-1,5558291), (2,-1,5562425), (2,-1,9023704), (2,-1,5102554), (2,-1,5002579), (2,-1,6292298), (1,-1,5237673), (2,-1,5060240), (1,-1,3883346), (2,-1,5142630), (0,50,26750922)], 204120587481, "6d3cb04f43e88ca0"),
-  (2, 4, 41, 9333564, [(2,-1,19868556), (3,31,23488369), (2,-1,10846031), (3,23,22292276), (0,41,23725093)], 36540767234, "e4d6d59a82d82271")]
+  (5,9,41,9455652,[(3,28,22643603),(2,-1,16402616),(1,-1,4354998),(1,-1,4179068),(2,-1,11679482),(2,-1,4919172),(1,-1,3925603),(3,20,22051186),(1,-1,4245337),(0,41,23444127)],197406782652,"df21a71e7c62733c"),
+  (0,2,42,9396804,[(1,-1,4796644),(2,-1,19742471),(0,42,25889567)],15477633191,"00204020a47686d2"),
+  (14,5,42,9406316,[(1,-1,4720211),(2,-1,8020036),(2,-1,6742127),(2,-1,6343411),(2,-1,5330972),(0,42,25675211)],422981197118,"9ac1346b704e2c6f"),
+  (9,10,49,9563576,[(2,-1,5618710),(2,-1,6582312),(2,-1,4764262),(1,-1,2305190),(1,-1,2561435),(2,-1,4191856),(1,-1,2342680),(2,-1,9112648),(2,-1,17325648),(2,-1,7156877),(0,49,30730486)],176961614948,"6b30dc9d72ee95a9"),
+  (11,2,66,9492701,[(2,-1,7858756),(1,-1,3782543),(0,66,26157660)],308830018024,"ce139e77121543cb"),
+  (2,11,40,9426553,[(1,-1,4651719),(2,-1,17179270),(2,-1,7957189),(3,34,23466530),(2,-1,7588098),(2,-1,7040094),(1,-1,5192853),(1,-1,4655979),(3,39,23684776),(1,-1,5380802),(1,-1,4921839),(0,40,23431698)],104491855877,"019fb5861f8592f5"),
+  (7,6,47,9562407,[(1,-1,4512662),(2,-1,8851237),(2,-1,7459743),(2,-1,5329546),(1,-1,4771760),(1,-1,4480380),(0,47,29996425)],302626228894,"22fcc6e37c13fad2"),
+  (6,10,50,9470713,[(2,-1,5558291),(2,-1,5562425),(2,-1,9023704),(2,-1,5102554),(2,-1,5002579),(2,-1,6292298),(1,-1,5237673),(2,-1,5060240),(1,-1,3883346),(2,-1,5142630),(0,50,26750922)],204120587481,"6d3cb04f43e88ca0"),
+  (2,4,41,9333564,[(2,-1,19868556),(3,31,23488369),(2,-1,10846031),(3,23,22292276),(0,41,23725093)],36540767234,"e4d6d59a82d82271")]
 BGROUPS = [(0, 1), (2, 3), (4, 5), (6, 7), (8,)]
 T_CONN = 32
-
 def blabel(k):
   return LABEL_B if k == 0 else b"hashsmash sha3-256-r5 v8 B-prime fresh run %d" % k
-
 def b_check(base, OB, k, j, cs=None):
   """Re-run candidate c of B' run k from its label (unless cs is given) and its attempt j; compare with BRUNS[k]."""
   c, J, df, srow, atts, cost, h = BRUNS[k]
@@ -1478,17 +1365,15 @@ def b_check(base, OB, k, j, cs=None):
   if j == J:
     ok = ok and res["st"] == "ok" and hashlib.sha256((hex(cs.beta1) + hex(b0)).encode()).hexdigest()[:16] == h
   return ok, {"k": k, "c": c, "j": j, "status": got[0], "df": got[1], "rows": got[2], "setup_rows": srow_got}, cs, b0
-
 # v6 run (proof 4.2): REPLAYS = (attempt, coordinate); AUDIT_LOG[i] = "-" (rejected) or chr(97 + DF - 33).
 LABEL = b"hashsmash sha3-256-r5 v6 run"
-REPLAYS = [(38, 0x3a3dfc53), (126, 0xe7bb4868), (128, 0x03527ad5), (184, 0x93151f93), (205, 0x17a92e95), (210, 0xc4b6d61e), (232, 0xd83a2af9), (246, 0xbaf5b430), (253, 0x893eed61), (275, 0x03232068), (317, 0x38473f47), (327, 0x8ff14754), (390, 0xb23e6790), (462, 0xb49b4036)]
+REPLAYS = [(38,0x3a3dfc53),(126,0xe7bb4868),(128,0x03527ad5),(184,0x93151f93),(205,0x17a92e95),(210,0xc4b6d61e),(232,0xd83a2af9),(246,0xbaf5b430),(253,0x893eed61),(275,0x03232068),(317,0x38473f47),(327,0x8ff14754),(390,0xb23e6790),(462,0xb49b4036)]
 WINDOW = 1 << 12
 AUDIT_LOG = "iijijiiiiji--ih-hji-hihhj--iiii-hh-ijiiihiihjhiiihiiihhiihii-ihhiijihijjihjhjjhiiiiijiij-j-jihiijiijiijhiiiiiihiijiiiiijihjijiiihhiihijjjhi-ihiiiiiiiiiiihijiiihhhih-i--j-hjhhiijiih-iihjhijjihjjhhiij-ihhiiihiijihii-ijhiiiiijiiihhiiiiiijhiiiihihiiiihhihhihjiiiijijhijiiiji-iiijjihihiijiijjjihiiiijiijiihhijjjii-hjihjhjhij-hihihhhihhjjjiiihiiiiihjiiiihjjihiiihijjijhjijhhi-hhihhiiijhihijiiiijihiijiihhhijiiijiiijijjhiijiiiijhijihihiiiihhijihiiijiii-ijijiiijihhiihiiiihijiiiiiiiiihhiijhiiiiihijjjjjhiiihiihj-hhiijihiihiijhiihjiiihihijiih-hiii"
 DEN_N = 180
 FAIL_PAIR = (bytes(135), b"\x02" + bytes(134))
 # E-check collisions with fresh advice (proof 4.3): (k, connector attempt index, coordinate)
-REPLAYS8 = [(4, 0, 0x13c3cc2f), (4, 0, 0x9707a665), (7, 2, 0x1e5fa912)]
-
+REPLAYS8 = [(4,0,0x13c3cc2f),(4,0,0x9707a665),(7,2,0x1e5fa912)]
 def replay(st, lab, i, coord):
   """Re-run attempt i of run lab, rebuild its basis, run E on the 2^12 aligned coordinates containing coord."""
   status, info = attempt(st, Coins(run_seed(lab, i)))
@@ -1502,7 +1387,6 @@ def replay(st, lab, i, coord):
     return obs, None
   obs["coordinate"] = coord
   return obs, out[1:]
-
 def rows_for(mode, trials):
   n = len(trials)
   out = [(None, {}) for _ in range(n)]
@@ -1572,7 +1456,6 @@ def rows_for(mode, trials):
       if got == AUDIT_LOG[i]:
         out[t] = (SENTINEL if status == "ok" else FAIL_PAIR, {"index": i, "status": STATUS[status]})
   return out
-
 def main():
   req = json.loads(sys.stdin.read())
   rows = []
@@ -1580,6 +1463,5 @@ def main():
     rows.append({"trial": tr["trial"], "message_a_hex": pair[0].hex() if pair else None,
           "message_b_hex": pair[1].hex() if pair else None, "observations": obs})
   sys.stdout.write(json.dumps({"schema_version": 1, "trials": rows}, separators=(",", ":")))
-
 if __name__ == "__main__":
   main()
