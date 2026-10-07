@@ -1,373 +1,2401 @@
-# A fixed-function collision baseline for 2-round BLAKE3
+# A free half-collision and a two-level sub-class search for 2-round BLAKE3
 
-The scalar below is `time_log2` under `collision-frontier-v5`. Memory remains
-a separately reported resource bound.
+The scalar below is `time_log2` under `collision-frontier-v5`. Memory is a
+separately reported resource bound.
 
-This independent exploratory package targets blake3-r2-prefix-v1. It proposes
-a classical randomized algorithm with success at least 1/2, total charged time
-at most 2^140 units, and peak memory at most 2^137 bytes under
-collision-frontier-v5. These are conservative analytical upper bounds, not
-measured execution costs. The claimed scalar is 140.
+This exploratory package targets blake3-r2-prefix-v1. It has an exact part and
+a heuristic part, and it keeps them apart. It continues entry c66f230d of the
+same participant (time_log2 97.6) on the same pair of lengths and with the same
+six constants. Section 11 corrects the errors that were found in the text of
+that entry, Section 12 says what is the same and what is new, and Section 13
+credits the people and the models whose work is used here.
 
-The algorithm, domain, probability argument and RAM loop envelopes are those of
-the organizer generic-birthday package. The only material change is to price
-that same envelope under the published v5 weights: one selected 2-round BLAKE3
-compression costs 1, and every other listed 256-bit RAM primitive costs 1/C
-with C=430 for blake3-r2. Charging those word operations at 1 instead of 1/C
-produced the looser scalar 149; that envelope is retained as an operation
-count, then converted. The nominal display exponent 128 is not used as a
-qualified baseline.
+**Exact part.** An explicit construction maps any eight 32-bit words to a
+55-byte message A and a 63-byte message B whose complete 2-round BLAKE3-256
+digests agree on digest words 0, 2, 5 and 7, that is on 128 of the 256 digest
+bits. There is no search in this construction and no probability: it holds for
+all 2^256 choices of the eight words (Sections 2 to 5). One of the eight words
+is the value of one internal word of round 1, called Y4. The search holds Y4
+inside a set of 131,072 values, a *sub-class* of the class of 524,288 values
+that entry c66f230d searched (Section 6.1).
 
-The proof uses no distributional property of the selected hash: every fixed function from
-the chosen message domain to 256-bit strings satisfies its probability bound.
-Fresh independent uniform coins are the explicit RAM model's random-word
-primitive. No PRNG, random-oracle, round-independence, or differential heuristic
-is assumed. Accordingly the heuristic list is empty.
+**Heuristic part.** A collision needs the other four digest words to agree as
+well. The algorithm searches 2^101.442 such pairs, all with Y4 in the
+sub-class, for one where they do. The search is arranged in two levels: the
+values of a trial that depend only on the outer loop and on Y4 are computed
+once per outer step and kept in a table of fixed size, which serves 2^32 passes
+over the sub-class. Nothing grows with the number of trials, and nothing is
+sorted or looked up by value. Seven trials are evaluated in one 256-bit word,
+in two stages. Every batch runs stage A, which tests eight bit conditions on
+one internal word of every trial (rule A). Only a batch in which a trial
+satisfies rule A runs stage 2, which tests a 32-bit condition that every
+collision satisfies. A batch in which no trial satisfies rule A is dropped; a
+trial that fails rule A is examined further only if another trial of its batch
+satisfies it, and Section 7 does not count such a trial. A trial is charged 7.7
+primitive operations, memory loads and stores included. Three heuristics are
+declared: H1, that a trial satisfies rule A and completes the collision with
+probability at least 49,400,000 * 2^-128 = 2^-102.442, and that such trials do
+not come in clusters; H2, that a budget on the passes of the second test
+suffices; and H3, that at most one batch in 32 runs stage 2. Under the three
+the search succeeds with probability at least 0.39. Total charged time is below
+2^95.65 target-compression units, so the claimed scalar is 95.7. The search
+needs less than 2^23 bytes of memory; the declared 2^35 bytes also cover the
+computations by which the constants, the class, the sub-class and the rule were
+selected (Sections 6 to 9).
 
-## 1. Exact complete hash
+The rate in H1 is an assumption: 49,400,000 times the rate of a uniform 128-bit
+value. It is not read off single digest words. Section 10 describes what it is
+set against. The remaining half of the digest depends on seven words, one of
+which is Y4. Under the model that the other six behave like independent uniform
+words over the trials, the rate is the number of solutions of a fixed system of
+equations, and that number is counted in integer arithmetic: it is
+185,377,197.55 times 2^-128 for Y4 in the sub-class (162,266,763.66 for the
+whole class). Rule A is not implied by a collision: some solutions violate it
+and are lost. Of the count, 185,358,111 satisfy rule A; the figure that the
+claim uses is the smaller 185,355,453, which leaves out in full every part of
+the count in which some solution violates rule A. H1 assumes 49,400,000 times,
+3.75 times less. The rates with and without rule A are equal, to the last digit
+of every fraction, to those of another AI model (GPT Sol 6.1), which proposed
+the sub-class and the rule; the figure 185,355,453 that the claim uses is the
+participant's alone. The counting programs are not part of the package, and
+they and all their checks are the participant's or that model's. The model was
+compared with real messages only on events of probability about 2^-40 and
+above. In the arrangement of this package those comparisons show that the model
+does not hold inside one outer step, neither for rule A nor for the call E1:
+only averages over outer steps have the model's values (Section 10). Real
+messages have since been run for the sub-class with rule A on a graphics card
+(2^44.59 trials; rule A passes at 2^-8.000002 and a marker at 2^-32.2 is about
+1.18 times richer in the sub-class than in the whole class, which is not the
+counted gain 1.142; the deeper marker of those tools, at 2^-40.15, has 14
+counts against 21.59 expected and settles nothing at that precision, while the
+same sub-class on random outer words in a later run has 275 against 288.1) and
+in a scaled-down end-to-end run with real collisions that has both the
+sub-class and an eight-condition rule; no run reaches a collision together with
+rule A, and the organizer-run experiments measure neither the model nor the
+factor (Section 10). With the uniform rate, and not 49,400,000 times it, the
+same search needs 2^127 trials and gives time_log2 = 121.3.
 
-Each message is exactly 64 bytes, of bit length 512 < 2^64. Two 256-bit words
-u,v encode m=LE32(u)||LE32(v), where LE32 includes all 32 little-endian bytes,
-including zeros. These encodings bijectively cover a domain D of size 2^512.
-There is no unknown IV, free-start state, or supplied prefix/advice.
+No full 2-round collision is exhibited, and the search is far beyond feasible
+computation. What is exhibited, and checked by the organizer's own runner, is
+the exact half-collision on trials of the search and a toy-scale run of the
+search over the sub-class, without the two tests, the table and the packing
+that set the cost of a trial. The program the organizer runs also contains the
+four counted pieces of the search (outer step, table build, middle step, packed
+two-stage batch), a machine that counts their operations, loads and stores, and
+a self-test of that count (Section 6.5). Those counts are the program's own;
+the organizer does not check them.
 
-H is unkeyed BLAKE3-256 with 2 prefix rounds in every compression.
-On these exactly 64-byte messages there is one chunk, one full block, no parent,
-and exactly one compression with CHUNK_START | CHUNK_END | ROOT = 11.
-There is no extra padding block, key, or derivation flag. The true block length
-is 64 and both the chunk index and root-output counter are zero.
+## 1. Exact complete hash on the messages used
 
-Decode m into sixteen little-endian 32-bit words w[0..15]. The eight-word IV is
+H is unkeyed BLAKE3-256 with only rounds 0 and 1 kept in every compression.
+Every message produced has n = 55 or n = 63 bytes. A message of n <= 64 bytes
+is one chunk consisting of one block, with no parent node, so H evaluates
+exactly one compression. The block is the message followed by 64 - n zero
+bytes, used only for loading words. The compression has flags
+CHUNK_START | CHUNK_END | ROOT = 11, true block length n, and chunk counter
+and root-output counter both zero. There is no key and no derivation flag.
+
+Decode the zero-filled block into sixteen little-endian 32-bit words w[0..15].
+The IV is
 
     6a09e667 bb67ae85 3c6ef372 a54ff53a
     510e527f 9b05688c 1f83d9ab 5be0cd19.
 
-Initialize v[0..7]=IV, v[8..11]=IV[0..3], and
-v[12..15]=(0,0,64,11). All arithmetic additions below are modulo 2^32;
-ROR rotates right within a 32-bit lane. Define G(a,b,c,d,x,y) on v by
+Initialize v[0..7] = IV, v[8..11] = IV[0..3] and v[12..15] = (0, 0, n, 11).
+The block length n is the initial value of v[14] and enters nowhere else. All
+additions and subtractions on state and message words are modulo 2^32. ROR and
+ROL rotate a 32-bit word. G(a,b,c,d,x,y) is
 
-    v[a] = v[a]+v[b]+x; v[d] = ROR(v[d] XOR v[a],16)
-    v[c] = v[c]+v[d];   v[b] = ROR(v[b] XOR v[c],12)
-    v[a] = v[a]+v[b]+y; v[d] = ROR(v[d] XOR v[a],8)
-    v[c] = v[c]+v[d];   v[b] = ROR(v[b] XOR v[c],7).
+    v[a] = v[a]+v[b]+x;  v[d] = ROR(v[d] XOR v[a],16)
+    v[c] = v[c]+v[d];    v[b] = ROR(v[b] XOR v[c],12)
+    v[a] = v[a]+v[b]+y;  v[d] = ROR(v[d] XOR v[a],8)
+    v[c] = v[c]+v[d];    v[b] = ROR(v[b] XOR v[c],7).
 
-For each round, use the current message schedule s, initially w, and call
+A round is four column calls followed by four diagonal calls on the current
+schedule s, and between rounds s is replaced by s[P[i]] with
+P = (2,6,3,10,7,0,4,13,1,11,12,5,9,14,15,8). Written out for the two retained
+rounds, with names used throughout:
 
-    G(0,4,8,12,s[0],s[1]);    G(1,5,9,13,s[2],s[3])
-    G(2,6,10,14,s[4],s[5]);   G(3,7,11,15,s[6],s[7])
-    G(0,5,10,15,s[8],s[9]);   G(1,6,11,12,s[10],s[11])
-    G(2,7,8,13,s[12],s[13]);  G(3,4,9,14,s[14],s[15]).
+    round 0   K0 = G(0,4,8,12, w0, w1)     K1 = G(1,5,9,13, w2, w3)
+              K2 = G(2,6,10,14, w4, w5)    K3 = G(3,7,11,15, w6, w7)
+              D0 = G(0,5,10,15, w8, w9)    D1 = G(1,6,11,12, w10, w11)
+              D2 = G(2,7,8,13, w12, w13)   D3 = G(3,4,9,14, w14, w15)
+    round 1   C0 = G(0,4,8,12, w2, w6)     C1 = G(1,5,9,13, w3, w10)
+              C2 = G(2,6,10,14, w7, w0)    C3 = G(3,7,11,15, w4, w13)
+              E0 = G(0,5,10,15, w1, w11)   E1 = G(1,6,11,12, w12, w5)
+              E2 = G(2,7,8,13, w9, w14)    E3 = G(3,4,9,14, w15, w8)
 
-Between rounds replace s by s[P[i]], where
-P=(2,6,3,10,7,0,4,13,1,11,12,5,9,14,15,8).
-Execute exactly the first 2 rounds, with no later rounds. The full
-compression output is o[i]=v[i] XOR v[i+8], and
-o[i+8]=v[i+8] XOR IV[i], for i=0..7. The digest H(m) is
-LE4(o[0]) || ... || LE4(o[7]), the first 32 root-output bytes.
-This retains the ordinary hash's flags and feed-forward, rather than searching
-for a collision of a free-start or non-root compression function.
+S denotes the state after K0..K3, X the state after round 0, Y the state after
+C0..C3 and Z the final state. The compression output is
+o[i] = Z[i] XOR Z[i+8] and o[i+8] = Z[i+8] XOR IV[i] for i = 0..7. The digest
+H(m) is the first 32 output bytes, LE4(o[0]) || ... || LE4(o[7]).
 
-The target profile permits other message lengths and preserves the complete
-standard 1024-byte chunk tree, parent nodes, counters and root output, with the
-same prefix reduction in every compression. This algorithm only generates
-64-byte messages, so the one-root-compression description covers every hash
-it evaluates, including final verification. No uncharged parent, chunk or
-second root-output compression is needed on this domain.
+This is the complete hash of the target profile restricted to inputs of 55
+and 63 bytes: standard IV, standard flags, true block length, both retained
+rounds with the standard permutation, standard feed-forward and the full
+256-bit digest. It is not a free-start, chosen-IV, compression-only or
+truncated-output setting.
 
-## 2. Algorithm and representation
+## 2. Inverting one G call
 
-Set n=2^129. A record is three 256-bit words (h,u,v), with h the little-endian
-integer encoding of H(LE32(u)||LE32(v)). Unsigned comparison of h is a total
-order whose equality is full digest equality. Use two flat arrays A and B,
-each of n records. Explicitly initialize all six words per index across the
-two arrays; allocation and initialization are charged.
+Consider one call G(a,b,c,d,x,y) with input values A, B, C, D and name its
+eight assignments
 
-1. For i=0,...,n-1, draw fresh independent uniform 256-bit words u and v,
-   construct their 64-byte message, compute its complete H, and store
-   (h,u,v) in A[i]. Retain repeated inputs; there is no resampling.
-2. Sort by full h using stable, iterative bottom-up merge sort with A and B
-   as alternating source/destination arrays. For widths w=1,2,4,...,2^128,
-   merge successive pairs of sorted runs of length w. Choose the left run
-   on digest ties, copy all three words of every record, and exchange the
-   two array base pointers at the end of each pass. Exactly 129 passes
-   each write exactly n records.
-3. Scan all adjacent positions j-1,j in the sorted source array, from j=1
-   through n-1. Test h equality and inequality of the pair (u,v), testing
-   both message words. On the first qualifying pair, reconstruct both
-   messages and recompute both complete hashes from the all-zero state.
-   Check message distinctness and equality of all 256 recomputed output
-   bits. Return the two messages if verified; otherwise halt with failure.
-4. If the scan finishes without such a pair, halt with failure.
+    a1 = A + B + x           d1 = ROR(D XOR a1, 16)
+    c1 = C + d1              b1 = ROR(B XOR c1, 12)
+    a2 = a1 + b1 + y         d2 = ROR(d1 XOR a2, 8)
+    c2 = c1 + d2             b2 = ROR(b1 XOR c2, 7).
 
-There is one batch, no restart, and at most one final verification of two
-messages. Verification failure cannot occur in the exact RAM model because
-the original digests came from the same deterministic H. This explicit
-defensive check is still charged. Every outcome halts within the same budget.
+Its outputs are (a2, b2, c2, d2). The values a1, d1, c1, b1 are called the
+first, second, third and fourth value of the call, a2 the fifth, and so on.
 
-For a concrete merge, maintain w, run start b, source cursors i=b,j=b+w,
-ends b+w,b+2w, and destination cursor k=b. While k<b+2w, choose the nonempty
-run if the other is exhausted; otherwise load and compare both h words.
-Copy all three words of the selected record, advance its source cursor, and
-advance k. When the run is complete, advance b by 2w. When the pass ends,
-swap source/destination base pointers and double w. All boundaries are exact
-because n is a power of two. There is no recursive stack or library sort.
+**Fact 1.** Reading the assignments backwards,
 
-Record i starts at byte address base+96i, calculated as
-base+(i<<6)+(i<<5), without multiplication. Word offsets are 0,32,64.
-Indices, counters, sentinels, run boundaries and byte addresses are less than
-2^138, far below 2^256. The value n is made by 1<<129. Message contents occupy
-two words; no 512-bit single-word arithmetic is assumed. The proof's symbolic
-domain/codomain cardinalities need not be represented in the machine.
+    b1 = ROL(b2, 7) XOR c2       c1 = c2 - d2       d1 = ROL(d2, 8) XOR a2
+    B  = ROL(b1, 12) XOR c1      C  = c1 - d1
+    a1 = ROL(d1, 16) XOR D       y  = a2 - a1 - b1      x = a1 - A - B.
 
-## 3. Correctness of any returned collision
+Each line is one assignment solved for another of its terms. A set of words
+A, B, C, D, x, y, a1, d1, c1, b1, a2, d2, c2, b2 is the execution of one
+call exactly when the eight assignments hold, in whatever order and for
+whichever of their terms they were solved. The constructions below use
+nothing else: every line of theirs is one assignment of one call, solved
+for the name on its left.
 
-The standard merge invariant says each output prefix contains the smallest
-remaining keys of its two sorted inputs. Copying entire records preserves
-each digest's associated message. Induction over the passes therefore sorts
-all original records without deleting any.
+## 3. Three ingredients
 
-Every fixed digest occupies a contiguous interval in the sorted array. If
-that interval contains distinct messages, some adjacent messages differ:
-otherwise equality of every adjacent pair would make the entire interval
-one repeated message by transitivity. Thus the scan finds a distinct-message
-collision whenever the sample contains one, including samples with repeated
-inputs. Repeated inputs alone are never accepted as collisions.
+**3.1 The length is cancelled inside K2.** K2 is the only call of round 0 that
+reads the block length n, the initial value of v[14], and it overwrites that
+word; it is also the only call of round 0 that reads w4 and w5. Its inputs are
+(IV[2], IV[6], IV[2], n). Put K = IV[2] + IV[6] = 5bf2cd1d. For lengths 55 and
+63, whose XOR is 8, define for any w4, w5
 
-Every returned message is in the profile's allowed domain. The explicit final
-checks establish inequality of the messages and equality of the entire
-complete-message hash from Section 1. This is an ordinary collision, not a
-compression-only, free-start, raw-permutation, truncated-output, or
-different-round result.
+    w4' = ((K + w4) XOR 8) - K        w5' = w5 + w4 - w4'.
 
-## 4. Success for every fixed function
+**Lemma L.** K2 with block length 55 and words (w4, w5) leaves the same four
+state words as K2 with block length 63 and words (w4', w5').
 
-The sole probability space consists of 2n independent uniform 256-bit words
-drawn in Step 1. Hence the messages M_1,...,M_n are independent uniform samples
-from D. For fixed deterministic H, the Y_i=H(M_i) are iid with probabilities
+Proof. Let a1 = K + w4. In the second execution the first assignment gives
+K + w4' = a1 XOR 8, so the second gives ROR(63 XOR a1 XOR 8, 16) =
+ROR(55 XOR a1, 16) because 63 XOR 8 = 55: the same d1. The third and fourth
+depend only on d1 and constants. The fifth gives
+(a1 XOR 8) + b1 + w5' = a1 + b1 + w5 because
+w5' - w5 = w4 - w4' = a1 - (a1 XOR 8). The last three depend only on values
+already shown equal. QED.
 
-    p_y = |{m in D : H(m)=y}| / 2^512.
+Hence two messages of 55 and 63 bytes that share every word except w4, w5,
+related as above, have the same state S after the column step and the same
+state X after round 0, since no other call of round 0 reads v[14], w4 or w5
+before K2 has made the states equal.
 
-There are Q=2^256 possible output strings, including any with probability zero.
-These probabilities may be arbitrarily nonuniform. Independence here follows
-from applying a fixed function separately to independent inputs, not from
-assuming independent internal rounds or assuming a randomly chosen hash.
+*Which words must be zero.* For both messages to be honest byte strings of
+their lengths with the same words w6..w15, the bytes 55 to 63 of the block
+must be zero in both. In the 55-byte message they are zero fill. In the
+63-byte message bytes 55 to 62 are its last eight bytes, which are chosen
+to be zero, and byte 63 is zero fill. Byte 55 is the top byte of w13, bytes
+56 to 59 are w14 and bytes 60 to 63 are w15. So the family needs
 
-For any probability vector p of length Q, let e_n(p) denote the sum of products
-of n distinct coordinates. Independence gives
+    w14 = 0,   w15 = 0,   top byte of w13 = 0,
 
-    Pr[all Y_i distinct] = n! e_n(p).
+and nothing else: bytes 0 to 54 are free in both messages.
 
-For completeness, uniform p maximizes e_n. A maximum exists by continuity on
-the compact simplex. Among maximizers choose one minimizing the sum of squared
-coordinates. If coordinates a,b differ, average them. With other coordinates
-r fixed,
+**3.2 A pinned call C3.** Fix the six constants
 
-    e_n(p) = ab e_(n-2)(r) + (a+b)e_(n-1)(r) + e_n(r).
+    X3 = 29d4fa98   X7 = bee3af28   X11 = 44036000   X15 = 40c58500
+    W4 = 97475638   W13 = 0007c006
 
-All coefficients are nonnegative. Averaging cannot decrease e_n, so it remains
-maximal, while the sum of squared coordinates strictly decreases. This
-contradicts the choice. The maximizing vector is therefore uniform, and
+The top byte of W13 is zero. K + W4 = f33a2355 and W4' = ((K + W4) XOR 8) - K =
+97475640, so W4 - W4' = fffffff8, that is -8 modulo 2^32. Evaluate C3 =
+G(3,7,11,15, w4, W13) on the inputs (X3, X7, X11, X15) with w4 = W4 and with w4
+= W4':
 
-    Pr[all Y_i distinct]
-      <= Q(Q-1)...(Q-n+1)/Q^n
-       = product_(j=0,...,n-1) (1-j/Q)
-      <= exp(-n(n-1)/(2Q))
-       = exp(-(2-2^-128))
-       < exp(-1).
+    w4 = W4    a1=7ffffff8 d1=7af83f3a c1=befb9f3a b1=01200183
+               a2=8127c181 d2=bbfbdffe c2=7af77f38 b2=76f7aefd
+    w4 = W4'   a1=80000000 d1=8500c0c5 c1=c90420c5 b1=fed77e78
+               a2=7edf3e7e d2=bbfbdffe c2=850000c3 b2=76f7aefd
 
-Here n<Q and 1-t<=exp(-t) on 0<=t<1, obtained by integrating the derivative
--1/(1-t)<=-1 of log(1-t). This also covers distributions with small support.
+**Fact P.** The two executions give the same d output bbfbdffe and the same b
+output 76f7aefd. They differ in the a output (8127c181, 7edf3e7e) and in the c
+output (7af77f38, 850000c3). This is a finite computation on the displayed
+constants.
 
-Let E be the event that some input messages repeat. The union bound gives
+**3.3 Half of the digest does not see the difference.**
 
-    Pr[E] <= n(n-1)/(2|D|) < 2^258/(2*2^512) = 2^-255.
+**Lemma H.** Take two executions of the 2-round compression that have the same
+state X after round 0 and the same message words except w4 and w5. Suppose
+(X[3], X[7], X[11], X[15]) = (X3, X7, X11, X15), w13 = W13, and w4 is W4 in the
+first execution and W4' in the second. Then the two digests agree on digest
+words 0, 2, 5 and 7.
 
-No independence of the pair-events is required. If outputs collide and E
-does not occur, the algorithm succeeds. Thus
+Proof. C0, C1, C2 read neither w4 nor w5 and act on identical states, so they
+leave identical values in both executions. C3 reads state words 3, 7, 11, 15
+and the words w4, w13; by Fact P it leaves the same v[7] and v[15] in both
+executions and may differ only in v[3] and v[11]. So Y agrees except possibly
+in Y[3] and Y[11]. E0 reads Y[0], Y[5], Y[10], Y[15] and w1, w11. E2 reads
+Y[2], Y[7], Y[8], Y[13] and w9, w14. None of these is Y[3], Y[11], w4 or w5, so
+E0 and E2 produce identical outputs Z[0], Z[5], Z[10], Z[15] and Z[2], Z[7],
+Z[8], Z[13]. Finally o[0] = Z[0] XOR Z[8], o[2] = Z[2] XOR Z[10],
+o[5] = Z[5] XOR Z[13] and o[7] = Z[7] XOR Z[15] use only those eight words.
+QED.
 
-    Pr[success] >= 1 - Pr[all Y_i distinct] - Pr[E]
-                > 1 - exp(-1) - 2^-255
-                > 1/2.
+The remaining digest words o[1] = Z[1] XOR Z[9], o[3] = Z[3] XOR Z[11],
+o[4] = Z[4] XOR Z[12] and o[6] = Z[6] XOR Z[14] are computed from the outputs
+of E1 and E3 only. The **residual** of a pair is the 128-bit string
+R = (o[1] XOR o'[1], o[3] XOR o'[3], o[4] XOR o'[4], o[6] XOR o'[6]). The pair
+is a collision exactly when R = 0.
 
-Indeed e=sum_(k>=0)1/k! > 8/3, so exp(-1)<3/8, and 2^-255<1/8.
-This intentionally conservative bound proves the declared 0.5 and exceeds
-the required 0.39. Subtracting every repeated-input outcome is safe even
-though many such outcomes also contain distinct-message collisions.
-The number concerns algorithmic success, not confidence in a proof or review.
+## 4. Construction: the message from eight words, in three levels
 
-## 5. Fully charged RAM implementation
+The construction places the six constants of 3.2 where Lemma H needs them,
+keeps w14 = w15 = 0, and gives the word Y4, the b output of C0, a prescribed
+value. Its input is eight free words. Six of them belong to an *outer step*:
 
-One 256-bit word is 32 bytes. Each selected compression costs one unit; every other listed RAM
-primitive costs 1/C units, where C=430. All bounds include
-message construction, failed samples, randomness, memory initialization,
-sorting, verification, and fixed code/constants. There is no external disk,
-unaccounted preprocessing service, whole-hash oracle, or free sorting step.
+    C0.c1, C0.d1, D3.d1, S15, S9, w5,
 
-Code and fixed storage are bounded explicitly. The algorithm above can use
-fewer than 100 loop-body statements outside the selected permutation, each
-expandable into fewer than 64 primitive instruction templates. A direct
-implementation of the displayed compression formulas needs fewer than 2,000
-additional templates, retaining a fixed loop over the selected rounds; operations on constant
-32-bit lane positions use shifts, masks and fixed addresses. The loops over
-records and merge widths remain loops. A ceiling of 2^16 instruction templates
-therefore exceeds the required code. Encode each template in at most four
-256-bit words (opcode and up to three operands), using separate primitive
-instructions for loads, stores and branches. Its size is at most 2^23 bytes.
+where C0.c1 and C0.d1 are the third and the second value of the round-1 call
+C0, D3.d1 is the second value of the round-0 call D3, S15 and S9 are words of
+the state after the column step of round 0 and w5 is a message word. The
+seventh is X2, a word of the state after round 0; the six words and X2 together
+are a *context*. The eighth is y, the value that Y4 is to have. The state words
+X3, X7, X11, X15 are the constants, w4 = W4, w13 = W13 and w14 = w15 = 0.
 
-Reserve another 2^23 bytes for public target constants, working state,
-register spills, loop counters, address variables, the current message/records,
-verification scratch and final output. In particular the compression may keep
-16 state words, 16 message words, 16 permuted message words and 8 IV words
-in individual RAM words. Thus all fixed
-storage is at most 2^24 bytes, or 2^19 words. This bound includes the program;
-no precomputed collision, target advice, large lookup table or hidden runtime
-is present. The bound refers to the specified RAM program, not Python or a
-host library. All fixed storage is initialized and its cost is charged below.
+*Names.* For a call TAG of Section 1, TAG.a1, TAG.d1, TAG.c1 and TAG.b1 are its
+first, second, third and fourth value (Section 2); its other four values are
+its outputs and carry the names of the state they are written to (S after the
+column step of round 0, X after round 0, Y after the column step of round 1).
+In the names of entry c66f230d, C0.c1 = vc, C0.d1 = vd, C0.b1 = vb and C0.a1 =
+va.
 
-The following large caps allow redundant copying, instruction decoding,
-explicit operand loading/storing and address arithmetic. They do not depend
-on treating high-level sort/serialization as unit-cost operations.
+The construction has four steps. Step O reads the six words of the outer step.
+Step M reads X2 in addition. Step Y reads the six words and y, and not X2. Step
+T reads everything. In every step a name on the right is one of the eight
+words, a constant or a name assigned on an earlier line of this step or of a
+step it may read, and all arithmetic is modulo 2^32. (The submitted program
+computes steps O and M in its functions `outer` and `middle`, which it
+describes as the first and the second part of "Step S1", the name of entry
+c66f230d; step Y is its function `member` and step T is in its function
+`trial`.)
 
-| Activity | Charged-unit upper bound |
-| --- | ---: |
-| Initialize code, constants and all fixed workspace | 2^24 |
-| Initialize both record arrays | 128n |
-| Generate, hash and retain n messages | 65536n |
-| Exactly 129 merge passes | 129 * 4096n |
-| Scan adjacent records | 2048n |
-| Final reconstruction, verification and output | 2^18 |
+**Step O (the outer step; 29 lines).**
 
-For fixed initialization, 2^19 words with at most 16 units per word costs
-at most 2^23, within the stated 2^24 cap. This loads the finite explicit code
-and public constants; it does not assume a target-dependent advice oracle.
-Array initialization uses six stores per index and fewer than 120 additional
-load/address/counter/control units, fitting the 128n cap.
+    K2, forwards from w5; its first four values are constants:
+        K2.a1 = IV[2] + IV[6] + W4;   K2.d1 = ROR(55 XOR K2.a1, 16)
+        K2.c1 = IV[2] + K2.d1;   K2.b1 = ROR(IV[6] XOR K2.c1, 12)
+        S2 = K2.a1 + K2.b1 + w5;   S14 = ROR(K2.d1 XOR S2, 8)
+        S10 = K2.c1 + S14;   S6 = ROR(K2.b1 XOR S10, 7)
+    D3 with w14 = w15 = 0, from D3.d1, its inputs S9, S14, its output X3:
+        D3.a1 = ROL(D3.d1,16) XOR S14;   D3.c1 = S9 + D3.d1
+        D3.b1 = X3 - D3.a1;   S4 = ROL(D3.b1,12) XOR D3.c1
+        S3 = D3.a1 - S4;   X14 = ROR(D3.d1 XOR X3, 8)
+        X9 = D3.c1 + X14;   X4 = ROR(D3.b1 XOR X9, 7)
+    K3, backwards from its outputs S3, S15:
+        K3.d1 = ROL(S15,8) XOR S3;   K3.c1 = IV[3] + K3.d1
+        K3.b1 = ROR(IV[7] XOR K3.c1, 12);   S11 = K3.c1 + S15
+        S7 = ROR(K3.b1 XOR S11, 7);   K3.a1 = ROL(K3.d1,16) XOR 11
+        w6 = K3.a1 - IV[3] - IV[7];   w7 = S3 - K3.a1 - K3.b1
+    C0, third assignment and fourth value; D2, backwards from X7, X8, S7:
+        X8 = C0.c1 - C0.d1;   C0.b1 = ROR(X4 XOR C0.c1, 12)
+        D2.b1 = ROL(X7,7) XOR X8;   D2.c1 = ROL(D2.b1,12) XOR S7
+        X13 = X8 - D2.c1
 
-Here is an explicit wrapper construction justifying 65536 per generated
-record. Extract the 64 message bytes from u,v by shifts and masks, pack them
-into sixteen little-endian 32-bit words, initialize the eight IV words and
-sixteen compression-state words, and encode the eight digest words into the
-one 256-bit record key. Fewer than 256 constant-size loop iterations suffice;
-each expands into fewer than 64 word operations including loads, stores,
-address arithmetic and control. Two fresh random-word draws, sample-loop
-control and three record stores fit in a further 1024 word operations.
-Thus all non-compression work fits below 65536 operations. The one selected
-root compression per message is charged separately, including at verification.
-Its code and working buffers are included in the fixed reserve.
+**Step M (the middle step; 21 lines, from X2).**
 
-For merges, each output record requires at most two exhaustion comparisons
-with branches, two key loads and a comparison/branch, three record loads and
-three stores, plus cursor/address updates and loop control. There are fewer
-than 64 such logical operations, each implementable with at most 16 charged
-primitive operations even allowing instruction/operand memory accesses and
-spills. This costs at most 1024 per record. Run setup is at most 64 such
-operations, or 1024 per run; every run emits at least two records. Pass setup
-is also at most 1024 per pass, which emits n>=2 records. Hence the per-output
-charge is at most 1024+512+512=2048, below the chosen 4096. This includes
-pointer swaps, run/pass endings and initialization of merge cursors.
-The scan uses fewer operations per pair than this merge loop and so fits
-2048n. Address calculation by stride 96 is expanded into shifts/adds as above.
+    D2, rest:
+        D2.a1 = X2 - D2.b1 - W13;   D2.d1 = ROL(X13,8) XOR X2
+        S13 = ROL(D2.d1,16) XOR D2.a1;   S8 = D2.c1 - D2.d1
+        w12 = D2.a1 - S2 - S7
+    K1, backwards from its outputs S9, S13:
+        K1.c1 = S9 - S13;   K1.d1 = K1.c1 - IV[1]
+        K1.a1 = ROL(K1.d1,16);   K1.b1 = ROR(IV[5] XOR K1.c1, 12)
+        S1 = ROL(S13,8) XOR K1.d1;   S5 = ROR(K1.b1 XOR S9, 7)
+        w2 = K1.a1 - IV[1] - IV[5];   w3 = S1 - K1.a1 - K1.b1
+    K0, backwards from its outputs S4, S8:
+        K0.b1 = ROL(S4,7) XOR S8;   K0.c1 = ROL(K0.b1,12) XOR IV[4]
+        K0.d1 = K0.c1 - IV[0];   K0.a1 = ROL(K0.d1,16)
+        S12 = S8 - K0.c1;   S0 = ROL(S12,8) XOR K0.d1
+        w0 = K0.a1 - IV[0] - IV[4];   w1 = S0 - K0.a1 - K0.b1
 
-Final verification uses at most two complete hash wrappers, message
-distinctness, full digest comparisons and output serialization: less than
-2*65536+1024 <2^18. There is no restart cost because no restart occurs.
+**Step Y (the member; 10 lines, from y and the outer step, without X2).**
 
-The table is an operation-count envelope, not a v5 price. Collision-frontier-v5
-charges one selected-round target compression as 1 and every other listed
-256-bit RAM primitive as 1/C, with C=430 for blake3-r2
-(operation_weights.word_operation = 1/430). The generate wrapper still includes
-a spare unit counted as a word operation, not as a second compression.
+    C0, backwards from its b output y:
+        Y8 = ROL(y,7) XOR C0.b1;   Y12 = Y8 - C0.c1
+        Y0 = ROL(Y12,8) XOR C0.d1;   C0.a1 = Y0 - C0.b1 - w6
+        X12 = ROL(C0.d1,16) XOR C0.a1
+    D1, backwards from its outputs X11, X12, with its inputs S6, S11:
+        D1.c1 = X11 - X12;   D1.b1 = ROR(S6 XOR D1.c1, 12)
+        X6 = ROR(D1.b1 XOR X11, 7);   D1.d1 = D1.c1 - S11
+        X1 = ROL(X12,8) XOR D1.d1
 
-Separate the two disjoint categories. Target compressions are the n hashes of
-Step 1 plus the two verification hashes:
+**Step T (the four words w8..w11; 12 lines).**
 
-    H = n + 2 < 2^130.
+    C0, its first assignment:
+        X0 = C0.a1 - X4 - w2
+    D0, backwards from its outputs X0, X15:
+        D0.d1 = ROL(X15,8) XOR X0;   D0.c1 = S10 + D0.d1
+        X10 = D0.c1 + X15;   D0.b1 = ROR(S5 XOR D0.c1, 12)
+        X5 = ROR(D0.b1 XOR X10, 7);   D0.a1 = ROL(D0.d1,16) XOR S15
+        w8 = D0.a1 - S0 - S5;   w9 = X0 - D0.a1 - D0.b1
+    D1, rest:
+        D1.a1 = ROL(D1.d1,16) XOR S12;   w10 = D1.a1 - S1 - S6
+        w11 = X1 - D1.a1 - D1.b1
 
-All remaining listed RAM primitives, including the spare generate unit, the
-fixed-storage initialization 2^24, and verification's non-compression work, are
-bounded by the same table:
+Steps O, M, Y and T assign the eleven message words w0..w3 and w6..w12 (w5 is
+one of the six words; w4 = W4, w13 = W13, w14 = w15 = 0 are constants);
+fourteen of the sixteen words S0..S15 (S9 and S15 are two of the six); and X0,
+X1, X4, X5, X6, X8, X9, X10, X12, X13, X14 (X2 is the seventh word).
 
-    W <= (128 + 65536 + 129*4096 + 2048)n + 2^24 + 2^18
-       = 596096n + 2^24 + 2^18
-       < 2^20 n
-       = 2^149.
+**Step S2.** w4' = W4' and w5' = w5 + W4 - W4', all modulo 2^32. For the
+constants of 3.2 that is w5' = w5 + fffffff8, the same as w5 - 8.
 
-Hence the v5 charged time is
+**Step S3.** A is the first 55 bytes of the little-endian encoding of w0..w15.
+B is the first 63 bytes of the encoding of the same words with w4, w5 replaced
+by w4', w5'.
 
-    T = H + W/C
-      < (n + 2) + (596096n + 2^24 + 2^18)/430.
+*Round 1, forwards (24 lines).* The tests of 6.3 read values of round 1. They
+are computed from the names above by running C1 and C2 forwards and the first
+five assignments of E1 and of E3 for message A. Y3 and Y11 are the constants of
+Fact P for w4 = W4, and Y4 = y.
 
-Using n=2^129 and 596096/430 < 1386.27,
+    C1, the call G(X1, X5, X9, X13; w3, w10):
+        C1.a1 = X1 + X5 + w3;   C1.d1 = ROR(X13 XOR C1.a1, 16)
+        C1.c1 = X9 + C1.d1;   C1.b1 = ROR(X5 XOR C1.c1, 12)
+        Y1 = C1.a1 + C1.b1 + w10;   Y13 = ROR(C1.d1 XOR Y1, 8)
+        Y9 = C1.c1 + Y13;   Y5 = ROR(C1.b1 XOR Y9, 7)
+    C2, the call G(X2, X6, X10, X14; w7, w0):
+        C2.a1 = X2 + X6 + w7;   C2.d1 = ROR(X14 XOR C2.a1, 16)
+        C2.c1 = X10 + C2.d1;   C2.b1 = ROR(X6 XOR C2.c1, 12)
+        Y2 = C2.a1 + C2.b1 + w0;   Y14 = ROR(C2.d1 XOR Y2, 8)
+        Y10 = C2.c1 + Y14;   Y6 = ROR(C2.b1 XOR Y10, 7)
+    E1 on A, with its c input Y11; third and fourth assignment in one line:
+        E1.a1 = Y1 + Y6 + w12;   E1.d1 = ROR(Y12 XOR E1.a1, 16)
+        E1.b1 = ROR(Y6 XOR (Y11 + E1.d1), 12);   E1.a2 = E1.a1 + E1.b1 + w5
+    E3 on A, with its a input Y3 and w15 = 0; first and second in one line:
+        E3.h1 = ROR(Y14 XOR (Y3 + Y4), 16);   E3.g1 = Y9 + E3.h1
+        E3.f1 = ROR(Y4 XOR E3.g1, 12);   E3.e2 = (Y3 + Y4) + E3.f1 + w8
 
-    596096n / 430 < 1386.27 * 2^129,
-    (2^24 + 2^18)/430 < 2^16,
-    n + 2 < 2^129 + 2,
+These 24 lines define nothing of the message. E3.h1, E3.g1, E3.f1, E3.e2 are
+the h1, g1, f1, e2 of 6.2, and the word z of Lemma A is C2.d1 XOR Y2.
 
-    T < (1 + 1386.27) * 2^129 + 2^16
-      < 1388 * 2^129
-      < 2^{11} * 2^129
-      = 2^140,
+**The order and the levels.** The 29 + 21 + 10 + 12 + 24 = 96 lines above are
+taken in the order in which they are printed: step O, step M, step Y, step T,
+then the lines of round 1. Give every line a *level*: the lines of step O are
+*outer* lines, those of step M *middle* lines, those of step Y *table* lines,
+and the 12 lines of step T and the 24 lines of round 1 are the 36 *trial*
+lines. Table C says, for every call, which line is each of its eight
+assignments: an entry is the name on the left of that line.
 
-because 1388 < 2048 = 2^11. Equivalently,
-log2(1388) < 10.44, so T < 2^{139.44} < 2^140.
+| Call | 1st | 2nd | 3rd | 4th | 5th | 6th | 7th | 8th |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| K0 | w0 | K0.a1 | K0.d1 | K0.c1 | w1 | S0 | S12 | K0.b1 |
+| K1 | w2 | K1.a1 | K1.d1 | K1.b1 | w3 | S1 | K1.c1 | S5 |
+| K2 | K2.a1 | K2.d1 | K2.c1 | K2.b1 | S2 | S14 | S10 | S6 |
+| K3 | w6 | K3.a1 | K3.c1 | K3.b1 | w7 | K3.d1 | S11 | S7 |
+| D0 | w8 | D0.a1 | D0.c1 | D0.b1 | w9 | D0.d1 | X10 | X5 |
+| D1 | w10 | D1.a1 | D1.d1 | D1.b1 | w11 | X1 | D1.c1 | X6 |
+| D2 | w12 | S13 | S8 | D2.c1 | D2.a1 | D2.d1 | X13 | D2.b1 |
+| D3 | S3 | D3.a1 | D3.c1 | S4 | D3.b1 | X14 | X9 | X4 |
+| C0 | X0 | X12 | X8 | C0.b1 | C0.a1 | Y0 | Y12 | Y8 |
+| C1 | C1.a1 | C1.d1 | C1.c1 | C1.b1 | Y1 | Y13 | Y9 | Y5 |
+| C2 | C2.a1 | C2.d1 | C2.c1 | C2.b1 | Y2 | Y14 | Y10 | Y6 |
 
-This is a deterministic worst-case charged-time cap on the randomized algorithm,
-not merely a birthday exponent or a conditional cost given favorable trials.
-It includes preprocessing, failed samples, sorting, verification and the two
-final recompressions. The submitted bound 140 is still loose relative to
-2^{139.44}; it is the smallest integer ceiling of this envelope under C=430.
-A unit-price reading of the same table (every word operation charged 1) recovers
-the previous scalar 149 and is not the v5 score. The raw-count envelope can
-support subsequent repricing without inventing an operation mix.
+The inputs, the message words and the outputs of the eleven calls are those of
+Section 1: K0 has inputs (IV[0], IV[4], IV[0], 0) and outputs (S0, S4, S8,
+S12), K1 has (IV[1], IV[5], IV[1], 0) and (S1, S5, S9, S13), K2 has (IV[2],
+IV[6], IV[2], 55) and (S2, S6, S10, S14), K3 has (IV[3], IV[7], IV[3], 11) and
+(S3, S7, S11, S15); D0 maps (S0, S5, S10, S15) to (X0, X5, X10, X15), D1 maps
+(S1, S6, S11, S12) to (X1, X6, X11, X12), D2 maps (S2, S7, S8, S13) to (X2, X7,
+X8, X13), D3 maps (S3, S4, S9, S14) to (X3, X4, X9, X14); C0, C1, C2 map (X0,
+X4, X8, X12), (X1, X5, X9, X13), (X2, X6, X10, X14) to (Y0, Y4, Y8, Y12), (Y1,
+Y5, Y9, Y13), (Y2, Y6, Y10, Y14). The remaining eight lines are E1.a1, E1.d1,
+E1.b1, E1.a2, which are the first, the second, the third with the fourth, and
+the fifth assignment of E1 for message A, and E3.h1, E3.g1, E3.f1, E3.e2, which
+are the first with the second, the third, the fourth and the fifth assignment
+of E3 for message A.
 
-Each array uses n*3*32=96n bytes. With all fixed storage included,
+**Lemma T2.** (a) *Triangular.* In the printed order every line assigns a name
+that no earlier line assigns and that is neither one of the eight words nor a
+constant, and it reads only constants, the eight words (the eighth under the
+name Y4 in the lines of round 1) and names of earlier lines. A line of step O
+reads no word other than the six of the outer step, a line of step M reads
+neither y nor a name of step Y, and a line of step Y reads neither X2 nor a
+name of step M. Every line is one assignment of one call, solved for the name
+on its left; the two exceptions are the lines for E1.b1 and for E3.h1, each of
+which is two assignments with the first substituted into the second (c1 = Y11 +
+E1.d1 and e1 = Y3 + Y4 + w15), and the line for E3.e2 uses the same e1. By
+Table C the 96 lines are, each exactly once: the eight assignments of each of
+the eleven calls K0, K1, K2, K3, D0, D1, D2, D3, C0, C1, C2, with the inputs
+and the message words of Section 1 for block length 55, with w4 = W4, w13 =
+W13, w14 = w15 = 0, and with the constants X3, X7, X11, X15 as the a output of
+D3, the b output of D2, the c output of D1 and the d output of D0; and the
+first five assignments of E1 and of E3 for message A.
 
-    peak bytes <= 192n + 2^24 < 256n = 2^137.
+(b) *The calls.* For every choice of the eight words, the names of steps O, M,
+Y and T are the executions of the eleven calls as listed after Table C, each
+with its two message words; C0 has first, second, third and fourth value C0.a1,
+C0.d1, C0.c1, C0.b1 and outputs (Y0, y, Y8, Y12); and E1.a1, E1.d1, E1.b1,
+E1.a2 and E3.h1, E3.g1, E3.f1, E3.e2 are the first, second, fourth and fifth
+value of E1 and the second, third, fourth and fifth value of E3 in the
+compression of message A.
 
-The arrays contain every retained message, digest and sampled random word.
-There is no extra index array, recursion, message database or pointer per record.
-The reserve includes all temporary randomness, state, code/advice/constants,
-verification state and final output. Both arrays and the reserve fit below
-byte address 2^138. This validates the one-word pointer/counter assumption.
-The memory figure is an abstract RAM allowance, not a claim of physical feasibility.
+(c) *The levels.* An outer line is a function of the six words alone. A middle
+line is a function of the six words and X2 and does not depend on y. A table
+line is a function of the six words and y and does not depend on X2. In
+particular the sixteen message words of two trials of one context differ at
+most in w8, w9, w10, w11.
 
-The claim fields have these precise meanings:
+(d) *Admissible blocks.* Call a block (w0, .., w15) *admissible* if w4 = W4,
+w13 = W13, w14 = w15 = 0 and round 0 on it with block length 55 ends with
+(X[3], X[7], X[11], X[15]) equal to the four constants. The map of this section
+from the eight words to the block of A is a bijection onto the admissible
+blocks.
 
-- time_log2=140 bounds total charged v5 time by 2^140 units, i.e. T=H+W/C
-  with C=430 as derived above.
-- memory_log2_bytes=137 bounds simultaneous storage by 2^137 bytes.
-- data_log2=130 bounds complete-hash evaluations by n+2 <=2^130, including
-  the two final re-evaluations. It counts evaluated message instances, not
-  bytes or distinct messages. Every repeated sample is counted; external
-  supplied data is zero and all retained data bytes are in peak memory.
-- preprocessing_log2=128 bounds fixed setup plus both-array initialization
-  after v5 word-operation pricing:
-  (2^24 + 128n)/430 < 128n/430 + 2^16 < 0.30 * 2^129 + 2^16 < 2^128.
-  This work is already included in T, not an omitted phase. The previous
-  unit-price reading 2^24+128n < 2^137 is the same physical work.
-- nonuniform_advice_log2_bytes=0 means at most 2^0=1 byte of advice; actual
-  nonuniform advice is zero. The schema cannot express log2(0). Public
-  constants and code are fully charged in the fixed storage and initialization.
-- success_probability=0.5 is the lower bound proved in Section 4.
+Proof. (a) is read off the displays: every name on a right side is a constant,
+one of the eight words or the left side of an earlier line, and the three
+statements about steps O, M and Y are seen by looking at the names their lines
+read. That each formula is the stated assignment of the stated call, solved for
+the name on its left, is seen by comparing it with the eight assignments of
+Section 2 and with the inputs, outputs and message words of the call. Table C
+has exactly one name in each of its 88 cells, the 88 names are different, and
+with the eight lines of E1 and E3 they are the 96 lines.
 
-## 6. Evidence and interpretation
+(b) An assignment of Section 2 is an equation between words. Solving it for one
+of its terms gives an equivalent equation: a = b + c + x holds exactly when x =
+a - b - c, and d = ROR(D XOR a, r) exactly when D = ROL(d, r) XOR a, all modulo
+2^32. A line defines the name on its left by such an equation, so the equation
+holds between the names once the line has run, and by (a) no later line changes
+any of them. By (a) and Table C, for each of the eleven calls all eight of its
+assignments hold between the names, with the inputs and message words of
+Section 1. By Fact 1 the names are then the execution of that call. Where an
+output of a call is a constant (X3 for D3, X7 for D2, X11 for D1, X15 for D0),
+the assignments that contain that output hold with the constant in its place
+(the lines for D3.b1 and X14; for D2.b1; for D1.c1 and X6; for D0.d1 and X10),
+so the call has the constant as that output. For C0 the eighth assignment is
+the line for Y8, which contains y as the b output. The lines of E1 and E3 are
+the assignments of 6.2 for message A with Y11 and Y3 of Fact P; they compute
+forwards from names that are, by what was just shown, the values Y1, Y6, Y12
+and Y4, Y9, Y14 of the compression of A.
 
-This is a conservative generic baseline proposal, not a new cryptanalytic
-advance. The complete algorithm, target definition, probability proof and RAM
-ledger are the supporting evidence. No full-scale execution, observed collision
-pair, measured success rate, experimental independence or measured resource
-usage is asserted. No sampled experiment is needed for the universal finite
-probability argument. The certificate manifest is valid and empty; no
-experiment manifest or participant executable is supplied.
+(c) By induction over the printed order, with (a): an outer line reads only
+constants, the six words and outer lines, which are functions of the six words
+by induction; a middle line reads, besides these, only X2 and middle lines; a
+table line reads, besides outer names, only y and table lines. The message
+words w0..w7 and w12 are constants, one of the six words, outer lines (w6, w7)
+or middle lines (w0, w1, w2, w3, w12), and w13, w14, w15 are constants; only
+w8, w9, w10, w11 are trial lines.
+
+(d) Every block that the construction outputs is admissible: by (b), round 0
+with block length 55 leaves the state X of the names, in which X[3], X[7],
+X[11], X[15] are the constants, and the four pinned words are constants of the
+construction. *Injective:* by (b) each of the eight words is the value of its
+name in the compression of A (two values of the call C0 and one of the call D3,
+two words of the state S, a message word, a word of the state X and a word of
+the state Y), so it is a function of the block. *Onto:* take an admissible
+block, run its compression forwards with block length 55 and give every value
+its name. These forward values satisfy all the equations of (a): they are
+executions of the calls, the four outputs that are constants in the
+construction are those constants because the block is admissible, and Y3 and
+Y11 are the values of Fact P because C3 has the inputs X3, X7, X11, X15, W4,
+W13. Now run the lines on the eight words taken from the forward values. By
+induction over the lines, every line returns the forward value of its name: the
+names it reads have their forward values, the forward values satisfy the
+equation of the line, and an assignment has exactly one solution for any one of
+its terms when the others are given. So the words w0..w15 that the lines return
+are the block. QED.
+
+*The same pairs as entry c66f230d.* Section 4 of that entry builds the block of
+A from the eight words (vc, vd, S11, S4, X13, X14, w0, y) by 72 lines that are
+the assignments of the nine calls K0..K3, D0..D3, C0 in another triangular
+order (its Lemmas S, F and Y). The argument of (d) applies to it as well, so
+both constructions are bijections onto the same set of admissible blocks, and B
+is determined by A in both: the 2^256 pairs are the same pairs, enumerated in
+another order. What differs is which of them a run of the search visits and in
+which groups. This remark is not used in any proof below.
+
+*What Lemma T2 does not say.* Eleven of the trial lines are the line for E3.h1
+and the ten it depends on (X0, D0.d1, D0.c1, X10, C2.a1, C2.d1, C2.c1, C2.b1,
+Y2, Y14). That no order with fewer exists was the answer of a solver in the
+search that produced the order; it is not used here and not claimed.
+
+## 5. The half-collision
+
+**Theorem.** For every choice of the seven words of a context (C0.c1, C0.d1,
+D3.d1, S15, S9, w5, X2) and of the word y, steps O, M, Y, T, S2 and S3 output
+two distinct messages A and B, of 55 and 63 bytes, whose complete 2-round
+digests agree on digest words 0, 2, 5 and 7; and in both compressions the b
+output of C0 is Y4 = y.
+
+Proof. The sixteen words of steps O, M, Y and T have w14 = w15 = 0 and w13 =
+W13, whose top byte is zero. So bytes 55 to 63 of their encoding are zero: A,
+the first 55 bytes, is an honest 55-byte message whose zero-filled block is the
+sixteen words, and B is an honest 63-byte message that ends in eight zero bytes
+and whose zero-filled block is the sixteen words with w4, w5 replaced (3.1).
+Run round 0 on the words of A with block length 55. By Lemma T2 (b) the column
+calls leave the state S of the names and the diagonal calls, which act on
+disjoint state words, leave the state X of the names. So the state after round
+0 has (X[3], X[7], X[11], X[15]) equal to the four constants, and w4 = W4, w13
+= W13. By Lemma L the compression of B has the same state X after round 0. The
+two compressions share every word except w4, w5, so Lemma H gives the four
+digest words. C0 reads X0, X4, X8, X12 and w2, w6, which are the same in both
+compressions, and has b output y by Lemma T2 (b). The messages are distinct
+because their lengths differ. QED.
+
+Distinct choices of the eight words give distinct messages A: C0.c1 and C0.d1
+are values inside C0, D3.d1 is a value inside D3, S15 and S9 are state words
+after the column step of round 0, w5 is a message word, X2 is a state word
+after round 0 and y is a state word after the column step of round 1, and all
+of them are functions of the message (Lemma T2 (d)). The construction yields
+2^256 different half-colliding pairs.
+
+## 6. The search for the other half
+
+**6.1 Trials.** A *context* is the six words of an outer step (C0.c1, C0.d1,
+D3.d1, S15, S9, w5), a word X2, and everything that steps O and M compute from
+them. The class and the sub-class defined next are sets of values of Y4. A
+**trial** is a context and a member y of the sub-class; its messages A and B
+are the output of steps O, M, Y, T, S2 and S3 for the context's seven words and
+y. Only steps Y and T depend on y: the trials of one context differ in the four
+message words w8..w11 and in nothing else of the message (Lemma T2 (c)). Step Y
+does not depend on X2: for one outer step and one member its ten names are the
+same for all 2^32 values of X2. The table of 6.5 rests on this.
+
+*The class.* The first message word of E3 is w15 = 0, so the first assignment
+of E3 is e1 = Y3 + Y4 for message A and e1' = Y3' + Y4 for message B, with Y3 =
+8127c181 and Y3' = 7edf3e7e from Fact P. Put DY3 = Y3' - Y3 = fdb77cfd. The
+second assignment is h1 = ROR(Y14 XOR e1, 16), so the XOR difference between A
+and B of E3's first-half d value is
+
+    eta = h1 XOR h1' = ROR((Y3 + Y4) XOR (Y3 + Y4 + DY3), 16),
+
+a function of Y4 alone. Fix eta = 830303cf. The *class* is the set of all words
+Y4 that give this eta.
+
+**Lemma Q.** The class is the set of all Y4 with
+
+    ((Y3 + Y4) AND 03cf8303) = 030c0303.
+
+It has 524,288 members: the 19 bits of e1 = Y3 + Y4 at the positions where
+03cf8303 has a zero are free, bit 31 among them, and Y4 = e1 - Y3.
+
+Proof. Put x = ROL(eta,16) = 03cf8303 and m = x AND 7fffffff = 03cf8303. Here x
+has no bit 31, so m = x. Y4 is in the class exactly when e1 XOR (e1 + DY3) = x,
+that is when (e1 XOR x) - e1 = DY3 modulo 2^32. For words e and x, (e XOR x) -
+e is, modulo 2^32, the sum over the bits i of x of 2^i where bit i of e is 0
+and of -2^i where it is 1, which is 2 ((NOT e) AND x) - x; for i = 31 the two
+signs give the same word. So the condition is 2 ((NOT e1) AND x) = DY3 + x
+modulo 2^32. Here DY3 + x = 01870000 modulo 2^32, which is even. Doubling
+modulo 2^32 discards bit 31 of (NOT e1) AND x, so the condition does not
+involve bit 31 of e1, and on the other bits it is ((NOT e1) AND m) = 01870000
+>> 1 = 00c38000. All bits of 00c38000 lie in m, so this fixes the 13 bits of e1
+on m to (e1 AND m) = (NOT 00c38000) AND m = 030c0303 and leaves the other 19
+bits free. QED.
+
+*The sub-class.* The search uses only the members of the class whose e1 = Y3 +
+Y4 has bit 21 and bit 26 equal to zero. With Lemma Q that is the set of all Y4
+with
+
+    ((Y3 + Y4) AND 07ef8303) = 030c0303.
+
+**Lemma Q2.** The sub-class is a subset of the class and has 131,072 members:
+the 17 bits of e1 at the positions 2 to 7, 10 to 14, 20 and 27 to 31, where
+07ef8303 has a zero, are free, and Y4 = e1 - Y3.
+
+Proof. 07ef8303 = 03cf8303 OR 04200000, and 04200000 has the bits 21 and 26,
+which are two of the 19 positions that Lemma Q leaves free. The value 030c0303
+has zeros at both. So the condition is the condition of Lemma Q together with
+bit 21 = bit 26 = 0, and 17 positions stay free. QED.
+
+Member number k of the sub-class, for 0 <= k < 131072, is the Y4 whose e1 has
+the bits of k at its 17 free positions, in increasing order of position. From
+here on "member" means a member of the sub-class. Why a part of the class is
+searched and not all of it is a matter of the count of Section 10: under the
+model of that section the rate of collisions differs from member to member, and
+it is higher on this part. Nothing exact depends on that.
+
+**Lemma T.** For every context and every member y of the class, and so for
+every member of the sub-class, the messages A and B of the trial are distinct
+messages of 55 and 63 bytes whose complete 2-round digests agree on digest
+words 0, 2, 5 and 7; in both compressions Y4 = y; and the XOR difference
+between A and B of E3's first-half d value is eta = 830303cf.
+
+Proof. The first two statements are the theorem of Section 5. In both
+compressions w15 = 0 and Y14 is the same, the a input of E3 is Y3 for A and Y3'
+for B by Fact P, and Y4 = y is a member of the class, so the difference is eta
+by the definition of the class. QED.
+
+**6.2 The residual of a trial.** With Y3, Y3', Y11, Y11' the a and c outputs of
+C3 from Fact P (8127c181, 7edf3e7e, 7af77f38, 850000c3), delta = W4 - W4' =
+fffffff8 and the trial's words and state:
+
+    (.., Y4, .., Y12) = C0 = G(X0, X4, X8, X12, w2, w6)
+    (Y1, .., Y9, ..)  = C1 = G(X1, X5, X9, X13, w3, w10)
+    (.., Y6, .., Y14) = C2 = G(X2, X6, X10, X14, w7, w0)
+    E1 on A:  G(Y1, Y6, Y11,  Y12, w12, w5)
+    E1 on B:  G(Y1, Y6, Y11', Y12, w12, w5 + delta)
+    E3 on A:  G(Y3,  Y4, Y9, Y14, w15, w8)
+    E3 on B:  G(Y3', Y4, Y9, Y14, w15, w8)
+
+and R is formed from the eight output words of E1 and E3 as in 3.3. Y4 = y
+and Y12 are known from step Y without evaluating C0 forwards. Write a1, d1,
+c1, b1, a2, .. for the assignments of E1 and e1, h1, g1, f1, e2, h2, g2, f2
+for those of E3 in the order a, d, c, b; a prime marks message B.
+
+**6.3 Two tests of a trial.** The algorithm uses two tests: rule A, a condition
+on one word of E3 (Lemma A), and the E1 test, a 32-bit condition on E1 alone
+(Lemma N). The early test of the first entries on this track (Lemma E of entry
+c66f230d) is not used and is not restated.
+
+**Lemma N.** For a trial of 6.1 put beta = b1 XOR b1' and eps = c2 XOR c2',
+both taken from E1, and
+
+    n = eps XOR ROL(beta XOR eps, 1) XOR eta.
+
+Let D3 and D6 be the XOR differences between A and B of digest words 3 and
+6, which are the second and the fourth word of R. Then n = D3 XOR ROL(D6, 8)
+for every trial. In particular R = 0 implies n = 0.
+
+Proof. Digest word 3 is Z[3] XOR Z[11], the a output of E3 and the c output
+of E1, so D3 = (e2 XOR e2') XOR eps. Digest word 6 is Z[6] XOR Z[14], the b
+output of E1 and the d output of E3, so D6 = (b2 XOR b2') XOR (h2 XOR h2').
+In E1, b2 = ROR(b1 XOR c2, 7), so b2 XOR b2' = ROR(beta XOR eps, 7). In E3,
+h2 = ROR(h1 XOR e2, 8), and h1 XOR h1' = eta for every Y4 in the class
+(Lemma T), so h2 XOR h2' = ROR(eta XOR e2 XOR e2', 8). Rotating D6 left by 8
+gives ROL(D6, 8) = ROL(beta XOR eps, 1) XOR eta XOR (e2 XOR e2'). The XOR
+with D3 cancels e2 XOR e2' and leaves n. QED.
+
+A trial *passes the E1 test* when n = 0. The word n needs the first seven
+assignments of E1 for both messages and nothing of E3: for a trial of 6.1
+the eta of E3 is the constant of the class.
+
+*Rule A.* Let h1 be the second value of E3 on message A, as in 6.2, and write
+h[i] for bit i of h1, bit 0 being the lowest. A trial *satisfies rule A* when
+all of the following hold:
+
+    h[0] = 0;    h[1] = 1;    h[16] = 0;    h[17] = 0;
+    h[2] XOR h[10] = 1;    h[3] XOR h[11] = 1;
+    h[3] XOR h[12] XOR h[24] = 0;    h[6] XOR h[13] XOR h[25] = 0.
+
+These are eight conditions, each on one bit or on the XOR of two or three bits.
+Each of them contains a bit that no other contains (bits 0, 1, 16, 17, 10, 11,
+12 and 13), so they are independent and a uniform word satisfies rule A with
+probability 2^-8. The first four are the first four conditions of the rule of
+entry c66f230d; the other four replace its fifth condition (bits 2 and 3 of h1
+differ), which is not part of this rule.
+
+**Lemma A.** Write z[i] and e[i] for bit i of the words z and e1 defined next.
+
+(a) For a trial of 6.1 let z = C2.d1 XOR Y2 be the XOR of the second and the
+fifth value of C2, and e1 = Y3 + Y4. Then ROL(h1, 24) = z XOR ROL(e1, 8): h[i]
+= z[(i + 24) mod 32] XOR e[(i + 16) mod 32].
+
+(b) For every Y4 in the sub-class, the trial satisfies rule A exactly when
+
+    z[24] = 0;    z[25] = 1;    z[8] = 1;    z[9] = 1;
+    z[26] XOR z[2] = 0;    z[27] XOR z[3] = e[27];
+    z[27] XOR z[4] XOR z[16] = e[28];   z[30] XOR z[5] XOR z[17] = 1 XOR e[29].
+
+The bits 27, 28 and 29 of e1 are free in the sub-class, so the last three right
+sides depend on the member.
+
+(c) Let Z be a word of 36 bits or a lane of a packed word of 6.5 whose low 32
+bits are z; its bits 32 to 35 and the neighbouring lanes may hold anything.
+Form the word y by
+
+    s = (Z << 12) AND 0003c000;    y = Z XOR s;
+    s = s << 12;                   y = y XOR s;
+    s = (y << 13) AND 40010000;    y = y XOR s,
+
+the shifts being shifts of the whole packed word and each mask word holding the
+printed value in every lane (6.5). Write y[i] for bit i of the lane. Then
+
+    y[8] = z[8];    y[9] = z[9];    y[24] = z[24];    y[25] = z[25];
+    y[26] = z[26] XOR z[2];    y[27] = z[27] XOR z[3];
+    y[16] = z[16] XOR z[4] XOR z[3];    y[30] = z[30] XOR z[17] XOR z[5].
+
+Put ALL = 4f010300, the word with the bits 8, 9, 16, 24, 25, 26, 27 and 30. For
+a member of the sub-class let v be the word with
+
+    v[8] = 0;    v[9] = 0;    v[24] = 1;    v[25] = 0;    v[26] = 1;
+    v[27] = 1 XOR e[27];    v[16] = 1 XOR e[27] XOR e[28];    v[30] = e[29]
+
+and zeros elsewhere. Then the trial satisfies rule A exactly when (y XOR v) AND
+ALL = ALL.
+
+(d) Put u = (y XOR v) AND ALL. Then u + (2^32 - ALL) is at most 2^32, and its
+bit 32 is 1 exactly when the trial satisfies rule A.
+
+Proof. (a) The sixth assignment of C2 is Y14 = ROR(C2.d1 XOR Y2, 8) = ROR(z,
+8), and the second assignment of E3 is h1 = ROR(Y14 XOR e1, 16). So h1 = ROR(z,
+24) XOR ROR(e1, 16), and rotating left by 24 gives the claim.
+
+(b) By (a) the eight conditions read: z[24] XOR e[16] = 0; z[25] XOR e[17] = 1;
+z[8] XOR e[0] = 0; z[9] XOR e[1] = 0; z[26] XOR e[18] XOR z[2] XOR e[26] = 1;
+z[27] XOR e[19] XOR z[3] XOR e[27] = 1; z[27] XOR e[19] XOR z[4] XOR e[28] XOR
+z[16] XOR e[8] = 0; z[30] XOR e[22] XOR z[5] XOR e[29] XOR z[17] XOR e[9] = 0.
+The bits 0, 1, 8, 9, 16, 17, 18, 19, 22 and 26 of e1 lie in the mask 07ef8303
+of Lemma Q2, so they have the same value for every member of the sub-class: in
+030c0303 the bits 0, 1, 8, 9, 18 and 19 are 1 and the bits 16, 17, 22 and 26
+are 0. Inserting these values gives the conditions on z. Bit 26 is fixed only
+in the sub-class, not in the class.
+
+(c) Follow the three steps on one lane. In Z << 12, position p of a lane holds
+bit p - 12 of the same lane for 12 <= p <= 35, and the mask 0003c000 keeps the
+positions 14 to 17. So the first s holds z[2], z[3], z[4], z[5] at the
+positions 14 to 17 and nothing else, and after the first step y differs from Z
+only there. The second s holds the same four bits at the positions 26 to 29,
+still inside the lane; after the second step y[26] = z[26] XOR z[2] and y[27] =
+z[27] XOR z[3], and the positions 3 and 17 hold z[3] and z[17] XOR z[5]. In y
+<< 13 the positions 16 and 30 hold the bits 3 and 17 of the lane, and the mask
+40010000 keeps exactly these two positions; after the third step y[16] = (z[16]
+XOR z[4]) XOR z[3] and y[30] = z[30] XOR (z[17] XOR z[5]). The positions 8, 9,
+24 and 25 were never changed. Every bit that entered one of the eight positions
+is a bit 2, 3, 4, 5, 8, 9, 16, 17, 24, 25, 26, 27 or 30 of the lane itself: no
+bit above 31 and no bit of another lane. That proves the eight equations. A
+position of v holds a 1 exactly where the right side that (b) requires is 0, so
+bit t of y XOR v is 1 exactly when y[t] has the required value, where the
+required values are: z[8] = 1, z[9] = 1, z[24] = 0, z[25] = 1, z[26] XOR z[2] =
+0, z[27] XOR z[3] = e[27], these being six of the conditions of (b) as they
+stand; y[30] = 1 XOR e[29], the eighth; and y[16] = e[27] XOR e[28], which is
+the XOR of the sixth and the seventh condition, because y[16] = (z[27] XOR
+z[3]) XOR (z[27] XOR z[4] XOR z[16]). When the sixth condition holds, the
+condition at position 16 holds exactly when the seventh does. So all eight
+positions of ALL hold a 1 in y XOR v exactly when all eight conditions of (b)
+hold.
+
+(d) u has no bit outside ALL, so u <= ALL, and u + (2^32 - ALL) >= 2^32 exactly
+when u = ALL; the sum is at most 2^32. By (c), u = ALL exactly when the trial
+satisfies rule A. QED.
+
+*What Lemma A does not say.* Lemma A says that the word of (c) tests rule A
+exactly. It does not say that a collision satisfies rule A, and that is not
+true: there are solutions of R = 0 with Y4 in the sub-class whose h1 violates
+rule A. Rule A is therefore a filter that loses solutions. A batch in which no
+trial satisfies it is dropped, whether or not one of its trials has a zero
+residual; a trial that fails rule A is examined further only if another trial
+of its batch satisfies it (6.4). How much is lost is a question about the count
+of Section 10 and is answered there: inside the sub-class the rule keeps all
+but 19,086.08 of the 185,377,197.55 counted, and the figure that H1 is set
+against leaves out, in full, every outcome of the count in which some solution
+violates rule A. On the whole class the same eight conditions would keep less
+than half of the count; the rule is a rule for this sub-class only.
+
+**6.4 Algorithm.**
+
+1. Draw one fresh uniform 256-bit word and take from it the four words C0.c1,
+   D3.d1, S15 and S9.
+2. For each of the 1,424,469 values of C0.d1 from 0 to 1,424,468, in increasing
+   order, and for each of the 2^32 values of w5, in increasing order, do one
+   *outer step*: (a) run step O for the six words and store the 21 words of 6.5
+   that the later steps load; (b) build the table of 6.5: for each of the
+   18,725 words of the list U, in order, run the lines of step Y for its seven
+   members in one packed word and store five words; (c) for each of the 2^32
+   values of X2, in increasing order: run step M and store its nine words; then
+   run the batches of 6.5 for the 131,072 members of the sub-class in the order
+   of their numbers, seven members in one packed word. Every batch runs stage
+   A, which reads two words of the table and one word of the list V and tests
+   rule A for its seven trials. If none of them satisfies rule A the batch ends
+   and its trials are dropped. Otherwise the batch runs stage 2, which reads
+   the three other words of the table and evaluates the E1 test for its seven
+   trials.
+3. For every trial of a batch that ran stage 2 whose E1 test word is zero,
+   compute its words by steps Y and T and R in full. If R = 0, build A and B by
+   steps S2 and S3 from the trial's words, evaluate H(A) and H(B), check that
+   they agree, output (A, B) and halt. The last word of the list holds four
+   members; its three spare lanes repeat the last member, and a member is
+   processed once however many lanes hold it.
+4. Halt with failure if 2^84 trials have been processed in step 3 without R =
+   0; or if E batches have run stage 2, where E is 18,725 * J / 32 rounded down
+   and J is 2^110 / 49,400,000 rounded up; or when all trials are exhausted.
+
+A run has 1,424,469 * 2^64 pairs of an outer step and a value of X2, which is
+at least J, and 18,725 batches for each pair. So E is less than one part in 32
+of the batches of a run. The number E is the constant `STAGE_2_BUDGET` of the
+submitted program, and J is its `RUN_PAIRS`.
+
+A trial with R = 0 that satisfies rule A is found: its batch runs stage 2, its
+E1 test word is zero by Lemma N, and step 3 computes its residual, unless one
+of the two budgets of step 4 has ended the run before. A trial with R = 0 that
+violates rule A is found only if another trial of its batch satisfies rule A;
+Section 7 does not count such trials.
+
+**The ranges.**
+
+| Word | Values | Where it comes from |
+| --- | --- | --- |
+| C0.c1, D3.d1, S15, S9 | any word, fixed for the run | random word of step 1 |
+| C0.d1 | 0, 1, .., 1,424,468 | slow outer loop |
+| w5 | 0, 1, .., 2^32 - 1 | outer loop, piece "next w5" |
+| X2 | 0, 1, .., 2^32 - 1 | middle loop, piece "next X2" |
+| member number k | 0, 1, .., 131,071 | lists U and V, table |
+
+List word j holds the members 7j, .., 7j + 6; list word 18,724 holds the
+numbers 131,068 to 131,071, and the last of them three times more.
+
+*What the submitted program holds of this, and what it does not.* The program
+contains the four counted pieces (outer step, table build for one list word,
+middle step, batch), the two lists, and the constant E. It contains no loop
+over C0.d1, w5 or X2, no step 3 and no budget of step 3, and it does not act on
+the result of an end test; its experiments draw all seven context words as full
+32-bit words. The ranges above, the form of the loops and step 3 are defined by
+this text only.
+
+**The loop form and the two end tests.** The counted piece *next X2* is: load
+the cell X2, add 1, reduce to 32 bits, load the cell `X2 end`, compare, branch;
+then store the new X2 and form and store X2 + w7. It is the first part of the
+middle step. The middle loop is this piece followed by the rest of step M and
+the 18,725 batches, repeated, and it is entered behind the branch with X2 = 0
+in the register:
+
+    X2 := 0;  go to (*)
+    repeat
+        X2 := (X2 + 1) mod 2^32;  leave the loop if X2 = 0
+    (*) store X2, form and store X2 + w7
+        the rest of step M, the class loop entry, the batches
+
+The cell `X2 end` holds 0, so the comparison is true exactly when the word has
+come back to 0, after the passes for 0, 1, .., 2^32 - 1. The first half of the
+piece is executed 2^32 times in an outer step (the last time it leaves the
+loop) and the second half 2^32 times (the first time from the entry), so the
+piece is executed once per value of X2, as 6.5 counts it. The outer loop over
+w5 has the same form with the piece *next w5*, the cell `w5 end`, which holds
+0, and the words w5 and w5 + delta: the piece is executed once per outer step.
+The loop over the list words, in the build and in the batches, advances the
+list position, compares it with 18,725 and branches (the part "loop" of 6.5),
+once per list word.
+
+*What starts a loop.* The machine counts of 6.5 do not contain: the entry of
+the middle loop, once per outer step (X2 := 0 and the four words that the first
+half of the piece would have fetched: at most 5 operations and loads); setting
+the list position to zero before the build and before the batches of a value of
+X2 (one operation each); and, once per value of C0.d1, the next value of C0.d1
+with its end test, its store and the entry of the loop over w5 (at most 16
+operations, loads and stores). They are at most 1 operation per value of X2, at
+most 8 per outer step and at most 16 per value of C0.d1, and Section 8 adds
+them as such. They are stated in words and were not written out on the machine.
+
+**Lemma T3 (the trials of a run are distinct).** For every choice of the four
+words of step 1, the 1,424,469 * 2^32 * 2^32 * 131,072 = 1,424,469 * 2^81
+quadruples (C0.d1, w5, X2, k) of step 2 give pairwise distinct messages A, and
+so that many distinct pairs (A, B). Each pair is a trial with the properties of
+Lemma T.
+
+Proof. The properties are Lemma T, which holds for all values of the eight
+words. For distinctness, take two different quadruples. They differ in C0.d1,
+in w5, in X2 or in k, and two different member numbers are two different words
+y: by Lemma Q2 the number fills the 17 free bit positions of e1 = Y3 + Y4, and
+y = e1 - Y3. So the two tuples of eight words (C0.c1, C0.d1, D3.d1, S15, S9,
+w5, X2, y) differ in at least one word, and by Lemma T2 (d) they give different
+blocks and so different messages A. QED.
+
+**How many trials.** One outer step supplies 2^32 values of X2 with 131,072
+members each: 2^49 trials, in 2^32 * 18,725 batches, all with one table. With
+the factor 49,400,000 of H1 the search needs 2^127 / 49,400,000 = 2^101.442
+trials. The 1,424,469 values of C0.d1 (2^46 / 49,400,000, rounded up) give
+1,424,469 * 2^81 trials, which is that many or more, in 1,424,469 * 2^32 =
+2^52.442 outer steps. Entry c66f230d ran C0.d1 (its vd) below 2^19 and all
+524,288 members; here the members are a quarter and the range of C0.d1 is 2.72
+times as long.
+
+The probability space of Section 7 is the one random word of step 1; the trials
+depend on it only through the four words C0.c1, D3.d1, S15 and S9. All trials
+of a run share these four words; the 2^49 trials of one outer step share six
+words; the 131,072 trials of one context share seven. Some names are shared
+more widely, as the lines of Section 4 show. X9 and X14 are computed from D3.d1
+and S9 alone, so with the four constant words six of the sixteen words of X are
+the same in every trial of a run. Of the 29 lines of step O, 25 (among them w6
+and w7) do not read C0.d1. Y8 and Y12 are computed from C0.c1, D3.d1, S9, w5
+and y alone: for one value of w5 and one member, Y12 and w5, two of the words
+that E1 reads, are the same in all 1,424,469 * 2^32 trials of a run with them,
+about 2^52.44, and a run has 2^49 such pairs of w5 and a member.
+
+**6.5 Seven trials in one word.** A packed word holds seven lanes of 36 bits
+at bit offsets 0, 36, .., 216. A lane represents its value modulo 2^32; bits
+32..35 are carry guards. A constant is placed in all seven lanes before the
+batches that use it. Additions are single 256-bit additions. A rotation of
+every lane by r is the five operations
+
+    PROR(z, r) = ((z >> r) AND A_r) OR ((z << (32-r)) AND B_r)
+
+with A_r selecting the low 32-r bits of every lane and B_r the next r bits;
+the masks discard guard bits and bits shifted in from the neighbouring lane,
+so the result is reduced below 2^32. With M = 2^32 - 1 in every lane, the
+complement of the low 32 bits of a lane is an XOR with M, a difference
+x - y of a constant x and a lane y is (y XOR M) + (x + 1), and subtracting a
+constant y is one addition of the constant -y.
+
+The lane layout, seven 36-bit lanes with reduction delayed to the rotations
+and a five-operation masked rotation, follows the public ticket 2bf40fb on
+this track, which uses it for a birthday search. What is evaluated in the
+lanes here is different.
+
+*The two lists.* For list word j, U[j] holds ROL(y, 7) and V[j] holds the word
+v of Lemma A (c), one member y per lane; lane i belongs to member number 7j +
+i. Each list has 18,725 packed words, because 131072 = 18,724 * 7 + 4; the
+three spare lanes of the last word repeat its last member. Both are computed
+once, before step 2, from eta, the two bits of the sub-class, Y3 and the rule
+(Lemmas Q2 and A), and are the same for the whole search. The build of the
+table reads U; stage A of a batch reads V; step 3 reads U for the member of a
+passing lane.
+
+*The words of an outer step.* Step O is run with every value in all seven
+lanes, and 21 words are stored, each below 2^32 in every lane, in the form in
+which the later pieces load them:
+
+- loaded by the build of the table (7): C0.b1, -C0.c1, -C0.b1 - w6, -X4,
+  ROL(C0.d1,16), S6, -S11;
+- loaded by the middle step (8): -D2.b1 - W13, ROL(X13,8), -S2 - S7, S9 + 1,
+  1 - S6, D2.c1 + 1, ROL(S4,7), w7;
+- loaded by a batch (6): S10 + X15, X14, X13, X9, w5, w5 + delta.
+
+*The table of an outer step.* Five lists of 18,725 packed words each, built
+once per outer step from U, the seven words above and the word C0.d1 of the
+slow loop. For list word j and lane i, with y the member of that lane and the
+names of step Y:
+
+    Y12[j] = Y12        XA[j] = C0.a1 - X4        X6[j] = X6
+    X1[j]  = X1         R[j]  = ROL(D1.d1, 16)
+
+all modulo 2^32 and below 2^32 in every lane. The build computes, in every
+lane:
+
+- C0 backwards: Y8 = U[j] XOR C0.b1; Y12 = Y8 + (-C0.c1), reduced and stored;
+  Y0 = ROL(Y12,8) XOR C0.d1; C0.a1 = Y0 + (-C0.b1 - w6); XA = C0.a1 + (-X4),
+  reduced and stored; X12 = C0.a1 XOR ROL(C0.d1,16).
+- D1 backwards: D1.c1 = (X12 XOR M) + (X11 + 1), which is X11 - X12; D1.b1 =
+  ROR(D1.c1 XOR S6, 12); X6 = ROR(D1.b1 XOR X11, 7), stored; D1.d1 = D1.c1 +
+  (-S11); X1 = ROL(X12,8) XOR D1.d1, reduced and stored; R = ROL(D1.d1,16),
+  stored.
+
+*The words of a middle step.* Step M is run in all seven lanes, and nine words
+are stored: X2 itself; the seven words that a batch loads, X2 + w7, -w2, w0,
+S5, w3, S12 and w12 - S1 - S6; and w1, which no batch loads (it is a word of
+the message and is needed in step 3).
+
+*What a batch computes.* The seven trials of a batch share a context and are
+seven consecutive members. A batch has two stages. Stage A computes in every
+lane:
+
+- D0, as far as C2 needs it: X0 = XA[j] + (-w2); D0.d1 = X0 XOR ROL(X15,8); X10
+  = D0.d1 + (S10 + X15), which is the third value S10 + D0.d1 plus X15 in one
+  addition.
+- C2 to z: its first value C2.a1 = X6[j] + (X2 + w7), its second, third and
+  fourth value, the fifth as the first plus the fourth plus w0, and z, the XOR
+  of the fifth and the second.
+- Rule A: the word y of Lemma A (c) from z, u = (y XOR V[j]) AND ALL, the sum
+  u + (2^32 - ALL) of Lemma A (d), and whether its bit 32 is set in some lane.
+
+If it is set in no lane, the batch ends. Otherwise stage 2 computes:
+
+- The entry count: the number of batches that have run stage 2 is advanced and
+  compared with its budget E (step 4).
+- C2, rest: z and the third value of C2 are formed again (see the machine
+  below); Y14 = ROR(z, 8); and Y6 from the third value plus Y14 and the fourth
+  value.
+- D0, rest, and C1 to Y1: D0's third value as X10 + (-X15), D0.b1 with S5, and
+  X5; C1's first value X5 + X1[j] + w3, its second, third and fourth value;
+  D1.a1 = R[j] XOR S12; and the sum of C1's first value, its fourth value and
+  D1.a1, which is Y1 + S1 + S6, since w10 = D1.a1 - S1 - S6.
+- E1 on A and B: a1 as that sum plus Y6 plus the stored w12 - S1 - S6; d1 =
+  ROR(a1 XOR Y12[j], 16); c1, c1', b1, b1', a2, a2', c2, c2', with Y11' and
+  w5 + delta for B.
+- The E1 test: eps = c2 XOR c2', beta XOR eps, the word n of Lemma N, and
+  whether n is zero in some lane.
+
+Nothing of E3 is evaluated in a batch: rule A is a condition on E3.h1, but by
+Lemma A it is tested on z, a value of C2, with the bits of e1 folded into the
+constants and into the list V. The words w8..w11 are never formed in a batch;
+step 3 computes them, with the values of C1 and E3 that the batch leaves out,
+for the trials it processes.
+
+**Lemma T4 (the table).** Fix the six words of an outer step, and let the
+memory hold the 21 words that step O stores for them. (a) For every list word j
+the build stores the five words displayed above: in lane i, the values Y12,
+C0.a1 - X4, X6, X1 and ROL(D1.d1,16) of the member of that lane, each below
+2^32. (b) These five words do not depend on X2. (c) For every value of X2,
+every list word j and every lane, the lines of a batch that read a table word
+compute names of the trial (the six words, X2, the member of the lane):
+
+    X0 = XA[j] - w2                          C2.a1 = X6[j] + X2 + w7
+    C2.b1 = ROR(X6[j] XOR C2.c1, 12)         C1.a1 = X5 + X1[j] + w3
+    D1.a1 = R[j] XOR S12                     E1.d1 = ROR(E1.a1 XOR Y12[j], 16).
+
+Proof. (a) The ten lines of the build are the ten lines of step Y with the
+packed forms of this section: U[j] is ROL(y,7); an addition of a stored word -v
+is the subtraction of v; and (X12 XOR M) + (X11 + 1) is X11 - X12 modulo 2^32
+in a lane, because XOR with M complements the low 32 bits. No sum leaves its
+lane (below), so the low 32 bits of every lane are the scalar value, and the
+words that are stored after a sum are reduced by an AND with M; R and X6 are
+rotation outputs. XA is the name C0.a1 plus the stored -X4. (b) Y12, C0.a1, X6,
+X1 and D1.d1 are table lines and X4 is an outer line, so by Lemma T2 (c) none
+of them depends on X2. (c) The six equations are the lines for X0, C2.a1,
+C2.b1, C1.a1, D1.a1 and E1.d1 of Section 4 with the words of (a) in the place
+of the names: XA[j] - w2 = C0.a1 - X4 - w2, R[j] XOR S12 = ROL(D1.d1,16) XOR
+S12, and the other four contain X6, X1 and Y12 as they stand. QED.
+
+*The machine, and which words are kept in registers.* The pieces run on a
+load/store machine with 16 registers. One operation is charged for every
+addition, XOR, AND, OR and shift of 256-bit words, for every comparison and for
+every branch, so PROR = 5. One load is charged every time a word is fetched
+from memory, from a list or from the table into a register, and one store every
+time a register is written to memory or to the table. Shift distances are fixed
+in the instruction. A register may hold a memory word across several
+operations, and that is the one place where this text counts differently from
+entry c66f230d, which charged a load for every use of a constant. Here nine
+words are loaded once per value of X2, in the last part of the middle step
+("class loop entry", 9 loads), and stay in their registers for all 18,725
+batches of that value: the two masks of the rotation by 16, the two masks of
+the rotation by 12, the two masks of Lemma A (c), ALL, 2^32 - ALL, and the word
+that has every bit of the seven lanes except bit 32. A batch reads them without
+a load. Stage 2 needs the registers of the last four of them for its own values
+and loads these four words again at its end (the part "restore", 4 loads,
+charged to stage 2). Stage A does not keep z and the third value of C2 in
+registers; stage 2 forms both again (5 operations and 3 loads, charged to stage
+2). Two registers hold the list position and the entry count for the whole
+search. With that, the batch uses all 16 registers, and 15 do not run it, under
+the program's convention that the result of an instruction may reuse a register
+whose source value is used for the last time on that same instruction; if
+instead every source stays live until its instruction finishes, the batch peaks
+at 17 registers, and the one extra word, spilled and loaded again inside the
+batch, costs far less than the margin already left between the budget and the
+charge. The idea of keeping masks in registers across a loop is credited in
+Section 13. Under the convention of entry c66f230d, with every read of a memory
+word charged as a load, the same program counts 57 and 143 for the two stages
+(its line `KEPT = 0`), and the claim would be 96.0; no address arithmetic is
+charged for the list and table loads, as in that entry, and with one operation
+for each such load the stages would be 50 and 139 and the claim 95.8.
+
+*No lane overflows.* Put B = 2^32. Table words, list words, stored words,
+rotation outputs and constants are below B, and an XOR with a value below B
+keeps a bound that is a multiple of B. In the build, Y12 and C0.a1 are sums
+below 2B, XA is below 3B before it is reduced, D1.c1 is below 3B and D1.d1
+below 4B, and X1 is below 4B before it is reduced. In stage A, X0 is below 2B
+and X10 below 3B; C2's first value is below 2B, its third, X10 plus a rotation
+output, below 4B, and its fifth below 4B, so z is below 4B; by Lemma A (c) the
+bits of z above 31 never reach a position that is read, and by Lemma A (d) the
+sum of rule A is at most B. In stage 2, z and the third value are formed again
+within the same bounds and the sum for Y6 is below 5B; X10 + (-X15) is below
+4B; C1's first value is below 3B, its third below 2B, and Y1 + S1 + S6, a value
+below 3B plus two values below B, below 5B; in E1, a1 is below 7B, c1 and c1'
+are below 2B, the two a2 are below 9B and c2 and c2' are below 3B. In the E1
+test beta XOR eps is below 4B, so its shift to the left by one bit stays inside
+the lane, n is reduced by an AND with M, and the sum that forms the flags is
+below 2B. So every sum of a batch is below 9B and every sum of the build below
+4B, which is below 2^36 = 16B: no carry leaves a lane, the low 32 bits of every
+lane equal the scalar value modulo 2^32, and XOR and PROR read only those bits.
+For the outer step and the middle step a participant tool derives the bounds by
+interval arithmetic on a second machine: below 7B and below 8B. Every word that
+is stored and every word that enters the flags of stage 2 is below B.
+
+*Operation counts.* For the rule with eight conditions, on the machine above:
+
+| Part | What is computed | Operations | Loads |
+| --- | --- | ---: | ---: |
+| loop | next list position, end test, branch | 3 | 1 |
+| X0 to X10 | X0 (1), D0.d1 (1), X10 (1) | 3 | 4 |
+| C2 to z | a1 (1), d1 (6), c1 (1), b1 (6), z (3) | 17 | 4 |
+| rule A | word y (8), flags and branch (6) | 14 | 1 |
+|  | stage A, every batch | 37 | 10 |
+| entry count | next count, budget test, branch | 3 | 1 |
+| C2, rest | z again (4), c1 again (1), Y14 (5), Y6 (7) | 17 | 7 |
+| C1 to Y1 | D0.b1 X5 (13), a1 (2), d1 (6), c1 (1), b1 (6), sum (3) | 31 | 8 |
+| E1, A and B | a1 d1 (8), A: c1 b1 a2 c2 (16), B: (16), beta (1) | 41 | 6 |
+| E1 test | eps, beta XOR eps (2), n (7), flags and branch (4) | 13 | 4 |
+| restore | four kept words loaded again | 0 | 4 |
+|  | stage 2, only after a pass of stage A | 105 | 30 |
+
+So stage A is 37 + 10 = 47 and stage 2 is 105 + 30 = 135. The three other
+pieces:
+
+| Piece | Part | Operations | Loads | Stores |
+| --- | --- | ---: | ---: | ---: |
+| table build | build loop | 3 | 1 | 0 |
+| table build | build C0 | 13 | 11 | 2 |
+| table build | build D1 | 27 | 14 | 3 |
+|  | table build, per list word | 43 | 26 | 5 |
+| middle step | next X2 | 6 | 7 | 2 |
+| middle step | D2 and K1 | 47 | 15 | 4 |
+| middle step | K0 | 32 | 9 | 3 |
+| middle step | class loop entry | 0 | 9 | 0 |
+|  | middle step, per value of X2 | 85 | 40 | 9 |
+| outer step | next w5 | 6 | 6 | 2 |
+| outer step | K2 and D3 | 67 | 39 | 9 |
+| outer step | K3 | 43 | 25 | 4 |
+| outer step | C0 and D2 | 32 | 21 | 6 |
+|  | outer step | 148 | 91 | 21 |
+
+The build is 43 + 26 + 5 = 74 per list word, that is 74 * 18,725 = 1,385,650
+per outer step; the middle step is 85 + 40 + 9 = 134 and the outer step 148 +
+91 + 21 = 260. Registers in use at one time, the two for the list position and
+the entry count included: 16 in a batch, 11 in the outer step, 7 in the build,
+13 in the middle step.
+
+Each XOR followed by a rotation is 6 operations, a two-term sum 1 and a
+three-term sum 2. The loads of stage A are the list end, XA[j], -w2,
+ROL(X15,8), S10 + X15, X6[j], X2 + w7, X14, w0 and V[j]: 10. In the part "rule
+A" the word y is 8 operations (two shifts with an AND and an XOR, one shift
+with an XOR), u is an XOR with the loaded V[j] and an AND, the sum is one
+addition, and the flags are an OR with the word that has every bit except bit
+32 of each lane, a comparison with that word and the branch: 14 operations and
+one load. The loads of stage 2 are the budget; X6[j], X2 + w7 and w0 for z, and
+the two mask pairs of the rotations by 8 and by 7; -X15, S5, X1[j], w3, X13,
+X9, R[j] and S12; w12 - S1 - S6, Y12[j], Y11, w5, Y11' and w5 + delta; the mask
+of the rotation by one bit, M, the mask of bit 32 and eta; and the four words
+of the part "restore": 30. The count of the middle step is for all 21 lines of
+step M and its nine stores; two of the lines (S0 and w1) and the store of w1
+serve only step 3 and are counted for every value of X2 all the same.
+
+*The count in the submitted program.* The program of the two declared
+experiments, experiments/halfsearch.py, contains the four pieces and the
+machine that counts them. A packed word is one integer with seven 36-bit lanes.
+Every addition, XOR, AND, OR and shift of packed words is a call that adds one
+operation, every fetch of a memory word, list word or table word is a call that
+adds one load unless the word is one of the nine kept in registers, every write
+is a call that adds one store, and every comparison and every branch adds one
+operation. The pieces are written with these calls only. The program always
+evaluates both stages of a batch, so that stage 2 is counted and checked for
+every batch; the algorithm runs stage 2 only after a pass of stage A. The
+command
+
+    python3 experiments/halfsearch.py --selftest N [seed]
+
+runs N cases. A case is one outer step, one word of each list of the table, one
+middle step and one packed batch; the seven context words and the list position
+of a case come from SHAKE-256 of the seed text (default 1) and the case number.
+Every fourth case is the last batch of the sub-class, and in every fifth case
+each context word is 0, 2^32 - 1 or as drawn. Every lane is checked against the
+real messages of its trial. The program builds the messages A and B of the
+trial by steps O, M, Y, T, S2 and S3 and compresses each in full, with a
+2-round compression written out from Section 1 and with no shortcut of the
+batch. From these two compressions it takes Y4 of A; h1, the second value of E3
+on A; the word n of Lemma N, from E1 evaluated for A and for B on their own
+states and words; and the two digests. A lane is right when the sixteen words
+of the 55 bytes of A are the words of the trial, Y4 is the member of the lane,
+the digests agree on digest words 0, 2, 5 and 7, the stage-A flag says whether
+h1 satisfies rule A as written in 6.3, the reduced word of stage 2 equals n, n
+equals D3 XOR ROL(D6, 8) of the two digests, and the stage-2 flag says whether
+n is nonzero; no lane of a case counts as right unless every word that the
+outer step, the build and the middle step have stored is the word of the
+context, and unless both branches are taken exactly when one of the seven words
+in front of them is zero. The program prints one JSON line with the cases, the
+lanes checked and right, the lanes that satisfy rule A and the batches in which
+one does, operations, loads and stores per part of the four pieces, whether
+they are the same in every case and equal to the tables above, the largest lane
+of a sum per part next to its bound, the registers in use per piece, the words
+kept in registers, the members in the lists, and two complete enumerations: the
+flags of stage 2 on all 128 patterns of zero and nonzero lanes, and the flags
+of stage A on packed words in which every pattern of the 13 bits of z that rule
+A reads, with every pattern of the bits 27 to 29 of e1, occurs once in every
+lane. Its exit status is 0 only if all of these agree with this section.
+
+With N = 2,000 and seed 1 it reports 14,000 of 14,000 lanes right; 37
+operations and 10 loads in stage A and 105 and 30 in stage 2, per part as in
+the table and the same in every case; largest sums of 2.968, 3.831, 1.000,
+4.818, 4.511, 7.999 and 1.999 times 2^32 in the parts "X0 to X10", "C2 to z",
+"rule A", "C2, rest", "C1 to Y1", "E1, A and B" and "E1 test", below the bounds
+3, 4, 2, 5, 5, 9 and 2; 131,072 members in the 18,725 words of each list; and
+16, 11, 7 and 13 registers. In that run 54 lanes satisfy rule A, in 46 batches.
+None of the words n of that run is zero, so the flags of stage 2 are also
+formed for all 128 patterns of zero and nonzero lanes: all 128 are right. For
+rule A the program forms 65,536 packed words in which each of the 2^16 patterns
+occurs once in every lane, with different other bits and filled guard bits, and
+compares the stage-A flags with rule A as written on h1 = ROR(ROR(z, 8) XOR e1,
+16): all 65,536 are right. In 1,792 of these words some lane satisfies the
+rule; that is 7 * 256, each lane in 256 of the words, the share 2^-8.
+
+A longer run of the same self-test, 1,000,000 cases with seed 61, reports
+7,000,000 of 7,000,000 lanes right, the same counts in every case, the same
+registers and a largest sum of 8.349 * 2^32; 27,068 of its lanes satisfy rule
+A, in 23,368 batches. Its contexts are random or extreme by design and are not
+laid out as a run of 6.4, and every fourth case is the short last batch, whose
+spare lanes repeat a member, so these two counts are not a measurement of a
+rate. A participant tool with a second counting machine, which shares no code
+with the machine of the program, counts the same operations, loads and stores
+for all four pieces and refuses the batch with 15 registers; another derives
+the bounds of the sums for all inputs by interval arithmetic and finds every
+one below the bound of its part.
+
+In the declared experiment `residual-search` the same program evaluates, per
+organizer seed, one outer step, the table words of one list word, one middle
+step and one batch, for that seed's context and the list position that holds
+the first member tried, and returns the operations and loads of the two stages
+of the batch, its number of right lanes and whether a lane satisfied rule A as
+observations. The organizer's runner records observations as untrusted and does
+not recompute them. The self-test and these observations therefore show what
+the program in the package counts, and that its lanes agree with the program's
+own compression of the real messages. They are a participant check, not an
+organizer verification of the cost.
+
+## 7. Success probability
+
+The probability space is the one uniform 256-bit word of step 1, for the
+fixed target. The algorithm is otherwise deterministic. The trials depend on
+that word only through the four words C0.c1, D3.d1, S15 and S9. Write N =
+1,424,469 * 2^81 = 2^101.442 for the number of trials of a run.
+
+Call a trial *good* when R = 0 and the trial satisfies rule A. By 6.4 a good
+trial is found unless a budget of step 4 ends the run before.
+
+**Heuristic H1 (score-critical).** Over the coins, the N trials behave with
+respect to the event "good" like independent events of probability at least
+49,400,000 * 2^-128 = 2^-102.442 each, to the extent that the probability that
+no trial is good is at most exp(-1/2) + 0.002. This is one assumption with two
+parts: a rate, and that the good trials of a run do not come in clusters.
+Neither part follows from the other, and neither follows from the model of
+Section 10. The factor 49,400,000 is assumed. Section 10 describes what it is
+set against: for Y4 in the sub-class and under the seven-word model, a count in
+integer arithmetic of the solutions of R = 0 that satisfy rule A,
+185,358,111.47, and the smaller figure 185,355,453.45 that leaves out every
+outcome of the count in which some solution violates rule A; participant
+computations, of which the first equals the fraction of another AI model and
+the second is the participant's alone. The organizer-run experiments do not
+measure the factor.
+
+**Heuristic H2 (supporting).** With probability at least 0.9995 over the
+coins, fewer than 2^84 of the N trials pass the E1 test of Lemma N without
+having R = 0. (The budget corresponds to a pass rate of 2^-17.44. The pass
+rate measured on real trials of the whole class in the arrangement of this
+package is 2^-31.41, which would give 2^70.03 passes, below the budget by a
+factor of more than 2^13.9; in the sub-class the graphics-card run of Section
+10 counts 9,537 passes of the E1 test in 2^44.585 trials, a rate of 2^-31.37.
+Step 3 processes only the passes that lie in batches that ran stage 2, which
+are fewer. That the number of passes of one run stays near this mean is part
+of the assumption.)
+
+**Heuristic H3 (supporting).** With probability at least 0.9995 over the coins,
+fewer than E of the batches of a run hold a trial that satisfies rule A, where
+E is the budget of step 4, just under one in 32 of the batches. (A batch runs
+stage 2 exactly when one of its trials satisfies rule A. In every context the
+number of such batches is at most the number of trials that satisfy the rule;
+so H3 holds whenever fewer than E trials of the run satisfy rule A, a share of
+1.1429 times 2^-8 of the trials, where a uniform h1 satisfies the rule with
+probability 2^-8. H3 is a statement about the total over a run and is not true
+context by context. Measured on 2^30 real trials of the sub-class, three times,
+the share of the batches that run stage 2 is 0.02617, 0.02622 and 0.02622,
+against the budget 0.03125; single contexts have between 0.0071 and 0.0421, so
+a single context can exceed the budget on its own batches; the averages of 512
+outer steps over 16 values of X2 each lie between 0.0238 and 0.0289. That the
+average over the outer steps of one run stays below the budget, with the room
+of 19 percent that these samples show, is the assumption.)
+
+Under H1, H2 and H3 the algorithm outputs a collision with probability at least
+1 - exp(-1/2) - 0.002 - 0.0005 - 0.0005 > 0.3934 - 0.003 = 0.3904 >= 0.39: by
+the union bound over the three events "no trial is good", "the budget of step 3
+is reached" and "the budget E is reached", which need not be independent. When
+it outputs a pair, the pair is a genuine collision: step 3 checks both complete
+digests, and the messages have different lengths.
+
+*Sensitivity to the factor.* If the rate of good trials is f * 2^-128, the N
+trials give 1 - exp(-f * 1,424,469 / 2^47) - 0.003 with the same allowances,
+which reaches 0.39 only when f is at least 49,323,560: the assumed 49,400,000
+leaves no slack on the probability side. The margin of the claim lies between
+the assumed 49,400,000 and the counted 185,355,453, a factor of 3.75. It is
+nominally the margin of entry c66f230d, but it is tighter. There 3.75 was the
+ratio to a figure that left out about 18 million of the exact count with rule
+A, and that count and the whole count were 4.29 and 4.83 times the factor 2^25.
+Here the rule loses almost nothing, and the three figures, 185,355,453,
+185,358,111 and 185,377,197, are 3.75, 3.75 and 3.75 times the factor. For an f
+between 1 and 49,400,000 the same success probability needs 2^127 / f trials
+and, at the same 7.7 operations per trial, the total of Section 8 is below
+2^(121.208 - log2 f): below 2^95.65 at the assumed factor, and below 2^121.208
+at f = 1, the uniform rate, where the package would submit 121.3. With the more
+cautious f = 2^25 = 33,554,432, the factor of entry c66f230d, which is 5.52
+times below the count, the same package would search 2^102 trials, with C0.d1
+below 2^21, and would submit 96.3.
+
+*Remark on clustering.* H1 asks for more than a rate: it asks that the good
+trials do not come in clusters. Under M the count of Section 10 gives
+185,355,453 * N / 2^128 = 1.87 expected good trials in a run, or more, where H1
+needs 0.5. Suppose that these trials came in clusters of m on average and that
+the clusters fell independently. Then a run would contain one with probability
+about 1 - exp(-1.87 / m), and the bound 0.39 would hold for m up to 3.74. So if
+the counted rate is right, the bound survives a clustering of the successes by
+that factor. This is a remark and not a proof: the counted rate rests on M, and
+nothing here bounds m. Two dependences are measured and stated in Section 10:
+the share of the trials that satisfy rule A depends on the context, and the
+rates of single events of E1 depend on the outer step.
+
+None of the three heuristics is proved. Section 10 lists the evidence.
+
+## 8. Charged time
+
+One 2-round target compression costs one unit and every other primitive word
+operation, every load and every store included, costs 1/C units with C = 430.
+
+**The cost of a trial, with every term.** Let W = 18,725 be the number of list
+words, 47 the count of stage A and 135 the count of stage 2 with its entry
+count and its part "restore", 1/32 the share of the batches that step 4 allows
+to run stage 2, and 134, 74 and 260 the counts of the middle step, of the table
+build per list word and of the outer step (6.5). One value of X2 has W batches
+for 131,072 trials; one outer step has 2^32 values of X2. The work for one
+value of X2, with its share of the work of its outer step and of the loop
+control of 6.4, is at most
+
+    P = W * 47 + W * 135 / 32 + 134 + 1
+        + (W * 74 + 260 + 8) / 2^32 + 16 / 2^64
+
+operations, and a trial costs P / 131072.
+
+| Term | How often | Per value of X2 | Per trial |
+| --- | --- | ---: | ---: |
+| stage A | every batch | 880,075 | 6.714439 |
+| stage 2 | 1/32 of the batches | 78,996.09375 | 0.602692 |
+| middle step | once per value of X2 | 134 | 0.001022 |
+| table build | W list words per outer step | 0.000322622 | 2.461e-09 |
+| outer step | once per outer step | 6.054e-08 | 4.619e-13 |
+| loop control | bounds of 6.4 | 1.000000002 | 7.629e-06 |
+| **budgeted** | | **959,206.0941** | **7.3182** |
+| charged | | 1,009,254.4 | **7.7** |
+
+The first five terms are machine counts of the program. The term "loop control"
+is a bound stated in words in 6.4 and is not a machine count. The charge is 5.2
+percent above the budgeted cost; that difference is margin for operations that
+a reader may find uncounted, 2.67 per batch of seven trials.
+
+- **Main loop.** For one value of X2 the 131,072 members take 18,725 batches:
+  18,724 full ones and one that holds the last four members and is charged in
+  full. A run has 1,424,469 * 2^64 values of X2 in 1,424,469 * 2^32 outer
+  steps, and so 18,725 * 1,424,469 * 2^64 batches. Every batch runs stage A, 47
+  primitive operations by 6.5, memory loads included. By step 4 fewer than one
+  batch in 32 runs stage 2, 135 operations each. On every run the main loop
+  therefore costs at most 1,424,469 * 2^64 * P operations with P =
+  959,206.0941, which is less than 7.319 per trial. It is charged 7.7 per
+  trial, that is 7.7 * N operations. This is the budgeted cost, a bound for
+  every run. The expected cost is lower: if the trials of a batch satisfied
+  rule A independently with probability 2^-8, a share of 0.027025 of the
+  batches, which rounds to 0.0270, would run stage 2 and a trial would cost
+  7.2367 operations on average; the measured share is lower still (H3).
+- **Per outer step.** Nothing is charged separately: the outer step and the
+  build of the table are machine counts and are in P.
+- **Lists.** The lists U and V are computed once from eta, the sub-class, Y3
+  and the rule: 131,072 members at fewer than 64 operations for each list, 2^24
+  operations.
+- **Passes of the E1 test.** At most 2^84 are processed (step 4). The batch
+  keeps no values of a passing trial. Its batch is evaluated again, both
+  stages, and the rest is added in the same packed form: Y9 by the sixth and
+  seventh assignment of C1; the b output of E1 for A and for B; S0 by the first
+  five assignments of K0 from the stored words w0 and w1, then D0.a1 and w8; y
+  from the list word U[j]; E3 for A and for B; the four words of R, their
+  comparison with zero in the lane of the trial, the count of the processed
+  trials, and the nine loads that put the kept words back into their registers.
+  That is below 2^10 operations each: 2^94 operations, a share below 2^-10.3 of
+  the main loop. This bound is stated in words and was not written out on the
+  machine.
+- **Final step.** Steps S2, S3 and two complete hash evaluations with their
+  input handling: below 2^11 operations and 2 units, once.
+- **Randomness.** One random word, charged as one operation.
+- **Preprocessing.** The six constants of 3.2, the word eta, the two bits of
+  the sub-class and rule A with the plan of its test are stored in the program.
+  The constants were found by a solver search and chosen by the count of
+  Section 10; the sub-class and the rule were read off exact counts of the same
+  kind. Two different figures are involved, and this text keeps them apart. (1)
+  A bound: a pair (W4, W13) with the property of Fact P and a zero top byte of
+  W13, for the four given inputs X3, X7, X11, X15, is found by exhaustive
+  search over at most 2^64 candidates at two G evaluations and a comparison
+  each, below 128 operations: 2^71 operations, below 2^63 units. This bound
+  covers the recomputation of those two words and nothing else. (2) An
+  estimate: the solver search that produced all six constants and the counts by
+  which the constants, eta, the sub-class and rule A were selected used fewer
+  than 2^60 primitive operations in total, by the participant's estimate from
+  the running times; that is not a count and not a bound, and no bounded
+  algorithm for the selection is given. The measurements on real and on
+  scaled-down messages of Section 10 test the heuristics and select nothing;
+  they are not part of this figure, and some of them ran on graphics cards for
+  hours.
+
+Total:
+
+    T <= (7.7 * N + 2^94 + 2^60 + 2^24 + 2^11 + 1) / 430 + 2 + 2^63
+       <  7.7 * N * (1 + 2^-7) / 430 + 2^64
+       <  2^95.6499 + 2^64
+       <  2^95.65.
+
+Here N = 1,424,469 * 2^81 = 2^101.441993 and 7.7 * N / 430 = 2^(101.441993 +
+2.944859 - 8.748192) = 2^95.638660; the three logarithms are rounded so that
+the result is not too small. The terms after the first add up to less than
+2^94.01, which is below 7.7 * N * 2^-7, itself more than 2^97.386, and log2(1 +
+2^-7) < 0.01123. The submitted bound is time_log2 = 95.7, the total rounded up
+to one decimal. The 2^60 in the first line is the estimate (2) above, entered
+as if it were a bound; if the selection had cost 2^90 operations instead, the
+total would still be below 2^95.65. This is a worst-case bound for the
+algorithm as stated, which halts within its two budgets on every run.
+
+The algorithm has no sorting and no lookup by value: a trial is tested against
+zero, not against other trials. It has three kinds of lists, all read in the
+order of the list position: the fixed list U, read once per outer step by the
+build; the fixed list V, read by stage A; and the table of the current outer
+step, five words per list word, written once per outer step and read by the
+batches of all its 2^32 values of X2. Their loads are counted, 1 of the 26
+loads of the build, 3 of the 10 loads of stage A and 4 of the 30 loads of stage
+2, and so are the 5 stores per list word. One table word serves seven members
+times 2^32 values of X2; that this is allowed is Lemma T4 (b). If a table had
+to be built for every value of X2, the build would add 10.5717 operations per
+trial.
+
+## 9. Memory, preprocessing and advice
+
+The program is the lines of steps O, M, Y and T, the four packed pieces of 6.5
+and a compression routine for the final check. Bound the code by 4096
+instruction templates of at most four 256-bit words each: 2^14 words, which is
+2^19 bytes. Data, one packed word of 256 bits each: the table of one outer step
+(5 * 18,725 words), the lists U and V (2 * 18,725), and fewer than 512 words
+for the cells of the outer step and the middle step, the context, the fixed
+constants and masks, the temporaries and the two messages and digests of the
+final check: fewer than 131,587 words, that is 4,210,784 bytes. The memory of
+the search is therefore below 2^19 + 4,210,784 < 2^23 bytes. Nothing grows with
+the number of trials: the table is overwritten at every outer step.
+
+*Memory of the preprocessing.* The computations by which the constants, the
+class, the sub-class and the rule were selected needed far more memory than the
+search. The solver search and the counting programs ran on a desktop machine
+and stayed below 16 GB of main memory, 2^34 bytes; the sampling programs and
+the programs for real messages stayed below 10 GB of the memory of one graphics
+card. These two limits are the participant's observation of the runs, not
+instrumented peaks. memory_log2_bytes = 35 covers both at once, 2^34 + 10 *
+2^30 < 2^35 bytes, and with them the search. The cost model does not score
+memory.
+
+preprocessing_log2 = 63 is the bound (1) of Section 8 for recomputing the two
+pinned message words at the four given inputs. It is not a bound for the
+selection of the four inputs, of eta, of the sub-class or of rule A; for that
+selection the text has only the estimate (2) of Section 8, which is below 2^63
+units and is the participant's. Both are included in T.
+nonuniform_advice_log2_bytes = 6 covers the 28 bytes of the six constants and
+eta, the 8 bytes that name the two bits of the sub-class and their values, and
+the 12 bytes of the two masks and the word ALL of Lemma A, 48 bytes in all. The
+lists U and V are not advice: the program computes them from these constants by
+Lemmas Q2 and A. There is no other stored data and no stored collision.
+
+## 10. Evidence, scope and field meanings
+
+Throughout this text costs and bounds are rounded up, and margins, rooms and
+the whole numbers of the count that the claim uses are rounded down. Counts
+printed with decimals are rounded to the nearest.
+
+**What is exact.** Sections 2 to 5 and Lemmas L, H, Q, Q2, T, T2, T3, T4, N and
+A. Lemma A says what stage A tests, not that a collision passes it. The
+declared experiment `half-collision` runs one trial of 6.1 per organizer seed,
+with the seven words of a context and a member number taken from the seed, and
+the organizer recomputes both digests; Lemma T predicts that every trial agrees
+on the 128 masked digest bits.
+
+*What is new in the exact part and who has checked it.* Sections 1 to 3, Lemmas
+L, H, Q, T and N and Fact P are those of entry c66f230d. New are the order of
+Section 4 with Lemma T2, the loops with Lemma T3, the table with Lemma T4, the
+sub-class with Lemma Q2 and Lemma A in the form of 6.3. All of it was written
+by helper agents of the participant, instances of the same AI model as the
+author of this text. Lemmas T2, T3 and T4 were first written by one helper
+agent, for a table of numbered lines, and checked by a second one with programs
+of its own: the 96 lines against the 96 equations built from the call table of
+Section 1 (every equation used once, every line reads only earlier names,
+levels 29, 21, 10 and 36); on 100,000 tuples of eight words every one of the 96
+names and of the eight words is the value of that name in a forward 2-round
+compression of the real 55 bytes of A, B has the same states S and X, digest
+words 0, 2, 5 and 7 agree, and the tuple is read back from A and from B alone;
+a grid of 188,082 quadruples in the order of a run gives 188,082 different
+messages A. It found no wrong value and asked for changes of wording, which are
+made here. This text restates the three lemmas on the displays of Section 4,
+with names in the place of line numbers; that restatement, Lemma Q2 and Lemma A
+with its proof are the work of one helper agent. Three further helper agents
+then reviewed the assembled text; the one that read the exact part reran the
+displays, Table C, Lemmas Q, Q2, L and A, parts of Lemma T2 and the table words
+of Lemma T4 with programs of its own and found no wrong value (the review is
+described under the limits below). For this text a participant tool reads the
+displays of Section 4 and Table C from the text as they are printed and runs
+them on 20,000 tuples of eight words (2,000 with words 0 or 2^32 - 1): each of
+the 96 names equals the value of that name in a forward compression of the real
+message A and in the submitted program, the line of every cell of Table C
+contains exactly the names of that assignment of that call, and every line
+reads only what its step may read (no failure). Lemma A was checked by complete
+enumeration in three ways: by the submitted program on all 2^16 patterns of the
+13 bits of z and the 3 bits of e1 that the rule reads, once in every lane
+(65,536 packed words, all right); by a second statement of rule and test typed
+by hand, on 4,194,304 inputs, with the 13 + 3 bits found by flipping every bit
+of z and e1; and by seven wrong plans of the test, all of which the program
+refuses. The statements (a) to (d) as they are printed in 6.3 were typed into a
+further tool and compared with the rule and the list V of the program on
+262,144 cases, every pattern of the 16 bits among them: no difference. These
+are checks, not proofs, and no person has read any part of this text.
+
+**The seven-word model.** By 6.2 the residual of a trial is a function of the
+constants and of seven 32-bit words: for E1 its first-half values d1 and b1 and
+its a output a2 on message A, and for E3 the words Y4, Y9, w8 and its
+first-half value h1 on message A. (E1's a1 and d1 are the same for A and B, so
+a1 enters only through d1 and a2; each of the seven words is a bijective image
+of one input or message word of its call when the others are fixed.) In the
+algorithm Y4 takes every member of the sub-class equally often. The model M
+says that over the trials the other six words behave like independent uniform
+words, independent of Y4. Under M a trial has R = 0 with probability r *
+2^-128, where r * 2^81 is the number of solutions of R = 0 among the 2^209
+values of the seven words with Y4 in the sub-class. Call r the *rate of the
+sub-class*. Rule A is a condition on h1, one of the seven words, so under M the
+trials with R = 0 that satisfy rule A have a rate of the same kind, r_A, which
+counts only the solutions that satisfy rule A; r_A is at most r. M and r_A >=
+49,400,000 together give the rate that H1 assumes for a single trial. They do
+not give H1: H1 also assumes that the good trials of a run do not come in
+clusters, and a model of the single trial says nothing about that.
+
+Given M, the rate is a property of the constants and the sub-class alone: the
+number of solutions of a system of equations in seven words. It can be counted
+without sampling, and this section describes the count. The count says nothing
+about whether M holds. In a trial the six words are not free: within one
+context each of them is a function of Y4, and two of the five words that E1
+reads, Y12 and w5, depend only on w5, the member and three words of step 1
+(6.4): they are the same in all 1,424,469 * 2^32 trials of a run with one value
+of w5 and one member, which lie in 1,424,469 outer steps. M is therefore a
+statement about averages over the outer steps of a run, and the measurements
+below show where it fails inside one context and inside one outer step.
+
+**How r is counted (participant computation, not organizer-verified).** Write
+tau, eps for the XOR differences between A and B of E1's a and c outputs and
+beta for that of its first-half b. E1's a1 and d1 are the same for A and B, so
+its d and b output differences are ROR(tau, 8) and ROR(beta XOR eps, 7), and
+E3's d and b output differences are ROR(eta XOR eps', 8) and ROR(psi XOR tau',
+7), where eta, psi are the XOR differences of E3's first-half d and b and tau',
+eps' those of its c and a outputs. So R = 0 holds exactly when tau' = tau, eps'
+= eps, psi = tau XOR ROR(tau, 1) and eta = eps XOR ROL(beta XOR eps, 1). For Y4
+in the class the left side of the last equation is the constant 830303cf.
+
+1. *The betas.* beta is a function of d1 alone: with c1 = Y11 + d1 and DY11 =
+   Y11' - Y11 = 0a08818b, beta = ROR(c1 XOR (c1 + DY11), 12). As in Lemma Q,
+   the d1 with a given beta are those for which c1 has prescribed bits on the
+   mask ROL(beta,12) AND 7fffffff; they are a share 2^-k of all d1, where k is
+   the number of bits of the mask. Only finitely many words occur as beta, and
+   they can be listed by increasing k.
+2. *The outcomes of one beta.* An outcome is a pair (tau, eps). In E1, a2' =
+   a2 + delta + (b1' - b1), and b1' - b1 = (b1 XOR beta) - b1 is a signed sum
+   over the bits of beta. So tau = a2 XOR a2' is one of the XOR differences
+   that an addition can show when its additive difference is delta plus such a
+   signed sum. These words are enumerated by a depth-first search over the
+   bits of tau, lowest first, with a carry automaton that keeps, for every
+   carry, the number of sign choices on the lower bits of beta that lead to
+   it; a branch ends when no sign choice is left. No bound is put on the
+   weight of tau. For eps, the last equation above says eps XOR ROR(eps, 1) =
+   beta XOR ROR(eta, 1). A word has the form eps XOR ROR(eps, 1) exactly when
+   its weight is even, and then for exactly two words eps, each the complement
+   of the other. So a beta for which beta XOR ROR(eta, 1) has odd weight
+   contributes nothing, and every other beta has two candidates for eps.
+
+3. *The E3 side.* For an outcome, N3 is the number of quadruples (Y4, h1, Y9,
+   w8) for which E3 produces eta, psi, eps and tau; all of them have Y4 in the
+   class. For a word x and a mask m, (x XOR m) - x is the signed sum over the
+   bits i of m of (1 - 2 x_i) 2^i, so an addition whose XOR output difference
+   is prescribed fixes the bits of its result on that mask once its additive
+   input difference is known. E3 has four such additions. Their additive
+   differences are the constant Y3' - Y3 and three signed sums (over the bits
+   of eta, psi and ROR(eta XOR eps, 8)); the admissible values of those three
+   are enumerated with a carry automaton, and for each choice the number of
+   completions is a product of two carry automata, one for Y4 against e1 = Y3 +
+   Y4 and one for g1 + h2. The counter of this package returns an integer for
+   every outcome and has no sampling branch.
+
+4. *The E1 side.* For an outcome, P1 is the probability that E1 produces tau
+   and eps when d1 is uniform among the values with this beta and b1 and a2 are
+   uniform. Put nu = ROR(tau, 8), the XOR difference of E1's d output. Two
+   additive differences are involved: db = b1' - b1, a signed sum over the bits
+   of beta, and dd = d2' - d2, a signed sum over the bits of nu. The first must
+   make the addition a2 + (delta + db) show tau, the second must make the
+   addition c2 + (DY11 + dd) show eps. For every such pair (db, dd) the bits of
+   a2 on tau, of d2 on nu and of c2 on eps are prescribed, and the number of
+   pairs (c1, a2) that have them is counted by an automaton over the bits of c1
+   with two state bits, the borrow of d1 = c1 - Y11 and the carry of c2 = c1 +
+   d2. A triple (c1, b1, a2) determines db and dd, so the counts of the pairs
+   (db, dd) are added. The counter of this package forms the count as an
+   integer for every outcome; no outcome of the count below needed a fallback.
+
+5. *The sum.* For the sub-class, N3 counts only the quadruples with Y4 in the
+   sub-class. The part of a beta in r is 2^(15 - k) times the sum over its
+   outcomes of P1 * N3. Here 15 is the number of bits that Lemma Q2 fixes, so
+   that the sub-class is a share 2^-15 of all Y4: the sum of N3 over all 2^96
+   values of (d1, b1, a2) is r * 2^81, and 2^96 / 2^81 = 2^15. r is the sum of
+   the parts over all betas. Parts are not negative, so the sum over any set of
+   betas is a lower bound for r. For r_A, N3 counts only the quadruples whose
+   h1 satisfies rule A.
+
+The counting program of this package works in integers (128-bit unsigned
+integers; exact fractions for the products and sums). No floating-point number
+is on the path of a figure that is printed below as a fraction.
+
+**The count for this package (participant computation).** The count runs over
+the 60 words beta that have a part in the rate of the whole class. That list is
+the result of the count of entry c66f230d (of the 133,742 words that occur as
+beta, the 4,550 with k at most 14 were enumerated; for the 129,192 others a SAT
+solver was asked whether the whole system has a solution with that beta and
+answered no for 129,147, without certificates) and of the integer enumeration
+of GPT Sol 6.1 over every value of beta, which finds the same 60. The sub-class
+is a subset of the class, so a beta without a part in the class has none in the
+sub-class. The other betas were not searched again for this package.
+
+For the whole class the rate is 85074516985129/524288 = 162,266,763.66, from 60
+betas and 453 outcomes with a nonzero product. For the sub-class it is
+
+    r = 194382080300609/1048576 = 185,377,197.55,
+
+from 53 betas and 317 outcomes. It is about 2^27.47, so that under M a trial
+has R = 0 with probability about 2^-100.53. The rate of the sub-class is 1.142
+times the rate of the class: under M the members do not have the same rate, and
+the quarter of the class in which bits 21 and 26 of e1 are zero has more than
+its share.
+
+| beta | Outcomes | Part of r | With rule A | Kept for H1 |
+| --- | ---: | ---: | ---: | ---: |
+| 18b0e098 | 7 | 67,698,688 | 67,698,688 | 67,698,688 |
+| 18b1a098 | 16 | 51,384,320 | 51,384,320 | 51,384,320 |
+| 18d0e098 | 12 | 50,790,400 | 50,790,400 | 50,790,400 |
+| 18d1a098 | 12 | 13,246,464 | 13,246,464 | 13,246,464 |
+| 18b3e098 | 4 | 1,474,560 | 1,474,560 | 1,474,560 |
+| 18d3e098 | 6 | 755,712 | 755,712 | 755,712 |
+| 18d16398 | 6 | 13,328 | 456 | 0 |
+| 18f1e098 | 8 | 3,465 | 1,665 | 0 |
+| 45 others | 246 | 10,260.5523 | 5,846.4676 | 5,309.4537 |
+| sum | 317 | 185,377,197.5523 | 185,358,111.4676 | 185,355,453.4537 |
+
+"With rule A" is the part of the beta in r_A. "Kept for H1" adds only the
+outcomes in which every solution satisfies rule A. The heaviest beta carries
+36.5% of the count and the four heaviest 98.8%. The count rests on few paths.
+
+*Rule A in the count.* Of the 317 outcomes, 99 have only solutions that satisfy
+rule A, 76 have none that does, and 142 have both. The exact rate with rule A
+is
+
+    r_A = 6219586146887739/33554432 = 185,358,111.47,
+
+so the rule loses 19,086.08 of r, about one part in 10,000. The sum over the 99
+outcomes is 12147454997539/65536 = 185,355,453.45. H1 is set against this
+smaller figure, as entry c66f230d set it against the outcomes without a
+violating solution; the two differ by 2,658.01 and no figure of the claim
+changes with the choice. On the whole class the same eight conditions keep
+76,072,772.68, less than half, and no outcome is free of violating solutions
+there: the rule belongs to this sub-class.
+
+*The rules that were prepared.* The submitted program holds three rules, each
+containing the one before it: the first four conditions; these and the two
+conditions on bits 2, 10 and 3, 11; and all eight. For each, the same counter
+gives the rate inside the sub-class, and the program's machine gives the cost.
+
+| Rule | r_A, exact | Kept for H1 | Stage A, 2 | Entry | Charged | Scalar |
+| ---: | ---: | ---: | --- | --- | ---: | ---: |
+| 4 | 185,358,154.95 | 185,355,465.45 | 37, 128 | 1/2 | 15.1 | 96.7 |
+| 6 | 185,358,125.47 | 185,355,465.45 | 41, 135 | 1/8 | 8.6 | 95.9 |
+| 8 | 185,358,111.47 | 185,355,453.45 | 47, 135 | 1/32 | 7.7 | 95.7 |
+
+Inside the sub-class the four further conditions cost 43.48 of the count and
+divide the share of the batches that run stage 2 by sixteen. "Rule" is the
+number of conditions, "Entry" the share of the batches that may run stage 2,
+and "Scalar" is what the package would submit with that rule and the factor
+49,400,000. The rules with four and six conditions are not claimed; their
+figures are given so that the choice can be seen.
+
+**Where the sub-class and the rule come from, and the second count.** Both were
+proposed by another AI model, GPT Sol 6.1 (OpenAI), which the participant ran
+with briefs that asked for exact counting. With a counter of its own it
+computed the rate of sub-cubes of the class (sets of members with some free
+bits of e1 fixed) and searched for affine conditions on h1 that keep the count;
+its answers give the sub-class of this package with r = 194382080300609/1048576
+and the eight conditions with r_A = 6219586146887739/33554432. It calls its
+sets "best found": its search over conditions is not exhaustive. A second
+instance of the same model, run later from a brief that gave it the decimal
+figures, reports the same two fractions; it calls the sub-class the only best
+of the sub-cubes of the class with 15 fixed bits of e1, and the eight
+conditions, which it gives in another basis of the same affine set, a certified
+best among all sets of eight affine conditions on h1. The participant has not
+checked these two statements, and nothing that the participant has checked
+shows that no better sub-class or rule exists. The participant's counter was
+then extended by the sub-class and run for this package. Compared with the
+other model's files: 21 exact fractions (the totals and the rule masses for the
+sub-class, for a second sub-class of 32,768 members and for the whole class),
+the rate of every beta, and 3,243 integers on 1,081 outcomes (the E1 count, the
+E3 count and the number of pairs of each outcome): no difference in any of
+them. This was a recount with the other model's figures at hand, not a blind
+one. What the other model does not give, and what is therefore the
+participant's alone: the figure "kept for H1" of the sub-class, the split by
+beta, and the rules with four and six conditions inside the sub-class.
+
+**Checks of the counter (participant computations).** (1) Complete enumeration
+with 8-bit words: every quadruple (Y4, h1, Y9, w8) through the two executions
+of E3 and every triple of the E1 side, for random constants, classes,
+sub-classes with up to three more fixed bits of e1, and rules that include
+parities of three bits: five runs, 1,472,040 and 5,332,992 integers compared
+with the counter, none different. (2) Inside the count at 32 bits the E3 side
+with its split by the rule is computed by two functions; they agree on all 687
+outcomes that both counted. The other 285 outcomes (16 of them with a nonzero
+product) were counted by one function alone. The E1 count agrees with the E1
+count of the earlier calculator on 972 of 972 outcomes. (3) The calculator of
+entry c66f230d, untouched, has an option of its own for a sub-class: it
+finished 54 of the 60 betas within the time allowed, each equal to the part
+printed above at its one printed decimal; the six that did not finish carry
+together 0.3346 of the 185,377,197.55 of r, a share of 1.8 * 10^-9. (4) For the
+whole class, a helper agent that audited entry c66f230d counted both factors of
+all 453 outcomes with two programs written from the definitions of 6.2 and 6.3
+alone: the same total, 85074516985129/524288, and the same parts for 60 of 60
+betas. The checks of the calculator that entry c66f230d reports for the whole
+class (an approximate model counter on the sixteen largest outcomes, brute
+force with 8-bit words, a sampler for the four heaviest betas) were not
+repeated for the sub-class.
+
+**How the constants and the class were found.** As in entry c66f230d: the six
+constants come from a SAT solver search for a pinned call with the property of
+Fact P together with a zero residual, with the two words w4 related as the
+length cancellation prescribes and a zero top byte of word 13; the class is the
+class of the solver's solution; and the constants were chosen among the
+solver's sets by the count. The constants and the class were chosen to make the
+count large, and the sub-class and the rule were chosen by the count as well.
+
+**Real messages in the arrangement of this package: what exists.** All of the
+following are participant measurements.
+
+*The self-test and the equivalence runs (processor).* Every lane of the
+self-tests of 6.5 is compared with the complete digests of its two real
+messages: 7,000,000 lanes in the long run. On 200,000 batches the program makes
+the same decisions (members, table words, flags and branches of both stages) as
+the first form of the two-level program, which fetches every word where it
+reads it, keeps nothing in registers and tests the rule as written on h1. One
+complete outer step was run: all 18,725 table words equal the words of their
+members, and with that one table all 18,725 batches of one value of X2 (131,075
+lanes) and 3,000 batches of each of three more values of X2 are right against
+the complete digests.
+
+*Rule A and the entry to stage 2 in the sub-class (processor).* Three runs of
+2^30 real trials each, in the member order of the program, with h1 taken from
+the trial and anchored against the complete compression of message A on 65,536
+trials per run: 8,192 independent contexts; 512 outer steps with 16 values of
+X2 each; and 8,192 independent contexts from a second seed. The first two runs
+were drawn from the same seed text, so the 512 contexts of the first value of
+X2 of each outer step of the second run are also contexts of the first. The
+share of the trials that satisfy rule A is 2^-8.0019, 2^-7.9992 and 2^-8.0000.
+The share of the batches that run stage 2 is 0.02617, 0.02622 and 0.02622;
+independent trials would give 0.0270, and the budget is 0.03125. Single
+contexts have between 0.0071 and 0.0421; the 512 outer steps between 0.0238 and
+0.0289. In the complete outer step above, the one value of X2 that was run in
+full has 574 of 18,725, a share of 0.0307. In the review of this text three
+helper agents measured the same share again, each once and with a program of
+its own, in contexts in the ranges of step 2 (the four words of step 1 fixed
+for a run and C0.d1 in its short range; in the first sample C0.d1, w5 and X2 at
+both ends of their ranges): 0.026171 in 8,192 contexts, 2^30 trials from four
+seeds (0.02609 to 0.02626 per seed, 5 contexts above the budget, h1 anchored on
+16,384 trials, all equal); 0.02619 on 2^22 trials; and 0.02620 in 640 contexts,
+4 of them above the budget. The first of these was run again for this text with
+the same output. These and the three runs above were, until the graphics-card
+and scaled-down runs reported below, the only measurements that have the
+sub-class and the rule of this package.
+
+*Layout runs of the two-level arrangement (graphics card).* Real messages
+enumerated as step 2 enumerates them (six outer words fixed for a run,
+consecutive values of X2, every member in list order, batches of seven
+consecutive members), but for the whole class of 524,288 members and with the
+rules of four, five and six conditions of entry c66f230d, measured for the
+first form of the two-level program: 24 outer tuples of 2^40 trials, two deeper
+runs of 2^44, eight runs with X2 spread over its range, 4,096 random outer
+tuples and 4,096 consecutive values of w5. A second helper agent recounted the
+raw outputs with its own parser (451 comparisons, 449 equal, two differ in the
+last printed digit), rebuilt the program, repeated one run, and checked on the
+processor that the layout is the algorithm's (same loop order, same shared
+words, same batches). What these runs support: averaged over outer tuples the
+counts agree with the model within their statistical error, as the next table
+shows. For the deepest event that error is large: 138 of 152.0 is a ratio of
+0.91, with one-sided 95% limits 0.785 and 1.046.
+
+| Event | Probability per trial | Average against the model |
+| --- | --- | --- |
+| rule with 4, 5, 6 conditions | 2^-4 to 2^-6 | within one part in a million |
+| listed beta | 2^-7.96 | +0.73 standard deviations |
+| listed beta and tau | 2^-18.88 | +0.83 standard deviations |
+| listed partial E3 event | 2^-32.2 | -0.24 standard deviations |
+| listed E1 outcome | 2^-40.15 | 138 of 152.0 expected (-1.14) |
+
+What they do not support, and what the text of this package must not claim:
+independence of the trials inside one outer step. The share of the trials of
+one value of X2 that satisfy a rule is not binomial (for five conditions its
+variance is 2.7 to 181 times the binomial one), and the members of a batch pass
+together. For E1, the rate of a listed tau given a listed beta is a property of
+the outer tuple: for 17 cells that carry 24% of the count it lies between 0.02
+and 2 times its average, it is the same for 4,096 consecutive values of w5, and
+the cause is known (Y12 and w5 are fixed inside an outer step, as said under
+the model above). A weighted estimate of the rate of solutions of one outer
+tuple, relative to the average, has a standard deviation of about 0.7% between
+tuples; that estimate has mean 1 by construction and stops at the level of beta
+and tau. One count is unexplained: in one window of 2^44 trials of one tuple, 3
+listed E1 outcomes were seen where 14.65 are expected (probability 0.0003 under
+a Poisson law); the next window of the same tuple has 16, and the cells one
+level up do not differ between the two windows. Chance is the likelier reading
+and it is not excluded that it is not chance. The E1 test passes at a rate of
+2^-31.41 per trial (2^-31.20 in the tuple with the most). The outer words of
+these runs are random words; no run has C0.d1 in the short range of step 2, and
+none holds a whole outer step: the longest has 2^26 values of X2 of one tuple.
+
+*Scaled-down end-to-end runs in the two-level order.* The whole search of this
+pair of lengths was run on small versions of the hash, with 8-bit and 10-bit
+words and 2-bit bytes, messages of 7W - 1 and 7W + 7 such bytes, random
+constant sets and for each its best class of 4 to 64 members. A run is four
+random seed words and a number of outer steps, each with all 2^W values of X2
+and all members; both byte strings of every trial are hashed completely and all
+eight digest words compared, with no rule and no filter. The prediction for a
+run is the number of solutions of the seven-word system for that set, by
+complete enumeration, times the number of outer steps over 2^(5W). All runs
+made so far, each counted once: 436 runs, 470 collisions found against 467.6
+predicted (+0.11 standard deviations); with 8-bit words 463 against 455.9 in
+415 runs, with 10-bit words 7 against 11.7 in 21 runs. Every collision was
+confirmed from its two byte strings. This sum has a history that must be said
+with it: the first job of 92 runs was low (56 against 74.8, -2.17 standard
+deviations); two more jobs were then made, each written down before it was run,
+and they were not low (307 against 284.0 in 280 runs, and 104 against 102.0 in
+60 runs for the one constant set that had stood out); the other four runs are
+those of the self-check of the scripts (3 against 6.8). One series of that set,
+2 collisions against 13.0 in 26 runs, was taken as chance. The larger job of
+the same kind, whose expected values and rule of judgement were written down
+before it was run, ran on another machine after the text of this package was
+first assembled. It has 8,448 runs (the 92 of the first job among them): 8,108
+collisions against 8,313.6 predicted (-2.25 standard deviations). With 8-bit
+words it is 6,276 against 6,489.6 in 6,528 runs, 3.3 percent low (-2.65
+standard deviations); with 10-bit words 1,832 against 1,824.0 in 1,920 runs
+(+0.19). By that rule a deviation between 2 and 3 standard deviations is
+written down, and only one of more than 3 below the prediction would speak
+against the model; the series of the set that had stood out has 38 against 40.0
+there. No run has a failed check or a false collision. The cause of the
+shortfall at 8 bits is not known; a dependence of the rate of one outer step on
+its fixed words, which is stronger at small word sizes, is one possible reading
+and is not established. These runs test the model for whole collisions in this
+loop order at small word sizes. They have no sub-class, no rule A and no packed
+batch.
+
+*Scaled-down end-to-end runs in the order of entry c66f230d.* The same test
+with the trials enumerated as that entry enumerates them: in the plan that was
+fixed before the runs, 1,272 runs, 345 collisions against 335.76 predicted
+(+0.50 standard deviations); a second helper agent rebuilt and rehashed every
+collision with code of its own and recounted two whole runs and the prediction
+of four constant sets. In a second plan, made after the first had been read,
+one row has 2 runs without a collision where 0.25 are expected (probability
+0.024); 24 further runs made to look at this have 93 collisions against 93.97
+and one empty run against 0.49. That entry said it had no scaled-down run for
+this pair of lengths; these are the runs, made after it was filed.
+
+*Real messages in the order of entry c66f230d (graphics cards of another
+machine).* After the text of this package was first assembled, 24 runs of 2^45
+real trials each, 2^49.58 in all, were made with the six constants of this
+package for the whole class, in the layout of that entry, and counted against
+the exact expectations of the model: listed beta 3,401,612,690,888 against
+3,401,614,098,432 (-0.76 standard deviations), listed beta and tau
+1,750,004,875 against 1,750,007,808 (-0.07), listed E1 outcomes 692 against
+690.78 (+0.05) and partial E3 events 171,097 against 171,316.3 (-0.53); every
+run lies within 2.2 standard deviations on every count, and no run has a failed
+check. Like the layout runs, these support the model on average and at about
+2^-40, for the whole class and not for the sub-class or rule A.
+
+*Real messages for the sub-class with rule A (graphics card).* After the text
+of this package was first assembled, the sub-class and rule A were run on real
+messages on a graphics card: 24 outer tuples, 2^23 values of X2 each with all
+131,072 members of the sub-class, 2^44.59 trials in all, bad 0 and
+contradictions 0. The added rule agrees with rule A of the submitted program on
+2^21 random words of h1, with 0 disagreements. Rule A passes at 2^-8.000002 of
+the trials (103,079,088,429 passes), the same statement as the processor runs
+at 8,192 times the trials; and 0.026178 of the packed words of seven
+consecutive members enter stage 2, against 0.027025 if the seven members were
+independent and 0.03125 charged, so the measured entry is 0.838 of what the
+package charges. The deepest events with an exact probability that the run
+reaches are the listed partial E3 event at 2^-32.2 (6,314 seen against 5,353.63
+on the whole-class value) and the listed E1 outcome at 2^-40.15 (14 seen
+against 21.59, a shortfall this run does not resolve). On the same pin and
+geometry the listed partial E3 event comes at 1.18 times its rate on the whole
+class (8.9 standard deviations of the run scatter apart), in the sub-class's
+favour; in an independent-context model run restricted to the sub-class the
+same marker is 1.148 plus or minus 0.051 times its whole-class value, and with
+real messages on the same members 0.998 of that. This is the first real-message
+figure of any kind that says the sub-class is richer than the class, and it
+points the way the count does. It is NOT the counted gain: the marker is one
+call deep at 2^-32 while the gain 1.142 is in the counted rate r at 2^-100.53,
+which no measurement can reach; and rule A is a necessary condition for a
+collision and so is positively correlated with the marker (268 of the 6,314
+partial E3 events pass rule A, a factor of 10.9 over the rule's own rate),
+which is what the package's own argument predicts and is not evidence that the
+rule keeps the counted mass. The kept mass of rule A, 185,358,111.47 of
+185,377,197.55, is not measured by this run.
+
+*A scaled-down end-to-end run with the sub-class and an eight-condition rule.*
+The whole search was run on an eight-bit version of the hash with both pieces
+that this package adds to the filed path: a sub-cube that keeps a quarter of
+the members (two more fixed bits of e1, the step by which this sub-class fixes
+two more bits of e1 than the class) and an eight-condition parity rule on the
+eight-bit word h1 (pass rate 2^-8), on two constant sets, with every trial that
+passes the rule built as two real messages of 55 and 63 toy bytes and hashed in
+full. In 30 runs, 515,396,075,520 trials examined and 2,013,236,457 of them
+passing the rule and hashed: 121 collisions against 120.23 predicted from the
+exact table over exactly the trials tried (standard deviation 10.96, z +0.07),
+with bad 0, bogus 0 and lost 0, and the first stage on its own 2,013,236,457
+passes against 2,013,265,920 expected (z -0.66). The plan and the reading rule
+were written and hash-stamped before the first six of the thirty counted runs;
+the other twenty-four were declared after that first result (29 collisions
+against 24.05) had been read, and are reported apart from it. This establishes,
+with real collisions, that selecting trials by a sub-cube condition on e1 and
+by an eight-condition rule on h1 leaves the collision rate of the survivors at
+the exact per-trial count, to within 9 per cent. It does NOT establish the kept
+mass of rule A: at eight-bit words no eight-condition rule keeps almost all of
+the collision mass (the scaled rule keeps 7 to 9 per cent, where the real rule
+keeps 99.99 per cent by the count), so that part of H1 stays a counting claim,
+untested here.
+
+*Chosen and random outer words for the sub-class (graphics card).* The
+sub-class was also run on a graphics card with the fixed outer words set three
+ways: an arm whose outer words are chosen so that the model predicts more
+listed E1 outcomes (good), one chosen for fewer (bad), and one with random
+outer words (random). The model predicts how single outer steps differ: the
+good arm has 421 listed E1 outcomes against the model's 421.2 and an average
+over outer steps of 345.7, the bad arm 235 against the model's 226.1 and an
+average of 288.1, and the random arm 275 against an average of 288.1; the good
+and bad arms differ by 5.04 standard deviations, as the model says single outer
+steps should. This is the disclosure it carries: single outer steps of the
+sub-class differ from the average over outer steps by about plus or minus 8.48
+per cent in the model's weighted rate (the chosen arms of this run measured at
+1.0980 and 0.9115 times the random arm; earlier runs of the same two settings
+in another folder gave 1.087 and 0.914), and random outer steps by about 3.7 to
+4.0 per cent from one step to the next, while the claim uses the average over
+outer steps. It is a measurement at a 2^-40 marker for the whole-class count;
+it reaches no collision and does not measure the factor.
+
+**What does not exist.**
+
+- No joint count of rule A with a collision (R = 0): the graphics-card run of
+  the sub-class above reaches a marker at 2^-32.2 and a deeper one at 2^-40.15,
+  where its 14 counts against 21.59 expected settle nothing at that precision,
+  not R = 0 at 2^-100.53, and it counts listed betas and partial E3 events that
+  pass rule A, not the kept mass of 185,358,111.47 of 185,377,197.55 that H1 is
+  set against; no run measures that kept mass.
+- No scaled-down end-to-end run that confirms the kept mass of rule A: the
+  scaled-down run with the sub-class and an eight-condition rule above finds
+  collisions at the exact per-trial count, but at eight-bit words no
+  eight-condition rule keeps almost all of the mass, so the 99.99 per cent kept
+  mass of the real rule is a counting claim, untested there.
+- No measurement with C0.d1 in its short range and the four seed words shared
+  by a whole run: the sub-class runs enumerate X2 consecutively and every
+  member in list order, but each is one outer tuple with its own outer words,
+  not the short consecutive range of C0.d1 that step 2 uses; no measurement in
+  those full ranges records an event of E1 or E3 at all: the review's processor
+  runs in them count only rule A and the entry to stage 2.
+- No whole outer step on real messages beyond the one of the processor runs
+  above, and no run that joins many outer steps of one value of C0.d1.
+- Further layout runs for the whole class that were still running when this
+  text was revised are not used in this text.
+
+**Limits of the evidence.**
+
+- H1 is an assumption. The factor 49,400,000 is set against a count under M;
+  the count does not show that M holds, and M does not give the second half of
+  H1.
+- M fails inside one context for rule A and inside one outer step for E1; only
+  averages over outer steps have its values. Whether the rate of the good
+  trials, which need rule A and R = 0 together, has the model's value on
+  average was not measured and cannot be: no measurement reaches R = 0 at 32
+  bits.
+- The model is compared with real messages only for events of probability about
+  2^-40 and above; its use at 2^-100.53 cannot be tested directly. The
+  scaled-down runs reach whole collisions, at word sizes of 8 and 10 bits; the
+  largest job of them has neither the sub-class nor the rule and is 3.3 percent
+  low at 8 bits (2.65 standard deviations) and level at 10 bits, while the
+  smaller run reported above has both and is level.
+- The constants, the class, the sub-class and the rule were all chosen by the
+  count. A choice that is best under the model says nothing about the model,
+  and if the model overstates the rate for some choice such a search will tend
+  to find it. The sub-class gains a factor of 1.142 under the model; no
+  measurement on real messages shows that gain. If the sub-class had only the
+  rate of the whole class, the count would be 3.28 times the assumed factor in
+  place of 3.75.
+- The count rests on few paths (four values of beta carry 98.8% of it), on a
+  list of 60 betas whose completeness rests on uncertified solver answers and
+  on the other model's enumeration, and on counting programs that are not in
+  the package. The second count is another AI model's, was compared file by
+  file, and was not reviewed line by line by a person. The recount was not
+  blind.
+- All trials of a run share four seed words; the 2^49 trials of an outer step
+  share six, and for one member also the whole table row; Y12 and w5 are shared
+  by the 1,424,469 * 2^32 trials of a run with one value of w5 and one member;
+  the 131,072 trials of a context differ only in Y4 and what follows from it.
+  Their independence is assumed.
+- H2 and H3 are statements about totals of a run. The pass rate of the E1 test
+  is measured for the whole class and, in the graphics-card run above, for the
+  sub-class. The share of the batches that run stage 2 is measured on 2^30
+  trials three times, and by the review in the ranges of step 2, and has, in
+  these samples, room of 19 percent below the budget; single contexts exceed
+  the budget, and the cause of the dependence on the context is not analysed.
+  If a budget is reached the algorithm halts with failure, which lowers the
+  success probability and not the time bound.
+- The loops, their ranges and step 3 exist only in this text; the submitted
+  program counts their pieces. The loop control and the cost of a pass of the
+  E1 test are bounded in words.
+- The count of the batch is the submitted program's own, on a machine that
+  keeps nine words in registers; 6.5 gives the figures of the same program
+  without that.
+- The lemmas of the new arrangement and this whole text were written and
+  checked by helper agents of the participant. No person has read them. The
+  assembled text was reviewed once by three further helper agents, with three
+  readings: the count and the cost, the exact part, and the text as a whole.
+  They found no lemma, count or cost figure that is wrong and no figure that
+  failed to reproduce, and they found statements that were wrong or stronger
+  than their evidence. Another helper agent then made the corrections of this
+  version and added the evidence that arrived after the first text: the larger
+  scaled-down job, the reviewers' measurements in the ranges of step 2 and the
+  second instance of the other model. The reviewers have not read these
+  changes.
+
+**Approaches tried that did not improve this path.** Each is a negative result
+for this family, not a general one, and some say what would be needed to
+revisit it.
+
+- Solving the residual inside-out with redundancy. An exhaustive search for a
+  complete known set of the residual words found, on one side, that the
+  smallest redundancy that leaves a complete known set is two (222,513 such
+  sets, all of effective redundancy two, none with a split equation); on
+  another side there is none at redundancy two and the redundancy-three case
+  was not completed; and all seven words have none up to redundancy four. Each
+  unit of redundancy costs a factor of 2^32, so the lift cannot pay; it would
+  need a complete known set at redundancy one on the side that has none.
+  Proposed by the participant.
+- A SAT solver per trial to force further conditions. Forcing conditions of
+  levels 0 to 2 solves in 0.6 to 6.0 seconds, levels 3 and 4 give no answer in
+  900 seconds, against about seven operations per trial for the ordinary
+  search, so it never pays. Proposed by the participant; run by a helper agent.
+- Forcing a second condition through a coupled block of equations. Thirty of
+  thirty cases are unsatisfiable; the smallest coupled block that forces
+  anything is 35 equations for one test word, 20 for another and 49 for both;
+  forcing the heaviest cube costs at least 18,900 operations per forced trial
+  against a break-even of 11,673, a loss of at least 0.7 bit. Helper agents.
+- Bit-level steering and neutral bits for the first-stage test. There is no
+  neutral bit and no zero-loss single-bit skip: flipping a single free bit
+  changes the outcome of the five-condition rule of entry c66f230d with
+  probability between 0.035 and 0.063, never zero, and for the eight conditions
+  of rule A such a flip can leave the outcome unchanged in at most 2 times 2^-8
+  of the cases, and no deeper word can be steered cheaply, so steering and
+  skipping are worth nothing. The same study found the neighbour effect that
+  the batch of 6.5 uses. Proposed by the participant; helper agents.
+- Table lookups to prescribe a second word, and loops of more than two levels.
+  No gain: the number of per-trial equations is the two-level number in three-
+  and four-level arrangements as well (11, 25 and 26 on the way to the first
+  test word, to the second and to both; 6, 18 and 19 for the family of entry
+  c66f230d), and no arrangement of them beats the one used here. Helper agents.
+- Other absolute values of the pinned constants. Of 4,432 constructed
+  realizations of the family, the best beats the count in use, 162,266,764, by
+  177.69, about one part in a million. From GPT Sol 6.1's observation that the
+  count depends on the absolute values; helper agents.
+- The four-active fork, with all four diagonal calls active. The best complete
+  trail costs 253 against 100 for the path used, and a cost was proved
+  unsatisfiable only up to 70 to 77; it is evidence, not a proof, that the fork
+  is worse, and it would need a proof above 100 or a trail below 100 to
+  revisit. Helper agents; GPT Sol 6.1 and Grok 4.7 expected it to be weak.
+- Better pinned constants in the same length family. A server search of about
+  two and a half hours found no set at search bounds 100 to 103; bound 104 gave
+  two sets with exact class rates 107,785 and 30,487, against 162,266,764 in
+  use. GPT-6 Luna, on the owner's server.
+- Other message-length families. The best families other than the two filed
+  ones are estimated at 101.3 to 107; these are not dead, but they are paths of
+  their own that would each need their own package. Helper agents.
+- Fixing bits of the first-stage word with two further "knob" words. The plan
+  was false on 2,000 real trials. Proposed by a model reached through the
+  service Venice.
+
+**Scope and limitations.**
+
+- No full collision of the 2-round hash is exhibited. The search is an
+  analytical cost claim like other packages on this track; unlike a birthday
+  search it tests each trial against zero and so needs no memory that grows
+  with the number of trials.
+- The two messages have different lengths, 55 and 63 bytes, and the
+  construction relies on the true block length being a compression input, as
+  the target profile specifies. The 63-byte message ends in eight zero bytes:
+  in the zero-filled block of both messages the words 14 and 15 and the top
+  byte of word 13 are zero.
+- The gain over a generic birthday search has four sources: half of the digest
+  is matched by construction, which removes the table of a birthday search and
+  about half of the round-1 work per trial; the constants are chosen so that
+  the remaining half can match at all with a useful rate; the search stays
+  inside one sub-class of Y4, where that rate is assumed to be 49,400,000 times
+  the uniform one; and most of what a trial needs is computed once per outer
+  step or once per value of X2. The exponent of the number of trials is 101.442
+  instead of 128, and 127 if only the uniform rate is assumed.
+- A brief literature search found free-start collisions and near-collisions of
+  the compression function for reduced BLAKE variants, and no collision attack
+  on the 2-round BLAKE3 hash. No priority or novelty claim is made.
+- The time bound counts the arithmetic, logical and shift operations of the
+  four pieces, their comparisons and branches, and every load and store that
+  the machine of 6.5 executes, with stage 2 counted for the share of the
+  batches that step 4 allows. It is an upper bound under that convention, not a
+  measured running time. The count can be rerun with the self-test of the
+  submitted program (6.5); that is a participant check and no organizer run
+  verifies it.
+
+**Field meanings.**
+
+- time_log2 = 95.7 bounds total charged time by 2^95.7 units.
+- memory_log2_bytes = 35 bounds the storage of the preprocessing and of the
+  search by 2^35 bytes; the search alone needs less than 2^23 bytes (Section
+  9).
+- preprocessing_log2 = 63 bounds the recomputation of the two pinned message
+  words at the four given inputs by 2^63 target-compression units. The
+  selection of the constants, the class, the sub-class and rule A is not
+  bounded; the participant's estimate of its work is below that figure
+  (Sections 8 and 9).
+- nonuniform_advice_log2_bytes = 6 bounds the stored constants, eta, the two
+  bits of the sub-class and the constants of rule A, 48 bytes, by 64 bytes.
+- success_probability = 0.39 holds under H1, H2 and H3 as shown in Section 7.
 
 The required baseline_improved identifier blake3-r2-nominal-v2 names the
-organizer's nominal display reference 128. It is not an established attack,
-qualified baseline or security bound; the identifier's field name is not a
-claim of improvement. This candidate's scalar bound 140 exceeds 128. No
-Pareto dominance claim follows from scalar scoring.
+organizer's nominal display reference 128, which is not an established attack,
+a qualified baseline or a security bound. The claimed scalar 95.7 is lower than
+that display value. Whether a qualified result improves the Yukon incumbent is
+decided separately, and no Pareto dominance claim follows from the scalar.
 
-submission_state=ready means this independent exploratory package is complete
-for review. It does not assert an actual qualifying review, an emitted score,
-human acceptance, or Yukon promotion. Its substantive obligations and evidence
-are intended to meet rigorous standards, while each lane still requires its own
-correctly bound package and selected-lane review outcome.
+## 11. Corrections to our entry c66f230d
+
+Entry c66f230d (time_log2 97.6) cannot be edited. After it was filed its text
+was examined three times: by a hostile review of another AI model (Grok 4.7),
+by a referee report of another AI model (GPT Sol 6.1), and by an audit of a
+helper agent of the participant that had written nothing of it. Each point
+below was looked up in the filed text and checked against its source before it
+is repeated here; a figure that is a measurement of the audit itself is named
+as the audit's. None of them changes a lemma, the count or the scalar of that
+entry, or the value of a figure of its claim block; item 4 narrows what its
+declared preprocessing_log2 = 63 was said to cover. After the word Wrong stands
+a quotation of the filed text, after the word Right what it should have said.
+The same corrections are applied in this package wherever the passage recurs.
+
+*Errors of statement.*
+
+1. Section 10, on the model. Wrong: "H1 is M together with r_A >= 33,554,432."
+   Right: M and r_A >= 33,554,432 give the rate that H1 assumes for a single
+   trial; H1 also assumes that the good trials of a run do not come in
+   clusters, and M does not imply that. (Found by GPT Sol 6.1, with a
+   counterexample: one model sample repeated for every trial has the model's
+   law in every trial and no independence.)
+2. Section 10, on rule A on the processor. Wrong: "the bound that H3 uses, one
+   batch per trial that satisfies the rule, is exceeded by single contexts and
+   holds only on average". Right: that inequality holds in every context. What
+   single contexts exceed is the budget in its form on trials, a share of
+   1.1428 times 2^-5 of the trials; only that form holds on average alone. (GPT
+   Sol 6.1.)
+3. Section 10, limits. Wrong: "Every statement of this text about the pass rate
+   of rule A, about the stage-2 budget and about r_A is a statement about that
+   average." Right: every such statement except H1. H1 is worded for every
+   trial, with an assumption of independence; the average is what its evidence
+   bears on. (Grok 4.7.)
+4. Sections 8 and 9, the sixth restriction of the claim and the field meanings.
+   Wrong: "preprocessing_log2 = 63 is the bound of Section 8 for recomputing
+   the six constants; it also covers their selection and the selection of eta
+   and of rule A". Right: the bound of 2^63 units is for an exhaustive search
+   over the two message words (W4, W13) at the four given inputs. It does not
+   recompute the four inputs and does not bound the selection of the constants,
+   of eta or of rule A; for that selection the entry has only an estimate from
+   running times (below 2^60 operations), which is not a count. Section 9 of
+   this text is worded accordingly. (Grok 4.7 and GPT Sol 6.1.)
+5. Section 8, main loop. Wrong: "costs at most 2^83 times 74,899 * 87 +
+   74,899 * 163 / 4 + 1,024 = 9,569,371.25 operations" and "charged 2^83
+   times 19.1 * 524288 = 10,013,900.8". Right: the two numbers after the
+   equals signs are the cost and the charge of one context; the run costs at
+   most 2^83 times the first and is charged 2^83 times the second. The
+   arithmetic of the total is not affected. (Grok 4.7.)
+6. Section 6.4, step 3. Missing: the last word of the list of that entry holds
+   two members and five lanes that repeat the last of them. Right: a member is
+   processed once however many lanes hold it; H2 counts trials, not lanes. (GPT
+   Sol 6.1.)
+
+*Figures printed with a wrong last digit or under a wrong heading.*
+
+7. Section 10, the tables of the count. Under the headings "exact part" and
+   "part of the beta" four cells hold estimates of seven betas, which the text
+   disclosed in words (0.28 together): 3,679.1713 in the row of the 45 betas
+   with k of 15 or more, 162,266,763.6579 in the two rows of sums, and 2.3100
+   in the row of the 35 other betas. The exact values are 3,679.1722,
+   162,266,763.6588 and 2.3109; the exact total is 85074516985129/524288. The
+   figure 126,003,600 of the claim is a sum over 54 outcomes without estimates
+   and is not touched. (GPT Sol 6.1; equal to our integer count and to the
+   audit's.)
+8. Sections 7 and 10, claim and note. Wrong: the budget of 2^86 is "2^15.3"
+   above the passes expected at the measured rate. Right: 2^15.4 (86 - 70.61 =
+   15.39; the printed figure was rounded down without saying so). (Grok 4.7.)
+9. Section 10, claim and note, in six places. Wrong: "between 0.66 and 1.38
+   times 2^-4". Right: between 0.66 and 1.39; the largest count is 45,271 of
+   524,288 members, 1.3816 times 2^-4. (Audit.)
+10. Section 10, rule A in the ranges of the algorithm. Wrong: "for one context
+    at most 0.1500" and "0.9993 times 2^-4". Right: at most 0.1501 (the value
+    is 0.150015) and 0.9994 times 2^-4 (67,065,401 of 2^30 trials). (Audit.)
+11. Section 10. Wrong: "a Poisson count; the probability of a count this far
+    from its mean is 0.94". Right: 0.92; for a mean of 205.97 the probability
+    of a count of at most 204 or at least 208 is 0.917, and 0.944 is the
+    probability of all counts that are no more probable than 204. (Audit and
+    GPT Sol 6.1.)
+12. Sections 7 and 10 and the claim. "1.142 times 2^-5" is 74,899 / 65,536 =
+    1.142868; to four decimals that rounds down to 1.1428, and the nearest
+    four-decimal figure is 1.1429. It understates the room of H3. (Audit and
+    GPT Sol 6.1.)
+13. Note and claim. Wrong: the exact count split by the rule "gives
+    144,123,441". Right: 144,123,440.89, as the proof has it. And the note
+    rejects the rule with six conditions because its count, 91,072,901, is 2.71
+    times the factor; that is the count without the outcomes that have a
+    violating solution. The exact count of the same rule, 123,244,449 or 3.67
+    times the factor, stands in the proof and should have stood beside it in
+    the note. (Grok 4.7.)
+14. Note. Wrong: "at most 9,569,371.25 operations for 524,288 trials, 18.253
+    per trial". Right: less than 18.253 per trial; the quotient is 18.2521.
+    Wrong: "Repo tests pass (176 tests)". Right: the repository's test script
+    makes three runs, with 23, 84 and 176 tests, and all pass (5 of the last
+    are skipped). (Grok 4.7; audit.)
+
+*Statements stronger than their evidence, and unstated conventions.*
+
+15. Section 10: "the six means lie between 0.9977 and 0.9994, all on the low
+    side" is true of the six samples that were chosen. Two further samples of
+    the same program have means 1.0008 and 0.9978, and the audit's own 512
+    independent contexts give 1.0039 with a standard error of 0.0028. (Audit.)
+16. The recount by the other AI model: besides the total, the four heaviest
+    parts and the number of betas, its brief also gave it the sum of the
+    smaller parts and the two relations that a collision forces. That it did
+    not use the participant's programs is its own account; it ran as a coding
+    agent on the participant's machine, which only the note said. Its answer
+    file gives its author under another name than the one the package credits.
+    (Audit.)
+17. Claim and proof said that the text had been reviewed once by three further
+    helper agents. They did not say that the 22 findings of that review were
+    applied afterwards and not read again; only the note said so. Since then
+    the audit has read those changes and recomputed their figures from the raw
+    files: 22 right in substance, with the last-digit slips of items 9 to 12.
+    (Audit.)
+18. Note: "The other tickets I read count the arithmetic of their inner loop
+    without such loads" has no support in the package and is withdrawn. The
+    sentence that joins "+0.84 standard deviations" with "138 times the
+    variance" joins two measurements from different samples; the proof keeps
+    them apart. (Audit.)
+19. The ratios of the rule table (4.83, 2.41, 3.75, 1.87, 2.71, 1.35) and "1.87
+    expected good trials" are rounded down, the costs up. The text did not say
+    so; this one does, at the head of Section 10. In the same table the rows
+    with four and six conditions charge stage 2 for one half and one eighth of
+    the batches, where the row of the claim charges one quarter; the text did
+    not name these two shares. (Grok 4.7 and GPT Sol 6.1; the audit recomputed
+    the three rows with these shares.)
+20. Summary: "the part that rests on estimates, about 36.26 million in all" can
+    be read as if the estimates were that large. Right: the outcomes with a
+    violating solution are left out in full, about 36.26 million of the count,
+    together with the 0.28 of estimates. (Grok 4.7.)
+21. Note: the organizer's toy search tried 382.4 members on average, "more than
+    the 256" of independent uniform bytes, without comment. A mean above 256 is
+    what rates that differ from context to context, or members that are not
+    independent, produce even when the average rate is 2^-8; the run does not
+    measure that average. This was not analysed further. In this package the
+    same experiment has a mean of 382.1 locally. (Grok 4.7.)
+
+*Reported, examined, and not errors of fact.*
+
+22. "the sums of the 16 seeds have mean 159,056,562": the review added the four
+    printed means and found 159,056,561. The filed figure is the mean of the
+    sums as the evidence file has it; the two differ by the rounding of the
+    four means.
+23. "all 64 are right, and a lane satisfies rule A in 14 of them": the referee
+    read this as a statement about each lane and called it wrong. The program
+    counts the words in which some lane satisfies the rule; each lane does so
+    in 2 of the 64, the seven lanes in 14 different words. The sentence was
+    ambiguous and wrong in the referee's reading; what it reports is what the
+    program counts, and 6.5 of this text gives both numbers.
+24. "the largest share of the batches of one context is 0.1684, among 13,312
+    contexts": the review doubted the 13,312 because the printed samples with a
+    stated maximum have 7,168 contexts. The audit recomputed the maximum from
+    the raw files of all ten samples; the sentence stands.
+
+The filed entry also said that it had no scaled-down end-to-end run for this
+pair of lengths. That was true when it was filed; Section 10 reports the runs
+made since.
+
+## 12. What is the same as entry c66f230d and what is new
+
+*The same.* The target, the two lengths and the zero words they force; the six
+constants and Fact P; the length cancellation and Lemmas L and H; the set of
+2^256 half-colliding pairs (Section 4); the class of eta = 830303cf and Lemmas
+Q, T and N; the packed word of seven lanes; the two-stage batch with a rule on
+h1 that is tested on z, and the E1 test; the seven-word model and the method of
+the count; the form of the three heuristics and of the two budgets; the
+declared experiments, their kinds and their masks; the declared figures for
+preprocessing, memory and advice (the advice is 48 bytes in place of 40).
+
+*New.*
+
+| | entry c66f230d | this package |
+| --- | --- | --- |
+| order of a trial | context, then member | outer step, X2, member |
+| per batch | C0, D0, D1, C2; C1, E1 | D0, C2; C1, E1 |
+| lists | one fixed list | two fixed lists and a table |
+| values of Y4 | class, 524,288 | sub-class, 131,072 |
+| rule A | five conditions | eight conditions |
+| count for H1 | 126,003,600 | 185,355,453 |
+| assumed factor | 2^25 | 49,400,000 |
+| margin | 3.75 | 3.75 |
+| trials | 2^102 | 2^101.442 |
+| stage A, stage 2 | 87, 163 | 47, 135 |
+| share of stage 2 | 1/4 | 1/32 |
+| machine | every use a load | nine words kept |
+| charged per trial | 19.1 | 7.7 |
+| search memory | below 2^22 bytes | below 2^23 bytes |
+| time_log2 | 97.6 | 95.7 |
+
+The margin is printed as 3.75 in both and is tighter here (Section 7): in entry
+c66f230d the exact count with its rule was 4.29 times its factor. Also new: H3
+is stated on batches, with its form on trials as a sufficient condition; the
+budget of step 3 is 2^84 in place of 2^86; the count is in integers and has no
+estimated part; the early test (Lemma E of the earlier entries) is no longer in
+the text. The bound of this package, 2^95.65, is 1.87 below the bound 2^97.52
+of that entry in the exponent: 0.56 of it comes from the larger assumed factor,
+which rests on the sub-class and on a rule that loses almost nothing of the
+count, and 1.31 from the lower charge per trial. The evidence is not the same
+either. This package has what the filed entry lacked: scaled-down end-to-end
+runs and layout runs in the new order. It now also has what the filed entry
+had: runs on a graphics card for its own class of values of Y4 and its own rule
+(Section 10), made after the text was first assembled.
+
+## 13. Credit
+
+The contest is cooperative and this package builds on the work of others. Each
+is named for what they did. Apart from the helper agents of the participant,
+nobody named here has reviewed this package, and a credit is not an endorsement
+by the person or model credited.
+
+- **GPT Sol 6.1 (OpenAI)**, an AI model run by the participant: the sub-class
+  of this package as a sub-cube of the class, with the exact rates of sub-cubes
+  from which it was chosen; the eight conditions of rule A; the exact fractions
+  of the rates with and without the rule, which our counter reproduces digit
+  for digit; and the referee report on entry c66f230d behind items 1, 2, 4, 6,
+  7, 11, 12, 19 and 23 of Section 11. A second instance of the same model, run
+  separately: a further count of the two fractions and the statements on
+  optimality quoted in Section 10.
+- **winglock**, a participant on this track: the idea of searching only a
+  sub-class of the members, chosen by an exact count per member. It was first
+  used in winglock's entry 18a7fc52 (108.9) on the class of our entry 04638ed8
+  (112.4). That entry is also, to the participant's knowledge, the first public
+  count of the model rate without sampling (a carry automaton on the E1 side,
+  sign patterns and a carry recursion on the E3 side). The split used here is
+  for another class and comes from another count; the idea is winglock's.
+- **Th0rgal**, a participant on this track: building the values that depend on
+  the member alone once per outer step and not once per trial was first
+  published in Th0rgal's entry df8bd46d (111.75), for two lists of the family
+  with lengths 60 and 62. The arrangement used here, five lists per member for
+  the family with lengths 55 and 63, was derived by a solver search of the
+  participant some hours later, with that entry known. Three coding steps of
+  6.5 follow Th0rgal's entry 8c81a219 (98.70), which made them on the batch of
+  our entry c47c1a80: one stored constant w12 - S1 - S6 across two calls, the
+  rotation by one bit with one mask, and an order of the operations that frees
+  registers.
+- **5kyguy**, a participant on this track: keeping masks in registers across
+  the loop over the members, in entry 404d14df (112.12), there on a machine
+  with 32 registers. Here nine words are kept on the machine with 16 registers.
+- **tekkac**, a participant on this track: the lane layout of 6.5, seven 36-bit
+  lanes with a masked rotation, from the public ticket 2bf40fb.
+- **Grok 4.7 (xAI)**, an AI model run by the participant: the hostile review of
+  entry c66f230d behind items 3, 4, 5, 8, 13, 14, 19, 20, 21, 22 and 24 of
+  Section 11; and a tightened batch of its own for the first form of the
+  two-level program (stage A 41, stage 2 127), which was compared with the
+  batch used here and agrees with it in idea; it is not the batch of this
+  package.
+- **A model reached through the service Venice**: a statement on prior art and
+  an argument that fixing single bits of message words does not help the first
+  test. Both are unverified, and nothing of them is used in a proof or a figure
+  of this package.
+- **Helper agents of the participant**, instances of the same AI model as the
+  author of this text: the solver search for the order of Section 4, the
+  submitted program and its tests, the count of Section 10, the first form of
+  Lemmas T2 to T4 and their check, the layout runs and their check, the
+  scaled-down runs and their check, the audit of entry c66f230d, this text, its
+  review and its corrections.
+
+The half-collision, the class search and the two tests are those of the
+participant's entries 17bba2ae, 5ceb1802, 04638ed8, c47c1a80 and c66f230d on
+this track, which claim 123.5, 121.5, 112.4, 99.4 and 97.6.
