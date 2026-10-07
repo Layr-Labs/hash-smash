@@ -1,26 +1,26 @@
 {
   "schema_version": 3,
-  "submission_state": "ready",
   "target_profile": "sha3-256-r6-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 6,
-  "lane": "exploratory",
   "claim": {
-    "time_log2": 137.4,
+    "time_log2": 132.8,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
+    "memory_log2_bytes": 137,
     "data_log2": 130,
-    "preprocessing_log2": 142,
+    "preprocessing_log2": 131,
     "success_probability": 0.5,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical 256-bit word RAM with fresh independent uniform random-word primitive.",
-    "One batch of 2^129 independent uniform 64-byte messages; no restarts or nonuniform advice.",
-    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06, prefix rounds 0 through 5, all 256 output bits.",
-    "Generic analytic upper bound; infeasible resource use, no improvement over the nominal reference claimed."
+    "No full collision is exhibited or computed. The package is a distribution-free classical birthday argument for every fixed function from a 2^512-element domain to 256-bit strings.",
+    "The selected target is complete SHA3-256 with the Keccak-f[1600] permutation reduced to its first 6 rounds, standard multi-rate padding, and all 256 output bits. It is not a raw-permutation, free-start, or truncated-output result.",
+    "Matching uses stable 8-pass 32-bit LSD radix sort on two flat record arrays, plus one 2^32-word count array. There is no merge sort, hash table, expected-time filter, or multiplication primitive.",
+    "Charged time is H+W/1626 under collision-frontier-v5. The submitted 132.8 is a proved ceiling of that envelope, not a unit-price reading of the operation table and not an improvement of the nominal 128-bit reference."
   ],
   "baseline_improved": "sha3-256-r6-nominal-v2",
-  "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json"
+  "certificate_manifest": "certificates/manifest.json",
+  "submission_state": "ready",
+  "lane": "exploratory",
+  "heuristics": []
 }
