@@ -6,19 +6,19 @@
   "rounds": 6,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 137.4,
+    "time_log2": 125.66,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 138,
-    "data_log2": 130,
-    "preprocessing_log2": 142,
-    "success_probability": 0.5,
+    "memory_log2_bytes": 136,
+    "data_log2": 128,
+    "preprocessing_log2": 30,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Classical 256-bit word RAM with fresh independent uniform random-word primitive.",
-    "One batch of 2^129 independent uniform 64-byte messages; no restarts or nonuniform advice.",
-    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06, prefix rounds 0 through 5, all 256 output bits.",
-    "Generic analytic upper bound; infeasible resource use, no improvement over the nominal reference claimed."
+    "Classical 256-bit word RAM with 64 registers and a fresh independent uniform random-word primitive; constant-address loads/stores take the address as an instruction operand (sensitivity in proof Section 6).",
+    "One batch of Q (a multiple of 256, ~0.9943*2^128) independent uniform 64-byte messages generated directly in bitsliced form, 256 messages per block; each block hashed by a counted straight-line bitsliced program for the complete 6-round SHA3-256 sponge evaluated in ordinary word operations (60,909 measured ops/block, round-mixing (theta) folded into the producing round; five transpose stages fused into the last round); digests transposed to one word per message and XORed with a fixed public mask POL.",
+    "Unconditional generic birthday: key-index LSD radix sort (86/85/85-bit digits, 3 passes, histograms fused into generation) of (masked digest, index) pairs, adjacent scan halting at the first equal pair; every output re-verified with the target permutation.",
+    "Complete fixed-IV SHA3-256 sponge: rate 1088, capacity 512, suffix 0x06, prefix rounds 0 through 5, all 256 output bits. Heuristics empty. Visible spare on every hot path (block program 61,500 charged vs 60,909 measured; record 28 vs 25; scatter 15/16/15 vs 12/13/12; scan 7 vs 5). No cryptanalytic weakness of SHA3 claimed."
   ],
   "baseline_improved": "sha3-256-r6-nominal-v2",
   "heuristics": [],
