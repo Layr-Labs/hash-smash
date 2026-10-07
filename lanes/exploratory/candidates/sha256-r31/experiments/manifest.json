@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "published-r31-witness-replay",
+      "kind": "python-message-pairs-v1",
+      "scope": "Replay of the r31-yield-collision witness. This does not measure search cost.",
+      "hypothesis": "The two fixed 128-byte messages in replay.py are distinct and collide under standard-IV SHA-256 reduced to 31 steps. The organizer checks that collision event. The codec self-check is a finite layout check and is not an attack-cost measurement.",
+      "program": "experiments/replay.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
