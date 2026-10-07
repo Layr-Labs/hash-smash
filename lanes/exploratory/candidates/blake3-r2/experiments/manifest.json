@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "half-collision",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact blake3-r2-prefix-v1 target. One trial of proof.md Section 6.1 per organizer seed, each returning a 55-byte message and a 63-byte message that ends in eight zero bytes: the seven words of a context and the number of a member of the sub-class of Lemma Q2 are taken from the seed, and the pair is built by steps O, M, Y, T, S2 and S3 of Section 4. Every trial is returned. No BLAKE3 library is imported, and the returned pairs are built with the quarter-round G alone. The same file contains its own 2-round compression (compress2, written out from proof.md Section 1); it is called only to check the counted pieces of the other experiment and of the self-test, never for a returned pair. SHAKE-256 from the standard library is used only to expand the organizer's seed into the trial's parameters. The organizer recomputes both digests.",
+      "hypothesis": "For every trial the two complete 2-round digests agree on digest words 0, 2, 5 and 7, that is on the 128 masked bits, as Lemma T of proof.md Section 6.1 states for every context and every member of the sub-class. This is an exact claim; the run checks it on concrete inputs.",
+      "program": "experiments/halfsearch.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffff00000000ffffffff0000000000000000ffffffff00000000ffffffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "residual-search",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact blake3-r2-prefix-v1 target. The search of proof.md Section 6 at toy scale: per organizer seed one context, then the members of the sub-class in order from a member number taken from the seed, at most all 131,072 of them, stopping at the first trial whose residual has a zero low byte in digest word 1. Failed trials are returned as null pairs. The number of members tried is returned as an observation. For the same context the program also evaluates, on a machine that counts every operation, load and store, the four pieces of proof.md Section 6.5: the outer step, the table words of one list word, the middle step and one packed two-stage batch, the batch that holds the first member tried; both stages are evaluated whether or not stage A passes. It returns six more observations: batch_stage_a_operations, batch_stage_a_loads, batch_stage_2_operations, batch_stage_2_loads, batch_stage_2_entered (1 if one of the seven trials satisfies rule A) and batch_lanes_right, the number of its seven lanes whose message words, stage-A flag and stage-2 word and flag are those of the lane's trial, taken from a 2-round compression of the trial's two messages that is written out in the program and from their two digests; no lane counts as right unless the words that the outer step, the table build and the middle step stored are right. Those pieces are not part of the toy search and have no influence on the returned pair. Outside the organizer protocol the same file has a self-test of the count, python3 experiments/halfsearch.py --selftest N [seed], described in proof.md Section 6.5; the organizer does not run it.",
+      "hypothesis": "Every returned pair agrees on 136 digest bits: the 128 bits of the half-collision and the low byte of digest word 1. The experiment checks the trial generator and the residual computation on real digests. If the low byte of the residual in digest word 1 were an independent uniform byte in every trial, 256 members would be tried on average; the members are tried in order and are not independent trials, the rate differs from context to context, and in the participant's local run the average was 382.1. A mean above 256 is what such dependence produces and does not measure the average rate. Nearly all seeds return a pair within the 131,072 members. It is not a test of heuristic H1, H2 or H3: it does not measure the 128-bit hit rate or a pass rate, and is not evidence of attack cost. The tables of proof.md Section 6.5 predict batch_stage_a_operations = 37, batch_stage_a_loads = 10, batch_stage_2_operations = 105, batch_stage_2_loads = 30 and batch_lanes_right = 7 for every seed. batch_stage_2_entered = 1 is expected for a share of about 0.02617 of the seeds, the share of the batches that held a trial satisfying rule A in the participant's count over 8,192 random contexts with all members; for 256 seeds that is about 7 seeds with a standard deviation of about 2.6 (the local run had 9), so the count of one run says little and is no test of H3. These figures are the submitted program's own count, on a machine that keeps nine words in registers: the organizer records observations as untrusted and does not recompute them, so they show what the program in the package counts and are not a verified cost.",
+      "program": "experiments/halfsearch.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffffffffff000000ffffffff0000000000000000ffffffff00000000ffffffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
