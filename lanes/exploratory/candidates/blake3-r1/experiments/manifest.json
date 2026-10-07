@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "closed-form-collisions",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact blake3-r1-prefix-v1 target. One run of steps 1 to 3 of the proof.md algorithm per organizer seed, each returning a 23-byte message and a 24-byte message. Every trial is returned. The program does not evaluate the target hash; the organizer recomputes both digests.",
+      "hypothesis": "Every trial returns two distinct messages with equal complete 256-bit digests, as the identity in proof.md Sections 2 and 4 predicts for every coin value. The run checks that identity on concrete inputs; it is not evidence of attack cost, and no probability estimate is drawn from the seed expansion.",
+      "program": "experiments/collide.py",
+      "event": {"kind": "full-collision"}
+    },
+    {
+      "id": "second-message-family",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact blake3-r1-prefix-v1 target, one-block messages only. Per organizer seed: a first message of n bytes with n drawn from 0..63 and seed-derived content, and the second message of proof.md Section 9, Corollary 1, of n2 bytes with max(n+1, 24) <= n2 <= 64. Every trial is returned. The program does not evaluate the target hash; the organizer recomputes both digests. This experiment concerns the corollary only; the claimed algorithm and its cost are those of Sections 3 and 6.",
+      "hypothesis": "Every trial returns two distinct messages of different lengths with equal complete 256-bit digests, as Corollary 1 states for every first message of at most 63 bytes. The run checks the corollary on concrete inputs across lengths; it is not evidence of attack cost and no probability estimate is drawn from it.",
+      "program": "experiments/family.py",
+      "event": {"kind": "full-collision"}
+    }
+  ]
+}

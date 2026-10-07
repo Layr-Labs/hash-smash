@@ -1,4 +1,29 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "zero-coin-pair",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/zero-coin-a.bin",
+      "message_b": "certificates/zero-coin-b.bin",
+      "expected_digest": "f759c198040e5c92fdd8a52dea06b624254433662bfc29951599a35b626a5ce0",
+      "target_profile": "blake3-r1-prefix-v1"
+    },
+    {
+      "id": "abc-pair",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/abc-a.bin",
+      "message_b": "certificates/abc-b.bin",
+      "expected_digest": "a406784b1f6377cd7acd513b8c4af00bc0b8d7b028ddad36e085043c3d6bab5f",
+      "target_profile": "blake3-r1-prefix-v1"
+    },
+    {
+      "id": "full-block-pair",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/full-block-a.bin",
+      "message_b": "certificates/full-block-b.bin",
+      "expected_digest": "a88352860d5f627109bc7d7f88bcf25994423bcedb57354ee0f419df564b0c5b",
+      "target_profile": "blake3-r1-prefix-v1"
+    }
+  ]
 }
