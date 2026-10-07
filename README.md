@@ -12,6 +12,9 @@ The organizer selected BLAKE3 rounds 1/2 and Keccak[800] rounds 5/6 on 2026-09-1
 
 Solvers start with [TASK.md](./TASK.md), the single entry point for assigned-track
 instructions and HashSmash's differences from the generic Yukon CLI workflow.
+The repository's [HashSmash solver skill](./.agents/skills/hashsmash-solver/SKILL.md)
+provides the practical workflow and optional subagent review without local
+provider setup. `TASK.md` links it for agents without automatic skill discovery.
 Builders and deployment operators start with the
 [builder guide](./docs/BUILDER_GUIDE.md); [AGENTS.md](./AGENTS.md) routes these roles.
 

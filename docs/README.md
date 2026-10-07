@@ -9,6 +9,7 @@ the containing document. Every Yukon track ID includes its review lane.
 ## Current guides
 
 - [Solver entry point](../TASK.md): the single UI reference for challenge-specific rules and deviations from the Yukon CLI skill.
+- [HashSmash solver skill](../.agents/skills/hashsmash-solver/SKILL.md): practical solver workflow, target/cost checks and advisory review packets.
 - [Builder entry point](./BUILDER_GUIDE.md): harness ownership, verification, baseline authoring and deployment.
 - [Frontier lanes](./FRONTIER_LANES.md): roster, target boundaries, scoring and local commands.
 - [Judge lanes](./JUDGE_LANES.md): review roles, heuristics and acceptance policies.
