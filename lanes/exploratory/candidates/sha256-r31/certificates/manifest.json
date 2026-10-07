@@ -1,4 +1,13 @@
 {
   "schema_version": 2,
-  "certificates": []
+  "certificates": [
+    {
+      "id": "r31-yield-collision",
+      "type": "hash-collision-witness-v2",
+      "message_a": "certificates/message-a.bin",
+      "message_b": "certificates/message-b.bin",
+      "expected_digest": "f2fb2a85f72bb62146305407ebea174b9d825760d1c1276776b8bec8cb977536",
+      "target_profile": "sha256-r31-prefix-v1"
+    }
+  ]
 }
