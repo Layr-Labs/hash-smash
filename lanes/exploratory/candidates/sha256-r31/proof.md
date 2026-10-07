@@ -19,17 +19,19 @@ use any published colliding pair, starting solution or first block. C works as f
 - it builds its own table;
 - it runs its own first-block search K, again from a committed seed, until the first collision.
 
-Every computation of C is charged (Section 9). Our own code is charged with explicit operation
-counts. The z3 runs and the synthetic checks are charged from their measured retired instructions
-at a measured per-instruction price: 25 word operations per instruction for z3 and 17 for the
-synthetic checks (Section 14), instead of the flat 256 of our previous filing. The analysis programs
-that formulated R20 before any search ran are charged as well (Section 15). The complete source is
-in Appendices B and C.
+Every computation of C is charged (Section 9). The z3 runs, the synthetic checks and search K are
+charged from their measured retired instructions at measured per-instruction prices (Section 14):
+19 word operations per instruction for z3, 13 for the synthetic checks, and for K 8 on its search
+hot path and 10 on the rest of the process, with every multiply and floating-point instruction off
+that path charged again at its full price. K's price is measured on the executable that ran
+(Section 14.6); our previous filing charged K with an operation model instead. Our other own code is
+charged with explicit operation counts. The analysis programs that formulated R20 before any search
+ran are charged as well (Section 15). The complete source is in Appendices B and C.
 
 | field | value | where |
 |---|---|---|
-| time_log2 | 37.22 | executed work of C plus replay, 2^37.2169, Section 9 |
-| preprocessing_log2 | 37.22 | construction chain C, Section 9 |
+| time_log2 | 36.64 | executed work of C plus replay, 2^36.6392, Section 9 |
+| preprocessing_log2 | 36.64 | construction chain C, Section 9 |
 | success_probability | 1 | deterministic replay, Section 3 |
 | nonuniform_advice_log2_bytes | 9 | the stored 256-byte pair, Section 10 |
 | memory_log2_bytes | 27.5 | measured peak over C (the z3 runs), Section 10 |
@@ -231,6 +233,8 @@ and we do not charge them (Section 15.1). The execution record of every run is t
 of the session that ran them; Section 15.1 lists them.
 
 Search K: started 13:04:56 KST under the machine's resource-guard lease, 12 threads, nice 10.
+    executable: `r31det3` built from B.4 and B.5 with `cc -O3 -mcpu=apple-m4 -o r31det3 r31det3.c -lpthread`
+    at 13:04, SHA-256 2824a0f855c203d1ada6f99e5a25fa8aebd4f2feeee0a8a56776c311af4bce23 (Section 14.6)
     /usr/bin/time -l: real 139.76 s, user 1351.89 s; maximum resident set 7,438,336 bytes; 15,640,902,198,904 instructions retired
     groups 5,932; trials executed 99,492,036,640 (2^36.534); bitmap hits 58,831,394; key-matched trials 1,376,281
     matched records 3,061,666; V6 passes 5,992; R20 passes 1; completion attempts 1, E13 iterations 2,829, E15 iterations 19
@@ -238,33 +242,30 @@ Search K: started 13:04:56 KST under the machine's resource-guard lease, 12 thre
 
 ## 9. Cost ledger (executed work of C)
 
-The z3 runs and the synthetic checks are charged at the measured per-instruction prices of
-Section 14 (H3). Our own code is charged with the operation counts of H2. The analysis programs of
-Section 15.2 are charged with operation bounds from their source (H2).
+The z3 runs, the synthetic checks and the K run are charged at the measured per-instruction prices
+of Section 14 (H3). Our other own code is charged with the operation counts of H2. The analysis
+programs of Section 15.2 are charged with operation bounds from their source (H2).
 
-    z3 attempts 1-3: 2,721,814,602,106 instructions * 25 / 2140                      31,796,899,558
-    synthetic completion checks: 3 runs * 500,284,109,323 instructions * 17 / 2140   11,922,658,681
+    z3 attempts 1-3: 2,721,814,602,106 instructions * 19 / 2140                      24,165,643,664
+    synthetic completion checks: 3 runs * 500,284,109,323 instructions * 13 / 2140    9,117,327,226
     yield checks: 5 * (three 2^32 scans <= 24 ops/word + table <= 6.4e6 * 64 ops)      723,470,929
     V8 dump (one 2^32 scan, <= 24 ops/word) and c8 residue scan
         (300,000 * 49408 candidates, <= 8 ops each)                                 103,578,699
     pre-construction analysis (Section 15.2): 27,838,136,107,008 ops / 2140                     13,008,474,817
     Python model generation, verification and analysis: lump allowance       1,000,000,000
-    K run, operation model (counts from Section 8):
-      set scans and table (P1, P2)                                            144,694,186
-      self-checks (2000 kernel comparisons)                                   4,000
-      groups 5,932 * 1 unit                                              5,932
-      trials 99,492,036,640 * (1 compression + 32 ops)                            100,979,768,029
-      bitmap hits 58,831,394 * (1 compression + 64 ops)                           60,590,838
-      matched records 3,061,666 * 400 ops                                       572,274
-      V6 passes 5,992 * 1600 ops                                             4,480
-      completion: 2,829 E13 + 19 E15 iterations * 160 ops, 1 setup  213
-      candidate pairs hashed 1 * (6 compressions + 64 ops)             6
+    K run, 15,640,902,198,904 retired instructions (Section 14.6, H3):
+      search hot path: 12,436,504,580 passes * 1238 = 15,396,392,670,040 instr. * 8 / 2140
+                                                                                  57,556,608,113
+      remainder (table build, self-checks, bitmap hits, group set-up, completion, main thread):
+        244,509,528,864 instructions * 10 / 2140                                      1,142,567,892
+      in addition, heavy instructions off the hot path: 1,121,255,712 multiplies * 400
+        + main-thread and library floating point, at most 710,000 instructions * 1024     209,920,246
     -------------------------------------------------------------------------------------------
-    preprocessing (chain C)                                                  159,740,722,642 = 2^37.2169
+    preprocessing (chain C)                                                  107,027,591,586 = 2^36.6392
     replay R                                                                 6.36
-    total                                                                    159,740,722,648 = 2^37.2169
+    total                                                                    107,027,591,592 = 2^36.6392
 
-Claimed time_log2 = 37.22 and preprocessing_log2 = 37.22. Every term is the work actually executed
+Claimed time_log2 = 36.64 and preprocessing_log2 = 36.64. Every term is the work actually executed
 by C or by the analysis that formulated R20. Nothing is an expectation or a cap that went unused.
 
 The Python lump covers every Python run in the chain and in the pre-construction analysis:
@@ -273,8 +274,11 @@ dump (Section 15.1). Re-runs of gen_s.py and check_s.py retire 220,935,601 and 2
 instructions, most of it interpreter start-up. Even if every instruction were priced as a multiply
 (400 operations), one such run would be 4.2e7 units, and the lump covers 23 of them.
 
-The K term (101,185,639,958 units) is now 63.3% of the total. The instruction-priced lines are
-27.4%.
+The K run's retired-instruction count covers the whole K process: the set scans and table (P1, P2),
+the self-checks, every group and the main thread. So its single priced block replaces the whole
+operation-model block of our previous filing (101,185,639,958 units, with 1 compression + 32
+operations per trial). The K term (58,909,096,251 units) is 55.0% of the total; the
+instruction-priced lines (z3, synthetic checks, K) are 86.1%.
 
 The K run was not lucky. Model value: with 132096 records, a V6 rate of 2^-9 and an R20 rate of
 2^-12.66, a first success is expected after about 2^36.6 trials. K needed 2^36.531.
@@ -297,33 +301,48 @@ charging its original discovery.
 - Provenance: Li, Liu, Wang, Dong and Sun (ASIACRYPT 2024). The authors' public search tool is
   Peace9911/sha_2_attack at commit 6a9f35fd8d8bdcc1a54dc6f170ed0038ebe5bb32.
 - Sensitivity: the trail search is not executed or bounded by our own evidence in this filing. A
-  charge of T units for it gives a total of 159,740,722,648 + T units. That stays below 2^39.15 (our
-  previous filing) for T up to 2^38.712, and below 2^40.4 for T up to 2^40.232.
+  charge of T units for it gives a total of 107,027,591,592 + T units. That stays below 2^39.15 (our
+  earlier filing) for T up to 2^38.872, and below 2^40.4 for T up to 2^40.289.
 
-H2-op-accounting (score-critical). For our own code (Appendix B), the per-event charges of
-Section 9 bound the primitive word operations:
-- per trial: 1 compression + 32 operations (counter, bitmap index and test, loop control);
-- per bitmap hit: 1 compression + 64 operations;
-- per record: 400; per V6 pass: 1600; per completion iteration: 160;
-- per group: one compression equivalent;
-- per scanned word: 24; per residue-scan candidate: 8.
+H2-op-accounting (score-critical). For our own code other than search K (Appendix B), the
+per-event charges of Section 9 bound the primitive word operations:
+- yield checks: per scanned word 24, per table candidate 64;
+- V8 dump: per scanned word 24; residue scan: per candidate 8;
 - the pre-construction analysis programs (Section 15.2): the per-run bounds listed there, with
   floating-point operations at 400 and divisions at 1024.
-Each trial is charged a full compression, although K shares steps 0..14 within a group.
+Search K is no longer charged by an operation model; it is charged from its retired instructions
+under H3 (Section 14.6).
 
-H3-instruction-price (score-critical). For the runs without an exact operation model (the z3
-attempts and the synthetic completion checks), the per-instruction prices of Section 14 bound their
-primitive word operations: 25 per retired instruction for z3 and 17 for the synthetic checks.
+H3-instruction-price (score-critical). For the z3 attempts, the synthetic completion checks and
+search K, the per-instruction prices of Section 14 bound their primitive word operations: 19 per
+retired instruction for z3, 13 for the synthetic checks, and for K 8 on the search hot path and 10
+on the remainder of the process, with every multiply off the hot path charged again at 400 and the
+main thread's floating point at 1024.
 - Scope: the retired-instruction counts of Section 8 (macOS counters through `/usr/bin/time -l`).
 - Evidence: the per-form costing of the AArch64 code (Appendix C.1), applied statically to the z3
   binary that ran and dynamically to callgrind instruction counts of the same z3 version and the
-  same three committed models, and of the same synthetic-check source (Section 14).
+  same three committed models, and of the same synthetic-check source (Section 14). For K, the
+  executed path of the executable that ran (Section 14.6), with its SIMD forms priced by their
+  exact emulation on one 256-bit word (Appendix C.3, checked by C.4), and a callgrind cross-check
+  of a Linux build of the same source.
+- Premise for K's SIMD forms: a 128-bit vector register is one datum in one 256-bit word, as the
+  v5 table already assumes for SIMD logic (cost 1). A lane-wise form (4-lane add, shifts, shift and
+  accumulate, three-way XOR, bit select) is priced by its exact emulation on that word with lane
+  masks; each emulation is checked against the lane-wise definition (Section 14.6). Forms without a
+  checked emulation keep the v5 price of 16.
 - Extrapolation: the dynamic mix comes from the Linux build of z3 4.15.4. It covers all of
   attempt 1 (the same search, step for step) and the first 28% and 39% of attempts 2 and 3 by
   rlimit count. The static mixes of the two builds agree (Section 14.3). The price doubles the worst
-  of 23 measured intervals to cover the unprofiled remainder and the build difference.
-- Sensitivity: at 256 operations per instruction (our previous filing) the total would be
-  2^39.176; at four times the charged prices it would be 2^38.082.
+  per-form dynamic mean of 23 measured intervals to cover the unprofiled remainder and the build
+  difference. K's hot path (98.44% of its instructions) is a fixed instruction sequence of the
+  binary that ran, executed once per 8 trials; its price still doubles its per-form mean.
+- Sensitivity: at 256 operations per instruction for z3 and the synthetic checks the total would
+  be 2^39.074; at four times every charged price (z3, synthetic checks and K) it would be
+  2^38.481; at the class prices of 50592e75 for z3 and the synthetic checks (25 and 17) it is
+  2^36.7734. For K alone: under the flat SIMD price 16 of the v5 table (K at 23) the total
+  would be 2^37.654; with every K instruction at 16 it would be 2^37.266; with each
+  32-bit lane of a vector register in its own word (hot-path mean 7.32, price 15) it would be
+  2^37.196; under the operation model of our previous filing it was 2^37.1195.
 
 H4-memory (supporting). The measured maximum resident set sizes bound C's peak memory.
 
@@ -338,7 +357,7 @@ and pairs that C does not read, and they fixed no constant of C (Section 15.4). 
 - Extrapolation: the commitments are local (file timestamps and a local git history), not
   notarised.
 - Sensitivity: if a reviewer charged the excluded search runs anyway, the 2^40.625-trial run alone
-  would put the total at 2^40.774.
+  would put the total at 2^40.733.
 
 ## 12. Organizer-executed experiment and certificates
 
@@ -363,8 +382,9 @@ Certificate: `relaxed-v3-1`, the stored pair.
 
 ## 14. Per-instruction price: our own evidence
 
-This section supports H3. It does not re-run any charged call on the measurement machine; it
-measures what one retired instruction of the charged programs costs in primitive word operations.
+This section supports H3. It measures what one retired instruction of the charged programs costs
+in primitive word operations. Apart from one re-run of K's table build (Section 14.6), it does not
+re-run any charged call on the measurement machine.
 
 ### 14.1 What ran
 
@@ -436,7 +456,11 @@ with h, d and u the heavy, divide and unmapped shares: every ordinary instructio
 2.2 times its measured dynamic mean of 2.28-2.31 operations. The per-form mean is the exact
 dynamic average under the table of 14.2.
 
-**Price.** m_z3 = ceil(2 * max over all 23 intervals of m_class) = ceil(2 * 12.044) = **25**.
+**Price.** m_z3 = ceil(2 * max over all 23 intervals of the per-form mean) = ceil(2 * 9.3833) = **19**.
+The worst interval is one of attempt 2's (per-form mean 9.38333); the same interval has the
+largest class price, 12.044. Our promoted filing 50592e75 priced z3 at the class
+price, ceil(2 * 12.044) = 25, which also priced every ordinary instruction at 5 instead of its
+measured 2.28-2.31; this filing prices every executed instruction by its form.
 The factor 2 covers the unprofiled remainder of attempts 2 and 3 and the build difference. For
 attempt 1 the profile is complete. The macOS build retired 6.4% more instructions for the same
 search; if both builds execute the same multiplies and divides, its heavy share is the lower one.
@@ -455,22 +479,165 @@ retires 1499 instructions per trial (Section 8: 500,284,109,323 instructions, of
 the table build takes at most 124,752,621,861, over 250,544,128 trials), against 1334 in
 the Linux build. With the same heavy instructions per trial, the macOS heavy share is the lower one,
 so we keep the Linux shares (scale factor max(1, 1334/1499) = 1.000) and take
-m_sim = ceil(2 * m_class) = **17**, charged on all instructions of each run, including the table
+m_sim = ceil(2 * per-form mean) = ceil(2 * 6.3887) = **13** (the class price 8.32 gave 17 in 50592e75), charged on all instructions of each run, including the table
 build.
 
-### 14.6 What this does not establish
+### 14.6 Search K: the executable that ran, priced by its executed path
+
+K is charged from its retired instructions (Section 8: 15,640,902,198,904) at prices measured on the
+executable that ran.
+
+- **Executable.** `r31det3`, built from B.4 and B.5 with Apple clang,
+  `cc -O3 -mcpu=apple-m4 -o r31det3 r31det3.c -lpthread`, at 13:04 KST, before K started at
+  13:04:56, and not rebuilt since. SHA-256 2824a0f855c203d1ada6f99e5a25fa8aebd4f2feeee0a8a56776c311af4bce23.
+  Disassembly: `xcrun llvm-objdump -d --no-show-raw-insn r31det3`.
+- **Vectorised kernel.** clang compiled the 8-lane trial block of `worker` (the `j < LANES` loops of
+  B.4) into NEON code: a 524-instruction block that handles 4 lanes, run twice per 8 trials. Its
+  forms are 4-lane add, shift left, shift right and accumulate, three-way XOR and bit select. The
+  v5 table of 14.2 charges every SIMD form other than logic at a flat 16 ("charged as shuffles").
+  Under that table the hot path costs 11.13 operations per instruction, and doubled, 23: above the
+  13.84 at which the measured count would equal the operation model of our previous filing. We
+  price these forms by their exact emulation instead (below).
+
+**Executed path.** With no bitmap hit, one pass over 8 trials executes a fixed instruction sequence
+(`kpath.py`, Appendix C.5):
+
+| block of `worker` | instructions | executions per pass |
+|---|---|---|
+| 0x100002b14-0x100002b60 pass set-up | 20 | 1 |
+| 0x100002b64-0x100003390 NEON block, 4 lanes | 524 | 2 |
+| 0x100003394-0x1000033a4 | 5 | 1 |
+| 0x10000348c-0x1000034a8 bitmap test, per lane | 8 | 8 |
+| 0x100003460-0x100003488 lane loop, per lane | 11 | 8 |
+| 0x100002ae0-0x100002b10 trial counter, stop check, next pass | 13 | 1 |
+| total per pass | 1238 | |
+
+K executed 99,492,036,640 trials, so 12,436,504,580 passes and 15,396,392,670,040 instructions on this
+path: 98.44% of the 15,640,902,198,904 retired. The path has no multiply, divide or
+floating-point instruction. The remaining 244,509,528,864 instructions (1.56%) are:
+- the table build and self-checks before the search: 124,755,608,685 instructions when the same
+  executable runs `r31det3 1 0` (re-measured with `/usr/bin/time -l` on 2026-10-08; not charged,
+  Section 15.1). Its common path is 29 scalar instructions per scanned word (0x1000009dc-0x100000a64
+  of `main`), and 2^32 * 29 = 124,554,051,584 is 99.84% of that count;
+- 119,753,920,179 instructions of bitmap-hit processing (58,831,394 hits, about 2,036 instructions
+  each: a 31-step compression, a binary search over 132,096 records, the record loop), group
+  set-up, the one completion and the main thread.
+
+**Prices for the SIMD forms.** As in 14.2, a 128-bit vector register is one datum in one 256-bit
+word; this is why SIMD logic costs 1 there. A lane-wise form is then computed on that word with lane
+masks (SWAR), using v5 primitives only. L is the mask of all bits of each lane except its top bit, H
+the mask of the top bits, M the lane mask for the shift, R the low 128 bits.
+
+| form | emulation on one 256-bit word | operations | price |
+|---|---|---|---|
+| `add.4s`, `add.2d` | ((x & L) + (y & L)) ^ ((x ^ y) & H) | 6 | 6 |
+| `shl.4s #k` | (x << k) & M | 2 | 2 |
+| `ushr.4s #k` | (x >> k) & M | 2 | 2 |
+| `usra.4s #k` | d + ((x >> k) & M), lane add as above | 8 | 8 |
+| `eor3.16b` | x ^ y ^ z | 2 | 2 |
+| `bcax.16b` | x ^ (y & ~z) | 3 | 3 |
+| `bsl.16b` | ((n ^ m) & d) ^ m | 3 | 3 |
+| `bic.16b` | x & ~y | 2 | 2 |
+| `dup.4s` / `dup.2d` from a general register | w, (w << 32) & R, ... joined by OR | 9 / 3 | 11 |
+| lane insert / extract (`mov.s`, `ins`, `umov`) | (v & ~lane) or ((w << 32i) & R); (v >> 32i) & 0xffffffff | 4 / 2 | 4 |
+| `and`, `orr`, `eor`, `mov`, `movi` | as in 14.2 | 1 | 1 |
+
+Other SIMD forms keep the v5 price of 16 (in this binary: `uzp1`, `ext`, `cmeq`), and scalar forms
+are unchanged (`swar.py`, Appendix C.3). The lane add needs no final mask: (x & L) + (y & L) cannot
+carry out of a lane. `swar_check.py` (Appendix C.4) runs each emulation with counted primitives and
+compares it with the lane-wise definition on 2000 random inputs per form. Every form matches, at no
+more than the listed price:
+
+```
+add.4s         emulation ops  6  priced  6  ok
+add.2d         emulation ops  6  priced  6  ok
+shl.4s         emulation ops  2  priced  2  ok
+ushr.4s        emulation ops  2  priced  2  ok
+usra.4s        emulation ops  8  priced  8  ok
+eor3.16b       emulation ops  2  priced  2  ok
+bcax.16b       emulation ops  3  priced  3  ok
+bsl.16b        emulation ops  3  priced  3  ok
+bic.16b        emulation ops  2  priced  2  ok
+dup.4s         emulation ops  9  priced 11  ok
+dup.2d         emulation ops  3  priced 11  ok
+mov.s(extract) emulation ops  2  priced  4  ok
+mov.s(insert)  emulation ops  4  priced  4  ok
+```
+
+**Prices of the K run.**
+
+| part | instructions | per-form mean | price |
+|---|---|---|---|
+| search hot path | 15,396,392,670,040 | 3.9031 (11.1300 under the v5 table) | ceil(2 * 3.9031) = **8** |
+| remainder | 244,509,528,864 | ordinary instructions: 2.8621 on the table-scan path (exact), 2.1796 over the hit-processing code and 2.7860 over the group set-up code (static) | **10** |
+| heavy instructions off the hot path | 1,121,255,712 multiplies | | **400** each, in addition |
+| main thread and library floating point | at most 710,000 | | **1024** each, in addition |
+
+The factor 2 is kept although the path is costed on the executable that ran. The remainder price
+10 is above twice every ordinary-instruction mean of its code. The heavy instructions are charged
+again in full. The executable has 94 (`kpath.py` lists their addresses): 82 multiplies and 12
+floating-point instructions, the latter all in `main`. The multiplies off the hot path, counted from
+the source and the run's counters:
+- group set-up: 33 per group (its code has 32: 15 splitmix64 draws of two multiplies and the two
+  seed products; we count one more), times 5,932 groups, plus one per thread at start: 195,768;
+- bitmap hits: at most 18 binary-search steps over 132,096 records, one 24-byte index product
+  each, plus one for the lookup: 19 * 58,831,394 = 1,117,796,486;
+- record loop: one per matched record, 3,061,666; completion draws: 2 * (2,829 + 19) = 5,696;
+- table build: one per stored record, 132,096; self-check: 2000 blocks * 16 draws * 2 = 64,000.
+The main thread after the table build runs its once-per-second loop (at most 200 passes of 31
+instructions, with the 12 floating-point instructions), the summaries over the 12 thread counters
+(with the remaining multiply) and seven progress lines through `printf` and `log2` (at most 10^5
+library instructions each). We charge all of it, at most 710,000 instructions, at 1024 each.
+
+K charge: ceil(15,396,392,670,040 * 8 / 2140) + ceil(244,509,528,864 * 10 / 2140) +
+ceil((1,121,255,712 * 400 + 710,000 * 1024) / 2140) = 57,556,608,113 + 1,142,567,892 +
+209,920,246 = **58,909,096,251** units. The operation model of our previous filing charged 101,185,639,958;
+the break-even price of the measured count is 13.84 operations per instruction.
+
+**Cross-check on a Linux build (callgrind).** The gcc 12.2 `-O3` build of the same source in the
+Debian bookworm arm64 container of 14.4, valgrind 3.19.0 callgrind with `--dump-instr=yes`, ran
+`r31det3 1 100000 dfafc947679ebe06`: the committed seed on one thread, so groups 0, 1, 2, ... in
+order. It was dumped after the table build and at exit after 27 groups (451,936,264 trials, 267,333
+bitmap hits, 13,844 records, 18 V6 passes); `cgmix.py` (C.2) priced the dumps:
+- table build: 134,520,943,302 instructions, per-form mean 2.8224 (v5 table), 2.7704 (SWAR prices);
+- search: 86,680,445,856 instructions, 191.8 per trial (the macOS executable: 157.2 per trial over
+  the whole run, 154.75 on the hot path); per-form mean 8.0863 under the v5 table, 2.2488 under the
+  SWAR prices.
+gcc also vectorises the kernel; it writes rotations as shift, shift and OR, so its mix differs from
+clang's. Under the v5 table this build alone would price K at ceil(2 * 8.0863) = 17, also above the
+break-even. A clang build with the macOS instruction set cannot run under valgrind 3.19, which
+rejects `eor3`; this is why the price rests on the executable that ran rather than on a profile.
+
+**Sensitivity** (total 107,027,591,592 = 2^36.6392):
+- v5 table with its flat SIMD price 16 (K hot path 11.13, so 23 for all of K): 2^37.654;
+- every K instruction at 16, heavy instructions as above: 2^37.266;
+- twice the charged K prices (16 and 20): 2^37.270;
+- without the factor 2 (4 on the hot path, 3 on the remainder): 2^36.173;
+- each 32-bit lane in its own word (hot-path mean 7.32, price 15): 2^37.196;
+- the operation model of our previous filing: 2^37.1195.
+
+### 14.7 What this does not establish
 
 - The dynamic profile is of the Linux build. The equal search transcript of attempt 1 and the equal
   static profiles support the transfer; they do not prove an identical instruction mix.
 - The price is an operation count under our per-form table. A reviewer who prices some form higher
-  can recompute the dynamic mean from the published scripts; the factor 2 and the class price of 5
-  per ordinary instruction (2.2 times the measured mean) are the reserve.
+  can recompute the dynamic mean from the published scripts; the factor 2 is the reserve. At the
+  class prices for z3 and the synthetic checks instead (25 and 17), the total is 2^36.7734.
+- K's hot-path weights are exact: the path is a fixed instruction sequence of the executable that
+  ran, executed once per pass, and the pass count is the run's trial counter divided by 8. The
+  remainder (1.56%) is priced from per-form means of its code (exact for the table scan, static for
+  the rest) with a margin, and every heavy instruction in it is counted from the source and charged
+  in full.
+- The SWAR prices count operations on one 256-bit word per 128-bit register, as the v5 table does
+  for SIMD logic. If each 32-bit lane were instead put in its own word (`add.4s` 8, `usra.4s` 12,
+  `eor3.16b` 8, a 128-bit load 4 loads), the hot-path mean would be 7.32, the doubled price 15, and
+  the total 2^37.196: above the operation model of our previous filing (2^37.1195).
 - The measurement runs of this section, like the post-K re-runs of Section 8, came after the stored
   pair existed and fixed nothing in C. They are not charged.
 
 ## 15. Development record and the origin of every constant of C
 
-### 15.1 Every computation on this target (2026-10-06 and 2026-10-07, KST)
+### 15.1 Every computation on this target (2026-10-06 to 2026-10-08, KST)
 
 The record is the agent transcript of the session that ran every command, cross-checked with
 the file times of the working directories and the package commit history (commits a7d3eaa 11:37,
@@ -488,6 +655,7 @@ e13dab2 12:17, 61428b0 13:14).
 | 13:04-13:07 | search K | **charged**, Section 9 |
 | 13:08-13:09 | instruction-count re-runs: `diag` (2), `r31sim3` (2), `v8dump`, `c8scan` | not charged: after the pair existed |
 | 15:39-16:10 | v4 price measurements (Section 14) | not charged: after the pair existed |
+| 10-08 03:59-04:10 | v6 K price measurements: `r31det3 1 0` on macOS, gcc build under callgrind (Section 14.6) | not charged: after the pair existed |
 
 "Published S" means the runs used the published starting solution: S was derived from the published
 collision in that work, so C cannot and does not use any of its outputs.
@@ -538,7 +706,7 @@ Floating-point operations are priced at 400 and divisions at 1024, as in Section
 - R20 itself predates every search: `joint` evaluated the union bound of the relaxed condition at
   09:48, and the first relaxed search started at 10:37.
 - Sensitivity: charging the 2^40.625-trial run anyway would add 2^40.625 * (1 + 32/2140) units and put
-  the total at 2^40.774.
+  the total at 2^40.733.
 
 ## Appendix A. Commitments (written before each run)
 
@@ -1587,7 +1755,7 @@ if __name__ == '__main__':
     print(json.dumps(summarize('WHOLE-BINARY', [i for v in funcs.values() for i in v])))
 ```
 
-C.2 `cgmix.py` (dynamic mix from callgrind instruction counts)
+C.2 `cgmix.py` (dynamic mix from callgrind instruction counts; v6 adds the `r31det3.gcc` entry)
 
 ```python
 """Dynamic per-form cost from callgrind --dump-instr=yes --compress-pos=no --compress-strings=no dumps.
@@ -1609,6 +1777,7 @@ from a64ops import cost, split_ops  # noqa: E402
 OBJ_FILE = {
     '/usr/local/bin/z3': 'z3.elf',
     'r31sim3.lin': 'r31sim3.lin',
+    'r31det3.gcc': 'r31det3.gcc',
     'libstdc++.so.6.0.30': 'libstdc++.so.6',
     'libc.so.6': 'libc.so.6',
     'libm.so.6': 'libm.so.6',
@@ -1716,6 +1885,207 @@ def main():
             top_forms=[(f, round(v / mapped, 4)) for f, v in forms.most_common(10)]))
     for r in rows:
         print(json.dumps(r))
+
+
+if __name__ == '__main__':
+    main()
+```
+
+C.3 `swar.py` (SIMD prices by exact emulation on one 256-bit word)
+
+    e5b8ea421d4f9280f5af4a394bfa147df806c1d5f84dc0f750c6e0fbe7aa2602  swar.py
+
+```python
+"""SIMD per-form prices by SWAR emulation (alternative to the flat 16 of the v5 table).
+
+A 128-bit register is one datum in one 256-bit word, as the v5 table already assumes for SIMD logic.
+Lane-wise forms are priced by the SWAR programs checked in swar_check.py. Forms not listed keep their
+v5 price. Scalar forms are unchanged.
+"""
+import re
+
+import a64ops
+
+SWAR = {'add': 6, 'shl': 2, 'ushr': 2, 'usra': 8, 'eor3': 2, 'bcax': 3, 'bsl': 3, 'bic': 2,
+        'and': 1, 'orr': 1, 'eor': 1, 'mov': 1, 'movi': 1, 'dup': 11, 'ins': 4, 'umov': 4}
+LANE = re.compile(r'\bv\d+(\.[bhsd])?\[\d+\]')
+
+
+def cost(mn, ops):
+    c, cl = a64ops.cost(mn, ops)
+    base = mn.split('.')[0]
+    cond = mn.split('.')[1] if mn.startswith('b.') else None
+    vec = any(a64ops.VEC.search(o) for o in ops) or ('.' in mn and cond is None) or any(LANE.search(o) for o in ops)
+    if not vec or cl != 'ordinary':
+        return c, cl
+    if base in ('mov', 'ins', 'umov') and any(LANE.search(o) for o in ops):
+        return 4, cl
+    if base in SWAR:
+        return (max if base == 'bic' else min)(c, SWAR[base]), cl
+    return c, cl
+```
+
+C.4 `swar_check.py` (check of every emulation against the lane-wise definition)
+
+    6b97348f11896eaab98149c05682665157218ecd1e6f22d520e1051a6618f85c  swar_check.py
+
+```python
+"""Check that each SIMD form of the K hot path has a 256-bit-word program of the stated length.
+
+A 128-bit register is one datum in one 256-bit word (as the v5 table already assumes for SIMD logic).
+Each emulation below uses only v5 primitives (add mod 2^256, AND/OR/XOR/NOT, shifts) on such words;
+`ops` counts them. Constants (lane masks) are immediates, as in the scalar rules.
+"""
+import random
+
+import swar
+W = (1 << 256) - 1
+R128 = (1 << 128) - 1
+def rep(v, bits):
+    return sum(v << (bits * i) for i in range(128 // bits))
+class C:
+    n = 0
+def op(v):
+    C.n += 1
+    return v & W
+def NOT(a): return op(~a)
+def AND(a, b): return op(a & b)
+def OR(a, b): return op(a | b)
+def XOR(a, b): return op(a ^ b)
+def ADD(a, b): return op(a + b)
+def SHL(a, k): return op(a << k)
+def SHR(a, k): return op(a >> k)
+
+def add_lanes(x, y, bits):
+    L, H = rep((1 << (bits - 1)) - 1, bits), rep(1 << (bits - 1), bits)
+    return XOR(ADD(AND(x, L), AND(y, L)), AND(XOR(x, y), H))
+def shl_lanes(x, k, bits):
+    return AND(SHL(x, k), rep(((1 << bits) - 1) ^ ((1 << k) - 1), bits))
+def ushr_lanes(x, k, bits):
+    return AND(SHR(x, k), rep((1 << (bits - k)) - 1, bits))
+def usra_lanes(d, x, k, bits):
+    return add_lanes(d, ushr_lanes(x, k, bits), bits)
+def eor3(a, b, c): return XOR(XOR(a, b), c)
+def bcax(a, b, c): return XOR(a, AND(b, NOT(c)))
+def bsl(d, n, m): return XOR(AND(XOR(n, m), d), m)
+def bic(a, b): return AND(a, NOT(b))
+def dup32(w):
+    r = w
+    for k in (32, 64, 96):
+        r = OR(r, AND(SHL(w, k), R128))
+    return r
+def dup64(x):
+    return OR(x, AND(SHL(x, 64), R128))
+def ext32(v, lane):
+    return AND(SHR(v, 32 * lane), 0xffffffff)
+def ins32(v, w, lane):
+    return OR(AND(v, R128 ^ (0xffffffff << (32 * lane))), AND(SHL(w, 32 * lane), R128))
+def ref(f, xs, bits):
+    m = (1 << bits) - 1
+    out = 0
+    for i in range(128 // bits):
+        out |= (f(*[(x >> (bits * i)) & m for x in xs]) & m) << (bits * i)
+    return out
+
+STATED = {name: swar.SWAR[name.split('.')[0]] for name in
+          ('add.4s', 'add.2d', 'shl.4s', 'ushr.4s', 'usra.4s', 'eor3.16b', 'bcax.16b', 'bsl.16b', 'bic.16b',
+           'dup.4s', 'dup.2d')}
+STATED['mov.s(insert)'] = STATED['mov.s(extract)'] = swar.SWAR['ins']
+random.seed(1)
+worst = {}
+for _ in range(2000):
+    x, y, z = (random.getrandbits(128) for _ in range(3))
+    w = random.getrandbits(32)
+    k = random.randrange(1, 32)
+    cases = {
+        'add.4s': (lambda: add_lanes(x, y, 32), ref(lambda a, b: a + b, (x, y), 32)),
+        'add.2d': (lambda: add_lanes(x, y, 64), ref(lambda a, b: a + b, (x, y), 64)),
+        'shl.4s': (lambda: shl_lanes(x, k, 32), ref(lambda a: a << k, (x,), 32)),
+        'ushr.4s': (lambda: ushr_lanes(x, k, 32), ref(lambda a: a >> k, (x,), 32)),
+        'usra.4s': (lambda: usra_lanes(y, x, k, 32), ref(lambda d, a: d + (a >> k), (y, x), 32)),
+        'eor3.16b': (lambda: eor3(x, y, z), x ^ y ^ z),
+        'bcax.16b': (lambda: bcax(x, y, z), x ^ (y & ~z & R128)),
+        'bsl.16b': (lambda: bsl(z, x, y), (z & x) | (~z & y & R128)),
+        'bic.16b': (lambda: bic(x, y), x & ~y & R128),
+        'dup.4s': (lambda: dup32(w), rep(w, 32)),
+        'dup.2d': (lambda: dup64(x & ((1 << 64) - 1)), rep(x & ((1 << 64) - 1), 64)),
+        'mov.s(extract)': (lambda: ext32(x, k % 4), (x >> (32 * (k % 4))) & 0xffffffff),
+        'mov.s(insert)': (lambda: ins32(x, w, k % 4), (x & ~(0xffffffff << (32 * (k % 4))) & R128) | (w << (32 * (k % 4)))),
+    }
+    for name, (f, want) in cases.items():
+        C.n = 0
+        got = f()
+        assert got == want, name
+        worst[name] = max(worst.get(name, 0), C.n)
+for name, n in worst.items():
+    assert n <= STATED[name], (name, n, STATED[name])
+    print(f"{name:14s} emulation ops {n:2d}  priced {STATED[name]:2d}  ok")
+```
+
+C.5 `kpath.py` (executed path and per-form means of K's executable)
+
+    ddad93f78c8d2fdef7529264a93b630f3a2dd1a4c4a75b48e13bc81f03f4d4c6  kpath.py
+
+```python
+"""Per-form cost of the executed paths of the K binary that ran (macOS r31det3, sha256 2824a0f8...).
+
+usage: xcrun llvm-objdump -d --no-show-raw-insn r31det3 > r31det3.dis; python3 kpath.py r31det3.dis
+Prints, for the search hot path (one pass of the 8-lane block with no bitmap hit) and for the common
+path of the table scan (one scanned word), the instruction count and the mean price under the v5
+table (a64ops.cost) and under the SWAR SIMD prices (swar.cost).
+"""
+import json
+import re
+import sys
+
+import a64ops
+import swar
+
+# (first address, last address, executions per pass)
+PATHS = {
+    'search, per 8 trials': [(0x100002b14, 0x100002b60, 1), (0x100002b64, 0x100003390, 2),
+                             (0x100003394, 0x1000033a4, 1), (0x10000348c, 0x1000034a8, 8),
+                             (0x100003460, 0x100003488, 8), (0x100002ae0, 0x100002af4, 1),
+                             (0x100002af8, 0x100002b10, 1)],
+    'table scan, per word': [(0x1000009dc, 0x100000a08, 1), (0x100000a18, 0x100000a30, 1),
+                             (0x100000a40, 0x100000a64, 1)],
+}
+# code regions run off the hot path: static (unweighted) mean over every instruction of the region
+REGIONS = {'bitmap-hit processing, completion and hashing (inlined in worker)': (0x1000034ac, 0x100004e9c),
+           'worker outside the search hot path': (0x100002254, 0x100002adc)}
+LINE = re.compile(r'^\s*([0-9a-f]+):\s+(\S+)(?:\s+(.*))?$')
+
+
+def main():
+    ins = {}
+    for line in open(sys.argv[1]):
+        m = LINE.match(line)
+        if m:
+            rest = (m.group(3) or '').split(';')[0].split('//')[0]
+            rest = re.sub(r'\s*<[^>]*>\s*$', '', rest).strip()
+            ins[int(m.group(1), 16)] = (m.group(2), a64ops.split_ops(rest) if rest else [])
+    addrs = sorted(ins)
+    for name, path in PATHS.items():
+        n = v5 = sw = 0
+        for lo, hi, k in path:
+            for a in addrs:
+                if lo <= a <= hi:
+                    mn, ops = ins[a]
+                    n += k
+                    v5 += k * a64ops.cost(mn, ops)[0]
+                    sw += k * swar.cost(mn, ops)[0]
+        print(json.dumps(dict(path=name, instructions=n, v5_ops=v5, v5_mean=round(v5 / n, 4),
+                              swar_ops=sw, swar_mean=round(sw / n, 4))))
+    for name, (lo, hi) in REGIONS.items():
+        sel = [ins[a] for a in addrs if lo <= a <= hi]
+        priced = [(swar.cost(mn, ops), a64ops.cost(mn, ops)[0]) for mn, ops in sel]
+        ordinary = [c for (c, cl), _ in priced if cl == 'ordinary']
+        print(json.dumps(dict(region=name, instructions=len(sel), heavy=len(sel) - len(ordinary),
+                              v5_mean=round(sum(v for _, v in priced) / len(sel), 4),
+                              swar_mean=round(sum(c for (c, _), _ in priced) / len(sel), 4),
+                              swar_ordinary_mean=round(sum(ordinary) / len(ordinary), 4))))
+    heavy = [(a, ins[a][0]) for a in addrs if a64ops.cost(*ins[a])[1] != 'ordinary']
+    print(json.dumps(dict(heavy_instructions=[f'{a:x} {mn}' for a, mn in heavy])))
 
 
 if __name__ == '__main__':
