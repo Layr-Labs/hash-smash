@@ -2,9 +2,11 @@
 
 The scalar below is `time_log2` under `collision-frontier-v5` (C = 430).
 
-**Credits.** The search, its counted program and almost all of this text
-are those of **winglock**'s submission 098e66f4 (94.45), which is public,
-AI-screened, in review and not promoted. **winglock**, **Jbenisek**,
+**Credits.** This package is a constant change to **Subflatus3**'s 52bb50ee
+(94.25, promoted), whose search, counted program and almost all of this
+text are those of **winglock**'s submission 098e66f4 (94.45). In text
+taken over from 098e66f4 and 52bb50ee, "we" and "our" refer to their
+authors; Section 8.3 and Appendix B are 52bb50ee's. **winglock**, **Jbenisek**,
 **tekkac** and **Th0rgal** are co-authors of this submission. 098e66f4 is
 built on two submissions of Jbenisek. From c66f230d (co-author tekkac):
 the 55/63-byte length cancellation, the six pinned constants, Lemmas L and
@@ -30,25 +32,28 @@ is not marked as this package's. In the text taken over from 098e66f4,
 the eight-condition rule, the E1 test stage or the budget premises of
 60f94c5c, and neither does this package.
 
-**What this package changes (Subflatus3).** One constant of the algorithm
-and one premise. The stage-B budget E_B falls from 1.02 p_B to 0.61 p_B
-batches per batch, and the stage-B part of H1 (ii) falls from 1.01 p_B to
-0.60 p_B, with p_B = 0.1992628 the exact value of the stage-B event under
-the seven-word model M (Section 8.2). Everything else is 098e66f4: the
+**What this package changes (GordoAR).** This package is 52bb50ee
+(the promoted frontier, 94.25) with two constants of the ledger changed:
+the factor F of H1 (i) rises from 92,675,072 (half of the exact model
+count, margin 2.000) to 132,392,960 = 185,350,144 * 5 / 7 (margin
+1.400), and V falls from 1,512,538 to 1,059,466 (the largest V whose
+exact ledger total still claims 93.73; the smallest V whose success bound
+is still at least 0.39 is 1,057,885). The stage budgets (0.61 p_B and
+1.27 * 2^-11), the premise 0.60 p_B and the samples supporting it, the
 construction, S8, rule A, the filter, the counted pieces and their
-operation counts, the stage-C budget, H1 (i), F, lambda, N and the
-success bound. The real stage-B share of the run lies far below p_B,
-because rule A clusters by context. 098e66f4's uniform sample gives
-0.54629 +- 0.00047 of p_B. An independent, preregistered uniform sample
-made for this package (Section 8.3: own program, own cross-check against a
-forward compression and `verifier/blake3.py`, 65,536 outer steps, 2^39
-trials) gives 0.54644 +- 0.00023 of p_B. If the run average were 0.60 p_B or
-more, a sample mean this low would have probability below 3 * 10^-14
-(Lemma C', proved here), and an empirical Bernstein bound puts the run
-average below 0.5567 p_B at confidence 1 - 2^-64. The charge per trial
-falls from 6.3408 to 5.4887 operations, and the claim falls from 94.45 to
-**94.25**. The program is 098e66f4's with only the two ledger constants and
-its credit docstring changed (Section 6).
+operation counts, the exact count 185,350,144, Theorem 2 and every other
+number are 52bb50ee's and, through it, 098e66f4's. The sample of Section
+8.3 is 52bb50ee's; this package reran the stage measurement at its own V
+(Section 8.4). The charge per trial is unchanged at 5.488742 operations;
+N falls from 2^100.53 to 2^100.015, lambda is 0.49832 (still above the
+0.49758 that a success bound of 0.39 needs at the budget), and the claim
+falls from 94.25 to **93.73** (tight in exact arithmetic: T = 2^93.73000,
+and the claim holds for any total up to 5.4887421 operations per trial).
+The single deliberate weakening is the margin of the assumed factor over
+the exact model count, reduced from 2.000 to 1.400; it is disclosed here,
+in the claim and in the note, and it is the only premise this package
+spends. The program is 52bb50ee's with only V_RANGE, F_H1 (and the
+matching `--count` display line), and the credit docstring changed.
 
 **Exact part.** For every choice of eight 32-bit words the construction gives
 a 55-byte message A and a 63-byte message B whose complete 2-round digests
@@ -57,19 +62,19 @@ the round-1 state word Y4; the search keeps Y4 in S8. The stage tests are
 exact: stage A passes a lane iff its trial satisfies rule A (Lemma A'),
 stage B iff it satisfies rule A and the filter (Lemma F), and stage C
 computes the residual exactly (Lemmas D, D'). Given H1 (ii), each budget
-is exceeded with probability below exp(-2.3 * 10^9) (Theorem 2, a
+is exceeded with probability below exp(-1.66 * 10^9) (Theorem 2, a
 Chernoff bound over independent outer steps; no independence inside an
 outer step, a context or a batch is used).
 
-**Heuristic part.** The search runs N = V * 2^80 pairs (V = 1,512,538,
-N = 2^100.53). H1 (i) assumes a trial is *good* (R = 0, rule A, beta
-filter) with probability at least F * 2^-128, F = 92,675,072 = 2^26.4657,
-half of the exact model count 185,350,144 (Section 8; `python3
+**Heuristic part.** The search runs N = V * 2^80 pairs (V = 1,059,466,
+N = 2^100.015). H1 (i) assumes a trial is *good* (R = 0, rule A, beta
+filter) with probability at least F * 2^-128, F = 132,392,960 =
+2^26.978, five sevenths of the exact model count 185,350,144 (Section 8; `python3
 experiments/s8stage.py --count` recomputes this integer). H1 (ii) is the
 first-moment statement of Section 7: the run average of the stage-B event is
 at most 0.60 p_B, and the run average of rule A with the filter is at most
-1.25 * 2^-11. Total charged time 2^94.2416, claimed 94.25. With the uniform
-rate instead, the same search needs 2^127 trials and gives 120.96. No full
+1.25 * 2^-11. Total charged time 2^93.7300, claimed 93.73. With the uniform
+rate instead, the same search needs 2^127 trials and gives 120.70. No full
 collision is exhibited.
 
 **History of the margins (098e66f4, reported because the choice of a
@@ -339,12 +344,12 @@ trial satisfies rule A and passes the filter.
 
 ## 4. Algorithm
 
-Constants: V = 1,512,538 values of vd; N = V * 2^80 = 2^100.5285 trials in
+Constants: V = 1,059,466 values of vd; N = V * 2^80 = 2^100.0149 trials in
 V * 2^64 * 9,363 batches; p_B = 32,052,445,611,625 / 160,855,115,169,792 =
 0.1992628 (Section 8.2); budgets
 
-    E_B = ceil(0.61 * p_B * V * 2^64 * 9,363) = 31,753,907,200,547,407,136,523,550,720 = 2^94.6809
-    E_C = ceil(1.27 * N * 2^-11)              =  1,133,912,952,398,586,629,867,039,622 = 2^89.8734
+    E_B = ceil(0.61 * p_B * V * 2^64 * 9,363) =  22,242,208,160,148,808,988,140,503,040 = 2^94.1673
+    E_C = ceil(1.27 * N * 2^-11)              =     794,255,893,092,220,481,335,816,356 = 2^89.3597
 
 1. Once: the lists U and V of S8 (9,363 packed words each; list word j
    holds members 7j .. 7j + 6 in its seven lanes, the last word members
@@ -617,29 +622,38 @@ replays took 35 s while other jobs held the machine at a load average of
 about 35), `half-collision` under 0.7 s.
 
 *This package's program.* The shipped `experiments/s8stage.py` (SHA-256
-b30ba566...fc6c7eab, 63,932 bytes) differs from 098e66f4's program
-(e027eb6f...1474709) in three places only: the two ledger constants
-PREMISE[0] (1.01 -> 0.60) and BUDGET[0] (1.02 -> 0.61), and the credit
-lines of its docstring. No code that the experiments, the self-test or
-`--count` execute was changed; `--ledger` evaluates the formula of
-Section 9 with the new constants. Both experiments were run for this
-package through the repository's organizer runner
-(`experiments.run_experiments`, which executes the program only in its
-pinned networkless Docker sandbox) on the public seed: 256 of 256
-successes in each, no repeated pair, every predicted observation exact
-for every seed, and class-filter totals 462, 247, 14, 233 and 14,
-identical to 098e66f4's public-seed run. The same
-40 nonces as 098e66f4's replays (the first 32 hex digits of SHA-256 of
-'blake3-r2-v101 replay NN', NN = 01 to 40) were then run the same way,
-after the program was frozen. All 41 runs have 256 of 256 successes in
-both experiments, no repeated pair, and every predicted observation exact.
-The class-filter totals have the same ranges, means and standard
-deviations as 098e66f4's 41 replays: rule A 419 to 663 (mean 515.4,
-sd 50.4), filter 209 to 295 (mean 254.4), both 3 to 14 (mean 7.4),
-stage-B batches 212 to 316 (mean 259.9, sd 22.7) and stage-C batches 3 to
-14 (mean 7.3). The self-test was not
-rerun for this package; its result above is 098e66f4's, for a program
-that differs only in the lines named.
+942ad45f78f27572959648ac33816bf148172bdb4138ae62a9d5148113c7941a, 64,185
+bytes) differs from 52bb50ee's program (b30ba566...fc6c7eab, which itself
+differs from 098e66f4's only in PREMISE[0], BUDGET[0] and docstring
+credits) in three places only: the two ledger constants V_RANGE
+(1,512,538 -> 1,059,466) and F_H1 (92,675,072 -> 132,392,960, with the
+`--count` display line reading F_H1 instead of the literal), and the
+credit lines of its docstring. PREMISE and BUDGET are 52bb50ee's,
+unchanged. No code that the experiments, the self-test or `--count`
+execute was changed; `--ledger` evaluates the formula of Section 9 with
+the new constants. Because the experiments read the two organizer seeds
+and not V or F, their outputs cannot change: both experiments were rerun
+for this package in the pinned networkless Docker sandbox
+(`python:3.12.12-slim-bookworm@sha256:2986c55f...`, `-i`, one file
+mounted read-only, `--network=none`, `--user=65534`, tmpfs `/tmp`) with
+the two-recorded-seed request files of 52bb50ee's package (trials seeded
+0000... and 0102...); for both experiments the output is byte-identical
+to 52bb50ee's recorded output and to winglock 098e66f4's (trials, pairs,
+every observation, all totals). The
+41-run replay campaign of 098e66f4 and 52bb50ee (public seed plus 40
+nonces: the first 32 hex digits of SHA-256 of 'blake3-r2-v101 replay NN',
+NN = 01 to 40) stands: rule A 419 to 663 (mean 515.4, sd 50.4), filter
+209 to 295 (mean 254.4), both 3 to 14 (mean 7.4), stage-B batches 212 to
+316 (mean 259.9, sd 22.7) and stage-C batches 3 to 14 (mean 7.3); the
+program's experiment code is byte-identical to the code those runs
+executed. The self-test was rerun for this package: `--selftest 2000 9`
+from the repository root, exit 0, byte-identical JSON to 52bb50ee's
+recorded run (14,000 of 14,000 lanes and flags right with
+`verifier/blake3.py`, stage counts 29/73/112 equal to the ledger,
+pattern tests 768/256/16,384 of 768/256/16,384, budget test right, peak
+registers 57 of 64). `--count` was rerun: exit 0, 85 outcomes, 57
+nonzero, per-beta parts and the total 185,350,144 exactly as Section 8.1
+and 52bb50ee record, with the new display margin 1.400.
 
 Observations are the program's own and untrusted; they check the
 generator, the class, the stage tests and the counted pieces against a
@@ -657,10 +671,10 @@ algorithm:
 
 (i) the N = V * 2^80 trials behave with respect to "good" (R = 0, rule A
 and the beta filter) like independent events of probability at least
-F * 2^-128 each, F = 92,675,072 (half of the exact count 185,350,144 of
+F * 2^-128 each, F = 132,392,960 (five sevenths of the exact count 185,350,144 of
 Section 8; 2^26.4657), to the extent that the probability that no trial is
 good is at most exp(-lambda) + 0.002 with lambda = N * F * 2^-128 =
-0.4980001; and
+0.49832437 (at least 0.49758, the value that a success bound of 0.39 needs at the 0.002 failure slack); and
 
 (ii) averaged over the V * 2^64 * 9,363 batches of the run, the
 probability that a batch has a trial satisfying rule A (and so enters
@@ -697,7 +711,7 @@ exp(mu_H (delta - (1 + delta) ln(1 + delta))), and
 
 **Theorem 2 (budgets).** Let S_B and S_C be the numbers of batches that
 would enter stage B and stage C in a run without budgets. If H1 (ii) holds,
-then P(S_B > E_B) <= exp(-7.1 * 10^10) and P(S_C > E_C) <= exp(-2.3 * 10^9).
+then P(S_B > E_B) <= exp(-5.04 * 10^10) and P(S_C > E_C) <= exp(-1.66 * 10^9).
 
 *Proof.* Write S_B = sum over k of S_k, S_k the number of batches of outer
 step k that enter stage B. S_k is a function of r_k, so S_1, S_2, .. are
@@ -724,17 +738,17 @@ E_C. If moreover some trial is good, the completeness argument of
 Section 4 shows that step 3 outputs a pair of distinct messages of 55 and
 63 bytes with equal complete digests. So, under H1,
 
-    P(success) >= 1 - (exp(-lambda) + 0.002) - exp(-7.1 * 10^10) - exp(-2.3 * 10^9)
-               >= 1 - exp(-0.4980001) - 0.002 - 10^-300 = 0.39025 >= 0.39.
+    P(success) >= 1 - (exp(-lambda) + 0.002) - exp(-5.04 * 10^10) - exp(-1.66 * 10^9)
+               >= 1 - exp(-0.49832437) - 0.002 - 10^-300 = 0.39045 >= 0.39.
 
 The time of Section 9 holds for every value of the coins: stage B and
 stage C are charged at their budgets. Sensitivity: with a good-trial rate
-f * 2^-128 the same search reaches 0.39 only for f >= 2^26.4645 (lambda >=
-0.49758); with the uniform rate (f = 1) it needs 2^127 trials and gives
-120.96. The margin between (ii) and the budgets is
+f * 2^-128 the same search reaches 0.39 only for f >= 132,195,305 =
+2^26.9781 (lambda >= 0.49758); with the uniform rate (f = 1) it needs
+2^127 trials and gives 120.70. The margin between (ii) and the budgets is
 what Lemma C uses: with 0.609 p_B and 1.26 * 2^-11 in (ii), delta = 0.0016
-and 0.0079, and the two bounds are still exp(-7.0 * 10^8) and
-exp(-5.8 * 10^8).
+and 0.0079, and the two bounds are still exp(-4.96 * 10^8) and
+exp(-4.11 * 10^8).
 ## 8. Evidence for H1
 
 ### 8.1 Part (i): the count of good trials
@@ -796,7 +810,7 @@ bit 14 set) have N3 = 0 in S8.
 
 The S8 total is the same exact integer with and without rule A: among
 these outcomes no S8 solution violates rule A. The claimed factor
-F = 92,675,072 is 185,350,144 / 2. All 15 betas with k <= 14 and the same counter give
+F = 132,392,960 is 185,350,144 * 5 / 7. All 15 betas with k <= 14 and the same counter give
 185,355,230.33 for S8 with rule A (162,263,084.49 for the full class without
 rule; 144,123,339.49 with rule A).
 
@@ -961,9 +975,11 @@ stopped; it gives 0.5473, 0.9995 and 1.0001 and is not used.
   41 runs; rule A alone is not part of (ii)). A run is 256 clustered
   contexts, so single runs do not resolve these margins.
 
-**Scope and limitations of H1.** The factor F = 92,675,072 is assumed; it
-is half of the exact model count 185,350,144 (margin 2.000), which the
-organizer experiments do not measure. M is untested at probability 2^-100.5
+**Scope and limitations of H1.** The factor F = 132,392,960 is assumed; it
+is five sevenths of the exact model count 185,350,144 (margin 1.400),
+which the organizer experiments do not measure. The margin was 2.000 in
+52bb50ee and 098e66f4; this package deliberately spends part of it (the
+only premise it changes) and V drops accordingly. M is untested at probability 2^-100.5
 (the R = 0 rate 185,350,144 * 2^-128);
 it was compared with real trials on events of probability down to about
 2^-38 per trial here (E1 part, E3 partial events) and down to about 2^-40
@@ -976,10 +992,11 @@ package, S8 is the best of all 8,992,320 sub-classes of 2^16 members given
 by three independent conditions, each fixing one free bit of e1 or the XOR
 of two (three of them describe S8 itself). The selection matters: the full
 class with rule A and no sub-class already counts 144,123,339 over all 15
-betas (1.555 F; betas outside T6 add under 32,000), so S8 supplies a
-factor 1.29 of the margin 2.000: if S8's advantage under M were entirely
-an artifact of this selection, S8 trials would have the class rate, and the
-class count with rule A (1.555 F) is still at least F. The filter was chosen to
+betas (1.089 F at this F; betas outside T6 add under 32,000), so if S8's
+advantage under M were entirely an artifact of this selection, S8 trials
+would have the class rate, and the class count with rule A (144,123,339 =
+1.089 F) is still at least F; the factor over the class rate is 1.286
+either way. The filter was chosen to
 contain T6. A choice that is best under M says nothing about M and may
 favour parameters where M overstates; the real-trial ratios above are the
 check we have; the order of enumeration (Section 2) was not chosen with
@@ -990,12 +1007,14 @@ X2) differ only in Y4, and trials with the same outer step and member share
 Y12 and w5, two of E1's inputs, over all 2^32 values of X2, while E1's a1
 varies with Y1 and Y6; for part (i) independence is assumed. Part (ii) is
 a first-moment statement: its run averages are estimated without bias from
-two independent uniform samples of the run (8.2: 2^38 trials, stage B at
+three independent uniform samples of the run (8.2: 2^38 trials, stage B at
 0.546 p_B, rule A with the filter at 1.00001 * 2^-11; 8.3: 2^39 trials,
-0.54644 +- 0.00023 p_B and 0.99995 * 2^-11; asserted 0.60 p_B and 1.25 * 2^-11),
-and the run has 2^100.5; no independence is assumed for it, and the
-budgets follow from it by Theorem 2. The sample of 8.2 is 098e66f4's and
-that of 8.3 is this package's; both run on the participant side; the organizer experiments see the stage events only
+0.54644 +- 0.00023 p_B and 0.99995 * 2^-11; 8.4, this package's rerun at
+this package's V: 2^37 trials, 0.54555 +- 0.00047 p_B and 1.00035 *
+2^-11; asserted 0.60 p_B and 1.25 * 2^-11),
+and the run has 2^100.015; no independence is assumed for it, and the
+budgets follow from it by Theorem 2. The sample of 8.2 is 098e66f4's,
+that of 8.3 is 52bb50ee's and that of 8.4 is this package's; all run on the participant side; the organizer experiments see the stage events only
 in 16,128 clustered lanes per run.
 
 **Run selection.** No organizer-run count or frequency supports F, the
@@ -1023,11 +1042,15 @@ batch. This package set the stage-B margin a third time, to 0.60 p_B
 before running its own; the plan of that sample fixed the value and the
 rule that nothing is changed unless its bound is at most 0.60 p_B
 (Section 8.3). The margin of the premise over the two sample means is
-1.10 and 1.10.
+1.10 and 1.10. This package did not touch (ii) or the budgets; it lowered
+only the margin of F over the exact model count, from 2.000 to 1.400, and
+it reran the stage measurement at its own V before doing so (Section 8.4,
+0.54555 +- 0.00047 of p_B, empirical Bernstein bound 0.582 p_B at delta =
+2^-64, below 0.60).
 
 
 
-### 8.3 This package's sample of the stage events (independent, preregistered)
+### 8.3 52bb50ee's sample of the stage events (independent, preregistered)
 
 **What is measured.** For outer step k, let Z_k be the share of its batches
 that enter stage B (some distinct trial of the batch satisfies rule A),
@@ -1040,8 +1063,8 @@ identically distributed Z_k whose mean is exactly the run average. No
 model is involved: this is sampling from the run's own index space.
 The same holds for the per-trial share of rule A with the filter.
 
-**Program and cross-check.** `sbmeas.c` (Appendix B) was written for this
-package. It does not reuse 098e66f4's measuring code. It computes steps O,
+**Program and cross-check.** `sbmeas.c` (Appendix B) was written for
+52bb50ee. It does not reuse 098e66f4's measuring code. It computes steps O,
 M and Y from the proof text, and for every trial runs C2 forwards as a G
 call, takes Y14 and tests rule A on h1 = ROR(Y14 ^ (Y3 + y), 16) (the
 first two assignments of E3; Lemma A is not used). When rule A holds, it
@@ -1140,6 +1163,32 @@ premise over the observed means is about 1.10. That is enough for Lemma
 C' and the empirical Bernstein bound at this sample size, but it is much
 smaller than the margin of 098e66f4's 1.01 p_B (about 1.85).
 
+### 8.4 This package's rerun of the stage measurement at V = 1,059,466
+
+52bb50ee's sample (8.3) drew vd uniformly below its V = 1,512,538. The
+run average that H1 (ii) bounds is an average over the run's own index
+space, and this package's index space has vd below 1,059,466: a smaller
+prefix of vd values could in principle have a different stage-B share. We
+therefore reran the measurement before spending the margin. `sbmeas.c`
+(Appendix B, 52bb50ee's program, cross-checked there against a forward
+compression and `verifier/blake3.py`) was recompiled with only
+`#define VRANGE` changed to 1059466, and run as `./sbmeas 2048 128 SEED`
+for SEED = 4100001 .. 4100008: 16,384 outer steps with 128 uniform
+values of X2 each, 2^37 trials and 19,635,634,176 batches, fixed before
+the run and not repeated. The per-outer-step stage-B share has mean
+0.1087087, that is 0.545554 +- 0.000473 of p_B (s.e.; sd 0.0605 of p_B), the
+aggregate share is identical, and the empirical Bernstein bound at delta
+= 2^-64 is 0.5822 p_B, below 0.60 p_B. Rule A with the filter is
+1.00035 +- 0.00013 of 2^-11 (below 1.25 * 2^-11); rule A alone is
+1.00004 of 2^-5 (not part of (ii)); batches entering stage C: 0.0034177
+per batch, at the model value 0.0034177 and below the budget 0.0043405. The sample is uniform, seeded
+(SplitMix64), participant-side, and consistent with 8.2 (0.54629) and
+8.3 (0.54644): cutting the vd prefix from 1,512,538 to 1,059,466 does
+not move the stage-B average. H1 (ii), both budgets and both Chernoff
+exponents of Theorem 2 are therefore used exactly as in 52bb50ee.
+Per-process means lie between 0.54445 and 0.54689 of p_B.
+
+
 ## 9. Charged time
 
 Per X2 value (65,536 trials), fixed work:
@@ -1174,21 +1223,22 @@ of each covering the halting entry.
 
     T = (272,079 * V * 2^64 + 73 (E_B + 1) + 112 (E_C + 1) + 459,153 * V * 2^32
          + 2^6 V + 2^22 + 2^22) / 430 + 2 + 2^86
-      = 2^94.2416   (5.488742 operations per trial: 2^94.2368 without the
-                     2^86 + 2 units, which add 0.0048)
+      = 2^93.73000   (5.488742171 operations per trial: 2^93.72319
+                      without the 2^86 + 2 units, which add 0.00681)
 
-time_log2 = 94.2416, claimed **94.25** (rounded up). `python3
+time_log2 = 93.73000, claimed **93.73** (rounded up; tight both ways: T
+lies strictly between 2^93.72 and 2^93.73). `python3
 experiments/s8stage.py --ledger` computes T in exact rational arithmetic.
-The claim holds for any total up to 5.5209 operations per trial. Under
-stricter readings: the budget registers kept in memory (load, subtract,
-store, load the limit, compare, branch: 3 more operations per entry) give
-94.26; stage A counted without the unrolling (3 loop operations per batch)
-gives 94.35. (098e66f4, with the stage-B budget 1.02 p_B, gives 2^94.4491,
-claimed 94.45; its first build, with the per-trial stage-B budget
-1.02 * 2^-5 and stage C at 1.02 * 2^-11, gave 2^94.4924, claimed 94.50.)
-The figures of this section were recomputed for this package by an
-independent re-implementation of the formula in exact rational
-arithmetic, which also reproduces 098e66f4's 2^94.449145 from its
+The claim holds for any total up to 5.488742176 operations per trial.
+Under stricter readings: the budget registers kept in memory (load,
+subtract, store, load the limit, compare, branch: 3 more operations per
+entry) give 93.75; stage A counted without the unrolling (3 loop
+operations per batch) gives 93.84. (52bb50ee, at V = 1,512,538 and
+F = 92,675,072, gives 2^94.2416, claimed 94.25; 098e66f4, with the
+stage-B budget 1.02 p_B, gives 2^94.4491, claimed 94.45.) The figures of
+this section were recomputed for this package by an independent
+re-implementation of the formula in exact rational arithmetic, which also
+reproduces 52bb50ee's 2^94.2415972 and 098e66f4's 2^94.449145 from their
 constants; the shipped `--ledger` evaluates the same formula.
 
 **Preprocessing (declared charge).** The program stores the six constants
@@ -1200,9 +1250,11 @@ all 524,288 class members, best of 8,992,320 candidate sub-classes); the
 order of the construction and the staged batch were found by 60f94c5c.
 This work is not reconstructed from run records. A declared upper bound
 of 2^86 units (2^94.75 word operations) is charged for all of it,
-098e66f4's (winglock's), c66f230d's, 60f94c5c's and this package's,
-including every count and measurement of Section 8 (this package's sample
-of Section 8.3 has 2^39 trials, under 2^47 word operations). It is more than 2^34 times c66f230d's own estimate of their
+098e66f4's (winglock's), c66f230d's, 60f94c5c's, 52bb50ee's and this
+package's, including every count and measurement of Section 8 (the sample
+of Section 8.3 has 2^39 trials and that of Section 8.4 has 2^37, each
+under 2^47 word operations; the exact count of Section 8.1 runs in 2.5
+minutes on one machine). It is more than 2^34 times c66f230d's own estimate of their
 selection (below 2^60 operations, from running times on one desktop
 machine and one graphics card), and more than 2^3.5 times ten years at
 2^63 operations per second (over four times the peak rate of the fastest
@@ -1210,7 +1262,7 @@ listed supercomputer, about 2^61.3 FP64 operations per second), so it
 exceeds any computation physically performed for this selection before the
 submission date. This is a declared upper-bound charge, not a premise:
 H1 does not depend on it, and no part of the success bound uses it. The
-charge moves the scalar by 0.0048 (94.2368 without it). The stored values themselves need no search to check: Fact P, Lemma Q,
+charge moves the scalar by 0.0068 (93.72319 without it). The stored values themselves need no search to check: Fact P, Lemma Q,
 Lemma B and the stage-test words are finite computations repeated by the
 self-test and the experiments.
 
@@ -1407,7 +1459,8 @@ Fixed before the run (hashes in PLAN.sha256):
    batch holding members 65534 and 65535) on a uniform sample of the run.
    usage: sbmeas NOUTER NX2 SEED            -> one line per outer step + totals
           sbmeas --context c0..c6           -> per-member flags for one context (cross-check)
-   Per outer step: vd uniform below V = 1512538, w5, C0.c1, D3.d1, S15, S9 uniform 32-bit
+   Per outer step: vd uniform below V (VRANGE; 1512538 in 52bb50ee's sample of 8.3, 1059466 in this
+   package's rerun of 8.4), w5, C0.c1, D3.d1, S15, S9 uniform 32-bit
    words, then NX2 uniform values of X2; all from SplitMix64(SEED).
    Rule A is tested on h1 = ROR(Y14 ^ (Y3 + y), 16) of E3, read from a forward
    evaluation of C2; the filter on c1 of E1, read from forward C1 and E1.       */
@@ -1427,7 +1480,7 @@ static const u32 IV[8] = {0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E
 #define W13 0x0007c006u
 #define Y3 0x8127c181u
 #define Y11 0x7af77f38u
-#define VRANGE 1512538u
+#define VRANGE 1512538u   /* 8.3 (52bb50ee) ran this; 8.4 reran with VRANGE 1059466u */
 #define NMEM 65536
 #define NB 9363
 static u64 sm;

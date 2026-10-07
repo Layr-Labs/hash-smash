@@ -8,8 +8,9 @@ tekkac).  The three-level construction (steps O, M, Y, T), its table reused for 
 batch under budgets that halt the run: 60f94c5c (Jbenisek).  Member values once per outer step: df8bd46d (Th0rgal).
 Lanes and masked rotation: ticket 2bf40fb (tekkac).  Complement propagation: 8c81a219 (Th0rgal).  winglock (18a7fc52,
 d26a3c5f, 2bb5d604, 098e66f4): S8, the beta filter (Lemma B, here the stage-B test), Lemmas D and D', the block
-accumulator, the exact S8 count, a fresh random word per outer step, exact stage rates, budgets and their bound; this
-program is 098e66f4's.  Changed here (Subflatus3): only PREMISE[0] and BUDGET[0] of the ledger (0.60 and 0.61 p_B).
+accumulator, the exact S8 count, a fresh random word per outer step, exact stage rates, budgets and their bound.
+52bb50ee (Subflatus3) set PREMISE[0]/BUDGET[0] to 0.60/0.61 p_B.  Changed here (this package): only V_RANGE and
+F_H1 of the ledger (1,059,466 and 132,392,960 = 185,350,144 * 5 / 7); the budget and premise constants are 52bb50ee's.
 
 Stage A (every batch, 29 operations): C2 to z and rule A in seven lanes (Lemma A').  Stage B (73, if some lane
 passes): C2, D0, C1, E1 to c1, rule A and the filter per lane (Lemma F).  Stage C (112, if some lane passes both):
@@ -896,7 +897,7 @@ def model_count(full):
     res = {'outcomes': sum(len(v[1].split()) for v in OUTCOMES.values()), 'nonzero_ruleA': nz,
            'part_ruleA': {k: v[0] for k, v in parts.items()}, 'part_all': {k: v[1] for k, v in parts.items()},
            'integral': all(v[2] for v in parts.values()), 'r_ruleA': tot_r / 2 ** 80, 'r_all': tot_a / 2 ** 80,
-           'claimed_F': 92675072, 'margin_over_F': tot_r / 2 ** 80 / 92675072}
+           'claimed_F': F_H1, 'margin_over_F': tot_r / 2 ** 80 / F_H1}
     if not full: del res['part_all'], res['r_all']
     sr = stage_rates()[0]; res['stage_rates'] = sr
     print(json.dumps(res))
@@ -919,8 +920,8 @@ def stage_rates():
             'exact': nA == 1 << 27 and nF == 1 << 26 and nAF == 1 << 53 and last == 2}, pB
 
 # ---------------- the ledger of proof.md Section 9 (participant mode --ledger) ----------------
-V_RANGE = 1512538                     # values of C0.d1: 0 .. V - 1
-F_H1 = 92675072                       # the factor of H1 (185,350,144 / 2)
+V_RANGE = 1059466                     # values of C0.d1: 0 .. V - 1 (this package: largest V whose ledger total still claims 93.73; smallest such V would be ceil(-ln(0.608) * 2^48 / F_H1) = 1,057,885)
+F_H1 = 132392960                      # the factor of H1 (185,350,144 * 5 / 7, margin 1.400)
 PREMISE = (Fraction(60, 100), Fraction(125, 100))    # H1 (ii): stage-B batch share <= 0.60 p_B; rule A and filter <= 1.25 * 2^-11
 BUDGET = (Fraction(61, 100), Fraction(127, 100))     # E_B = 0.61 p_B per batch, E_C = 1.27 * 2^-11 per trial
 def ledger():
