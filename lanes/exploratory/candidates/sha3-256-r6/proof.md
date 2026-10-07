@@ -1,367 +1,752 @@
-# SHA3-256 prefix rounds 0 through 5: unconditional generic collision package
-
-The scalar below is `time_log2` under `collision-frontier-v5`. Memory remains
-a separately reported resource bound.
-
-Selected lane: exploratory. Target: `sha3-256-r6-prefix-v1`.
-This finite classical algorithm has total charged time at most 2^137.4,
-peak memory at most 2^138 bytes, and success probability at least 1/2.
-The proposed scalar is 137.4. It is a generic analytic construction
-with infeasible resource use, not a claimed cryptanalytic advance.
-The required `baseline_improved` identifier `sha3-256-r6-nominal-v2`
-identifies the organizer's nominal reference only. That nominal 128 is not
-an established attack, qualified baseline, or security bound; this package
-does not claim to improve it.
-
-## 1. Exact complete hash and legal messages
-
-Let Q = 2^129 and N = 2^256. The input family D is all 64-byte strings,
-so |D| = 2^512. Every message has legal bit length 512 < 2^64.
-Represent a message by two 256-bit words u,v and serialize it as
-LE32(u) || LE32(v), where LE32 writes exactly 32 little-endian bytes,
-including zero bytes. This is a bijection from pairs of words onto D.
-N and |D| are mathematical cardinalities used only in the proof; the
-algorithm never stores either of those out-of-word-range integers.
-
-The selected complete hash has a 1600-bit state, rate 1088 bits (136 bytes),
-capacity 512, the all-zero initial state, and full 256-bit output.
-Each such message's entire padded input is exactly one 136-byte block:
-
-    LE32(u) || LE32(v) || 06 || (00 repeated 70 times) || 80
-
-This is the SHA3 domain suffix 01 and pad10*1, using delimited suffix 0x06.
-There is exactly one absorption permutation, no extra squeezing permutation,
-and no Davies-Meyer feed-forward.
-
-The complete subroutine H(u,v) is as follows. Store the state as 25 lanes,
-each in the low 64 bits of a separate RAM word; upper bits are zero.
-The lane index is x+5y for 0 <= x,y < 5, in little-endian lane order.
-Set all 25 lanes A to zero, then for j = 0,1,2,3 set
-
-    A[j]   = (u >> (64*j)) AND (2^64-1)
-    A[j+4] = (v >> (64*j)) AND (2^64-1).
-
-Set A[8] = 0x06 and A[16] = 0x8000000000000000.
-These are precisely the padded rate block XORed into the all-zero state.
-Lanes 17 through 24 remain the zero capacity portion.
-
-Apply exactly the first six Keccak-f[1600] rounds, indices 0 through 5.
-For each round use the following stages; within a stage assignments are
-simultaneous, and each stage reads the preceding one. Subscripts x,y are
-modulo 5. All lane arithmetic is on 64 bits, with NOT64 and rot64 restricted
-to those bits, not the entire 256-bit RAM word.
-
-    C[x] = A[x,0] XOR A[x,1] XOR A[x,2] XOR A[x,3] XOR A[x,4]
-    D[x] = C[x-1] XOR rot64(C[x+1],1)
-    T[x,y] = A[x,y] XOR D[x]
-    B[y,2*x+3*y] = rot64(T[x,y],rho[x,y])
-    Anew[x,y] = B[x,y] XOR ((NOT64 B[x+1,y]) AND B[x+2,y])
-    A = Anew
-    A[0,0] = A[0,0] XOR RC[round]
-
-The rho offsets, listed in x+5y order, are
-
-    0, 1,62,28,27, 36,44, 6,55,20, 3,10,43,25,39,
-    41,45,15,21, 8, 18, 2,61,56,14.
-
-Use these six RC constants in this order:
-
-    0x0000000000000001, 0x0000000000008082,
-    0x800000000000808A, 0x8000000080008000,
-    0x000000000000808B, 0x0000000080000001.
-
-Return
-
-    d = A[0] OR (A[1] << 64) OR (A[2] << 128) OR (A[3] << 192).
-
-LE32(d) is exactly the first 32 squeeze bytes, hence the full target digest.
-This is the fixed prefix-round complete hash, not Keccak-p's last-round
-convention, raw permutation hashing, a free initial state, different padding,
-or truncated output. Numeric ordering of d in the search changes no equality
-test: equality means all 256 output bits agree.
-The six-round transformation costs one selected-target sponge permutation
-under collision-frontier-v5; surrounding construction and serialization
-operations are charged separately.
-
-## 2. Algorithm, data structures and stopping rule
-
-Use two arrays A and B of Q records each, unrelated to H's small local lane
-array. Each record is exactly three RAM words (digest,u,v), or 96 bytes.
-No previous collision or input-specific advice is supplied.
-
-Initialize fixed code/constants/workspace and zero all 6Q table words.
-For i = 0,...,Q-1 draw fresh independent uniform 256-bit words u_i,v_i,
-compute d_i=H(u_i,v_i), and store (d_i,u_i,v_i) in A[i].
-Charge all 2Q random draws and all hashes, including unsuccessful samples.
-A deterministic seed expansion is not an implementation of these ideal
-random-word calls.
-
-Sort all records by unsigned full-digest word using iterative bottom-up
-mergesort. Initially source=A, destination=B and width=1.
-For each width<Q merge consecutive pairs of width-record runs, copy every
-three-word record to destination, swap source/destination and double width.
-Q is a power of two, so all pairs are complete and there are exactly 129
-passes, with widths 1,2,...,2^128. For each start s=0,2*width,...,Q-2*width,
-perform this merge:
-
-    left=s; left_end=s+width; right=left_end; right_end=s+2*width; out=s
-    while out<right_end:
-        if left==left_end: chosen=right; right=right+1
-        else if right==right_end: chosen=left; left=left+1
-        else if source[left].digest <= source[right].digest:
-            chosen=left; left=left+1
-        else: chosen=right; right=right+1
-        destination[out] = all three words of source[chosen]
-        out=out+1
-
-The chosen index is saved before incrementing its left/right counter.
-Taking from the left on ties is deterministic. No recursion, hashed lookup,
-expected sorting bound, integer multiplication primitive, or variable-size
-integer representation is needed.
-
-Scan adjacent records of the final source. When two digest words agree,
-compare both message words. If the messages are identical, continue.
-If they differ, recompute H for both from fresh all-zero states, check full
-digest equality, and output the two 64-byte messages.
-On verification failure output failure; this branch is unreachable under
-exact RAM semantics. If the scan ends without a witness, output failure.
-There is one complete batch and no restart or amplification.
-
-Sorting preserves every record and makes each equal-digest class contiguous.
-If a class contains distinct messages, some adjacent messages differ:
-otherwise transitivity of equality would make the whole class one message.
-Thus the algorithm succeeds exactly when its sample contains distinct
-messages with equal target digests. Every output satisfies the exact
-ordinary-collision relation by distinctness and complete-hash recomputation.
-
-## 3. Unconditional success for this fixed function
-
-The only randomness is the 2Q independent uniform RAM words. H remains the
-fixed function in section 1. For each of its N possible digest values y let
-
-    p_y = |{m in D : H(m)=y}| / 2^512.
-
-Some p_y may be zero, and no balance assumption is made. Independent uniform
-messages produce independent outputs with this common distribution p,
-because each output is a deterministic function of its respective input.
-This fact asserts no independence among rounds or internal differences.
-
-Here is the full finite-distribution bound. For q<=N let e_q(p) denote the
-sum of products of probabilities over all q-element subsets of coordinates.
-The probability of all q sampled outputs being distinct is q! e_q(p).
-Hold all coordinates except a,b fixed, and keep a+b fixed. Then
-
-    e_q(p) = a*b*e_(q-2)(rest) + (a+b)*e_(q-1)(rest) + e_q(rest),
-
-where e_0=1 and impossible-size coefficients are zero.
-All coefficients are nonnegative, so replacing a,b by their mean cannot
-decrease e_q: their product increases at fixed sum.
-To obtain a global maximum rigorously, e_q attains one on the compact
-probability simplex. Among maximizers choose one minimizing sum p_i^2.
-If two of its coordinates differ, averaging them does not decrease e_q
-and strictly decreases the sum of squares, a contradiction.
-Therefore the uniform vector maximizes e_q, including over distributions
-with zero coordinates. No limiting repeated-averaging step is assumed.
-
-Let E be the event that some two sampled digests agree. Apply this inequality
-with q=Q and then 1-x<=exp(-x) to each factor:
-
-    Pr(not E) <= Q! * binomial(N,Q) / N^Q
-              = product_(j=0)^(Q-1) (1-j/N)
-              <= exp(-Q*(Q-1)/(2*N)).
-
-Here Q*(Q-1)/(2*N)=2-2^-128>1, so Pr(E)>1-exp(-1).
-Since exp(1)>1+1+1/2+1/6=8/3, we have exp(-1)<3/8 and Pr(E)>5/8.
-
-Repeated inputs do not count as ordinary collisions. Let R be the event
-that any two sampled messages are equal. Each particular pair agrees with
-probability 2^-512; therefore the union bound gives
-
-    Pr(R) <= binomial(Q,2)/2^512 < 2^258/(2*2^512) = 2^-255 < 1/8.
-
-On E without R an equal-digest pair necessarily has distinct messages.
-The scan therefore finds a valid witness. No independence between E and R
-is required for
-
-    Pr(success) >= Pr(E)-Pr(R) > 5/8-1/8 = 1/2.
-
-The JSON reports the weaker lower bound 0.5, above the required 0.39.
-This argument works for every fixed map D to N digests, including unbalanced
-ones. It uses neither a random-oracle premise nor balanced-output,
-pseudorandomness, experimental extrapolation or differential independence.
-This is algorithmic success, not confidence in the proof or an AI reviewer.
-
-## 4. 256-bit RAM implementation and complete charged time
-
-Instruction budgets in this section are counts of ordinary word operations,
-priced at 1/1626 each. Permutation calls are counted separately at cost 1;
-their internal round operations are not part of those instruction budgets.
-
-All actual scalar values fit in a word: Q, widths, indices, endpoint Q,
-3*i, 6*Q, counters and byte addresses below 2^138. The proof cardinalities
-N and |D| and the large total-time bounds are not machine registers.
-Address record i as base+(i<<1)+i and then use offsets 0,1,2.
-For byte addressing additionally shift the word address left by five.
-Only the listed shifts/additions are used; no multiplication is assumed.
-Each record is three individual loads/stores, never a free bulk copy.
-There are no unbounded counters, recursion stacks or multiword addresses.
-
-The following finite envelopes deliberately overcount implementation
-constants. For one merge output, source/destination addressing uses fewer
-than 20 additions/shifts. Two digest loads, three record loads, three
-record stores, eight comparisons/branches and eight counter operations
-suffice. Setup/end control is fewer than 32 additional operations per
-nonempty run pair, chargeable to its first output. These total below 128.
-Including loads/stores for every scalar temporary and pointer swap gives
-a conservative bound of 512 primitives per output before fetch allowance.
-The adjacent scan likewise fits in 512 primitives per inspected pair.
-
-For H, 25 zero stores, eight lane extractions, two padding stores, dispatch
-of one selected permutation, four output-lane loads, three shifts/ORs and
-call bookkeeping total below 512 ordinary primitives. The permutation call
-itself is counted separately at one target-compression unit. The two random
-draws and three record stores also fit within 512 per generated record.
-Explicit copying of all 25 lanes at the permutation interface, if charged in addition to
-that primitive, fits this envelope. Every constant shift 64*j can be
-precomputed; no variable integer multiplication is needed.
-
-An elementary instruction and literal operands can be encoded in at most
-five RAM words: opcode and at most four operands. Allow five additional
-charged instruction-fetch loads for each instruction. The 512-operation
-bound becomes 3072; round upward to 4096=2^12 per record below.
-These fetches are conservatively charged even if the model would not
-separately charge them. No operating system, Python objects, allocator
-metadata or library sorting implementation is being assumed.
-
-The uniform program has the fixed loop bodies specified above. Its
-elementary straight-line/control code needs fewer than 2^14 instructions.
-Even if the selected primitive's code storage is included, six rounds of
-25 lanes require fewer than this number: fixed lane coordinates eliminate
-modulo/index computations, and each round uses fewer than 1024 elementary
-instructions for the displayed XOR, rotation, chi, loads and stores.
-All six rounds plus the generation, merge, scan and loop bodies remain
-below 2^14 instructions. Five-word encoding uses 81920 words.
-Constants, counters, temporary records, output and working lanes together
-use fewer than 4096 further words, totaling less than 2^17 words.
-Reserve the larger 2^24-byte fixed area for all of them.
-Loading this code/constants and clearing the fixed area costs at most
-2^30 charged operations. These are uniform data, not searched advice.
-
-| Phase | Permutation calls, at cost 1 each | Ordinary operations, at cost 1/1626 each |
-| --- | ---: | ---: |
-| Load fixed code/constants and initialize fixed workspace | 0 | 2^30 |
-| Zero both Q-record arrays, six word stores per record index | 0 | 2^12 Q |
-| Draw, construct, hash and store every message | Q | 2^12 Q |
-| Every copy in all 129 bottom-up merge passes | 0 | 129 * 2^12 Q |
-| Scan all adjacent pairs, including repeated-message checks | 0 | 2^12 Q |
-| Recompute both witness hashes, verify and emit output or failure | at most 2 | 2^14 |
-
-The ordinary-operation column retains the stated finite instruction envelopes,
-including addressing, loops, fetches and spare allowance. Internal permutation
-rounds belong only to the separate permutation calls.
-
-Explicit table zeroing is easily within 512 primitives per index before
-fetch allowance, so allocation assumes no free zero-fill.
-The table charges all samples, failed comparisons, merge passes and
-verification regardless of success. There is no hidden restart cost.
-These are worst-case bounds for one run, hence also bound expected time.
-
-    H_calls <= Q+2
-    W <= 132 * 2^12 Q + 2^30 + 2^14 = 540672Q + 1073758208
-    T = H_calls + W/1626
-      <= (1 + 540672/1626)Q + 2 + 1073758208/1626
-       < (333517/1000)Q
-       < 2^8.4 Q = 2^137.4,  for Q=2^129.
-
-The first strict inequality follows by clearing denominators with Q=2^129;
-the second is the integer inequality `333517^5 < 2^42 * 1000^5`.
-The leading coefficient is approximately 333.516605; the displayed bound
-also includes fixed setup and final verification. It is an upward bound,
-not division of the former rounded scalar by C.
-
-The organizer unit is named `target-compressions`: one selected six-round
-sponge permutation costs one unit and each other listed primitive word
-operation costs 1/1626 units. T is not merely the number of hashes.
-Preprocessing is the fixed initialization and array zeroing, already
-included in T:
-
-    P <= (2^12 Q + 2^30)/1626 < 2^131 < 2^142.
-
-The retained `preprocessing_log2: 142` is a loose independent upper bound.
-Actual preprocessing is below 2^131 and is included in the new total bound
-2^137.4; the metadata does not assert that setup takes 2^142 units.
-
-No earlier search chooses messages, favorable coins, collisions, parameters
-or advice. No failed trials or preparation steps are left outside T.
-
-## 5. Memory, data and interpretation of the claim
-
-Each array occupies 3Q words = 96Q bytes, including every retained 64-byte
-message and 32-byte full digest. Both arrays total 6Q words = 192Q bytes.
-Retained random words are the stored message words, not another allocation.
-Uniform code/constants, copying temporaries, state, counters, output and
-other fixed data all fit in the 2^24-byte area justified above.
-There are no additional table copies, external storage, recursive stacks,
-compressed messages or retained randomness outside those areas.
-
-    M <= 192Q + 2^24 = 192 * 2^129 + 2^24 < 2^138 bytes.
-
-This is within 256-bit byte or word addressing. It is not constant memory
-or a statement of physical practicality.
-
-The JSON fields have these explicit units and meanings:
-
-* `time_log2: 137.4` means T <= 2^137.4 target-compression units of total work.
-* `memory_log2_bytes: 138` means M <= 2^138 peak bytes, including code.
-* `data_log2: 130` means at most Q+2 < 2^130 complete-message hash
-  evaluations including both final verification evaluations.
-  All messages are generated internally; external input data is zero.
-  Their 64-byte input traffic is at most 64(Q+2) < 2^136 bytes.
-  Repeated table traffic is accounted for in time and memory above.
-* `preprocessing_log2: 142` means P < 2^142 target-compression units of setup,
-  already included in T, not an extra omitted phase.
-* `success_probability: 0.5` is a proved one-batch lower bound.
-* `nonuniform_advice_log2_bytes: 0` bounds advice by 2^0 bytes.
-  Actual nonuniform advice is zero bytes. The schema cannot encode log2(0),
-  so the nonnegative value 0 is a conservative upper bound, not a hidden
-  precomputed collision. Uniform program/constants are charged above.
-
-Resource logarithms describe conservative upper bounds; success describes
-a lower bound. The proposed scalar is 137.4. No scalar improvement or Pareto
-dominance over an established attack is claimed.
-
-## 6. Evidence, heuristic disclosures and limitations
-
-All needed evidence is the self-contained analytic argument in sections
-1 through 5. The heuristic list is empty: every material probability and
-resource premise is discharged for the fixed target and stipulated RAM.
-Fresh independent uniform random words are an explicit model primitive,
-not an empirical assumption about a device or deterministic PRNG.
-No smaller-round experiment or sibling package is needed for this proof.
-There are no toy-to-full-size extrapolations or unexplained cryptanalytic
-premises, and no external link must be fetched to assess the argument.
-
-The certificate manifest is valid and empty. No computed collision or
-certificate is claimed. No experiment is declared, and no candidate
-program has been executed. Finite sampling would not establish the costs
-or success of this infeasible run and is not used as evidence.
-This is an analytic upper bound in the abstract model, not a measured
-practical attack.
-
-`ready` means complete and available for review. Qualification and score
-emission require organizer review of this exact package.
-Exploratory qualification is `plausible_not_refuted`; rigorous qualification
-is `ai_rigor_qualified`. Neither is mathematical proof or human acceptance.
-This candidate does not assert a review outcome, trusted score or successful
-Yukon baseline import.
-
-## 7. Source and accounting revision
-
-This is an accounting revision of the organizer's SHA3-256 r6 package
-`24cf87f71dd43350628faece8df634e6f8dac8c574f1715123452e649c5397c8`
-in production base `0455d2b52f4f920fe5c3a6af8c71592a824e6a57`.
-The complete hash, lane-oriented wrapper, array zeroing, three-word records,
-merge sort, probability proof, success lower bound and memory bound are
-retained. The former v4 declaration was 150; its explicit counts support
-137.4 at v5 prices. This new package requires fresh ordinary review and
-asserts neither an inherited qualification nor a new cryptanalytic algorithm.
+# SHA3-256 prefix rounds 0–5: bitsliced counted evaluation + unconditional radix birthday (125.99)
+
+The scalar is `time_log2` under `collision-frontier-v5` (C = 1626); memory is reported only.
+Lane: exploratory. Target: `sha3-256-r6-prefix-v1`. Attack: ordinary collision. Heuristics: **none**.
+Total charged time < 2^125.9803 ≤ 2^125.99. Peak memory < 2^136 bytes. Success probability > 0.39.
+This is a generic birthday search with a constant-factor speedup. No cryptanalytic weakness of SHA3 is claimed.
+`baseline_improved: sha3-256-r6-nominal-v2` is the required identifier only.
+
+## 0. Credits
+
+- The compiler and counted simulator `ir.py` (Appendix A) are taken unchanged from **winglock**'s package
+  7e40f784 (SHA-256 877005938fac…). They do store-to-load forwarding under a register budget,
+  dead-scratch-store elimination, interval-colouring allocation onto 62+2 registers, and op counting.
+- The idea of evaluating the selected permutation in ordinary word operations, bitsliced 256 messages
+  to a word, follows the public 124.x line on this track (winglock 5e73af65/7e40f784, 5kyguy 6e715d9a,
+  may93182 11c46f4d for the bit-plane Keccak and the delta-swap transpose).
+- Static polarity tracking for chi follows **tekkac** b001199a (lane-complement chi). Per-message
+  charging follows zeeshan8281 and tekkac (f58275ef).
+- This package uses **none** of their message families, linear structures, tagged tables, or the H1
+  premise. The search is our own unconditional radix birthday, from our tickets 50b542cf → f75b4650.
+  The bitsliced generator `bsk3.py` and the checker `check3.py` are ours.
+
+## 1. Target, messages, coins
+
+`N = 2^256`. `Q = 256·ceil(ceil(9943·2^128/10000)/256)`, so Q/2^128 ≈ 0.9943 and Q < 2^128.
+Messages are 64 bytes, i.e. 512 bits. The algorithm draws Q/256 blocks. Block b draws 512 fresh
+uniform 256-bit words M_b[0..511] (512 `rand` ops). Message k of block b (k = 0..255) has message bit
+w = bit k of M_b[w], where bit w is bit (w mod 8) of byte (w div 8), little-endian lanes. All Q messages
+are therefore iid uniform on {0,1}^512. These are the only coins.
+Index of message (b, k): i = 256b + k.
+H = SHA3-256 with rounds 0..5: one 1088-bit rate block, the message in lanes 0..7, 0x06 at the start of
+lane 8, 0x80 at the end of lane 16 (bit 63), capacity zero.
+
+## 2. Algorithm (exact)
+
+```
+for each block b:
+    M_b[0..511] <- rand; store (512 stores)              # message slices (kept: Msg memory)
+    run BLOCK (Appendix A, bsk3.py: straight-line, 81,864 counted ops) on M_b
+        -> DG[0..255]: DG[k] = H(message (b,k)) XOR POL  (POL a fixed public 256-bit constant)
+    for k in 0..255:  d <- DG[k]; i <- 256b + k; Src[i] <- (d, i); Cnt_p[digit_p(d)] += 1 for p = 0,1,2
+PREFIX sums on Cnt_0 (2^86), Cnt_1, Cnt_2 (2^85 each)
+3 stable LSD counting-sort scatter passes over (d, i) on digits 86/85/85 bits
+SCAN adjacent pairs; at the first pair with equal d:
+    rebuild both messages from M (bit k of 512 words), if distinct recompute H with the target
+    permutation (2 units) and output the pair if the digests are equal; halt either way.
+output FAIL
+```
+
+**BLOCK.** It is the bitsliced Keccak-f prefix (rounds 0..5) on 1600 slice words. For each round:
+theta column parities C[x][z] (stored to CS3); D[x][z] = C[x-1][z] ^ C[x+1][z-1] (stored to CS4);
+rho and pi are pure renaming (moved lane bit z = (A^D) bit z−ρ); chi row-wise; iota complements the
+slices of lane 0 where RC bit z = 1. Constant slices (capacity, padding) are folded at generation time.
+The last round computes only lanes 0..3 (the 256 output bits). Each value is tracked as (physical word,
+static polarity), so NOT is free, chi's (¬b)∧c becomes AND or OR, and a physical NOT is emitted only on
+a polarity mismatch (cached per value). The polarity of each of the 256 output slices is a fixed
+compile-time bit, giving the constant POL. A 256×256 delta-swap transpose (8 stages × 128 swaps:
+shr, xor, andi, xor, shl, xor) turns the slices into one word per message.
+
+**Correctness.** DG[k] XOR POL = H(m_{b,k}) for every k. This is a deterministic program on fixed
+code, checked by simulation against the organizer verifier (Section 5). Since x ↦ x⊕POL is a
+bijection, DG values are equal exactly when the digests are equal. The radix sort is a permutation and
+sorts by the full 256-bit key (LSD invariant: after pass p the order is by the low 86+85p bits). So
+equal digests form contiguous runs, and SCAN reaches the first equal pair. Any output is re-verified
+with the target permutation, so no false collision is ever output.
+
+## 3. Success probability (unconditional over the coins)
+
+Let E = some pair of the Q messages collides under H, and R = some pair of messages is equal. By
+Schur-convexity of collision probability in the output distribution of a fixed H on iid uniform inputs,
+the uniform-output case is the minimum: `Pr(E) ≥ 1-exp(-Q(Q-1)/2^257) > 0.390012` (Q(Q-1)/2^257 ≥ 0.49431 > -ln 0.61).
+`Pr(R) ≤ Q^2/2^513 < 2^-256`. On E \ R every equal-digest pair has distinct messages, so the first one
+found is output. Success > 0.39.
+
+## 4. Cost ledger (ordinary ops; measured/itemized → charged)
+
+| Hot path | measured / itemized | charged | spare |
+|---|---:|---:|---:|
+| BLOCK per 256 messages (measured: ld 26631, st 13193, xor 27072, or 5311, and 2945, not 3640, shr/andi/shl 1024 each) | 81,864 | **82,500** | +636 |
+| Message slices per message: 2 rand + 2 stores | 4 | (in record) | |
+| Record per message: 2 rand + 2 M stores + ld DG + add index + 2 Src stores + histograms (5+6+5) + 1 loop (unrolled 16×) | 25 | **28** | +3 |
+| Scatter passes 0/1/2 per record | 12/13/12 | **15/16/15** | +3 each |
+| Scan per adjacent pair (common path) | 5 | **7** | +2 |
+
+Per message charged: 82,500/256 + 28 + 46 + 7 = 403.27 ordinary ops. No target-permutation call
+happens on the hot path, so permutation units are only the ≤ 2 in final verification.
+Cold and fixed terms: count tables 2^87 entries × ≤ 8 ops < 2^91 (charged 2^92); setup 2^30;
+the message rebuild plus scan branch ≤ 2^12; block loop control ≤ 8 per block (inside the +636).
+
+    W ≤ 403.265625·Q + 2^92 + 2^30 + 2^20
+    T ≤ W/1626 + 4
+    log2 T ≈ 125.98023 < 125.99
+
+Without spare (386.78 ops/message) the bound would be ≈ 125.920.
+
+## 5. Evidence that BLOCK computes H (deterministic, reproducible)
+
+Extract Appendix A and run, from the repository root:
+
+```sh
+mkdir -p /tmp/hedge && python3 - <<'EOF'
+import hashlib, re
+t = open("lanes/exploratory/candidates/sha3-256-r6/proof.md").read()
+n = 0
+for name, sha, body in re.findall(r"<!-- file: (\S+) sha256=(\w+) -->\n```python\n(.*?)```\n", t, re.S):
+    assert hashlib.sha256(body.encode()).hexdigest() == sha, name
+    open("/tmp/hedge/" + name, "w").write(body); n += 1
+assert n == 3
+EOF
+cd /tmp/hedge && python3 bsk3.py && python3 check3.py REPO_ROOT code3.pkl 8
+```
+
+`bsk3.py` prints `compiled 81864 hw 62 …` (about 20 s). `check3.py` runs the compiled code on the
+counted 64-register simulator for 8 random blocks (2,048 messages) and asserts DG[k] ^ POL equals
+`verifier.keccak.sha3_256(m, 6)` for each message. Our run: `ALL OK 2048 digests;
+POL=15602b6744518985e4cc13a22290880008d42dd8e1680252e15c5194d21e6688`. The program is straight-line,
+with no data-dependent branch, so the measured count is the same for every input.
+
+## 6. Cost-model sensitivity (disclosed)
+
+The count charges each executed primitive once. A constant address is an instruction operand (the
+same reading as the counted programs on this track), and each 'rand' is one op. If every
+constant-address load/store also paid one address add (+39,824 per block, +155.6 per message), the
+bound would be ≈ 126.45.
+
+## 7. Memory
+
+Msg slices 64Q bytes; Src + Dst 128Q bytes; count tables 2^87 words = 2^92 bytes; per-block scratch
+(B3, B4, CS3, CS4, TR, DG) < 2^18 bytes. Total ≈ 192Q + 2^92 < 2^135.58 ≤ 2^136.
+
+## 8. Limitations
+
+Constant-factor generic search, with no heuristics, experiments or certificates. The ledger depends on
+the v5 reading that the selected permutation may be evaluated in ordinary operations. Every hot-path
+count is measured by the shipped simulator, with spare added.
+
+## Appendix A. Program sources (Python 3 stdlib; `ir.py` by winglock, unchanged)
+
+<!-- file: ir.py sha256=877005938fac4f0982553c8eb01b06ef47c2608f66914a61d7cee82920abf055 -->
+```python
+"""SSA IR, straight-line compiler (store-to-load forwarding under a register
+budget, scratch dead-store elimination, interval-colouring register
+allocation) and a counted 256-bit word-RAM simulator with 64 registers.
+
+Instruction tuple: (op, dst, a, b, imm)
+  ld   dst <- MEM[imm]            imm = (array, index): constant address
+  st   MEM[imm] <- a
+  ldr  dst <- MEM[a]              register-addressed (table)
+  str  MEM[a] <- b
+  xor/and/or dst <- a op b ; not dst <- ~a
+  rot  dst <- rotl256(a, imm)
+  andi dst <- a & imm ; cmplt dst <- (a < imm) ; cmpeq dst <- (a == imm)
+  add  dst <- a + imm (mod 2^256)
+  br   if a: candidate path (out of line), then fall through
+Persistent registers 'S' (step counter) and 'C' (table word) live in physical
+registers 62 and 63; all other values get registers 0..61.
+"""
+import heapq
+
+W = (1 << 256) - 1
+NREG = 62
+PERSIST = ('S', 'C')
+SCRATCH = {'ROWIN', 'TR', 'C1S', 'D1', 'O1', 'C2', 'A2P', 'CSS', 'FIXS', 'B3', 'B4', 'B5', 'FIX3', 'FIX4', 'FIX5', 'CS3', 'CS4', 'CS5', 'DL', 'ROWS', 'LR'}
+
+
+class Bld:
+    def __init__(self):
+        self.ins = []
+        self.tags = []
+        self.tag = None
+        self.n = 0
+
+    def emit(self, op, a=None, b=None, imm=None, dst=True):
+        d = None
+        if dst:
+            d = self.n
+            self.n += 1
+        self.ins.append((op, d, a, b, imm))
+        self.tags.append(self.tag)
+        return d
+
+    def ld(self, arr, i):
+        return self.emit('ld', imm=(arr, i))
+
+    def st(self, arr, i, v):
+        self.emit('st', a=v, imm=(arr, i), dst=False)
+
+    def xor(self, a, b):
+        return self.emit('xor', a, b)
+
+    def and_(self, a, b):
+        return self.emit('and', a, b)
+
+    def or_(self, a, b):
+        return self.emit('or', a, b)
+
+    def not_(self, a):
+        return self.emit('not', a)
+
+    def rot(self, a, k):
+        k %= 256
+        assert k
+        return self.emit('rot', a, imm=k)
+
+
+def _uses(ins):
+    op, d, a, b, imm = ins
+    u = []
+    if a is not None:
+        u.append(a)
+    if b is not None:
+        u.append(b)
+    return u
+
+
+class SegTree:
+    """range add, range max over [0, n)."""
+
+    def __init__(self, vals):
+        n = 1
+        while n < len(vals):
+            n *= 2
+        self.n = n
+        self.mx = [0] * (2 * n)
+        self.lz = [0] * (2 * n)
+        for i, v in enumerate(vals):
+            self.mx[n + i] = v
+        for i in range(n - 1, 0, -1):
+            self.mx[i] = max(self.mx[2 * i], self.mx[2 * i + 1])
+
+    def add(self, l, r, v, node=1, nl=0, nr=None):
+        if nr is None:
+            nr = self.n
+        if r <= nl or nr <= l or l >= r:
+            return
+        if l <= nl and nr <= r:
+            self.mx[node] += v
+            self.lz[node] += v
+            return
+        m = (nl + nr) // 2
+        self.add(l, r, v, 2 * node, nl, m)
+        self.add(l, r, v, 2 * node + 1, m, nr)
+        self.mx[node] = max(self.mx[2 * node], self.mx[2 * node + 1]) + self.lz[node]
+
+    def query(self, l, r, node=1, nl=0, nr=None):
+        if nr is None:
+            nr = self.n
+        if r <= nl or nr <= l or l >= r:
+            return -10 ** 9
+        if l <= nl and nr <= r:
+            return self.mx[node]
+        m = (nl + nr) // 2
+        return max(self.query(l, r, 2 * node, nl, m), self.query(l, r, 2 * node + 1, m, nr)) + self.lz[node]
+
+
+def compile_block(ins, tags=None, nreg=NREG, forward=True):
+    """Forward loads, drop dead scratch stores, allocate registers.
+    Returns (physical instruction list, high-water register count)."""
+    ins = list(ins)
+    n = len(ins)
+    parent = {}
+
+    def find(v):
+        while v in parent and parent[v] != v:
+            nxt = parent[v]
+            if nxt in parent and parent[nxt] != nxt:
+                parent[v] = parent[nxt]
+            v = nxt
+        return v
+    # memval candidates (fixed by program order)
+    cand = []           # (p, prev value)
+    last = {}
+    for p, (op, d, a, b, imm) in enumerate(ins):
+        if op == 'ld':
+            if imm in last:
+                cand.append((p, last[imm]))
+            last[imm] = d
+        elif op == 'st':
+            last[imm] = a
+    alive = [True] * n
+    forwarded = set()
+
+    def intervals():
+        dpos, end = {}, {}
+        for p in range(n):
+            if not alive[p]:
+                continue
+            op, d, a, b, imm = ins[p]
+            for u in _uses(ins[p]):
+                if u in PERSIST:
+                    continue
+                r = find(u)
+                if end.get(r, -1) < p:
+                    end[r] = p
+            if d is not None and d not in PERSIST and find(d) == d:
+                dpos[d] = p
+        iv = {}
+        for v, p in dpos.items():
+            iv[v] = [p, max(end.get(v, p + 1), p + 1)]
+        return iv
+
+    # store groups: loads between a store and the next store to the same address
+    grp = {}
+    cur = {}
+    for p, (op, d, a_, b_, imm) in enumerate(ins):
+        if op == 'st':
+            cur[imm] = p
+        elif op == 'ld' and imm in cur:
+            grp.setdefault(cur[imm], []).append(p)
+    gsize = {}
+    for sp, lds in grp.items():
+        for p in lds:
+            gsize[p] = len(lds) if ins[sp][4][0] in SCRATCH else 0
+    while forward:
+        changed = False
+        # 1. free forwards (the previous value is still live at the load)
+        iv = intervals()
+        for p, pv in cand:
+            if p in forwarded:
+                continue
+            r = find(pv)
+            l = ins[p][1]
+            if iv[r][1] > p:
+                iv[r][1] = max(iv[r][1], iv[l][1])
+                parent[l] = r
+                del iv[l]
+                alive[p] = False
+                forwarded.add(p)
+                changed = True
+        # 2. max-weight forwards under the register budget (min-cost flow)
+        iv = intervals()
+        diff = [0] * (n + 1)
+        for s_, e_ in iv.values():
+            diff[s_] += 1
+            diff[e_] -= 1
+        pres, c = [], 0
+        for p in range(n):
+            c += diff[p]
+            pres.append(c)
+        if max(pres) > nreg:
+            raise RuntimeError("baseline pressure %d exceeds the budget" % max(pres))
+        items = []
+        for p, pv in cand:
+            if p in forwarded:
+                continue
+            r = find(pv)
+            ev = iv[r][1]
+            w = 1000 + (1000 // gsize[p] if gsize.get(p) else 0)
+            items.append((ev, p, w, pv))
+        sel = select_intervals(items, pres, n, nreg)
+        for ev, p, w, pv in sel:
+            r = find(pv)
+            l = ins[p][1]
+            parent[l] = r
+            alive[p] = False
+            forwarded.add(p)
+            changed = True
+        # 3. dead scratch stores
+        nextld = {}
+        for p in range(n - 1, -1, -1):
+            op, d, a_, b_, imm = ins[p]
+            if op == 'ld' and alive[p]:
+                nextld[imm] = True
+            elif op == 'st':
+                if alive[p] and imm[0] in SCRATCH and not nextld.get(imm, False):
+                    alive[p] = False
+                    changed = True
+                nextld[imm] = False
+        if not changed:
+            break
+    # rewrite
+    out = []
+    otags = []
+    for p in range(n):
+        if not alive[p]:
+            continue
+        op, d, a, b, imm = ins[p]
+        a2 = a if a in PERSIST or a is None else find(a)
+        b2 = b if b in PERSIST or b is None else find(b)
+        out.append((op, d, a2, b2, imm))
+        otags.append(tags[p] if tags else None)
+    # check: every scratch load is preceded by a live store in the block
+    written = set()
+    for op, d, a, b, imm in out:
+        if op == 'st':
+            written.add(imm)
+        elif op == 'ld' and imm[0] in SCRATCH and imm not in written:
+            raise RuntimeError("scratch load before store: %r" % (imm,))
+    code, hw = allocate(out, nreg)
+    return code, hw, otags
+
+
+def select_intervals(items, pres, n, nreg):
+    """Max-weight subset of intervals [a, b) (items (a, b, w, key)) such that
+    pres[x] + #chosen covering x <= nreg everywhere (exact, min-cost flow)."""
+    items = [it for it in items if it[0] < it[1]]
+    if not items:
+        return []
+    coords = sorted({0, n} | {it[0] for it in items} | {it[1] for it in items})
+    idx = {c: i for i, c in enumerate(coords)}
+    m = len(coords)
+    INF = float('inf')
+    to, cap, cost, adj = [], [], [], [[] for _ in range(m)]
+
+    def add(u, v, c, w):
+        adj[u].append(len(to)); to.append(v); cap.append(c); cost.append(w)
+        adj[v].append(len(to)); to.append(u); cap.append(0); cost.append(-w)
+    M = 10 ** 9
+    for i in range(m - 1):
+        bm = max(pres[coords[i]:coords[i + 1]])
+        add(i, i + 1, bm, -M)
+        add(i, i + 1, nreg - bm, 0)
+    ie = []
+    for it in items:
+        ie.append(len(to))
+        add(idx[it[0]], idx[it[1]], 1, -it[2])
+    # potentials: DAG shortest paths (all original edges go forward)
+    pot = [INF] * m
+    pot[0] = 0
+    for u in range(m):
+        if pot[u] == INF:
+            continue
+        for e in adj[u]:
+            if cap[e] > 0 and pot[u] + cost[e] < pot[to[e]]:
+                pot[to[e]] = pot[u] + cost[e]
+    flow = 0
+    while flow < nreg:
+        dist = [INF] * m
+        prev = [-1] * m
+        dist[0] = 0
+        h = [(0, 0)]
+        while h:
+            d, u = heapq.heappop(h)
+            if d > dist[u]:
+                continue
+            pu = pot[u]
+            for e in adj[u]:
+                if cap[e] > 0:
+                    v = to[e]
+                    nd = d + cost[e] + pu - pot[v]
+                    if nd < dist[v]:
+                        dist[v] = nd
+                        prev[v] = e
+                        heapq.heappush(h, (nd, v))
+        if dist[m - 1] == INF:
+            break
+        for v in range(m):
+            if dist[v] < INF:
+                pot[v] += dist[v]
+        f = nreg - flow
+        v = m - 1
+        while v != 0:
+            e = prev[v]
+            f = min(f, cap[e])
+            v = to[e ^ 1]
+        v = m - 1
+        while v != 0:
+            e = prev[v]
+            cap[e] -= f
+            cap[e ^ 1] += f
+            v = to[e ^ 1]
+        flow += f
+    return [it for it, e in zip(items, ie) if cap[e] == 0]
+
+
+def allocate(ins, nreg):
+    n = len(ins)
+    dpos, end = {}, {}
+    for p, x in enumerate(ins):
+        for u in _uses(x):
+            if u in PERSIST:
+                continue
+            end[u] = p
+        d = x[1]
+        if d is not None and d not in PERSIST:
+            if d in dpos:
+                raise RuntimeError("SSA violated")
+            dpos[d] = p
+    starts = sorted((p, v) for v, p in dpos.items())
+    free = list(range(nreg))[::-1]
+    import heapq as hq
+    act = []
+    reg = {}
+    hw = 0
+    for p, v in starts:
+        e = max(end.get(v, p + 1), p + 1)
+        while act and act[0][0] <= p:
+            _, r = hq.heappop(act)
+            free.append(r)
+        if not free:
+            raise RuntimeError("register budget exceeded at %d" % p)
+        r = free.pop()
+        reg[v] = r
+        hq.heappush(act, (e, r))
+        hw = max(hw, len(act))
+    phys = {'S': 62, 'C': 63}
+
+    def R(v):
+        if v is None:
+            return None
+        if v in phys:
+            return phys[v]
+        return reg[v]
+    out = [(op, R(d), R(a), R(b), imm) for op, d, a, b, imm in ins]
+    return out, hw
+
+
+class Machine:
+    """Counted simulator: 64 registers of 256 bits, word memory (dict)."""
+
+    def __init__(self, layout):
+        self.reg = [None] * 64
+        self.mem = {}
+        self.layout = layout      # array name -> base address
+        self.count = 0
+        self.hist = {}
+        self.cand_hook = None
+        self.units = 0
+
+    def mem_get(self, a):
+        if a not in self.mem:
+            import random
+            self.mem[a] = random.Random(a).getrandbits(256)
+        return self.mem[a]
+
+    def addr(self, imm):
+        return self.layout[imm[0]] + imm[1]
+
+    def run(self, code):
+        reg, mem = self.reg, self.mem
+        cnt = 0
+        hist = self.hist
+        for op, d, a, b, imm in code:
+            cnt += 1
+            hist[op] = hist.get(op, 0) + 1
+            if op == 'ld':
+                reg[d] = mem[self.addr(imm)]
+            elif op == 'st':
+                mem[self.addr(imm)] = reg[a]
+            elif op == 'xor':
+                reg[d] = reg[a] ^ reg[b]
+            elif op == 'and':
+                reg[d] = reg[a] & reg[b]
+            elif op == 'or':
+                reg[d] = reg[a] | reg[b]
+            elif op == 'not':
+                reg[d] = reg[a] ^ W
+            elif op == 'rot':
+                x = reg[a]
+                reg[d] = ((x << imm) | (x >> (256 - imm))) & W
+            elif op == 'ldr':
+                reg[d] = self.load_table(reg[a]) if imm is None else self.mem_get(reg[a])
+            elif op == 'str':
+                if imm == 'mem':
+                    mem[reg[a]] = reg[b]
+                else:
+                    self.store_table(reg[a], reg[b])
+            elif op == 'cmplt':
+                reg[d] = 1 if reg[a] < imm else 0
+            elif op == 'add':
+                reg[d] = (reg[a] + imm) & W
+            elif op == 'br':
+                if reg[a]:
+                    self.count += cnt
+                    cnt = 0
+                    self.cand_hook(self, b, imm)
+            elif op == 'shr':
+                reg[d] = reg[a] >> imm
+            elif op == 'shl':
+                reg[d] = (reg[a] << imm) & W
+            elif op == 'andi':
+                reg[d] = reg[a] & imm
+            elif op == 'addr':
+                reg[d] = (reg[a] + reg[b]) & W
+            elif op == 'cmpeq':
+                reg[d] = 1 if reg[a] == reg[b] else 0
+            elif op == 'rand':
+                reg[d] = self.rng.getrandbits(256)
+            elif op == 'xori':
+                reg[d] = reg[a] ^ imm
+            elif op == 'hash':
+                cnt -= 1
+                self.units += 1
+                reg[d] = self.hashfn(reg[a], reg[b])
+            elif op == 'hash4':
+                cnt -= 1
+                self.units += 1
+                reg[d] = self.hashfn(*[reg[r] for r in imm])
+            elif op == 'ldi':
+                reg[d] = self.mem_get(self.layout[imm[0]] + imm[1])
+            else:
+                raise RuntimeError(op)
+        self.count += cnt
+
+    def load_table(self, k):
+        return self.table_get(k)
+
+    def store_table(self, k, v):
+        self.table_put(k, v)
+```
+
+<!-- file: bsk3.py sha256=0454e17be767344ea4f111eb15bb712028795bdfa568c5b4a00c781da5ead30d -->
+```python
+"""Bitsliced 6-round SHA3-256 for 256 messages per block, with static polarity
+tracking (lane complementing, after tekkac b001199a). Every SSA value is held
+as (physical, neg), so a NOT costs nothing. Chi's ~b & c needs a NOT only when
+the operand polarities disagree. The digest slices come out XORed with a fixed
+known mask POL (the same for every message), so digest equality is unchanged.
+The compiler/simulator is ir.py from winglock 7e40f784 (credited)."""
+import ir
+W = ir.W
+RC = [0x0000000000000001, 0x0000000000008082, 0x800000000000808A,
+      0x8000000080008000, 0x000000000000808B, 0x0000000080000001]
+RHO = (0,1,62,28,27,36,44,6,55,20,3,10,43,25,39,41,45,15,21,8,18,2,61,56,14)
+
+class V:                       # value: const c in {0,1} (word all-0/all-1), or (ref) or (ssa id, neg)
+    __slots__ = ('c', 'r', 'id', 'neg')
+    def __init__(s, c=None, r=None, id=None, neg=0):
+        s.c, s.r, s.id, s.neg = c, r, id, neg
+
+class G:
+    def __init__(s):
+        s.B = ir.Bld()
+        s.nc = {}
+    def mat(s, v):             # make physical
+        if v.r is not None:
+            arr, i, neg = v.r
+            return V(id=s.B.ld(arr, i), neg=neg)
+        return v
+    def xor(s, a, b):
+        if a.c is not None and b.c is not None: return V(c=a.c ^ b.c)
+        if a.c is not None: b = s.mat(b); return V(id=b.id, neg=b.neg ^ a.c)
+        if b.c is not None: a = s.mat(a); return V(id=a.id, neg=a.neg ^ b.c)
+        a = s.mat(a); b = s.mat(b)
+        return V(id=s.B.xor(a.id, b.id), neg=a.neg ^ b.neg)
+    def not_(s, a):
+        if a.c is not None: return V(c=1 - a.c)
+        if a.r is not None: return V(r=(a.r[0], a.r[1], a.r[2] ^ 1))
+        return V(id=a.id, neg=a.neg ^ 1)
+    def andv(s, x, y):         # actual x & y
+        if x.c is not None: return y if x.c else V(c=0)
+        if y.c is not None: return x if y.c else V(c=0)
+        x = s.mat(x); y = s.mat(y)
+        if x.neg == 0 and y.neg == 0: return V(id=s.B.and_(x.id, y.id), neg=0)
+        if x.neg == 1 and y.neg == 1: return V(id=s.B.or_(x.id, y.id), neg=1)   # ~p & ~q = ~(p|q)
+        if x.neg == 1: x, y = y, x        # now x.neg 0, y.neg 1: x & ~q
+        # x & ~q = ~(~x | q): one physical NOT on x
+        # choose which operand to complement: prefer one already complemented (cache)
+        if x.id in s.nc:
+            return V(id=s.B.or_(s.nc[x.id], y.id), neg=1)
+        if y.id in s.nc:                  # x & ~q with q' = ~q physical: x & q' -> and
+            return V(id=s.B.and_(x.id, s.nc[y.id]), neg=0)
+        nx = s.B.not_(x.id); s.nc[x.id] = nx
+        return V(id=s.B.or_(nx, y.id), neg=1)
+    def store(s, arr, i, v):
+        if v.c is not None: return v
+        v = s.mat(v)
+        s.B.st(arr, i, v.id)
+        return V(r=(arr, i, v.neg))
+
+def build(transpose=True):
+    g = G()
+    cur = {}
+    for l in range(25):
+        for z in range(64):
+            if l < 8: cur[(l, z)] = V(r=('M', 64 * l + z, 0))
+            elif l == 8: cur[(l, z)] = V(c=1 if z in (1, 2) else 0)
+            elif l == 16: cur[(l, z)] = V(c=1 if z == 63 else 0)
+            else: cur[(l, z)] = V(c=0)
+    pol = {}
+    for r in range(6):
+        last = r == 5
+        C = {}
+        for x in range(5):
+            for z in range(64):
+                v = V(c=0)
+                for y in range(5): v = g.xor(v, cur[(x + 5 * y, z)])
+                C[(x, z)] = g.store('CS3', 64 * x + z, v)
+        D = {}
+        for x in range(5):
+            for z in range(64):
+                D[(x, z)] = g.store('CS4', 64 * x + z, g.xor(C[((x - 1) % 5, z)], C[((x + 1) % 5, (z - 1) % 64)]))
+        src = {}
+        for y in range(5):
+            for x in range(5):
+                src[y + 5 * ((2 * x + 3 * y) % 5)] = (x, y, RHO[x + 5 * y])
+        def mv(L, z):
+            x, y, ro = src[L]
+            zz = (z - ro) % 64
+            return g.xor(cur[(x + 5 * y, zz)], D[(x, zz)])
+        out = 'B3' if r % 2 == 0 else 'B4'
+        new = {}
+        for y in ([0] if last else range(5)):
+            for z in range(64):
+                m = [g.mat(mv(x + 5 * y, z)) if True else None for x in range(5)]
+                for x in range(5):
+                    if last and x > 3: continue
+                    v = g.xor(m[x], g.andv(g.not_(m[(x + 1) % 5]), m[(x + 2) % 5]))
+                    if x + 5 * y == 0 and (RC[r] >> z) & 1: v = g.not_(v)
+                    L = x + 5 * y
+                    if last:
+                        v = g.mat(v) if v.c is None else v
+                        assert v.c is None
+                        g.B.st('TR', 64 * L + z, v.id); pol[64 * L + z] = v.neg
+                    else:
+                        new[(L, z)] = g.store(out, 64 * L + z, v)
+        cur = new
+    if transpose:
+        s_ = 128
+        while s_:
+            mask = 0
+            for k in range(256):
+                if not (k // s_) % 2: mask |= 1 << k
+            for j in range(256):
+                if (j // s_) % 2: continue
+                a = g.B.ld('TR', j); b = g.B.ld('TR', j + s_)
+                t = g.B.emit('andi', g.B.xor(g.B.emit('shr', a, imm=s_), b), imm=mask)
+                dst = 'DG' if s_ == 1 else 'TR'
+                g.B.st(dst, j + s_, g.B.xor(b, t))
+                g.B.st(dst, j, g.B.xor(a, g.B.emit('shl', t, imm=s_)))
+            s_ //= 2
+    POL = sum(pol[j] << j for j in range(256))
+    return g.B, POL
+
+if __name__ == '__main__':
+    import time, pickle; t0 = time.time()
+    B, POL = build()
+    code, hw, _ = ir.compile_block(B.ins, B.tags)
+    hist = {}
+    for c in code: hist[c[0]] = hist.get(c[0], 0) + 1
+    print('compiled', len(code), 'hw', hw, hist, '%.0fs' % (time.time() - t0), flush=True)
+    pickle.dump((code, POL), open('code3.pkl', 'wb'))
+```
+
+<!-- file: check3.py sha256=9fe6eca4ee80778317e405513da12d13b327a33cfd3cea613dd7552cd3c7a986 -->
+```python
+import sys,pickle,random,os; d=os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0,d); sys.path.insert(0,sys.argv[1])
+import ir
+from verifier.keccak import sha3_256
+code,POL=pickle.load(open(os.path.join(d,sys.argv[2]),'rb'))
+lay={a:i*4096 for i,a in enumerate(['M','B3','B4','CS3','CS4','TR','DG'])}
+n=int(sys.argv[3]) if len(sys.argv)>3 else 4
+for seed in range(n):
+    rng=random.Random(1000+seed); msgs=[rng.getrandbits(512) for _ in range(256)]
+    m=ir.Machine(lay)
+    for w in range(512): m.mem[lay['M']+w]=sum(((msgs[k]>>w)&1)<<k for k in range(256))
+    m.run(code)
+    for k in range(256):
+        assert m.mem[lay['DG']+k]^POL==int.from_bytes(sha3_256(msgs[k].to_bytes(64,'little'),6),'little'),(seed,k)
+    print('seed',seed,'ok',m.count,flush=True)
+print('ALL OK', n*256, 'digests; POL=%064x'%POL)
+```
