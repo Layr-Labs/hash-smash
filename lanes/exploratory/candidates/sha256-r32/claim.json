@@ -6,19 +6,19 @@
   "rounds": 32,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 46.57,
+    "time_log2": 46.4995,
     "time_unit": "target-compressions",
     "memory_log2_bytes": 35,
     "preprocessing_log2": 45.87,
-    "success_probability": 0.4,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 13
   },
   "restrictions": [
-    "Classical probabilistic 256-bit word RAM under collision-frontier-v5 (C = 2224). Total work over all processors: T = 32,828,179,945,388 first-block C_32 trials at 1 unit plus 64 operations each, a hard counter cap of 400 T operations on all Step-2/3 work, 8 units of output verification, table build C = 2^38, starting solution D = 2^38 and characteristic search E = 32 * 593,858 CPU-s * 3,354,001 units per CPU-s = 2^45.8572 units; total 103,964,590,923,548 units = 2^46.5631.",
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5 (C = 2224). Total work over all processors: T = 30,789,931,306,303 first-block C_32 trials at 1 unit plus 64 operations each, a hard counter cap of 254 T operations on all Step-2/3 work, 8 units of output verification, table build C = 2^38, starting solution D = 2^38 and characteristic search E = 32 * 593,858 CPU-s * 3,354,001 units per CPU-s = 2^45.8572 units; total 99,479,814,703,862 units = 2^46.49947.",
     "Two-block messages M0||M1 and M0||M1' of 128 bytes with M1 != M1'; complete SHA-256 with the standard IV, FIPS 180-4 padding, steps 0..31 on all three padded blocks, feed-forward and all 256 output bits; every output is recomputed before it is returned.",
     "32-step truncation of the 35-step attack of Li, Liu, Wang and Shi (CRYPTO 2026, ePrint 2026/1080): its Fig. 6 characteristic, its 71 two-bit conditions under the stated readings and its starting solution as advice. The table and Step-2/3 specification follow hash-smash #26/#33 (winglock), restated in proof Sections 4-5.",
-    "One run with no restarts. Success probability >= 0.41069 from fresh independent first blocks, conditional on the declared rate heuristics, after subtracting a Chebyshev bound of 7.56e-6 on stopping at the counter cap. No certificate is supplied.",
-    "Measured inputs are credited public participant measurements (#296, #396, #26, #227), not runs made for this package: the matching rate q, the Step-2/3 stage pass rates, the table moments, the completed characteristic-search ledger and the callgrind CPU-second calibration. Our own checks (proof Section 14) are exact finite checks only. Our own measurements (proof Section 15) are a per-instruction costing of the x86-64 CryptoMiniSat 5.11.21 code, a callgrind dynamic per-form profile of that exact library on four SHA-256 CNF solves, and 17 CryptoMiniSat instruction-rate runs on SHA-256 CNF. They support the CPU-second price and do not re-run the charged search."
+    "One run with no restarts. Success probability >= 0.390109 from fresh independent first blocks, conditional on the declared rate heuristics, after subtracting a Chebyshev bound of 9.220e-4 on stopping at the counter cap, with the mean-work bound corrected to E[X] <= 238.943. No certificate is supplied.",
+    "Measured inputs are credited public participant measurements (#296, #396, #26, #227), not runs made for this package: the matching rate q, the Step-2/3 stage pass rates, the table moments, the completed characteristic-search ledger and the callgrind CPU-second calibration. Our own checks (proof Section 14) are exact finite checks only. Our own measurements (proof Section 15) are a per-instruction costing of the x86-64 CryptoMiniSat 5.11.21 code, a callgrind dynamic per-form profile of that exact library on four SHA-256 CNF solves, and 17 CryptoMiniSat instruction-rate runs on SHA-256 CNF. They support the CPU-second price and do not re-run the charged search. This derivative inherits the credited model unchanged; it retunes T to 30,789,931,306,303 at w = 254 under the corrected cap-stop denominator of leech1996's public 83bc57d and claims the integer-tight 46.4995. The full characteristic search E, table C, and starting solution D remain charged."
   ],
   "baseline_improved": "sha256-r32-nominal-v2",
   "heuristics": [
@@ -27,7 +27,7 @@
       "statement": "A first block M0 of fresh uniform words, compressed as CV1 = C_32(IV, M0), yields at least q = 2^-17.3583 expected valid tuples (records passing Step 2 tests (a)-(g)) against TAB2 of 1,396,774,912 records, and at most 2^-17.3166.",
       "role": "score-critical",
       "scope": "The exact P1-P4 sets and the Step-2 tests of proof Sections 4-5, with C_32 first blocks from the standard IV.",
-      "extrapolation": "Public participant measurement #296: four runs of 2^32 C_32 first blocks, one per index-part of TAB2, 25,936 valid tuples, pooled 2^-17.3373 with 99% interval [2^-17.3583, 2^-17.3166]. Corroborated by #26's runs (2^-17.3337), the #227 campaign counts (2^-17.326) and the analytic prediction 2^-17.3254. Extrapolated to T = 2^44.9 fresh trials.",
+      "extrapolation": "Public participant measurement #296: four runs of 2^32 C_32 first blocks, one per index-part of TAB2, 25,936 valid tuples, pooled 2^-17.3373 with 99% interval [2^-17.3583, 2^-17.3166]. Corroborated by #26's runs (2^-17.3337), the #227 campaign counts (2^-17.326) and the analytic prediction 2^-17.3254. Extrapolated to T = 30,789,931,306,303 fresh trials.",
       "evidence_ids": [
         "proof:327-327",
         "proof:425-426",
@@ -47,7 +47,7 @@
         "proof:588-590",
         "proof:164-191"
       ],
-      "limitations": "Independence beyond the W14 grouping is assumed, not proved. One extra independent condition would lower the success bound to 0.31 at this T (proof Section 13)."
+      "limitations": "Independence beyond the W14 grouping is assumed, not proved. One extra independent condition would lower the success bound to 0.2949 at this T (proof Section 13)."
     },
     {
       "id": "valid-tuple-pairs",
@@ -101,16 +101,16 @@
     },
     {
       "id": "work-moments",
-      "statement": "The per-trial counted Step-2/3 operations X satisfy E[X] <= 238.94 and E[X^2] <= 6.436e12 under the charges of proof Section 5.4.",
+      "statement": "The per-trial counted Step-2/3 operations X satisfy E[X] <= 238.943 and E[X^2] <= 6.436e12 under the charges of proof Section 5.4. The displayed component sum 238.94281 truncates downward; the upper bound 238.943 is used.",
       "role": "supporting",
-      "scope": "Only the probability of stopping at the counter cap of 400 T. The time bound itself is a hard cap and does not depend on this.",
-      "extrapolation": "Inputs are the exact occupancy mean N/2^27, the measured maximum bucket of 936, the multiplicity sum 5.758e9 (Cauchy-Schwarz over 4 parts), the Step-2 cumulative pass fractions bounded by 0.51, 1/15, 1/120 and 1/240, the Step-3 stage-16/17 pass fractions bounded by 2^-2.99 and 2^-14.9, and q at its upper limit. The quantities come from #296. Chebyshev then gives a cap-stop probability <= 7.56e-6.",
+      "scope": "Only the probability of stopping at the counter cap of 254 T. The time bound itself is a hard cap and does not depend on this.",
+      "extrapolation": "Inputs are the exact occupancy mean N/2^27, the measured maximum bucket of 936, the multiplicity sum 5.758e9 (Cauchy-Schwarz over 4 parts), the Step-2 cumulative pass fractions bounded by 0.51, 1/15, 1/120 and 1/240, the Step-3 stage-16/17 pass fractions bounded by 2^-2.99 and 2^-14.9, and q at its upper limit. The quantities come from #296. Chebyshev with the denominator (254 - 238.943)^2 = 226.713249 gives a cap-stop probability <= 9.220e-4.",
       "evidence_ids": [
         "proof:325-329",
         "proof:437-462",
         "proof:295-318"
       ],
-      "limitations": "Credited measurements. Even a 100x larger second moment keeps the cap-stop term below 0.001, which leaves the success bound above 0.40."
+      "limitations": "Credited measurements. A 100x larger second moment pushes the cap-stop to 0.0922 and the success bound to 0.2988, below 0.39 (proof Section 13)."
     },
     {
       "id": "search-peak-memory",
