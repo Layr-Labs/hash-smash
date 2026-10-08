@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "h1-success",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/replay.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000002000000040000804020004020100000080000020100000100800100804",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "scope": "k = 11; returns the confirmed pair when the algorithm succeeds; trial 0 also re-runs the counted full-scale batch (H2) and aborts on mismatch. Scaled copy of the package algorithm on the exact sha256-r38 family m(g,t): each trial is one scaled group batch of 7 consecutive groups x 52 consecutive counters (364 messages) in the package order; the digest is the declared 16-bit mask (11 bits in round-skip key words d,c,h,g, 5 in a,b,e,f); the key is the first k of the 11 key bits; never-initialised table with seeded garbage, 6-bit TAG, 9-bit index, cold regeneration from the index, cap floor(N^2/2^k)+floor(N^2/2^(k+6))+garbage allowance. Diagnostic only: no full search, 256-bit law or resource-bound proof.",
+      "hypothesis": "Pre-registered ideal-random-function prediction for the identical algorithm: success probability 0.6163 (+/-0.0024) per trial, mean 157.8 of 256 trials, 99.9% decision interval [131, 184] (99%: [136, 179]); the counted batch reproduces the reference keys at exactly the charged counts."
+    },
+    {
+      "id": "h1-overwrite",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/replay.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000002000000040000804020004020100000080000020100000100800100804",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "scope": "k = 8 (heavy key sharing); returns an existing masked collision that the algorithm missed, if any, so each returned pair is a trusted overwrite loss. Scaled copy of the package algorithm on the exact sha256-r38 family m(g,t): each trial is one scaled group batch of 7 consecutive groups x 52 consecutive counters (364 messages) in the package order; the digest is the declared 16-bit mask (11 bits in round-skip key words d,c,h,g, 5 in a,b,e,f); the key is the first k of the 11 key bits; never-initialised table with seeded garbage, 6-bit TAG, 9-bit index, cold regeneration from the index, cap floor(N^2/2^k)+floor(N^2/2^(k+6))+garbage allowance. Diagnostic only: no full search, 256-bit law or resource-bound proof.",
+      "hypothesis": "Pre-registered ideal-random-function prediction for the identical algorithm: a missed existing collision in 0.1538 (+/-0.0018) of trials, mean 39.4 of 256 trials, 99.9% decision interval [21, 60] (99%: [24, 56])."
+    }
+  ]
+}
