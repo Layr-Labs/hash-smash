@@ -4,21 +4,46 @@
   "target_profile": "sha256-r38-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 38,
+  "lane": "exploratory",
   "claim": {
-    "time_log2": 132,
+    "time_log2": 124.307,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 123,
+    "memory_log2_bytes": 150,
+    "preprocessing_log2": 25,
     "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Samples 2^128 independent uniform 48-byte complete messages with replacement; no chosen IV, digest truncation, or output-distribution assumption.",
-    "Classical probabilistic 256-bit word RAM using the independent uniform word primitive of collision-frontier-v5; no PRNG substitution.",
-    "Worst-case single-batch resource upper bounds include unsuccessful batches; no restart or amplification is required for success_probability 0.39."
+    "Classical probabilistic 256-bit word RAM, collision-frontier-v5, C = 2728; total work over all processors. Family m(g,t) = P || BE128(g XOR R0) || BE24(t) (55 bytes, one padded block) with coins P (288 bits) and R0 (128 bits) drawn once per run; N = 7*2^24*ceil(2^104/7) >= 2^128 distinct messages, groups g = 7k+l. Rounds 0..12 per group batch; key needs rounds 13..35 and round 36's E half (round 37 skipped).",
+    "Counted straight-line 7-lane 36-bit-guard SWAR batch (H2): 1475 operations per 7 messages (rounds 1144, schedule 210, key 62, table 55, loop 4), 44 persistent registers plus at most 20 live values. Group setup 2^20 per 7*2^24 messages; cold path regenerates both messages from their 136-bit indices and recompresses: 2 compressions + 512 operations per call, at most V+1 calls.",
+    "144-bit key from digest words d,c,h,g,f probes a never-initialised 2^144-word table holding a 120-bit TAG and the index; the worst-case ledger charges the cap V, not an expectation. Success 0.39 is conditional on H1 (99% of the random-function collision exponent) and H2. Memory 2^150 bytes is address span, reported only. No witness or executed search is asserted."
   ],
   "baseline_improved": "sha256-r38-nominal-v2",
+  "heuristics": [
+    {
+      "id": "H1",
+      "statement": "For the N = 7*2^24*ceil(2^104/7) reduced r38 digests of the deterministic family m(g,t) in the fixed processing order, with probability over the run's uniform coins P and R0, assume Pr[F1] <= exp(-0.99*N(N-1)/2^257), Pr[F2] <= N^3/(3*2^400), E[Y1] <= N^2/2^144 and Var[Y1] <= N^2/2^144, where F1 is the absence of an equal-digest pair, F2 an intervening overwrite of a colliding pair in the uninitialised table, and Y1 the number of different-digest pairs with equal 144-bit keys. These are 99% of the random-function F1 exponent and twice the random-function F2 and Y1 values.",
+      "role": "score-critical",
+      "scope": "Full-scale collision existence, table retention and candidate-count moments for this family, in which within a run about 104 group bits and 24 counter bits vary. Garbage and TAG terms are bounded without it. It does not establish implementation equivalence (H2).",
+      "extrapolation": "Two organizer experiments run a scaled copy of the same algorithm (index map, round-skip key bits, uninitialised table with garbage, TAG, regeneration, cap) on this family and reduced hash with a 16-bit digest. Pre-registered ideal-model predictions: h1-success 0.6163 per trial, 99.9% decision interval [131, 184] of 256; h1-overwrite missed collisions 0.1538, interval [21, 60]. Scaled counts cannot certify the 256-bit regime or the 1% exponent tolerance.",
+      "evidence_ids": [
+        "experiment:h1-success",
+        "experiment:h1-overwrite"
+      ],
+      "limitations": "Unproved full-scale event and moment bounds for a structured family; 16-bit scaled trials resolve only roughly 10-20% rate shifts."
+    },
+    {
+      "id": "H2",
+      "statement": "The counted 7-lane SWAR batch in experiments/replay.py computes, for every input of the family, the seven reference 144-bit keys of the scalar r38 core, at exactly 1475 operations per batch with 44 persistent registers and at most 20 other live values.",
+      "role": "score-critical",
+      "scope": "Implementation equivalence and exact operation count of the per-message batch.",
+      "extrapolation": "The batch is straight-line with a data-independent operation sequence; every addition carries a static lane bound below 2^36 and the mask identities are exact; h1-success trial 0 re-runs it on 4 organizer-seeded group batches of the family and aborts the experiment on any lane or count mismatch. Finite checks extrapolate to all inputs through the static argument.",
+      "evidence_ids": [
+        "experiment:h1-success"
+      ],
+      "limitations": "The organizer trusts only the returned pairs; the self-check numbers are untrusted observations, and the abort-on-mismatch is visible only in the source."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  "experiment_manifest": "experiments/manifest.json"
 }
