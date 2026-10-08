@@ -2,11 +2,11 @@
   "schema_version": 2,
   "certificates": [
     {
-      "id": "relaxed-v3-1",
+      "id": "v8-pair",
       "type": "hash-collision-witness-v2",
-      "message_a": "certificates/relaxed-v3-1-a.bin",
-      "message_b": "certificates/relaxed-v3-1-b.bin",
-      "expected_digest": "aea2562b20b12c5938046802bcc533817087f43c3e4ac864114c2abdd2249ee5",
+      "message_a": "certificates/v8-pair-a.bin",
+      "message_b": "certificates/v8-pair-b.bin",
+      "expected_digest": "fba0ac8bb06058083f0632d7b10ccc26efa87d13991bb8e88d65e04f58d4ffa3",
       "target_profile": "sha256-r31-prefix-v1"
     }
   ]

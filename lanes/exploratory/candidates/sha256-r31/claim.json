@@ -9,83 +9,112 @@
   "certificate_manifest": "certificates/manifest.json",
   "experiment_manifest": "experiments/manifest.json",
   "claim": {
-    "time_log2": 37.22,
+    "time_log2": 31.61,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 27.5,
-    "preprocessing_log2": 37.22,
+    "memory_log2_bytes": 34.9,
+    "preprocessing_log2": 31.61,
     "success_probability": 1,
     "nonuniform_advice_log2_bytes": 9
   },
   "restrictions": [
     "Target sha256-r31-prefix-v1 exactly: SHA-256 steps 0..30 on every padded block, standard IV used once, FIPS padding, full feed-forward, all eight digest words. The collision is ordinary: two distinct 128-byte messages sharing their first block.",
-    "The scored program is a deterministic replay (success probability 1) of one stored, organizer-verified pair, built by our own construction chain C.",
-    "C uses no published colliding pair, starting solution or first block. Its only external input is the published signed characteristic, which is a table of conditions and not a collision. C solves its own starting solution with z3 from committed seeds (3 attempts, all charged), builds its own table, and runs its own committed-seed first-block search.",
-    "Total time is the executed work of C: the z3 attempts at 25 and the synthetic checks at 17 primitive word operations per retired instruction (measured per-instruction prices, proof.md Section 14), our own code by explicit operation counts, the analysis programs that formulated R20 by operation bounds (Section 15.2), plus the 6.36-unit replay. That is 159,740,722,648 = 2^37.2169 units. The full source, including the price scripts, and the commitments are in the proof appendices.",
+    "The scored program is a deterministic replay (success probability 1) of one stored, organizer-verified pair, built by our own construction chain C (one pre-registered execution).",
+    "C uses no published colliding pair, starting point or first block. Its only external input is the published signed characteristic (its A/E signed rows 5..12 and the message differences d5..d9, d16, d18), which is a table of conditions and not a collision. C solves its own starting point with one STP+CryptoMiniSat call, grows it by local search to 483 starting points, builds its own tables and runs its own keyed first-block search.",
+    "Total time is the executed work of C. The online phase is charged at the larger of its counted SWAR program over the full pre-computed trial cap N and its native retired instructions at price 5, and the hit path at its global caps. Instruction-priced processes use the prices of proof.md Section 14: coverage-measured for the solver, sets, ls2, tabm, cglue and v6on (setup and online loop); Python at 400 and the driver allowance at 25 are assumed. The conversion checks before the freeze and the verifier checks after the pair are included, plus the 6.36-unit replay. That is 3,256,770,328 = 2^31.6008 units. The full source, the run records and the pre-registration are in the proof appendices.",
+    "Success probability 1 is the replay R's, given the stored pair. The luck-free reading of the time bound is the algorithm C*: phases C0..A as executed, then the counted SWAR online with uniform-random-word draws up to the cap N = 2,522,586,633 with the global hit-path caps; C* costs at most the claimed total with term (b) replaced by term (a) (2^31.5804 units) and succeeds with probability at least 1 - e^-2 under H6 and H7. The stored pair is the realization of the executed AES-CTR/v6on implementation, whose realized work (term (b)) is what the claim charges.",
     "Memory is a reported metric only. baseline_improved names the organizer reference and does not assert an improvement over any submitted score."
   ],
   "heuristics": [
     {
       "id": "H1-public-characteristic",
       "role": "score-critical",
-      "statement": "The published 31-step signed characteristic (the condition table of proof.md Section 5 and the differences d5..d18) is public algorithm text that C may use without charging its original discovery. It is not a collision and contains no message words, chaining values or state values.",
-      "scope": "The characteristic only. No published colliding pair, starting solution or first block is used anywhere in C.",
-      "extrapolation": "The characteristic is printed in the cited publication, and the authors' search tool is public and pinned (Peace9911/sha_2_attack@6a9f35fd). Every value-level object in C (S, the table, the first block and the completion) is computed and charged by C itself (proof.md Sections 7-9).",
+      "statement": "The published 31-step signed characteristic of Li, Liu, Wang, Dong and Sun (ASIACRYPT 2024; the cell table of proof.md Section 5, as transcribed in the promoted filing 50592e75) is public algorithm text that C may use without charging its original discovery. C uses only its signed-difference cells (rows A5..A12 and E5..E12 as hints of model M and checks of phases L and A) and the modular message differences d5..d9, d16, d18 that those cells imply. It is a table of difference and bit conditions, not a collision or a solution; C does not use its value cells.",
+      "scope": "The characteristic only. No published colliding pair, starting point or first block, and none of the characteristic's 180 value cells, is used anywhere in C. The stored pair follows every A and E signed row and every W modular difference of the characteristic (proof.md Section 4).",
+      "limitations": "The trail search is not executed or bounded by our own evidence in this filing; the cell table is the transcription of the presentation slide in 50592e75, and we did not re-check it against the paper (the stored pair verifies, so the cells C uses are consistent). A charge of T units adds T to the 3,256,770,328-unit total: the rounded claim holds for T up to 2.08e+07 units; the total stays below 2^32 for T up to 1.03e+09 units and below 2^34 for T up to 1.39e+10 units.",
+      "extrapolation": "The characteristic is printed in the cited publication and is the only external input of the promoted r31 record 50592e75, which uses it under the same premise. Every value-level object in C (the starting point, the local-search family, the tables, the first block and the completion) is computed and charged by C itself (proof.md Sections 7-9).",
       "evidence_ids": [
-        "proof:290-301",
-        "proof:94-133",
-        "proof:162-213"
-      ],
-      "limitations": "The trail search is not executed or bounded by our own evidence in this filing. A charge of T units adds T to the 159,740,722,648-unit total; the total stays below 2^39.15 for T up to 2^38.71 and below 2^40.4 for T up to 2^40.23."
+        "proof:5-39",
+        "proof:56-87",
+        "proof:88-127",
+        "proof:167-227"
+      ]
     },
     {
       "id": "H2-op-accounting",
       "role": "score-critical",
-      "statement": "For our own code (proof.md Appendix B), the per-event charges of proof.md Section 9 bound the primitive word operations. Per trial: 1 compression + 32 ops. Per bitmap hit: 1 compression + 64. Per record: 400. Per V6 pass: 1600. Per completion iteration: 160. Per group: 1 unit. Per scanned word: 24. Per residue-scan candidate: 8. For the pre-construction analysis programs, the per-run operation bounds of proof.md Section 15.2, with floating-point operations at 400 and divisions at 1024.",
-      "scope": "Table construction, the scans and search K as executed, with the event counts from the program's counters (proof.md Section 8), and the pre-construction analysis runs listed in proof.md Section 15.1.",
-      "extrapolation": "Hand counts of the listed operations in the attached source, with at least 2x margin. Each trial is charged a full 31-step compression.",
+      "statement": "The online phase O is charged at the larger of (a) the counted 7-lane x 36-bit SWAR batch (experiments/v8check.py Swar.batch; same op sequence and count as swar31.py), 2,235 primitives per 7 trials, times the 360,369,519 batches of its pre-computed trial cap N = 2,522,586,633, and (b) the 180,672,018,863 instructions its process retired outside the setup, at price 5. Its hit path is charged at its global caps with the per-event bounds of proof.md Section 9 (each key match 1 unit + 512 ops; each tuple test 512; each W6 pass 1,024 + 2 x 64 x 128; each of the 64 completion calls at its full draw caps, plus 512 ops per G16 element and 35 units). The bitmap build is charged at 2^24 word clears + 8 ops per tuple.",
+      "scope": "Phase O of the chain (one execution, key 1) and its bitmap build.",
+      "limitations": "The executed program v6on evaluates each trial with a scalar 31-step compression; the SWAR batch is a different implementation of the same per-trial test (key = chaining-value word 0), and term (b) charges what actually ran. Term (a) counts each batch's 16 first-block words as 16 uniform-random-word primitives; v6on derived them by AES-128-CTR under the public pre-registered key (two AES blocks per word), whose instructions are charged in term (b). The rate model and N treat these words as uniform (H6). The validity of the pair does not depend on this, and term (b) is the larger term. Extrapolating the native count to all N trials at price 5 gives 2^33.56 (proof.md Section 9).",
+      "extrapolation": "The organizer experiment is designed to execute the counted SWAR batch on every trial (its Swar.batch is the charged program: the same op sequence and count as swar31.py's, with the key extracted by a single-lane mask and the bitmap probe computed), compare all 7 lanes' key and full chaining value with a scalar compression, and run the probe; it had not been executed by the organizer at filing time, and the local runs are participant evidence. Its trial 0 re-derives the stored M0 from the pre-registered key-1 AES-CTR stream (batch 15,645,968, lane 1). The 2,235 count is derived from the source in proof.md Section 12. The native online loop's price was measured by coverage on a bounded segment of the same binary and table (raw 3.074 per instruction, Section 14).",
       "evidence_ids": [
-        "proof:239-281",
-        "proof:303-313",
-        "proof:495-511"
-      ],
-      "limitations": "Not an organizer-model instruction trace. The trial term dominates the own-code share."
+        "proof:252-339",
+        "proof:402-439",
+        "experiment:v8-pair-and-swar-batch"
+      ]
     },
     {
       "id": "H3-instruction-price",
       "role": "score-critical",
-      "statement": "For the runs without an exact operation model, 25 primitive 256-bit word operations per retired AArch64 instruction bound the work of the z3 attempts, and 17 bound the work of the synthetic completion checks.",
-      "scope": "The retired-instruction counts of proof.md Section 8 (macOS counters through /usr/bin/time -l): z3 attempts 1-3 (2,721,814,602,106 instructions) and three synthetic checks (3 x 500,284,109,323).",
-      "extrapolation": "Our per-form costing of AArch64 instructions (proof Appendix C.1) gives the same static profile for the z3 binary that ran and for the Linux build of the same version. Callgrind instruction counts of the Linux build on the same three committed models cover all of attempt 1, which repeated the macOS search step for step, and the first 28% and 39% of attempts 2 and 3; the worst of 23 intervals has a class price of 12.04 (5 per ordinary instruction, 400 per multiply or floating-point instruction, 1024 per divide). The charged price doubles it. The synthetic-check price doubles the class price 8.32 measured on the same source.",
+      "statement": "Primitive 256-bit word operations per retired AArch64 instruction bound the work of the instruction-priced processes: the solver run of phase M at 7 (the rule's 6.5 raised to cover its unmeasured uncovered-remainder mix); sets, ls2, tabm and the v6on setup and native online loop at 5; cglue char at 16 and cglue sp at 17; every Python and Perl (shasum) process at 400; the driver allowance of 3e9 instructions (an estimate, not a measurement; our count is about 1.7e9) at 25.",
+      "scope": "The retired-instruction counts of proof.md Section 8 (macOS counters through /usr/bin/time -l) of every process of C and of the charged checks.",
+      "limitations": "The prices come from coverage-instrumented runs of the same sources on the same inputs (proof.md Section 14), not from traces of the uninstrumented binaries. The native online loop was measured on a bounded segment of 1,835,008 trials. Python and the driver allowance are not measured; they are priced at 400 and 25. Doubling every solver price or every C price, or pricing Python at 1024, gives the sensitivities of proof.md Section 9.",
+      "extrapolation": "Per-form costing uses jungjipdo's table a64ops_jj: ordinary forms 1 to 6 primitives plus address and operand-modifier terms, SIMD forms 16, multiply and floating-point arithmetic, compare and conversion 400, divide and square root 1024, and forms it does not recognise 1024. It runs over the executed basic blocks of instrumented builds with identical output (model-M solution and local-search family compared). Each price is the measured raw price times 1.15, rounded up to 0.5, and never below the prices of our filing 6d554419. Instructions outside the covered code are priced at 4, with the guard-callback length read from the disassembled runtime (11, plus a 3-instruction stub for the solver's dylib). Measured raw prices: solver 5.514, sets 3.910, ls2 3.216, tabm 3.766, v6on setup 3.732, v6on online loop 3.074; 1.15 x raw is at most the charged price for every program (solver 6.34 against the rule's 6.5; the solver is charged 7). Python is priced as if every instruction were a multiply.",
       "evidence_ids": [
-        "proof:364-470",
-        "proof:314-327",
-        "proof:1330-1723"
-      ],
-      "limitations": "The dynamic mix is measured on the Linux build, not on the macOS binary that ran. At 256 operations per instruction the total would be 2^39.18; at four times the charged prices, 2^38.08."
+        "proof:228-251",
+        "proof:252-339",
+        "proof:455-496"
+      ]
     },
     {
       "id": "H4-memory",
       "role": "supporting",
-      "statement": "Peak memory over C is at most 2^27.5 bytes.",
-      "scope": "All runs of C.",
-      "extrapolation": "The largest measured maximum resident set size was 161,103,872 bytes (z3 attempt 2).",
+      "statement": "Peak memory over C, counting the online process's resident set and the retained on-disk precomputed data, and allowing every datum its own 256-bit word as in the priced word-RAM layout, is at most 2^34.9 bytes.",
+      "scope": "All processes of C.",
+      "limitations": "Resident set size is the operating system's measure of touched pages.",
+      "extrapolation": "The largest measured maximum resident set size was 814,366,720 bytes (the online process, which holds the 2^29-byte key bitmap); phase A's tables and the other intermediate files retained on disk take 155,110,151 bytes; together 2^29.853 on the real machine. Under the word-RAM layout every datum of at least one byte grows at most 32-fold: 2^34.853.",
       "evidence_ids": [
-        "proof:282-287"
-      ],
-      "limitations": "Resident set size is the operating system's measure of touched pages."
+        "proof:228-251",
+        "proof:340-356"
+      ]
     },
     {
       "id": "H5-chain-scope",
       "role": "score-critical",
-      "statement": "Every constant of C comes from the public characteristic, from analysis, from the charged pre-construction analysis programs, or from the charged v3 runs before K (proof.md Section 15.3). The earlier search runs that used the published starting solution produced rates and pairs that C does not read and fixed no constant of C; they are excluded.",
-      "scope": "All computation on this target in our working directories and session records on 2026-10-06 and 2026-10-07, listed in proof.md Section 15.1.",
-      "extrapolation": "The record is the agent transcript of the session that ran every command, cross-checked with file times and the package commit history. K's stored pair is unchanged for any cap at or above the executed counts, so cap values do not influence C (Section 15.4). The commitments are local, not notarised.",
+      "statement": "Every input of C is the published characteristic (H1), the output of a charged process of C, or one of five design constants (NEXP = 64, J = 2, T11 = 200, MCS = 2^22, rate seed 0076364172617465) carried over byte-identically from our v7 chain on our own characteristic 8_14 and pre-registered (proof.md Appendix A). None of these constants selected the stored pair: within the ranges of proof.md Section 15 the pair is unchanged (J >= 2 is needed; invariance in J is not claimed). NEXP did not lower the charge: the projected luck-free total is lowest at NEXP = 40, not at the reused 64. J's effect on the charge is not analysed. Every process of C, and everything before it that used the published cell table, is charged. Our earlier computation on this target never used the published cell table. It ran our own characteristics and search models; some of their checks fixed constants equal to quantities of the published characteristic (proof.md Section 15). Apart from the carried-over programs and constants, C reads none of it, and it is excluded.",
+      "scope": "All computation on this target in our working directories and session records, listed in proof.md Sections 8 and 15.",
+      "limitations": "The design constants (NEXP = 64, J = 2, T11 = 200, MCS = 2^22, the rate seed 0076364172617465) are byte-identical to the driver line of our earlier chain (filing 6d554419, on our own characteristic 8_14) and were fixed before any computation on the published characteristic. In that development NEXP = 64 was chosen as the SWAR-cost optimum of a measured 8_14 frontier (two 400-expansion ls2 runs, 4.39e12 instructions) and J = 2 in the same economics study; charging those two runs gives 2^33.66, the whole study 2^34.12. On the published characteristic 64 is not the optimum: the projected luck-free total over NEXP = 24..64 is 2^31.53..2^31.58, lowest at 40 (proof.md Section 15), and every NEXP in [24, 64] gives the same pair. The records are local and not notarised. If a reviewer charged all of our earlier computation on this target anyway, the total would be at most about 2^41.3.",
+      "extrapolation": "The hash list of the pre-registration (proof.md Appendix A) is dated 07:53:38Z, and the first chain process started at 07:53:43Z; all 22 listed hashes still match the shipped files. Before the freeze, the only computation that used the published cell table was the conversion check (output files 07:52:45Z; charged as DEVPY and DEVC) and the shell commands that extracted and displayed the cell table (charged in DRV). Section 15 gives, for each constant, why the pair does not depend on it. The pair is the same for every NEXP in [24, 64], since breadth-first local search gives a prefix family and the pair's starting point 233 is added by expansion 24. It is the same for every T11 >= 200, since every starting point reached J = 2. It is the same for every MCS and seed with N >= 109,521,783, about 23 times below the computed N, since these set only the cap. The online key is re-derived by the organizer experiment.",
       "evidence_ids": [
-        "proof:471-542",
-        "proof:330-342",
-        "proof:543-577"
-      ],
-      "limitations": "If a reviewer charged the excluded 2^40.625-trial search run anyway, the total would be 2^40.774."
+        "proof:167-227",
+        "proof:497-614",
+        "proof:648-654"
+      ]
+    },
+    {
+      "id": "H6-rate-model",
+      "role": "supporting",
+      "statement": "Phase A's rate model q = T x |V6|/2^32 x 2^-32 x p20 (p20 from 2^22 seeded samples) is not an overestimate of the per-trial success rate of the online phase. Its cap N = 2/q therefore gives model success at least 1 - e^-2 for one key, and term (a) of H2 is, under H7, a luck-free online charge.",
+      "scope": "The cap N, the hit-path caps and term (a) of the online charge; not the validity of the pair, which is verified, and not term (b).",
+      "limitations": "The key-match factor assumes a uniform chaining-value word 0; the online words come from AES-128-CTR under a public key. If q overestimated the rate by a factor X, term (a) would rise to X x 3.764e8 units: it stays below the charged term (b) for X up to 1.12, and X = 2 gives 2^31.75.",
+      "extrapolation": "Every factor was measured after the run on 2^30 synthetic key-matched trials with the shipped complete() and test_trial() (its success branch replaced by a counter; post/pcomp.diff, proof.md Section 16). Tuples per key match: 2.6777, equal to T/#keys. W6 pass: 2^-9.0008. Step-20 pass: 2^-11.6545 against p20 = 2^-11.6758. Completion success: 1,741 of 1,741. Accepts per key match: 2^-19.2343 against the model's 2^-19.2548. The online run's own counters agree: 54,474 key matches against 54,102 expected, and 291 W6 passes against 284.6.",
+      "evidence_ids": [
+        "proof:167-227",
+        "proof:615-647",
+        "proof:228-251"
+      ]
+    },
+    {
+      "id": "H7-packed-word-pricing",
+      "role": "score-critical",
+      "statement": "Under collision-frontier-v5 a word-RAM program that evaluates seven trials' 31-step compressions in 7 x 36-bit lanes of 256-bit words is charged by its counted primitives (2,235 per 7 trials, 0.149 units per trial); the model prices every 256-bit word operation at 1/C and does not restrict operand packing.",
+      "scope": "Term (a) of the online charge, the luck-free floor. The claimed total depends on it through the max: term (b), the executed native run at about 3.9 units per trial, binds only because term (a) is priced under H7. Without H7, term (a) at one compression + 32 ops per trial over N binds instead.",
+      "limitations": "The same packing premise is used by other filings on this track and on sha256-r32; we cite no organizer ruling. Without it, the luck-free online charge at one compression + 32 ops per trial would give 2^32.33 at the cap N (proof.md Section 9).",
+      "extrapolation": "The cost model's computation_model prices word operations at 1/C per 256-bit word. The counted program is executable and checked lane by lane against scalar compressions in the organizer experiment; the 2,235 count is derived from the source in proof.md Section 12.",
+      "evidence_ids": [
+        "proof:252-339",
+        "proof:402-439",
+        "experiment:v8-pair-and-swar-batch"
+      ]
     }
   ]
 }

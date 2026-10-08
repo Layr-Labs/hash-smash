@@ -2,11 +2,11 @@
   "schema_version": 1,
   "experiments": [
     {
-      "id": "r31-completion",
+      "id": "v8-pair-and-swar-batch",
       "kind": "python-message-pairs-v1",
-      "scope": "Completion step (a variant of K5 with cell-respecting draws, caps 2^14 and 2^8) on the accepted match of the stored pair, built from our own starting solution S. Every trial draws E13/E15 from SHAKE-256 of its own organizer nonce.",
-      "hypothesis": "Completion from our own S and match succeeds for fresh per-trial nonces, and each returned pair is a distinct full sha256-r31 collision. No probability inference is drawn.",
-      "program": "experiments/completion.py",
+      "scope": "Organizer-executed replay of the stored pair of the scored program (trial 0 returns it; M1' = M1 + DW, DW = the published characteristic's d5..d9 in second-block words 5..9). Trial 0 also re-derives the stored M0 from the pre-registered online key (the first 16 bytes of SHA-256(\"sha256-r31-v8 online key 1\")) with a pure-Python FIPS-197 AES-128 in v6on's AES-CTR batch layout (batch 15,645,968, lane 1). Every trial runs the counted 7-lane x 36-bit SWAR batch charged for the online phase (term (a) of H2; the executed v6on evaluates each trial with a scalar compression and is charged by its instructions, term (b)) on 16 pseudo-random 256-bit words derived from the organizer's trial seed by SHAKE-256 (in place of v6on's AES-CTR words), compares each lane's key and full chaining value with a scalar 31-step compression, and runs the batch's bitmap probe against a per-trial synthetic bitmap holding the scalar keys of lanes 0..3. Trials 1..255 return no pair by design. No probability, rate or cost inference.",
+      "hypothesis": "The returned pair is two distinct messages with equal sha256-r31-prefix-v1 digests and the single difference DW5..9 = (fffff006, 002087f1, 4fefb5fa, 28011100, 00008004); its M0 equals lane 1 of batch 15,645,968 of the key-1 AES-CTR stream. On every trial the SWAR batch executes exactly 2,235 counted primitives (rand 16, load 47, add 263, and 792, or 246, xor 308, shift 543, cmp 7, branch 13) using 56 of the 64 registers, all 7 lanes' key (CV word 0) and full chaining value equal the scalar compression of the same lane block, and all 7 probes answer membership correctly.",
+      "program": "experiments/v8check.py",
       "event": {
         "kind": "full-collision"
       }
