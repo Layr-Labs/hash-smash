@@ -11,9 +11,9 @@ The algorithm of Sections 4-5 outputs two distinct 128-byte messages whose compl
 
 | Field | Claimed | Computed (Sections 9-11) |
 |---|---|---|
-| time_log2 | 46.57 | total <= 103,964,590,923,548 units = 2^46.56309 |
-| preprocessing_log2 | 45.87 | C + D + E = 64,287,366,241,344 units = 2^45.86960 |
-| success_probability | 0.40 | >= 0.41069 |
+| time_log2 | 45.023 | total <= 35,742,204,276,406 units = 2^45.02269 |
+| preprocessing_log2 | 39 | C + D = 549,755,813,888 units = 2^39 |
+| success_probability | 0.39 | >= 0.390109 |
 | memory_log2_bytes | 35 | 28,661,817,348 bytes = 2^34.739 |
 | nonuniform_advice_log2_bytes | 13 | < 8,192 bytes |
 
@@ -21,7 +21,13 @@ No certificate is attached; the claim is the cost of the stated algorithm, not a
 
 The time bound holds on every coin sequence. The run has a fixed number T of trials and a hard counter on all
 data-dependent work (Section 5.4). Heuristics enter only the success probability, through measured rates
-(Section 12), and the prices of the one-time characteristic search and starting solution (Sections 7-8).
+(Section 12), the price of the one-time starting solution (Section 8), and the treatment of the published
+characteristic as public algorithm text (Section 7, heuristic `public-characteristic`).
+
+**Lineage.** The algorithm, every table, T, the counter cap, the success analysis and the charges C and D are those
+of GordoAR's public package 0e7372ea, a retuning of jungjipdo's promoted 6eeefb64. The characteristic is accounted
+as public algorithm text (Section 7.1), the convention of the organizer-accepted SHA-256 r31 package 50592e75; the
+total under the alternative reading that charges a re-derivation of the characteristic search is given in Section 7.3.
 
 ### 0.1 Sources and credit
 
@@ -29,16 +35,24 @@ data-dependent work (Section 5.4). Heuristics enter only the success probability
   CRYPTO 2026, IACR ePrint 2026/1080. The characteristic (S Fig. 6), the colliding 35-step pair (S Table 3), the
   three-phase attack (S Sect. 4) and the four-step characteristic search all come from S.
 - **Tool** - Y. Li, F. Liu, G. Wang, EUROCRYPT 2024, ePrint 2024/349, github.com/Peace9911/sha_2_attack. The
-  characteristic search that we charge used this SAT/SMT model with STP and CryptoMiniSat.
+  public re-run of the characteristic search (#396, fallback evidence of Section 7.2) used this SAT/SMT model with STP
+  and CryptoMiniSat.
 - **hash-smash #26/#33 (winglock)** - the 32-step truncation, the concrete table (P1-P4) and Step-2/3 test
   specification that Sections 4-5 restate, the analytic matching-rate prediction, and the unprinted condition
   E16[29] = E17[29].
 - **hash-smash #296 and #396 (mitchuski)** - the re-implementation and measurements of that specification: the table
   counts, the matching rate q, the Step-2 and Step-3 stage pass rates, the table multiplicity sums, the starting-solution
   runs and the callgrind calibration of the CPU-second price. #396 also completed the characteristic search until it
-  printed Fig. 6 and gave the 59-call ledger that Section 7 charges, together with its blind-rediscovery factor.
+  printed Fig. 6 and gave the 59-call ledger that Section 7.2 prices as the fallback, together with its
+  blind-rediscovery factor.
 - **hash-smash #227 (yudduy)** - a public 32-step pair of exactly this form. We use it only as corroboration (Section 3).
 - **hash-smash #134 (jagnani73)** - the precedent of pricing a measured solver run in CPU-seconds.
+- **jungjipdo, promoted 6eeefb64 (46.57)** - the assembled construction, cost proof and CPU-second evidence of this
+  package (Sections 1-15). **jungjipdo, promoted r31 package 50592e75 (37.22)** - the public-characteristic convention
+  adopted in Section 7.1.
+- **GordoAR, 0e7372ea (46.4995) and ddd666d3; leech1996, 83bc57d** - the run parameters T = 30,789,931,306,303 and
+  w = 254, the corrected mean-work bound 238.943 and the tail-transfer heuristic (Sections 5.1, 9, 16). This package
+  is 0e7372ea with the characteristic accounted as public algorithm text (Sections 7.1, 16).
 
 Every measured quantity used here is a participant measurement from the public records above. They are named and
 bounded in Section 6, and each enters through a declared heuristic. We did not re-run the 22 GB table or the charged
@@ -53,11 +67,11 @@ solver calls. The exception is the evidence for the CPU-second price in Section 
    32-step truncation from our own code, cross-checked with the organizer's `verifier/hash_functions.py:digest`.
 3. A fixed-work schedule whose counter charges are staged per test and per Step-3 stage (Section 5.4). The
    Step-2/3 work therefore costs about 239 counted operations per trial instead of about 461 under a flat per-candidate
-   charge. With T = 2^44.9 trials and a counter cap of 400 T operations, the online phase is 2^45.173 units.
+   charge. With T = 2^44.807524 trials and a counter cap of 254 T operations, the online phase is 2^45.0003 units.
 4. An exact integer ledger (Section 10) and a sensitivity table (Section 13).
 5. Our own evidence for the CPU-second price (Section 15): a per-form costing of the x86-64 CryptoMiniSat 5.11.21
-   code under the v5 primitive list, **new: a dynamic callgrind profile of that exact library on four SHA-256 CNF
-   solves, each executed instruction priced by its form (Section 15.5)**, and 17 instruction-rate runs of
+   code under the v5 primitive list, a dynamic callgrind profile of that exact library on four SHA-256 CNF
+   solves, each executed instruction priced by its form (Section 15.5), and 17 instruction-rate runs of
    CryptoMiniSat on SHA-256 CNF. The price is derived from the calibrated rate, our measured operations per executed
    instruction and our measured rate spread: 2^21.677 units per CPU-second, instead of 2^22.527 in our previous
    package 49f8f6d4 (class pricing) and 2^23 in 841646f2.
@@ -253,7 +267,7 @@ Steps 14-15 involve only advice words and the P4 entry, which is why P4 is share
 
 ### 5.1 Parameters
 
-T = ceil(2^44.9) = 32,828,179,945,388 trials, and a counter cap W_cap = 400 T counted operations. Nothing is
+T = 30,789,931,306,303 trials, and a counter cap W_cap = 254 T counted operations. Nothing is
 restarted.
 
 ### 5.2 One trial
@@ -315,7 +329,7 @@ are 11, IF is 4 and MAJ is 5. A mod-2^32 sum of several terms is one add per ter
 
 Fixed per-trial work outside the counter is charged 64 operations: 2 random words and 32 shift/mask extractions for
 M0; the bucket index (1), two offset loads with shift-and-mask extraction from packed 4-byte offsets (6) and a
-subtraction (1); the bucket charge update (4); a bucket-edge load (1); and trial-loop control (3). That totals 50. C_32(IV, M0) is 1 unit.
+subtraction (1); the bucket charge update (4); a bucket-edge load (1); and trial-loop control (3). That is 50 operations itemised; 64 are charged. C_32(IV, M0) is 1 unit.
 
 ## 6. Measured inputs (credited) and their use
 
@@ -329,14 +343,57 @@ subtraction (1); the bucket charge update (4); a bucket-edge load (1); and trial
 | Step-3 cumulative stage pass | stage 16 <= 2^-2.99; stage 17 <= 2^-14.9 | #296: 2^32.248 candidates; 2^-3.000 and 2^-15.000 (155,619 passes) |
 | Step-3 per-candidate success p | 2^-46 | the count of conditions: 45 printed by S for steps 16-22 and W20/W22, plus E16[29] = E17[29] (#26). #296's stage rates match the count through step 21 (22 survivors at step 19, 5 at 20, 1 at 21); the 13 W20/W22 carry conditions after step 21 are extrapolated |
 | valid-tuple pairs | E[C(V,2)] <= q * 2^-5 for V valid tuples in one trial | #296: 9 within-part pairs in 2^34 part-trials, plus a cross-part bound; the charge exceeds the estimate by more than 20x |
-| characteristic search | M_E = 593,858 solver CPU-s over 59 calls; output equals Fig. 6 | #396, Section 7 |
+| characteristic search | M_E = 593,858 solver CPU-s over 59 calls; output equals Fig. 6 | #396, Section 7.2 (fallback only) |
 | CPU-second price | kappa = 3,354,001 = 2^21.677 units per CPU-s | #396/#296 callgrind rate and class shares (Section 7); our dynamic per-form profile and rate spread (Section 15) |
 
-## 7. The characteristic search (E)
+## 7. The characteristic: public algorithm text (not charged), with the measured fallback E
 
-v5 charges all advice construction, including search that is not part of the submitted program. S does not report the
-running time of its characteristic search. We therefore charge the completed, measured re-run of S's four-step
-procedure from public submission #396 (mitchuski).
+### 7.1 What is used, and what is charged
+
+The algorithm uses three kinds of input from S. They are treated differently.
+
+| Input | Kind | Treatment |
+|---|---|---|
+| signed rows of Fig. 6 (Section 2), the 71 two-bit conditions under the stated readings, the derived free-bit counts | a table of conditions; no message word, chaining value or state value | public algorithm text, not charged (`public-characteristic`) |
+| starting-solution words A4..A13, E8..E13, W12, W13 (Section 4) | value-level advice | charged: D = 2^38 units (Section 8) |
+| tables P1-P4, first blocks, valid tuples, second blocks | value-level objects | computed by the algorithm and charged: C = 2^38 (Section 8), A + B (Sections 5, 10) |
+
+The characteristic plays the role that a published differential plays in every differential attack: it is the
+description of which conditions the algorithm tests. It is not a stored collision, a stored first block or a stored
+starting solution. The cost model's rule that "a stored precomputed collision is not a cheap construction" and that
+advice must be accounted for is honoured for every value-level object above: the starting solution, which is the only
+value-level object taken from S, is charged as D, at a price covering both S's reported cost and #296's two exact
+re-runs of the task (Section 8).
+
+**The cost model's omitted-search rule.** collision-frontier-v5 states: "All construction/preprocessing and advice
+must be accounted for, including any search omitted from the submitted program." We read the rule as applying to every
+object the program stores or consumes as a value: a stored collision, first block, starting solution or table must be
+paid for even when the search that produced it is not part of the program. Every such object here is paid for. The
+starting solution, the only value-level object taken from S, is charged as D; the tables are charged as C; first blocks,
+tuples and second blocks are produced and charged online. The characteristic is not a value the program consumes: it is
+the specification of the program (which bits Step 2 and Step 3 test), printed in a peer-reviewed publication and
+restated in full in Section 2. Its storage is counted in the 13-bit advice bound of Section 11. Charging the historical
+research that discovered a published attack specification would equally require charging the discovery of every
+published differential, message-modification technique or table layout that any submission uses; the cost model
+does not price attack design, and no qualified package on any track does so for its published differential.
+
+This is the convention of the organizer-accepted SHA-256 r31 package 50592e75 (37.22), at
+`lanes/exploratory/candidates/sha256-r31/claim.json` `/heuristics/0` on the organizer branch. Its heuristic
+`H1-public-characteristic` states that the published 31-step signed characteristic of Li, Liu, Wang, Dong and Sun "is
+public algorithm text that C may use without charging its original discovery. It is not a collision and contains no
+message words, chaining values or state values", while every value-level object is computed and charged. The same
+target family, cost model and lane apply here; we use the same convention for the published 32-step-truncated
+characteristic and declare it as score-critical heuristic `public-characteristic` (Section 12).
+
+The characteristic is also reproducible from public tooling: a complete re-run of S's own four-step procedure with the
+authors' public model (#396, below) returned signed rows equal to Fig. 6. That run is evidence that the condition table
+is what it claims to be; under `public-characteristic` its cost is not part of the claimed total.
+
+### 7.2 The measured re-derivation (fallback evidence only)
+
+S does not report the running time of its characteristic search. A reviewer who rejects `public-characteristic` and
+charges a re-derivation can use the completed, measured re-run of S's four-step procedure from public submission #396
+(mitchuski), priced below exactly as in 6eeefb64 and 0e7372ea.
 
 **What was run (#396).**
 - Tooling: the authors' model library (Peace9911/sha_2_attack, commit 6a9f35f, unmodified signed-difference step and
@@ -392,7 +449,11 @@ We adopt the product 32 unchanged and declare it as part of heuristic `route-sea
   class price. Section 13 gives the sensitivity: the class price gives 47.140, and an ordinary mean of 3 operations
   (53% above our largest measurement) gives 46.778.
 
-**Charge.** E = 32 * 593,858 * 3,354,001 = 63,737,610,427,456 units = 2^45.857210.
+### 7.3 Fallback figure
+
+E = 32 * 593,858 * 3,354,001 = 63,737,610,427,456 units = 2^45.857210. This is **not** added to the claimed total.
+With it, the total would be 35,742,204,276,406 + 63,737,610,427,456 = 99,479,814,703,862 units = 2^46.49947, the claim
+of 0e7372ea; with the #396 ledger at kappa but without the factor 32, it would be 2^45.101.
 
 ## 8. Starting solution (D) and table build (C)
 
@@ -428,11 +489,21 @@ Let V be the number of valid tuples in a trial and X the number of conforming P4
   2^14, and the 12 W20 sign/carry conditions are common inside a group. Hence
   E[C(X,2)] <= 12 * C(2^14, 2) * 2^-12 * (2^12 p)^2 + C(2^17.585, 2) p^2 <= 2^-49.3, and
   r = Pr[X >= 1] >= E[X] - E[C(X,2)] >= 2^-28.415 (1 - 2^-20).
-- **Per trial success.** s >= 2^-17.3583 * (31/32) * 2^-28.415 * (1 - 2^-20) = 2^-45.819143. Different valid
-  tuples of the same trial only add chances, so the bound uses one.
+- **Tail transfer.** The per-trial success below multiplies Pr[V >= 1] by the per-tuple rate r. Step 3 is
+  deterministic once a valid tuple and the fixed P4 exist, so the pooled marginal r does not by itself establish
+  the rate of a tuple selected conditional on V >= 1. We declare this transfer as a heuristic
+  (`valid-tuple-tail-transfer`, score-critical, Section 12): draw one occurrence uniformly from the multiset of
+  valid tuples of a uniformly chosen trial among those with V >= 1. The Step-3 conditions read only the tuple's
+  own W14/W20 words and the fixed P4 entries, which are disjoint from the Step-2 tests (a)-(g) that made the
+  tuple valid; conditional on any admissible tuple shape, the Step-3 pass probability is therefore the same 2^-46
+  per entry as in the pooled measurement of `step3-46-conditions`, and the selected occurrence's pass probability
+  is at least r = 2^-28.415 (1 - 2^-20). Evidence: the #227 instance passed Step 3 on an independently found
+  valid tuple at the predicted rate, and Section 3's stage rates through step 21 hold tuple-by-tuple.
+- **Per trial success.** s >= 2^-17.3583 * (31/32) * 2^-28.415 * (1 - 2^-20) = 2^-45.819143 by the declared
+  transfer. Different valid tuples of the same trial only add chances, so the bound uses one.
 
 Trials use fresh coins and are independent. If U is the event that some trial among the T uncapped trials succeeds,
-then Pr[U] >= 1 - (1 - s)^T >= 1 - exp(-sT). With T = 32,828,179,945,388, sT = 0.528823, so Pr[U] >= 0.410701.
+then Pr[U] >= 1 - (1 - s)^T >= 1 - exp(-sT). With T = 30,789,931,306,303, sT = 0.495989, so Pr[U] >= 0.391031.
 
 **Cap stop.** Let X_t be the counted operations of trial t in the uncapped run, and S = X_1 + ... + X_T. If S <= W_cap,
 the capped run behaves exactly like the uncapped one. So Pr[success] >= Pr[U] - Pr[S > W_cap].
@@ -443,7 +514,7 @@ The X_t are independent and identically distributed. Using the Section 5.4 charg
 E[X] <= 8 * 10.4068                                              (scan)
       + (N / 2^32) * (200 + 48*0.51 + 48/15 + 48/120 + 1256/240)  (Step 2)
       + 2^-17.3166 * (1 + 2^-5) * (400 + 196,608 * (40 + 192 * (2^-2.99 + 14 * 2^-14.9)))   (Step 3)
-      = 83.25 + 75.88 + 79.81 = 238.94 operations.
+      = 83.254 + 75.876 + 79.812 = 238.94281 operations, conservatively bounded by 238.943.
 ```
 
 Here 2^-17.3166 is the upper confidence limit of q. A trial's Step-3 work is at most 574,095,760 V operations, with
@@ -453,36 +524,42 @@ Here 2^-17.3166 is the upper confidence limit of q. A trial's Step-3 work is at 
 - E[m^2] <= 4 * 5.758e9 / 2^32 = 5.3626, by Cauchy-Schwarz over the 4 index-parts;
 - E[V^2] = E[V] + 2 E[C(V,2)] <= 2^-17.3166 (1 + 2^-4).
 
-This gives E[X^2] <= 3 (6.234e5 + 1.373e7 + 2.145e12) = 6.436e12. By Chebyshev,
+This gives E[X^2] <= 3 (6.234e5 + 1.373e7 + 2.145e12) = 6.436e12. The displayed sum 238.94 truncates the exact
+mean 238.942808...; since the Chebyshev denominator grows with the mean bound, we use the upper bound E[X] <= 238.943.
+By Chebyshev,
 
 ```
-Pr[S > 400 T] <= T * E[X^2] / (T * (400 - 238.94))^2 = 6.436e12 / (25,940 * T) <= 7.56e-6.
+Pr[S > 254 T] <= T * E[X^2] / (T * (254 - 238.943))^2 = 6.436e12 / (226.713249 * T) <= 9.220e-4.
 ```
 
-**Result.** Pr[success] >= 0.410701 - 0.0000076 = **0.41069 >= 0.40 claimed** (> 0.39 required). The claim does not
-rely on rounding: the margin is 0.0107.
+**Result.** Pr[success] >= 0.391031 - 0.000922 = **0.390109 >= 0.39 claimed** (>= 0.39 required). The claim does not
+rely on rounding: the margin is 0.000109.
 
 ## 10. Time ledger (exact)
 
 All figures are in target-compression units; C = 2224.
 
 ```
-A + B = ceil((T * (2224 + 64) + 400 * T) / 2224) + 8
-      = ceil(32,828,179,945,388 * 2,688 / 2224) + 8
-      = 39,677,224,682,204 units = 2^45.1734
-        (T first-block compressions; 64 fixed ops per trial; the counted cap 400 T;
+A + B = ceil((T * (2224 + 64) + 254 * T) / 2224) + 8
+      = ceil(30,789,931,306,303 * 2,542 / 2224) + 8
+      = 35,192,448,462,518 units = 2^45.0003
+        (T first-block compressions; 64 fixed ops per trial; the counted cap 254 T;
          8 units for the final 6-compression verification, the comparison and the refused-cap test)
 C     =             274,877,906,944 = 2^38
 D     =             274,877,906,944 = 2^38
-E     =          63,737,610,427,456 = 2^45.857210   (32 * 593,858 CPU-s * 3,354,001)
-total =         103,964,590,923,548 = 2^46.563086  <=  2^46.57 = 104,464,059,367,307
-C + D + E =      64,287,366,241,344 = 2^45.869600  <=  2^45.87
+total =          35,742,204,276,406 = 2^45.0226938  <=  2^45.023 = 35,749,789,979,443
+C + D =             549,755,813,888 = 2^39
+(fallback, not charged: E = 63,737,610,427,456 = 2^45.857210; total + E = 99,479,814,703,862 = 2^46.4994691)
 ```
 
-The claimed time_log2 = 46.57 leaves a factor of 1.0048 in reserve, about 33 operations per trial beyond the itemised
-charges. It does not depend on rounding the exponent.
-Every term above is a hard bound given its charge: A and B follow from T and W_cap on every coin sequence, and C, D
-and E are one-time charges. Parallel execution does not change these totals.
+The claimed time_log2 = 45.023 leaves 7,585,703,037 units in reserve, about 0.548 operations per trial beyond the
+itemised charges. Exact integer check: total^1000 <= 2^45023 and total^1000 > 2^45022. It does not depend on rounding
+the exponent. Every term above is a hard bound given its charge: A and B follow from T and W_cap on every coin
+sequence, and C and D are one-time charges. Parallel execution does not change these totals.
+
+The characteristic is not a term of this ledger (Section 7.1, `public-characteristic`). Removing it does not change
+any step of the algorithm, the success bound of Section 9, or the memory and advice of Section 11: the signed rows and
+two-bit conditions were already counted in the 13-bit advice bound.
 
 ## 11. Memory and advice
 
@@ -500,6 +577,12 @@ signed rows, 71 two-bit conditions, the readings, 18 advice words and the round 
 
 ## 12. Heuristics (IDs as in claim.json)
 
+- `public-characteristic` (score-critical). The published signed characteristic (Fig. 6, truncated to 32 steps) and
+  its two-bit conditions are public algorithm text, used without charging their original discovery (Section 7.1).
+  - Evidence: the characteristic is printed in S and restated in Section 2; #396's public re-run of S's procedure
+    returned the same signed rows; the organizer-accepted r31 package 50592e75 uses the same convention.
+  - Every value-level object is charged: the starting solution as D, the tables as C, the online work as A + B.
+  - If rejected, the total is 2^46.49947 (Section 7.3).
 - `q-32step-matching-rate` (score-critical). A uniform C_32 first block yields at least 2^-17.3583 expected valid
   tuples against TAB2.
   - Evidence: #296's four 2^32-trial runs (Section 6), #26's runs, #227's campaign counts, and the analytic
@@ -509,11 +592,17 @@ signed rows, 71 two-bit conditions, the readings, 18 advice words and the round 
   r >= 2^-28.415 (1 - 2^-20).
   - Evidence: the condition count, stage rates through step 21, and the #227 instance (Section 3).
   - The 13 carry conditions after step 21 are extrapolated.
+- `valid-tuple-tail-transfer` (score-critical). For a valid tuple drawn uniformly from the valid tuples of a
+  trial with V >= 1, the Step-3 pass probability is at least the per-tuple marginal r.
+  - Evidence: disjointness of Step-3-read words (W14/W20 conditions, fixed P4) from the Step-2 tests that
+    certify validity; the #227 instance passing Step 3 on an independently found valid tuple (Section 9).
+  - This is a declared independence assumption, not a proved conditioning bound: if conditioning on V >= 1
+    biased tuple shapes toward Step-3 failures, s would fall; Section 13 prices that bias.
 - `valid-tuple-pairs` (supporting). E[C(V,2)] <= q 2^-5.
-- `route-search-measured` (score-critical). Re-deriving S's characteristic costs at most 32 * 593,858 solver CPU-s.
+- `route-search-measured` (supporting; fallback only, not in the claimed total). Re-deriving S's characteristic costs at most 32 * 593,858 solver CPU-s.
   - Evidence: #396's completed 59-call run, which printed Fig. 6 (Section 7).
   - The factor 32 is priced from the run ledger, not executed.
-- `cpu-second-pricing` (score-critical). One solver CPU-second costs at most kappa = 3,354,001 units (2^32.80
+- `cpu-second-pricing` (supporting; prices the fallback E and is one of the readings covered by D). One solver CPU-second costs at most kappa = 3,354,001 units (2^32.80
   operations).
   - Evidence: the callgrind rate and class shares (Section 7), our dynamic per-form profile of the same library
     (Section 15.5), our rate runs (Section 15.2).
@@ -521,28 +610,26 @@ signed rows, 71 two-bit conditions, the readings, 18 advice words and the round 
     instructions cost at most 1.956 operations on average, the largest of our four profiled shapes.
 - `starting-solution-cost` (supporting). The Step-1 starting solution costs at most 2^38 units (Section 8).
 - `work-moments` (supporting). These are the occupancy, multiplicity and stage-pass inputs to E[X] and E[X^2].
-  - They affect only the 7.6e-6 cap-stop term, and through it the success bound.
+  - They affect only the 9.22e-4 cap-stop term, and through it the success bound.
 - `search-peak-memory` (supporting). The solver peak is at most 2^33 bytes. This affects memory only.
 
 ## 13. Sensitivity and limitations
 
 | Change | Total time_log2 |
 |---|---|
-| as charged (kappa 2^21.677, factor 32) | 46.563 |
-| ordinary mean 2.5 instead of 1.956 (kappa 2^21.862) | 46.679 |
-| ordinary mean 3 (kappa 2^22.013) | 46.778 |
-| class price of 49f8f6d4 (kappa 2^22.527) | 47.140 |
-| kappa 2^23 (841646f2) | 47.504 |
-| spread S = 1 / 2.5 / 3.63 instead of 1.85 | 46.086 / 46.845 / 47.232 |
-| factor 16 | 46.035 |
-| factor 64 | 47.253 |
-| factor 128 | 48.069 |
+| as claimed (characteristic is public text; C = D = 2^38) | 45.023 claimed (exact total 2^45.02269) |
+| C and D at their computed bounds 2^36.32 and 2^36.51 instead of 2^38 (not claimed) | 45.008 |
+| characteristic search charged as the #396 ledger at kappa, no rediscovery factor | 45.101 |
+| characteristic search charged as E of 0e7372ea (kappa 2^21.677, factor 32) | 46.4995 (2^46.49947) |
+| ... with kappa 2^23 (841646f2) | 47.472 |
+| ... with factor 128 | 48.047 |
 
-| p per entry | Success bound at T = 2^44.9 |
+| p per entry | Success bound at T = 30,789,931,306,303 |
 |---|---|
-| 2^-46 (charged) | 0.4106 |
-| 2^-46.5 | 0.3120 (below 0.39) |
-| 2^-47 | 0.2323 (below 0.39) |
+| 2^-46 (charged) | 0.3901 |
+| 2^-46.5 | 0.2949 (below 0.39) |
+| 2^-47 | 0.2187 (below 0.39) |
+| tail-transfer bias: conditional rate = r/2 (same arithmetic as the 2^-47 row) | 0.2187 (below 0.39) |
 
 Limitations, stated plainly:
 - No participant run here rebuilt TAB2 or measured q, p or the search. Every rate is a credited public participant
@@ -550,8 +637,8 @@ Limitations, stated plainly:
 - p = 2^-46 rests on a condition count that is measured through step 21 and extrapolated for the last 13 carry
   conditions. If one more independent condition existed, the success bound would fall below 0.39 at this T. The
   public 32-step pair of #227 shows that the full conformance event is reachable from C_32 first blocks.
-- S's historical search time is unpublished. E is a measured re-run times an argued rediscovery factor, not S's own
-  cost.
+- The historical discovery of the characteristic is not charged (`public-characteristic`). S's search time is
+  unpublished; the fallback E is a measured re-run times an argued rediscovery factor, not S's own cost.
 - The CPU-second price uses one calibrated call for the instruction rate. Our rate runs used a different machine,
   instruction set and solver build, and enter only as a relative spread (Section 15.3).
 - Our dynamic profile ran the exact x86-64 library, but through its Python binding on our own SHA-256 CNF, single
@@ -1047,3 +1134,19 @@ pip install -q pycryptosat==5.11.21
 python -c "import pycryptosat,glob,os;d=os.path.dirname(pycryptosat.__file__);print(d);print(glob.glob(d+'/../pycryptosat*')+glob.glob(d+'/../pycryptosat.libs/*'))"
 valgrind --version
 ```
+
+## 16. Run parameters and lineage
+
+The run parameters are those of GordoAR's public 0e7372ea, which retuned jungjipdo's promoted 6eeefb64:
+
+- counter-cap multiplier w = 254 in W_cap = w T, the flat optimum of the public (T, w) ladder (6eeefb64 used 400,
+  23960a0e 300, ddd666d3 254);
+- the mean-work bound E[X] <= 238.943, after leech1996's (83bc57d) observation that the displayed 238.94 truncates the
+  exact 238.942808... and so rounds the Chebyshev denominator the wrong way;
+- T = 30,789,931,306,303: the smallest T reaching a 0.3901 success floor at w = 254 is 30,788,931,306,303, and 10^9
+  trials are added so the bound does not sit on a rounded boundary.
+
+These give success >= 0.390109 (Section 9; margin 0.000109 over 0.39) and A + B = 35,192,448,462,518 units =
+2^45.0003. With C = D = 2^38 and the characteristic accounted as in Section 7.1, the total is
+35,742,204,276,406 units = 2^45.0226938, claimed as 45.023 (total^1000 <= 2^45023 and total^1000 > 2^45022).
+Preprocessing is C + D = 2^39. Memory 2^34.739 and advice 13 are unchanged from 6eeefb64.
