@@ -1,1049 +1,5203 @@
-# SHA-256 reduced to 32 steps: two-block collision from the CRYPTO 2026 35-step characteristic, run under a hard work counter
+# SHA-256/32 ordinary collision: relaxed Step-2 and Step-3 conditions and Step 2 from a precomputed record word, on the corrected Step-3 condition count (2^-44) with the 7-lane batch on 64 registers, lazy chaining-value extraction and an itemised table-build audit, on the seven-lane Step-3 route
 
 ## 0. Claim
 
-Track `sha256-r32-exploratory`, target profile `sha256-r32-prefix-v1`, attack class `ordinary-collision`, cost model
-`collision-frontier-v5`: one 32-step SHA-256 compression is 1 unit and every other primitive 256-bit word-RAM
-operation is 1/C unit with C = 2224.
+The track is `sha256-r32-exploratory`, profile `sha256-r32-prefix-v1`, cost model `collision-frontier-v5`. One
+32-step compression costs 1 unit and every other primitive word operation costs 1/C with C = 2224.
 
-The algorithm of Sections 4-5 outputs two distinct 128-byte messages whose complete hashes under the target are equal
-(standard IV, FIPS 180-4 padding, steps 0..31 on all three padded blocks, feed-forward, all 256 output bits). Bounds:
+The algorithm is a classical two-block attack. It outputs two distinct 128-byte messages whose complete 32-step
+SHA-256 hashes are equal: standard IV, standard padding, all 256 bits. Its bounds:
+- success probability >= 0.39 (computed above 0.395000 with the Step-3 rate at its measured 99% lower bound, Section 7);
+- time <= 2^39.976 (exact integer ceiling 1,080,989,603,288 has log2 39.9754897862, Section 8);
+- preprocessing <= 2^35.8 (C + D = 58,403,062,681 < 2^35.76533, itemised in Section 8);
+- memory <= 2^38 bytes (computed below 2^37.254, Section 9);
+- nonuniform advice < 2^13 bytes.
 
-| Field | Claimed | Computed (Sections 9-11) |
-|---|---|---|
-| time_log2 | 46.57 | total <= 103,964,590,923,548 units = 2^46.56309 |
-| preprocessing_log2 | 45.87 | C + D + E = 64,287,366,241,344 units = 2^45.86960 |
-| success_probability | 0.40 | >= 0.41069 |
-| memory_log2_bytes | 35 | 28,661,817,348 bytes = 2^34.739 |
-| nonuniform_advice_log2_bytes | 13 | < 8,192 bytes |
+**This version (v13).** This package is our passed submission `3873e7f5` (v11, 39.995, `plausible_not_refuted`)
+with exact changes, and the cap and trial count re-optimised for them.
 
-No certificate is attached; the claim is the cost of the stated algorithm, not a found pair.
+What this version changes:
+1. **A sigma0 table for (b') and (f') (Sections 4, 8 B).** `D4 = D6 = 2^29`, so `x + D = x xor Delta`, where `Delta`
+   is `2^29`, `3 * 2^29`, `7 * 2^29` or `15 * 2^29` (bit 32 is the carry out). Since sigma0 is XOR-linear,
+   `sigma0(x + D) = sigma0(x) xor sigma0(Delta mod 2^32)`. The values of `sigma0(Delta mod 2^32)` sit in a 16-entry
+   table indexed by `Delta >> 29`, and `D = 1 << 29` comes from the register holding 1. So (b') and (f') take 30
+   operations instead of 39, and tranche 1 falls from 57 to 48. The replay asserts the new counts. It also checks the
+   table against sigma0 on seeded words for every carry length.
+2. **Charges at their itemised counts (Sections 8 A, 8 B).**
+   - The batch's entry and exit: 16 operations (table base, output offset, batch counter, and the five trial-loop
+     constants with their addresses), charged 24 up to v11. The batch is now 2,265 per 7 trials (v11: 2,273).
+   - The per-trial lookup: 23 (charged 24 up to v11).
+   - The per-trial extraction of `CV1[1..3]` with `k0`: 21 (charged 22).
+   - Step-2 tranches 2 and 3: 47 (charged 48).
 
-The time bound holds on every coin sequence. The run has a fixed number T of trials and a hard counter on all
-data-dependent work (Section 5.4). Heuristics enter only the success probability, through measured rates
-(Section 12), and the prices of the one-time characteristic search and starting solution (Sections 7-8).
+   With items 1 and 2 the expected Step-2 charge per match falls from 60.359606 to 51.291650.
+3. **Cap and trial count** re-optimised by the same rule: `W_cap = 37.77 T`, `T = 5,917,219,162,998`.
 
-### 0.1 Sources and credit
+The optional stage-16 relaxation of Section 5.2 is not used. f807117b's lane-packed stage-17 test forms `Sigma1(E16')` as `Sigma1(E16) xor Sigma1(FL(E16))` (Section 8.3, R2), which holds only under the E16 pattern, so dropping that pattern would need the test reworked for every pack.
+The total falls from v11's 2^39.9946015 to 2^39.9754897; we claim 39.976. Section
+8.2 attributes it.
 
-- **S** - Y. Li, F. Liu, G. Wang, J. Shi, "Pushing the Limit of Memory-efficient Collision Attack Framework for SHA-2",
-  CRYPTO 2026, IACR ePrint 2026/1080. The characteristic (S Fig. 6), the colliding 35-step pair (S Table 3), the
-  three-phase attack (S Sect. 4) and the four-step characteristic search all come from S.
-- **Tool** - Y. Li, F. Liu, G. Wang, EUROCRYPT 2024, ePrint 2024/349, github.com/Peace9911/sha_2_attack. The
-  characteristic search that we charge used this SAT/SMT model with STP and CryptoMiniSat.
-- **hash-smash #26/#33 (winglock)** - the 32-step truncation, the concrete table (P1-P4) and Step-2/3 test
-  specification that Sections 4-5 restate, the analytic matching-rate prediction, and the unprinted condition
-  E16[29] = E17[29].
-- **hash-smash #296 and #396 (mitchuski)** - the re-implementation and measurements of that specification: the table
-  counts, the matching rate q, the Step-2 and Step-3 stage pass rates, the table multiplicity sums, the starting-solution
-  runs and the callgrind calibration of the CPU-second price. #396 also completed the characteristic search until it
-  printed Fig. 6 and gave the 59-call ledger that Section 7 charges, together with its blind-rediscovery factor.
-- **hash-smash #227 (yudduy)** - a public 32-step pair of exactly this form. We use it only as corroboration (Section 3).
-- **hash-smash #134 (jagnani73)** - the precedent of pricing a measured solver run in CPU-seconds.
+**Carried from v11 (`3873e7f5`, passed review, 39.995).** v11 is our submission `0ae465f6` (v10c, 40.325) with the relaxed conditions of
+Section 5.2, charged at their lower bounds, and the cap and trial count re-optimised. Each characteristic condition
+that the 32-step collision does not need is replaced by the weakest condition that still gives it. The record word,
+P4, the table and the data layout are unchanged; every characteristic valid tuple and pass is also a relaxed one.
 
-Every measured quantity used here is a participant measurement from the public records above. They are named and
-bounded in Section 6, and each enters through a declared heuristic. We did not re-run the 22 GB table or the charged
-solver calls. The exception is the evidence for the CPU-second price in Section 15, which is our own.
+What v11 changed:
+1. **Relaxed Step 2 (Sections 4, 5.2).** `W4' = W4 + 0x20000000`, `W5' = W5 + 0xfbc00800`, `W6' = W6 + 0x20000000`
+   (mod 2^32) instead of `W' = W xor FL(W)`; the sign tests (a), (c) and (d) are dropped; the cancellations become
+   (b') `sigma0(W4') - sigma0(W4) = 0xfbc00800`, (g') `sigma0(W5') - sigma0(W5) = 0x017f8000` right after W5, and
+   (f') `sigma0(W6') - sigma0(W6) = 0x043ff800` right after W6; test (e) is unchanged, on the modular W'. The valid
+   tuples per trial rise by 1.1209 (99% interval 1.1179-1.1243): exact word counts times the measured test-(e) coupling.
+2. **Relaxed Step 3 (Sections 4, 5.2).** Stage 18 requires only `A18' = A18`, and the pattern and sign tests of W20 and
+   W22 are dropped. Stages 16, 17 (with `dE17 = 0`) and 19..22 and `dW24 = dW29 = 0` are unchanged. The Step-3 rate
+   rises by 1.1655 +- 0.0011 (the optional stage-16 relaxation, +1.6%, is not used).
+3. **Selected-tuple transfer derived (Section 7).** The rate of the trial-first selected tuple is now bounded from
+   the measured cross-tuple second moment (`E_occ[p_J^2]/p^2 <= 1.000812`), `valid-tuple-pairs` and
+   `cv1-conditional-uniformity` by Cauchy-Schwarz, at a charged loss of `delta = 0.003811`. Pair-event tuples
+   (0.998 +- 0.003) and Step-2-relaxed tuples (1.0052 +- 0.0030) pass Step 3 at the rate of single-event and
+   characteristic tuples.
+4. **Charged at lower bounds (Sections 5.2, 7).** q gain 1.1178, p gain 1.1624 and a tuple-mix factor 0.9992 (the relaxed
+   Step-2 tuples pass Step 3 at 1.0052 +- 0.0030 times the rate of characteristic tuples): 1.2983 in all, against the
+   point estimate 1.3072. The relaxed co-pass term uses
+   the co-pass bound `U_r = 0.0000396315` measured for relaxed passes, and `valid-tuple-pairs` is scaled for
+   relaxed tuples to `2^-6.8308`.
+5. **Step 2 re-costed on v10c's record word (Section 8 B).** (b') now runs on every match, with two sigma0
+   evaluations: tranche 1 is 57 operations. W5 with (g') and W6 with (f') are 47 and 44 (charged 48), and the rest of
+   the record's Step 2 is 1,376. Per match, `57 + 48 p_b + 48 p_b p_g + 1,376 p_b p_g p_b = 60.359606` with the exact
+   pass rates `p_b = 287,309,824/2^32` and `p_g = 68,157,440/2^32` (v10c: 45.59375).
+6. **Evidence.** All 618,020 passes of the relaxed run, characteristic and relaxed, were rebuilt into second-block
+   pairs from their derived chaining values, and every pair's two 32-step compressions agree. The relaxation tools are in Appendix H. The replay executes the relaxed Step-2
+   tranches and checks that the certified pair meets the relaxed Step-2 and Step-3 conditions. Appendix F keeps the
+   sha256 list of ed55a9d7's measurement tools, which are embedded in full in that filing.
+7. **Cap and trial count** re-optimised by the same rule: `W_cap = 41.04 T`, `T = 5,917,298,373,479`.
 
-### 0.2 What this package adds
+v11's total fell from v10c's 2^40.3243740 to 2^39.9946015 (claimed 39.995).
 
-1. A self-contained statement of the attack in one place: characteristic, conditions, all four precomputed sets, both
-   online steps, and the exact tests, so that the algorithm can be rebuilt from this file alone.
-2. Our own participant checks (Section 14). They recompute S's published pair, the characteristic rows, the 71
-   conditions under the stated readings, the advice words, the Step-2 equations and tests, the Step-3 stages and the
-   32-step truncation from our own code, cross-checked with the organizer's `verifier/hash_functions.py:digest`.
-3. A fixed-work schedule whose counter charges are staged per test and per Step-3 stage (Section 5.4). The
-   Step-2/3 work therefore costs about 239 counted operations per trial instead of about 461 under a flat per-candidate
-   charge. With T = 2^44.9 trials and a counter cap of 400 T operations, the online phase is 2^45.173 units.
-4. An exact integer ledger (Section 10) and a sensitivity table (Section 13).
-5. Our own evidence for the CPU-second price (Section 15): a per-form costing of the x86-64 CryptoMiniSat 5.11.21
-   code under the v5 primitive list, **new: a dynamic callgrind profile of that exact library on four SHA-256 CNF
-   solves, each executed instruction priced by its form (Section 15.5)**, and 17 instruction-rate runs of
-   CryptoMiniSat on SHA-256 CNF. The price is derived from the calibrated rate, our measured operations per executed
-   instruction and our measured rate spread: 2^21.677 units per CPU-second, instead of 2^22.527 in our previous
-   package 49f8f6d4 (class pricing) and 2^23 in 841646f2.
+**Carried from v10c (`0ae465f6`).** v10c is our passed ed55a9d7 (40.588) with exact changes and one re-reading of
+inherited evidence:
+1. **Step 2 from a precomputed record word (Sections 4, 8 B, 8.1).** In ed55a9d7 every matching record paid 160
+   operations to decode its tuple and compute E0..E2, W4 and test (a), and every nonempty-bucket trial paid 56 to
+   extract `CV1[1..7]`. In E1, E2, W4, W5 and W6 every term except those in `CV1[1..3]` is a function of the record
+   alone. The builder now stores, in front of each record's old 16 bytes, one 256-bit word of eight precomputed
+   32-bit fields. Step 2 extracts only `CV1[1..3]` per nonempty-bucket trial (19 operations, charged 22) and tests
+   (a)..(d) from the word in four tranches of 22, 27, 15 and 9 operations, charged 22, 32, 32 and 32. A record that
+   passes (d) runs ed55a9d7's whole Step 2 for that record unchanged (1,368 with its cap check), so the accepted
+   records and their order are exactly those of ed55a9d7. The expected Step-2 charge per match falls from 192 to
+   45.59375 and the per-trial extraction from 56 to 22; the bound on E[X] falls from 92.923 to 34.252. The builder's
+   computation of the word is charged 1,408 operations per placed record. The replay executes the counted tranches
+   on organizer-seeded lanes and on the certificate's valid tuple, for which they reproduce the certified W4, W5 and
+   W6 and pass (a)..(d).
+2. **Lookup cells (Sections 8 A, 8.1).** Each bucket's occupancy and offset form one 64-bit cell, four per 256-bit
+   word, so a trial reads one cell instead of two offsets: 23 operations itemised, charged 24 (was 32). The cells
+   are copied from the offset array after its final check, 64 operations per bucket in C, and add 2^35 bytes.
+3. **The pair factor, re-read (Section 7, `valid-tuple-pairs`).** ed55a9d7 inherits `E[C(V,2)] <= q 2^-5`, more
+   than 20 times the inherited estimate 2^-26.8 per trial. With the 9 observed within-part pairs at their one-sided
+   99% Poisson upper bound (18.78), that estimate becomes 2^-25.74. We charge `E[C(V,2)] <= q 2^-7`:
+   `q_LCB 2^-7 = 2^-24.36` is 2.6 times that upper reading and 5.4 times the point
+   estimate. The premise keeps its name and evidence; only the stated margin is smaller. With the 2^-7 reading scaled for relaxed tuples, v11 charges `2^-6.8308` (Section 7). It now enters both the
+   success bound and, through item 4, most of E[X^2]; at v10c's T the success bound stays at or above 0.39 for factors
+   down to `2^-5.49` (7.4 times the upper reading), and with the inherited `2^-5` it would be
+   0.3861 (Section 7).
+4. **The second moment split by tuple (Section 8 B).** The Step-3 demand of a trial is `S3 = sum_j c_j` over its
+   valid tuples with `0 <= c_j <= S3_max`, so pointwise `S3^2 <= S3_max S3 + S3_max^2 V(V - 1)`. Hence
+   `E[S3^2] <= S3_max E[S3] + 2 S3_max^2 E[C(V,2)]`, from the existing mean bound and the pair premise. With
+   Minkowski's inequality across scan, Step 2 and Step 3, `E[X^2] <= 2.6958e10` (was 4.2301e12).
+5. **Cap and trial count** re-optimised (v10c: `W_cap = 34.78 T`).
 
-## 1. Target, notation, success event
+**Carried from ed55a9d7.** Its main change is the corrected condition count (Sections 5.1 and 7). Every package of this line, the base
+included, charged `p >= 2^-46` per P4 candidate (`step3-46-conditions`), counting 45 printed conditions plus one. That
+count includes the printed relation `W20[4,31] = W20[6,22]`. Our reading of Section 2 already drops it as a misprint: the
+published pair violates it, the algorithm never tests it, and no step needs it. Removing it leaves 44 one-bit
+conditions, with stage counts 3, 12, 6, 7, 4, 1, 8 and 3. A pre-registered, occurrence-weighted measurement on the real
+second block, the real P4 list and real TAB2 records confirms this directly: `p = 2^-44.0004`, 99% interval
+`[2^-44.0055, 2^-43.9954]`, and stage exponents equal to the counts. The success bound charges the measured lower
+bound `p_L = 2^-44.0055`. The pair term uses the measured co-pass bound, not an independence formula. The conditional
+uniformity of `CV1[4..7]` given validity, on which the measurement's reduction rests, is declared as its own heuristic.
+T is chosen so that the computed success is at least 0.395 under `p_L`, fifty times the 1e-4 margin of the base.
 
-Words are 32-bit and `+`/`-` are mod 2^32. Sigma0, Sigma1, sigma0, sigma1, IF (choose) and MAJ are as in FIPS 180-4.
-The schedule is W[i] = M[i] for i < 16 and W[i] = sigma1(W[i-2]) + W[i-7] + sigma0(W[i-15]) + W[i-16] for i >= 16.
+Its other changes are exact accounting (also filed alone as our v10a):
+1. **The batch on the 64-register word RAM (Section 8 A).** The cost model's 256-bit word RAM fixes no register count.
+   The promoted blake3-r2 package `52bb50ee` and our passed r31 package `028aa8d0` use 64 registers. On that machine
+   6e5214dd's optimised batch keeps its lane masks, the 16-word schedule window, the state and the temporaries in
+   registers. The replay computes a peak of 53 live values and asserts that, with 8 registers held across the batch,
+   it fits 64; the organizer executes the replay on submission. The schedule traffic and the W reloads disappear; the
+   16 random words are still stored once, because the winning trial outputs M0. The merged sigma masks of 028aa8d0 make
+   sigma1 12 and sigma0 13 operations. The batch's 96-operation reserve is itemised as 16 and charged 24 (v13: 16). The register
+   count is declared as the premise `register-machine-64`; with 6e5214dd's register use the total would be
+   2^40.714717 (in this version, 2^40.124748).
+2. **Lazy chaining-value extraction (Sections 4, 8 A).** The batch extracts only `CV1[0]` of each lane (the bucket
+   key). The other seven words of a lane are extracted from the stored feed-forward vectors only for a trial whose
+   bucket is nonempty (an expected fraction at most `N/2^32 < 0.32522` of trials), for 56 operations inside the capped work. 6e5214dd lists this
+   as a next step; ed55a9d7 implements and charges it. This version narrows it to `CV1[1..3]` (item 1 above).
+3. **Itemised table-build audit (Section 8.1).** The W7 pass PC-4 (94.5% of the previous main-loop operations, 93.2%
+   of C) is rewritten with its per-LEFT-row
+   work hoisted out of the W7 loop. Three of its predicates do not depend on W7: the conformance of A3 and E7 and the
+   sigma0 cancellation are exact per-row predicates, because the signs of W7 are fixed in L7. The remaining body is
+   charged at its itemised count. C falls from 303,675,478,130 to 23,035,438,979 units. The replay checks the identities
+   on organizer-seeded random rows. A participant run checks the rewrite against an independent literal implementation
+   on all 155,008 real LEFT rows and all 524,288 W7 values: identical records and keys, and N = 1,396,774,912
+   reproduced.
+4. **Cap and trial count** re-optimised by the rule of d8d39011, f807117b and 6e5214dd (smallest T keeping the
+   success bound at or above 0.395 with the rate at `p_L`); in ed55a9d7, `W_cap = 96.2 T`.
 
-For a chaining value CV = (a, b, c, d, e, f, g, h) set A[-1], A[-2], A[-3], A[-4] = a, b, c, d and E[-1], E[-2],
-E[-3], E[-4] = e, f, g, h. Step i (0 <= i < R) computes
+The batch is 2,273 operations per 7 trials (6e5214dd: 2,805) up to v11; v13 charges 2,265. The replay checks the 64-register program on every
+organizer seed: all seven lanes against scalar C_32, its arithmetic and traffic counts, and its liveness. What ed55a9d7
+did not change: the collision route, characteristic and its accounting, certificate, Step 2, Step 3 and the seven-lane sweep
+of f807117b, the 32 per-trial lookup operations (re-itemised as 31 under the cost model's 256-bit loads; 24 in v10c and v11, 23 in v13), every other
+probability premise (`q`, `valid-tuple-pairs`, the selected-tuple transfer), D and the success analysis apart from its Step-3 factor. Its total fell from 6e5214dd's
+2^42.7441128 to 2^40.5878168 (claimed 40.588).
+
+Inherited text throughout this proof keeps its original voice. In the lineage paragraph, the source list and the
+inherited sections (for example Sections 2, 5, 7 and 8.3), "this revision", "this candidate", "our" and "we" refer
+to the package that first wrote each sentence. Text marked "(this version)" was written by ed55a9d7 for its changes;
+"(v10c)" marks v10c's changes, "(v11)" v11's, and "(v13)" those of this version.
+
+This package directly combines public Yukon submissions `8bad82c1-1950-4e17-a025-bacdf5dda6ce`
+(source commit `1b538044fb5afa0acad1de30aba770b602645535`, PR #396, official exploratory score 47.60 and
+`plausible_not_refuted`) and `c712ea19-84f8-4888-9de4-bb644d4e00fd`
+(source commit `8834954861981020a5bd9d8a73e764c5101c0a0c`, PR #400, claim 48.20). The latter adapts
+`f15d0743-ef0b-4b1e-83ba-6beae0fb9d9a` (source commit `a9e52a210d65a617fe85fa3e8f7603da46ae596b`,
+PR #395, official exploratory score 48.21 and `plausible_not_refuted`), which adapts `a36add2f-5e05-4c9c-a727-eae03adc7be4`
+(source commit `778baf4269779053adb51a0ff9cc8bef0f413157`, official exploratory score 48.25), which in turn
+adapts `491c0048-2712-407c-beeb-207de0284c89` (source commit
+`97c8e8c7040bf76a8f9723c7bcc745510f343b49`, official exploratory score 48.45). This package retains their
+collision route, certificate, deterministic replay, table sizes, measured rates, declared probability premises and
+source-level table-builder audit. PR #396 extends the characteristic search until its 59-call run outputs Fig. 6;
+its predecessors charged the `32 * 593,858` CPU-second envelope; this version keeps that measurement only as fallback
+evidence (Section 6.2). Submitted predecessor `aec1f12c-82e6-4d0f-be09-3388665ede9a` retains PR #400's staged Step-3 early
+abort while removing its rejected transfer from alternate SAT solutions to the exact fixed starting advice. Passed
+submission `9817cce0-89f6-4d0d-848d-e8fa8a4dfda9` (PR #402, official score 47.48) then sets
+`T = ceil(2^44.807) = 30,778,752,666,088`, caps counted work at `214 T`, asserts the maximum bucket occupancy and
+uses one-sided Bernstein. Passed submission `3d7e1cb6-dc6f-4143-baff-a607db8c88fc` (PR #404, official score 47.47)
+replaces rounded display envelopes with exact integer component ceilings. Failed submission
+`3bcf49b4-b75f-40b8-9de7-4bed3a5b01f5` (PR #405, claim 47.468) then replaced the table builder's common
+8,192-operation envelope by five predecessor phase maxima plus a conservatively reclassified PC-4 maximum. Its cost,
+evaluability and experiments reviews found the reconstruction plausible, but its aggregate result was `not_evaluable`
+solely because the success proof left the transfer from a pooled valid tuple to the selected valid tuple implicit. Passed
+submission `986364bd-7725-4e4f-8d63-485e7f3a6bf4` (PR #406, official 47.468, `plausible_not_refuted`) declares that
+premise. Passed submission `1899d9ac-f68a-4e9d-b549-b94358775645` (PR #407, official 47.4668,
+`plausible_not_refuted`) then reduces only the finite trial count under the rounded `2^-45.820` bound. Passed submission
+`b2a7ac88-682a-424a-8ddc-c9a09b06319e` (PR #408, official 47.4667, `plausible_not_refuted`; validated source commit
+`6db1ff496a018301341e51ef672496c6626935a9`) retains every attack premise and charge but uses the full displayed
+factor product. Passed submission `f7b8cac4-f0a6-4fb9-a696-ff4e26f75a1c` (PR #419, official 47.46513,
+`plausible_not_refuted`; validated source commit `49749c8663fe9e7cfc444079ab10785052f2f3d2`) then changes only the
+exact-source starting-solution ceiling from `2^37.83` to `2^35`. Passed submission `9445db88-93d4-4d41-b49b-c3f2d3c1c205`
+(PR #425, official 47.30; source `353f254849e5c22a64cc0e98041a687d29c8715f`) and passed submission
+`10506300-27a3-45e7-bdce-963e9cbe2b56` (Meganpark980320, official 47.29; validated commit `1dcd6067452b0263c2dfb0812c78528686e71c76`)
+are the exact public base; this revision replaces the 8-lane carry-save SWAR first-block evaluation (`4,608` ops per
+8-trial batch, `576` ops/trial) with a **7-lane 36-bit guard-bit SWAR first-block evaluation** (`2,336` counted
+arithmetic/randomness ops + `800` traffic/control + `96` reserve = `3,232` ops per 7-trial batch, `461.71` ops/trial).
+Historical attack-rate evidence was not rerun.
+
+An organizer-verified 128-byte 32-step collision certificate (`certificates/message-a.bin`, `certificates/message-b.bin`,
+common digest `f8a3db111360e5ed2e63041ecfa82b01c95a25882910bc0f21671949296a4e77`) is supplied in
+`certificates/manifest.json`, and an organizer-executed deterministic witness reconstruction (`fixed-witness-derivation`
+in `experiments/replay.py`) verifies the Step-2 tuple decoding, the retained #227 compact-table
+bucket/bitmap/combo/left/v7 slices, Step-3 16-step message-word derivation, and bit-exact 7-lane 36-bit guard-bit SWAR
+(with `Swar7Counter` operation counting) and 8-lane SWAR `C_32`
+equivalence on organizer-generated inputs in the isolated evaluator container. ed55a9d7 added the 64-register
+program actually charged (`Reg64`: every lane against scalar `C_32`, its arithmetic and traffic counts and its peak
+liveness, on every organizer seed) and the lazy extraction check. This version (v10c) adds the record-word Step-2
+check (`verify_step2_fields`): on the seven lanes of each organizer seed with seeded random tuple words, and on the
+certificate's valid tuple, the counted tranches reproduce E1, E2, W4, W5, W6 and the decisions (a)..(d) of the A- and
+E-equations with their operation counts asserted. In v11 the tranches and decisions are the relaxed (b'), (g') and
+(f'); the replay also checks that the certified pair meets the relaxed Step-3 conditions, and that on seeded words with
+the characteristic's signs each relaxed test equals its characteristic form. That replay checks one witness lineage
+and finite SWAR functional examples; it does not prove universal circuit identity or validate the different
+32-bit-bucket `TAB2` cardinalities, its construction cost, or the
+submitted SWAR resource bound.
+
+Sources and credit:
+- **Our passed Yukon submission `3873e7f5` (v11, 39.995).** The exact base of this version: v10c with the relaxed
+  conditions of Section 5.2 and the derived selected-tuple transfer.
+- **Our Yukon submission `0ae465f6` (v10c, 40.325).** The base of v11: ed55a9d7 with Step 2 from a
+  precomputed record word, the one-cell lookup, the pair factor re-read and the second moment split by tuple.
+- **Our measurement of the relaxed conditions (v11).** Section 5.2 and Appendix H; the approach (replace each
+  unneeded characteristic condition by the weakest sufficient one) is the one of our r31 packages.
+- **Our passed Yukon submission `ed55a9d7` (40.588).** The base of v10c: 6e5214dd with the corrected
+  Step-3 count, the 64-register batch, the lazy extraction and the itemised table-build audit.
+- **Passed Yukon submission `6e5214dd` (Meganpark980320, 42.745).** The base of ed55a9d7: the optimised round
+  function of the 7-lane batch (round-0 folding, partial folding in rounds 1-2, three-operation IF and MAJ) and its
+  replay check. Every part of this package other than the changes listed in "This version" and "Carried from ed55a9d7" is taken from it unchanged,
+  including the proof text we edit.
+- **Passed Yukon submission `f807117b` (Meganpark980320, 42.791).** The seven-lane sweep of Step-3 stages 16-17 with
+  the reductions R1 and R2 (Section 8.3), its ledger and validation tool.
+- **Passed Yukon submission `d8d39011` (Meganpark980320, 43.001).** Full-key 32-bit TAB2 buckets, the cap/trial-count
+  re-optimisation rule, and the straight-line batch traffic and per-trial lookup itemisations.
+- **Yukon submission `621d0fb0` (Meganpark980320, 43.262).** f310d44f with the characteristic accounted as public
+  algorithm text.
+- **The 64-register machine.** The promoted blake3-r2 package `52bb50ee` (proof Section 5, "the 256-bit word RAM of the
+  cost model with 64 registers") and our passed r31 package `028aa8d0` (64 registers, merged sigma masks and the
+  liveness check, which this version ports to the r32 batch).
+- **Passed Yukon submissions `9445db88-93d4-4d41-b49b-c3f2d3c1c205` (47.30) and `10506300-27a3-45e7-bdce-963e9cbe2b56` (Meganpark980320, 47.29).**
+  Validated commit `1dcd6067452b0263c2dfb0812c78528686e71c76` is the exact public base of this revision. It supplies the
+  800-operation batch traffic/control audit, `D = 2^35`, and every inherited attack premise, cost and evidence item.
+- **Failed Yukon submission `e8bd4c94-067d-49ca-a977-09a81d2dee98`.** PR #420 introduced the 8-lane carry-save SWAR
+  evaluator in `replay.py` (which uses two `CSA32x8` and five `ADD32x8` calls = 87 ops per round) while undercharging
+  its round line at 56 ops. Both `1dcd606` (which charges the full 87 ops per round in 8 lanes) and this revision
+  (which switches to 7 lanes of 36 bits with 4 guard bits per lane, where each modular addition is a single 256-bit
+  addition and `Swar7Counter` in `replay.py` verifies the exact 52-op round and 2,336-op batch arithmetic count) resolve
+  that discrepancy completely.
+- **Public Yukon submission `8bad82c1-1950-4e17-a025-bacdf5dda6ce`.** The score-47.60 package at commit
+  `1b538044fb5afa0acad1de30aba770b602645535` supplies the completed 59-call characteristic-search measurement,
+  the exact Fig. 6 output comparison, the `32 * 593,858` CPU-second route-search envelope, and the strengthened
+  opcode audit. This revision keeps that envelope as fallback evidence (Section 6.2).
+- **Passed Yukon submission `f310d44f-a1dc-4241-8b26-cbdad0f6fe72` (Th0rgal, 47.275).** The 7-lane 36-bit guard-bit
+  SWAR first-block evaluation, `Swar7Counter`, and the 3,232-operation batch; 621d0fb0 is f310d44f with only the
+  characteristic accounting changed.
+- **Organizer-accepted SHA-256 r31 package `50592e75` (jungjipdo, 37.22).** The public-characteristic convention.
+- **Public Yukon submission `c712ea19-84f8-4888-9de4-bb644d4e00fd`.** The claim-48.20 package at commit
+  `8834954861981020a5bd9d8a73e764c5101c0a0c` supplies the staged Step-3 early-abort ledger, `T = ceil(2^44.83)`,
+  the `300 T` cap, Chebyshev success subtraction, 12-word P4 layout and static table audit. Its paired review found
+  the declared online-rate, work-moment and table-cost premises plausible but returned `not_evaluable` for the
+  separate exact-advice timing transfer. The submitted 47.49 predecessor replaces that transfer and the
+  characteristic-search term. The passed 47.48 revision tightens the finite stopping analysis and the passed 47.47
+  revision uses exact component ceilings. Failed PR #405 sums the phase-specific table-builder charges; passed PR #406
+  retains that ledger and declares the selected-valid-tuple transfer; passed PR #407 tightens the finite trial count.
+  This revision retains those changes and removes only PR #407's final downward rounding of the success-factor product.
+- **Public Yukon submission `f15d0743-ef0b-4b1e-83ba-6beae0fb9d9a`.** The score-48.21 package at
+  commit `a9e52a210d65a617fe85fa3e8f7603da46ae596b` supplies the conservative probability rounding, finite
+  work-moment stopping rule, source-level table-builder audit, and precise old-table replay boundary.
+- **Public Yukon submission `a36add2f-5e05-4c9c-a727-eae03adc7be4`.** The corrected `2^25.02` CPU-second
+  search charge, inherited package and `T = 2^45` probability/cost adaptation come from its published candidate
+  at commit `778baf4269779053adb51a0ff9cc8bef0f413157`.
+- **Public Yukon submission `491c0048-2712-407c-beeb-207de0284c89`.** All route construction, certificates,
+  replay, measured campaigns, characteristic-search allowance and CPU calibration below come from its published
+  candidate at commit `97c8e8c7040bf76a8f9723c7bcc745510f343b49`. The new table-builder audit is analytical and is not
+  attributed to that historical campaign.
+- **S.** Y. Li, F. Liu, G. Wang, J. Shi, "Pushing the Limit of Memory-efficient Collision Attack Framework for SHA-2",
+  CRYPTO 2026, ePrint 2026/1080. From S we take the 35-step characteristic (Fig. 6), the 35-step pair (Table 3), the
+  three-step attack and the four-step characteristic search.
+- **The solver model.** Li, Liu, Wang, EUROCRYPT 2024, ePrint 2024/349, public code github.com/Peace9911/sha_2_attack.
+- **hash-smash #26/#33 (winglock; commits `ff377db450879d36cbe2a9125ef80580af8603d1` and
+  `e571806080ac312a7a2661d8fd5515b417a9bf1a`).** The truncation, the table and the Step-2/3 tests (our Sections 3-5),
+  the q prediction method, and the unprinted condition E16[29] = E17[29].
+- **hash-smash #296 (mitchuski; commit `a22d18719c48ea71b6b428099cbe4fcb16a0884e`).** The r32 reimplementation,
+  cardinalities, attack-rate campaign, and first 57 calls of the measured rerun of the authors' STP + CryptoMiniSat search;
+  PR #396 supplies the two later Step-4 calls and completed 59-call ledger.
+- **hash-smash #134 (jagnani73).** The callgrind instruction calibration and CPU-second pricing precedent.
+- **hash-smash #31 (hybridnoise).** The need to charge the search's memory, and the reading of S's search steps.
+- **hash-smash #227 (yudduy; commit `689cb95ecd1538f08b536741a696c74f6fb78ea5`; re-costed in #224 by
+  dariolina).** The verified 128-byte 32-step collision witness of this route (Section 3) and its embedded compact-table
+  slice derivation (`experiments/replay.py`).
+
+Inherited route evidence and the new parameter choice:
+1. **Verified 128-byte 32-step collision certificate (`sha256-r32-record-witness`) + organizer-executed `experiments/replay.py`**
+   supply fixed-witness-lineage evidence that was absent from #296 and check bit-exact equivalence and exact primitive
+   operation counts (`Swar7Counter`: `2,336` arithmetic/randomness operations per batch) between the replay's 7-lane
+   36-bit guard-bit SWAR evaluator and seven scalar `C_32` evaluations on each organizer seed.
+2. **The characteristic is public algorithm text (Section 6.1).** Its discovery is not charged; every value-level
+   object is. The public re-run of S's search through an exact Fig. 6 output (59 calls, 593,858 CPU-s) is kept as
+   fallback evidence: charging it with a factor `32` at `kappa = 2^23` would add `E = 159,412,543,029,248` units.
+3. **The exact published starting solution is charged from its source construction.** S builds TAB2 from that single
+   Step-1 solution and reports about `2^34.3` for finding it. Interpreting the unstated source unit as a full 35-step
+   compression and converting by `2476/2224` fits below `D = 2^35 = 34,359,738,368` units. The source unit remains
+   unspecified; alternate locally timed solutions are corroboration only and are never substituted.
+4. **This candidate keeps the staged early abort and its finite stopping analysis, while batching seven independent
+   first-block evaluations in 36-bit lanes of the 256-bit word RAM.**
+   The measured stage-16 fraction is below `0.1250002` and cumulative stage-17 rate is below `2^-14.9999`;
+   the work ledger uses the larger `0.126` and `2^-14.9` upper envelopes. An asserted maximum bucket occupancy 936
+   bounds per-trial work, so Bernstein makes cap stop small at `37.77 T`. Taking
+   `T = 5,917,219,162,998` (`B_7 = ceil(T/7) = 845,317,023,286` batches at `2,265` ops/batch)
+   and retaining the full displayed product of the declared
+   lower-bound factors gives success above 0.395000 and total cost
+   `1,080,989,603,288 = 2^39.9754897862... < 2^39.976` target-compression units without changing the collision
+   construction, the independent-trial probability space or the event.
+   For the lower bound, conditionally on `V >= 1` an analysis-only selector chooses `J` uniformly from the valid tuples;
+   its conditional Step-3 rate is a separate declared heuristic, not an independence inference from pooled measurements.
+5. **The precomputation charge is rebuilt from explicit finite control flow:** Section 8.1 applies each displayed
+   phase-specific maximum to its exact iteration count, then separately charges worst-case record placement,
+   bucket-array administration, and retained auxiliary rows.
+
+## 1. Notation
+
+Words are 32-bit and + is mod 2^32. Sigma0, Sigma1, sigma0, sigma1, IF and MAJ are as in FIPS 180-4.
+W[i] = M[i] for i < 16, and W[i] = sigma1(W[i-2]) + W[i-7] + sigma0(W[i-15]) + W[i-16] for i >= 16.
+
+For a chaining value CV = (a..h), put A[-1..-4] = (a,b,c,d) and E[-1..-4] = (e,f,g,h). Then
 
 ```
-E[i] = A[i-4] + E[i-4] + Sigma1(E[i-1]) + IF(E[i-1], E[i-2], E[i-3]) + K[i] + W[i]
-A[i] = E[i] - A[i-4] + Sigma0(A[i-1]) + MAJ(A[i-1], A[i-2], A[i-3])
+E[i] = A[i-4] + E[i-4] + Sigma1(E[i-1]) + IF(E[i-1],E[i-2],E[i-3]) + K[i] + W[i]
+A[i] = E[i] - A[i-4] + Sigma0(A[i-1]) + MAJ(A[i-1],A[i-2],A[i-3])
 ```
 
-and C_R(CV, M) = CV + (A[R-1], A[R-2], A[R-3], A[R-4], E[R-1], E[R-2], E[R-3], E[R-4]) word-wise. This is the
-standard step function written with one new A and one new E per step. The target hashes a 128-byte message
-M0 || M1 as C_32(C_32(C_32(IV, M0), M1), P), with P = (80000000, 0, ..., 0, 00000400) the common padding block.
+C_R(CV,M) = CV + (A[R-1..R-4], E[R-1..R-4]). The target applies C_32 to every padded block. The messages are M0||M1
+and M0||M1' (128 bytes each), so the third block is the common padding block P (80000000, 0..0, 00000400).
 
-Rearranging the two equations gives the backward forms used below:
+Signed rows follow S. Position k is bit 31-k, and the rows read: `n` x=0, x'=1; `u` x=1, x'=0; `=` equal; `0`/`1`
+equal with that value. FL(X) is the n/u mask and D(X) = sum over n of 2^j - sum over u of 2^j. **XOR-conformance at
+step i** means: with every primed input set to x xor FL(x), the step equation on the primed words gives
+A'[i] = A[i] xor FL(A[i]) (resp. E). This is an exact 32-bit equality test.
 
-```
-A[i-4] = E[i] - A[i] + Sigma0(A[i-1]) + MAJ(A[i-1], A[i-2], A[i-3])
-W[i]   = E[i] - A[i-4] - E[i-4] - Sigma1(E[i-1]) - IF(E[i-1], E[i-2], E[i-3]) - K[i]
-E[i]   = A[i] + A[i-4] - Sigma0(A[i-1]) - MAJ(A[i-1], A[i-2], A[i-3])
-```
+## 2. Characteristic (S, Fig. 6)
 
-**Signed rows.** A row is a 32-character string; character k describes bit 31-k. For the unprimed value x and the
-primed value x': `=` means x = x'; `0`/`1` means x = x' with that bit value; `n` means x = 0, x' = 1; `u` means x = 1,
-x' = 0. FL(X) is the mask of `n`/`u` positions and D(X) = sum over `n` of 2^j minus sum over `u` of 2^j (mod 2^32),
-which is X' - X. fixX(i) means that the unprimed X[i] has the value demanded by every `0`, `1`, `n` (0) and `u` (1)
-symbol of its row. sign(X, i) is the same test restricted to the `n`/`u` symbols.
-
-**Conformance.** Given primed inputs equal to unprimed inputs XOR their FL masks, step i is XOR-conformant for E
-(resp. A) if the primed step equation returns E'[i] = E[i] XOR FL(E[i]) (resp. A'[i] = A[i] XOR FL(A[i])). This is an
-exact 32-bit equality.
-
-**Success event.** The run outputs (M0 || M1, M0 || M1') with M1 != M1' and equal complete target hashes. Every output
-is recomputed with the full three-block 32-step hash before it is returned (Section 5.3), so an output is always
-correct. The probability space is the run's fresh uniform coins for a fixed target.
-
-## 2. Characteristic and conditions (S, Fig. 6)
-
-The unprimed message is S's M'_1 and the primed one is S's M_1. Rows -4..-1 and 0..2 are all `=`, and so are rows
-23..34. Row 3 of W and rows 9..11, 14..19 and 21 of W are all `=`.
+Unprimed values are S's M'_1. Rows 23..34 are all `=`.
 
 ```
- i   nabla A[i]                        nabla E[i]                        nabla W[i]
- 3   ================================  =====1=====011======0======0====  ================================
- 4   ==n=============================  ==n0=0=1===100=0==0=1===0==1=0=1  ==n=============================
- 5   =====n===n===n=u====n===u==u====  01011u001n=nuu=11000n=1=101u=100  =====u===u==========n===========
- 6   ================================  101n=0=1=1=n1111==n0u===n=0n=n=u  ==n=============================
- 7   ================================  10u0=1=101==00=n==0=0===0==0=0=0  =======n=======u===u====u=1=u=u=
- 8   ================================  uuu1=0=111=0=0=01=1=01==1==1=1=0  ============u=======uu==========
- 9   ==========u====================u  11=10n0nuuu00n0u101=n11=u01u=unn  ================================
-10   ================================  un111111001001111=010u=u0=001100  ================================
-11   ====n=========u=u=======u==n====  1011n111100010u1u0111111u=nu1001  ================================
-12   =un===u=n=======n===============  001uuu11uuuuuuuu11n1000n1uuu1001  =====n===n==========u===========
-13   ================================  =n1111uu1n00000u1u0=nnn01111010n  ==u=============================
-14   ==u=============================  =0=100110000000=101=0000=110===0  ================================
-15   ================================  =1====0011===u10001=011===0n===1  ================================
-16   ================================  ======u=n====1==n=====0===01====  ================================
-17   ================================  ======0=0====1==0==========1====  ================================
-18   ================================  ==u===1=0=======1====1==========  ================================
-19   ================================  ==0=============================  ================================
-20   ================================  ==1=============================  =====0=nn=====0=u=1=============
-21   ================================  ================================  ================================
-22   ================================  ================================  ==n=============================
+  i   nabla A[i]                        nabla E[i]                        nabla W[i]
+-4..-1 all =                            all =
+ 0-2  ================================  ================================  ================================
+  3   ================================  =====1=====011======0======0====  ================================
+  4   ==n=============================  ==n0=0=1===100=0==0=1===0==1=0=1  ==n=============================
+  5   =====n===n===n=u====n===u==u====  01011u001n=nuu=11000n=1=101u=100  =====u===u==========n===========
+  6   ================================  101n=0=1=1=n1111==n0u===n=0n=n=u  ==n=============================
+  7   ================================  10u0=1=101==00=n==0=0===0==0=0=0  =======n=======u===u====u=1=u=u=
+  8   ================================  uuu1=0=111=0=0=01=1=01==1==1=1=0  ============u=======uu==========
+  9   ==========u====================u  11=10n0nuuu00n0u101=n11=u01u=unn  ================================
+ 10   ================================  un111111001001111=010u=u0=001100  ================================
+ 11   ====n=========u=u=======u==n====  1011n111100010u1u0111111u=nu1001  ================================
+ 12   =un===u=n=======n===============  001uuu11uuuuuuuu11n1000n1uuu1001  =====n===n==========u===========
+ 13   ================================  =n1111uu1n00000u1u0=nnn01111010n  ==u=============================
+ 14   ==u=============================  =0=100110000000=101=0000=110===0  ================================
+ 15   ================================  =1====0011===u10001=011===0n===1  ================================
+ 16   ================================  ======u=n====1==n=====0===01====  ================================
+ 17   ================================  ======0=0====1==0==========1====  ================================
+ 18   ================================  ==u===1=0=======1====1==========  ================================
+ 19   ================================  ==0=============================  ================================
+ 20   ================================  ==1=============================  =====0=nn=====0=u=1=============
+ 21   ================================  ================================  ================================
+ 22   ================================  ================================  ==n=============================
 ```
 
-S prints `+` at one position of E10 and one of E11. We write `=` there; both published messages agree on those bits.
-The rows carry 119 `n`/`u` symbols and 360 symbols that fix a bit value (`0`, `1`, `n`, `u`). Their weights are
-tw = 22, tE = 6, tA = 21 and tE4 = 76, as in S. We use the machine-readable transcription of #26/#296, compared
-symbol by symbol against the published pair (Section 14).
+S prints `+` at two positions of E10 and E11. We write `=` there; both published messages agree on those bits. The
+weights are tw = 22, tE = sum_{14..18} H(nabla E) = 6, tA = 21 and tE4 = sum_{4..18} H(nabla E) = 76.
 
-**Two-bit conditions.** S prints the following relations. X[a,b] = Y[c,d] means X[a] = Y[c] and X[b] = Y[d], and bit j
-is the bit of weight 2^j.
+Two-bit conditions printed by S (X[a,b] = Y[c,d] means X[a] = Y[c] and X[b] = Y[d]):
 
 ```
-W4[1,8]!=W4[12,25]  W4[18]=W4[14]  W5[0,1,30]=W5[28,18,9]  W6[1,8]=W6[12,25]  W6[18]!=W6[14]
-W7[22,13,23]!=W7[18,9,8]  W7[11,14,20]=W7[22,31,31]  W8[0,14,21]=W8[28,25,6]
-W8[31,23,30,15,22,8]!=W8[27,2,15,26,7,4]  W20[4,31]=W20[6,22]  W20[31,30,25,21]!=W20[1,0,16,14]
-W22[4,31]=W22[6,22]  W22[27]!=W22[20]
-E4[10]!=E4[15]  E5[3,21]=E5[8,8]  E6[9,27,9,8]!=E6[23,14,14,27]  E6[1,1,23,6]=E6[6,15,10,25]
-E7[21,10]!=E7[3,15]  E16[28,20,20,6]=E16[1,7,2,11]  E16[30,28,10]!=E16[12,10,29]  E18[24]!=E18[11]  E18[2]=E18[16]
-A3[29]=A2[29]  A3[29]!=A5[29]  A3[26,4]=A4[26,4]  A3[22,18,16,11,7]!=A4[22,18,16,11,7]  A14[9]=A14[20]
-A14[18,8]=A14[6,17]  A13[30,25,23]=A14[30,25,23]  A13[15]!=A14[15]  A13[29]!=A15[29]  A15[29]=A6[29]
+W4[1,8]!=W4[12,25] W4[18]=W4[14] W5[0,1,30]=W5[28,18,9] W6[1,8]=W6[12,25] W6[18]!=W6[14]
+W7[22,13,23]!=W7[18,9,8] W7[11,14,20]=W7[22,31,31] W8[0,14,21]=W8[28,25,6] W8[31,23,30,15,22,8]!=W8[27,2,15,26,7,4]
+W20[4,31]=W20[6,22] W20[31,30,25,21]!=W20[1,0,16,14] W22[4,31]=W22[6,22] W22[27]!=W22[20]
+E4[10]!=E4[15] E5[3,21]=E5[8,8] E6[9,27,9,8]!=E6[23,14,14,27] E6[1,1,23,6]=E6[6,15,10,25] E7[21,10]!=E7[3,15]
+E16[28,20,20,6]=E16[1,7,2,11] E16[30,28,10]!=E16[12,10,29] E18[24]!=E18[11] E18[2]=E18[16]
+A3[29]=A2[29] A3[29]!=A5[29] A3[26,4]=A4[26,4] A3[22,18,16,11,7]!=A4[22,18,16,11,7] A14[9]=A14[20]
+A14[18,8]=A14[6,17] A13[30,25,23]=A14[30,25,23] A13[15]!=A14[15] A13[29]!=A15[29] A15[29]=A6[29]
 ```
 
-That is 73 bit relations. On the published pair, 66 hold as printed and 7 do not. We use the reading that matches the
-pair, as #26 did:
-- E7[21,10] = E7[3,15];
+We use the reading that is consistent with the published pair (as in #26):
+- the E7 relations are read as `=`;
 - A14[18,8] != A14[6,17];
-- A15[29] = A16[29], reading "A6" as a misprint;
-- the two equalities W20[4,31] = W20[6,22] are dropped.
+- A15[29] = A16[29], since "A6" is a misprint;
+- the two W20 equalities are dropped.
 
-This leaves **71 two-bit conditions**, and all of them hold on the pair. They are used only to shape the precomputed
-sets P1-P4: those on E4, W7 (P1), E5..E7, A1..A13 (P2), W8 (P3) and A13..A15 (P4). The conditions on W4..W6, W20,
-W22, E16, E18 and A16 are not tested separately online. The exact equality tests of Section 5 take their place, and
-every measured rate of Section 6 was measured with exactly those tests.
+This leaves 71 two-bit conditions. They shape the precomputed sets or the online tests of Section 4; every
+attack-critical test is an exact equality.
+
+**Check against the pair.** Our recomputation of S's Table 3 pair uses the organizer's
+`digest(., 'sha256', 35)` and the public source submission's independent code.
+- CV1 = C_35(IV, M0) = c4369610 c91f70a7 87e430e6 a5e58128 d29cb97b 9ab268d1 8788f401 629f6cb2.
+- The pair's signed differences equal the rows above: 119 n/u symbols and 360 single-bit conditions, with 0
+  mismatches.
+- The 35-step digests are equal and the 32-step digests differ. The pair is not a 32-step collision.
+
+M0 = a8850273 c0f4a504 5d3ad7b5 6e5f5026 535cc256 e92ef7a5 436f70df 7d7e236a cadc14e8 d59ac191 6874f1ba 6b83960d
+f6dfe9de 6a013df2 f856b739 237894e8;
+M1' = c0008214 ae65f3bf e93c006a 5f195aa9 84d6cd0f 25c114ec ca897317 da9fd6ef 6ec97e18 5100da8a 0912e57b a96b2054
+41b22a2c 6d12f88a d2701ecc 140976d1;
+M1 = M1' xor FL(W): words 4..8 are a4d6cd0f 21811cec ea897317 db9ec665 6ec17218, and words 12..13 are 45f2222c 4d12f88a.
 
 ## 3. Truncation to 32 steps
 
-**Lemma 1.** Let CV be any chaining value and let M, M' be second blocks with A[j] = A'[j] and E[j] = E'[j] for
-j = 19, 20, 21, 22 and W[j] = W'[j] for j = 23..31. Then C_32(CV, M) = C_32(CV, M').
+**Lemma 1.** If A[j] = A'[j] and E[j] = E'[j] for j = 19..22, and W[j] = W'[j] for j = 23..31, then
+C_32(CV,M) = C_32(CV,M').
 
-*Proof.* Step j reads A[j-4..j-1], E[j-4..j-1] and W[j]. For j = 23 all of these are equal by hypothesis, so
-A[23] = A'[23] and E[23] = E'[23]. Induction gives equality through step 31. The outputs A[28..31] and E[28..31] are
-equal, and the feed-forward adds the common CV.
+*Proof.* By induction on steps 23..31, every input of each step is equal. The feed-forward adds a common CV.
 
-**Lemma 2.** If M0 is common, M1 != M1' and C_32(C_32(IV, M0), M1) = C_32(C_32(IV, M0), M1'), then M0 || M1 and
-M0 || M1' are distinct 128-byte messages with equal target hashes.
+**Lemma 2.** With a common M0, M1 != M1', equal lengths, and C_32(CV1,M1) = C_32(CV1,M1'), the messages M0||M1 and
+M0||M1' collide.
 
-*Proof.* Both have the same length, hence the same padding block P, and P is compressed from the same chaining value.
+*Proof.* The padding block P is the same, and so is the chaining value entering it.
 
-Rows 19..22 of A and E and rows 23..31 of W are `=` in Fig. 6. A second block that conforms to Fig. 6 through step
-22, and whose schedule conforms in W16..W31, therefore collides after 32 steps. Rows W32..W34 and steps 23..34, which
-the 35-step attack also needs, are not used. The truncation adds no condition. Its only change is that the first block
-is compressed with C_32, so the chaining value CV1 = C_32(IV, M0) is what Step 2 must match. Every matching rate in
-Section 6 was measured with C_32 first blocks.
+Rows 19..22 of A and E, and rows 23..31 of W, are `=` in Fig. 6. So a second block that conforms through step 22
+and in W16..W31 gives a 32-step collision. The 35-step attack's conditions at steps 0..22 and the zero rows W23..W31
+are exactly what is needed. Nothing is added. The rows W32..W34 are unused: W32 = sigma1(W30) + W25 +
+sigma0(W17) + W16, W33 and W34 contain no difference term. The only change is CV1 = C_32(IV, M0), whose rate is
+measured in Section 5.
 
-**Checks (ours, Section 14).**
-- S's Table 3 pair collides under the 35-step hash. Its full 32-step hashes differ, so the pair itself is not a
-  32-step collision.
-- From S's 35-step CV1, the second blocks of that pair give C_32(CV1, M1) = C_32(CV1, M1'). This is Lemma 1 on
-  published data.
-- The public 32-step pair of #227 has equal 32-step hashes (f8a3db11...4e77) and unequal 31-, 35- and 64-step hashes.
-  From CV1 = C_32(IV, M0) its second blocks match every symbol of rows -4..22 above with 0 mismatches, and they have
-  no difference in W23..W31. This instance corroborates the truncation and is not used as our certificate.
+**Certified 32-step collision witness (`certificates/manifest.json` and `experiments/replay.py`).** We include the
+verified 128-byte 32-step colliding message pair (`certificates/message-a.bin`, `certificates/message-b.bin`,
+common 32-step SHA-256 digest `f8a3db111360e5ed2e63041ecfa82b01c95a25882910bc0f21671949296a4e77` under
+`sha256-r32-prefix-v1`) originally produced by this exact truncated route in hash-smash #227 (yudduy; re-costed in #224
+by dariolina). Both messages share `M0 = 04a9b33e 6ea679aa 89f6fb3b f530dfa8 c5828a5e 385388a4 0dbcd14f 77252e33 4fef2ad0 809de1a4 a3b955b6 3a95b0cc 5cadb080 01a17ef2 00000000 801aeced`
+with `CV1 = C_32(IV, M0) = e890c4ba 6bce94e6 47a0b812 c5ef36b2 ec7b7814 91cf09df a9717904 494bc86f`, and their second
+blocks follow every row of Fig. 6 through step 22 and `W0..W31` (0 mismatches), colliding at `states[1] = 79389eeb 882fc938 62f355f8 3ebb8d51 4d0b99ce a01e12ed 7058785b dae69307`
+before the common padding block. In `experiments/replay.py` (`fixed-witness-derivation`), the organizer evaluator
+reconstructs this colliding pair directly from the embedded 112-byte tuple record, exact retained #227 compact-table
+slices, and 48-byte tail record, verifying both the Step-2/Step-3 derivation and the full 32-step collision. The old
+compact table uses 26-bit buckets and 609,229,824 entries; this replay is not evidence for the current 32-bit-bucket table's
+size, build cost, or matching rate below.
 
-## 4. Precomputation
+## 4. Algorithm
 
-**Advice.** These are the unprimed values of S's pair, computed from its 35-step CV1:
+**Advice.** S's Step 1 finds one valid through-step-13 solution, fixes the state/message words below from that
+solution, and builds its TAB2 and published collision pair from it. The scored advice is that exact fixed solution,
+recovered as the unprimed values of the published pair at its 35-step CV1; it is not replaced by another SAT output:
 
 ```
 A4..A13 = 98560dbb 633b16ba 9bcf7bbe f8677ad6 4a299906 44f24ab5 39781650 6422edc8 574542b8 0508c8f0
-E8..E13 = f1cae594 d0e1b7b4 bf27d74c b78bbfd9 3fffd0f9 bf81c0f4
-W12, W13 = 41b22a2c 6d12f88a
+E8..E13 = f1cae594 d0e1b7b4 bf27d74c b78bbfd9 3fffd0f9 bf81c0f4      W12, W13 = 41b22a2c 6d12f88a
 ```
 
-The primed advice words are X XOR FL(X). The advice is the starting solution of S's attack Step 1. Its cost is charged
-in Section 8.
+Primed fixed words are X xor FL(X). fixX(i) means that X_i satisfies its printed single-bit conditions (0, 1,
+n -> 0, u -> 1).
 
-**P1 (single-word lists).**
-- L4 is the set of E4 values with fixE(4) and E4[10] != E4[15]. Row E4 has 18 free bits, so |L4| = 2^17 = 131,072.
-- L7 is the set of W7 values with fixW(7) and its six two-bit conditions. Row W7 has 25 free bits, so
-  |L7| = 2^19 = 524,288.
+**P1.** L4 is every E4 with fixE(4) and E4[10] != E4[15]. L7 is every W7 with fixW(7) and its six two-bit
+conditions.
 
-**P2 (middle combinations).** Enumerate every (E5, E6, E7) with fixE(5), fixE(6), fixE(7). The rows have 5 + 12 + 15
-free bits, so there are 2^32 triples. For each triple:
-- compute A3, A2, A1 from the backward A form at steps 7, 6, 5;
-- compute W9, W10, W11 from the W form at steps 9, 10, 11.
+**P2 (combinations).** For each (E5, E6, E7) with fixE(5..7):
+- compute A3 = E7 - A7 + Sigma0(A6) + MAJ(A6,A5,A4), then A2 and A1 likewise from E6 and E5;
+- compute W9..W11 from the E-equations of steps 9..11.
 
-Keep the triple iff all of these hold:
-- fixA(1), fixA(2), fixA(3);
-- A is XOR-conformant at steps 5..13 and E at steps 9..13, using the primed advice and the primed triple;
-- every two-bit condition among A1..A13, E5..E13 and W9..W13 holds.
+Keep the combination iff all of these hold:
+- fixA(1..3) and fixW(9..11);
+- XOR-conformance of A at steps 5..13 and of E at steps 9..13;
+- the two-bit conditions among A1..A13, E5..E13 and W9..W13.
 
-The kept set has 10,240 combinations. Each one stores (E5, E6, E7, A1, A2, A3, W9, W10, W11).
+**P3 (TAB2).**
+- E4 loop. For each combination and each E4 in L4, compute A0 = E4 - A4 + Sigma0(A3) + MAJ(A3,A2,A1) and
+  W8 = E8 - A4 - E4 - Sigma1(E7) - IF(E7,E6,E5) - K8. Require fixW(8), fixA(0), XOR-conformance at A4 and E8, and the
+  new two-bit conditions.
+- W7 loop. For each W7 in L7, compute E3 = E7 - A3 - W7 - Sigma1(E6) - IF(E6,E5,E4) - K7 and
+  A[-1] = E3 - A3 + Sigma0(A2) + MAJ(A2,A1,A0). Require fixE(3), fixA(-1), XOR-conformance at A3 and E7, and
+  sigma0(W8') + W7' = sigma0(W8) + W7 (zero W23 difference).
+- Storage. A record is 64 bytes (v10c; 16 in ed55a9d7): one 256-bit record word of eight precomputed 32-bit
+  fields, then the old 16 bytes (A[-1] and three indices) and 16 bytes of padding. Records sit in one array bucketed
+  by all 32 bits of A[-1]. A counting pass gives the offsets, and a placing pass fills the array in place. After the
+  final check each bucket's occupancy and offset are copied into one 64-bit cell, four cells per 256-bit word; the
+  main loop reads only the cells.
+- Record word (v10c). With `a = A[-1]`, the record's key, field i occupies bits 32i..32i+31 (all mod 2^32):
+  `R1 = A1 - Sigma0(A0) - (A0 & a)`, `Q1 = A0 xor a`, `R2 = A2 - Sigma0(A1) - MAJ(A1,A0,a)`, `E3`,
+  `R4 = E4 - 2 A0 + Sigma0(a) - Sigma1(E3) - K4`, `R5 = E5 - A1 - Sigma1(E4) - (E4 & E3) - K5`, `N4 = not E4`,
+  `R6 = E6 - A2 - Sigma1(E5) - IF(E5,E4,E3) - K6`. Each is a function of the record alone.
 
-**P3 (table TAB2).**
-- *E4 loop.* For each combination and each E4 in L4:
-  - A0 = E4 - A4 + Sigma0(A3) + MAJ(A3, A2, A1);
-  - W8 = E8 - A4 - E4 - Sigma1(E7) - IF(E7, E6, E5) - K[8].
+**P4 ((W14, W15) list).**
+- Enumerate E14 with fixE(14). Compute A14 = E14 - A10 + Sigma0(A13) + MAJ(A13,A12,A11), and keep it if fixA(14) and
+  its two-bit conditions with A13 hold.
+- Then enumerate E15 with fixE(15). Keep it if fixA(15), A13[29] != A15[29], and XOR-conformance at steps 14 and 15
+  hold.
+- W14 and W15 follow from the E-equations.
 
-  Keep the pair iff fixA(0) and fixW(8) hold, A is XOR-conformant at step 4 and E at step 8, and the nine two-bit
-  conditions on W8 hold. The A2..A5 relations were already enforced in P2. There are 155,008 kept pairs.
-- *W7 loop.* For each kept pair and each W7 in L7:
-  - E3 = E7 - A3 - W7 - Sigma1(E6) - IF(E6, E5, E4) - K[7];
-  - A[-1] = E3 - A3 + Sigma0(A2) + MAJ(A2, A1, A0).
+**Main loop.** T trials and a work cap W_cap (Section 8). In each trial:
+1. Draw M0 as 16 fresh uniform words and compute CV1 = C_32(IV, M0), seven trials per SWAR batch (Section 8 A). The
+   batch extracts only `CV1[0]` of each lane. If the bucket of `CV1[0]` is nonempty, the trial then extracts
+   `CV1[1..3]` of its lane from the batch's stored feed-forward vectors and forms `k0 = A[-4] - MAJ(A[-1],A[-2],A[-3])`
+   (v10c; ed55a9d7 extracted `CV1[1..7]` here); an empty bucket ends the trial without them.
+2. **Step 2.** Scan the bucket of CV1[0]. For each record with A[-1] = CV1[0]:
+   - compute E0..E2 from the A-equations (A[-4..-1] from CV1) and W0..W6 from the E-equations;
+   - accept, aborting early in this order, iff:
+     - (a) W4 has its sign value;
+     - (b) sigma0(W4') + W12' = sigma0(W4) + W12;
+     - (c) W5 has its three sign values;
+     - (d) W6 has its sign value;
+     - (e) E is XOR-conformant at steps 0..6 and A at steps 0..2;
+     - (f) sigma0(W6') + W5' = sigma0(W6) + W5;
+     - (g) (W13' - W13) + (sigma0(W5') - sigma0(W5)) + (W4' - W4) = D(W20).
 
-  Keep the record iff fixE(3) holds, A is XOR-conformant at step 3 and E at step 7, and
-  sigma0(W8') + W7' = sigma0(W8) + W7. That last equality is what makes W23 difference-free.
-- *Storage.* A record is 16 bytes: the key A[-1] and the three indices (combination, pair, W7). Records are bucketed by
-  the top 27 bits of the key. A counting pass fills 2^27 + 1 offsets of 4 bytes, and a second pass places the records.
-  No sorting is needed. N = |TAB2| = 1,396,774,912 = 2^30.3795.
+   **Relaxed tests (v11; Section 5.2).** The algorithm sets `W4' = W4 + D4`, `W5' = W5 + D5` and `W6' = W6 + D6`
+   (mod 2^32; `D4 = D6 = 0x20000000` and `D5 = 0xfbc00800`, the modular differences of the signed rows), keeps
+   `W' = W xor FL(W)` for words 7, 8, 12 and 13, and drops the sign tests (a), (c) and (d). Tests (b), (g) and (f)
+   with these W' are (b') `sigma0(W4') - sigma0(W4) = 0xfbc00800` (`= W12 - W12'`), (g') `sigma0(W5') - sigma0(W5) =
+   0x017f8000` (`= D(W20) - (W13' - W13) - D4`) and (f') `sigma0(W6') - sigma0(W6) = 0x043ff800` (`= -D5`). They are
+   tested in the order (b'), (g') right after W5, (f') right after W6, then (e), unchanged, on the modular W'. A word
+   with the printed signs has `W + D = W xor FL(W)`, so every valid tuple of the tests above is a relaxed valid tuple.
+   (v13) For (b') and (f'), `D = 2^29`, and `sigma0(x + D)` is read as `sigma0(x)` xor one entry of a 16-entry table
+   (Section 8 B).
 
-**P4 (second-block tail list).**
-- Enumerate E14 with fixE(14) (8 free bits) and set A14 = E14 - A10 + Sigma0(A13) + MAJ(A13, A12, A11). Keep it iff
-  fixA(14) holds and the two-bit conditions involving A14 hold (A14 with itself, and A13 with A14).
-- For each kept E14, enumerate E15 with fixE(15) (15 free bits) and set A15 = E15 - A11 + Sigma0(A14) +
-  MAJ(A14, A13, A12). Keep it iff fixA(15) holds, A13[29] != A15[29], and both A and E are XOR-conformant at
-  steps 14 and 15.
-- W14 and W15 then follow from the W form. Each entry stores W14, W15, sigma1(W14), sigma1(W15) and the step-16
-  constants of both sides, which depend only on the advice and the entry.
-- |P4| = 196,608 = 12 * 2^14 = 2^17.585.
+   **Evaluation from the record word (v10c).** `MAJ(x,y,z) = (x & y) + (z & (x xor y))` and
+   `IF(x,y,z) = (x & y) + (not x & z)`, the two terms having disjoint bits. With `A[-2]`, `A[-3]` from CV1 and `k0`
+   from item 1, the A- and E-equations give, mod 2^32,
+   `E1 = R1 + A[-3] - (A[-2] & Q1)`, `E2 = R2 + A[-2]`, `W4 = R4 - k0 - IF(E3,E2,E1)`, `W5 = R5 - E1 - (N4 & E2)` and
+   `W6 = R6 - E2` (for W4, `E0 = A0 + k0 - Sigma0(A[-1])`). In v10c, tests (a)..(d) were evaluated from these in four
+   tranches and a record passing (d) ran ed55a9d7's Step 2 in full. In v11 (Section 8 B) the tranches are: E1, E2, W4
+   and (b') for every record; W5 and (g') after a (b') pass; W6 and (f') after a (g') pass; then ed55a9d7's Step 2 for
+   that record (its extraction of `CV1[1..7]`, the decoding of the tuple, W0..W6 and the primed steps 0..6 for test
+   (e)) with the sign tests removed and `W' = W + D` for words 4..6, its internal cap checks covered by one check for
+   the whole tranche.
+3. **Step 3.** Subject to the cap checks in item 4, the algorithm evaluates valid tuples in fixed scan order. For each
+   valid tuple, spend at most 128 of the 300 setup operations computing the common
+   `c16 = W9 + sigma0(W1) + W0`, `c17 = W10 + sigma0(W2) + W1`, and the twelve cached
+   `W16 = c16 + sigma1(W14)` values, one for each W14 group; the remaining 172 setup operations cover tuple/P4
+   administration. For each P4 entry, set M1 = W0..W15 and
+   M1' = M1 xor FL(W) (v11: `W' = W + D` for words 4..6, Section 2's modular differences). For i = 16..31,
+   with early abort:
+   - require W'[i] = W[i] xor FL(W[i]) and the sign values of W20 and W22 (v11: replaced by the relaxed tests below);
+   - for i <= 22, also require XOR-conformance of A[i] and E[i]. Steps 14-15 depend only on the advice and the P4
+     entry, so each P4 row stores W14, W15, their two `sigma1` values, the four offsets `E16-W16`,
+     `E16'-W16`, `A16-E16`, `A16'-E16'`, and the four unprimed states A14, A15, E14, E15: twelve 32-bit words,
+     built in P4 and charged in C. The primed step-14/15 states follow by XOR with their fixed difference masks.
+     Since W0, W1, W2, W9, W10, W14 and W15 have zero difference, the W16 and W17 row equalities are automatic.
+     Stage 16 loads the cached common W16 and forms both E16/A16 branches with four modular additions before the
+     two cross-branch A/E tests. A candidate
+     that fails stage 16 stops before stage 17, and one that fails stage 17 stops before stages 18..31.
+   If everything passes, recompute both full 3-block 32-step digests. If they are equal, output the pair and stop.
 
-Steps 14-15 involve only advice words and the P4 entry, which is why P4 is shared by all tuples.
+   **Relaxed tests (v11; Section 5.2).** Stages 16 and 17, including the seven-lane sweep, are unchanged: the E16
+   pattern, `A17' = A17` and `E17' = E17`. From stage 18 the scalar re-run requires only `A18' = A18` at stage 18 and
+   equal A and E at stages 19..22, with no pattern or sign test on W20 or W22 (their differences follow from the
+   schedule), and then `dW24 = dW29 = 0`. Dropping tests only removes work from the scalar re-run, whose envelope
+   already charges every stage through 31 for every stage-17 survivor.
 
-## 5. Online phase
+   **Stages 16 and 17 in 7 lanes (f807117b, Section 8.3).** The decisions of stages 16 and 17 are computed for
+   seven P4 candidates at once from a lane-packed copy of P4 built in C, using the exact reductions R1 and R2 of
+   Section 8.3. A candidate that passes stage 17 is handed, with its index, to the scalar code above, which re-runs
+   stages 16..31 for it unchanged. The set of candidates that reach stage 18, and hence the output, is exactly the
+   set the scalar sweep reaches.
+4. Once the bucket length is known, the fixed per-trial work reserves the whole `5 * occupancy` scan envelope, plus
+   the 21-operation extraction of item 1 if the bucket is nonempty (v13; 22 in v10c and v11; ed55a9d7: 56), with one cap check, rather than checking
+   each record. Before every later Step-2 tranche, tuple setup or Step-3 tranche,
+   the algorithm checks whether the advertised envelope would exceed W_cap. A successful check is included in the
+   envelope it authorizes; if a check fails, the algorithm stops before that tranche and charges the one final
+   rejected check separately as at most eight operations. The work performed therefore never exceeds W_cap (v10c's
+   record-word tranches advance the counter before comparing, so after a rejected check the counter, but not the work,
+   may exceed it). It also stops
+   after T trials.
 
-### 5.1 Parameters
+Every output is verified by recomputation, so correctness is unconditional.
 
-T = ceil(2^44.9) = 32,828,179,945,388 trials, and a counter cap W_cap = 400 T counted operations. Nothing is
-restarted.
+## 5. Measured attack rates (public source submission's C code, fresh seeds)
 
-### 5.2 One trial
+This section reports participant runs on an i5-14400F with gcc -O3. The predicates are those of Section 4.
 
-1. **Fresh first block.** Draw two fresh uniform 256-bit words and cut them into 16 message words. That gives M0, and
-   CV1 = C_32(IV, M0).
-2. **Step 2 (match).** Let b be the top 27 bits of CV1[0], with A[-1..-4] = CV1[0..3] and E[-1..-4] = CV1[4..7].
-   Scan bucket b. For each record whose key equals CV1[0]:
-   - decode the combination, the pair and W7, and recompute E3;
-   - compute E0, E1, E2 from the forward E form at i = 0, 1, 2;
-   - compute W0..W6 from the W form at steps 0..6. All inputs are now known: E3 and E4 come from the record. The
-     words are computed lazily, in the order the tests need them: W4, then W5, then W6, then W0..W3. Section 5.4
-     charges them in that order.
+**Exact counts.** Every count equals the corresponding count in #26:
+- L4 = 131,072 and L7 = 524,288;
+- combinations = 10,240 of 2^32;
+- (combination, E4) pairs = 155,008;
+- N = |TAB2| = 1,396,774,912 ≈ 2^30.3795;
+- P4 = 196,608 = 12 * 2^14 ≈ 2^17.585.
 
-   Accept the record iff the following tests pass, aborting at the first failure in this order:
-   - (a) sign(W, 4) holds;
-   - (b) sigma0(W4') + W12' = sigma0(W4) + W12, so that W19 has no difference;
-   - (c) sign(W, 5) holds;
-   - (d) sign(W, 6) holds;
-   - (e) E is XOR-conformant at steps 0..6 and A at steps 0..2, from the common CV1 with primed W0..W6;
-   - (f) sigma0(W6') + W5' = sigma0(W6) + W5, so that W21 has no difference;
-   - (g) (W13' - W13) + (sigma0(W5') - sigma0(W5)) + (W4' - W4) = D(W20), so that W20 receives its signed difference.
+The 2^27-bucket layout has mean occupancy 10.41 and **maximum occupancy 936**. The A[-1] values repeat. The 2^32-bucket
+layout of d8d39011 (Section 4, P3) refines it: every 32-bit bucket lies inside one 27-bit bucket, so its maximum
+occupancy is also at most 936, and its mean over a uniform key is exactly N / 2^32 = 0.325212. Splitting
+TAB2 into four parts by combination index mod 4, the sum over parts of sum_v c_v^2 (c_v = multiplicity of value v)
+is 5.758e9.
 
-   An accepted record is a valid tuple. It fixes W0..W13 and the state through step 13 on both sides.
-3. **Step 3 (tail).** For each valid tuple and each P4 entry, set M1 = (W0, ..., W15) and M1' = M1 XOR FL(W). Then
-   for i = 16, ..., 31, aborting early:
-   - require W'[i] = W[i] XOR FL(W[i]), and sign(W, i) for i = 20 and 22;
-   - for i <= 22, also require XOR-conformance of A and E at step i.
+**Self-test.** The published tuple is in TAB2, and with its 35-step CV1 it passes Step 2, reproducing
+W0..W6 = M1'[0..6]. Its (W14, W15) is in P4. Exactly 1 of its 196,608 Step-3 candidates, the published one, passes
+every stage.
 
-   Stage 16 needs only one schedule addition and one E step per side, using the stored per-entry constants.
+**Analytic q.** For a fixed tuple, the CV1 words b, c, d make E2, E1, E0 successively uniform. So W4 and W5 are
+uniform, and W6 = Y_t - E2 with Y_t = E6 - A2 - Sigma1(E5) - IF(E5,E4,E3) - K6.
+Tests (a), (b), (c), (f), (g) pass with probability 1/2, 1/8, 1/8, 1/8, 1/8; step-6 conformance is a property of
+the tuple and step-5 conformance depends only on E2[29].
 
-### 5.3 Output and stopping
+Exact enumeration of TAB2 (#26's method, re-implemented): 609,229,824 tuples pass the step-6 test, and
+sum_t Pr[E2[29] = e*(t), W6[29] = 0] = 214,235,406.9. So q_pred = 2^-45 * 214,235,406.9 = 2^-17.3254.
 
-If a candidate passes stage 31, the algorithm computes both complete three-block 32-step hashes: 6 compressions and
-an 8-word comparison. If they are equal, it returns the pair and halts. If they are not equal, it halts with failure;
-Lemmas 1-2 rule this out, so the rule costs no probability and bounds the verification work. The run also halts with
-failure after T trials, or as soon as the counter would exceed W_cap.
+**Measured q.** Four runs, one per table part, each with 2^32 C_32 first blocks (seeds 2026001..4; #26 used other
+seeds):
 
-### 5.4 Counter charges
+```
+part   matches       valid   predicted
+0      346,111,249   6,259   6,269.6
+1      274,971,829   5,250   5,405.5
+2      366,391,076   6,352   6,341.6
+3      409,252,134   8,075   8,135.2
+```
 
-Before each data-dependent action, the counter is increased by an upper bound on that action's primitive operations.
-If the new value would exceed W_cap, the run halts before acting. Counted work is therefore at most W_cap on every
-coin sequence. The counter's own add, compare and branch are included in each charge.
+q (sum of per-part rates) = 2^-17.3373 (rel. sd 0.62%), **99% LCB 2^-17.3583236**, UCB 2^-17.3166. Matches per trial
+0.32520; the table-cardinality upper bound used for work is N/2^32 = 0.3252120018... < 0.32522. Pass fractions (a)..(g): 0.5000, 0.1250, 0.1250, 0.4999, 0.3065, 0.1249, 0.1241
+(predicted 1/2, 1/8, 1/8, 1/2, 0.3068, 1/8, 1/8). Two valid tuples in one part: 9 of 2^34 part-trials. #26's runs:
+2^-17.3337; #227's campaign counts: 14,643,237 tuples / 2.405e12 first blocks = 2^-17.326.
 
-Operation prices used for the charges: a load, store, add, logic operation, shift, compare or branch is 1 operation. A
-32-bit rotation inside a 256-bit word is 4 (two shifts, an OR, a mask). Sigma0 and Sigma1 are 14, sigma0 and sigma1
-are 11, IF is 4 and MAJ is 5. A mod-2^32 sum of several terms is one add per term plus one mask.
+The pooled estimate sums the four part rates, so `q_hat = 25,936 / 2^32`. Treating the four rare-event counts as
+independent Poisson counts, the one-sided normal 99% LCB is
+`(25,936 - 2.32635 sqrt(25,936)) / 2^32 = 2^-17.3583236`. We round downward and declare **q >= 2^-17.3584**.
+This confidence construction and the CV1-uniformity assumption are part of the declared `q-32step-matching-rate` premise.
 
-| Action | Charge (ops) | Content, with an upper count |
+**Step-3 stage rates.** The 25,936 valid tuples are accepted TAB2 record occurrences pooled across the campaign;
+repeated logical values at different record positions count as separate occurrences. Thus 25,936 * 196,608 ≈
+2^32.248 candidates. Cumulative passes: st16 2^-3.000, st17 2^-15.000 (155,619), st18
+2^-21.03 (2,379), st19 2^-27.79 (22), st20 2^-29.93 (5), st21 2^-32.25 (1), st22 0.
+The exact measured stage-17 fraction is
+`155,619 / (25,936 * 196,608) = 2^-14.999972...`; the time bound uses the larger upper envelopes
+`f16 <= 0.126` and `f17 <= 2^-14.9`. This transfer of the participant campaign to the scored early-abort work is part of the declared
+`attack-work-moments` premise.
+
+The condition count predicts 2^-3, -15, -21, -28, -32, -33. The mapping:
+- step 17 consumes E16's conditions;
+- step 18 conforms iff E18[29] = 1, because IF(E17,E16,E15) absorbs the other differences;
+- step 19 needs the unprinted E16[29] = E17[29], which the pair satisfies;
+- step 20 needs W20's signs and E19[29] = 0, since D(E16) + D(W20) = 0;
+- step 21 needs E20[29] = 1;
+- the remaining 9 W20 and 4 W22 carry conditions are tested at stage 22 and in W23..W31.
+
+That is 45 printed conditions + 1 = 46. Earlier packages of this line declared that count as the premise
+`step3-46-conditions` and charged `p >= 2^-46`. The count includes the printed relation `W20[4,31] = W20[6,22]`, which
+our reading of Section 2 drops as a misprint. Section 5.1 removes it from the count, which gives 44, and confirms the
+corrected count directly by measurement.
+
+### 5.1 The corrected condition count, confirmed by measurement (this version)
+
+**The relation the route does not require.** The printed relation `W20[4,31] = W20[6,22]` means `W20[4] = W20[6]`
+and `W20[31] = W20[22]`. Section 2 reads it as a misprint; what matters here is that the 32-step route does not require
+it.
+- **The published pair violates both.** In S's 35-step pair, `W20 = 0xe238ad6c` and `W20' = 0xe3b82d6c`. Both words
+  have bit 4 = 0, bit 6 = 1, bit 31 = 1 and bit 22 = 0, since `FL(W20)` touches only bits 24, 23 and 15. So
+  `W20[4] != W20[6]` and `W20[31] != W20[22]`, which is why Section 2 drops the relation. The certified #227 pair
+  (Section 3) happens to satisfy both: `W20 = 0xd260bf0c`, bits 4, 6, 31, 22 = 0, 0, 1, 1. One collision on each side
+  is what a relation that is not required looks like. The printed W22 relations with the same indices,
+  `W22[4,31] = W22[6,22]`, are required, because W22 carries a bit-29 difference. W20 carries none at bit 29, which
+  suggests the W20 copy is a transcription slip.
+- **The algorithm never tests them.** Step 3 (Section 4, item 3) states its tests exactly: "require `W'[i] = W[i] xor
+  FL(W[i])` and the sign values of W20 and W22; for i <= 22, also require XOR-conformance of A[i] and E[i]". The sign
+  values of W20 are its bits at the `n`/`u` positions 24, 23 and 15, and `FL(W20)` has only those bits. No test reads
+  bits 4, 6, 22 or 31 of W20 as a relation. The seven-lane sweep of Section 8.3 tests only stages 16 and 17, and the
+  stage-17 survivors re-run those same scalar tests. So the algorithm's success event does not contain the relation.
+- **No step needs them**, by the algebra below. Among 2,132 sampled full passes (below), 1,065 violate
+  `W20[4] = W20[6]` and 1,036 violate `W20[31] = W20[22]`; each holds at 0.5005 and 0.5141. The campaign's end-to-end
+  passes are second-block collisions from constructed chaining values, so no complete-message certificate of a
+  violating 32-step collision is supplied.
+
+Removing them leaves **44 conditions**: 3, 12, 6, 7, 4, 1, 8 and 3 at stages 16, 17, 18, 19, 20, 21, 22 and 23..31.
+Each is a one-bit test, so the corrected count predicts `2^-44` per candidate.
+
+**Algebra of stages 20..31.** After stage 20, `W20' = W20 xor FL(W20)` with `FL(W20) = 0x01808000` and the three W20
+signs fixed. `sigma1` is XOR-linear, so `sigma1(W20') xor sigma1(W20) = sigma1(0x01808000)`, which has exactly the
+seven bits {30, 28, 14, 13, 7, 6, 4}. Stage 22 needs `W22' - W22 = 2^29` with `W22[29] = 0`. Since
+`W22' - W22 = (sigma1(W20') - sigma1(W20)) + (c22' - c22)`, the signs of those seven bits are forced.
+`c22' - c22 = s0(W7') - s0(W7) + (W6' - W6) = 0x30005fd0 + 2^29 = 0x50005fd0` for every tuple: `fix(W,7)` and L7's
+relations fix every bit on which `s0`'s difference depends (checked over all 524,288 entries of L7), and test (d) fixes
+W6's sign. The required difference is then `0xcfffa030`, as on S's pair. These are seven conditions on
+`sigma1(W20)`, whose bits are
+`W20[15]^W20[17]`, `W20[13]^W20[15]`, `W20[31]^W20[1]^W20[24]`, `W20[30]^W20[0]^W20[23]`, `W20[24]^W20[26]^W20[17]`,
+`W20[23]^W20[25]^W20[16]` and `W20[21]^W20[23]^W20[14]`. Given the stage-20 signs, they are exactly the printed
+conditions `W20[17] = 0`, `W20[13] = 1`, `W20[26] = 0` and `W20[31,30,25,21] != W20[1,0,16,14]`. With `W22[29] = 0`,
+stage 22 has 8 conditions. Next, `sigma1(W22') xor sigma1(W22)` has exactly the bits {19, 12, 10}. W24 needs
+`sigma1(W22') - sigma1(W22) = -dW8 = 2^19 + 2^12 - 2^10`, i.e. `sigma1(W22)` bits 19, 12, 10 = 0, 0, 1. These are the
+three printed W22 relations `W22[4] = W22[6]`, `W22[31] = W22[22]` and `W22[27] != W22[20]`. W29 then holds
+automatically, because `W22' - W22 = 2^29 = -dW13`. The misprinted W20 equalities occur in none of these conditions.
+
+**Direct confirmation: what is measured.** For a valid tuple `J` drawn from the pooled accepted record occurrences of
+fresh trials (the occurrence-weighted distribution of Section 7), let `Y` be its number of P4 candidates that pass
+stages 16..31. The estimand is `p = E[Y]/196,608`, averaged over that tuple distribution, the 196,608 candidates and the
+law of W16..W19. A valid tuple of record `r` arises with probability proportional to its validity weight
+`w_r = Pr[r valid | CV1[0] = key(r)]`, so `p = sum_r w_r p_r / sum_r w_r`.
+
+**Reduction to a simulator (proved, given `cv1-conditional-uniformity`; from our earlier package).**
+- (a) *Validity reads only `CV1[0..3]`.* Step 2 computes, for a record `r`, `E_i = A[i-4] + A_i - Sigma0(A[i-1]) -
+  MAJ(A[i-1], A[i-2], A[i-3])` for `i = 0, 1, 2` and `W_i = E_i - A[i-4] - E[i-4] - Sigma1(E[i-1]) -
+  IF(E[i-1], E[i-2], E[i-3]) - K_i` for `i = 0..6`. Tests (a)-(g) read W4..W6, which read CV1 only through E0..E2,
+  which read only `A[-1..-4] = CV1[0..3]`.
+- (b) *W0..W3 are a triangular bijection of `CV1[4..7]`* given `CV1[0..3]` and the record: `W3 = d3 - E[-1]`,
+  `W2 = d2(E[-1]) - E[-2]`, `W1 = d1(E[-1], E[-2]) - E[-3]`, `W0 = d0(E[-1], E[-2], E[-3]) - E[-4]`. Under
+  `cv1-conditional-uniformity`, `(W0..W3)` is uniform and independent of every Step-2 event of the trial and of the
+  tuple's W4..W15.
+- (c) *W16..W19* = `(s1(W14) + W9 + s0(W1) + W0, s1(W15) + W10 + s0(W2) + W1, s1(W16) + W11 + s0(W3) + W2,
+  s1(W17) + W12 + s0(W4) + W3)` is again a triangular bijection of `(W0..W3)`, so W16..W19 are uniform and independent
+  of those events, and they carry no difference. Steps 16..19 read only the advice, the P4 candidate and W16..W19.
+- (d) *Stages 20..31.* From step 20 on the tuple enters only through `c20 = W13 + s0(W5) + W4`,
+  `c20' = c20 + D(W20)`, `c22 = s0(W7) + W6`, `c22'` and the fixed differences `dW8` (record) and `dW13` (advice).
+  `c21` adds equally to both branches. W23 has no difference by the P3 condition, and W25, W26, W30 and W31 have none
+  once the earlier ones vanish. The differences of W27 and W28 are the advice constants `D(W20) + s0(W12') - s0(W12)` and
+  `s0(W13') - s0(W13) + W12' - W12`, both 0 (checked). So stages 20..31 are: the W20 XOR and sign test, XOR-conformance
+  at steps 20, 21 and 22, the W22 XOR and sign test, `s1(W22') - s1(W22) + dW8 = 0` (W24) and `(W22' - W22) + dW13 = 0`
+  (W29).
+
+**Simulator (`condexp.c`, unchanged from our earlier package; Appendix F).** It rebuilds the real two-sided second
+block from the advice and the real P4 list (`secondblock.py`, `mkparams.py`: 196,608 rows, S's row among them). Each
+history draws a uniform P4 candidate and a uniform W16. Each stage-16 survivor tries 1024 uniform W17 values, each
+stage-17 survivor 64 uniform W18 values and each stage-18 survivor one uniform W19, so every history through step 19
+carries the weight 1/65,536. For every tuple-constant vector
+`(c20, c20', c21, c22, c22', dW8, dW13)` it counts the histories that pass stages 20..31 by (d). The rate of a vector
+is its all-pass count over `n16 * 65,536`.
+
+**Campaign (pre-registered before any run; `PREREGISTRATION.md`, sha256 8d3ffe66...; Appendix F).**
+- **Table and coverage.** The real TAB2 was rebuilt exactly (`table.py`, `slices.py`: N = 1,396,774,912). Eight key
+  slices (top key byte 0x00, 0x20, ..., 0xe0) hold 44,597,904 records, and a `2^-10` Bernoulli sub-sample of them has
+  43,528. Records were taken in uniform order until 700 had nonzero validity weight: 1,573 were examined,
+  55.5% with weight 0, and all stay in the estimator. Class sizes of the examined records against the population:
+  1: 6.4% (population 6.2%), 2: 8.6% (10.2%), 3-4: 28.9% (27.7%), 5-8: 24.5% (25.8%), >= 9: 31.6% (30.1%).
+- **Weights.** `w_r` is the fraction of a pool of `2^20` (W4, W5, W6) triples, valid for tests (a)-(d), (f) and (g),
+  that passes `r`'s test (e). Nonzero weights lie in 0.302..0.964.
+- **Tuples and runs.** 2 tuples per nonzero-weight record give 1,400 vectors. 30 batches of `n16 = 10^10` histories
+  gave 73,231,079 histories through step 19 and about 1,117 passes per vector.
+- **Estimator.** `p_occ = sum_r w_r p_r / sum_r w_r` over every examined record. The uncertainty combines batches and
+  records (linearised). The 99% bounds are the outer of the `t` (0.995, 29 df) and two-way bootstrap bounds. This pooled,
+  occurrence-weighted interval is the only quantity used; no maximum over vectors or records enters any bound.
+- **Heterogeneity** (Bonferroni at family alpha 0.01): none at alpha 0.01. Vectors X^2 = 1441.6 on 1399 df (p = 0.21); records X^2 = 730.0 on 699 df (p = 0.20); independent even/odd batch halves correlate at 0.021 (vectors) and 0.030 (records), with between-record SD about 0.5% of p; every slice, class-size and weight-half group ratio lies in [0.9963, 1.0049] (largest |z| 2.09 against 3.40); the largest single-record |z| is 3.37 against 4.34. Weight-uniform over occurrence-weighted is 1.0001, and E[p_J^2]/p^2 <= 1.0044 (99%).
+- **Co-pass** (`copass.c`, an independent replication with its own seeds): 520,582 full-pass events. Given a pass, 9 of 8.53e9 other candidates of the same W14 group also passed and none of 9.38e10 in other groups; the expected number of other passing candidates is 1.73e-5, with 99% upper bound U = 3.61e-5 = 2^-14.76. The replication rate is 2^-44.0029 (z = -1.12 against the primary). With `U` the 99% upper
+  bound on the expected number of other passing candidates of the same tuple given that one passes,
+  `E[C(Y_J, 2)] = E[Y_J] c / 2 <= E[Y_J] U / 2`. Candidates of one W14 group share W16, W18 and W20 and co-pass far more
+  often than independence predicts, so the bound uses the measured `U` and no independence formula. `U` pools pass
+  events over vectors with equal weight rather than by `w_r`; the vector and record homogeneity tests support this.
+- **End-to-end.** 200 of 200 dumped full passes were completed into second-block collisions in reference SHA-256: from
+  the chaining value derived from the record and tuple, the two second-block compressions agree over all 32 steps,
+  with every fixed word matching. The first block that would map the IV to that chaining value is not constructed;
+  the complete-message witness is the certificate of Section 3.
+
+**Results.** Through step 19 the rate is `2^-28.0002` and stages 20..31 pass at `2^-16.0002`
+(20|19 = 2^-4.0003, 21|20 = 2^-1.0000, 22|21 = 2^-7.9994, 23..31|22 = 2^-3.0005). The per-stage exponents from all 30 batches are 3.0000, 11.9998, 6.0001, 7.0003, 4.0003,
+1.0000, 7.9993 and 3.0005, which equal the corrected counts 3, 12, 6, 7, 4, 1, 8 and 3. Per candidate through stage 31,
+**`p = 2^-44.0004`**, with 99% interval **`[2^-44.0055, 2^-43.9954]`** (relative SE 0.109%). The co-pass bound is `U = 0.0000361053`. In
+sampled survivors each counted condition is enforced from its stage on and holds at 0.5 before it (largest deviation
+z = 2.78 among 197); the misprinted equalities hold at 0.50 even in full passes. The success bound of Section 7
+charges the measured lower bound `p_L = 2^-44.0055`, which is slightly below the corrected count's `2^-44`.
+
+**Organizer replay.** An organizer replay of this rate is not feasible within the executor's limits (20 s of Python,
+64 KiB of source, 16 observations per trial). A single through-19 history costs about `2^28` candidate steps, and
+stages 20..31 then pass at about `2^-16`. We did not embed participant-generated histories, because the organizer could
+not verify how they were selected. The certified pair (Section 3) passes every counted condition. The campaign
+remains a participant measurement; its scripts are in Appendix F with sha256 lines.
+
+### 5.2 Relaxed conditions (this version, v11)
+
+The characteristic's conditions are sufficient for the 32-step collision, and some are not necessary. This version
+replaces each unnecessary one by the weakest condition that still gives the collision. Every gain below is an exact
+count or a participant measurement on the real data. Every pass of the Step-3 run was rebuilt into a second-block
+pair from its derived chaining value and checked in reference SHA-256. The tools are in Appendix H.
+
+**What the collision needs.**
+- **Step 3.** The collision needs equal states after step 22 and `dW24 = dW29 = 0`. W23, W25..W28, W30 and W31
+  carry no difference; a state difference after step 22 could not be cancelled within the remaining nine steps; and a
+  nonzero dW24 or dW29 enters A and E with no later message word to cancel it. Since the later A words are equal,
+  `dA22 = -dA18` and `dA21 = -dA17`, so `A17' = A17` and `A18' = A18` are necessary, and `A18' = A18` is all that
+  stage 18 needs. The characteristic adds the XOR patterns of E16 and E18, `dE17 = 0`, and the XOR patterns and signs
+  of W20 and W22. Rows 19..22 are `=`, so equality there is already the weakest requirement.
+- **Step 2.** Tests (b), (g) and (f) are the cancellations `dW19 = 0`, `dW20 = D(W20)` and `dW21 = 0`. They are
+  necessary: W19 reaches W26 and W21 reaches W28 directly, and dW20 must cancel dE16 at step 20. The sign tests (a),
+  (c) and (d) only force `W' = W xor FL(W)`. Steps 4..6 see W' only through `W + D`, so with `W' = W + D` the sign
+  tests can go. The alternative carry patterns then have to meet the same cancellations.
+
+**Tests charged.** Step 2 as in Section 4: (b'), (g') right after W5, (f') right after W6, then (e). Step 3: stages 16
+and 17 unchanged (E16 pattern, `dE17 = 0`); stage 18 only `A18' = A18`; stages 19..22 equal A and E, with no W20 or
+W22 pattern or sign test; then `dW24 = dW29 = 0`. The optional stage-16 relaxation (dropping the E16 pattern, a
+further 1.6%) is not used.
+
+**Step-2 gain.** These are exact counts over all 2^32 values of each word (`wrelax.c`):
+
+| word | characteristic (signs and test) | relaxed | gain |
+|---|---:|---:|---:|
+| W4 | 268,435,456 | 287,309,824 | 1.0703125 |
+| W5 | 67,108,864 | 68,157,440 | 1.015625 |
+| W6 | 268,435,456 | 287,309,824 | 1.0703125 |
+
+The product is 1.163468. Test (e) couples to W6's carry pattern: `W6 = Y - E2` makes E2, and so the step-5 IF,
+depend on it. `step2relax.py` measures the coupling on the 1,573 uniform records of the Section 5.1 campaign, against a
+pool of 2^20 triples drawn from the relaxed word sets:
+- test-(e) acceptance is 0.29752 for all relaxed entries and 0.30882 for characteristic ones;
+- the ratio is 0.9634, with a 99% bootstrap interval of 0.9608-0.9663 (2,000 replicates over records).
+
+The q gain is therefore 1.1209, with 99% interval 1.1179-1.1243. Records that were never valid stay never valid (700
+are valid either way).
+
+**Step-3 gain.** `relax.c` keeps only the necessary tests and classifies every pass by the characteristic patterns it
+follows. It uses `condexp.c`'s sampling (Section 5.1): 10 batches of 10^10 entry draws with M17 = 1,024 and M18 = 64,
+6.55e15 histories in all. The 1,400 vectors are 2 characteristic and 2 Step-2-relaxed tuples from each of 350 uniform
+TAB2 records.
+- **Characteristic tuples.** The characteristic-class rate is 2^-44.0025, reproducing Section 5.1's 2^-44.0004. With
+  the relaxed set the rate rises by 1.1655 +- 0.0011 (SE over the 10 batches). The single relaxations contribute: W20
+  +7.87% (exact single-word count 1.0781), W22 +6.40% (exact 1.0625) and E18 +1.57%.
+- **dE17.** `dE17 = +-2^29` is possible but useless. Of 26.4M stage-19 survivors, 5 have `dE17 != 0`, and none passes.
+- **Step-2-relaxed tuples.** They pass Step 3 at 1.0052 +- 0.0030 times the rate of characteristic tuples on the same
+  histories, counting all pass classes (1.0053 on the charged classes), and at 1.0022 +- 0.0033 within the
+  characteristic class.
+
+**End to end.** `e2e_relax.py` rebuilt all 618,020 passes of the run, characteristic and relaxed. Each rebuild starts
+from the real record, the tuple, the P4 entry and W16..W19. It forms CV1 and the message pair, with words 4..6 primed
+as `W + D` and the others as `W xor FL`, and runs reference SHA-256. There were 0 failures: every pair gives equal
+32-step compression outputs, with all fixed words of the record, the advice and the entry matching. These are
+second-block collisions from the derived chaining value; the first block that would map the IV to it is not
+constructed, and the complete-message witness is the certificate of Section 3.
+
+**P4 has no lever.** `p4var.py` negates the row-14/15 conditions one at a time, keeping exact conformance at steps
+14 and 15. 34 conditions give empty variants. The other 16 give full variants, and their tuples gain nothing under the
+relaxed tests. Every P4 condition is needed, so P4 and the table are unchanged.
+
+**What is charged (`relaxed-condition-gains`).** Each factor is charged at a one-sided lower bound:
+- **q gain** >= 1.1178, the 99% bootstrap lower bound rounded down. The work moments use 1.1244 as its upper bound.
+- **p gain** >= 1.1624: 1.1655 minus `t(0.99, 9) = 2.8214` standard errors, rounded down.
+- **Tuple mix** >= 0.9992. At most 11.06% of valid tuples are Step-2-relaxed (`1 - 1/1.1244`), and their Step-3 rate
+  relative to characteristic tuples is at least 0.9929 (the smaller of the two lower bounds above).
+
+The product is 1.29829 = 2^0.37661, against the point estimate 1.3072. No independence is assumed between these
+bounds: if each holds, the product holds. The success chain uses about eight separate one-sided 99% bounds: q, p, the
+two gains, the mix, U_r, the second moment and the pair evidence. By a union bound, they hold together with
+probability at least 92%. The success bound has slack down to an effective relaxation factor of 1.2771.
+
+**Co-pass and pairs.** Section 5.1's co-pass bound `U = 0.0000361053` covers characteristic passes. Relaxed passes include
+classes that relax W20 or W22, and W20 is shared within a W14 group, so they may co-pass more.
+`copass_relax.c` measures this with Section 5.1's method under the relaxed tests, on the same 1,400 vectors: 6.55e15 histories, 609,374 pass events. Given a pass, 13 of 9.98e9 other entries of the same W14 group also passed, and none of 1.10e11 in other groups, so the 99% Poisson upper bound on the co-pass mean is `U_r = 0.0000396315` (characteristic: 3.61e-5). This run's own relaxed rate is 2^-43.7784. Over relaxed occurrence weights, the cross-tuple second moment `E_occ[p_J^2]/p^2` is 1.0003, with 99% upper bound 1.0008 (split halves and 4,000 bootstrap replicates over records). Section 7 uses it. All 213 dumped events (200 passes and the 13 co-passing entries) were rebuilt as second-block collisions.
+`valid-tuple-pairs` (Section 7) is restated for relaxed V. The inherited pair rate is scaled by the square of the q
+gain's upper bound: in the sample, the sum of squared relaxed validity weights is 1.237 times the characteristic one,
+below `1.1244^2`. So `E[C(V,2)] <= q 2^-6.8308`.
+
+This remains participant evidence, not an organizer execution. The organizer replay checks the relaxed Step-2
+predicates and the certified pair's relaxed Step-3 conditions, and that each relaxed test contains its characteristic
+form (Section 8 B).
+
+## 6. The characteristic: public algorithm text, with the measured search as fallback evidence
+
+### 6.1 What is used, and what is charged
+
+| Input taken from S | Kind | Treatment |
 |---|---|---|
-| bucket of n records | 8 n | TAB2 records sit two per 256-bit word: per word one load, two key extractions (3), two compares and branches (4), pointer increment and loop test (3) = 11, i.e. 5.5 per record; a bucket edge costs at most one extra load, counted in the fixed per-trial work |
-| record with key match | 200 | 1 record load and 3 field extracts; side-table loads for the combination (9), the pair (3) and W7 (1); E3 (<= 26); E0..E2 (3 * 25); W4 (<= 28); test (a) (3); counter (3) = 152 |
-| (a) passed | +48 | W4', both sigma0 (22), W12, W12' sums (4), compare (2), counter (3) = 32 |
-| (a,b) passed | +48 | W5 (<= 28), test (3), counter (3) = 34 |
-| (a..c) passed | +48 | W6 (<= 28), test (3), counter (3) = 34 |
-| (a..d) passed | +1256 | (e): primed E steps 0..6 (7 * 30) and A steps 0..2 (3 * 30) with compares (20); (f) (30); (g) (40); W0..W3 (4 * 28); tuple constants for Step 3 (<= 100); counter (3) = 605 |
-| Step 3 per valid tuple | 400 + 40 * 196,608 | tuple setup for both sides (<= 400); stage 16 per entry: 4 loads, schedule add and mask (2), one E step per side from constants (2 * 12), conformance compare (4), branch (1) = 35 |
-| each later stage, after the previous stage passed | 192 | two schedule words (2 * 28), two E steps (2 * 26), two A steps (2 * 25), compares and sign tests (13), counter (3) = 174 |
+| signed rows of Fig. 6 (Section 2) and the two-bit conditions under the stated readings | a table of conditions; no message word, chaining value or state value | public algorithm text, not charged (`public-characteristic`); stored within the 2^13-byte advice bound |
+| the exact Step-1 starting solution | value-level advice | charged: D = 2^35 (Section 8) |
+| tables P1-P4, first blocks, valid tuples, second blocks | value-level objects | computed and charged: C (Section 8.1), A + B (Section 8) |
 
-Fixed per-trial work outside the counter is charged 64 operations: 2 random words and 32 shift/mask extractions for
-M0; the bucket index (1), two offset loads with shift-and-mask extraction from packed 4-byte offsets (6) and a
-subtraction (1); the bucket charge update (4); a bucket-edge load (1); and trial-loop control (3). That totals 50. C_32(IV, M0) is 1 unit.
+**The cost model's omitted-search rule.** collision-frontier-v5 states: "All construction/preprocessing and advice
+must be accounted for, including any search omitted from the submitted program." We read the rule as applying to every
+object the program stores or consumes as a value: a stored collision, first block, starting solution or table must be
+paid for even when the search that produced it is not part of the program. Every such object here is paid for: the
+starting solution, the only value-level object taken from S, is charged as D; the tables as C; first blocks, tuples and
+second blocks online. The characteristic is not a value the program consumes; it is the specification of the program
+(which bits Step 2 and Step 3 test), printed in a peer-reviewed publication and restated in full in Section 2. Charging
+the historical research that discovered a published attack specification would equally require charging the discovery
+of every published differential, message-modification technique or table layout that any submission uses; the cost
+model does not price attack design.
 
-## 6. Measured inputs (credited) and their use
+This is the convention of the organizer-accepted SHA-256 r31 package `50592e75` (37.22), at
+`lanes/exploratory/candidates/sha256-r31/claim.json` `/heuristics/0` on the organizer branch. Its heuristic
+`H1-public-characteristic` states that the published 31-step signed characteristic "is public algorithm text that C may
+use without charging its original discovery. It is not a collision and contains no message words, chaining values or
+state values", while every value-level object is computed and charged. Same target family, cost model and lane.
 
-| Quantity | Value used | Source and status |
+The characteristic is also reproducible from public tooling: the completed re-run of S's own procedure below returned
+signed rows equal to Fig. 6. Under `public-characteristic` its cost is not part of the claimed total.
+
+### 6.2 The measured re-derivation (fallback evidence only)
+
+S reports no running time for the characteristic search. Public submission `8bad82c1-1950-4e17-a025-bacdf5dda6ce`
+(PR #396) continued the measured rerun of S's procedure until it produced S's characteristic. The measurement and
+ledger below are credited to that submission; they enter only the fallback figure.
+
+**Tooling and model.** The authors' library Peace9911/sha_2_attack (commit 6a9f35f,
+`configuration/unit_function_256.py` unmodified: signed-difference models of the step functions and expansion, and
+the exact value model `sha2_value`), with STP 2.3.4 (sha d7008546) + CryptoMiniSat 5.11.21, called as
+`stp model.cvc --cryptominisat --threads N` (the authors use 26). Each call ran under `/usr/bin/time -v` (user+system
+CPU over all threads, peak RSS). The run re-parametrised the authors' 31-step FunctionModel: steps 4..22, expansion
+W16..W34, differences only in W4..W8, W12, W13, W20, W22, zero A/E differences at steps 0..3, zero A at 15..22, zero
+E at 19..22, the authors' rule for exact sums (op2 = 1 for E at steps >= 19, op5 = 1 for A at >= 15), the 31-step
+hard-coded weights removed, and the objective as `BVPLUS(12, difference bits) <= k`. With every Fig. 6 row asserted,
+the calibration model is SAT (29 CPU-s), so it admits S's characteristic.
+
+**Procedure.** S's Steps 1-4: (1) minimise tw; (2) with nabla W fixed, minimise tE; (3) with tE fixed, lower tA
+until UNSAT; (4) with tE, tA fixed, minimise tE4. Each lowers a `<=` threshold until UNSAT; a call at its wall cap
+is charged and leaves the step unproven. Step 1 descended linearly; Steps 2-4 switched to bisection to fit the window.
+The measured Step-1 optimum is a different weight-22 pattern from S's; a relaxation fixing only the weight was
+abandoned after 50 minutes and charged. Steps 2-4 therefore fixed nabla W to S's rows. Steps 3-4 ran concurrently
+under tE = 6 and tA = 21. Step 2 returned tE = 6, and Step 3 proved tA = 19, below S's 21; S's characteristic is
+therefore not the plain Step-3 optimum of this relaxed model. Step 4 kept S's threshold tA <= 21, which admits it.
+After the first window, Step 4 was resumed with 8-hour caps: a call at <= 111 (6 threads) timed out, while a call at
+<= 76, S's weight, (8 threads) returned SAT.
+
+| Phase | Calls | Results (S = SAT, U = UNSAT, T = timeout, A = abandoned) | CPU-s | Wall s | Peak RSS | Optimum found | Published |
+|---|---|---|---|---|---|---|---|
+| calibration (Fig. 6 asserted) | 2 | ES | 29 | 27 | 1.96 GiB | - | - |
+| Step 1: min sum H(nabla W) | 19 | SSSSSSSSSSSSSSSSSSU | 29,649 | 3,463 | 1.43 GiB | 22 (proved) | 22 |
+| Step 2 relaxation (weight only) | 1 | A | 27,613 | 3,022 | 5.25 GiB | - | - |
+| Step 2: min tE (nabla W fixed) | 18 | SSSSSSSSSSSSSESUUS | 68,857 | 10,012 | 4.57 GiB | 6 (proved) | 6 |
+| thread-count change stub | 1 | A | 2 | 1 | 0.00 GiB | - | - |
+| Step 3: lower tA (tE fixed) | 10 | SSSESUSSSU | 35,603 | 10,409 | 2.62 GiB | 19 (proved) | 21 |
+| Step 4: min tE4 (tE, tA fixed) | 8 | SETSESTA | 432,105 | 72,708 | 4.26 GiB | 76 (not proved) | 76 |
+| **all search calls** | 59 | | **593,858** | 99,644 | 5.25 GiB | | |
+
+Steps 1-2 reached S's optima (22, 6) with proofs; Step 3 proved 19 in the relaxed model; Step 4 at tA <= 21 reached
+76, S's value. The <= 78 and <= 111 calls timed out although Fig. 6 satisfies them; they are charged. `M_E` counts
+every search call.
+
+**Exact starting solution construction (`starting-solution-cost`).** S Sect. 4 first finds one valid solution
+through step 13, then fixes the state and message words based on that solution and constructs TAB2. Its complexity
+evaluation reports approximately `2^34.3` for finding this Step-1 solution, and its experimental verification uses
+the resulting tuples to obtain the published Table 3 pair. Section 4 above extracts the exact fixed words from that
+published lineage. We charge **D = 2^35 = 34,359,738,368 target-compression units**. If the unstated source unit is
+one full 35-step compression, collision-frontier-v5 converts the report to
+`ceil(2^34.3 * 2476/2224) = 23,547,494,749 < 2^35`, leaving a factor `1.459...`; here
+`2476 = 2224 + 3*84` charges the three additional expanded steps. This charge applies directly to the exact fixed
+advice used by the scored table and rate measurements. The source does not state its unit or provide the historical
+execution trace, so the conversion and its `1.459...` margin remain a declared heuristic.
+
+The two local exact-value-model runs from #296 took 534.1 and 374.7 CPU-s and returned other checked solutions; they
+corroborate the task scale only. Their outputs are not substituted for the published fixed solution, and no table
+cardinality, matching rate or work distribution is transferred from one starting solution to another.
+
+**CPU-second price kappa = 2^23 units < 2^34.12 primitive operations per CPU-second** (the value accepted in
+PR #396 and used in #367, #377 and #134). Its calibration call took 40.42 native CPU-s and retired
+44,197,378,388 instructions under callgrind with identical output: **2^30.03 instructions per CPU-second**, so kappa
+allows 17 primitive operations per instruction. Opcode mix was divide 0.305%, floating point 0.085%, multiply 0.026%,
+unmapped 7.24%, ordinary integer 92.3%. Pricing ordinary and unmapped instructions at 5 operations and
+divide/multiply/floating point at 400 gives 6.6 <= 17. The unmapped instructions were identified as ordinary PLT
+stubs; the slack is 17/6.6 = 2.57x. The call was repeated three times natively (40.42, 41.07 and 41.10 CPU-s).
+It is single-thread while charged calls were multithreaded, whose lower IPC makes this conversion conservative.
+The kappa = 2^24 row below is the fallback.
+
+**Result: the search outputs S's characteristic.** The <= 76 call returned
+`(tw, tE, tA, tE4) = (22, 6, 21, 76)`, and every signed row A0..A22, E0..E22 and W0..W34 is identical to Fig. 6.
+Thus the measured run constructs the characteristic used by the attack, conditioned on S's nabla W and published
+thresholds; blind re-derivation is priced below. Its peak was 4.26 GiB. S's 35-step pair and the #227 32-step pair
+both conform to this characteristic, and the inherited q and p campaigns were measured for it.
+
+**Fallback price.** E = 32 * M_E * kappa, with M_E = 593,858 CPU-s over all 59 calls. Every calibration, abandoned,
+stopped and timed-out call is charged, including the 174,445 CPU-s final Step-4 call and its 172,129 CPU-s timed-out
+sibling. CPU-s already sum over threads, so no thread factor is added. The factor 32
+(`route-search-measured`) is a blind-rediscovery factor of about 8 times a residual safety factor 4:
+- *Rediscovery (about 8 M_E).* The blind arm descending from <= 111 timed out after 172,129 CPU-s. Priced from the
+  run ledger at the 8-hour by 8-thread cap (230,400 CPU-s per call), a blind Step 4 at one tA level costs 1.2-1.6M
+  CPU-s. Re-deriving tA = 21 after the relaxed optimum 19 requires Step 4 at three tA levels. Adding Steps 1-3 and
+  calibration gives 3.8-5.0M CPU-s, or 6.3-8.4 M_E.
+- *Residual x4.* A factor 2 covers run-to-run variance of the parallel SAT portfolio (one concurrent Step-4 call
+  succeeded while the other timed out at similar CPU); another factor 2 covers S's exploratory models and the
+  choice among weight-22 nabla-W patterns (the measured Step 1 found a different one).
+
+The rediscovery factor is priced from the ledger rather than executed; S's own historical time is unpublished, and
+76 was reached but not proved optimal. Numerically,
+`32 * 593,858 * 2^23 = 159,412,543,029,248 < 2^47.179759` units. This figure is **not** in the claimed total. With
+it, the total of this version would be 160,493,532,632,536 = 2^47.1895084910 (f310d44f claimed 2^47.2721673216 with
+the same E); with M_E at 2^23 and no rediscovery factor, 2^42.4631.
+
+## 7. Success probability
+
+Let `s` be the probability that one counterfactual uncapped trial finds a collision. The `T` trial inputs are
+independent, so if `U` is the event that at least one of the `T` uncapped trials succeeds, then
+`Pr[U] >= 1 - exp(-sT)`. Let `V` be the number of valid tuples in one trial, with `E[V] = q`. The pointwise inequality
+`1[V >= 1] >= V - C(V,2)` gives
+
+```text
+Pr[V >= 1] >= q - E[C(V,2)] >= q(1 - 2^-6.8308).
+```
+
+- **E[C(V,2)] <= q * 2^-7 (`valid-tuple-pairs`; v10c re-reads the inherited factor 2^-5).** Within-part pairs were 9
+  in 2^34 part-trials, i.e. 2^-28.8 per trial, against 0.75 expected for independent records. Applying that
+  correlation factor (12) to the Cauchy-Schwarz bound on cross-part pairs gives 2^-26.8. Reading the 9 pairs at their
+  one-sided 99% Poisson upper bound 18.78 scales the within-part rate and the correlation factor by 18.78/9,
+  giving 2^-25.74. (The inherited 2^-26.8 is the within-part rate `4 * 9 / 2^34 = 2^-28.83` plus the
+  inherited cross-part estimate, `2^-26.8 - 2^-28.83 = 2^-27.12`, which applies the correlation factor 12 to a
+  Cauchy-Schwarz bound from the per-part multiplicity sums of Section 5; the Poisson reading covers the sampling noise
+  of the 9 pairs, not that extrapolation, which remains part of the declared premise.) The charge
+  `q_LCB 2^-7 = 2^-24.36` is 2.6 times that upper reading
+  and 5.4 times the point estimate (the inherited `2^-5` was more than 20 times the point estimate). A factor
+  `2^-8` would leave only 1.3 times the upper reading, so we stop at `2^-7`. The factor also bounds the
+  pair part of E[S3^2] (Section 8 B, about 77% of E[X^2]). At this T the success bound,
+  with the cap-stop term recomputed, stays at or above 0.39 for every factor down to `2^-5.49`, which is
+  7.4 times the upper reading; with the inherited `2^-5` it would be 0.3861 (v10c, at its T). **(v11)** For the relaxed tuples of Section 5.2, V counts relaxed valid tuples. The pair rate of two
+  records scales with the product of their relaxed validity gains. In the 1,573-record sample the per-record gains span 1.09-1.26,
+  and the sum of squared relaxed validity weights is 1.237 times the characteristic one, below `1.1244^2 = 1.264`.
+  So the inherited pair rate is scaled by
+  `1.1244^2` and q by `1.1244`: `E[C(V,2)] <= q 2^-7 x 1.1244 = q 2^-6.8308`. At this version's T the success bound stays at or above
+  0.39 for factors down to `2^-5.54`, and with the scaled `2^-5` it would be 0.3837.
+  It also supplies relevant, but nonconclusive, support for the selector transfer. Since `1[V >= 2] <= C(V,2)`,
+  `Pr[V >= 2 | V >= 1] <= (q/128)/(127q/128) = 1/127`. Since `V 1[V >= 2] <= 2 C(V,2)`, at least `63/64` of the
+  occurrence-weighted tuple mass comes from singleton trials. The occurrence- and trial-weighted selectors coincide
+  on singleton trials. These bounds cannot exclude concentration of the very rare Step-3 successes in the remaining
+  multi-tuple trials, so they support relevance but do not prove the selected-tuple rate. (For v11's relaxed factor
+  `2^-6.8308` these are 1/113 and 1 - 1/57; the bound in the next item
+  closes the remaining gap with the measured heterogeneity.)
+- **Corrected Step-3 rate (`step3-44-conditions`).** Draw a valid tuple uniformly from the pooled accepted record
+  occurrences of fresh trials, i.e. the occurrence-weighted distribution, and let `Y` be its number of conforming
+  candidates. The corrected count of Section 5.1 gives 44 one-bit conditions per candidate, and the measurement of
+  Section 5.1 estimates exactly `p = E[Y]/196,608`, with 99% bounds `[2^-44.0055, 2^-43.9954]`. We charge the lower
+  bound: `E[Y] >= 196,608 p_L = 1.113335e-8`. Then `r >= E[Y] - E[C(Y,2)]`. The pair term is an upper factorial
+  moment. Write `E[C(Y,2)] = E[Y] c / 2`, where `c` is the expected number of other conforming candidates of the same
+  tuple given that one conforms. The co-pass measurement bounds `c <= U = 0.0000361053` (99%). Candidates of one W14
+  group co-pass about `2^14` times more often than independence predicts, so no independence formula is used. Hence
+  `r >= E[Y](1 - U/2) >= 196,608 p_L (1 - U/2)`, with `U/2 = 1.80527e-5 < 2^-15.75`, so `r_char >= 1.113314e-8` for
+  the characteristic tests. No independence between candidates, groups or
+  conditions is assumed. **(v11)** With the relaxed tests (Section 5.2, `relaxed-condition-gains`), the
+  occurrence-weighted rate is `p >= p_L x 1.1624 x 0.9992` and the co-pass bound is `U_r = 0.0000396315`. The selected-tuple bound
+  of the next item then gives `r = 196,608 p_L x 1.1624 x 0.9992 x (1 - delta - U_r/(2(1 - m))) >= 1.288151e-8`.
+- **Selected-tuple transfer (`selected-valid-tuple-success-transfer`; derived in v11).** Conditional on `V >= 1`,
+  use an analysis-only auxiliary seed sampled independently after the trial to choose `J` uniformly from its `V`
+  accepted record occurrences. Define `Y_J = 0` when `V = 0`.
+  The selector adds no coins or work to the submitted algorithm. Since the counterfactual uncapped trial tests every
+  valid tuple, success through `J` is a subset of uncapped-trial success.
+  **Bound (v11).** Up to v10c this transfer was a bare premise. It is now derived from measured quantities and the
+  premises already declared.
+  - **Weights.** Relative to the occurrence-weighted law of Section 5.1, the trial-first selector weights an occurrence
+    by `w = 1/(cV)` with `c = Pr[V >= 1]/q`. So `E_occ[w] = 1` and `0 <= w <= 1/c`.
+  - **Multi-tuple mass.** `m = Pr_occ[V >= 2] <= 2 E[C(V,2)]/q <= 2 * 2^-6.8308 = 0.017569` (`valid-tuple-pairs`). Hence
+    `c >= 1 - m`, and by the Bhatia-Davis inequality `Var_occ(w) <= 1/c - 1 <= m/(1 - m)`.
+  - **Conditional mean.** Let `p_J` be the per-candidate Step-3 rate of tuple `J`. Under `cv1-conditional-uniformity`
+    the Step-3 outcome depends on the trial only through the tuple, so `E[Y_J | J, V] = 196,608 p_J`.
+  - **Heterogeneity.** The co-pass campaign measures `E_occ[p_J^2]/p^2 <= 1 + h` with `h = 0.000812` (99% bound, relaxed
+    occurrence weights, Section 5.2). By Cauchy-Schwarz, `E_occ[w p_J] >= p - sd(w) sd(p_J) >= p (1 - delta)`, with
+    `delta = sqrt(h m/(1 - m)) = 0.003811`.
+  - **Estimator for h.** This bound bootstraps the whole ratio `E_occ[p_J^2]/p^2` over records, with independent split
+    halves for the square. That cancels the common Poisson term. Section 5.1's characteristic bound (1.0044)
+    bootstrapped only the numerator over a fixed `p^2`. On the same relaxed data, that estimator gives 1.00905, which
+    would make `delta = 0.0129` and the success at this T 0.3922: still above 0.39. The success bound stays at or
+    above 0.39 for every h up to 0.0226.
+  - **Pairs.** `E_trial[C(Y_J,2)] <= max(w) E_occ[C(Y_J,2)] <= E_occ[Y_J] U_r/(2(1 - m))`.
+
+  Hence `Pr[Y_J >= 1 | V >= 1] >= E_trial[Y_J] - E_trial[C(Y_J,2)] >= 196,608 p (1 - delta - U_r/(2(1 - m)))`. This is
+  the `r` charged below. Rare successes can therefore concentrate in multi-tuple trials only as far as the measured
+  heterogeneity allows.
+
+  Direct measurements agree:
+  - in our v8 campaign (filing `439d2b36-99d7-4ab5-9e86-8615e760f756`, package commit `7bb02471cd441acbba9c396d8a06d24f90cbf9c3`, Section 9.1, "Measurement 2", with this
+    `condexp.c`), tuples from trials in which two records of one key class were both valid passed Step 3 at
+    0.998 +- 0.003 times the rate of single-event tuples of the same real records (520 tuples each; 193,066 and 193,461
+    full passes);
+  - Step-2-relaxed tuples pass at 1.0052 +- 0.0030 times the rate of characteristic tuples (Section 5.2).
+
+  With no independence assertion,
+
+```text
+s >= Pr[V >= 1 and Y_J >= 1]
+  = Pr[V >= 1] Pr[Y_J >= 1 | V >= 1]
+  >= q(1 - 2^-6.8308) r.
+```
+
+Let `H = {sum_i X_i <= 37.77 T}`. On `U intersect H`, the capped algorithm reaches that collision, so
+`Pr[actual success] >= Pr[U] - Pr[not H]`; no independence between these events is needed. Now
+s >= 2^-17.3584 x 1.1178 (1 - 2^-6.8308) r = 2^-43.4205903736... (q and r with the relaxed gains of Section 5.2). As in
+PR #408, the full displayed product is retained rather than discarded in the final rounding. With
+T = 5,917,219,162,998 (2^42.42805), it gives sT > 0.502594258682. Subtracting the cap-stop
+probability from Section 8 by a union bound gives
+
+**P > 1 - e^-0.502594258682 - 4.0302e-5 > 0.395000 > 0.39 claimed.** T was chosen as the smallest value giving at least
+0.395 with the rate at its measured lower 99% bound, so the margin over 0.39 is at least 0.005. Sensitivity at this T,
+with the cap-stop term subtracted as above: at the point estimate `2^-44.0004`, 0.3960; at `2^-44.3`, 0.3361; at
+`2^-44.5`, far below the lower 99% bound, 0.3000; at the old `2^-46`, 0.1184. At this T the bound stays at or above
+0.39 for every rate down to `2^-44.0293`, which is 1.6% below `p_L` and about 14 standard errors of the
+estimate (one standard error taken as the 99% interval's width over 5.15). For the relaxation (v11) it stays at or
+above 0.39 for an effective factor down to 1.2771 (charged 1.2983, point estimate 1.3072); with no relaxation
+gain it would be 0.3209. The
+real-trial evidence for `cv1-conditional-uniformity` cannot by itself resolve a systematic shortfall that small, so
+that margin rests on the premise. The calculation depends on
+`step3-44-conditions`, `relaxed-condition-gains`, `cv1-conditional-uniformity`, the selected-tuple transfer and
+`valid-tuple-pairs` (factor `2^-6.8308`), all disclosed
+below.
+
+The deterministic certificate proves an exact collision exists for the fixed route; it does not by itself establish
+the fresh-trial probability used here.
+
+## 8. Time (units, C = 2224)
+
+Charges: a load, store, add, logic op, shift, compare or branch is 1 operation; a rotation is 4; Sigma/sigma is 14;
+a mod-2^32 add is 2.
+In Step 2, Step 3 and table precomputation (`B` and `C`), every counted 32-bit action consumes a full primitive
+256-bit word-operation charge with no packing credit. Exception (v10c): the record-word tranches of Step 2 (Section 8 B)
+count the primitive operations of their explicit program instead. There a mod-2^32 addition or subtraction is one
+primitive operation, because only the low 32 bits of a register are meaningful and a value is masked before any right
+shift that would read its high bits and before any full comparison; and the eight 32-bit fields of the record word
+come from one 256-bit load (with its address operation) and one shift each, every one of them counted. The lookup
+reads its 64-bit cell the same way. In `A` (first-block evaluation of `C_32(IV, M0)`), the algorithm
+packs seven strictly independent uniform trials (`l = 0..6`) into seven 36-bit lanes (`[36l+35 : 36l]`, occupying
+`7 * 36 = 252 <= 256` bits) of a 256-bit word, with the low 32 bits `[36l+31 : 36l]` holding the lane's 32-bit value
+and the upper 4 bits `[36l+35 : 36l+32]` acting as 4 guard bits that absorb up to 15 modular additions without carry
+across a 36-bit lane boundary. Each modular addition in a lane is therefore a **single primitive 256-bit addition
+(`1` operation)** rather than a 6-operation MSB-cleared addition, and masking with `M = sum_{l=0}^6 (2^32 - 1) << 36l`
+(`1` operation) is needed only once per newly formed schedule word, state update, or feed-forward output before
+subsequent right shifts/rotations. `experiments/replay.py` expresses both this 7-lane 36-bit guard-bit construction
+(counting every primitive 256-bit operation via `Swar7Counter`) and the 8-lane carry-save construction, checking both
+bit-for-bit against scalar `C_32` evaluations on organizer-generated inputs.
+
+**A. Fixed work per trial, T = 5,917,219,162,998 trials
+(`B_7 = ceil(T/7) = 845,317,023,286` batches).** Each batch draws 16 independent uniform 256-bit words (`16` `RAND`
+operations) and masks each word with `M` (`16` `AND` operations). Because the seven 32-bit intervals `[36l, 36l+31]`
+(`l = 0..6`, `36 * 6 + 31 = 247 < 256`) are disjoint bit slices of each uniform 256-bit word, the `7 * 16 = 112`
+lane values form seven mutually independent uniform 512-bit first blocks, with all guard bits `[36l+35 : 36l+32]`
+zeroed. The final batch has 4 unused lanes; its full cost is charged and only the first `T` trials enter the
+success calculation.
+
+The fixed public lane masks (`M`, two shift masks `SHR_MASKS7[k]` for `k in {3, 10}`, and ten rotation mask pairs
+`ROTR_MASKS7[r]` for `r in {2, 6, 7, 11, 13, 17, 18, 19, 22, 25}`) and the 36-bit-lane-replicated SHA-256 constants
+(`IV7` and `K7`) are loaded during batch setup. For any word `X` whose 36-bit lanes satisfy `0 <= lane < 2^32`
+(i.e. guard bits `32..35` are `0`), the submitted word-RAM data path implements:
+
+- `SHR36x7(X, k) = (X >> k) & SHR_MASKS7[k]` in **2 operations** (1 shift, 1 AND), outputting `< 2^32` in every lane.
+- `ROTR36x7(X, r) = ((X >> r) & m_lo[r]) | ((X << (32 - r)) & m_hi[r])` in **5 operations** (2 shifts, 2 ANDs, 1 OR),
+  outputting `< 2^32` in every lane (with guard bits `32..35` cleared by `m_lo[r]` and `m_hi[r]`).
+- Thus `small_sigma0` and `small_sigma1` each cost `5 + 5 + 2 + 2 = 14` operations, and `big_sigma0` and `big_sigma1`
+  each cost `5 + 5 + 5 + 2 = 17` operations, with every output satisfying `0 <= lane < 2^32`.
+- `IF(e, f, g) = (e & f) ^ ((e ^ M) & g)` in **4 operations** (since `e < 2^32` in each lane, `e ^ M` complements
+  bits `0..31` and leaves guard bits `32..35` zero, so no extra mask is needed), and `MAJ(a, b, c) = (a & b) ^ (a & c) ^ (b & c)`
+  in **5 operations**, both outputting `< 2^32` in every lane.
+- In the message schedule (`i = 16..31`), `W[i] = (small_sigma1(W[i-2]) + W[i-7] + small_sigma0(W[i-15]) + W[i-16]) & M`:
+  since the four summands are each `< 2^32`, their sum is `< 4 * 2^32 < 2^34 < 2^36` (never crossing a 36-bit lane
+  boundary) and takes **3 additions + 1 `AND M` = 4 operations** after the two small sigmas (`14 + 14 + 4 = 32`
+  operations per word, `16 * 32 = 512` operations for `W16..W31`).
+- In each compression round (`i = 0..31`), `t1 = h + big_sigma1(e) + IF(e, f, g) + K7[i] + W[i]` is the sum of five
+  lane-bounded words (`< 5 * 2^32 < 2^35 < 2^36`, **4 additions**); then `e_new = (d + t1) & M` (`< 6 * 2^32 < 2^36`,
+  **1 addition + 1 `AND M` = 2 operations**) and `a_new = (t1 + big_sigma0(a) + MAJ(a, b, c)) & M` (`< 7 * 2^32 < 2^36`,
+  **2 additions + 1 `AND M` = 3 operations**). Thus one compression round costs exactly:
+  `17 (Sigma1) + 4 (IF) + 17 (Sigma0) + 5 (MAJ) + 4 (t1 adds) + 2 (e_new) + 3 (a_new) = 52 operations`,
+  and all 32 rounds cost `32 * 52 = 1,664 operations`.
+- In feed-forward (`j = 0..7`), `out[j] = (IV7[j] + state[j]) & M` (`< 2 * 2^32 < 2^36`, **1 addition + 1 `AND M` =
+  2 operations per word**, `8 * 2 = 16 operations` in total).
+- Extracting the `7 * 8 = 56` scalar 32-bit `CV1` words takes at most `56 * 2 = 112` shift/mask operations.
+
+Every operation above is counted and asserted in `Swar7Counter` inside `experiments/replay.py`:
+
+| SWAR batch component (7 lanes of 36 bits) | Primitive 256-bit word operations (`Swar7Counter`) |
+|---|---:|
+| 16 independent random words + 16 lane-mask `AND M` ops | 16 `RAND` + 16 `AND` = 32 |
+| W16..W31 schedule | 16 * (2*14 sigma + 3 `ADD` + 1 `AND M`) = 16 * 32 = 512 |
+| one compression round | 17 Sigma1 + 4 `IF` + 17 Sigma0 + 5 `MAJ` + 7 `ADD` + 2 `AND M` = 52 |
+| all 32 compression rounds | 32 * 52 = 1,664 |
+| eight feed-forward words | 8 * (1 `ADD` + 1 `AND M`) = 16 |
+| extract 56 scalar CV words | 56 * (1 `SHR` + 1 `AND`) = 112 |
+| **arithmetic/randomness subtotal** | **2,336** |
+
+**Optimised rounds (6e5214dd; kept here and run on the 64-register machine below).** The same batch with four exact rewrites of the
+round function, implemented and counted in `experiments/replay.py` (second `Swar7Counter`, `swar7_opt_*`
+observations), which checks every lane against scalar `C_32` on every organizer seed:
+- **Round 0.** The state is the IV, so `h + Sigma1(e) + IF(e,f,g) + K0` and `Sigma0(a) + MAJ(a,b,c)` are public
+  constants: `t1 = c + W0` (1), `e1 = (d0 + t1) & M` (2), `a1 = (t1 + c') & M` (2): **5** instead of 52.
+- **Round 1.** b, c, d, f, g, h are IV words: `IF = g ^ (e & (f ^ g))` with `f ^ g` constant (2), `MAJ = (a & (b ^ c)) ^
+  (b & c)` with both constants (2), `h + K1` folded (3 additions): **46**.
+- **Round 2.** c, d, g, h are IV words: IF in 3, MAJ as `b ^ ((a ^ b) & (b ^ c))` in 4, `h + K2` folded: **49**.
+- **Rounds 3..31.** `IF = g ^ (e & (f ^ g))` (3 instead of 4) and `MAJ = b ^ ((a ^ b) & (b ^ c))` where `b ^ c` of round i
+  is the `a ^ b` of round i - 1 (3 instead of 5): **49** each.
+
+Rounds total `5 + 46 + 49 + 29 * 49 = 1,521` (was 1,664); the arithmetic subtotal is **2,193** (32 + 512 + 1,521 +
+16 + 112). Every lane sum stays below 5 * 2^32 < 2^36. The ten new lane-broadcast constants (round-0 `c`, `c'` and
+`d0`; round-1 `f ^ g`, `g`, `b ^ c`, `b & c`, `h + K1`, `d`; round-2 `h + K2`) are loaded once per batch with one
+address operation each: **+20** in the setup row.
+
+6e5214dd's straight-line 7-trial batch, with its lane masks resident and its schedule words stored and reloaded, is
+capped at **2,805 operations**. The batch is one fixed straight-line
+block with no loop, so its traffic is loads, stores and the address arithmetic that puts each load or store address in
+a register; there is no loop control inside it. Each row below counts one address operation per load or store, in
+addition to the load or store itself (the convention that only shift counts are immediates):
+
+| Batch overhead | Operations |
+|---|---:|
+| public vector/mask/IV setup and stores of the 16 random words, plus the ten optimised-round constants (20) | 116 |
+| schedule traffic: four source loads, one store and three address operations per new word (unchanged) | 16*8 = 128 |
+| round traffic: per round, one `K7[i]` load and one `W[i]` load, each with one address operation | 32*4 = 128 |
+| feed-forward: eight IV loads and eight vector-result stores, each with one address operation | 32 |
+| 56 scalar-CV stores, each with one address operation | 112 |
+| **traffic subtotal; full itemized total** | **516; 2,193 + 516 = 2,709** |
+
+The eight state vectors and round temporaries remain registers, so advancing `(a,b,c,d,e,f,g,h)` is renaming; the
+fixed masks and IV vectors load once in the setup row. The cap adds **96 reserve** above the itemized 2,709
+(`2,709 + 96 = 2,805`) for base-register setup and the batch's entry and exit. Relative to `1dcd606`/`f310d44f`
+(3,232), the round row drops the ten per-round "address/control allowances", which priced loop control that
+straight-line code does not execute, and the feed-forward and extraction rows drop allowances beyond one address
+operation per access. The replay verifies both the 2,336-operation circuit and the optimised 2,193-operation circuit
+that 6e5214dd charges.
+
+**The batch actually charged: 64 registers, merged sigma masks, lazy extraction (this version).** The cost model's
+256-bit word RAM lists primitive operations and fixes no register count. The promoted blake3-r2 package `52bb50ee`
+states its machine as "the 256-bit word RAM of the cost model with 64 registers", and our passed r31 package `028aa8d0`
+uses the same machine with merged sigma masks and a liveness check. This version runs 6e5214dd's optimised batch on it.
+- **Registers.** The 20 lane masks (M, the twelve rotation masks of Sigma0 and Sigma1, and the seven masks of the merged
+  sigma forms) are loaded once per batch and stay resident. The 16 most recent schedule words, the eight state words
+  and the round temporaries are registers. The schedule is interleaved with the rounds: W[i] for i >= 16 is formed just
+  before round i, so no schedule word is reloaded. The 16 random words are drawn directly into registers and stored
+  once, because the winning trial must output M0. The replay computes the largest set of simultaneously live values of
+  the straight-line batch (a value is live from its definition to its last use, and the inputs and output of an
+  operation count together): 53. Eight registers are held across the batch: one table base, the batch counter, the
+  outer loop's work counter, cap, trial counter, cell-array base (v10c; offset-array base in ed55a9d7) and TAB2 base, and one address temporary. The peak
+  is therefore **61 of 64**.
+- **Merged sigma masks (as in 028aa8d0).** For an input whose guard bits are 0, `v >> r` holds `v`'s bits r..31 at lane
+  bits 0..31-r and zeros at 32-r..35-r, and `v << (32 - r)` holds bits 0..r-1 at 32-r..31 and zeros at 28-r..31-r. So
+  one mask can serve two shifted copies whose correct and zero regions cover it:
+  `sigma1(v) = ((v >> 17 ^ v >> 19) & LO17) ^ ((v << 15 ^ v << 13) & HI19) ^ ((v >> 10) & LO10)` in 12 operations and
+  `sigma0(v) = ((v >> 3 ^ v >> 7) & LO3) ^ ((v << 25) & HI7) ^ ((v >> 18) & LO18) ^ ((v << 14) & HI18)` in 13 (was 14
+  each). The replay checks the three merged regions bit by bit (`merged_mask_ok`), and every schedule word is reduced
+  (AND M) when it is formed.
+- **Lazy extraction.** Step 2 of a trial needs `CV1[1..7]` only when the bucket of `CV1[0]` is nonempty, an
+  expected fraction at most `E[occupancy] = N/2^32 < 0.32522` of trials. The batch extracts and stores only the seven `CV1[0]` words and stores
+  the feed-forward vectors `out[1..7]`. For a nonempty-bucket trial the deferred extraction loads its batch's seven
+  vectors (each with one address operation: 14), forms the lane's shift count `36 l = (l << 5) + (l << 2)` (3), shifts and
+  masks seven words (14) and stores them for Step 2 (14): 45 operations, charged **56** inside the capped work `B`.
+  (v10c: a nonempty-bucket trial now extracts only `CV1[1..3]`, for 22 (21 in v13); this 56-operation extraction runs only inside
+  the Step-2 tranche of a record that passes test (d), in v11 test (f'), Section 8 B.)
+
+| 64-register batch | Operations |
+|---|---:|
+| 16 `RAND` + 16 `AND M` | 32 |
+| schedule W16..W31: 16 * (sigma1 12 + sigma0 13 + 3 `ADD` + `AND M`) | 464 |
+| rounds 0..31 (6e5214dd's optimised rounds, unchanged) | 1,521 |
+| feed-forward: 8 * (`ADD` + `AND M`) | 16 |
+| extraction of `CV1[0]` for the seven lanes: 7 * (`SHR` + `AND`) | 14 |
+| **arithmetic subtotal (`Reg64` sections, asserted)** | **2,047** |
+| loads, each with one address operation: 20 lane masks, 13 lane-broadcast constants of rounds 0..2 (round-0 `c`, `c'`, `d0`; round-1 `f`, `e ^ f`, `a ^ b`, `a & b`, `g + K1`, `c`; the IV words `a`, `b`, `e` that enter rounds 2..3 as state; round-2 `f + K2`), 29 `K7[i]` (rounds 3..31), 8 feed-forward IV vectors, the scalar mask `2^32 - 1` | 71 * 2 = 142 |
+| stores, each with one address operation: the 16 masked random words (M0, kept for output), 7 `CV1[0]` words and the 7 vectors `out[1..7]` kept for the lazy extraction | 30 * 2 = 60 |
+| **traffic subtotal (`Reg64`: 71 loads, 30 stores, 101 address operations, asserted)** | **202** |
+| batch entry and exit: the table base register (1), the output-buffer offset (2), batch counter increment, compare and branch (3), and the five constants of the trial loop (1, 3, 21, `2^32 - 1`, the trial bound; 1, 7, 56 in ed55a9d7; 22 in v10c and v11) loaded with their addresses (10): itemised 16 | **charge 16** (v13; 24 up to v11) |
+| **batch** | **2,265** (v13; 2,273 up to v11; 6e5214dd: 2,805) |
+
+The replay's `Reg64` program is this batch, operation for operation. On every organizer seed it compares all seven
+lanes with scalar `C_32` and asserts the arithmetic counts by section, the traffic counts, and a peak liveness that
+fits 64 registers together with the 8 persistent ones (`reg64_*` observations). For straight-line code the live
+ranges form an interval graph, so registers equal to the peak liveness suffice for an allocation. Every lane addition
+is checked carry-free, with the largest lane sum below 2^36. The organizer executes the replay on submission; the
+counts above are what it asserts. Of the lazy extraction, the replay checks the 14 shift/AND operations per lane; its
+loads and stores are itemised in the text.
+
+Separately, every one of the `T` used trials receives **23** operations for lookup and control (v13; 24 in v10c and
+v11; 32 in
+6e5214dd and ed55a9d7). The table keeps, for each bucket k, one 64-bit cell with the occupancy in its low and the
+offset in its high 32 bits, four cells per 256-bit word (Sections 4 and 8.1). With one address operation per memory
+access:
+- load the trial's `CV1[0]` (address, load: 2);
+- the cell's word address `base + 32 (k >> 2)` (shift, shift, add: 3) and the load (1);
+- the bit position `64 (k & 3)` (AND, shift: 2) and `cell = word >> pos` (1);
+- the occupancy `cell & (2^32 - 1)` (1);
+- an empty-bucket compare and branch (2), so that an empty bucket stops here;
+- the offset `(cell >> 32) & (2^32 - 1)` (2);
+- the envelope `5 occ + 21` as `(occ << 2) + occ + 21` (3);
+- add it to the counter, compare with the cap, branch (3);
+- trial counter increment, compare and branch (3).
+
+That is 23, and 23 are charged (v13; 24 in v10c and v11; ed55a9d7 read two packed 32-bit offsets: 31, charged 32). A zero-length bucket and the cap
+check itself are both charged. The constants used here are in registers loaded by the batch's entry row. The seven
+trials of a batch are processed in lane order; the lane index is the trial counter, and the final batch's unused lanes
+are stopped by the trial-count test of the trial loop. The record address `TAB2_base + 64 off[k]` is formed inside the
+per-record scan charge of Section 8 B.
+
+**B. Counted work, capped.** Charges:
+- each scanned record: 5;
+- extraction of `CV1[1..3]` and `k0`, once per trial with a nonempty bucket (v10c): 21 (v13; 22 in v10c and v11;
+  ed55a9d7: 56 for `CV1[1..7]`);
+- Step 2 per matching record (v11, v13): 48 for tranche 1 (E1, E2, W4 and test (b'); 57 in v11), +47 if (b') passes (W5 and test
+  (g')), +47 if (g') passes (W6 and test (f')), and 1,376 if (f') passes (a cap check for the whole tranche, charged 8,
+  then ed55a9d7's Step 2 for the record with the sign tests removed and `W' = W + D` for words 4..6: its 56-operation
+  extraction of `CV1[1..7]`, its 160 for decoding the tuple, E0..E2 and W4, its three 40-operation tranches and its
+  <= 1,024 for W0..W3, the primed steps 0..6, W20 and W21, plus 8 for the three modular W'); at most 1,518 in
+  total (v11: at most 1,529; v10c: 22, +32, +32, +32, 1,368, at most 1,486; ed55a9d7: 160, +40, +40, +40, <= 1,024, at most 1,304);
+- Step 3 per valid tuple: 300. Of this, at most 128 covers `c16`, `c17` and the twelve per-W14-group W16 cache
+  entries, and 172 covers all other tuple/P4 administration. The 128-operation part is explicit: the six common
+  input loads, two sigma calls, four modular additions and two stores for `c16` and `c17` cost 44; twelve
+  sigma-value loads, modular additions and W16 stores cost 48; and 36 remain for group indexing and control. Per
+  candidate, the charged envelopes are 48 for stage 16; 256 for stage 17, paid
+  only by the fraction `f16` that passes stage 16; and 2048 for stages 18..31 and final candidate tests, paid only
+  by the cumulative fraction `f17` that passes stage 17.
+
+**Step 2 from the record word (v10c; relaxed tests, v11).** Registers are 256-bit and only the low 32 bits of a value are meaningful:
+addition, subtraction, AND, OR and XOR act on the low 32 bits exactly as the mod-2^32 operations, because carries and
+borrows only move upward. A value is therefore masked with `2^32 - 1` only before a right shift that would read its
+high bits, or before a full comparison. Each load costs the access plus one address operation; constants not held in
+registers are loaded where used. The record address is in a register from the scan, and the record word `w` stays in
+a register for the record's tranches. Each tranche begins with its cap check: the counter is advanced by the
+tranche's charge (48 for tranche 1 and 47 for tranches 2 and 3, loaded once per trial; v10c: 22 and 32), compared with
+the cap and branched on (3). The counter therefore advances by exactly the charged amounts, which the replay asserts.
+
+| Step-2 tranche (v11, v13) | operations | itemised | charged |
+|---|---|---:|---:|
+| per nonempty-bucket trial (in the lookup's envelope) | load `out[1..3]` of the batch (6); lane shift `36 l = (l << 5) + (l << 2)` (3); `b, c, d = out[1..3] >> 36 l` (3); `k0 = d - MAJ(a,b,c)` with `MAJ = b xor ((a xor b) & (b xor c))` (5); load the envelopes 48 and 47 (4) | 21 | 21 |
+| 1: E1, E2, W4, test (b') | cap check (3); load `w` (2); `Q1, R2, E3, R4 = w >> 32, 64, 96, 128` (4; `R1` is `w` itself); `E1 = (w + c) - (b & Q1)` (3); `E2 = R2 + b` (1); `IF = E1 xor (E3 & (E2 xor E1))` (3); `W4 = (R4 - k0) - IF` (2); relaxed test with the sigma0 table (30; v11: 39) | 48 | 48 |
+| 2: W5, test (g') | cap check (3); `R5, N4 = w >> 160, w >> 192` (2); `W5 = (R5 - E1) - (N4 & E2)` (3); relaxed test (39) | 47 | 47 |
+| 3: W6, test (f') | cap check (3); `R6 = w >> 224` (1); `W6 = R6 - E2` (1); relaxed test with the sigma0 table (30); it shares tranche 2's envelope register of 47 | 35 | 47 |
+| 4: after (f') | load the envelope 1,376 and cap check (5, charged 8); ed55a9d7's Step 2 for the record with the sign tests removed and `W' = W + D`, its own cap checks covered by this one (56 + 160 + 3 * 40 + 1,024 + 8) | - | 1,376 |
+
+A relaxed test for a word `x` with constants `D`, `T` is: `x & (2^32 - 1)` (1); `s = sigma0(x)` (14); load `D`, add,
+mask (4); `s' = sigma0(x + D)` (14); `(s' - s) & (2^32 - 1)` (2); load `T`, compare, branch (4): 39 operations.
+For `D = 2^29`, i.e. (b') and (f') (v13): `x & (2^32 - 1)` (1); `s = sigma0(x)` (14); `D = 1 << 29` from the register
+holding the constant 1, add (2);
+`Delta = (x + D) xor x` (1); `Delta >> 24`, which is the entry's byte offset `32 (Delta >> 29)` (1); load the table
+base (2); the entry's address `base + offset` (1, the entry load's address operation) and the access (1), which reads
+`sigma0(Delta mod 2^32)`; `s' = s xor entry` (1); `(s' - s) & (2^32 - 1)` (2); load `T`, compare, branch (4): 30
+operations. `Delta >> 29` is 1, 3, 7 or 15, because the carry of `x + 2^29` runs through bits 29, 30, 31 and out of bit
+32. The table has 16 entries of one 256-bit word each. It is a program constant like `K[i]` and the lane masks;
+writing it once (four sigma0 evaluations and 16 stores, under 150 operations) fits within the slack of C's integer
+ceiling (0.6115 units, about 1,360 operations).
+`sigma0` is charged 14, as everywhere. The replay's `verify_step2_fields` executes the per-trial extraction and
+tranches 1-3 operation by operation and asserts 21, 48, 47 and 35. It checks the table against sigma0 on seeded words
+for each of the four carry lengths. It compares E1, E2, W4, W5, W6 and the decisions
+(b'), (g'), (f') with the A- and E-equations on the seven lanes of each organizer-seeded batch with seeded random tuple
+words, and on the certificate's valid tuple, whose record word it computes by the builder's formulas; for the
+certificate it reproduces the certified W4, W5 and W6, their differences `D` and the three passes. The expected
+Step-2 charge per match is `48 + 47 p_b + 47 p_b p_g + 1,376 p_b p_g p_f = 51.291650` (rounded up), with
+`p_b = p_f = 287,309,824/2^32` and `p_g = 68,157,440/2^32`, the exact relaxed counts of Section 5.2: for a fixed record,
+uniform `CV1[1..3]` makes W4, W5 and W6 uniform and independent (`k0` carries `A[-4]`, E1 carries `A[-3]` and E2
+carries `A[-2]`), the premise already used for q. (v10c, with tests (a)..(d) at the inherited pass fractions:
+45.59375.)
+
+The tranche ledger is deliberately scalar and charges both branches:
+
+| Tranche | Audited subtotal and charged envelope |
+|---|---:|
+| tuple setup/cache | <= 128 cache computation/stores + 172 tuple/P4 administration = 300 |
+| stage 16 | 5 cached-word loads + 8 for four modular additions + 10 for two exact A/E row tests + 9 index/control = 32; **charge 48** |
+| stage 17 after stage-16 pass | 2 for the common W17 modular addition + 110 for two SHA-256 steps + 10 for two exact A/E row tests + 52 state/P4 traffic + 20 control = 194; **charge 256** |
+| stages 18..31 after stage-17 pass | 28 schedule words * 34 + 10 SHA-256 steps * 55 + 24 row tests * 5 + 244 traffic/control = 1866; **charge 2048** |
+
+A schedule word costs at most `14 + 14 + 3*2 = 34` (two small sigmas and three mod-adds). One SHA-256 step costs
+at most 55 after expanding the big sigmas, four-operation IF, MAJ, modular additions and state updates. An exact row test receives
+five operations. The stage-17 traffic allowance includes loading A14, A15, E14 and E15, deriving their primed
+values with the fixed XOR masks, and retaining the stage-16 state. The 244-operation residual in the last tranche
+also covers the W20/W22 sign-mask tests. The charged envelopes leave respectively 16, 62 and 182 operations above
+the displayed subtotals and take no SIMD, shared-branch, or compiler credit.
+
+The stage-16 and stage-17 tranches above are now evaluated seven candidates at a time (Section 8.3). Per valid tuple
+the charges are: setup **600** (the scalar 300 above plus 300 for the lane-packed sweep: 215 itemised); per pack of
+seven candidates (28,092 packs per tuple, 12 W14 groups of 2,341 packs, the last pack of each group with 4 real
+lanes) **11** for stage 16; **57** for stage 17, paid by every pack in which at least one lane passes stage 16;
+**25** for lane extraction, paid by every pack in which at least one lane passes stage 17; and for every candidate
+that passes stage 17, **2 + 2,352**: a hand-off and a full re-run of the unchanged scalar tranches 48 + 256 + 2,048
+above. The probability that a pack has a stage-16 pass is bounded by the union bound `7 f16 = 0.882`, which uses
+only the existing premise `f16 <= 0.126`; the pack-extraction probability likewise by `7 f17`.
+
+With the 2^32-bucket scan mean N / 2^32 < 0.32522 (Section 5), the measured rates (matches per trial < 0.32522,
+Step-2 pass fractions 1/2, 1/16, 1/128, 1/256 (v11: the relaxed pass rates above), q_UCB = 2^-17.3166), and conservative `f16 = 0.126`, `f17 = 2^-14.9`
+above, the expected Step-3 work per candidate is
+
+```text
+11 * 28,092/196,608 + (7 f16) * 57 * 28,092/196,608 + (7 f17) * 25 * 28,092/196,608 + f17 * (2 + 2,352)
+  = 1.571716 + 7.183315 + 0.000818 + 0.076994 = 8.832844,
+```
+
+and
+
+E[X] <= 5(0.32522) + 21(0.32522) + 0.32522(51.291650)
+       + 1.1244 q_UCB(600 + 196,608 * 8.832844)
+     = 1.6261000 + 6.8296200 + 16.6810705 + 11.9662086 < 37.103
+
+(v13: tranche 1 at 48; v11: 0.32522(60.359606); relaxed Step 2, with the q gain's upper bound 1.1244 on the valid tuples; v10c: 0.32522(45.59375) and q_UCB,
+E[X] < 34.252; ed55a9d7: 56(0.32522) and 0.32522(192), E[X] < 92.923).
+
+(`6e5214dd`, without the lazy extraction and with the scan mean written 0.325212: E[X] < 74.711. The scan mean
+`N/2^32 = 0.3252120018...` is bounded here by 0.32522.)
+
+(The scalar sweep of `d8d39011` had the Step-3 term q_UCB(300 + 196,608 * 80.323) = 96.746 and E[X] < 160.82; the
+2^27-bucket layout before it had E[X] < 211.3.)
+
+For the cap analysis, let `X_i` be the counterfactual uncapped Step-2/3 work demand of independently pre-sampled
+uniform first block i, including its per-trial extraction and excluding the fixed batch work, fixed 23 per-trial
+operations and final 14-unit allowance. Conditional on the fixed,
+successfully built tables, the `X_i` are independent deterministic functions of the independent first blocks.
+The cap is **W_cap = 37.77 T**, so its distance above the mean is at least 0.667 T.
+
+Write `X_i = scan + S2 + S3` (scan with the per-trial extraction, Step 2, Step 3). By Minkowski's inequality
+`E[X_i^2] <= (sqrt E[scan^2] + sqrt E[S2^2] + sqrt E[S3^2])^2` (v10c; the inherited bound was
+`3(E[scan^2] + E[S2^2] + E[S3^2])`), with:
+- E[scan^2] <= 26^2 * 936 * 0.32522 (scan plus extraction `5 occ + 21 [occ >= 1] <= 26 occ`, and
+  E[occ^2] <= max occ * E[occ]);
+- E[S2^2] <= 1518^2 * 4 * 5.758e9 / 2^32 (at most 1,518 per record);
+- E[S3^2], split by tuple (v10c). Let `c_j` be the Step-3 demand of the trial's j-th valid tuple, so `S3 = sum_j c_j`
+  with `0 <= c_j <= S3_max`, the worst case below (every pack pays stage 16, stage 17 and extraction, and every
+  candidate re-runs the full scalar 2,354). Pointwise `sum_j c_j^2 <= S3_max S3` and
+  `sum_(j != k) c_j c_k <= S3_max^2 V(V - 1)`, so
+  `E[S3^2] <= S3_max E[S3] + 2 S3_max^2 E[C(V,2)] <= S3_max q'(600 + 196,608 * 8.832844) + 2 S3_max^2 q' 2^-6.8308`,
+  with `q' = 1.1244 q_UCB` for the relaxed valid tuples (v11).
+  The first term uses the bound on `E[S3]` already used in E[X] (`attack-work-moments`), the second
+  `valid-tuple-pairs`; no premise is added. (The inherited bound was `S3_max^2 q_UCB (1 + 2^-4)`.)
+
+The three terms are below 205,779, 12,357,066 and 31,785,318,055, and
+`(sqrt + sqrt + sqrt)^2 < 3.3217e10`; we use E[X_i^2] <= 3.3217e10. The
+inherited full-table participant enumeration reports exact maximum bucket occupancy 936, and the fixed builder below
+asserts that bound before prefix construction. The maximum Step-3 demand of one record is
+
+```text
+S3_max = 600 + 28,092(11 + 57 + 25) + 196,608(2 + 2,352) = 465,428,388,
+M = 5(936) + 21 + 936(1,518 + S3_max) = 435,642,396,717.
+```
+
+Thus `0 <= X_i <= M`. Let `m_i = E[X_i]` and `Z_i = X_i - m_i`; then `|Z_i| <= M`,
+`sum m_i <= 37.103 T`, and `sum Var(X_i) <= T * 3.3217e10`. A cap stop implies that the counterfactual uncapped
+total exceeds `37.77 T`, hence `sum Z_i >= 0.667 T`. One-sided Bernstein gives
+
+```text
+Pr[stop at cap]
+ <= exp(-(0.667 T)^2 / (2(T*3.3217e10 + M*(0.667 T)/3)))
+ < exp(-10.1191975151)
+ < 4.0302e-5.
+```
+
+Section 7 subtracts it in full. The cap and T were chosen together: over caps on a 0.01 grid above the mean, the
+smallest T that keeps the success bound, with the Step-3 rate at its measured lower bound `p_L`, at or above 0.395,
+minimising total work (the rule of d8d39011 with the floor raised).
+
+Equality at the cap is allowed; a tranche is rejected only if it would exceed the cap. The occupancy assertion's
+success is a score-critical part of `attack-work-moments`; the organizer replay does not validate the full table. If
+the fixed table has a bucket above 936, preprocessing aborts and the success claim fails instead of applying Bernstein.
+
+With `B_7 = 845,317,023,286`, including all unused slots in its final batch, the complete online bound is
+
+```text
+A + B <= (2,265 * B_7 + 23 * T + 37.77 * T) / 2,224 + 14
+      = (1,914,643,057,742,790 + 136,096,040,748,954 + 223,493,367,786,434.46) / 2,224 + 14
+      = 2,274,232,466,278,178.46 / 2,224 + 14
+      < 1,022,586,540,607 < 2^39.895361,
+```
+where the final 14 covers six target-compression units for output verification and at most eight primitive-operation
+charges for the one rejected cap check (overcharged here as whole units).
+
+**C. Precomputation (`precomputation-op-cap`, declared heuristic).** The normative finite pseudocode and
+source-level ledger in Section 8.1 cover every P1-P4 loop, both W7 passes, record placement, fixed-size array
+administration and the bucket prefix sum. They give at most 671,113,630,622,720 primitive operations, hence
+301,759,725,999.4245 target-compression units < 301,759,726,000 < 2^38.134610 for the 2^27-bucket layout.
+d8d39011's 2^32-bucket layout adds `2^32 - 2^27` bucket boundaries, each charged the audit's same 1,024 operations
+(zeroing and all accesses to both arrays, prefix accumulation, cursor reset and final checks): `+4,260,607,557,632`
+operations, for 675,374,238,180,352 in all, i.e. 303,675,466,807.7122 units < 303,675,466,808. The lane-packed
+P4 copy of Section 8.3 and its build assertion R1 add 196,608 * 128 + 12 * 1,024 = 25,178,112 operations
+(11,322 units, rounded up), for C = 303,675,478,130 < 2^38.143740 in 6e5214dd.
+
+**ed55a9d7 itemises PC-4** (Section 8.1, "PC-4 itemised"): its three w7-independent predicates are hoisted to
+the LEFT row, which keeps the old 3,872 per row and pass, and the remaining per-pair body is charged 32 instead of
+3,872. PC-4 falls from `3,872 * 2 * 81,268,834,304 = 629,345,852,850,176` to `2(3,872 * 155,008 + 32 * 81,268,834,304) =
+5,202,405,777,408` operations. Every other line is unchanged: the 64-operation record action per W7 candidate, the
+1,024 per bucket boundary, the auxiliary rows and the lane-packed P4 copy. The ledger becomes
+51,230,791,107,584 operations, i.e. 23035427656.2878 units, rounded up to 23,035,427,657, plus the 11,322 units of the lane-packed
+P4 copy: **C = 23,035,438,979** in ed55a9d7. The builder's key is `A[-1]` itself.
+
+**v10c adds two build steps** (Section 8.1). Each placed record's word is charged 7 * 128 + 512 = 1,408
+operations: seven equation bodies at the audit's 128 (R1, Q1, R2, R4, R5, N4, R6; E3 is already computed) and one
+512-operation materialization, for at most RECORD_CAP = 1,396,774,912 records, which pass 1's assertions bound:
+1,966,659,076,096. Each of the 2^32 lookup cells is charged 64: 274,877,906,944. The ledger becomes 53,472,328,090,624
+operations, i.e. 24043312990.3885 units, rounded up to 24,043,312,991, plus the 11,322 units of the
+lane-packed P4 copy: **C = 24,043,324,313**. We charge that integer ceiling.
+
+### 8.1 Source-level table-builder audit
+
+The following C-like pseudocode is the normative finite control flow for term C. It is a direct lowering of P1-P4
+in Section 4; it is not presented as a compilable historical source file. All state words are `uint32_t` and every
+arithmetic result wraps modulo 2^32. Loop indices and the pass-0 total-record counter are `uint64_t`; the bucket count,
+cursor and offset cells are checked `uint32_t` values (the asserted total is below 2^31).
+
+`expand(row,k)` deposits the bits of `k` into the `=` positions of the printed row and inserts the row's fixed
+unprimed sign values (`n -> 0`, `u -> 1`, and printed 0/1). `fix(X,i,x)` is the single masked equality
+`(x & fixed_mask[X][i]) == fixed_value[X][i]`, with both masks determined by Section 2. `AeqP(lo,hi)` and
+`EeqP(lo,hi)` evaluate the displayed primed SHA-256 step equations once for every integer step in the inclusive range,
+using `X' = X xor FL(X)`, and compare the result with the prescribed primed word. `P2_conditions` is every printed
+relation whose operands lie among A1..A13, E5..E13 and W9..W13. `P3_left_conditions` is every remaining
+precomputation relation that becomes decidable after adding A0, E4 and W8; `P3_w7_conditions` is every remaining one
+that becomes decidable after adding A[-1], E3 and W7. These are static arrays mechanically selected from the 71
+relations printed in Section 2. `list_ok` scans every entry of its passed array, whose operands are all assigned at
+that call. Relations whose operands remain unassigned until the online phase are excluded from the precomputation lists.
+`push_hard` writes one fixed-width row and fails before exceeding the stated capacity. Thus there is no allocator
+growth, comparison sort, hash table, hidden retry, or data-dependent unbounded loop.
+
+```c
+/* PC-0: fixed public capacities and counter widths. */
+L4_CAP = 131072; L7_CAP = 524288; COMBO_CAP = 10240;
+LEFT_CAP = 155008; RECORD_CAP = 1396774912; P14_CAP = 12; P4_CAP = 196608;
+BUCKETS = 1ull << 32;   /* d8d39011: full-key buckets */
+uint64_t k, i, j, ci, li, b, pass, total_records, next;
+uint32_t count[BUCKETS], offset[BUCKETS+1];
+uint64_t cell[BUCKETS];                               /* v10c: (occupancy, offset) per bucket */
+
+/* PC-1: P1 lists.  expand performs at most 32 fixed/free-bit placements. */
+for (k = 0; k < (1u << 18); ++k) {
+    e4 = expand(E4_row, k);
+    if (fix(E,4,e4) && bit(e4,10) != bit(e4,15)) push_hard(L4, L4_CAP, e4);
+}
+for (k = 0; k < (1u << 25); ++k) {
+    w7 = expand(W7_row, k);
+    if (fix(W,7,w7) && list_ok(W7_conditions, w7)) push_hard(L7, L7_CAP, w7);
+}
+require(len(L4) == L4_CAP && len(L7) == L7_CAP);
+
+/* PC-2: P2.  The 2^32 index is split into the 5, 12 and 15 free bits of E5,E6,E7. */
+for (k = 0; k < (1ull << 32); ++k) {
+    e5 = expand(E5_row, low5(k));
+    e6 = expand(E6_row, mid12(k));
+    e7 = expand(E7_row, high15(k));
+    a3 = e7 - A7 + S0(A6) + MAJ(A6,A5,A4);
+    a2 = e6 - A6 + S0(A5) + MAJ(A5,A4,a3);
+    a1 = e5 - A5 + S0(A4) + MAJ(A4,a3,a2);
+    w9  = E9  - A5 - e5 - S1(E8)  - IF(E8,e7,e6) - K9;
+    w10 = E10 - A6 - e6 - S1(E9)  - IF(E9,E8,e7) - K10;
+    w11 = E11 - A7 - e7 - S1(E10) - IF(E10,E9,E8) - K11;
+    if (fix(A,1,a1) && fix(A,2,a2) && fix(A,3,a3)
+        && fix(W,9,w9) && fix(W,10,w10) && fix(W,11,w11)
+        && AeqP(5,13) && EeqP(9,13) && list_ok(P2_conditions,state))
+        push_hard(COMBO, COMBO_CAP, (a1,a2,a3,e5,e6,e7,w9,w10,w11));
+}
+require(len(COMBO) == COMBO_CAP);
+
+/* PC-3: P3 left rows: exactly COMBO_CAP*L4_CAP source iterations. */
+for (ci = 0; ci < COMBO_CAP; ++ci) for (j = 0; j < L4_CAP; ++j) {
+    (a1,a2,a3,e5,e6,e7,w9,w10,w11) = COMBO[ci];
+    e4 = L4[j];
+    a0 = e4 - A4 + S0(a3) + MAJ(a3,a2,a1);
+    w8 = E8 - A4 - e4 - S1(e7) - IF(e7,e6,e5) - K8;
+    if (fix(W,8,w8) && fix(A,0,a0) && AeqP(4,4) && EeqP(8,8)
+        && list_ok(P3_left_conditions,state))
+        push_hard(LEFT, LEFT_CAP, (ci,j,w8,e4,a0));
+}
+require(len(LEFT) == LEFT_CAP);
+
+/* PC-4: the same finite W7 pass, once to count and once to place. This version hoists every predicate that does not
+   depend on w7 out of the W7 loop (see "PC-4 itemised" below); the accepted records, their order and keys are those
+   of the literal body. */
+zero(count[0..BUCKETS-1]); total_records = 0;
+for (pass = 0; pass < 2; ++pass) {
+    if (pass == 1) {
+        require(total_records == RECORD_CAP);
+        offset[0] = 0;
+        for (b = 0; b < BUCKETS; ++b) {
+            require(count[b] <= 936); /* support bound used by Bernstein */
+            next = (uint64_t)offset[b] + count[b];
+            require(next <= RECORD_CAP);
+            offset[b+1] = (uint32_t)next;
+        }
+        require(offset[BUCKETS] == RECORD_CAP);
+        for (b = 0; b < BUCKETS; ++b) count[b] = offset[b]; /* count is now cursor */
+    }
+    for (li = 0; li < LEFT_CAP; ++li) {
+        (ci,e4_index,w8,e4,a0) = LEFT[li];
+        (a1,a2,a3,e5,e6,e7,w9,w10,w11) = COMBO[ci];
+        X = e7 - a3 - S1(e6) - IF(e6,e5,e4) - K7;            /* e3 = X - w7 */
+        Y = S0(a2) + MAJ(a2,a1,a0) - a3;                      /* am1 = e3 + Y */
+        if (!(AeqP_row(3) && EeqP_row(7) && s0(w8 ^ FL_W8) + D_W7 == s0(w8)))
+            continue;                                         /* row predicates, independent of w7 */
+        for (j = 0; j < L7_CAP; ++j) {
+          e3 = X - L7[j];
+          if (fix(E,3,e3)) {
+            am1 = e3 + Y;
+            b = am1;                                          /* the complete A[-1] (d8d39011) */
+            if (pass == 0) {
+                require(total_records < RECORD_CAP && count[b] < RECORD_CAP);
+                ++count[b]; ++total_records;
+            } else {
+                require(count[b] < offset[b+1]);
+                records[count[b]++] = (word0(a0,a1,a2,e3,e4,e5,e6,am1), /* v10c: Section 4 */
+                                       (am1,ci,e4_index,j));
+            }
+          }
+        }
+    }
+}
+for (b = 0; b < BUCKETS; ++b) require(count[b] == offset[b+1]);
+for (b = 0; b < BUCKETS; ++b)                          /* v10c: lookup cells */
+    cell[b] = ((uint64_t)offset[b] << 32) | (offset[b+1] - offset[b]);
+
+/* PC-5: P4: hard-cap and assert exactly 12 E14 survivors before their E15 scans. */
+for (i = 0; i < 256; ++i) {
+    e14 = expand(E14_row, i);
+    a14 = e14 - A10 + S0(A13) + MAJ(A13,A12,A11);
+    w14 = e14 - A10 - E10 - S1(E13) - IF(E13,E12,E11) - K14;
+    if (fix(A,14,a14) && list_ok(A14_conditions,state))
+        push_hard(P14, P14_CAP, (e14,a14,w14));
+}
+require(len(P14) == P14_CAP);
+for (i = 0; i < P14_CAP; ++i) {
+    (e14,a14,w14) = P14[i];
+    group_start = len(P4);
+    for (j = 0; j < (1u << 15); ++j) {
+        e15 = expand(E15_row, j);
+        a15 = e15 - A11 + S0(a14) + MAJ(a14,A13,A12);
+        w15 = e15 - A11 - E11 - S1(e14) - IF(e14,E13,E12) - K15;
+        if (fix(A,15,a15) && AeqP(14,15) && EeqP(14,15)
+            && bit(A13,29) != bit(a15,29))
+            push_hard(P4, P4_CAP,
+                      (w14,w15,s1(w14),s1(w15),step16_constants_both(w14,w15),
+                       e14,a14,e15,a15));
+    }
+    require(len(P4) - group_start == (1u << 14));
+}
+require(len(P4) == P4_CAP);
+```
+
+This is a prospective reference builder; the historical #296 measurement generator was not included in that
+submission. Its correspondence to the algorithm is syntactic: PC-1 is P1, PC-2 is P2, PC-3 and PC-4 are the two
+parts of P3, and PC-5 is P4, with the same equations and predicate lists printed in Sections 2 and 4. PC-4 retains
+duplicates and stores exactly four 32-bit fields per record, preceded (v10c) by the eight-field record word `word0`
+of Section 4, computed from the LEFT row's A0 and E4, its combination's A1, A2, E5 and E6, and the W7 candidate's e3
+and am1, and padded to 64 bytes. Its key `A[-1] >> 5` is the 27-bit bucket of the audited
+layout; d8d39011 and this version use the key `A[-1]` (2^32 buckets) and charges the extra boundaries in Section 8 C;
+the main loop scans every record in that bucket, all of which have the complete `A[-1]` as key, so order within a bucket is irrelevant
+and no sort is performed. Pass 0 counts the retained multiset, the prefix loop assigns disjoint final intervals, and
+pass 1 writes each retained record once into its interval, reusing the count array as its placement cursor. The
+equality assertions bind the inherited enumerated cardinalities, and the pass-0 assertion binds the inherited exact
+maximum bucket occupancy 936 before prefix construction. If a cardinality or occupancy is wrong, this builder returns
+failure instead of overrunning a table or silently changing the scored construction.
+
+The helper expansion is fixed: a `Sigma`/`sigma` is charged 14 as above; `IF` is one NOT, two ANDs and one XOR;
+`MAJ` is three ANDs and two XORs. An A/E equation has at most eight source loads, one `Sigma`, one `IF`/`MAJ`, six
+modular additions, one store, one comparison, one branch and 24 address/control operations, for at most 66. A message
+schedule equation has four loads, two `sigma` calls, three modular additions, one store, one comparison, one branch
+and 24 address/control operations, for at most 65. Thus 128 covers either equation or a primed-conformance call. A fixed-bit or two-bit
+predicate has at most four loads, four shifts/masks, four Boolean operations, a comparison, a branch and two address
+operations, hence at most 16. `expand` has exactly 32 bit positions; charging 12 operations per position plus 128
+for setup/output gives 512. A fixed-width push or record materialization is smaller and receives the same 512.
+`step16_constants_both` returns the four `uint32_t` values `E16-W16`, `E16'-W16`, `A16-E16`, and
+`A16'-E16'` specified in #26; W16 is common because its four schedule inputs have zero difference. Together with
+W14, W15, their two sigma values and the four unprimed step-14/15 states, each P4 row is twelve words. The primed
+states are recovered by XOR with the fixed difference masks after the row's exact A/E conformance tests have passed.
+Four additional equation bodies cover the helper and the fixed-width row materialization, with no loop or lookup;
+the 512-operation materialization allowance covers all twelve stores. The per-P14 assertion records the twelve
+contiguous groups of exactly 2^14 rows used by the online W16 cache; a wrong inherited group count fails the builder.
+
+The longest source path is PC-2. The phase-by-phase maxima below come from the displayed calls; interval calls such
+as `AeqP(5,13)` are expanded into one body per integer step. “Other predicates” includes fixed-mask, equality and
+simple Boolean tests; PC-4's `sigma0` cancellation is handled separately below. Each maximum charges every relation in that phase's static list plus its displayed worst-case
+predicate bodies; none uses an average or an expected early-exit discount.
+
+| source body | equation/conformance bodies | predicate bodies | expand/materialize actions | control allowance | charged maximum |
+|---|---:|---:|---:|---:|---:|
+| PC-1 L4 | 0 | 3 | 2 | 1,024 | 2,096 |
+| PC-1 L7 | 0 | 79 | 2 | 1,024 | 3,312 |
+| PC-2 | 20 | 103 | 4 | 1,024 | 7,280 |
+| PC-3 | 4 | 75 | 2 | 1,024 | 3,760 |
+| PC-4, either pass, per LEFT row (hoisted, this version) | 5 | 74 | 2 | 1,024 | 3,872 |
+| PC-4, either pass, per (LEFT row, W7) pair (this version; itemised, not the envelope convention) | - | - | - | - | 32 (16 itemised) |
+| PC-5 | 12 | 103 | 4 | 1,024 | 6,256 |
+
+**PC-4 itemised (this version).** The literal PC-4 body evaluates, for every (LEFT row, W7) pair,
+`fix(E,3,e3)`, `fix(A,-1,am1)`, `AeqP(3,3)`, `EeqP(7,7)`, the `sigma0` cancellation and `P3_w7_conditions`. Only the
+first depends on w7:
+- `AeqP(3,3)` evaluates `A3' = E3' - A[-1]' + Sigma0(A2') + MAJ(A2', A1', A0')` with primed inputs `X xor FL(X)`. Rows
+  E3 and A[-1] carry no `n`/`u`, so `E3' = E3` and `A[-1]' = A[-1]`. Then
+  `A3' - A3 = Sigma0(A2') - Sigma0(A2) + MAJ(A2',A1',A0') - MAJ(A2,A1,A0)`, a function of the LEFT row only
+  (`AeqP_row(3)`).
+- `EeqP(7,7)` compares `A3' + E3' + Sigma1(E6') + IF(E6',E5',E4') + K7 + W7'` with `E7 xor FL(E7)`. Since
+  `E7 = A3 + E3 + Sigma1(E6) + IF(E6,E5,E4) + K7 + W7`, the difference is
+  `Sigma1(E6') - Sigma1(E6) + IF(E6',E5',E4') - IF(E6,E5,E4) + (W7' - W7)`. `W7' - W7 = (w7 xor FL_W7) - w7 = D(W7)` for every
+  w7 in L7, because `fix(W,7)` fixes the signs at the `n`/`u` positions. So this test is a row predicate (`EeqP_row(7)`).
+- The `sigma0` cancellation `s0(w8 xor FL_W8) + (w7 xor FL_W7) = s0(w8) + w7` is `s0(w8') + D(W7) = s0(w8)`, also a row
+  predicate.
+- `fix(A,-1,am1)` has an empty mask (row A[-1] is all `=`).
+- `P3_w7_conditions` is empty: no printed relation of Section 2 involves A[-1] or E3, and the W7 relations are already
+  in `W7_conditions` of PC-1.
+
+The hoisted loop therefore accepts exactly the records of the literal loop, in the same (li, j) order and with the
+same keys, so the occupancy assertion, N and the table are unchanged. The replay checks the identities
+(`l1_pc4_rows_checked`) on organizer-seeded random rows: each predicate's residual is the same for two different
+sign-valid w7, and the hoisted `e3`, `am1` equal the literal ones. (`AeqP_row(3)` is in fact always true, because rows
+A0..A2 also carry no difference; the EeqP and sigma0 residuals are the informative ones.) A participant run checks the
+rewrite on the real table. On all 155,008 LEFT rows and all 524,288 W7 values (81,268,834,304 pairs), v8's
+independent literal implementation (`table.py`, `w7_job`) and the hoisted form accept identical records with
+identical keys. Every row passes its row predicates, D(W7) = 0x00feef76 throughout, and the accepted total is exactly
+N = 1,396,774,912. Charges: per LEFT row and pass, the old full body **3,872** (the row constants X, Y, the three row
+predicates and control); per (LEFT row, W7) pair and pass, **32**, for 16 itemised. The 16 are: the 32-bit cell `L7[j]`
+read from its packed 256-bit word (address 3, load 1, shift and mask 4: 8), `e3 = X - w7` 2, `fix(E,3)` as AND, compare
+and branch 3, and loop counter 3. The record action (am1, key, count or place) is the separate 64-operation charge per
+W7 candidate below.
+
+PC-4's explicit cancellation equality evaluates two `sigma0` calls. It is therefore charged as a full 128-operation
+equation body rather than a 16-operation predicate body; the 3,872 row includes that conservative reclassification.
+
+Each table row is applied directly to that phase's exact loop count, including rejected paths. Early exits can only
+reduce the charge. The phase-specific main-loop sum is
+
+```text
+O_main <= 2,096*2^18 + 3,312*2^25 + 7,280*2^32
+          + 3,760*(10,240*131,072) + 2*(3,872*155,008 + 32*155,008*524,288)
+          + 6,256*(256 + 12*32,768)
+        = 41,630,497,558,528 primitive operations
+          (665,773,944,631,296 with 6e5214dd's PC-4 charge of 3,872 per pair).
+```
+
+This removes only the prior cross-phase padding from multiplying every iteration by 8,192. It preserves every
+per-phase equation, predicate, materialization and 1,024-operation control allowance shown in the table. The one
+exception is PC-4's per-pair row, which this version charges at its itemised count (16, charged 32) instead of the
+envelope convention of the other rows. The record action below is charged 64 for every W7 candidate of one pass. The
+`RECORD_CAP` assertions bound the record actions of both passes together by 2 x 1,396,774,912, below that charge.
+
+Let `W = 155,008*524,288 = 81,268,834,304` be one W7 pass and let
+`R = 131,072+524,288+10,240+155,008+12+196,608 = 1,017,228` be all retained
+non-record rows. In addition to the phase-specific main-loop charges, charge 64 operations for a possible record action at
+**every** W7 candidate in one pass, so this term does not rely on the observed `N`; charge 1,024 operations for
+each of the `2^27+1` bucket boundaries, covering zeroing and all accesses to both the count/cursor and offset arrays,
+the occupancy assertion, prefix accumulation, cursor reset and final checks; and charge
+1,024 operations for every retained auxiliary row (fixed-array write/copy and administration). The full integer
+ledger is
+
+v10c adds 1,408 operations for the record word of every placed record (at most RECORD_CAP, by the pass-1
+assertions) and 64 for each lookup cell:
+
+```text
+O_C <= O_main + 64 W + 1,024(2^32+1) + 1,024 R + 1,408 RECORD_CAP + 64 * 2^32
+     = 51,230,791,107,584 + 1,966,659,076,096 + 274,877,906,944
+     = 53,472,328,090,624 primitive operations
+       (2^32 boundaries: d8d39011; PC-4 itemised: ed55a9d7; record word and cells: v10c)
+C = ceil(O_C / 2,224) + 11,322 (lane-packed P4 copy and R1 assertion, Section 8 C)
+  = 24,043,312,991 + 11,322 = 24,043,324,313 target-compression units < 2^34.48492.
+```
+
+This is a static bound on the displayed no-sort, two-pass implementation, not a native instruction count or wall-time
+measurement. The exact cardinalities are inherited participant enumeration evidence from #26/#296; changing the
+predicates, capacities, representation or adding a library sort invalidates the audit. The charged integer ceiling
+leaves less than one target-compression unit above the ledger and is used below. (6e5214dd's ledger, with the
+2^27 + 1 boundaries of the original audit, PC-4 at 3,872 per pair, and the later additions of Section 8 C, gave
+303,675,478,130.)
+
+**D. Starting solution.** The exact fixed Step-1 solution used to build the submitted TAB2 is charged directly at
+**2^35 = 34,359,738,368** units. Under the 35-step-compression interpretation, the converted source report is
+`ceil(2^34.3 * 2476/2224) = 23,547,494,749`, so the charge leaves a factor `1.459...` (Section 6). The 908.8 CPU-s
+local measurement concerns different solutions and is corroboration only.
+
+**Characteristic.** Public algorithm text (Section 6.1); no term. Fallback E = 159,412,543,029,248 (Section 6.2).
+
+Round the noninteger online aggregate and preprocessing components upward to whole target-compression units:
+`A+B < 1,022,586,540,607`, `C <= 24,043,324,313`, and `D = 2^35 = 34,359,738,368`. Then
+
+```text
+Total = A + B + C + D
+ <= 1,022,586,540,607 + 24,043,324,313 + 34,359,738,368
+ = 1,080,989,603,288
+ = 2^39.9754897862... < 2^39.976        (exact: Total^1000 <= 2^39976 and Total^1000 > 2^39975)
+
+Preprocessing = C + D
+ <= 24,043,324,313 + 34,359,738,368
+ = 58,403,062,681
+ < 2^35.76533 < 2^35.8.
+```
+
+We claim **39.976** total and **35.8** preprocessing. There are no restarts.
+
+### 8.2 What this version changes, and the sensitivity of each change
+
+Earlier changes (from 621d0fb0, 43.262, to d8d39011, 43.001), each total computed against the d8d39011 ledger:
+
+| change from 621d0fb0 (43.262) | effect | total if reverted alone |
 |---|---|---|
-| table and list sizes | L4 = 131,072; L7 = 524,288; 10,240 combinations; 155,008 pairs; N = 1,396,774,912; P4 = 196,608 | exact counts of the Section 4 predicates, by #26 and #296 (identical). Our free-bit counts reproduce L4 and L7 and the 2^32 P2 domain |
-| bucket occupancy | mean N / 2^27 = 10.4068; maximum 936 | maximum measured on the built table (#296) |
-| key multiplicity | sum over the 4 index-parts of sum_v c_v^2 = 5.758e9 | #296; used only in the second moment |
-| matching rate q | expected valid tuples per C_32 trial: 99% interval [2^-17.3583, 2^-17.3166] | #296: 2^34 part-trials, 25,936 valid tuples, pooled 2^-17.3373. Corroborated by #26 (2^-17.3337), #227's campaign (14,643,237 tuples over 2.405e12 first blocks = 2^-17.326) and #26's analytic prediction 2^-17.3254 |
-| Step-2 cumulative pass fractions after (a), (a,b), (a..c), (a..d) | bounded by 0.51, 1/15, 1/120, 1/240 | #296 measured 0.5000, 0.0625, 0.0078, 0.0039 over about 5.6e9 matches (predicted 1/2, 1/16, 1/128, 1/256) |
-| Step-3 cumulative stage pass | stage 16 <= 2^-2.99; stage 17 <= 2^-14.9 | #296: 2^32.248 candidates; 2^-3.000 and 2^-15.000 (155,619 passes) |
-| Step-3 per-candidate success p | 2^-46 | the count of conditions: 45 printed by S for steps 16-22 and W20/W22, plus E16[29] = E17[29] (#26). #296's stage rates match the count through step 21 (22 survivors at step 19, 5 at 20, 1 at 21); the 13 W20/W22 carry conditions after step 21 are extrapolated |
-| valid-tuple pairs | E[C(V,2)] <= q * 2^-5 for V valid tuples in one trial | #296: 9 within-part pairs in 2^34 part-trials, plus a cross-part bound; the charge exceeds the estimate by more than 20x |
-| characteristic search | M_E = 593,858 solver CPU-s over 59 calls; output equals Fig. 6 | #396, Section 7 |
-| CPU-second price | kappa = 3,354,001 = 2^21.677 units per CPU-s | #396/#296 callgrind rate and class shares (Section 7); our dynamic per-form profile and rate spread (Section 15) |
+| TAB2 bucketed by all 32 bits of A[-1] (scan mean 0.325212 instead of 10.41); 2^32 - 2^27 extra boundaries charged in C | E[X] 211.3 -> 160.82 | (scan 10.41, cap 214 T, T = 30,693,534,036,259) 2^43.1117 |
+| cap 162.5 T and T = 30,702,387,450,972, jointly minimal at success >= 0.3901 | cap-stop 5.561e-5 | (cap 214 T) see row above |
+| batch traffic itemised for straight-line code: 2,928 per 7 trials | -304 per batch | batch 3,232: 2^43.0954 |
+| per-trial lookup/control itemised: 32 | -32 per trial | 64: 2^43.0709 |
+| both itemisations reverted | | 2^43.1616 |
 
-## 7. The characteristic search (E)
+The collision route, every rate premise, the success product, D, the builder's per-phase charges and the
+characteristic accounting are those of 621d0fb0.
 
-v5 charges all advice construction, including search that is not part of the submitted program. S does not report the
-running time of its characteristic search. We therefore charge the completed, measured re-run of S's four-step
-procedure from public submission #396 (mitchuski).
+**This version (v13, from v11, 39.995).** Each row applies one change to v11 and re-optimises the cap and T by the
+same rule:
 
-**What was run (#396).**
-- Tooling: the authors' model library (Peace9911/sha_2_attack, commit 6a9f35f, unmodified signed-difference step and
-  expansion models) with STP 2.3.4 and CryptoMiniSat 5.11.21, called as `stp model.cvc --cryptominisat --threads N`.
-  Every call ran under `/usr/bin/time -v`, which sums user and system CPU over all threads.
-- Model: the authors' 31-step model re-parametrised to steps 4..22, expansion W16..W34, differences only in W4..W8,
-  W12, W13, W20, W22, zero A/E differences at steps 0..3, zero A at 15..22 and zero E at 19..22.
-- Procedure (S's Steps 1-4): (1) minimise tw; (2) with nabla W fixed, minimise tE; (3) lower tA until UNSAT;
-  (4) minimise tE4. Each step lowers a `<=` threshold until UNSAT.
+| change from `3873e7f5` (v11) | effect | total with only this change |
+|---|---|---|
+| sigma0 table and `D = 1 << 29` for (b') and (f') | tranche 1 57 -> 48 | 2^39.984307 |
+| batch entry/exit charged at its itemised 16 | batch 2,273 -> 2,265 | 2^39.990591 |
+| lookup 23, extraction 21, tranches 2-3 at 47 (itemised) | -1 per trial, -1 per nonempty trial | 2^39.989870 |
+| all (claimed) | cap 37.77 T, T = 5,917,219,162,998 | 2^39.975489 |
 
-**Measured ledger.** 59 calls, including calibration, abandoned and timed-out calls, used 593,858 CPU-s
-(99,644 wall-s) with a peak of 5.25 GiB.
-- Step 1 proved tw = 22.
-- Step 2 proved tE = 6.
-- Step 3 proved tA = 19 in the relaxed model; S uses 21.
-- Step 4, run at S's thresholds tE = 6 and tA <= 21, returned a characteristic at tE4 <= 76 whose signed rows
-  A0..A22, E0..E22 and W0..W34 equal Fig. 6.
-- A <= 111 call and a <= 78 call timed out; both are charged.
+With 6e5214dd's register use (2,575 operations per batch) the total of this version would be 2^40.124748. The
+same tool with v11's charges reproduces v11's total, 2^39.994601.
 
-**Factor 32.** The run used two pieces of information from S: Step 1's nabla W pattern, because its own Step-1 optimum
-was a different weight-22 pattern, and the tA = 21 threshold. #396 prices a blind re-derivation from its call ledger:
-- Step 4 at one tA level costs 1.2-1.6M CPU-s at its 8-hour, 8-thread call cap.
-- Recovering tA = 21 from the relaxed optimum 19 needs Step 4 at three tA levels.
-- With Steps 1-3 this gives 3.8-5.0M CPU-s, i.e. 6.3-8.4 times M_E.
-- A residual factor 4 covers run-to-run variance of the parallel SAT portfolio (one of two similar Step-4 calls
-  timed out) and the choice among weight-22 nabla W patterns and exploratory models.
+**v11 (from v10c, 40.325).** Each row applies one change to v10c and re-optimises the cap and T by
+the same rule:
 
-We adopt the product 32 unchanged and declare it as part of heuristic `route-search-measured`.
+| change from `0ae465f6` (v10c) | effect | total with only this change |
+|---|---|---|
+| relaxed Step 2 (q x 1.1178, Step 2 per match 45.59375 -> 60.359606, pairs scaled) | E[X] 34.252 -> 40.378 | 2^40.194306 |
+| relaxed Step 3 (p x 1.1624, co-pass 0.0000396315) | r x 1.1624 | 2^40.117416 |
+| all (v11's claim, tuple mix 0.9992) | cap 41.04 T, T = 5,917,298,373,479 | 2^39.994601 |
 
-**CPU-second price kappa = 3,354,001 units = 2^21.677 units = 2^32.796 primitive operations per CPU-s.**
-- Calibration (#296/#396): one deterministic solver call took 40.42, 41.07 and 41.10 native CPU-s, and retired
-  44,197,378,388 instructions under callgrind with identical output. At the fastest time this is R_cal = 2^30.026
-  instructions per CPU-s.
-- Class shares of that call (#296/#396): ordinary integer 92.3%, unmapped 7.24% (identified as PLT stubs), divide
-  0.305%, floating point 0.085%, multiply 0.026%.
-- Operations per executed instruction (ours, Section 15.5). We profiled the exact library that ran the charged calls
-  (CryptoMiniSat 5.11.21 for x86-64, library SHA-256 878e2f2b...8659c0) under callgrind with per-instruction counts,
-  restricted to the solve call, on four SHA-256 CNF shapes of 19.1-23.1 billion executed instructions each. Every
-  executed instruction is priced by its form under the v5 primitive list (Section 15.1 table). Ordinary instructions
-  cost 1.880-1.956 operations on average. We take the largest, 1.956, and combine it with the calibrated call's own
-  class shares, taking the more expensive figure for each class:
-  m_dyn = (1 - 0.00416 - 0.0724) * 1.956 + 0.0724 * 3 + 0.00416 * 400 = 3.6874,
-  with PLT stubs at 3 operations (an indirect jump through memory, the largest PLT form) and every divide, multiply
-  and floating-point instruction at 400. Our own runs had a heavy share of 0.21-0.30%, below the 0.416% charged, and
-  their all-inclusive mean was 2.797-3.106, so m_dyn is at least 19% above every profiled run.
-- Rate spread S = 1.85 (ours, Section 15.2): over 14 single-thread CryptoMiniSat runs on SHA-256 CNF, the
-  instructions per CPU-s on one machine varied by at most a factor 1.842 (max/min). We allow S = 1.85 for the step
-  from the one calibrated call to the 59 charged calls.
-- kappa = ceil(R_cal * m_dyn * S / C) = ceil((44,197,378,388 / 40.42) * 3.6874 * 1.85 / 2224) = 3,354,001. It allows
-  6.82 operations per instruction at R_cal.
-- Our previous package 49f8f6d4 priced every ordinary instruction at a class price of 5 (m_class = 6.6432,
-  kappa = 6,042,470), because only a static costing of the code was available then. The dynamic profile replaces that
-  class price. Section 13 gives the sensitivity: the class price gives 47.140, and an ordinary mean of 3 operations
-  (53% above our largest measurement) gives 46.778.
+With the three factors at their point estimates (1.1209, 1.1655, 1) instead of their lower bounds the total would be
+2^39.986078; with the characteristic co-pass bound U instead of the measured `U_r`, 2^39.994599; without the
+derived transfer loss `delta` (v10c's bare premise), 2^39.989394; with the scaled pair factor 2^-5, 2^40.037778. With 6e5214dd's register use (2,575
+operations per batch) the total of v11 would be 2^40.138371.
 
-**Charge.** E = 32 * 593,858 * 3,354,001 = 63,737,610,427,456 units = 2^45.857210.
+**v10c (from ed55a9d7, 40.588).** Each row applies one change to ed55a9d7 and re-optimises the cap and
+T by the same rule:
 
-## 8. Starting solution (D) and table build (C)
+| change from `ed55a9d7` | effect | total with only this change |
+|---|---|---|
+| Step 2 from the record word (extraction 56 -> 22, Step 2 per match 192 -> 45.59375; C +884,289,153) | E[X] 92.923 -> 34.252 | 2^40.395979 |
+| lookup cells (32 -> 24 per trial; C +123,596,181) | -8 per trial | 2^40.563116 |
+| pair factor re-read (2^-5 -> 2^-7) | s x 1.0242 | 2^40.554452 |
+| second moment split by tuple, Minkowski | E[X^2] 4.2301e12 -> 9.0333e10 | 2^40.579468 |
+| all (v10c's claim) | cap 34.78 T, T = 7,645,330,294,000 | 2^40.324374 |
 
-**D.** S Sect. 4 finds one solution of the characteristic through step 13 and reports about 2^34.3 for this, with no
-unit; this solution is our advice. Read as 35-step compressions, 2^34.3 is below 2^34.46 target units. The organizer
-reference costs (2140 operations for 31 steps, 2224 for 32) give 84 operations per step, so a 35-step compression costs
-at most 2224 + 3 * 84 = 2476 operations, i.e. 1.114 units. #296 ran the same task twice with the authors' exact value model and all signed rows asserted: 534.1 and
-374.7 CPU-s, both outputs checked exactly. At the kappa of Section 7 and a factor 32 those runs price the task at
-32 * 908.8 * 3,354,001 = 2^36.51 units (2^37.83 at kappa = 2^23). We charge **D = 2^38 = 274,877,906,944 units**,
-which covers every reading.
+Reverting single items of v10c's claim: the pair factor 2^-5, 2^40.358084; the inherited second moment,
+2^40.334576; the two-offset lookup (32), 2^40.352782; ed55a9d7's Step 2, 2^40.520800; batch
+reserve 96 instead of 16, 2^40.360959; 6e5214dd's register use (2,575 operations), 2^40.471974; without
+the itemised table-build audit, 2^40.592025. A pair factor 2^-8, not claimed (Section 7), would give
+2^40.318784.
 
-**C.** The loop iteration counts are:
+**ed55a9d7 (from 6e5214dd, 42.745).** Each row applies one change to 6e5214dd and re-optimises the cap and T by the
+same rule:
 
-| Loop | Count |
-|---|---|
-| P1 E4 and W7 scans | at most 2^33 |
-| P2 triples | 2^32 |
-| P3 E4 loop | 10,240 * 131,072 = 2^30.32 |
-| P3 W7 loop, counting plus placing passes | 2 * 155,008 * 524,288 = 2^37.24 |
-| P4 | at most 2^8 + 12 * 2^15 |
+| change from `6e5214dd` | effect | total with only this change |
+|---|---|---|
+| lazy extraction of `CV1[1..7]` | batch 2,805 -> 2,609; E[X] +18.21 | 2^42.717403 |
+| 64-register batch with merged sigma masks (reserve unchanged) | batch 2,805 -> 2,527 | 2^42.632531 |
+| batch reserve itemised (96 -> 24) | batch -72 | 2^42.716031 |
+| itemised table-build audit (PC-4 hoisted; C 23,035,438,979) | C -92.4% | 2^42.688076 |
+| corrected Step-3 count (2^-44), charged at the measured p_L, success >= 0.395 | T 30,702,858,922,613 -> 7,832,802,607,654 | 2^40.958517 |
+| all (ed55a9d7's claim) | batch 2,273, cap 96.2 T | 2^40.587816 |
 
-The total is under 2^37.43 iterations. Each iteration recomputes at most two step equations, a few conformance checks
-and one record write, which is at most 1024 operations. The 2^27-bucket prefix sum adds at most 2^29 operations.
-Thus C <= 2^37.43 * 1024 / 2224 + 2^29 / 2224 < 2^36.32 units. We charge **C = 2^38 = 274,877,906,944 units**.
+Reverting single items of ed55a9d7's claim: batch reserve 96 instead of 16, 2^40.619100; 6e5214dd's register use instead of
+`register-machine-64` (the batch with lazy extraction and merged masks on 6e5214dd's register use: 2,047 arithmetic, 432
+traffic, namely 6e5214dd's 516 less its 112 scalar-CV stores plus 14 `CV1[0]` stores and 14 loads of the seven merged
+masks, and the 96 reserve: 2,575 operations), 2^40.714717. Without the itemised table-build audit (C = 303,675,478,130): 2^40.814108.
 
-## 9. Success probability
+f807117b (from d8d39011, 43.001): Step 3 stages 16-17 in seven lanes (Section 8.3), with E[X] 160.82 -> 74.711,
+cap 162.5 T -> 76.4 T, T 30,702,387,450,972 -> 30,702,858,922,613 and C +11,322 units: total 2^43.0002 -> 2^42.7909.
+Alternatives for the new step, each re-optimised the same way (computed in `step3_swar.py`, Appendix E):
 
-Let V be the number of valid tuples in a trial and X the number of conforming P4 entries for a valid tuple.
+| variant | E[X] bound | best cap | total |
+|---|---:|---:|---:|
+| **f807117b as claimed: R1 reduction, union bound 7 f16 for a pack's stage-16 pass, rotation masks reloaded for stage 17** | 74.711 | 76.4 T | **2^42.7909** |
+| no R1 (literal four-addition stage 16), union bound, masks reloaded | 76.321 | 78.0 T | 2^42.7951 |
+| exact pack probability for a layout sorted by `oE mod 2^26` under uniform W16 (not claimed) | 67.227 | 68.9 T | 2^42.7711 |
+| scalar Step 3 (d8d39011) | 160.82 | 162.5 T | 2^43.0003 |
 
-- **Per trial.** Pr[V >= 1] >= E[V] - E[C(V,2)] >= q (1 - 2^-5) with q >= 2^-17.3583 (`q-32step-matching-rate`,
-  `valid-tuple-pairs`).
-- **Per tuple.** E[X] = 196,608 * 2^-46 = 2^-28.415 (`step3-46-conditions`). The entries share W14 in 12 groups of
-  2^14, and the 12 W20 sign/carry conditions are common inside a group. Hence
-  E[C(X,2)] <= 12 * C(2^14, 2) * 2^-12 * (2^12 p)^2 + C(2^17.585, 2) p^2 <= 2^-49.3, and
-  r = Pr[X >= 1] >= E[X] - E[C(X,2)] >= 2^-28.415 (1 - 2^-20).
-- **Per trial success.** s >= 2^-17.3583 * (31/32) * 2^-28.415 * (1 - 2^-20) = 2^-45.819143. Different valid
-  tuples of the same trial only add chances, so the bound uses one.
+These four rows use the 2,928-operation batch of f807117b. 6e5214dd's optimised rounds (2,805 per batch) move the
+claimed row from 2^42.7909 to **2^42.7441**; with the 2,336-operation rounds of f807117b instead, the total is
+f807117b's 2^42.7909.
 
-Trials use fresh coins and are independent. If U is the event that some trial among the T uncapped trials succeeds,
-then Pr[U] >= 1 - (1 - s)^T >= 1 - exp(-sT). With T = 32,828,179,945,388, sT = 0.528823, so Pr[U] >= 0.410701.
+The online and table terms descend from passed f310d44f (official 47.275), whose base is the validated commit
+`1dcd6067452b0263c2dfb0812c78528686e71c76` (official 47.29). Relative to that base, f310d44f replaced the 8-lane
+carry-save SWAR first-block evaluation (`3,712 + 800 + 96 = 4,608` ops per 8-trial batch, `576` ops/trial) with the
+7-lane 36-bit guard-bit SWAR first-block evaluation (`2,336` counted arithmetic/randomness ops + `800` itemized
+traffic/control + `96` reserve = `3,232` ops per 7-trial batch, `461.71` ops/trial); 621d0fb0 then changed only the
+characteristic accounting (Section 6.1); d8d39011, f807117b and 6e5214dd then made the changes listed in Section 8.2,
+and this version makes the changes of its "This version" table.
 
-**Cap stop.** Let X_t be the counted operations of trial t in the uncapped run, and S = X_1 + ... + X_T. If S <= W_cap,
-the capped run behaves exactly like the uncapped one. So Pr[success] >= Pr[U] - Pr[S > W_cap].
+### 8.3 Step 3: stages 16 and 17 for seven candidates at once
 
-The X_t are independent and identically distributed. Using the Section 5.4 charges and the Section 6 inputs:
+**P4 and the two reductions.** Unprimed values are the advice branch and primed values are `X' = X xor FL(X)`. W0,
+W1, W2, W9, W10 and W14..W17 have zero difference; rows A13, A15, A16, A17, E14 and E17 are all `=`;
+FL(A14) = 2^29, FL(E15) = bits {18, 4}, FL(E16) = bits {25, 23, 15} (u, n, n), so D(E16) = -2^25 + 2^23 + 2^15.
+Each P4 row stores the offsets `oE = E16 - W16`, `oE' = E16' - W16`, `oA = A16 - E16`, `oA' = A16' - E16'`.
 
-```
-E[X] <= 8 * 10.4068                                              (scan)
-      + (N / 2^32) * (200 + 48*0.51 + 48/15 + 48/120 + 1256/240)  (Step 2)
-      + 2^-17.3166 * (1 + 2^-5) * (400 + 196,608 * (40 + 192 * (2^-2.99 + 14 * 2^-14.9)))   (Step 3)
-      = 83.25 + 75.88 + 79.81 = 238.94 operations.
-```
+- **R1 (asserted by the builder for all 196,608 rows).** `oE' - oE = D(E16)` and `(oE' - oE) + (oA' - oA) = 0 (mod
+  2^32)`. Because `W16' = W16`, for every tuple `E16' - E16 = D(E16)` and `A16' - A16 = 0`. Hence the A16 test of
+  stage 16 always holds, and the E16 test `E16' = E16 xor FL(E16)` holds iff `E16[25] = 1`, `E16[23] = 0` and
+  `E16[15] = 0` (unique signed-digit representation over distinct positions below 31). Stage 16 is therefore
+  `((oE + W16) xor 2^25) & FL(E16) = 0`. The builder checks R1 on every row and fails otherwise (charged in C).
+  f807117b's own enumeration of P4 from the advice and Fig. 6 gives exactly 12 groups of 16,384 rows, R1 holds on all of
+  them, and the measured stage-16 fraction is exactly 1/8, as #296 measured.
+- **R2 (algebra, no assertion).** On a stage-16 survivor, W17 and K17 cancel (W17' = W17), so the E17 test is
+  `Sigma1(E16) + IF(E16, E15, E14) + DC = Sigma1(E16') + IF(E16', E15', E14) (mod 2^32)` with
+  `DC = (A13 + E13) - (A13' + E13')`, and `Sigma1(E16') = Sigma1(E16) xor Sigma1(FL(E16))` because Sigma1 is linear over
+  XOR. Given `E17' = E17`, `A16' = A16`, `A13' = A13`, `A15' = A15` and `A14' = A14 xor 2^29`, the A17 test is
+  `MAJ(A16, A15, A14) = MAJ(A16, A15, A14 xor 2^29)`, i.e. `A16[29] = A15[29]`. Stage 17 needs no message word.
 
-Here 2^-17.3166 is the upper confidence limit of q. A trial's Step-3 work is at most 574,095,760 V operations, with
-574,095,760 = 400 + 196,608 * (40 + 15 * 192), and its Step-2 work is at most 1600 m for m key matches. Using
-(x + y + z)^2 <= 3(x^2 + y^2 + z^2):
-- E[scan^2] <= 64 * 936 * 10.4068;
-- E[m^2] <= 4 * 5.758e9 / 2^32 = 5.3626, by Cauchy-Schwarz over the 4 index-parts;
-- E[V^2] = E[V] + 2 E[C(V,2)] <= 2^-17.3166 (1 + 2^-4).
+**Layout (built once, charged in C).** Each W14 group is padded to 2,341 packs of seven rows (the last with 4 real
+lanes; the 3 dummy lanes are forced to fail by OR-ing a lane mask), 28,092 packs in all. Lane l is bits 36l..36l+35
+with zero guard bits. A pack stores three lane-packed words: `oE`, `E15 xor E14`, and
+`((oE + oA) mod 2^32) + A15[29] 2^29`; each group stores `sigma1(W14)` and `E14` broadcast.
 
-This gives E[X^2] <= 3 (6.234e5 + 1.373e7 + 2.145e12) = 6.436e12. By Chebyshev,
+**Per tuple and per pack (every primitive counted by `step3_swar.py`, one address operation per load).**
 
-```
-Pr[S > 400 T] <= T * E[X^2] / (T * (400 - 238.94))^2 = 6.436e12 / (25,940 * T) <= 7.56e-6.
-```
+| block | when | ops |
+|---|---|---:|
+| tuple setup | per valid tuple | 600 (scalar 300 + 300; 215 itemised: 14 constant loads, c16 broadcast 7, per group W16 broadcast-add, E14 broadcast, control and cap reserve, dummy-lane mask) |
+| stage 16 | every pack | 11: load `oE` (2), `S = W16 + oE` (1), `(S xor V16) & FL16` (2), per-lane zero test `(T + M) & G` (2), compare and branch (2), pack loop (2) |
+| stage 17 | pack with a stage-16 pass | 57: the 45 itemised (cap check, Sigma1 of the masked E16, the two IFs, the E17 comparison, the A16[29] test, combination with the stage-16 result, per-lane zero test, branch) plus 12 to reload the six rotation masks |
+| extraction | pack with a stage-17 pass | 25: cap check, pass mask, 7 x (shift, AND, branch) |
+| survivor | each candidate passing stage 17 | 2 + 2,352: hand-off, then the unchanged scalar tranches 48 + 256 + 2,048 from stage 16 |
 
-**Result.** Pr[success] >= 0.410701 - 0.0000076 = **0.41069 >= 0.40 claimed** (> 0.39 required). The claim does not
-rely on rounding: the margin is 0.0107.
+A pack's stage-16 pass probability is bounded by `7 f16 = 0.882` and its stage-17 pass probability by `7 f17`; the
+survivors are exactly the scalar sweep's stage-17 survivors, so they occur at rate `f17` per candidate. No lane sum
+reaches 2^34 (checked on every executed addition).
 
-## 10. Time ledger (exact)
+**Validation (`step3_swar.py`, Appendix E).**
+- 40 random tuples plus the two real tuples (the #227 certified pair and S's pair, both of whose (W14, W15) are in P4
+  and pass stages 16 and 17), all 196,608 candidates each, in three configurations: **49,545,216 lane decisions
+  (stage 16 and cumulative stage 17) compared with a scalar reference that evaluates both branches from the full step
+  equations and never uses the stored offsets: 0 mismatches.**
+- 20,000 targeted packs with one lane forced through stage 16: 279,946 lane decisions, 10,044 forced stage-17
+  passes: 0 mismatches.
+- On 589,824,000 lanes of uniform random tuples the stage-16 fraction is 0.1249994 and the cumulative stage-17 rate
+  2^-15.013 (+-1.5%), consistent with the measured 2^-3.000 and 2^-15.000 and inside `f16 <= 0.126`,
+  `f17 <= 2^-14.9`. These test the arithmetic only; the real-tuple rates remain the credited measurements.
 
-All figures are in target-compression units; C = 2224.
+Sensitivity. As claimed (characteristic public): **39.976**. If a reviewer instead charges the characteristic search,
+the total `time_log2` across `kappa` and the route-search multiplier is (rounded upward to two decimals):
 
-```
-A + B = ceil((T * (2224 + 64) + 400 * T) / 2224) + 8
-      = ceil(32,828,179,945,388 * 2,688 / 2224) + 8
-      = 39,677,224,682,204 units = 2^45.1734
-        (T first-block compressions; 64 fixed ops per trial; the counted cap 400 T;
-         8 units for the final 6-compression verification, the comparison and the refused-cap test)
-C     =             274,877,906,944 = 2^38
-D     =             274,877,906,944 = 2^38
-E     =          63,737,610,427,456 = 2^45.857210   (32 * 593,858 CPU-s * 3,354,001)
-total =         103,964,590,923,548 = 2^46.563086  <=  2^46.57 = 104,464,059,367,307
-C + D + E =      64,287,366,241,344 = 2^45.869600  <=  2^45.87
-```
+| kappa (units per CPU-s) | margin 8 | margin 32 | margin 64 |
+|---|---:|---:|---:|
+| 2^23 | 45.22 | 47.19 | 48.19 |
+| 2^24 | 46.20 | 48.19 | 49.19 |
+| 2^25 | 47.19 | 49.19 | 50.19 |
 
-The claimed time_log2 = 46.57 leaves a factor of 1.0048 in reserve, about 33 operations per trial beyond the itemised
-charges. It does not depend on rounding the exponent.
-Every term above is a hard bound given its charge: A and B follow from T and W_cap on every coin sequence, and C, D
-and E are one-time charges. Parallel execution does not change these totals.
+**Comparison with #227.** Its 2^61.9 is a prospective cap (8,192 x 2^36 first-block slots at 2^24 ops each), not a
+cost; its observed run used 2^41.1 first blocks and 2^41.35 tuple-tail pairs for one success, consistent with
+the corrected rate 2^-44 of Section 5.1. Its 2^64 term is S's 2^48.335 inflated by C, with no search measurement.
 
-## 11. Memory and advice
+## 9. Memory
 
 | Item | Bytes |
 |---|---|
-| TAB2: 16 N | 22,348,398,592 |
-| bucket offsets: 4 * (2^27 + 1) | 536,870,916 |
-| L4, L7, combinations, pairs, P4 with its constants (one 256-bit word per stored 32-bit value, under 80 MB), code and state | < 2^27 |
-| largest solver resident set (search and start runs, #296/#396) | 5,642,330,112 |
-| **sum** | **28,661,817,348 = 2^34.739** |
+| TAB2, 64N (v10c: record word, old record, padding) | 89,393,594,368 |
+| bucket cells (occupancy, offset), 8 * 2^32 (v10c) | 34,359,738,368 |
+| offset array during table build, 4(2^32 + 1) | 17,179,869,188 |
+| transient count/cursor array during table build, 4 * 2^32 | 17,179,869,184 |
+| other tables (one datum per 256-bit word, v11), code and state | < 2^27 + 2^22 |
+| largest solver peak (search / start) | 5,642,330,112 |
 
-The phases run one after another, so adding the solver peak is conservative. We claim 35. The advice consists of the
-signed rows, 71 two-bit conditions, the readings, 18 advice words and the round constants. It fits in fewer than
-8,192 bytes, so we claim 13.
+**Representation (v11).** The counted programs run on the cost model's 256-bit word RAM, so memory is counted in
+that machine's words, not in native bytes. A table holds several data per 256-bit word only where every charged
+access includes its address and shift-and-mask operations:
+- the record words and the old 16-byte record fields: Section 8 B's tranches and ed55a9d7's decoding charge;
+- the lookup cells, four per word: the itemised lookup;
+- L7, eight per word: PC-4's itemised 8;
+- the count/cursor and offset cells, eight per word: the 1,024 operations per bucket boundary and the 64 per record
+  action, which cover a packed read-modify-write;
+- the 7-lane batch vectors.
 
-## 12. Heuristics (IDs as in claim.json)
+Every other table is counted at one 32-bit datum per 256-bit word: L4, L7 (again, conservatively), the combinations,
+LEFT, P14, P4 and its lane-packed copy (three words per pack). That is 126,917,376 bytes < 2^27. Code, masks,
+constants and working state are below 2^22 bytes. Even conservatively adding the sequential solver peak, the total is
+< 163,886,512,900 < 2^37.254 (v10c's 64-byte records and the cell array account for the increase over
+ed55a9d7's 2^35.861; memory is reported, not scored). The route search's memory is pre-declared (supporting heuristic
+`search-peak-memory`): the measured peak over all 59 characteristic-search calls and both alternate start runs is
+5.25 GiB < 2^33 bytes. The route search and S's starting-solution construction are not word-RAM programs of this
+package: they are charged as D and as fallback allowances, and they run before the attack, so peak memory is the
+larger of the phases, not their sum. Their native peaks stay below 2^38 even in word terms. If every byte of the
+measured 5.25-GiB solver peak became a 256-bit word, it would be 2^37.39; at one 32-bit datum per word, an assumed
+2^33-byte historical peak becomes 2^36. We nevertheless add the measured peak to the attack's tables above. We claim
+38. The advice
+(characteristic, 71 conditions, 18 words, constants) is < 8 KB, so we claim 13.
 
-- `q-32step-matching-rate` (score-critical). A uniform C_32 first block yields at least 2^-17.3583 expected valid
-  tuples against TAB2.
-  - Evidence: #296's four 2^32-trial runs (Section 6), #26's runs, #227's campaign counts, and the analytic
-    prediction.
-  - Assumption: CV1 words behave as uniform for the Step-2 tests.
-- `step3-46-conditions` (score-critical). Each P4 entry conforms with probability at least 2^-46, and
-  r >= 2^-28.415 (1 - 2^-20).
-  - Evidence: the condition count, stage rates through step 21, and the #227 instance (Section 3).
-  - The 13 carry conditions after step 21 are extrapolated.
-- `valid-tuple-pairs` (supporting). E[C(V,2)] <= q 2^-5.
-- `route-search-measured` (score-critical). Re-deriving S's characteristic costs at most 32 * 593,858 solver CPU-s.
-  - Evidence: #396's completed 59-call run, which printed Fig. 6 (Section 7).
-  - The factor 32 is priced from the run ledger, not executed.
-- `cpu-second-pricing` (score-critical). One solver CPU-second costs at most kappa = 3,354,001 units (2^32.80
-  operations).
-  - Evidence: the callgrind rate and class shares (Section 7), our dynamic per-form profile of the same library
-    (Section 15.5), our rate runs (Section 15.2).
-  - Assumption: the charged calls retire at most 1.85 times the calibrated instructions per CPU-s, and their ordinary
-    instructions cost at most 1.956 operations on average, the largest of our four profiled shapes.
-- `starting-solution-cost` (supporting). The Step-1 starting solution costs at most 2^38 units (Section 8).
-- `work-moments` (supporting). These are the occupancy, multiplicity and stage-pass inputs to E[X] and E[X^2].
-  - They affect only the 7.6e-6 cap-stop term, and through it the success bound.
-- `search-peak-memory` (supporting). The solver peak is at most 2^33 bytes. This affects memory only.
+## 10. Heuristics (IDs exactly as in claim.json)
 
-## 13. Sensitivity and limitations
+- `q-32step-matching-rate` (score-critical): q >= 2^-17.3584. Evidence: the exact-enumeration prediction 2^-17.3254,
+  the public source submission's 2^34 trials, #26's runs, and #227's campaign counts. Assumption: CV1 words act as
+  uniform for the Step-2 tests. The fixed replay verifies one derivation and supplies no q-rate evidence.
+- `step3-44-conditions` (score-critical, replaces `step3-46-conditions`): for the occurrence-weighted valid tuple,
+  each P4 candidate passes stages 16..31 with probability at least `p_L = 2^-44.0055`, and the size-biased co-pass
+  mean is at most `0.0000361053`. Evidence: the corrected count of 44 one-bit conditions (Section 5.1: the printed
+  misprint `W20[4,31] = W20[6,22]` removed, with the late conditions derived algebraically), and the pre-registered
+  measurement on the real second block, the real P4 list and real TAB2 records. That measurement gives the point
+  `2^-44.0004`, stage exponents equal to the counts, every counted condition enforced from its stage and at 0.5 before
+  it, no heterogeneity, an independent replication, and 200 of 200 dumped passes completed into second-block collisions
+  from their derived chaining values.
+  Coverage: 8 key slices, 1,573 records examined and 700 weighted, 1,400 tuple vectors, 73.2M histories through step 19.
+- `cv1-conditional-uniformity` (score-critical, new in ed55a9d7): for a uniform first block and every event determined by
+  `CV1[0..3]` (in particular the validity of any set of TAB2 records), `CV1[4..7]` is uniform and independent of that
+  event. Hence `W0..W3` and `W16..W19` of every valid tuple are uniform and independent of the trial's Step-2 events
+  and of the tuple's `W4..W15`. Evidence and scope in Section 5.1.
+- `selected-valid-tuple-success-transfer` (score-critical; derived in v11): conditional on at least one valid tuple, an
+  analysis-only uniform selector chooses one of that trial's tuples. Its Step-3 success probability is at least
+  `196,608 p (1 - delta - U_r/(2(1 - m)))`, with `delta = 0.003811` (Section 7). This follows by Cauchy-Schwarz from
+  `cv1-conditional-uniformity`, `valid-tuple-pairs` and the measured cross-tuple second moment
+  `E_occ[p_J^2]/p^2 <= 1.000812`. Direct measurements agree: pair-event tuples pass at 0.998 +- 0.003 times the
+  rate of single-event tuples of the same records, and Step-2-relaxed tuples at 1.0052 +- 0.0030 times characteristic
+  tuples. The counterfactual uncapped trial tests every valid tuple; the cap is handled later by the `U intersect H`
+  argument.
+- `public-characteristic` (score-critical): the published signed characteristic (Fig. 6, truncated to 32 steps in
+  public hash-smash #26/#33) and its two-bit conditions are public algorithm text, used without charging their
+  original discovery (Section 6.1). Every value-level object is charged (D, C, A + B). Evidence: the characteristic is
+  printed in S and restated in Section 2; #396's re-run of S's procedure returned the same rows; the organizer-accepted
+  r31 package 50592e75 uses the same convention. If rejected, the total is 2^47.1895084910 (Section 6.2).
+- `route-search-measured` (supporting; fallback only, not in the claimed total): the completed 59-call run uses 593,858 solver CPU-s and outputs Fig. 6
+  exactly. The charged x32 factor prices blind rediscovery from the measured timeout ledger, solver variance and the
+  exploratory model/nabla-W choice. Steps 2-4 were conditioned on S's nabla W, 76 was not proved optimal, and the
+  x32 factor was not itself executed.
+- `cpu-second-pricing` (supporting; fallback only): 1 solver CPU-s <= 2^23 units (`2^34.12` primitive 256-bit word-RAM ops, `17.0`
+  ops per retired instruction, as in #134), with sensitivity up to `2^25` in Section 8.
+- `valid-tuple-pairs` (score-critical): E[C(V,2)] <= q * 2^-7 (v10c; inherited 2^-5); the unobserved cross-part term
+  is extrapolated. The charge is 2.6 times the inherited estimate with the 9 observed pairs at their 99%
+  Poisson upper bound, and 5.4 times the point estimate. For relaxed tuples (v11) the factor is scaled by the q gain's
+  upper bound to `2^-6.8308`: in the sample, the sum of squared relaxed validity weights is 1.237 times the
+  characteristic one, below `1.1244^2`.
+- `relaxed-condition-gains` (score-critical, new in v11): with the relaxed tests of Section 5.2, the valid tuples per
+  trial are at least 1.1178 (and at most 1.1244) times the characteristic ones, the occurrence-weighted Step-3 rate of a
+  characteristic tuple is at least 1.1624 times `p`, the valid-tuple mix passes Step 3 at least 0.9992 times as often as
+  characteristic tuples, and relaxed passes co-pass at most `U_r = 0.0000396315`.
+  Evidence: exact counts over all 2^32 values of each word, the measured test-(e) coupling on 1,573 uniform records,
+  the 6.55e15-history Step-3 run on 1,400 vectors, and 618,020 end-to-end rebuilds as second-block collisions
+  (Section 5.2, Appendix H).
+- `register-machine-64` (score-critical, new in ed55a9d7): the first-block batch is charged as the explicit
+  straight-line program of Section 8 A on the cost model's 256-bit word RAM with 64 registers, the machine of the
+  promoted blake3-r2 package 52bb50ee and of our passed r31 package 028aa8d0. Its 53 simultaneously live values plus 8
+  registers held across the batch fit 64. The replay asserts the program's results, operation counts and liveness. The
+  cost model fixes no register count. With 6e5214dd's register use (masks resident, schedule words and W reloaded) the
+  batch would be 2,575 and the total 2^40.124748.
+- `attack-work-moments` (score-critical): the existing stage-ordered early abort is charged with
+  `f16 <= 0.126` and `f17 <= 2^-14.9` (above the measured `0.1250002` and cumulative
+  `2^-14.999972...`), giving, with the 2^32-bucket scan mean `N/2^32 < 0.32522`, the per-trial extraction of `CV1[1..3]`
+  (21 per nonempty-bucket trial), the record-word Step-2 tranches (v10c) with the relaxed tests and their exact pass
+  rates (v11), the q gain's upper bound 1.1244, and the seven-lane stages 16-17 of Section 8.3 (pack stage-16 pass
+  bounded by 7 f16), E[X] <= 37.103 and, with the second moment split by tuple, E[X^2] <= 3.3217e10. The
+  builder's asserted maximum occupancy (936 for 27-bit buckets, hence for their 32-bit refinements) gives
+  X <= 435,642,396,717; independent per-trial work variables then support the Bernstein cap-stop bound in Section 8.
+  The moment and support inputs are inherited participant measurements and extrapolations; the organizer replay does
+  not validate attack cost or these distributions.
+- `precomputation-op-cap` (score-critical): Section 8.1 gives finite no-sort control flow with explicit helper
+  semantics, expands the
+  word-RAM cost of its helpers, links every P1-P4 phase to a per-body envelope, and separately charges worst-case
+  record placement, all `2^27+1` counter/offset cells and every retained auxiliary row; d8d39011 adds the
+  `2^32 - 2^27` further cells at the same 1,024 each, ed55a9d7 itemises PC-4's per-pair body, and v10c
+  adds the record word of each placed record and the lookup cells (Section 8.1). Its exact integer ledger is
+  53,472,328,090,624 primitive operations, plus 25,178,112 for the lane-packed P4 copy and its R1 assertion: at most
+  24,043,324,313 target-compression units. The table cardinalities
+  remain inherited participant enumeration evidence; this is a static source audit, not native timing or organizer
+  execution, and any implementation with a sort, dynamic growth or different predicates falls outside the bound.
+- `starting-solution-cost` (score-critical): the scored algorithm uses the exact Step-1 solution from which S builds
+  TAB2 and the published pair. S reports about 2^34.3 for finding that solution; D = 2^35 charges that exact source
+  construction directly and covers its 35-step-to-32-step conversion by a factor 1.459. The source unit and historical
+  execution remain unverified. The locally timed alternate solutions are not substituted and establish no transfer.
+- `search-peak-memory` (supporting): the route search's peak memory is below 2^33 bytes (Section 9).
 
-| Change | Total time_log2 |
-|---|---|
-| as charged (kappa 2^21.677, factor 32) | 46.563 |
-| ordinary mean 2.5 instead of 1.956 (kappa 2^21.862) | 46.679 |
-| ordinary mean 3 (kappa 2^22.013) | 46.778 |
-| class price of 49f8f6d4 (kappa 2^22.527) | 47.140 |
-| kappa 2^23 (841646f2) | 47.504 |
-| spread S = 1 / 2.5 / 3.63 instead of 1.85 | 46.086 / 46.845 / 47.232 |
-| factor 16 | 46.035 |
-| factor 64 | 47.253 |
-| factor 128 | 48.069 |
+## Appendix E. `step3_swar.py` (participant tool)
 
-| p per entry | Success bound at T = 2^44.9 |
-|---|---|
-| 2^-46 (charged) | 0.4106 |
-| 2^-46.5 | 0.3120 (below 0.39) |
-| 2^-47 | 0.2323 (below 0.39) |
+sha256 b23bcd728ba2d1ce0c51e8004f03efd13751c0a8a4148a2205b5f2882e80c4b6  step3_swar.py
 
-Limitations, stated plainly:
-- No participant run here rebuilt TAB2 or measured q, p or the search. Every rate is a credited public participant
-  measurement. Our own checks are the exact finite checks of Section 14, with no extrapolation.
-- p = 2^-46 rests on a condition count that is measured through step 21 and extrapolated for the last 13 carry
-  conditions. If one more independent condition existed, the success bound would fall below 0.39 at this T. The
-  public 32-step pair of #227 shows that the full conformance event is reachable from C_32 first blocks.
-- S's historical search time is unpublished. E is a measured re-run times an argued rediscovery factor, not S's own
-  cost.
-- The CPU-second price uses one calibrated call for the instruction rate. Our rate runs used a different machine,
-  instruction set and solver build, and enter only as a relative spread (Section 15.3).
-- Our dynamic profile ran the exact x86-64 library, but through its Python binding on our own SHA-256 CNF, single
-  threaded, not inside STP on the charged model. The STP front end is not profiled, and the STP-linked build may use
-  other compiler flags (Section 15.5).
-- The organizer sandbox cannot hold a 22 GB table, and it cannot run CryptoMiniSat or read hardware counters, so no
-  experiment is declared. The checks of Sections 14 and 15 are participant runs.
-
-## 14. Participant checks (our code)
-
-We wrote a stand-alone Python implementation of the step equations of Section 1, independently of any submitted
-package code. Its full-message hash agrees with the organizer's `verifier/hash_functions.py:digest` for 32, 35 and 64
-steps on both messages of S's pair. Results:
-
-1. **S's pair.** M0 = a8850273 c0f4a504 5d3ad7b5 6e5f5026 535cc256 e92ef7a5 436f70df 7d7e236a cadc14e8 d59ac191
-   6874f1ba 6b83960d f6dfe9de 6a013df2 f856b739 237894e8.
-   - M1' (unprimed) = c0008214 ae65f3bf e93c006a 5f195aa9 84d6cd0f 25c114ec ca897317 da9fd6ef 6ec97e18 5100da8a
-     0912e57b a96b2054 41b22a2c 6d12f88a d2701ecc 140976d1.
-   - M1 differs in words 4..8 (a4d6cd0f 21811cec ea897317 db9ec665 6ec17218) and 12..13 (45f2222c 4d12f88a).
-   - The 35-step hashes are equal. S's printed "hash" equals the second-block chaining value
-     C_35(CV1, M1) = c6209b2b...e444451f. The 31-, 32- and 64-step hashes differ.
-   - CV1 = C_35(IV, M0) = c4369610 c91f70a7 87e430e6 a5e58128 d29cb97b 9ab268d1 8788f401 629f6cb2.
-2. **Rows.** With unprimed = M1', every symbol of rows -4..34 holds: 119 `n`/`u` symbols and 360 value symbols, with
-   0 mismatches. The opposite orientation fails on all 119 `n`/`u` symbols, which confirms the orientation.
-3. **Two-bit conditions.** 66 of the 73 printed relations hold as printed. The 7 that do not are exactly those
-   re-read in Section 2, and under the readings all 71 hold. E16[29] = E17[29] holds on the pair.
-4. **Advice.** The advice words of Section 4 are recomputed from the pair.
-5. **Free bits.** Free-bit counts per row: E3 26, E4 18, E5 5, E6 12, E7 15, W7 25, E14 8, E15 15. These reproduce
-   the 2^32 P2 domain and, after the stated two-bit conditions, |L4| = 2^17 and |L7| = 2^19.
-6. **Step 2 on the published record.**
-   - The record built from S's tuple has key A[-1] = E3 - A3 + Sigma0(A2) + MAJ(A2, A1, A0) equal to CV1[0].
-   - The Section 5.2 equations reproduce W0..W6 = M1'[0..6].
-   - Tests (a)-(g) all pass.
-7. **Step 3 on S's (W14, W15).** Every stage 16..31 passes, and C_32(CV1, M1) = C_32(CV1, M1').
-8. **Public 32-step pair (#227).** The Section 3 results hold: equal 32-step hashes, 0 mismatches against rows -4..22
-   from CV1 = C_32(IV, M0) (unprimed = message b), and no difference in W23..W31.
-
-These checks establish that the written specification is consistent with the published instance and with a
-32-step instance. They do not measure rates. The rates are the credited inputs of Section 6.
-
-## 15. CPU-second price: our own evidence
-
-This section is our own work. It supports `cpu-second-pricing` and does not re-run any charged call. The price is
-kappa = R_cal * m * S / C (Section 7):
-- R_cal = 2^30.026 is the instruction rate of the calibrated call on the measurement machine (#296/#396);
-- m = m_dyn = 3.6874 is the number of primitive operations per retired instruction: our dynamic per-form profile
-  (Section 15.5) combined with the calibrated call's class shares (Section 7);
-- S = 1.85 allows the charged calls to retire faster than the calibrated call. It comes from the spread we measured
-  (Section 15.2).
-kappa = 3,354,001 allows 6.82 operations per instruction at R_cal.
-
-### 15.1 Operations per instruction: per-form costing of the solver code
-
-- Code: CryptoMiniSat 5.11.21 for x86-64, the version #396 ran inside STP, taken from the wheel
-  `pycryptosat-5.11.21-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl` (SHA-256 2358aa1453a6cf0d...e2f6fb;
-  library SHA-256 878e2f2b2f94a823...8659c0). We disassembled it with Apple LLVM objdump 21 (Intel syntax) and did
-  not execute it.
-- Charges, under the v5 primitive list. A 256-bit word holds any x86 register or SSE value, and each data field of the
-  program sits in its own word; the x86 code already contains its own bit-field shifts and masks, which are charged
-  as instructions.
-
-| Form | Primitive operations |
-|---|---|
-| memory operand | address: 1 per added term, +1 for a scaled index (base+index*s+disp = 3, rip+disp = 1) |
-| mov, movabs | 1 + address; +2 to merge into an 8- or 16-bit register |
-| movzx; movsx, movsxd | 2 + address; 4 + address |
-| add, sub, and, or, xor, cmp, test | 1; +1 memory source; +2 read-modify-write; +1 mask for 32-bit add/sub; +2 merge for 8/16-bit; adc/sbb +2 |
-| inc, dec, neg, not, shl, shr | 1; +2 read-modify-write; +1 mask for 32-bit (not shr); +2 merge for 8/16-bit |
-| sar; rol, ror, shld, shrd | 3; 4 |
-| lea | number of address operations (at least 1) + 32-bit mask |
-| jmp; jcc | 1 (2 + address through memory); 2 (3 for signed conditions) |
-| cmovcc; setcc | 3 (+1 memory source, +1 mask for 32-bit); 2 (+1 store or +2 merge) |
-| call, ret, leave; push, pop | 3 each, call through memory +1 + address; 2 each, push from memory +1 + address |
-| cdq/cqo; xchg; cmpxchg, xadd; bt; bts/btr | 3; 3-4; 6; 2; 4 |
-| bsf, bsr, tzcnt, lzcnt, popcnt, bswap | 32 |
-| string instructions | 6 per iteration |
-| SSE moves; SSE logic; packed integer arithmetic; shuffles, unpack, pack | 1 + address; 1; 8; 16 |
-| multiply, divide, floating-point arithmetic or conversion | 400 (the heavy class of Section 7) |
-| any other form | 8 |
-
-| Code set | Instructions | Heavy | Mean operations per ordinary instruction | Ordinary above 5 |
-|---|---|---|---|---|
-| `PropEngine::propagate_any_order` (4 instantiations) | 1,612 | 0 | 1.70 | 0 |
-| hot set: `propagate_any_order`, `propagate_light`, `analyze_conflict`, `litRedundant`, `minimize_using_bins`, `cancelUntil`, `new_decision`, `new_decision_fast_backw`, `enqueue`, `find_conflict_level`, `search`, `attach_and_enqueue_learnt_clause` (26 symbols) | 6,000 | 13 | 1.71 | 0.15% |
-| whole library (400 unrecognised forms, mostly lock-prefixed atomics, charged 8) | 253,984 | 3,092 | 1.73 | 0.66% |
-
-The commonest forms in the hot set are mov (38.9%), cmp (7.3%), lea (5.5%) and add (4.4%). These figures are static
-counts. Section 15.5 weights the same per-form prices by measured execution counts. The dynamic ordinary mean,
-1.880-1.956, is a little above the static 1.71-1.73, because cmp, add and conditional branches execute more often
-than they occur in the code.
-
-### 15.2 Instruction rate: CryptoMiniSat on SHA-256 CNF (our runs)
-
-- Machine and solver: Apple M4 Pro (8 performance and 4 efficiency cores), macOS, CryptoMiniSat 5.16.0 through
-  pycryptosat (arm64). All runs used `nice -n 10` while an unrelated long job kept the load average near 70.
-- Instances, from our generator (Tseitin CNF with ripple-carry adders and XOR, Ch and Maj gates; a few message bits
-  fixed at random per seed):
-  - pair: two N-step SHA-256 compressions from one free chaining value with free message words, a forced difference in
-    W0 and k of the 256 state bits equal after N steps. With wt, an adder-tree bound on the Hamming weight of the
-    message difference, the shape of the route-search thresholds.
-  - pre: N steps from the IV with k output bits fixed.
-- Counters: `proc_pid_rusage(RUSAGE_INFO_V6)` instructions, cycles and performance-core split, read immediately
-  before and after `solve()`, with `getrusage` user plus system time. `/usr/bin/time -l` on each whole process, which also counts
-  the Python generation, agrees within 1% for every run above 5 CPU-s and within 11% for the 1-2 s runs.
-- Total solver time: 561 CPU-s.
-
-| Instance | Threads | Variables / clauses | Result | Solve CPU-s | Instructions per CPU-s | IPC | P-core share |
-|---|---|---|---|---|---|---|---|
-| pair N=20 k=256, seed 1 | 1 | 26,097 / 172,850 | conflict limit | 15.9 | 9.23e9 = 2^33.10 | 2.40 | 0.94 |
-| pair N=20 k=256, seed 2 | 1 | 26,097 / 172,850 | conflict limit | 18.6 | 7.74e9 = 2^32.85 | 2.19 | 0.70 |
-| pair N=20 k=256, seed 3 | 1 | 26,097 / 172,850 | conflict limit | 18.7 | 8.26e9 = 2^32.94 | 2.33 | 0.71 |
-| pair N=20 k=256, wt <= 40, seed 1 | 1 | 29,114 / 189,471 | conflict limit | 1.2 | 8.08e9 = 2^32.91 | 2.24 | 0.77 |
-| pair N=20 k=256, wt <= 40, seed 2 | 1 | 29,114 / 189,471 | conflict limit | 1.8 | 7.68e9 = 2^32.84 | 2.15 | 0.74 |
-| pre N=24 k=96, seed 1 | 1 | 16,193 / 109,217 | conflict limit | 25.4 | 9.31e9 = 2^33.12 | 2.62 | 0.73 |
-| pre N=24 k=96, seed 2 | 1 | 16,193 / 109,217 | conflict limit | 31.0 | 9.58e9 = 2^33.16 | 2.67 | 0.75 |
-| pair N=24 k=256, seed 1 | 1 | 32,673 / 218,914 | conflict limit | 280.6 | 6.59e9 = 2^32.62 | 1.84 | 0.74 |
-| pre N=32 k=128, seed 1 | 1 | 22,769 / 155,313 | conflict limit | 60.0 | 12.14e9 = 2^33.50 | 3.35 | 0.77 |
-| pair N=17 k=160, seed 1 | 1 | 21,165 / 138,110 | SAT | 12.4 | 8.75e9 = 2^33.03 | 2.44 | 0.75 |
-| pair N=17 k=160, seed 2 | 1 | 21,165 / 138,110 | SAT | 9.5 | 9.80e9 = 2^33.19 | 2.69 | 0.79 |
-| pre N=20 k=48, seed 1 | 1 | 12,905 / 86,137 | time limit | 20.3 | 8.06e9 = 2^32.91 | 2.22 | 0.78 |
-| pair N=18 k=128, seed 1 | 1 | 22,809 / 149,562 | time limit | 20.3 | 9.00e9 = 2^33.07 | 2.51 | 0.75 |
-| pair N=22 k=256, seed 5 (6 chunks of 30,000 conflicts) | 1 | 29,385 / 195,882 | conflict limit | 7.8 | 7.42e9 = 2^32.79 | 2.09 | 0.72 |
-| pair N=20 k=256, seed 1 | 4 | 26,097 / 172,850 | time limit | 12.6 | 8.38e9 = 2^32.96 | 2.33 | 0.76 |
-| pre N=24 k=96, seed 1 | 4 | 16,193 / 109,217 | time limit | 12.3 | 7.82e9 = 2^32.86 | 2.19 | 0.74 |
-| pair N=20 k=256, wt <= 40, seed 1 | 4 | 29,114 / 189,471 | time limit | 12.6 | 8.06e9 = 2^32.91 | 2.27 | 0.72 |
-
-Three further instances (pair N=16, k=256, seeds 1-3) solved in 0.02-0.03 CPU-s at 1.2-1.7e10 instructions per CPU-s.
-They are start-up work only and we leave them out of the spread.
-
-Results for the 14 single-thread runs:
-- Instructions per CPU-s: mean 8.69e9 = 2^33.02, median 8.50e9, coefficient of variation 14.9%, range 6.59e9 to
-  12.14e9. That is max/min = 1.842 and max/median = 1.43. The CPU-weighted rate is 8.00e9 at IPC 2.23.
-- The longest run, with the largest resident set (pair N=24, 281 CPU-s, 348 MB), had the lowest rate.
-- Within one run (pair N=22, seed 5), the six consecutive chunks ran at 1.00, 0.99, 0.96, 0.85, 0.91 and 0.96 times
-  the first chunk. The rate did not rise as learnt clauses accumulated.
-- Four threads against one thread on the same instance gave 0.91, 0.84 and 1.00 times the single-thread rate per
-  CPU-s.
-- Part of the spread comes from the core type: performance cores ran 70-94% of the CPU time, at IPC 2.04-3.60,
-  against 1.0-2.1 on efficiency cores.
-
-### 15.3 What transfers to the measurement machine
-
-- The absolute rate does not transfer. Here the solver retires 2^32.6-2^33.5 arm64 instructions per CPU-s, 6-11 times
-  R_cal. A CPU-second on this machine does more solver work, and the ledger counts measurement-machine CPU-seconds, so
-  only R_cal prices them.
-- The per-form costing and the dynamic profile transfer directly. They describe the x86-64 code of the solver version
-  that ran the charged calls, and the instruction stream it executes on SHA-256 CNF, not a property of our machine.
-  The STP-linked build may use different compiler flags from the wheel.
-- The spread transfers as an empirical range only. It measures how much the per-CPU-second rate moves across instance
-  shapes, sizes, seeds, run length and threading for this solver on SHA-256 CNF. We apply its full max/min ratio, as if
-  the calibrated call sat at the bottom of the range and every charged CPU-second at the top. The charged calls were
-  long, multithreaded and large (5.25 GiB peak). In our runs those three properties lowered the rate or left it
-  unchanged.
-- If the charged calls retired more than 1.85 times R_cal, or their ordinary instructions cost more than 1.956
-  operations on average, kappa would no longer cover them. Section 13 gives the size of either effect.
-
-### 15.4 Why no organizer experiment
-
-The organizer runner offers standard-library Python only, with one CPU, 128 MiB and 20 s. It requires byte-identical
-output and does not credit runtime or operation counts. It cannot run CryptoMiniSat or read hardware counters, so the
-rate cannot be re-measured there. Our scripts are participant tools: the CNF generator and rate harness (SHA-256
-8b78762691099e46...), the per-form costing (220b1ab3aad0e96f...) and the run log.
-
-### 15.5 Dynamic per-form profile of the charged library (new in this package)
-
-- Binary: CryptoMiniSat 5.11.21 for x86-64 from the pycryptosat 5.11.21 manylinux wheel, library SHA-256
-  878e2f2b2f94a82331c775db2d05f957593be176e64692cd046f1998968659c0, the same file as Section 15.1. It ran as x86-64
-  code in a `python:3.12-slim` linux/amd64 container.
-- Tool: valgrind 3.24.0, callgrind with `--dump-instr=yes --toggle-collect='CMSat::SATSolver::solve*'`. Only
-  instructions executed inside the solve call are counted, in every object it reaches: CryptoMiniSat, libc,
-  libstdc++, libm and libgcc_s. Each counted address was matched to its instruction in `objdump -d -M intel` of the
-  same object, with 0 unmatched. Each instruction was priced by the Section 15.1 table (`x86ops.py`), and
-  unrecognised forms were charged 8.
-- Workloads: our SHA-256 CNF generator (Section 15.2), one solve call of 60,000 conflicts each, single thread.
-
-| Instance | Instructions in solve | m, all instructions | ordinary mean | heavy share | CryptoMiniSat / libc share |
-|---|---|---|---|---|---|
-| pair N=20 k=256, seed 1 | 23,059,870,223 | 2.797 | 1.880 | 0.230% | 96.2% / 3.4% |
-| pre N=24 k=96, seed 1 | 19,971,134,691 | 2.801 | 1.956 | 0.212% | 97.8% / 2.0% |
-| pair N=20 k=256, wt <= 40, seed 2 | 19,079,473,631 | 3.106 | 1.925 | 0.297% | 95.6% / 4.0% |
-| pair N=17 k=160, seed 1 | 20,426,990,077 | 2.910 | 1.911 | 0.251% | 96.6% / 3.1% |
-
-- Commonest executed forms: mov 27-28%, cmp 13-14%, add 9-12%, jne 7-8%, je 6%, lea 5%.
-- Executed cost histogram for pair N=20: 1 operation 44.4%, 2 operations 37.2%, 3 operations 10.7%, 4 operations
-  4.2%, 5 operations 2.4%, 8 operations 0.8%, 16-32 operations 0.06%, heavy (400) 0.23%. libm, where floating point
-  runs at 72-74 operations per instruction, is 0.035-0.066% of the instructions.
-- How the profile enters the price: we take the largest ordinary mean, 1.956 (pre N=24). For the heavy share we take
-  the larger figure, 0.416% from the calibrated call (our runs: 0.21-0.30%). We add the calibrated call's 7.24% PLT
-  share at 3 operations. The result is m_dyn = 3.6874, at least 19% above every profiled run's all-inclusive mean.
-- Why it transfers: the price is for the charged calls on the measurement machine. What we measured is a property
-  of the code: the operations per instruction of the instruction stream that this solver executes on SHA-256 CNF.
-  The machine-dependent parts, the rate R_cal and the spread S, are unchanged.
-- What it does not cover:
-  - The STP front end (parsing and bit-blasting) is not profiled. In the charged calls it runs once per call,
-    before the search.
-  - STP's own build of CryptoMiniSat may use different compiler flags.
-  - The charged model's CNF differs from our SHA-256 instances. Across our four shapes the ordinary mean moved by 4%.
-  - Multithreaded runs add clause-sharing atomics. Those are lock-prefixed forms, charged 8 here, and our static scan
-    found them only outside the hot set.
-- Reproduction: Appendix A lists the scripts with their SHA-256 hashes. `setup.sh` installs valgrind and the wheel,
-  `runs.sh` runs the four profiles, and `dynall.py` prices them. `lbench.py` is the Section 15.2 generator with the
-  macOS hardware counters removed.
-
-## Appendix A. Profile scripts (participant tools)
-
-- `setup.sh`: SHA-256 2e814916da4f74b88bbe53fb70fc38da26f58586c137fcc60a4c677256032d25
-- `runs.sh`: SHA-256 2dbc751d1bdad0fc478d5e89081f05d7ca6926eda0e75fdbea593df291b4c289
-- `lbench.py`: SHA-256 435ef2774d12f639df0c82d946c680be3993178b57ab3ee5d3dc8ddd91b7eac6
-- `x86ops.py`: SHA-256 220b1ab3aad0e96fc0c2d21a7977911de832df8aab12017cdfa971feae3fe190
-- `dynparse.py`: SHA-256 e67a3fad41a6e530619affacbca11ef71499eb2094b3b810624c2cda419c0e60
-- `dynall.py`: SHA-256 29747d0c46ad6e420427e4d39bb40fd35120dfb324b2b363f20af45ce982f818
-
-### A.4 `x86ops.py`
+Run as `python3 -I step3_swar.py` next to the organizer's `verifier/hash_functions.py` (and `numpy`); it rebuilds P4,
+checks R1, validates the seven-lane stages 16-17 against the scalar reference and computes the ledger variants. It
+is a participant tool, not an organizer experiment.
 
 ```python
-"""Static primitive-operation cost of x86-64 instructions (collision-frontier-v5 primitive list), per function."""
-import re, sys, collections, json
-MEM = re.compile(r'\[([^\]]*)\]')
-R8 = set('al bl cl dl ah bh ch dh sil dil bpl spl'.split()) | {f'r{i}b' for i in range(8, 16)}
-R16 = set('ax bx cx dx si di bp sp'.split()) | {f'r{i}w' for i in range(8, 16)}
-R32 = set('eax ebx ecx edx esi edi ebp esp'.split()) | {f'r{i}d' for i in range(8, 16)}
-HEAVY = re.compile(r'^(i?mul|i?div|mulx)$|^(v?)(add|sub|mul|div|sqrt|max|min|cvt|ucomi|comi|round|fmadd|rcp|rsqrt)[a-z0-9]*(ss|sd|ps|pd|si2s[sd]|s[sd]2si|tts[sd]2si|si2sd|si2ss|dq2pd|pd2ps|ps2pd)?$|^f[a-z]+$')
-FPONLY = re.compile(r'^v?(add|sub|mul|div|sqrt|max|min|ucomi|comi|round|rcp|rsqrt)(ss|sd|ps|pd)$|^v?cvt|^f[a-z]+$')
-SIGNED = {'jl', 'jle', 'jg', 'jge', 'js', 'jns', 'jo', 'jno', 'jnge', 'jnl', 'jng', 'jnle'}
-def addr(op):
-    m = MEM.search(op)
-    if not m: return 0
-    t = m.group(1)
-    if 'rip' in t: return 1
-    terms = [x for x in re.split(r'[+-]', t.replace(' ', '')) if x]
-    c = len(terms) - 1 + (1 if re.search(r'\*[248]', t) else 0)
-    if re.search(r'\b[fg]s:', op): c += 1
-    return c
-def width(op):
-    op = op.strip()
-    if op.startswith(('byte', 'word', 'dword', 'qword', 'xmmword', 'ymmword')): return op.split()[0]
-    if op in R8: return 'r8'
-    if op in R16: return 'r16'
-    if op in R32: return 'r32'
-    return 'r64'
-def cost(mn, ops):
-    """Return (ops, class) where class is 'heavy' for multiply/divide/FP, else 'ordinary'."""
-    mn = mn.split()[-1] if mn.startswith(('lock', 'rep', 'notrack', 'bnd')) and ' ' in mn else mn
-    if HEAVY.match(mn) and (FPONLY.match(mn) or mn in ('mul', 'imul', 'div', 'idiv', 'mulx')):
-        return 400, 'heavy'
-    a = sum(addr(o) for o in ops)
-    dst = ops[0] if ops else ''
-    dmem = '[' in dst
-    smem = any('[' in o for o in ops[1:])
-    w = width(dst) if ops else 'r64'
-    merge = 2 if w in ('r8', 'r16') and not dmem else 0
-    mask = 1 if w == 'r32' and not dmem else 0
-    if mn in ('nop', 'endbr64', 'int3', 'ud2', 'hlt', 'pause', 'lfence', 'mfence', 'sfence', 'prefetcht0', 'prefetcht1', 'prefetcht2', 'prefetchnta', 'prefetchw'):
-        return 1, 'ordinary'
-    if mn in ('mov', 'movabs'):
-        return 1 + a + merge, 'ordinary'
-    if mn in ('movzx', 'movsx', 'movsxd'):
-        return 1 + a + 1 + (2 if mn != 'movzx' else 0), 'ordinary'
-    if mn in ('add', 'sub', 'and', 'or', 'xor', 'cmp', 'test', 'adc', 'sbb'):
-        c = 1 + (2 if mn in ('adc', 'sbb') else 0)
-        if smem: c += 1
-        if dmem and mn not in ('cmp', 'test'): c += 2
-        elif dmem: c += 1
-        if mn in ('add', 'sub', 'adc', 'sbb'): c += mask
-        if mn not in ('cmp', 'test'): c += merge
-        return c + a, 'ordinary'
-    if mn in ('inc', 'dec', 'neg', 'not'):
-        return 1 + (2 if dmem else 0) + mask + merge + a, 'ordinary'
-    if mn in ('shl', 'sal', 'shr'):
-        return 1 + (2 if dmem else 0) + (mask if mn != 'shr' else 0) + merge + a, 'ordinary'
-    if mn == 'sar':
-        return 3 + (2 if dmem else 0) + mask + merge + a, 'ordinary'
-    if mn in ('rol', 'ror', 'shld', 'shrd', 'rcl', 'rcr'):
-        return 4 + (2 if dmem else 0) + merge + a, 'ordinary'
-    if mn == 'lea':
-        m = MEM.search(ops[1]).group(1) if len(ops) > 1 and MEM.search(ops[1]) else ''
-        return max(1, a) + mask, 'ordinary'
-    if mn == 'jmp':
-        return (2 + a) if smem or dmem else 1, 'ordinary'
-    if mn.startswith('j'):
-        return 3 if mn in SIGNED else 2, 'ordinary'
-    if mn.startswith('cmov'):
-        return 3 + (1 if smem else 0) + a + mask, 'ordinary'
-    if mn.startswith('set'):
-        return 2 + (1 if dmem else merge) + a, 'ordinary'
-    if mn == 'call':
-        return 3 + ((1 + a) if dmem else 0), 'ordinary'
-    if mn == 'ret':
-        return 3, 'ordinary'
-    if mn == 'push':
-        return 2 + ((1 + a) if dmem else 0), 'ordinary'
-    if mn == 'pop':
-        return 2, 'ordinary'
-    if mn == 'leave':
-        return 3, 'ordinary'
-    if mn in ('cdq', 'cqo', 'cdqe', 'cwde', 'cbw', 'cwd'):
-        return 3, 'ordinary'
-    if mn in ('xchg',):
-        return (3 if not dmem else 4) + a, 'ordinary'
-    if mn in ('cmpxchg', 'xadd', 'cmpxchg8b', 'cmpxchg16b'):
-        return 6 + a, 'ordinary'
-    if mn == 'bt':
-        return 2 + (1 if dmem else 0) + a, 'ordinary'
-    if mn in ('bts', 'btr', 'btc'):
-        return 4 + (2 if dmem else 0) + a, 'ordinary'
-    if mn in ('bsf', 'bsr', 'tzcnt', 'lzcnt', 'popcnt', 'bswap'):
-        return 32 + a, 'ordinary'
-    if mn in ('stosb', 'stosw', 'stosd', 'stosq', 'movsb', 'movsw', 'movsq', 'scasb', 'cmpsb', 'lodsb') or (mn == 'movsd' and not ops) or (mn == 'movsd' and all('ptr [r' in o and ('rsi' in o or 'rdi' in o) and 'xmm' not in o for o in ops)):
-        return 6, 'ordinary'   # string instruction, charged per iteration
-    if re.match(r'^v?(movd|movq|movdqa|movdqu|movaps|movups|movapd|movupd|movss|movsd|movhps|movlps|movhpd|movlpd|movntdq|movnti|lddqu)$', mn):
-        return 1 + a, 'ordinary'
-    if re.match(r'^v?(pxor|por|pand|pandn|xorps|xorpd|andps|andpd|orps|orpd|andnps|andnpd)$', mn):
-        return 1 + (1 if smem else 0) + a, 'ordinary'
-    if re.match(r'^v?(padd|psub|pcmp|pmin|pmax|psll|psrl|psra|pavg|pabs)', mn):
-        return 8 + (1 if smem else 0) + a, 'ordinary'
-    if re.match(r'^v?(pshuf|punpck|pinsr|pextr|pmovmsk|movmsk|palign|shufp|unpck|pmovzx|pmovsx|pblend|blend|insertps|extractps|vperm|vbroadcast|vpbroadcast|pack|vinsert|vextract|movhlps|movlhps|movddup|movshdup|movsldup|pslldq|psrldq|ptest|vzeroupper)', mn):
-        return 16 + (1 if smem else 0) + a, 'ordinary'
-    return None, 'unknown'
+#!/usr/bin/env python3
+"""Step-3 stages 16..17 in 7 lanes of 36 bits: P4 rebuild, scalar reference, SWAR kernel, validation, ledger.
 
-def parse(path):
-    funcs = collections.OrderedDict(); cur = None
-    for line in open(path, errors='replace'):
-        if line.rstrip().endswith('>:'):
-            cur = line.split('<', 1)[1].rsplit('>', 1)[0]; funcs[cur] = []; continue
-        m = re.match(r'^\s+[0-9a-f]+:\s+(.*)$', line.rstrip())
-        if not m or cur is None: continue
-        body = m.group(1).split('<')[0].strip()
-        if not body or body.startswith('(bad)'): continue
-        parts = body.split('\t')
-        mn = parts[0].strip(); ops = [o.strip() for o in parts[1].split(',')] if len(parts) > 1 else []
-        if mn in ('lock', 'rep', 'repne', 'notrack', 'bnd', 'data16', 'rex64', 'cs') and len(parts) > 1 and parts[1].strip():
-            sub = parts[1].strip().split(None, 1); mn = sub[0]; ops = [o.strip() for o in sub[1].split(',')] if len(sub) > 1 else []
-            if parts[0].strip() == 'rep' or parts[0].strip() == 'repne': mn = mn  # rep handled as per-iteration cost below
-        funcs[cur].append((mn, ops))
-    return funcs
+Run:  python3 -I step3_swar.py [--tuples N] [--targeted N] [--seed S] [--skip-opt]
 
-def summarize(name, insns):
-    tot = n = heavy = big = unk = 0; dist = collections.Counter(); unkn = collections.Counter()
-    for mn, ops in insns:
-        c, cls = cost(mn, ops)
-        if c is None:
-            unk += 1; unkn[mn] += 1; c = 8
-        n += 1
-        if cls == 'heavy': heavy += 1; continue
-        tot += c; dist[min(c, 10)] += 1
-        if c > 5: big += 1
-    ordn = n - heavy
-    return dict(name=name, insns=n, heavy=heavy, ordinary=ordn, mean_ordinary=round(tot / ordn, 3) if ordn else None,
-                frac_ordinary_over5=round(big / ordn, 4) if ordn else None, unknown=unk,
-                dist={k: dist[k] for k in sorted(dist)}, unknown_top=unkn.most_common(8))
+Everything is self-contained (SHA-256 helpers copied from replay_base.py).  Sections:
+  1. Fig. 6 rows, advice, FL masks; advice self-check.
+  2. P4 rebuilt from Section 4 (P4) / Section 8.1 PC-5; asserts 12 groups x 2^14; witness membership.
+  3. Twelve-word P4 rows exactly as the proof stores them, plus the two row identities used by the
+     reduced stage-16 test (asserted for every row, i.e. a build-time assertion).
+  4. Scalar reference of stages 16 and 17 from the full step equations (pure Python, and a numpy
+     vectorisation cross-checked against it).
+  5. SWAR kernel (Ops counts every primitive 256-bit operation), two variants:
+       'reduced' : stage 16 = 3-bit E16 test (exact by the asserted row identities), 3 packed fields;
+       'general' : stage 16 forms E16, E16', A16, A16' and tests both XOR-conformances, 5 packed fields.
+     Stage 17 is the same in both and evaluates all 7 lanes of a pack in which any lane passed 16.
+  6. Validation against the scalar reference (random tuples, all packs, + targeted stage-17 cases,
+     + the two real conforming pairs).
+  7. Exact pack-any-pass probability under uniform W16 (interval measure), natural and sorted layouts;
+     worst-case stage-16 survivors per group (sweep).
+  8. Cost ledger and the (w, T) re-optimisation with mpmath (60 digits).
+"""
+from __future__ import annotations
 
-if __name__ == '__main__':
-    funcs = parse(sys.argv[1])
-    pat = re.compile(sys.argv[2]) if len(sys.argv) > 2 else None
-    hot = [(k, v) for k, v in funcs.items() if pat and pat.search(k)]
-    for k, v in hot: print(json.dumps(summarize(k[:90], v)))
-    print(json.dumps(summarize('HOT-SET', [i for _, v in hot for i in v])))
-    print(json.dumps(summarize('WHOLE-LIBRARY', [i for v in funcs.values() for i in v])))
-```
+import argparse
+import json
+import math
+import random
+import sys
+import time
 
-### A.5 `dynparse.py`
+import numpy as np
 
-```python
-"""Dynamic per-form cost: callgrind per-instruction Ir (--dump-instr=yes) x static per-form price (x86ops.cost)."""
-import re, sys, collections, json
-from x86ops import cost
+M32 = 0xFFFFFFFF
+K = (
+    0x428A2F98, 0x71374491, 0xB5C0FBCF, 0xE9B5DBA5, 0x3956C25B, 0x59F111F1, 0x923F82A4, 0xAB1C5ED5,
+    0xD807AA98, 0x12835B01, 0x243185BE, 0x550C7DC3, 0x72BE5D74, 0x80DEB1FE, 0x9BDC06A7, 0xC19BF174,
+    0xE49B69C1, 0xEFBE4786, 0x0FC19DC6, 0x240CA1CC, 0x2DE92C6F, 0x4A7484AA, 0x5CB0A9DC, 0x76F988DA,
+    0x983E5152, 0xA831C66D, 0xB00327C8, 0xBF597FC7, 0xC6E00BF3, 0xD5A79147, 0x06CA6351, 0x14292967,
+)
 
-def disasm(path):
-    ins = {}
-    for line in open(path, errors='replace'):
-        m = re.match(r'^\s+([0-9a-f]+):\s+(.*)$', line.rstrip())
-        if not m: continue
-        body = m.group(2).split('<')[0].strip()
-        if not body or body.startswith('(bad)'): continue
-        parts = body.split(None, 1)
-        mn = parts[0].strip(); ops = [o.strip() for o in parts[1].split(',')] if len(parts) > 1 else []
-        if mn in ('lock', 'rep', 'repz', 'repe', 'repne', 'repnz', 'notrack', 'bnd', 'data16', 'rex64', 'cs', 'ds') and len(parts) > 1 and parts[1].strip():
-            sub = parts[1].strip().split(None, 1); mn = sub[0]; ops = [o.strip() for o in sub[1].split(',')] if len(sub) > 1 else []
-        ins[int(m.group(1), 16)] = (mn, ops)
-    return ins
 
-def callgrind(path, obj_pat):
-    ir = collections.Counter(); ob = None; fl = None; skip = False; objs = collections.Counter()
-    for line in open(path, errors='replace'):
-        if line.startswith('ob='): ob = line[3:].strip(); continue
-        if line.startswith(('fl=', 'fi=', 'fe=', 'fn=', 'cfn=', 'cfi=', 'cfl=', 'cob=')): continue
-        if line.startswith('calls='): skip = True; continue
-        if line.startswith('0x') or line[:1].isdigit():
-            if skip: skip = False; continue
-            p = line.split()
-            if len(p) < 3: continue
-            a = int(p[0], 16); n = int(p[2]) if len(p) > 2 else 0
-            objs[ob] += n
-            if ob and obj_pat in ob: ir[a] += n
-    return ir, objs
+def require(cond: bool, msg: str) -> None:
+    if not cond:
+        raise SystemExit("FAIL: " + msg)
 
-if __name__ == '__main__':
-    dis = disasm(sys.argv[1])
-    out = {}
-    for f in sys.argv[2:]:
-        ir, objs = callgrind(f, 'pycryptosat')
-        tot_ir = sum(ir.values()); ops = 0; heavy = 0; miss = 0; unk = collections.Counter(); bycost = collections.Counter(); mn_ir = collections.Counter()
-        for a, n in ir.items():
-            if a not in dis: miss += n; ops += 8 * n; continue
-            mn, o = dis[a]
-            c, cls = cost(mn, o)
-            if c is None: unk[mn] += n; c = 8
-            if cls == 'heavy': heavy += n
-            ops += c * n; bycost[min(c, 10) if c < 400 else 400] += n; mn_ir[mn] += n
-        allobj = sum(objs.values())
-        out[f] = dict(total_ir_all_objects=allobj, solver_obj_ir=tot_ir, solver_share=round(tot_ir / allobj, 4),
-                      ops=ops, m_dynamic=round(ops / tot_ir, 4), heavy_share=round(heavy / tot_ir, 6),
-                      m_ordinary=round((ops - 400 * heavy) / (tot_ir - heavy), 4),
-                      addr_not_in_disasm_share=round(miss / tot_ir, 6), unknown_share=round(sum(unk.values()) / tot_ir, 6),
-                      unknown_top=unk.most_common(6), cost_hist={k: round(v / tot_ir, 4) for k, v in sorted(bycost.items())},
-                      top_mnemonics=[(k, round(v / tot_ir, 4)) for k, v in mn_ir.most_common(12)],
-                      objects_top=[(k.split('/')[-1] if k else k, v) for k, v in objs.most_common(5)])
-    print(json.dumps(out, indent=1))
-```
 
-### A.6 `dynall.py`
+def ror(x, r):
+    return ((x >> r) | (x << (32 - r))) & M32
 
-```python
-"""Dynamic per-form cost over every object executed inside CMSat::SATSolver::solve (callgrind --toggle-collect)."""
-import sys, json, subprocess, collections, os
-from x86ops import cost
-from dynparse import disasm
 
-def callgrind_all(path):
-    ir = collections.defaultdict(collections.Counter); ob = None; skip = False
-    for line in open(path, errors='replace'):
-        if line.startswith('ob='): ob = line[3:].strip(); continue
-        if line.startswith('calls='): skip = True; continue
-        if line.startswith('0x'):
-            if skip: skip = False; continue
-            p = line.split()
-            if len(p) >= 3: ir[ob][int(p[0], 16)] += int(p[2])
-    return ir
+def S0(x):
+    return ror(x, 2) ^ ror(x, 13) ^ ror(x, 22)
 
-DIS = {}
-def dis_for(ob):
-    if ob not in DIS:
-        out = '/w/dis/' + ob.strip('/').replace('/', '_') + '.dis'
-        os.makedirs('/w/dis', exist_ok=True)
-        if not os.path.exists(out):
-            subprocess.run(['sh', '-c', f'objdump -d -M intel --no-show-raw-insn "{ob}" > "{out}"'], check=False)
-        DIS[ob] = disasm(out)
-    return DIS[ob]
 
-res = {}
-for f in sys.argv[1:]:
-    ir = callgrind_all(f)
-    T = O = H = M = 0; per = {}; mn_ir = collections.Counter(); hist = collections.Counter()
-    for ob, cnt in ir.items():
-        d = dis_for(ob); t = o = h = miss = 0
-        for a, n in cnt.items():
-            if a in d:
-                mn, ops = d[a]; c, cls = cost(mn, ops)
-                if c is None: c = 8
-                if cls == 'heavy': h += n
-                mn_ir[mn] += n
+def S1(x):
+    return ror(x, 6) ^ ror(x, 11) ^ ror(x, 25)
+
+
+def s0(x):
+    return ror(x, 7) ^ ror(x, 18) ^ (x >> 3)
+
+
+def s1(x):
+    return ror(x, 17) ^ ror(x, 19) ^ (x >> 10)
+
+
+def IF(e, f, g):
+    return ((e & f) ^ (~e & g)) & M32
+
+
+def MAJ(a, b, c):
+    return (a & b) ^ (a & c) ^ (b & c)
+
+
+# ---------------------------------------------------------------------------------------------
+# 1. Fig. 6 (rows 0..22; position k is bit 31-k), advice
+# ---------------------------------------------------------------------------------------------
+EQ = "=" * 32
+FIG6 = {  # i: (A row, E row, W row)
+    0: (EQ, EQ, EQ), 1: (EQ, EQ, EQ), 2: (EQ, EQ, EQ),
+    3: (EQ, "=====1=====011======0======0====", EQ),
+    4: ("==n=============================", "==n0=0=1===100=0==0=1===0==1=0=1", "==n============================="),
+    5: ("=====n===n===n=u====n===u==u====", "01011u001n=nuu=11000n=1=101u=100", "=====u===u==========n==========="),
+    6: (EQ, "101n=0=1=1=n1111==n0u===n=0n=n=u", "==n============================="),
+    7: (EQ, "10u0=1=101==00=n==0=0===0==0=0=0", "=======n=======u===u====u=1=u=u="),
+    8: (EQ, "uuu1=0=111=0=0=01=1=01==1==1=1=0", "============u=======uu=========="),
+    9: ("==========u====================u", "11=10n0nuuu00n0u101=n11=u01u=unn", EQ),
+    10: (EQ, "un111111001001111=010u=u0=001100", EQ),
+    11: ("====n=========u=u=======u==n====", "1011n111100010u1u0111111u=nu1001", EQ),
+    12: ("=un===u=n=======n===============", "001uuu11uuuuuuuu11n1000n1uuu1001", "=====n===n==========u==========="),
+    13: (EQ, "=n1111uu1n00000u1u0=nnn01111010n", "==u============================="),
+    14: ("==u=============================", "=0=100110000000=101=0000=110===0", EQ),
+    15: (EQ, "=1====0011===u10001=011===0n===1", EQ),
+    16: (EQ, "======u=n====1==n=====0===01====", EQ),
+    17: (EQ, "======0=0====1==0==========1====", EQ),
+    18: (EQ, "==u===1=0=======1====1==========", EQ),
+    19: (EQ, "==0=============================", EQ),
+    20: (EQ, "==1=============================", "=====0=nn=====0=u=1============="),
+    21: (EQ, EQ, EQ),
+    22: (EQ, EQ, "==n============================="),
+}
+
+
+def row(kind: str, i: int) -> str:
+    return FIG6[i]["AEW".index(kind)] if i in FIG6 else EQ
+
+
+def FL(kind, i):
+    return sum(1 << (31 - k) for k, c in enumerate(row(kind, i)) if c in "nu")
+
+
+def Dsigned(kind, i):  # primed - unprimed, n: 0->1 (+), u: 1->0 (-)
+    return sum((1 if c == "n" else -1) << (31 - k) for k, c in enumerate(row(kind, i)) if c in "nu")
+
+
+def fixmask(kind, i):
+    m = v = 0
+    for k, c in enumerate(row(kind, i)):
+        b = 1 << (31 - k)
+        if c in "nu01":
+            m |= b
+            if c in "u1":
+                v |= b
+    return m, v
+
+
+def free_bits(kind, i):
+    return sorted(31 - k for k, c in enumerate(row(kind, i)) if c == "=")
+
+
+def expand(kind, i, k):
+    """Deposit bit t of k into the t-th lowest '=' position; fixed positions get the unprimed sign value."""
+    x = fixmask(kind, i)[1]
+    for t, b in enumerate(free_bits(kind, i)):
+        if (k >> t) & 1:
+            x |= 1 << b
+    return x
+
+
+def bit(x, i):
+    return (x >> i) & 1
+
+
+ADV_A = dict(zip(range(4, 14), (0x98560DBB, 0x633B16BA, 0x9BCF7BBE, 0xF8677AD6, 0x4A299906, 0x44F24AB5,
+                                0x39781650, 0x6422EDC8, 0x574542B8, 0x0508C8F0)))
+ADV_E = dict(zip(range(8, 14), (0xF1CAE594, 0xD0E1B7B4, 0xBF27D74C, 0xB78BBFD9, 0x3FFFD0F9, 0xBF81C0F4)))
+A, E = ADV_A, ADV_E
+Ap = {i: A[i] ^ FL("A", i) for i in A}
+Ep = {i: E[i] ^ FL("E", i) for i in E}
+FLW = [FL("W", i) for i in range(32)]
+
+for i in range(4, 14):
+    m, v = fixmask("A", i)
+    require(A[i] & m == v, f"advice A{i} violates its row")
+for i in range(8, 14):
+    m, v = fixmask("E", i)
+    require(E[i] & m == v, f"advice E{i} violates its row")
+for i in (0, 1, 2, 9, 10, 14, 15, 16, 17):
+    require(FLW[i] == 0, f"W{i} has a difference")
+require(FL("E", 14) == 0 and FL("A", 13) == 0 and FL("A", 15) == 0 and FL("A", 16) == 0
+        and FL("A", 17) == 0 and FL("E", 17) == 0, "zero-difference rows used by the reduction")
+require(FL("A", 14) == 1 << 29, "A14 difference is exactly bit 29")
+
+FL15, FL16 = FL("E", 15), FL("E", 16)
+D16 = Dsigned("E", 16) % (1 << 32)
+V16 = sum(1 << (31 - k) for k, c in enumerate(row("E", 16)) if c == "u")  # unprimed 1 at u positions
+KS = S1(FL16)                                         # Sigma1 is XOR-linear
+DC = (A[13] + E[13] - Ap[13] - Ep[13]) & M32         # (A13+E13) - (A13'+E13')
+
+# ---------------------------------------------------------------------------------------------
+# 2./3. P4 rebuild and twelve-word rows
+# ---------------------------------------------------------------------------------------------
+FIELDS = ("W14", "W15", "s1W14", "s1W15", "oE", "oEp", "oA", "oAp", "A14", "A15", "E14", "E15")
+
+
+def build_p4():
+    p14 = []
+    m14, v14 = fixmask("A", 14)
+    for i in range(256):
+        e14 = expand("E", 14, i)
+        a14 = (e14 - A[10] + S0(A[13]) + MAJ(A[13], A[12], A[11])) & M32
+        w14 = (e14 - A[10] - E[10] - S1(E[13]) - IF(E[13], E[12], E[11]) - K[14]) & M32
+        ok = (a14 & m14) == v14 and bit(a14, 9) == bit(a14, 20)
+        ok = ok and bit(a14, 18) != bit(a14, 6) and bit(a14, 8) != bit(a14, 17)
+        ok = ok and all(bit(A[13], j) == bit(a14, j) for j in (30, 25, 23)) and bit(A[13], 15) != bit(a14, 15)
+        if ok:
+            p14.append((e14, a14, w14))
+    require(len(p14) == 12, f"P14 has {len(p14)} rows, expected 12")
+    rows, groups = [], []
+    m15, v15 = fixmask("A", 15)
+    for g, (e14, a14, w14) in enumerate(p14):
+        start = len(rows)
+        e14p, a14p = e14 ^ FL("E", 14), a14 ^ FL("A", 14)
+        for j in range(1 << 15):
+            e15 = expand("E", 15, j)
+            a15 = (e15 - A[11] + S0(a14) + MAJ(a14, A[13], A[12])) & M32
+            w15 = (e15 - A[11] - E[11] - S1(e14) - IF(e14, E[13], E[12]) - K[15]) & M32
+            if (a15 & m15) != v15 or bit(A[13], 29) == bit(a15, 29):
+                continue
+            e15p, a15p = e15 ^ FL15, a15 ^ FL("A", 15)
+            ok = ((Ap[10] + Ep[10] + S1(Ep[13]) + IF(Ep[13], Ep[12], Ep[11]) + K[14] + w14) & M32) == e14p
+            ok &= ((e14p - Ap[10] + S0(Ap[13]) + MAJ(Ap[13], Ap[12], Ap[11])) & M32) == a14p
+            ok &= ((Ap[11] + Ep[11] + S1(e14p) + IF(e14p, Ep[13], Ep[12]) + K[15] + w15) & M32) == e15p
+            ok &= ((e15p - Ap[11] + S0(a14p) + MAJ(a14p, Ap[13], Ap[12])) & M32) == a15p
+            if not ok:
+                continue
+            # step16_constants_both: E16-W16, E16'-W16, A16-E16, A16'-E16'
+            oE = (A[12] + E[12] + S1(e15) + IF(e15, e14, E[13]) + K[16]) & M32
+            oEp = (Ap[12] + Ep[12] + S1(e15p) + IF(e15p, e14p, Ep[13]) + K[16]) & M32
+            oA = (-A[12] + S0(a15) + MAJ(a15, a14, A[13])) & M32
+            oAp = (-Ap[12] + S0(a15p) + MAJ(a15p, a14p, Ap[13])) & M32
+            rows.append((w14, w15, s1(w14), s1(w15), oE, oEp, oA, oAp, a14, a15, e14, e15))
+        groups.append((start, len(rows)))
+        require(len(rows) - start == 1 << 14, f"group {g} has {len(rows) - start} rows")
+    require(len(rows) == 196608, "P4 size")
+    return rows, groups
+
+
+# ---------------------------------------------------------------------------------------------
+# 4. Scalar reference (full step equations, both branches)
+# ---------------------------------------------------------------------------------------------
+def ref_stage16_17(w: list[int], r: tuple) -> tuple[bool, bool]:
+    """w = unprimed W0..W15 of the candidate (W14, W15 from the P4 row); r = 12-word P4 row.
+    Returns (stage-16 pass, stage-16-and-17 pass) of Section 4 Step 3."""
+    wp = [w[i] ^ FLW[i] for i in range(16)]
+    W14, W15, _, _, _, _, _, _, a14, a15, e14, e15 = r
+    st = {"A": {12: A[12], 13: A[13], 14: a14, 15: a15}, "E": {12: E[12], 13: E[13], 14: e14, 15: e15}}
+    stp = {"A": {i: v ^ FL("A", i) for i, v in st["A"].items()},
+           "E": {i: v ^ FL("E", i) for i, v in st["E"].items()}}
+    ok = [True, True]
+    for i in (16, 17):
+        Wi = (s1(w[i - 2]) + w[i - 7] + s0(w[i - 15]) + w[i - 16]) & M32
+        Wpi = (s1(wp[i - 2]) + wp[i - 7] + s0(wp[i - 15]) + wp[i - 16]) & M32
+        w.append(Wi)
+        wp.append(Wpi)
+        res = []
+        for s, ww in ((st, w), (stp, wp)):
+            a, e = s["A"], s["E"]
+            e[i] = (a[i - 4] + e[i - 4] + S1(e[i - 1]) + IF(e[i - 1], e[i - 2], e[i - 3]) + K[i] + ww[i]) & M32
+            a[i] = (e[i] - a[i - 4] + S0(a[i - 1]) + MAJ(a[i - 1], a[i - 2], a[i - 3])) & M32
+        good = (Wpi == Wi ^ FLW[i] and stp["E"][i] == st["E"][i] ^ FL("E", i)
+                and stp["A"][i] == st["A"][i] ^ FL("A", i))
+        ok[i - 16] = good
+        if not good:
+            break
+    w[:] = w[:16]
+    return ok[0], ok[0] and ok[1]
+
+
+class NpRef:
+    """numpy vectorisation of ref_stage16_17 over all P4 rows (natural order)."""
+
+    def __init__(self, rows):
+        a = np.array(rows, dtype=np.uint64).astype(np.uint32)
+        self.c = {f: a[:, k] for k, f in enumerate(FIELDS)}
+
+    @staticmethod
+    def _ror(x, r):
+        return (x >> np.uint32(r)) | (x << np.uint32(32 - r))
+
+    def S1(self, x):
+        return self._ror(x, 6) ^ self._ror(x, 11) ^ self._ror(x, 25)
+
+    def S0(self, x):
+        return self._ror(x, 2) ^ self._ror(x, 13) ^ self._ror(x, 22)
+
+    def s1(self, x):
+        return self._ror(x, 17) ^ self._ror(x, 19) ^ (x >> np.uint32(10))
+
+    def run(self, w: list[int]):
+        with np.errstate(over="ignore"):
+            return self._run(w)
+
+    def _run(self, w: list[int]):
+        u = np.uint32
+        c = self.c
+        W14, W15 = c["W14"], c["W15"]
+        a14, a15, e14, e15 = c["A14"], c["A15"], c["E14"], c["E15"]
+        out = []
+        for prime in (0, 1):
+            fa = (lambda i: u(FL("A", i))) if prime else (lambda i: u(0))
+            fe = (lambda i: u(FL("E", i))) if prime else (lambda i: u(0))
+            ww = [x ^ (FLW[i] if prime else 0) for i, x in enumerate(w[:14])]
+            W16 = self.s1(W14) + u(ww[9]) + u(s0(ww[1])) + u(ww[0])
+            W17 = self.s1(W15) + u(ww[10]) + u(s0(ww[2])) + u(ww[1])
+            A12, A13, E12, E13 = u(A[12]) ^ fa(12), u(A[13]) ^ fa(13), u(E[12]) ^ fe(12), u(E[13]) ^ fe(13)
+            A14, A15, E14, E15 = a14 ^ fa(14), a15 ^ fa(15), e14 ^ fe(14), e15 ^ fe(15)
+            E16 = A12 + E12 + self.S1(E15) + ((E15 & E14) ^ (~E15 & E13)) + u(K[16]) + W16
+            A16 = E16 - A12 + self.S0(A15) + ((A15 & A14) ^ (A15 & A13) ^ (A14 & A13))
+            E17 = A13 + E13 + self.S1(E16) + ((E16 & E15) ^ (~E16 & E14)) + u(K[17]) + W17
+            A17 = E17 - A13 + self.S0(A16) + ((A16 & A15) ^ (A16 & A14) ^ (A15 & A14))
+            out.append((W16, W17, E16, A16, E17, A17))
+        (W16, W17, E16, A16, E17, A17), (W16p, W17p, E16p, A16p, E17p, A17p) = out
+        p16 = (W16p == W16) & (E16p == (E16 ^ u(FL16))) & (A16p == A16)
+        p17 = p16 & (W17p == W17) & (E17p == E17) & (A17p == A17)
+        return p16, p17
+
+
+# ---------------------------------------------------------------------------------------------
+# 5. SWAR: 7 lanes x 36 bits, guard bits 32..35
+# ---------------------------------------------------------------------------------------------
+L7, LB = 7, 36
+M256 = (1 << 256) - 1
+
+
+def bc(v):  # lane broadcast of a constant (built once, public)
+    return sum((v & ((1 << LB) - 1)) << (LB * l) for l in range(L7))
+
+
+Mb, Gb = bc(M32), bc(1 << 32)
+FL16b, V16b, FL15b, KSb, DCb, B29b = bc(FL16), bc(V16), bc(FL15), bc(KS), bc(DC), bc(1 << 29)
+ROT = {}
+for _r in (6, 11, 25):
+    lo = (1 << (32 - _r)) - 1
+    ROT[_r] = (bc(lo), bc(M32 ^ lo))
+
+
+def dummy_mask(nreal):
+    return sum(1 << (LB * l) for l in range(nreal, L7))
+
+
+class Ops:
+    """Counts primitive 256-bit word-RAM operations per block; optional lane-overflow audit."""
+
+    def __init__(self, audit=False):
+        self.n = {}
+        self.blk = "setup"
+        self.audit = audit
+        self.max_lane = 0
+
+    def _c(self, k=1):
+        self.n[self.blk] = self.n.get(self.blk, 0) + k
+
+    def _r(self, v):
+        self._c()
+        return v & M256
+
+    def add(self, a, b):
+        # Lane-overflow audit: every 256-bit addition must be carry-free across 36-bit lanes,
+        # i.e. for every lane l the exact lane sum a_l + b_l is below 2^36.
+        if self.audit:
+            for l in range(L7):
+                lv = ((a >> (LB * l)) & ((1 << LB) - 1)) + ((b >> (LB * l)) & ((1 << LB) - 1))
+                if lv > self.max_lane:
+                    self.max_lane = lv
+        return self._r(a + b)
+
+    def xor(self, a, b):
+        return self._r(a ^ b)
+
+    def and_(self, a, b):
+        return self._r(a & b)
+
+    def or_(self, a, b):
+        return self._r(a | b)
+
+    def shr(self, a, k):
+        return self._r(a >> k)
+
+    def shl(self, a, k):
+        return self._r(a << k)
+
+    def load(self, arr, i):  # one address op + one load
+        self._c(2)
+        return arr[i]
+
+    def cmp(self):
+        self._c()
+
+    def br(self):
+        self._c()
+
+    def capcheck(self):  # work counter += constant envelope, compare with W_cap, branch
+        self._c(3)
+
+    def rotr(self, x, r):
+        m_lo, m_hi = ROT[r]
+        return self.or_(self.and_(self.shr(x, r), m_lo), self.and_(self.shl(x, 32 - r), m_hi))
+
+    def Sigma1(self, x):
+        return self.xor(self.xor(self.rotr(x, 6), self.rotr(x, 11)), self.rotr(x, 25))
+
+
+class Layout:
+    """Lane-packed P4: each W14 group padded to 2341 packs (last pack: 4 real lanes)."""
+
+    def __init__(self, rows, groups, order_key=None):
+        self.packs_per_group = -(-(1 << 14) // L7)  # 2341
+        self.idx, self.real = [], []
+        self.grp = []
+        for g, (s, e) in enumerate(groups):
+            ids = list(range(s, e))
+            if order_key is not None:
+                ids.sort(key=lambda r: order_key(rows[r]))
+            for p in range(self.packs_per_group):
+                lane_ids = ids[p * L7:(p + 1) * L7]
+                self.idx.append(lane_ids)
+                self.real.append(len(lane_ids))
+                self.grp.append(g)
+        self.np = len(self.idx)
+        f = {k: [] for k in ("OFFE", "OFFEA29", "P", "OFFEp", "OFFA29", "OFFAp29")}
+        for lane_ids in self.idx:
+            acc = {k: 0 for k in f}
+            for l, r in enumerate(lane_ids):
+                w = dict(zip(FIELDS, rows[r]))
+                a15b = bit(w["A15"], 29) << 29
+                vals = {
+                    "OFFE": w["oE"],
+                    "OFFEA29": ((w["oE"] + w["oA"]) & M32) + a15b,      # < 2^32 + 2^29
+                    "P": w["E15"] ^ w["E14"],
+                    "OFFEp": w["oEp"],
+                    "OFFA29": w["oA"] + a15b,                            # < 2^33
+                    "OFFAp29": w["oAp"] + a15b,
+                }
+                for k, v in vals.items():
+                    require(v < 1 << LB, "field exceeds lane")
+                    acc[k] |= v << (LB * l)
+            for k in f:
+                f[k].append(acc[k])
+        self.f = f
+        g0 = [rows[s] for s, _ in groups]
+        self.S1W14b = [bc(dict(zip(FIELDS, r))["s1W14"]) for r in g0]
+        self.E14b = [bc(dict(zip(FIELDS, r))["E14"]) for r in g0]
+
+
+def bcast_ops(ops, x):  # scalar < 2^32 in lane 0 -> all 7 lanes: 3 shift + 3 OR + 1 AND
+    y = ops.or_(x, ops.shl(x, 36))
+    y = ops.or_(y, ops.shl(y, 72))
+    y = ops.or_(y, ops.shl(y, 144))
+    return ops.and_(y, Mb)
+
+
+def swar_tuple(lay: Layout, c16: int, ops: Ops, variant="reduced", full17=False):
+    """Run stages 16..17 for every pack of one valid tuple.
+
+    Returns (pass16 bitmask list per pack, pass17 bitmask list per pack, stats).
+    full17=True evaluates the stage-17 block on every pack (validation of all lane decisions);
+    full17=False is the algorithm (stage 17 only if some lane passed stage 16)."""
+    ops.blk = "setup"
+    # constants into registers (Mb, Gb, FL16b, V16b, FL15b, KSb, DCb, B29b, 6 rot masks): 14 loads
+    for _ in range(14):
+        ops.load([0], 0)
+    c16b = bcast_ops(ops, c16)
+    p16m, p17m = [], []
+    stats = {"packs": 0, "packs_any16": 0, "packs_any17": 0, "passers17": 0}
+    f = lay.f
+    ppg = lay.packs_per_group
+    for g in range(len(lay.S1W14b)):
+        ops.blk = "setup"
+        W16b = ops.add(c16b, ops.load(lay.S1W14b, g))  # < 2^33 per lane (unreduced)
+        E14b = ops.load(lay.E14b, g)
+        for _ in range(4):  # group pointer/bound setup, group loop compare+branch
+            ops._c()
+        ops.capcheck()  # reserve the deterministic stage-16 envelope of all 2341 packs of the group
+        for p in range(g * ppg, (g + 1) * ppg):
+            stats["packs"] += 1
+            ops.blk = "st16"
+            if variant == "reduced":
+                S = ops.add(W16b, ops.load(f["OFFE"], p))
+                T16 = ops.and_(ops.xor(S, V16b), FL16b)
+                A16x = None
             else:
-                c = 8; miss += n
-            t += n; o += c * n; hist[c if c < 400 else 400] += n
-        per[ob.split('/')[-1]] = dict(ir=t, m=round(o / t, 4) if t else None, heavy=h, miss=miss)
-        T += t; O += o; H += h; M += miss
-    res[f] = dict(solve_ir=T, m_dynamic=round(O / T, 4), heavy_share=round(H / T, 6), m_ordinary=round((O - 400 * H) / (T - H), 4),
-                  unmapped_share=round(M / T, 6), per_object=per,
-                  top_mnemonics=[(k, round(v / T, 4)) for k, v in mn_ir.most_common(10)],
-                  cost_hist={k: round(v / T, 5) for k, v in sorted(hist.items())})
+                S = ops.add(W16b, ops.load(f["OFFE"], p))
+                Sp = ops.add(W16b, ops.load(f["OFFEp"], p))
+                A16x = ops.add(S, ops.load(f["OFFA29"], p))
+                A16px = ops.add(Sp, ops.load(f["OFFAp29"], p))
+                x = ops.xor(ops.xor(S, Sp), FL16b)
+                T16 = ops.and_(ops.or_(x, ops.xor(A16x, A16px)), Mb)
+            if lay.real[p] < L7:
+                ops.blk = "setup"  # peeled last pack of the group: force dummy lanes to fail
+                T16 = ops.or_(T16, ops.load([dummy_mask(lay.real[p])], 0))
+                ops.blk = "st16"
+            N16 = ops.and_(ops.add(T16, Mb), Gb)
+            ops.cmp()
+            ops.br()
+            any16 = N16 != Gb
+            p16m.append(((N16 ^ Gb) >> 32))
+            ops.cmp()  # loop control: pointer bound compare + branch (pointer bump = address ops)
+            ops.br()
+            if not any16 and not full17:
+                p17m.append(0)
+                continue
+            if any16:
+                stats["packs_any16"] += 1
+            ops.blk = "st17" if any16 else "st17_validation_only"
+            ops.capcheck()
+            E16m = ops.and_(S, Mb)
+            sg = ops.Sigma1(E16m)
+            sgp = ops.xor(sg, KSb)
+            P = ops.load(f["P"], p)
+            IFu = ops.xor(E14b, ops.and_(E16m, P))
+            E16pm = ops.xor(E16m, FL16b) if variant == "reduced" else ops.and_(Sp, Mb)
+            Pp = ops.xor(P, FL15b)
+            IFp = ops.xor(E14b, ops.and_(E16pm, Pp))
+            Lv = ops.add(ops.add(sg, IFu), DCb)
+            Rv = ops.add(sgp, IFp)
+            D17 = ops.and_(ops.xor(Lv, Rv), Mb)
+            if variant == "reduced":
+                A16x = ops.add(W16b, ops.load(f["OFFEA29"], p))
+            X29 = ops.and_(A16x, B29b)
+            Z = ops.or_(ops.or_(D17, X29), T16)
+            N17 = ops.and_(ops.add(Z, Mb), Gb)
+            ops.cmp()
+            ops.br()
+            p17m.append(((N17 ^ Gb) >> 32))
+            if N17 != Gb:
+                stats["packs_any17"] += 1
+                ops.blk = "extract"
+                ops.capcheck()
+                PM = ops.xor(N17, Gb)
+                for l in range(L7):
+                    t = ops.and_(ops.shr(PM, LB * l + 32), 1)
+                    ops.br()
+                    if t:
+                        stats["passers17"] += 1
+                        ops._c(2)  # candidate index = pack base + l, hand-off
+                        ops.blk = "scalar_tail"
+                        ops._c(48 + 256 + 2048)  # unchanged scalar Step-3 code from stage 16 on
+                        ops.blk = "extract"
+    return p16m, p17m, stats
+
+
+def lane_bits(mask_list, lay: Layout):
+    """Per-row decisions (natural row index) from per-pack lane masks (bit 36l set = pass)."""
+    out = np.zeros(196608, dtype=bool)
+    for p, m in enumerate(mask_list):
+        if m:
+            for l, r in enumerate(lay.idx[p]):
+                if (m >> (LB * l)) & 1:
+                    out[r] = True
+    return out
+
+
+# ---------------------------------------------------------------------------------------------
+# 7. Exact Pr[some lane of a pack passes stage 16] for uniform W16 mod 2^26 (interval measure)
+# ---------------------------------------------------------------------------------------------
+def pack_any16_exact(lay: Layout, rows):
+    """Pass16 <=> (W16 + oE) mod 2^26 lies in S = {y: y25=1, y23=0, y15=0} = 256 intervals of 2^15.
+    For each pack, the measure of {t mod 2^26 : some real lane passes} / 2^26."""
+    MOD, LEN = 1 << 26, 1 << 15
+    starts = np.array([(1 << 25) + (((b & 0x7F) << 16) | ((b >> 7) << 24)) for b in range(256)], dtype=np.int64)
+    for s in starts:  # sanity: interval [s, s+2^15) is inside S and they partition S
+        require(bit(int(s), 25) == 1 and bit(int(s), 23) == 0 and bit(int(s), 15) == 0 and int(s) & 0x7FFF == 0, "S")
+    oE = np.array([r[4] for r in rows], dtype=np.int64) % MOD
+    res = np.zeros(lay.np)
+    for p, ids in enumerate(lay.idx):
+        t = ((starts[None, :] - oE[ids][:, None]) % MOD).ravel()
+        t.sort()
+        gaps = np.diff(np.concatenate([t, [t[0] + MOD]]))
+        res[p] = np.minimum(gaps, LEN).sum() / MOD
+    return res
+
+
+def max_survivors16(groups, rows):
+    """For each group, max over W16 of the number of rows passing stage 16 (sweep over 2^26 shifts)."""
+    MOD, LEN = 1 << 26, 1 << 15
+    starts = np.array([(1 << 25) + (((b & 0x7F) << 16) | ((b >> 7) << 24)) for b in range(256)], dtype=np.int64)
+    out = []
+    for s, e in groups:
+        oE = np.array([rows[r][4] for r in range(s, e)], dtype=np.int64) % MOD
+        enter = ((starts[None, :] - oE[:, None]) % MOD).ravel()
+        leave = (enter + LEN) % MOD
+        ev_t = np.concatenate([enter, leave])
+        ev_d = np.concatenate([np.ones_like(enter), -np.ones_like(leave)])
+        order = np.lexsort((ev_d, ev_t))  # at equal t: leave (-1) before enter (+1); intervals are [enter, leave)
+        ev_d = ev_d[order]
+        init = int((enter >= MOD - LEN).sum())  # intervals containing t = -1 (mod 2^26)
+        cs = init + np.cumsum(ev_d)
+        out.append(int(cs.max()))
+    return out
+
+
+# ---------------------------------------------------------------------------------------------
+# 8. Ledger and optimisation
+# ---------------------------------------------------------------------------------------------
+def optimise(EXb, V, Mbound, C_units, label, w_lo=None, w_hi=None, verbose=False, target="0.3901"):
+    import mpmath as mp
+    mp.mp.dps = 60
+    s = mp.power(2, mp.mpf("-45.8192425647"))
+    D = 2 ** 35
+
+    def P(T, w):
+        d = mp.mpf(w) - mp.mpf(EXb)
+        T = mp.mpf(T)
+        return 1 - mp.e ** (-s * T) - mp.e ** (-(d * T) ** 2 / (2 * (T * V + Mbound * d * T / 3)))
+
+    def total(T, w):
+        num = mp.mpf(2928 * (-(-T // 7)) + 32 * T) + mp.mpf(w) * T
+        return int(mp.ceil(num / 2224 + 14)) + C_units + D
+
+    best = None
+    w = mp.mpf(w_lo) if w_lo is not None else mp.ceil((mp.mpf(EXb) + mp.mpf("0.1")) * 10) / 10
+    w_hi = mp.mpf(w_hi) if w_hi is not None else mp.mpf(EXb) + 12
+    rows = []
+    while w <= w_hi:
+        lo, hi = 1, 1 << 46
+        if P(hi, w) < mp.mpf(target):
+            w += mp.mpf("0.1")
+            continue
+        while hi - lo > 1:
+            mid = (lo + hi) // 2
+            if P(mid, w) >= mp.mpf(target):
+                hi = mid
+            else:
+                lo = mid
+        tot = total(hi, w)
+        rows.append((float(w), hi, tot))
+        if best is None or tot < best[2]:
+            best = (mp.nstr(w, 6), hi, tot, float(mp.log(tot, 2)), float(P(hi, w)))
+        w += mp.mpf("0.1")
+    if verbose:
+        print(label, "best", best)
+    return best, rows
+
+
+def ledger(p16any_mean, p16any_label, f16=0.126, f17=2 ** -14.9, variant="reduced", s3max_override=None,
+           extra_C_ops=0, c16_override=None, c17_override=None):
+    NP = 12 * 2341
+    q = 2 ** -17.3166
+    c16 = 11 if variant == "reduced" else 23
+    if c16_override is not None:
+        c16 = c16_override
+    c17 = 45 if variant == "reduced" else 42
+    if c17_override is not None:
+        c17 = c17_override
+    cext, chand, ctail = 25, 2, 48 + 256 + 2048
+    setup = 600  # inherited 300 (unchanged) + 300 allowance for the new per-tuple SWAR setup (215 counted)
+    # expected Step-3 demand per valid tuple
+    e_any17 = min(1.0, 7 * f17)
+    S3E = setup + NP * (c16 + p16any_mean * c17) + NP * e_any17 * cext + 196608 * f17 * (chand + ctail)
+    S3max = setup + NP * (max(c16, 11) + c17 + cext) + 196608 * (chand + ctail)
+    if s3max_override is not None:
+        S3max = s3max_override
+    step3 = q * S3E
+    EX = 5 * 0.325212 + 0.32522 * 192 + step3
+    EXb = math.ceil(EX * 1000) / 1000
+    Mbound = 5 * 936 + 936 * (1304 + S3max)
+    EX2 = 3 * (25 * 936 * 0.325212 + 1304 ** 2 * 4 * 5.758e9 / 2 ** 32 + S3max ** 2 * q * (1 + 2 ** -4))
+    V = math.ceil(EX2 / 1e8) * 1e8
+    C_units = 303675466808 + math.ceil(extra_C_ops / 2224)
+    comp = dict(st16=NP * c16 / 196608, st17=NP * p16any_mean * c17 / 196608, extract=NP * e_any17 * cext / 196608,
+                tail=f17 * (chand + ctail), c16=c16, c17=c17, cext=cext, setup=setup)
+    return dict(components=comp, variant=variant, p16any=p16any_mean, p16any_label=p16any_label, per_tuple_S3E=S3E,
+                per_candidate=(S3E - setup) / 196608, step3_term=step3, EX=EX, EXb=EXb, S3max=S3max,
+                per_candidate_max=(S3max - setup) / 196608, M=Mbound, EX2=EX2, V=V, C_units=C_units)
+
+
+# ---------------------------------------------------------------------------------------------
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--tuples", type=int, default=40, help="random tuples, all 196,608 candidates each")
+    ap.add_argument("--targeted", type=int, default=20000, help="targeted stage-17 pack tests")
+    ap.add_argument("--seed", type=int, default=20261008)
+    ap.add_argument("--skip-opt", action="store_true")
+    ap.add_argument("--f17-mc", type=int, default=0,
+                    help="extra numpy-reference Monte Carlo of stage-16/17 rates over N uniform tuples (~27 ms each)")
+    args = ap.parse_args()
+    rng = random.Random(args.seed)
+    report = {}
+    t0 = time.time()
+
+    rows, groups = build_p4()
+    report["P4"] = {"rows": len(rows), "groups": [e - s for s, e in groups],
+                    "W14": sorted({f"{r[0]:08x}" for r in rows})}
+    print(f"[P4] {len(rows)} rows in {len(groups)} groups of {groups[0][1]-groups[0][0]} ({time.time()-t0:.1f}s)")
+
+    # Row identities (build-time assertions used by the 'reduced' variant)
+    for r in rows:
+        w = dict(zip(FIELDS, r))
+        delta = (w["oEp"] - w["oE"]) & M32
+        require(delta == D16, "row identity 1: E16'-E16 == D(E16)")
+        require((delta + w["oAp"] - w["oA"]) & M32 == 0, "row identity 2: A16'-A16 == 0")
+    for g, (s, e) in enumerate(groups):
+        require(len({rows[r][0] for r in range(s, e)}) == 1 and len({rows[r][10] for r in range(s, e)}) == 1,
+                "W14/E14 constant within group")
+    print("[P4] row identities hold for all 196,608 rows: E16'-E16 == D(E16) = %08x, A16'-A16 == 0" % D16)
+
+    # Witnesses: the #227 certified pair and S's Table 3 pair (unprimed = the advice branch)
+    witnesses = {
+        "#227": ((0xE890C4BA, 0x6BCE94E6, 0x47A0B812, 0xC5EF36B2, 0xEC7B7814, 0x91CF09DF, 0xA9717904, 0x494BC86F),
+                 [0xE37CAB30, 0x5F4048FD, 0x95CAA0FC, 0x87591D98, 0xDB8464A3, 0x3DDCC0F3, 0x4C91C8C4, 0x7C619FBE,
+                  0x4EEB7E52, 0x58E49D82, 0x10746273, 0xA96CE154, 0x41B22A2C, 0x6D12F88A, 0xD2701ECE, 0x17D9748F]),
+        "S Table 3": ((0xC4369610, 0xC91F70A7, 0x87E430E6, 0xA5E58128, 0xD29CB97B, 0x9AB268D1, 0x8788F401, 0x629F6CB2),
+                      [0xC0008214, 0xAE65F3BF, 0xE93C006A, 0x5F195AA9, 0x84D6CD0F, 0x25C114EC, 0xCA897317, 0xDA9FD6EF,
+                       0x6EC97E18, 0x5100DA8A, 0x0912E57B, 0xA96B2054, 0x41B22A2C, 0x6D12F88A, 0xD2701ECC, 0x140976D1]),
+    }
+    row_index = {(r[0], r[1]): k for k, r in enumerate(rows)}
+    wit_rows = {}
+    for name, (cv, w) in witnesses.items():
+        k = row_index.get((w[14], w[15]))
+        require(k is not None, f"{name}: (W14, W15) not in P4")
+        # full trace of both branches through step 17
+        for prime in (0, 1):
+            ww = [x ^ (FLW[i] if prime else 0) for i, x in enumerate(w)]
+            for i in range(16, 18):
+                ww.append((s1(ww[i - 2]) + ww[i - 7] + s0(ww[i - 15]) + ww[i - 16]) & M32)
+            a = {-4: cv[3], -3: cv[2], -2: cv[1], -1: cv[0]}
+            e = {-4: cv[7], -3: cv[6], -2: cv[5], -1: cv[4]}
+            for i in range(18):
+                e[i] = (a[i - 4] + e[i - 4] + S1(e[i - 1]) + IF(e[i - 1], e[i - 2], e[i - 3]) + K[i] + ww[i]) & M32
+                a[i] = (e[i] - a[i - 4] + S0(a[i - 1]) + MAJ(a[i - 1], a[i - 2], a[i - 3])) & M32
+            fa = (lambda i: FL("A", i)) if prime else (lambda i: 0)
+            fe = (lambda i: FL("E", i)) if prime else (lambda i: 0)
+            for i in range(4, 14):
+                require(a[i] == A[i] ^ fa(i), f"{name}: A{i} != advice")
+            for i in range(8, 14):
+                require(e[i] == E[i] ^ fe(i), f"{name}: E{i} != advice")
+            rr = dict(zip(FIELDS, rows[k]))
+            require((a[14], a[15], e[14], e[15]) == (rr["A14"] ^ fa(14), rr["A15"], rr["E14"], rr["E15"] ^ fe(15)),
+                    f"{name}: step-14/15 states != P4 row")
+            if prime == 0:
+                tr0 = (a[16], e[16], a[17], e[17], ww[16])
+            else:
+                tr1 = (a[16], e[16], a[17], e[17], ww[16])
+        require(tr1[0] == tr0[0] and tr1[1] == tr0[1] ^ FL16 and tr1[2] == tr0[2] and tr1[3] == tr0[3],
+                f"{name}: trace does not conform at 16/17")
+        require(ref_stage16_17(list(w), rows[k]) == (True, True), f"{name}: reference rejects the witness")
+        require((tr0[4] + rows[k][4]) & M32 == tr0[1], f"{name}: stored E16-W16 offset mismatch")
+        wit_rows[name] = (k, w)
+    print("[witness] both published pairs: (W14,W15) in P4, states 4..15 match, trace conforms at 16..17, "
+          "reference accepts")
+    report["witness_rows"] = {n: v[0] for n, v in wit_rows.items()}
+
+    # Layouts
+    lay_nat = Layout(rows, groups)
+    lay_srt = Layout(rows, groups, order_key=lambda r: r[4] % (1 << 26))
+    print(f"[layout] {lay_nat.np} packs ({lay_nat.packs_per_group} per group) ({time.time()-t0:.1f}s)")
+
+    npref = NpRef(rows)
+
+    def c16_of(w):
+        return (w[9] + s0(w[1]) + w[0]) & M32
+
+    # ---- 6. validation
+    val = {"tuples": 0, "lane_decisions_compared": 0, "mismatches": 0, "py_ref_rows_checked": 0,
+           "pass16": 0, "pass17": 0, "lanes": 0, "packs_any16": {}, "max_lane_sum_bits": 0}
+    configs = [("reduced", lay_nat, "natural"), ("reduced", lay_srt, "sorted"), ("general", lay_nat, "natural")]
+    any16_counts = {f"{v}/{n}": [0, 0] for v, _, n in configs}
+    tuples = [("witness #227", wit_rows["#227"][1][:14]), ("witness S", wit_rows["S Table 3"][1][:14])]
+    for _ in range(args.tuples):
+        tuples.append(("random", [rng.getrandbits(32) for _ in range(14)]))
+    for ti, (kind, w14) in enumerate(tuples):
+        r16, r17 = npref.run(w14)
+        # pure-Python reference on a random subsample (+ every numpy-positive stage-17 row)
+        sub = rng.sample(range(196608), 1500) + list(np.nonzero(r17)[0])
+        for k in sub:
+            ww = list(w14) + [rows[k][0], rows[k][1]]
+            require(ref_stage16_17(ww, rows[k]) == (bool(r16[k]), bool(r17[k])), "numpy vs pure-Python reference")
+        val["py_ref_rows_checked"] += len(sub)
+        c16 = c16_of(w14)
+        for variant, lay, lname in configs:
+            ops = Ops(audit=(ti == 2))
+            p16m, p17m, st = swar_tuple(lay, c16, ops, variant, full17=True)
+            if ops.audit:
+                val["max_lane_sum_bits"] = max(val["max_lane_sum_bits"], ops.max_lane.bit_length())
+                require(ops.max_lane < 1 << LB, "lane overflow")
+            s16, s17 = lane_bits(p16m, lay), lane_bits(p17m, lay)
+            mism = int((s16 != r16).sum() + (s17 != r17).sum())
+            val["mismatches"] += mism
+            val["lane_decisions_compared"] += 2 * 196608
+            any16_counts[f"{variant}/{lname}"][0] += st["packs_any16"]
+            any16_counts[f"{variant}/{lname}"][1] += st["packs"]
+            require(mism == 0, f"SWAR mismatch tuple {ti} {variant}/{lname}: {mism}")
+        val["tuples"] += 1
+        if kind == "random":
+            val["pass16"] += int(r16.sum())
+            val["pass17"] += int(r17.sum())
+            val["lanes"] += 196608
+        else:
+            k = wit_rows["#227" if ti == 0 else "S Table 3"][0]
+            require(bool(r17[k]), "witness candidate must pass 17")
+        print(f"[val] tuple {ti} ({kind}): stage16 {int(r16.sum())}, stage17 {int(r17.sum())}, "
+              f"0 mismatches x {len(configs)} configs ({time.time()-t0:.1f}s)")
+    val["packs_any16"] = {k: v[0] / v[1] for k, v in any16_counts.items()}
+
+    # targeted stage-17 cases: force a chosen lane through stage 16 (and E16's printed conditions)
+    tgt = {"packs": 0, "lane_decisions_compared": 0, "mismatches": 0, "forced_lane_pass17": 0}
+    for _ in range(args.targeted):
+        variant, lay, lname = configs[rng.randrange(3)]
+        p = rng.randrange(lay.np)
+        l = rng.randrange(lay.real[p])
+        k = lay.idx[p][l]
+        e16 = rng.getrandbits(32)
+        e16 = (e16 & ~FL16) | V16
+        e16 = (e16 & ~((1 << 18) | (1 << 9) | (1 << 5) | (1 << 4))) | (1 << 18) | (1 << 4)
+        for x, y in ((1, 28), (7, 20), (2, 20), (11, 6)):  # E16[28,20,20,6] = E16[1,7,2,11]
+            e16 = (e16 & ~(1 << x)) | (bit(e16, y) << x)
+        for x, y in ((12, 30), (10, 28)):                   # E16[30,28] != E16[12,10]
+            e16 = (e16 & ~(1 << x)) | ((bit(e16, y) ^ 1) << x)
+        e16 = (e16 & ~(1 << 29)) | ((bit(e16, 10) ^ 1) << 29)  # E16[10] != E16[29]
+        W16 = (e16 - rows[k][4]) & M32
+        w14 = [rng.getrandbits(32) for _ in range(14)]
+        w14[0] = (W16 - rows[k][2] - w14[9] - s0(w14[1])) & M32  # c16 = W16 - s1(W14)
+        c16 = c16_of(w14)
+        # SWAR on this single pack only
+        sub = Layout.__new__(Layout)
+        sub.packs_per_group, sub.np = 1, 1
+        sub.idx, sub.real, sub.grp = [lay.idx[p]], [lay.real[p]], [0]
+        sub.f = {kk: [vv[p]] for kk, vv in lay.f.items()}
+        g = lay.grp[p]
+        sub.S1W14b, sub.E14b = [lay.S1W14b[g]], [lay.E14b[g]]
+        ops = Ops(audit=True)
+        p16m, p17m, _ = swar_tuple(sub, c16, ops, variant, full17=True)
+        require(ops.max_lane < 1 << LB, "lane overflow (targeted)")
+        for ll, kk in enumerate(lay.idx[p]):
+            ww = list(w14) + [rows[kk][0], rows[kk][1]]
+            a, b = ref_stage16_17(ww, rows[kk])
+            sa, sb = bool((p16m[0] >> (LB * ll)) & 1), bool((p17m[0] >> (LB * ll)) & 1)
+            tgt["lane_decisions_compared"] += 2
+            tgt["mismatches"] += (a != sa) + (b != sb)
+            require(a == sa and b == sb, "targeted mismatch")
+            if ll == l:
+                require(a, "forced lane must pass stage 16")
+                tgt["forced_lane_pass17"] += b
+        tgt["packs"] += 1
+    val["targeted"] = tgt
+    print(f"[val] targeted: {tgt} ({time.time()-t0:.1f}s)")
+    report["validation"] = val
+    if args.f17_mc:
+        n16 = n17 = 0
+        per = []
+        for _ in range(args.f17_mc):
+            a, b = npref.run([rng.getrandbits(32) for _ in range(14)])
+            n16 += int(a.sum())
+            per.append(int(b.sum()))
+        n17 = sum(per)
+        mean = n17 / len(per)
+        sd = math.sqrt(sum((x - mean) ** 2 for x in per) / max(1, len(per) - 1))
+        report["rate_mc"] = {"tuples": args.f17_mc, "f16": n16 / (196608 * args.f17_mc), "pass17": n17,
+                             "log2_f17": math.log2(n17 / (196608 * args.f17_mc)) if n17 else None,
+                             "rel_se_tuple_clustered": sd / math.sqrt(len(per)) / mean if n17 else None}
+        print("[mc]", report["rate_mc"])
+
+    # algorithm-mode op counts on a few tuples (early abort), checked against the ledger formula
+    counts = {}
+    for variant, lay, lname in configs:
+        tot = {}
+        nt = 4
+        for _ in range(nt):
+            w14 = [rng.getrandbits(32) for _ in range(14)]
+            ops = Ops()
+            _, _, st = swar_tuple(lay, c16_of(w14), ops, variant, full17=False)
+            for kk, vv in ops.n.items():
+                tot[kk] = tot.get(kk, 0) + vv
+            tot["packs_any16"] = tot.get("packs_any16", 0) + st["packs_any16"]
+        counts[f"{variant}/{lname}"] = {kk: vv / nt for kk, vv in tot.items()}
+    report["algorithm_mode_mean_ops_per_tuple"] = counts
+    print("[ops] mean per tuple:", json.dumps(counts, indent=None))
+
+    # ---- 7. exact pack-any probabilities and worst-case survivors
+    pa_nat = pack_any16_exact(lay_nat, rows)
+    pa_srt = pack_any16_exact(lay_srt, rows)
+    surv = max_survivors16(groups, rows)
+    report["pack_any16_exact_uniformW16"] = {"natural": float(pa_nat.mean()), "sorted": float(pa_srt.mean()),
+                                            "independent_lanes_1-(7/8)^7": 1 - (7 / 8) ** 7,
+                                            "union_bound_7*0.126": 7 * 0.126}
+    report["max_stage16_survivors_per_group"] = surv
+    report["max_stage16_survivors_total"] = sum(surv)
+    print(f"[exact] Pr[pack any16] natural {pa_nat.mean():.6f} sorted {pa_srt.mean():.6f}; "
+          f"max stage-16 survivors/group {surv} ({time.time()-t0:.1f}s)")
+
+    # ---- 8. ledger + optimisation
+    extra_C_relayout = 196608 * 128 + 12 * 1024
+    extra_C_sort = 196608 * 1024
+    extra_C_sweep = 12 * (1 << 23) * 256
+    scen = {
+        "A_reduced_sorted_exact": ledger(pa_srt.mean() * 0.126 / 0.125, "sorted exact x1.008", variant="reduced",
+                                         extra_C_ops=extra_C_relayout + extra_C_sort),
+        "B_reduced_natural_exact": ledger(pa_nat.mean() * 0.126 / 0.125, "natural exact x1.008", variant="reduced",
+                                          extra_C_ops=extra_C_relayout),
+        "C_reduced_union_bound": ledger(min(1.0, 7 * 0.126), "union bound 7 f16", variant="reduced",
+                                        extra_C_ops=extra_C_relayout),
+        "D_general_union_bound": ledger(min(1.0, 7 * 0.126), "union bound 7 f16", variant="general",
+                                        extra_C_ops=extra_C_relayout),
+    }
+    s3max_sweep = 600 + 12 * 2341 * (11 + 45 + 25) + sum(surv) * (2 + 48 + 256 + 2048)
+    scen["E_A_plus_sweep_worstcase"] = ledger(pa_srt.mean() * 0.126 / 0.125, "sorted exact x1.008",
+                                              variant="reduced", s3max_override=s3max_sweep,
+                                              extra_C_ops=extra_C_relayout + extra_C_sort + extra_C_sweep)
+    scen["F_A_unrolled_no_loop_control"] = ledger(pa_srt.mean() * 0.126 / 0.125, "sorted exact x1.008",
+                                                  variant="reduced", c16_override=9,
+                                                  extra_C_ops=extra_C_relayout + extra_C_sort)
+    scen["G_A_rotation_masks_reloaded_per_stage17"] = ledger(pa_srt.mean() * 0.126 / 0.125, "sorted exact x1.008",
+                                                            variant="reduced", c17_override=45 + 12,
+                                                            extra_C_ops=extra_C_relayout + extra_C_sort)
+    scen["H_most_conservative_general_union_masks_reloaded"] = ledger(min(1.0, 7 * 0.126), "union bound 7 f16",
+                                                              variant="general", c17_override=42 + 12,
+                                                              extra_C_ops=extra_C_relayout)
+    report["extra_C_ops"] = {"relayout": extra_C_relayout, "sort": extra_C_sort, "sweep_assert": extra_C_sweep}
+    if not args.skip_opt:
+        # reproduce the base proof's optimum as a self-check of the optimiser
+        base_best, _ = optimise(160.82, 4.18e12, 432828513000, 303675466808, "base", w_lo="162.5", w_hi="162.5")
+        report["base_check"] = base_best
+        print("[opt] base check (w=162.5):", base_best)
+        for name, L in scen.items():
+            best, _ = optimise(L["EXb"], L["V"], L["M"], L["C_units"], name)
+            L["best"] = best
+            import mpmath as mp
+            mp.mp.dps = 60
+            w_, T_ = mp.mpf(best[0]), best[1]
+            d_ = w_ - mp.mpf(L["EXb"])
+            sT = mp.power(2, mp.mpf("-45.8192425647")) * T_
+            cap = mp.e ** (-(d_ * T_) ** 2 / (2 * (T_ * L["V"] + L["M"] * d_ * T_ / 3)))
+            B7 = -(-T_ // 7)
+            AB = int(mp.ceil((mp.mpf(2928 * B7 + 32 * T_) + w_ * T_) / 2224 + 14))
+            L["detail"] = dict(w=best[0], T=T_, log2T=float(mp.log(T_, 2)), B7=B7, d=float(d_), sT=float(sT),
+                               cap_stop=float(cap), P=float(1 - mp.e ** (-sT) - cap), AB_units=AB,
+                               C_units=L["C_units"], D_units=2 ** 35, total=AB + L["C_units"] + 2 ** 35,
+                               log2_total=float(mp.log(AB + L["C_units"] + 2 ** 35, 2)))
+            require(L["detail"]["total"] == best[2], "total recomputation")
+            print(f"[opt] {name}: EX {L['EX']:.4f} (bound {L['EXb']}), V {L['V']:.4e}, M {L['M']:.6e}, "
+                  f"best w,T,total,log2,P = {best}")
+    report["scenarios"] = scen
+    report["seconds"] = time.time() - t0
+    with open("step3_swar_results.json", "w") as fh:
+        json.dump(report, fh, indent=1, default=str)
+    print(json.dumps({k: report[k] for k in ("validation", "pack_any16_exact_uniformW16")}, indent=1))
+    print(f"done in {time.time()-t0:.1f}s")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+## Appendix F. The measurement's tools (participant tools)
+
+The simulator, builders, sampler, analysis and condition-count scripts of Section 5.1, with sha256. Their full text is embedded in proof Appendix F of our filings `ed55a9d7-ecd3-4d43-802d-aac71de036d3` (ed55a9d7, package commit `d2b8df461cfd9afec7d1791cd63759abd9da1802`, passed review) and `0ae465f6-05be-42cd-8f1b-6c7a4516c482` (v10c, package commit `9084b3c790af06e7b0809436c0129f259126f524`); this version lists them by sha256 only, to keep the packet within the judge-evidence budget. `params.h`, `mkparams.py`, `secondblock.py`, `step3ref.py` and `check_route.py` are reused unchanged by the relaxation run (the same sha256 in Appendix H). The
+pre-registration is listed first. Raw outputs (run logs, samples, the rebuilt table slices) are not
+included; their sha256 values are in the campaign's SHA256SUMS, whose own sha256 is listed below. The
+embedded files are hash-pinned and cite 'Section 9.1' of our earlier package; that material is Section 5.1
+here. The two
+job scripts and the copy script only set local directories and run the listed programs under a resource
+guard; they are listed by sha256 only.
+
+sha256 8d3ffe66a2671cc99cd8150491f32e42d1a4bc910f3bd96e2af3e2278bec0cdf  PREREGISTRATION.md
+sha256 8ea0d2c6f2faf9f33984df64fcc8e70c078e9970a72d49b7d78c54234e394065  condexp.c
+sha256 a1a35956567149c95e50aa8d7f0269437a7735148bb86dea74520bdbea4281a3  copass.c
+sha256 ddce6d9112e5e14e72fb1dcc6644c43486e1eae93838711969d8f220b123adfc  params.h
+sha256 0cbd2c4843d8694e90533b2b091d85bffff3f6031d98d8b136d36a67d2e4062a  mkparams.py
+sha256 5b0d1aefa2780b18f1b5b5e9ec3a260d35aefe9cc2a273e0743f00f8fefbffe1  secondblock.py
+sha256 21f5147a06f3e327310d4c050b2860e87133f363bee8f772ca99a75c029ab5e4  step3ref.py
+sha256 fa61c384ba96ec32547c5233a7525113a8d901d7869d3b9625d37f8c98155513  check_route.py
+sha256 17faeb7737d929a54bfcf06df06935eb3c5913daaf42d46f3d34322e6f0e6a33  table.py
+sha256 0a5071cedfc21fea2573dde7c644ae54e7e9fdaaf1c719dcd02a39474ea3e941  slices.py
+sha256 de6aecbc69d450b62afc477774632d6d5ed49becce3e7842f6ac0eabb1c9361d  sample.py
+sha256 5340566812ebeb737ba6332f7a30aefb88a740059062e012d684c39637ff8d89  analyse_m.py
+sha256 ea0449483faa64d84234a2dc2a9505a0c46de09c2377e2dcbc07cf15b2067f7c  e2e.py
+sha256 1aff7056da5aa5132c85b70745e23da28e189334d4efe48e817d872a106ecc77  conddump.c
+sha256 07a854cd426c9c73bb799ee5074bd64d86ebce9f31f5bd7d39df40de7e5056d1  conds.py
+sha256 3d830b80605a881ae796d04b128efe98b106f061c7062ef4e0ef46fd085ab7f8  CONDITIONS.md
+sha256 de611ccf7a235ce87a76480039ea8a4423b0673c664a863037614c6fa61ebf91  job1.sh
+sha256 580d10577508369f90d01b70b84c6f39766ce3c4a81166ee0c85a961b805f8e4  job2.sh
+sha256 62310bd4e5d66c4ade8c52969f2980912e9a14578605a407aa9298f80b767f9d  finalize.py
+sha256 e2b26106b7653acf5ff278895c30869a7bb963e087688dc4a4ef2bb870d1e63b  SHA256SUMS
+
+## Appendix G. The ledger, cap and success arithmetic (participant tool)
+
+Every number of Sections 7 and 8 (E[X], E[X^2], M, the Bernstein exponent, the (w, T) search, success, A + B, C, D
+and the total) is computed at 80-digit precision by these two files. The claimed values come from
+`final_v10.solve(floor="0.3950005", batch_ops=2265, per_trial_fixed=23, c_units_override=24043324313, success_model='measured', lazy_cv=21, step2_mean_per_match='51.291650', step2_max_per_match=1518, pair_factor_log2='-6.8308', ex2_method='tuple-split', q_gain_lcb='1.1178', q_gain_ucb='1.1244', p_gain_lcb='1.1624', mix_lcb='0.9992', copass_U='0.0000396315', transfer_h='0.000812')` with MEAS = pL_log2 -44.0055, pU_log2 -43.9954, followed by
+`arith.evaluate` on the result. v11's claim is the same call with `batch_ops=2273`,
+`per_trial_fixed=24`, `lazy_cv=22`, `step2_mean_per_match="60.359606"` and `step2_max_per_match=1529`. v10c's claim also has the relaxation factors 1, `copass_U` = U,
+`step2_mean_per_match="45.59375"`, `step2_max_per_match=1486` and `pair_factor_log2=-7`. The same functions reproduce
+ed55a9d7, 621d0fb0, d8d39011, f807117b and 6e5214dd exactly (`arith.BASE_621D0FB0`, `arith.D8D39011`,
+`arith.F807117B`, `arith.E6E5214DD`). C enters as `c_units_override` (Section 8 C computes it); the tool's own `O_C`
+and `C_exact` fields then refer to the default ledger and are not used.
+
+sha256 459670e382053190f760684583c65f47819ce65a488d4bc03245f5eeb4aadac9  arith.py
+sha256 1841aacfca7c4e44f2453aec25149fe3529cd1874499857b81e3992e7081fabc  final_v10.py
+
+### G.1 `arith.py`
+
+```python
+"""Parameterized ledger, cap and success arithmetic for the SHA-256/32 package line.
+
+Every derived number (T, E[X], E[X^2], support M, Bernstein, A+B, C, total, success)
+recomputes from the parameters below. Run with no arguments for v9 and for the
+621d0fb0 base reproduction; import `evaluate` to vary T, p, cap and charges.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+from dataclasses import dataclass, field, asdict
+from decimal import Decimal as D, ROUND_CEILING, ROUND_FLOOR, getcontext
+
+getcontext().prec = 80
+LN2 = D(2).ln()
+
+
+def p2(x) -> D:
+    return (D(x) * LN2).exp()
+
+
+def lg(x) -> D:
+    return D(x).ln() / LN2
+
+
+def ceil_int(x: D) -> int:
+    return int(D(x).to_integral_value(rounding=ROUND_CEILING))
+
+
+@dataclass
+class Params:
+    name: str = "v9"
+    # trial count and probability premises
+    t_log2: str = "44.803"            # T = ceil(2^t_log2) unless T is given
+    T: int = 0                        # explicit trial count (overrides t_log2)
+    q_lcb_log2: str = "-17.3584"      # declared q lower bound
+    q_ucb_log2: str = "-17.3166"      # q upper bound used in work moments
+    pair_factor_log2: int = -5        # E[C(V,2)] <= q 2^pair_factor_log2 (a decimal string is accepted)
+    q_gain_lcb: str = "1"             # v11 relaxed Step 2: q_relaxed >= q * q_gain_lcb (99% lower bound)
+    q_gain_ucb: str = "1"             # ... and q_relaxed <= q * q_gain_ucb in the work moments
+    p_gain_lcb: str = "1"             # v11 relaxed Step 3: p_relaxed >= p * p_gain_lcb (99% lower bound)
+    mix_lcb: str = "1"                # v11: Step-3 rate of the valid-tuple mix relative to characteristic tuples
+    transfer_h: str = ""              # v11: bound h on E_occ[p_J^2]/p^2 - 1; derives the selected-tuple rate (Section 7)
+    p_log2: str = "-46"               # per-candidate Step-3 conformance rate (condition-count model)
+    success_model: str = "condition-count"   # or "measured" (v10)
+    pL_log2: str = "-44.2"            # measured: 99% lower bound on the occurrence-weighted rate
+    pU_log2: str = "-43.9"            # measured: 99% upper bound
+    copass_U: str = "0.00390625"      # measured: 99% upper bound on E[other passing entries | an entry passes]
+    groups: int = 12
+    group_size: int = 1 << 14
+    w20_group_conditions: int = 12    # conditions common to one W14 group
+    r_loss_log2: int = -20            # displayed rounding: r >= E[Y](1 - 2^r_loss_log2)
+    # Step-2/3 rates used in work
+    scan_mean: str = "0.32522"        # exact 32-bit buckets: N/2^32 < 0.32522 (621d0fb0: 10.41)
+    lazy_cv: int = 56                 # lever 3: per nonempty-bucket trial charge for deferred CV1[1..7]
+    match_rate: str = "0.32522"
+    step2_mean_per_match: str = "192"
+    step2_max_per_match: int = 1304
+    f16: str = "0.126"
+    f17_log2: str = "-14.9"
+    max_occupancy: int = 936
+    sumsq_parts: str = "5.758e9"
+    ex2_method: str = "inherited"     # or "tuple-split": Minkowski sum and E[S3^2] <= S3max E[S3] + S3max^2 E[V(V-1)]
+    # Step-3 charges
+    tuple_setup: int = 300
+    stage16_mode: str = "swar1617"    # "swar1617" (v9 lever 2), "swar" (stage 16 only) or "scalar" (base)
+    s1617_group: int = 48
+    s16_word: int = 40
+    s17_word: int = 160
+    s17_pass: int = 96
+    # f807117b seven-lane sweep (mode "f807"): per pack stage 16, stage 17 (on a stage-16 pass), extraction
+    pk16: int = 11
+    pk17: int = 57
+    pkx: int = 25
+    survivor: int = 2 + 2352
+    stage16_scalar: int = 48
+    stage16_group: int = 32
+    stage16_word: int = 64
+    lanes: int = 7
+    extract: int = 32                 # per stage-16 pass (SWAR only)
+    stage17: int = 256
+    stage18_31: int = 2048
+    # online fixed work
+    batch_ops: int = 2732
+    per_trial_fixed: int = 32
+    final_units: int = 14
+    # cap and moments
+    cap: str = "122"
+    ex_bound: str = "118.9"
+    ex2_bound: str = "4.152e12"
+    # preprocessing
+    o_c: int = 671113630622720 + 1024 * ((1 << 32) - (1 << 27)) + 1024 * (12 * 2341 * 10)
+    d_units: int = 1 << 35
+    c_units_override: int = 0         # use a base's separately rounded C when given
+    cost_c: int = 2224
+
+
+def evaluate(pp: Params) -> dict:
+    out: dict = {"params": asdict(pp)}
+    C = pp.cost_c
+    T = pp.T or ceil_int(p2(pp.t_log2))
+    B7 = -(-T // pp.lanes)
+    P4 = pp.groups * pp.group_size
+    q_ucb = p2(pp.q_ucb_log2) * D(pp.q_gain_ucb)
+    pf = D(str(pp.pair_factor_log2))
+    f16, f17 = D(pp.f16), p2(pp.f17_log2)
+    out.update(T=T, B7=B7, P4=P4)
+
+    # ---- Step-3 per-tuple charges
+    if pp.stage16_mode == "f807":
+        words = -(-pp.group_size // pp.lanes)
+        packs = pp.groups * words
+        percand = (D(pp.pk16 * packs) / P4 + 7 * f16 * pp.pk17 * packs / P4 + 7 * f17 * pp.pkx * packs / P4
+                   + f17 * pp.survivor)
+        out["per_candidate"] = str(percand)
+        step3_mean = pp.tuple_setup + P4 * percand
+        s3_max = pp.tuple_setup + packs * (pp.pk16 + pp.pk17 + pp.pkx) + P4 * pp.survivor
+        s16_tuple = None
+    elif pp.stage16_mode == "swar1617":
+        words = -(-pp.group_size // pp.lanes)
+        fixed = pp.groups * (pp.s1617_group + words * pp.s16_word)
+        out["stage16_words_per_group"] = words
+        out["stage1617_fixed_per_tuple"] = fixed
+        step3_mean = (pp.tuple_setup + fixed + P4 * (pp.s17_word * f16 + (pp.s17_pass + pp.stage18_31) * f17))
+        s3_max = (pp.tuple_setup + fixed + pp.groups * words * pp.s17_word
+                  + P4 * (pp.s17_pass + pp.stage18_31))
+        s16_tuple = None
+    elif pp.stage16_mode == "swar":
+        words = -(-pp.group_size // pp.lanes)
+        s16_tuple = pp.groups * (pp.stage16_group + words * pp.stage16_word)
+        pass_charge = pp.extract + pp.stage17
+        out["stage16_words_per_group"] = words
+    else:
+        s16_tuple = P4 * pp.stage16_scalar
+        pass_charge = pp.stage17
+    if s16_tuple is not None:
+        out["stage16_per_tuple"] = s16_tuple
+        out["stage16_per_candidate"] = str(D(s16_tuple) / P4)
+        step3_mean = pp.tuple_setup + s16_tuple + P4 * (pass_charge * f16 + pp.stage18_31 * f17)
+        s3_max = pp.tuple_setup + s16_tuple + P4 * (pass_charge + pp.stage18_31)
+    out["step3_mean_per_tuple"] = str(step3_mean)
+    scan, match = D(pp.scan_mean), D(pp.match_rate)
+    ex_terms = {"scan": 5 * scan, "lazy_cv": pp.lazy_cv * scan,
+                "step2": match * D(str(pp.step2_mean_per_match)), "step3": q_ucb * step3_mean}
+    ex = sum(ex_terms.values())
+    out["EX_terms"] = {k: str(v) for k, v in ex_terms.items()}
+    out["EX"] = str(ex)
+    assert ex < D(pp.ex_bound), (ex, pp.ex_bound)
+
+    M = 5 * pp.max_occupancy + pp.lazy_cv + pp.max_occupancy * (pp.step2_max_per_match + s3_max)
+    ex2_terms = {
+        "scan2": (5 + pp.lazy_cv) ** 2 * pp.max_occupancy * scan,
+        "step2_2": D(pp.step2_max_per_match) ** 2 * 4 * D(pp.sumsq_parts) / D(2) ** 32,
+    }
+    if pp.ex2_method == "tuple-split":
+        # sum_j c_j^2 <= S3max sum_j c_j and sum_{j != k} c_j c_k <= S3max^2 V(V-1), E[V(V-1)] = 2 E[C(V,2)]
+        ex2_terms["step3_2"] = (D(s3_max) * q_ucb * D(str(step3_mean))
+                                + D(s3_max) ** 2 * 2 * q_ucb * p2(pf))
+        ex2 = sum(v.sqrt() for v in ex2_terms.values()) ** 2
+    else:
+        ex2_terms["step3_2"] = D(s3_max) ** 2 * q_ucb * (1 + p2(pf + 1))
+        ex2 = 3 * sum(ex2_terms.values())
+    assert ex2 < D(pp.ex2_bound), (ex2, pp.ex2_bound)
+    out.update(S3_max=s3_max, M=M, EX2=f"{ex2:.10e}", EX2_exact=str(ex2),
+               EX2_terms={k: f"{v:.10e}" for k, v in ex2_terms.items()},
+               EX2_terms_exact={k: str(v) for k, v in ex2_terms.items()})
+
+    excess = D(pp.cap) - D(pp.ex_bound)
+    V = D(pp.ex2_bound)
+    expo = (excess * T) ** 2 / (2 * (T * V + M * excess * T / 3))
+    cap_stop = (-expo).exp()
+    out.update(cap_excess=str(excess), bernstein_exponent=str(expo), cap_stop=f"{cap_stop:.6e}")
+
+    # ---- success
+    q_lcb = p2(pp.q_lcb_log2) * D(pp.q_gain_lcb)
+    if pp.success_model == "measured":
+        ey_l = P4 * p2(pp.pL_log2) * D(pp.p_gain_lcb) * D(pp.mix_lcb)
+        ey_u = P4 * p2(pp.pU_log2)
+        # E[C(Y,2)] = E[Y] c/2 with c the size-biased co-pass mean <= U, so r >= E[Y](1 - U/2) >= 196,608 p_L (1 - U/2)
+        pair = ey_l * D(pp.copass_U) / 2
+        r = ey_l * (1 - D(pp.copass_U) / 2)
+        if pp.transfer_h:
+            # trial-first selector J: weight w = 1/(cV) on occurrences, E_occ[w] = 1, 0 <= w <= 1/c, c >= 1 - m with
+            # m = Pr_occ[V >= 2] <= 2^(pf+1); Var(w) <= m/(1-m) and Cov(w, p_J) >= -sqrt(Var(w) h) p (Cauchy-Schwarz)
+            m = 2 * p2(pf)
+            delta = (m / (1 - m) * D(pp.transfer_h)).sqrt()
+            r = ey_l * (1 - delta - D(pp.copass_U) / (2 * (1 - m)))
+            out.update(transfer_delta=str(delta), transfer_m=str(m))
+        ey = ey_l
+        out.update(EY_L=f"{ey_l:.12e}", EY_U=f"{ey_u:.12e}", pair_term_rel=f"{pair:.6e}")  # E_L * U / 2, used only through r
+    else:
+        p = p2(pp.p_log2)
+        ey = P4 * p
+        g = pp.group_size
+        pair = (pp.groups * D(g * (g - 1) // 2) * p2(-pp.w20_group_conditions)
+                * (p2(pp.w20_group_conditions) * p) ** 2 + D(P4 * (P4 - 1) // 2) * p ** 2)
+        assert pair <= ey * p2(pp.r_loss_log2), (pair, ey)
+        r = ey * (1 - p2(pp.r_loss_log2))
+    s = q_lcb * (1 - p2(pf)) * r
+    sT = s * T
+    success = 1 - (-sT).exp() - cap_stop
+    out.update(r=f"{r:.12e}", r_rel_loss_log2=str(lg(pair / ey)) if pair > 0 else None,
+               s_log2=str(lg(s)), sT=str(sT), success=str(success))
+
+    # ---- totals
+    ab = (D(pp.batch_ops * B7 + pp.per_trial_fixed * T) + D(pp.cap) * T) / C + pp.final_units
+    ab_int = ceil_int(ab)
+    c_units = pp.c_units_override or ceil_int(D(pp.o_c) / C)
+    total = ab_int + c_units + pp.d_units
+    out.update(AB=str(ab), AB_ceiling=ab_int, AB_log2=str(lg(ab)), O_C=pp.o_c, C_exact=str(D(pp.o_c) / C),
+               C_units=c_units, C_log2=str(lg(c_units)), D=pp.d_units, total=total,
+               total_log2=str(lg(total)), preprocessing=c_units + pp.d_units,
+               preprocessing_log2=str(lg(c_units + pp.d_units)))
+    claim = (lg(total) * 1000).to_integral_value(rounding=ROUND_CEILING) / 1000
+    out["claim_time_log2_3dp"] = str(claim)
+    out["claim_check"] = D(total) ** 1000 <= D(2) ** int(claim * 1000)
+    return out
+
+
+BASE_621D0FB0 = Params(
+    name="base-621d0fb0", scan_mean="10.41", stage16_mode="scalar", cap="214", lazy_cv=0,
+    ex_bound="211.3", ex2_bound="4.18e12", o_c=671113630622720, batch_ops=3232, per_trial_fixed=64,
+)
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--set", nargs="*", default=[], help="field=value overrides for the v9 params")
+    ap.add_argument("--base", action="store_true", help="also print the 621d0fb0 reproduction")
+    args = ap.parse_args()
+    pp = Params()
+    for item in args.set:
+        key, value = item.split("=", 1)
+        cur = getattr(pp, key)
+        setattr(pp, key, type(cur)(value) if not isinstance(cur, str) else value)
+    runs = ([BASE_621D0FB0] if args.base else []) + [pp]
+    for run in runs:
+        res = evaluate(run)
+        res.pop("params")
+        print(run.name, json.dumps(res, indent=1, default=str))
+
+
+if __name__ == "__main__":
+    main()
+
+
+D8D39011 = Params(
+    name="base-d8d39011", T=30702387450972, scan_mean="0.325212", stage16_mode="scalar", cap="162.5", lazy_cv=0,
+    ex_bound="160.82", ex2_bound="4.18e12", batch_ops=2928, per_trial_fixed=32,
+    o_c=671113630622720 + 1024 * ((1 << 32) - (1 << 27)),
+)
+
+
+def success_at(pp: Params, T: int) -> D:
+    old = pp.T
+    pp.T = T
+    try:
+        return D(evaluate(pp)["success"])
+    finally:
+        pp.T = old
+
+
+def optimise(pp: Params, floor: str, caps) -> list:
+    """For each cap w, the smallest T with success >= floor, and the resulting total."""
+    rows = []
+    for w in caps:
+        pp.cap = str(w)
+        if D(pp.cap) <= D(pp.ex_bound):
+            continue
+        lo, hi = 1 << 40, 1 << 47
+        if success_at(pp, lo) >= D(floor):
+            raise ValueError("T search range too high")
+        if success_at(pp, hi) < D(floor):
+            continue
+        while hi - lo > 1:
+            mid = (lo + hi) // 2
+            if success_at(pp, mid) >= D(floor):
+                hi = mid
+            else:
+                lo = mid
+        pp.T = hi
+        res = evaluate(pp)
+        rows.append((res["total"], str(w), hi, res["success"], res["cap_stop"], res["total_log2"]))
+        pp.T = 0
+    rows.sort()
+    return rows
+
+
+F807117B = Params(
+    name="base-f807117b", T=30702858922613, scan_mean="0.325212", stage16_mode="f807", cap="76.4", lazy_cv=0,
+    tuple_setup=600, ex_bound="74.711", ex2_bound="4.2301e12", batch_ops=2928, per_trial_fixed=32,
+    o_c=671113630622720 + 1024 * ((1 << 32) - (1 << 27)) + 196608 * 128 + 12 * 1024, c_units_override=303675478130,
+)
+
+
+E6E5214DD = Params(
+    name="base-6e5214dd", T=30702858922613, scan_mean="0.325212", stage16_mode="f807", cap="76.4", lazy_cv=0,
+    tuple_setup=600, ex_bound="74.711", ex2_bound="4.2301e12", batch_ops=2805, per_trial_fixed=32,
+    o_c=671113630622720 + 1024 * ((1 << 32) - (1 << 27)) + 196608 * 128 + 12 * 1024, c_units_override=303675478130,
+)
+```
+
+### G.2 `final_v10.py`
+
+```python
+"""The v10 line: 6e5214dd + lazy CV1 extraction + measured Step-3 rate (ed55a9d7), and v10c's exact changes passed
+as keyword overrides. Recomputes every bound from MEAS.
+
+usage: final_v10.py [pL_log2=..] [pU_log2=..] [copass_U=..]
+"""
+import sys
+sys.path.insert(0, ".")
+from decimal import Decimal as D, ROUND_CEILING
+import math
+from arith import Params, evaluate, optimise, lg
+
+FLOOR = "0.3950005"
+MEAS = dict(success_model="measured", pL_log2="-44.2", pU_log2="-43.9", copass_U="0.00390625")
+BASE = dict(stage16_mode="f807", tuple_setup=600, lazy_cv=56, batch_ops=2609, per_trial_fixed=32,
+            scan_mean="0.32522", c_units_override=303675478130,
+            o_c=671113630622720 + 1024 * ((1 << 32) - (1 << 27)) + 196608 * 128 + 12 * 1024)
+
+
+def v10(**kw) -> Params:
+    pp = Params(name="v10", **BASE, **MEAS)
+    fixed = {k: v for k, v in kw.items() if k not in ("cap", "T")}
+    for k, v in fixed.items():
+        setattr(pp, k, v)
+    pp.T, pp.cap, pp.ex_bound, pp.ex2_bound = 30702858922613, "500", "500", "1e13"
+    raw = evaluate(pp)
+    pp.ex_bound = str(D(raw["EX"]).quantize(D("0.001"), rounding=ROUND_CEILING))
+    ex2 = D(raw["EX2_exact"])
+    e = ex2.adjusted()
+    mant = (ex2 / D(10) ** e).quantize(D("0.0001"), rounding=ROUND_CEILING)
+    pp.ex2_bound = f"{mant}e{e}"
+    pp.T = 0
+    for k, v in kw.items():
+        setattr(pp, k, v)
+    return pp
+
+
+def solve(floor=FLOOR, **kw):
+    pp = v10(**kw)
+    lo = D(pp.ex_bound).quantize(D("0.1"), rounding=ROUND_CEILING)
+    rows = optimise(pp, floor, [lo + D(i) / 10 for i in range(1, 120)])
+    c0 = D(rows[0][1])
+    rows = optimise(v10(**kw), floor, [c0 + D(i) / 100 for i in range(-10, 11)])
+    cap, T = rows[0][1], rows[0][2]
+    return v10(cap=str(cap), T=T, **kw)
+
+
+def main() -> None:
+    for a in sys.argv[1:]:
+        k, v = a.split("=", 1)
+        MEAS[k] = v
+    pp = solve()
+    r = evaluate(pp)
+    for k in ("T", "B7", "per_candidate", "EX", "EX_terms", "EX2", "EX2_terms", "S3_max", "M", "cap_excess",
+              "bernstein_exponent", "cap_stop", "EY_L", "EY_U", "pair_term_rel", "r", "s_log2", "sT", "success", "AB",
+              "AB_ceiling", "C_units", "D", "total", "total_log2", "claim_time_log2_3dp", "claim_check",
+              "preprocessing", "preprocessing_log2"):
+        print(k, r[k])
+    print("cap", pp.cap, "ex_bound", pp.ex_bound, "ex2_bound", pp.ex2_bound)
+    T = r["T"]
+    print("pieces", 2609 * r["B7"], 32 * T, D(pp.cap) * T, 2609 * r["B7"] + 32 * T + D(pp.cap) * T)
+    for label, pl in (("p_L", MEAS["pL_log2"]), ("2^-44.3", "-44.3"), ("2^-44.5", "-44.5"), ("2^-46", "-46")):
+        rr = evaluate(v10(cap=pp.cap, T=T, pL_log2=pl))
+        print("sensitivity", label, "success", rr["success"][:10], "sT", rr["sT"][:12])
+    tot = r["total"]
+    E = 159412543029248
+    print("fallback", tot + E, lg(tot + E), "no-factor", lg(tot + 593858 * 2 ** 23))
+    for k in (23, 24, 25):
+        print(k, [math.ceil(float(lg(tot + m * 593858 * 2 ** k)) * 100) / 100 for m in (8, 32, 64)])
+    # attribution: lazy only (no measured p) with f807 floor rule 0.3901, and measured p without lazy
+    a = solve(floor="0.3901", success_model="condition-count")
+    print("lazy only (2^-46, floor 0.3901):", evaluate(a)["total_log2"][:10], a.cap, a.T)
+    b = solve(lazy_cv=0, batch_ops=2805)
+    print("measured p, no lazy:", evaluate(b)["total_log2"][:10], b.cap, b.T)
+    c = solve(floor="0.3901")
+    print("measured p, lazy, floor 0.3901:", evaluate(c)["total_log2"][:10], c.cap, c.T)
+
+
+if __name__ == "__main__":
+    main()
+```
+
+## Appendix H. The relaxation tools (participant tools, this version)
+
+The tools of Section 5.2, with sha256 from the run's `SHA256SUMS` (sha256
+6a57213a387c22a458261890f34a842a89dca168c31d9e8cdea42e3ba9f980e8, which also pins the 146 files of the run,
+its outputs, dumps and end-to-end results). `RELAX.md` is the run's report, summarised in Section 5.2 (its cost
+line uses an older charge table; Section 8 B charges this version). The three job scripts only set local
+directories and run the listed programs under a resource guard; they and the data files are listed by sha256 only.
+`params.h`, `mkparams.py`, `secondblock.py`, `step3ref.py` and `check_route.py` are the files of Appendix F, embedded
+here because the relaxation tools import them (`step3ref.py` takes its reference SHA-256 from `check_route.py`).
+"Section 9.1" in the embedded docstrings is the numbering of our earlier packages (Sections 5.1 and 5.2 here). The
+last two files are the analysis and result of our v8 campaign's Measurement 2 (filing
+`439d2b36-99d7-4ab5-9e86-8615e760f756`), cited in Section 7; its `pairexp.py` and `condexp.c` are the files of this
+appendix and Appendix F (same sha256), and its vector lists `pairs.txt` and `singles.txt` have sha256
+f59b07ca170b8d547f0d1560b2581c9bc710783b2cfe78115b2604eceb4aa78c and
+9aed07d94343bdb505e5a612afaff12d4d304f62a95af5ea87215af6cad905e0.
+
+sha256 5676076698d05635502f1aaaf8a840cab77b0efe66b97536b8af4107856d3a72  COPASS_E16.md
+sha256 1de36896c6e220da17c066d7cdcdb4b4a2d98600d603211f814e954221556b35  COPASS_RELAXED.md
+sha256 33510417f738b26fb91bac15d9369a18df2a1cd9c12758b1b6a36b23e6af8d64  RELAX.md
+sha256 fa61c384ba96ec32547c5233a7525113a8d901d7869d3b9625d37f8c98155513  check_route.py
+sha256 2e556d5123732f81201c20edbb3210872415aa25cf1c2aa3f47bea8335b1e952  copass_e16.c
+sha256 21d59651c9fd23379973ae110d810efa369169f487749bb04b5bcc914cf331a1  copass_e16.json
+sha256 b541d4179aaeb2898bd6811bc565f7f2e1a9dd88561b95e8b691240543d099c8  copass_relax.c
+sha256 6e4574908e54254b320a723521b9a9e3dc6455c62fead38604fa8a5785ad761f  copass_relax_analyse.py
+sha256 4ec9b09324be22e363119e30d245807451a8de89e776f51dbe2c2a3463feba19  copass_relaxed.json
+sha256 ea0449483faa64d84234a2dc2a9505a0c46de09c2377e2dcbc07cf15b2067f7c  e2e.py
+sha256 8f2371b55dc588277bfe166040cfe28c6941a3df3b11e579ed81979a53c3dd52  e2e_relax.py
+sha256 a0a854891824f73e6feb252e8235f6135111c3048d6eb8465f9f7a621c3428b6  fig6_rows_296.txt
+sha256 f2161c75090460a5ffbc331c203d84ec1350e8cae7d8e2d4ad9ffa4faf3495a3  job_c.sh
+sha256 02774a39ade09969e8db0f9b003fb0e6bfc65ea2fe34dc2c3cad0b10924fa199  job_e.sh
+sha256 34982b87643acafb68289abb038da934e211b3badb900a880ba045bf5873a12d  job_p.sh
+sha256 351b29f5d6f0c4be5008f62cc317b05645244eecf1d3b53d85b331848c9a03b3  job_r.sh
+sha256 fc6e3145d73c9caf45b86c465ce3b31eadbfcaf12feea1bd5fe3799570ad935e  job_w.sh
+sha256 080b81e055b82fbce2d036ba439d269d25a0a104108b58bc3e355b8d4b9abbb0  m.records.json
+sha256 0cbd2c4843d8694e90533b2b091d85bffff3f6031d98d8b136d36a67d2e4062a  mkparams.py
+sha256 b1f27a7e9bd804e8a8d90e53f871c7128bb97dd5eb366074c60d48984a58d413  p4var.py
+sha256 9e50bb32c4fa4521cf77f478325ce634b0f451de4a413f27d747545764cc28da  pairexp.py
+sha256 ddce6d9112e5e14e72fb1dcc6644c43486e1eae93838711969d8f220b123adfc  params.h
+sha256 4a19ddff71aaf307099b1e8f36890a758e35f4a67920b074e448db5a0c586179  relax.c
+sha256 d4a2e0b3eb2cdc3d45ae2d4eeeb7b4d687fc3c22da64d04b77b42ee8a55268a9  relax_analyse.py
+sha256 17f399764f9a7fb00ac0c2a787c86abf0f187cd3f3ae195dde6b527123d3e623  relax_summary.json
+sha256 5b0d1aefa2780b18f1b5b5e9ec3a260d35aefe9cc2a273e0743f00f8fefbffe1  secondblock.py
+sha256 b3fb1a593a6e1e23ea764a89edc2d9e03c0b720bcb2461d0c4ee821b74d7a98d  slices.npz
+sha256 5951b0bc191abdf25653836bebf0ad74253520ce59c3de82fb15c2f4bfd0245e  step2relax.json
+sha256 c9cf631b15cf74074ed128a565cc876e80f95b57f00402f3af2e702ef7603fbc  step2relax.py
+sha256 21f5147a06f3e327310d4c050b2860e87133f363bee8f772ca99a75c029ab5e4  step3ref.py
+sha256 f1d848ea13ec6f0d13377ecc2b9f54210fec72caaf3a7229e35a047321e4e9a8  v11.cvec.txt
+sha256 3fb2dec417252dd1e58b33a0dfa3b32db062033e2900807c12eb8605236335b7  v11.records.json
+sha256 f248b22fc52610f610ade17306e32c39069091ff6e11d4e592a4159a328b4a41  wrelax.c
+
+### H.1 `wrelax.c`
+
+```c
+/* Exact single-word relaxations. For a message word x with required modular difference D, the characteristic asks
+ * for the XOR pattern FL with fixed signs (x xor FL = x + D) and then for sigma(x') - sigma(x) = T. The relaxed
+ * condition asks only sigma(x + D) - sigma(x) = T. Over all 2^32 values of x this prints the number of x that meet
+ * the characteristic's conditions, the number that meet the relaxed one, and the relaxed solutions by XOR pattern.
+ * usage: wrelax NAME SIGMA(0|1) D FL T   (hex words)
+ */
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#define ROTR(x, r) (((x) >> (r)) | ((x) << (32 - (r))))
+static inline uint32_t s0(uint32_t x) { return ROTR(x, 7) ^ ROTR(x, 18) ^ (x >> 3); }
+static inline uint32_t s1(uint32_t x) { return ROTR(x, 17) ^ ROTR(x, 19) ^ (x >> 10); }
+
+#define NP 4096
+int main(int argc, char **argv) {
+    if (argc < 6) return 1;
+    int sg = atoi(argv[2]);
+    uint32_t D = (uint32_t)strtoul(argv[3], 0, 16), FL = (uint32_t)strtoul(argv[4], 0, 16), T = (uint32_t)strtoul(argv[5], 0, 16);
+    static uint32_t pat[NP]; static uint64_t pc[NP]; int np = 0;
+    uint64_t nchar = 0, nrel = 0, nsign = 0;
+    uint32_t x = 0;
+    do {
+        uint32_t y = x + D, d = sg ? s1(y) - s1(x) : s0(y) - s0(x);
+        int signok = (x ^ y) == FL;
+        nsign += signok;
+        if (d == T) {
+            nrel++;
+            nchar += signok;
+            uint32_t p = x ^ y;
+            int k = 0;
+            while (k < np && pat[k] != p) k++;
+            if (k == np) { if (np == NP) return 2; pat[np++] = p; }
+            pc[k]++;
+        }
+        x++;
+    } while (x != 0);
+    printf("%s sigma%d D %08x FL %08x T %08x\n", argv[1], sg, D, FL, T);
+    printf("signs_ok %llu char %llu relaxed %llu gain %.6f\n", (unsigned long long)nsign, (unsigned long long)nchar,
+           (unsigned long long)nrel, nchar ? (double)nrel / nchar : 0.0);
+    for (int k = 0; k < np; k++) printf("pattern %08x count %llu\n", pat[k], (unsigned long long)pc[k]);
+    return 0;
+}
+```
+
+### H.2 `pairexp.py`
+
+```python
+"""Direct conditioned experiment on real TAB2 records: trials in which two records of one key class are both valid.
+
+For a record t, CV1[1..3] -> (E0, E1, E2) -> (W4, W5, W6) is a bijection (Section 9.1), so a uniform CV1 conditioned
+on "t valid" is a uniform (W4, W5, W6) passing t's Step-2 tests. We sample those, map back to CV1[1..3], and run the
+Step-2 tests (a)-(g) of every other record of the same key class on the same CV1. Each trial in which some other
+record t' is also valid is a pair event. For every pair event we keep t's tuple constants, and for the same record t
+a tuple drawn from an independent single event; condexp.c then compares the Step-3 pass rates of the two sets.
+
+usage: pairexp.py slice.npz seed max_pairs out_prefix
+"""
+import sys, warnings
+import numpy as np
+warnings.filterwarnings('ignore')
+from secondblock import Rows, S0, S1, s0, IF, MAJ, K, ADVICE_A, ADVICE_W
+
+R = Rows('fig6_rows_296.txt')
+u = np.uint32
+W12, W13 = u(ADVICE_W[12]), u(ADVICE_W[13])
+W12p, W13p = W12 ^ R.fl('W', 12), W13 ^ R.fl('W', 13)
+D20 = R.signed('W', 20)
+FL = {i: R.fl('W', i) for i in range(4, 9)}
+FE = {i: R.fl('E', i) for i in range(3, 7)}
+SG = {i: R.signmask('W', i) for i in (4, 5, 6)}
+
+def w_tests(w4, w5, w6):
+    """Tests (a)-(d), (f), (g): they involve only W4..W6 (and the advice W12, W13)."""
+    ok = np.ones(len(w4), dtype=bool)
+    for i, w in ((4, w4), (5, w5), (6, w6)):
+        m, v = SG[i]
+        ok &= (w & m) == v
+    p4, p5, p6 = w4 ^ FL[4], w5 ^ FL[5], w6 ^ FL[6]
+    ok &= (s0(p4) + W12p) == (s0(w4) + W12)
+    ok &= (s0(p6) + p5) == (s0(w6) + w5)
+    ok &= ((W13p - W13) + (s0(p5) - s0(w5)) + (p4 - w4)) == D20
+    return ok
+
+def e_test(r, e0, e1, e2, w4, w5, w6):
+    """Test (e): XOR-conformance of E at steps 4..6 (steps 0..3 and A at 0..2 carry no difference)."""
+    a0, a1, a2 = r['A0'], r['A1'], r['A2']
+    e3, e4, e5, e6 = r['E3'], r['E4'], r['E5'], r['E6']
+    e4p, e5p, e6p = e4 ^ FE[4], e5 ^ FE[5], e6 ^ FE[6]
+    ok = (a0 + e0 + S1(e3) + IF(e3, e2, e1) + K[4] + (w4 ^ FL[4])) == e4p
+    ok &= (a1 + e1 + S1(e4p) + IF(e4p, e3, e2) + K[5] + (w5 ^ FL[5])) == e5p
+    ok &= (a2 + e2 + S1(e5p) + IF(e5p, e4p, e3) + K[6] + (w6 ^ FL[6])) == e6p
+    return ok
+
+def step2(r, key, am2, am3, am4):
+    """Step 2 of record r on CV1[0..3] = (key, am2, am3, am4): returns (valid, W4, W5, W6)."""
+    a0, a1, a2 = r['A0'], r['A1'], r['A2']
+    e0 = am4 + a0 - S0(key) - MAJ(key, am2, am3)
+    e1 = am3 + a1 - S0(a0) - MAJ(a0, key, am2)
+    e2 = am2 + a2 - S0(a1) - MAJ(a1, a0, key)
+    e3, e4, e5, e6 = r['E3'], r['E4'], r['E5'], r['E6']
+    w4 = e4 - a0 - e0 - S1(e3) - IF(e3, e2, e1) - K[4]
+    w5 = e5 - a1 - e1 - S1(e4) - IF(e4, e3, e2) - K[5]
+    w6 = e6 - a2 - e2 - S1(e5) - IF(e5, e4, e3) - K[6]
+    return w_tests(w4, w5, w6) & e_test(r, e0, e1, e2, w4, w5, w6), w4, w5, w6
+
+def from_w(r, key, w4, w5, w6):
+    """Inverse map (W4, W5, W6) -> (E0, E1, E2) -> CV1[1..3] for record r."""
+    a0, a1, a2 = r['A0'], r['A1'], r['A2']
+    e3, e4, e5, e6 = r['E3'], r['E4'], r['E5'], r['E6']
+    e2 = e6 - a2 - w6 - S1(e5) - IF(e5, e4, e3) - K[6]
+    e1 = e5 - a1 - w5 - S1(e4) - IF(e4, e3, e2) - K[5]
+    e0 = e4 - a0 - w4 - S1(e3) - IF(e3, e2, e1) - K[4]
+    am2 = e2 - a2 + S0(a1) + MAJ(a1, a0, key)
+    am3 = e1 - a1 + S0(a0) + MAJ(a0, key, am2)
+    am4 = e0 - a0 + S0(key) + MAJ(key, am2, am3)
+    return e0, e1, e2, am2, am3, am4
+
+def record(comb, pairs, rec):
+    pi, w7, e3, key = rec
+    ci, e4, a0, w8 = pairs[pi]
+    e5, e6, e7, a1, a2, a3, w9, w10, w11 = comb[ci]
+    return dict(A0=a0, A1=a1, A2=a2, A3=a3, E3=e3, E4=e4, E5=e5, E6=e6, E7=e7, W7=w7, W8=w8, key=key)
+
+def cvec(r, w4, w5, w6):
+    w4p, w5p, w6p, w7p, w8p = w4 ^ FL[4], w5 ^ FL[5], w6 ^ FL[6], r['W7'] ^ FL[7], r['W8'] ^ FL[8]
+    return (W13 + s0(w5) + w4, W13p + s0(w5p) + w4p, s0(w6) + w5, s0(r['W7']) + w6, s0(w7p) + w6p,
+            w8p - r['W8'], W13p - W13)
+
+def sample_valid(r, rng, n, max_batches=64):
+    """Uniform (W4, W5, W6) passing all Step-2 tests of record r, by rejection. Some records can never pass test (e);
+    if the first batch has no valid draw the record is skipped (empty result)."""
+    got = []
+    batches = 0
+    while sum(len(g[0]) for g in got) < n and batches < max_batches:
+        if batches == 1 and sum(len(g[0]) for g in got) == 0:
+            break
+        batches += 1
+        b = 1 << 20
+        w4 = rng.integers(0, 2 ** 32, b, dtype=np.uint64).astype(np.uint32)
+        w5 = rng.integers(0, 2 ** 32, b, dtype=np.uint64).astype(np.uint32)
+        w6 = rng.integers(0, 2 ** 32, b, dtype=np.uint64).astype(np.uint32)
+        for i, w in ((4, w4), (5, w5), (6, w6)):
+            m, v = SG[i]
+            w &= ~m; w |= v
+        ok = w_tests(w4, w5, w6)
+        w4, w5, w6 = w4[ok], w5[ok], w6[ok]
+        e0, e1, e2, *_ = from_w(r, r['key'], w4, w5, w6)
+        ok = e_test(r, e0, e1, e2, w4, w5, w6)
+        got.append((w4[ok], w5[ok], w6[ok]))
+    return tuple(np.concatenate([g[i] for g in got])[:n] for i in range(3))
+
+if __name__ == '__main__':
+    slice_path, seed, max_pairs, outp = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+    d = np.load(slice_path)
+    comb, pairs, recs = d['comb'], d['pairs'], d['recs']
+    rng = np.random.default_rng(seed)
+    order = np.argsort(recs[:, 3], kind='stable')
+    keys = recs[order, 3]
+    bounds = np.flatnonzero(np.diff(keys)) + 1
+    classes = [g for g in np.split(order, bounds) if 2 <= len(g) <= 16]     # small classes keep the run short
+    allc = np.split(order, bounds)
+    print('records in slice', len(recs), '| key classes with >= 2 records', sum(len(g) >= 2 for g in allc),
+          '| used (2..16 records)', len(classes),
+          '| records in them', sum(len(g) for g in classes), flush=True)
+    rng.shuffle(classes)
+    pair_c, single_c, stats = [], [], dict(t_valid=0, pair_events=0, classes_used=0)
+    for g in classes:
+        if len(pair_c) >= max_pairs: break
+        rs = [record(comb, pairs, recs[i]) for i in g]
+        stats['classes_used'] += 1
+        for ti, r in enumerate(rs[:4]):
+            w4, w5, w6 = sample_valid(r, rng, 1 << 14)
+            stats['t_valid'] += len(w4)
+            if len(w4) == 0:
+                stats['never_valid'] = stats.get('never_valid', 0) + 1
+                continue
+            _, _, _, am2, am3, am4 = from_w(r, r['key'], w4, w5, w6)
+            other = np.zeros(len(w4), dtype=bool)
+            for tj, r2 in enumerate(rs):
+                if tj == ti: continue
+                v, *_ = step2(r2, r['key'], am2, am3, am4)
+                other |= v
+            # own validity on the mapped CV1 must hold (checks the bijection)
+            vself, x4, x5, x6 = step2(r, r['key'], am2, am3, am4)
+            assert vself.all() and (x4 == w4).all() and (x5 == w5).all() and (x6 == w6).all()
+            idx = np.flatnonzero(other)
+            stats['pair_events'] += len(idx)
+            for k in idx[:4]:
+                if len(pair_c) >= max_pairs: break
+                pair_c.append(cvec(r, w4[k], w5[k], w6[k]))
+                j = int(rng.integers(0, len(w4)))
+                single_c.append(cvec(r, w4[j], w5[j], w6[j]))
+    print(stats, flush=True)
+    for name, cs in (('pair', pair_c), ('single', single_c)):
+        with open(f'{outp}.{name}.txt', 'w') as f:
+            for c in cs:
+                f.write(' '.join(f'{int(x) & 0xFFFFFFFF:08x}' for x in c) + '\n')
+    print('wrote', len(pair_c), 'pair and', len(single_c), 'single tuple-constant vectors', flush=True)
+```
+
+### H.3 `step2relax.py`
+
+```python
+"""Step 2 with relaxed sign tests, on real TAB2 records.
+
+The characteristic accepts W4, W5, W6 only with their printed signs, so that W' = W xor FL, and then requires the
+sigma cancellations (b), (g), (f). The relaxed algorithm sets W' = W + D (the same modular difference) for W4..W6 and
+requires only the cancellations:
+  (b') s0(W4 + D4) - s0(W4) = -dW12,  (g') s0(W5 + D5) - s0(W5) = D(W20) - dW13 - D4,  (f') s0(W6 + D6) - s0(W6) = -D5.
+Test (e) is unchanged: E4', E5', E6' depend on W' only through W + D. Each relaxed test reads one word, so a pool
+of triples with each word drawn uniformly from its relaxed set is uniform on the relaxed W-valid set; entries whose
+three words also meet the printed signs form the characteristic's W-valid set. For every examined record the script
+gives the test-(e) acceptance over all entries and over characteristic entries, and draws tuples of both kinds.
+usage: step2relax.py slices.npz records.json SEED POOLLOG2 NREC PER OUTPREFIX
+"""
+import json, sys, warnings
+import numpy as np
+warnings.filterwarnings('ignore')
+ARGS = sys.argv[1:]
+import pairexp as PX
+from secondblock import S1, IF, K, s0
+
+u = np.uint32
+D4, D5, D6 = u(0x20000000), u(0xfbc00800), u(0x20000000)
+T4, T5, T6 = u(0xfbc00800), u(0x017f8000), u(0x043ff800)
+FL4, FL5, FL6 = PX.FL[4], PX.FL[5], PX.FL[6]
+
+def draw(rng, n, D, T, FL):
+    got = []
+    while sum(len(g) for g in got) < n:
+        x = rng.integers(0, 2 ** 32, 1 << 22, dtype=np.uint64).astype(np.uint32)
+        got.append(x[(s0(x + D) - s0(x)) == T])
+    x = np.concatenate(got)[:n]
+    return x, (x ^ (x + D)) == FL
+
+def e_test_mod(r, e0, e1, e2, w4, w5, w6):
+    a0, a1, a2 = r['A0'], r['A1'], r['A2']
+    e3, e4, e5, e6 = r['E3'], r['E4'], r['E5'], r['E6']
+    e4p, e5p, e6p = e4 ^ PX.FE[4], e5 ^ PX.FE[5], e6 ^ PX.FE[6]
+    ok = (a0 + e0 + S1(e3) + IF(e3, e2, e1) + K[4] + (w4 + D4)) == e4p
+    ok &= (a1 + e1 + S1(e4p) + IF(e4p, e3, e2) + K[5] + (w5 + D5)) == e5p
+    ok &= (a2 + e2 + S1(e5p) + IF(e5p, e4p, e3) + K[6] + (w6 + D6)) == e6p
+    return ok
+
+def cvec_mod(r, w4, w5, w6):
+    w4p, w5p, w6p, w7p, w8p = w4 + D4, w5 + D5, w6 + D6, r['W7'] ^ PX.FL[7], r['W8'] ^ PX.FL[8]
+    return (PX.W13 + s0(w5) + w4, PX.W13p + s0(w5p) + w4p, s0(w6) + w5, s0(r['W7']) + w6, s0(w7p) + w6p,
+            w8p - r['W8'], PX.W13p - PX.W13)
+
+if __name__ == '__main__':
+    d = np.load(ARGS[0]); comb, pairs = d['comb'], d['pairs']
+    recs = json.load(open(ARGS[1]))['records']
+    seed, poollog2, nrec, per, outp = int(ARGS[2]), int(ARGS[3]), int(ARGS[4]), int(ARGS[5]), ARGS[6]
+    rng = np.random.default_rng(seed)
+    n = 1 << poollog2
+    w4, c4 = draw(rng, n, D4, T4, FL4)
+    w5, c5 = draw(rng, n, D5, T5, FL5)
+    w6, c6 = draw(rng, n, D6, T6, FL6)
+    char = c4 & c5 & c6
+    out, lines, nvalid = [], [], 0
+    for rec in recs:
+        row = np.array([rec['pair_index'], rec['W7'], rec['E3'], rec['key']], dtype=np.uint32)
+        r = PX.record(comb, pairs, row)
+        e0, e1, e2, *_ = PX.from_w(r, r['key'], w4, w5, w6)
+        acc = e_test_mod(r, e0, e1, e2, w4, w5, w6)
+        o = dict(sample_index=rec['sample_index'], weight_v10=rec['weight'], acc_all=int(acc.sum()),
+                 acc_char=int((acc & char).sum()), acc_by_word={w: int((acc & ~c).sum()) for w, c in
+                                                                (('W4', c4), ('W5', c5), ('W6', c6))},
+                 vectors=[], tuples=[], kinds=[])
+        if o['acc_char'] and nvalid < nrec:
+            nvalid += 1
+            for kind, m in (('char', acc & char), ('alt', acc & ~char)):
+                idx = np.flatnonzero(m)
+                for j in rng.choice(idx, size=min(per, len(idx)), replace=False) if len(idx) else []:
+                    o['vectors'].append(len(lines)); o['tuples'].append([int(w4[j]), int(w5[j]), int(w6[j])])
+                    o['kinds'].append(kind)
+                    lines.append(' '.join(f'{int(x) & 0xFFFFFFFF:08x}' for x in cvec_mod(r, w4[j], w5[j], w6[j])))
+        out.append(o)
+    nz = [o for o in out if o['acc_char']]
+    ra = np.array([o['acc_all'] for o in out], float); rc = np.array([o['acc_char'] for o in out], float)
+    n_char_pool = int(char.sum())
+    # test-(e) acceptance on relaxed entries relative to characteristic entries, ratio of means over records
+    ratio = (ra.sum() / n) / (rc.sum() / n_char_pool)
+    bs = []
+    for _ in range(2000):
+        i = rng.integers(0, len(out), len(out))
+        bs.append((ra[i].sum() / n) / (rc[i].sum() / n_char_pool))
+    words = (1.0703125, 1.015625, 1.0703125)       # exact single-word gains (wrelax.c)
+    summ = dict(pool=n, pool_char=n_char_pool, pool_char_fraction=n_char_pool / n,
+                exact_word_gain=words[0] * words[1] * words[2],
+                records=len(out), records_valid_char=len(nz),
+                records_valid_relaxed=int((ra > 0).sum()),
+                e_accept_char=float(rc.sum() / n_char_pool / len(out)), e_accept_relaxed=float(ra.sum() / n / len(out)),
+                e_ratio=ratio, e_ratio_ci99=[float(np.quantile(bs, 0.005)), float(np.quantile(bs, 0.995))],
+                q_gain=words[0] * words[1] * words[2] * ratio,
+                q_gain_ci99=[words[0] * words[1] * words[2] * float(np.quantile(bs, q)) for q in (0.005, 0.995)],
+                vectors=len(lines))
+    print(json.dumps(summ, indent=1))
+    open(outp + '.cvec.txt', 'w').write('\n'.join(lines) + '\n')
+    json.dump(dict(summary=summ, records=out), open(outp + '.records.json', 'w'))
+```
+
+### H.4 `relax.c`
+
+```c
+/* Step 3 with relaxed conditions. The collision needs equal states after step 22 and dW24 = dW29 = 0; going back
+ * from step 22, also A17' = A17 and A18' = A18 (dA21 = -dA17 and dA22 = -dA18 once later words are equal). The
+ * characteristic adds sufficient but not necessary conditions: the XOR patterns of E16 and E18, dE17 = 0, and the
+ * XOR patterns and signs of W20 and W22. MODE switches each of them off:
+ *   1 E16 pattern, 2 dE17 = 0 (only A17' = A17 is kept), 4 E18 pattern (only A18' = A18), 8 W20 pattern, 16 W22 pattern.
+ * Stages 19..22 always require equal A and E (rows 19..22 are '='), then dW24 = dW29 = 0. Sampling is condexp.c's.
+ * Every full pass is classified by which characteristic patterns it follows (bit set = follows):
+ *   1 E16 pattern, 2 dE17 = 0, 4 E18 pattern, 8 W20 pattern and sign, 16 W22 pattern and sign.
+ * The first MAXDUMP passes are written to DUMP as "e W16 W17 W18 W19 c class" for the end-to-end check.
+ * usage: relax p4.bin cvec.txt seed n16 M17 M18 M19 MODE DUMP MAXDUMP
+ */
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "params.h"
+
+#define ROTR(x, r) (((x) >> (r)) | ((x) << (32 - (r))))
+#define BS0(x) (ROTR(x, 2) ^ ROTR(x, 13) ^ ROTR(x, 22))
+#define BS1(x) (ROTR(x, 6) ^ ROTR(x, 11) ^ ROTR(x, 25))
+#define SS1(x) (ROTR(x, 17) ^ ROTR(x, 19) ^ ((x) >> 10))
+#define IFF(x, y, z) (((x) & (y)) ^ (~(x) & (z)))
+#define MAJ(x, y, z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
+
+static const uint32_t K[32] = {
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967};
+static const uint32_t FLA[23] = {[16] = FLA16, [17] = FLA17, [18] = FLA18, [19] = FLA19, [20] = FLA20, [21] = FLA21, [22] = FLA22};
+static const uint32_t FLE[23] = {[16] = FLE16, [17] = FLE17, [18] = FLE18, [19] = FLE19, [20] = FLE20, [21] = FLE21, [22] = FLE22};
+
+static uint64_t s[4];
+static inline uint64_t rotl(uint64_t x, int k) { return (x << k) | (x >> (64 - k)); }
+static inline uint64_t next(void) {
+    uint64_t r = rotl(s[1] * 5, 7) * 9, t = s[1] << 17;
+    s[2] ^= s[0]; s[3] ^= s[1]; s[1] ^= s[2]; s[0] ^= s[3]; s[2] ^= t; s[3] = rotl(s[3], 45);
+    return r;
+}
+static uint64_t splitmix(uint64_t *x) {
+    uint64_t z = (*x += 0x9e3779b97f4a7c15ull);
+    z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull; z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
+    return z ^ (z >> 31);
+}
+
+typedef struct { uint32_t A[23], E[23]; } side;   /* indices 12..22 used */
+
+static inline void step(side *x, int i, uint32_t w) {
+    x->E[i] = x->A[i - 4] + x->E[i - 4] + BS1(x->E[i - 1]) + IFF(x->E[i - 1], x->E[i - 2], x->E[i - 3]) + K[i] + w;
+    x->A[i] = x->E[i] - x->A[i - 4] + BS0(x->A[i - 1]) + MAJ(x->A[i - 1], x->A[i - 2], x->A[i - 3]);
+}
+static inline int conf(const side *u, const side *p, int i) {
+    return ((u->A[i] ^ p->A[i]) == FLA[i]) && ((u->E[i] ^ p->E[i]) == FLE[i]);
+}
+
+#define MAXC 1400
+static uint32_t C[MAXC][7];
+static inline int eqAE(const side *u, const side *p, int i) { return u->A[i] == p->A[i] && u->E[i] == p->E[i]; }
+int main(int argc, char **argv) {
+    if (argc < 11) { fprintf(stderr, "usage\n"); return 1; }
+    FILE *f = fopen(argv[1], "rb");
+    fseek(f, 0, SEEK_END); long nb = ftell(f); fseek(f, 0, SEEK_SET);
+    int n4 = (int)(nb / 40);
+    uint32_t *P = malloc(nb);
+    if (fread(P, 1, nb, f) != (size_t)nb) return 2;
+    fclose(f);
+    int nc = 0;
+    f = fopen(argv[2], "r");
+    while (nc < MAXC && fscanf(f, "%x %x %x %x %x %x %x", &C[nc][0], &C[nc][1], &C[nc][2], &C[nc][3], &C[nc][4],
+                               &C[nc][5], &C[nc][6]) == 7) nc++;
+    fclose(f);
+    uint64_t seed = strtoull(argv[3], 0, 10), n16 = strtoull(argv[4], 0, 10);
+    int M17 = atoi(argv[5]), M18 = atoi(argv[6]), M19 = atoi(argv[7]), mode = atoi(argv[8]), maxdump = atoi(argv[10]);
+    FILE *dump = fopen(argv[9], "w");
+    int ndump = 0;
+    for (int k = 0; k < 4; k++) s[k] = splitmix(&seed);
+    uint64_t c16 = 0, c17 = 0, c18 = 0, c19 = 0, p20[MAXC] = {0}, p21[MAXC] = {0}, p22[MAXC] = {0}, pall[MAXC] = {0};
+    uint64_t cls19[8] = {0}, clsall[32] = {0};
+    side u0, p0;
+    u0.A[12] = A12; u0.A[13] = A13; u0.E[12] = E12; u0.E[13] = E13;
+    p0.A[12] = AP12; p0.A[13] = AP13; p0.E[12] = EP12; p0.E[13] = EP13;
+    for (uint64_t t = 0; t < n16; t++) {
+        uint64_t r = next();
+        int e = (int)((r >> 32) % (uint64_t)n4);
+        const uint32_t *x = P + 10 * e;
+        side u = u0, p = p0;
+        u.E[14] = x[0]; u.A[14] = x[1]; p.E[14] = x[2]; p.A[14] = x[3];
+        u.E[15] = x[4]; u.A[15] = x[5]; p.E[15] = x[6]; p.A[15] = x[7];
+        uint32_t W14 = x[8], W15 = x[9];
+        uint32_t W16 = (uint32_t)r;
+        step(&u, 16, W16); step(&p, 16, W16);
+        int f16 = conf(&u, &p, 16);
+        if (u.A[16] != p.A[16]) continue;                 /* never happens (P4 row identity R1) */
+        if (!(mode & 1) && !f16) continue;
+        c16++;
+        int f17;
+        {   /* stage 17 does not depend on W17 */
+            side u17 = u, p17 = p;
+            step(&u17, 17, 0); step(&p17, 17, 0);
+            if (u17.A[17] != p17.A[17]) continue;
+            f17 = u17.E[17] == p17.E[17];
+            if (!(mode & 2) && !f17) continue;
+        }
+        for (int j17 = 0; j17 < M17; j17++) {
+            uint32_t W17 = (uint32_t)next();
+            side u17 = u, p17 = p;
+            step(&u17, 17, W17); step(&p17, 17, W17);
+            c17++;
+            for (int j18 = 0; j18 < M18; j18++) {
+                uint32_t W18 = (uint32_t)next();
+                side u18 = u17, p18 = p17;
+                step(&u18, 18, W18); step(&p18, 18, W18);
+                if (u18.A[18] != p18.A[18]) continue;
+                int f18 = conf(&u18, &p18, 18);
+                if (!(mode & 4) && !f18) continue;
+                c18++;
+                for (int j19 = 0; j19 < M19; j19++) {
+                    uint32_t W19 = (uint32_t)next();
+                    side u19 = u18, p19 = p18;
+                    step(&u19, 19, W19); step(&p19, 19, W19);
+                    if (!eqAE(&u19, &p19, 19)) continue;
+                    c19++;
+                    int k19 = f16 | (f17 << 1) | (f18 << 2);
+                    cls19[k19]++;
+                    for (int c = 0; c < nc; c++) {
+                        side a = u19, b = p19;
+                        uint32_t W20 = SS1(W18) + C[c][0], W20p = SS1(W18) + C[c][1];
+                        int f20 = (W20 ^ W20p) == FLW20 && (W20 & SGM20) == SGV20;
+                        if (!(mode & 8) && !f20) continue;
+                        step(&a, 20, W20); step(&b, 20, W20p);
+                        if (!eqAE(&a, &b, 20)) continue;
+                        p20[c]++;
+                        uint32_t W21 = SS1(W19) + W14 + C[c][2];
+                        step(&a, 21, W21); step(&b, 21, W21);
+                        if (!eqAE(&a, &b, 21)) continue;
+                        p21[c]++;
+                        uint32_t W22 = SS1(W20) + W15 + C[c][3], W22p = SS1(W20p) + W15 + C[c][4];
+                        int f22 = (W22 ^ W22p) == FLW22 && (W22 & SGM22) == SGV22;
+                        if (!(mode & 16) && !f22) continue;
+                        step(&a, 22, W22); step(&b, 22, W22p);
+                        if (!eqAE(&a, &b, 22)) continue;
+                        p22[c]++;
+                        uint32_t d24 = SS1(W22p) - SS1(W22) + C[c][5], d29 = (W22p - W22) + C[c][6];
+                        if (!(d24 == 0 && d29 == 0)) continue;
+                        pall[c]++;
+                        int k = k19 | (f20 << 3) | (f22 << 4);
+                        clsall[k]++;
+                        if (ndump < maxdump) {
+                            fprintf(dump, "%d %08x %08x %08x %08x %d %d\n", e, W16, W17, W18, W19, c, k);
+                            ndump++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    fclose(dump);
+    printf("n16 %llu c16 %llu c17 %llu c18 %llu c19 %llu M %d %d %d mode %d\n", (unsigned long long)n16,
+           (unsigned long long)c16, (unsigned long long)c17, (unsigned long long)c18, (unsigned long long)c19, M17, M18,
+           M19, mode);
+    for (int k = 0; k < 8; k++) printf("cls19 %d %llu\n", k, (unsigned long long)cls19[k]);
+    for (int k = 0; k < 32; k++) if (clsall[k]) printf("clsall %d %llu\n", k, (unsigned long long)clsall[k]);
+    for (int c = 0; c < nc; c++)
+        printf("c %d %llu %llu %llu %llu\n", c, (unsigned long long)p20[c], (unsigned long long)p21[c],
+               (unsigned long long)p22[c], (unsigned long long)pall[c]);
+    return 0;
+}
+```
+
+### H.5 `relax_analyse.py`
+
+```python
+"""Analysis of the relaxed Step-3 run (relax.c, MODE 31) on the v11 vectors (2 characteristic and 2 Step-2-relaxed
+tuples per record). Every pass is in the dumps, with its vector and class (bit set = follows the characteristic:
+1 E16 pattern, 2 dE17 = 0, 4 E18 pattern, 8 W20 pattern and sign, 16 W22 pattern and sign).
+usage: relax_analyse.py v11.records.json step2relax.json out.* -- dump.* -- e2e.*.json   (JSON on stdout)"""
+import collections, json, math, sys
+import numpy as np
+
+args = sys.argv[1:]
+i1 = args.index('--'); i2 = args.index('--', i1 + 1)
+recs = json.load(open(args[0]))['records']
+s2 = json.load(open(args[1]))
+outs, dumps, e2es = args[2:i1], args[i1 + 1:i2], args[i2 + 1:]
+kind = {}
+for r in recs:
+    for v, k in zip(r['vectors'], r['kinds']): kind[v] = k
+nk = collections.Counter(kind.values())
+B = len(outs)
+H = []; c19 = []; cls19 = np.zeros((B, 8))
+for b, p in enumerate(outs):
+    L = open(p).read().split('\n'); h = L[0].split()
+    H.append(int(h[1]) * int(h[11]) * int(h[12]) * int(h[13])); c19.append(int(h[9]))
+    for l in L[1:]:
+        f = l.split()
+        if f and f[0] == 'cls19': cls19[b, int(f[1])] = int(f[2])
+H = np.array(H, float)
+cnt = np.zeros((B, 2, 32))                      # [batch, kind (0 char, 1 alt), class]
+for b, p in enumerate(dumps):
+    for line in open(p):
+        f = line.split()
+        cnt[b, 1 if kind[int(f[5])] == 'alt' else 0, int(f[6])] += 1
+
+def rate(m, kd):                                 # per vector per history
+    return m / (H.sum() * nk['alt' if kd else 'char'])
+
+def ratio_se(num, den):
+    rb = num / den
+    return float(num.sum() / den.sum()), float(rb.std(ddof=1) / math.sqrt(B))
+
+tot = cnt.sum(0)
+res = dict(batches=B, histories=float(H.sum()), vectors=dict(nk))
+for kd, nm in ((0, 'char_tuples'), (1, 'relaxed_step2_tuples')):
+    n31, nall = tot[kd, 31], tot[kd].sum()
+    g, se = ratio_se(cnt[:, kd].sum(1), cnt[:, kd, 31])
+    rec_mask = lambda k: (k & 3) == 3
+    nrec = sum(tot[kd, k] for k in range(32) if rec_mask(k))
+    gr, ser = ratio_se(sum(cnt[:, kd, k] for k in range(32) if rec_mask(k)), cnt[:, kd, 31])
+    res[nm] = dict(passes=int(nall), char_class_passes=int(n31),
+                   p_char_class=rate(n31, kd), log2_p_char_class=math.log2(rate(n31, kd)),
+                   p_relaxed=rate(nall, kd), log2_p_relaxed=math.log2(rate(nall, kd)),
+                   gain_all=g, gain_all_se=se,
+                   gain_without_E16_dE17=gr, gain_without_E16_dE17_se=ser,
+                   classes={str(k): int(tot[kd, k]) for k in range(32) if tot[kd, k]},
+                   single=dict(W20=float(tot[kd, 23] / n31), W22=float(tot[kd, 15] / n31),
+                               E18=float(tot[kd, 27] / n31), E16=float(tot[kd, 30] / n31)))
+# relaxed Step-2 tuples against characteristic tuples, same histories
+a, c = cnt[:, 1].sum(1) / nk['alt'], cnt[:, 0].sum(1) / nk['char']
+res['alt_over_char_rate'] = ratio_se(a, c)
+a31, c31 = cnt[:, 1, 31] / nk['alt'], cnt[:, 0, 31] / nk['char']
+res['alt_over_char_rate_charclass'] = ratio_se(a31, c31)
+res['through19'] = dict(c19=int(sum(c19)), rate=float(sum(c19) / H.sum()), log2=math.log2(sum(c19) / H.sum()),
+                        classes={str(k): int(cls19[:, k].sum()) for k in range(8)},
+                        gain=float(cls19.sum() / cls19[:, 7].sum()))
+ev = [json.load(open(p)) for p in e2es]
+res['e2e'] = dict(events=sum(e['events'] for e in ev), ok=sum(e['collisions_and_all_checks'] for e in ev),
+                  failures=sum((e['failures'] for e in ev), []))
+# combined: q gain (Step 2, test (e) coupling included) times the Step-3 gain on the relaxed tuple mix
+qg, (qlo, qhi) = s2['q_gain'], s2['q_gain_ci99']
+alt_share = 1 - 1 / qg
+for nm, key in (('all', 'gain_all'), ('recommended', 'gain_without_E16_dE17')):
+    g3 = res['char_tuples'][key]; se3 = res['char_tuples'][key + '_se']
+    r_alt = res['alt_over_char_rate'][0]
+    mix = (1 - alt_share) + alt_share * r_alt
+    tot_g = qg * g3 * mix
+    rel = math.sqrt((se3 / g3) ** 2 + (res['alt_over_char_rate'][1] * alt_share / mix) ** 2 + ((qhi - qlo) / 2 / 2.576 / qg) ** 2)
+    res['combined_' + nm] = dict(q_gain=qg, p_gain=g3, tuple_mix=mix, total=tot_g, log2=math.log2(tot_g),
+                                 ci99=[tot_g * (1 - 2.576 * rel), tot_g * (1 + 2.576 * rel)])
 print(json.dumps(res, indent=1))
 ```
 
-### A.2 `runs.sh`
+### H.6 `e2e_relax.py`
 
-```sh
-cd /w
-cg() { n=$1; shift; valgrind --tool=callgrind --dump-instr=yes --compress-strings=no --compress-pos=no --toggle-collect='CMSat::SATSolver::solve*' --callgrind-out-file=/w/cg.$n.out python lbench.py "$@" > /w/run.$n.json 2> /w/run.$n.err; }
-cg pair20 --kind pair --steps 20 --k 256 --confl 60000 --seed 1 &
-cg pre24 --kind pre --steps 24 --k 96 --confl 60000 --seed 1 &
-cg pairwt --kind pair --steps 20 --k 256 --wt 40 --confl 60000 --seed 2 &
-cg pair17 --kind pair --steps 17 --k 160 --confl 60000 --seed 1 &
-wait
-echo done > /w/runs.done
+```python
+"""Relaxed variant (e2e_relax.py): words 4..6 of the primed message are W + D (modular), every other word W xor FL;
+the per-step XOR patterns are compared only through step 15, and the pass must be a 32-step collision.
+
+End-to-end check of simulated full passes: each dumped pass (entry, W16..W19, vector) of copass.c is turned into a
+chaining value CV1 and a second-block message pair for the vector's real TAB2 record and tuple, and the two 32-step
+compressions from CV1 are computed with the reference SHA-256 of check_route.py. A pass must give equal outputs.
+
+Construction (proof Section 9.1): W4..W6 from the tuple, W7, W8 from the record, W9..W11 from its P2 combination,
+W12, W13 from the advice, W14, W15 from the P4 entry; W3, W2, W1, W0 from W19, W18, W17, W16 (triangular);
+CV1[0..3] from the record's key and the inverse Step-2 map; CV1[4..7] = E[-1..-4] from W3, W2, W1, W0 (triangular).
+The primed message is W_i xor FL(W, i). Every A/E word the record, the advice and the entry fix is also compared.
+usage: e2e_relax.py m.records.json v11.records.json slices.npz p4.bin dump...  (dump lines: e W16..W19 c class)
+"""
+import json, sys, warnings
+import numpy as np
+warnings.filterwarnings('ignore')
+ARGS = sys.argv[1:]
+from step3ref import ref, fl, M
+import pairexp as PX
+from secondblock import ADVICE_A, ADVICE_E, ADVICE_W
+
+S0, S1, s0, s1, IF, MAJ, K = ref['S0'], ref['S1'], ref['s0'], ref['s1'], ref['IF'], ref['MAJ'], ref['K']
+base = {r['sample_index']: r for r in json.load(open(ARGS[0]))['records']}
+recs = json.load(open(ARGS[1]))['records']
+for r in recs:
+    r.update({k: base[r['sample_index']][k] for k in ('pair_index', 'W7', 'E3', 'key')})
+d = np.load(ARGS[2]); comb, pairs = d['comb'], d['pairs']
+P4 = np.fromfile(ARGS[3], dtype='<u4').reshape(-1, 10)
+by_vec = {v: (r, k) for r in recs for k, v in enumerate(r['vectors'])}
+DMOD = {4: 0x20000000, 5: 0xfbc00800, 6: 0x20000000}
+
+def build(rec, tup, e, w16_19):
+    rn = PX.record(comb, pairs, np.array([rec['pair_index'], rec['W7'], rec['E3'], rec['key']], dtype=np.uint32))
+    r = {k: int(v) for k, v in rn.items()}
+    ci = int(pairs[rec['pair_index']][0])
+    W = [0] * 16
+    W[4], W[5], W[6] = tup
+    W[7], W[8] = r['W7'], r['W8']
+    W[9], W[10], W[11] = (int(x) for x in comb[ci][6:9])
+    W[12], W[13] = ADVICE_W[12], ADVICE_W[13]
+    x = [int(v) for v in P4[e]]
+    W[14], W[15] = x[8], x[9]
+    W16, W17, W18, W19 = w16_19
+    W[3] = (W19 - s1(W17) - W[12] - s0(W[4])) & M
+    W[2] = (W18 - s1(W16) - W[11] - s0(W[3])) & M
+    W[1] = (W17 - s1(W[15]) - W[10] - s0(W[2])) & M
+    W[0] = (W16 - s1(W[14]) - W[9] - s0(W[1])) & M
+    u = np.uint32
+    e0, e1, e2, am2, am3, am4 = (int(v) for v in PX.from_w(rn, rn['key'], u(W[4]), u(W[5]), u(W[6])))
+    A = {-1: r['key'], -2: am2, -3: am3, -4: am4, 0: r['A0'], 1: r['A1'], 2: r['A2'], 3: r['A3']}
+    E = {0: e0, 1: e1, 2: e2, 3: r['E3']}
+    E[-1] = (E[3] - A[-1] - S1(E[2]) - IF(E[2], E[1], E[0]) - K[3] - W[3]) & M
+    E[-2] = (E[2] - A[-2] - S1(E[1]) - IF(E[1], E[0], E[-1]) - K[2] - W[2]) & M
+    E[-3] = (E[1] - A[-3] - S1(E[0]) - IF(E[0], E[-1], E[-2]) - K[1] - W[1]) & M
+    E[-4] = (E[0] - A[-4] - S1(E[-1]) - IF(E[-1], E[-2], E[-3]) - K[0] - W[0]) & M
+    cv1 = [A[-1], A[-2], A[-3], A[-4], E[-1], E[-2], E[-3], E[-4]]
+    fixed = {('A', i): v for i, v in ADVICE_A.items()}
+    fixed.update({('E', i): v for i, v in ADVICE_E.items()})
+    fixed.update({('A', 0): r['A0'], ('A', 1): r['A1'], ('A', 2): r['A2'], ('A', 3): r['A3'], ('E', 3): r['E3'],
+                  ('E', 4): r['E4'], ('E', 5): r['E5'], ('E', 6): r['E6'], ('E', 7): r['E7'],
+                  ('E', 14): x[0], ('A', 14): x[1], ('E', 15): x[4], ('A', 15): x[5]})
+    fixedp = {('E', 14): x[2], ('A', 14): x[3], ('E', 15): x[6], ('A', 15): x[7]}
+    return cv1, W, fixed, fixedp
+
+if __name__ == '__main__':
+    import collections
+    n = ok = 0
+    bad = []
+    tally = collections.Counter()
+    for path in ARGS[4:]:
+        for line in open(path):
+            f = line.split()
+            if len(f) != 7: continue
+            e, w16_19, c, cls = int(f[0]), [int(v, 16) for v in f[1:5]], int(f[5]), int(f[6])
+            rec, k = by_vec[c]
+            cv1, W, fixed, fixedp = build(rec, rec['tuples'][k], e, w16_19)
+            Wp = [((w + DMOD[i]) & M) if i in DMOD else w ^ fl('W', i) for i, w in enumerate(W)]
+            A, E, Wx = ref['trace'](cv1, W, 32)
+            Ap, Ep, Wpx = ref['trace'](cv1, Wp, 32)
+            checks = [Wx[16:20] == w16_19]
+            checks += [(A if col == 'A' else E)[i] == v for (col, i), v in fixed.items()]
+            checks += [(Ap if col == 'A' else Ep)[i] == v for (col, i), v in fixedp.items()]
+            checks += [Ap[i] ^ A[i] == fl('A', i) and Ep[i] ^ E[i] == fl('E', i) for i in range(16)]
+            checks += [Wpx[16 + i] == Wx[16 + i] for i in range(4)]
+            coll = ref['compress'](cv1, W, 32) == ref['compress'](cv1, Wp, 32)
+            n += 1
+            good = all(checks) and coll
+            ok += good
+            tally[(rec['kinds'][k], cls, good)] += 1
+            if not good:
+                bad.append(dict(line=line.strip(), collision=coll, failed_checks=[j for j, x in enumerate(checks) if not x]))
+    print(json.dumps(dict(events=n, collisions_and_all_checks=ok,
+                          by_kind_class=[dict(kind=a, cls=b, ok=c, n=v) for (a, b, c), v in sorted(tally.items())],
+                          failures=bad[:10])))
 ```
 
-### A.1 `setup.sh`
+### H.7 `p4var.py`
 
-```sh
-set -e
-apt-get update -qq >/dev/null && apt-get install -y -qq valgrind binutils >/dev/null
-pip install -q pycryptosat==5.11.21
-python -c "import pycryptosat,glob,os;d=os.path.dirname(pycryptosat.__file__);print(d);print(glob.glob(d+'/../pycryptosat*')+glob.glob(d+'/../pycryptosat.libs/*'))"
-valgrind --version
+```python
+"""P4 variants with one row-14/15 condition negated (secondblock.SecondBlock.p4 with a switch).
+
+P4 is enumerated, not sampled: each condition on rows 14 and 15 is met for free by every entry. If a condition is not
+needed for the collision, the entries that violate it (and meet everything else, including exact XOR-conformance at
+steps 14 and 15) pass Step 3 at the same rate, and P4 can include them. This writes the variant list for one negated
+condition; relax.c then measures its Step-3 rate against the original list.
+usage: p4var.py KIND J OUT.bin   (KIND: none, E14, E15, A14 (fixed bit J), rel (relation index J))  -> prints count
+"""
+import sys, warnings
+import numpy as np
+warnings.filterwarnings('ignore')
+from secondblock import SecondBlock, S0, S1, IF, MAJ, K, bit
+
+RELS = [  # (description, function of (a13, a14) or (a13, a15))
+    ('A14[9]=A14[20]', lambda a13, a14: bit(a14, 9) == bit(a14, 20)),
+    ('A14[18]!=A14[6]', lambda a13, a14: bit(a14, 18) != bit(a14, 6)),
+    ('A14[8]!=A14[17]', lambda a13, a14: bit(a14, 8) != bit(a14, 17)),
+    ('A13[30]=A14[30]', lambda a13, a14: bit(a13, 30) == bit(a14, 30)),
+    ('A13[25]=A14[25]', lambda a13, a14: bit(a13, 25) == bit(a14, 25)),
+    ('A13[23]=A14[23]', lambda a13, a14: bit(a13, 23) == bit(a14, 23)),
+    ('A13[15]!=A14[15]', lambda a13, a14: bit(a13, 15) != bit(a14, 15)),
+    ('A13[29]!=A15[29]', None),
+]
+
+def build(kind, j):
+    sb = SecondBlock('fig6_rows_296.txt')
+    R, A, E, Ap, Ep = sb.R, sb.A, sb.E, sb.Ap, sb.Ep
+    def values(col, i, flip):
+        fm, fv = R.fixmask(col, i)
+        if flip is not None:
+            assert (int(fm) >> flip) & 1
+            fv = np.uint32(int(fv) ^ (1 << flip))
+        free = [31 - k for k, c in enumerate(R.sym(col, i)) if c == '=']
+        idx = np.arange(1 << len(free), dtype=np.uint64)
+        x = np.full(len(idx), fv, dtype=np.uint32)
+        for t, b in enumerate(free):
+            x |= (((idx >> np.uint64(t)) & np.uint64(1)).astype(np.uint32) << np.uint32(b))
+        return x
+    e14 = values('E', 14, j if kind == 'E14' else None)
+    a14 = e14 - A[10] + S0(A[13]) + MAJ(A[13], A[12], A[11])
+    am, av = R.fixmask('A', 14)
+    if kind == 'A14':
+        av = np.uint32(int(av) ^ (1 << j))
+    ok = (a14 & am) == av
+    for n, (_, fn) in enumerate(RELS[:7]):
+        r = fn(A[13], a14)
+        ok &= ~r if (kind == 'rel' and j == n) else r
+    e14, a14 = e14[ok], a14[ok]
+    e15b = values('E', 15, j if kind == 'E15' else None)
+    am15, av15 = R.fixmask('A', 15)
+    out = []
+    for x14, y14 in zip(e14, a14):
+        e15 = e15b
+        a15 = e15 - A[11] + S0(y14) + MAJ(y14, A[13], A[12])
+        r = bit(A[13], 29) != bit(a15, 29)
+        okk = ~r if (kind == 'rel' and j == 7) else r
+        okk &= (a15 & am15) == av15
+        w14 = x14 - A[10] - E[10] - S1(E[13]) - IF(E[13], E[12], E[11]) - K[14]
+        w15 = e15 - A[11] - E[11] - S1(x14) - IF(x14, E[13], E[12]) - K[15]
+        x14p = Ap[10] + Ep[10] + S1(Ep[13]) + IF(Ep[13], Ep[12], Ep[11]) + K[14] + w14
+        y14p = x14p - Ap[10] + S0(Ap[13]) + MAJ(Ap[13], Ap[12], Ap[11])
+        if not (((x14p ^ x14) == R.fl('E', 14)) & ((y14p ^ y14) == R.fl('A', 14))):
+            continue
+        e15p = Ap[11] + Ep[11] + S1(x14p) + IF(x14p, Ep[13], Ep[12]) + K[15] + w15
+        a15p = e15p - Ap[11] + S0(y14p) + MAJ(y14p, Ap[13], Ap[12])
+        okk &= ((e15p ^ e15) == R.fl('E', 15)) & ((a15p ^ a15) == R.fl('A', 15))
+        k = int(okk.sum())
+        if k:
+            out.append(np.stack([np.full(k, x14), np.full(k, y14), np.full(k, x14p), np.full(k, y14p),
+                                 e15[okk], a15[okk], e15p[okk], a15p[okk], np.full(k, w14), w15[okk]], axis=1))
+    return np.concatenate(out) if out else np.zeros((0, 10), dtype=np.uint32)
+
+if __name__ == '__main__':
+    kind, j, outp = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+    P = build(kind, j if kind != 'none' else None)
+    P.astype('<u4').tofile(outp)
+    name = {'none': 'baseline', 'rel': RELS[j][0] if kind == 'rel' else ''}.get(kind, f'{kind}[{j}] flipped')
+    print(kind, j, name, len(P))
+```
+
+### H.8 `copass_relax.c`
+
+```c
+/* copass_relax.c: copass.c under the recommended relaxed Step 3 (RELAX.md): stage 18 requires only A18' = A18, and
+ * the W20 and W22 pattern and sign tests are dropped; stages 16, 17 and 19..22 and dW24 = dW29 = 0 are unchanged.
+ * Every co-passing other entry is also written to DUMP as "e' W16' W17' W18' W19' c 98|97" (same|other W14 group),
+ * full passes of the sampled entry as "e W16 W17 W18 W19 c 0" (first MAXDUMP).
+ *
+ * Co-passing P4 entries of one tuple. For a fixed tuple and chaining value every P4 entry e gets its own W16..W19,
+ * and the words of two entries differ by known amounts, since W0..W13 are shared:
+ *   W16' = W16 + s1(W14') - s1(W14),  W17' = W17 + s1(W15') - s1(W15),
+ *   W18' = W18 + s1(W16') - s1(W16),  W19' = W19 + s1(W17') - s1(W17).
+ * Entries with the same W14 share W16, W18 and W20. Histories of a uniform entry are sampled with condexp.c's scheme
+ * (the extra draws for K19 make the random streams differ from condexp.c's for the same seed). For every history through step 19, K19 other entries of the same W14 group and K19
+ * entries of other groups are tested through step 19. For every full pass (history, tuple vector), every other entry
+ * is tested through stage 31 with the same vector. The first MAXDUMP full passes are written to DUMP for an
+ * end-to-end check. Per-vector counts are printed in condexp.c's format.
+ * usage: copass_relax p4.bin cvec.txt seed n16 M17 M18 M19 K19 DUMP MAXDUMP
+ */
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "params.h"
+
+#define ROTR(x, r) (((x) >> (r)) | ((x) << (32 - (r))))
+#define BS0(x) (ROTR(x, 2) ^ ROTR(x, 13) ^ ROTR(x, 22))
+#define BS1(x) (ROTR(x, 6) ^ ROTR(x, 11) ^ ROTR(x, 25))
+#define SS1(x) (ROTR(x, 17) ^ ROTR(x, 19) ^ ((x) >> 10))
+#define IFF(x, y, z) (((x) & (y)) ^ (~(x) & (z)))
+#define MAJ(x, y, z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
+
+static const uint32_t K[32] = {
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967};
+static const uint32_t FLA[23] = {[16] = FLA16, [17] = FLA17, [18] = FLA18, [19] = FLA19, [20] = FLA20, [21] = FLA21, [22] = FLA22};
+static const uint32_t FLE[23] = {[16] = FLE16, [17] = FLE17, [18] = FLE18, [19] = FLE19, [20] = FLE20, [21] = FLE21, [22] = FLE22};
+
+static uint64_t s[4];
+static inline uint64_t rotl(uint64_t x, int k) { return (x << k) | (x >> (64 - k)); }
+static inline uint64_t next(void) {
+    uint64_t r = rotl(s[1] * 5, 7) * 9, t = s[1] << 17;
+    s[2] ^= s[0]; s[3] ^= s[1]; s[1] ^= s[2]; s[0] ^= s[3]; s[2] ^= t; s[3] = rotl(s[3], 45);
+    return r;
+}
+static uint64_t splitmix(uint64_t *x) {
+    uint64_t z = (*x += 0x9e3779b97f4a7c15ull);
+    z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull; z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
+    return z ^ (z >> 31);
+}
+
+typedef struct { uint32_t A[23], E[23]; } side;
+
+static inline void step(side *x, int i, uint32_t w) {
+    x->E[i] = x->A[i - 4] + x->E[i - 4] + BS1(x->E[i - 1]) + IFF(x->E[i - 1], x->E[i - 2], x->E[i - 3]) + K[i] + w;
+    x->A[i] = x->E[i] - x->A[i - 4] + BS0(x->A[i - 1]) + MAJ(x->A[i - 1], x->A[i - 2], x->A[i - 3]);
+}
+static inline int conf(const side *u, const side *p, int i) {
+    return ((u->A[i] ^ p->A[i]) == FLA[i]) && ((u->E[i] ^ p->E[i]) == FLE[i]);
+}
+
+#define MAXC 1400
+static uint32_t *P; static int n4;
+static side u0, p0;
+static uint32_t C[MAXC][7];
+
+static inline void load(int e, side *u, side *p) {
+    const uint32_t *x = P + 10 * e;
+    *u = u0; *p = p0;
+    u->E[14] = x[0]; u->A[14] = x[1]; p->E[14] = x[2]; p->A[14] = x[3];
+    u->E[15] = x[4]; u->A[15] = x[5]; p->E[15] = x[6]; p->A[15] = x[7];
+}
+/* Stages 16..19 of entry e with words W[0..3] = W16..W19; on success leaves the states in *u, *p. */
+static inline int thru19(int e, const uint32_t *W, side *u, side *p) {
+    load(e, u, p);
+    for (int i = 16; i < 20; i++) {
+        step(u, i, W[i - 16]); step(p, i, W[i - 16]);
+        if (i == 18 ? u->A[18] != p->A[18] : !conf(u, p, i)) return 0;
+    }
+    return 1;
+}
+/* Stages 20..31 with vector c from states after step 19; W = W16..W19, w14/w15 of the entry. */
+static inline int late(int c, const side *u19, const side *p19, const uint32_t *W, uint32_t W14, uint32_t W15) {
+    side a = *u19, b = *p19;
+    uint32_t W20 = SS1(W[2]) + C[c][0], W20p = SS1(W[2]) + C[c][1];
+    step(&a, 20, W20); step(&b, 20, W20p);
+    if (!conf(&a, &b, 20)) return 0;
+    uint32_t W21 = SS1(W[3]) + W14 + C[c][2];
+    step(&a, 21, W21); step(&b, 21, W21);
+    if (!conf(&a, &b, 21)) return 0;
+    uint32_t W22 = SS1(W20) + W15 + C[c][3], W22p = SS1(W20p) + W15 + C[c][4];
+    step(&a, 22, W22); step(&b, 22, W22p);
+    if (!conf(&a, &b, 22)) return 0;
+    uint32_t d24 = SS1(W22p) - SS1(W22) + C[c][5], d29 = (W22p - W22) + C[c][6];
+    return d24 == 0 && d29 == 0;
+}
+static inline void other_words(int e, int f, const uint32_t *W, uint32_t *V) {
+    const uint32_t *x = P + 10 * e, *y = P + 10 * f;
+    V[0] = W[0] + SS1(y[8]) - SS1(x[8]);
+    V[1] = W[1] + SS1(y[9]) - SS1(x[9]);
+    V[2] = W[2] + SS1(V[0]) - SS1(W[0]);
+    V[3] = W[3] + SS1(V[1]) - SS1(W[1]);
+}
+
+int main(int argc, char **argv) {
+    if (argc < 11) { fprintf(stderr, "usage\n"); return 1; }
+    FILE *f = fopen(argv[1], "rb");
+    fseek(f, 0, SEEK_END); long nb = ftell(f); fseek(f, 0, SEEK_SET);
+    n4 = (int)(nb / 40);
+    P = malloc(nb);
+    if (fread(P, 1, nb, f) != (size_t)nb) return 2;
+    fclose(f);
+    int nc = 0;
+    f = fopen(argv[2], "r");
+    while (nc < MAXC && fscanf(f, "%x %x %x %x %x %x %x", &C[nc][0], &C[nc][1], &C[nc][2], &C[nc][3], &C[nc][4],
+                               &C[nc][5], &C[nc][6]) == 7) nc++;
+    fclose(f);
+    uint64_t seed = strtoull(argv[3], 0, 10), n16 = strtoull(argv[4], 0, 10);
+    int M17 = atoi(argv[5]), M18 = atoi(argv[6]), M19 = atoi(argv[7]), K19 = atoi(argv[8]), maxdump = atoi(argv[10]);
+    FILE *dump = fopen(argv[9], "w");
+    /* W14 groups */
+    int *grp = malloc(sizeof(int) * n4), ng = 0, *gsize = calloc(n4, sizeof(int)), **members = calloc(n4, sizeof(int *));
+    uint32_t gw[64];
+    for (int e = 0; e < n4; e++) {
+        int g = 0;
+        while (g < ng && gw[g] != P[10 * e + 8]) g++;
+        if (g == ng) { if (ng == 64) return 3; gw[ng++] = P[10 * e + 8]; }
+        grp[e] = g;
+    }
+    for (int e = 0; e < n4; e++) gsize[grp[e]]++;
+    for (int g = 0; g < ng; g++) { members[g] = malloc(sizeof(int) * gsize[g]); gsize[g] = 0; }
+    for (int e = 0; e < n4; e++) members[grp[e]][gsize[grp[e]]++] = e;
+
+    for (int k = 0; k < 4; k++) s[k] = splitmix(&seed);
+    uint64_t c16 = 0, c17 = 0, c18 = 0, c19 = 0, p20[MAXC] = {0}, p21[MAXC] = {0}, p22[MAXC] = {0}, pall[MAXC] = {0};
+    uint64_t t19[2] = {0, 0}, h19[2] = {0, 0};            /* [same group, other group]: tested, passed through 19 */
+    uint64_t ev = 0, tall[2] = {0, 0}, a19[2] = {0, 0}, aall[2] = {0, 0};  /* conditional on a full pass */
+    int ndump = 0;
+    u0.A[12] = A12; u0.A[13] = A13; u0.E[12] = E12; u0.E[13] = E13;
+    p0.A[12] = AP12; p0.A[13] = AP13; p0.E[12] = EP12; p0.E[13] = EP13;
+    for (uint64_t t = 0; t < n16; t++) {
+        uint64_t r = next();
+        int e = (int)((uint32_t)(r >> 32) % (uint32_t)n4);
+        const uint32_t *x = P + 10 * e;
+        side u, p;
+        load(e, &u, &p);
+        uint32_t W14 = x[8], W15 = x[9];
+        uint32_t W16 = (uint32_t)r;
+        step(&u, 16, W16); step(&p, 16, W16);
+        if (!conf(&u, &p, 16)) continue;
+        c16++;
+        {
+            side u17 = u, p17 = p;
+            step(&u17, 17, 0); step(&p17, 17, 0);
+            if (!conf(&u17, &p17, 17)) continue;
+        }
+        for (int j17 = 0; j17 < M17; j17++) {
+            uint32_t W17 = (uint32_t)next();
+            side u17 = u, p17 = p;
+            step(&u17, 17, W17); step(&p17, 17, W17);
+            if (!conf(&u17, &p17, 17)) continue;
+            c17++;
+            for (int j18 = 0; j18 < M18; j18++) {
+                uint32_t W18 = (uint32_t)next();
+                side u18 = u17, p18 = p17;
+                step(&u18, 18, W18); step(&p18, 18, W18);
+                if (u18.A[18] != p18.A[18]) continue;
+                c18++;
+                for (int j19 = 0; j19 < M19; j19++) {
+                    uint32_t W19 = (uint32_t)next();
+                    side u19 = u18, p19 = p18;
+                    step(&u19, 19, W19); step(&p19, 19, W19);
+                    if (!conf(&u19, &p19, 19)) continue;
+                    c19++;
+                    uint32_t W[4] = {W16, W17, W18, W19}, V[4];
+                    side a, b;
+                    int g = grp[e];
+                    for (int k = 0; k < K19; k++) {          /* same W14 group */
+                        int f2 = members[g][(uint32_t)next() % (uint32_t)gsize[g]];
+                        if (f2 == e) continue;
+                        other_words(e, f2, W, V);
+                        t19[0]++; h19[0] += thru19(f2, V, &a, &b);
+                    }
+                    for (int k = 0; k < K19; k++) {          /* other groups */
+                        int f2 = (int)((uint32_t)next() % (uint32_t)n4);
+                        if (grp[f2] == g) continue;
+                        other_words(e, f2, W, V);
+                        t19[1]++; h19[1] += thru19(f2, V, &a, &b);
+                    }
+                    for (int c = 0; c < nc; c++) {
+                        side aa = u19, bb = p19;
+                        uint32_t W20 = SS1(W18) + C[c][0], W20p = SS1(W18) + C[c][1];
+                        step(&aa, 20, W20); step(&bb, 20, W20p);
+                        if (!conf(&aa, &bb, 20)) continue;
+                        p20[c]++;
+                        uint32_t W21 = SS1(W19) + W14 + C[c][2];
+                        step(&aa, 21, W21); step(&bb, 21, W21);
+                        if (!conf(&aa, &bb, 21)) continue;
+                        p21[c]++;
+                        uint32_t W22 = SS1(W20) + W15 + C[c][3], W22p = SS1(W20p) + W15 + C[c][4];
+                        step(&aa, 22, W22); step(&bb, 22, W22p);
+                        if (!conf(&aa, &bb, 22)) continue;
+                        p22[c]++;
+                        uint32_t d24 = SS1(W22p) - SS1(W22) + C[c][5], d29 = (W22p - W22) + C[c][6];
+                        if (!(d24 == 0 && d29 == 0)) continue;
+                        pall[c]++;
+                        if (!late(c, &u19, &p19, W, W14, W15)) return 4;   /* the helper must agree */
+                        ev++;
+                        if (ndump < maxdump) {
+                            fprintf(dump, "%d %08x %08x %08x %08x %d 0\n", e, W16, W17, W18, W19, c);
+                            ndump++;
+                        }
+                        for (int f2 = 0; f2 < n4; f2++) {    /* every other entry, same vector */
+                            if (f2 == e) continue;
+                            int sg = grp[f2] == g ? 0 : 1;
+                            other_words(e, f2, W, V);
+                            tall[sg]++;
+                            if (!thru19(f2, V, &a, &b)) continue;
+                            a19[sg]++;
+                            if (late(c, &a, &b, V, P[10 * f2 + 8], P[10 * f2 + 9])) {
+                                aall[sg]++;
+                                fprintf(dump, "%d %08x %08x %08x %08x %d %d\n", f2, V[0], V[1], V[2], V[3], c, sg ? 97 : 98);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    fclose(dump);
+    printf("n16 %llu c16 %llu c17 %llu c18 %llu c19 %llu M %d %d %d\n", (unsigned long long)n16,
+           (unsigned long long)c16, (unsigned long long)c17, (unsigned long long)c18, (unsigned long long)c19, M17, M18, M19);
+    printf("groups %d K19 %d\n", ng, K19);
+    printf("given19 same tested %llu passed19 %llu other tested %llu passed19 %llu\n", (unsigned long long)t19[0],
+           (unsigned long long)h19[0], (unsigned long long)t19[1], (unsigned long long)h19[1]);
+    printf("givenall events %llu same tested %llu passed19 %llu passedall %llu other tested %llu passed19 %llu passedall %llu\n",
+           (unsigned long long)ev, (unsigned long long)tall[0], (unsigned long long)a19[0], (unsigned long long)aall[0],
+           (unsigned long long)tall[1], (unsigned long long)a19[1], (unsigned long long)aall[1]);
+    for (int c = 0; c < nc; c++)
+        printf("c %d %llu %llu %llu %llu\n", c, (unsigned long long)p20[c], (unsigned long long)p21[c],
+               (unsigned long long)p22[c], (unsigned long long)pall[c]);
+    return 0;
+}
+```
+
+### H.9 `copass_relax_analyse.py`
+
+```python
+"""Co-pass bound and cross-tuple second moment under the recommended relaxation (copass_relax.c outputs).
+usage: copass_relax_analyse.py v11.records.json e2e.json out...   (JSON on stdout)"""
+import json, math, sys
+import numpy as np
+
+def z_quantile(q):
+    lo, hi = -40.0, 40.0
+    for _ in range(200):
+        mid = (lo + hi) / 2
+        if 0.5 * math.erfc(-mid / math.sqrt(2)) < q: lo = mid
+        else: hi = mid
+    return (lo + hi) / 2
+
+def poisson_upper(k, conf=0.99):
+    df = 2 * k + 2; z = z_quantile(conf)
+    return 0.5 * df * (1 - 2 / (9 * df) + z * math.sqrt(2 / (9 * df))) ** 3
+
+def parse(path):
+    L = open(path).read().split('\n'); h = L[0].split()
+    o = dict(H=int(h[1]) * int(h[11]) * int(h[12]) * int(h[13]), c19=int(h[9]), vec=[])
+    for l in L[1:]:
+        f = l.split()
+        if not f: continue
+        if f[0] == 'c': o['vec'].append(int(f[5]))
+        elif f[0] == 'given19': o['t19'] = [int(f[3]), int(f[8])]; o['h19'] = [int(f[5]), int(f[10])]
+        elif f[0] == 'givenall':
+            o.update(events=int(f[2]), tall=[int(f[5]), int(f[12])], a19=[int(f[7]), int(f[14])], aall=[int(f[9]), int(f[16])])
+    o['vec'] = np.array(o['vec'], float)
+    return o
+
+R = json.load(open(sys.argv[1])); e2e = json.load(open(sys.argv[2]))
+outs = [parse(p) for p in sys.argv[3:]]
+S = R['summary']; recs = [r for r in R['records'] if r['vectors']]
+P_REL = S['exact_word_gain']
+H = np.array([o['H'] for o in outs], float)
+r19 = sum(o['c19'] for o in outs) / H.sum()
+ev = sum(o['events'] for o in outs)
+sm = lambda key, j: sum(o[key][j] for o in outs)
+found = sm('aall', 0) + sm('aall', 1)
+U = poisson_upper(found)
+res = dict(runs=len(outs), histories=float(H.sum()), r19=r19, log2_r19=math.log2(r19), events=ev,
+           given19=[dict(relation=rel, tested=sm('t19', j), passed19=sm('h19', j),
+                         ratio_to_r19=sm('h19', j) / sm('t19', j) / r19,
+                         ratio_upper99=poisson_upper(sm('h19', j)) / sm('t19', j) / r19)
+                    for j, rel in enumerate(('same_W14', 'other_W14'))],
+           givenall=[dict(relation=rel, tested=sm('tall', j), passed19=sm('a19', j), passedall=sm('aall', j),
+                          conditional_rate=sm('aall', j) / sm('tall', j) if sm('tall', j) else None)
+                     for j, rel in enumerate(('same_W14', 'other_W14'))],
+           others_per_pass=found / ev, others_per_pass_upper99=U / ev, log2_others_per_pass_upper99=math.log2(U / ev),
+           bound='E[C(Y_J,2)] <= E[Y_J] * U / 2 with U = others_per_pass_upper99',
+           log2_EC2_over_EY_upper99=math.log2(U / ev / 2))
+# occurrence weights of the v11 vectors under the relaxed Step 2 (char part and alternative part of each record)
+n, nc = S['pool'], S['pool_char']
+C = len(outs[0]['vec'])
+om = np.zeros(C); rec_of = np.zeros(C, int)
+for i, r in enumerate(recs):
+    wc = r['acc_char'] / nc
+    wa = P_REL * r['acc_all'] / n - wc
+    kinds = r['kinds']
+    for v, k in zip(r['vectors'], kinds):
+        om[v] = (wc if k == 'char' else wa) / kinds.count(k)
+        rec_of[v] = i
+om /= om.sum()
+NB = np.stack([o['vec'] for o in outs])
+p_c = NB.sum(0) / H.sum()
+even, odd = np.arange(0, len(outs), 2), np.arange(1, len(outs), 2)
+pe, po = NB[even].sum(0) / H[even].sum(), NB[odd].sum(0) / H[odd].sum()
+p_bar = float((om * p_c).sum())
+m2 = float((om * pe * po).sum())
+rng = np.random.default_rng(6200)
+bs = []
+for _ in range(4000):
+    cnt = np.bincount(rng.integers(0, len(recs), len(recs)), minlength=len(recs))
+    w = om * cnt[rec_of]
+    bs.append((w * pe * po).sum() / w.sum() / ((w * p_c).sum() / w.sum()) ** 2)
+pb = np.array([(om * NB[b]).sum() / H[b] for b in range(len(outs))])
+res['p_relaxed'] = dict(p=p_bar, log2=math.log2(p_bar), se_batch=float(pb.std(ddof=1) / math.sqrt(len(outs))))
+res['second_moment'] = dict(m2_over_p2=m2 / p_bar ** 2, upper99=float(np.quantile(bs, 0.995)),
+                            note='E_occ[p_J^2]/p^2 over relaxed tuples; split halves (even/odd runs); bootstrap over records')
+res['e2e'] = dict(events=e2e['events'], ok=e2e['collisions_and_all_checks'], by_kind_class=e2e['by_kind_class'],
+                  failures=e2e['failures'][:5])
+res['characteristic_reference'] = dict(others_per_pass=1.728834266263528e-05, others_per_pass_upper99=3.610520477851951e-05,
+                                       log2_others_per_pass_upper99=-14.757433649321422, m2_over_p2_upper99=1.0044464845998586,
+                                       source='tools-sha256-r32-v10/measure/summary.json')
+print(json.dumps(res, indent=1))
+```
+
+### H.10 `params.h`
+
+```c
+/* generated by mkparams.py */
+#define A12 0x574542b8u
+#define A13 0x0508c8f0u
+#define E12 0x3fffd0f9u
+#define E13 0xbf81c0f4u
+#define AP12 0x35c5c2b8u
+#define AP13 0x0508c8f0u
+#define EP12 0x2300f189u
+#define EP13 0xfcc08ef5u
+#define FLA16 0x00000000u
+#define FLE16 0x02808000u
+#define FLA17 0x00000000u
+#define FLE17 0x00000000u
+#define FLA18 0x00000000u
+#define FLE18 0x20000000u
+#define FLA19 0x00000000u
+#define FLE19 0x00000000u
+#define FLA20 0x00000000u
+#define FLE20 0x00000000u
+#define FLA21 0x00000000u
+#define FLE21 0x00000000u
+#define FLA22 0x00000000u
+#define FLE22 0x00000000u
+#define FLW20 0x01808000u
+#define SGM20 0x01808000u
+#define SGV20 0x00008000u
+#define FLW22 0x20000000u
+#define SGM22 0x20000000u
+#define SGV22 0x00000000u
+```
+
+### H.11 `mkparams.py`
+
+```python
+"""Write params.h (advice states, masks) and p4.bin (the real P4 list) for condexp.c."""
+import numpy as np, warnings
+warnings.filterwarnings('ignore')
+from secondblock import SecondBlock
+from step3ref import fl, signed, R, s0, M
+sb = SecondBlock('fig6_rows_296.txt')
+P = sb.p4()
+assert len(P) == 196608
+P.astype('<u4').tofile('p4.bin')
+def sm(col, i):
+    m = v = 0
+    for k, c in enumerate(R(col, i)):
+        if c in 'nu':
+            m |= 1 << (31 - k)
+            if c == 'u': v |= 1 << (31 - k)
+    return m, v
+lines = ['/* generated by mkparams.py */']
+for nm, d in (('A', sb.A), ('E', sb.E), ('AP', sb.Ap), ('EP', sb.Ep)):
+    for i in (12, 13):
+        lines.append(f'#define {nm}{i} 0x{int(d[i]):08x}u')
+for i in range(16, 23):
+    lines.append(f'#define FLA{i} 0x{fl("A", i):08x}u')
+    lines.append(f'#define FLE{i} 0x{fl("E", i):08x}u')
+for i in (20, 22):
+    m, v = sm('W', i)
+    lines.append(f'#define FLW{i} 0x{fl("W", i):08x}u')
+    lines.append(f'#define SGM{i} 0x{m:08x}u')
+    lines.append(f'#define SGV{i} 0x{v:08x}u')
+open('params.h', 'w').write('\n'.join(lines) + '\n')
+print('\n'.join(lines))
+```
+
+### H.12 `secondblock.py`
+
+```python
+"""Two-sided second block of the sha256-r32 attack, steps 14..31, vectorised (numpy uint32).
+
+Builds the real P4 list from the advice (proof Section 4) and evaluates Step-3 stages for many candidates at once.
+A tuple enters steps 16..31 only through its schedule constants:
+    W16 = s1(W14) + [W9 + s0(W1) + W0]     W17 = s1(W15) + [W10 + s0(W2) + W1]
+    W18 = s1(W16) + [W11 + s0(W3) + W2]    W19 = s1(W17) + [W12 + s0(W4) + W3]
+    W20 = s1(W18) + c20,  c20 = W13 + s0(W5) + W4      W21 = s1(W19) + W14 + c21,  c21 = s0(W6) + W5
+    W22 = s1(W20) + W15 + c22,  c22 = s0(W7) + W6      (primed: the same with primed words)
+"""
+import re
+import numpy as np
+
+M32 = np.uint32(0xFFFFFFFF)
+K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+     0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+     0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967]
+K = [np.uint32(k) for k in K]
+
+def rotr(x, r): return (x >> np.uint32(r)) | (x << np.uint32(32 - r))
+def S0(x): return rotr(x, 2) ^ rotr(x, 13) ^ rotr(x, 22)
+def S1(x): return rotr(x, 6) ^ rotr(x, 11) ^ rotr(x, 25)
+def s0(x): return rotr(x, 7) ^ rotr(x, 18) ^ (x >> np.uint32(3))
+def s1(x): return rotr(x, 17) ^ rotr(x, 19) ^ (x >> np.uint32(10))
+def IF(x, y, z): return (x & y) ^ (~x & z)
+def MAJ(x, y, z): return (x & y) ^ (x & z) ^ (y & z)
+
+def parse_rows(path):
+    rows = {}
+    for line in open(path):
+        p = line.split()
+        if len(p) == 4 and re.fullmatch(r"\d+", p[0]):
+            rows[int(p[0])] = p[1:]
+        elif len(p) == 4 and re.fullmatch(r"\d+-\d+", p[0]):
+            lo, hi = map(int, p[0].split("-"))
+            for i in range(lo, hi + 1):
+                rows[i] = p[1:]
+    return rows
+
+class Rows:
+    def __init__(self, path):
+        self.r = parse_rows(path)
+    def sym(self, col, i):
+        return self.r.get(i, ["=" * 32] * 3)["AEW".index(col)]
+    def fl(self, col, i):
+        return np.uint32(sum(1 << (31 - k) for k, c in enumerate(self.sym(col, i)) if c in "nu"))
+    def signed(self, col, i):
+        v = 0
+        for k, c in enumerate(self.sym(col, i)):
+            if c == "n": v += 1 << (31 - k)
+            elif c == "u": v -= 1 << (31 - k)
+        return np.uint32(v & 0xFFFFFFFF)
+    def fixmask(self, col, i):
+        """(mask, value) of the bits a row fixes in the unprimed word (0/n -> 0, 1/u -> 1)."""
+        m = v = 0
+        for k, c in enumerate(self.sym(col, i)):
+            if c in "01nu":
+                m |= 1 << (31 - k)
+                if c in "1u": v |= 1 << (31 - k)
+        return np.uint32(m), np.uint32(v)
+    def signmask(self, col, i):
+        """(mask, value) of the n/u bits only (the sign of each difference)."""
+        m = v = 0
+        for k, c in enumerate(self.sym(col, i)):
+            if c in "nu":
+                m |= 1 << (31 - k)
+                if c == "u": v |= 1 << (31 - k)
+        return np.uint32(m), np.uint32(v)
+
+ADVICE_A = dict(zip(range(4, 14), [0x98560dbb, 0x633b16ba, 0x9bcf7bbe, 0xf8677ad6, 0x4a299906, 0x44f24ab5, 0x39781650,
+                                   0x6422edc8, 0x574542b8, 0x0508c8f0]))
+ADVICE_E = dict(zip(range(8, 14), [0xf1cae594, 0xd0e1b7b4, 0xbf27d74c, 0xb78bbfd9, 0x3fffd0f9, 0xbf81c0f4]))
+ADVICE_W = {12: 0x41b22a2c, 13: 0x6d12f88a}
+
+def bit(x, j): return (x >> np.uint32(j)) & np.uint32(1)
+
+class SecondBlock:
+    def __init__(self, rows_path):
+        R = self.R = Rows(rows_path)
+        self.A = {i: np.uint32(v) for i, v in ADVICE_A.items()}
+        self.E = {i: np.uint32(v) for i, v in ADVICE_E.items()}
+        self.Ap = {i: v ^ R.fl("A", i) for i, v in self.A.items()}
+        self.Ep = {i: v ^ R.fl("E", i) for i, v in self.E.items()}
+        self.W12, self.W13 = np.uint32(ADVICE_W[12]), np.uint32(ADVICE_W[13])
+        self.W12p, self.W13p = self.W12 ^ R.fl("W", 12), self.W13 ^ R.fl("W", 13)
+
+    def p4(self):
+        """The real P4 list: E14, A14, E15, A15 (both sides), W14, W15."""
+        R, A, E, Ap, Ep = self.R, self.A, self.E, self.Ap, self.Ep
+        fm, fv = R.fixmask("E", 14)
+        free = [31 - k for k, c in enumerate(R.sym("E", 14)) if c == "="]
+        n = 1 << len(free)
+        idx = np.arange(n, dtype=np.uint64)
+        e14 = np.full(n, fv, dtype=np.uint32)
+        for t, j in enumerate(free):
+            e14 |= (((idx >> np.uint64(t)) & np.uint64(1)).astype(np.uint32) << np.uint32(j))
+        a14 = e14 - A[10] + S0(A[13]) + MAJ(A[13], A[12], A[11])
+        am, av = R.fixmask("A", 14)
+        ok = (a14 & am) == av
+        ok &= bit(a14, 9) == bit(a14, 20)
+        ok &= (bit(a14, 18) != bit(a14, 6)) & (bit(a14, 8) != bit(a14, 17))
+        for j in (30, 25, 23):
+            ok &= bit(A[13], j) == bit(a14, j)
+        ok &= bit(A[13], 15) != bit(a14, 15)
+        e14, a14 = e14[ok], a14[ok]
+        fm15, fv15 = R.fixmask("E", 15)
+        free15 = [31 - k for k, c in enumerate(R.sym("E", 15)) if c == "="]
+        n15 = 1 << len(free15)
+        idx = np.arange(n15, dtype=np.uint64)
+        e15b = np.full(n15, fv15, dtype=np.uint32)
+        for t, j in enumerate(free15):
+            e15b |= (((idx >> np.uint64(t)) & np.uint64(1)).astype(np.uint32) << np.uint32(j))
+        out = []
+        for x14, y14 in zip(e14, a14):
+            e15 = e15b
+            a15 = e15 - A[11] + S0(y14) + MAJ(y14, A[13], A[12])
+            okk = bit(A[13], 29) != bit(a15, 29)
+            am15, av15 = R.fixmask("A", 15)
+            okk &= (a15 & am15) == av15
+            w14 = x14 - A[10] - E[10] - S1(E[13]) - IF(E[13], E[12], E[11]) - K[14]
+            w15 = e15 - A[11] - E[11] - S1(x14) - IF(x14, E[13], E[12]) - K[15]
+            x14p = Ap[10] + Ep[10] + S1(Ep[13]) + IF(Ep[13], Ep[12], Ep[11]) + K[14] + w14
+            y14p = x14p - Ap[10] + S0(Ap[13]) + MAJ(Ap[13], Ap[12], Ap[11])
+            c14 = ((x14p ^ x14) == R.fl("E", 14)) & ((y14p ^ y14) == R.fl("A", 14))
+            if not c14:
+                continue
+            e15p = Ap[11] + Ep[11] + S1(x14p) + IF(x14p, Ep[13], Ep[12]) + K[15] + w15
+            a15p = e15p - Ap[11] + S0(y14p) + MAJ(y14p, Ap[13], Ap[12])
+            okk &= ((e15p ^ e15) == R.fl("E", 15)) & ((a15p ^ a15) == R.fl("A", 15))
+            k = int(okk.sum())
+            if k:
+                sel = okk
+                out.append(np.stack([np.full(k, x14), np.full(k, y14), np.full(k, x14p), np.full(k, y14p),
+                                     e15[sel], a15[sel], e15p[sel], a15p[sel], np.full(k, w14), w15[sel]], axis=1))
+        return np.concatenate(out, axis=0) if out else np.zeros((0, 10), dtype=np.uint32)
+
+    def step(self, a4, e4, a1, a2, a3, e1, e2, e3, w, i):
+        """One SHA-256 step from A[i-4], E[i-4], A[i-1..i-3], E[i-1..i-3] and W[i]: returns (A[i], E[i])."""
+        e = a4 + e4 + S1(e1) + IF(e1, e2, e3) + K[i] + w
+        a = e - a4 + S0(a1) + MAJ(a1, a2, a3)
+        return a, e
+
+    def stage_ok(self, i, a, ap, e, ep):
+        R = self.R
+        return ((a ^ ap) == R.fl("A", i)) & ((e ^ ep) == R.fl("E", i))
+```
+
+### H.13 `step3ref.py`
+
+```python
+"""Reference (scalar Python) evaluation of Step-3 stages 16..31 from (P4 entry, W16..W19, tuple constants)."""
+import sys
+sys.argv = ['x', 'fig6_rows_296.txt']
+src = open('check_route.py').read().split('\nif __name__ == "__main__":')[0]
+ref = {}
+exec(src, ref)
+M = 0xFFFFFFFF
+S0, S1, s0, s1, IF, MAJ, K = ref['S0'], ref['S1'], ref['s0'], ref['s1'], ref['IF'], ref['MAJ'], ref['K']
+rows = ref['parse_rows']('fig6_rows_296.txt')
+R = lambda col, i: rows.get(i, ['=' * 32] * 3)['AEW'.index(col)]
+fl = lambda col, i: sum(1 << (31 - k) for k, c in enumerate(R(col, i)) if c in 'nu')
+def signed(col, i):
+    v = 0
+    for k, c in enumerate(R(col, i)):
+        if c == 'n': v += 1 << (31 - k)
+        elif c == 'u': v -= 1 << (31 - k)
+    return v & M
+def sign_ok(col, i, x):
+    for k, c in enumerate(R(col, i)):
+        b = (x >> (31 - k)) & 1
+        if c == 'n' and b != 0: return False
+        if c == 'u' and b != 1: return False
+    return True
+ADV_A = dict(zip(range(4, 14), [0x98560dbb, 0x633b16ba, 0x9bcf7bbe, 0xf8677ad6, 0x4a299906, 0x44f24ab5, 0x39781650, 0x6422edc8, 0x574542b8, 0x0508c8f0]))
+ADV_E = dict(zip(range(8, 14), [0xf1cae594, 0xd0e1b7b4, 0xbf27d74c, 0xb78bbfd9, 0x3fffd0f9, 0xbf81c0f4]))
+W12, W13 = 0x41b22a2c, 0x6d12f88a
+
+def stages(entry, w16_19, tup):
+    """entry = (E14, A14, E14', A14', E15, A15, E15', A15', W14, W15); tup = dict c20, c20p, c21, c21p, c22, c22p, dW8 (W8'-W8),
+    dW13 (W13'-W13). Returns the list of stages 16..31 that pass, stopping at the first failure."""
+    A = dict(ADV_A); E = dict(ADV_E)
+    Ap = {i: v ^ fl('A', i) for i, v in A.items()}; Ep = {i: v ^ fl('E', i) for i, v in E.items()}
+    E[14], A[14], Ep[14], Ap[14], E[15], A[15], Ep[15], Ap[15], W14, W15 = entry
+    W = {14: W14, 15: W15}; Wp = {14: W14, 15: W15}
+    for i, w in zip(range(16, 20), w16_19):
+        W[i] = Wp[i] = w
+    passed = []
+    for i in range(16, 23):
+        if i == 20:
+            W[20] = (s1(W[18]) + tup['c20']) & M; Wp[20] = (s1(Wp[18]) + tup['c20p']) & M
+        if i == 21:
+            W[21] = (s1(W[19]) + W14 + tup['c21']) & M; Wp[21] = (s1(Wp[19]) + W14 + tup['c21p']) & M
+        if i == 22:
+            W[22] = (s1(W[20]) + W15 + tup['c22']) & M; Wp[22] = (s1(Wp[20]) + W15 + tup['c22p']) & M
+        for (AA, EE, WW) in ((A, E, W), (Ap, Ep, Wp)):
+            EE[i] = (AA[i - 4] + EE[i - 4] + S1(EE[i - 1]) + IF(EE[i - 1], EE[i - 2], EE[i - 3]) + K[i] + WW[i]) & M
+            AA[i] = (EE[i] - AA[i - 4] + S0(AA[i - 1]) + MAJ(AA[i - 1], AA[i - 2], AA[i - 3])) & M
+        ok = (Wp[i] == W[i] ^ fl('W', i)) and (Ap[i] == A[i] ^ fl('A', i)) and (Ep[i] == E[i] ^ fl('E', i))
+        if i in (20, 22): ok = ok and sign_ok('W', i, W[i])
+        if not ok: return passed
+        passed.append(i)
+    # stages 23..31: schedule differences must vanish
+    dW = {i: (Wp[i] - W[i]) & M for i in range(14, 23)}
+    # W24 = s1(W22) + W17 + s0(W9) + W8: difference s1(W22') - s1(W22) + (W8' - W8)
+    d24 = (s1(Wp[22]) - s1(W[22]) + tup['dW8']) & M
+    # W27 = s1(W25) + W20 + s0(W12) + W11: difference (W20' - W20) + s0(W12') - s0(W12)
+    d27 = (dW[20] + s0(W12 ^ fl('W', 12)) - s0(W12)) & M
+    # W28 = s1(W26) + W21 + s0(W13) + W12: difference s0(W13') - s0(W13) + (W12' - W12)
+    d28 = (s0(W13 ^ fl('W', 13)) - s0(W13) + ((W12 ^ fl('W', 12)) - W12)) & M
+    # W29 = s1(W27) + W22 + s0(W14) + W13: difference (W22' - W22) + (W13' - W13)
+    d29 = (dW[22] + tup['dW13']) & M
+    for i, d in ((23, 0), (24, d24), (25, 0), (26, 0), (27, d27), (28, d28), (29, d29), (30, 0), (31, 0)):
+        if d != 0: return passed
+        passed.append(i)
+    return passed
+
+def tuple_consts(Wu, Wpu):
+    """Tuple constants from unprimed and primed W0..W15."""
+    c = lambda X: dict(c20=(X[13] + s0(X[5]) + X[4]) & M, c21=(s0(X[6]) + X[5]) & M, c22=(s0(X[7]) + X[6]) & M,
+                       b16=(X[9] + s0(X[1]) + X[0]) & M, b17=(X[10] + s0(X[2]) + X[1]) & M,
+                       b18=(X[11] + s0(X[3]) + X[2]) & M, b19=(X[12] + s0(X[4]) + X[3]) & M)
+    u, p = c(Wu), c(Wpu)
+    return dict(c20=u['c20'], c20p=p['c20'], c21=u['c21'], c21p=p['c21'], c22=u['c22'], c22p=p['c22'],
+                b=[u['b16'], u['b17'], u['b18'], u['b19']], bp=[p['b16'], p['b17'], p['b18'], p['b19']],
+                dW8=(Wpu[8] - Wu[8]) & M, dW13=(Wpu[13] - Wu[13]) & M)
+
+if __name__ == '__main__':
+    cv1 = ref['compress'](ref['IV'], ref['M0'], 35)
+    Au, Eu, Wu = ref['trace'](cv1, ref['M1P'], 32)
+    Ap_, Ep_, Wp_ = ref['trace'](cv1, ref['M1'], 32)
+    t = tuple_consts(Wu[:16], Wp_[:16])
+    print('b == b primed:', t['b'] == t['bp'], '| c21 == c21p:', t['c21'] == t['c21p'],
+          '| c20p - c20 == D(W20):', (t['c20p'] - t['c20']) & M == signed('W', 20))
+    w16 = [(s1(Wu[i - 2]) + t['b'][i - 16]) & M for i in range(16, 20)]
+    print('W16..W19 from constants match trace:', w16 == Wu[16:20])
+    entry = (Eu[14], Au[14], Ep_[14], Ap_[14], Eu[15], Au[15], Ep_[15], Ap_[15], Wu[14], Wu[15])
+    print('stages passed for S:', stages(entry, w16, t))
+```
+
+### H.14 `check_route.py`
+
+```python
+"""Participant checks of the published CRYPTO 2026 (ePrint 2026/1080) 35-step SHA-256 pair
+against the Fig. 6 characteristic transcription used by the package, and of the 32-step truncation.
+
+Run: python3 check_route.py fig6_rows_296.txt twobit_296.txt [official-repo-path]
+"""
+import re
+import struct
+import sys
+
+K = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+]
+IV = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
+MASK = 0xFFFFFFFF
+
+
+def rotr(x, r):
+    return ((x >> r) | (x << (32 - r))) & MASK
+
+
+def S0(x):
+    return rotr(x, 2) ^ rotr(x, 13) ^ rotr(x, 22)
+
+
+def S1(x):
+    return rotr(x, 6) ^ rotr(x, 11) ^ rotr(x, 25)
+
+
+def s0(x):
+    return rotr(x, 7) ^ rotr(x, 18) ^ (x >> 3)
+
+
+def s1(x):
+    return rotr(x, 17) ^ rotr(x, 19) ^ (x >> 10)
+
+
+def IF(x, y, z):
+    return (x & y) ^ (~x & z & MASK)
+
+
+def MAJ(x, y, z):
+    return (x & y) ^ (x & z) ^ (y & z)
+
+
+def expand(m, steps):
+    w = list(m)
+    for i in range(16, steps):
+        w.append((s1(w[i - 2]) + w[i - 7] + s0(w[i - 15]) + w[i - 16]) & MASK)
+    return w
+
+
+def trace(cv, m, steps):
+    """Return dicts A, E (indices -4..steps-1) and W (0..steps-1)."""
+    w = expand(m, steps)
+    a, b, c, d, e, f, g, h = cv
+    A = {-1: a, -2: b, -3: c, -4: d}
+    E = {-1: e, -2: f, -3: g, -4: h}
+    for i in range(steps):
+        E[i] = (A[i - 4] + E[i - 4] + S1(E[i - 1]) + IF(E[i - 1], E[i - 2], E[i - 3]) + K[i] + w[i]) & MASK
+        A[i] = (E[i] - A[i - 4] + S0(A[i - 1]) + MAJ(A[i - 1], A[i - 2], A[i - 3])) & MASK
+    return A, E, w
+
+
+def compress(cv, m, steps):
+    A, E, _ = trace(cv, m, steps)
+    r = steps
+    out = [A[r - 1], A[r - 2], A[r - 3], A[r - 4], E[r - 1], E[r - 2], E[r - 3], E[r - 4]]
+    return [(x + y) & MASK for x, y in zip(cv, out)]
+
+
+def digest(msg, steps):
+    ml = len(msg) * 8
+    padded = msg + b"\x80" + b"\x00" * ((55 - len(msg)) % 64) + struct.pack(">Q", ml)
+    cv = IV
+    for off in range(0, len(padded), 64):
+        cv = compress(cv, list(struct.unpack(">16I", padded[off:off + 64])), steps)
+    return b"".join(struct.pack(">I", x) for x in cv)
+
+
+def words(s):
+    return [int(x, 16) for x in s.split()]
+
+
+M0 = words("a8850273 c0f4a504 5d3ad7b5 6e5f5026 535cc256 e92ef7a5 436f70df 7d7e236a "
+           "cadc14e8 d59ac191 6874f1ba 6b83960d f6dfe9de 6a013df2 f856b739 237894e8")
+M1 = words("c0008214 ae65f3bf e93c006a 5f195aa9 a4d6cd0f 21811cec ea897317 db9ec665 "
+           "6ec17218 5100da8a 0912e57b a96b2054 45f2222c 4d12f88a d2701ecc 140976d1")
+M1P = words("c0008214 ae65f3bf e93c006a 5f195aa9 84d6cd0f 25c114ec ca897317 da9fd6ef "
+            "6ec97e18 5100da8a 0912e57b a96b2054 41b22a2c 6d12f88a d2701ecc 140976d1")
+HASH35 = "c6209b2b5e3fd4c896087364046304abbbc6dad9403a26d1018e351fe444451f"
+
+
+def tobytes(ws):
+    return b"".join(struct.pack(">I", x) for x in ws)
+
+
+def parse_rows(path):
+    rows = {}
+    for line in open(path):
+        parts = line.split()
+        if len(parts) == 4 and re.fullmatch(r"\d+", parts[0]):
+            rows[int(parts[0])] = parts[1:]
+        elif len(parts) == 4 and re.fullmatch(r"\d+-\d+", parts[0]):
+            lo, hi = map(int, parts[0].split("-"))
+            for i in range(lo, hi + 1):
+                rows[i] = parts[1:]
+    return rows
+
+
+def check_symbol(sym, x, xp):
+    """x = unprimed value bit, xp = primed value bit."""
+    if sym == "=":
+        return x == xp
+    if sym == "0":
+        return x == xp == 0
+    if sym == "1":
+        return x == xp == 1
+    if sym == "n":
+        return x == 0 and xp == 1
+    if sym == "u":
+        return x == 1 and xp == 0
+    raise ValueError(sym)
+
+
+def main():
+    rows_path, twobit_path = sys.argv[1], sys.argv[2]
+    m_a = tobytes(M0 + M1)
+    m_b = tobytes(M0 + M1P)
+    d35a, d35b = digest(m_a, 35), digest(m_b, 35)
+    cv1 = compress(IV, M0, 35)
+    h2 = tobytes(compress(cv1, M1, 35)).hex()
+    print("35-step digests equal:", d35a == d35b, "| Table 3 hash equals full digest:", d35a.hex() == HASH35,
+          "| equals second-block chaining value:", h2 == HASH35)
+    for r in (31, 32, 64):
+        print(f"{r}-step digests equal:", digest(m_a, r) == digest(m_b, r))
+    if len(sys.argv) > 3:
+        sys.path.insert(0, sys.argv[3])
+        from verifier.hash_functions import digest as off_digest
+        print("official digest agrees (35, 32, 64):",
+              all(off_digest(m, "sha256", r) == digest(m, r) for m in (m_a, m_b) for r in (35, 32, 64)))
+
+    cv1 = compress(IV, M0, 35)
+    print("CV1 = C_35(IV,M0) =", " ".join(f"{x:08x}" for x in cv1))
+    print("second block, C_32 from that CV1, M1 vs M1' equal:", compress(cv1, M1, 32) == compress(cv1, M1P, 32))
+    print("second block, C_35 from that CV1, M1 vs M1' equal:", compress(cv1, M1, 35) == compress(cv1, M1P, 35))
+
+    rows = parse_rows(rows_path)
+    best = None
+    for name, (U, P) in {"unprimed=M1'": (M1P, M1), "unprimed=M1": (M1, M1P)}.items():
+        Au, Eu, Wu = trace(cv1, U, 35)
+        Ap, Ep, Wp = trace(cv1, P, 35)
+        bad, nu, fixed = 0, 0, 0
+        for i in range(-4, 35):
+            sym = rows.get(i, ["=" * 32] * 3)
+            for col, (xu, xp) in enumerate(((Au[i], Ap[i]), (Eu[i], Ep[i]),
+                                            (Wu[i] if i >= 0 else 0, Wp[i] if i >= 0 else 0))):
+                s = sym[col]
+                for k in range(32):
+                    bit = 31 - k
+                    ok = check_symbol(s[k], (xu >> bit) & 1, (xp >> bit) & 1)
+                    bad += not ok
+                    nu += s[k] in "nu"
+                    fixed += s[k] in "01nu"
+        print(f"[{name}] rows -4..34: n/u symbols {nu}, single-bit-valued symbols {fixed}, mismatches {bad}")
+        if bad == 0:
+            best = (Au, Eu, Wu)
+
+    Au, Eu, Wu = best
+    print("advice A4..A13 =", " ".join(f"{Au[i]:08x}" for i in range(4, 14)))
+    print("advice E8..E13 =", " ".join(f"{Eu[i]:08x}" for i in range(8, 14)))
+    print("advice W12, W13 =", f"{Wu[12]:08x} {Wu[13]:08x}")
+
+    val = {"A": Au, "E": Eu, "W": Wu}
+    text = open(twobit_path).read()
+    conds = re.findall(r"([AEW])(\d+)\[([\d,]+)\](!?=)([AEW])(\d+)\[([\d,]+)\]", text)
+    total, held, per = 0, 0, []
+    for X, i, bits1, rel, Y, j, bits2 in conds:
+        b1 = list(map(int, bits1.split(",")))
+        b2 = list(map(int, bits2.split(",")))
+        res = []
+        for p, q in zip(b1, b2):
+            x = (val[X][int(i)] >> p) & 1
+            y = (val[Y][int(j)] >> q) & 1
+            res.append((x == y) if rel == "=" else (x != y))
+        total += len(res)
+        held += sum(res)
+        per.append((f"{X}{i}[{bits1}]{rel}{Y}{j}[{bits2}]", res))
+    print(f"printed two-bit conditions: {total}, hold on pair as printed: {held}")
+    for name, res in per:
+        if not all(res):
+            print("   not as printed:", name, res)
+    a16 = trace(cv1, M1P, 35)[0][16]
+    print("A15[29] vs A16[29] (misprint reading):", (Au[15] >> 29) & 1, (a16 >> 29) & 1,
+          "A13[29]:", (Au[13] >> 29) & 1)
+    print("E16[29] = E17[29] holds:", ((Eu[16] >> 29) & 1) == ((Eu[17] >> 29) & 1))
+
+
+if __name__ == "__main__":
+    main()
+
+
+def fl(sym):
+    """n/u mask of a row string (position k is bit 31-k)."""
+    return sum(1 << (31 - k) for k, c in enumerate(sym) if c in "nu")
+
+
+def signed(sym):
+    """D(X) = sum over n of 2^j - sum over u of 2^j (primed minus unprimed, mod 2^32)."""
+    v = 0
+    for k, c in enumerate(sym):
+        if c == "n":
+            v += 1 << (31 - k)
+        elif c == "u":
+            v -= 1 << (31 - k)
+    return v & MASK
+
+
+def fix_ok(sym, x):
+    for k, c in enumerate(sym):
+        b = (x >> (31 - k)) & 1
+        if c in "0n" and b != 0:
+            return False
+        if c in "1u" and b != 1:
+            return False
+    return True
+
+
+def spec_checks(rows_path):
+    rows = parse_rows(rows_path)
+    R = lambda col, i: rows.get(i, ["=" * 32] * 3)[col]
+    print("free '=' bits: E3 %d E4 %d E5 %d E6 %d E7 %d W7 %d E14 %d E15 %d" % tuple(
+        R(c, i).count("=") for c, i in ((1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (2, 7), (1, 14), (1, 15))))
+    cv1 = compress(IV, M0, 35)
+    Au, Eu, Wu = trace(cv1, M1P, 35)
+    # Step 2 from the record values (A0..A13, E3..E13, W7..W13) and CV1 only
+    A = {i: Au[i] for i in range(0, 14)}
+    E = {i: Eu[i] for i in range(3, 14)}
+    a, b, c, d, e, f, g, h = cv1
+    A.update({-1: a, -2: b, -3: c, -4: d})
+    E.update({-1: e, -2: f, -3: g, -4: h})
+    key_ok = A[-1] == (E[3] - A[3] + S0(A[2]) + MAJ(A[2], A[1], A[0])) & MASK
+    for i in range(0, 3):
+        E[i] = (A[i] + A[i - 4] - S0(A[i - 1]) - MAJ(A[i - 1], A[i - 2], A[i - 3])) & MASK
+    W = {}
+    for i in range(0, 7):
+        W[i] = (E[i] - A[i - 4] - E[i - 4] - S1(E[i - 1]) - IF(E[i - 1], E[i - 2], E[i - 3]) - K[i]) & MASK
+    print("Step 2 on published record: key A[-1] matches:", key_ok,
+          "| W0..W6 reproduce M1':", [W[i] for i in range(7)] == M1P[:7])
+    Wp = {i: W[i] ^ fl(R(2, i)) for i in range(7)}
+    W12, W13 = Wu[12], Wu[13]
+    W12p, W13p = W12 ^ fl(R(2, 12)), W13 ^ fl(R(2, 13))
+    sgn = lambda i, x: fix_ok("".join(ch if ch in "nu" else "=" for ch in R(2, i)), x)
+    t_a = sgn(4, W[4])
+    t_b = (s0(Wp[4]) + W12p) & MASK == (s0(W[4]) + W12) & MASK
+    t_c = sgn(5, W[5])
+    t_d = sgn(6, W[6])
+    # (e) conformance of the primed computation at steps 0..6 (E) and 0..2 (A), primed inputs xor FL
+    Ap = {i: A[i] ^ fl(R(0, i)) for i in range(-4, 14)}
+    Ep = {i: E[i] ^ fl(R(1, i)) for i in range(-4, 14)}
+    t_e = True
+    for i in range(0, 7):
+        ei = (Ap[i - 4] + Ep[i - 4] + S1(Ep[i - 1]) + IF(Ep[i - 1], Ep[i - 2], Ep[i - 3]) + K[i] + Wp[i]) & MASK
+        t_e &= ei == Ep[i]
+        if i <= 2:
+            ai = (Ep[i] - Ap[i - 4] + S0(Ap[i - 1]) + MAJ(Ap[i - 1], Ap[i - 2], Ap[i - 3])) & MASK
+            t_e &= ai == Ap[i]
+    t_f = (s0(Wp[6]) + Wp[5]) & MASK == (s0(W[6]) + W[5]) & MASK
+    t_g = ((W13p - W13) + (s0(Wp[5]) - s0(W[5])) + (Wp[4] - W[4])) & MASK == signed(R(2, 20))
+    print("Step 2 tests (a)..(g):", [t_a, t_b, t_c, t_d, t_e, t_f, t_g])
+    # Step 3 for the published (W14, W15): stages 16..31
+    m = [W[i] for i in range(7)] + [Wu[i] for i in range(7, 16)]
+    mp = [x ^ fl(R(2, i)) for i, x in enumerate(m)]
+    Aq, Eq, Wq = trace(cv1, m, 32)
+    Ar, Er, Wr = trace(cv1, mp, 32)
+    stage = []
+    for i in range(16, 32):
+        ok = Wr[i] == Wq[i] ^ fl(R(2, i))
+        if i in (20, 22):
+            ok &= sgn(i, Wq[i])
+        if i <= 22:
+            ok &= Ar[i] == Aq[i] ^ fl(R(0, i)) and Er[i] == Eq[i] ^ fl(R(1, i))
+        stage.append(ok)
+    print("Step 3 stages 16..31 pass for published (W14,W15):", all(stage))
+    print("second blocks equal after C_32:", compress(cv1, m, 32) == compress(cv1, mp, 32))
+
+
+spec_checks(sys.argv[1])
+```
+
+### H.v8 `analyse2.py` (v8 Measurement 2; sha256 dd4b3841ed0b89bf18fbbd99c42d3e2aaf3e7264264525a016f14b1e8b454b85)
+
+```python
+"""Compare Step-3 pass counts of tuple constants from pair events with those of the same records' single events, and
+the spread over each record's own validity set.
+usage: analyse2.py NPAIR NFLATREC FLATPER out.0 out.1 ...   (cvec order: NPAIR pair, NPAIR single, NFLATREC*FLATPER flat)"""
+import json, math, sys
+npair, nrec, per = int(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3])
+runs = []
+for path in sys.argv[4:]:
+    lines = open(path).read().split('\n')
+    h = lines[0].split()
+    runs.append((int(h[9]), [int(l.split()[5]) for l in lines[1:] if l.startswith('c ')]))
+hist = sum(r[0] for r in runs)
+tot = [sum(r[1][c] for r in runs) for c in range(len(runs[0][1]))]
+pair, single, flat = tot[:npair], tot[npair:2 * npair], tot[2 * npair:2 * npair + nrec * per]
+ratio = sum(pair) / sum(single)
+rs = [sum(r[1][:npair]) / max(sum(r[1][npair:2 * npair]), 1) for r in runs]
+m = sum(rs) / len(rs)
+se = math.sqrt(sum((x - m) ** 2 for x in rs) / (len(rs) - 1) / len(rs))
+recs = []
+for k in range(nrec):
+    xs = flat[k * per:(k + 1) * per]
+    mu = sum(xs) / per
+    recs.append(dict(mean=mu, max_over_mean=max(xs) / mu if mu else None, min_over_mean=min(xs) / mu if mu else None,
+                     poisson_rel_sd=1 / math.sqrt(mu) if mu else None))
+out = dict(histories=hist, pair_sum=sum(pair), single_sum=sum(single), ratio_pair_over_single=ratio,
+           ratio_se_from_processes=se, ratio_upper_2se=ratio + 2 * se,
+           per_record_flatness=recs, flat_max_over_mean=max(r['max_over_mean'] for r in recs if r['max_over_mean']))
+print(json.dumps(out, indent=1))
+```
+
+### H.v8 `summary.json` (v8 Measurement 2; sha256 789c53eb9ca80b1faab0a7f0afb1781207c6954ed1fbaa6f8b1a7b69c1ee064e)
+
+```json
+{
+ "histories": 24407256,
+ "pair_sum": 193066,
+ "single_sum": 193461,
+ "ratio_pair_over_single": 0.9979582448142003,
+ "ratio_se_from_processes": 0.0026520557612238964,
+ "ratio_upper_2se": 1.003262356336648,
+ "per_record_flatness": [
+  {
+   "mean": 368.90625,
+   "max_over_mean": 1.1032613299449385,
+   "min_over_mean": 0.9080897924608217,
+   "poisson_rel_sd": 0.052064534938771063
+  },
+  {
+   "mean": 376.28125,
+   "max_over_mean": 1.0683498048334856,
+   "min_over_mean": 0.8823187442903413,
+   "poisson_rel_sd": 0.051551785412221905
+  },
+  {
+   "mean": 374.125,
+   "max_over_mean": 1.077180086869362,
+   "min_over_mean": 0.9007684597393919,
+   "poisson_rel_sd": 0.051700129993677776
+  },
+  {
+   "mean": 370.75,
+   "max_over_mean": 1.1382333108563722,
+   "min_over_mean": 0.9116655428186109,
+   "poisson_rel_sd": 0.05193491440045774
+  },
+  {
+   "mean": 379.3125,
+   "max_over_mean": 1.109902784643269,
+   "min_over_mean": 0.8752677541604877,
+   "poisson_rel_sd": 0.05134538593788056
+  },
+  {
+   "mean": 371.375,
+   "max_over_mean": 1.0878492090205318,
+   "min_over_mean": 0.8724335240659711,
+   "poisson_rel_sd": 0.05189119445466648
+  },
+  {
+   "mean": 373.65625,
+   "max_over_mean": 1.0972652003010788,
+   "min_over_mean": 0.9099272392740654,
+   "poisson_rel_sd": 0.05173254861400309
+  },
+  {
+   "mean": 375.53125,
+   "max_over_mean": 1.0811350586668886,
+   "min_over_mean": 0.8468003661479571,
+   "poisson_rel_sd": 0.05160323859187209
+  }
+ ],
+ "flat_max_over_mean": 1.1382333108563722
+}
 ```
