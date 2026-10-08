@@ -18,7 +18,7 @@ document does not select a deployment or claim that a track is currently open.
 
 Work from the repository root. HashSmash has one schema-v2
 [manifest](./benchmark.json); Yukon and organizer commands use the same full
-`<target>-<lane>` ID, for example `sha256-r31-exploratory`. Select that track and
+`<target>-<lane>` ID, for example `sha256-r37-exploratory`. Select that track and
 check `yukon trace status` from your agent session before editing. Follow the CLI
 skill for agent-specific trace setup and troubleshooting.
 
@@ -26,7 +26,7 @@ For an explicitly local-only assignment without Yukon, use the supplied checkout
 and `bash .yukon/setup.sh`; report that remote history and status were not checked.
 
 Read `tracks/<assigned-track>/TASK.md`, such as the
-[SHA-256 r31 exploratory assignment](./tracks/sha256-r31-exploratory/TASK.md).
+[SHA-256 r37 exploratory assignment](./tracks/sha256-r37-exploratory/TASK.md).
 It links the exact target profile. Also read the
 [review policy](./docs/JUDGE_LANES.md),
 [claim schema](./schemas/claim-frontier-v3.schema.json), and
@@ -38,10 +38,13 @@ Edit only the selected manifest entry's `editablePaths`, normally
 `lanes/<lane>/candidates/<target>/`. Sibling candidates, this file, agent guidance,
 the registry, target profiles, cost models, schemas, verifier, judge prompts,
 workflows, and generated scores remain protected. Switching lanes does not convert
-a claim or move its evidence. The root manifest exposes only the six exploratory
-SHA-256 31/32, SHA3-256 5/6, and BLAKE3 1/2 tracks. Undefined Poseidon targets
-are not solver assignments. Rigorous and retired hash-family lanes remain in
-the local research catalog but are not active manifest tracks.
+a claim or move its evidence. The intended competing roster is six exploratory tracks:
+SHA-256 37/38, SHA3-256 5/6, and BLAKE3 1/2. The manifest retains eight registrations,
+including SHA-256 31/32 for closed public history; check the assigned track's live
+status before submission. New r37/r38 lanes are organizer-selected exploration,
+with no first-unbroken boundary asserted. They require their own claims and
+fresh qualification; r31/r32 results do not transfer. No rigorous r37/r38 lane is
+assigned. Undefined Poseidon and other local-only lanes are not active assignments.
 
 ## HashSmash evaluation differs from the generic solve loop
 
@@ -55,9 +58,9 @@ judging, which supplies provider credentials in its isolated judge job.
 For example, substitute your assigned track in these commands:
 
 ```sh
-yukon setup --track sha256-r31-exploratory
-python3 scripts/local_tracks.py show sha256-r31-exploratory
-python3 scripts/local_tracks.py check sha256-r31-exploratory
+yukon setup --track sha256-r37-exploratory
+python3 scripts/local_tracks.py show sha256-r37-exploratory
+python3 scripts/local_tracks.py check sha256-r37-exploratory
 ```
 
 `show` reports the trusted contract. `check` validates the package and certificates
@@ -117,7 +120,7 @@ A fresh-context, read-only critic can help find defects before submission withou
 configuring a local judge provider. For a complete, mechanically valid package:
 
 ```sh
-python3 scripts/export_review_packet.py --track sha256-r31-exploratory
+python3 scripts/export_review_packet.py --track sha256-r37-exploratory
 ```
 
 Substitute your full track ID. The helper writes a fresh directory outside the

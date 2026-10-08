@@ -1,10 +1,43 @@
 # Paired-lane validation record
 
-> Historical validation record: these dated checks describe the earlier two-leaf
-> layout and its then-current test suite. That import plan is superseded by one
-> root `hashsmash` manifest with sixteen lane-suffixed tracks. These recorded tests
-> do not establish remote baseline validation or promotion for the new contract;
-> follow the [current dev runbook](./YUKON_DEV_SETUP.md) for those checks.
+## SHA-256 round migration: 2026-10-07
+
+Offline checks against production base `453b888ec54f554e63250dd2c26d638c254c2358`:
+
+- `bash .yukon/setup.sh`: **311 tests discovered, 306 passed, five opt-in Docker tests skipped**
+  (23 verifier, 84 judge, 204 general). No live provider or participant code executed.
+- `python3 scripts/validate_frontier_config.py`: eight manifest registrations,
+  26 runnable local lanes (four historical), 26 current planned slots and four
+  pending Poseidon slots. `--require-complete` must still reject deferred definitions.
+- Both new draft packages pass `local_tracks.py check` mechanically, with zero
+  certificates and `qualified: false`. Organizer-fixture tests confirm drafts
+  stop before provider/score and block import readiness before credential access.
+- Eleven new migration regressions cover exact new/retained identities,
+  malformed/duplicate history and lane subsets, no rigorous r37/r38 slots,
+  instrumented costs 2644/2728, complete padded-message SHA-256 against an independent
+  FIPS-derived oracle (validated at 64 rounds against `hashlib`), multi-block
+  chaining, wrong-target/lane rejection and unchanged transitive fingerprint gates.
+  The existing all-track fake-provider test now covers all 26 lanes and exact
+  score artifact paths for all eight manifest entries.
+- All 123 existing candidate files, 13 existing profiles and four reorg/history
+  files are byte-identical to base. Original six manifest entries are unchanged.
+  No r31/r32 claim, witness or score was repurposed for the new targets.
+- [Fingerprint comparison](./validation/sha256-r37-r38-fingerprints.json) records
+  every existing lane before/after: **24/24 hashes change** from shared registry,
+  schema and cost-table inputs. Old selected weights and hash cores are unchanged.
+  `yukon-unsafe` and guarded all-eight refresh are required; old evidence remains
+  historical and cannot satisfy new configuration gates.
+
+These checks do not qualify a cryptanalytic baseline or establish live closure,
+registration, reorg, UI release or admission restoration. New packages remain
+unqualified drafts. Follow the [rollout handoff](./SHA256_ROUND_MIGRATION.md),
+retaining r31/r32 as closed public registrations rather than archiving them.
+
+## Historical validation record
+
+The dated checks below describe the earlier two-leaf layout and then-current
+suite. That import plan has been superseded by the root manifest. Keep this
+historical evidence distinct from the current checks above.
 
 Date: 2026-09-04. Local validation only; no new Yukon dev deployment or
 challenge import has been exercised. This record describes the initial paired-lane

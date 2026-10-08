@@ -1,14 +1,19 @@
 # HashSmash
 
 HashSmash is a Yukon-compatible benchmark for AI-assisted review of cryptanalytic
-collision claims. Each target has independent exploratory and rigorous lanes.
-The Yukon manifest declares **six exploratory tracks**: SHA-256 rounds 31/32,
-SHA3-256 rounds 5/6, and BLAKE3 rounds 1/2. Two Poseidon targets remain deferred
-until their parameters and round pair are defined. The local research catalog
-retains 24 runnable lanes and four historical Poseidon slots; it does not define
-active Yukon membership. Rigorous, MD5, SHA-1, and Keccak[800] tracks are excluded
-from the manifest.
-The organizer selected BLAKE3 rounds 1/2 and Keccak[800] rounds 5/6 on 2026-09-13.
+collision claims. The Yukon manifest preserves **eight exploratory registrations**:
+SHA-256 rounds 31/32 and 37/38, SHA3-256 rounds 5/6, and BLAKE3 rounds 1/2.
+The intended competing roster is **six tracks**: SHA-256 37/38, SHA3-256 5/6,
+and BLAKE3 1/2. Operators must close SHA-256 31/32 while retaining their registrations
+and public history; the manifest cannot set lifecycle state. The new SHA-256 pair
+is organizer-selected exploration, with no first-unbroken boundary asserted.
+
+The local registry contains 26 runnable lanes: 22 current research lanes and four
+historical SHA-256 31/32 lanes, plus four deferred Poseidon slots. The new pair has
+exploratory lanes only. Other defined targets retain independent exploratory and
+rigorous lanes. Rigorous, MD5, SHA-1 and Keccak[800] tracks remain outside the manifest.
+See the [round migration handoff](./docs/SHA256_ROUND_MIGRATION.md) for qualification,
+closure, configuration refresh and the separate Yukon UI change.
 
 Solvers start with [TASK.md](./TASK.md), the single entry point for assigned-track
 instructions and HashSmash's differences from the generic Yukon CLI workflow.
@@ -66,19 +71,19 @@ library and organizer fixtures, without contacting providers:
 bash .yukon/setup.sh
 python3 scripts/local_tracks.py list
 python3 scripts/local_tracks.py catalog
-python3 scripts/local_tracks.py check sha256-r31-exploratory
+python3 scripts/local_tracks.py check sha256-r37-exploratory
 ```
 
 The pipeline requires an explicit organizer track ID, including the lane:
 
 ```sh
-python3 scripts/hashsmash_pipeline.py intake --track sha256-r31-exploratory
+python3 scripts/hashsmash_pipeline.py intake --track sha256-r37-exploratory
 ```
 
 After successful intake, a trusted operator can run `judge` and `score` with the
 same `--track`. Follow the [candidate qualification guide](./docs/CANDIDATE_QUALIFICATION.md)
 for the complete sequence and readiness requirements. Use
-`bash scripts/run-local-track.sh sha256-r31-exploratory` for the local wrapper.
+`bash scripts/run-local-track.sh sha256-r37-exploratory` for the local wrapper.
 
 OpenRouter and Amazon Bedrock share the validated review interface. Provider,
 model and committee configuration are documented in [judge/README.md](./judge/README.md).
@@ -90,7 +95,7 @@ organizer fixtures outside the production registry.
 
 ## Yukon
 
-For the private `Layr-Labs/hash-smash` production repository, follow the
+For the `Layr-Labs/hash-smash` production repository, follow the
 [production operator runbook](./docs/YUKON_PROD_SETUP.md). The dev guide and
 helper below continue to target `mooselumph/hash-smash`.
 
@@ -98,7 +103,7 @@ The SHA-1 pilot and nine local tracks have been retired.
 
 Follow [YUKON_DEV_SETUP.md](./docs/YUKON_DEV_SETUP.md) to import the repository root once
 as `hashsmash`. The schema-v2 [`benchmark.json`](./benchmark.json) declares all
-six exploratory tracks with unchanged names such as `sha256-r31-exploratory`
+eight exploratory registrations with lane-suffixed names such as `sha256-r37-exploratory`
 and `blake3-r1-exploratory`. There is no `rootDir` override or separate lane import.
 Lane metadata remains in the protected registry, the validated claim binding,
 and each generated score's `metrics.lane`. Yukon track names include the lane
@@ -113,13 +118,14 @@ workflow wrappers separate deterministic intake, secret-bearing review, and
 final scoring. The score artifact contains that exact repository-relative path;
 qualification failures withhold a score.
 
-For the existing challenge, use **Reconcile challenge** as documented in the
-[operator runbook](./docs/YUKON_DEV_SETUP.md). It retains the six track identities
-and their results while archiving the fourteen omitted tracks after closure and
-completion of their jobs and reviews. A membership-only reconciliation does not
-rescore retained submissions. A fresh import, if separately intended, queues six
-baseline workflows. Add the two exploratory Poseidon tracks only after definition
-and qualification; do not archive and reimport the existing challenge.
+For the existing six-track challenge, the reviewed reconciliation must retain all
+six records, add r37/r38 and archive none. Close r31/r32 through Yukon, preserving
+their IDs, jobs, reviews and public results. The shared protected configuration
+changes for every lane, so reconciliation alone is insufficient: follow the
+[guarded refresh and UI handoff](./docs/SHA256_ROUND_MIGRATION.md). New draft values
+cannot seed an import. A separately intended fresh import would require eight
+qualified baselines and explicit closure of r31/r32; it does not preserve an
+existing challenge's history. Poseidon remains deferred.
 
 Before opening, test Yukon-driven validation, non-editable-path rejection, and
 promotion while preserving sibling tracks in both lanes. Humans review harness

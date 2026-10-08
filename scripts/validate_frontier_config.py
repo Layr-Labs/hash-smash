@@ -14,10 +14,15 @@ from verifier.io import load_json_bytes
 
 
 def import_tracks():
-    """Declare the six retained exploratory tracks for manifest reconciliation."""
-    return tuple(track for track in frontier_tracks()
-                 if track.lane == "exploratory"
-                 and track.algorithm in {"sha256", "sha3_256", "blake3"})
+    """Keep eight registrations, including r31/r32 to be closed for history.
+
+    Manifest membership does not encode open/closed state. Keep the original six
+    entries in order and append the new SHA pair; reconciliation must archive none.
+    """
+    tracks = (track for track in frontier_tracks()
+              if track.lane == "exploratory"
+              and track.algorithm in {"sha256", "sha3_256", "blake3"})
+    return tuple(sorted(tracks, key=lambda track: track.algorithm == "sha256" and not track.retired))
 
 
 def manifest_for():
@@ -41,7 +46,8 @@ def manifest_for():
 
 def validate_configuration(*, require_complete=False):
     tracks = frontier_tracks()
-    if require_complete and len(tracks) != 28:
+    pending = sum(slot["rounds"] is None for slot in planned_slots())
+    if require_complete and pending:
         raise VerificationError("the requested roster still has unresolved target/round definitions")
     candidate_paths, score_paths = set(), set()
     path = ROOT / "benchmark.json"
@@ -67,7 +73,8 @@ def validate_configuration(*, require_complete=False):
             raise VerificationError("workflow must route the literal organizer-selected track and lane")
     return {"planned_tracks": len(planned_slots()), "runnable_tracks": len(tracks),
             "import_tracks": len(manifest["tracks"]),
-            "pending_tracks": len(planned_slots()) - len(tracks), "yukon_challenges": 1}
+            "retired_tracks": sum(track.retired for track in tracks),
+            "pending_tracks": pending, "yukon_challenges": 1}
 
 
 def main():

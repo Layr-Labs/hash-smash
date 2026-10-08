@@ -1,0 +1,24 @@
+{
+  "schema_version": 3,
+  "submission_state": "ready",
+  "target_profile": "sha256-r38-prefix-v1",
+  "attack_class": "ordinary-collision",
+  "rounds": 38,
+  "claim": {
+    "time_log2": 132,
+    "time_unit": "target-compressions",
+    "memory_log2_bytes": 136,
+    "preprocessing_log2": 123,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 0
+  },
+  "restrictions": [
+    "Samples 2^128 independent uniform 48-byte complete messages with replacement; no chosen IV, digest truncation, or output-distribution assumption.",
+    "Classical probabilistic 256-bit word RAM using the independent uniform word primitive of collision-frontier-v5; no PRNG substitution.",
+    "Worst-case single-batch resource upper bounds include unsuccessful batches; no restart or amplification is required for success_probability 0.39."
+  ],
+  "baseline_improved": "sha256-r38-nominal-v2",
+  "certificate_manifest": "certificates/manifest.json",
+  "lane": "exploratory",
+  "heuristics": []
+}

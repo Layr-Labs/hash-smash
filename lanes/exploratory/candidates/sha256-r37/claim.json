@@ -1,0 +1,24 @@
+{
+  "schema_version": 3,
+  "submission_state": "ready",
+  "target_profile": "sha256-r37-prefix-v1",
+  "attack_class": "ordinary-collision",
+  "rounds": 37,
+  "claim": {
+    "time_log2": 132,
+    "time_unit": "target-compressions",
+    "memory_log2_bytes": 136,
+    "preprocessing_log2": 125,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 0
+  },
+  "restrictions": [
+    "Samples exactly 2^128 independent uniformly random 48-byte complete messages with replacement; each hashes to the full 256-bit output from the standard fixed IV using one padded 37-round compression.",
+    "Classical 256-bit probabilistic word RAM under collision-frontier-v5, C=2644; no random-oracle, output-balance, PRNG or differential heuristic.",
+    "Worst-case total work and peak memory upper bounds; no witness, executed full search, novelty, nominal-reference improvement or qualification is asserted."
+  ],
+  "baseline_improved": "sha256-r37-nominal-v2",
+  "certificate_manifest": "certificates/manifest.json",
+  "lane": "exploratory",
+  "heuristics": []
+}

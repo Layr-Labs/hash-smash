@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "cost_model_id": "collision-frontier-v5",
-  "selection_date": "2026-09-13",
+  "selection_date": "2026-10-07",
   "mockup": "https://zooko.github.io/hashsmash-webdesigns/small-multiples.html",
-  "planned_lane_count": 28,
+  "planned_lane_count": 26,
   "families": [
     {
       "id": "md5",
@@ -43,12 +43,30 @@
       "digest_bits": 256,
       "nominal_security_bits": 128,
       "round_pair": [
-        31,
-        32
+        37,
+        38
       ],
-      "first_unbroken_round": 32,
-      "selection_status": "selected",
-      "selection_note": "User-selected ordinary-collision frontier experiment at rounds 31/32; literature boundaries must match the complete padded hash and charged total-computation model."
+      "first_unbroken_round": null,
+      "selection_status": "organizer_selected",
+      "selection_note": "Organizer-selected exploratory rounds 37/38 (2026-10-07), replacing active rounds 31/32. No first-unbroken boundary or matching attack is asserted. Standard IV, first r rounds in every padded block, feed-forward, and full 256-bit complete-message hashes.",
+      "lanes": [
+        "exploratory"
+      ],
+      "historical_pairs": [
+        {
+          "round_pair": [
+            31,
+            32
+          ],
+          "first_unbroken_round": 32,
+          "selection_status": "selected",
+          "selection_note": "User-selected ordinary-collision frontier experiment at rounds 31/32; literature boundaries must match the complete padded hash and charged total-computation model.",
+          "lanes": [
+            "exploratory",
+            "rigorous"
+          ]
+        }
+      ]
     },
     {
       "id": "sha3-256",

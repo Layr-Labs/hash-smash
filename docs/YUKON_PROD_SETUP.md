@@ -1,125 +1,100 @@
 # HashSmash Yukon production setup
 
-Start with the [builder guide](./BUILDER_GUIDE.md). Production uses the existing
-private `Layr-Labs/hash-smash` repository and its `main` branch. Preserve its
-ancestry and the separate `mooselumph/hash-smash` dev challenge and history.
-The [dev runbook](./YUKON_DEV_SETUP.md) and `scripts/import_yukon_dev.py` remain
-specific to dev. This guide does not authorize launch or change the
+Start with the [builder guide](./BUILDER_GUIDE.md). Production uses
+`Layr-Labs/hash-smash` and `main`. Preserve its ancestry and the separate
+`mooselumph/hash-smash` dev challenge and history. The
+[dev runbook](./YUKON_DEV_SETUP.md) and `scripts/import_yukon_dev.py` remain
+specific to dev. This guide does not authorize live operations or change the
 [scientific review contract](./JUDGE_LANES.md).
+
+## Current round migration
+
+Follow [SHA256_ROUND_MIGRATION.md](./SHA256_ROUND_MIGRATION.md) for the concrete
+r31/r32 to r37/r38 rollout. The manifest preserves eight exploratory registrations:
+six existing entries plus two new SHA-256 lanes. The intended competing roster
+is six after r31/r32 are closed through Yukon. Keep those two registrations and
+their public results; do not archive, rename or reimport them.
+
+The new r37/r38 packages are organizer drafts. Nominal numbers do not qualify a
+baseline, and historical r31/r32 declarations or attacks are not r37/r38 evidence.
+All existing candidate files and definitions are preserved. Every existing lane's
+configuration fingerprint changes because of the shared registry/schema/cost
+inputs, even though old prices, hash cores and judging rules are unchanged.
+A human-reviewed harness PR needs `yukon-unsafe`; qualification and guarded
+all-eight refresh are separate live work before admission is restored.
 
 ## Release and access readiness
 
-Land one signed, human-reviewed harness snapshot through a feature-branch PR.
-Record its production parent, reviewed donor revision, final tree and resulting
-commit. Keep inherited signature requirements and default-branch protections;
-verify the production App and promotion actor can satisfy the approved rules.
-App installation and any required actor eligibility remain explicit checks.
-Humans review harness PRs; Yukon alone promotes the scored content of submission
-PRs. Apply `yukon-unsafe` to harness changes that invalidate pending scores.
+Use a signed, human-reviewed feature-branch PR. Record the production parent,
+reviewed tree and resulting commit. Preserve signature requirements and branch
+protections. Verify the production **yukon-autoresearch** App and promotion actor
+can satisfy them; dev App access is not production access. Humans review harness
+PRs; Yukon alone promotes the scored content of submission PRs.
 
-Configure the production **yukon-autoresearch** GitHub App for this repository;
-verify its approved contents, Actions, pull-request and Discussions permissions.
-The dev App `yukon-eigen` does not establish production access. Give private-repo
-solvers clone/read access through their own GitHub identities; Yukon does not
-provide private clone tokens. Keep repository visibility unchanged pending an
-explicit owner decision.
+Inspect the actual production provider/model variables and secret names without
+printing values. Do not infer current settings from an old runbook or change
+providers as part of a round migration. The paired workflow supports OpenRouter,
+Amazon Bedrock and direct OpenAI; see [judge/README.md](../judge/README.md) and
+[OPENAI_JUDGE.md](./OPENAI_JUDGE.md). Only the selected judge step receives its key;
+intake/experiments and final scoring remain in separate credential-free jobs.
+The importer needs separate production authorization, not a judge key. Never
+copy a dev `.env` or place credentials in notes, source, candidates or artifacts.
 
-Provision importer and provider credentials separately through approved secret
-channels. Never copy a dev `.env`, commit credentials, or include private local
-paths in submission or release notes. The repository already has the Actions
-secret name `AWS_BEARER_TOKEN_BEDROCK` and these variables:
+Verify repository read access, production App permissions, Discussions and the
+Announcement-format `Research Notes` category as applicable. Do not change
+repository visibility or permissions implicitly during this migration.
 
-- `HASHSMASH_JUDGE_PROVIDER=bedrock`
-- `HASHSMASH_BEDROCK_MODEL=us.openai.gpt-5.6-sol`
-- `HASHSMASH_BEDROCK_REGION=us-east-1`
+## Existing registrations and qualification
 
-Their presence does not verify usable provider access or baseline qualification.
-Only the judge step receives the provider credential; preserve isolated intake,
-experiments and scoring as implemented in the workflow. The importer needs its
-own production-authorized `YUKON_API_KEY` or `YUKON_API_TOKEN` in the process
-environment. Confirm importer account eligibility with the production operator.
+Use the actual production challenge reference and IDs. Reconciliation preview
+must retain six records, add r37/r38, and archive none. Record and resolve the
+pending job/review inventory as described in the handoff. Changed target
+configuration requires fresh bound evidence/review; successful addition workflows
+do not refresh retained sibling records. Reorg includes all nonarchived tracks,
+including closed r31/r32, and must preserve their closed state.
 
-Verify Discussions and an Announcement-format category named exactly
-`Research Notes`, plus the App's Discussions access. Enabling Discussions alone
-does not create that category or establish App eligibility.
+Each required qualification records the exact source, candidate/package hash,
+target/configuration hash, baseline job, workflow run/attempt, artifact IDs/digests,
+review outcome and score if emitted. Inspect unresolved obligations. Only a
+qualifying selected-lane review can emit the exact manifest-relative score path.
+Do not bypass strict gates or reuse an old configuration hash to keep history green.
+Historical results remain historical; a fresh review is a separate record.
 
-## Six fresh baselines
-
-Import repository-root `benchmark.json` with no `rootDir` override. The six
-exploratory track names and submitted `time_log2` bounds are:
-
-| Track | Declared bound | Accounting |
-| --- | ---: | --- |
-| `sha256-r31-exploratory` | 136 | Existing algorithm, v5 costs with C=2140 |
-| `sha256-r32-exploratory` | 136 | Existing algorithm, v5 costs with C=2224 |
-| `sha3-256-r5-exploratory` | 137.785 | Existing algorithm, v5 costs with C=1355 |
-| `sha3-256-r6-exploratory` | 137.4 | Existing algorithm, v5 costs with C=1626 |
-| `blake3-r1-exploratory` | 149 | Unchanged declaration |
-| `blake3-r2-exploratory` | 140 | Unchanged declaration |
-
-The four SHA packages refine the declarations in production base
-`0455d2b52f4f920fe5c3a6af8c71592a824e6a57` (tree
-`fc77941c70bde24a95105147a816cea4e6f50513`), whose donor was
-`94a9c97fc047bf8f00ed892f0e5c51e69d6c7e1a`. Each proof separates target
-compression/permutation calls H from ordinary word operations W and justifies
-`log2(H + W/C)` under [v5 accounting](./RESCORING.md). Targets, algorithms,
-success lower bounds and memory bounds are unchanged; these are replacement
-claims with self-contained derivations, not new cryptanalytic algorithms.
-
-These declarations are not newly qualified production scores. They match the
-four historical dev policy-change rescores, but ordinary judging checks the
-submitted bound and must review these changed packages afresh. Historical
-exploratory `plausible_not_refuted` judgments with `humanAccepted: false` do not
-qualify the replacement packages. All six exact-source production qualifications
-remain pending. A fresh import does not inherit dev IDs, submission histories
-or manual-review backlog. The active reorg plan remains empty; historical
-artifact mappings are not current qualification evidence.
-Retain the dev challenge and its outstanding reviews. Poseidon, rigorous, MD5,
-SHA-1 and Keccak[800] tracks remain outside this six-track import.
-
-Before import, review the exact merged source and all six packages under
-[CANDIDATE_QUALIFICATION.md](./CANDIDATE_QUALIFICATION.md). Bind intake evidence,
-review and score to those immutable inputs and current configuration. Reuse the
-existing donor offline audit for unchanged source: all 257 tests passed (252
-original passes plus five Docker fixture follow-up passes), along with configuration
-validation and six mechanical intake passes. The fixture tests use fake reviewers;
-these results do not establish live provider access or production baseline
-qualification. Changed packages or evaluation configuration require fresh evidence
-and review; deployment-only documentation does not tighten any submitted bound.
-
-## Stage the production import without opening
-
-Use an inspected Yukon checkout. The importer command was verified at Yukon
-`5f79ad1009291f155f6664e895efefa9b72de340`; its package alias is
-`import-benchmark`. From that repository, with the importer credential already
-provisioned in the process environment, run:
+Run the required offline suite before any separately authorized live judging:
 
 ```sh
-bun run scripts/import-benchmark.ts https://github.com/Layr-Labs/hash-smash --prod
+bash .yukon/setup.sh
+python3 scripts/validate_frontier_config.py
 ```
 
-This command creates a production import and waits for baselines. Omit `--open`.
-The optional timestamp on `--open` is a closing time, not a scheduled launch.
-Inspect the command's resolved production API and intended setter/challenge name
-before use; add `--name` only for an explicitly agreed namespace. The inspected
-importer has no source-branch flag: verify `main` is the repository default and
-that the resolved import commit is the exact reviewed release. Check for an
-existing production registration before creating a fresh one. A timeout does not
-cancel the import; inspect returned IDs before retrying an uncertain request.
+The tests use organizer fixtures and fake reviewers. Their success proves harness
+behavior, not cryptanalytic qualification, production registration, UI readiness
+or a successful live migration. New drafts must continue to fail readiness gates.
 
-Record all six production track IDs, resolved source commit, baseline job IDs,
-GitHub run URLs, App actor, evidence/review fingerprints, review labels and scores.
-Verify the artifact's exact repository-relative score path under
-`lanes/exploratory/.yukon/scores/`, successful qualification for all six tracks,
-and no successful score artifact on failure. Keep the ready challenge unopened.
+## A separately intended fresh registration
 
-Read back `promotionMode: manual` on every production registration. A qualifying
-improvement must enter owner review without changing the promoted best; the owner
-accepts the inspected candidate SHA through Yukon before Yukon queues promotion.
-Before launch, verify legitimate improvement, protected-path rejection and
-sibling preservation through the real production lifecycle. Do not manufacture
-improvement claims or manually merge a submission PR to test this sequence.
+Do not use a new import to update the existing production challenge: it creates
+new identities without transferring history. Only when a separate registration
+is explicitly intended, inspect the installed Yukon importer and resolved API,
+repository, default branch, source commit and setter namespace. Import the root
+`benchmark.json` with no `rootDir`; eight baselines must qualify. Keep admission
+unopened and close the two historical SHA registrations explicitly. Never retry
+an uncertain import without inspecting its returned records.
 
-Final launch time, visibility, rewards, production UI references and human signoffs
-remain separate owner decisions. Open submissions only after explicit launch
-approval and completion of the production verification gates.
+This repository's helper has no production option. Use the current supported
+production owner/importer workflow from an inspected Yukon checkout. Do not infer
+an `--open` timestamp is a scheduled launch; confirm its meaning on that version.
+
+## Restore admission only after verification
+
+Verify `promotionMode: manual`, exact IDs/settings and protected-path rejection.
+A qualifying improvement enters owner review without changing the promoted best;
+the owner accepts the inspected candidate SHA through Yukon before promotion.
+Preserve accepted submissions, manual decisions, workflow provenance and all
+sibling candidates. Never manufacture an improvement or manually merge a Yukon
+submission PR to test the lifecycle.
+
+The separate Yukon UI change must preserve old result URLs and display the new
+rounds using their actual IDs. Final opening/resumption of the intended six,
+UI release, reward decisions and human signoffs require the rollout's explicit
+operator authorization. r31/r32 must remain closed.

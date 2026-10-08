@@ -38,7 +38,7 @@ for name, operation in {
 
 def reference_costs():
     result = {}
-    for algorithm, rounds_set in (("md5", (63, 64)), ("sha1", (79, 80)), ("sha256", (31, 32))):
+    for algorithm, rounds_set in (("md5", (63, 64)), ("sha1", (79, 80)), ("sha256", (31, 32, 37, 38))):
         for rounds in rounds_set:
             Word.operations = 0
             state = tuple(Word(x) for x in hash_functions.IV[algorithm])

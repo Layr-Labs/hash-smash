@@ -22,7 +22,7 @@ class ReviewPacketTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory(prefix="hashsmash-packet-test-")
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-        self.track = exporter.active_track("sha256-r31-exploratory")
+        self.track = exporter.active_track("sha256-r37-exploratory")
         self.candidate = candidate_fixture(self.root, self.track)
 
     def build(self, **kwargs):

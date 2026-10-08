@@ -92,9 +92,9 @@ class FrontierPipelineTests(unittest.TestCase):
         candidate = candidate_fixture(root, track, ready=ready)
         return pipeline.RunPaths.for_track(track, state_root=root / "state", candidate=candidate)
 
-    def test_every_active_track_runs_end_to_end_with_independent_bound_outputs(self):
+    def test_every_registered_track_runs_end_to_end_with_independent_bound_outputs(self):
         tracks = frontier_tracks()
-        self.assertEqual(len(tracks), 24)
+        self.assertEqual(len(tracks), 26)
         manifest = read_json(ROOT / "benchmark.json")
         atomic_write_json(self.root / "benchmark.json", manifest)
         manifest_tracks = {row["name"]: row for row in manifest["tracks"]}
@@ -138,18 +138,18 @@ class FrontierPipelineTests(unittest.TestCase):
                 outputs.add(paths.score)
                 configs.add(score["metrics"]["targetConfigSha256"])
                 packages.add(score["metrics"]["inputPackageSha256"])
-        self.assertEqual(len(outputs), 24)
-        self.assertEqual(len(configs), 24)
-        self.assertEqual(len(packages), 24)
+        self.assertEqual(len(outputs), 26)
+        self.assertEqual(len(configs), 26)
+        self.assertEqual(len(packages), 26)
 
     def test_catalog_and_yukon_manifests_preserve_pending_slots_and_literal_routes(self):
         slots = planned_slots()
-        self.assertEqual(len(slots), 28)
+        self.assertEqual(len(slots), 26)
         self.assertEqual(sum(slot["rounds"] is None for slot in slots), 4)
         self.assertEqual({slot["cost_model_id"] for slot in slots}, {"collision-frontier-v5"})
         families = {family["id"]: family for family in catalog()["families"]}
-        self.assertEqual(families["sha256"]["round_pair"], [31, 32])
-        for family, pair in (("blake3", [1, 2]), ("keccak800", [5, 6])):
+        self.assertEqual(families["sha256"]["round_pair"], [37, 38])
+        for family, pair in (("sha256", [37, 38]), ("blake3", [1, 2]), ("keccak800", [5, 6])):
             self.assertEqual(families[family]["round_pair"], pair)
             self.assertEqual(families[family]["selection_status"], "organizer_selected")
             self.assertIsNone(families[family]["first_unbroken_round"])
@@ -163,7 +163,7 @@ class FrontierPipelineTests(unittest.TestCase):
         manifest = read_json(ROOT / "benchmark.json")
         self.assertEqual(manifest["schemaVersion"], 2)
         self.assertEqual(manifest["name"], "hashsmash")
-        self.assertEqual(len(manifest["tracks"]), 6)
+        self.assertEqual(len(manifest["tracks"]), 8)
         for row in manifest["tracks"]:
             track = get_frontier_track(row["name"])
             self.assertEqual(row["benchmarkCommand"], ["python3", "scripts/hashsmash_pipeline.py", "all", "--track", track.id])
@@ -177,6 +177,7 @@ class FrontierPipelineTests(unittest.TestCase):
             self.assertFalse((ROOT / "lanes" / lane / "benchmark.json").exists())
         self.assertEqual(manifest_ids, {
             "sha256-r31-exploratory", "sha256-r32-exploratory",
+            "sha256-r37-exploratory", "sha256-r38-exploratory",
             "sha3-256-r5-exploratory", "sha3-256-r6-exploratory",
             "blake3-r1-exploratory", "blake3-r2-exploratory",
         })

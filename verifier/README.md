@@ -2,25 +2,25 @@
 
 This package is the credential-free, standard-library verification layer for the
 [paired frontier lanes](../docs/FRONTIER_LANES.md). Every command requires an
-explicit organizer track ID, such as `sha256-r31-exploratory`. That selection binds
+explicit organizer track ID, such as `sha256-r37-exploratory`. That selection binds
 the target, round count, digest width, cost model, nominal reference and lane policy.
 
 The organizer pipeline coordinates intake, experiments, review and scoring:
 
 ```sh
-python3 scripts/hashsmash_pipeline.py intake --track sha256-r31-exploratory
+python3 scripts/hashsmash_pipeline.py intake --track sha256-r37-exploratory
 ```
 
 For direct mechanical checks, run from the repository root:
 
 ```sh
 python3 -m verifier intake \
-  --track sha256-r31-exploratory \
-  --candidate lanes/exploratory/candidates/sha256-r31 \
+  --track sha256-r37-exploratory \
+  --candidate lanes/exploratory/candidates/sha256-r37 \
   --output-dir artifacts/intake
 python3 -m verifier certificates \
-  --track sha256-r31-exploratory \
-  --candidate lanes/exploratory/candidates/sha256-r31 \
+  --track sha256-r37-exploratory \
+  --candidate lanes/exploratory/candidates/sha256-r37 \
   --output artifacts/certificates.json
 ```
 

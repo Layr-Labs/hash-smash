@@ -1,0 +1,312 @@
+{
+  "base_commit": "453b888ec54f554e63250dd2c26d638c254c2358",
+  "scope": "Repository-only offline audit; no qualification or live rollout.",
+  "existing_lanes_checked": 24,
+  "existing_configurations_changed": 24,
+  "new_reference_operation_costs": {
+    "sha256-r37": 2644,
+    "sha256-r38": 2728
+  },
+  "original_manifest_entries_unchanged": 6,
+  "new_manifest_entries": [
+    "sha256-r37-exploratory",
+    "sha256-r38-exploratory"
+  ],
+  "existing_lane_profile_reorg_files_unchanged": 140,
+  "existing_candidate_files_unchanged": 123,
+  "existing_target_profiles_unchanged": 13,
+  "historical_reorg_files_unchanged": 4,
+  "shared_changes": [
+    "verifier/frontier_tracks.py",
+    "schemas/claim-frontier-v3.schema.json",
+    "cost-models/collision-frontier-v5.json"
+  ],
+  "yukon_unsafe_required": true,
+  "live_refresh_scope": "All eight nonarchived records after adding r37/r38, preserving r31/r32 closed state.",
+  "existing_lanes": [
+    {
+      "track_id": "md5-s63-exploratory",
+      "before_config_sha256": "49cb974712e9757ee2004fe5e26cb4cf7e60d3c4cbb850a2554d8a3b4d4d0e10",
+      "after_config_sha256": "18e99979168b2e71afcbe606d07bd37d45ab5ad2874810645558120d58b4b6e5",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "md5-s63-rigorous",
+      "before_config_sha256": "88e526125dd7cce632d47744f53928b31fcc56c1833dc9bd96b3d75e2f1cc077",
+      "after_config_sha256": "89797b00b48faac1ab6ea44cd0a73978ecec674ae3f1d14a2b54d804cb5a0595",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "md5-s64-exploratory",
+      "before_config_sha256": "17daf41df1cc223c966096d296dd8a63b9437009adc306830331d582e3c671a2",
+      "after_config_sha256": "b03992c8c17593ebc107ce95372ba6f819b4e6e19013928c9b6254d285ade2f2",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "md5-s64-rigorous",
+      "before_config_sha256": "08662769701ee22cdce269a6d7590253e95b12bd39a1e6e909361a32c55b55c9",
+      "after_config_sha256": "66f0d7a0a707fc24d1f96aa4441c9f6a3e11fbd9ebee265d4fb785c5b6af071a",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "sha1-r79-exploratory",
+      "before_config_sha256": "8a5cb30a4f4a0be2c00b3ba9e3e50c151cb722914ced83308c0cc14a71f80528",
+      "after_config_sha256": "8c0af2caef631bedabae0deb3f5df70bda464e02af9c9152a79c068c2327ca00",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "sha1-r79-rigorous",
+      "before_config_sha256": "01f900436b937e6ec52de237ee7dae4cd33515da9f0d5ca2397c6010bd1fb89a",
+      "after_config_sha256": "6a7c78b058e34ee4fb1968ee919a39238eb4890c27c8847cb790bd1b25d23154",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "sha1-r80-exploratory",
+      "before_config_sha256": "dc4673e6bd8687b630f6752ba3812853c339769013ba0d097b5999ecec29f785",
+      "after_config_sha256": "4ff3e87cc0ca1b96da0a08ef113cd8dcf46e700ff024b818636b4b57642500f1",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "sha1-r80-rigorous",
+      "before_config_sha256": "3c23951dd63139af0f14877d48f3bb2ed5bd33c05574c042ad13eb25811f2c8c",
+      "after_config_sha256": "72782c1ab65a33de8c5ef364ed3e0863d51dd28a8ed4e1ac1b900ef069446bb9",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "sha256-r31-exploratory",
+      "before_config_sha256": "144548d6d2b557eef521549cd531cf3e3120fb9b4d60515cf8311aa682c6d2b5",
+      "after_config_sha256": "4a8f30842b095b2c73d2de5a305caa8244ca271eaf739fb9bef1175ac015d822",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "sha256-r31-rigorous",
+      "before_config_sha256": "8d18f2d3953f654ee07250a39d7c231c57fb3a4cece68897909d026ac9ff72c9",
+      "after_config_sha256": "bc464e6c7c4f1bef0e8716f10265c52680837be18fd8e3fdcd6e8e16525e7eaa",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "sha256-r32-exploratory",
+      "before_config_sha256": "1f4df1d55fd3e088ea291dc462201178537c48e9a239ce1072699708b7fea9be",
+      "after_config_sha256": "1f7dd4c3346e476d092b69a6197efd53d5a233967ab832afd0af9d297375cac1",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "sha256-r32-rigorous",
+      "before_config_sha256": "52b3a7b944ad565f17853ace8883319df25dd371fc09b9a682fcd2a80a70f12f",
+      "after_config_sha256": "c8150b232860a901b93ee8b59adb288242a6e185e8fb6364fea39589a6931c47",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "sha3-256-r5-exploratory",
+      "before_config_sha256": "c55e8c60a38d9c793104aadc091729e8b75941265c2b4f2886cac30505518866",
+      "after_config_sha256": "f284a340ad32cfb11e80903f892c71b9d40ba0696153e4589b47a70a9b83e74f",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "sha3-256-r5-rigorous",
+      "before_config_sha256": "c01ec536856a53c606ccadb5abd14f44ec7afbc141c673268a119ceae325a349",
+      "after_config_sha256": "0c8ee8bd9b4c50968e786bd0a0bdca77709fe92253a1d5d6e560ea4fa077ca4b",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "sha3-256-r6-exploratory",
+      "before_config_sha256": "8bc09b762bc00d4436ec877466b12d87692d23e2682435c058a8f8c3b9d545cf",
+      "after_config_sha256": "f74fe7d46ad9a944592b8d8ab359f2e4dd7bb91aa61d2229134ab25bf5c30e10",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "sha3-256-r6-rigorous",
+      "before_config_sha256": "8ce937f8876ad78c3621b2f8cb40e1e3b4e923c6cbeeca40a855a1d653b196d9",
+      "after_config_sha256": "cce2ec527ee2487dba84dbc011d0175eaa3c97e8fa3d48e2f1fc17020e874e82",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "blake3-r1-exploratory",
+      "before_config_sha256": "174a7d253b25a9ce1fdf8f05efad1fab0631ad4f0935f958309edf9a107ddaf7",
+      "after_config_sha256": "03c3c957d63286fcdef5b606460d4fbe821e9b410c2968e01f48c7da651615ec",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "blake3-r1-rigorous",
+      "before_config_sha256": "8415840703eee76a818ba47d80169ed7a36b9499dac65d78eeca423eb964b05a",
+      "after_config_sha256": "4c206a70df1bbd18bb9b7fb35557ab090dd193a786b50a52319e701c01ca4f2d",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "blake3-r2-exploratory",
+      "before_config_sha256": "393226bc93b082b177b2f04ecf83cc4e0989a32e3734ef8355cc0c839d734054",
+      "after_config_sha256": "f86582f7f6a62f9e869a4df785969310a5cee044c12ca94cd065d19241291799",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "blake3-r2-rigorous",
+      "before_config_sha256": "2986e3fb486181a3178ac74ea99003a3dba7d6a447b34e7fe8ab24471ae8332d",
+      "after_config_sha256": "526e3a3b557b6f3f26beae2c925fb82b47b849b153f6b6597a4a0fe1c3ee681d",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "keccak800-r5-exploratory",
+      "before_config_sha256": "f379c0936af591bfa4a1e30413ad0c2216cb19a9c93c5c1408fc28cd9f31866d",
+      "after_config_sha256": "5995e869c8bee7059d164d63e7699a79f3003a441efb33c04194e032d3e53eeb",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "keccak800-r5-rigorous",
+      "before_config_sha256": "6835add23b03f5a28c7b83976a08efedc452b53837a1a1f38333757f2e665593",
+      "after_config_sha256": "5347dda6f624acd8d6490e83c80ad78d38a453776bf055b22b598b75c67de84a",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "keccak800-r6-exploratory",
+      "before_config_sha256": "7a20c924de58fabba1b574b96ac8fc20f3c4afa2e52439b5276ed36c909ba9ad",
+      "after_config_sha256": "cc9d601ddda2261e1c73d9229d0d987ca08177ca2be5ca0c0acd52acc0b9936f",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    },
+    {
+      "track_id": "keccak800-r6-rigorous",
+      "before_config_sha256": "163953e02e2fcdef06cab9624dac7b30ec4a678962467c572951e6fd95a62984",
+      "after_config_sha256": "384bf7655b322ca68cfa4fabb122b47cbe51bc005ba398b4e7f6625833519543",
+      "changed_components": [
+        "cost_model",
+        "qualification_policy",
+        "reference_checker_sha256"
+      ],
+      "selected_weights_unchanged": true
+    }
+  ],
+  "new_lanes": [
+    {
+      "track_id": "sha256-r37-exploratory",
+      "config_sha256": "3e8cc3387122592a1349a1b4937bf8843ee23f3c71cb0d4e7b3aec515b0e4189",
+      "selection": {
+        "status": "organizer_selected",
+        "boundary_role": "lower-exploration"
+      },
+      "qualified": false
+    },
+    {
+      "track_id": "sha256-r38-exploratory",
+      "config_sha256": "1240622223d057d2216e82f274765db69f56279f78dfb706022928fadf1aafc8",
+      "selection": {
+        "status": "organizer_selected",
+        "boundary_role": "upper-exploration"
+      },
+      "qualified": false
+    }
+  ]
+}

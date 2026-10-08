@@ -21,30 +21,63 @@ def catalog() -> dict:
         raise VerificationError("frontier catalog must describe seven algorithm families")
     if data.get("cost_model_id") != COST_MODEL_ID:
         raise VerificationError("all planned frontier slots must use the current cost model")
-    ids = set()
+    ids, track_ids = set(), set()
     for family in data["families"]:
+        if not isinstance(family, dict):
+            raise VerificationError("frontier family must be an object")
         key = family.get("id")
         if not isinstance(key, str) or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", key) or key in ids:
             raise VerificationError("invalid or duplicate frontier family")
         ids.add(key)
-        pair = family.get("round_pair")
-        if pair is None:
-            if family.get("selection_status") != "needs_definition":
-                raise VerificationError("missing rounds require needs_definition status")
-            continue
-        if (not isinstance(pair, list) or len(pair) != 2
-                or any(type(r) is not int for r in pair) or pair[0] < 1
-                or pair[1] != pair[0] + 1 or pair[1] > family["full_rounds"]):
-            raise VerificationError("frontier round pair must be consecutive valid round counts")
-        if family.get("selection_status") not in ("selected", "full_round_control", "organizer_selected"):
-            raise VerificationError("unconfirmed frontier family cannot become a runnable track")
-        if family["selection_status"] == "full_round_control" and family.get("first_unbroken_round") is not None:
-            raise VerificationError("broken full-round controls have no first-unbroken round")
-        if family["selection_status"] == "selected" and family.get("first_unbroken_round") != pair[1]:
-            raise VerificationError("selected frontier boundary must match upper round count")
-        if family["selection_status"] == "organizer_selected" and family.get("first_unbroken_round") is not None:
-            raise VerificationError("organizer exploration pairs do not assert a first-unbroken round")
+        history = family.get("historical_pairs", [])
+        if not isinstance(history, list):
+            raise VerificationError("historical pairs must be a list")
+        _validate_selection(family)
+        for previous in history:
+            if (not isinstance(previous, dict) or set(previous) != {
+                    "round_pair", "lanes", "first_unbroken_round", "selection_status", "selection_note"}
+                    or previous["round_pair"] is None):
+                raise VerificationError("historical pairs must preserve explicit selection and lane metadata")
+            _validate_selection({**family, **previous})
+        for selection in (family, *history):
+            for rounds in selection["round_pair"] or []:
+                for lane in selection.get("lanes", LANES):
+                    identity = (key, rounds, lane)
+                    if identity in track_ids:
+                        raise VerificationError("duplicate current or historical frontier track")
+                    track_ids.add(identity)
+    if data.get("planned_lane_count") != sum(
+            2 * len(f.get("lanes", LANES)) for f in data["families"]):
+        raise VerificationError("planned lane count must exclude historical pairs")
     return data
+
+
+def _validate_selection(family: dict) -> None:
+    lanes = family.get("lanes", list(LANES))
+    if (not isinstance(lanes, list) or not lanes
+            or any(not isinstance(lane, str) or lane not in LANES for lane in lanes)
+            or len(set(lanes)) != len(lanes)):
+        raise VerificationError("frontier selection needs distinct supported lanes")
+    if not isinstance(family.get("selection_note"), str) or not family["selection_note"].strip():
+        raise VerificationError("frontier selection needs a description")
+    pair = family.get("round_pair")
+    if pair is None:
+        if family.get("selection_status") != "needs_definition":
+            raise VerificationError("missing rounds require needs_definition status")
+        return
+    if (not isinstance(pair, list) or len(pair) != 2
+            or any(type(r) is not int for r in pair) or pair[0] < 1
+            or type(family.get("full_rounds")) is not int
+            or pair[1] != pair[0] + 1 or pair[1] > family["full_rounds"]):
+        raise VerificationError("frontier round pair must be consecutive valid round counts")
+    if family.get("selection_status") not in ("selected", "full_round_control", "organizer_selected"):
+        raise VerificationError("unconfirmed frontier family cannot become a runnable track")
+    if family["selection_status"] == "full_round_control" and family.get("first_unbroken_round") is not None:
+        raise VerificationError("broken full-round controls have no first-unbroken round")
+    if family["selection_status"] == "selected" and family.get("first_unbroken_round") != pair[1]:
+        raise VerificationError("selected frontier boundary must match upper round count")
+    if family["selection_status"] == "organizer_selected" and family.get("first_unbroken_round") is not None:
+        raise VerificationError("organizer exploration pairs do not assert a first-unbroken round")
 
 
 @dataclass(frozen=True)
@@ -60,6 +93,7 @@ class LaneTrack:
     nominal_security_bits: int
     selection_status: str
     boundary_role: str
+    retired: bool = False
 
     @property
     def challenge_root(self) -> Path:
@@ -176,25 +210,30 @@ class LaneTrack:
         return sha256_bytes(canonical_json_bytes(self.benchmark()))
 
 
-def frontier_tracks() -> tuple[LaneTrack, ...]:
+def frontier_tracks(*, include_retired: bool = True) -> tuple[LaneTrack, ...]:
+    """Resolve historical identities too; manifest membership is a separate choice."""
     result = []
     for family in catalog()["families"]:
-        if family["round_pair"] is None:
-            continue
-        for index, rounds in enumerate(family["round_pair"]):
-            target = f"{family['id']}-{'s' if family['algorithm'] == 'md5' else 'r'}{rounds}"
-            for lane in LANES:
-                result.append(LaneTrack(
-                    id=f"{target}-{lane}", algorithm=family["algorithm"], rounds=rounds,
-                    difficulty="frontier", purpose=family["selection_note"], lane=lane,
-                    target_id=target, output_bits=family["digest_bits"],
-                    nominal_security_bits=family["nominal_security_bits"],
-                    selection_status=family["selection_status"],
-                    boundary_role=("predecessor", "boundary")[index] if family["selection_status"] == "selected"
-                    else (("lower-exploration", "upper-exploration")[index]
-                          if family["selection_status"] == "organizer_selected"
-                          else ("penultimate-control", "full-round-control")[index]),
-                ))
+        selections = [(family, False)]
+        if include_retired:
+            selections += [({**family, **pair}, True) for pair in family.get("historical_pairs", [])]
+        for selection, retired in selections:
+            if selection["round_pair"] is None:
+                continue
+            for index, rounds in enumerate(selection["round_pair"]):
+                target = f"{family['id']}-{'s' if family['algorithm'] == 'md5' else 'r'}{rounds}"
+                for lane in selection.get("lanes", LANES):
+                    result.append(LaneTrack(
+                        id=f"{target}-{lane}", algorithm=family["algorithm"], rounds=rounds,
+                        difficulty="frontier", purpose=selection["selection_note"], lane=lane,
+                        target_id=target, output_bits=family["digest_bits"],
+                        nominal_security_bits=family["nominal_security_bits"],
+                        selection_status=selection["selection_status"], retired=retired,
+                        boundary_role=("predecessor", "boundary")[index] if selection["selection_status"] == "selected"
+                        else (("lower-exploration", "upper-exploration")[index]
+                              if selection["selection_status"] == "organizer_selected"
+                              else ("penultimate-control", "full-round-control")[index]),
+                    ))
     return tuple(result)
 
 
@@ -206,10 +245,10 @@ def get_frontier_track(track_id: str) -> LaneTrack:
 
 
 def planned_slots() -> list[dict]:
-    """All 28 requested slots, without inventing numbers for unresolved targets."""
+    """Current research slots, excluding retired pairs and unassigned lanes."""
     return [{"family": f["id"], "lane": lane, "position": position,
              "rounds": f["round_pair"][index] if f["round_pair"] else None,
              "selection_status": f["selection_status"], "note": f["selection_note"],
              "cost_model_id": COST_MODEL_ID}
             for f in catalog()["families"]
-            for index, position in enumerate(("lower", "upper")) for lane in LANES]
+            for index, position in enumerate(("lower", "upper")) for lane in f.get("lanes", LANES)]

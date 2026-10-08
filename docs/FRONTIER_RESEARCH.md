@@ -3,6 +3,22 @@
 Research date: 2026-09-04; organizer selection update: 2026-09-13. This is an organizer research note, not a qualified
 baseline, proof of security, or substitute for a frozen target profile.
 
+## Current SHA-256 selection (2026-10-07)
+
+The organizer has selected exploratory SHA-256 rounds **37/38**, with
+`selection_status: organizer_selected` and `first_unbroken_round: null`.
+This is an exploration choice, not a literature frontier or a claim of a matching
+attack. The 31/32 discussion below records the earlier selection; it is not evidence
+for attacks on 37/38 and is not an up-to-date literature survey. All four historical
+31/32 lane definitions remain distinct; their two exploratory registrations are to
+be closed, preserving public results.
+
+The new profiles retain standard SHA-256 IV, complete-message FIPS 180-4 padding,
+original constants and schedule, indices 0..36 or 0..37 on **every padded block**,
+per-block feed-forward and full 256-bit output. A result for a different round
+subsequence, compression/free-start problem, or unpadded message is not a result
+for these targets. See the [migration handoff](./SHA256_ROUND_MIGRATION.md).
+
 ## What the mockup establishes
 
 The [mockup data](https://zooko.github.io/hashsmash-webdesigns/hashsmash-data.js)
@@ -18,7 +34,7 @@ implementation paper, not a collision-frontier source.
 Seven families × two round settings × two judging lanes = 28 lane slots. A slot
 can be reserved without claiming that its target or frontier has been established.
 
-## Recommended selections and unresolved entries
+## Historical recommended selections and unresolved entries
 
 | Family | Recommended pair | Status and precise interpretation |
 | --- | --- | --- |
