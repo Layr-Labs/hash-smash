@@ -11,9 +11,9 @@ The algorithm of Sections 4-5 outputs two distinct 128-byte messages whose compl
 
 | Field | Claimed | Computed (Sections 9-11) |
 |---|---|---|
-| time_log2 | 46.57 | total <= 103,964,590,923,548 units = 2^46.56309 |
-| preprocessing_log2 | 45.87 | C + D + E = 64,287,366,241,344 units = 2^45.86960 |
-| success_probability | 0.40 | >= 0.41069 |
+| time_log2 | 46.49 | total <= 98,278,802,824,929 units = 2^46.48195 |
+| preprocessing_log2 | 45.85 | C + D + E = 63,086,936,929,280 units = 2^45.84241 |
+| success_probability | 0.39 | >= 0.390105 |
 | memory_log2_bytes | 35 | 28,661,817,348 bytes = 2^34.739 |
 | nonuniform_advice_log2_bytes | 13 | < 8,192 bytes |
 
@@ -39,6 +39,7 @@ data-dependent work (Section 5.4). Heuristics enter only the success probability
   printed Fig. 6 and gave the 59-call ledger that Section 7 charges, together with its blind-rediscovery factor.
 - **hash-smash #227 (yudduy)** - a public 32-step pair of exactly this form. We use it only as corroboration (Section 3).
 - **hash-smash #134 (jagnani73)** - the precedent of pricing a measured solver run in CPU-seconds.
+- **hash-smash ddd666d3 (GordoAR)** - the counter cap W_cap = 254 T of Section 5.1.
 
 Every measured quantity used here is a participant measurement from the public records above. They are named and
 bounded in Section 6, and each enters through a declared heuristic. We did not re-run the 22 GB table or the charged
@@ -53,14 +54,19 @@ solver calls. The exception is the evidence for the CPU-second price in Section 
    32-step truncation from our own code, cross-checked with the organizer's `verifier/hash_functions.py:digest`.
 3. A fixed-work schedule whose counter charges are staged per test and per Step-3 stage (Section 5.4). The
    Step-2/3 work therefore costs about 239 counted operations per trial instead of about 461 under a flat per-candidate
-   charge. With T = 2^44.9 trials and a counter cap of 400 T operations, the online phase is 2^45.173 units.
+   charge. With T = 2^44.8075 trials and a counter cap of 254 T operations (the cap of GordoAR's ddd666d3), the online
+   phase is 2^45.0003 units.
 4. An exact integer ledger (Section 10) and a sensitivity table (Section 13).
-5. Our own evidence for the CPU-second price (Section 15): a per-form costing of the x86-64 CryptoMiniSat 5.11.21
-   code under the v5 primitive list, **new: a dynamic callgrind profile of that exact library on four SHA-256 CNF
-   solves, each executed instruction priced by its form (Section 15.5)**, and 17 instruction-rate runs of
-   CryptoMiniSat on SHA-256 CNF. The price is derived from the calibrated rate, our measured operations per executed
-   instruction and our measured rate spread: 2^21.677 units per CPU-second, instead of 2^22.527 in our previous
-   package 49f8f6d4 (class pricing) and 2^23 in 841646f2.
+5. Our own evidence for the CPU-second price (Section 15). **New in this package: a callgrind profile of the charged
+   workload type itself (Section 15.6).** STP 2.3.4 with CryptoMiniSat 5.11.21, called as
+   `stp model.cvc --cryptominisat --threads N` on the authors' model re-parametrised as in #396, ran one call per
+   search step with its whole front end, plus one call run to its answer, and every executed instruction in every
+   object was priced by its form. We charge m_stp = 0.02 m_once + 0.98 m_search = 3.618 operations per
+   instruction: every search instruction at our costliest search minute, and 2% at our costliest one-off part. It
+   replaces the composed 3.6874 of our v4 package 23960a0e. The price is 2^21.650 units per CPU-second, instead of
+   2^21.677 in 23960a0e, 2^22.527 in 49f8f6d4 (class pricing) and 2^23 in 841646f2. The per-form costing of the
+   library, its profile on our SHA-256 CNF and the 17 rate runs of the earlier packages are kept (Sections
+   15.1-15.5).
 
 ## 1. Target, notation, success event
 
@@ -253,8 +259,9 @@ Steps 14-15 involve only advice words and the P4 entry, which is why P4 is share
 
 ### 5.1 Parameters
 
-T = ceil(2^44.9) = 32,828,179,945,388 trials, and a counter cap W_cap = 400 T counted operations. Nothing is
-restarted.
+T = ceil(2^44.8075) = 30,789,421,617,586 trials, and a counter cap W_cap = 254 T counted operations. Nothing is
+restarted. The cap 254 T follows hash-smash ddd666d3 (GordoAR); T is the smallest exponent at four decimals that keeps
+the success bound of Section 9 at or above 0.3901 under that cap.
 
 ### 5.2 One trial
 
@@ -330,7 +337,7 @@ subtraction (1); the bucket charge update (4); a bucket-edge load (1); and trial
 | Step-3 per-candidate success p | 2^-46 | the count of conditions: 45 printed by S for steps 16-22 and W20/W22, plus E16[29] = E17[29] (#26). #296's stage rates match the count through step 21 (22 survivors at step 19, 5 at 20, 1 at 21); the 13 W20/W22 carry conditions after step 21 are extrapolated |
 | valid-tuple pairs | E[C(V,2)] <= q * 2^-5 for V valid tuples in one trial | #296: 9 within-part pairs in 2^34 part-trials, plus a cross-part bound; the charge exceeds the estimate by more than 20x |
 | characteristic search | M_E = 593,858 solver CPU-s over 59 calls; output equals Fig. 6 | #396, Section 7 |
-| CPU-second price | kappa = 3,354,001 = 2^21.677 units per CPU-s | #396/#296 callgrind rate and class shares (Section 7); our dynamic per-form profile and rate spread (Section 15) |
+| CPU-second price | kappa = 3,290,832 = 2^21.650 units per CPU-s | #396/#296 callgrind rate (Section 7); our profile of the charged workload type and our rate spread (Section 15) |
 
 ## 7. The characteristic search (E)
 
@@ -366,33 +373,41 @@ was a different weight-22 pattern, and the tA = 21 threshold. #396 prices a blin
 
 We adopt the product 32 unchanged and declare it as part of heuristic `route-search-measured`.
 
-**CPU-second price kappa = 3,354,001 units = 2^21.677 units = 2^32.796 primitive operations per CPU-s.**
+**CPU-second price kappa = 3,290,832 units = 2^21.650 units = 2^32.769 primitive operations per CPU-s.**
 - Calibration (#296/#396): one deterministic solver call took 40.42, 41.07 and 41.10 native CPU-s, and retired
   44,197,378,388 instructions under callgrind with identical output. At the fastest time this is R_cal = 2^30.026
   instructions per CPU-s.
-- Class shares of that call (#296/#396): ordinary integer 92.3%, unmapped 7.24% (identified as PLT stubs), divide
-  0.305%, floating point 0.085%, multiply 0.026%.
-- Operations per executed instruction (ours, Section 15.5). We profiled the exact library that ran the charged calls
-  (CryptoMiniSat 5.11.21 for x86-64, library SHA-256 878e2f2b...8659c0) under callgrind with per-instruction counts,
-  restricted to the solve call, on four SHA-256 CNF shapes of 19.1-23.1 billion executed instructions each. Every
-  executed instruction is priced by its form under the v5 primitive list (Section 15.1 table). Ordinary instructions
-  cost 1.880-1.956 operations on average. We take the largest, 1.956, and combine it with the calibrated call's own
-  class shares, taking the more expensive figure for each class:
-  m_dyn = (1 - 0.00416 - 0.0724) * 1.956 + 0.0724 * 3 + 0.00416 * 400 = 3.6874,
-  with PLT stubs at 3 operations (an indirect jump through memory, the largest PLT form) and every divide, multiply
-  and floating-point instruction at 400. Our own runs had a heavy share of 0.21-0.30%, below the 0.416% charged, and
-  their all-inclusive mean was 2.797-3.106, so m_dyn is at least 19% above every profiled run.
+- Operations per executed instruction (ours, Section 15.6). We profiled the charged workload type under callgrind:
+  STP 2.3.4 linked with CryptoMiniSat 5.11.21, called as `stp model.cvc --cryptominisat --threads N`, on the
+  authors' model re-parametrised as above. Four calls, one per search step at 1, 2, 4 and 8 threads, each ran its
+  whole STP front end (1.61-1.83e11 instructions) and then 4-5 minutes of
+  search under callgrind (4.7-7.4e10 instructions). A fifth call, E, repeated
+  Step 2 until STP returned its answer. Every executed instruction in every object is priced by its form under the
+  v5 primitive list (Section 15.1 table).
+  - Front end: 3.931-3.938 operations per instruction; heavy share 0.52%,
+    mostly `div` in hash-table indexing.
+  - Search: 2.562-3.009 per instruction over each whole search; 1-2 minute windows 2.12-3.59. The
+    costliest windows are memmove-heavy phases; run E, which repeated C's model to its answer, passed through one
+    (3.58) and returned to 2.06, with a whole-search mean of 2.894.
+  - We charge **m_stp = 0.02 m_once + 0.98 m_search = 0.02 * 4.924 + 0.98 * 3.591 = 3.618**: every search
+    instruction at our costliest minute, and 2% of the instructions at the costliest one-off part (front end or the
+    seconds after a stop signal). One-off parts were at most 0.96% of the charged instructions: 59 calls,
+    each with one front end of at most 1.83e11 and one end part of at most
+    1.30e10 instructions, against at most S * R_cal * 593,858 = 1.20e15. Our
+    profiled calls spent 70-79% in the front end only because we stopped their searches early.
 - Rate spread S = 1.85 (ours, Section 15.2): over 14 single-thread CryptoMiniSat runs on SHA-256 CNF, the
   instructions per CPU-s on one machine varied by at most a factor 1.842 (max/min). We allow S = 1.85 for the step
   from the one calibrated call to the 59 charged calls.
-- kappa = ceil(R_cal * m_dyn * S / C) = ceil((44,197,378,388 / 40.42) * 3.6874 * 1.85 / 2224) = 3,354,001. It allows
-  6.82 operations per instruction at R_cal.
-- Our previous package 49f8f6d4 priced every ordinary instruction at a class price of 5 (m_class = 6.6432,
-  kappa = 6,042,470), because only a static costing of the code was available then. The dynamic profile replaces that
-  class price. Section 13 gives the sensitivity: the class price gives 47.140, and an ordinary mean of 3 operations
-  (53% above our largest measurement) gives 46.778.
+- kappa = ceil(R_cal * m_stp * S / C) = ceil((44,197,378,388 / 40.42) * 3.618 * 1.85 / 2224) = 3,290,832. It
+  allows 6.69 operations per instruction at R_cal.
+- Earlier prices. Our v4 package 23960a0e composed m_dyn = 3.6874 from the ordinary mean 1.956 of the same library
+  run through its Python binding on our SHA-256 CNF and the calibrated call's class shares (7.24% PLT stubs at 3,
+  0.416% heavy at 400). The measured mean of the charged workload type replaces that composition. Our whole-call
+  heavy share, 0.43-0.46%, is close to the credited 0.416%, and PLT stubs are priced at their
+  call sites (Section 15.6). 49f8f6d4 priced every ordinary instruction at 5 (m_class = 6.6432). Section 13 gives both
+  as sensitivity: 46.499 and 47.097 at this T and cap.
 
-**Charge.** E = 32 * 593,858 * 3,354,001 = 63,737,610,427,456 units = 2^45.857210.
+**Charge.** E = 32 * 593,858 * 3,290,832 = 62,537,181,115,392 units = 2^45.829779.
 
 ## 8. Starting solution (D) and table build (C)
 
@@ -401,7 +416,7 @@ unit; this solution is our advice. Read as 35-step compressions, 2^34.3 is below
 reference costs (2140 operations for 31 steps, 2224 for 32) give 84 operations per step, so a 35-step compression costs
 at most 2224 + 3 * 84 = 2476 operations, i.e. 1.114 units. #296 ran the same task twice with the authors' exact value model and all signed rows asserted: 534.1 and
 374.7 CPU-s, both outputs checked exactly. At the kappa of Section 7 and a factor 32 those runs price the task at
-32 * 908.8 * 3,354,001 = 2^36.51 units (2^37.83 at kappa = 2^23). We charge **D = 2^38 = 274,877,906,944 units**,
+32 * 908.8 * 3,290,832 = 2^36.48 units (2^37.83 at kappa = 2^23). We charge **D = 2^38 = 274,877,906,944 units**,
 which covers every reading.
 
 **C.** The loop iteration counts are:
@@ -432,7 +447,7 @@ Let V be the number of valid tuples in a trial and X the number of conforming P4
   tuples of the same trial only add chances, so the bound uses one.
 
 Trials use fresh coins and are independent. If U is the event that some trial among the T uncapped trials succeeds,
-then Pr[U] >= 1 - (1 - s)^T >= 1 - exp(-sT). With T = 32,828,179,945,388, sT = 0.528823, so Pr[U] >= 0.410701.
+then Pr[U] >= 1 - (1 - s)^T >= 1 - exp(-sT). With T = 30,789,421,617,586, sT = 0.495981, so Pr[U] >= 0.391027.
 
 **Cap stop.** Let X_t be the counted operations of trial t in the uncapped run, and S = X_1 + ... + X_T. If S <= W_cap,
 the capped run behaves exactly like the uncapped one. So Pr[success] >= Pr[U] - Pr[S > W_cap].
@@ -456,31 +471,32 @@ Here 2^-17.3166 is the upper confidence limit of q. A trial's Step-3 work is at 
 This gives E[X^2] <= 3 (6.234e5 + 1.373e7 + 2.145e12) = 6.436e12. By Chebyshev,
 
 ```
-Pr[S > 400 T] <= T * E[X^2] / (T * (400 - 238.94))^2 = 6.436e12 / (25,940 * T) <= 7.56e-6.
+Pr[S > 254 T] <= T * E[X^2] / (T * (254 - 238.943))^2 = 6.436e12 / (226.72 * T) <= 9.22e-4.
 ```
 
-**Result.** Pr[success] >= 0.410701 - 0.0000076 = **0.41069 >= 0.40 claimed** (> 0.39 required). The claim does not
-rely on rounding: the margin is 0.0107.
+**Result.** Pr[success] >= 0.391027 - 0.000922 = **0.390105 >= 0.39 claimed** (= the required minimum). The claim
+does not rely on rounding: the margin is 0.000105. A second moment 10 times larger than charged would lower the bound
+to 0.3818 (Section 13).
 
 ## 10. Time ledger (exact)
 
 All figures are in target-compression units; C = 2224.
 
 ```
-A + B = ceil((T * (2224 + 64) + 400 * T) / 2224) + 8
-      = ceil(32,828,179,945,388 * 2,688 / 2224) + 8
-      = 39,677,224,682,204 units = 2^45.1734
-        (T first-block compressions; 64 fixed ops per trial; the counted cap 400 T;
+A + B = ceil((T * (2224 + 64) + 254 * T) / 2224) + 8
+      = ceil(30,789,421,617,586 * 2,542 / 2224) + 8
+      = 35,191,865,895,649 units = 2^45.0003
+        (T first-block compressions; 64 fixed ops per trial; the counted cap 254 T;
          8 units for the final 6-compression verification, the comparison and the refused-cap test)
 C     =             274,877,906,944 = 2^38
 D     =             274,877,906,944 = 2^38
-E     =          63,737,610,427,456 = 2^45.857210   (32 * 593,858 CPU-s * 3,354,001)
-total =         103,964,590,923,548 = 2^46.563086  <=  2^46.57 = 104,464,059,367,307
-C + D + E =      64,287,366,241,344 = 2^45.869600  <=  2^45.87
+E     =          62,537,181,115,392 = 2^45.829779   (32 * 593,858 CPU-s * 3,290,832)
+total =          98,278,802,824,929 = 2^46.481946  <=  2^46.49 = 98,829,022,172,438
+C + D + E =      63,086,936,929,280 = 2^45.842407  <=  2^45.85
 ```
 
-The claimed time_log2 = 46.57 leaves a factor of 1.0048 in reserve, about 33 operations per trial beyond the itemised
-charges. It does not depend on rounding the exponent.
+The claimed time_log2 = 46.49 leaves a factor of 1.0056 in reserve. It does not depend on rounding the
+exponent.
 Every term above is a hard bound given its charge: A and B follow from T and W_cap on every coin sequence, and C, D
 and E are one-time charges. Parallel execution does not change these totals.
 
@@ -513,36 +529,44 @@ signed rows, 71 two-bit conditions, the readings, 18 advice words and the round 
 - `route-search-measured` (score-critical). Re-deriving S's characteristic costs at most 32 * 593,858 solver CPU-s.
   - Evidence: #396's completed 59-call run, which printed Fig. 6 (Section 7).
   - The factor 32 is priced from the run ledger, not executed.
-- `cpu-second-pricing` (score-critical). One solver CPU-second costs at most kappa = 3,354,001 units (2^32.80
+- `cpu-second-pricing` (score-critical). One solver CPU-second costs at most kappa = 3,290,832 units (2^32.769
   operations).
-  - Evidence: the callgrind rate and class shares (Section 7), our dynamic per-form profile of the same library
-    (Section 15.5), our rate runs (Section 15.2).
-  - Assumption: the charged calls retire at most 1.85 times the calibrated instructions per CPU-s, and their ordinary
-    instructions cost at most 1.956 operations on average, the largest of our four profiled shapes.
+  - Evidence: the credited callgrind rate (Section 7), our callgrind profile of STP + CryptoMiniSat on the
+    re-parametrised model (Section 15.6), our rate runs (Section 15.2).
+  - Assumption: the charged calls retire at most 1.85 times the calibrated instructions per CPU-s, and their
+    instructions cost at most m_stp = 3.618 operations on average: no long stretch of their search costlier than
+    our costliest search minute (3.591), and one-off work (front ends, call ends) at most 2% of their
+    instructions.
 - `starting-solution-cost` (supporting). The Step-1 starting solution costs at most 2^38 units (Section 8).
 - `work-moments` (supporting). These are the occupancy, multiplicity and stage-pass inputs to E[X] and E[X^2].
-  - They affect only the 7.6e-6 cap-stop term, and through it the success bound.
+  - They affect only the 9.22e-4 cap-stop term, and through it the success bound.
 - `search-peak-memory` (supporting). The solver peak is at most 2^33 bytes. This affects memory only.
 
 ## 13. Sensitivity and limitations
 
 | Change | Total time_log2 |
 |---|---|
-| as charged (kappa 2^21.677, factor 32) | 46.563 |
-| ordinary mean 2.5 instead of 1.956 (kappa 2^21.862) | 46.679 |
-| ordinary mean 3 (kappa 2^22.013) | 46.778 |
-| class price of 49f8f6d4 (kappa 2^22.527) | 47.140 |
-| kappa 2^23 (841646f2) | 47.504 |
-| spread S = 1 / 2.5 / 3.63 instead of 1.85 | 46.086 / 46.845 / 47.232 |
-| factor 16 | 46.035 |
-| factor 64 | 47.253 |
-| factor 128 | 48.069 |
+| as charged (m_stp = 3.618, kappa 2^21.650, factor 32) | 46.482 |
+| m_stp + 10% / + 25% | 46.571 / 46.695 |
+| optimistic: largest whole-search mean 3.010 with a 25% front-end weight (m = 3.242) | 46.383 |
+| search priced at run E's complete-search mean 2.894 (m = 2.935) | 46.297 |
+| one-off weight 5% instead of 2% (m = 3.658) | 46.492 |
+| end parts merged into the preceding search window (costliest 3.656; m = 3.662) | 46.493 |
+| largest whole-call mean of our truncated calls (m = 3.730) | 46.510 |
+| m_dyn = 3.6874, the composition of 23960a0e (kappa 2^21.677) | 46.499 |
+| class price of 49f8f6d4 (kappa 2^22.527) | 47.097 |
+| kappa 2^23 (841646f2) | 47.472 |
+| spread S = 1 / 2.5 / 3.63 instead of 1.85 | 45.983 / 46.773 / 47.171 |
+| factor 16 | 45.929 |
+| factor 64 | 47.192 |
+| factor 128 | 48.022 |
 
-| p per entry | Success bound at T = 2^44.9 |
+| p per entry or second moment | Success bound at T = 2^44.8075, W_cap = 254 T |
 |---|---|
-| 2^-46 (charged) | 0.4106 |
-| 2^-46.5 | 0.3120 (below 0.39) |
-| 2^-47 | 0.2323 (below 0.39) |
+| 2^-46 (charged) | 0.3901 |
+| 2^-46.5 | 0.2949 (below 0.39) |
+| 2^-47 | 0.2187 (below 0.39) |
+| E[X^2] 10 times the charged bound | 0.3818 (below 0.39) |
 
 Limitations, stated plainly:
 - No participant run here rebuilt TAB2 or measured q, p or the search. Every rate is a credited public participant
@@ -554,9 +578,14 @@ Limitations, stated plainly:
   cost.
 - The CPU-second price uses one calibrated call for the instruction rate. Our rate runs used a different machine,
   instruction set and solver build, and enter only as a relative spread (Section 15.3).
-- Our dynamic profile ran the exact x86-64 library, but through its Python binding on our own SHA-256 CNF, single
-  threaded, not inside STP on the charged model. The STP front end is not profiled, and the STP-linked build may use
-  other compiler flags (Section 15.5).
+- Our profile of the charged workload type (Section 15.6) used our own binaries (Debian's CryptoMiniSat 5.11.21
+  and our STP 2.3.4 build) and our regeneration of the model from #396's description. Its search windows cover the
+  first minutes of each search (only E ran to its answer), while the charged calls searched for hours. The price
+  holds if no long stretch of their search cost more per instruction than our costliest minute (3.591). Our whole
+  searches averaged 2.562-3.009.
+- The cap 254 T leaves 15 operations per trial above the charged mean E[X] <= 238.94, so the cap-stop term
+  (9.22e-4) is larger than in 23960a0e. A second moment 10 times the charged bound would lower the success bound to
+  0.3818.
 - The organizer sandbox cannot hold a 22 GB table, and it cannot run CryptoMiniSat or read hardware counters, so no
   experiment is declared. The checks of Sections 14 and 15 are participant runs.
 
@@ -597,11 +626,12 @@ These checks establish that the written specification is consistent with the pub
 This section is our own work. It supports `cpu-second-pricing` and does not re-run any charged call. The price is
 kappa = R_cal * m * S / C (Section 7):
 - R_cal = 2^30.026 is the instruction rate of the calibrated call on the measurement machine (#296/#396);
-- m = m_dyn = 3.6874 is the number of primitive operations per retired instruction: our dynamic per-form profile
-  (Section 15.5) combined with the calibrated call's class shares (Section 7);
+- m = m_stp = 3.618 is the number of primitive operations per retired instruction, set from our profile of
+  STP + CryptoMiniSat on the re-parametrised model: 0.98 times the costliest search window plus 0.02 times the
+  costliest one-off part (Section 15.6);
 - S = 1.85 allows the charged calls to retire faster than the calibrated call. It comes from the spread we measured
   (Section 15.2).
-kappa = 3,354,001 allows 6.82 operations per instruction at R_cal.
+kappa = 3,290,832 allows 6.69 operations per instruction at R_cal.
 
 ### 15.1 Operations per instruction: per-form costing of the solver code
 
@@ -705,7 +735,7 @@ Results for the 14 single-thread runs:
   the calibrated call sat at the bottom of the range and every charged CPU-second at the top. The charged calls were
   long, multithreaded and large (5.25 GiB peak). In our runs those three properties lowered the rate or left it
   unchanged.
-- If the charged calls retired more than 1.85 times R_cal, or their ordinary instructions cost more than 1.956
+- If the charged calls retired more than 1.85 times R_cal, or their instructions cost more than m_stp = 3.618
   operations on average, kappa would no longer cover them. Section 13 gives the size of either effect.
 
 ### 15.4 Why no organizer experiment
@@ -715,7 +745,7 @@ output and does not credit runtime or operation counts. It cannot run CryptoMini
 rate cannot be re-measured there. Our scripts are participant tools: the CNF generator and rate harness (SHA-256
 8b78762691099e46...), the per-form costing (220b1ab3aad0e96f...) and the run log.
 
-### 15.5 Dynamic per-form profile of the charged library (new in this package)
+### 15.5 Dynamic per-form profile of the charged library on our SHA-256 CNF (v4)
 
 - Binary: CryptoMiniSat 5.11.21 for x86-64 from the pycryptosat 5.11.21 manylinux wheel, library SHA-256
   878e2f2b2f94a82331c775db2d05f957593be176e64692cd046f1998968659c0, the same file as Section 15.1. It ran as x86-64
@@ -738,9 +768,9 @@ rate cannot be re-measured there. Our scripts are participant tools: the CNF gen
 - Executed cost histogram for pair N=20: 1 operation 44.4%, 2 operations 37.2%, 3 operations 10.7%, 4 operations
   4.2%, 5 operations 2.4%, 8 operations 0.8%, 16-32 operations 0.06%, heavy (400) 0.23%. libm, where floating point
   runs at 72-74 operations per instruction, is 0.035-0.066% of the instructions.
-- How the profile enters the price: we take the largest ordinary mean, 1.956 (pre N=24). For the heavy share we take
-  the larger figure, 0.416% from the calibrated call (our runs: 0.21-0.30%). We add the calibrated call's 7.24% PLT
-  share at 3 operations. The result is m_dyn = 3.6874, at least 19% above every profiled run's all-inclusive mean.
+- How the profile entered the v4 price: the largest ordinary mean, 1.956 (pre N=24), the calibrated call's heavy
+  share 0.416% (our runs: 0.21-0.30%) and its 7.24% PLT share at 3 operations gave m_dyn = 3.6874. Section 15.6 now
+  sets the price from the charged workload type itself. This profile is kept as corroboration of the search mix.
 - Why it transfers: the price is for the charged calls on the measurement machine. What we measured is a property
   of the code: the operations per instruction of the instruction stream that this solver executes on SHA-256 CNF.
   The machine-dependent parts, the rate R_cal and the spread S, are unchanged.
@@ -755,6 +785,116 @@ rate cannot be re-measured there. Our scripts are participant tools: the CNF gen
   `runs.sh` runs the four profiles, and `dynall.py` prices them. `lbench.py` is the Section 15.2 generator with the
   macOS hardware counters removed.
 
+### 15.6 Profile of the charged workload: STP + CryptoMiniSat on the re-parametrised model (new in this package)
+
+Sections 15.1-15.5 profiled the solver library on our own SHA-256 CNF. This section profiles the workload type that
+was charged: STP calling CryptoMiniSat on the authors' characteristic model, front end included.
+
+- **Software.** STP 2.3.4 (github.com/stp/stp, tag 2.3.4, commit d70085462f07c8a5a2f1225f727cda3ef505b141; its
+  version banner still prints 2.3.3), built from source as a CMake Release build with GCC 14.2.0 and linked against
+  CryptoMiniSat 5.11.21 from Debian 13 (`libcryptominisat5-5.11t64` 5.11.21+dfsg1-2, library SHA-256
+  298eb3cdad9890641386738ed27d1f11790dd0d097e95bfe51d6374795c447f2). STP's MiniSat dependency (stp/minisat
+  62a143a12d059b53cf875db79867490d896546a5) is linked but not used under `--cryptominisat`. Binary SHA-256: `stp`
+  fc32a941006cd6db...28c7840, `libstp.so.2.3` 4d055c684933d36f...b970973c. Debian 13.7 linux/amd64 container,
+  valgrind 3.24.0, binutils 2.44.
+- **Call form.** `stp model.cvc --cryptominisat --threads N`, the form of the charged calls, with STP defaults
+  otherwise.
+- **Model.** The authors' library Peace9911/sha_2_attack at commit 6a9f35fd8d8bdcc1a54dc6f170ed0038ebe5bb32. Its
+  step, expansion and value functions (`find_dc/configuration/unit_function_256.py`: `sha_e`, `sha_a`,
+  `message_expand`, `sha2_value`) are imported unchanged. Our generator `gen396.py` (Appendix A.9) sets the
+  re-parametrisation of Section 7: steps 4..22, words W0..W34, differences only in W4..W8, W12, W13, W20 and W22, zero
+  A/E differences at steps 0..3, zero A differences at 15..22 and zero E differences at 19..22. Thresholds are `<=`
+  assertions on the sums of the difference bits (tw over W, tE over E, tA over A). From Step 2 on the signed W rows are
+  fixed to Fig. 6. The Step-3/4 model uses the signed expansion and the IF/MAJ value model at steps 4..8, as the
+  authors' `correct_dc_model_31_256.py` does for its own steps. The models have 41,581-44,400 one-bit variables
+  (19.2-20.1 MB of CVC). We did not have #396's model files, so these are our regeneration from its description.
+- **Calls.** One per search step, at thresholds at or next to the ledger's, with 1, 2, 4 and 8 threads, and E:
+
+| Call | Model and thresholds | Threads | CVC SHA-256 |
+|---|---|---|---|
+| A (Step 1) | difference model, tw <= 21 | 1 | dcb972aeb20d81eb... |
+| C (Step 2) | nabla W fixed to Fig. 6, tE <= 5 | 2 | be5749564d3c2474... |
+| D (Step 3) | signed model, nabla W fixed, tE <= 6, tA <= 18 | 4 | 00d518a6ca9f5e5e... |
+| B (Step 4) | signed model, nabla W fixed, tE <= 6, tA <= 21 | 8 | 43786f19e2e0979c... |
+| E (Step 2, run to its answer) | as C | 2 | as C |
+
+- **Method.** callgrind with `--dump-instr=yes` and `--dump-before='CMSat::SATSolver::solve*'`. The first dump holds
+  everything before the first solve call: parsing, STP's simplifications, bit-blasting and the transfer of the CNF to
+  CryptoMiniSat. After that a window was dumped every 60 s (75 s for B), and the call was stopped with SIGTERM after
+  240 s of search (300 s for B); valgrind writes the last part on that signal. E ran its front end uninstrumented
+  (`--instr-atstart=no`; instrumentation was switched on when CryptoMiniSat started its solver threads), dumped a
+  window every 120 s and ran until STP printed its answer (`Valid.`: tE <= 5 is infeasible, as #396 found). Every executed address in every object
+  (`stp`, `libstp`, `libcryptominisat5`, libc, libstdc++, libm, libgcc_s, ld.so, Boost) was matched to its
+  instruction in `objdump -d -M intel` of that object and priced by the Section 15.1 table (`x86ops.py`, unchanged).
+  Multiply and floating-point forms that the table does not list (`cmpnlesd`, `pmuludq`, `vfmadd132sd` and the like)
+  are heavy too: 400 per scalar operation, times the lanes of a packed form, times 2 for a fused multiply-add. GNU
+  objdump prints string instructions without a size suffix and repeats some prefixes (`data16 cs nop`); we normalise
+  both before the lookup, so a `rep movsb` iteration costs 6 and a padding `nop` 1. No executed form was left
+  unrecognised (0.00%). The summed per-instruction counts equal callgrind's own totals for every dump.
+- **PLT stubs and unmapped code.** callgrind's default `--skip-plt=yes` counts each PLT stub instruction at the call
+  instruction that entered it, so stubs are priced as that call (3 or more operations), at least their own price
+  (an indirect jump through memory, 3). 0.01-0.47% of the instructions ran outside any file-backed object and could
+  not be disassembled; each is charged 8.
+
+| Call | Front end: instructions, m | Search: instructions, m | Search windows: m | End part: instructions, m | Whole call: m |
+|---|---|---|---|---|---|
+| A | 1.833e11, 3.935 | 4.841e10, 2.562 | 2.68, 2.78, 2.64 | 13.01e9, 2.204 | 3.648 |
+| C | 1.611e11, 3.938 | 4.668e10, 3.009 | 2.99, 2.93, 2.76, 3.59 | 0.35e9, 4.924 | 3.729 |
+| E | not instrumented | 5.519e10, 2.894 | 2.59, 3.58 | 7.84e9, 2.058 | - |
+| D | 1.745e11, 3.931 | 5.473e10, 2.778 | 2.41, 2.47, 2.99, 2.91 | 3.32e9, 3.773 | 3.655 |
+| B | 1.745e11, 3.931 | 7.431e10, 2.675 | 2.12, 2.53, 3.01, 2.65 | 11.91e9, 2.982 | 3.556 |
+
+The search columns cover everything after the first solve call. Windows are the parts between
+periodic dumps; the end part runs from the last periodic dump to the exit. Heavy shares: front end 0.52%,
+search 0.18-0.27%.
+
+- **Front end against search.** The front end is the same code for all four models and costs 3.931-3.938 operations per
+  instruction, with a heavy share of 0.52%: mostly `div` in hash-table indexing (libstp at 4.1 and libstdc++ at
+  15 operations per instruction). The search runs in libcryptominisat5 (93-96% of its instructions) and libc. It
+  costs 2.562-3.009 per instruction, with a heavy share of 0.18-0.27%, mostly `comisd` and `imul`. Its ordinary mean,
+  1.689-1.928, is a little below the 1.880-1.956 of our binding runs (Section 15.5).
+- **The costly search phase is transient.** Some search windows are dominated by `rep movsb` copying in libc
+  memmove (up to 25% of the instructions, 6 operations per iteration), which lifts them to about 3.6. C and D were
+  stopped inside such a phase, so their last minute and the few seconds after the stop signal are their costliest
+  parts. Run E repeated C's model to completion: its 2-minute windows were 2.59, 3.58, 2.06 (the last one ends with the
+  solver's answer), and its whole search averaged 2.894. The phase passes and the search returns to its usual mix.
+- **How m is set.** We split every call into one-off parts, which a charged call also runs once (the front end, and
+  the end part from the last periodic dump to the exit), and search windows (the parts between periodic dumps, 60-120
+  s each). We charge
+
+  **m_stp = 0.02 m_once + 0.98 m_search = 0.02 * 4.924 + 0.98 * 3.591 = 3.618** (rounded up),
+
+  with m_once = 4.924, the costliest one-off part of any call (the few seconds of C after its stop signal; the front
+  ends cost 3.931-3.938), and m_search = 3.591, the costliest search window of any call. So every charged search
+  instruction is priced as in our costliest minute, although the whole searches averaged 2.562-3.009 and the complete
+  search of E 2.894.
+- **Why 2% covers the one-off work.** One front end of our models takes at most 1.83e11 instructions (about 170
+  CPU-s at R_cal) and one end part at most 1.30e10. Under the spread S the 59 charged calls retired at most
+  S * R_cal * 593,858 = 1.20e15 instructions, so their one-off parts were at most
+  59 * (1.83e11 + 1.30e10) / 1.20e15 = 0.96% of the instructions; 2% is 2.1 times that. Our
+  profiled calls spent 70-79% of their instructions in the front end only because we stopped each search after a
+  few minutes; their whole-call means (3.556-3.729) describe those truncated calls, not the charged ones. #396's
+  calibrated call (4.42e10 instructions in all) suggests its front ends were smaller than ours, which lowers the share.
+- **Agreement with the credited calibration.** The whole-call heavy share of our calls, 0.43-0.46%, is close to the
+  0.416% that #296/#396 measured on the calibrated call. The credited 7.24% PLT share needs no separate term here,
+  because the stubs are counted and priced at their call sites.
+- **What it does not cover.**
+  - The binaries are ours: Debian's CryptoMiniSat build and our STP build. #396's builds and compiler flags are not
+    published. The ordinary means of the Debian library in the search (1.689-1.928) and of the manylinux library of
+    Section 15.5 (1.880-1.956) differ by less than 15%.
+  - Our searches lasted 4-6 minutes under callgrind, about 20-40 s of native search on our machine, and only E ran
+    to its answer. The charged calls searched for hours. The price assumes that no long stretch of their search was
+    costlier per instruction than our costliest minute (3.591); our search windows ranged from 2.12 to 3.59.
+  - The models are our regeneration from #396's description, not its files. #396's calibrated Step-1 call (1 thread,
+    `--max-num-confl 20000`) retired 4.42e10 instructions in all, fewer than our front end alone (1.61-1.83e11), so
+    its models were smaller than ours or were built differently. A smaller front end only lowers a call's front-end
+    share.
+  - The instruction rate is not re-measured. R_cal and S are unchanged (Sections 7 and 15.2).
+- **Reproduction.** Appendix A.7-A.15 lists the scripts with their SHA-256 hashes: `setup_stp.sh` and
+  `build_stp.sh` install the toolchain and build STP, `gen396.py` writes the models, `cgrun.sh` and `windows.sh` run
+  the profiles (`ffrun.sh` ran E), `mkdis.sh` disassembles every object, `stpdyn.py` prices each call and
+  `stpsum.py` sets m_stp.
+
 ## Appendix A. Profile scripts (participant tools)
 
 - `setup.sh`: SHA-256 2e814916da4f74b88bbe53fb70fc38da26f58586c137fcc60a4c677256032d25
@@ -763,6 +903,18 @@ rate cannot be re-measured there. Our scripts are participant tools: the CNF gen
 - `x86ops.py`: SHA-256 220b1ab3aad0e96fc0c2d21a7977911de832df8aab12017cdfa971feae3fe190
 - `dynparse.py`: SHA-256 e67a3fad41a6e530619affacbca11ef71499eb2094b3b810624c2cda419c0e60
 - `dynall.py`: SHA-256 29747d0c46ad6e420427e4d39bb40fd35120dfb324b2b363f20af45ce982f818
+
+Scripts of Section 15.6 (they import `x86ops.py` and `dynparse.py` above, unchanged):
+
+- `setup_stp.sh`: SHA-256 d78ad64d88fddf585d7fa513d0245c6049a23f381f01f34e2ebac6e139be84a0
+- `build_stp.sh`: SHA-256 97912646526b26eeec37ecff07cfab786c6c1b234316b3499ef578d498bdfa6d
+- `gen396.py`: SHA-256 d8f6d3f3b86800b39d270ee5f891fb3f3390142d4033091275bbe8f09dc23526
+- `cgrun.sh`: SHA-256 87e122d5937fd47e08f532133860b71f3ff839c456d3712a1faae819be2764cf
+- `windows.sh`: SHA-256 9f5fb74d935ebce2d90e62c30f110fcad9b7feaba1acb5d9a85c15a05980b259
+- `ffrun.sh`: SHA-256 45410d79921ddc1bac89e1a62f3301024fb8f33c6133dd7eb6ea8b459674b063
+- `mkdis.sh`: SHA-256 007fc983efd700078f45aeb5da3028dc532aa903841630669f32219607ff99b6
+- `stpdyn.py`: SHA-256 c36ae3c5264a258fe46f8bdb09bc661b08262c1c24ba90d458a2950baeeee083
+- `stpsum.py`: SHA-256 a9b7046867ae8f61eae1c181d4b024c3615cf14eff8eac3bdc921491f5546068
 
 ### A.4 `x86ops.py`
 
@@ -1046,4 +1198,354 @@ apt-get update -qq >/dev/null && apt-get install -y -qq valgrind binutils >/dev/
 pip install -q pycryptosat==5.11.21
 python -c "import pycryptosat,glob,os;d=os.path.dirname(pycryptosat.__file__);print(d);print(glob.glob(d+'/../pycryptosat*')+glob.glob(d+'/../pycryptosat.libs/*'))"
 valgrind --version
+```
+
+### A.7 `setup_stp.sh`
+
+```sh
+set -e
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq >/dev/null
+apt-get install -y -qq --no-install-recommends ca-certificates git cmake make g++ bison flex libboost-program-options-dev zlib1g-dev libgmp-dev pkg-config libcryptominisat5-dev cryptominisat valgrind binutils python3 time >/dev/null
+dpkg -l | grep -E 'cryptominisat|valgrind|g\+\+|boost-program' | awk '{print $2, $3}'
+cd /opt
+git clone -q https://github.com/stp/minisat.git && cd minisat && git log -1 --format='minisat %H %cd' && mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. >/dev/null && make -j8 >/dev/null && make install >/dev/null && cd /opt
+git clone -q https://github.com/stp/stp.git && cd stp && git checkout -q 2.3.4 && git log -1 --format='stp %H %cd'
+```
+
+### A.8 `build_stp.sh`
+
+```sh
+set -e
+cd /opt/stp && mkdir -p build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON_INTERFACE=OFF -DENABLE_TESTING=OFF .. 2>&1 | grep -i -E 'cryptominisat|minisat|error|warn|build type|flags' | head -30
+make -j8 2>&1 | tail -5
+ls -la stp* lib* 2>/dev/null | head
+./stp --version | head -5
+ldd ./stp
+```
+
+### A.9 `gen396.py`
+
+```python
+"""CVC model of the re-parametrised 31-step SHA-256 search (steps 4..22, W0..W34) from the authors' unit functions.
+
+The step, expansion and value functions are imported unchanged from Peace9911/sha_2_attack@6a9f35f
+(find_dc/configuration/unit_function_256.py). Only the parameters, the boundary conditions and the
+threshold assertions are ours, following the re-parametrisation described by hash-smash #396.
+"""
+import argparse, os, sys
+
+ap = argparse.ArgumentParser()
+ap.add_argument('--repo', required=True)
+ap.add_argument('--signed', action='store_true', help='signed-difference expansion (op6=1) and IF/MAJ value model at steps 4..8')
+ap.add_argument('--tw', type=int, help='assert sum of W differences <= tw')
+ap.add_argument('--tw-eq', type=int, help='assert sum of W differences == tw')
+ap.add_argument('--tE', type=int, help='assert sum of E differences over steps 4..22 <= tE')
+ap.add_argument('--tA', type=int, help='assert sum of A differences over steps 4..22 <= tA')
+ap.add_argument('--fixw', action='store_true', help='fix the signed W rows to Fig. 6 (Step 2 onwards)')
+ap.add_argument('--out', required=True)
+a = ap.parse_args()
+sys.path.insert(0, os.path.join(a.repo, 'find_dc', 'configuration'))
+from unit_function_256 import sha_e, sha_a, message_expand, sha2_value  # noqa: E402
+
+START, END, MB, BS = 4, 23, 35, 32
+DIFF = [4, 5, 6, 7, 8, 12, 13, 20, 22]
+WROWS = {4: '==n=============================', 5: '=====u===u==========n===========',
+         6: '==n=============================', 7: '=======n=======u===u====u=1=u=u=',
+         8: '============u=======uu==========', 12: '=====n===n==========u===========',
+         13: '==u=============================', 20: '=====0=nn=====0=u=1=============',
+         22: '==n============================='}
+op2 = [0] * 15 + [1] * (MB - 15)
+op5 = [0] * 11 + [1] * (MB - 11)
+decl, cons = [], []
+seen = set()
+
+def var(s):
+    if s not in seen:
+        seen.add(s); decl.append(s + ': BITVECTOR(1);\n')
+    return s
+
+def add(vs, cs):
+    cons.append(''.join(cs))
+    for v in vs:
+        n = v.split(':')[0]
+        if n not in seen:
+            seen.add(n); decl.append(v)
+
+def total(name, rows):
+    bits = ['0bin000000000@%s' % var('%s_%d_%d' % (name, i, j)) for i in rows for j in range(BS)]
+    return 'BVPLUS(10,%s)' % ','.join(bits)
+
+for i in range(START, END):
+    add(*sha_e(BS, 1, 1, op2[i], i))
+    add(*sha_a(BS, 1, 1, op5[i], i))
+    if a.signed and i <= 8:
+        add(*sha2_value(BS, 'IF', 'MAJ', i))
+for i in range(16, MB):
+    add(*message_expand(BS, 1 if a.signed else 0, i))
+for i in range(MB):
+    if i not in DIFF:
+        for j in range(BS):
+            cons.append('ASSERT %s = 0bin0;\nASSERT %s = 0bin0;\n' % (var('wv_%d_%d' % (i, j)), var('wd_%d_%d' % (i, j))))
+for s in range(START - 4, START):
+    for j in range(BS):
+        for p in ('xv', 'xd', 'yv', 'yd'):
+            cons.append('ASSERT %s = 0bin0;\n' % var('%s_%d_%d' % (p, s, j)))
+for s in range(END - 8, END):
+    for j in range(BS):
+        cons.append('ASSERT %s = 0bin0;\nASSERT %s = 0bin0;\n' % (var('xv_%d_%d' % (s, j)), var('xd_%d_%d' % (s, j))))
+for s in range(END - 4, END):
+    for j in range(BS):
+        cons.append('ASSERT %s = 0bin0;\nASSERT %s = 0bin0;\n' % (var('yv_%d_%d' % (s, j)), var('yd_%d_%d' % (s, j))))
+cons.append('ASSERT BVGT(%s, 0bin0000000000);\n' % total('wd', DIFF))
+if a.fixw:
+    for i, row in WROWS.items():
+        for k, ch in enumerate(row):
+            j = BS - 1 - k
+            v, d = {'u': (1, 1), 'n': (0, 1)}.get(ch, (0, 0))
+            cons.append('ASSERT %s = 0bin%d;\nASSERT %s = 0bin%d;\n' % (var('wv_%d_%d' % (i, j)), v, var('wd_%d_%d' % (i, j)), d))
+if a.tw is not None:
+    cons.append('ASSERT BVLE(%s, 0bin%s);\n' % (total('wd', range(MB)), format(a.tw, '010b')))
+if a.tw_eq is not None:
+    cons.append('ASSERT %s = 0bin%s;\n' % (total('wd', range(MB)), format(a.tw_eq, '010b')))
+if a.tE is not None:
+    cons.append('ASSERT BVLE(%s, 0bin%s);\n' % (total('yd', range(START, END)), format(a.tE, '010b')))
+if a.tA is not None:
+    cons.append('ASSERT BVLE(%s, 0bin%s);\n' % (total('xd', range(START, END)), format(a.tA, '010b')))
+with open(a.out, 'w') as f:
+    f.write(''.join(decl)); f.write(''.join(cons)); f.write('\nQUERY FALSE;\nCOUNTEREXAMPLE;')
+print(a.out, len(decl), 'variables', len(cons), 'assertion groups')
+```
+
+### A.10 `cgrun.sh`
+
+```sh
+# usage: cgrun.sh NAME MODEL THREADS SOLVE_SECS
+n=$1; m=$2; th=$3; ss=$4
+cd /w
+date -u +"$n start %FT%TZ" >> cg/$n.log
+valgrind --tool=callgrind --dump-instr=yes --compress-strings=no --compress-pos=no \
+  --dump-before='CMSat::SATSolver::solve*' --callgrind-out-file=/w/cg/$n.out \
+  /opt/stp/build/stp models/$m.cvc --cryptominisat --threads $th > cg/$n.stdout 2> cg/$n.err &
+pid=$!
+while kill -0 $pid 2>/dev/null; do
+  if ls /w/cg/$n.out.1 >/dev/null 2>&1; then
+    date -u +"$n solve-entered %FT%TZ" >> cg/$n.log
+    sleep $ss; kill -TERM $pid; date -u +"$n term-sent %FT%TZ" >> cg/$n.log; break
+  fi
+  sleep 5
+done
+wait $pid; echo "$n rc=$?" >> cg/$n.log
+date -u +"$n end %FT%TZ" >> cg/$n.log
+```
+
+### A.11 `windows.sh`
+
+```sh
+# usage: windows.sh NAME MODEL_SUBSTR PERIOD: once the solve-phase dump exists, dump a window every PERIOD s
+n=$1; pat=$2; per=$3
+pid=$(pgrep -f "valgrind.bin.*$pat" | head -1)
+until ls /w/cg/$n.out.1 >/dev/null 2>&1; do kill -0 $pid 2>/dev/null || exit 0; sleep 5; done
+while sleep $per; kill -0 $pid 2>/dev/null; do callgrind_control -d $pid >/dev/null 2>&1; date -u +"$n window-dump %FT%TZ" >> /w/cg/$n.log; done
+```
+
+### A.12 `ffrun.sh`
+
+```sh
+# usage: ffrun.sh NAME MODEL THREADS(>=2) PERIOD WINDOWS
+# The STP front end runs uninstrumented; instrumentation starts when CryptoMiniSat starts its solver threads
+# (the first extra task of the process), then a window is dumped every PERIOD s and the call is stopped after WINDOWS.
+n=$1; m=$2; th=$3; per=$4; win=$5
+cd /w
+date -u +"$n start %FT%TZ" >> cg/$n.log
+valgrind --tool=callgrind --instr-atstart=no --dump-instr=yes --compress-strings=no --compress-pos=no \
+  --callgrind-out-file=/w/cg/$n.out /opt/stp/build/stp models/$m.cvc --cryptominisat --threads $th > cg/$n.stdout 2> cg/$n.err &
+pid=$!
+while kill -0 $pid 2>/dev/null; do
+  if [ "$(ls /proc/$pid/task | wc -l)" -gt 1 ]; then
+    callgrind_control -i on $pid >/dev/null; date -u +"$n solve-threads-started %FT%TZ" >> cg/$n.log; break
+  fi
+  sleep 0.5
+done
+for i in $(seq 1 $win); do
+  sleep $per; kill -0 $pid 2>/dev/null || break
+  if [ $i -lt $win ]; then callgrind_control -d $pid >/dev/null; date -u +"$n window-dump %FT%TZ" >> cg/$n.log; fi
+done
+kill -TERM $pid; date -u +"$n term-sent %FT%TZ" >> cg/$n.log
+wait $pid; echo "$n rc=$?" >> cg/$n.log
+date -u +"$n end %FT%TZ" >> cg/$n.log
+```
+
+### A.13 `mkdis.sh`
+
+```sh
+# disassemble every object named in the given callgrind parts (GNU objdump, Intel syntax) into /w/dis
+mkdir -p /w/dis
+grep -h "^ob=" "$@" | sort -u | sed 's/^ob=//' | while read -r ob; do
+  [ -f "$ob" ] || continue
+  base=/w/dis/$(echo "$ob" | sed 's|^/||; s|/|_|g')
+  [ -s "$base.dis" ] || objdump -d -M intel --no-show-raw-insn "$ob" > "$base.dis"
+  echo "$(sha256sum "$ob" | cut -c1-64) $ob"
+done
+```
+
+### A.14 `stpdyn.py`
+
+```python
+"""Per-form cost of every instruction executed in one STP + CryptoMiniSat call, from callgrind parts (--dump-instr=yes).
+
+Usage: stpdyn.py [--solve-only] NAME PART [PART ...]
+The part written before the first CMSat::SATSolver::solve entry is the STP front end; later parts are solve-phase
+windows. With --solve-only every part is a solve window (front end not instrumented). Every executed address of every
+object is matched to `objdump -d -M intel` of that object and priced by x86ops.cost. PLT stubs are skipped functions
+under callgrind's default --skip-plt=yes: their instructions are counted at the calling instruction and priced as it.
+"""
+import collections, json, os, re, subprocess, sys
+from x86ops import cost
+
+# Multiply and floating-point forms that x86ops.py does not list are heavy too: 400 per scalar operation, times the
+# number of lanes for packed forms, times 2 for fused multiply-add.
+EXTRA_HEAVY = re.compile(r'^v?(cmp[a-z]*(ss|sd|ps|pd)|pmul[a-z]*|pmadd[a-z]*|f(n)?m(add|sub)[0-9]*(ss|sd|ps|pd))$')
+LANES = {'ss': 1, 'sd': 1, 'pd': 2, 'ps': 4, 'pmuludq': 2, 'pmuldq': 2, 'pmulld': 4}
+
+PREFIXES = {'lock', 'rep', 'repz', 'repe', 'repne', 'repnz', 'notrack', 'bnd', 'data16', 'rex64', 'cs', 'ds', 'es', 'ss'}
+STRING = {'movs', 'stos', 'lods', 'scas', 'cmps'}
+
+def normalise(mn, ops):
+    """GNU objdump repeats prefixes and prints string instructions without a size suffix; undo both."""
+    while (mn in PREFIXES or mn.startswith('rex')) and ops:
+        sub = ','.join(ops).split(None, 1)
+        mn, ops = sub[0], ([o.strip() for o in sub[1].split(',')] if len(sub) > 1 else [])
+    if mn in STRING:
+        return mn + 'b', []                  # one iteration of a string instruction: 6 operations in x86ops.py
+    return mn, ops
+
+def heavy_extra(mn):
+    m = EXTRA_HEAVY.match(mn)
+    if not m: return None
+    core = mn[1:] if mn.startswith('v') else mn
+    lanes = LANES.get(core, LANES.get(core[-2:], 8))
+    return 400 * lanes * (2 if re.search(r'm(add|sub)', core) and core.startswith('f') else 1)
+from dynparse import disasm
+
+DIS = {}
+DISDIR = os.environ.get('DISDIR', '/w/dis')
+
+def objects(ob):
+    if ob not in DIS:
+        base = os.path.join(DISDIR, ob.strip('/').replace('/', '_'))
+        os.makedirs(DISDIR, exist_ok=True)
+        if not os.path.exists(base + '.dis'):
+            if not os.path.isfile(ob):
+                DIS[ob] = {}
+                return DIS[ob]
+            subprocess.run(['sh', '-c', f'objdump -d -M intel --no-show-raw-insn "{ob}" > "{base}.dis"'], check=False)
+        DIS[ob] = disasm(base + '.dis')
+    return DIS[ob]
+
+def read_part(path):
+    ir = collections.defaultdict(collections.Counter); ob = None; skip = False
+    for line in open(path, errors='replace'):
+        if line.startswith('ob='): ob = line[3:].strip(); continue
+        if line.startswith('calls='): skip = True; continue
+        if line.startswith('0x'):
+            if skip: skip = False; continue
+            p = line.split()
+            if len(p) >= 3: ir[ob][int(p[0], 16)] += int(p[2])
+    return ir
+
+def price(irs):
+    T = O = H = HO = M = 0; per = collections.Counter(); per_ops = collections.Counter()
+    mn_ir = collections.Counter(); hv = collections.Counter(); unk = collections.Counter(); hist = collections.Counter()
+    for ir in irs:
+        for ob, cnt in ir.items():
+            d = objects(ob)
+            for a, n in cnt.items():
+                if a in d:
+                    mn, ops = normalise(*d[a]); c, cls = cost(mn, ops)
+                    if c is None:
+                        c = heavy_extra(mn)
+                        if c: cls = 'heavy'
+                        else: c = 8; unk[mn] += n
+                    if cls == 'heavy': H += n; HO += c * n; hv[mn] += n
+                    mn_ir[mn] += n
+                else:
+                    c = 8; M += n
+                T += n; O += c * n; hist[c if c < 400 else 400] += n
+                key = ob.split('/')[-1]; per[key] += n; per_ops[key] += c * n
+    if not T: return None
+    return dict(ir=T, ops=O, m=round(O / T, 4), heavy_share=round(H / T, 6),
+                m_ordinary=round((O - HO) / (T - H), 4), unmapped_share=round(M / T, 6),
+                objects={k: dict(share=round(v / T, 5), m=round(per_ops[k] / v, 3)) for k, v in per.most_common(12)},
+                top_mnemonics=[(k, round(v / T, 4)) for k, v in mn_ir.most_common(12)],
+                heavy_top=[(k, round(v / T, 6)) for k, v in hv.most_common(6)],
+                unknown_share=round(sum(unk.values()) / T, 6), unknown_top=[(k, round(v / T, 6)) for k, v in unk.most_common(6)],
+                cost_hist={k: round(v / T, 5) for k, v in sorted(hist.items())})
+
+args = sys.argv[1:]
+solve_only = args[0] == '--solve-only'
+if solve_only: args = args[1:]
+name, parts = args[0], [p for p in args[1:] if os.path.getsize(p)]
+parts = sorted(parts, key=lambda p: int(p.rsplit('.', 1)[1]) if p.rsplit('.', 1)[1].isdigit() else 10 ** 9)
+irs = [read_part(p) for p in parts]
+front, solve = ([], irs) if solve_only else (irs[:1], irs[1:])
+res = dict(call=name, parts=[os.path.basename(p) for p in parts],
+           front_end=price(front) if front else None, solve=price(solve), whole=price(irs))
+res['solve_windows'] = [dict(ir=w['ir'], m=w['m'], heavy_share=w['heavy_share'])
+                        for w in (price([ir]) for ir in solve) if w]
+res['m_max_phase'] = max(v['m'] for v in (res['front_end'], res['solve']) if v)
+print(json.dumps(res, indent=1))
+```
+
+### A.15 `stpsum.py`
+
+```python
+"""Collect the per-call stpdyn.py results into m_stp.json.
+
+Each call splits into one-off parts (the STP front end, and the end part from the last periodic dump to the exit)
+and search windows (the parts between periodic dumps, 60-120 s each). We charge
+
+    m_stp = W * m_once + (1 - W) * m_search,
+
+with m_once the costliest one-off part, m_search the costliest search window over all calls (each rounded up to
+0.001) and W = 0.02 the weight of one-off work: twice the share that 59 front ends and end parts can have among the
+instructions of the charged calls.
+"""
+import json, math, sys
+
+W = 0.02
+R_CAL = 44197378388 / 40.42
+I_MAX = 1.85 * R_CAL * 593858          # instructions of the 59 charged calls at most, under the spread S = 1.85
+up = lambda x: math.ceil(x * 1000) / 1000
+calls = {}
+for path in sys.argv[1:]:
+    d = json.load(open(path))
+    fe, so, wh = d['front_end'], d['solve'], d['whole']
+    parts = d['solve_windows']
+    win, end = parts[:-1], parts[-1]
+    calls[d['call']] = dict(front_end_ir=fe['ir'] if fe else None, front_end_m=fe['m'] if fe else None,
+                            front_end_heavy=fe['heavy_share'] if fe else None,
+                            solve_ir=so['ir'], solve_m=so['m'], solve_heavy=so['heavy_share'], solve_ordinary=so['m_ordinary'],
+                            windows=[w['m'] for w in win], window_ir=[w['ir'] for w in win],
+                            end_ir=end['ir'], end_m=end['m'],
+                            whole_ir=wh['ir'], whole_m=wh['m'], whole_heavy=wh['heavy_share'],
+                            front_end_share=round(fe['ir'] / wh['ir'], 4) if fe else None,
+                            unmapped_share=wh['unmapped_share'], unknown_share=wh['unknown_share'])
+cs = calls.values()
+full = [c for c in cs if c['front_end_m'] is not None]
+m_front = up(max(c['front_end_m'] for c in full))
+m_end = up(max(c['end_m'] for c in cs))
+m_once = max(m_front, m_end)
+m_search = up(max(m for c in cs for m in c['windows']))
+once_ir_max = max(c['front_end_ir'] for c in full) + max(c['end_ir'] for c in cs)
+once_share = 59 * once_ir_max / I_MAX
+m_stp = up(W * m_once + (1 - W) * m_search)
+out = dict(calls=calls, weight=W, m_front=m_front, m_end=m_end, m_once=m_once, m_search=m_search, m_stp=m_stp,
+           m_max_milli=round(m_stp * 1000), front_end_ir_max=max(c['front_end_ir'] for c in full),
+           end_ir_max=max(c['end_ir'] for c in cs), i_max=I_MAX, once_share_bound=once_share,
+           search_allowed=(m_stp - once_share * m_once) / (1 - once_share),
+           search_mean_max=max(c['solve_m'] for c in cs), window_m_min=min(m for c in cs for m in c['windows']),
+           m_whole_max=max(c['whole_m'] for c in full), front_end_share_min=min(c['front_end_share'] for c in full))
+print(json.dumps(out, indent=1))
 ```
