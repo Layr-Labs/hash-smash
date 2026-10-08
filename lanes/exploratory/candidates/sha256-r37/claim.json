@@ -4,21 +4,74 @@
   "target_profile": "sha256-r37-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 37,
-  "claim": {
-    "time_log2": 132,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 125,
-    "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 0
-  },
-  "restrictions": [
-    "Samples exactly 2^128 independent uniformly random 48-byte complete messages with replacement; each hashes to the full 256-bit output from the standard fixed IV using one padded 37-round compression.",
-    "Classical 256-bit probabilistic word RAM under collision-frontier-v5, C=2644; no random-oracle, output-balance, PRNG or differential heuristic.",
-    "Worst-case total work and peak memory upper bounds; no witness, executed full search, novelty, nominal-reference improvement or qualification is asserted."
-  ],
+  "lane": "exploratory",
   "baseline_improved": "sha256-r37-nominal-v2",
   "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  "claim": {
+    "time_log2": 78.32,
+    "time_unit": "target-compressions",
+    "memory_log2_bytes": 16,
+    "preprocessing_log2": 70.01,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 12
+  },
+  "restrictions": [
+    "Target sha256-r37-prefix-v1 exactly: SHA-256 steps 0..36 on every padded block, standard IV once, FIPS padding, full feed-forward, all eight digest words. The collision is ordinary: two distinct 128-byte messages M0||M1 and M0||M1' sharing their first block; the padding block is identical.",
+    "The algorithm is the 37-step collision attack of ePrint 2026/1120 (Li, Zhang, Li, Liu, Qian, Zhu; Section 4.2, \"Application to 37-step SHA-2\") on its published characteristic (Table 15, relations Table 16), with the words of its published one-block SFS pair (Table 17) used as the Step-1 words of our second block. Every phase is charged. The Step-1 words are nonuniform advice, not a free input: the authors' search that produced them (characteristic and whole SFS pair) is charged by an allowance of 2^70 units, and a fresh Step-1 run at 4 x the paper's Step-1 cost on its own line. No collision of the target is used; the SFS pair's chaining value is not the IV. No certificate is attached and no collision is claimed to have been found.",
+    "Time: N = 2^78.27 first-block trials at 1 target compression plus 64 counted ops each; valid first blocks (cap 1.02 N 2^-10) at 2048 ops; Step-3 continuations under a hard cap at 8192 ops; verification; the advice allowance; a voluntary fresh Step-1 overcharge; enumeration. Total 2^78.3101 units, claim 78.32.",
+    "Success >= 0.39 with each measured input at a one-sided 97.5% bound: q2 >= 2^-10.002 (2,097,814 of 2,147,483,648 first blocks valid), |S| = 32 (exact), and G >= 2^-69.270, a lower bound on the probability that Step 3 succeeds on a valid first block (it continues every step-16 survivor; G = E[(successes)/m], m-weighted per-start estimator, 8,192 starts).",
+    "Memory is a reported metric only: below 2^16 bytes; nonuniform data (characteristic tables, Step-1 words, round constants) 2,892 bytes."
+  ],
+  "heuristics": [
+    {
+      "id": "H1-published-characteristic",
+      "role": "score-critical",
+      "statement": "The 37-step characteristic of ePrint 2026/1120 (Table 15) with its relations (Table 16), read as stated in proof.md Section 2, and the second-block words of its SFS pair (Table 17) define a valid Step-1 solution and the conditions of the attack.",
+      "scope": "The characteristic, the relations and the 30 Step-1 words. The Step-1 words are nonuniform advice produced by the authors' SFS search, charged by the H4 allowance (and a fresh Step-1 run on its own line); they are not a free input. Every output shares W8..W13 with the published SFS pair, and W14, W15 come from S, which contains the pair's own; the pair's chaining value and W0..W7 are never used. The SFS pair is not a collision of the target (its chaining value is not the IV), and no collision of the target is used. The first block, the chaining value, the Step-3 choices and the collision are computed and charged by the algorithm.",
+      "limitations": "One printed relation needs a reading: orientation: A16[29] = A17[29] holds on the primed message (a differing bit); on the unprimed one it reads A16[29] != A17[29]. The transcription is checked against the paper's own pair, not against an independent source.",
+      "extrapolation": "Every symbol of all 41 rows and every relation as used holds on the paper's SFS pair; the stage measurement produced 272 further 37-step pairs that follow the characteristic and collide under their own chaining values; the per-step pass rates of steps 16..22 match the printed condition counts within 0.02 bit.",
+      "evidence_ids": [
+        "proof:67-180",
+        "proof:181-196",
+        "proof:1225-1353"
+      ]
+    },
+    {
+      "id": "H2-measured-rates",
+      "role": "score-critical",
+      "statement": "A first-block trial succeeds with probability q2 x G >= 2^-79.272, with q2 >= 2^-10.002 and G >= 2^-69.270 a lower bound on the probability that Step 3 (every step-16 survivor continued through step 36) succeeds on a valid first block; trials are independent, so N = 2^78.27 trials succeed with probability >= 0.3930.",
+      "scope": "The success probability of the stated N; not the time bound, which holds on every coin sequence under the hard caps.",
+      "limitations": "G (and the per-element P) are measured on the Step-3 model of proof.md Section 6, which is the attack's distribution if CV1 is uniform (the map from CV1 to W0..W7 is one-to-one for fixed Step-1 words). Independence of first-block trials is assumed. No assumption about clustering among elements of S is needed: Step 3 continues every step-16 survivor, so its success is at least g = (successes)/m pointwise, and E[g] is estimated directly.",
+      "extrapolation": "The natural Step-3 run on real first blocks (run37.txt) gives the step-16 rate 2^-16.97 (521 of 67055104 pairs) against the model's pooled 2^-17.014, and every step-16 relation has the marginal rate 2^-1.000 there. The pooled per-step rates match the printed counts.",
+      "evidence_ids": [
+        "proof:342-431",
+        "proof:484-509",
+        "proof:510-1224",
+        "proof:1225-1353"
+      ]
+    },
+    {
+      "id": "H3-op-accounting",
+      "role": "supporting",
+      "statement": "Each first-block trial is one call of the target compression (1 unit) plus at most 64 primitive word operations; each valid first block adds at most 2048; each Step-3 continuation at most 8192.",
+      "scope": "The ordinary-operation terms of the ledger.",
+      "limitations": "The bounds are counted from the pseudocode of proof.md Section 5, not from a compiled program.",
+      "extrapolation": "Doubling every charged operation bound (64, 2048 and 8192) adds 0.035 bit to the total.",
+      "evidence_ids": [
+        "proof:227-341",
+        "proof:432-465"
+      ]
+    },
+    {
+      "id": "H4-artifact-allowance",
+      "role": "score-critical",
+      "statement": "The authors' search for the characteristic and for the SFS pair that supplies the Step-1 words (nonuniform advice) costs at most 2^70 units.",
+      "scope": "The preprocessing term of the ledger.",
+      "limitations": "The paper does not report the search time; the allowance is not a measurement. The rounded claim holds while the allowance is at most 2^71.67 units.",
+      "extrapolation": "The comparable four-step search for the CRYPTO 2026 35-step characteristic was measured at 593,858 CPU-s (x32 for blind re-derivation, 2^45.9 units) in the promoted r32 package; the paper's Table 1 lists SFS collisions at 38 and 39 steps (earlier works) as practical, and the paper prints its own SFS pair at this step count. 2^70 units is about 2^24 times the r32 figure. An allowance of 2^74 would give 2^78.3768.",
+      "evidence_ids": [
+        "proof:432-465"
+      ]
+    }
+  ]
 }
