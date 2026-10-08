@@ -4,21 +4,34 @@
   "target_profile": "sha256-r38-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 38,
+  "lane": "exploratory",
   "claim": {
-    "time_log2": 132,
+    "time_log2": 125.376,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 123,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 25,
     "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Samples 2^128 independent uniform 48-byte complete messages with replacement; no chosen IV, digest truncation, or output-distribution assumption.",
-    "Classical probabilistic 256-bit word RAM using the independent uniform word primitive of collision-frontier-v5; no PRNG substitution.",
-    "Worst-case single-batch resource upper bounds include unsuccessful batches; no restart or amplification is required for success_probability 0.39."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5 (C = 2728); total work over all processors. N = 0.994841*2^128 uniform 55-byte single-block messages, each hashed to its full 256-bit reduced r38 digest (standard IV, indices 0..37, feed-forward) by the counted 7-lane 36-bit-guard SWAR batch (2879 charged operations per 7 trials, peak liveness 53 within register-machine-64), asserted by the replay. A 140-bit digest key probes an uninitialised table (six ordinary operations plus the key relabelling and cap test per trial); false 140-bit matches and resampled inputs are rejected by full recomputation.",
+    "Worst-case single-run upper bounds including unsuccessful trials; a deterministic candidate cap V bounds all verification work. The collision-existence term is distribution-free; H1 covers only the uninitialised-table overwrite, garbage and cap tails. No witness, executed search, novelty or improvement over the nominal reference is asserted.",
+    "Memory 2^146 bytes (2^140 table words) is a reported metric only. nonuniform_advice is zero: a uniform program of public constants, no precomputed collision. The score beats the organizer nominal scaffold 132 by an explicit counted ledger, not by an epistemic claim against 128."
   ],
   "baseline_improved": "sha256-r38-nominal-v2",
+  "heuristics": [
+    {
+      "id": "H1",
+      "statement": "For N = 0.994841*2^128 reduced r38 digests of uniform 55-byte single-block messages in fixed processing order, assume Pr[F2] <= N^3/(6*2^396), E[Y1] <= N^2/2^140 and Var[Y1] <= N^2/2^140, where Y1 counts distinct-digest pairs sharing the 140-bit key and F2 is an intervening overwrite of a colliding pair in the uninitialised table. The collision-existence bound Pr[no output collision] <= exp(-N(N-1)/2^257) and the repeated-input bound are proved distribution-free and are not part of H1.",
+      "role": "score-critical",
+      "scope": "Uninitialised-table retention and candidate-cap tail for this single-block family. H1 does not establish SHA-256 randomness, the full 256-bit collision law, or implementation equivalence.",
+      "extrapolation": "One organizer python-message-pairs-v1 experiment returns 14-bit masked collisions on 256 seeded trials and self-checks the SWAR counts. A successful scaled trial does not establish the full-scale overwrite, garbage or cap margins.",
+      "evidence_ids": [
+        "experiment:gen-collisions"
+      ],
+      "limitations": "Unproved full-scale overwrite and moment bounds; the experiment's masked scope is a kernel-and-method demonstration, not a full-scale tail proof."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  "experiment_manifest": "experiments/manifest.json"
 }

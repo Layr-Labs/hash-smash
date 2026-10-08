@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "gen-collisions",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/replay.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000000000000000000000000000000000000000000000000000000003fff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "scope": "Scaled demonstration for sha256-r38: per organizer trial, 512 uniform 55-byte single-block messages, returning a distinct pair whose reduced r38 digests agree on the organizer's low 14-bit mask; trial 0 also self-checks the counted 7-lane SWAR batch (2879 ops, peak liveness 53) against the scalar reference. Not a full-search, full-scale birthday, table-tail or resource-bound proof.",
+      "hypothesis": "Distinct uniform 55-byte messages with reduced r38 digests equal on the low 14 bits exist and are found by the stated birthday method, and the counted SWAR evaluator reproduces the reference chaining values bit-for-bit at the charged operation counts."
+    }
+  ]
+}
