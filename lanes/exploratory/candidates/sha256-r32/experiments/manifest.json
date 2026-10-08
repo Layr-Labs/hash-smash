@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "fixed-witness-derivation",
+      "kind": "python-message-pairs-v1",
+      "scope": "Organizer-executed reconstruction of one committed SHA-256/32 witness from the embedded tuple record, retained #227 compact-table slices, and tail record, plus finite bit-exact checks and exact primitive-operation counting (Swar7Counter) on organizer-generated inputs that the replay's 7-lane 36-bit guard-bit SWAR C_32 evaluator (packing 7 independent 32-bit trials into 36-bit lanes of a 256-bit word with 4 guard bits per lane, executing 2,336 counted primitive arithmetic/randomness operations per batch) its optimised variant actually charged (round-0 constant folding, partial folding in rounds 1-2, 3-operation IF and MAJ with reuse; 2,193 counted operations per batch) and the 8-lane SWAR C_32 evaluator match scalar C_32 compressions. It also runs the charged 64-register batch of this version (Reg64: 2,047 arithmetic operations with merged sigma masks, 71 loads, 30 stores, 101 address operations, peak liveness at most 64) against scalar C_32 on every seed, and checks the lazy extraction (14 batch operations for CV1[0], then 14 per lane for CV1[1..7]). The old retained table uses 26-bit buckets and 609,229,824 entries.",
+      "hypothesis": "The committed historic compact-table slices deterministically derive two distinct 128-byte messages with equal complete-message sha256-r32-prefix-v1 digests matching the committed expected digest, and the replay's 7-lane 36-bit guard-bit SWAR C_32 evaluator produces bit-identical chaining values to 7 separate scalar C_32 evaluations on each organizer-generated input with exact counted arithmetic subtotals (rand_and_mask = 32, schedule = 512, rounds = 1,664, feedforward = 16, extract = 112; total = 2,336 operations, max_lane_bits <= 36), and its optimised variant does the same with rand_and_mask = 32, schedule = 512, rounds = 1,521, feedforward = 16, extract = 112 (total = 2,193). The 64-register program returns the same seven chaining values with exactly 2,047 arithmetic operations (sections 32, 464, 1,521, 16, 14), 71 loads, 30 stores and 101 address operations, and a liveness that fits 64 registers with 8 persistent ones; the split lazy extraction returns the same chaining values. This finite experiment checks one-record witness lineage and 7-lane/8-lane SWAR C_32 examples only; it makes no inference about the current 32-bit-bucket TAB2 cardinalities or completeness, Step-2/3 attack rates, search success probability, or full-run resource use.",
+      "program": "experiments/replay.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
