@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "attack37-early-stages",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/attack37.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000000000000000000000000000000000000000102040810204081020408",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "scope": "Organizer-run re-measurement at sandbox scale of the rates the package measures: per trial 128 independent uniform first blocks through the 37-step target compression; the Step-2 validity test (q2), the W16-only conditions, the E16 value symbols and the full step-16 pair test for every element of S on the valid blocks; trial 0 re-checks S (steps 14-15 exact) and the transcribed SFS pair. The returned pair is a 12-bit masked digest match among the trial's first blocks, which the organizer re-hashes; it confirms that the program evaluates the selected target. Steps 17..36 (rates 2^-13 and below per step) are beyond sandbox scale; the package measures them in its participant stage runs.",
+      "hypothesis": "Pre-registered predictions for 256 trials x 128 independent uniform first blocks (32,768 blocks): (1) the checked 12-bit mask event succeeds in about 220.8 of 256 trials (birthday among 128 digests; 99.9% interval [202, 238]); (2) valid first blocks (Step 2) total about 32, 99.9% interval [13, 51] for q2 = 2^-10; (3) among valid blocks x |S| = 32, W16 carries no condition, so w16 equals |S| x valid exactly and the E16 value symbols pass about 2.0 times (interval [0, 8]); (4) trial 0 reports s_steps14_15_ok = s_size = 32 and sfs_pair_collides = 1. pair16 (the full step-16 pair test) is expected near 0.01 in total and is not reached at sandbox scale for 37 steps."
+    }
+  ]
+}
