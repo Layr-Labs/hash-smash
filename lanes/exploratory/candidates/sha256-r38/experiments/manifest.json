@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "s256-bs-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact sha256-r38-prefix-v1 complete hash of 55-byte single-block messages. The digest bits used (words H2, H3, H5 bits 0..15, H6, H7) are computed only by the submitted bit-sliced circuit (256 messages per batch; rounds 13..36, E half of round 36 on 16 bits). Per organizer seed: 16 seed-derived 13-word prefixes x u = 0..31 (W13 = u<<8 | 0x80), N_t = 512 = 2^9 messages, 18-bit digest-XOR mask spread over those words. Trial 0 also executes one full 256-message batch of the counted program (register-allocated circuit, transpose and table step on a 64-register VM), checks all 256 key words against the program's scalar reference compression and aborts unless the batch costs exactly 48782 operations; every trial checks two lanes per batch. All 256 trials returned, including failures.",
+      "hypothesis": "(1) Every returned pair is a genuine masked match of the trusted digest, so the bit-sliced circuit computes the exact digest bits it claims. (2) The success frequency of this scaled analogue (N_t^2/2^w = 1 = N^2/2^256) is consistent with the random-function value 1 - prod_{i<512}(1 - i/2^18) = 0.3931 that heuristic H1 assumes at full width. Finite frequencies are supporting evidence, not a certified population probability.",
+      "program": "experiments/bitsliced_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000000000000020202020808080800000000000020200404040440404040",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "s256-bs-single-group",
+      "kind": "python-message-pairs-v1",
+      "scope": "Same program and target; per organizer seed one seed-derived prefix with consecutive u = 0..511 (all N_t = 512 messages in one group, two full 256-lane batches, the most structured case), under a different 18-bit mask on H2, H3, H5 (bits 0..15), H6 and H7. Same trial-0 count and lane self-checks. All 256 trials returned, including failures.",
+      "hypothesis": "Within-group digests, where only the 24-bit field u of W13 varies by small consecutive values, show no masked-collision excess or deficit relative to the random-function value 0.3931; the grouped structure does not change the birthday behaviour H1 assumes.",
+      "program": "experiments/bitsliced_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000000000000101010100101010100000000000080802020202080808080",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
