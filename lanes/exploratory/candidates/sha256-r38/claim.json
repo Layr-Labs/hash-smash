@@ -4,21 +4,42 @@
   "target_profile": "sha256-r38-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 38,
+  "lane": "exploratory",
   "claim": {
-    "time_log2": 132,
+    "time_log2": 124.968,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 123,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 9,
     "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Samples 2^128 independent uniform 48-byte complete messages with replacement; no chosen IV, digest truncation, or output-distribution assumption.",
-    "Classical probabilistic 256-bit word RAM using the independent uniform word primitive of collision-frontier-v5; no PRNG substitution.",
-    "Worst-case single-batch resource upper bounds include unsuccessful batches; no restart or amplification is required for success_probability 0.39."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5, C = 2728; total work over all processors. Fixed register-bank convention as in our 02d6a703 (from zeeshan8281's #178, used by #148/#170/#178): a static bank of at most 2048 words holds the circuit values; each gate reads named bank operands and is charged 1 plus one placement per result; the sparse-set arrays, prefix planes and key rows are main memory, every access charged. Prior acceptance of that convention (sha3-256-r6: d2f8474 126.902, 11c46f4d 126.995, c7fa1a5 126.92, 02d6a703 125.58) is reported from the public board, not verifiable here; under a memory-to-memory reading the same program gives 125.88 (proof Section 8), stated as the explicit fallback.",
+    "Exact target: 55-byte single-block messages m(g, z) = BE32(W0..W12) || BE24(z) (13 uniform prefix words per group, 24-bit z), standard IV, FIPS padding (W13 = (z<<8)|0x80, W14 = 0, W15 = 440), rounds 0..37, feed-forward, full 256-bit digest. N = NB * 2^32 messages with NB = 78856234692123534151746250567 (N = 0.995306 * 2^128): NB batches of 256 groups (one group per bit position of every word), 2^24 z-steps per batch, order fixed in advance.",
+    "Per z-step (256 messages): 37,818 gates of a bit-sliced circuit (21,295 XOR, 9,111 AND, 4,377 OR, 3,035 NOT) for rounds 13-36 (T1 of round 36 only) plus 86 fix-up NOTs, each charged 2; rounds 0-12 and seven schedule words are group planes computed once per batch (23,727 gates); the table key is the 160 digest bits fixed before the last round (digest words c, d, f, g, h), so round 37 and the T2 half of round 36 are never computed; 24 z planes (96), delta-swap transpose with the three zero row blocks skipped (2,725 + 2,563), 256 Briggs-Torczon sparse-set steps on the top 140 key bits (17 each, winglock's listing), loop control (3): 85,547 per step, charged 335 operations per message including per-batch setup (< 2^16 per 2^32 messages).",
+    "Time T <= N*335/2728 + 2^102 + 4 < 2^124.968 in every run (no restarts; the run halts at the first verified collision; a candidate cap V = 2^100 bounds false 160-bit-key candidates, each charged 4 units). Verified by the certificate script listed in proof Appendix B in exact integer arithmetic. Memory < 2^146 bytes (reported only). Preprocessing < 2^9 units (one-time program generation, inside T; batch setup is inside T). Advice 0.",
+    "Success >= 0.3905 under H1 only (events F1, F2, F4; proof Section 7), claimed 0.39. Every output is two distinct messages whose full digests were recomputed by the reference compression and found equal; correctness and all resource bounds are unconditional.",
+    "Credit (unpromoted ideas, their authors credited; none has reviewed this package): jaazinn 0a5b7ae8 (grouped partial evaluation, sparse set, F1/F2/F3 analysis, scaled-experiment design); may93182 11c46f4d (bit planes, delta-swap transpose); winglock 377eebd5 (bit-sliced grouped search, SPARSE listing and transpose counts reused verbatim); zeeshan8281 #178 (bank convention); ercumentyildirim c7fa1a56 (last-round projection); jungjipdo 325d628d (55-byte single-block domain on this track, candidate cap). The SHA-256 circuit, the polarity-aware adder/Ch/Maj, the pre-last-round 160-bit key and the counted program are ours. No cryptanalytic weakness of SHA-256 is claimed.",
+    "Five experiments declared for organizer execution (one stdlib program): a 12-bit full-width circuit cross-check and four scaled grouped searches (N_t = 512, 18-bit key = low 18 bits of digest word h) in four group layouts, whose success counts are compared descriptively with the uniform-model value 0.3931 (100.6 +- 7.8 per 256 trials). No full-width probability is inferred from them."
   ],
   "baseline_improved": "sha256-r38-nominal-v2",
+  "heuristics": [
+    {
+      "id": "H1",
+      "statement": "For the events F1, F2 and F4 (proof Section 7), the N digests of the grouped message set {m(g, z)} (independent uniform prefixes P_g, all z in {0,1}^24, processed in the fixed order of proof Section 4: batch by batch, z = 0..2^24-1, lane 0..255 within a step) behave like N independent uniform 256-bit values: Pr[F1] <= exp(-N(N-1)/2^257), Pr[F2] <= N^3/6 * 2^-396, and the number Y of pairs with equal 160-bit keys and different digests has E[Y] <= N^2/2^161 and Var[Y] <= N^2/2^161.",
+      "role": "score-critical",
+      "scope": "Only the success probability (proof Section 7) uses H1. Evaluator exactness, verification of every output, and all time, memory and preprocessing bounds are unconditional. For any two groups the expected number of colliding cross pairs is at least 2^48/2^256 (Cauchy-Schwarz over the independent uniform prefixes, proof Section 7), so the expected number of colliding pairs is at least 0.4953 without H1; H1 is needed for the second-moment behaviour behind Pr[F1], for F2 and for Y. Bit slicing and batching change neither the message set nor any digest; they fix only the processing order, which never depends on a digest.",
+      "extrapolation": "Tested at scale only: four scaled analogues declared for organizer execution with N_t = 512 messages and an 18-bit key on the real 38-round target, computed by the bit-sliced grouped evaluator itself: 256 groups x 2 (one batch), 16 x 32, a single group of 512 (strongest within-group structure) and 4 x 128 with the varying z bits at 17..23. Local runs of the same program, 256 trials per layout: 98, 97, 96, 87 successes with our seeds and 93, 105, 105, 105 under the organizer's Docker executor with the public seed, against the model's 100.6 +- 7.8; one larger run of 8,192 trials per layout: 3288, 3216, 3239, 3238 against 3222 +- 44. The claim extrapolates uniform-model behaviour to N = 0.995 * 2^128 and the full 256-bit digest.",
+      "evidence_ids": [
+        "experiment:r-bs-full-width",
+        "experiment:r-bs-spread",
+        "experiment:r-bs-single-group",
+        "experiment:r-bs-high-z",
+        "experiment:r-bs-fullwidth-equivalence"
+      ],
+      "limitations": "H1 is not proved. Within a group the state entering round 13 is shared by all 2^24 messages, which differ only in W13; 24 further rounds with the full message schedule follow. Masked low-width experiments cannot exclude a structural effect that appears only at full width, cannot certify the full-width second moment or F2, and resolve the success frequency only to about +-0.03 at 256 trials. The 0.0005 allowance between the bound 0.3905 and the claimed 0.39 is not statistically certified."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  "experiment_manifest": "experiments/manifest.json"
 }
