@@ -6,123 +6,210 @@
   "rounds": 32,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 46.57,
+    "time_log2": 39.964,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 35,
-    "preprocessing_log2": 45.87,
-    "success_probability": 0.4,
+    "memory_log2_bytes": 38,
+    "preprocessing_log2": 35.8,
+    "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 13
   },
   "restrictions": [
-    "Classical probabilistic 256-bit word RAM under collision-frontier-v5 (C = 2224). Total work over all processors: T = 32,828,179,945,388 first-block C_32 trials at 1 unit plus 64 operations each, a hard counter cap of 400 T operations on all Step-2/3 work, 8 units of output verification, table build C = 2^38, starting solution D = 2^38 and characteristic search E = 32 * 593,858 CPU-s * 3,354,001 units per CPU-s = 2^45.8572 units; total 103,964,590,923,548 units = 2^46.5631.",
-    "Two-block messages M0||M1 and M0||M1' of 128 bytes with M1 != M1'; complete SHA-256 with the standard IV, FIPS 180-4 padding, steps 0..31 on all three padded blocks, feed-forward and all 256 output bits; every output is recomputed before it is returned.",
-    "32-step truncation of the 35-step attack of Li, Liu, Wang and Shi (CRYPTO 2026, ePrint 2026/1080): its Fig. 6 characteristic, its 71 two-bit conditions under the stated readings and its starting solution as advice. The table and Step-2/3 specification follow hash-smash #26/#33 (winglock), restated in proof Sections 4-5.",
-    "One run with no restarts. Success probability >= 0.41069 from fresh independent first blocks, conditional on the declared rate heuristics, after subtracting a Chebyshev bound of 7.56e-6 on stopping at the counter cap. No certificate is supplied.",
-    "Measured inputs are credited public participant measurements (#296, #396, #26, #227), not runs made for this package: the matching rate q, the Step-2/3 stage pass rates, the table moments, the completed characteristic-search ledger and the callgrind CPU-second calibration. Our own checks (proof Section 14) are exact finite checks only. Our own measurements (proof Section 15) are a per-instruction costing of the x86-64 CryptoMiniSat 5.11.21 code, a callgrind dynamic per-form profile of that exact library on four SHA-256 CNF solves, and 17 CryptoMiniSat instruction-rate runs on SHA-256 CNF. They support the CPU-second price and do not re-run the charged search."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5 (C = 2224); total work over all processors, including construction of the exact published starting solution (charged at 2^35 = 34,359,738,368 units) and the statically audited 2^32-bucket table build plus the lane-packed P4 copy (at most 24,043,324,313 units, itemised audit), both in preprocessing. The published Fig. 6 characteristic is public algorithm text and its historical discovery is not charged (public-characteristic); charging the measured re-derivation (32 x 593,858 CPU-s at 2^23 units = 159,412,543,029,248 units) would give 2^47.1895.",
+    "Two-block messages M0||M1 and M0||M1' of 128 bytes; complete SHA-256 with standard IV, steps 0..31 on all three padded blocks, feed-forward and all 256 digest bits; outputs verified by full recomputation and accompanied by a verified 128-byte 32-step collision certificate.",
+    "32-step truncation of the 35-step attack of Li, Liu, Wang, Shi (CRYPTO 2026, ePrint 2026/1080), using its Fig. 6 characteristic as public algorithm text and its starting solution as charged advice; truncation, table and Step-2/3 tests follow hash-smash #26/#33 (winglock), re-measured in #296 (mitchuski), with the certified 32-step witness and compact-table slice replay from #227 (yudduy); conditions not needed for the 32-step collision are relaxed (proof Section 5.2). On organizer-generated inputs the replay checks one witness lineage, the 7-lane SWAR C_32 evaluator (Swar7Counter), the charged 64-register program (Reg64: lanes, counts, liveness <= 64), the lazy CV1 extraction and the relaxed record-word Step-2 tranches (values, decisions and counts against the A/E equations; the certificate's tuple and its relaxed Step-3 conditions); it does not validate the table cardinalities, build cost or full-run resource bound.",
+    "One run of T = 5,826,891,841,557 independent uniform first-block trials in B_7 = ceil(T/7) = 832,413,120,223 7-lane 36-bit guard-bit SWAR batches on the 256-bit word RAM with 64 registers (register-machine-64) at 2,265 operations per batch (entry/exit at its itemised 16), asserted by the replay's Reg64 program. A trial reads one 64-bit (occupancy, offset) cell (23). A nonempty-bucket trial extracts CV1[1..3] (21); each matching record runs the relaxed Step 2 from its precomputed record word in tranches charged 48 (W4 and test (b') with a sigma0 table), 47 (W5, (g')), 47 (W6, (f')) and 1,376 (the rest, test (e)), 51.291650 per match in expectation, all under the Step-2/3 cap 40.44 T. Step 3 sweeps stages 16-17 seven candidates per word on every pack (f807117b's sweep, forming E16' = E16 + D directly; v14), with the relaxed stage-16 and stage-18..22 tests. Unused slots of the final batch are charged; no restarts.",
+    "The full product of the declared per-trial lower-bound factors and one-sided Bernstein (excess 0.680 T over E[X] <= 39.760, E[X^2] <= 3.4506e10, support 435,826,455,501) gives cap-stop probability < 4.0803e-5 and success > 0.395000. Exact integer ceilings total 1,072,375,066,173 units (A+B < 1,013,972,003,492; C <= 24,043,324,313; D = 2^35), log2 = 39.9639467193 < 39.964; preprocessing 58,403,062,681 < 2^35.7654. Base: our passed v11 (3873e7f5, 39.995) on our v10c (0ae465f6), ed55a9d7 and 6e5214dd (Meganpark980320), f807117b, d8d39011, 621d0fb0 and Th0rgal's f310d44f. v11 added the relaxed conditions at lower bounds; v13 adds a sigma0 table for (b') and (f') and charges the batch's entry/exit, the lookup, the per-trial extraction and tranches 2-3 at their itemised counts; cap and T re-optimised; v14 drops the stage-16 E16 pattern (p x 1.1810, every pack runs stage 17).",
+    "Conditional-selection premise: V counts accepted TAB2 record occurrences. Conditionally on V >= 1, an analysis-only auxiliary seed sampled independently after the trial chooses J uniformly from those V occurrences. The declared selected-valid-tuple-success-transfer heuristic gives Pr[Step3(J) succeeds | V >= 1] >= r = 196,608 p_L x 1.1810 x 0.9992 (1 - delta - U_r/(2(1 - m))) >= 1.308121e-8, with delta = 0.004299 derived by Cauchy-Schwarz from the measured E_occ[p_J^2]/p^2 bound (proof Section 7). The counterfactual uncapped trial tests every occurrence, so success through J implies uncapped-trial success; the cap is then handled separately by a union bound.",
+    "Heuristic bound: relies on public-characteristic, q-32step-matching-rate, step3-44-conditions, relaxed-condition-gains, cv1-conditional-uniformity, selected-valid-tuple-success-transfer, register-machine-64, attack-work-moments, precomputation-op-cap, valid-tuple-pairs and starting-solution-cost (score-critical), plus route-search-measured, cpu-second-pricing (fallback only) and search-peak-memory (supporting)."
   ],
   "baseline_improved": "sha256-r32-nominal-v2",
   "heuristics": [
     {
+      "id": "public-characteristic",
+      "role": "score-critical",
+      "statement": "The published signed characteristic of Li, Liu, Wang and Shi (CRYPTO 2026, Fig. 6), as truncated to 32 steps in public hash-smash #26/#33, and its two-bit conditions under the stated readings are public algorithm text that the algorithm may use without charging their original discovery. They are a table of conditions, not a collision, and contain no message word, chaining value or state value.",
+      "scope": "The signed rows and two-bit conditions only. Every value-level object (the starting solution, tables P1-P4, first blocks, valid tuples, second blocks) is computed and charged: D = 2^35, C <= 24,043,324,313 units, and the online work A + B (proof Sections 4, 8).",
+      "extrapolation": "The characteristic is printed in the cited publication and restated in proof Section 2; the authors' search model is public (Peace9911/sha_2_attack), and #396's completed re-run of S's procedure returned exactly these signed rows. The organizer-accepted SHA-256 r31 package 50592e75 (heuristic H1-public-characteristic) uses the same convention for the published 31-step characteristic. The cost model's omitted-search rule is honoured for every value-level object (proof Section 6.1); the characteristic is stored within the 2^13-byte advice bound.",
+      "evidence_ids": [
+        "proof:342-408",
+        "proof:861-888"
+      ],
+      "limitations": "The historical discovery cost of the characteristic is not charged. If a reviewer charged the measured re-derivation (32 x 593,858 CPU-s at 2^23), the total of this version would be 2^47.1894310518 (f310d44f claimed 2^47.2721673216 with the same E); with no rediscovery factor, 2^42.4611."
+    },
+    {
       "id": "q-32step-matching-rate",
-      "statement": "A first block M0 of fresh uniform words, compressed as CV1 = C_32(IV, M0), yields at least q = 2^-17.3583 expected valid tuples (records passing Step 2 tests (a)-(g)) against TAB2 of 1,396,774,912 records, and at most 2^-17.3166.",
+      "statement": "A uniform first block M0 compressed with C_32 from the IV yields at least 2^-17.3584 expected valid tuple occurrences (accepted TAB2 records in Step 2) against TAB2 of 1,396,774,912 records. (characteristic Step-2 tests; with the relaxed tests of proof Section 5.2 the rate is multiplied by the gain of relaxed-condition-gains).",
       "role": "score-critical",
-      "scope": "The exact P1-P4 sets and the Step-2 tests of proof Sections 4-5, with C_32 first blocks from the standard IV.",
-      "extrapolation": "Public participant measurement #296: four runs of 2^32 C_32 first blocks, one per index-part of TAB2, 25,936 valid tuples, pooled 2^-17.3373 with 99% interval [2^-17.3583, 2^-17.3166]. Corroborated by #26's runs (2^-17.3337), the #227 campaign counts (2^-17.326) and the analytic prediction 2^-17.3254. Extrapolated to T = 2^44.9 fresh trials.",
+      "scope": "The exact TAB2 and Step-2 tests of proof Section 4 with C_32 first blocks.",
+      "extrapolation": "Exact-enumeration prediction 2^-17.3254; four measured runs, 2^34 part-trials and 25,936 valid tuples give pooled q_hat = 25,936/2^32 = 2^-17.3373. A one-sided normal approximation to the summed rare-event counts gives the 99% lower bound (25,936 - 2.32635 sqrt(25,936))/2^32 = 2^-17.3583236, rounded downward here to 2^-17.3584. The retained tuple slice replay verifies one fixed derivation but does not estimate q.",
       "evidence_ids": [
-        "proof:327-327",
-        "proof:425-426",
-        "proof:184-191"
+        "proof:568-640",
+        "proof:754-858"
       ],
-      "limitations": "Credited participant runs, not organizer executions and not repeated for this package. CV1 words are treated as uniform for the Step-2 tests."
+      "limitations": "Large-scale rate runs are participant C executions; treats CV1 words as uniform for the Step-2 tests."
     },
     {
-      "id": "step3-46-conditions",
-      "statement": "For a valid tuple, each of the 196,608 P4 entries passes Step-3 stages 16..31 with probability at least p = 2^-46, and at least one entry passes with probability r >= 2^-28.415 (1 - 2^-20).",
+      "id": "step3-44-conditions",
       "role": "score-critical",
-      "scope": "Second-block steps 16..22 and schedule words W16..W31 under the Fig. 6 characteristic. Entries share W14 in 12 groups of 2^14; the shared W20 conditions are charged in the second moment.",
-      "extrapolation": "The condition count is 45 printed by S plus the unprinted E16[29] = E17[29] (#26). #296's cumulative stage rates over 2^32.248 candidates match the count through step 21 (2^-3.000, 2^-15.000, then 22, 5 and 1 survivors). The 13 W20/W22 carry conditions after step 21 are extrapolated. Both S's published tuple and the public 32-step pair of #227 pass every stage in our checks.",
+      "statement": "For a valid tuple drawn from the pooled accepted TAB2 record occurrences of fresh uniform trials (occurrence-weighted), each of its 196,608 P4 candidates passes Step-3 stages 16..31 with probability at least p_L = 2^-44.0055 on average, and the expected number of other passing candidates of the same tuple given that one passes is at most 0.0000361053. Hence the tuple's Step-3 success probability is at least r = 196,608 p_L (1 - U/2) with U/2 < 2^-15.75, i.e. r_char >= 1.113314e-8 for the characteristic tests (the charged r of the relaxed algorithm is in selected-valid-tuple-success-transfer).",
+      "scope": "Stages 16..31 of the real two-sided second block with the real P4 list, the fixed advice and the exact Step-3 tests of proof Section 4, for the occurrence-weighted valid-tuple distribution; W16..W19 enter through their law under cv1-conditional-uniformity; the validity weights and tuple vectors assume CV1[1..3] uniform given CV1[0], the premise already declared in q-32step-matching-rate. Replaces step3-46-conditions: the 46-count included the printed relation W20[4,31] = W20[6,22], which the published pair violates, the algorithm never tests and the 32-step route does not require. With the relaxed tests (proof Section 5.2) this rate is the characteristic-class rate, multiplied by the gain of relaxed-condition-gains.",
+      "extrapolation": "Corrected count (proof Section 5.1): 44 one-bit conditions, at stages 16..31 3, 12, 6, 7, 4, 1, 8, 3; the late conditions (stages 20..31) are derived algebraically from the XOR-linearity of sigma1 and match the printed W20/W22 relations except the misprint. Pre-registered measurement (proof Section 5.1, Appendix F): 8 key slices of the exactly rebuilt TAB2, 1,573 records examined and 700 with nonzero validity weight, 1,400 tuple vectors, 30 batches, 73,231,079 histories through step 19; occurrence-weighted p = 2^-44.0004, 99% bounds [2^-44.0055, 2^-43.9954] (outer of t and two-way bootstrap); stage exponents 3.0000, 11.9998, 6.0001, 7.0003, 4.0003, 1.0000, 7.9993, 3.0005; every counted condition enforced from its stage and at 0.5 before it; no heterogeneity by vector, record, slice, class size or weight; replication 2^-44.0029; 200 of 200 dumped passes completed into second-block collisions from their derived chaining values (the first block is not constructed; the certificate is the complete-message witness). Co-pass: 520,582 pass events, 99% upper bound 3.61e-5 on the size-biased co-pass mean; no independence formula is used.",
       "evidence_ids": [
-        "proof:330-330",
-        "proof:427-432",
-        "proof:588-590",
-        "proof:164-191"
+        "proof:641-753",
+        "proof:979-1094",
+        "proof:3131-3161"
       ],
-      "limitations": "Independence beyond the W14 grouping is assumed, not proved. One extra independent condition would lower the success bound to 0.31 at this T (proof Section 13)."
+      "limitations": "The measurement is a participant run with our own tools, not an organizer execution (not feasible within the executor's limits). The rate is measured on simulated second-block histories whose law rests on cv1-conditional-uniformity. Records come from 8 of 256 key slices and a 2^-10 sub-sample; transfer to all of TAB2 assumes representativeness, which the slice and class-size tests support but cannot prove. The independence of the 44 conditions is not proved; the bound charges the measured lower bound, not the count. With the relaxation's gains, the success bound stays >= 0.39 down to p = 2^-44.0293 (1.6% below p_L); at p = 2^-44.5 it would be 0.3000."
     },
     {
-      "id": "valid-tuple-pairs",
-      "statement": "For the number V of valid tuples in one trial, E[C(V,2)] <= q * 2^-5.",
-      "role": "supporting",
-      "scope": "Valid tuples produced from one first block.",
-      "extrapolation": "#296 observed 9 within-part pairs in 2^34 part-trials and bounded the cross-part pairs from multiplicity sums. The charged 2^-5 exceeds that estimate by more than 20x.",
+      "id": "relaxed-condition-gains",
+      "role": "score-critical",
+      "statement": "With the relaxed Step-2 and Step-3 tests of proof Section 5.2 (W' = W + D for words 4..6 with (b'), (g'), (f') and (e); stage 16 only A16' = A16 (v14); stage 18 only A18' = A18; no W20/W22 pattern or sign test), the expected number of valid tuples per uniform trial is at least 1.1178 and at most 1.1244 times the characteristic one, the occurrence-weighted Step-3 rate of a characteristic tuple is at least 1.1810 times its characteristic-class rate p, the mix of relaxed valid tuples passes Step 3 at least 0.9992 times as often as characteristic tuples, and the co-pass mean of relaxed passes is at most U_r = 0.0000411682.",
+      "scope": "The relaxed tests as run by the algorithm (proof Section 4) on the fixed TAB2, P4 and advice, for fresh uniform first blocks; dE17 = 0 is kept; the stage-16 E16 pattern is dropped (v14). P4 and the table are unchanged.",
+      "extrapolation": "Exact counts over all 2^32 values of each word: W4 and W6 287,309,824 relaxed against 268,435,456 characteristic, W5 68,157,440 against 67,108,864 (gain 1.163468). Test-(e) coupling measured on the 1,573 uniform records of the Section 5.1 campaign against 2^20 relaxed triples: ratio 0.9634 (99% bootstrap 0.9608-0.9663), so the q gain is 1.1209 (99% 1.1179-1.1243). Step-3 run (relax.c, condexp.c's sampling): 6.55e15 histories over 10 batches on 1,400 vectors (2 characteristic and 2 Step-2-relaxed tuples from each of 350 uniform records); characteristic-class rate 2^-44.0025; relaxed gain 1.1839 +- 0.0010 (SE), charged at 1.1810 (t(0.99, 9)); Step-2-relaxed tuples at 1.0052 +- 0.0030 times characteristic tuples, charged through the mix bound 0.9992 with at most 11.06% relaxed tuples. All 618,020 passes rebuilt into second-block pairs from their derived chaining values, each with equal 32-step compressions in reference SHA-256 (0 failures). The co-pass mean of relaxed passes, E16 drop included, was measured with the Section 5.1 method: 14 same-group co-passes in 618,367 pass events, 99% bound U_r = 0.00004117 (characteristic 3.61e-5); cross-tuple second moment <= 1.0010; all 214 dumped events rebuilt. The stage-17 rate with the E16 pattern dropped is measured at 2^-14.912 by the relax.c run, a superset test (dE17 also dropped; about 3.24e6 stage-17 passes), inside f17 <= 2^-14.9.",
       "evidence_ids": [
-        "proof:331-331",
-        "proof:425-426"
+        "proof:440-567",
+        "proof:754-858",
+        "proof:979-1094",
+        "proof:3568-5441",
+        "experiment:fixed-witness-derivation"
       ],
-      "limitations": "Cross-part pairs were not observed directly. This is a credited participant measurement."
+      "limitations": "Participant measurements, not organizer executions; the organizer replay checks the relaxed predicates on the certificate and seeded inputs, not the rates. The gains are charged at one-sided lower bounds combined without independence; with about eight separate one-sided 99% bounds in the success chain, all hold together with probability at least 92% (union bound). At the claimed T the success bound stays >= 0.39 down to an effective factor 1.2975 (charged 1.3191); with no relaxation gain it would be 0.3167. "
+    },
+    {
+      "id": "cv1-conditional-uniformity",
+      "role": "score-critical",
+      "statement": "For a uniform first block M0 and CV1 = C_32(IV, M0), conditionally on the Step-2 validity events of the trial's TAB2 records (which records are valid, hence V), CV1[4..7] is, to the precision used, uniform on 2^128 and independent of those events. Consequently W0..W3 and W16..W19 of every valid tuple have the uniform law, independent of the trial's Step-2 events and the tuple's W4..W15, that the simulator of proof Section 5.1 uses.",
+      "scope": "Only the law of CV1[4..7] given CV1[0..3]-measurable events, as used by the reduction of proof Section 5.1 (b)-(c): the law of W16..W19 for valid tuples, hence the transfer of the simulated Step-3 rate to real valid tuples.",
+      "extrapolation": "W0..W3 and W16..W19 are triangular bijections of CV1[4..7] given CV1[0..3] and the tuple (proof Section 5.1). The q premise already treats CV1 words as uniform, and the measured q agrees with the exact-enumeration prediction that assumes uniform CV1[0..3] (2^-17.3373 measured, 2^-17.3254 predicted). #296's stage rates on real trials, where W16..W19 come from the real CV1[4..7] of real valid tuples (2^-3.000, 2^-15.000, 2^-21.03 and 2^-27.79 through stages 16..19), agree with the simulator's rates under uniform W16..W19 (2^-3, 2^-15, 2^-21, 2^-28.0002).",
+      "evidence_ids": [
+        "proof:641-753",
+        "proof:568-640",
+        "proof:979-1094"
+      ],
+      "limitations": "Not proved: C_32 is a fixed function, and its output words are not exactly independent. The evidence is agreement of real-trial rates with uniform-input predictions, at the precision of those campaigns (about 1% for q and stages 16-17, 21% for stage 19 with 22 events). #296's stage 20 shows 5 of 22 stage-19 survivors passing against about 1.4 expected; candidates of one W14 group share W20, so passes cluster, and 22 events cannot resolve this. The premise is an approximation for a fixed function, not exact for arbitrary small events."
+    },
+    {
+      "id": "selected-valid-tuple-success-transfer",
+      "statement": "For a fresh uniform first-block trial conditioned on V >= 1 accepted TAB2 record occurrences, let an analysis-only auxiliary seed sampled independently after the trial choose J uniformly from those V occurrences. The conditional probability that Step 3 on J contains at least one fully conforming P4 candidate is at least r = 196,608 p_L x 1.1810 x 0.9992 (1 - delta - U_r/(2(1 - m))) >= 1.308121e-8 with delta = 0.004299 and m = 0.017569; V counts tuples accepted by the relaxed Step-2 tests.",
+      "role": "score-critical",
+      "scope": "The fixed submitted TAB2 and P4, exact Step-2 test and Step-3 test over fresh independent uniform first blocks. J is an analysis-only uniform selector over accepted record occurrences and adds no coins or work to the submitted algorithm. The counterfactual uncapped trial tests every occurrence, so success through J is contained in uncapped-trial success; the cap is handled separately.",
+      "extrapolation": "Derived in v11 (proof Section 7): relative to the occurrence-weighted law, the trial-first selector weights an occurrence by w = 1/(cV) with E_occ[w] = 1 and 0 <= w <= 1/c; m = Pr_occ[V >= 2] <= 2E[C(V,2)]/q <= 0.017569 (valid-tuple-pairs) gives c >= 1 - m and Var(w) <= m/(1 - m) (Bhatia-Davis). Under cv1-conditional-uniformity the Step-3 outcome depends on the trial only through the tuple, so E[Y_J | J, V] = 196,608 p_J. The relaxed co-pass campaign bounds the cross-tuple second moment E_occ[p_J^2]/p^2 <= 1.001033 (99%, split halves and record bootstrap), so Cauchy-Schwarz gives E_occ[w p_J] >= p(1 - delta), delta = sqrt(h m/(1 - m)) = 0.004299; with E_trial[C(Y_J,2)] <= E_occ[Y_J] U_r/(2(1 - m)) the bound follows. Direct measurements agree: in our v8 campaign (filing 439d2b36-99d7-4ab5-9e86-8615e760f756, Section 9.1, Measurement 2) tuples from trials in which two records of one key class were both valid passed Step 3 at 0.998 +- 0.003 times the rate of single-event tuples of the same real records (520 tuples each, 193,066 and 193,461 full passes), and Step-2-relaxed tuples pass at 1.0052 +- 0.0030 times characteristic tuples (proof Section 5.2).",
+      "evidence_ids": [
+        "proof:440-567",
+        "proof:641-753",
+        "proof:754-858",
+        "proof:979-1094",
+        "proof:3131-3161"
+      ],
+      "limitations": "The derivation rests on cv1-conditional-uniformity (the Step-3 outcome of a tuple is independent of which other records are valid), on valid-tuple-pairs for m, and on the measured second moment, which covers 350 uniform records of 8 key slices; it does not need the Step-3 rate of multi-tuple trials to be measured, and the direct pair/single comparison covers one key slice and stages 20..31 on shared histories through stage 19. The bound h comes from a bootstrap of the whole ratio with split halves; Section 5.1's numerator-only estimator gives 1.00905 on the same data, i.e. delta = 0.0129 and success 0.3924, still >= 0.39; the success bound holds for h up to 0.0237."
     },
     {
       "id": "route-search-measured",
-      "statement": "Constructing the Fig. 6 characteristic by S's four-step SAT/SMT search, without S's intermediate outputs, costs at most 32 * 593,858 solver CPU-seconds on the measurement machine.",
-      "role": "score-critical",
-      "scope": "The one-time characteristic search, charged in preprocessing as E. Its memory is covered by search-peak-memory.",
-      "extrapolation": "#396 ran S's procedure with the authors' public model and STP 2.3.4 + CryptoMiniSat 5.11.21. Its 59 calls, all charged including timeouts and abandoned calls, used 593,858 CPU-s, and the run returned a characteristic whose signed rows equal Fig. 6. Because the run used S's nabla W and S's tA threshold, #396 priced a blind re-derivation from its own call ledger at 6.3-8.4 times that, and added a residual factor 4 for solver variance and model choice. The product 32 is adopted unchanged.",
+      "statement": "Fallback only, not in the claimed total: Constructing the published 35-step characteristic, given its nabla W as part of the advice, costs at most 32 times the solver CPU time of the measured run of S's procedure (M_E = 593,858 CPU-seconds); the charged upper bound is exactly 159,412,543,029,248 < 2^47.179759 target-compression units at 2^23 units per CPU-second.",
+      "role": "supporting",
+      "scope": "Fallback only: the characteristic search, if a reviewer charges it (proof Section 6.2). Not part of the claimed total; its memory is declared under search-peak-memory.",
+      "extrapolation": "The public PR #396 run executed S's four-step procedure with the authors' model library until a Step-4 call at threshold 76 returned a characteristic equal to Fig. 6 in every signed row; all 59 calls and 593,858 CPU-seconds are charged. The factor 32 is an itemised blind-rediscovery factor of about 8 (priced from its timed-out blind descent and three tA levels) times a residual factor 4 (solver variance and exploratory-model/nabla-W choice).",
       "evidence_ids": [
-        "proof:332-332",
-        "proof:335-367",
-        "proof:395-395"
+        "proof:889-978"
       ],
-      "limitations": "S's own search time is unpublished. The factor 32 is argued from a measured ledger, not executed. tE4 = 76 was reached but not proved optimal. Doubling the factor raises the total to 2^47.253."
+      "limitations": "Steps 2-4 were conditioned on S's nabla W, and Step 4 targeted S's published thresholds rather than completing a blind descent; 76 was reached but not proved optimal. The x32 margin prices blind rediscovery from the run ledger but was not itself executed, and S's historical time is unpublished. Enters only the fallback total 2^47.1894310518 for a reviewer who charges the characteristic search (proof Section 6.2)."
     },
     {
       "id": "cpu-second-pricing",
-      "statement": "One solver CPU-second on the measurement machine costs at most kappa = 3,354,001 target-compression units (2^21.677 units, 2^32.796 primitive word operations). This is 6.82 operations per retired instruction at the calibrated 2^30.026 instructions per CPU-second.",
-      "role": "score-critical",
-      "scope": "The STP + CryptoMiniSat 5.11.21 calls priced in E and D, on the machine that ran them. No price is claimed for any other machine.",
-      "extrapolation": "kappa = ceil(R_cal * m_dyn * S / C). R_cal: callgrind calibration (#296/#396), 44,197,378,388 instructions in 40.42 native CPU-s (repeats 41.07 and 41.10), i.e. 2^30.026 per CPU-s, from one single-threaded call. m_dyn = 3.6874: our callgrind profile of the exact x86-64 CryptoMiniSat 5.11.21 library (SHA-256 878e2f2b...8659c0) on four SHA-256 CNF solves (19.1-23.1e9 executed instructions each, solve call only, all objects, 0 unmatched addresses), every executed instruction priced by its form under the v5 primitive list, gives ordinary means 1.880-1.956; we take 1.956 and combine it with the calibrated call's class shares (7.24% PLT stubs at 3, 0.416% divide/multiply/floating point at 400, above our measured 0.21-0.30%). Every profiled run's own all-inclusive mean (2.797-3.106) is at least 19% below m_dyn. S = 1.85: our 14 single-thread CryptoMiniSat runs on SHA-256 CNF (9 instance shapes, 1-3 seeds, up to 281 CPU-s) varied in instructions per CPU-s by at most 1.842 (max/min) on one machine. Long runs, larger resident sets and 4 threads lowered the rate or left it unchanged (0.84-1.00x).",
+      "statement": "Fallback only, not in the claimed total: One solver CPU-second on the measurement machine costs at most 2^23 target-compression units (2^34.12 primitive 256-bit word-RAM operations, 17.0 operations per retired instruction).",
+      "role": "supporting",
+      "scope": "Fallback only: the measured STP+CryptoMiniSat characteristic-search run and its x32 allowance (proof Section 6.2).",
+      "extrapolation": "Measured 2^30.03 instructions per CPU-second (callgrind count of a deterministic call against native CPU time) and opcode mix (multiply/divide/floating point 0.42%, unmapped 7.24%) leave 17.0 primitive 256-bit word-RAM operations per instruction at kappa = 2^23 (as in #134), with full sensitivity at 2^24 and 2^25 reported in Section 8.",
       "evidence_ids": [
-        "proof:333-333",
-        "proof:369-395",
-        "proof:516-521",
-        "proof:595-756"
+        "proof:889-978"
       ],
-      "limitations": "The instruction rate of the 59 charged calls was not measured; it is assumed to be within 1.85x of the one calibrated call. Our rate runs used another machine, instruction set and solver build (Apple M4 Pro, arm64, CryptoMiniSat 5.16.0); they enter only as a relative spread. The dynamic profile used the exact x86-64 library but through its Python binding on our SHA-256 CNF, single threaded, not inside STP on the charged model; the STP front end is not profiled and the STP-linked build may use other compiler flags. No organizer experiment can re-measure the rate. An ordinary mean of 3 operations gives 46.778; the class price of our previous package gives 47.140."
+      "limitations": "One single-thread calibration instance; instruction rate under the run's machine load. Enters only the fallback total 2^47.1894310518 for a reviewer who charges the characteristic search (proof Section 6.2)."
+    },
+    {
+      "id": "valid-tuple-pairs",
+      "statement": "E[C(V,2)] <= q * 2^-7 * 1.1244 = q * 2^-6.8308 for the number V of relaxed valid tuples in one trial (q its mean).",
+      "role": "score-critical",
+      "scope": "Valid tuples sharing one first block.",
+      "extrapolation": "9 within-part pairs in 2^34 part-trials (2^-28.8 per trial against 0.75 expected for independent records, a correlation factor 12); the cross-part term is estimated from multiplicity sums with that factor, for 2^-26.8 per trial in all. With the 9 pairs at their one-sided 99% Poisson upper bound 18.78, the same reading gives 2^-25.74. The charge q_LCB 2^-7 = 2^-24.36 is 2.6 times that upper reading and 5.4 times the point estimate. Earlier packages of this line charged 2^-5 (more than 20 times the point estimate); v10c re-reads the same evidence with this smaller stated margin, and no new data. For the relaxed tuples of proof Section 5.2 (v11), the pair rate of two records scales with the product of their relaxed validity gains; in the 1,573-record sample the sum of squared relaxed validity weights is 1.237 times the characteristic one, below 1.1244^2 = 1.264, so the factor is multiplied by the q gain's upper bound 1.1244.",
+      "evidence_ids": [
+        "proof:568-640",
+        "proof:754-858",
+        "proof:979-1094",
+        "proof:1273-1444"
+      ],
+      "limitations": "Cross-part pairs are not observed directly; the 99% Poisson reading covers the sampling noise of the 9 within-part pairs, not the cross-part extrapolation, which remains part of this premise. The margin over the 99% upper reading is 2.6, not 20; a factor 2^-8 would leave 1.3, which this package does not use. The factor enters the success bound and the pair part of E[S3^2] (about 77% of E[X^2]). At the claimed T the success bound stays >= 0.39 down to a factor 2^-5.55; with the scaled 2^-5 it would be 0.3837. The scaling for relaxed tuples rests on the sample's validity weights; pair counts of relaxed tuples were not measured."
+    },
+    {
+      "id": "register-machine-64",
+      "role": "score-critical",
+      "statement": "The first-block work is the operation count of the explicit straight-line 7-lane batch of proof Section 8 A on the cost model's 256-bit word RAM with 64 registers: 2,047 arithmetic, 71 loads, 30 stores and 101 address operations, plus 16 for entry and exit (itemised; charged 24 up to v11), per 7 trials. Its 53 simultaneously live values and 8 registers held across the batch fit the 64 registers.",
+      "scope": "Only the register count of the machine on which the first-block batch is charged; every other charge keeps 6e5214dd's model. Lane masks, the 16-word schedule window, the state and the temporaries are registers; M0 is stored for output.",
+      "extrapolation": "The cost model collision-frontier-v5 lists primitive operations and fixes no register count. The promoted blake3-r2 package 52bb50ee states its machine as the 256-bit word RAM of the cost model with 64 registers, and our passed r31 package 028aa8d0 uses the same machine with merged sigma masks and a liveness check. The replay (organizer-executed on submission) runs this program on every seed, compares all seven lanes with scalar C_32, asserts the counts and checks the liveness bound with the 8 persistent registers.",
+      "evidence_ids": [
+        "proof:1116-1272",
+        "experiment:fixed-witness-derivation"
+      ],
+      "limitations": "A reviewer who holds the batch to 6e5214dd's register use (masks resident, schedule words and W reloaded) gets a 2,575-operation batch and the total 2^40.112162. Liveness counts SSA values of the straight-line batch; register allocation itself is not executed."
+    },
+    {
+      "id": "attack-work-moments",
+      "statement": "The fixed submitted TAB2 has maximum bucket occupancy at most 936 (27-bit buckets, hence also its 32-bit-bucket refinement). For the counterfactual uncapped counted Step-2/3 work demand X of one independent uniform first-block trial under the 2^32-bucket scan, the per-trial extraction of CV1[1..3], the relaxed record-word Step-2 tranches and the seven-lane stage-16/17 sweep with scalar re-run of stage-17 survivors, E[X] <= 39.760, E[X^2] <= 3.4506e10 and 0 <= X <= 435,826,455,501; one-sided Bernstein bounds the probability that the total exceeds 40.44 T by less than 4.0803e-5.",
+      "role": "score-critical",
+      "scope": "The Step-2/3 work counter in proof Section 8 and its hard cap W_cap = 40.44 T for T = 5,826,891,841,557 independent uniform first-block trials; the extraction of CV1[1..3] is charged once per nonempty-bucket trial.",
+      "extrapolation": "The inherited full-table participant enumeration reports exact maximum bucket occupancy 936, and the fixed builder asserts that bound before prefix construction. The mean combines the 2^32-bucket mean occupancy N/2^32 < 0.32522 (uniform key; it also bounds the nonempty-bucket probability, which carries the 21-operation extraction), the relaxed record-word tranches 48, 47, 47 and 1,376 (v13: (b') and (f') with a sigma0 table) with the exact relaxed pass rates 287,309,824/2^32 (b', f') and 68,157,440/2^32 (g') for uniform words (51.291650 per match; the replay asserts the itemised counts 21, 48, 47 and 35), the q upper confidence bound times the q gain's upper bound 1.1244, and per-candidate Step-3 work 5*28092/196608 + 70*28092/196608 + 7*f17*25*28092/196608 + f17*2354 <= 10.7940599 with f17 <= 2^-14.9 (v14: every pack runs the corrected stage 17, validated against the relaxed scalar reference with 0 mismatches; the scalar re-run already charges every later stage). E[X] <= 5(0.32522) + 21(0.32522) + 0.32522(51.291650) + 1.1244 q_UCB(600 + 196,608 x 10.7940599) < 39.760. The second moment uses Minkowski's inequality over scan, Step 2 and Step 3, and for Step 3 the pointwise split S3^2 <= S3_max S3 + S3_max^2 V(V-1), with the pair factor 2^-6.8308 (valid-tuple-pairs). Worst case S3_max = 465,625,032 gives support M = 5*936 + 21 + 936(1518 + S3_max) = 435,826,455,501; Bernstein at excess 0.680 T gives exp(-10.1068627) < 4.0803e-5, subtracted in full.",
+      "evidence_ids": [
+        "proof:440-567",
+        "proof:568-640",
+        "proof:754-858",
+        "proof:979-1094",
+        "proof:1116-1272",
+        "proof:1273-1444",
+        "proof:1860-1942",
+        "proof:2060-3130",
+        "proof:3162-3567",
+        "experiment:fixed-witness-derivation"
+      ],
+      "limitations": "The rates, moments and maximum occupancy are participant measurements rather than organizer full-table executions; the bound assumes the claimed random first-block trials transfer those distributions independently and inherits the unobserved cross-part tuple-pair premise. If the fixed table has a bucket above 936, the builder aborts and the success claim fails rather than using the Bernstein bound."
+    },
+    {
+      "id": "precomputation-op-cap",
+      "statement": "The finite no-sort P1-P4 reference pseudocode, with TAB2 bucketed by all 32 bits of A[-1], PC-4's w7-independent predicates hoisted to the LEFT row, a precomputed record word per placed record and one 64-bit lookup cell per bucket, requires at most 53,472,328,090,624 primitive word operations, plus 25,178,112 for the lane-packed P4 copy and its R1 assertion, i.e. at most 24,043,324,313 target-compression units; the integer ceiling is charged.",
+      "role": "score-critical",
+      "scope": "The one-time 32-bit-bucket TAB2 and P4 construction charged as term C in proof Section 8, including both W7 passes, record actions, fixed-array administration, bucket zeroing/prefix/cursor checks and auxiliary rows.",
+      "extrapolation": "Static worst-case source audit: the exact PC-1 L4, PC-1 L7, PC-2, PC-3, two-pass PC-4 and PC-5 loop counts are charged their displayed per-iteration maxima 2,096, 3,312, 7,280, 3,760, 3,872 per LEFT row plus 32 per (row, w7) pair, and 6,256, respectively, totaling 41,630,497,558,528 main-loop operations. PC-4 is itemised (ed55a9d7): AeqP(3,3), EeqP(7,7) and the sigma0 cancellation do not depend on w7 (rows A3, A[-1] and E3 carry no difference, and W7' - W7 = D(W7) for every w7 in L7), fix(A,-1) is empty and P3_w7_conditions is empty, so they are charged per LEFT row and pass at the old full body 3,872, and the remaining per-(row, w7) body at 32 (16 itemised); the replay checks the identities on organizer-seeded rows. Every W7 candidate in one complete pass receives a separate 64-operation record-action charge; each of the 2^32+1 bucket boundaries (2^27+1 in the audited layout plus 2^32-2^27 added by d8d39011) receives 1,024 operations covering both count/cursor and offset arrays, including the maximum-occupancy assertion; and every retained auxiliary row receives another 1,024 operations. v10c adds 1,408 operations per placed record for its record word (seven equation bodies at 128 and one 512 materialization; at most RECORD_CAP records by the pass-1 assertions) and 64 per lookup cell. The exact integer sum is divided by C=2224 and rounded upward to 24,043,312,991; the lane-packed P4 copy (196,608 rows at 128 operations, including the R1 identity assertion) and per-group broadcasts (12 x 1,024) add 11,322 units, for 24,043,324,313.",
+      "evidence_ids": [
+        "proof:440-567",
+        "proof:1445-1469",
+        "proof:1470-1735",
+        "experiment:fixed-witness-derivation"
+      ],
+      "limitations": "The exact table cardinalities are inherited participant enumerations from #26/#296. The audit is for the displayed prospective fixed-capacity, no-sort word-RAM pseudocode; it is not a compilable historical source file, native instruction trace, wall-time measurement or organizer full build. Different predicates, capacities, dynamic growth or sorting invalidate the bound."
     },
     {
       "id": "starting-solution-cost",
-      "statement": "Producing the Step-1 starting solution (the advice words A4..A13, E8..E13, W12, W13) costs at most 2^38 units.",
-      "role": "supporting",
-      "scope": "One SAT solution of the characteristic through step 13, charged once as D.",
-      "extrapolation": "S reports about 2^34.3, with no unit; read as 35-step compressions this is below 2^34.46 units. #296's two exact-value-model runs of the same task took 908.8 CPU-s in total, which gives 2^37.36 units at the kappa of cpu-second-pricing with a factor 32 (2^37.83 at kappa = 2^23). D = 2^38 covers both readings.",
+      "statement": "The fixed starting solution used by this algorithm is the single Step-1 solution used by S to build its TAB2 and published collision pair; S reports about 2^34.3 for finding that solution, and the submitted D = 2^35 = 34,359,738,368 target-compression units covers construction of this exact fixed advice.",
+      "role": "score-critical",
+      "scope": "Construction of the exact fixed values A4..A13, E8..E13, W12 and W13 used by P1-P4/TAB2 and the inherited cardinality, rate and work measurements; no substitution of another SAT output.",
+      "extrapolation": "S Sect. 4 first finds one valid through-step-13 solution, fixes the listed state/message words based on it, builds TAB2 and reports about 2^34.3 for finding the Step-1 solution. If that unstated unit is a full 35-step compression, conversion by 2476/2224 gives ceil(2^34.3 x 2476/2224) = 23,547,494,749 < 2^35, leaving a factor 1.459. The two local 908.8-CPU-second alternate-solution runs corroborate task scale only and are not used for transfer.",
       "evidence_ids": [
-        "proof:399-405"
+        "proof:1736-1742",
+        "proof:440-567"
       ],
-      "limitations": "S's unit and trace are unpublished. D is below 0.3% of the total, so this does not change the claimed exponent at two decimals."
-    },
-    {
-      "id": "work-moments",
-      "statement": "The per-trial counted Step-2/3 operations X satisfy E[X] <= 238.94 and E[X^2] <= 6.436e12 under the charges of proof Section 5.4.",
-      "role": "supporting",
-      "scope": "Only the probability of stopping at the counter cap of 400 T. The time bound itself is a hard cap and does not depend on this.",
-      "extrapolation": "Inputs are the exact occupancy mean N/2^27, the measured maximum bucket of 936, the multiplicity sum 5.758e9 (Cauchy-Schwarz over 4 parts), the Step-2 cumulative pass fractions bounded by 0.51, 1/15, 1/120 and 1/240, the Step-3 stage-16/17 pass fractions bounded by 2^-2.99 and 2^-14.9, and q at its upper limit. The quantities come from #296. Chebyshev then gives a cap-stop probability <= 7.56e-6.",
-      "evidence_ids": [
-        "proof:325-329",
-        "proof:437-462",
-        "proof:295-318"
-      ],
-      "limitations": "Credited measurements. Even a 100x larger second moment keeps the cap-stop term below 0.001, which leaves the success bound above 0.40."
+      "limitations": "The historical Step-1 execution was not independently reproduced and S reports only about 2^34.3 without stating its unit or providing a trace. The 1.459 conversion margin therefore remains heuristic. The locally generated solutions differ from T and do not establish interchangeability; the scored algorithm uses only T."
     },
     {
       "id": "search-peak-memory",
-      "statement": "The characteristic and starting-solution searches need at most 2^33 bytes of memory at their peak.",
+      "statement": "The characteristic and starting-solution searches need at most 2^33 bytes at peak.",
       "role": "supporting",
-      "scope": "Memory only. The searches run before the attack phase.",
-      "extrapolation": "#296 and #396 measured a peak resident set of 5.25 GiB over all calls. It is added to the attack memory anyway: 28,661,817,348 bytes = 2^34.739.",
+      "scope": "Memory of the characteristic and starting-solution searches, which run before the attack phase.",
+      "extrapolation": "Measured peak resident set 5.25 GiB over all 59 characteristic-search calls and the two corroborative starting-solution runs; S's historical starting-solution run is assumed not to exceed the same 2^33-byte envelope.",
       "evidence_ids": [
-        "proof:487-499"
+        "proof:1943-1977"
       ],
-      "limitations": "S's own search memory is not reported. Memory does not affect the score."
+      "limitations": "S's historical peak is not reported; the measured peaks are added to the memory bound anyway."
     }
   ],
-  "certificate_manifest": "certificates/manifest.json"
+  "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json"
 }
