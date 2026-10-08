@@ -19,20 +19,41 @@ use any published colliding pair, starting solution or first block. C works as f
 - it builds its own table;
 - it runs its own first-block search K, again from a committed seed, until the first collision.
 
-Every computation of C is charged (Section 9). Our own code is charged with explicit operation
-counts. The z3 runs and the synthetic checks are charged from their measured retired instructions
-at a measured per-instruction price: 25 word operations per instruction for z3 and 17 for the
-synthetic checks (Section 14), instead of the flat 256 of our previous filing. The analysis programs
-that formulated R20 before any search ran are charged as well (Section 15). The complete source is
-in Appendices B and C.
+Every computation of C is charged (Section 9).
+- The z3 runs are charged from their measured retired instructions at a per-instruction price taken
+  from profiles of every executed instruction of the same solver on the same models (Section 14):
+  callgrind for attempt 1, exp-bbv basic-block vectors for attempts 2 and 3. Every multiply,
+  divide and floating-point form is priced by a checked emulation. The price is 7 word
+  operations per instruction, with no safety factor; the few instructions exp-bbv does not report
+  are charged at 1024 each.
+- Search K is charged by an exact operation count (Sections 16 and 17). Its hit processing, group
+  set-up and table build are the counted program of Section 16, with every load and store counted
+  and no native 32-bit rotation. Its trials are counted as a 7-lane SWAR program (Section 17): seven
+  consecutive trials of a group share one 256-bit word, one 32-bit value per 36-bit lane, on the
+  cost model's word RAM with 64 registers. Replayed over every group of the run, the counted program
+  takes the same key and bitmap decision as the executable's own trial block on all 99,492,036,640
+  trials, reproduces every counter of the run's log and reproduces the stored pair. The worst-path
+  count of each hit event is multiplied by the run's own counter of that event.
+- The synthetic completion checks are charged the same way, by exact counted replays of the three
+  runs that reproduce their logged counters (Section 16.6). This corrects our earlier filings,
+  which charged three equal runs.
+- The analysis programs that formulated R20 before any search ran are counted the same way; their
+  counted versions print exactly the originals' outputs (Section 15.2).
+- Our other own code is charged with explicit operation counts.
+- Runs that read the published colliding pair or the starting solution derived from it are not part of C
+  and are not charged. Besides the relaxed-search, synthetic and K' runs of 10-07, these are the three
+  `analyze.py` runs and the two runs of the yield program `table` of the pre-construction analysis,
+  which our filings up to v9 had charged as part of C. No constant of C comes from any of them
+  (Sections 15.1, 15.4).
+The complete source is in Appendices B, C and D.
 
 | field | value | where |
 |---|---|---|
-| time_log2 | 37.22 | executed work of C plus replay, 2^37.2169, Section 9 |
-| preprocessing_log2 | 37.22 | construction chain C, Section 9 |
+| time_log2 | 34.38 | executed work of C plus replay, 2^34.3791, Section 9 |
+| preprocessing_log2 | 34.38 | construction chain C, Section 9 |
 | success_probability | 1 | deterministic replay, Section 3 |
 | nonuniform_advice_log2_bytes | 9 | the stored 256-byte pair, Section 10 |
-| memory_log2_bytes | 27.5 | measured peak over C (the z3 runs), Section 10 |
+| memory_log2_bytes | 29.5 | measured peak over C and the analysis (`joint`, 2^29.003 bytes), Section 10 |
 
 Our own change to the source attack is the relaxed W20 condition R20 (Section 6). The published
 characteristic fixes the s0-difference of W5 and the s1-difference of W18. R20 only requires that
@@ -40,10 +61,31 @@ the two cancel, which is exactly dW20 = 0. The stored pair uses differences of 0
 f0027e1f, not the characteristic's.
 
 Heuristics are declared in Section 11:
-- H1-public-characteristic, H2-op-accounting, H3-instruction-price and H5-chain-scope are
-  score-critical;
+- H1-public-characteristic, H2-counted-programs, H3-heavy-tariffs, H5-chain-scope,
+  H6-z3-build-transfer, H7-profile-reconstruction and H8-lumps-and-hand-bounds are score-critical;
 - H4-memory is supporting.
 No probability estimate enters the bound.
+
+**What changed from v10.** One charge is re-counted: the trials of search K. The attack, the stored
+pair, every executed run and every other line of the ledger are unchanged.
+- K's trial passes are counted as a 7-lane 36-bit guard-bit SWAR program (Section 17): 995
+  primitives per pass of 7 trials plus 5 for loop control, against v10's 4,677 per pass of 8. The
+  layout of seven trials in 36-bit lanes with 4 guard bits is Th0rgal's (submission f310d44f,
+  sha256-r32). Meganpark980320's submission 0404f1a6 was the first public application of that
+  technique to this search K. Ours is an independent implementation built from our v10 program. It
+  differs in the machine: 64 registers with the lane masks resident, as in the promoted blake3-r2
+  package (submission 52bb50ee). It also differs in its merged σ masks, its register-save charge on
+  every out-of-line path, and its validation.
+- The K line falls from 27,384,016,436 to 6,849,102,900 units, and the total from 2^35.3195 to
+  2^34.3791.
+- Validation covers the whole run: every group that K executed is replayed, all 99,492,036,640
+  trials. Every key and bitmap decision is compared with the executable's own trial block and with
+  v10's counted scalar trial. The summed counters equal the run's log (Section 17.4). v10 checked
+  71,670,492 trials.
+- v10's charge (582 primitives per trial) is kept as a stated sensitivity (H2), together with the
+  pass with every constant loaded at each use and the pass on v10's 32-register machine.
+- The evidence line ranges of claim.json are recomputed for this layout. v10's still pointed at the
+  layout of v9.
 
 ## 2. Target, written out
 
@@ -223,7 +265,10 @@ Starting solution (z3 4.15.4, single thread, `z3 -T:1800 -st`, `/usr/bin/time -l
 Diagnostics before K, measured the same way (one representative run each; every run is charged):
     yield check (set scans + table, `r31det3 1 0` three times and `diag 1 0` twice):
         124,752,621,861 instructions per run (5 runs)
-    synthetic completion check, `r31sim3 1 20 5eed3 ... sim`: 500,284,109,323 instructions per run (3 runs)
+    synthetic completion checks, `r31sim3 1 20 5eed3 ... sim`, one with the S of each z3 attempt: run 1
+        (attempt 1, no records) stopped with a segmentation fault at its first trial; runs 2 and 3
+        completed 275,316,736 and 250,544,128 trials (Section 16.6); a re-run of run 3's command
+        retires 500,284,109,323 instructions
     V8 dump: 51,663,872,491; c8 residue scan: 18,618,257,497 instructions (1 run each)
 After K had stored the pair, the instruction counts above were measured by re-running `diag` twice,
 `r31sim3` twice, `v8dump` and `c8scan` once each. Those re-runs could not influence the stored pair,
@@ -231,6 +276,8 @@ and we do not charge them (Section 15.1). The execution record of every run is t
 of the session that ran them; Section 15.1 lists them.
 
 Search K: started 13:04:56 KST under the machine's resource-guard lease, 12 threads, nice 10.
+    executable: `r31det3` built from B.4 and B.5 with `cc -O3 -mcpu=apple-m4 -o r31det3 r31det3.c -lpthread`
+    at 13:04, SHA-256 2824a0f855c203d1ada6f99e5a25fa8aebd4f2feeee0a8a56776c311af4bce23 (Section 14.6)
     /usr/bin/time -l: real 139.76 s, user 1351.89 s; maximum resident set 7,438,336 bytes; 15,640,902,198,904 instructions retired
     groups 5,932; trials executed 99,492,036,640 (2^36.534); bitmap hits 58,831,394; key-matched trials 1,376,281
     matched records 3,061,666; V6 passes 5,992; R20 passes 1; completion attempts 1, E13 iterations 2,829, E15 iterations 19
@@ -238,52 +285,112 @@ Search K: started 13:04:56 KST under the machine's resource-guard lease, 12 thre
 
 ## 9. Cost ledger (executed work of C)
 
-The z3 runs and the synthetic checks are charged at the measured per-instruction prices of
-Section 14 (H3). Our own code is charged with the operation counts of H2. The analysis programs of
-Section 15.2 are charged with operation bounds from their source (H2).
+The z3 runs are charged at the measured per-instruction price of Section 14 (H3). Search K is charged
+by the operation counts of its counted programs (Sections 16 and 17, H2), and the synthetic checks by
+theirs (Section 16.6, H2).
+The analysis programs of Section 15.2 are charged by the exact operation counts of their counted
+versions (H2). Our other own code is charged with the operation counts of H2.
 
-    z3 attempts 1-3: 2,721,814,602,106 instructions * 25 / 2140                      31,796,899,558
-    synthetic completion checks: 3 runs * 500,284,109,323 instructions * 17 / 2140   11,922,658,681
-    yield checks: 5 * (three 2^32 scans <= 24 ops/word + table <= 6.4e6 * 64 ops)      723,470,929
+    z3 attempts 1-3 (Section 14.4, H3, H6, H7): 2,721,814,602,106 instructions * 7
+        + (1024 - 7) * 1,989,181,169 final-interval instructions = 21,075,699,463,615 ops / 2140   9,848,457,694
+    synthetic completion checks (Section 16.6, H2): exact counted replays,
+        4,134,261,321,301 ops / 2140                                               1,931,897,814
+    yield checks: 5 * (three 2^32 scans <= 24 ops/word + table <= 6.4e6 * 64 ops)        723,470,929
     V8 dump (one 2^32 scan, <= 24 ops/word) and c8 residue scan
-        (300,000 * 49408 candidates, <= 8 ops each)                                 103,578,699
-    pre-construction analysis (Section 15.2): 27,838,136,107,008 ops / 2140                     13,008,474,817
-    Python model generation, verification and analysis: lump allowance       1,000,000,000
-    K run, operation model (counts from Section 8):
-      set scans and table (P1, P2)                                            144,694,186
-      self-checks (2000 kernel comparisons)                                   4,000
-      groups 5,932 * 1 unit                                              5,932
-      trials 99,492,036,640 * (1 compression + 32 ops)                            100,979,768,029
-      bitmap hits 58,831,394 * (1 compression + 64 ops)                           60,590,838
-      matched records 3,061,666 * 400 ops                                       572,274
-      V6 passes 5,992 * 1600 ops                                             4,480
-      completion: 2,829 E13 + 19 E15 iterations * 160 ops, 1 setup  213
-      candidate pairs hashed 1 * (6 compressions + 64 ops)             6
+        (300,000 * 49408 candidates, <= 8 ops each)                                   103,578,699
+    pre-construction analysis (Section 15.2): 5,457,189,249,047 ops / 2140             2,550,088,435
+    process launch and library calls of the yield checks, V8 dump and c8 scan (H8):
+        4.1e8 instructions * 1024 = 419,840,000,000 ops / 2140                        196,186,916
+    Python runs (H8): at most 50 invocations * 5e8 instructions * 12 = 3e11 ops / 2140   140,186,916
+    K run (Sections 16 and 17, H2), primitive operations of the counted program:
+      search: 14,213,153,175 passes of 7 trials (SWAR, Section 17) * 1,000         14,213,153,175,000 ops
+      group head, set-up, lane broadcast, 17 events and their register saves:
+        5,932 groups * 16,151                                                    95,807,732 ops
+      bitmap hits: 58,831,394 * (1,642 + 2 lane index + 128 register save)        104,249,230,168 ops
+      key-matched hits 1,376,281 * 13, matched records 3,061,666 * 238,
+        V6 passes 5,992 * 2,344, the R20 pass to the stored pair 2,533,318          763,146,727 ops
+      table build (2^32 scan, records, sort, bitmap), s1 inverse, self-check  236,418,844,446 ops
+      library calls and main thread: at most 10^8 instructions * 1024         102,400,000,000 ops
+      K: 14,657,080,204,073 ops / 2140                                              6,849,102,900
     -------------------------------------------------------------------------------------------
-    preprocessing (chain C)                                                  159,740,722,642 = 2^37.2169
+    preprocessing (chain C)                                                   22,342,970,303 = 2^34.3791
     replay R                                                                 6.36
-    total                                                                    159,740,722,648 = 2^37.2169
+    total (rounded up)                                                        22,342,970,310 = 2^34.3791
 
-Claimed time_log2 = 37.22 and preprocessing_log2 = 37.22. Every term is the work actually executed
-by C or by the analysis that formulated R20. Nothing is an expectation or a cap that went unused.
+Claimed time_log2 = 34.38 and preprocessing_log2 = 34.38. Every term is the work actually executed
+by C or by the analysis that formulated R20. The event counts are the run's own counters (Section 8).
+Nothing is an expectation or a cap that went unused.
 
-The Python lump covers every Python run in the chain and in the pre-construction analysis:
-gen_s.py, check_s.py and analyze.py three times each, and two short inline scripts on S and on the V8
-dump (Section 15.1). Re-runs of gen_s.py and check_s.py retire 220,935,601 and 211,710,075
-instructions, most of it interpreter start-up. Even if every instruction were priced as a multiply
-(400 operations), one such run would be 4.2e7 units, and the lump covers 23 of them.
+The Python runs (H8) are bounded with measured data. The session transcript shows at most 50 python3
+invocations in the windows of the pre-construction analysis and of chain C (Section 15.1), including
+file edits. Re-runs on the same machine retire 213,502,045 instructions for `python3 -c pass` (the
+interpreter's start-up), 229,782,531 for gen_s.py, 267,571,748 for check_s.py and 463,159,626 for
+analyze.py, so each is charged as 5e8. Complete callgrind profiles of CPython (Debian python3.11 in the
+container of Section 14.4) running gen_s.py, check_s.py and an empty script give per-form means of
+5.15, 4.60 and 5.65 (unmapped instructions at 1024). The price 12 is twice the largest.
 
-The K term (101,185,639,958 units) is now 63.3% of the total. The instruction-priced lines are
-27.4%.
+Process launch and library calls are charged from measurements on the same machine (Appendix C.15).
+An empty program retires about 11e6 instructions from start to exit. Library calls retire about:
+- 9,300 instructions for a progress `printf`, 950 for `fprintf("%08x")`, 1,100 for `fscanf("%x")`;
+- 147,000 for `fopen` and `fclose`, 90,000 for `pthread_create` and `join`;
+- 11,300 for `usleep`, 5,000 for `access`, 190 for `clock_gettime`;
+- 25e6 for `calloc` of 256 MB (zero-fill).
+Each run's launch and calls, doubled, are below its charge:
+- K: 10^8 instructions;
+- each synthetic check: 3e7;
+- the analysis programs: 5e8;
+- the yield checks 1.5e8, the V8 dump 1.3e8 (49,408 lines written) and the c8 scan 1.3e8 (49,408
+  values read).
+All are charged at 1024 per instruction, above every tariff of the table (Section 14.2).
+
+K's block covers the whole K process:
+- the set scans and the table (P1, P2), with the sort and the bitmap;
+- the s1 inverse and the self-checks;
+- every group, every trial, every bitmap hit, the completion and the output.
+Code that is not part of the algorithm (library calls for printing, threads, timing and
+allocation, and the main thread's progress loop) is bounded by instruction count at the highest
+per-instruction price of the v5 table (Section 16.3). The program is v10's (Section 16) with its
+trial passes written for seven trials per 256-bit word (Section 17): 1,000 primitives per pass of
+7 trials (142.9 per trial) instead of 4,677 per pass of 8 (584.6 per trial). The K term is
+30.7% of the total. The instruction-priced line (z3) is 44.1%.
 
 The K run was not lucky. Model value: with 132096 records, a V6 rate of 2^-9 and an R20 rate of
 2^-12.66, a first success is expected after about 2^36.6 trials. K needed 2^36.531.
 
 ## 10. Memory and advice
 
-The advice of R is the stored 256-byte pair; 9 is claimed. Peak memory over C was measured with
-`/usr/bin/time -l` on every run: the largest maximum resident set size was 161,103,872 bytes (z3
-attempt 2, 2^27.26), against 7,438,336 bytes for the K run. The claim of 27.5 covers it.
+The advice of R is the stored 256-byte pair; 9 is claimed.
+
+Peak memory is taken over every run that is charged: chain C and the pre-construction analysis
+(Section 15.1). It is the maximum resident set size reported by `/usr/bin/time -l`:
+- for the z3 attempts and search K, as recorded during the charged runs (Section 8);
+- for every other run, from a re-run of the same binary or script on the same inputs on the same
+  machine (2026-10-08; not charged, Section 15.1).
+The last column gives the largest allocation in each run's source, so that the measured figures can
+be checked against the code.
+
+| run | maximum resident set (bytes) | largest allocation in the source |
+|---|---|---|
+| z3 attempt 1 / 2 / 3 | 154,107,904 / 161,103,872 / 153,944,064 | solver memory (z3 reports 95 MB peak for attempt 1) |
+| search K (`r31det3`, 12 threads) | 7,438,336 | records: malloc of 2^20 * 24 bytes (24 MiB, 132,096 used); bitmap 2 MiB |
+| synthetic checks (`r31sim3`, run 3's command) | 5,799,936 | the same records and bitmap |
+| yield checks: `r31det3 1 0` / `diag 1 0` | 5,832,704 / 5,816,320 | the same records and bitmap |
+| V8 dump / c8 scan | 1,720,320 / 1,916,928 | c8 scan: static array of 60,000 words |
+| `sets` / `table` (excluded since v10, Section 15.4) | 1,703,936 / 1,720,320 | `table`: static key array of 2^24 * 4 bytes (64 MiB, sparsely touched) |
+| `joint` | **538,050,560** | two calloc'd hash tables of 2^25 entries * 8 bytes = 2^29 bytes |
+| `pany` | 269,549,568 | one table of 2^25 * 8 bytes = 2^28 bytes |
+| `pany2` (1 thread; 12 threads) | 269,615,104; 269,631,488 | one table of 2^28 bytes, plus thread stacks |
+| Python: gen_s.py / check_s.py / analyze.py | 18,202,624 / 17,465,344 / 24,625,152 | interpreter |
+
+The peak is `joint`'s 538,050,560 bytes = 2^29.003. It is its two hash tables of 2^25 entries of
+two 32-bit words each (2^29 bytes), plus code, stack and allocator state. We claim
+memory_log2_bytes = 29.5 (759,250,125 bytes). That is 1.41 times the measured peak, and above the
+sum of the largest allocations in any single source: `joint`'s 2^29 bytes plus at most a few MiB.
+Our earlier filings claimed 27.5 from the chain's runs only and missed the analysis programs. The
+measurement programs of Appendices C and D (`kcount.c`, `scount.c`, `pcount.c`, `kswar.c`, the
+profilers) are not charged runs. Their largest allocation, `pcount`'s copy of `joint`'s two tables, is the same 2^29
+bytes.
+Memory is reported only and does not enter the score.
 
 ## 11. Heuristics
 
@@ -297,40 +404,97 @@ charging its original discovery.
 - Provenance: Li, Liu, Wang, Dong and Sun (ASIACRYPT 2024). The authors' public search tool is
   Peace9911/sha_2_attack at commit 6a9f35fd8d8bdcc1a54dc6f170ed0038ebe5bb32.
 - Sensitivity: the trail search is not executed or bounded by our own evidence in this filing. A
-  charge of T units for it gives a total of 159,740,722,648 + T units. That stays below 2^39.15 (our
-  previous filing) for T up to 2^38.712, and below 2^40.4 for T up to 2^40.232.
+  charge of T units for it gives a total of 22,342,970,310 + T units. That stays below 2^39.15 (our
+  earlier filing) for T up to 2^39.096, and below 2^40.4 for T up to 2^40.378.
 
-H2-op-accounting (score-critical). For our own code (Appendix B), the per-event charges of
-Section 9 bound the primitive word operations:
-- per trial: 1 compression + 32 operations (counter, bitmap index and test, loop control);
-- per bitmap hit: 1 compression + 64 operations;
-- per record: 400; per V6 pass: 1600; per completion iteration: 160;
-- per group: one compression equivalent;
-- per scanned word: 24; per residue-scan candidate: 8.
-- the pre-construction analysis programs (Section 15.2): the per-run bounds listed there, with
-  floating-point operations at 400 and divisions at 1024.
-Each trial is charged a full compression, although K shares steps 0..14 within a group.
+H2-counted-programs (score-critical). The work of search K, of the three synthetic completion
+checks and of the pre-construction analysis programs is the operation count of explicit programs
+that compute the same results with v5 primitives, not the retired instructions of their executables.
+- Statement: K's trial passes are charged by the SWAR pass of Section 17 (1,000 primitives per pass
+  of 7 trials) times the passes K executed, and its other events by the worst-path counts of
+  Section 16.3 times the run's event counters (Section 8). The synthetic checks are charged by exact
+  counted replays (Section 16.6) and the analysis programs by the exact counts of counted versions
+  (Section 15.2).
+- Scope: the counted programs `kprog.py`, `kcount.c`, `scount.c` and `pcount.c` (Appendix C.6-C.9,
+  C.13) and `kswar.py` and `kswar.c` (Appendix D). They use only v5 primitives, count every load and
+  store, use no native 32-bit rotation, and write Σ, σ, Ch and Maj as exact identities (Sections 16.1
+  and 17.1). Their 64-bit products are explicit 385-primitive shift-and-add emulations, inside the
+  count. The SWAR pass holds seven 32-bit values per 256-bit word in 36-bit lanes, and runs on the
+  cost model's word RAM with 64 registers, the machine of the promoted blake3-r2 package 52bb50ee
+  (Section 17.1). The cost model fixes the primitives, not a register count.
+- Evidence:
+  - The SWAR pass, replayed over every group that K executed (99,492,036,640 trials in
+    14,213,153,175 passes), takes the same key and bitmap decision on every trial as `r31det3`'s own
+    trial block and as v10's counted scalar trial.
+  - Its counted hit processing agrees with `r31det3`'s `process_hit` on every counter of every
+    group. The summed counters equal the run's FINAL and DET lines. Group 5920 reproduces the stored
+    pair with the run's 2,829 E13 and 19 E15 draws (Section 17.4).
+  - `kswar.py` checks 21,000 lanes against the organizer reference core, asserts a static per-lane
+    bound below 2^36 for every addition, and counts the live registers.
+  - The executable that ran evaluated the same trials packed four to a 128-bit NEON register,
+    retiring 154.75 instructions per trial on its hot path (Section 14.6).
+  - The synthetic replays agree trial by trial with `r31sim3`'s own `process_sim` and reproduce the
+    logged FINAL counters of runs 2 and 3; run 1's stop at its first trial is reproduced by a re-run
+    (16.6). Each counted analysis program prints exactly the original's output (15.2).
+- Extrapolation: none for K's trials, which are all replayed. Worst paths are charged for K's hit
+  events (18 binary-search steps, all 64 G16 candidates). Every out-of-line path of the SWAR loop is
+  charged a store and reload of all 64 registers.
+- Sensitivity:
+  - with v10's scalar trials (582 per trial, 4,677 per pass of 8), the total would be
+    2^35.3195;
+  - with the SWAR pass but every constant loaded at each use (1,292 + 8 per pass), 2^34.502;
+  - on v10's 32-register machine (1,236 + 8 per pass), 2^34.480;
+  - the claim of 34.38 holds for any pass of up to 1,002 primitives;
+  - with twice the pass, 2^34.755; with twice every K line, 2^34.765;
+  - with the forms of our earlier filing f99530e8 (775 per trial), 2^35.5937; with every
+    rotation and mask as the organizer's reference core writes them (1035 per trial), 2^35.8960;
+  - with twice the synthetic checks, 2^34.4987;
+  - with the analysis programs at the hand bounds of our earlier filings, which also covered the two
+    excluded `table` runs, 2^34.9330;
+  - with K charged by its executable's instructions instead (Section 14.6), 2^36.115 (one 256-bit
+    word per vector register) or 2^36.860 (one word per 32-bit lane).
 
-H3-instruction-price (score-critical). For the runs without an exact operation model (the z3
-attempts and the synthetic completion checks), the per-instruction prices of Section 14 bound their
-primitive word operations: 25 per retired instruction for z3 and 17 for the synthetic checks.
-- Scope: the retired-instruction counts of Section 8 (macOS counters through `/usr/bin/time -l`).
-- Evidence: the per-form costing of the AArch64 code (Appendix C.1), applied statically to the z3
-  binary that ran and dynamically to callgrind instruction counts of the same z3 version and the
-  same three committed models, and of the same synthetic-check source (Section 14).
-- Extrapolation: the dynamic mix comes from the Linux build of z3 4.15.4. It covers all of
-  attempt 1 (the same search, step for step) and the first 28% and 39% of attempts 2 and 3 by
-  rlimit count. The static mixes of the two builds agree (Section 14.3). The price doubles the worst
-  of 23 measured intervals to cover the unprofiled remainder and the build difference.
-- Sensitivity: at 256 operations per instruction (our previous filing) the total would be
-  2^39.176; at four times the charged prices it would be 2^38.082.
+H3-heavy-tariffs (score-critical). Every multiply, divide and floating-point instruction is priced
+by an explicit emulation in v5 primitives. The ordinary forms are priced by the per-form rules of
+`a64ops.py` (Section 14.2).
+- Statement: the tariffs are the largest primitive counts of checked emulations, rounded up to a
+  multiple of 8:
+  - multiplies with 32-bit source operands: 210 (`mul32.py`);
+  - 64-bit `mul`/`madd`/`msub`/`mneg` 392, `umulh` 392, `smulh` 408;
+  - `udiv`/`sdiv` 360/384 (32-bit) and 712/736 (64-bit);
+  - binary64 add or subtract 240, multiply 520, fused multiply-add 600, divide 824, square root 1008,
+    compare 48, integer-to-double conversion 152, double-to-integer 24 (`heavy.py`).
+  The counted programs of H2 use the same floating-point tariffs.
+- Scope: the per-form pricing of z3's executed instructions (Section 14.4) and the floating-point
+  operations of the counted analysis programs (Section 15.2).
+- Evidence: Appendix C.11. Each emulation is branch-free where possible, with every data-dependent
+  branch counted. Each is checked against the instruction's definition: Python integers for the
+  integer forms; the host's IEEE binary64 arithmetic on AArch64, and exact fractions for the fused
+  multiply-add, for the floating-point forms. The checks cover 20,000 integer and 100,000
+  floating-point cases per form, with zeros, subnormals, infinities, NaNs and extreme exponents. For
+  every form the largest observed count is within its tariff.
+- Extrapolation: the largest count on the checked inputs is taken as the form's worst case.
+  Every loop in these emulations has a fixed trip count, and the data-dependent branches select
+  among a few fixed paths, so the checked inputs exercise every path.
+- Sensitivity: with every heavy tariff doubled, the total would be 2^34.741; with the v5
+  table's uniform 400 for every multiply and floating-point form and 1024 for divides, 2^34.606.
 
-H4-memory (supporting). The measured maximum resident set sizes bound C's peak memory.
+H4-memory (supporting). Peak memory over C and the pre-construction analysis is at most 2^29.5 bytes.
+- Scope: every charged run (Section 15.1): the z3 attempts, search K, the synthetic checks, the yield
+  checks, the V8 dump and c8 scan, the analysis programs and the Python runs.
+- Evidence: the maximum resident set sizes of Section 10 (`/usr/bin/time -l`), recorded during the
+  charged runs for z3 and K and from re-runs of the same binaries on the same inputs for the rest.
+  The largest is `joint`, 538,050,560 bytes, which its source explains: 2^29 bytes of hash tables.
+- Extrapolation: a re-run touches the same pages as the original run of the same deterministic
+  program on the same input.
+- Sensitivity: memory does not enter the score.
 
 H5-chain-scope (score-critical). Every constant of C comes from the public characteristic, from
 analysis, from the charged pre-construction analysis programs, or from the charged v3 runs before K
 (Section 15.3). The earlier search runs that used the published starting solution produced rates
 and pairs that C does not read, and they fixed no constant of C (Section 15.4). They are excluded.
+  So are the three `analyze.py` runs and the two `table` runs of the pre-construction analysis, which
+  read the published pair or the starting solution derived from it (Section 15.4).
 - Scope: all computation on this target in our working directories and session records on
   2026-10-06 and 2026-10-07, listed in Section 15.1.
 - Evidence: the agent transcript of the session that ran every command, the file times of the
@@ -338,7 +502,71 @@ and pairs that C does not read, and they fixed no constant of C (Section 15.4). 
 - Extrapolation: the commitments are local (file timestamps and a local git history), not
   notarised.
 - Sensitivity: if a reviewer charged the excluded search runs anyway, the 2^40.625-trial run alone
-  would put the total at 2^40.774.
+  would put the total at 2^40.665.
+
+H6-z3-build-transfer (score-critical). The per-form mix measured on the Linux build of z3 4.15.4
+(PyPI z3-solver 4.15.4.0, the same solver version) bounds the per-form mean of the macOS binary
+that ran (Homebrew z3 4.15.4).
+- Statement: the z3 price of Section 14.4 is charged on the macOS instruction counts of Section 8.
+- Scope: z3 attempts 1-3.
+- Evidence:
+  - every profiled run repeats the charged search: the same model, rlimit-count, conflicts and
+    decisions;
+  - both builds have the same static profile (Section 14.3), and both compile about 90% of their
+    multiply sites to 32-bit-operand forms;
+  - the macOS build retires more instructions for the same searches (attempt 1: 261,276,415,067 against 245,527,956,010; attempt 2: 1,572,256,055,396 against 1,475,640,959,576; attempt 3: 888,282,131,643 against 834,226,129,830), with the same
+    multiplies and divides in the source.
+- Extrapolation: from the static agreement and the equal search statistics to the dynamic mix. The
+  price is not scaled for the instruction ratios, which favour the macOS build.
+- Sensitivity: with the z3 price doubled, the total would be 2^34.863; at the price of our previous
+  filing (19), 2^35.130; at 256 operations per instruction, 2^38.302.
+
+H7-profile-reconstruction (score-critical). The per-instruction profiles of z3 attempts 2 and 3
+are reconstructed from exp-bbv superblock counts.
+- Statement: attempts 2 and 3 are priced from exp-bbv basic-block vectors (Section 14.4). callgrind's
+  own memory grows without bound on these runs. Each superblock is disassembled from the executable
+  that ran: its instructions run from its start to the first control transfer, or 100 instructions.
+  The superblock's count is the number of instructions executed in it.
+- Scope: attempts 2 and 3. Attempt 1 is priced from its complete callgrind profile.
+- Evidence: on attempt 1 the reconstruction agrees with the complete callgrind profile:
+  - whole-run per-form mean 7.5717 against 7.5558 at v5 prices, and 5.0436 against 5.0356 at this
+    filing's prices;
+  - largest interval 5.3589 against 5.3503.
+- Extrapolation and bounds:
+  - a superblock whose count is not a multiple of its length (5.01% of the instructions) is
+    charged at the largest per-instruction mean of any prefix ending at one of its branches, an upper
+    bound for any mix of exits;
+  - the last partial interval, which exp-bbv does not report (1,867,089,404 instructions), is charged at
+    1024 per instruction, more than any tariff of the table (Section 14.2).
+- Sensitivity: with the bounded superblocks charged at twice their bound and the final intervals at
+  4096 per instruction, the total would be 2^34.553.
+
+H8-lumps-and-hand-bounds (score-critical). Process launch, library calls and the Python runs are
+charged by measured bounds, and three small diagnostic programs by hand bounds from their source.
+- Statement:
+  - each process's launch and library calls: the measured per-call instruction counts of Appendix
+    C.15, doubled, at 1024 per instruction (Section 9, 15.2, 16.3, 16.6);
+  - the Python runs: at most 50 invocations of at most 5e8 instructions at 12 per instruction
+    (Section 9);
+  - the yield checks, the V8 dump and the c8 residue scan: the hand bounds of Section 9 (24 per
+    scanned word, 64 per table candidate, 8 per residue candidate).
+- Scope: these lines of Section 9 (6.7% of the total).
+- Evidence:
+  - `libmeasure.c` and its output (Appendix C.15): every library call kind the runs make, timed by
+    the process's retired-instruction counter; an empty program's launch at 11.4e6 instructions;
+  - the re-run instruction counts of the Python scripts, and complete callgrind profiles of CPython
+    running them (Section 9);
+  - the hand bounds hold for counted programs of the same loops:
+    - K's table scan costs 55 per word for its three tests, against the yield bound of 72 (three
+      scans at 24);
+    - the V8 dump's single test costs 24 per word, as in K's scan;
+    - the c8 scan's inner step costs 5 primitives (load, subtract, AND, compare, add), plus loop
+      control of 3 per 8 candidates when unrolled by 8, against the bound of 8.
+- Extrapolation: the library counts are measured per call kind, not inside the original runs. The
+  CPython price is measured on the Linux build of a neighbouring version (3.11 against 3.12) and
+  doubled.
+- Sensitivity: with ten times every launch and library bound, and twice the Python bound and the
+  hand bounds, the total would be 2^34.707.
 
 ## 12. Organizer-executed experiment and certificates
 
@@ -357,14 +585,30 @@ Certificate: `relaxed-v3-1`, the stored pair.
 - Y. Li, F. Liu, G. Wang, J. Shi, ePrint 2026/1080, Section 3: the framework restated.
 - Y. Li, F. Liu, G. Wang, EUROCRYPT 2024 (ePrint 2024/349): the SAT/SMT approach.
 - Public Yukon submissions on this track: using the published characteristic as public text, and
-  sharing steps 0..14 across first blocks (we use this for speed only, with no discount).
+  sharing steps 0..14 across first blocks. Since our previous filing, K's charge counts the work
+  done: steps 0..14 are charged once per group, in the group set-up (Section 16.3).
+- Th0rgal, submission f310d44f (sha256-r32): seven independent trials in the 36-bit lanes of a
+  256-bit word with 4 guard bits, one 256-bit addition per lane addition, and the rotation as two
+  shifts, two masks and an OR. Section 17 uses this layout.
+- Meganpark980320, submission 0404f1a6: the first public application of the 7-lane technique to
+  this search K, on our v10. Section 17 is an independent implementation from our v10 program.
+- The promoted blake3-r2 package (submission 52bb50ee): the 64-register machine with resident lane
+  masks and a liveness count (its proof Section 5). Section 17 uses the same machine.
 - Ours: R20, the starting-solution model with the yield residue, chain C and its execution, the
-  experiment, and the per-instruction price measurement of Section 14.
+  experiment, the per-instruction price measurement of Section 14, the counted programs of K, the
+  synthetic checks and the analysis (Sections 15.2, 16 and 17), the merged σ masks and the
+  full-run replay of Section 17, and the 32-bit multiply emulations (Appendix C.11).
 
 ## 14. Per-instruction price: our own evidence
 
-This section supports H3. It does not re-run any charged call on the measurement machine; it
-measures what one retired instruction of the charged programs costs in primitive word operations.
+This section supports H3 for the z3 runs. It measures what one retired instruction of z3 costs in
+primitive word operations. Sections 14.5 and 14.6 price the synthetic check's and search K's
+executables in the same way; those were the charges of earlier filings and are now cross-checks,
+because both are charged by counted programs (Section 16). Apart from one re-run of K's table build
+(Section 14.6) and one re-run of synthetic run 1 (Section 16.6), this section does not re-run any
+charged call on the measurement machine. The complete profiles of 14.4 re-run the z3 attempts on the
+Linux build in Docker; like every measurement here, they came after the stored pair existed and are
+not charged.
 
 ### 14.1 What ran
 
@@ -393,6 +637,18 @@ program datum sits in its own 256-bit word. The main rules:
 - multiply, multiply-add, high multiply, and all floating-point arithmetic, comparison and
   conversion cost 400 ("heavy": shift-and-add emulation of a 64 x 64 or 53 x 53 product is at most
   64 iterations of 5 primitives plus normalisation);
+- new in this filing (H3): every multiply, divide and floating-point form that the charged runs
+  execute is priced by an explicit emulation in v5 primitives, checked against the instruction's
+  definition (Appendix C.11). Each tariff is the emulation's largest primitive count, rounded up to
+  a multiple of 8:
+  - multiplies with 32-bit source operands (`umull`, `smull`, `umaddl`, `smaddl`, `umsubl`, `smsubl`,
+    `umnegl`, `smnegl`, and `mul`, `madd`, `msub`, `mneg` on w registers): 210 (`mul32.py`; 32
+    shift-and-add steps);
+  - 64-bit `mul`/`madd`/`msub`/`mneg` 392, `umulh` 392, `smulh` 408;
+  - `udiv`/`sdiv` 360/384 on w registers and 712/736 on x registers (restoring division);
+  - binary64: `fadd`/`fsub` 240, `fmul`/`fnmul` 520, `fmadd`/`fmsub`/`fnmadd`/`fnmsub` 600, `fdiv`
+    824, `fsqrt` 1008, `fcmp`/`fcmpe` 48, `ucvtf`/`scvtf` 152, `fcvtzs`/`fcvtzu` 24 (`heavy.py`).
+  These replace the v5 table's uniform 400 and 1024 for these forms;
 - integer divide, floating-point divide and square root cost 1024 (restoring division, 64
   iterations of at most 8 primitives, plus normalisation);
 - any form the table does not recognise costs 8 and is reported.
@@ -408,40 +664,76 @@ program datum sits in its own 256-bit word. The main rules:
 
 The two z3 builds have the same static profile; the build that ran has the lower heavy share.
 
-### 14.4 Dynamic mix: callgrind on the same solver version and the same models
+### 14.4 Dynamic mix: complete profiles of the same solver on the same models
 
-Valgrind does not run on macOS arm64 and we have no other instruction-level profiler there, so we
-measured the mix on the Linux build of the same z3 version on the same machine: Debian bookworm arm64 in Docker, valgrind 3.19.0,
-`valgrind --tool=callgrind --dump-instr=yes --dump-every-bb=8000000000 z3 -T:1200 -st s-modelN.smt2`
-on the three committed models with their committed seeds. `cgmix.py` (Appendix C.2) maps every
-executed instruction address to its disassembly and prices it with `a64ops.py`. Every executed
-instruction was mapped except 3,932, which are priced at 1024.
+Valgrind does not run on macOS arm64, and we have no other instruction-level profiler there. So we
+measured the mix on the Linux build of the same z3 version on the same machine, in Debian bookworm
+arm64 under Docker with valgrind 3.19.0, on the three committed models with their committed seeds.
+Each run went to completion, and every profiled run repeated the charged macOS search: the same
+model, rlimit-count, conflicts and decisions. Every executed instruction is priced by its form with
+the table of 14.2 (heavy forms by the tariffs of `mul32.py` and `heavy.py`). An instruction that
+cannot be mapped to the disassembly is priced at 1024.
 
-Attempt 1 ran to completion under callgrind and repeated the macOS search exactly: the same model
-(A1 = a651919f, ...), rlimit-count 249,602,816, 1,068,222 conflicts and 1,829,611 decisions as the
-charged run. So the profile of attempt 1 is a profile of the very same search, executed by a
-different build; that build retired 245,527,956,010 instructions against 261,276,415,067 on macOS.
-Attempts 2 and 3 hit the 1200 s callgrind time limit. We profiled their first 361,089,420,698 and
-308,853,516,577 instructions, which reached rlimit-count 341,226,376 of the charged run's 1,200,096,786
-(28%) and 309,573,558 of 797,205,785 (39%).
+- **Attempt 1: callgrind.** This is the complete profile of our earlier filings, re-priced here:
+  `valgrind --tool=callgrind --dump-instr=yes --dump-every-bb=8000000000`, with `cgfull.py`
+  (Appendix C.12).
+- **Attempts 2 and 3: exp-bbv.** On these long runs callgrind's own memory grows without bound
+  (doubling to more than 4 GB, while the solver itself stays under 170 MB), so we recorded
+  basic-block vectors instead:
+  `valgrind --tool=exp-bbv --vex-guest-chase=no --vex-guest-max-insns=100 --interval-size=2000000000`.
+  - **Reconstruction.** For every superblock, exp-bbv reports per interval the number of
+    instructions executed in it. `bbvmix.py` (Appendix C.12) disassembles each superblock from the
+    executable that ran: from its start to the first control transfer, or 100 instructions. When
+    the count is a multiple of that length, it divides the count into entries and prices each
+    instruction.
+  - **Ambiguous superblocks.** A count that is not a multiple of the length means the superblock
+    sometimes ran past a branch. It is charged at the largest per-instruction mean of any prefix
+    ending at one of its branches, an upper bound for any mix of exits (5.01% of the
+    instructions).
+  - **Final interval.** exp-bbv does not report the last, partial interval; those instructions are
+    charged at 1024 each (below).
+  - **Intervals.** We report the counts in groups of 20 intervals (4e10 instructions), the size of
+    callgrind's intervals.
+  - **Check on attempt 1.** We ran exp-bbv on attempt 1 as well. Its reconstruction gives a
+    whole-run mean of 5.0436 against callgrind's exact 5.0356 (7.5717 against 7.5558 at v5 prices),
+    and a largest interval of 5.3589 against 5.3503.
 
-| model | profiled instructions | intervals | heavy share | divide share | ordinary mean | per-form mean | class price |
-|---|---|---|---|---|---|---|---|
-| attempt 1 (complete) | 245,527,956,010 | 6 | 1.10-1.48% | 0.0000-0.0120% | 2.28-2.31 | 6.82-8.16 | 9.48-10.84 |
-| attempt 2 (prefix) | 361,089,420,698 | 9 | 1.16-1.78% | 0.0000-0.0119% | 2.28-2.31 | 7.04-9.38 | 9.70-12.04 |
-| attempt 3 (prefix) | 308,853,516,577 | 8 | 1.12-1.56% | 0.0000-0.0129% | 2.28-2.31 | 6.88-8.48 | 9.54-11.15 |
+| attempt | method | rlimit-count, conflicts, decisions (= macOS) | Linux instructions | macOS instructions (charged) | intervals | per-form mean, whole run | largest interval mean | at v5 prices: whole / largest |
+|---|---|---|---|---|---|---|---|---|
+| 1 | callgrind | 249,602,816; 1,068,222; 1,829,611 | 245,527,956,010 | 261,276,415,067 | 6 | 5.0356 | 5.3503 | 7.5558 / 8.1576 |
+| 2 | exp-bbv | 1,200,096,786; 5,096,968; 8,121,313 | 1,475,640,959,576 | 1,572,256,055,396 | 37 | 5.2230 | 5.9655 | 7.9144 / 9.3134 |
+| 3 | exp-bbv | 797,205,785; 2,818,639; 5,235,640 | 834,226,129,830 | 888,282,131,643 | 21 | 5.2745 | 5.7319 | 8.0114 / 8.8894 |
 
-Here the class price of an interval is m_class = 5 (1 - h - d - u) + 400 h + 1024 d + 1024 u,
-with h, d and u the heavy, divide and unmapped shares: every ordinary instruction is priced 5, about
-2.2 times its measured dynamic mean of 2.28-2.31 operations. The per-form mean is the exact
-dynamic average under the table of 14.2.
+Multiplies and other heavy instructions are 1.32% of the executed instructions of attempt 1,
+and 99.0% of them are 32-bit-operand multiplies (`umull`, `umaddl`, and `madd` on w
+registers), mostly index and hash arithmetic. Floating point is 0.0085% of the instructions.
 
-**Price.** m_z3 = ceil(2 * max over all 23 intervals of m_class) = ceil(2 * 12.044) = **25**.
-The factor 2 covers the unprofiled remainder of attempts 2 and 3 and the build difference. For
-attempt 1 the profile is complete. The macOS build retired 6.4% more instructions for the same
-search; if both builds execute the same multiplies and divides, its heavy share is the lower one.
+**Price.** The maximum is taken over the intervals of the complete profiles, and also over 23
+callgrind intervals of the prefixes of attempts 2 and 3. These come from our v4 measurements (the first
+361e9 and 309e9 instructions) and from this filing's interrupted callgrind run of attempt 2 (its first
+248e9). They cover the same instructions with other interval boundaries. The largest of all is 6.0054
+(attempt 2, callgrind prefix of this filing's interrupted run, interval 4; the largest complete-profile interval is 5.9655). So
+m_z3 = ceil(6.0054) = **7**, charged on the macOS instruction counts. The final partial intervals of attempts 2 and 3
+(1,867,089,404 Linux instructions) are charged at 1024 per instruction instead, scaled by the macOS to
+Linux instruction ratio where that ratio exceeds 1:
 
-### 14.5 The synthetic completion check
+    z3 = 7 * 2,721,814,602,106 + (1024 - 7) * 1,989,181,169 = 21,075,699,463,615 ops = 9,848,457,694 units
+
+The integer ceiling over the largest interval is kept as a reserve. With the largest interval mean
+itself the total would be 2^34.295; with each attempt at its own whole-run mean, 2^34.225.
+
+**Build difference.** The macOS build retires more instructions for the same search (attempt 1: 261,276,415,067 against 245,527,956,010; attempt 2: 1,572,256,055,396 against 1,475,640,959,576; attempt 3: 888,282,131,643 against 834,226,129,830). The
+multiplies and divides are the same source operations in both builds, and both compile about 90% of
+their multiply sites to 32-bit-operand forms (static multiply instructions: macOS 6,072 of 6,837,
+Linux 10,405 of 11,543). With more instructions and the same heavy operations, the macOS per-form
+mean is at most the Linux one (H6).
+
+### 14.5 The synthetic completion check (cross-check)
+
+In this filing the synthetic checks are charged by their exact counted replays (Section 16.6). The
+measurement below priced them in our earlier filings (at 13 per instruction on three runs of
+500,284,109,323 instructions; Section 16.6 corrects that run count) and is kept as a cross-check.
+
 
 The same procedure on `r31sim3.c` compiled with gcc 12 -O3 in the container, with collection
 switched on after the table build (`--instr-atstart=no`, then `callgrind_control -i on` when the
@@ -455,22 +747,169 @@ retires 1499 instructions per trial (Section 8: 500,284,109,323 instructions, of
 the table build takes at most 124,752,621,861, over 250,544,128 trials), against 1334 in
 the Linux build. With the same heavy instructions per trial, the macOS heavy share is the lower one,
 so we keep the Linux shares (scale factor max(1, 1334/1499) = 1.000) and take
-m_sim = ceil(2 * m_class) = **17**, charged on all instructions of each run, including the table
+m_sim = ceil(2 * per-form mean) = ceil(2 * 6.3887) = **13** (the class price 8.32 gave 17 in 50592e75), charged on all instructions of each run, including the table
 build.
 
-### 14.6 What this does not establish
+### 14.6 Search K: the executable that ran, priced by its executed path (cross-check)
 
-- The dynamic profile is of the Linux build. The equal search transcript of attempt 1 and the equal
-  static profiles support the transfer; they do not prove an identical instruction mix.
+This subsection was the K charge of filing e0259cf5 (58,909,096,251 units, total 2^36.6392).
+In this filing it is a cross-check only, and the K charge is the counted program of Sections 16 and
+17 (6,849,102,900 units). Below, "K charge" means the charge of filing e0259cf5. It prices K's
+retired instructions (Section 8: 15,640,902,198,904) at prices measured on the executable that ran.
+
+- **Executable.** `r31det3`, built from B.4 and B.5 with Apple clang,
+  `cc -O3 -mcpu=apple-m4 -o r31det3 r31det3.c -lpthread`, at 13:04 KST, before K started at
+  13:04:56, and not rebuilt since. SHA-256 2824a0f855c203d1ada6f99e5a25fa8aebd4f2feeee0a8a56776c311af4bce23.
+  Disassembly: `xcrun llvm-objdump -d --no-show-raw-insn r31det3`.
+- **Vectorised kernel.** clang compiled the 8-lane trial block of `worker` (the `j < LANES` loops of
+  B.4) into NEON code: a 524-instruction block that handles 4 lanes, run twice per 8 trials. Its
+  forms are 4-lane add, shift left, shift right and accumulate, three-way XOR and bit select. The
+  v5 table of 14.2 charges every SIMD form other than logic at a flat 16 ("charged as shuffles").
+  Under that table the hot path costs 11.13 operations per instruction, and doubled, 23: above the
+  13.84 at which the measured count would equal the operation model of filing 33599d41. We
+  price these forms by their exact emulation instead (below).
+
+**Executed path.** With no bitmap hit, one pass over 8 trials executes a fixed instruction sequence
+(`kpath.py`, Appendix C.5):
+
+| block of `worker` | instructions | executions per pass |
+|---|---|---|
+| 0x100002b14-0x100002b60 pass set-up | 20 | 1 |
+| 0x100002b64-0x100003390 NEON block, 4 lanes | 524 | 2 |
+| 0x100003394-0x1000033a4 | 5 | 1 |
+| 0x10000348c-0x1000034a8 bitmap test, per lane | 8 | 8 |
+| 0x100003460-0x100003488 lane loop, per lane | 11 | 8 |
+| 0x100002ae0-0x100002b10 trial counter, stop check, next pass | 13 | 1 |
+| total per pass | 1238 | |
+
+K executed 99,492,036,640 trials, so 12,436,504,580 passes and 15,396,392,670,040 instructions on this
+path: 98.44% of the 15,640,902,198,904 retired. The path has no multiply, divide or
+floating-point instruction. The remaining 244,509,528,864 instructions (1.56%) are:
+- the table build and self-checks before the search: 124,755,608,685 instructions when the same
+  executable runs `r31det3 1 0` (re-measured with `/usr/bin/time -l` on 2026-10-08; not charged,
+  Section 15.1). Its common path is 29 scalar instructions per scanned word (0x1000009dc-0x100000a64
+  of `main`), and 2^32 * 29 = 124,554,051,584 is 99.84% of that count;
+- 119,753,920,179 instructions of bitmap-hit processing (58,831,394 hits, about 2,036 instructions
+  each: a 31-step compression, a binary search over 132,096 records, the record loop), group
+  set-up, the one completion and the main thread.
+
+**Prices for the SIMD forms.** As in 14.2, a 128-bit vector register is one datum in one 256-bit
+word; this is why SIMD logic costs 1 there. A lane-wise form is then computed on that word with lane
+masks (SWAR), using v5 primitives only. L is the mask of all bits of each lane except its top bit, H
+the mask of the top bits, M the lane mask for the shift, R the low 128 bits.
+
+| form | emulation on one 256-bit word | operations | price |
+|---|---|---|---|
+| `add.4s`, `add.2d` | ((x & L) + (y & L)) ^ ((x ^ y) & H) | 6 | 6 |
+| `shl.4s #k` | (x << k) & M | 2 | 2 |
+| `ushr.4s #k` | (x >> k) & M | 2 | 2 |
+| `usra.4s #k` | d + ((x >> k) & M), lane add as above | 8 | 8 |
+| `eor3.16b` | x ^ y ^ z | 2 | 2 |
+| `bcax.16b` | x ^ (y & ~z) | 3 | 3 |
+| `bsl.16b` | ((n ^ m) & d) ^ m | 3 | 3 |
+| `bic.16b` | x & ~y | 2 | 2 |
+| `dup.4s` / `dup.2d` from a general register | w, (w << 32) & R, ... joined by OR | 9 / 3 | 11 |
+| lane insert / extract (`mov.s`, `ins`, `umov`) | (v & ~lane) or ((w << 32i) & R); (v >> 32i) & 0xffffffff | 4 / 2 | 4 |
+| `and`, `orr`, `eor`, `mov`, `movi` | as in 14.2 | 1 | 1 |
+
+Other SIMD forms keep the v5 price of 16 (in this binary: `uzp1`, `ext`, `cmeq`), and scalar forms
+are unchanged (`swar.py`, Appendix C.3). The lane add needs no final mask: (x & L) + (y & L) cannot
+carry out of a lane. `swar_check.py` (Appendix C.4) runs each emulation with counted primitives and
+compares it with the lane-wise definition on 2000 random inputs per form. Every form matches, at no
+more than the listed price:
+
+```
+add.4s         emulation ops  6  priced  6  ok
+add.2d         emulation ops  6  priced  6  ok
+shl.4s         emulation ops  2  priced  2  ok
+ushr.4s        emulation ops  2  priced  2  ok
+usra.4s        emulation ops  8  priced  8  ok
+eor3.16b       emulation ops  2  priced  2  ok
+bcax.16b       emulation ops  3  priced  3  ok
+bsl.16b        emulation ops  3  priced  3  ok
+bic.16b        emulation ops  2  priced  2  ok
+dup.4s         emulation ops  9  priced 11  ok
+dup.2d         emulation ops  3  priced 11  ok
+mov.s(extract) emulation ops  2  priced  4  ok
+mov.s(insert)  emulation ops  4  priced  4  ok
+```
+
+**Prices of the K run.**
+
+| part | instructions | per-form mean | price |
+|---|---|---|---|
+| search hot path | 15,396,392,670,040 | 3.9031 (11.1300 under the v5 table) | ceil(2 * 3.9031) = **8** |
+| remainder | 244,509,528,864 | ordinary instructions: 2.8621 on the table-scan path (exact), 2.1796 over the hit-processing code and 2.7860 over the group set-up code (static) | **10** |
+| heavy instructions off the hot path | 1,121,255,712 multiplies | | **400** each, in addition |
+| main thread and library floating point | at most 710,000 | | **1024** each, in addition |
+
+The factor 2 is kept although the path is costed on the executable that ran. The remainder price
+10 is above twice every ordinary-instruction mean of its code. The heavy instructions are charged
+again in full. The executable has 94 (`kpath.py` lists their addresses): 82 multiplies and 12
+floating-point instructions, the latter all in `main`. The multiplies off the hot path, counted from
+the source and the run's counters:
+- group set-up: 33 per group (its code has 32: 15 splitmix64 draws of two multiplies and the two
+  seed products; we count one more), times 5,932 groups, plus one per thread at start: 195,768;
+- bitmap hits: at most 18 binary-search steps over 132,096 records, one 24-byte index product
+  each, plus one for the lookup: 19 * 58,831,394 = 1,117,796,486;
+- record loop: one per matched record, 3,061,666; completion draws: 2 * (2,829 + 19) = 5,696;
+- table build: one per stored record, 132,096; self-check: 2000 blocks * 16 draws * 2 = 64,000.
+The main thread after the table build runs its once-per-second loop (at most 200 passes of 31
+instructions, with the 12 floating-point instructions), the summaries over the 12 thread counters
+(with the remaining multiply) and seven progress lines through `printf` and `log2` (at most 10^5
+library instructions each). We charge all of it, at most 710,000 instructions, at 1024 each.
+
+K charge: ceil(15,396,392,670,040 * 8 / 2140) + ceil(244,509,528,864 * 10 / 2140) +
+ceil((1,121,255,712 * 400 + 710,000 * 1024) / 2140) = 57,556,608,113 + 1,142,567,892 +
+209,920,246 = **58,909,096,251** units. The operation model of filing 33599d41 charged 101,185,639,958;
+the break-even price of the measured count is 13.84 operations per instruction.
+
+**Cross-check on a Linux build (callgrind).** The gcc 12.2 `-O3` build of the same source in the
+Debian bookworm arm64 container of 14.4, valgrind 3.19.0 callgrind with `--dump-instr=yes`, ran
+`r31det3 1 100000 dfafc947679ebe06`: the committed seed on one thread, so groups 0, 1, 2, ... in
+order. It was dumped after the table build and at exit after 27 groups (451,936,264 trials, 267,333
+bitmap hits, 13,844 records, 18 V6 passes); `cgmix.py` (C.2) priced the dumps:
+- table build: 134,520,943,302 instructions, per-form mean 2.8224 (v5 table), 2.7704 (SWAR prices);
+- search: 86,680,445,856 instructions, 191.8 per trial (the macOS executable: 157.2 per trial over
+  the whole run, 154.75 on the hot path); per-form mean 8.0863 under the v5 table, 2.2488 under the
+  SWAR prices.
+gcc also vectorises the kernel; it writes rotations as shift, shift and OR, so its mix differs from
+clang's. Under the v5 table this build alone would price K at ceil(2 * 8.0863) = 17, also above the
+break-even. A clang build with the macOS instruction set cannot run under valgrind 3.19, which
+rejects `eor3`; this is why the price rests on the executable that ran rather than on a profile.
+
+**Sensitivity of the charge of filing e0259cf5** (its total 107,027,591,592 = 2^36.6392):
+- v5 table with its flat SIMD price 16 (K hot path 11.13, so 23 for all of K): 2^37.654;
+- every K instruction at 16, heavy instructions as above: 2^37.266;
+- twice the charged K prices (16 and 20): 2^37.270;
+- without the factor 2 (4 on the hot path, 3 on the remainder): 2^36.173;
+- each 32-bit lane in its own word (hot-path mean 7.32, price 15): 2^37.196;
+- the operation model of filing 33599d41: 2^37.1195.
+
+### 14.7 What this does not establish
+
+- The dynamic profiles are of the Linux build (H6). The equal search statistics of every attempt
+  and the equal static profiles support the transfer; they do not prove an identical instruction
+  mix. Attempts 2 and 3 are reconstructed from basic-block vectors (H7), checked against callgrind
+  on attempt 1.
 - The price is an operation count under our per-form table. A reviewer who prices some form higher
-  can recompute the dynamic mean from the published scripts; the factor 2 and the class price of 5
-  per ordinary instruction (2.2 times the measured mean) are the reserve.
+  can recompute the means from the published scripts. With every multiply at the v5 table's 400,
+  the total would be 2^34.606; at twice the price, 2^34.863.
+- K is not charged by this section. Its executable-priced charge (14.6) needs the premise that a
+  128-bit register is one 256-bit word. With each 32-bit lane in its own word instead (`add.4s` 8,
+  `usra.4s` 12, `eor3.16b` 8, a 128-bit load 4 loads), the hot-path mean would be 7.32, the doubled
+  price 15, and the total 2^37.196. The counted program of Section 16 does not need that premise:
+  each 32-bit value is in its own word, and it costs 584.6 operations per trial against 1133 for the
+  executable's instructions under that reading. The SWAR pass of Section 17, which this filing
+  charges, packs seven 32-bit values per word, as the executable packed four per 128-bit register.
+  It costs 142.9 operations per trial, and every one of its words is a 256-bit word of the cost
+  model.
 - The measurement runs of this section, like the post-K re-runs of Section 8, came after the stored
   pair existed and fixed nothing in C. They are not charged.
 
 ## 15. Development record and the origin of every constant of C
 
-### 15.1 Every computation on this target (2026-10-06 and 2026-10-07, KST)
+### 15.1 Every computation on this target (2026-10-06 to 2026-10-08, KST)
 
 The record is the agent transcript of the session that ran every command, cross-checked with
 the file times of the working directories and the package commit history (commits a7d3eaa 11:37,
@@ -479,7 +918,8 @@ e13dab2 12:17, 61428b0 13:14).
 | time | computation | status in v4 |
 |---|---|---|
 | 10-06 | three exploratory solver studies of other methods (a cut model, a meet-in-the-middle verifier model, a z-elimination model) | excluded: no output or constant used by C |
-| 09:43-09:59 | pre-construction analysis: `analyze.py` (3 runs), `sets` (1), `table` (2), `joint` (1), `pany` (1). They formulated R20 and estimated its rate (`joint`, 09:48) | **charged**, Section 15.2 |
+| 09:43-09:59 | pre-construction analysis: `sets` (1), `joint` (1), `pany` (1). They formulated R20 and estimated its rate (`joint`, 09:48) | **charged**, Section 15.2 |
+| 09:43-09:59 | `analyze.py` (3 runs) on the published 31-step pair: digest, characteristic and per-row checks, the modular differences, the published tuple; `table` (2 runs), which counts the table records of the starting solution derived from that pair | excluded (published pair and S), Section 15.4; charged up to v9 |
 | 10:36-10:37 | `r31s` self-tests (3) and a 12 s test | excluded (published S) |
 | 10:37-11:22 | relaxed search with the published S, 2^40.625 trials | excluded (published S), Section 15.4 |
 | 10:44-11:35 | synthetic completion, independence and cluster runs with the published S (`r31sim`, `r31log`, `r31log2`, `r31clus`, `r31log3`); `pany2` (2 runs: 2^20 samples at 10:47, 2^28 samples at about 11:24) | `pany2` **charged** (15.2); the others excluded |
@@ -488,26 +928,50 @@ e13dab2 12:17, 61428b0 13:14).
 | 13:04-13:07 | search K | **charged**, Section 9 |
 | 13:08-13:09 | instruction-count re-runs: `diag` (2), `r31sim3` (2), `v8dump`, `c8scan` | not charged: after the pair existed |
 | 15:39-16:10 | v4 price measurements (Section 14) | not charged: after the pair existed |
+| 10-08 03:59-04:10 | v6 K price measurements: `r31det3 1 0` on macOS, gcc build under callgrind (Section 14.6) | not charged: after the pair existed |
+| 10-08 09:05-09:30 | v7 counted program of K: `kprog.py` (2 runs) and `kcount` (validation, Section 16.4) | not charged: after the pair existed |
+| 10-08 13:30-13:40 | v9 memory measurements: `/usr/bin/time -l` re-runs of `joint`, `pany`, `pany2`, `sets`, `table`, `r31det3 1 0`, `diag 1 0`, `r31sim3`, `v8dump`, `c8scan`, gen_s.py, check_s.py and analyze.py (Section 10) | not charged: after the pair existed |
+| 10-08 14:49-15:23 | v11 SWAR pass of K: `kswar.py` (generation and checks) and `kswar` (a 97-group sample and the replay of every group of K, Section 17.4) | not charged: after the pair existed |
+| 10-08 10:03-12:59 | v8 measurements: exp-bbv profiles of z3 attempts 1-3 (Docker; callgrind runs of attempts 2 and 3 stopped by memory); `kprog.py` (3 runs) and `kcount`; counted analysis programs `pcount` (6 runs) and re-runs of `sets`, `table`, `joint`, `pany`, `pany2 1 20` for the output comparison (15.2); counted synthetic replays `scount` (3 runs) and one re-run of synthetic run 1 (16.6) | not charged: after the pair existed |
 
 "Published S" means the runs used the published starting solution: S was derived from the published
 collision in that work, so C cannot and does not use any of its outputs.
 
-### 15.2 Charged pre-construction analysis (operation bounds from source)
+### 15.2 Charged pre-construction analysis (exact operation counts)
 
-These programs read only the characteristic and SHA-256 constants (and, for `table`, the published
-starting solution). They ran exactly the times listed in 15.1. Operation bounds:
+These programs read only the characteristic and SHA-256 constants. They ran exactly the times listed in
+15.1; their source is in Appendix C.10, which also lists `table`, an excluded run since this filing.
+Our previous filings charged them by hand bounds from the source (27,838,136,107,008 operations).
+This filing counts them exactly. `pcount.c` (Appendix C.9) writes each program in the counted
+primitives of Section 16.1, runs it on the same inputs (and, for `pany2`, the same thread count and
+per-thread streams), and prints the program's own output lines. Every output is identical to the
+original's. We re-ran `sets`, `joint`, `pany` and `pany2 1 20` (and the excluded `table`) for the comparison; the
+2^28-sample `pany2` run is compared with its saved output. Floating-point operations are charged at
+the tariffs of their checked emulations (Section 14.2, H3): conversion 152, addition 240,
+multiplication 520, comparison 48, division 824, square root 1008.
 
-| program | work per run | operations per run |
+| program | runs (Section 15.1) | counted operations |
 |---|---|---|
-| `sets` | 7 sets * 2^32 words * 48 | 1,443,109,011,456 |
-| `table` (2 runs) | per run two 2^32 scans * 24 + 49408 * 512 pairs * 128 | 418,792,865,792 (both runs) |
-| `joint` | 2^32 * 2 difference evaluations and hash inserts * 96 + 2^25 slots * 6,000 (two lookups, five floating-point operations) + top-5 scans | 1,027,302,490,112 |
-| `pany` | h5 build 2^32 * 96 + 2^24 samples * 142,800 (64 candidates * 300 + 64 lookups with conversion, division and addition * 1,900 + 2,000) | 2,808,111,087,616 |
-| `pany2` (2 runs: 2^20 and 2^28 samples) | per run h5 build 2^32 * 96, plus 79,100 per sample (64 * 300 + 64 * 900 + 2,300) | 22,140,820,652,032 (both runs) |
-| total | | 27,838,136,107,008 |
+| `sets` | 1 | 461,151,205,710 |
+| `joint` | 1 | 644,688,249,115 |
+| `pany` | 1 | 569,745,544,349 |
+| `pany2 1 20` (2^20 samples) | 1 | 410,842,675,669 |
+| `pany2 12 28` (12 threads, 268,435,452 samples) | 1 | 2,858,761,574,204 |
+| process launch and library calls of the 5 runs (measured, H8; the bound set for 7 runs is kept): at most 5e8 instructions at 1024 | | 512,000,000,000 |
+| total | | 5,457,189,249,047 |
 
-Floating-point operations are priced at 400 and divisions at 1024, as in Section 14.2. The Python
-`analyze.py` runs are in the Python lump of Section 9.
+The counted programs differ from the originals only in how they reach the same values:
+- rotations, Σ, σ, Ch and Maj as in Section 16.1;
+- the hash index k * 2654435761 >> 7 as shift-and-add over the 19 set bits of the constant;
+- `pany` and `pany2` add the integer counts returned by the hash lookups in an integer register and
+  convert the sum once. The originals add the converted counts (`pany`: count / 2^32) in double
+  precision. Every partial sum is an integer multiple of the same power of two, below 2^53 of it,
+  so every addition is exact and the result is bit-identical. The printed means, standard errors and
+  bounds confirm it.
+
+The excluded `table` runs (2 * 158,924,192,620 = 317,848,385,240 operations, 148,527,283 units) are no
+longer charged. The Python lump of Section 9 keeps its bound of 50 invocations, although the three
+`analyze.py` runs are now excluded.
 
 ### 15.3 Constants of C and where they come from
 
@@ -522,7 +986,7 @@ Floating-point operations are priced at 400 and divisions at 1024, as in Section
 | constraint (g), residue e730f mod 2^20 | Section 7.1 | V8 dump and c8 scan of v3 (charged) |
 | z3 seeds 88108363..65, K seed | Appendix A | hashes of committed strings |
 | table and bitmap layout (2^24-bit bitmap on A[-1] >> 8, records sorted by key) | Section 7.2 | design choice, no measured input |
-| group structure (2^24 trials share words 0..14) | Section 7.3 | public design (credited), used for speed only |
+| group structure (2^24 trials share words 0..14) | Section 7.3 | public design (credited); steps 0..14 are charged once per group |
 | E13/E15 draw caps 2^22 and 2^12, 12 threads, wall cap 1200 s | Section 7.3 | not binding: K used 2,829 and 19 draws and 140 s |
 
 ### 15.4 Why the excluded runs fixed nothing in C
@@ -537,8 +1001,435 @@ Floating-point operations are priced at 400 and divisions at 1024, as in Section
   which no bound uses.
 - R20 itself predates every search: `joint` evaluated the union bound of the relaxed condition at
   09:48, and the first relaxed search started at 10:37.
+- `analyze.py` and `table`. `analyze.py` read the published 31-step pair and printed its digests, the
+  check of the characteristic on it, the per-row cell counts, the modular differences of W, A and E,
+  checks of the step formulas for E0..E2, W0..W6 and W13, and the pair's tuple A-1..A4, E5..E8.
+  `table` embedded that tuple and printed, for this starting solution, the sizes of V7 and V8, the
+  (W8, E4) survivors, the table tuples, and whether the published record appears. C takes no value
+  from these lines:
+  - the cell counts and the modular differences of Section 5 are functions of the signed table
+    itself (each `u` adds 2^bit and each `n` subtracts it; for example the W5 row gives fffff006);
+  - the step formulas follow from the step equations of Section 2;
+  - V6..V9 and G16 come from `sets` and are recomputed exhaustively by K's P1;
+  - R20 was formulated and rated by `joint` and `pany`, which read only the characteristic;
+  - the table and bitmap layout is a design choice, and K's record buffer (2^20 records) is not binding:
+    K built its own table of 132,096 records from its own S;
+  - `check_s.py` (B.2, part of C) contains one published value, A1 = f36e6fcf, only to print whether
+    our S differs from the published starting solution. It does, and no value of C depends on the
+    comparison.
+  Charging the five runs anyway would add the 148,527,283 units of `table` (the `analyze.py` runs are
+  within the Python lump) and give the v9 total of 2^35.3245.
 - Sensitivity: charging the 2^40.625-trial run anyway would add 2^40.625 * (1 + 32/2140) units and put
-  the total at 2^40.774.
+  the total at 2^40.682.
+
+## 16. Search K and the synthetic checks as counted word-RAM programs (H2)
+
+This section supports the K line of Section 9, and 16.6 the synthetic-check line. Since v11 the passes
+of 8 trials of 16.2 are replaced in the charge by the SWAR pass of Section 17 (7 trials per pass).
+16.1-16.5 still define one trial, and give the hit, group, table and library counts that are charged.
+They also give v10's charge, which is now a sensitivity. K is charged as the
+operation count of an explicit program for the cost model's own machine. The program computes what `r31det3` (B.4) computes,
+trial by trial and event by event, and it is checked against `r31det3` itself (16.4). The charge
+multiplies each event's worst-path count by the run's own counter of that event (Section 8).
+Nothing is priced per CPU instruction, except code outside the algorithm (16.3, last row).
+
+### 16.1 Machine and conventions
+
+- Primitives of collision-frontier-v5, 1 each: 256-bit load or store, addition or subtraction mod
+  2^256, AND, OR, XOR, NOT, shift, comparison, conditional branch. Every 32- or 64-bit value of the
+  program sits in its own 256-bit word.
+- Registers and memory. ALU operands are registers, and the only immediates are shift counts. Every
+  other operand is loaded from memory, and each load is counted. This covers round constants, group
+  values, record fields, schedule words, table entries and bitmap words. Every store is counted as
+  well.
+  - Four registers hold 2^32-1, the bitmap base, 63 and 1 for the whole run.
+  - The straight-line code of one trial needs at most 22 registers at once. `kprog.py` computes
+    the largest live set.
+  - With the loop variables, the program fits a 32-register machine.
+- Masks. A value is reduced to 32 bits (AND with 2^32-1) before it enters a right shift or a
+  comparison, or is stored as a 32-bit word. Addition, AND, OR, XOR, NOT and left shifts never move
+  bits from above position 31 into positions 0..31. So the low 32 bits of every value equal the
+  word that the C source computes.
+- Rotations. There is no native 32-bit rotate. For a reduced word v, dup(v) = v | (v << 32) holds
+  two copies of v, so bits 0..31 of dup(v) >> n are ROTR(v, n) for 0 < n < 32. One dup serves the
+  three rotations of a Σ or σ, and the next mask removes the bits above 31:
+  - Σ0, Σ1 = (d >> n1) ^ (d >> n2) ^ (d >> n3) with d = dup(v): 7 primitives each;
+  - σ0, σ1 = (d >> n1) ^ (d >> n2) ^ (v >> n3): 7 each, 5 when d is already at hand.
+- Boolean functions, as exact identities:
+  - Ch(e,f,g) = g ^ (e & (f ^ g)): 3 primitives;
+  - Maj(a,b,c) = b ^ ((a ^ b) & (b ^ c)): in step t, b ^ c is the a ^ b of step t-1, so Maj costs
+    3 (and 4 as (a & b) | (c & (a | b)) where no previous value is at hand).
+- 64-bit products (splitmix64 draws, group seeds) are emulated by branch-free shift-and-add:
+  acc += (a << i) & -((b >> i) & 1) for i = 0..63, then a mask. That is 385 primitives per product.
+- Loops with a fixed trip count are straight-line code and pay nothing for control. Loops with a
+  data-dependent trip count pay their counter, comparison and branch.
+- Groups. Every subexpression that depends only on words 0..14 of a group is computed once, in the
+  group set-up, and charged there. This is K's own structure (Section 7.3, K1): the trial block of
+  `worker` reads the group's state after step 14 and its schedule constants m16, m18, m20 and
+  c17..c30.
+
+Our previous filing (f99530e8) used the same machine with rotations written as
+(v >> n) | (v << (32 - n)) and the Boolean functions in the forms of the organizer's
+`verifier/hash_functions.py`; that program cost 775 per trial and is kept as a checked variant
+(16.5).
+
+### 16.2 One trial: 582 primitives
+
+`kprog.py` (Appendix C.6) generates the trial as straight-line code, from x = word 15 to the bitmap
+test, and emits it as C (`klane_opt.h`). Steps 15..30 cost 451, the twelve schedule words that
+depend on x cost 122 (with one dup of x shared by σ1 in w17 and σ0 in w30), and the bitmap test
+costs 9:
+- shift right by 8 and by 6;
+- add the bitmap base;
+- load the 64-bit bitmap word;
+- AND 63, variable shift, AND 1;
+- compare;
+- branch.
+The breakdown by primitive is:
+
+| add | AND | OR | XOR | shift left | shift right | load | compare | branch | total |
+|---|---|---|---|---|---|---|---|---|---|
+| 117 | 73 | 41 | 143 | 41 | 129 | 36 | 1 | 1 | 582 |
+
+There is no branch inside the trial other than the bitmap test, so 582 is the count of every trial.
+Step 15 costs 6: every term except x is a group value, so E15 = (U15 + x) & (2^32-1) and
+A15 = (V15 + x) & (2^32-1). Steps 16..18 read the group's state words with one load each; the group
+set-up also stores a ^ b and e ^ f for their Maj and Ch. From step 19 on, all eight state words are
+per-trial values. The round constant and the schedule word are added separately, except at steps
+29 and 30, where the group constant includes the round constant (and IV[0] at step 30, so that the
+step-30 sum is the key IV[0] + A30). E30 is not computed, because the key does not need it.
+
+A pass of 8 trials costs 8 * 582 + 21 = 4,677. The 21 cover:
+- eight increments of x;
+- the trial counter: two loads, an add and a store;
+- the test base & 0xfffff = 0: a load, an AND, a comparison and a branch;
+- the pass loop: an add, two loads, a comparison and a branch.
+`kcount.c` (Appendix C.7) executes the pass and measures 4,677 for every pass.
+
+### 16.3 Every event of the K run
+
+| event | count in the run (Section 8) | primitives per event, worst path | ops |
+|---|---|---|---|
+| pass of 8 trials | 12,436,504,580 | 4,677 | 58,165,531,920,660 |
+| group: loop head 12, set-up 13,349, 16 abort checks of 9 | 5,932 | 13,505 | 80,111,660 |
+| bitmap hit: copy of the block, compress31 (counted), binary search of 18 steps, key test | 58,831,394 | 1,642 | 96,601,148,948 |
+| key-matched hit: counter, final loop test | 1,376,281 | 13 | 17,891,653 |
+| matched record: loop test, E0..E2, W0..W6, stores, V6 test | 3,061,666 | 238 | 728,676,508 |
+| V6 pass: W5 target, c18, all 64 G16 candidates | 5,992 | 2,344 | 14,045,248 |
+| R20 pass to the stored pair: completion (2,829 E13 and 19 E15 draws), two digests (6 compressions, counted), comparisons, output | 1 | 2,533,318 | 2,533,318 |
+| table P1: 2^32 words, 55 each, plus stores | 1 | | 236,223,301,254 |
+| table P2 (49,408 W8 and their W7 loops), merge sort of 132,096 records, bitmap | 1 | | 164,304,912 |
+| s1 inverse and its 1000-value check | 1 | | 608,280 |
+| self-check, 2000 blocks | 1 | | 30,630,000 |
+| library calls and the main thread (below) | | | 102,400,000,000 |
+| K | | | 58,601,795,172,441 |
+
+K = ceil(58,601,795,172,441 / 2140) = **27,384,016,436** units. This was v10's K line; Section 17.5 gives this
+filing's, with the first and third rows replaced and the second extended.
+
+Notes on the table:
+- Worst paths. The binary search over n = 132,096 records takes at most floor(log2 n) + 1 = 18
+  steps of 12 primitives each, the same on either branch, and the charge assumes 18. The V6 pass is
+  charged as if all 64 G16 candidates were tried (36 each). The trial count is the run's trial
+  counter divided by 8. Each group is charged 16 abort checks, although the 4 aborted groups ran
+  fewer.
+- Deterministic parts. The table build, the s1 inverse, the self-check and the R20 pass read only
+  fixed inputs: S, the committed seed and the stored trial. Their counts are those of the counted
+  program executing on the same inputs, so they are the counts of the path that ran. The R20 pass
+  draws the same 2,829 E13 and 19 E15 values as the run.
+- Sort. `r31det3` sorts with the C library's `qsort`. The counted program sorts with a bottom-up
+  merge sort (81,135,912 primitives) and produces the same key order.
+- Multiplies. The counted program has no multiply other than the emulated 64-bit products. Index
+  products (record address 6r, as (r << 2) + (r << 1)) are shifts and adds.
+- Outside the algorithm. Process launch and library calls are not part of the algorithm, but they
+  ran, so they are charged:
+  - formatted output (progress lines, the stored pair, the index line, the table and self-check
+    messages) and log2;
+  - fopen, malloc and calloc;
+  - pthread create, join and mutex;
+  - sleep, clock_gettime and access;
+  - argument parsing.
+  The main thread also runs its once-per-second loop (at most 140 passes in a 140 s run). Measured on
+  the same machine (Appendix C.15), launch is about 11.4e6 instructions, and the calls of this run
+  total less than 4.2e6. Twice their sum is below the 10^8 instructions we charge at 1024 each, more
+  than any tariff of the table (Section 14.2; H8).
+
+### 16.4 Validation against the executable's source
+
+`kprog.py`:
+- for 20,000 random choices of words 0..14 and x, the key of the generated trial equals word 0 of
+  the organizer reference core's 31-step compression (`verifier/hash_functions.py`, `_compress`),
+  in each of the three variants (582, 775 and 1035 primitives);
+- every trial executes exactly the variant's count;
+- on 2000 of them, setting the tested bitmap bit turns the decision from miss to hit.
+
+`kcount.c` includes `r31det3.c` (B.4) and `sp_own.h` (B.5) unchanged and uses the committed seed
+dfafc947679ebe06. It checks the following.
+- Table: V7, V8 and G16 equal those of `build_table`. The 132,096 records are the same multiset in
+  the same key order, and the 2^24-bit bitmap is identical. The s1-inverse columns are identical,
+  and all 2000 self-check blocks agree.
+- Trials. Groups 0, 1, 2 and 3 run in full, and group 5920 runs up to its stored pair: 71,670,492
+  trials in all. For every trial, the counted trial's key equals the key of `worker`'s trial block,
+  copied verbatim into `ref_key`. The bitmap decisions are identical. Every trial costs 582, and
+  every pass 4,677. Every 1024th trial is also run in the 775 and 1035 variants, with the same key.
+- Hits. Each of the 42,583 bitmap hits is processed twice: by `r31det3`'s own `process_hit`, and by
+  the counted hit processing on the same record order. In every group they agree on every counter.
+- Stored pair. In group 5920 the counted program stops at n = 99,325,680,347 with the stored pair
+  of Section 4. It makes 2,829 E13 and 19 E15 draws, as the run did.
+- Worst paths. The observed maxima are the worst paths charged in 16.3. The binary search reached
+  18 steps, and 8 of the 9 V6 passes tried all 64 candidates.
+
+| group | trials | bitmap hits | key-matched | records | V6 passes | R20 | E13 / E15 draws | pair |
+|---|---|---|---|---|---|---|---|---|
+| 0 | 16,777,216 | 9,958 | 224 | 447 | 3 | 0 | 0 / 0 | |
+| 1 | 16,777,216 | 9,931 | 245 | 561 | 4 | 0 | 0 / 0 | |
+| 2 | 16,777,216 | 10,069 | 260 | 575 | 0 | 0 | 0 / 0 | |
+| 3 | 16,777,216 | 9,971 | 251 | 526 | 0 | 0 | 0 / 0 | |
+| 5920 (to n*) | 4,561,628 | 2,654 | 57 | 133 | 2 | 1 | 2,829 / 19 | stored pair |
+
+The full output of both programs is in Appendix C.8.
+
+### 16.5 Comparison and sensitivity
+
+- Per trial the counted program costs 584.6 primitives (582 + 21/8). The executable that ran
+  retires 154.75 instructions per trial on its hot path. Priced with each 32-bit lane in its own
+  word, those come to 1133 per trial (mean 7.32); under the SWAR prices of Section 14.6, 604.
+- Forms of our previous filing. With rotations as two shifts and an OR and the Boolean functions in
+  the reference core's forms (775 per trial, `klane.h`, checked in 16.4), K would be 36,356,896,376
+  units and the total 2^35.5937.
+- Reference-core conventions. With every rotation written as the organizer's reference core writes
+  it (mask, shift, shift, OR, mask: five primitives), and T1, T2 and every schedule word masked as
+  there (1035 per trial, `klane_ref.h`), K would be 48,444,713,912 units and the total 2^35.8960.
+- Library calls. With ten times the library bound (10^9 instructions at 1024), the total would be
+  2^34.4066.
+- The counts are exact for the program, so no safety factor is applied.
+
+### 16.6 The synthetic completion checks as counted replays
+
+The three synthetic completion checks (Sections 8 and 15.1, before K) ran `r31sim3 1 20 5eed3 sim3-coll.txt sim`
+(B.6), each with the S of the z3 attempt just finished. A synthetic run is deterministic: one worker
+thread draws its coins from a stream seeded by the seed and the thread index, and counts trials in
+batches of 2^16 until the 20 s wall cap. A run that completed N trials therefore executed exactly the
+first N trials of that stream.
+
+| run | S | records | trials (logged FINAL line) | what happened |
+|---|---|---|---|---|
+| 1 | attempt 1 | 0 | none | segmentation fault at the first trial: with no records, r % nrec indexes far outside the table. A re-run on 2026-10-08 ends with signal 11 after 124,642,769,780 instructions. |
+| 2 | attempt 2 | 224 | 275,316,736 | completed; FINAL v6=538099 joint=42381 both=88 comp=42381/42381 coll=88 |
+| 3 | attempt 3 | 132,096 | 250,544,128 | completed; FINAL v6=489532 joint=38874 both=64 comp=38874/38874 coll=64 |
+
+Correction. Our earlier filings (50592e75 and later, including f99530e8) charged the synthetic checks as three runs of 500,284,109,323
+instructions each, the count of one re-run of run 3's command. The runs differed: run 1 stopped at its
+first trial, and run 2 completed 9.9% more trials than run 3. The factor 2 of those filings' price
+covered the difference. This filing charges each run by its exact counted replay instead.
+
+`scount.c` (Appendix C.13) writes `r31sim3`'s s1 inverse, table build, self-check and trial loop in
+the counted primitives of Section 16.1, with the code of `kcount.c` for the first three. It includes
+`r31sim3.c` unchanged and, for each run, is built with that run's S. It replays N trials of the
+run's stream and checks two things:
+- trial by trial, the counted `process_sim` and `r31sim3`'s own `process_sim` on the same draws agree
+  on every counter;
+- the replayed counters equal the run's logged FINAL line.
+The trial loop indexes the records in the order the run's own `qsort` left them; the counted merge
+sort produces the same multiset and key order, and a trial picks its record by index. The 64-bit
+remainder r % nrec is a branch-free restoring division (64 steps of 9 primitives).
+
+| run | s1 inverse, table, self-check | trial loop (counted replay) | per trial | library calls and process launch (3e7 instructions at 1024, H8) | total |
+|---|---|---|---|---|---|
+| 1 | 236,317,808,502 | first trial: at most 10,000 | | 30,720,000,000 | 267,037,818,502 |
+| 2 | 236,255,568,814 | 1,745,020,550,020 | 6338.23 | 30,720,000,000 | 2,011,996,118,834 |
+| 3 | 236,418,844,446 | 1,588,088,539,519 | 6338.56 | 30,720,000,000 | 1,855,227,383,965 |
+| all three | | | | | 4,134,261,321,301 |
+
+Synthetic checks: ceil(4,134,261,321,301 / 2140) = **1,931,897,814** units.
+
+Validation output (Appendix C.14): both replays reproduce their run's FINAL counters exactly:
+- run 2: trials=275316736 rechits=275316736 v6=538099 joint=42381 both=88 comp=42381/42381 coll=88;
+- run 3: trials=250544128 rechits=250544128 v6=489532 joint=38874 both=64 comp=38874/38874 coll=64.
+
+## 17. Search K's trial passes as a 7-lane SWAR program (H2)
+
+This section supports the K line of Section 9 since v11. The passes of 8 trials of Section 16.2 (4,677
+primitives each) are replaced by passes of 7 trials in one 256-bit word (1,000 primitives each). The
+hit processing, group set-up, table build and library lines of Section 16.3 are unchanged, except for
+the additions listed in 17.5.
+
+### 17.1 Machine and layout
+
+- Primitives and conventions as in Section 16.1. A 256-bit word holds seven 36-bit lanes, lane l at
+  bits 36l..36l+35 (l = 0..6); bits 252..255 stay 0. A lane holds a value below 2^36 whose low 32
+  bits are the 32-bit word of the C source; its top 4 bits are guard bits. Lane l of the pass at b
+  holds trial x = b + l of the group, so a pass covers seven consecutive trials in `r31det3`'s order,
+  and the lanes' bitmap decisions are taken in lane order.
+- Registers. The machine is the cost model's 256-bit word RAM with 64 registers. This is the machine
+  of the promoted blake3-r2 package (submission 52bb50ee, proof Section 5, "The counted pieces on a
+  64-register machine"), which states: "The machine model is the 256-bit word RAM of the cost model
+  with 64 registers". Its "44 registers are resident during the batches", among them its 10 rotation
+  masks, and "with the live temporaries the peak is 57 of 64 (the program's liveness count ...)". The
+  cost model collision-frontier-v5 lists primitive operations and fixes no register count. Our v10
+  program assumed 32 registers. Here:
+  - 35 registers are resident for a whole group:
+    - the 32-bit lane mask M7;
+    - the twelve rotation masks of Σ0 and Σ1, and the masks of the merged σ forms (LO17, HI19, LO10,
+      LO3, HI7, LO18, HI18);
+    - the scalar test constants: 2^24 - 1, 63, 1 and the bitmap base;
+    - the group values a, KW20 and K19, K21..K28.
+    They are loaded once per group, and that is charged in the group set-up.
+  - 6 loop registers: X (the seven trial indices), SEVEN7 (7 in every lane), the trial counter, the
+    countdown to the next event, the constant 7 and the address of the group values.
+  - The pass's own values need at most 23 registers at once. `kswar.py` computes the largest live set
+    of the straight-line pass, and 35 + 6 + 23 = 64.
+  - `kswar.py` chooses the resident set: constants in order of uses per pass, each kept while the
+    pass still fits 64 registers. Every other group value is loaded at each use, 24 loads per pass.
+  - Every out-of-line path is charged 128 for storing all 64 registers at its start and reloading
+    them at its end. The out-of-line paths are a bitmap hit and an event. So the hit processing of
+    Section 16 runs with the registers it had in v10.
+- Lane arithmetic (Th0rgal, f310d44f). A lane addition is one 256-bit addition. `kswar.py` keeps a
+  static per-lane bound for every addition and asserts that it is below 2^36, so no carry leaves a
+  lane. The largest bound in the pass is 9 (2^32 - 1), the sum that gives the key; the largest lane
+  value met in the checks is 0x79babd6c9. E and A of every step and the schedule words w17..w28 are
+  reduced to 32 bits (AND M7) when they are formed. T1, T2, w29, w30 and the key's sum use the guard
+  bits.
+- Rotations: ROTR(v, r) = ((v >> r) & LO_r) ^ ((v << (32 - r)) & HI_r), 5 primitives, where LO_r keeps
+  lane bits 0..31-r and HI_r keeps lane bits 32-r..31. It reads only bits 0..31 of each lane, whatever
+  the guard bits hold. Σ0 and Σ1 are three rotations and two XORs, 17 primitives.
+- Merged masks. Take an input whose guard bits are 0. Then v >> r holds v's bits r..31 at lane bits
+  0..31-r and zeros at 32-r..35-r. And v << (32 - r) holds v's bits 0..r-1 at lane bits 32-r..31 and
+  zeros at 28-r..31-r. So one mask can serve two shifted copies whose correct and zero regions cover
+  all of it:
+  - σ1(v) = ((v >> 17 ^ v >> 19) & LO17) ^ ((v << 15 ^ v << 13) & HI19) ^ ((v >> 10) & LO10): 12;
+  - σ0(v) = ((v >> 3 ^ v >> 7) & LO3) ^ ((v << 25) & HI7) ^ ((v >> 18) & LO18) ^ ((v << 14) & HI18): 13.
+  `merged()` in `kswar.py` checks the regions bit by bit, and `sg0`/`sg1` assert that every input is
+  reduced.
+- Ch(e,f,g) = g ^ (e & (f ^ g)) and Maj with the carried a ^ b, as in Section 16.1 (3 each). Both are
+  bitwise, so they are exact in every lane.
+- Bitmap test, lane by lane. First the index bits of all lanes: ks = (key >> 8) & M24x7, 3 with the
+  load of M24x7. Then for lane l:
+  - bi = (ks >> 36l) & (2^24 - 1): 1 for lanes 0 and 6, otherwise 2;
+  - the address base + (bi >> 6): 2;
+  - the load of the 64-bit bitmap word: 1;
+  - (word >> (bi & 63)) & 1: 3;
+  - compare and branch: 2.
+  That is 71 for the seven lanes.
+
+### 17.2 One pass: 995 primitives
+
+`kswar.py` (Appendix D.1) generates the pass from v10's trial (`kprog.py --opt`, the same steps,
+schedule words, group values and identities) with every 32-bit operation made a lane operation. It
+emits C (`kswar7.h`), and `kswar.c` executes it with a counter. Steps 15..30 and the twelve schedule
+words cost 924, the seven bitmap tests 71:
+
+| add | AND | XOR | shift left | shift right | load | load (bitmap) | variable shift | compare | branch | total |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 123 | 309 | 257 | 114 | 140 | 24 | 7 | 7 | 7 | 7 | 995 |
+
+Of these, Σ0 and Σ1 (15 each) take 510, σ1 (11) 132 and σ0 13. There is no branch in the pass other
+than the seven bitmap tests, so 995 is the count of every pass. Loop control adds 5: the countdown to
+the next event (compare, branch, subtract), X += SEVEN7 and the trial counter += 7. A pass of 7 trials
+therefore costs 1,000, or 142.9 per trial, against 584.6 per trial in v10.
+
+### 17.3 Groups, events and the passes that ran
+
+- Group set-up: v10's group head and set-up (12 + 13,349, Section 16.3); the broadcast of the 35 group
+  values to seven lanes (8 each: load, three shift-OR doublings, store; 280); one load of each resident
+  value (charged for all 35); the loop registers (4). In all 13,680.
+- Events. `r31det3` runs its abort check after the pass at base k * 2^20, that is after trial
+  k * 2^20 + 7 (k = 0..15). The SWAR loop keeps a countdown to the next event trial. The pass that
+  contains that trial branches out of line: the same lane tests run with the abort check after that
+  lane, and the countdown is set to the next event. The last event is the group's last trial. The
+  pass at 2^24 - 1 has one valid lane; it is computed and charged in full. A full group has 17
+  events, 295 primitives in all (the 16 abort checks of Section 16.3 included), plus 128 each for the
+  registers, 2,471.
+- The passes that ran. A group with T trials needs ceil(T / 7) passes. The run's log gives each
+  thread's trial count, and thread t ran groups t, t + 12, ... (B.4). Every group has 2^24 trials,
+  except that a thread's last group, if aborted, stopped after the pass at its abort check, after
+  k * 2^20 + 8 trials:
+
+| thread | trials (log) | full groups | groups | aborted group: trials |
+|---|---|---|---|---|
+| 0 | 8,287,944,704 | 494 | 0..5916 | |
+| 1 | 8,287,944,704 | 494 | 1..5917 | |
+| 2 | 8,287,944,704 | 494 | 2..5918 | |
+| 3 | 8,297,381,896 | 494 | 3..5919 | 5931: 9 * 2^20 + 8 |
+| 4 | 8,287,944,704 | 494 | 4..5920 | |
+| 5 | 8,349,810,696 | 497 | 5..5957 | 5969: 11 * 2^20 + 8 |
+| 6 | 8,290,041,864 | 494 | 6..5922 | 5934: 2 * 2^20 + 8 |
+| 7 | 8,318,353,416 | 495 | 7..5935 | 5947: 13 * 2^20 + 8 |
+| 8 | 8,271,167,488 | 493 | 8..5912 | |
+| 9 | 8,271,167,488 | 493 | 9..5913 | |
+| 10 | 8,271,167,488 | 493 | 10..5914 | |
+| 11 | 8,271,167,488 | 493 | 11..5915 | |
+
+  So the groups that ran are 0..5920 and 5921, 5922, 5923, 5933, 5935, 5945, 5957 in full, and 5931,
+  5934, 5947, 5969 aborted. That is 5,932 groups and 99,492,036,640 trials, as in Section 8; 4
+  aborted, as in its DET line. The passes are
+  5,928 * ceil(2^24 / 7) + ceil(9,437,192 / 7) + ceil(2,097,160 / 7) + ceil(13,631,496 / 7) +
+  ceil(11,534,344 / 7) = 14,207,910,288 + 5,242,887 = **14,213,153,175**. Without the split by group,
+  (99,492,036,640 + 6 * 5,932) / 7 = 14,213,153,176 bounds the count.
+
+### 17.4 Validation
+
+`kswar.py` (output in D.4):
+- 3,000 groups, of which 64 have words 0..14 drawn from all-zero and all-one words and the others are
+  random. Lane 0 starts at edge values (0, 1, 7, 2^20 - 3, 2^20 + 1, 2^23 - 1, 2^24 - 15, 2^24 - 8,
+  2^24 - 7) or at random. For all 21,000 lanes the key equals word 0 of the organizer reference
+  core's 31-step compression, and the key and decision equal those of `kprog.py --opt`.
+- On 1,000 passes, setting the bit tested by one lane turns exactly the lanes that test that bit to
+  hits.
+- Every addition stays within its static bound, and every pass executes exactly 995 primitives.
+
+`kswar.c` (Appendix D.3) includes `kcount.c` with only its `main` renamed, and through it `r31det3.c`
+and `sp_own.h` unchanged, with the committed seed. Per group it runs, on the same trials:
+- v10's counted group set-up, compared with `r31det3`'s own;
+- the counted broadcast;
+- the SWAR pass;
+- for every trial, `r31det3`'s own trial block (`ref_key`, verbatim) and v10's counted scalar trial
+  (`klane_opt`). The SWAR lane's key must equal both, and its bitmap decision both decisions;
+- for every bitmap hit, `r31det3`'s `process_hit` and kcount's counted `hit_c`, which must agree on
+  every counter of the group.
+The variant with every constant loaded (`kswar7_ld`) is run on the passes whose first trial is a
+multiple of 2^18 and must give the same keys and decisions.
+
+`./kswar run` replays every group that K executed, with the trials of Section 17.3. All
+99,492,036,640 trials of the run pass these checks, in 14,213,153,175 passes. The summed counters equal
+the run's FINAL and DET lines (Section 8):
+- trials 99,492,036,640, bitmap hits 58,831,394, key-matched trials 1,376,281;
+- matched records 3,061,666, V6 passes 5,992, R20 passes 1, completions 1/1, collisions 1;
+- E13 draws 2,829, E15 draws 19, aborted groups 4, groups 5,932.
+Group 5920 runs to its end, as it did in the run, and stores the pair of Section 4 at
+n* = 99,325,680,347. Every pass costs 995 and every loop control at most 5. Every group set-up costs
+13,680, the events of a group at most 295, and the lane index of a hit at most 2. `./kswar sample 96`
+also runs v10's check (groups 0..3 in full and 5920 up to its stored pair), now with the SWAR pass,
+together with groups 4..95. Its per-group counters equal those of Section 16.4. The outputs are in
+D.4.
+
+So the validation covers every trial of the execution. It is not a sample of it.
+
+### 17.5 The K line
+
+| event | count in the run (Section 8) | primitives per event | ops |
+|---|---|---|---|
+| pass of 7 trials: SWAR pass 995, loop control 5 | 14,213,153,175 | 1,000 | 14,213,153,175,000 |
+| group: head and set-up 13,361, broadcast and resident loads 315, loop registers 4, 17 events 295, their register saves 17 * 128 | 5,932 | 16,151 | 95,807,732 |
+| bitmap hit: as in 16.3 (1,642), lane index 2, register save and reload 128 | 58,831,394 | 1,772 | 104,249,230,168 |
+| key-matched hits, matched records, V6 passes, the R20 pass (16.3) | | | 763,146,727 |
+| table build, s1 inverse, self-check (16.3) | | | 236,418,844,446 |
+| library calls and the main thread (16.3) | | | 102,400,000,000 |
+| K | | | 14,657,080,204,073 |
+
+K = ceil(14,657,080,204,073 / 2140) = **6,849,102,900** units, against v10's 27,384,016,436.
+
+### 17.6 Sensitivity
+
+- v10's scalar passes (582 per trial): K 27,384,016,436 units, total 2^35.3195.
+- The SWAR pass with every constant loaded at each use (`kswar7_all_loaded.h`, 1,292 per pass; loop
+  control 8): K 8,841,601,008 units, total 2^34.502.
+- On v10's 32-register machine (`choose_resident(32)`: 1,236 per pass; loop control 8): K
+  8,469,668,028 units, total 2^34.480.
+- The claim 34.38 holds for any pass of up to 1,002 primitives.
+- Twice the pass: 2^34.755. Twice every K line: 2^34.765.
+- The counts are exact for the program, and the replay covers every pass that ran, so no safety
+  factor is applied.
 
 ## Appendix A. Commitments (written before each run)
 
@@ -1045,7 +1936,7 @@ static const uint32_t SPB_E[35]={0x00000000u,0x00000000u,0x00000000u,0x00000000u
 static const uint32_t S_W[31]={0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x876b73dbu,0xed1499e4u,0x7173c145u,0x0ba5f907u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u,0x00000000u};
 ```
 
-B.6 `r31sim3.c` (synthetic completion check, charged by instructions)
+B.6 `r31sim3.c` (synthetic completion check; charged by its counted replays, Section 16.6)
 
 ```c
 // sha256-r31 relaxed-W20 first-block search from the published starting solution.
@@ -1327,7 +2218,7 @@ int main(int argc,char**argv){
 }
 ```
 
-## Appendix C. Price scripts
+## Appendix C. Price scripts and the counted programs
 
 C.1 `a64ops.py` (per-form costing of AArch64 instructions)
 
@@ -1587,7 +2478,7 @@ if __name__ == '__main__':
     print(json.dumps(summarize('WHOLE-BINARY', [i for v in funcs.values() for i in v])))
 ```
 
-C.2 `cgmix.py` (dynamic mix from callgrind instruction counts)
+C.2 `cgmix.py` (dynamic mix from callgrind instruction counts; v6 adds the `r31det3.gcc` entry)
 
 ```python
 """Dynamic per-form cost from callgrind --dump-instr=yes --compress-pos=no --compress-strings=no dumps.
@@ -1609,6 +2500,7 @@ from a64ops import cost, split_ops  # noqa: E402
 OBJ_FILE = {
     '/usr/local/bin/z3': 'z3.elf',
     'r31sim3.lin': 'r31sim3.lin',
+    'r31det3.gcc': 'r31det3.gcc',
     'libstdc++.so.6.0.30': 'libstdc++.so.6',
     'libc.so.6': 'libc.so.6',
     'libm.so.6': 'libm.so.6',
@@ -1720,4 +2612,4484 @@ def main():
 
 if __name__ == '__main__':
     main()
+```
+
+C.3 `swar.py` (SIMD prices by exact emulation on one 256-bit word)
+
+    e5b8ea421d4f9280f5af4a394bfa147df806c1d5f84dc0f750c6e0fbe7aa2602  swar.py
+
+```python
+"""SIMD per-form prices by SWAR emulation (alternative to the flat 16 of the v5 table).
+
+A 128-bit register is one datum in one 256-bit word, as the v5 table already assumes for SIMD logic.
+Lane-wise forms are priced by the SWAR programs checked in swar_check.py. Forms not listed keep their
+v5 price. Scalar forms are unchanged.
+"""
+import re
+
+import a64ops
+
+SWAR = {'add': 6, 'shl': 2, 'ushr': 2, 'usra': 8, 'eor3': 2, 'bcax': 3, 'bsl': 3, 'bic': 2,
+        'and': 1, 'orr': 1, 'eor': 1, 'mov': 1, 'movi': 1, 'dup': 11, 'ins': 4, 'umov': 4}
+LANE = re.compile(r'\bv\d+(\.[bhsd])?\[\d+\]')
+
+
+def cost(mn, ops):
+    c, cl = a64ops.cost(mn, ops)
+    base = mn.split('.')[0]
+    cond = mn.split('.')[1] if mn.startswith('b.') else None
+    vec = any(a64ops.VEC.search(o) for o in ops) or ('.' in mn and cond is None) or any(LANE.search(o) for o in ops)
+    if not vec or cl != 'ordinary':
+        return c, cl
+    if base in ('mov', 'ins', 'umov') and any(LANE.search(o) for o in ops):
+        return 4, cl
+    if base in SWAR:
+        return (max if base == 'bic' else min)(c, SWAR[base]), cl
+    return c, cl
+```
+
+C.4 `swar_check.py` (check of every emulation against the lane-wise definition)
+
+    6b97348f11896eaab98149c05682665157218ecd1e6f22d520e1051a6618f85c  swar_check.py
+
+```python
+"""Check that each SIMD form of the K hot path has a 256-bit-word program of the stated length.
+
+A 128-bit register is one datum in one 256-bit word (as the v5 table already assumes for SIMD logic).
+Each emulation below uses only v5 primitives (add mod 2^256, AND/OR/XOR/NOT, shifts) on such words;
+`ops` counts them. Constants (lane masks) are immediates, as in the scalar rules.
+"""
+import random
+
+import swar
+W = (1 << 256) - 1
+R128 = (1 << 128) - 1
+def rep(v, bits):
+    return sum(v << (bits * i) for i in range(128 // bits))
+class C:
+    n = 0
+def op(v):
+    C.n += 1
+    return v & W
+def NOT(a): return op(~a)
+def AND(a, b): return op(a & b)
+def OR(a, b): return op(a | b)
+def XOR(a, b): return op(a ^ b)
+def ADD(a, b): return op(a + b)
+def SHL(a, k): return op(a << k)
+def SHR(a, k): return op(a >> k)
+
+def add_lanes(x, y, bits):
+    L, H = rep((1 << (bits - 1)) - 1, bits), rep(1 << (bits - 1), bits)
+    return XOR(ADD(AND(x, L), AND(y, L)), AND(XOR(x, y), H))
+def shl_lanes(x, k, bits):
+    return AND(SHL(x, k), rep(((1 << bits) - 1) ^ ((1 << k) - 1), bits))
+def ushr_lanes(x, k, bits):
+    return AND(SHR(x, k), rep((1 << (bits - k)) - 1, bits))
+def usra_lanes(d, x, k, bits):
+    return add_lanes(d, ushr_lanes(x, k, bits), bits)
+def eor3(a, b, c): return XOR(XOR(a, b), c)
+def bcax(a, b, c): return XOR(a, AND(b, NOT(c)))
+def bsl(d, n, m): return XOR(AND(XOR(n, m), d), m)
+def bic(a, b): return AND(a, NOT(b))
+def dup32(w):
+    r = w
+    for k in (32, 64, 96):
+        r = OR(r, AND(SHL(w, k), R128))
+    return r
+def dup64(x):
+    return OR(x, AND(SHL(x, 64), R128))
+def ext32(v, lane):
+    return AND(SHR(v, 32 * lane), 0xffffffff)
+def ins32(v, w, lane):
+    return OR(AND(v, R128 ^ (0xffffffff << (32 * lane))), AND(SHL(w, 32 * lane), R128))
+def ref(f, xs, bits):
+    m = (1 << bits) - 1
+    out = 0
+    for i in range(128 // bits):
+        out |= (f(*[(x >> (bits * i)) & m for x in xs]) & m) << (bits * i)
+    return out
+
+STATED = {name: swar.SWAR[name.split('.')[0]] for name in
+          ('add.4s', 'add.2d', 'shl.4s', 'ushr.4s', 'usra.4s', 'eor3.16b', 'bcax.16b', 'bsl.16b', 'bic.16b',
+           'dup.4s', 'dup.2d')}
+STATED['mov.s(insert)'] = STATED['mov.s(extract)'] = swar.SWAR['ins']
+random.seed(1)
+worst = {}
+for _ in range(2000):
+    x, y, z = (random.getrandbits(128) for _ in range(3))
+    w = random.getrandbits(32)
+    k = random.randrange(1, 32)
+    cases = {
+        'add.4s': (lambda: add_lanes(x, y, 32), ref(lambda a, b: a + b, (x, y), 32)),
+        'add.2d': (lambda: add_lanes(x, y, 64), ref(lambda a, b: a + b, (x, y), 64)),
+        'shl.4s': (lambda: shl_lanes(x, k, 32), ref(lambda a: a << k, (x,), 32)),
+        'ushr.4s': (lambda: ushr_lanes(x, k, 32), ref(lambda a: a >> k, (x,), 32)),
+        'usra.4s': (lambda: usra_lanes(y, x, k, 32), ref(lambda d, a: d + (a >> k), (y, x), 32)),
+        'eor3.16b': (lambda: eor3(x, y, z), x ^ y ^ z),
+        'bcax.16b': (lambda: bcax(x, y, z), x ^ (y & ~z & R128)),
+        'bsl.16b': (lambda: bsl(z, x, y), (z & x) | (~z & y & R128)),
+        'bic.16b': (lambda: bic(x, y), x & ~y & R128),
+        'dup.4s': (lambda: dup32(w), rep(w, 32)),
+        'dup.2d': (lambda: dup64(x & ((1 << 64) - 1)), rep(x & ((1 << 64) - 1), 64)),
+        'mov.s(extract)': (lambda: ext32(x, k % 4), (x >> (32 * (k % 4))) & 0xffffffff),
+        'mov.s(insert)': (lambda: ins32(x, w, k % 4), (x & ~(0xffffffff << (32 * (k % 4))) & R128) | (w << (32 * (k % 4)))),
+    }
+    for name, (f, want) in cases.items():
+        C.n = 0
+        got = f()
+        assert got == want, name
+        worst[name] = max(worst.get(name, 0), C.n)
+for name, n in worst.items():
+    assert n <= STATED[name], (name, n, STATED[name])
+    print(f"{name:14s} emulation ops {n:2d}  priced {STATED[name]:2d}  ok")
+```
+
+C.5 `kpath.py` (executed path and per-form means of K's executable)
+
+    ddad93f78c8d2fdef7529264a93b630f3a2dd1a4c4a75b48e13bc81f03f4d4c6  kpath.py
+
+```python
+"""Per-form cost of the executed paths of the K binary that ran (macOS r31det3, sha256 2824a0f8...).
+
+usage: xcrun llvm-objdump -d --no-show-raw-insn r31det3 > r31det3.dis; python3 kpath.py r31det3.dis
+Prints, for the search hot path (one pass of the 8-lane block with no bitmap hit) and for the common
+path of the table scan (one scanned word), the instruction count and the mean price under the v5
+table (a64ops.cost) and under the SWAR SIMD prices (swar.cost).
+"""
+import json
+import re
+import sys
+
+import a64ops
+import swar
+
+# (first address, last address, executions per pass)
+PATHS = {
+    'search, per 8 trials': [(0x100002b14, 0x100002b60, 1), (0x100002b64, 0x100003390, 2),
+                             (0x100003394, 0x1000033a4, 1), (0x10000348c, 0x1000034a8, 8),
+                             (0x100003460, 0x100003488, 8), (0x100002ae0, 0x100002af4, 1),
+                             (0x100002af8, 0x100002b10, 1)],
+    'table scan, per word': [(0x1000009dc, 0x100000a08, 1), (0x100000a18, 0x100000a30, 1),
+                             (0x100000a40, 0x100000a64, 1)],
+}
+# code regions run off the hot path: static (unweighted) mean over every instruction of the region
+REGIONS = {'bitmap-hit processing, completion and hashing (inlined in worker)': (0x1000034ac, 0x100004e9c),
+           'worker outside the search hot path': (0x100002254, 0x100002adc)}
+LINE = re.compile(r'^\s*([0-9a-f]+):\s+(\S+)(?:\s+(.*))?$')
+
+
+def main():
+    ins = {}
+    for line in open(sys.argv[1]):
+        m = LINE.match(line)
+        if m:
+            rest = (m.group(3) or '').split(';')[0].split('//')[0]
+            rest = re.sub(r'\s*<[^>]*>\s*$', '', rest).strip()
+            ins[int(m.group(1), 16)] = (m.group(2), a64ops.split_ops(rest) if rest else [])
+    addrs = sorted(ins)
+    for name, path in PATHS.items():
+        n = v5 = sw = 0
+        for lo, hi, k in path:
+            for a in addrs:
+                if lo <= a <= hi:
+                    mn, ops = ins[a]
+                    n += k
+                    v5 += k * a64ops.cost(mn, ops)[0]
+                    sw += k * swar.cost(mn, ops)[0]
+        print(json.dumps(dict(path=name, instructions=n, v5_ops=v5, v5_mean=round(v5 / n, 4),
+                              swar_ops=sw, swar_mean=round(sw / n, 4))))
+    for name, (lo, hi) in REGIONS.items():
+        sel = [ins[a] for a in addrs if lo <= a <= hi]
+        priced = [(swar.cost(mn, ops), a64ops.cost(mn, ops)[0]) for mn, ops in sel]
+        ordinary = [c for (c, cl), _ in priced if cl == 'ordinary']
+        print(json.dumps(dict(region=name, instructions=len(sel), heavy=len(sel) - len(ordinary),
+                              v5_mean=round(sum(v for _, v in priced) / len(sel), 4),
+                              swar_mean=round(sum(c for (c, _), _ in priced) / len(sel), 4),
+                              swar_ordinary_mean=round(sum(ordinary) / len(ordinary), 4))))
+    heavy = [(a, ins[a][0]) for a in addrs if a64ops.cost(*ins[a])[1] != 'ordinary']
+    print(json.dumps(dict(heavy_instructions=[f'{a:x} {mn}' for a, mn in heavy])))
+
+
+if __name__ == '__main__':
+    main()
+```
+
+C.6 `kprog.py` (one trial of K as straight-line primitives in three variants; checker against the organizer reference core; emits `klane_opt.h`, `klane.h`, `klane_ref.h`, `gval.h`)
+
+    975f61dfa55f2bf3b0e55f1091f048fb6a7ab6d26f574b6b4ae305b2ed366f4c  kprog.py
+
+Run as `python3 kprog.py --opt --emit`, `python3 kprog.py --emit` and `python3 kprog.py --ref --emit` next to
+`ref_hash_functions.py`, a copy of the organizer's `verifier/hash_functions.py` (official repository at b809171).
+The generated files are:
+
+    514fa8ab8a461e4a41080efa27b4ba2a3b499eeedf0a2d2346e6562835d040f5  ref_hash_functions.py (copy of verifier/hash_functions.py)
+    bd8467d25fac96becfe5234ee66afbc21a2c9d4d15eec9978f794f58c15f12a4  klane_opt.h (generated, --opt: 582 per trial, charged)
+    0489879c3bb505ce5fb61af292cd5bfe56eba0d5b29753aaa1445aad0de3c8f9  klane.h (generated: 775 per trial)
+    0ed04363d74953d244551f6cb37bb69b8779cfaa94b61adf85e5977f7e0359dd  klane_ref.h (generated, --ref: 1035 per trial)
+    8a50b804634b8d94d228520372342212f400e74db5a08d9b3a14a70640cc13d8  gval.h (generated)
+
+```python
+"""Search K's per-trial work as an explicit straight-line program of 256-bit word-RAM primitives.
+
+One lane = one trial of r31det3's worker loop (B.4): from x = message word 15 to the bitmap test
+on key = IV[0] + A30.  The program is generated here as a list of primitives, executed by a counting
+interpreter, checked against the organizer reference core, and emitted as C for the large-scale
+check against r31det3 itself (kcount.c).  Three variants: --opt (charged, klane_opt.h: dup
+rotations and the identities of OptProg), the default (klane.h: rotations as two shifts and an OR,
+Boolean functions in the reference core's forms) and --ref (klane_ref.h, below).
+
+Primitives (collision-frontier-v5): 256-bit load/store, add/sub mod 2^256, AND/OR/XOR/NOT, shift,
+comparison, conditional branch.  Every value sits in its own 256-bit word.  Operands are registers;
+the only immediates are shift counts.  Group values (everything that depends on words 0..14 only)
+and round constants are loaded from fixed addresses, one load per use.  Registers M (2^32-1),
+BM (bitmap base address, 0), C63 (63) and C1 (1) are loaded once per thread.
+
+Masking: a value is reduced to 32 bits (AND with M) before it enters a right shift or a comparison.
+Addition, AND, OR, XOR and NOT never move bits above position 31 into positions 0..31, so the low
+32 bits of every value equal the 32-bit word the C source computes.  A 32-bit rotation of a clean
+value is (v >> n) | (v << (32 - n)): three primitives, with garbage above bit 31 that the next mask
+removes.  --ref prices every rotation as the organizer reference core writes it
+(mask, shift, shift, OR, mask: five primitives) and masks T1, T2 and every schedule word as it does.
+"""
+import random
+import sys
+
+import ref_hash_functions as hf
+
+MASK = 0xffffffff
+MOD = 1 << 256
+K = hf.SHA256_K
+IV = hf.IV["sha256"]
+
+
+def rotr(v, n):
+    return ((v >> n) | (v << (32 - n))) & MASK
+
+
+def bs0(v): return rotr(v, 2) ^ rotr(v, 13) ^ rotr(v, 22)
+def bs1(v): return rotr(v, 6) ^ rotr(v, 11) ^ rotr(v, 25)
+def sg0(v): return rotr(v, 7) ^ rotr(v, 18) ^ (v >> 3)
+def sg1(v): return rotr(v, 17) ^ rotr(v, 19) ^ (v >> 10)
+def ch(e, f, g): return ((e & f) ^ (~e & g)) & MASK
+def maj(a, b, c): return (a & b) ^ (a & c) ^ (b & c)
+
+
+def group_values(m):
+    """Values that depend only on words 0..14 (computed once per group; kcount.c counts that set-up)."""
+    a, b, c, d, e, f, g, h = IV
+    for t in range(15):
+        t1 = (h + bs1(e) + ch(e, f, g) + K[t] + m[t]) & MASK
+        t2 = (bs0(a) + maj(a, b, c)) & MASK
+        a, b, c, d, e, f, g, h = (t1 + t2) & MASK, a, b, c, (d + t1) & MASK, e, f, g
+    m16 = (sg1(m[14]) + m[9] + sg0(m[1]) + m[0]) & MASK
+    m18 = (sg1(m16) + m[11] + sg0(m[3]) + m[2]) & MASK
+    m20 = (sg1(m18) + m[13] + sg0(m[5]) + m[4]) & MASK
+    p15 = (h + bs1(e) + ch(e, f, g) + K[15]) & MASK
+    q15 = (bs0(a) + maj(a, b, c)) & MASK
+    G = {
+        "U15": (d + p15) & MASK, "V15": (p15 + q15) & MASK,
+        "a": a, "b": b, "c": c, "e": e, "f": f, "ab": a & b,
+        "P16": (g + K[16] + m16) & MASK, "P17": (f + K[17]) & MASK, "P18": (e + K[18] + m18) & MASK,
+        "KW20": (K[20] + m20) & MASK,
+        "c17": (m[10] + sg0(m[2]) + m[1]) & MASK, "c19": (m[12] + sg0(m[4]) + m[3]) & MASK,
+        "c21": (m[14] + sg0(m[6]) + m[5]) & MASK, "c22": (sg1(m20) + sg0(m[7]) + m[6]) & MASK,
+        "c23": (m16 + sg0(m[8]) + m[7]) & MASK, "c24": (sg0(m[9]) + m[8]) & MASK,
+        "c25": (m18 + sg0(m[10]) + m[9]) & MASK, "c26": (sg0(m[11]) + m[10]) & MASK,
+        "c27": (m20 + sg0(m[12]) + m[11]) & MASK, "c28": (sg0(m[13]) + m[12]) & MASK,
+        "c29k": (sg0(m[14]) + m[13] + K[29]) & MASK, "c30k": (m[14] + K[30] + IV[0]) & MASK,
+        "axb": a ^ b, "exf": e ^ f,
+    }
+    for t in (19, 21, 22, 23, 24, 25, 26, 27, 28):
+        G[f"K{t}"] = K[t]
+    return G
+
+
+GROUP_NAMES = list(group_values([0] * 15))
+
+
+class Prog:
+    def __init__(self, ref=False):
+        self.ref = ref
+        self.ops = []
+        self.n = 0
+
+    def emit(self, op, *src):
+        self.n += 1
+        d = f"v{self.n}"
+        self.ops.append((op, d) + src)
+        return d
+
+    def ld(self, name): return self.emit("ld", name)
+    def add(self, a, b): return self.emit("add", a, b)
+    def and_(self, a, b): return self.emit("and", a, b)
+    def or_(self, a, b): return self.emit("or", a, b)
+    def xor(self, a, b): return self.emit("xor", a, b)
+    def not_(self, a): return self.emit("not", a)
+    def shr(self, a, n): return self.emit("shr", a, n)
+    def shl(self, a, n): return self.emit("shl", a, n)
+    def mask(self, a): return self.and_(a, "M")
+
+    def rotr(self, v, n):
+        if self.ref:
+            t = self.mask(v)
+            return self.mask(self.or_(self.shl(t, 32 - n), self.shr(t, n)))
+        return self.or_(self.shr(v, n), self.shl(v, 32 - n))
+
+    def bs0(self, v): return self.xor(self.xor(self.rotr(v, 2), self.rotr(v, 13)), self.rotr(v, 22))
+    def bs1(self, v): return self.xor(self.xor(self.rotr(v, 6), self.rotr(v, 11)), self.rotr(v, 25))
+    def sg0(self, v): return self.xor(self.xor(self.rotr(v, 7), self.rotr(v, 18)), self.shr(v, 3))
+    def sg1(self, v): return self.xor(self.xor(self.rotr(v, 17), self.rotr(v, 19)), self.shr(v, 10))
+    def ch(self, e, f, g): return self.xor(self.and_(e, f), self.and_(self.not_(e), g))
+    def maj(self, a, b, c): return self.xor(self.xor(self.and_(a, b), self.and_(a, c)), self.and_(b, c))
+    def refmask(self, v): return self.mask(v) if self.ref else v
+
+
+def gen_lane(ref=False):
+    """One trial: x -> key = IV[0] + A30 -> bitmap test.  Returns the program."""
+    P = Prog(ref)
+    x = "x"
+    w = {}
+
+    def sched(t):
+        if t == 17: w[17] = P.mask(P.add(P.sg1(x), P.ld("c17")))
+        elif t == 19: w[19] = P.mask(P.add(P.sg1(w[17]), P.ld("c19")))
+        elif t == 21: w[21] = P.mask(P.add(P.sg1(w[19]), P.ld("c21")))
+        elif t == 22: w[22] = P.mask(P.add(P.ld("c22"), x))
+        elif t == 23: w[23] = P.mask(P.add(P.sg1(w[21]), P.ld("c23")))
+        elif t == 24: w[24] = P.mask(P.add(P.add(P.sg1(w[22]), w[17]), P.ld("c24")))
+        elif t == 25: w[25] = P.mask(P.add(P.sg1(w[23]), P.ld("c25")))
+        elif t == 26: w[26] = P.mask(P.add(P.add(P.sg1(w[24]), w[19]), P.ld("c26")))
+        elif t == 27: w[27] = P.mask(P.add(P.sg1(w[25]), P.ld("c27")))
+        elif t == 28: w[28] = P.mask(P.add(P.add(P.sg1(w[26]), w[21]), P.ld("c28")))
+        elif t == 29: w[29] = P.refmask(P.add(P.add(P.sg1(w[27]), w[22]), P.ld("c29k")))
+        elif t == 30: w[30] = P.refmask(P.add(P.add(P.add(P.sg1(w[28]), w[23]), P.sg0(x)), P.ld("c30k")))
+
+    # round 15: every term but x is a group value
+    E = P.mask(P.add(P.ld("U15"), x))
+    A = P.mask(P.add(P.ld("V15"), x))
+    # round 16: B=a C=b D=c F=e G=f H=g (group values)
+    s1 = P.bs1(E)
+    c = P.xor(P.and_(E, P.ld("e")), P.and_(P.not_(E), P.ld("f")))
+    T1 = P.refmask(P.add(P.add(P.ld("P16"), s1), c))
+    s0 = P.bs0(A)
+    mj = P.xor(P.xor(P.and_(A, P.ld("a")), P.and_(A, P.ld("b"))), P.ld("ab"))
+    T2 = P.refmask(P.add(s0, mj))
+    E16, A16 = P.mask(P.add(P.ld("c"), T1)), P.mask(P.add(T1, T2))
+    # round 17: B=A15 C=a D=b F=E15 G=e H=f
+    sched(17)
+    s1 = P.bs1(E16)
+    c = P.xor(P.and_(E16, E), P.and_(P.not_(E16), P.ld("e")))
+    T1 = P.refmask(P.add(P.add(P.add(P.ld("P17"), s1), c), w[17]))
+    s0 = P.bs0(A16)
+    la = P.ld("a")
+    mj = P.xor(P.xor(P.and_(A16, A), P.and_(A16, la)), P.and_(A, la))
+    T2 = P.refmask(P.add(s0, mj))
+    E17, A17 = P.mask(P.add(P.ld("b"), T1)), P.mask(P.add(T1, T2))
+    # round 18: B=A16 C=A15 D=a F=E16 G=E15 H=e
+    s1 = P.bs1(E17)
+    c = P.ch(E17, E16, E)
+    T1 = P.refmask(P.add(P.add(P.ld("P18"), s1), c))
+    T2 = P.refmask(P.add(P.bs0(A17), P.maj(A17, A16, A)))
+    E18, A18 = P.mask(P.add(P.ld("a"), T1)), P.mask(P.add(T1, T2))
+    st = [A18, A17, A16, A, E18, E17, E16, E]  # A B C D E F G H entering round 19
+    key = None
+    for t in range(19, 31):
+        Aa, Bb, Cc, Dd, Ee, Ff, Gg, Hh = st
+        if t != 20:
+            sched(t)
+        if t == 20: kw = P.ld("KW20")
+        elif t in (29, 30): kw = w[t]
+        else: kw = P.add(P.ld(f"K{t}"), w[t])
+        T1 = P.refmask(P.add(P.add(P.add(Hh, P.bs1(Ee)), P.ch(Ee, Ff, Gg)), kw))
+        T2 = P.refmask(P.add(P.bs0(Aa), P.maj(Aa, Bb, Cc)))
+        if t == 30:
+            key = P.mask(P.add(T1, T2))  # IV[0] is folded into c30k; E30 is not needed
+        else:
+            st = [P.mask(P.add(T1, T2)), Aa, Bb, Cc, P.mask(P.add(Dd, T1)), Ee, Ff, Gg]
+    # bitmap test: bit (key >> 8) of the 2^24-bit bitmap stored in 64-bit words at address BM
+    bi = P.shr(key, 8)
+    addr = P.add("BM", P.shr(bi, 6))
+    word = P.emit("ldx", addr)
+    bit = P.and_(P.emit("shrv", word, P.and_(bi, "C63")), "C1")
+    hit = P.emit("cmp", bit)
+    P.emit("br", hit)
+    P.key, P.hit = key, hit
+    return P
+
+
+class OptProg(Prog):
+    """--opt: the same values with fewer primitives, every step an identity on 256-bit words.
+
+    dup(v) = v | (v << 32) holds two copies of a reduced word; bits 0..31 of dup(v) >> n are
+    ROTR(v, n) for 0 < n < 32, so one dup serves the three rotations of a Sigma or sigma
+    (2 + 3 shifts + 2 XOR = 7 instead of 11 or 9).  Ch(e,f,g) = g ^ (e & (f ^ g)) (3).
+    Maj(a,b,c) = b ^ ((a ^ b) & (b ^ c)), where b ^ c is the previous step's a ^ b (3).
+    """
+
+    def dup(self, v): return self.or_(v, self.shl(v, 32))
+    def bs0(self, v):
+        d = self.dup(v)
+        return self.xor(self.xor(self.shr(d, 2), self.shr(d, 13)), self.shr(d, 22))
+    def bs1(self, v):
+        d = self.dup(v)
+        return self.xor(self.xor(self.shr(d, 6), self.shr(d, 11)), self.shr(d, 25))
+    def sg0d(self, d, v): return self.xor(self.xor(self.shr(d, 7), self.shr(d, 18)), self.shr(v, 3))
+    def sg1d(self, d, v): return self.xor(self.xor(self.shr(d, 17), self.shr(d, 19)), self.shr(v, 10))
+    def sg0(self, v): return self.sg0d(self.dup(v), v)
+    def sg1(self, v): return self.sg1d(self.dup(v), v)
+    def ch(self, e, f, g): return self.xor(g, self.and_(e, self.xor(f, g)))
+
+
+def gen_lane_opt():
+    P = OptProg(False)
+    x = "x"
+    dx = P.dup(x)
+    w = {}
+
+    def sched(t):
+        if t == 17: w[17] = P.mask(P.add(P.sg1d(dx, x), P.ld("c17")))
+        elif t == 19: w[19] = P.mask(P.add(P.sg1(w[17]), P.ld("c19")))
+        elif t == 21: w[21] = P.mask(P.add(P.sg1(w[19]), P.ld("c21")))
+        elif t == 22: w[22] = P.mask(P.add(P.ld("c22"), x))
+        elif t == 23: w[23] = P.mask(P.add(P.sg1(w[21]), P.ld("c23")))
+        elif t == 24: w[24] = P.mask(P.add(P.add(P.sg1(w[22]), w[17]), P.ld("c24")))
+        elif t == 25: w[25] = P.mask(P.add(P.sg1(w[23]), P.ld("c25")))
+        elif t == 26: w[26] = P.mask(P.add(P.add(P.sg1(w[24]), w[19]), P.ld("c26")))
+        elif t == 27: w[27] = P.mask(P.add(P.sg1(w[25]), P.ld("c27")))
+        elif t == 28: w[28] = P.mask(P.add(P.add(P.sg1(w[26]), w[21]), P.ld("c28")))
+        elif t == 29: w[29] = P.add(P.add(P.sg1(w[27]), w[22]), P.ld("c29k"))
+        elif t == 30: w[30] = P.add(P.add(P.add(P.sg1(w[28]), w[23]), P.sg0d(dx, x)), P.ld("c30k"))
+
+    E = P.mask(P.add(P.ld("U15"), x))
+    A = P.mask(P.add(P.ld("V15"), x))
+    # step 16: B=a C=b D=c F=e G=f H=g
+    c = P.xor(P.ld("f"), P.and_(E, P.ld("exf")))
+    T1 = P.add(P.add(P.ld("P16"), P.bs1(E)), c)
+    la = P.ld("a")
+    xab = P.xor(A, la)                                   # A15 ^ a: B ^ C of step 17
+    T2 = P.add(P.bs0(A), P.xor(la, P.and_(xab, P.ld("axb"))))
+    E16, A16 = P.mask(P.add(P.ld("c"), T1)), P.mask(P.add(T1, T2))
+    # step 17: B=A15 C=a D=b F=E15 G=e H=f
+    sched(17)
+    le = P.ld("e")
+    c = P.xor(le, P.and_(E16, P.xor(E, le)))
+    T1 = P.add(P.add(P.add(P.ld("P17"), P.bs1(E16)), c), w[17])
+    x2 = P.xor(A16, A)
+    T2 = P.add(P.bs0(A16), P.xor(A, P.and_(x2, xab)))
+    xab = x2
+    E17, A17 = P.mask(P.add(P.ld("b"), T1)), P.mask(P.add(T1, T2))
+    # step 18: B=A16 C=A15 D=a F=E16 G=E15 H=e
+    T1 = P.add(P.add(P.ld("P18"), P.bs1(E17)), P.ch(E17, E16, E))
+    x2 = P.xor(A17, A16)
+    T2 = P.add(P.bs0(A17), P.xor(A16, P.and_(x2, xab)))
+    xab = x2
+    E18, A18 = P.mask(P.add(P.ld("a"), T1)), P.mask(P.add(T1, T2))
+    st = [A18, A17, A16, A, E18, E17, E16, E]
+    key = None
+    for t in range(19, 31):
+        Aa, Bb, Cc, Dd, Ee, Ff, Gg, Hh = st
+        if t != 20:
+            sched(t)
+        if t == 20: kw = P.ld("KW20")
+        elif t in (29, 30): kw = w[t]
+        else: kw = P.add(P.ld(f"K{t}"), w[t])
+        T1 = P.add(P.add(P.add(Hh, P.bs1(Ee)), P.ch(Ee, Ff, Gg)), kw)
+        x2 = P.xor(Aa, Bb)
+        T2 = P.add(P.bs0(Aa), P.xor(Bb, P.and_(x2, xab)))
+        xab = x2
+        if t == 30:
+            key = P.mask(P.add(T1, T2))
+        else:
+            st = [P.mask(P.add(T1, T2)), Aa, Bb, Cc, P.mask(P.add(Dd, T1)), Ee, Ff, Gg]
+    bi = P.shr(key, 8)
+    addr = P.add("BM", P.shr(bi, 6))
+    word = P.emit("ldx", addr)
+    bit = P.and_(P.emit("shrv", word, P.and_(bi, "C63")), "C1")
+    hit = P.emit("cmp", bit)
+    P.emit("br", hit)
+    P.key, P.hit = key, hit
+    P.mode = "opt"
+    return P
+
+
+def run(P, G, x, mem):
+    """Counting interpreter: 256-bit words, returns (key, hit, ops)."""
+    R = {"x": x, "M": MASK, "BM": 0, "C63": 63, "C1": 1}
+    ops = 0
+    for op in P.ops:
+        o, d, *s = op
+        ops += 1
+        if o == "ld": R[d] = G[s[0]]
+        elif o == "add": R[d] = (R[s[0]] + R[s[1]]) % MOD
+        elif o == "and": R[d] = R[s[0]] & R[s[1]]
+        elif o == "or": R[d] = R[s[0]] | R[s[1]]
+        elif o == "xor": R[d] = R[s[0]] ^ R[s[1]]
+        elif o == "not": R[d] = (MOD - 1) ^ R[s[0]]
+        elif o == "shr": R[d] = R[s[0]] >> s[1]
+        elif o == "shl": R[d] = (R[s[0]] << s[1]) % MOD
+        elif o == "shrv": R[d] = R[s[0]] >> R[s[1]]
+        elif o == "ldx": R[d] = mem.get(R[s[0]], 0)
+        elif o == "cmp": R[d] = int(R[s[0]] != 0)
+        elif o == "br": R[d] = None
+        else: raise ValueError(o)
+    return R[P.key], R[P.hit], ops
+
+
+def max_live(P):
+    """Registers needed by the straight-line lane (interval colouring = maximum live set)."""
+    last = {}
+    for i, (o, d, *s) in enumerate(P.ops):
+        for v in s:
+            if isinstance(v, str) and v.startswith("v"):
+                last[v] = i
+    live, peak = set(), 0
+    for i, (o, d, *s) in enumerate(P.ops):
+        if d in last:
+            live.add(d)
+        peak = max(peak, len(live) + 1)  # +1: x stays live until its last use
+        for v in s:
+            if isinstance(v, str) and last.get(v) == i:
+                live.discard(v)
+    return peak
+
+
+def histogram(P):
+    h = {}
+    for o, *_ in P.ops:
+        h[o] = h.get(o, 0) + 1
+    return h
+
+
+C_OP = {"add": "ADD", "and": "AND", "or": "OR", "xor": "XOR", "shr": "SHR", "shl": "SHL",
+        "shrv": "SHR", "not": "NOT"}
+
+
+def emit_c(P, fname):
+    out = [f"/* generated by kprog.py --{getattr(P, 'mode', 'ref' if P.ref else 'plain')}: {len(P.ops)} primitives per trial */",
+           f"static inline int {fname}(const gval_t *G, W x, const uint64_t *bm, uint32_t *keyout) {{"]
+    for o, d, *s in P.ops:
+        if o == "ld": out.append(f"  W {d} = LD(G->{s[0]});")
+        elif o in ("not",): out.append(f"  W {d} = NOT({s[0]});")
+        elif o in ("shr", "shl"): out.append(f"  W {d} = {C_OP[o]}({s[0]}, {s[1]});")
+        elif o == "ldx": out.append(f"  W {d} = LDX(bm, {s[0]});")
+        elif o == "cmp": out.append(f"  W {d} = CMPNZ({s[0]});")
+        elif o == "br": out.append(f"  BR(); *keyout = (uint32_t){P.key}; return (int){s[0]};")
+        else: out.append(f"  W {d} = {C_OP[o]}({s[0]}, {s[1]});")
+    out.append("}")
+    return "\n".join(out) + "\n"
+
+
+def main():
+    ref = "--ref" in sys.argv
+    opt = "--opt" in sys.argv
+    P = gen_lane_opt() if opt else gen_lane(ref)
+    mode = "opt" if opt else "ref" if ref else "plain"
+    n = len(P.ops)
+    rng = random.Random(20261008)
+    trials = 20000
+    for i in range(trials):
+        m = [rng.getrandbits(32) for _ in range(15)]
+        x = rng.getrandbits(24)
+        G = group_values(m)
+        bi_mem = {}
+        key, hit, ops = run(P, G, x, bi_mem)
+        block = b"".join(v.to_bytes(4, "big") for v in m + [x])
+        want = hf._compress("sha256", tuple(IV), block, 31)[0]
+        assert key == want, (i, hex(key), hex(want))
+        assert ops == n
+        # bitmap path: set the tested bit and check the decision flips
+        if i < 2000:
+            bi = key >> 8
+            mem = {bi >> 6: 1 << (bi & 63)}
+            k2, h2, _ = run(P, G, x, mem)
+            assert (k2, h2, hit) == (key, 1, 0)
+    print(f"mode {mode}: {n} primitives per trial, {trials} trials match the "
+          f"organizer reference core (word 0 of compress31), registers needed {max_live(P)}")
+    print("histogram", dict(sorted(histogram(P).items())))
+    if "--emit" in sys.argv:
+        name = {"opt": "klane_opt", "ref": "klane_ref", "plain": "klane"}[mode]
+        with open(f"{name}.h", "w") as fh:
+            fh.write(emit_c(P, name))
+        with open("gval.h", "w") as fh:
+            fh.write("/* generated by kprog.py: group values read by the lane program */\n"
+                     "typedef struct { uint32_t " + ", ".join(GROUP_NAMES) + "; } gval_t;\n")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+C.7 `kcount.c` (search K as a counted program: table, group set-up, trials, hit processing, completion; validation against `r31det3.c`)
+
+    9541ae71e67da67a2084012a0e09622c9cf9fcfae1717919452aed2fc10d1a0e  kcount.c
+    29f4a1900e293efd2459cac87ed197c8176f20b763b92663da19dea3c3140d3e  r31det3.c (B.4, unchanged)
+    84003700c7015677e60700dc5c044d1c6e7c0acc652e6bf12d536f9aa5084437  sp_own.h (B.5, unchanged)
+
+Build and run in a directory with `r31det3.c`, `sp_own.h` and the four generated headers:
+`cc -O2 -o kcount kcount.c -lpthread && ./kcount` (Apple clang 21, 12 threads for the 2^32 scan; about 10 s).
+
+```c
+/* kcount.c: search K (r31det3.c, B.4) as a counted program of 256-bit word-RAM primitives.
+
+   Every primitive goes through one function or macro below and adds 1 to OPS (the 64-bit multiply
+   is emulated with counted primitives).  Values are 256-bit words held here in 128-bit integers:
+   the program reduces a value to 32 or 64 bits before every right shift and comparison, and +, -, AND, OR,
+   XOR, NOT and left shifts never move bits above position 127 into positions 0..63, so every
+   observable result equals the 256-bit one.  Fixed-count loops are straight-line code in the
+   counted program and pay nothing; data-dependent loops pay their counter, comparison and branch.
+
+   r31det3.c is included unchanged: its build_table, process_hit and worker kernel are the reference
+   that every counted result is compared with.  The charged trial is klane_opt (kprog.py --opt);
+   klane and klane_ref (the other two variants) are run on every 1024th trial with the same key.
+   Sigma, sigma, Ch and Maj use the identities of Section 16.1: dup(v) = v | v << 32 serves the
+   three rotations, Ch = g ^ (e & (f ^ g)), Maj = (a & b) | (c & (a | b)).
+
+   cc -O2 -o kcount kcount.c -lpthread
+   ./kcount            table, self-checks, search validation, per-event counts */
+#define main r31det3_main
+#include "r31det3.c"
+#undef main
+#include <assert.h>
+
+typedef unsigned __int128 W;
+static __thread uint64_t OPS;
+/* one primitive each; functions, so the count is sequenced whatever the operand nesting */
+static inline W ADD(W a, W b) { OPS++; return a + b; }
+static inline W SUB(W a, W b) { OPS++; return a - b; }
+static inline W AND(W a, W b) { OPS++; return a & b; }
+static inline W OR(W a, W b)  { OPS++; return a | b; }
+static inline W XOR(W a, W b) { OPS++; return a ^ b; }
+static inline W NOT(W a)      { OPS++; return ~a; }
+static inline W SHR(W a, int n) { OPS++; return a >> n; }
+static inline W SHL(W a, int n) { OPS++; return a << n; }
+static inline W LD(W v)       { OPS++; return v; }
+static inline W LDX(const uint64_t *bm, W a) { OPS++; return (W)bm[(uint64_t)a]; }
+static inline W CMPNZ(W a)    { OPS++; return a != 0; }
+static inline W CMPEQ(W a, W b) { OPS++; return a == b; }
+static inline W CMPLT(W a, W b) { OPS++; return a < b; }
+#define ST(dst,v) do { W st_v_ = (v); OPS++; (dst) = st_v_; } while (0)
+#define BR()     (OPS++)
+static const W M = 0xffffffffu, M64 = 0xffffffffffffffffull, BM = 0, C63 = 63, C1 = 1;
+static inline W MSK(W a) { return AND(a, M); }
+
+#include "gval.h"
+#include "klane.h"
+#include "klane_ref.h"
+#include "klane_opt.h"
+
+/* 64 x 64 -> low 64 bits by shift-and-add, branch-free: acc += (a << i) & -(b >> i & 1); 6 per bit + mask */
+static W mul64_c(W a, W b) {
+  W acc = 0;
+  for (int i = 0; i < 64; i++) { W bit = AND(SHR(b, i), C1); W sel = SUB(0, bit); acc = ADD(acc, AND(SHL(a, i), sel)); }
+  return AND(acc, M64);
+}
+/* splitmix64 as sm() of B.4; state in memory */
+static W sm_c(uint64_t *s) {
+  W z = AND(ADD(LD(*s), LD(0x9e3779b97f4a7c15ull)), M64); ST(*s, (uint64_t)z);
+  z = XOR(z, SHR(z, 30)); z = mul64_c(z, LD(0xbf58476d1ce4e5b9ull));
+  z = XOR(z, SHR(z, 27)); z = mul64_c(z, LD(0x94d049bb133111ebull));
+  return XOR(z, SHR(z, 31));
+}
+
+/* v clean (reduced to 32 bits).  dup(v) = v | v << 32 holds two copies, so bits 0..31 of
+   dup(v) >> n are ROTR(v, n); one dup serves the three rotations of a Sigma or sigma. */
+static W dup_c(W v) { return OR(v, SHL(v, 32)); }
+static W bs0_c(W v) { W d = dup_c(v); return XOR(XOR(SHR(d, 2), SHR(d, 13)), SHR(d, 22)); }
+static W bs1_c(W v) { W d = dup_c(v); return XOR(XOR(SHR(d, 6), SHR(d, 11)), SHR(d, 25)); }
+static W sg0d_c(W d, W v) { return XOR(XOR(SHR(d, 7), SHR(d, 18)), SHR(v, 3)); }
+static W sg1d_c(W d, W v) { return XOR(XOR(SHR(d, 17), SHR(d, 19)), SHR(v, 10)); }
+static W sg0_c(W v) { return sg0d_c(dup_c(v), v); }
+static W sg1_c(W v) { return sg1d_c(dup_c(v), v); }
+static W ch_c(W e, W f, W g) { return XOR(g, AND(e, XOR(f, g))); }
+static W maj_c(W a, W b, W c) { return OR(AND(a, b), AND(c, OR(a, b))); }
+
+/* compress31 of B.4: chaining value and block in memory, schedule stored, output stored */
+static void compress31_c(const uint32_t cv[8], const uint32_t m[16], uint32_t out[8]) {
+  uint32_t Wm[31];
+  for (int t = 16; t < 31; t++) {
+    const uint32_t *p2 = t - 2 < 16 ? &m[t - 2] : &Wm[t - 2], *p7 = t - 7 < 16 ? &m[t - 7] : &Wm[t - 7];
+    W v = MSK(ADD(ADD(ADD(sg1_c(LD(*p2)), LD(*p7)), sg0_c(LD(m[t - 15]))), LD(m[t - 16])));
+    ST(Wm[t], (uint32_t)v);
+  }
+  W a = LD(cv[0]), b = LD(cv[1]), c = LD(cv[2]), d = LD(cv[3]), e = LD(cv[4]), f = LD(cv[5]), g = LD(cv[6]), h = LD(cv[7]);
+  for (int t = 0; t < 31; t++) {
+    W w = LD(t < 16 ? m[t] : Wm[t]);
+    W T1 = ADD(ADD(ADD(ADD(h, bs1_c(e)), ch_c(e, f, g)), LD(K[t])), w);
+    W T2 = ADD(bs0_c(a), maj_c(a, b, c));
+    h = g; g = f; f = e; e = MSK(ADD(d, T1)); d = c; c = b; b = a; a = MSK(ADD(T1, T2));
+  }
+  W r[8] = {a, b, c, d, e, f, g, h};
+  for (int i = 0; i < 8; i++) ST(out[i], (uint32_t)MSK(ADD(LD(cv[i]), r[i])));
+}
+
+/* ---------------- table build (build_table of B.4), counted ---------------- */
+typedef struct { uint64_t lo, hi, ops; uint32_t *v7, *v8, *g16; int n7, n8, ng; } p1_t;
+static void *p1_worker(void *arg) {
+  p1_t *p = arg; OPS = 0; p->n7 = p->n8 = p->ng = 0;
+  W rD8 = LD(D8), rC8 = LD(C8), rD7 = LD(D7), rC7 = LD(C7), rD9 = LD(D9), rD18 = LD(D18);
+  for (uint64_t w64 = p->lo; w64 < p->hi; w64++) {
+    W w = (W)w64;                                       /* loop register, clean */
+    W dw = dup_c(w), s0w = sg0d_c(dw, w), s1w = sg1d_c(dw, w);
+    W d8 = MSK(SUB(sg0_c(MSK(ADD(w, rD8))), s0w));
+    W hit8 = CMPEQ(d8, rC8); BR(); if (hit8) { ST(p->v8[p->n8], (uint32_t)w); p->n8 = (int)ADD(p->n8, C1); }
+    W d7 = MSK(SUB(sg0_c(MSK(ADD(w, rD7))), s0w));
+    W hit7 = CMPEQ(d7, rC7); BR(); if (hit7) { ST(p->v7[p->n7], (uint32_t)w); p->n7 = (int)ADD(p->n7, C1); }
+    W d9 = MSK(SUB(sg1_c(MSK(ADD(w, rD9))), s1w));
+    W hit9 = CMPEQ(d9, rD18); BR(); if (hit9) { ST(p->g16[p->ng], (uint32_t)w); p->ng = (int)ADD(p->ng, C1); }
+    W nw = MSK(ADD(w, C1)); (void)nw; W more = CMPNZ(nw); BR(); (void)more;  /* w++ until it wraps to 0 */
+  }
+  p->ops = OPS; return NULL;
+}
+
+static rec_t *recs_c; static int nrec_c; static uint64_t *bitmap_c; static uint32_t G16_c[64]; static int ng16_c;
+static uint32_t s1inv_col_c[32];
+
+static uint64_t ops_p1, ops_p2, ops_sort, ops_bitmap, ops_s1inv, ops_selftest;
+
+static void msort_c(rec_t *a, rec_t *tmp, int n) {
+  /* bottom-up merge sort on key; per element moved: 2 key loads, compare, branch, 6 loads, 6 stores,
+     2 index increments, loop compare and branch */
+  for (int width = 1; width < n; width = (int)ADD(SHL(width, 1), 0)) {
+    for (int lo = 0; lo < n; lo += 2 * width) {
+      int mid = lo + width < n ? lo + width : n, hi = lo + 2 * width < n ? lo + 2 * width : n;
+      OPS += 6;                                       /* mid, hi: two adds, two compares, two selects */
+      int i = lo, j = mid, k = lo;
+      while (k < hi) {
+        int takeleft;
+        if (i < mid && j < hi) { W ki = LD(a[i].key), kj = LD(a[j].key); takeleft = (int)CMPLT(kj, ki) == 0; BR(); }
+        else { OPS += 2; takeleft = i < mid; }
+        rec_t *s = takeleft ? &a[i] : &a[j];
+        tmp[k] = (rec_t){(uint32_t)LD(s->key), (uint32_t)LD(s->A0), (uint32_t)LD(s->E3), (uint32_t)LD(s->E4), (uint32_t)LD(s->W7), (uint32_t)LD(s->W8)};
+        OPS += 6;                                     /* six stores */
+        if (takeleft) i = (int)ADD(i, C1); else j = (int)ADD(j, C1);
+        k = (int)ADD(k, C1); OPS += 4;                /* i < mid, j < hi, k < hi compares and branch */
+      }
+      OPS += 3;                                       /* lo += 2*width, compare, branch */
+    }
+    memcpy(a, tmp, sizeof(rec_t) * n); OPS += 12ull * n;  /* copy back: 6 loads + 6 stores each */
+    OPS += 2;
+  }
+}
+
+static int cmpall(const void *p, const void *q) { return memcmp(p, q, sizeof(rec_t)); }
+static void build_table_c(void) {
+  static uint32_t V7c[1024], V8c[65536];
+  /* P1: 2^32 scan in 12 slices */
+  enum { NT = 12 }; p1_t sl[NT]; pthread_t th[NT];
+  static uint32_t v7s[NT][1024], v8s[NT][65536], g16s[NT][64];
+  for (int i = 0; i < NT; i++) {
+    sl[i].lo = (1ull << 32) * i / NT; sl[i].hi = (1ull << 32) * (i + 1) / NT;
+    sl[i].v7 = v7s[i]; sl[i].v8 = v8s[i]; sl[i].g16 = g16s[i];
+    pthread_create(&th[i], 0, p1_worker, &sl[i]);
+  }
+  int n7 = 0, n8 = 0; ng16_c = 0; ops_p1 = 0;
+  for (int i = 0; i < NT; i++) {
+    pthread_join(th[i], 0); ops_p1 += sl[i].ops;
+    memcpy(V7c + n7, sl[i].v7, 4 * sl[i].n7); n7 += sl[i].n7;
+    memcpy(V8c + n8, sl[i].v8, 4 * sl[i].n8); n8 += sl[i].n8;
+    memcpy(G16_c + ng16_c, sl[i].g16, 4 * sl[i].ng); ng16_c += sl[i].ng;
+  }
+  ops_p1 -= (NT - 1) * 6;                             /* the six constant loads are paid once */
+  /* P2 */
+  OPS = 0;
+  uint32_t cm4 = 0, va4 = 0, cm3 = 0, va3 = 0; const char *r4 = "============0===0=========01===0", *r3 = "==========================10====";
+  for (int k = 0; k < 32; k++) { uint32_t b = 1u << (31 - k); if (r4[k] != '=') { cm4 |= b; if (r4[k] == '1') va4 |= b; } if (r3[k] != '=') { cm3 |= b; if (r3[k] == '1') va3 |= b; } }
+  OPS += 4 * 32 * 4;                                  /* the two row masks: 32 cells, at most 4 primitives each, both rows (loose) */
+  W lhs7 = MSK(SUB(SUB(SUB(LD(EB(7)), LD(EA(7))), SUB(bs1_c(LD(EB(6))), bs1_c(LD(EA(6))))), LD(D7)));
+  W lhs6 = MSK(SUB(SUB(SUB(LD(EB(6)), LD(EA(6))), SUB(bs1_c(LD(EB(5))), bs1_c(LD(EA(5))))), LD(D6)));
+  rec_t *rc = malloc(sizeof(rec_t) * (1 << 20)); int nr = 0;
+  W e8 = LD(EA(8)), a4 = LD(AA(4)), e7 = LD(EA(7)), e6 = LD(EA(6)), e5 = LD(EA(5)), eb6 = LD(EB(6)), eb5 = LD(EB(5));
+  W a3 = LD(AA(3)), a2 = LD(AA(2)), a1 = LD(AA(1)), k8 = LD(K[8]), k7 = LD(K[7]);
+  W base4 = MSK(SUB(SUB(SUB(e8, a4), bs1_c(e7)), ch_c(e7, e6, e5)));          /* loop-invariant part of E4 */
+  W bs0a3 = bs0_c(a3), maja3 = maj_c(a3, a2, a1), bs0a2 = bs0_c(a2), bs1e6 = bs1_c(e6);
+  W rcm4 = LD(cm4), rva4 = LD(va4), rcm3 = LD(cm3), rva3 = LD(va3);
+  for (int i = 0; i < n8; i++) {
+    OPS += 3;                                         /* i < n8, branch, i++ */
+    W W8 = LD(V8c[i]);
+    W E4 = MSK(SUB(SUB(base4, k8), W8));
+    W ok4 = CMPEQ(AND(E4, rcm4), rva4); BR(); if (!ok4) continue;
+    W d7 = MSK(SUB(ch_c(eb6, eb5, E4), ch_c(e6, e5, E4)));
+    W ok7 = CMPEQ(d7, lhs7); BR(); if (!ok7) continue;
+    W A0 = MSK(ADD(ADD(SUB(E4, a4), bs0a3), maja3));
+    W b3 = MSK(SUB(SUB(SUB(e7, a3), bs1e6), ch_c(e6, e5, E4)));               /* E3 without K[7], W7 */
+    W maj2 = maj_c(a2, a1, A0);
+    for (int j = 0; j < n7; j++) {
+      OPS += 3;
+      W W7 = LD(V7c[j]);
+      W E3 = MSK(SUB(SUB(b3, k7), W7));
+      W ok3 = CMPEQ(AND(E3, rcm3), rva3); BR(); if (!ok3) continue;
+      W d6 = MSK(SUB(ch_c(eb5, E4, E3), ch_c(e5, E4, E3)));
+      W ok6 = CMPEQ(d6, lhs6); BR(); if (!ok6) continue;
+      W Am1 = MSK(ADD(ADD(SUB(E3, a3), bs0a2), maj2));
+      rc[nr] = (rec_t){(uint32_t)Am1, (uint32_t)A0, (uint32_t)E3, (uint32_t)E4, (uint32_t)W7, (uint32_t)W8};
+      OPS += 6; nr = (int)ADD(nr, C1);                /* six stores, count */
+    }
+    OPS += 1;                                         /* final j compare */
+  }
+  OPS += 1;
+  ops_p2 = OPS;
+  /* sort */
+  OPS = 0; rec_t *tmp = malloc(sizeof(rec_t) * nr); msort_c(rc, tmp, nr); free(tmp); ops_sort = OPS;
+  recs_c = rc; nrec_c = nr;
+  /* bitmap: 2^18 zero stores, then one bit per record */
+  OPS = 0; bitmap_c = calloc(1 << 18, 8); OPS += 1u << 18;
+  for (int i = 0; i < nr; i++) {
+    OPS += 3;
+    W b = SHR(LD(rc[i].key), 8); W wi = SHR(b, 6); W addr = ADD(BM, wi);
+    W word = LDX(bitmap_c, addr); W bit = SHL(C1, (int)AND(b, C63));
+    bitmap_c[(uint64_t)addr] = (uint64_t)OR(word, bit); OPS++;
+  }
+  ops_bitmap = OPS;
+  /* compare with r31det3's build_table (called before) */
+  assert(n7 == 512 && n8 == 49408 && ng16_c == ng16 && nr == nrec);
+  for (int i = 0; i < ng16; i++) assert(G16_c[i] == G16[i]);
+  assert(memcmp(bitmap_c, bitmap, 8u << 18) == 0);
+  for (int i = 0; i < nr; i++) { assert(recs_c[i].key == recs[i].key); if (i) assert(recs_c[i - 1].key <= recs_c[i].key); }
+  /* same multiset of records: sort copies by all fields */
+  rec_t *x1 = malloc(sizeof(rec_t) * nr), *x2 = malloc(sizeof(rec_t) * nr);
+  memcpy(x1, recs, sizeof(rec_t) * nr); memcpy(x2, recs_c, sizeof(rec_t) * nr);
+  qsort(x1, nr, sizeof(rec_t), cmpall); qsort(x2, nr, sizeof(rec_t), cmpall); assert(memcmp(x1, x2, sizeof(rec_t) * nr) == 0);
+  free(x1); free(x2);
+}
+
+/* build_s1inv of B.4, counted (pivot search branches on data that is fixed: s1 itself) */
+static void build_s1inv_c(void) {
+  OPS = 0;
+  uint32_t val[32], comb[32];
+  for (int i = 0; i < 32; i++) { W b = SHL(C1, i); ST(val[i], (uint32_t)MSK(sg1_c(b))); ST(comb[i], (uint32_t)b); }
+  for (int k = 0; k < 32; k++) {
+    int p = -1;
+    for (int i = k; i < 32; i++) { OPS += 3; W bit = AND(SHR(LD(val[i]), k), C1); BR(); if (bit) { p = i; break; } }
+    BR();
+    uint32_t tv = (uint32_t)LD(val[k]), tc = (uint32_t)LD(comb[k]);
+    ST(val[k], (uint32_t)LD(val[p])); ST(comb[k], (uint32_t)LD(comb[p])); ST(val[p], tv); ST(comb[p], tc);
+    for (int i = 0; i < 32; i++) {
+      OPS += 2; W bit = AND(SHR(LD(val[i]), k), C1); W ne = CMPNZ(i != k); BR(); BR();
+      if (i != k && bit) { ST(val[i], (uint32_t)XOR(LD(val[i]), LD(val[k]))); ST(comb[i], (uint32_t)XOR(LD(comb[i]), LD(comb[k]))); }
+      (void)ne;
+    }
+  }
+  for (int k = 0; k < 32; k++) ST(s1inv_col_c[k], (uint32_t)LD(comb[k]));
+  for (int t = 0; t < 1000; t++) {                    /* the 1000-value self-check */
+    OPS += 3; W y = MSK(ADD(mul64_c(LD((uint32_t)t), LD(2654435761u)), LD(12345u)));
+    assert((uint32_t)y == (uint32_t)(t * 2654435761u + 12345));
+    W xx = 0;
+    for (int k = 0; k < 32; k++) { W bit = AND(SHR(y, k), C1); xx = XOR(xx, AND(LD(s1inv_col_c[k]), SUB(0, bit))); }
+    W back = MSK(sg1_c(MSK(xx))); W ok = CMPEQ(back, y); BR(); assert(ok);
+  }
+  for (int k = 0; k < 32; k++) assert(s1inv_col_c[k] == s1inv_col[k]);
+  ops_s1inv = OPS;
+}
+static W s1inv_c(W y) {
+  W xx = 0;
+  for (int k = 0; k < 32; k++) { W bit = AND(SHR(y, k), C1); xx = XOR(xx, AND(LD(s1inv_col_c[k]), SUB(0, bit))); }
+  return MSK(xx);
+}
+
+/* group set-up of worker (B.4), counted; returns m[0..14], group values, completion coins */
+static void gvalues_from_words(const uint32_t m[15], gval_t *G);
+static void gsetup_c(uint64_t g, uint32_t m[15], gval_t *G, uint64_t *crs) {
+  OPS += 3;                                           /* groups counter: load, add, store */
+  uint64_t rs = (uint64_t)XOR(XOR(LD(seed_base), mul64_c(g, LD(0x9e3779b97f4a7c15ull))), LD(0x5bd1e9955bd1e995ull)); OPS++;
+  for (int i = 0; i < 15; i++) ST(m[i], (uint32_t)AND(sm_c(&rs), M));
+  ST(*crs, (uint64_t)XOR(XOR(LD(seed_base), mul64_c(g, LD(0xd1b54a32d192ed03ull))), LD(0x2545f4914f6cdd1dull)));
+  gvalues_from_words(m, G);
+}
+
+/* ---------------- hit processing (process_hit, complete of B.4), counted ---------------- */
+typedef struct { uint64_t bmhits, keyhits, recs, v6, joint, comp_ok, coll, it13, it15;
+                 uint64_t maxH, maxR, maxV, maxKx, segVfound, opsC, bsearch_max; uint32_t M1[16], M1b[16]; } hstat_t;
+
+static int complete_c(uint32_t Wv[16], W g, uint64_t *rs, hstat_t *hs) {
+  W W9 = LD(Wv[9]), W1 = LD(Wv[1]), W0 = LD(Wv[0]);
+  W s0W1 = sg0_c(W1);
+  W W14 = s1inv_c(MSK(SUB(SUB(SUB(g, W9), s0W1), W0))); ST(Wv[14], (uint32_t)W14);
+  W chk = CMPEQ(MSK(ADD(ADD(ADD(sg1_c(W14), W9), s0W1), W0)), g); BR(); if (!chk) return 0;
+#define LA(i) LD(AA(i))
+#define LE(i) LD(EA(i))
+#define LAB(i) LD(AB(i))
+#define LEB(i) LD(EB(i))
+  W b13 = MSK(ADD(ADD(ADD(ADD(LA(9), LE(9)), bs1_c(LE(12))), ch_c(LE(12), LE(11), LE(10))), LD(K[13])));
+  W b13b = MSK(ADD(ADD(ADD(ADD(LAB(9), LEB(9)), bs1_c(LEB(12))), ch_c(LEB(12), LEB(11), LEB(10))), LD(K[13])));
+  W eq = CMPEQ(b13, b13b); BR(); if (!eq) return 0;
+  for (int t = 0; t < (1 << 22); t++) {
+    OPS += 3;                                         /* t < 2^22, branch, t++ */
+    hs->it13++; OPS += 3;
+    W E13 = AND(sm_c(rs), M); W W13 = MSK(SUB(E13, b13));
+    W A13 = MSK(ADD(ADD(SUB(E13, LA(9)), bs0_c(LA(12))), maj_c(LA(12), LA(11), LA(10))));
+    W A13b = MSK(ADD(ADD(SUB(E13, LAB(9)), bs0_c(LAB(12))), maj_c(LAB(12), LAB(11), LAB(10))));
+    W e1 = CMPEQ(A13, A13b); BR(); if (!e1) return 0;
+    W E14 = MSK(ADD(ADD(ADD(ADD(ADD(LA(10), LE(10)), bs1_c(E13)), ch_c(E13, LE(12), LE(11))), LD(K[14])), W14));
+    W E14b = MSK(ADD(ADD(ADD(ADD(ADD(LAB(10), LEB(10)), bs1_c(E13)), ch_c(E13, LEB(12), LEB(11))), LD(K[14])), W14));
+    W e2 = CMPEQ(MSK(SUB(E14b, E14)), LD(0x8004u)); BR(); if (!e2) continue;
+    W A14 = MSK(ADD(ADD(SUB(E14, LA(10)), bs0_c(A13)), maj_c(A13, LA(12), LA(11))));
+    W A14b = MSK(ADD(ADD(SUB(E14b, LAB(10)), bs0_c(A13)), maj_c(A13, LAB(12), LAB(11))));
+    W e3 = CMPEQ(A14, A14b); BR(); if (!e3) continue;
+    W f15 = MSK(ADD(ADD(ADD(ADD(LA(11), LE(11)), bs1_c(E14)), ch_c(E14, E13, LE(12))), LD(K[15])));
+    W f15b = MSK(ADD(ADD(ADD(ADD(LAB(11), LEB(11)), bs1_c(E14b)), ch_c(E14b, E13, LEB(12))), LD(K[15])));
+    W e4 = CMPEQ(f15, f15b); BR(); if (!e4) continue;
+    for (int u = 0; u < (1 << 12); u++) {
+      OPS += 3;
+      hs->it15++; OPS += 3;
+      W E15 = AND(sm_c(rs), M); W W15 = MSK(SUB(E15, f15));
+      W E16 = MSK(ADD(ADD(ADD(ADD(ADD(LA(12), LE(12)), bs1_c(E15)), ch_c(E15, E14, E13)), LD(K[16])), g));
+      W E16b = MSK(ADD(ADD(ADD(ADD(ADD(ADD(LAB(12), LEB(12)), bs1_c(E15)), ch_c(E15, E14b, E13)), LD(K[16])), g), LD(D9)));
+      W e5 = CMPEQ(E16, E16b); BR(); if (!e5) continue;
+      W A15 = MSK(ADD(ADD(SUB(E15, LA(11)), bs0_c(A14)), maj_c(A14, A13, LA(12)))); (void)A15;
+      W f17 = MSK(ADD(ADD(ADD(A13, E13), bs1_c(E16)), ch_c(E16, E15, E14)));
+      W f17b = MSK(ADD(ADD(ADD(A13, E13), bs1_c(E16)), ch_c(E16, E15, E14b)));
+      W e6 = CMPEQ(f17, f17b); BR(); if (!e6) continue;
+      ST(Wv[13], (uint32_t)W13); ST(Wv[15], (uint32_t)W15); return 1;
+    }
+    OPS += 1;
+  }
+  return 0;
+}
+
+static void digest_c(const uint32_t m0[16], const uint32_t m1[16], uint32_t out[8]) {
+  uint32_t cv[8], cv2[8], pad[16] = {0}; OPS += 16; pad[0] = 0x80000000u; pad[15] = 1024;   /* 16 stores */
+  compress31_c(IV, m0, cv); compress31_c(cv, m1, cv2); compress31_c(cv2, pad, out);
+}
+
+/* rec address: base + 6*r (records are six words) */
+#define RADDR(r) ADD(ADD(SHL((W)(r), 2), SHL((W)(r), 1)), 0)
+
+/* RT: the sorted record table; the search check passes r31det3's own (qsort) order so that the
+   record loop visits equal-key records in the same order */
+static const rec_t *RT;
+static int hit_c(const uint32_t m[15], uint32_t x, uint64_t *rs, hstat_t *hs) {
+  uint64_t o0 = OPS;
+  hs->bmhits++; OPS += 3;
+  uint32_t mm[16]; for (int i = 0; i < 15; i++) ST(mm[i], (uint32_t)LD(m[i])); ST(mm[15], x);
+  uint32_t cv[8]; compress31_c(IV, mm, cv);
+  W key = LD(cv[0]);
+  W lo = 0, hi = LD(nrec_c); OPS++;                    /* lo = 0 */
+  int it = 0;
+  while (1) {
+    W c = CMPLT(lo, hi); BR(); if (!c) break;
+    it++;
+    W mid = SHR(ADD(lo, hi), 1);
+    W addr = RADDR(mid); (void)addr;
+    W k = LD(RT[(int)mid].key);
+    W lt = CMPLT(k, key); BR();
+    if (lt) lo = ADD(mid, C1); else hi = OR(mid, 0);
+  }
+  if ((uint64_t)it > hs->bsearch_max) hs->bsearch_max = it;
+  W out = CMPLT(lo, LD(nrec_c)); BR();
+  int found = 0;
+  if (out) { W addr = RADDR(lo); (void)addr; W k = LD(RT[(int)lo].key); W e = CMPEQ(k, key); BR(); found = (int)e; }
+  /* worst path of this segment: 18 iterations (n = 132096 < 2^18), each 12 primitives on either branch */
+  uint64_t segH = OPS - o0 + (uint64_t)(18 - it) * 12;
+  if (segH > hs->maxH) hs->maxH = segH;
+  if (!found) return 0;
+  hs->keyhits++; OPS += 3;
+  int ret = 0;
+  for (int r = (int)lo; ; r++) {
+    uint64_t r0 = OPS;
+    W c1 = CMPLT((W)r, LD(nrec_c)); BR(); if (!c1) { if (OPS - r0 > hs->maxKx) hs->maxKx = OPS - r0; break; }
+    W addr = RADDR(r); (void)addr; W kr = LD(RT[r].key); W c2 = CMPEQ(kr, key); BR();
+    if (!c2) { if (OPS - r0 > hs->maxKx) hs->maxKx = OPS - r0; break; }
+    OPS += 1;                                         /* r++ */
+    const rec_t *q = &RT[r]; hs->recs++; OPS += 3;
+    W Am1 = LD(cv[0]), Am2 = LD(cv[1]), Am3 = LD(cv[2]), Am4 = LD(cv[3]), Em1 = LD(cv[4]), Em2 = LD(cv[5]), Em3 = LD(cv[6]), Em4 = LD(cv[7]);
+    W A0 = LD(q->A0), A1 = LD(AA(1)), A2 = LD(AA(2));
+    W E0 = MSK(SUB(SUB(ADD(A0, Am4), bs0_c(Am1)), maj_c(Am1, Am2, Am3)));
+    W E1 = MSK(SUB(SUB(ADD(A1, Am3), bs0_c(A0)), maj_c(A0, Am1, Am2)));
+    W E2 = MSK(SUB(SUB(ADD(A2, Am2), bs0_c(A1)), maj_c(A1, A0, Am1)));
+    W E3 = LD(q->E3), E4 = LD(q->E4), E5 = LD(EA(5)), E6 = LD(EA(6));
+    W Ex[11] = {Em4, Em3, Em2, Em1, E0, E1, E2, E3, E4, E5, E6};   /* index i+4 */
+    W Ax[7] = {Am4, Am3, Am2, Am1, A0, A1, A2};                    /* index i+4 */
+    uint32_t Wv[16];
+    for (int i = 0; i <= 6; i++) {
+      W v = MSK(SUB(SUB(SUB(SUB(SUB(Ex[i + 4], Ax[i]), Ex[i]), bs1_c(Ex[i + 3])), ch_c(Ex[i + 3], Ex[i + 2], Ex[i + 1])), LD(K[i])));
+      ST(Wv[i], (uint32_t)v);
+    }
+    ST(Wv[7], (uint32_t)LD(q->W7)); ST(Wv[8], (uint32_t)LD(q->W8));
+    for (int i = 9; i <= 12; i++) ST(Wv[i], (uint32_t)LD(S_W[i]));
+    ST(Wv[13], 0u); ST(Wv[14], 0u); ST(Wv[15], 0u);
+    W W6 = LD(Wv[6]);
+    W d6 = MSK(SUB(sg0_c(MSK(ADD(W6, LD(D6)))), sg0_c(W6)));
+    W v6 = CMPEQ(d6, LD(C6)); BR();
+    uint64_t segR = OPS - r0; if (segR > hs->maxR) hs->maxR = segR;
+    if (!v6) continue;
+    uint64_t v0 = OPS;
+    hs->v6++; OPS += 3;
+    W W5 = LD(Wv[5]);
+    W tgt = MSK(SUB(0, MSK(SUB(sg0_c(MSK(ADD(W5, LD(D5)))), sg0_c(W5)))));
+    W c18 = ADD(ADD(LD(Wv[11]), sg0_c(LD(Wv[3]))), LD(Wv[2]));
+    int gsel = -1;
+    for (int k = 0; ; k++) {
+      W c = CMPLT((W)k, LD(ng16_c)); BR(); if (!c) break;
+      W gaddr = ADD(0, (W)k); W gk = LD(G16_c[(int)gaddr]);
+      W w18 = MSK(ADD(sg1_c(gk), c18));
+      W d = MSK(SUB(sg1_c(MSK(ADD(w18, LD(D18)))), sg1_c(w18)));
+      W e = CMPEQ(d, tgt); BR();
+      if (e) { gsel = k; break; }
+      OPS += 1;                                       /* k++ */
+    }
+    uint64_t segV = OPS - v0;
+    if (gsel < 0) { if (segV > hs->maxV) hs->maxV = segV; }     /* all 64 candidates tried: the worst path */
+    else hs->segVfound = segV;
+    if (gsel < 0) continue;
+    uint64_t c0 = OPS;
+    hs->joint++; OPS += 9;                            /* joint, both, comp_try counters */
+    uint32_t Wc[16]; for (int i = 0; i < 16; i++) ST(Wc[i], (uint32_t)LD(Wv[i]));
+    int ok = complete_c(Wc, LD(G16_c[gsel]), rs, hs);
+    if (!ok) { hs->opsC += OPS - c0; continue; }
+    hs->comp_ok++; OPS += 3;
+    uint32_t Wb[16]; for (int i = 0; i < 16; i++) ST(Wb[i], (uint32_t)LD(Wc[i]));
+    const uint32_t dd[5] = {D5, D6, D7, D8, D9};
+    for (int i = 0; i < 5; i++) ST(Wb[5 + i], (uint32_t)MSK(ADD(LD(Wb[5 + i]), LD(dd[i]))));
+    uint32_t h1[8], h2[8]; digest_c(mm, Wc, h1); digest_c(mm, Wb, h2);
+    int same = 1, diff = 0;
+    for (int i = 0; i < 8; i++) { W e = CMPEQ(LD(h1[i]), LD(h2[i])); BR(); same &= (int)e; }
+    for (int i = 0; i < 16; i++) { W e = CMPEQ(LD(Wc[i]), LD(Wb[i])); BR(); diff |= !(int)e; }
+    if (same && diff) {
+      hs->coll++; OPS += 3; ret = 1;
+      memcpy(hs->M1, Wc, 64); memcpy(hs->M1b, Wb, 64); OPS += 16 + 16 + 16 + 8;  /* output: 56 words written */
+    }
+    hs->opsC += OPS - c0;
+    if (ret) return 1;
+  }
+  return ret;
+}
+
+/* ---------------- reference: worker's lane block of B.4, verbatim ---------------- */
+typedef struct { uint32_t a, b, cc, d, e, f, gg, h, m16, m18, m20, c17, c19, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30; } refg_t;
+static void ref_group(uint64_t g, uint32_t m[15], refg_t *R, uint64_t *crs) {
+  uint64_t rs = seed_base ^ (g * 0x9e3779b97f4a7c15ull) ^ 0x5bd1e9955bd1e995ull;
+  for (int i = 0; i < 15; i++) m[i] = (uint32_t)sm(&rs);
+  *crs = seed_base ^ (g * 0xd1b54a32d192ed03ull) ^ 0x2545f4914f6cdd1dull;
+  uint32_t a = IV[0], b = IV[1], cc = IV[2], d = IV[3], e = IV[4], f = IV[5], gg = IV[6], h = IV[7];
+  for (int t = 0; t < 15; t++) { uint32_t T1 = h + BS1(e) + IF(e, f, gg) + K[t] + m[t]; uint32_t T2 = BS0(a) + MAJ(a, b, cc); h = gg; gg = f; f = e; e = d + T1; d = cc; cc = b; b = a; a = T1 + T2; }
+  const uint32_t m16 = s1(m[14]) + m[9] + s0(m[1]) + m[0], m18 = s1(m16) + m[11] + s0(m[3]) + m[2], m20 = s1(m18) + m[13] + s0(m[5]) + m[4];
+  *R = (refg_t){a, b, cc, d, e, f, gg, h, m16, m18, m20,
+    m[10] + s0(m[2]) + m[1], m[12] + s0(m[4]) + m[3], m[14] + s0(m[6]) + m[5], s1(m20) + s0(m[7]) + m[6],
+    m16 + s0(m[8]) + m[7], s0(m[9]) + m[8], m18 + s0(m[10]) + m[9], s0(m[11]) + m[10],
+    m20 + s0(m[12]) + m[11], s0(m[13]) + m[12], s0(m[14]) + m[13], m[14]};
+}
+static uint32_t ref_key(const refg_t *R, uint32_t x) {
+  const uint32_t a = R->a, b = R->b, cc = R->cc, d = R->d, e = R->e, f = R->f, gg = R->gg, h = R->h;
+  const uint32_t m16 = R->m16, m18 = R->m18, m20 = R->m20, c17 = R->c17, c19 = R->c19, c21 = R->c21, c22 = R->c22;
+  const uint32_t c23 = R->c23, c24 = R->c24, c25 = R->c25, c26 = R->c26, c27 = R->c27, c28 = R->c28, c29 = R->c29, c30 = R->c30;
+  uint32_t w17=s1(x)+c17, w19=s1(w17)+c19, w21=s1(w19)+c21, w22=c22+x, w23=s1(w21)+c23, w24=s1(w22)+w17+c24;
+  uint32_t w25=s1(w23)+c25, w26=s1(w24)+w19+c26, w27=s1(w25)+c27, w28=s1(w26)+w21+c28, w29=s1(w27)+w22+c29, w30=s1(w28)+w23+s0(x)+c30;
+  uint32_t A=a,B=b,C=cc,D=d,E=e,F=f,G=gg,H=h,T1,T2;
+  RND(x,K[15]) RND(m16,K[16]) RND(w17,K[17]) RND(m18,K[18]) RND(w19,K[19]) RND(m20,K[20]) RND(w21,K[21]) RND(w22,K[22])
+  RND(w23,K[23]) RND(w24,K[24]) RND(w25,K[25]) RND(w26,K[26]) RND(w27,K[27]) RND(w28,K[28]) RND(w29,K[29]) RND(w30,K[30])
+  return IV[0]+A;
+}
+
+/* ---------------- search validation on whole groups ---------------- */
+typedef struct { uint64_t g; uint32_t jend; int tid; hstat_t hs; ctr_t ref; uint64_t trials, lane_ops_min, lane_ops_max, lane_ref_ops,
+                 lane_plain_ops, gsetup_ops, ghead_ops, abort_ops, aborts, pass_ops_min, pass_ops_max, refhits, found_ref, found_c; uint32_t refM1[16]; } gv_t;
+/* worker's loop control (B.4), counted.  Group head: g += NTH, load best_n and stop_flag, test both,
+   g > best_n >> 24, base = 0.  Abort check (at base & 0xfffff == 0, 16 times per group): two loads,
+   shift, two compares, three branches.  Pass tail: trials += 8 (load, add, store), the base test
+   (and, compare, branch), the pass loop (compare, branch). */
+static uint64_t stop_dummy, best_dummy = UINT64_MAX;
+static void group_head_c(uint64_t g) {
+  W gn = ADD((W)g, LD(12)); (void)gn;
+  W bn = LD(best_dummy); W sf = LD(stop_dummy); W c1 = CMPNZ(sf); BR(); W c2 = CMPEQ(bn, (W)UINT64_MAX); BR();
+  W c3 = CMPLT(SHR(bn, 24), (W)g); BR(); (void)c1; (void)c2; (void)c3;
+  W base = AND((W)0, M); (void)base;                 /* base = 0 */
+}
+static void abort_check_c(uint64_t g) {
+  W sf = LD(stop_dummy); W c1 = CMPNZ(sf); BR(); W bn = LD(best_dummy); W c2 = CMPEQ(bn, (W)UINT64_MAX); BR();
+  W c3 = CMPLT(SHR(bn, 24), (W)g); BR(); (void)c1; (void)c2; (void)c3;
+}
+static uint64_t trial_ctr;
+static int pass_tail_c(W base) {
+  ST(trial_ctr, (uint64_t)ADD(LD(trial_ctr), LD(8)));
+  W t = CMPEQ(AND(base, LD(0xfffff)), 0); BR();
+  W more = CMPLT(ADD(base, LD(8)), LD(1u << 24)); BR(); (void)more;
+  return (int)t;
+}
+
+static void *gval_worker(void *arg) {
+  gv_t *v = arg; OPS = 0;
+  uint32_t m[15], mr[15]; gval_t G; refg_t R; uint64_t crs, crs_ref;
+  uint64_t o0 = OPS; group_head_c(v->g); v->ghead_ops = OPS - o0;
+  o0 = OPS; gsetup_c(v->g, m, &G, &crs); v->gsetup_ops = OPS - o0;
+  ref_group(v->g, mr, &R, &crs_ref);
+  assert(memcmp(m, mr, 60) == 0 && crs == crs_ref);
+  v->lane_ops_min = v->pass_ops_min = UINT64_MAX;
+  memset(&ctrs[v->tid], 0, sizeof(ctr_t));
+  uint64_t crs_c = crs; int done = 0;
+  for (uint32_t base = 0; base < v->jend && !done; base += 8) {
+    uint64_t p0 = OPS, hitops = 0;
+    W x = (W)base;
+    for (int j = 0; j < 8; j++) {
+      uint32_t xi = (uint32_t)x;
+      if (xi >= v->jend) { done = 1; break; }
+      uint32_t kc, kr = ref_key(&R, xi), kref;
+      uint64_t l0 = OPS;
+      int hit = klane_opt(&G, x, bitmap_c, &kc);
+      uint64_t lo = OPS - l0;
+      if (lo < v->lane_ops_min) v->lane_ops_min = lo;
+      if (lo > v->lane_ops_max) v->lane_ops_max = lo;
+      if ((xi & 1023) == 0) {
+        uint64_t r0 = OPS; (void)klane_ref(&G, x, bitmap_c, &kref); v->lane_ref_ops = OPS - r0; OPS = r0; assert(kref == kr);
+        r0 = OPS; (void)klane(&G, x, bitmap_c, &kref); v->lane_plain_ops = OPS - r0; OPS = r0; assert(kref == kr);
+      }
+      assert(kc == kr);
+      uint32_t bi = kr >> 8; int hit_ref = (int)(bitmap[bi >> 6] >> (bi & 63) & 1);
+      assert(hit == hit_ref);
+      v->trials++;
+      if (hit) {
+        uint32_t mm[16]; memcpy(mm, mr, 60); mm[15] = xi;
+        int fr = process_hit(v->tid, mm, &crs_ref, 0);
+        uint64_t h0 = OPS;
+        int fc = hit_c(m, xi, &crs_c, &v->hs);
+        hitops += OPS - h0;
+        assert(fr == fc);
+        if (fr) { v->found_ref = xi; v->found_c = xi; done = 1; break; }
+      }
+      x = ADD(x, C1);
+    }
+    if (done) break;
+    int chk = pass_tail_c((W)base);
+    uint64_t po = OPS - p0 - hitops;
+    if (chk) { uint64_t a0 = OPS; abort_check_c(v->g); v->abort_ops = OPS - a0; v->aborts++; }
+    if (po < v->pass_ops_min) v->pass_ops_min = po;
+    if (po > v->pass_ops_max) v->pass_ops_max = po;
+  }
+  v->ref = ctrs[v->tid];
+  return NULL;
+}
+
+int main(int argc, char **argv) {
+  seed_base = 0xdfafc947679ebe06ull;                  /* committed seed of K (Appendix A.2) */
+  outf = stderr;
+  build_s1inv(); build_table();                       /* r31det3's own table: the reference */
+  build_table_c();
+  printf("table: V7=512 V8=49408 G16=%d records=%d identical to build_table (sets, records, bitmap)\n", ng16_c, nrec_c);
+  printf("ops P1 %llu (%.4f per word)  P2 %llu  sort %llu  bitmap %llu\n", (unsigned long long)ops_p1, ops_p1 / 4294967296.0,
+         (unsigned long long)ops_p2, (unsigned long long)ops_sort, (unsigned long long)ops_bitmap);
+  build_s1inv_c();
+  printf("ops s1inv+check %llu\n", (unsigned long long)ops_s1inv);
+  /* selftest of B.4, counted: 2000 blocks: 16 draws, group values, lane, compress31, compare */
+  {
+    OPS = 0; uint64_t r2 = 7;
+    for (int t = 0; t < 2000; t++) {
+      OPS += 3;                                       /* t < 2000, branch, t++ */
+      uint32_t mb[16]; for (int i = 0; i < 16; i++) ST(mb[i], (uint32_t)AND(sm_c(&r2), M));
+      gval_t G; gvalues_from_words(mb, &G);
+      uint32_t kc; (void)klane_opt(&G, LD(mb[15]), bitmap_c, &kc);
+      uint32_t ref[8]; compress31_c(IV, mb, ref);
+      W ok = CMPEQ(LD(ref[0]), kc); BR(); assert(ok);
+    }
+    ops_selftest = OPS;
+    printf("ops selftest %llu (2000 blocks)\n", (unsigned long long)ops_selftest);
+  }
+  /* search validation: groups 0..3 in full, group 5920 up to its stored pair */
+  RT = recs;
+  uint64_t groups[] = {0, 1, 2, 3, 5920}; int ng = 5;
+  gv_t v[5]; pthread_t th[5];
+  for (int i = 0; i < ng; i++) { memset(&v[i], 0, sizeof v[i]); v[i].g = groups[i]; v[i].jend = groups[i] == 5920 ? 4561628u : (1u << 24); v[i].tid = 20 + i; pthread_create(&th[i], 0, gval_worker, &v[i]); }
+  uint64_t T = 0, H = 0, maxH = 0, maxR = 0, maxV = 0, maxKx = 0, bsm = 0;
+  for (int i = 0; i < ng; i++) {
+    pthread_join(th[i], 0);
+    ctr_t *r = &v[i].ref; hstat_t *h = &v[i].hs;
+    printf("group %llu: trials %llu, lane ops %llu..%llu (plain %llu, ref-style %llu), set-up %llu ops; hits %llu/%llu keyhits %llu/%llu recs %llu/%llu v6 %llu/%llu joint %llu/%llu it13 %llu/%llu it15 %llu/%llu coll %llu/%llu\n",
+      (unsigned long long)v[i].g, (unsigned long long)v[i].trials, (unsigned long long)v[i].lane_ops_min, (unsigned long long)v[i].lane_ops_max,
+      (unsigned long long)v[i].lane_plain_ops, (unsigned long long)v[i].lane_ref_ops, (unsigned long long)v[i].gsetup_ops,
+      (unsigned long long)h->bmhits, (unsigned long long)r->bmhits, (unsigned long long)h->keyhits, (unsigned long long)r->keyhits,
+      (unsigned long long)h->recs, (unsigned long long)r->recs, (unsigned long long)h->v6, (unsigned long long)r->v6,
+      (unsigned long long)h->joint, (unsigned long long)r->joint, (unsigned long long)h->it13, (unsigned long long)r->it13,
+      (unsigned long long)h->it15, (unsigned long long)r->it15, (unsigned long long)h->coll, (unsigned long long)r->coll);
+    assert(h->bmhits == r->bmhits && h->keyhits == r->keyhits && h->recs == r->recs && h->v6 == r->v6 && h->joint == r->joint &&
+           h->it13 == r->it13 && h->it15 == r->it15 && h->coll == r->coll);
+    printf("  pass ops %llu..%llu (8 lanes + loop), group head %llu, abort check %llu x %llu, V6 found-path %llu\n",
+      (unsigned long long)v[i].pass_ops_min, (unsigned long long)v[i].pass_ops_max, (unsigned long long)v[i].ghead_ops,
+      (unsigned long long)v[i].abort_ops, (unsigned long long)v[i].aborts, (unsigned long long)h->segVfound);
+    T += v[i].trials; H += h->bmhits;
+    if (h->maxH > maxH) maxH = h->maxH;
+    if (h->maxR > maxR) maxR = h->maxR;
+    if (h->maxV > maxV) maxV = h->maxV;
+    if (h->maxKx > maxKx) maxKx = h->maxKx;
+    if (h->bsearch_max > bsm) bsm = h->bsearch_max;
+    if (h->coll) {
+      printf("stored pair reproduced: n = %llu\nM1  ", (unsigned long long)((v[i].g << 24) | v[i].found_c));
+      for (int j = 0; j < 16; j++) printf("%08x", h->M1[j]);
+      printf("\nM1' "); for (int j = 0; j < 16; j++) printf("%08x", h->M1b[j]);
+      printf("\ncompletion segment (R20 pass to stored pair): %llu ops\n", (unsigned long long)h->opsC);
+    }
+  }
+  printf("validated trials %llu, bitmap hits %llu; worst paths: bitmap hit %llu (binary search <= 18, observed max %llu), key-matched hit %llu (counter + final loop test), record %llu, V6 pass %llu (64 candidates)\n",
+         (unsigned long long)T, (unsigned long long)H, (unsigned long long)maxH, (unsigned long long)bsm, (unsigned long long)(3 + maxKx),
+         (unsigned long long)maxR, (unsigned long long)maxV);
+  return 0;
+}
+
+/* group values from given words 0..14 (the counted body of gsetup_c after the draws) */
+#define LM(i) LD(m[i])
+#define SG(field, v) ST(G->field, (uint32_t)MSK(v))
+static void gvalues_from_words(const uint32_t m[15], gval_t *G) {
+  W a = LD(IV[0]), b = LD(IV[1]), c = LD(IV[2]), d = LD(IV[3]), e = LD(IV[4]), f = LD(IV[5]), gg = LD(IV[6]), h = LD(IV[7]);
+  for (int t = 0; t < 15; t++) {
+    W T1 = ADD(ADD(ADD(ADD(h, bs1_c(e)), ch_c(e, f, gg)), LD(K[t])), LD(m[t]));
+    W T2 = ADD(bs0_c(a), maj_c(a, b, c));
+    h = gg; gg = f; f = e; e = MSK(ADD(d, T1)); d = c; c = b; b = a; a = MSK(ADD(T1, T2));
+  }
+  W m16 = MSK(ADD(ADD(ADD(sg1_c(LM(14)), LM(9)), sg0_c(LM(1))), LM(0)));
+  W m18 = MSK(ADD(ADD(ADD(sg1_c(m16), LM(11)), sg0_c(LM(3))), LM(2)));
+  W m20 = MSK(ADD(ADD(ADD(sg1_c(m18), LM(13)), sg0_c(LM(5))), LM(4)));
+  W p15 = ADD(ADD(ADD(h, bs1_c(e)), ch_c(e, f, gg)), LD(K[15]));
+  W q15 = ADD(bs0_c(a), maj_c(a, b, c));
+  SG(U15, ADD(d, p15)); SG(V15, ADD(p15, q15));
+  ST(G->a, (uint32_t)a); ST(G->b, (uint32_t)b); ST(G->c, (uint32_t)c); ST(G->e, (uint32_t)e); ST(G->f, (uint32_t)f);
+  ST(G->ab, (uint32_t)AND(a, b)); ST(G->axb, (uint32_t)XOR(a, b)); ST(G->exf, (uint32_t)XOR(e, f));
+  SG(P16, ADD(ADD(gg, LD(K[16])), m16)); SG(P17, ADD(f, LD(K[17]))); SG(P18, ADD(ADD(e, LD(K[18])), m18));
+  SG(KW20, ADD(LD(K[20]), m20));
+  SG(c17, ADD(ADD(LM(10), sg0_c(LM(2))), LM(1))); SG(c19, ADD(ADD(LM(12), sg0_c(LM(4))), LM(3)));
+  SG(c21, ADD(ADD(LM(14), sg0_c(LM(6))), LM(5))); SG(c22, ADD(ADD(sg1_c(m20), sg0_c(LM(7))), LM(6)));
+  SG(c23, ADD(ADD(m16, sg0_c(LM(8))), LM(7))); SG(c24, ADD(sg0_c(LM(9)), LM(8)));
+  SG(c25, ADD(ADD(m18, sg0_c(LM(10))), LM(9))); SG(c26, ADD(sg0_c(LM(11)), LM(10)));
+  SG(c27, ADD(ADD(m20, sg0_c(LM(12))), LM(11))); SG(c28, ADD(sg0_c(LM(13)), LM(12)));
+  SG(c29k, ADD(ADD(sg0_c(LM(14)), LM(13)), LD(K[29]))); SG(c30k, ADD(ADD(LM(14), LD(K[30])), LD(IV[0])));
+  ST(G->K19, (uint32_t)LD(K[19])); ST(G->K21, (uint32_t)LD(K[21])); ST(G->K22, (uint32_t)LD(K[22])); ST(G->K23, (uint32_t)LD(K[23]));
+  ST(G->K24, (uint32_t)LD(K[24])); ST(G->K25, (uint32_t)LD(K[25])); ST(G->K26, (uint32_t)LD(K[26])); ST(G->K27, (uint32_t)LD(K[27]));
+  ST(G->K28, (uint32_t)LD(K[28]));
+}
+```
+
+C.8 Output of the K validation runs (2026-10-08)
+
+`kprog.py` in its three variants:
+
+```
+mode opt: 582 primitives per trial, 20000 trials match the organizer reference core (word 0 of compress31), registers needed 22
+histogram {'add': 117, 'and': 73, 'br': 1, 'cmp': 1, 'ld': 35, 'ldx': 1, 'or': 41, 'shl': 41, 'shr': 128, 'shrv': 1, 'xor': 143}
+mode plain: 775 primitives per trial, 20000 trials match the organizer reference core (word 0 of compress31), registers needed 20
+histogram {'add': 117, 'and': 117, 'br': 1, 'cmp': 1, 'ld': 37, 'ldx': 1, 'not': 15, 'or': 114, 'shl': 114, 'shr': 128, 'shrv': 1, 'xor': 129}
+mode ref: 1035 primitives per trial, 20000 trials match the organizer reference core (word 0 of compress31), registers needed 20
+histogram {'add': 117, 'and': 377, 'br': 1, 'cmp': 1, 'ld': 37, 'ldx': 1, 'not': 15, 'or': 114, 'shl': 114, 'shr': 128, 'shrv': 1, 'xor': 129}
+```
+
+`./kcount`, standard output:
+
+```
+table: V7=512 V8=49408 G16=64 records=132096 identical to build_table (sets, records, bitmap)
+ops P1 236223301254 (55.0000 per word)  P2 81321704  sort 81135912  bitmap 1847296
+ops s1inv+check 608280
+ops selftest 30630000 (2000 blocks)
+group 0: trials 16777216, lane ops 582..582 (plain 775, ref-style 1035), set-up 13349 ops; hits 9958/9958 keyhits 224/224 recs 447/447 v6 3/3 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+  pass ops 4677..4677 (8 lanes + loop), group head 12, abort check 9 x 16, V6 found-path 0
+group 1: trials 16777216, lane ops 582..582 (plain 775, ref-style 1035), set-up 13349 ops; hits 9931/9931 keyhits 245/245 recs 561/561 v6 4/4 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+  pass ops 4677..4677 (8 lanes + loop), group head 12, abort check 9 x 16, V6 found-path 0
+group 2: trials 16777216, lane ops 582..582 (plain 775, ref-style 1035), set-up 13349 ops; hits 10069/10069 keyhits 260/260 recs 575/575 v6 0/0 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+  pass ops 4677..4677 (8 lanes + loop), group head 12, abort check 9 x 16, V6 found-path 0
+group 3: trials 16777216, lane ops 582..582 (plain 775, ref-style 1035), set-up 13349 ops; hits 9971/9971 keyhits 251/251 recs 526/526 v6 0/0 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+  pass ops 4677..4677 (8 lanes + loop), group head 12, abort check 9 x 16, V6 found-path 0
+group 5920: trials 4561628, lane ops 582..582 (plain 775, ref-style 1035), set-up 13349 ops; hits 2654/2654 keyhits 57/57 recs 133/133 v6 2/2 joint 1/1 it13 2829/2829 it15 19/19 coll 1/1
+  pass ops 4677..4677 (8 lanes + loop), group head 12, abort check 9 x 5, V6 found-path 1656
+stored pair reproduced: n = 99325680347
+M1  1e2dbac805e61a5ecd7fcb499db00a7a186cabb0f7efd9c22a442578023cd6ebf71d59bf876b73dbed1499e47173c1450ba5f907b35ebf9305848707075e188d
+M1' 1e2dbac805e61a5ecd7fcb499db00a7a186cabb0f7efc9c82a64ad69522c8ce51f1e6abf876bf3dfed1499e47173c1450ba5f907b35ebf9305848707075e188d
+completion segment (R20 pass to stored pair): 2533318 ops
+validated trials 71670492, bitmap hits 42583; worst paths: bitmap hit 1642 (binary search <= 18, observed max 18), key-matched hit 13 (counter + final loop test), record 238, V6 pass 2344 (64 candidates)
+```
+
+`./kcount`, standard error (printed by `r31det3.c`'s own `build_table` and `process_hit`):
+
+```
+V7=512 V8=49408 G16=64 records=132096
+COLLISION tid=24
+M0 e7f5ce551741facd279a66b68a38d7c6cc332e48ed9dd62a6b76b5f73aa91ac91ca8034eb4a9ad705b8eeceb50a7afad07617b89719682b5394303d800459adb
+M1 1e2dbac805e61a5ecd7fcb499db00a7a186cabb0f7efd9c22a442578023cd6ebf71d59bf876b73dbed1499e47173c1450ba5f907b35ebf9305848707075e188d
+M1b 1e2dbac805e61a5ecd7fcb499db00a7a186cabb0f7efc9c82a64ad69522c8ce51f1e6abf876bf3dfed1499e47173c1450ba5f907b35ebf9305848707075e188d
+DIGEST aea2562b20b12c5938046802bcc533817087f43c3e4ac864114c2abdd2249ee5
+```
+
+C.9 `pcount.c` (the pre-construction analysis programs as counted programs, Section 15.2) and its runs
+
+    2f1d1b37bdbffe70ccc97744d6786495d3cba445b46257a87d5e782722e2b953  pcount.c
+
+`cc -O2 -o pcount pcount.c -lpthread -lm`, then `./pcount sets`, `table`, `joint`, `pany`, `pany2-1-20` and
+`pany2-12-28`. Output of each (its standard output, then the count on standard error) and the comparison with the
+original program:
+
+```
+== sets
+W5 modular=16384 signed+modular=16384
+W6 modular=8388608 signed+modular=8388608
+W7 modular=512 signed+modular=512
+W8 modular=49408 signed+modular=8192
+W9 modular=35921920 signed+modular=33554432
+W16 modular=64 signed+modular=64
+W18 modular=42467328 signed+modular=33554432
+OPS sets 461151205710
+identical to the output of the original program (re-run)
+== table
+published record present: A-1=c0a93f38 E3=9f3c306a E4=60e73dda A0=7535928e
+V7 512 V8 49408
+V8 size 49408, (W8,E4) survivors 1632, tuples 16896
+OPS table 158924192620
+identical to the output of the original program (re-run)
+== joint
+distinct sigma0-diff values for d5: 6580932 ; sigma1-diff values for d18: 758851
+P(W5 in V5)=2^-18.000 ; single-g joint=2^-18.104 ; 64-g union bound joint=2^-12.104 ; strict*0.136=2^-20.877
+top sigma0-diff for d5 (count):
+  08017e20 16777252 p18(-c)=2^-61.90
+  080181e0 16777252 p18(-c)=2^-61.90
+  07ff7e20 16777220 p18(-c)=2^-61.90
+  07ff81e0 16777220 p18(-c)=2^-61.90
+  08007e20 16777220 p18(-c)=2^-61.90
+OPS joint 644688249115
+identical to the output of the original program (re-run)
+== pany
+|G16|=64
+P_any(joint, 64 g)=2^-12.662 ; P(strict G18 exists g)=0.1360 ; strict P=2^-20.878
+OPS pany 569745544349
+identical to the output of the original program (re-run)
+== pany2-1-20
+|G16|=64 samples=2^20 mean=1.536128e-04 (2^-12.6684) se=7.276e-07 99%LCB=1.517385e-04 (2^-12.6861) 99%UCB=2^-12.6509 max_term_bound=2.500e-01
+OPS pany2-1-20 410842675669
+identical to the output of the original program (re-run)
+== pany2-12-28
+|G16|=64 samples=2^27 mean=1.543086e-04 (2^-12.6619) se=4.564e-08 99%LCB=1.541910e-04 (2^-12.6630) 99%UCB=2^-12.6608 max_term_bound=2.500e-01
+OPS pany2-12-28 2858761574204
+identical to the saved output of the original run (pany2.out)
+```
+
+```c
+/* pcount.c: the pre-construction analysis programs (sets, table x2, joint, pany, pany2 x2;
+   proof Section 15.2) as counted programs of 256-bit word-RAM primitives.
+
+   Each function computes what the original program computes and prints the same line(s) in the
+   same format, so its output can be compared with a re-run of the original.  Primitives as in
+   kcount.c: one count each; values reduced to 32 or 64 bits before every right shift and
+   comparison; rotations via dup(v) = v | v << 32.  Multiplication by the hash constant
+   2654435761 = 0x9e3779b1 is shift-and-add over its 19 set bits.  Floating-point operations are
+   charged at the tariffs of the checked emulations of heavy.py (Appendix C.11): conversion 152,
+   addition 240, multiplication 520, comparison 48, division 824, square root 1008.
+
+   pany and pany2 sum the integer counts returned by the hash lookups in an integer register and
+   convert the sum once.  The original adds the converted counts (pany: count / 2^32) in double
+   precision; every partial sum is an integer multiple of the same power of two below 2^53 of it,
+   so each addition is exact and the result is bit-identical.
+
+   cc -O2 -o pcount pcount.c -lpthread -lm
+   ./pcount <program>     program: sets | table | joint | pany | pany2-1-20 | pany2-12-28 */
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include <pthread.h>
+
+typedef unsigned __int128 W;
+static __thread uint64_t OPS;
+static inline W ADD(W a, W b) { OPS++; return a + b; }
+static inline W SUB(W a, W b) { OPS++; return a - b; }
+static inline W AND(W a, W b) { OPS++; return a & b; }
+static inline W OR(W a, W b)  { OPS++; return a | b; }
+static inline W XOR(W a, W b) { OPS++; return a ^ b; }
+static inline W NOT(W a)      { OPS++; return ~a; }
+static inline W SHR(W a, int n) { OPS++; return a >> n; }
+static inline W SHL(W a, int n) { OPS++; return a << n; }
+static inline W LD(W v)       { OPS++; return v; }
+static inline W CMPEQ(W a, W b) { OPS++; return a == b; }
+static inline W CMPLT(W a, W b) { OPS++; return a < b; }
+static inline W CMPNZ(W a)    { OPS++; return a != 0; }
+#define ST(dst,v) do { W st_v_ = (v); OPS++; (dst) = st_v_; } while (0)
+#define BR()     (OPS++)
+static const W M = 0xffffffffu, M64 = 0xffffffffffffffffull, C1 = 1;
+static inline W MSK(W a) { return AND(a, M); }
+/* floating point at the tariffs of heavy.py (Appendix C.11): each is the largest primitive count of the
+   checked binary64 emulation, rounded up to a multiple of 8 */
+#define T_CVTF 152
+#define T_FADD 240
+#define T_FMUL 520
+#define T_FCMP 48
+#define T_FDIV 824
+#define T_FSQRT 1008
+static inline double FCVT(W a) { OPS += T_CVTF; return (double)(uint64_t)a; }
+static inline double FADD(double a, double b) { OPS += T_FADD; return a + b; }
+static inline double FMUL(double a, double b) { OPS += T_FMUL; return a * b; }
+static inline int FCMPGT(double a, double b) { OPS += T_FCMP; return a > b; }
+
+static inline W dup_c(W v) { return OR(v, SHL(v, 32)); }
+static inline W s0d(W d, W v) { return XOR(XOR(SHR(d, 7), SHR(d, 18)), SHR(v, 3)); }
+static inline W s1d(W d, W v) { return XOR(XOR(SHR(d, 17), SHR(d, 19)), SHR(v, 10)); }
+static inline W s0c(W v) { return s0d(dup_c(v), v); }
+static inline W s1c(W v) { return s1d(dup_c(v), v); }
+static inline W S0c(W v) { W d = dup_c(v); return XOR(XOR(SHR(d, 2), SHR(d, 13)), SHR(d, 22)); }
+static inline W S1c(W v) { W d = dup_c(v); return XOR(XOR(SHR(d, 6), SHR(d, 11)), SHR(d, 25)); }
+static inline W IFc(W x, W y, W z) { return XOR(z, AND(x, XOR(y, z))); }
+static inline W MAJc(W a, W b, W c) { return OR(AND(a, b), AND(c, OR(a, b))); }
+
+/* reference (uncounted) for checks */
+static inline uint32_t R(uint32_t x, int n) { return (x >> n) | (x << (32 - n)); }
+static inline uint32_t s0(uint32_t x) { return R(x, 7) ^ R(x, 18) ^ (x >> 3); }
+static inline uint32_t s1(uint32_t x) { return R(x, 17) ^ R(x, 19) ^ (x >> 10); }
+
+/* k * 0x9e3779b1 mod 2^32, then >> (32 - HB): shift-and-add over the constant's set bits */
+#define HB 25
+#define HS (1u << HB)
+static inline W hsh_c(W k) {
+  const uint32_t C = 2654435761u; W acc = k;           /* bit 0 */
+  for (int b = 1; b < 32; b++) if (C >> b & 1) acc = ADD(acc, SHL(k, b));
+  return SHR(MSK(acc), 32 - HB);
+}
+typedef struct { uint32_t k; uint32_t c; } E;
+/* table of 2^25 entries of two words at base address 0: entry i at 2i */
+static inline W EADDR(W i) { return ADD(SHL(i, 1), 0); }
+static void add_c(E *h, uint64_t *n, W k) {
+  W i = hsh_c(k);
+  for (;;) {
+    W a = EADDR(i); (void)a; W c = LD(h[(uint32_t)i].c); W nz = CMPNZ(c); BR();
+    if (!nz) break;
+    W kk = LD(h[(uint32_t)i].k); W eq = CMPEQ(kk, k); BR();
+    if (eq) break;
+    i = AND(ADD(i, C1), LD(HS - 1));
+  }
+  W a = EADDR(i); (void)a; W c = LD(h[(uint32_t)i].c); W z = CMPNZ(c); BR();
+  if (!z) { ST(h[(uint32_t)i].k, (uint32_t)k); if (n) { ST(*n, (uint64_t)ADD(LD(*n), C1)); } }
+  ST(h[(uint32_t)i].c, (uint32_t)ADD(c, C1));
+}
+static W get_c(const E *h, W k) {
+  W i = hsh_c(k);
+  for (;;) {
+    W a = EADDR(i); (void)a; W c = LD(h[(uint32_t)i].c); W nz = CMPNZ(c); BR();
+    if (!nz) return 0;
+    W kk = LD(h[(uint32_t)i].k); W eq = CMPEQ(kk, k); BR();
+    if (eq) return c;
+    i = AND(ADD(i, C1), LD(HS - 1));
+  }
+}
+#define LOOPW(w) do { W nw_ = MSK(ADD((w), C1)); W more_ = CMPNZ(nw_); BR(); (void)more_; } while (0)
+
+/* ---------------- sets ---------------- */
+static uint64_t run_sets(void) {
+  OPS = 0;
+  struct { const char *name; int sig; uint32_t d, c; const char *row; } S[] = {
+   {"W5",0,0xfffff006,0xd0018020,"================nuuu=======0=uu="},
+   {"W6",0,0x002087f1,0x00000ffa,"==========u=====u===u======n===u"},
+   {"W7",0,0x4fefb5fa,0xffdf780f,"=u=u=======n=====n=nu=n=====nun="},
+   {"W8",0,0x28011100,0xb00fca02,"=u=nn==========u===u===u==1====="},
+   {"W9",0,0x00008004,0xd7feef00,"================u==========1=u=="},
+   {"W16",1,0x00008004,0xffff7ffc,"=============unnnunnnnnnnnnnnn=="},
+   {"W18",1,0xffff7ffc,0x2ffe7fe0,"==============1=n=0==========n=="}};
+  uint32_t cm[7], va[7], vb[7], xm[7]; uint64_t cnt[7] = {0}, both[7] = {0};
+  for (int i = 0; i < 7; i++) {
+    cm[i] = va[i] = vb[i] = xm[i] = 0;
+    for (int k = 0; k < 32; k++) { uint32_t b = 1u << (31 - k); char c = S[i].row[k]; OPS += 6;  /* cell test, at most 5 primitives */
+      if (c == '=') continue; cm[i] |= b; if (c == '1') { va[i] |= b; vb[i] |= b; } else if (c == 'u') { vb[i] |= b; xm[i] |= b; } else if (c == 'n') { va[i] |= b; xm[i] |= b; } }
+  }
+  W rd[7], rc[7]; for (int i = 0; i < 7; i++) { rd[i] = LD(S[i].d); rc[i] = LD(S[i].c); }
+  uint32_t w32 = 0;
+  do {
+    W w = (W)w32, d = dup_c(w), s0w = s0d(d, w), s1w = s1d(d, w);
+    for (int i = 0; i < 7; i++) {
+      W wp = MSK(ADD(w, rd[i]));
+      W diff = MSK(SUB(S[i].sig ? s1c(wp) : s0c(wp), S[i].sig ? s1w : s0w));
+      W mod = CMPEQ(diff, rc[i]); BR();
+      if (mod) {
+        ST(cnt[i], (uint64_t)ADD(LD(cnt[i]), C1));
+        W ok = CMPEQ(XOR(w, wp), LD(xm[i])); BR();
+        if (ok) { ok = CMPEQ(AND(w, LD(cm[i])), LD(va[i])); BR(); }
+        if (ok) { ok = CMPEQ(AND(wp, LD(cm[i])), LD(vb[i])); BR(); }
+        if (ok) ST(both[i], (uint64_t)ADD(LD(both[i]), C1));
+      }
+    }
+    LOOPW(w);
+    w32++;
+  } while (w32 != 0);
+  for (int i = 0; i < 7; i++) printf("%s modular=%llu signed+modular=%llu\n", S[i].name, (unsigned long long)cnt[i], (unsigned long long)both[i]);
+  return OPS;
+}
+
+/* ---------------- table (run twice) ---------------- */
+static void masks_t(const char *row, uint32_t *cm, uint32_t *va) { *cm = *va = 0; for (int k = 0; k < 32; k++) { uint32_t b = 1u << (31 - k); char c = row[k]; OPS += 5; if (c == '=') continue; *cm |= b; if (c == '1' || c == 'n') *va |= b; } }
+static uint64_t run_table(void) {
+  OPS = 0;
+  W A1 = LD(0xf36e6fcf), A2 = LD(0xb741c202), A3 = LD(0x90c67413), A4 = LD(0xfc7566c3);
+  W E5 = LD(0x1d1fa7dd), E6 = LD(0xafe878e7), E7 = LD(0x4c97cbe5), E8 = LD(0x946f8048);
+  W E5p = MSK(ADD(E5, LD(0xfffff006))), E6p = MSK(ADD(E6, LD(0xfff87fff))), E7p = MSK(ADD(E7, LD(0x4f880387)));
+  W d6 = LD(0x002087f1), d7 = LD(0x4fefb5fa), d8 = LD(0x28011100), K7 = LD(0xab1c5ed5), K8 = LD(0xd807aa98);
+  W C8 = LD(0xb00fca02u), C7 = LD(0xffdf780fu);
+  uint32_t cm4, va4, cm3, va3; masks_t("============0===0=========01===0", &cm4, &va4); masks_t("==========================10====", &cm3, &va3);
+  static uint32_t V7[1024], V8[65536]; int n7 = 0, n8 = 0;
+  uint32_t w32 = 0;
+  do {
+    W w = (W)w32, d = dup_c(w), s0w = s0d(d, w);
+    W h8 = CMPEQ(MSK(SUB(s0c(MSK(ADD(w, d8))), s0w)), C8); BR(); if (h8) { ST(V8[n8], w32); n8 = (int)ADD(n8, C1); }
+    W h7 = CMPEQ(MSK(SUB(s0c(MSK(ADD(w, d7))), s0w)), C7); BR(); if (h7) { ST(V7[n7], w32); n7 = (int)ADD(n7, C1); }
+    LOOPW(w); w32++;
+  } while (w32 != 0);
+  uint64_t nE4 = 0, nT = 0, nk = 0;
+  W lhs = MSK(SUB(SUB(SUB(E7p, E7), SUB(S1c(E6p), S1c(E6))), d7));
+  W lhs6 = MSK(SUB(SUB(SUB(E6p, E6), SUB(S1c(E5p), S1c(E5))), d6));
+  W base4 = MSK(SUB(SUB(SUB(SUB(E8, A4), S1c(E7)), IFc(E7, E6, E5)), K8));
+  W bs0a3 = S0c(A3), maja = MAJc(A3, A2, A1), bs0a2 = S0c(A2), bs1e6 = S1c(E6);
+  W rcm4 = LD(cm4), rva4 = LD(va4), rcm3 = LD(cm3), rva3 = LD(va3), pw8 = LD(0x9f0484a6u), pw7 = LD(0xadf3737bu);
+  for (int i = 0; i < n8; i++) {
+    OPS += 3; W W8 = LD(V8[i]);
+    W E4 = MSK(SUB(base4, W8));
+    W ok = CMPEQ(AND(E4, rcm4), rva4); BR();
+    if (ok) { ok = CMPEQ(MSK(SUB(IFc(E6p, E5p, E4), IFc(E6, E5, E4))), lhs); BR(); }
+    if (!ok) continue;
+    nE4 = (uint64_t)ADD(nE4, C1);
+    W A0 = MSK(ADD(ADD(SUB(E4, A4), bs0a3), maja));
+    W b3 = MSK(SUB(SUB(SUB(SUB(E7, A3), bs1e6), IFc(E6, E5, E4)), K7));
+    W maj2 = MAJc(A2, A1, A0);
+    for (int j = 0; j < n7; j++) {
+      OPS += 3; W W7 = LD(V7[j]);
+      W E3 = MSK(SUB(b3, W7));
+      W ok3 = CMPEQ(AND(E3, rcm3), rva3); BR();
+      if (ok3) { ok3 = CMPEQ(MSK(SUB(IFc(E5p, E4, E3), IFc(E5, E4, E3))), lhs6); BR(); }
+      if (!ok3) continue;
+      nT = (uint64_t)ADD(nT, C1);
+      W Am1 = MSK(ADD(ADD(SUB(E3, A3), bs0a2), maj2));
+      W room = CMPLT(nk, LD(1u << 24)); BR(); if (room) { nk = (uint64_t)ADD(nk, C1); OPS++; (void)Am1; }  /* keys[nk++] = Am1 */
+      W p1 = CMPEQ(W8, pw8); BR(); if (p1) { W p2 = CMPEQ(W7, pw7); BR();
+        if (p2) printf("published record present: A-1=%08x E3=%08x E4=%08x A0=%08x\n", (uint32_t)Am1, (uint32_t)E3, (uint32_t)E4, (uint32_t)A0); }
+    }
+    OPS += 1;
+  }
+  printf("V7 %d V8 %d\n", n7, n8);
+  printf("V8 size %llu, (W8,E4) survivors %llu, tuples %llu\n", (unsigned long long)n8, (unsigned long long)nE4, (unsigned long long)nT);
+  return OPS;
+}
+
+/* ---------------- joint ---------------- */
+static uint64_t run_joint(void) {
+  OPS = 0;
+  E *h5 = calloc(HS, sizeof(E)), *h18 = calloc(HS, sizeof(E)); uint64_t n5 = 0, n18 = 0;
+  OPS += 2ull * HS * 2;                                  /* zeroing both tables: one store per word */
+  W d5 = LD(0xfffff006u), d18 = LD(0xffff7ffcu);
+  uint32_t w32 = 0;
+  do {
+    W w = (W)w32, d = dup_c(w);
+    add_c(h5, &n5, MSK(SUB(s0c(MSK(ADD(w, d5))), s0d(d, w))));
+    add_c(h18, &n18, MSK(SUB(s1c(MSK(ADD(w, d18))), s1d(d, w))));
+    LOOPW(w); w32++;
+  } while (w32 != 0);
+  printf("distinct sigma0-diff values for d5: %llu ; sigma1-diff values for d18: %llu\n", (unsigned long long)n5, (unsigned long long)n18);
+  double single = 0, unionb = 0, strict = 0; W c5 = LD(0xd0018020u);
+  const double sc = 1.0 / 4294967296.0;
+  for (uint32_t i = 0; i < HS; i++) {
+    OPS += 3; W a = EADDR(i); (void)a; W c = LD(h5[i].c); W nz = CMPNZ(c); BR();
+    if (!nz) continue;
+    W k = LD(h5[i].k);
+    double p5 = FMUL(FCVT(c), sc);
+    double p18 = FMUL(FCVT(get_c(h18, MSK(SUB(0, k)))), sc);
+    single = FADD(single, FMUL(p5, p18));
+    double u = FMUL(64, p18);
+    double m = FCMPGT(u, 1) ? 1 : u; OPS += 1;
+    unionb = FADD(unionb, FMUL(p5, m));
+    W ec = CMPEQ(k, c5); BR(); if (ec) strict = p5;
+  }
+  printf("P(W5 in V5)=2^%.3f ; single-g joint=2^%.3f ; 64-g union bound joint=2^%.3f ; strict*0.136=2^%.3f\n", log2(strict), log2(single), log2(unionb), log2(strict * 0.1361322));
+  printf("top sigma0-diff for d5 (count):\n");
+  for (int t = 0; t < 5; t++) {
+    uint32_t best = 0, bk = 0;
+    for (uint32_t i = 0; i < HS; i++) { OPS += 3; W a = EADDR(i); (void)a; W c = LD(h5[i].c); W gt = CMPLT((W)best, c); BR(); if (gt) { best = (uint32_t)c; bk = i; OPS += 2; } }
+    W g18 = get_c(h18, MSK(SUB(0, LD(h5[bk].k))));
+    printf("  %08x %u p18(-c)=2^%.2f\n", h5[bk].k, best, log2(((double)(uint64_t)g18 + 1e-9) / 4294967296.0)); OPS += T_CVTF + T_FADD + T_FDIV;
+    ST(h5[bk].c, 0u);
+  }
+  free(h5); free(h18);
+  return OPS;
+}
+
+/* ---------------- pany ---------------- */
+static uint64_t run_pany(void) {
+  OPS = 0;
+  E *h5 = calloc(HS, sizeof(E)); OPS += 2ull * HS;
+  W d5 = LD(0xfffff006u), d16 = LD(0x00008004u), d18 = LD(0xffff7ffcu);
+  uint32_t w32 = 0;
+  do { W w = (W)w32; add_c(h5, NULL, MSK(SUB(s0c(MSK(ADD(w, d5))), s0c(w)))); LOOPW(w); w32++; } while (w32 != 0);
+  uint32_t G[64]; int ng = 0; w32 = 0;
+  do { W w = (W)w32; W hit = CMPEQ(MSK(SUB(s1c(MSK(ADD(w, d16))), s1c(w))), d18); BR();
+       if (hit) { ST(G[ng], w32); ng = (int)ADD(ng, C1); } LOOPW(w); w32++; } while (w32 != 0);
+  printf("|G16|=%d\n", ng);
+  const int N = 1 << 24; double acc = 0; uint64_t accs = 0; W mc5 = LD((uint32_t)(0u - 0xd0018020u));
+  const double sc = 1.0 / 4294967296.0;
+  uint64_t st = 0x9e3779b97f4a7c15ull;
+  for (int t = 0; t < N; t++) {
+    OPS += 3;
+    st = (uint64_t)XOR(st, AND(SHL(st, 13), M64)); st = (uint64_t)XOR(st, SHR(st, 7)); st = (uint64_t)XOR(st, AND(SHL(st, 17), M64));
+    W c18 = MSK(SHR(st, 16));
+    uint32_t v[64]; int nv = 0; W strictf = 0;
+    for (int g = 0; g < 64; g++) {
+      W W18 = MSK(ADD(s1c(LD(G[g])), c18));
+      W x = MSK(SUB(s1c(MSK(ADD(W18, d18))), s1c(W18)));
+      int dupf = 0;
+      for (int j = 0; ; j++) { W more = CMPLT((W)j, (W)nv); BR(); if (!more) break; W eq = CMPEQ(LD(v[j]), x); BR(); if (eq) { dupf = 1; break; } OPS++; }
+      BR(); if (!dupf) { ST(v[nv], (uint32_t)x); nv = (int)ADD(nv, C1); }
+      W s = CMPEQ(x, mc5); BR(); if (s) strictf = OR(strictf, C1);
+    }
+    W psum = 0;
+    for (int j = 0; ; j++) { W more = CMPLT((W)j, (W)nv); BR(); if (!more) break; psum = ADD(psum, get_c(h5, MSK(SUB(0, LD(v[j]))))); OPS++; }
+    acc = FADD(acc, FMUL(FCVT(psum), sc));
+    accs = (uint64_t)ADD(accs, strictf);
+  }
+  printf("P_any(joint, 64 g)=2^%.3f ; P(strict G18 exists g)=%.4f ; strict P=2^%.3f\n", log2(acc / N), (double)accs / N, log2((double)accs / N * pow(2, -18)));
+  OPS += 2 * T_CVTF + 2 * T_FDIV + T_FMUL;           /* acc / N, accs / N, the 2^-18 product (log2 and pow are library calls) */
+  free(h5);
+  return OPS;
+}
+
+/* ---------------- pany2 ---------------- */
+static E *P2h5; static uint32_t P2G[64]; static int P2NS, P2NT; static double P2sum[64], P2sum2[64]; static uint64_t P2ops[64];
+static void *pany2_work(void *a) {
+  int t = (int)(intptr_t)a; OPS = 0;
+  uint64_t st = (uint64_t)XOR(LD(0x243f6a8885a308d3ull), AND(ADD(0, (W)((uint64_t)(t + 1) * 0x9e3779b97f4a7c15ull)), M64));
+  OPS += 385;                                           /* (t+1) * 0x9e3779b97f4a7c15: one emulated 64-bit product */
+  double S = 0, S2 = 0; const double sc = 1.0 / 4294967296.0;
+  W d18 = LD(0xffff7ffcu);
+  for (long n = 0; n < P2NS / P2NT; n++) {
+    OPS += 3;
+    st = (uint64_t)XOR(st, AND(SHL(st, 13), M64)); st = (uint64_t)XOR(st, SHR(st, 7)); st = (uint64_t)XOR(st, AND(SHL(st, 17), M64));
+    W c18 = MSK(SHR(st, 20));
+    uint32_t v[64]; int nv = 0;
+    for (int g = 0; g < 64; g++) {
+      W W18 = MSK(ADD(s1c(LD(P2G[g])), c18));
+      W x = MSK(SUB(s1c(MSK(ADD(W18, d18))), s1c(W18)));
+      int dupf = 0;
+      for (int j = 0; ; j++) { W more = CMPLT((W)j, (W)nv); BR(); if (!more) break; W eq = CMPEQ(LD(v[j]), x); BR(); if (eq) { dupf = 1; break; } OPS++; }
+      BR(); if (!dupf) { ST(v[nv], (uint32_t)x); nv = (int)ADD(nv, C1); }
+    }
+    W psum = 0;
+    for (int j = 0; ; j++) { W more = CMPLT((W)j, (W)nv); BR(); if (!more) break; psum = ADD(psum, get_c(P2h5, MSK(SUB(0, LD(v[j]))))); OPS++; }
+    double p = FMUL(FCVT(psum), sc);
+    S = FADD(S, p); S2 = FADD(S2, FMUL(p, p));
+  }
+  P2sum[t] = S; P2sum2[t] = S2; P2ops[t] = OPS; return NULL;
+}
+static uint64_t run_pany2(int NT, int lg) {
+  OPS = 0; P2NT = NT; P2NS = 1 << lg;
+  P2h5 = calloc(HS, sizeof(E)); OPS += 2ull * HS;
+  W d5 = LD(0xfffff006u), d9 = LD(0x00008004u), d18 = LD(0xffff7ffcu); int ng = 0;
+  uint32_t w32 = 0;
+  do { W w = (W)w32, d = dup_c(w);
+       add_c(P2h5, NULL, MSK(SUB(s0c(MSK(ADD(w, d5))), s0d(d, w))));
+       W hit = CMPEQ(MSK(SUB(s1c(MSK(ADD(w, d9))), s1d(d, w))), d18); BR();
+       if (hit) { ST(P2G[ng], w32); ng = (int)ADD(ng, C1); }
+       LOOPW(w); w32++; } while (w32 != 0);
+  uint32_t mxc = 0;
+  for (uint32_t i = 0; i < HS; i++) { OPS += 3; W a = EADDR(i); (void)a; W c = LD(P2h5[i].c); W gt = CMPLT((W)mxc, c); BR(); if (gt) { mxc = (uint32_t)c; OPS++; } }
+  uint64_t main_ops = OPS;
+  pthread_t th[64]; for (int i = 0; i < NT; i++) pthread_create(&th[i], 0, pany2_work, (void *)(intptr_t)i);
+  for (int i = 0; i < NT; i++) pthread_join(th[i], 0);
+  OPS = main_ops; for (int i = 0; i < NT; i++) OPS += P2ops[i] + 3;
+  double S = 0, S2 = 0; for (int i = 0; i < NT; i++) { S = FADD(S, P2sum[i]); S2 = FADD(S2, P2sum2[i]); }
+  double n = (double)(P2NS / P2NT) * P2NT, m = S / n, var = S2 / n - m * m, se = sqrt(var / n);
+  OPS += T_CVTF + T_FMUL + 3 * T_FDIV + 2 * T_FMUL + T_FADD + T_FSQRT + 4 * T_FADD;  /* n, m, var, se, the bounds */
+  printf("|G16|=%d samples=2^%d mean=%.6e (2^%.4f) se=%.3e 99%%LCB=%.6e (2^%.4f) 99%%UCB=2^%.4f max_term_bound=%.3e\n", ng, (int)log2(n), m, log2(m), se, m - 2.576 * se, log2(m - 2.576 * se), log2(m + 2.576 * se), 64.0 * mxc / 4294967296.0);
+  free(P2h5);
+  return OPS;
+}
+
+int main(int argc, char **argv) {
+  if (argc < 2) return 64;
+  const char *p = argv[1]; uint64_t ops;
+  if (!strcmp(p, "sets")) ops = run_sets();
+  else if (!strcmp(p, "table")) ops = run_table();
+  else if (!strcmp(p, "joint")) ops = run_joint();
+  else if (!strcmp(p, "pany")) ops = run_pany();
+  else if (!strcmp(p, "pany2-1-20")) ops = run_pany2(1, 20);
+  else if (!strcmp(p, "pany2-12-28")) ops = run_pany2(12, 28);
+  else return 64;
+  fprintf(stderr, "OPS %s %llu\n", p, (unsigned long long)ops);
+  return 0;
+}
+```
+
+C.10 Source of the pre-construction analysis programs as they ran (Section 15.1)
+
+    999b9ced77d5c434a8d11e8d947229953f227046ee58beb72a675e001d3f0232  sets.c
+    28d358b8076ae9f8521e3a546108c18f6745fe516d8c146f074b41cf7722c20e  table.c
+    072bb3f309c0a5d85b1f58f53ee8768ecdf1a344280a6323ce8b4429866f020b  joint.c
+    23142bfdadf3f75b378205b58c9d0a756a8eb0fb92d008b326ebfe1a07d25ae1  pany.c
+    c3af3e22af5b9a8069b2e5e1a1653354d93eb8b06813e8dd3ab732405b9ebeca  pany2.c
+
+Each was compiled with `cc -O2` (`pany2` with `cc -O3 -mcpu=apple-m4 ... -lpthread -lm`). `table` ran twice; its
+first run preceded the one-line diagnostic `printf` of the inner loop. Since this filing `table` is an excluded run
+(it embeds the published starting point, Section 15.4); its source and its counted version in `pcount.c` are
+listed for completeness and are not charged.
+
+`sets.c`:
+
+```c
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+static inline uint32_t R(uint32_t x,int n){return (x>>n)|(x<<(32-n));}
+static inline uint32_t s0(uint32_t x){return R(x,7)^R(x,18)^(x>>3);}
+static inline uint32_t s1(uint32_t x){return R(x,17)^R(x,19)^(x>>10);}
+typedef struct {const char*name; int sig; uint32_t d,c; const char*row;} Spec;
+static void masks(const char*row,uint32_t*cm,uint32_t*va,uint32_t*vb,uint32_t*xm){
+  *cm=*va=*vb=*xm=0;
+  for(int k=0;k<32;k++){uint32_t b=1u<<(31-k);char c=row[k];
+    if(c=='=')continue; *cm|=b;
+    if(c=='1'){*va|=b;*vb|=b;} else if(c=='u'){*vb|=b;*xm|=b;} else if(c=='n'){*va|=b;*xm|=b;}}
+}
+int main(void){
+  Spec S[]={
+   {"W5",0,0xfffff006,0xd0018020,"================nuuu=======0=uu="},
+   {"W6",0,0x002087f1,0x00000ffa,"==========u=====u===u======n===u"},
+   {"W7",0,0x4fefb5fa,0xffdf780f,"=u=u=======n=====n=nu=n=====nun="},
+   {"W8",0,0x28011100,0xb00fca02,"=u=nn==========u===u===u==1====="},
+   {"W9",0,0x00008004,0xd7feef00,"================u==========1=u=="},
+   {"W16",1,0x00008004,0xffff7ffc,"=============unnnunnnnnnnnnnnn=="},
+   {"W18",1,0xffff7ffc,0x2ffe7fe0,"==============1=n=0==========n=="},
+  };
+  int n=7; uint64_t cm_cnt[7]={0}, both[7]={0};
+  uint32_t cm[7],va[7],vb[7],xm[7];
+  for(int i=0;i<n;i++) masks(S[i].row,&cm[i],&va[i],&vb[i],&xm[i]);
+  uint32_t w=0;
+  do{
+    for(int i=0;i<n;i++){
+      uint32_t wp=w+S[i].d;
+      uint32_t diff = S[i].sig? (s1(wp)-s1(w)) : (s0(wp)-s0(w));
+      int mod = diff==S[i].c;
+      if(mod){cm_cnt[i]++;
+        if(((w^wp)==xm[i]) && ((w&cm[i])==va[i]) && ((wp&cm[i])==vb[i])) both[i]++;}
+    }
+    w++;
+  }while(w!=0);
+  for(int i=0;i<n;i++) printf("%s modular=%llu signed+modular=%llu\n",S[i].name,(unsigned long long)cm_cnt[i],(unsigned long long)both[i]);
+  return 0;
+}
+```
+
+`table.c`:
+
+```c
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+static inline uint32_t R(uint32_t x,int n){return (x>>n)|(x<<(32-n));}
+static inline uint32_t s0(uint32_t x){return R(x,7)^R(x,18)^(x>>3);}
+static inline uint32_t S0(uint32_t x){return R(x,2)^R(x,13)^R(x,22);}
+static inline uint32_t S1(uint32_t x){return R(x,6)^R(x,11)^R(x,25);}
+static inline uint32_t IF(uint32_t x,uint32_t y,uint32_t z){return (x&y)^(~x&z);}
+static inline uint32_t MAJ(uint32_t x,uint32_t y,uint32_t z){return (x&y)^(x&z)^(y&z);}
+static void masks(const char*row,uint32_t*cm,uint32_t*va){*cm=*va=0;for(int k=0;k<32;k++){uint32_t b=1u<<(31-k);char c=row[k];if(c=='=')continue;*cm|=b;if(c=='1'||c=='n')*va|=b;}}
+int main(void){
+  /* starting point of the published pair (copy A values; primes = copy B) */
+  uint32_t A1=0xf36e6fcf,A2=0xb741c202,A3=0x90c67413,A4=0xfc7566c3;
+  uint32_t E5=0x1d1fa7dd,E6=0xafe878e7,E7=0x4c97cbe5,E8=0x946f8048;
+  uint32_t dE5=0xfffff006,dE6=0xfff87fff,dE7=0x4f880387; /* modular, B-A */
+  uint32_t E5p=E5+dE5,E6p=E6+dE6,E7p=E7+dE7;
+  uint32_t d6=0x002087f1,d7=0x4fefb5fa,d8=0x28011100;
+  uint32_t K7=0xab1c5ed5,K8=0xd807aa98;
+  uint32_t cm4,va4,cm3,va3; masks("============0===0=========01===0",&cm4,&va4); masks("==========================10====",&cm3,&va3);
+  uint64_t nW8=0,nE4=0,nT=0;
+  static uint32_t V7[1024],V8[65536]; int n7=0,n8=0;
+  uint32_t w=0;
+  do{ if((uint32_t)(s0(w+d8)-s0(w))==0xb00fca02u) V8[n8++]=w;
+      if((uint32_t)(s0(w+d7)-s0(w))==0xffdf780fu) V7[n7++]=w;
+      w++; }while(w!=0);
+  nW8=n8;
+  uint32_t lhs=(E7p-E7)-(S1(E6p)-S1(E6))-d7;
+  uint32_t lhs6=(E6p-E6)-(S1(E5p)-S1(E5))-d6;
+  static uint32_t keys[1<<24]; uint64_t nk=0;
+  for(int i=0;i<n8;i++){ uint32_t W8=V8[i];
+    uint32_t E4=E8-A4-S1(E7)-IF(E7,E6,E5)-K8-W8;
+    if(((E4&cm4)==va4) && ((uint32_t)(IF(E6p,E5p,E4)-IF(E6,E5,E4))==lhs)){ nE4++;
+      uint32_t A0=E4-A4+S0(A3)+MAJ(A3,A2,A1);
+      for(int j=0;j<n7;j++){ uint32_t W7=V7[j];
+        uint32_t E3=E7-A3-S1(E6)-IF(E6,E5,E4)-K7-W7;
+        if(((E3&cm3)==va3) && ((uint32_t)(IF(E5p,E4,E3)-IF(E5,E4,E3))==lhs6)){ nT++;
+          uint32_t Am1=E3-A3+S0(A2)+MAJ(A2,A1,A0); if(nk<(1u<<24)) keys[nk++]=Am1; if(W8==0x9f0484a6u && W7==0xadf3737bu) printf("published record present: A-1=%08x E3=%08x E4=%08x A0=%08x\n",Am1,E3,E4,A0); }
+      }
+    }
+  }
+  printf("V7 %d V8 %d\n",n7,n8);
+  printf("V8 size %llu, (W8,E4) survivors %llu, tuples %llu\n",(unsigned long long)nW8,(unsigned long long)nE4,(unsigned long long)nT);
+  return 0;
+}
+```
+
+`joint.c`:
+
+```c
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <math.h>
+static inline uint32_t R(uint32_t x,int n){return (x>>n)|(x<<(32-n));}
+static inline uint32_t s0(uint32_t x){return R(x,7)^R(x,18)^(x>>3);}
+static inline uint32_t s1(uint32_t x){return R(x,17)^R(x,19)^(x>>10);}
+#define HB 25
+#define HS (1u<<HB)
+typedef struct {uint32_t k; uint32_t c;} E;
+static E *h5,*h18; static uint64_t n5=0,n18=0;
+static inline uint32_t hsh(uint32_t k){return (k*2654435761u)>>(32-HB);}
+static void add(E*h,uint64_t*n,uint32_t k){uint32_t i=hsh(k);while(h[i].c && h[i].k!=k) i=(i+1)&(HS-1); if(!h[i].c){h[i].k=k;(*n)++;} h[i].c++;}
+static uint32_t get(E*h,uint32_t k){uint32_t i=hsh(k);while(h[i].c){if(h[i].k==k)return h[i].c;i=(i+1)&(HS-1);}return 0;}
+int main(void){
+  h5=calloc(HS,sizeof(E)); h18=calloc(HS,sizeof(E));
+  uint32_t d5=0xfffff006u,d18=0xffff7ffcu; uint32_t w=0;
+  do{ add(h5,&n5,(uint32_t)(s0(w+d5)-s0(w))); add(h18,&n18,(uint32_t)(s1(w+d18)-s1(w))); w++; }while(w!=0);
+  printf("distinct sigma0-diff values for d5: %llu ; sigma1-diff values for d18: %llu\n",(unsigned long long)n5,(unsigned long long)n18);
+  double single=0, unionb=0, strict=0; uint32_t c5=0xd0018020u;
+  for(uint32_t i=0;i<HS;i++) if(h5[i].c){ uint32_t c=h5[i].k; double p5=h5[i].c/4294967296.0; double p18=get(h18,(uint32_t)(0u-c))/4294967296.0;
+     single+=p5*p18; double u=64*p18; unionb+=p5*(u>1?1:u); if(c==c5) strict=p5; }
+  printf("P(W5 in V5)=2^%.3f ; single-g joint=2^%.3f ; 64-g union bound joint=2^%.3f ; strict*0.136=2^%.3f\n",log2(strict),log2(single),log2(unionb),log2(strict*0.1361322));
+  printf("top sigma0-diff for d5 (count):\n"); 
+  for(int t=0;t<5;t++){uint32_t best=0,bk=0;for(uint32_t i=0;i<HS;i++) if(h5[i].c>best){best=h5[i].c;bk=i;} printf("  %08x %u p18(-c)=2^%.2f\n",h5[bk].k,best,log2((get(h18,0u-h5[bk].k)+1e-9)/4294967296.0)); h5[bk].c=0;}
+  return 0;
+}
+```
+
+`pany.c`:
+
+```c
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <math.h>
+static inline uint32_t R(uint32_t x,int n){return (x>>n)|(x<<(32-n));}
+static inline uint32_t s0(uint32_t x){return R(x,7)^R(x,18)^(x>>3);}
+static inline uint32_t s1(uint32_t x){return R(x,17)^R(x,19)^(x>>10);}
+#define HB 25
+#define HS (1u<<HB)
+typedef struct {uint32_t k; uint32_t c;} E;
+static E *h5; 
+static inline uint32_t hsh(uint32_t k){return (k*2654435761u)>>(32-HB);}
+static void add(E*h,uint32_t k){uint32_t i=hsh(k);while(h[i].c && h[i].k!=k) i=(i+1)&(HS-1); if(!h[i].c){h[i].k=k;} h[i].c++;}
+static uint32_t get(E*h,uint32_t k){uint32_t i=hsh(k);while(h[i].c){if(h[i].k==k)return h[i].c;i=(i+1)&(HS-1);}return 0;}
+static uint64_t st=0x9e3779b97f4a7c15ull; static inline uint32_t rnd(void){st^=st<<13;st^=st>>7;st^=st<<17;return (uint32_t)(st>>16);}
+int main(void){
+  h5=calloc(HS,sizeof(E)); uint32_t d5=0xfffff006u,d16=0x00008004u,d18=0xffff7ffcu; uint32_t w=0;
+  do{ add(h5,(uint32_t)(s0(w+d5)-s0(w))); w++; }while(w!=0);
+  uint32_t G[64]; int ng=0; w=0;
+  do{ if((uint32_t)(s1(w+d16)-s1(w))==d18) G[ng++]=w; w++; }while(w!=0);
+  printf("|G16|=%d\n",ng);
+  const int N=1<<24; double acc=0, accs=0; uint32_t c5=0xd0018020u;
+  for(int t=0;t<N;t++){ uint32_t c18=rnd(); uint32_t v[64]; int nv=0; int strict=0;
+    for(int g=0;g<64;g++){ uint32_t W18=s1(G[g])+c18; uint32_t x=(uint32_t)(s1(W18+d18)-s1(W18)); int dup=0; for(int j=0;j<nv;j++) if(v[j]==x){dup=1;break;} if(!dup) v[nv++]=x; if(x==(uint32_t)(0u-c5)) strict=1; }
+    double p=0; for(int j=0;j<nv;j++) p+=get(h5,(uint32_t)(0u-v[j]))/4294967296.0;
+    acc+=p; accs+=strict; }
+  printf("P_any(joint, 64 g)=2^%.3f ; P(strict G18 exists g)=%.4f ; strict P=2^%.3f\n",log2(acc/N),accs/N,log2(accs/N*pow(2,-18)));
+  return 0;
+}
+```
+
+`pany2.c`:
+
+```c
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <math.h>
+#include <pthread.h>
+static inline uint32_t R(uint32_t x,int n){return (x>>n)|(x<<(32-n));}
+static inline uint32_t s0(uint32_t x){return R(x,7)^R(x,18)^(x>>3);}
+static inline uint32_t s1(uint32_t x){return R(x,17)^R(x,19)^(x>>10);}
+#define HB 25
+#define HS (1u<<HB)
+typedef struct {uint32_t k; uint32_t c;} E;
+static E *h5; static uint32_t G[64]; static int NS; static int NT;
+static inline uint32_t hsh(uint32_t k){return (k*2654435761u)>>(32-HB);}
+static void add(uint32_t k){uint32_t i=hsh(k);while(h5[i].c && h5[i].k!=k) i=(i+1)&(HS-1); if(!h5[i].c){h5[i].k=k;} h5[i].c++;}
+static uint32_t get(uint32_t k){uint32_t i=hsh(k);while(h5[i].c){if(h5[i].k==k)return h5[i].c;i=(i+1)&(HS-1);}return 0;}
+static double sum[64],sum2[64]; static double mx=0;
+static void *work(void*a){ int t=(int)(intptr_t)a; uint64_t st=0x243f6a8885a308d3ull^(uint64_t)(t+1)*0x9e3779b97f4a7c15ull; double S=0,S2=0;
+  for(long n=0;n<NS/NT;n++){ st^=st<<13;st^=st>>7;st^=st<<17; uint32_t c18=(uint32_t)(st>>20); uint32_t v[64]; int nv=0;
+    for(int g=0;g<64;g++){ uint32_t W18=s1(G[g])+c18; uint32_t x=s1(W18+0xffff7ffcu)-s1(W18); int dup=0; for(int j=0;j<nv;j++) if(v[j]==x){dup=1;break;} if(!dup) v[nv++]=x; }
+    double p=0; for(int j=0;j<nv;j++) p+=get(0u-v[j]); p/=4294967296.0; S+=p; S2+=p*p; }
+  sum[t]=S; sum2[t]=S2; return NULL; }
+int main(int argc,char**argv){ NT=atoi(argv[1]); NS=1<<atoi(argv[2]);
+  h5=calloc(HS,sizeof(E)); uint32_t w=0; int ng=0;
+  do{ add(s0(w+0xfffff006u)-s0(w)); if(s1(w+0x00008004u)-s1(w)==0xffff7ffcu) G[ng++]=w; w++; }while(w!=0);
+  uint32_t mxc=0; for(uint32_t i=0;i<HS;i++) if(h5[i].c>mxc) mxc=h5[i].c;
+  pthread_t th[64]; for(int i=0;i<NT;i++) pthread_create(&th[i],0,work,(void*)(intptr_t)i); for(int i=0;i<NT;i++) pthread_join(th[i],0);
+  double S=0,S2=0; for(int i=0;i<NT;i++){S+=sum[i];S2+=sum2[i];} double n=(double)(NS/NT)*NT; double m=S/n, var=S2/n-m*m, se=sqrt(var/n);
+  printf("|G16|=%d samples=2^%d mean=%.6e (2^%.4f) se=%.3e 99%%LCB=%.6e (2^%.4f) 99%%UCB=2^%.4f max_term_bound=%.3e\n",ng,(int)log2(n),m,log2(m),se,m-2.576*se,log2(m-2.576*se),log2(m+2.576*se),64.0*mxc/4294967296.0);
+  return 0; }
+```
+
+C.11 `mul32.py` and `heavy.py` (explicit emulations of the heavy forms, the tariffs of Section 14.2, H3)
+
+    fd968fc4700bf0c60f42702ff324c3be07a496db9f8dafbb91b28cb919434abd  mul32.py
+    6fdfd03de6e6bea80da921e2b3e08a0dabfa1589ef9716911c87e1b5965a2554  heavy.py
+
+`mul32.py` emulates the multiplies with 32-bit source operands; `heavy.py` emulates the 64-bit multiplies, the
+divides and the binary64 forms, and gives the per-form price used by `cgfull.py` and `bbvmix.py` (`cost`).
+Run directly, each checks its emulations against the instruction's definition and prints the largest count.
+
+```python
+"""Price of AArch64 multiplies whose multiplier is a 32-bit register, by exact emulation.
+
+A 64 x 64 product needs 64 shift-and-add steps (the v5 table's 400).  When both source operands are
+32-bit registers (umull, smull, umaddl, smaddl, umsubl, smsubl, umnegl, smnegl, and mul, madd,
+msub, mneg on w registers), the multiplier has 32 bits, so 32 steps suffice.  Each emulation below
+uses v5 primitives only (one count each) and is branch-free:
+
+    step i: bit = (b >> i) & 1; sel = 0 - bit; acc = acc + ((a << i) & sel)      6 primitives
+
+The signed forms use sext(a) * sext(b) = ua*ub - 2^32 (a31*ub + b31*ua) mod 2^64.
+`cost(mn, ops)` returns PRICE32 for these forms and defers to a64ops.cost otherwise.
+Run directly, it checks every emulation against the instruction's definition on random and edge
+inputs and prints the largest primitive count of each.
+"""
+import os
+import random
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import a64ops  # noqa: E402
+
+PRICE32 = 210
+M32, M64 = (1 << 32) - 1, (1 << 64) - 1
+ALWAYS32 = {'umull', 'smull', 'umaddl', 'smaddl', 'umsubl', 'smsubl', 'umnegl', 'smnegl'}
+BYDEST = {'mul', 'madd', 'msub', 'mneg'}
+
+
+def is_mul32(mn, ops):
+    base = mn.split('.')[0]
+    if base in ALWAYS32:
+        return True
+    return base in BYDEST and bool(ops) and (ops[0].startswith('w') or ops[0] == 'wzr')
+
+
+def cost(mn, ops):
+    if is_mul32(mn, ops):
+        return PRICE32, 'heavy'
+    return a64ops.cost(mn, ops)
+
+
+class Ctr:
+    def __init__(self):
+        self.n = 0
+
+    def op(self, v):
+        self.n += 1
+        return v % (1 << 256)
+
+
+def umul32(c, a, b):
+    """zext(a) * zext(b), 64-bit result."""
+    a = c.op(a & M32)
+    b = c.op(b & M32)
+    acc = 0
+    for i in range(32):
+        bit = c.op(c.op(b >> i) & 1)
+        sel = c.op(0 - bit)
+        acc = c.op(acc + c.op(c.op(a << i) & sel))
+    return acc                                      # < 2^64 already
+
+
+def smul32(c, a, b):
+    ua, ub = a & M32, b & M32
+    p = umul32(c, a, b)
+    a31 = c.op(c.op(ua >> 31) & 1)
+    b31 = c.op(c.op(ub >> 31) & 1)
+    t1 = c.op(c.op(ub << 32) & c.op(0 - a31))
+    t2 = c.op(c.op(ua << 32) & c.op(0 - b31))
+    return c.op(c.op(c.op(p - t1) - t2) & M64)
+
+
+EMUL = {
+    'umull':  lambda c, a, b, x: umul32(c, a, b),
+    'umaddl': lambda c, a, b, x: c.op(c.op(x + umul32(c, a, b)) & M64),
+    'umsubl': lambda c, a, b, x: c.op(c.op(x - umul32(c, a, b)) & M64),
+    'umnegl': lambda c, a, b, x: c.op(c.op(0 - umul32(c, a, b)) & M64),
+    'smull':  lambda c, a, b, x: smul32(c, a, b),
+    'smaddl': lambda c, a, b, x: c.op(c.op(x + smul32(c, a, b)) & M64),
+    'smsubl': lambda c, a, b, x: c.op(c.op(x - smul32(c, a, b)) & M64),
+    'smnegl': lambda c, a, b, x: c.op(c.op(0 - smul32(c, a, b)) & M64),
+    'mul.w':  lambda c, a, b, x: c.op(umul32(c, a, b) & M32),
+    'madd.w': lambda c, a, b, x: c.op(c.op(x + umul32(c, a, b)) & M32),
+    'msub.w': lambda c, a, b, x: c.op(c.op(x - umul32(c, a, b)) & M32),
+    'mneg.w': lambda c, a, b, x: c.op(c.op(0 - umul32(c, a, b)) & M32),
+}
+
+
+def sx(v):
+    v &= M32
+    return v - (1 << 32) if v >> 31 else v
+
+
+DEF = {
+    'umull':  lambda a, b, x: ((a & M32) * (b & M32)) & M64,
+    'umaddl': lambda a, b, x: (x + (a & M32) * (b & M32)) & M64,
+    'umsubl': lambda a, b, x: (x - (a & M32) * (b & M32)) & M64,
+    'umnegl': lambda a, b, x: (-(a & M32) * (b & M32)) & M64,
+    'smull':  lambda a, b, x: (sx(a) * sx(b)) & M64,
+    'smaddl': lambda a, b, x: (x + sx(a) * sx(b)) & M64,
+    'smsubl': lambda a, b, x: (x - sx(a) * sx(b)) & M64,
+    'smnegl': lambda a, b, x: (-sx(a) * sx(b)) & M64,
+    'mul.w':  lambda a, b, x: (a * b) & M32,
+    'madd.w': lambda a, b, x: (x + a * b) & M32,
+    'msub.w': lambda a, b, x: (x - a * b) & M32,
+    'mneg.w': lambda a, b, x: (-a * b) & M32,
+}
+
+
+def main():
+    rng = random.Random(20261008)
+    edge = [0, 1, 2, M32, M32 - 1, 1 << 31, (1 << 31) - 1, 0x9e3779b1]
+    worst = 0
+    for name, f in EMUL.items():
+        mx = 0
+        cases = [(a, b) for a in edge for b in edge] + [(rng.getrandbits(32), rng.getrandbits(32)) for _ in range(3000)]
+        for a, b in cases:
+            x = rng.getrandbits(64) if not name.endswith('.w') else rng.getrandbits(32)
+            c = Ctr()
+            got = f(c, a, b, x)
+            assert got == DEF[name](a, b, x), (name, a, b, x)
+            mx = max(mx, c.n)
+        worst = max(worst, mx)
+        print(f"{name:7s} emulation ops {mx:3d}  priced {PRICE32}  ok ({len(cases)} inputs)")
+    assert worst <= PRICE32
+    print(f"all forms match their definition; largest emulation {worst} <= {PRICE32}")
+
+
+if __name__ == '__main__':
+    main()
+```
+
+Output of `python3 mul32.py`:
+
+```
+umull   emulation ops 194  priced 210  ok (3064 inputs)
+umaddl  emulation ops 196  priced 210  ok (3064 inputs)
+umsubl  emulation ops 196  priced 210  ok (3064 inputs)
+umnegl  emulation ops 196  priced 210  ok (3064 inputs)
+smull   emulation ops 207  priced 210  ok (3064 inputs)
+smaddl  emulation ops 209  priced 210  ok (3064 inputs)
+smsubl  emulation ops 209  priced 210  ok (3064 inputs)
+smnegl  emulation ops 209  priced 210  ok (3064 inputs)
+mul.w   emulation ops 195  priced 210  ok (3064 inputs)
+madd.w  emulation ops 196  priced 210  ok (3064 inputs)
+msub.w  emulation ops 196  priced 210  ok (3064 inputs)
+mneg.w  emulation ops 196  priced 210  ok (3064 inputs)
+all forms match their definition; largest emulation 209 <= 210
+```
+
+```python
+"""Heavy AArch64 instructions reduced to collision-frontier-v5 primitives: explicit counted emulations.
+
+Each emulation computes the instruction's result from its operand registers using only v5 primitives
+on 256-bit words (addition/subtraction mod 2^256, AND/OR/XOR, shifts, comparison, conditional branch),
+counting every primitive.  A data-dependent branch costs 1; fixed-count loops are unrolled and cost
+nothing for control; select(c, a, b) is (a & -c) | (b & ~-c), four primitives.  Floating point is
+IEEE 754 binary64 with round-to-nearest-even, as AArch64 executes it with the default FPCR: NaN
+operands propagate quieted, invalid operations give the default NaN.
+
+Run directly, it checks every emulation against the host (AArch64 hardware through Python integers
+and floats; exact fractions for the fused multiply-add) on random and edge inputs and prints the
+largest primitive count of each form.  TARIFF is that maximum rounded up to a multiple of 8; `cost`
+prices a form by TARIFF (32-bit-operand multiplies by mul32.py) and defers to a64ops otherwise.
+"""
+import math
+import os
+import random
+import struct
+import sys
+from fractions import Fraction
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import a64ops  # noqa: E402
+import mul32  # noqa: E402
+
+MOD = 1 << 256
+M32, M64 = (1 << 32) - 1, (1 << 64) - 1
+FRAC, IMPL, EXPM = (1 << 52) - 1, 1 << 52, 0x7ff
+DNAN, QBIT, SIGN = 0x7ff8000000000000, 1 << 51, 1 << 63
+B = 4096                                        # exponent offset: every exponent below is kept non-negative
+
+
+class C:
+    def __init__(self):
+        self.n = 0
+
+    def _(self, v):
+        self.n += 1
+        return v % MOD
+
+    def add(self, a, b): return self._(a + b)
+    def sub(self, a, b): return self._(a - b)
+    def and_(self, a, b): return self._(a & b)
+    def or_(self, a, b): return self._(a | b)
+    def xor(self, a, b): return self._(a ^ b)
+    def shl(self, a, k): return self._(a << k)
+    def shr(self, a, k): return self._(a >> k)
+
+    def lt(self, a, b):
+        self.n += 1
+        return int(a < b)
+
+    def eq(self, a, b):
+        self.n += 1
+        return int(a == b)
+
+    def br(self, cond):
+        self.n += 1
+        return bool(cond)
+
+    def sel(self, c01, a, b):
+        m = self.sub(0, c01)
+        return self.or_(self.and_(a, m), self.and_(b, self.xor(m, MOD - 1)))
+
+
+# ---------------- integer multiply and divide ----------------
+def umul(c, a, b, steps):
+    acc = 0
+    for i in range(steps):
+        bit = c.and_(c.shr(b, i), 1)
+        acc = c.add(acc, c.and_(c.shl(a, i), c.sub(0, bit)))
+    return acc
+
+
+def e_mul64(c, a, b, x, kind):
+    p = umul(c, c.and_(a, M64), c.and_(b, M64), 64)
+    if kind == 'mul':
+        return c.and_(p, M64)
+    if kind == 'madd':
+        return c.and_(c.add(x, p), M64)
+    if kind == 'msub':
+        return c.and_(c.sub(x, p), M64)
+    return c.and_(c.sub(0, p), M64)              # mneg
+
+
+def e_umulh(c, a, b):
+    return c.shr(umul(c, c.and_(a, M64), c.and_(b, M64), 64), 64)
+
+
+def e_smulh(c, a, b):
+    ua, ub = c.and_(a, M64), c.and_(b, M64)
+    p = umul(c, ua, ub, 64)
+    a63, b63 = c.and_(c.shr(ua, 63), 1), c.and_(c.shr(ub, 63), 1)
+    p = c.sub(p, c.shl(c.and_(ub, c.sub(0, a63)), 64))
+    p = c.sub(p, c.shl(c.and_(ua, c.sub(0, b63)), 64))
+    return c.and_(c.shr(c.and_(p, (1 << 128) - 1), 64), M64)
+
+
+def udivq(c, a, n, bits):
+    rem = q = 0
+    for i in range(bits - 1, -1, -1):
+        rem = c.or_(c.shl(rem, 1), c.and_(c.shr(a, i), 1))
+        ge = c.xor(c.lt(rem, n), 1)
+        rem = c.sub(rem, c.and_(n, c.sub(0, ge)))
+        q = c.or_(c.shl(q, 1), ge)
+    return q, rem
+
+
+def e_div(c, a, b, bits, signed):
+    m = M64 if bits == 64 else M32
+    a, b = c.and_(a, m), c.and_(b, m)
+    if c.br(c.eq(b, 0)):
+        return 0
+    if not signed:
+        return udivq(c, a, b, bits)[0]
+    sa, sb = c.and_(c.shr(a, bits - 1), 1), c.and_(c.shr(b, bits - 1), 1)
+    ua = c.sel(sa, c.and_(c.sub(0, a), m), a)
+    ub = c.sel(sb, c.and_(c.sub(0, b), m), b)
+    q = udivq(c, ua, ub, bits)[0]
+    return c.and_(c.sel(c.xor(sa, sb), c.sub(0, q), q), m)
+
+
+# ---------------- binary64 core ----------------
+def unpack(c, x):
+    return c.and_(c.shr(x, 63), 1), c.and_(c.shr(x, 52), EXPM), c.and_(x, FRAC)
+
+
+def finite_parts(c, e, f):
+    """(m, E): value = m * 2^(E - B - 1075); subnormals use exponent field 1"""
+    z = c.eq(e, 0)
+    return c.sel(z, f, c.or_(f, IMPL)), c.add(c.sel(z, 1, e), B)
+
+
+def top_bit(c, m, steps):
+    """index of the highest set bit of m (m > 0), binary search over the given step sizes"""
+    t, top = m, 0
+    for k in steps:
+        hi = c.lt(0, c.shr(t, k))
+        t = c.sel(hi, c.shr(t, k), t)
+        top = c.sel(hi, c.add(top, k), top)
+    return top
+
+
+def round_pack(c, s, m, E, steps):
+    """correctly rounded binary64 of (-1)^s * m * 2^(E - B - 1075), m > 0 (m may carry a sticky bit in
+    its lowest position, at least two bits below the rounding position)"""
+    t = top_bit(c, m, steps)
+    lsb = c.sub(c.add(t, E), 52)                     # exponent (offset) of the result's unit in the last place
+    lsb = c.sel(c.lt(lsb, B + 1 - 0), B + 1, lsb)    # subnormal floor: unit 2^-1074 is offset exponent B + 1
+    if c.br(c.lt(lsb, c.add(E, 1))):                 # lsb <= E: exact (left shift by E - lsb >= 0)
+        q = c.shl(m, c.sub(E, lsb))
+    else:
+        sh = c.sub(lsb, E)                           # >= 1
+        if c.br(c.lt(250, sh)):
+            q, r, st = 0, 0, c.lt(0, m)
+        else:
+            q = c.shr(m, sh)
+            r = c.and_(c.shr(m, c.sub(sh, 1)), 1)
+            st = c.lt(0, c.and_(m, c.sub(c.shl(1, c.sub(sh, 1)), 1)))
+        q = c.add(q, c.and_(r, c.or_(st, c.and_(q, 1))))
+    if c.br(c.eq(c.shr(q, 53), 1)):
+        q, lsb = c.shr(q, 1), c.add(lsb, 1)
+    if c.br(c.lt(q, IMPL)):                          # subnormal (or zero)
+        return c.or_(c.shl(s, 63), q)
+    be = c.sub(lsb, B)                               # biased exponent of the result
+    if c.br(c.lt(2046, be)):
+        return c.or_(c.shl(s, 63), 0x7ff0000000000000)
+    return c.or_(c.or_(c.shl(s, 63), c.shl(be, 52)), c.and_(q, FRAC))
+
+
+def nan_of(c, a, ea, fa, b=None, eb=None, fb=None, x=None, ex=None, fx=None):
+    """AArch64 NaN propagation (default FPCR): the first signalling NaN operand, else the first quiet NaN
+    operand, quieted; None if no operand is a NaN"""
+    ops = [(v, e, f) for v, e, f in ((a, ea, fa), (b, eb, fb), (x, ex, fx)) if v is not None]
+    isnan = [c.and_(c.eq(e, EXPM), c.lt(0, f)) for v, e, f in ops]
+    anynan = 0
+    for k in isnan:
+        anynan = c.or_(anynan, k)
+    if not c.br(anynan):
+        return None
+    for (v, e, f), k in zip(ops, isnan):          # signalling NaNs first
+        if c.br(c.and_(k, c.eq(c.and_(f, QBIT), 0))):
+            return c.or_(v, QBIT)
+    for (v, e, f), k in zip(ops, isnan):
+        if c.br(k):
+            return c.or_(v, QBIT)
+    return None
+
+
+S56 = (32, 16, 8, 4, 2, 1)
+S112 = (64, 32, 16, 8, 4, 2, 1)
+S256 = (128, 64, 32, 16, 8, 4, 2, 1)
+
+
+def e_fadd(c, a, b, negb=False):
+    sa, ea, fa = unpack(c, a)
+    sb, eb, fb = unpack(c, b)
+    n = nan_of(c, a, ea, fa, b, eb, fb)
+    if n is not None:
+        return n
+    if negb:
+        sb = c.xor(sb, 1)
+    ia, ib = c.eq(ea, EXPM), c.eq(eb, EXPM)
+    if c.br(c.or_(ia, ib)):
+        if c.br(c.and_(c.and_(ia, ib), c.xor(sa, sb))):
+            return DNAN
+        return c.or_(c.shl(c.sel(ia, sa, sb), 63), 0x7ff0000000000000)
+    ma, xa = finite_parts(c, ea, fa)
+    mb, xb = finite_parts(c, eb, fb)
+    big = c.lt(c.or_(c.shl(xa, 60), ma), c.or_(c.shl(xb, 60), mb))
+    s1, x1, m1 = c.sel(big, sb, sa), c.sel(big, xb, xa), c.sel(big, mb, ma)
+    s2, x2, m2 = c.sel(big, sa, sb), c.sel(big, xa, xb), c.sel(big, ma, mb)
+    m1, m2 = c.shl(m1, 3), c.shl(m2, 3)
+    d = c.sub(x1, x2)
+    if c.br(c.lt(60, d)):
+        m2 = c.lt(0, m2)
+    else:
+        st = c.lt(0, c.and_(m2, c.sub(c.shl(1, d), 1)))
+        m2 = c.or_(c.shr(m2, d), st)
+    m = c.sel(c.xor(s1, s2), c.sub(m1, m2), c.add(m1, m2))
+    if c.br(c.eq(m, 0)):
+        return c.shl(c.and_(s1, s2), 63)
+    return round_pack(c, s1, m, c.sub(x1, 3), S56)
+
+
+def e_fmul(c, a, b, neg=False):
+    sa, ea, fa = unpack(c, a)
+    sb, eb, fb = unpack(c, b)
+    n = nan_of(c, a, ea, fa, b, eb, fb)
+    if n is not None:
+        return n
+    s = c.xor(sa, sb)
+    if neg:
+        s = c.xor(s, 1)
+    ia, ib = c.eq(ea, EXPM), c.eq(eb, EXPM)
+    za, zb = c.eq(c.and_(a, SIGN - 1), 0), c.eq(c.and_(b, SIGN - 1), 0)
+    if c.br(c.or_(ia, ib)):
+        if c.br(c.or_(za, zb)):
+            return DNAN
+        return c.or_(c.shl(s, 63), 0x7ff0000000000000)
+    if c.br(c.or_(za, zb)):
+        return c.shl(s, 63)
+    ma, xa = finite_parts(c, ea, fa)
+    mb, xb = finite_parts(c, eb, fb)
+    p = umul(c, ma, mb, 53)
+    return round_pack(c, s, p, c.sub(c.add(xa, xb), B + 1075), S112)
+
+
+def e_fma(c, a, b, x, nega=False, negx=False):
+    """x + a*b, one rounding (fmadd); fmsub x - a*b; fnmadd -x - a*b; fnmsub -x + a*b"""
+    sa, ea, fa = unpack(c, a)
+    sb, eb, fb = unpack(c, b)
+    sx, ex, fx = unpack(c, x)
+    ia, ib, ix = c.eq(ea, EXPM), c.eq(eb, EXPM), c.eq(ex, EXPM)
+    za, zb = c.eq(c.and_(a, SIGN - 1), 0), c.eq(c.and_(b, SIGN - 1), 0)
+    # AArch64: (inf * 0) + qNaN is the default NaN; otherwise NaN operands propagate (a, b, then x in Arm order
+    # for FMADD Rd = Ra + Rn*Rm: the addend is checked first)
+    if c.br(c.and_(c.or_(c.and_(ia, zb), c.and_(ib, za)), c.and_(ix, c.lt(0, fx)))):
+        return DNAN
+    n = nan_of(c, x, ex, fx, a, ea, fa, b, eb, fb)
+    if n is not None:
+        return n
+    if nega:
+        sa = c.xor(sa, 1)
+    if negx:
+        sx = c.xor(sx, 1)
+    sp = c.xor(sa, sb)
+    if c.br(c.or_(ia, ib)):
+        if c.br(c.or_(za, zb)):
+            return DNAN
+        if c.br(c.and_(ix, c.xor(sx, sp))):
+            return DNAN
+        return c.or_(c.shl(sp, 63), 0x7ff0000000000000)
+    if c.br(ix):
+        return c.or_(c.shl(sx, 63), 0x7ff0000000000000)
+    zx = c.eq(c.and_(x, SIGN - 1), 0)
+    if c.br(c.or_(za, zb)):
+        if c.br(zx):
+            return c.shl(c.and_(sp, sx), 63)
+        return c.or_(c.shl(sx, 63), c.and_(x, SIGN - 1))
+    ma, xa = finite_parts(c, ea, fa)
+    mb, xb = finite_parts(c, eb, fb)
+    P = umul(c, ma, mb, 53)
+    EP = c.sub(c.add(xa, xb), B + 1075)              # P * 2^(EP - B - 1075)
+    if c.br(zx):
+        return round_pack(c, sp, P, EP, S112)
+    mx, EX = finite_parts(c, ex, fx)
+    D = 140
+    if c.br(c.lt(c.add(EP, D), EX)):                 # x far above the product: the product is only a sticky bit
+        tx, tp, E = c.shl(mx, D), c.lt(0, P), c.sub(EX, D)
+    elif c.br(c.lt(c.add(EX, D), EP)):               # product far above x: x is only a sticky bit
+        tp, tx, E = c.shl(P, 3), c.lt(0, mx), c.sub(EP, 3)
+    elif c.br(c.lt(EX, EP)):
+        tp, tx, E = c.shl(P, c.sub(EP, EX)), mx, EX
+    else:
+        tp, tx, E = P, c.shl(mx, c.sub(EX, EP)), EP
+    big = c.lt(tp, tx)
+    s = c.sel(big, sx, sp)
+    m = c.sel(c.xor(sp, sx), c.sel(big, c.sub(tx, tp), c.sub(tp, tx)), c.add(tp, tx))
+    if c.br(c.eq(m, 0)):
+        return c.shl(c.and_(sp, sx), 63)
+    return round_pack(c, s, m, E, S256)
+
+
+def e_fdiv(c, a, b):
+    sa, ea, fa = unpack(c, a)
+    sb, eb, fb = unpack(c, b)
+    n = nan_of(c, a, ea, fa, b, eb, fb)
+    if n is not None:
+        return n
+    s = c.xor(sa, sb)
+    ia, ib = c.eq(ea, EXPM), c.eq(eb, EXPM)
+    za, zb = c.eq(c.and_(a, SIGN - 1), 0), c.eq(c.and_(b, SIGN - 1), 0)
+    if c.br(c.or_(c.and_(ia, ib), c.and_(za, zb))):
+        return DNAN
+    if c.br(c.or_(ia, zb)):
+        return c.or_(c.shl(s, 63), 0x7ff0000000000000)
+    if c.br(c.or_(ib, za)):
+        return c.shl(s, 63)
+    ma, xa = finite_parts(c, ea, fa)
+    mb, xb = finite_parts(c, eb, fb)
+    ta, tb = top_bit(c, ma, S56), top_bit(c, mb, S56)
+    ma, mb = c.shl(ma, c.sub(52, ta)), c.shl(mb, c.sub(52, tb))   # both in [2^52, 2^53)
+    q, rem = 0, ma
+    for _ in range(57):                              # 57 quotient bits of ma/mb
+        ge = c.xor(c.lt(rem, mb), 1)
+        rem = c.sub(rem, c.and_(mb, c.sub(0, ge)))
+        q = c.or_(c.shl(q, 1), ge)
+        rem = c.shl(rem, 1)
+    q = c.or_(c.shl(q, 1), c.lt(0, rem))             # sticky
+    E = c.sub(c.add(c.add(c.sub(xa, xb), ta), B + 1075), c.add(tb, 57))
+    return round_pack(c, s, q, E, S56)
+
+
+def e_fsqrt(c, a):
+    s, e, f = unpack(c, a)
+    n = nan_of(c, a, e, f)
+    if n is not None:
+        return n
+    if c.br(c.eq(c.and_(a, SIGN - 1), 0)):
+        return a
+    if c.br(s):
+        return DNAN
+    if c.br(c.eq(e, EXPM)):
+        return a
+    m, X = finite_parts(c, e, f)
+    t = top_bit(c, m, S56)
+    m = c.shl(m, c.sub(52, t))                       # [2^52, 2^53), value m * 2^(X - t + 52 - B - 1075 - 52)
+    X = c.sub(c.add(X, t), 52)
+    odd = c.and_(c.add(X, 1), 1)                     # make (X - B - 1075) even; B and 1075 parity: B even, 1075 odd
+    m = c.sel(odd, c.shl(m, 1), m)
+    X = c.sel(odd, c.sub(X, 1), X)
+    R = c.shl(m, 60)                                 # root of R has 57 bits
+    root = rem = 0
+    for i in range(56, -1, -1):
+        rem = c.or_(c.shl(rem, 2), c.and_(c.shr(R, 2 * i), 3))
+        trial = c.or_(c.shl(root, 2), 1)
+        ge = c.xor(c.lt(rem, trial), 1)
+        rem = c.sub(rem, c.and_(trial, c.sub(0, ge)))
+        root = c.or_(c.shl(root, 1), ge)
+    root = c.or_(c.shl(root, 1), c.lt(0, rem))
+    # sqrt(m * 2^(X-B-1075)) = sqrt(m * 2^60) * 2^((X-B-1075-60)/2) = root/2 * 2^(...); root has one sticky bit appended
+    # value = root * 2^((X - B - 1075 - 60)/2 - 1); the exponent is halved with an even offset 2^20
+    E = c.add(c.shr(c.sub(c.add(X, 1 << 20), B + 1075 + 60), 1), B + 1075 - 1 - (1 << 19))
+    return round_pack(c, 0, root, E, S56)
+
+
+def e_fcmp(c, a, b):
+    sa, ea, fa = unpack(c, a)
+    sb, eb, fb = unpack(c, b)
+    if c.br(c.or_(c.and_(c.eq(ea, EXPM), c.lt(0, fa)), c.and_(c.eq(eb, EXPM), c.lt(0, fb)))):
+        return 0b0011
+    if c.br(c.and_(c.eq(c.and_(a, SIGN - 1), 0), c.eq(c.and_(b, SIGN - 1), 0))):
+        return 0b0110
+    ka = c.sel(sa, c.and_(c.xor(a, M64), M64), c.or_(a, SIGN))
+    kb = c.sel(sb, c.and_(c.xor(b, M64), M64), c.or_(b, SIGN))
+    if c.br(c.eq(ka, kb)):
+        return 0b0110
+    return c.sel(c.lt(ka, kb), 0b1000, 0b0010)
+
+
+def e_cvtf(c, v, signed, bits, fbits=0):
+    m = M64 if bits == 64 else M32
+    v = c.and_(v, m)
+    s = 0
+    if signed:
+        s = c.and_(c.shr(v, bits - 1), 1)
+        v = c.sel(s, c.and_(c.sub(0, v), m), v)
+    if c.br(c.eq(v, 0)):
+        return 0
+    return round_pack(c, s, v, B + 1075 - fbits, S112)
+
+
+def e_fcvtz(c, a, signed, bits):
+    s, e, f = unpack(c, a)
+    if c.br(c.and_(c.eq(e, EXPM), c.lt(0, f))):
+        return 0
+    hi = (1 << (bits - 1)) - 1 if signed else (1 << bits) - 1
+    if c.br(c.lt(e, 1023)):                           # |a| < 1 (and zeros, subnormals)
+        return 0
+    m = c.or_(f, IMPL)
+    if c.br(c.lt(1022 + bits, e)):                    # |a| >= 2^bits (or inf): saturate
+        if c.br(s):
+            return ((1 << (bits - 1)) if signed else 0)
+        return hi
+    k = c.sub(e, 1075)                                # value = m * 2^(e - 1075)
+    if c.br(c.lt(e, 1075)):
+        mag = c.shr(m, c.sub(1075, e))
+    else:
+        mag = c.shl(m, k)
+    if c.br(s):
+        if not signed:
+            return 0
+        if c.br(c.lt(1 << (bits - 1), mag)):
+            return 1 << (bits - 1)
+        return c.and_(c.sub(0, mag), (1 << bits) - 1)
+    if c.br(c.lt(hi, mag)):
+        return hi
+    return mag
+
+
+# ---------------- reference and checks ----------------
+def bits(x): return struct.unpack('<Q', struct.pack('<d', x))[0]
+def flt(b): return struct.unpack('<d', struct.pack('<Q', b))[0]
+
+
+def rnd_double(rng):
+    r = rng.random()
+    if r < 0.05:
+        return rng.choice([0, SIGN, 0x7ff0000000000000, 0xfff0000000000000, DNAN, 0x7ff0000000000001 | QBIT,
+                           1, SIGN | 1, FRAC, IMPL, 0x7fefffffffffffff, 0x3ff0000000000000, 0xbff0000000000000])
+    if r < 0.15:
+        return (rng.getrandbits(1) << 63) | rng.getrandbits(52)            # subnormal
+    if r < 0.25:
+        return (rng.getrandbits(1) << 63) | (rng.choice([1, 2, 2045, 2046, 1023, 1022]) << 52) | rng.getrandbits(52)
+    if r < 0.45:
+        return (rng.getrandbits(1) << 63) | (rng.randint(1000, 1050) << 52) | rng.getrandbits(52)
+    return rng.getrandbits(64) & ~(0 if rng.random() < 0.5 else 0)
+
+
+def ref_fma(a, b, x):
+    A, Bv, X = flt(a), flt(b), flt(x)
+    if any(math.isnan(v) or math.isinf(v) for v in (A, Bv, X)):
+        return None
+    exact = Fraction(A) * Fraction(Bv) + Fraction(X)
+    if exact == 0:
+        # sign of an exact zero: (+0) unless both product and addend are negative-signed zeros/round to -0
+        sp = (a >> 63) ^ (b >> 63)
+        if A * Bv == 0 and X == 0:
+            return ((sp & (x >> 63)) << 63)
+        return 0
+    try:
+        return bits(float(exact))
+    except OverflowError:
+        return 0x7ff0000000000000 | ((1 << 63) if exact < 0 else 0)
+
+
+def check():
+    rng = random.Random(20261008)
+    worst = {}
+
+    def run(name, f, args, want):
+        c = C()
+        got = f(c, *args)
+        if want is not None:
+            assert got == want, (name, [hex(a) for a in args], hex(got), hex(want))
+        worst[name] = max(worst.get(name, 0), c.n)
+
+    N = 20000
+    for _ in range(N):
+        a, b, x = rng.getrandbits(64), rng.getrandbits(64), rng.getrandbits(64)
+        if rng.random() < 0.2:
+            a, b = rng.choice([0, 1, M64, 1 << 63, M64 - 1]), rng.choice([0, 1, M64, 1 << 63, 2])
+        run('mul64', lambda c, a, b, x: e_mul64(c, a, b, x, 'madd'), (a, b, x), (x + a * b) & M64)
+        run('mul64', lambda c, a, b, x: e_mul64(c, a, b, x, 'msub'), (a, b, x), (x - a * b) & M64)
+        run('umulh', e_umulh, (a, b), (a * b) >> 64)
+        sa = a - (1 << 64) if a >> 63 else a
+        sb = b - (1 << 64) if b >> 63 else b
+        run('smulh', e_smulh, (a, b), ((sa * sb) >> 64) & M64)
+        for nb in (32, 64):
+            m = (1 << nb) - 1
+            ua, ub = a & m, (b & m) >> rng.randint(0, nb - 1)
+            run(f'udiv{nb}', lambda c, a, b: e_div(c, a, b, nb, False), (ua, ub), (ua // ub) if ub else 0)
+            ia = ua - (1 << nb) if ua >> (nb - 1) else ua
+            ib = ub - (1 << nb) if ub >> (nb - 1) else ub
+            q = 0 if ib == 0 else (abs(ia) // abs(ib)) * (1 if (ia < 0) == (ib < 0) else -1)
+            run(f'sdiv{nb}', lambda c, a, b: e_div(c, a, b, nb, True), (ua, ub), q & m)
+    for _ in range(N * 5):
+        a, b, x = rnd_double(rng), rnd_double(rng), rnd_double(rng)
+        A, Bv = flt(a), flt(b)
+        run('fadd', lambda c, a, b: e_fadd(c, a, b), (a, b), bits(A + Bv))
+        run('fadd', lambda c, a, b: e_fadd(c, a, b, negb=True), (a, b), bits(A - Bv))
+        run('fmul', lambda c, a, b: e_fmul(c, a, b), (a, b), bits(A * Bv))
+        if Bv != 0 or math.isnan(A) or math.isnan(Bv):
+            want = bits(A / Bv) if Bv != 0 else None
+        else:
+            want = None
+        run('fdiv', e_fdiv, (a, b), want)
+        run('fsqrt', e_fsqrt, (a,), (bits(math.sqrt(A)) if A >= 0 or A == 0 else None) if not math.isnan(A) else None)
+        run('fma', e_fma, (a, b, x), ref_fma(a, b, x))
+        cmpw = 0b0011 if (math.isnan(A) or math.isnan(Bv)) else (0b0110 if A == Bv else (0b1000 if A < Bv else 0b0010))
+        run('fcmp', e_fcmp, (a, b), cmpw)
+        for nb in (32, 64):
+            v = rng.getrandbits(nb)
+            run('cvtf', lambda c, v: e_cvtf(c, v, False, nb), (v,), bits(float(v)))
+            sv = v - (1 << nb) if v >> (nb - 1) else v
+            run('cvtf', lambda c, v: e_cvtf(c, v, True, nb), (v,), bits(float(sv)))
+            fb = rng.randint(1, nb)
+            run('cvtf', lambda c, v: e_cvtf(c, v, False, nb, fb), (v,), bits(float(Fraction(v, 1 << fb))))
+            if not math.isnan(A):
+                t = math.trunc(A) if not math.isinf(A) else (1 << 70 if A > 0 else -(1 << 70))
+                hi_s, lo_s = (1 << (nb - 1)) - 1, -(1 << (nb - 1))
+                run('fcvtz', lambda c, a: e_fcvtz(c, a, True, nb), (a,), max(lo_s, min(hi_s, t)) & ((1 << nb) - 1))
+                run('fcvtz', lambda c, a: e_fcvtz(c, a, False, nb), (a,), max(0, min((1 << nb) - 1, t)))
+    return worst
+
+
+TARIFF = {'mul64': 392, 'umulh': 392, 'smulh': 408, 'udiv32': 360, 'sdiv32': 384, 'udiv64': 712, 'sdiv64': 736,
+          'fadd': 240, 'fmul': 520, 'fma': 600, 'fdiv': 824, 'fsqrt': 1008, 'fcmp': 48, 'cvtf': 152, 'fcvtz': 24}
+
+
+def cost(mn, ops):
+    base = mn.split('.')[0]
+    if mul32.is_mul32(mn, ops):
+        return mul32.PRICE32, 'heavy'
+    w = 'x' if ops and ops[0].startswith('x') else 'w'
+    if base in ('mul', 'madd', 'msub', 'mneg'):
+        return TARIFF['mul64'], 'heavy'
+    if base in ('umulh', 'smulh'):
+        return TARIFF[base], 'heavy'
+    if base in ('udiv', 'sdiv'):
+        return TARIFF[f"{base}{'64' if w == 'x' else '32'}"], 'div'
+    fp = {'fadd': 'fadd', 'fsub': 'fadd', 'fmul': 'fmul', 'fnmul': 'fmul', 'fmadd': 'fma', 'fmsub': 'fma',
+          'fnmadd': 'fma', 'fnmsub': 'fma', 'fdiv': 'fdiv', 'fsqrt': 'fsqrt', 'fcmp': 'fcmp', 'fcmpe': 'fcmp',
+          'ucvtf': 'cvtf', 'scvtf': 'cvtf', 'fcvtzs': 'fcvtz', 'fcvtzu': 'fcvtz'}
+    if base in fp and ops and ops[0][0] in 'dxw':
+        return TARIFF[fp[base]], ('div' if base in ('fdiv', 'fsqrt') else 'heavy')
+    return a64ops.cost(mn, ops)
+
+
+if __name__ == '__main__':
+    w = check()
+    for k in sorted(w):
+        print(f"{k:7s} largest emulation {w[k]:5d}  tariff {TARIFF[k]:5d}  {'ok' if w[k] <= TARIFF[k] else 'EXCEEDED'}")
+        assert w[k] <= TARIFF[k]
+    print("every emulation matches its reference on all checked inputs and stays within its tariff")
+```
+
+Output of `python3 heavy.py`:
+
+```
+cvtf    largest emulation   150  tariff   152  ok
+fadd    largest emulation   233  tariff   240  ok
+fcmp    largest emulation    48  tariff    48  ok
+fcvtz   largest emulation    24  tariff    24  ok
+fdiv    largest emulation   820  tariff   824  ok
+fma     largest emulation   596  tariff   600  ok
+fmul    largest emulation   514  tariff   520  ok
+fsqrt   largest emulation  1004  tariff  1008  ok
+mul64   largest emulation   388  tariff   392  ok
+sdiv32  largest emulation   382  tariff   384  ok
+sdiv64  largest emulation   734  tariff   736  ok
+smulh   largest emulation   401  tariff   408  ok
+udiv32  largest emulation   356  tariff   360  ok
+udiv64  largest emulation   708  tariff   712  ok
+umulh   largest emulation   387  tariff   392  ok
+every emulation matches its reference on all checked inputs and stays within its tariff
+```
+
+C.12 `cgfull.py` and `bbvmix.py` (pricing of complete profiles) and the profiles of Section 14.4
+
+    4446cbd4ace6eb2f59e4cfe2fe3c6585465d1d823418ca5d40090dd449005d4b  cgfull.py
+    8635f28f7d879a62ef4c957f9eebec5439e2b7d8457ad14f4f20daaffed8570a  bbvmix.py
+    3b77db5f1a1284da476a7db857e443500b7afd19ce0df2fe4e3d235c070fff3c  run3.sh (attempt 1, callgrind)
+    7d303d10558a31cbe4f42e957265887e07c4aa089590580f781ccd1478a9c999  runbbv.sh (attempts 1-3, exp-bbv)
+
+Both use `read_dump`, `disasm` and `objkey` of `cgmix.py` (C.2) and `cost` of `a64ops.py` (C.1) and `heavy.py`
+(C.11). The profiles ran in `debian:bookworm-slim` with valgrind 3.19.0 and PyPI z3-solver 4.15.4.0 (z3 SHA-256
+bbea82f99718e57d...), one container per run. Attempt 1's callgrind profile is the complete profile of our v4
+measurements (run with `-T:1200`, which it did not reach); attempts 2 and 3 are exp-bbv profiles, and attempt 1
+was also profiled with exp-bbv as the check of Section 14.4:
+
+```sh
+#!/bin/sh
+# runs inside the container; /w is the scratch dir
+cd /w/out
+for i in 1 2 3; do
+  m=/w/s-model.smt2; [ $i -gt 1 ] && m=/w/s-model$i.smt2
+  valgrind --tool=callgrind --dump-instr=yes --dump-line=no --compress-strings=no --compress-pos=no \
+    --dump-every-bb=8000000000 --callgrind-out-file=m$i.out z3 -T:1200 -st $m > m$i.z3 2> m$i.vg &
+done
+wait
+```
+
+```sh
+#!/bin/sh
+# inside the container: basic-block vectors of z3 attempt $1 over the whole run (committed model and seed)
+i=$1
+cd /w/bbv
+date -u +%FT%TZ > b$i.start
+nice -n 10 valgrind --tool=exp-bbv --vex-guest-chase=no --vex-guest-max-insns=100 --interval-size=2000000000 \
+  --bb-out-file=b$i.bb --pc-out-file=b$i.pc z3 -st /w/s-model$i.smt2 > b$i.z3 2> b$i.vg
+echo "exit $?" > b$i.done; date -u +%FT%TZ >> b$i.done
+```
+
+```python
+"""Complete-run per-form cost from callgrind interval dumps (--dump-instr=yes, uncompressed).
+
+usage: cgfull.py BINDIR OUT.json DUMP [DUMP ...]
+For each dump (one interval) and for the whole run: executed instructions, mapped instructions,
+primitive operations under a64ops.cost (unmapped instructions priced at 1024), the heavy and
+divide instructions by mnemonic and register width.  Writes one JSON object.
+"""
+import collections
+import json
+import os
+import re
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from a64ops import cost  # noqa: E402
+import heavy  # noqa: E402
+from cgmix import read_dump, disasm, objkey  # noqa: E402
+
+
+def width(ops):
+    return 'w' if ops and re.match(r'^w\d+$|^wzr$', ops[0]) else 'x' if ops and re.match(r'^x\d+$|^xzr$', ops[0]) else 'v'
+
+
+def main():
+    bindir, outp, dumps = sys.argv[1], sys.argv[2], sys.argv[3:]
+    per = [(d, read_dump(d)) for d in dumps]
+    wanted = collections.defaultdict(set)
+    for _, cnt in per:
+        for ob, c in cnt.items():
+            k = objkey(ob or '')
+            if k:
+                wanted[k].update(c)
+            wanted['z3.elf'].update(a for a in c if a >= 0x400000)
+    dis = {k: disasm(os.path.join(bindir, k), w) for k, w in wanted.items() if os.path.exists(os.path.join(bindir, k))}
+    rows = []
+    tot = collections.Counter()
+    heavy_all = collections.Counter()
+    for name, cnt in per:
+        r = collections.Counter()
+        hv = collections.Counter()
+        for ob, c in cnt.items():
+            k = objkey(ob or '')
+            for a, n in c.items():
+                ins = dis.get(k, {}).get(a) if k else None
+                if ins is None and a >= 0x400000 and 'z3.elf' in dis:
+                    ins = dis['z3.elf'].get(a)
+                r['instr'] += n
+                if ins is None:
+                    r['unmapped'] += n
+                    r['ops'] += 1024 * n
+                    r['ops8'] += 1024 * n
+                    continue
+                o, cl = cost(ins[0], ins[1])
+                r['ops'] += o * n
+                h8 = heavy.cost(ins[0], ins[1])
+                r['ops8'] += h8[0] * n
+                if h8[1] in ('heavy', 'div'):
+                    r['opsH'] += h8[0] * n
+                r[cl] += n
+                if cl in ('heavy', 'div'):
+                    hv[f"{ins[0]}.{width(ins[1])}"] += n
+        r['mean'] = r['ops'] / r['instr']
+        r['mean8'] = r['ops8'] / r['instr']
+        rows.append(dict(dump=os.path.basename(name), **{k: v for k, v in r.items()},
+                         heavy_forms=dict(hv.most_common(12))))
+        for k in ('instr', 'unmapped', 'ops', 'ops8', 'opsH', 'heavy', 'div', 'ordinary', 'unknown'):
+            tot[k] += r[k]
+        heavy_all.update(hv)
+    whole = dict(tot)
+    whole['mean'] = tot['ops'] / tot['instr']
+    whole['max_interval_mean'] = max(r['mean'] for r in rows)
+    whole['mean8'] = tot['ops8'] / tot['instr']
+    whole['max_interval_mean8'] = max(r['mean8'] for r in rows)
+    whole['heavy_forms'] = dict(heavy_all.most_common(30))
+    json.dump(dict(intervals=rows, whole=whole), open(outp, 'w'), indent=1)
+    print(json.dumps({k: whole[k] for k in ('instr', 'unmapped', 'heavy', 'div', 'mean', 'max_interval_mean', 'mean8', 'max_interval_mean8')}))
+
+
+if __name__ == '__main__':
+    main()
+```
+
+```python
+"""Per-form cost of a complete run from exp-bbv basic-block vectors.
+
+usage: bbvmix.py BINDIR PREFIX OUT.json [GROUP]
+PREFIX.pc lists every superblock (id, start address, function); PREFIX.bb has one line per interval of
+2e9 executed instructions with the instructions executed in each superblock.  With
+--vex-guest-chase=no and --vex-guest-max-insns=100, a superblock is the straight run of instructions
+from its start up to and including the first control transfer, or 100 instructions.  This script
+disassembles each superblock from the executable that ran, checks that every count is a multiple of
+its length (entries x length), and prices every executed instruction with heavy.cost (32-bit-operand
+multiplies by mul32.py, the other heavy forms by their checked emulations, the rest by a64ops).
+Intervals are reported in groups of GROUP (default 20, i.e. 4e10 instructions).
+"""
+import bisect
+import collections
+import json
+import os
+import re
+import subprocess
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import a64ops  # noqa: E402
+import heavy  # noqa: E402
+from cgmix import disasm  # noqa: E402
+
+UNCOND = re.compile(r'^(b|bl|br|blr|ret|retaa|retab|braa|brab|blraa|blrab|svc|hvc|brk|udf|eret)$')
+CF = re.compile(r'^(b|bl|br|blr|ret|retaa|retab|braa|brab|blraa|blrab|cbz|cbnz|tbz|tbnz|svc|hvc|brk|udf|eret)$|^b\.')
+LIBS = ['ld-linux-aarch64.so.1', 'libstdc++.so.6', 'libm.so.6', 'libgcc_s.so.1', 'libc.so.6']
+
+
+def symbols(path):
+    out = {}
+    for extra in (['-D'], []):
+        p = subprocess.run(['xcrun', 'llvm-nm', '--defined-only'] + extra + [path], capture_output=True, text=True)
+        for line in p.stdout.splitlines():
+            f = line.split()
+            if len(f) == 3 and f[1] in 'TtWwi':
+                out.setdefault(f[2].split('@')[0], int(f[0], 16))
+    return out
+
+
+def main():
+    bindir, prefix, outp = sys.argv[1], sys.argv[2], sys.argv[3]
+    group = int(sys.argv[4]) if len(sys.argv) > 4 else 20
+    pcs = {}
+    for line in open(prefix + '.pc'):
+        f = line.rstrip('\n').split(':')
+        if f[0] == 'F':
+            pcs[int(f[1])] = (int(f[2], 16), f[3] if len(f) > 3 else '')
+    # library bases from blocks that start exactly at a known function entry
+    bases = {}
+    syms = {lib: symbols(os.path.join(bindir, lib)) for lib in LIBS}
+    votes = collections.defaultdict(collections.Counter)
+    for bid, (addr, fn) in pcs.items():
+        if addr >= 0x4000000:
+            for lib in LIBS:
+                if fn in syms[lib]:
+                    votes[lib][addr - syms[lib][fn]] += 1
+    for lib in LIBS:
+        if votes[lib]:
+            bases[lib] = votes[lib].most_common(1)[0][0]
+
+    def owner(addr):
+        if addr < 0x4000000:
+            return 'z3.elf', addr
+        best = None
+        for lib, b in bases.items():
+            if addr >= b and (best is None or b > bases[best]):
+                best = lib
+        return (best, addr - bases[best]) if best else (None, addr)
+
+    wanted = collections.defaultdict(set)
+    loc = {}
+    for bid, (addr, fn) in pcs.items():
+        ob, off = owner(addr)
+        loc[bid] = (ob, off)
+        if ob:
+            wanted[ob].update(off + 4 * i for i in range(100))
+    dis = {ob: disasm(os.path.join(bindir, ob), w) for ob, w in wanted.items()}
+    blocks = {}
+    for bid, (ob, off) in loc.items():
+        ins = []
+        if ob:
+            for i in range(100):
+                d = dis[ob].get(off + 4 * i)
+                if d is None:
+                    break
+                ins.append(d)
+                if CF.match(d[0]):
+                    break
+        full = list(ins)                             # the run through conditional branches, for counts that are
+        if ob and ins and not UNCOND.match(ins[-1][0]):  # not a multiple of the block length (bounded, see below)
+            for i in range(len(ins), 100):
+                d = dis[ob].get(off + 4 * i)
+                if d is None:
+                    break
+                full.append(d)
+                if UNCOND.match(d[0]):
+                    break
+        blocks[bid] = (ob, ins, full)
+    rows, cur = [], collections.Counter()
+    tot = collections.Counter()
+    bad = collections.Counter()
+    heavyforms = collections.Counter()
+    nint = 0
+
+    def flush():
+        if cur['instr']:
+            r = dict(cur)
+            r['mean'] = r['ops5'] / r['instr']
+            r['mean8'] = r['ops8'] / r['instr']
+            rows.append(r)
+            for k in ('instr', 'ops5', 'ops8', 'opsB', 'opsH', 'unmapped', 'nondiv', 'heavy'):
+                tot[k] += cur[k]
+            cur.clear()
+
+    for line in open(prefix + '.bb'):
+        if not line.startswith('T'):
+            continue
+        nint += 1
+        for tok in line[1:].split():
+            if not tok.startswith(':'):
+                continue
+            _, bid, cnt = tok.split(':')
+            bid, cnt = int(bid), int(cnt)
+            ob, ins, full = blocks.get(bid, (None, [], []))
+            cur['instr'] += cnt
+            if not ins:
+                cur['unmapped'] += cnt
+                cur['ops5'] += 1024 * cnt
+                cur['ops8'] += 1024 * cnt
+                bad['unmapped_blocks'] += 1
+                continue
+            L = len(ins)
+            if cnt % L:
+                # the superblock ran past a conditional branch: its count mixes partial and full runs, so every
+                # counted instruction is charged at the largest price in the run through to the next unconditional
+                # transfer (an upper bound)
+                cur['nondiv'] += cnt
+                bad[bid] += 1
+                best5 = best8 = 0.0
+                acc5 = acc8 = 0
+                for k, (mn, ops) in enumerate(full, 1):      # any mix of runs that leave at a branch of the
+                    acc5 += a64ops.cost(mn, ops)[0]           # superblock: bounded by the largest prefix mean
+                    acc8 += heavy.cost(mn, ops)[0]
+                    if k == len(full) or CF.match(mn):
+                        best5, best8 = max(best5, acc5 / k), max(best8, acc8 / k)
+                cur['ops5'] += best5 * cnt
+                cur['ops8'] += best8 * cnt
+                cur['opsB'] += best8 * cnt
+                cur['opsH'] += sum(heavy.cost(mn, ops)[0] for mn, ops in full
+                                   if heavy.cost(mn, ops)[1] in ('heavy', 'div')) / len(full) * cnt
+                continue
+            e = cnt / L
+            for mn, ops in ins:
+                c5, cl = a64ops.cost(mn, ops)
+                c8, cl8 = heavy.cost(mn, ops)
+                cur['ops5'] += c5 * e
+                cur['ops8'] += c8 * e
+                if cl8 in ('heavy', 'div'):
+                    cur['opsH'] += c8 * e
+                if cl in ('heavy', 'div'):
+                    cur['heavy'] += e
+                    heavyforms[mn + '.' + (ops[0][0] if ops else '')] += e
+        if nint % group == 0:
+            flush()
+    flush()
+    whole = dict(tot)
+    whole['mean'] = tot['ops5'] / tot['instr']
+    whole['mean8'] = tot['ops8'] / tot['instr']
+    whole['max_interval_mean'] = max(r['mean'] for r in rows)
+    whole['max_interval_mean8'] = max(r['mean8'] for r in rows)
+    whole['bbv_intervals'] = nint
+    m = re.search(r'Total instructions: (\d+)', open(prefix + '.vg').read())
+    whole['total_instructions'] = int(m.group(1)) if m else None
+    whole['tail'] = whole['total_instructions'] - tot['instr'] if m else None
+    whole['blocks'] = len(pcs)
+    whole['nondiv_blocks'] = sum(1 for k in bad if k != 'unmapped_blocks')
+    whole['bases'] = {k: hex(v) for k, v in bases.items()}
+    whole['heavy_forms'] = {k: round(v) for k, v in heavyforms.most_common(40)}
+    json.dump(dict(intervals=rows, whole=whole), open(outp, 'w'), indent=1)
+    print(json.dumps({k: whole[k] for k in ('instr', 'total_instructions', 'tail', 'unmapped', 'nondiv', 'mean', 'mean8',
+                                            'max_interval_mean', 'max_interval_mean8', 'bbv_intervals', 'blocks',
+                                            'nondiv_blocks', 'bases')}))
+
+
+if __name__ == '__main__':
+    main()
+```
+
+Per-interval results (instructions; per-form mean at this filing's prices; at the v5 table's prices). exp-bbv
+intervals are groups of 20 reported intervals of 2e9 instructions; the final partial interval is not reported
+by exp-bbv and is charged separately (Section 14.4):
+
+| run | interval | instructions | per-form mean | at v5 prices |
+|---|---|---|---|---|
+| z3 attempt 1 (callgrind) | 1 | 40,087,099,456 | 4.6482 | 6.8188 |
+| z3 attempt 1 (callgrind) | 2 | 41,189,100,762 | 5.3079 | 8.0692 |
+| z3 attempt 1 (callgrind) | 3 | 41,095,860,245 | 4.8733 | 7.2452 |
+| z3 attempt 1 (callgrind) | 4 | 41,026,080,417 | 5.1882 | 7.8455 |
+| z3 attempt 1 (callgrind) | 5 | 41,602,060,040 | 5.3503 | 8.1576 |
+| z3 attempt 1 (callgrind) | 6 | 40,527,755,090 | 4.8289 | 7.1670 |
+| z3 attempt 1 (callgrind) | whole (reported) | 245,527,956,010 | 5.0356 | 7.5558 |
+| z3 attempt 2 (exp-bbv) | 1 | 40,000,000,001 | 4.7780 | 7.0691 |
+| z3 attempt 2 (exp-bbv) | 2 | 40,000,000,000 | 5.3008 | 8.0500 |
+| z3 attempt 2 (exp-bbv) | 3 | 40,000,000,000 | 5.1344 | 7.7263 |
+| z3 attempt 2 (exp-bbv) | 4 | 40,000,000,000 | 5.9655 | 9.3134 |
+| z3 attempt 2 (exp-bbv) | 5 | 40,000,000,000 | 5.4644 | 8.3682 |
+| z3 attempt 2 (exp-bbv) | 6 | 40,000,000,000 | 5.4418 | 8.3240 |
+| z3 attempt 2 (exp-bbv) | 7 | 40,000,000,000 | 4.9266 | 7.3503 |
+| z3 attempt 2 (exp-bbv) | 8 | 40,000,000,000 | 5.3962 | 8.2331 |
+| z3 attempt 2 (exp-bbv) | 9 | 40,000,000,000 | 5.2972 | 8.0475 |
+| z3 attempt 2 (exp-bbv) | 10 | 40,000,000,000 | 5.0592 | 7.5922 |
+| z3 attempt 2 (exp-bbv) | 11 | 40,000,000,000 | 5.2870 | 8.0332 |
+| z3 attempt 2 (exp-bbv) | 12 | 40,000,000,000 | 5.7628 | 8.9414 |
+| z3 attempt 2 (exp-bbv) | 13 | 40,000,000,000 | 5.5809 | 8.5920 |
+| z3 attempt 2 (exp-bbv) | 14 | 40,000,000,000 | 5.2601 | 7.9840 |
+| z3 attempt 2 (exp-bbv) | 15 | 40,000,000,000 | 5.5605 | 8.5525 |
+| z3 attempt 2 (exp-bbv) | 16 | 40,000,000,000 | 5.5914 | 8.6146 |
+| z3 attempt 2 (exp-bbv) | 17 | 40,000,000,000 | 4.9348 | 7.3578 |
+| z3 attempt 2 (exp-bbv) | 18 | 40,000,000,000 | 5.5484 | 8.5217 |
+| z3 attempt 2 (exp-bbv) | 19 | 40,000,000,000 | 5.3130 | 8.0788 |
+| z3 attempt 2 (exp-bbv) | 20 | 40,000,000,000 | 4.9997 | 7.4999 |
+| z3 attempt 2 (exp-bbv) | 21 | 40,000,000,000 | 5.2239 | 7.9147 |
+| z3 attempt 2 (exp-bbv) | 22 | 40,000,000,000 | 5.2799 | 8.0264 |
+| z3 attempt 2 (exp-bbv) | 23 | 40,000,000,000 | 4.9143 | 7.3402 |
+| z3 attempt 2 (exp-bbv) | 24 | 40,000,000,000 | 4.6353 | 6.8312 |
+| z3 attempt 2 (exp-bbv) | 25 | 40,000,000,000 | 5.1514 | 7.7914 |
+| z3 attempt 2 (exp-bbv) | 26 | 40,000,000,000 | 5.6506 | 8.7243 |
+| z3 attempt 2 (exp-bbv) | 27 | 40,000,000,000 | 5.5787 | 8.5862 |
+| z3 attempt 2 (exp-bbv) | 28 | 40,000,000,000 | 5.3848 | 8.2247 |
+| z3 attempt 2 (exp-bbv) | 29 | 40,000,000,000 | 5.1583 | 7.8028 |
+| z3 attempt 2 (exp-bbv) | 30 | 40,000,000,000 | 5.1456 | 7.7840 |
+| z3 attempt 2 (exp-bbv) | 31 | 40,000,000,000 | 5.2138 | 7.8952 |
+| z3 attempt 2 (exp-bbv) | 32 | 40,000,000,000 | 4.9993 | 7.4930 |
+| z3 attempt 2 (exp-bbv) | 33 | 40,000,000,000 | 4.4958 | 6.5473 |
+| z3 attempt 2 (exp-bbv) | 34 | 40,000,000,000 | 5.0463 | 7.5878 |
+| z3 attempt 2 (exp-bbv) | 35 | 40,000,000,000 | 4.8708 | 7.2403 |
+| z3 attempt 2 (exp-bbv) | 36 | 40,000,000,000 | 5.0106 | 7.5232 |
+| z3 attempt 2 (exp-bbv) | 37 | 34,000,000,000 | 4.8302 | 7.1554 |
+| z3 attempt 2 (exp-bbv) | whole (reported) | 1,474,000,000,001 | 5.2230 | 7.9144 |
+| z3 attempt 3 (exp-bbv) | 1 | 40,000,000,001 | 4.6831 | 6.8935 |
+| z3 attempt 3 (exp-bbv) | 2 | 40,000,000,000 | 5.2492 | 7.9556 |
+| z3 attempt 3 (exp-bbv) | 3 | 40,000,000,000 | 5.2211 | 7.9049 |
+| z3 attempt 3 (exp-bbv) | 4 | 40,000,000,000 | 5.3019 | 8.0643 |
+| z3 attempt 3 (exp-bbv) | 5 | 40,000,000,000 | 5.4663 | 8.3745 |
+| z3 attempt 3 (exp-bbv) | 6 | 40,000,000,000 | 5.5393 | 8.5136 |
+| z3 attempt 3 (exp-bbv) | 7 | 40,000,000,000 | 4.9825 | 7.4571 |
+| z3 attempt 3 (exp-bbv) | 8 | 40,000,000,000 | 5.3763 | 8.2091 |
+| z3 attempt 3 (exp-bbv) | 9 | 40,000,000,000 | 5.4559 | 8.3536 |
+| z3 attempt 3 (exp-bbv) | 10 | 40,000,000,000 | 5.2972 | 8.0591 |
+| z3 attempt 3 (exp-bbv) | 11 | 40,000,000,000 | 5.1981 | 7.8519 |
+| z3 attempt 3 (exp-bbv) | 12 | 40,000,000,000 | 5.4615 | 8.3647 |
+| z3 attempt 3 (exp-bbv) | 13 | 40,000,000,000 | 5.2352 | 7.9392 |
+| z3 attempt 3 (exp-bbv) | 14 | 40,000,000,000 | 5.7319 | 8.8894 |
+| z3 attempt 3 (exp-bbv) | 15 | 40,000,000,000 | 5.2499 | 7.9688 |
+| z3 attempt 3 (exp-bbv) | 16 | 40,000,000,000 | 5.2374 | 7.9360 |
+| z3 attempt 3 (exp-bbv) | 17 | 40,000,000,000 | 4.9158 | 7.3135 |
+| z3 attempt 3 (exp-bbv) | 18 | 40,000,000,000 | 5.2550 | 7.9741 |
+| z3 attempt 3 (exp-bbv) | 19 | 40,000,000,000 | 5.1329 | 7.7452 |
+| z3 attempt 3 (exp-bbv) | 20 | 40,000,000,000 | 5.3607 | 8.1904 |
+| z3 attempt 3 (exp-bbv) | 21 | 34,000,000,000 | 5.4386 | 8.3282 |
+| z3 attempt 3 (exp-bbv) | whole (reported) | 834,000,000,001 | 5.2745 | 8.0114 |
+| z3 attempt 1 (exp-bbv, check) | 1 | 40,000,000,001 | 4.6503 | 6.8293 |
+| z3 attempt 1 (exp-bbv, check) | 2 | 40,000,000,000 | 5.3036 | 8.0634 |
+| z3 attempt 1 (exp-bbv, check) | 3 | 40,000,000,000 | 4.8577 | 7.2116 |
+| z3 attempt 1 (exp-bbv, check) | 4 | 40,000,000,000 | 5.2501 | 7.9665 |
+| z3 attempt 1 (exp-bbv, check) | 5 | 40,000,000,000 | 5.3331 | 8.1242 |
+| z3 attempt 1 (exp-bbv, check) | 6 | 40,000,000,000 | 4.8352 | 7.1736 |
+| z3 attempt 1 (exp-bbv, check) | 7 | 4,000,000,000 | 5.3589 | 8.1880 |
+| z3 attempt 1 (exp-bbv, check) | whole (reported) | 244,000,000,001 | 5.0436 | 7.5717 |
+
+C.13 `scount.c` (the synthetic completion check as a counted program, replayed exactly; Section 16.6)
+
+    57d1f683e00854e1ba3bc0c7dbd4da65dd57952b5c0e228f03f79805759c9b72  scount.c
+    bd7e1281a7edbfd8b587a1d30d2345dc127182bd406dd8e28c213e0cc21ed906  r31sim3.c (B.6, unchanged)
+    d273c909ecab18fcad5cc3768c5b0d181f7cb3f4d9792f885b32b2a501a474de  sp_own.h of attempt 1 (written by check_s.py, B.2, from the attempt's z3 model)
+    bb76cf1d3700dac3039e0c43f317110c0de75d24b3f5884af783ab0f5092dae8  sp_own.h of attempt 2 (written by check_s.py, B.2, from the attempt's z3 model)
+    84003700c7015677e60700dc5c044d1c6e7c0acc652e6bf12d536f9aa5084437  sp_own.h of attempt 3 (written by check_s.py, B.2, from the attempt's z3 model)
+
+Each run is built in a directory holding its `sp_own.h`, `r31sim3.c`, `scount.c` and the generated headers of C.6:
+`cc -O2 -o scount scount.c -lpthread`, then `./scount 0` (run 1), `./scount 275316736` (run 2) and
+`./scount 250544128` (run 3).
+
+```c
+/* scount.c: the synthetic completion check (r31sim3.c, B.6) as a counted program of 256-bit
+   word-RAM primitives, replayed exactly.
+
+   The primitives, helpers, table build, s1 inverse and self-check are those of kcount.c (C.7).
+   r31sim3.c is included unchanged as the reference.  A synthetic run is deterministic: one worker
+   thread whose coin stream is seeded by the seed and the thread index, trials in batches of 2^16.
+   A run with N trials therefore executes exactly the first N trials of that stream, so replaying
+   N = the run's logged trial count reproduces it; the replay checks every counter of the run's
+   FINAL line and, trial by trial, the counters of r31sim3's own process_sim on the same draws.
+
+   The trial loop indexes the records in the order the run's own qsort left them (the same multiset
+   and key order as the counted merge sort; equal keys may sit in a different order, and a trial picks
+   its record by index).  The 64-bit remainder r % nrec is computed by branch-free restoring division (64 steps of 9
+   primitives).  cc -O2 -I S2 -o scount2 scount.c -lpthread (S2/sp_own.h: attempt 2's S)
+   ./scount2 275316736 */
+#define main r31det3_main
+#include "r31sim3.c"
+#undef main
+#include <assert.h>
+
+typedef unsigned __int128 W;
+static __thread uint64_t OPS;
+/* one primitive each; functions, so the count is sequenced whatever the operand nesting */
+static inline W ADD(W a, W b) { OPS++; return a + b; }
+static inline W SUB(W a, W b) { OPS++; return a - b; }
+static inline W AND(W a, W b) { OPS++; return a & b; }
+static inline W OR(W a, W b)  { OPS++; return a | b; }
+static inline W XOR(W a, W b) { OPS++; return a ^ b; }
+static inline W NOT(W a)      { OPS++; return ~a; }
+static inline W SHR(W a, int n) { OPS++; return a >> n; }
+static inline W SHL(W a, int n) { OPS++; return a << n; }
+static inline W LD(W v)       { OPS++; return v; }
+static inline W LDX(const uint64_t *bm, W a) { OPS++; return (W)bm[(uint64_t)a]; }
+static inline W CMPNZ(W a)    { OPS++; return a != 0; }
+static inline W CMPEQ(W a, W b) { OPS++; return a == b; }
+static inline W CMPLT(W a, W b) { OPS++; return a < b; }
+#define ST(dst,v) do { W st_v_ = (v); OPS++; (dst) = st_v_; } while (0)
+#define BR()     (OPS++)
+static const W M = 0xffffffffu, M64 = 0xffffffffffffffffull, BM = 0, C63 = 63, C1 = 1;
+static inline W MSK(W a) { return AND(a, M); }
+
+#include "gval.h"
+#include "klane.h"
+#include "klane_ref.h"
+#include "klane_opt.h"
+
+/* 64 x 64 -> low 64 bits by shift-and-add, branch-free: acc += (a << i) & -(b >> i & 1); 6 per bit + mask */
+static W mul64_c(W a, W b) {
+  W acc = 0;
+  for (int i = 0; i < 64; i++) { W bit = AND(SHR(b, i), C1); W sel = SUB(0, bit); acc = ADD(acc, AND(SHL(a, i), sel)); }
+  return AND(acc, M64);
+}
+/* splitmix64 as sm() of B.4; state in memory */
+static W sm_c(uint64_t *s) {
+  W z = AND(ADD(LD(*s), LD(0x9e3779b97f4a7c15ull)), M64); ST(*s, (uint64_t)z);
+  z = XOR(z, SHR(z, 30)); z = mul64_c(z, LD(0xbf58476d1ce4e5b9ull));
+  z = XOR(z, SHR(z, 27)); z = mul64_c(z, LD(0x94d049bb133111ebull));
+  return XOR(z, SHR(z, 31));
+}
+
+/* v clean (reduced to 32 bits).  dup(v) = v | v << 32 holds two copies, so bits 0..31 of
+   dup(v) >> n are ROTR(v, n); one dup serves the three rotations of a Sigma or sigma. */
+static W dup_c(W v) { return OR(v, SHL(v, 32)); }
+static W bs0_c(W v) { W d = dup_c(v); return XOR(XOR(SHR(d, 2), SHR(d, 13)), SHR(d, 22)); }
+static W bs1_c(W v) { W d = dup_c(v); return XOR(XOR(SHR(d, 6), SHR(d, 11)), SHR(d, 25)); }
+static W sg0d_c(W d, W v) { return XOR(XOR(SHR(d, 7), SHR(d, 18)), SHR(v, 3)); }
+static W sg1d_c(W d, W v) { return XOR(XOR(SHR(d, 17), SHR(d, 19)), SHR(v, 10)); }
+static W sg0_c(W v) { return sg0d_c(dup_c(v), v); }
+static W sg1_c(W v) { return sg1d_c(dup_c(v), v); }
+static W ch_c(W e, W f, W g) { return XOR(g, AND(e, XOR(f, g))); }
+static W maj_c(W a, W b, W c) { return OR(AND(a, b), AND(c, OR(a, b))); }
+
+/* compress31 of B.4: chaining value and block in memory, schedule stored, output stored */
+static void compress31_c(const uint32_t cv[8], const uint32_t m[16], uint32_t out[8]) {
+  uint32_t Wm[31];
+  for (int t = 16; t < 31; t++) {
+    const uint32_t *p2 = t - 2 < 16 ? &m[t - 2] : &Wm[t - 2], *p7 = t - 7 < 16 ? &m[t - 7] : &Wm[t - 7];
+    W v = MSK(ADD(ADD(ADD(sg1_c(LD(*p2)), LD(*p7)), sg0_c(LD(m[t - 15]))), LD(m[t - 16])));
+    ST(Wm[t], (uint32_t)v);
+  }
+  W a = LD(cv[0]), b = LD(cv[1]), c = LD(cv[2]), d = LD(cv[3]), e = LD(cv[4]), f = LD(cv[5]), g = LD(cv[6]), h = LD(cv[7]);
+  for (int t = 0; t < 31; t++) {
+    W w = LD(t < 16 ? m[t] : Wm[t]);
+    W T1 = ADD(ADD(ADD(ADD(h, bs1_c(e)), ch_c(e, f, g)), LD(K[t])), w);
+    W T2 = ADD(bs0_c(a), maj_c(a, b, c));
+    h = g; g = f; f = e; e = MSK(ADD(d, T1)); d = c; c = b; b = a; a = MSK(ADD(T1, T2));
+  }
+  W r[8] = {a, b, c, d, e, f, g, h};
+  for (int i = 0; i < 8; i++) ST(out[i], (uint32_t)MSK(ADD(LD(cv[i]), r[i])));
+}
+
+/* ---------------- table build (build_table of B.4), counted ---------------- */
+typedef struct { uint64_t lo, hi, ops; uint32_t *v7, *v8, *g16; int n7, n8, ng; } p1_t;
+static void *p1_worker(void *arg) {
+  p1_t *p = arg; OPS = 0; p->n7 = p->n8 = p->ng = 0;
+  W rD8 = LD(D8), rC8 = LD(C8), rD7 = LD(D7), rC7 = LD(C7), rD9 = LD(D9), rD18 = LD(D18);
+  for (uint64_t w64 = p->lo; w64 < p->hi; w64++) {
+    W w = (W)w64;                                       /* loop register, clean */
+    W dw = dup_c(w), s0w = sg0d_c(dw, w), s1w = sg1d_c(dw, w);
+    W d8 = MSK(SUB(sg0_c(MSK(ADD(w, rD8))), s0w));
+    W hit8 = CMPEQ(d8, rC8); BR(); if (hit8) { ST(p->v8[p->n8], (uint32_t)w); p->n8 = (int)ADD(p->n8, C1); }
+    W d7 = MSK(SUB(sg0_c(MSK(ADD(w, rD7))), s0w));
+    W hit7 = CMPEQ(d7, rC7); BR(); if (hit7) { ST(p->v7[p->n7], (uint32_t)w); p->n7 = (int)ADD(p->n7, C1); }
+    W d9 = MSK(SUB(sg1_c(MSK(ADD(w, rD9))), s1w));
+    W hit9 = CMPEQ(d9, rD18); BR(); if (hit9) { ST(p->g16[p->ng], (uint32_t)w); p->ng = (int)ADD(p->ng, C1); }
+    W nw = MSK(ADD(w, C1)); (void)nw; W more = CMPNZ(nw); BR(); (void)more;  /* w++ until it wraps to 0 */
+  }
+  p->ops = OPS; return NULL;
+}
+
+static rec_t *recs_c; static int nrec_c; static uint64_t *bitmap_c; static uint32_t G16_c[64]; static int ng16_c;
+static uint32_t s1inv_col_c[32];
+
+static uint64_t ops_p1, ops_p2, ops_sort, ops_bitmap, ops_s1inv, ops_selftest;
+
+static void msort_c(rec_t *a, rec_t *tmp, int n) {
+  /* bottom-up merge sort on key; per element moved: 2 key loads, compare, branch, 6 loads, 6 stores,
+     2 index increments, loop compare and branch */
+  for (int width = 1; width < n; width = (int)ADD(SHL(width, 1), 0)) {
+    for (int lo = 0; lo < n; lo += 2 * width) {
+      int mid = lo + width < n ? lo + width : n, hi = lo + 2 * width < n ? lo + 2 * width : n;
+      OPS += 6;                                       /* mid, hi: two adds, two compares, two selects */
+      int i = lo, j = mid, k = lo;
+      while (k < hi) {
+        int takeleft;
+        if (i < mid && j < hi) { W ki = LD(a[i].key), kj = LD(a[j].key); takeleft = (int)CMPLT(kj, ki) == 0; BR(); }
+        else { OPS += 2; takeleft = i < mid; }
+        rec_t *s = takeleft ? &a[i] : &a[j];
+        tmp[k] = (rec_t){(uint32_t)LD(s->key), (uint32_t)LD(s->A0), (uint32_t)LD(s->E3), (uint32_t)LD(s->E4), (uint32_t)LD(s->W7), (uint32_t)LD(s->W8)};
+        OPS += 6;                                     /* six stores */
+        if (takeleft) i = (int)ADD(i, C1); else j = (int)ADD(j, C1);
+        k = (int)ADD(k, C1); OPS += 4;                /* i < mid, j < hi, k < hi compares and branch */
+      }
+      OPS += 3;                                       /* lo += 2*width, compare, branch */
+    }
+    memcpy(a, tmp, sizeof(rec_t) * n); OPS += 12ull * n;  /* copy back: 6 loads + 6 stores each */
+    OPS += 2;
+  }
+}
+
+static int cmpall(const void *p, const void *q) { return memcmp(p, q, sizeof(rec_t)); }
+static void build_table_c(void) {
+  static uint32_t V7c[1024], V8c[65536];
+  /* P1: 2^32 scan in 12 slices */
+  enum { NT = 12 }; p1_t sl[NT]; pthread_t th[NT];
+  static uint32_t v7s[NT][1024], v8s[NT][65536], g16s[NT][64];
+  for (int i = 0; i < NT; i++) {
+    sl[i].lo = (1ull << 32) * i / NT; sl[i].hi = (1ull << 32) * (i + 1) / NT;
+    sl[i].v7 = v7s[i]; sl[i].v8 = v8s[i]; sl[i].g16 = g16s[i];
+    pthread_create(&th[i], 0, p1_worker, &sl[i]);
+  }
+  int n7 = 0, n8 = 0; ng16_c = 0; ops_p1 = 0;
+  for (int i = 0; i < NT; i++) {
+    pthread_join(th[i], 0); ops_p1 += sl[i].ops;
+    memcpy(V7c + n7, sl[i].v7, 4 * sl[i].n7); n7 += sl[i].n7;
+    memcpy(V8c + n8, sl[i].v8, 4 * sl[i].n8); n8 += sl[i].n8;
+    memcpy(G16_c + ng16_c, sl[i].g16, 4 * sl[i].ng); ng16_c += sl[i].ng;
+  }
+  ops_p1 -= (NT - 1) * 6;                             /* the six constant loads are paid once */
+  /* P2 */
+  OPS = 0;
+  uint32_t cm4 = 0, va4 = 0, cm3 = 0, va3 = 0; const char *r4 = "============0===0=========01===0", *r3 = "==========================10====";
+  for (int k = 0; k < 32; k++) { uint32_t b = 1u << (31 - k); if (r4[k] != '=') { cm4 |= b; if (r4[k] == '1') va4 |= b; } if (r3[k] != '=') { cm3 |= b; if (r3[k] == '1') va3 |= b; } }
+  OPS += 4 * 32 * 4;                                  /* the two row masks: 32 cells, at most 4 primitives each, both rows (loose) */
+  W lhs7 = MSK(SUB(SUB(SUB(LD(EB(7)), LD(EA(7))), SUB(bs1_c(LD(EB(6))), bs1_c(LD(EA(6))))), LD(D7)));
+  W lhs6 = MSK(SUB(SUB(SUB(LD(EB(6)), LD(EA(6))), SUB(bs1_c(LD(EB(5))), bs1_c(LD(EA(5))))), LD(D6)));
+  rec_t *rc = malloc(sizeof(rec_t) * (1 << 20)); int nr = 0;
+  W e8 = LD(EA(8)), a4 = LD(AA(4)), e7 = LD(EA(7)), e6 = LD(EA(6)), e5 = LD(EA(5)), eb6 = LD(EB(6)), eb5 = LD(EB(5));
+  W a3 = LD(AA(3)), a2 = LD(AA(2)), a1 = LD(AA(1)), k8 = LD(K[8]), k7 = LD(K[7]);
+  W base4 = MSK(SUB(SUB(SUB(e8, a4), bs1_c(e7)), ch_c(e7, e6, e5)));          /* loop-invariant part of E4 */
+  W bs0a3 = bs0_c(a3), maja3 = maj_c(a3, a2, a1), bs0a2 = bs0_c(a2), bs1e6 = bs1_c(e6);
+  W rcm4 = LD(cm4), rva4 = LD(va4), rcm3 = LD(cm3), rva3 = LD(va3);
+  for (int i = 0; i < n8; i++) {
+    OPS += 3;                                         /* i < n8, branch, i++ */
+    W W8 = LD(V8c[i]);
+    W E4 = MSK(SUB(SUB(base4, k8), W8));
+    W ok4 = CMPEQ(AND(E4, rcm4), rva4); BR(); if (!ok4) continue;
+    W d7 = MSK(SUB(ch_c(eb6, eb5, E4), ch_c(e6, e5, E4)));
+    W ok7 = CMPEQ(d7, lhs7); BR(); if (!ok7) continue;
+    W A0 = MSK(ADD(ADD(SUB(E4, a4), bs0a3), maja3));
+    W b3 = MSK(SUB(SUB(SUB(e7, a3), bs1e6), ch_c(e6, e5, E4)));               /* E3 without K[7], W7 */
+    W maj2 = maj_c(a2, a1, A0);
+    for (int j = 0; j < n7; j++) {
+      OPS += 3;
+      W W7 = LD(V7c[j]);
+      W E3 = MSK(SUB(SUB(b3, k7), W7));
+      W ok3 = CMPEQ(AND(E3, rcm3), rva3); BR(); if (!ok3) continue;
+      W d6 = MSK(SUB(ch_c(eb5, E4, E3), ch_c(e5, E4, E3)));
+      W ok6 = CMPEQ(d6, lhs6); BR(); if (!ok6) continue;
+      W Am1 = MSK(ADD(ADD(SUB(E3, a3), bs0a2), maj2));
+      rc[nr] = (rec_t){(uint32_t)Am1, (uint32_t)A0, (uint32_t)E3, (uint32_t)E4, (uint32_t)W7, (uint32_t)W8};
+      OPS += 6; nr = (int)ADD(nr, C1);                /* six stores, count */
+    }
+    OPS += 1;                                         /* final j compare */
+  }
+  OPS += 1;
+  ops_p2 = OPS;
+  /* sort */
+  OPS = 0; rec_t *tmp = malloc(sizeof(rec_t) * nr); msort_c(rc, tmp, nr); free(tmp); ops_sort = OPS;
+  recs_c = rc; nrec_c = nr;
+  /* bitmap: 2^18 zero stores, then one bit per record */
+  OPS = 0; bitmap_c = calloc(1 << 18, 8); OPS += 1u << 18;
+  for (int i = 0; i < nr; i++) {
+    OPS += 3;
+    W b = SHR(LD(rc[i].key), 8); W wi = SHR(b, 6); W addr = ADD(BM, wi);
+    W word = LDX(bitmap_c, addr); W bit = SHL(C1, (int)AND(b, C63));
+    bitmap_c[(uint64_t)addr] = (uint64_t)OR(word, bit); OPS++;
+  }
+  ops_bitmap = OPS;
+  /* compare with r31det3's build_table (called before) */
+  assert(n7 == 512 && n8 == 49408 && ng16_c == ng16 && nr == nrec);
+  for (int i = 0; i < ng16; i++) assert(G16_c[i] == G16[i]);
+  assert(memcmp(bitmap_c, bitmap, 8u << 18) == 0);
+  for (int i = 0; i < nr; i++) { assert(recs_c[i].key == recs[i].key); if (i) assert(recs_c[i - 1].key <= recs_c[i].key); }
+  /* same multiset of records: sort copies by all fields */
+  rec_t *x1 = malloc(sizeof(rec_t) * nr), *x2 = malloc(sizeof(rec_t) * nr);
+  memcpy(x1, recs, sizeof(rec_t) * nr); memcpy(x2, recs_c, sizeof(rec_t) * nr);
+  qsort(x1, nr, sizeof(rec_t), cmpall); qsort(x2, nr, sizeof(rec_t), cmpall); assert(memcmp(x1, x2, sizeof(rec_t) * nr) == 0);
+  free(x1); free(x2);
+}
+
+/* build_s1inv of B.4, counted (pivot search branches on data that is fixed: s1 itself) */
+static void build_s1inv_c(void) {
+  OPS = 0;
+  uint32_t val[32], comb[32];
+  for (int i = 0; i < 32; i++) { W b = SHL(C1, i); ST(val[i], (uint32_t)MSK(sg1_c(b))); ST(comb[i], (uint32_t)b); }
+  for (int k = 0; k < 32; k++) {
+    int p = -1;
+    for (int i = k; i < 32; i++) { OPS += 3; W bit = AND(SHR(LD(val[i]), k), C1); BR(); if (bit) { p = i; break; } }
+    BR();
+    uint32_t tv = (uint32_t)LD(val[k]), tc = (uint32_t)LD(comb[k]);
+    ST(val[k], (uint32_t)LD(val[p])); ST(comb[k], (uint32_t)LD(comb[p])); ST(val[p], tv); ST(comb[p], tc);
+    for (int i = 0; i < 32; i++) {
+      OPS += 2; W bit = AND(SHR(LD(val[i]), k), C1); W ne = CMPNZ(i != k); BR(); BR();
+      if (i != k && bit) { ST(val[i], (uint32_t)XOR(LD(val[i]), LD(val[k]))); ST(comb[i], (uint32_t)XOR(LD(comb[i]), LD(comb[k]))); }
+      (void)ne;
+    }
+  }
+  for (int k = 0; k < 32; k++) ST(s1inv_col_c[k], (uint32_t)LD(comb[k]));
+  for (int t = 0; t < 1000; t++) {                    /* the 1000-value self-check */
+    OPS += 3; W y = MSK(ADD(mul64_c(LD((uint32_t)t), LD(2654435761u)), LD(12345u)));
+    assert((uint32_t)y == (uint32_t)(t * 2654435761u + 12345));
+    W xx = 0;
+    for (int k = 0; k < 32; k++) { W bit = AND(SHR(y, k), C1); xx = XOR(xx, AND(LD(s1inv_col_c[k]), SUB(0, bit))); }
+    W back = MSK(sg1_c(MSK(xx))); W ok = CMPEQ(back, y); BR(); assert(ok);
+  }
+  for (int k = 0; k < 32; k++) assert(s1inv_col_c[k] == s1inv_col[k]);
+  ops_s1inv = OPS;
+}
+static W s1inv_c(W y) {
+  W xx = 0;
+  for (int k = 0; k < 32; k++) { W bit = AND(SHR(y, k), C1); xx = XOR(xx, AND(LD(s1inv_col_c[k]), SUB(0, bit))); }
+  return MSK(xx);
+}
+
+/* group set-up of worker (B.4), counted; returns m[0..14], group values, completion coins */
+static void gvalues_from_words(const uint32_t m[15], gval_t *G);
+static void gsetup_c(uint64_t g, uint32_t m[15], gval_t *G, uint64_t *crs) {
+  OPS += 3;                                           /* groups counter: load, add, store */
+  uint64_t rs = (uint64_t)XOR(XOR(LD(seed_base), mul64_c(g, LD(0x9e3779b97f4a7c15ull))), LD(0x5bd1e9955bd1e995ull)); OPS++;
+  for (int i = 0; i < 15; i++) ST(m[i], (uint32_t)AND(sm_c(&rs), M));
+  ST(*crs, (uint64_t)XOR(XOR(LD(seed_base), mul64_c(g, LD(0xd1b54a32d192ed03ull))), LD(0x2545f4914f6cdd1dull)));
+  gvalues_from_words(m, G);
+}
+
+/* rec address: base + 6*r (records are six words) */
+#define RADDR(r) ADD(ADD(SHL((W)(r), 2), SHL((W)(r), 1)), 0)
+
+/* ---------------- the synthetic check, counted ---------------- */
+typedef struct { uint64_t recs, v6, joint, both, comp_try, comp_ok, coll; } sstat_t;
+
+/* r % n, branch-free restoring division over the 64 bits of r */
+static W urem64_c(W r, W n) {
+  W rem = 0;
+  for (int i = 63; i >= 0; i--) {
+    rem = OR(SHL(rem, 1), AND(SHR(r, i), C1));
+    W ge = XOR(CMPLT(rem, n), C1);
+    rem = SUB(rem, AND(n, SUB(0, ge)));
+  }
+  return rem;
+}
+
+static int complete_sim_c(uint32_t Wv[16], W g, uint64_t *rs) {
+  W W9 = LD(Wv[9]), W1 = LD(Wv[1]), W0 = LD(Wv[0]);
+  W s0W1 = sg0_c(W1);
+  W W14 = s1inv_c(MSK(SUB(SUB(SUB(g, W9), s0W1), W0))); ST(Wv[14], (uint32_t)W14);
+  W chk = CMPEQ(MSK(ADD(ADD(ADD(sg1_c(W14), W9), s0W1), W0)), g); BR(); if (!chk) return 0;
+#define LA(i) LD(AA(i))
+#define LE(i) LD(EA(i))
+#define LAB(i) LD(AB(i))
+#define LEB(i) LD(EB(i))
+  W b13 = MSK(ADD(ADD(ADD(ADD(LA(9), LE(9)), bs1_c(LE(12))), ch_c(LE(12), LE(11), LE(10))), LD(K[13])));
+  W b13b = MSK(ADD(ADD(ADD(ADD(LAB(9), LEB(9)), bs1_c(LEB(12))), ch_c(LEB(12), LEB(11), LEB(10))), LD(K[13])));
+  W eq = CMPEQ(b13, b13b); BR(); if (!eq) return 0;
+  W m13 = LD(~0x10c08000u & 0xffffffffu), o13 = LD(0x00408000u), m15 = LD(~0x00008004u & 0xffffffffu), o15 = LD(0x00000004u);
+  for (int t = 0; t < (1 << 14); t++) {
+    OPS += 3;
+    W E13 = OR(AND(sm_c(rs), m13), o13); W W13 = MSK(SUB(E13, b13));
+    W A13 = MSK(ADD(ADD(SUB(E13, LA(9)), bs0_c(LA(12))), maj_c(LA(12), LA(11), LA(10))));
+    W A13b = MSK(ADD(ADD(SUB(E13, LAB(9)), bs0_c(LAB(12))), maj_c(LAB(12), LAB(11), LAB(10))));
+    W e1 = CMPEQ(A13, A13b); BR(); if (!e1) return 0;
+    W E14 = MSK(ADD(ADD(ADD(ADD(ADD(LA(10), LE(10)), bs1_c(E13)), ch_c(E13, LE(12), LE(11))), LD(K[14])), W14));
+    W E14b = MSK(ADD(ADD(ADD(ADD(ADD(LAB(10), LEB(10)), bs1_c(E13)), ch_c(E13, LEB(12), LEB(11))), LD(K[14])), W14));
+    W e2 = CMPEQ(MSK(SUB(E14b, E14)), LD(0x8004u)); BR(); if (!e2) continue;
+    W A14 = MSK(ADD(ADD(SUB(E14, LA(10)), bs0_c(A13)), maj_c(A13, LA(12), LA(11))));
+    W A14b = MSK(ADD(ADD(SUB(E14b, LAB(10)), bs0_c(A13)), maj_c(A13, LAB(12), LAB(11))));
+    W e3 = CMPEQ(A14, A14b); BR(); if (!e3) continue;
+    W f15 = MSK(ADD(ADD(ADD(ADD(LA(11), LE(11)), bs1_c(E14)), ch_c(E14, E13, LE(12))), LD(K[15])));
+    W f15b = MSK(ADD(ADD(ADD(ADD(LAB(11), LEB(11)), bs1_c(E14b)), ch_c(E14b, E13, LEB(12))), LD(K[15])));
+    W e4 = CMPEQ(f15, f15b); BR(); if (!e4) continue;
+    for (int u = 0; u < (1 << 8); u++) {
+      OPS += 3;
+      W E15 = OR(AND(sm_c(rs), m15), o15); W W15 = MSK(SUB(E15, f15));
+      W E16 = MSK(ADD(ADD(ADD(ADD(ADD(LA(12), LE(12)), bs1_c(E15)), ch_c(E15, E14, E13)), LD(K[16])), g));
+      W E16b = MSK(ADD(ADD(ADD(ADD(ADD(ADD(LAB(12), LEB(12)), bs1_c(E15)), ch_c(E15, E14b, E13)), LD(K[16])), g), LD(D9)));
+      W e5 = CMPEQ(E16, E16b); BR(); if (!e5) continue;
+      W A15 = MSK(ADD(ADD(SUB(E15, LA(11)), bs0_c(A14)), maj_c(A14, A13, LA(12)))); (void)A15;
+      W f17 = MSK(ADD(ADD(ADD(A13, E13), bs1_c(E16)), ch_c(E16, E15, E14)));
+      W f17b = MSK(ADD(ADD(ADD(A13, E13), bs1_c(E16)), ch_c(E16, E15, E14b)));
+      W e6 = CMPEQ(f17, f17b); BR(); if (!e6) continue;
+      ST(Wv[13], (uint32_t)W13); ST(Wv[15], (uint32_t)W15); return 1;
+    }
+    OPS += 1;
+  }
+  return 0;
+}
+
+static void process_sim_c(const rec_t *q, const uint32_t cv[8], uint64_t *rs, sstat_t *st) {
+  st->recs++; OPS += 3;
+  W Am1 = LD(cv[0]), Am2 = LD(cv[1]), Am3 = LD(cv[2]), Am4 = LD(cv[3]), Em1 = LD(cv[4]), Em2 = LD(cv[5]), Em3 = LD(cv[6]), Em4 = LD(cv[7]);
+  W A0 = LD(q->A0), A1 = LD(AA(1)), A2 = LD(AA(2));
+  W E0 = MSK(SUB(SUB(ADD(A0, Am4), bs0_c(Am1)), maj_c(Am1, Am2, Am3)));
+  W E1 = MSK(SUB(SUB(ADD(A1, Am3), bs0_c(A0)), maj_c(A0, Am1, Am2)));
+  W E2 = MSK(SUB(SUB(ADD(A2, Am2), bs0_c(A1)), maj_c(A1, A0, Am1)));
+  W E3 = LD(q->E3), E4 = LD(q->E4), E5 = LD(EA(5)), E6 = LD(EA(6));
+  W Ex[11] = {Em4, Em3, Em2, Em1, E0, E1, E2, E3, E4, E5, E6};
+  W Ax[7] = {Am4, Am3, Am2, Am1, A0, A1, A2};
+  uint32_t Wv[16];
+  for (int i = 0; i <= 6; i++) {
+    W v = MSK(SUB(SUB(SUB(SUB(SUB(Ex[i + 4], Ax[i]), Ex[i]), bs1_c(Ex[i + 3])), ch_c(Ex[i + 3], Ex[i + 2], Ex[i + 1])), LD(K[i])));
+    ST(Wv[i], (uint32_t)v);
+  }
+  ST(Wv[7], (uint32_t)LD(q->W7)); ST(Wv[8], (uint32_t)LD(q->W8));
+  for (int i = 9; i <= 12; i++) ST(Wv[i], (uint32_t)LD(S_W[i]));
+  ST(Wv[13], 0u); ST(Wv[14], 0u); ST(Wv[15], 0u);
+  W W6 = LD(Wv[6]);
+  W v6 = CMPEQ(MSK(SUB(sg0_c(MSK(ADD(W6, LD(D6)))), sg0_c(W6))), LD(C6));
+  W W5 = LD(Wv[5]);
+  W tgt = MSK(SUB(0, MSK(SUB(sg0_c(MSK(ADD(W5, LD(D5)))), sg0_c(W5)))));
+  W c18 = ADD(ADD(LD(Wv[11]), sg0_c(LD(Wv[3]))), LD(Wv[2]));
+  int gsel = -1;
+  for (int k = 0; ; k++) {
+    W c = CMPLT((W)k, LD(ng16_c)); BR(); if (!c) break;
+    W gaddr = ADD(0, (W)k); W gk = LD(G16_c[(int)gaddr]);
+    W w18 = MSK(ADD(sg1_c(gk), c18));
+    W d = MSK(SUB(sg1_c(MSK(ADD(w18, LD(D18)))), sg1_c(w18)));
+    W e = CMPEQ(d, tgt); BR();
+    if (e) { gsel = k; break; }
+    OPS += 1;
+  }
+  BR(); if (v6) { st->v6++; OPS += 3; }
+  BR(); if (gsel < 0) return;
+  st->joint++; OPS += 3; BR(); if (v6) { st->both++; OPS += 3; }
+  st->comp_try++; OPS += 3;
+  uint32_t Wc[16]; for (int i = 0; i < 16; i++) ST(Wc[i], (uint32_t)LD(Wv[i]));
+  int ok = complete_sim_c(Wc, LD(G16_c[gsel]), rs); BR();
+  if (!ok) return;
+  st->comp_ok++; OPS += 3;
+  BR(); if (!v6) return;
+  uint32_t Wb[16]; for (int i = 0; i < 16; i++) ST(Wb[i], (uint32_t)LD(Wc[i]));
+  const uint32_t dd[5] = {D5, D6, D7, D8, D9};
+  for (int i = 0; i < 5; i++) ST(Wb[5 + i], (uint32_t)MSK(ADD(LD(Wb[5 + i]), LD(dd[i]))));
+  uint32_t o1[8], o2[8]; compress31_c(cv, Wc, o1); compress31_c(cv, Wb, o2);
+  int same = 1;
+  for (int i = 0; i < 8; i++) { W e = CMPEQ(LD(o1[i]), LD(o2[i])); BR(); same &= (int)e; }
+  if (same) { st->coll++; OPS += 3; }
+}
+
+/* the synthetic run's worker (simworker of B.6), counted, for exactly N trials */
+static uint64_t sim_ops; static sstat_t sim_st; static uint64_t sim_N;
+static void *sim_counted(void *arg) {
+  (void)arg; OPS = 0;
+  uint64_t rs = (uint64_t)XOR(LD(seed_base), mul64_c(LD(0x51ed27u), C1));  /* tid 0: 0x51ed27 * 1 */
+  W rn = LD(nrec_c);
+  for (uint64_t b = 0; b < sim_N >> 16; b++) {
+    for (int it = 0; it < (1 << 16); it++) {
+      OPS += 3;                                         /* it < 2^16, branch, it++ */
+      W r = sm_c(&rs);
+      W idx = urem64_c(r, rn);
+      const rec_t *q = &recs[(uint32_t)idx]; W a = RADDR(idx); (void)a;   /* records in the run's (qsort) order */
+      uint32_t cv[8]; ST(cv[0], (uint32_t)LD(q->key));
+      W r2 = sm_c(&rs), r3 = sm_c(&rs), r4 = sm_c(&rs);
+      ST(cv[1], (uint32_t)SHR(r, 32)); ST(cv[2], (uint32_t)AND(r2, M)); ST(cv[3], (uint32_t)SHR(r2, 32));
+      ST(cv[4], (uint32_t)AND(r3, M)); ST(cv[5], (uint32_t)SHR(r3, 32)); ST(cv[6], (uint32_t)AND(r4, M)); ST(cv[7], (uint32_t)SHR(r4, 32));
+      process_sim_c(q, cv, &rs, &sim_st);
+    }
+    OPS += 3 + 3 + 3;                                   /* trials += 2^16; stop flag load, test, branch; batch loop */
+  }
+  sim_ops = OPS; return NULL;
+}
+/* reference: simworker's batch loop of B.6, verbatim, for exactly N trials */
+static uint64_t ref_N;
+static void *sim_ref(void *arg) {
+  int tid = 0; uint64_t rs = seed_base ^ (0x51ed27ull * (uint64_t)(tid + 1)); ctr_t *c = &ctrs[tid]; (void)arg;
+  for (uint64_t b = 0; b < ref_N >> 16; b++) {
+    for (int it = 0; it < (1 << 16); it++) {
+      uint64_t r = sm(&rs); const rec_t *q = &recs[(uint32_t)(r % (uint64_t)nrec)];
+      uint32_t cv[8]; cv[0] = q->key; uint64_t r2 = sm(&rs), r3 = sm(&rs), r4 = sm(&rs);
+      cv[1] = (uint32_t)(r >> 32); cv[2] = (uint32_t)r2; cv[3] = (uint32_t)(r2 >> 32); cv[4] = (uint32_t)r3; cv[5] = (uint32_t)(r3 >> 32); cv[6] = (uint32_t)r4; cv[7] = (uint32_t)(r4 >> 32);
+      process_sim(tid, q, cv, &rs); }
+    c->trials += 1 << 16; }
+  return NULL;
+}
+
+int main(int argc, char **argv) {
+  seed_base = 0x5eed3;                                  /* r31sim3 1 20 5eed3 ... sim */
+  outf = fopen("/dev/null", "w");
+  uint64_t N = argc > 1 ? strtoull(argv[1], 0, 10) : 0;
+  build_s1inv(); build_table();
+  build_table_c();
+  printf("table: records=%d identical to build_table; ops P1 %llu P2 %llu sort %llu bitmap %llu\n", nrec_c, (unsigned long long)ops_p1,
+         (unsigned long long)ops_p2, (unsigned long long)ops_sort, (unsigned long long)ops_bitmap);
+  build_s1inv_c();
+  printf("ops s1inv+check %llu\n", (unsigned long long)ops_s1inv);
+  {
+    OPS = 0; uint64_t r2 = 7;
+    for (int t = 0; t < 2000; t++) {
+      OPS += 3;
+      uint32_t mb[16]; for (int i = 0; i < 16; i++) ST(mb[i], (uint32_t)AND(sm_c(&r2), M));
+      gval_t G; gvalues_from_words(mb, &G);
+      uint32_t kc; (void)klane_opt(&G, LD(mb[15]), bitmap_c, &kc);
+      uint32_t ref[8]; compress31_c(IV, mb, ref);
+      W ok = CMPEQ(LD(ref[0]), kc); BR(); assert(ok);
+    }
+    ops_selftest = OPS;
+    printf("ops selftest %llu (2000 blocks)\n", (unsigned long long)ops_selftest);
+  }
+  if (N == 0 || nrec == 0) { printf("no trial loop replayed (N=%llu, records=%d)\n", (unsigned long long)N, nrec); return 0; }
+  sim_N = ref_N = N;
+  pthread_t a, b; pthread_create(&a, 0, sim_counted, 0); pthread_create(&b, 0, sim_ref, 0); pthread_join(a, 0); pthread_join(b, 0);
+  ctr_t *c = &ctrs[0];
+  printf("replay of %llu trials: counted recs=%llu v6=%llu joint=%llu both=%llu comp=%llu/%llu coll=%llu ; reference recs=%llu v6=%llu joint=%llu both=%llu comp=%llu/%llu coll=%llu\n",
+    (unsigned long long)N, (unsigned long long)sim_st.recs, (unsigned long long)sim_st.v6, (unsigned long long)sim_st.joint, (unsigned long long)sim_st.both,
+    (unsigned long long)sim_st.comp_ok, (unsigned long long)sim_st.comp_try, (unsigned long long)sim_st.coll,
+    (unsigned long long)c->recs, (unsigned long long)c->v6, (unsigned long long)c->joint, (unsigned long long)c->both,
+    (unsigned long long)c->comp_ok, (unsigned long long)c->comp_try, (unsigned long long)c->coll);
+  assert(sim_st.recs == c->recs && sim_st.v6 == c->v6 && sim_st.joint == c->joint && sim_st.both == c->both &&
+         sim_st.comp_try == c->comp_try && sim_st.comp_ok == c->comp_ok && sim_st.coll == c->coll);
+  printf("FINAL-equivalent trials=%llu rechits=%llu v6=%llu joint=%llu both=%llu comp=%llu/%llu coll=%llu\n", (unsigned long long)N,
+    (unsigned long long)sim_st.recs, (unsigned long long)sim_st.v6, (unsigned long long)sim_st.joint, (unsigned long long)sim_st.both,
+    (unsigned long long)sim_st.comp_ok, (unsigned long long)sim_st.comp_try, (unsigned long long)sim_st.coll);
+  printf("ops trial loop %llu (%.2f per trial)\n", (unsigned long long)sim_ops, (double)sim_ops / N);
+  return 0;
+}
+
+
+#define LM(i) LD(m[i])
+#define SG(field, v) ST(G->field, (uint32_t)MSK(v))
+static void gvalues_from_words(const uint32_t m[15], gval_t *G) {
+  W a = LD(IV[0]), b = LD(IV[1]), c = LD(IV[2]), d = LD(IV[3]), e = LD(IV[4]), f = LD(IV[5]), gg = LD(IV[6]), h = LD(IV[7]);
+  for (int t = 0; t < 15; t++) {
+    W T1 = ADD(ADD(ADD(ADD(h, bs1_c(e)), ch_c(e, f, gg)), LD(K[t])), LD(m[t]));
+    W T2 = ADD(bs0_c(a), maj_c(a, b, c));
+    h = gg; gg = f; f = e; e = MSK(ADD(d, T1)); d = c; c = b; b = a; a = MSK(ADD(T1, T2));
+  }
+  W m16 = MSK(ADD(ADD(ADD(sg1_c(LM(14)), LM(9)), sg0_c(LM(1))), LM(0)));
+  W m18 = MSK(ADD(ADD(ADD(sg1_c(m16), LM(11)), sg0_c(LM(3))), LM(2)));
+  W m20 = MSK(ADD(ADD(ADD(sg1_c(m18), LM(13)), sg0_c(LM(5))), LM(4)));
+  W p15 = ADD(ADD(ADD(h, bs1_c(e)), ch_c(e, f, gg)), LD(K[15]));
+  W q15 = ADD(bs0_c(a), maj_c(a, b, c));
+  SG(U15, ADD(d, p15)); SG(V15, ADD(p15, q15));
+  ST(G->a, (uint32_t)a); ST(G->b, (uint32_t)b); ST(G->c, (uint32_t)c); ST(G->e, (uint32_t)e); ST(G->f, (uint32_t)f);
+  ST(G->ab, (uint32_t)AND(a, b)); ST(G->axb, (uint32_t)XOR(a, b)); ST(G->exf, (uint32_t)XOR(e, f));
+  SG(P16, ADD(ADD(gg, LD(K[16])), m16)); SG(P17, ADD(f, LD(K[17]))); SG(P18, ADD(ADD(e, LD(K[18])), m18));
+  SG(KW20, ADD(LD(K[20]), m20));
+  SG(c17, ADD(ADD(LM(10), sg0_c(LM(2))), LM(1))); SG(c19, ADD(ADD(LM(12), sg0_c(LM(4))), LM(3)));
+  SG(c21, ADD(ADD(LM(14), sg0_c(LM(6))), LM(5))); SG(c22, ADD(ADD(sg1_c(m20), sg0_c(LM(7))), LM(6)));
+  SG(c23, ADD(ADD(m16, sg0_c(LM(8))), LM(7))); SG(c24, ADD(sg0_c(LM(9)), LM(8)));
+  SG(c25, ADD(ADD(m18, sg0_c(LM(10))), LM(9))); SG(c26, ADD(sg0_c(LM(11)), LM(10)));
+  SG(c27, ADD(ADD(m20, sg0_c(LM(12))), LM(11))); SG(c28, ADD(sg0_c(LM(13)), LM(12)));
+  SG(c29k, ADD(ADD(sg0_c(LM(14)), LM(13)), LD(K[29]))); SG(c30k, ADD(ADD(LM(14), LD(K[30])), LD(IV[0])));
+  ST(G->K19, (uint32_t)LD(K[19])); ST(G->K21, (uint32_t)LD(K[21])); ST(G->K22, (uint32_t)LD(K[22])); ST(G->K23, (uint32_t)LD(K[23]));
+  ST(G->K24, (uint32_t)LD(K[24])); ST(G->K25, (uint32_t)LD(K[25])); ST(G->K26, (uint32_t)LD(K[26])); ST(G->K27, (uint32_t)LD(K[27]));
+  ST(G->K28, (uint32_t)LD(K[28]));
+}
+```
+
+C.14 Output of the synthetic replays and of the re-run of synthetic run 1
+
+Run 1, `./scount` (standard output, then standard error):
+
+```
+table: records=0 identical to build_table; ops P1 236223301254 P2 63006824 sort 0 bitmap 262144
+ops s1inv+check 608280
+ops selftest 30630000 (2000 blocks)
+no trial loop replayed (N=0, records=0)
+```
+
+```
+V7=512 V8=49408 G16=64 records=0
+```
+
+Run 2, `./scount` (standard output, then standard error):
+
+```
+table: records=224 identical to build_table; ops P1 236223301254 P2 702792 sort 61656 bitmap 264832
+ops s1inv+check 608280
+ops selftest 30630000 (2000 blocks)
+replay of 275316736 trials: counted recs=275316736 v6=538099 joint=42381 both=88 comp=42381/42381 coll=88 ; reference recs=275316736 v6=538099 joint=42381 both=88 comp=42381/42381 coll=88
+FINAL-equivalent trials=275316736 rechits=275316736 v6=538099 joint=42381 both=88 comp=42381/42381 coll=88
+ops trial loop 1745020550020 (6338.23 per trial)
+```
+
+```
+V7=512 V8=49408 G16=64 records=224
+```
+
+Run 3, `./scount` (standard output, then standard error):
+
+```
+table: records=132096 identical to build_table; ops P1 236223301254 P2 81321704 sort 81135912 bitmap 1847296
+ops s1inv+check 608280
+ops selftest 30630000 (2000 blocks)
+replay of 250544128 trials: counted recs=250544128 v6=489532 joint=38874 both=64 comp=38874/38874 coll=64 ; reference recs=250544128 v6=489532 joint=38874 both=64 comp=38874/38874 coll=64
+FINAL-equivalent trials=250544128 rechits=250544128 v6=489532 joint=38874 both=64 comp=38874/38874 coll=64
+ops trial loop 1588088539519 (6338.56 per trial)
+```
+
+```
+V7=512 V8=49408 G16=64 records=132096
+```
+
+Re-run of run 1's command with attempt 1's S (`cc -O3 -mcpu=apple-m4`, `/usr/bin/time -l ./r31sim3 1 20 5eed3 /dev/null sim`):
+
+```
+exit status 139 (signal 11, segmentation fault)
+standard error:
+V7=512 V8=49408 G16=64 records=0
+kernel check OK
+        5.48 real         5.15 user         0.01 sys
+             1900544  maximum resident set size
+        124642769780  instructions retired
+```
+
+C.15 `libmeasure.c` (retired instructions per library call and per process launch, Section 9, H8)
+
+    84f4d465f50dc9bdf4fa69c31c4a23beff90d2ad3e955489cba1b319fc3347b3  libmeasure.c
+
+`cc -O2 -o libmeasure libmeasure.c -lpthread -lm && ./libmeasure` on the machine that ran C (Apple M4 Pro, the
+same macOS and libraries). An empty program (`int main(void){return 0;}`, `/usr/bin/time -l`) retires
+11,017,339, 10,583,825 and 10,732,894 instructions in three runs. Output:
+
+```
+empty loop                                 17 instructions per call (1000 calls)
+printf progress line                     9292 instructions per call (1000 calls)
+fprintf %08x                              944 instructions per call (10000 calls)
+fprintf short line                       2513 instructions per call (10000 calls)
+fflush                                    356 instructions per call (1000 calls)
+fopen+fclose                           146511 instructions per call (200 calls)
+malloc 24 MB + free                      1794 instructions per call (50 calls)
+calloc 256 MB + free                 24967525 instructions per call (20 calls)
+pthread_create+join                     90350 instructions per call (200 calls)
+mutex lock+unlock                          80 instructions per call (10000 calls)
+sleep(0)                                 8327 instructions per call (1000 calls)
+usleep(1000)                            11270 instructions per call (200 calls)
+clock_gettime                             190 instructions per call (10000 calls)
+access                                   4977 instructions per call (1000 calls)
+atoi+atof+strtoull                        182 instructions per call (10000 calls)
+log2                                       57 instructions per call (10000 calls)
+sqrt                                       12 instructions per call (10000 calls)
+pow                                        52 instructions per call (10000 calls)
+fscanf %x                                1094 instructions per call (10000 calls)
+counter read only (overhead)             5848 instructions per call (1 calls)
+```
+
+```c
+/* libmeasure.c: retired instructions per library call, on the machine and libraries that ran C.
+   Each call kind used by the charged programs runs N times; the process's retired-instruction counter
+   (proc_pid_rusage, RUSAGE_INFO_V4) is read before and after, and the per-call mean is printed.
+   cc -O2 -o libmeasure libmeasure.c -lpthread -lm */
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include <time.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <libproc.h>
+#include <sys/resource.h>
+
+static uint64_t instr(void) {
+  struct rusage_info_v4 ri;
+  proc_pid_rusage(getpid(), RUSAGE_INFO_V4, (rusage_info_t *)&ri);
+  return ri.ri_instructions;
+}
+static void *thr(void *a) { return a; }
+static volatile double sink; static volatile uint64_t isink;
+
+#define MEASURE(name, N, body) do { uint64_t t0 = instr(); for (int i_ = 0; i_ < (N); i_++) { body; } uint64_t t1 = instr(); \
+  printf("%-34s %10.0f instructions per call (%d calls)\n", name, (double)(t1 - t0) / (N), (N)); } while (0)
+
+int main(void) {
+  FILE *dn = fopen("/dev/null", "w");
+  uint64_t u = 123456789012ull; double d = 1.234e5;
+  MEASURE("empty loop", 1000, isink += 1);
+  MEASURE("printf progress line", 1000, fprintf(dn, "t=%.0f trials=%llu (2^%.3f) rate=%.3e/s keyhits=%llu rechits=%llu v6=%llu joint=%llu both=%llu comp=%llu/%llu coll=%llu\n",
+          d, (unsigned long long)u, log2((double)u), d / 3.0, (unsigned long long)u, (unsigned long long)u, (unsigned long long)u,
+          (unsigned long long)u, (unsigned long long)u, (unsigned long long)u, (unsigned long long)u, (unsigned long long)u));
+  MEASURE("fprintf %08x", 10000, fprintf(dn, "%08x", (unsigned)u));
+  MEASURE("fprintf short line", 10000, fprintf(dn, "V7=%d V8=%d G16=%d records=%d\n", 512, 49408, 64, 132096));
+  MEASURE("fflush", 1000, fflush(dn));
+  MEASURE("fopen+fclose", 200, { FILE *f = fopen("/dev/null", "a"); fclose(f); });
+  MEASURE("malloc 24 MB + free", 50, { void *p = malloc(24u << 20); isink += (uintptr_t)p; free(p); });
+  MEASURE("calloc 256 MB + free", 20, { void *p = calloc(1u << 25, 8); isink += (uintptr_t)p; free(p); });
+  MEASURE("pthread_create+join", 200, { pthread_t t; pthread_create(&t, 0, thr, 0); pthread_join(t, 0); });
+  { pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER; MEASURE("mutex lock+unlock", 10000, { pthread_mutex_lock(&m); pthread_mutex_unlock(&m); }); }
+  MEASURE("sleep(0)", 1000, sleep(0));
+  MEASURE("usleep(1000)", 200, usleep(1000));
+  { struct timespec ts; MEASURE("clock_gettime", 10000, clock_gettime(CLOCK_MONOTONIC, &ts)); }
+  MEASURE("access", 1000, isink += access("STOP", F_OK));
+  MEASURE("atoi+atof+strtoull", 10000, { isink += atoi("12"); sink = atof("20"); isink += strtoull("dfafc947679ebe06", 0, 16); });
+  MEASURE("log2", 10000, sink = log2(d + isink));
+  MEASURE("sqrt", 10000, sink = sqrt(d + isink));
+  MEASURE("pow", 10000, sink = pow(2.0, -18.0 + (isink & 1)));
+  { FILE *w = fopen("libmeasure_hex.txt", "w"); for (int i = 0; i < 10000; i++) fprintf(w, "%08x\n", (unsigned)(i * 2654435761u)); fclose(w);
+    FILE *f = fopen("libmeasure_hex.txt", "r"); unsigned x;
+    MEASURE("fscanf %x", 10000, { if (fscanf(f, "%x", &x) == 1) isink += x; }); fclose(f); }
+  MEASURE("counter read only (overhead)", 1, { (void)0; });
+  return 0;
+}
+```
+
+Python runs: `/usr/bin/time -l` instruction counts on the same machine (Python 3.12.2): `python3 -c pass`
+213,502,045; `python3 gen_s.py 88108365` 229,782,531; `python3 check_s.py s-out3.txt` 267,571,748; `python3
+check_s.py s-out.txt` 241,028,997; `python3 analyze.py` 463,159,626. Per-form means of complete callgrind profiles of
+Debian python3.11 in the container of Section 14.4 (`pyprof.py`, below): gen_s.py 5.1482, check_s.py 4.5983,
+`-c pass` 5.6497 (unmapped instructions at 1024).
+
+    5bee48cc29ddb16514b52957b82dde02218c9ba750c0b2f5080fd6267fd4691f  pyprof.py
+
+```python
+"""Per-form mean of complete callgrind profiles of CPython runs (objects mapped by file name in BINDIR).
+usage: pyprof.py BINDIR DUMP [DUMP ...]"""
+import collections, os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import a64ops, heavy  # noqa: E402
+from cgmix import read_dump, disasm  # noqa: E402
+
+
+def main():
+    bindir, dumps = sys.argv[1], sys.argv[2:]
+    for dpath in dumps:
+        cnt = read_dump(dpath)
+        tot = ops8 = ops5 = unm = 0
+        for ob, c in cnt.items():
+            name = os.path.basename(ob or '')
+            path = os.path.join(bindir, name)
+            dis = disasm(path, set(c)) if name and os.path.exists(path) else {}
+            for a, n in c.items():
+                tot += n
+                ins = dis.get(a)
+                if ins is None:
+                    unm += n
+                    ops8 += 1024 * n
+                    ops5 += 1024 * n
+                    continue
+                ops8 += heavy.cost(ins[0], ins[1])[0] * n
+                ops5 += a64ops.cost(ins[0], ins[1])[0] * n
+        print(f"{os.path.basename(dpath)}: instructions {tot:,}, unmapped {unm:,}, per-form mean {ops8 / tot:.4f} (v5 prices {ops5 / tot:.4f})")
+
+
+if __name__ == '__main__':
+    main()
+```
+
+## Appendix D. The SWAR pass of search K (Section 17)
+
+D.1 `kswar.py` (the pass as straight-line 256-bit primitives; checks; emits `kswar7.h`, `kswar7_all_loaded.h`, `gval7.h`)
+
+    bed94bc80ee88bc0e75d5b1df7fc99e3f1178145f372a68b4d3180ea4fe05990  kswar.py
+
+Run as `python3 kswar.py --emit` next to `kprog.py` (C.6) and `ref_hash_functions.py`. The generated files are:
+
+    fa91c3a8618e829add0675f90319e8217a095a2abac2cc893b09a589707c1520  kswar7.h (generated: the charged pass, 995 primitives)
+    7d91402608c7abd2826b5582ee9a9d0347e86e6f21db99600f611a6a3488a4d8  kswar7_all_loaded.h (generated: every constant loaded, 1,292)
+    26e6fe09731cc11b39924ce28cc42375ae87e7e4a766513932c358de742f4212  gval7.h (generated: lane masks and the broadcast group values)
+
+```python
+"""Search K's trial pass as a 7-lane 36-bit SWAR program of 256-bit word-RAM primitives.
+
+Seven consecutive trials of one group, x = b .. b+6, sit in the lanes of one 256-bit word: lane l is
+bits 36l .. 36l+35, a 32-bit value and 4 guard bits (bits 252..255 are unused and stay 0).  The pass
+computes in every lane what the scalar trial of kprog.py --opt computes (v10 Appendix C.6): steps 15..30
+from x to key = IV[0] + A30.  It then tests each lane's key against the 2^24-bit bitmap with scalar
+primitives, in lane order, so the decisions are taken for the same trials in the same order as r31det3.
+
+Machine: collision-frontier-v5 primitives, 1 each, on the 256-bit word RAM with 64 registers (the
+machine of blake3-r2, 52bb50ee).  The loop registers, the lane masks, the scalar test constants and the
+group values listed by choose_resident() are registers for the whole group; every other operand is
+loaded with one counted load per use.  max_live() checks that the pass fits 64 registers.
+
+Lane arithmetic (7 lanes of 36 bits with 4 guard bits: Th0rgal, f310d44f):
+- an addition of lanes is one 256-bit addition; every addition has a static per-lane bound, asserted
+  below 2^36, so no carry leaves a lane;
+- a rotation by r reads bits 0..31 of each lane: ((v >> r) & LO_r) ^ ((v << (32 - r)) & HI_r), 5
+  primitives; Sigma0 and Sigma1 are three rotations and two XORs, 17;
+- sigma1: the right parts of ROTR17 and ROTR19 share the mask LO17 and their left parts share HI19, and
+  SHR10 is (v >> 10) & LO10: 12 primitives.  sigma0: SHR3 and the right part of ROTR7 share LO3: 13.
+  A shared mask is exact because the input's guard bits are 0 (merged() checks the bit regions);
+- Ch(e,f,g) = g ^ (e & (f ^ g)) and Maj(a,b,c) = b ^ ((a ^ b) & (b ^ c)), with b ^ c the a ^ b of the
+  previous step, as in the scalar program;
+- E and A of every step and the schedule words that later enter sigma1 are reduced (AND M7).
+"""
+import random
+import sys
+
+import kprog
+import ref_hash_functions as hf
+
+LANES, LB = 7, 36
+MOD = 1 << 256
+M32 = 0xffffffff
+LANE_TOP = (1 << LB) - 1
+K = hf.SHA256_K
+IV = hf.IV["sha256"]
+
+
+def rep(v):
+    return sum(v << (LB * l) for l in range(LANES))
+
+
+def lo(r):
+    return rep((1 << (32 - r)) - 1)                  # lane bits 0 .. 31-r
+
+
+def hi(r):
+    return rep(((1 << r) - 1) << (32 - r))           # lane bits 32-r .. 31
+
+
+CONST = {"M7": rep(M32), "M24x7": rep((1 << 24) - 1), "SEVEN7": rep(7), "IDX7": sum(l << (LB * l) for l in range(LANES)),
+         "M24": (1 << 24) - 1, "C63": 63, "C1": 1, "BM": 0}
+for _r in (2, 13, 22, 6, 11, 25):
+    CONST[f"LO{_r}"], CONST[f"HI{_r}"] = lo(_r), hi(_r)
+CONST.update({"HI7": hi(7), "LO18": lo(18), "HI18": hi(18), "LO3": lo(3),
+              "LO17": lo(17), "HI19": hi(19), "LO10": lo(10)})
+
+
+def merged(terms, mask_lo, mask_hi):
+    """Check that one mask serves several shifted copies of a word with zero guard bits.
+
+    terms: list of ('R', r) for v >> r or ('L', r) for v << (32 - r); the mask keeps lane bits
+    mask_lo..mask_hi.  For a lane whose guard bits are 0, v >> r holds v's bits r..31 at 0..31-r,
+    zeros at 32-r..35-r and the next lane's bits above; v << (32-r) holds v's bits 0..r-1 at
+    32-r..31, the guard-bit zeros of the previous lane at 28-r..31-r and other bits elsewhere.
+    The shared mask is exact iff every term is correct or zero on every kept bit and keeps all of
+    its own correct bits."""
+    for kind, r in terms:
+        if kind == "R":
+            good, zero = range(0, 32 - r), range(32 - r, 36 - r)
+        else:
+            good, zero = range(32 - r, 32), range(28 - r, 32 - r)
+        keep = range(mask_lo, mask_hi + 1)
+        assert set(good) <= set(keep), (terms, kind, r)
+        assert all(p in good or p in zero for p in keep), (terms, kind, r)
+
+
+merged([("R", 17), ("R", 19)], 0, 14)
+merged([("L", 17), ("L", 19)], 13, 31)
+merged([("R", 3), ("R", 7)], 0, 28)
+
+
+class SwarProg:
+    """Straight-line program on 256-bit words; values are names, constants are register names."""
+
+    def __init__(self, resident=()):
+        self.ops = []
+        self.n = 0
+        self.resident = set(resident)
+        self.bound = {}                     # name -> per-lane upper bound (clean when <= M32)
+        for c in CONST:
+            self.bound[c] = M32
+        self.bound["X"] = M32
+        self.uses = {}
+
+    def emit(self, op, *src, bound=None):
+        self.n += 1
+        d = f"v{self.n}"
+        self.ops.append((op, d) + src)
+        if bound is not None:
+            self.bound[d] = bound
+        return d
+
+    def ld(self, name):
+        self.uses[name] = self.uses.get(name, 0) + 1
+        if name in self.resident:
+            self.bound[name] = M32
+            return name
+        return self.emit("ld", name, bound=M32)
+
+    def k(self, name):
+        """A constant operand: a resident register, or one counted load."""
+        self.uses[name] = self.uses.get(name, 0) + 1
+        if name in self.resident:
+            return name
+        return self.emit("ld", name, bound=M32)
+
+    def clean(self, v):
+        assert self.bound.get(v, MOD) <= M32, v
+
+    def add(self, a, b):
+        bd = self.bound[a] + self.bound[b]
+        assert bd <= LANE_TOP, ("lane overflow", a, b, bd)
+        return self.emit("add", a, b, bound=bd)
+
+    def xor(self, a, b):
+        bd = M32 if (self.bound.get(a, MOD) <= M32 and self.bound.get(b, MOD) <= M32) else None
+        return self.emit("xor", a, b, bound=bd)
+
+    def and_(self, a, b):
+        bd = M32 if (self.bound.get(a, MOD) <= M32 or self.bound.get(b, MOD) <= M32) else None
+        return self.emit("and", a, b, bound=bd)
+
+    def andm(self, a, mask):
+        return self.emit("and", a, self.k(mask), bound=M32)
+
+    def shr(self, a, n): return self.emit("shr", a, n)
+    def shl(self, a, n): return self.emit("shl", a, n)
+    def mask(self, v): return self.andm(v, "M7")
+
+    def rot(self, v, r):
+        return [self.andm(self.shr(v, r), f"LO{r}"), self.andm(self.shl(v, 32 - r), f"HI{r}")]
+
+    def xor_all(self, terms):
+        acc = terms[0]
+        for t in terms[1:]:
+            acc = self.xor(acc, t)
+        return acc
+
+    def bs0(self, v): return self.xor_all(self.rot(v, 2) + self.rot(v, 13) + self.rot(v, 22))
+    def bs1(self, v): return self.xor_all(self.rot(v, 6) + self.rot(v, 11) + self.rot(v, 25))
+
+    def sg1(self, v):
+        self.clean(v)
+        r = self.andm(self.xor(self.shr(v, 17), self.shr(v, 19)), "LO17")
+        l = self.andm(self.xor(self.shl(v, 15), self.shl(v, 13)), "HI19")
+        s = self.andm(self.shr(v, 10), "LO10")
+        return self.xor(self.xor(r, l), s)
+
+    def sg0(self, v):
+        self.clean(v)
+        r = self.andm(self.xor(self.shr(v, 3), self.shr(v, 7)), "LO3")
+        l7 = self.andm(self.shl(v, 25), "HI7")
+        r18 = self.andm(self.shr(v, 18), "LO18")
+        l18 = self.andm(self.shl(v, 14), "HI18")
+        return self.xor_all([r, l7, r18, l18])
+
+    def ch(self, e, f, g): return self.xor(g, self.and_(e, self.xor(f, g)))
+
+
+def gen_pass(resident=()):
+    """One pass: X (lanes x = b+l, clean) -> KEY -> seven scalar bitmap tests."""
+    P = SwarProg(resident)
+    X = "X"
+    w = {}
+
+    def sched(t):
+        if t == 17: w[17] = P.mask(P.add(P.sg1(X), P.ld("c17")))
+        elif t == 19: w[19] = P.mask(P.add(P.sg1(w[17]), P.ld("c19")))
+        elif t == 21: w[21] = P.mask(P.add(P.sg1(w[19]), P.ld("c21")))
+        elif t == 22: w[22] = P.mask(P.add(P.ld("c22"), X))
+        elif t == 23: w[23] = P.mask(P.add(P.sg1(w[21]), P.ld("c23")))
+        elif t == 24: w[24] = P.mask(P.add(P.add(P.sg1(w[22]), w[17]), P.ld("c24")))
+        elif t == 25: w[25] = P.mask(P.add(P.sg1(w[23]), P.ld("c25")))
+        elif t == 26: w[26] = P.mask(P.add(P.add(P.sg1(w[24]), w[19]), P.ld("c26")))
+        elif t == 27: w[27] = P.mask(P.add(P.sg1(w[25]), P.ld("c27")))
+        elif t == 28: w[28] = P.mask(P.add(P.add(P.sg1(w[26]), w[21]), P.ld("c28")))
+        elif t == 29: w[29] = P.add(P.add(P.sg1(w[27]), w[22]), P.ld("c29k"))
+        elif t == 30: w[30] = P.add(P.add(P.add(P.sg1(w[28]), w[23]), P.sg0(X)), P.ld("c30k"))
+
+    # step 15: every term but x is a group value
+    E = P.mask(P.add(P.ld("U15"), X))
+    A = P.mask(P.add(P.ld("V15"), X))
+    # step 16: B=a C=b D=c F=e G=f H=g
+    c = P.xor(P.ld("f"), P.and_(E, P.ld("exf")))
+    T1 = P.add(P.add(P.ld("P16"), P.bs1(E)), c)
+    la = P.ld("a")
+    xab = P.xor(A, la)
+    T2 = P.add(P.bs0(A), P.xor(la, P.and_(xab, P.ld("axb"))))
+    E16, A16 = P.mask(P.add(P.ld("c"), T1)), P.mask(P.add(T1, T2))
+    # step 17: B=A15 C=a D=b F=E15 G=e H=f
+    sched(17)
+    le = P.ld("e")
+    c = P.xor(le, P.and_(E16, P.xor(E, le)))
+    T1 = P.add(P.add(P.add(P.ld("P17"), P.bs1(E16)), c), w[17])
+    x2 = P.xor(A16, A)
+    T2 = P.add(P.bs0(A16), P.xor(A, P.and_(x2, xab)))
+    xab = x2
+    E17, A17 = P.mask(P.add(P.ld("b"), T1)), P.mask(P.add(T1, T2))
+    # step 18: B=A16 C=A15 D=a F=E16 G=E15 H=e
+    T1 = P.add(P.add(P.ld("P18"), P.bs1(E17)), P.ch(E17, E16, E))
+    x2 = P.xor(A17, A16)
+    T2 = P.add(P.bs0(A17), P.xor(A16, P.and_(x2, xab)))
+    xab = x2
+    E18, A18 = P.mask(P.add(P.ld("a"), T1)), P.mask(P.add(T1, T2))
+    st = [A18, A17, A16, A, E18, E17, E16, E]
+    key = None
+    for t in range(19, 31):
+        Aa, Bb, Cc, Dd, Ee, Ff, Gg, Hh = st
+        if t != 20:
+            sched(t)
+        if t == 20: kw = P.ld("KW20")
+        elif t in (29, 30): kw = w[t]
+        else: kw = P.add(P.ld(f"K{t}"), w[t])
+        T1 = P.add(P.add(P.add(Hh, P.bs1(Ee)), P.ch(Ee, Ff, Gg)), kw)
+        x2 = P.xor(Aa, Bb)
+        T2 = P.add(P.bs0(Aa), P.xor(Bb, P.and_(x2, xab)))
+        xab = x2
+        if t == 30:
+            key = P.mask(P.add(T1, T2))       # IV[0] is folded into c30k; E30 is not needed
+        else:
+            st = [P.mask(P.add(T1, T2)), Aa, Bb, Cc, P.mask(P.add(Dd, T1)), Ee, Ff, Gg]
+    P.n_hash = len(P.ops)
+    # bitmap test of each lane, in lane order: bit (key >> 8) of the bitmap in 64-bit words at BM
+    ks = P.andm(P.shr(key, 8), "M24x7")
+    P.hits = []
+    for l in range(LANES):
+        if l == 0: bi = P.andm(ks, "M24")
+        elif l == LANES - 1: bi = P.shr(ks, LB * l)            # the top lane: nothing above it
+        else: bi = P.andm(P.shr(ks, LB * l), "M24")
+        addr = P.emit("add", P.k("BM"), P.shr(bi, 6))           # scalar address arithmetic
+        word = P.emit("ldx", addr)
+        bit = P.and_(P.emit("shrv", word, P.and_(bi, P.k("C63"))), P.k("C1"))
+        hit = P.emit("cmp", bit)
+        P.emit("br", hit)
+        P.hits.append(hit)
+    P.key = key
+    return P
+
+
+def run(P, G, x0, mem):
+    """Counting interpreter on 256-bit words.  G: scalar group values (kprog.group_values); lanes
+    hold x0 .. x0+6.  Returns (lane keys, lane hits, ops, largest lane value of any addition)."""
+    R = dict(CONST)
+    for name, v in G.items():
+        R[name] = rep(v)
+    R["X"] = sum((x0 + l) << (LB * l) for l in range(LANES))
+    ops, top = 0, 0
+    for op in P.ops:
+        o, d, *s = op
+        ops += 1
+        if o == "ld": R[d] = R[s[0]]
+        elif o == "add":
+            R[d] = (R[s[0]] + R[s[1]]) % MOD
+            if P.bound.get(d) is not None:     # a lane addition (the address additions are scalar)
+                assert R[d] >> (LB * LANES) == 0
+                top = max(top, max((R[d] >> (LB * l)) & LANE_TOP for l in range(LANES)))
+        elif o == "and": R[d] = R[s[0]] & R[s[1]]
+        elif o == "or": R[d] = R[s[0]] | R[s[1]]
+        elif o == "xor": R[d] = R[s[0]] ^ R[s[1]]
+        elif o == "shr": R[d] = R[s[0]] >> s[1]
+        elif o == "shl": R[d] = (R[s[0]] << s[1]) % MOD
+        elif o == "shrv": R[d] = R[s[0]] >> R[s[1]]
+        elif o == "ldx": R[d] = mem.get(R[s[0]], 0)
+        elif o == "cmp": R[d] = int(R[s[0]] != 0)
+        elif o == "br": pass
+        else: raise ValueError(o)
+    keys = [(R[P.key] >> (LB * l)) & M32 for l in range(LANES)]
+    return keys, [R[h] for h in P.hits], ops, top
+
+
+LOOP_REGS = 6          # X, SEVEN7, the trial counter, the countdown, the constant 7, the group-value pointer
+
+
+def max_live(P):
+    """Registers needed: resident registers + loop registers + the largest live set of the pass."""
+    last = {}
+    for i, (o, d, *s) in enumerate(P.ops):
+        for v in s:
+            if isinstance(v, str) and v.startswith("v"):
+                last[v] = i
+    live, peak = set(), 0
+    for i, (o, d, *s) in enumerate(P.ops):
+        if d in last:
+            live.add(d)
+        peak = max(peak, len(live))
+        for v in s:
+            if isinstance(v, str) and last.get(v) == i:
+                live.discard(v)
+    return len(P.resident) + LOOP_REGS + peak, peak
+
+
+def choose_resident(nreg=64):
+    """Constants by uses per pass, most used first, while the pass fits nreg registers."""
+    base = gen_pass(())
+    order = sorted(base.uses, key=lambda n: (-base.uses[n], n))
+    chosen = []
+    for name in order:
+        trial = gen_pass(chosen + [name])
+        if max_live(trial)[0] <= nreg:
+            chosen.append(name)
+    return chosen
+
+
+def histogram(P):
+    h = {}
+    for o, *_ in P.ops:
+        h[o] = h.get(o, 0) + 1
+    return h
+
+
+C_OP = {"add": "VADD", "and": "VAND", "or": "VOR", "xor": "VXOR", "shr": "VSHR", "shl": "VSHL"}
+
+
+def cname(v, P):
+    if v == "X": return "X"
+    if v in CONST: return f"K_{v}"
+    if v in P.resident: return f"G7->{v}"
+    return v
+
+
+def emit_c(P, fname):
+    out = [f"/* generated by kswar.py: {len(P.ops)} primitives per pass of 7 trials "
+           f"({P.n_hash} to the key, {len(P.ops) - P.n_hash} for the seven bitmap tests); "
+           f"resident: {' '.join(sorted(P.resident))} */",
+           f"static inline void {fname}(const gval7_t *G7, V X, const uint64_t *bm, V *keyout, int hit[7]) {{"]
+    hi_ = 0
+    for o, d, *s in P.ops:
+        a = [cname(x, P) if isinstance(x, str) else x for x in s]
+        if o == "ld":
+            src = f"K_{s[0]}" if s[0] in CONST else f"G7->{s[0]}"
+            out.append(f"  V {d} = VLD({src});")
+        elif o in ("shr", "shl"): out.append(f"  V {d} = {C_OP[o]}({a[0]}, {a[1]});")
+        elif o == "shrv": out.append(f"  V {d} = VSHRV({a[0]}, {a[1]});")
+        elif o == "ldx": out.append(f"  V {d} = VLDX(bm, {a[0]});")
+        elif o == "cmp": out.append(f"  int {d} = VCMPNZ({a[0]});")
+        elif o == "br": out.append(f"  VBR(); hit[{hi_}] = {a[0]};"); hi_ += 1
+        else: out.append(f"  V {d} = {C_OP[o]}({a[0]}, {a[1]});")
+    out.append(f"  *keyout = {cname(P.key, P)};")
+    out.append("}")
+    return "\n".join(out) + "\n"
+
+
+def main():
+    nreg = 64
+    resident = choose_resident(nreg)
+    P = gen_pass(resident)
+    regs, peak = max_live(P)
+    scalar = kprog.gen_lane_opt()
+    rng = random.Random(20261008)
+    groups = 3000
+    top = 0
+    edge = [0, 1, 7, (1 << 20) - 3, (1 << 20) + 1, (1 << 23) - 1, (1 << 24) - 15, (1 << 24) - 8, (1 << 24) - 7]
+    for i in range(groups):
+        m = [rng.getrandbits(32) for _ in range(15)]
+        if i < 64:
+            m = [(0xffffffff if (i >> (j % 6)) & 1 else 0) for j in range(15)]   # extreme words
+        G = kprog.group_values(m)
+        x0 = edge[i % len(edge)] if i < 2 * len(edge) else rng.randrange(0, (1 << 24) - 6)
+        keys, hits, ops, t = run(P, G, x0, {})
+        top = max(top, t)
+        assert ops == len(P.ops)
+        for l in range(LANES):
+            x = x0 + l
+            block = b"".join(v.to_bytes(4, "big") for v in m + [x])
+            want = hf._compress("sha256", tuple(IV), block, 31)[0]
+            assert keys[l] == want, (i, l, hex(keys[l]), hex(want))
+            ks, hs, _ = kprog.run(scalar, G, x, {})
+            assert (ks, hs) == (keys[l], hits[l] == 1), (i, l)
+        assert hits == [0] * LANES
+        if i < 1000:                       # set the bit tested by one lane: exactly that decision flips
+            l = rng.randrange(LANES)
+            bi = keys[l] >> 8
+            mem = {bi >> 6: 1 << (bi & 63)}
+            k2, h2, _, _ = run(P, G, x0, mem)
+            want_h = [int(((keys[j] >> 8) >> 6) == (bi >> 6) and ((keys[j] >> 8) & 63) == (bi & 63)) for j in range(LANES)]
+            assert k2 == keys and h2 == want_h and h2[l] == 1, (i, l)
+    h = histogram(P)
+    print(f"pass: {len(P.ops)} primitives per 7 trials ({P.n_hash} steps 15..30 and schedule, "
+          f"{len(P.ops) - P.n_hash} bitmap tests); {groups} random groups x 7 lanes match the organizer "
+          f"reference core and kprog.py --opt (key and decision); largest lane value of any addition "
+          f"{top:#x} < 2^36")
+    print(f"registers: {regs} of {nreg} ({len(P.resident)} resident, {LOOP_REGS} loop, peak live {peak})")
+    print("resident:", " ".join(resident))
+    print("histogram", dict(sorted(h.items())))
+    unres = gen_pass(())
+    print(f"variant with every constant loaded at each use: {len(unres.ops)} per pass "
+          f"(registers {max_live(unres)[0]})")
+    if "--emit" in sys.argv:
+        with open("kswar7.h", "w") as fh:
+            fh.write(emit_c(P, "kswar7"))
+        with open("kswar7_all_loaded.h", "w") as fh:
+            fh.write(emit_c(unres, "kswar7_ld"))
+        names = list(kprog.GROUP_NAMES)
+        with open("gval7.h", "w") as fh:
+            fh.write("/* generated by kswar.py: the group values broadcast to seven lanes */\n"
+                     "typedef struct { V " + ", ".join(names) + "; } gval7_t;\n")
+            for c, v in CONST.items():
+                limbs = [(v >> (64 * j)) & ((1 << 64) - 1) for j in range(4)]
+                fh.write(f"static const V K_{c} = {{{{" + ", ".join(f"0x{x:016x}ull" for x in limbs) + "}};\n")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+D.2 `w256.h` (256-bit words as four 64-bit limbs; one count per primitive)
+
+    6e642a27d4f9b888501169aa9597a47fd97053f495d8fce53c4823d784703c33  w256.h
+
+```c
+/* w256.h: 256-bit words as four 64-bit limbs, with one count per primitive (OPS of kcount.c). */
+typedef struct { uint64_t w[4]; } V;
+
+static inline V v_add(V a, V b) {
+  V r; unsigned __int128 c = 0;
+  for (int i = 0; i < 4; i++) { c += (unsigned __int128)a.w[i] + b.w[i]; r.w[i] = (uint64_t)c; c >>= 64; }
+  return r;
+}
+static inline V v_sub(V a, V b) {
+  V r; unsigned __int128 br = 0;
+  for (int i = 0; i < 4; i++) { unsigned __int128 d = (unsigned __int128)a.w[i] - b.w[i] - br; r.w[i] = (uint64_t)d; br = (d >> 64) & 1; }
+  return r;
+}
+static inline V v_shr(V a, int n) {
+  V r = {{0, 0, 0, 0}}; int q = n >> 6, s = n & 63;
+  for (int i = 0; i + q < 4; i++) {
+    uint64_t lo = a.w[i + q] >> s, hi = (s && i + q + 1 < 4) ? a.w[i + q + 1] << (64 - s) : 0;
+    r.w[i] = lo | hi;
+  }
+  return r;
+}
+static inline V v_shl(V a, int n) {
+  V r = {{0, 0, 0, 0}}; int q = n >> 6, s = n & 63;
+  for (int i = 3; i - q >= 0; i--) {
+    uint64_t hi = a.w[i - q] << s, lo = (s && i - q - 1 >= 0) ? a.w[i - q - 1] >> (64 - s) : 0;
+    r.w[i] = hi | lo;
+  }
+  return r;
+}
+static inline V v_of(uint64_t x) { V r = {{x, 0, 0, 0}}; return r; }
+static inline int v_nz(V a) { return (a.w[0] | a.w[1] | a.w[2] | a.w[3]) != 0; }
+
+static inline V VADD(V a, V b) { OPS++; return v_add(a, b); }
+static inline V VSUB(V a, V b) { OPS++; return v_sub(a, b); }
+static inline V VAND(V a, V b) { OPS++; V r; for (int i = 0; i < 4; i++) r.w[i] = a.w[i] & b.w[i]; return r; }
+static inline V VOR(V a, V b)  { OPS++; V r; for (int i = 0; i < 4; i++) r.w[i] = a.w[i] | b.w[i]; return r; }
+static inline V VXOR(V a, V b) { OPS++; V r; for (int i = 0; i < 4; i++) r.w[i] = a.w[i] ^ b.w[i]; return r; }
+static inline V VSHR(V a, int n) { OPS++; return v_shr(a, n); }
+static inline V VSHL(V a, int n) { OPS++; return v_shl(a, n); }
+static inline V VSHRV(V a, V n) { OPS++; return v_shr(a, (int)n.w[0]); }
+static inline V VLD(V v) { OPS++; return v; }
+static inline V VLDX(const uint64_t *bm, V a) { OPS++; return v_of(bm[a.w[0]]); }
+static inline int VCMPNZ(V a) { OPS++; return v_nz(a); }
+static inline void VBR(void) { OPS++; }
+```
+
+D.3 `kswar.c` (the passes counted and checked against `r31det3.c` and `kcount.c`)
+
+    22c360a853ff61eff01a98164a832869478b520d321d57a83dc680e7876837c1  kswar.c
+    9541ae71e67da67a2084012a0e09622c9cf9fcfae1717919452aed2fc10d1a0e  kcount.c (C.7, unchanged)
+    d7bab364ff5e38f27c3f283dc8e58f0657a5b1a8abe2f98723f0903cab2a792b  kcount_lib.c (kcount.c with main renamed by the sed line in kswar.c)
+    29f4a1900e293efd2459cac87ed197c8176f20b763b92663da19dea3c3140d3e  r31det3.c (B.4, unchanged)
+    84003700c7015677e60700dc5c044d1c6e7c0acc652e6bf12d536f9aa5084437  sp_own.h (B.5, unchanged)
+
+Build and run with the generated headers of C.6 and D.1: `cc -O2 -o kswar kswar.c -lpthread`, then
+`./kswar sample 96` and `./kswar run` (Apple clang 21, 12 threads; 31.45 s and 25.8 min).
+
+```c
+/* kswar.c: search K's trial passes as the 7-lane SWAR program of kswar.py (kswar7.h), counted, and
+   checked against r31det3.c (B.4) and the scalar counted program of kcount.c (C.7).
+
+   kcount_lib.c is kcount.c with its main renamed, so that its counted table, group set-up and hit
+   processing and the r31det3.c it includes are available here unchanged:
+     sed 's/^int main(int argc, char \*\*argv) {$/int kcount_main(int argc, char **argv) {/' kcount.c > kcount_lib.c
+
+   A group runs the trials r31det3 runs, in the same order: batches of 7 consecutive trials, lane l of
+   the batch at b being trial b + l.  For every trial the SWAR lane's key and bitmap decision are
+   compared with r31det3's own trial block (ref_key, verbatim in kcount.c) and with the counted scalar
+   trial klane_opt (v10's charged program); every bitmap hit is processed by r31det3's process_hit and
+   by kcount.c's counted hit_c, which must agree on every counter.
+
+   Loop control of a pass (counted): the countdown to the next event (cd = cd - 7, compare, branch),
+   X += SEVEN7, trials += 7.  Events are the 16 checkpoints of r31det3 (after trial k * 2^20 + 7, where
+   r31det3 runs its abort check) and the group's last trial; the event batch runs the same lane tests
+   with the abort check after the event lane.  Event handling is charged per group.
+
+   cc -O2 -o kswar kswar.c -lpthread
+   ./kswar sample N   groups 0..N-1 in full and group 5920 up to its stored pair (the v10 check, extended)
+   ./kswar run        every group of the K run with the trials it executed (Section 8 and the per-thread
+                      counts of its log): groups 0..5920, 5921, 5922, 5923, 5933, 5935, 5945 and 5957 in full,
+                      and the four aborted groups 5931, 5934, 5947, 5969 up to their abort (k * 2^20 + 8
+                      trials, k = 9, 2, 13, 11); the summed counters must equal the run's FINAL and DET lines.
+   12 worker threads; each group's counters are compared with r31det3's on that group. */
+#include "kcount_lib.c"
+#include "w256.h"
+#include "gval7.h"
+#include "kswar7.h"
+#include "kswar7_all_loaded.h"
+
+static const W CSEVEN = 7;
+
+/* broadcast of one group value to the seven lanes: load, three shift-OR doublings (lanes 0-1, 0-3,
+   0-6; lane 3 is written twice with the same value), store: 8 primitives */
+static V bcast_c(uint32_t v) {
+  V x = VLD(v_of(v));
+  V r1 = VOR(x, VSHL(x, 36)), r2 = VOR(r1, VSHL(r1, 72));
+  V r3 = VOR(r2, VSHL(r2, 108)); OPS++;               /* the store */
+  return r3;
+}
+static void gval7_c(const gval_t *G, gval7_t *G7) {
+#define B7(f) G7->f = bcast_c(G->f)
+  B7(U15); B7(V15); B7(a); B7(b); B7(c); B7(e); B7(f); B7(ab); B7(P16); B7(P17); B7(P18); B7(KW20);
+  B7(c17); B7(c19); B7(c21); B7(c22); B7(c23); B7(c24); B7(c25); B7(c26); B7(c27); B7(c28); B7(c29k); B7(c30k);
+  B7(axb); B7(exf); B7(K19); B7(K21); B7(K22); B7(K23); B7(K24); B7(K25); B7(K26); B7(K27); B7(K28);
+#undef B7
+  OPS += 35;                                          /* resident registers: one load per group (charged for all 35) */
+}
+static uint32_t lane32(V v, int l) { return (uint32_t)(v_shr(v, 36 * l).w[0] & 0xffffffffu); }
+
+typedef struct { uint64_t g; uint32_t jend; int tid; hstat_t hs; ctr_t ref; uint64_t trials, batches, pass_min, pass_max,
+                 ld_min, ld_max, ctl_min, ctl_max, group_ops, event_ops, events, hitx_ops, found, nfound; int full; } sv_t;
+
+static void *swar_worker(void *arg) {
+  sv_t *v = arg; OPS = 0;
+  uint32_t m[15], mr[15]; gval_t G; gval7_t G7; refg_t R; uint64_t crs, crs_ref;
+  uint64_t g0 = OPS;
+  group_head_c(v->g); gsetup_c(v->g, m, &G, &crs);
+  ref_group(v->g, mr, &R, &crs_ref);
+  assert(memcmp(m, mr, 60) == 0 && crs == crs_ref);
+  gval7_c(&G, &G7);
+  /* loop registers: X = lanes 0..6 (one load), trials = 0, cd = 8 trials to the first event, 16 events left */
+  V X = VLD(K_IDX7);
+  W trials = LD(0), cd = LD(8), ev = LD(17);
+  v->group_ops = OPS - g0;
+  v->pass_min = v->ld_min = v->ctl_min = UINT64_MAX;
+  memset(&ctrs[v->tid], 0, sizeof(ctr_t));
+  uint64_t crs_c = crs; int done = 0;
+  for (uint32_t b = 0; b < v->jend && !done; b += 7) {
+    uint64_t c0 = OPS, ev_ops = 0;
+    W nev = CMPLT(CSEVEN, cd); BR();                       /* cd = trials up to and including the next event trial */
+    int elane = -1;
+    if (nev) cd = SUB(cd, CSEVEN);
+    else {                                             /* out of line: the event lane, abort check, next event */
+      uint64_t e0 = OPS;
+      W el = SUB(cd, C1); elane = (int)(uint64_t)el;
+      ev = SUB(ev, C1); W last = CMPEQ(ev, 0); BR();
+      if (!last) { abort_check_c(v->g); W nx = CMPEQ(ev, C1); BR(); cd = ADD(SUB(cd, CSEVEN), nx ? LD((1u << 20) - 8) : LD(1u << 20)); }
+      else trials = ADD(SUB(trials, CSEVEN), ADD(el, C1));  /* the end batch counts only its valid lanes */
+      uint32_t et = b + (uint32_t)elane;
+      assert((last && et == (1u << 24) - 1) || (!last && (et & 0xfffff) == 7));
+      ev_ops = OPS - e0; v->event_ops += ev_ops; v->events++;
+    }
+    uint64_t ctl = OPS - c0 - ev_ops;
+    V KEY; int hit[7];
+    uint64_t p0 = OPS;
+    kswar7(&G7, X, bitmap_c, &KEY, hit);
+    uint64_t po = OPS - p0;
+    if (po < v->pass_min) v->pass_min = po;
+    if (po > v->pass_max) v->pass_max = po;
+    if ((b & 0x3ffff) == 0) {                          /* every 2^18/7th batch: the all-loaded variant, same keys and decisions */
+      V K2; int h2[7]; uint64_t l0 = OPS; kswar7_ld(&G7, X, bitmap_c, &K2, h2); uint64_t lo_ = OPS - l0; OPS = l0;
+      if (lo_ < v->ld_min) v->ld_min = lo_;
+      if (lo_ > v->ld_max) v->ld_max = lo_;
+      assert(memcmp(&K2, &KEY, sizeof(V)) == 0 && memcmp(h2, hit, sizeof hit) == 0);
+    }
+    for (int l = 0; l < 7 && !done; l++) {
+      uint32_t x = b + (uint32_t)l;
+      if (x >= v->jend) break;                         /* past the group's last trial (the end batch) */
+      uint32_t kr = ref_key(&R, x), ks = lane32(KEY, l), kc;
+      uint64_t s0_ = OPS; int hc = klane_opt(&G, (W)x, bitmap_c, &kc); OPS = s0_;
+      uint32_t bi = kr >> 8; int hit_ref = (int)(bitmap[bi >> 6] >> (bi & 63) & 1);
+      assert(ks == kr && kc == kr && hit[l] == hit_ref && hc == hit_ref);
+      v->trials++;
+      if (hit[l]) {
+        uint64_t h0 = OPS;
+        W xe = l == 0 ? AND((W)X.w[0], M) : (W)lane32(VAND(VSHR(X, 36 * l), K_M7), 0);   /* x of lane l: 1 or 2 */
+        assert((uint32_t)xe == x);
+        v->hitx_ops += OPS - h0;
+        uint32_t mm[16]; memcpy(mm, mr, 60); mm[15] = x;
+        int fr = process_hit(v->tid, mm, &crs_ref, 0);
+        int fc = hit_c(m, x, &crs_c, &v->hs);
+        assert(fr == fc);
+        if (fr) { v->found = x; v->nfound++; if (!v->full) done = 1; }
+      }
+    }
+    uint64_t t0 = OPS;
+    X = VADD(X, K_SEVEN7); trials = ADD(trials, CSEVEN);
+    ctl += OPS - t0;
+    if (ctl < v->ctl_min) v->ctl_min = ctl;
+    if (ctl > v->ctl_max) v->ctl_max = ctl;
+    v->batches++;
+  }
+  v->ref = ctrs[v->tid];
+  return NULL;
+}
+
+static sv_t *JOBS; static int NJOBS; static _Atomic int NEXT;
+static void *pool_worker(void *arg) {
+  int tid = 20 + (int)(intptr_t)arg;
+  for (;;) { int i = atomic_fetch_add(&NEXT, 1); if (i >= NJOBS) break; JOBS[i].tid = tid; swar_worker(&JOBS[i]); }
+  return NULL;
+}
+
+int main(int argc, char **argv) {
+  if (argc < 2) return 64;
+  int full = !strcmp(argv[1], "run");
+  seed_base = 0xdfafc947679ebe06ull;                  /* committed seed of K (Appendix A.2) */
+  outf = fopen("kswar-collisions.txt", "w");
+  build_s1inv(); build_table();
+  build_table_c();
+  printf("table: records=%d, bitmap identical to build_table\n", nrec_c);
+  build_s1inv_c();
+  RT = recs;
+  if (full) {
+    static const uint64_t extra_full[] = {5921, 5922, 5923, 5933, 5935, 5945, 5957};
+    static const uint64_t ab_g[] = {5931, 5934, 5947, 5969}; static const uint32_t ab_k[] = {9, 2, 13, 11};
+    NJOBS = 5921 + 7 + 4; JOBS = calloc(NJOBS, sizeof(sv_t)); int n = 0;
+    for (uint64_t g = 0; g <= 5920; g++) { JOBS[n].g = g; JOBS[n].jend = 1u << 24; JOBS[n].full = 1; n++; }
+    for (int i = 0; i < 7; i++) { JOBS[n].g = extra_full[i]; JOBS[n].jend = 1u << 24; JOBS[n].full = 1; n++; }
+    for (int i = 0; i < 4; i++) { JOBS[n].g = ab_g[i]; JOBS[n].jend = (ab_k[i] << 20) + 8; JOBS[n].full = 1; n++; }
+  } else {
+    int NG = argc > 2 ? atoi(argv[2]) : 4;
+    NJOBS = NG + 1; JOBS = calloc(NJOBS, sizeof(sv_t));
+    for (int i = 0; i < NG; i++) { JOBS[i].g = (uint64_t)i; JOBS[i].jend = 1u << 24; }
+    JOBS[NG].g = 5920; JOBS[NG].jend = 4561628u;
+  }
+  pthread_t th[12]; for (int w = 0; w < 12; w++) pthread_create(&th[w], 0, pool_worker, (void *)(intptr_t)w);
+  for (int w = 0; w < 12; w++) pthread_join(th[w], 0);
+  uint64_t T = 0, P = 0, pmin = UINT64_MAX, pmax = 0, cmin = UINT64_MAX, cmax = 0, gmax = 0, emax = 0, lmin = UINT64_MAX, lmax = 0, xmax = 0, ab = 0;
+  hstat_t S = {0}; ctr_t RS = {0};
+  for (int i = 0; i < NJOBS; i++) {
+    sv_t *v = &JOBS[i]; ctr_t *r = &v->ref; hstat_t *h = &v->hs;
+    assert(h->bmhits == r->bmhits && h->keyhits == r->keyhits && h->recs == r->recs && h->v6 == r->v6 && h->joint == r->joint &&
+           h->it13 == r->it13 && h->it15 == r->it15 && h->coll == r->coll && v->trials == v->jend);
+    if (v->g < 4 || v->g >= 5920)
+      printf("group %llu: trials %llu, batches %llu, pass %llu..%llu, control %llu..%llu, set-up %llu, events %llu (%llu ops); "
+             "hits %llu/%llu keyhits %llu/%llu recs %llu/%llu v6 %llu/%llu joint %llu/%llu it13 %llu/%llu it15 %llu/%llu coll %llu/%llu\n",
+        (unsigned long long)v->g, (unsigned long long)v->trials, (unsigned long long)v->batches,
+        (unsigned long long)v->pass_min, (unsigned long long)v->pass_max, (unsigned long long)v->ctl_min, (unsigned long long)v->ctl_max,
+        (unsigned long long)v->group_ops, (unsigned long long)v->events, (unsigned long long)v->event_ops,
+        (unsigned long long)h->bmhits, (unsigned long long)r->bmhits, (unsigned long long)h->keyhits, (unsigned long long)r->keyhits,
+        (unsigned long long)h->recs, (unsigned long long)r->recs, (unsigned long long)h->v6, (unsigned long long)r->v6,
+        (unsigned long long)h->joint, (unsigned long long)r->joint, (unsigned long long)h->it13, (unsigned long long)r->it13,
+        (unsigned long long)h->it15, (unsigned long long)r->it15, (unsigned long long)h->coll, (unsigned long long)r->coll);
+    T += v->trials; P += v->batches; if (v->jend != (1u << 24) && v->g != 5920) ab++;
+    S.bmhits += h->bmhits; S.keyhits += h->keyhits; S.recs += h->recs; S.v6 += h->v6; S.joint += h->joint; S.comp_ok += h->comp_ok;
+    S.coll += h->coll; S.it13 += h->it13; S.it15 += h->it15;
+    RS.bmhits += r->bmhits; RS.keyhits += r->keyhits; RS.recs += r->recs; RS.v6 += r->v6; RS.joint += r->joint; RS.comp_try += r->comp_try;
+    RS.comp_ok += r->comp_ok; RS.coll += r->coll; RS.it13 += r->it13; RS.it15 += r->it15;
+    if (v->pass_min < pmin) pmin = v->pass_min;
+    if (v->pass_max > pmax) pmax = v->pass_max;
+    if (v->ctl_min < cmin) cmin = v->ctl_min;
+    if (v->ctl_max > cmax) cmax = v->ctl_max;
+    if (v->ld_min < lmin) lmin = v->ld_min;
+    if (v->ld_max > lmax) lmax = v->ld_max;
+    if (v->group_ops > gmax) gmax = v->group_ops;
+    if (v->event_ops > emax) emax = v->event_ops;
+    if (h->bmhits && (v->hitx_ops + h->bmhits - 1) / h->bmhits > xmax) xmax = (v->hitx_ops + h->bmhits - 1) / h->bmhits;
+    if (h->coll) {
+      printf("stored pair reproduced in group %llu: n = %llu\nM1  ", (unsigned long long)v->g, (unsigned long long)((v->g << 24) | v->found));
+      for (int j = 0; j < 16; j++) printf("%08x", h->M1[j]);
+      printf("\nM1' "); for (int j = 0; j < 16; j++) printf("%08x", h->M1b[j]);
+      printf("\n");
+    }
+  }
+  printf("groups %d, trials %llu in %llu batches; every key and bitmap decision equal to r31det3's trial block and to klane_opt; "
+         "every group's hit counters equal to process_hit's\n", NJOBS, (unsigned long long)T, (unsigned long long)P);
+  printf("counted: bitmap_hits=%llu keyhits=%llu rechits=%llu v6=%llu joint=%llu comp=%llu coll=%llu it13=%llu it15=%llu\n",
+         (unsigned long long)S.bmhits, (unsigned long long)S.keyhits, (unsigned long long)S.recs, (unsigned long long)S.v6,
+         (unsigned long long)S.joint, (unsigned long long)S.comp_ok, (unsigned long long)S.coll, (unsigned long long)S.it13, (unsigned long long)S.it15);
+  printf("pass %llu..%llu, all-loaded pass %llu..%llu, loop control %llu..%llu, group set-up with broadcast %llu (max), events per group %llu ops (max), lane index per hit <= %llu\n",
+         (unsigned long long)pmin, (unsigned long long)pmax, (unsigned long long)lmin, (unsigned long long)lmax,
+         (unsigned long long)cmin, (unsigned long long)cmax, (unsigned long long)gmax, (unsigned long long)emax, (unsigned long long)xmax);
+  if (full) {
+    /* the run's own log (Section 8): FINAL and DET lines */
+    assert(T == 99492036640ull && S.keyhits == 1376281 && S.recs == 3061666 && S.v6 == 5992 && S.joint == 1 && RS.comp_try == 1 &&
+           S.comp_ok == 1 && S.coll == 1 && S.it13 == 2829 && S.it15 == 19 && S.bmhits == 58831394 && ab == 4 && NJOBS == 5932);
+    printf("equal to the K run's log: FINAL trials=99492036640 keyhits=1376281 rechits=3061666 v6=5992 joint=1 both=1 comp=1/1 coll=1; "
+           "DET it13=2829 it15=19 aborted_groups=4 bitmap_hits=58831394 groups=5932\n");
+  }
+  return 0;
+}
+```
+
+D.4 Output (2026-10-08)
+
+`python3 kswar.py --emit`:
+
+```
+pass: 995 primitives per 7 trials (924 steps 15..30 and schedule, 71 bitmap tests); 3000 random groups x 7 lanes match the organizer reference core and kprog.py --opt (key and decision); largest lane value of any addition 0x79babd6c9 < 2^36
+registers: 64 of 64 (35 resident, 6 loop, peak live 23)
+resident: M7 HI11 HI13 HI2 HI22 HI25 HI6 LO11 LO13 LO2 LO22 LO25 LO6 HI19 LO10 LO17 BM C1 C63 M24 a HI18 HI7 K19 K21 K22 K23 K24 K25 K26 K27 K28 KW20 LO18 LO3
+histogram {'add': 123, 'and': 309, 'br': 7, 'cmp': 7, 'ld': 24, 'ldx': 7, 'shl': 114, 'shr': 140, 'shrv': 7, 'xor': 257}
+variant with every constant loaded at each use: 1292 per pass (registers 30)
+```
+
+`./kswar sample 96`, standard output:
+
+```
+table: records=132096, bitmap identical to build_table
+group 0: trials 16777216, batches 2396746, pass 995..995, control 4..5, set-up 13680, events 17 (295 ops); hits 9958/9958 keyhits 224/224 recs 447/447 v6 3/3 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 1: trials 16777216, batches 2396746, pass 995..995, control 4..5, set-up 13680, events 17 (295 ops); hits 9931/9931 keyhits 245/245 recs 561/561 v6 4/4 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 2: trials 16777216, batches 2396746, pass 995..995, control 4..5, set-up 13680, events 17 (295 ops); hits 10069/10069 keyhits 260/260 recs 575/575 v6 0/0 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 3: trials 16777216, batches 2396746, pass 995..995, control 4..5, set-up 13680, events 17 (295 ops); hits 9971/9971 keyhits 251/251 recs 526/526 v6 0/0 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 5920: trials 4561628, batches 651662, pass 995..995, control 4..5, set-up 13680, events 5 (90 ops); hits 2654/2654 keyhits 57/57 recs 133/133 v6 2/2 joint 1/1 it13 2829/2829 it15 19/19 coll 1/1
+stored pair reproduced in group 5920: n = 99325680347
+M1  1e2dbac805e61a5ecd7fcb499db00a7a186cabb0f7efd9c22a442578023cd6ebf71d59bf876b73dbed1499e47173c1450ba5f907b35ebf9305848707075e188d
+M1' 1e2dbac805e61a5ecd7fcb499db00a7a186cabb0f7efc9c82a64ad69522c8ce51f1e6abf876bf3dfed1499e47173c1450ba5f907b35ebf9305848707075e188d
+groups 97, trials 1615174364 in 230739278 batches; every key and bitmap decision equal to r31det3's trial block and to klane_opt; every group's hit counters equal to process_hit's
+counted: bitmap_hits=955301 keyhits=22427 rechits=49803 v6=93 joint=1 comp=1 coll=1 it13=2829 it15=19
+pass 995..995, all-loaded pass 1292..1292, loop control 4..5, group set-up with broadcast 13680 (max), events per group 295 ops (max), lane index per hit <= 2
+```
+
+`./kswar run`, standard output (per-group lines for groups 0..3 and every group from 5920 on):
+
+```
+table: records=132096, bitmap identical to build_table
+group 0: trials 16777216, batches 2396746, pass 995..995, control 4..5, set-up 13680, events 17 (295 ops); hits 9958/9958 keyhits 224/224 recs 447/447 v6 3/3 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 1: trials 16777216, batches 2396746, pass 995..995, control 4..5, set-up 13680, events 17 (295 ops); hits 9931/9931 keyhits 245/245 recs 561/561 v6 4/4 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 2: trials 16777216, batches 2396746, pass 995..995, control 4..5, set-up 13680, events 17 (295 ops); hits 10069/10069 keyhits 260/260 recs 575/575 v6 0/0 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 3: trials 16777216, batches 2396746, pass 995..995, control 4..5, set-up 13680, events 17 (295 ops); hits 9971/9971 keyhits 251/251 recs 526/526 v6 0/0 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 5920: trials 16777216, batches 2396746, pass 995..995, control 4..5, set-up 13680, events 17 (295 ops); hits 9963/9963 keyhits 217/217 recs 474/474 v6 2/2 joint 1/1 it13 2829/2829 it15 19/19 coll 1/1
+stored pair reproduced in group 5920: n = 99325680347
+M1  1e2dbac805e61a5ecd7fcb499db00a7a186cabb0f7efd9c22a442578023cd6ebf71d59bf876b73dbed1499e47173c1450ba5f907b35ebf9305848707075e188d
+M1' 1e2dbac805e61a5ecd7fcb499db00a7a186cabb0f7efc9c82a64ad69522c8ce51f1e6abf876bf3dfed1499e47173c1450ba5f907b35ebf9305848707075e188d
+group 5921: trials 16777216, batches 2396746, pass 995..995, control 4..5, set-up 13680, events 17 (295 ops); hits 9946/9946 keyhits 235/235 recs 516/516 v6 2/2 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 5922: trials 16777216, batches 2396746, pass 995..995, control 4..5, set-up 13680, events 17 (295 ops); hits 9969/9969 keyhits 236/236 recs 464/464 v6 2/2 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 5923: trials 16777216, batches 2396746, pass 995..995, control 4..5, set-up 13680, events 17 (295 ops); hits 9885/9885 keyhits 219/219 recs 468/468 v6 10/10 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 5933: trials 16777216, batches 2396746, pass 995..995, control 4..5, set-up 13680, events 17 (295 ops); hits 9807/9807 keyhits 201/201 recs 439/439 v6 4/4 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 5935: trials 16777216, batches 2396746, pass 995..995, control 4..5, set-up 13680, events 17 (295 ops); hits 9945/9945 keyhits 240/240 recs 556/556 v6 0/0 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 5945: trials 16777216, batches 2396746, pass 995..995, control 4..5, set-up 13680, events 17 (295 ops); hits 9852/9852 keyhits 251/251 recs 587/587 v6 4/4 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 5957: trials 16777216, batches 2396746, pass 995..995, control 4..5, set-up 13680, events 17 (295 ops); hits 9747/9747 keyhits 223/223 recs 505/505 v6 2/2 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 5931: trials 9437192, batches 1348171, pass 995..995, control 4..5, set-up 13680, events 10 (180 ops); hits 5623/5623 keyhits 118/118 recs 269/269 v6 0/0 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 5934: trials 2097160, batches 299595, pass 995..995, control 4..5, set-up 13680, events 3 (54 ops); hits 1260/1260 keyhits 19/19 recs 41/41 v6 0/0 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 5947: trials 13631496, batches 1947357, pass 995..995, control 4..5, set-up 13680, events 14 (252 ops); hits 8003/8003 keyhits 193/193 recs 460/460 v6 1/1 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+group 5969: trials 11534344, batches 1647764, pass 995..995, control 4..5, set-up 13680, events 12 (216 ops); hits 6796/6796 keyhits 175/175 recs 366/366 v6 0/0 joint 0/0 it13 0/0 it15 0/0 coll 0/0
+groups 5932, trials 99492036640 in 14213153175 batches; every key and bitmap decision equal to r31det3's trial block and to klane_opt; every group's hit counters equal to process_hit's
+counted: bitmap_hits=58831394 keyhits=1376281 rechits=3061666 v6=5992 joint=1 comp=1 coll=1 it13=2829 it15=19
+pass 995..995, all-loaded pass 1292..1292, loop control 4..5, group set-up with broadcast 13680 (max), events per group 295 ops (max), lane index per hit <= 2
+equal to the K run's log: FINAL trials=99492036640 keyhits=1376281 rechits=3061666 v6=5992 joint=1 both=1 comp=1/1 coll=1; DET it13=2829 it15=19 aborted_groups=4 bitmap_hits=58831394 groups=5932
+```
+
+`./kswar run`, the pair written by `r31det3.c`'s own `process_hit` (`kswar-collisions.txt`):
+
+```
+COLLISION tid=30
+M0 e7f5ce551741facd279a66b68a38d7c6cc332e48ed9dd62a6b76b5f73aa91ac91ca8034eb4a9ad705b8eeceb50a7afad07617b89719682b5394303d800459adb
+M1 1e2dbac805e61a5ecd7fcb499db00a7a186cabb0f7efd9c22a442578023cd6ebf71d59bf876b73dbed1499e47173c1450ba5f907b35ebf9305848707075e188d
+M1b 1e2dbac805e61a5ecd7fcb499db00a7a186cabb0f7efc9c82a64ad69522c8ce51f1e6abf876bf3dfed1499e47173c1450ba5f907b35ebf9305848707075e188d
+DIGEST aea2562b20b12c5938046802bcc533817087f43c3e4ac864114c2abdd2249ee5
 ```
