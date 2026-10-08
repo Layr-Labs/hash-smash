@@ -6,83 +6,62 @@
   "rounds": 5,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 40.26,
+    "time_log2": 50,
     "time_unit": "target-compressions",
     "memory_log2_bytes": 30,
-    "preprocessing_log2": 39.97,
-    "success_probability": 0.4,
+    "preprocessing_log2": 49,
+    "success_probability": 0.5,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Messages are exactly 135 bytes; each is one padded block M || 0x86 with zero capacity (520 fixed state bits). Complete fixed-zero-IV SHA3-256 sponge with suffix 0x06 and pad10*1, prefix rounds 0..4, 256-bit digest.",
-    "No advice: the algorithm runs every phase itself - the trail search P, the advice program B', setup S, the connector and the enumeration E - and the claimed time is the sum of the phases' hard budgets (proof 2, 6): P at 2 x its counted bound (exact node and leaf counts, recomputed by r5-trail-0..3 and capped by counters, times per-item price bounds; the T3 leaf price, which dominates, is checked by a counted program in r5-ecount): 2^39.937 units; B' at 2^34 units plus at most one counter update (< 2^13 units; WK raises on the first update above the budget, executed by r5-bpfull); at most 2^16 connector attempts of at most 2^18 work units; K = 128 spaces of 2^32 pairs at most 594 primitives each (worst-case path of the counted early-abort program); at most 2^11 stage-2 pairs per space. Total 2^40.2557, claimed 40.26. No expected value is charged.",
-    "Development runs are not charged and are disclosed (proof 0): they fixed the six B' design constants R = 16, DMIN = 40 and the weights KW = 1.0, MW = 0.25, LB = 1.0, PREF = 1.0 (75 processes, 1,559 CPU-s with the steering check in v7's ledger); some used the published difference of Guo et al. as a test case. Uncharged v5 runs also set the connector's DMIN = 33 (the least DF for which E's window exists) and its 2^18 work-unit cap (charged in full, never bound). These are the only constants fixed by uncharged runs; trail2c's c1max = 30 filter never applies. This reverses v7's statement that the B' constants were charged with a machine-capacity window. Every success rate used comes from runs made after the constants were fixed: the v6 full-scale run and pre-registrations A and B. Sensitivity, not claimed: charging B''s development (1,559 CPU-s at 2^38 primitives per core-second) gives 40.57, v7's whole development ledger (12,527 CPU-s) 41.81, v7's window 44.30.",
-    "Probability space: fresh algorithmic coins, fixed target, no advice. Success >= 1 - 0.00043 - 2^-29 - 2^-139 - (1 - 0.013)^128 - 2^-12 > 0.81 under H1 (for each advice B' can output, per accepted space E outputs a pair with probability >= 0.013), H2 (B' candidates) and H3 (connector acceptance of B' outputs); claimed 0.40, which needs s >= 0.0040 for the final advice.",
-    "Executed evidence (not the claimed cost): the pre-registered v6 full-scale run (14 collisions in 512 spaces; denominator and numerator re-executed by r5-den-0..2 and r5-replay); pre-registration A: nine B' runs under the shipped program and budget (all outputs, 2^23.4-2^28.2 units) each followed by 128 connector attempts (45-120 accepted); pre-registration B: E on 2 spaces per advice (round-2 passes 1.033 x the trail value; 3 collisions with fresh advice, replayed by r5-replay8). r5-trail-0..3 recompute every count of P; r5-ecount executes the counted E program and one counted T3 pass of P; r5-bp-0..4 re-derive every B' output and run 288 organizer-seeded connector attempts; r5-bpfull executes B' whole with its budget counter.",
-    "E's stage 1 tests the round-2 rows in the early-abort order of Th0rgal 7deb1595 (row 66, then row 81), credited; Th0rgal is a co-author. Memory: largest measured peak of any phase 113.5 MB (B'); declared 30.",
-    "The nominal reference identifier does not assert an improvement over published work; no improvement on the method of Guo et al. is claimed beyond the byte-aligned adaptation, B', the counted early-abort E and the accounting."
+    "Messages are exactly 135 bytes (1080 bits, below 2^64), drawn from the connector's affine subspace; two returned messages are required to be distinct byte strings.",
+    "Uses the complete fixed-zero-state SHA3-256 sponge with delimited suffix 0x06, pad10*1, and prefix rounds 0 through 4; full 256-bit digest equality is required. No free-start, compression-only, truncated-output, or altered-parameter variant is claimed.",
+    "The construction is the published attack of Guo, Liao, Liu, Liu, Qiao and Song (Journal of Cryptology 33, 2020, 228-270; ePrint 2019/147): a 2-round connector via S-box linearization feeding 3-round trail core No. 3 (w = 36.70). No novelty over that literature is claimed.",
+    "The published witness pair uses 1084-bit padded blocks (last byte 0xEE: four message bits plus '01' suffix and '11' pad) and is therefore outside this target's byte-string domain; the claimed algorithm instead fixes byte 135 to 0x86, adding four fixed bits to the connector constraints.",
+    "Preprocessing budget is 64 independent connector solves at at most 2^43 target-compression units each (paper's 428.8 core-hours converted at 2^22 evaluations/s with each evaluation charged as one full target call): 2^49 units total.",
+    "Pair enumeration is charged at at most 2 units per sampled pair and at most 64 x 2^37 pairs across all solves: below 2^44 units.",
+    "The claimed scalar 50 includes about 2^3.4 of slack over the nominal estimate 46.6, absorbing the connector degree-of-freedom sensitivity and the wall-time conversion interpretation.",
+    "No collision-witness certificate is supplied: the only published pair is not byte-aligned and cannot be hashed as a byte-string witness. Evidence is the transcribed published states, a permutation-level verification against the organizer's reference implementation, and the charged accounting in proof.md.",
+    "This is a reduced-round result on prefix rounds 0-4 and asserts nothing about full 24-round SHA3-256."
   ],
   "baseline_improved": "sha3-256-r5-nominal-v2",
   "heuristics": [
     {
-      "id": "H1-space-success",
-      "statement": "For each advice (beta1', beta0') that B' can output and one connector attempt with fresh coins that is accepted on it, the enumeration E (proof 2.4) on its 2^32-pair window outputs a pair (all 24 round-2 equations hold and the 256-bit digests are equal) with probability at least s0 = 0.013, and the stage-2 cap of 2^11 pairs per space does not bind. This is a bound per advice, not an average over advices.",
+      "id": "connector-dof",
+      "statement": "Restricting the Guo et al. connector to byte-aligned 135-byte messages (byte 135 fixed to 0x86) adds four fixed bits to the constraint system and reduces the returned solution-space dimension from the measured DF = 37 to an estimated DF' >= 33; each returned space then contains an expected 2^(DF' - 36.70) collisions.",
       "role": "score-critical",
-      "scope": "Only the success probability: given the final advice, the K = 128 accepted spaces are i.i.d. (independent coins), so Pr[no output] = (1 - s)^128 <= 0.1873; the claimed 0.40 needs s >= 0.0040 for the final advice. Output correctness and every cost cap hold without H1.",
-      "extrapolation": "Pre-registered v6 full-scale run with the advice that the shipped B' reproduces from LABEL_B within its budget (k = 0; r5-bp-0): E output a pair in 14 of the first 512 accepted spaces (s-hat = 0.0273; one-sided 99% Clopper-Pearson lower bound 0.0133 >= s0); r5-den-0..2 re-run all 538 attempt indices up to the 512th accepted one (the whole denominator) and r5-replay re-derives the 14 positives. Across advice (Markov premise: E depends on the advice only through the exact 2-round difference alpha2, which every advice reaches): pre-registration B enumerated 2 spaces of each of the 9 advices of pre-registration A: 4,760 round-2 passes against 4,608 expected (ratio 1.033, per advice 0.975-1.125), and 3 collisions in 16 spaces of fresh advice (k = 4 and 7), replayed by r5-replay8. Largest stage-2 count per space: 307 (E check) and 301 (v6), against the cap 2,048. Sampling premise: SHAKE-256-expanded coins from distinct seeds give the same per-attempt probabilities as fresh coins.",
-      "evidence_ids": [
-        "proof:217-279",
-        "proof:308-338",
-        "proof:312-317",
-        "experiment:r5-den-0",
-        "experiment:r5-den-1",
-        "experiment:r5-den-2",
-        "experiment:r5-replay",
-        "experiment:r5-replay8",
-        "experiment:r5-bp-0"
-      ],
-      "limitations": "s0 is measured on one advice; for the other advice only round-2 rates and 3 collisions are measured. Those show more variation than an independent-pair model predicts, all upward: pooled round-2 ratio 1.033 (2.2 Poisson standard deviations above 1, inside the pre-registered 99% interval), advice 4 2.8 above; 3 collisions in 16 fresh spaces (probability about 0.01 at the v6 rate), two of them in one space (about 0.007); s counts spaces with at least one collision. The v6 run had a disclosed decision rule (submit if s0 >= 0.002), the outcome-selection premise reviewers flagged for v7; the factor 3.3 between s0 and the needed 0.0040 is the margin. The organizer seeds are public and the harness draws no inference."
+      "scope": "SHA3-256 prefix rounds 0-4, rate 1088, trail core No. 3, with eight fixed bits in the last rate byte.",
+      "extrapolation": "Fixed linear constraints over GF(2) remove at most one input-freedom dimension each, so four extra fixed bits lower the paper's measured DF = 37 by at most four. The claim budgets 64 solves and remains valid for DF' >= 30.2; the nominal estimate DF' = 33 gives expected lambda ~ 9.7 collisions.",
+      "evidence_ids": ["proof:169-176", "proof:226-239"],
+      "limitations": "If linearization interactions reduce DF' below ~30, the budgeted solve count gives success below 0.5 and more solves would be needed at roughly 2^43 units each; the scalar 50 still bounds the charged time of the stated procedure."
     },
     {
-      "id": "H2-bprime-runs",
-      "statement": "B' candidates with fresh coins are independent; each yields an accepted advice with probability at least q_c0 = 0.0742 and costs at most 2^26.85 units (twice the largest observed candidate).",
+      "id": "trail-probability-carryover",
+      "statement": "Each message pair sampled from a connector solution space reaches a full 256-bit digest collision with probability about 2^-36.70, the trail weight reported by Guo et al. for trail core No. 3 on this instance.",
       "role": "score-critical",
-      "scope": "Only the success probability: with H3, at least floor(2^34 / 2^26.85) = 142 candidates fit B''s budget, so Pr[B' exhausts its budget before a good advice] <= (1 - 0.0742 x (1 - 0.2831))^142 = 0.00043, including restarts. The time cap does not depend on H2.",
-      "extrapolation": "Pre-registration A (proof 4.2): nine B' runs (k = 0: LABEL_B; k = 1..8: new labels) under the shipped program and budget, started together, none stopped or repeated: 65 candidates, 9 accepted (q_c-hat = 0.138; one-sided 95% CP lower bound 0.0742); largest candidate 2^25.848 units; whole runs 2^23.4-2^28.2 units. r5-bp-0..4 re-derive every output from its label at the logged counts and audit one other logged attempt each; r5-bpfull executes run k = 1 whole (counted cost equal to the log) and stops B' at a 2^20-unit budget.",
-      "evidence_ids": [
-        "proof:111-136",
-        "proof:217-260",
-        "proof:308-338",
-        "proof:318-321",
-        "experiment:r5-bp-0",
-        "experiment:r5-bp-1",
-        "experiment:r5-bp-2",
-        "experiment:r5-bp-3",
-        "experiment:r5-bp-4",
-        "experiment:r5-bpfull"
-      ],
-      "limitations": "Nine runs; the per-candidate cost is bounded by observation, not by a cap. Sensitivity: a Markov bound from the mean run cost (2^27.11 units) gives 0.0084 instead of 0.00043; success stays > 0.80."
+      "scope": "Rounds 2-4 differential propagation over trail core No. 3; the connector construction already guarantees the trail's input difference alpha_2.",
+      "extrapolation": "The weight is a measured property of the fixed trail and does not depend on which bits of the input are fixed by padding, so it carries over to the byte-aligned variant. It aggregates multiple compatible trails over the last two rounds, as reported in the paper.",
+      "evidence_ids": ["proof:73-80", "proof:89-94"],
+      "limitations": "The 36.70 exponent combines the measured per-round transition weights and a multi-trail correction reported by the paper; if the true effective probability were lower, the enumeration count would scale by the reciprocal."
     },
     {
-      "id": "H3-connector-acceptance",
-      "statement": "An advice output by B' has connector acceptance probability q >= 0.10 per attempt with fresh coins, except with probability at most f_up = 0.2831 over B''s coins.",
-      "role": "score-critical",
-      "scope": "Only the success probability: a good advice gives 128 accepted attempts within 2^12 except with probability < 2^-139 (Chernoff, mean >= 409.6); weak advice is discarded and B' resumes, so H3 enters as f_up^16 < 2^-29 (at most 16 advice rounds) and through H2's bound.",
-      "extrapolation": "Pre-registration A: 128 attempts with each of the 9 advices: 120, 105, 68, 93, 104, 83, 58, 68, 45 accepted (744 of 1,152, all verified); every 99% Clopper-Pearson lower bound is >= 0.255, so all 9 are good and f_up is the one-sided 95% upper bound of 0/9. Organizer-seeded attempts in r5-bp-0..4: 196 of 288 accepted and verified with the public seed (consistent with q >= 0.10 for each advice).",
-      "evidence_ids": [
-        "proof:138-152",
-        "proof:217-260",
-        "proof:288-306",
-        "proof:322-323",
-        "experiment:r5-bp-0",
-        "experiment:r5-bp-1",
-        "experiment:r5-bp-2",
-        "experiment:r5-bp-3",
-        "experiment:r5-bp-4"
-      ],
-      "limitations": "Nine advices; f_up is a 95% bound. Acceptance varies between advices (0.35-0.94), which is why the restart rule exists."
+      "id": "runtime-to-units",
+      "statement": "One connector solve, measured by Guo et al. at 428.8 CPU core-hours for SHA3-256, is charged at at most 2^43 target-compression units by converting at 2^22 evaluations per second and pricing each evaluation as one complete target call.",
+      "role": "supporting",
+      "scope": "Preprocessing phase only; applies to the connector construction and its internal restarts, all inside the reported wall time.",
+      "extrapolation": "The paper states usual computers evaluate 2^20-2^22 Keccak evaluations per second; the bound uses the top of that range and charges one full unit per evaluation. If an evaluation were instead a 24-round permutation (~4.8 units), the per-solve bound would rise by about 2^2.3.",
+      "evidence_ids": ["proof:183-190"],
+      "limitations": "The reported wall time may reflect implementation overheads not present in a lean RAM implementation, in which case the charge is conservative rather than tight."
+    },
+    {
+      "id": "solve-space-independence",
+      "statement": "Independent connector solves with fresh random linearization and subspace choices return statistically independent candidate spaces, so cumulative collision probability across solves is governed by the Poisson mean lambda = N_s x 2^(DF' - 36.70).",
+      "role": "supporting",
+      "scope": "Aggregation across the budgeted 64 solves; within each solve pairs are sampled without replacement from a common affine space.",
+      "extrapolation": "Different random linearization choices span different affine subspaces of the message domain; pair-level collision events are driven by the fixed trail probability, making per-solve collision counts approximately independent.",
+      "evidence_ids": ["proof:191-197", "proof:226-236"],
+      "limitations": "Subspaces could overlap in correlated ways if the solver's randomization is weak; the claimed success 0.5 is set well below the nominal 0.9999 to absorb mild correlation."
     }
   ],
-  "certificate_manifest": "certificates/manifest.json",
-  "experiment_manifest": "experiments/manifest.json"
+  "certificate_manifest": "certificates/manifest.json"
 }
