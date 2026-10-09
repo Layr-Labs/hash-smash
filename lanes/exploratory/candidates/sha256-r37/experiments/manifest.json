@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "d1-first-block-r37",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact sha256-r37-prefix-v1 target. Per organizer seed: one group of the attack driver of proof.md Section 4.6 (experiments/d1core.py, version bs1, byte-identical to Appendix A) with W0..W14 of M0 and the byte gb from SHAKE-256(seed) and one bit-sliced batch of 256 first blocks (W15 = (L << 24) | (b << 8) | gb, L = 0..255). The first trial also runs the counted 64-register program on three groups (calibrate), asserting that it computes the evaluator's fail plane and the same count. For 24 seed-chosen lanes and every lane the batch marks valid, the W7 and W6 decisions are compared with a scalar 37-step compression and the paper's Step-2 equations; the lanes the driver sends to Step 3 must be exactly the valid ones, each with the scalar chaining value; for every valid lane and every element of L* the second-block pair must follow every A/E cell of rows -4..15 and every W cell except the XOR cells of W6/W7; Step 3 runs on every valid lane. Returns the 128-byte pair M0||M1, M0||M1' of the first valid lane (published W14, W15) if every check passed, else two nulls.",
+      "hypothesis": "Full collisions: 0 (per-trial probability below 2^-60). Under H1 a trial returns a pair with probability 1 - (1 - p2)^256 = 0.2380, so about 60.9 of 256 are expected. The count is a witness observation only: no independence of the organizer's trials is assumed and no statistical inference is drawn from it; H1's Step-2 rate rests on the grouprate.py and grouprate.c measurements (claim.json H1). Observations per trial (participant numbers): mismatches 0, batch_ops 44135; lanes_checked, w7_pass, valid, stage3b and deepest_row are reported. A local run on 256 seeds of our own returned 69 pairs with 0 mismatches; a local emulation of the public-seed request (seed protocol of experiments/runner.py, no holdout nonce), run after the program was final, returned 66. This tests H1's Step-2 rate on real grouped first blocks and the correctness of the bit-sliced batch and its counted program; it does not test q3.",
+      "program": "experiments/d1core.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    },
+    {
+      "id": "d1-q3-smc-r37",
+      "kind": "python-message-pairs-v1",
+      "scope": "H2 (proof.md Sections 6.4 and 10.2). experiments/d1core.py (the same file) runs q3_experiment: an exact count of row 16 (a bit-serial count over E16^x for each of the 32 elements of L*: 1,052,672 words) and, in trials 0..19, one reduced replicate each of the sequential Monte-Carlo estimator of q3 (NP 64 particles drawn uniformly from the row-16 words; 4, 4, 1, 1, 1 children per particle at rows 17..21; 512 tail proposals per particle with W7 drawn exactly from F7, which splits into two affine spaces; randomness from SHAKE-256 of the trial seed), which samples the second-block words from their exact distribution under H1 (Lemma 2). Every tail success is rebuilt (W0..W7 by the inverse expansion, CV1 by inverting steps 7..0 from S) and accepted only if the reference 37-step compression gives F(CV1, M1) = F(CV1, M1') with M1 != M1', W7 and W6 pass Step 2 and every cell holds. Trial t < 20 returns its first accepted pair as the 96-byte strings CV1||M1 and CV1||M1' iff it has a success and all were accepted; trial 20 returns a pair iff all 20 did and the mean of the 20 estimates is >= 2^-74.35; trials 21..255 return no pair by design.",
+      "hypothesis": "Returned pairs: 21 (trials 0..20). Full collisions: 0 (the strings are semi-free-start collisions from CV1, not collisions from the IV; they can be checked offline). Under H2 each replicate is an unbiased estimate of q3 = 2^-74.0 with relative sd about 0.25. The pass rule (mean of the 20 estimates >= 2^-74.35) is a sanity threshold fixed before any validation run; it is not used to derive the claimed bound, which rests on the preregistered sample (claim.json H2), and no independence of the organizer's trials is assumed. The design and rule were frozen (PREREG_q3x.txt) before any validation run; on 51 requests of our own every request returned 21 pairs (1,020 replicates, mean 2^-74.0040, 69,648 successes all accepted); a local emulation of the public-seed request returned 21 pairs. Observations (participant numbers): per replicate log2_estimate, row16_words 1052672, survivors per stage, tail_successes, verified_pairs, failed_rebuilds 0; trial 20 log2_pooled_mean.",
+      "program": "experiments/d1core.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
