@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "v37-first-blocks",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact sha256-r37-prefix-v1 target; H1 and the counted program (proof.md Sections 5 and 10.3). Trials 1..64: the program's two RAND words from SHAKE-256(seed || 'm0') form M0; CV1 = F_37(IV, M0); the bucket of A_{-1} over the first 2^14 variants of V is built as the preprocessing builds it; the instruction listing LISTING (byte-identical to proof.md Section 5.2) is executed and counted instruction by instruction; its trace of every valid pair (A0_k, W1, X, l-mask) is compared with a direct computation of Lemma 1; its per-block operation counts are compared with the counts of Section 5.2; every valid pair's cells of rows -4..15 (one l each) and row 16 are checked. Trial 0 runs the listing from the published pair's CV1 with a bucket holding S and 4,096 elements of V and requires FINAL to find the published pair (l = 13). Trials 65..255 return two nulls by design.",
+      "hypothesis": "Full collisions: 0 (returned pairs are M0||M1, M0||M1' of a valid pair, not collisions). Observations per trial (participant numbers): bucket_entries, valid_pairs (about 17.4 expected per trial for 2^14 variants, strongly clustered: most trials have none), decision_mismatch 0, cells_rows_m4_15_failures 0, ops_ok 1, variant_failures 0; trial 0 published_pair_found 1. A deterministic regression check of the counted program and the variant family, not a statistical test of H1's rates. A local run on our own seeds (2.9 s) checked 1,323 valid pairs with 0 mismatches and exact op counts in all 64 trials.",
+      "program": "experiments/v37.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    },
+    {
+      "id": "v37-sfs",
+      "kind": "python-message-pairs-v1",
+      "scope": "H2 (proof.md Sections 6 and 10.3). Trials 0..9: one reduced replicate each of the Section 6 estimator (NP 64 particles; 8, 32, 8, 8, 2, 4 children at rows 16..21; 384 tail proposals per particle; randomness SHAKE-256 of the trial seed) for l = VIABLE[11 t mod 28], whose tail draws a fresh random variant of V per proposal and W7 exactly uniformly from F7 (the disjoint union of two affine spaces of 2^26 and 2^20 words, both checked at setup). Every success is rebuilt (W0..W5 by the inverse expansion, CV1 by inverting steps 7..0 from S'_k) and accepted only if F_37(CV1, M1) = F_37(CV1, M1'), M1 != M1' and every cell of rows -4..36 holds; up to two per trial are given to the counted program from CV1 (attempts and successes reported). A trial returns its first accepted pair as the 96-byte strings CV1||M1 and CV1||M1'. Trials 10..255 return no pair by design.",
+      "hypothesis": "Full collisions: 0 (the strings are 37-step semi-free-start collisions from CV1 for variants S'_k of V, not collisions from the IV; they can be checked offline). Observations (participant numbers): per trial log2_estimate (absent for replicates that die before the tail), successes, verified (= successes), distinct_variants, refind_attempts, refound_by_counted_program (= refind_attempts). No statistical inference is drawn from the organizer's replicates; the claimed q3 rests on the preregistered estimate. Local runs on four of our own seeds (1.8 to 2.4 s each) verified 18 to 21 collisions of as many distinct variants, and every refind attempt succeeded.",
+      "program": "experiments/v37.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}

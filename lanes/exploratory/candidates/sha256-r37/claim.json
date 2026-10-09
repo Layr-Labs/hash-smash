@@ -1,24 +1,85 @@
 {
-  "schema_version": 3,
-  "submission_state": "ready",
-  "target_profile": "sha256-r37-prefix-v1",
-  "attack_class": "ordinary-collision",
-  "rounds": 37,
-  "claim": {
-    "time_log2": 132,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 125,
-    "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 0
+ "schema_version": 3,
+ "submission_state": "ready",
+ "target_profile": "sha256-r37-prefix-v1",
+ "attack_class": "ordinary-collision",
+ "rounds": 37,
+ "lane": "exploratory",
+ "baseline_improved": "sha256-r37-nominal-v2",
+ "certificate_manifest": "certificates/manifest.json",
+ "experiment_manifest": "experiments/manifest.json",
+ "claim": {
+  "time_log2": 64.0687,
+  "time_unit": "target-compressions",
+  "memory_log2_bytes": 51,
+  "preprocessing_log2": 60.00141,
+  "success_probability": 0.39,
+  "nonuniform_advice_log2_bytes": 13
+ },
+ "restrictions": [
+  "Target sha256-r37-prefix-v1 exactly: SHA-256 steps 0..36 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words. Output: two distinct complete 128-byte messages M0||M1 and M0||M1' (common first block; FIPS padding appends the same third block) with equal digests, verified with the target before output.",
+  "Algorithm: the 37-step two-block attack of Li, Zhang, Li, Liu, Qian and Zhu (IACR ePrint 2026/1120) with the paper's characteristic and the Step-1 solution S of its published pair, extended by a family V of 2^18 Step-1 solutions S'(E4') that differ from S only in A0, E4 and W8 (proof.md Section 4). Each first block is tested against all of V through a table indexed by A_{-1}; valid pairs (W7 in F7, W6 in F6) run Step 3 over the exact set L* with early aborts on E16 and E17 and a final check by two target compressions (Section 5).",
+  "Cost: fixed caps N = 1,115,062,431,311,676,075 first blocks and caps 3.1% above the H1 expectations of bucket entries, valid pairs, rare paths and set l-bits (25% for final checks), halting on overflow, plus the overshoot of one first block past a cap; per-block operation counts from the instruction listing of proof.md Section 5.2 under collision-frontier-v5 (C = 2644, 64 registers with at most 38 live, every load, store, address add and branch counted). The exact total including table preprocessing and the allowances A_C = 2^60, A_S = 2^50, DEV = 2^40 is 51,151,824,637,987,505,976,823 / 2644 = 2^64.068697 target compressions on every run, claimed as 64.0687.",
+  "Success probability at least 0.4054 under H1 (uniform chaining values) and H2 (q3 >= 2^-74.01 for the family V, preregistered SMC, 99% one-sided bound; kappa = 255/256): mu = 0.52 successful pairs in expectation, Chen-Stein bound with neighbourhoods = variants of one chaining value (H3 allows a 2^30 dependence factor there). Independence across first blocks is exact. Success stays >= 0.39 if q3 or the validity rate falls up to 4.9% short.",
+  "Memory is a reported metric only: at most 2^51 bytes (2^50.61), dominated by the bucket table. baseline_improved names the organizer reference and does not assert an improvement over it by itself."
+ ],
+ "heuristics": [
+  {
+   "id": "H1-uniform-chaining-value",
+   "role": "score-critical",
+   "statement": "For independent uniform first blocks M0 (two fresh RAND words each), the chaining values CV1 = F_37(IV, M0) behave, for the events used, as independent uniform 256-bit values: (a) each (CV1, k) with k in V is valid (W7 in F7 and W6 in F6) with probability p2 = |F6||F7|/2^64 = 2^-9.87960, so a first block yields K p2 = 278.28125 valid pairs on average; (b) the bucket of A_{-1} has 4160 entries on average; (c) given validity, the second-block words follow Lemma 2 (W0..W5 uniform, (W6, W7) uniform on F6 x F7), which the q3 estimate assumes. Independence across first blocks is exact because the coins are independent.",
+   "scope": "Random first blocks of the exact 37-step target with the standard IV; the 2^18 variants of V; the filter of Lemma 1/Lemma 3; rows -4..16 of the resulting pairs.",
+   "extrapolation": "Measured on 40,000 real first blocks (11,068,722 valid pairs, 276.72 +- 4.75 per block against 278.28; buckets 4134.4 +- 43.7 against 4160; row-16 rate 2^-11.002 against the exact 2^-11) (the organizer experiment observes the same counts on its own first blocks, as a regression check without statistical power); the algorithm uses N = 2^59.95 first blocks. Margins: 4.9% in the validity rate before success drops below 0.39, 3.1% in the cap means.",
+   "evidence_ids": [
+    "proof:204-242",
+    "proof:695-742",
+    "proof:769-777",
+    "proof:809-821",
+    "proof:822-849",
+    "experiment:v37-first-blocks"
+   ],
+   "limitations": "Uniformity of a 37-step compression output is not proved; the measurements test the means of the validity count and of the bucket size and the row-16 rate, not the full joint law used by q3. The validity count per first block is strongly clustered by A_{-1} (72.8% of first blocks have none); only its mean and second moment enter the argument. The checks of rows -4..15 verify Lemma 1 and Lemma V, not H1."
   },
-  "restrictions": [
-    "Samples exactly 2^128 independent uniformly random 48-byte complete messages with replacement; each hashes to the full 256-bit output from the standard fixed IV using one padded 37-round compression.",
-    "Classical 256-bit probabilistic word RAM under collision-frontier-v5, C=2644; no random-oracle, output-balance, PRNG or differential heuristic.",
-    "Worst-case total work and peak memory upper bounds; no witness, executed full search, novelty, nominal-reference improvement or qualification is asserted."
-  ],
-  "baseline_improved": "sha256-r37-nominal-v2",
-  "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  {
+   "id": "H2-step3-probability",
+   "role": "score-critical",
+   "statement": "For a valid pair (CV1, k), averaged over k in V and over the 32 elements l of L*, the probability q3_V that every A, E, W cell and '+' pair of rows 16..36 holds for both members is at least q3_model = 2^-74.01; and the fraction of such successes for which a second element of L* also succeeds from the same CV1 is below 1/256 (kappa = 255/256 is charged).",
+   "scope": "The 37-step characteristic of ePrint 2026/1120 with member x = M', the Step-1 family V of Section 4.2, all 32 elements of L* (four of which never pass row 17), the exact second-block law of Lemma 2.",
+   "extrapolation": "A probability of 2^-74 cannot be observed directly; it is estimated by a preregistered sequential Monte-Carlo estimator (8,192 replicates, one-sided 99% lower bound 2^-74.0050), unbiased under Lemma 2. Rows 16..22 have the same law for every variant (Lemma V2); the W8-dependent W24 conditions are averaged over V inside the estimate. kappa rests on 975,395 published-S and 240,260 variant successes with no overlap. The algorithm needs only q3 >= 2^-74.083.",
+   "evidence_ids": [
+    "proof:164-203",
+    "proof:233-242",
+    "proof:639-694",
+    "proof:778-784",
+    "experiment:v37-sfs"
+   ],
+   "limitations": "SMC estimates have heavy-tailed replicate distributions; the lower bound uses a normal approximation over 256 replicates per l. The estimate agrees with an independent earlier estimate for the published S (2^-73.9916), but both use the same stage design. The replayed successes share SMC ancestry. The organizer replica is reduced and is an observation, not a statistical test."
+  },
+  {
+   "id": "H3-cross-variant-dependence",
+   "role": "supporting",
+   "statement": "For two distinct variants k != k' that are both valid for the same CV1, the probability that both pairs succeed is at most 2^30 times the product of their marginal success probabilities. Used only to bound the Chen-Stein term b2 <= 2.7e-7 (with the deterministic bound E[n^2] <= K E[n]); the success bound tolerates a factor up to 2^44.",
+   "scope": "Pairs of variants of V sharing one chaining value; the success event of rows 16..36.",
+   "extrapolation": "Measured at row 16 only: across 40,000 first blocks the within-chaining-value cross moment of row-16 pass counts of different variants is 1.001 times the squared mean; deeper rows are too rare to sample jointly.",
+   "evidence_ids": [
+    "proof:701-726",
+    "proof:785-791",
+    "proof:809-821"
+   ],
+   "limitations": "Dependence in rows 17..36 is not measured; the allowance 2^30 is far above the measured 1.001 but not proved."
+  },
+  {
+   "id": "H4-advice-allowances",
+   "role": "score-critical",
+   "statement": "The characteristic, the Step-1 solution S and L* are advice of less than 8 KiB whose construction is charged by fixed allowances as in the d1 packages: A_C = 2^60 units for the authors' characteristic and semi-free-start-pair search (cost unpublished), A_S = 2^50 for a Step-1 SAT solve (the paper reports 2^41.3), DEV = 2^40 for all development. The variants of V are derived from S algebraically and cost nothing beyond the counted preprocessing.",
+   "scope": "Advice and preprocessing of this package only.",
+   "extrapolation": "The allowance A_C is an assumption about unpublished search costs; A_C is 6% of T, and with A_C = 2^62 log2 T would be 64.30599.",
+   "evidence_ids": [
+    "proof:85-103",
+    "proof:743-766",
+    "proof:792-797"
+   ],
+   "limitations": "The paper's characteristic search was not rerun; its cost is charged by allowance, not measured."
+  }
+ ]
 }
