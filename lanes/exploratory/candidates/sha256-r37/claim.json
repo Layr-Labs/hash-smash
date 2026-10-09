@@ -5,15 +5,16 @@
   "attack_class": "ordinary-collision",
   "rounds": 37,
   "claim": {
-    "time_log2": 132,
+    "time_log2": 128.2,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 125,
+    "memory_log2_bytes": 137.33,
+    "preprocessing_log2": 122.22,
     "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Samples exactly 2^128 independent uniformly random 48-byte complete messages with replacement; each hashes to the full 256-bit output from the standard fixed IV using one padded 37-round compression.",
+    "Samples at most n = 2^128 + 2^121 (fewer only on early success or abort) independent uniformly random 48-byte complete messages with replacement; each hashes to the full 256-bit output from the standard fixed IV using one padded 37-round compression.",
+    "Collision detection uses a chained hash table with 2^132 buckets indexed by a randomly keyed 4x64-bit tabulation hash of the full digest, with a hard cap Q = n^2/2^126 on non-matching chain probes; universality and Markov's inequality bound the abort probability below 1/128 for every fixed target.",
     "Classical 256-bit probabilistic word RAM under collision-frontier-v5, C=2644; no random-oracle, output-balance, PRNG or differential heuristic.",
     "Worst-case total work and peak memory upper bounds; no witness, executed full search, novelty, nominal-reference improvement or qualification is asserted."
   ],
