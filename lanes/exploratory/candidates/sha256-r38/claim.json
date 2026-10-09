@@ -4,21 +4,89 @@
   "target_profile": "sha256-r38-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 38,
-  "claim": {
-    "time_log2": 132,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 123,
-    "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 0
-  },
-  "restrictions": [
-    "Samples 2^128 independent uniform 48-byte complete messages with replacement; no chosen IV, digest truncation, or output-distribution assumption.",
-    "Classical probabilistic 256-bit word RAM using the independent uniform word primitive of collision-frontier-v5; no PRNG substitution.",
-    "Worst-case single-batch resource upper bounds include unsuccessful batches; no restart or amplification is required for success_probability 0.39."
-  ],
+  "lane": "exploratory",
   "baseline_improved": "sha256-r38-nominal-v2",
   "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  "experiment_manifest": "experiments/manifest.json",
+  "claim": {
+    "time_log2": 93.86313,
+    "time_unit": "target-compressions",
+    "memory_log2_bytes": 30.1,
+    "preprocessing_log2": 78.08755,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 13
+  },
+  "restrictions": [
+    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words. Output: two distinct complete 128-byte messages M0||M1 and M0||M1' (common first block; FIPS padding appends the same third block) with equal digests; every output is verified with the target before it is returned.",
+    "Algorithm: the two-block attack of Li, Zhang, Li, Liu, Qian and Zhu (IACR ePrint 2026/1120) with its 38-step characteristic, two-bit conditions (W25[4] = W25[6], printed W25[9]) and the Step-1 solution S read off its published SFS pair (member x = the message printed second). New (as in our sha256-r37 filing 1c368173): the second-block word A0 carries no condition, so S has 2^26 variants (A0, E4, W8 changed; the set G of proof.md Section 4.3); the attack uses the 245,760 variants of 64 c7-classes (3840 each; W7x = c7 - A_{-1} is the same for a whole class). Per first block: one W7 test per class (exact set F7); every variant of a passing class is a good pair (38 steps have no W6 filter): E16x = C16 + W0 + s0(W1) with the stage-3a test of its ten fixed bits, the exact 32-word row-16 set, and rows 17..37 with early abort.",
+    "Cost: fixed caps N_FB = 79,982,809,848,158,989,131,448,320 first blocks (2^86.04789; each one target compression plus 686 counted scalar operations) and V_MAX = 48,868,841,106,753,321,718,115,897,062,320 counted data-dependent operations (halt when exceeded, tested after every class), with A_C = 2^78, A_S = 2^74, DEV = 2^64 and 2^40 operations of precomputation: 2^93.863122 target compressions on every run (proof.md Section 11), claimed 93.86313. Every target compression is charged one unit; no packed or bit-sliced pricing is used.",
+    "Success probability at least 0.3934 under H1 (independent uniform chaining values of the first blocks), H2 (q3 >= 2^-101.05 for the variants, the one-sided 99% lower bound of a preregistered 32-replicate sequential Monte-Carlo estimate) and H3 (given one success, at most 2^-9.4 further successes expected in the same first block), by a per-first-block Bonferroni bound and independence across first blocks; Chebyshev bounds the work-cap overflow below 2^-59. No expected-work bound and no independence-of-conditions model is used.",
+    "Memory is a reported metric only (2^30.1 bytes: the F7 and row-16 bitmaps and the class data). baseline_improved names the organizer reference and does not assert an improvement over any submitted score."
+  ],
+  "heuristics": [
+    {
+      "id": "H1-uniform-chaining-values",
+      "role": "score-critical",
+      "statement": "The first blocks M0 are fresh uniform 512-bit strings (two uniform 256-bit words each); their chaining values CV1 = F_38(IV, M0) behave as independent uniform 256-bit values. Consequences used: for every fixed variant a0, Pr[W7x in F7] = p7 = |F7|/2^32 exactly and, given it, W0..W6 are uniform and independent of W7, which is uniform on F7 (proof.md Lemma 5.1); hence g = 64 x 3840 x p7 = 16,440 good pairs per first block in expectation; distinct first blocks are independent (success bound and the Chebyshev bound on the work cap).",
+      "scope": "The expected numbers of passing classes, good pairs, stage-3a and row-16 passes per first block; the law of the second-block words that defines q3; independence across first blocks (proof.md Section 10). Not the validity of any output: every output is verified with the target.",
+      "extrapolation": "Measured with the attack's own filters on real first blocks (proof.md Section 13.1): on 2^23 random first blocks with real 38-step compressions, passing classes 35,932,046 against 35,913,728 expected, good pairs 137,979,056,640 (1.0005 of the expectation), stage-3a passes 134,745,727 (z = +0.05), row-16 passes 994 against 1028.0 (z = -1.06), every row-16 pass checked exactly; a 2^16 run agrees. The organizer experiment a0-online-r38 runs the counted online program on organizer-seeded first blocks. These are 2^23 trials, not 2^86.",
+      "evidence_ids": [
+        "proof:196-201",
+        "proof:202-211",
+        "proof:398-408",
+        "proof:797-890",
+        "proof:1067-1077",
+        "experiment:a0-online-r38"
+      ],
+      "limitations": "A premise, not a theorem; tested on 2^23 first blocks. The class tests of one first block are correlated (close c7 values), so per-first-block counts are overdispersed; only their expectations and the independence across first blocks are used."
+    },
+    {
+      "id": "H2-variant-step3-probability",
+      "role": "score-critical",
+      "statement": "For a good pair, q3 = the average over the 245,760 selected variants of Pr[rows 16..37 of both members follow every cell and every printed two-bit condition closing at rows >= 16 (corrected reading W25[4] = W25[6])] satisfies 2^-101.05 = q3_model <= q3 <= 2^-97.",
+      "scope": "The expected number of successes E[X] = N_FB g q3 and hence N_FB (proof.md Sections 7 and 10).",
+      "extrapolation": "Lemma 7.1 (proof.md): rows 16..22 have exactly the same probability for every variant; a variant enters rows >= 23 only through W8 in W23 and W24, with fixed modular differences. A sequential Monte-Carlo estimator (smc38.c, Appendix A: exact row 16 (32 words), exact importance weights at rows 17..21, W7 uniform on F7 and W6 uniform at row 22, W8 drawn from the selected variants) was preregistered (PREREG_q3_r38.txt, frozen before any listed seed) and run on 32 replicates: mean 2^-101.0154, relative sd 0.047, one-sided 99% Student lower bound 2^-101.0448 (a percentile bootstrap of the mean gives 2^-101.0435), q3_model = 2^-101.05. Stage factors 27.000, 16.996, 12.999, 15.011, 6.000, 7.000, 1.000 and 15.011 bits equal the per-row condition counts of the tables; the earlier r38 filings' published-S estimate is 2^-101.02. Paired on the same 1,073,754,023 row-22 survivors, rows 23..37 pass 32,542 times with the variants' W8 and 32,538 with the published W8. Real good pairs pass stage 3a and row 16 at the exact rates. 38-step semi-free-start collisions built with variant dense parts verify under the repository verifier (Section 13.2; organizer experiment a0-sfs-r38).",
+      "evidence_ids": [
+        "proof:235-274",
+        "proof:212-234",
+        "proof:409-418",
+        "proof:655-796",
+        "proof:997-1010",
+        "proof:1011-1066",
+        "experiment:a0-sfs-r38"
+      ],
+      "limitations": "A Monte-Carlo bound under H1 whose coverage rests on the approximate normality of the mean of 32 replicates (all at least 2^-101.19; skewness -0.31). Depends on the '+' reading and the W25 correction. The organizer experiment demonstrates full 38-step semi-free-start collisions with variant dense parts; it does not estimate q3."
+    },
+    {
+      "id": "H3-first-block-dependence",
+      "role": "score-critical",
+      "statement": "For every trial t = (first block, variant), the expected number of other successful trials of the same first block given that t succeeds is at most 2^-9.4. With |L*| = 1 the other trials are other variants; equivalently, for good pairs t' != t of the first block, Pr[t' succeeds | t succeeds, t' good] <= 2^69 Pr[t' succeeds | t' good].",
+      "scope": "The per-first-block Bonferroni bound Pr[X_f >= 1] >= (1 - 2^-10.4) E[X_f] (proof.md Section 10).",
+      "extrapolation": "With q3 <= 2^-97 (H2) the expected number of further successes is at most rho x 245,760 x q3 <= rho x 2^-79.09, i.e. at most 2^-10.1 for rho <= 2^69. Measured: among 2^23 real first blocks no first block had two row-16 passes (0.52 expected under independence); our r37 filing measured a within-first-block row-16 correlation factor of 1.001 over 2^23 first blocks for the same construction.",
+      "evidence_ids": [
+        "proof:318-334",
+        "proof:362-395",
+        "proof:398-408",
+        "proof:797-890",
+        "experiment:a0-online-r38"
+      ],
+      "limitations": "Rows >= 17 of distinct good pairs cannot be observed jointly within one first block; the premise leaves a margin of 2^69."
+    },
+    {
+      "id": "H4-advice-allowances",
+      "role": "supporting",
+      "statement": "The published characteristic, its two-bit conditions, S and L* are used as advice, charged A_S = 2^74 (the Step-1 SAT solve, reported at 2^38.3, and the completion to the SFS pair) and A_C = 2^78 (the unpublished characteristic search); all our development computation at DEV = 2^64. The variant family, the classes, F7, L* and the row-16 set are recomputed in the precomputation (2^40 operations bound).",
+      "scope": "The preprocessing part of the ledger (2^78.08755) and the advice (below 2^13 bytes); together below 2^-15.8 of the total.",
+      "extrapolation": "A_S is 2^35.7 times the paper's reported Step-1 cost; the completion of a Step-1 solution (S or any variant) to a full 38-step semi-free-start pair is reproduced in this package in about one second per pair (7 local and 12 organizer-seeded constructions, all verified). A_C = 2^78 units are 2^56.6 solver CPU-seconds (about 3 x 10^9 CPU-years) at the CPU-second price calibrated in the promoted filing 6eeefb64 (2^32.796 operations, i.e. 2^21.38 units at C = 2728), 2^37 times the 593,858 CPU-seconds that filing measured for a complete re-run of the predecessor [LLWS26] characteristic search. Both experiments load and validate S, L*, the row-16 set and the class data with no runtime search.",
+      "evidence_ids": [
+        "proof:335-361",
+        "proof:362-395",
+        "proof:409-418",
+        "proof:437-442",
+        "experiment:a0-sfs-r38",
+        "experiment:a0-online-r38"
+      ],
+      "limitations": "Bounds by comparison, not measurements of the unpublished searches. A_C = 2^84 would give 93.86465."
+    }
+  ]
 }
