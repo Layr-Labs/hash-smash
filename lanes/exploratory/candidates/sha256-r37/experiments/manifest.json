@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "s256-ek-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact sha256-r37-prefix-v1 complete hash of 55-byte single-block messages. The searched digest bits (words H3 and H7, bits 0..15) are recovered from the 144-bit key words produced by the submitted bit-sliced circuit (256 messages per batch; rounds 13..30 in full, round 31 without S0, round 32 without its A half, bits 0..15 of T1 of round 33), by the exact inversion of the last rounds: with Z = A31 - S0(A30), Y = T1 of round 32 and X = T1 of round 33 from the key, A31 = Z + S0(A30), A32 = Y + S0(A31) + Maj(A31, A30, A29), E33 = X + A29 and A33 = X + S0(A32) + Maj(A32, A31, A30) modulo 2^16, then H7 = IV7 + E33 and H3 = IV3 + A33. Per organizer seed: 16 seed-derived 13-word prefixes x u = 0..31 (W13 = u<<8 | 0x80), N_t = 512 = 2^9 messages, 18-bit digest-XOR mask spread over H3 and H7 bits 0..15. Trial 0 also executes one full 256-message batch of the counted program (register-allocated circuit, transpose and table step on a 64-register VM), checks all 256 key words against the key derived from the scalar reference digest by inverting the last four rounds, and aborts unless the batch costs exactly 40780 operations; every trial checks two lanes per batch against the same reference. All 256 trials returned, including failures.",
+      "hypothesis": "(1) Every returned pair is a genuine masked match of the trusted digest, so the bit-sliced circuit computes exactly the key words it claims and the digest-to-key relation used by the algorithm holds on these messages. (2) The success frequency of this scaled analogue (N_t^2/2^w = 1 = N^2/2^256) is consistent with the random-function value 1 - prod_{i<512}(1 - i/2^18) = 0.3931 that heuristic H1 assumes at full width. Finite frequencies are supporting evidence, not a certified population probability.",
+      "program": "experiments/bitsliced_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000000000000000000000000aaab0000000000000000000000000000d555",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "s256-ek-single-group",
+      "kind": "python-message-pairs-v1",
+      "scope": "Same program and target; per organizer seed one seed-derived prefix with consecutive u = 0..511 (all N_t = 512 messages in one group, two full 256-lane batches, the most structured case), under a different 18-bit mask on H3 and H7 bits 0..15. Same trial-0 count and lane self-checks. All 256 trials returned, including failures.",
+      "hypothesis": "Within-group digests, where only the 24-bit field u of W13 varies by small consecutive values, show no masked-collision excess or deficit relative to the random-function value 0.3931; the grouped structure does not change the birthday behaviour H1 assumes.",
+      "program": "experiments/bitsliced_birthday.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000000000000000000000000f10f00000000000000000000000000008ff0",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
