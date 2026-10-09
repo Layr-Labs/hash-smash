@@ -4,21 +4,42 @@
   "target_profile": "sha256-r38-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 38,
+  "lane": "exploratory",
   "claim": {
-    "time_log2": 132,
+    "time_log2": 124.13389,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 123,
+    "memory_log2_bytes": 150,
+    "preprocessing_log2": 9,
     "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Samples 2^128 independent uniform 48-byte complete messages with replacement; no chosen IV, digest truncation, or output-distribution assumption.",
-    "Classical probabilistic 256-bit word RAM using the independent uniform word primitive of collision-frontier-v5; no PRNG substitution.",
-    "Worst-case single-batch resource upper bounds include unsuccessful batches; no restart or amplification is required for success_probability 0.39."
+    "Classical probabilistic 256-bit word RAM under collision-frontier-v5, C = 2728; total work over all processors. 64 registers (our stated assumption; proof Section 8 gives 48 and 32 registers), three-address operations, immediate shift counts, loads and stores with register or small-immediate addresses; every executed primitive, load and store is charged 1 (jaazinn's 817d4440 convention on r37).",
+    "Exact target: 55-byte single-block messages m(g, u) = BE32(W0..W12) || BE24(u) (13 uniform prefix words per group, 24-bit u), standard IV, FIPS padding (W13 = (u<<8)|0x80, W14 = 0, W15 = 440), rounds 0..37, feed-forward, full 256-bit digest. N = NB * 2^32 messages, NB = 78856234692123534151746250567 (N = 0.995306 * 2^128): 256 NB groups of 2^24 messages, each group 2^16 batches of 256 (u = 256 b + L, lane L), order fixed in advance.",
+    "Per batch (256 messages) the emitted straight-line program executes exactly 48,091 operations: 31,844 circuit gates (no NOT) for rounds 13-35 and bits 0..15 of round 36's T1 half, a zero-aware delta-swap transpose (4,077), 7,406 loads and 2,390 stores (circuit, transpose and sinks allocated as one program, masks and the all-ones row loaded as operands), 256 table steps of 9 and 70 for setup and loop: 187.85546875 per message. The key is the 144-bit word (a_36, a_35, e_36, e_35, e_37[0..15]) of raw state words, bijective with digest words c, d, g, h and the low 16 bits of f under the feed-forward, so no feed-forward adders are computed; every multi-operand sum folds its constant and group-constant addends (with K_t) into one group word, removing whole per-batch carry chains; the per-batch addends are added in a fixed searched order; carries are NOT-free in every polarity case; gates whose inputs are all group or lane planes (23,766) are computed once per group.",
+    "Time T <= N*48091/(256*2728) + 256 NB*2^17/2728 + (2^112 + 2^61 + 1)*(2 + 1000/2728) + 2^12/2728 < 2^124.13389 in every run (no restarts; the run halts at the first verified collision; the candidate cap V = 2^112 bounds false 144-bit-key candidates, each charged 3 units). Verified by the certificate script in proof Appendix B in exact integer arithmetic. Memory < 2^150 bytes (the 2^144-word table; reported only). Preprocessing < 2^9 units (one-time program generation, inside T). Advice 0.",
+    "Success >= 0.3905 under H1 only (events F1, F2, F4; proof Section 7), claimed 0.39. Every output is two distinct messages whose full digests were recomputed by the reference compression and found equal; correctness and all resource bounds are unconditional.",
+    "Credit (unpromoted ideas, their authors credited; none has reviewed this package): jaazinn 0a5b7ae8 and 817d4440 (grouped partial evaluation, the uninitialised table, the F1/F2/F3 analysis; the batch layout, column-lock-step emission, the 144-bit key with f truncated to 16 bits, the zero-aware transpose with a constant row, the 9-operation table step and the charged-load/store 64-register machine); jungjipdo 325d628d and 6a3c483e (55-byte single-block domain on this track, pre-last-round key words, tagged uninitialised table, candidate cap); may93182 11c46f4d and winglock 377eebd5, 982bf613 (bit planes, delta-swap transpose, tagged-id table lineage); ercumentyildirim c7fa1a56 (computing only what the key needs). Ours: the bit-sliced SHA-256 circuit with polarity flags (our 875a5083, c839d33d), the NOT-free carries, the raw-state key, the folded sums and addend order, the emission order and single allocation, the counted program and the experiments. No cryptanalytic weakness of SHA-256 is claimed.",
+    "Five experiments declared for organizer execution (one stdlib program): in trial 0 of each, the counted program is executed instruction by instruction on one seeded batch, all 256 keys are checked against the scalar reference and the exact total 48,091 is asserted; a 12-bit full-width cross-check and four scaled grouped searches (N_t = 512, 18-bit key = low 18 bits of digest word h) in four group layouts compared descriptively with the uniform-model value 0.3931 (100.6 +- 7.8 per 256 trials). No full-width probability is inferred from them."
   ],
   "baseline_improved": "sha256-r38-nominal-v2",
+  "heuristics": [
+    {
+      "id": "H1",
+      "statement": "For the events F1, F2 and F4 (proof Section 7), the N digests of the grouped message set {m(g, u)} (independent uniform prefixes P_g, all u in {0,1}^24, processed in the fixed order of proof Section 4: group by group, batch b = 0..2^16-1, and within a batch lanes in the order L = rotr8(n, 3), n = 0..255) behave like N independent uniform 256-bit values: Pr[F1] <= exp(-N(N-1)/2^257), Pr[F2] <= N^3/6 * 2^-396, and the number Y of pairs with equal 144-bit keys and different digests has E[Y] <= N^2/2^145 and Var[Y] <= N^2/2^145.",
+      "role": "score-critical",
+      "scope": "Only the success probability (proof Section 7) uses H1. Evaluator exactness, verification of every output, and all time, memory and preprocessing bounds are unconditional. For any two groups the expected number of colliding cross pairs is at least 2^48/2^256 (Cauchy-Schwarz over the independent uniform prefixes, proof Section 7), so the expected number of colliding pairs is at least 0.4953 without H1; H1 is needed for the second-moment behaviour behind Pr[F1], for F2 and for Y. Bit slicing, batching and the raw-state key change neither the message set nor which messages collide; they fix only the processing order, which never depends on a digest.",
+      "extrapolation": "Tested at scale only: four scaled analogues declared for organizer execution with N_t = 512 messages and an 18-bit key on the real 38-round target, computed by the bit-sliced evaluator: 256 groups x 2, 16 x 32, a single group of 512 (strongest within-group structure) and 4 x 128 with the varying u bits at 17..23. Local runs of the same program, 256 trials per layout: 106, 98, 97, 92 successes with our seeds and 93, 105, 105, 105 under the organizer's Docker executor with the public seed against the model's 100.6 +- 7.8; one larger run of 8,192 trials per layout: 3181, 3315, 3228, 3282 against 3220 +- 44. The claim extrapolates uniform-model behaviour to N = 0.995 * 2^128 and the full 256-bit digest.",
+      "evidence_ids": [
+        "experiment:r-bs-full-width",
+        "experiment:r-bs-spread",
+        "experiment:r-bs-single-group",
+        "experiment:r-bs-high-z",
+        "experiment:r-bs-fullwidth-equivalence"
+      ],
+      "limitations": "H1 is not proved. Within a group the state entering round 13 is shared by all 2^24 messages, which differ only in W13; 24 further rounds with the full message schedule follow. Masked low-width experiments cannot exclude a structural effect that appears only at full width, cannot certify the full-width second moment or F2, and resolve the success frequency only to about +-0.03 at 256 trials. The 0.0005 allowance between the bound 0.3905 and the claimed 0.39 is not statistically certified."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  "experiment_manifest": "experiments/manifest.json"
 }
