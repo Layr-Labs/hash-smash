@@ -1,6 +1,7 @@
-"""Half-collisions of 2-round BLAKE3 inside one difference class, a small residual search (the two organizer
-experiments, root instance), and the v107 counter search: Jbenisek's chunk-counter construction and outer filter with Y4
-in the whole class, the fourteen outcomes of beta*, and an exact E3 solver in place of the cube enumeration."""
+"""Half-collisions of 2-round BLAKE3 inside one difference class and a small residual search (the two organizer
+experiments, root instance), and the counted pieces of the v108 counter search (proof.md Sections 8, 9 and 11): the
+chunk-counter construction and its trials, the outer filter for the outcomes of S, and the walk of 9.8 by contexts and
+member batches with the Y9 closure in the Q path, counted on the packed machine; with the ledger of Section 11."""
 import hashlib
 import json
 import math
@@ -50,31 +51,29 @@ CTR_MASK, CTR_VALUE, CTR_BETA = 0x0E09818B, 0x02008000, 0x18B0E098
 CTR_FREE = tuple(i for i in range(32) if not CTR_MASK >> i & 1)
 CTR_BASIS = ("C0.d1", "D2.a1", "D2.b1", "S11", "S4", "X9", "w6")
 CTR_MEMBERS = 1 << len(CTR_FREE)
-# v107: Y4 runs over the whole class of eta (Lemma Q: 2^19 members), not the sub-class; no rule A.
+# Y4 runs over the whole class of eta (Lemma Q: 2^19 members); no sub-class, no rule A.
 CTR_CLASS = rol(ETA, 16) & 0x7FFFFFFF
 CTR_CFREE = tuple(i for i in range(32) if not CTR_CLASS >> i & 1)
 CTR_CSIZE = 1 << len(CTR_CFREE)
-# The fourteen outcomes (tau, eps) of beta* with a nonzero part in the class, their parts (L * N3 / 2^83; sum 71,698,432,
-# the count of proof.md Section 17 run on the class), the factor of H1' at margin 1.400 (GordoAR), the exact share of
-# word pairs that pass the filter for the fourteen (Section 8), lambda and the run length.
-CTR_TAUS = (0x175020A0, 0x175060A0, 0x185020A0, 0x185060A0, 0x275020A0, 0x275060A0, 0x285020A0, 0x285060A0,
-            0x385020A0, 0x385060A0, 0x675020A0, 0x675060A0, 0x685020A0, 0x685060A0)
+# The seven outcomes (tau, eps) of beta* whose tau ends in 5020a0 (the automata of proof.md Section 8), their parts
+# (L * N3 / 2^83, Section 17), the listed set S = 5f (all but 675020a0; count 67,633,152), the factor of H1' at ten
+# elevenths (margin 1.100, v109), the exact counts of Section 8 for S, and the constants of proof.md 9.1.
+CTR_TAUS = (0x175020A0, 0x185020A0, 0x275020A0, 0x285020A0, 0x385020A0, 0x675020A0, 0x685020A0)
 CTR_EPS = 0x6E21BE55
-CTR_PARTS = (6291456, 196608, 16777216, 1048576, 1048576, 32768, 25165824, 1572864, 16777216, 1048576, 65536, 2048,
-             1572864, 98304)
-CTR_FACTOR = (sum(CTR_PARTS) << 11) * 5 // 7
-CTR_SHARE = 99669577442459648
-LAMBDA = (495910, 10 ** 6)
-RUN_OUTER_STEPS = -(-(LAMBDA[0] << 128) // (LAMBDA[1] * CTR_FACTOR * (CTR_MEMBERS - 1)))
-# Premise of H2'' (mean pass units per walked outer step, from the preregistered sample of proof.md 13.5) and its budget.
-PASS_PREMISE = (1369, 16)
-PASS_BUDGET = -(-RUN_OUTER_STEPS * PASS_PREMISE[0] * 6001 // (PASS_PREMISE[1] * 6000))
-# Charged besides (proof.md 9.2 and 11): the walk's loop control per walked outer step; the machine's bookkeeping in a
-# passing step, at most X / 15 (Lemma U), so its units are at most PASS_SCALE * X; the last step may pass the budget by
-# X_MAX, the largest X of one step.
-LOOP_UNITS = 3
-PASS_SCALE = (16, 15)
-X_MAX = 56 + (1 << 23) + 14 * 1600 + (1 << 21) * 192 + 128 * 286720
+CTR_PARTS = (6291456, 16777216, 1048576, 25165824, 16777216, 65536, 1572864)
+S_MASK = 0x5F
+S_COUNT = sum(p for j, p in enumerate(CTR_PARTS) if S_MASK >> j & 1)
+FACTOR = 10 * (S_COUNT << 11) // 11
+RUN_STEPS_MIN = -(-(12419 << 128) // (25000 * FACTOR * (CTR_MEMBERS - 1)))
+RUN_CONTEXTS = -(-RUN_STEPS_MIN >> 19)
+RUN_STEPS = RUN_CONTEXTS << 19
+SHARE, E_COUNT = 18289159183466496, 233715456
+E_BUDGET = -(-17 * RUN_STEPS * E_COUNT >> 36)
+PASS_BUDGET = -(-17 * RUN_STEPS * SHARE >> 68)
+CBAR = 611713706062329
+CREDIT = -(-17 * 106 * RUN_STEPS * CBAR // (1600 << 47))
+BATCHES = -(-CTR_CSIZE // 7)
+RUN_BATCHES = BATCHES * RUN_CONTEXTS
 def class_member(k):
     'Y4 of class member number k: the bits of k fill the free positions of e1 in increasing order.'
     e1 = CLASS_VALUE
@@ -382,11 +381,14 @@ def ctr_automaton(targets, dy, n=32):
     return tables
 CTR_FILTER = []
 def ctr_tables():
-    "The filter's two automata, built once per run on first use: (1) on Q for the fourteen G, (2) on E with E' = E + DY3."
+    """The filter's two automata for the seven outcomes, built once per run on first use, with every entry of their last
+    tables ANDed with S (proof.md Section 8): (1) on Q = Y9, (2) on E = omega with E' = E + DY3."""
     if not CTR_FILTER:
         g = [ctr_g(t) for t in CTR_TAUS]
-        CTR_FILTER.extend((ctr_automaton([(ETA, x) for x in g], 0),
-                           ctr_automaton([(ror(x, 12), CTR_EPS) for x in g], (Y3B - Y3) & MASK)))
+        for tables in (ctr_automaton([(ETA, x) for x in g], 0),
+                       ctr_automaton([(ror(x, 12), CTR_EPS) for x in g], (Y3B - Y3) & MASK)):
+            tables[-1] = [x & S_MASK for x in tables[-1]]
+            CTR_FILTER.append(tables)
     return CTR_FILTER
 def ctr_look(tables, x):
     'The automaton on the word x, a byte at a time, one table load per byte; the last table gives the pattern.'
@@ -397,13 +399,13 @@ def ctr_look(tables, x):
         s = Word.m.load(t[i]) if type(x) is Word else t[i]
     return s
 def ctr_filter(q, y4, w8):
-    'The filter of one outer step: the outcomes (bits 0-13) with (1) solvable for Q = Y9 and (2) for E = Y3 + Y4 + w8.'
+    'The filter of one outer step: the outcomes of S (bits of 5f) with (1) solvable for Q = Y9 and (2) for E = omega.'
     fq, fe = ctr_tables()
     return ctr_look(fq, q) & ctr_look(fe, (Y3 + y4 + w8) & MASK)
 class Cnt:
-    """The machine of proof.md 9.2: one unit for every executed primitive (operation, load, store, comparison, branch,
-    random word); constant operands, shift distances and table base addresses are instruction fields; 64 registers.
-    Parts are counted separately; Word values record when they are made and last read, for the register count."""
+    """The machine of proof.md Section 11: one unit for every executed primitive (operation, load, store, comparison,
+    branch, random word); constant operands and shift distances are instruction fields; 64 registers. Parts are counted
+    separately; Word values record when they are made and last read, for the register count."""
     def __init__(s):
         s.units, s.part, s.t, s.vals = {}, None, 0, []
     def at(s, part):
@@ -469,9 +471,10 @@ def ctr_eight(r):
     'The eight 32-bit words of a random 256-bit word: seven outer words (CTR_BASIS) and the member number (19 bits).'
     return [r >> 32 * i & MASK for i in range(7)] + [r >> 224 & CTR_CSIZE - 1]
 def ctr_count(r):
-    """One walked outer step counted on the machine: the random word, its eight words, the member's Y4 (one load from the
-    member table), step CO as ctr_outer computes it, the filter (omega and two automata, one load per byte), the test
-    of the mask. Returns (machine, values of step CO, mask)."""
+    """One outer step on scalar words, counted on the machine: the random word, its eight words, the member's Y4 (one
+    load), all 77 lines of step CO as ctr_outer computes them, the filter (omega and two automata, one load per byte)
+    and the test of its mask (the scalar count behind the passing lane's rebuild, proof.md 9.8 and Section 11).
+    Returns (machine, values of step CO, mask)."""
     m = Word.m = Cnt()
     m.at("outer step")
     w = m.load(r)
@@ -484,356 +487,188 @@ def ctr_count(r):
     return m, o, int(z)
 # == the exact E3 solver of proof.md 8.4 (Lemma E3) ==
 DY3 = (Y3B - Y3) & MASK
-DEAD = 4
-def _tb(i):
-    'B on bit k of f: carries of omega + f and of (omega + DY3) + (f ^ psi); key bits omega_k, omega2_k, psi_k, eps_k.'
-    key, s, x = i >> 3, i >> 1 & 3, i & 1
-    s1, s2 = (key & 1) + x + (s & 1), (key >> 1 & 1) + (x ^ key >> 2 & 1) + (s >> 1)
-    return DEAD if (s1 ^ s2) & 1 != key >> 3 & 1 else s1 >> 1 | (s2 >> 1) << 1
-def _ta(i):
-    'A on bit i of g1: borrow of g1 - Y9 and carry of Y9 + (h ^ eta); key bits y_i, Y9_i, eta_i, theta_i; g1_i = x ^ y_i.'
-    key, s, x = i >> 3, i >> 1 & 3, i & 1
-    gb = x ^ key & 1
-    d = gb - (key >> 1 & 1) - (s & 1)
-    sm = (key >> 1 & 1) + ((d & 1) ^ key >> 2 & 1) + (s >> 1)
-    return DEAD if sm & 1 != gb ^ key >> 3 & 1 else int(d < 0) | (sm >> 1) << 1
-CTR_TB, CTR_TA = [_tb(i) for i in range(128)], [_ta(i) for i in range(128)]
-# Units of the solver per event (proof.md 9.2): a call (the 32 level keys), a guess (its 32 joint alive sets, one table
-# load each, and the root test), a root, a pop, an internal node, a child (two transitions and the joint test), a push,
-# a leaf (E3 of both messages), a good h1 (ctr_good: c1 by Lemma IP, the cube test, t and E1 of both messages against
-# the outcome, bounded in words).
-SOLVER_UNITS = {"calls": 546, "guesses": 199, "roots": 5, "pops": 13, "internal": 14, "children": 11, "pushes": 11,
-                "leaves": 49, "goods": 128}
-CTR_JT = {}
-def ctr_jt(key, j16, reset):
-    """Entry (key, j16) of the joint alive tables (built once per run; JT19 when reset): the set, as 16 bits b * 4 + a
-    and as 64 bits b * 8 + a, of joint states (b of automaton B, a of automaton A) before a bit from which some x leads
-    into j16 after it; at reset (the bit k = 19, g1 bit 31) the A state after the bit is 0, the start of the low run."""
-    e = (key, j16, reset)
-    if e not in CTR_JT:
-        s16 = s64 = 0
-        for b in range(4):
-            for a in range(4):
-                for x in (0, 1):
-                    nb, na = CTR_TB[(key >> 4) * 8 + b * 2 + x], CTR_TA[(key & 15) * 8 + a * 2 + x]
-                    na = na & 4 if reset else na
-                    if nb != DEAD and na != DEAD and j16 >> nb * 4 + na & 1:
-                        s16, s64 = s16 | 1 << b * 4 + a, s64 | 1 << b * 8 + a
-                        break
-        CTR_JT[e] = s16, s64
-    return CTR_JT[e]
-def ctr_theta(tau):
-    return rol(tau ^ ror(tau, 1), 12)
-def ctr_e3(y4, y9, om, h1, j):
-    'E3 of A and B for E3.h1 = h1 and omega = om: True when the differences are (theta_j, eps, tau_j) of outcome j.'
-    t = CTR_TAUS[j]
-    g1 = (y9 + h1) & MASK; e2 = (om + ror(y4 ^ g1, 12)) & MASK; g2 = (g1 + ror(h1 ^ e2, 8)) & MASK
-    hb = h1 ^ ETA; gb = (y9 + hb) & MASK; eb = (om + DY3 + ror(y4 ^ gb, 12)) & MASK; g2b = (gb + ror(hb ^ eb, 8)) & MASK
-    return g1 ^ gb == ctr_theta(t) and e2 ^ eb == CTR_EPS and g2 ^ g2b == t
-def ctr_solve(y4, y9, om, j, ev, limit=None):
-    """Every word h1 with ctr_e3(y4, y9, om, h1, j) (Lemma E3): a depth-first walk over the bits k = 0..31 of f1 =
-    E3.f1 with automaton B on bit k of f1 and automaton A on bit i = k + 12 mod 32 of g1 = ROL(f1, 12) ^ y4 (the top
-    run i = 12..31 from a guessed state, then the low run i = 0..11 from state 0, which must end in the guess), pruned
-    by the joint alive sets of the pair of automata. ev counts the events of SOLVER_UNITS; with a limit, the call stops
-    and returns None as soon as its units exceed it (the units spent stay counted)."""
-    start = ctr_units(ev)
-    ev["calls"] += 1
-    om2, t = (om + DY3) & MASK, CTR_TAUS[j]
-    ps, th = t ^ ror(t, 1), ctr_theta(t)
-    key = [((om >> k & 1) | (om2 >> k & 1) << 1 | (ps >> k & 1) << 2 | (CTR_EPS >> k & 1) << 3) << 4
-           | (y4 >> (k + 12) % 32 & 1) | (y9 >> (k + 12) % 32 & 1) << 1 | (ETA >> (k + 12) % 32 & 1) << 2
-           | (th >> (k + 12) % 32 & 1) << 3 for k in range(32)]
-    out = []
-    for guess in range(4):
-        ev["guesses"] += 1
-        j16, j64 = [0] * 32 + [sum(1 << b * 4 + guess for b in range(4))], [0] * 32 + [0]
-        for k in range(31, -1, -1):
-            j16[k], j64[k] = ctr_jt(key[k], j16[k + 1], k == 19)
-        if not j64[0] >> guess & 1:
-            continue
-        ev["roots"] += 1
-        j64[32] = sum(1 << b * 8 + guess for b in range(4))
-        stack = [(0, 0, 0, guess)]
-        while stack:
-            if limit is not None and ctr_units(ev) - start > limit:
-                return None
-            k, f, sb, sa = stack.pop()
-            ev["pops"] += 1
-            if k == 32:
-                ev["leaves"] += 1
-                h1 = ((rol(f, 12) ^ y4) - y9) & MASK
-                if ctr_e3(y4, y9, om, h1, j):
-                    ev["goods"] += 1
-                    out.append(h1)
-                continue
-            ev["internal"] += 1
-            for x in (1, 0):
-                ev["children"] += 1
-                nb, na = CTR_TB[(key[k] >> 4) * 8 + sb * 2 + x], CTR_TA[(key[k] & 15) * 8 + sa * 2 + x]
-                na = na & 4 if k == 19 else na
-                if j64[k + 1] >> nb * 8 + na & 1:
-                    ev["pushes"] += 1
-                    stack.append((k + 1, f | x << k, nb, na))
-    return out
-def ctr_events():
-    return dict.fromkeys(SOLVER_UNITS, 0)
-def ctr_units(ev):
-    return sum(SOLVER_UNITS[k] * ev[k] for k in SOLVER_UNITS)
-def ctr_dispatch(mask):
-    'Units of a passing outer step outside the solver calls: the fourteen tests of the mask bits (shift, AND, branch).'
-    return 4 * len(CTR_TAUS)
 def ctr_inverse(o, h1):
-    'Lemma IP read backwards: the c1 of the outer step o whose trial has E3.h1 = h1.'
+    'Lemma IP read backwards: the c1 of the outer step o whose trial has E3.h1 = h1 (step 3 of proof.md 9.1).'
     y14 = rol(h1, 16) ^ ((Y3 + o["Y4"]) & MASK)
     y6 = ror(((y14 + o["C2.c1"]) & MASK) ^ o["C2.b1"], 7)
     return (ror(((y6 + o["Y1"] + o["w12"]) & MASK) ^ o["Y12"], 16) + Y11) & MASK
-def ctr_good(o, h1, j):
-    """A word h1 found for outcome j (Section 9 step 3): c1 by Lemma IP; the trial only if c1 is in Q* and t != 0; then
-    E1 of both messages: R = 0 exactly when its differences (beta, a output, c output) are (beta*, tau_j, eps) (Lemma
-    D and Lemma E3). Returns (c1, in Q*, t, R = 0)."""
-    c1 = ctr_inverse(o, h1)
-    if c1 & CTR_MASK != CTR_VALUE:
-        return c1, False, None, False
-    r = ctr_trial(o, c1)
-    if r is None:
-        return c1, True, 0, False
-    v, d1 = r[3], (c1 - Y11) & MASK
-    e = [g(v["Y1"], v["Y6"], y11, v["Y12"], v["w12"], w5) for y11, w5 in ((Y11, v["w5"]), (Y11B, (v["w5"] + DELTA5) & MASK))]
-    b1b = ror(v["Y6"] ^ ((Y11B + d1) & MASK), 12)
-    return c1, True, r[2], (v["E1.b1"] ^ b1b, e[0][0] ^ e[1][0], e[0][2] ^ e[1][2]) == (CTR_BETA, CTR_TAUS[j], CTR_EPS)
-CTR_STEP_CAP = 1 << 23
-def ctr_goods_max():
-    """Lemma S5 (GPT Sol 6.1 for e7b17fd1): for outcome j at most 2^(32 - n_j) words h1 pass E3, n_j the bits of
-    ((sigma ^ eps) & 7fffffff) | (((eta ^ theta) & fff) << 20), each fixed by lower bits of f1. Returns the sum."""
-    return sum(1 << 32 - bin(((t ^ ror(t, 1) ^ CTR_EPS) & 0x7FFFFFFF) | ((ETA ^ ctr_theta(t)) & 0xFFF) << 20).count("1")
-               for t in CTR_TAUS)
-SCAN_UNITS = CTR_MEMBERS * 192
-def ctr_scan(o, mask, members=CTR_MEMBERS):
-    """The fallback of a passing outer step whose solver units exceed CTR_STEP_CAP: every member c1 of Q* (step CT to
-    E3.h1, E3 of both messages, the outcomes of the mask), SCAN_UNITS bounded in words. Returns [(h1, j)]."""
-    e1, out = (Y3 + o["Y4"]) & MASK, []
-    for n in range(members):
-        y6 = ((rol((ctr_c1(n) - Y11) & MASK, 16) ^ o["Y12"]) - o["Y1"] - o["w12"]) & MASK
-        h1 = ror((((rol(y6, 7) ^ o["C2.b1"]) - o["C2.c1"]) & MASK) ^ e1, 16)
-        out += [(h1, j) for j in range(len(CTR_TAUS)) if mask >> j & 1
-                and ctr_e3(o["Y4"], o["Y9"], (e1 + o["w8"]) & MASK, h1, j)]
-    return out
-def ctr_step(o, mask, cap=CTR_STEP_CAP, members=CTR_MEMBERS):
-    """A passing outer step: the solver for each outcome of the mask, in order, while the step's solver units stay at
-    most cap; past it the fallback scan does the outcomes not yet done. Returns (pass units, [(h1, j)], scanned)."""
-    ev, hs, om = ctr_events(), [], (Y3 + o["Y4"] + o["w8"]) & MASK
-    for j in range(len(CTR_TAUS)):
-        if mask >> j & 1:
-            r = ctr_solve(o["Y4"], o["Y9"], om, j, ev, cap - ctr_units(ev))
-            if r is None:
-                found = ctr_scan(o, mask >> j << j, members)
-                units = ctr_dispatch(mask) + ctr_units(ev) + SCAN_UNITS + SOLVER_UNITS["goods"] * len(found)
-                return units, hs + found, True
-            hs += [(h, j) for h in r]
-    return ctr_dispatch(mask) + ctr_units(ev), hs, False
-def ctr_run(rs, budget=None, cap=CTR_STEP_CAP, members=CTR_MEMBERS):
-    """The walk of proof.md 9.1 over outer steps given by random 256-bit words: step CO and the filter; a passing step
-    runs ctr_step; its pass units and the units of its goods are counted against the pass budget (the run halts,
-    failed, when they would exceed it), and every h1 found goes to ctr_good. Returns (walked, passing, pass units,
-    halted, found)."""
-    walked = passing = units = 0
-    found = []
-    for r in rs:
-        o = ctr_outer(ctr_eight(r))
-        walked += 1
-        z = ctr_filter(o["Y9"], o["Y4"], o["w8"])
-        if not z:
-            continue
-        passing += 1
-        u, hs, scanned = ctr_step(o, z, cap, members)
-        units += u
-        if budget is not None and units > budget:
-            return walked, passing, units, True, found
-        found += [(r, j, h, ctr_good(o, h, j)) for h, j in hs]
-    return walked, passing, units, False, found
-# 28 planted E3 solutions (y4 in the class, Y9, omega, outcome j, h1), made by the participant's development tool with
-# B and C planted and A by rejection (proof.md 9.3); the self-test checks each of them and that the solver finds it.
-CTR_FIXTURES = ((0x0DE48DEE,0x7AE638AC,0x13B5CDD5,3,0x6340656A),(0x1E146982,0xBFF927D0,0x94B1FE58,4,0x2EBCFA46),(0x25F46A6A,0x1BCE2014,0x9B7DC445,6,0xE1E878D6),(0x2E1459DA,0xF3B2B12C,0x0B427E53,2,0xB2F43976),(0x3204A652,0x2459F414,0x1ACB3CD3,6,0x897C4B46),(0x39E469C2,0xDFFDF860,0x1D3706B1,4,0xBDC8DA86),(0x3DF48E1E,0x19BDF4C4,0x6FCD364F,3,0xE318869A),(0x4A1445DA,0xE77DBFFC,0x574D073D,6,0xC6B89926),(0x55E44256,0x7F16ECC4,0x2F4697B3,3,0x1FB0059A),(0x560445E2,0x0075B3E0,0x26D5BCB7,4,0xCF508886),(0x5E049A6A,0x5C6D8840,0x26BD3EC6,4,0x8338F26E),(0x5E14B5F6,0x202A2310,0x77C17CBB,0,0x609C5D42),(0x6DE47A7A,0xD43E5830,0xA43483CB,4,0xB278906E),(0x6DE4B9A6,0x9EC97754,0xEEBFD44C,3,0x1FDCA65A),(0x85E47672,0x3F0DDB2C,0x35BBD45E,9,0x17A89B26),(0x91F4B1FA,0xFFE1B030,0xACB143A6,4,0x6FC4A2AE),(0x95E4562A,0xB71AB8A4,0x7BCA17AB,3,0x4CAC0976),(0x95F4B1CA,0xD89A8814,0x9A43845B,6,0x950C1906),(0x9DE44E32,0xA7367B3C,0x155596AC,3,0x5CA04966),(0xA5E4B196,0x42DE103C,0x6F948FD8,9,0xEB68C71A),(0xA9F4B1A6,0x4C520CB4,0x92920527,2,0x326435AA),(0xB9F4A27A,0xDF912344,0x55C5BBC9,2,0x6194FA56),(0xCA14BA5E,0x49B64D04,0xEBBD8FB1,13,0xEB00175A),(0xCE146A42,0x1092C420,0xD4D6FE4D,4,0x3C1439B6),(0xD6048A0E,0x73B27FA0,0xDE08FF5D,4,0xDDF4177A),(0xD604A606,0xB7A257FC,0x995044DD,6,0xAEB4655A),(0xE5F4999E,0xA329DBE4,0x2B75D7BB,7,0x93ACC53A),(0xFDF44592,0x74697354,0x2EFDACDC,3,0x8FCCFA46))
-def ctr_reference(y4, y9, om, j):
-    'A second enumeration for the self-test: every f1 of automaton B alone (a plain walk), then E3 in full.'
-    t, om2, out, stack = CTR_TAUS[j], (om + DY3) & MASK, [], [(0, 0, 0)]
-    ps = t ^ ror(t, 1)
-    while stack:
-        k, f, s = stack.pop()
-        if k == 32:
-            h1 = ((rol(f, 12) ^ y4) - y9) & MASK
-            out += [h1] if ctr_e3(y4, y9, om, h1, j) else []
-            continue
-        for x in (0, 1):
-            nb = CTR_TB[((om >> k & 1) | (om2 >> k & 1) << 1 | (ps >> k & 1) << 2 | (CTR_EPS >> k & 1) << 3) * 8 + s * 2 + x]
-            if nb != DEAD:
-                stack.append((k + 1, f | x << k, nb))
-    return sorted(out)
-def ctr_solve_counted(y4, y9, om, j, u0=0, cap=None):
-    """ctr_solve executed on the counting machine (Word, Cnt), primitive by primitive as proof.md 9.2 itemizes it:
-    keys, joint alive sets read from the tables, the stack walk, and the machine's own bookkeeping (9.2): the register
-    u of the step's solver units (u0 before the call; +546 per call, +199 per guess, +5 per root, +11 per push, +49 per
-    internal pop, +62 per leaf, +128 per good word) and, at every loop top, the test u > cap. Returns (machine, words,
-    u), words None when the cap stops the call. The self-test checks that the units are those of SOLVER_UNITS for
-    the events of ctr_solve plus 3 per pop and 1 per call, guess, root, push and good word, and that u and the stop
-    are those of ctr_solve."""
-    m = Word.m = Cnt()
-    m.at("solver")
-    y4, y9, om = m.new(y4), m.new(y9), m.new(om)
-    u, top = m.new(u0), m.new(MASK << 40 if cap is None else cap)
-    t = CTR_TAUS[j]
-    ps, th = t ^ ror(t, 1), ctr_theta(t)
-    u = u + 546
-    om2 = (om + DY3) & MASK
-    keys = []
-    for k in range(32):
-        i = (k + 12) & 31
-        kb = ((om >> k) & 1 | ((om2 >> k) & 1) << 1) | ((ps >> k & 1) << 2 | (CTR_EPS >> k & 1) << 3)
-        ka = ((y4 >> i) & 1 | ((y9 >> i) & 1) << 1) | ((ETA >> i & 1) << 2 | (th >> i & 1) << 3)
-        keys.append(kb << 4 | ka)
-        m.tick()                                       # store the key
-    out, stack = [], []
-    for guess in range(4):
-        u = u + 199
-        j16, jw = m.new(sum(1 << b * 4 + guess for b in range(4))), [None] * 33
-        m.tick(2)                                      # the two start sets are immediates moved into registers
-        for k in range(31, -1, -1):
-            m.tick()                                   # load key k
-            idx = Word(keys[k]) << 16
-            m.vals.append(idx); idx.b = idx.l = m.t
-            idx = idx | j16
-            e = ctr_jt(int(keys[k]), int(j16), k == 19)
-            w = m.load(e[0] | e[1] << 16)              # load from the joint alive table
-            m.tick()                                   # store the word
-            jw[k] = int(w)
-            j16 = w & 0xFFFF
-        j64 = w >> 16                                  # J_0, still in its register
-        root = (j64 >> guess) & 1
-        m.branch(root)
-        if not root:
-            continue
-        u = u + 5
-        jw[32] = sum(1 << b * 8 + guess for b in range(4)) << 16
-        m.tick(3)                                      # root word, its store, the stack count
-        stack.append(guess << 42)
-        while True:
-            m.branch()                                 # loop test (stack count against 0)
-            if not stack:
-                break
-            m.branch(u, top)                           # the cap: u > cap
-            if u > top:
-                return m, None, int(u)
-            m.tick(2)                                  # stack count, load of the entry
-            w = m.new(stack.pop())
-            k, sb, sa, f = (w >> 32) & 63, (w >> 40) & 3, (w >> 42) & 3, w & MASK
-            m.branch(k)                                # leaf test
-            if k == 32:
-                u = u + 62
-                h1 = (rol(f, 12) ^ y4) - y9 & MASK
-                g1 = (y9 + h1) & MASK; e2 = (om + ror(y4 ^ g1, 12)) & MASK; g2 = (g1 + ror(h1 ^ e2, 8)) & MASK
-                hb = h1 ^ ETA; gb = (y9 + hb) & MASK; eb = (om2 + ror(y4 ^ gb, 12)) & MASK; g2b = (gb + ror(hb ^ eb, 8)) & MASK
-                ok = [g1 ^ gb, e2 ^ eb, g2 ^ g2b]
-                for d in ok:
-                    m.branch(d)
-                if [int(d) for d in ok] == [th, CTR_EPS, t]:
-                    u = u + 128                        # the good word's charge (its step 3 is ctr_good_counted)
-                    out.append(int(h1))
-                continue
-            u = u + 49
-            kk = int(k)
-            i = (k + 12) & 31
-            m.tick()                                   # load key k
-            key = Word(keys[kk]); m.vals.append(key); key.b = key.l = m.t
-            kb, ka = key >> 4, key & 15
-            m.tick()                                   # load the joint word of k + 1
-            jn = Word(jw[kk + 1]); m.vals.append(jn); jn.b = jn.l = m.t
-            j64 = jn >> 16
-            r = m.load(4 if kk == 19 else 7)           # the reset mask of k
-            bb, ba = kb << 3 | sb << 1, ka << 3 | sa << 1
-            for x in (1, 0):
-                nb = m.load(CTR_TB[int(bb | x)])
-                na = m.load(CTR_TA[int(ba | x)]) & r
-                hit = (j64 >> (nb << 3 | na)) & 1
-                m.branch(hit)
-                if hit:
-                    nw = (f | Word(x) << k) | (k + 1) << 32 | (nb << 40 | na << 42)
-                    m.tick(2)                          # store, stack count
-                    u = u + 11
-                    stack.append(int(nw))
-    return m, out, int(u)
-def ctr_good_counted(o, h1, j):
-    """ctr_good (step 3) on the counting machine: the outer step's words are loaded, h1 is in a register. Lemma IP back
-    to c1 shares the first half of E1 (a1, d1, c1); the test of Q*; t (step CT) and its test; E1 of both messages from
-    there, and the three differences, all compared. Returns (machine, ctr_good's tuple)."""
-    m = Word.m = Cnt()
-    m.at("good")
-    h1 = m.new(h1)
-    ld = lambda k: m.load(o[k])
-    y14 = rol(h1, 16) ^ ((ld("Y4") + Y3) & MASK)
-    c2b = ld("C2.b1")
-    y6 = ror(((y14 + ld("C2.c1")) & MASK) ^ c2b, 7)
-    a1 = (y6 + ld("Y1") + ld("w12")) & MASK
-    d1 = ror(a1 ^ ld("Y12"), 16)
-    c1 = (d1 + Y11) & MASK
-    q = c1 & CTR_MASK
-    m.branch(q)
-    if q != CTR_VALUE:
-        return m, (int(c1), False, None, False)
-    k0a = ((((rol(y14, 8) ^ ld("C2.d1")) - ld("C2.a1") - c2b) & MASK) + (IV[0] + IV[4])) & MASK
-    t = rol(ld("K0.d1"), 16) ^ k0a
-    m.branch(t)
-    if t == 0:
-        return m, (int(c1), True, 0, False)
-    w5 = ld("w5")
-    b1 = ror(y6 ^ c1, 12)
-    cb = (d1 + Y11B) & MASK
-    b1b = ror(y6 ^ cb, 12)
-    a2, a2b = (a1 + b1 + w5) & MASK, (a1 + b1b + w5 + DELTA5) & MASK
-    c2, c2b = (c1 + ror(d1 ^ a2, 8)) & MASK, (cb + ror(d1 ^ a2b, 8)) & MASK
-    ds = b1 ^ b1b, a2 ^ a2b, c2 ^ c2b
-    for d in ds:
-        m.branch(d)
-    return m, (int(c1), True, int(t), tuple(map(int, ds)) == (CTR_BETA, CTR_TAUS[j], CTR_EPS))
-def ctr_scan_counted(o, mask, n):
-    """Member n of the scan on the counting machine: the outer words and the outcomes' constants are in registers or
-    immediates; c1 from the table of Q*, step CT to E3.h1, E3 of both messages, eps first (common to the outcomes),
-    then tau_j for each outcome and, for a match, the mask bit and theta_j; the loop. Returns (machine, [(h1, j)])."""
-    m = Word.m = Cnt()
-    m.at("scan")
-    e1, om = m.new((Y3 + o["Y4"]) & MASK), m.new((Y3 + o["Y4"] + o["w8"]) & MASK)
-    y4, y9, y12, y1, w12, c2b, c2c = (m.new(o[k]) for k in ("Y4", "Y9", "Y12", "Y1", "w12", "C2.b1", "C2.c1"))
-    c1 = m.load(ctr_c1(n))
-    y6 = ((rol((c1 - Y11) & MASK, 16) ^ y12) - y1 - w12) & MASK
-    h1 = ror((((rol(y6, 7) ^ c2b) - c2c) & MASK) ^ e1, 16)
-    g1 = (y9 + h1) & MASK; e2 = (om + ror(y4 ^ g1, 12)) & MASK; g2 = (g1 + ror(h1 ^ e2, 8)) & MASK
-    hb = h1 ^ ETA; gb = (y9 + hb) & MASK; eb = (om + DY3 + ror(y4 ^ gb, 12)) & MASK; g2b = (gb + ror(hb ^ eb, 8)) & MASK
-    dt, de, dg = g1 ^ gb, e2 ^ eb, g2 ^ g2b
-    out = []
-    m.branch(de)
-    if de == CTR_EPS:
-        for j, t in enumerate(CTR_TAUS):
-            m.branch(dg)
-            if dg == t:
-                bit = (Word(mask) >> j) & 1
-                m.branch(bit)
-                m.branch(dt)
-                if bit and dt == ctr_theta(t):
-                    m.tick()
-                    out.append((int(h1), j))
-    m.tick(3)
-    return m, out
-def ctr_planted(y4, y9, om, h1, n, words):
-    """For the self-test: the words of an outer step that the solver, the scan and step CT read, with (y4, Y9, omega)
-    given, Y12, Y1, w12 and C2.b1 from words, and C2.c1 solved so that member n of Q* has E3.h1 = h1."""
-    o = {"Y4": y4, "Y9": y9, "w8": (om - Y3 - y4) & MASK, "Y12": words[0], "Y1": words[1], "w12": words[2],
-         "C2.b1": words[3]}
-    y6 = ((rol((ctr_c1(n) - Y11) & MASK, 16) ^ o["Y12"]) - o["Y1"] - o["w12"]) & MASK
-    o["C2.c1"] = ((rol(y6, 7) ^ o["C2.b1"]) - (rol(h1, 16) ^ ((Y3 + y4) & MASK))) & MASK
-    return o
 def ctr_r(text):
     return int.from_bytes(hashlib.shake_256(text.encode()).digest(32), "little")
+# == v108: the walk of proof.md 9.8, contexts and member batches with direct tables, the Y9 closure in the Q path ==
+DY3 = (Y3B - Y3) & MASK
+LANE_BITS = 36
+T1_BASE, T2_BASE = 1 << 40, 1 << 36
+def spread(x):
+    'The 32-bit value x in all seven 36-bit lanes of a packed word.'
+    return sum(x << LANE_BITS * i for i in range(7))
+M_ALL = spread(MASK)
+def lane(z, i):
+    return int(z) >> LANE_BITS * i & MASK
+class Bound:
+    'An exclusive upper bound on every lane of a packed value, carried through the lines (Lemma MB).'
+    seen = []
+    def __init__(s, b):
+        s.b = b
+        Bound.seen.append(b)
+    def __add__(s, o):
+        return Bound(s.b + (o.b if type(o) is Bound else (o & MASK) + 1) - 1)
+    def __xor__(s, o):
+        return Bound(1 << (max(s.b, o.b if type(o) is Bound else (o & MASK) + 1) - 1).bit_length())
+    __radd__, __rxor__ = __add__, __xor__
+def pror(z, r):
+    'PROR of proof.md 6.5: every lane rotated right by r, five operations; its result is below 2^32 in every lane.'
+    if type(z) is Bound:
+        return Bound(1 << 32)
+    return ((z >> r) & spread((1 << 32 - r) - 1)) | ((z << 32 - r) & spread(((1 << r) - 1) << 32 - r))
+def v108_context(seven):
+    """A context (proof.md 9.8): step CO for its seven outer words (the 39 lines of Lemma Y read no member; y = 0 here)
+    and the sixteen context words of a batch, each in all seven lanes, with the immediates X15 and ROL(X15, 8)."""
+    o = ctr_outer(list(seven) + [0], 0)
+    w = {"C0.b1": o["C0.b1"], "-C0.c1": -o["C0.c1"], "C0.d1": o["C0.d1"],
+         "-C0.b1-w6-X4-w2": -o["C0.b1"] - o["w6"] - o["X4"] - o["w2"], "ROL(X15,24)^S15": rol(X15, 24) ^ o["S15"],
+         "-S0-S5": -o["S0"] - o["S5"], "-C0.b1-w6": -o["C0.b1"] - o["w6"], "ROL(C0.d1,16)": rol(o["C0.d1"], 16),
+         "X11+1-S11": X11 + 1 - o["S11"], "S12": o["S12"], "-S1-S6": -o["S1"] - o["S6"], "S10": o["S10"],
+         "S5": o["S5"], "w3": o["w3"], "X13": o["X13"], "X9": o["X9"]}
+    return o, {k: spread(v & MASK) for k, v in w.items()}
+V108_IMMEDIATE = {"ROL(X15,8)": spread(rol(X15, 8)), "X15": spread(X15)}
+def v108_lists(b):
+    'List words U[b] and E[b] (interleaved, E at the cursor plus one): ROL(y, 7) and e1 = Y3 + y of members 7b to 7b + 6.'
+    ks = [min(7 * b + i, CTR_CSIZE - 1) for i in range(7)]
+    ys = [ctr_member(k) for k in ks]
+    return (sum(rol(y, 7) << LANE_BITS * i for i, y in enumerate(ys)),
+            sum(((Y3 + y) & MASK) << LANE_BITS * i for i, y in enumerate(ys)), ks, ys)
+def v108_omega(c, u, e):
+    'The 17 packed operations of a batch after its list loads: Y0, X0 and omega = Y3 + y + w8 in every lane.'
+    y0 = pror((u ^ c["C0.b1"]) + c["-C0.c1"], 24) ^ c["C0.d1"]
+    x0 = y0 + c["-C0.b1-w6-X4-w2"]
+    return y0, x0, (e + c["-S0-S5"]) + (pror(x0, 16) ^ c["ROL(X15,24)^S15"])
+def v108_closure(c, y0, x0):
+    'The 56 packed operations of the Y9 closure, run in every lane at the first Q path of a batch (proof.md 9.8).'
+    x12 = (y0 + c["-C0.b1-w6"]) ^ c["ROL(C0.d1,16)"]
+    d1d1 = (x12 ^ M_ALL) + c["X11+1-S11"]
+    x1 = pror(x12, 24) ^ d1d1
+    w10 = (pror(d1d1, 16) ^ c["S12"]) + c["-S1-S6"]
+    d0c1 = (x0 ^ c["ROL(X15,8)"]) + c["S10"]
+    x5 = pror(pror(d0c1 ^ c["S5"], 12) ^ (d0c1 + c["X15"]), 7)
+    c1a1 = x1 + x5 + c["w3"]
+    c1d1 = pror(c1a1 ^ c["X13"], 16)
+    c1c1 = c1d1 + c["X9"]
+    y1 = c1a1 + pror(x5 ^ c1c1, 12) + w10
+    return c1c1 + pror(c1d1 ^ y1, 8)
+def v108_batch(m, c, b, ec, p):
+    """Batch b of a context on the counted machine m (proof.md 9.8): the two list loads, omega, and per used lane the
+    test of (2) by one load of T2 at its omega; for a lane whose mask of (2) is not zero the Q path: the E count in its
+    register, at the first such lane of the batch the Y9 closure, Y9 of the lane, one load of T1, the mask X and the
+    jump back; then the cursor. Returns (E count, cursor, omega, Y9 or None, [(lane, mask of (2), X, Q-path units)])."""
+    fq, fe = ctr_tables()
+    U, E, ks, ys = v108_lists(b)
+    m.at("batch")
+    u = m.load(U)
+    a = p + 1
+    e = m.load(E)
+    y0, x0, om = v108_omega(c, u, e)
+    y9, out = None, []
+    for i in range(7 if b < BATCHES - 1 else CTR_CSIZE - 7 * (BATCHES - 1)):
+        m.at("batch")
+        x = (om if i == 0 else om >> LANE_BITS * i) & MASK
+        m2 = m.load(ctr_look(fe, lane(x + T2_BASE, 0)))
+        m.branch(m2)
+        if not m2:
+            continue
+        m.at("Q path")
+        q0 = m.units["Q path"]
+        ec = ec + 1
+        m.branch(ec)
+        if y9 is None:
+            y9 = v108_closure(c, y0, x0)
+        q = (y9 if i == 0 else y9 >> LANE_BITS * i) & MASK
+        mx = m.load(ctr_look(fq, lane(q + T1_BASE, 0))) & m2
+        m.branch(mx)
+        m.tick()
+        out.append((i, int(m2), int(mx), m.units["Q path"] - q0))
+    m.at("batch")
+    p = p + 2
+    m.branch(p)
+    return ec, p, int(om), None if y9 is None else int(y9), out
+def v108_check(contexts, seed):
+    """The walk of proof.md 9.8 against the scalar step CO and the filter: per context the full batches drawn from the
+    seed and the last batch, every lane's omega, mask of (2) and, on a Q path, Y9 and X; the units of every batch and Q
+    path; the registers; and the lane bounds of Lemma MB."""
+    fq, fe = ctr_tables()
+    r = {"contexts": contexts, "batches": 0, "lanes": 0, "lanes_right": 0, "q_paths": 0, "q_right": 0, "passing": 0,
+         "batch_units": set(), "last_batch_units": set(), "q_units_first": set(), "q_units_later": set(),
+         "context_lines_same": 0, "registers": 0}
+    for n in range(contexts):
+        z = ctr_r("halfsearch v108 context %s %d" % (seed, n))
+        seven = [z >> 32 * i & MASK for i in range(7)]
+        o, cw = v108_context(seven)
+        m = Word.m = Cnt()
+        m.at("context")
+        c = dict({k: m.new(v) for k, v in cw.items()}, **V108_IMMEDIATE)
+        ec, p = m.new(0), m.new(0)
+        for t in range(26):
+            b = BATCHES - 1 if t == 25 else (z >> 7 * t) % (BATCHES - 1)
+            before = dict(m.units)
+            ec, p, om, y9, out = v108_batch(m, c, b, ec, p)
+            r["last_batch_units" if t == 25 else "batch_units"].add(m.units["batch"] - before.get("batch", 0))
+            for n_q, (i, m2, mx, uq) in enumerate(out):
+                r["q_units_later" if n_q else "q_units_first"].add(uq)
+            U, E, ks, ys = v108_lists(b)
+            got = {i: (m2, mx) for i, m2, mx, uq in out}
+            r["batches"] += 1
+            for i in range(7 if t < 25 else CTR_CSIZE - 7 * (BATCHES - 1)):
+                v = ctr_outer(seven + [0], ys[i])
+                r["context_lines_same"] += all(v[k] == o[k] for k in ("C0.b1", "C0.c1", "C0.d1", "w6", "X4", "w2", "S15",
+                                               "S0", "S5", "S11", "S12", "S1", "S6", "S10", "w3", "X13", "X9"))
+                omega = (Y3 + ys[i] + v["w8"]) & MASK
+                m2 = ctr_look(fe, omega)
+                ok = lane(om, i) == omega and (m2 != 0) == (i in got)
+                if m2:
+                    r["q_paths"] += 1
+                    mx = ctr_filter(v["Y9"], ys[i], v["w8"])
+                    qok = lane(y9, i) == v["Y9"] and got[i] == (m2, mx)
+                    r["q_right"] += qok
+                    r["passing"] += mx != 0
+                    ok &= qok
+                r["lanes"] += 1
+                r["lanes_right"] += ok
+        r["registers"] = max(r["registers"], m.registers())
+    Bound.seen = []
+    bc = {k: Bound(1 << 32) for k in cw}
+    bc.update(V108_IMMEDIATE)
+    y0, x0, om = v108_omega(bc, Bound(1 << 32), Bound(1 << 32))
+    v108_closure(bc, y0, x0)
+    r["lane_bound_log2"] = round(math.log2(max(Bound.seen)), 4)
+    for k in ("batch_units", "last_batch_units", "q_units_first", "q_units_later"):
+        r[k] = sorted(r[k])
+    r["good"] = (r["lanes"] == r["lanes_right"] == r["context_lines_same"] and r["q_paths"] == r["q_right"] > 0
+                 and r["batch_units"] == [V108_UNITS["batch"]] and max(r["last_batch_units"]) <= V108_UNITS["batch"]
+                 and max(r["q_units_first"]) == V108_UNITS["Q path"] and max(r["q_units_later"]) <= 11
+                 and r["registers"] <= 64 and max(Bound.seen) <= 1 << LANE_BITS)
+    return r
+# == the charge of proof.md Section 11 ==
+V108_UNITS = {"batch": 64, "Q path": 67, "passing lane": 512, "context": 2048}
+ONCE = (1 << 39) + (1 << 27) + (1 << 20) + 4 * (1 << 26) + (1 << 50) + 40 + 16
+SEL_OPS = 116 * (1 << 56) + 116 * ((1 << 52) + (1 << 10)) + (1 << 50)
+DEV_OPS = 1 << 54
+FINAL = 1 << 38
+def v108_time(u):
+    """T = (rows + SEL_OPS + DEV_OPS) / 430 + FINAL, as a fraction; rows: batches, contexts, Q paths and passing lanes
+    (each budget plus one), the credit, and the once-only items."""
+    from fractions import Fraction
+    rows = (u["batch"] * RUN_BATCHES + u["context"] * (RUN_CONTEXTS + 1) + u["Q path"] * (E_BUDGET + 1)
+            + u["passing lane"] * (PASS_BUDGET + 1) + CREDIT + ONCE)
+    return Fraction(rows + SEL_OPS + DEV_OPS, 430) + FINAL, rows
+def v108_ledger(u):
+    T, rows = v108_time(u)
+    lg = math.log2(T.numerator) - math.log2(T.denominator)
+    claim = math.ceil(lg * 1e5)
+    p, q = T.numerator ** 100000, T.denominator ** 100000     # 2^(claim - 1) < T^100000 < 2^claim, in integers
+    return {"claim_exact": q << claim - 1 < p < q << claim, "units": u, "factor": FACTOR, "run_contexts": RUN_CONTEXTS,
+            "run_steps": RUN_STEPS, "run_batches": RUN_BATCHES, "e_budget": E_BUDGET, "pass_budget": PASS_BUDGET,
+            "credit": CREDIT, "numerator": rows + SEL_OPS + DEV_OPS, "time_log2": round(lg, 8), "claim": claim / 1e5}
 def ctr_selftest(cases, seed):
-    """The v107 self-test (proof.md 9.3). Returns (report, good)."""
+    """The v108 self-test (proof.md 9.3). Returns (report, good)."""
     rep, good = {}, True
     # (1) counter trials against the compressions of their last chunks (and the organizer's _compress if present)
     try:
@@ -843,7 +678,7 @@ def ctr_selftest(cases, seed):
         organizer = None
     right = same_c1 = e1_right = org = 0
     for case in range(cases):
-        r = ctr_r("halfsearch v107 trial %s %d" % (seed, case))
+        r = ctr_r("halfsearch v108 trial %s %d" % (seed, case))
         e = ctr_eight(r)
         if case % 5 == 4:
             e[:7] = [(0, MASK, x, x)[r >> 2 * i & 3] for i, x in enumerate(e[:7])]
@@ -865,7 +700,7 @@ def ctr_selftest(cases, seed):
     rep["trials"] = {"cases": cases, "right": right, "inverse_right": same_c1, "e1_right": e1_right,
                      "organizer_compress": org if organizer else "verifier not found"}
     good &= right == same_c1 == e1_right and right > 0.99 * cases and (not organizer or org == -(-cases // 25))
-    # (2) the filter: brute force at width 10, the exact share, real outer steps, the counted step
+    # (2) the filter: brute force at width 10, the exact counts for S (Section 8), the counted scalar outer step
     fq, fe = ctr_tables()
     gs, ok = [ctr_g(t) for t in CTR_TAUS], 0
     small = [(dy, t, ctr_automaton(t, dy, 10)) for dy, t in ((0, [(ETA, y) for y in gs]),
@@ -894,107 +729,32 @@ def ctr_selftest(cases, seed):
             n = new
         words.append(n)
     share = sum(a * b for x, a in words[0].items() for y, b in words[1].items() if x & y)
-    steps = [ctr_r("halfsearch v107 steps %s %d" % (seed, i)) for i in range(1 << 14)]
-    walked, passing, units, halted, found = ctr_run(steps)
-    stop = ctr_run(steps, budget=units // 2)[3]
+    e_count = sum(b for y, b in words[1].items() if y)
     counted, shape, regs = 0, None, 0
-    for r in steps[:8]:
+    for i in range(8):
+        r = ctr_r("halfsearch v108 steps %s %d" % (seed, i))
         m, o, z = ctr_count(r)
         p = ctr_outer(ctr_eight(r))
         counted += all(o[k] == p[k] for k in p) and z == ctr_filter(p["Y9"], p["Y4"], p["w8"])
         shape = shape or dict(m.units)
         counted -= m.units != shape
         regs = max(regs, m.registers())
-    rep["filter"] = {"brute_force_right": ok, "exact_share": share, "share_right": share == CTR_SHARE,
-                     "share_log2": round(math.log2(share) - 64, 6), "states": [[len(t) >> 8 for t in fq], [len(t) >> 8 for t in fe]],
-                     "steps": walked, "passing": passing, "pass_units": units, "budget_halt_right": stop,
-                     "counted_steps_right": counted, "units": shape, "registers": regs}
-    good &= ok == 128 and share == CTR_SHARE and not halted and stop and counted == 8 and regs <= 64
-    # (3) the solver: the planted solutions, a second enumeration, the cap and the scan
-    fixed = sum(ctr_e3(y4, y9, om, h1, j) and ((Y3 + y4) & MASK) & CTR_CLASS == CLASS_VALUE & CTR_CLASS
-                and (ctr_look(fq, y9) & ctr_look(fe, om)) >> j & 1 and h1 in ctr_solve(y4, y9, om, j, ctr_events())
-                for y4, y9, om, j, h1 in CTR_FIXTURES)
-    calls = [(y4, y9, om, j) for y4, y9, om, j, h1 in CTR_FIXTURES[:6]]
-    for r in steps:
-        o = ctr_outer(ctr_eight(r))
-        z, om = ctr_filter(o["Y9"], o["Y4"], o["w8"]), (Y3 + o["Y4"] + o["w8"]) & MASK
-        calls += [(o["Y4"], o["Y9"], om, j) for j in range(len(CTR_TAUS)) if z >> j & 1][:2]
-    calls = calls[:30]
-    agree = sum(sorted(ctr_solve(*c, ctr_events())) == ctr_reference(*c) for c in calls)
-    y4, y9, om, j, h1 = CTR_FIXTURES[0]
-    o = ctr_planted(y4, y9, om, h1, 777, (1, 2, 3, 4))
-    u, hs, scanned = ctr_step(o, 1 << j, cap=0, members=1 << 10)
-    scanned = scanned and (h1, j) in hs
-    rep["solver"] = {"fixtures": len(CTR_FIXTURES), "fixtures_found": fixed, "second_enumeration_agree": agree,
-                     "second_enumeration_calls": len(calls), "cap_path": scanned and u > SCAN_UNITS,
-                     "goods_max": ctr_goods_max(), "units": SOLVER_UNITS}
-    rep["solver"]["eps_n_0"] = ETA ^ CTR_EPS ^ rol(CTR_BETA ^ CTR_EPS, 1) == 0
-    good &= fixed == len(CTR_FIXTURES) and agree == len(calls) and rep["solver"]["cap_path"] and rep["solver"]["eps_n_0"]
-    # (4) the solver, step 3 and the scan counted primitive by primitive against their charges (9.2)
-    same = stops = regs = 0
-    for c in calls:
-        ev = ctr_events()
-        hs = ctr_solve(*c, ev)
-        m, ws, u = ctr_solve_counted(*c)
-        bk = 3 * ev["pops"] + ev["calls"] + ev["guesses"] + ev["roots"] + ev["pushes"] + ev["goods"]
-        same += (m.units["solver"] == ctr_units(ev) - SOLVER_UNITS["goods"] * ev["goods"] + bk and u == ctr_units(ev)
-                 and sorted(ws) == sorted(hs))
-        regs = max(regs, m.registers())
-        ev = ctr_events()
-        stopped = ctr_solve(*c, ev, 1500) is None
-        m, ws, u = ctr_solve_counted(*c, 0, 1500)
-        bk = 3 * ev["pops"] + ev["calls"] + ev["guesses"] + ev["roots"] + ev["pushes"] + ev["goods"] + 2 * stopped
-        stops += (ws is None) == stopped and u == ctr_units(ev) and m.units["solver"] == (
-            ctr_units(ev) - SOLVER_UNITS["goods"] * ev["goods"] + bk)
-    words = [(ctr_outer(ctr_eight(r)), h, j) for r, j, h, res in found]
-    for case in range(64):
-        r = ctr_r("halfsearch v107 good %s %d" % (seed, case))
-        o = ctr_outer(ctr_eight(r))
-        tr = ctr_trial(o, ctr_c1(r >> 240 & CTR_MEMBERS - 1))
-        words.append((o, tr[3]["E3.h1"] if tr and case % 2 else r >> 200 & MASK, case % len(CTR_TAUS)))
-    gu, gs = 0, 0
-    for o, h, j in words:
-        m, res = ctr_good_counted(o, h, j)
-        gs += res == ctr_good(o, h, j)
-        gu, regs = max(gu, m.units["good"]), max(regs, m.registers())
-    su, ss, sn = 0, 0, 0
-    for case, (y4, y9, om, j, h1) in enumerate(CTR_FIXTURES):
-        rr = struct.unpack("<5I", hashlib.shake_256(("halfsearch scan %s %d" % (seed, case)).encode()).digest(20))
-        n = rr[0] & CTR_MEMBERS - 1
-        o = ctr_planted(y4, y9, om, h1, n, rr[1:])
-        for mask in ((1 << len(CTR_TAUS)) - 1, ((1 << len(CTR_TAUS)) - 1) ^ 1 << j):
-            m, out = ctr_scan_counted(o, mask, n)
-            want = [(h1, j)] if mask >> j & 1 else []
-            want += [(h1, i) for i in range(len(CTR_TAUS)) if i != j and mask >> i & 1 and ctr_e3(y4, y9, om, h1, i)]
-            ss, su, sn = ss + (sorted(out) == sorted(want)), max(su, m.units["scan"]), sn + 1
-    rep["counted"] = {"solver_calls": len(calls), "solver_same": same, "cap_stops_same": stops,
-                      "good_words": len(words), "good_same": gs,
-                      "good_max_units": gu, "scan_members": sn, "scan_same": ss, "scan_max_units": su,
-                      "registers": regs}
-    good &= same == stops == len(calls) and gs == len(words) and gu + 1 <= SOLVER_UNITS["goods"] and ss == sn
-    good &= su <= SCAN_UNITS // CTR_MEMBERS and regs <= 64
-    rep["ledger"] = ctr_ledger(shape)
-    good &= rep["ledger"]["claim_exact"] and X_MAX == 56 + CTR_STEP_CAP + 14 * 1600 + SCAN_UNITS + SOLVER_UNITS["goods"] * ctr_goods_max()
+    rep["filter"] = {"brute_force_right": ok, "share_s": share, "share_right": share == SHARE, "e_count": e_count,
+                     "e_count_right": e_count == E_COUNT, "share_log2": round(math.log2(share) - 64, 6),
+                     "states": [[len(t) >> 8 for t in fq], [len(t) >> 8 for t in fe]],
+                     "scalar_steps_right": counted, "scalar_units": shape, "registers": regs}
+    good &= ok == 128 and share == SHARE and e_count == E_COUNT and counted == 8 and regs <= 64
+    # (3) the walk of 9.8, the class numbering and the coverage of a context (Lemma CX (b))
+    rep["walk"] = v108_check(max(4, cases // 50), seed)
+    members = [7 * b + i for b in range(BATCHES) for i in range(7 if b < BATCHES - 1 else CTR_CSIZE - 7 * b)]
+    e1 = [(Y3 + ctr_member(k)) & MASK for k in (0, 1, 2, CTR_CSIZE - 1)]
+    rep["walk"]["coverage_right"] = members == list(range(CTR_CSIZE)) and BATCHES == 74899
+    rep["walk"]["numbering_right"] = e1[0] == 0x030C0303 and all(x & CTR_CLASS == 0x030C0303 for x in e1)
+    good &= rep["walk"]["good"] and rep["walk"]["coverage_right"] and rep["walk"]["numbering_right"]
+    # (4) the charge
+    rep["ledger"] = v108_ledger(V108_UNITS)
+    good &= rep["ledger"]["claim_exact"] and FACTOR == 125920632087 and RUN_STEPS == 640117155200996737024
     return rep, good
-SEL_OPS = 116 * (1 << 56) + 116 * ((1 << 52) + (1 << 10)) + (1 << 50)
-ONE_TIME = 1 << 34
-FINAL = 1 << 38
-def ctr_time(shape):
-    """proof.md Section 11, as a fraction: T = (RUN_OUTER_STEPS * (outer step + filter + loop) + PASS_SCALE *
-    (PASS_BUDGET + X_MAX) + ONE_TIME) / 430 + FINAL + SEL_OPS / 430 (steps 1 and 2 of 47804be2's selection, Section 12)."""
-    from fractions import Fraction
-    walk = shape["outer step"] + shape["filter"] + LOOP_UNITS
-    return (Fraction(RUN_OUTER_STEPS * walk + ONE_TIME, 430) + FINAL + Fraction(SEL_OPS, 430)
-            + Fraction(PASS_SCALE[0] * (PASS_BUDGET + X_MAX), PASS_SCALE[1] * 430))
-def ctr_ledger(shape):
-    T = ctr_time(shape)
-    lg = math.log2(T.numerator) - math.log2(T.denominator)
-    claim = math.ceil(lg * 1e5)
-    p, q = T.numerator ** 100000, T.denominator ** 100000     # 2^(claim - 1) < T^100000 < 2^claim, in integers
-    return {"claim_exact": q << claim - 1 < p < q << claim,"outer_step": shape["outer step"], "filter": shape["filter"], "loop": LOOP_UNITS,
-            "run_outer_steps": RUN_OUTER_STEPS, "pass_premise": "%d/%d" % PASS_PREMISE, "pass_budget": PASS_BUDGET,
-            "pass_scale": "%d/%d" % PASS_SCALE, "x_max": X_MAX, "lambda": "%d/%d" % LAMBDA, "factor": CTR_FACTOR,
-            "time_log2": round(lg, 7), "claim": claim / 1e5}
 def selftest(cases, seed):
     rep, good = ctr_selftest(cases, seed)
     json.dump(dict(rep, seed=seed, good=bool(good)), sys.stdout, separators=(",", ":"))
