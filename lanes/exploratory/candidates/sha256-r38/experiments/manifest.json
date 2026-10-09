@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "d1-first-block-r38",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact sha256-r38-prefix-v1 target. Per organizer seed: one group of the attack driver of proof.md Section 4.6 (experiments/d1core.py, byte-identical to Appendix A) with W0..W14 of M0 from SHAKE-256(seed) and 3 counted batches (21 first blocks, W15 = 2^29 l + k). Every lane is compared with a scalar 38-step compression (all eight chaining-value words, the W7 decision); the lanes the driver sends to Step 3 must be exactly the valid ones; for every valid lane and every element of L* the second-block pair must follow every A/E cell of rows -4..15 and every W cell except the XOR cells of W6/W7; Step 3 runs on every valid lane. Returns the 128-byte pair M0||M1, M0||M1' of the first valid lane (published W14, W15) if every check passed, else two nulls.",
+      "hypothesis": "Full collisions: 0 (per-trial probability below 2^-60). Under the independent-uniform model a trial returns a pair with probability 0.7664, so about 196.2 of 256 are expected (H1 and H5 do not imply this number; it only states the expected count). The count is a witness observation only: no independence of the organizer's trials is assumed and no statistical inference is drawn from it; H1's Step-2 rate rests on the grouprate.c measurement (claim.json H1-single-trial-chaining-value). Observations per trial (participant numbers): mismatches 0, lanes 21, batch_ops 1525 (the 2-operation cap test that follows every batch is outside the batch and is charged in the ledger); w7_pass, valid, stage3b and deepest_row are reported. A local run on 256 seeds of our own returned 188 pairs with 0 mismatches. This tests H1's Step-2 rate on real grouped first blocks and the correctness of the counted program; it does not test q3.",
+      "program": "experiments/d1core.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    },
+    {
+      "id": "d1-q3-smc-r38",
+      "kind": "python-message-pairs-v1",
+      "scope": "H2 (proof.md Sections 6.4 and 10.2). experiments/d1core.py (the same file) runs q3_experiment: an exact enumeration of row 16 (2^19 words) and, in trials 0..19, one reduced replicate each of the sequential Monte-Carlo estimator of q3 (NP 64; 128, 4, 4, 1, 1, 1 children per particle at rows 17..22; 512 tail proposals per particle; randomness from SHAKE-256 of the trial seed), which samples the second-block words from their exact distribution under H1 (Lemma 2). Every tail success is rebuilt (W0..W7 by the inverse expansion, CV1 by inverting steps 7..0 from S) and accepted only if the reference 38-step compression gives F(CV1, M1) = F(CV1, M1') with M1 != M1', W7 passes Step 2 and every cell holds. Trial t < 20 returns its first accepted pair as the 96-byte strings CV1||M1 and CV1||M1' iff it has a success and all were accepted; trial 20 returns a pair iff all 20 did and the mean of the 20 estimates is >= 2^-101.40; trials 21..255 return no pair by design.",
+      "hypothesis": "Returned pairs: 21 (trials 0..20). Full collisions: 0 (the strings are semi-free-start collisions from CV1, not collisions from the IV; they can be checked offline). Under H2 each replicate is an unbiased estimate of q3 = 2^-101 with relative sd about 0.32. The pass rule (mean of the 20 estimates >= 2^-101.40) is a sanity threshold fixed before any validation run; it is not used to derive the claimed bound, which rests on the preregistered sample (claim.json H2), and no independence of the organizer's trials is assumed. The design and rule were frozen (PREREG_q3x.txt) before any validation run; on 51 requests of our own every request returned 21 pairs (1,020 replicates, mean 2^-101.0186, 69,190 successes all accepted); a local emulation of the public-seed request returned 21 pairs. Observations (participant numbers): per replicate log2_estimate, row16_words 32, survivors per stage, tail_successes, verified_pairs, failed_rebuilds 0; trial 20 log2_pooled_mean.",
+      "program": "experiments/d1core.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
