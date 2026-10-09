@@ -4,21 +4,95 @@
   "target_profile": "sha256-r38-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 38,
-  "claim": {
-    "time_log2": 132,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 123,
-    "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 0
-  },
-  "restrictions": [
-    "Samples 2^128 independent uniform 48-byte complete messages with replacement; no chosen IV, digest truncation, or output-distribution assumption.",
-    "Classical probabilistic 256-bit word RAM using the independent uniform word primitive of collision-frontier-v5; no PRNG substitution.",
-    "Worst-case single-batch resource upper bounds include unsuccessful batches; no restart or amplification is required for success_probability 0.39."
-  ],
+  "lane": "exploratory",
   "baseline_improved": "sha256-r38-nominal-v2",
   "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  "experiment_manifest": "experiments/manifest.json",
+  "claim": {
+    "time_log2": 99.91651,
+    "time_unit": "target-compressions",
+    "memory_log2_bytes": 95,
+    "preprocessing_log2": 78.08755,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 13
+  },
+  "restrictions": [
+    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words. Output: two distinct complete 128-byte messages M0||M1 and M0||M1' (common first block; FIPS padding appends the same third block) with equal digests; every output is verified with the target before it is returned.",
+    "Algorithm: the two-block attack of Li, Zhang, Li, Liu, Qian and Zhu (IACR ePrint 2026/1120) in the memory-efficient framework of [LLWS26], with the paper's 38-step characteristic and the Step-1 solution S read off its published SFS pair (member x = the message printed second). Step 2 accepts a first block iff s0(W7+d7)-s0(W7) = t7 (the exact requirement; p2 = 2^-3.90197); Step 3 tries the 1 element of the exact set L* and checks every cell of rows 16..37 with early abort (proof.md Section 4). First blocks come from the r38fam family (per group 8 random words of W0..W14, 7 solved so that W20 = -K20 and the group-constant parts of W17, W19, W21, W22, W23, W24 are 0) and are evaluated 256 at a time by 32 counted bit-sliced variant programs (one per value of the top 5 bits of W15) that also computes the chaining value and stage 3a of Step 3 (the ten E16 cells, from W0 and W1 of the Step-2 equations); only lanes passing W7 and stage 3a go to the scalar Step 3 (proof.md Section 5).",
+    "Cost: fixed caps N_G = 2,318,775,195,457,330,464,467,753,076 groups of 32 batches (N = 2^103.90542 first blocks; per group the counted group setup 6,378 operations, group control 10 and the 32 variant programs 1,398,573 operations including each fail-plane test, i.e. 43,705.41 per batch of 256 and 171.50 per first block) and V_MAX = 5,900,978,306,751,612,076,067,042,015,150 operations for all data-dependent work, the cap test included (halt on overflow; the cap test runs inside the rare branch, where V changes, with V and the batch index loaded from memory). The exact total, including the allowances A_S = 2^74 (Step-1 SAT solve), A_C = 2^78 (characteristic search), DEV = 2^64 (all development), the circuit and variant-program construction and the L enumeration (2^40 operations, a bound by scale on 22 measured CPU-seconds) and the preprocessing, is 2^99.9165035 target compressions on every run (cert.py, proof.md Section 8); claimed as 99.91651, the smallest k/10^5 not below log2 T.",
+    "Success probability at least 0.3900000050 under H1 (the chaining value of each single trial behaves as uniform), H2 (Step-3 probability q3 >= 2^-101.02, the one-sided 99% lower bound of d2's preregistered 32-seed sequential Monte-Carlo estimate, rounded down, corroborated by an organizer-run replica; disjointness factor 1) and H5 (the average over ordered pairs of distinct trials of one group of Pr[A_j | A_i] is at most 2^-30). Groups use fresh coins and are independent; no independence inside a group is assumed; the group success probability is bounded by Bonferroni over its 8,192 trials (proof.md Section 7). No expected-work bound and no independence-of-conditions model is used.",
+    "Memory (a reported metric): 2^95 bytes claimed, a word-RAM bound covering every charged computation (conditional on H4, which converts the allowances into primitives), not only the online attack. A computation of K primitives stores at most K words; the preprocessing (A_C + A_S + DEV + pre/C = 2^78.08755 units, at most 2^89.50 primitives) therefore uses at most 2^94.50 bytes at 32 bytes per word, and the online attack, including its code (32 rotated sequences of the 32 variant programs, each of the 1,024 copies with its own copy of the scalar rare-path code), holds below 2^31 bytes. For information, the largest process run for d2 used 31 GB RSS (its aborted SMC v1 freeze, proof.md Section 6.3); the runs of this package used at most 110 MB. baseline_improved names the organizer reference (sha256-r38-nominal-v2) and does not assert an improvement over any submitted score."
+  ],
+  "heuristics": [
+    {
+      "id": "H1-single-trial-chaining-value",
+      "role": "score-critical",
+      "statement": "For every single trial of the attack (lane value W15 = ((L ^ rL) << 9) | v << 27 fixed; W0, W1, W2, W3, W4, W9, W11, W14 uniform from the group's first random 256-bit word, W5..W8, W10, W12, W13 solved from them as in d1core.family, rL and rb from the second word; one trial's first block is uniform over a family of 2^269 blocks), the chaining value CV1 = F_38(IV, M0) behaves as a uniform 256-bit value as far as Steps 2 and 3 are concerned: (a) the trial is valid (s0(W7+d7)-s0(W7) = t7) with probability p2 = 2^-3.90197; (b) given validity, W0..W5 are uniform, (W6, W7) is uniform on the Step-2 sets, hence W16..W21 are iid uniform and independent of (W6, W7) (proof.md Lemmas 1-2); in particular stage 3a (the ten E16 cells) passes with probability exactly 2^-10. A statement about one trial at a time (a 256-bit value computed from 269 uniform bits); nothing is assumed about two trials of one group (see H5) and no independence between trials is assumed (groups are independent by construction).",
+      "scope": "Step 2 (p2), the distribution of the second-block words used to define q3 (Step 3), the per-trial success probability p_model, and the per-lane expectations (W7 and stage 3a) of the rare-path work cap V_MAX. Not the validity of any output: every output is verified with the target.",
+      "extrapolation": "Measured on this package's own family with complete 38-step compressions (grp38fam.c, proof.md Section 9 and Appendix A: 524,288 groups with fresh coins, all 32 batches of 256 lanes each, 2^32 trials, 0 family violations): valid trials 287,312,335 against 287,309,824 expected (rate 2^-3.90196, z +0.15); trials passing W7 and stage 3a 281,357 against 280,576 (z +1.47); stage 3a among valid trials 2^-9.99600 against 2^-10 (z +1.47); batches with a flagged lane 279,047 against 278,251.9 (z +1.52); valid trials per variant chi-square 32.3 on 31 df; the 32 byte positions of CV1 (all trials) and the 24 byte positions of the Step-2 words W0..W5 (valid trials) have chi-square statistics 200.5..329.0 and 220.1..301.6 on 255 df (none above the 99.9% point 330.5). The factored W7 test of the circuit equals the definition of F7 on all 2^32 words (f7check.c). The organizer experiment d1-first-block-r38 runs the shipped program on organizer seeds; about 16.6 of 256 returned pairs are expected under the independent-uniform model (witness range 6..30, frozen in PREREG_fb.txt); the count is a witness observation only, not a statistical test, and no independence of the organizer trials is assumed; local emulations of our own seed set and of the public-seed request returned 12 and 17 pairs, 0 mismatches.",
+      "limitations": "A premise, not a theorem. The tests cover 2^32 first blocks, not 2^103.9, and cannot see a full-scale deviation. Seven of the fifteen group words are solved, so a group's first block is structured (W17 = s1(W15), W19 = s1(W17), W21 = s1(W19), W22 = W15, W24 = s1(W22) + W17 inside every group); only W15 varies inside a group (23 steps follow it); W17, W19 and W21..W24 are the same functions of W15 in every group, so the randomness entering steps 15..24 comes only from the state after step 14, W16 and W18. The organizer experiment's observations are participant numbers; its returned-pair count is the organizer-visible statistic. Run selection: none; every run is listed in proof.md Section 12.",
+      "evidence_ids": [
+        "proof:670-707",
+        "proof:243-282",
+        "proof:323-386",
+        "proof:781-821",
+        "experiment:d1-first-block-r38"
+      ]
+    },
+    {
+      "id": "H2-step3-probability",
+      "role": "score-critical",
+      "statement": "(a) For a valid first block, q3 = the average over l in L* of Pr[the pair of l follows every cell of rows 16..37 and the paper's printed two-bit conditions on those rows (with the corrected reading W25[4] = W25[6])] is at least q3_model = 2^-101.02; this q3 is at most the algorithm's per-l success probability. (b) |L*| = 1, so no disjointness factor is needed (kappa = 1). (c) The preregistered sample is complete: every seed run under the frozen parameters is in it (the aborted first freeze and all development seeds are reported separately in proof.md Section 12).",
+      "scope": "The per-trial success probability p_model = p2 |L*| q3_model kappa = 2^-104.92197, hence (with H5) the group bound, the trial cap N_G and the success bound.",
+      "extrapolation": "Unchanged from d2 (submission 3d819a4b). Under H1 the second-block words have an exactly known distribution, so q3 is a fixed number and the sequential Monte-Carlo estimator of smc.py (exact enumeration of row 16, exact importance weights for the fresh rows, deterministic tail) is unbiased for it. Preregistered (program hashes, parameters, 32 seeds, rule frozen before any listed seed ran): mean 2^-100.9941, relative sd 0.029, one-sided 99% Student lower bound 2^-101.0121, q3_model = 2^-101.02. Stage factors are within 0.01 of integers. Organizer-executed: experiment d1-q3-smc-r38 runs a standard-library replica of the estimator (byte-identical code to d2's; exact row 16, 20 reduced replicates on organizer seeds, every success rebuilt and verified as a 38-step semi-free-start collision) with a pass rule frozen before any validation run (the mean of the 20 estimates >= 2^-101.40); expected 21 returned pairs, stated as the range 0..21 (a witness count, not a test). Validation on our own seeds: 51 of 51 requests returned 21 pairs; 1,020 replicates gave a mean of 2^-101.0186; combined with the preregistered sample the 99% bound is 2^-101.0143; 69,190 successes, all genuine semi-free-start collisions. The local emulation of the public-seed request returned 21 pairs (mean of its 20 estimates 2^-100.843).",
+      "limitations": "A Monte-Carlo bound under H1: its 99% level relies on the central limit theorem for 32 independent estimates; a heavy right tail would make the sample mean low (conservative) but is not excluded. The organizer replica tests q3 only to within its threshold 2^-101.40 (q3 = 2^-101.40 would give log2 T = 100.2965034); the last 0.38 bit rests on the preregistered sample. The replica samples the second-block words from Lemma 2's distribution, so it does not test H1. No collision has been observed; the full-scale probability (about 2^-105 per first block) cannot be observed.",
+      "evidence_ids": [
+        "proof:513-585",
+        "proof:709-719",
+        "proof:823-861",
+        "experiment:d1-q3-smc-r38"
+      ]
+    },
+    {
+      "id": "H3-bit-sliced-pricing",
+      "role": "score-critical",
+      "statement": "Under collision-frontier-v5 a word-RAM program that evaluates 256 first blocks as bit planes over 64 256-bit registers is charged by its counted primitives: per group the 32 straight-line variant programs (the 5 batch bits folded as literals) execute 1,398,573 operations (231,494 loads, 83,090 stores, 851,467 xor, 122,559 and, 109,899 or, 32 fail-plane tests of 2), i.e. 43,705.41 per batch, and the group setup 6,378 (family solve, steps 0..14, 20 group-constant words as 640 planes, 721 hoisted gates at 4 each) plus 10 group control: 171.50 operations = 2^-3.99153 units per first block.",
+      "scope": "The online term (first-block batches) of the ledger.",
+      "extrapolation": "The counts are produced by the shipped program (d1core.calibrate: c_G identical over three groups; each of the 32 variant programs run by run_vm on three groups' memory images gives the evaluator's fail plane and the same count); the programs use registers 0..63 only and every load reads a stored value or an input; the group setup's scalar phase keeps at most 39 values live. Bit-exact against the repository verifier (self-test: 76,800 lanes in full, every W7 or flagged lane of 2,048 more batches, and every lane of all 32 counted variant programs on 2 groups, 16,384 lanes; organizer experiment: every lane it marks and 8 random lanes per batch). The sha256-r37 bit-sliced filings of this attack (ad9745bf, efd8aa9d, dd6656d4) and the sha256-r38 filings 882f372f, 349e3a6a, d5a10596, 20dbd783 use the same pricing.",
+      "limitations": "No organizer ruling is cited. Code specialisation: 32 straight-line programs per group are charged by their summed counts (each runs once per group). Without word-parallel pricing each first block costs one target compression and the claim would be about 103.91.",
+      "evidence_ids": [
+        "proof:388-511",
+        "proof:627-666",
+        "proof:721-731",
+        "proof:1024-1283",
+        "experiment:d1-first-block-r38"
+      ]
+    },
+    {
+      "id": "H4-advice-allowances",
+      "role": "supporting",
+      "statement": "The published characteristic, its two-bit conditions and the SFS pair's inner values S (A0..A13, E4..E13, W8..W13 of both members) are used as advice. Their construction is charged at fixed, deliberately generous allowances (upper bounds by scale, not measurements): A_S = 2^74 units for the Step-1 SAT solve (the paper reports 2^38.3 compression-equivalents) and A_C = 2^78 for the characteristic search (cost not published), and all development at DEV = 2^64.",
+      "scope": "The preprocessing part of the ledger (2^78.08755); the advice (below 2^13 bytes).",
+      "extrapolation": "S is verified exactly (every cell, the collision of the published pair under the repository verifier; the organizer experiments' setup asserts every cell). The paper's authors ran both computations with the open-source tool [LLW24a] and published the result, so both are computations an academic group completed; A_S is 2^35.7 times the reported Step-1 cost, and at 2^21.8 units per CPU-second A_C is about 2.6 x 10^9 CPU-years and DEV about 2^42.2 CPU-seconds; all of our development for this track (d1, d2, q38 and this package, including the family search that selected the family constraints, the lane offset and the batch-bit count) ran on one 15-core machine within three days, at most 2^21.9 CPU-seconds (proof.md Sections 9 and 12). The preprocessing operation charges (PRE_BUILD = 2^40) are bounds by the same scale on measured CPU time (proof.md Section 5.3).",
+      "limitations": "We did not rerun the paper's SAT solve or characteristic search; the characteristic search has no published cost, so A_C is an allowance, not a measurement. A_C is an upper bound by scale: 2^78 units is about 2.6 x 10^9 CPU-years at 2^21.8 units per CPU-second, about 130 times the output of a 10^7-core machine (the scale of the largest supercomputers) running for two years, so it bounds any search that an academic group completed and published. Sensitivity: A_C = 2^80 gives log2 T = 99.9165046. The memory and preprocessing bounds are conditional on this premise.",
+      "evidence_ids": [
+        "proof:125-241",
+        "proof:627-666",
+        "proof:733-747"
+      ]
+    },
+    {
+      "id": "H5-within-group-pairs",
+      "role": "score-critical",
+      "statement": "For the trials of one group (the same family words, rL and rb; different W15), the average over ordered pairs (i, j), i != j, of Pr[A_j | A_i] is at most 2^-30, i.e. sum over j != i of Pr[A_i and A_j] <= (m - 1) 2^-30 sum over i of Pr[A_i] (m = 8,192; the trials of a group are exactly identically distributed because rL and rb are uniform, so the plain and the weighted average coincide), where A_i is the event that trial i is valid and its second-block pair follows every cell of rows 16..37. Under the independent-uniform model the average is about 2^-104.9, so the premise allows a dependence 2^74.9 times stronger than that model.",
+      "scope": "The group success bound of proof.md Section 7: with m = 8,192 trials per group, Bonferroni gives Pr[a group succeeds] >= (1 - (m-1) 2^-31) m p_model = 2^-91.92197, hence N_G and the success bound 0.3900000050. Not the validity of any output.",
+      "extrapolation": "Measured inside groups of this package's family (grp38fam.c; 524,288 groups with fresh coins, 8,192 trials each, 2^32 complete 38-step trials): the average Pr[A_j | A_i] inside a group, estimated from the per-group counts, equals the unconditional rate to within a factor 1.000006 (three standard errors 1.000016) for valid trials (rate 2^-3.90) and 1.0015 (1.012) for trials passing W7 and stage 3a (rate 2^-13.90). Structure: two trials of a group share steps 0..14 and differ in W15, which enters step 15 directly, W17, W22, W30, W31 by the expansion, and through the family W19, W21, W24 and later words; 23 steps follow. b99301f4's disp.c found the same on its family.",
+      "limitations": "A premise, not a theorem. The measured events have probability about 2^-4 and 2^-14, not 2^-105; the measurement is participant-produced (source in the package). N_G is the smallest integer meeting 0.39 under 2^-30, so with the claimed N_G the success bound holds for an average pair bound up to 2^-29.994 only. Sensitivity (N_G re-derived): 2^-25 gives log2 T = 99.9166741, 2^-20 gives 99.9221439, 2^-40 gives 99.9164980; the small groups make the bound almost free, so the constant is 2^10 weaker than the 2^-40 of b99301f4.",
+      "evidence_ids": [
+        "proof:749-769",
+        "proof:587-625",
+        "experiment:d1-first-block-r38"
+      ]
+    }
+  ]
 }
