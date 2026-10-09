@@ -4,21 +4,98 @@
   "target_profile": "sha256-r37-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 37,
-  "claim": {
-    "time_log2": 132,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 125,
-    "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 0
-  },
-  "restrictions": [
-    "Samples exactly 2^128 independent uniformly random 48-byte complete messages with replacement; each hashes to the full 256-bit output from the standard fixed IV using one padded 37-round compression.",
-    "Classical 256-bit probabilistic word RAM under collision-frontier-v5, C=2644; no random-oracle, output-balance, PRNG or differential heuristic.",
-    "Worst-case total work and peak memory upper bounds; no witness, executed full search, novelty, nominal-reference improvement or qualification is asserted."
-  ],
+  "lane": "exploratory",
   "baseline_improved": "sha256-r37-nominal-v2",
   "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  "experiment_manifest": "experiments/manifest.json",
+  "claim": {
+    "time_log2": 69.99374,
+    "time_unit": "target-compressions",
+    "memory_log2_bytes": 20,
+    "preprocessing_log2": 60.00141,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 13
+  },
+  "restrictions": [
+    "Target sha256-r37-prefix-v1 exactly: SHA-256 steps 0..36 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words. Output: two distinct complete 128-byte messages M0||M1 and M0||M1' (common first block; FIPS padding appends the same third block) with equal digests; every output is verified with the target before it is returned.",
+    "Algorithm: the two-block attack of Li, Zhang, Li, Liu, Qian and Zhu (IACR ePrint 2026/1120) in the memory-efficient framework of [LLWS26], with the paper's 37-step characteristic and the Step-1 solution S read off its published SFS pair (member x = the message printed second), run over a family of 48 S-variants (S shifted by advice deltas A0 += D, E4 += D, W8 -= D in both members; every variant passes an exact structural re-check of every cell of rows -4..15, proof.md Section 4.7). Step 2 accepts a (first block, variant) pair iff s0(W7_v+d7)-s0(W7_v) = t7 and s0(W6_v+d6)-s0(W6_v) = t6 (the exact requirement; p2 = 2^-9.87960 per variant); Step 3 tries the 32 elements of the exact set L* and checks every cell of rows 16..36 with early abort (proof.md Section 4).",
+    "Cost: fixed caps N_G = 581,692,390,792,654 groups of 2^16 batches (N = 2^73.04725 first blocks, 256 per counted bit-sliced batch of 59,209 operations on a 64-register 256-bit word RAM with every load and store counted, including 48 per-variant fail planes and their stores; version bs2 of our ad9745bf, whose single-characteristic batch cost 44,135, itself built on winglock's 6c77089c) and V_MAX = 847,748,341,871,378,487,662,574 operations for all data-dependent work (halt on overflow). The exact total, including A_S = 2^50 (Step-1 SAT solve), A_C = 2^60 (characteristic and SFS-pair search), DEV = 2^40 (all development, including the variant-pool enumeration), the rare path's variant and lane scans, per-pair chaining-value recomputation, counter updates and register spills, and the preprocessing, is 2^69.993734 target compressions on every run (cert.py, proof.md Section 8); claimed rounded up as 69.99374.",
+    "Success probability at least 0.3934 under H1 (independent uniform chaining values of the first blocks), H2 (per-variant Step-3 probability q3 >= 2^-74.01, the one-sided 99% lower bound of a preregistered 32-seed sequential Monte-Carlo estimate on the published S, confirmed for the 48-variant family by a preregistered 48 x 40 replicate pooled study, bound -74.01, and by the organizer-run replica) and H5 (the variant family; cross-variant success overlap charged at kappa_2 = 3/5 against a measured bound of 0.2944 which forces <= 0.7056). Disjointness factor 255/256 across L*. No expected-work bound and no independence-of-conditions model is used.",
+    "Memory is a reported metric only (2^20 bytes claimed; the attack holds a few kilobytes). baseline_improved names the organizer reference and does not assert an improvement over any submitted score."
+  ],
+  "heuristics": [
+    {
+      "id": "H1-uniform-chaining-value",
+      "role": "score-critical",
+      "statement": "For the attack's first blocks (per group W0..W14 and a byte gb from two uniform random 256-bit words; lane L of batch b uses W15 = (L << 24) | (b << 8) | gb), the chaining values CV1 = F_37(IV, M0) of distinct trials behave as independent uniform 256-bit values. Consequences used: (a) a (lane, variant) pair is valid (s0(W7_v+d7)-s0(W7_v) = t7 and s0(W6_v+d6)-s0(W6_v) = t6) with probability exactly p2 = 2^-9.87960 per variant; (b) conditioned on validity, W0..W5 are uniform, (W6, W7) is uniform on the Step-2 sets, and hence W16..W21 are iid uniform and independent of (W6, W7) (proof.md Lemmas 1-2); (c) trials, and batches, are independent (success bound and the Hoeffding bound on the work cap). Run selection is part of this premise: no program, parameter or seed was chosen after seeing an organizer-seed outcome; for this version the only run on organizer seeds is a local emulation of the public-seed request, made after the program was final (proof.md Sections 10 and 12).",
+      "scope": "Step 2 (p2 per variant), the distribution of the second-block words used to define q3 (Step 3), the trial cap N and the work cap V_MAX. Not the validity of any output: every output is verified with the target.",
+      "extrapolation": "Measured on this version's family itself with the final program: the 2^20-lane overlap replay of the shipped circuit on real CV1s (proof.md Section 7) gave 53,668 valid (lane, variant) pairs against 53,430.0 expected (z = +1.03), so each variant's filter rate matches p2 on real lanes; grouprate.py on 8,388,608 = 2^23 trials gave 9,000 valid lanes against 8,905.0 (z = +1.01) and 1,005 batches with >= 2 valid lanes against 1,011.6 (z = -0.21); the selftest's 76,800 lanes gave 3,899 valid pairs over all variants against 3,913.3 (z = -0.23), 0 mismatches in 365,424 scalar pair-checks. On 6c77089c's family (W15 = 2^29 l + k, same W0..W14 distribution) with full 37-step compressions (grouprate.c, 939,524,096 trials): W7 passes 14910541 against 14909440 expected, valid lanes 997084 against 997360, batches with >= 2 valid lanes 3092 against 3165; every deviation within 1.3 standard deviations. The extraction harness measured the paper's Step-2 conditions at 2^-10.0007 on 2^30 random first blocks. The organizer experiment d1-first-block-r37 runs the shipped program on organizer seeds; nearly all 256 returned pairs are expected under H1 (one batch of 256 trials per seed, 48 variants per lane), and the count is a witness observation only; our local emulation of the public-seed request returned 256 pairs with 3,220 valid (lane, variant) pairs against 3,341.9 expected.",
+      "limitations": "A premise, not a theorem. The tests cover about 2^23 first blocks of this family, 2^20 lanes of the overlap replay and about 2^30 of 6c77089c's, not 2^73, and cannot see a full-scale deviation. Only W15 varies inside a group (22 steps follow it). The organizer experiment's observations are participant numbers; its returned-pair count is the organizer-visible statistic.",
+      "evidence_ids": [
+        "proof:237-277",
+        "proof:575-609",
+        "proof:646-666",
+        "proof:730-754",
+        "experiment:d1-first-block-r37"
+      ]
+    },
+    {
+      "id": "H2-step3-probability",
+      "role": "score-critical",
+      "statement": "(a) For a valid first block of any variant, q3 = the average over l in L* of Pr[the pair of l follows every cell of rows 16..36 and the paper's printed two-bit conditions on those rows (with the corrected reading A15[29] = A17[29])] has family mean at least q3_model = 2^-74.01; this q3 is at most the algorithm's per-l success probability. (b) Pr[some l in L* succeeds] >= (255/256) x the expected number of successful l. (c) The preregistered samples are complete: every seed run under the frozen parameters is in them (the aborted first freeze and all development seeds are reported separately in proof.md Section 12).",
+      "scope": "The per-trial success probability p_model = kappa_2 MV p2 |L*| q3_model kappa = 2^-74.04725, hence the trial cap N (N p_model >= 1/2) and the success bound 0.3934.",
+      "extrapolation": "Under H1 the second-block words have an exactly known distribution, so each variant's q3 is a fixed number and the sequential Monte-Carlo estimator of smc.py (exact enumeration of row 16, exact importance weights for the fresh rows, deterministic tail) is unbiased for it. On the published S, preregistered (program hashes, parameters, 32 seeds, rule frozen before any listed seed ran): mean 2^-73.9916, relative sd 0.025, one-sided 99% Student lower bound 2^-74.0074, q3_model = 2^-74.01. On the variant family, preregistered in PREREG_BS2.txt (sha256 5a7308c2, frozen before any seed ran): 40 replicates of the same estimator on each of the 48 variants, pooled mean 2^-73.9875, corrected standard error 0.00784, bound floored at -74.01; every variant's mean in [-74.118, -73.857], 0 failed rebuilds. Every stage factor equals, within 0.01 bit, the number of one-bit and two-bit conditions of its rows counted from the printed tables (rows 16, 17, 18, 19, 20, 21, 22..36: 17, 13, 15, 6, 7, 1, 15; 74 in total), so the estimate agrees with the standard condition-counting model applied to the paper's own tables; the paper's Table 16 probability column also gives 22 two-bit conditions on rows >= 16, while its text states 75 conditions (proof.md Section 6.4). Row 16 agrees with a direct measurement on 2^36 uniform chaining values. Disjointness: 103,774 successful samples replayed over all 32 elements of L* gave exactly one success each. Organizer-executed: experiment d1-q3-smc-r37 runs a standard-library replica of the estimator (exact row 16 by a bit-serial count, W7 drawn exactly from F7, 20 replicates on the published S plus one per variant and both pooled rows, every success rebuilt and verified as a 37-step semi-free-start collision) with a pass rule frozen before any validation run (pooled means >= 2^-74.35); predicted 70 returned pairs. bs1 validation on our own seeds: 51 of 51 requests returned 21 pairs; 1,020 replicates gave a mean of 2^-74.0040; the local emulation of the public-seed request on the final bs2 program returned 70 pairs (variant pooled mean 2^-74.009).",
+      "limitations": "A Monte-Carlo bound under H1: its 99% level relies on the central limit theorem; a heavy right tail would make the sample mean low (conservative) but is not excluded. The organizer replica tests q3 only to within its threshold 2^-74.35 (q3 = 2^-74.35 would give log2 T = 70.33344); the last 0.32 bit rests on the preregistered samples. The variant claim is pooled: per-variant q3 is not individually bounded, only the family mean, which is the quantity the success sum uses. The replica samples the second-block words from Lemma 2's distribution, so it does not test H1. If q3 were 2^-75 (the paper's stated count), log2 T would be 70.98304. The `+` reading and the corrected two-bit condition only add conditions. No collision has been observed; the full-scale probability (about 2^-74 per lane) cannot be observed.",
+      "evidence_ids": [
+        "proof:314-354",
+        "proof:471-574",
+        "proof:575-609",
+        "proof:755-790",
+        "experiment:d1-q3-smc-r37"
+      ]
+    },
+    {
+      "id": "H3-bitsliced-word-pricing",
+      "role": "score-critical",
+      "statement": "Under collision-frontier-v5 a word-RAM program that evaluates 256 first blocks bit-sliced (bit L of every 256-bit word belongs to trial L; AND, OR and XOR gates, loads and stores each one primitive) is charged by its counted primitives: 59,209 operations per batch of 256 (231.29 per first block, 2^-3.51498 units), with 64 registers and every load and store counted, including all 48 per-variant W7/W6 fail planes and their stores.",
+      "scope": "The online term (first-block batches) of the ledger.",
+      "extrapolation": "The count is produced by the shipped program (d1core.calibrate, identical over three groups, the counted program's fail planes asserted equal to the compiled evaluator's); the allocator uses registers 0..63 only. The program is bit-exact against the repository verifier (selftest: 76,800 lanes, every checked lane's 48-variant W7 and W6 decisions and the union plane, 365,424 scalar pair-checks, 0 mismatches; organizer experiment: seed-chosen lanes and every union-valid lane per seed). This is the reading of 6c77089c's H3 (a 256-bit primitive costs 1/C whatever its lanes hold) with 1-bit instead of 36-bit lanes; the same 7x36 packing was rated plausible in sha256-r31 (H7) and blake3-r2 filings, and 256-lane bit-sliced SHA-256 programs counted the same way passed AI screening on this track (fca38c6d, 817d444c, 64bca7e2, 6de1b685).",
+      "limitations": "No organizer ruling is cited. With bs1's batch c_B = 44,135 and the same variant family the claim would be 69.69880; without packed pricing each first block costs one target compression and the claim would be 73.09406.",
+      "evidence_ids": [
+        "proof:386-470",
+        "proof:610-643",
+        "proof:911-1081",
+        "experiment:d1-first-block-r37"
+      ]
+    },
+    {
+      "id": "H4-advice-allowances",
+      "role": "supporting",
+      "statement": "The published characteristic, its two-bit conditions, the SFS pair's inner values S (A0..A13, E4..E13, W8..W13 of both members) and the 48 variant deltas (192 bytes, generated by a deterministic public rule, proof.md Section 4.7) are used as advice. Their construction is charged at fixed allowances: A_S = 2^50 units for a Step-1 SAT solve (the paper reports 2^41.3 compression-equivalents), A_C = 2^60 for the authors' characteristic search together with their search for the SFS pair (costs not published), and all our own computation at DEV = 2^40.",
+      "scope": "The preprocessing part of the ledger (2^60.00141); the advice (below 2^13 bytes).",
+      "extrapolation": "S and every variant are verified exactly (every cell, the collision of the published pair under the repository verifier, the variant structural checks on all 48). At 2^21.7 units per CPU-second (more than the 2^21.68 per CPU-second at C = 2224 of the CryptoMiniSat profile credited in the accepted filing 6eeefb64), A_C is 2^38.3 CPU-seconds, about 11,000 CPU-years, and more than 500,000 times the 593,858 CPU-seconds measured for a complete re-run of the same tool's characteristic search for the 35-step [LLWS26] characteristic (credited there). DEV covers about 330,000 CPU-seconds against about 7,400 CPU-seconds of recorded development including the variant-pool enumeration (proof.md Section 12).",
+      "limitations": "We did not rerun the paper's SAT solve, characteristic search or SFS-pair search; their costs are unpublished. If they were charged more: A_C = 2^64 gives log2 T = 70.01481, 2^68 gives 70.31579.",
+      "evidence_ids": [
+        "proof:105-184",
+        "proof:610-643",
+        "proof:801-871"
+      ]
+    },
+    {
+      "id": "H5-variant-family",
+      "role": "score-critical",
+      "statement": "(a) Each of the 48 S-variants is a structurally valid Step-1 solution of the same characteristic: every cell of rows -4..15 holds under its shifted S on the published chaining values (except the two Step-2 target cells), the E4 top-bit and s0(W8) modular-difference conditions hold, and |F7|, |F6|, |L*| and the row-16 counts are unchanged - checked mechanically by var_ok on all 48 (proof.md Section 4.7). (b) Per variant a uniform CV1 makes (W7_v, W6_v) uniform on 2^64, and a second variant's validity on the same lane does not increase a designated variant's Step-3 success above its s3 bound (the validity constraints and the Step-3 conditions act on different derived words). (c) The per-variant Step-3 probability is captured by the pooled family bound q3_model = 2^-74.01 (Section 6.6).",
+      "scope": "The per-lane success sum over the 48 variants: p_model = kappa_2 MV p2 |L*| q3_model kappa, with kappa_2 = 3/5 charging the cross-variant union overlap, hence the trial cap N, the rare-path caps and the score.",
+      "extrapolation": "Premise (a) is mechanical, not heuristic: var_ok re-verifies every cell of rows -4..15 on the published CVs for all 48 variants and the selftest asserts |F7|, |F6|, |L*| preserved (variant_family_ok, variant_family_preserved). For (b): the validity side is measured on the shipped circuit over 2^20 real lanes - E[C(K,2)] = 0.01500 (se 0.00022), giving the overlap bound 0.2944 of the success sum and forcing kappa_2 <= 0.7056; we charge 3/5 (fraction up to 0.40 allowed). The Step-3 side of (b) uses the same uniformity premise as H1: the Step-3 conditions act on rows-16+ words independent of the filter words within the conditioned set. For (c): the preregistered 48 x 40 replicate study gives pooled mean -73.9875, bound -74.01 (Section 6.6); the organizer replica runs one trial per variant plus a pooled row (Section 10.2). Selection is fixed by the public rule (SHA-256('bs2-variants'|i) mod 2^29 - E4, first 47 passers after VARS[0] = 0) before any measurement, so no selection effect enters.",
+      "limitations": "(b) is a uniformity premise like H1: measured on 2^20 lanes for the validity side and not directly measurable for the Step-3 side (Step-3 success is ~2^-69 per lane-variant). If Step-3 successes of distinct variants on one lane were correlated beyond the validity correlation already charged, the true kappa_2 could be lower; at kappa_2 = 0.30 the ledger gives 70.99303, at kappa_2 = 0.50 it gives 70.25654. The 0.2944 overlap bound is a measurement of the shipped circuit on 2^20 lanes; it cannot certify the bound on all 2^73 trials. Floor sensitivity: the success bound is 1 - e^(-0.5 kappa_2/0.6), so the 0.39 floor needs a true union factor >= ~0.593 - only ~1.2% below the charged 0.6; a factor that low would require Step-3 cross-variant correlation far beyond the 0.2944 validity overlap measured.",
+      "evidence_ids": [
+        "proof:355-385",
+        "proof:554-574",
+        "proof:575-609",
+        "proof:730-790",
+        "experiment:d1-first-block-r37",
+        "experiment:d1-q3-smc-r37"
+      ]
+    }
+  ]
 }
