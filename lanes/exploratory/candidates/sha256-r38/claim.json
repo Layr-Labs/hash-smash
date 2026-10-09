@@ -1,24 +1,102 @@
 {
-  "schema_version": 3,
-  "submission_state": "ready",
-  "target_profile": "sha256-r38-prefix-v1",
-  "attack_class": "ordinary-collision",
-  "rounds": 38,
-  "claim": {
-    "time_log2": 132,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 123,
-    "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 0
+ "schema_version": 3,
+ "submission_state": "ready",
+ "target_profile": "sha256-r38-prefix-v1",
+ "attack_class": "ordinary-collision",
+ "rounds": 38,
+ "lane": "exploratory",
+ "baseline_improved": "sha256-r38-nominal-v2",
+ "certificate_manifest": "certificates/manifest.json",
+ "experiment_manifest": "experiments/manifest.json",
+ "claim": {
+  "time_log2": 76.12,
+  "time_unit": "target-compressions",
+  "memory_log2_bytes": 80,
+  "preprocessing_log2": 76.03,
+  "success_probability": 0.39,
+  "nonuniform_advice_log2_bytes": 14
+ },
+ "restrictions": [
+  "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words. Output: two distinct complete 128-byte messages M0||M1 and M0||M1' (common first block; padding appends the same third block) with equal digests; every output is checked with the target before it is returned.",
+  "Construction: the two-block attack of ePrint 2026/1120 (38-step characteristic of its Table 3, two-bit conditions of Table 4, published semi-free-start pair of Table 5) with the published A3..A13, E7..E13, W11..W15, and the first three dense-part words (A0, A1, A2) replaced by dense-part variants: 256 fixed A0 values, the 768-value A2 list, and every A1 for which the variant is valid (exact test: E cells of rows 4..8 and the published dW_i, ds0(W_i) for i = 8..11). Lemma 3 (proof.md 4.1): every valid variant reproduces all A/E cells of rows -4..15 and every modular and s0/s1 difference reaching rows >= 16 (the XOR cells of W7..W11 need not hold). 2^37.48061 variants per chaining value.",
+  "Row 16 by table: W16 = s0(Y + A1) - A1 + Z0 + c9(A2) where (Y, Z0) depends only on (CV1, A0) (Lemma 5); row 16 holds iff W16 is in a set G of exactly 32 words (exhaustive). Table T_j (one per A0) lists, for each (Y, Z0), every valid (A1, A2) whose W16 is in G; at most 344,064 entries per bucket (Lemma 6). Each entry is then tested exactly: W7 in F7 (|F7| = 287,309,824), rows 17..37 of both members (every cell, + pair and two-bit condition).",
+  "Cost: fixed caps. N_G = 398,563,284,869,814,990,705 groups (2^68.43337), each one first-block compression and 256 A0 blocks; caps NE_MAX, NW_MAX, N1_MAX on bucket entries, W7 passes and first-row-17-test passes, tested after every group (one group's overshoot charged; Hoeffding over the independent groups). Counted program (experiments/vt38.py, an op-counting 256-bit word-RAM interpreter): prologue 64 operations + 1 unit, block 29 (+1), entry 10, W7 pass 66, deeper paths at most 26 + 3,132, epilogue and loop 15; preprocessing as counted code: variant enumeration (67 per candidate, 25 per valid variant) and table construction (211 + 275 per (Y, variant), 4 + 10 per header, zeroing included): 2^67.21233 units. Allowances A_C = 2^76, A_S = 2^70, DEV = 2^64 (A_S is 2^31.7 times the paper's published 2^38.3 Step-1 solve cost, a demonstrated bound; A_C is 6.4 times the physical-resource bound of H4) are 93.9% of T; the attack proper is 2^72.07. Exact total 2^76.112805 (cert.py, proof.md 7), claimed 76.12.",
+  "Success probability at least 0.3960005 under H1 (chaining value of one trial behaves as uniform), H2 (variant-averaged q3 >= q3_model = 2^-102, about one bit below the preregistered SMC bounds on independent streams: 2^-101.0101 over a uniform 2^20-variant sample, 2^-101.0051 over 256 fresh uniform variants; 1,883,203 tail successes all rebuilt as verified 38-step semi-free-start collisions) and H5 (expected number of further successes in a group seen from a success <= 1; measured about 0.0018; Bonferroni). N_G carries 2% slack. Groups use fresh coins and are independent; nothing is assumed independent inside a group. No expected-work bound and no independence-of-conditions model is used.",
+  "Memory (a reported metric): at most 2^79.92 bytes, dominated by the 256 tables (2 x 2^64 header/cursor words and 32 x 2^32 x |R_j| entry words each); claimed 2^80. The claim is a time bound in the track's word-RAM model, not a practical memory budget. baseline_improved names the organizer reference and does not assert an improvement over any submitted score."
+ ],
+ "heuristics": [
+  {
+   "id": "H1-single-trial-chaining-value",
+   "role": "score-critical",
+   "statement": "For one group, the chaining value CV1 = F_38(IV, M0) of a uniform first block M0 behaves as a uniform 256-bit value as far as the events of one fixed variant are concerned: for each A0 the table index (Y, Z0) is uniform (so a bucket holds |R_j| 2^-27 entries in expectation), W7 is uniform and independent of (W0, W1) (so a bucket entry passes the W7 filter with p2 = 2^-3.90197), and the second-block words have the distribution of proof.md Section 3.5 and Lemma 4. A statement about one first block and one variant at a time; nothing is assumed about two variants of one group (H5).",
+   "scope": "The per-variant success probability p2 q3(v), the expectations of the three work counters (caps NE_MAX, NW_MAX, N1_MAX) and hence N_G and the success bound. Not the validity of any output: every output is checked with the target.",
+   "extrapolation": "Measured on 5.2 x 10^7 real first blocks (uniform M0 through real 38-step compressions; pipe.c, proof.md 6.3) for four A0 of the set: entries per chaining value within 0.07% of |R_j| 2^-27 (5.5920, 5.5903, 5.5733, 5.5945 against 5.5939, 5.5939, 5.5727, 5.5939), W7 rates within 0.003 bit of 2^-3.90197, row 17 passed 156 times against 148.4 predicted; 0 cell mismatches in about 2.9 x 10^8 constructed pairs. On 400 real chaining values with their true buckets (2,326 entries) the counted program's counters equal the reference construction's. The caps tolerate 1.6% (entries) and 3.1% (W7 passes) above the expectations, the success bound a 2.0% shortfall of the per-group success rate at q3_model, about one bit more with the measured pair term. The organizer experiment vt-ram-r38 checks the counted program's table index and W7 decisions on organizer-seeded real first blocks (a code-consistency check and a witness count, not a statistical test).",
+   "limitations": "A premise, not a theorem. The measured events have probability between 2^-27 and 2^-48 per variant, not 2^-105. Only the first block varies between groups; within a group all variants share CV1 (H5). Joint events of two variants on one real chaining value are the premise stated in H5.",
+   "evidence_ids": [
+    "proof:434-438",
+    "proof:494-520",
+    "proof:522-549",
+    "proof:661-673",
+    "experiment:vt-ram-r38"
+   ]
   },
-  "restrictions": [
-    "Samples 2^128 independent uniform 48-byte complete messages with replacement; no chosen IV, digest truncation, or output-distribution assumption.",
-    "Classical probabilistic 256-bit word RAM using the independent uniform word primitive of collision-frontier-v5; no PRNG substitution.",
-    "Worst-case single-batch resource upper bounds include unsuccessful batches; no restart or amplification is required for success_probability 0.39."
-  ],
-  "baseline_improved": "sha256-r38-nominal-v2",
-  "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  {
+   "id": "H2-variant-q3",
+   "role": "score-critical",
+   "statement": "The average of q3(v) = Pr[rows 16..37 hold | W7 in F7] over the variants the program examines (uniform over the union of the 256 sets R_j) is at least q3_model = 2^-102. Rows 16..22 have the same probability for every valid variant (Lemma 4, exact); only the tail (rows 23..37, through W8, W9, W10 of the variant) is averaged.",
+   "scope": "The expected number of successes per group S = SR p2 q3_model = 2^-68.42135, hence N_G and the success bound 0.3960005.",
+   "extrapolation": "Preregistered sequential Monte-Carlo runs on independent streams (PREREG_v3; smc3.c, proof.md 6.2). R1: 64 runs over a uniform 2^20-variant sample, mean 2^-101.0001, relative sd 0.0230, one-sided 99% bound 2^-101.0101. R2: 256 runs, each with one fresh variant drawn uniformly from the population, mean 2^-100.9983, relative sd 0.0321 (variant dispersion and particle noise together), 99% bound 2^-101.0051 for the population mean. Integer stage factors (-27, -17, -13, -15, -6, -7, -1, tail -15). 1,883,203 tail successes of these runs and of the H5 measurement were rebuilt as 38-step semi-free-start collisions of the variant used and verified (0 failures); on 4,000 of them the counted program finds and verifies the pair (4000 of 4000). q3_model is about one bit below both bounds; with the measured pair term the success bound holds down to q3 = 2^-103.02 at the declared N_G, and lowering q3_model by one bit would cost 0.021 in T. Earlier runs whose seeding made consecutive seeds overlapping streams are superseded (their means agree within 0.004 bit). Organizer-executed: vt-q3-smc-r38 runs a reduced replica on organizer seeds; its pass rule (mean of 20 replicates >= 2^-101.45) lies 0.55 bit above q3_model and would fail with probability near 1 if q3 were as low as q3_model.",
+   "limitations": "Monte-Carlo bounds relying on the central limit theorem (64 and 256 estimates); q3 itself (about 2^-101) cannot be observed. Rests on H1 for the distribution of the second-block words.",
+   "evidence_ids": [
+    "proof:291-314",
+    "proof:440-492",
+    "proof:1268-1322",
+    "proof:675-685",
+    "experiment:vt-q3-smc-r38"
+   ]
+  },
+  {
+   "id": "H3-table-pricing",
+   "role": "score-critical",
+   "statement": "Under collision-frontier-v5 the online program is charged by its counted primitives: the model is a 256-bit word RAM whose primitives include 256-bit load or store, and memory is a reported metric with no scalar contribution. A load from any address therefore costs one operation whatever the memory size; the memory used (2^80 bytes) is reported. Every table word is written by the counted preprocessing of proof.md 5.1 (2^67.21233 units, charged in time, zero initialisation included).",
+   "scope": "The online cost per (chaining value, A0): one header load and one load per bucket entry instead of a search over 2^29.48 variants.",
+   "extrapolation": "Follows the text of the cost model (computation model, primitive operations, memory scoring). The online and table-construction costs are counted by the interpreter of experiments/vt38.py (selftest items 7, 9 and 10; the table build is checked on a toy instance against the definition of the buckets); vt-ram-r38 reruns the online code on organizer seeds.",
+   "limitations": "The tables are far beyond physical memory. Without unit-cost table access the claim does not hold: finding the buckets through the inverse of s0(u) - u instead of a table gives about 80.68 (proof.md Section 7).",
+   "evidence_ids": [
+    "proof:353-375",
+    "proof:401-430",
+    "proof:608-643",
+    "proof:687-695"
+   ]
+  },
+  {
+   "id": "H4-advice-allowances",
+   "role": "score-critical",
+   "statement": "The published characteristic, its two-bit conditions and the published dense part S* are advice; the total computation spent to obtain them (failed and repeated searches and tool development included) and all development of this package is at most the fixed allowances A_C = 2^76 units (characteristic search, cost not published), A_S = 2^70 (the Step-1 solve; the paper reports about 2^38.3 compression calls for it, so the allowance is 2^31.7 times the published cost) and DEV = 2^64.",
+   "scope": "The allowance part of the ledger (2^76.02271 of T = 2^76.112805) and the advice (below 2^14 bytes).",
+   "extrapolation": "Upper bounds by scale. Bound chain for A_C, every factor generous: 10^5 CPU cores for 10 years at 10^10 256-bit word operations per second each is 2^66.6 units; 10^4 GPUs for 10 years at 10^13 operations per second each, counting every 32-bit lane operation as a 256-bit word operation, is 2^73.3 units; A_C exceeds their sum about 6.4-fold. The search used the open-source CPU SAT/SMT tool [LLW24a] (ePrint 2026/1120, Section 3.1). A_S = 2^70 is 2^31.7 times the paper's published Step-1 figure (about 2^38.3 compression calls): a published cost, so this allowance is a demonstrated bound, not a scale argument. The recorded development of this package is below 4.1 x 10^5 CPU-seconds (2^40.5 units). The same values are used by the earlier r38 packages (context). The allowances only overcharge: without them T would be 2^72.07; A_C = 2^78 would give 78.02904.",
+   "limitations": "A_C is an allowance by scale, not a measurement or a published figure; the cost of the characteristic search of ePrint 2026/1120 is not published and we did not rerun it. A_S and DEV rest on published or recorded figures with wide margins.",
+   "evidence_ids": [
+    "proof:697-714",
+    "proof:608-643",
+    "proof:645-657",
+    "proof:803-832"
+   ]
+  },
+  {
+   "id": "H5-pairs-in-group",
+   "role": "score-critical",
+   "statement": "Let N be the number of successful variants on one chaining value (one group; a real first block's chaining value). The expected number of further successes seen from a success, sum_v Pr[A_v] E[N - 1 | A_v] / sum_v Pr[A_v], is at most delta = 1: on average a success brings at most one further success on the same chaining value. This includes the premise that joint events of two variants on a real chaining value behave as on a uniform one (H1 covers one variant at a time).",
+   "scope": "The group success bound Pr[N >= 1] >= S/2 (Bonferroni with delta = 1; proof.md 6.4), hence N_G and the success bound. Not the validity of any output.",
+   "extrapolation": "Structure: a further success needs a second variant whose own row 16 (2^-27), W7 (2^-3.9) and rows 17..37 (about 2^-74) hold; under independence delta would be about 2^-68. Measurements (proof.md 6.5, preregistered, participant-run): on the chaining values of 513,481 verified successes of variants of 8 A0 spread over the set, every other variant of the 8 A0 not sharing (A0, A1) with the successful one was tested exactly through row 17 (4.5 x 10^7 pairs, 0 cell mismatches); rows 16 and 17 pass at rates consistent with the unconditional ones (row 17: 13 against 11.8 expected); the far term extrapolated to all 256 A0 is at most 0.0018 (99%, seed-clustered). Close variants: 0 further successes on 1,883,203 successes (22.2 x 10^6 trials; 99% bound 2.4 x 10^-6). The budget of 1 is about 500 times the measured value. At q3_model the success bound holds for delta up to 1.02, at the measured q3 for delta up to 1.51; with the measured value as the budget the claim would be 76.07019.",
+   "limitations": "A premise. The measurements are not executed by the organizer; the far term is measured for 8 A0 values and extrapolated; the transfer from the uniform chaining values of semi-free-start successes to real chaining values is supported only indirectly. The budget leaves a margin of about 500 for these.",
+   "evidence_ids": [
+    "proof:522-549",
+    "proof:551-606",
+    "proof:1324-1420",
+    "proof:716-733",
+    "proof:494-520"
+   ]
+  }
+ ]
 }
