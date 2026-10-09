@@ -5,20 +5,49 @@
   "attack_class": "ordinary-collision",
   "rounds": 37,
   "claim": {
-    "time_log2": 132,
+    "time_log2": 88.04985,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 125,
-    "success_probability": 0.39,
+    "memory_log2_bytes": 30,
+    "preprocessing_log2": 81,
+    "success_probability": 0.63,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Samples exactly 2^128 independent uniformly random 48-byte complete messages with replacement; each hashes to the full 256-bit output from the standard fixed IV using one padded 37-round compression.",
-    "Classical 256-bit probabilistic word RAM under collision-frontier-v5, C=2644; no random-oracle, output-balance, PRNG or differential heuristic.",
-    "Worst-case total work and peak memory upper bounds; no witness, executed full search, novelty, nominal-reference improvement or qualification is asserted."
+    "Capped search over 128-byte two-block messages m = B1||B2 under FIPS 180-4 padding (pad block carries the bitlength 1024 in its own W14|W15; the attack block's W14/W15 freedom is preserved). K = 2^81 pseudo-random forward chains c: B1(seed,c), CV1 = compress37(IV,B1), 8-round trace with exact round-inverse W_i = e_after - d - h - Sigma1(e) - Ch(e,f,g) - K_i, gate on the six Table-16 conditions of (W6,W7); per accepted chain 32 (W14,W15) completions of B2 with the published delta pattern; deterministic FAIL branch at c = K.",
+    "Classical probabilistic 256-bit word RAM, collision-frontier-v5, C = 2644; total work over all processors. Per-chain worst-case cap 132 units (1 chain + 0.292 trace/gate + 32x4.08 completion). Search 132*2^81 plus inherited upstream development 2^80 (ePrint 2026/1120 published 2^79.1 rounded up; F-COST-INHERITED-DEVELOPMENT), own measured lab 2^20, verification 8.",
+    "Success >= 1-(1-2^-81)^(2^81) > 1-e^-1 > 0.6321 conditional on heuristics H1a (match rate >= 2^-10, authors measured 2^-9 over 2^30, halved) and H1b (completion fulfillment >= 2^-71, paper accounting 2^-70, halved). No witness, no embedded collision pair, no executed full search is asserted; the published Table-17 anchor is semi-free-start and is used only for the round-convention selftest. The shipped experiment is a scaled masked copy (256 chains, 16 completions, 8-bit mask), diagnostic of protocol correctness and product rate at the masked scale only."
   ],
   "baseline_improved": "sha256-r37-nominal-v2",
   "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json",
   "lane": "exploratory",
-  "heuristics": []
+  "heuristics": [
+    {
+      "id": "H1a",
+      "statement": "For uniform pseudo-random 512-bit forward blocks B1 under the fixed standard IV, the section-4.2 derived-word conditions of Table 16 (three on W6, three on W7, nine in the full published protocol including E3/W5) hold simultaneously with probability at least 2^-10 per chain.",
+      "role": "score-critical",
+      "scope": "Fixed-IV ordinary-collision setting of this track at rounds 0..36; derived words come from the exact round inverse of the 8-round trace.",
+      "extrapolation": "ePrint 2026/1120 measured 2^-9 over 2^30 random first blocks in their semi-free-start framework; this claim halves that measured rate and assumes stationarity under the fixed IV. The organizer experiment tests the PRODUCT of this rate with H1b and the 8-bit mask end-to-end at 256-chain scale.",
+      "evidence_ids": ["experiment:witness-r37-scaled", "proof:89"],
+      "limitations": "Independence of derived-word bit conditions across rounds under fixed IV is assumed, not proved; the scaled experiment cannot resolve the nine-condition full-256-bit rate."
+    },
+    {
+      "id": "H1b",
+      "statement": "Given a chain that passes the match, at least 2^-71 of the 32 (W14,W15) completions fulfill all 75 late-family conditions of their Table 16 through round 36, yielding equal full digests.",
+      "role": "score-critical",
+      "scope": "Completion stage of the same capped search; the 75 conditions and the 2^5 degree of freedom are the published 37-step accounting (ePrint 2026/1120 Table 16).",
+      "extrapolation": "Their counting gives 2^75-2^5 => expected 2^70 valid M0 with per-M0 success 2^-75 x 2^5 = 2^-70 per completion; this claim halves to 2^-71. Combined p_min = 2^-81 and K = 2^81 give success >= 1-e^-1 > 0.63.",
+      "evidence_ids": ["experiment:witness-r37-scaled", "proof:157"],
+      "limitations": "Condition independence among the 75 late conditions is the standard differential heuristic; the experiment's masked 8-bit proxy verifies machinery and per-pair product behaviour, not the 75-condition regime."
+    },
+    {
+      "id": "H2",
+      "statement": "experiments/replay.py implements exactly the claimed protocol shape (forward chain, exact round inverse, Table-16 gate, delta completions, full r37 digests) as an end-to-end scaled masked copy, aborts on any anchor selftest mismatch, and returns only pairs its own 37-round core verifies against the organizer event mask.",
+      "role": "supporting",
+      "scope": "Implementation equivalence of the declared experiment; trial-0 selftest reproduces the published Table-17 37-round collision (and fails it at 38 rounds) inside the pinned sandbox before any trial runs.",
+      "extrapolation": "Host replay of the identical program with organizer-format seeds returned 66/256 organizer-verified masked pairs (rate 0.258) in 8.5 s, inside the pre-registered 99.9% decision interval [48,95] for the predicted rate 0.2803; the organizer re-executes and rehashes every pair.",
+      "evidence_ids": ["experiment:witness-r37-scaled"],
+      "limitations": "The organizer trusts only returned pairs; selftest and observation numbers are untrusted participant observations visible in the source."
+    }
+  ]
 }

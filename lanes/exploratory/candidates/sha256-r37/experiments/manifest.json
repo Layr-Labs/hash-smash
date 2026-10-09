@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "witness-r37-scaled",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/replay.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000800000800000100000040000000000800001000000200000000000020",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "scope": "Scaled copy of the package algorithm on the exact sha256-r37 padded-message protocol: per organizer trial, up to 256 pseudo-random forward chains B1(seed,c) (128 bytes, two 512-bit halves), CV1=compress37(IV,B1), 8-round trace with exact round-inverse recovery of W0..W7 and the six Table-16 bit conditions on (W6,W7) as the acceptance gate (cap 16 passes), then 16 pseudo-random (W14,W15) completions per passed chain; members m=B1||B2 and B1||B2' (128 bytes each, FIPS pad as a third block carrying bitlength 1024) are hashed with the embedded 37-round core; the program returns the first pair whose digest XOR vanishes on the declared 8-bit mask (one biased bit per digest word, from a 6000-pair host measurement of per-bit zero probabilities 0.520-0.543) and core-checks it before emission. Trial 0 additionally aborts unless the embedded ePrint 2026/1120 Table-17 anchor collides at 37 rounds and not 38. Diagnostic only: no full search, no 256-bit law, no resource-bound proof.",
+      "hypothesis": "Pre-registered ideal-model prediction for the identical scaled algorithm: per-trial success probability 0.2803, mean 71.8 of 256 trials, 99.9% decision interval [48,95] (model: chain passes Binomial(256, 2^-6), 16 completions per pass, per-completion mask-hit lower bound 0.52^8 from measured per-bit biases). Host replay of the fixed shipped program (K constants corrected) with organizer-format seeds: 66/256 successes (rate 0.258) in 8.5 s, inside the interval; every returned pair organizer-verifier mask-valid on 128-byte members."
+    }
+  ]
+}
