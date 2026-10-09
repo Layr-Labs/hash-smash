@@ -4,21 +4,47 @@
   "target_profile": "sha256-r38-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 38,
+  "lane": "exploratory",
   "claim": {
-    "time_log2": 132,
+    "time_log2": 108.8013,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 123,
-    "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 0
+    "memory_log2_bytes": 15,
+    "preprocessing_log2": 39,
+    "success_probability": 0.864,
+    "nonuniform_advice_log2_bytes": 13
   },
   "restrictions": [
-    "Samples 2^128 independent uniform 48-byte complete messages with replacement; no chosen IV, digest truncation, or output-distribution assumption.",
-    "Classical probabilistic 256-bit word RAM using the independent uniform word primitive of collision-frontier-v5; no PRNG substitution.",
-    "Worst-case single-batch resource upper bounds include unsuccessful batches; no restart or amplification is required for success_probability 0.39."
+    "Two-block 112-byte messages m = M0||T (M0 a free 64-byte first block, T a fixed 48-byte tail), hashed under sha256-r38-prefix-v1 semantics: standard IV once, rounds 0..37 on every padded block, standard feed-forward, full 256-bit digest. FIPS 180-4 padding fixes block-2 schedule words W12=0x80000000, W13=W14=0, W15=896: Rev-2 assigns ZERO freedom to W14/W15 (the v1 refutation axis F-PADDING-FREEDOM). Cap-priced search over exactly K = 2^107 independent uniform M0 trials, ONE candidate pair per trial, deterministic FAILURE branch; worst case charged to EVERY trial: 2 FULL 38-round block-1 compressions (units) plus the shipped program's measured 4052 non-compression word ops/trial (2 draws, 16 Delta adds, backward W0..W6 x2, both block-2 schedules and full round executions 0..37, the 2^-4 gate, 88 condition evaluations, assembly) at 1/C each, no fractional units; plus verification 4 compressions + 67 ops and startup 2 compressions + 4382 ops.",
+    "Upstream development travels with the ported characteristic (collision-frontier-v5 nonuniform-advice rule): the ePrint 2026/1120 SAT/SMT characteristic search, printed at 2^38.3 target compressions by its authors, is charged whole as preprocessing at 2^39, included in total time; the retained characteristic output embedded as program constants is declared as nonuniform advice at 2^13 bytes. No zero-inherited-development claim is made.",
+    "Classical probabilistic 256-bit word RAM, collision-frontier-v5, C = 2728; success probability 0.864 derives from cap K and the disclosed per-trial rate 2^-106 (heuristics H1/H2): q = 2^-4 * 2^-102, Kq = 2, success >= 1 - e^-2 = 0.864664. Worst-case sensitivity (rate halved twice, Kq = 1/2) still gives 0.3935 >= 0.39 policy floor at unchanged time. No PRNG substitution for independent uniform coins; memory is a reported metric only."
   ],
   "baseline_improved": "sha256-r38-nominal-v2",
   "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  "experiment_manifest": "experiments/manifest.json",
+  "heuristics": [
+    {
+      "id": "H1",
+      "statement": "For the 38-step signed-difference characteristic of ePrint 2026/1120 (Table 3, transcribed verbatim in proof Appendix A), a uniform 64-byte first block M0 passes the A_{-1}-validity check (4 disclosed bit conditions on block-2 W7, fed by the backward W0..W6 identities of paper Section 3.1 Step 2) with probability 2^-4, and each surviving M0 satisfies the 44 disclosed Table-4 extra conditions (counted as 102 bit-conditions across 16 <= i <= 37 in the paper's Section 3.1 complexity paragraph) with probability 2^-102, so per-trial success probability is q >= 2^-4 * 2^-102 = 2^-106 and the capped batch of K = 2^107 independent trials returns a verified pair with probability at least 1 - e^(-K*2^-106) = 1 - e^-2 > 0.864.",
+      "role": "score-critical",
+      "scope": "Success probability of the padding-fixed single-pair MITM on this target's padded message family only. The TIME bound does not depend on it (cap-priced, worst-case per-trial pricing). It does not establish trail validity (H2).",
+      "extrapolation": "The 4-condition gate and the condition count are the paper's own enumeration (Section 3.1 complexity paragraph: '2^102-2 valid values of M0 required, 2^104 total' with the 2^2 freedom REMOVED by Rev-2's padding fix: single-value reading q = 2^-106, the conservative single-pair bound the paper itself uses when the (W14,W15) pair cannot move under 112-byte padding). Disclosed sensitivity: one effective halving gives 1-e^-1 = 0.632, two halvings 1-e^-1/2 = 0.3935; both exceed the 0.39 floor at unchanged time.",
+      "evidence_ids": [
+        "proof:152",
+        "experiment:rev2-execution"
+      ],
+      "limitations": "Independence and unbiasedness of the disclosed conditions across trials is assumed, not proved; this is the standard working premise of the Manger/LLW/LLWS26 differential framework the ported characteristic comes from. A sampled experiment cannot probe the 2^-106 regime directly; the shipped experiment evidences the per-trial MECHANISM and its op counts, not the rate."
+    },
+    {
+      "id": "H2",
+      "statement": "The signed-difference characteristic transcribed from Table 3 of ePrint 2026/1120 is a valid 38-step SHA-256 differential trail: for modular message differences nonzero exactly at schedule indices 7..11 and 15 (Delta values embedded in the shipped program from the paper's Table 5 witness), the step updates admit the stated (nabla A_i, nabla E_i) signed-difference pattern with zero final difference after 38 rounds and feed-forward, so any message pair completing all disclosed bit conditions collides under sha256-r38-prefix-v1.",
+      "role": "supporting",
+      "scope": "Collision soundness of the construction on this target's exact prefix-round, feed-forward, full-digest semantics.",
+      "extrapolation": "Demonstrated by re-executing the paper's Table 5 semi-free-start witness under the shipped program's embedded core (selftest, byte-exact digest 5d9ca5f4...90645c4d) and, previously, against the organizer verifier/hash_functions.py:_compress with rounds=38: both blocks collide and the block-1 modular differences are nonzero exactly at indices 7,8,9,10,11,15, matching the transcribed pattern. One instance cannot prove the trail for all inputs; the full trail table is quoted in Appendix A.",
+      "evidence_ids": [
+        "proof:192",
+        "experiment:rev2-execution"
+      ],
+      "limitations": "A single SFS witness instance plus the printed trail equations; no exhaustive machine verification of the trail. If H2 fails, the shipped verification step turns a batch into a deterministic FAILURE, never a wrong answer, so the ledger is not breached."
+    }
+  ]
 }

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "rev2-execution",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/attack.py",
+      "event": { "kind": "full-collision" },
+      "scope": "Executes the exact shipped Rev-2 per-trial protocol (padding-fixed single-pair MITM: 2 random draws, embedded Delta, both block-1 chains, backward W0..W6 derivation, W7 gate, block-2 continuation, 44 disclosed Table-4 conditions, 112-byte pair assembly) and reports per-trial worst-case non-compression op counts. The shipped selftest re-executes the ePrint 2026/1120 Table 5 SFS witness under the embedded 38-round core and asserts its printed digest byte-exactly. Evidences the mechanism and its ledger op counts; at rate 2^-106 no trial pair is expected to be a full collision within 256 organizer trials, so success count is NOT a rate estimate.",
+      "hypothesis": "The program runs end-to-end inside the pinned sandbox, its embedded core reproduces the paper's SFS witness digest (selftest assertion), every trial emits two distinct well-formed 112-byte hex messages, and the reported worst_trial_ops equals a constant 1184 for all trials (worst-case accounting runs the continuation every trial), corroborating the per-trial op term 1184/C of the ledger."
+    }
+  ]
+}
