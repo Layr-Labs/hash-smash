@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "a0-sfs-r38",
+      "kind": "python-message-pairs-v1",
+      "scope": "H2 and H4 (proof.md Sections 4.3, 7 and 13.2-13.3). experiments/a0core38.py validates the published pair, every cell, S, the row-16 set and the class descriptors on load; trials 0..11 each choose (from SHAKE-256 of the seed) a class and a variant a0 of it and build a 38-step semi-free-start collision whose second-block state uses the variant: row 16 from the exact 32-word set, rows 17..21 by proposals with each row's fixed x-bits of E imposed (restart from row 16 after 2^12 proposals at a row), W23 proposals with its x-cells and two-bit conditions imposed, W7 = W23 - s1(W21) - W16 - s0(W8) accepted iff in F7, W6 uniform, rows 22..37 with the variant's W8; W0..W5 by the inverse expansion; CV1 by inverting steps 7..0. A trial returns CV1||M1 and CV1||M1' (96 bytes each) iff the Step-2 equations of (CV1, a0) give exactly W0..W13 of both members, the two 38-step outputs are equal, M1 != M1', every cell of rows -4..37 (W7's XOR cell excepted) and every printed two-bit condition of rows 8..37 holds, a0 is in G and in its class, and W8 differs from the published one. Trials 12..255 return no pair by design.",
+      "hypothesis": "Returned pairs: about 12. Full collisions of the complete target: 0 (these are semi-free-start collisions from CV1, not from the IV; they can be verified offline with the 38-step compression). This tests that A0-variants of S are valid dense parts reaching full 38-step semi-free-start collisions through every cell of rows 16..37 with their own W8. It does not estimate q3. Observations: class_index, variant_index, checks_passed, restarts, proposals_row17, proposals_tail. A local emulation of the public-seed request returned 12 pairs, all verified with the repository verifier.",
+      "program": "experiments/a0core38.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    },
+    {
+      "id": "a0-online-r38",
+      "kind": "python-message-pairs-v1",
+      "scope": "H1, H3 (proof.md Sections 5, 8, 9 and 13.3). The same program; trials 0..5 each run the counted online program on seed-drawn first blocks (two uniform words from SHAKE-256 of the seed per first block; real 38-step compressions) until a first block has a passing class (at most 16 first blocks), processing one passing class (3840 good pairs, 15 bit-sliced batches): the stage-3a decision of every good pair, the row-16 test of every stage-3a pass, rows 17..37 for every row-16 pass. Every lane is checked against the scalar definition (W7x = c7 - A_{-1} in F7 and the stage-3a decision of E16x = C16 + W0 + s0(W1) from the Step-2 equations), and 8 good pairs against every cell of rows -4..15. A trial returns the complete 128-byte messages M0||M1 and M0||M1' of its first good pair iff all checks passed. Trials 6..255 return no pair by design.",
+      "hypothesis": "Full collisions: 0 (rows 16..37 are not expected to hold). Mismatches: 0. Returned pairs: about 6. Observations: first_blocks, w7_classes, classes_processed, good_pairs, stage3a_passes, row16_passes, counted_ops, filter_mismatches, cell_mismatches, lane_mismatches, pairs_cell_checked. A local emulation of the public-seed request returned 6 pairs with 0 mismatches. This tests the counted program, the bit-sliced stage-3a decision of every lane (H5) and the per-variant Step-2 equations on organizer-seeded first blocks (H1); it does not test q3.",
+      "program": "experiments/a0core38.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
