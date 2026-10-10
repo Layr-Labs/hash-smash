@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "vt-q3-smc-r38",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/vt38.py",
+      "event": {
+        "kind": "full-collision"
+      },
+      "scope": "H2 and H5 (near term) (proof.md 6.2, 6.5, 10.1). experiments/vt38.py runs q3_experiment: trials 0..19 each run one reduced replicate of the SMC estimator of q3 (row 16 exact over the 32 words of G; NP 64; 128, 4, 4, 1, 1, 1 children per particle at rows 17..22; 512 tail proposals per particle with the W23 x-value cells and its four two-bit conditions imposed; each tail proposal draws a variant from 512 embedded variants drawn uniformly from the variant set; randomness from SHAKE-256 of the trial seed). Every tail success is rebuilt (W0..W6 by the inverse expansion, CV1 by inverting steps 7..0 of that variant) and accepted only if F_38(CV1, M1) = F_38(CV1, M1') with M1 != M1', the variant's Step-2 words map CV1 back to W0..W7, W7 is in F7 and every cell of rows -4..37 holds. For the first two accepted pairs of a replicate every other valid variant with the same (A0, A1) is tried on the same CV1 (near-term pair test). Trial t < 20 returns its first accepted pair as the 96-byte strings CV1||M1 and CV1||M1'; trial 20 returns a pair iff all 20 trials had a success, all were accepted, and the mean of the 20 estimates is >= 2^-101.35; trials 21..255 return no pair by design.",
+      "hypothesis": "Returned pairs: 21 (a pass of the rule; the returned strings are semi-free-start collisions from CV1, never collisions from the IV: full collisions of the target from the IV, 0). Each replicate is an unbiased estimate of the variant-averaged q3 (preregistered 2^-101.0) with relative sd about 0.37. The pass rule was fixed from 1,200 development replicates before any validation run; a pass is a check of a reduced replica, not an estimate of q3, and no independence of the organizer's trials is assumed. The counts of returned pairs are witness frequencies of passing trials, not an iid inference. Observations (participant numbers, untrusted): log2_estimate, accepted_pairs, failed_rebuilds (0), near_variants, near_row16, near_w7, near_first17, near_cosuccess (0 expected); trial 20 log2_pooled_mean. Validation by us (local replay of the organizer runner without Docker; public seed and holdout nonces holdA..holdD; participant numbers): in all five runs 21 pairs returned, every tail success accepted, failed rebuilds 0, trial-20 pooled means 2^-100.916, -100.964, -101.241, -101.137 and -100.902 (rule threshold 2^-101.35), near-term test over the five runs: 2,344 other valid variants, 1,520 row-16 co-hits, 153 W7 passes, 8 first row-17 tests passed, 0 co-successes; each run took about 3 to 4 seconds."
+    },
+    {
+      "id": "vt-ram-r38",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/vt38.py",
+      "event": {
+        "kind": "full-collision"
+      },
+      "scope": "The counted online program against the reference construction on real first blocks (H1, H7; proof.md 5.3, 10.2). Per organizer seed: two 256-bit words from SHAKE-256 of the seed are the program's two RAND outputs; its prologue unpacks M0 and computes CV1 = F_38(IV, M0); then 32 A0 blocks (A0 indices 32t..32t+31 mod 256, t = trial mod 8) run with a table oracle whose bucket holds one entry, the embedded valid variant of that A0 (in general not a row-16 hit). Checks: M0 is the unpack of the two words, CV1 equals the reference compression, every block requests the table index (Y, Z0) that the reference computes from (CV1, A0) (Lemma 5), and the program enters its row-17 path exactly for the entries whose reference W7 is in F7, with W17 equal to the reference pair's. Returns M0||M1 and M0||M1' of the first block's variant (128 bytes each) only if every check passed. The group epilogue and loop run once.",
+      "hypothesis": "Returned pairs: 256 (every trial mismatch-free); full collisions of the target: 0 (a returned pair is one variant of one chaining value, never a collision). The count of returned pairs is the organizer-visible number of mismatch-free trials (a witness frequency, not an inference); the W7 passes per trial are reported as an observation. Observations (untrusted): blocks (32), w7_passes, mismatches, ops (counted operations of the trial's program run), units (1). Validation by us (same five runs): 256 returned pairs each, mismatches 0, W7 passes 584, 553, 593, 551 and 569; about 1 second per run."
+    }
+  ]
+}
