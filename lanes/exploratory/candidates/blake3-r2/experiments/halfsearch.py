@@ -1,356 +1,236 @@
-"""Half-collisions of 2-round BLAKE3 inside one difference class, a small residual search (the two organizer
-experiments, root instance), and the v107 counter search: Jbenisek's chunk-counter construction and outer filter with Y4
-in the whole class, the fourteen outcomes of beta*, and an exact E3 solver in place of the cube enumeration."""
+#!/usr/bin/env python3
+"""halfsearch.py - the winner search of proof.md 18.3 run on the root instance (one chunk, counter 0, flags 11).
+
+Exact computation on 32-bit words, Python 3 standard library only. No BLAKE3 library is imported.
+
+One organizer trial = one run of the search on TRIAL_BATCHES batches drawn from the seed:
+  step 1   winner member e1 = 070c0307 OR (W AND f8107cf8) (18.1), packed step CO compiled from the lines (9.6),
+           exact outer filter of the fourteen outcomes (automaton (2) on omega, then automaton (1) on Y9), budgets;
+  step 2   the 32-slot sampler of 18.7: J from bits 0, 1, 2, 8, 9 of the raw eighth word, the envelope of the
+           mask of (1), one row (old or new version) and one leaf path of 9.4 with (a)-(g), (P*), (G7), (G15);
+  step 3   certificate of the root (inverse of Lemma IP, Q*, step CT, t = 0 for this instance, E1, J words,
+           chaining values); "certified" needs every test;
+  counter  the program's ledger: batch, E lane, pass, and the path units against the cap 5,864 of 18.7.
+The returned pair is built by step CT on the trial's first passing outer step (the trial's first outer step if
+none passes), with the one c1 for which the counter word that step CT forces is t = 0. For every outer step and
+that c1 the two messages, hashed as the harness hashes them (counter 0, flags 11), agree on digest words 0, 2, 5
+and 7: the only differing state words after the first half of round 2 are Y3 and Y11, and the only differing
+message word of the diagonal step is w5; none of them enters diagonals 0 and 2.
+
+  python3 halfsearch.py                    organizer request on stdin, response on stdout
+  python3 halfsearch.py --selftest N [seed]
+"""
 import hashlib
 import json
-import math
 import struct
 import sys
-MASK = 0xFFFFFFFF
-IV = (0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A,
-      0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19)
-K = (IV[2] + IV[6]) & MASK
+from math import isqrt
+
+M = 0xFFFFFFFF
+IV = (0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19)
+K = (IV[2] + IV[6]) & M
 LEN_A, LEN_B = 55, 63
 X3, X7, X11, X15 = 0x29D4FA98, 0xBEE3AF28, 0x44036000, 0x40C58500
 W4, W13 = 0x97475638, 0x0007C006
-W4B = (((W4 + K) & MASK) ^ LEN_A ^ LEN_B) - K & MASK
-DELTA5 = (W4 - W4B) & MASK
-ETA = 0x830303CF
-CUBE = (0x04200000, 0x00000000)
-CONTEXT_WORDS = ("C0.c1", "C0.d1", "D3.d1", "S15", "S9", "w5", "X2")
+W4B = (((W4 + K) & M) ^ LEN_A ^ LEN_B) - K & M
+DELTA5 = (W4 - W4B) & M
+ETA, EPS, MU, BETA_STAR = 0x830303CF, 0x6E21BE55, 0x9AED22BD, 0x18B0E098
+FLAGS, COUNTER = 11, 0  # the root instance: CHUNK_START | CHUNK_END | ROOT, counter 0
+PERM = (2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8)
+GCALLS = ((0, 4, 8, 12), (1, 5, 9, 13), (2, 6, 10, 14), (3, 7, 11, 15),
+          (0, 5, 10, 15), (1, 6, 11, 12), (2, 7, 8, 13), (3, 4, 9, 14))
+TRIAL_BATCHES = 256  # 1,792 outer steps per organizer trial
+RESIDUAL_TRIES = 65536
+
+
 def ror(v, n):
-    return ((v >> n) | (v << (32 - n))) & MASK
+    n &= 31
+    return ((v >> n) | (v << (32 - n))) & M if n else v
+
+
 def rol(v, n):
-    return ((v << n) | (v >> (32 - n))) & MASK
+    return ror(v, 32 - (n & 31))
+
+
+def bit(x, i):
+    return (x >> i) & 1
+
+
+def maj(a, b, c):
+    return (a & b) | (a & c) | (b & c)
+
+
 def g(a, b, c, d, x, y):
-    a = (a + b + x) & MASK; d = ror(d ^ a, 16); c = (c + d) & MASK; b = ror(b ^ c, 12)
-    a = (a + b + y) & MASK; d = ror(d ^ a, 8); c = (c + d) & MASK; b = ror(b ^ c, 7)
+    a = (a + b + x) & M; d = ror(d ^ a, 16); c = (c + d) & M; b = ror(b ^ c, 12)
+    a = (a + b + y) & M; d = ror(d ^ a, 8); c = (c + d) & M; b = ror(b ^ c, 7)
     return a, b, c, d
-Y3, _, Y11, _ = g(X3, X7, X11, X15, W4, W13)
-Y3B, _, Y11B, _ = g(X3, X7, X11, X15, W4B, W13)
-K2A = (K + W4) & MASK
+
+
+Y3, Y7, Y11, Y15 = g(X3, X7, X11, X15, W4, W13)
+Y3B, Y7B, Y11B, Y15B = g(X3, X7, X11, X15, W4B, W13)
+DY3 = (Y3B - Y3) & M
+K2A = (K + W4) & M
 K2D = ror(K2A ^ LEN_A, 16)
-K2C = (IV[2] + K2D) & MASK
+K2C = (IV[2] + K2D) & M
 K2B = ror(IV[6] ^ K2C, 12)
-def class_pattern():
-    'Lemma Q and the sub-class: the bits of e1 = Y3 + Y4 that eta or CUBE fixes (mask, value), the free positions.'
-    x = rol(ETA, 16)
-    v = (Y3B - Y3 + x) & MASK
-    if v & 1 or (v >> 1) & ~x & MASK:
-        raise ValueError("no Y4 gives this eta")
-    mask = x & 0x7FFFFFFF
-    if CUBE[0] & mask or CUBE[1] & ~CUBE[0]:
-        raise ValueError("CUBE names a bit that eta fixes, or a value outside its bits")
-    mask, value = mask | CUBE[0], ~(v >> 1) & mask | CUBE[1]
-    return mask, value, tuple(i for i in range(32) if not mask >> i & 1)
-CLASS_MASK, CLASS_VALUE, CLASS_FREE = class_pattern()
-CLASS_SIZE = 1 << len(CLASS_FREE)
-CTR_FLAGS = 3
-CTR_MASK, CTR_VALUE, CTR_BETA = 0x0E09818B, 0x02008000, 0x18B0E098
-CTR_FREE = tuple(i for i in range(32) if not CTR_MASK >> i & 1)
-CTR_BASIS = ("C0.d1", "D2.a1", "D2.b1", "S11", "S4", "X9", "w6")
-CTR_MEMBERS = 1 << len(CTR_FREE)
-# v107: Y4 runs over the whole class of eta (Lemma Q: 2^19 members), not the sub-class; no rule A.
-CTR_CLASS = rol(ETA, 16) & 0x7FFFFFFF
-CTR_CFREE = tuple(i for i in range(32) if not CTR_CLASS >> i & 1)
-CTR_CSIZE = 1 << len(CTR_CFREE)
-# The fourteen outcomes (tau, eps) of beta* with a nonzero part in the class, their parts (L * N3 / 2^83; sum 71,698,432,
-# the count of proof.md Section 17 run on the class), the factor of H1' at margin 1.400 (GordoAR), the exact share of
-# word pairs that pass the filter for the fourteen (Section 8), lambda and the run length.
-CTR_TAUS = (0x175020A0, 0x175060A0, 0x185020A0, 0x185060A0, 0x275020A0, 0x275060A0, 0x285020A0, 0x285060A0,
-            0x385020A0, 0x385060A0, 0x675020A0, 0x675060A0, 0x685020A0, 0x685060A0)
-CTR_EPS = 0x6E21BE55
-CTR_PARTS = (6291456, 196608, 16777216, 1048576, 1048576, 32768, 25165824, 1572864, 16777216, 1048576, 65536, 2048,
-             1572864, 98304)
-CTR_FACTOR = (sum(CTR_PARTS) << 11) * 5 // 7
-CTR_SHARE = 99669577442459648
-LAMBDA = (495910, 10 ** 6)
-RUN_OUTER_STEPS = -(-(LAMBDA[0] << 128) // (LAMBDA[1] * CTR_FACTOR * (CTR_MEMBERS - 1)))
-# Premise of H2'' (mean pass units per walked outer step, from the preregistered sample of proof.md 13.5) and its budget.
-PASS_PREMISE = (1369, 16)
-PASS_BUDGET = -(-RUN_OUTER_STEPS * PASS_PREMISE[0] * 6001 // (PASS_PREMISE[1] * 6000))
-# Charged besides (proof.md 9.2 and 11): the walk's loop control per walked outer step; the machine's bookkeeping in a
-# passing step, at most X / 15 (Lemma U), so its units are at most PASS_SCALE * X; the last step may pass the budget by
-# X_MAX, the largest X of one step.
-LOOP_UNITS = 3
-PASS_SCALE = (16, 15)
-X_MAX = 56 + (1 << 23) + 14 * 1600 + (1 << 21) * 192 + 128 * 286720
-def class_member(k):
-    'Y4 of class member number k: the bits of k fill the free positions of e1 in increasing order.'
-    e1 = CLASS_VALUE
-    for j, i in enumerate(CLASS_FREE):
-        e1 |= (k >> j & 1) << i
-    return (e1 - Y3) & MASK
-def outer(six):
-    'Step S1, first part: the lines that read neither X2 nor the member, for the six words of an outer step.'
-    c0c, c0d, d3d, s15, s9, w5 = six
-    v = {"C0.c1": c0c, "C0.d1": c0d, "D3.d1": d3d, "S15": s15, "S9": s9, "w5": w5}
-    v["S2"] = (K2A + K2B + w5) & MASK
-    v["S14"] = ror(K2D ^ v["S2"], 8)
-    v["S10"] = (K2C + v["S14"]) & MASK
-    v["S6"] = ror(K2B ^ v["S10"], 7)
-    v["D3.a1"] = rol(d3d, 16) ^ v["S14"]
-    v["D3.c1"] = (s9 + d3d) & MASK
-    v["D3.b1"] = (X3 - v["D3.a1"]) & MASK
-    v["S4"] = rol(v["D3.b1"], 12) ^ v["D3.c1"]
-    v["S3"] = (v["D3.a1"] - v["S4"]) & MASK
-    v["X14"] = ror(d3d ^ X3, 8)
-    v["X9"] = (v["D3.c1"] + v["X14"]) & MASK
-    v["X4"] = ror(v["D3.b1"] ^ v["X9"], 7)
-    v["K3.d1"] = rol(s15, 8) ^ v["S3"]
-    v["K3.c1"] = (IV[3] + v["K3.d1"]) & MASK
-    v["K3.b1"] = ror(IV[7] ^ v["K3.c1"], 12)
-    v["S11"] = (v["K3.c1"] + s15) & MASK
-    v["S7"] = ror(v["K3.b1"] ^ v["S11"], 7)
-    v["K3.a1"] = rol(v["K3.d1"], 16) ^ 11
-    v["w6"] = (v["K3.a1"] - IV[3] - IV[7]) & MASK
-    v["w7"] = (v["S3"] - v["K3.a1"] - v["K3.b1"]) & MASK
-    v["C0.b1"] = ror(v["X4"] ^ c0c, 12)
-    v["X8"] = (c0c - c0d) & MASK
-    v["D2.b1"] = rol(X7, 7) ^ v["X8"]
-    v["D2.c1"] = rol(v["D2.b1"], 12) ^ v["S7"]
-    v["X13"] = (v["X8"] - v["D2.c1"]) & MASK
+assert (Y7, Y15) == (Y7B, Y15B) and Y3 == 0x8127C181 and DY3 == 0xFDB77CFD and ror(ETA ^ EPS, 8) == MU
+
+# ---- the class (Lemma Q) and the winner sub-class (18.1): e1 = 070c0307 OR (W AND f8107cf8), 16 free bits
+CLASS_MASK, CLASS_VALUE = 0x03CF8303, 0x030C0303
+WIN_FIXED, WIN_VALUE, FREE_MASK = 0x07EF8307, 0x070C0307, 0xF8107CF8
+CLASS_FREE = tuple(i for i in range(32) if FREE_MASK >> i & 1)
+Y_PEND = (WIN_VALUE - Y3) & M
+
+# ---- the fourteen outcomes (old ..20a0, new ..60a0), Q*, budgets of 18.3 and 18.9
+TAUS = (0x175020A0, 0x185020A0, 0x275020A0, 0x285020A0, 0x385020A0, 0x675020A0, 0x685020A0,
+        0x175060A0, 0x185060A0, 0x275060A0, 0x285060A0, 0x385060A0, 0x675060A0, 0x685060A0)
+S_MASK = 0x3FFF
+LOW_TAUS = {t | n for t in (0x175020A0, 0x275020A0, 0x675020A0) for n in (0, 0x4000)}
+QSTAR_MASK, QSTAR_VALUE = 0x0E09818B, 0x02008000
+SHARE, E_COUNT = 99669577442459648, 670775040
+B0, L0 = 52256980094639195695325, 299996468082244789290  # the run and pass budget that H4prime-winner names
+RUN_STEPS = -(-4 * B0 // 9)  # B = ceil(4 B0 / 9)
+RUN_BATCHES = -(-RUN_STEPS // 7)  # J = ceil(B / 7)
+PASS_BUDGET = -(-RUN_STEPS * (L0 + isqrt(B0 - 1) + 1) // B0) + isqrt(10 * RUN_STEPS - 1) + 1  # L(B) of 18.9
+E_BUDGET = RUN_STEPS  # no E budget: 13 (B + 1) is charged
+TEXT_CONSTANTS = {"RUN_STEPS": 23225324486506309197923, "RUN_BATCHES": 3317903498072329885418,
+                  "PASS_BUDGET": 133331764175634439637}
+
+# ---- the program's ledger (18.11)
+LANES, LANE_BITS = 7, 36
+ONES = sum(1 << (LANE_BITS * i) for i in range(LANES))
+M_ALL, F_ALL, LIMIT = M * ONES, FREE_MASK * ONES, 1 << LANE_BITS
+CHARGED_BATCH, CHARGE_E_LANE, CHARGE_PASS, CHARGE_BATCH_COUNT, CHARGE_DISPATCH = 425, 35, 512, 3, 16
+U_GLOBAL, U_FAMILY, U_ROW, U_SEL, CAP_PATH = 1024, 2304, 1408, 64, 5864
+U_FORCED, U_SELECTED_EXTRA, U_FREE_ONE, U_G15, U_LEAF, U_ROOT = 20, 4, 28, 64, 80, 120
+# Guard nodes pay a forced node plus their own word operations:
+#   node 25 (old rows): gv = bit(pref,6) ^ bit(pref,13) ^ u (2 shifts, 2 ANDs, 2 XORs) and the key (OR 8, shift, OR) = 9;
+#   node 29: gv = 1 ^ e29 (1 XOR) and the key (3) = 4; e2[29] = arc AND 1 at position 9: 1.
+U_G25, U_G29, U_E29 = 9, 4, 1
+OUTER_WORDS = ("C0.d1", "D2.a1", "D2.b1", "S11", "S4", "X9", "w6")
+
+
+# ---- the lines of step CO
+def Sum(*t):
+    return ("sum", t)
+
+
+def Neg(x):
+    return ("neg", x)
+
+
+def X(a, b):
+    return ("xor", a, b)
+
+
+def R(a, r):
+    return ("ror", a, r)
+
+
+def L(a, r):
+    return ("ror", a, 32 - r)
+
+
+LINES = [
+    ("X2", Sum("D2.a1", "D2.b1", W13)), ("X8", X(rol(X7, 7), "D2.b1")), ("C0.c1", Sum("X8", "C0.d1")),
+    ("K3.a1", Sum((IV[3] + IV[7]) & M, "w6")), ("K3.d1", R(X("K3.a1", FLAGS), 16)), ("K3.c1", Sum(IV[3], "K3.d1")),
+    ("S15", Sum("S11", Neg("K3.c1"))), ("S3", X(L("S15", 8), "K3.d1")), ("K3.b1", R(X(IV[7], "K3.c1"), 12)),
+    ("D3.a1", Sum("S3", "S4")), ("S7", R(X("K3.b1", "S11"), 7)), ("D3.b1", Sum(X3, Neg("D3.a1"))),
+    ("D2.c1", X(L("D2.b1", 12), "S7")), ("D3.c1", X(L("D3.b1", 12), "S4")), ("X4", R(X("D3.b1", "X9"), 7)),
+    ("X13", Sum("X8", Neg("D2.c1"))), ("X14", Sum("X9", Neg("D3.c1"))), ("C0.b1", R(X("X4", "C0.c1"), 12)),
+    ("D2.d1", X(L("X13", 8), "X2")), ("D3.d1", X(L("X14", 8), X3)), ("Y8", X(L("Y4", 7), "C0.b1")),
+    ("S13", X(L("D2.d1", 16), "D2.a1")), ("S9", Sum("D3.c1", Neg("D3.d1"))), ("Y12", Sum("Y8", Neg("C0.c1"))),
+    ("K1.c1", Sum("S9", Neg("S13"))), ("Y0", X(L("Y12", 8), "C0.d1")), ("K1.d1", Sum("K1.c1", Neg(IV[1]))),
+    ("C0.a1", Sum("Y0", Neg("C0.b1"), Neg("w6"))), ("K1.a1", L("K1.d1", 16)),
+    ("w2", Sum("K1.a1", Neg(IV[1]), Neg(IV[5]))), ("X0", Sum("C0.a1", Neg("X4"), Neg("w2"))),
+    ("S14", X(L("D3.d1", 16), "D3.a1")), ("K1.b1", R(X(IV[5], "K1.c1"), 12)), ("S10", Sum(K2C, "S14")),
+    ("D0.d1", X(rol(X15, 8), "X0")), ("S5", R(X("K1.b1", "S9"), 7)), ("D0.c1", Sum("S10", "D0.d1")),
+    ("D0.b1", R(X("S5", "D0.c1"), 12)), ("X10", Sum("D0.c1", X15)), ("X5", R(X("D0.b1", "X10"), 7)),
+    ("S1", X(L("S13", 8), "K1.d1")), ("w3", Sum("S1", Neg("K1.a1"), Neg("K1.b1"))),
+    ("X12", X(L("C0.d1", 16), "C0.a1")), ("D1.c1", Sum(X11, Neg("X12"))), ("D1.d1", Sum("D1.c1", Neg("S11"))),
+    ("S8", Sum("D2.c1", Neg("D2.d1"))), ("K0.b1", X(L("S4", 7), "S8")), ("S2", X(L("S14", 8), K2D)),
+    ("S6", R(X(K2B, "S10"), 7)), ("X1", X(L("X12", 8), "D1.d1")), ("K0.c1", X(L("K0.b1", 12), IV[4])),
+    ("D1.b1", R(X("S6", "D1.c1"), 12)), ("C1.a1", Sum("X1", "X5", "w3")), ("S12", Sum("S8", Neg("K0.c1"))),
+    ("w7", Sum("S3", Neg("K3.a1"), Neg("K3.b1"))), ("X6", R(X("D1.b1", X11), 7)),
+    ("C1.d1", R(X("X13", "C1.a1"), 16)), ("D1.a1", X(L("D1.d1", 16), "S12")), ("C1.c1", Sum("X9", "C1.d1")),
+    ("C2.a1", Sum("X2", "X6", "w7")), ("w10", Sum("D1.a1", Neg("S1"), Neg("S6"))),
+    ("C1.b1", R(X("X5", "C1.c1"), 12)), ("C2.d1", R(X("X14", "C2.a1"), 16)),
+    ("w12", Sum("D2.a1", Neg("S2"), Neg("S7"))), ("Y1", Sum("C1.a1", "C1.b1", "w10")),
+    ("C2.c1", Sum("X10", "C2.d1")), ("Y13", R(X("C1.d1", "Y1"), 8)), ("C2.b1", R(X("X6", "C2.c1"), 12)),
+    ("K0.d1", Sum("K0.c1", Neg(IV[0]))), ("Y9", Sum("C1.c1", "Y13")), ("S0", X(L("S12", 8), "K0.d1")),
+    ("D0.a1", X(L("D0.d1", 16), "S15")), ("w8", Sum("D0.a1", Neg("S0"), Neg("S5"))),
+    ("w5", Sum("S2", Neg(K2A), Neg(K2B))), ("w9", Sum("X0", Neg("D0.a1"), Neg("D0.b1"))),
+    ("w11", Sum("X1", Neg("D1.a1"), Neg("D1.b1"))), ("Y5", R(X("C1.b1", "Y9"), 7)),
+]
+
+
+def ev(e, v):
+    if isinstance(e, int):
+        return e
+    if isinstance(e, str):
+        return v[e]
+    if e[0] == "sum":
+        s = 0
+        for t in e[1]:
+            s += -ev(t[1], v) if isinstance(t, tuple) and t[0] == "neg" else ev(t, v)
+        return s & M
+    if e[0] == "xor":
+        return ev(e[1], v) ^ ev(e[2], v)
+    return ror(ev(e[1], v), e[2])
+
+
+def member_y(w):
+    'e1 = 070c0307 OR (W AND f8107cf8), y = e1 - Y3; the member number is the 16 free bits in order.'
+    e1 = WIN_VALUE | (w & FREE_MASK)
+    return (e1 - Y3) & M, e1, sum((w >> i & 1) << n for n, i in enumerate(CLASS_FREE))
+
+
+def member_word(k):
+    'The word W whose free bits are member number k.'
+    return sum((k >> n & 1) << i for n, i in enumerate(CLASS_FREE))
+
+
+def scalar_outer(eight):
+    'Step CO on scalar words: every name, plus y, e1, member and omega = Y3 + y + w8.'
+    v = dict(zip(OUTER_WORDS, eight[:7]))
+    v["Y4"], v["e1"], v["member"] = member_y(eight[7])
+    for name, e in LINES:
+        v[name] = ev(e, v)
+    v["omega"] = (Y3 + v["Y4"] + v["w8"]) & M
     return v
-def middle(o, x2):
-    'Step S1, second part: the lines that read X2, for the values o of an outer step. Returns o with them.'
-    v = dict(o, X2=x2)
-    v["D2.a1"] = (x2 - v["D2.b1"] - W13) & MASK
-    v["D2.d1"] = rol(v["X13"], 8) ^ x2
-    v["S13"] = rol(v["D2.d1"], 16) ^ v["D2.a1"]
-    v["S8"] = (v["D2.c1"] - v["D2.d1"]) & MASK
-    v["w12"] = (v["D2.a1"] - v["S2"] - v["S7"]) & MASK
-    v["K1.c1"] = (v["S9"] - v["S13"]) & MASK
-    v["K1.d1"] = (v["K1.c1"] - IV[1]) & MASK
-    v["K1.a1"] = rol(v["K1.d1"], 16)
-    v["K1.b1"] = ror(IV[5] ^ v["K1.c1"], 12)
-    v["S1"] = rol(v["S13"], 8) ^ v["K1.d1"]
-    v["S5"] = ror(v["K1.b1"] ^ v["S9"], 7)
-    v["w2"] = (v["K1.a1"] - IV[1] - IV[5]) & MASK
-    v["w3"] = (v["S1"] - v["K1.a1"] - v["K1.b1"]) & MASK
-    v["K0.b1"] = rol(v["S4"], 7) ^ v["S8"]
-    v["K0.c1"] = rol(v["K0.b1"], 12) ^ IV[4]
-    v["K0.d1"] = (v["K0.c1"] - IV[0]) & MASK
-    v["K0.a1"] = rol(v["K0.d1"], 16)
-    v["S12"] = (v["S8"] - v["K0.c1"]) & MASK
-    v["S0"] = rol(v["S12"], 8) ^ v["K0.d1"]
-    v["w0"] = (v["K0.a1"] - IV[0] - IV[4]) & MASK
-    v["w1"] = (v["S0"] - v["K0.a1"] - v["K0.b1"]) & MASK
-    return v
-def context(free):
-    'Step S1 for the seven words of CONTEXT_WORDS: every value of the two parts by its name.'
-    return middle(outer(free[:6]), free[6])
-def member(o, y4):
-    'The lines that read the member and no word of the middle step: one row of the table of an outer step.'
-    y12 = ((rol(y4, 7) ^ o["C0.b1"]) - o["C0.c1"]) & MASK
-    a1 = ((rol(y12, 8) ^ o["C0.d1"]) - o["C0.b1"] - o["w6"]) & MASK
-    x12 = rol(o["C0.d1"], 16) ^ a1
-    c_d1 = (X11 - x12) & MASK
-    b_d1 = ror(o["S6"] ^ c_d1, 12)
-    d_d1 = (c_d1 - o["S11"]) & MASK
-    return {"Y12": y12, "C0.a1": a1, "X12": x12, "D1.b1": b_d1, "X6": ror(b_d1 ^ X11, 7), "D1.d1": d_d1,
-            "X1": rol(x12, 8) ^ d_d1}
-def messages(w):
-    'Steps S2 and S3.'
-    other = list(w)
-    other[4] = W4B
-    other[5] = (w[5] + DELTA5) & MASK
-    return struct.pack("<16I", *w)[:LEN_A], struct.pack("<16I", *other)[:LEN_B]
-def trial(v, y4):
-    'The trial of proof.md 6.1 for the context v and class member y4: returns (words, values of the trial).'
-    r = member(v, y4)
-    x0 = (r["C0.a1"] - v["X4"] - v["w2"]) & MASK
-    d_d0 = rol(X15, 8) ^ x0
-    c_d0 = (v["S10"] + d_d0) & MASK
-    x10 = (c_d0 + X15) & MASK
-    b_d0 = ror(v["S5"] ^ c_d0, 12)
-    a_d0 = rol(d_d0, 16) ^ v["S15"]
-    a_d1 = rol(r["D1.d1"], 16) ^ v["S12"]
-    words = [v["w0"], v["w1"], v["w2"], v["w3"], W4, v["w5"], v["w6"], v["w7"],
-             (a_d0 - v["S0"] - v["S5"]) & MASK, (x0 - a_d0 - b_d0) & MASK,
-             (a_d1 - v["S1"] - v["S6"]) & MASK, (r["X1"] - a_d1 - r["D1.b1"]) & MASK, v["w12"], W13, 0, 0]
-    return words, dict(r, X0=x0, X5=ror(b_d0 ^ x10, 7), X10=x10)
-def residual_word1(v, words, t, y4):
-    'Digest word 1 of A xor digest word 1 of B for one trial (round 1, partial; proof.md 6.2).'
-    c1 = g(t["X1"], t["X5"], v["X9"], v["X13"], words[3], words[10])
-    c2 = g(v["X2"], t["X6"], t["X10"], v["X14"], words[7], words[0])
-    y1, y9, y6, y14 = c1[0], c1[2], c2[1], c2[3]
-    w5b = (words[5] + DELTA5) & MASK
-    pa = g(y1, y6, Y11, t["Y12"], words[12], words[5])
-    pb = g(y1, y6, Y11B, t["Y12"], words[12], w5b)
-    qa = g(Y3, y4, y9, y14, words[15], words[8])
-    qb = g(Y3B, y4, y9, y14, words[15], words[8])
-    return pa[0] ^ qa[2] ^ pb[0] ^ qb[2]
-PERMUTATION = (2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8)
-G_CALLS = ((0, 4, 8, 12), (1, 5, 9, 13), (2, 6, 10, 14), (3, 7, 11, 15),
-           (0, 5, 10, 15), (1, 6, 11, 12), (2, 7, 8, 13), (3, 4, 9, 14))
-def compress2(message, counter=0, flags=11):
-    'The complete 2-round compression of proof.md Section 1 for one message of at most 64 bytes (or one last chunk).'
-    n = len(message)
-    w = list(struct.unpack("<16I", message + bytes(64 - n)))
-    v = list(IV) + list(IV[:4]) + [counter & MASK, counter >> 32, n, flags]
-    s, y = list(w), None
-    for r in range(2):
-        for i, (a, b, c, d) in enumerate(G_CALLS):
-            if r == 1 and i == 4:
-                y = list(v)
-            v[a], v[b], v[c], v[d] = g(v[a], v[b], v[c], v[d], s[2 * i], s[2 * i + 1])
-        s = [s[p] for p in PERMUTATION]
-    return w, [v[i] ^ v[i + 8] for i in range(8)], y
-def seeded(seed):
-    'The seven words of a context and a class member number from the organizer seed.'
-    stream = struct.unpack("<8I", hashlib.shake_256(seed).digest(32))
-    return stream[:7], stream[7] % CLASS_SIZE
-def half_collision(seed):
-    free, k = seeded(seed)
-    return messages(trial(context(free), class_member(k))[0]) + ({},)
-def residual_search(seed):
-    free, k0 = seeded(seed)
-    v = context(free)
-    for step in range(CLASS_SIZE):
-        y4 = class_member((k0 + step) % CLASS_SIZE)
-        words, values = trial(v, y4)
-        if residual_word1(v, words, values, y4) & 0xFF == 0:
-            return messages(words) + ({"tries": step + 1},)
-    return None, None, {"tries": CLASS_SIZE}
-def ctr_c1(j):
-    'E1.c1 of cube member j: the bits of j fill the free positions of (c1 AND CTR_MASK) = CTR_VALUE in increasing order.'
-    c1 = CTR_VALUE
-    for n, i in enumerate(CTR_FREE):
-        c1 |= (j >> n & 1) << i
-    return c1
-def ctr_outer(eight, y4=None):
-    'The unstarred lines of the counter order, in its sequence, for the words of CTR_BASIS and class member eight[7].'
-    v = dict(zip(CTR_BASIS, eight), Y4=ctr_member(eight[7] & CTR_CSIZE - 1) if y4 is None else y4)
-    v["X2"] = (v["D2.a1"] + v["D2.b1"] + W13) & MASK
-    v["X8"] = rol(X7, 7) ^ v["D2.b1"]
-    v["C0.c1"] = (v["X8"] + v["C0.d1"]) & MASK
-    v["K3.a1"] = (IV[3] + IV[7] + v["w6"]) & MASK
-    v["K3.d1"] = ror(v["K3.a1"] ^ CTR_FLAGS, 16)
-    v["K3.c1"] = (IV[3] + v["K3.d1"]) & MASK
-    v["S15"] = (v["S11"] - v["K3.c1"]) & MASK
-    v["S3"] = rol(v["S15"], 8) ^ v["K3.d1"]
-    v["K3.b1"] = ror(IV[7] ^ v["K3.c1"], 12)
-    v["D3.a1"] = (v["S3"] + v["S4"]) & MASK
-    v["S7"] = ror(v["K3.b1"] ^ v["S11"], 7)
-    v["D3.b1"] = (X3 - v["D3.a1"]) & MASK
-    v["D2.c1"] = rol(v["D2.b1"], 12) ^ v["S7"]
-    v["D3.c1"] = rol(v["D3.b1"], 12) ^ v["S4"]
-    v["X4"] = ror(v["D3.b1"] ^ v["X9"], 7)
-    v["X13"] = (v["X8"] - v["D2.c1"]) & MASK
-    v["X14"] = (v["X9"] - v["D3.c1"]) & MASK
-    v["C0.b1"] = ror(v["X4"] ^ v["C0.c1"], 12)
-    v["D2.d1"] = rol(v["X13"], 8) ^ v["X2"]
-    v["D3.d1"] = rol(v["X14"], 8) ^ X3
-    v["Y8"] = rol(v["Y4"], 7) ^ v["C0.b1"]
-    v["S13"] = rol(v["D2.d1"], 16) ^ v["D2.a1"]
-    v["S9"] = (v["D3.c1"] - v["D3.d1"]) & MASK
-    v["Y12"] = (v["Y8"] - v["C0.c1"]) & MASK
-    v["K1.c1"] = (v["S9"] - v["S13"]) & MASK
-    v["Y0"] = rol(v["Y12"], 8) ^ v["C0.d1"]
-    v["K1.d1"] = (v["K1.c1"] - IV[1]) & MASK
-    v["C0.a1"] = (v["Y0"] - v["C0.b1"] - v["w6"]) & MASK
-    v["K1.a1"] = rol(v["K1.d1"], 16)
-    v["w2"] = (v["K1.a1"] - IV[1] - IV[5]) & MASK
-    v["X0"] = (v["C0.a1"] - v["X4"] - v["w2"]) & MASK
-    v["S14"] = rol(v["D3.d1"], 16) ^ v["D3.a1"]
-    v["K1.b1"] = ror(IV[5] ^ v["K1.c1"], 12)
-    v["S10"] = (K2C + v["S14"]) & MASK
-    v["D0.d1"] = rol(X15, 8) ^ v["X0"]
-    v["S5"] = ror(v["K1.b1"] ^ v["S9"], 7)
-    v["D0.c1"] = (v["S10"] + v["D0.d1"]) & MASK
-    v["D0.b1"] = ror(v["S5"] ^ v["D0.c1"], 12)
-    v["X10"] = (v["D0.c1"] + X15) & MASK
-    v["X5"] = ror(v["D0.b1"] ^ v["X10"], 7)
-    v["S1"] = rol(v["S13"], 8) ^ v["K1.d1"]
-    v["w3"] = (v["S1"] - v["K1.a1"] - v["K1.b1"]) & MASK
-    v["X12"] = rol(v["C0.d1"], 16) ^ v["C0.a1"]
-    v["D1.c1"] = (X11 - v["X12"]) & MASK
-    v["D1.d1"] = (v["D1.c1"] - v["S11"]) & MASK
-    v["S8"] = (v["D2.c1"] - v["D2.d1"]) & MASK
-    v["K0.b1"] = rol(v["S4"], 7) ^ v["S8"]
-    v["S2"] = rol(v["S14"], 8) ^ K2D
-    v["S6"] = ror(K2B ^ v["S10"], 7)
-    v["X1"] = rol(v["X12"], 8) ^ v["D1.d1"]
-    v["K0.c1"] = rol(v["K0.b1"], 12) ^ IV[4]
-    v["D1.b1"] = ror(v["S6"] ^ v["D1.c1"], 12)
-    v["C1.a1"] = (v["X1"] + v["X5"] + v["w3"]) & MASK
-    v["S12"] = (v["S8"] - v["K0.c1"]) & MASK
-    v["w7"] = (v["S3"] - v["K3.a1"] - v["K3.b1"]) & MASK
-    v["X6"] = ror(v["D1.b1"] ^ X11, 7)
-    v["C1.d1"] = ror(v["X13"] ^ v["C1.a1"], 16)
-    v["D1.a1"] = rol(v["D1.d1"], 16) ^ v["S12"]
-    v["C1.c1"] = (v["X9"] + v["C1.d1"]) & MASK
-    v["C2.a1"] = (v["X2"] + v["X6"] + v["w7"]) & MASK
-    v["w10"] = (v["D1.a1"] - v["S1"] - v["S6"]) & MASK
-    v["C1.b1"] = ror(v["X5"] ^ v["C1.c1"], 12)
-    v["C2.d1"] = ror(v["X14"] ^ v["C2.a1"], 16)
-    v["w12"] = (v["D2.a1"] - v["S2"] - v["S7"]) & MASK
-    v["Y1"] = (v["C1.a1"] + v["C1.b1"] + v["w10"]) & MASK
-    v["C2.c1"] = (v["X10"] + v["C2.d1"]) & MASK
-    v["Y13"] = ror(v["C1.d1"] ^ v["Y1"], 8)
-    v["C2.b1"] = ror(v["X6"] ^ v["C2.c1"], 12)
-    v["K0.d1"] = (v["K0.c1"] - IV[0]) & MASK
-    v["Y9"] = (v["C1.c1"] + v["Y13"]) & MASK
-    v["S0"] = rol(v["S12"], 8) ^ v["K0.d1"]
-    v["D0.a1"] = rol(v["D0.d1"], 16) ^ v["S15"]
-    v["w8"] = (v["D0.a1"] - v["S0"] - v["S5"]) & MASK
-    v["w5"] = (v["S2"] - K2A - K2B) & MASK
-    v["w9"] = (v["X0"] - v["D0.a1"] - v["D0.b1"]) & MASK
-    v["w11"] = (v["X1"] - v["D1.a1"] - v["D1.b1"]) & MASK
-    v["Y5"] = ror(v["C1.b1"] ^ v["Y9"], 7)
-    return v
-def ctr_trial(o, c1):
-    'The starred lines for E1.c1 = c1: (block A, block B, t, words), or None for t = 0 (one chunk: root, flags 11).'
-    v = dict(o, **{"E1.c1": c1, "E1.d1": (c1 - Y11) & MASK})
-    v["E1.a1"] = rol(v["E1.d1"], 16) ^ v["Y12"]
-    v["Y6"] = (v["E1.a1"] - v["Y1"] - v["w12"]) & MASK
-    v["Y10"] = rol(v["Y6"], 7) ^ v["C2.b1"]
-    v["Y14"] = (v["Y10"] - v["C2.c1"]) & MASK
-    v["E1.b1"] = ror(v["Y6"] ^ c1, 12)
-    v["Y2"] = rol(v["Y14"], 8) ^ v["C2.d1"]
-    v["E3.h1"] = ror(v["Y14"] ^ ((Y3 + v["Y4"]) & MASK), 16)
-    v["w0"] = (v["Y2"] - v["C2.a1"] - v["C2.b1"]) & MASK
-    v["E3.g1"] = (v["Y9"] + v["E3.h1"]) & MASK
-    v["K0.a1"] = (IV[0] + IV[4] + v["w0"]) & MASK
-    v["E3.f1"] = ror(v["Y4"] ^ v["E3.g1"], 12)
-    v["T0"] = rol(v["K0.d1"], 16) ^ v["K0.a1"]
-    v["w1"] = (v["S0"] - v["K0.a1"] - v["K0.b1"]) & MASK
-    v["E1.a2"] = (v["E1.a1"] + v["E1.b1"] + v["w5"]) & MASK
-    v["E3.e2"] = (Y3 + v["Y4"] + v["E3.f1"] + v["w8"]) & MASK
-    if v["T0"] == 0:
-        return None
-    w = [v.get("w%d" % i, 0) for i in range(16)]
-    w[4], w[13] = W4, W13
-    b = list(w)
-    b[4], b[5] = W4B, (w[5] + DELTA5) & MASK
-    return struct.pack("<16I", *w), struct.pack("<16I", *b), v["T0"], v
-def ctr_lane(o, c1):
-    'One counter trial against the 2-round compressions of its two last chunks (counter t, flags 3): its checks and h1.'
-    r = ctr_trial(o, c1)
-    if r is None:
-        return False, None
-    a, b, t, v = r
-    (wa, da, ya), (wb, db, yb) = compress2(a[:LEN_A], t, CTR_FLAGS), compress2(b[:LEN_B], t, CTR_FLAGS)
-    e = []
-    for w, y in ((wa, ya), (wb, yb)):
-        c = (y[11] + ror(y[12] ^ ((y[1] + y[6] + w[12]) & MASK), 16)) & MASK
-        e.append((c, ror(y[6] ^ c, 12), (y[3] + y[4] + w[15]) & MASK))
-    h1 = ror(ya[14] ^ e[0][2], 16)
-    good = (all(ya[i] == v["Y%d" % i] for i in (0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14))
-            and (ya[3], ya[11], yb[3], yb[11], yb[4], e[0][1], h1) == (Y3, Y11, Y3B, Y11B, v["Y4"], v["E1.b1"], v["E3.h1"])
-            and wa == list(struct.unpack("<16I", a)) and wb == list(struct.unpack("<16I", b)) and t >> 32 == 0
-            and all(da[i] == db[i] for i in (0, 2, 5, 7)) and e[0][2] & CTR_CLASS == CLASS_VALUE & CTR_CLASS
-            and e[0][0] == c1 and c1 & CTR_MASK == CTR_VALUE and e[0][1] ^ e[1][1] == CTR_BETA
-            and ror(e[0][2] ^ e[1][2], 16) == ETA)
-    return good, h1
-def ctr_g(tau):
-    "G(tau) = ROL(tau ^ ROR(tau, 1), 12): the difference g1 ^ g1' that R = 0 with outcome tau needs (condition (1))."
+
+
+def deps(e, out):
+    if isinstance(e, str):
+        out.add(e)
+    elif isinstance(e, tuple):
+        if e[0] == "sum":
+            for t in e[1]:
+                deps(t, out)
+        elif e[0] in ("neg", "ror"):
+            deps(e[1], out)
+        elif e[0] == "xor":
+            deps(e[1], out)
+            deps(e[2], out)
+
+
+def slice_lines(targets=("Y9", "w8")):
+    need, keep = set(targets), []
+    for name, e in reversed(LINES):
+        if name in need:
+            keep.append((name, e))
+            d = set()
+            deps(e, d)
+            need |= d
+    return list(reversed(keep))
+
+
+# ---- the exact outer filter: carry automata (1) on Y9 and (2) on omega
+def theta_of(tau):
     return rol(tau ^ ror(tau, 1), 12)
-def ctr_automaton(targets, dy, n=32):
-    """The carry automaton of outer_filter.py on the n low bits of a word x, as byte tables. Target i = (dz, out) holds
-    when some v gives (x + v) ^ (x' + (v ^ dz)) = out, x' = x + dy: condition (1) on Q (dy = 0, dz = eta, out = G) or (2)
-    on E (dy = DY3, dz = ROR(G, 12), out = eps). A state is the carry of x + dy and, per target, the set of reachable
-    carry pairs (4 bits); tables[p][s + byte p] is the next state times 256, the last table gives the pattern."""
+
+
+def automaton(targets, dy, n=32):
     layer, trans = [(0, (1,) * len(targets))], []
     for i in range(n):
         ids, rows, e = {}, [], dy >> i & 1
@@ -380,631 +260,1173 @@ def ctr_automaton(targets, dy, n=32):
             table += [final[row[x % len(row)]] if p + 8 >= n else row[x % len(row)] << 8 for x in range(256)]
         tables.append(table)
     return tables
-CTR_FILTER = []
-def ctr_tables():
-    "The filter's two automata, built once per run on first use: (1) on Q for the fourteen G, (2) on E with E' = E + DY3."
-    if not CTR_FILTER:
-        g = [ctr_g(t) for t in CTR_TAUS]
-        CTR_FILTER.extend((ctr_automaton([(ETA, x) for x in g], 0),
-                           ctr_automaton([(ror(x, 12), CTR_EPS) for x in g], (Y3B - Y3) & MASK)))
-    return CTR_FILTER
-def ctr_look(tables, x):
-    'The automaton on the word x, a byte at a time, one table load per byte; the last table gives the pattern.'
+
+
+def build_tables():
+    th = [theta_of(t) for t in TAUS]
+    t1 = automaton([(ETA, x) for x in th], 0)
+    t2 = automaton([(ror(x, 12), EPS) for x in th], DY3)
+    return [t1[:3] + [[m & S_MASK for m in t1[3]]], t2[:3] + [[m & S_MASK for m in t2[3]]]]
+
+
+def look(tables, x):
+    s = 0
     for p, t in enumerate(tables):
-        b = x >> 8 * p if p else x
-        b = b if p == 3 else b & 255
-        i = s + b if p else b
-        s = Word.m.load(t[i]) if type(x) is Word else t[i]
+        s = t[s + (x >> 8 * p & 255) if p else x & 255]
     return s
-def ctr_filter(q, y4, w8):
-    'The filter of one outer step: the outcomes (bits 0-13) with (1) solvable for Q = Y9 and (2) for E = Y3 + Y4 + w8.'
-    fq, fe = ctr_tables()
-    return ctr_look(fq, q) & ctr_look(fe, (Y3 + y4 + w8) & MASK)
-class Cnt:
-    """The machine of proof.md 9.2: one unit for every executed primitive (operation, load, store, comparison, branch,
-    random word); constant operands, shift distances and table base addresses are instruction fields; 64 registers.
-    Parts are counted separately; Word values record when they are made and last read, for the register count."""
-    def __init__(s):
-        s.units, s.part, s.t, s.vals = {}, None, 0, []
-    def at(s, part):
-        s.part = part
-        s.units.setdefault(part, 0)
-    def tick(s, n=1):
-        s.units[s.part] += n
-    def new(s, z):
-        s.t += 1
-        w = Word(z)
-        w.b = w.l = s.t
-        s.vals.append(w)
-        return w
-    def load(s, z):
-        s.tick()
-        return s.new(z)
-    def branch(s, *used):
-        'A comparison and the branch on it: two units.'
-        s.tick(2)
-        s.t += 1
-        for w in used:
-            if type(w) is Word:
-                w.l = s.t
-    def registers(s):
-        change = [0] * (s.t + 2)
-        for w in s.vals:
-            change[w.b] += 1
-            change[w.l + 1] -= 1
-        held = peak = 0
-        for d in change:
-            held += d
-            peak = max(peak, held)
-        return peak
-class Word(int):
-    'A scalar word whose operations are counted on Word.m, one unit each; an int operand is an immediate.'
-    m = None
-    def c(s, o, z):
-        m = Word.m
-        m.tick()
-        w = m.new(z)
-        s.l = w.b
-        if type(o) is Word:
-            o.l = w.b
-        return w
-    __add__ = __radd__ = lambda s, o: s.c(o, int(s) + int(o))
-    __sub__ = lambda s, o: s.c(o, int(s) - int(o))
-    __rsub__ = lambda s, o: s.c(o, int(o) - int(s))
-    __xor__ = __rxor__ = lambda s, o: s.c(o, int(s) ^ int(o))
-    __or__ = __ror__ = lambda s, o: s.c(o, int(s) | int(o))
-    __and__ = __rand__ = lambda s, o: s.c(o, int(s) & int(o))
-    __rshift__ = lambda s, o: s.c(o, int(s) >> o)
-    __lshift__ = lambda s, o: s.c(o, int(s) << o)
-CTR_MEMBER_TABLE = {}
-def ctr_member(k):
-    'Y4 of class member number k (19 bits): the bits of k fill the free positions of e1 = Y3 + Y4 in increasing order.'
-    if k not in CTR_MEMBER_TABLE:
-        e1 = CLASS_VALUE & CTR_CLASS
-        for n, i in enumerate(CTR_CFREE):
-            e1 |= (k >> n & 1) << i
-        CTR_MEMBER_TABLE[k] = (e1 - Y3) & MASK
-    return CTR_MEMBER_TABLE[k]
-def ctr_eight(r):
-    'The eight 32-bit words of a random 256-bit word: seven outer words (CTR_BASIS) and the member number (19 bits).'
-    return [r >> 32 * i & MASK for i in range(7)] + [r >> 224 & CTR_CSIZE - 1]
-def ctr_count(r):
-    """One walked outer step counted on the machine: the random word, its eight words, the member's Y4 (one load from the
-    member table), step CO as ctr_outer computes it, the filter (omega and two automata, one load per byte), the test
-    of the mask. Returns (machine, values of step CO, mask)."""
-    m = Word.m = Cnt()
-    m.at("outer step")
-    w = m.load(r)
-    eight = [w & MASK] + [w >> 32 * i & MASK for i in range(1, 7)] + [w >> 224 & CTR_CSIZE - 1]
-    y4 = m.load(ctr_member(int(eight[7])))
-    o = ctr_outer(eight, y4)
-    m.at("filter")
-    z = ctr_filter(o["Y9"], o["Y4"], o["w8"])
-    m.branch(z)
-    return m, o, int(z)
-# == the exact E3 solver of proof.md 8.4 (Lemma E3) ==
-DY3 = (Y3B - Y3) & MASK
-DEAD = 4
-def _tb(i):
-    'B on bit k of f: carries of omega + f and of (omega + DY3) + (f ^ psi); key bits omega_k, omega2_k, psi_k, eps_k.'
-    key, s, x = i >> 3, i >> 1 & 3, i & 1
-    s1, s2 = (key & 1) + x + (s & 1), (key >> 1 & 1) + (x ^ key >> 2 & 1) + (s >> 1)
-    return DEAD if (s1 ^ s2) & 1 != key >> 3 & 1 else s1 >> 1 | (s2 >> 1) << 1
-def _ta(i):
-    'A on bit i of g1: borrow of g1 - Y9 and carry of Y9 + (h ^ eta); key bits y_i, Y9_i, eta_i, theta_i; g1_i = x ^ y_i.'
-    key, s, x = i >> 3, i >> 1 & 3, i & 1
-    gb = x ^ key & 1
-    d = gb - (key >> 1 & 1) - (s & 1)
-    sm = (key >> 1 & 1) + ((d & 1) ^ key >> 2 & 1) + (s >> 1)
-    return DEAD if sm & 1 != gb ^ key >> 3 & 1 else int(d < 0) | (sm >> 1) << 1
-CTR_TB, CTR_TA = [_tb(i) for i in range(128)], [_ta(i) for i in range(128)]
-# Units of the solver per event (proof.md 9.2): a call (the 32 level keys), a guess (its 32 joint alive sets, one table
-# load each, and the root test), a root, a pop, an internal node, a child (two transitions and the joint test), a push,
-# a leaf (E3 of both messages), a good h1 (ctr_good: c1 by Lemma IP, the cube test, t and E1 of both messages against
-# the outcome, bounded in words).
-SOLVER_UNITS = {"calls": 546, "guesses": 199, "roots": 5, "pops": 13, "internal": 14, "children": 11, "pushes": 11,
-                "leaves": 49, "goods": 128}
-CTR_JT = {}
-def ctr_jt(key, j16, reset):
-    """Entry (key, j16) of the joint alive tables (built once per run; JT19 when reset): the set, as 16 bits b * 4 + a
-    and as 64 bits b * 8 + a, of joint states (b of automaton B, a of automaton A) before a bit from which some x leads
-    into j16 after it; at reset (the bit k = 19, g1 bit 31) the A state after the bit is 0, the start of the low run."""
-    e = (key, j16, reset)
-    if e not in CTR_JT:
-        s16 = s64 = 0
-        for b in range(4):
-            for a in range(4):
-                for x in (0, 1):
-                    nb, na = CTR_TB[(key >> 4) * 8 + b * 2 + x], CTR_TA[(key & 15) * 8 + a * 2 + x]
-                    na = na & 4 if reset else na
-                    if nb != DEAD and na != DEAD and j16 >> nb * 4 + na & 1:
-                        s16, s64 = s16 | 1 << b * 4 + a, s64 | 1 << b * 8 + a
-                        break
-        CTR_JT[e] = s16, s64
-    return CTR_JT[e]
-def ctr_theta(tau):
-    return rol(tau ^ ror(tau, 1), 12)
-def ctr_e3(y4, y9, om, h1, j):
-    'E3 of A and B for E3.h1 = h1 and omega = om: True when the differences are (theta_j, eps, tau_j) of outcome j.'
-    t = CTR_TAUS[j]
-    g1 = (y9 + h1) & MASK; e2 = (om + ror(y4 ^ g1, 12)) & MASK; g2 = (g1 + ror(h1 ^ e2, 8)) & MASK
-    hb = h1 ^ ETA; gb = (y9 + hb) & MASK; eb = (om + DY3 + ror(y4 ^ gb, 12)) & MASK; g2b = (gb + ror(hb ^ eb, 8)) & MASK
-    return g1 ^ gb == ctr_theta(t) and e2 ^ eb == CTR_EPS and g2 ^ g2b == t
-def ctr_solve(y4, y9, om, j, ev, limit=None):
-    """Every word h1 with ctr_e3(y4, y9, om, h1, j) (Lemma E3): a depth-first walk over the bits k = 0..31 of f1 =
-    E3.f1 with automaton B on bit k of f1 and automaton A on bit i = k + 12 mod 32 of g1 = ROL(f1, 12) ^ y4 (the top
-    run i = 12..31 from a guessed state, then the low run i = 0..11 from state 0, which must end in the guess), pruned
-    by the joint alive sets of the pair of automata. ev counts the events of SOLVER_UNITS; with a limit, the call stops
-    and returns None as soon as its units exceed it (the units spent stay counted)."""
-    start = ctr_units(ev)
-    ev["calls"] += 1
-    om2, t = (om + DY3) & MASK, CTR_TAUS[j]
-    ps, th = t ^ ror(t, 1), ctr_theta(t)
-    key = [((om >> k & 1) | (om2 >> k & 1) << 1 | (ps >> k & 1) << 2 | (CTR_EPS >> k & 1) << 3) << 4
-           | (y4 >> (k + 12) % 32 & 1) | (y9 >> (k + 12) % 32 & 1) << 1 | (ETA >> (k + 12) % 32 & 1) << 2
-           | (th >> (k + 12) % 32 & 1) << 3 for k in range(32)]
-    out = []
-    for guess in range(4):
-        ev["guesses"] += 1
-        j16, j64 = [0] * 32 + [sum(1 << b * 4 + guess for b in range(4))], [0] * 32 + [0]
-        for k in range(31, -1, -1):
-            j16[k], j64[k] = ctr_jt(key[k], j16[k + 1], k == 19)
-        if not j64[0] >> guess & 1:
-            continue
-        ev["roots"] += 1
-        j64[32] = sum(1 << b * 8 + guess for b in range(4))
-        stack = [(0, 0, 0, guess)]
-        while stack:
-            if limit is not None and ctr_units(ev) - start > limit:
-                return None
-            k, f, sb, sa = stack.pop()
-            ev["pops"] += 1
-            if k == 32:
-                ev["leaves"] += 1
-                h1 = ((rol(f, 12) ^ y4) - y9) & MASK
-                if ctr_e3(y4, y9, om, h1, j):
-                    ev["goods"] += 1
-                    out.append(h1)
+
+
+def flatten(tables):
+    bases, flat = [], []
+    for t in tables:
+        bases.append(len(flat))
+        flat += t
+    for p in range(3):
+        for i in range(bases[p], bases[p] + len(tables[p])):
+            flat[i] += bases[p + 1]
+    return flat, bases[0]
+
+
+def pattern_counts(tables):
+    'Exact number of 32-bit words per final pattern.'
+    cur = {}
+    for b in range(256):
+        cur[tables[0][b]] = cur.get(tables[0][b], 0) + 1
+    for t in tables[1:]:
+        nxt = {}
+        for s, c in cur.items():
+            for b in range(256):
+                nxt[t[s + b]] = nxt.get(t[s + b], 0) + c
+        cur = nxt
+    return cur
+
+
+# ---- the packed batch of 9.6 with the operation counter
+class Val:
+    __slots__ = ("var", "bound", "pend")
+
+    def __init__(self, var, bound, pend=0):
+        self.var, self.bound, self.pend = var, bound, pend
+
+
+class Packed:
+    'Straight-line code on 256-bit packed words; one unit per emitted operation or load; static lane bounds.'
+
+    def __init__(self):
+        self.code, self.n, self.units, self.part = [], 0, {}, None
+        self.vals, self.bounds, self.maxbound, self.consts = {}, {}, 0, {}
+
+    def at(self, part):
+        self.part = part
+        self.units.setdefault(part, 0)
+
+    def emit(self, src, bound, cost):
+        v = "t%d" % self.n
+        self.n += 1
+        self.code.append("%s = %s" % (v, src))
+        self.units[self.part] += cost
+        self.bounds[v] = bound
+        self.maxbound = max(self.maxbound, bound)
+        assert bound < LIMIT
+        return v
+
+    def const(self, c):
+        name = "C%08x" % c
+        self.consts[name] = c * ONES
+        return name
+
+    def reduce(self, a):
+        return Val(self.emit("%s & M_ALL" % a.var, M, 1), M, a.pend)
+
+    def mat(self, a):
+        'Form a pending constant addition before a read by XOR, shift, rotation or table index.'
+        if not a.pend:
+            return a
+        if a.bound + a.pend >= LIMIT:
+            a = self.reduce(a)
+        return Val(self.emit("%s + %s" % (a.var, self.const(a.pend)), a.bound + a.pend, 1), a.bound + a.pend)
+
+    def add(self, a, b):
+        while a.bound + b.bound >= LIMIT:
+            if a.bound >= b.bound:
+                a = self.reduce(a)
+            else:
+                b = self.reduce(b)
+        return Val(self.emit("%s + %s" % (a.var, b.var), a.bound + b.bound, 1), a.bound + b.bound,
+                   (a.pend + b.pend) & M)
+
+    def operand(self, e):
+        if isinstance(e, str):
+            a = self.mat(self.vals[e])
+            self.vals[e] = a
+            return a
+        return self.comp(e, read=True)
+
+    def comp(self, e, read=False):
+        if isinstance(e, str):
+            return self.operand(e) if read else self.vals[e]
+        k = e[0]
+        if k == "sum":
+            acc, pend = None, 0
+            for t in e[1]:
+                neg = isinstance(t, tuple) and t[0] == "neg"
+                x = t[1] if neg else t
+                if isinstance(x, int):
+                    pend += -x if neg else x
+                    continue
+                if neg:  # x - z = x + (z XOR M) + 1
+                    z = self.operand(x)
+                    b = (1 << max(32, z.bound.bit_length())) - 1
+                    v = Val(self.emit("%s ^ M_ALL" % z.var, b, 1), b, 1)
+                else:
+                    v = self.comp(x)
+                acc = v if acc is None else self.add(acc, v)
+            acc = Val(acc.var, acc.bound, (acc.pend + pend) & M)
+            return self.mat(acc) if read else acc
+        if k == "xor":
+            a, b = e[1], e[2]
+            if isinstance(a, int):
+                a, b = b, a
+            x = self.operand(a)
+            if isinstance(b, int):
+                bd = (1 << max(32, x.bound.bit_length())) - 1
+                return Val(self.emit("%s ^ %s" % (x.var, self.const(b)), bd, 1), bd)
+            y = self.operand(b)
+            bd = (1 << max(x.bound.bit_length(), y.bound.bit_length(), 32)) - 1
+            return Val(self.emit("%s ^ %s" % (x.var, y.var), bd, 1), bd)
+        x = self.operand(e[1])
+        r = e[2]
+        return Val(self.emit("((%s >> %d) & A%d) | ((%s << %d) & B%d)" % (x.var, r, r, x.var, 32 - r, r), M, 5), M)
+
+
+def rot_masks():
+    ns = {}
+    for r in range(1, 32):
+        ns["A%d" % r] = ((1 << (32 - r)) - 1) * ONES
+        ns["B%d" % r] = (((1 << r) - 1) << (32 - r)) * ONES
+    return ns
+
+
+def compile_batch(fe_base):
+    P = Packed()
+    P.at("random words")
+    for k in range(7):  # the draw (charged one unit) and an AND with M
+        P.units["random words"] += 1
+        P.vals[OUTER_WORDS[k]] = Val(P.emit("R%d & M_ALL" % k, M, 1), M)
+    P.units["random words"] += 1
+    P.vals["Y4"] = Val(P.emit("R7 & F_ALL", FREE_MASK, 1), FREE_MASK, Y_PEND)
+    P.at("CO lines to Y9 and omega")
+    for name, e in slice_lines():
+        P.vals[name] = P.comp(e)
+    P.vals["Y9"] = P.operand("Y9")
+    P.at("omega")
+    om = P.comp(Sum("Y4", "w8", Y3), read=True)
+    P.vals["omega"] = om
+    P.at("automaton (2), 7 lanes")
+    masks = []
+    for i in range(LANES):
+        s = None
+        for p in range(4):
+            sh = 36 * i + 8 * p
+            b = P.emit("(%s >> %d) & 255" % (om.var, sh), 255, 2) if sh else P.emit("%s & 255" % om.var, 255, 1)
+            s = P.emit("FE[%s + %d]" % (b, fe_base), 0, 2) if p == 0 else P.emit("FE[%s + %s]" % (s, b), 0, 2)
+        P.units[P.part] += 2  # test of the mask, branch
+        masks.append(s)
+    P.code.append("return %s, %s, (%s,)" % (P.vals["Y9"].var, om.var, ", ".join(masks)))
+    src = "def batch(%s):\n    %s\n" % (", ".join("R%d" % k for k in range(8)), "\n    ".join(P.code))
+    return src, dict(P.units), P.vals, P.bounds, P.maxbound, P.consts
+
+
+class Search:
+    'Tables, the compiled batch and its charge.'
+
+    def __init__(self, check_bounds=False):
+        self.t1, self.t2 = build_tables()
+        self.fe, fe_base = flatten(self.t2)
+        self.fq, self.fq_base = flatten(self.t1)
+        src, self.units, self.vals, self.bounds, self.maxbound, consts = compile_batch(fe_base)
+        ns = dict(rot_masks(), M_ALL=M_ALL, F_ALL=F_ALL, FE=self.fe, **consts)
+        exec(src, ns)
+        self.batch = ns["batch"]
+        if check_bounds:  # a variant returning every temporary, for the lane-bound check
+            exec(src.replace("\n    return ", "\n    return locals(), "), ns)
+            self.batch_all = ns["batch"]
+        self.batch_units = sum(self.units.values()) + CHARGE_BATCH_COUNT + CHARGE_DISPATCH + 1  # + the raw R7 move
+
+    def q_path(self, y9):
+        fq = self.fq
+        s = fq[(y9 & 255) + self.fq_base]
+        s = fq[s + (y9 >> 8 & 255)]
+        s = fq[s + (y9 >> 16 & 255)]
+        return fq[s + (y9 >> 24 & 255)]
+
+
+def draw(seed, b):
+    'The eight fresh uniform 256-bit words of batch b of a trial (SHAKE-256 of a label, the seed, b).'
+    buf = hashlib.shake_256(b"halfsearch batch" + seed + b.to_bytes(8, "little")).digest(256)
+    return [int.from_bytes(buf[32 * k:32 * k + 32], "little") for k in range(8)]
+
+
+def lane(x, i):
+    return x >> (36 * i) & M
+
+
+class Halt(Exception):
+    pass
+
+
+def iter_passes(seed, b0, b1, S, c, verify=False, e_budget=E_BUDGET, pass_budget=PASS_BUDGET):
+    """Batches b0..b1-1 of step 1; yields (step, eight words, names of step CO, X, mask1) for every pass.
+    c receives batches, steps, e_count, passes, outer units (and verify counts)."""
+    for key in ("batches", "steps", "e_count", "passes", "outer_units", "verified_lanes", "verify_fail",
+                "bound_fail"):
+        c.setdefault(key, 0)
+    for b in range(b0, b1):
+        Rw = draw(seed, b)
+        if verify:
+            env, y9p, omp, masks = S.batch_all(*Rw)
+            for v, bd in S.bounds.items():
+                if bd:
+                    c["bound_fail"] += any((env[v] >> 36 * i) & (LIMIT - 1) > bd for i in range(LANES))
+        else:
+            y9p, omp, masks = S.batch(*Rw)
+        c["batches"] += 1
+        c["outer_units"] += S.batch_units
+        c["steps"] += LANES
+        for i in range(LANES):
+            m2 = masks[i]
+            if verify:
+                v = scalar_outer([lane(Rw[k], i) for k in range(8)])
+                ok = lane(y9p, i) == v["Y9"] and lane(omp, i) == v["omega"] and m2 == look(S.t2, v["omega"])
+                ok &= all((lane(env[val.var], i) + val.pend) & M == v[n] for n, val in S.vals.items() if n in v)
+                ok &= S.q_path(v["Y9"]) == look(S.t1, v["Y9"])
+                c["verified_lanes"] += 1
+                c["verify_fail"] += not ok
+            if not m2:
                 continue
-            ev["internal"] += 1
-            for x in (1, 0):
-                ev["children"] += 1
-                nb, na = CTR_TB[(key[k] >> 4) * 8 + sb * 2 + x], CTR_TA[(key[k] & 15) * 8 + sa * 2 + x]
-                na = na & 4 if k == 19 else na
-                if j64[k + 1] >> nb * 8 + na & 1:
-                    ev["pushes"] += 1
-                    stack.append((k + 1, f | x << k, nb, na))
-    return out
-def ctr_events():
-    return dict.fromkeys(SOLVER_UNITS, 0)
-def ctr_units(ev):
-    return sum(SOLVER_UNITS[k] * ev[k] for k in SOLVER_UNITS)
-def ctr_dispatch(mask):
-    'Units of a passing outer step outside the solver calls: the fourteen tests of the mask bits (shift, AND, branch).'
-    return 4 * len(CTR_TAUS)
-def ctr_inverse(o, h1):
-    'Lemma IP read backwards: the c1 of the outer step o whose trial has E3.h1 = h1.'
-    y14 = rol(h1, 16) ^ ((Y3 + o["Y4"]) & MASK)
-    y6 = ror(((y14 + o["C2.c1"]) & MASK) ^ o["C2.b1"], 7)
-    return (ror(((y6 + o["Y1"] + o["w12"]) & MASK) ^ o["Y12"], 16) + Y11) & MASK
-def ctr_good(o, h1, j):
-    """A word h1 found for outcome j (Section 9 step 3): c1 by Lemma IP; the trial only if c1 is in Q* and t != 0; then
-    E1 of both messages: R = 0 exactly when its differences (beta, a output, c output) are (beta*, tau_j, eps) (Lemma
-    D and Lemma E3). Returns (c1, in Q*, t, R = 0)."""
-    c1 = ctr_inverse(o, h1)
-    if c1 & CTR_MASK != CTR_VALUE:
-        return c1, False, None, False
-    r = ctr_trial(o, c1)
-    if r is None:
-        return c1, True, 0, False
-    v, d1 = r[3], (c1 - Y11) & MASK
-    e = [g(v["Y1"], v["Y6"], y11, v["Y12"], v["w12"], w5) for y11, w5 in ((Y11, v["w5"]), (Y11B, (v["w5"] + DELTA5) & MASK))]
-    b1b = ror(v["Y6"] ^ ((Y11B + d1) & MASK), 12)
-    return c1, True, r[2], (v["E1.b1"] ^ b1b, e[0][0] ^ e[1][0], e[0][2] ^ e[1][2]) == (CTR_BETA, CTR_TAUS[j], CTR_EPS)
-CTR_STEP_CAP = 1 << 23
-def ctr_goods_max():
-    """Lemma S5 (GPT Sol 6.1 for e7b17fd1): for outcome j at most 2^(32 - n_j) words h1 pass E3, n_j the bits of
-    ((sigma ^ eps) & 7fffffff) | (((eta ^ theta) & fff) << 20), each fixed by lower bits of f1. Returns the sum."""
-    return sum(1 << 32 - bin(((t ^ ror(t, 1) ^ CTR_EPS) & 0x7FFFFFFF) | ((ETA ^ ctr_theta(t)) & 0xFFF) << 20).count("1")
-               for t in CTR_TAUS)
-SCAN_UNITS = CTR_MEMBERS * 192
-def ctr_scan(o, mask, members=CTR_MEMBERS):
-    """The fallback of a passing outer step whose solver units exceed CTR_STEP_CAP: every member c1 of Q* (step CT to
-    E3.h1, E3 of both messages, the outcomes of the mask), SCAN_UNITS bounded in words. Returns [(h1, j)]."""
-    e1, out = (Y3 + o["Y4"]) & MASK, []
-    for n in range(members):
-        y6 = ((rol((ctr_c1(n) - Y11) & MASK, 16) ^ o["Y12"]) - o["Y1"] - o["w12"]) & MASK
-        h1 = ror((((rol(y6, 7) ^ o["C2.b1"]) - o["C2.c1"]) & MASK) ^ e1, 16)
-        out += [(h1, j) for j in range(len(CTR_TAUS)) if mask >> j & 1
-                and ctr_e3(o["Y4"], o["Y9"], (e1 + o["w8"]) & MASK, h1, j)]
-    return out
-def ctr_step(o, mask, cap=CTR_STEP_CAP, members=CTR_MEMBERS):
-    """A passing outer step: the solver for each outcome of the mask, in order, while the step's solver units stay at
-    most cap; past it the fallback scan does the outcomes not yet done. Returns (pass units, [(h1, j)], scanned)."""
-    ev, hs, om = ctr_events(), [], (Y3 + o["Y4"] + o["w8"]) & MASK
-    for j in range(len(CTR_TAUS)):
-        if mask >> j & 1:
-            r = ctr_solve(o["Y4"], o["Y9"], om, j, ev, cap - ctr_units(ev))
-            if r is None:
-                found = ctr_scan(o, mask >> j << j, members)
-                units = ctr_dispatch(mask) + ctr_units(ev) + SCAN_UNITS + SOLVER_UNITS["goods"] * len(found)
-                return units, hs + found, True
-            hs += [(h, j) for h in r]
-    return ctr_dispatch(mask) + ctr_units(ev), hs, False
-def ctr_run(rs, budget=None, cap=CTR_STEP_CAP, members=CTR_MEMBERS):
-    """The walk of proof.md 9.1 over outer steps given by random 256-bit words: step CO and the filter; a passing step
-    runs ctr_step; its pass units and the units of its goods are counted against the pass budget (the run halts,
-    failed, when they would exceed it), and every h1 found goes to ctr_good. Returns (walked, passing, pass units,
-    halted, found)."""
-    walked = passing = units = 0
-    found = []
-    for r in rs:
-        o = ctr_outer(ctr_eight(r))
-        walked += 1
-        z = ctr_filter(o["Y9"], o["Y4"], o["w8"])
-        if not z:
-            continue
-        passing += 1
-        u, hs, scanned = ctr_step(o, z, cap, members)
-        units += u
-        if budget is not None and units > budget:
-            return walked, passing, units, True, found
-        found += [(r, j, h, ctr_good(o, h, j)) for h, j in hs]
-    return walked, passing, units, False, found
-# 28 planted E3 solutions (y4 in the class, Y9, omega, outcome j, h1), made by the participant's development tool with
-# B and C planted and A by rejection (proof.md 9.3); the self-test checks each of them and that the solver finds it.
-CTR_FIXTURES = ((0x0DE48DEE,0x7AE638AC,0x13B5CDD5,3,0x6340656A),(0x1E146982,0xBFF927D0,0x94B1FE58,4,0x2EBCFA46),(0x25F46A6A,0x1BCE2014,0x9B7DC445,6,0xE1E878D6),(0x2E1459DA,0xF3B2B12C,0x0B427E53,2,0xB2F43976),(0x3204A652,0x2459F414,0x1ACB3CD3,6,0x897C4B46),(0x39E469C2,0xDFFDF860,0x1D3706B1,4,0xBDC8DA86),(0x3DF48E1E,0x19BDF4C4,0x6FCD364F,3,0xE318869A),(0x4A1445DA,0xE77DBFFC,0x574D073D,6,0xC6B89926),(0x55E44256,0x7F16ECC4,0x2F4697B3,3,0x1FB0059A),(0x560445E2,0x0075B3E0,0x26D5BCB7,4,0xCF508886),(0x5E049A6A,0x5C6D8840,0x26BD3EC6,4,0x8338F26E),(0x5E14B5F6,0x202A2310,0x77C17CBB,0,0x609C5D42),(0x6DE47A7A,0xD43E5830,0xA43483CB,4,0xB278906E),(0x6DE4B9A6,0x9EC97754,0xEEBFD44C,3,0x1FDCA65A),(0x85E47672,0x3F0DDB2C,0x35BBD45E,9,0x17A89B26),(0x91F4B1FA,0xFFE1B030,0xACB143A6,4,0x6FC4A2AE),(0x95E4562A,0xB71AB8A4,0x7BCA17AB,3,0x4CAC0976),(0x95F4B1CA,0xD89A8814,0x9A43845B,6,0x950C1906),(0x9DE44E32,0xA7367B3C,0x155596AC,3,0x5CA04966),(0xA5E4B196,0x42DE103C,0x6F948FD8,9,0xEB68C71A),(0xA9F4B1A6,0x4C520CB4,0x92920527,2,0x326435AA),(0xB9F4A27A,0xDF912344,0x55C5BBC9,2,0x6194FA56),(0xCA14BA5E,0x49B64D04,0xEBBD8FB1,13,0xEB00175A),(0xCE146A42,0x1092C420,0xD4D6FE4D,4,0x3C1439B6),(0xD6048A0E,0x73B27FA0,0xDE08FF5D,4,0xDDF4177A),(0xD604A606,0xB7A257FC,0x995044DD,6,0xAEB4655A),(0xE5F4999E,0xA329DBE4,0x2B75D7BB,7,0x93ACC53A),(0xFDF44592,0x74697354,0x2EFDACDC,3,0x8FCCFA46))
-def ctr_reference(y4, y9, om, j):
-    'A second enumeration for the self-test: every f1 of automaton B alone (a plain walk), then E3 in full.'
-    t, om2, out, stack = CTR_TAUS[j], (om + DY3) & MASK, [], [(0, 0, 0)]
-    ps = t ^ ror(t, 1)
-    while stack:
-        k, f, s = stack.pop()
-        if k == 32:
-            h1 = ((rol(f, 12) ^ y4) - y9) & MASK
-            out += [h1] if ctr_e3(y4, y9, om, h1, j) else []
-            continue
-        for x in (0, 1):
-            nb = CTR_TB[((om >> k & 1) | (om2 >> k & 1) << 1 | (ps >> k & 1) << 2 | (CTR_EPS >> k & 1) << 3) * 8 + s * 2 + x]
-            if nb != DEAD:
-                stack.append((k + 1, f | x << k, nb))
-    return sorted(out)
-def ctr_solve_counted(y4, y9, om, j, u0=0, cap=None):
-    """ctr_solve executed on the counting machine (Word, Cnt), primitive by primitive as proof.md 9.2 itemizes it:
-    keys, joint alive sets read from the tables, the stack walk, and the machine's own bookkeeping (9.2): the register
-    u of the step's solver units (u0 before the call; +546 per call, +199 per guess, +5 per root, +11 per push, +49 per
-    internal pop, +62 per leaf, +128 per good word) and, at every loop top, the test u > cap. Returns (machine, words,
-    u), words None when the cap stops the call. The self-test checks that the units are those of SOLVER_UNITS for
-    the events of ctr_solve plus 3 per pop and 1 per call, guess, root, push and good word, and that u and the stop
-    are those of ctr_solve."""
-    m = Word.m = Cnt()
-    m.at("solver")
-    y4, y9, om = m.new(y4), m.new(y9), m.new(om)
-    u, top = m.new(u0), m.new(MASK << 40 if cap is None else cap)
-    t = CTR_TAUS[j]
-    ps, th = t ^ ror(t, 1), ctr_theta(t)
-    u = u + 546
-    om2 = (om + DY3) & MASK
-    keys = []
-    for k in range(32):
-        i = (k + 12) & 31
-        kb = ((om >> k) & 1 | ((om2 >> k) & 1) << 1) | ((ps >> k & 1) << 2 | (CTR_EPS >> k & 1) << 3)
-        ka = ((y4 >> i) & 1 | ((y9 >> i) & 1) << 1) | ((ETA >> i & 1) << 2 | (th >> i & 1) << 3)
-        keys.append(kb << 4 | ka)
-        m.tick()                                       # store the key
-    out, stack = [], []
-    for guess in range(4):
-        u = u + 199
-        j16, jw = m.new(sum(1 << b * 4 + guess for b in range(4))), [None] * 33
-        m.tick(2)                                      # the two start sets are immediates moved into registers
-        for k in range(31, -1, -1):
-            m.tick()                                   # load key k
-            idx = Word(keys[k]) << 16
-            m.vals.append(idx); idx.b = idx.l = m.t
-            idx = idx | j16
-            e = ctr_jt(int(keys[k]), int(j16), k == 19)
-            w = m.load(e[0] | e[1] << 16)              # load from the joint alive table
-            m.tick()                                   # store the word
-            jw[k] = int(w)
-            j16 = w & 0xFFFF
-        j64 = w >> 16                                  # J_0, still in its register
-        root = (j64 >> guess) & 1
-        m.branch(root)
-        if not root:
-            continue
-        u = u + 5
-        jw[32] = sum(1 << b * 8 + guess for b in range(4)) << 16
-        m.tick(3)                                      # root word, its store, the stack count
-        stack.append(guess << 42)
-        while True:
-            m.branch()                                 # loop test (stack count against 0)
-            if not stack:
+            c["e_count"] += 1
+            c["outer_units"] += CHARGE_E_LANE
+            if c["e_count"] > e_budget:
+                raise Halt("E count exceeds E_BUDGET")
+            m1 = S.q_path(lane(y9p, i))
+            x = m1 & m2
+            if not x:
+                continue
+            c["passes"] += 1
+            c["outer_units"] += CHARGE_PASS
+            if c["passes"] > pass_budget:
+                raise Halt("pass count exceeds PASS_BUDGET")
+            eight = [lane(Rw[k], i) for k in range(8)]
+            v = scalar_outer(eight)
+            if v["Y9"] != lane(y9p, i) or v["omega"] != lane(omp, i):
+                c["verify_fail"] += 1
+            yield 7 * b + i, eight, v, x, m1
+
+
+# ---- the joint solver of 9.4, pre-check and (G7) of 9.7
+def j1(Q, h, theta):
+    return (((Q + h) & M) ^ ((Q + (h ^ ETA)) & M)) == theta
+
+
+def is_joint_root(Q, y, E, h, tau):
+    'The words (J1), (J2), (J3).'
+    sigma = tau ^ ror(tau, 1)
+    theta = rol(sigma, 12)
+    gg = (Q + h) & M
+    if (gg ^ ((Q + (h ^ ETA)) & M)) != theta:
+        return False
+    f = ror(y ^ gg, 12)
+    e2 = (E + f) & M
+    if (e2 ^ ((((E + DY3) & M) + (f ^ sigma)) & M)) != EPS:
+        return False
+    h2 = ror(h ^ e2, 8)
+    return (((gg + h2) & M) ^ (((gg ^ theta) + (h2 ^ MU)) & M)) == tau
+
+
+class Row:
+    'Static descriptor of an outcome.'
+
+    def __init__(self, tau):
+        self.tau = tau
+        self.sigma = tau ^ ror(tau, 1)
+        self.theta = rol(self.sigma, 12)
+        self.gamma = ETA ^ self.theta
+        self.D = (self.sigma ^ EPS) & 0x7FFFFFFF
+        self.low = tau in LOW_TAUS
+        self.new = bit(tau, 14)
+        self.const_pos = {10, 11, 12, 16, 17, 18, 19, 24, 26} | ({13, 25} if self.new else set())
+        self.guard_pos = {29} if self.new else {25, 29}
+        self.select_pos = 20
+
+    def free_positions(self):
+        'The free positions of 9.4 without 7 (G7) and 15 (G15): the slot bits of the row (18.6).'
+        free = []
+        for i in range(7, 32):
+            k = (i + 20) % 32
+            if i in self.const_pos or i in self.guard_pos or i in (self.select_pos, 7, 15):
+                continue
+            if i < 31 and bit(self.gamma, i):
+                continue
+            if k < 31 and bit(self.D, k):
+                continue
+            free.append(i)
+        return free
+
+
+ROWS = {t: Row(t) for t in TAUS}
+
+
+def arc_of(desc, u, a, v):
+    'Transition relation of 9.4 for one position: a 5-bit arc, or 0.'
+    Qi, yi, Ek, Epk, etai, gi, sk, kk, gi1, kk1, hasc, cval, li, lk = desc
+    gg = Qi ^ v ^ u
+    u1 = maj(Qi, v, u)
+    up1 = maj(Qi, v ^ etai, u ^ gi)
+    if not li and up1 != (u1 ^ gi1):
+        return 0
+    f = yi ^ gg
+    e2 = Ek ^ f ^ a
+    a1 = maj(Ek, f, a)
+    ap1 = maj(Epk, f ^ sk, a ^ kk)
+    if not lk and ap1 != (a1 ^ kk1):
+        return 0
+    if lk:
+        a1 = 0
+    if li:
+        u1 = 0
+    return 0x10 | (u1 << 3) | (a1 << 2) | (v << 1) | e2
+
+
+def build_arrays():
+    'The forced (2^16), dual (2^16) and selected (2^17) arrays, built from the relation.'
+    forced, dual, selected = [0] * (1 << 16), [0] * (1 << 16), [0] * (1 << 17)
+    for key14 in range(1 << 14):
+        d = tuple((key14 >> (13 - t)) & 1 for t in range(14))
+        Qi, yi, Ek, Epk, etai, gi, sk, kk, gi1, kk1, hasc, cval, li, lk = d
+        prescribed = (not li and gi) or (not lk and (kk ^ Ek ^ Epk))
+        for cp in range(4):
+            arcs = [arc_of(d, cp >> 1, cp & 1, 0), arc_of(d, cp >> 1, cp & 1, 1)]
+            key = (key14 << 2) | cp
+            dual[key] = arcs[0] | (arcs[1] << 5)
+            if hasc:
+                forced[key] = arcs[cval]
+            else:
+                passing = [x for x in arcs if x]
+                if len(passing) == 1:
+                    forced[key] = passing[0]
+                assert not (len(passing) == 2 and prescribed), "Lemma S5"
+            for want in (0, 1):
+                cand = [x for x in ((arcs[cval],) if hasc else arcs) if x and (x & 1) == want]
+                assert len(cand) <= 1
+                selected[(key << 1) | want] = cand[0] if cand else 0
+    return forced, dual, selected
+
+
+FORCED = DUAL = SELECTED = None
+
+
+def arrays():
+    global FORCED, DUAL, SELECTED
+    if FORCED is None:
+        FORCED, DUAL, SELECTED = build_arrays()
+
+
+def descriptor(row, Q, y, E, Ep, kappa, i, hasc=0, cval=0):
+    k = (i + 20) % 32
+    d = (bit(Q, i), bit(y, i), bit(E, k), bit(Ep, k), bit(ETA, i), bit(row.gamma, i), bit(row.sigma, k),
+         bit(kappa, k), bit(row.gamma, i + 1) if i < 31 else 0, bit(kappa, k + 1) if k < 31 else 0,
+         hasc, cval, int(i == 31), int(k == 31))
+    key = 0
+    for b_ in d:
+        key = (key << 1) | b_
+    return key
+
+
+def mask_X(Q):
+    'Bit j-1 iff some h has (J1) for outcome j.'
+    X_ = 0
+    for j, tau in enumerate(TAUS):
+        if j1_exists(Q, ROWS[tau].theta):
+            X_ |= 1 << j
+    return X_
+
+
+def j1_exists(Q, theta):
+    gamma = ETA ^ theta
+    if bit(gamma, 0):
+        return False
+    states = {0}
+    for i in range(32):
+        nxt = set()
+        for u in states:
+            for v in (0, 1):
+                u1 = maj(bit(Q, i), v, u)
+                up1 = maj(bit(Q, i), v ^ bit(ETA, i), u ^ bit(gamma, i))
+                if i == 31 or up1 == u1 ^ bit(gamma, i + 1):
+                    nxt.add(u1)
+        states = nxt
+        if not states:
+            return False
+    return True
+
+
+def g7_value(h6, e1, C, B):
+    'Guard (G7): h[7] from h[6], e1, C2.c1 and C2.b1.'
+    x = h6 ^ bit(e1, 22)
+    a22 = x ^ bit(C, 22) ^ bit(B, 22)
+    return bit(e1, 23) ^ 1 ^ bit(C, 23) ^ bit(B, 23) ^ maj(x, bit(C, 22), a22)
+
+
+def prescription(Ek, Epk, sk, kk1, a):
+    'f[k] for D[k] = 1 (Lemma S5).'
+    return (Ek ^ sk ^ kk1) if a == Ek else (Epk ^ kk1)
+
+
+def row_setup(row, Q, y, E, Ep, e1, kappa, C, B, notes, cnt):
+    'Constants and guards (a)-(g) of 9.4, (G7), and the walks of bits 0..6. None if the row is dropped.'
+    b, u = bit(e1, 2), bit(e1, 21)
+    sg, gm = row.sigma, row.gamma
+
+    def Eb(k):
+        return bit(E, k)
+
+    def Epb(k):
+        return bit(Ep, k)
+
+    def kb(k):
+        return bit(kappa, k)
+
+    def sb(k):
+        return bit(sg, k)
+    kept = []  # (a) carry into bit 22
+    for a20 in (0, 1):
+        a, ap, ok = a20, a20 ^ kb(20), True
+        for k in (20, 21):
+            a1 = maj(Eb(k), 0, a)
+            ap1 = maj(Epb(k), sb(k), ap)
+            if ap1 != a1 ^ kb(k + 1):
+                ok = False
                 break
-            m.branch(u, top)                           # the cap: u > cap
-            if u > top:
-                return m, None, int(u)
-            m.tick(2)                                  # stack count, load of the entry
-            w = m.new(stack.pop())
-            k, sb, sa, f = (w >> 32) & 63, (w >> 40) & 3, (w >> 42) & 3, w & MASK
-            m.branch(k)                                # leaf test
-            if k == 32:
-                u = u + 62
-                h1 = (rol(f, 12) ^ y4) - y9 & MASK
-                g1 = (y9 + h1) & MASK; e2 = (om + ror(y4 ^ g1, 12)) & MASK; g2 = (g1 + ror(h1 ^ e2, 8)) & MASK
-                hb = h1 ^ ETA; gb = (y9 + hb) & MASK; eb = (om2 + ror(y4 ^ gb, 12)) & MASK; g2b = (gb + ror(hb ^ eb, 8)) & MASK
-                ok = [g1 ^ gb, e2 ^ eb, g2 ^ g2b]
-                for d in ok:
-                    m.branch(d)
-                if [int(d) for d in ok] == [th, CTR_EPS, t]:
-                    u = u + 128                        # the good word's charge (its step 3 is ctr_good_counted)
-                    out.append(int(h1))
-                continue
-            u = u + 49
-            kk = int(k)
-            i = (k + 12) & 31
-            m.tick()                                   # load key k
-            key = Word(keys[kk]); m.vals.append(key); key.b = key.l = m.t
-            kb, ka = key >> 4, key & 15
-            m.tick()                                   # load the joint word of k + 1
-            jn = Word(jw[kk + 1]); m.vals.append(jn); jn.b = jn.l = m.t
-            j64 = jn >> 16
-            r = m.load(4 if kk == 19 else 7)           # the reset mask of k
-            bb, ba = kb << 3 | sb << 1, ka << 3 | sa << 1
-            for x in (1, 0):
-                nb = m.load(CTR_TB[int(bb | x)])
-                na = m.load(CTR_TA[int(ba | x)]) & r
-                hit = (j64 >> (nb << 3 | na)) & 1
-                m.branch(hit)
-                if hit:
-                    nw = (f | Word(x) << k) | (k + 1) << 32 | (nb << 40 | na << 42)
-                    m.tick(2)                          # store, stack count
-                    u = u + 11
-                    stack.append(int(nw))
-    return m, out, int(u)
-def ctr_good_counted(o, h1, j):
-    """ctr_good (step 3) on the counting machine: the outer step's words are loaded, h1 is in a register. Lemma IP back
-    to c1 shares the first half of E1 (a1, d1, c1); the test of Q*; t (step CT) and its test; E1 of both messages from
-    there, and the three differences, all compared. Returns (machine, ctr_good's tuple)."""
-    m = Word.m = Cnt()
-    m.at("good")
-    h1 = m.new(h1)
-    ld = lambda k: m.load(o[k])
-    y14 = rol(h1, 16) ^ ((ld("Y4") + Y3) & MASK)
-    c2b = ld("C2.b1")
-    y6 = ror(((y14 + ld("C2.c1")) & MASK) ^ c2b, 7)
-    a1 = (y6 + ld("Y1") + ld("w12")) & MASK
-    d1 = ror(a1 ^ ld("Y12"), 16)
-    c1 = (d1 + Y11) & MASK
-    q = c1 & CTR_MASK
-    m.branch(q)
-    if q != CTR_VALUE:
-        return m, (int(c1), False, None, False)
-    k0a = ((((rol(y14, 8) ^ ld("C2.d1")) - ld("C2.a1") - c2b) & MASK) + (IV[0] + IV[4])) & MASK
-    t = rol(ld("K0.d1"), 16) ^ k0a
-    m.branch(t)
-    if t == 0:
-        return m, (int(c1), True, 0, False)
-    w5 = ld("w5")
-    b1 = ror(y6 ^ c1, 12)
-    cb = (d1 + Y11B) & MASK
-    b1b = ror(y6 ^ cb, 12)
-    a2, a2b = (a1 + b1 + w5) & MASK, (a1 + b1b + w5 + DELTA5) & MASK
-    c2, c2b = (c1 + ror(d1 ^ a2, 8)) & MASK, (cb + ror(d1 ^ a2b, 8)) & MASK
-    ds = b1 ^ b1b, a2 ^ a2b, c2 ^ c2b
-    for d in ds:
-        m.branch(d)
-    return m, (int(c1), True, int(t), tuple(map(int, ds)) == (CTR_BETA, CTR_TAUS[j], CTR_EPS))
-def ctr_scan_counted(o, mask, n):
-    """Member n of the scan on the counting machine: the outer words and the outcomes' constants are in registers or
-    immediates; c1 from the table of Q*, step CT to E3.h1, E3 of both messages, eps first (common to the outcomes),
-    then tau_j for each outcome and, for a match, the mask bit and theta_j; the loop. Returns (machine, [(h1, j)])."""
-    m = Word.m = Cnt()
-    m.at("scan")
-    e1, om = m.new((Y3 + o["Y4"]) & MASK), m.new((Y3 + o["Y4"] + o["w8"]) & MASK)
-    y4, y9, y12, y1, w12, c2b, c2c = (m.new(o[k]) for k in ("Y4", "Y9", "Y12", "Y1", "w12", "C2.b1", "C2.c1"))
-    c1 = m.load(ctr_c1(n))
-    y6 = ((rol((c1 - Y11) & MASK, 16) ^ y12) - y1 - w12) & MASK
-    h1 = ror((((rol(y6, 7) ^ c2b) - c2c) & MASK) ^ e1, 16)
-    g1 = (y9 + h1) & MASK; e2 = (om + ror(y4 ^ g1, 12)) & MASK; g2 = (g1 + ror(h1 ^ e2, 8)) & MASK
-    hb = h1 ^ ETA; gb = (y9 + hb) & MASK; eb = (om + DY3 + ror(y4 ^ gb, 12)) & MASK; g2b = (gb + ror(hb ^ eb, 8)) & MASK
-    dt, de, dg = g1 ^ gb, e2 ^ eb, g2 ^ g2b
-    out = []
-    m.branch(de)
-    if de == CTR_EPS:
-        for j, t in enumerate(CTR_TAUS):
-            m.branch(dg)
-            if dg == t:
-                bit = (Word(mask) >> j) & 1
-                m.branch(bit)
-                m.branch(dt)
-                if bit and dt == ctr_theta(t):
-                    m.tick()
-                    out.append((int(h1), j))
-    m.tick(3)
-    return m, out
-def ctr_planted(y4, y9, om, h1, n, words):
-    """For the self-test: the words of an outer step that the solver, the scan and step CT read, with (y4, Y9, omega)
-    given, Y12, Y1, w12 and C2.b1 from words, and C2.c1 solved so that member n of Q* has E3.h1 = h1."""
-    o = {"Y4": y4, "Y9": y9, "w8": (om - Y3 - y4) & MASK, "Y12": words[0], "Y1": words[1], "w12": words[2],
-         "C2.b1": words[3]}
-    y6 = ((rol((ctr_c1(n) - Y11) & MASK, 16) ^ o["Y12"]) - o["Y1"] - o["w12"]) & MASK
-    o["C2.c1"] = ((rol(y6, 7) ^ o["C2.b1"]) - (rol(h1, 16) ^ ((Y3 + y4) & MASK))) & MASK
-    return o
-def ctr_r(text):
-    return int.from_bytes(hashlib.shake_256(text.encode()).digest(32), "little")
-def ctr_selftest(cases, seed):
-    """The v107 self-test (proof.md 9.3). Returns (report, good)."""
-    rep, good = {}, True
-    # (1) counter trials against the compressions of their last chunks (and the organizer's _compress if present)
+            a, ap = a1, ap1
+        if ok:
+            kept.append((a20, a))
+    if not kept:
+        return None
+    if len({a22 for _, a22 in kept}) != 1:
+        notes.append("two kept guesses with different a[22]")
+    a22 = kept[0][1]
+    f22 = prescription(Eb(22), Epb(22), sb(22), kb(23), a22)  # (b)
+    a23 = maj(Eb(22), f22, a22)
+    f23 = prescription(Eb(23), Epb(23), sb(23), kb(24), a23) if bit(gm, 3) == 0 else 1 ^ bit(Q, 3) ^ bit(y, 3)
+    a = a22
+    for k, fk in ((22, f22), (23, f23)):
+        a1 = maj(Eb(k), fk, a)
+        if maj(Epb(k), fk ^ sb(k), a ^ kb(k)) != a1 ^ kb(k + 1):
+            return None
+        a = a1
+    a24 = a
+    h = {0: 0, 1: 1}  # (c)
+    h[2] = bit(y, 2) ^ f22 ^ bit(Q, 2)
+    if h[2] != 1 ^ b:
+        return None
+    u3 = maj(h[2], bit(Q, 2), 0)
+    h[3] = bit(y, 3) ^ f23 ^ bit(Q, 3) ^ u3
+    u4 = maj(h[3], bit(Q, 3), u3)
+    h[10] = b
+    h[11] = 1 ^ h[3]
+    u11 = maj(h[10], bit(Q, 10), bit(Q, 9)) if bit(gm, 10) == 0 else bit(Q, 10)
+    u12 = maj(h[11], bit(Q, 11), u11)
+    f0 = prescription(Eb(0), Epb(0), sb(0), kb(1), 0)  # (d)
+    a1_ = maj(Eb(0), f0, 0)
+    h[12] = bit(y, 12) ^ f0 ^ bit(Q, 12) ^ u12
+    u13 = maj(h[12], bit(Q, 12), u12)
+    h[24] = h[3] ^ h[12] ^ u
+    f24 = h[24] ^ Eb(24) ^ a24  # (e)
+    h[4] = bit(y, 4) ^ f24 ^ bit(Q, 4) ^ u4
+    a25 = maj(Eb(24), f24, a24)
+    if maj(Epb(24), f24 ^ sb(24), a24 ^ kb(24)) != a25 ^ kb(25):
+        return None
+    u5 = maj(h[4], bit(Q, 4), u4)
+    f25 = prescription(Eb(25), Epb(25), sb(25), kb(26), a25)
+    a26 = maj(Eb(25), f25, a25)
+    h[5] = bit(y, 5) ^ f25 ^ bit(Q, 5) ^ u5
+    if row.new:  # (f): new rows, with (P*)
+        h[26] = bit(Q, 26)
+        h[6] = h[26] ^ Eb(26) ^ a26 ^ bit(y, 6) ^ bit(gm, 7)
+        h[25] = h[24]
+        h[13] = h[6] ^ h[24] ^ u ^ 1
+    elif row.low:
+        if Eb(1) == a1_:
+            f2 = prescription(Eb(2), Epb(2), sb(2), kb(3), Eb(1))
+            e2_2 = Eb(2) ^ f2 ^ Eb(1)
+        else:
+            if kb(2) == 1:
+                return None
+            e2_2 = Eb(2) ^ kb(3)
+        h[26] = 1 ^ h[2] ^ e2_2 ^ bit(Q, 26) ^ bit(Q, 25)
+        h[6] = h[26] ^ Eb(26) ^ a26 ^ bit(y, 6) ^ bit(gm, 7)
+    else:
+        h[6] = bit(y, 13) ^ bit(Q, 13) ^ u13 ^ Eb(1) ^ a1_ ^ u
+    h[16] = h[17] = 0  # (g)
+    h[18] = 1 ^ bit(Q, 18)
+    h[19] = bit(Q, 19)
+    if bit(gm, 7):
+        h[7] = 1 ^ bit(gm, 8) ^ h[6]
+    v7 = g7_value(h[6], e1, C, B)  # (G7)
+    if 7 in h and h[7] != v7:
+        return None
+    h[7] = v7
+    states, e2_26 = set(), set()
+    for a20, _ in kept:  # walks of bits 0..6: each lookup is charged as a
+        uu, aa, ok = 0, a20, True  # forced node (U_FORCED), counted in cnt["walk"]
+        for i in range(7):
+            cnt["walk"] += 1
+            arc = FORCED[(descriptor(row, Q, y, E, Ep, kappa, i, 1, h[i]) << 2) | (uu << 1) | aa]
+            if not arc:
+                ok = False
+                break
+            uu, aa = (arc >> 3) & 1, (arc >> 2) & 1
+            if i == 6:
+                e2_26.add(arc & 1)
+        if ok:
+            states.add((uu, aa))
+    if not states:
+        return None
+    if len(states) > 1:
+        notes.append("kept guesses reach different states at depth 7")
+    if not row.low and not row.new:
+        if len(e2_26) != 1:
+            notes.append("e2[26] differs between guesses")
+        h[26] = min(e2_26)
+    return h, sorted(states)
+
+
+def fixed_arc(i, key, cp, pref, e29, u, cnt, old):
+    'A non-free position: Lemma J0 at 20, the guards at 25 (old rows) and 29, else forced (a constant or prescribed).'
+    cnt["forced"] += 1
+    if i == 20:
+        cnt["selected"] += 1
+        return SELECTED[(((key << 2) | cp) << 1) | bit(pref, 8)]
+    if i == 25 and old:
+        cnt["g25"] += 1
+        return FORCED[((key | 8 | ((bit(pref, 6) ^ bit(pref, 13) ^ u) << 2)) << 2) | cp]
+    if i == 29:
+        cnt["g29"] += 1
+        return FORCED[((key | 8 | ((1 ^ e29) << 2)) << 2) | cp]
+    return FORCED[(key << 2) | cp]
+
+
+def new_count():
+    return dict(forced=0, selected=0, free=0, leaves=0, roots=0, walk=0, g25=0, g29=0, e29=0, g15=0)
+
+
+def node_units(cnt):
+    'Path units of 18.7 (walks of bits 0..6: inside the 2,304 and 1,408).'
+    return (U_FORCED * cnt["forced"] + U_SELECTED_EXTRA * cnt["selected"] + U_FREE_ONE * cnt["free"]
+            + U_G25 * cnt["g25"] + U_G29 * cnt["g29"] + U_E29 * cnt["e29"] + U_LEAF * cnt["leaves"]
+            + U_ROOT * cnt["roots"] + U_G15 * cnt["g15"])
+
+
+# ---- step 2: the 32-slot sampler of 18.7 (one row, one leaf path per passing outer step)
+# Static noncompacted ranges, both versions of every row of the envelope: old small 4 / large 8, new small 2 / large 4.
+ENVELOPES = (((0x275020A0, 8), (0x275060A0, 4)),
+             ((0x175020A0, 4), (0x675020A0, 4), (0x175060A0, 2), (0x675060A0, 2)),
+             ((0x285020A0, 8), (0x385020A0, 8), (0x285060A0, 4), (0x385060A0, 4)),
+             ((0x185020A0, 4), (0x385020A0, 8), (0x685020A0, 4), (0x185060A0, 2), (0x385060A0, 4), (0x685060A0, 2)))
+assert all(len(ROWS[t].free_positions()) == n.bit_length() - 1 for e in ENVELOPES for t, n in e)
+
+
+def envelope(m1):
+    'The first static envelope (in the order of 18.7) that contains the J1 mask m1.'
+    for env in ENVELOPES:
+        if not m1 & ~sum(1 << TAUS.index(t) for t, _ in env):
+            return env
+    return ()
+
+
+def selector(raw):
+    'J in 0..31 from bits 0, 1, 2, 8, 9 of the raw eighth word (outside f8107cf8, unused by the member).'
+    return (raw & 7) | (raw >> 5 & 24)
+
+
+def g15_words(e1, C, B, A, V, h6):
+    'The five (G15) words of a row: E22, C22 + alpha22, B22, A16 + v16, V16 (alpha22, v16 the predicted carries).'
+    a22 = h6 ^ bit(e1, 22) ^ bit(C, 22) ^ bit(B, 22)
+    return e1 >> 22, (C >> 22) + a22, B >> 22, (A >> 16 & 511) + (bit(V, 16) ^ 1 ^ bit(A, 16)), V >> 16 & 511
+
+
+def c_star(pref, w):
+    'c_star of (G15) from the prefix h[0..14] (h[15] = 0): Z[23..31], Y6[16..24], a1[16..24], d[0..8], c[0..8].'
+    E22, Ca, B22, Av, V16 = w
+    zeta = (((pref >> 6) ^ E22) + Ca ^ B22) >> 1 & 511
+    return (Y11 & 511) + ((zeta + Av & 511) ^ V16)
+
+
+def g15(pref, w):
+    'Guard (G15): None if c0, c1, c3 or c7 of c_star is set, else the prescribed h[15] (c8 = 0).'
+    cs = c_star(pref, w)
+    return None if cs & 0x8B else cs >> 8 & 1
+
+
+def solve32(v, X_, m1, raw, J=None):
+    'Slot J of the envelope of m1 gives one row and its rank; a padded slot or a row not in X fails.'
+    Q, y, E, C, B = v["Y9"], v["Y4"], v["omega"], v["C2.c1"], v["C2.b1"]
+    e1, Ep, notes, cnt = (Y3 + y) & M, (E + DY3) & M, [], new_count()
+    J = selector(raw) if J is None else J
+    units, start, pick, root = U_GLOBAL + U_SEL, 0, None, []
+    for t, n in envelope(m1):
+        if start <= J < start + n:
+            pick = (ROWS[t], J - start)
+        start += n
+    if pick and X_ >> TAUS.index(pick[0].tau) & 1:
+        row, rank = pick
+        units += U_FAMILY + U_ROW
+        kappa = row.sigma ^ EPS ^ E ^ Ep
+        res = row_setup(row, Q, y, E, Ep, e1, kappa, C, B, notes, cnt)
+        if res is not None:
+            w = g15_words(e1, C, B, (v["Y1"] + v["w12"]) & M, v["Y12"], res[0][6])
+            h = path32(row, Q, y, E, Ep, kappa, e1, res[0], res[1][0], rank, w, cnt)
+            root = [] if h is None else [(h, row.tau)]
+    else:
+        pick = None
+    units += node_units(cnt)
+    return dict(roots=root, units=units, counts=cnt, notes=notes, row=int(pick is not None))
+
+
+def path32(row, Q, y, E, Ep, kappa, e1, h, state, rank, w, cnt):
+    'One leaf path of 9.4 from the common state: (G15) at 15, at the n-th slot bit the dual arc of rank bit n.'
+    u, free = bit(e1, 21), row.free_positions()
+    (uu, aa), pref, e29 = state, sum(h[i] << i for i in range(7)), 0
+    for i in range(7, 32):
+        key = descriptor(row, Q, y, E, Ep, kappa, i, 1, h[i]) if i in h else descriptor(row, Q, y, E, Ep, kappa, i)
+        cp = (uu << 1) | aa
+        if i == 15:
+            cnt["forced"] += 1
+            cnt["g15"] += 1
+            h15 = g15(pref, w)
+            arc = 0 if h15 is None else FORCED[((key | 8 | h15 << 2) << 2) | cp]
+        elif i in free:
+            cnt["free"] += 1
+            arc = DUAL[(key << 2) | cp] >> 5 * (rank >> free.index(i) & 1) & 0x1F
+        else:
+            arc = fixed_arc(i, key, cp, pref, e29, u, cnt, not row.new)
+        if not arc:
+            return None
+        if i == 9:
+            cnt["e29"] += 1
+            e29 = arc & 1
+        uu, aa, pref = (arc >> 3) & 1, (arc >> 2) & 1, pref | (((arc >> 1) & 1) << i)
+    cnt["leaves"] += 1
+    if is_joint_root(Q, y, E, pref, row.tau):
+        cnt["roots"] += 1
+        return pref
+    return None
+
+
+# ---- step 3: the certificate, and the pair of the trial
+def compress2(msg, t=COUNTER, flags=FLAGS):
+    'The 2-round compression of one block: (message words, chaining value, state before the second diagonal step).'
+    n = len(msg)
+    w = list(struct.unpack("<16I", msg + bytes(64 - n)))
+    v = list(IV) + list(IV[:4]) + [t & M, t >> 32, n, flags]
+    s, yst = list(w), None
+    for r in range(2):
+        for i, (a, b, c, d) in enumerate(GCALLS):
+            if r == 1 and i == 4:
+                yst = list(v)
+            v[a], v[b], v[c], v[d] = g(v[a], v[b], v[c], v[d], s[2 * i], s[2 * i + 1])
+        s = [s[p] for p in PERM]
+    return w, [v[i] ^ v[i + 8] for i in range(8)], yst
+
+
+def c1_of(v, h):
+    'Inverse of Lemma IP: Y14 = ROL(h,16) XOR (Y3 + y), Y6, E1.a1, c1.'
+    y14 = rol(h, 16) ^ ((Y3 + v["Y4"]) & M)
+    y6 = ror(((y14 + v["C2.c1"]) & M) ^ v["C2.b1"], 7)
+    return (Y11 + ror(((y6 + v["Y1"] + v["w12"]) & M) ^ v["Y12"], 16)) & M
+
+
+def c1_t0(v):
+    'The one c1 for which step CT forces t = 0: K0.a1 = ROL(K0.d1,16), w0, Y2, Y14, then Lemma IP.'
+    w0 = (rol(v["K0.d1"], 16) - IV[0] - IV[4]) & M
+    y14 = ror(((w0 + v["C2.a1"] + v["C2.b1"]) & M) ^ v["C2.d1"], 8)
+    return c1_of(v, ror(y14 ^ ((Y3 + v["Y4"]) & M), 16))
+
+
+def step_ct(v, c1):
+    'The lines of step CT for E1.c1 = c1: Y names, w0, w1, the counter word t, blocks A and B.'
+    u = dict(v)
+    u["E1.d1"] = (c1 - Y11) & M
+    u["E1.a1"] = rol(u["E1.d1"], 16) ^ u["Y12"]
+    u["Y6"] = (u["E1.a1"] - u["Y1"] - u["w12"]) & M
+    u["Y10"] = rol(u["Y6"], 7) ^ u["C2.b1"]
+    u["Y14"] = (u["Y10"] - u["C2.c1"]) & M
+    u["E1.b1"] = ror(u["Y6"] ^ c1, 12)
+    u["Y2"] = rol(u["Y14"], 8) ^ u["C2.d1"]
+    u["E3.h1"] = ror(u["Y14"] ^ ((Y3 + u["Y4"]) & M), 16)
+    u["w0"] = (u["Y2"] - u["C2.a1"] - u["C2.b1"]) & M
+    u["K0.a1"] = (IV[0] + IV[4] + u["w0"]) & M
+    u["t"] = rol(u["K0.d1"], 16) ^ u["K0.a1"]
+    u["w1"] = (u["S0"] - u["K0.a1"] - u["K0.b1"]) & M
+    w = [u.get("w%d" % i, 0) for i in range(16)]
+    w[4], w[13] = W4, W13
+    b = list(w)
+    b[4], b[5] = W4B, (w[5] + DELTA5) & M
+    pa, pb = struct.pack("<16I", *w), struct.pack("<16I", *b)
+    assert not any(pa[LEN_A:]) and not any(pb[LEN_B:])
+    u["A"], u["B"], u["c1"] = pa[:LEN_A], pb[:LEN_B], c1
+    return u
+
+
+def e_steps(yy, w):
+    'E1 (diagonal 1,6,11,12 with w12, w5) and E3 (diagonal 3,4,9,14 with w15, w8).'
+    e1c = (yy[11] + ror(yy[12] ^ ((yy[1] + yy[6] + w[12]) & M), 16)) & M
+    e1 = g(yy[1], yy[6], yy[11], yy[12], w[12], w[5])
+    a1 = (yy[3] + yy[4] + w[15]) & M
+    d1 = ror(yy[14] ^ a1, 16)
+    c1 = (yy[9] + d1) & M
+    a2 = (a1 + ror(yy[4] ^ c1, 12) + w[8]) & M
+    c2 = (c1 + ror(d1 ^ a2, 8)) & M
+    return dict(e1c=e1c, e1b=ror(yy[6] ^ e1c, 12), e1a=e1[0], e1c2=e1[2], d1=d1, c1=c1, a2=a2, c2=c2)
+
+
+def evaluate(u, t):
+    'Both compressions at counter t, flags 11: names, E1 and E3 differences, chaining values.'
+    wa, cva, ya = compress2(u["A"], t)
+    wb, cvb, yb = compress2(u["B"], t)
+    ea, eb = e_steps(ya, wa), e_steps(yb, wb)
+    cons = (all(ya[i] == u["Y%d" % i] for i in (0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14))
+            and (ya[3], ya[11], yb[3], yb[11], yb[4]) == (Y3, Y11, Y3B, Y11B, u["Y4"])
+            and ea["e1c"] == u["c1"] and ea["e1b"] == u["E1.b1"] and ea["d1"] == u["E3.h1"])
+    return dict(cons=cons, b1x=ea["e1b"] ^ eb["e1b"], ax=ea["e1a"] ^ eb["e1a"], cx=ea["e1c2"] ^ eb["e1c2"],
+                j=(ea["c1"] ^ eb["c1"], ea["a2"] ^ eb["a2"], ea["c2"] ^ eb["c2"]), cv_equal=cva == cvb)
+
+
+def certificate(v, h, tau):
+    'Step 3 for one root (h, tau) on the root instance: the first failing test, or "certified" (every test holds).'
+    c1 = c1_of(v, h)
+    u = step_ct(v, c1)
+    ev_ = evaluate(u, u["t"])
+    j_match = ev_["j"] == (theta_of(tau), EPS, tau)
+    e1_ok = (ev_["ax"], ev_["cx"], ev_["b1x"]) == (tau, EPS, BETA_STAR)
+    if c1 & QSTAR_MASK != QSTAR_VALUE:
+        return "c1 not in Q*"
+    if u["t"] != COUNTER:
+        return "t != 0"
+    if not ev_["cons"]:
+        return "names differ from the compression"
+    if not j_match:
+        return "J words"
+    if not e1_ok:
+        return "E1 differences"
+    if not ev_["cv_equal"]:
+        return "chaining values differ"
+    return "certified"
+
+
+def pair_of(v):
+    'The pair of an outer step: step CT with the c1 that forces t = 0 (the harness counter).'
+    u = step_ct(v, c1_t0(v))
+    assert u["t"] == COUNTER
+    return u["A"], u["B"]
+
+
+# ---- one trial of the pipeline
+SEARCH = None
+
+
+def get_search():
+    global SEARCH
+    if SEARCH is None:
+        SEARCH = Search()
+        arrays()
+    return SEARCH
+
+
+def pipeline(v, X_, mask1, c, raw=0):
+    'Step 2 (one slot path, 18.7) and step 3 on one passing outer step.'
+    c["solver_steps"] += 1
+    r = solve32(v, X_, mask1, raw)
+    c["slot_rows"] += r["row"]
+    c["solver_units"] += r["units"]
+    c["solver_units_max"] = max(c["solver_units_max"], r["units"])
+    c["over_cap"] += r["units"] > CAP_PATH
+    for h, tau in r["roots"]:
+        c["roots"] += 1
+        res = certificate(v, h, tau)
+        c["certified"] += res == "certified"
+        c["roots_t0"] += res not in ("c1 not in Q*", "t != 0")
+
+
+def run_trial(seed):
+    'One organizer trial: TRIAL_BATCHES batches of the pipeline; the outer step of the pair; the counts.'
+    S = get_search()
+    oc = {}
+    c = dict(solver_steps=0, solver_units=0, solver_units_max=0, over_cap=0, roots=0, roots_t0=0, certified=0,
+             slot_rows=0)
+    first, halted = None, 0
     try:
-        sys.path.insert(0, "verifier")
-        import blake3 as organizer
-    except ImportError:
-        organizer = None
-    right = same_c1 = e1_right = org = 0
-    for case in range(cases):
-        r = ctr_r("halfsearch v107 trial %s %d" % (seed, case))
-        e = ctr_eight(r)
-        if case % 5 == 4:
-            e[:7] = [(0, MASK, x, x)[r >> 2 * i & 3] for i, x in enumerate(e[:7])]
-        o = ctr_outer(e)
-        c1 = ctr_c1(r >> 240 & CTR_MEMBERS - 1)
-        ok, h1 = ctr_lane(o, c1)
-        if h1 is None:
-            continue
-        right += ok
-        same_c1 += ctr_inverse(o, h1) == c1
-        a, b, t, v = ctr_trial(o, c1)
-        (wa, da, ya), (wb, db, yb) = compress2(a[:LEN_A], t, CTR_FLAGS), compress2(b[:LEN_B], t, CTR_FLAGS)
-        ea, eb = g(ya[1], ya[6], ya[11], ya[12], wa[12], wa[5]), g(yb[1], yb[6], yb[11], yb[12], wb[12], wb[5])
-        ga = g(v["Y1"], v["Y6"], Y11, v["Y12"], v["w12"], v["w5"])
-        gb = g(v["Y1"], v["Y6"], Y11B, v["Y12"], v["w12"], (v["w5"] + DELTA5) & MASK)
-        e1_right += (ea[0] ^ eb[0], ea[2] ^ eb[2]) == (ga[0] ^ gb[0], ga[2] ^ gb[2])
-        if organizer and case % 25 == 0:
-            org += list(organizer._compress(IV, wa, t, LEN_A, CTR_FLAGS, 2)[:8]) == da
-    rep["trials"] = {"cases": cases, "right": right, "inverse_right": same_c1, "e1_right": e1_right,
-                     "organizer_compress": org if organizer else "verifier not found"}
-    good &= right == same_c1 == e1_right and right > 0.99 * cases and (not organizer or org == -(-cases // 25))
-    # (2) the filter: brute force at width 10, the exact share, real outer steps, the counted step
-    fq, fe = ctr_tables()
-    gs, ok = [ctr_g(t) for t in CTR_TAUS], 0
-    small = [(dy, t, ctr_automaton(t, dy, 10)) for dy, t in ((0, [(ETA, y) for y in gs]),
-                                                             (DY3, [(ror(y, 12), CTR_EPS) for y in gs]))]
-    for case in range(64):
-        rr = iter(struct.unpack("<40I", hashlib.shake_256(("halfsearch filter %s %d" % (seed, case)).encode()).digest(160)))
-        for kind, (dy, targets, tables) in enumerate(small):
-            x = next(rr) & 1023
-            if case % 2:
-                dy, dz = next(rr) * kind, next(rr)
-                targets = [(next(rr) if kind else dz, next(rr)) for _ in range(7)]
-            sol = lambda dz, w: ((x + w) ^ (x + dy + (w ^ dz))) & 1023
-            if case % 2:
-                targets[:3] = [(dz, sol(dz, next(rr))) for dz, _ in targets[:3]]
-                tables = ctr_automaton(targets, dy, 10)
-            ok += ctr_look(tables, x) == sum(1 << i for i, (dz, w) in enumerate(targets)
-                                             if w & 1023 in {sol(dz, v) for v in range(1024)})
-    words = []
-    for tables in (fq, fe):
-        n = {0: 1}
-        for t in tables:
-            new = {}
-            for s, c in n.items():
-                for b in range(256):
-                    new[t[s + b]] = new.get(t[s + b], 0) + c
-            n = new
-        words.append(n)
-    share = sum(a * b for x, a in words[0].items() for y, b in words[1].items() if x & y)
-    steps = [ctr_r("halfsearch v107 steps %s %d" % (seed, i)) for i in range(1 << 14)]
-    walked, passing, units, halted, found = ctr_run(steps)
-    stop = ctr_run(steps, budget=units // 2)[3]
-    counted, shape, regs = 0, None, 0
-    for r in steps[:8]:
-        m, o, z = ctr_count(r)
-        p = ctr_outer(ctr_eight(r))
-        counted += all(o[k] == p[k] for k in p) and z == ctr_filter(p["Y9"], p["Y4"], p["w8"])
-        shape = shape or dict(m.units)
-        counted -= m.units != shape
-        regs = max(regs, m.registers())
-    rep["filter"] = {"brute_force_right": ok, "exact_share": share, "share_right": share == CTR_SHARE,
-                     "share_log2": round(math.log2(share) - 64, 6), "states": [[len(t) >> 8 for t in fq], [len(t) >> 8 for t in fe]],
-                     "steps": walked, "passing": passing, "pass_units": units, "budget_halt_right": stop,
-                     "counted_steps_right": counted, "units": shape, "registers": regs}
-    good &= ok == 128 and share == CTR_SHARE and not halted and stop and counted == 8 and regs <= 64
-    # (3) the solver: the planted solutions, a second enumeration, the cap and the scan
-    fixed = sum(ctr_e3(y4, y9, om, h1, j) and ((Y3 + y4) & MASK) & CTR_CLASS == CLASS_VALUE & CTR_CLASS
-                and (ctr_look(fq, y9) & ctr_look(fe, om)) >> j & 1 and h1 in ctr_solve(y4, y9, om, j, ctr_events())
-                for y4, y9, om, j, h1 in CTR_FIXTURES)
-    calls = [(y4, y9, om, j) for y4, y9, om, j, h1 in CTR_FIXTURES[:6]]
-    for r in steps:
-        o = ctr_outer(ctr_eight(r))
-        z, om = ctr_filter(o["Y9"], o["Y4"], o["w8"]), (Y3 + o["Y4"] + o["w8"]) & MASK
-        calls += [(o["Y4"], o["Y9"], om, j) for j in range(len(CTR_TAUS)) if z >> j & 1][:2]
-    calls = calls[:30]
-    agree = sum(sorted(ctr_solve(*c, ctr_events())) == ctr_reference(*c) for c in calls)
-    y4, y9, om, j, h1 = CTR_FIXTURES[0]
-    o = ctr_planted(y4, y9, om, h1, 777, (1, 2, 3, 4))
-    u, hs, scanned = ctr_step(o, 1 << j, cap=0, members=1 << 10)
-    scanned = scanned and (h1, j) in hs
-    rep["solver"] = {"fixtures": len(CTR_FIXTURES), "fixtures_found": fixed, "second_enumeration_agree": agree,
-                     "second_enumeration_calls": len(calls), "cap_path": scanned and u > SCAN_UNITS,
-                     "goods_max": ctr_goods_max(), "units": SOLVER_UNITS}
-    rep["solver"]["eps_n_0"] = ETA ^ CTR_EPS ^ rol(CTR_BETA ^ CTR_EPS, 1) == 0
-    good &= fixed == len(CTR_FIXTURES) and agree == len(calls) and rep["solver"]["cap_path"] and rep["solver"]["eps_n_0"]
-    # (4) the solver, step 3 and the scan counted primitive by primitive against their charges (9.2)
-    same = stops = regs = 0
-    for c in calls:
-        ev = ctr_events()
-        hs = ctr_solve(*c, ev)
-        m, ws, u = ctr_solve_counted(*c)
-        bk = 3 * ev["pops"] + ev["calls"] + ev["guesses"] + ev["roots"] + ev["pushes"] + ev["goods"]
-        same += (m.units["solver"] == ctr_units(ev) - SOLVER_UNITS["goods"] * ev["goods"] + bk and u == ctr_units(ev)
-                 and sorted(ws) == sorted(hs))
-        regs = max(regs, m.registers())
-        ev = ctr_events()
-        stopped = ctr_solve(*c, ev, 1500) is None
-        m, ws, u = ctr_solve_counted(*c, 0, 1500)
-        bk = 3 * ev["pops"] + ev["calls"] + ev["guesses"] + ev["roots"] + ev["pushes"] + ev["goods"] + 2 * stopped
-        stops += (ws is None) == stopped and u == ctr_units(ev) and m.units["solver"] == (
-            ctr_units(ev) - SOLVER_UNITS["goods"] * ev["goods"] + bk)
-    words = [(ctr_outer(ctr_eight(r)), h, j) for r, j, h, res in found]
-    for case in range(64):
-        r = ctr_r("halfsearch v107 good %s %d" % (seed, case))
-        o = ctr_outer(ctr_eight(r))
-        tr = ctr_trial(o, ctr_c1(r >> 240 & CTR_MEMBERS - 1))
-        words.append((o, tr[3]["E3.h1"] if tr and case % 2 else r >> 200 & MASK, case % len(CTR_TAUS)))
-    gu, gs = 0, 0
-    for o, h, j in words:
-        m, res = ctr_good_counted(o, h, j)
-        gs += res == ctr_good(o, h, j)
-        gu, regs = max(gu, m.units["good"]), max(regs, m.registers())
-    su, ss, sn = 0, 0, 0
-    for case, (y4, y9, om, j, h1) in enumerate(CTR_FIXTURES):
-        rr = struct.unpack("<5I", hashlib.shake_256(("halfsearch scan %s %d" % (seed, case)).encode()).digest(20))
-        n = rr[0] & CTR_MEMBERS - 1
-        o = ctr_planted(y4, y9, om, h1, n, rr[1:])
-        for mask in ((1 << len(CTR_TAUS)) - 1, ((1 << len(CTR_TAUS)) - 1) ^ 1 << j):
-            m, out = ctr_scan_counted(o, mask, n)
-            want = [(h1, j)] if mask >> j & 1 else []
-            want += [(h1, i) for i in range(len(CTR_TAUS)) if i != j and mask >> i & 1 and ctr_e3(y4, y9, om, h1, i)]
-            ss, su, sn = ss + (sorted(out) == sorted(want)), max(su, m.units["scan"]), sn + 1
-    rep["counted"] = {"solver_calls": len(calls), "solver_same": same, "cap_stops_same": stops,
-                      "good_words": len(words), "good_same": gs,
-                      "good_max_units": gu, "scan_members": sn, "scan_same": ss, "scan_max_units": su,
-                      "registers": regs}
-    good &= same == stops == len(calls) and gs == len(words) and gu + 1 <= SOLVER_UNITS["goods"] and ss == sn
-    good &= su <= SCAN_UNITS // CTR_MEMBERS and regs <= 64
-    rep["ledger"] = ctr_ledger(shape)
-    good &= rep["ledger"]["claim_exact"] and X_MAX == 56 + CTR_STEP_CAP + 14 * 1600 + SCAN_UNITS + SOLVER_UNITS["goods"] * ctr_goods_max()
-    return rep, good
-SEL_OPS = 116 * (1 << 56) + 116 * ((1 << 52) + (1 << 10)) + (1 << 50)
-ONE_TIME = 1 << 34
-FINAL = 1 << 38
-def ctr_time(shape):
-    """proof.md Section 11, as a fraction: T = (RUN_OUTER_STEPS * (outer step + filter + loop) + PASS_SCALE *
-    (PASS_BUDGET + X_MAX) + ONE_TIME) / 430 + FINAL + SEL_OPS / 430 (steps 1 and 2 of 47804be2's selection, Section 12)."""
-    from fractions import Fraction
-    walk = shape["outer step"] + shape["filter"] + LOOP_UNITS
-    return (Fraction(RUN_OUTER_STEPS * walk + ONE_TIME, 430) + FINAL + Fraction(SEL_OPS, 430)
-            + Fraction(PASS_SCALE[0] * (PASS_BUDGET + X_MAX), PASS_SCALE[1] * 430))
-def ctr_ledger(shape):
-    T = ctr_time(shape)
-    lg = math.log2(T.numerator) - math.log2(T.denominator)
-    claim = math.ceil(lg * 1e5)
-    p, q = T.numerator ** 100000, T.denominator ** 100000     # 2^(claim - 1) < T^100000 < 2^claim, in integers
-    return {"claim_exact": q << claim - 1 < p < q << claim,"outer_step": shape["outer step"], "filter": shape["filter"], "loop": LOOP_UNITS,
-            "run_outer_steps": RUN_OUTER_STEPS, "pass_premise": "%d/%d" % PASS_PREMISE, "pass_budget": PASS_BUDGET,
-            "pass_scale": "%d/%d" % PASS_SCALE, "x_max": X_MAX, "lambda": "%d/%d" % LAMBDA, "factor": CTR_FACTOR,
-            "time_log2": round(lg, 7), "claim": claim / 1e5}
+        for step, eight, v, X_, m1 in iter_passes(seed, 0, TRIAL_BATCHES, S, oc):
+            if first is None:
+                first = (step, eight, v)
+            pipeline(v, X_, m1, c, eight[7])
+    except Halt:
+        halted = 1
+    if first is None:
+        eight = [lane(w, 0) for w in draw(seed, 0)]
+        first = (-1, eight, scalar_outer(eight))
+    # The organizer accepts at most 16 numeric observations per trial: 14 here, 16 with residual-search.
+    obs = dict(outer_steps=oc["steps"], passes=oc["passes"], halted=halted, verify_fail=oc["verify_fail"], **c)
+    obs["units"] = oc["outer_units"] + c["solver_units"]
+    obs["pair_step"] = first[0]
+    return first, obs
+
+
+def half_collision(seed):
+    (step, eight, v), obs = run_trial(seed)
+    a, b = pair_of(v)
+    return a, b, obs
+
+
+def residual_word1(a, b):
+    'Low byte of digest word 1 of A XOR that of B (counter 0, flags 11).'
+    return (compress2(a)[1][1] ^ compress2(b)[1][1]) & 0xFF
+
+
+# Units of the member loop, one per 32-bit word operation (add, subtract, XOR, AND, OR, shift, compare); a
+# rotation is 3 (two shifts and an OR); constants and renamings are free. Per try: member_y 3 (AND, OR, SUB),
+# the 77 lines of step CO (LINE_OPS, 202), omega 2; c1_t0 33 (w0 5, Y14 6, h 5, c1_of 5+5+7), step_ct 36
+# (E1.d1 1, E1.a1 4, Y6 2, Y10 4, Y14 1, E1.b1 4, Y2 4, E3.h1 5, w0 2, K0.a1 2, t 4, w1 2, w5 of B 1) and the
+# t = 0 test 1; two 2-round compressions of 16 G calls (6 adds, 4 XORs, 4 rotations = 22) and 8 output XORs
+# (360 each); the residual test 3 (XOR, AND, test) and the loop 2 (increment, compare). The next member costs 3
+# (OR WIN_FIXED, add 1, AND FREE_MASK) from the second try on; the first costs 1 (raw word AND FREE_MASK).
+def line_ops(e):
+    if isinstance(e, (int, str)):
+        return 0
+    if e[0] == "sum":
+        return len(e[1]) - 1 + sum(line_ops(t[1] if isinstance(t, tuple) and t[0] == "neg" else t) for t in e[1])
+    return (1 if e[0] == "xor" else 3) + sum(line_ops(x) for x in e[1:] if not isinstance(x, int))
+
+
+LINE_OPS = sum(line_ops(e) for _, e in LINES)
+U_COMP = 16 * (6 + 4 + 4 * 3) + 8
+U_TRY = 3 + LINE_OPS + 2 + 33 + 36 + 1 + 2 * U_COMP + 3 + 2
+
+
+# The loop below is the same computation, arranged for speed: within a trial only the member word changes, so
+# the lines of step CO that do not read Y4, the round-1 column step and the round-1 diagonal G calls on words
+# 12-15 (no word of them depends on the member once step CT gives t = 0) are computed once per trial, and the rest
+# is inlined. units are not counted inside the loop: member_units is tries times the charge above, which counts
+# every operation of a try as if nothing were shared, so it is not less than what the loop executes.
+def r1_fixed(m, n):
+    'State after the round-1 column step and the round-1 diagonal G calls on words 12-15 (counter 0, flags 11).'
+    v = list(IV) + list(IV[:4]) + [COUNTER & M, COUNTER >> 32, n, FLAGS]
+    for i in (0, 1, 2, 3, 6, 7):
+        a, b, c, d = GCALLS[i]
+        v[a], v[b], v[c], v[d] = g(v[a], v[b], v[c], v[d], m[2 * i], m[2 * i + 1])
+    return v
+
+
+def word1(v, m, x8, x9, x10, x11):
+    'Digest word 1 of the 2-round compression from r1_fixed state v, message m and its words 8 to 11.'
+    v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 = v
+    m0, m2, m3, m4, m5, m6, m7, m12, m13, m15 = m
+    # round 1, G(0,5,10,15) with w8, w9 and G(1,6,11,12) with w10, w11
+    v0 = (v0 + v5 + x8) & M; v15 ^= v0; v15 = (v15 >> 16 | v15 << 16) & M; v10 = (v10 + v15) & M
+    v5 ^= v10; v5 = (v5 >> 12 | v5 << 20) & M; v0 = (v0 + v5 + x9) & M; v15 ^= v0; v15 = (v15 >> 8 | v15 << 24) & M
+    v10 = (v10 + v15) & M; v5 ^= v10; v5 = (v5 >> 7 | v5 << 25) & M
+    v1 = (v1 + v6 + x10) & M; v12 ^= v1; v12 = (v12 >> 16 | v12 << 16) & M; v11 = (v11 + v12) & M
+    v6 ^= v11; v6 = (v6 >> 12 | v6 << 20) & M; v1 = (v1 + v6 + x11) & M; v12 ^= v1; v12 = (v12 >> 8 | v12 << 24) & M
+    v11 = (v11 + v12) & M; v6 ^= v11; v6 = (v6 >> 7 | v6 << 25) & M
+    # round 2 columns: (0,4,8,12) w2, w6; (1,5,9,13) w3, w10; (2,6,10,14) w7, w0; (3,7,11,15) w4, w13
+    v0 = (v0 + v4 + m2) & M; v12 ^= v0; v12 = (v12 >> 16 | v12 << 16) & M; v8 = (v8 + v12) & M
+    v4 ^= v8; v4 = (v4 >> 12 | v4 << 20) & M; v0 = (v0 + v4 + m6) & M; v12 ^= v0; v12 = (v12 >> 8 | v12 << 24) & M
+    v8 = (v8 + v12) & M; v4 ^= v8; v4 = (v4 >> 7 | v4 << 25) & M
+    v1 = (v1 + v5 + m3) & M; v13 ^= v1; v13 = (v13 >> 16 | v13 << 16) & M; v9 = (v9 + v13) & M
+    v5 ^= v9; v5 = (v5 >> 12 | v5 << 20) & M; v1 = (v1 + v5 + x10) & M; v13 ^= v1; v13 = (v13 >> 8 | v13 << 24) & M
+    v9 = (v9 + v13) & M; v5 ^= v9; v5 = (v5 >> 7 | v5 << 25) & M
+    v2 = (v2 + v6 + m7) & M; v14 ^= v2; v14 = (v14 >> 16 | v14 << 16) & M; v10 = (v10 + v14) & M
+    v6 ^= v10; v6 = (v6 >> 12 | v6 << 20) & M; v2 = (v2 + v6 + m0) & M; v14 ^= v2; v14 = (v14 >> 8 | v14 << 24) & M
+    v10 = (v10 + v14) & M; v6 ^= v10; v6 = (v6 >> 7 | v6 << 25) & M
+    v3 = (v3 + v7 + m4) & M; v15 ^= v3; v15 = (v15 >> 16 | v15 << 16) & M; v11 = (v11 + v15) & M
+    v7 ^= v11; v7 = (v7 >> 12 | v7 << 20) & M; v3 = (v3 + v7 + m13) & M; v15 ^= v3; v15 = (v15 >> 8 | v15 << 24) & M
+    v11 = (v11 + v15) & M; v7 ^= v11; v7 = (v7 >> 7 | v7 << 25) & M
+    # round 2 diagonals: a of (1,6,11,12) with w12, w5 and c of (3,4,9,14) with w15, w8; word 1 = v1 XOR v9
+    v1 = (v1 + v6 + m12) & M; v12 ^= v1; v12 = (v12 >> 16 | v12 << 16) & M; v11 = (v11 + v12) & M
+    v6 ^= v11; v6 = (v6 >> 12 | v6 << 20) & M; v1 = (v1 + v6 + m5) & M
+    v3 = (v3 + v4 + m15) & M; v14 ^= v3; v14 = (v14 >> 16 | v14 << 16) & M; v9 = (v9 + v14) & M
+    v4 ^= v9; v4 = (v4 >> 12 | v4 << 20) & M; v3 = (v3 + v4 + x8) & M; v14 ^= v3; v14 = (v14 >> 8 | v14 << 24) & M
+    return v1 ^ ((v9 + v14) & M)
+
+
+def residual_search(seed):
+    'The members of the winner sub-class in order from the member of the pair step, each at most once.'
+    (step, eight, v), obs = run_trial(seed)
+    w, a = eight[7] & FREE_MASK, None
+    c = scalar_outer(eight[:7] + [w])  # its lines that do not read Y4 hold for every member
+    C0b, C0c, C0d, w6, X4, w2, S10, S5, S15, S0, S11, S6, S12, S1, w3, X13, X9, X2, w7, X14, w12, K0b, w5 = (
+        c[k] for k in ("C0.b1", "C0.c1", "C0.d1", "w6", "X4", "w2", "S10", "S5", "S15", "S0", "S11", "S6", "S12",
+                       "S1", "w3", "X13", "X9", "X2", "w7", "X14", "w12", "K0.b1", "w5"))
+    RX15, RC0d, RK0d = rol(X15, 8), rol(C0d, 16), rol(c["K0.d1"], 16)
+    W0 = (RK0d - IV[0] - IV[4]) & M  # c1_t0; with t = 0 step CT gives w0 = W0 and w1 = W1
+    W1 = (S0 - RK0d - K0b) & M
+    ma = (W0, W1, w2, w3, W4, w5, w6, w7, 0, 0, 0, 0, w12, W13, 0, 0)
+    mb = ma[:4] + (W4B, (w5 + DELTA5) & M) + ma[6:]
+    pa, pb = r1_fixed(ma, LEN_A), r1_fixed(mb, LEN_B)
+    qa, qb = [tuple(m[j] for j in (0, 2, 3, 4, 5, 6, 7, 12, 13, 15)) for m in (ma, mb)]
+    for i in range(RESIDUAL_TRIES):
+        if i:
+            w = ((w | WIN_FIXED) + 1) & FREE_MASK  # member number + 1 (mod 2^16), in the free bits
+        y = ((WIN_VALUE | w) - Y3) & M
+        # step CO, the lines that read Y4
+        y8 = ((y << 7 | y >> 25) & M) ^ C0b; y12 = (y8 - C0c) & M; y0 = ((y12 << 8 | y12 >> 24) & M) ^ C0d
+        c0a = (y0 - C0b - w6) & M; x0 = (c0a - X4 - w2) & M; d0d = RX15 ^ x0; d0c = (S10 + d0d) & M
+        t = S5 ^ d0c; d0b = (t >> 12 | t << 20) & M; x10 = (d0c + X15) & M; t = d0b ^ x10; x5 = (t >> 7 | t << 25) & M
+        x12 = RC0d ^ c0a; d1c = (X11 - x12) & M; d1d = (d1c - S11) & M; x1 = ((x12 << 8 | x12 >> 24) & M) ^ d1d
+        t = S6 ^ d1c; d1b = (t >> 12 | t << 20) & M; c1a = (x1 + x5 + w3) & M; t = d1b ^ X11; x6 = (t >> 7 | t << 25) & M
+        t = X13 ^ c1a; c1d = (t >> 16 | t << 16) & M; d1a = ((d1d << 16 | d1d >> 16) & M) ^ S12; c1c = (X9 + c1d) & M
+        c2a = (X2 + x6 + w7) & M; w10 = (d1a - S1 - S6) & M; t = x5 ^ c1c; c1b = (t >> 12 | t << 20) & M
+        t = X14 ^ c2a; c2d = (t >> 16 | t << 16) & M; y1 = (c1a + c1b + w10) & M; c2c = (x10 + c2d) & M
+        t = x6 ^ c2c; c2b = (t >> 12 | t << 20) & M; d0a = ((d0d << 16 | d0d >> 16) & M) ^ S15
+        w8 = (d0a - S0 - S5) & M; w9 = (x0 - d0a - d0b) & M; w11 = (x1 - d1a - d1b) & M
+        # c1_t0 (inverse of Lemma IP) and step CT; t = 0 fixes w0 = W0 and w1 = W1
+        e = (Y3 + y) & M; t = ((W0 + c2a + c2b) & M) ^ c2d; y14 = (t >> 8 | t << 24) & M
+        t = y14 ^ e; h = (t >> 16 | t << 16) & M; t = ((((h << 16 | h >> 16) & M) ^ e) + c2c) & M ^ c2b
+        y6 = (t >> 7 | t << 25) & M; t = ((y6 + y1 + w12) & M) ^ y12; c1 = (Y11 + ((t >> 16 | t << 16) & M)) & M
+        t = (c1 - Y11) & M; t = ((t << 16 | t >> 16) & M) ^ y12; t = (t - y1 - w12) & M
+        t = ((t << 7 | t >> 25) & M) ^ c2b; t = (t - c2c) & M; t = ((t << 8 | t >> 24) & M) ^ c2d
+        t = RK0d ^ ((IV[0] + IV[4] + ((t - c2a - c2b) & M)) & M)
+        assert t == COUNTER
+        if (word1(pa, qa, w8, w9, w10, w11) ^ word1(pb, qb, w8, w9, w10, w11)) & 0xFF == 0:
+            a, b = pair_of(scalar_outer(eight[:7] + [w]))  # the pair as half-collision builds it
+            assert residual_word1(a, b) == 0
+            break
+    tries = i + 1
+    if a is None:
+        b = None
+    mu = 1 + 3 * (tries - 1) + U_TRY * tries
+    return a, b, dict(obs, tries=tries, member_units=mu, units=obs["units"] + mu)
+
+
+# ---- self-test (outside the organizer protocol)
+def brute_masks(n, targets, dy, x):
+    m, mk = 0, (1 << n) - 1
+    for t, (dz, out) in enumerate(targets):
+        for v in range(1 << n):
+            if ((x + v) ^ (x + dy + (v ^ dz))) & mk == out & mk:
+                m |= 1 << t
+                break
+    return m
+
+
+def look_n(tables, x, n):
+    s = 0
+    for p, t in enumerate(tables):
+        b = x >> 8 * p & ((1 << min(8, n - 8 * p)) - 1)
+        s = t[s + b if p else b]
+    return s
+
+
 def selftest(cases, seed):
-    rep, good = ctr_selftest(cases, seed)
-    json.dump(dict(rep, seed=seed, good=bool(good)), sys.stdout, separators=(",", ":"))
+    rnd = hashlib.shake_256(b"halfsearch selftest" + seed.encode()).digest(64 * cases + 64)
+    words = list(struct.unpack("<%dI" % (16 * cases + 16), rnd))
+    rep = {}
+    rep["constants"] = all(globals()[k] == x for k, x in TEXT_CONSTANTS.items())
+    # automata against brute force at width 8: the real targets truncated
+    th = [theta_of(t) for t in TAUS]
+    tq, te = [(ETA & 255, x & 255) for x in th], [(ror(x, 12) & 255, EPS & 255) for x in th]
+    a1, a2 = automaton(tq, 0, 8), automaton(te, DY3 & 255, 8)
+    bf = sum(look_n(a1, x, 8) == brute_masks(8, tq, 0, x) and look_n(a2, x, 8) == brute_masks(8, te, DY3, x)
+             for x in range(256))
+    rep["automata_bruteforce_width8"] = "%d of 256" % bf
+    S = Search(check_bounds=True)
+    n1, n2 = pattern_counts(S.t1), pattern_counts(S.t2)
+    share = sum(c1 * c2 for p, c1 in n1.items() for q, c2 in n2.items() if p & q & S_MASK)
+    ecount = sum(c2 for q, c2 in n2.items() if q & S_MASK)
+    rep["SHARE_E_COUNT_from_tables"] = share == SHARE and ecount == E_COUNT
+    rep["envelope_per_J1_mask"] = all(envelope(p) for p in n1 if p)
+    oc = {}
+    sb = seed.encode()
+    npass = len(list(iter_passes(sb, 0, max(1, cases * 64 // 7), S, oc, verify=True)))
+    rep["packed_vs_scalar"] = dict(lanes=oc["verified_lanes"], fail=oc["verify_fail"], bound_fail=oc["bound_fail"],
+                                   passes=npass, max_lane_bound_bits=S.maxbound.bit_length())
+    rep["batch_units"] = S.batch_units
+    mx = cons = inv = jid = t0 = half = 0
+    arrays()
+    for n in range(cases):
+        wd = words[16 * n:16 * n + 16]
+        mx += mask_X(wd[8]) & S_MASK == look(S.t1, wd[8])
+        v = scalar_outer(wd[:8])
+        c1 = wd[9]
+        u = step_ct(v, c1)
+        ev_ = evaluate(u, u["t"])
+        cons += ev_["cons"]
+        inv += c1_of(v, u["E3.h1"]) == c1
+        h, Q, y, E = u["E3.h1"], v["Y9"], v["Y4"], v["omega"]
+        ga, gb = (Q + h) & M, (Q + (h ^ ETA)) & M
+        ea, eb = (E + ror(y ^ ga, 12)) & M, (E + DY3 + ror(y ^ gb, 12)) & M
+        ca, cb = (ga + ror(h ^ ea, 8)) & M, (gb + ror(h ^ ETA ^ eb, 8)) & M
+        jid += ev_["j"] == (ga ^ gb, ea ^ eb, ca ^ cb)
+        u0 = step_ct(v, c1_t0(v))
+        t0 += u0["t"] == 0 and evaluate(u0, 0)["cons"]
+        da, db = compress2(u0["A"])[1], compress2(u0["B"])[1]
+        half += all(da[i] == db[i] for i in (0, 2, 5, 7))
+    rep["maskX_vs_automaton_1"] = "%d of %d" % (mx, cases)
+    rep["step_CT_consistent"] = "%d of %d" % (cons, cases)
+    rep["inverse_IP"] = "%d of %d" % (inv, cases)
+    rep["J_words_equal_E3"] = "%d of %d" % (jid, cases)
+    rep["t0_c1_consistent"] = "%d of %d" % (t0, cases)
+    rep["half_collision_counter0_flags11"] = "%d of %d" % (half, cases)
+    # (G15) of 9.8 on 256 words h per case: the formula when both predicted carries are true; every h with
+    # Z[22] = 0, Z[23] = 1 and c1 AND 18b = 0 (what a success has) passes the guard with its own h[15]
+    hs = struct.unpack("<%dI" % (256 * cases), hashlib.shake_256(b"g15" + seed.encode()).digest(1024 * cases))
+    gf = [0, 0, 0, 0]
+    for n in range(cases):
+        v = scalar_outer(words[16 * n:16 * n + 8])
+        e1, C, B, A, V = (Y3 + v["Y4"]) & M, v["C2.c1"], v["C2.b1"], (v["Y1"] + v["w12"]) & M, v["Y12"]
+        for h in hs[256 * n:256 * n + 256]:
+            w, h0 = g15_words(e1, C, B, A, V, bit(h, 6)), h & ~0x8000
+            y14 = rol(h0, 16) ^ e1
+            y6 = ror(((y14 + C) & M) ^ B, 7)
+            if (w[1] - (C >> 22), w[3] - (A >> 16 & 511)) == (((y14 & 0x3FFFFF) + (C & 0x3FFFFF)) >> 22,
+                                                          ((y6 & 0xFFFF) + (A & 0xFFFF)) >> 16):
+                gf[0] += 1
+                gf[1] += c_star(h0 & 0x7FFF, w) & 511 == c1_of(v, h0) & 511
+            z = ((rol(h, 16) ^ e1) + C & M) ^ B
+            if z >> 22 & 3 == 2 and c1_of(v, h) & 0x18B == 0:
+                gf[2] += 1
+                gf[3] += g15(h & 0x7FFF, w) == bit(h, 15)
+    rep["G15_formula"] = "%d of %d" % (gf[1], gf[0])
+    rep["G15_success_kept"] = "%d of %d" % (gf[3], gf[2])
+    pl = plant_check(S, seed, max(1, cases // 16))
+    rep["planted_found_in_one_slot"] = "%d of %d" % (pl[1], pl[0])
+    rep["planted_other_roots_true"], rep["planted_path_units_max"] = pl[2] == 0, pl[3]
+    rep["seed"] = seed
+    json.dump(rep, sys.stdout, separators=(",", ":"))
     sys.stdout.write("\n")
+    good = (rep["constants"] and bf == 256 and rep["SHARE_E_COUNT_from_tables"] and oc["verify_fail"] == 0
+            and rep["envelope_per_J1_mask"] and oc["bound_fail"] == 0 and S.batch_units == CHARGED_BATCH
+            and mx == cons == inv == jid == t0 == half == cases and gf[0] == gf[1] > 0 and gf[2] == gf[3] > 0
+            and pl[0] == pl[1] > 0 and pl[2] == 0 and pl[3] <= CAP_PATH)
     return 0 if good else 1
+
+
+# ---- planted joint roots of all fourteen rows (the J1-J3 algebra; independent of row_setup and the arrays)
+L31 = 0x7FFFFFFF
+
+
+def low_sample(rnd, c, free, fixed, target):
+    'A 31-bit a, equal to fixed off the free bits, with (a + c) mod 2^31 inside target: carry DP, then a random walk.'
+    feas = [None] * 31 + [(1, 1)]
+
+    def opts(i, cin):
+        r = []
+        for a in ((0, 1) if free >> i & 1 else (fixed >> i & 1,)):
+            co = maj(a, c >> i & 1, cin)
+            if (target >> i & 1 or not (a ^ c >> i ^ cin) & 1) and feas[i + 1][co]:
+                r.append((a, co))
+        return r
+    for i in range(30, -1, -1):
+        feas[i] = (len(opts(i, 0)) > 0, len(opts(i, 1)) > 0)
+    if not feas[0][0]:
+        return None
+    a = cin = 0
+    for i in range(31):
+        o = opts(i, cin)
+        b_, cin = o[rnd() % len(o)]
+        a |= b_ << i
+    return a
+
+
+def plant(tau, rnd):
+    '''A joint root (h, tau), y a winner member, words with Z[22] = 0, Z[23] = 1 and E1.c1 in Q* (a full success).
+    x XOR (x + K) = d <=> 2 (x AND d) = d - K turns J1-J3 into linear conditions on the AND words (mod 2^31).'''
+    s = tau ^ ror(tau, 1)
+    th = rol(s, 12)
+    k1, k2, k3 = (ETA - th & M) >> 1, (EPS - DY3 - s & M) >> 1, (tau - th - MU & M) >> 1
+    s1, x = [], ETA & L31
+    while True:
+        if not (x - k1) & L31 & ~th:
+            s1.append((x, (x - k1) & L31))
+        if not x:
+            break
+        x = (x - 1) & ETA & L31
+    both = ETA & EPS & L31
+    fixm = ror(both, 8)
+    for _ in range(64):
+        e1 = WIN_VALUE | rnd() & FREE_MASK
+        y = (e1 - Y3) & M
+        opts = [(x, gf) for x, gt in s1 for gf in ((gt, gt | 1 << 31) if th >> 31 else (gt,))
+                if not ((ror((y ^ gf) & th, 12) & L31) + k2) & L31 & ~EPS]
+        if not opts:
+            continue
+        x, gf = opts[rnd() % len(opts)]
+        ee = ((ror((y ^ gf) & th, 12) & L31) + k2) & L31
+        fv = ror((x ^ ee) & both, 8)
+        m = low_sample(rnd, (k3 + gf) & L31, MU & L31 & ~fixm, fv & MU, tau & L31)
+        if m is None:
+            continue
+        pt = (k3 + gf + m) & L31
+        for _ in range(1 << 14):
+            g_ = rnd() & ~th & M | gf
+            h2 = rnd() & ~(MU & L31 | fixm) & M | m | fv
+            p = (g_ + h2) & M
+            if p & tau & L31 == pt and p ^ ((g_ ^ th) + (h2 ^ MU)) & M == tau:
+                break
+        else:
+            continue
+        r8, ep = rol(h2, 8), EPS & L31 & ~ETA
+        h = rnd() & ~(ETA & L31) & M | x
+        h = h & ~ep & M | (r8 ^ ee) & ep
+        Q, E = (g_ - h) & M, ((r8 ^ h) - ror(y ^ g_, 12)) & M
+        if not is_joint_root(Q, y, E, h, tau):
+            continue
+        C = rnd()
+        S_ = ((rol(h, 16) ^ e1) + C) & M
+        B = rnd() & ~(3 << 22) & M | bit(S_, 22) << 22 | (bit(S_, 23) ^ 1) << 23
+        Y1, A = rnd(), rnd()
+        cc = QSTAR_VALUE | rnd() & ~QSTAR_MASK & M
+        return {"Y9": Q, "Y4": y, "omega": E, "C2.c1": C, "C2.b1": B, "Y1": Y1, "w12": (A - Y1) & M,
+                "Y12": rol((cc - Y11) & M, 16) ^ (ror(S_ ^ B, 7) + A) & M}, h
+    return None
+
+
+def plant_check(S, seed, per_row):
+    'Each planted root must lie in exactly one of the 32 slots of its outer step; every root found is a true root.'
+    st = [int.from_bytes(hashlib.sha256(b"plant" + seed.encode()).digest()[:8], "little")]
+
+    def rnd():
+        st[0] = (st[0] * 6364136223846793005 + 1442695040888963407) & (1 << 64) - 1
+        return st[0] >> 32
+    tot = found = bad = umax = 0
+    for tau in TAUS:
+        for _ in range(per_row):
+            r = plant(tau, rnd)
+            if r is None:
+                continue
+            v, h = r
+            assert ((Y3 + v["Y4"]) & M) & CLASS_MASK == CLASS_VALUE and c1_of(v, h) & QSTAR_MASK == QSTAR_VALUE
+            m1 = look(S.t1, v["Y9"])
+            X_ = m1 & look(S.t2, v["omega"])
+            tot += 1
+            hits = 0
+            for J in range(32):
+                res = solve32(v, X_, m1, 0, J)
+                umax = max(umax, res["units"])
+                for hh, t in res["roots"]:
+                    hits += (hh, t) == (h, tau)
+                    bad += not is_joint_root(v["Y9"], v["Y4"], v["omega"], hh, t)
+            found += hits == 1
+    return tot, found, bad, umax
+
+
 def main():
-    if len(sys.argv) > 1:
-        if sys.argv[1] != "--selftest" or len(sys.argv) not in (3, 4) or not sys.argv[2].isdecimal() or int(sys.argv[2]) < 1:
-            raise SystemExit("usage: halfsearch.py --selftest N [seed]   (no arguments: organizer request on stdin)")
-        raise SystemExit(selftest(int(sys.argv[2]), sys.argv[3] if len(sys.argv) == 4 else "1"))
+    argv = sys.argv
+    if len(argv) > 1:
+        modes = {"--selftest": selftest}
+        if argv[1] not in modes or len(argv) not in (3, 4) or not argv[2].isdecimal() or int(argv[2]) < 1:
+            raise SystemExit("usage: halfsearch.py [--selftest N [seed]]   (else: organizer request on stdin)")
+        raise SystemExit(modes[argv[1]](int(argv[2]), argv[3] if len(argv) == 4 else "1"))
     request = json.load(sys.stdin)
     if request["schema_version"] != 1 or request["target_profile"] != "blake3-r2-prefix-v1":
         raise ValueError("unexpected organizer target")
@@ -1022,5 +1444,7 @@ def main():
         trials.append(row)
     json.dump({"schema_version": 1, "trials": trials}, sys.stdout, separators=(",", ":"), sort_keys=True)
     sys.stdout.write("\n")
+
+
 if __name__ == "__main__":
     main()
