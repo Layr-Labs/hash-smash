@@ -6,23 +6,22 @@
   "rounds": 1,
   "lane": "exploratory",
   "claim": {
-    "time_log2": 0,
+    "time_log2": 6.2351,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 14,
+    "memory_log2_bytes": 23,
     "preprocessing_log2": 0,
     "success_probability": 1,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Complete unkeyed BLAKE3-256 with exactly one prefix round in the standard root compression.",
-    "Messages have lengths 24 and 25 bytes and share an arbitrary 16-byte prefix; their remaining words are derived at runtime.",
-    "Classical 256-bit word RAM; one random word; no search, table of collisions, restart, or heuristic.",
-    "The algorithm checks exact sufficient state-cancellation identities and distinct lengths; it does not evaluate complete hashes at runtime.",
-    "Organizer certificate and experiment verification independently evaluate both complete hashes; this evidence execution is separate from the claimed algorithm.",
-    "Time is at most 162/222 compression equivalents; score zero is the schema minimum and does not mean zero computation."
+    "Message A is 3,136 zero bytes: four chunks, the last of 64 bytes, so the right child of its root is the parent of chunks 2 and 3 (counter 0, flags 4). Message B is 2,048 zero bytes and a 64-byte block w: three chunks, so the right child of its root is the one-block chunk 2 (counter 2, flags 3). Both roots have the same left child, the parent of the first two zero chunks.",
+    "Unkeyed BLAKE3-256 with 1 prefix round, standard IV, chunk tree, counters, flags and feed-forward, full 256-bit digest; an ordinary collision between two distinct complete messages.",
+    "Deterministic: the algorithm uses no coins and outputs the same collision on every run, so there is no failed trial and no restart.",
+    "Classical 256-bit word RAM under collision-frontier-v5; a straight-line program charged with 54 target compressions (every compression of the complete hashes of both messages, computed once where the two hashes share the same input, for the final collision check) and with memory traffic at four primitive operations per data operation.",
+    "No preprocessing, table, stored collision or nonuniform advice: every word of the output is computed by the counted program from public constants; the preprocessing and advice fields are zero-valued upper bounds because the schema cannot express log2(0).",
+    "Specific to the 1-round prefix: the identity is proved for one round only, nothing is claimed for two or more rounds (the pair has different 2-round digests), and no priority or novelty claim is made."
   ],
   "baseline_improved": "blake3-r1-nominal-v2",
   "heuristics": [],
-  "certificate_manifest": "certificates/manifest.json",
-  "experiment_manifest": "experiments/manifest.json"
+  "certificate_manifest": "certificates/manifest.json"
 }

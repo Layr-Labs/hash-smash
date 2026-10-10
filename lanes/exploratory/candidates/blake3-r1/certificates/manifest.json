@@ -2,27 +2,11 @@
   "schema_version": 2,
   "certificates": [
     {
-      "id": "zero",
+      "id": "counter-pair",
       "type": "hash-collision-witness-v2",
-      "message_a": "certificates/zero-a.bin",
-      "message_b": "certificates/zero-b.bin",
-      "expected_digest": "b6ae864b76d0e699fcc669240e4e72ed377b108b3dabba4601cdbe37d7e9ba4b",
-      "target_profile": "blake3-r1-prefix-v1"
-    },
-    {
-      "id": "ones",
-      "type": "hash-collision-witness-v2",
-      "message_a": "certificates/ones-a.bin",
-      "message_b": "certificates/ones-b.bin",
-      "expected_digest": "13f9b63b7924d76dbea100572bf5962562078d297fe060f6807515bd743c2db1",
-      "target_profile": "blake3-r1-prefix-v1"
-    },
-    {
-      "id": "mixed",
-      "type": "hash-collision-witness-v2",
-      "message_a": "certificates/mixed-a.bin",
-      "message_b": "certificates/mixed-b.bin",
-      "expected_digest": "26ce560af10f217fe0e815071816519cafd046b092b05232766b32927dea2234",
+      "message_a": "certificates/counter-pair-a.bin",
+      "message_b": "certificates/counter-pair-b.bin",
+      "expected_digest": "c236b0dfd53fef88d45ca3022a60daf5af522af90243c280f01c03797a2a4e9d",
       "target_profile": "blake3-r1-prefix-v1"
     }
   ]

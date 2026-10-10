@@ -1,158 +1,298 @@
-# One-round BLAKE3: a 24/25-byte collision family with an exact invariant check
+# A chunk-counter collision for 1-round BLAKE3
 
-## 1. Claim, target and provenance
+The scalar below is `time_log2` under `collision-frontier-v5`. Memory is a
+separately reported resource bound.
 
-This is an ordinary collision construction for `blake3-r1-prefix-v1`: the complete unkeyed BLAKE3 hash with the standard IV, exactly prefix round 0 in every compression, the standard chunk/root flags, true block lengths, and all 256 output bits. Both inputs are finite byte strings well within the domain. This is not a claim about full seven-round BLAKE3.
+This exploratory package targets blake3-r1-prefix-v1. It gives a
+deterministic algorithm that outputs a 3,136-byte message A, all zero bytes,
+and a 2,112-byte message B, 2,048 zero bytes and a 64-byte block w, with the
+same complete 1-round BLAKE3-256 digest. A has four chunks and B three, so the
+roots of both have the same left child, while their right children are the
+parent R of A's chunks 2 and 3 (counter 0, flags PARENT = 4) and B's one-block
+chunk 2 (counter 2, flags CHUNK_START | CHUNK_END = 3). The counter difference
+is cancelled in the column call that reads the low counter word, by the
+message words m0, m1, and the flag difference in the column call that reads
+the flag word, by m6, m7 (Lemma 1, Section 2): w is R's message words with
+those four words moved. The output is a collision, so the success probability
+is 1. The algorithm is charged 54 target compressions (every compression of
+the complete hashes of both messages, for the final collision check) and 4,734
+other primitive operations: 16,722/222 < 75.33 units, below 2^6.2351. The
+claimed scalar is 6.2351. Peak memory is below 2^23 bytes.
 
-The algorithm below constructs two messages and checks sufficient exact identities. For every value of its random prefix it succeeds, so its algorithmic success probability is 1. Its work bound is H=0 complete target compressions and W<=162 ordinary 256-bit RAM operations, including initialization, randomness, construction, collision checking and output. With the trusted price C=222, total time is at most 162/222=27/37<1 compression equivalent. `time_log2: 0` is the smallest permitted nonnegative schema value and conservatively bounds this positive work by 2^0. It does not mean zero operations. Total memory is below 2^14 bytes.
+There is no preprocessing, table, stored collision or nonuniform advice, and
+no heuristic: the collision follows from Lemma 1, proved below. Accordingly
+the heuristic list is empty.
 
-The cancellation method is adapted from Jbenisek's public, unpromoted submission `f0dab7bd-0c4c-4b77-9fd6-d461f4bc5edb`, which exhibited a 23/24-byte family and charged complete hash verification. Jbenisek deserves coauthor credit for the length-cancellation lemma. Here the specialization is 24/25 bytes, with explicit runtime derivation and a sufficient invariant checker. No novelty claim is made for the underlying collision technique. The complete derivation is supplied here; external links are unnecessary to check it. The required nominal reference identifier in claim.json is metadata, not a qualified attack or accepted baseline.
+## 1. The complete hash on the two messages
 
-## 2. Exact compression equations and cancellation lemma
+H is unkeyed BLAKE3-256 with only round 0 kept in every compression. All
+additions and subtractions on words are modulo 2^32; ROR rotates a 32-bit word
+right. The IV is
 
-All quantities in a G call are 32-bit words. Additions in this section are modulo 2^32. Define G(a,b,c,d;x,y) by
+    6a09e667 bb67ae85 3c6ef372 a54ff53a
+    510e527f 9b05688c 1f83d9ab 5be0cd19.
 
-```
-a1 = a + b + x                 d1 = ROR32(d XOR a1, 16)
-c1 = c + d1                    b1 = ROR32(b XOR c1, 12)
-a2 = a1 + b1 + y               d2 = ROR32(d1 XOR a2, 8)
-c2 = c1 + d2                   b2 = ROR32(b1 XOR c2, 7)
-```
+A call G with inputs (a0, b0, c0, d0) and message words (x, y) performs eight
+assignments, named
 
-The outputs are (a2,b2,c2,d2). Consider two calls with identical a,b,c, but respective d=n,n' and message words (x,y),(x',y'). Write K=a+b, a1=K+x, a1'=K+x'. Suppose
+    a1 = a0 + b0 + x          d1 = ROR(d0 XOR a1, 16)
+    c1 = c0 + d1              b1 = ROR(b0 XOR c1, 12)
+    a2 = a1 + b1 + y          d2 = ROR(d1 XOR a2, 8)
+    c2 = c1 + d2              b2 = ROR(b1 XOR c2, 7),
 
-```
-(I)  n XOR a1 = n' XOR a1'
-(II) a1 + y = a1' + y'.
-```
+and leaves (a2, b2, c2, d2). G(i,j,k,l; x, y) applies it to the state words
+v[i], v[j], v[k], v[l].
 
-Then (I) makes d1 identical. Consequently c1 and b1 are identical. Identity (II), after adding the common b1, makes a2 identical. The remaining XORs, rotations and additions therefore also agree. Thus both complete G outputs agree. This is an exact identity, not a probabilistic differential or an independence assumption.
+A compression takes a chaining value c[0..7], sixteen little-endian message
+words m[0..15], a counter t, a block length n and flags f. It sets
+v[0..7] = c, v[8..11] = IV[0..3], v[12] = t mod 2^32, v[13] = t div 2^32,
+v[14] = n and v[15] = f, runs the column step
 
-## 3. Full-hash collision family
+    G(0,4,8,12; m[0],m[1])     G(1,5,9,13; m[2],m[3])
+    G(2,6,10,14; m[4],m[5])    G(3,7,11,15; m[6],m[7])
 
-Let P be any 16-byte string. Set
+and the diagonal step
 
-```
-A = P || LE32(1) || LE32(0)                       (24 bytes)
-B = P || LE32(2) || LE32(0xffffffff) || byte(0)    (25 bytes).
-```
+    G(0,5,10,15; m[8],m[9])     G(1,6,11,12; m[10],m[11])
+    G(2,7,8,13; m[12],m[13])    G(3,4,9,14; m[14],m[15]),
 
-The zero-filled 64-byte compression blocks have the same first four message words from P. Their only different message words are m4 and m5. Words m6 through m15 are zero in both: in particular B's byte at offset 24 is zero, as is the compression-only zero fill of A. Zero filling does not change the true lengths, which remain 24 and 25.
+with no message permutation because no second round follows, and outputs
+o[i] = v[i] XOR v[i+8] and o[i+8] = v[i+8] XOR c[i] for i = 0..7. Its
+chaining value is o[0..7]. The flags are CHUNK_START = 1, CHUNK_END = 2,
+PARENT = 4 and ROOT = 8.
 
-Each message occupies one chunk and one block. Its complete digest comes directly from that block's root compression, with input CV=IV, counter=0, block_len=24 or 25, and flags CHUNK_START|CHUNK_END|ROOT=11. No parent compression, previous chunk CV or already finalized root CV is involved. The initial state is
+A chunk of 1,024 bytes at chunk counter t is 16 full blocks: block k has
+chaining value h_k, with h_0 = IV, counter t, block length 64 and flags 1 for
+k = 0, 0 for k = 1..14 and 2 for k = 15, and the chunk's chaining value is
+h_16. A chunk of one full block at counter t is one compression with chaining
+value IV, counter t, block length 64 and flags 3. A parent compression has
+chaining value IV, message words (left chaining value) || (right chaining
+value), counter 0, block length 64 and flags PARENT = 4, or PARENT | ROOT = 12
+at the root. The tree puts the largest power-of-two number of chunks in the
+left subtree. The digest is LE4(o[0]) || ... || LE4(o[7]) of the root.
 
-```
-v[0..7] = IV[0..7]
-v[8..11] = IV[0..3]
-v[12] = 0; v[13] = 0; v[14] = block_len; v[15] = 11.
-```
+**Message A** has 3,136 zero bytes: four chunks, c0, c1 and c2 of 1,024 bytes
+at counters 0, 1 and 2, and c3 of one block at counter 3. With CV_t the
+chaining value of chunk t, its tree is L = parent(CV0, CV1),
+R = parent(CV2, CV3) and the root (IV, L || R, counter 0, length 64,
+flags 12): 52 compressions.
 
-The one round begins with four disjoint column G calls:
+**Message B** has 2,112 bytes: the same 2,048 zero bytes, chunks c0 and c1 at
+counters 0 and 1, and the one-block chunk w at counter 2. Its tree is the same
+L, the chunk compression of w, with chaining value CVw, and the root (IV,
+L || CVw, counter 0, length 64, flags 12): 35 compressions.
 
-```
-G(v0,v4,v8,v12;  m0,m1)
-G(v1,v5,v9,v13;  m2,m3)
-G(v2,v6,v10,v14; m4,m5)
-G(v3,v7,v11,v15; m6,m7).
-```
+Standard IV, chunk tree, counters, flags, true block lengths, feed-forward and
+the full 256-bit digest are used. This is not a free-start, chosen-IV,
+compression-only or truncated-output setting.
 
-Only the third call differs in its inputs. There a=IV2=0x3c6ef372 and b=IV6=0x1f83d9ab, so K=0x5bf2cd1d is odd. Taking x=1,x'=2,y=0,y'=0xffffffff gives
+## 2. Lemma 1: a column call cancels a change of its d word
 
-```
-a1  = K+1 = 0x5bf2cd1e
-a1' = K+2 = 0x5bf2cd1f = a1 XOR 1
-24 XOR a1 = 25 XOR a1' = 0x5bf2cd06
-a1 + 0 = a1' + 0xffffffff (mod 2^32).
-```
+For j = 0..3, in one round the column call G(j, 4+j, 8+j, 12+j; m[2j],
+m[2j+1]) is the only call that reads the initial v[12+j] and the only call
+that reads m[2j] and m[2j+1]. In a compression with chaining value IV its
+inputs are a0 = IV[j], b0 = IV[4+j], c0 = IV[j] and d0 = v[12+j]. Put
+K_j = IV[j] + IV[4+j]. With x = m[2j] and y = m[2j+1] the call computes
+a1 = K_j + x, d1 = ROR(d0 XOR a1, 16), and then c1, b1, a2, d2, c2, b2 as in
+Section 1.
 
-The lemma applies. All four column outputs, hence all 16 state words after the column half-round, are identical. The four diagonal calls use identical states and identical m8..m15 (all zero), so every post-round state word remains identical. Standard feed-forward first produces v[i] XOR v[i+8] for i=0..7, followed by v[i+8] XOR IV[i]. These too are identical. The first 32 little-endian output bytes agree exactly. This proves equality of the complete selected hashes on all 256 bits, for every P. Distinct message lengths prove A != B without relying on a probabilistic distinctness check.
+**Lemma 1.** Let d and d' be two values of v[12+j] and x, y any words. Define
 
-The theorem does not discard the length word, change padding, select an IV, truncate the digest, omit feed-forward, or alter any flag. It uses the actual allowed variable-length message domain.
+    a1' = a1 XOR d XOR d',    x' = a1' - K_j,    y' = y + a1 - a1'.
 
-## 4. Finite RAM algorithm and exact checking
+Then the call with d' and words (x', y') leaves the same four values as the
+call with d and words (x, y).
 
-The algorithm is the following fixed straight-line program, not the Python evidence adapter. A RAM word has 256 bits. ADD/SUB are modulo 2^256; AND with F implements the necessary modulo-2^32 operations. SHL is a 256-bit logical shift. The nine public constant words are 0,1,24,25,32,128,160,IV2,IV6. The program first initializes a fixed cell for each by one load and one store. It does not store K, masks, suffix words, any collision, any digest, or a search table as advice.
+Proof. In the second call the first assignment gives K_j + x' = a1'. Then
+d' XOR a1' = d' XOR a1 XOR d XOR d' = d XOR a1, so the second assignment gives
+ROR(d XOR a1, 16) = d1. The third and fourth assignments depend only on d1
+and the inputs IV[j], IV[4+j], so they give c1 and b1. The fifth gives
+a1' + b1 + y' = a1' + b1 + y + a1 - a1' = a1 + b1 + y = a2. The last three
+depend only on d1, a2, c1 and b1, so they give d2, c2 and b2. QED.
 
-Every variable denotes a fixed RAM cell; there is no dynamic indexing or loop. Reused scratch cells have their earlier contents overwritten. All read cells are initialized by constants or previous rows. The two conditional exits below fail only if an invariant fails; the theorem shows neither failure branch is taken for this target. The row numbers are explanatory, not runtime loop indices.
+**Corollary 1.** Let two compressions have chaining value IV and initial
+states that differ only in v[12+j] for j in a set S, and message words that
+agree except that, for each j in S, (m[2j], m[2j+1]) is (x, y) in the first
+and (x', y') of Lemma 1 for column j in the second. Then all 16 output words
+agree.
 
-```
-01 F     = SHL(1,32)
-02 F     = SUB(F,1)
-03 Q     = SHL(1,128)
-04 Q     = SUB(Q,1)
-05 K     = ADD(IV2,IV6)
-06 K     = AND(K,F)
-07 x     = AND(K,1)
-08 xp    = ADD(x,1)
-09 R     = independent_uniform_random_word()
-10 P     = AND(R,Q)
-11 t     = SHL(x,128)
-12 Aword = OR(P,t)
-13 t     = SHL(xp,128)
-14 Bword = OR(P,t)
-15 t     = SHL(F,160)
-16 Bword = OR(Bword,t)
-17 a     = ADD(K,x)
-18 a     = AND(a,F)
-19 ap    = ADD(K,xp)
-20 ap    = AND(ap,F)
-21 u     = XOR(a,24)
-22 v     = XOR(ap,25)
-23 e     = XOR(u,v)
-24 s     = ADD(ap,F)
-25 s     = AND(s,F)
-26 t     = XOR(a,s)
-27 e     = OR(e,t)
-28 z     = NE(24,25)
-29 IF_NOT z: halt_failure
-30 z     = EQ(e,0)
-31 IF_NOT z: halt_failure
-32 STORE(output_A,Aword)
-33 STORE(output_B,Bword)
-34 STORE(length_A,24)
-35 STORE(length_B,25)
-36 RETURN fixed_output_descriptor
-```
+Proof. The four column calls act on disjoint state words. A column not in S
+has the same inputs and words in both, and a column in S leaves the same
+values by Lemma 1. After the column step the states are equal, the diagonal
+calls read the same words m[8..15], so the final states are equal, and the
+feed-forward uses the same chaining value IV. QED.
 
-For avoidance of ambiguity there are two conditional failure branches, rows 29 and 31. Row 28 checks distinct declared lengths. Row 30 checks both sufficient cancellation identities: e=0 iff the two XOR values in (I) agree and a=(ap+F) mod 2^32 in (II). No full compression is evaluated by this specialized checker. This is a valid exact check for the constructed family, not a purported general collision checker for arbitrary pairs. Its soundness follows from Sections 2 and 3 and the program's fixed packing rules.
+Here S = {0, 3}. Column 0 reads the low counter word: 0 for the parent R and 2
+for the chunk w, XOR 2, with K_0 = 6a09e667 + 510e527f = bb1838e6. Column 3
+reads the flag word: 4 for R and 3 for w, XOR 7, with K_3 = a54ff53a +
+5be0cd19 = 0130c253. Both have v[13] = 0 and v[14] = 64.
 
-RAM words are stored in little-endian byte order. `output_A` and `output_B` each name a complete 32-byte output cell; the returned descriptor identifies those cells with lengths 24 and 25. Only the first stated number of bytes belongs to the respective message. Each packed word has all high unused bits zero. Aword has P at offsets 0..15, x at 16..19, zero at 20..23. Bword has P at offsets 0..15, xp at 16..19, F at 20..23 and a zero byte at 24. No byte-wise output loop or hidden copy is required: the result consists of those already populated buffers and lengths. The descriptor and destination addresses are fixed program constants.
+## 3. Algorithm
 
-## 5. Probability, time, preprocessing, advice and memory
+The machine is the 256-bit word RAM of the cost model. M = 2^32 - 1, and a
+32-bit quantity is held in the low 32 bits of a RAM word. The constants are
+the IV, K_0, K_3, 2, 7 and M. The algorithm has no input and no coins.
 
-The single independent uniform 256-bit draw R is the entire probability space; P is its low 128 bits. Upper bits are discarded. Every one of the 2^256 coin outcomes produces distinct colliding messages by the theorem. Algorithmic success probability is therefore exactly 1, exceeding 0.39. There are no failed trials, restarts, repetitions, birthday sampling assumptions, random-oracle assumptions or heuristic premises. Fixed seeded tests are evidence of implementation consistency; they are not the reason for the success claim.
+1. CV2 is the chaining value of 16 zero blocks at counter 2 and CV3 that of
+   one zero block at counter 3, as Section 1 lists them. Set P = CV2 || CV3.
+2. w = P except w[0] = a1' - K_0 and w[1] = P[1] + a1 - a1', where
+   a1 = K_0 + P[0] and a1' = a1 XOR 2, and w[6] = e1' - K_3 and
+   w[7] = P[7] + e1 - e1', where e1 = K_3 + P[6] and e1' = e1 XOR 7. Each sum
+   or difference is reduced by an AND with M.
+3. Output A, 98 RAM words of zero, and B, 64 RAM words of zero followed by
+   w in two RAM words, each formed from eight little-endian 32-bit words by 7
+   shifts and 7 ORs.
+4. Verify: compute the chunk compressions of c0 and c1 (32) and L, which are
+   the same computations on the same inputs in H(A) and H(B) and are run once;
+   R and the root of A; the compression of w and the root of B. With step 1
+   these are all the compressions of H(A) and H(B). Compare the two digests on
+   all 256 bits and output (A, B) if they agree; else halt with failure.
 
-Count primitive operations conservatively. Initializing nine public constants costs 18 primitives. Every numbered row is bounded by four primitives: at most two operand loads, one allowed primitive operation and one result store. Unary operations, randomness, branches and output stores need fewer, but receive the same four-operation allowance. Row 36 returns a fixed descriptor with no message copy and fits that allowance. Failure halts are unreachable and cost nothing on any possible execution. Fixed operand addressing is part of each load/store instruction; there is no uncharged address arithmetic. Thus
+The RAM program is straight-line: no loop, no restart, no coin, and one
+branch, in step 4.
 
-```
-W <= 18 + 36*4 = 162 ordinary primitive operations
-H = 0 complete target compressions
-T <= H + W/222 = 27/37 < 1 = 2^0.
-```
+## 4. Correctness
 
-In particular this counts data loads and stores as well as arithmetic, randomness and collision checking. There is no simultaneous charge for a complete compression and its internal operations. All work runs on one processor; this is a total-work bound, not parallel wall-clock latency. The standard programmed-RAM convention treats execution of a primitive instruction as that primitive, without an additional separately charged instruction fetch; the code still counts toward memory. Expanding each row into primitive load/operation/store instructions takes fewer than 256 instructions, even including initialization, failure exits and return. Such fixed-address instructions fit in 32 bytes apiece (constant data are in their separate table).
+**Theorem.** The algorithm outputs two distinct messages A of 3,136 bytes and
+B of 2,112 bytes with H(A) = H(B); the test of step 4 never fails.
 
-Preprocessing consists of the charged constant initialization, at most 18/222<1 compression equivalent, included in T. No offline search, solved-message advice, precomputed digest or stored collision is supplied. `nonuniform_advice_log2_bytes: 0` is a conservative bound of one byte for actual zero advice; `preprocessing_log2: 0` similarly bounds positive preprocessing below one. Public IV words and simple lengths/shift amounts are algorithm constants, with both their storage and initialization counted.
+Proof. By Section 1 the root of A is the compression (IV, L || R, 0, 64, 12)
+and the root of B is (IV, L || CVw, 0, 64, 12), with the same L, since c0 and
+c1 are the same bytes at the same counters in both messages. R comes from the
+compression with chaining value IV, words P, counter 0, length 64 and flags 4,
+and CVw from the compression with chaining value IV, words w, counter 2,
+length 64 and flags 3. Their initial states differ only in v[12] (0 and 2)
+and v[15] (4 and 3), and w agrees with P except at 0, 1, 6 and 7, which step 2
+sets exactly as Lemma 1 sets x' and y' for column 0 (d = 0, d' = 2) and for
+column 3 (d = 4, d' = 3). By Corollary 1 with S = {0, 3} the two compressions
+have the same output words, so CVw = R, the two roots are the same
+compression, and H(A) = H(B). A and B are distinct because their lengths
+differ, and both lie in the message domain. This is an ordinary collision of
+the complete hash. QED.
 
-A conservative memory allocation is:
+## 5. Success probability
 
-| Item | Bytes |
-| --- | ---: |
-| At most 256 primitive instructions at 32 bytes each | 8192 |
-| Nine constant data words | 288 |
-| 32 temporary words, including retained R and scratch | 1024 |
-| Two output words and two length words | 128 |
-| Control, descriptor and implementation reserve | 2048 |
-| Total | 11680 |
+The algorithm is deterministic and, by the theorem, outputs a collision: the
+success probability is exactly 1, above the required 0.39. There is no failed
+trial, restart or amplification. This number concerns the algorithm, not
+confidence in a review.
 
-This is below 16384=2^14 bytes. Registers/cells, randomness, messages, code and constants are all covered; there are no tables, stacks of trials or growing buffers. Reserved cells need not be cleared since no uninitialized cell is read.
+## 6. Charged time
 
-## 6. Evidence and limits of the claim
+One 1-round target compression costs one unit and every other primitive word
+operation costs 1/C units with C = 222.
 
-The certificate manifest supplies three concrete pairs, with an all-zero prefix, an all-0xff prefix and a mixed-byte prefix. They are exact finite witnesses, not advice read by the runtime algorithm. The organizer's certificate verifier independently computes the complete selected hashes from these byte files and checks distinctness and the digest. These witnesses supplement the universal proof; three examples alone would not establish it.
+**Counting convention**, as in entries f0dab7bd and 31acfdbb. One *data
+operation* is one addition or subtraction modulo 2^256, one AND, OR or XOR,
+one shift, one comparison or one conditional branch. Reduction modulo 2^32 is
+an explicit AND with M and is counted; one AND reduces a short sum or
+difference correctly because 2^32 divides 2^256. Memory traffic is charged in
+full: every data operation is charged as four primitive operations, a load
+for each of at most two operands, the operation and a store of its result.
+Constants are operands covered by those loads; shift distances are fixed in
+the instruction. The internals of a target compression are its unit and are
+not charged again; its input and output handling is charged at 80 primitive
+operations, a load and a store of each of its 16 initial state words, its 16
+message words and its 8 output words.
 
-`experiments/construct.py` is a Python/JSON adapter of the explicit packing and invariant check for organizer-provided trial seeds. It extracts the low 128 bits, recomputes K, x, xp and F, evaluates the sufficient identities, and returns messages. Its manifest requests a `full-collision` event. Only the approved organizer executor may execute it. The organizer hashes both complete outputs itself; participant observations are empty. JSON parsing, hexadecimal encoding, Python allocation and organizer verification are evidence-protocol overhead, not the primitive-RAM algorithm claimed in Section 4. No timing or operation count is inferred from Python runtime.
+| Step | Work | Units | Primitive operations |
+| --- | --- | ---: | ---: |
+| 1 | 17 chunk compressions of c2 and c3 | 17 | |
+| 1 | their input and output handling, 17 * 80 | | 1,360 |
+| 2 | two moves of Lemma 1, 8 data operations each: 16 | | 64 |
+| 3 | 98 + 64 stores of the constant 0 | | 162 |
+| 3 | w: 2 RAM words of 7 shifts and 7 ORs, 28 data operations | | 112 |
+| 4 | c0 and c1 (32), L, R, the root of A, w, the root of B | 37 | |
+| 4 | their input and output handling, 37 * 80 | | 2,960 |
+| 4 | digest test: 8 XORs, 7 ORs, a comparison with zero and a branch, 17 data operations | | 68 |
+| 4 | output and halt | | 8 |
+| | total | 54 | 4,734 |
 
-This package's mathematical and cost arguments are self-contained and do not require the judge to trust any assertion in experiment stdout. The score specifically depends on charging the actual sufficient invariant checker rather than adding two complete hashes that the defined construction never calls. If an alternative policy were to require explicit full-hash recomputation inside every constructor, it would be a different algorithm/cost interpretation; that work is not silently claimed here. The present cost contract charges collision checking and it is explicitly included.
+**Total.** H = 54 target compressions and W = 4,734 other primitive
+operations, so
 
-This is an exploratory submission requiring independent review. Mechanical checks and sampled evidence do not by themselves establish the universal theorem or the resource bound. AI qualification is neither mathematical proof nor human acceptance; publication requires a separate human decision followed by successful promotion. The construction says nothing about two-round or full-round BLAKE3, keyed modes, other targets or any security claim beyond the exact selected one-round profile.
+    T = H + W/C = 54 + 4,734/222 = 16,722/222 = 75.3243... units,
+    log2 T = 6.23504... < 6.2351.
+
+The claim 6.2351 is log2 T rounded up at the fourth decimal:
+222^10000 * 2^62350 <= 16,722^10000 < 222^10000 * 2^62351. The program is
+straight-line, so this is the count of every run, at success probability 1,
+including message construction, memory traffic and collision checking.
+
+## 7. Memory, preprocessing and advice
+
+Code: the 54 compressions inlined, fewer than 400 instructions each (the
+round, the feed-forward and the 80 loads and stores), and fewer than 300
+other instructions: fewer than 2^15 instruction templates of at most four
+256-bit words each, below 2^22 bytes. Data: the 40 words of one compression,
+P, w, the chaining values CV0 to CV3, L, R, CVw, the two digests, the 164
+output RAM words and the constants: fewer than 512 words, below 2^14 bytes.
+Peak memory is below 2^22 + 2^14 < 2^23 bytes. There is no table, no stored
+message database and no stored collision.
+
+There is no preprocessing phase: all work is the run counted in Section 6.
+There is no nonuniform advice: the program holds only public constants (the
+IV, K_0 and K_3, each the sum of two IV words, 2, 7 and M), and every output
+word is computed by the counted steps. The fields preprocessing_log2 = 0 and
+nonuniform_advice_log2_bytes = 0 are upper bounds of one unit and one byte,
+because the schema cannot express the logarithm of zero.
+
+## 8. Evidence and scope
+
+The supporting evidence is the algorithm, the exact hash of Section 1,
+Lemma 1 with its corollary, the theorem and the count of Section 6. The
+argument is exact and uses no sampled quantity. The certificate
+`counter-pair` is the algorithm's output, `certificates/counter-pair-a.bin`
+(A) and `certificates/counter-pair-b.bin` (B), so the organizer's checker
+recomputes both digests. No experiment is declared.
+
+Worked values. CV2 || CV3 = P is
+
+    a4036299 e7c3b904 e10102c9 88daee7a f35caa0e 06459f5a 6cced398 502313a4
+    ca6d115a 666da456 2b447cc8 96ad4fa3 4e2ef42a e902e102 b43f0450 2987fa9b.
+
+Then a1 = 5f1b9b7f, a1' = 5f1b9b7d, w[0] = a4036297, w[1] = e7c3b906,
+e1 = 6dff95eb, e1' = 6dff95ec, w[6] = 6cced399 and w[7] = 502313a3; the other
+twelve words of w are those of P. Both messages have the digest
+
+    c236b0dfd53fef88d45ca3022a60daf5af522af90243c280f01c03797a2a4e9d.
+
+Scope and limitations:
+
+- The result is specific to the 1-round prefix. This pair's 2-round digests
+  differ. No claim is made about blake3-r2 or full BLAKE3.
+- The two messages have different lengths and tree shapes: four chunks and
+  three chunks.
+- Shared with entries f0dab7bd and 31acfdbb: Lemma 1, there for the block
+  length (column 2) and for the flag word (column 3) between two roots. New
+  here: the move in column 0, which cancels a chunk-counter difference
+  (v[12], 0 against 2) between a parent and a one-block chunk below the roots
+  of a four-chunk and a three-chunk tree. The collision needs it together
+  with the flag move; on this pair either move alone gives different outputs.
+- No literature survey was done and no priority or novelty claim is made.
+
+The claim fields mean: time_log2 = 6.2351 bounds total charged time
+(Section 6); memory_log2_bytes = 23 bounds simultaneous storage (Section 7);
+preprocessing_log2 = 0 and nonuniform_advice_log2_bytes = 0 as in Section 7;
+success_probability = 1 as in Section 5. The required baseline_improved
+identifier blake3-r1-nominal-v2 names the organizer's nominal display
+reference 128, which is not an established attack, a qualified baseline or a
+security bound.
+
+## 9. Earlier entries and credit
+
+Earlier entries of the participant on this track, one line each:
+
+| entry | time_log2 | ruling | kept here |
+| --- | ---: | --- | --- |
+| beea45d4 | 0 | cancelled | nothing |
+| f0dab7bd | 2 | accepted | Lemma 1, there for the block length |
+| 31acfdbb | 4.7545 | plausible_not_refuted, not promoted | Lemma 1, there for the flag word |
+
+Credit, one line per contributor; a credit is not an endorsement.
+
+- **Grok 4.7 (xAI)**, run by the participant: cancelling a chunk-counter
+  difference in round 0 with m0 and m1 (Lemma 1 for column 0).
+- **Jbenisek**, the participant who files this package: Lemma 1 for the block
+  length and the flag word (entries f0dab7bd and 31acfdbb), the construction
+  with four and three chunks, and this package.
