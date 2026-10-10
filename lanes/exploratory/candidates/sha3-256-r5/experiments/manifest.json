@@ -1,181 +1,29 @@
 {
- "schema_version": 1,
- "experiments": [
-  {
-   "id": "r5-trail-0",
-   "kind": "python-message-pairs-v1",
-   "program": "experiments/r5.py",
-   "event": {
-    "kind": "digest-xor-mask",
-    "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-    "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
-   },
-   "scope": "Exact recount of the structural counts of the trail search P (proof 2.1) for start lanes 0, 1. Trial 0 runs T1 (the depth-first search of in-kernel cores of at most 10 bits) from bit (lane, z = 0) of each lane of the group, counting every node, and for each core found whose smallest lane is in the group computes C1 (alpha4 compatible with beta3 = T2 leaves), decides P45 > 0 exactly (pruned search over the same alpha4), and, if P45 > 0, computes C2 (beta2 compatible with alpha3) and the number of half vectors of T3's meet-in-the-middle split (rows 0..h-1 and h..n-1 of alpha3, h minimising the sum of the two products). PASS iff the per-lane node counts and the group totals equal GROUP_LOG. The groups 0..3 (lanes 0-1, 2-7, 8-16, 17-24) partition the cores. Other trials return no pair. PASS = (00^135, 01||00^134) satisfies the declared event; FAIL = (00^135, 02||00^134) does not. Both are fixed sentinels, so the host check is vacuous; the evidence is the organizer's execution of the visible code, and the host-counted numbers are successes (PASS) and returned_pairs (PASS + FAIL).",
-   "hypothesis": "P's structural counts that enter the time bound are exact. Predicted: PASS with 692,664 nodes, 1023 cores, sum C1 = 974,737,408, 204 cores with P45 > 0, sum C2 = 608,900,651,514, 21,466,134 half vectors. Over the four groups (r5-trail-0, r5-trail-1, r5-trail-23): 8,674,833 nodes, 1741 cores, C1 = 1,639,088,128, 467 kept cores, C2 = 1,379,275,399,350 and 48,592,224 half vectors: the exact counts that P's charge multiplies by its prices (proof 2.1, 6)."
-  },
-  {
-   "id": "r5-trail-1",
-   "kind": "python-message-pairs-v1",
-   "program": "experiments/r5.py",
-   "event": {
-    "kind": "digest-xor-mask",
-    "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-    "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
-   },
-   "scope": "Exact recount of the structural counts of the trail search P (proof 2.1) for start lanes 2..7. Trial 0 runs T1 (the depth-first search of in-kernel cores of at most 10 bits) from bit (lane, z = 0) of each lane of the group, counting every node, and for each core found whose smallest lane is in the group computes C1 (alpha4 compatible with beta3 = T2 leaves), decides P45 > 0 exactly (pruned search over the same alpha4), and, if P45 > 0, computes C2 (beta2 compatible with alpha3) and the number of half vectors of T3's meet-in-the-middle split (rows 0..h-1 and h..n-1 of alpha3, h minimising the sum of the two products). PASS iff the per-lane node counts and the group totals equal GROUP_LOG. The groups 0..3 (lanes 0-1, 2-7, 8-16, 17-24) partition the cores. Other trials return no pair. PASS = (00^135, 01||00^134) satisfies the declared event; FAIL = (00^135, 02||00^134) does not. Both are fixed sentinels, so the host check is vacuous; the evidence is the organizer's execution of the visible code, and the host-counted numbers are successes (PASS) and returned_pairs (PASS + FAIL).",
-   "hypothesis": "P's structural counts that enter the time bound are exact. Predicted: PASS with 2,082,480 nodes, 646 cores, sum C1 = 600,711,168, 251 cores with P45 > 0, sum C2 = 735,420,810,384, 25,918,866 half vectors. Over the four groups (r5-trail-0, r5-trail-1, r5-trail-23): 8,674,833 nodes, 1741 cores, C1 = 1,639,088,128, 467 kept cores, C2 = 1,379,275,399,350 and 48,592,224 half vectors: the exact counts that P's charge multiplies by its prices (proof 2.1, 6)."
-  },
-  {
-   "id": "r5-trail-23",
-   "kind": "python-message-pairs-v1",
-   "program": "experiments/r5.py",
-   "event": {
-    "kind": "digest-xor-mask",
-    "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-    "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
-   },
-   "scope": "Exact recount of the structural counts of the trail search P (proof 2.1) for start lanes 8..16 (trial 0) and 17..24 (trial 1; v25 ran them as r5-trail-2 and r5-trail-3). Each of the two trials runs T1 (the depth-first search of in-kernel cores of at most 10 bits) from bit (lane, z = 0) of each lane of the group, counting every node, and for each core found whose smallest lane is in the group computes C1 (alpha4 compatible with beta3 = T2 leaves), decides P45 > 0 exactly (pruned search over the same alpha4), and, if P45 > 0, computes C2 (beta2 compatible with alpha3) and the number of half vectors of T3's meet-in-the-middle split (rows 0..h-1 and h..n-1 of alpha3, h minimising the sum of the two products). Each trial: PASS iff the per-lane node counts and the group totals equal GROUP_LOG. The groups 0..3 (lanes 0-1, 2-7, 8-16, 17-24) partition the cores. Other trials return no pair. (v25s: regrouped so that every process stays well inside the organizer's 20 s; see proof Z.6.) PASS = (00^135, 01||00^134) satisfies the declared event; FAIL = (00^135, 02||00^134) does not. Both are fixed sentinels, so the host check is vacuous; the evidence is the organizer's execution of the visible code, and the host-counted numbers are successes (PASS) and returned_pairs (PASS + FAIL).",
-   "hypothesis": "P's structural counts that enter the time bound are exact. Predicted: 2 PASS: lanes 8..16 with 3,123,655 nodes, 72 cores, sum C1 = 63,639,552, 12 cores with P45 > 0, sum C2 = 34,953,937,452, 1,207,224 half vectors; lanes 17..24 with 2,776,034 nodes and no core. Over the four groups (r5-trail-0, r5-trail-1, r5-trail-23): 8,674,833 nodes, 1741 cores, C1 = 1,639,088,128, 467 kept cores, C2 = 1,379,275,399,350 and 48,592,224 half vectors: the exact counts that P's charge multiplies by its prices (proof 2.1, 6)."
-  },
-  {
-   "id": "r5-count",
-   "kind": "python-message-pairs-v1",
-   "program": "experiments/r5.py",
-   "event": {
-    "kind": "digest-xor-mask",
-    "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-    "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
-   },
-   "scope": "Counted programs (proof 2.1, 2.4, X, Z; W operators, load(), st() count 1, test() 2; 256-bit words) and P on small cases. EQS must be a basis of the equations of the 10 round-2 rows. Trials 0, 2, 4, 6 (E stage 1, Z.3): seeded basis, x of certificate r5-v6-000038's first message at a seeded inner slot p; fes_setup builds the degree-4 fast exhaustive search state over outer coordinates 0..10, then the counted multi-pass block e_blk walks the Gray order in two unrolled blocks of 1,024 steps (steps 1..1023, then 1024..2047), each as 12 passes of 2 equation words; PASS iff slot p passes at the start, every residual word F_k after every step (recorded in its pass) and the pass bit equal e_plain at 3 slots of the start and 1 seeded slot of every step, the prologue counts at most 87 and each block at most 207,920. Trials 1, 3, 5, 7 (T2 leaf and Gray state step, X.2, Z.2): t2_leaf equals ALLOW on all 32 row values; then 64 leaves; PASS iff decisions and words equal a plain evaluation and counts <= 21. Trials 8..11 run in r5-count-2. Other trials: no pair. (v25s: regrouped so that every process stays well inside the organizer's 20 s; see proof Z.6.) Sentinels and evidence as in r5-trail-0.",
-   "hypothesis": "Prices of proof 6 are counted longest paths (v25: E stage 1 at most 208,007 primitives per unrolled block of 1,024 steps, T2 leaf with its step <= 21), the counted stage 1 computes the plain round-2 predicate (P's driver and the output trail: r5-count-2). Predicted: 8 PASS in 8 returned pairs."
-  },
-  {
-   "id": "r5-count-2",
-   "kind": "python-message-pairs-v1",
-   "program": "experiments/r5.py",
-   "event": {
-    "kind": "digest-xor-mask",
-    "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-    "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
-   },
-   "scope": "Counted programs (proof 2.1, 2.4, X, Z; W operators, load(), st() count 1, test() 2; 256-bit words) and P on small cases. EQS must be a basis of the equations of the 10 round-2 rows. Trial 8: trail_search (core by core, W.4) with all 7 levels on the sub-problem [core 874, core 1136]; PASS iff no level certifies and the match count is 102 (native log). Trial 9: the same with the match cap at 0; PASS iff CapReached is raised. Trial 10: T3 at its certifying level (64 blocks) on the output core (core 17, re-derived by T1 from lane 0); PASS iff 49,060 matches (native log), 30 evaluations, least (w1, w2, choice) = (127, 24, 0.0.3.0.0.0.0.0.3.1) and beta2 = BETA2. Trial 11 (the E block price, Z.3): count-only e_blk on zero tables with 24 outer coordinates over the 1,024 steps of a seed-picked block index with at least four set bits, and the prologue for all 2^14 block indices; PASS iff the block counts exactly 207,920 and the largest prologue exactly 87 (block bound 208,007). Other trials (0..7 run in r5-count): no pair. Sentinels and evidence as in r5-trail-0. (v25s: regrouped so that every process stays well inside the organizer's 20 s; see proof Z.6.)",
-   "hypothesis": "Prices of proof 6 are counted longest paths (v25: E stage 1 at most 208,007 primitives per unrolled block of 1,024 steps), P's Python driver reproduces the native counts and stops at its cap, and P's output trail is found at the level of 64 blocks with w1 = 127 <= 2 x 63 + 1, so the certification rule of proof 2.1 applies. Predicted: 4 PASS in 4 returned pairs."
-  },
-  {
-   "id": "r5-mitm-0",
-   "kind": "python-message-pairs-v1",
-   "program": "experiments/r5.py",
-   "event": {
-    "kind": "digest-xor-mask",
-    "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-    "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
-   },
-   "scope": "T3 of P at its certifying level of 64 blocks on one kept core picked by the organizer seed: q = SHA-256(seed || experiment id) mod 467; the core is re-derived by T1 from its smallest lane and the kept-core mask LANEM, checked to have P45 > 0, split into its two halves, and every block match is evaluated as in r5-count trial 10. PASS iff the match count equals the native per-core log MT6[q], and no evaluation is made (no leaf with AS <= 63) unless q is the output core, which must give the logged trail. Trial 1 (v25: r5-bpfull's trial 1): B' with the R5 constants of r5-bpfull on R5 run 2's label ('hashsmash sha3-256-r5 R5 run 2') with a 2^22-unit budget and a 2^21-unit candidate cap; PASS iff candidate 0 is stopped by the candidate cap (candidate 1 starts after more than 2^21 and at most 2^21 + 2^13 units), exactly two candidates start, no advice is returned and the cost exceeds the budget by at most one counter update. Other trials: no pair. Sentinels as in r5-count. In production the seed is the organizer's; a holdout nonce changes the core. (v25s: regrouped so that every process stays well inside the organizer's 20 s; see proof Z.6.)",
-   "hypothesis": "The advice's provenance (proof 2.1, Z.1; v22b's premise P, no longer part of H1): the native T3 log, which gives every core's match and evaluation counts at each level, is the program's. Trial 0 PASS. Time bound: B' stops each candidate at its cap and the run at its budget; trial 1 PASS (candidate 1 starts 0.68 units above 2^21, cost 2^22 + 188.1 units). Predicted in all: 2 PASS."
-  },
-  {
-   "id": "r5-mitm-1",
-   "kind": "python-message-pairs-v1",
-   "program": "experiments/r5.py",
-   "event": {
-    "kind": "digest-xor-mask",
-    "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-    "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
-   },
-   "scope": "T3 of P at its certifying level of 64 blocks on one kept core picked by the organizer seed: q = SHA-256(seed || experiment id) mod 467; the core is re-derived by T1 from its smallest lane and the kept-core mask LANEM, checked to have P45 > 0, split into its two halves, and every block match is evaluated as in r5-count trial 10. PASS iff the match count equals the native per-core log MT6[q], and no evaluation is made (no leaf with AS <= 63) unless q is the output core, which must give the logged trail. (v25, proof X.3, Z.2) Trial 1: the Gray state step with weight walks both full half tables of the output core (118,096 steps, every row reversing) updating 7 plane words and 14 key words (all 127 keys of the 7 levels: 63 keys of 26 bits in 7 words, 64 keys of 25 bits in 7 words); PASS iff at the first and every 4099th step the 21 words equal to_planes/keywords (v15's mkey) of halves()'s vector with the same choice vector, w2 equals halves()'s weight, and the longest step counts exactly 80. (v25, proof X.1, Z.2) Trial 2: on every level-64 match of the output core in up to 4 blocks picked by trial 0's seed, each a's run of matching B entries goes through match_run (per_a: A's 7 words, the counter with its M_CAP test and the dispatch of the 16-fold run loop; then the peel and the loop as executed control flow), and one seed-picked a goes against a run of 37 entries; PASS iff each run visits its entries once in order, AS and the decision equal the plain evaluation, the counter equals the matches and each run of e counts exactly 18 + 49 e + 3 floor(e/16). Other trials: no pair. Sentinels as in r5-count. In production the seed is the organizer's; a holdout nonce changes the core.",
-   "hypothesis": "The advice's provenance (proof 2.1, Z.1; v22b's premise P, no longer part of H1): the native T3 log, which gives every core's match and evaluation counts at each level, is the program's. v25: the counted half-vector step (80, all keys and the entry pointer), per_a (18 per (a, block)) and match step (49 per match + 3 per 16 matches of a run) compute v15's vectors, keys, weights and decisions. Predicted: 3 PASS."
-  },
-  {
-   "id": "r5-bpfull",
-   "kind": "python-message-pairs-v1",
-   "program": "experiments/r5.py",
-   "event": {
-    "kind": "digest-xor-mask",
-    "mask_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-    "expected_hex": "859151ecc3dcdd13312819aef9ca93d1342e040b14bcdccb3f336e682cb1f081"
-   },
-   "scope": "The B' program bprime() with the R5 constants (no attempt limit per candidate, DMIN 33, D2u weights 1), its budget and its per-candidate cap, both enforced by the counter WK (proof 2.2), executed whole; then R7's count (v20) and the connector with organizer coins. Trial 0: the seed picks one of the R7 runs 6, 33, 37 (q = SHA-256(seed) mod 3; the three cheapest single-round R7 runs whose advice came from candidate 0, B' below 2^23.7 units, a rule fixed before R7's results), and B' runs from that run's label ('hashsmash sha3-256-r5 R7 run k') from candidate 0 to its output under the 2^32-unit budget and 2^26-unit CCAP; PASS iff (c, j, DF) and the advice hash equal RUNS[k], the whole-run cost counted by WK equals the R7 log (CHEAP[k], in 1/1355 units) and the facts of proof 3 hold. Trial 1 (B' at its budget and candidate cap) runs in r5-mitm-0 as its trial 1. Trial 2: PASS iff the table RUNS (v20: R7's) has 48 runs, 39 with an output (each with a status string of length i + 1), and the one-sided 95% Clopper-Pearson lower bound of 39 of 48 (exact binomial tail, bisection) is at least 0.40. Trials 3..26: one connector attempt on trial 0's advice with the trial's organizer seed as coins; PASS iff accepted and verify_space holds (Lemmas 1-2 at two random points). Other trials return no pair. Sentinels and evidence as in r5-trail-0. (v17) Trial 0 also reports the true cost of that B' run (WK's cost with Aff's table-update and copy sites at their word cost, proof V.5) as an observation. (v25s: regrouped so that every process stays well inside the organizer's 20 s; see proof Z.6.)",
-   "hypothesis": "Time bound and H1: B' stops each candidate at its cap and the run at its budget; the logged B' runs of R7 are the shipped program's runs; the success count of H1 is R7's table. (v17) The true cost of trial 0's B' run is below its WK cost. Predicted: PASS on trials 0 and 2 (trial 0 cost 16,446,246,658 or 13,220,514,578 or 11,331,166,259 for k = 6, 33, 37; trial 2: bound 0.6956); trials 3..26: descriptive acceptance (R7's label-seeded rate was 2400 of 6920 attempts). No bound uses this rate."
-  },
-  {
-   "id": "r5-R-0",
-   "kind": "python-message-pairs-v1",
-   "program": "experiments/r5.py",
-   "event": {
-    "kind": "full-collision"
-   },
-   "scope": "Audit of the R7 study (proof W.2, Appendix F; v20), stratum 0 of 8: the R7 runs 1, 10, 19, 34, 42 (the 38 R7 runs with an output other than run 22 (our replay test measured a peak of 107.8 MB, too close to the sandbox's 128 MB; the collision is in R7's per-run ledger), in k order, stratum = position mod 8). Trial 0 picks run L[q0], q0 = SHA-256(trial 0 seed) mod n (v25s: one run per stratum and review; v25 replayed two). For the picked run k (table RUNS: advice (c, j, DF, hash), first positive space idx, accepting attempt i, coordinate, DF of the space, status string of connector attempts 0..i): B' re-derives the advice from the label 'hashsmash sha3-256-r5 R7 run k' (candidate setup c, attempt j; accepted with the logged DF and advice hash; facts of proof 3); the status string must end with an accepted attempt, contain exactly idx accepted attempts and idx <= K = 50; the connector attempts i and min(i, 23) others drawn from 0..i-1 with the trial seed (all of 0..i if i < 24) are re-run with the run's coins (label || 'conn' || c + 1, attempt index) and must give the logged status of each; attempt i must be accepted with the logged DF; then the Python E (e_window) runs on the 2^12 aligned coordinates containing the logged coordinate. The trial returns E's first output if every check passes and the output is at the logged coordinate, otherwise no pair. Other trials return no pair. (v25s: regrouped so that every process stays well inside the organizer's 20 s; see proof Z.6.) In production the seeds are the organizer's; a holdout nonce changes the picked runs and attempts.",
-   "hypothesis": "H1 numerator: the successes in the R7 table are outputs of v20's algorithm (B', connector rule, E) run from their labels, at the logged place among the advice's 50 accepted spaces. Predicted: 1 full 5-round collision of two distinct 135-byte messages."
-  },
-  {
-   "id": "r5-R-1",
-   "kind": "python-message-pairs-v1",
-   "program": "experiments/r5.py",
-   "event": {
-    "kind": "full-collision"
-   },
-   "scope": "Audit of the R7 study (proof W.2, Appendix F; v20), stratum 1 of 8: the R7 runs 2, 11, 20, 35, 43 (the 38 R7 runs with an output other than run 22 (our replay test measured a peak of 107.8 MB, too close to the sandbox's 128 MB; the collision is in R7's per-run ledger), in k order, stratum = position mod 8). Trial 0 picks run L[q0], q0 = SHA-256(trial 0 seed) mod n (v25s: one run per stratum and review; v25 replayed two). For the picked run k (table RUNS: advice (c, j, DF, hash), first positive space idx, accepting attempt i, coordinate, DF of the space, status string of connector attempts 0..i): B' re-derives the advice from the label 'hashsmash sha3-256-r5 R7 run k' (candidate setup c, attempt j; accepted with the logged DF and advice hash; facts of proof 3); the status string must end with an accepted attempt, contain exactly idx accepted attempts and idx <= K = 50; the connector attempts i and min(i, 23) others drawn from 0..i-1 with the trial seed (all of 0..i if i < 24) are re-run with the run's coins (label || 'conn' || c + 1, attempt index) and must give the logged status of each; attempt i must be accepted with the logged DF; then the Python E (e_window) runs on the 2^12 aligned coordinates containing the logged coordinate. The trial returns E's first output if every check passes and the output is at the logged coordinate, otherwise no pair. Other trials return no pair. (v25s: regrouped so that every process stays well inside the organizer's 20 s; see proof Z.6.) In production the seeds are the organizer's; a holdout nonce changes the picked runs and attempts.",
-   "hypothesis": "H1 numerator: the successes in the R7 table are outputs of v20's algorithm (B', connector rule, E) run from their labels, at the logged place among the advice's 50 accepted spaces. Predicted: 1 full 5-round collision of two distinct 135-byte messages."
-  },
-  {
-   "id": "r5-R-2",
-   "kind": "python-message-pairs-v1",
-   "program": "experiments/r5.py",
-   "event": {
-    "kind": "full-collision"
-   },
-   "scope": "Audit of the R7 study (proof W.2, Appendix F; v20), stratum 2 of 8: the R7 runs 3, 13, 21, 36, 44 (the 38 R7 runs with an output other than run 22 (our replay test measured a peak of 107.8 MB, too close to the sandbox's 128 MB; the collision is in R7's per-run ledger), in k order, stratum = position mod 8). Trial 0 picks run L[q0], q0 = SHA-256(trial 0 seed) mod n (v25s: one run per stratum and review; v25 replayed two). For the picked run k (table RUNS: advice (c, j, DF, hash), first positive space idx, accepting attempt i, coordinate, DF of the space, status string of connector attempts 0..i): B' re-derives the advice from the label 'hashsmash sha3-256-r5 R7 run k' (candidate setup c, attempt j; accepted with the logged DF and advice hash; facts of proof 3); the status string must end with an accepted attempt, contain exactly idx accepted attempts and idx <= K = 50; the connector attempts i and min(i, 23) others drawn from 0..i-1 with the trial seed (all of 0..i if i < 24) are re-run with the run's coins (label || 'conn' || c + 1, attempt index) and must give the logged status of each; attempt i must be accepted with the logged DF; then the Python E (e_window) runs on the 2^12 aligned coordinates containing the logged coordinate. The trial returns E's first output if every check passes and the output is at the logged coordinate, otherwise no pair. Other trials return no pair. (v25s: regrouped so that every process stays well inside the organizer's 20 s; see proof Z.6.) In production the seeds are the organizer's; a holdout nonce changes the picked runs and attempts.",
-   "hypothesis": "H1 numerator: the successes in the R7 table are outputs of v20's algorithm (B', connector rule, E) run from their labels, at the logged place among the advice's 50 accepted spaces. Predicted: 1 full 5-round collision of two distinct 135-byte messages."
-  },
-  {
-   "id": "r5-R-3",
-   "kind": "python-message-pairs-v1",
-   "program": "experiments/r5.py",
-   "event": {
-    "kind": "full-collision"
-   },
-   "scope": "Audit of the R7 study (proof W.2, Appendix F; v20), stratum 3 of 8: the R7 runs 4, 14, 23, 37, 45 (the 38 R7 runs with an output other than run 22 (our replay test measured a peak of 107.8 MB, too close to the sandbox's 128 MB; the collision is in R7's per-run ledger), in k order, stratum = position mod 8). Trial 0 picks run L[q0], q0 = SHA-256(trial 0 seed) mod n (v25s: one run per stratum and review; v25 replayed two). For the picked run k (table RUNS: advice (c, j, DF, hash), first positive space idx, accepting attempt i, coordinate, DF of the space, status string of connector attempts 0..i): B' re-derives the advice from the label 'hashsmash sha3-256-r5 R7 run k' (candidate setup c, attempt j; accepted with the logged DF and advice hash; facts of proof 3); the status string must end with an accepted attempt, contain exactly idx accepted attempts and idx <= K = 50; the connector attempts i and min(i, 23) others drawn from 0..i-1 with the trial seed (all of 0..i if i < 24) are re-run with the run's coins (label || 'conn' || c + 1, attempt index) and must give the logged status of each; attempt i must be accepted with the logged DF; then the Python E (e_window) runs on the 2^12 aligned coordinates containing the logged coordinate. The trial returns E's first output if every check passes and the output is at the logged coordinate, otherwise no pair. Other trials return no pair. (v25s: regrouped so that every process stays well inside the organizer's 20 s; see proof Z.6.) In production the seeds are the organizer's; a holdout nonce changes the picked runs and attempts.",
-   "hypothesis": "H1 numerator: the successes in the R7 table are outputs of v20's algorithm (B', connector rule, E) run from their labels, at the logged place among the advice's 50 accepted spaces. Predicted: 1 full 5-round collision of two distinct 135-byte messages."
-  },
-  {
-   "id": "r5-R-4",
-   "kind": "python-message-pairs-v1",
-   "program": "experiments/r5.py",
-   "event": {
-    "kind": "full-collision"
-   },
-   "scope": "Audit of the R7 study (proof W.2, Appendix F; v20), stratum 4 of 8: the R7 runs 5, 15, 24, 38, 46 (the 38 R7 runs with an output other than run 22 (our replay test measured a peak of 107.8 MB, too close to the sandbox's 128 MB; the collision is in R7's per-run ledger), in k order, stratum = position mod 8). Trial 0 picks run L[q0], q0 = SHA-256(trial 0 seed) mod n (v25s: one run per stratum and review; v25 replayed two). For the picked run k (table RUNS: advice (c, j, DF, hash), first positive space idx, accepting attempt i, coordinate, DF of the space, status string of connector attempts 0..i): B' re-derives the advice from the label 'hashsmash sha3-256-r5 R7 run k' (candidate setup c, attempt j; accepted with the logged DF and advice hash; facts of proof 3); the status string must end with an accepted attempt, contain exactly idx accepted attempts and idx <= K = 50; the connector attempts i and min(i, 23) others drawn from 0..i-1 with the trial seed (all of 0..i if i < 24) are re-run with the run's coins (label || 'conn' || c + 1, attempt index) and must give the logged status of each; attempt i must be accepted with the logged DF; then the Python E (e_window) runs on the 2^12 aligned coordinates containing the logged coordinate. The trial returns E's first output if every check passes and the output is at the logged coordinate, otherwise no pair. Other trials return no pair. (v25s: regrouped so that every process stays well inside the organizer's 20 s; see proof Z.6.) In production the seeds are the organizer's; a holdout nonce changes the picked runs and attempts.",
-   "hypothesis": "H1 numerator: the successes in the R7 table are outputs of v20's algorithm (B', connector rule, E) run from their labels, at the logged place among the advice's 50 accepted spaces. Predicted: 1 full 5-round collision of two distinct 135-byte messages."
-  },
-  {
-   "id": "r5-R-5",
-   "kind": "python-message-pairs-v1",
-   "program": "experiments/r5.py",
-   "event": {
-    "kind": "full-collision"
-   },
-   "scope": "Audit of the R7 study (proof W.2, Appendix F; v20), stratum 5 of 8: the R7 runs 7, 16, 26, 39, 47 (the 38 R7 runs with an output other than run 22 (our replay test measured a peak of 107.8 MB, too close to the sandbox's 128 MB; the collision is in R7's per-run ledger), in k order, stratum = position mod 8). Trial 0 picks run L[q0], q0 = SHA-256(trial 0 seed) mod n (v25s: one run per stratum and review; v25 replayed two). For the picked run k (table RUNS: advice (c, j, DF, hash), first positive space idx, accepting attempt i, coordinate, DF of the space, status string of connector attempts 0..i): B' re-derives the advice from the label 'hashsmash sha3-256-r5 R7 run k' (candidate setup c, attempt j; accepted with the logged DF and advice hash; facts of proof 3); the status string must end with an accepted attempt, contain exactly idx accepted attempts and idx <= K = 50; the connector attempts i and min(i, 23) others drawn from 0..i-1 with the trial seed (all of 0..i if i < 24) are re-run with the run's coins (label || 'conn' || c + 1, attempt index) and must give the logged status of each; attempt i must be accepted with the logged DF; then the Python E (e_window) runs on the 2^12 aligned coordinates containing the logged coordinate. The trial returns E's first output if every check passes and the output is at the logged coordinate, otherwise no pair. Other trials return no pair. (v25s: regrouped so that every process stays well inside the organizer's 20 s; see proof Z.6.) In production the seeds are the organizer's; a holdout nonce changes the picked runs and attempts.",
-   "hypothesis": "H1 numerator: the successes in the R7 table are outputs of v20's algorithm (B', connector rule, E) run from their labels, at the logged place among the advice's 50 accepted spaces. Predicted: 1 full 5-round collision of two distinct 135-byte messages."
-  },
-  {
-   "id": "r5-R-6",
-   "kind": "python-message-pairs-v1",
-   "program": "experiments/r5.py",
-   "event": {
-    "kind": "full-collision"
-   },
-   "scope": "Audit of the R7 study (proof W.2, Appendix F; v20), stratum 6 of 8: the R7 runs 8, 17, 32, 40 (the 38 R7 runs with an output other than run 22 (our replay test measured a peak of 107.8 MB, too close to the sandbox's 128 MB; the collision is in R7's per-run ledger), in k order, stratum = position mod 8). Trial 0 picks run L[q0], q0 = SHA-256(trial 0 seed) mod n (v25s: one run per stratum and review; v25 replayed two). For the picked run k (table RUNS: advice (c, j, DF, hash), first positive space idx, accepting attempt i, coordinate, DF of the space, status string of connector attempts 0..i): B' re-derives the advice from the label 'hashsmash sha3-256-r5 R7 run k' (candidate setup c, attempt j; accepted with the logged DF and advice hash; facts of proof 3); the status string must end with an accepted attempt, contain exactly idx accepted attempts and idx <= K = 50; the connector attempts i and min(i, 23) others drawn from 0..i-1 with the trial seed (all of 0..i if i < 24) are re-run with the run's coins (label || 'conn' || c + 1, attempt index) and must give the logged status of each; attempt i must be accepted with the logged DF; then the Python E (e_window) runs on the 2^12 aligned coordinates containing the logged coordinate. The trial returns E's first output if every check passes and the output is at the logged coordinate, otherwise no pair. Other trials return no pair. (v25s: regrouped so that every process stays well inside the organizer's 20 s; see proof Z.6.) In production the seeds are the organizer's; a holdout nonce changes the picked runs and attempts.",
-   "hypothesis": "H1 numerator: the successes in the R7 table are outputs of v20's algorithm (B', connector rule, E) run from their labels, at the logged place among the advice's 50 accepted spaces. Predicted: 1 full 5-round collision of two distinct 135-byte messages."
-  },
-  {
-   "id": "r5-R-7",
-   "kind": "python-message-pairs-v1",
-   "program": "experiments/r5.py",
-   "event": {
-    "kind": "full-collision"
-   },
-   "scope": "Audit of the R7 study (proof W.2, Appendix F; v20), stratum 7 of 8: the R7 runs 9, 18, 33, 41 (the 38 R7 runs with an output other than run 22 (our replay test measured a peak of 107.8 MB, too close to the sandbox's 128 MB; the collision is in R7's per-run ledger), in k order, stratum = position mod 8). Trial 0 picks run L[q0], q0 = SHA-256(trial 0 seed) mod n (v25s: one run per stratum and review; v25 replayed two). For the picked run k (table RUNS: advice (c, j, DF, hash), first positive space idx, accepting attempt i, coordinate, DF of the space, status string of connector attempts 0..i): B' re-derives the advice from the label 'hashsmash sha3-256-r5 R7 run k' (candidate setup c, attempt j; accepted with the logged DF and advice hash; facts of proof 3); the status string must end with an accepted attempt, contain exactly idx accepted attempts and idx <= K = 50; the connector attempts i and min(i, 23) others drawn from 0..i-1 with the trial seed (all of 0..i if i < 24) are re-run with the run's coins (label || 'conn' || c + 1, attempt index) and must give the logged status of each; attempt i must be accepted with the logged DF; then the Python E (e_window) runs on the 2^12 aligned coordinates containing the logged coordinate. The trial returns E's first output if every check passes and the output is at the logged coordinate, otherwise no pair. Other trials return no pair. (v25s: regrouped so that every process stays well inside the organizer's 20 s; see proof Z.6.) In production the seeds are the organizer's; a holdout nonce changes the picked runs and attempts.",
-   "hypothesis": "H1 numerator: the successes in the R7 table are outputs of v20's algorithm (B', connector rule, E) run from their labels, at the logged place among the advice's 50 accepted spaces. Predicted: 1 full 5-round collision of two distinct 135-byte messages."
-  }
- ]
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "hcoset-within16",
+      "kind": "python-message-pairs-v1",
+      "scope": "The exact sha3-256-r5-prefix-v1 target. Once per run the program checks its 5-round SHA3-256 against two known-answer digests of the organizer reference and its 24-round version against hashlib.sha3_256, rank 40 of W40 and the 780 two-round polarizations of Lemma 3. The 256 trials form one group: trial k is lane c = k of the cosets j = 256h + c of proof.md Section 6.1 (h = int(seed of trial 0, 16) mod G); the counted leader step draws the origin of coset j from two coin words of trial k (SHA-256 of its seed and a counter, a reproducible stand-in for fresh coins). The group executes the schedule of proof.md Sections 5 to 7 at reduced size (the first 2^9 Gray points of each coset, all 175 planes, the full 140-bit key, the sparse-set table with arbitrary initial sparse words, native verification of key matches) through a counting machine and stops unless every executed count equals the formula of proof.md. Premise test (proof.md Section 12.2): trial k returns the first two of the 512 Gray points of its own coset whose digests agree on the 16 masked bits (bits 0..3 of digest lanes 0..3), found from the emitted keys and checked natively. Different trials use disjoint message sets.",
+      "hypothesis": "Reduced-width form of premise H_coset on the trials' own random-origin digests. If digests of distinct messages behave as independent uniform values on these 16 bits, a set of 512 contains an agreeing pair with probability P = 1 - prod_{i<512} (1 - i/2^16) = 0.864841510863844, so the organizer-recomputed successes of the 256 trials follow Binomial(256, P): expectation 221.40, standard deviation 5.47, pass interval [200, 243] (expectation +- 4 sd). A mask success is a 16-bit partial match, not a collision. The program also stops unless the group's exact pair counts lie in their pass intervals (expectation +- 4 sd; Var = n p (1 - p), pair indicators of uniform values being pairwise independent): pairs16_within, two points of one coset agreeing on key bits 0..15 (n = 33,488,896 pairs, expectation 511), in [421, 601]; pairs16_cross, points of two different cosets agreeing on bits 0..15 (n = 8,556,380,160, expectation 130,560), in [129115, 132005]; pairs24_cross, the same on bits 0..23 (expectation 510), in [420, 600]. The other observations are the executed operation counts of proof.md Section 13. Scope: 2^17 digests of one group, 16- and 24-bit projections, 9-dimensional sub-cosets; nothing about 256-bit rates or cost is inferred from the run.",
+      "program": "experiments/fes_campaign.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0f000000000000000f000000000000000f000000000000000f00000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "hcoset-cross16",
+      "kind": "python-message-pairs-v1",
+      "scope": "The same program, target, checks, group and reduced schedule as experiment hcoset-within16 (proof.md Sections 5 to 7 and 13), on the organizer seeds of this experiment, hence an independent group of 256 random-origin cosets. Premise test (proof.md Section 12.2): trial k returns the first Gray point b >= 256 of the partner coset (lane c XOR 1, an independent origin) whose digest agrees on the 16 masked bits (bits 0..3 of digest lanes 0..3) with a Gray point a < 256 of its own coset, and that a, found from the emitted keys and checked natively. Different trials use disjoint message sets: points 0..255 of their own coset and points 256..511 of the partner coset.",
+      "hypothesis": "Reduced-width form of premise H_coset across cosets with independent uniform origins. If digests of distinct messages behave as independent uniform values on these 16 bits, two disjoint sets of 256 contain an agreeing cross pair with probability P = 0.632121969489614 (exact, from the occupancy law of one set), so the organizer-recomputed successes of the 256 trials follow Binomial(256, P): expectation 161.82, standard deviation 7.72, pass interval [131, 192] (expectation +- 4 sd). A mask success is a 16-bit partial match, not a collision. The program also stops unless the group's exact pair counts lie in the pass intervals stated for experiment hcoset-within16: pairs16_within in [421, 601], pairs16_cross in [129115, 132005], pairs24_cross in [420, 600]. Scope: 2^17 digests of one group, 16- and 24-bit projections, 9-dimensional sub-cosets; nothing about 256-bit rates or cost is inferred from the run.",
+      "program": "experiments/fes_campaign.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0f000000000000000f000000000000000f000000000000000f00000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
 }
