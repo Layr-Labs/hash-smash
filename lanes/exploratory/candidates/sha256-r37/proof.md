@@ -1,10 +1,10 @@
-# A distribution-free complete-message baseline for SHA-256 r37
+# A tighter charged-time bound for the SHA-256 r37 birthday construction
 
 ## Claim and scope
 
 This package specifies a classical randomized algorithm for the exact
 `sha256-r37-prefix-v1` target in the exploratory lane. Its worst-case total
-charged time is less than `2^132` target-compression units, its peak memory is
+charged time is less than `2^131.804703` target-compression units, its peak memory is
 less than `2^136` bytes, its preprocessing is less than `2^125` such time units,
 and its probability of returning distinct complete messages with equal full
 256-bit digests exceeds `0.39`. The probability is over fresh independent
@@ -294,8 +294,51 @@ T <= n+2 + (34304*n + 2^25)/2644
 ```
 
 For the strict inequality, `16*2644 - 36948 = 5356` and
-`2^25 + 5288 < 5356*2^128`. The claim `time_log2 = 132` is therefore rounded
-up conservatively. It is not merely the birthday sample exponent 128.
+`2^25 + 5288 < 5356*2^128`. The older bound `time_log2 = 132` rounded this
+ledger up to an integer. The same ledger permits the tighter upward-rounded
+claim `time_log2 = 131.804703`. The exact charged-time upper bound has
+base-two logarithm approximately
+`131.80470219125828173052259450726221265411483838095645`; the new claim
+includes the finite overhead and remains strictly above that value. It is not
+merely the birthday sample exponent 128. No trial, sorting operation, memory
+initialization, or verification has been removed to obtain the tighter bound.
+
+Here is a finite rational check of the scalar rounding, without depending on
+floating-point logarithms. Define
+
+```
+L = 2 * sum(j=0,...,15) 1 / ((2*j+1)*3^(2*j+1)),
+q = (804703/1000000) * L,
+S = sum(k=0,...,16) q^k/k!.
+```
+
+The power series `ln(2) = 2*atanh(1/3)` has positive terms, so `L < ln(2)`.
+The positive-term exponential series then gives
+`2^(804703/1000000) > exp(q) > S`. Exact rational arithmetic verifies
+
+```
+S > 36948/(8*2644) + 1/2^100.
+```
+
+This last comparison is an explicitly specified finite inequality of rational
+numbers, with no target-specific heuristic. The fixed overhead satisfies
+
+```
+(2^25+5288)/(2644*2^131) < 1/2^100,
+```
+
+because `2^25+5288 < 2644*2^31`. Hence
+
+```
+T/2^131 <= 36948/(8*2644) + (2^25+5288)/(2644*2^131)
+         < S < 2^(804703/1000000),
+T < 2^131.804703.
+```
+
+This change tightens the bound for the inherited organizer construction. It is
+not a new collision algorithm or a reduction in the executed operation ledger.
+The registered reference baseline observed during preparation had score 132;
+remote screening and any subsequent human acceptance are separate decisions.
 Preprocessing separately obeys
 
 ```
