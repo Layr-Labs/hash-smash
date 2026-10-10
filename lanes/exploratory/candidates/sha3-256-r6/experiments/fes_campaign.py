@@ -9,31 +9,33 @@ Trials 256g .. 256g + 255 form one group: group index h = int(seed of the group'
 coset lane c = k mod 256, coset j = 256 h + c. Its origin t_j is fresh randomness of Section 6.1: the leader step
 draws two random words (RAND, one charged primitive each) from the trial's own coins, here the two halves of
 SHAKE-256 of the trial's seed; this seed expansion only makes the run reproducible and is not the attack's randomness
-source. The group executes the
-schedule of Sections 5 to 7 at reduced size: the first 2^N_DIR Gray points of each coset (directions w_0 ..
-w_{N_DIR-1}), degree bound 8, all 175 planes, the full 140-bit key and the sparse-set table of Section 7. Every
-operation of those sections runs through the counting machine below (one call = one charged 256-bit primitive; no
-permutation call is made), and the program stops unless each executed count equals the formula of proof.md:
-525 L(i) + 89 per Gray step i >= 1 (43 retained current values), 175 loads at point zero, 4656 per point for chi and
-transpose, 11, 15 or 11 table operations per candidate (miss with the bound test failing, miss after the dense test,
-valid hit), 11 per coset leader and 5 per group for control, 1414 + 2|S| per direct evaluation, 1282 per plane
-conversion, 4 * 175 per transform pair, 2 * 175 per phase term, 1452 per six-round evaluation in verification and at
-most 3750 operations per verification. Setup values of lanes 1..255 at points S != {} come from a bit-sliced
-evaluation (a stand-in, not counted) which must equal the counted schedule on lane 0 at every point and on all lanes
-at S = {}. Sparse words start
-with arbitrary content: a never-written sparse word reads as a fixed pseudo-random word of its address whose index
-field lies below 2 QR, so fresh keys often reach the dense test. Reading a never-written work, dense or coset word
-stops the program. Beside the algorithm (not counted): at point i the message of lane i mod 256 is hashed natively
-and its 140 key bits are compared with the emitted key (key_mismatch); after the run, the key of the first candidate
-is probed again (a valid hit) and the verification routine is run on it. Also beside the algorithm, own_pairs16 counts
-the unordered pairs of the trial's own 2^N_DIR candidates whose emitted keys agree on their low 16 bits (bits 0..3 of
-digest lanes 0..3); uniform digests give C(512, 2)/2^16 = 1.996 per trial. Nothing about cost is inferred from a run.
+source. The group executes the schedule of Sections 5 to 7 at reduced size: the first 2^N_DIR Gray points of each
+coset (directions w_0 .. w_{N_DIR-1}), degree bound 8, all 175 planes, the full 140-bit key and the sparse-set table
+of Section 7. Every operation of those sections runs through the counting machine below (one call = one charged
+256-bit primitive; no permutation call is made), and the program stops unless each executed count equals the formula
+of proof.md: the plane-major FES of Section 5.3 at every plane and Gray step and its closed sum per plane (61 records
+in registers, values into the buffer, the last store of the other records omitted) with 2 per group for the spill,
+every buffer word written once, 175 buffer reads per point i >= 1 and 175 loads at point zero, 4664 per point for
+chi and transpose, 6, 9 or 8 table operations per candidate (miss with the bound test failing, miss after the dense
+test, valid hit), 11 per coset leader and 5 per group for control, 1437, 1489 or 925 + 50|S| per direct evaluation
+(|S| = 0, 1 or more), 223313 per point for the conversion, 4 * 175 per transform pair, 2 * 175 per phase term, 7660
+for the byte tables, 88 + 1452 per message rebuilt in verification and at most 3127 operations per verification.
+Setup values of lanes 1..255 at points S != {} come from a bit-sliced evaluation (a stand-in, not counted) which must
+equal the counted schedule on lane 0 at every point and on all lanes at S = {}. Sparse words start with arbitrary
+content: a never-written sparse word reads as a fixed pseudo-random function of its address, either a word of at
+least 2^255 or h 2^48 plus a value below 2 QR, so fresh keys often reach the dense test. Reading a never-written work,
+dense or coset word stops the program. Beside the algorithm (not counted): at point i the message of lane i mod 256
+is hashed natively and its 140 key bits, with bit 140 set, are compared with the emitted key word (key_mismatch);
+after the run, the key of the first candidate is probed again (a valid hit) and the verification routine is run on
+it. Also beside the algorithm, own_pairs16 counts the unordered pairs of the trial's own 2^N_DIR candidates whose
+emitted keys agree on their low 16 bits (bits 0..3 of digest lanes 0..3); uniform digests give C(512, 2)/2^16 = 1.996
+per trial. Nothing about cost is inferred from a run.
 """
 import sys, json, hashlib
 from math import comb, isqrt
 
 N_DIR, DEG, LANES, NPL = 9, 8, 256, 175
-G = 1202983979350239511238869                    # groups of the full campaign (Section 9)
+G = 1202736947187009950184717                    # groups of the full campaign (Section 9)
 M64, M128, M256 = (1 << 64) - 1, (1 << 128) - 1, (1 << 256) - 1
 RC = (0x0000000000000001, 0x0000000000008082, 0x800000000000808A, 0x8000000080008000, 0x000000000000808B,
       0x0000000080000001, 0x8000000080008081, 0x8000000000008009, 0x000000000000008A, 0x0000000000000088,
@@ -159,22 +161,25 @@ def setup_checks():
     need(n == 780, 'number of polarizations')
 
 
-# ---- one-time preprocessing (ONCE): plane order, record index, masks, layout ----
+# ---- one-time preprocessing (ONCE): plane order, record index, masks, layout, generated-code decisions ----
 WW = [(v & M256, v >> 256) for v in W40]         # two-word constants of w_0 .. w_39
 PLANES = [(p % 5, p // 5) for p in range(NPL)]   # plane p = B[x, z]: x = p mod 5, z = p div 5 (z < 35)
-RET = [x == 0 or (x == 1 and z < 8) for x, z in PLANES]   # the 43 retained current values
 MASK = {s: sum(((1 << s) - 1) << (2 * s * k) for k in range(128 // s)) for s in (1, 2, 4, 8, 16, 32, 64, 128)}
 SUBS = sorted((S for S in range(1 << N_DIR) if S.bit_count() <= DEG), key=lambda S: (S.bit_count(), S))
 IDX = {S: k for k, S in enumerate(SUBS)}
-QR = LANES << N_DIR                              # candidates of the reduced run
-SPB, DNB = 1 << 200, 1 << 201                    # SPARSE[k] at SPB | k (k < 2^140); DENSE[i] at DNB | i
-CSB, WB = 1 << 90, 1 << 91                       # coset-start record of coset j at CSB + 2j (j < 256 G); work region:
-WF, SF, INT = WB, WB + 512, WB + 1024            # working frames, scalar frame, 144 intermediate tile words
-ACO = WB + 1168                                  # coefficient record A[S] at ACO + 175 IDX[S]; current frame = A[{}]
+QR, NST = LANES << N_DIR, (1 << N_DIR) - 1       # candidates and Gray steps i = 1 .. NST of the reduced run
+CSB, WB = 1 << 130, 1 << 131                     # coset record of coset j at CSB + 2j; work region. DENSE[x] is word x
+WF, SF, INT = WB, WB + 512, WB + 1024            # (x < Q); SPARSE[k] is the key word k itself (bit 140 set). Working
+F2B = WB + 1168                                  # frames, scalar frame, 144 tile words; F2(t_j) of lane c at F2B + 25c,
+DLB = F2B + 25 * LANES                           # Delta_b of lane c at DLB + 25 (N_DIR c + b)
+ACO = DLB + 25 * N_DIR * LANES                   # coefficient record A[S] at ACO + 175 IDX[S]; current frame = A[{}]
 TABB = ACO + NPL * len(SUBS)                     # derivative record tab[T] at TABB + 175 IDX[T]
-FCW = TABB + NPL * len(SUBS)                     # the verification count F (a memory word, Section 7)
-SPL = FCW + 1                                    # spill frame: the 61 Gray-loop registers around a verification
-WEND = SPL + 61
+TBY = TABB + NPL * len(SUBS)                     # byte table b, entry v (two words) at TBY + 512 b + 2 v
+FCW, HSP, SPL = TBY + 2560, TBY + 2561, TBY + 2562   # count F (Section 7), FES-phase spill word, spill frame (17)
+XB = SPL + 17                                    # buffer: plane p at Gray point i >= 1 at XB + NST p + i - 1
+WEND = XB + NPL * NST
+CACHED = list(range(1, 32)) + [32 | t for t in range(2, 32)]   # the 61 records held in registers (Section 5.3)
+CSET = set(CACHED)
 
 
 def cap(num, den):       # Section 7: r = ceil(mu), R = r + ceil(sqrt(4096 r))
@@ -183,18 +188,59 @@ def cap(num, den):       # Section 7: r = ceil(mu), R = r + ceil(sqrt(4096 r))
     return r + s + (s * s < 4096 * r)
 
 
+def shapes(i):           # T_1 .. T_L of Gray step i
+    T, sh = 0, []
+    while i and len(sh) < DEG:
+        b = i & -i
+        T |= b
+        i ^= b
+        sh.append(T)
+    return sh
+
+
+def sc(n):               # Section 5.3: Sc = sum L + (2^n - 1 - 61) + 2 (sum L - (2^n - 1) - links of cached records)
+    sl = sum(comb(n, k) * min(DEG, k) for k in range(1, n + 1))
+    return sl + (1 << n) - 62 + 2 * (sl - (1 << n) + 1 - sum((1 << n - T.bit_length()) - 1 for T in CACHED))
+
+
+def ulast(n):            # records with a FES store (|T| <= 7, max T <= n - 2) that are not cached
+    return sum(comb(n - 1, k) for k in range(1, DEG)) - 61
+
+
+# code generation: per Gray step the top T_L and the links T_{L-1} .. T_1, each flagged at its last update
+# (i + 2^(max T + 1) >= 2^N_DIR: that STORE is not emitted), and the step's count of Section 5.3
+SITES = [(sh[-1], [(T, i + (1 << T.bit_length()) > NST) for T in sh[-2::-1]])
+         for i, sh in ((i, shapes(i)) for i in range(1, NST + 1))]
+COST = [(top not in CSET) + sum(1 if T in CSET else 3 - last for T, last in ch) + 2 for top, ch in SITES]
+FPLANE = 62 + sc(N_DIR) + NST - ulast(N_DIR)
+need(sc(40) == 18760331006174 and ulast(40) == 19311426, 'Section 5.3 constants at n = 40')
+
+
+def image():             # code generation: tile stages 0..2 on key row 140 (local row 12) all ones and all else zero
+    R = [0] * 16
+    R[12] = M256
+    for b in range(3):
+        s = 1 << b
+        for k in range(16):
+            if not k & s:
+                t = ((R[k] >> s) ^ R[k + s]) & MASK[s]
+                R[k], R[k + s] = R[k] ^ t << s, R[k + s] ^ t
+    need(not any(R[:8]) and all(R[8:]), 'image of the constant row in rows 8..15')
+    return R
+
+
+IMG = image()
 CAPF = cap(QR * (QR - 1), 1 << 141)              # verification cap (full size R140)
 GM = 0x9E3779B97F4A7C15F39CC0605CEDC8341082276BF3A27251F86C6A11D0C18E95   # odd multiplier of the garbage stand-in
-SUML = sum(comb(N_DIR, k) * min(DEG, k) for k in range(1, N_DIR + 1))
 J_D = sum(S.bit_count() for S in SUBS)
 V_D = sum(comb(j, r) * comb(N_DIR - j, r) * sum(comb(r, k) for k in range(min(r, DEG - j) + 1))
           for j in range(1, DEG + 1) for r in range(min(j, N_DIR - j) + 1))
 
 # ---- counting machine: every call is one charged 256-bit primitive of the current section ----
-SECS = {s: [0] for s in ('once', 'leader', 'eval', 'conv', 'transform', 'phase', 'zero', 'fes', 'cht', 'table',
-                          'verify', 'vcheck')}
+SECS = {s: [0] for s in ('once', 'leader', 'eval', 'conv', 'transform', 'phase', 'zero', 'fes', 'buf', 'cht',
+                          'table', 'verify', 'vcheck')}
 K = SECS['once']
-SPARSE, DENSE, WRK, CREC, CALLS = {}, [], [], {}, [0]
+SPARSE, DENSE, WRK, CREC, CALLS, GBASE = {}, {}, [], {}, [0], [0]
 
 
 def sec(name):
@@ -208,7 +254,7 @@ def LDS(a):              # sparse word; a never-written one holds arbitrary cont
     if v is None:
         x = (a * GM) & M256
         x ^= x >> 127
-        v = x >> 128 << 128 | (x & M128) % (2 * QR)
+        v = x if x >> 255 else GBASE[0] + x % (2 * QR)
     return v
 
 
@@ -217,13 +263,13 @@ def STS(a, v): K[0] += 1; SPARSE[a] = v
 
 def LDD(a):
     K[0] += 1
-    v = DENSE[a - DNB]
+    v = DENSE.get(a)
     if v is None:
         raise SystemExit('check failed: read of a never-written dense word')
     return v
 
 
-def STD(a, v): K[0] += 1; DENSE[a - DNB] = v
+def STD(a, v): K[0] += 1; DENSE[a] = v
 
 
 def LDW(a):
@@ -265,7 +311,7 @@ def coins(seed):         # reproducible stand-in for fresh coins: SHAKE-256 of t
     return iter((int.from_bytes(s[:32], 'little'), int.from_bytes(s[32:], 'little')))
 
 
-# ---- Section 6: scalar direct evaluation (1414 + 2|S|) and vertical conversion (1282 per plane) ----
+# ---- Section 6: scalar direct evaluation (1437, 1489, 925 + 50|S|) and vertical conversion (223313 per point) ----
 def rot(v, s):
     return AND(OR(SHL(v, s), SHR(v, 64 - s)), M64)
 
@@ -304,37 +350,54 @@ def lane_init(w0, w1):   # 26: lanes 0-3 from w0 (6), lane 4 is w1 itself, five 
     return L
 
 
-def evaluate(c, S):      # lane c at point S: rounds 0-4 and the round-5 linear step; W0, V into the scalar frame
-    w0, w1 = LDW(WF + 2 * c), LDW(WF + 2 * c + 1)
-    for b in range(N_DIR):
-        if S >> b & 1:   # the basis constants of S are immediates of the generated code
-            w0, w1 = XOR(w0, WW[b][0]), XOR(w1, WW[b][1])
-    L = lane_init(w0, w1)
-    for r in range(5):
+def finish(c, L):        # rounds 2-4, the round-5 linear step, W0 = B0 | B1 << 64 | B2 << 128 | B3 << 192 and V = B4
+    for r in (2, 3, 4):  # into the scalar frame: 726 + 166 + 6 + 2 = 900
         L = rnd(L, r)
     B = linear(L)
     W0 = OR(OR(OR(B[0], SHL(B[1], 64)), SHL(B[2], 128)), SHL(B[3], 192))
-    V = OR(B[4], SHL(B[0], 64))
     STW(SF + 2 * c, W0)
-    STW(SF + 2 * c + 1, V)
-    return W0, V
+    STW(SF + 2 * c + 1, B[4])
+    return W0, B[4]
 
 
-def convert(S):          # 175 planes of point S from the scalar frame: MOV, 256 x (LD SHR AND SHL OR), ST
-    base = ACO + NPL * IDX[S]
+def evaluate(c, S):      # lane c at S = {} or |S| = 1: 2 + 2|S| + 26 + 484 + 900, and the round-2 state kept for
+    w0, w1 = LDW(WF + 2 * c), LDW(WF + 2 * c + 1)  # Lemma 3: F2(t_j) (25 STOREs) or Delta_b (25 x LOAD, XOR, STORE)
+    for b in range(N_DIR):
+        if S >> b & 1:   # the basis constants of S are immediates of the generated code
+            w0, w1 = XOR(w0, WW[b][0]), XOR(w1, WW[b][1])
+    L = rnd(rnd(lane_init(w0, w1), 0), 1)
+    b = S.bit_length() - 1
+    for k in range(25):
+        if S:
+            STW(DLB + 25 * (N_DIR * c + b) + k, XOR(LDW(F2B + 25 * c + k), L[k]))
+        else:
+            STW(F2B + 25 * c + k, L[k])
+    return finish(c, L)
+
+
+def affine(c, S):        # |S| >= 2, Lemma 3: round-2 state F2(t_j) XOR the Delta_b of b in S: 25 + 50|S| + 900
+    L = [LDW(F2B + 25 * c + k) for k in range(25)]
+    for b in range(N_DIR):
+        if S >> b & 1:
+            L = [XOR(L[k], LDW(DLB + 25 * (N_DIR * c + b) + k)) for k in range(25)]
+    return finish(c, L)
+
+
+def convert(S):          # 175 planes of point S from the scalar frame; lane 0 seeds the accumulator and no shift by
+    base = ACO + NPL * IDX[S]                    # zero is executed: 3 + 255 x 5 + 1 = 1279 per plane, 1023 at pos 0
     for p, (x, z) in enumerate(PLANES):
         off, pos = (0, 64 * x + z) if x < 4 else (1, z)
-        acc = MOV(0)
         for c in range(LANES):
-            acc = OR(acc, SHL(AND(SHR(LDW(SF + 2 * c + off), pos), 1), c))
+            v = LDW(SF + 2 * c + off)
+            v = AND(SHR(v, pos) if pos else v, 1)
+            acc = OR(acc, SHL(v, c)) if c else v
         STW(base + p, acc)
 
 
-def leaders(h, seeds):   # Section 6.2: fresh origin t_j from two random words into the global record and the frame
+def leaders(seeds):      # Section 6.2: fresh origin t_j from two random words into the global record and the frame
     sec('leader')
     per, origins = [], []
-    H8 = SHL(h, 8)                               # group control: H8 = h << 8 and the ID register HB = h << 176
-    REGS['HB'] = SHL(h, 176)
+    H8 = SHL(REGS['h'], 8)                       # group control (1 of 5): H8 = h << 8
     for c in range(LANES):
         k0 = K[0]
         src = coins(seeds[c])
@@ -348,7 +411,6 @@ def leaders(h, seeds):   # Section 6.2: fresh origin t_j from two random words i
         STW(WF + 2 * c + 1, w1)
         per.append(K[0] - k0)
         origins.append(w0 | w1 << 256)
-    BR(EQ(ADD(h, 1), G))                         # group control: next group or halt
     return per, origins
 
 
@@ -403,7 +465,46 @@ def bs_values(origins):  # f(e_S) for all |S| <= 8 and all 256 lanes: S -> 175 p
     return val
 
 
-# ---- Section 5: one Gray point (FES on 175 planes, chi fused into the transpose tiles); Section 7: the table ----
+# ---- Section 5: plane-major FES into the buffer, chi fused into the transpose tiles; Section 7: table, verification ----
+def fes_phase():         # each plane alone over the Gray steps, the 61 cached records in registers, values into the
+    sec('fes')           # buffer; the group index is the one register live across the phase (STORE, LOAD)
+    STW(HSP, REGS['h'])
+    for p in range(NPL):
+        k0 = K[0]
+        reg = {T: LDW(TABB + NPL * IDX[T] + p) for T in CACHED}
+        x = LDW(ACO + p)
+        for i, (top, chain) in enumerate(SITES, 1):
+            k1 = K[0]
+            v = reg[top] if top in CSET else LDW(TABB + NPL * IDX[top] + p)
+            for T, last in chain:
+                if T in CSET:
+                    v = reg[T] = XOR(reg[T], v)
+                else:
+                    a = TABB + NPL * IDX[T] + p
+                    v = XOR(LDW(a), v)
+                    if not last:
+                        STW(a, v)
+            x = XOR(x, v)
+            need(WRK[XB - WB + NST * p + i - 1] is None, 'buffer word written once')
+            STW(XB + NST * p + i - 1, x)
+            need(K[0] - k1 == COST[i - 1], 'FES count per plane and Gray step')
+        need(K[0] - k0 == FPLANE, 'FES count per plane')
+    REGS['h'] = LDW(HSP)
+    need(None not in WRK[XB - WB:], 'buffer: all 175 (2^N_DIR - 1) words written')
+
+
+def build_tables():      # ONCE: entry v of byte table b is the XOR of w_{8b+k} over the bits k of v (two words);
+    for b in range(5):   # 2 zero STOREs per table, then per entry LOAD, XOR, STORE per word: 5 x (2 + 255 x 6) = 7660
+        base = TBY + 512 * b
+        STW(base, 0)
+        STW(base + 1, 0)
+        for v in range(1, 256):
+            k = (v & -v).bit_length() - 1
+            u = base + 2 * (v ^ (1 << k))
+            STW(base + 2 * v, XOR(LDW(u), WW[8 * b + k][0]))
+            STW(base + 2 * v + 1, XOR(LDW(u + 1), WW[8 * b + k][1]))
+
+
 def stage(R, nz, d, s):  # butterfly: rows k, k + d (bit d of k clear), column shift s; one zero input: 3 ALU
     m = MASK[s]
     for k in range(16):
@@ -421,74 +522,64 @@ def stage(R, nz, d, s):  # butterfly: rows k, k + d (bit d of k clear), column s
             need(not nz[kk], 'known-zero lower row')
 
 
-def recon(cid):          # source and digest of candidate cid = (h << 48) | (i << 8) | e: coset record, Gray point,
-    e = AND(cid, 255)    # lane initialization (26) and the six rounds in word operations (6 x 242 = 1452)
+def recon(cid):          # source and digest of candidate cid = (h << 48) | (i << 8) | e: decode (17), five byte-table
+    k0 = K[0]            # lookups of g(i) (9 each), lane initialization (26), six rounds in word operations (1452)
+    e = AND(cid, 255)
     i = AND(SHR(cid, 8), (1 << 40) - 1)
     c = OR(SHL(AND(e, 15), 4), SHR(e, 4))       # emission index e = 16 l + tau -> lane c = 16 tau + l
     a = ADD(SHL(OR(SHL(SHR(cid, 48), 8), c), 1), CSB)
     w0, w1 = LDC(a), LDC(ADD(a, 1))
     g = XOR(i, SHR(i, 1))
-    for b in range(N_DIR):                       # full size: the 40 bits of g(i)
-        if BR(EQ(AND(SHR(g, b), 1), 1)):
-            w0, w1 = XOR(w0, WW[b][0]), XOR(w1, WW[b][1])
-    L, k0 = lane_init(w0, w1), K[0]
+    for b in range(5):                           # bytes 0..4 of the 40-bit g(i)
+        u = ADD(SHL(AND(SHR(g, 8 * b), 255), 1), TBY + 512 * b)
+        w0, w1 = XOR(w0, LDW(u)), XOR(w1, LDW(ADD(u, 1)))
+    L = lane_init(w0, w1)
+    need(K[0] - k0 == 88, 'rebuild 88 operations')
+    k0 = K[0]
     for r in range(6):
         L = rnd(L, r)
     need(K[0] - k0 == 1452, 'six-round evaluation 1452 operations')
     return w0 | w1 << 256, L[:4]
 
 
-def verify(cold, imm, live):   # earlier candidate cold against the current one (ID HB >> 128 | imm); live = the 61
-    prev = K                   # Gray-loop registers (43 current values, 16 keys, count, HB); 'cap', 'equal', 'differ'
+def verify(cold, U):     # earlier candidate cold against the current one (the cid register); live: the 16 column keys
+    prev = K             # U and cid; result 'cap', 'equal' or 'differ'
     sec('verify' if prev is not SECS['vcheck'] else 'vcheck')
     f = ADD(LDW(FCW), 1)                         # the verification count F is a memory word: LOAD, ADD, STORE
     STW(FCW, f)
     out = ('cap', None, None, None, None)
     if not BR(EQ(f, CAPF)):
-        cur = OR(SHR(REGS['HB'], 128), imm)
-        need(len(live) == 61, '61 live registers')
+        live = U + [REGS['cid']]
         for k, v in enumerate(live):             # spill: the scalar schedule then has the register file
             STW(SPL + k, v)
         ta, da = recon(cold)
-        tb, db = recon(cur)
+        tb, db = recon(REGS['cid'])
         st = 'equal'
         for k in range(4):
             if not BR(EQ(da[k], db[k])):
                 st = 'differ'
                 break
-        need([LDW(SPL + k) for k in range(61)] == live, 'registers restored')
+        need([LDW(SPL + k) for k in range(17)] == live, 'registers restored')
         out = (st, ta, tb, da, db)
     globals()['K'] = prev
     return out
 
 
-def probe(kw, imm):      # sparse set, temporaries A = a, B = s, C = i: 11 (bound test fails), 15 (dense test fails),
-    a = OR(kw, SPB)      # each with insertion; 11 (valid hit: the compare flags reuse B, so the sparse word is
-    s = LDS(a)           # reloaded). imm = ((i << 8) | e) << 128 is an immediate of Gray site i, emission e
-    i = AND(s, M128)
-    if BR(LT(i, REGS['N'])):
-        if BR(EQ(LDD(OR(i, DNB)), kw)):
-            return SHR(LDS(a), 128)              # valid hit: the ID of the first candidate with this key
+def probe(k):            # the key word k (bit 140 set) is its own SPARSE address; DENSE[cid] is word cid. 6 (bound test
+    cid = REGS['cid']    # fails), 9 (dense test fails), each with the insertion and the increment; a valid hit returns
+    s = LDS(k)           # after 7 and its increment follows the verification (8)
+    STD(cid, k)
+    if BR(LT(s, cid)):
+        if BR(EQ(LDD(s), k)):
+            return s                             # valid hit: the first candidate with this key
         REGS['X'] += 1
-    n = REGS['N']
-    STD(OR(n, DNB), kw)
-    STS(a, OR(OR(REGS['HB'], imm), n))
-    REGS['N'] = ADD(n, 1)
+    STS(k, cid)
+    REGS['I'] += 1
+    REGS['cid'] = ADD(cid, 1)
     return None
 
 
-REGS = {'N': 0, 'HB': 0, 'M': 0, 'X': 0}
-RETP = [p for p in range(NPL) if RET[p]]
-
-
-def site(i):             # code generation (ONCE): immediate record addresses tab[T_1] .. tab[T_L] of Gray site i
-    T, out = 0, []
-    while i and len(out) < DEG:
-        b = i & -i
-        T |= b
-        i ^= b
-        out.append(TABB + NPL * IDX[T])
-    return out
+REGS = {'h': 0, 'cid': 0, 'M': 0, 'X': 0, 'I': 0}
 
 
 def run_group(h, seeds):
@@ -496,34 +587,41 @@ def run_group(h, seeds):
     for s in SECS.values():
         s[0] = 0
     CALLS[0] = 0
-    SPARSE, DENSE, WRK, CREC = {}, [None] * QR, [None] * (WEND - WB), {}
-    sec('once')                                  # one-time control: count register, verification-count word
-    REGS['N'] = MOV(0)
+    SPARSE, DENSE, WRK, CREC = {}, {}, [None] * (WEND - WB), {}
+    GBASE[0] = h << 48
+    REGS.update(M=0, X=0, I=0)
+    sec('once')                                  # one-time control (group index, count F) and the byte tables
+    REGS['h'] = MOV(h)
     STW(FCW, 0)
-    REGS['M'] = REGS['X'] = 0
-    per, origins = leaders(h, seeds)
+    build_tables()
+    need(SECS['once'][0] == 2 + 7660, 'one-time control 2 and byte tables 7660')
+    per, origins = leaders(seeds)
     for c in range(LANES):
         j = 256 * h + c
         need(CREC[CSB + 2 * j] | CREC[CSB + 2 * j + 1] << 256 == origins[c] < 1 << 320, 'coset record')
         need(per[c] == 11, 'leader count 11 per coset')
-    need(SECS['leader'][0] == 11 * LANES + 5, 'leader total 11 per coset and 5 per group')
     own = [{} for _ in range(LANES)]             # beside the algorithm: low 16 key bits of each lane's candidates
     val = bs_values(origins)
     need(len(val) == len(SUBS), 'number of evaluation points')
     sec('eval')
     for c in range(LANES):
+        k0 = K[0]
         evaluate(c, 0)
+        need(K[0] - k0 == 1437, 'evaluation at S = {} 1437')
     sec('conv')
     convert(0)
-    need(SECS['conv'][0] == 1282 * NPL, 'conversion 1282 per plane')
+    need(SECS['conv'][0] == 173 * 1279 + 2 * 1023 == 223313, 'conversion 223313 per point')
     need(WRK[ACO - WB:ACO - WB + NPL] == val[0], 'counted setup at S = {} equals the stand-in')
     sec('eval')
     for S in SUBS[1:]:
-        W0, V = evaluate(0, S)
+        k0, n = K[0], S.bit_count()
+        W0, V = evaluate(0, S) if n == 1 else affine(0, S)
+        need(K[0] - k0 == (1489 if n == 1 else 925 + 50 * n), 'evaluation 1489 or 925 + 50|S|')
         bits = [(W0 >> (64 * x + z) if x < 4 else V >> z) & 1 for x, z in PLANES]
         need(bits == [v & 1 for v in val[S]], 'counted evaluation on lane 0 equals the stand-in')
         WRK[ACO - WB + NPL * IDX[S]:ACO - WB + NPL * IDX[S] + NPL] = val[S]
-    need(SECS['eval'][0] == 1414 * (LANES + len(SUBS) - 1) + 2 * J_D, 'evaluations 1414 + 2|S|')
+    need(SECS['eval'][0] == 1437 * LANES + 1489 * N_DIR + 925 * (len(SUBS) - 1 - N_DIR) + 50 * (J_D - N_DIR),
+         'evaluation total')
     del val
     sec('transform')                             # Lemma 6: truncated Moebius transform, 4 operations per plane word
     for j in range(N_DIR):
@@ -551,44 +649,34 @@ def run_group(h, seeds):
             STW(bt + p, acc)
     need(SECS['phase'][0] == 2 * NPL * V_D, 'phase 2 * 175 * V_D')
 
-    REG = [None] * NPL
+    fes_phase()
+    need(SECS['fes'][0] == NPL * FPLANE + 2, 'FES total: 175 planes and the spill')
+    sec('leader')
+    REGS['cid'] = SHL(REGS['h'], 48)             # group control: the group's first identifier
     keys = [0] * LANES
     st = {'checks': 0, 'mismatch': 0}
-    found = key0 = None
+    found = key0 = U = None
     for i in range(1 << N_DIR):
-        adr = site(i)
-        L = len(adr)
-        f0, c0, t0, z0 = SECS['fes'][0], SECS['cht'][0], SECS['table'][0], SECS['zero'][0]
+        c0, t0, z0, b0 = SECS['cht'][0], SECS['table'][0], SECS['zero'][0], SECS['buf'][0]
         m0, x0 = REGS['M'], REGS['X']
-        top, chain = (adr[-1], adr[-2::-1]) if L else (0, [])
         for tau in range(9):
             R, nz = [0] * 16, [False] * 16
             for dz, z in enumerate(range(4 * tau, min(4 * tau + 4, 35))):
-                vals = [0] * 5
-                sec('fes' if L else 'zero')
-                for x in range(5):
-                    p = 5 * z + x
-                    if L:                        # Lemma 5 on plane p: top LD, (LD XOR ST) per link, x update
-                        v = LDW(top + p)
-                        for b in chain:
-                            v = XOR(LDW(b + p), v)
-                            STW(b + p, v)
-                        if RET[p]:
-                            v = REG[p] = XOR(REG[p], v)
-                        else:
-                            v = XOR(LDW(ACO + p), v)
-                            STW(ACO + p, v)
-                    else:                        # point zero: 43 cache loads, 132 uncached inputs
-                        v = LDW(ACO + p)
-                        if RET[p]:
-                            REG[p] = v
-                    vals[x] = v
+                if i:                            # the five values of z from the buffer
+                    sec('buf')
+                    vals = [LDW(XB + NST * (5 * z + x) + i - 1) for x in range(5)]
+                else:                            # point zero: the current-value frame A[{}]
+                    sec('zero')
+                    vals = [LDW(ACO + 5 * z + x) for x in range(5)]
                 sec('cht')                       # chi of row 0, iota omitted: 12 ALU per z, into the tile
                 for x in range(4):
                     R[4 * dz + x] = XOR(AND(NOT(vals[(x + 1) % 5]), vals[(x + 2) % 5]), vals[x])
                     nz[4 * dz + x] = True
             for b in range(4):
                 stage(R, nz, 1 << b, 1 << b)
+                if tau == 8 and b == 2:          # key row 140 all ones: XOR its stage-2 image (8 immediates)
+                    for r in range(8, 16):
+                        R[r] = XOR(R[r], IMG[r])
             for l in range(16):
                 STW(INT + 16 * tau + l, R[l])
         for l in range(16):
@@ -598,17 +686,20 @@ def run_group(h, seeds):
                 stage(U, nz, 1 << b, 16 << b)
             sec('table')
             for tau in range(16):
+                need(REGS['cid'] == (h << 48) | (i << 8) | (16 * l + tau), 'identifier of candidate (h, i, e)')
                 keys[16 * tau + l] = U[tau]
                 o = own[16 * tau + l]
                 o[U[tau] & 0xFFFF] = o.get(U[tau] & 0xFFFF, 0) + 1
-                imm = (i << 8) | (16 * l + tau)  # candidate (h, i, e): ID (h << 48) | imm
-                r = probe(U[tau], imm << 128)
+                t1, x1 = K[0], REGS['X']
+                r = probe(U[tau])
                 if r is not None:                # valid hit: full verification against the stored candidate
                     REGS['M'] += 1
-                    v = verify(r, imm, [REG[p] for p in RETP] + U + [REGS['N'], REGS['HB']])
+                    v = verify(r, U)
                     if v[0] != 'differ':
                         found = v
                         break
+                    REGS['cid'] = ADD(REGS['cid'], 1)
+                need(K[0] - t1 == (8 if r is not None else 9 if REGS['X'] > x1 else 6), 'table path 6, 9 or 8')
             sec('cht')
             if found:
                 break
@@ -617,12 +708,10 @@ def run_group(h, seeds):
         if i == 0:
             key0 = keys[0]
         dm, dx = REGS['M'] - m0, REGS['X'] - x0
-        need(SECS['cht'][0] - c0 == 4656, 'chi/transpose 4656 per point')
-        need(SECS['table'][0] - t0 == 11 * (LANES - dm - dx) + 15 * dx + 11 * dm, 'table 11 / 15 / 11 per candidate')
-        if L:
-            need(SECS['fes'][0] - f0 == 525 * L + 89, 'FES 525 L + 89 per Gray step')
-        else:
-            need(SECS['zero'][0] - z0 == NPL, 'point zero 175 loads')
+        need(SECS['cht'][0] - c0 == 4664, 'chi/transpose 4664 per point')
+        need(SECS['table'][0] - t0 == 6 * (LANES - dm - dx) + 9 * dx + 8 * dm, 'table 6 / 9 / 8 per candidate')
+        need((SECS['buf'][0] - b0, SECS['zero'][0] - z0) == ((NPL, 0) if i else (0, NPL)),
+             '175 buffer reads per point i >= 1, 175 point-zero loads')
         c = i % LANES                            # check beside the algorithm, not counted
         g, t = i ^ i >> 1, origins[c]
         for b in range(N_DIR):
@@ -632,29 +721,36 @@ def run_group(h, seeds):
         kn = sum(((int.from_bytes(d[8 * x:8 * x + 8], 'little') ^ (RC[5] if x == 0 else 0)) >> z & 1) << 4 * z + x
                  for z in range(35) for x in range(4))
         st['checks'] += 1
-        st['mismatch'] += kn != keys[c]
+        st['mismatch'] += kn | 1 << 140 != keys[c]
     if not found:
-        need(SECS['fes'][0] == 525 * SUML + 89 * ((1 << N_DIR) - 1), 'FES total')
-        need(SECS['cht'][0] == 4656 << N_DIR and REGS['N'] == QR - REGS['M'], 'chi/transpose total, dense count')
+        sec('leader')                            # group control: next group index (cid >> 48), compare with G, branch
+        BR(EQ(SHR(REGS['cid'], 48), G))
+        need(SECS['leader'][0] == 11 * LANES + 5, 'leader 11 per coset, group control 5')
+        need(SECS['cht'][0] == 4664 << N_DIR and SECS['buf'][0] == NPL * NST, 'chi/transpose and buffer totals')
+        need(REGS['I'] == QR - REGS['M'] and REGS['cid'] == (h << 48) + QR, 'sparse inserts, identifiers')
         sec('vcheck')                            # beside the run: probe the first candidate's key again (valid hit,
-        k1, saved = K[0], WRK[FCW - WB]          # 11 operations), then verify it against candidate (i, e) = (1, 5)
-        r = probe(key0, 0)
-        need(r == h << 48 and K[0] - k1 == 11, 'valid hit 11 operations')
+        k1, saved = K[0], WRK[FCW - WB]          # 8 operations), then verify it against candidate (i, e) = (1, 5)
+        r = probe(key0)
+        REGS['cid'] = ADD(REGS['cid'], 1)
+        need(r == h << 48 and K[0] - k1 == 8, 'valid hit 8 operations')
         k1, WRK[FCW - WB] = K[0], 0
-        v = verify(r, (1 << 8) | 5, [REG[p] for p in RETP] + U + [REGS['N'], REGS['HB']])
+        REGS['cid'] = (h << 48) | (1 << 8) | 5
+        v = verify(r, U)
         WRK[FCW - WB] = saved
         for t0, dd, tt in ((origins[0], v[3], v[1]), (origins[5 << 4] ^ W40[0], v[4], v[2])):
             need(tt == t0, 'reconstructed source')
             need(b''.join(w.to_bytes(8, 'little') for w in dd) == sha3_256(message(tt)), 'reconstructed digest')
-        need(v[0] == 'differ' and CALLS[0] == 0 and K[0] - k1 <= 3750, 'verification <= 3750, no permutation call')
-    need(SECS['verify'][0] <= 3750 * REGS['M'] and SECS['once'][0] <= 16, 'verification and one-time bounds')
+        need(v[0] == 'differ' and CALLS[0] == 0 and K[0] - k1 <= 3127, 'verification <= 3127, no permutation call')
+    need(SECS['verify'][0] <= 3127 * REGS['M'], 'verification bound')
     need(i + 1 == 1 << N_DIR or found, 'all Gray points')
-    obs = {'fes_ops': SECS['fes'][0], 'chi_transpose_ops': SECS['cht'][0],
-           'point_zero_loads': SECS['zero'][0], 'table_ops': SECS['table'][0], 'dense_count': REGS['N'],
+    need(SECS['zero'][0] == 175 and SECS['once'][0] == 7662, 'point-zero loads 175, once ops 7662')  # checked, not reported (<= 16 observations)
+    obs = {'fes_ops': SECS['fes'][0], 'buffer_reads': SECS['buf'][0], 'chi_transpose_ops': SECS['cht'][0],
+           'table_ops': SECS['table'][0], 'sparse_inserts': REGS['I'],
            'in_range_mismatches': REGS['X'], 'key_matches': REGS['M'], 'leader_ops': SECS['leader'][0],
            'evaluation_ops': SECS['eval'][0], 'conversion_ops': SECS['conv'][0],
-           'transform_phase_ops': SECS['transform'][0] + SECS['phase'][0], 'verify_check_ops': SECS['vcheck'][0],
-           'perm_calls': CALLS[0], 'native_checks': st['checks'], 'key_mismatch': st['mismatch']}
+           'transform_phase_ops': SECS['transform'][0] + SECS['phase'][0],
+           'verify_check_ops': SECS['vcheck'][0], 'perm_calls': CALLS[0], 'native_checks': st['checks'],
+           'key_mismatch': st['mismatch']}
     pair = None
     if found and found[0] == 'equal':
         ma, mb = message(found[1]), message(found[2])
