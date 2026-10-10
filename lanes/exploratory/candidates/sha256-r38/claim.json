@@ -4,21 +4,95 @@
   "target_profile": "sha256-r38-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 38,
-  "claim": {
-    "time_log2": 132,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 123,
-    "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 0
-  },
-  "restrictions": [
-    "Samples 2^128 independent uniform 48-byte complete messages with replacement; no chosen IV, digest truncation, or output-distribution assumption.",
-    "Classical probabilistic 256-bit word RAM using the independent uniform word primitive of collision-frontier-v5; no PRNG substitution.",
-    "Worst-case single-batch resource upper bounds include unsuccessful batches; no restart or amplification is required for success_probability 0.39."
-  ],
+  "lane": "exploratory",
   "baseline_improved": "sha256-r38-nominal-v2",
   "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  "experiment_manifest": "experiments/manifest.json",
+  "claim": {
+    "time_log2": 71.11412,
+    "time_unit": "target-compressions",
+    "memory_log2_bytes": 80,
+    "preprocessing_log2": 70.19528,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 14
+  },
+  "restrictions": [
+    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words. Output: two distinct complete 128-byte messages M0||M1 and M0||M1' (common first block; padding appends the same third block) with equal digests; every output is checked with the target before it is returned.",
+    "Construction: the two-block attack of ePrint 2026/1120 (38-step characteristic of its Table 3, two-bit conditions of Table 4, published semi-free-start pair of Table 5) with the published A3..A13, E7..E13, W11..W15, and the first three dense-part words (A0, A1, A2) replaced by dense-part variants: 256 fixed A0 values, the 768-value A2 list, and every A1 for which the variant is valid (exact test: E cells of rows 4..8 and the published dW_i, ds0(W_i) for i = 8..11). Lemma 3 (proof.md 4.1): every valid variant reproduces all A/E cells of rows -4..15 and every modular and s0/s1 difference reaching rows >= 16 (the XOR cells of W7..W11 need not hold). 2^37.48061 variants per chaining value.",
+    "Row 16 by table: W16 = s0(Y + A1) - A1 + Z0 + c9(A2) where (Y, Z0) depends only on (CV1, A0) (Lemma 5); row 16 holds iff W16 is in a set G of exactly 32 words (exhaustive). Table T_j (one per A0) lists, for each (Y, Z0), every valid (A1, A2) whose W16 is in G; at most 344,064 entries per bucket (Lemma 6). Each entry is then tested exactly: W7 in F7 (|F7| = 287,309,824), rows 17..37 of both members (every cell, + pair and two-bit condition).",
+    "Cost: fixed caps. N_G = 100,481,142,878,646,795,472 groups (2^66.44549), each one first-block compression and 256 A0 blocks; caps NE_MAX, NW_MAX, N1_MAX on bucket entries, W7 passes and first-row-17-test passes, tested after every group (one group's overshoot charged; Hoeffding over the independent groups). Counted program (experiments/vt38.py, an op-counting 256-bit word-RAM interpreter): prologue 64 operations + 1 unit, block 29 (+1), entry 10, W7 pass 66, deeper paths at most 26 + 3,132, epilogue and loop 15; table construction counted code (211 + 275 per (Y, variant), 4 + 10 per header, zero initialisation included): 2^67.21233 units. Allowances A_C = 2^70 (characteristic search, bounded by a CPU-hardware ceiling, H4), A_S = 2^56, DEV = 2^56. Exact total 2^71.114113 on every run (cert.py, proof.md Section 7; integer certificate in Appendix C), claimed 71.11412.",
+    "Success probability at least 0.3960005 under H1 (chaining value of one trial behaves as uniform), H2 (variant-averaged q3 >= 2^-101.01: preregistered 64-seed SMC, mean 2^-100.9983, one-sided 99% bound 2^-101.0078; 273,043 tail successes all rebuilt as verified 38-step semi-free-start collisions of random variants), H3 (unit-cost table loads in the word RAM; memory reported) and H5 (pair bound inside a group, Bonferroni). N_G carries 2% slack: the bound stays >= 0.39 for a 2.0% (0.029-bit) shortfall of the per-group success rate. Groups use fresh coins and are independent; nothing is assumed independent inside a group. No expected-work bound and no independence-of-conditions model is used.",
+    "Memory (a reported metric): at most 2^79.92 bytes, dominated by the 256 tables (2 x 2^64 header/cursor words and 32 x 2^32 x |R_j| entry words each); claimed 2^80. The claim is a time bound in the track's word-RAM model, not a practical memory budget. baseline_improved names the organizer reference and does not assert an improvement over any submitted score."
+  ],
+  "heuristics": [
+    {
+      "id": "H1-single-trial-chaining-value",
+      "role": "score-critical",
+      "statement": "For one group, the chaining value CV1 = F_38(IV, M0) of a uniform first block M0 behaves as a uniform 256-bit value as far as the events of one fixed variant are concerned: for each A0 the table index (Y, Z0) is uniform (so a bucket holds |R_j| 2^-27 entries in expectation), W7 is uniform and independent of (W0, W1) (so a bucket entry passes the W7 filter with p2 = 2^-3.90197), and the second-block words have the distribution of proof.md Section 3.5 and Lemma 4. A statement about one first block and one variant at a time; nothing is assumed about two variants of one group (H5).",
+      "scope": "The per-variant success probability p2 q3(v), the expectations of the three work counters (caps NE_MAX, NW_MAX, N1_MAX) and hence N_G and the success bound. Not the validity of any output: every output is checked with the target.",
+      "extrapolation": "Measured on 5.2 x 10^7 real first blocks (uniform M0 through real 38-step compressions; pipe.c, proof.md 6.3) for four A0 of the set: entries per chaining value within 0.06% of |R_j| 2^-27 (5.5920, 5.5903, 5.5733, 5.5945 against 5.5939, 5.5939, 5.5727, 5.5939), W7 rates within 0.003 bit of 2^-3.90197, row 17 passed 156 times against 148.4 predicted; 0 cell mismatches in about 2.9 x 10^8 constructed pairs. On 400 real chaining values with their true buckets (2,326 entries) the counted program's counters equal the reference construction's. The caps tolerate 1.6% (entries) and 3.1% (W7 passes) above the expectations, the success bound a 2.0% shortfall of the per-group success rate. The organizer experiment vt-ram-r38 checks the counted program's table index and W7 decisions on organizer-seeded real first blocks (a code-consistency check and a witness count, not a statistical test).",
+      "limitations": "A premise, not a theorem. The measured events have probability between 2^-27 and 2^-48 per variant, not 2^-105. Only the first block varies between groups; within a group all variants share CV1 (H5).",
+      "evidence_ids": [
+        "proof:407-412",
+        "proof:457-484",
+        "proof:485-508",
+        "proof:556-568",
+        "experiment:vt-ram-r38"
+      ]
+    },
+    {
+      "id": "H2-variant-q3",
+      "role": "score-critical",
+      "statement": "The average of q3(v) = Pr[rows 16..37 hold | W7 in F7] over the variants the program examines (uniform over the union of the 256 sets R_j) is at least q3_model = 2^-101.01. Rows 16..22 have the same probability for every valid variant (Lemma 4, exact); only the tail (rows 23..37, through W8, W9, W10 of the variant) is averaged.",
+      "scope": "The expected number of successes per group S = SR p2 q3_model = 2^-67.43135, hence N_G and the success bound 0.3960005.",
+      "extrapolation": "Preregistered sequential Monte-Carlo estimate (smc2.c, proof.md 6.2): 64 seeds, NP 4000, mean 2^-100.9983, relative sd 0.022, one-sided 99% Student bound 2^-101.0078, stage factors -27.000, -16.991, -13.004, -14.995, -6.000, -7.003, -1.000, tail -15.005; tail variants drawn from a uniform 2^20-variant sample of the union of the R_j. All 273,043 tail successes rebuilt as 38-step semi-free-start collisions of the variant used and verified (0 failures). The tail factor varies across single variants with coefficient of variation 0.028 (48 variants), so the finite sample adds about 0.00004 bit. The published dense part gives the same stage factors. At the declared N_G the success bound holds down to q3 = 2^-101.038. Organizer-executed: vt-q3-smc-r38 runs a reduced replica on organizer seeds and returns verified semi-free-start collisions of random variants (a sanity check at about 0.4-bit resolution); validation 35 of 35 requests returned 21 pairs.",
+      "limitations": "A Monte-Carlo bound relying on the central limit theorem for 64 estimates; the replica cannot confirm q3 to the precision of the bound. q3 itself (about 2^-101) cannot be observed. Rests on H1 for the distribution of the second-block words.",
+      "evidence_ids": [
+        "proof:272-286",
+        "proof:413-456",
+        "proof:569-578",
+        "experiment:vt-q3-smc-r38"
+      ]
+    },
+    {
+      "id": "H3-table-pricing",
+      "role": "score-critical",
+      "statement": "Under collision-frontier-v5 the online program is charged by its counted primitives: the model is a 256-bit word RAM whose primitives include 256-bit load or store, and memory is a reported metric with no scalar contribution. A load from any address therefore costs one operation whatever the memory size; the memory used (2^80 bytes) is reported. Every table word is written by the counted preprocessing of proof.md 5.1 (2^67.21233 units, charged in time, zero initialisation included).",
+      "scope": "The online cost per (chaining value, A0): one header load and one load per bucket entry instead of a search over 2^29.48 variants.",
+      "extrapolation": "Follows the text of the cost model (computation model, primitive operations, memory scoring). The online and table-construction costs are counted by the interpreter of experiments/vt38.py (selftest items 7 and 9; the table build is checked on a toy instance against the definition of the buckets); vt-ram-r38 reruns the online code on organizer seeds.",
+      "limitations": "The tables are far beyond physical memory. Without unit-cost table access the claim does not hold: finding the buckets through the inverse of s0(u) - u instead of a table gives about 78.4 (proof.md Section 7).",
+      "evidence_ids": [
+        "proof:332-404",
+        "proof:509-553",
+        "proof:579-586"
+      ]
+    },
+    {
+      "id": "H4-advice-allowances",
+      "role": "score-critical",
+      "statement": "The characteristic and the published dense part are advice; their construction is charged at A_C = 2^70 units (characteristic search, cost not published; the allowance covers every run of the search, failed or repeated, and the development of the search tool, and is bounded by a CPU-hardware ceiling, proof.md Section 9) and A_S = 2^56 (the Step-1 solve; the paper reports 2^38.3 compression-equivalents); all development of this package (A0 search, enumerations, evidence) at DEV = 2^56.",
+      "scope": "The preprocessing part of the ledger (allowances 2^70.00018 of T = 2^71.114113) and the advice (below 2^14 bytes).",
+      "extrapolation": "A ceiling, not a comparison: the characteristic was found with the SAT/SMT-based tool of [LLW24a], and such solvers run on CPU cores. One unit is 2,728 primitive operations and a core retires at most about 10^10 of them per second, so a core-second is at most 2^21.81 units; 10^5 cores running for ten years without a pause give at most 2^66.65 units, and A_C = 2^70 is 10.2 times that, so the core count, the duration or the rate could each be ten times larger than assumed. Anchor: a measured complete re-run of the 35-step predecessor search with the same tool took 593,858 solver CPU-seconds (filing 6eeefb64, as cited by 0ae69bcb), at most 2^46 units at this rate even with a 32-fold factor for rediscovery, so A_C leaves a factor of about 2^24 for the 38-step search. The ceiling form of this allowance follows submission 0ae69bcb (0xshikhar). The recorded development of this package is below 4 x 10^5 CPU-seconds (2^40.4 units). The allowances are 46.2% of T and the attack proper costs 2^70.22; A_C = 2^64 / 2^72 / 2^74 would give 70.23909 / 72.36866 / 74.10137.",
+      "limitations": "A ceiling on resources, not a measurement or a published figure; the characteristic search cost of ePrint 2026/1120 is not published and we did not rerun it. A total search effort (all runs and the tool's development) above 2^70 units would raise the score (proof.md Section 7).",
+      "evidence_ids": [
+        "proof:587-606",
+        "proof:509-553",
+        "proof:670-694",
+        "proof:2043-2117"
+      ]
+    },
+    {
+      "id": "H5-pairs-in-group",
+      "role": "score-critical",
+      "statement": "For two distinct variants v, w examined on the same chaining value, Pr[A_w | A_v] <= 2^-18 if they share (A0, A1) (at most 767 such w per v) and <= 2^-55 otherwise, so the sum over w of Pr[A_w | A_v] is at most delta = 0.0029312.",
+      "scope": "The group success bound Pr[some A_v] >= S (1 - delta/2) (Bonferroni; proof.md 6.4), hence N_G and the success bound. Not the validity of any output.",
+      "extrapolation": "Clumping replay (proof.md 6.2): on the chaining values of 273,043 full successes, 3,346,164 trials of other A2 with the same (A0, A1) gave 0 further successes (95% upper bound 2^-20.1 per trial, about 2^-16.5 for the close-pair sum per success). Structure: variants sharing (A0, A1) share rows 0..16 but have different W2..W7, W10 and c7; other variants differ in W1 (or W0) and must both have W16 in G. On real first blocks (82 row-17 passes in runs with chaining-value indices) no chaining value had two row-17 passes. At the declared N_G the success bound holds up to a close-pair bound of 2^-14.2 or an other-pair bound of 2^-42.2. Under independence both bounds would be about 2^-104.9.",
+      "limitations": "A premise; the 2^-55 bound for pairs not sharing (A0, A1) rests on structure, not on a full-depth measurement. Sensitivity: 2^-12 for close pairs gives 71.18162, 2^-40 for other pairs 71.17772 (with N_G recomputed).",
+      "evidence_ids": [
+        "proof:485-508",
+        "proof:607-619",
+        "proof:413-456"
+      ]
+    }
+  ]
 }
