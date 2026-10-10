@@ -1,38 +1,26 @@
-"""frontline.py - the counter search of proof.md 9.1 and 9.8 in the layout of 9.8 and 9.9, executed, with the batch
-cache of the packed Y9 (9.8), the work register W of the four budgets (9.1) and the work meter of the credit (9.7).
-
-Exact 32-bit arithmetic, Python 3 standard library only, no BLAKE3 library. Instance: the last chunk of the 55/63-byte
-pair on a non-root chunk, flags 3, counter t solved by step CT. One organizer trial = one context of a run (seven
-fresh outer words from the seed) walked by the clustered member loop: representative batches 0..TRIAL_REPS-2 and the
-context's last (four-lane) representative batch, with the partners of every opened cluster.
-  step 0  automata of (1) and (2) restricted to S; T2' (word 0), T1 (word 2^34) and the exact-borrow gate table EBG
-          (word 2^35, 2^29 entries) are built once and read by direct index; this program evaluates every entry it
-          reads by the rule that fills it; VMASK, CT, PX, transition arrays tabled.
-  step 1  context: the W test against WB, the 39 lines of Lemma Y once, sixteen packed operands (K' and S15' folded,
-          X9 + 2^34 for the Y9 path), the EBG base, the 128-entry descriptor slab of the masked partner walk;
-          clusters of 32 members (e1 bits 10..14); a representative batch: omega side, EBG key, carry word IX, gate
-          test per lane; a closed gate skips its cluster (no T2); an opened one adds its units to W, then the
-          representative's test (2) and paths; the byte guard; on its fire the five old partner batches, else the
-          descriptor's two chunks of surviving partners. Test (2); E lane: W add; at the batch's first E lane
-          C0.a1, D0.d1 and the packed Y9 path, cached for the batch; Y9 from the cache, T1, X; passing lane: W add,
-          the shortcut, the pre-check of 9.7, preflight of CM(T) against the credit.
-  step 2  the source bank from the batch and context words; joint solver of 9.4 with (G7) and the G15 guard; the
-          meter debits A(T) and, per executed block, its unit cost.
-  step 3  the exact 120-unit root predicate (CF 6.5), in traversal order; for the first certified root the pair is
-          formed by step CT and both last-chunk compressions (counter t, flags 3) are compared on 256 bits.
-In-run reference (counted in checks / mismatches): every member of every walked cluster recomputed straight-line (all
-77 lines of step CO, no partition, no packing) and its omega mod 512 tested against the exact two prefixes of CI 1.2;
-every member of a closed cluster and every masked partner tested bit-serially for (2) (a pass is a skipped_pass);
-every EBG key and entry against the scalar X0, c and q; every masked partner's omega bits 0..13 against its
-descriptor; T2 entries against a bit-serial decision of (2), T1 entries against one of (1); cross-lane carries and
-table ranges; every cached Y9 against a fresh packed Y9 path; every passing lane's shortcut words, pre-check and
-source bank against a scalar rebuild; every metered debit against the solver ledger U (debit = U <= CM(T)); every
-solver call repeated by the old traversal (9.4 with (G7), no G15) whose roots are certified by real compressions;
-step CT charts; on every E lane the step-CT message compressed; every 8th trial a joint root planted from J1-J3.
-The returned pair is the root-instance pair (counter 0, flags 11, the c1 that forces t = 0) of the trial's context
-and first passing member, from the same lines; the organizer checks its 128-bit half-collision.
+"""frontline.py - the counter search of proof.md 9.1 and 9.8 with the t_hi walk, executed: per member a walk of the
+high counter word in blocks of constant X0 >> 16, the exact level-16 block test, the scan of a live block in batches
+of seven steps on the lane replicas of T2', a batch's packed Y9 filled at its first E lane, the work register W of the
+budgets and the meter of the credit. Exact 32-bit arithmetic, standard library only, no BLAKE3 library. Instance: the
+last chunk of the 55/63-byte pair, flags 3, counter t = t_hi * 2^32 + t_lo by step CT. One trial = one context: seven
+outer words and eight members from the seed, each member walking t_hi < 2^TRIAL_BITS (a run walks t_hi < 2^16).
+  step 0  automata of (1) and (2) on S; T2' (word 0), T1 (2^34) and their lane replicas (entry of word f at f << 36 i
+          for lane i), ST16 and P16 of automaton (2) at 16 bits, three rotation tables; entries evaluated by rule.
+  step 1  context: the W test, the 39 context lines at t_hi = 0, the packed operands; member: step CO's member words,
+          X0 and w3 at s = 0, the member lines of the Y9 path; block: omega mod 2^16 and its carry, ST16, the live
+          test; live block: broadcasts, W; scan batch: omega's high half in seven lanes, a lane test per step on its
+          replica of T2'; at a batch's first E lane the fill; E lane: W add, T1 replica, X; passing lane: W add, the
+          shortcut, the pre-check, the preflight of CM(T).
+  step 2  the source bank (t_hi included); joint solver of 9.4 with (G7) and (G15) under the meter.
+  step 3  the root predicate; for the first certified root both last-chunk compressions compared on 256 bits.
+In-run reference (checks / mismatches): every block's omega against step CO at sampled steps with their own t_hi; every
+scanned step's omega against the closed form and its lane test against P16; every fill against the whole packed Y9
+path; every 8th E lane's step-CT message compressed at its counter t; shortcut words, pre-check and bank against a
+scalar rebuild; debits against the ledger; every call repeated without G15 with real-compression certificates; the
+identities of the counter contract (Section 11) per batch, block, member and context; every 8th trial a planted joint
+root. The returned pair is the root-instance pair (counter 0, flags 11) of the trial's context and first passing member.
   python3 frontline.py              organizer request on stdin, response on stdout
-  python3 frontline.py --selftest   constants, automata, mask equivalence, S7 and partition, halt and gate drills
+  python3 frontline.py --selftest   constants, automata, masks, S7, replicas, level 16, two whole contexts, drills
 """
 import hashlib
 import json
@@ -53,8 +41,7 @@ FLAGS, ROOT_FLAGS = 3, 11
 PERM = (2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8)
 GCALLS = ((0, 4, 8, 12), (1, 5, 9, 13), (2, 6, 10, 14), (3, 7, 11, 15),
           (0, 5, 10, 15), (1, 6, 11, 12), (2, 7, 8, 13), (3, 4, 9, 14))
-REP_BATCHES, TRIAL_REPS = 2341, 5
-T2_EVERY = 1
+TRIAL_BITS, MEMBERS, FULL_EVERY = 10, 8, 8
 
 
 def ror(v, n):
@@ -101,47 +88,39 @@ def member(k):
     return e1, (e1 - Y3) & M
 
 
-def cmember(g, j):
-    k = g & 63 | j << 6 | g >> 6 << 11
-    return member(k) + (k,)
-
-
 TAUS = (0x175020A0, 0x185020A0, 0x275020A0, 0x285020A0, 0x385020A0, 0x675020A0, 0x685020A0)
 S_MASK = 0x5F
 LOW_TAUS = {0x175020A0, 0x275020A0, 0x675020A0}
 VMASK = [0, 0, 0x3F80, 0x3FFF, 0x3FFF, 0x3F80, 0, 0]
 QSTAR_MASK, QSTAR_VALUE = 0x0E09818B, 0x02008000
-SHARE, E_COUNT, ONCE = 18289159183466496, 233715456, 1128769725136952
-U_M = 92113900425963
+SHARE, E_COUNT = 18289159183466496, 233715456
+U_M = 90916199438469
 FACTOR = 10 * 138512695296 // 11
 RUN_CONTEXTS = -(-(-(-(24797 << 128) // (50000 * FACTOR * ((1 << 21) - 1)))) >> 19)
 RUN_STEPS = RUN_CONTEXTS << 19
 _S = isqrt(10 * RUN_CONTEXTS - 1) + 1
+LIVE16, BMAX, NBLK, ALPHA_B = 7072, MEMBERS * 9364, 2 * MEMBERS, 1002793
+B_BUDGET = -(-(ALPHA_B * LIVE16 * BMAX * RUN_CONTEXTS) // (10 ** 6 << 16)) + BMAX * _S
 E_BUDGET = -(-(1000026 * RUN_STEPS * E_COUNT) // (10 ** 6 << 32)) + (_S << 19)
-PASS_BUDGET = -(-(1000176 * RUN_STEPS * SHARE) // (10 ** 6 << 64)) + (_S << 19)
+P_BUDGET = -(-(1000176 * RUN_STEPS * SHARE) // (10 ** 6 << 64)) + (_S << 19)
 _MC0 = -(-(101 * RUN_STEPS * U_M) // (100 << 46))
-_MC, _LC = -(-(478 * _MC0) // 487), 15296 << 19
-CREDIT = _MC + isqrt(40 * _LC * _MC - 1) + 1 + 14 * _LC + 15296
-A_BUDGET = -(-220984672 * RUN_CONTEXTS >> 15) + 16384 * _S
-G_BUDGET = 12466 * RUN_CONTEXTS + 84261 * _S
+_MC, _LC = -(-(7506 * _MC0) // 7711), 15012 << 19
+CREDIT = _MC + isqrt(40 * _LC * _MC - 1) + 1 + 14 * _LC + 15012
+ONCE = 1128752545267752 + (1 << 17) + (1 << 40) + (1 << 38)
 S_OLD = 5486510246044225536
-U_CONTEXT, U_REP, U_REP_TAIL, U_E, U_FILL, U_PASS = 106471, 58, 44, 7, 56, 53
-U_PART, U_PART_TAIL, U_NEST, U_REP_T2, U_SEL, U_GUARD, U_BCAST, U_CHUNK = 50, 31, 21, 5, 16, 4, 16, 14
-U_FALLBACK = 4 * U_PART + U_PART_TAIL + U_NEST + U_REP_T2
-U_OPEN = U_REP_T2 + U_NEST + U_SEL + U_GUARD + U_BCAST + 2 * (U_PART + U_CHUNK)
-U_EG = U_E + U_FILL
-WB = U_OPEN * A_BUDGET + U_E * E_BUDGET + U_FILL * G_BUDGET + U_PASS * PASS_BUDGET
-W_CTX = U_OPEN * 16384 + U_E * (1 << 19) + U_FILL * 84261 + U_PASS * (1 << 19)
-N = ((U_REP * (REP_BATCHES - 1) + U_REP_TAIL) * RUN_CONTEXTS + U_CONTEXT * (RUN_CONTEXTS + 1) + WB + W_CTX + CREDIT
-     + ONCE + S_OLD + 430 * 2 ** 38)
-assert U_OPEN == 190 and U_FALLBACK == 257 and U_REP * 2340 + U_REP_TAIL == 135764 and (U_PART, U_PART_TAIL) == (17 + 33, 17 + 14)
-assert U_CONTEXT == 547 + 50000 + 20 * REP_BATCHES + 16 + 128 * (U_FALLBACK + U_GUARD - U_OPEN) and U_FILL == 54 + 2
-assert _MC == -(-(101 * 478 * RUN_STEPS * U_M) // (100 * 487 << 46)) == 829292364315442262408
-assert (WB, W_CTX) == (2689785665202678139083, 39288856) and N == 3819845051895530750985
-TEXT = dict(RUN_CONTEXTS=1218911201562375, E_BUDGET=34776155800492855966, PASS_BUDGET=633770615067648623,
-            CREDIT=829308674569081960042, A_BUDGET=8220237773048431369, G_BUDGET=15194956341454300182,
-            N=3819845051895530750985)
-U_GLOBAL, U_FAMILY, U_ROW, U_FORCED, U_SELECTED, U_G15, U_FREE, U_LEAF, U_ROOT = 736, 2304, 1408, 20, 4, 64, 48, 80, 120
+TMAX = (1 << 48) - 1
+FINAL = 430 * 2 * (17 * TMAX + 1) + 512 * (TMAX + 1) + 430 * 2 ** 38
+U_CONTEXT, U_MEMBER, U_BLOCK, U_LIVE, U_FILL, U_E, U_PASS, U_LT = 547, 80, 16, 36, 42, 6, 45, 4
+U_SCAN = 1 + 3 + 2 + 7 * U_LT + 2
+U_SF = U_SCAN + U_FILL
+WB = U_SF * B_BUDGET + U_E * E_BUDGET + U_PASS * P_BUDGET
+W_CTX = U_SF * BMAX + (U_E + U_PASS << 19)
+N = ((U_CONTEXT + U_MEMBER * MEMBERS) * (RUN_CONTEXTS + 1) + (U_BLOCK + U_LIVE) * NBLK * RUN_CONTEXTS + WB + W_CTX
+     + CREDIT + ONCE + S_OLD + FINAL)
+TEXT = dict(RUN_CONTEXTS=1218911201562375, B_BUDGET=9880921266897024687, E_BUDGET=34776155800492855966,
+            P_BUDGET=633770615067648623, CREDIT=811766717743642385225, N=1831863208676663430610)
+assert U_SCAN == 36 and all(globals()[k] == v for k, v in TEXT.items())
+U_GLOBAL, U_FAMILY, U_ROW, U_FORCED, U_SELECTED, U_G15, U_FREE, U_LEAF, U_ROOT = 614, 2304, 1354, 20, 4, 64, 48, 80, 120
 
 
 
@@ -175,7 +154,7 @@ LINES = [
     ("D2.d1", X(L("X13", 8), "X2")), ("D3.d1", X(L("X14", 8), X3)), ("Y8", X(L("Y4", 7), "C0.b1")),
     ("S13", X(L("D2.d1", 16), "D2.a1")), ("S9", Sum("D3.c1", Neg("D3.d1"))), ("Y12", Sum("Y8", Neg("C0.c1"))),
     ("K1.c1", Sum("S9", Neg("S13"))), ("Y0", X(L("Y12", 8), "C0.d1")), ("K1.d1", Sum("K1.c1", Neg(IV[1]))),
-    ("C0.a1", Sum("Y0", Neg("C0.b1"), Neg("w6"))), ("K1.a1", L("K1.d1", 16)),
+    ("C0.a1", Sum("Y0", Neg("C0.b1"), Neg("w6"))), ("K1.a1", X(L("K1.d1", 16), "thi")),
     ("w2", Sum("K1.a1", Neg(IV[1]), Neg(IV[5]))), ("X0", Sum("C0.a1", Neg("X4"), Neg("w2"))),
     ("S14", X(L("D3.d1", 16), "D3.a1")), ("K1.b1", R(X(IV[5], "K1.c1"), 12)), ("S10", Sum(K2C, "S14")),
     ("D0.d1", X(rol(X15, 8), "X0")), ("S5", R(X("K1.b1", "S9"), 7)), ("D0.c1", Sum("S10", "D0.d1")),
@@ -264,13 +243,13 @@ def compile_lines(name, args, lines, ret):
 
 
 ARGS = [nm(n) for n in OUTER_WORDS]
-co_full = compile_lines("co_full", ARGS + ["Y4", "fl"], [n for n, _ in LINES], "locals()")
-co_ref = compile_lines("co_ref", ARGS + ["Y4", "fl"], [n for n, _ in LINES], "(%d + Y4 + w8) & M, Y9" % Y3)
-co_ctx = compile_lines("co_ctx", ARGS + ["fl"], CONTEXT_LINES, "locals()")
+co_full = compile_lines("co_full", ARGS + ["Y4", "fl", "thi=0"], [n for n, _ in LINES], "locals()")
+co_ref = compile_lines("co_ref", ARGS + ["Y4", "fl", "thi=0"], [n for n, _ in LINES], "(%d + Y4 + w8) & M, Y9" % Y3)
+co_ctx = compile_lines("co_ctx", ARGS + ["fl", "thi=0"], CONTEXT_LINES, "locals()")
 
 
-def rebuild(ow, y, e1, fl=FLAGS):
-    v = co_full(*ow, y, fl)
+def rebuild(ow, y, e1, fl=FLAGS, thi=0):
+    v = co_full(*ow, y, fl, thi)
     v["e1"], v["omega"] = e1, (Y3 + y + v["w8"]) & M
     return v
 
@@ -348,6 +327,30 @@ def T2P(x):
     return T2(x & M)
 
 
+def fld(a):
+    return a >> 36 * max(0, (a.bit_length() - 1) // 36)
+
+
+def T2R(a):
+    return T2(fld(a) & M)
+
+
+def T1R(a):
+    return T1(fld(a) - B34)
+
+
+class RotT:
+
+    def __init__(self, r):
+        self.r = r
+
+    def __getitem__(self, x):
+        return ror(x, self.r)
+
+
+RT7, RT12, RT16 = RotT(7), RotT(12), RotT(16)
+
+
 def cond1(x, theta):
     gamma = ETA ^ theta
     if gamma & 1:
@@ -411,63 +414,7 @@ S7 = sum(1 << w for w in range(128) if any(((v + f) ^ ((v + DY3) + (f ^ s))) & 5
                                            range(w, 512, 128) for s in {SIGMAS[j] & 511 for j, _, _ in SIG3}
                                            for f in range(512)))
 assert S7 == (1 << 0x3F) - (1 << 0x25) + (1 << 0x5F) - (1 << 0x45)
-
-
-def ebg_entry(x15, c, q):
-    t = x15 + 1 & 0x7FFF
-    a = t >> 8
-    return int(any(S7 >> ((v ^ q) + c & 127) & 1 for v in ((a,) if t >> 1 & 127 else (a - 2 & 127, a - 1 & 127, a,
-                                                                                         a + 1 & 127))))
-
-
-B34, PB, L36, EBG_ENTRIES = 1 << 34, 1 << 35, (1 << 36) - 1, 1 << 29
-assert B34 + (1 << 32) <= PB and PB + EBG_ENTRIES <= 1 << 36
-
-
-def ebg_lookup(x):
-    i = x - PB
-    return ebg_entry(i >> 7 & 0x7FFF, i & 127, i >> 22)
-
-
-LW = (0xE000001F, 0xF000001F)
-PXT = [(p >> 8 & 1) << 5 | (S7 >> (p & 127) & 1) << 6 for p in range(512)]
-DB = (1 << 36) + (1 << 24) - (1 << 13)
-assert DB + 4096 + 512 <= (1 << 36) + (1 << 24)
-OLD = [(j0, min(j0 + 7, 32)) for j0 in range(1, 32, 7)]
-
-
-def ds_build(P):
-    C0b1, nC0c1, C0d1, Kp, S15p, nS0S5 = (P[k] & M for k in (0, 1, 2, 7, 9, 15))
-    ds, dj, ow = {}, {}, {}
-    for ix in range(16):
-        for j in range(1, 32):
-            w = (((16 + j) ^ C0b1 >> 17) + (nC0c1 >> 17) + (ix & 1) & 31) ^ C0d1 >> 25
-            w = ((w + (Kp >> 25) + (ix >> 1 & 1) & 31) ^ S15p >> 9) + (nS0S5 >> 9) + (ix >> 2 & 1) & 31
-            ow[ix, j] = w + (1 | (j & 15) << 1) + (ix >> 3) & 31
-        for b8 in (0, 1):
-            sv = [j for j in range(1, 32) if LW[b8] >> ow[ix, j] & 1]
-            ch = max(([j for j in sv if a <= j < b] for a, b in OLD), key=len)
-            ch = sorted((ch, [j for j in sv if j not in ch]), key=lambda c: c[:1] or [32])
-            assert len(ch[0]) <= 7 and len(ch[1]) <= 7
-            a = DB + ((ix << 1 | b8 << 5 | 64) << 3)
-            dj[a] = ch
-            for s, c in zip((0, 4), ch):
-                ds[a + s] = len(c)
-                ds[a + s + 1] = sum(j << 17 << LB * t for t, j in enumerate(c))
-                ds[a + s + 2] = sum(j << 10 << LB * t for t, j in enumerate(c))
-    for i in range(128):
-        ds.setdefault(DB + (i << 3), 0)
-        ds.setdefault(DB + (i << 3) + 4, 0)
-    return ds, dj, ow
-
-
-def prefixes(cw, y, e1):
-    b, c, d, A, L, SS = cw
-    r = rol(y, 7) ^ b
-    H = (r >> 24) - (c >> 24) & 255
-    p = rol(r - c & M, 8) ^ d
-    u = (p >> 16) - (A >> 16)
-    return {e1 - SS + ((u - (256 * (p >> 8 & 255) + (h ^ d & 255) < (A & 65535)) & 511) ^ L) & 511 for h in (H, H - 1 & 255)}
+B34, L36 = 1 << 34, (1 << 36) - 1
 
 
 LANES, LB = 7, 36
@@ -476,9 +423,11 @@ M_ALL = M * ONES
 BOUND = sum(1 << LB * i for i in range(1, LANES + 1))
 LO = [((1 << 32 - r) - 1) * ONES for r in range(33)]
 HI = [(M ^ ((1 << 32 - r) - 1)) * ONES for r in range(33)]
-RX15, PX15, R7 = rol(X15, 8) * ONES, X15 * ONES, 127 * ONES
-KM, QM, X11P = 0x7FFF * ONES << 7, B34 | M, X11 + 1
-ONES2, ONES4, ONES8 = 2 * ONES, 4 * ONES, 8 * ONES
+RX15, PX15, QM, X11P = rol(X15, 8) * ONES, X15 * ONES, B34 | M, X11 + 1
+LM, QL = [L36 << LB * i for i in range(LANES)], [QM << LB * i for i in range(LANES)]
+M16V, SEVEN = 0xFFFF * ONES, 7 * ONES
+XOFF = (0xFFFF + (1 << 17)) * ONES
+RAMPC = sum(((1 << 17) - 7 + i) << LB * i for i in range(LANES))
 
 
 def pror(x, r):
@@ -491,27 +440,6 @@ def operands(cx):
          (X11 + 1 - cx["S11"]) & M, cx["S12"], n(cx["C0_b1"] + cx["w6"] + cx["X4"] + cx["w2"]), n(cx["S1"] + cx["S6"]),
          cx["S15"] ^ ror(X15, 8), cx["S10"], cx["S5"], cx["w3"], cx["X13"], cx["X9"], n(cx["S0"] + cx["S5"]))
     return tuple(x * ONES for x in w)
-
-
-def omega_side(U, E, P):
-    C0b1, nC0c1, C0d1, _, _, _, _, Kp, _, S15p, _, _, _, _, _, nS0S5 = P
-    Y8 = U ^ C0b1
-    Y12 = Y8 + nC0c1
-    Y0 = pror(Y12, 24) ^ C0d1
-    X0 = Y0 + Kp
-    D0a1 = pror(X0, 16) ^ S15p
-    cg = E + nS0S5
-    om = D0a1 + cg
-    ov = Y12 ^ Y8 ^ nC0c1 | X0 ^ Y0 ^ Kp | cg ^ E ^ nS0S5 | om ^ D0a1 ^ cg
-    return X0, Y0, Y12, Y8, D0a1, cg, om, ov
-
-
-def pack(ms):
-    U = E = 0
-    for i, (e1, y, _) in enumerate(ms):
-        U |= rol(y, 7) << LB * i
-        E |= e1 << LB * i
-    return U, E
 
 
 def y9_path(X0, Y0, P):
@@ -540,6 +468,28 @@ def y9_path(X0, Y0, P):
     ov = (D1d1 ^ X12n ^ K5 | w10 ^ D1a1 ^ nS1S6 | D0c1 ^ D0d1 ^ S10 | X10 ^ D0c1 ^ PX15 | s1 ^ X1 ^ X5
           | C1a1 ^ s1 ^ w3 | C1c1 ^ X9 ^ C1d1 | s2 ^ C1a1 ^ C1b1 | Y1 ^ s2 ^ w10 | Y9 ^ C1c1 ^ Y13 | C0a1 ^ Y0 ^ nC0b1w6)
     return Y9, ov, Y1, C0a1, D0d1
+
+
+
+def y9_member(C0, P):
+    rC0d1, K5, S12, nS1S6 = P[4], P[5], P[6], P[8]
+    X12 = C0 ^ rC0d1
+    D1d1 = (X12 ^ M_ALL) + K5
+    D1a1 = pror(D1d1, 16) ^ S12
+    return pror(X12, 24) ^ D1d1, D1a1 + nS1S6
+
+
+def y9_fill(X0, W3, X1, w10, P):
+    S10, S5, X13, X9 = P[10], P[11], P[13], P[14]
+    D0d1 = X0 ^ RX15
+    D0c1 = D0d1 + S10
+    X10 = D0c1 + PX15
+    X5 = pror(pror(S5 ^ D0c1, 12) ^ X10, 7)
+    C1a1 = X1 + X5 + W3
+    C1d1 = pror(X13 ^ C1a1, 16)
+    C1c1 = X9 + C1d1
+    Y1 = C1a1 + pror(X5 ^ C1c1, 12) + w10
+    return C1c1 + pror(C1d1 ^ Y1, 8), Y1, D0d1
 
 
 class Row:
@@ -839,14 +789,14 @@ ROW_CAP = {t: U_ROW + sum(a * b for a, b in zip(tree(ROWS[t]), (U_FORCED, U_SELE
            for t in TAUS}
 CT = [1024 + U_FAMILY * families(rows_of(T)) + sum(ROW_CAP[t] for t in rows_of(T)) if rows_of(T) else 0
       for T in range(128)]
-assert all(ROW_CAP[t] == (5216 if len(ROWS[t].free) == 4 else 3328) for t in TAUS if t != 0x675020A0)
+assert all(ROW_CAP[t] == (5162 if len(ROWS[t].free) == 4 else 3274) for t in TAUS if t != 0x675020A0)
 ENVELOPES = (0x04, 0x01, 0x18, 0x52)
-assert max(CT[T] for e in ENVELOPES for T in range(128) if T & ~e == 0) == 17504
+assert max(CT[T] for e in ENVELOPES for T in range(128) if T & ~e == 0) == 17342
 A_T = [U_GLOBAL + U_FAMILY * families(rows_of(T)) + U_ROW * len(rows_of(T)) if rows_of(T) else 0 for T in range(128)]
 CM = [A_T[T] + sum(max(ROW_CAP[t] - U_ROW for t in rows_of(T) if ROWS[t].family == f) for f in
                    {ROWS[t].family for t in rows_of(T)}) for T in range(128)]
 CTW = [CM[T] | A_T[T] << 16 for T in range(128)]
-assert max(CM[T] for e in ENVELOPES for T in range(128) if T & ~e == 0) == CM[0x52] == 15296 and max(CM) < 65536
+assert max(CM[T] for e in ENVELOPES for T in range(128) if T & ~e == 0) == CM[0x52] == 15012 and max(CM) < 65536
 assert all(31 not in ROWS[t].free for t in TAUS)
 
 
@@ -886,7 +836,7 @@ def step_ct(v, c1):
     u["E3_h1"] = ror(u["Y14"] ^ u["e1"], 16)
     u["w0"] = (u["Y2"] - u["C2_a1"] - u["C2_b1"]) & M
     u["K0_a1"] = (IV[0] + IV[4] + u["w0"]) & M
-    u["t"] = rol(u["K0_d1"], 16) ^ u["K0_a1"]
+    u["t"] = u.get("thi", 0) << 32 | rol(u["K0_d1"], 16) ^ u["K0_a1"]
     u["w1"] = (u["S0"] - u["K0_a1"] - u["K0_b1"]) & M
     w = [u.get("w%d" % i, 0) for i in range(16)]
     w[4], w[13] = W4, W13
@@ -927,7 +877,7 @@ def chart(u, flags=FLAGS):
 
 def pvals(bk, h):
     y14 = rol(h, 16) ^ bk["e1"]
-    t = rol(bk["K0_d1"], 16) ^ ((IV[0] + IV[4] + (rol(y14, 8) ^ bk["C2_d1"]) - bk["C2_a1"] - bk["C2_b1"]) & M)
+    t = bk.get("thi", 0) << 32 | rol(bk["K0_d1"], 16) ^ ((IV[0] + IV[4] + (rol(y14, 8) ^ bk["C2_d1"]) - bk["C2_a1"] - bk["C2_b1"]) & M)
     y6 = ror(((y14 + bk["C2_c1"]) & M) ^ bk["C2_b1"], 7)
     a1 = (y6 + bk["Y1"] + bk["w12"]) & M
     d = ror(a1 ^ bk["Y12"], 16)
@@ -1107,8 +1057,9 @@ def meter_bad(d, units, T):
     return d != units or d > CM[T]
 
 
-OBS = ("members", "e_lanes", "passes", "solver_calls", "leaves", "roots", "certified", "units", "solver_units",
-       "opened", "closed", "skipped_pass", "checks", "mismatches", "fills", "halted")
+OBS = ("blocks", "live", "batches", "lane_tests", "e_lanes", "fills", "passes", "prechecked", "solver_calls", "roots",
+       "certified", "units", "solver_units", "checks", "mismatches", "halted")
+OBS_X = ("members", "block_steps", "live_steps", "fill_lanes", "leaves", "solver_debits", "s7_open")
 
 
 class Halt(Exception):
@@ -1119,8 +1070,8 @@ class Found(Exception):
     pass
 
 
-def steps23(ow, y, e1, T, o, A, bk):
-    v = rebuild(ow, y, e1)
+def steps23(ow, y, e1, T, o, A, bk, thi=0):
+    v = rebuild(ow, y, e1, thi=thi)
     rows = rows_of(T)
     bad0 = A != U_GLOBAL + U_FAMILY * families(rows) + U_ROW * len(rows)
     bad0 += any(bk[k] != v[k] for k in bk)
@@ -1160,193 +1111,218 @@ def bc(w):
     return w | w << 108
 
 
-def walk(seed, nr=TRIAL_REPS, WR=0, credit=CREDIT, t2_every=T2_EVERY, gt=None, mk=True):
-    gt = gt or ebg_lookup
+_L16 = []
+
+
+def level16():
+    if not _L16:
+        f, p3, p16 = F2, {}, {}
+        st = [f[f[lo & 255] + (lo >> 8)] for lo in range(1 << 16)]
+        for s2 in sorted(set(st)):
+            bm = bytearray(1 << 16)
+            for b2 in range(256):
+                s3 = f[s2 + b2]
+                if s3 not in p3:
+                    p3[s3] = [b3 << 8 for b3 in range(256) if f[s3 + b3]]
+                for h in p3[s3]:
+                    bm[b2 | h] = 1
+            p16[s2] = bm
+        dead = [s2 for s2 in p16 if not any(p16[s2])]
+        assert len(p16) == 7 and len(dead) == 1
+        _L16.extend((st, p16, dead[0]))
+    return _L16
+
+
+def ref_check(u, ref):
+    c = [ref._compress(IV, struct.unpack("<16I", u[k].ljust(64, b"\0")), u["t"], len(u[k]), FLAGS, 2)[:8] for k in "AB"]
+    return all(c[0][i] == c[1][i] for i in (0, 2, 5, 7)) and [tuple(x) for x in c] == [
+        tuple(compress2(u[k], u["t"], FLAGS)[1]) for k in "AB"]
+
+
+def walk_thi(seed, WR=0, credit=CREDIT, bits=TRIAL_BITS, members=MEMBERS, full_every=FULL_EVERY, ref=None):
+    st16, p16, dead = level16()
     sh = hashlib.shake_256(b"frontline context" + seed).digest(160)
     ow = struct.unpack("<7I", sh[:28])
+    tm = (1 << bits) - 1
+    kms = [struct.unpack("<I", sh[28:32])[0] & 0x7FFFF] + [w & 0x7FFFF for w in struct.unpack(
+        "<%dI" % (members - 1), hashlib.shake_256(b"thi members" + seed).digest(4 * (members - 1)))]
     draws = [QSTAR_VALUE | w & ~QSTAR_MASK & M for w in struct.unpack("<32I", sh[32:])]
-    o = dict.fromkeys(OBS, 0)
+    rng = Rng(b"thi walk checks" + seed)
+    o = dict.fromkeys(OBS + OBS_X, 0)
     o["units"] = U_CONTEXT
-    first, bad, chk = None, 0, 0
-    cx = co_ctx(*ow, FLAGS)
-    P = operands(cx)
-    PF = P[:14] + (P[14] + B34 * ONES, P[15])
-    XW, S6, X14 = cx["X2"] + cx["S3"] - cx["K3_a1"] - cx["K3_b1"] & M, cx["S6"], cx["X14"]
-    S2 = rol(cx["S14"], 8) ^ K2D
-    BW = dict(w5=S2 - (K2A + K2B) & M, w12=cx["D2_a1"] - S2 - cx["S7"] & M, K0_d1=cx["K0_d1"])
-    q = (rol(X15, 24) ^ cx["S15"]) & 127
-    B29 = (PB + (q << 22)) * ONES
-    AH8 = (cx["C0_b1"] + cx["w6"] + cx["X4"] + cx["w2"]) >> 8 & 255
-    DS, DJ, OW9 = ds_build(P)
-
-    def lane(ms, E, i, om, X0, Y0, Y12, W, cy):
-        nonlocal WR, credit, first, bad, chk
-        sh_ = LB * i
-        ix = om >> sh_ if i == 6 else om >> sh_ & L36
-        m2 = T2P(ix)
-        omi = ix & M
-        e1, y, _ = ms[i]
-        rom, ry9 = co_ref(*ow, y, FLAGS)
-        rm2 = T2(rom)
-        rx = T1(ry9) & rm2 if rm2 else 0
-        x = y9i = 0
-        bad += ix >= 3 << 32
-        if m2:
-            o["e_lanes"] += 1
-            if not cy:
-                o["fills"] += 1
-                o["units"] += U_EG
-                WR += U_EG
-                cy.append(y9_path(X0, Y0, PF))
-            else:
-                o["units"] += U_E
-                WR += U_E
-            Y9p, ov2, Y1p, C0a1, D0d1 = cy[0]
-            bad += cy[0] != y9_path(X0, Y0, PF)
-            y9i = Y9p >> sh_ & QM
-            m1 = T1P(y9i)
-            x = m1 & m2
-            bad += m1 != mask1_ref(ry9) or y9i != B34 + ry9 or bool(ov2 & BOUND)
-            u = step_ct(rebuild(ow, y, e1), draws[o["e_lanes"] & 31])
-            wr, _, ys = compress2(u["A"], u["t"], FLAGS)
-            bad += (ys[4], ys[9] + B34, (ys[3] + ys[4] + wr[15] + wr[8]) & M) != (y, y9i, omi)
-            chk += 3
-        bad += omi != rom or m2 != rm2 or x != rx or rom & 511 not in W
-        chk += 1
-        if m2 or ms[i][2] % t2_every == 0:
-            bad += m2 != mask2_ref(omi)
-            chk += 1
-        if not x:
-            return
-        o["passes"] += 1
-        o["units"] += U_PASS
-        WR += U_PASS
-        if first is None:
-            first = ms[i][2]
-        es = E >> sh_ & M
-        d1c = ((C0a1 ^ P[4]) >> sh_ ^ M) + X11P & M
-        x6 = ror(ror(S6 ^ d1c, 12) ^ X11, 7)
-        C2a = x6 + XW & M
-        C2d = ror(X14 ^ C2a, 16)
-        X10 = ((D0d1 + P[10]) >> sh_) + X15 & M
-        C = X10 + C2d & M
-        B = ror(x6 ^ C, 12)
-        r = (Y9p >> sh_ + 16 ^ es) & 4 ^ 3
-        v = rebuild(ow, y, e1)
-        bad += (v["Y9"] + B34, v["omega"], v["C2_c1"], v["C2_b1"], v["C2_a1"], v["C2_d1"], e1) != (y9i, omi, C, B, C2a,
-                                                                                                    C2d, es)
-        T = x & VMASK[nu_of(v["Y9"], e1, v["C2_c1"], v["C2_b1"])]
-        ok, gc = chart_check(v, draws[2 + o["passes"] % 30])
-        bad, chk = bad + (not ok), chk + 3 + gc
-        if ((r + C) ^ B ^ 5) + 5 & 6:
-            bad += T != 0
-            return
-        bad += T != x
-        ct = CTW[x]
-        a = ct >> 16
-        if ct & 65535 > credit:
-            raise Halt(3)
-        o["solver_calls"] += 1
-        bk = dict(Y9=y9i & M, Y4=es - Y3 & M, omega=omi, e1=es, C2_a1=C2a, C2_b1=B, C2_c1=C, C2_d1=C2d,
-                  Y1=Y1p >> sh_ & M, Y12=Y12 >> sh_ & M, **BW)
-        b, d = steps23(ow, y, es, x, o, a, bk)
-        credit -= d
-        bad += b
-        chk += 2
-
+    first, bad, chk, done = None, 0, 0, False
     try:
         if WR > WB:
             raise Halt(1)
-        e1, y = member(0)
-        v = rebuild(ow, y, e1)
-        for c1 in draws[:2]:
-            ok, gc = chart_check(v, c1)
-            bad, chk = bad + (not ok), chk + 1 + gc
-        cw = (v["C0_b1"], v["C0_c1"], v["C0_d1"], v["C0_b1"] + v["w6"] + v["X4"] + v["w2"] & M,
-              rol(X15, 24) ^ v["S15"], v["S0"] + v["S5"])
-        for rb in list(range(nr - 1)) + [REP_BATCHES - 1]:
-            reps = [cmember(g, 0) for g in range(7 * rb, min(7 * rb + 7, 1 << 14))]
-            U, E = pack(reps)
-            X0, Y0, Y12, Y8, D0a1, cg, om, ov = omega_side(U, E, P)
-            key = (X0 >> 1 & KM) | (cg & R7) | B29
-            w8 = D0a1 + P[15]
-            IX = (Y12 ^ Y8 ^ P[1]) >> 17 & ONES | (X0 ^ Y0 ^ P[7]) >> 24 & ONES2 | (w8 ^ D0a1 ^ P[15]) >> 7 & ONES4 | (om ^ E ^ w8) >> 6 & ONES8
-            o["units"] += U_REP if len(reps) == 7 else U_REP_TAIL
-            o["members"] += len(reps)
-            rc = []
-            for i in range(len(reps)):
-                g, sh_ = 7 * rb + i, LB * i
-                W = prefixes(cw, *reps[i][1::-1])
-                kx = key >> LB * i if i == 6 else key >> LB * i & L36
-                rv = co_full(*ow, reps[i][1], FLAGS)
-                rk = PB + ((reps[i][0] - cw[5]) & 127 | (rv["X0"] >> 8 & 0x7FFF) << 7 | q << 22)
-                bad += kx != rk or ebg_lookup(kx) != ebg_entry(rk >> 7 & 0x7FFF, rk & 127, q) or kx >= PB + EBG_ENTRIES
-                chk += 1
-                if not gt(kx):
-                    o["closed"] += 1
-                    for j in range(32):
-                        rom = co_ref(*ow, cmember(g, j)[1], FLAGS)[0]
-                        m = mask2_ref(rom) > 0
-                        o["skipped_pass"] += m
-                        bad += m or rom & 511 not in W or S7 >> (rom & 127) & 1 or (j == 0 and rom != om >> sh_ & M)
-                        chk += 1
-                    continue
-                o["opened"] += 1
-                o["units"] += U_OPEN
-                WR += U_OPEN
-                lane(reps, E, i, om, X0, Y0, Y12, W, rc)
-                if Y0 >> sh_ + 8 & 255 == AH8 or not mk:
-                    for j0, j1 in OLD:
-                        ms = [cmember(g, j) for j in range(j0, j1)]
-                        pU, pE = pack(ms)
-                        pX0, pY0, pY12, _, _, _, pom, pov = omega_side(pU, pE, P)
-                        o["members"] += len(ms)
-                        pc = []
-                        for t in range(len(ms)):
-                            lane(ms, pE, t, pom, pX0, pY0, pY12, W, pc)
-                        bad += bool(pov & BOUND)
-                        chk += 1
-                    continue
-                da = DB + (((IX >> sh_ & 15) << 1 | PXT[om >> sh_ & 511]) << 3)
-                ch, ixr = DJ.get(da, ((), ())), int(IX) >> sh_ & 15
-                for j in range(1, 32):
-                    rom = co_ref(*ow, cmember(g, j)[1], FLAGS)[0]
-                    sv = j in ch[0] or j in ch[1]
-                    m = not sv and mask2_ref(rom) > 0
-                    o["skipped_pass"] += m
-                    bad += m or rom & 511 != om >> sh_ & 511 or OW9[ixr, j] != rom >> 9 & 31 or sv != (
-                        S7 >> (rom & 127) & LW[rom >> 8 & 1] >> (rom >> 9 & 31) & 1)
+        cx = co_ctx(*ow, FLAGS)
+        P = operands(cx)
+        PF = P[:14] + (P[14] + B34 * ONES, P[15])
+        XW, S6, X14 = cx["X2"] + cx["S3"] - cx["K3_a1"] - cx["K3_b1"] & M, cx["S6"], cx["X14"]
+        S2 = rol(cx["S14"], 8) ^ K2D
+        BW = dict(w5=S2 - (K2A + K2B) & M, w12=cx["D2_a1"] - S2 - cx["S7"] & M, K0_d1=cx["K0_d1"])
+        C0b1, nC0c1, C0d1, nC0w6 = cx["C0_b1"], -cx["C0_c1"] & M, cx["C0_d1"], -(cx["C0_b1"] + cx["w6"]) & M
+        K0r = rol(cx["K1_d1"], 16)
+        KS, Kb = K0r & tm, K0r & ~tm & M
+        KX0 = IV[1] + IV[5] - cx["X4"] - Kb & M
+        W3b = cx["S1"] - Kb - cx["K1_b1"] & M
+        S15p, NS = cx["S15"] ^ ror(X15, 8), -(cx["S0"] + cx["S5"]) & M
+        S15L, NSL, NSH, KXC = S15p & 0xFFFF, NS & 0xFFFF, NS >> 16, bc(S15p >> 16 ^ 0xFFFF)
+        for km in kms:
+            e1, y = member(km)
+            Y8 = rol(y, 7) ^ C0b1
+            Y12 = Y8 + nC0c1 & M
+            Y0 = rol(Y12, 8) ^ C0d1
+            C0a1 = Y0 + nC0w6 & M
+            X0b = C0a1 + KX0 & M
+            DW3 = bc(W3b - X0b & M)
+            C0v, Ev = bc(C0a1), bc(e1)
+            X1v, w10v = y9_member(C0v, P)
+            clo, ka0 = (e1 & 0xFFFF) + NSL, (e1 >> 16) + NSH
+            L0, hi0 = X0b & 0xFFFF, X0b >> 16
+            hi1 = hi0 + 0xFFFF & 0xFFFF
+            NX = ~X0b
+            o["members"] += 1
+            o["units"] += U_MEMBER
+            v0, Y0r = rebuild(ow, y, e1), Y0 * ONES
+            bad += (v0["Y12"], v0["Y0"], v0["C0_a1"], v0["X0"], v0["w3"]) != (Y12, Y0, C0a1, X0b - KS & M, W3b - KS & M)
+            n0, bs0, bl0 = int(L0), o["block_steps"], o["blocks"]
+            for s, e, hi in ((0, min(n0, tm), hi0), (n0 + 1, tm, hi1)):
+                if s > tm:
+                    break
+                size = e - s + 1
+                o["blocks"] += 1
+                o["block_steps"] += size
+                o["units"] += U_BLOCK
+                tot = clo + (hi ^ S15L)
+                lo = tot & 0xFFFF
+                ka = ka0 + (tot >> 16)
+                st2 = st16[lo]
+                s7 = S7 >> (int(lo) & 127) & 1
+                o["s7_open"] += s7
+                bad += not 0 < size <= 1 << 16 or e != min(s + int(X0b - s & 0xFFFF), tm)
+                for s_ in {s, e} | {s + rng(32) % size for _ in range(2)}:
+                    rom = co_ref(*ow, y, FLAGS, s_ ^ int(KS))[0]
+                    bad += rom != lo | ((X0b - s_ & 0xFFFF ^ S15p >> 16) + ka & 0xFFFF) << 16 or (
+                        st2 == dead and T2(rom) != 0)
                     chk += 1
-                n0 = DS[da]
-                if not n0:
+                if st2 == dead:
                     continue
-                bu, be = bc(U >> sh_ & M), bc(E >> sh_ & M)
-                for s in (0, 4):
-                    n = DS[da + s] if s else n0
-                    k = 4 if n > 3 else 0
-                    k += 2 if n > k + 1 else 0
-                    k += 1 if n > k else 0
-                    if not k:
-                        break
-                    cU = bu + DS[da + (s + 1)]
-                    cE = be + DS[da + (s + 2)]
-                    cX0, cY0, cY12, _, _, _, com, cov = omega_side(cU, cE, P)
-                    ms = [cmember(g, j) for j in ch[s >> 2]]
-                    o["members"] += k
-                    pc = []
-                    for t in range(k):
-                        lane(ms, cE, t, com, cX0, cY0, cY12, W, pc)
-                    bad += bool(cov & BOUND) + (len(ms) != k)
-                    chk += 1
-            bad += bool(ov & BOUND)
-            chk += 1
-    except Halt as e:
-        o["halted"] = e.args[0]
+                bad += not s7
+                o["live"] += 1
+                o["live_steps"] += size
+                LOv, KAv = bc(lo), bc(ka & 0xFFFF)
+                XBv = bc(hi << 16) + XOFF
+                Cv = bc(s + NX & 0xFFFF) + RAMPC
+                nb = -(-size // 7)
+                WR += nb * U_SF
+                o["units"] += U_LIVE + nb * U_SCAN
+                lt0, b0, f0 = o["lane_tests"], o["batches"], o["fills"]
+                for b in range(nb):
+                    Cv = Cv + SEVEN
+                    H = (Cv ^ KXC) + KAv & M16V
+                    OM = H << 16 | LOv
+                    s0 = s + 7 * b
+                    w = min(7, e - s0 + 1)
+                    o["batches"] += 1
+                    o["lane_tests"] += w
+                    fill, ne = None, 0
+                    for i in range(w):
+                        m2 = T2R(OM & LM[i])
+                        s_ = s0 + i
+                        omi = int(OM) >> LB * i & M
+                        bad += omi != lo | ((X0b - s_ & 0xFFFF ^ S15p >> 16) + ka & 0xFFFF) << 16 or (
+                            m2 != 0) != p16[st2][omi >> 16]
+                        if m2:
+                            if fill is None:
+                                X0v = XBv - Cv & M_ALL
+                                fill = y9_fill(X0v, X0v + DW3, X1v, w10v, PF)
+                                o["fills"] += 1
+                                o["units"] += U_FILL
+                                PW = [int(z) for z in PF]
+                                PW[12] = int(X0v) + int(DW3)
+                                rf, lm = y9_path(int(X0v), int(Y0r), PW), sum(LM[:w]) & M_ALL
+                                bad += bool((int(fill[0]) ^ rf[0]) & sum(QL[:w]) or (int(fill[1]) ^ rf[2]) & lm
+                                            or (int(fill[2]) ^ rf[4]) & lm or rf[1] & BOUND & lm << 5)
+                            Y9p, Y1p, D0d1p = fill
+                            WR += U_E
+                            y9i = Y9p & QL[i]
+                            m1 = T1R(y9i)
+                            x = m1 & m2
+                            ne += 1
+                            o["e_lanes"] += 1
+                            o["units"] += U_E
+                            thi, y9, sh_ = s_ ^ int(KS), int(y9i) >> LB * i, LB * i
+                            if o["e_lanes"] % full_every == 0:
+                                rom, ry9 = co_ref(*ow, y, FLAGS, thi)
+                                bad += rom != omi or y9 != B34 + ry9 or m1 != mask1_ref(ry9) or m2 != mask2_ref(rom)
+                                u = step_ct(rebuild(ow, y, e1, thi=thi), draws[o["e_lanes"] & 31])
+                                wr, _, ys = compress2(u["A"], u["t"], FLAGS)
+                                bad += (ys[4], ys[9] + B34, (ys[3] + ys[4] + wr[15] + wr[8]) & M) != (y, y9, omi)
+                                bad += u["t"] >> 32 != thi or 1024 * u["t"] + LEN_B >= 1 << 58
+                                bad += ref is not None and not ref_check(u, ref)
+                                chk += 4
+                            if not x:
+                                continue
+                            o["passes"] += 1
+                            o["units"] += U_PASS
+                            first = km if first is None else first
+                            WR += U_PASS
+                            es = Ev >> sh_ & M
+                            d1c = ((C0v ^ P[4]) >> sh_ ^ M) + X11P & M
+                            x6 = RT7[RT12[S6 ^ d1c] ^ X11]
+                            C2a = x6 + XW & M
+                            C2d = RT16[X14 ^ C2a]
+                            X10 = ((D0d1p + P[10]) >> sh_) + X15 & M
+                            C = X10 + C2d & M
+                            B = RT12[x6 ^ C]
+                            r = (Y9p >> sh_ + 16 ^ es) & 4 ^ 3
+                            v = rebuild(ow, y, e1, thi=thi)
+                            bad += (v["Y9"] + B34, v["omega"], v["C2_c1"], v["C2_b1"], v["C2_a1"], v["C2_d1"], v["Y1"],
+                                    v["Y12"], e1) != (y9, omi, C, B, C2a, C2d, int(Y1p) >> sh_ & M, Y12, es)
+                            T = x & VMASK[nu_of(v["Y9"], e1, v["C2_c1"], v["C2_b1"])]
+                            ok, gc = chart_check(v, draws[2 + o["passes"] % 30])
+                            bad, chk = bad + (not ok), chk + 3 + gc
+                            if ((r + C) ^ B ^ 5) + 5 & 6:
+                                bad += T != 0
+                                continue
+                            bad += T != x
+                            o["prechecked"] += 1
+                            ct = CTW[x]
+                            a = ct >> 16
+                            if ct & 65535 > credit:
+                                raise Halt(3)
+                            o["solver_calls"] += 1
+                            bk = dict(Y9=y9 & M, Y4=y, omega=omi, e1=e1, C2_a1=C2a, C2_b1=B, C2_c1=C, C2_d1=C2d,
+                                      Y1=int(Y1p) >> sh_ & M, Y12=Y12, thi=thi, **BW)
+                            oo = dict.fromkeys(("units", "solver_units", "leaves", "roots", "certified", "mismatches"), 0)
+                            try:
+                                b2, d = steps23(ow, y, e1, x, oo, a, bk, thi)
+                            finally:
+                                for k_ in oo:
+                                    o["solver_debits" if k_ == "units" else k_] += oo[k_]
+                                o["units"] += oo["units"]
+                            credit -= d
+                            bad += b2 + (d != oo["solver_units"]) + (d > CM[x]) + (credit < 0) + (oo["roots"] > oo["leaves"])
+                            chk += 2
+                    if fill is not None:
+                        o["fill_lanes"] += ne
+                        bad += not 0 < ne <= w
+                bad += o["lane_tests"] - lt0 != size or o["batches"] - b0 != nb or o["fills"] - f0 > nb
+            bad += o["block_steps"] - bs0 != tm + 1 or o["blocks"] - bl0 > 2
+        done = True
+    except Halt as e_:
+        o["halted"] = e_.args[0]
     except Found:
         pass
+    if done:
+        bad += (o["lane_tests"] != o["live_steps"] or o["fills"] > o["batches"] or o["fill_lanes"] != o["e_lanes"]
+                or o["passes"] > o["e_lanes"] or not o["solver_calls"] <= o["prechecked"] <= o["passes"]
+                or o["solver_debits"] != o["solver_units"] or o["solver_debits"] > CREDIT
+                or not o["certified"] <= o["roots"] <= o["leaves"] or o["blocks"] > 2 * members
+                or o["batches"] > members * (-(-(tm + 1) // 7) + 1) or o["block_steps"] != members * (tm + 1))
     o["mismatches"] += bad
     o["checks"] += chk
-    return ow, first, o, WR
+    return ow, kms, first, o, WR
 
 
 def root_pair(ow, k):
@@ -1358,19 +1334,19 @@ def root_pair(ow, k):
 
 
 def trial(seed, k=0):
-    ow, first, o, _ = walk(seed)
-    a, b, ok = root_pair(ow, 0 if first is None else first)
+    ow, kms, first, o, _ = walk_thi(seed)
+    a, b, ok = root_pair(ow, kms[0] if first is None else first)
     o["checks"] += 1
     o["mismatches"] += not ok
     if k % PLANT_EVERY == 0:
         bad, n = plant_check(seed, k)
         o["checks"] += n
         o["mismatches"] += bad
-    return a, b, o
+    return a, b, {k_: o[k_] for k_ in OBS}
 
 
 def selftest(n):
-    rep = {"constants": all(globals()[k] == x for k, x in TEXT.items())}
+    rep = {"constants": all(globals()[k] == x for k, x in TEXT.items()) and U_SCAN == 36 and U_SF == 78}
     th = [theta_of(t) for t in TAUS]
     tq, te = [(ETA & 255, x & 255) for x in th], [(ror(x, 12) & 255, EPS & 255) for x in th]
     a1, a2 = automaton(tq, 0, 8)[0], automaton(te, DY3 & 255, 8)[0]
@@ -1397,60 +1373,38 @@ def selftest(n):
     al = [any(((w + f) ^ ((w + DY3) + (f ^ s))) & 511 == EPS & 511 for s in {SIGMAS[j] & 511 for j, _, _ in SIG3}
               for f in range(512)) for w in range(512)]
     rep["S7_partition"] = (sum(al) == 208 and all(al[w] == S7 >> (w & 127) & 1 for w in range(512))
-                           and all(S7 >> (x & 127) & 1 for x in xs if T2(x))
-                           and len({g & 63 | j << 6 | g >> 6 << 11 for g in range(1 << 14) for j in range(32)}) == 1 << 19
-                           and all(cmember(g, j)[0] >> 10 & 31 == j for g in (0, 9999, 16383) for j in range(32)))
+                           and all(S7 >> (x & 127) & 1 for x in xs if T2(x)))
     rep["precheck"] = all(((((a >> 16 ^ b) & 4 ^ 3) + c ^ d ^ 5) + 5 & 6 == 0) == (VMASK[nu_of(a, b, c, d)] & S_MASK > 0)
                           for a, b, c, d in zip(xs, xs[1:], xs[2:], xs[3:]))
-    cov = True
-    for H in range(256):
-        for a0 in (0, 1, 126, 127):
-            t = (a0 << 8 | H) + 1 & 0x7FFF
-            cv = {t >> 8} if t >> 1 & 127 else {(t >> 8) + e & 127 for e in (-2, -1, 0, 1)}
-            cov = cov and all(a0 + (v >> 16) & 127 in cv for d in range(-255, 256) for v in ((H << 8) + d, (H << 8) + 255 + d))
-    alt = lambda x, c, q: any(((((t >> 8) + e & 127 ^ q) + c - 0x25) & 0x5F) <= 0x19 for t in [x + 1 & 0x7FFF]
-                              for e in ((0,) if t >> 1 & 127 else (0, -2, -1, 1)))
-    xs15 = [x & 0x7FFF for x in xs[:6]] + [0x00FF, 0x0100, 0x7FFF, 0x2BFE, 0x1300, 0x13FF]
-    rep["EBG"] = cov and all(ebg_lookup(PB + (c | x << 7 | q << 22)) == alt(x, c, q) == ebg_entry(x, c, q)
-                             for x in xs15 for c in range(128) for q in range(128))
-    f1 = 0
-    for s in range(32):
-        ow = struct.unpack("<7I", hashlib.shake_256(b"f1 %d" % s).digest(28))
-        P = operands(co_ctx(*ow, FLAGS))
-        ms = [member(k & 0x7FFFF) + (0,) for k in struct.unpack("<7I", hashlib.shake_256(b"f1 m%d" % s).digest(28))]
-        U, E = pack(ms)
-        X0, Y0, Y12, _, D0a1, _, om, _ = omega_side(U, E, P)
-        Y9, _, Y1, C0a1, D0d1 = y9_path(X0, Y0, P)
-        for i, (e1, y, _) in enumerate(ms):
-            v = rebuild(ow, y, e1)
-            f1 += [w >> LB * i & M for w in (om, X0, Y0, Y12, C0a1, D0d1, D0a1, Y9, Y1)] == [v[k] for k in (
-                "omega", "X0", "Y0", "Y12", "C0_a1", "D0_d1", "D0_a1", "Y9", "Y1")]
-    rep["F1_fill"] = f1
+    rep["replicas"] = all(T2R(x << 36 * l) == T2P(x) and T1R(B34 + x << 36 * l) == T1(x) and RT12[x] == ror(x, 12)
+                          for x in xs[:256] for l in range(7))
+    st, p16, dead = level16()
+    pc = {s2: bm.count(1) for s2, bm in p16.items()}
+    rep["level16"] = (pc[dead] == 0 and sum(z != dead for z in st) == LIVE16 and sum(pc[z] for z in st) == E_COUNT
+                      and all(p16[st[x & 0xFFFF]][x >> 16] == (T2(x) > 0) for x in xs)
+                      and MEMBERS * max(-(-f // 7) - (-(65536 - f) // 7) for f in range(1, 65536)) == BMAX)
+    fc = [walk_thi(b"full context %d" % s, bits=16, full_every=64)[3] for s in range(2)]
+    rep["full_contexts"] = [{k: o[k] for k in OBS + OBS_X} for o in fc]
+    rep["full_identities"] = sum(o["live"] for o in fc) > 0 and all(
+        o["block_steps"] == MEMBERS << 16 and o["blocks"] <= NBLK and o["batches"] <= BMAX and o["mismatches"] == 0
+        and o["halted"] == 0 and o["units"] == U_CONTEXT + U_MEMBER * o["members"] + U_BLOCK * o["blocks"]
+        + U_LIVE * o["live"] + U_SCAN * o["batches"] + U_FILL * o["fills"] + U_E * o["e_lanes"] + U_PASS * o["passes"]
+        + o["solver_units"] for o in fc)
     drills = {}
-    for name, kw, code in (("W", dict(WR=WB + 1), 1), ("C", dict(credit=0), 3), ("R", dict(credit=15296), 0)):
+    for name, kw, code in (("W", dict(WR=WB + 1), 1), ("C", dict(credit=0), 3), ("R", dict(credit=15012), 0)):
         for s in range(64):
-            o = walk(b"drill%d" % s, **kw)[2]
+            o = walk_thi(b"drill%d" % s, **kw)[3]
             if o["halted"] if code else o["solver_calls"]:
                 break
         drills[name] = (o["halted"] in (0, 3) and o["solver_calls"] >= 1 and not o["mismatches"] if name == "R" else
                         o["halted"] == code and (o["members"] == 0 and o["units"] == U_CONTEXT if name == "W"
                         else o["solver_calls"] == 0 and o["passes"] >= 1), s)
-    _, _, o, w = walk(b"drill0", WR=WB)
-    drills["WB"] = (o["halted"] == 0 and WB < w <= WB + W_CTX and not o["mismatches"], 0)
+    _, _, _, o, w = walk_thi(b"drill%d" % drills["R"][1], WR=WB)
+    drills["WB"] = (o["halted"] == 0 and WB < w <= WB + W_CTX and not o["mismatches"], drills["R"][1])
     rep["halt_drills"] = drills
-    gd = {}
-    for name, gt, mk in (("table", ebg_lookup, True), ("open", lambda i: 1, True), ("closed", lambda i: 0, True),
-                         ("nomask", ebg_lookup, False)):
-        r = [walk(b"gate%d" % s, gt=gt, mk=mk)[2] for s in range(8)]
-        gd[name] = [sum(o[k] for o in r) for k in ("opened", "closed", "e_lanes", "passes", "skipped_pass", "mismatches",
-                                                   "fills", "members")]
-    t, op, cl, nm_ = gd["table"], gd["open"], gd["closed"], gd["nomask"]
-    rep["gate_drills"] = gd
     rep["ok"] = (rep["constants"] and rep["automata_vs_bruteforce_w8"] == 256 and rep["SHARE_E_COUNT"] and rep["precheck"]
-                 and rep["T1_T2_vs_bitserial"] == 2 * n and all(d[0] for d in drills.values()) and rep["S7_partition"]
-                 and t[4] == t[5] == op[4] == op[5] == op[1] == cl[0] == cl[6] == 0 and t[2:4] == op[2:4]
-                 and t[6] == op[6] > 0 and cl[4] == op[2] > 0 and cl[5] >= cl[4] and rep["EBG"] and rep["F1_fill"] == 224
-                 and nm_[:6] == t[:6] and t[6] <= nm_[6] and t[7] < nm_[7])
+                 and rep["T1_T2_vs_bitserial"] == 2 * n and rep["S7_partition"] and rep["replicas"] and rep["level16"]
+                 and rep["full_identities"] and all(d[0] for d in drills.values()))
     json.dump(rep, sys.stdout, separators=(",", ":"))
     sys.stdout.write("\n")
     return 0 if rep["ok"] else 1
