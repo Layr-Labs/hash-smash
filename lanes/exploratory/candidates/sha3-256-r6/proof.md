@@ -1,4 +1,4 @@
-# SHA3-256 with 6 prefix rounds: Gray-order enumeration of two-round-affine cosets, time_log2 122.66823
+# SHA3-256 with 6 prefix rounds: Gray-order enumeration of two-round-affine cosets, time_log2 122.66807
 
 ## 1. Claim
 
@@ -11,7 +11,7 @@ on all 256 output bits." The algorithm CAMP of Section 8 outputs two distinct 13
 
 | Quantity | Value |
 |---|---|
-| time_log2 (collision-frontier-v5, reference operation cost 1626, rounded up) | 122.66823 (Section 10) |
+| time_log2 (collision-frontier-v5, reference operation cost 1626, rounded up) | 122.66807 (Section 10) |
 | success probability | at least 0.39 over CAMP's fresh coins (random coset origins), under premise H_coset (Section 9) |
 | memory | below 2^141 words of 256 bits, below 2^146 bytes (Section 11.1) |
 | preprocessing (included in time) | at most 2^70 + 16 word operations, below 2^59.34 target compressions (Section 11.2) |
@@ -222,11 +222,11 @@ immediate operand of its instruction and costs no operation. Generating and stor
 
 - **Immediate:** the FES record addresses of every plane and Gray step, the buffer words, the current-value frame,
   the 144 intermediate tile words, every setup operand (working frames, bitplanes, transpose words, input words,
-  round buffers, D and wrap words, coefficient and derivative records), the NOT pattern of w(S) at every setup point
+  round buffers, D words, coefficient and derivative records), the NOT pattern of w(S) at every setup point
   and the constant words of the folded setup rounds (Section 6.3), the basis constants w_b in two-word form, the
   butterfly masks and the eight words of Section 5.4, at each emission site of the chi phase the record offset and
   the two words of sum_b g(i)_b w_b of its candidate, the constant lanes of the folded verification rounds
-  (Section 7), the byte-table bases, the verification-count word, the spill words and the region bases.
+  (Section 7), the byte-table bases, the words that hold F and h across the setup and the region bases.
 - **Computed at run time and charged:** the two random words of each coset origin (Section 6.2), the coset-record
   address in the leader step and in verification (shifts, add, second-word add), the decoding of the earlier
   candidate and its byte-table addresses in verification. The table addresses cost nothing: the key word is its own
@@ -250,9 +250,9 @@ x_p = f_p(g(i)) by Lemma 5, and x_p is stored into the buffer word X[p][i].
 
 **Registers.** The 61 records of the cached set CR, the 31 nonempty subsets of {0..4} and the 30 subsets of {0..5}
 that contain 5 other than {5} and {0, 5}, are held in registers for the whole plane, with x_p and two chain
-temporaries: 64 registers. The group index h is the only value live across the setup and this phase (the
-verification count is a memory word and the identifier is formed from h afterwards, Section 6.2); it is stored to a
-fixed word right after the leader step and loaded back after the FES phase, 2 operations per group, so the setup
+temporaries: 64 registers. The group index h and the verification count F (Section 7) are the only values live
+across the setup and this phase (the identifier is formed from h afterwards, Section 6.2); each is stored to a fixed
+word right after the leader step and loaded back after the FES phase, 4 operations per group, so the setup
 (Section 6.3) and the FES phase have all 64 registers.
 
 **Lemma 5b (last change).** Let 1 <= |T| <= 7 and m = max T. (a) tab[T] is changed exactly at the steps
@@ -282,7 +282,7 @@ losing one STORE. With the sum of Section 4.3 the steps of a plane cost Sc61 + (
 
 counts the tops, the links at 1 or 3 and the XOR into x_p, and the extra 2^40 - 1 the buffer STOREs. Per group
 
-    F_g = 175 (62 + Sc61 + 2^40 - 1 - U) + 2 = 3,475,469,081,452,377.
+    F_g = 175 (62 + Sc61 + 2^40 - 1 - U) + 4 = 3,475,469,081,452,379.
 
 ### 5.4 Chi fused into the transpose: 4664 operations per Gray point and group
 
@@ -319,7 +319,7 @@ Per Gray point and group:
 
 and per group 4664 * 2^40 + 175 (2^40 - 1) with the buffer LOADs. The chi phase holds no current value in a register:
 the five values of one z, the tile, one temporary and two butterfly scratch registers, then the 16 key words of a
-column step, besides the identifier register cid (Section 7).
+column step, besides the registers cid, h and F (Section 7).
 
 ## 6. Outer cosets and setup
 
@@ -352,7 +352,7 @@ H8 = h * 2^8 before the leader step, the identifier cid = h * 2^48 after the FES
 chi phase the next index h = cid >> 48 (cid is then (h + 1) 2^48), its compare with G and the branch. S_v
 (Section 6.5) charges exactly these 11 C + 5 G operations.
 
-### 6.3 Bit-sliced evaluation (13,616 per group, 62,710 + popcount(w(S)) per point)
+### 6.3 Bit-sliced evaluation (13,616 per group, 62,022 + 2 popcount(w(S)) per point)
 
 The 256 lanes of a group are evaluated together at every S with |S| <= 8, the points in order of increasing |S|.
 State word (l, z) holds bit z of lane l of the state of lane c at bit c, so the word operations below apply
@@ -369,8 +369,8 @@ the lane-c input at point S is A(t_j XOR w(S)) (Section 4), and w(S) is fixed in
   64 x 64 blocks the same way, block 0 stored into planes 256..319 (1,310) and block g = 1..3 shifted left by 64g
   and ORed into them (66 + 1,178 + 62 * 4 + 2 * 5 = 1,502). Total 4 * 1,310 + 2,560 + 1,310 + 3 * 1,502 = 13,616,
   with 62 row registers and two scratch registers.
-- **Input (640 + popcount(w(S)) per point).** For k = 0..319: LOAD plane k, NOT it if bit k of w(S) is 1, STORE it
-  as bit k mod 64 of lane k div 64.
+- **Input (2 popcount(w(S)) per point).** Bit z of lane l < 5 is LOADed from plane k = 64 l + z; if bit k of w(S)
+  is 1, its first LOAD (round 0) is followed by NOT and a STORE into its input word, which later LOADs of k read.
 - **Constant folding.** In A(t) lanes 10..14 equal lanes 0..4, lane 16 is the padding 0x86 * 2^56 and the other
   lanes are zero (Section 2), the same in every lane c and at every point. Code generation therefore follows each of
   the 1,600 state words through rounds 0 to 4 and the round-5 linear step as a known constant (the zero word or the
@@ -379,18 +379,18 @@ the lane-c input at point S is A(t_j XOR w(S)) (Section 4), and w(S) is fixed in
   with the zero word gives the zero word. A data word is LOADed once per slice that reads it, theta's D words that
   are data are STOREd once, and a round STOREs each new data word once, into its own buffer (one 1,600-word buffer
   per round); round 0 reads lanes 10..14 from the words of lanes 0..4. No constant word is stored or loaded, and the
-  pattern does not depend on S (w(S) only inverts data words), so one code serves every point.
-- **Rounds 0 to 4 (57,840 per point).** A round with data parities forms theta's D words slice by slice, slice 63
+  pattern does not depend on S (w(S) only inverts data words): one code serves all points, input LOADs as above.
+- **Rounds 0 to 4 (57,802 per point).** A round with data parities forms theta's D words slice by slice, slice 63
   first: the column parities of slice z (LOADs and XORs), then D[x][z] = C[x - 1][z] XOR C[x + 1][z - 1] and its
-  STORE; the data parities of slice 63 are stored after it and LOADed back for D[x][63] (the wrap, 2 per data
-  column). Then for each slice z: the rho-pi source words and D words (LOAD), their XOR, chi (NOT, AND, XOR), iota
-  as one NOT of lane 0 when bit z of RC[r] is 1, and the STOREs. A round on 1,600 data words costs
-  64 * 45 + 320 * 2 + 10 = 3,530 for the D words and 64 * 175 = 11,200 for the slices, plus the popcount of RC[r]
-  (5, 3, 5 for r = 2, 3, 4); rounds 2, 3 and 4 are of this kind: 14,735, 14,733 and 14,735. In round 0 every column
-  parity is constant (lanes x and x + 10 cancel), so theta adds constants: 640 LOADs, 668 NOTs, 314 XORs and 356
-  STOREs, 1,978. Round 1: 3,286 LOADs, 3,225 XORs, 1,674 NOTs, 1,600 ANDs and 1,874 STOREs, 11,659. Rounds 0 to 4
-  cost 1,978 + 11,659 + 14,735 + 14,733 + 14,735 = 57,840.
-- **Round-5 linear step (4,230 per point).** The D words as above (3,530), then for each of the 175 planes (x, z),
+  STORE; the data parities of slice 63 stay in registers until D[x][63] (no wrap words). Then for each slice z: the
+  rho-pi source words and D words (LOAD), their XOR, chi (NOT, AND, XOR), iota as one NOT of lane 0 when bit z of
+  RC[r] is 1, and the STOREs. A round on 1,600 data words costs 64 * 45 + 320 * 2 = 3,520 for the D words and
+  64 * 175 = 11,200 for the slices, plus the popcount of RC[r] (5, 3, 5 for r = 2, 3, 4): 14,725, 14,723 and 14,725
+  for rounds 2, 3 and 4. In round 0 every column parity is constant (lanes x and x + 10 cancel), so theta adds
+  constants: 640 LOADs, 668 NOTs, 314 XORs and 356 STOREs, 1,978. Round 1: 3,282 LOADs, 3,225 XORs, 1,674 NOTs,
+  1,600 ANDs and 1,870 STOREs, 11,651. Rounds 0 to 4 cost 1,978 + 11,651 + 14,725 + 14,723 + 14,725 = 57,802. At
+  most 28 values are live at once in any round (11, 28, 28, 28, 28; 16 in the linear step), within the 64 registers.
+- **Round-5 linear step (4,220 per point).** The D words as above (3,520), then for each of the 175 planes (x, z),
   z <= 34: LOAD the source word, LOAD the D word, XOR, STORE into the coefficient record A[S] (4 * 175).
 
 **Lemma 10 (bit-sliced setup).** After the setup steps of point S, bit c of plane word p of A[S] is f_t(e_S)_p for
@@ -399,14 +399,14 @@ the origin t = t_j of lane c; so A[S] = f(e_S) as Lemma 6 requires, for all 256 
 *Proof.* A stage with d = s = 2^b exchanges row-index bit b with column-index bit b (Section 5.4), so the eight
 stages on the 256 first words and the six stages on each 64-row block of second words, shifted by 64g (rows
 c = 64g .. 64g + 63), leave bit k of t_j at bit c of plane k. Bit k of t_j XOR w(S) is that bit inverted when bit k
-of w(S) is 1, so the input words hold lanes 0..4 of A(t_j XOR w(S)) in bit c; lanes 10..14 equal them and the
+of w(S) is 1, so the input LOADs give lanes 0..4 of A(t_j XOR w(S)) in bit c; lanes 10..14 equal them and the
 other lanes are the constants of A(t), the same in every lane c. Theta, rho and pi are the D step and the fixed
 source addresses, chi and iota are bitwise (NOT of a lane-0 word is XOR with bit z of RC[r] in every lane), so the
 unfolded round maps the state of every lane to its next state. Folding replaces an operation by its value where an
 operand is the zero or all-ones word known at generation time (x XOR 0 = x, x AND 1 = x, x AND 0 = 0, x XOR 1 =
 NOT x, x XOR x = 0, constants combine to constants), which changes no word; every word that the code LOADs was
-STOREd earlier at the same point. So each folded round computes the same 1,600 words, and the linear step stores
-the bits b_{x,z} (z <= 34) of round 5. QED.
+STOREd earlier at the same point or is a bitplane. So each folded round computes the same 1,600 words, and the
+linear step stores the bits b_{x,z} (z <= 34) of round 5. QED.
 
 Over all points the input NOTs number pop_D = sum over |S| <= 8 of popcount(w(S)). Bit k of w(S) is 1 iff
 |S & B_k| is odd, with B_k = {b : bit k of w_b is 1} and m_k = |B_k|, so pop_D = sum over k = 0..319 of
@@ -421,23 +421,23 @@ coefficient record A[{}] is the current-value frame x = f(0).
 
 **Valid access.** Every work word is written before it is read: the working frames by the leader step, the bitplanes
 by the transpose (planes 256..319 by its block 0 before blocks 1..3 OR into them; the transpose words by each block
-before it reads them), the input words by the input of each point, the D words, wrap words and round buffers by
-the generated code of the same point before any of its LOADs reads them (a constant word is an immediate and is
-never read), A[S] by the linear step of point S (the transform reads only such records), tab[T] by the phase
-conversion before the FES phase, the buffer word X[p][i] by the FES phase before the chi phase, and the 144 tile
-words at every Gray point before its column step; the next group's setup rewrites the frames before reading them.
-The coset record of j is written by the leader step before any candidate of coset j exists. The verification-count
-word and the byte tables are written in preprocessing, the spill words by each use before they are read back
-(Sections 5.3, 7).
+before it reads them), the input word of a plane by its first LOAD at a point whose w(S) inverts it (only then is it
+read), the D words and round buffers by the generated code of the same point before any of its LOADs reads them (a
+constant word is an immediate and is never read), A[S] by the linear step of point S (the transform reads only such
+records), tab[T] by the phase conversion before the FES phase, the buffer word X[p][i] by the FES phase before the
+chi phase, and the 144 tile words at every Gray point before its column step; the next group's setup rewrites the
+frames before reading them. The coset record of j is written by the leader step before any candidate of coset j
+exists. The byte tables are written in preprocessing, and the words of F and h right after each leader step, before
+the FES phase reads them back (Section 5.3).
 
 ### 6.5 Setup total
 
 Per group: the leader step and group control 11 * 256 + 5 = 2,821 (Section 6.2), the transpose 13,616, the points
-(640 + 57,840 + 4,230) P_D + pop_D = 62,710 P_D + pop_D, the transform 700 J_D, the phase 350 V_D and the 175
+(57,802 + 4,220) P_D + 2 pop_D = 62,022 P_D + 2 pop_D, the transform 700 J_D, the phase 350 V_D and the 175
 point-zero loads (Section 5.4):
 
-    S_g = 2,821 + 13,616 + 62,710 P_D + 4,592,341,856 + 700 J_D + 350 V_D + 175 = 6,924,290,022,308,
-    S_v = G S_g = 8,324,727,858,445,183,221,990,590,914,749,247,816.
+    S_g = 2,821 + 13,616 + 62,022 P_D + 2 * 4,592,341,856 + 700 J_D + 350 V_D + 175 = 6,859,981,418,052,
+    S_v = G S_g = 8,247,412,837,314,799,286,032,420,609,297,376,904.
 
 ## 7. Sparse-set table and verification
 
@@ -475,13 +475,13 @@ only at s < cid, at written words. QED.
 No word is initialized and no initial content matters: Lemma 8 is the valid-access argument for the never-written
 sparse array.
 
-**Verification (charged 2664 operations: two six-round evaluations, 2 x 1271 = 2542, and at most 122 others).** The
-verification count F is a memory word: it is loaded, incremented, stored, compared with R140 and branched on (5); the
-current identifier is the cid register. The live registers (the 15 key words of the column step other than the one
-just probed, which is not read again, and cid; the chi phase holds no current value, Section 5.4) are stored to a
-fixed spill frame (16) and loaded back after the comparison (16), so the scalar schedule has the register file (at
-most 25 input and 25 output lanes, 5 D words and 2 rotation temporaries, beside the first digest and one identifier:
-62 registers; a constant lane is an immediate and needs none).
+**Verification (charged 2628 operations: two six-round evaluations, 2 x 1271 = 2542, and at most 86 others).** The
+verification count F is a register during the chi phase (Section 5.3): it is incremented, compared with R140 and
+branched on (3). Nothing is spilled: the 15 key words of the column step other than the one just probed (not read
+again), cid, h and F stay in their 18 registers (the chi phase holds no other value, Section 5.4). The generated
+code of the six rounds has at most 34 values live at once (a rotation's two temporaries included, computed by the
+program from its code; a constant lane is an immediate), the first digest adds 4 during the second evaluation and the
+message preambles hold fewer than one round, so verification uses at most 34 + 4 + 18 = 56 of the 64 registers.
 
 - **The earlier candidate (62)**, a run-time identifier s: e = s AND 255; i = (s >> 8) AND (2^40 - 1);
   c = ((e AND 15) << 4) OR (e >> 4); j = ((s >> 48) << 8) OR c; the record address CSB + 2j; two LOADs of t_j with
@@ -490,10 +490,10 @@ most 25 input and 25 output lanes, 5 D words and 2 rotation temporaries, beside 
   an XOR into word 0, resp. 1, of t_j (8 per byte, 7 for byte 0: 39); lanes 0..4 (6: lanes 0..2 by two shifts and
   three 64-bit masks, lane 3 by one shift, the first word >> 192 being below 2^64, and lane 4 is the second word
   itself, below 2^64).
-- **The current candidate (15).** Its probe runs in the code generated for Gray site i at emission e (Section 11.2),
+- **The current candidate (13).** Its probe runs in the code generated for Gray site i at emission e (Section 11.2),
   so i and e are immediates there: the hit path of each emission holds CSB + 2c and the two words of
-  sum_b g(i)_b w_b. The rebuild is h = cid >> 48, two shifts to 2^9 h, the add of CSB + 2c, two LOADs with the
-  second-word add (7), two XORs with the immediate words (2) and the lanes as above (6).
+  sum_b g(i)_b w_b. The rebuild is 2^9 h by one shift of the h register, the add of CSB + 2c, two LOADs with the
+  second-word add (5), two XORs with the immediate words (2) and the lanes as above (6).
 - **The six rounds (1271 per message).** Lanes 10..14 are the registers of lanes 0..4, and the fourteen zero lanes
   and the padding lane 16 = 0x86 * 2^56 are immediates. The rounds run as code generated once with the folding rule
   of Section 6.3 on 64-bit lanes: an operation is emitted only when its result is not fixed by the constants, a
@@ -505,14 +505,14 @@ most 25 input and 25 output lanes, 5 D words and 2 rotation temporaries, beside 
   permutation call, giving the native digest lanes 0..3. Folding changes no lane (the argument of Lemma 10 on 64-bit
   lanes), and the pattern is the same for every message.
 
-Then at most four compares and branches (8). Total at most 5 + 2 * 16 + 62 + 15 + 8 = 122 besides the two six-round
-evaluations. If F reaches R140 the run stops (failure). The byte tables TB_{b,k} (b = 0..4, k = 0, 1) hold for each
-byte value v word k of the XOR of w_{8b+j} over the set bits j of v; the ten tables (2,560 words) are written once
-in preprocessing (Section 11.2).
+Then at most four compares and branches (8). Total at most 3 + 62 + 13 + 8 = 86 besides the two six-round
+evaluations. If F reaches R140 the run stops (failure); on equal digests the output rebuilds s as SPARSE[DENSE[cid]].
+The byte tables TB_{b,k} (b = 0..4, k = 0, 1) hold for each byte value v word k of the XOR of w_{8b+j} over the set
+bits j of v; the ten tables (2,560 words) are written once in preprocessing (Section 11.2).
 
 **Address map (words).** DENSE [0, Q) with Q < 2^128; coset records [2^130, 2^130 + 2C); the work region (frames,
-records, byte tables, spill words and the buffer) from 2^131, fewer than 2^48 words; generated code from 2^132, fewer
-than 2^56 words; SPARSE [2^140, 2^141). The regions are disjoint and every address is below 2^141.
+records, byte tables, the words of F and h, the buffer) from 2^131, fewer than 2^48 words; generated code from 2^132,
+fewer than 2^56 words; SPARSE [2^140, 2^141). The regions are disjoint and every address is below 2^141.
 
 ## 8. The algorithm CAMP
 
@@ -594,21 +594,21 @@ in word operations, Section 7).
 
 | term | value |
 |---|---|
-| FES, G F_g (Section 5.3) | 4,178,382,793,083,497,526,493,178,625,755,871,925,554 |
+| FES, G F_g (Section 5.3) | 4,178,382,793,083,499,930,993,230,364,024,963,746,358 |
 | chi and transpose, G (4664 * 2^40 + 175 (2^40 - 1)) (Section 5.4) | 6,396,615,465,532,466,027,266,398,022,000,940,761,378 |
-| setup, S_v = G S_g (Section 6.5) | 8,324,727,858,445,183,221,990,590,914,749,247,816 |
+| setup, S_v = G S_g (Section 6.5) | 8,247,412,837,314,799,286,032,420,609,297,376,904 |
 | table, 9 Q | 3,045,629,682,287,101,978,514,612,828,629,691,793,408 |
-| verification, 2664 R140 | 109,439,476,213,156,567,889,907,410,005,847,661,648 |
+| verification, 2628 R140 | 107,960,564,372,438,235,891,395,147,708,471,341,896 |
 | preprocessing, ONCE = 2^70 + 16 | 1,180,591,620,717,411,303,440 |
 
-    N = G F_g + G (4664 2^40 + 175 (2^40 - 1)) + G S_g + 9 Q + 2664 R140 + ONCE
-      = 13,738,392,144,974,667,284,566,679,098,024,512,693,244,
+    N = G F_g + G (4664 2^40 + 175 (2^40 - 1)) + G S_g + 9 Q + 2628 R140 + ONCE
+      = 13,736,835,918,112,820,973,132,260,403,690,776,323,384,
 
-about 40.5976 operations per candidate. The time is N/1626 target compressions, and the integer certificate
+about 40.5931 operations per candidate. The time is N/1626 target compressions, and the integer certificate
 
-    1626^100000 * 2^12266822 <= N^100000 < 1626^100000 * 2^12266823
+    1626^100000 * 2^12266806 <= N^100000 < 1626^100000 * 2^12266807
 
-gives log2(N/1626) = 122.6682254..., so time_log2 = 122.66823 (rounded up at the fifth decimal).
+gives log2(N/1626) = 122.6680619..., so time_log2 = 122.66807 (rounded up at the fifth decimal).
 
 ## 11. Memory, preprocessing and advice
 
@@ -616,8 +616,8 @@ gives log2(N/1626) = 122.6682254..., so time_log2 = 122.66823 (rounded up at the
 
 SPARSE: 2^140 words (never initialized); DENSE: Q words; coset records: 2C words (the retained random origins); work:
 working frames 512, tile words 144, bitplanes 320, transpose words 3, input words 320, round buffers 5 * 1,600, D
-words 320, wrap words 5, coefficient and derivative records 2 * 175 * P_D, the byte tables 2,560, the
-verification-count word, 17 spill words and the buffer 175 (2^40 - 1), which every group reuses (fewer than 2^48
+words 320, coefficient and derivative records 2 * 175 * P_D, the byte tables 2,560, the words that hold F and h
+across the setup, and the buffer 175 (2^40 - 1), which every group reuses (fewer than 2^48
 words in all); generated code and its constants: fewer than 2^56 words. The regions are disjoint (Section 7) and
 every address is below 2^141, so memory is below 2^141 words of 32 bytes, below 2^146 bytes.
 
@@ -626,8 +626,8 @@ every address is below 2^141, so memory is below 2^141 words of 32 bytes, below 
 (a) **Code generation.** Each of the 175 (2^40 - 1) FES step sites (plane p, Gray step i) is decoded (the set bits of
 i, the record addresses of T_1..T_L in plane p and their cache and last-change flags) in fewer than 2^14 operations
 and emits at most 1 + 3 * 7 + 2 = 24 instructions; each of the 2^40 chi-phase sites is decoded (with the two
-words of sum_b g(i)_b w_b) in fewer than 2^14 operations and emits at most 4664 + 175 + 9 * 256 + 15 * 256 = 10,983
-instructions (the table steps of its 256 emissions and, on each hit path, the 15 operations of the current
+words of sum_b g(i)_b w_b) in fewer than 2^14 operations and emits at most 4664 + 175 + 9 * 256 + 13 * 256 = 10,471
+instructions (the table steps of its 256 emissions and, on each hit path, the 13 operations of the current
 candidate, Section 7); the setup code (leader step, transpose, every point with the NOT pattern of w(S) and the
 folded rounds, transform pairs and phase terms) has one instruction per operation of S_g, fewer than 2^46, each
 generated in at most 16 operations; the folding pattern of the setup rounds (the same at every point) and the
@@ -787,11 +787,11 @@ close to -(1/2) log2(1 - eps) in every row. Only the row eps = 0 is claimed.
 
 | eps | success at this N | least G | N at that G | E | time_log2 | extra |
 |---:|---:|---:|---:|---:|---:|---:|
-| 0 | > 0.39 | 1,202,250,025,869,134,545,910,402 | 13,738,392,144,974,667,284,566,679,098,024,512,693,244 | 12,266,823 | 122.66823 | 0 |
-| 0.01 | > 0.386976 | 1,208,310,394,929,860,051,769,630 | 13,808,199,848,717,445,574,424,908,359,501,653,091,524 | 12,267,554 | 122.67554 | 0.00731 |
-| 0.05 | > 0.374732 | 1,233,502,149,326,011,439,979,945 | 14,098,436,263,582,001,265,330,443,203,244,377,390,214 | 12,270,555 | 122.70555 | 0.03732 |
-| 0.10 | > 0.359083 | 1,267,326,018,839,002,222,734,854 | 14,488,275,173,184,530,570,448,955,663,089,112,535,836 | 12,274,490 | 122.74490 | 0.07667 |
-| 0.25 | > 0.309746 | 1,388,387,996,102,778,879,505,654 | 15,885,001,522,036,501,004,488,966,638,787,378,976,916 | 12,287,768 | 122.87768 | 0.20945 |
+| 0 | > 0.39 | 1,202,250,025,869,134,545,910,402 | 13,736,835,918,112,820,973,132,260,403,690,776,323,384 | 12,266,807 | 122.66807 | 0 |
+| 0.01 | > 0.386976 | 1,208,310,394,929,860,051,769,630 | 13,806,628,284,579,467,335,337,942,307,496,809,156,248 | 12,267,538 | 122.67538 | 0.00731 |
+| 0.05 | > 0.374732 | 1,233,502,149,326,011,439,979,945 | 14,096,800,139,876,961,173,037,185,995,982,496,069,548 | 12,270,538 | 122.70538 | 0.03731 |
+| 0.10 | > 0.359083 | 1,267,326,018,839,002,222,734,854 | 14,486,550,325,755,241,013,670,139,662,891,728,513,404 | 12,274,473 | 122.74473 | 0.07666 |
+| 0.25 | > 0.309746 | 1,388,387,996,102,778,879,505,654 | 15,882,939,930,286,928,308,353,340,235,662,896,733,464 | 12,287,750 | 122.87750 | 0.20943 |
 
 **Scope and extrapolation.** The evidence covers projections of at most 64 digest bits: 32-bit within-coset and 44-bit
 global projections of single lanes on 2^30 messages (batches 1 to 3), 36- to 64-bit projections of single lanes and
@@ -832,15 +832,15 @@ with its event.
   verification runs through a counting machine (one call per primitive of Section 5.1; no permutation call; the
   generated code of the folded rounds runs one instruction, one primitive, at a time), and the program stops unless
   the executed counts equal the formulas above: 11 per coset leader and 5 per group; 13,616 for the transpose; at
-  every point 640 + popcount(w(S)) for the input, 1,978, 11,659, 14,735, 14,733 and 14,735 for rounds 0 to 4 and
-  4,230 for the linear step, with the popcount sum 13,530 of the formula of Section 6.3 at n = 9;
+  every point 1,978 + 2 popcount(w(S)) for round 0 with the input, 11,651, 14,725, 14,723 and 14,725 for rounds 1 to
+  4 and 4,220 for the linear step, with the popcount sum 13,530 of the formula of Section 6.3 at n = 9;
   4 * 175 J_D and 2 * 175 V_D for transform and phase; the step count of Section 5.3 at every plane and Gray step and
-  62 + Sc + 2^9 - 1 - U = 3,799 per plane (Sc = 3,419 and U = 193 by the formulas of Section 5.3 at n = 9), 2 per
-  group for the spill, every buffer word written once and 175 buffer reads per point i >= 1, 175 point-zero loads,
-  4664 per point, 6 / 9 / 8 table operations per candidate (each probe), 7,660 for the byte tables, 62 for the
-  earlier and 15 for the current candidate, 67, 236, 242, 242, 242 and 242 for the six folded rounds of each, and at
-  most 2664 operations per verification, the 16-register spill included. It also checks
-  Sc61 = 18,760,331,006,174, U = 19,311,426 and pop_D = 4,592,341,856 at n = 40.
+  62 + Sc + 2^9 - 1 - U = 3,799 per plane (Sc = 3,419 and U = 193 by the formulas of Section 5.3 at n = 9), 4 per
+  group for the spill of h and F, every buffer word written once and 175 buffer reads per point i >= 1, 175 point-zero
+  loads, 4664 per point, 6 / 9 / 8 table operations per candidate (each probe), 7,660 for the byte tables, 62 for the
+  earlier and 13 for the current candidate, 67, 236, 242, 242, 242 and 242 for the six folded rounds of each, and at
+  most 2628 operations per verification, nothing spilled. It also checks Sc61 = 18,760,331,006,174, U = 19,311,426
+  and pop_D = 4,592,341,856 at n = 40, and the register peaks of its generated code (Sections 6.3 and 7).
 - The counted bit-sliced setup of Section 6.3 runs on all 256 lanes at all 511 points. The bitplanes must equal the
   origins bit for bit, and every coefficient record must equal, on every lane, an independent evaluation that is not
   counted (rounds 0 and 1 by Lemma 3 (b), then rounds 2 to 4 and the linear step). Never-written sparse
@@ -864,11 +864,11 @@ with its event.
   (probability below 2^-222) would be returned by trial 0 instead, without the test.
 
 In fes-campaign-reduced the program reports 16 numbers per trial: own_pairs16 (its own coset), and 15 that are the
-same for all trials of a group: fes_ops = 664,827 (175 * 3,799 + 2); buffer_reads = 89,425 (175 * 511); chi_transpose_ops = 2,387,968
+same for all trials of a group: fes_ops = 664,829 (175 * 3,799 + 4); buffer_reads = 89,425 (175 * 511); chi_transpose_ops = 2,387,968
 (4664 * 512); table_ops = 6 (2^17 - x - m) + 9 x + 8 m with x = in_range_mismatches and
 m = key_matches; sparse_inserts = 2^17 - m; leader_ops = 2,821 (11 * 256 + 5); setup_group_ops = 13,616 (the
-transpose); setup_point_ops = 32,058,340 (62,710 * 511 + 13,530); transform_phase_ops = 2,419,200;
-verify_check_ops (at most 8 + 2664); perm_calls = 0; native_checks = 512; key_mismatch = 0. In hcoset-within16 and
+transpose); setup_point_ops = 31,720,302 (62,022 * 511 + 2 * 13,530); transform_phase_ops = 2,419,200;
+verify_check_ops (at most 8 + 2628); perm_calls = 0; native_checks = 512; key_mismatch = 0. In hcoset-within16 and
 hcoset-cross16 it reports, the same for all trials of the group, these 15 without buffer_reads and sparse_inserts
 (checked inside the program) and pairs16_within, pairs16_cross and pairs24_cross. The program also asserts
 point_zero_loads = 175 and once_ops = 7,662 (control 2, byte tables 7,660) without reporting them. No trial of
@@ -878,15 +878,26 @@ about cost is inferred from the runs, and the premise tests are evidence at 16 a
 ## 14. Credits
 
 - GPT Sol cloud: the two-round affine field and its certificate.
-- GPT Sol local and GPT Luna: the exact ledger (initialization, schedule, setup, table and success).
-- Grok: transpose and table code, executed operation counts, the schedule savings of jobs 64, 67 and 70 (constant
-  folding, the verification schedule, the Chebyshev parameter) and the executed bit-sliced setup of job 69.
+- GPT Sol local and GPT Luna: the exact ledger (initialization, schedule, setup, table and success) and the check
+  of the savings below (D83).
+- Grok: transpose and table code, executed operation counts, the schedule savings of jobs 64, 67, 70 and 72
+  (constant folding, the verification schedule, the Chebyshev parameter, the savings below) and the executed
+  bit-sliced setup of job 69.
 - Bouillaguet, Chen, Cheng, Chou, Niederhagen, Shamir and Yang, CHES 2010: fast exhaustive search by Gray-code finite
   differences.
 - Th0rgal (76ccfa1c): the earlier remark that the digest's degree in a 32-bit counter is at most 32 (prior context).
 - rubenmarcus (91f1424d, sha3-256-r5): earlier use of degree-4 Gray-order finite differences in this contest, there to solve connector equations (prior context).
 - Jbenisek, with the daydream panel (compiler and accountant voices, our agents): the preregistered H_coset runs,
   the kernel checks, the schedule levers, the package and the experiment program with its premise tests.
+
+**Changes from ab10cd11.** This package is our ab10cd11 (time_log2 122.66823) with five schedule savings that Grok
+job 72 found and GPT Luna (D83) checked, each executed and counted by the shipped program. Verification keeps the 15
+other key words, cid, h and F in registers instead of a spill frame, builds the current record address from h with
+one shift, and counts F in a register: 2628 operations instead of 2664. F is stored and reloaded with h around the
+setup and the FES phase (+2 per group). The setup reads its input straight from the bitplanes, with NOT and a STORE
+at the first LOAD of an inverted plane (2 popcount(w(S)) per point instead of 640 + popcount(w(S))), and keeps the
+parities of slice 63 in registers instead of wrap words (48 fewer per point). G, kappa, Q, R140 and the premise
+H_coset are unchanged; N falls by 36 R140 + 64,308,604,254 G.
 
 ## Appendix A. H_coset evidence: preregistrations, programs and raw counts
 
