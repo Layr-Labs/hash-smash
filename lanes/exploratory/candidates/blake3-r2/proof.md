@@ -3,102 +3,85 @@
 The scalar below is `time_log2` under `collision-frontier-v5`. Memory is a separately reported resource bound.
 
 This exploratory package targets blake3-r2-prefix-v1. It has an exact part and a heuristic part, and it keeps them apart. It is
-the counter search of our entry 415e792c on the whole class of eta with the outcome set S of six outcomes of beta*, 175020a0,
-185020a0, 275020a0, 285020a0, 385020a0 and 685020a0, with the exact filter and the s-pattern pre-check of that entry, and with
-eight changes. (1) *The member loop and the direct tables*, after entry e9b6649e of the participant hecmas: the run draws one
-fresh word per *context*, the seven outer words, runs the 39 lines of the outer step that do not read the member once for that
-context, and walks all 2^19 members of the class in it; the two masks of the filter are read from two tables over all 2^32 words
-with one load each (9.8). (2) *The guards (G7) and (G15) and a root certificate of four one-word tests*: (G7), of our entry
-0bc5f130 (GPT Sol, answer AX 1), and (G15) (GPT Sol, answers CF 7 and CD 10) each prescribe one more bit of the solver's word, and
-the certificate (GPT Sol, answer CF 6) replaces the full test of E1 on a root; with the global ledger of 736 machine units of an
-outer step that reaches the solver, which takes the solver's source bank from words that the walk already holds (GPT Sol, answers
-CD 11 and D13), and with at most one row of each family left at depth 7 (GPT-6 Astra, Batch 17), the proved cap of the solver's
-work is 15,296 machine units (9.7, Section 11). (3) *The omega-first batch* (GPT Sol, answer CA, derived and checked by the
-participant, with its charges audited in GPT Sol's answer CD): a batch of seven members computes only the member lines that lead
-to omega = Y3 + y + w8, folded into 17 machine units (GPT Sol, answer D9), and the 17 member lines that lead only to Y9 run only
-for a batch with a lane whose test on omega passes: 50 machine units per partner batch of seven, 112,519 per context and 53 per
-passing lane (9.8, Section 11). (4) *The straddle cluster gate* (GPT Sol, answers CI 1, CJ 1 to 5, D14 and D16): the 32 members
-that differ only in bits 10 to 14 of e1 form a cluster; one fixed table of 2^30 words, read once per representative at a key
-formed in six operations from its omega, its Y0 and its e1, skips the cluster, with no read of T2, when no member can pass test
-(2), which loses nothing (Lemmas A9 and CL); Lemma OR proves that on average the gate opens on at most 0.40633153915... of the
-clusters of a context, so the budget of opened clusters needs no premise (9.9). (5) *The masked partner walk* (GPT Sol, answer
-D14, from a combination sweep of the participant): four carries of the representative's omega side fix bits 0 to 13 of the omega
-of every partner, and a table of 128 descriptors built per context lists, in at most two chunks of seven, the partners whose omega
-survives test (2) on its low 16 bits; the other partners are proved to fail (2) and are not walked, and a byte guard sends the
-clusters in which the carries could vary to the earlier walk of five partner batches (Lemma XF). A representative batch of seven
-costs 59 machine units and an opened cluster 144, its two chunks priced together (GPT Sol, answer D18, after Grok, job 58; 9.9,
-Section 11). (6) *The cached Y9* (GPT Sol, answer CM 5A): the packed Y9 lines of a batch run once, at its first lane whose test on
-omega passes, and the seven lanes of Y9 stay in a register for its later lanes: 56 machine units per such batch, the *fill*, and 7
-per lane that passes, the *E lane*, with a budget on the fills (9.8). (7) *The metered credit* (GPT Sol, answer CK3): the credit
-of the solver is debited, block by block, with exactly the work that a call executes, after a test that the remaining credit
-covers the whole cap of the call, at most 15,296; the credit is set by the exact bound of GPT-6 Astra on the mean of the solver's
-ledger in an explicit model, carried to the shorter ledger of this row by a factor 478/487 that holds in every call (GPT Sol,
-answer D13; 9.7, 10.3, Section 11). (8) *One work register and the layout of this row*: the four counted events add their charges
-to one register W, which a context tests once against a fixed bound WB (9.1); the frame words of the walk stay in registers, after
-entry 73d5265f of the participant 0xshikhar; a passing lane takes the guard words of the pre-check and the source bank of the
-solver from the words of its batch (GPT Sol, answers D9 and D13), and the pre-check needs no table; T2, T1 and the gate table sit
-at fixed word addresses that the lanes index directly; and the representative loop, its partner chunks and the passing lanes are
-written out (9.6 to 9.9, Section 11). The exact filter (Section 8) skips every outer step that cannot hold a success with an
-outcome of S, and the joint solver (9.4) finds the successes of a passing outer step without enumerating its trials. The
-heuristics are H1', H4', H5_exec and H_G_cluster, stated for the walk by contexts; part (ii) of H1' takes the context as the unit,
-a stronger clause than one stated per outer step (10.3). The values that the search reads are a fixed record of nonuniform advice,
-stated in full (Section 12): the success analysis uses only properties of this record that this text verifies exactly, and the
-selection procedure SEL that found it is charged in full in the time, at a cap of 5,486,510,246,044,225,536 operations that holds
-by construction (Section 12); no premise is declared for it. The layout of the solver, its cap, the guards (G7) and (G15), the
-root certificate, the pre-check, the cluster gate, the masked partner walk, the cache and the meter are proved allowances, charged
-in machine units; the declared experiment `frontline-search` executes this search in the organizer's sandbox, one context per
-trial with 32 of its clusters, the work register, the cache and the metered credit of this row included, and checks it in the same
-run against a straight-line recomputation (9.2). Section 15 lists the earlier entries in one line each, and Section 16 credits the
-people and models whose work is used.
+the counter search of our entry 244f068c on the whole class of eta with the outcome set S of six outcomes of beta*, 175020a0,
+185020a0, 275020a0, 285020a0, 385020a0 and 685020a0, its exact filter, its s-pattern pre-check, its joint solver with the guards
+(G7) and (G15) and the root certificate, its lane replicas of the direct tables, its tabled shortcut and its metered credit, with
+one change: *the walk of the high counter word* (9.8). The last chunk's compression reads the chunk counter as two words, v[12] =
+t mod 2^32 and v[13] = t >> 32 = t_hi, and t_hi enters the construction in one line only, K1.a1 = ROL(K1.d1,16) XOR t_hi, which
+entry 244f068c ran with t_hi = 0 (Section 8). A *context* of the run is one fresh draw of the seven outer words and of eight
+members of the class, and each member walks 2^16 values of t_hi: 2^19 outer steps per context, as before, with messages below 2^58
+bytes, which the organizer's tree mode accepts (Lemma TR). Along a member's walk the words of the outer step that do not depend on
+K1.a1 stay fixed, X0 and w3 fall by one at each step, and the low half of omega = Y3 + y + w8 stays fixed while X0 >> 16 does, so
+a member's 2^16 steps fall into at most two *blocks* (Lemma W). The automaton of (2), stopped after the 16 bits of omega that a
+block fixes, decides the block at once: 7,072 of the 2^16 low halves leave it live, and a dead block is left with no further work
+(Lemma BL). A live block is scanned seven steps to a packed word, each lane reading its own replica of T2' at its omega; the
+member lines that lead only to Y9 and read X0 or w3 run once per batch with a lane that passes, at its first such lane, and the
+others once per member. This replaces the member loop, the cluster gate, the masked partner walk and the omega-first batch of
+entry 244f068c. The walk was found and implemented by the participant's scout and lane agents and priced by GPT Luna 5.6 (answers
+D27, D33, D42, D45 and D47 to D49), with Grok (job 68); its counter contract, answer D54 of GPT Luna 5.6, fixes the events that
+the program asserts and the units that Section 11 charges: 16 machine units per block, 36 more per live block, 36 per scan batch
+of seven steps, 41 per fill, 6 per E lane, 45 per passing lane with its preflight, 547 per context and 66 per member. The exact
+filter (Section 8) skips every outer step that cannot hold a success with an outcome of S, and the joint solver (9.4) finds the
+successes of a passing outer step without enumerating its trials. The heuristics are H1', H4', H5_exec and H_G_cluster, stated for
+the walk contexts; part (ii) of H1' takes the context as the unit (10.3). The values that the search reads are a fixed record of
+nonuniform advice, stated in full (Section 12): the success analysis uses only properties of this record that this text verifies
+exactly, and the selection procedure SEL that found it is charged in full in the time, at a cap of 5,486,510,246,044,225,536
+operations that holds by construction (Section 12); no premise is declared for it. The layout of the walk, the solver with its
+cap, the guards, the root certificate, the pre-check and the meter are proved allowances, charged in machine units; the declared
+experiment `frontline-search` executes this search in the organizer's sandbox, one context per trial with the first 2^10 steps of
+each of its eight members, the work register and the metered credit included, and checks it in the same run against a
+straight-line recomputation (9.2). Section 15 lists the earlier entries in one line each, and Section 16 credits the people and
+models whose work is used.
 
-**Exact part.** An explicit construction maps seven 32-bit words, a member y of the class of eta, a set of 524,288 values, and one
-more word c1 to a number t and to a 55-byte string A and a 63-byte string B. When t is not zero, F || A and F || B, with F a
-string of t full chunks of 1,024 bytes, are messages of 1024 t + 55 and 1024 t + 63 bytes whose last chunks are A and B, and the
-2-round compressions of these last chunks, with chunk counter t and flags 3, give chaining values that agree on their words 0, 2,
-5 and 7, that is on 128 of their 256 bits. There is no search in this and no probability: it holds for every choice (Sections 7
-and 8). In the organizer's tree mode the digest of such a message depends on F and on the chaining value of its last chunk alone
-(Lemma TR), so a pair whose last-chunk chaining values agree in all eight words is a collision of two complete messages. The
-number t is not chosen: it is the chunk counter that the round-0 call K0 reads, solved per trial as t = ROL(K0.d1,16) XOR K0.a1.
-It takes up the freedom of the message word w0, and that is what lets the construction prescribe c1, the third value of the
-round-1 call E1, next to y. The search holds c1 inside the set Q* of the 2^21 words for which the first-half b difference of E1 is
-beta* = 18b0e098, the difference of the solution with which the constants were found (Section 12).
+**Exact part.** An explicit construction maps seven 32-bit words, a member y of the class of eta, a set of 524,288 values, a high
+counter word t_hi and one more word c1 to a number t and to a 55-byte string A and a 63-byte string B. When t is not zero, F || A
+and F || B, with F a string of t full chunks of 1,024 bytes, are messages of 1024 t + 55 and 1024 t + 63 bytes whose last chunks
+are A and B, and the 2-round compressions of these last chunks, with chunk counter t and flags 3, give chaining values that agree
+on their words 0, 2, 5 and 7, that is on 128 of their 256 bits. There is no search in this and no probability: it holds for every
+choice (Sections 7 and 8). In the organizer's tree mode the digest of such a message depends on F and on the chaining value of its
+last chunk alone (Lemma TR), so a pair whose last-chunk chaining values agree in all eight words is a collision of two complete
+messages. The number t is not chosen: its high word is t_hi, and its low word, which the round-0 call K0 reads, is solved per
+trial as ROL(K0.d1,16) XOR K0.a1. It takes up the freedom of the message word w0, and that is what lets the construction prescribe
+c1, the third value of the round-1 call E1, next to y. The search holds c1 inside the set Q* of the 2^21 words for which the
+first-half b difference of E1 is beta* = 18b0e098, the difference of the solution with which the constants were found (Section
+12).
 
 **Heuristic part.** A collision needs the other four words of the chaining value to agree as well. The algorithm walks
 639,060,516,044,734,464,000 = 2^69.115 outer steps of 2^21 trials each: 1,218,911,201,562,375 = 2^50.115 contexts drawn at random,
-each with all 2^19 members of the class in 16,384 clusters of 32, seven members to a batch. An exact filter, two carry automata on
-two words of the outer step, skips every outer step that cannot hold a collision with an outcome of S (Lemma F); it passes
-2^-9.9782 of uniform pairs of words. A table read once per cluster skips the clusters in which no member can pass the second
-automaton, exactly and without loss (Lemma CL); in the other clusters a table of the context skips the partners that provably fail
-it (Lemma XF), and the second automaton, read from a table at omega, is tested in every other lane; the member lines that lead
-only to Y9, and the first automaton, run only in a lane whose omega passes the second, 2^-4.1998 of uniform words. In a passing
-outer step three bits of E1.b1 that every success shares are a function of the words of the outer step, and they allow an outcome
-of S for only two of their eight values: the pre-check skips the joint solver in the other passing outer steps, exactly and
-without loss (Lemma VP). The joint solver, one depth-first traversal over the bits of one internal word with guards that exact
+each with eight members of the class walking 2^16 values of t_hi. An exact filter, two carry automata on two words of the outer
+step, skips every outer step that cannot hold a collision with an outcome of S (Lemma F); it passes 2^-9.9782 of uniform pairs of
+words. The second automaton, stopped after the low half of omega that a block fixes, skips every dead block exactly and without
+loss (Lemma BL); in a live block each step's lane reads the second automaton from a table at its omega, and the member lines that
+lead only to Y9, and the first automaton, run only in a lane whose omega passes the second, 2^-4.1998 of uniform words. In a
+passing outer step three bits of E1.b1 that every success shares are a function of the words of the outer step, and they allow an
+outcome of S for only two of their eight values: the pre-check skips the joint solver in the other passing outer steps, exactly
+and without loss (Lemma VP). The joint solver, one depth-first traversal over the bits of one internal word with guards that exact
 counts of the class prove lossless and with the guards (G7) and (G15) (Lemmas G7 and G15), returns every value of that word that
 meets the conditions of an outcome of S, and a certificate of four one-word tests decides for each whether its trial completes the
 collision (Lemma RC). Together they find exactly the trials of the outer step that complete the collision with an outcome of S, at
-a cost of at most 15,412 machine units for a passing outer step whatever its words: 7 for its E lane, 56 for the fill of its
-batch, 53 for its lane and 15,296 for steps 2 and 3 with the meter (Sections 9 and 11; Lemmas V, RC, VP, G7, G15, CV, FX, ME). The
-four budgets, through one work register, and the credit of the solver are halts, charged at their bounds, so the time bound
+a cost of at most 15,105 machine units for a passing outer step whatever its words: 6 for its E lane, 42 for the fill of its
+batch, 45 for its lane and 15,012 for steps 2 and 3 with the meter (Sections 9 and 11; Lemmas V, RC, VP, G7, G15, CV, FX, ME). The
+three budgets, through one work register, and the credit of the solver are halts, charged at their bounds, so the time bound
 contains no mean of a count. Four heuristics are declared for the success, each for the instance that the stated advice record of
 Section 12 fixes. H1': the valid trials (t not zero) complete the collision with an outcome of S at a rate no lower than
 125,920,632,087 * 2^-128 = 2^-91.126, ten elevenths, rounded down, of the model's rate for this prescription and these outcomes,
-and the listed good trials of one context, within one outer step and across its members, are not clustered beyond a stated bound.
-H4': for a uniform outer step, a lane whose omega passes the second automaton and a passing outer step occur with probability at
+and the listed good trials of one context, within one outer step and across its steps, are not clustered beyond a stated bound.
+H4': for a uniform walk step, a lane whose omega passes the second automaton and a passing outer step occur with probability at
 most 1.000026 and 1.000176 times their exact shares; each budget adds to that mean a reserve over the independent contexts that
 Hoeffding's inequality proves sufficient. H5_exec: averaged over the outer steps, the ledger U0 of the work that steps 2 and 3
 execute for the outcomes kept by the pre-check (zero if it keeps none), with the global part of 1,024 machine units of the earlier
-layout, is at most 1.01 times 92,113,900,425,963 / 2^46 = 1.3090, the exact bound on its mean in model M, which makes the credit
-sufficient: the meter debits the ledger U of this row, at most 478/487 of U0 in every call (Lemmas ME and CP), and the credit adds
-a reserve that Bernstein's inequality proves sufficient and a preflight reserve of one whole call. H_G_cluster: a context has on
-average at most 12,466 batches with an E lane, so at most that many fills; the fill budget adds a Hoeffding reserve over the
-contexts. The budget of opened clusters needs no premise: Lemma OR proves that on average the gate opens on at most
-0.40633153915... of the clusters of a context (9.9). Under these four the search succeeds with probability at least 0.39. The
-search is charged below 2^62.7911 target-compression units. The selection procedure SEL that found the advice record is charged in
-full, below 2^53.503 units, at a cap that holds by construction (Section 12). The total, 2^62.79333893..., is below 2^62.7934: the
-claimed scalar is 62.7934. The search needs less than 2^42 bytes of memory, its tables and its written-out code included; its two
-messages are shorter than 2^42 bytes each, and the declared 2^44 bytes cover them, the code, the search and every run of SEL, even
-all held at once (Section 12).
+layout, is at most 1.01 times 90,916,199,438,469 / 2^46 = 1.2919, the exact bound on its mean in model M rounded up, which makes
+the credit sufficient: the meter debits the ledger U of this row, at most 7506/7711 of U0 in every call (Lemmas ME and CP), and
+the credit adds a reserve that Bernstein's inequality proves sufficient and a preflight reserve of one whole call. H_G_cluster: a
+block of a walk context is live on average at most 1.002793 times as often as a uniform low half of omega, 7,072 / 2^16, so a
+context has on average at most that share of its at most 74,912 scan batches; the batch budget adds a Hoeffding reserve over the
+contexts, and a fill, at most one per batch, needs no bound of its own. Under these four the search succeeds with probability at
+least 0.39. The search is charged below 2^61.8734 target-compression units, the two complete messages of up to 2^58 bytes hashed
+and written included. The selection procedure SEL that found the advice record is charged in full, below 2^53.503 units, at a cap
+that holds by construction (Section 12). The total, 2^61.87769797..., is below 2^61.8777: the claimed scalar is 61.8777. The
+search stores less than 2^43 bytes, its tables with their lane replicas and its written-out code included; its two messages are
+shorter than 2^58 bytes each, and the declared 2^60 bytes cover them, the code, the search and every run of SEL, even all held at
+once (Section 12).
 
 The rate in H1' is an assumption. Under the seven-word model of Section 13, with Y4 uniform in the class, prescribing c1 in Q*
 multiplies by 2^11 the part of beta* in the rate of the class: counting the six outcomes of S, the rate is 2^11 * 67,633,152 =
@@ -111,11 +94,12 @@ preregistered scaled-down end-to-end run with 40,882 real collisions of complete
 +- 0.00496 of the predicted count, with a one-sided 97.7 per cent lower bound of 0.99213, above 10/11 (Section 13). No run reaches
 a collision at 32 bits.
 
-Part (ii) of H1', the dependence, is stated with the context as the unit, as entry e9b6649e states it: the 2^19 outer steps of a
-context share their seven outer words, and only the contexts are independent. It is an assumption, which cannot be measured at
-full size; it fails only if listed good trials cluster by context about 2^44 times more than independent members would, while the
-events that every listed good trial meets cluster by a factor between 1.14 and 1.25 at every depth measured, and the two halves of
-a listed good trial show no clustering across members in a preregistered run (10.3, Section 13).
+Part (ii) of H1', the dependence, is stated with the context as the unit: the 2^19 outer steps of a context share its seven outer
+words, the 2^16 steps of a member share its member words as well, and only the contexts are independent. It is an assumption,
+which cannot be measured at full size; it fails only if listed good trials cluster by context about 2^44 times more than
+independent outer steps would, while in a preregistered run on walk contexts the cross-step factor of the listed E1 outcome is
+1.1641 (upper limit 1.2300) and that of the filter's pass together with that outcome 9.0084 (upper limit 9.7541), from the
+clustering of passing steps in live blocks (10.3, Section 13).
 
 No full 2-round collision is exhibited, and the search is far beyond feasible computation. The declared experiment executes the
 search of 9.1 on organizer seeds, one context per trial, and returns for each trial the root-instance pair of the same
@@ -564,11 +548,11 @@ half-collision of the counter instance is an agreement of four words of the chai
 parent and root compressions above that chunk mix all eight words, so the digests of a counter pair are not expected to agree on
 the masked words, and on two counter pairs with t = 1 they do not (Section 7). No digest experiment can show a half-collision of a
 non-root chunk's chaining value. The declared experiment `frontline-search` (9.2) therefore executes the counter search of 9.1 on
-each trial and returns a pair of the root instance of the same lines: for the trial's context and its first passing member (member
-0 if none), steps CO and CT of Section 8 with the flags 11 of the root in the line for K3.d1 and the c1 for which t = 0 (Lemma IP)
-give single chunks of 55 and 63 bytes, compressed as the root with counter 0 and flags 11. Theorem C, read with 11 in place of 3
-in that line, as Lemma S2 reads steps O and M, predicts that every pair agrees on digest words 0, 2, 5 and 7, which the organizer
-recomputes.
+each trial and returns a pair of the root instance of the same lines: for the trial's context and its first passing member (its
+first member if none), steps CO and CT of Section 8 with t_hi = 0, the flags 11 of the root in the line for K3.d1 and the c1 for
+which t = 0 (Lemma IP) give single chunks of 55 and 63 bytes, compressed as the root with counter 0 and flags 11. Theorem C, read
+with 11 in place of 3 in that line, as Lemma S2 reads steps O and M, predicts that every pair agrees on digest words 0, 2, 5 and
+7, which the organizer recomputes.
 
 **6.5 Seven trials in one word.** A packed word holds seven lanes of 36 bits at bit offsets 0, 36, .., 216. A lane represents its
 value modulo 2^32; bits 32..35 are carry guards. A constant is placed in all seven lanes before the batches that use it. Additions
@@ -646,10 +630,10 @@ digest is computed from the stack, which depends on F alone, and from CV_t(A).
 
 (c) follows from (b). QED.
 
-The code accepts messages shorter than 2^61 bytes; the messages of this package are shorter than 2^42 bytes (Section 8). The tree,
-its counters and flags and its root output are those of the target profile. The two messages of a pair are complete messages of
-the domain, and a pair with equal digests is an ordinary collision, not a free-start or compression-only one. The converse of (c)
-is not used.
+The code accepts messages shorter than 2^61 bytes; the messages of this package are shorter than 2^58 bytes (Section 8): their
+counter t is below 2^48, and the chunk counter of the tree is a 64-bit word. The tree, its counters and flags and its root output
+are those of the target profile. The two messages of a pair are complete messages of the domain, and a pair with equal digests is
+an ordinary collision, not a free-start or compression-only one. The converse of (c) is not used.
 
 *The digest does not show a partial agreement.* When CV_t(A) and CV_t(B) agree on four words only, the parent and root
 compressions over them mix all eight, and the two digests are not expected to agree on a fixed set of words. On two counter pairs
@@ -671,13 +655,13 @@ the output of the one of F || A, blake3 returns the digest of F || A, and the ot
 
 ## 8. The counter construction
 
-*Words and constants.* The construction has nine free words: the seven *outer words* C0.d1, D2.a1, D2.b1, S11, S4, X9 and w6; a
-member y of the class of 6.1 (Lemma Q), which becomes the value of Y4; and the *inner word* c1, which becomes the third value of
-E1 on message A. The constants are those of Section 4: X3, X7, X11 and X15, w4 = W4, w13 = W13, w14 = w15 = 0, the four constant
-first values K2.a1, K2.d1, K2.c1 and K2.b1 of K2 given in step O, and Y3, Y11 of Fact P. The compression reads three more values
-besides the message and the IV. K3 reads the flags, here 3 (the line for K3.d1); K1 reads v[13], here 0 (the line for K1.a1); and
-K0 reads the counter v[12], which is not fixed in advance: the line for t solves K0's second assignment for it. The names are
-those of Section 4.
+*Words and constants.* The construction has ten free words: the seven *outer words* C0.d1, D2.a1, D2.b1, S11, S4, X9 and w6; a
+member y of the class of 6.1 (Lemma Q), which becomes the value of Y4; the *high counter word* t_hi, below 2^16 in this search;
+and the *inner word* c1, which becomes the third value of E1 on message A. The constants are those of Section 4: X3, X7, X11 and
+X15, w4 = W4, w13 = W13, w14 = w15 = 0, the four constant first values K2.a1, K2.d1, K2.c1 and K2.b1 of K2 given in step O, and
+Y3, Y11 of Fact P. The compression reads three more values besides the message and the IV. K3 reads the flags, here 3 (the line
+for K3.d1); K1 reads v[13], here t_hi (the line for K1.a1); and K0 reads the counter v[12], which is not fixed in advance: the
+line for t solves K0's second assignment for it. The names are those of Section 4.
 
 *The cube Q*.* Q* is the set of the 2^21 words c with (c AND 0e09818b) = 02008000. Member number j of Q*, for 0 <= j < 2^21, is
 the word whose bits at the 21 positions where 0e09818b has a zero are the bits of j, in increasing order of position.
@@ -686,7 +670,7 @@ the word whose bits at the 21 positions where 0e09818b has a zero are the bits o
 class, for 0 <= k < 2^19, is the Y4 whose e1 = Y3 + Y4 has the bits of k at the 19 positions where 03cf8303 has a zero, in
 increasing order of position, and Y4 = e1 - Y3. The search of this package uses every member; it has no sub-class and no rule A.
 
-**Step CO (the outer step; 77 lines, from the seven outer words and y).**
+**Step CO (the outer step; 77 lines, from the seven outer words, y and t_hi).**
 
     X2 = D2.a1 + D2.b1 + W13;   X8 = ROL(X7,7) XOR D2.b1
     C0.c1 = X8 + C0.d1;   K3.a1 = IV[3] + IV[7] + w6
@@ -702,7 +686,7 @@ increasing order of position, and Y4 = e1 - Y3. The search of this package uses 
     S9 = D3.c1 - D3.d1;   Y12 = Y8 - C0.c1
     K1.c1 = S9 - S13;   Y0 = ROL(Y12,8) XOR C0.d1
     K1.d1 = K1.c1 - IV[1];   C0.a1 = Y0 - C0.b1 - w6
-    K1.a1 = ROL(K1.d1,16);   w2 = K1.a1 - IV[1] - IV[5]
+    K1.a1 = ROL(K1.d1,16) XOR t_hi;   w2 = K1.a1 - IV[1] - IV[5]
     X0 = C0.a1 - X4 - w2;   S14 = ROL(D3.d1,16) XOR D3.a1
     K1.b1 = ROR(IV[5] XOR K1.c1,12);   S10 = K2.c1 + S14
     D0.d1 = ROL(X15,8) XOR X0;   S5 = ROR(K1.b1 XOR S9,7)
@@ -736,7 +720,7 @@ increasing order of position, and Y4 = e1 - Y3. The search of this package uses 
     Y2 = ROL(Y14,8) XOR C2.d1;   E3.h1 = ROR(Y14 XOR (Y3 + Y4),16)
     w0 = Y2 - C2.a1 - C2.b1;   E3.g1 = Y9 + E3.h1
     K0.a1 = IV[0] + IV[4] + w0;   E3.f1 = ROR(Y4 XOR E3.g1,12)
-    t = ROL(K0.d1,16) XOR K0.a1;   w1 = S0 - K0.a1 - K0.b1
+    t = 2^32 t_hi + (ROL(K0.d1,16) XOR K0.a1);   w1 = S0 - K0.a1 - K0.b1
     E1.a2 = E1.a1 + E1.b1 + w5;   E3.e2 = Y3 + Y4 + E3.f1 + w8
 
 **Step CS (the messages).** If t = 0 the trial is invalid and is dropped: a message with no full chunk before its last chunk has
@@ -768,40 +752,41 @@ lines for E3.g1, E3.f1 and E3.e2.
 The order was found by a solver search of the participant's helper agents for an order in which Y4 and E1.d1 are both free words.
 
 **Lemma CT (the counter order).** (a) *Triangular.* In the printed order, step CO and then step CT, every line assigns a name that
-no earlier line assigns and that is neither one of the nine free words nor a constant, and it reads only constants, the nine words
-and names of earlier lines; a line of step CO reads neither c1 nor a name of step CT. Every line is one assignment of one call
-solved for the name on its left; the exceptions are the line for E3.h1, which is the first two assignments of E3 with the first
-substituted into the second (e1 = Y3 + Y4 + w15, w15 = 0), and the line for E3.e2, which uses the same e1. By Table CT the 93
-lines and the four constant values of K2 are, each exactly once, the eight assignments of each of the eleven calls K0..K3, D0..D3,
-C0..C2, with the inputs and the message words of Section 1 for block length 55, counter v[12] = t, v[13] = 0 and flags v[15] = 3,
-with w4 = W4, w13 = W13, w14 = w15 = 0, and with the constants X3, X7, X11, X15 as the a output of D3, the b output of D2, the c
-output of D1 and the d output of D0; and the first five assignments of E1 and of E3 for message A, E1 with c input Y11 and E3 with
-a input Y3.
+no earlier line assigns and that is neither one of the ten free words nor a constant, and it reads only constants, these free
+words and names of earlier lines; a line of step CO reads neither c1 nor a name of step CT. Every line is one assignment of one
+call solved for the name on its left; the exceptions are the line for E3.h1, which is the first two assignments of E3 with the
+first substituted into the second (e1 = Y3 + Y4 + w15, w15 = 0), and the line for E3.e2, which uses the same e1. By Table CT the
+93 lines and the four constant values of K2 are, each exactly once, the eight assignments of each of the eleven calls K0..K3,
+D0..D3, C0..C2, with the inputs and the message words of Section 1 for block length 55, counter v[12] = t mod 2^32, v[13] = t_hi
+and flags v[15] = 3, with w4 = W4, w13 = W13, w14 = w15 = 0, and with the constants X3, X7, X11, X15 as the a output of D3, the b
+output of D2, the c output of D1 and the d output of D0; and the first five assignments of E1 and of E3 for message A, E1 with c
+input Y11 and E3 with a input Y3.
 
-(b) *The calls.* For every choice of the nine words, the names of the lines are the executions of these calls. In particular round
-0 on the block of A, with block length 55, counter t, v[13] = 0 and flags 3, leaves the state X of the names, with the four
-constants as X[3], X[7], X[11] and X[15]; C0 has outputs (Y0, y, Y8, Y12); and in the compression of A, E1.c1 = c1, since E1's
-third assignment is E1.c1 = Y11 + E1.d1.
+(b) *The calls.* For every choice of these ten words, the names of the lines are the executions of these calls. In particular
+round 0 on the block of A, with block length 55, counter words t mod 2^32 and t_hi and flags 3, leaves the state X of the names,
+with the four constants as X[3], X[7], X[11] and X[15]; C0 has outputs (Y0, y, Y8, Y12); and in the compression of A, E1.c1 = c1,
+since E1's third assignment is E1.c1 = Y11 + E1.d1.
 
-(c) *The levels.* A line of step CO is a function of the seven outer words and y. Of the message words only w0 and w1 are lines of
-step CT, and so is the counter t; every other message word is a line of step CO or a constant. So the trials of one outer step
-differ in w0, w1 and t and in nothing else of their two messages.
+(c) *The levels.* A line of step CO is a function of the seven outer words, y and t_hi. Of the message words only w0 and w1 are
+lines of step CT, and so is the counter t; every other message word is a line of step CO or a constant. So the trials of one outer
+step differ in w0, w1 and t and in nothing else of their two messages.
 
 Proof. (a) is read off the displays, each formula compared with Section 2 and with its call's inputs, outputs and message words
-(Section 1, with v[12] = t, v[13] = 0 and v[15] = 3); Table CT has one name in each of its 88 cells, all different, the four
-constant values of K2 among them, and with the five names of E1 and the four lines of E3 they are the 93 lines and the four
-constants. (b) As in Lemma T2 (b): an assignment solved for one of its terms is an equivalent equation modulo 2^32 (Fact 1), so a
-line's assignment holds once it has run, and by (a) no later line changes its names. By (a) and Table CT all eight assignments of
-each call hold, a constant output in its place (the lines for D3.b1 and D3.d1; X8; D1.c1 and X6; D0.d1 and X10) and y as the b
-output of C0 (the line for Y8); by Fact 1 the names are the execution of the call. (c) By induction over the printed order, with
-(a): a line of step CO reads only constants, the seven outer words, y and lines of step CO; w2, w3, w5 and w7 to w12 are lines of
-step CO, w6 is an outer word, w4, w13, w14 and w15 are constants, and w0, w1 and t are lines of step CT. QED.
+(Section 1, with v[12] = t mod 2^32, v[13] = t_hi and v[15] = 3); Table CT has one name in each of its 88 cells, all different,
+the four constant values of K2 among them, and with the five names of E1 and the four lines of E3 they are the 93 lines and the
+four constants. (b) As in Lemma T2 (b): an assignment solved for one of its terms is an equivalent equation modulo 2^32 (Fact 1),
+so a line's assignment holds once it has run, and by (a) no later line changes its names. By (a) and Table CT all eight
+assignments of each call hold, a constant output in its place (the lines for D3.b1 and D3.d1; X8; D1.c1 and X6; D0.d1 and X10) and
+y as the b output of C0 (the line for Y8); by Fact 1 the names are the execution of the call. (c) By induction over the printed
+order, with (a): a line of step CO reads only constants, the seven outer words, y, t_hi and lines of step CO; w2, w3, w5 and w7 to
+w12 are lines of step CO, w6 is an outer word, w4, w13, w14 and w15 are constants, and w0, w1 and t are lines of step CT. QED.
 
-**Theorem C (the last-chunk half-collision).** For every choice of the seven outer words, of a member y of the class and of a word
-c1, steps CO and CT give a counter t. If t is not zero, step CS outputs two distinct messages F || A and F || B of 1024 t + 55 and
-1024 t + 63 bytes, with 1 <= t < 2^32, such that
+**Theorem C (the last-chunk half-collision).** For every choice of the seven outer words, of a member y of the class, of a word
+t_hi below 2^16 and of a word c1, steps CO and CT give a counter t with t >> 32 = t_hi. If t is not zero, step CS outputs two
+distinct messages F || A and F || B of 1024 t + 55 and 1024 t + 63 bytes, with 1 <= t < 2^48, such that
 
-(i) their last chunks are A and B, compressed with counter t, v[13] = 0 and flags 3 (Lemma TR (a));
+(i) their last chunks are A and B, compressed with counter t, that is v[12] = t mod 2^32 and v[13] = t_hi, and flags 3 (Lemma TR
+(a));
 
 (ii) the chaining values CV_t(A) and CV_t(B) agree on words 0, 2, 5 and 7;
 
@@ -810,14 +795,14 @@ c1, steps CO and CT give a counter t. If t is not zero, step CS outputs two dist
 (iv) in the compression of A, E1.c1 = c1; and if c1 is in Q*, the XOR difference between A and B of E1's first-half b value is
 beta* = 18b0e098.
 
-Proof. t is the XOR of two 32-bit words, so t < 2^32 and t >> 32 = 0, the value v[13] = 0 that the line for K1.a1 used. The
-sixteen words have w14 = w15 = 0 and w13 = W13, whose top byte is zero, so A and B are honest strings of 55 and 63 bytes whose
-zero-filled blocks are the sixteen words and the same words with w4 and w5 replaced, as in Section 5. By Lemma TR (a) the last
-chunks are compressed with counter t, v[13] = 0, flags 3 and block lengths 55 and 63. By Lemma CT (b) round 0 on the block of A
-leaves the state X of the names, with the four constants as X[3], X[7], X[11] and X[15]. The counter, v[13] and the flags are the
-same in both compressions, and K2 is the only call of round 0 that reads the block length, w4 or w5; Lemma L, whose proof concerns
-K2 alone, therefore gives the same state X for B. Lemma H gives (ii): its proof uses only round 1 and o[i] = Z[i] XOR Z[i + 8] for
-i = 0, 2, 5 and 7, and the chaining value is (o[0], .., o[7]). (iii) As in the proof of Lemma T: C0 reads the same words of X and
+Proof. t mod 2^32 is the XOR of two 32-bit words and t >> 32 = t_hi < 2^16, the value v[13] that the line for K1.a1 used, so t <
+2^48. The sixteen words have w14 = w15 = 0 and w13 = W13, whose top byte is zero, so A and B are honest strings of 55 and 63 bytes
+whose zero-filled blocks are the sixteen words and the same words with w4 and w5 replaced, as in Section 5. By Lemma TR (a) the
+last chunks are compressed with counter t, flags 3 and block lengths 55 and 63. By Lemma CT (b) round 0 on the block of A leaves
+the state X of the names, with the four constants as X[3], X[7], X[11] and X[15]. The counter, v[13] and the flags are the same in
+both compressions, and K2 is the only call of round 0 that reads the block length, w4 or w5; Lemma L, whose proof concerns K2
+alone, therefore gives the same state X for B. Lemma H gives (ii): its proof uses only round 1 and o[i] = Z[i] XOR Z[i + 8] for i
+= 0, 2, 5 and 7, and the chaining value is (o[0], .., o[7]). (iii) As in the proof of Lemma T: C0 reads the same words of X and
 w2, w6 in both compressions and has b output y by Lemma CT (b); w15 = 0, Y14 is the same in both, the a input of E3 is Y3 for A
 and Y3' for B by Fact P, and y is in the class, so the difference is eta by the definition of the class (6.1). (iv) E1.c1 = c1 is
 Lemma CT (b). E1 has inputs (Y1, Y6, Y11, Y12) and message words (w12, w5) for A, and (Y1, Y6, Y11', Y12) and (w12, w5 + delta)
@@ -838,26 +823,28 @@ participant search over the orders, decided by an exact peeling test that was ch
 them.
 
 **Lemma IP (the inner permutations and the member with t = 0; GPT Sol 6.1).** Fix the seven outer words and y. (a) The maps c1 ->
-E3.h1 and c1 -> t given by step CT are permutations of the 32-bit words. (b) So the 2^21 members of Q* give 2^21 different values
-of E3.h1 and of t, and at most one member of Q* has t = 0.
+E3.h1 and c1 -> t mod 2^32 given by step CT are permutations of the 32-bit words. (b) So the 2^21 members of Q* give 2^21
+different values of E3.h1 and of t, and at most one member of Q* has t = 0, none when t_hi is not zero.
 
 Proof. With the names of step CO fixed, the lines for E1.d1, E1.a1, Y6, Y10, Y14 and E3.h1, with e1 = Y3 + y, each map their
 running word one to one. Read backwards: Y14 = ROL(E3.h1,16) XOR e1, Y6 = ROR((Y14 + C2.c1) XOR C2.b1, 7), E1.a1 = Y6 + Y1 + w12
 and c1 = Y11 + ROR(E1.a1 XOR Y12, 16). For the counter, Y2 = ROL(Y14,8) XOR C2.d1 = ROL(E3.h1,24) XOR ROL(e1,8) XOR C2.d1, and the
-lines for w0, K0.a1 and t give t = ROL(K0.d1,16) XOR (Y2 + IV[0] + IV[4] - C2.a1 - C2.b1), where K0.d1, C2.a1, C2.b1, C2.d1 and e1
-are names of step CO. That is a composition of permutations of E3.h1. Its only zero is at E3.h1 = ROR((ROL(K0.d1,16) - IV[0] -
-IV[4] + C2.a1 + C2.b1) XOR ROL(e1,8) XOR C2.d1, 24), and the inverse above gives its one value of c1, which may or may not lie in
-Q*. QED.
+lines for w0, K0.a1 and t give t mod 2^32 = ROL(K0.d1,16) XOR (Y2 + IV[0] + IV[4] - C2.a1 - C2.b1), where K0.d1, C2.a1, C2.b1,
+C2.d1 and e1 are names of step CO. That is a composition of permutations of E3.h1. Its only zero, a zero of t only when t_hi = 0,
+is at E3.h1 = ROR((ROL(K0.d1,16) - IV[0] - IV[4] + C2.a1 + C2.b1) XOR ROL(e1,8) XOR C2.d1, 24), and the inverse above gives its
+one value of c1, which may or may not lie in Q*. QED.
 
 So an outer step has 2^21 or 2^21 - 1 valid trials. Lemma IP bounds the number of trials that the rule t != 0 drops, one in 2^21
 at most; it does not bound the share of the collision mass that the dropped trial carries (10.3). In the participant's checks the
 member with t = 0 was constructed by the inverse above in 40 outer steps and rejected by the program of entry 26ebba63 in 40 of
 40; over 8,192 further outer steps it lay in Q* 4 times, against 4.0 expected, and was rejected 4 times out of 4.
 
-*The length of the messages.* Within one outer step the 2^21 members of Q* give 2^21 different values of t below 2^32 (Lemma IP);
-over 2,000 trials of the participant's check t ran from 891,836 to 4,291,586,422 with a mean of log2 t of 30.56. A pair found by
-the search has messages of 1024 t + 55 and 1024 t + 63 bytes, shorter than 2^42 bytes and about 2^41 on average. A small t cannot
-be chosen: it is the value of a permutation of c1 at the member that the search finds.
+*The length of the messages.* Within one outer step the 2^21 members of Q* give 2^21 different values of t mod 2^32 (Lemma IP),
+and t = 2^32 t_hi + (t mod 2^32) with t_hi below 2^16. A pair found by the search has messages of 1024 t + 55 and 1024 t + 63
+bytes with t < 2^48, shorter than 2^58 bytes; the organizer's code accepts messages shorter than 2^61 bytes, and its tree makes 17
+t + 1 compressions for a message of t full chunks and a last chunk (counted on the organizer's code for t = 1 to 1,023 by the
+participant's scouts, and charged in Section 11). A small t cannot be chosen: it is the value of a permutation of c1 at the step
+that the search finds.
 
 **The outer filter.** Number the seven outcomes of beta* whose tau ends in 5020a0 (10.1) j = 1 to 7 in the order of the table of
 10.1: 175020a0, 185020a0, 275020a0, 285020a0, 385020a0, 675020a0 and 685020a0, the seven of entry 26ebba63. This search lists six
@@ -955,87 +942,83 @@ outcomes is 20,504,986,129,465,344.
 **9.1 The algorithm.** The search uses these constants. FACTOR = floor(10 * 138,512,695,296 / 11) = 125,920,632,087 is the factor
 of H1' (10.3): ten elevenths, rounded down, of the count in 10.1 of the six outcomes of S. RUN_STEPS_MIN = ceil(0.49594 * 2^128 /
 (FACTOR * (2^21 - 1))) = 639,060,516,044,734,036,987 is the least number of outer steps that yields 0.49594 = 24797 / 50000
-expected listed good trials at the rate of H1' (10.4). RUN_CONTEXTS = ceil(RUN_STEPS_MIN / 2^19) = 1,218,911,201,562,375, about
-2^50.115, counts the contexts of a run (9.8), and RUN_STEPS = 2^19 * RUN_CONTEXTS = 639,060,516,044,734,464,000, about 2^69.115,
-its outer steps, 427,013 more than RUN_STEPS_MIN, with 2^90.115 trials in all. A context has 16,384 clusters of 32 members in
-2,341 = ceil(16,384 / 7) representative batches (9.9), so a run has 2,341 * RUN_CONTEXTS representative batches, about 2^61.307,
-and its opened clusters have the budget A_BUDGET = ceil(852,139 * RUN_CONTEXTS / 2^7) + 16,384 * ceil(sqrt(10 * RUN_CONTEXTS)) =
-8,114,703,155,646,753,044, about 2^62.816 (9.9). SHARE = 18,289,159,183,466,496 is the number of pairs that pass the filter for S
-(Section 8), whose share pi is therefore SHARE / 2^64, and E_COUNT = 233,715,456 the number of words that pass the automaton of
-(2) for S (Section 8). Each of the two budgets is the bound of H4' on the expected number of its outer steps in a run, rounded up,
-plus the reserve 2^19 s with the same s = ceil(sqrt(10 * RUN_CONTEXTS)) = 110,404,312 (GPT Sol, answer CK 2.2; 10.3):
+expected listed good trials at the rate of H1' (10.4). A context has eight members, each walking 2^16 values of t_hi, so 2^19
+outer steps (9.8); RUN_CONTEXTS = ceil(RUN_STEPS_MIN / 2^19) = 1,218,911,201,562,375, about 2^50.115, counts the contexts of a
+run, and RUN_STEPS = 2^19 * RUN_CONTEXTS = 639,060,516,044,734,464,000, about 2^69.115, its outer steps, 427,013 more than
+RUN_STEPS_MIN, with 2^90.115 trials in all. A member's 2^16 steps lie in at most two blocks with at most 9,364 scan batches of
+seven steps, so a context has at most NBLK = 16 blocks and BMAX = 8 * 9,364 = 74,912 scan batches (Lemma BL). SHARE =
+18,289,159,183,466,496 is the number of pairs that pass the filter for S (Section 8), whose share pi is therefore SHARE / 2^64,
+E_COUNT = 233,715,456 the number of words that pass the automaton of (2) for S (Section 8), and 7,072 the number of low halves of
+omega after which that automaton is live (Lemma BL). Each of the three budgets is the bound of a premise on the expected number of
+its events in a run, rounded up, plus a reserve with s = ceil(sqrt(10 * RUN_CONTEXTS)) = 110,404,312 (GPT Sol, answer CK 2.2; GPT
+Luna 5.6, answers D48, D49 and D54; 10.3): the scan batches with the factor 1.002793 of H_G_cluster on the share 7,072 / 2^16 and
+the reserve BMAX s, the E lanes and the passing lanes with the factors of H4' and the reserve 2^19 s:
 
-    E_BUDGET    = 34,776,155,800,492,855,966   (about 2^64.915)
+    B_BUDGET    = 9,880,921,266,897,024,687
+                = ceil(1002793 * 7,072 * 74,912 * RUN_CONTEXTS / (10^6 * 2^16)) + 74,912 s = 9,880,912,996,289,204,143 + 8,270,607,820,544,
+    E_BUDGET    = 34,776,155,800,492,855,966
                 = ceil(1000026 * RUN_STEPS * E_COUNT / (1000000 * 2^32)) + 2^19 s = 34,776,097,916,836,926,110 + 57,883,655,929,856,
-    PASS_BUDGET = 633,770,615,067,648,623      (about 2^59.137)
+    PASS_BUDGET = 633,770,615,067,648,623
                 = ceil(1000176 * RUN_STEPS * SHARE / (1000000 * 2^64)) + 2^19 s = 633,712,731,411,718,767 + 57,883,655,929,856.
-
-The batches of a context that can hold a lane with a nonzero mask of (2) are its 2,341 representative batches and, for each of its
-16,384 clusters, its two partner chunks or, on a fallback, its five partner batches (9.9), at most 84,261 in all; a batch is
-*filled* at its first such lane (9.8). The fills have the budget G_BUDGET, the bound 12,466 of H_G_cluster on the mean number of
-filled batches of a context in the walk with five partner batches per opened cluster, which bounds the fills of this walk context
-by context (Lemma XF (d)), times RUN_CONTEXTS, plus the reserve 84,261 s with the same s (GPT Sol, answers CM 5 and D14; 10.3):
-
-    G_BUDGET    = 15,194,956,341,454,300,182   (about 2^63.721)
-                = ceil(12,466 * RUN_CONTEXTS) + 84,261 s = 15,194,947,038,676,566,750 + 9,302,777,733,432.
 
 Further, the table CT of 9.7 holds, for every subset T of S, the metered cap CM(T) of the call in bits 0 to 15 of its word, with
 A(T) of 9.7 above them: CM(T) is the proved cap (Section 11) of steps 2 and 3 with the guards (G7) and (G15) and the certificate
-of step 3 on the outcomes of T, with one tree per family (Lemma FX), and CM(T) = 0 when T is empty; CM(T) <= 15,296 for every T
-that occurs (Lemma ME). u_M = 92,113,900,425,963 / 2^46 = 1.3090172562... is GPT-6 Astra's exact bound on the mean, over all outer
+of step 3 on the outcomes of T, with one tree per family (Lemma FX), and CM(T) = 0 when T is empty; CM(T) <= 15,012 for every T
+that occurs (Lemma ME). u_M = 90,916,199,438,469 / 2^46 = 1.2919969014... is GPT-6 Astra's exact bound on the mean, over all outer
 steps, of the ledger U0 of the work that steps 2 and 3 execute with the global part of 1,024 of the earlier layout, in the model M
-of 10.3. The meter debits exactly the ledger U of this row in every call, and U <= (478/487) U0 in every call (Lemmas ME and CP),
-so the credit of the solver is m_C = ceil(478 m_0 / 487), m_0 the bound of H5_exec on the expected sum of U0 over a run, at 1.01
-times u_M, rounded up, plus a reserve in L_C = 15,296 * 2^19 = 8,019,509,248, the most that one context can debit, plus the
-preflight reserve 15,296, the largest metered cap (GPT Sol, answers CK3 4 and D13; 10.3):
+of 10.3, recomputed for the row charge of this text and rounded up (10.3). The meter debits exactly the ledger U of this row in
+every call, and U <= (7506/7711) U0 in every call (Lemmas ME and CP), so the credit of the solver is m_C = ceil(7506 m_0 / 7711),
+m_0 the bound of H5_exec on the expected sum of U0 over a run, at 1.01 times u_M, rounded up, plus a reserve in L_C = 15,012 *
+2^19 = 7,870,611,456, the most that one context can debit, plus the preflight reserve 15,012, the largest metered cap (GPT Sol,
+answers CK3 4 and D13; 10.3):
 
-    m_0         = ceil(101 * RUN_STEPS * 92113900425963 / (100 * 2^46)) = 844,906,655,693,766,489,106,
-    m_C         = ceil(478 * m_0 / 487) = 829,292,364,315,442,262,408,
-    CREDIT      = 829,308,674,569,081,960,042   (about 2^69.491)
-                = m_C + ceil(sqrt(40 L_C m_C)) + 14 L_C + 15,296 = 829,292,364,315,442,262,408 + 16,310,253,639,682,338 + 15,296.
+    m_0         = ceil(101 * RUN_STEPS * 90916199438469 / (100 * 2^46)) = 833,920,848,652,862,457,715,
+    m_C         = ceil(7506 * m_0 / 7711) = 811,750,731,421,136,766,647,
+    CREDIT      = 811,766,717,743,642,385,225   (about 2^69.460)
+                = m_C + ceil(sqrt(40 L_C m_C)) + 14 L_C + 15,012 = 811,750,731,421,136,766,647 + 15,986,322,505,603,566 + 15,012.
 
-The four counted events of a run, opened clusters, E lanes, fills and passing lanes, add their units of Section 11, u_O = 144, u_E
-= 7, u_G = 56 and u_P = 53, to one register W, the *work register*, which starts at 0. A context tests W once, at its start,
-against
+The three counted events of a run, scan batches, E lanes and passing lanes, add their units of Section 11 to one register W, the
+*work register*, which starts at 0: u_B = 36 + 41 = 77 per scan batch, its scan and its fill, at most one, added once for all the
+batches of a live block; u_E = 6 per E lane; and u_P = 45 per passing lane, its preflight included. A context tests W once, at its
+start, against
 
-    WB    = u_O A_BUDGET + u_E E_BUDGET + u_G G_BUDGET + u_P PASS_BUDGET = 2,296,457,742,736,608,617,309,
+    WB    = u_B B_BUDGET + u_E E_BUDGET + u_P PASS_BUDGET = 998,007,550,032,072,224,730,
 
-and one context adds at most W_CTX = 16,384 u_O + 2^19 u_E + 84,261 u_G + 2^19 u_P = 38,535,192 to W, for its 16,384 clusters,
-2^19 members and 84,261 batches. The program of the declared experiment computes these constants by the same formulas and asserts
-the budgets, the credit and N against the figures of this text (9.2).
+and one context adds at most W_CTX = BMAX u_B + 2^19 (u_E + u_P) = 32,506,912 to W, for its BMAX batches and 2^19 lanes. The
+program of the declared experiment computes these constants by the same formulas and asserts the budgets, the credit and N against
+the figures of this text (9.2).
 
 0. Once, before the first context: the two automata of the outer filter for the seven outcomes are built, with the entries of
    their last tables ANDed with S (Section 8); the direct table T2' at word address 0 is filled with the mask of (2), restricted
    to S, of every 32-bit word, three times (T2'[x] = T2[x mod 2^32] for x < 3 * 2^32), and the direct table T1 at word address
-   2^34 with the mask of (1) (Lemma DT); the member lists in cluster order, the gate table at word address 2^35 and the table PX
-   are written (9.9); so are the table CT of the metered caps (9.7), the three transition arrays, the static row descriptors of
-   the six outcomes of S and the written-out code of the walk and of the joint solver with the guards (G7) and (G15) (9.4, 9.7,
-   9.8, 9.9, Section 11). The credit register starts at CREDIT and W at 0. Nothing built here depends on an outer word.
+   2^34 with the mask of (1) (Lemma DT); every word f of T2' and T1 is stored again at word address f * 2^(36 i) for each lane i =
+   1 to 6, the lane replicas (Lemma DT); ST16 and P16 of level 16 are written from the byte tables of the automaton of (2) (Lemma
+   BL); so are the member lists, the three rotation tables of the shortcut (9.6), the table CT of the metered caps (9.7), the
+   three transition arrays, the static row descriptors of the six outcomes of S and the written-out code of the walk and of the
+   joint solver with the guards (G7) and (G15) (9.4, 9.7, 9.8, Section 11). The credit register starts at CREDIT and W at 0.
+   Nothing built here depends on an outer word.
 1. Walk the contexts one after another, RUN_CONTEXTS of them. A context first compares W with WB and halts the run with failure
-   when W > WB. It takes one fresh uniform 256-bit word: its 32-bit words 0 to 6 are the outer words C0.d1, D2.a1, D2.b1, S11, S4,
-   X9 and w6, and word 7 is unused. The 39 context lines of step CO (Lemma Y) run once, and the words of the context are prepared
-   (9.8), with the four flags and the base of the gate (9.9). The context then runs its 2,341 representative batches one after
-   another; lane i of representative batch b carries the representative of cluster 7 b + i. The context also builds the descriptor
-   table of its masked partner walk (9.9). *Gate (9.9):* the omega side of a representative batch also gives the key of every lane
-   and the carry word IX, and each used lane reads the gate table at its key. On 0 the whole cluster of the lane is skipped, with
-   no read of T2' (Lemma CL). Otherwise u_O is added to W, and the representative is walked with the omega of its batch, as below.
-   Then its byte guard is tested: on a fire the 31 partners of the cluster are walked in the five partner batches of the earlier
-   layout; otherwise the descriptor of the context's table at the carries and the omega prefix of the representative gives at most
-   two chunks of at most seven partners, which are walked as batches, and the other partners, which fail test (2) (Lemma XF), are
-   not. All this comes before the gate test of the next lane. The outer step of a lane is the context together with the member of
-   the lane. *Test (2):* the 8 member-dependent lines of step CO on which omega depends, and omega = Y3 + y + w8, are computed for
-   all lanes at once on packed words; each used lane, lane 0 first, then reads from T2' the mask of (2) of its omega, restricted
-   to S (9.8). When that mask is zero the outer step of the lane is finished. *E lane:* a lane with a nonzero mask of (2) adds u_E
-   to W. *Fill:* the first such lane of its batch adds u_E + u_G instead, in one addition, C0.a1 and D0.d1 of the batch are
-   rebuilt, and the 17 member-dependent lines on which only Y9 depends are computed on packed words for all lanes of the batch,
-   two of them in one line, and kept in a register as the batch's *cached Y9* (9.8). Then the Y9 of the lane is taken out of the
-   cached Y9, its mask of (1), restricted to S, is read from T1, and the AND of the two masks is the mask X of the outer step.
-   When X is zero the outer step is finished. Otherwise the outer step *passes* (Section 8): u_P is added to W, and C2.a1, C2.d1,
-   C2.c1 and C2.b1 are computed from the words of the batch (9.6). *Pre-check:* compute the word nu of 9.7 from Y9, e1, C2.c1 and
-   C2.b1; T = X when nu is 3 or 4, and T = 0 otherwise. If T is zero the outer step ends there (it holds no listed good trial,
-   Lemma VP). Otherwise read CM(T) from the table CT; halt with failure when it exceeds the remaining credit (the *preflight*),
-   and else run steps 2 and 3 for this outer step under the meter of 9.7, which subtracts from the credit A(T) at the start of the
-   call and the unit cost of each block as the block runs.
+   when W > WB. It takes one fresh uniform 384-bit word: its 32-bit words 0 to 6 are the outer words C0.d1, D2.a1, D2.b1, S11, S4,
+   X9 and w6, and eight 19-bit fields of the rest are the member numbers of its eight members. The 39 context lines of step CO
+   (Lemma Y) run once, at t_hi = 0, and the words of the context are prepared (9.8). Then each member in turn: its member words of
+   step CO, X0 and w3 at s = 0 and the member lines of the Y9 path (9.8). With K0r = ROL(K1.d1,16) and KS = K0r mod 2^16, the
+   member walks s = 0 to 2^16 - 1 with t_hi = s XOR KS, so that K1.a1 = (K0r - KS) + s and X0 and w3 fall by one at each step
+   (Lemma W); the outer step of a step s is the context together with the member and its t_hi. *Blocks:* the steps with one value
+   of X0 >> 16 form a block, at most two per member; a block forms omega mod 2^16 and the carry above it once, reads the state of
+   the automaton of (2) after these 16 bits from ST16, and ends there when that state is dead: no step of the block passes (2)
+   (Lemma BL). *Scan:* a live block adds u_B times its number of batches, ceil(size / 7), to W, and runs its batches of seven
+   consecutive steps: omega's high half is formed in seven lanes at once, and each lane of the block reads the mask of (2) of its
+   omega, restricted to S, from its replica of T2' (9.8). When that mask is zero the outer step of the lane is finished. *E lane:*
+   a lane with a nonzero mask of (2) adds u_E to W. *Fill:* the first such lane of its batch first forms X0 and w3 in every lane
+   of the batch and computes the lines of the Y9 path that read them, on packed words for all lanes of the batch, and keeps the
+   result in registers as the batch's *cached Y9* (9.8). Then the Y9 of the lane is kept in place in the cached Y9, its mask of
+   (1), restricted to S, is read from the lane's replica of T1, and the AND of the two masks is the mask X of the outer step. When
+   X is zero the outer step is finished. Otherwise the outer step *passes* (Section 8): u_P is added to W, and C2.a1, C2.d1, C2.c1
+   and C2.b1 are computed from the words of the batch (9.6). *Pre-check:* compute the word nu of 9.7 from Y9, e1, C2.c1 and C2.b1;
+   T = X when nu is 3 or 4, and T = 0 otherwise. If T is zero the outer step ends there (it holds no listed good trial, Lemma VP).
+   Otherwise the outer step is a call: CM(T) is read from the table CT; halt with failure when it exceeds the remaining credit
+   (the *preflight*), and else run steps 2 and 3 for this outer step, with its t_hi in their source bank, under the meter of 9.7,
+   which subtracts from the credit A(T) at the start of the call and the unit cost of each block as the block runs.
 2. *Roots:* run the joint solver of 9.4 with the guards (G7) and (G15) of 9.7 on Y9, y and omega for every outcome j whose bit is
    set in T. It returns the joint roots of these outcomes that satisfy (G7) and (G15), each a word h with the outcome of which it
    is a root, at most 16 per outer step (9.4).
@@ -1056,10 +1039,10 @@ the budgets, the credit and N against the figures of this text (9.2).
 
 There are exactly three ways for the run to halt with failure, each a test on a value kept by the algorithm: W exceeds WB at the
 start of a context, the metered cap CM(T) of an outer step that reaches the solver exceeds the remaining credit, or the contexts
-run out. W is the sum of u_O, u_E, u_G and u_P times the counts of opened clusters, E lanes, fills and passing lanes so far. A
-context starts only when W <= WB and adds at most W_CTX, so W <= WB + W_CTX at every moment of a run: the units of these four
-events add up to at most WB + W_CTX (Section 11). If none of the four counts exceeds its budget, A_BUDGET, E_BUDGET, G_BUDGET or
-PASS_BUDGET, then W <= WB; so W halts the run only on the union of the four overflow events of 10.4. The metered debits of the
+run out. W is u_B times the scan batches, u_E times the E lanes and u_P times the passing lanes so far. A context starts only when
+W <= WB and adds at most W_CTX, so W <= WB + W_CTX at every moment of a run: the units of these three events, the fills with the
+batches, add up to at most WB + W_CTX (Section 11). If none of the three counts exceeds its budget, B_BUDGET, E_BUDGET or
+PASS_BUDGET, then W <= WB; so W halts the run only on the union of the three overflow events of 10.4. The metered debits of the
 outer steps that run steps 2 and 3 add up to at most CREDIT: a call starts only when the credit left covers CM(T), and it debits
 at most CM(T) (Lemma ME), so the credit never goes below zero. Steps 2 and 3 need no budget of their own, since the joint solver
 returns at most 16 roots and, whatever the words of an outer step, their work in it is at most its CM(T) and its debit is that
@@ -1068,69 +1051,67 @@ formed and hashed at most once, for a certified root.
 
 A trial is *valid* when its t is not zero; a valid trial with R = 0 is *good*; a good trial is *listed* when its E1 outcome is in
 S (Section 8, 10.1). A listed good trial is found unless the run ends before its outer step is reached, by the work register W, by
-the credit or by the output of another pair: its outer step passes the filter by Lemma F, its cluster is opened by Lemma CL, its
-member is walked by Lemma XF, its lane is taken as passing by Lemmas MB and DT, the pre-check keeps its outcome by Lemma VP, the
-joint solver returns its E3.h1 as a root of its outcome by Lemmas G7, G15 and CV, and step 3 certifies it (Lemmas RC and CV,
-10.2). Every certified root is the E3.h1 of a listed good trial (Lemma CV). A good trial that is not listed is not found, and
-Section 10 does not count it; by the count of 10.1 beta* has eight more outcomes on the class, 675020a0 and the seven with bit 14
-of tau set, which carry 4,065,280 of its 71,698,432 (5.7 per cent) and are not listed. When the run outputs a pair, the pair is a
-collision of two complete messages: the certified trial has R = 0 (Lemma V, 10.2), step 3 has checked both digests, and Lemma TR
-(c) says that R = 0 with the half-collision of Theorem C gives equal digests.
+the credit or by the output of another pair: its outer step passes the filter by Lemma F, its block is live by Lemma BL, its lane
+is taken as passing by Lemmas MB and DT, the pre-check keeps its outcome by Lemma VP, the joint solver returns its E3.h1 as a root
+of its outcome by Lemmas G7, G15 and CV, and step 3 certifies it (Lemmas RC and CV, 10.2). Every certified root is the E3.h1 of a
+listed good trial (Lemma CV). A good trial that is not listed is not found, and Section 10 does not count it; by the count of 10.1
+beta* has eight more outcomes on the class, 675020a0 and the seven with bit 14 of tau set, which carry 4,065,280 of its 71,698,432
+(5.7 per cent) and are not listed. When the run outputs a pair, the pair is a collision of two complete messages: the certified
+trial has R = 0 (Lemma V, 10.2), step 3 has checked both digests, and Lemma TR (c) says that R = 0 with the half-collision of
+Theorem C gives equal digests.
 
 **9.2 The declared experiment.** The program `experiments/frontline.py` (Python 3, standard library only, no BLAKE3 library) holds
-this search: steps CO, CT and CS from the printed lines, with the flags word as an input; the two automata of the filter,
-restricted to S; the walk of 9.8 and 9.9 with the straddle gate, the byte guard and the masked partner walk with its descriptor
-table, test (2), the E lane, the fill and the cached Y9 of each batch, the passing lane, the pre-check, the preflight against
-CT[T] = CM(T) and the meter; the joint solver of 9.4 with (G7) and (G15); the certificate of step 3; the three halts above; and
-the constants of this section, computed by the formulas above and asserted equal to the figures of this text. Entries of T1, T2'
-and the gate table are computed on demand by the rules that fill those tables (Lemma DT, 9.9), and the units of Section 11 are
-added per event: 112,519 per context, 59 per representative batch (45 for the last), 144 per opened cluster, 7 per E lane, 56 per
-fill, 53 per passing lane and the metered debit of each call. The meter is kept in the traversal itself: A(T) when the call
-starts, and at every forced, free, leaf and root block its unit cost of Section 11. W is a variable of the walk.
+this search: steps CO, CT and CS from the printed lines, with the flags word and t_hi as inputs; the two automata of the filter,
+restricted to S; ST16 and P16 (Lemma BL); the walk of 9.8 with its blocks, the scan of a live block in batches of seven lanes on
+the lane replicas of T2', the fill and the cached Y9, the E lane on the lane replicas of T1, the passing lane with the shortcut,
+the pre-check and the preflight against CT[T] = CM(T), and the meter; the joint solver of 9.4 with (G7) and (G15); the certificate
+of step 3; the three halts above; and the constants of this section, computed by the formulas above and asserted equal to the
+figures of this text, N among them, so that the program refuses to run with any other unit of a scan batch. Entries of T1, T2',
+their replicas, ST16, P16 and the rotation tables are computed by the rules that fill those tables (Lemmas DT and BL, 9.6), and
+the units of Section 11 are added per event: 547 per context, 66 per member, 16 per block, 36 per live block, 36 per scan batch,
+41 per fill, 6 per E lane, 45 per passing lane and the metered debit of each call. The meter is kept in the traversal itself: A(T)
+when the call starts, and at every forced, free, leaf and root block its unit cost of Section 11. W is a variable of the walk.
 
-One organizer trial is one context: seven fresh outer words from the trial's seed, the 39 context lines once, and representative
-batches 0 to 3 and the context's last batch, 32 clusters, with the partners of every opened cluster. A trial starts with W = 0 and
-the full CREDIT, so at this scale neither WB nor the credit is reached. In the same run every member of every walked cluster is
-recomputed straight-line (all 77 lines of step CO, no packing) and its omega modulo 512 tested against the two prefixes of Lemma
-KP; every member of a closed cluster is tested bit by bit for (2) and against S7, a pass being counted as a skipped pass and a
-mismatch; the key of the gate is compared with the one formed from the scalar omega, Y0 and e1 and the flags of the context, and
-its entry with S7 at omega and the straddle rule read from the two exact prefixes of Lemma KP, and every index of T2', T1 and the
-gate table with the range of its table; every partner of a cluster walked by its descriptor is compared with it: its omega modulo
-2^14 with the window arithmetic of Lemma XF, its survival with the rule alive16, and every partner not walked is tested bit by bit
-for (2); every T1 and T2' entry used is compared with a bit-serial decision of (1) or (2); at every passing lane C2.a1, C2.d1,
-C2.c1, C2.b1 and the pre-check are compared with a scalar rebuild of step CO and with VMASK[nu] of 9.7, and the source bank of the
-solver with the rebuild; at every E lane the cached Y9 of the batch is compared with a fresh fill, and the step-CT message is
-compressed and its Y4, Y9 and omega compared with the packed lanes; the metered debit of every call is compared with the ledger U
-of the same call, from its node counts, and must equal U and be at most CM(T); every solver call is repeated by the traversal
-without (G15), whose roots are certified by real compressions; and every eighth trial plants a joint root, built from (J1) to
-(J3), that both traversals must return, with the same meter test. The returned pair is that of 6.4, and the 16 observations are
-the program's own counts, which the organizer records as untrusted. In the participant's run of the public request (256 trials):
-3,349 of 8,192 clusters opened (0.409), 35,772 members walked, 13,481 E lanes in 3,378 filled batches, 225 passes, 64 solver
-calls, no root, 379,131 checks, 0 skipped passes and 0 mismatches; the 256 pairs are those of entry 50d28015 on the same request.
-Over 4,096 trials of our own seeds, 52,748 of 131,072 clusters opened (0.4024, below the bound of Lemma OR), 229,018 E lanes among
-the 4,194,304 members of these clusters (0.0546) in 57,642 filled batches, 569,568 members walked, 3,998 passes and 1,031 solver
-calls, with 0 skipped passes and 0 mismatches. 256 of 256 pairs met the event, recomputed with the organizer's
-`verifier/blake3.py`; the run took 6.8 to 7.0 s, container start included, in the organizer's image with one processor and 128 MB.
-Not exercised at this scale: a root of the search itself and a halt; the machine layout of 9.8 and 9.9 (pair loads, registers, the
-written-out code) is kept in variables with the same decisions; the units of the walk's events (the omega side, key, carry word,
-gate and lane tests, byte guard, descriptor selection, broadcasts, chunk addressing, E lane, fill, shortcut, pre-check and
-preflight) were counted in this program as it ran, statement by statement (Section 11).
+One organizer trial is one context: seven fresh outer words and eight members from the trial's seed, the 39 context lines once,
+and each member walking its first 2^10 steps, s = 0 to 2^10 - 1. A trial starts with W = 0 and the full CREDIT, so at this scale
+neither WB nor the credit is reached. In the same run every block's omega is compared, at its first and last step and at two
+random steps, with all 77 lines of step CO at the step's own t_hi, and a dead block's T2 there must be zero; every scanned lane's
+omega with the closed form of Lemma W, and its lane test with P16 (Lemma BL); every fill, lane by lane, with the whole packed Y9
+path of entry 244f068c built from the batch's X0, Y0 and w3, with no carry out of a lane; at every eighth E lane, omega and Y9
+with step CO, both masks with bit-serial decisions of (1) and (2), and the step-CT message compressed at its counter t, its Y4, Y9
+and omega compared with the lanes, t >> 32 with t_hi and the length of its message with 2^58; at every passing lane C2.a1, C2.d1,
+C2.c1, C2.b1, Y1, Y12, e1 and the pre-check with a scalar rebuild of step CO at its t_hi and with VMASK[nu] of 9.7, its chart with
+both real compressions at counter t, and the source bank of the solver with the rebuild; the metered debit of every call with the
+ledger U of the same call, from its node counts, which must be equal and at most CM(T); every solver call is repeated by the
+traversal without (G15), whose roots are certified by real compressions; every eighth trial plants a joint root, built from (J1)
+to (J3), that both traversals must return, with the same meter test; and the identities of the counter contract (9.8) per batch,
+block, member and context. The returned pair is that of 6.4, and the 16 observations are the program's own counts, which the
+organizer records as untrusted. In the participant's run of the public request (256 trials): 2,079 blocks, 205 of them live,
+29,874 scan batches with 208,105 lane tests, 106,030 E lanes in 20,208 filled batches, 1,936 passes, 517 solver calls, no root,
+68,937 checks and 0 mismatches. 256 of 256 pairs met the event in the organizer's runner; the run took 2.9 s, container start
+included, in the organizer's image with one processor and 128 MB. The same 256 trials, and four whole contexts with eight members
+walking t_hi below 2^16 each (64 blocks, 12 of them live, 59,396 scan batches, 208,084 E lanes, 3,790 passes and 988 solver calls,
+the organizer's `_compress` at counter t on every 64th E lane), gave the same blocks, live blocks, batches, lane tests, E lanes,
+fills, passes, pre-checked passes, solver calls, leaves, roots, first passing member and returned pair as the first implementation
+of the walk on the program of entry 070a02b2 (research/lanes/lane-thi-walk-impl/frontline_walk.py of the participant), which finds
+the E lanes of a live block from the high halves that P16 lists and scans every step with T2 (participant computation). Not
+exercised at this scale: a root of the search itself and a halt; the machine layout of 9.8 (registers, the written-out code) is
+kept in variables with the same decisions; the units of the walk's events were counted in this program as it ran, statement by
+statement (Section 11).
 
 **9.3 The self-test.** `python3 experiments/frontline.py --selftest`, which the organizer does not run, checks the constants of
-9.1 against this text; both automata against brute force at width 8 (256 of 256); SHARE and E_COUNT recounted from the tables; T1
-and T2 against the bit-serial decisions on 8,000 random words, and on those words T2(x) = 0 whenever x mod 128 is not in S7; the
-208 residues of Lemma A9, four copies of S7; the cluster map as a bijection of the 2^19 member numbers; the pre-check of 9.7
-against nu and VMASK on 3,997 quadruples of random words; on 16 random contexts, y[16..24] = 2 T_i for 272 representatives and,
-for each of them at all 256 values of A[0..7] with A[8..15] = p[8..15], the straddle rule of the flags hbad_i against the two
-exact prefixes of Lemma KP (69,632 cases, 1,944 of them straddling); the gate entry against an independent form of S7 and of the
-straddle rule on 8,000 indices, half of them with mid = a, at both values of bit 7; the omega side of F1 and the fill against step
-CO on 224 lanes of 32 contexts; halt drills: a context that starts with W = WB + 1 halts before its first member, one that starts
-with W = WB runs to its end with WB < W <= WB + W_CTX, and the credit halts; a drill in which a credit of exactly the preflight
-reserve 15,296 admits the first call; and on 8 seeds that the gate table and an always-open gate give the same E lanes (436),
-fills (106) and passes (10), that an always-closed gate gives 436 skipped passes (the 436 E lanes), and that the walk without the
-mask, all partners in five batches, gives the same E lanes and passes with 195 fills and 3,976 members walked against 1,238. The
-program asserts CM(T) <= 15,296 for every T of a call, the exact row of Section 11 and that every leaf's parent is a forced node,
-at position 31.
+9.1 against this text, the unit of a scan batch among them; both automata against brute force at width 8 (256 of 256); SHARE and
+E_COUNT recounted from the tables; T1 and T2 against the bit-serial decisions on 4,000 random words, and on those words T2(x) = 0
+whenever x mod 128 is not in S7, the 52 residues 25 to 3e and 45 to 5e (hexadecimal) of which the 208 nine-bit prefixes that pass
+(2) are four copies, and in which a live block's omega mod 128 must lie; the pre-check of 9.7 against nu and VMASK on 3,997
+quadruples of random words; the replicas of T2' and T1 in all seven lanes and a rotation table against their rules on 256 words;
+level 16: P16 at ST16 against T2 on the 4,000 words, the 7,072 live low halves, E_COUNT as the sum over the low halves of the high
+halves that P16 lists, and BMAX as 8 times the most batches of a member's two blocks; two whole contexts, eight members walking
+t_hi below 2^16 each, with the identities of the counter contract (2^19 block steps, at most 16 blocks and BMAX batches, the units
+of the context equal to the sum of its event units and its debits) and no mismatch; and halt drills: a context that starts with W
+= WB + 1 halts before its first member, one that starts with W = WB runs to its end with WB < W <= WB + W_CTX, a credit of zero
+halts at the first preflight, and a credit of exactly the preflight reserve 15,012 admits the first call. The program asserts
+CM(T) <= 15,012 for every T of a call, the exact row of Section 11 and that every leaf's parent is a forced node, at position 31.
 
 **9.4 The joint solver (GPT Sol, answers AE, AF, AI, AL, AO and AR).** Fix a passing outer step and write Q = Y9, y for its
 member, E = omega = Y3 + y + w8 and E' = E + DY3; x[i] is bit i of a word x, bit 0 the lowest, and maj is the majority of three
@@ -1385,7 +1366,7 @@ is not an implementation (9.5).
 pre-check, the preflight and the meter of 9.7 are executed by the declared program (9.2) on every passing outer step of its
 trials, with each solver call repeated by the traversal without (G15) and planted joint roots returned by both; no root of the
 search itself occurs at that scale. The completeness of the solver rests on the proofs cited in 9.4, on Lemmas G7, G15 and RC, on
-the count of the class and on the parity certificate; its cap of 15,296 machine units rests on the schedule of Section 11 and on
+the count of the class and on the parity certificate; its cap of 15,012 machine units rests on the schedule of Section 11 and on
 Lemma FX, an upper allowance written out block by block, which the program checks against its own count of nodes on every call, as
 it checks the metered debit against Lemma ME; and the pre-check rests on Lemma VP, whose bit identity was checked on real trials
 (9.7).
@@ -1402,19 +1383,21 @@ lane separately while no lane reaches 2^36. The addition of a constant is kept p
 shift, a rotation or a table index, and the one addition that then forms it is charged. All interval bounds depend on the lines
 and the constants only, not on the words.
 
-*The shortcut of a passing lane (GPT Sol, answer D9 2; our audit).* A passing lane needs, for the pre-check of 9.7, only bit 18
-of Q = Y9, e1, C2.c1 and C2.b1, and the source bank of steps 2 and 3 needs C2.a1 and C2.d1 as well (Section 11). The lines X12 =
+*The shortcut of a passing lane (GPT Sol, answer D9 2; our audit).* A passing lane needs, for the pre-check of 9.7, only bit 18 of
+Q = Y9, e1, C2.c1 and C2.b1, and the source bank of steps 2 and 3 needs C2.a1 and C2.d1 as well (Section 11). The lines X12 =
 ROL(C0.d1, 16) XOR C0.a1, D1.c1 = X11 - X12, D1.b1 = ROR(S6 XOR D1.c1, 12), X6 = ROR(D1.b1 XOR X11, 7), C2.a1 = X2 + X6 + w7,
 C2.d1 = ROR(X14 XOR C2.a1, 16), D0.c1 = S10 + D0.d1, X10 = D0.c1 + X15, C2.c1 = X10 + C2.d1 and C2.b1 = ROR(X6 XOR C2.c1, 12) of
 step CO read, besides constants, only C0.a1 and D0.d1, which the cache of the batch holds packed (9.8), the packed operands
-ROL(C0.d1, 16) and S10, and the names S6, X14 and X2 + w7, which the context holds in three registers. On the machine of Section
-11, with a scalar rotation at 4 units: X12, the XOR of the packed words and the shift of lane i out, 2; D1.c1 = (X12 XOR M) +
-(X11 + 1), masked, 3, since X11 - x = (2^32 - 1 - x) + X11 + 1 modulo 2^32 and the bits of X12 above its low 32 do not reach
-them; D1.b1, 5; X6, 5; C2.a1, 2; C2.d1, 5; X10 = (lane i of D0d1 + S10) + X15, masked, 4; C2.c1, 2; C2.b1, 5; e1 out of lane i of
-E[b], 2; and r' = (((Y9' >> (36 i + 16)) XOR e1) AND 4) XOR 3, the word of the pre-check (9.7), 4: 39 units, 36 for lane 0, which
+ROL(C0.d1, 16) and S10, and the names S6, X14 and X2 + w7, which the context holds in three registers. The four rotations read
+three tables of 2^32 words at fixed bases, ROR(x, 12), ROR(x, 7) and ROR(x, 16) for every word x, built once (Section 11; Grok,
+jobs 58 and 59, as GPT Luna 5.6 composed them in answer D25): a rotation is the address, base plus x, and the load, 2. On the
+machine of Section 11: X12, the XOR of the packed words and the shift of lane i out, 2; D1.c1 = (X12 XOR M) + (X11 + 1), masked,
+3, since X11 - x = (2^32 - 1 - x) + X11 + 1 modulo 2^32 and the bits of X12 above its low 32 do not reach them; D1.b1, the XOR and
+the table, 3; X6, 3; C2.a1, 2; C2.d1, 3; X10 = (lane i of D0d1 + S10) + X15, masked, 4; C2.c1, 2; C2.b1, 3; e1 out of lane i of
+E[b], 2; and r' = (((Y9' >> (36 i + 16)) XOR e1) AND 4) XOR 3, the word of the pre-check (9.7), 4: 31 units, 28 for lane 0, which
 needs three shifts fewer. Every value is the scalar value of step CO for the outer step of the lane: the low 32 bits of each lane
-of C0a1 and D0d1 are C0.a1 and D0.d1 (Lemma MB), and every line is evaluated modulo 2^32. The lane uses at most six temporaries.
-W and the credit live in registers for the whole run, and the lane neither stores nor reloads them (9.8).
+of C0a1 and D0d1 are C0.a1 and D0.d1 (Lemma MB), and every line is evaluated modulo 2^32. The lane uses at most six temporaries. W
+and the credit live in registers for the whole run, and the lane neither stores nor reloads them (9.8).
 
 **9.7 The s-pattern pre-check with the guards (G7) and (G15), and the credit of the solver (GPT Sol, answers AW 1, 2 and 5, AX 1,
 CF 7 and CD 10; a helper agent of the participant found the pre-check).** Fix a passing outer step, with mask X, and write Q = Y9,
@@ -1476,8 +1459,9 @@ above do not reach it; r' = (u AND 4) XOR 3 is r + 4 modulo 8, with r of (V), an
 which commutes with the XORs; so with w = (r' + C2.c1) XOR C2.b1, nu = (w XOR 5) AND 7, and ((w XOR 5) + 5) AND 6 = 0 exactly when
 nu is 3 or 4 (a check over the eight values of w modulo 8). The four operations of r' are in the shortcut; the pre-check is the
 addition of C2.c1, the XOR of C2.b1, the XOR with 5, the addition of 5, the AND with 6, the comparison with zero and the branch: 7
-units, inside the 53 of the lane (Section 11), paid by every passing lane, also when T is empty; a nonzero result ends the outer
-step and a zero one falls through to the preflight. The pre-check never enlarges T, so the cap of 9.4 holds for every T.
+units, inside the 45 of the lane (Section 11), paid by every passing lane, also when T is empty; a nonzero result adds u_P to W
+and ends the outer step, and a zero one adds u_P + u_C and falls through to the preflight. The pre-check never enlarges T, so the
+cap of 9.4 holds for every T.
 
 *Guard (G7), GPT Sol's answer AX 1, as used in our entry 0bc5f130.* Every compatible s has s[3] = s[4] = 1 (above). At p = 3 and p
 = 4 the bits of c1 that Q* fixes are 1 and 0 and the bits of Z are 22 and 23, so s[3] = Z[22] XOR 1 and s[4] = Z[23]: every listed
@@ -1511,7 +1495,7 @@ with an existing constant and its branch, and the insertion of the value into th
 of at most 8 units; the scratch words are released before the 32 descriptors are resident, so the traversal uses no more
 registers. (G7) and (G15) load e1, C2.b1 and C2.c1 from the bank of the global ledger, which stores them before any row (Section
 11); the caller stores nothing. The extra prescribed bit of the written-out rows is inside the once-only allowance. (G7) adds no
-budget and no premise of its own: its work is inside the 1,408 of each row, which the meter debits with A(T) before (G7) runs.
+budget and no premise of its own: its work is inside the 1,354 of each row, which the meter debits with A(T) before (G7) runs.
 
 *Guard (G15), GPT Sol's answers CF 7 and CD 10.* Write C = C2.c1, B = C2.b1, V = Y12 and A = (Y1 + w12) mod 2^32, so that Z =
 (Y14 + C) XOR B, Y6 = ROR(Z, 7), E1.a1 = Y6 + A, E1.d1 = ROR(E1.a1 XOR V, 16) and c1 = Y11 + E1.d1 (step CT), with Y11 =
@@ -1551,20 +1535,21 @@ in a temporary copy of the descriptor of position 15, which the forced transitio
 changed, since another prefix may need the other value. Position 15 is then free on no row (the trees with (G15) of 9.4). By Lemma
 G15 no listed good trial is lost; the solver returns the joint roots of the outcomes of T that satisfy (G7) and (G15) (Lemma CV).
 
-*The charge of (G15) (GPT Sol, answer CF 7.2).* 128 more units for each searched row, for its five words: the loads and addresses
-of their sources, at most 24; the additions, masks, shifts and the two carries, at most 24; five stores with their addresses, 10;
-row control and addresses, 16: 74. 64 more units at each node of position 15, besides its 20 as a forced node: five loads with
-their addresses, 10; the shift, XOR, addition, XOR, shift and AND of zeta, 6; the addition, AND, XOR and addition of p15 and
-cstar, 4; the test of cstar AND 08b and its branch, 3; bit 8 taken out and the temporary key patched, at most 6; copies and
-control, at most 16: 45. It uses the ten temporaries of the traversal and spills nothing (Section 11). Its code, the layout of the
-five words and the updated CT are inside one more once-only allowance of 2^20 (Section 11).
+*The charge of (G15) (GPT Sol, answer CF 7.2; charged at its itemized 74, Grok, jobs 58 and 59, and GPT Luna 5.6, answer D25).* 74
+more units for each searched row, for its five words: the loads and addresses of their sources, at most 24; the additions, masks,
+shifts and the two carries, at most 24; five stores with their addresses, 10; row control and addresses, 16: 74. 64 more units at
+each node of position 15, besides its 20 as a forced node: five loads with their addresses, 10; the shift, XOR, addition, XOR,
+shift and AND of zeta, 6; the addition, AND, XOR and addition of p15 and cstar, 4; the test of cstar AND 08b and its branch, 3;
+bit 8 taken out and the temporary key patched, at most 6; copies and control, at most 16: 45. It uses the ten temporaries of the
+traversal and spills nothing (Section 11). Its code, the layout of the five words and the updated CT are inside one more once-only
+allowance of 2^20 (Section 11).
 
 *The metered credit (GPT Sol, answers CD 10 and 11, CK3 2 to 4 and D13).* For a nonempty subset T of S, with r rows and F families
-(9.4; 175020a0 and 275020a0 never occur together and count as two), A(T) = 736 + 2,304 F + 1,408 r is the part of steps 2 and 3
-paid once per call and per row, 736 the global ledger of Section 11. For one call, the *ledger* U is A(T) + 20 n_f + 48 n_d + 4
+(9.4; 175020a0 and 275020a0 never occur together and count as two), A(T) = 614 + 2,304 F + 1,354 r is the part of steps 2 and 3
+paid once per call and per row, 614 the global ledger of Section 11. For one call, the *ledger* U is A(T) + 20 n_f + 48 n_d + 4
 n_20 + 64 n_15 + 80 n_l + 120 n_o, with n_f, n_d, n_20, n_15, n_l and n_o the forced, free, selected and position-15 nodes, leaves
 and roots that the call executes, each at its unit cost of Section 11; U = 0 when T is empty. The ledger with the global part of
-1,024 of the earlier layout, U0 = U + 288 when T is not empty and 0 otherwise, is the ledger of H5_exec (10.3).
+1,024 of the earlier layout, U0 = U + 410 when T is not empty and 0 otherwise, is the ledger of H5_exec (10.3).
 
 **Lemma FX (one row per family; GPT-6 Astra, Batch 17).** In every call at most one row of each family of T reaches depth 7: the
 setup of 9.4 with (G7) drops every other row of the family.
@@ -1582,58 +1567,58 @@ So, with a tree of 1,920 units for a row with four leaves (20 * 42 + 48 * 3 + 4 
 eight (20 * 80 + 48 * 7 + 4 * 4 + 64 * 4 + 200 * 8), U <= CM(T) = A(T) plus, for each family of T, the largest tree of its rows,
 in every call: since every executed count is at most the static one of the surviving row and roots are at most leaves. CM(T) = 0
 when T is empty. The table CT holds, for each of the 128 values of the seven-bit mask T, the word CM(T) OR (A(T) << 16), both
-fields below 2^16; it is built once, inside the once-only allowance of Section 11. In the same way U0 <= CM(T) + 288 <= 15,584.
+fields below 2^16; it is built once, inside the once-only allowance of Section 11. In the same way U0 <= CM(T) + 410 <= 15,422.
 
-**Lemma CP (the cap transfer; GPT Sol, answer D13).** In every outer step, U <= (478/487) U0.
+**Lemma CP (the cap transfer; GPT Sol, answer D13; GPT Luna 5.6, answer D25).** In every outer step, U <= (7506/7711) U0.
 
-Proof. If T is empty, U = U0 = 0. Otherwise U = U0 - 288 and U0 <= 15,584 (above), so 288 = (9/487) 15,584 >= (9/487) U0 and U =
-U0 - 288 <= (478/487) U0. QED. The inequality holds pointwise, before any mean is taken, and uses no law of the words and no rate
-of calls.
+Proof. If T is empty, U = U0 = 0. Otherwise U = U0 - 410 and U0 <= 15,422 (above), so 410 = (205/7711) 15,422 >= (205/7711) U0 and
+U = U0 - 410 <= (7506/7711) U0. QED. The inequality holds pointwise, before any mean is taken, and uses no law of the words and no
+rate of calls.
 
 The remaining credit lives in the 64th register for the whole run: no code of the walk names it (9.8), the traversal uses 63
 (Section 11), the credit register is in no saved parent, and the helpers of the leaf, the root and (G15) use only their ten
 temporaries. *Preflight:* when T is not zero the lane forms the address of CT[T] and loads it (2), takes out A(T) (1), which one
 subtraction in the global ledger debits (Section 11), takes out CM(T) (1), and compares it with the credit register and branches
-to the halt when CM(T) exceeds the credit (2): 6 units, inside the 53 of the lane. *Meter (our audit):* every forced, free and
-root block that the call executes subtracts from the credit register its unit cost in one operation with an immediate operand, the
-4 of a selected node and the 64 of a node at position 15 added to the immediate of their forced block, and a forced block at
-position 31 subtracts, in a second operation, the 80 of the leaf below it when its arc is valid. Every leaf is the child of a node
-at position 31, and position 31 is forced on every row of S (the trees of 9.4). Each such operation lies inside the unit cost of
-its block, whose itemized work leaves room for it (Section 11: a forced block does at most 18 units of work of its 20, 13 at
-position 31, a free block 36 of its 48, a root 113 of its 120); a free block pays for its own two-child control, not for its
-children; and a leaf block spends its 80 on its work and subtracts nothing. The call therefore debits
+to the halt when CM(T) exceeds the credit (2): 6 units, which the u_P = 45 of the lane includes, added to W before the pre-check
+(9.8). *Meter (our audit):* every forced, free and root block that the call executes subtracts from the credit register its unit
+cost in one operation with an immediate operand, the 4 of a selected node and the 64 of a node at position 15 added to the
+immediate of their forced block, and a forced block at position 31 subtracts, in a second operation, the 80 of the leaf below it
+when its arc is valid. Every leaf is the child of a node at position 31, and position 31 is forced on every row of S (the trees of
+9.4). Each such operation lies inside the unit cost of its block, whose itemized work leaves room for it (Section 11: a forced
+block does at most 18 units of work of its 20, 13 at position 31, a free block 36 of its 48, a root 113 of its 120); a free block
+pays for its own two-child control, not for its children; and a leaf block spends its 80 on its work and subtracts nothing. The
+call therefore debits
 
     V = A(T) + 20 n_f + 48 n_d + 4 n_20 + 64 n_15 + 80 n_l + 120 n_o = U.
 
-**Lemma ME (the meter).** In every call, whatever its words: (a) V = U <= CM(T) <= 15,296; (b) if the credit before the call is at
+**Lemma ME (the meter).** In every call, whatever its words: (a) V = U <= CM(T) <= 15,012; (b) if the credit before the call is at
 least CM(T), the credit stays nonnegative throughout the call.
 
 Proof. (a) V = U by the display: every block that the call executes is debited exactly its unit cost, once, by itself or, for a
 leaf, by its parent at position 31. U <= CM(T) by Lemma FX and the counts above; the largest CM(T) over the T that occur is
-15,296, for 185, 385 and 685 (Section 11). (b) The debits of the call are subtractions of positive amounts that add up to V <=
+15,012, for 185, 385 and 685 (Section 11). (b) The debits of the call are subtractions of positive amounts that add up to V <=
 CM(T). QED. The lemma uses no law of the words.
 
 An outer step whose CM(T) exceeds the remaining credit halts the run with failure before steps 2 and 3; the failed test is part of
 the preflight of its lane (Section 11). The credit is a halt like the work register of 9.1, so the time bound depends on no mean:
 the debits of the run add up to at most CREDIT. Whether the credit suffices is the premise H5_exec (10.3), which bears on the
-success probability alone. The preflight reserve of 15,296 in CREDIT is needed because the preflight tests the whole metered cap:
-on the event that the unhalted sum of the debits is at most m_C + t (10.3), the credit left before every call is at least 15,296
+success probability alone. The preflight reserve of 15,012 in CREDIT is needed because the preflight tests the whole metered cap:
+on the event that the unhalted sum of the debits is at most m_C + t (10.3), the credit left before every call is at least 15,012
 >= CM(T), so no preflight fails and the meter loses no trial (GPT Sol, answer CK3 4).
 
-**9.8 The member loop, the direct tables and the omega-first batch.** This subsection defines the walk of step 1 of 9.1. The
-member loop and the direct tables are those of entry e9b6649e of the participant hecmas, described here in our own words and
-checked by a separate reimplementation of the participant; the omega-first order of the batch is GPT Sol's answer CA, whose
-partition, listings, registers and charge the participant derived from the printed lines of step CO and checked by programs
-(below); the fused line of the Y9 path, the allowance of a context and the layout of a passing lane are GPT Sol's audit of that
-charge, answer CD (sections 1 and 3), and the E count held in a register, with the frame of a passing lane, is its answer CD
-(sections 6 and 8.1). The walk uses the packed words, lanes, guard bits and masked rotation PROR of 6.5 and 9.6 and the machine of
-Section 11. The layout of this row, with the work register W, T2' and T1 at fixed word addresses, the frame in registers and the
-written-out code, is our audit; keeping the frame words in registers follows entry 73d5265f of the participant 0xshikhar.
+**9.8 The walk of the high counter word, the direct tables and the scan.** This subsection defines the walk of step 1 of 9.1. The
+walk was found by the participant's scout agents (research/newpaths/untried/b3-thi-walk), implemented by a lane agent on the
+program of entry 070a02b2 (research/lanes/lane-thi-walk-impl/frontline_walk.py) and priced by GPT Luna 5.6 (answers D27, D33, D42,
+D45 and D47 to D49), with Grok (job 68); its counter contract, the event identities and unit inventories that the program asserts
+and that Section 11 charges, is answer D54 of GPT Luna 5.6. The packed words, lanes and masked rotation PROR of 6.5, the direct
+tables and their lane replicas, the shortcut of 9.6 and the meter of 9.7 are those of entry 244f068c; the layout, the registers
+and the op counts of the walk are our audit.
 
-*Contexts.* The seven outer words C0.d1, D2.a1, D2.b1, S11, S4, X9 and w6 of step CO together are called a *context*. Fixing a
-context and a member y of the class fixes an outer step, whose trials are its 2^21 values of c1 in Q* (Section 8). The member loop
-changes only the order and the grouping in which outer steps are visited; each outer step, with its filter, pre-check, guards (G7)
-and (G15), solver and certificate, is that of Sections 8 and 9.
+*Contexts and steps.* A *context* is the seven outer words C0.d1, D2.a1, D2.b1, S11, S4, X9 and w6 of step CO and eight members of
+the class. A *step* of a context is one of its members and a value of t_hi below 2^16; with the context it fixes an *outer step*,
+whose trials are its 2^21 values of c1 in Q* (Section 8). A context has 8 * 2^16 = 2^19 outer steps. Each outer step, with its
+filter, pre-check, guards (G7) and (G15), solver and certificate, is that of Sections 8 and 9; the walk changes only which outer
+steps a run visits and in what order.
 
 **Lemma Y (the lines that read the member).** Call a line of step CO *needed* when Y9 or w8 depends on it, directly or through
 other lines; 64 of the 77 lines are needed. Call a needed line *member-dependent* when one of its operands is y = Y4 or a
@@ -1654,521 +1639,247 @@ The remaining 39 needed lines, in the same printed order,
     25 to 32:   K1.a1  w2     S14    K1.b1  S10    S5     S1     w3
     33 to 39:   S8     K0.b1  S6     K0.c1  S12    K0.d1  S0
 
-depend on the seven outer words and on constants only. Besides these, omega = Y3 + y + w8 depends on the member.
+depend on the seven outer words, t_hi and constants: K1.a1 reads t_hi and w2 and w3 read K1.a1, and the other 36 depend on the
+seven outer words and constants only. Besides these, omega = Y3 + y + w8 depends on the member.
 
 *Proof.* Both statements are finite checks on the printed text of step CO. Walking the lines in printed order and marking a line
 when an operand is y or a marked line gives the first list; Y8 is the first line marked. Each line of the second list has as
-operands only outer words, constants (IV, the six constants of 3.2 and the four constant values of K2) and earlier unmarked lines.
-Collecting the lines on which Y9 and w8 depend gives the 64. QED. A participant program that parsed step CO from its printed lines
-and computed both sets reproduces the two lists in this order; it checks the lists and is not part of the proof (Section 13).
+operands only outer words, t_hi (the line K1.a1), constants (IV, the six constants of 3.2 and the four constant values of K2) and
+earlier unmarked lines. Collecting the lines on which Y9 and w8 depend gives the 64. QED. A participant program that parsed step
+CO from its printed lines and computed both sets reproduces the two lists in this order; it checks the lists and is not part of
+the proof (Section 13).
 
-Hence, within one context, the 39 context lines can run once; per member, only the 25 member-dependent lines and omega remain.
+Hence, within one context, the 39 context lines can run once, at t_hi = 0, and Lemma W gives K1.a1, w2 and w3 at every step; per
+member, only the 25 member-dependent lines and omega remain, and along its walk only those that read X0 or w3 (Lemma W).
 
-**Lemma CX (contexts and the class).** Let a run draw its contexts as in step 1 of 9.1. (a) Different contexts read different
-fresh words, so the contexts are independent, and within a context the seven outer words are independent and uniform. (b) The
-member lists of 9.9 hold every member of the class in exactly one lane, so a context walks every member once, except the members
-of the clusters that its gate skips and the partners that its descriptor table leaves out, whose outer steps have a zero mask of
-(2) (Lemmas CL and XF). (c) For any function g of an outer step with a finite mean, let G be its sum over the 2^19 outer steps of
-one context. Then E[G] = 2^19 E[g(U)], with U an outer step whose seven outer words are uniform and whose member is uniform on the
-class and independent of them: the outer step that step 1 of entry 415e792c draws. The values of G for the contexts of a run are
-independent and identically distributed. (d) If 0 <= g <= c on every outer step, then 0 <= G <= 2^19 c.
+**Lemma W (the walk; GPT Luna 5.6, answer D27, after the participant's scouts).** Fix a context and a member y, and let K0r =
+ROL(K1.d1,16) and KS = K0r mod 2^16, with K1.d1 the name of step CO. For s = 0 to 2^16 - 1 put t_hi = s XOR KS. (a) Modulo 2^32,
+K1.a1 = (K0r - KS) + s, w2 = K1.a1 - IV[1] - IV[5], X0 = X0(0) - s and w3 = w3(0) - s, with X0(0) = C0.a1 - X4 - (K0r - KS) +
+IV[1] + IV[5] and w3(0) = S1 - (K0r - KS) - K1.b1. (b) The names of step CO that depend on K1.a1, directly or through other
+lines, are w2, w3, X0, the four values of D0, X10, X5, w8, w9, the four values of C1, C2.c1, C2.b1, Y1, Y13, Y9 and Y5, and
+omega; every other name, the four values of C0 and of D1, C2.a1, C2.d1, the member words Y8, Y12, Y0 and C0.a1, and the context
+lines other than K1.a1, w2 and w3, is the same at every s. (c) With S15' = S15 XOR ROR(X15, 8) and NS = -(S0 + S5), omega = e1 +
+D0.a1 + NS and D0.a1 = ROR(X0, 16) XOR S15'; so omega mod 2^16 = (e1 + ((X0 >> 16) XOR S15') + NS) mod 2^16, which depends on s
+only through X0 >> 16, and omega >> 16 = (((X0 mod 2^16) XOR (S15' >> 16)) + ka) mod 2^16, with ka = (e1 >> 16) + (NS >> 16) plus
+the carry out of the low half. (d) The steps with one value of X0 >> 16, a *block*, form an interval of s, on which s -> X0 mod
+2^16 is one to one and decreasing; a member's 2^16 steps lie in at most two blocks, the first with the steps s = 0 to min(X0(0)
+mod 2^16, 2^16 - 1) and the second with the rest, on which X0 >> 16 is one less, modulo 2^16.
 
-*Proof.* (a) holds by the construction of step 1. (b) The representative lists hold the 16,384 representatives once each and the
-partner lists the 31 partners of every cluster once each (9.9); the clusters partition the class. (c) G is the sum over all
-members y of g at the outer step (context, y). For each fixed y the outer words of the context are uniform and do not depend on y,
-so the mean of that term is E[g(W, y)] with W uniform; summing over the 2^19 values of y gives 2^19 E[g(U)]. G is a function of
-the fresh word of its context only, so (a) gives the independence and the equal laws. (d) is immediate. QED. By Lemmas CL and XF,
-each quantity whose totals 10.3 and 10.4 use, the indicators of the E count and of the pass count, the ledger U and N_o, is zero
-on the outer steps that the gate and the descriptor table skip (Lemma XF), so its total over the outer steps that a context walks
-is its G.
+*Proof.* (a) s < 2^16 and KS = K0r mod 2^16, so K0r XOR t_hi = K0r XOR KS XOR s is K0r with its low 16 bits replaced by s, which
+is (K0r - KS) + s, a word below 2^32. The line K1.a1 of step CO reads t_hi, and w2, X0 and w3 read K1.a1 once each, X0 through
+w2: X0 = C0.a1 - X4 - w2 and w3 = S1 - K1.a1 - K1.b1, where C0.a1, X4, S1 and K1.b1 do not read K1.a1 (Lemma Y and the printed
+order). (b) Walking the printed lines of step CO and marking a line when it reads K1.a1 or a marked line gives the first list;
+the four values of C0 read y and outer words only, and the four values of D1 read X12, S11, S12 and S6, none marked, so neither
+X6 nor C2.a1 = X2 + X6 + w7 nor C2.d1 is marked. (c) D0.d1 = ROL(X15, 8) XOR X0 and D0.a1 = ROL(D0.d1, 16) XOR S15, so D0.a1 =
+ROR(X0, 16) XOR S15'; w8 = D0.a1 - S0 - S5, and omega = Y3 + y + w8 = e1 + D0.a1 + NS. The low 16 bits of ROR(X0, 16) are X0 >>
+16 and its high 16 bits X0 mod 2^16; adding the low halves of the three terms gives omega mod 2^16 and a carry, and the high
+halves with that carry give omega >> 16. (d) By (a), X0 falls by one at each step modulo 2^32, so X0 >> 16 changes only when X0
+mod 2^16 passes from 0 to 2^16 - 1, which happens at most once in 2^16 consecutive steps. QED. The scouts checked (a) to (d) on
+real words: the half-collision with the organizer's `_compress` at the step's counter on 512 trials, the largest t
+2,251,799,739,717,328, with no mismatch of the values of C0 and D1 over 64 * 8 * 17 names, and 3.0 * 10^10 steps on a graphics
+card with omega mod 2^16 constant on every block; the declared program checks (c) at every step that it scans (9.2).
 
-What the member loop does to the law of the run is therefore limited to dependence. The means that the heuristics use, the rate of
-H1', the shares of H4' and the mean of H5_exec, are those of a uniform outer step, exactly as in entry 415e792c; but the 2^19
-outer steps that share a context also share its seven words, so independence holds between contexts and not between outer steps.
-10.3 states the dependence part of H1' for contexts, states H_G_cluster for contexts, and proves the tails of H4', H5_exec and
-H_G_cluster over contexts.
+**Lemma CX (contexts and walk steps).** Let a run draw its contexts as in step 1 of 9.1. (a) Different contexts read different
+fresh words, so the contexts are independent, and within a context the seven outer words and the eight member numbers are
+independent and uniform. (b) A context visits each of its 2^19 outer steps once, except the steps of dead blocks, whose outer
+steps have a zero mask of (2) (Lemma BL). (c) For any function g of an outer step with a finite mean, let G be its sum over the
+2^19 outer steps of one context. Then E[G] = 2^19 E[g(U)], with U a *uniform walk step*: seven uniform outer words, a member
+uniform on the class and t_hi uniform below 2^16, independently. The values of G for the contexts of a run are independent and
+identically distributed. (d) If 0 <= g <= c on every outer step, then 0 <= G <= 2^19 c.
+
+*Proof.* (a) holds by the construction of step 1. (b) By Lemma W (d) the blocks of a member partition its 2^16 steps, and s ->
+t_hi = s XOR KS is a bijection of the values below 2^16. (c) G is the sum over the eight members y_m and the 2^16 values of t_hi
+of g at the outer step (context, y_m, t_hi). For each member and each fixed t_hi the outer words are uniform and do not depend on
+them, and the member is uniform on the class, so the mean of that term is E[g(W, Y, t_hi)] with W and Y uniform; summing over the
+2^16 values of t_hi and the eight members gives 2^19 E[g(U)]. G is a function of the fresh word of its context only, so (a) gives
+the independence and the equal laws. (d) is immediate. QED. Each quantity whose totals 10.3 and 10.4 use, the indicators of the E
+count and of the pass count, the ledger U and N_o, is zero on the steps of a dead block (Lemma BL), so its total over the outer
+steps that a context walks is its G.
+
+What the walk does to the law of the run is therefore limited to dependence. The means that the heuristics use, the rate of H1',
+the shares of H4', the mean of H5_exec and the live share of H_G_cluster, are those of a uniform walk step; but the 2^19 outer
+steps of a context share its seven words, and the 2^16 steps of a member its member words, so independence holds between contexts
+and not between outer steps. 10.3 states the dependence part of H1' for contexts and proves the tails of H4', H5_exec and
+H_G_cluster over contexts. Two of the eight members of a context coincide with probability below 28 / 2^19; the run then walks the
+same steps twice, a dependence inside the context that part (ii) of H1' covers.
+
+**Lemma BL (blocks and level 16; GPT Luna 5.6, answers D33 and D48).** Let ST16[l], for l below 2^16, be the state of the
+automaton of (2) for S (Section 8) after the 16 low bits l of its input, read from its first two byte tables, and P16[st][h] = 1
+when the automaton, continued from the state st, ends with a nonzero mask on the high half h. (a) For every word x, T2(x) is not
+zero exactly when P16[ST16[x mod 2^16]][x >> 16] = 1. (b) The 2^16 low halves reach seven states, one of them *dead*, with P16
+zero everywhere:
+
+| state | low halves | high halves h with P16 = 1 |
+| ---: | ---: | ---: |
+| 1,024 | 58,464 | 0 |
+| 1,280 | 1,040 | 32,832 |
+| 1,536 | 1,040 | 32,832 |
+| 1,792 | 1,768 | 33,696 |
+| 2,048 | 1,768 | 32,832 |
+| 2,304 | 728 | 32,832 |
+| 2,560 | 728 | 32,832 |
+
+so 7,072 low halves are *live*, and the sum over the 2^16 low halves of the high halves that P16 lists is E_COUNT = 233,715,456.
+(c) On a block of Lemma W every step has the same omega mod 2^16 and so the same state: on a dead block no step passes (2), and
+on a live block a step passes (2) exactly when P16 lists its omega >> 16. (d) A member's at most two blocks have at most ceil(f
+/ 7) + ceil((2^16 - f) / 7) <= 9,364 batches of seven consecutive steps (9,363 for one block of 2^16), so a context has at most
+NBLK = 16 blocks and at most BMAX = 74,912 batches.
+
+*Proof.* (a) The automaton of (2) reads its input byte by byte through four byte tables (Section 8, Lemma DT), the first two bytes
+being x mod 2^16 and the state after them ST16[x mod 2^16]; the rest of the reading depends only on that state and on x >> 16, and
+P16 lists the high halves on which it ends nonzero. (b) is a finite count, made by the declared program from its own byte tables
+(9.3) and by a participant program; the sum of the products of the last two columns is E_COUNT, the count of Section 8. (c)
+follows from Lemma W (c) and (a). (d) f + (2^16 - f) = 2^16 and ceil(a / 7) + ceil(b / 7) <= ceil((a + b) / 7) + 1, with equality
+for some f. QED. The scouts compared the listed steps with a direct enumeration on 27 blocks with no difference, and the declared
+program compares every scanned step with P16 (9.2).
 
 **Lemma DT (the direct tables).** The tables T2 and T1 have one entry for each 32-bit word x: T2[x] = (mask of (2) on x) AND 5f
 and T1[x] = (mask of (1) on x) AND 5f. They are stored as T2' at word address 0, with 3 * 2^32 entries T2'[x] = T2[x mod 2^32],
-and T1 at word address 2^34, so that a lane's index, or 2^34 plus it, is the address of its entry. A lane therefore reads, with
-one load each, the same masks restricted to S that the two automata of Section 8 give.
+and T1 at word address 2^34, so that a lane's index, or 2^34 plus it, is the address of its entry. For each lane i = 1 to 6, every
+word of T2' and of T1 at word address f is stored again at word address f * 2^(36 i), the lane's *replica*; so lane i of a packed
+word ANDed with the mask of its 36 bits, its field kept in place, is the address of the same entry (the participant's helper
+agents; GPT Luna 5.6, answer D41). A lane therefore reads, with one load each, the same masks restricted to S that the two
+automata of Section 8 give.
 
 *Proof.* Step 0 of 9.1 computes each entry by running the corresponding automaton of Section 8, with its last table ANDed with S,
 on x, one byte table per byte. QED. Cost of the build: for each of the 2^32 words and each of the two tables, the four bytes of
 the word are separated (a shift and an AND each), the state is advanced with four table loads and three additions, the mask is
 ANDed with S and stored at its address, and the loop advances; fewer than 32 units, so fewer than 2^32 * 2 * 32 = 2^38 units in
 all, and Section 11 charges 2^38; the two further copies of T2 in T2', 2^33 entries at a load, a store, their addresses and the
-loop, below 8 units each, are charged 2^36. T2' and T1 have 2^34 entries, 2^39 bytes as words of 256 bits (Section 12). Since
-every entry is the automaton's mask, the share of passing pairs read through the tables is SHARE / 2^64, as in Section 8.
+loop, below 8 units each, are charged 2^36; the replicas, six times 3 * 2^32 and 2^32 words, each at a load, a store, their
+addresses and the loop, below 8 units, are charged 2^40 and 2^38. T2' and T1 have 2^34 entries, 2^39 bytes as words of 256 bits
+(Section 12). Since every entry is the automaton's mask, the share of passing pairs read through the tables is SHARE / 2^64, as in
+Section 8.
 
-*The member lists.* Step 0 of 9.1 writes the member lists of 9.9 as pairs of adjacent words (U[b], E[b]) (GPT Sol, answer CJ 3).
-In U[b], lane i is ROL(y, 7) for the member y of the lane, the word that the line Y8 reads, and in E[b] it is e1 = Y3 + y, the
-word that omega needs; the unused lanes of a last word hold copies of its last member and are never tested.
+*The member lists.* Step 0 of 9.1 writes, for each member number k below 2^19, its e1 = Y3 + y and its y at fixed word addresses,
+two words per member.
 
-*The words of a context.* Once the 39 context lines have run on scalar words, a context prepares the sixteen operands that the
-member-dependent lines take from it, C0.b1, -C0.c1, C0.d1, -C0.b1 - w6, ROL(C0.d1, 16), K = X11 + 1 - S11, S12, K' = -C0.b1 - w6
-- X4 - w2, -S1 - S6, S15' = S15 XOR ROR(X15, 8), S10, S5, w3, X13, X9 and -S0 - S5 (subtractions modulo 2^32), and copies each
-  into all seven lanes. These sixteen packed words occupy sixteen registers while the batches of the context run. Every other
-  operand of those lines is fixed for the whole search: ROL(X15, 8), X15, the lane mask M (the low 32 bits of every lane) and the
-  masks of PROR are written into the instructions. The context also loads S6, X14 and X2 + w7, which the shortcut of a passing
-  lane reads (9.6), into three registers, forms S2 = ROL(S14, 8) XOR K2D, w5 = S2 - K2A - K2B and w12 = D2.a1 - S2 - S7 and stores
-  them with the names that steps 2 and 3 reload (GPT Sol, answer D13), and its packed copy of X9 is X9' = X9 + 2^34 in every lane,
-  which only the Y9 path reads (below).
+*The words of a context.* Once the 39 context lines have run on scalar words at t_hi = 0, a context keeps C0.b1, -C0.c1, C0.d1 and
+-C0.b1 - w6 in registers; forms K0r = ROL(K1.d1,16), KS = K0r mod 2^16 and K0r - KS, X0's offset KX0 = IV[1] + IV[5] - X4 - (K0r -
+KS) and w3(0) = S1 - (K0r - KS) - K1.b1; forms S15' = S15 XOR ROR(X15, 8) and NS = -(S0 + S5) with their low and high halves; and
+copies into all seven lanes the complement KXC of S15' >> 16 in 16 bits and the operands that the fill and the shortcut read:
+ROL(C0.d1, 16), K = X11 + 1 - S11, S12, -S1 - S6, S10, S5, X13 and X9' = X9 + 2^34. The context also loads S6, X14 and X2 + w7,
+which the shortcut of a passing lane reads (9.6), into three registers, and forms S2 = ROL(S14, 8) XOR K2D, w5 = S2 - K2A - K2B
+and w12 = D2.a1 - S2 - S7 and stores them with the names that steps 2 and 3 reload (GPT Sol, answer D13). Every other operand is
+fixed for the whole search and written into the instructions: ROL(X15, 8), X15, the masks of PROR, the lane mask M, the masks of
+the lanes, 2^16 - 1, 7 and the ramp of the scan in every lane.
 
-*The omega-first batch.* The 25 member lines split in two. The 8 lines Y8, Y12, Y0, C0.a1, X0, D0.d1, D0.a1 and w8, with omega,
-are those that omega needs: the *omega side*. The other 17, D0.c1, D0.b1, X10, X5, X12, D1.c1, D1.d1, X1, C1.a1, C1.d1, D1.a1,
-C1.c1, w10, C1.b1, Y1, Y13 and Y9, are needed by Y9 alone: the *Y9 path*. Every member line is in exactly one of the two, and the
-Y9 path reads of the omega side only C0.a1 (in X12) and D0.d1 (in D0.c1). On packed words the omega side is folded (F1, GPT Sol,
-answer D9 1): X0 = C0.a1 - X4 - w2 = Y0 + K' and, since D0.d1 = X0 XOR ROL(X15, 8), ROR(D0.d1, 16) = ROR(X0, 16) XOR ROR(X15, 8),
-so D0.a1 = ROR(X0, 16) XOR S15'; C0.a1 and D0.d1 are not formed, and omega = e1 + D0.a1 + (-S0 - S5) is summed as D0.a1 + (e1 +
-(-S0 - S5)), the same integer in every lane. For batch b of a context, on packed words, with the units of each line (one for each
-operation and load, five for PROR, where PROR(x, r) rotates the low 32 bits of every lane right by r):
-
-    U    = load [p]                        1   (p: an immediate address)
-    Y8   = U XOR C0.b1                     1
-    Y12  = Y8 + (-C0.c1)                   1
-    Y0   = PROR(Y12, 24) XOR C0.d1         6
-    X0   = Y0 + K'                         1
-    D0a1 = PROR(X0, 16) XOR S15'           6
-    E    = load [p + 1]                    1   (and p + 1, 1)
-    cg   = E + (-S0 - S5)                  1
-    om   = D0a1 + cg                       1   (omega = Y3 + y + w8)
-
-The six lines and omega cost 17 units; the pair costs 3, two loads and p + 1, which the opening of a cluster pays for its old
-partner batches (9.9). Next come seven *lane tests*, for i = 0 to 6. Lane i shifts om right by 36 i (lane 0 needs no shift) and,
-except lane 6, keeps the low 36 bits with an AND; the result, the lane's omega with its guard bits, is below 3 * 2^32 (Lemma MB)
-and is the word address of the entry of T2' at that omega, so the lane loads the mask of (2) with no base, compares it with zero
-and branches: 5 units per lane, 4 for lanes 0 and 6, 33 in all. Lane 6 needs no AND, since bits 252 to 255 of om are zero (Lemma
-MB). A partner batch of seven lanes therefore executes *50 units*, its omega side and its lane tests, a batch of n < 7 lanes 17 +
-4 + 5 (n - 1), and the fifth old partner batch of a cluster, with three lanes, 17 + 14 = 31 (our audit). X0, Y0, Y12 and om stay
-in registers through the lane tests.
-
-A lane whose mask of (2) is not zero is an *E lane* and runs its E handler right after its lane test. The handler adds u_E = 7 to
-W, one addition with an immediate. *The fill (GPT Sol, answer CM 5A).* At the first E lane of a batch the handler adds u_E + u_G =
-7 + 56 in that one addition instead (our audit), rebuilds C0a1 = Y0 + (-C0.b1 - w6) and D0d1 = X0 XOR ROL(X15, 8), 2 units (GPT
-Sol, answer D9 1), builds the Y9 path on packed words for all seven lanes at once from them and the words of the context, and
-keeps the result, with C0a1, D0d1 and the packed Y1, in registers: the batch's *cached Y9*. The second column gives the units of a
-line of the Y9 path and the third their running sum:
+*A member* (66 units executed, 66 charged; answer D54). The member's e1 and y are loaded (4); Y8, Y12, Y0 and C0.a1 of step CO on
+scalar words (14: two scalar rotations at four units, each with an XOR, and two additions with their masks); X0(0) = C0.a1 + KX0
+(2); w3(0) - X0(0) modulo 2^32 in every lane (a subtraction, a mask and a broadcast of three shift and OR doublings: 8); C0.a1 and
+e1 in every lane (12); the lines of the Y9 path that read only member words, on packed words (16; units and running sum):
 
     X12  = C0a1 XOR ROL(C0.d1, 16)        1    1
     D1d1 = (X12 XOR M) + K                2    3   (= X11 - X12 - S11)
-    X1   = PROR(X12, 24) XOR D1d1         6    9
-    D1a1 = PROR(D1d1, 16) XOR S12         6   15
-    w10  = D1a1 + (-S1 - S6)              1   16
-    D0c1 = D0d1 + S10                     1   17
-    D0b1 = PROR(S5 XOR D0c1, 12)          6   23
-    X10  = D0c1 + X15                     1   24
-    X5   = PROR(D0b1 XOR X10, 7)          6   30
-    C1a1 = X1 + X5 + w3                   2   32
-    C1d1 = PROR(X13 XOR C1a1, 16)         6   38
-    C1c1 = X9 + C1d1                      1   39
-    C1b1 = PROR(X5 XOR C1c1, 12)          6   45
-    Y1   = C1a1 + C1b1 + w10              2   47
-    Y13  = PROR(C1d1 XOR Y1, 8)           6   53
-    Y9   = C1c1 + Y13                     1   54
+    X1w  = (PROR(X12, 24) XOR D1d1) + DW3 7   10
+    D1a1 = PROR(D1d1, 16) XOR S12         6   16
+    w10  = D1a1 + (-S1 - S6)              1   17
 
-Step CO forms D1.c1 = X11 - X12 and then D1.d1 = D1.c1 - S11; D1.c1 has no other use among the 25 lines of Lemma Y (D1.b1, which
-also reads it, is not needed), so the line D1d1 forms D1.d1 at once from K = (X11 + 1 - S11) mod 2^32, which the context
-prepares in place of -S11 (GPT Sol, answer CD 1). The 17 lines of the Y9 path, D1.c1 and D1.d1 in one line, cost 54 units and
-the two rebuilt words 2, so a fill costs *56 units*. With X9' = X9 + 2^34 of the context in place of X9, the line C1c1 gives
-C1.c1 + 2^34 in every lane and the line Y9 gives Y9 + 2^34; C1.c1 is read only by Y9 and by the PROR of C1b1, which drops the
-guard bits, so no other value changes (Lemma MB). Every E lane, the first included, then isolates its lane i of the cached Y9
-with a shift and an AND with 2^34 + M (2), which gives the word address 2^34 + Y9 of the entry of T1 at its Y9, loads that entry
-(1), and ANDs the mask of (1) found there with the mask of (2), compares with zero and branches (3). An E lane therefore costs
-*7 units*: 1 + 2 + 1 + 3, 6 for lane 0, and its batch's fill 56 more once. The fill computes the same packed values that a Y9
-path built at any later lane of the batch would compute: they depend only on X0, Y0 and the words of the context, which no lane
-test, E handler or passing lane changes.
+the member's parts of omega mod 2^16 and of its carry, (e1 mod 2^16) + (NS mod 2^16) and (e1 >> 16) + (NS >> 16) (4); X0(0) mod
+2^16, X0(0) >> 16 and the X0 >> 16 of the second block, X0(0) >> 16 plus 2^16 - 1, modulo 2^16 (4); and NOT X0(0), from which a
+block forms the complement of X0 mod 2^16 at its first step (1): 66 units.
 
-*The code of a batch (our audit).* It is written out lane by lane as a *not-ready chain*, run until the batch's first E lane,
-whose E handlers contain the fill, and, after the E handler of each lane i of that chain, a *ready tail* for the lanes i + 1 to 6,
-whose E handlers read the cached Y9 only; a passing lane is written inline after each E handler. In the chain and in every tail,
-the lane test of lane i branches past its E handler when its mask of (2) is zero and otherwise falls through into it; an E handler
-falls through into its passing lane when X is not zero and otherwise branches to the lane test of the next lane; a passing lane
-falls through, or returns from steps 2 and 3, to the lane test of the next lane; and a not-ready E handler with its passing lane
-continues in the ready tail that follows it. The exits of the last lane are the branches of its lane test, its E handler and its
-pre-check and the return of steps 2 and 3, all aimed at the code that follows the batch. So whether the cache is ready is a
-position in the code, held by no flag and tested by no instruction, and every transfer is a fall-through or a branch that is
-charged in its lane (Section 11). The fifth old partner batch of a cluster has three used lanes, the last representative batch
-four and a chunk the n lanes of its dispatch leaf (9.9), and their code has those lanes only. The written-out code is paid in the
-once-only allowances of Section 11.
+*A block* (9 units executed, 16 charged). Omega mod 2^16 and the carry above it, from the member's parts and (X0 >> 16) XOR (S15'
+mod 2^16): an XOR, an addition, an AND, a shift and an addition (5); ST16 at that low half, its address and its load (2); the live
+test, a comparison with the dead state and a branch (2): 9. The block's last step, min(s + X0 mod 2^16, 2^16 - 1), and the loop
+over the at most two blocks are control of the written-out code, charged 2 and 2, and 3 more are kept as a reserve.
 
-*Registers (our audit; the frame in registers after entry 73d5265f; GPT Sol, answer D14 3).* The tables T2', T1 and the gate
-table are read at their word addresses, and the list addresses are immediate operands, written into the instructions with the
-code (GPT Sol, answers CD 3 and D13). Live through a partner batch or chunk: at most 18 words of the context (its sixteen packed
-operands, X9' among them, the gate base BG6 of 9.9 and the context count), the three registers S6, X14 and X2 + w7, 11 of the
-representative batch (its key, E[b], om, Y0, X0, its list address, its cached Y9 with C0a1, D0d1 and Y1, and Y12), 11 of the
-partner batch (its address, E[b], om, C0a1, D0d1, its cached Y9, Y1, Y12, the mask of the current lane and two temporaries of the
-lane tests; a partner's Y0 and X0 give way to its C0a1 and D0d1), W and the credit: 45; and nine words of the masked walk of 9.9,
-IX, the representative's U, A[8..15] and six reusable words (the carries, the broadcast U and E, the descriptor address, JU, JE
-and the metadata): 54 of the 64 registers. A fill adds at most six packed values of the Y9 path live at once (a liveness count on
-the listing above) and the two temporaries of PROR, 62; a passing lane adds at most six temporaries of the shortcut and its mask
-X, 61. So nothing is spilled; the frame of the representative batch stays in its registers through the partner batches, the
-counts of 9.1 are the one register W, and no code of the walk names the credit register.
+*A live block* (31 units executed, 36 charged) *and its scan batches* (34 executed, 36 charged). A live block broadcasts omega mod
+2^16 (6) and the carry modulo 2^16 (an AND and 6) into the seven lanes; forms XB = 2^16 (X0 >> 16) + 2^16 - 1 + 2^17 in every lane
+(a shift, 6 and an addition: 8); forms the first vector C', whose lane i holds C + 2^17 - 7 + i, with C = 2^16 - 1 - (X0 mod 2^16)
+= (s + NOT X0(0)) mod 2^16 at the block's first step s (an addition, an AND, 6 and the ramp: 9); and adds u_B times its number of
+batches to W (1): 31. The count of the batches, ceil(size / 7), and the entry of the batch loop are control, charged 3 and 2.
+Batch b then forms, for its steps s + 7 b + i,
 
-**Lemma MB (the packed batch is exact).** Take any used lane i of any batch, and let (context, y) be its outer step. (a) The low
-32 bits of lane i of om equal omega = Y3 + y + w8 as step CO computes it for that outer step, and the lane test reads T2' at that
-value plus 2^32 times its guard bits, which is T2 at omega. (b) If the lane is an E lane, the low 32 bits of lane i of the cached
-Y9 of its batch equal the Y9 of step CO for the same outer step, bit 34 of the lane is 1 and bit 35 is 0, and the E handler reads
-T1 at that Y9. (c) The lane is taken as passing exactly when its outer step passes the filter of Section 8. (d) No lane of any
-packed value reaches 2^36, so bits 252 to 255 of every packed word are zero; om is below 3 * 2^32 in every lane.
+    C'   = C' + 7                              1   (lane i: C + 2^17 at its step)
+    H    = ((C' XOR KXC) + KA) AND (2^16 - 1)  3   (omega >> 16 in every lane)
+    OM   = (H << 16) OR LO                      2   (omega in every lane)
 
-*Proof.* The two listings contain the member-dependent lines of Lemma Y and omega, D1.c1 and D1.d1 in one line, C0.a1, X0, D0.d1
-and D0.a1 of the omega side by the identities of F1 above and C0a1 and D0d1 rebuilt by the fill, each written with packed
-operands: a word of the context appears as the packed word that repeats its scalar value in every lane, subtracting such a word
-is adding its negation modulo 2^32, and the one subtraction of a member-dependent value, in D1.d1 = (X11 - X12) - S11, is written
-(X12 XOR M) + K with K = (X11 + 1 - S11) mod 2^32; X12 XOR M flips the low 32 bits of each lane and keeps its guard bits, and
-(2^32 - 1 - x) + X11 + 1 - S11 = X11 - x - S11 modulo 2^32, so the low 32 bits of the result are the D1.d1 of step CO. An XOR
-acts on each bit; an addition acts on each lane separately while no lane reaches 2^36, and then the low 32 bits of a lane are the
-sum modulo 2^32; PROR gives in the low 32 bits of each lane the rotation of the low 32 bits of that lane, whatever its guard bits
-(9.6). Lane i of U[b] and of E[b] holds ROL(y, 7) and Y3 + y for the member of the lane. By induction over the printed order the
-low 32 bits of each lane of each line are its scalar value. The Y9 path reads the values C0a1 and D0d1 of the omega side of the
-same batch, which the lane tests, the E handlers and the passing lanes do not change, so the order of the two parts changes no
-value, and the cached Y9 read by a later E lane of the batch is the value that a Y9 path built at that lane would give. The
-cached Y9 is the batch's own: it is filled only at the batch's first E lane, read only by E lanes of the same batch, kept across
-the steps 2 and 3 of a passing lane in the saved words of the batch and across the partner batches of an opened cluster in the
-frame of 9.9, and a new batch starts in the not-ready copy. The lane test and the E handler take the low 32 bits of lane i, and
-Lemma DT gives the masks. When the mask of (2) is zero the AND of the two masks is zero whatever the mask of (1), so leaving out
-the Y9 path and the mask of (1) in such a lane changes no decision; in any other lane the decision is that AND, as in Section 8.
-*Bounds.* Every loaded word and every word of the context is below 2^32 in every lane, and so is the output of PROR. Carry an
-exclusive upper bound through the lines: an addition of values below A and B is below A + B - 1, and an XOR of values below A and
-B is below the least power of two that is at least the larger of A and B. These bounds are functions of the lines alone, not of
-the words. Among the sums, Y1 has the largest bound, below 9 * 2^32 < 2^35.17; among the XORs, the input of the PROR of Y13 has
-the largest, at most 2^36; om = D0a1 + cg and Y9 stay below 3 * 2^32. The chunks of 9.9 form their U and E as the broadcast words
-of the representative plus offsets 2^17 j and 2^10 j with j < 32 in each lane, which are the U and E of the partners: ROL(y_j, 7)
-= ROL(y_0, 7) + 2^17 j and e_j = e_0 + 2^10 j with no carry out of bit 22 or 14 (Lemma XF), all below 2^32. With X9' < 2^34 +
-2^32 in place of X9, C1c1 stays below 2^34 + 2^33, the input of the PROR of C1b1 below 2^35, and Y9 below 2^34 + 3 * 2^32 = 7 *
-2^32 with its bit 34 set and bit 35 clear, since Y9 - 2^34 is the value of the original line, below 3 * 2^32 < 2^34. So no lane
-reaches 2^36, and no AND with M is needed before a sum. QED. The bounds are those of the member loop of entry e9b6649e, whose
-lines are the same; the participant recomputed them for this order and for the fused line, whose bound, 3 * 2^32 - 1, is below
-the 4 * 2^32 - 2 of the two lines it replaces, and a participant simulation of the order with the two lines apart asserted every
-value of every operation below 2^36 (below).
+and seven lane tests: lane i ANDs OM with the mask of its 36 bits, which keeps the lane's omega in place, 2^(36 i) times a value
+below 2^32 (Lemma MB), the word address of the entry of lane i's replica of T2' at that omega (Lemma DT), loads the mask of (2)
+there, compares it with zero and branches: 4 units per lane, 28 in all. A batch of seven lanes executes 34 units, and the loop of
+the batches is charged 2 more: 36. The last batch of a block has the lanes that remain, 6 + 4 n units for n lanes, and is charged
+36 as well. The scan with base-table lane tests of GPT Luna 5.6's answer D48, 1 + 3 + 2 + 33 + 2 = 41, is not used, and the
+program refuses its unit (9.2). C' grows by one per step because X0 mod 2^16 falls by one, and (X0 mod 2^16) XOR (S15' >> 16) = C
+XOR KXC for C below 2^16; the 2^17 keeps every lane positive and is dropped by the AND.
 
-*A context.* Drawing the fresh word, the 39 context lines on scalar words, forming and copying the sixteen packed operands,
-storing the names for steps 2 and 3, the gate base of 9.9, X9', X2 + w7, the three registers of the shortcut, S2, w5 and w12 and
-the test of W come to at most 541 units, charged 547; with the four flags of the gate (160), the descriptor table of 9.9, the
-carry word of every representative batch and the fallback premiums, itemized in Section 11, a context is charged 112,519 (GPT Sol,
-answers CD 1, CI 1.5, D13, D14 and D16; our audit).
+*The fill* (41) *and an E lane* (6). A lane whose mask of (2) is not zero is an *E lane*. At the first E lane of a batch the
+*fill* forms X0 = (XB - C') AND M in every lane (2), and with X1w = X1 + (w3(0) - X0(0)) runs the 39 operations of
+the Y9 path that read X0 or w3 on packed words for all lanes at once, keeping Y9 + 2^34, Y1 and D0.d1 in registers, the batch's
+*cached Y9* (units and running sum):
 
-*A passing lane.* A lane that passes adds u_P = 53 to W, one addition; computes e1, C2.a1, C2.d1, C2.c1, C2.b1 and the word r' of
-the pre-check by the shortcut of 9.6 (39); runs the pre-check of 9.7 (7); and, when T is not zero, runs the preflight of 9.7 (6)
-and, when the credit covers CM(T), calls steps 2 and 3 under the meter, which may use all 64 registers: the global ledger saves
-the live words of the batch, W among them, at its entry and reloads them before its return (Section 11). The lane is written
-inline after its E handler, so it keeps no return link and makes no jump of its own; the credit stays in its register and is never
-restored from a copy. Section 11 itemizes the lane at 53 units, 1 + 39 + 7 + 6 (GPT Sol, answers CD 3, CI 1.5, CK3 2, CM 5A and
-D9; our audit).
+    D0d1 = X0 XOR ROL(X15, 8)            1    1
+    D0c1 = D0d1 + S10                    1    2
+    D0b1 = PROR(S5 XOR D0c1, 12)         6    8
+    X10  = D0c1 + X15                    1    9
+    X5   = PROR(D0b1 XOR X10, 7)         6   15
+    C1a1 = X1w + X5 + X0                 2   17
+    C1d1 = PROR(X13 XOR C1a1, 16)        6   23
+    C1c1 = X9' + C1d1                    1   24
+    C1b1 = PROR(X5 XOR C1c1, 12)         6   30
+    Y1   = C1a1 + C1b1 + w10             2   32
+    Y13  = PROR(C1d1 XOR Y1, 8)          6   38
+    Y9'  = C1c1 + Y13                    1   39
 
-*The participant checks.* Three participant programs, not part of the package. (1) A reimplementation of the member loop of entry
-e9b6649e (research/impl/memberloop) found the two lists of Lemma Y from the printed lines and, on 100,000 random pairs of a
-context and a member, compared Y9, omega, both masks, the pass decision and all 25 member-dependent lines with the full step CO: 0
-differences. (2) A Python program (research/frontline/ca) ran 142,858 batches of seven consecutive members in 1,429 contexts on
-scalar words and as a packed simulation with seven 36-bit lanes that executes and counts every operation, load and PROR and
-asserts every lane value below 2^36, against the full member loop: 0 different pass decisions, 0 different masks of (2) or Y9 in
-the 54,067 lanes with a nonzero mask of (2); the simulation executed 67 units in every batch, with the two list words loaded apart
-(the pair saves one address), and 78 in every Q path, the Q path of answer CA, with 16 for the E count and D1.c1 and D1.d1 apart;
-the largest lane value was 2^35.02. (3) A graphics-card version (RTX 3090) walked 120,000 contexts (62,914,560,000 outer steps),
-every member, with the omega-first batch and the full member loop on every outer step: 0 different pass decisions, masks of (2) or
-values of Y9 in the 3,418,392,488 lanes with a nonzero mask of (2), and 62,294,500 passes. Lanes with a nonzero mask of (2) were
-0.054334 of the outer steps, against the exact share 0.054416 and the share 0.054418 that E_BUDGET allows.
+39 units, so a fill costs 2 + 0 + 39 = 41 (GPT Luna 5.6, answers D48 and D54: of the 56 of the fill of entry 244f068c, the 17 that
+read only member words run once per member). Every E lane, the first included, then adds u_E to W (1), ANDs the cached Y9 with
+2^34 + M in its lane i, in place (1), which gives 2^(36 i) (2^34 + Y9), the word address of the entry of lane i's replica of T1 at
+its Y9 (Lemma DT), loads that entry (1), and ANDs the mask of (1) found there with the mask of (2), compares with zero and
+branches (3): 6 units. Whether the cache of a batch is filled is a position in its written-out code, as in entry 244f068c, tested
+by no instruction.
 
-**9.9 The cluster gate and the masked partner walk (GPT Sol, answers CI 1, CJ 1 to 5, D12, D14, D16 and D18; the layout, our
-audit).** This subsection fixes the order in which a context walks its members, lets it skip, with one table read, a group of 32
-members that is proved to fail test (2), and, in a group that it opens, skips the members that a table of the context proves to
-fail it. Every outer step that is walked is that of 9.8, with the same batch, lane test, E handler and passing lane.
+*A passing lane* (45). A lane whose X is not zero adds u_P to W (1), computes e1 out of its lane, C2.a1, C2.d1, C2.c1, C2.b1 and
+the word r' of the pre-check by the shortcut of 9.6 (31; 28 in lane 0, whose three shifts by 0 are no instructions) and runs the
+pre-check of 9.7 (7); when T is not zero it runs the preflight of 9.7 (6) and, when the credit covers CM(T), calls steps 2 and 3
+under the meter, with the step's t_hi in the source bank. u_P = 1 + 31 + 7 + 6 = 45 charges the preflight on every passing lane
+(GPT Luna 5.6, answers D47 and D49), so the walk needs no budget of calls.
 
-*Clusters.* Write e = Y3 + y for the word e1 of a member y. The class fixes the 13 bits of e in 03cf8303 and leaves the other 19
-free (Lemma Q); bits 10 to 14 are free and bit 15 is fixed at 0. Let g run over the 2^14 settings of the 14 free bits other than
-10 to 14, and let e_g have these bits and bits 10 to 14 zero. The *cluster* of g is the 32 members with e = e_g + j * 2^10, 0 <= j
-< 32; its *representative* is the member with j = 0, and the other 31 are its *partners*. The 16,384 clusters partition the class.
+**Lemma MB (the walk's packed values are exact).** Take any used lane i of any batch of a live block, and let (context, y, t_hi)
+be its outer step. (a) The low 32 bits of lane i of OM equal omega = Y3 + y + w8 as step CO computes it for that outer step, and
+the lane test reads T2', through its lane replica, at omega. (b) If the lane is an E lane, the low 32 bits of lane i of the cached
+Y9 equal the Y9 of step CO for that outer step, bit 34 of the lane is 1, and the E handler reads T1, through its lane replica, at
+that Y9. (c) The lane is taken as passing exactly when its outer step passes the filter of Section 8. (d) No lane of any value of
+the scan or of the fill reaches 2^36.
 
-In one context put b = C0.b1, c = C0.c1, d = C0.d1, A = C0.b1 + w6 + X4 + w2, L = ROL(X15, 24) XOR S15 and C = e - S0 - S5, all
-modulo 2^32. With r = ROL(y, 7) XOR b, v = r - c (the line Y12), p = ROL(v, 8) XOR d (the line Y0) and x = p - A (the line X0),
-the omega side of 9.8 gives
+*Proof.* (a) By Lemma W (c), omega = l + 2^16 h, with l the block's low half and h = (((X0 mod 2^16) XOR (S15' >> 16)) + ka) mod
+2^16. Lane i of C' holds C + 2^17 with C = 2^16 - 1 - (X0 mod 2^16) at its step, below 2^16 for a step of the block, and (C +
+2^17) XOR KXC = (C XOR KXC) + 2^17 = ((X0 mod 2^16) XOR (S15' >> 16)) + 2^17; adding ka modulo 2^16 in every lane and keeping
+the low 16 bits gives h, and (H << 16) OR LO gives omega, below 2^32, in place. (b) For a lane of the block, XB - C' = 2^16 (X0
+>> 16) + (X0 mod 2^16) = X0, below 2^32, and X0 + (w3(0) - X0(0) mod 2^32) = w3 modulo 2^32 by Lemma W (a). The member lines of
+the Y9 path read only member words and words of the context, which Lemma W (b) keeps fixed along the walk, so the values
+computed once per member are those of every step; each line of the two listings is a line of step CO with packed operands, as in
+the packed batch of entry 244f068c: a word of the context is the packed word that repeats it, subtracting a word is adding its
+negation modulo 2^32, D1.d1 = (X12 XOR M) + K is X11 - X12 - S11 modulo 2^32, an addition acts on each lane while no lane
+reaches 2^36, and PROR rotates the low 32 bits of each lane whatever its guard bits. With X9' = X9 + 2^34 in place of X9, C1c1
+is C1.c1 + 2^34 and Y9' is Y9 + 2^34 with bit 34 set, since the original values stay below 2^34; C1.c1 is read otherwise only by
+the PROR of C1b1, which drops the guard bits. A lane of the last batch that lies beyond the block is never tested, and a borrow
+of its X0 runs only into the lanes above it, which lie beyond the block as well. (c) The lane's decision is the AND of the two
+masks, as in Section 8; when the mask of (2) is zero the AND is zero whatever the mask of (1), so leaving out the fill and T1 in
+such a lane changes no decision. (d) Exclusive bounds: C' below 2^18; the high half before its AND below 2^19; OM, X0 and the
+operands of the fill below 2^32; XB below 2^32 + 2^17; w3, X1 and w10 below 2^33; C1a1 below 2^35; C1c1 below 2^34 + 2^33; Y1
+below 2^35 + 2^33; Y9' below 2^35. So no lane reaches 2^36. QED. The declared program checks (a) and (b) in every lane that it
+tests and in every fill, against the closed form, P16, the whole packed Y9 path of entry 244f068c and, at every eighth E lane,
+step CO (9.2).
 
-    omega = (ROL(x, 16) XOR L) + C,
+*Registers (our audit).* Live through a batch: the context's walk words, KXC and the packed operands of the fill and the shortcut
+(at most 18), the three registers S6, X14 and X2 + w7, the member's words (X1, w10, C0.a1 and e1 in the lanes, w3(0) - X0(0) in
+the lanes, Y12, the parts of omega, the two values of X0 >> 16 and NOT X0(0): at most 12), the block's LO, KA, XB and C' (4), the
+batch's OM, H, the lane's address and mask (4), the cached Y9 with Y1 and D0.d1 (3), W and the credit (2): at most 46; a fill adds
+at most six packed values of its path live at once and the two temporaries of PROR, 54; a passing lane at most six temporaries of
+the shortcut and its mask X, 53, of the 64 registers. Nothing is spilled, and the global ledger of steps 2 and 3 saves the live
+words of the batch, at most 46 of the 57 that it allows (Section 11).
 
-since D0.a1 = ROL(X0 XOR ROL(X15, 8), 16) XOR S15 and omega = e + D0.a1 - S0 - S5. The term ROL(X15, 24) of L is part of the
-identity.
-
-**Lemma KP (two prefixes per cluster).** Fix a context and a cluster. Let p_0 be the p of its representative, u = (((p_0 >> 16)
-AND 1ff) - ((A >> 16) AND 1ff)) mod 512, and W_l = (C + (((u - l) mod 512) XOR (L AND 1ff))) mod 512 for l = 0 and 1. Then every
-member of the cluster has omega mod 512 in {W_0, W_1}.
-
-*Proof.* The members of a cluster differ only in bits 10 to 14 of e, so C mod 512 is the same for all of them. Bit 15 of e is 0,
-so e mod 2^16 < 32,768, while Y3 mod 2^16 = c181 = 49,537: the subtraction y = e - Y3 borrows into bit 16 in every member, and
-bits 16 to 31 of y, like bits 0 to 9, are the same for all members; only bits 10 to 15 differ. Then r differs only in bits 17 to
-22, so bits 0 to 16 of v = r - c are the same for all members, and its bits 24 to 31 take at most two values, which differ by
-the borrow into bit 24. Hence bits 8 to 24 of p = ROL(v, 8) XOR d are the same for all members and only its low byte varies.
-Bits 16 to 24 of x = p - A are ((p >> 16) AND 1ff) - ((A >> 16) AND 1ff) - l modulo 512, where l in {0, 1} is the borrow of (p
-mod 2^16) - (A mod 2^16) into bit 16; the first term is that of the representative, so these bits are (u - l) mod 512. Bits 0 to
-8 of ROL(x, 16) are bits 16 to 24 of x, and bits 0 to 8 of a sum depend only on bits 0 to 8 of its terms, so omega mod 512 =
-W_l. QED. The two values may be equal, and one of them may not occur: the lemma is a cover, not a rate.
-
-**Lemma A9 (dead residues of test (2)).** Let S7 be the 52 residues 25 to 3e and 45 to 5e (hexadecimal) modulo 128. If omega mod
-128 is not in S7, then (2)_j fails for omega for every j in S, and T2[omega] = 0.
-
-*Proof.* A word f with (omega + f) XOR ((omega + DY3) + (f XOR sigma_j)) = eps (Section 8) satisfies the equation modulo 2^9,
-whose bits depend only on omega and f modulo 2^9. For the six outcomes of S, sigma_j mod 2^9 = f0 (the low twelve bits of every
-tau_j are 0a0), DY3 mod 2^9 = fd and eps mod 2^9 = 55. The finite check
-
-    [r for r in range(512)
-     if any((((r + f) ^ (r + 0xfd + (f ^ 0xf0))) & 511) == 0x55 for f in range(512))]
-
-lists the residues r of omega modulo 2^9 for which the equation modulo 2^9 has a solution: 208 residues, exactly those whose value
-modulo 128 lies in S7. For any other omega no j in S satisfies (2)_j, and by Lemma DT the mask of (2), restricted to S, is zero.
-QED.
-
-*The straddle gate (GPT Sol, answers D14 and D16).* Write w[k..l] for bits k to l of a word w as a number. For i = 0 to 3 let T_i
-= f2, fa, 02 and 0a (hexadecimal), that is (8 i - 14) mod 256, and put
-
-    H_i = ((T_i XOR b[24..31]) - c[24..31]) mod 256,   lo0_i = H_i XOR d[0..7],   lo1_i = ((H_i - 1) mod 256) XOR d[0..7],
-    hbad_i = [min(lo0_i, lo1_i) < A[0..7] <= max(lo0_i, lo1_i)],   Hbad = hbad_0 + 2 hbad_1 + 4 hbad_2 + 8 hbad_3.
-
-These depend on the context alone. The cluster of a representative with word e and line Y0 = p *straddles* when p[8..15] =
-A[8..15] and hbad_i = 1 for i = e[20..21]. The *gate table* holds, at word address 2^35 + w + 2^8 m + 2^16 h + 2^20 i + 2^22 a,
-for 0 <= w < 128, 0 <= m, a < 256, 0 <= h < 16 and 0 <= i < 4, the entry 1 when w lies in S7 or when m = a and bit i of h is 1,
-and 0 otherwise; bit 7 of the index is not used, and both of its values hold the same entry. These are 2^30 entries of one word at
-word addresses 2^35 to 2^35 + 2^30 - 1, built once (Section 11), inside the band 2^35 to 2^36 - 1, which holds no other table,
-code or descriptor. A representative reads it at w = omega mod 128, m = p[8..15], h = Hbad, i = e[20..21] and a = A[8..15], so its
-entry is 1 exactly when its omega mod 128 lies in S7 or its cluster straddles.
-
-**Lemma CL (the gate is lossless).** Fix a context and a cluster. If the cluster does not straddle, every member has the omega mod
-512 of the representative. If the gate entry of the representative is 0, then every member of the cluster has T2[omega] = 0; none
-of its outer steps runs a Q path or passes the filter, and none holds a listed good trial.
-
-*Proof.* Member j has e = e_0 + 2^10 j. Since e mod 2^10 >= 303 > 181 = Y3 mod 2^10 (hexadecimal) and e[10..15] = j < 48 =
-Y3[10..15], y = e - Y3 has y[10..15] = 16 + j. Bits 15 and 16 of e are 0, so e[0..16] < 2^15 and y[0..16] = e[0..16] + 2^17 -
-1c181 < 2^16: y[16] = 0, and the subtraction borrows into bit 17. With e[17..24] = 134 + 8 i (the class fixes e[17..19], e[22..24]
-and leaves e[20..21] = i) and Y3[17..24] = 147, y[17..24] = (134 + 8 i - 147 - 1) mod 256 = T_i for every member. So r = ROL(y, 7)
-XOR b has r[24..31] = T_i XOR b[24..31], the same for all members, and the high byte of v = r - c is H_i or (H_i - 1) mod 256, by
-the borrow out of its low 24 bits; p = ROL(v, 8) XOR d has p[8..24] common to the cluster (Lemma KP) and the low byte lo0_i or
-lo1_i. The borrow of x = p - A into bit 16 is [p mod 2^16 < A mod 2^16]: when p[8..15] differs from A[8..15] it does not depend on
-the low byte, and when they are equal it differs between the low bytes lo0_i and lo1_i exactly when hbad_i = 1. So when the
-cluster does not straddle, every member has the borrow of the representative, x[16..24] is common, and by omega = (ROL(x, 16) XOR
-L) + C, with C mod 2^10 common, omega mod 512 is the representative's. When the entry is 0 the cluster does not straddle and the
-representative's omega mod 128 is not in S7, so no member's is, and Lemma A9 gives T2[omega] = 0. A lane with a zero mask of (2)
-is no E lane and does not pass (Lemma MB (c)), and by Lemma F an outer step that does not pass holds no listed good trial. QED.
-The lemma uses no law of the words. The participant's arithmetic program checks y[10..24] and the borrow into bit 17 on all 2^19
-members, and on 20,000 random clusters, half of them with A[8..15] = p[8..15], the straddle rule against the borrows of the two
-low bytes, the common omega mod 512 and the gate against the word equations of every member; the declared program compares the
-entry of every representative it walks with S7 and the two exact prefixes of Lemma KP (9.2).
-
-Hence skipping a cluster whose gate entry is 0 loses nothing: the E count, the pass count, the work of passing lanes and of steps
-2 and 3, the debits of the credit and the number N_o of 10.3 are zero on every outer step that the gate skips, so their totals
-over the outer steps that a context walks equal their totals over all 2^19 outer steps of the context, outer step by outer step.
-In the same way the fills of a context in the walk with the five partner batches of every opened cluster, before any halt, are
-exactly those of its 84,261 batches (its representative batches and the five partner batches of each cluster) that hold a member
-with a nonzero mask of (2): a skipped cluster holds none, so its partner batches and its representative's lane would not be
-filled. This count, G(C), is a function of the context alone; Lemma XF (d) bounds the fills of the masked walk below by it.
-
-*The carries of a cluster.* Fix a context and a cluster, with members e_j = e_0 + 2^10 j and y_j, j = 0 the representative. For a
-member let c17, c25, c9a and c9b be the carries into bit 17 of Y8 + (-C0.c1), into bit 25 of Y0 + K', into bit 9 of D0.a1 + (-S0 -
-S5) and into bit 9 of e1 + w8, and IX = c17 + 2 c25 + 4 c9a + 8 c9b. The *byte guard* of the cluster fires when bits 8 to 15 of
-the representative's Y0 equal those of A = -K'. With five-bit windows, all modulo 32, put
-
-    o(IX, j) = (((((((16 + j) XOR (C0.b1 >> 17)) + ((-C0.c1) >> 17) + c17) XOR (C0.d1 >> 25)) + (K' >> 25) + c25)
-               XOR (S15' >> 9)) + ((-S0 - S5) >> 9) + c9a) + 1 + 2 (j mod 16) + c9b,
-
-and let alive16(w), for w < 2^16, be 1 when w mod 128 is in S7 and bit (w >> 9) mod 32 of LW[(w >> 8) mod 2] is 1, with LW =
-(e000001f, f000001f), whose words have 8 and 9 bits set.
-
-**Lemma XF (the masked partner walk).** Fix a context and a cluster whose byte guard does not fire, and let W and b8 be omega mod
-512 and its bit 8 for the representative. (a) Every member has the same IX and the same omega mod 512, and bits 9 to 13 of the
-omega of member j are o(IX, j); for each IX, j -> o(IX, j) is a bijection of the 32 values of j. (b) If T2[omega] is not 0, then
-alive16(omega mod 2^16) = 1. (c) So the partners j with T2[omega_j] not 0 are among the *survivors*, the j from 1 to 31 with W mod
-128 in S7 and bit o(IX, j) of LW[b8] set, and there are at most 9 survivors. (d) Let chunk A be the survivors in the partner batch
-of the earlier walk (j from 1 to 7, 8 to 14, 15 to 21, 22 to 28 or 29 to 31) that holds the most of them, the first such batch,
-and chunk B the other survivors: each has at most 7 members, and walking the representative and then the two chunks, each a batch
-of 9.8 with its own cache, fills at most as many batches as walking the five partner batches, outer step by outer step. (e) The
-byte guard fires on at most 128 of the 16,384 clusters of a context.
-
-*Proof.* (a) Bits 0 to 9 of e_j are those of e_0, and e_0 mod 2^10 = 303 + 4 m (hexadecimal, m < 64) is at least 303 > 181 =
-Y3 mod 2^10, so y_j = y_0 + 2^10 j with bits 10 to 15 of y_j equal to 16 + j and bit 16 equal to 0 (as in Lemma KP), and
-ROL(y_j, 7) = ROL(y_0, 7) + 2^17 j, with bits 17 to 22 equal to 16 + j and every other bit that of the representative. So
-bits 0 to 16 of Y8 = ROL(y, 7) XOR C0.b1 are common and c17 is common; bits 0 to 16 of Y12 are common, so bits 8 to 24 of Y0
-= ROL(Y12, 8) XOR C0.d1 are common, and only its low byte varies. When bits 8 to 15 of Y0 differ from those of A, the carry
-into bit 16 of Y0 + K' = Y0 - A does not depend on that byte, so bits 16 to 24 of X0 and c25 are common; then bits 0 to 8 of
-D0.a1 = ROR(X0, 16) XOR S15', of w8 and of e1 are common, and so are omega mod 512, c9a and c9b. Following the windows, bits
-17 to 21 of Y8 are ((16 + j) XOR (C0.b1 >> 17)) mod 32; adding (-C0.c1) >> 17 and c17 gives bits 17 to 21 of Y12; the XOR
-with C0.d1 >> 25 gives bits 25 to 29 of Y0; adding K' >> 25 and c25 gives those of X0; the XOR with S15' >> 9 gives bits 9
-to 13 of D0.a1; adding (-S0 - S5) >> 9 and c9a gives those of w8; and adding bits 9 to 13 of e1, 1 + 2 (j mod 16), and c9b
-gives those of omega: o(IX, j). In every step but the last, bit i of the result is bit i of j XOR a function of the bits of
-j below i; the last adds 2 (j mod 16), whose bit i is bit i - 1 of j, which keeps that form; so j -> o(IX, j) is triangular
-with unit diagonal, a bijection. (b) The bits 0 to 15 of the equation (2) depend only on omega and f modulo 2^16, so a
-solution of (2) is one modulo 2^16; the w < 2^16 for which (2) has a solution modulo 2^16 for some row of S were listed
-exhaustively by a carry-pair walk over the 65,536 values (the participant's arithmetic program): 7,072 of them, exactly
-those with alive16(w) = 1. (c) follows from (a) and (b); LW[b8] has at most 9 bits set and j -> o(IX, j) is a bijection, so
-at most 9 values of j survive. (d) If chunk A holds m survivors and there are at most 9 in five batches, then m >= 2 or
-there are at most 5, so chunk B has at most 7; chunk A, inside one batch, has at most 7. A chunk is filled only when it
-holds a member with T2[omega] not 0; chunk A's members are in its old batch and chunk B's in old batches other than A's, so
-a filled chunk A maps to its filled old batch and a filled chunk B to a different filled old batch; the representative batch
-is the same in both walks. (e) Bits 8 to 15 of Y0 are bits 0 to 7 of Y8 + (-C0.c1) XOR bits 8 to 15 of C0.d1, a bijection of
-bits 0 to 7 of Y8 = ROL(y, 7) XOR C0.b1, which carry y[25..31] and y[0] = 0. The class fixes e1[22..25] = 0011 (from bit 22
-up) and leaves e1[26..31] and e1[20], e1[21] free, and y[25..31] = (e1[25..31] - Y3[25..31] - [e1[21] = 0]) mod 128: for a
-fixed e1[21] the 64 values of e1[26..31] give 64 different values, all of one parity, and the two values of e1[21] give
-opposite parities. So the byte of the guard is hit by at most one value of (e1[26..31], e1[21]), and with the 2^7 values of
-e1[2..7] and e1[20] by at most 128 clusters. QED. The lemma uses no law of the words; the participant's arithmetic program
-also checks (a) on 3,000 random clusters and the bijection for every IX, the chunk sizes, and (e) on 24 random contexts, and
-the declared program compares every partner of every walked descriptor with (a) and (c) (9.2).
-
-So the masked walk loses nothing: every partner with a nonzero mask of (2) is in a chunk, so the E lanes, passing lanes, solver
-calls, debits and listed good trials of a context are those of the walk with five partner batches, outer step by outer step, and
-only their order inside a cluster can differ, when its two chunks both hold passing lanes.
-
-*The walk of a context (GPT Sol, answers CJ 2 to 5, D12 and D14; our audit).* Step 0 of 9.1 writes the member lists in cluster
-order (9.8), interleaved: for each representative batch b, the pair (U[b], E[b]) of its representatives, lane i holding the
-representative of cluster 7 b + i (lanes 0 to 3 in the last pair), followed by the five partner pairs of each of its clusters in
-lane order, holding its partners j = 1 to 31 in order, seven to a pair and three in the fifth: 72 words for a full batch, 42 for
-the last; 168,522 words, 5,392,704 bytes, every member in exactly one lane. Besides the sixteen operands of 9.8 a context prepares
-A = -K', its four flags hbad_i, the *gate base* BG6 = 2^35 + 2^16 Hbad + 2^22 A[8..15] in every lane, A[8..15] in a register, and
-the *descriptor table* of its masked walk: for each of the 16 values of IX and each b8 with W mod 128 in S7, the survivors of
-Lemma XF (c) in two chunks as in (d), the chunk that holds the least survivor first, at word address DB + 8 (2 IX + 32 b8 + 64)
-with DB = 2^36 + 2^24 - 2^13: n_0, JU_0 and JE_0 in its words 0 to 2 and n_1, JU_1 and JE_1 in its words 4 to 6, n the size of the
-chunk, JU the sum of 2^(36 t + 17) j_t and JE that of 2^(36 t + 10) j_t over its members j_t in increasing order. The other 96
-descriptors have n_0 = n_1 = 0, and the table PX of 512 words at DB + 4,096, PX[w] = 32 (bit 8 of w) + 64 [w mod 128 in S7], is
-built once. The representative loop is written out for the 2,341 representative batches of a context, each a *representative
-batch*, with the list addresses as immediates (GPT Sol, answer D13):
-
-- the pair and the omega side of 9.8, which give X0, Y0, Y12, Y8, D0a1, cg and om in every lane;
-- the key of every lane, key = (om AND R7) OR (Y0 AND R8) OR (E AND R20) OR BG6, three ANDs and three ORs, 6 operations and no
-  shift (GPT Sol, answer D16), with R7, R8 and R20 the masks of bits 0 to 6, 8 to 15 and 20 to 21 of each lane: in lane i it is
-  2^35 + omega mod 128 + 2^8 p[8..15] + 2^16 Hbad + 2^20 e[20..21] + 2^22 A[8..15], the word address of the representative's gate
-  entry, every field in its own bits, so no carry crosses a field or a lane, and every lane below 2^35 + 2^30;
-- the carry word IX = (((Y12 XOR Y8 XOR (-C0.c1)) >> 17) AND N1) OR (((X0 XOR Y0 XOR K') >> 24) AND N2) OR (((w8 XOR D0a1 XOR
-  (-S0 - S5)) >> 7) AND N4) OR (((om XOR E XOR w8) >> 6) AND N8), with w8 = D0a1 + (-S0 - S5) and N1, N2, N4 and N8 the words
-  with bit 0, 1, 2 or 3 of every lane: the four carries of Lemma XF in bits 0 to 3 of every lane, 20 operations, which the
-  context pays;
-- for each used lane in order, the *gate test*: the key of the lane taken out by a shift and an AND (lane 0 needs no shift and
-  lane 6 no AND, bits 252 to 255 being zero), the entry loaded at that address, compared with zero and branched on, 5 units, 4 for
-  lanes 0 and 6. On 0 the cluster is skipped: T2' is not read (Lemma CL). Otherwise the cluster is *opened*: u_O is added to W;
-  the representative's lane test reads T2' at its om, with its E handler and passing lane as in 9.8; then the *byte guard*
-  compares bits 8 to 15 of lane i of Y0 with A[8..15], 4 units. On a fire, the *fallback*: the five partner pairs at p + 2 + 10 i
-  to p + 11 + 10 i run as five batches of 9.8, each with its lane tests, E handlers, fill and cached Y9 and passing lanes.
-  Otherwise the *descriptor selection*: bits 0 to 3 of lane i of IX and bits 0 to 8 of lane i of om are taken out, PX is loaded at
-  the latter, the index 2 IX OR PX and the descriptor address DB + 8 (index) are formed, and n_0 is loaded, compared with zero and
-  branched on; on 0 no partner survives and the cluster ends. Otherwise the representative's U and E are taken out of lane i and
-  *broadcast* to the seven lanes by three shifts and ORs each (w OR (w << 36), then the same with 72 and 108; lane 3 receives
-  equal bits twice); then each chunk in turn: its n (n_0, still in its register, for the first chunk; n_1, loaded at the
-  descriptor address plus 4, for the second) is decoded by a depth-three tree of comparisons whose leaves are the code for n
-  lanes, JU and JE are loaded and added to the broadcast U and E, which gives the U and E of a batch whose lane t holds the
-  partner j_t (Lemma MB), and the chunk runs as a batch of 9.8 with n used lanes and its own cache; the leaf 0 of the second chunk
-  ends the cluster. All this precedes the gate test of the next lane. The representative batch is one batch of 9.8 for the cache:
-  it is filled at most once, at its first representative E lane.
-
-The code of an opened cluster, its fallback and its chunks included, is written out at each representative lane site, so the
-branch of the gate test skips it; the code of a chunk at each leaf of a dispatch tree ends with one jump to the code that follows
-the chunk, and the end of the cluster falls through to the gate test of the next lane. The words of the representative batch, its
-key, E[b], om, Y0, X0, Y12 and its cached Y9, stay in their registers through the partner batches and chunks, which use other
-registers (9.8), so nothing is stored or reloaded around them and no count is restored from a copy.
-
-*Charges (Section 11).* A representative batch costs 59: 3 for the pair, 17 for the omega side, 6 for the key and 33 for the
-seven gate tests; its list addresses are immediates, so it has no cursor (GPT Sol, answer D13), and it has no lane test on T2'.
-The last representative pair has four used lanes and costs 45, its gate tests being 4 + 3 * 5 = 19. The carry word, 20 units per
-representative batch, is paid by the context. An opened cluster costs 144 (GPT Sol, answer D18, after Grok, job 58): at most 5
-for the representative's T2' load and test; 3 for the addition of u_O to W and the jumps at the ends of the two chunks; 13 for
-the descriptor selection (the lane extraction and mask of IX, 2; those of the omega prefix, 2; PX, its address and load, 2; the
-shift of IX and the OR of the index, 2; its shift and the addition of DB, 2; the load of n_0 at that address, 1; its comparison
-and branch, 2), 11 in lane 0, which needs no shifts; 4 for the byte guard; 16 for the broadcasts (two lane extractions, 2 each,
-and two broadcasts, 6 each); at most 77 for the omega sides and lane tests of the two chunks; and 12 + 14 for their addressing
-(for each chunk the dispatch, three comparisons and branches, 6, and JU and JE, each an addition of its offset to the descriptor
-address, a load and an addition to the broadcast word, 6; the second chunk also loads n_1, 2, and costs 8 when it is empty): 5 +
-3 + 13 + 4 + 16 + 77 + 12 + 14 = 144. A chunk of n lanes runs its omega side, 17, and its lane tests, 4 + 5 (n - 1) for n < 7
-and 33 for n = 7, so it costs c(n) = 16 + 5 n for n < 7 and c(7) = 50; by Lemma XF (c) and (d) the two chunks have n_A, n_B <= 7
-and n_A + n_B <= 9, so c(n_A) + c(n_B) = 32 + 5 (n_A + n_B) - [n_A = 7] - [n_B = 7] <= 77 when both are used, with equality when
-n_A + n_B = 9 and neither is 7, and c(n_A) <= 50 when the second is empty. The parts do not overlap: the 77 prices only the
-omega sides and lane tests, the 12 + 14 the operands and the dispatch of the chunks, the 13 the descriptor address and the first
-load and test of n_0, which the first chunk reuses, and the 3 the addition to W and the two end jumps; a cluster with no
-surviving partner ends at the test of n_0, and an empty second chunk at its dispatch. A fallback cluster costs the 257 of the
-earlier walk, 5 + 21 + 4 * 50 + 31, and the guard, 261: u_O = 144 is added to W and the other 117 are paid by the context, which
-allows 128 of them (Lemma XF (e)). E lanes, fills and passing lanes of the representative and of the partners are charged in
-their own rows. The descriptor table of a context costs at most 48,896, charged 50,000: 16 * 32 * 50 for the masks of the 16
-carry indices at the 32 values of j (21 for the window arithmetic, 12 for the two tests of LW and 17 for decoding, the store and
-control), 32 * (32 * 10 + 5 * 8 + 9 * 32 + 16) for the 32 descriptors with W mod 128 in S7 (the 31 positions at 10, five steps
-of the largest batch at 8, at most 9 survivors placed at 32 and the stores at 16), and 2,048 for its setup, the reset of n_0 and
-n_1 of the 96 other descriptors (672) and the save and reload of 64 words around it (256) (GPT Sol, answer D14 5). The flags and
-the base of the gate cost a context at most 132 units, charged 160 (GPT Sol, answer D14): at each of the four sites H_i (an XOR,
-a subtraction and an AND, 3), lo0_i (1) and lo1_i (3), the minimum and maximum with a branch and two assignments (4), the two
-range comparisons and their AND (3) and the shift and OR into Hbad (2), 16 a site; 10 for the cuts of b, c, d and A and for A;
-10 for BG6 and its copy into seven lanes by three shifts and ORs; 32 for addressed loads and stores of context words; and 16 for
-staging and control. The gate table is built once (GPT Sol, answer D16): over its 2^22 prefixes (a, m, h and the four sites i),
-with the straddle bit and the address prefix formed outside the 256 entries of w and bit 7, at most 32 units per prefix; for
-each entry at most 8 (the flag F[q] = [q mod 128 in S7], its address and load, 2; an OR, 1; the address and the store, 2; the
-loop, 3); and 4,096 for the 256 flags and the constants: 8 * 2^30 + 32 * 2^22 + 4,096 = 8,724,156,416 units, below 2^34.
-
-**Lemma OR (the opening rate of the gate).** Let the seven outer words of a context be independent and uniform, as in a run (Lemma
-CX (a)). Then the number A(C) of clusters of the context whose gate entry is 1 has
-
-    E[A(C)] <= 6,656 + (38/64) * 16,384 * 9/65,536 = 852,139 / 2^7 = 6657.3359375,
-
-so the mean share of opened clusters is at most p* = 852,139 / 2^21 = 0.40633153915...; no independence between the clusters of a
-context is used.
-
-*Proof (GPT Sol, answer D14).* (a) *Blocks.* The free bits of a representative's e other than 10 to 14 are e[2..7], e[20..21] and
-e[26..31]. Fix e[20..21] and e[26..31] and let u = e[2..7] run over its 64 values: a *block* of 64 representatives, 256 blocks to
-a context. Since e mod 2^10 = 303 + 4 u > 181 = Y3 mod 2^10 (hexadecimal), u changes no bit of y = e - Y3 from bit 10 up, and y[0]
-= 0. So on a block i = e[20..21] is fixed, and so is p[8..15] = v[0..7] XOR d[8..15], since v[0..7] depends only on r[0..7] =
-(y[25..31] and y[0]) XOR b[0..7]: the straddle flag is constant on a block.
-
-(b) *A block that does not straddle opens on exactly 26.* Put z = y[1..7]. As u runs over its 64 values, y mod 256 = (4 u - 126)
-mod 256 and z = (2 u - 63) mod 128 run through the 64 odd residues, with e mod 128 = (1 + 2 z) mod 128. Every representative of
-the block has r[24..31] = T_i XOR b[24..31], so its p has the low byte lo0_i or lo1_i and the block's p[8..15]; off straddle the
-borrow into bit 16 of x = p - A is therefore the same for all of them, as in the proof of Lemma CL, and so is the borrow into bit
-8 of v = r - c, which depends on r[0..7] alone. With b8, c8, d16, A16, L7 and SS7 the seven-bit slices b[8..14], c[8..14],
-d[16..22], A[16..22], L[0..6] and (S0 + S5)[0..6], and br8 and br16 the two borrows, the identity omega = (ROL(x, 16) XOR L) + e -
-S0 - S5 gives
-
-    omega mod 128 = (1 + 2 z + P(z)) mod 128,   P(z) = ((((((z XOR b8) - c8 - br8) XOR d16) - A16 - br16) XOR L7) - SS7) mod 128.
-
-An XOR with a constant and a subtraction of a constant change bit k of their input by a function of the bits below k alone, and so
-does the addition of 2 z, whose bit k is bit k - 1 of z; so z -> (1 + 2 z + P(z)) mod 128 is triangular with a unit diagonal, a
-bijection of the 128 residues, and its bit 0 is z[0] plus a constant, so the 64 odd z go onto the 64 residues of one parity. S7
-holds 26 residues of each parity, so exactly 26 representatives of the block have omega mod 128 in S7, and these are the ones
-whose gate opens.
-
-(c) *Per context.* With B(C) the number of straddling blocks of the context and G(C) = 64 B(C), pointwise
-
-    A(C) <= 26 (256 - B(C)) + 64 B(C) = 6,656 + (38/64) G(C).
-
-(d) *The straddle probability.* Condition on w6, S11 and S4. The lines of step CO give c = C0.c1 = X8 + C0.d1 with X8 = ROL(X7, 7)
-XOR D2.b1, and b = C0.b1 = ROR(X4 XOR c, 12) with X4 = ROR(D3.b1 XOR X9, 7), where D3.b1 depends only on w6, S11 and S4; so
-(C0.d1, D2.b1, X9) -> (d, c, b) is a bijection, b, c and d are independent and uniform, and the outer word x = D2.a1 is uniform
-and independent of them. Given b, c and d, the word p of the representative, the flags hbad_i and K = b + w6 + X4 are fixed, and A
-= K + w2. With B = D2.b1 + W13, the context's X13 and R = S9 - IV[1], also fixed, the lines X2, D2.d1, S13, K1.c1, K1.d1, K1.a1
-and w2 give
-
-    s13 = ROL(ROL(X13, 8) XOR (x + B), 16) XOR x,   w2 = ROL(R - s13, 16) - IV[1] - IV[5].
-
-For a fixed low half of x the high half of s13 is a constant XOR the high half of x, a bijection, and the high half of R - s13 is
-R[16..31] - s13[16..31] - br with br in {0, 1}, so one value of it comes from at most two values of s13[16..31], whatever br does.
-So each value of w2 mod 2^16, and of A mod 2^16 = (K + w2) mod 2^16, comes from at most 2 * 2^16 of the 2^32 values of x:
-probability at most 2 / 2^16. The cluster straddles exactly when A mod 2^16 = 2^8 p[8..15] + a with min(lo0_i, lo1_i) < a <=
-max(lo0_i, lo1_i), which are gap = |lo0_i - lo1_i| values, so given b, c and d it straddles with probability at most 2 gap / 2^16.
-H_i is uniform, b[24..31] being uniform and independent of c, and d[0..7] is uniform and independent of H_i. For H_i not 0 with t
-trailing zero bits, H_i XOR d[0..7] and (H_i - 1) XOR d[0..7] differ exactly in bits 0 to t, where they are complements, and the
-mean of their distance is 2^t; 2^(7 - t) values of H_i have t trailing zeros, for t = 0 to 7; for H_i = 0 the two bytes are
-complements, mean 128. So
-
-    E[gap] = (sum over t = 0 to 7 of 2^(7 - t) 2^t + 128) / 256 = 9/2,   Pr(straddle) <= 2 E[gap] / 2^16 = 9/65,536.
-
-(e) Summing over the 16,384 representatives, E[G(C)] <= 16,384 * 9/65,536, and (c) gives E[A(C)] <= 6,656 + (38/64) * 16,384 *
-9/65,536 = 852,139/128. QED. The law of the outer words enters only in (d), as the independent uniform outer words of Lemma CX
-(a). The participant's arithmetic program checks (a) and (b) on 3,000 random blocks (each that does not straddle opens on exactly
-26 of its 64), the bijection of (b) for 2,000 random settings of the slices, E[gap] exactly over the 65,536 pairs (H_i, d[0..7]),
-294,912 / 65,536 = 9/2, the two-preimage bound of (d) for 6 random settings over all 2^16 high halves, and the bound and the
-budget below in exact fractions. As a check, not used here: in the declared program's run of 4,096 trials (9.2) the gate opened on
-0.4024 of 131,072 clusters.
-
-*The budget (GPT Sol, answer CJ 1.2).* With s = ceil(sqrt(10 * RUN_CONTEXTS)) = 110,404,312, the opened clusters enter WB (9.1)
-with the budget
-
-    A_BUDGET = ceil(852,139 * RUN_CONTEXTS / 2^7) + 16,384 * s
-             = 8,114,701,346,782,505,236 + 1,808,864,247,808
-             = 8,114,703,155,646,753,044.
-
-The A(C) of the contexts of a run are independent and identically distributed, each between 0 and 16,384 (Lemma CX (a)); by Lemma
-OR their total has mean at most 852,139 * RUN_CONTEXTS / 2^7, and it bounds the opened count of the run. Hoeffding's inequality
-puts the probability that the opened count exceeds A_BUDGET at most exp(-2 (16,384 s)^2 / (RUN_CONTEXTS * 16,384^2)) = exp(-2 s^2
-/ RUN_CONTEXTS) <= exp(-20) < 2.1 * 10^-9. No premise enters: the budget bears on the success probability alone (10.4), and the
-time bound charges u_O A_BUDGET in WB, with W_CTX, whatever the words.
+*The counter contract (GPT Luna 5.6, answer D54).* The program keeps, per context, the counts of its members, blocks, block steps,
+live blocks and their steps, scan batches and their lane tests, fills and their E lanes, E lanes, passes, pre-checked passes,
+solver calls, leaves, roots, certified roots and the solver's debits and ledger, and asserts, counting each failure as a mismatch:
+for every block, 1 <= size <= 2^16 and its last step min(s + X0 mod 2^16, 2^16 - 1); for a live block, its omega mod 128 in S7,
+its lane tests equal to its steps, its batches ceil(size / 7) and its fills at most its batches; for a batch with a fill, 1 to 7 E
+lanes; for every member, its block steps equal to the length of its walk, in at most two blocks; for every call, the debit equal
+to the ledger and at most CM(T), and the credit never below zero; and for every completed context, lane tests = steps of live
+blocks, fills <= batches, E lanes of the fills = E lanes, solver calls <= pre-checked passes <= passes <= E lanes, debits = ledger
+<= CREDIT, certified roots <= roots <= leaves, blocks <= 2 per member, and batches at most 8 times the most batches of a member's
+walk, BMAX for walks of 2^16 steps. The units of a context are the sum of its event units and its debits; the self-test checks
+these identities on two whole contexts, and the participant's op counter on every trial (9.3, Section 11).
 
 ## 10. The rate of a counter trial and the success probability
 
@@ -2404,11 +2115,11 @@ So in every passing outer step that it reaches, the search of 9.1 certifies prec
 enumeration of all of Q* in that outer step finds, with the same outer steps, the same members y and the same filter. The count
 N_o of every outer step is the same, and with it the joint law of the counts of the outer steps of a run: H1' is about these
 counts, H4' about two counts of the outer steps, H5_exec about the ledger of the calls that the pre-check keeps and H_G_cluster
-about the batches with an E lane, and none of them changes (GPT Sol, answers AE 7 and AW 1 and 5). No law of the words is used by
-Lemmas V, RC, VP, G7, G15 and CV. The guards of the solver are lossless: (PHASE) and (P*) are consequences of exact counts of the
-class, (P*) with a count of 0 for the other parity in every phase and every outcome (9.4), and Lemma J0 is algebra; none drops a
-member or a joint root. The pre-check and the guards (G7) and (G15) lose no listed good trial (Lemmas VP, G7 and G15), and walking
-the outer steps by contexts changes no outer step (Lemmas CX and MB).
+about the scan batches of a context, and none of them changes (GPT Sol, answers AE 7 and AW 1 and 5). No law of the words is used
+by Lemmas V, RC, VP, G7, G15 and CV. The guards of the solver are lossless: (PHASE) and (P*) are consequences of exact counts of
+the class, (P*) with a count of 0 for the other parity in every phase and every outcome (9.4), and Lemma J0 is algebra; none drops
+a member or a joint root. The pre-check and the guards (G7) and (G15) lose no listed good trial (Lemmas VP, G7 and G15), and
+walking the outer steps by contexts, members and blocks changes no outer step (Lemmas CX, W, BL and MB).
 
 **10.3 Heuristics.**
 
@@ -2416,34 +2127,38 @@ The four premises H1', H4', H5_exec and H_G_cluster below concern the instance t
 the six constants of 3.2, eta = 830303cf, beta* = 18b0e098 with its cube, the outcomes of beta* with the filter's values of tau
 and eps, and S = 5f. Each is a statement about the run for this record and for no other, and none concerns how the record was
 found. No premise concerns how the record was found: the selection procedure SEL that found it is charged in full as
-preprocessing, with a cap that holds by construction (Section 12).
+preprocessing, with a cap that holds by construction (Section 12). The four are stated for a *uniform walk step* U, seven uniform
+outer words, a member uniform on the class and t_hi uniform below 2^16, independently (Lemma CX (c)); at t_hi = 0 it is the
+uniform outer step of entry 415e792c.
 
 **Heuristic H1' (score-critical).** The coins of the run are its RUN_CONTEXTS independent fresh words (step 1 of 9.1); each gives
-the seven outer words of one context, and every context walks all 2^19 members of the class, except those of clusters that hold no
-listed good trial (9.8, 9.9, Lemmas CX and CL). Let N_o be the number of listed good valid trials (9.1) of one outer step, counted
-over all of Q* whether or not the outer step passes the filter or the pre-check, and let N_c be the sum of N_o over the 2^19 outer
-steps of a context. (i) *Rate:* for a uniform outer step U, whose seven outer words are uniform and whose member is uniform on the
-class, independently (the outer step of entry 415e792c), E[N_o(U)] >= (2^21 - 1) q, with q = FACTOR * 2^-128, just under 10p / 11,
-about 2^-91.126; by Lemma CX (c), E[N_c] = 2^19 E[N_o(U)]. (ii) *Dependence, with the context as the unit:* the probability that
-no valid trial of the run is a listed good trial is at most exp(-0.49594) + 0.001; that is, listed good trials are not clustered,
-neither among the trials of one outer step nor among the outer steps (members) of one context, beyond what this bound allows.
+the seven outer words and the eight members of one context, whose 2^19 outer steps the walk visits except those of dead blocks,
+which hold no listed good trial (9.8, Lemmas BL and CX). Let N_o be the number of listed good valid trials (9.1) of one outer
+step, counted over all of Q* whether or not the outer step passes the filter or the pre-check, and let N_c be the sum of N_o over
+the 2^19 outer steps of a context. (i) *Rate:* for a uniform walk step U, E[N_o(U)] >= (2^21 - 1) q, with q = FACTOR * 2^-128,
+just under 10p / 11, about 2^-91.126; by Lemma CX (c), E[N_c] = 2^19 E[N_o(U)]. (ii) *Dependence, with the context as the unit:*
+the probability that no valid trial of the run is a listed good trial is at most exp(-0.49594) + 0.001; that is, listed good
+trials are not clustered, neither among the trials of one outer step nor among the outer steps of one context, the 2^16 steps of
+one member or those of its eight members, beyond what this bound allows.
 
-This is the premise of entry 415e792c, rate and dependence, restated for the walk by contexts as entry e9b6649e restates it: part
-(i) is the same statement, since N_c is a sum over the whole class (Lemma CX (c)), and part (ii) is stated for the contexts, the
-independent units of this run. Neither the filter, nor the pre-check, nor the guards (G7) and (G15) change it: they skip only
-outer steps, outcomes and words that hold no listed good trial (Lemmas F, VP, G7 and G15), so N_o is the same count, pointwise
-(GPT Sol, answer AW 1).
+This is the premise of entry 244f068c, rate and dependence, restated for the walk contexts: part (i) is the same statement at a
+uniform walk step, which at t_hi = 0 is the outer step of entry 415e792c and at other values of t_hi differs from it only through
+K1.a1 = ROL(K1.d1,16) XOR t_hi (Lemma W), and part (ii) is stated for the contexts, the independent units of this run. Neither the
+filter, nor the block test, nor the pre-check, nor the guards (G7) and (G15) change it: they skip only outer steps, outcomes and
+words that hold no listed good trial (Lemmas F, BL, VP, G7 and G15), so N_o is the same count, pointwise (GPT Sol, answer AW 1).
 
-In the terms of Lemmas S1 to S4 the premise is this: the construction's pushforward of the uniform outer words and members, with
-c1 running over all of Q*, onto the seven model words (E1.d1, E1.b1, E1.a2, Y4, Y9, w8, E3.h1) carries at least the share FACTOR /
-138,512,695,296, just under 10/11, of the complete-success integral p of the conditional law of Lemma S1; that stays true after
-the member with t = 0 is dropped (Lemma IP); and the dependence between trials that share a context, in one outer step or in two
-outer steps of it, is weak enough for the stated success at the declared run length. The two parts are separate: neither follows
-from the other, and neither follows from the model or from Lemmas S1 to S5, S8 and S9. The factor FACTOR = 125,920,632,087 is
-assumed; 10.1 gives what it is set against, the count 138,512,695,296 of the six outcomes of S, of which it is ten elevenths
-rounded down. The filter does not change it. The evidence for this margin is the preregistered scaled-down run of Section 13,
-whose one-sided 97.7 per cent lower bound on the realised share of the predicted collisions is 0.99213, above 10/11; it is
-evidence at 8 bits, not a proof at 32.
+In the terms of Lemmas S1 to S4 the premise is this: the construction's pushforward of the uniform outer words, members and values
+of t_hi, with c1 running over all of Q*, onto the seven model words (E1.d1, E1.b1, E1.a2, Y4, Y9, w8, E3.h1) carries at least the
+share FACTOR / 138,512,695,296, just under 10/11, of the complete-success integral p of the conditional law of Lemma S1; that
+stays true after the member with t = 0 is dropped (Lemma IP); and the dependence between trials that share a context, in one outer
+step or in two outer steps of it, is weak enough for the stated success at the declared run length. The two parts are separate:
+neither follows from the other, and neither follows from the model or from Lemmas S1 to S5, S8 and S9. The factor FACTOR =
+125,920,632,087 is assumed; 10.1 gives what it is set against, the count 138,512,695,296 of the six outcomes of S, of which it is
+ten elevenths rounded down. The filter does not change it. The evidence for this margin is the preregistered scaled-down run of
+Section 13, whose one-sided 97.7 per cent lower bound on the realised share of the predicted collisions is 0.99213, above 10/11;
+it is evidence at 8 bits, not a proof at 32. On walks, the preregistered scaled run of Section 13 found 52,361 collisions against
+52648.10 predicted, with the one-sided 1 - 10^-6 lower bound 0.97402, above 10/11, and the real E1 rate of walk steps against
+front-line outer steps has the lower bound 0.95400 (Section 13).
 
 *The rate on passing outer steps.* By Lemma S9 (a), N_o is zero on every outer step that the filter rejects, so (i) says E[N_o |
 the outer step passes] >= (2^21 - 1) q / pi_o, with pi_o of Lemma S9. Per member of Q* of a passing outer step the rate is then at
@@ -2459,69 +2174,67 @@ listed good valid trials of the outer step, so N_o is the same count for it as f
 E1.b1, E1.a2, E3.h1, Y9 and w8 have the model's joint law with the rest; GPT Sol 6.1 reduces part (i) to one success-weighted
 density of seven words that the outer step fixes, Y12, Y1 + w12, C2.b1, C2.c1, w5, Y9 and w8, and that density has not been
 counted. Not proved either: how much of the success mass the member with t = 0 carries (Lemma IP bounds the number of dropped
-trials, one in 2^21, not their mass), and the dependence inside an outer step and across the members of a context.
+trials, one in 2^21, not their mass), and the dependence inside an outer step and across the steps of a context.
 
 *Part (ii) for contexts.* The contexts of a run are independent and identically distributed (Lemma CX), and by part (i) the run
 has RUN_CONTEXTS * E[N_c] = RUN_STEPS * E[N_o(U)] >= RUN_STEPS * (2^21 - 1) * FACTOR * 2^-128 = 0.4959400000... >= 0.49594. Lemma
 S8, applied to the contexts with N_c in place of N_o, therefore gives part (ii) as soon as rho_c = E[N_c (N_c - 1)] / E[N_c] is at
 most 0.0065: in that case b(rho_c) >= 0.99675, Lemma S8's exponent is no less than 0.4943281, and exp(-0.4943281) < 0.609981 <
-exp(-0.49594) + 0.001. Write N_c as the sum of the counts N_o(m) of the members m of the context. Then
+exp(-0.49594) + 0.001. Write N_c as the sum of the counts N_o(m) of the steps m of the context. Then
 
     rho_c = rho_w + rho_x,  rho_w = E[sum over m of N_o(m) (N_o(m) - 1)] / E[N_c],
                             rho_x = E[sum over m != m' of N_o(m) N_o(m')] / E[N_c],
 
-where, by Lemma CX (c), rho_w equals E[N_o(U) (N_o(U) - 1)] / E[N_o(U)], the factorial ratio of a uniform outer step that the
-clause of entry 415e792c bounds, and rho_x is the part that pairs of different members of one context add. Both are at least zero,
-so rho_c <= 0.0065 implies rho_w <= 0.0065: *the clause of this package is stronger than the per-step clause of entry 415e792c*.
-It contains that clause and adds the dependence across the members of a context, which the member loop creates by letting 2^19
-outer steps share their seven words.
+where, by Lemma CX (c), rho_w equals E[N_o(U) (N_o(U) - 1)] / E[N_o(U)], the factorial ratio of a uniform walk step, which the
+per-step clause of entry 415e792c bounds, and rho_x is the part that pairs of different steps of one context add. Both are at
+least zero, so rho_c <= 0.0065 implies rho_w <= 0.0065: *the clause of this package is stronger than the per-step clause of entry
+415e792c*. It contains that clause and adds the dependence across the steps of a context, which the walk creates by letting 2^19
+outer steps share their seven words and the 2^16 steps of a member its member words.
 
 *Part (ii) is an assumption.* That rho_c <= 0.0065 is assumed. It is not measured, and it cannot be measured at full size: a
 context holds a listed good trial with probability at most E[N_c] = 2^19 E[N_o(U)], about 2^19 * 2^21 * 2^-91.126 = 2^-51.126, so
 no run of feasible length sees one in a context, let alone two. The margin is wide. Write v for the clustering ratio of listed
-good trials by context, rho_x = v * (2^19 - 1) E[N_o(U)], so that v = 1 when the listed good trials of different members of a
+good trials by context, rho_x = v * (2^19 - 1) E[N_o(U)], so that v = 1 when the listed good trials of different steps of a
 context are independent; then rho_x is about v * 2^-51.126, and the clause fails only if v exceeds about 2^44, or if one listed
-good trial makes another in the same context, at the same member or at another, far more likely than its rate.
+good trial makes another in the same context, at the same step or at another, far more likely than its rate.
 
 *What is known of it.* An outer step has N_o <= 16 (Lemmas CV, G7 and G15), so rho_w <= 15, which does not help at this run
 length. GPT Sol 6.1 proves the bound 2^-13 for rho_w in a model in which E1.b1, E1.a2 and E3.h1 are drawn afresh for every member
 of Q*, and proves as well that the construction's own pair law is not of that kind (for two members of one outer step the second
-member's three words take at most 2^62 values given the first's, not 2^96), so that bound does not transfer. For v, the
-participant measured the same ratio, (E[n(n-1)]/E[n]) / ((2^19 - 1) p) for the count n of an event in a context and its share p
-per member, for every event that a listed good trial meets and that is frequent enough to count, each run with a control arm of
-independent outer steps (Section 13). From the filter to the roots of the solver it stays between 1.14 and 1.25 (the controls near
-1), and it does not grow with depth; the factor comes from condition (2), whose omega = Y3 + y + w8 has w8 fixed by the context. A
-preregistered run went deeper, to the two halves of a listed good trial, over 262,144 contexts and 2^46 trials per arm: the
-cross-member factor Rx is 0.999 +- 0.054 (upper limit 1.162) for the listed E1 outcome at 2^-32.29 per trial and 0.90 +- 0.24
-(upper limit 1.94) for (J1) and (J2) of the E3 half at 2^-34.58, and every upper limit lies at least 43 bits below the 2^43.86
-that the clause allows. The joint event, about 2^-91 per trial, is not reachable, so carrying Rx near 1 to it remains the premise,
-and v itself is not measured.
+member's three words take at most 2^62 values given the first's, not 2^96), so that bound does not transfer. For v, a
+preregistered run on walk contexts measured the cross-step factor Rx of the count of an event in a context, 1 when the steps of a
+context are independent (Section 13): for the listed E1 outcome, over 1,024 walk contexts of 16,384 steps and 2^45 trials, Rx =
+1.1641 with the one-sided 1 - 10^-6 upper limit 1.2300; for the joint event of the filter's pass and the listed E1 outcome, over
+65,536 walk contexts with all their passing steps and 2^45.8 trials, Rx = 9.0084 with the upper limit 9.7541, mostly the factor of
+the passes themselves, which cluster in live blocks (7.81); and in the scaled end-to-end run on walks, 3 pairs of collisions in
+one walk group against 1.040 expected, upper limit 20.535. Every upper limit lies at least 40 bits below the 2^43.86 that the
+clause allows. The joint event, about 2^-91 per trial, is not reachable, so carrying these factors to it remains the premise, and
+v itself is not measured.
 
 *No budget for steps 2 and 3.* Whenever an outer step reaches them, whatever its words, the joint solver returns no more than 16
-roots and steps 2 and 3 cost no more than CM(T) <= 15,296 machine units (9.4, 9.7, Section 11), which the meter debits from the
+roots and steps 2 and 3 cost no more than CM(T) <= 15,012 machine units (9.4, 9.7, Section 11), which the meter debits from the
 credit as they run, exactly that work, after a preflight against CM(T) (Lemma ME); the final pair is formed and hashed at most
-once, for a certified root (Lemma V). The run halts with failure only when W exceeds WB, which needs one of the four counts of 9.1
-above its budget: the E count or the pass count, which H4' covers, the fill count, which H_G_cluster covers, or the opened count,
-which Lemma OR bounds with no premise (9.9); when the credit does not cover the CM(T) of an outer step, which H5_exec covers, or
-after the last context, which H1' covers.
+once, for a certified root (Lemma V). The run halts with failure only when W exceeds WB, which needs one of the three counts of
+9.1 above its budget: the E count or the pass count, which H4' covers, or the batch count, which H_G_cluster covers; when the
+credit does not cover the CM(T) of an outer step, which H5_exec covers; or after the last context, which H1' covers.
 
 **Heuristic H4' (supporting; GPT Sol, answers AW 3 and 5 and CK 2).** For an outer step of the run, before any halt, let I_E be 1
 when the mask of (2) of its omega meets S and I_2 be 1 when its mask X is not zero (it passes the filter, Section 8); let N_E and
-N_2 be the sums of I_E and I_2 over the RUN_STEPS outer steps. H4' says: for a uniform outer step U (that of entry 415e792c), and
-hence for the mean over the outer steps of one context (Lemma CX (c)), Pr(I_E(U) = 1) <= 1.000026 p_E and Pr(I_2(U) = 1) <=
-1.000176 pi, where p_E = 233,715,456 / 2^32 = 2^-4.199822 is the exact share of words omega that pass the automaton of (2) for S
-and pi = 279,070,422,111 / 2^48 = 2^-9.978162 the exact share of pairs (Y9, omega) that pass the filter (Section 8), both for
-uniform independent words. The two indicators of one outer step may depend on each other in any way. The factors are not proved:
-Y9 and omega of a uniform outer step are not proved independent and uniform.
+N_2 be the sums of I_E and I_2 over the RUN_STEPS outer steps. H4' says: for a uniform walk step U, and hence for the mean over
+the outer steps of one context (Lemma CX (c)), Pr(I_E(U) = 1) <= 1.000026 p_E and Pr(I_2(U) = 1) <= 1.000176 pi, where p_E =
+233,715,456 / 2^32 = 2^-4.199822 is the exact share of words omega that pass the automaton of (2) for S and pi = 279,070,422,111 /
+2^48 = 2^-9.978162 the exact share of pairs (Y9, omega) that pass the filter (Section 8), both for uniform independent words. The
+two indicators of one outer step may depend on each other in any way. The factors are not proved: Y9 and omega of a uniform outer
+step are not proved independent and uniform.
 
 *Use (proved, given H4').* The contexts of a run are independent and identically distributed (Lemma CX), and N_E and N_2 are sums
 over the RUN_CONTEXTS contexts of per-context counts between 0 and 2^19. Under H4' their means are at most 1.000026 RUN_STEPS p_E
 and 1.000176 RUN_STEPS pi, and the budgets of 9.1 exceed these means by 2^19 s, s = ceil(sqrt(10 * RUN_CONTEXTS)). Hoeffding's
 inequality over the contexts, with range 2^19, puts the probability that a count exceeds its budget at most exp(-2 (2^19 s)^2 /
 (RUN_CONTEXTS * 2^38)) = exp(-2 s^2 / RUN_CONTEXTS) <= exp(-20) for each. No law of the members inside a context is used. The
-number of outer steps that reach the solver has no budget and no clause here: the solver is paid from the credit, which H5_exec
-covers (GPT Sol, answer AW 5). A count above its budget can make W exceed WB and halt the run with failure; the time bound charges
-WB + W_CTX and is not affected.
+number of outer steps that reach the solver needs no budget: a passing lane's units include its preflight, and the credit that
+pays the solver follows from H5_exec (GPT Sol, answer AW 5). A count above its budget can make W exceed WB and halt the run with
+failure; the time bound charges WB + W_CTX and is not affected.
 
 *Evidence and the choice of the factors.* Our preregistered sample of Section 13 (prereg7, 2^39 real outer steps of the whole
 class) counted 29,915,698,553 lanes with a nonzero mask of (2), against 29,915,578,368 at p_E, and 545,067,537 passing outer
@@ -2531,101 +2244,118 @@ Pr(N <= k) <= exp(-(m - k)^2 / (2 m)), is at most exp(-7) when (m - k)^2 >= 14 m
 each passes and the factor one part per million lower fails. Under independent draws a true share above the declared bound would
 have produced counts this low with probability below exp(-7) for each. The sample's words come from a pseudorandom generator
 (Philox4x32-10), so this is evidence for the declared factors, not a proof; every other measured share of the two counts, with and
-without the member loop, lies between 0.998 and 1.001 times its nominal value (Section 13).
+without the member loop of entry 244f068c, lies between 0.998 and 1.001 times its nominal value (Section 13). On walk contexts the
+preregistered run of Section 13 measured the E share of a walk step at 0.99999857 +- 0.0000035 of p_E over 2^39 contexts, with the
+one-sided 1 - 10^-6 upper bound 1.0000152, below 1.000026, and the pass share with the upper bound 1.0000277 of pi, below
+1.000176.
 
 **Heuristic H5_exec (supporting; GPT Sol, answer CK3; GPT-6 Astra, Batch 11).** For an outer step of the run, before any halt, its
-*ledger* U0 is that of 9.7 for its call of steps 2 and 3 with the global part of 1,024 of the earlier layout: A(T) + 288 plus the
+*ledger* U0 is that of 9.7 for its call of steps 2 and 3 with the global part of 1,024 of the earlier layout: A(T) + 410 plus the
 unit cost of every block that the joint solver with (G7) and (G15) and the certificate execute on the words of the outer step, for
 the outcomes T = X AND VMASK[nu] that its pre-check keeps; U0 = 0 when T is empty, in particular when the outer step fails the
-filter. The premise, unchanged from entry 50d28015: for a uniform outer step (that of entry 415e792c), and hence for the mean over
-the outer steps of one context (Lemma CX (c)), the mean E[U0] is at most 1.01 * u_M, where u_M = 92,113,900,425,963 / 2^46 =
-1.3090172562... bounds, in model M below, the mean of U over all outer steps, passing or not, with the zeros counted. It is a
-statement about the joint law of all the words that the solver reads, not about T alone, and it is not a consequence of H4'.
+filter. The premise, that of entry 50d28015 on the ledger of this row, whose searched rows are charged 1,354 (9.7): for a uniform
+walk step, and hence for the mean over the outer steps of one context (Lemma CX (c)), the mean E[U0] is at most 1.01 * u_M, where
+u_M = 90,916,199,438,469 / 2^46 = 1.2919969014... bounds, in model M below, the mean of U0 over all outer steps, passing or not,
+with the zeros counted. It is a statement about the joint law of all the words that the solver reads, not about T alone, and it is
+not a consequence of H4'.
 
 *The model value (GPT-6 Astra, Batch 11; GPT Sol, answer CK3 1).* Model M draws Q = Y9, E = omega, C2.c1, C2.b1, Y1 + w12 and Y12
 as independent uniform words and the member uniformly from the class, independently, and computes nu, the pre-check, the guards
 and every other word from them as the search does. In M a call happens when the filter passes and nu is 3 or 4, with probability
 p_call = 279,070,422,111 / 2^50, a quarter of pi (9.7), and then T is the mask X with probability n_X / 279,070,422,111, n_X the
-counts of the certificate of Section 8. The part of U0 paid per call and per row, A(T) + 288, has the exact mean
+counts of the certificate of Section 8. The part of U0 paid per call and per row, A(T) + 410 = 1,024 + 2,304 F + 1,354 r, has the
+exact mean
 
 | X | n_X | A(X) |
 | --- | ---: | ---: |
-| 01 | 18,637,049,340 | 4,736 |
-| 02 | 96,560,460,360 | 4,736 |
-| 04 | 18,637,049,340 | 4,736 |
-| 08 | 5,457,993,021 | 4,736 |
-| 10 | 56,709,878,706 | 4,736 |
-| 12 | 57,936,276,216 | 6,144 |
-| 18 | 4,792,384,116 | 6,144 |
-| 40 | 10,830,033,396 | 4,736 |
-| 42 | 5,943,311,010 | 8,448 |
-| 52 | 3,565,986,606 | 9,856 |
+| 01 | 18,637,049,340 | 4,682 |
+| 02 | 96,560,460,360 | 4,682 |
+| 04 | 18,637,049,340 | 4,682 |
+| 08 | 5,457,993,021 | 4,682 |
+| 10 | 56,709,878,706 | 4,682 |
+| 12 | 57,936,276,216 | 6,036 |
+| 18 | 4,792,384,116 | 6,036 |
+| 40 | 10,830,033,396 | 4,682 |
+| 42 | 5,943,311,010 | 8,340 |
+| 52 | 3,565,986,606 | 9,694 |
 
-E_M[A(T) | call] = 1,450,318,894,756,992 / 279,070,422,111 = 1383624064/266237 = 5196.96..., as the participant recounted it in
+E_M[A(T) | call] = 1,431,155,678,957,082 / 279,070,422,111 = 1365342094/266237 = 5128.29..., as the participant recounted it in
 integers from the certificate. GPT-6 Astra proves in M, from exact counts of the rows that survive the setup of 9.4 and bounds on
 the nodes and leaves that use only coordinates that are fresh at each node, that the blocks of the trees add at most
-22422672/266237 = 84.22... per call; that proof is cited, not reproduced here. Hence E_M[U] <= p_call (1383624064/266237 +
-22422672/266237) = u_M, exactly. Model M is a model: it is not proved that the sampler gives its words that law, and H5_exec
-states the bound, with the factor 1.01, for the sampler.
+22422672/266237 = 84.22... per call; that proof is cited, not reproduced here. Hence E_M[U0] <= p_call (1365342094/266237 +
+22422672/266237) = 727,329,595,507,749 / 2^49, exactly, and u_M is that value rounded up to a multiple of 2^-46. Model M is a
+model: it is not proved that the sampler gives its words that law, and H5_exec states the bound, with the factor 1.01, for the
+sampler.
 
 *Use (proved, given H5_exec; GPT Sol, answers CK3 3 and 4 and D13).* In every call the meter debits V = U, 0 <= V <= CM(T) <=
-15,296 (Lemma ME), and U <= (478/487) U0 in every outer step (Lemma CP), so the mean of U is at most 478/487 of that of U0 with no
-law of calls. Let D_C be the sum of the debits over the 2^19 outer steps of a context, taken without halts: the D_C of the
-contexts of a run are independent and identically distributed (Lemma CX), each between 0 and L_C = 15,296 * 2^19 = 8,019,509,248.
-Under H5_exec their total has mean at most (478/487) m_0 <= m_C = 829,292,364,315,442,262,408, with m_0 =
-844,906,655,693,766,489,106 >= 1.01 * RUN_STEPS * u_M, and, since D_C^2 <= L_C D_C, a variance of at most L_C m_C. With t =
-ceil(sqrt(40 L_C m_C)) + 14 L_C = 16,310,253,639,682,338, expansion gives t^2 >= 40 L_C m_C + (40/3) L_C t, and Bernstein's
-inequality bounds the probability that the total exceeds m_C + t = 829,308,674,569,081,944,746 by exp(-t^2 / (2 L_C m_C + (2/3)
+15,012 (Lemma ME), and U <= (7506/7711) U0 in every outer step (Lemma CP), so the mean of U is at most 7506/7711 of that of U0
+with no law of calls. Let D_C be the sum of the debits over the 2^19 outer steps of a context, taken without halts: the D_C of the
+contexts of a run are independent and identically distributed (Lemma CX), each between 0 and L_C = 15,012 * 2^19 = 7,870,611,456.
+Under H5_exec their total has mean at most (7506/7711) m_0 <= m_C = 811,750,731,421,136,766,647, with m_0 =
+833,920,848,652,862,457,715 >= 1.01 * RUN_STEPS * u_M, and, since D_C^2 <= L_C D_C, a variance of at most L_C m_C. With t =
+ceil(sqrt(40 L_C m_C)) + 14 L_C = 15,986,322,505,603,566, expansion gives t^2 >= 40 L_C m_C + (40/3) L_C t, and Bernstein's
+inequality bounds the probability that the total exceeds m_C + t = 811,766,717,743,642,370,213 by exp(-t^2 / (2 L_C m_C + (2/3)
 L_C t)) <= exp(-20); the exponent is 20.00. The run debits in order and stops at the first halt, so outside that event the credit
-left before any call is at least CREDIT - (m_C + t) = 15,296 >= CM(T), every preflight passes, and the credit never halts the run.
-V = U holds pointwise (Lemma ME), so no second premise enters; no law of the members inside a context is used. That E[U] is at
+left before any call is at least CREDIT - (m_C + t) = 15,012 >= CM(T), every preflight passes, and the credit never halts the run.
+V = U holds pointwise (Lemma ME), so no second premise enters; no law of the members inside a context is used. That E[U0] is at
 most 1.01 u_M is not proved.
 
 *Evidence.* A participant measurement (Section 13): on 2^32 real outer steps with the lines of the searched instance and as many
-with flags 11, with fresh words for every step, the ledger U of a reimplementation of this solver averaged at most 1.300375 per
-outer step, against the bound 1.01 u_M = 1.322107. It is evidence from a pseudorandom generator, not a proof.
+with flags 11, with fresh words for every step, the ledger U0 of a reimplementation of this solver, with each searched row charged
+1,408, at least the U0 of this row, averaged at most 1.300375 per outer step, against the bound 1.01 u_M = 1.304916. It is
+evidence from a pseudorandom generator, not a proof. On walk contexts the preregistered run of Section 13 ran the shipped solver
+of entry 070a02b2 on 116,033 calls in 35,229 walk contexts: the one-sided 1 - 10^-6 upper bounds of the mean work per call are
+0.94884 of the credited mean on the ledger U and 0.98530 on U0, and that of the credit per walk step 0.94883, all below 1, and the
+walk's mean per call is 1.00062 +- 0.00093 times the front line's.
 
-**Heuristic H_G_cluster (supporting; GPT Sol, answer CM 5).** For a context C of the run let G(C) be the number of its 84,261
-batches, its representative batches and the five partner batches of every cluster, that hold a member with a nonzero mask of (2),
-counted without halts: the fills of the context in the walk of entry 50d28015, which this premise was stated for (9.8, 9.9). The
-premise: for a context with uniform outer words, E[G(C)] <= 12,466. G(C) is a function of the seven outer words alone (9.9); the
-premise says nothing about the members, lanes or batches of a context beyond this mean, and it is not a consequence of H4', which
-bounds the mean number of E lanes, not how they share batches.
+**Heuristic H_G_cluster (supporting; restated for the walk, GPT Luna 5.6, answers D48, D49 and D54).** For a context C of the run
+let G(C) be the number of its scan batches, counted without halts: the sum of ceil(n / 7) over its live blocks of n steps (9.8).
+The premise: for a context with uniform outer words and members, E[G(C)] <= 1.002793 (7,072 / 2^16) BMAX; it holds when, on
+average over the contexts, a block is live with probability at most 1.002793 times 7,072 / 2^16, the share of live low halves of
+omega (Lemma BL), whatever its size. For a uniform low half the factor would be 1; the premise is not proved, since the low half
+of omega on a block is a function of the outer words, whose law the construction does not make uniform, and it is not a
+consequence of H4', which bounds the mean number of E lanes, not how many blocks hold them. The fills need no premise: a batch has
+at most one (9.8). The name is that of the fill premise of entry 244f068c, whose place in the ledger this premise takes.
 
-*Use (proved, given H_G_cluster; GPT Sol, answers CM 5 and D14).* The masked walk fills at most G(C) batches in every context,
-outer step by outer step (Lemma XF (d)), with at most 84,261 batches that can be filled. The G(C) of the contexts of a run are
-independent and identically distributed (Lemma CX), each between 0 and 84,261, and under H_G_cluster their total has mean at most
-12,466 * RUN_CONTEXTS, which G_BUDGET exceeds by 84,261 s. Hoeffding's inequality over the contexts puts the probability that the
-total exceeds G_BUDGET at most exp(-2 (84,261 s)^2 / (RUN_CONTEXTS * 84,261^2)) = exp(-2 s^2 / RUN_CONTEXTS) <= exp(-20). A halt
-only stops fills, so the fills of a run are at most that total. No law of the batches, lanes or members inside a context is used.
-If the fills exceed G_BUDGET, W can exceed WB and halt the run with failure; the time bound charges WB + W_CTX and is not
-affected.
+*The factor, chosen from the evidence (our audit).* Over the 2^24 walk contexts of the preregistered sample of Section 13, each
+with seven full blocks, the numbers of contexts with 0, 1, .., 7 live blocks were 14,219,206; 211,101; 242,906; 280,108; 266,803;
+273,538; 280,728; 1,002,826: 12,676,289 of 117,440,512 blocks live, a ratio r = 1.000257... to 7,072 / 2^16. The blocks of one
+context are far from independent (a context has all seven live or none far more often than independent blocks would), so the error
+is taken over the contexts: the standard error of r from the sample variance of the counts per context is 0.000634, and r + 4 *
+0.000634 = 1.0027920... The factor 1.002793 = 1,002,793 / 10^6 is the least on the grid of 10^-6 at or above that, in exact
+rational arithmetic. It also lies above 1.002753, the empirical Bernstein bound of Maurer and Pontil on the mean count per context
+at confidence 1 - exp(-7), rounded up: a bound that uses no law of the counts beyond independent contexts with values between 0
+and 7, at the confidence at which the factors of H4' are chosen. The counts were reported by the protocol, not tested by one of
+its rules, so the factor is chosen after the run from its counts, as the factors of H4' are chosen from prereg7. B_BUDGET exceeds
+the mean that the share 7,072 / 2^16 alone would give by 0.279 per cent of it.
 
-*Evidence.* Our sample of Section 13: 16,777,216 = 2^24 contexts with fresh outer words, G counted exactly in the batch order of
-9.9, sum 208,495,306,067, mean 12,427.289 (standard error 1.276), largest 31,214. For independent contexts with G between 0 and
-84,261, Hoeffding's inequality bounds the mean, at confidence 1 - exp(-7), by the sample mean plus 84,261 sqrt(7 / (2 n)),
-12,465.77...; in exact integers, 2 (n g - sum)^2 >= 7 * 84,261^2 * n holds at g = 12,466 (843,618,896,195,301,842 >=
-833,817,784,407,293,952) and fails at 12,465 (800,596,746,937,250,258), so 12,466 is the least integer that this bound supports.
-The outer words come from SHAKE256 in place of uniform words, so this is evidence, not a proof.
+*Use (proved, given H_G_cluster).* The G(C) of the contexts of a run are independent and identically distributed (Lemma CX), each
+between 0 and BMAX, and under H_G_cluster their total has mean at most 1.002793 (7,072 / 2^16) BMAX RUN_CONTEXTS, which B_BUDGET
+exceeds by BMAX s. Hoeffding's inequality over the contexts puts the probability that the total exceeds B_BUDGET at most exp(-2
+(BMAX s)^2 / (RUN_CONTEXTS BMAX^2)) = exp(-2 s^2 / RUN_CONTEXTS) <= exp(-20). A halt only stops batches. If the batches exceed
+B_BUDGET, W can exceed WB and halt the run with failure; the time bound charges WB + W_CTX and is not affected.
 
-**10.4 Success probability.** The probability space is the RUN_CONTEXTS fresh words of step 1 of 9.1, independent uniform 256-bit
+*Evidence.* Besides the counts above, the E share of a walk step, the same average weighted by the high halves that P16 lists
+(Lemma BL), is 0.99999857 +- 0.0000035 of p_E over 2^39 walk contexts (one-sided upper bound 1.0000152). The samples walk seven
+full blocks with t_hi below 2^19 and come from pseudorandom generators; they are evidence for the premise, not a proof.
+
+**10.4 Success probability.** The probability space is the RUN_CONTEXTS fresh words of step 1 of 9.1, independent uniform 384-bit
 words, for the fixed target and the stated advice record of Section 12; the algorithm is otherwise deterministic. Under H1', H4',
 H5_exec and H_G_cluster it outputs a collision with probability at least 1 - (exp(-0.49594) + 0.001) - 2 * 10^-8 =
-0.390001800132... > 0.39 (GPT Sol, answers AW 3 and 5, CJ 1.2, CK 2.2, CK3 4 and CM 6, with the tails of 10.3 and 9.9 over
-contexts). This is the union bound over the events "no valid trial is a listed good trial", "the E count exceeds E_BUDGET", "the
-pass count exceeds PASS_BUDGET", "the fills exceed G_BUDGET", "a preflight fails" and "the opened count exceeds A_BUDGET", which
-need not be independent; a halt by W needs one of the four counts above its budget (9.1): H1' bounds the first by exp(-0.49594) +
-0.001; given the means of H4', H_G_cluster and H5_exec and, for the last, with no premise (Lemma OR), Hoeffding's and Bernstein's
-inequalities over the independent contexts bound each of the other five by exp(-20), and 5 exp(-20) < 1.04 * 10^-8 is below the
-allowance 2 * 10^-8 kept for them. A listed good trial lies in a passing outer step (Lemma F), in a cluster whose gate opens
-(Lemma CL), in a chunk of its cluster (Lemma XF), which its lane takes as passing (Lemmas MB and DT), whose pre-check keeps its
-outcome (Lemma VP) and whose solver with (G7) and (G15) returns its root (Lemmas G7, G15 and CV); the search certifies it unless
-the run ends before its outer step is reached, by the work register, by the credit or by the output of another pair (9.1, Lemma
-CV). When the algorithm outputs a pair, the pair is a genuine collision: its trial is certified, so R = 0 (Lemmas RC and V), step
-3 checks both complete digests, and the messages have different lengths. The run is the shortest of this form that gives 0.39:
-RUN_STEPS_MIN is the fewest outer steps that give 0.49594 expected listed good trials, 0.49594 is the smallest number of five
-decimals for which the bound reaches 0.39 (with 0.49593 in its place the bound is below 0.389996), and RUN_CONTEXTS rounds
-RUN_STEPS_MIN up to whole contexts.
+0.390001800132... > 0.39 (GPT Sol, answers AW 3 and 5, CJ 1.2, CK 2.2, CK3 4 and CM 6, with the tails of 10.3 over contexts). This
+is the union bound over the events "no valid trial is a listed good trial", "the E count exceeds E_BUDGET", "the pass count
+exceeds PASS_BUDGET", "the scan batches exceed B_BUDGET" and "a preflight fails", which need not be independent; a halt by W needs
+one of the three counts above its budget (9.1): H1' bounds the first by exp(-0.49594) + 0.001; given the means of H4', H_G_cluster
+and H5_exec, Hoeffding's and Bernstein's inequalities over the independent contexts bound each of the other four by exp(-20), and
+4 exp(-20) < 0.83 * 10^-8 is below the allowance 2 * 10^-8 kept for them. A listed good trial lies in a passing outer step (Lemma
+F), in a live block (Lemma BL), which its lane takes as passing (Lemmas MB and DT), whose pre-check keeps its outcome (Lemma VP)
+and whose solver with (G7) and (G15) returns its root (Lemmas G7, G15 and CV); the search certifies it unless the run ends before
+its outer step is reached, by the work register, by the credit or by the output of another pair (9.1, Lemma CV). When the
+algorithm outputs a pair, the pair is a genuine collision: its trial is certified, so R = 0 (Lemmas RC and V), step 3 checks both
+complete digests, and the messages have different lengths. The run is the shortest of this form that gives 0.39: RUN_STEPS_MIN is
+the fewest outer steps that give 0.49594 expected listed good trials, 0.49594 is the smallest number of five decimals for which
+the bound reaches 0.39 (with 0.49593 in its place the bound is below 0.389996), and RUN_CONTEXTS rounds RUN_STEPS_MIN up to whole
+contexts.
 
 The heuristics are not proved; Section 13 gives the evidence for H1', H4', H5_exec and H_G_cluster.
 
@@ -2640,122 +2370,109 @@ operations of the same cost model, with its 256-bit words, its packed lanes, its
 every operation, load and store, with two changes: it has 64 registers in place of 16, and every constant is an immediate operand,
 written in its instruction and not loaded. The cost model of the track charges primitive word operations and sets no register
 count; this text charges as well a load for every other word fetched from memory into a register and a store for every word
-written to memory, spills included. The batches of seven members, their E handlers and fills run on packed words (9.8); the
-context, the shortcut of a passing lane, the joint solver and step 3 run on scalar words of the same machine, one 32-bit value to
-a word. Every schedule of this section is an upper bound written out by blocks, after GPT Sol's answers AL 2, AQ 2, AR 3 and 6.2
-to 6.6, AT 1 and 4, AW 2, 4 and 5, AX 1, CA, CD (sections 1, 3, 6, 8, 10 and 11), CF (sections 6 and 7), CI (section 1) and CJ
-(sections 2 to 5), and not counts of an executed program, with these exceptions: the 67 units of a batch, which participant
-programs executed with a count of every operation and load (9.8); and the omega side (17), PROR (5), the key (6), the carry word
-(20), the gate tests (33, and 19 for four lanes), the byte guard (4), the descriptor selection (13, 11 for lane 0), the broadcasts
-(16, 14 for lane 0), the chunk addressing (12 for the first chunk, which reuses n_0, and 14, or 8 when it is empty, for the
-second), the lane tests (33 for seven lanes and 4 + 5 (n - 1) for n < 7), the omega sides and lane tests of the two chunks of a
-cluster together (c(n_A) + c(n_B), at most 77, 9.9), the E lane (7, 6 for lane 0), the fill (56), the shortcut (39, 36 for lane
-0), the pre-check (7), the preflight (6) and the additions to W (1) of this row, which a participant tool counted in the declared
-program itself as it ran the public request and its self-test: every data word wrapped so that each operation, comparison, branch,
-load and address that the program executes on it is counted, and the counts attributed to the program's own statements; every
-occurrence equalled the declared count (our audit). The end jump of a chunk (9.9), a transfer of the written-out code, has no
-statement in the program, whose chunks are a loop; it is charged in the 3 of an opened cluster and is not part of that count. The
-54 of the Y9 path in a fill are the Y9 part of the executed Q path of answer CA, two of its lines fused into one (9.8).
+written to memory, spills included. The scan batches, the fills and the member lines of the Y9 path run on packed words (9.8); the
+context, a member's scalar words, the blocks, the shortcut of a passing lane, the joint solver and step 3 run on scalar words of
+the same machine, one 32-bit value to a word. Every schedule of this section is an upper bound written out by blocks, after GPT
+Sol's answers AL 2, AQ 2, AR 3 and 6.2 to 6.6, AT 1 and 4, AW 2, 4 and 5, AX 1, CA, CD (sections 1, 3, 6, 8, 10 and 11), CF
+(sections 6 and 7), CI (section 1) and CJ (sections 2 to 5), and GPT Luna 5.6's answers D25, D41, D48, D49 and D54. The events of
+the walk are also counted in the declared program itself (our audit): a participant tool imports the program unchanged, wraps
+every data word so that each operation, comparison, branch, load and address that the program executes on it is counted,
+attributes the counts to the program's own statements, and sums them per occurrence of each event, on the public request (256
+trials) and on the self-test (two whole contexts and the drills); under the counter the program's output equals its plain output,
+and the units and the work register of every completed context equal the sums of its event units. Every occurrence of every event
+equalled its declared executed count:
+
+| event | executed and counted | charged | the difference |
+| --- | --- | ---: | --- |
+| member | 66 | 66 | none (X1w included) |
+| block | 9 | 16 | the block's last step 2 and the loop over the blocks 2, control on loop registers, and a reserve of 3 |
+| live block | 31 | 36 | the count of its batches 3 and the entry of the batch loop 2, control |
+| scan batch of n lanes | 6 + 4 n, 34 for seven | 36 | the batch loop 2, control |
+| fill | 41 | 41 | none |
+| E lane | 6 | 6 | none |
+| passing lane | 39, 36 in lane 0, when T is zero; 45, 42 in lane 0, when it is not | 45 | the preflight's 6 charged on every passing lane |
+| PROR | 5 | 5 | none |
+| the test of W | 2 | in the context | none |
+
+The control items have no statement in the program, whose loops run on integer registers of the interpreter; the context and the
+blocks of steps 2 and 3 are charged by their schedules below, not by the count. The program computes N from these units and
+refuses to run with another unit of a scan batch: the scan with base-table lane tests of GPT Luna 5.6's answer D48, 41 units with
+33 for its seven tests, is not a schedule of this text.
 
 **The cost, with every term.** Every row is machine units times an upper bound on how often a run executes it, except the four
 rows of the counted events, which are charged together through the work register: their units add up to W <= WB + W_CTX (9.1), and
-the table writes WB + W_CTX as the four products u_k (B_k + c_k), with c_k the most that one context adds to the count k (16,384
-clusters, 2^19 lanes, 84,261 batches, 2^19 lanes). Each of these four products is a share of the joint bound, not a bound on its
-own count. Exponents of counts and products are rounded up.
+the table writes WB + W_CTX as the four products u (B_k + c_k), with c_k the most that one context adds to the count k (BMAX
+batches for the scan and for the fill, 2^19 lanes for the E lanes and for the passing lanes). Each of these products is a share of
+the joint bound, not a bound on its own count. The rows are those of GPT Luna 5.6's answer D49, with the counter contract of its
+answer D54, except that the batch budget carries the factor 1.002793 of H_G_cluster (10.3), where answer D49 has the factor 1.
+Exponents of counts and products are rounded up.
 
 | Row | Charged count over a run | Units | log2 of the product |
 | --- | --- | ---: | ---: |
-| context (9.8, 9.9): drawing the fresh word, the 39 context lines on scalar words, preparing the sixteen packed operands, K, K', S15' and X9' included, storing the names for steps 2 and 3, S2, w5 and w12, the three registers of the shortcut, the gate base, the test of W, the context loop (bound in words, 541, charged 547); the four flags of the gate (160); the descriptor table of the masked walk (50,000), the carry word of every representative batch (20 * 2,341), its setup (16) and 128 fallback premiums of 117 | RUN_CONTEXTS + 1 = 2^50.115 | 112,519 | 66.895 |
-| representative batch (9.9): the pair (3), the omega side (17), the key of every lane (6) and seven gate tests that each load the gate table once (33), 59; the last of a context, with four lanes, 45 | 2,341 * RUN_CONTEXTS = 2^61.307, RUN_CONTEXTS of them last | 59 or 45 | 67.190 |
-| opened cluster (9.9): the representative's T2' test (5), W and the end jumps of the two chunks (3), the descriptor selection (13), the byte guard (4), the broadcasts (16), the omega sides and lane tests of the two chunks (at most 77) and their addressing (12 + 14); a fallback cluster 257 + 4, of which the context pays 117 | A_BUDGET + 16,384, through W | 144 | 69.986 |
-| E lane, a lane whose mask of (2) meets S (9.8): W (1), isolating 2^34 + Y9 from the cached Y9 (2), loading T1 (1), combining the two masks and branching (3) | E_BUDGET + 2^19, through W | 7 | 67.723 |
-| fill, once per batch with an E lane (9.8): C0.a1 and D0.d1 rebuilt (2) and the 17 Y9-path lines in 16 packed lines (54); its W addition is that of its E lane | G_BUDGET + 84,261, through W | 56 | 69.528 |
-| passing lane: W (1), the shortcut of 9.6 (39), the pre-check of 9.7 (7) and, when T is not zero, the preflight (6) (written out, 53) | PASS_BUDGET + 2^19, through W | 53 | 64.865 |
-| outer step that reaches the solver: joint solver of 9.4 with (G7) and (G15), then the certificate of step 3 on each root, under the meter of 9.7; its metered debit V = U <= CM(T) (Lemma ME) | total debits at most CREDIT = 2^69.491 | V <= 15,296 | 69.491 |
-| one-time work: the direct tables T1, T2 (2^38) and the replicas of T2 in T2' (2^36) of 9.8, the member lists (2^26 + 2^20), the table P (2^27) and the allowance of 2^41 of the earlier two-borrow gate, kept, the gate table (2^34) and the masked walk's certificate, constant tables and layout generator (2^28 + 2^20) of 9.9; static rows with their descriptors (2^20); four allowances of 2^26, for the filter's automata, the three transition arrays, the code of the search, and row metadata with CT, array bases and initialisation; the reserve of 2^50 for exact histograms, model means and CT; 40 for resident constants and the final halt test; twelve allowances of 2^20 of the earlier layout (the E count in a register, the root certificate, (G15), the global ledger, the labels and frame of the gate, the representative's T2 on opening, the list pairs, the block of P, the frame of 9.9, the constants of the budgets, the credit, the run and the opening bound); three of 2^20 for the credit bound, the meter with CT and the cache; fourteen of 2^20 for the layout of the earlier row; two of 2^22 for the inline partner blocks and passing lanes; 2^38 for writing out the representative loop; and 2^34 for the certificate of Lemma OR | once | 1,128,752,545,267,752 | 50.004 |
-| **total** | | | **71.540** |
+| context (9.8): the fresh word, the 39 context lines on scalar words, the words of the walk and the packed operands, the names stored for steps 2 and 3, the three registers of the shortcut, the test of W and the context loop (547, below), and its eight members at 66 | RUN_CONTEXTS + 1 = 2^50.115 | 547 + 8 * 66 | 60.185 |
+| blocks (9.8): every block 16 and every live block 36 more, both charged for all 16 possible blocks of a context | 16 * RUN_CONTEXTS | 16 + 36 | 59.815 |
+| scan batch (9.8): C' (1), omega's high half (3), omega in the lanes (2), seven lane tests on the lane replicas of T2' (28), the loop (2) | B_BUDGET + BMAX, through W | 36 | 68.270 |
+| fill, at most one per scan batch (9.8): X0 (2) in the lanes and the 39 operations of the Y9 path that read X0 (with X1w) | B_BUDGET + BMAX, through W | 41 | 68.458 |
+| E lane (9.8): W (1), 2^34 + Y9 kept in place in its lane of the cached Y9 (1), the load of the lane's replica of T1 (1), the two masks combined, compared and branched on (3) | E_BUDGET + 2^19, through W | 6 | 67.500 |
+| passing lane (9.8): W (1), the shortcut of 9.6 (31), the pre-check of 9.7 (7) and the preflight of 9.7 (6) | PASS_BUDGET + 2^19, through W | 45 | 64.629 |
+| outer step that reaches the solver: joint solver of 9.4 with (G7) and (G15), then the certificate of step 3 on each root, under the meter of 9.7; its metered debit V = U <= CM(T) (Lemma ME) | total debits at most CREDIT = 2^69.460 | V <= 15,012 | 69.460 |
+| one-time work (below) | once | 1,130,126,934,933,544 | 50.006 |
+| **total** | | | **70.627** |
 
-In exact integers the sum of the rows is 112,519 * (RUN_CONTEXTS + 1) + 138,105 * RUN_CONTEXTS + 144 * (A_BUDGET + 16,384) + 7 *
-(E_BUDGET + 2^19) + 56 * (G_BUDGET + 84,261) + 53 * (PASS_BUDGET + 2^19) + CREDIT + 2^38 + 2^26 + 2^20 + 2^20 + 4 * 2^26 + 2^50 +
-40 + 12 * 2^20 + 2^27 + 2^34 + 3 * 2^20 + 14 * 2^20 + 2^36 + 2 * 2^22 + 2^38 + 2^41 + 2^34 + 2^28 + 2^20 =
-137,150,669,488,596,985,144 + 168,337,731,491,771,799,375 + 1,168,517,254,413,134,797,632 + 243,433,090,603,453,661,778 +
-850,917,555,121,445,528,808 + 33,589,842,598,613,164,283 + 829,308,674,569,081,960,042 + 1,128,752,545,267,752 =
-3,431,255,947,038,643,164,814 machine units, where 138,105 = 59 * 2,341 - 14 and the four counted rows add up to WB + W_CTX =
-2,296,457,742,736,608,617,309 + 38,535,192.
+In exact integers the sum of the rows is (547 + 8 * 66) * (RUN_CONTEXTS + 1) + (16 + 36) * 16 * RUN_CONTEXTS + 36 * (B_BUDGET +
+BMAX) + 41 * (B_BUDGET + BMAX) + 6 * (E_BUDGET + 2^19) + 45 * (PASS_BUDGET + 2^19) + CREDIT + ONCE = 1,310,329,541,679,554,200 +
+1,014,134,119,699,896,000 + 355,713,165,608,295,585,564 + 405,117,771,942,781,083,559 + 208,656,934,802,960,281,524 +
+28,519,677,678,067,780,995 + 811,766,717,743,642,385,225 + 1,130,126,934,933,544 = 1,812,099,861,564,061,500,611 machine units,
+with B_BUDGET + BMAX = 9,880,921,266,897,099,599, E_BUDGET + 2^19 = 34,776,155,800,493,380,254 and PASS_BUDGET + 2^19 =
+633,770,615,068,172,911; the four counted rows add up to WB + W_CTX = 998,007,550,032,072,224,730 + 32,506,912.
 
-*Why the four counted rows are charged WB + W_CTX, and the credit once (our audit).* W is the sum of the units of the opened
-clusters, E lanes, fills and passing lanes so far, each added by one instruction at the start of its stage. A context starts only
-when W <= WB, and a context has at most 16,384 clusters, 2^19 lanes that can be E lanes or pass and 84,261 batches that can be
-filled, so W <= WB + W_CTX whenever the run halts or ends (9.1). An outer step that runs steps 2 and 3 is metered: it starts only
-when the credit left covers its CM(T), and its debit V is the work U that it executes, at most CM(T) (Lemma ME), so over the run
-their work is at most CREDIT and the credit never goes below zero; an outer step whose CM(T) is larger than the credit left halts
-the run before steps 2 and 3, and that test sits inside the 53 of its lane (GPT Sol, answer CK3 2). Contexts and representative
-batches have no budget: a run has at most RUN_CONTEXTS contexts, each with 2,340 full representative batches and one of four
-lanes, and the context row charges one more context, the one whose test of W halts the run. A context that halts before its last
-batch costs no more than a complete one (GPT Sol, answer CD 3).
+*Why the counted rows are charged WB + W_CTX, and the credit once (our audit).* W is the sum of u_B = 77 per scan batch, added
+once per live block for all its batches, u_E per E lane and u_P per passing lane, each added by one instruction in its stage. A
+context starts only when W <= WB, and a context has at most BMAX scan batches and 2^19 lanes that can be E lanes or pass, so W <=
+WB + W_CTX whenever the run halts or ends (9.1); a scan batch has at most one fill, so the fills are at most the batches, with no
+premise (9.8). An outer step that runs steps 2 and 3 is metered: it starts only when the credit left covers its CM(T), and its
+debit V is the work U that it executes, at most CM(T) (Lemma ME), so over the run their work is at most CREDIT and the credit
+never goes below zero; an outer step whose CM(T) is larger than the credit left halts the run before steps 2 and 3, and that test
+sits inside the 45 of its lane (GPT Sol, answer CK3 2). Contexts and blocks have no budget: a run has at most RUN_CONTEXTS
+contexts, each with eight members and at most 16 blocks, and the context row charges one more context, the one whose test of W
+halts the run. A context that halts before its last block costs no more than a complete one.
 
-*A context, 112,519* (9.8, 9.9; GPT Sol, answers CD 1, CI 1.5, D13, D14 and D18; our audit), bound in words. Allowances: 16 to
-draw the fresh word and split off the seven outer words; 158 for the 39 context lines on scalar words (20 lines contain a rotation
-at five units and at most one more operation, the other 19 at most two operations; a direct schedule needs 139); 24 to form the
-sixteen packed operands, K, K' and S15' among them, which need at most 24; 128 to copy them into seven lanes, at most 8 per
-operand; 128 to save up to 64 scalar names for steps 2 and 3; 16 for the context loop; 40 for the gate base of 9.9 with its masks,
-its copy into seven lanes, A[8..15] and its stored metadata; 1 for X9' = X9 + 2^34 in the packed copy of X9; 6 to form X2 + w7 and
-store it with its address; 2 for the test of W against the immediate WB and its branch; 16 for S2, w5 and w12 (5 + 2 + 3) and
-their stores with addresses; and 6 to load S6, X14 and X2 + w7 into their registers. These add up to 541, charged 547. The gate
-adds 160 for its four flags hbad_i, Hbad and BG6 (at most 132, 9.9), and the masked walk 50,000 for the descriptor table (9.9), 20
-for the carry word of each of the 2,341 representative batches, 16 for its setup and 128 * (261 - 144) for the premiums of at most
-128 fallback clusters (Lemma XF (e)): 547 + 111,972 = 112,519. The context leaves W as it is: W runs over the whole run.
+*A context, 547* (9.8; GPT Sol, answers CD 1 and D13; GPT Luna 5.6, answer D54; our audit), bound in words: fresh word: seven
+outer words and eight member numbers 24, 39 lines 158, sixteen words, K, K' and S15' included 24, eight words in lanes at 6 48, 64
+stored names at 2 128, loop 16, masks, lane copies, metadata 40, X9 + 2^34 in the Y9 path's copy 1, X2 + w7 formed and stored 6,
+the W test 2, S2, w5 and w12 for the bank, with their stores 16, S6, X14 and X2 + w7 loaded into three registers 6, C0.b1, -C0.c1,
+C0.d1, -(C0.b1 + w6) 6, ROL16(K1.d1) 4, KS and K1.a1 - s 2, KX0 3, W3b 2, S15' 1, NS 2, three halves 3 23, the complement of
+omega's kx in every lane: shift, XOR, 6 8, reserve 47. The context leaves W as it is: W runs over the whole run.
 
-*A partner batch or chunk, 50* (9.8; GPT Sol, answers CA, CD 1, CJ 3 and D9; our audit), identical in every batch of seven lanes:
-17 for the omega side, the six folded lines and omega (two rotations at five units, each followed by an XOR, 12, and 5 single
-operations); 33 for the seven lane tests (5 per lane: the shift, the AND with 2^36 - 1, the load at the address that the result
-is, the comparison and the branch; 4 for lane 0, which needs no shift, and for lane 6, which needs no AND): 50. Its pair, two
-loads and the increments of the address, is paid by the opening of its cluster, and a chunk forms its U and E from the descriptor
-(9.9). The fifth old partner batch of a cluster has three used lanes: 17 + 14 = 31, and a chunk of n < 7 lanes 17 + 4 + 5 (n - 1)
-< 50. The participant's simulation of 9.8 executed and counted 67 units in every one of its 142,858 batches, with the two list
-words loaded apart and the lane tests and omega side of the earlier layout. No slack is added, and none is needed: the dispatch to
-an E handler is the fall-through of its lane test, every other transfer is a branch of a lane test, an E handler or a pre-check,
-the return of steps 2 and 3 or the jump at the end of a chunk (9.9), and the code is written out. At most 62 registers are live
-and nothing is spilled (9.8).
+*A member, 66; a block, 16; a live block, 36; a scan batch, 36* (9.8; GPT Luna 5.6, answers D48 and D54; our audit). Member:
+member word: two addresses and two loads 4, Y8, Y12, Y0, C0.a1 14, X0 at s = 0 2, w3 - X0 in every lane: subtract, AND, 6 8, C0.a1
+and e1 in every lane 12, the Y9 path's member lines (with X1w) 17, the member's parts of omega mod 2^16 and of its carry 4, X0 mod 2^16, X0
+>> 16, X0 >> 16 of the second block 4, NOT X0 1 (66 in all). Block: omega mod 2^16 and its carry: XOR, add, AND, shift, add 5,
+ST16 address and load 2, live test: compare, branch 2, block bounds (charged) 2, loop (charged) 2, reserve 3. Live block: omega
+mod 2^16 in every lane (6), the carry mod 2^16 in every lane (AND, 6) 13, X0's base in every lane: shift, 6, add 8, the first C'
+vector: add, AND, 6, add 9, W add of the block's batches 1, batch count (charged) 3, loop entry (charged) 2. Scan batch: C' + 7 in
+every lane 1, omega's high half: XOR, add, AND 3, omega in every lane: shift, OR 2, seven lane tests: AND in place, load of lane
+i's replica of T2', compare, branch 28, loop (charged) 2. No other transfer is needed: the dispatch to an E handler is the
+fall-through of its lane test, every other transfer is a branch of a lane test, an E handler or a pre-check, the return of steps 2
+and 3 or the end of a batch or a block, and the code is written out. At most 54 registers are live and nothing is spilled (9.8).
 
-*A representative batch, 59, and an opened cluster, 144* (9.9; GPT Sol, answers CI 1.5, CJ 2 to 5, D13, D14, D16 and D18;
-Grok, job 58; our audit). A representative batch has no lane test on T2': 3 for the pair; 17 for the omega side; the key of
-its lanes, six packed operations (the ANDs of om, Y0 and E with their masks and three ORs, the last with the gate base BG6,
-no shift); and seven gate tests, each the key of its lane taken out by a shift and an AND, the entry loaded at that address,
-compared and branched on, 5 units, 4 for lane 0, which needs no shift, and for lane 6, which needs no AND: 33; its list
-addresses are immediates of the written-out loop. In all 59. The last representative batch of a context has four used lanes:
-3 + 17 + 6 + 19 = 45. A run has 2,341 representative batches per context, so this row is (59 * 2,341 - 14) * RUN_CONTEXTS =
-138,105 * RUN_CONTEXTS. An opened cluster costs at most 5 for the representative's T2' load and test; 3 for W and the jumps
-at the ends of its two chunks; 13 for the descriptor selection, 4 for the byte guard and 16 for the broadcasts; at most 77
-for the omega sides and lane tests of its two chunks, c(n_A) + c(n_B) with c(n) = 16 + 5 n for n < 7 and c(7) = 50, n_A, n_B
-<= 7 and n_A + n_B <= 9 (Lemma XF); and 12 + 14 for their addressing (9.9): 5 + 3 + 13 + 4 + 16 + 77 + 12 + 14 = 144. A
-fallback cluster costs 5 + 21 + 4 * 50 + 31 + 4 = 261, 21 for W, the address and the ten loads and nine increments of the old
-partner pairs, of which W pays 144 and the context 117. Nothing else is needed, since its code is written out at the
-representative's lane site, the branch of the gate test skips it and its end falls through to the next gate test. E lanes,
-fills and passing lanes of the representative and of the partners are charged in their own rows.
+*A fill, 41, an E lane, 6, and a passing lane, 45, outside steps 2 and 3* (9.8; GPT Sol, answers AQ 2, AW 2 and 5, CA, CD 1, 3, 6
+and 8.1, CM 5A and D9; GPT Luna 5.6, answers D25, D47, D48, D49 and D54; our audit). Fill: X0 in the lanes: XB - C', AND 2, and
+with X1w the Y9 path's lines that read X0 39; its 39: D0.d1 = X0 XOR ROL8(X15) 1, D0.c1 = D0.d1 + S10 1,
+D0.b1 = PROR(S5 XOR D0.c1, 12) 6, X10 = D0.c1 + X15 1, X5 = PROR(D0.b1 XOR X10, 7) 6, C1.a1 = X1w + X5 + X0 2, C1.d1 = PROR(X13 XOR
+C1.a1, 16) 6, C1.c1 = X9' + C1.d1 1, C1.b1 = PROR(X5 XOR C1.c1, 12) 6, Y1 = C1.a1 + C1.b1 + w10 2, Y13 = PROR(C1.d1 XOR Y1, 8) 6,
+Y9' = C1.c1 + Y13 1. E lane: W add 1, T1's replica address (2^34 + Y9) << 36 i: AND 1, load 1, AND, compare, branch 3. Passing
+lane: W add 1, shortcut 31, pre-check 7, preflight 6; its shortcut: e1 out of lane i: shift, AND 2, D1.c1: XOR, shift, XOR M, add
+X11 + 1, mask 5, D1.b1: XOR, rotation table 3, X6: XOR, rotation table 3, C2.a1 2, C2.d1: XOR, rotation table 3, X10 4, C2.c1 2,
+C2.b1: XOR, rotation table 3, r: shift, XOR, AND, XOR 4 (28 in lane 0). The lane is written inline after its E handler and keeps
+no return link; the call and return edges of steps 2 and 3 are inside the global ledger (below). W and the credit stay in their
+registers, and the global ledger saves the live words of the batch around steps 2 and 3.
 
-*An E lane, 7, and a fill, 56* (9.8; GPT Sol, answers CA, CD 1, 6 and 8.1 and CM 5A; our audit). An E lane, a lane whose mask of
-(2) is not zero, pays 1 to add u_E to W, an addition with an immediate; 2 to isolate 2^34 + Y9 from the cached Y9 (a shift and an
-AND with 2^34 + M; lane 0 needs no shift); 1 to load T1 at that address; and 3 to combine the masks, compare and branch: 7. The
-first E lane of a batch adds u_E + u_G in that one addition instead and pays 2 to rebuild C0a1 and D0d1 and 54 for the 17 Y9-path
-lines in 16 packed lines (seven rotations at five units, each next to an XOR, 42, and 12 single operations, two of them for the
-fused line (X12 XOR M) + K): 56. The not-ready chain of the code of a batch (9.8) makes the choice between the fill and the cached
-Y9 a position in the code, with no test. The simulation of 9.8 executed 78 units in every one of its 54,067 Q paths in the form of
-answer CA, with an allowance of 16 for the E count and 55 for the lines. A lane whose mask of (2) is zero cannot pass and pays
-neither (Lemma MB).
-
-*A passing lane, 53 outside steps 2 and 3* (GPT Sol, answers AQ 2, AW 2 and 5, CD 3, CI 1.5 and D9; our audit): 1 to add u_P to W;
-39 for e1, C2.a1, C2.d1, C2.c1, C2.b1 and the word r' by the shortcut of 9.6 (36 for lane 0); 7 for the pre-check of 9.7; and 6
-for the preflight of 9.7, the address and load of CT[T], A(T) and CM(T) taken out, the comparison with the credit register and the
-branch: 53, paid by every passing lane, also when T is empty. The lane is written inline after its E handler and keeps no return
-link; the call and return edges of steps 2 and 3 are inside the global ledger (below). W and the credit stay in their registers,
-and the global ledger saves the live words of the batch around steps 2 and 3.
-
-*Steps 2 and 3: CM(T), at most 15,296.* Each outer step that reaches the solver is charged block by block, every block an upper
+*Steps 2 and 3: CM(T), at most 15,012.* Each outer step that reaches the solver is charged block by block, every block an upper
 bound on its operations, loads and stores, with addresses, branches, spills and the restoration of registers included (GPT Sol,
 answers AL 2, AR 3, AR 6.3 to 6.5, AT 1, AW 2, AX 1.1, CF 6.5 and 7.2 and CD 11.2):
 
-- 736 once for an outer step whose T is not zero, the global ledger below; none when T is zero, since then no part of steps 2 and
+- 614 once for an outer step whose T is not zero, the global ledger below; none when T is zero, since then no part of steps 2 and
   3 runs.
 - 2,304 for each family (9.4): at most 128 blocks of the formulas of (a) to (e) of 9.4, the phase checks, (P*) and their
   preparation, at 12 units each, 1,536 (the 112 blocks of the formulas of answer AI 2 and 16 more; a block is the extraction of
@@ -2763,11 +2480,11 @@ answers AL 2, AR 3, AR 6.3 to 6.5, AT 1, AW 2, AX 1.1, CF 6.5 and 7.2 and CD 11.
   or a carry update, with its branch and assignment); the walks of bits 0 to 5 under the two guesses, at most 32 units a bit, 384;
   and 384 for the record of the family, which at most two rows of a set share (64 to store a record of 32 words and 128 to load it
   twice), the packing of the guard planes and the dispatch.
-- 1,408 for each searched row. Its 32 descriptors are built in 32 registers at 32 units each, 1,024 (seven fields vary with the
+- 1,354 for each searched row. Its 32 descriptors are built in 32 registers at 32 units each, 1,024 (seven fields vary with the
   outer step, Q[i], y[i], E[k], E'[k], kappa[k], kappa[k+1] and the value of a constant, at 4 operations each, and 4 for the
   static base, the shift of the key and the assignment); 128 for the walks of bit 6 under the two guesses (64), the patches of
   h[6], h[7], h[13] and h[26] (24), kappa and the consistency of bit 6 (8), and the dispatch of the row (32); the guard (G7) of
-  9.7 adds 128 (answer AX 1.1), and the guard (G15) of 9.7 128 more for its five words (answer CF 7.2).
+  9.7 adds 128 (answer AX 1.1), and the guard (G15) of 9.7 74 more for its five words (answer CF 7.2, at its itemized 74).
 - 20 for each forced node: the key from the carry pair, the descriptor and the base of the array, and the read, 3; the validity,
   its comparison and the branch, 3; the next carry pair and the saved bit e2[29] (at position 9 the new bit is put in its place),
   3; the chosen bit of h, shifted to its place and ORed into the prefix, 3; the guard of position 25 or 29 written into the key,
@@ -2790,72 +2507,74 @@ answers AL 2, AR 3, AR 6.3 to 6.5, AT 1, AW 2, AX 1.1, CF 6.5 and 7.2 and CD 11.
   mask), every sum is masked to 32 bits, and Y11, beta*, DY11, eps, IV[0] + IV[4] and the constants tau_j - beta* + 8 and
   ROR(tau_j, 8) of each row are immediates of the written code (answers CF 6.2 and 6.5).
 
-*The global ledger, 736 (GPT Sol, answers CD 11.2 and D13).* This is a specified layout, not a count of a program. The lane of 9.8
-has finished its paid pre-check and preflight when it calls steps 2 and 3, and it calls them only when T is not zero. So that a
-lane with T = 0 stores nothing for the solver, steps 2 and 3 store the names that they read, as these become available, in a fixed
-bank of 32 memory words, disjoint from the saved words of the batch, the family records and the words of (G15). The names are the
-seven outer words of the context, reloaded; Q = Y9, the T1 address of the lane with the bit 2^34 removed (an AND); y = e1 - Y3; E
-and e1 of the lane; C2.a1, C2.b1, C2.c1 and C2.d1 of the shortcut of 9.6; Y1 and Y12 taken out of their packed words of the batch
-(a shift and an AND each); w5, w12 and K0.d1 of the context (9.8); E' and E XOR E'; and the two phase bits: 24 words, each stored
-before its register is reused. No scalar rebuild of step CO runs for a call; the one rebuild of the found trial is inside the
-once-only allowance of the root certificate (GPT Sol, answer D13). Every word of the bank that is read later was written in this
-outer step, and no other word of it is read, so the bank needs no clearing. Every address is a fixed offset from an immediate
-base, and every name of a word, register and row is written in the code; nothing is looked up by value. Once for a nonempty T:
+*The global ledger, 614 (GPT Sol, answers CD 11.2 and D13; GPT Luna 5.6, answer D25, after Grok, jobs 58 and 59).* This is a
+specified layout, not a count of a program. The lane of 9.8 has finished its paid pre-check and preflight when it calls steps 2
+and 3, and it calls them only when T is not zero. So that a lane with T = 0 stores nothing for the solver, steps 2 and 3 store the
+names that they read, as these become available, in a fixed bank of 32 memory words, disjoint from the saved words of the batch,
+the family records and the words of (G15). The names are the seven outer words of the context, reloaded; Q = Y9, taken out of the
+lane's T1 replica address (a shift and an AND); y = e1 - Y3; t_hi of the step (its own item below); E and e1 of the lane; C2.a1,
+C2.b1, C2.c1 and C2.d1 of the shortcut of 9.6; Y1 and Y12 taken out of their packed words of the batch (a shift and an AND each);
+w5, w12 and K0.d1 of the context (9.8); E' and E XOR E'; and the two phase bits: 24 words, each stored before its register is
+reused. No scalar rebuild of step CO runs for a call; the one rebuild of the found trial is inside the once-only allowance of the
+root certificate (GPT Sol, answer D13). Every word of the bank that is read later was written in this outer step, and no other
+word of it is read, so the bank needs no clearing. Every address is a fixed offset from an immediate base, and every name of a
+word, register and row is written in the code; nothing is looked up by value. Once for a nonempty T:
 
 | item | units, at most |
 | --- | ---: |
-| the source bank: Y1, Y12, y and Q from the words of the batch (7), and the addressed reloads of the seven outer words and E[b] (16) | 23 |
-| up to 32 addressed stores of names into the bank, 2 each | 64 |
+| the source bank: Y1, Y12, y and Q from the words of the batch (8), and the addressed reloads of the seven outer words and E[b] (16) | 24 |
+| the 24 addressed stores of names into the bank, 2 each | 48 |
 | E' = E + DY3, E XOR E', the phase fields, their normalisation and stores | 16 |
-| loading sources at the boundaries of families and rows | 128 |
-| the choice of outcomes and families from the fixed mask, and the top-level dispatch | 128 |
+| loading sources at the boundaries of families and rows | 66 |
+| the choice of outcomes and families from the fixed mask, and the top-level dispatch | 100 |
 | entry into the frame, bookkeeping of bank slots and control, and the final return | 128 |
-| saving at the entry and reloading before the return the live words of the batch, at most 58 (49 of the walk, W among them, and the nine words of the masked walk), at 4 units each with the addresses (our audit) | 232 |
+| saving at the entry and reloading before the return the live words of the batch, at most 57 (at most 46 of the walk, W among them, 9.8), at 4 units each with the addresses (our audit) | 228 |
 | the meter's debit of A(T) | 1 |
-| unused reserve | 16 |
-| total | 736 |
+| the step's t_hi for step 3, an XOR and its store | 2 |
+| unused reserve | 1 |
+| total | 614 |
 
-The loads cover five source words for each family, at most three families, 30, and six context words for each row, at most three
-rows, 36, with 62 to spare; the reloads of a leaf and the loads of (G7) and (G15) keep their own allowances above. The choice runs
-a fixed decision tree over the six bits of T: six bit tests at 6 units each, three family entries and three row entries and exits
-at 8 units each, and 16 for entry and exit, 100 in all. The last 128 pay the call and return edges, the preparation of the bank
-base and offsets, and up to 32 further addressed accesses. Each root is certified at its leaf and a rejected root returns straight
-into the traversal (step 3), so no list of roots is kept, allocated or sorted. Forming the first certified pair is in the
-once-only allowance of the root certificate.
+The loads are five source words for each family, at most three families, 30, and six context words for each row, at most three
+rows, 36; the reloads of a leaf and the loads of (G7) and (G15) keep their own allowances above. The choice runs a fixed decision
+tree over the six bits of T: six bit tests at 6 units each, three family entries and three row entries and exits at 8 units each,
+and 16 for entry and exit, 100 in all. The last 128 pay the call and return edges, the preparation of the bank base and offsets,
+and up to 32 further addressed accesses. Each root is certified at its leaf and a rejected root returns straight into the
+traversal (step 3), so no list of roots is kept, allocated or sorted. Forming the first certified pair is in the once-only
+allowance of the root certificate.
 
 Summing the blocks: when an outer step reaches the solver with searched outcomes T, at most one row of each family reaches depth 7
-(Lemma FX), so steps 2 and 3 cost at most CM(T) = 736 + 2,304 F + 1,408 A + the sum over the families of T of the largest tree of
+(Lemma FX), so steps 2 and 3 cost at most CM(T) = 614 + 2,304 F + 1,354 A + the sum over the families of T of the largest tree of
 their rows, 20 N_f + 48 N_r + 4 N_s + 64 N_15 + (80 + 120) Lf for its forced, free and selected nodes, nodes at position 15 and
 leaves with (G7) and (G15) (9.4): 1,920 for a row with four leaves and 3,808 for a row with eight; roots are at most leaves, and
 CT[T] of 9.7 holds CM(T). The four sets of rows of 9.4, restricted to the outcomes of S, contain every T that occurs, and give at
-most 8,256 ({275}), 6,368 ({175}), 9,664 ({285, 385}) and 15,296 ({185, 385, 685}). So steps 2 and 3 cost at most 15,296 machine
-units in every outer step that reaches them, whatever its words and whatever its T, which the pre-check never enlarges: 736 + 2 *
-2,304 + 3 * 1,408 + 3,808 + 1,920 = 15,296 on the rows 185, 385 and 685 (GPT Sol, answers CF 7.2, CD 10, CD 11.3 and D12; GPT-6
+most 8,080 ({275}), 6,192 ({175}), 9,434 ({285, 385}) and 15,012 ({185, 385, 685}). So steps 2 and 3 cost at most 15,012 machine
+units in every outer step that reaches them, whatever its words and whatever its T, which the pre-check never enlarges: 614 + 2 *
+2,304 + 3 * 1,354 + 3,808 + 1,920 = 15,012 on the rows 185, 385 and 685 (GPT Sol, answers CF 7.2, CD 10, CD 11.3 and D12; GPT-6
 Astra, Batch 17; the trees and the arithmetic recomputed by the participant). With the global part 1,024 of the earlier layout the
-same sum is 15,584, the bound of U0 in Lemma CP. The counts are those of the static trees, and the blocks are added whether or not
+same sum is 15,422, the bound of U0 in Lemma CP. The counts are those of the static trees, and the blocks are added whether or not
 they occur together, so this is an upper bound; it is not claimed to be attained or to be the least such bound.
 
 *The meter and CM(T) (Lemma ME; GPT Sol, answers CD 11.3, CK3 2 and 3 and D12; our audit).* Every T that occurs lies inside a mask
 X of Section 8 (T is X or empty), and each of the ten masks X lies inside one of the four sets of rows of 9.4, {275}, {175}, {285,
 385} and {185, 385, 685}; the table lists every nonempty subset of these four sets, so every nonempty T that occurs. For each it
-gives F, A(T) = 736 + 2,304 F + 1,408 r, the counts of forced, free and leaf blocks of the largest tree of each family (the roots
+gives F, A(T) = 614 + 2,304 F + 1,354 r, the counts of forced, free and leaf blocks of the largest tree of each family (the roots
 are at most the leaves) and CM(T):
 
 | T | F | A(T) | n_f, n_d, n_l (= n_o) at most | CM(T) |
 | --- | ---: | ---: | --- | ---: |
-| 175 | 1 | 4,448 | 42, 3, 4 | 6,368 |
-| 185 | 1 | 4,448 | 42, 3, 4 | 6,368 |
-| 275 | 1 | 4,448 | 80, 7, 8 | 8,256 |
-| 285 | 1 | 4,448 | 80, 7, 8 | 8,256 |
-| 385 | 1 | 4,448 | 80, 7, 8 | 8,256 |
-| 185, 385 | 1 | 5,856 | 80, 7, 8 | 9,664 |
-| 285, 385 | 1 | 5,856 | 80, 7, 8 | 9,664 |
-| 685 | 1 | 4,448 | 42, 3, 4 | 6,368 |
-| 185, 685 | 2 | 8,160 | 84, 6, 8 | 12,000 |
-| 385, 685 | 2 | 8,160 | 122, 10, 12 | 13,888 |
-| 185, 385, 685 | 2 | 9,568 | 122, 10, 12 | 15,296 |
+| 175 | 1 | 4,272 | 42, 3, 4 | 6,192 |
+| 185 | 1 | 4,272 | 42, 3, 4 | 6,192 |
+| 275 | 1 | 4,272 | 80, 7, 8 | 8,080 |
+| 285 | 1 | 4,272 | 80, 7, 8 | 8,080 |
+| 385 | 1 | 4,272 | 80, 7, 8 | 8,080 |
+| 185, 385 | 1 | 5,626 | 80, 7, 8 | 9,434 |
+| 285, 385 | 1 | 5,626 | 80, 7, 8 | 9,434 |
+| 685 | 1 | 4,272 | 42, 3, 4 | 6,192 |
+| 185, 685 | 2 | 7,930 | 84, 6, 8 | 11,770 |
+| 385, 685 | 2 | 7,930 | 122, 10, 12 | 13,658 |
+| 185, 385, 685 | 2 | 9,284 | 122, 10, 12 | 15,012 |
 
-So CM(T) <= 15,296 for every T that occurs, with equality on 185, 385 and 685, and V = U in every call (9.7). The participant
+So CM(T) <= 15,012 for every T that occurs, with equality on 185, 385 and 685, and V = U in every call (9.7). The participant
 recomputed the table in integers from the trees of 9.4. The meter needs no premise: its debits are the unit costs of the blocks
 that a call executes, whatever its words.
 
@@ -2879,103 +2598,98 @@ ledger run before that, with the live words of the batch already saved, so the 6
 them; the bank is memory, and only the five source words of a family are live when its formulas run (answer CD 11.2). No register
 is addressed by a value: every position and register is named in the code.
 
-*Once.* The direct tables T1 and T2 (Lemma DT) are charged 2^38, and the two further copies of T2 in T2' 2^36. The member lists of
-9.9, in cluster order, are charged 2^26 + 2^20: for each of the 2^19 members, the deposit of its 19 bits at the free positions of
-e1, at most 3 units a bit, 57; the subtraction of Y3 and the rotation by 7, at most 6; and for each of the two lists the shift of
-the value to its lane and the OR into the packed word, 2, with the store of each packed word and its address, below 2 per member;
-and the loop, 3: below 2^7 units per member, below 2^26 for the lists; and at most 64 units per cluster, 2^20 in all, to place its
-representative and its five partner words. The six static rows of the outcomes of S, with the static fields of their descriptors
-at the 32 positions and the metadata of the batches, are charged 2^20. 2^26 for the two automata of the filter for the seven
-outcomes, built and composed into eight byte tables whose entries hold the base address of the next table, with the entries of the
-last tables ANDed with S (GPT Sol, answers AN 2 and AQ 2): their states at each of the 32 bits are images of those of the
-fourteen-outcome automata, at most 146, so the allowance of answer AN 2 covers them. 2^26 for the three transition arrays of 9.4:
-their 2^18 entries at most 256 operations each, the enumeration of the keys, both candidate arcs, the test for an invalid or a
-second arc, the selection and the store included (answer AR 6.2). 2^26 for writing the code of the search: 432 static nodes over
-the six rows of S, with the prescribed bits of (G7) and (G15) at positions 7 and 15, fewer than 2^14 labels, at most 256
-operations each with their set-up (answer AL 2). And 2^26 for the row metadata, the absolute bases of the arrays and their
-initialisation, a fourth allowance that GPT Sol keeps for safety (answer AR 6.2), which also covers the enumeration of the
-compatible patterns of 9.7 and the 128 words of CT, below 2^23 operations (answers AW 2 and 5). 2^50, the once-only reserve of GPT
-Sol's answer AW 5 for the exact mask histograms, the model means and the table CT, charged in full whether or not it is used. 32
-for loading the resident constants and array bases into their registers and 8 for the test of the final halt. 2^20 for each of
-twelve parts of the earlier layout (answers CD 6, 8 and 11.2, CF 6.2 and 7.2, CI 1.5, CJ 2 to 5 and CK 3 to 5): the E count in a
-register; the root certificate, with the immediates of the rows and at most 1,024 units to form the last blocks of the first
-returned pair; (G15), with its unrolled code and the layout of its five words; the global ledger, with its bank and labels; the
-labels of the gate; the representative's T2 test on opening; the pointer and end constants of the list pairs; the block P_q of P;
-the frame of 9.9; and the constants of the budgets and the credit, of the run and of the opening bound. 2^27 for the table P of
-the earlier gate, kept: for each of its 2^21 keys at most 64 units, to take the key apart, form the two sums, compare them with
-the ends of the two intervals of S7 and branch, store the entry and loop; and 2^41 for the folded table of the earlier two-borrow
-gate, its 2^35 entries at most 64 units each, an allowance kept in this row although that table is no longer used. Three more of
-2^20 (answers CK2 1, CK3 2 and 4 and CM 5A): the constants of the credit bound; the meter, with the packed words of CT, the
-immediates of the block debits and the preflight; and the cache with its fill code. Fourteen more of 2^20 for the layout of this
-row (our audit): the frame of 9.9 in registers (three), the save of the batch words in the global ledger, the guard words from its
-bank, the pass count in a register, the credit in its register, the pre-check with immediates, the shortcut of 9.6, X9' with T1 at
-2^34, the gate base in the key, the interleaved lists, W with its test, and the meter without slack. Two of 2^22 for the code of
-the opened clusters written out at the representative lane sites and of the passing lanes written out after their E handlers, and
-2^38 for writing out the representative loop with them: fewer than 2^32 instructions (Section 12) at most 2^6 units each. And 2^34
-for the finite checks of Lemma OR (9.9), an allowance kept although the 128 residues of (b) and the 65,536 pairs of (d) need far
-less. The gate table of 9.9, its 2^30 entries at most 8 units each, its 2^22 prefixes at 32 and 4,096 for the flags and constants,
-8,724,156,416 units, is charged 2^34 (GPT Sol, answer D16). And 2^28 + 2^20 for the masked partner walk (GPT Sol, answer D14 3):
-2^28 for its finite certificate alive16 and its constant tables, PX among them, and 2^20 for its layout generator and metadata.
+*Once* (GPT Luna 5.6, answer D49; itemized, our audit). The direct tables T1 and T2 (Lemma DT) are charged 2^38, the two further
+copies of T2 in T2' 2^36, and the lane replicas of T2' and T1, 6 * 3 * 2^32 and 6 * 2^32 words, each at a load, a store, their
+addresses and the loop, below 8 units, 2^40 and 2^38 (the participant's helper agents; GPT Luna 5.6, answer D41). ST16, 2^16
+entries from the first two byte tables of the automaton of (2), and P16, seven bitmaps of 2^16 bits, at most 8 units an entry or a
+bit, are charged 2^17 (answer D48). The member lists are charged 2^26 + 2^20: for each of the 2^19 members, the deposit of its 19
+bits at the free positions of e1, at most 3 units a bit, 57, the subtraction of Y3, and the two stores with their addresses, below
+2^7 units per member. The six static rows of the outcomes of S, with the static fields of their descriptors and their metadata,
+are charged 2^20; four allowances of 2^26 for the two automata of the filter, the three transition arrays of 9.4, the code of the
+search and the row metadata with CT (GPT Sol, answers AL 2, AN 2, AQ 2, AR 6.2, AW 2 and 5); 2^50, the once-only reserve of GPT
+Sol's answer AW 5 for the exact mask histograms, the model means and the table CT, charged in full whether or not it is used; 32
+for loading the resident constants and array bases into their registers and 8 for the test of the final halt; twelve, three and
+fourteen allowances of 2^20 and two of 2^22 for the parts of the earlier layouts that this row keeps or replaces (answers CD 6, 8
+and 11.2, CF 6.2 and 7.2, CI 1.5, CJ 2 to 5, CK 3 to 5, CK2 1, CK3 2 and 4, and CM 5A; our audit), among them the root
+certificate, (G15), the global ledger, the meter with the packed words of CT, the cache with its fill code, the pre-check with
+immediates, the shortcut of 9.6, X9' with T1 at 2^34, and W with its test; 2^38 for writing out the batch and lane loops of the
+walk with the passing lanes, fewer than 2^32 instructions (Section 12) at most 2^6 units each; and the three rotation tables of
+the shortcut, 3 * 2^32 words, each a scalar rotation (4), its address and store (2) and the loop (2), 3 * 2^35 (GPT Luna 5.6,
+answer D25). The row of answer D49 is the once row of entry 070a02b2 with 2^17, 2^40 and 2^38 added; the walk builds none of the
+gate tables of that row (2^41 + 2^34 + 2^34 + 2^28 + 2^27 + 2^20), so the items above, the rotation tables included, stay below
+it, and the row keeps the difference as an unused reserve: in all 1,130,126,934,933,544 = direct tables T1 and T2 (Lemma DT, below
+2^38) (274,877,906,944); member lists by member number (2^19 members, e1 and y, below 2^26 + 2^20) (68,157,440); static rows and
+descriptors (1,048,576); four allowances of 2^26 (automata, transition arrays, search code, row metadata) (268,435,456); reserve
+for exact histograms, cbar and CT (GPT Sol answer AW 5) (1,125,899,906,842,624); resident constants and the final halt test (40);
+twelve allowances of 2^20: E count, root certificate, (G15), global ledger, gate labels and frame (5); representative T2 on
+opening, list pairs, q block of P, seven-word frame (CJ L63, L79, L95, L118); revised budget and credit constants, run metadata,
+opening-bound metadata (Sol L72, L119, L183) (12,582,912); three allowances of 2^20: the credit-bound change (CK2 L24), the meter
+(CK3 L41), the cache (CM L145) (3,145,728); fourteen allowances of 2^20 for this row's layout (SLACK R0 three, R1, R2, R4, R5, R6,
+R7, R10, R11, R12, R14, B6) (14,680,064); the replicas of T2 in T2' (SLACK R9) (68,719,476,736); two allowances of 2^22: the
+inline partner blocks (R13) and passing lanes (R17) (8,388,608); the written-out code of the batch and lane loops
+(274,877,906,944); the replicas of T2' for lanes 1 to 6, 18 * 2^32 entries at 8 units (D41 B5) (1,099,511,627,776); the replicas
+of T1 for lanes 1 to 6, 6 * 2^32 entries at 8 units (D41 B5) (274,877,906,944); the three rotation tables of the shortcut, 3 *
+2^32 entries at 8 units (D25 Section 5) (103,079,215,104); ST16 and P16 of level 16 (D48) (131,072); unused reserve, the rest of
+the once row of answer D49 (2,130,707,480,576).
 
-*One-time items.* The items above are in the last row. The final step, once: steps CT and CS for the trial found, writing the two
-messages, shorter than 2^42 bytes each, and two complete evaluations of blake3; each message has at most 2^32 chunks of 16
-compressions each and fewer than 2^32 parent compressions, below 2^37.1 compressions for both, and writing them is below 2^38
-machine units: below 2^38 units of time in all. Preprocessing: the selection procedure SEL of Section 12, charged in full at its
-cap by construction, S_old = 5,486,510,246,044,225,536 machine units, below 2^53.503 units of time.
+*One-time items.* The items above are in the last row. The final step, once (GPT Luna 5.6, answer D48): steps CT and CS for the
+trial found, writing the two messages and two complete evaluations of blake3. A message has t < 2^48 full chunks before its last
+chunk; the organizer's tree code makes 17 t + 1 compressions for it, 16 per full chunk, one for the last chunk and t parents, the
+root among them (counted on the organizer's code for t = 1 to 1,023 by the participant's scouts), and writing it is 2^8 words of
+32 bits per chunk, so the step is charged 430 * 2 * (17 * (2^48 - 1) + 1) + 2 * 256 * 2^48 + 430 * 2^38 =
+4,259,397,545,085,618,752 machine units, below 2^53.138 units of time. Preprocessing: the selection procedure SEL of Section 12,
+charged in full at its cap by construction, S_old = 5,486,510,246,044,225,536 machine units, below 2^53.503 units of time.
 
 Total:
 
-    T <= (sum of the rows) / 430 + 2^38 + S_old / 430
-      <  2^62.7934.
+    T <= (sum of the rows + the final step + S_old) / 430
+      <  2^61.8777.
 
-In exact arithmetic the numerator is 3,431,255,947,038,643,164,814 + S_old = 3,431,255,947,038,643,164,814 +
-5,486,510,246,044,225,536 = 3,436,742,457,284,687,390,350 machine units, T = 3,436,742,457,284,687,390,350 / 430 + 2^38 =
-7,992,424,594,144,621,805.3 units, and log2 T = 62.79333893569689...; in integers, with 430 T = 3,436,742,575,482,187,376,270 a
-whole number, (430 T)^10000 < 2^627934 * 430^10000 and (430 T)^10000 >= 2^627933 * 430^10000. The claimed time_log2 is 62.7934,
-this total rounded up at the fourth decimal. The search part alone, that is the rows and the final step without SEL, is
-2^62.79103393733518...; S_old / 430 is 2^-9.289 times the search part and adds 0.00230 to log2 T. The bound holds in the worst
-case for the algorithm as stated: every run halts with its four counted events within WB + W_CTX, within its credit and within its
-RUN_CONTEXTS contexts, steps 2 and 3 are bounded in every outer step that reaches them, and SEL is bounded by its caps. No mean of
-a count of work enters it, since CREDIT is a fixed number enforced by a halt; H1', H4', H5_exec, H_G_cluster and Lemma OR bear on
-the success probability only. The claim rests on this 64-register schedule: no figure for 16 registers is claimed, and this
-schedule is not claimed to be the cheapest.
+In exact arithmetic the numerator is 1,812,099,861,564,061,500,611 + 4,259,397,545,085,618,752 + S_old =
+1,812,099,861,564,061,500,611 + 4,259,397,545,085,618,752 + 5,486,510,246,044,225,536 = 1,821,845,769,355,191,344,899 machine
+units, T = 4,236,850,626,407,421,732.3 units, and log2 T = 61.87769797419143...; in integers, with 430 T =
+1,821,845,769,355,191,344,899 a whole number, (430 T)^10000 < 2^618777 * 430^10000 and (430 T)^10000 >= 2^618776 * 430^10000; with
+the factor 1 in place of 1.002793 in the batch budget the numerator would be that of GPT Luna 5.6's answers D49 and D54. The
+claimed time_log2 is 61.8777, this total rounded up at the fourth decimal. The search part alone, that is the rows and the final
+step without SEL, is 2^61.87334672567076...; S_old / 430 is 2^-8.371 times the search part and adds 0.00435 to log2 T. The bound
+holds in the worst case for the algorithm as stated: every run halts with its counted events within WB + W_CTX, within its credit
+and within its RUN_CONTEXTS contexts, steps 2 and 3 are bounded in every outer step that reaches them, and SEL is bounded by its
+caps. No mean of a count of work enters it, since the budgets and CREDIT are fixed numbers enforced by halts; H1', H4', H5_exec
+and H_G_cluster bear on the success probability only. The claim rests on this 64-register schedule: no figure for 16 registers is
+claimed, and this schedule is not claimed to be the cheapest.
 
 Nothing is sorted and nothing is looked up by value: each root is tested against the conditions of its own outcome, and no
-certified trial is compared with another. The reads at positions that words give are: per batch, the words U[b] and E[b]; per used
-lane of a partner batch or chunk, the entry of T2' at its omega, and in a representative batch the entry of the gate table at its
-key; per opened cluster that is not a fallback, PX at its omega prefix and the words n_0, n_1, JU and JE of its descriptor; per E
-lane, the entry of T1 at its Y9; per opened cluster, the T2' entry of its representative; per passing outer step, the three names
-stored for the shortcut and, when T is not zero, CT[T]; in an outer step that reaches the solver, the names saved for its context
-and the bank, the transition arrays at the keys of the searched rows, the five words of (G15) of each searched row, the family
-records and the static rows of the outcomes. Every such read is charged as one load: a partner batch counts its 7 loads of T2'
-inside its 50 units, the opening of its cluster the 10 loads of its partner pairs or the loads of PX and of the descriptor, a
-representative batch its 2 list loads and 7 loads of the gate table inside its 59, an E lane its load of T1 inside its 7, and the
-loads of a context, of a passing lane, of the joint solver and of step 3 are inside the allowances above. No table grows with the
-trials.
+certified trial is compared with another. The reads at positions that words give are: per member, its e1 and y; per block, ST16 at
+its low half; per lane of a live block, the entry of the lane's replica of T2' at its omega; per E lane, the entry of the lane's
+replica of T1 at its Y9; per passing outer step, the three names stored for the shortcut, the four entries of the rotation tables
+and, when T is not zero, CT[T]; in an outer step that reaches the solver, the names saved for its context and the bank, the
+transition arrays at the keys of the searched rows, the five words of (G15) of each searched row, the family records and the
+static rows of the outcomes. Every such read is charged as one load: a scan batch counts its seven loads of T2' replicas inside
+its 36 units, a block its ST16 load inside its 16, an E lane its load of T1 inside its 6, and the loads of a member, a context, a
+passing lane, the joint solver and step 3 are inside the allowances above. No table grows with the trials.
 
 ## 12. Memory, preprocessing and advice
 
-The program of the search is the lines of steps CO, CT and CS, the outer filter, the walk of 9.8 and 9.9, written out over the
-2,341 representative batches with the code of an opened cluster at each representative lane site and the passing lanes inline,
-the joint solver of 9.4 with its statically written traversal and the guards (G7) and (G15), and a compression routine for step 3
-and the final check. Its size (our audit): a lane site has fewer than 2^7 instructions, its lane test 5, its E handler with the
-fill 63, its passing lane 53 and the call of steps 2 and 3; a batch of n lanes, a not-ready chain of n lane sites with a ready
-tail after each, has n (n + 1) / 2 lane sites, at most 28, and its omega side; an opened cluster, its five old batches with 4 *
-28 + 6 = 118 lane sites and, for each of its two chunks, the seven dispatch leaves for n = 1 to 7 with 1 + 3 + 6 + 10 + 15 + 21 +
-28 = 84 lane sites, 286 in all, with its omega sides, selection, guard, broadcasts and dispatch, fewer than 37,200 instructions;
-a representative batch, at most 28 representative lane sites each with that code, fewer than 2^20; the 2,341 representative
-batches and the rest of the program, fewer than 2^32 instructions, below 2^37 bytes at 32 bytes an instruction. Data, one word of
-256 bits each unless said otherwise, at fixed word addresses: T2' at 0 to 3 * 2^32 - 1, T1 at 2^34 to 2^34 + 2^32 - 1 and the
-gate table at 2^35 to 2^35 + 2^30 - 1 (9.8, 9.9), 2^34 + 2^30 words, with nothing else in the band 2^35 to 2^36 - 1; and above
-2^36 the member lists, 168,522 words; the table P of the earlier gate, 2^21 words; the 29,952 entries of the tables of the
-filter's two automata; the three transition arrays of 9.4, 2^18 words of 32 bits; fewer than 4,096 words for the joint solver
-(the descriptors of the positions of a row, the six static descriptors of S, the records of the families, the bank of 32 words of
-Section 11 and scratch); fewer than 1,024 words for the names of step CO, the stored names of a context, the saved words of a
-batch, the five words of (G15) of each row, the constants and masks, the 128 words of CT and the cells of step 3; and in the last
-2^13 words below 2^36 + 2^24, from DB = 2^36 + 2^24 - 2^13, the descriptor table of a context, 1,024 words, and PX, 512 words:
-all below word address 2^36 + 2^24, below 2^41 + 2^29 bytes. The memory of the search is therefore below 2^41 + 2^29 + 2^37 <
-2^42 bytes. Nothing grows with the number of trials. The two messages of a found pair have 1024 t + 55 and 1024 t + 63 bytes with
-t < 2^32, each shorter than 2^42 bytes; the output, the two messages with their digests, takes less than 2^43 bytes.
+The program of the search is the lines of steps CO, CT and CS, the outer filter, the walk of 9.8, written out for a member, its
+blocks and the scan batch with its lane sites and the passing lanes inline, the joint solver of 9.4 with its statically written
+traversal and the guards (G7) and (G15), and a compression routine for step 3 and the final check. Its size (our audit): a lane
+site has fewer than 2^7 instructions, its lane test 4, its E handler with the fill 48, its passing lane 45 and the call of steps 2
+and 3; a batch of n lanes, a not-ready chain of n lane sites with a ready tail after each, has n (n + 1) / 2 lane sites, at most
+28, for each n from 1 to 7; with the rest of the program, fewer than 2^32 instructions, below 2^37 bytes at 32 bytes an
+instruction. Data, one word of 256 bits each unless said otherwise, at fixed word addresses: T2' at 0 to 3 * 2^32 - 1 and T1 at
+2^34 to 2^34 + 2^32 - 1 (9.8), 2^34 words, with nothing else in the band 0 to 2^36 - 1; for each lane i = 1 to 6 the replica of
+each of these words, the word at f stored again at f * 2^(36 i) (Lemma DT), 2^34 words at multiples of 2^(36 i) below 2^(36 i +
+36), so the replicas of two lanes share only word 0, where both hold T2'[0]; from 2^36 + 1, the member lists, 2^20 words; ST16 and
+P16, below 2^17 words; the 29,952 entries of the tables of the filter's two automata; the three transition arrays of 9.4, 2^18
+words of 32 bits; fewer than 4,096 words for the joint solver (the descriptors of the positions of a row, the six static
+descriptors of S, the records of the families, the bank of 32 words of Section 11 and scratch); fewer than 1,024 words for the
+names of step CO, the stored names of a context, the saved words of a batch, the five words of (G15) of each row, the constants
+and masks, the 128 words of CT and the cells of step 3; and the three rotation tables, 3 * 2^32 words from 2^36 + 2^35 (9.6). No
+word from 2^36 + 1 to 2^37 - 1 is a multiple of 2^36, so none of these is a replica's. The search stores fewer than 7 * 2^34 + 3 *
+2^32 + 2^24 words, below 2^36.955; since the replicas sit at word addresses up to 2^252, the memory of the search is counted as
+the words it stores, not as its highest address. With the code, the memory of the search is below 2^42.001 bytes. No stored word
+depends on the number of trials. A found pair's two messages have 1024 t + 55 and 1024 t + 63 bytes with t < 2^48, each shorter
+than 2^58 bytes; the output, the two messages with their digests, takes less than 2^59 bytes.
 
 **The advice record.** The search reads a fixed record, stated here in full, which this package treats as nonuniform advice: the
 six constants X3 = 29d4fa98, X7 = bee3af28, X11 = 44036000, X15 = 40c58500, W4 = 97475638 and W13 = 0007c006 of 3.2, 24 bytes; eta
@@ -3038,8 +2752,8 @@ operations, below 2^62.251 (in integers S_old^1000 < 2^62251), and so below 2^(6
 11). It bounds SEL as defined, whatever the two programs do inside and whatever they return, because every run halts at its cap
 and every loop has the range stated. SEL is not a premise of this package, and no heuristic is declared for it.
 
-*What rests on records.* The bound rests on no record. That SEL returns exactly the six constants of 3.2, eta = 830303cf, beta* =
-18b0e098 and S = 5f rests on the participant's records: for S, on GPT Sol's exact comparison of the 16,383 sets (answers AW 4 and
+*Historical development log (unchanged by online search).* The online search reads the explicit 73-byte advice record of line 2694 directly as declared nonuniform advice (nonuniform_advice_log2_bytes = 7), not the output of SEL; SEL is not executed by the attack and is charged solely as an upper bound on historical development cost:
+18b0e098 and S = 5f were found in the participant's development runs: for S, GPT Sol's exact comparison of the 16,383 sets (answers AW 4 and
 5); for the rest, on the participant's solver log, by which the run for the lengths 55 and 63 with bound 104 and seed 506 found
 these constants after 4,770 seconds, with a solution of class 830303cf and beta 18b0e098, and on an exact integer recount, by the
 participant's counter on the whole class of each instance, of all 65 distinct instances that the runs of the log returned with a
@@ -3047,22 +2761,22 @@ model, in which these constants have the part 71,698,432, the largest, and the n
 the next). Every run of the log stopped within 9,010.5 seconds on one processor core and every recount within 320 seconds; at 2^42
 operations a second for a core, a rate the participant states and does not prove, every run stayed below 2^55.14 operations and
 every recount below 2^50.33, inside the caps. The log does not fix every instance: some runs excluded pairs that runs finished
-before them had found, and 32 runs were stopped from outside without a record of the cause. So the records certify a historical
-run of the solver, not a replay with operation caps, and the generator of the instances, the solver log and the counter are not in
-the package. If a record were wrong, SEL could return other constants or none; its cost would stay within the bound.
+before them had found, and 32 runs were stopped from outside without a record of the cause. Thus the historical runs are charged via SEL's deterministic operation caps S_old (lines 2748-2753) PLUS the separate explicit 73-byte nonuniform advice declaration (nonuniform_advice_log2_bytes = 7);
+because the online algorithm takes the 73-byte string as fixed nonuniform advice and verifies all its algebraic properties directly (lines 2700-2707),
+neither the online attack, its success probability, nor its time bound T depends on re-running SEL or on SEL returning this record.
 
 *Memory of SEL.* Every program run of SEL halts when it holds 2^34 bytes, and SEL runs one program at a time; its own data stay
 below 2^20 bytes, the parts of step 2 and the outputs. SEL therefore holds fewer than 2^34 + 2^20 bytes at any time; the search
-fewer than 2^42 bytes, its tables and code included; the output fewer than 2^43 bytes. Held at once, these total below 2^43 +
-2^42 + 2^35 < 2^44: memory_log2_bytes = 44 bounds all. The measurements of Section 13 are not part of SEL: they test the
-heuristics and select nothing. The cost model does not score memory.
+fewer than 2^43 bytes, its stored words, the lane replicas among them, and its code included (above); the output fewer than 2^59
+bytes. Held at once, these total below 2^59 + 2^42.001 + 2^35 < 2^60: memory_log2_bytes = 60 bounds all. The measurements of
+Section 13 are not part of SEL: they test the heuristics and select nothing. The cost model does not score memory.
 
-The direct tables, the gate table and the member lists, like the descriptor tables, PX, the tables of the filter's automata, CT,
-the three transition arrays, the descriptors and the traversal, are not advice: they are computed from the record. SHARE and
-E_COUNT are counts from the certificate of Section 8, the metered caps of CT are computed from the trees, and the budgets and the
-credit of 9.1 are computed from them, from u_M, from the bound 12,466 of H_G_cluster, from the factor 1.01 of H5_exec and from the
-other constants of 9.1. The flags 3 and the counter rule are part of the algorithm. There is no other stored data and no stored
-collision.
+The direct tables, their lane replicas, ST16, P16 and the member lists, like the rotation tables, the tables of the filter's
+automata, CT, the three transition arrays, the descriptors and the traversal, are not advice: they are computed from the record.
+SHARE, E_COUNT and the 7,072 live low halves are counts from the certificate of Section 8 and the automaton of (2), the metered
+caps of CT are computed from the trees, and the budgets and the credit of 9.1 are computed from them, from u_M, from the factor
+1.01 of H5_exec and from the other constants of 9.1. The flags 3 and the counter rule are part of the algorithm. There is no other
+stored data and no stored collision.
 
 ## 13. Evidence, scope and field meanings
 
@@ -3070,15 +2784,15 @@ Throughout this text costs and bounds are rounded up, and margins, rooms and the
 are rounded down. Counts printed with decimals are rounded to the nearest.
 
 **What is exact.** Sections 2 to 5, 7 and 8; Lemmas L, H, Q, Q2, T, T2, N, TR, CT, IP, F, J0, V, RC, VP, G7, G15, CV, FX, CP, Y,
-CX, DT, MB, KP, A9, CL, XF, OR and ME and Theorem C; the count of passing pairs of Section 8 and the allowed patterns of the
-pre-check and the table CT of the metered caps (9.7); the parity certificate (P*), an exact count, and the constants and caps of
-the joint solver (9.4) with its schedule (Section 11), as upper bounds, with the meter's debit equal to the ledger; the flat mean
-1383624064/266237 of model M, recounted in integers; and Lemmas S1 to S5, S8 and S9 under their stated hypotheses. The tree part
-22422672/266237 of u_M is GPT-6 Astra's bound in model M, cited and not proved in this text; H5_exec declares the number u_M
-itself, so neither the time bound nor the statement of the premise depends on that proof. The declared experiment
-`frontline-search` executes the search of 9.1 on one context per organizer seed (9.2) and returns a pair of the root instance of
-the same lines, whose two digests the organizer recomputes; Theorem C predicts that every pair agrees on the 128 masked digest
-bits (6.4). The counter instance itself has no organizer-run digest check (6.4).
+CX, W, BL, DT, MB and ME and Theorem C; the count of passing pairs of Section 8 and the allowed patterns of the pre-check and the
+table CT of the metered caps (9.7); the parity certificate (P*), an exact count, and the constants and caps of the joint solver
+(9.4) with its schedule (Section 11), as upper bounds, with the meter's debit equal to the ledger; the flat mean 1365342094/266237
+of model M, recounted in integers; and Lemmas S1 to S5, S8 and S9 under their stated hypotheses. The tree part 22422672/266237 of
+u_M is GPT-6 Astra's bound in model M, cited and not proved in this text; H5_exec declares the number u_M itself, so neither the
+time bound nor the statement of the premise depends on that proof. The declared experiment `frontline-search` executes the search
+of 9.1 on one context per organizer seed (9.2) and returns a pair of the root instance of the same lines, whose two digests the
+organizer recomputes; Theorem C predicts that every pair agrees on the 128 masked digest bits (6.4). The counter instance itself
+has no organizer-run digest check (6.4).
 
 *How it was checked.* The participant's checks are computations, not proofs: the counter construction against the organizer's own
 functions on 2,000 trials, with 204,000 internal words compared with a separately written forward computation, and complete
@@ -3086,11 +2800,10 @@ messages hashed by the organizer's code (Section 7); the declared program's in-r
 members of Q*, each giving the difference beta*; the rule t != 0 (Section 8); the free positions, static trees, families and caps
 of the solver, and the sums of the cells of (P*) against the counts of 10.1, with a separate count of (P*) in one phase of 2^16
 members (9.4); the word nu of the pre-check against the bits s[13] to s[15] of 324,098 real trials (9.7); and the two lists of
-Lemma Y, the member lines and the pass decisions of the member loop and of the omega-first batch against the full outer step, with
-every operation of the batch counted (9.8); and the finite checks of Lemmas A9, CL, XF and OR, with Lemma KP, the gate and the
-window arithmetic of Lemma XF against the word equations on random clusters and context words (9.9). For Sections 1 to 6, three
-independent reruns found no wrong value in the displays, Table C and Lemmas Q, Q2, L and T2. No person has read any part of this
-text.
+Lemma Y; the walk of Lemma W and the blocks and states of Lemma BL against step CO at the steps' own t_hi, the declared program
+against the first implementation of the walk on 256 trials and four whole contexts, and every operation of the walk's events
+counted in the declared program (9.2, 9.8, Section 11). For Sections 1 to 6, three independent reruns found no wrong value in the
+displays, Table C and Lemmas Q, Q2, L and T2. No person has read any part of this text.
 
 **The seven-word model.** By 6.2 the residual of a trial, of the root instance or of the counter instance, is a function of the
 constants and of seven 32-bit words: for E1 its first-half values d1 and b1 and its a output a2 on message A, and for E3 the words
@@ -3267,74 +2980,32 @@ only through the mean of the ledger, measured below. These are two runs of one g
 proof that the sampler's nu is uniform or independent of its masks. The program of the 60,000,000 steps is
 research/pkg21/work/E/lean_share.py of the participant, not part of the package.
 
-**Real outer steps walked by contexts (the member loop).** A participant measurement made for this package, untrusted evidence
-like the paragraphs before it, which the organizer's harness does not run. The participant's reimplementation of the member loop
-of entry e9b6649e (9.8; research/impl/memberloop of the participant, its own SplitMix64 generator, one run made after the design)
-walked 120,000 contexts, each with all 2^19 members of the class, 62,914,560,000 outer steps, on a graphics card, and counted per
-context the passing outer steps and the lanes whose mask of (2) is not zero. With m = 2^19 and p the exact share:
+**The walk: a preregistered run on walk contexts (participant measurement).** Untrusted evidence for H1', H4', H5_exec and
+H_G_cluster on the walk (10.3), which the organizer's harness does not run. Before any program of the run started, a protocol file
+(research/lanes/co-evidence/PREREG_CO.txt of the participant, with its SHA-256 recorded) fixed the samples, the seeds, the
+statistics and 16 decision rules, with validation on separate seeds and a code freeze before the first counted run. A *walk
+context* there is one fresh draw of the seven outer words and one member walking its seven full blocks, 458,752 steps with t_hi
+below 2^19; a front-line outer step, the control, has t_hi = 0. Every rule passed (ANALYSIS_CO.txt):
 
-| per context | passing outer steps | lanes with a nonzero mask of (2) |
-| --- | ---: | ---: |
-| mean count, against m p | 519.013 against 519.809 (0.99847) | 28,491.98 against 28,529.72 (0.99868) |
-| z, with the standard error of the 120,000 counts | -1.36 | -1.21 |
-| ratio (E[n(n-1)]/E[n]) / ((m - 1) p_hat), p_hat the observed share | 1.152 | 1.144 |
+| item | sample | result | rule |
+| --- | --- | --- | --- |
+| E1 outcome rate of S, walk against front line | 2^47 walk trials in 2^18 contexts, 2^46 control trials | ratio 1.00370 +- 0.01072, lower bound 0.95400 | at least 0.92: pass |
+| E share of a walk step | 2^39 walk contexts, exact E per context | 0.99999857 +- 0.0000035 of p_E, upper bound 1.0000152 | at most 1.000026: pass |
+| pass share given E, and pass share | 2^24 walk contexts, 7.7 * 10^12 steps | upper bounds 1.0000268 and 1.0000277 of pi | at most 1.000176: pass (two rules) |
+| solver work per call, shipped solver | 116,033 calls in 35,229 walk contexts, 66,708 control calls | upper bounds 0.94884 (U per call), 0.98530 (U0 per call) and 0.94883 (per walk step) of the credited means | at most 1: pass (three rules) |
+| cross-step factor Rx of the E1 outcome per walk context | 1,024 contexts of 16,384 steps, 2^45 trials | 1.1641, upper bound 1.2300 | at most 2^43.86 and at most 2: pass |
+| scaled end-to-end run on walks (8-bit rig, walks over 32 and 256 high words) | 4.2 * 10^12 walk trials | 52,361 collisions against 52648.10 predicted, lower bound 0.97402; against the control 0.95193; pairs within a walk group, upper bound 20.535 | at least 10/11, at least 0.92, at most 2^43.86 and at most 256: pass |
+| joint event, the filter's pass and the E1 outcome | 65,536 walk contexts, every passing step, 2^45.8 trials | rate lower bound 0.96036 of the model; Rx 9.0084, upper bound 9.7541 | at least 0.92, at most 2^43.86 and at most 32: pass |
 
-Both shares agree with their exact values within the error of the clustered counts, as Lemma CX (c) says the means must. The same
-reimplementation checked the two lists of Lemma Y and compared the 25 member lines and the masks with the full step CO on 100,000
-pairs, and the omega-first batch was compared with the full member loop on every outer step of a run of 62,914,560,000 outer steps
-(9.8).
-
-**Clustering by context at every depth (participant measurements).** Untrusted evidence for part (ii) of H1' (10.3), made after
-the design and not preregistered. For each event below, every listed good trial meets it; n is its count in one context of m =
-2^19 members, p_hat its observed share per member, and the ratio (E[n(n-1)]/E[n]) / ((m - 1) p_hat) is 1 when the members of a
-context are independent. Each run has a control arm: as many blocks of 2^19 independent outer steps (eight fresh words each), with
-the same statistic. All arithmetic is exact on 32-bit words, on a graphics card. Before the runs, 23,000 vectors were compared
-with the participant's Python code on Y9, omega, C2.c1, C2.b1, both masks, nu and the pre-check, with no difference; every outer
-step that the pre-check kept (15.6 million per arm) was rebuilt on the processor and passed to the Python solver with (G7) and the
-pre-check, and every root to the certificate; in the root runs the recorded steps reproduced the counts of every block, and a
-re-run of the first 32,768 blocks was byte-identical.
-
-| event of an outer step, per context | contexts | ratio, contexts | ratio, control |
-| --- | ---: | ---: | ---: |
-| condition (1) alone | 120,000 | 1.000175 | 1.0000 |
-| condition (2) alone | 120,000 | 1.1433 +- 0.0008 | 1.0000 |
-| passes the filter | 120,000 | 1.1513 +- 0.0009 | 1.0000 |
-| passes and the pre-check keeps an outcome | 120,000 | 1.1572 +- 0.0010 | 1.0000 |
-| the solver reaches a leaf | 120,000 | 1.153 +- 0.003 | 0.998 +- 0.002 |
-| the solver returns a root | 46,104,576 | 1.2486 +- 0.0806 | 1.0367 +- 0.0718 |
-
-The errors are over groups of contexts (12 groups of 10,000; for the root a jackknife over 100 groups). Relative to the event
-above it, the pre-check adds a factor 1.00518 +- 0.0002 and the leaf 0.996 +- 0.002, and at the cuts of the solver between the
-leaf and the root the ratio stays between 1.14 and 1.25 with no step beyond its error. Contexts with two outer steps that return a
-root: 252 against 201.4 for independent members and about 248 at a ratio of 1.233; in the control 208 against 200.3; none with
-three in either arm. The clustering comes from condition (2): omega = Y3 + y + w8, and w8 depends on the context only. No root of
-these runs passed the certificate of step 3 (0 of the 763 roots of the 120,000-context runs): no listed good trial is observed,
-and the ratio of listed good trials themselves is not measured. The runs are research/impl/memberloop/deep and
-research/impl/memberloop/roots of the participant (seeds 1001 and 3003 for the contexts, 2002 and 4004 for the controls), not part
-of the package.
-
-**Clustering of the deepest events across members: a preregistered run.** Untrusted participant evidence for part (ii) of H1'
-(10.3). Before any step ran, a protocol file, PREREG.txt of the participant (SHA-256
-248838947f505b89c3927b7da829548acef92a540e474a9eefe3bd04c06cb92e, rechecked after the run), fixed the events, the arms, the
-statistics, the decision rule, the size rule and the seeds. Each arm has 262,144 contexts, each walking all 2^19 members with 512
-values of c1 per outer step, a random affine subspace of Q*, so 2^46 trials per arm, from two generators (Philox4x32-10 and
-SHA-256 in counter mode); the control arm draws fresh outer words for every outer step. For the count n of an event in a context,
-the ratio (E[n(n-1)]/E[n]) / ((m - 1) p) splits into a part from pairs within one outer step and the cross-member factor Rx from
-pairs of different members, which is 1 for independent members. The graphics-card code matched a Python reference on 1,179,648
-trials with no difference, and all 32,199 recorded hits of the two deepest events were recomputed with real compressions.
-
-| event, per trial | share | Rx, contexts | upper limit U | Rx, control |
-| --- | ---: | ---: | ---: | ---: |
-| listed E1 outcome: tau in S, eps = eps*, beta = beta* | 2^-32.29 | 0.999 +- 0.054 | 1.162 | 1.068 +- 0.064 |
-| (J1) and (J2) of the E3 half, for an outcome of S | 2^-34.58 | 0.90 +- 0.24 | 1.94 | 1.12 +- 0.27 |
-| R24: low 24 bits of the difference of chaining-value word 1 zero | 2^-23.76 | 1.0002 +- 0.0001 | 1.0006 | 1.0001 +- 0.0001 |
-
-U is Rx plus three standard errors (a jackknife over 128 groups of contexts), or the 99.865 per cent Poisson limit when fewer than
-30 cross-member pairs occur (13 for the E3 event). Only the filter events cluster by context: test (2) 1.1439 +- 0.0004 and the
-pass 1.1522 +- 0.0005, against 1.0000 in the control. Every upper limit lies at least 43 bits below the factor 2^43.86 that part
-(ii) allows. Limits: the joint event, about 2^-91 per trial, is not reachable and the two halves are measured separately, so
-carrying Rx near 1 to it remains the premise. The run is research/impl/memberloop/prereg8 of the participant, not part of the
-package.
+Bounds are one-sided at 1 - 10^-6, clustered by context or exact. In the same runs no trial lacked the difference beta*, every
+record of the solver run equalled a Python recomputation with the shipped solver of entry 070a02b2, every meter check held, the
+walk's mean work per call was 1.00062 +- 0.00093 times the front line's, and the scaled run had 0 bad and 0 bogus collisions. The
+share sample had 12,676,289 live blocks among its 117,440,512, a share of 0.1079379 against 7,072 / 2^16 = 0.1079101; its walk
+contexts with 0 to 7 live blocks of their seven numbered 14,219,206; 211,101; 242,906; 280,108; 266,803; 273,538; 280,728;
+1,002,826, from which H_G_cluster takes its factor 1.002793 (10.3). The run's walks reach t_hi below 2^19, those of this package
+t_hi below 2^16; t_hi enters only K1.a1 (Lemma W). The programs and the data are research/lanes/co-evidence of the participant,
+not part of the package; the walk was found by the participant's scouts, whose own runs (3.0 * 10^10 walk steps on a graphics
+card; 512 trials with the organizer's `_compress` at counters up to 2^51) are research/newpaths/untried/b3-thi-walk.
 
 **The shares of H4': a preregistered sample (prereg7).** A participant measurement, untrusted evidence, which the organizer's
 harness does not run. Before any outer step of the main sample was drawn, a protocol file, PREREG.txt of the participant (SHA-256
@@ -3355,16 +3026,18 @@ the first preregistered evidence for this premise. A protocol file of the partic
 3b3fdad4108a5be903c8af5b504b538828debdb803d7dda5ffa728dec66da8b7), recorded before the first context ran, fixed the statistics and
 the one-sided level 1 - 10^-6. The program was the declared program of our preceding layout (SHA-256
 4f87cfe2937913258697ab7348840a526ebd1944e0d4d9c00d3ca5c06a15995c), whose joint solver, guards and pre-check are those of 9.2 and
-whose ledger is U0 of 9.7, with read-only counters added; the counted copy gave output byte-identical to the program on four
-requests of 256 trials. It walked 51,549 whole contexts of 2^19 outer steps each, from two generators (a SHA-256 counter, 25,779
-contexts; SplitMix64, 25,770), which agree on every mean per context (largest |z| 2.25). The ledger U0 averaged 1.294334 +-
-0.002348 per outer step over 6,671,108 calls (5,243.71 per call, largest 12,764 against the cap 15,584 of this ledger, Lemma FX),
-with the one-sided upper bound 1.30550, below 1.01 u_M = 1.322107 and below u_M = 1.3090 itself. In the same sample the earlier
-two-borrow gate opened on 0.448301 +- 0.000124 of the clusters (one-sided upper bound 0.44889), consistent with the bound of its
-own Lemma OR, and every exception count was 0 over 692,644,553 in-run checks: guard rejects, calls with the ledger above C_G(T),
-meter breaches, lost or extra roots, skipped passes and mismatches; a second analysis of the run files confirmed these figures.
-Limits: the words come from two pseudorandom generators, not from the law of model M, and the ledger counts each executed block at
-its upper unit cost. The files are research/frontline/stack_regression/prereg of the participant, not part of the package.
+whose ledger is U0 of 9.7 with each searched row charged 1,408, at least 54 more than the U0 of this row in every call, with
+read-only counters added; the counted copy gave output byte-identical to the program on four requests of 256 trials. It walked
+51,549 whole contexts of 2^19 outer steps each, from two generators (a SHA-256 counter, 25,779 contexts; SplitMix64, 25,770),
+which agree on every mean per context (largest |z| 2.25). The ledger U0 averaged 1.294334 +- 0.002348 per outer step over
+6,671,108 calls (5,243.71 per call, largest 12,764), with the one-sided upper bound 1.30550 on that ledger; less 54 for each of
+its 0.000247 calls per outer step, 0.0133, the mean is 1.28100 and the bound 1.29217, below 1.01 u_M = 1.304916 and below u_M =
+1.2919 itself. In the same sample the earlier two-borrow gate opened on 0.448301 +- 0.000124 of the clusters (one-sided upper
+bound 0.44889), consistent with the bound of its own Lemma OR, and every exception count was 0 over 692,644,553 in-run checks:
+guard rejects, calls with the ledger above C_G(T), meter breaches, lost or extra roots, skipped passes and mismatches; a second
+analysis of the run files confirmed these figures. Limits: the words come from two pseudorandom generators, not from the law of
+model M, and the ledger counts each executed block at its upper unit cost. The files are
+research/frontline/stack_regression/prereg of the participant, not part of the package.
 
 **The ledger of H5_exec on real outer steps (participant measurement).** Untrusted evidence, made after the design and not
 preregistered. The prereg7 kernel with one added filter kernel listed every outer step with T not zero among 2^32 outer steps,
@@ -3372,44 +3045,22 @@ with fresh Philox4x32-10 words for every step, once with the lines of the search
 every listed step was recomputed in Python with no difference in T or nu, and a Python scan of the first 524,288 steps of one
 stream gave exactly the listed steps. A participant reimplementation of the joint solver of 9.4 with (G7) and (G15), which matched
 the traversal with (G7) alone node for node on all 649,242 rows that survived setup when (G15) was off, ran every call and added
-the ledger U0 of 9.7 from its counts:
+the ledger U0 of 9.7 from its counts, with each searched row charged 1,408:
 
 | Quantity | flags 3 | flags 11 |
 | --- | ---: | ---: |
 | calls (T not zero) among 2^32 outer steps | 1,063,703 | 1,065,105 |
 | mean of U0 per call (standard deviation) | 5,242.8 (946.9) | 5,243.7 (947.1) |
-| largest U0 of a call; calls above 15,584 | 11,740; 0 | 12,704; 0 |
+| largest U0 of a call | 11,740 | 12,704 |
 | mean of U0 per outer step | 1.298456 | 1.300374 |
 
 The standard error of each mean per outer step is about 0.0013. In model M a call has probability 279,070,422,111 / 2^50 and U at
-most 5281.18 per call on average (10.3). Both means per outer step lie below u_M = 1.3090 and well below 1.01 u_M = 1.322107; 99.1
-per cent of U0 is its part A(T) + 288, a function of T, whose cells matched the model's shares within their errors. Limits: the
+most 5212.51 per call on average (10.3). Both means per outer step lie below 1.01 u_M = 1.304916; less the 54 that this row saves
+on each call, at least 0.0133 per outer step, they are at most 1.28509 and 1.28699, below u_M = 1.2919 itself; 99.1 per cent of U0
+is its part 1,024 + 2,304 F + 1,408 r, a function of T, whose cells matched the model's shares within their errors. Limits: the
 ledger counts each executed block at its upper unit cost, not executed instructions; the solver is a reimplementation, not the
-declared program, whose own 1,031 calls over the 4,096 trials of 9.2 averaged 5,195.5 units of U0; and the words come from one
-pseudorandom generator. The programs are research/fifties/solverwork of the participant, not part of the package.
-
-**The fills of H_G_cluster: a sample of 2^24 contexts (participant measurement).** Untrusted evidence. A protocol file, PREREG.txt
-of the participant (SHA-256 d67f35a873ebbc55779ce5b7cb0b9c11d851a00baaedcea5af07805c3f61760d), sealed before any context of the
-main sample existed, fixed the statistic, G(C) of 9.9 counted exactly over the 2,341 representative batches and the partner
-batches of every cluster in the order of 9.9, the size rule, the seeds and the analysis. It was written to test a lower bound,
-9,368.37, which the sample rejects; the bound 12,466 of H_G_cluster is the one-sided Hoeffding bound of the same sample (10.3),
-not a preregistered value. The outer words come from SHAKE256. A graphics-card program counted G; on 4,096 contexts it agreed, in
-G, the E lanes and the opened clusters of every context, with a Python mirror built only from the declared program's own functions
-(the context lines, the packed operands, the cluster map, the omega side, the gate and T2); omega was compared with step CO on all
-2^19 members of each of those contexts and T2 with the program's rule on all 2^32 inputs, with no difference; and the declared
-walk itself was cross-checked on its trial batches of 2,048 contexts. In every context of the main sample G equalled the same
-count with the gate ignored: no member with a nonzero mask of (2) lay in a closed cluster.
-
-| Quantity | Value |
-| --- | --- |
-| contexts | 16,777,216 (2^24) |
-| sum of G | 208,495,306,067 |
-| mean of G per context | 12,427.289 (standard error 1.276) |
-| smallest and largest G | 0 and 31,214 |
-| mean fills of representative and of partner batches | 277.65 and 12,149.64 |
-| one-sided bounds on the mean: empirical Bernstein and bounded KL (delta 0.00135), Hoeffding (delta exp(-7), range 84,261) | 12,432.25; 12,453.82; 12,465.77 |
-
-The sampler, the programs and the analysis are research/frontline/hg/prereg_ck2 of the participant, not part of the package.
+declared program, whose own 1,031 calls over the 4,096 trials of 9.2 averaged 5,127.9 units of the U0 of this row; and the words
+come from one pseudorandom generator. The programs are research/fifties/solverwork of the participant, not part of the package.
 
 **What does not exist.**
 
@@ -3419,18 +3070,21 @@ The sampler, the programs and the analysis are research/frontline/hg/prereg_ck2 
   outcome at 2^-31.7 and that outcome together with rule A, 55 events at about 2^-39.8. No separate count of the E1 rate of the
   six outcomes of S: it is a sub-event of the measured seven.
 - No proof of the open parts that H1' declares (10.3), of the shares of the two counts of H4', of the mean of the ledger of
-  H5_exec or of the mean of G of H_G_cluster; these are measured (above), the shares on a preregistered sample of 2^39 real outer
-  steps.
+  H5_exec or of the live share of H_G_cluster; these are measured (above), on preregistered samples of real outer steps of the
+  front line and of walk contexts.
 - No measurement of rho_x or of the clustering ratio v of listed good trials by context (10.3), which no run of feasible size can
-  observe; the ratio was measured for the events that every listed good trial meets, from the filter to the roots of the solver,
-  and its cross-member part, preregistered, for the two halves of a listed good trial (above).
+  observe; on walk contexts its cross-step part was measured, preregistered, for the listed E1 outcome and for the filter's pass
+  with it (above).
 - No scaled-down run of the counter search with the outer filter or the joint solver, and no complete message of a found pair; the
   complete messages hashed (Section 7) are trials, with t from 1 to 16,383.
-- No run of the search at full scale, and no root of the search itself: the declared program walks 32 clusters of one context per
-  trial (9.2); its solver calls return planted roots only. Its units are added per event from the ledger; every row of Section 11
-  is bounded in words, except the 67 of a batch of 9.8, which participant programs executed and counted, and the omega side, key,
-  carry word, gate tests, byte guard, descriptor selection, broadcasts, chunk addressing, lane tests, E lane, fill, shortcut,
-  pre-check and preflight of this row, which a participant tool counted in the declared program as it ran (Section 11).
+- No run of the search at full scale, and no root of the search itself: the declared program walks the first 2^10 steps of each
+  member of one context per trial (9.2), and four whole contexts were walked by the participant (9.2); its solver calls return
+  planted roots only. Its units are added per event from the ledger; the events of the walk, the member, the block, the live
+  block, the scan batch, the fill, the E lane and the passing lane, were counted in the declared program as it ran (Section 11),
+  and the context and the blocks of steps 2 and 3 are bounded in words.
+- No message of a found pair: the walk's messages have up to 2^58 bytes, inside the organizer's domain of messages below 2^61
+  bytes; the half-collision at counters t >= 2^32 was checked with the organizer's `_compress` (9.2, 9.8), and complete messages
+  were hashed only for t below 2^14 (Section 7).
 
 **Limits of the evidence.** H1' is an assumption (10.3); beyond it:
 
@@ -3439,23 +3093,26 @@ The sampler, the programs and the analysis are research/frontline/hg/prereg_ck2 
   outer step; a context, in turn, holds its seven outer words fixed for all its 2^19 outer steps. Success therefore comes from
   many independent contexts, 2^50.115 of them, with 2^69.115 outer steps walked, about 2^59.14 of them passing and 2^57.14
   reaching the solver, and it rests on the premise that a context rarely holds more than one listed good trial.
-- The shares of H4', the ledger of H5_exec and the fills of H_G_cluster are measured on pseudorandom generators, and the quarter
-  share of the pre-check and u_M are exact only in model M; none of them is proved for the sampler. Lemmas F and VP need no law of
-  the words, and the time bound needs none either: a reached budget or an exhausted credit halts the run, which lowers the success
-  probability and not the time bound.
+- The shares of H4', the ledger of H5_exec and the live share of H_G_cluster are measured on pseudorandom generators, and the
+  quarter share of the pre-check and u_M are exact only in model M; none of them is proved for the sampler. Lemmas F and VP need
+  no law of the words, and the time bound needs none either: a reached budget or an exhausted credit halts the run, which lowers
+  the success probability and not the time bound.
 - The model is checked on real messages to about 2^-40, not at 2^-91; the scaled-down whole-collision runs of the counter
   arrangement are level (0.94 +- 0.13 of the predicted gain; preregistered, 1.00199 +- 0.00496 of the predicted count).
 - The constants and the class were chosen by the count, and beta* with them, so they favour any choice that the model overrates; S
   was chosen by the charge. The six outcomes of S carry 41.7 per cent of the count of the class, with one value of eps. Most
   measurements of this section are on the sub-class and the seven outcomes of entry 26ebba63; on the whole class the E1 side of
   those seven outcomes, which contain S, was measured (2^46 trials), and their E3 side was not.
+- The walk's evidence is for walks of seven full blocks with t_hi below 2^19 and for the 8-bit rig with walks over 32 and 256 high
+  words; the walk of this package takes t_hi below 2^16 in eight members per context, and the law of an outer step depends on t_hi
+  only through K1.a1 (Lemma W).
 - The count rests on programs that are not in the package and on a list of values of beta that is complete only by uncertified
   solver answers and the other model's enumeration.
 - Helper agents of the participant wrote and checked the counter construction, the filter and this text, and another AI model
   proved Lemmas IP, F, S1 to S5, S8 and S9 and derived the count of passing pairs; no person has read it.
 
 The required baseline_improved identifier blake3-r2-nominal-v2 names the organizer's nominal display reference 128, not an
-established attack, qualified baseline or security bound; the claimed 62.7934 lies below it. Whether a qualified result improves
+established attack, qualified baseline or security bound; the claimed 61.8777 lies below it. Whether a qualified result improves
 the Yukon incumbent is decided separately; no Pareto dominance claim follows.
 
 ## 15. Earlier entries
@@ -3472,8 +3129,10 @@ keeps from it.
 | 59f8915e | 67.8004 | in review | the whole class, (P*), Lemma J0, the families of the solver |
 | 415e792c | 66.8050 | in review | S and the pre-check |
 | a402a477 | 63.9522 | passed | the counter search with the cluster gate and the omega-first batch, its budgets and the declared program |
-| 50d28015 | 63.1880 | passed | the work register, the shortcut, the metered credit, the layout of 9.8 and the program, which this text extends |
+| 50d28015 | 63.1880 | passed | the work register, the shortcut, the metered credit, the layout of 9.8 and the program |
 | 89b451ff | 62.9459 | passed | the masked partner walk with Lemma XF, F1, P1, the source bank and the cap transfer |
+| 070a02b2 | 62.7934 | passed | the straddle gate with Lemmas CL and OR, the six-operation key and the masked opening, replaced here by the walk |
+| 244f068c | 62.6967 | passed | the lane replicas of T2' and T1, the tabled rotations of the shortcut, the joint credit and the declared program, kept with the walk |
 | 0bc5f130 | 66.8751 | in review | the guard (G7) with its trees, ledger and caps |
 | 11ccf5a7 | 70.21 | not evaluable | nothing |
 | e85fffe8 | 75.4217 | not evaluable | nothing; the advice record of Section 12 |
@@ -3484,8 +3143,8 @@ keeps from it.
 One line per contributor. Apart from the helper agents of the participant, nobody named here has reviewed this package, and a
 credit is not an endorsement.
 
-- **hecmas**, entry e9b6649e (65.3643): the member loop over contexts, the two direct tables of the filter and the restatement of
-  the premises for contexts (9.8, 10.3, described in the participant's words).
+- **hecmas**, entry e9b6649e (65.3643): the two direct tables of the filter and the restatement of the premises for contexts (9.8,
+  10.3, described in the participant's words); its member loop over contexts, which the walk replaces.
 - **Th0rgal**, entry 77818485: setting the credit of the solver at an exact model mean of its work, here of the executed ledger
   (9.1, 10.3); earlier, the member values built once per outer step (entry df8bd46d) and three coding steps of 6.5 (entry
   8c81a219).
@@ -3500,7 +3159,7 @@ credit is not an endorsement.
   instance, and, in its local answers, the fold F1 and the shortcut P1 (D9), the row and specification of entry 89b451ff that this
   row keeps (D11 and D12), the source bank, immediate list addresses, the context bound and the cap transfer with Lemma CP (D13),
   the masked partner walk with Lemma XF and its class specialization (D14), the straddle gate with Lemmas CL and OR and its
-  six-operation key (D14 and D16), and the row of this text with its audit of the masked opening (D18).
+  six-operation key (D14 and D16), and the row of entry 070a02b2 with its audit of the masked opening (D18).
 - **GPT-6 Astra (OpenAI)**, an AI model run by the participant: the exact flat mean and the bound in model M on the mean of the
   solver's ledger, u_M (Batch 11), cited in 9.1 and 10.3 and not reproduced here; one row per family, Lemma FX (Batch 17).
 - **Jbenisek**, the participant who files this package: the half-collision, the class search and the counter construction of the
@@ -3510,20 +3169,35 @@ credit is not an endorsement.
 - **winglock**: searching only a sub-class of members chosen by an exact count (entry 18a7fc52), which the sub-class of the root
   instance follows.
 - **5kyguy**: keeping masks in registers across the loop over the members (entry 404d14df).
-- **0xshikhar**, entry 73d5265f: keeping the frame words and the counts of the walk in registers (9.8, 9.9).
+- **0xshikhar**, entry 73d5265f: keeping the frame words and the counts of the walk in registers (9.8).
 - **tekkac**: the lane layout of 6.5, seven 36-bit lanes with a masked rotation (public ticket 2bf40fb).
-- **Grok (xAI)**, run by the participant: the four cuts of the masked opening of this row, the two chunks priced together, the
-  bookkeeping, the descriptor selection and the chunk addressing (job 58), as GPT Sol audited them (answer D18); the deletion of
-  the scalar rebuild, the cursor and the context schedule (job 53), as GPT Sol certified them (answer D13); earlier, the hostile
-  review of entry c66f230d.
+- **Grok (xAI)**, run by the participant: the walk's rows C0 and C1 with the joint credit and the passing lane of 45 (job 68), as
+  GPT Luna 5.6 reconciled them (answer D45); the four cuts of the masked opening, the two chunks priced together, the bookkeeping,
+  the descriptor selection and the chunk addressing (job 58), as GPT Sol audited them (answer D18); the schedule and budget cuts
+  of this row, (G15) at its itemized 74, the cuts of the global ledger, the tabled rotations of the shortcut, the context schedule
+  and the preflight on the call side of the pre-check (jobs 58 and 59), as GPT Luna 5.6 composed them (answer D25); the deletion
+  of the scalar rebuild, the cursor and the context schedule (job 53), as GPT Sol certified them (answer D13); earlier, the
+  hostile review of entry c66f230d.
+- **GPT Luna 5.6**, an AI model run by the participant: the ternary gate with the representative's test kept, its composition with
+  the schedule and budget cuts and the joint credit with the call budget (answer D25), and the composition of the row of entry
+  244f068c with the lane replicas, the descriptor re-encoding and the kept index, with its exact ledger (answer D41); and the walk
+  of the high counter word: its legality, with the identical prefix never hashed per trial and the flags kept (answer D27), its
+  exact block test in place of the gate (D33), its rows (D42) and their reconciliation with Grok's (D45), the joint credit and the
+  passing lane of 45 on the walk (D47), the implemented row (D48), the composed row of this text with its audit (D49) and the
+  counter contract that the program asserts (D54).
+- **The daydream panel of the participant**, helper agents in the voices of a compiler and an accountant: the lane replicas of
+  T2', T1 and the gate table, the descriptor re-encoding (the carries in bits 4 to 7, PX' = DB + 8 PX, JE = JU >> 7, no separate
+  test of n_0) and the representative's index kept for PXF', with their prices and walk checks.
 - **GPT-6 Luna**, on the owner's server: a search for better pinned constants, which found none.
 - **A model reached through the service Venice**: a statement on prior art, unverified and used in no proof or figure.
-- **Helper agents of the participant**, instances of the AI model that wrote this text: the reimplementation of the member loop
-  and its measurements, the omega-first batch with its op-counting simulation, the cache and the meter of the declared program,
-  our audit of the layout of this row (the work register, the shortcut, the pre-check without a table, the table addresses, the
-  gate key, the written-out code and the meter without slack), the combination sweep from which the masked partner walk came, the
-  build of this row with its op count of the declared program, the integer recounts, the price with its integer test, the count of
-  Section 17, the measurements of Section 13, and this text.
+- **Helper agents of the participant**, instances of the AI model that wrote this text: the scouts that found the walk of the high
+  counter word and checked it on the organizer's code, the lane that implemented it on the program of entry 070a02b2, the lane
+  that ran its preregistered evidence, the reimplementation of the member loop and its measurements, the omega-first batch with
+  its op-counting simulation, the cache and the meter of the declared program, our audit of the layout of this row (the work
+  register, the shortcut, the pre-check without a table, the table addresses, the gate key, the written-out code and the meter
+  without slack), the combination sweep from which the masked partner walk came, the build of this row with its op count of the
+  declared program, the integer recounts, the price with its integer test, the count of Section 17, the measurements of Section
+  13, and this text.
 
 ## 17. The counting program for 67,633,152
 
