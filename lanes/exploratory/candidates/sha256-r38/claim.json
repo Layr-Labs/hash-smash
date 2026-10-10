@@ -5,17 +5,17 @@
   "attack_class": "ordinary-collision",
   "rounds": 38,
   "claim": {
-    "time_log2": 132,
+    "time_log2": 128.1244,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
+    "memory_log2_bytes": 137,
     "preprocessing_log2": 123,
     "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Samples 2^128 independent uniform 48-byte complete messages with replacement; no chosen IV, digest truncation, or output-distribution assumption.",
-    "Classical probabilistic 256-bit word RAM using the independent uniform word primitive of collision-frontier-v5; no PRNG substitution.",
-    "Worst-case single-batch resource upper bounds include unsuccessful batches; no restart or amplification is required for success_probability 0.39."
+    "Uniform independent 48-byte complete messages, evaluated from the standard IV with the exact prescribed padding.",
+    "One capped trial, at most 2^128 samples; two independent length-2^128 random tables with 130-bit entries, 2^130 bucket heads and separate chaining. No random-oracle assumption.",
+    "Infeasible analytical word-RAM construction, not an executed collision search; every full compression is charged at 1. Lookup work and cap-failure probability are explicitly charged."
   ],
   "baseline_improved": "sha256-r38-nominal-v2",
   "certificate_manifest": "certificates/manifest.json",
