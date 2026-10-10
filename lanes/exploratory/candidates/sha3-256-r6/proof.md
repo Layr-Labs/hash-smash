@@ -1,4 +1,4 @@
-# SHA3-256 with 6 prefix rounds: Gray-order enumeration of two-round-affine cosets, time_log2 122.66823
+# SHA3-256 with 6 prefix rounds: Gray-order enumeration of two-round-affine cosets, time_log2 122.54436
 
 ## 1. Claim
 
@@ -9,9 +9,20 @@ lane and bit encoding; the digest is the first 32 squeeze bytes; messages are di
 below 2^64; reference `verifier/keccak.py:sha3_256`. Postcondition: "The two complete sha3-256-r6 sponge hashes agree
 on all 256 output bits." The algorithm CAMP of Section 8 outputs two distinct 135-byte messages with equal digests.
 
+This package is a derivative of Jbenisek's submission ab10cd11 (time_log2 122.66823; credits in Section 14). It
+changes one component: the Briggs-Torczon sparse-set table of ab10cd11 (at most 9 operations per candidate, a dense
+array of Q words, verification of one earlier candidate) is replaced by a tagged table of pair identifiers (5
+operations per candidate at even and 6 at odd emission index, 5.5 on average, no dense array; each candidate path
+verifies both members of the stored pair; the tagged table with pair identifiers is that of winglock's 0215bb60),
+Section 7. Sections 8 to 11, 12.3 and 13 are updated for it: the
+detection lemma for the last writer of a key, the cap with an allowance for garbage paths (a proved bound), the
+ledger, the sensitivity table and the experiment program's table, candidate path and counts. The field W40 and its
+certificate, the FES schedule, chi and transpose, the setup, G, kappa, the premise H_coset and all of its evidence
+(Section 12.1, 12.2, Appendix A) are those of ab10cd11, unchanged.
+
 | Quantity | Value |
 |---|---|
-| time_log2 (collision-frontier-v5, reference operation cost 1626, rounded up) | 122.66823 (Section 10) |
+| time_log2 (collision-frontier-v5, reference operation cost 1626, rounded up) | 122.54436 (Section 10) |
 | success probability | at least 0.39 over CAMP's fresh coins (random coset origins), under premise H_coset (Section 9) |
 | memory | below 2^141 words of 256 bits, below 2^146 bytes (Section 11.1) |
 | preprocessing (included in time) | at most 2^70 + 16 word operations, below 2^59.34 target compressions (Section 11.2) |
@@ -22,8 +33,8 @@ random 256-bit word" (Section 6.1), and every probability in this document is ov
 One premise is declared (Section 12): **H_coset**, that over these coins the occupancy, key-match and triple bounds of
 Section 9 hold for the messages CAMP enumerates (the bounds that independent uniform digests would give). Everything
 else is proved here: two-round affinity on every coset of W40, degree at most 8 before the last chi, exactness of the
-Gray-order finite differences and of their initialization, correctness of the sparse-set table for arbitrary initial
-memory, the duplicate-coset bound, and every operation count. Section 12 gives the premise's evidence: reduced-width
+Gray-order finite differences and of their initialization, correctness of the tagged table for arbitrary initial
+memory with the bound on its garbage candidate paths, the duplicate-coset bound, and every operation count. Section 12 gives the premise's evidence: reduced-width
 tests that the organizer executes (the declared experiments), preregistered GPU counts of 32- to 64-bit digest
 projections of up to 2^34 messages (Appendix A: protocols with their hashes, programs, raw counts and validation
 printouts), and the effect of a pair-rate shortfall on the claim.
@@ -225,12 +236,12 @@ immediate operand of its instruction and costs no operation. Generating and stor
   round buffers, D and wrap words, coefficient and derivative records), the NOT pattern of w(S) at every setup point
   and the constant words of the folded setup rounds (Section 6.3), the basis constants w_b in two-word form, the
   butterfly masks and the eight words of Section 5.4, at each emission site of the chi phase the record offset and
-  the two words of sum_b g(i)_b w_b of its candidate, the constant lanes of the folded verification rounds
-  (Section 7), the byte-table bases, the verification-count word, the spill words and the region bases.
-- **Computed at run time and charged:** the two random words of each coset origin (Section 6.2), the coset-record
-  address in the leader step and in verification (shifts, add, second-word add), the decoding of the earlier
-  candidate and its byte-table addresses in verification. The table addresses cost nothing: the key word is its own
-  sparse address, and the identifier register and the sparse word are dense addresses (Section 7).
+  the two words of sum_b g(i)_b w_b of its candidate, the constant lanes of the folded candidate-path rounds
+  (Section 7), the byte-table bases, the candidate-path count word, the spill words and the region bases.
+- **Computed at run time and charged:** the two random words of each coset origin (Section 6.2) and the tag word
+  (Section 11.2), the coset-record address in the leader step and on candidate paths (shifts, add, second-word add),
+  the decoding of the stored pair and its byte-table addresses on candidate paths. The table address costs nothing:
+  the key word is its own table address (Section 7).
 
 ### 5.2 Key and cone
 
@@ -251,7 +262,7 @@ x_p = f_p(g(i)) by Lemma 5, and x_p is stored into the buffer word X[p][i].
 **Registers.** The 61 records of the cached set CR, the 31 nonempty subsets of {0..4} and the 30 subsets of {0..5}
 that contain 5 other than {5} and {0, 5}, are held in registers for the whole plane, with x_p and two chain
 temporaries: 64 registers. The group index h is the only value live across the setup and this phase (the
-verification count is a memory word and the identifier is formed from h afterwards, Section 6.2); it is stored to a
+candidate-path count is a memory word and the register c is spilled with it, Section 7); it is stored to a
 fixed word right after the leader step and loaded back after the FES phase, 2 operations per group, so the setup
 (Section 6.3) and the FES phase have all 64 registers.
 
@@ -319,7 +330,7 @@ Per Gray point and group:
 
 and per group 4664 * 2^40 + 175 (2^40 - 1) with the buffer LOADs. The chi phase holds no current value in a register:
 the five values of one z, the tile, one temporary and two butterfly scratch registers, then the 16 key words of a
-column step, besides the identifier register cid (Section 7).
+column step, besides the register c (Section 7).
 
 ## 6. Outer cosets and setup
 
@@ -330,8 +341,9 @@ cost model's primitive "independent uniform random 256-bit word": t_j = r_0 + (r
 therefore independent and uniform on F_2^320; they are CAMP's only coins, and every probability below is over them,
 for the fixed target. Group h (h < G) holds the cosets j = 256 h + c, c = 0..255. The candidate (h, i, e) (Gray point
 i, emission index e = 16 l + tau, lane c = 16 tau + l) is the message M(t_j XOR sum_b g(i)_b w_b) with j = 256 h + c;
-its identifier is cid = h 2^48 + 256 i + e < 2^128. Inside each coset the enumeration is the fixed Gray order of
-span(W40). CAMP probes the candidates in increasing cid, so cid is also the number of candidates probed before it.
+its identifier is cid = h 2^48 + 256 i + e < 2^128 and its pair identifier n = cid >> 1 = h 2^47 + 128 i + (e >> 1).
+Inside each coset the enumeration is the fixed Gray order of span(W40). CAMP probes the candidates in increasing cid,
+so cid is also the number of candidates probed before it.
 
 **Lemma 7 (distinct messages).** Let D be the event that the C cosets t_j + span(W40) are pairwise distinct. On D the
 Q = 2^48 G candidates are pairwise distinct messages, and Pr[not D] <= C(C, 2) 2^-280 = 2.4380...e-32 < 2.5e-32.
@@ -348,8 +360,8 @@ The event not D (a duplicate coset) is counted as a failure in Section 9; no dup
 For lane c of group h: j = H8 OR c with H8 = h * 2^8 (1); two random words r_0, r_1 (2); r_1 AND (2^64 - 1) (1); the
 record address CSB + 2j (shift, add: 2); two STOREs of t_j into the global coset record with the second-word add (3);
 two STOREs into the lane's working frame (2). This is 11 operations per coset. Group control is 5 per group:
-H8 = h * 2^8 before the leader step, the identifier cid = h * 2^48 after the FES phase (Section 5.3), and after the
-chi phase the next index h = cid >> 48 (cid is then (h + 1) 2^48), its compare with G and the branch. S_v
+H8 = h * 2^8 before the leader step, and after the chi phase the next index h = (c AND (2^128 - 1)) >> 47 (two
+operations; the register c of Section 7 then holds TAG 2^128 + (h + 1) 2^47), its compare with G and the branch. S_v
 (Section 6.5) charges exactly these 11 C + 5 G operations.
 
 ### 6.3 Bit-sliced evaluation (13,616 per group, 62,710 + popcount(w(S)) per point)
@@ -426,7 +438,7 @@ the generated code of the same point before any of its LOADs reads them (a const
 never read), A[S] by the linear step of point S (the transform reads only such records), tab[T] by the phase
 conversion before the FES phase, the buffer word X[p][i] by the FES phase before the chi phase, and the 144 tile
 words at every Gray point before its column step; the next group's setup rewrites the frames before reading them.
-The coset record of j is written by the leader step before any candidate of coset j exists. The verification-count
+The coset record of j is written by the leader step before any candidate of coset j exists. The candidate-path count
 word and the byte tables are written in preprocessing, the spill words by each use before they are read back
 (Sections 5.3, 7).
 
@@ -439,61 +451,71 @@ point-zero loads (Section 5.4):
     S_g = 2,821 + 13,616 + 62,710 P_D + 4,592,341,856 + 700 J_D + 350 V_D + 175 = 6,924,290,022,308,
     S_v = G S_g = 8,324,727,858,445,183,221,990,590,914,749,247,816.
 
-## 7. Sparse-set table and verification
+## 7. Tagged table and candidate paths
 
-The table is a Briggs-Torczon sparse set over the 140-bit key, indexed by the candidate identifier. The key word
-k = key + 2^140 (Section 5.4) is its own sparse address: SPARSE[key] is the word at address k, in [2^140, 2^141).
-DENSE[x] is the word at address x (x < Q). The identifier register cid = h 2^48 + 256 i + e (Section 6.1) is the
-current candidate; it runs through 0, 1, ..., Q - 1 in probe order. The probe of the key word k (in its register)
-executes exactly, in two scratch registers s and f:
+The table TAB is a never-initialized array over the 140-bit key: the key word k = key + 2^140 (Section 5.4) is its own
+address, so TAB[key] is the word at address k, in [2^140, 2^141). The register c holds TAG 2^128 + n, where TAG is a
+uniform 128-bit value drawn once per run (one random word AND (2^256 - 2^128), in the one-time control of Section 11.2)
+and n is the pair identifier of the current candidate (Section 6.1): the candidates e = 2k' and e = 2k' + 1 of one
+Gray site of one group form one pair. n < Q/2 < 2^127, so c never carries into the tag; c is never reset, and at the
+start of group h it holds TAG 2^128 + h 2^47. The probe of the key word k (in its register) executes exactly, in two
+scratch registers w and f:
 
 ```
-s = LOAD [k]                         1   (s is arbitrary if the word was never written)
-STORE [cid] = k                      1   DENSE[cid] = k, on every path
-f = (s < cid);  BRANCH f             2   bound test fails -> miss                   (6 with the miss)
-f = LOAD [s];  f = (f == k);  BRANCH f    3   dense test fails -> miss              (9 with the miss)
-hit:  verification of s against cid, then the increment                            (8)
-miss: STORE [k] = cid                1
-cid = cid + 1                        1   (every path)
+w = LOAD [k]                         1   (w is arbitrary if the word was never written)
+f = w XOR c;  f = (f < 2^128)        2   the high half of w equals TAG
+BRANCH f                             1   -> candidate path on the pair (w AND (2^128 - 1)), which returns here
+STORE [k] = c                        1   (every path)
+c = c + 1                            1   at odd e only (the pair is complete)
 ```
 
-Every candidate costs at most 9 table operations, charged as 9 Q. The probe uses no register beyond s, f, the key
-word and cid.
+Every candidate costs 5 table operations at even e and 6 at odd e. The two alternate and Q is even, so the table is
+charged exactly 11 Q/2 = 5.5 Q. The probe uses no register beyond w, f, the key word and c.
 
-**Lemma 8 (sparse set, any initial memory).** At the probe of candidate cid with key k: (a) DENSE[x] = key(x) for
-every x < cid; (b) for every key k' of a candidate x < cid, SPARSE[k'] holds the first candidate with key k'; (c) the
-probe hits iff some candidate x < cid has key k, and then it returns the first such candidate.
+**Lemma 8 (tagged table, any initial memory).** At the probe of a candidate x with key k: (a) if some earlier candidate
+has key k, then TAB[key] = TAG 2^128 + n(d) for the last such candidate d, and the probe starts a candidate path on
+the pair of d; (b) otherwise TAB[key] holds its initial content, and the probe starts a candidate path iff the high
+half of that content equals TAG. After the probe TAB[key] = TAG 2^128 + n(x).
 
-*Proof.* Induction over probes. (a) The probe of x stores DENSE[x] = key(x) and no other probe writes word x. If some
-x < cid has key k, let x0 be the first: no candidate before x0 has key k, so by (c) the probe of x0 missed and stored
-SPARSE[k] = x0; SPARSE[k] is stored only by misses of key k, and every later probe of k hits by the same argument, so
-SPARSE[k] = x0 < cid and DENSE[x0] = k: the probe hits and returns x0. If no x < cid has key k, the word SPARSE[k] was
-never written and holds an arbitrary s: either s >= cid and the bound test fails, or s < cid and DENSE[s] = key(s) != k
-by (a); both miss, and the miss stores SPARSE[k] = cid, the first candidate with key k, preserving (b). DENSE is read
-only at s < cid, at written words. QED.
+*Proof.* Every probe ends with STORE [k] = c = TAG 2^128 + n(x) at its own key word (a candidate path that does not
+stop the run returns to it), and nothing else writes the region [2^140, 2^141) (address map below). So the last write
+to TAB[key] before the probe of x is the STORE of the last earlier candidate with key k, if there is one, and its
+high half is TAG because n < 2^128; otherwise the word was never written. QED.
 
-No word is initialized and no initial content matters: Lemma 8 is the valid-access argument for the never-written
-sparse array.
+**Garbage paths (proved).** Let Z be the number of candidate paths started at never-written words (case (b)). The
+initial memory is arbitrary but fixed before the run, TAG is independent of the coset origins, and the keys, hence
+the probes that read a word for the first time, are functions of the origins. Given the origins, each such probe
+starts a candidate path with probability exactly 2^-128 over TAG; probes that a stop prevents are not executed. Hence
+E[Z | origins] <= Q 2^-128 for every value of the origins, and E[Z | D] <= Q/2^128 < 1.
 
-**Verification (charged 2664 operations: two six-round evaluations, 2 x 1271 = 2542, and at most 122 others).** The
-verification count F is a memory word: it is loaded, incremented, stored, compared with R140 and branched on (5); the
-current identifier is the cid register. The live registers (the 15 key words of the column step other than the one
-just probed, which is not read again, and cid; the chi phase holds no current value, Section 5.4) are stored to a
-fixed spill frame (16) and loaded back after the comparison (16), so the scalar schedule has the register file (at
-most 25 input and 25 output lanes, 5 D words and 2 rotation temporaries, beside the first digest and one identifier:
-62 registers; a constant lane is an immediate and needs none).
+**Candidate path (charged 3980 operations: three six-round evaluations, 3 x 1271 = 3813, and at most 167 others).**
+The candidate-path count F is a memory word: it is loaded, incremented, stored, compared with R (Section 9) and
+branched on (5). The live registers (the 15 key words of the column step other than the one just probed, which is not
+read again, and c; the chi phase holds no current value, Section 5.4) are stored to a fixed spill frame (16) and
+loaded back at the end (16). The stored pair identifier is p = w AND (2^128 - 1) (1). The scalar schedule then has
+the register file: during the first evaluation at most 25 input and 25 output lanes, 5 D words and 2 rotation
+temporaries (57) beside p; during the second, the current digest (4) and the two source words of the second member
+(2), 63 registers; a constant lane is an immediate and needs none.
 
-- **The earlier candidate (62)**, a run-time identifier s: e = s AND 255; i = (s >> 8) AND (2^40 - 1);
-  c = ((e AND 15) << 4) OR (e >> 4); j = ((s >> 48) << 8) OR c; the record address CSB + 2j; two LOADs of t_j with
-  the second-word add; g(i) = i XOR (i >> 1) (17 together); for each byte b = 0..4 of g(i), v = (g >> 8b) AND 255
-  (one operation for b = 0) and from each of the two tables TB_{b,0} and TB_{b,1} the add of its base, a LOAD and
-  an XOR into word 0, resp. 1, of t_j (8 per byte, 7 for byte 0: 39); lanes 0..4 (6: lanes 0..2 by two shifts and
-  three 64-bit masks, lane 3 by one shift, the first word >> 192 being below 2^64, and lane 4 is the second word
-  itself, below 2^64).
-- **The current candidate (15).** Its probe runs in the code generated for Gray site i at emission e (Section 11.2),
-  so i and e are immediates there: the hit path of each emission holds CSB + 2c and the two words of
-  sum_b g(i)_b w_b. The rebuild is h = cid >> 48, two shifts to 2^9 h, the add of CSB + 2c, two LOADs with the
-  second-word add (7), two XORs with the immediate words (2) and the lanes as above (6).
+- **The current candidate (17).** Its probe runs in the code generated for Gray site i at emission e (Section 11.2),
+  so i and e are immediates there: the candidate path of each emission holds CSB + 2c and the two words of
+  sum_b g(i)_b w_b. The rebuild is h = (c AND (2^128 - 1)) >> 47, one shift to 2^9 h and the add of CSB + 2c (4),
+  two LOADs with the second-word add (3), two XORs with the immediate words (2), two STOREs of the two source words
+  to the spill frame (2) and the lanes (6: lanes 0..2 by two shifts and three 64-bit masks, lane 3 by one shift, the
+  first word >> 192 being below 2^64, and lane 4 is the second word itself, below 2^64). Then its six rounds (1271)
+  give the current digest lanes 0..3.
+- **The stored pair (66)**, a run-time identifier p = h' 2^47 + 128 i' + k': k' = p AND 127; i' = (p >> 7) AND
+  (2^40 - 1); the lane of the member e = 2k' is c0 = ((k' AND 7) << 5) OR (k' >> 3) and the member e = 2k' + 1 has
+  lane c0 + 16 (7 together); the record address CSB + 2 (((p >> 47) << 8) OR c0) (5); four LOADs of the two coset
+  records, at offsets 0, 1, 32 and 33, with three adds (7); g(i') = i' XOR (i' >> 1) (2); for each byte b = 0..4 of
+  g(i'), v = (g >> 8b) AND 255 (one operation for b = 0) and from each of the two tables TB_{b,0} and TB_{b,1} the add
+  of its base and a LOAD, with an XOR into the running sum for b >= 1 (8 per byte, 5 for byte 0: 37); the XOR of the
+  two-word sum into the four record words (4); and the four source words stored to the spill frame (4).
+- **Each member (at most 1293).** Its lanes (6) and six rounds (1271); the digest lanes compared with the current
+  digest, a compare and a branch per lane, leaving at the first difference (at most 8). If all four lanes are equal,
+  the two source words of the member and of the current candidate are loaded from the spill frame and compared (two
+  XORs, an OR and a branch, 8): if they differ, CAMP outputs the two messages and stops; if they are equal (the member
+  is the current candidate itself, or a garbage path names it) the path continues.
 - **The six rounds (1271 per message).** Lanes 10..14 are the registers of lanes 0..4, and the fourteen zero lanes
   and the padding lane 16 = 0x86 * 2^56 are immediates. The rounds run as code generated once with the folding rule
   of Section 6.3 on 64-bit lanes: an operation is emitted only when its result is not fixed by the constants, a
@@ -505,35 +527,39 @@ most 25 input and 25 output lanes, 5 D words and 2 rotation temporaries, beside 
   permutation call, giving the native digest lanes 0..3. Folding changes no lane (the argument of Lemma 10 on 64-bit
   lanes), and the pattern is the same for every message.
 
-Then at most four compares and branches (8). Total at most 5 + 2 * 16 + 62 + 15 + 8 = 122 besides the two six-round
-evaluations. If F reaches R140 the run stops (failure). The byte tables TB_{b,k} (b = 0..4, k = 0, 1) hold for each
-byte value v word k of the XOR of w_{8b+j} over the set bits j of v; the ten tables (2,560 words) are written once
-in preprocessing (Section 11.2).
+Then the return to the site's STORE: a register set to 1 and a branch on it (2). Total at most 5 + 16 + 1 + 17 + 1271
++ 66 + 2 * 1293 + 16 + 2 = 3980; without the comparisons, exactly 3948. If F reaches R the run stops (failure). An
+output is always two messages with different source words, hence different messages (Lemma 1), and equal native
+digests, whatever the table content. The byte tables TB_{b,k} (b = 0..4, k = 0, 1) hold for each byte value v word
+k of the XOR of w_{8b+j} over the set bits j of v; the ten tables (2,560 words) are written once in preprocessing
+(Section 11.2).
 
-**Address map (words).** DENSE [0, Q) with Q < 2^128; coset records [2^130, 2^130 + 2C); the work region (frames,
-records, byte tables, spill words and the buffer) from 2^131, fewer than 2^48 words; generated code from 2^132, fewer
-than 2^56 words; SPARSE [2^140, 2^141). The regions are disjoint and every address is below 2^141.
+**Address map (words).** Coset records [2^130, 2^130 + 2C); the work region (frames, records, byte tables, spill
+words and the buffer) from 2^131, fewer than 2^48 words; generated code from 2^132, fewer than 2^56 words; TAB
+[2^140, 2^141). The regions are disjoint and every address is below 2^141. A garbage pair identifier p < 2^128 gives
+record addresses below 2^130 + 2^91 < 2^131 and byte-table indices below 256, so its LOADs stay at valid addresses;
+their content is whatever the memory holds.
 
 ## 8. The algorithm CAMP
 
 ```
 Preprocessing (once, Section 11.2): generate the code, constants w_b, masks and byte tables; check rank and the
-  780 polarizations of Lemma 3; h = 0; F = 0.
+  780 polarizations of Lemma 3; h = 0; F = 0; c = TAG 2^128 (TAG uniform, from one random word).
 Group h (repeated):
   Setup (Section 6): leader step of the 256 cosets j = 256 h + c, each origin t_j drawn from two fresh random
     words; the transpose of the origins into 320 bitplanes; for every |S| <= 8, in order of increasing |S|, the
     constant-folded bit-sliced evaluation of the 256 lanes into A[S]; the transform; the phase conversion.
   FES phase (Section 5.3): for p = 0..174, plane p over the Gray steps i = 1..2^40 - 1 into the buffer X[p][i].
-  cid = h 2^48.
   Chi phase: for i = 0, 1, ..., 2^40 - 1 (Gray point i):
     chi and transpose (Section 5.4) on the 175 values of point i (A[{}] at i = 0, the buffer otherwise):
       the 256 key words of the candidates (h, i, e), e = 0..255
-    for e = 0..255: probe the key word (Section 7); on a hit with s: verification of s against cid;
-      if the digests are equal, output the two messages and stop; if F reached R140, stop with failure
-  h = cid >> 48; if h = G, stop with failure.
+    for e = 0..255: probe the key word (Section 7); on a candidate path: both members of the stored pair against
+      the candidate (h, i, e); if a member has an equal digest and other source words, output the two messages and
+      stop; if F reached R, stop with failure; then STORE the key word, and at odd e c = c + 1
+  h = (c AND (2^128 - 1)) >> 47; if h = G, stop with failure.
 ```
 
-Every bound (G groups, 2^40 sites, R140 verifications) is a halt of the algorithm, and every candidate is probed
+Every bound (G groups, 2^40 sites, R candidate paths) is a halt of the algorithm, and every candidate is probed
 exactly once, so the operation count of Section 10 is an upper bound for every run.
 
 ## 9. Success
@@ -543,19 +569,22 @@ Q = 2^48 G = 338,403,298,031,900,219,834,956,980,958,854,643,712 candidates, lam
 0.4944931595636236108406620045... and T40 = sum_{k=0..40} lambda^k / k!.
 
 **Lemma 9 (detection).** Suppose D holds (Lemma 7), the candidates contain two with equal digests, the run does not
-stop at the R140 cap, and there is no bad triple: candidates A, B, C, A not in {B, C}, with digest(B) = digest(C),
+stop at the cap R, and there is no bad triple: candidates A, B, C, A not in {B, C}, with digest(B) = digest(C),
 key(A) = key(B) and digest(A) != digest(B). Then CAMP outputs a collision.
 
-*Proof.* Let C be the first candidate in probe order that has an earlier candidate B with the same digest, and k its
-key. By Lemma 8 the probe of C hits and returns the first candidate A0 with key k (A0 precedes or equals B). If
-digest(A0) = digest(B), the verification of A0 against C finds equal digests and CAMP outputs the two messages, which
-are distinct on D (Lemma 7). Otherwise A0 != B; A0 has the key of B and C and a different digest, a bad triple. QED.
+*Proof.* Let C be the first candidate in probe order that has an earlier candidate B with the same digest, k its key,
+and d the last candidate before C with key k (B has key k, so d exists and is B or later). If d != B, then d is not
+in {B, C} and has the key of B, so digest(d) = digest(B) as there is no bad triple. By Lemma 8 (a) the probe of C
+starts a candidate path on the pair of d, which evaluates both members of that pair, d among them. d precedes C, so
+on D they are distinct messages with different source words and equal digests, and CAMP outputs a collision there,
+or earlier: every output is two distinct messages with equal native digests (Section 7). QED.
 
 **Random variables.** Over CAMP's coins (the origins t_j), let F1 be the event that no two of the Q candidates have
 equal digests, X the number of unordered pairs of candidates with equal 140-bit keys, and Y the number of bad triples
 of Lemma 9. Let mu140 = Q(Q - 1)/2^141, r140 = ceil(mu140) = 41,080,884,463,506,626,072,264,787,223,246,591, the
-Chebyshev parameter kappa = 19,345,871,228,983 and R140 = r140 + ceil(sqrt(kappa r140)) =
-41,080,884,464,398,111,069,785,063,816,008,882.
+Chebyshev parameter kappa = 19,345,871,228,983, R140 = r140 + ceil(sqrt(kappa r140)) =
+41,080,884,464,398,111,069,785,063,816,008,882 and the cap R = R140 + 2^100 =
+41,082,152,114,998,339,299,186,560,519,214,258. Z is the number of garbage paths (Section 7).
 
 **Premise H_coset (Section 12).** Conditioned on D: (a) Pr[F1 | D] <= 1/T40; (b) E[X | D] <= mu140 and
 Var[X | D] <= mu140; (c) E[Y | D] <= lambda (Q - 2)/2^140 = 0.000120059210262853... .
@@ -568,56 +597,60 @@ lambda (Q - 2)/2^140. H_coset asserts these three bounds for CAMP's randomized e
 
 **Theorem.** Over CAMP's fresh coins and under H_coset, CAMP outputs a collision with probability greater than 0.39.
 
-*Proof.* If D holds, F1 fails, X < R140 and Y = 0, then CAMP outputs a collision: on D the candidates are distinct
-messages (Lemma 7); every verification follows a hit, which pairs the probing candidate with an earlier candidate of
-equal key, so the verification count stays at most X < R140 and the cap never stops the run; Lemma 9 applies. Hence
+*Proof.* If D holds, F1 fails, X < R140, Z < 2^100 and Y = 0, then CAMP outputs a collision: on D the candidates
+are distinct messages (Lemma 7); a candidate path started at a written word pairs the probing candidate with the last
+earlier candidate of equal key (Lemma 8 (a)), and distinct probing candidates give distinct pairs, so
+F <= X + Z < R140 + 2^100 = R and the cap never stops the run; Lemma 9 applies. Hence
 
-    Pr[failure] <= Pr[not D] + Pr[F1 | D] + Pr[X >= R140 | D] + Pr[Y >= 1 | D].
+    Pr[failure] <= Pr[not D] + Pr[F1 | D] + Pr[X >= R140 | D] + Pr[Z >= 2^100 | D] + Pr[Y >= 1 | D].
 
 (0) Pr[not D] <= C(C, 2) 2^-280 = 2.4380395092434897...e-32 (Lemma 7, proved).
 (i) Pr[F1 | D] <= 1/T40 by (a).
 (ii) By (b) and Chebyshev's inequality, as R140 - mu140 >= ceil(sqrt(kappa r140)) >= sqrt(kappa mu140):
 Pr[X >= R140 | D] <= Var[X | D]/(R140 - mu140)^2 <= mu140/(kappa mu140) = 1/kappa.
-(iii) Pr[Y >= 1 | D] <= E[Y | D] <= lambda (Q - 2)/2^140 by (c) and Markov's inequality.
-The exact rational comparison of the four terms (integer numerators) gives
+(iii) Pr[Z >= 2^100 | D] <= E[Z | D]/2^100 <= Q/2^228 = 7.845047465...e-31 by Section 7 (proved) and Markov's
+inequality.
+(iv) Pr[Y >= 1 | D] <= E[Y | D] <= lambda (Q - 2)/2^140 by (c) and Markov's inequality.
+The exact rational comparison of the five terms (integer numerators) gives
 
-    C(C, 2) 2^-280 + 1/T40 + 1/kappa + lambda (Q - 2)/2^140 = 0.6099999999999999999999999999530923062... < 61/100,
+    C(C, 2) 2^-280 + 1/T40 + 1/kappa + Q/2^228 + lambda (Q - 2)/2^140 = 0.6099999999999999999999999999538768109... < 61/100,
 
 G is the least group count for which this holds at this kappa (G - 1 gives a bound of at least 61/100), and kappa
-is the least parameter for which it holds at this G (kappa - 1 gives at least 61/100). Hence the success
-probability over the coins is greater than 0.3900000000000000000000000000469. QED.
+is the least parameter for which it holds at this G (kappa - 1 gives at least 61/100); both are the values of
+ab10cd11. Hence the success probability over the coins is greater than 0.3900000000000000000000000000461. QED.
 
 ## 10. Cost ledger and certificate
 
-All charges are word operations of Section 5.1; no permutation call is made (verification evaluates the six rounds
-in word operations, Section 7).
+All charges are word operations of Section 5.1; no permutation call is made (candidate paths evaluate the six
+rounds in word operations, Section 7).
 
 | term | value |
 |---|---|
 | FES, G F_g (Section 5.3) | 4,178,382,793,083,497,526,493,178,625,755,871,925,554 |
 | chi and transpose, G (4664 * 2^40 + 175 (2^40 - 1)) (Section 5.4) | 6,396,615,465,532,466,027,266,398,022,000,940,761,378 |
 | setup, S_v = G S_g (Section 6.5) | 8,324,727,858,445,183,221,990,590,914,749,247,816 |
-| table, 9 Q | 3,045,629,682,287,101,978,514,612,828,629,691,793,408 |
-| verification, 2664 R140 | 109,439,476,213,156,567,889,907,410,005,847,661,648 |
+| table, 11 Q/2 | 1,861,218,139,175,451,209,092,263,395,273,700,540,416 |
+| candidate paths, 3980 R | 163,506,965,417,693,390,410,762,510,866,472,746,840 |
 | preprocessing, ONCE = 2^70 + 16 | 1,180,591,620,717,411,303,440 |
 
-    N = G F_g + G (4664 2^40 + 175 (2^40 - 1)) + G S_g + 9 Q + 2664 R140 + ONCE
-      = 13,738,392,144,974,667,284,566,679,098,024,512,693,244,
+    N = G F_g + G (4664 2^40 + 175 (2^40 - 1)) + G S_g + 11 Q/2 + 3980 R + ONCE
+      = 12,608,048,091,067,553,337,665,184,765,529,146,525,444,
 
-about 40.5976 operations per candidate. The time is N/1626 target compressions, and the integer certificate
+about 37.2575 operations per candidate (ab10cd11: 40.5977). The time is N/1626 target compressions, and the integer
+certificate
 
-    1626^100000 * 2^12266822 <= N^100000 < 1626^100000 * 2^12266823
+    1626^100000 * 2^12254435 <= N^100000 < 1626^100000 * 2^12254436
 
-gives log2(N/1626) = 122.6682254..., so time_log2 = 122.66823 (rounded up at the fifth decimal).
+gives log2(N/1626) = 122.5443571..., so time_log2 = 122.54436 (rounded up at the fifth decimal).
 
 ## 11. Memory, preprocessing and advice
 
 ### 11.1 Memory
 
-SPARSE: 2^140 words (never initialized); DENSE: Q words; coset records: 2C words (the retained random origins); work:
+TAB: 2^140 words (never initialized); coset records: 2C words (the retained random origins); work:
 working frames 512, tile words 144, bitplanes 320, transpose words 3, input words 320, round buffers 5 * 1,600, D
 words 320, wrap words 5, coefficient and derivative records 2 * 175 * P_D, the byte tables 2,560, the
-verification-count word, 17 spill words and the buffer 175 (2^40 - 1), which every group reuses (fewer than 2^48
+candidate-path count word, 23 spill words and the buffer 175 (2^40 - 1), which every group reuses (fewer than 2^48
 words in all); generated code and its constants: fewer than 2^56 words. The regions are disjoint (Section 7) and
 every address is below 2^141, so memory is below 2^141 words of 32 bytes, below 2^146 bytes.
 
@@ -626,12 +659,12 @@ every address is below 2^141, so memory is below 2^141 words of 32 bytes, below 
 (a) **Code generation.** Each of the 175 (2^40 - 1) FES step sites (plane p, Gray step i) is decoded (the set bits of
 i, the record addresses of T_1..T_L in plane p and their cache and last-change flags) in fewer than 2^14 operations
 and emits at most 1 + 3 * 7 + 2 = 24 instructions; each of the 2^40 chi-phase sites is decoded (with the two
-words of sum_b g(i)_b w_b) in fewer than 2^14 operations and emits at most 4664 + 175 + 9 * 256 + 15 * 256 = 10,983
-instructions (the table steps of its 256 emissions and, on each hit path, the 15 operations of the current
+words of sum_b g(i)_b w_b) in fewer than 2^14 operations and emits at most 4664 + 175 + 6 * 256 + 17 * 256 = 10,727
+instructions (the table steps of its 256 emissions and, on each candidate path, the 17 operations of the current
 candidate, Section 7); the setup code (leader step, transpose, every point with the NOT pattern of w(S) and the
 folded rounds, transform pairs and phase terms) has one instruction per operation of S_g, fewer than 2^46, each
 generated in at most 16 operations; the folding pattern of the setup rounds (the same at every point) and the
-verification code (1,271 instructions per message, a rotation counted as its four) come from one symbolic pass over
+candidate-path code (1,271 instructions per message, a rotation counted as its four) come from one symbolic pass over
 the 1,600 state words of each round and over the 25 lanes, fewer than 2^25 operations. In all fewer than 2^54
 instructions; at four words per instruction the code is below 2^56 words and is generated in fewer than 2^62
 operations.
@@ -649,7 +682,7 @@ x -> (B(x, w_i))_{i<35} (columns from 320 x 35 x 4 two-round evaluations; Gaussi
 56,000 bits), the polar form on a basis of K / span(w_0..w_34) (6 vectors, 15 polarizations), and a maximal totally
 isotropic extension (its radical and one line), giving w_35..w_39; then the rank and 780-polarization check above.
 With two-round evaluations below 2^12 operations each, steps 1 to 3 cost fewer than 2^34 operations.
-(d) **One-time control.** h = 0 and F = 0, at most 16 operations.
+(d) **One-time control.** h = 0, F = 0 and c = TAG 2^128 (one random word and an AND), at most 16 operations.
 (e) **Byte tables.** For each of the ten tables (b, k), b = 0..4, k = 0, 1: one zero STORE for v = 0, then each
 entry v = 1..255 from entry v - 2^j (j the lowest set bit of v) by LOAD, XOR with the immediate word k of w_{8b+j}
 and STORE: 10 (1 + 255 * 3) = 7,660.
@@ -787,11 +820,11 @@ close to -(1/2) log2(1 - eps) in every row. Only the row eps = 0 is claimed.
 
 | eps | success at this N | least G | N at that G | E | time_log2 | extra |
 |---:|---:|---:|---:|---:|---:|---:|
-| 0 | > 0.39 | 1,202,250,025,869,134,545,910,402 | 13,738,392,144,974,667,284,566,679,098,024,512,693,244 | 12,266,823 | 122.66823 | 0 |
-| 0.01 | > 0.386976 | 1,208,310,394,929,860,051,769,630 | 13,808,199,848,717,445,574,424,908,359,501,653,091,524 | 12,267,554 | 122.67554 | 0.00731 |
-| 0.05 | > 0.374732 | 1,233,502,149,326,011,439,979,945 | 14,098,436,263,582,001,265,330,443,203,244,377,390,214 | 12,270,555 | 122.70555 | 0.03732 |
-| 0.10 | > 0.359083 | 1,267,326,018,839,002,222,734,854 | 14,488,275,173,184,530,570,448,955,663,089,112,535,836 | 12,274,490 | 122.74490 | 0.07667 |
-| 0.25 | > 0.309746 | 1,388,387,996,102,778,879,505,654 | 15,885,001,522,036,501,004,488,966,638,787,378,976,916 | 12,287,768 | 122.87768 | 0.20945 |
+| 0 | > 0.39 | 1,202,250,025,869,134,545,910,402 | 12,608,048,091,067,553,337,665,184,765,529,146,525,444 | 12,254,436 | 122.54436 | 0 |
+| 0.01 | > 0.386976 | 1,208,310,394,929,860,051,769,630 | 12,672,431,762,680,913,390,282,569,710,341,994,503,660 | 12,255,171 | 122.55171 | 0.00735 |
+| 0.05 | > 0.374732 | 1,233,502,149,326,011,439,979,945 | 12,940,150,996,996,820,611,833,844,228,471,224,151,890 | 12,258,187 | 122.58187 | 0.03751 |
+| 0.10 | > 0.359083 | 1,267,326,018,839,002,222,734,854 | 13,299,831,732,142,565,666,663,833,082,006,150,862,728 | 12,262,143 | 122.62143 | 0.07707 |
+| 0.25 | > 0.309746 | 1,388,387,996,102,778,879,505,654 | 14,589,317,649,448,781,863,429,149,105,121,535,018,428 | 12,275,493 | 122.75493 | 0.21057 |
 
 **Scope and extrapolation.** The evidence covers projections of at most 64 digest bits: 32-bit within-coset and 44-bit
 global projections of single lanes on 2^30 messages (batches 1 to 3), 36- to 64-bit projections of single lanes and
@@ -826,10 +859,10 @@ with its event.
   of the trial's seed. This seed expansion only makes the run reproducible; it is not the attack's randomness, which
   is the fresh random-word primitive of Section 6.2.
 - Reduced size: the first 2^9 Gray points of each coset (directions w_0..w_8), D = 8, all 175 planes, the full
-  140-bit key and the sparse-set table of Section 7 with Q' = 2^17 candidates and the verification cap of the same
-  formula (4,398,396).
-- Every operation of the leader step, the setup schedule, the FES phase, chi and transpose, the table and
-  verification runs through a counting machine (one call per primitive of Section 5.1; no permutation call; the
+  140-bit key and the tagged table of Section 7 with Q' = 2^17 candidates and the candidate-path cap of the same
+  formula (4,398,396 + 2^100).
+- Every operation of the leader step, the setup schedule, the FES phase, chi and transpose, the table and the
+  candidate paths runs through a counting machine (one call per primitive of Section 5.1; no permutation call; the
   generated code of the folded rounds runs one instruction, one primitive, at a time), and the program stops unless
   the executed counts equal the formulas above: 11 per coset leader and 5 per group; 13,616 for the transpose; at
   every point 640 + popcount(w(S)) for the input, 1,978, 11,659, 14,735, 14,733 and 14,735 for rounds 0 to 4 and
@@ -837,20 +870,24 @@ with its event.
   4 * 175 J_D and 2 * 175 V_D for transform and phase; the step count of Section 5.3 at every plane and Gray step and
   62 + Sc + 2^9 - 1 - U = 3,799 per plane (Sc = 3,419 and U = 193 by the formulas of Section 5.3 at n = 9), 2 per
   group for the spill, every buffer word written once and 175 buffer reads per point i >= 1, 175 point-zero loads,
-  4664 per point, 6 / 9 / 8 table operations per candidate (each probe), 7,660 for the byte tables, 62 for the
-  earlier and 15 for the current candidate, 67, 236, 242, 242, 242 and 242 for the six folded rounds of each, and at
-  most 2664 operations per verification, the 16-register spill included. It also checks
+  4664 per point, 5 table operations per candidate at even e and 6 at odd e (1,408 per point), 7,660 for the byte
+  tables, 66 for the stored pair and 17 for the current candidate, 67, 236, 242, 242, 242 and 242 for the six folded
+  rounds of each of the three messages, and 3,948 plus the comparisons, at most 3,980, per candidate path, the
+  16-register spill included. It also checks
   Sc61 = 18,760,331,006,174, U = 19,311,426 and pop_D = 4,592,341,856 at n = 40.
 - The counted bit-sliced setup of Section 6.3 runs on all 256 lanes at all 511 points. The bitplanes must equal the
   origins bit for bit, and every coefficient record must equal, on every lane, an independent evaluation that is not
-  counted (rounds 0 and 1 by Lemma 3 (b), then rounds 2 to 4 and the linear step). Never-written sparse
-  words read as a fixed pseudo-random function of their address, either a word of at least 2^255 or h 2^48 plus a
-  value below 2 Q', so fresh keys often reach the dense test (arbitrary initial memory; the dense words of earlier
-  groups do not exist in a one-group run); a read of a never-written work, dense or coset word stops the program.
+  counted (rounds 0 and 1 by Lemma 3 (b), then rounds 2 to 4 and the linear step). Never-written table words read
+  as a fixed pseudo-random function of their address (arbitrary initial memory): one in 4,096 holds the tag over a
+  pair identifier of the group, so garbage candidate paths run and are verified in full; the others have a high half
+  different from the tag. The tag is one counted random word (from SHAKE-256 of the group's first seed and "/tag"),
+  ANDed with 2^256 - 2^128; the register c starts at TAG 2^128 + h 2^47, its value after groups 0 .. h - 1. A read
+  of a never-written work or coset word stops the program.
 - Beside the algorithm, not counted: at point i the message of lane i mod 256 is hashed natively and its 140 key bits,
   with bit 140 set, are compared with the emitted key word (key_mismatch); after the run the first candidate's key is
-  probed again (a valid hit, 8 operations) and verified against the candidate (i, e) = (1, 5), with the
-  reconstructed sources and digests compared with the native ones.
+  probed again (4 operations; its word names pair 0) and the candidate path runs against the candidate (i, e) =
+  (0, 1), the second member of that pair (equal digest and equal source words: the path continues), followed by the
+  STORE; the reconstructed sources and digests of the three messages are compared with the native ones.
 - Also beside the algorithm, in fes-campaign-reduced: own_pairs16, the number of unordered pairs of the trial's own
   512 candidates whose emitted keys agree on their low 16 bits (bits 0..3 of digest lanes 0..3). Uniform digests give
   C(512, 2)/2^16 = 1.996 per trial and 511 per 256 trials; a local 256-trial request gave 527 (z = +0.71).
@@ -865,17 +902,28 @@ with its event.
 
 In fes-campaign-reduced the program reports 16 numbers per trial: own_pairs16 (its own coset), and 15 that are the
 same for all trials of a group: fes_ops = 664,827 (175 * 3,799 + 2); buffer_reads = 89,425 (175 * 511); chi_transpose_ops = 2,387,968
-(4664 * 512); table_ops = 6 (2^17 - x - m) + 9 x + 8 m with x = in_range_mismatches and
-m = key_matches; sparse_inserts = 2^17 - m; leader_ops = 2,821 (11 * 256 + 5); setup_group_ops = 13,616 (the
+(4664 * 512); table_ops = 720,896 (1,408 * 512); table_stores = 2^17; garbage_paths and key_matches, the candidate
+paths started at never-written and at written table words; leader_ops = 2,821 (11 * 256 + 5); setup_group_ops = 13,616 (the
 transpose); setup_point_ops = 32,058,340 (62,710 * 511 + 13,530); transform_phase_ops = 2,419,200;
-verify_check_ops (at most 8 + 2664); perm_calls = 0; native_checks = 512; key_mismatch = 0. In hcoset-within16 and
-hcoset-cross16 it reports, the same for all trials of the group, these 15 without buffer_reads and sparse_inserts
+verify_check_ops (at most 4 + 3,980 + 1); perm_calls = 0; native_checks = 512; key_mismatch = 0. In hcoset-within16 and
+hcoset-cross16 it reports, the same for all trials of the group, these 15 without buffer_reads and table_stores
 (checked inside the program) and pairs16_within, pairs16_cross and pairs24_cross. The program also asserts
-point_zero_loads = 175 and once_ops = 7,662 (control 2, byte tables 7,660) without reporting them. No trial of
+point_zero_loads = 175 and once_ops = 7,664 (control 4, byte tables 7,660) without reporting them. No trial of
 fes-campaign-reduced returns a pair: a 256-bit collision among 2^17 messages has probability below 2^-222. Nothing
 about cost is inferred from the runs, and the premise tests are evidence at 16 and 24 bits, not at 256 bits.
 
 ## 14. Credits
+
+This package is a derivative of Jbenisek's ab10cd11 (time_log2 122.66823). All of the following is theirs and
+unchanged: the message family and the field W40 with its certificate, the degree bound and the Gray-order finite
+differences, the plane-major FES schedule, chi fused into the transpose, the bit-sliced setup, the duplicate-coset
+bound, G and kappa, premise H_coset with all of its evidence (Section 12, Appendix A), and the experiment program
+and its premise tests apart from the table and candidate-path code. Changed here (Claude Opus 5.5 via Claude Code):
+the tagged table of pair identifiers, the candidate path that verifies both members of the stored pair with a
+source-word comparison, Lemmas 8 and 9 for the last writer, the garbage-path bound and the cap R = R140 + 2^100, the
+ledger, the sensitivity table, and the corresponding code and counts of experiments/fes_campaign.py. The tagged table
+with pair identifiers is the table of winglock's sha3-256-r6 package 0215bb60 (with GordoAR, 5kyguy, Th0rgal, jaazinn
+and may93182), adapted here to the coset enumeration. Credits of ab10cd11, as stated there:
 
 - GPT Sol cloud: the two-round affine field and its certificate.
 - GPT Sol local and GPT Luna: the exact ledger (initialization, schedule, setup, table and success).
