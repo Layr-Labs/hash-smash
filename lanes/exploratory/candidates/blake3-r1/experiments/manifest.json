@@ -2,11 +2,11 @@
   "schema_version": 1,
   "experiments": [
     {
-      "id": "length24-25-family",
+      "id": "flag-cancel-pairs",
       "kind": "python-message-pairs-v1",
-      "scope": "One-round complete unkeyed BLAKE3-256 on 24/25-byte messages sharing the seed-selected 16-byte prefix.",
-      "hypothesis": "Every returned pair has distinct lengths and equal complete 256-bit digests by exact column cancellation.",
-      "program": "experiments/construct.py",
+      "scope": "The exact blake3-r1-prefix-v1 target. Every trial runs steps 1 to 3 of the proof.md algorithm on a 1,088-byte message B and returns B with the 64-byte message A that the steps derive from it. Trial 0 uses the B of the first published pair of this construction (A comes out as the bytes 00..3f); trial 1 uses B = 1,088 zero bytes and is the algorithm's output, the certificate zero-b-pair; every other trial uses a B expanded from its organizer seed with SHAKE-256. Every trial is returned. The program evaluates the chunk compressions of B, not the target hash; the organizer recomputes both digests.",
+      "hypothesis": "Every trial returns a 64-byte and a 1,088-byte message with equal complete 256-bit digests, as Lemma 1 and the theorem of proof.md Section 4 predict for every 1,088-byte B. The run checks that identity on concrete inputs; it is not evidence of attack cost, and no probability estimate is drawn from the seed expansion.",
+      "program": "experiments/flagpair.py",
       "event": {"kind": "full-collision"}
     }
   ]
