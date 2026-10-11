@@ -1,4 +1,4 @@
-"""v25 experiments (proof.md). PASS = (00^135, 01||00^134), FAIL = (00^135, 02||00^134)."""
+"""v25h + Appendix G (2,048-step E blocks, match loop by 256) experiments (proof.md). PASS = (00^135, 01||00^134), FAIL = (00^135, 02||00^134)."""
 import hashlib
 import json
 import math
@@ -1502,7 +1502,7 @@ def fes_setup(v0,basis,no=24):
    D[w][sum(CN[b][i+1] for i,b in enumerate(cb))]=deriv(K,gray(K-1) if w < 4 else 0)
  return deriv(0,0),D
 def ctz(low):
- lo,hi=10,24
+ lo,hi=11,24
  while hi - lo > 1:
   mid=(lo + hi) // 2
   if test(low >= (1 << mid)):
@@ -1513,7 +1513,7 @@ def ctz(low):
  return lo
 def pro(t):
  t=load(t)
- test(t + 1024 == 1 << 24)
+ test(t + 2048 == 1 << 24)
  st()
  n=0
  for _ in range(4):
@@ -1531,11 +1531,11 @@ def pro(t):
    st()
 EP = 12
 RES = ((1,0),(1,1),(2,0),(1,2),(2,1),(2,2),(3,0),(1,3),(2,3),(2,4),(3,1),(2,5),(3,2),(3,3),(1,4),(2,6),(2,7),(3,4),(2,8),(3,5),(3,6),
- (2,9),(3,7),(3,8),(3,9),(1,5),(2,10),(2,11),(3,10))
+ (2,9),(3,7),(3,8),(3,9),(4,0),(4,1),(4,2),(4,3))
 EW = 24 // EP
 SP = 62 - EW * (1 + len(RES))
-def e_blk(i0,f,D,s=0,e=1024,o=None,fs=None):
- buf=[0]*1024
+def e_blk(i0,f,D,s=0,e=2048,o=None,fs=None):
+ buf=[0]*2048
  for p in range(EP):
   ks=range(EW*p,EW*p+EW)
   R={}
@@ -1548,7 +1548,7 @@ def e_blk(i0,f,D,s=0,e=1024,o=None,fs=None):
    while len(b) < 4 and t:
     b.append((t & -t).bit_length() - 1)
     t &= t - 1
-   d,dy=len(b),sum(q > 9 for q in b)
+   d,dy=len(b),sum(q > 10 for q in b)
    rk=[sum(CN[b[v]][v + 1] for v in range(w + 1)) for w in range(d)]
    for _ in range(dy):
     load(0)
@@ -1592,11 +1592,11 @@ def e_blk(i0,f,D,s=0,e=1024,o=None,fs=None):
 def e_block(seed):
  D=[None] + [collections.defaultdict(lambda: [0] * 24) for _ in range(4)]
  OPS[0]=0
- e_blk(1024 * (h64(seed) % (1 << 14) | 15),[0] * 24,D)
+ e_blk(2048 * (h64(seed) % (1 << 13) | 15),[0] * 24,D)
  s,mx=OPS[0],0
- for b in range(1,1 << 14):
+ for b in range(1,1 << 13):
   OPS[0]=0
-  pro(1024 * b)
+  pro(2048 * b)
   mx=max(mx,OPS[0])
  return s == E_STEPS and mx == E_PRO,{"block_steps": s,"pro_max": mx}
 def fes_trial(seed,no=11):
@@ -1616,15 +1616,15 @@ def fes_trial(seed,no=11):
  o[0]=ps
  ok,mx=(ps>>p)&1==1,0
  OPS[0]=0
- pro(1024)
+ pro(2048)
  ok=ok and 0 < OPS[0] <= E_PRO
- for blk in range(1<<no-10):
+ for blk in range(1<<no-11):
   OPS[0]=0
-  e_blk(1024*blk,f,D,blk==0,1024,o,fs)
+  e_blk(2048*blk,f,D,blk==0,2048,o,fs)
   mx=max(mx,OPS[0])
-  for r in range(1024):
-   y=gray(1024*blk+r)
-   for q in ((p,77,200) if blk+r==0 else ((1024*blk+r)*37%256,)):
+  for r in range(2048):
+   y=gray(2048*blk+r)
+   for q in ((p,77,200) if blk+r==0 else ((2048*blk+r)*37%256,)):
     x=v0
     for j in range(8+no):
      if (((y<<8)|q)>>j)&1:
@@ -1632,7 +1632,7 @@ def fes_trial(seed,no=11):
     e=e_plain(x)
     ok=ok and all(((fs[r,k]>>q)&1)==1-e[k] for k in range(24)) and ((o[r]>>q)&1)==int(all(e))
  return ok and mx <= E_STEPS,{"block_max": mx}
-E_PRO, E_STEPS = 87, 207920
+E_PRO, E_STEPS = 87, 410392
 def linv(A):
  B = [rot(A[y + 5 * ((2 * x + 3 * y) % 5)], 64 - RHO[x + 5 * y]) for y in range(5) for x in range(5)]
  Q = [B[x] ^ B[x + 5] ^ B[x + 10] ^ B[x + 15] ^ B[x + 20] for x in range(5)]
@@ -1840,7 +1840,7 @@ def keywords(v):
  return kw
 SW = [sum(c << 8 * i for i in range(32)) for c in (0x55, 0x33, 0x0F, 0x11)]
 HM = sum(255 << 16 * i for i in range(16))
-UNR = 16
+UNR = 256
 def per_a(A,e,M,mcap):
  a=[load(w) for w in A]
  e=W(e) - 0
@@ -1925,7 +1925,7 @@ def match_trial(seed):
  v=VA[h64(seed)%len(VA)]
  OPS[0]=0
  res=match_run(to_planes(v),[to_planes(VB[i]) for i in range(37)],64,[W(0)],M_CAP)
- ok=ok and OPS[0]==PER_A+37*MATCH_STEP+6
+ ok=ok and OPS[0]==PER_A+37*MATCH_STEP+3*(37//UNR)
  for i,(dec,asn) in enumerate(res):
   x=v^VB[i]
   ok=ok and asn==((x|x>>1|x>>2|x>>3|x>>4)&FM).bit_count()
