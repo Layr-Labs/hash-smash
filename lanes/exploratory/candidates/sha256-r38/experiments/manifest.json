@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "vt-q3-smc-r38",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/vt38.py",
+      "event": {
+        "kind": "full-collision"
+      },
+      "scope": "H2 (proof.md 6.2, 10.1). experiments/vt38.py runs q3_experiment: trials 0..19 each run one reduced replicate of the preregistered variant-averaged SMC estimator of q3 (row 16 exact over the 32 words of G; NP 64; 128, 4, 4, 1, 1, 1 children per particle at rows 17..22; 512 tail proposals per particle with the W23 x-value cells and its four two-bit conditions imposed; each tail proposal draws a variant from 512 embedded variants drawn uniformly from the variant set; randomness from random.Random seeded with SHAKE-256 of the trial seed). Every tail success is rebuilt (W0..W6 by the inverse expansion, CV1 by inverting steps 7..0 of that variant) and accepted only if F_38(CV1, M1) = F_38(CV1, M1') with M1 != M1', the variant's Step-2 words map CV1 back to W0..W7, W7 is in F7 and every cell of rows -4..37 holds. Trial t < 20 returns its first accepted pair as the 96-byte strings CV1||M1 and CV1||M1'; trial 20 returns a pair iff all 20 trials had a success, all were accepted, and the mean of the 20 estimates is >= 2^-101.45; trials 21..255 return no pair by design.",
+      "hypothesis": "Returned pairs: 21. Full collisions: 0 (the strings are semi-free-start collisions from CV1, not collisions from the IV; they can be checked offline with the 38-step compression). Each replicate is an unbiased estimate of the variant-averaged q3 (preregistered 2^-101.0) with relative sd about 0.34. The pass rule (mean of 20 >= 2^-101.45) was fixed from 1,120 development replicates before any validation run: a true q3 equal to their mean fails it with probability below 10^-4, one lower by 0.55 bit about 90% of the time by that bootstrap (79% under a gamma model with the replicates' relative sd); it is a check at about 0.4-bit resolution, and no independence of the organizer's trials is assumed. The package's ledger uses q3_model = 2^-102 (proof.md 6.2): a true q3 that low would fail the rule with probability above 0.996, so a pass supports q3 > q3_model. Validation: 35 requests of own seeds and the public seed: 21 returned pairs each, every tail success accepted; q3_experiment's output is byte-identical across the four program versions (six requests replayed on the third; the public seed and three own seeds on the shipped fourth, proof.md Appendix C). Observations: log2_estimate, tail_successes, verified_pairs, failed_rebuilds (0), survivors per row; trial 20 log2_pooled_mean."
+    },
+    {
+      "id": "vt-ram-r38",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/vt38.py",
+      "event": {
+        "kind": "full-collision"
+      },
+      "scope": "The counted online program (proof.md 5.3, 10.2) against the reference construction on real first blocks. Per organizer seed: two 256-bit words from SHAKE-256 of the seed are the program's two RAND outputs; its prologue unpacks M0 and computes CV1 = F_38(IV, M0); then 32 A0 blocks (A0 indices 32t..32t+31 mod 256) run with a table oracle whose bucket holds one entry, the embedded valid variant of that A0 (in general not a row-16 hit). Checks: M0 is the unpack of the two words, CV1 equals the reference compression, every block requests the table index (Y, Z0) that the reference computes from (CV1, A0) (Lemma 5), and the program enters its row-17 path exactly for the entries whose reference W7 is in F7, with E17 - c17(g) equal to the reference pair's W17, its four work counters equal to the reference counts, its executed operations at most the ledger's charge for those counters, and its static path costs equal to the ledger's (asserted at every run; levered program of proof.md Appendix C). Returns M0||M1 and M0||M1' of the first block's variant (128 bytes each) only if every check passed, so the number of returned pairs is the organizer-visible count of mismatch-free trials. The group epilogue and loop run once.",
+      "hypothesis": "Returned pairs: 256 (every trial mismatch-free); full collisions 0 (a returned pair is one variant of one chaining value, never a collision). About 32 p2 = 2.14 W7 passes per trial (548 over 256 trials) under H1; the total should lie between 457 and 639 (four binomial standard deviations). Validation of the second version on 4 requests of own seeds: 256 pairs each, mismatches 0, W7 passes 548, 568, 532, 528; public-seed emulation: 256 pairs, 573; the third version's output was byte-identical on four replayed requests including the public seed. Shipped fourth version (levered program): public seed 256 pairs, 573 W7 passes, 0 mismatches; three own seeds 256 pairs each, 523, 535, 524 W7 passes. Observations: blocks (32), w7_passes, mismatches, ops (counted operations of the trial's program run), units (1), charge (the ledger's charge for the trial's counters), first_tests."
+    }
+  ]
+}
