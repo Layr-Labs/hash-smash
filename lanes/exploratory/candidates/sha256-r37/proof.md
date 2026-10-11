@@ -1,10 +1,10 @@
-# A distribution-free complete-message baseline for SHA-256 r37
+# A distribution-free complete-message baseline for SHA-256 r37 (radix sort)
 
 ## Claim and scope
 
 This package specifies a classical randomized algorithm for the exact
 `sha256-r37-prefix-v1` target in the exploratory lane. Its worst-case total
-charged time is less than `2^132` target-compression units, its peak memory is
+charged time is less than `2^131` target-compression units, its peak memory is
 less than `2^136` bytes, its preprocessing is less than `2^125` such time units,
 and its probability of returning distinct complete messages with equal full
 256-bit digests exceeds `0.39`. The probability is over fresh independent
@@ -61,21 +61,28 @@ padded block computes h, not a compression-only collision relation.
 
 ## Algorithm, data structures, and stopping rule
 
-Use two arrays A and B, each of n records. A record is three separate 256-bit
-words `(Y,U,V)`; the upper 128 bits of V are zero. There is no implicit nonce
-recovery algorithm, hash table, pointer per record, or stored list of trial
-seeds. Initialize both arrays to zero, counting this work. Sample all n messages,
-compute h once for each, and write their records into A. Discard R after forming
-V. No rejection sampling, deduplication, or early trial stopping occurs.
+Use two arrays A and B, each of n records, plus a fixed array C of 256 unsigned
+256-bit bucket counters (one per 8-bit digit value). A record is three separate
+256-bit words `(Y,U,V)`; the upper 128 bits of V are zero. There is no hash
+table, implicit nonce recovery, pointer per record, or stored list of trial
+seeds. Sample all n messages, compute h once for each, and write their records
+into A; every slot of A is written exactly once and no large-array zeroing is
+required beforehand. Discard R after forming V. No rejection sampling,
+deduplication, or early trial stopping occurs.
 
-Sort A by its entire unsigned 256-bit Y key with bottom-up two-buffer merge
-sort. At width w, initially 1, merge each consecutive pair of runs of exactly w
-records from the source into the destination, then exchange the buffer roles
-and double w. Stop after width n/2. Since n is a power of two, every pair is
-full and there are exactly 128 passes. Copy all three record words on every
-emission. Compare full digest keys and choose the left run on equality. This
-sorting procedure has a distribution-independent work bound even when every
-digest or every message is the same.
+Sort A by its entire unsigned 256-bit Y key with 32 stable least-significant-first
+8-bit radix passes using counting sort. For pass index `p` in `0..31`, let
+`digit_p(Y)` be byte `p` of Y in big-endian byte order (byte 0 is most
+significant). Each pass: (1) set C[0..255] to zero with at most 256 word
+stores; (2) scan every record in the source buffer, increment `C[digit_p(Y)]`
+with one load of Y, one shift/mask to extract the byte, one indexed load/add/store
+on C, and loop control; (3) convert C to exclusive-end positions by a single
+left-to-right prefix scan of 256 words; (4) scan the source again and scatter
+each record to the destination at index `C[d]` then increment `C[d]`, copying
+all three words. Exchange source and destination roles. After 32 passes the
+source buffer holds records sorted by full Y. Every pass touches every record
+twice and performs O(256) bucket work; the procedure has a distribution-independent
+worst-case bound even when every digest or message is identical.
 
 The following is inert algorithmic pseudocode, not an experiment program.
 Indices in this description count records; the implementation maintains word
@@ -86,17 +93,14 @@ for t = 0,...,n-1:
     U = RANDOM256(); R = RANDOM256(); V = R AND (2^128-1)
     form (B0,B1) as above; Y = COMPRESS37_WITH_FEEDFORWARD(IV,B0,B1)
     A[t] = (Y,U,V)
-src = A; dst = B; w = 1
-while w < n:
-    for l = 0,2*w,4*w,...,n-2*w:
-        i = l; j = l+w; left_end = l+w; right_end = l+2*w
-        for k = l,...,right_end-1:
-            if i == left_end: p = j; j = j+1
-            else if j == right_end: p = i; i = i+1
-            else if src[i].Y <= src[j].Y: p = i; i = i+1
-            else: p = j; j = j+1
-            dst[k] = src[p]   # all three words
-    exchange(src,dst); w = w+w
+src = A; dst = B
+for p = 0,...,31:
+    zero C[0..255]
+    for i = 0,...,n-1: C[digit_p(src[i].Y)] += 1
+    exclusive_prefix(C)
+    for i = 0,...,n-1:
+        d = digit_p(src[i].Y); j = C[d]; C[d] = j+1; dst[j] = src[i]
+    exchange(src,dst)
 for k = 1,...,n-1:
     if src[k-1].Y == src[k].Y:
         if (src[k-1].U != src[k].U) OR (src[k-1].V != src[k].V):
@@ -113,16 +117,17 @@ fail after a true table match. No restart or success amplification is used.
 Failures from samples containing no distinct-input collision return FAILURE
 after the bounded scan; their entire work is included in the claim.
 
-Merge correctness follows by induction on w: one-record runs are sorted;
-choosing the smaller unconsumed front key preserves order and emits every
-record exactly once. All equal digest keys are therefore consecutive in the
-final array. If any equal-key run contains two different messages, some adjacent
-records in that run have different messages: otherwise transitivity of equality
-would make the whole run one repeated message. Consequently the adjacent scan
-finds a distinct-input collision whenever one exists among the samples, even
-if other records are repeated copies of an input. Conversely the final explicit
-check prevents returning anything other than two distinct complete target inputs
-with equal full digests. Returning the same sampled input twice is not success.
+Radix correctness follows by induction on p: after pass p the records are stable
+sorted on the p+1 least significant bytes of Y; stable counting sort preserves
+order within equal digits, and 32 bytes cover the full 256-bit key. All equal
+digest keys are therefore consecutive in the final array. If any equal-key run
+contains two different messages, some adjacent records in that run have different
+messages: otherwise transitivity of equality would make the whole run one
+repeated message. Consequently the adjacent scan finds a distinct-input collision
+whenever one exists among the samples, even if other records are repeated copies
+of an input. Conversely the final explicit check prevents returning anything
+other than two distinct complete target inputs with equal full digests.
+Returning the same sampled input twice is not success.
 
 ## Distribution-free success bound
 
@@ -212,13 +217,10 @@ spilled, fit the same convention. All loops below are iterative; no recursion
 stack or multiword comparison routine is needed. A branch back can use a fixed
 true condition. Loop tests, increments, moves and branches are charged.
 
-Initialization: zero the `6*n` array words in a pointer loop. A word takes at
-most four elementary statements (store, pointer increment, comparison and
-branch), or 32 primitives. The bound `256*n` therefore covers all array clearing,
-including its end tests and initial pointers for n >= 2. Load/initialize the
-fixed program, constants and scratch area within an additional `2^24` primitives.
-This initialization is counted as preprocessing, even though the two large
-arrays could instead have been written lazily.
+Initialization: load the fixed program, constants, bucket base, buffer pointers
+and scratch within at most `2^24` ordinary primitives. The sample loop writes
+every record slot of A; radix scatter writes every destination slot each pass.
+No separate `6*n` array zeroing is performed or charged.
 
 Sampling and hashing: allow 128 elementary statements, or 1024 ordinary
 primitives per trial, besides the one priced compression. This covers the two
@@ -232,32 +234,16 @@ record stores, pointer operations and loop control at most 32. Their sum is
 100, below 128. The standard schedule, 37 rounds and feed-forward are in the
 priced compression primitive, not additional free hash computations.
 
-Sorting: at most 256 ordinary primitives per emitted record per pass, with an
-additional fixed overhead of at most `2^24` primitives for all pass boundaries
-and final verification together. The following expansion establishes the per
-record bound instead of treating comparison sorting as a unit-cost black box:
-
-| Emission work in a word-pointer implementation | Elementary statements, at most |
-| --- | ---: |
-| Left/right exhaustion tests, two front-key loads, key comparison/branch | 5 |
-| Choose source pointer and advance that run by three words | 2 |
-| Load and store the three fields using offsets 0, 1 and 2 | 6 |
-| Advance destination, output loop control, dispatch/back branches | 7 |
-| Reserved spill/address temporaries beyond those already counted | 4 |
-| Total per emission before pair setup | 24 |
-
-Use pointer endpoints so each exhaustion test is one comparison/branch.
-A pair's setup/advance requires at most 16 elementary statements: deriving
-run span from w with shift/add, setting two source pointers and two endpoints,
-the destination pointer/end, and advancing/testing the next pair. Each pair
-emits at least two records, so this adds at most eight elementary statements
-per emission. The combined maximum is `(24+8)*8 = 256` primitives per record.
-Nonzero constant offsets in the six field moves use at most four underlying
-operations even when address construction and moves are charged. There are
-exactly `128*n` emissions across all passes. For the 128 outer passes, fewer
-than 32 elementary statements each suffice to exchange pointers and update/test
-w; these fit amply within the stated fixed overhead. No bucket distribution or
-expected lookup cost is assumed.
+Sorting: each of the 32 passes performs two full scans of n records plus O(256)
+bucket work. Charge at most 160 ordinary primitives per record per scan (20
+elementary statements), covering digit extraction (shift, mask, byte load),
+indexed bucket increment or scatter index update, three-word record copy on the
+scatter scan, pointer arithmetic and loop control. The two scans therefore cost
+at most `320*n` primitives per pass, hence `10240*n` across all passes. Reset
+and prefix on 256 buckets, buffer exchange and pass control for all 32 passes
+fit within a fixed overhead of at most `2^24` primitives together with final
+verification output work below. No expected-time bucket size or hash-table lookup
+is assumed.
 
 Scanning: charge 256 ordinary primitives per adjacent pair, rounded to `256*n`.
 The worst case has two digest loads, comparison/branch, four message-word loads,
@@ -273,12 +259,12 @@ The combined conservative ledger is consequently
 
 | Category | Selected compressions | Ordinary primitives, upper bound |
 | --- | ---: | ---: |
-| Preprocessing, including both arrays | 0 | `256*n + 2^24` |
+| Preprocessing (program, constants, pointers) | 0 | `2^24` |
 | All n random messages and complete hashes | n | `1024*n` |
-| All 128 merge passes | 0 | `32768*n` |
+| All 32 radix counting-sort passes | 0 | `10240*n` |
 | Complete adjacency scan | 0 | `256*n` |
-| Pass boundaries, final verification and output | 2 | `2^24` |
-| Total | `n+2` | `34304*n + 2^25` |
+| Pass boundaries, bucket prefix, final verification and output | 2 | `2^24` |
+| Total | `n+2` | `11520*n + 2^25` |
 
 This includes `2*n` independent random words, even though half of each R is
 discarded. Random generation is streamed; no random tape is stored separately.
@@ -288,30 +274,32 @@ that finds a collision for later inclusion in the code.
 Thus the worst-case charged total is
 
 ```
-T <= n+2 + (34304*n + 2^25)/2644
-   = (36948*n + 2^25 + 5288)/2644
-   < 16*n = 2^132.
+T <= n+2 + (11520*n + 2^25)/2644
+   = (14164*n + 2^25 + 5288)/2644
+   < 8*n = 2^131.
 ```
 
-For the strict inequality, `16*2644 - 36948 = 5356` and
-`2^25 + 5288 < 5356*2^128`. The claim `time_log2 = 132` is therefore rounded
-up conservatively. It is not merely the birthday sample exponent 128.
-Preprocessing separately obeys
+For the strict inequality, `8*2644 - 14164 = 6988` and
+`2^25 + 5288 < 6988*2^128`. The claim `time_log2 = 131` is therefore rounded
+up conservatively. It is not merely the birthday sample exponent 128; it improves
+the prior merge-sort organizer baseline ledger at `132` by replacing comparison
+merge passes with charged radix counting sort while keeping the same birthday
+sample and distribution-free success bound. Preprocessing separately obeys
 
 ```
-P <= (256*n + 2^24)/2644 < n/8 = 2^125,
+P <= 2^24/2644 < 2^19 << 2^125.
 ```
 
-because `2644/8 - 256 = 74.5` and `2^24 < 74.5*2^128`.
 Preprocessing is already included in T; it is not added again to the score.
 
 ## Peak memory, code, and advice
 
 Each record occupies 96 bytes. Two n-record buffers use exactly `192*n` bytes;
 this includes retained complete messages (in reconstructible two-word form),
-the full digest and the unused upper half of V. Each table is initialized and
-fully charged above. No third table, sorting permutation, per-record pointer,
-auxiliary lookup structure, or retained random tape is used.
+the full digest and the unused upper half of V. The 256-word bucket array C uses
+`256*32` bytes and is reset each pass. No third record buffer, sorting
+permutation, per-record pointer, hash table, auxiliary lookup structure, or
+retained random tape is used.
 
 Reserve an additional `2^20` bytes for code, public constants, counters, stack,
 compression state/schedule, temporary record fields and output. This comfortably
@@ -319,7 +307,7 @@ admits a direct bounded-loop implementation of the above pseudocode and SHA-256:
 at most 4096 instructions, each encoded in at most four 256-bit words, use
 `2^19` bytes; fewer than 4096 additional 256-bit words of constants, schedule,
 register spill slots and I/O use `2^17` bytes. The code needs no unrolled n-sized
-program: only the sample loop, three merge loops, scan and constant-round hash
+program: only the sample loop, radix pass loops, scan and constant-round hash
 routine. A 37-word schedule, eight IV words, the first 37 public round constants
 and fixed masks fit these static bounds. Reading/initializing this storage is
 included in the fixed preprocessing allowance. Code storage is counted even
