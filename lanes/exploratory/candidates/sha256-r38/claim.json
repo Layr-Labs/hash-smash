@@ -1,24 +1,128 @@
 {
   "schema_version": 3,
-  "submission_state": "ready",
   "target_profile": "sha256-r38-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 38,
   "claim": {
-    "time_log2": 132,
+    "time_log2": 96.36422,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 123,
+    "memory_log2_bytes": 22,
+    "preprocessing_log2": 70.00282,
     "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 0
+    "nonuniform_advice_log2_bytes": 14
   },
   "restrictions": [
-    "Samples 2^128 independent uniform 48-byte complete messages with replacement; no chosen IV, digest truncation, or output-distribution assumption.",
-    "Classical probabilistic 256-bit word RAM using the independent uniform word primitive of collision-frontier-v5; no PRNG substitution.",
-    "Worst-case single-batch resource upper bounds include unsuccessful batches; no restart or amplification is required for success_probability 0.39."
+    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words. Two distinct complete two-block messages with equal digests; every output is recomputed before return.",
+    "Construction: the two-block dense-part-variant attack of ePrint 2026/1120 with (A0,A1,A2) variants (256 A0 values, 768-value A2 list), row 16 by the table-free split search of Section 5, exact tests for rows 17..37. baseline_improved names the organizer reference and asserts no improvement over any submitted score."
   ],
   "baseline_improved": "sha256-r38-nominal-v2",
   "certificate_manifest": "certificates/manifest.json",
+  "submission_state": "ready",
   "lane": "exploratory",
-  "heuristics": []
+  "experiment_manifest": "experiments/manifest.json",
+  "heuristics": [
+    {
+      "id": "H1-single-trial-chaining-value",
+      "statement": "For one group, CV1 = F_38(IV, M0) of a first block from two fresh uniform words behaves as uniform for one fixed variant: (Y, Z0) uniform per A0, W7 uniform independent of (W0, W1), first row-17 test 2^-10 given W7 pass. Groups independent.",
+      "role": "score-critical",
+      "scope": "Counter expectations, per-variant success, caps, N_G. Not output validity (every output verified).",
+      "extrapolation": "From measured chaining values to all groups; caps tolerate 6.25% above expectation.",
+      "evidence_ids": [
+        "proof:143-151",
+        "proof:257-273",
+        "experiment:splitcheck"
+      ],
+      "limitations": "A premise; joint variant events are H5."
+    },
+    {
+      "id": "H2-variant-q3",
+      "statement": "Variant- and chaining-value-averaged q3(v) = Pr[rows 16..37 hold | W7 in F7] >= q3_model = 2^-101.5.",
+      "role": "score-critical",
+      "scope": "Per-group success rate. Rests on H1 for second-block word distribution.",
+      "extrapolation": "Monte-Carlo bounds to the full variant set; half-bit margin below both bounds.",
+      "evidence_ids": [
+        "proof:152-160",
+        "proof:257-273",
+        "proof:729-743",
+        "experiment:splitcheck"
+      ],
+      "limitations": "CLT-based bounds; q3 itself unobservable."
+    },
+    {
+      "id": "H4a-allowance-characteristic-search",
+      "statement": "Obtaining the published 38-step characteristic cost at most A_C = 2^70 compressions (2^-26.4 of T; negligible at this total).",
+      "role": "score-critical",
+      "scope": "Allowance part of the ledger.",
+      "extrapolation": "Hardware-ceiling and measured-predecessor arguments restated from cited packages.",
+      "evidence_ids": [
+        "proof:218-243",
+        "proof:538-561"
+      ],
+      "limitations": "A bound, not a measurement."
+    },
+    {
+      "id": "H4b-allowance-step1-solve",
+      "statement": "Step-1 solution cost at most A_S = 2^60.",
+      "role": "supporting",
+      "scope": "Allowance part (with DEV 2^-34.5 of T).",
+      "extrapolation": "Published Step-1 figure with multi-million-fold margin, restated.",
+      "evidence_ids": [
+        "proof:218-243",
+        "proof:538-561"
+      ],
+      "limitations": "A bound, not a re-solve."
+    },
+    {
+      "id": "H4c-allowance-development",
+      "statement": "All development at most DEV = 2^60.",
+      "role": "supporting",
+      "scope": "Allowance part.",
+      "extrapolation": "Bound above any plausible development compute.",
+      "evidence_ids": [
+        "proof:218-243",
+        "proof:538-561"
+      ],
+      "limitations": "A bound."
+    },
+    {
+      "id": "H5-pairs-in-group",
+      "statement": "E[N(N-1)] <= E[N] over successful variants of one group (delta = 1); per-group success >= E[N]/2.",
+      "role": "score-critical",
+      "scope": "Success bound together with H1/H2.",
+      "extrapolation": "Measured-small pair budget; bound uses delta = 1 regardless.",
+      "evidence_ids": [
+        "proof:161-184",
+        "proof:257-273",
+        "experiment:splitcheck"
+      ],
+      "limitations": "Budget premise."
+    },
+    {
+      "id": "H6-split-search-completeness",
+      "statement": "For every (CV, A0, c9-class), the split search returns exactly the u with phi(u)+d in G (Theorem S).",
+      "role": "score-critical",
+      "scope": "Every examined group.",
+      "extrapolation": "No extrapolation (exact).",
+      "evidence_ids": [
+        "proof:100-124",
+        "proof:134-140",
+        "proof:614-644",
+        "experiment:splitcheck"
+      ],
+      "limitations": "Covers the search only."
+    },
+    {
+      "id": "H7-counted-cost",
+      "statement": "Per-line operation counts of Sections 5-6 and ledger totals of Section 8: 616 ops per L (entry: load, shift, or, s0H, xor, sub, add, mask, compare, branch, store = 15), 160 per (u,A2), caps as listed; T = 2^96.36422 units.",
+      "role": "score-critical",
+      "scope": "All charged work.",
+      "extrapolation": "No extrapolation (deterministic program).",
+      "evidence_ids": [
+        "proof:100-140",
+        "proof:187-207",
+        "experiment:splitcheck"
+      ],
+      "limitations": "None beyond machine match."
+    }
+  ]
 }
