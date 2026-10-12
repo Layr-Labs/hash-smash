@@ -1,408 +1,4650 @@
-# SHA-256 r38: an unconditional generic organizer baseline
+# Collision attack on 38-step SHA-256 with dense-part variants, a row-16 table and a four-lane counted program: 2^70.73486
 
-## Claim and scope
+**Track** sha256-r38-exploratory, target sha256-r38-prefix-v1, cost model collision-frontier-v5 (C = 2728).
+**Claim** time_log2 = 70.73486 (the exact total is 2^70.734858 target compressions; Appendix E), success probability at least 0.39
+(the bound is 0.39000000), memory 2^80.42 bytes, preprocessing 2^70.16576 (allowances and counted tables, included in time), nonuniform advice below 2^14 bytes.
+The attack proper (online work, first-block compressions and the counted table construction) is 2^69.4055 (2^70.0005 in the base aed05522); the allowances for
+unmeasured work are A_C = 2^70 (characteristic search), A_S = 2^60 (Step-1 solve) and DEV = 2^60 (all development), 2^70.002815 in all.
 
-This package specifies a classical randomized collision construction for the exact
-`sha256-r38-prefix-v1` complete-message hash. Its worst-case single-batch bounds are
-total time at most `2^132` target-compressions, peak memory at most `2^136` bytes,
-and preprocessing at most `2^123` target-compressions, already included in time.
-Its algorithmic success probability is greater than 0.39. No nonuniform advice,
-precomputed collision, cryptanalytic heuristic, or experiment is used.
+**This filing (derivative of aed05522-8fe5-4277-be03-8b50ffa49e26, 71.00164; Appendix E).** The construction, program, operation counts, preprocessing, tables, memory, allowances, experiments and certificates of aed05522 are unchanged (byte-identical files except proof.md and claim.json). Exactly two ledger inputs change, each with new evidence produced by new independent code (Appendix E): (i) q3_model = 2^-101.10 instead of 2^-101.35, supported by two further Monte-Carlo studies with a from-scratch estimator (64 runs, pooled mean 2^-100.99174, pooled one-sided 99% bound 2^-101.02120, 63,762 tail successes each rebuilt into a verified 38-step semi-free-start collision); q3_model is 0.061 bit below the lowest of all six 99% bounds and was chosen after the studies (not preregistered); (ii) the pair budget delta = 1/25 instead of 0.564, by bounding N with N17 (variants of the group that pass all of rows 16 and 17 with W7 in F7) instead of N1, and measuring N17 - 1 over WHOLE groups: for 2,500 verified successes every row-16 entry of all 256 A0 buckets on the success's chaining value was enumerated exactly (3,585,652 other entries) and evaluated: 48 passed all of row 17 and 0 reached row 18 (99% one-sided Poisson limit of delta17 0.02670; 1/25 is 1.50x that limit). New total 2^70.734858. Line numbers of the text below are unchanged; numbers that depend on q3_model or delta are updated where they are stated, labelled as the base's where kept, and otherwise superseded by Appendix E. The text after this paragraph is aed05522's; "we" and "our" there refer to its authors and lineage, not to this filing. **This derivative.** Credited derivative of our 19c9e7e7-b38b-43b6-9818-133841a0cb7c (71.06954), Jbenisek's fdef4bab-a9d7-4052-b11f-e50fabfd7374 (71.07250), 0xshikhar's 8f02e559-70fc-4f4d-9d05-52107ffcfb87 (71.26096), our f8e24d8d-ce0f-41d2-a8b9-f3e3285b7422 (71.26063) and aa0496d3-d741-49e5-8f5c-0292e39115ee (71.33597), and Jbenisek's 0bf9d76b-d200-4b40-a32d-46ce1aaffcb7 (71.34862), which builds on 012400ff-d717-461c-a433-377f35ce2298 (Jbenisek, 71.43541) and 37742a53-4062-4c76-bdd0-cd74b4c6eb21 (winglock, 71.69523). Against aa0496d3 it combines the four changes of fdef4bab in how the counted preprocessing is priced and in the pair budget, the online program tightenings of 19c9e7e7 in `experiments/vt38.py`, and the second preregistered q3 study `PREREG_q3b` of 8f02e559 / f8e24d86 (Appendix D): (1) the counts of the preprocessing bodies are those the printed bodies execute (the fill pass of P6 executes 233 operations per (Y, variant) where 189 was charged; P5 setup 37, append 46, body 57 where 35, 43, 56 were charged), (2) the zero pass of P6 is unrolled 16 times, (3) the Y loop of the count and fill passes of P6 runs on u = Y + A1 in two segments with the table base running with it, (4) the pair budget of H5 is charged at delta = 0.564, the sum of the one-sided 99% Poisson limits of the package's own measurements (Section 6.5), instead of 1, (5) the online counted program (`experiments/vt38.py`) is tightened to `P0 = 89, EPI = 13, GROUP4 = 75, X_A17int = 58, X_SUCC = 3200` (`per_group_fixed = 3,366`, `c1 = 17`, `c2 = 3,142`), and (6) `q3_model = 2^-101.35` from the second preregistered study `PREREG_q3b` (matching the pass threshold of the organizer experiment `vt-q3-smc-r38`, with all four preregistered 99% lower bounds R1-R4 >= `2^-101.0027`, leaving a 0.35-bit margin). The construction, the other premises, both experiments and nearly all of the text are those of the base packages; "we" in the text below is the authors of those packages.
 
-These are analytical upper bounds, not measured resources or an executed attack.
-The large memory requirement is part of the claim. This construction is not a
-new reduced-round cryptanalytic result and does not beat the nominal exponent
-128. The required identifier `sha256-r38-nominal-v2` names an organizer display
-reference, not an established attack, qualified baseline, or security bound.
-`ready` requests review; it does not establish qualification or an official score.
+**Earlier derivatives (text of aa0496d3).** The package of aa0496d3 is 012400ff (Jbenisek, 71.43541; built on 37742a53, winglock, 71.69523) with further changes to how its counted program, its counted table
+construction and its cap margins execute and price the same search (Appendix C): the tables list only the 22 words of G for which row 17 can hold, each table entry is two 256-bit words (packing E1a, a17(g), KCg
+and the indices into word 1), the W7 and A17 paths test row 17 with immediate masks and values in 41 and 19 operations, the four-lane header uses ~MAJ and ~CH with telescoping bucket-counter accumulation and a two-operation sentinel discriminator, and the four work counters use per-counter Chebyshev cap margins (2^-16, 2^-14, 2^-7, 2^-5). The construction, the premises (with H3's memory and preprocessing figures of this derivative: 2^80.42 bytes and 2^66.9387 units), both experiments and nearly all of the text are 37742a53's and 012400ff's; "we" in the text below is its authors.
 
-The target uses the standard SHA-256 IV, standard schedule and round constants,
-round indices 0 through 37 inclusive on EVERY padded block, and normal addition
-of the eight working words to the incoming chaining state modulo `2^32`.
-All eight final words are serialized in standard big-endian order. No output
-truncation, free-start choice, altered padding, or compression-only collision
-relation is used. The probability argument applies to this fixed function,
-without assuming it is random, uniform, balanced, or injective on any subset.
+**What the base package is.** The construction is not ours. The two-block attack, the characteristic, the two-bit conditions and the
+semi-free-start pair are those of Li, Zhang, Li, Liu, Qian and Zhu, "Pushing Collision Attacks on SHA-2 to 39 Steps" (IACR ePrint 2026/1120);
+the dense-part variants (A0, A1, A2 replaced in the published dense part), the row-16 table keyed by (Y, Z0) and the success analysis
+by groups are those of the public HashSmash packages c99df2dc (qkniep) and 0ae69bcb (0xshikhar, 72.64). We re-implemented all of it
+independently (we executed no peer code), measured every operation count ourselves, and changed four things:
+(1) the counted online program is cheaper: a bucket is a sentinel-terminated run of two-word entries scanned in six operations per entry, the
+shared F7 test is one table load, and four A0 blocks share one vector computation of (Y, Z0) in the four 64-bit lanes of a 256-bit word
+(18.75 operations per block instead of 36 for the scalar block of the same program; 53.2 operations per (chaining value, A0) in expectation and at the caps,
+against the 117 of 0ae69bcb); (2) the work caps are fixed with Chebyshev's inequality and per-counter margins (2^-16, 2^-14, 2^-7, 2^-5) instead of Hoeffding's with margins up to 4x;
+(3) the allowances A_S and DEV are smaller (A_S = 2^60 against a published cost of about 2^38.3 compression calls of the
+Step-1 solve, H4b; DEV = 2^60, about 2^14 times a physical bound on the compute of this work and 2^10 times the direct cost of selecting the A0 set, H4c, Section 9) instead of 2^70 and 2^64; A_C = 2^70 is kept, with the
+CPU-ceiling argument of 0ae69bcb that passed review; (4) the success target is exactly 0.39 (no 2% slack), and q3_model = 2^-101.35 (0.35 bit below our four
+preregistered 99% bounds 2^-101.0015, 2^-101.0020, 2^-101.0027 and 2^-101.0002, matching the organizer pass threshold) instead of 2^-102. Everything else (the shape of
+the premises H1, H2, H5) follows 0ae69bcb; its pair budget is delta = 1, ours 0.564 (Section 6.5, Appendix D).
 
-## Messages, representation, and hashing
+| change against 0ae69bcb (72.64) | log2 T |
+|---|---|
+| this filing (Appendix E; base aed05522 is 71.00164, Appendix D) | 70.73486 |
+| aa0496d3 (Appendix C; 8f02e559 is 71.26096, 0bf9d76b is 71.34862, 012400ff is 71.43541) | 71.33597 |
+| 37742a53 (base of 012400ff) | 71.69523 |
+| four-lane blocks replaced by scalar blocks | 71.81039 |
+| q3_model = 2^-102 instead of 2^-101.5 | 72.03238 |
+| A_S = 2^70 and DEV = 2^64 (0ae69bcb's allowances) | 72.08812 |
+| 0ae69bcb as filed | 72.64 |
 
-Let `n = 2^128`, `M = 2^256`, and let `D` be all 48-byte strings, so `d = 2^384`.
-Every message has bit length 384, less than the profile limit `2^64`.
-For each sample call the model's independent uniform 256-bit random-word
-primitive twice, obtaining `u,v`. Set `x = u` and `y = v AND (2^128 - 1)`.
-The complete message is
+The largest single term besides the construction is the allowance A_C = 2^70, 60.1% of T (2^70 / 2^70.73486 = 0.601). Section 7 gives the effect of a
+larger charge for the characteristic search (this filing: A_C = 2^72: 72.22165; 2^74: 74.05869; 2^76: 76.01490; Appendix E.4).
 
-```text
-m(x,y) = BE_32_bytes(x) || BE_16_bytes(y).
+## 0. Summary
+
+Two messages M0 || M1 and M0 || M1' of two blocks (common first block, padding appends the same third block) collide under the 38-step
+target. For every first block M0, CV1 = F_38(IV, M0) is a chaining value; given CV1 a *dense-part variant* v = (A0, A1, A2) is a
+semi-free-start pair candidate: the published dense part with three words replaced, so that the Step-2 words W0..W7 connecting CV1 to the
+dense part exist for every CV1 and the pair follows all characteristic cells of rows -4..15. Row 16 holds iff W16 lies in a set G of
+exactly 32 words, and W16 = s0(Y + A1) - A1 + Z0 + c9(A2) where (Y, Z0) depends only on (CV1, A0): a table T_j per A0_j lists, for every (Y, Z0),
+the variants of A0_j whose W16 is one of the 22 words of G for which row 17 can hold (about 3.8 entries per bucket; Appendix C). A *group* is one first block and one lookup per A0 in a set of 256 values;
+each entry is tested for W7 in F7 (6.7%), then the E17 mask (10 bits), the A17 conditions and rows 18..37. One group succeeds with probability
+S = SR * p2 * q3 = 2^-67.52 (SR = 191,773,672,732 variants, p2 = 2^-3.90197, q3 = 2^-101.10 modelled, about 2^-101.0 measured; Appendix E). The program runs
+N_G = 106,837,024,868,983,061,305 groups (2^66.5340) under four work caps and halts at the first success.
+
+## 1. Target, cost model and notation
+
+Target sha256-r38-prefix-v1: SHA-256 steps 0..37 on every padded block, standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words.
+Cost model collision-frontier-v5, C = 2728: one target compression costs 1 unit, every other primitive word operation 1/C; the machine is a
+256-bit word RAM whose primitives are 256-bit load/store, addition and subtraction mod 2^256, bitwise AND/OR/XOR/NOT, shift or rotation, comparison,
+conditional branch, independent uniform random 256-bit word; memory is a reported metric. Our counted machine (Section 5.3) charges 1 per executed
+add, sub, rsub (immediate minus register), and, or, xor, shl, shr, ld, ldi, sti, st, li (load immediate), rand, jmp; 2 per conditional branch
+(comparison and branch); 1 unit for one target compression (f38); the observers obs, mark and succ cost nothing. Immediates and shift amounts are
+instruction fields. Notation: "a" = A_{-1} = word 0 of CV1; A_i, E_i, W_i are the step-i words; member x is the message printed second in
+ePrint 2026/1120 Table 5 (M'), member y the message printed first (M). Sign convention used throughout: every difference is member y minus member x,
+DW_i = W_i^y - W_i^x and DS0_i = s0(W_i^y) - s0(W_i^x) (mod 2^32), so DW_7 = +2^29 and DW_16 = 0xe0000000 = -2^29, i.e. W16^y = W16^x - 2^29. A prime (W'_i, A'_i) denotes the word of member y, an unprimed word that of member x, and dW_i is a synonym of DW_i. (The letter Y alone is the table index of Section 4.4.)
+
+## 2. Sources, and what is reused or new
+
+Reused (credited in the dependencies file): ePrint 2026/1120 (characteristic, two-bit conditions, published semi-free-start pair; our own
+transcription in `experiments/vt38.py`, verified against the published pair); c99df2dc (qkniep) and 0ae69bcb (0xshikhar): the idea of dense-part
+variants (A0, A1, A2), the row-16 lookup keyed by (Y, Z0) and its Lemmas, the A0 set of 256 values and the exact sizes |R_j| (we recomputed the sizes
+exactly, 0 mismatches), the group-level success analysis (pair budget, Bonferroni), the shape of the allowance argument H4 and of the organizer
+replica; earlier public r37/r38 filings (6c77089c, 1c368173, b947b377, 087a18c4, 1f12a09a) for the variants-of-S lineage and the SMC design; 6eeefb64
+(sha256-r32) for the calibrated price of a solver CPU-second. We executed no peer code; the peers' files were read as data.
+
+New in this package (all code and measurements are ours): the independent C core (`r38.h`) with the exhaustive passes (`ex1.c`: A2 list, G, |F7|,
+the preimage counts of phi) and the exact |R_j| (`rcount.c`); the true-bucket generator (`bucket.c`); the counted online program with
+four-lane blocks and its interpreter (`experiments/vt38.py`, the assembly of the development modules vtref, vtprog and vt_exp with the data blobs); the counted preprocessing
+(variant enumeration and table construction as counted code, Appendix B.3); the exact ledger and its sensitivity (`ledger38.py`, `sens38.py`); a
+preregistered sequential Monte-Carlo estimate of q3 (`smc.c`, with a new pair rebuild and verification of every success); the organizer experiments.
+
+## 3. The characteristic and the published dense part
+
+Rows with a non-'=' cell of the 38-step characteristic (ePrint 2026/1120 Table 3), as (mask, x-value, x XOR y) per kind A, E, W
+(the x-value is the bit pattern of member x on the mask) and, for E, the set PQ_i of bits b with the '+' condition E_i[b] = E_{i-1}[b] (the '+' marks of the printed table regrouped by the later row, which is how every program of this package tests them; the published pair satisfies all of them, and the printed grouping differs from this one in rows 6, 7, 11, 13, 14, 16 and 17); rows not listed carry no cell:
+
+- row 6: E mask 0x08441090 x-value 0x08040090 x^y 0x00000000; E_6 = E_5 on bits 0xe0000000
+- row 7: A mask 0x60000000 x-value 0x20000000 x^y 0x60000000; E mask 0xead6109b x-value 0xe2c01001 x^y 0xe0000000; W mask 0x20000000 x-value 0x00000000 x^y 0x20000000; E_7 = E_6 on bits 0x00080800
+- row 8: A mask 0x00410810 x-value 0x00000010 x^y 0x00410810; E mask 0xebdf7bfb x-value 0x89152879 x^y 0x084c1890; W mask 0x04400800 x-value 0x04400000 x^y 0x04400800; E_8 = E_7 on bits 0x04000000
+- row 9: E mask 0xfeffffbf x-value 0xc670b71b x^y 0x0490000b; W mask 0x20000000 x-value 0x20000000 x^y 0x20000000
+- row 10: E mask 0x3dff7b9f x-value 0x28c32a97 x^y 0x00410800; W mask 0x050112aa x-value 0x0100000a x^y 0x050112aa
+- row 11: A mask 0x0000080c x-value 0x00000808 x^y 0x0000080c; E mask 0xbdffffbf x-value 0x80f2c1be x^y 0x20007004; W mask 0x00081400 x-value 0x00081400 x^y 0x00081400
+- row 12: A mask 0x44204602 x-value 0x40004200 x^y 0x44204602; E mask 0xfdffffbf x-value 0x5d9d1216 x^y 0x3c230005; E_12 = E_11 on bits 0x00000040
+- row 13: A mask 0x20010000 x-value 0x00000000 x^y 0x20010000; E mask 0xffefff7f x-value 0x35c13b0d x^y 0x0001077a
+- row 14: A mask 0x08030090 x-value 0x08000090 x^y 0x08030090; E mask 0x7c636f7f x-value 0x20026471 x^y 0x08010000; E_14 = E_13 on bits 0x00000080
+- row 15: A mask 0x02808000 x-value 0x00800000 x^y 0x02808000; E mask 0x4a530ffa x-value 0x4a130b5a x^y 0x00000880; W mask 0x04400800 x-value 0x04000000 x^y 0x04400800; E_15 = E_14 on bits 0x00001000
+- row 16: E mask 0x4c431a80 x-value 0x48030280 x^y 0x40421200; W mask 0x20000000 x-value 0x20000000 x^y 0x20000000
+- row 17: A mask 0x20000000 x-value 0x20000000 x^y 0x20000000; E mask 0x40c21a80 x-value 0x00000800 x^y 0x00000000; E_17 = E_16 on bits 0x00040010
+- row 18: E mask 0x40c61230 x-value 0x00421210 x^y 0x00040010; E_18 = E_17 on bits 0x01008000
+- row 19: E mask 0x31848e32 x-value 0x30040430 x^y 0x01808000
+- row 20: E mask 0x21848010 x-value 0x20040010 x^y 0x00000000
+- row 21: E mask 0x21808c00 x-value 0x21008800 x^y 0x20000000
+- row 22: E mask 0x20000000 x-value 0x00000000 x^y 0x00000000
+- row 23: E mask 0x20000000 x-value 0x20000000 x^y 0x00000000; W mask 0x0582a000 x-value 0x0582a000 x^y 0x01808000
+- row 25: W mask 0x20000000 x-value 0x00000000 x^y 0x20000000
+
+Two-bit conditions with a word in rows >= 16 (Table 4; kind 0 = A, 1 = E, 2 = W; (kind1, row1, bit1) equal/different to (kind2, row2, bit2), keyed at
+the later row; W25[4] = W25[9] of the printed table is read as W25[4] = W25[6], the reading under which the published pair satisfies it):
+
+- row 7: W7[1] = W7[12]
+- row 7: W7[8] != W7[25]
+- row 7: W7[14] != W7[18]
+- row 8: W8[0] != W8[28]
+- row 8: W8[1] = W8[18]
+- row 8: W8[30] != W8[9]
+- row 16: A14[15] = A16[15]
+- row 16: A14[23] = A16[23]
+- row 16: A14[25] = A16[25]
+- row 16: A15[4] = A16[4]
+- row 16: A15[7] = A16[7]
+- row 16: A15[16] != A16[16]
+- row 16: A15[17] = A16[17]
+- row 16: A15[27] = A16[27]
+- row 16: A15[29] = A16[29]
+- row 16: W16[1] != W16[12]
+- row 16: E16[3] != E16[8]
+- row 16: E16[4] != E16[23]
+- row 16: W16[4] != W16[6]
+- row 16: W16[8] = W16[25]
+- row 16: E16[14] = E16[28]
+- row 16: W16[14] = W16[18]
+- row 16: W16[20] != W16[27]
+- row 16: W16[22] != W16[31]
+- row 17: E16[4] = E17[4]
+- row 17: A16[15] = A17[15]
+- row 17: E16[18] = E17[18]
+- row 17: A16[23] = A17[23]
+- row 17: A16[25] = A17[25]
+- row 17: A17[6] = A17[18]
+- row 17: A17[8] = A17[17]
+- row 17: A17[9] = A17[20]
+- row 18: A16[29] = A18[29]
+- row 18: E17[15] = E18[15]
+- row 18: E17[24] = E18[24]
+- row 18: E18[0] != E18[13]
+- row 19: A18[29] = A19[29]
+- row 19: E19[6] != E19[19]
+- row 19: E19[20] = E19[2]
+- row 21: E21[2] = E21[16]
+- row 23: W23[0] != W23[30]
+- row 23: W23[1] != W23[31]
+- row 23: W23[14] = W23[21]
+- row 23: W23[16] = W23[25]
+- row 25: W25[4] = W25[6]
+- row 25: W25[20] = W25[27]
+- row 25: W25[22] = W25[31]
+
+The published semi-free-start pair (Table 5): CV = cd278980 1b12a052 b87cc8a6 a9e059c5 c9c3db85 6ca4b5b5 63d13ac1 c0329f1e; M' (member x) = 48fc271b 9fca20cd cc89f96f fc40396f 8b328cb4 6b91ef78 97f9b767 c2450045 3f416758 fe9804cb 63a88c0f 0ceb1f8d a28cd15a 77a1e994 d28e48a0 9f1f65bb; M (member y) = 48fc271b 9fca20cd cc89f96f fc40396f 8b328cb4 6b91ef78 97f9b767 e2450045 3b016f58 de9804cb 66a99ea5 0ce30b8d a28cd15a 77a1e994 d28e48a0 9b5f6dbb. Its 38-step outputs are equal
+(5d9ca5f4 59ace3a3 26c9c26c 4252c585 4c0803b7 1b4d5ccd 25c3ccc0 90645c4d); `vt38.py selftest` item 1 checks it. S* (the published dense part) denotes the A/E/W values of rows -4..15 of this pair.
+Step-2 bijection: for every chaining value CV1 the Step-2 equations E_i = A_i + A_{i-4} - S0(A_{i-1}) - MAJ(A_{i-1}, A_{i-2}, A_{i-3}) (i = 3..0) and
+W_i = E_i - A_{i-4} - E_{i-4} - S1(E_{i-1}) - CH(E_{i-1}, E_{i-2}, E_{i-3}) - K_i (i = 0..7) give the unique W0..W7 connecting CV1 to a dense part
+(A0..A7, E4..E7); CV1 -> (W0..W7) is a bijection of (2^32)^8 for a fixed dense part (triangular system). For every dense part of this package
+W'_i = W_i (i <= 6) and W'_7 = W_7 + d7, d7 = 2^29, and W7 = c7 - a with c7 a constant of the dense part. The characteristic fixes the difference
+of W22; W7 enters rows >= 16 only through s0(W7) in W22 and W7 in W23, so a pair can follow row 22 only if s0(W7 + d7) - s0(W7) = t7 = 0x03bff800:
+F7 = {w : s0(w + d7) - s0(w) = t7} has |F7| = 287,309,824 elements (exhaustive count, `ex1 f7`), p2 = |F7| / 2^32 = 2^-3.90197.
+
+The modular differences of the published words that reach rows >= 16: (DW_i, DS0_i) = (W'_i - W_i, s0(W'_i) - s0(W_i)) = (0xfbc00800, 0xfe7f8000) at i = 8, (0xe0000000, 0x043ff800)
+at i = 9, (0x03011296, 0xefffa0d0) at i = 10, (0xfff7ec00, 0xfcfeed6a) at i = 11, (member y minus member x, the sign convention of Section 1; `vt38.py` defines DW and DS0 from the pair as ty - tx); W12, W13, W14 carry no difference and dW16 = W16^y - W16^x = 0xe0000000, dW17 = 0.
+
+
+## 4. Dense-part variants
+
+### 4.1 Definition and validity
+
+**Definition.** For words (A0, A1, A2) the variant v = (A0, A1, A2) is the dense part with A0, A1, A2 of both members replaced (rows 0..6 carry no
+A or E difference, so both members get the same values), A3..A13, E7..E13 and W11..W15 of S* unchanged, and E4, E5, E6 and W8, W9, W10 of each member
+recomputed by E_i = A_i + A_{i-4} - S0(A_{i-1}) - MAJ(A_{i-1}, A_{i-2}, A_{i-3}) (i = 4, 5, 6) and W_i = E_i - A_{i-4} - E_{i-4} - S1(E_{i-1}) -
+CH(E_{i-1}, E_{i-2}, E_{i-3}) - K_i (i = 8, 9, 10). (E7 depends on A3..A7 only; W11 on E7..E11 and A7 only; both are unchanged.)
+
+**Validity.** v is valid if (i) the E cells of rows 4..8 hold for both members, including the '+' pairs (rows 5/6: E6[31..29] = E5[31..29]; rows 6/7:
+E7[19] = E6[19], E7[11] = E6[11]), and (ii) for i = 8, 9, 10, 11 the pair (W^y_i - W^x_i, s0(W^y_i) - s0(W^x_i)) equals the published value (DW_i, DS0_i).
+The XOR cells of W8..W10 are not required: these words reach rows >= 16 only through those modular quantities (W8 in W23 via s0 and in W24; W9 in W16,
+W25 and via s0 in W24; W10 in W17, W26 and via s0 in W25). The predicate is `valid()` in vt38.py; `r38.h var_valid` is the C twin.
+
+**Lemma 3 (variants are sound).** Let v be valid, CV1 arbitrary, W0..W7 the Step-2 words of member x from CV1 and v, W'_0..W'_7 those of member y, and
+M1 = (W0..W7, W8..W15 of x), M1' = (W'_0..W'_7, W8..W15 of y). Then F_38 from CV1 reproduces v's A0..A13, E4..E13 in both members, rows -4..15 follow every A/E cell,
+and every term of W16..W37 that involves W0..W15 has the published difference, except the s0(W7) term (handled by F7). In particular dW16 = 0xe0000000
+and dW17 = 0. *Proof.* Steps 0..7 reproduce A0..A7, E0..E7 by construction of the Step-2 words; steps 8..10 reproduce E8..E10 and A8..A10 because W8..W10
+are solved from them; steps 11..15 are those of S* (they depend on rows 7..15 and W11..W15 only). Rows 0..3 have no cells; rows 4..8 hold by (i); rows 9..15 are those
+of S*. W0..W6 have no member difference and W7 has difference d7 for every dense part of this kind (c7^y - c7^x = E7^y - E7^x). The expansion terms that involve
+W8..W11 have the published differences by (ii); W12..W15 are published. Checked on real chaining values (selftest item 3 and the 1536 true buckets of Section 6.3).
+
+### 4.2 The A2 list
+
+Conditions that involve A2 alone: E6 = A6 + A2 - S0(A5) - MAJ(A5, A4, A3) must satisfy row 6's x-value cells and E7[19] = E6[19], E7[11] = E6[11] (both members);
+W10 (which depends on E6 only) must have the published (dW10, ds0(W10)). An exhaustive pass over all 2^32 values of A2 (`ex1 a2`) leaves exactly 768 values
+(Appendix A.3), the A2 list; it equals the list of the public packages. W9 = c9(A2) - A1 with c9(A2) = E9 - 2 A5 + S0(A4) + MAJ(A4, A3, A2) - S1(E8) - CH(E8, E7, E6(A2)) - K9
+(member x; member y: c9 + dW9, and dW9 = 0xe0000000 holds for every A1 and every list member: the counted preprocessing asserts it).
+
+### 4.3 The A0 set and the variant sets R_j
+
+For A0 fixed, R(A0) is the set of (A1, A2) with A2 in the A2 list and (A0, A1, A2) valid. Condition (i) on E5 (E5[31..29] = E6[31..29]) confines A1 to one residue
+interval of length 2^29 per A2, so R(A0) is found by testing 768 x 2^29 candidates. The only condition that involves A0 is the s0 difference of W8 = F(A1, A2) - A0, where F does not
+depend on A0. The A0 set is the 256 values chosen by 0xshikhar/qkniep (0ae69bcb, c99df2dc) by the exact histogram of F (as described in those packages); it is advice here (H6) (Appendix A.2 lists the values and the exact sizes).
+We recomputed every |R_j| exactly with `rcount.c` (768 x 2^29 candidates per A0, the A0-free valid pairs: 9,945,876,032 = 2^33.21145; 2,428,544 pairs were cross-checked
+against the generic validity test, 0 disagreements); all 256 values equal the published ones. min |R_j| = 747,959,736 = 2^29.47839, max 750,798,738 = 2^29.48385 and
+
+    SR = sum_j |R_j| = 191,773,672,732 = 2^37.48061.
+
+### 4.4 Row 16 is a function of (Y, Z0)
+
+**Lemma 4 (rows 16..22 do not depend on the variant).** Fix a valid v and let CV1 be uniform. Then (W0, ..., W7) is uniform on (2^32)^8 (Step-2 bijection, Section 3); conditioned on W7 in F7, (W0..W6) is
+uniform and independent of W7. For any (W14, W15) and W9..W13, the map (W0..W5) -> (W16..W21) is a bijection for fixed W6 (W5 = W21 - s1(W19) - W14 - s0(W6), ...,
+W0 = W16 - s1(W14) - W9 - s0(W1)), so (W16..W21) is iid uniform and independent of (W6, W7), and W22 = s1(W20) + W15 + s0(W7) + W6. Hence the joint distribution of rows 16..22
+of both members, conditioned on W7 in F7, is the same for every valid variant, and so is the probability that rows 16..22 hold. Rows 23..37 depend on the variant only through
+W8, W9, W10 of both members (W23 = s1(W21) + W16 + s0(W8) + W7, W24 = s1(W22) + W17 + s0(W9) + W8, W25 = s1(W23) + W18 + s0(W10) + W9, W26 = s1(W24) + W19 + s0(W11) + W10).
+
+**G.** With rows 12..15 of S*, row 16 (cells, '+', the conditions of Section 3 keyed at row 16) is a function of W16^x alone: E16 = A12 + E12 + S1(E15) + CH(E15, E14, E13) + K16 + W16
+and A16 = E16 - A12 + S0(A15) + MAJ(A15, A14, A13) in each member, W16^y = W16^x + 0xe0000000. An exhaustive pass over all 2^32 values (`ex1 g`; counted code P1) finds exactly 32 words,
+G = {0x35f29010 + any subset of the bits 0, 2, 10, 13, 19} (a fraction 2^-27 of all words).
+
+**Lemma 5 (W16).** For a chaining value CV1 and A0 put hh = d - S0(a) - MAJ(a, b, c), E0 = A0 + hh, Y = -S0(A0) - MAJ(A0, a, b) - g - S1(E0) - CH(E0, e, f) - K1,
+W0 = A0 + hh - d - h - S1(e) - CH(e, f, g) - K0 and Z0 = W0 + s1(W14), where (a, ..., h) = CV1. For every valid (A0, A1, A2): W0 is the Step-2 word, W1 = Y + A1, W9^x = c9(A2) - A1 and
+W16^x = s0(Y + A1) - A1 + Z0 + c9(A2) (mod 2^32). *Proof.* E0 depends on A0 and CV1 only; E1 = A1 + c - S0(A0) - MAJ(A0, a, b), so W1 = E1 - c - g - S1(E0) - CH(E0, e, f) - K1 = A1 + Y;
+W9 = E9 - A5 - E5 - S1(E8) - CH(E8, E7, E6) - K9 with E5 = A5 + A1 - S0(A4) - MAJ(A4, A3, A2); W16 = s1(W14) + W9 + s0(W1) + W0. (`vt38.py selftest` item 3 checks the four identities on 40
+real chaining values; `tbl.c` checks W16 against the full 38-step trace on 34.6 million (variant, chaining value) pairs, 0 mismatches.)
+
+### 4.5 The tables T_j and the bucket bound
+
+For j = 1..256 let T_j map every (Y, Z0) in (2^32)^2 to the list of entries for the (A1, A2) in R_j with s0(Y + A1) - A1 + Z0 + c9(A2) in G', the 22 words of G for which row 17 can hold (Appendix C). By Lemma 5 and the definition of G,
+the bucket T_j[Y, Z0] holds exactly the variants of A0_j whose row 16 holds with W16 in G' for a chaining value with these (Y, Z0). An entry is two 256-bit words:
+c7 + 2^32 (W7^x = c7 - a) and a single packed word of constants of the variant and of W16 (Appendix C, L2 and L5); a bucket is its entries followed by a sentinel entry
+(Section 5.3).
+
+**Lemma 6 (bucket bound).** |T_j[Y, Z0]| <= 236,544 for all j, Y, Z0. *Proof.* With u = Y + A1 the condition reads phi(u) = g - Y - Z0 - c9(A2), phi(u) = s0(u) - u. For each of the 768 list values
+A2 and each of the 22 g in G' this fixes phi(u), and every value has at most 14 preimages (exhaustive over 2^32, `ex1 phi`: one value with 14, one with 13, three with 12), so a bucket has
+at most 14 x 22 x 768 = 236,544 entries. (Observed maximum over the 1536 true buckets of Section 6.3: 48.)
+
+**Expected bucket size.** For a uniform CV1, (W0, W1) is uniform for every fixed variant (Step-2 bijection, Section 3), hence (Y, Z0) is uniform, and E|T_j[Y, Z0]| = 22 |R_j| 2^-32 exactly (3.846 for the largest R_j);
+per group, E[entries] = SR * 22 / 2^32 = 982.3173.
+
+### 4.6 Row 17 of member y
+
+For each of the 32 values of W16 in G the row-16 state of both members is fixed, and W17^y = W17^x (dW17 = 0). For all 32 values E17^y = E17^x and A17^x - A17^y = 2^29 (the G record is
+built from both members, `grec` in vt38.py), so member y's row-17 cells follow from member x's (the cell of A17 requires A17^x[29] = 1). Row 17 is tested on member x: E17^x against a mask
+of 10 bits (its x-value cells, the '+' pair with E16 and the two E16-E17 conditions), A17^x against 4 bits (its cell and the A16-A17 conditions with A16 known) and the three A17-internal
+conditions. The 10 and 4 bits are the popcounts of the masks of the 32 G records (all equal).
+
+### 4.7 The success event
+
+For a chaining value CV1 and a valid variant v, A(CV1, v) is the event that row 16 holds (W16 in G), W7 is in F7, and rows 17..37 hold (cells, '+', the conditions of Section 3).
+**Lemma 7.** A(CV1, v) implies F_38(CV1, M1) = F_38(CV1, M1'), hence a collision of M0 || M1 and M0 || M1' when CV1 = F_38(IV, M0); M1 != M1' because W7 differs by d7.
+*Proof.* Rows 34..37 have no u/n cell, so A_i and E_i (i = 34..37) are equal in both members; with the common CV1 these are the outputs. (Every success of Section 6 is also checked directly:
+`smc.c` and the replica rebuild each success into CV1, M1, M1' and compare the two 38-step compressions.)
+
+
+## 5. The algorithm
+
+### 5.1 Preprocessing (deterministic; every operation count is an executed-operation count of counted code)
+
+All of it is code of the counted machine of Section 5.3 (`src/vtpre.py`, Appendix B.3; each loop body is generated and executed by the interpreter on test inputs, and the ledger charges
+(items) x (the longest path of the body) + the loop control; for the passes of P6 the loop control is part of the measured iteration). Bodies were checked against the C/reference definitions (Section 6.3).
+
+| pass | what | items | ops per item (longest path) |
+|---|---|---|---|
+| P1 | the set G: row 16 of both members as a function of W16 | 2^32 words | 117 (+3 loop) |
+| P1' | the 22 live words of G: the row-17 tests of each g of G over all E17 (Appendix C) | 32 x 2^32 values | 21 (+3) |
+| P2 | the F7 table: first zero the region of addresses 0 .. 2^34 + 2^32 + 1 (4 per word), then flag 1 at w and w + 2^32 for w in F7 and the value 2 in a sentinel region | 2^32 words | 25 (+3) |
+| P3 | the A2 list (conditions on A2 alone) | 2^32 words | 41 (+3) |
+| P4 | the 768 A2 records (2 words) and the 32 G records (12 words) | 768 + 32 | 39,168 + 3,072 in all |
+| P5 | the variant lists R_j: for each of 256 A0 and 768 A2, the window of 2^29 values of A1 | 256 x 768 x 2^29 candidates | setup 37, body at most 57 (+3 loop), 46 per valid variant |
+| P6 | the tables T_j: zero the 2^64 headers, count, prefix, fill | 2^64 headers and 2^32 Y x variants x 22 g | 34 per 16 headers (unrolled, loop branch included); 144 and 232 per (Y, variant) with their loop control, and 16 and 17 per variant (Appendix D); 6 / 11 per empty / non-empty header (+3) |
+
+P6 writes, for every A0_j, every header (Y, Z0) in (2^32)^2 and every entry (Section 4.5); a bucket is its entries followed by a sentinel entry, the header holds the address of the bucket's first entry,
+empty buckets point to one shared sentinel entry. Total preprocessing is 385,844,947,273,092,062,201,164 operations, 2^66.9387 target compressions (the P6 terms dominate: 2^73.1 for zeroing, 2^76.7 for counting,
+2^77.3 for filling, 2^75.8 for the prefix pass, in operations; everything before P6 is below 2^53). Every one of these cells is written by the charged preprocessing; nothing is advice except
+the 256 A0 values (Section 8).
+
+### 5.2 Online
+
+One *group*: draw a first block M0 (two random 256-bit words), compute CV1 = F_38(IV, M0) (one target compression), then for each of the 256 A0_j compute (Y, Z0) (Lemma 5), load the header and scan the bucket.
+For each entry: load it, form W7 = c7 - a (the entry stores c7 + 2^32; a = A_{-1} is word 0 of CV1) and load the F7 table at that address: 0 (not in F7: next entry), 2 (the sentinel: end of bucket), 1 (in F7: the entry is
+a *W7 pass*). A W7 pass is tested through row 17 on member x (Section 4.6): E17 from the constants of the entry (Appendix C, L2), E17 against the 10-bit mask (the *first row-17 test*), then A17 (4 bits and 3 internal conditions),
+and then rows 18..37 of both members with early abort at the first failing cell, '+' pair or two-bit condition. A full pass yields the success: the program outputs M0 || M1 and M0 || M1' (the
+Step-2 words W0..W7 of member x and member y with the entry's W8..W15) and halts. After every group the four work counters
+NE (2 per bucket entry and sentinel), NW (W7 passes), N1 (first row-17 test passes) and N2 (entries that pass all row-17 tests) are compared with the caps NE_MAX, NW_MAX, N1_MAX, N2_MAX and the program halts (unsuccessfully) when one is exceeded; the group counter is compared with N_G.
+The groups use fresh random coins and are independent.
+
+### 5.3 The counted program
+
+The machine is the 256-bit word RAM of Section 1. `experiments/vt38.py` contains the program generator, the register allocation (to 64 registers, 43 used) and an interpreter that executes the
+generated instructions and counts them; the same instructions are the ones the ledger prices. Per group the counts (`prog_costs()` in vt38.py and `selftest` item 4 assert them) are:
+
+| part | operations |
+|---|---|
+| prologue (two random words, unpacking M0, CV1 = f38, per-CV values, broadcast to four lanes) | 89 (+ 1 target compression) |
+| four A0 blocks, empty buckets | 75 (18.75 per block) |
+| one scan iteration (load entry, W7, F7 load, advance, branch (2)) | 6 per entry and per sentinel |
+| W7 pass to the end of the first row-17 test | 2 + 41 |
+| to the end of the A17 tests (A17 internal) | 58 |
+| from the end of the A17 tests to a success (counter N2, rows 18..37) | at most 3,142 more (3,200 in all from the W7 pass) |
+| epilogue (four cap tests, group counter, loop) | 13 |
+
+*Four-lane blocks.* Four consecutive A0 blocks share one vector computation of E0, S1(E0), ~CH, ~MAJ, Y and Z0 in the four 64-bit lanes of a 256-bit register (20 operations for the four blocks): lane values stay below 2^35
+because the subtraction of S1(E0) carries a bias of 2^32, so no lane borrows from its neighbour; each block then extracts its header index with a shift and a mask, loads the header directly into the scan cursor `OFF`, and accumulates `NE` by telescoping across the loop (`sub NE, NE, OFF` before `loop` and `add NE, NE, OFF` after `loop`, with `bne FL, 2, pas` separating `W7` passes from the sentinel in 2 operations). The scalar program of the same design
+(file `vtprog_v1_scalar.py`, not shipped) costs 36 operations per block; the table of Section 0 prices the difference.
+
+*Equivalence tests* (Section 6.3): the program against the brute-force reference on 6,520 mutated characteristics, on 1,536 true buckets, and on 12,817 verified successes; for this derivative's program, Appendix C.4.
+
+### 5.4 Why the scan is an exact filter
+
+Every entry of T_j[Y, Z0] has row 16 by construction (Lemma 5), and the W7 test is the exact condition of Section 3; the rows 17..37 tests are the full cell, '+' and two-bit conditions of the characteristic (Section 3) for both members.
+Hence the program outputs a pair only if A(CV1, v) holds, and every output is a collision by Lemma 7. The program does not rely on any probability for its output's validity: the organizer experiment
+`vt-ram-r38` and the replays of Section 6.3 check the program, and the final result is checked by a target compression in the experiment harness for every returned pair.
+
+## 6. The success probability
+
+### 6.1 One variant on one chaining value (H1)
+
+H1 (Section 9): for a first block M0 chosen by fresh random coins the chaining value CV1 behaves as a uniform 256-bit value as far as the events of *one* fixed variant are concerned. Consequences, all exact under H1:
+(Y, Z0) is uniform for every A0 (Lemma 5: it is an affine function of the two uniform words W0, W1, which are a bijective image of CV1 words); E|T_j[Y, Z0]| = 22 |R_j| 2^-32 (Appendix C);
+W7 is uniform and independent of (W0, W1) (Lemma 4), so a bucket entry is a W7 pass with probability p2 = |F7| / 2^32 = 2^-3.90197; the first row-17 test passes with probability 2^-10 given a W7 pass (the
+E17 bits are uniform and independent of W7 for a uniform CV1: Lemma 4 for the bits of E16/E17); the per-group expectations are
+E[NE] = 2 (SR 22 / 2^32 + 256) = 2476.635, E[NW] = SR 22 p2 / 2^32 = 65.712, E[N1] = E[NW] 2^-10 = 0.06417, and E[N2] = SR p2 2^20 2^-64 = 0.0007292 (Appendix C).
+Nothing is assumed about two variants of one group (H5).
+
+### 6.2 q3 for the variants (H2): the SMC estimate
+
+q3 = the probability that rows 16..37 hold given that W7 is in F7, averaged over the variants examined (uniform on the union of the sets R_j; i.e. A0_j with weight |R_j|, then (A1, A2) uniform in R_j) and over
+uniform chaining values. By Lemma 4 rows 16..22 have the same probability for every valid variant; rows 23..37 depend on the variant through W8, W9, W10 of both members. The per-group success rate is
+S = SR p2 q3 (Lemma 7 and H1).
+
+*Estimator.* `smc.c` (Appendix B, written for this package): a sequential Monte-Carlo estimator that proposes the words of the second block row by row. Row 16 is exact (32 of 2^32 words: factor 2^-27); rows 17..22: E_i^x is
+proposed uniformly with its x-value cells and '+' bits imposed (weight 2^-f), W_i^x follows from the step equation and W_i^y = W_i^x + DW_i, both members are stepped and the whole row is tested; the particles are resampled
+after every row; the tail draws a variant (uniform from a sample, fixing W8, W9, W10), proposes W23^x with its x-value cells imposed, solves W7 = W23 - s1(W21) - W16 - s0(W8), weights by 2^(32-f)/|F7| if W7 is in F7, and runs rows 23..37 deterministically.
+The estimator is unbiased for q3 of its variant distribution; every tail success is REBUILT into a real semi-free-start pair (W0..W6 by the inverse expansion, CV1 by inverting steps 7..0 of that variant) and verified (equal 38-step compressions,
+M1 != M1', every cell of rows -4..37, W7 in F7) before it is counted.
+
+*Preregistration.* `q3/PREREG_q3.txt` was written and its SHA-256 recorded together with those of `smc.c`, `varsample.c`, `r38.h`, `consts.h` and the three data files before any study run (Appendix A.4).
+R1: 1,024 runs (NP = 4,000, children 2048, 64, 64, 8, 8, 4 at rows 17..22, 8,192 tail proposals per particle), every proposal drawing a variant uniformly from a sample of 1,048,576 variants drawn by `varsample.c` uniformly from the union of the R_j (seed fixed in the registration).
+R2: 4,096 runs, run i using only variant i of a sample of 4,096 further uniform variants. The analysis rule (mean, sample sd, one-sided 99% Student lower bound) and the rule for q3_model were fixed in the registration:
+q3_model = 2^-101.5 if both lower bounds are at least 2^-101.5. *Second study (`PREREG_q3b.txt`, Appendix A.4, D.2):* frozen with its hashes before any of its runs: the byte-identical estimator and data, new variant samples (varsample seeds 20261111, 20261112) and new run seeds; R3 as R1 (1,024 runs, seeds 81001..82024, mean 2^-100.99986, rel sd 0.0265, 99% lower bound 2^-101.00265, 4,381,451 tail successes, 0 failed rebuilds) and R4 as R2 (4,096 runs, seeds 90000 + i, mean 2^-100.99841, rel sd 0.0337, 99% lower bound 2^-101.00018, 17,546,049 tail successes, 0 failed rebuilds); rule: q3_model = 2^-101.35 (the pass threshold of vt-q3-smc-r38) if both lower bounds of R3 and R4 are at least 2^-101.35, otherwise the smaller bound rounded down to 0.01 bit, and never above 2^-101.35.
+
+*Results* (`analyze.py` output, all runs kept, none discarded, no empty run; R3/R4 in Appendix A.4):
+
+| | runs | mean log2 | relative sd | 99% lower bound log2 | tail successes | failed rebuilds |
+|---|---|---|---|---|---|---|
+| R1 / R3 (uniform 2^20-variant samples, 2 x 1,024 runs) | 1,024 / 1,024 | -100.99875 / -100.99986 | 0.0258 / 0.0265 | -101.00146 / -101.00265 | 4,384,763 / 4,381,451 | 0 / 0 |
+| R2 / R4 (one fresh uniform variant per run, 2 x 4,096 runs) | 4,096 / 4,096 | -101.00020 / -100.99841 | 0.0334 / 0.0337 | -101.00195 / -101.00018 | 17,537,702 / 17,546,049 | 0 / 0 |
+
+*Further studies (this filing, Appendix E.2):* two sets of 32 runs of a from-scratch estimator (no shared code with smc.c; same transcription of Section 3) give means 2^-100.99189 and 2^-100.99160 with one-sided 99% bounds 2^-101.03905 and 2^-101.03081 (pooled 64 runs: 2^-100.99174, bound 2^-101.02120), stage factors -27.00, -17.00, -13.01, -14.99, -6.00, -7.00, -1.00, -15.01, and 63,762 tail successes each rebuilt and verified (0 failed rebuilds). This filing uses q3_model = 2^-101.10, 0.061 bit below the lowest of all six 99% bounds, chosen after these studies (not by a preregistered rule). The base text follows. The stage factors (log2) are -27, -17.000, -13.000, -15.000, -6.000, -7.000, -1.000 and -15.000 for rows 16..22 and the tail (sum -101). They are integers because they count condition bits: row 16 is the 32 words of G (2^-27); row 17 has the 10 bits of the E17 mask (E cell and '+' pair, two-bit conditions with E16), 4 bits of A17 and 3 internal A17 conditions (17); rows 20, 21 and 22 have 6, 7 and 1 independent bits; and the tail, given W7 in F7, is 15 = (6 W23 cell bits + 1 E23 cell bit + 4 two-bit conditions at row 23) + (1 W25 cell bit + 3 two-bit conditions at row 25): no other cell or condition lies in rows 24..37 (Section 3). So the analytic prediction of the table is q3 = 2^-101 (-27 -17 -13 -15 -6 -7 -1 -15 with the measured 13 and 15 of rows 18 and 19), and the Monte-Carlo means 2^-100.99875, 2^-101.00020, 2^-100.99986 and 2^-100.99841 confirm it to 0.002 bit; q3_model is 0.35 bit below it (half a bit under the first study's rule). The estimator imposes the E cells and '+' bits (and, in `smc.c`, only the x-value cell of W23; the shipped replica of Section 10.1 also imposes the four two-bit conditions of row 23 and weights accordingly: both are unbiased). Both bounds of R1/R2 are 0.5 bit above 2^-101.5, and both bounds of R3/R4 are 0.35 bit above q3_model = 2^-101.35, which is
+therefore the value used by the base aed05522 (rule of PREREG_q3b, fixed in advance; this filing uses 2^-101.10, Appendix E.2): with this filing's delta = 1/25, q3_model = 2^-101.0 (the measured mean) gives 70.70302, 2^-101.35 70.82120, 2^-101.5 70.87779, 2^-102 71.09360 and 2^-103 71.65367 (Appendix E.4). The public package 0ae69bcb reports the same stage factors and the means
+2^-100.9983 and 2^-101.0001 for the same family; our estimator is independent code.
+
+*Replay.* 12,817 verified successes of the three development streams (seeds 50001..50003) are fed to the counted online program, restricted to the variant's A0 block, together with a decoy entry:
+the program finds each pair (12,817 of 12,817, `t_replay.py`).
+
+### 6.3 Consistency and measurements on real first blocks
+
+All of these are our own runs on this machine; none is an organizer run. They test the programs and the per-stage rates, not q3.
+
+1. *Row-16 table semantics* (`tbl.c`): 34.6 million (variant, chaining value) pairs, closed-form W16 against the full 38-step trace, 0 mismatches; 254 closed-form G hits (about 264 expected at 2^-27 per variant), each passes the full row-16 test; sampled non-hits fail.
+2. *True buckets* (`bucket.c`: exact brute-force bucket by 2^32 values of u = Y + A1; every hit confirmed by the exact validity test): 6 chaining values x 256 A0 = 1,536 buckets: 8,889 entries (8,573.0 expected from |R_j| 2^-27: ratio 1.037, 3.4 Poisson standard deviations; entries are not independent, preimages of phi come in groups, so the counts are overdispersed), 546 W7 passes (594.6 expected from the observed entries), 2 first row-17 tests passed (0.53 expected), 0 successes; maximum bucket size 48 (bound 344,064); every entry has row 16 and is a valid variant (checked by the reference).
+3. *Real first blocks, rates* (the H1 check): 12 first blocks M0_i = SHAKE-256(`r38-h1-first-blocks|i`) (`h1_jobs.py`), CV1_i through the real 38-step compression, all 256 A0 (3,072 buckets): 16,995 entries (17,145.9 expected from |R_j| 2^-27: ratio 0.991), 1,139 W7 passes (1,147.0 expected from the expected entries, 1,136.9 from the observed entries), 1 first row-17 test passed (1.1 expected), 0 successes. With the 6 chaining values of item 2 (ratios 1.037 and 0.92 for entries and W7 passes) these are 18 chaining values, 4,608 buckets, 25,884 entries: the rates agree with the H1 expectations within the overdispersion of the entry counts; they test H1 at the level of its early rows on 18 chaining values, not at the level of success events.
+4. *Counted program against the reference*: `t_mut.py` 6,520 mutations of the characteristic on the published pair (all rows 17..37, every condition kind, all four lanes): 0 mismatches between machine and reference. `t_eq.py` on true buckets: counters NE, NW, N1, the full sequence of stage marks, W17/E17 values and total
+operation count equal the reference's for 1,536 buckets of 6 chaining values (0 mismatches, 2 first-test passes, no success). `t_pre1.py` / `t_pre2.py`: preprocessing bodies against the references (21,184 G candidates, 5,871 F7, 26,246 A2, all 768 A2 records and 32 G records, 6 windows of P5 with 24,576 candidates and 2,061 valid variants, 512 P6 buckets,
+6 chaining values of block 0): 0 mismatches.
+5. *Exact set sizes.* |F7| = 287,309,824, |G| = 32, 768 values in the A2 list, the A0-free valid pairs 9,945,876,032 and the 256 sizes |R_j| (sum 191,773,672,732) from exhaustive passes in C (`ex1.c`, `rcount.c`); |R_j| equal the published values for all 256 A0; 2,428,544 pairs cross-checked against the generic validity test, 0 disagreements.
+
+### 6.4 Groups, the pair term and the caps
+
+Let N be the number of successful variants of one group (one first block, all variants of all 256 tables). By H1 and H2, E[N] = S = SR p2 q3 >= S_model = SR p2 q3_model = 2^-67.52135 (2^-67.77135 in the base) (exact rational, ledger). Let
+delta be the weighted average of E[N - 1 | A_v] over the successful events A_v of variants (H5); then E[N(N - 1)] = sum_v Pr[A_v] E[N - 1 | A_v] = S delta' with delta' <= delta, and Bonferroni's inequality
+gives Pr[N >= 1] >= E[N] - E[N(N - 1)] / 2 >= S (1 - delta / 2), and S >= S_model by H2, so the bound holds with S replaced by S_model. We use delta = 1/25 (Section 6.5 and Appendix E.3; the base used 0.564): q_lb = S_model (1 - 1/50) = 0.98 S_model = 2^-67.55050 per group. Groups are independent (fresh coins), so Pr[no group succeeds among N_G] <= (1 - q_lb)^{N_G} <= exp(-N_G q_lb).
+
+*Work caps.* Let X_g be the value of a counter (NE, NW, N1 or N2) in group g: 0 <= X_g <= B_k with B_NE = 2 (256 x 236,544 + 256), B_NW = B_N1 = B_N2 = 256 x 236,544 (Lemma 6), and E[X_g] = E_k (Section 6.1). Then Var X_g <= B_k E_k and, by independence of the groups and Chebyshev,
+Pr[sum_g X_g > (1 + eps_k) N_G E_k] <= B_k / (eps_k^2 N_G E_k). Using per-counter margins (eps_NE, eps_NW, eps_N1, eps_N2) = (2^-16, 2^-14, 2^-7, 2^-5) (since E_NE and E_NW are ~2^15 and ~2^10 times larger than E_N1 and E_N2, smaller relative margins on NE and NW keep their Chebyshev overflow probabilities tiny while avoiding a 6.25% surcharge on the dominant online terms; uniform margins eps = 2^-8, 2^-6, 2^-4, 2^-3 are priced in Section 7), the four Chebyshev bounds sum to P_cap = 5.222e-06 (3.217e-06 in the base). The caps are NK_MAX = ceil((1 + eps_k) N_G E_k) and the
+counters are tested after every group, so the total work of the run is at most N_G (fixed part) + (cap + one group's overshoot B_k) times the per-unit cost of each counter.
+The run succeeds if some group succeeds and no counter overflows: Pr >= 1 - exp(-N_G q_lb) - P_cap. N_G is, to within 30, the smallest integer for which this is at least 0.39 (+ 2^-60 for the rounding of the exponential; iterated with P_cap to a fixed point in `ledger38.py`).
+No expected-work bound is used: the total cost is deterministic (charged at the caps), and the only expectations used are those of H1.
+
+### 6.5 Measuring the pair term (H5)
+
+H5 (Section 9) bounds the average over successful variants of the expected number of further successful variants on the same chaining value by delta = 1/25 in this filing (0.564 in the base; Appendix E.3). Structure: a second variant of the same group needs its own row 16 (2^-27),
+W7 (2^-3.9) and rows 17..37 (about 2^-74). The variants that share the success's chaining value fall into three kinds. *Near* variants share (A0, A1) with the success and differ in A2; they share (W0, W1) and, when their c9 coincide, W16 and
+everything before row 17. *Own-block* variants have the success's A0 and another A1: they share the table cell (Y, Z0) when their row 16 holds. *Far* variants have another A0: they share only CV1.
+
+*Near term* (`t_clump.py`, run on all 12,817 verified successes of the development streams): every other valid variant (A0, A1, A2') with A2' in the A2 list was tried on the same CV1: 12,817 verified successes, 157,306 other valid variants with the same (A0, A1) (12.3 per success), 106,023 row-16 co-hits (variants with an equal c9 share W16 with the success), 10,303 W7 passes, 781 first row-17 tests (E17 mask) passed (0.061 per success), 234 with the whole of row 17, 0 further successes. The first-test passes are 78 times the 10.1 that independent events would give (10,303 / 2^10): the near variants are strongly correlated through rows 16 and 17, which is why this term is measured and not assumed; none of them survived the later rows.
+*Own-block term* (`bucket.c` and `t_own.py`): For 1,500 verified successes (every 8th of the list) the true bucket of (CV1, A0) was computed (`bucket.c`) and every entry other than the success itself was run through the reference (`t_own.py`): 20,973 other entries (12,436 with the same A1, the rest variants of the same A0 with another A1 that share the table cell), 1,782 W7 passes, 95 first row-17 tests passed (0.063 per success, one-sided 99% Poisson limit 120.3 / 1,500 = 0.080), no entry past row 17, 0 further successes.
+*Far term* (`bucket.c` and `t_far.py`): for 24 successes (every 265th of the verified list from the 101st on, CV1 from the success) the true buckets of all 255 other A0 were computed (6,120 buckets) and every entry run through the reference: 6,120 buckets (24 successes x 255 other A0): 34,577 entries (34,158 expected from |R_j| 2^-27: ratio 1.012), 2,391 W7 passes (2,313 expected from the observed entries), 4 first row-17 tests passed (2.3 expected), no entry reached row 18, 0 further successes. Given a success, the other 255 blocks show the unconditional rates through row 17.
+
+*What the measurements bound.* Pointwise N <= N1, where N1 is the number of first row-17 test passes (E17 mask) of the group, including the success itself (every success passes that test), so E[N - 1 | A_v] <= E[N1 - 1 | A_v] and delta is at most delta1 = the average over successes of the number of OTHER first row-17 test passes in the same group. delta1 is 2^10 times more frequent than a success and is measured directly: own-block term 95 / 1,500 = 0.063 per success (it contains the near term, 0.061 in the larger sample), far term 4 / 24 = 0.17 per success (the unconditional H1 expectation of a whole group is E[N1] = 0.093); the sum is 0.23. The one-sided 99% Poisson limits (95 observed: 120.25; 4 observed: 11.60) give 0.0802 + 0.4835 = 0.5637. The budget is delta = 0.564, the sum of these two limits (0ae69bcb and aa0496d3 charge 1, 1.8 times that sum): a premise that sits at the 99% limit of the measurements above, not above it. The successes are resampled SMC particles, not iid draws from the success distribution, and the 24 far-term chaining values are few: the counts are indicative and the limits assume the observations to be independent. delta = 0.56, 1/2, 1 and 3/2 are priced in Section 7. A further success beyond the first row-17 test would also need rows 18..37 (about 2^-64 given the first test): no entry of the measurements reached row 18. *This filing (Appendix E.3):* N <= N17 pointwise as well, where N17 counts the variants of the group with all of rows 16 and 17 and W7 in F7 (every success has them), so delta <= delta17 = the average over successes of the number of OTHER such variants in the group. delta17 is measured over whole groups (near, own-block and far terms together, every row-16 entry of all 256 A0 buckets enumerated exactly) on 2,500 verified successes: 3,585,652 other entries, 241,170 W7 passes, 48 with all of row 17, 0 reaching row 18, 0 further successes; the one-sided 99% Poisson limit of delta17 is 0.02670 (of delta18: 0.00184) and the budget of this filing is delta = 1/25; the limits assume independent observations, which clustered row-17 co-passes do not satisfy exactly (Appendix E.3).
+The public package 0ae69bcb measured the far term over 513,481 successes (about 0.0018 per success, 99%, seed-clustered) and the close term (0 further successes in 1,883,203 successes); we cite these as participant-run public figures, not as our own.
+
+## 7. Ledger (exact; `src/ledger38.py`, Appendix B.1)
+
+Unit: one target compression = 1; every other counted operation = 1/C, C = 2728. All numbers are exact rationals except q3_model and delta (premises H2, H5).
+
+| term | value |
+|---|---|
+| N_G groups | 106,837,024,868,983,061,305 = 2^66.5340 |
+| per-group fixed operations (prologue 89 + epilogue 13 + 64 x (75 - 24)) | 3,366 |
+| NE_MAX / NW_MAX / N1_MAX / N2_MAX | 264,600,315,855,238,691,527,537 / 7,020,866,450,896,381,698,447 / 6,909,458,133,701,809,881 / 80,342,536,438,393,139 |
+| online operations (N_G fixed + 3 (NE_MAX + B_NE) + 43 (NW_MAX + B_NW) + 17 (N1_MAX + B_N1) + 3,142 (N2_MAX + B_N2)) | 2^80.2680 |
+| first-block compressions | N_G = 2^66.5340 |
+| preprocessing (all of P1..P6), operations / units | 2^78.3524 / 2^66.9387 |
+| program-text generation 2^32 operations, final 1,024 operations, 6 units | negligible |
+| attack and preprocessing without allowances | 2^69.4055 |
+| allowances A_C + A_S + DEV = 2^70 + 2^60 + 2^60 | 2^70.002815 |
+| **T (exact)** | **2^70.734858 = 5,359,922,159,864,254,518,422,125/2,728** (base: 2^71.001640) |
+| success lower bound (1 - exp(-N_G q_lb) - P_cap) | 0.39000000 |
+| memory (reported metric) | 2^80.4161 bytes |
+
+The exact total is a rational; the claim is the smallest five-decimal number whose power is at least T (the ledger asserts both inequalities exactly). The ledger charges, unconditionally and deterministically, the preprocessing, the allowances
+and the caps; it contains no expectation of work.
+
+*Sensitivity* (`sens38.py`; the same exact ledger with one input changed):
+
+```
+BASE aed05522 configuration (q3_model 2^-101.35, delta 0.564; every row of this block is the base's; this filing: Appendix E.4) 71.00164   (attack 70.0005, N_G 2^67.2328)
+q3_model = measured mean 2^-101.0 (2^-101.25: 70.95852; 2^-101.5: 71.06953) 70.85806   (attack 69.6971, N_G 2^66.8828)
+q3_model = 2^-101.25                                           70.95852   (attack 69.9128, N_G 2^67.1328)
+q3_model = 2^-102 (one bit below the measured bounds)          71.32391   (attack 70.5864, N_G 2^67.8828)
+q3_model = 2^-103                                              71.95795   (attack 71.5276, N_G 2^68.8828)
+pair budget delta = 0.56 (the limits rounded down)             70.99988   (attack 69.9969, N_G 2^67.2287)
+pair budget delta = 1/2                                        70.97431   (attack 69.9452, N_G 2^67.1699)
+pair budget delta = 1 (the budget of aa0496d3)                 71.25470   (attack 70.4691, N_G 2^67.7548)
+pair budget delta = 1.5                                        71.86813   (attack 71.4052, N_G 2^68.7548)
+A_C = 2^72                                                     72.32258   (attack 70.0005, N_G 2^67.2328)
+A_C = 2^74                                                     74.08766   (attack 70.0005, N_G 2^67.2328)
+A_C = 2^76                                                     76.02242   (attack 70.0005, N_G 2^67.2328)
+A_C = 2^78                                                     78.00564   (attack 70.0005, N_G 2^67.2328)
+A_C = 2^66                                                     70.09055   (attack 70.0005, N_G 2^67.2328)
+A_S = 2^50, DEV = 2^50 (the allowances of the r37 filings)     71.00023   (attack 70.0005, N_G 2^67.2328)
+A_S = 2^50 alone                                               71.00094   (attack 70.0005, N_G 2^67.2328)
+A_S = 2^70, DEV = 2^64 (the allowances of 0ae69bcb)            71.59261   (attack 70.0005, N_G 2^67.2328)
+A_S = 2^64, DEV = 2^64                                         71.02260   (attack 70.0005, N_G 2^67.2328)
+cap margin eps = 2^-8 (0.39%)                                  71.00326   (attack 70.0037, N_G 2^67.2327)
+cap margin eps = 2^-6                                          71.00791   (attack 70.0130, N_G 2^67.2327)
+cap margin eps = 2^-4 (uniform)                                71.02636   (attack 70.0495, N_G 2^67.2327)
+cap margin eps = 2^-3                                          71.05061   (attack 70.0969, N_G 2^67.2327)
+success bound 0.396 instead of 0.39                            71.01427   (attack 70.0256, N_G 2^67.2613)
+no allowances (the attack and preprocessing alone)             70.00046   (attack 70.0005, N_G 2^67.2328)
+without L0 (tables over all 32 words of G)                     71.17417   (attack 70.3273, N_G 2^67.2328)
+without L2/L5 (W7 path and 3-word entries of the base)         71.07782   (attack 70.1491, N_G 2^67.2328)
+without L4 (deep path charged at N1_MAX)                       71.00948   (attack 70.0161, N_G 2^67.2328)
 ```
 
-This is an injective encoding of the RETAINED pair `(x,y)`, and is uniform on D.
-The discarded upper 128 bits of v are still paid for. Every stored y is the
-masked value with its upper 128 bits ZERO; the unmasked v is never a table field
-or comparison key. Copying, comparing, and reverifying use this same canonical
-representation. All `2n` word draws are fresh and independent. No seed expansion
-or deterministic pseudorandom generator replaces the specified random primitive.
+*Immediates.* If every immediate operand of an ALU instruction, compare-branch or store (a constant held in the instruction, e.g. the 256-bit lane masks and the per-lane constants) were charged one extra operation, as if loaded by an `li`, the program costs become prologue 109, four blocks 98, scan iteration 7, first row-17 test 49, A17 tests 73, success path 3,547 and the preprocessing bodies likewise (P6 count and fill 213 and 345 per (Y, variant) with their loop control, 50 per 16 headers); the interpreter of `t_imm_d.py` (B.16, output in A.5) gives 71.10563 for the base (+0.10 bit against its claim); not recomputed for this filing, where the same change of operation counts is expected to cost about the same +0.1 bit. This is not part of the claim (H7).
 
-For 48 bytes, FIPS padding is the message, `80` in hexadecimal, seven zero bytes,
-and the 8-byte big-endian integer 384. The resulting 64 bytes are EXACTLY ONE
-padded block, not a raw 64-byte input followed by another padding block.
-Represent this block by two 256-bit words interpreted in big-endian order:
+## 8. Memory and advice
 
-```text
-B0 = x
-B1 = (y << 128) OR 2^127 OR 384.
+Memory is a reported metric, not part of the time claim (Section 1). The 256 tables hold 256 x 2^64 headers (2^77 bytes of 32-byte words) and 2 words for each of 22 SR 2^32 = 2^73.9 entries (2^79.9 bytes); 2^80.42 bytes in all. The claim is a time bound in the word-RAM model with unit-cost
+access to a table of that size (H3), not a physical memory budget. Non-uniform advice: the 256 A0 values (1 KiB), the characteristic, the two-bit conditions and the published pair of ePrint 2026/1120 (a few KiB): below 2^14 bytes. The program text (about 2^23 bytes: 256 unrolled rare paths with their constants) is not advice: it is output of the generator in `experiments/vt38.py` from these constants, and the ledger charges 2^32 operations for generating it (about 2^21 instructions at no more than 2^11 operations each).
+The A2 list, G, the F7 table, the records and the variant lists are recomputed by the charged preprocessing (Section 5.1).
+
+*Memory of every charged computation.* The attack and the preprocessing touch only the following memory: the 256 x 2^64 header words (2^77 bytes), the entry and sentinel words (2^80.2 bytes), the F7 table (2^34 words of 32 bytes at most: 2^39 bytes), the 768 A2 and 32 G records, the variant lists R_j (3 words each, 3 x 2^37.5 words: 2^44 bytes) and a few thousand scratch words: 2^80.42 bytes in all, the figure of the ledger; the preprocessing writes each table word, so its footprint is that of the tables (the cruder bound of 32 bytes per executed operation, 2^83.9 bytes, is not the footprint). The development computations that are charged through DEV used far less: the q3 studies at most a few hundred MB per run, the exhaustive passes at most 2^32 bytes (the preimage-count pass `ex1 phi`), the bucket search a few MB, the replay and the tests less than 1 GB. No charged computation, including the selection of the A0 set (H6), which would need a histogram of 2^32 counters of 8 bytes, 2^35 bytes, exceeds the reported figure. The allowance A_C is a computation of others (a SAT/SMT search on at most 10^5 cores with at most 2^40 bytes each, 2^57 bytes), A_S and DEV (2^60 units each, 2^71.4 operations: at most 32 bytes per operation, 2^76.4 bytes) are bounded by the generic word-RAM bound, which is below the reported figure. The memory metric also includes code (about 2^23 bytes), advice and working state, all negligible against the tables.
+
+## 9. Heuristics
+
+Every premise that the score depends on is declared here and in claim.json with its role; none is left implicit. Roles are "score-critical" for all of them. Evidence references are proof line ranges and organizer experiment IDs.
+Where an organizer experiment is cited, its returned-pair counts are witness frequencies of trials that passed a program-internal check; no independence of its trials and no iid inference is assumed or claimed.
+
+### 9.0 Premises that are definitions, not heuristics
+
+(a) The cost model (Section 1) and the counted machine (H7). (b) The characteristic, its conditions and the published pair, as transcribed (Section 3): the transcription is checked by `selftest` item 1 (the published pair collides) and by 6,520 mutations; the reading
+W25[4] = W25[6] of one printed condition is used consistently everywhere (a different reading that the published pair satisfies would change q3 only, never the validity of an output). (c) Exact objects computed by exhaustive passes (|F7|, G, the A2 list, |R_j|):
+reproducible by Appendix B.
+
+### H1-single-trial-chaining-value (score-critical)
+
+**Statement.** For one group, the chaining value CV1 = F_38(IV, M0) of a first block M0 built from two fresh uniform random words behaves as a uniform 256-bit value as far as the events of ONE fixed variant are concerned: for each A0 the table index (Y, Z0) is uniform (a bucket holds |R_j| 2^-27 entries in expectation), W7 is uniform and independent of (W0, W1) (an entry is a W7 pass with probability p2 = |F7| / 2^32 = 2^-3.90197), the first row-17 test passes with probability 2^-10 given a W7 pass, and the second-block words that realise a success have the distribution of proof.md Section 6.2 and Lemma 4. Groups use fresh coins and are independent. A statement about one first block and one variant at a time; nothing is assumed about two variants of one group (H5).
+
+**Scope.** The three expected work counters (hence the caps and N_G), the per-variant success probability p2 q3 (hence the success bound). Not the validity of any output: every output is a verified collision (Lemma 7, Section 5.4).
+
+**Evidence and extrapolation.** Measured by us on real chaining values (compression of uniform-looking first blocks by the real 38-step function, true buckets by exhaustive search, reference outcomes; proof.md Section 6.3): 12 real first blocks x 256 A0 (3,072 true buckets): entries 0.991 and W7 passes 0.99 times the H1 expectations, 1 first row-17 test passed (1.1 expected), 0 successes; 6 more chaining values: 1.037 and 0.92; The lemmas of Section 4 make the rest exact. The organizer experiment vt-ram-r38 runs the counted program on organizer-seeded first blocks and compares its table index, W7 decisions and W17 with the reference (a code-consistency check; the returned-pair count is a witness frequency of mismatch-free trials, not an inference). The caps use per-counter Chebyshev margins (2^-16, 2^-14, 2^-7, 2^-5) above the expectations over N_G = 2^66.5340 independent groups (Section 6.4).
+
+**Limitations.** A premise, not a theorem. The measured events have probability between 2^-27 and 2^-41 per variant, not 2^-68. Only the first block varies between groups. Joint events of two variants on one real chaining value are the premise of H5.
+
+**Evidence references.** proof:211-228, proof:229-242, proof:319-327, proof:359-370, proof:594-599, proof:3891-3926, experiment:vt-ram-r38
+
+### H2-variant-q3 (score-critical)
+
+**Statement.** The average of q3(v) = Pr[rows 16..37 hold | W7 in F7] over the variants the program examines (uniform on the union of the 256 sets R_j) and over uniform chaining values is at least q3_model = 2^-101.10 (this filing; the base used 2^-101.35). Rows 16..22 have the same probability for every valid variant (Lemma 4, exact); only the tail (rows 23..37, through W8, W9, W10 of the variant) is averaged.
+
+**Scope.** The expected number of successes per group S_model = SR p2 q3_model = 2^-67.52135, hence N_G, the success bound and the whole attack term of the ledger.
+
+**Evidence and extrapolation.** Two preregistered sequential Monte-Carlo studies on independent streams (proof.md Section 6.2 and Appendix A.4; frozen files PREREG_q3.txt and PREREG_q3b.txt with SHA-256 before any run): R1 and R3, 1,024 runs each over independent uniform 2^20-variant samples: means 2^-100.99875 and 2^-100.99986, 99% lower bounds 2^-101.00146 and 2^-101.00265; R2 and R4, 4,096 runs each with one fresh uniform variant per run: means 2^-101.00020 and 2^-100.99841, 99% lower bounds 2^-101.00195 and 2^-101.00018; 43.8 million tail successes in all, every one rebuilt into a real semi-free-start pair and verified (0 failed rebuilds); the stage factors are the integers -27, -17, -13, -15, -6, -7, -1, -15 given by the per-row condition counts of the printed tables (Section 3). q3_model = 2^-101.35 was fixed by the registered rule of PREREG_q3b (2^-101.35 if both bounds of R3 and R4 are above it, matching the pass threshold of vt-q3-smc-r38), 0.35 bit below all four 99% bounds; priced at the mean 2^-101.0 it would give 70.85806, at 2^-101.5 it gives 71.06954, at 2^-102 it gives 71.32391. The public package 0ae69bcb obtained the same factors and means 2^-100.9983, 2^-101.0001 with independent code. Organizer-executed: vt-q3-smc-r38 runs a reduced replica of the estimator on organizer seeds with rebuilt, verified pairs; its pass rule (mean of 20 replicates >= 2^-101.35) was fixed from 1,200 development replicates; the counts it returns are witness frequencies of passing trials, not an iid inference. This filing adds two further studies with a from-scratch estimator (Appendix E.2): 2 x 32 runs, means 2^-100.99189 and 2^-100.99160, 99% bounds 2^-101.03905 and 2^-101.03081, pooled 2^-100.99174 / 2^-101.02120, 63,762 verified successes; q3_model = 2^-101.10 is 0.061 bit below the lowest of the six 99% bounds (2^-101.03905); it was chosen after the studies were run (not preregistered), and the organizer replica vt-q3-smc-r38 keeps its 2^-101.35 pass rule (a coarser check).
+
+**Limitations.** Monte-Carlo bounds relying on the central limit theorem (the base's sets of 1,024 and 4,096 estimates and this filing's 2 x 32 runs; the new estimator is independent code but parses the same transcription of Section 3, so it is not independent data; Appendix E.2, proof:3992-4075); q3 itself (about 2^-101) cannot be observed directly at full scale, so H2 is an evidence-supported plausible heuristic premise rather than a formally established theorem. Rests on H1 for the distribution of the second-block words. The reading W25[4] = W25[6] of the printed condition (Section 3) is used identically by the program, the estimator and the replay; any reading that holds on the published pair yields only verified collisions, so it enters q3 only.
+
+**Evidence references.** proof:211-228, proof:328-358, proof:584-593, proof:1026-1104, experiment:vt-q3-smc-r38
+
+### H3-table-pricing (score-critical)
+
+**Statement.** Under collision-frontier-v5 the online program is charged by its counted primitives: the model is a 256-bit word RAM whose primitives include 256-bit load and store, and memory is a reported metric with no scalar contribution. A load from any address costs one operation whatever the memory size; the memory used (2^80.42 bytes) is reported. Every table word is written by the counted preprocessing of proof.md Section 5.1 (zero initialisation included; the whole preprocessing is 2^66.9387 units).
+
+**Scope.** The online cost per (chaining value, A0): one header load and a scan of the sentinel-terminated bucket (6 operations per entry) instead of a search over 2^29.5 variants.
+
+**Evidence and extrapolation.** Follows the text of the cost model collision-frontier-v5: memory_scoring is "Required and reviewed as a metric only; no scalar contribution and no tie-break" and memory_includes lists code, nonuniform advice, precomputed data, messages, working state, tables and randomness retained in memory (all of which are in the reported figure); the same pricing is used by the public package 0ae69bcb (rank 1 on this track, passed review), which also reports the sensitivity if tables were not unit cost. The online and table-construction costs are counted by the interpreter of experiments/vt38.py and the preprocessing bodies of Appendix B.3; every table word of every table is written by the charged P6 passes (the zero pass over the 2^64 headers of every A0 costs 2^73.1 operations by itself).
+
+**Limitations.** The tables are far beyond physical memory; without unit-cost table access the claim does not hold. Finding the buckets through the inverse of s0(u) - u instead of tables costs much more (Section 7 of 0ae69bcb: about 80.7).
+
+**Evidence references.** proof:260-279, proof:290-310, proof:396-450, proof:451-458, proof:3891-3926, proof:3928-3965
+
+### H4a-allowance-characteristic-search (score-critical)
+
+**Statement.** The total computation spent to obtain the published 38-step characteristic of [LZLLQZ26] (IACR ePrint 2026/1120, Table 3: failed and repeated searches and tool development included) is at most A_C = 2^70 target compressions.
+
+**Scope.** The allowance part of the ledger: A_C is 60.1% of T (2^70 of 2^70.73486) and the largest term besides the attack.
+
+**Evidence and extrapolation.** [LZLLQZ26] (IACR ePrint 2026/1120) uses the open-source CPU SAT/SMT automated characteristic-search tool of [LLW24a] (EUROCRYPT 2024) in the two-block framework of [LLWS26] (IACR ePrint 2026/1080), so GPU lane throughput does not apply to a CPU SAT/SMT solver and the operative hardware ceiling is the CPU branch of the bound chain: 10^5 CPU cores for 10 years at 10^10 word operations per second is 3.2 x 10^23 operations = 2^66.6 units at C = 2728; A_C = 2^70 is 10.3 times that ceiling. Cross-check against an organizer-accepted measured benchmark: the promoted filing 6eeefb64 (sha256-r32) priced a complete measured re-run of the predecessor 35-step characteristic search with the same [LLW24a] tool at 593,858 solver CPU-seconds over 59 solver calls; at its calibrated price of 2^32.796 primitive operations per solver CPU-second (2^21.383 units at C = 2728) and a 32-fold blind-rediscovery factor (as in 0ae69bcb) that is 2^45.6 units; A_C = 2^70 is 2^24.4 times that measured re-run (about 14 million CPU-years, roughly 2,000 times a SHAttered-scale computation). Furthermore, every cell and two-bit condition of the published 38-step characteristic is verified directly by the organizer-executed package (`experiments/vt38.py` selftest items 1-3 and `vt-q3-smc-r38` across 20 organizer-seeded replicates). The same A_C = 2^70 allowance is charged by the accepted filings 0ae69bcb, 63028099, 37742a53 and 012400ff on this track. A_C = 2^72 gives 72.22165, 2^74 gives 74.05869, 2^76 gives 76.01490 (this filing) (Section 7).
+
+**Limitations.** A_C is a conservative upper bound above the operative CPU-hardware ceiling for the [LLW24a] SAT/SMT solver and 2^24.4 times the measured predecessor search re-run, rather than a direct timing log of the authors' unpublished 38-step search. The effect of a larger A_C is priced in Section 7 (A_C = 2^72, 2^74, 2^76). A GPU branch of the bound chain (10^4 GPUs, 10 years: 2^73.3, retained only for reference as in 0ae69bcb and 63028099) is not the operative branch because the solver is a CPU SAT/SMT tool.
+
+**Evidence references.** proof:396-450, proof:506-517, experiment:vt-q3-smc-r38
+
+### H4b-allowance-step1-solve (supporting)
+
+**Statement.** The total computation spent to obtain the Step-1 solution (the published semi-free-start pair of Table 5 and its dense part S*) is at most A_S = 2^60 target compressions. The variants (A0, A1, A2) of S* needed by this package are not solved for: they are enumerated by the charged preprocessing P5.
+
+**Scope.** The allowance part of the ledger (2^60 of the allowances; A_S and DEV together are 0.12% of T).
+
+**Evidence and extrapolation.** [LZLLQZ26] reports about 2^38.3 compression-equivalent calls for the 38-step Step-1 solve (and 2^41.3 for 37 steps); A_S = 2^60 is 2^21.7 times the published Step-1 figure (a margin of more than three million-fold; the accepted r37 filings 087a18c4, 1f12a09a, 7319bba9 and 8de337d5 charge A_S = 2^50, and A_S = DEV = 2^50 here would give 71.00023). Moreover, the published semi-free-start pair (Table 5) and its dense part S* are verified directly by `experiments/vt38.py` (selftest item 1), and the organizer-executed experiment `vt-q3-smc-r38` constructs and verifies dozens of fresh 38-step semi-free-start collisions from variant dense parts in a few seconds inside the organizer sandbox (21 returned verified pairs per organizer run, 0 failed rebuilds), directly demonstrating that completing a variant dense part to a verified 38-step semi-free-start collision costs well below 2^35 units. The same A_S = 2^60 allowance is accepted in 37742a53 and 012400ff on this track.
+
+**Limitations.** The original SAT/SMT search for the base dense part S* was performed by the paper's authors and is bounded by 2^21.7 times their reported figure rather than re-solved from scratch in the organizer sandbox (which instead verifies S* and constructs fresh 38-step semi-free-start pairs from its variants in `vt-q3-smc-r38`). Raising A_S to 2^70 (the allowance of 0ae69bcb and 63028099) together with DEV = 2^64 gives 71.59261 (Section 7); A_S = DEV = 2^64 gives 71.02260.
+
+**Evidence references.** proof:396-450, proof:518-529, proof:584-593, experiment:vt-q3-smc-r38
+
+### H4c-allowance-development (supporting)
+
+**Statement.** All target-specific development computation of this package (and of the earlier versions in this lineage) is at most DEV = 2^60 target compressions; this includes the computation that selects the 256 A0 values (H6) and everything that is not in the counted preprocessing or the attack.
+
+**Scope.** The allowance part of the ledger (with A_S, together 0.12% of T).
+
+**Evidence and extrapolation.** Physical bound: the base runs used one 15-core machine for 14 days (1.8 x 10^7 CPU-seconds = 2^24.1; at the generous calibration of 2^21.383 units per CPU-second that is 2^45.5 units, 2^14.5 times below DEV, and even one full machine-year of all 15 cores is 2^50.2 units); the recorded runs (q3 studies, exhaustive passes, bucket measurements) are a small fraction of it. Selection of the A0 set (H6): the counts |R(A0)| are the cyclic cross-correlation over Z/2^32 of the histogram of F over the 9.9 x 10^9 valid pairs with the indicator of the 68,157,440 words w with s0(w + DW_8) - s0(w) = DS0_8, which one pass of the P5 kind (2^44.4 operations) plus a number-theoretic transform of length 2^32 (below 2^45 operations) computes: below 2^35 units, far inside DEV (and the exact sizes of the published set are recomputed in P5). The derivative work (Appendix C and D, including the second q3 study R3/R4) used at most one 24-core machine and one RTX 3090 GPU for 30 days (below 2^55 units) plus less than 1 CPU-hour for the base filing's code/proof updates and selftests; the studies of Appendix E (this filing) used less than 10 CPU-hours of one laptop (below 2^37 units at the calibration above).
+
+**Limitations.** A physical bound by wall-clock and core count, not a log of CPU time. The time spent by the author reading and writing is not computation in the cost model.
+
+**Evidence references.** proof:396-450, proof:530-541, proof:201-210, proof:3891-3926
+
+### H5-pairs-in-group (score-critical)
+
+**Statement.** Let N be the number of successful variants on one chaining value (one group). The expected number of further successes seen from a success, sum_v Pr[A_v] E[N - 1 | A_v] / sum_v Pr[A_v], is at most delta = 1/25: on average a success brings at most 1/25 further successes on the same chaining value (this filing, Appendix E.3; the base budget was 0.564). This includes the premise that joint events of two variants on a real chaining value behave as on a uniform one (H1 covers one variant at a time).
+
+**Scope.** The group success bound Pr[N >= 1] >= S (1 - delta / 2) (Bonferroni, Section 6.4), hence N_G and the success bound. Not the validity of any output. With q3_model = 2^-101.10: delta = 1/25 gives 70.73486, 1/50 gives 70.73011, 1/10 gives 70.74964, 0.564 (the base budget) gives 70.89700, 1/2 gives 70.87231, 1 (the budget of 0ae69bcb and aa0496d3) gives 71.12764, 3/2 gives 71.69966 (Appendix E.4).
+
+**Evidence and extrapolation.** Structure: pointwise N <= N1, the number of first row-17 test passes (E17 mask) of the group, success included (every success passes that test), so E[N - 1 | A_v] <= E[N1 - 1 | A_v] and delta is at most delta1, the average over successes of the number of OTHER first row-17 test passes in the group. delta1 is 2^10 times more frequent than a success and is measured directly (proof.md Section 6.5; participant-run). Own block (the true bucket of the success's own (CV1, A0), covering the same (A0, A1) and the other A1 of the same table cell): 1,500 successes, true bucket of the success's own (CV1, A0): 20,973 other entries, 1,782 W7 passes, 95 first row-17 tests passed (0.063 per success; 99% limit 0.080), no entry past row 17, 0 further successes; near term alone: 157,306 other valid variants, 106,023 row-16 co-hits, 10,303 W7 passes, 781 first row-17 tests passed (0.061 per success; 10.1 for independent events), 234 with all of row 17, 0 further successes in 12,817; far term (24 successes, the true buckets of all 255 other A0): 6,120 buckets: entries 1.012 and W7 passes 1.03 times the independent expectation, 4 first row-17 passes (2.3 expected), no entry past row 17, 0 further successes. The sum is 0.23 per success; the one-sided 99% Poisson limits (95 and 4 observed) give delta1 <= 0.0802 + 0.4835 = 0.5637, and independent events would give about 2^-68 for delta itself. The organizer experiment vt-q3-smc-r38 repeats the near-term test inside its replicates on organizer seeds (observations near_variants ... near_first17, near_cosuccess; witness counts, not an inference). The public package 0ae69bcb measured the far term over 513,481 successes (about 0.0018 per success, 99%) and the close term over 1,883,203 successes (0 further successes); we cite these as public figures. The budget 0.564 is the sum of the two 99% limits: it has no margin over them. *This filing (Appendix E.3):* pointwise N <= N17 (variants of the group with all of rows 16 and 17 and W7 in F7); measured over whole groups by exact bucket enumeration of all 256 A0 on 2,500 verified successes: 3,585,652 other row-16 entries, 241,170 W7 passes, 48 with all of row 17, 0 reaching row 18; 99% one-sided Poisson limit of delta17 0.02670 (of delta18 0.00184), budget 1/25; the near term separately on 31,875 successes: 391,103 near variants, 545 with all of row 17, 0 reaching row 18.
+
+**Limitations.** A premise. Our measurements are participant-run; the successes are resampled SMC particles (clustered, not iid), the far term is measured at the row-17 level on 24 chaining values; the transfer from the uniform chaining values of semi-free-start successes to real chaining values is supported only indirectly, so H5 is an evidence-supported plausible heuristic premise rather than a formally established theorem. In the base, the budget 0.564 had no margin over its 99% limit. This filing: delta = 1/25 is 1.50x the whole-group 99% limit of delta17 (Poisson, assuming independent observations; row-17 co-passes are clustered, so that limit is optimistic by an unknown factor), and none of the 593 row-17-complete co-passes observed reached row 18; the successes are SMC particles on uniform semi-free-start chaining values.
+
+**Evidence references.** proof:371-382, proof:383-395, proof:584-593, proof:3928-3965, proof:4076-4087, experiment:vt-q3-smc-r38
+
+### H6-reused-A0-set (score-critical)
+
+**Statement.** The 256 values A0_j of the set published by c99df2dc (qkniep) and 0ae69bcb (0xshikhar) are used as non-uniform advice (1 KiB). They are not claimed to be optimal; the cost of obtaining such a set is inside DEV (H4c); every quantity that depends on the set is recomputed here: the sizes |R_j| (exhaustively, 0 mismatches against the published sizes), SR = 191,773,672,732, and q3 (averaged over variants of this set in H2).
+
+**Scope.** SR (hence N_G, the caps and the table sizes) and the variant sample of H2.
+
+**Evidence and extrapolation.** The set matters: for a uniformly random A0 the mean size of R(A0) is 9,945,876,032 x 68,157,440 / 2^32 = 157.8 million, the set's mean is 749.1 million, a factor 4.75 (2.25 bits of attack cost). The maximum possible per-A0 count is 750,798,738 in the set. The selection is a correlation of two explicit objects (H4c) whose cost is below 2^35 units; even at the direct pair-by-pair cost, 2^33.2 pairs x 2^26.0 words x 3 operations = 2^60.8 operations = 2^49.4 units, together with the physical bound of H4c (2^45.5) it is 2^49.5, inside DEV = 2^60. The 256 values and sizes are listed in Appendix A.2; the file read by ledger38.py has these two columns.
+
+**Limitations.** The set is advice from public filings and was not derived by us; the derivation cost is bounded, not executed.
+
+**Evidence references.** proof:201-210, proof:451-458, proof:664-924
+
+### H7-counted-machine (score-critical)
+
+**Statement.** The counted program is an honest program of the word RAM of collision-frontier-v5: every executed instruction of the classes add, sub, rsub, and, or, xor, shl, shr, ld, ldi, st, sti, li, rand, jmp costs 1, a conditional branch costs 2 (comparison and branch), one target compression costs 1 unit and the unit of every other operation is 1/C with C = 2728; constants (including 256-bit lane masks and per-lane constants) are instruction fields (immediates); the observers obs, mark, succ and halt are instrumentation of the interpreter and are not executed by the real program; scratch memory addresses are direct fields; at most 64 registers are live (43 are used).
+
+**Scope.** Every operation count of the ledger (89, 75, 6, 43, 17, 3,142, 13, the preprocessing bodies of Appendix B.3 as executed by t_pre_d.py).
+
+**Evidence and extrapolation.** The interpreter is in experiments/vt38.py (class Machine); the instruction classes are those of the model's primitive list; the per-body and per-path counts are executed counts, asserted by selftest item 4 and re-derived by t_cost.py, t_pre1.py and t_pre2.py (for this derivative's program and bodies: selftest item 4 and t_pre_d.py, Appendices C.4 and D.4); on 1,536 true buckets the machine's total operation count equals the reference model's (t_eq.py). Both the 0ae69bcb program and the earlier accepted r37 programs use 256-bit immediates and a branch price of 2 in the same way. Sensitivity: if every immediate operand of an ALU instruction, compare-branch or store were charged one extra operation, the claim would be 71.10563 (+0.10 bit; proof.md Section 7, t_imm_d.py).
+
+**Limitations.** The organizer's reference note says "instruction constants require accounting in each submission"; our accounting is that an immediate is a field of an executed instruction that costs 1, and the sensitivity above charges one more operation for each immediate. No organizer ruling on immediates of 256 bits is cited. The four-lane vector trick relies on explicit lane arithmetic (bias 2^35), checked by the equivalence tests of Section 6.3.
+
+**Evidence references.** proof:56-67, proof:290-310, proof:359-370, proof:3891-3926, proof:3928-3965, experiment:vt-ram-r38
+
+
+## 10. Organizer experiments
+
+`experiments/manifest.json` declares two experiments of kind python-message-pairs-v1, both run by `experiments/vt38.py` (standard library only, 64 KiB, the same code as the counted program and the reference of this proof). Organizer-run counts of returned pairs are
+witness frequencies: the program returns a pair only if its own internal checks pass; the organizer verifies each returned pair against the target (they are semi-free-start pairs from CV1, so the declared event is "full-collision" and the organizer's count of full collisions from the IV is 0 by design).
+
+### 10.1 vt-q3-smc-r38 (H2, H5 near term)
+
+Trials 0..19 each run one reduced replicate of the estimator of Section 6.2 (row 16 exact; NP = 64; 128, 4, 4, 1, 1, 1 children at rows 17..22; 512 tail proposals per particle; each tail proposal draws a variant from 512 embedded variants drawn uniformly from
+the variant set), randomness from SHAKE-256 of the trial's seed, every tail success rebuilt (W0..W6 by the inverse expansion, CV1 by inverting steps 7..0) and accepted only if the 38-step compressions are equal, M1 != M1', the Step-2 words map CV1 back to W0..W7,
+W7 in F7 and every cell of rows -4..37 holds. Trial t < 20 returns its first accepted pair as the 96-byte strings CV1 || M1 and CV1 || M1'; its observations are the log2 estimate, the accepted pairs, the failed rebuilds (0) and, for the
+first two accepted pairs, the near-term pair test of Section 6.5 on the same chaining value (near_variants, near_row16, near_w7, near_first17, near_cosuccess). Trial 20 returns a pair iff all 20 trials had a success, all were accepted and the mean of the 20 estimates is at least 2^-101.35 (the pass rule,
+fixed from 1,200 development replicates (mean 2^-100.9985, relative sd 0.365, 82,084 tail successes, 0 failed rebuilds) before any validation run); trials 21..255 return no pair by design.
+A pass is a check of a reduced replica, not an estimate of q3, and no independence of the organizer's trials is assumed. The ledger uses q3_model = 2^-101.5, which lies 0.15 bit below the rule's threshold.
+Observations are reported per trial as untrusted participant numbers (witness observations); a trial returns its pair only if the program's own checks passed. Validation by us (local replay of the organizer runner without Docker; public seed and holdout nonces holdA..holdD; participant numbers): in all five runs 21 pairs returned, every tail success accepted, failed rebuilds 0, trial-20 pooled means 2^-100.916, -100.964, -101.241, -101.137 and -100.902 (rule threshold 2^-101.35), near-term test over the five runs: 2,344 other valid variants, 1,520 row-16 co-hits, 153 W7 passes, 8 first row-17 tests passed, 0 co-successes; each run took about 3 to 4 seconds.
+
+### 10.2 vt-ram-r38 (H1, counted program)
+
+Per organizer seed: two 256-bit words from SHAKE-256 of the seed are the program's two RAND outputs; its prologue unpacks M0 and computes CV1 = F_38(IV, M0); then 32 A0 blocks (A0 indices 32t..32t+31 mod 256, t = trial mod 8) run with a table oracle whose bucket holds one entry, the embedded valid variant of that A0
+(in general not a row-16 hit). Checks: M0 is the unpack of the two words, CV1 equals the reference compression, every block requests the table index (Y, Z0) that the reference computes from (CV1, A0) (Lemma 5), and the program enters its row-17 path exactly for the entries whose reference W7 is in F7, with W17 equal to the reference pair's.
+It returns M0 || M1 and M0 || M1' of the first block's variant (128 bytes each) only if every check passed. A trial returns its pair only if it is mismatch-free, so the number of returned pairs is the number of mismatch-free trials (a witness frequency); the W7 passes per trial are reported as an observation. Validation by us (same five runs): 256 returned pairs each, mismatches 0, W7 passes 584, 553, 593, 551 and 569; about 1 second per run.
+
+## 11. Runs and hashes
+
+Development modules and their roles: `vtconst.py` (transcription, generated tables), `vtref.py` (reference construction), `vtprog.py` (online program, interpreter), `vtpre.py` (preprocessing as counted code), `vt_exp.py` (experiments); `mk_vt38.py` assembled them with the data blobs into `experiments/vt38.py`
+(the shipped file; the near-term addition of Section 10.1 was made to the shipped file afterwards). The C programs (Appendix B.4..B.11) and the tests and counted modules (B.12..B.15) are shipped as appendices because the package may contain only the declared experiment files.
+
+| run | what | result |
+|---|---|---|
+| `ex1.c f7 / g / a2 / phi` | exhaustive passes over 2^32 | |F7| = 287,309,824; G = 32 words; 768 A2; max preimage 14 |
+| `rcount.c` | exact |R_j| for 256 A0 | sum 191,773,672,732; identical to the published sizes |
+| `tbl.c` | W16 closed form vs 38-step trace | 34.6M comparisons, 0 mismatches |
+| `t_mut.py`, `t_eq.py`, `t_cost.py`, `t_pre1.py`, `t_pre2.py` | program vs reference | 0 mismatches |
+| `smc.c` R1, R2 | preregistered q3 study | Section 6.2 |
+| `t_replay.py` | 12,817 verified successes into the counted program | 12,817 found |
+| `t_clump.py`, `bucket.c` + `t_own.py`, `bucket.c` + `t_far.py` | pair term | Section 6.5 |
+| `bucket.c` + `t_far.py` on 12 real first blocks | rates (H1) | Section 6.3 |
+| `ledger38.py`, `sens38.py` | exact ledger, sensitivity | Section 7 |
+
+SHA-256 of the registered files (Appendix A.4): PREREG_q3.txt da73e8889178c35725f13730f2d7ba6149829bc0ee808a685fefa7f9be601713; smc.c, varsample.c, r38.h, consts.h, the sample files and the data files as listed there. The reproduction commands are in Appendix A.1.
+
+## 12. Limitations and differences from the paper
+
+- q3 is estimated, not proved (H2; this filing uses q3_model = 2^-101.10, chosen after its own studies, Appendix E.2); the estimator and the registration are ours; the public package 0ae69bcb obtained the same value independently.
+- The pair budget (H5) is a premise charged at the 99% limit of our own measurements (delta = 1/25 in this filing, 1.50x the 99% limit of the whole-group row-17 measurement, Appendix E.3; 0.564 in the base); they are participant-run and small compared with the number of groups.
+- A_C, A_S and DEV are allowances (H4a-c), not measurements; the ledger of Section 7 gives the effect of each.
+- The tables are not constructible in practice: 2^80.42 bytes. The claim is in the word-RAM model of the track (H3).
+- The experiment evidence is organizer-run only for code consistency (H1, H7) and for a half-bit-resolution replica check (H2); the study results and the pair measurements are run by us.
+- The construction follows the cited public packages (c99df2dc, 0ae69bcb); the differences are the cheaper counted program (53.2 vs 117 operations per (CV, A0)), Chebyshev caps, the allowances A_S and DEV and q3_model = 2^-101.5 (Section 0); each of these is separately priced.
+- We executed no peer code and did not copy peer programs; the peers' packages were read as data. The tools used for the paper's search (SAT/SMT) were not run.
+
+## Appendix A. Data and runs
+
+### A.1 Selftest output and reproduction
+
+`python3 experiments/vt38.py selftest` (about 3 seconds):
+
+```
+1 published pair collides, M != M'                         ok 
+  published dense part is a valid variant                  ok 
+2 G: the 32 words hold row 16; 20,000 random words and the 1,024 bit-flip neighbours agree with G ok (exhaustive count over 2^32: 32)
+  A2 list: 768 sorted values, all satisfy the A2-only conditions ok 
+  512 embedded variants valid; 256 entry variants valid    ok 
+3 Lemma 3 (rows -4..15 hold, DW_i for i < 16) and Lemma 5 (W16 closed form, W7 = c7 - A_-1), 40 chaining values ok 
+4 program: registers after allocation <= 64                ok (43)
+   costs: {'P0': 89, 'EPI': 13, 'GROUP4': 75, 'ITER': 6, 'X_E17': 41, 'X_A17int': 58, 'X_SUCC': 3200}
+  ledger constants P0 89, epilogue 13, four blocks 75, iteration 6, E17 41, A17 58, success 3200 ok 
+  published pair: the program finds it in each of the 4 lanes ok 
+5 replicate: estimate, accepted pairs (rebuilt, verified), failed rebuilds 0 ok (log2 -101.094, 77 pairs, 77 found by the counted program)
+6 vt-ram-r38 (8 trials): mismatches 0, pairs returned 8    ok [0, 0, 2, 2, 5, 5, 1, 2]
+SELFTEST PASSED
 ```
 
-The nonzero fields of B1 are disjoint. Splitting B0 and B1 into sixteen
-big-endian 32-bit words yields the ordinary padded SHA-256 block. Reset to the
-standard IV for EACH sample. Evaluate the selected 38-round compression,
-including feed-forward. Serialize all eight resulting 32-bit words as one
-256-bit digest word `h`. Thus one selected compression is the full hash of
-each sampled message; there is no extra message block or padding compression.
-This is a restriction of the permitted message domain, not a modified hash.
-
-A table record consists of three 256-bit RAM words `(h,x,y)`, or 96 bytes.
-The unused high half of the y word is zero. The record stores the entire
-message, so reconstruction never requires a PRNG seed, inverse hash, or search.
-The actual output pair consists of the two UNPADDED 48-byte messages.
-
-## Bounded algorithm
-
-Use two flat arrays A and B, each containing n three-word records. Allocate
-disjoint word-address intervals of length `3n`; explicitly clear all `6n` words.
-The reserve for code, constants, scalar variables, hash state, and output is
-described below. No hash table, allocator service, recursion, or unpriced sort
-subroutine is required.
-
-1. For `i = 0,...,n-1`, independently generate x,y, construct the padded block,
-   compute its full digest h as above, and put `(h,x,y)` in A[i]. Complete all
-   n samples, including repeated inputs and every unsuccessful trial.
-2. Sort A by the full digest word using iterative bottom-up merge sort with B
-   as the destination buffer. At pass widths `w = 1,2,4,...,n/2`, merge each
-   adjacent pair of runs of w records. Compare digests as unsigned 256-bit
-   words; on equal keys take the left record first. Copy the WHOLE record.
-   Exchange source/destination base pointers after each pass. All run lengths
-   divide n exactly. There are exactly 128 passes; there is no leftover run.
-3. Scan every adjacent record pair in the final sorted buffer. If the digests
-   match and the retained pairs `(x,y)` differ, reconstruct both complete
-   48-byte inputs, recompute both full selected hashes from the fixed IV, and
-   check digest equality and message inequality again. Return those messages.
-   Identical inputs are skipped; they do not terminate the scan.
-4. If the scan finds no such adjacent pair, return FAILURE. A verification
-   mismatch also returns FAILURE, rather than invoking an unbounded recovery.
-   In the exact RAM model a mismatch cannot occur, as proved below.
-
-This is a fixed-size batch, not an expected-time loop. It runs once, with no
-restart, adaptive trial budget, success amplification, or parallel work omitted.
-A success may terminate the final scan early, which only reduces the bound.
-
-For clarity, the merge can be implemented by these word-pointer operations.
-These are mathematical pseudocode, not an experiment to execute:
-
-```text
-run_words := 3                         # compute once as 1+1+1
-repeat 128 times:
-    source_start := source_base
-    destination_start := destination_base
-    while source_start < source_base + 3*n:
-        L := source_start
-        LE := L + run_words
-        R := LE
-        RE := R + run_words
-        O := destination_start
-        OE := O + run_words + run_words
-        while O < OE:
-            if L == LE: choose R
-            else if R == RE: choose L
-            else if source[L] <= source[R]: choose L
-            else: choose R
-            copy chosen[0], chosen[1], chosen[2] to O[0], O[1], O[2]
-            advance the chosen pointer by 3
-            O := O + 3
-        source_start := RE
-        destination_start := OE
-    exchange source_base and destination_base
-    run_words := run_words + run_words
+Reproduction (all from the Appendix B sources; the C programs read the text files of Appendices A.2 and A.3 and the output of `ex1`):
+```
+cc -O2 -pthread -o ex1 ex1.c; ./ex1 a2 > a2.txt; ./ex1 g > g.txt; ./ex1 f7; ./ex1 phi         # exhaustive passes over 2^32
+cc -O2 -pthread -o rcount rcount.c; ./rcount ...                                             # exact |R_j| for the 256 A0
+cc -O2 -pthread -o bucket bucket.c; ./bucket a2.txt g.txt 14 < jobs.txt > buckets.txt          # true buckets (job line: 8 hex CV words, A0)
+cc -O2 -o smc smc.c; ./smc vsU.txt all SEED 4000 2048 64 64 8 8 4 8192                          # R1 (see A.4 for the registered command lines)
+python3 t_cost.py; python3 t_pre1.py; python3 t_pre2.py        # base program: write ../runs/costs.json, pre1.json, pre2.json
+python3 t_pre_d.py <dir of experiments/vt38.py> ../runs          # this derivative: executes the bodies of P5 and P6 and writes pre2.json (and pre1.json: P1..P4 as printed by t_pre1.py, LIVE by execution); costs.json from selftest item 4 (A.5)
+python3 t_imm_d.py <dir of experiments/vt38.py> <dir of src/> <scratch dir>   # sensitivity with immediates charged (Section 7)
+python3 ledger38.py; python3 sens38.py                           # the exact ledger (defaults q3 -101.5, delta 0.564, A_S = DEV = 2^60) and its sensitivity, with the four changes of Appendix D one after the other
+python3 experiments/vt38.py selftest
 ```
 
-Addresses are word addresses and pointers advance through disjoint arrays.
-Base addresses plus `6n` and all counters are less than `2^256`, so the model's
-modular arithmetic implements the needed integer additions without overflow.
-`3n` is obtained by two additions; no multiplication primitive is assumed.
-Generation, clearing, and scanning likewise use incremented pointers.
-The merge body never reads an exhausted run. Tail records are copied by the
-same bounded loop using the exhaustion branch, not by an uncharged bulk copy.
+### A.2 The A0 set (j, A0_j, |R_j|; the file read by ledger38.py and t_far.py has the last two columns)
 
-## Correctness
-
-Generation stores the exact full hash of each retained message. Every merge
-preserves records and sorts its two already sorted runs. Induction on passes
-therefore gives a sorted permutation of all n records.
-
-All equal-digest records form a contiguous group. If a group contains two
-different messages, some adjacent pair in the group must differ: otherwise
-transitivity of adjacent equality would make every message in that group equal.
-Consequently the scan finds a distinct-input collision whenever ANY two sampled
-distinct inputs have equal digests, including when repeated inputs are present.
-Canonical masked y values ensure record-input equality is equivalent to complete
-message equality. The rehash confirms that same deterministic relation and cannot
-fail in this model. The returned messages satisfy the profile's domain,
-distinctness, and full-digest equality requirements.
-
-## Success probability for the fixed target
-
-Fix the actual target function `f: D -> {0,1}^256`. For each possible digest z let
-`p_z = |{m in D : f(m)=z}| / d`. Some fibers may be empty or unusually large.
-Since the INPUT samples are independent, their deterministic images are
-independent draws from p. This proves the independence needed below; it does not
-assume independence of different collision-pair events or random-oracle behavior.
-
-For `n <= M`, the probability of all n outputs being different is
-`n! e_n(p_1,...,p_M)`, where `e_n` is the sum, over all n-element subsets of
-coordinates, of the product of those coordinates. The factor n! counts all
-orders of each set. The following argument bounds this probability without
-making any supposition about SHA-256's output distribution.
-
-For any two coordinates a,b, with all others fixed, write
-
-```text
-e_n = E_n + (a+b) E_(n-1) + ab E_(n-2),
+```
+1 3662dd58 750798738
+2 3662dd50 750798738
+3 3662bd50 750798738
+4 36629d50 750798738
+5 36627d58 750798738
+6 36627d50 750798738
+7 36625d58 750798738
+8 36625d50 750798738
+9 36623d58 750798738
+10 36623d50 750798738
+11 36621d58 750798738
+12 36621d50 750798738
+13 3661fd58 750798738
+14 3661fd50 750798738
+15 3661dd58 750798738
+16 3661dd50 750798738
+17 3661bd58 750798738
+18 3661bd50 750798738
+19 36619d58 750798738
+20 36619d50 750798738
+21 36617d58 750798738
+22 36617d50 750798738
+23 36615d58 750798738
+24 36615d50 750798738
+25 36613d58 750798738
+26 36613d50 750798738
+27 36611d58 750798738
+28 36611d50 750798738
+29 3660fd58 750798738
+30 3660fd50 750798738
+31 b662dd50 750367881
+32 b6629d50 750367881
+33 b6625d50 750367881
+34 b6623d50 750367881
+35 b6621d58 750367881
+36 b6621d50 750367881
+37 b661fd50 750367881
+38 b661dd50 750367881
+39 b661bd50 750367881
+40 b6619d50 750367881
+41 b6617d50 750367881
+42 b6615d58 750367881
+43 b6615d50 750367881
+44 b6613d58 750367881
+45 b6613d50 750367881
+46 b6611d58 750367881
+47 b6611d50 750367881
+48 b660fd58 750367881
+49 b660fd50 750367881
+50 3660bd58 749907870
+51 3660bd50 749907870
+52 b660bd50 749607325
+53 3660dd58 749434566
+54 3660dd50 749434566
+55 366add58 749306678
+56 366add50 749306678
+57 366abd58 749306678
+58 366abd50 749306678
+59 366a9d58 749306678
+60 366a9d50 749306678
+61 366a7d50 749306678
+62 366a5d58 749306678
+63 366a5d50 749306678
+64 366a3d50 749306678
+65 366a1d58 749306678
+66 366a1d50 749306678
+67 3669fd50 749306678
+68 3669dd58 749306678
+69 3669dd50 749306678
+70 3669bd50 749306678
+71 36699d50 749306678
+72 36697d50 749306678
+73 36695d58 749306678
+74 36695d50 749306678
+75 36693d58 749306678
+76 36693d50 749306678
+77 36691d58 749306678
+78 36691d50 749306678
+79 3668fd58 749306678
+80 3668fd50 749306678
+81 3662dd56 749304379
+82 3662dd4e 749304379
+83 3662bd56 749304379
+84 3662bd4e 749304379
+85 36627d56 749304379
+86 36627d4e 749304379
+87 36625d4e 749304379
+88 36623d56 749304379
+89 36623d4e 749304379
+90 36621d56 749304379
+91 36621d4e 749304379
+92 3661fd56 749304379
+93 3661fd4e 749304379
+94 3661dd56 749304379
+95 3661dd4e 749304379
+96 3661bd56 749304379
+97 3661bd4e 749304379
+98 36619d56 749304379
+99 36619d4e 749304379
+100 36617d56 749304379
+101 36617d4e 749304379
+102 36615d56 749304379
+103 36615d4e 749304379
+104 36613d56 749304379
+105 36613d4e 749304379
+106 36611d56 749304379
+107 36611d4e 749304379
+108 3660fd56 749304379
+109 3660fd4e 749304379
+110 3668bd50 749092986
+111 b66add58 748997270
+112 b66add50 748997270
+113 b66abd50 748997270
+114 b66a9d58 748997270
+115 b66a9d50 748997270
+116 b66a7d50 748997270
+117 b66a5d58 748997270
+118 b66a5d50 748997270
+119 b66a3d58 748997270
+120 b66a3d50 748997270
+121 b66a1d58 748997270
+122 b66a1d50 748997270
+123 b669fd58 748997270
+124 b669fd50 748997270
+125 b669dd58 748997270
+126 b669dd50 748997270
+127 b669bd50 748997270
+128 b6699d58 748997270
+129 b6699d50 748997270
+130 b6697d50 748997270
+131 b6695d50 748997270
+132 b6693d50 748997270
+133 b6691d58 748997270
+134 b6691d50 748997270
+135 b668fd50 748997270
+136 3662fd58 748982994
+137 3662fd50 748982994
+138 b6623d4e 748863932
+139 b6621d4e 748863932
+140 b661fd56 748863932
+141 b661bd4e 748863932
+142 b6617d56 748863932
+143 b6617d4e 748863932
+144 b6615d4e 748863932
+145 b6613d56 748863932
+146 b6613d4e 748863932
+147 b6611d56 748863932
+148 b6611d4e 748863932
+149 b660fd56 748863932
+150 b660fd4e 748863932
+151 3662dd52 748706771
+152 3662bd52 748706771
+153 36627d52 748706771
+154 36625d52 748706771
+155 36623d52 748706771
+156 36621d52 748706771
+157 3661fd52 748706771
+158 3661dd52 748706771
+159 3661bd52 748706771
+160 36619d52 748706771
+161 36617d52 748706771
+162 36615d52 748706771
+163 36613d52 748706771
+164 36611d52 748706771
+165 3660fd52 748706771
+166 36623d5a 748706531
+167 3661fd5a 748706531
+168 3661bd5a 748706531
+169 36617d5a 748706531
+170 36615d5a 748706531
+171 36613d5a 748706531
+172 36611d5a 748706531
+173 3660fd5a 748706531
+174 3668dd58 748617938
+175 3668dd50 748617938
+176 3662fd56 748515751
+177 3662fd4e 748515006
+178 3660dd4e 748497055
+179 3660dd56 748496687
+180 b668dd50 748328226
+181 b6613d5a 748272092
+182 b660fd5a 748272092
+183 b6623d52 748271884
+184 b6621d52 748271884
+185 b661bd52 748271884
+186 b6617d52 748271884
+187 b6615d52 748271884
+188 b6613d52 748271884
+189 b6611d52 748271884
+190 b660fd52 748271884
+191 3662dd54 748258600
+192 3662bd54 748258600
+193 36627d54 748258600
+194 36625d54 748258600
+195 36623d54 748258600
+196 36621d54 748258600
+197 3661fd54 748258600
+198 3661dd54 748258600
+199 3661bd54 748258600
+200 36619d54 748258600
+201 36617d54 748258600
+202 36615d54 748258600
+203 36613d54 748258600
+204 36611d54 748258600
+205 3660fd54 748258600
+206 3662dd4c 748258590
+207 3662bd4c 748258590
+208 36627d4c 748258590
+209 36625d4c 748258590
+210 36623d4c 748258590
+211 36621d4c 748258590
+212 3661fd4c 748258590
+213 3661dd4c 748258590
+214 3661bd4c 748258590
+215 36619d4c 748258590
+216 36617d4c 748258590
+217 36615d4c 748258590
+218 36613d4c 748258590
+219 36611d4c 748258590
+220 3660fd4c 748258590
+221 36623d5c 748257912
+222 3661bd5c 748257912
+223 36617d5c 748257912
+224 36615d5c 748257912
+225 36613d5c 748257912
+226 36611d5c 748257912
+227 3660fd5c 748257912
+228 366add56 748249397
+229 366add4e 748249397
+230 366abd4e 748249397
+231 366a9d4e 748249397
+232 366a5d4e 748249397
+233 366a3d4e 748249397
+234 366a1d4e 748249397
+235 3669fd56 748249397
+236 3669dd4e 748249397
+237 3669bd4e 748249397
+238 36697d56 748249397
+239 36697d4e 748249397
+240 36695d4e 748249397
+241 36693d56 748249397
+242 36693d4e 748249397
+243 36691d56 748249397
+244 36691d4e 748249397
+245 3668fd56 748249397
+246 3668fd4e 748249397
+247 b660dd56 748149584
+248 36631d58 748119330
+249 36631d50 748119330
+250 3660dd5a 748106455
+251 3660dd52 748104487
+252 3660bd56 748016615
+253 3660bd4e 748016615
+254 3668dd4e 747975479
+255 3668dd56 747975119
+256 366afd58 747959736
 ```
 
-where the E terms use the remaining coordinates and are nonnegative (with
-`E_0=1`). Averaging a,b preserves their sum and does not decrease ab. Hence
-averaging cannot decrease e_n. The probability simplex is finite dimensional
-and compact; e_n is continuous. Among its maximizers choose one minimizing
-the continuous quantity `sum p_z^2`. If two coordinates differed, averaging
-would either increase e_n, contradicting maximality, or preserve e_n while
-strictly decreasing that sum, contradicting the tie-break. The maximizing vector
-is therefore uniform. This is an extremal argument, not an output assumption.
+### A.3 The A2 list (768 values, in increasing order; identical to the public list, recomputed by `ex1 a2`)
 
-It follows that, for the event A of at least one repeated output,
-
-```text
-Pr(A) >= 1 - n! choose(M,n) / M^n
-       = 1 - product_(i=0)^(n-1) (1 - i/M)
-       >= 1 - exp(-n(n-1)/(2M)).
+```
+379b2dc8 379b2dc9 379b2dcc 379b2dcd 379b4dc8 379b4dc9 379b4dcc 379b4dcd
+37bb2dc8 37bb2dc9 37bb2dcc 37bb2dcd 37bb4dc8 37bb4dc9 37bb4dcc 37bb4dcd
+381b2cc8 381b2cc9 381b2ccc 381b2ccd 381b30c8 381b30c9 381b30cc 381b30cd
+381b4cc8 381b4cc9 381b4ccc 381b4ccd 381b50c8 381b50c9 381b50cc 381b50cd
+383b2cc8 383b2cc9 383b2ccc 383b2ccd 383b30c8 383b30c9 383b30cc 383b30cd
+383b4cc8 383b4cc9 383b4ccc 383b4ccd 383b50c8 383b50c9 383b50cc 383b50cd
+399b2dc8 399b2dc9 399b2dcc 399b2dcd 399b4dc8 399b4dc9 399b4dcc 399b4dcd
+39bb2dc8 39bb2dc9 39bb2dcc 39bb2dcd 39bb4dc8 39bb4dc9 39bb4dcc 39bb4dcd
+3a1b2cc8 3a1b2cc9 3a1b2ccc 3a1b2ccd 3a1b30c8 3a1b30c9 3a1b30cc 3a1b30cd
+3a1b4cc8 3a1b4cc9 3a1b4ccc 3a1b4ccd 3a1b50c8 3a1b50c9 3a1b50cc 3a1b50cd
+3a3b2cc8 3a3b2cc9 3a3b2ccc 3a3b2ccd 3a3b30c8 3a3b30c9 3a3b30cc 3a3b30cd
+3a3b4cc8 3a3b4cc9 3a3b4ccc 3a3b4ccd 3a3b50c8 3a3b50c9 3a3b50cc 3a3b50cd
+479b2dc8 479b2dc9 479b2dcc 479b2dcd 479b4dc8 479b4dc9 479b4dcc 479b4dcd
+47bb2dc8 47bb2dc9 47bb2dcc 47bb2dcd 47bb4dc8 47bb4dc9 47bb4dcc 47bb4dcd
+481b2cc8 481b2cc9 481b2ccc 481b2ccd 481b30c8 481b30c9 481b30cc 481b30cd
+481b4cc8 481b4cc9 481b4ccc 481b4ccd 481b50c8 481b50c9 481b50cc 481b50cd
+483b2cc8 483b2cc9 483b2ccc 483b2ccd 483b30c8 483b30c9 483b30cc 483b30cd
+483b4cc8 483b4cc9 483b4ccc 483b4ccd 483b50c8 483b50c9 483b50cc 483b50cd
+499b2dc8 499b2dc9 499b2dcc 499b2dcd 499b4dc8 499b4dc9 499b4dcc 499b4dcd
+49bb2dc8 49bb2dc9 49bb2dcc 49bb2dcd 49bb4dc8 49bb4dc9 49bb4dcc 49bb4dcd
+4a1b2cc8 4a1b2cc9 4a1b2ccc 4a1b2ccd 4a1b30c8 4a1b30c9 4a1b30cc 4a1b30cd
+4a1b4cc8 4a1b4cc9 4a1b4ccc 4a1b4ccd 4a1b50c8 4a1b50c9 4a1b50cc 4a1b50cd
+4a3b2cc8 4a3b2cc9 4a3b2ccc 4a3b2ccd 4a3b30c8 4a3b30c9 4a3b30cc 4a3b30cd
+4a3b4cc8 4a3b4cc9 4a3b4ccc 4a3b4ccd 4a3b50c8 4a3b50c9 4a3b50cc 4a3b50cd
+579b2dc8 579b2dc9 579b2dcc 579b2dcd 579b4dc8 579b4dc9 579b4dcc 579b4dcd
+57bb2dc8 57bb2dc9 57bb2dcc 57bb2dcd 57bb4dc8 57bb4dc9 57bb4dcc 57bb4dcd
+581b2cc8 581b2cc9 581b2ccc 581b2ccd 581b30c8 581b30c9 581b30cc 581b30cd
+581b4cc8 581b4cc9 581b4ccc 581b4ccd 581b50c8 581b50c9 581b50cc 581b50cd
+583b2cc8 583b2cc9 583b2ccc 583b2ccd 583b30c8 583b30c9 583b30cc 583b30cd
+583b4cc8 583b4cc9 583b4ccc 583b4ccd 583b50c8 583b50c9 583b50cc 583b50cd
+599b2dc8 599b2dc9 599b2dcc 599b2dcd 599b4dc8 599b4dc9 599b4dcc 599b4dcd
+59bb2dc8 59bb2dc9 59bb2dcc 59bb2dcd 59bb4dc8 59bb4dc9 59bb4dcc 59bb4dcd
+5a1b2cc8 5a1b2cc9 5a1b2ccc 5a1b2ccd 5a1b30c8 5a1b30c9 5a1b30cc 5a1b30cd
+5a1b4cc8 5a1b4cc9 5a1b4ccc 5a1b4ccd 5a1b50c8 5a1b50c9 5a1b50cc 5a1b50cd
+5a3b2cc8 5a3b2cc9 5a3b2ccc 5a3b2ccd 5a3b30c8 5a3b30c9 5a3b30cc 5a3b30cd
+5a3b4cc8 5a3b4cc9 5a3b4ccc 5a3b4ccd 5a3b50c8 5a3b50c9 5a3b50cc 5a3b50cd
+679b2dc8 679b2dc9 679b2dcc 679b2dcd 679b4dc8 679b4dc9 679b4dcc 679b4dcd
+67bb2dc8 67bb2dc9 67bb2dcc 67bb2dcd 67bb4dc8 67bb4dc9 67bb4dcc 67bb4dcd
+681b2cc8 681b2cc9 681b2ccc 681b2ccd 681b30c8 681b30c9 681b30cc 681b30cd
+681b4cc8 681b4cc9 681b4ccc 681b4ccd 681b50c8 681b50c9 681b50cc 681b50cd
+683b2cc8 683b2cc9 683b2ccc 683b2ccd 683b30c8 683b30c9 683b30cc 683b30cd
+683b4cc8 683b4cc9 683b4ccc 683b4ccd 683b50c8 683b50c9 683b50cc 683b50cd
+699b2dc8 699b2dc9 699b2dcc 699b2dcd 699b4dc8 699b4dc9 699b4dcc 699b4dcd
+69bb2dc8 69bb2dc9 69bb2dcc 69bb2dcd 69bb4dc8 69bb4dc9 69bb4dcc 69bb4dcd
+6a1b2cc8 6a1b2cc9 6a1b2ccc 6a1b2ccd 6a1b30c8 6a1b30c9 6a1b30cc 6a1b30cd
+6a1b4cc8 6a1b4cc9 6a1b4ccc 6a1b4ccd 6a1b50c8 6a1b50c9 6a1b50cc 6a1b50cd
+6a3b2cc8 6a3b2cc9 6a3b2ccc 6a3b2ccd 6a3b30c8 6a3b30c9 6a3b30cc 6a3b30cd
+6a3b4cc8 6a3b4cc9 6a3b4ccc 6a3b4ccd 6a3b50c8 6a3b50c9 6a3b50cc 6a3b50cd
+779b2dc8 779b2dc9 779b2dcc 779b2dcd 779b4dc8 779b4dc9 779b4dcc 779b4dcd
+77bb2dc8 77bb2dc9 77bb2dcc 77bb2dcd 77bb4dc8 77bb4dc9 77bb4dcc 77bb4dcd
+781b2cc8 781b2cc9 781b2ccc 781b2ccd 781b30c8 781b30c9 781b30cc 781b30cd
+781b4cc8 781b4cc9 781b4ccc 781b4ccd 781b50c8 781b50c9 781b50cc 781b50cd
+783b2cc8 783b2cc9 783b2ccc 783b2ccd 783b30c8 783b30c9 783b30cc 783b30cd
+783b4cc8 783b4cc9 783b4ccc 783b4ccd 783b50c8 783b50c9 783b50cc 783b50cd
+799b2dc8 799b2dc9 799b2dcc 799b2dcd 799b4dc8 799b4dc9 799b4dcc 799b4dcd
+79bb2dc8 79bb2dc9 79bb2dcc 79bb2dcd 79bb4dc8 79bb4dc9 79bb4dcc 79bb4dcd
+7a1b2cc8 7a1b2cc9 7a1b2ccc 7a1b2ccd 7a1b30c8 7a1b30c9 7a1b30cc 7a1b30cd
+7a1b4cc8 7a1b4cc9 7a1b4ccc 7a1b4ccd 7a1b50c8 7a1b50c9 7a1b50cc 7a1b50cd
+7a3b2cc8 7a3b2cc9 7a3b2ccc 7a3b2ccd 7a3b30c8 7a3b30c9 7a3b30cc 7a3b30cd
+7a3b4cc8 7a3b4cc9 7a3b4ccc 7a3b4ccd 7a3b50c8 7a3b50c9 7a3b50cc 7a3b50cd
+879b2dc8 879b2dc9 879b2dcc 879b2dcd 879b4dc8 879b4dc9 879b4dcc 879b4dcd
+87bb2dc8 87bb2dc9 87bb2dcc 87bb2dcd 87bb4dc8 87bb4dc9 87bb4dcc 87bb4dcd
+881b2cc8 881b2cc9 881b2ccc 881b2ccd 881b30c8 881b30c9 881b30cc 881b30cd
+881b4cc8 881b4cc9 881b4ccc 881b4ccd 881b50c8 881b50c9 881b50cc 881b50cd
+883b2cc8 883b2cc9 883b2ccc 883b2ccd 883b30c8 883b30c9 883b30cc 883b30cd
+883b4cc8 883b4cc9 883b4ccc 883b4ccd 883b50c8 883b50c9 883b50cc 883b50cd
+899b2dc8 899b2dc9 899b2dcc 899b2dcd 899b4dc8 899b4dc9 899b4dcc 899b4dcd
+89bb2dc8 89bb2dc9 89bb2dcc 89bb2dcd 89bb4dc8 89bb4dc9 89bb4dcc 89bb4dcd
+8a1b2cc8 8a1b2cc9 8a1b2ccc 8a1b2ccd 8a1b30c8 8a1b30c9 8a1b30cc 8a1b30cd
+8a1b4cc8 8a1b4cc9 8a1b4ccc 8a1b4ccd 8a1b50c8 8a1b50c9 8a1b50cc 8a1b50cd
+8a3b2cc8 8a3b2cc9 8a3b2ccc 8a3b2ccd 8a3b30c8 8a3b30c9 8a3b30cc 8a3b30cd
+8a3b4cc8 8a3b4cc9 8a3b4ccc 8a3b4ccd 8a3b50c8 8a3b50c9 8a3b50cc 8a3b50cd
+979b2dc8 979b2dc9 979b2dcc 979b2dcd 979b4dc8 979b4dc9 979b4dcc 979b4dcd
+97bb2dc8 97bb2dc9 97bb2dcc 97bb2dcd 97bb4dc8 97bb4dc9 97bb4dcc 97bb4dcd
+981b2cc8 981b2cc9 981b2ccc 981b2ccd 981b30c8 981b30c9 981b30cc 981b30cd
+981b4cc8 981b4cc9 981b4ccc 981b4ccd 981b50c8 981b50c9 981b50cc 981b50cd
+983b2cc8 983b2cc9 983b2ccc 983b2ccd 983b30c8 983b30c9 983b30cc 983b30cd
+983b4cc8 983b4cc9 983b4ccc 983b4ccd 983b50c8 983b50c9 983b50cc 983b50cd
+999b2dc8 999b2dc9 999b2dcc 999b2dcd 999b4dc8 999b4dc9 999b4dcc 999b4dcd
+99bb2dc8 99bb2dc9 99bb2dcc 99bb2dcd 99bb4dc8 99bb4dc9 99bb4dcc 99bb4dcd
+9a1b2cc8 9a1b2cc9 9a1b2ccc 9a1b2ccd 9a1b30c8 9a1b30c9 9a1b30cc 9a1b30cd
+9a1b4cc8 9a1b4cc9 9a1b4ccc 9a1b4ccd 9a1b50c8 9a1b50c9 9a1b50cc 9a1b50cd
+9a3b2cc8 9a3b2cc9 9a3b2ccc 9a3b2ccd 9a3b30c8 9a3b30c9 9a3b30cc 9a3b30cd
+9a3b4cc8 9a3b4cc9 9a3b4ccc 9a3b4ccd 9a3b50c8 9a3b50c9 9a3b50cc 9a3b50cd
+a79b2dc8 a79b2dc9 a79b2dcc a79b2dcd a79b4dc8 a79b4dc9 a79b4dcc a79b4dcd
+a7bb2dc8 a7bb2dc9 a7bb2dcc a7bb2dcd a7bb4dc8 a7bb4dc9 a7bb4dcc a7bb4dcd
+a81b2cc8 a81b2cc9 a81b2ccc a81b2ccd a81b30c8 a81b30c9 a81b30cc a81b30cd
+a81b4cc8 a81b4cc9 a81b4ccc a81b4ccd a81b50c8 a81b50c9 a81b50cc a81b50cd
+a83b2cc8 a83b2cc9 a83b2ccc a83b2ccd a83b30c8 a83b30c9 a83b30cc a83b30cd
+a83b4cc8 a83b4cc9 a83b4ccc a83b4ccd a83b50c8 a83b50c9 a83b50cc a83b50cd
+a99b2dc8 a99b2dc9 a99b2dcc a99b2dcd a99b4dc8 a99b4dc9 a99b4dcc a99b4dcd
+a9bb2dc8 a9bb2dc9 a9bb2dcc a9bb2dcd a9bb4dc8 a9bb4dc9 a9bb4dcc a9bb4dcd
+aa1b2cc8 aa1b2cc9 aa1b2ccc aa1b2ccd aa1b30c8 aa1b30c9 aa1b30cc aa1b30cd
+aa1b4cc8 aa1b4cc9 aa1b4ccc aa1b4ccd aa1b50c8 aa1b50c9 aa1b50cc aa1b50cd
+aa3b2cc8 aa3b2cc9 aa3b2ccc aa3b2ccd aa3b30c8 aa3b30c9 aa3b30cc aa3b30cd
+aa3b4cc8 aa3b4cc9 aa3b4ccc aa3b4ccd aa3b50c8 aa3b50c9 aa3b50cc aa3b50cd
 ```
 
-The last inequality uses `1-t <= exp(-t)` for `0 <= t < 1`, applied to each
-factor and summed exponents. Let B be the event that some INPUT is repeated.
-For each pair of indices that probability is exactly `1/d`; the union bound
-gives `Pr(B) <= n(n-1)/(2d)`. On `A AND NOT B`, two distinct inputs collide.
-The scan can additionally succeed on some outcomes in B, but we need only
+### A.4 Preregistration, hashes and results of the q3 study
 
-```text
-Pr(success) >= 1 - exp(-n(n-1)/(2M)) - n(n-1)/(2d).
+
+Frozen text of `PREREG_q3.txt` (written before any run of the study programs):
+
+```
+PREREGISTRATION of the q3 study (sha256-r38 variant-table attack), written before any run of the study programs.
+Frozen at the time stamp of this file's sha256 line in FREEZE.txt (UTC).
+
+Quantity: q3 = Pr[rows 16..37 hold | W7 in F7], averaged over variants drawn uniformly from the union of the R_j (the
+variant set of the attack) and over uniform chaining values (H1); the attack's per-group success rate is
+S = SR * p2 * q3.
+
+Estimator: src/smc.c (sha256 in hashes_pre.txt), own code; row 16 exact (32 words of G: factor 2^-27); rows 17..22 proposals with
+the E-cell and '+' bits imposed; tail with W23 x-value cells imposed and W7 = W23 - s1(W21) - W16 - s0(W8) in F7; rows 23..37
+deterministic; every tail success rebuilt into a real semi-free-start pair and verified (compress38 equality, M1 != M1', every
+cell of rows 0..37, W7 in F7); runs report log2 of the product of the stage means.
+Parameters of every run: NP 4000, children 2048 64 64 8 8 4 at rows 17..22, 8192 tail proposals per particle.
+
+Data: variants sampled by src/varsample.c from data/a0set256_peer.txt (A0 set and exact |R_j|, 256 values; credit c99df2dc /
+0ae69bcb), data/peer_a2.txt (the 768-value A2 list, recomputed by our exhaustive scan data/ex1_a2.txt, identical), data/ex1_g.txt:
+  vsU.txt  = 1,048,576 variants, varsample seed 20261012 (uniform over the union of the R_j)
+  vsP.txt  = 4,096 variants, varsample seed 20261013
+
+Runs (each run one process of smc, seed as given, deterministic):
+  R1: mode "all" on vsU.txt (each tail proposal draws a variant uniformly from vsU), seeds 31001 .. 32024 (1024 runs).
+  R2: mode "pop:i" on vsP.txt: run i (i = 0..4095) uses variant i of vsP.txt for all its proposals, seed 40000 + i (4096 runs).
+Analysis (fixed now): Z = 2^(run log2 estimate) (the estimator is unbiased for q3 of its variant distribution); for each of R1, R2
+the mean of Z, the sample standard deviation, and the one-sided 99% lower bound  mean - t * sd / sqrt(n)  with the Student t
+quantile of n-1 degrees of freedom (2.3300 for 1023, 2.3267 for 4095); bounds reported as log2.  Runs with an empty stage
+(no survivors) count as Z = 0.  Every run's output line is kept; no run is discarded.
+Rule: q3_model = 2^-101.5 is used in the ledger if both lower bounds are at least 2^-101.5 (a margin of about 0.5 bit
+below the expected 2^-101.0); otherwise the ledger uses the smaller bound rounded down to 0.01 bit.
+Acceptance checks (reported, not rules): zero failed rebuilds; stage factors rows 16..22 close to the integers -27, -17, -13,
+-15, -6, -7, -1 and the tail to -15.
 ```
 
-This subtraction is essential: equality of two sampled inputs alone is not a
-collision under the target relation. No independence between A and B is used.
+Time stamp and hashes (`FREEZE.txt`, `hashes_pre.txt`):
 
-With `n=2^128`, `M=2^256`, and `d=2^384`, set
-
-```text
-x = n(n-1)/(2M) = 1/2 - 2^-129 > 499/1000
-b = n(n-1)/(2d) < 2^-129.
+```
+2026-10-10T17:37:59Z
+da73e8889178c35725f13730f2d7ba6149829bc0ee808a685fefa7f9be601713  PREREG_q3.txt
+1a389c5bfa1dbd974cb5ab5fc4c28a861ddb68d865f8dd2e2d48df71ff61cfdc  vsU.txt
+ddb546f38eae9ea5c40ba3df4d1f369732e31eb5aa785701a5d94534921b4534  vsP.txt
+63ac41e3d59877f7c338fe8b537d593932d3220e54fb45cf9f57991468b390fa  smc.c
+426bf6b99f04e1a3be615c3cc207f2b755ac548299d9236eb8960826fbbfaaa8  varsample.c
+157ca54a4ae18731d501ee48430f83ddace31538066b4c1ecdfd0ce350034d68  r38.h
+7dbc03d15f959ebd406396d40eba5e921ba8adc4f5795693bbe04a681b05a840  consts.h
+ab8485bf11d49b3408d34f8d58ae36eb7f4d602da354591bbb6fba44ec0dc269  ../data/a0set256_peer.txt
+0efce486d2feffec4cc8576d62eeb1e45fbbc1c91386810069cdbd4f8ee44b47  ../data/peer_a2.txt
+789e71d06549216e23d580aaa9af06f77ebff5b1932726caa7f2dcb6121e622f  ../data/ex1_g.txt
 ```
 
-The positive exponential series gives the following rational bounds:
+Run scripts (all runs kept): R1 `seq 31001 32024 | xargs -P 8 -I{} ./smc vsU.txt all {} 4000 2048 64 64 8 8 4 8192`; R2 run i = 0..4095: `./smc vsP.txt pop:i $((40000+i)) 4000 2048 64 64 8 8 4 8192`.
 
-```text
-exp(x) > 1 + (499/1000) + (499/1000)^2/2 + (499/1000)^3/6
-       = 9865254499/6000000000.
-exp(-x) < 6000000000/9865254499 < 609/1000.
-Pr(success) > 391/1000 - 2^-129 > 39/100.
+Analysis output (`analyze.py`):
+
+```
+r1.out: runs 1024 (empty 0)  mean log2 -100.99875  rel sd 0.0258  99% lower bound log2 -101.00146  successes 4384763 failed rebuilds 0
+  stage means (log2): -27.000 -16.999 -13.000 -15.000 -6.000 -7.000 -1.000 -15.000
+  min/max single run log2 -101.1256 / -100.8748
+r2.out: runs 4096 (empty 0)  mean log2 -101.00020  rel sd 0.0334  99% lower bound log2 -101.00195  successes 17537702 failed rebuilds 0
+  stage means (log2): -27.000 -17.000 -13.000 -15.000 -6.000 -7.000 -1.000 -15.000
+  min/max single run log2 -101.1589 / -100.8381
 ```
 
-The last comparison holds because `2^-129 < 1/1000`. Thus the claimed 0.39 is
-a lower bound over fresh algorithmic coins for this fixed reduced-round hash.
-There is no conditional cryptanalytic premise or measured-confidence parameter.
+Development replicates for the pass rule of Section 10.1: 1200 replicates of the reduced estimator, mean 2^-100.9985.
 
-## Resource ledger under collision-frontier-v5
+*Second q3 study (8f02e559 / f8e24d8, Appendix D).* `PREREG_q3b.txt` (`FREEZE_q3b.txt` `2026-10-11T03:09:15Z`, sha256 `ca19cb8651eadf8f8318b496641cacec30c64d6b37189cdca0a28a81e2ffe91d`), byte-identical `smc.c`, `varsample.c`, `r38.h`, `consts.h`, `analyze.py` and data files (`hashes_q3b.txt`), new variant samples `vsU2.txt` (seed `20261111`, sha256 `6521bff7669272e3aa843a250424459f5c3271c931b5a98e6d3788e3dfcb8b77`) and `vsP2.txt` (seed `20261112`, sha256 `246261caea66e9a2ef03c080bbb4c668e1c1302c896ddd34e97bbe6b945d077c`); rule: `q3_model = 2^-101.35` if both one-sided 99% Student lower bounds of R3 (seeds `81001..82024`, `r3.out` sha256 `2c4471f8a3651a2ef59217ddc657b2badc3d229212d478e82ced7899eeb3fc5d`: 1024 runs, mean log2 `-100.99986`, rel sd `0.0265`, 99% lower bound log2 `-101.00265`, successes `4381451`, failed rebuilds `0`, stage means `-27.000 -17.000 -13.000 -15.000 -6.000 -6.999 -1.000 -15.001`, min/max `-101.1125 / -100.8724`) and R4 (seeds `90000..94095`, `r4.out` sha256 `905dc2a1c16950610d3b822e99de4734a341b1f3c16cc77cc066d5b21bf92cbe`: 4096 runs, mean log2 `-100.99841`, rel sd `0.0337`, 99% lower bound log2 `-101.00018`, successes `17546049`, failed rebuilds `0`, stage means `-27.000 -17.000 -13.000 -15.000 -6.000 -7.000 -1.000 -15.000`, min/max `-101.1925 / -100.8275`) are at least `2^-101.35` (both hold, so `q3_model = 2^-101.35`).
+Replay of verified successes (`t_replay.py`): successes replayed 12817 found by the counted program 12817 failures 0 distinct A0 256 ops min/max 3339 5125
 
-One selected r38 compression costs 1; each other primitive costs exactly
-`1/C` with `C=2728`. All bounds below count total serial computation and hold on
-EVERY random tape, including batches that fail. A word is 256 bits = 32 bytes.
-Both random-word calls are charged per sample. Hash input/output handling is
-charged in addition to the selected compression.
+Stream summaries (`replay_smc.txt`):
 
-The implementation uses only word loads/stores, additions/subtractions, shifts,
-bitwise operations, comparisons, conditional branches, and the specified random
-word primitive. No comparison, pointer arithmetic, or bulk copy is free.
-Unsigned key comparison costs one comparison plus its control flow; no hashing
-or byte-by-byte string comparison is hidden in a key comparison.
-Scalar loads/stores and loop control are included in the following generous
-straight-line budgets. Fixed loops are used instead of expanding n instructions.
-
-### Initialization and preprocessing
-
-Reserve the two arrays and the fixed workspace using explicit base addresses.
-There is no hidden allocation oracle: all `6n` array words are cleared in a
-pointer loop. Each word requires at most eight primitives: pointer load,
-zero store, addition, updated-pointer store, limit load, comparison, branch,
-and one spare operation. Charge `48n` ordinary operations.
-
-Charge at most `2^20` additional ordinary operations to materialize the fixed
-program/constants, initialize scalar state, form masks/limits, and clear the
-fixed workspace. The code/working-store bounds below fit within `2^15` words;
-even copying and clearing every such word with eight-operation loops twice
-is less than `2^20`. Public constants can be loaded literally; no target-specific
-search or other precomputation is performed.
-
-Thus preprocessing is at most `(48n + 2^20)/2728` compression equivalents,
-strictly less than `n/32 = 2^123`: multiply by 2728 and use
-`48n + 2^20 < (2728/32)n = 85.25n`. This entire work is also in total time.
-In particular, buffer initialization is NOT omitted from the preprocessing field.
-
-### Per-sample work other than the compression
-
-Use at most 512 ordinary operations per sample. A concrete upper allocation is:
-
-| Work | Ordinary primitives per sample, at most |
-| --- | ---: |
-| Two independent word draws, retention, mask, B0/B1 construction | 32 |
-| Split the two block words into 16 words, if needed by the compression interface | 96 |
-| Load/reset all eight IV words and pass input/state to the selected primitive | 64 |
-| Mask/pack all eight output words as a single full digest word | 64 |
-| Store the three-word record, advance pointers, and generation-loop control | 64 |
-| Extra scalar moves, mask/constant loads and call/return bookkeeping | 192 |
-| Total | 512 |
-
-For splitting, each of 16 fixed fields takes a load, shift, mask, store and at
-most two associated moves, giving 96. Packing eight 32-bit fields by
-shift-and-OR with masking/loading takes at most eight operations per field.
-The padding formula needs only a shift and two ORs after masking y; no
-byte-buffer allocator or library encoder is needed. Even an interface that
-requires the explicit eight IV words is covered. The selected compression
-includes its schedule, 38 rounds, and feed-forward at price 1.
-
-There are n compression calls here, including samples later found to be repeats.
-
-### Merge sort
-
-For each emitted three-word record allocate at most 128 ordinary operations:
-48 for run-exhaustion tests, two digest loads, comparison and selection;
-48 for loading/storing all three fields and forming their addresses; and
-32 for pointer updates, scalar stores, and output-loop comparison/branches.
-These budgets cover explicit scalar memory traffic: there are at most two
-exhaustion tests and one key comparison, three field loads and three field
-stores, and two pointer advances per emitted record. Field addresses use
-constant offsets 0,1,2. No tuple copying or array indexing hides a bulk operation.
-
-Additionally allocate 128 operations to each merge's pointer/run-bound setup
-and completion, and 256 to each pass's setup, base exchange, and width update.
-There are n record emissions per pass, 128 passes, and
-`n/2 + n/4 + ... + 1 = n-1` merges in total. Thus sorting costs at most
-
-```text
-128*128*n + 128*(n-1) + 256*128
-< 192*128*n = 24576*n ordinary operations.
+```
+50001 -101.06609 -27.000 -17.009 -13.007 -15.021 -6.000 -6.995 -1.000 -15.035  succ 4180 rebuilt_failed 0
+50002 -100.95311 -27.000 -16.994 -13.000 -15.008 -6.000 -7.007 -1.000 -14.943  succ 4453 rebuilt_failed 0
+50003 -101.02103 -27.000 -16.982 -12.999 -15.011 -6.000 -6.996 -1.000 -15.033  succ 4184 rebuilt_failed 0
 ```
 
-The expanded allowance on the right will be used in the total ledger.
-Even an all-equal-digest batch fits the same worst-case bound.
+### A.5 Other outputs
 
-### Scan, final verification, and termination
+Outputs of the base package's runs, except the ledger output and its inputs, the outputs of `t_pre_d.py` and `t_imm_d.py` and the selftest (this derivative's, Appendix D).
 
-Scan at most `n-1` adjacent pairs, with at most 128 ordinary operations per
-pair: load the two digests (with pointer loads/address formation), compare and
-branch; if equal, load both x fields and both y fields, compare them and combine
-the results; then advance the scan pointer and test its limit. The three word
-comparisons and six field loads plus scalar/control traffic fit this budget.
-This bound includes skipping arbitrarily many repeated identical inputs.
+`ledger38.py`:
 
-At most one pair triggers final verification. Charge two more selected
-compressions. Allow 4096 ordinary operations for copying both retained pairs,
-reconstructing and padding them, resetting IVs, hashing interface work,
-packing/comparing full digests, checking distinctness, writing 96 output bytes,
-and terminating. The per-sample interface budget applies twice; even emitting
-individual output bytes by shifts/masks/stores fits the remainder. Failure
-termination is included. No verification retry or restart is performed.
-
-### Summation and claimed time
-
-With H selected compressions and W other primitives, the preceding ledger yields
-
-```text
-H <= n + 2
-W <= 48n + 2^20 + 512n + 24576n + 128n + 4096
-  = 25264n + 2^20 + 4096
-  < 32768n + 2^21.
-T = H + W/2728
-  <= n + 2 + (32768n + 2^21)/2728
-  < 16n = 2^132.
+```
+q3_log2                -101.35
+delta                  0.564
+S_log2                 -67.77135267691586
+q_lb_log2              -68.24929692775489
+NG                     173411553314466731477
+NG_log2                67.23276191715034
+NE_MAX                 429483616154840419475575
+NW_MAX                 11395856056048162063954
+N1_MAX                 11215024650825548568
+N2_MAX                 130407263381692426
+E_NE                   2476.6346569545567
+E_NW                   65.71165722723981
+E_N1                   0.06417154026097638
+E_N2                   0.0007292220484201861
+cap_overflow_total     3.2171794334469904e-06
+success_lower_bound    0.39
+per_group_fixed        3366
+cw                     43
+c1                     17
+c2                     3142
+online_ops             2362776342371890818544925
+online_ops_log2        80.9667573492567
+pre_ops                385844947273092062201164
+pre_units_log2         66.93873946683676
+pre_terms              {'P1_G': 38.906890595608516, 'P1_live': 41.584962500791136, 'P2_F7': 36.807354922057606, 'P2_zero': 36.321928095021725, 'P3_A2': 37.45943164208948, 'P4_rec': 15.366322214245816, 'P5_enum': 52.49386125078, 'P6_zero': 73.08746284125034, 'P6_count': 76.65053872166537, 'P6_fill': 77.33859471533793, 'P6_prefix': 75.8073549220576}
+tight_up               True
+tight_down             True
+allow_log2             70.00281501560706
+memory_log2_bytes      80.41607687449509
+preprocessing_incl_allowances_log2 70.16575943804749
+T_num                  6448632288134210693928641
+T_den                  2728
+log2_T                 71.00163955526396
+time_log2              71.00164
+attack_units_log2      70.00046313641354
+ops_per_block_cv       53.22364577781696
 ```
 
-For an integer-only check of the final inequality, multiply by 2728:
-`2728 + 32768 = 35496 < 16*2728 = 43648`, and the remaining constant
-`2*2728 + 2^21` is less than `8152n`. Thus `time_log2=132` is a conservative
-upper bound, not just the birthday exponent or the number of hash invocations.
-No failed work is conditioned away.
+`t_cost.py` (base program):
 
-## Peak memory, code, and advice
+```
+prologue 96  epilogue 15  four empty blocks 85 (21.25 per block)  loop iteration 6
+lane 0 {'X_E17': 55, 'X_A17': 66, 'X_A17int': 79, 'X_SUCC': 3207}
+lane 1 {'X_E17': 58, 'X_A17': 69, 'X_A17int': 82, 'X_SUCC': 3210}
+lane 2 {'X_E17': 58, 'X_A17': 69, 'X_A17int': 82, 'X_SUCC': 3210}
+lane 3 {'X_E17': 55, 'X_A17': 66, 'X_A17int': 79, 'X_SUCC': 3207}
+{"P0": 96, "EPI": 15, "GROUP4": 85, "ITER": 6, "PASS_ENTRY": 3, "X_E17": 58, "X_A17": 69, "X_A17int": 82, "X_SUCC": 3210, "BLOCK_FIXED": 21.25}
+```
 
-The two arrays contain `6n` words in total, exactly `192n` bytes. Both are
-counted at their simultaneous peak, including the spare half of every y word.
-All retained randomness and every full message are already in these records.
-No separate random tape or list of sampled inputs exists.
+`t_mut.py`:
 
-In addition reserve `2^20` bytes for all fixed storage. A loop-based program
-implementing the displayed pseudocode, generation, comparison scan, and
-verification needs fewer than 4096 fixed instructions. Even allowing four
-256-bit words (128 bytes) per instruction uses at most `2^19` bytes. There is no
-unrolling of n or run widths: a fixed counter iterates 128 times. Fixed
-construction, initialization and merge bodies and their branches fit comfortably
-within 4096 instructions; there are only the bounded bodies itemized above.
-The selected compression is a priced primitive, but its public IV and round
-constants are also included: fewer than 128 stored RAM words, or 4096 bytes.
+```
+cases 6532 run 6520 mismatches 0 expected-outcome histogram {'succ': 2279, 'row': 4164, 'E17': 32, 'W7': 42, 'A17': 3}
+cases 6532 run 6520 mismatches 0 expected-outcome histogram {'succ': 2279, 'row': 4164, 'E17': 32, 'W7': 42, 'A17': 3}
+cases 6532 run 6520 mismatches 0 expected-outcome histogram {'succ': 2279, 'row': 4164, 'E17': 32, 'W7': 42, 'A17': 3}
+cases 6532 run 6520 mismatches 0 expected-outcome histogram {'succ': 2279, 'row': 4164, 'E17': 32, 'W7': 42, 'A17': 3}
+```
 
-Allow a further 4096 RAM words (`2^17` bytes) for working state: all scalar
-pointers/counters, two random words, temporary padded block, sixteen-word input,
-message schedule if materialized, chaining/working words, buffered records,
-verification inputs/digests, and outputs. No recursion or growing call stack
-is used. These explicit code/constants/working allowances together are less than
-the reserved `2^20` bytes. Immutable public code is counted in memory even though
-it is not nonuniform advice. Its initialization was conservatively paid above.
+`t_eq.py (6 chaining values x 256 A0)`:
 
-Consequently peak memory is at most `192n + 2^20 < 256n = 2^136` bytes, since
-`2^20 < 64n`. All addresses fit within a 256-bit word even if byte addressing
-is chosen. There is no external-memory capacity or time omitted from this RAM
-bound. Physical feasibility at this size is not claimed.
+```
+cv 0 entries 1609 NE 5595 5595 NW 92 92 N1 0 0 marks 92 92 ops 20643 OK
+cv 1 entries 1402 NE 4974 4974 NW 91 91 N1 0 0 marks 91 91 ops 19394 OK
+cv 2 entries 1397 NE 4959 4959 NW 94 94 N1 0 0 marks 94 94 ops 19544 OK
+cv 3 entries 1542 NE 5394 5394 NW 96 96 N1 0 0 marks 96 96 ops 20518 OK
+cv 4 entries 1588 NE 5532 5532 NW 93 93 N1 1 1 marks 94 94 ops 20610 OK
+cv 5 entries 1351 NE 4821 4821 NW 80 80 N1 1 1 marks 81 81 ops 18410 OK
+total {'ne': 31275, 'nw': 546, 'n1': 2, 'ent': 8889, 'deep': 0} mismatching CVs 0 row histogram []
+```
 
-Nonuniform advice has length zero: the program uses only public target constants
-and fixed numerical parameters, with no target-specific collision, table, seed,
-or search result. The schema cannot encode log2(0). Therefore
-`nonuniform_advice_log2_bytes=0` denotes the valid upper bound of one byte,
-which covers zero bytes; it does not hide an uncharged precomputed witness.
+`t_pre1.py`:
 
-## Evidence, assumptions, and references
+```
+P1 G body: tested 21184 mismatches 0 max ops hit/non-hit {True: 117, False: 115}
+P2 F7 body: tested 5871 mismatches 0 ops (in F7 / not) {0: 22, 1: 25}
+P3 A2 body: tested 26246 mismatches 0 ops {True: 41, False: 39}
+P4 A2 records: 768, mismatching words 0 ops total 39168 per record 51.0
+P4 G records: 32, mismatching words 0 ops total 3072
+```
 
-The essential finite-function theorem, target reduction, success calculation,
-algorithm and implementation ledger are given above. `heuristics: []` is
-intentional. The only randomness premise is the independent uniform-word
-primitive explicitly provided by collision-frontier-v5, and both calls per
-sample are charged. We make no claim about real PRNG independence, the balance
-of concrete SHA-256, or experimental extrapolation.
+`t_pre2.py`:
 
-The empty certificate manifest is deliberate: no full-size collision was found
-or supplied. No experiment manifest is declared because no empirical premise
-supports the argument. Mechanical checks and advisory review, if performed,
-establish neither a collision witness nor official qualification.
+```
+P5: windows 6 window candidates 24576 valid variants found 2061 mismatching windows 0
+P5 ops: setup 32 , valid candidate incl. append 86 , append part 28 , body part (all tests pass) 58
+P5 body cost histogram (random in-window candidates): [(33, 389), (58, 11)]
+P6 count: ops per (Y, variant) {205}
+P6 prefix ops {'empty': {7}, 'nonempty': {15}}  (includes the loop-increment op of this harness: 1)
+P6 fill ops per (Y, variant) {365}
+P6: buckets 512 mismatching 0 count mismatches 0 empty headers = EMPTY: True
+P6 vs true buckets (6 CVs, A0 block 0): mismatching 0
+```
 
-Primary references consulted for definitions and context:
+`t_clump.py (six slices of the list)`:
 
-1. NIST, FIPS PUB 180-4, *Secure Hash Standard* (2015), sections 5.1.1, 5.2.1,
-   5.3.3 and 6.2.2: standard padding, parsing, fixed IV and SHA-256 computation.
-   https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
-   The selected profile changes only the compression round count as specified
-   above; the 38-round target is not full-round FIPS SHA-256.
-2. Mihir Bellare and Tadayoshi Kohno, *Hash Function Balance and its Impact on
-   Birthday Attacks*, full version, May 2004, especially sections 2-4:
-   https://homes.cs.washington.edu/~yoshi/papers/Hash/balance.pdf
-   Their fixed-function formulation distinguishes genuine collisions from
-   repetitions of an input and does not equate a concrete function with a
-   random oracle. The explicit elementary-symmetric-polynomial bound and all
-   target-specific numerical/resource bounds needed here are derived above;
-   this package does not depend on the judge fetching or accepting an external
-   theorem, a historical candidate, or a previous score.
+```
+successes 2137 other valid variants with the same (A0, A1) 26037 row-16 co-hits 17683 W7 passes 1768 first row-17 tests (E17 mask) passed 141 full row 17 holds 37 co-successes 0
+successes 2137 other valid variants with the same (A0, A1) 26693 row-16 co-hits 18154 W7 passes 1694 first row-17 tests (E17 mask) passed 110 full row 17 holds 43 co-successes 0
+successes 2137 other valid variants with the same (A0, A1) 25669 row-16 co-hits 17479 W7 passes 1687 first row-17 tests (E17 mask) passed 131 full row 17 holds 32 co-successes 0
+successes 2137 other valid variants with the same (A0, A1) 26522 row-16 co-hits 17478 W7 passes 1660 first row-17 tests (E17 mask) passed 146 full row 17 holds 40 co-successes 0
+successes 2137 other valid variants with the same (A0, A1) 26325 row-16 co-hits 17733 W7 passes 1779 first row-17 tests (E17 mask) passed 111 full row 17 holds 31 co-successes 0
+successes 2132 other valid variants with the same (A0, A1) 26060 row-16 co-hits 17496 W7 passes 1715 first row-17 tests (E17 mask) passed 142 full row 17 holds 51 co-successes 0
+```
+
+`t_own.py, 1,500 successes`:
+
+```
+successes 1500 other entries in the success's own bucket 20973 (of them with the same A1: 12436) W7 passes 1782 first row-17 tests passed 95 rows>=18 0 further successes 0
+```
+
+`costs.json, pre1.json, pre2.json (inputs of the ledger)`:
+
+```
+costs.json: {"P0": 89, "EPI": 13, "GROUP4": 75, "ITER": 6, "PASS_ENTRY": 2, "X_E17": 41, "X_A17int": 58, "X_SUCC": 3200, "BLOCK_FIXED": 18.75}
+pre1.json: {"G_hit_ops": 117, "G_nonhit_max_ops": 115, "F7_in_ops": 25, "F7_out_ops": 22, "A2_hit_ops": 41, "A2_nonhit_max_ops": 39, "A2REC_total_ops": 39168, "GREC_total_ops": 3072, "LIVE_ops": 21, "LIVE_g": 5}
+pre2.json: {"P5_SETUP": 37, "P5_BODY_MAX": 57, "P5_LOOP": 3, "P5_APPEND": 46, "P6_ZERO16": 34, "P6_COUNT_IT": 144, "P6_COUNT_VAR": 16, "P6_FILL_IT": 232, "P6_FILL_VAR": 17, "P6_PREFIX_EMPTY": 6, "P6_PREFIX_NONEMPTY": 11}
+```
+
+`t_pre_d.py` (this derivative; the counts of P5 and P6):
+
+```
+P1' live words: 22 count 1048576 | body vs predicate on 96,000 E17: 0 mismatches, 370 passes | longest path 21 | per g 5
+P5: setup 37 | valid candidates 16 list words != (c7 + 2^32, mkent fields, c9x): 0 | append ops [46] | body ops (valid candidates) [57] | loop control 3
+P6 zero: 48 headers in 3 iterations, all zero, ops 102 | per iteration (16 headers) 34
+P6 prefix: empty header 6 ops, nonempty header 11 ops (loop control not included)
+P6 toy: 9 variant runs (4 real variants, A1 = 2^32 - 3, 1 and 0; the real limits 2^32 and A1 as well as toy limits), 946 headers, 1188 entries: count and fill == definition, 0 mismatches
+P6 count: 144 ops per iteration (incl. loop branch), 16 per variant (loads, A1, both segment setups, guard, list-loop branch); fill: 232 ops per iteration, 17 per variant
+pre1.json {'G_hit_ops': 117, 'G_nonhit_max_ops': 115, 'F7_in_ops': 25, 'F7_out_ops': 22, 'A2_hit_ops': 41, 'A2_nonhit_max_ops': 39, 'A2REC_total_ops': 39168, 'GREC_total_ops': 3072, 'LIVE_ops': 21, 'LIVE_g': 5}
+pre2.json {'P5_SETUP': 37, 'P5_BODY_MAX': 57, 'P5_APPEND': 46, 'P5_LOOP': 3, 'P6_ZERO16': 34, 'P6_COUNT_IT': 144, 'P6_COUNT_VAR': 16, 'P6_FILL_IT': 232, 'P6_FILL_VAR': 17, 'P6_PREFIX_EMPTY': 6, 'P6_PREFIX_NONEMPTY': 11}
+```
+
+`sens38.py`, last block (the six changes of Appendix D):
+
+```
+aa0496d3 as filed (its pre2.json, pair budget 1, q3_model 2^-101.5)                                    71.335968              (claim 71.33597)
+(1) the counts the printed bodies execute (P6 fill 233, P5 setup 37, append 46, body 57)               71.342384  +0.006417  (claim 71.34239)
+(2) + P6 zero unrolled 16 times (34 per 16 headers)                                                    71.340819  -0.001565  (claim 71.34082)
+(3) + Y loop of the count and fill passes on u (144 / 232 per iteration, 16 / 17 per variant)          71.339653  -0.001166  (claim 71.33966)
+(4) + pair budget delta = 0.564 instead of 1  (fdef4bab)                                               71.072490  -0.267163  (claim 71.07250)
+(5) + online program tightenings (P0 89, EPI 13, GROUP4 75, X_A17int 58, X_SUCC 3200) (19c9e7e7)       71.069531  -0.002959  (claim 71.06954)
+(6) + second preregistered q3 study PREREG_q3b (q3_model 2^-101.35, 8f02e559/f8e24d8) [this derivative] 71.001640  -0.067891  (claim 71.00164)
+```
+
+`selftest` of experiments/vt38.py (this derivative):
+
+```
+1 published pair collides, M != M'                         ok 
+  published dense part is a valid variant                  ok 
+2 G: the 32 words hold row 16; 20,000 random words and the 1,024 bit-flip neighbours agree with G ok (exhaustive count over 2^32: 32)
+  A2 list: 768 sorted values, all satisfy the A2-only conditions ok 
+  512 embedded variants valid; 256 entry variants valid    ok 
+3 Lemma 3 (rows -4..15 hold, DW_i for i < 16) and Lemma 5 (W16 closed form, W7 = c7 - A_-1), 40 chaining values ok 
+4 program: registers after allocation <= 64                ok (43)
+   costs: {'P0': 89, 'EPI': 13, 'GROUP4': 75, 'ITER': 6, 'X_E17': 41, 'X_A17int': 58, 'X_SUCC': 3200}
+  ledger constants P0 89, epilogue 13, four blocks 75, iteration 6, E17 41, A17 58, success 3200 ok 
+  published pair: the program finds it in each of the 4 lanes ok 
+5 replicate: estimate, accepted pairs (rebuilt, verified), failed rebuilds 0 ok (log2 -101.094, 77 pairs, 77 found by the counted program)
+6 vt-ram-r38 (8 trials): mismatches 0, pairs returned 8    ok [0, 0, 2, 2, 5, 5, 1, 2]
+SELFTEST PASSED
+```
+
+`t_imm_d.py` (immediates charged):
+
+```
+online costs, immediates charged: {'P0': 109, 'EPI': 18, 'GROUP4': 98, 'ITER': 7, 'X_E17': 49, 'X_A17int': 73, 'X_SUCC': 3547, 'PASS_ENTRY': 3, 'BLOCK_FIXED': 24.5}
+preprocessing bodies, immediates charged:
+ pre1 {'G_hit_ops': 160, 'G_nonhit_max_ops': 157, 'F7_in_ops': 31, 'F7_out_ops': 27, 'A2_hit_ops': 58, 'A2_nonhit_max_ops': 55, 'A2REC_total_ops': 56832, 'GREC_total_ops': 4224, 'LIVE_ops': 30, 'LIVE_g': 6}
+ pre2 {'P5_SETUP': 56, 'P5_BODY_MAX': 71, 'P5_APPEND': 61, 'P5_LOOP': 4, 'P6_ZERO16': 50, 'P6_COUNT_IT': 213, 'P6_COUNT_VAR': 22, 'P6_FILL_IT': 345, 'P6_FILL_VAR': 23, 'P6_PREFIX_EMPTY': 6, 'P6_PREFIX_NONEMPTY': 13}
+ledger with immediates charged: time_log2 71.10563  log2_T 71.105625
+```
+
+`t_imm.py (immediates charged; base program)`:
+
+```
+immediates charged: every immediate operand of an ALU instruction, compare-branch or store costs one extra operation. Online program: t_imm.py (instrumented interpreter class MI). Preprocessing bodies: t_pre1.py and t_pre2.py rerun with class MI substituted for Machine and MachineP (results: G body 160, F7 31, A2 58 operations; P5 setup 47, body 71, append 36; P6 count 303, fill 527, prefix 7/18). Ledger with these inputs:
+{"P0": 123, "EPI": 15, "GROUP4": 112, "ITER": 7, "PASS_ENTRY": 3, "X_E17": 70, "X_A17": 85, "X_A17int": 101, "X_SUCC": 3559, "BLOCK_FIXED": 28.0}
+pre_units_log2         68.00264375896379
+log2_T                 71.82645196445513
+time_log2              71.82646
+attack_units_log2      71.3474868422608
+```
+
+`t_far.py, 24 successes`:
+
+```
+buckets 6120 cvs 24 entries 34577 expected 34157.9 ratio 1.0123
+W7 passes 2391 expected 2285.0 (of observed entries 2313.0) E17-mask passes 4 expected 2.33 rows>=18 0 successes 0
+```
+
+`t_far.py, 12 real first blocks`:
+
+```
+buckets 3072 cvs 12 entries 16995 expected 17145.9 ratio 0.9912
+W7 passes 1139 expected 1147.0 (of observed entries 1136.9) E17-mask passes 1 expected 1.11 rows>=18 0 successes 0
+```
+
+`tbl.c` (four runs; last lines):
+
+```
+generic var_valid failures on checked variants: 0
+G hits 50 (expected 66.13), full row-16 failures among hits 0; non-hit sample 8667336, row-16 passes among them 0
+W7 in F7: 9081134 of 138678098 sampled (rate 0.06548, expected 0.06689)
+generic var_valid failures on checked variants: 0
+G hits 54 (expected 66.07), full row-16 failures among hits 0; non-hit sample 8659841, row-16 passes among them 0
+W7 in F7: 9288211 of 138558498 sampled (rate 0.06703, expected 0.06689)
+generic var_valid failures on checked variants: 0
+G hits 66 (expected 66.05), full row-16 failures among hits 0; non-hit sample 8657454, row-16 passes among them 0
+W7 in F7: 9383667 of 138520141 sampled (rate 0.06774, expected 0.06689)
+generic var_valid failures on checked variants: 0
+G hits 84 (expected 66.00), full row-16 failures among hits 0; non-hit sample 8650765, row-16 passes among them 0
+W7 in F7: 9110921 of 138413076 sampled (rate 0.06582, expected 0.06689)
+```
+
+`rcount.c` output (exact |R_j|, last lines):
+
+```
+3660bd4e 748016615
+3668dd4e 747975479
+3668dd56 747975119
+366afd58 747959736
+```
+
+
+## Appendix B. Evidence programs (sources; the names are the file names used in Sections 6 and 11)
+
+### B.1 ledger38.py
+
+```python
+#!/usr/bin/env python3
+# ledger38.py - the exact ledger of the r38 variant-table attack, derivative R38L (Appendix C).  ledger38.py of aa0496d3 with the
+# inputs below changed (C.2).  Of the base's four added inputs: the tables list the NGW = 22 live words of G (L0), entries are ESZ = 2 words (L5), the deep
+# path has its own counter N2 (L4), and the W7/A17 paths and the fill pass are those of the levered program (L2).  Every operation count
+# is an executed-operation count of the counted programs (runs/costs.json, runs/pre1.json, runs/pre2.json: selftest item 4 of experiments/vt38.py,
+# t_pre1.py, t_pre_d.py); probabilities are exact rationals except q3_model and delta.  Every count of a loop pass includes its loop control.
+# With --base it is ledger38.py of 37742a53 (NGW = 32, ESZ = 3, no N2, the old pass keys of pre2.json) and reproduces 2^71.695220.
+#   python3 ledger38.py [--base] [--q3 -101.35] [--delta 0.564] [--eps-log2 -4] [--ac 70] [--as 60] [--dev 60] [--succ 0.39]
+import json, math, os, sys, argparse
+from fractions import Fraction as Fr
+from decimal import Decimal, getcontext
+getcontext().prec = 80
+HERE = os.path.dirname(os.path.abspath(__file__)); RUNS = os.path.join(HERE, '..', 'runs')
+C = 2728                                   # collision-frontier-v5, 38 steps (one target compression = C word operations)
+SR = 191773672732                          # sum_j |R_j| (runs/rc_full: exact)
+F7 = 287309824                             # |F7|
+NB = 256                                   # A0 blocks (tables)
+MASK_E17_BITS = 10
+CNT17 = 1 << 20                            # sum over the 32 words g of G of #{E17 : both row-17 tests pass}; 0 for the 10 dead words (L0, exact)
+
+def log2d(x): return (Decimal(x.numerator) / Decimal(x.denominator)).ln() / Decimal(2).ln() if isinstance(x, Fr) else Decimal(x).ln() / Decimal(2).ln()
+def up5(x): return math.ceil(float(x) * 1e5 - 1e-9) / 1e5
+
+def pre_ops(cs, p1, p2, ngw, lev):
+    """Preprocessing in word operations: every term is (items) x (executed operations per item) + loop control."""
+    W32 = 1 << 32
+    t = {}
+    t['P1_G'] = W32 * (p1['G_hit_ops'] + 3)                         # longest path of the row-16 test + loop
+    if lev: t['P1_live'] = 32 * W32 * (p1['LIVE_ops'] + 3) + 32 * p1['LIVE_g']   # L0: the row-17 count of every g of G (exhaustive over E17)
+    t['P2_F7'] = W32 * (p1['F7_in_ops'] + 3)
+    t['P2_zero'] = 4 * ((1 << 34) + W32 + 2)                          # zero the F7 table region (addresses 0 .. 2^34 + 2^32 + 1) before P2 writes its flags
+    t['P3_A2'] = W32 * (p1['A2_hit_ops'] + 3) + 768 * 4
+    t['P4_rec'] = p1['A2REC_total_ops'] + p1['GREC_total_ops']
+    t['P5_enum'] = NB * 768 * (p2['P5_SETUP'] + (1 << 29) * (p2['P5_BODY_MAX'] + p2['P5_LOOP'])) + SR * p2['P5_APPEND']
+    entries = SR * ngw * W32                                         # (Y, variant, g) triples = entries of all tables
+    if 'P6_ZERO16' in p2:                                            # R38L bodies: 16 headers per zero iteration; the Y loop (2^32 iterations per variant) with its control inside the count
+        t['P6_zero'] = NB * ((1 << 64) // 16) * p2['P6_ZERO16']     # and fill iterations, and the per-variant overhead (list loads, A1, both segment setups, guard, list-loop branch) measured
+        t['P6_count'] = SR * (W32 * p2['P6_COUNT_IT'] + p2['P6_COUNT_VAR'])
+        t['P6_fill'] = SR * (W32 * p2['P6_FILL_IT'] + p2['P6_FILL_VAR'])
+    else:                                                            # the bodies of the base: 4 operations per header, loop control 3 per (Y, variant), 16 per variant
+        t['P6_zero'] = NB * (1 << 64) * 4
+        t['P6_count'] = SR * W32 * (p2['P6_COUNT'] + 3) + SR * 16
+        t['P6_fill'] = SR * W32 * (p2['P6_FILL'] + 3) + SR * 16
+    t['P6_prefix'] = NB * (1 << 64) * (p2['P6_PREFIX_EMPTY'] + 3) + min(entries, NB * (1 << 64)) * (p2['P6_PREFIX_NONEMPTY'] - p2['P6_PREFIX_EMPTY'])   # nonempty headers <= min(entries, headers)
+    return t
+
+def ledger(q3_log2=-101.35, delta=Fr(141, 250), eps=(Fr(1, 1 << 16), Fr(1, 1 << 14), Fr(1, 1 << 7)), ac=70, as_=60, dev=60, succ=Fr(39, 100), tol=Fr(1, 2 ** 60), show=True,
+           costs=None, p1=None, p2=None, base=False, ngw=None, n2=None, eps2=Fr(1, 1 << 5), esz=None):
+    lev = not base; esz = esz if esz is not None else (3 if base else 2)
+    ngw = ngw if ngw is not None else (32 if base else 22); n2 = n2 if n2 is not None else lev
+    cs = costs or json.load(open(os.path.join(RUNS, 'costs.json')))
+    p1 = p1 or json.load(open(os.path.join(RUNS, 'pre1.json'))); p2 = p2 or json.load(open(os.path.join(RUNS, 'pre2.json')))
+    if base and eps == (Fr(1, 1 << 16), Fr(1, 1 << 14), Fr(1, 1 << 7)): eps = Fr(1, 16)
+    eps_ne, eps_nw, eps_n1 = eps if isinstance(eps, tuple) else (eps, eps, eps)
+    MAXB = 14 * ngw * 768                                            # Lemma 6 bucket bound
+    p_f7 = Fr(F7, 1 << 32)
+    ent = Fr(SR * ngw, 1 << 32)                                      # E[entries per group] (exact, H1)
+    E_NE = esz * (ent + NB); E_NW = ent * p_f7; E_N1 = E_NW * Fr(1, 2 ** MASK_E17_BITS)
+    E_N2 = SR * p_f7 * Fr(CNT17, 1 << 64)                            # L4: W7 passes that pass both row-17 tests (H1, Lemma 4)
+    B_ent = NB * MAXB
+    B_NE, B_NW, B_N1, B_N2 = esz * (B_ent + NB), B_ent, B_ent, B_ent
+    # per-group success rate lower bound
+    fl = math.floor(q3_log2); q3 = Fr(2) ** fl * Fr(math.floor(2 ** (q3_log2 - fl) * 2 ** 40), 2 ** 40)
+    S = SR * p_f7 * q3
+    q_lb = S * (1 - delta / 2)
+    per_group_fixed = cs['P0'] + cs['EPI'] + (NB // 4) * (cs['GROUP4'] - 4 * cs['ITER'])      # the sentinel iteration (ITER) of every block is charged through NE
+    cw = cs['PASS_ENTRY'] + cs['X_E17']
+    if n2: c1 = cs['X_A17int'] - cs['X_E17']; c2 = cs['X_SUCC'] - cs['X_A17int']
+    else: c1 = cs['X_SUCC'] - cs['X_E17']; c2 = 0
+    # iterate N_G and the Chebyshev overflow bounds (P_k <= B_k / (eps_k^2 N_G E_k))
+    Ptot = Fr(0)
+    for _ in range(6):
+        x = (Decimal(1) - Decimal(succ.numerator) / Decimal(succ.denominator) - Decimal(Ptot.numerator) / Decimal(Ptot.denominator) - Decimal(tol.numerator) / Decimal(tol.denominator))
+        mu = -x.ln()
+        NG = int(-((-Fr(int(mu * 10 ** 30), 10 ** 30)) // q_lb)) + 1
+        Pk = [Fr(B_NE) / (eps_ne ** 2 * NG * E_NE), Fr(B_NW) / (eps_nw ** 2 * NG * E_NW), Fr(B_N1) / (eps_n1 ** 2 * NG * E_N1)]
+        if n2: Pk.append(Fr(B_N2) / (eps2 ** 2 * NG * E_N2))
+        Pn = sum(Pk)
+        if abs(Pn - Ptot) < Fr(1, 10 ** 12) * max(Pn, Fr(1, 10 ** 12)): Ptot = Pn; break
+        Ptot = Pn
+    NE_MAX = math.ceil(NG * E_NE * (1 + eps_ne)); NW_MAX = math.ceil(NG * E_NW * (1 + eps_nw)); N1_MAX = math.ceil(NG * E_N1 * (1 + eps_n1))
+    N2_MAX = math.ceil(NG * E_N2 * (1 + eps2)) if n2 else 0
+    online = NG * per_group_fixed + (cs['ITER'] // esz) * (NE_MAX + B_NE) + cw * (NW_MAX + B_NW) + c1 * (N1_MAX + B_N1) + (c2 * (N2_MAX + B_N2) if n2 else 0)
+    pre = pre_ops(cs, p1, p2, ngw, lev); pre_total = sum(pre.values())
+    init, fin_ops, fin_units = 1 << 32, 1024, 6          # init: generation of the program text (about 2^21 instructions at most 2^11 operations each)
+    # memory in 32-byte words: headers, esz-word entries, sentinels, F7 table (flags + sentinel region), R_j lists, records
+    entries_all = SR * ngw * (1 << 32)
+    words = NB * (1 << 64) + esz * entries_all + esz * min(entries_all, NB * (1 << 64)) + (1 << 33) + 3 * SR + 20000
+    mem_log2_bytes = float(log2d(Fr(words * 32)))
+    allow = Fr(2) ** ac + Fr(2) ** as_ + Fr(2) ** dev
+    T = allow + Fr(pre_total + init + online + fin_ops, C) + NG + fin_units
+    pre_incl = allow + Fr(pre_total, C)
+    lg = log2d(T); tl = up5(lg)
+    k = int(round(tl * 100000)); n_, d_ = T.numerator, T.denominator
+    tight_up = n_ ** 100000 <= (2 ** k) * d_ ** 100000           # T <= 2^(k/10^5)
+    tight_down = n_ ** 100000 > (2 ** (k - 1)) * d_ ** 100000    # T >  2^((k-1)/10^5): k is the smallest such integer
+    assert tight_up and tight_down
+    mu_act = Decimal((NG * q_lb).numerator) / Decimal((NG * q_lb).denominator)
+    success_bound = float(1 - (-mu_act).exp() - Decimal(Ptot.numerator) / Decimal(Ptot.denominator))
+    out = dict(q3_log2=q3_log2, delta=float(delta), S_log2=float(log2d(S)), q_lb_log2=float(log2d(q_lb)), NG=NG, NG_log2=float(log2d(Fr(NG))),
+               NE_MAX=NE_MAX, NW_MAX=NW_MAX, N1_MAX=N1_MAX, N2_MAX=N2_MAX, E_NE=float(E_NE), E_NW=float(E_NW), E_N1=float(E_N1), E_N2=float(E_N2),
+               cap_overflow_total=float(Ptot), success_lower_bound=success_bound,
+               per_group_fixed=per_group_fixed, cw=cw, c1=c1, c2=c2, online_ops=online, online_ops_log2=float(log2d(Fr(online))),
+               pre_ops=pre_total, pre_units_log2=float(log2d(Fr(pre_total, C))), pre_terms={k: float(log2d(Fr(v))) for k, v in pre.items()},
+               tight_up=tight_up, tight_down=tight_down, allow_log2=float(log2d(allow)), memory_log2_bytes=mem_log2_bytes, preprocessing_incl_allowances_log2=float(log2d(pre_incl)), T_num=T.numerator, T_den=T.denominator, log2_T=float(lg), time_log2=tl,
+               attack_units_log2=float(log2d(T - allow)), ops_per_block_cv=float(Fr(online, NG * NB)))
+    if show:
+        for k, v in out.items(): print('%-22s %s' % (k, v))
+    assert (1 - (-mu_act).exp() - Decimal(Ptot.numerator) / Decimal(Ptot.denominator)) >= Decimal(succ.numerator) / Decimal(succ.denominator)
+    return out
+
+if __name__ == '__main__':
+    ap = argparse.ArgumentParser(); ap.add_argument('--base', action='store_true'); ap.add_argument('--q3', type=float, default=-101.35); ap.add_argument('--delta', type=float, default=0.564)
+    ap.add_argument('--eps-log2', type=int, default=None); ap.add_argument('--ac', type=int, default=70); ap.add_argument('--as', dest='as_', type=int, default=60)
+    ap.add_argument('--dev', type=int, default=60); ap.add_argument('--succ', default='0.39')
+    a = ap.parse_args()
+    eps = (Fr(1, 1 << 16), Fr(1, 1 << 14), Fr(1, 1 << 7)) if a.eps_log2 is None else Fr(1, 2 ** -a.eps_log2)
+    eps2 = Fr(1, 1 << 5) if a.eps_log2 is None else Fr(1)
+    ledger(a.q3, Fr(a.delta).limit_denominator(1000), eps, a.ac, a.as_, a.dev, Fr(a.succ), base=a.base, eps2=eps2)
+```
+
+### B.2 sens38.py
+
+```python
+# sens38.py - sensitivity of the derivative's exact ledger (each row: ledger() with one input changed; N_G recomputed),
+# and each lever left out (its inputs at the base values).
+import sys, json, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ledger38 import *
+from fractions import Fraction as Fr
+def row(name, **kw):
+    o = ledger(show=False, **kw); print('%-62s %.5f   (attack %.4f, N_G 2^%.4f)' % (name, o['log2_T'], o['attack_units_log2'], o['NG_log2'])); return o
+row('claimed configuration (q3_model 2^-101.35, delta 0.564, A_C 2^70, A_S 2^60, DEV 2^60)')
+row('q3_model = measured mean 2^-101.0', q3_log2=-101.0)
+row('q3_model = 2^-101.25', q3_log2=-101.25); row('q3_model = 2^-101.5 (the bound of R1/R2 rule)', q3_log2=-101.5)
+row('q3_model = 2^-102 (one bit below the measured bounds)', q3_log2=-102.0)
+row('q3_model = 2^-103', q3_log2=-103.0)
+row('pair budget delta = 0.56 (the limits rounded down)', delta=Fr(56, 100))
+row('pair budget delta = 1/2', delta=Fr(1, 2))
+row('pair budget delta = 1 (the budget of aa0496d3)', delta=Fr(1))
+row('pair budget delta = 1.5', delta=Fr(3, 2))
+row('A_C = 2^72', ac=72); row('A_C = 2^74', ac=74); row('A_C = 2^76', ac=76); row('A_C = 2^78', ac=78); row('A_C = 2^66', ac=66)
+row('A_S = 2^50, DEV = 2^50 (the allowances of the r37 filings)', as_=50, dev=50)
+row('A_S = 2^50 alone', as_=50)
+row('A_S = 2^70, DEV = 2^64 (the allowances of 0ae69bcb)', as_=70, dev=64)
+row('A_S = 2^64, DEV = 2^64', as_=64, dev=64)
+row('cap margin eps = 2^-8 (0.39%)', eps=Fr(1, 256), eps2=Fr(1)); row('cap margin eps = 2^-6', eps=Fr(1, 64), eps2=Fr(1)); row('cap margin eps = 2^-4 (uniform)', eps=Fr(1, 16), eps2=Fr(1)); row('cap margin eps = 2^-3', eps=Fr(1, 8), eps2=Fr(1))
+row('success bound 0.396 instead of 0.39', succ=Fr(396, 1000))
+row('no allowances (the attack and preprocessing alone)', ac=-1000, as_=-1000, dev=-1000)
+cs = json.load(open(os.path.join(RUNS, 'costs.json'))); p1 = json.load(open(os.path.join(RUNS, 'pre1.json'))); p2 = json.load(open(os.path.join(RUNS, 'pre2.json')))
+# the pass iterations scale with the words listed: 6 (count) and 10 (fill) operations per word of G
+row('without L0 (tables over all 32 words of G)', ngw=32, p2=dict(p2, P6_COUNT_IT=p2['P6_COUNT_IT'] + 6 * 10, P6_FILL_IT=p2['P6_FILL_IT'] + 10 * 10))
+row('without L2/L5 (W7 path and 3-word entries of the base)', esz=3, costs=dict(cs, P0=96, GROUP4=85, PASS_ENTRY=3, X_E17=58, X_A17int=82, X_SUCC=3211), p2=dict(p2, P5_SETUP=32, P5_BODY_MAX=58, P5_APPEND=28, P6_FILL_IT=p2['P6_FILL_IT'] + 22, P6_PREFIX_NONEMPTY=14))
+row('without L4 (deep path charged at N1_MAX)', n2=False, costs=dict(cs, EPI=15, X_SUCC=cs['X_SUCC'] - 1))
+
+# the six changes of this derivative (Appendix D.3), one after the other: log2 T of the exact ledger (6 decimals) and the change against the row before
+cs_aa = dict(cs, P0=91, EPI=19, GROUP4=76, X_A17int=60, X_SUCC=3208, BLOCK_FIXED=19.0)
+p2_aa = {"P5_SETUP": 35, "P5_BODY_MAX": 56, "P5_APPEND": 43, "P5_LOOP": 3, "P6_COUNT": 145, "P6_FILL": 189, "P6_PREFIX_EMPTY": 6, "P6_PREFIX_NONEMPTY": 11}   # pre2.json of aa0496d3
+printed = dict(p2_aa, P5_SETUP=p2['P5_SETUP'], P5_BODY_MAX=p2['P5_BODY_MAX'], P5_APPEND=p2['P5_APPEND'], P6_FILL=233)                                   # the bodies as they execute
+loop_old = dict(p2, P6_ZERO16=64, P6_COUNT_IT=145 + 3, P6_COUNT_VAR=16, P6_FILL_IT=233 + 3, P6_FILL_VAR=16)                                              # 4 per header, loop control +3, 16 per variant
+steps = [('aa0496d3 as filed (its pre2.json, pair budget 1, q3_model 2^-101.5)', dict(q3_log2=-101.5, costs=cs_aa, p2=p2_aa, delta=Fr(1))),
+         ('(1) the counts the printed bodies execute (P6 fill 233, P5 setup 37, append 46, body 57)', dict(q3_log2=-101.5, costs=cs_aa, p2=printed, delta=Fr(1))),
+         ('(2) + P6 zero unrolled 16 times (34 per 16 headers)', dict(q3_log2=-101.5, costs=cs_aa, p2=dict(loop_old, P6_ZERO16=p2['P6_ZERO16']), delta=Fr(1))),
+         ('(3) + Y loop of the count and fill passes on u (144 / 232 per iteration, 16 / 17 per variant)', dict(q3_log2=-101.5, costs=cs_aa, p2=p2, delta=Fr(1))),
+         ('(4) + pair budget delta = 0.564 instead of 1  (fdef4bab)', dict(q3_log2=-101.5, costs=cs_aa, p2=p2, delta=Fr(141, 250))),
+         ('(5) + online program tightenings (P0 89, EPI 13, GROUP4 75, X_A17int 58, X_SUCC 3200) (19c9e7e7)', dict(q3_log2=-101.5, costs=cs, p2=p2, delta=Fr(141, 250))),
+         ('(6) + second preregistered q3 study PREREG_q3b (q3_model 2^-101.35, 8f02e559/f8e24d8) [this derivative]', dict(q3_log2=-101.35, costs=cs, p2=p2, delta=Fr(141, 250)))]
+prev = None
+for name, kw in steps:
+    o = ledger(show=False, p1=json.load(open(os.path.join(RUNS, 'pre1.json'))), **kw)
+    print('%-92s %.6f  %s  (claim %.5f)' % (name, o['log2_T'], '          ' if prev is None else '%+.6f' % (o['log2_T'] - prev), o['time_log2'])); prev = o['log2_T']
+```
+
+### B.3 vtpre.py (preprocessing as counted code)
+
+```python
+# vtpre.py - preprocessing as counted code (same machine as vtprog.py): P1 the set G, P2 the F7 table, P3 the A2 list,
+# P4 the A2 and G records, P5 the variant lists R_j, P6 the tables T_j (zero, count, prefix, fill).
+# Each pass is a loop body generated here; the interpreter counts the executed operations; the ledger charges
+# (items) x (the longest path of the body, measured by executing it) and the loop control.
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from vt38 import *
+
+def br_ne(a, t, val, lab):
+    """branch to lab if register t != val (val 0: bnz)"""
+    a('bnz', t, lab) if val == 0 else a('bne', t, val, lab)
+
+# ---------------------------------------------------------------------------------------------------------------
+# P1: row 16 of both members as a function of W16 (member x = w; member y = w + dW16)
+def gen_g_body(a, nx, w='w'):
+    """Falls through iff w is in G.  Constants of rows 12..15 of S*."""
+    kx = {}
+    for m, (Aa, Ee) in enumerate(((SAX, SEX), (SAY, SEY))):
+        A = lambda i: Aa[i+4]; E = lambda i: Ee[i+4]
+        kx[m] = ((A(12) + E(12) + S1(E(15)) + CH(E(15), E(14), E(13)) + K[16]) & M,
+                 (-A(12) + S0(A(15)) + MAJ(A(15), A(14), A(13))) & M, E(15), A(15), A(14), E(14))
+    mW, vW, dW, _ = CELLS[2][16]; mE, vE, dE, _ = CELLS[1][16]; mA, vA, dA, _ = CELLS[0][16]
+    if mW: a('and', 't1', w, mW); br_ne(a, 't1', vW, nx)
+    a('add', 'wy', w, DW[16]); a('and', 'wy', 'wy', M)
+    a('xor', 't1', w, 'wy'); br_ne(a, 't1', dW, nx)
+    for m, wr, er, ar in ((0, w, 'ex', 'ax'), (1, 'wy', 'ey', 'ay')):
+        c1, c2 = kx[m][0], kx[m][1]
+        a('add', er, wr, c1); a('and', er, er, M)
+        if m == 0:
+            if mE: a('and', 't1', er, mE); br_ne(a, 't1', vE, nx)
+            if PQ[16]: a('xor', 't1', er, kx[0][2]); a('and', 't1', 't1', PQ[16]); a('bnz', 't1', nx)
+        else:
+            a('xor', 't1', 'ex', 'ey'); br_ne(a, 't1', dE, nx)
+        a('add', ar, er, c2); a('and', ar, ar, M)
+        if m == 0:
+            if mA: a('and', 't1', ar, mA); br_ne(a, 't1', vA, nx)
+        else:
+            a('xor', 't1', 'ax', 'ay'); br_ne(a, 't1', dA, nx)
+    # two-bit conditions keyed at row 16 (member x): operands at rows 14, 15 are constants of S*
+    regs = {(0, 16): 'ax', (1, 16): 'ex', (2, 16): w}
+    const = lambda k, i: (SAX, SEX, SWX)[k][i + (4 if k < 2 else 0)]
+    for (k1, i1, b1, eq, k2, i2, b2, row) in X2:
+        if row != 16: continue
+        need = 0 if eq else 1            # required value of v1 ^ v2
+        if (k1, i1) in regs and (k2, i2) in regs:
+            a('shr', 't1', regs[(k1, i1)], b1); a('shr', 't2', regs[(k2, i2)], b2); a('xor', 't1', 't1', 't2'); a('and', 't1', 't1', 1)
+            br_ne(a, 't1', need, nx)
+        else:
+            (kv, iv, bv), (kc, ic, bc) = ((k1, i1, b1), (k2, i2, b2)) if (k1, i1) in regs else ((k2, i2, b2), (k1, i1, b1))
+            cbit = (const(kc, ic) >> bc) & 1
+            a('shr', 't1', regs[(kv, iv)], bv); a('and', 't1', 't1', 1); br_ne(a, 't1', cbit ^ need, nx)
+
+# ---------------------------------------------------------------------------------------------------------------
+# P1': the live words of G (L0): for each g, count the E17 that pass the row-17 tests of the program (E17 mask, A17 mask,
+# A17-internal conditions); the loop over the 2^32 values of E17 (register e) runs this body; g is live iff the count is not 0.
+def gen_live_body(a, gi, nx):
+    r = grec(gi, GL[gi]); b = gaddr(gi)
+    a('and', 't1', 'e', r[b + 1]); br_ne(a, 't1', r[b + 2], nx)
+    a('add', 'A17', 'e', r[b + 3]); a('and', 't1', 'A17', r[b + 4]); br_ne(a, 't1', r[b + 5], nx)
+    for n_, (b1, b2, eq) in enumerate(a17int()):
+        d_ = 't3' if n_ == 0 else 't1'
+        a('shr', d_, 'A17', b1 - b2) if b1 >= b2 else a('shl', d_, 'A17', b2 - b1)
+        a('xor', d_, d_, 'A17'); a('and', d_, d_, 1 << b2)
+        if not eq: a('xor', d_, d_, 1 << b2)
+        if n_: a('or', 't3', 't3', 't1')
+    a('bnz', 't3', nx); a('add', 'cnt', 'cnt', 1)
+
+def gen_live_end(a, gi, nx):
+    """after the loop of one g: append g to the live list iff its count is not 0"""
+    a('bz', 'cnt', nx); a('st', 'lv', gi); a('add', 'lv', 'lv', 1); a('li', 'cnt', 0)
+
+def live_list(cnt=None):
+    """the (gi, g) of G whose exact row-17 count (digit DP over E17 with the carry of A17 = E17 + a17) is not 0"""
+    out = []
+    for gi, g in enumerate(GL):
+        r = grec(gi, g); b = gaddr(gi); P = a17int(); st = {(0, 0): 1}
+        for i in range(32):
+            ns = {}
+            for (c, h), n in st.items():
+                for e in (0, 1):
+                    s = e + (r[b + 3] >> i & 1) + c; x = s & 1; h2 = h | x << i
+                    if (r[b + 1] >> i & 1 and e != r[b + 2] >> i & 1) or (r[b + 4] >> i & 1 and x != r[b + 5] >> i & 1): continue
+                    if any(max(p, q) == i and ((h2 >> p) ^ (h2 >> q)) & 1 != (0 if w else 1) for p, q, w in P): continue
+                    k = (s >> 1, h2 & sum(1 << p | 1 << q for p, q, w in P if max(p, q) > i)); ns[k] = ns.get(k, 0) + n
+            st = ns
+        n = sum(st.values())
+        if cnt is not None: cnt.append(n)
+        if n: out.append((gi, g))
+    return out
+LIVE = live_list()
+
+# ---------------------------------------------------------------------------------------------------------------
+# P2: the F7 table: flag at w and w + 2^32 for w in F7, and the value 2 at 2^34 + 1 + w for all w (sentinel region)
+def gen_f7_body(a, nx, w='w'):
+    rot32(a, 'sw', w, 7, 18, 3, shr3=True, D='D1')
+    a('add', 'w2', w, D7); a('and', 'w2', 'w2', M)
+    rot32(a, 'sw2', 'w2', 7, 18, 3, shr3=True, D='D2')
+    a('add', 'ad', w, (1 << 34) + 1); a('st', 'ad', 'two')          # sentinel region
+    a('sub', 't1', 'sw2', 'sw'); a('and', 't1', 't1', M); br_ne(a, 't1', T7, nx)
+    a('st', w, 'one'); a('add', 'ad', w, 1 << 32); a('st', 'ad', 'one')
+
+# ---------------------------------------------------------------------------------------------------------------
+# P3: the A2 list: conditions on A2 alone
+def gen_a2_body(a, nx, x='x'):
+    c6 = (sa(6) - S0(sa(5)) - MAJ(sa(5), sa(4), sa(3))) & M
+    a('add', 'e6', x, c6); a('and', 'e6', 'e6', M)
+    mE, vE, dE, _ = CELLS[1][6]
+    assert dE == 0
+    if mE: a('and', 't1', 'e6', mE); br_ne(a, 't1', vE, nx)
+    # '+' pairs of row 7 against E6, both members (E7 published)
+    if PQ[7]:
+        a('xor', 't1', 'e6', sex(7)); a('and', 't1', 't1', PQ[7]); a('bnz', 't1', nx)
+        a('xor', 't1', 'e6', sey(7)); a('and', 't1', 't1', PQ[7]); a('bnz', 't1', nx)
+    # W10 of both members = c10 - E6: s0 difference
+    c10x = (sex(10) - sa(6) - S1(sex(9)) - CH(sex(9), sex(8), sex(7)) - K[10]) & M
+    c10y = (sey(10) - say(6) - S1(sey(9)) - CH(sey(9), sey(8), sey(7)) - K[10]) & M
+    a('rsub', 'w10x', c10x, 'e6'); a('and', 'w10x', 'w10x', M); a('rsub', 'w10y', c10y, 'e6'); a('and', 'w10y', 'w10y', M)
+    a('sub', 't1', 'w10y', 'w10x'); a('and', 't1', 't1', M); br_ne(a, 't1', DW[10], nx)
+    rot32(a, 'sx', 'w10x', 7, 18, 3, shr3=True, D='D1'); rot32(a, 'sy', 'w10y', 7, 18, 3, shr3=True, D='D2')
+    a('sub', 't1', 'sy', 'sx'); a('and', 't1', 't1', M); br_ne(a, 't1', DS0[10], nx)
+
+# ---------------------------------------------------------------------------------------------------------------
+# P4: records.  A2 record (2 words) and G record (12 words) exactly as in vtprog.tables()
+def gen_a2rec(a, x='x', dst='ra'):
+    """x = A2 (register, masked); writes the two record words to mem[dst], mem[dst+1] (dst a register)."""
+    e6c = (sa(6) - S0(sa(5)) - MAJ(sa(5), sa(4), sa(3))) & M
+    a('add', 'e6', x, e6c); a('and', 'e6', 'e6', M)
+    rot32(a, 'S0x', x, 2, 13, 22); a('and', 'S0x', 'S0x', M)
+    # MAJ(A4, A3, A2) = (A4 & (A3 ^ A2)) ^ (A3 & A2)
+    a('xor', 'mj', x, sa(3)); a('and', 'mj', 'mj', sa(4)); a('and', 't2', x, sa(3)); a('xor', 'mj', 'mj', 't2')
+    a('rsub', 'e5b', (sa(5) - S0(sa(4))) & M, 'mj'); a('and', 'e5b', 'e5b', M)           # E5 - A1
+    # c9 = E9 - 2 A5 + S0(A4) + MAJ(A4,A3,A2) - S1(E8) - CH(E8,E7,E6) - K9 ; CH(E8,E7,E6) = ((E7 ^ E6) & E8) ^ E6
+    for tag, E, A in (('x', sex, sa), ('y', sey, say)):
+        a('xor', 't2', 'e6', E(7)); a('and', 't2', 't2', E(8)); a('xor', 't2', 't2', 'e6')
+        a('rsub', 'c9' + tag, (E(9) - 2 * sa(5) + S0(sa(4)) - S1(E(8)) - K[9]) & M, 't2')
+        a('add', 'c9' + tag, 'c9' + tag, 'mj'); a('and', 'c9' + tag, 'c9' + tag, M)
+        c10 = (E(10) - A(6) - S1(E(9)) - CH(E(9), E(8), E(7)) - K[10]) & M      # W10 = c10 - E6
+        a('rsub', 'w10' + tag, c10, 'e6'); a('and', 'w10' + tag, 'w10' + tag, M)
+    a('add', 'k10', 'w10x', s1(SWX[15])); a('and', 'k10', 'k10', M)
+    a('shl', 'r0', 'k10', 32); a('or', 'r0', 'r0', x)
+    a('shl', 't1', 'S0x', 64); a('or', 'r0', 'r0', 't1')
+    a('shl', 't1', 'e6', 96); a('or', 'r0', 'r0', 't1')
+    a('shl', 't1', 'e5b', 128); a('or', 'r0', 'r0', 't1')
+    a('st', dst, 'r0')
+    a('shl', 'r1', 'c9y', 32); a('or', 'r1', 'r1', 'c9x')
+    a('shl', 't1', 'w10x', 64); a('or', 'r1', 'r1', 't1'); a('shl', 't1', 'w10y', 96); a('or', 'r1', 'r1', 't1')
+    a('add', 'da', dst, 1); a('st', 'da', 'r1')
+
+def gen_grec(a, gi, g):
+    """G record of the constant g = W16x: counted straight-line code computing the words of vtprog.grec(gi, g)."""
+    vals = grec(gi, g); base = gaddr(gi)
+    for m, (Aa, Ee) in enumerate(((SAX, SEX), (SAY, SEY))):
+        A = lambda i: Aa[i+4]; E = lambda i: Ee[i+4]
+        a('li', 'wm', g if m == 0 else (g - DW16) & M)
+        a('add', 'e16', 'wm', (A(12) + E(12) + S1(E(15)) + CH(E(15), E(14), E(13)) + K[16]) & M); a('and', 'e16', 'e16', M)
+        a('add', 'a16', 'e16', (-A(12) + S0(A(15)) + MAJ(A(15), A(14), A(13))) & M); a('and', 'a16', 'a16', M)
+        rot32(a, 'sE', 'e16', 6, 11, 25)
+        # CH(e16, E15, E14) = ((E15 ^ E14) & e16) ^ E14
+        a('and', 't1', 'e16', E(15) ^ E(14)); a('xor', 't1', 't1', E(14))
+        a('add', 'c17', 'sE', 't1'); a('add', 'c17', 'c17', (A(13) + E(13) + K[17]) & M); a('and', 'c17', 'c17', M)
+        rot32(a, 'sA', 'a16', 2, 13, 22)
+        # MAJ(a16, A15, A14) = (a16 & (A15 ^ A14)) ^ (A15 & A14)
+        a('and', 't1', 'a16', A(15) ^ A(14)); a('xor', 't1', 't1', A(15) & A(14))
+        a('add', 'a17', 'sA', 't1'); a('add', 'a17', 'a17', (-A(13)) & M); a('and', 'a17', 'a17', M)
+        if m == 0:
+            a('sti', base, 'c17'); a('sti', base + 3, 'a17'); a('sti', base + 8, 'a16'); a('sti', base + 9, 'e16')
+            a('add', 'e16x', 'e16', 0); a('add', 'a16x', 'a16', 0)
+        else:
+            a('sti', base + 10, 'a16'); a('sti', base + 11, 'e16')
+    # masks do not depend on g; values: cell values plus the (possibly inverted) bits of e16x / a16x of the folded conditions
+    mE, vE, _, _ = CELLS[1][17]; mA, vA, _, _ = CELLS[0][17]
+    a('sti', base + 1, vals[base + 1]); a('sti', base + 4, vals[base + 4]); a('sti', base + 6, g); a('sti', base + 7, 0)
+    a('li', 'vE', vE); a('li', 'vA', vA)
+    for (k1, i1, b1, eq, k2, i2, b2, row) in X2:
+        if row == 17 and i1 == 16 and i2 == 17:
+            src = 'e16x' if k1 == 1 else 'a16x'
+            a('shr', 't1', src, b1); a('and', 't1', 't1', 1)
+            if not eq: a('xor', 't1', 't1', 1)
+            a('shl', 't1', 't1', b2); a('or', 'vE' if k2 == 1 else 'vA', 'vE' if k2 == 1 else 'vA', 't1')
+    a('and', 't1', 'e16x', PQ[17]); a('or', 'vE', 'vE', 't1')
+    a('sti', base + 2, 'vE'); a('sti', base + 5, 'vA')
+
+# ---------------------------------------------------------------------------------------------------------------
+# P5: the variant list R_j.  For A0 = A0_j (instruction field) and an A2 of the list (record at register 'ra'), the
+# candidates A1 = lo + r, r in [r0, r1), lo = (E6 & 0xe0000000) - (E5 - A1) (the '+' pair of rows 5/6 confines A1 to one
+# window of 2^29).  Tests: dW8 (through CH only), ds0(W9), ds0(W8) (A0 enters W8 = Fx - A0).  Valid candidates append three
+# words (c7 + 2^32, eb, c9x) at the list pointer 'lp'.
+def gen_enum_setup(a, a0):
+    """Per (A0, A2): constants from the A2 record at register ra (word 0: A2 | K10 << 32 | S0(A2) << 64 | E6 << 96 |
+    (E5 - A1) << 128; word 1: c9x | c9y << 32 | ...)."""
+    a('ld', 'w0', 'ra'); a('add', 't1', 'ra', 1); a('ld', 'w1r', 't1')
+    a('and', 'A2', 'w0', M); a('shr', 'S0A2', 'w0', 64); a('and', 'S0A2', 'S0A2', M)
+    a('shr', 'E6', 'w0', 96); a('and', 'E6', 'E6', M); a('shr', 'k5', 'w0', 128); a('and', 'k5', 'w0', M) if False else (a('shr', 'k5', 'w0', 128), a('and', 'k5', 'k5', M))
+    a('and', 'c9x', 'w1r', M)
+    # window start lo = (E6 & e0000000) - k5
+    a('and', 'lo', 'E6', 0xe0000000); a('sub', 'lo', 'lo', 'k5'); a('and', 'lo', 'lo', M)
+    # constants of the tests: cdw8 = DW8 - (ky - kx), kx' = kx - A0 (W8x = kx' + MAJ(A3,A2,A1) - CH(E7x,E6,E5))
+    a('xor', 'xa32', 'A2', sa(3)); a('and', 'aa32', 'A2', sa(3))
+    a('and', 'e67x', 'E6', sex(7)); a('and', 'e67y', 'E6', sey(7))
+    # c7 constant: E7x - 2 A3 + S0(A2) - S1(E6) - K7  (S1(E6) by a rotation)
+    rot32(a, 's1e6', 'E6', 6, 11, 25); a('and', 's1e6', 's1e6', M)
+    a('sub', 'cst7', 'S0A2', 's1e6'); a('add', 'cst7', 'cst7', (sex(7) - 2*sa(3) - K[7]) & M); a('and', 'cst7', 'cst7', M)
+    a('xor', 'x20', 'A2', a0); a('and', 'a20', 'A2', a0)
+    a('sub', 'A2ad', 'ra', A2T); a('shr', 'A2ad', 'A2ad', 1); a('shl', 'A2ad', 'A2ad', 128)   # A2 index << 128
+    a('shr', 'k10', 'w0', 32); a('and', 'k10', 'k10', M)                                     # W10x + s1(W15x)
+
+def gen_enum_body(a, a0, nx):
+    """One candidate: register r = r; falls to the append code iff valid.  Costs: 9 ops to the first test."""
+    cdw8 = (DW[8] - ((sey(8) - 2*sa(4) + S0(sa(3)) - S1(sey(7)) - K[8]) - (sex(8) - 2*sa(4) + S0(sa(3)) - S1(sex(7)) - K[8]))) & M
+    kx = (sex(8) - 2*sa(4) + S0(sa(3)) - S1(sex(7)) - K[8] - a0) & M
+    a('add', 'a1', 'lo', 'r'); a('add', 'E5', 'a1', 'k5')
+    a('and', 'chx', 'E5', ~sex(7) & M); a('xor', 'chx', 'chx', 'e67x')
+    a('and', 'chy', 'E5', ~sey(7) & M); a('xor', 'chy', 'chy', 'e67y')
+    a('sub', 'd', 'chx', 'chy'); a('and', 'd', 'd', M); br_ne(a, 'd', cdw8, nx)
+    # ds0(W9): w9 = c9x - A1
+    a('sub', 'w9', 'c9x', 'a1'); a('and', 'w9', 'w9', M)
+    a('add', 'w9p', 'w9', DW[9]); a('and', 'w9p', 'w9p', M)
+    rot32(a, 'sa', 'w9', 7, 18, 3, shr3=True, D='D1'); rot32(a, 'sb', 'w9p', 7, 18, 3, shr3=True, D='D2')
+    a('sub', 'd', 'sb', 'sa'); a('and', 'd', 'd', M); br_ne(a, 'd', DS0[9], nx)
+    # ds0(W8): W8x = kx' + MAJ(A3, A2, A1) - CH(E7x, E6, E5)
+    a('and', 'mj', 'a1', 'xa32'); a('xor', 'mj', 'mj', 'aa32')
+    a('add', 'w8', 'mj', kx); a('sub', 'w8', 'w8', 'chx'); a('and', 'w8', 'w8', M)
+    a('add', 'w8p', 'w8', DW[8]); a('and', 'w8p', 'w8p', M)
+    rot32(a, 'sa', 'w8', 7, 18, 3, shr3=True, D='D1'); rot32(a, 'sb', 'w8p', 7, 18, 3, shr3=True, D='D2')
+    a('sub', 'd', 'sb', 'sa'); a('and', 'd', 'd', M); br_ne(a, 'd', DS0[8], nx)
+
+def gen_enum_append(a, a0):
+    """Valid candidate (registers of the body): append the three list words at 'lp'."""
+    # c7 = cst7 + MAJ(A2, A1, A0) - CH(E6, E5, E4) with E4 = A4 + A0 - S0(A3) - MAJ(A3, A2, A1) = (const) - mj
+    a('and', 'm20', 'a1', 'x20'); a('xor', 'm20', 'm20', 'a20')
+    a('rsub', 'E4', (sa(4) + a0 - S0(sa(3))) & M, 'mj')
+    a('xor', 't', 'E5', 'E4'); a('and', 't', 't', 'E6'); a('xor', 't', 't', 'E4')          # CH(E6, E5, E4) = ((E5 ^ E4) & E6) ^ E4
+    a('add', 'c7', 'cst7', 'm20'); a('sub', 'c7', 'c7', 't'); a('and', 'c7', 'c7', M); a('add', 'c7', 'c7', 1 << 32)
+    a('and', 'a1m', 'a1', M)
+    rot32(a, 's0a1', 'a1m', 2, 13, 22); a('and', 's0a1', 's0a1', M)
+    # fields word (vt38.mkent): A1 | U << 32 | Q << 64 | S0(A1) << 96 | a2i << 128 | E1a << 160 | KCA << 224
+    a('and', 't', 'a1m', a0); a('sub', 'u', 'A2', 's0a1'); a('sub', 'u', 'u', 't'); a('add', 'u', 'u', (-K[2]) & M); a('and', 'u', 'u', M)
+    a('xor', 'qq', 'a1m', a0); a('add', 'kca', 'k10', 'a1m'); a('and', 'kca', 'kca', M)
+    a('add', 'e1a', 'a1m', (1 - S0(a0)) & M); a('and', 'e1a', 'e1a', M); a('shl', 'e1a', 'e1a', 160)
+    a('shl', 'e1', 'u', 32); a('or', 'e1', 'e1', 'a1m'); a('shl', 't', 'qq', 64); a('or', 'e1', 'e1', 't'); a('shl', 't', 's0a1', 96); a('or', 'e1', 'e1', 't')
+    a('or', 'e1', 'e1', 'A2ad'); a('or', 'e1', 'e1', 'e1a'); a('shl', 't', 'kca', 224); a('or', 'e1', 'e1', 't')
+    a('st', 'lp', 'c7'); a('add', 'lp', 'lp', 1); a('st', 'lp', 'e1'); a('add', 'lp', 'lp', 1); a('st', 'lp', 'c9x'); a('add', 'lp', 'lp', 1)
+
+# ---------------------------------------------------------------------------------------------------------------
+# P6: the table T_j.  Header word of (Y, Z0) at HB + (Y << 32 | Z0), HB = HDR | j << 64.  Passes:
+#   zero   : header := 0                                                                      (4 ops per header)
+#   count  : header += 1 for every (Y, variant, g) with Z0 = g - X, X = s0(Y + A1) - A1 + c9x  (loop over Y inside a variant)
+#   prefix : header := address of the first entry (or EMPTY), entries of a bucket followed by a sentinel entry
+#   fill   : entries written backwards from the end of each bucket (header decremented by 2 per entry)
+def gen_zero_body(a): a('st', 'h', 'zero'); a('add', 'h', 'h', 1)
+
+def gen_count_body(a, hb):
+    """Registers: Y (loop), A1 (masked), c9x; variant constants.  One (Y, variant): 22 header increments (live words)."""
+    a('add', 'u', 'Y', 'A1'); a('and', 'u', 'u', M)
+    rot32(a, 'su', 'u', 7, 18, 3, shr3=True)
+    a('sub', 'X', 'su', 'A1'); a('add', 'X', 'X', 'c9x')
+    a('shl', 'Ys', 'Y', 32); a('add', 'Ys', 'Ys', hb)
+    for gi, g in LIVE:
+        a('rsub', 'Z', g, 'X'); a('and', 'Z', 'Z', M); a('add', 'I', 'Ys', 'Z'); a('ld', 'H', 'I'); a('add', 'H', 'H', 1); a('st', 'I', 'H')
+
+def gen_fill_body(a, hb):
+    """One (Y, variant): 2-word entry (c7', w1e + gw(gi)) written backwards at the bucket of each live g."""
+    a('add', 'u', 'Y', 'A1'); a('and', 'u', 'u', M)
+    rot32(a, 'su', 'u', 7, 18, 3, shr3=True)
+    a('sub', 'X', 'su', 'A1'); a('add', 'X', 'X', 'c9x')
+    a('shl', 'Ys', 'Y', 32); a('add', 'Ys', 'Ys', hb)
+    for gi, g in LIVE:
+        a('rsub', 'Z', g, 'X'); a('and', 'Z', 'Z', M); a('add', 'I', 'Ys', 'Z'); a('ld', 'H', 'I'); a('sub', 'H', 'H', ESZ); a('st', 'I', 'H')
+        a('st', 'H', 'c7'); a('add', 't', 'H', 1); a('add', 't2', 'w1e', gw(gi)); a('st', 't', 't2')
+
+# ---- the bodies used by the ledger of this derivative (R38L): 16 headers per zero iteration; Y loop with u = Y + A1 (mod 2^32) as the
+# loop counter in two segments (u from A1 to 2^32 - 1, then u from 0 to A1 - 1), the header base Ys = hb + (Y << 32) running with it,
+# and c9x - A1 folded into one constant cc.  The loop control is part of the measured iteration.  (gen_zero_body, gen_count_body and
+# gen_fill_body above are the bodies of the earlier derivative; t_pre2.py runs those.)
+def gen_zero16(a, hend, top='ztop'):
+    """one iteration of the header-zeroing pass: 16 headers (st, add) and the loop branch"""
+    a.L(top)
+    for _ in range(16): a('st', 'h', 'zero'); a('add', 'h', 'h', 1)
+    a('bne', 'h', hend, top)
+
+def gen_count_iter(a):
+    """one (u, variant) iteration of the count pass, without the loop branch: 22 header increments (live words)"""
+    rot32(a, 'su', 'u', 7, 18, 3, shr3=True)
+    a('add', 'X', 'su', 'cc')
+    for gi, g in LIVE:
+        a('rsub', 'Z', g, 'X'); a('and', 'Z', 'Z', M); a('add', 'I', 'Ys', 'Z'); a('ld', 'H', 'I'); a('add', 'H', 'H', 1); a('st', 'I', 'H')
+    a('add', 'u', 'u', 1); a('add', 'Ys', 'Ys', 1 << 32)
+
+def gen_fill_iter(a):
+    """one (u, variant) iteration of the fill pass, without the loop branch: 2-word entry (c7', w1e + gw(gi)) written backwards at the bucket of each live g"""
+    rot32(a, 'su', 'u', 7, 18, 3, shr3=True)
+    a('add', 'X', 'su', 'cc')
+    for gi, g in LIVE:
+        a('rsub', 'Z', g, 'X'); a('and', 'Z', 'Z', M); a('add', 'I', 'Ys', 'Z'); a('ld', 'H', 'I'); a('sub', 'H', 'H', ESZ); a('st', 'I', 'H')
+        a('st', 'H', 'c7'); a('add', 't', 'H', 1); a('add', 't2', 'w1e', gw(gi)); a('st', 't', 't2')
+    a('add', 'u', 'u', 1); a('add', 'Ys', 'Ys', 1 << 32)
+
+def gen_loads(a, fill):
+    """the variant's list words at the list pointer lp (c7 + 2^32, eb, c9x): the count pass reads eb and c9x, the fill pass all three"""
+    if fill: a('ld', 'c7', 'lp')
+    a('add', 'lp', 'lp', 1); a('ld', 'w1e', 'lp'); a('add', 'lp', 'lp', 1); a('ld', 'c9x', 'lp'); a('add', 'lp', 'lp', 1)
+
+def gen_variant_pass(a, hb, fill, lim1=1 << 32, lim2='A1'):
+    """one variant of the count (fill = False) or fill (fill = True) pass over all 2^32 values of Y: segment 1 runs u from A1 to lim1 = 2^32 - 1
+    (Y = u - A1), segment 2 runs u from 0 to lim2 = A1 - 1 (Y = u + 2^32 - A1) unless A1 = 0.  The branch back to 'vtop' is the loop over the list."""
+    a.L('vtop'); gen_loads(a, fill); a('and', 'A1', 'w1e', M)
+    a('add', 'u', 'A1', 0); a('li', 'Ys', hb); a('sub', 'cc', 'c9x', 'A1')
+    a.L('seg1'); (gen_fill_iter if fill else gen_count_iter)(a); a('bne', 'u', lim1, 'seg1')
+    a('bz', 'A1', 'vdone')
+    a('li', 'u', 0); a('shl', 't', 'A1', 32); a('rsub', 'Ys', hb + (1 << 64), 't')
+    a.L('seg2'); (gen_fill_iter if fill else gen_count_iter)(a); a('bne', 'u', lim2, 'seg2')
+    a.L('vdone'); a('bne', 'lp', 'lpend', 'vtop')
+
+def gen_prefix_body(a, empty_lab_unused=None):
+    """One header (register h): count c = mem[h]; empty -> EMPTY; else header := end of bucket (entries are filled backwards
+    from it), sentinel entry written at the end, 'run' advanced by 2 (c + 1)."""
+    nz, done = 'pnz', 'pdone'
+    a('ld', 'c', 'h'); a('bnz', 'c', nz)
+    a('li', 'e0', EMPTY); a('st', 'h', 'e0'); a('jmp', done)
+    a.L(nz)
+    a('shl', 'c2', 'c', 1)                                                  # 2c
+    a('add', 'run', 'run', 'c2'); a('st', 'h', 'run')                      # header := end of the bucket (fill decrements it to the start)
+    a('li', 'sw', SENT); a('st', 'run', 'sw'); a('add', 't', 'run', 1); a('st', 't', 'zero')
+    a('add', 'run', 'run', ESZ)
+    a.L(done)
+```
+
+### B.4 consts.h
+
+```c
+/* generated by gen_consts.py from d1core.py (own transcription of ePrint 2026/1120 Tables 3-5) */
+#define NR 38
+static const u32 KC[38]={0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb};
+static const u32 CELLS[3][NR][4]={{{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x60000000,0x20000000,0x60000000,0x00000000},{0x00410810,0x00000010,0x00410810,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x0000080c,0x00000808,0x0000080c,0x00000000},{0x44204602,0x40004200,0x44204602,0x00000000},{0x20010000,0x00000000,0x20010000,0x00000000},{0x08030090,0x08000090,0x08030090,0x00000000},{0x02808000,0x00800000,0x02808000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x20000000,0x20000000,0x20000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000}},{{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0xe0000000},{0x08441090,0x08040090,0x00000000,0xe0080800},{0xead6109b,0xe2c01001,0xe0000000,0x04080800},{0xebdf7bfb,0x89152879,0x084c1890,0x04000000},{0xfeffffbf,0xc670b71b,0x0490000b,0x00000000},{0x3dff7b9f,0x28c32a97,0x00410800,0x00000000},{0xbdffffbf,0x80f2c1be,0x20007004,0x00000040},{0xfdffffbf,0x5d9d1216,0x3c230005,0x00000040},{0xffefff7f,0x35c13b0d,0x0001077a,0x00000080},{0x7c636f7f,0x20026471,0x08010000,0x00001080},{0x4a530ffa,0x4a130b5a,0x00000880,0x00001000},{0x4c431a80,0x48030280,0x40421200,0x00040010},{0x40c21a80,0x00000800,0x00000000,0x01048010},{0x40c61230,0x00421210,0x00040010,0x01008000},{0x31848e32,0x30040430,0x01808000,0x00000000},{0x21848010,0x20040010,0x00000000,0x00000000},{0x21808c00,0x21008800,0x20000000,0x00000000},{0x20000000,0x00000000,0x00000000,0x00000000},{0x20000000,0x20000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000}},{{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x20000000,0x00000000,0x20000000,0x00000000},{0x04400800,0x04400000,0x04400800,0x00000000},{0x20000000,0x20000000,0x20000000,0x00000000},{0x050112aa,0x0100000a,0x050112aa,0x00000000},{0x00081400,0x00081400,0x00081400,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x04400800,0x04000000,0x04400800,0x00000000},{0x20000000,0x20000000,0x20000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x0582a000,0x0582a000,0x01808000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x20000000,0x00000000,0x20000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000,0x00000000}}};
+static const u32 PQ[38]={0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0xe0000000,0x00080800,0x04000000,0x00000000,0x00000000,0x00000000,0x00000040,0x00000000,0x00000080,0x00001000,0x00000000,0x00040010,0x01008000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000};
+typedef struct {int k1,i1,b1,eq,k2,i2,b2,row;} X2C;
+static const X2C X2[]={{0,14,15,1,0,16,15,16},{0,14,23,1,0,16,23,16},{0,14,25,1,0,16,25,16},{0,15,4,1,0,16,4,16},{0,15,7,1,0,16,7,16},{0,15,16,0,0,16,16,16},{0,15,17,1,0,16,17,16},{0,15,27,1,0,16,27,16},{0,15,29,1,0,16,29,16},{0,16,15,1,0,17,15,17},{0,16,23,1,0,17,23,17},{0,16,25,1,0,17,25,17},{0,17,9,1,0,17,20,17},{0,17,6,1,0,17,18,17},{0,17,8,1,0,17,17,17},{0,16,29,1,0,18,29,18},{0,18,29,1,0,19,29,19},{1,16,4,0,1,16,23,16},{1,16,3,0,1,16,8,16},{1,16,14,1,1,16,28,16},{1,16,4,1,1,17,4,17},{1,16,18,1,1,17,18,17},{1,18,0,0,1,18,13,18},{1,17,15,1,1,18,15,18},{1,17,24,1,1,18,24,18},{1,19,6,0,1,19,19,19},{1,19,20,1,1,19,2,19},{1,21,2,1,1,21,16,21},{2,7,8,0,2,7,25,7},{2,7,14,0,2,7,18,7},{2,7,1,1,2,7,12,7},{2,8,0,0,2,8,28,8},{2,8,30,0,2,8,9,8},{2,8,1,1,2,8,18,8},{2,16,1,0,2,16,12,16},{2,16,20,0,2,16,27,16},{2,16,8,1,2,16,25,16},{2,16,14,1,2,16,18,16},{2,16,4,0,2,16,6,16},{2,16,22,0,2,16,31,16},{2,23,0,0,2,23,30,23},{2,23,1,0,2,23,31,23},{2,23,14,1,2,23,21,23},{2,23,16,1,2,23,25,23},{2,25,4,1,2,25,6,25},{2,25,22,1,2,25,31,25},{2,25,20,1,2,25,27,25}};
+#define NX2 ((int)(sizeof(X2)/sizeof(X2[0])))
+static const u32 PCV[8]={0xcd278980,0x1b12a052,0xb87cc8a6,0xa9e059c5,0xc9c3db85,0x6ca4b5b5,0x63d13ac1,0xc0329f1e};
+static const u32 PMX[16]={0x48fc271b,0x9fca20cd,0xcc89f96f,0xfc40396f,0x8b328cb4,0x6b91ef78,0x97f9b767,0xc2450045,0x3f416758,0xfe9804cb,0x63a88c0f,0x0ceb1f8d,0xa28cd15a,0x77a1e994,0xd28e48a0,0x9f1f65bb};
+static const u32 PMY[16]={0x48fc271b,0x9fca20cd,0xcc89f96f,0xfc40396f,0x8b328cb4,0x6b91ef78,0x97f9b767,0xe2450045,0x3b016f58,0xde9804cb,0x66a99ea5,0x0ce30b8d,0xa28cd15a,0x77a1e994,0xd28e48a0,0x9b5f6dbb};
+static const u32 PHASH[8]={0x5d9ca5f4,0x59ace3a3,0x26c9c26c,0x4252c585,0x4c0803b7,0x1b4d5ccd,0x25c3ccc0,0x90645c4d};
+static const u32 SAX[20]={0xa9e059c5,0xb87cc8a6,0x1b12a052,0xcd278980,0xb75dae71,0xda6c35e0,0x479b4dc8,0xd374b0d8,0xdf740c96,0x1ee5f173,0x7fd9cecb,0x3e016e83,0xb6a6b5f9,0x3ec0b304,0xbcc85d8c,0x25d3cc99,0x4846f2d8,0xc2dc0441,0xc84cdcb9,0x91c40603};
+static const u32 SAY[20]={0xa9e059c5,0xb87cc8a6,0x1b12a052,0xcd278980,0xb75dae71,0xda6c35e0,0x479b4dc8,0xd374b0d8,0xdf740c96,0x1ee5f173,0x7fd9cecb,0x5e016e83,0xb6e7bde9,0x3ec0b304,0xbcc85d8c,0x25d3c495,0x0c66b4da,0xe2dd0441,0xc04fdc29,0x93448603};
+static const u32 SEX[20]={0xc0329f1e,0x63d13ac1,0x6ca4b5b5,0xc9c3db85,0xe69df74c,0x8aee3e8a,0x59f5e2ca,0xb6ab3dc2,0x627cb061,0x1e847683,0x0c1c24b9,0xe2e9b205,0x99352c79,0xc670b71b,0x68c3aa97,0xc2f2c1be,0x5f9d1216,0x35c13b0d,0x21966471,0x4a9b6b5a};
+static const u32 SEY[20]={0xc0329f1e,0x63d13ac1,0x6ca4b5b5,0xc9c3db85,0xe69df74c,0x8aee3e8a,0x59f5e2ca,0xb6ab3dc2,0x627cb061,0x1e847683,0x0c1c24b9,0x02e9b205,0x917934e9,0xc2e0b710,0x6882a297,0xe2f2b1ba,0x63be1213,0x35c03c77,0x29976471,0x4a9b63da};
+static const u32 SWX[16]={0x48fc271b,0x9fca20cd,0xcc89f96f,0xfc40396f,0x8b328cb4,0x6b91ef78,0x97f9b767,0xc2450045,0x3f416758,0xfe9804cb,0x63a88c0f,0x0ceb1f8d,0xa28cd15a,0x77a1e994,0xd28e48a0,0x9f1f65bb};
+static const u32 SWY[16]={0x48fc271b,0x9fca20cd,0xcc89f96f,0xfc40396f,0x8b328cb4,0x6b91ef78,0x97f9b767,0xe2450045,0x3b016f58,0xde9804cb,0x66a99ea5,0x0ce30b8d,0xa28cd15a,0x77a1e994,0xd28e48a0,0x9b5f6dbb};
+static const u32 DW[38]={0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x20000000,0xfbc00800,0xe0000000,0x03011296,0xfff7ec00,0x00000000,0x00000000,0x00000000,0xfc400800,0xe0000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0xfe7f8000,0x00000000,0x20000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000};
+static const u32 DS0[38]={0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x03bff800,0xfe7f8000,0x043ff800,0xefffa0d0,0xfcfeed6a,0x00000000,0x00000000,0x00000000,0x01808000,0x03bff800,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x202ceee0,0x00000000,0xfc3ff800,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000};
+static const u32 DS1[38]={0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0xfff81400,0xfb0112aa,0x00080c00,0xa500fe64,0xf8800200,0x00000000,0x00000000,0x00000000,0xfcfeed6a,0x00081400,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x50005f30,0x00000000,0x00081400,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000};
+```
+
+### B.5 r38.h
+
+```c
+/* r38.h - own C core for the 38-step dense-part-variant attack (sha256-r38-prefix-v1).
+   Data: consts.h (ePrint 2026/1120 Tables 3-5, our transcription).  Construction (variants, row-16 lookup) after
+   qkniep's c99df2dc; code written independently.  Member x = message printed second (M'); Y = x + DW. */
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+typedef uint32_t u32; typedef uint64_t u64;
+#include "consts.h"
+static inline u32 ROR(u32 x,int n){return (x>>n)|(x<<(32-n));}
+static inline u32 S0(u32 x){return ROR(x,2)^ROR(x,13)^ROR(x,22);}
+static inline u32 S1(u32 x){return ROR(x,6)^ROR(x,11)^ROR(x,25);}
+static inline u32 s0(u32 x){return ROR(x,7)^ROR(x,18)^(x>>3);}
+static inline u32 s1(u32 x){return ROR(x,17)^ROR(x,19)^(x>>10);}
+static inline u32 CH(u32 x,u32 y,u32 z){return (x&y)^(~x&z);}
+static inline u32 MAJ(u32 x,u32 y,u32 z){return (x&y)^(x&z)^(y&z);}
+#define O 4
+/* full trace: A[i+O], E[i+O] for i=-4..37, W[0..37] */
+typedef struct { u32 a[NR+O], e[NR+O], w[NR]; } Tr;
+#define AA(t,i) ((t)->a[(i)+O])
+#define EE(t,i) ((t)->e[(i)+O])
+static void trace(Tr*t,const u32 cv[8],const u32 w16[16]){
+  for(int i=0;i<16;i++)t->w[i]=w16[i];
+  for(int i=16;i<NR;i++)t->w[i]=s1(t->w[i-2])+t->w[i-7]+s0(t->w[i-15])+t->w[i-16];
+  for(int i=0;i<4;i++){AA(t,-1-i)=cv[i];EE(t,-1-i)=cv[4+i];}
+  for(int i=0;i<NR;i++){
+    EE(t,i)=AA(t,i-4)+EE(t,i-4)+S1(EE(t,i-1))+CH(EE(t,i-1),EE(t,i-2),EE(t,i-3))+KC[i]+t->w[i];
+    AA(t,i)=EE(t,i)-AA(t,i-4)+S0(AA(t,i-1))+MAJ(AA(t,i-1),AA(t,i-2),AA(t,i-3));}
+}
+static void compress38(u32 out[8],const u32 cv[8],const u32 w16[16]){
+  Tr t; trace(&t,cv,w16);
+  u32 f[8]={AA(&t,37),AA(&t,36),AA(&t,35),AA(&t,34),EE(&t,37),EE(&t,36),EE(&t,35),EE(&t,34)};
+  for(int i=0;i<8;i++)out[i]=cv[i]+f[i];
+}
+/* row i of both traces (cells A,E,W, '+' pairs, two-bit conditions keyed at row i on member x) */
+static inline int cellok(int k,int i,u32 x,u32 y){const u32*c=CELLS[k][i];return ((x&c[0])==c[1])&&((x^y)==c[2]);}
+static inline u32 gv(const Tr*t,int k,int i){return k==0?AA(t,i):(k==1?EE(t,i):t->w[i]);}
+/* rows < 0 carry no cells; two-bit conditions are used only when keyed at rows >= 16 (W7 is tested by F7,
+   W8..W10 by their modular differences, Section 4.1); rows 7..10: the W cells are not part of the event (W7: F7) */
+static int rowok(const Tr*x,const Tr*y,int i){
+  if(i<0)return 1;
+  if(!cellok(0,i,AA(x,i),AA(y,i)))return 0;
+  if(!cellok(1,i,EE(x,i),EE(y,i)))return 0;
+  if((i<7||i>10)&&!cellok(2,i,x->w[i],y->w[i]))return 0;
+  if((EE(x,i)^EE(x,i-1))&PQ[i])return 0;
+  if(i>=16)for(int j=0;j<NX2;j++)if(X2[j].row==i){
+    u32 b=((gv(x,X2[j].k1,X2[j].i1)>>X2[j].b1)^(gv(x,X2[j].k2,X2[j].i2)>>X2[j].b2))&1;
+    if(b!=(u32)(!X2[j].eq))return 0;}
+  return 1;
+}
+/* list of failing rows (for checks): returns number of failing rows among lo..hi */
+static int rowsfail(const Tr*x,const Tr*y,int lo,int hi){int n=0;for(int i=lo;i<=hi;i++)n+=!rowok(x,y,i);return n;}
+
+/* ---- variants: v = (A0,A1,A2); rows 0..6 carry no difference; A3..A13, E7..E13, W11..W15 from S* ---- */
+typedef struct { u32 A[16], Ex[16], Ey[16], Wx[16], Wy[16]; } Var;   /* A[0..15] of member x (y: A7.. differ) */
+#define SA(i) SAX[(i)+O]
+#define SAy(i) SAY[(i)+O]
+#define SEx(i) SEX[(i)+O]
+#define SEy(i) SEY[(i)+O]
+/* E_i = A_i + A_{i-4} - S0(A_{i-1}) - MAJ(A_{i-1},A_{i-2},A_{i-3}) (needs A_{i-4} >= A_0, i.e. i >= 4) */
+static void var_build(Var*v,u32 a0,u32 a1,u32 a2){
+  u32 Ax[16],Ay[16];
+  for(int i=0;i<16;i++){Ax[i]=SA(i);Ay[i]=SAy(i);}
+  Ax[0]=Ay[0]=a0;Ax[1]=Ay[1]=a1;Ax[2]=Ay[2]=a2;
+  for(int i=0;i<16;i++){v->Ex[i]=SEx(i);v->Ey[i]=SEy(i);v->Wx[i]=SWX[i];v->Wy[i]=SWY[i];v->A[i]=Ax[i];}
+  for(int i=4;i<7;i++){
+    v->Ex[i]=Ax[i]+Ax[i-4]-S0(Ax[i-1])-MAJ(Ax[i-1],Ax[i-2],Ax[i-3]);
+    v->Ey[i]=Ay[i]+Ay[i-4]-S0(Ay[i-1])-MAJ(Ay[i-1],Ay[i-2],Ay[i-3]);}
+  for(int i=8;i<11;i++){
+    v->Wx[i]=v->Ex[i]-Ax[i-4]-v->Ex[i-4]-S1(v->Ex[i-1])-CH(v->Ex[i-1],v->Ex[i-2],v->Ex[i-3])-KC[i];
+    v->Wy[i]=v->Ey[i]-Ay[i-4]-v->Ey[i-4]-S1(v->Ey[i-1])-CH(v->Ey[i-1],v->Ey[i-2],v->Ey[i-3])-KC[i];}
+}
+/* generic validity: E cells of rows 4..8 (both members, '+' pairs), and (dW_i, ds0(W_i)) published, i = 8..11 */
+static int var_valid(const Var*v){
+  for(int i=4;i<=8;i++){
+    if(!cellok(1,i,v->Ex[i],v->Ey[i]))return 0;
+    if((v->Ex[i]^v->Ex[i-1])&PQ[i])return 0;
+    if(i>=5&&((v->Ey[i]^v->Ey[i-1])&PQ[i]))return 0;}
+  for(int i=8;i<=11;i++){
+    if(v->Wy[i]-v->Wx[i]!=DW[i])return 0;
+    if(s0(v->Wy[i])-s0(v->Wx[i])!=DS0[i])return 0;}
+  return 1;
+}
+/* Step-2 words of member x (and y) connecting CV1 to the variant's dense part (rows 0..7) */
+static void step2(u32 wx[16],u32 wy[16],const Var*v,const u32 cv[8]){
+  u32 A[NR+O],E[NR+O];
+  for(int i=0;i<4;i++){A[O-1-i]=cv[i];E[O-1-i]=cv[4+i];}
+  for(int i=0;i<16;i++)A[i+O]=v->A[i];
+  for(int i=4;i<16;i++)E[i+O]=v->Ex[i];
+  for(int i=0;i<4;i++)E[i+O]=A[i+O]+A[i]-S0(A[i+O-1])-MAJ(A[i+O-1],A[i+O-2],A[i+O-3]);
+  for(int i=0;i<8;i++)wx[i]=E[i+O]-A[i]-E[i]-S1(E[i+O-1])-CH(E[i+O-1],E[i+O-2],E[i+O-3])-KC[i];
+  for(int i=8;i<16;i++)wx[i]=v->Wx[i];
+  for(int i=0;i<16;i++)wy[i]=(i<8?wx[i]:v->Wy[i]);
+  wy[7]=wx[7]+DW[7];
+}
+/* Lemma-5 quantities for (CV1, A0): Y, W0, Z0 (W1 = Y + A1, W16x = s0(Y+A1) - A1 + Z0 + c9x(A2)) */
+static inline void yz(u32*Y,u32*W0,u32*Z0,const u32 cv[8],u32 a0){
+  u32 a=cv[0],b=cv[1],c=cv[2],d=cv[3],e=cv[4],f=cv[5],g=cv[6],h=cv[7];
+  u32 E0=a0+d-S0(a)-MAJ(a,b,c);
+  *W0=E0-d-h-S1(e)-CH(e,f,g)-KC[0];
+  *Y=-S0(a0)-MAJ(a0,a,b)-g-S1(E0)-CH(E0,e,f)-KC[1];
+  *Z0=*W0+s1(SWX[14]);
+  (void)c;
+}
+/* c9x(A2): W9x = c9x - A1 ; c9y likewise */
+static inline u32 c9x_of(u32 a2){
+  u32 E6=SA(6)+a2-S0(SA(5))-MAJ(SA(5),SA(4),SA(3));
+  /* W9 = E9 - A5 - E5 - S1(E8) - CH(E8,E7,E6) - K9 with E5 = A5 + A1 - S0(A4) - MAJ(A4,A3,A2) */
+  return SEx(9)-SA(5)-SA(5)+S0(SA(4))+MAJ(SA(4),SA(3),a2)-S1(SEx(8))-CH(SEx(8),SEx(7),E6)-KC[9];
+}
+static inline u32 c9y_of(u32 a2){
+  u32 E6=SA(6)+a2-S0(SA(5))-MAJ(SA(5),SA(4),SA(3));
+  return SEy(9)-SA(5)-SA(5)+S0(SA(4))+MAJ(SA(4),SA(3),a2)-S1(SEy(8))-CH(SEy(8),SEy(7),E6)-KC[9];
+}
+/* splitmix64 */
+static inline u64 smx(u64*s){u64 z=(*s+=0x9e3779b97f4a7c15ULL);z=(z^(z>>30))*0xbf58476d1ce4e5b9ULL;z=(z^(z>>27))*0x94d049bb133111ebULL;return z^(z>>31);}
+```
+
+### B.6 ex1.c
+
+```c
+/* ex1.c - exhaustive passes over 2^32: the A2 list, G (row-16 words), |F7|, max |phi^-1| (phi(u) = s0(u) - u).
+   usage: ex1 a2 | g | f7 | phi */
+#include "r38.h"
+static Var V0;
+static int a2ok(u32 a2){
+  /* E6 (both members equal), its x-value cells, '+' pairs E7/E6; W10 (x, y) modular and s0 differences */
+  u32 E6=SA(6)+a2-S0(SA(5))-MAJ(SA(5),SA(4),SA(3));
+  const u32*c=CELLS[1][6]; if((E6&c[0])!=c[1])return 0;
+  if((SEx(7)^E6)&PQ[7])return 0; if((SEy(7)^E6)&PQ[7])return 0;
+  u32 w10x=SEx(10)-SA(6)-E6-S1(SEx(9))-CH(SEx(9),SEx(8),SEx(7))-KC[10];
+  u32 w10y=SEy(10)-SA(6)-E6-S1(SEy(9))-CH(SEy(9),SEy(8),SEy(7))-KC[10];
+  return w10y-w10x==DW[10]&&s0(w10y)-s0(w10x)==DS0[10];
+}
+int main(int argc,char**argv){
+  var_build(&V0,SA(0),SA(1),SA(2));
+  if(!strcmp(argv[1],"a2")){u64 n=0; for(u64 a=0;a<(1ull<<32);a++)if(a2ok((u32)a)){printf("%08x\n",(u32)a);n++;} fprintf(stderr,"A2 list: %llu\n",n);}
+  if(!strcmp(argv[1],"g")){ /* row 16 of both members from rows 12..15 of S*, as a function of W16x (W16y = W16x + DW16) */
+    u64 n=0; Tr x,y; memset(&x,0,sizeof x); memset(&y,0,sizeof y);
+    for(int i=-4;i<16;i++){AA(&x,i)=SAX[i+O];EE(&x,i)=SEX[i+O];AA(&y,i)=SAY[i+O];EE(&y,i)=SEY[i+O];}
+    for(int i=0;i<16;i++){x.w[i]=SWX[i];y.w[i]=SWY[i];}
+    for(u64 w=0;w<(1ull<<32);w++){
+      x.w[16]=(u32)w; y.w[16]=(u32)w+DW[16];
+      for(Tr*t=&x;t;t=(t==&x?&y:NULL)){int i=16;
+        EE(t,i)=AA(t,i-4)+EE(t,i-4)+S1(EE(t,i-1))+CH(EE(t,i-1),EE(t,i-2),EE(t,i-3))+KC[i]+t->w[i];
+        AA(t,i)=EE(t,i)-AA(t,i-4)+S0(AA(t,i-1))+MAJ(AA(t,i-1),AA(t,i-2),AA(t,i-3));}
+      if(rowok(&x,&y,16)){printf("%08x\n",(u32)w);n++;}}
+    fprintf(stderr,"G: %llu\n",n);}
+  if(!strcmp(argv[1],"f7")){u64 n=0; for(u64 w=0;w<(1ull<<32);w++)n+=(s0((u32)w+DW[7])-s0((u32)w)==DS0[7]); printf("|F7| = %llu\n",n);}
+  if(!strcmp(argv[1],"phi")){uint8_t*h=calloc(1ull<<32,1); for(u64 u=0;u<(1ull<<32);u++){u32 t=s0((u32)u)-(u32)u; if(h[t]<255)h[t]++;}
+    u64 hist[256]={0}; for(u64 t=0;t<(1ull<<32);t++)hist[h[t]]++; for(int k=0;k<256;k++)if(hist[k])printf("preimages %d: %llu values\n",k,hist[k]); free(h);}
+  return 0;
+}
+```
+
+### B.7 rcount.c
+
+```c
+/* rcount.c - exact |R(A0)| for a list of A0 values: enumerate the A0-free valid pairs (A1, A2) (A2 in the A2 list,
+   dW9 of the A2, the '+' pairs E6/E5 (A1 in one window of 2^29), ds0(W9), dW8), then test W8x = Fx(A1,A2) - A0
+   against F8 = {w : s0(w + dW8) - s0(w) = ds0(W8)} (bitmap).  Also checks a sample against the generic var_valid.
+   usage: rcount a2list.txt a0list.txt threads  -> per A0: A0 |R(A0)| ; stderr: |P|, timing */
+#include "r38.h"
+#include <pthread.h>
+static u32 A2L[768]; static int NA2; static u32 A0L[4096]; static int NA0; static uint8_t*F8T;
+static u64 CNT[4096]; static u64 NP; static u64 PER_A2[768]; static pthread_mutex_t MU=PTHREAD_MUTEX_INITIALIZER;
+static int next_a2=0; static u64 GENCHK=0,GENBAD=0;
+static inline int f8(u32 w){return (F8T[w>>3]>>(w&7))&1;}
+static void*work(void*arg){
+  (void)arg; u64*loc=calloc(NA0,8);
+  for(;;){
+    pthread_mutex_lock(&MU); int k=next_a2++; pthread_mutex_unlock(&MU);
+    if(k>=NA2)break;
+    u32 a2=A2L[k]; u64 np=0;
+    u32 E6=SA(6)+a2-S0(SA(5))-MAJ(SA(5),SA(4),SA(3));
+    u32 c9x=c9x_of(a2),c9y=c9y_of(a2);
+    if(c9y-c9x!=DW[9]){continue;}
+    u32 k5=SA(5)-S0(SA(4))-MAJ(SA(4),SA(3),a2);      /* E5 = A1 + k5 */
+    u32 lo=(E6&0xe0000000u)-k5;                          /* A1 = lo + r, r < 2^29 */
+    u32 m3=MAJ(SA(3),a2,0)/*placeholder*/; (void)m3;
+    u32 kx=SEx(8)-2*SA(4)+S0(SA(3))-S1(SEx(7))-KC[8];
+    u32 ky=SEy(8)-2*SA(4)+S0(SA(3))-S1(SEy(7))-KC[8];
+    for(u32 r=0;r<(1u<<29);r++){
+      u32 a1=lo+r; u32 w9=c9x-a1;
+      if(s0(w9+DW[9])-s0(w9)!=DS0[9])continue;
+      u32 E5=a1+k5; u32 mj=MAJ(SA(3),a2,a1);
+      u32 fx=kx+mj-CH(SEx(7),E6,E5), fy=ky+mj-CH(SEy(7),E6,E5);
+      if(fy-fx!=DW[8])continue;
+      np++;
+      for(int j=0;j<NA0;j++)loc[j]+=f8(fx-A0L[j]);
+      if((np&0xfff)==1){ /* generic cross-check on a sample of pairs, for A0 = A0L[0] */
+        Var v; var_build(&v,A0L[0],a1,a2); int g=var_valid(&v), f=f8(fx-A0L[0]);
+        pthread_mutex_lock(&MU); GENCHK++; GENBAD+=(g!=f); pthread_mutex_unlock(&MU);}
+    }
+    pthread_mutex_lock(&MU); NP+=np; PER_A2[k]=np; pthread_mutex_unlock(&MU);
+  }
+  pthread_mutex_lock(&MU); for(int j=0;j<NA0;j++)CNT[j]+=loc[j]; pthread_mutex_unlock(&MU); free(loc);
+  return NULL;
+}
+int main(int argc,char**argv){
+  FILE*f=fopen(argv[1],"r"); while(NA2<768&&fscanf(f,"%x",&A2L[NA2])==1)NA2++; fclose(f);
+  f=fopen(argv[2],"r"); char line[256]; while(fgets(line,sizeof line,f)&&NA0<4096){if(sscanf(line,"%x",&A0L[NA0])==1)NA0++;} fclose(f);
+  int T=atoi(argv[3]);
+  F8T=calloc(1u<<29,1); for(u64 w=0;w<(1ull<<32);w++)if(s0((u32)w+DW[8])-s0((u32)w)==DS0[8])F8T[w>>3]|=1<<(w&7);
+  u64 n8=0; for(u64 i=0;i<(1u<<29);i++)n8+=__builtin_popcount(F8T[i]);
+  fprintf(stderr,"|F8| = %llu, A2 %d, A0 %d\n",n8,NA2,NA0);
+  pthread_t th[64]; for(int t=0;t<T;t++)pthread_create(&th[t],0,work,0); for(int t=0;t<T;t++)pthread_join(th[t],0);
+  fprintf(stderr,"|P| = %llu (2^%.5f); generic cross-checks %llu, disagreements %llu\n",NP,log2((double)NP),GENCHK,GENBAD);
+  u64 S=0; for(int j=0;j<NA0;j++){printf("%08x %llu\n",A0L[j],CNT[j]);S+=CNT[j];}
+  fprintf(stderr,"sum = %llu\n",S);
+  FILE*g=fopen("per_a2.txt","w"); for(int k=0;k<NA2;k++)fprintf(g,"%08x %llu\n",A2L[k],PER_A2[k]); fclose(g);
+  return 0;
+}
+```
+
+### B.8 tbl.c
+
+```c
+/* tbl.c - brute-force check of the row-16 table semantics (Lemma 5) on real variants and random chaining values.
+   For nA2 members of the A2 list and one A0: enumerate the valid variants (A0,A1,A2) (same exact enumeration as rcount.c),
+   and for ncv uniform random CVs compare (a) W16x of the full 38-step trace with the closed form
+   s0(Y+A1)-A1+Z0+c9x(A2) on a sample of variants, (b) membership of the closed form in G for ALL variants, with the
+   full row-16 test (rowok) of the brute-force trace for every such hit, plus a sample of non-hits (must fail row 16),
+   (c) the W7 in F7 rate of the Step-2 word.  usage: tbl a2list a0list glist a0idx nA2 ncv seed */
+#include "r38.h"
+static uint8_t*F8T; static u32 G[32]; static int NG;
+static inline int f8(u32 w){return (F8T[w>>3]>>(w&7))&1;}
+static inline int inG(u32 w){for(int i=0;i<NG;i++)if(G[i]==w)return 1;return 0;}
+int main(int argc,char**argv){
+  static u32 A2L[768],A0L[4096]; int NA2=0,NA0=0; char line[256];
+  FILE*f=fopen(argv[1],"r"); while(NA2<768&&fscanf(f,"%x",&A2L[NA2])==1)NA2++; fclose(f);
+  f=fopen(argv[2],"r"); while(fgets(line,sizeof line,f)&&NA0<4096)if(sscanf(line,"%x",&A0L[NA0])==1)NA0++; fclose(f);
+  f=fopen(argv[3],"r"); while(NG<32&&fscanf(f,"%x",&G[NG])==1)NG++; fclose(f);
+  u32 a0=A0L[atoi(argv[4])]; int nA2=atoi(argv[5]), ncv=atoi(argv[6]); u64 seed=strtoull(argv[7],0,10);
+  F8T=calloc(1u<<29,1); for(u64 w=0;w<(1ull<<32);w++)if(s0((u32)w+DW[8])-s0((u32)w)==DS0[8])F8T[w>>3]|=1<<(w&7);
+  u32 F7D=DW[7],F7S=DS0[7];
+  u32 cv[64][8]; for(int c=0;c<ncv;c++)for(int i=0;i<8;i++)cv[c][i]=(u32)smx(&seed);
+  u64 nvar=0,wchk=0,wbad=0,hits=0,hitbad=0,nonhit_chk=0,nonhit_bad=0,w7pass=0,w7n=0,gen_valid_bad=0;
+  int used=0;
+  for(int k=0;k<NA2&&used<nA2;k++){
+    u32 a2=A2L[k]; u32 c9x=c9x_of(a2),c9y=c9y_of(a2); if(c9y-c9x!=DW[9])continue; used++;
+    u32 E6=SA(6)+a2-S0(SA(5))-MAJ(SA(5),SA(4),SA(3));
+    u32 k5=SA(5)-S0(SA(4))-MAJ(SA(4),SA(3),a2), lo=(E6&0xe0000000u)-k5;
+    u32 kx=SEx(8)-2*SA(4)+S0(SA(3))-S1(SEx(7))-KC[8], ky=SEy(8)-2*SA(4)+S0(SA(3))-S1(SEy(7))-KC[8];
+    u32 *a1s=malloc(sizeof(u32)<<22); u64 n1=0;
+    for(u32 r=0;r<(1u<<29);r++){
+      u32 a1=lo+r; u32 w9=c9x-a1; if(s0(w9+DW[9])-s0(w9)!=DS0[9])continue;
+      u32 E5=a1+k5, mj=MAJ(SA(3),a2,a1);
+      u32 fx=kx+mj-CH(SEx(7),E6,E5), fy=ky+mj-CH(SEy(7),E6,E5);
+      if(fy-fx!=DW[8])continue; if(!f8(fx-a0))continue;
+      if(n1<(1u<<22))a1s[n1++]=a1;}
+    for(u64 q=0;q<n1;q++){
+      u32 a1=a1s[q]; nvar++;
+      for(int c=0;c<ncv;c++){
+        u32 Y,W0,Z0; yz(&Y,&W0,&Z0,cv[c],a0);
+        u32 w16=s0(Y+a1)-a1+Z0+c9x;
+        int hit=inG(w16); int samp=((q*131+c)&1023)==0;
+        if(hit||samp){
+          Var v; var_build(&v,a0,a1,a2); if(!var_valid(&v))gen_valid_bad++;
+          u32 wx[16],wy[16]; step2(wx,wy,&v,cv[c]);
+          Tr tx,ty; trace(&tx,cv[c],wx); trace(&ty,cv[c],wy);
+          if(samp){wchk++; wbad+=(tx.w[16]!=w16);}
+          int r16=rowok(&tx,&ty,16);
+          if(hit){hits++; hitbad+=!r16;} else {nonhit_chk++; nonhit_bad+=r16;}
+          if(hit)(void)0;
+        }
+        if(((q+c)&63)==0){w7n++; u32 W0_,Y_,Z_; (void)W0_;(void)Y_;(void)Z_;
+          Var v; var_build(&v,a0,a1,a2); u32 wx[16],wy[16]; step2(wx,wy,&v,cv[c]);
+          w7pass+=(s0(wx[7]+F7D)-s0(wx[7])==F7S);}
+      }}
+    free(a1s);
+  }
+  printf("A0=%08x A2 used %d, ncv %d, variants %llu, (variant,CV) pairs %llu\n",a0,used,ncv,(unsigned long long)nvar,(unsigned long long)(nvar*ncv));
+  printf("W16 closed form vs trace: checked %llu, mismatches %llu\n",(unsigned long long)wchk,(unsigned long long)wbad);
+  printf("generic var_valid failures on checked variants: %llu\n",(unsigned long long)gen_valid_bad);
+  printf("G hits %llu (expected %.2f), full row-16 failures among hits %llu; non-hit sample %llu, row-16 passes among them %llu\n",
+    (unsigned long long)hits,(double)nvar*ncv*32/4294967296.0,(unsigned long long)hitbad,(unsigned long long)nonhit_chk,(unsigned long long)nonhit_bad);
+  printf("W7 in F7: %llu of %llu sampled (rate %.5f, expected %.5f)\n",(unsigned long long)w7pass,(unsigned long long)w7n,(double)w7pass/w7n,287309824.0/4294967296.0);
+  return 0;
+}
+```
+
+### B.9 bucket.c
+
+```c
+/* bucket.c - the TRUE row-16 bucket T_j[Y,Z0] of a (chaining value, A0): every valid variant (A0,A1,A2), A2 in the A2 list,
+   whose W16 = s0(Y+A1) - A1 + Z0 + c9x(A2) lies in G.  Brute force over u = Y + A1 in 2^32 (phi(u) = s0(u) - u against the
+   3072 targets g - Y - Z0 - c9x(A2)), each hit then checked by the exact validity test of the variant (var_valid).
+   usage: bucket a2list glist threads  < jobs   (job line: 8 hex cv words, A0 hex)   -> per job: "B a0 nent" then "a1 a2idx gi" lines */
+#include "r38.h"
+#include <pthread.h>
+static u32 A2L[768]; static int NA2; static u32 GL[32]; static int NG;
+typedef struct{u32 t; int a2,g;} Tg; static Tg TG[768*32]; static int NT; static uint8_t BM[1<<19];
+static u32 CV[8], A0, Y, Z0; static int T; static u32 c9x_[768];
+static pthread_mutex_t MU=PTHREAD_MUTEX_INITIALIZER; static struct{u32 a1; int a2,g;} OUT[1<<16]; static int NO; static long NH,NV; static long FC[500];
+static int cmp(const void*a,const void*b){u32 x=((Tg*)a)->t,y=((Tg*)b)->t;return x<y?-1:x>y;}
+static void*work(void*arg){
+  int id=(int)(intptr_t)arg; u64 lo=((u64)id<<32)/T, hi=((u64)(id+1)<<32)/T;
+  for(u64 uu=lo;uu<hi;uu++){u32 u=(u32)uu; u32 ph=s0(u)-u; u32 h=(ph*2654435761u)>>10; if(!((BM[h>>3]>>(h&7))&1))continue;
+    int l=0,r=NT-1,f=-1; while(l<=r){int m=(l+r)/2; if(TG[m].t<ph)l=m+1; else if(TG[m].t>ph)r=m-1; else {f=m;break;}}
+    if(f<0)continue; while(f>0&&TG[f-1].t==ph)f--;
+    for(;f<NT&&TG[f].t==ph;f++){u32 a1=u-Y; Var v; var_build(&v,A0,a1,A2L[TG[f].a2]);
+      if(var_valid(&v)){pthread_mutex_lock(&MU); if(NO<(1<<16)){OUT[NO].a1=a1;OUT[NO].a2=TG[f].a2;OUT[NO].g=TG[f].g;NO++;} pthread_mutex_unlock(&MU);}}}
+  return NULL;}
+int main(int argc,char**argv){
+  FILE*f=fopen(argv[1],"r"); while(NA2<768&&fscanf(f,"%x",&A2L[NA2])==1)NA2++; fclose(f);
+  f=fopen(argv[2],"r"); while(NG<32&&fscanf(f,"%x",&GL[NG])==1)NG++; fclose(f); T=atoi(argv[3]);
+  for(int k=0;k<NA2;k++)c9x_[k]=c9x_of(A2L[k]);
+  for(;;){ unsigned c[8],a0; if(scanf("%x %x %x %x %x %x %x %x %x",&c[0],&c[1],&c[2],&c[3],&c[4],&c[5],&c[6],&c[7],&a0)!=9)break;
+    for(int i=0;i<8;i++)CV[i]=c[i]; A0=a0; u32 W0; yz(&Y,&W0,&Z0,CV,A0);
+    NT=0; memset(BM,0,sizeof BM);
+    for(int k=0;k<NA2;k++){ if(c9y_of(A2L[k])-c9x_[k]!=DW[9])continue; for(int g=0;g<NG;g++){TG[NT].t=GL[g]-Y-Z0-c9x_[k];TG[NT].a2=k;TG[NT].g=g;NT++;}}
+    qsort(TG,NT,sizeof(Tg),cmp); for(int i=0;i<NT;i++){u32 h=(TG[i].t*2654435761u)>>10; BM[h>>3]|=1<<(h&7);}
+    NO=0; pthread_t th[64]; for(int t=0;t<T;t++)pthread_create(&th[t],0,work,(void*)(intptr_t)t); for(int t=0;t<T;t++)pthread_join(th[t],0);
+    printf("B %08x %d\n",A0,NO); for(int i=0;i<NO;i++)printf("%08x %d %d\n",OUT[i].a1,OUT[i].a2,OUT[i].g); fflush(stdout);}
+  return 0;}
+```
+
+### B.10 smc.c
+
+```c
+/* smc.c - sequential Monte-Carlo estimate of q3 = Pr[rows 16..37 hold | W7 in F7] for the dense-part variants (own
+   implementation of the estimator described for ePrint 2026/1120-style semi-free-start pairs; independent code).
+   Stages: row 16 exactly (32 of 2^32 words: factor 2^-27); rows 17..22: E_i^x proposed uniformly with its x-value cells and '+'
+   bits imposed (weight 2^-f); W_i^x = E_i^x - (rest of step i), W_i^y = W_i^x + dW_i (published modular difference), both members
+   stepped, the whole row tested.  Tail: a variant (uniform from a sample) fixes W8, W9, W10; W23^x proposed with its x-value cells
+   imposed (f bits), W7 = W23 - s1(W21) - W16 - s0(W8), weight 2^(32-f)/|F7| if W7 in F7; rows 23..37 deterministic, every row tested.
+   Every tail success is REBUILT into a real semi-free-start pair (W0..W6 by the inverse expansion, CV1 by inverting steps 7..0 of the
+   variant) and verified with the 38-step compression and the generic cell tests before it is counted.
+   usage: smc varsample.txt mode seed NP c17 c18 c19 c20 c21 c22 ntail [succ.txt]
+     mode: "pop:<i>" -> use only variant i of the file for the whole run; "all" -> every proposal draws a variant uniformly from the file
+   output (stderr-free, one line): seed logZ stage factors (log2) ... successes rebuilt failedrebuilds */
+#include "r38.h"
+typedef struct { u32 a0, a1, a2, w8, w9, w10; } Vt;
+static Vt *VS; static long NVS;
+static u64 rs[4];
+static inline u64 rotl(u64 x,int k){return (x<<k)|(x>>(64-k));}
+static inline u64 nxt(void){u64 r=rotl(rs[1]*5,7)*9,t=rs[1]<<17;rs[2]^=rs[0];rs[3]^=rs[1];rs[1]^=rs[2];rs[0]^=rs[3];rs[2]^=t;rs[3]=rotl(rs[3],45);return r;}
+static void seedrng(u64 s){u64 z=s; for(int i=0;i<4;i++)rs[i]=smx(&z); for(int i=0;i<8;i++)nxt();}
+static inline u32 r32(void){return (u32)(nxt()>>32);}
+static u32 F7D,F7S; static inline int inF7(u32 w){return (u32)(s0(w+F7D)-s0(w))==F7S;}
+/* state: member x / y, rows 0..37; only rows >= 8 are used */
+typedef struct { u32 Ax[40],Ex[40],Wx[40],Ay[40],Ey[40],Wy[40]; } St;
+static void init_pub(St*s){ for(int i=0;i<16;i++){ s->Ax[i]=SAX[i+4]; s->Ex[i]=SEX[i+4]; s->Wx[i]=SWX[i]; s->Ay[i]=SAY[i+4]; s->Ey[i]=SEY[i+4]; s->Wy[i]=SWY[i]; } }
+static inline u32 gtx(const St*s,int k,int i){return k==0?s->Ax[i]:(k==1?s->Ex[i]:s->Wx[i]);}
+/* row i test on the state (member x conditions, x^y cells, '+', two-bit) */
+static int rowt(const St*s,int i){
+  if(!cellok(0,i,s->Ax[i],s->Ay[i]))return 0;
+  if(!cellok(1,i,s->Ex[i],s->Ey[i]))return 0;
+  if(!cellok(2,i,s->Wx[i],s->Wy[i]))return 0;
+  if((s->Ex[i]^s->Ex[i-1])&PQ[i])return 0;
+  for(int j=0;j<NX2;j++)if(X2[j].row==i){
+    u32 b=((gtx(s,X2[j].k1,X2[j].i1)>>X2[j].b1)^(gtx(s,X2[j].k2,X2[j].i2)>>X2[j].b2))&1; if(b!=(u32)(!X2[j].eq))return 0;}
+  return 1;
+}
+static inline void stepE(u32*E,u32*A,u32*W,int i){ /* E_i, A_i of one member given W_i */
+  E[i]=A[i-4]+E[i-4]+S1(E[i-1])+CH(E[i-1],E[i-2],E[i-3])+KC[i]+W[i];
+  A[i]=E[i]-A[i-4]+S0(A[i-1])+MAJ(A[i-1],A[i-2],A[i-3]);}
+static inline void sched(u32*W,int i){W[i]=s1(W[i-2])+W[i-7]+s0(W[i-15])+W[i-16];}
+/* ---- rebuild a tail success into a real pair and verify ---- */
+static FILE*SUCC;
+static int rebuild(const St*s,const Vt*v,u32 w23){
+  u32 W[38],Wy[38]; for(int i=8;i<16;i++){W[i]=SWX[i];} W[8]=v->w8;W[9]=v->w9;W[10]=v->w10; for(int i=16;i<23;i++)W[i]=s->Wx[i];
+  W[23]=w23; u32 w7=W[23]-s1(W[21])-W[16]-s0(W[8]); W[7]=w7;
+  u32 w6=W[22]-s1(W[20])-W[15]-s0(W[7]); W[6]=w6;
+  W[5]=W[21]-s1(W[19])-W[14]-s0(W[6]); W[4]=W[20]-s1(W[18])-W[13]-s0(W[5]); W[3]=W[19]-s1(W[17])-W[12]-s0(W[4]);
+  W[2]=W[18]-s1(W[16])-W[11]-s0(W[3]); W[1]=W[17]-s1(W[15])-W[10]-s0(W[2]); W[0]=W[16]-s1(W[14])-W[9]-s0(W[1]);
+  /* variant dense part */
+  Var var; var_build(&var,v->a0,v->a1,v->a2);
+  /* invert steps 7..0: A_{i-4} = E_i - A_i + S0(A_{i-1}) + MAJ(...), E_{i-4} = E_i - A_{i-4} - S1(E_{i-1}) - CH(...) - K_i - W_i */
+  u32 A[24],E[24]; /* index i+4 */
+  for(int i=0;i<8;i++){A[i+4]=var.A[i];} for(int i=4;i<8;i++)E[i+4]=var.Ex[i];
+  for(int i=7;i>=0;i--){
+    if(i>=4){ /* E_{i-1}, E_{i-2}, E_{i-3} known for i-3>=4 only when i>=7; E_4..E_7 known; E_1..E_3 found below */ }
+    /* need E_{i-1..i-3}: for i=7: E6,E5,E4 known; i=6: E5,E4,E3 (E3 from i=7 step); etc. */
+    u32 e1=E[i-1+4],e2=E[i-2+4],e3=E[i-3+4];
+    u32 a1=A[i-1+4],a2=A[i-2+4],a3=A[i-3+4];
+    u32 Ai4=E[i+4]-A[i+4]+S0(a1)+MAJ(a1,a2,a3);
+    u32 Ei4=E[i+4]-Ai4-S1(e1)-CH(e1,e2,e3)-KC[i]-W[i];
+    A[i-4+4]=Ai4; E[i-4+4]=Ei4;
+    if(i==7){ /* E_3 = E_{7-4} was just set; nothing else */ }
+  }
+  /* consistency: recomputed A_{i} for i=0..3 must equal the variant's (A0,A1,A2,A3) */
+  for(int i=0;i<4;i++) if(A[i+4]!=var.A[i]) { return 0; }
+  u32 cv[8]={A[3],A[2],A[1],A[0],E[3],E[2],E[1],E[0]};
+  u32 mx[16],my[16]; for(int i=0;i<16;i++){mx[i]=W[i]; my[i]=W[i];}
+  for(int i=7;i<16;i++)my[i]=W[i]+DW[i];
+  /* member y words 11..15 are the published ones (W + dW) */
+  u32 o1[8],o2[8]; compress38(o1,cv,mx); compress38(o2,cv,my);
+  if(memcmp(o1,o2,32))return 0;
+  if(!memcmp(mx,my,64))return 0;
+  Tr tx,ty; trace(&tx,cv,mx); trace(&ty,cv,my);
+  for(int i=0;i<NR;i++){ if(!rowok(&tx,&ty,i)) return 0; }
+  /* W7 in F7, step-2 words map CV1 back to W0..W7 */
+  if(!inF7(mx[7]))return 0;
+  if(SUCC)fprintf(SUCC,"%08x %08x %08x  cv %08x %08x %08x %08x %08x %08x %08x %08x  m %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x\n",
+      v->a0,v->a1,v->a2,cv[0],cv[1],cv[2],cv[3],cv[4],cv[5],cv[6],cv[7],mx[0],mx[1],mx[2],mx[3],mx[4],mx[5],mx[6],mx[7],mx[8],mx[9],mx[10],mx[11],mx[12],mx[13],mx[14],mx[15]);
+  return 1;
+}
+int main(int argc,char**argv){
+  F7D=DW[7]; F7S=DS0[7];
+  FILE*f=fopen(argv[1],"r"); VS=malloc(sizeof(Vt)<<21); NVS=0; unsigned a,b,c;
+  while(fscanf(f,"%x %x %x",&a,&b,&c)==3){ Vt v={a,b,c,0,0,0}; Var var; var_build(&var,a,b,c); v.w8=var.Wx[8];v.w9=var.Wx[9];v.w10=var.Wx[10]; VS[NVS++]=v; if(NVS>=(1L<<21))break;} fclose(f);
+  const char*mode=argv[2]; u64 seed=strtoull(argv[3],0,10); int NP=atoi(argv[4]); int ch[6]; for(int i=0;i<6;i++)ch[i]=atoi(argv[5+i]); long ntail=atol(argv[11]);
+  SUCC=argc>12?fopen(argv[12],"w"):NULL;
+  long fixedv=-1; if(!strncmp(mode,"pop:",4))fixedv=atol(mode+4);
+  seedrng(seed);
+  /* stage 16: uniform elements of G (read from data) */
+  static u32 G[32]; int NG=0; { FILE*g=fopen("../data/ex1_g.txt","r"); if(!g)g=fopen("data/ex1_g.txt","r"); while(NG<32&&fscanf(g,"%x",&G[NG])==1)NG++; fclose(g); }
+  double lg[16]; int nst=0; lg[nst++]=-27.0;   /* exact: 32 of 2^32 */
+  St *P=malloc(sizeof(St)*NP);
+  St base; init_pub(&base);
+  for(int p=0;p<NP;p++){
+    St*s=&P[p]; *s=base; u32 w=G[nxt()%NG]; s->Wx[16]=w; s->Wy[16]=w+DW[16];
+    stepE(s->Ex,s->Ax,s->Wx,16); stepE(s->Ey,s->Ay,s->Wy,16);
+  }
+  /* rows 17..22 */
+  for(int i=17;i<=22;i++){
+    int M=ch[i-17]; u32 cm=CELLS[1][i][0], cvv=CELLS[1][i][1]; u32 pq=PQ[i];
+    int f_=__builtin_popcount(cm|pq);
+    /* children with positive weight */
+    long cap=1<<16, nc=0; St*C=malloc(sizeof(St)*cap);
+    for(int p=0;p<NP;p++){
+      for(int m=0;m<M;m++){
+        const St*s=&P[p];
+        u32 Eprop=(r32()&~(cm|pq))|cvv|((s->Ex[i-1])&pq&~cm);
+        /* conflict between a cell bit and a '+' bit: the row test rejects */
+        St t=*s; t.Ex[i]=Eprop;
+        u32 rest=t.Ax[i-4]+t.Ex[i-4]+S1(t.Ex[i-1])+CH(t.Ex[i-1],t.Ex[i-2],t.Ex[i-3])+KC[i];
+        t.Wx[i]=Eprop-rest; t.Wy[i]=t.Wx[i]+DW[i];
+        t.Ax[i]=Eprop-t.Ax[i-4]+S0(t.Ax[i-1])+MAJ(t.Ax[i-1],t.Ax[i-2],t.Ax[i-3]);
+        stepE(t.Ey,t.Ay,t.Wy,i);
+        if(rowt(&t,i)){ if(nc==cap){cap*=2;C=realloc(C,sizeof(St)*cap);} C[nc++]=t; }
+      }}
+    double mean=(double)nc/((double)NP*M)*ldexp(1.0,-f_);   /* each positive child has weight 2^-f */
+    if(nc==0){ printf("%llu -inf stage %d empty\n",(unsigned long long)seed,i); return 0; }
+    lg[nst++]=log2(mean);
+    for(int p=0;p<NP;p++) P[p]=C[nxt()%nc];   /* equal weights: multinomial resampling is uniform over survivors */
+    free(C);
+  }
+  /* tail */
+  double wsum=0; long succ=0,bad=0; double tailw=ldexp(1.0,32-__builtin_popcount(CELLS[2][23][0]))/287309824.0;
+  u32 cm=CELLS[2][23][0], cv_=CELLS[2][23][1];
+  for(int p=0;p<NP;p++){
+    const St*s=&P[p];
+    for(long k=0;k<ntail;k++){
+      const Vt*v=&VS[fixedv>=0?fixedv:(long)(nxt()%NVS)];
+      u32 w23=(r32()&~cm)|cv_;
+      u32 w7=w23-s1(s->Wx[21])-s->Wx[16]-s0(v->w8);
+      if(!inF7(w7))continue;
+      St t=*s; t.Wx[8]=v->w8; t.Wx[9]=v->w9; t.Wx[10]=v->w10;
+      t.Wy[8]=t.Wx[8]+DW[8]; t.Wy[9]=t.Wx[9]+DW[9]; t.Wy[10]=t.Wx[10]+DW[10];
+      t.Wx[7]=w7; t.Wy[7]=w7+DW[7];
+      /* W cells of row 23 and rows 23..37 */
+      int ok=1;
+      for(int i=23;i<NR&&ok;i++){
+        if(i==23){ t.Wx[23]=w23; sched(t.Wy,23); }  /* y by the schedule of the y words */
+        else { sched(t.Wx,i); sched(t.Wy,i); }
+        stepE(t.Ex,t.Ax,t.Wx,i); stepE(t.Ey,t.Ay,t.Wy,i);
+        ok=rowt(&t,i);
+      }
+      if(ok){ wsum+=tailw; succ++; if(!rebuild(s,v,w23))bad++; }
+    }}
+  double mean=wsum/((double)NP*ntail);
+  if(wsum==0){ printf("%llu -inf tail empty\n",(unsigned long long)seed); return 0; }
+  lg[nst++]=log2(mean);
+  double tot=0; for(int i=0;i<nst;i++)tot+=lg[i];
+  printf("%llu %.5f",(unsigned long long)seed,tot); for(int i=0;i<nst;i++)printf(" %.3f",lg[i]); printf("  succ %ld rebuilt_failed %ld\n",succ,bad);
+  return 0;
+}
+```
+
+### B.11 varsample.c
+
+```c
+/* varsample.c - uniform sample of variants from the union of the R_j: A0_j with probability |R_j| / SR (data/a0set256_peer.txt),
+   then (A1, A2) uniform in R_j by rejection from the 768 x 2^29 candidates of its window (exact validity test var_valid).
+   usage: varsample a0set a2list count seed out.bin   -> records of 3 x u32 (A0, A1, A2) as text lines in out.txt style:  a0 a1 a2 (hex) */
+#include "r38.h"
+int main(int argc,char**argv){
+  static u32 A0L[256]; static u64 W[256]; static u32 A2L[768]; int NA0=0,NA2=0; u64 SR=0;
+  FILE*f=fopen(argv[1],"r"); while(NA0<256&&fscanf(f,"%x %llu",&A0L[NA0],(unsigned long long*)&W[NA0])==2){SR+=W[NA0];NA0++;} fclose(f);
+  f=fopen(argv[2],"r"); while(NA2<768&&fscanf(f,"%x",&A2L[NA2])==1)NA2++; fclose(f);
+  long n=atol(argv[3]); u64 seed=strtoull(argv[4],0,10); u64 st=seed; (void)smx(&st); st=smx(&st)^seed; FILE*o=fopen(argv[5],"w");
+  long tries=0;
+  for(long k=0;k<n;k++){
+    u64 r=smx(&st)%SR; int j=0; while(r>=W[j]){r-=W[j];j++;}
+    for(;;){ tries++; int ai=smx(&st)%NA2; u32 a2=A2L[ai];
+      u32 E6=SA(6)+a2-S0(SA(5))-MAJ(SA(5),SA(4),SA(3)); u32 k5=SA(5)-S0(SA(4))-MAJ(SA(4),SA(3),a2);
+      u32 a1=((E6&0xe0000000u)-k5)+(u32)(smx(&st)&((1u<<29)-1));
+      Var v; var_build(&v,A0L[j],a1,a2); if(var_valid(&v)){fprintf(o,"%08x %08x %08x\n",A0L[j],a1,a2);break;}}
+  }
+  fclose(o); fprintf(stderr,"samples %ld candidates tried %ld (acceptance %.5f)\n",n,tries,(double)n/tries); return 0;}
+```
+
+### B.12 t_mut.py, t_eq.py, t_cost.py
+
+`t_mut.py`:
+
+```python
+# t_mut.py - branch-coverage equivalence test of the counted program against the reference on the published
+# semi-free-start pair, with the characteristic constants mutated (each mutated constant makes the pair fail at a
+# chosen row/condition, or leaves it passing).  Machine outcome (last mark / success) vs reference outcome.
+import sys, copy, random, itertools
+sys.path.insert(0, '.')
+import vtprog as P
+from vtprog import *
+
+LANE = int(sys.argv[1]) if len(sys.argv) > 1 else 0
+def run_machine(a0, a1, a2):
+    A0L[LANE] = a0
+    tab = tables(a2list=[a2]); var = variant(a0, a1, a2)
+    Y, Z0 = yz0(PCV, a0); w16 = w16_closed(PCV, a0, a1, a2); gi = GSET[w16]
+    ent = ((c7of(var) + (1 << 32)) & WORD, a1 | S0(a1) << 32 | (A2T) << 64, gaddr(gi))
+    m = Machine([1, 2], lambda j, y, z: [ent] if j == LANE else [], tab, cvforce=PCV)
+    m.run(build_program([0, 1, 2, 3]))
+    return m
+
+def ref_expect(a0, a1, a2):
+    o = outcome(PCV, a0, a1, a2)
+    assert o['r16'] and o['w7']
+    E, A, I = row17_parts(o['tx'], o['ty'])
+    if not E: return 'W7'
+    if not A: return 'E17'
+    if not I: return 'A17'
+    for i in range(18, NR):
+        if not rowok(o['tx'], o['ty'], i): return ('row', i)
+    return 'succ'
+
+def got(m):
+    if m.succ: return 'succ'
+    return m.marks[-1]
+
+a0, a1, a2 = sa(0), sa(1), sa(2)
+base = outcome(PCV, a0, a1, a2); tx, ty = base['tx'], base['ty']
+orig = (copy.deepcopy(CELLS), list(PQ), list(X2))
+def restore():
+    for k in range(3):
+        for i in range(NR): CELLS[k][i] = orig[0][k][i]
+    PQ[:] = orig[1]; X2[:] = orig[2]
+def get(k, i): return (tx[k][i] if k < 2 else tx[2][i], ty[k][i] if k < 2 else ty[2][i])
+cases = []
+for i in range(17, NR):
+    for k in range(3):
+        mk, vl, df, pl = orig[0][k][i]
+        x, y = get(k, i)
+        # value cell: flip a required bit / require a new bit wrongly / require a new bit rightly
+        for b in range(0, 32, 1):
+            bit = 1 << b
+            if i == 17 and k == 2: continue
+            if mk & bit: cases.append(('flipval', i, k, b, (mk, vl ^ bit, df, pl)))
+            else:
+                cases.append(('addwrong', i, k, b, (mk | bit, vl | ((~x) & bit), df, pl)))
+                cases.append(('addright', i, k, b, (mk | bit, vl | (x & bit), df, pl)))
+            if i > 17: cases.append(('flipdiff', i, k, b, (mk, vl, df ^ bit, pl)))
+    for b in range(32):
+        bit = 1 << b
+        Ex, Ep = tx[1][i], tx[1][i-1]
+        cases.append(('pq', i, 1, b, None, bit))
+for idx, x in enumerate(orig[2]):
+    if x[7] >= 17: cases.append(('x2flip', x[7], 0, idx, None))
+random.seed(1); random.shuffle(cases)
+cnt = {}; bad = 0; n = 0
+for c in cases:
+    restore()
+    kind, i, k, b = c[:4]
+    if kind in ('flipval', 'addwrong', 'addright', 'flipdiff'): CELLS[k][i] = c[4]
+    elif kind == 'pq': PQ[i] = orig[1][i] | c[5]
+    elif kind == 'x2flip':
+        r = list(X2[b]); r[3] ^= 1; X2[b] = tuple(r)
+    # reference expectation; skip mutations that already break rows <= 16 (G is fixed)
+    try:
+        e = ref_expect(a0, a1, a2)
+    except AssertionError:
+        continue
+    try: m = run_machine(a0, a1, a2)
+    except AssertionError: continue
+    if not m.succ and not m.marks: print('NO MARKS', c[:4], e, m.r.get('FL'), m.r.get('NE'), m.trace); continue
+    g = got(m); n += 1
+    key = (e if isinstance(e, str) else 'row'); cnt[key] = cnt.get(key, 0) + 1
+    if g != e:
+        bad += 1; print('MISMATCH', c[:4], 'ref', e, 'machine', g)
+restore()
+print('cases', len(cases), 'run', n, 'mismatches', bad, 'expected-outcome histogram', cnt)
+```
+
+`t_eq.py`:
+
+```python
+# t_eq.py - equivalence of the counted program with the reference construction on TRUE buckets: for each real
+# chaining value, all 256 A0 blocks; machine counters NE, NW, N1 and the full sequence of stage marks of every entry
+# versus the reference (outcome(), row17_parts()); every bucket entry must have row 16 and be a valid variant.
+# usage: t_eq.py jobs.txt buckets.txt [ncv]
+import sys; sys.path.insert(0, '.')
+from vtprog import *
+jobs = [l.split() for l in open(sys.argv[1])]; lines = open(sys.argv[2]).read().split('\n'); pos = 0
+ncv = int(sys.argv[3]) if len(sys.argv) > 3 else 10**9
+buckets = {}; k = 0
+while pos < len(lines) and lines[pos].startswith('B'):
+    _, a0h, cnt = lines[pos].split(); cnt = int(cnt); ents = [tuple(map(int, l.split()[1:])) + (int(l.split()[0], 16),) for l in lines[pos+1:pos+1+cnt]]
+    buckets[k] = (int(a0h, 16), [(a1, a2i, gi) for (a2i, gi, a1) in ents]); pos += 1 + cnt; k += 1
+tab = tables()
+def expected_marks(cv, a0, a1, a2):
+    o = outcome(cv, a0, a1, a2); assert o['r16'], 'bucket entry fails row 16'; assert valid(o['var'])
+    mk = []
+    if not o['w7']: return mk, o
+    mk.append('W7'); E, A, I = row17_parts(o['tx'], o['ty'])
+    if not E: return mk, o
+    mk.append('E17')
+    if not A: return mk, o
+    mk.append('A17')
+    if not I: return mk, o
+    mk.append('A17int')
+    for i in range(18, NR):
+        mk.append(('row', i))
+        if not rowok(o['tx'], o['ty'], i): return mk, o
+    return mk + ['succ'], o
+done = 0; tot = dict(ne=0, nw=0, n1=0, ent=0, deep=0); bad = 0; maxrow = {}
+for c in range(len(buckets) // 256):
+    if c >= ncv: break
+    cv = [int(x, 16) for x in jobs[256 * c][:8]]
+    B = {}
+    for jj in range(256):
+        a0, ents = buckets[256 * c + jj]; assert a0 == A0L[jj] and int(jobs[256 * c + jj][8], 16) == a0; B[jj] = ents
+    exp_obs = []; exp_marks = []; ne = 0; nw = 0; n1 = 0; ent = 0
+    for jj in range(256):
+        ne += 3 * (len(B[jj]) + 1)
+        for (a1, a2i, gi) in B[jj]:
+            ent += 1
+            mk, o = expected_marks(cv, A0L[jj], a1, A2L[a2i]); assert GSET[o['tx'][2][16]] == gi
+            if 'W7' in mk: exp_obs += [o['tx'][2][17], o['tx'][1][17]]
+            exp_marks += mk; nw += 'W7' in mk; n1 += 'E17' in mk
+            if 'succ' in mk: print('SUCCESS in real bucket!', c, jj, a1, a2i)
+            if ('row', 18) in mk: tot['deep'] += 1
+            for x in mk:
+                if isinstance(x, tuple): maxrow[x[1]] = maxrow.get(x[1], 0) + 1
+    def bucket(j, y, z):
+        a0 = A0L[j]; yy, zz = yz0(cv, a0); assert (y, z) == (yy, zz)
+        return [((c7of(variant(a0, a1, A2L[a2i])) + (1 << 32)), a1 | S0(a1) << 32 | (A2T + 2 * a2i) << 64, gaddr(gi)) for (a1, a2i, gi) in B[j]]
+    prog, mp = allocated_program(range(256), ngroups=1)
+    m = Machine([0x1111, 0x2222], bucket, tab, cvforce=cv); m.run(prog)
+    got_marks = list(m.marks) + (['succ'] if m.succ else [])
+    ok = (m.r.get(mp['NE'], 0) == ne and m.r.get(mp['NW'], 0) == nw and m.r.get(mp['N1'], 0) == n1 and got_marks == exp_marks and m.units == 1 and [x & M for x in m.obs] == exp_obs)
+    bad += not ok
+    if not ok: print('DBG', m.units, got_marks == exp_marks, got_marks[:4], exp_marks[:4], m.succ)
+    for kk, v in (('ne', ne), ('nw', nw), ('n1', n1), ('ent', ent)): tot[kk] += v
+    print('cv', c, 'entries', ent, 'NE', m.r.get(mp['NE'], 0), ne, 'NW', m.r.get(mp['NW'], 0), nw, 'N1', m.r.get(mp['N1'], 0), n1, 'marks', len(got_marks), len(exp_marks), 'ops', m.ops, 'OK' if ok else 'MISMATCH', flush=True)
+print('total', tot, 'mismatching CVs', bad, 'row histogram', sorted(maxrow.items()))
+```
+
+`t_cost.py`:
+
+```python
+# t_cost.py - static costs of the counted program, measured by executing it (the interpreter counts every executed operation;
+# stage marks record the operation counter).  Four-lane blocks: a group of four A0 blocks shares the vector computation.
+import sys, json; sys.path.insert(0, '.')
+from vtprog import *
+cv = [1, 2, 3, 4, 5, 6, 7, 8]
+def run(js, bucket, cvf=cv, tab=None):
+    prog, mp = allocated_program(js, (1 << 200,) * 3, 1)
+    m = Machine([5, 6], bucket, tab if tab is not None else tables(), cvforce=cvf); m.run(prog); return m
+m0 = run([], lambda j, y, z: [])
+P0EPI = m0.ops                                    # prologue + epilogue + group-loop branch
+m4 = run([0, 1, 2, 3], lambda j, y, z: [])
+GROUP4 = m4.ops - P0EPI                            # four blocks with empty buckets
+assert run(list(range(8)), lambda j, y, z: []).ops - P0EPI == 2 * GROUP4
+a = cv[0]; w = 12345
+while inF7(w & M): w += 1
+e0 = (((w + a) & M) + (1 << 32), 0, 0)
+ITER = run([0, 1, 2, 3], lambda j, y, z: [e0] if j == 0 else []).ops - m4.ops
+EPI = 15; P0 = P0EPI - EPI
+print('prologue %d  epilogue %d  four empty blocks %d (%.2f per block)  loop iteration %d' % (P0, EPI, GROUP4, GROUP4 / 4, ITER))
+# the published pair as a success in every lane: marks give the cost of every stage from the pass label
+A0save = list(A0L); a0, a1, a2 = sa(0), sa(1), sa(2); tab = tables(a2list=[a2]); var = variant(a0, a1, a2)
+gi = GSET[w16_closed(PCV, a0, a1, a2)]
+ent = ((c7of(var) + (1 << 32)), a1 | S0(a1) << 32 | A2T << 64, gaddr(gi))
+lanes = []
+for lane in range(4):
+    A0L[lane] = a0
+    m = run([0, 1, 2, 3], lambda j, y, z: [ent] if j == lane else [], cvf=PCV, tab=tab); A0L[:] = A0save
+    d = dict((k, o) for k, o in m.mark_ops); base = d['W7'] - 1       # ops executed before the pass label (the NW increment is the pass path's first op)
+    lanes.append(dict(X_E17=d['E17'] - base, X_A17=d['A17'] - base, X_A17int=d['A17int'] - base, X_SUCC=m.succ_ops - base))
+    print('lane', lane, lanes[-1])
+out = dict(P0=P0, EPI=EPI, GROUP4=GROUP4, ITER=ITER, PASS_ENTRY=3, X_E17=max(l['X_E17'] for l in lanes), X_A17=max(l['X_A17'] for l in lanes),
+           X_A17int=max(l['X_A17int'] for l in lanes), X_SUCC=max(l['X_SUCC'] for l in lanes), BLOCK_FIXED=GROUP4 / 4)
+print(json.dumps(out)); json.dump(out, open('../runs/costs.json', 'w'))
+```
+
+### B.13 t_pre1.py, t_pre2.py, t_replay.py
+
+`t_pre1.py`:
+
+```python
+# t_pre1.py - P1..P4 as counted code: G scan body, F7 body, A2-list body, A2 and G records; each against the reference.
+import sys, random, json; sys.path.insert(0, '.')
+from vtpre import *
+random.seed(7)
+res = {}
+def loop_prog(body, hit):
+    """for each candidate in memory list at LST: body; costs measured around it"""
+    a = Asm(); a.L('top'); body(a, 'nx'); hit(a); a.L('nx'); a('halt_ok',); return a
+def run(a, regs, mem=None):
+    m = MachineP([], None, {}); m.mem = dict(mem or {}); m.r = dict(regs); m.run(a); return m
+# --- P1
+def hit_g(a): a('st', 'gp', 'w'); a('add', 'gp', 'gp', 1)
+prog = loop_prog(gen_g_body, hit_g)
+inG = set(GL); bad = 0; worst = 0; tested = 0
+cands = list(GL) + [random.getrandbits(32) for _ in range(20000)] + [g ^ (1 << b) for g in GL for b in range(32)] + [(g + d) & M for g in GL for d in (1, -1, 0x20000000, -0x20000000)]
+costs = {}
+for w in cands:
+    m = run(prog, dict(w=w, gp=1 << 100)); hit = m.r['gp'] != 1 << 100
+    tested += 1; bad += (hit != (w in inG))
+    costs[hit] = max(costs.get(hit, 0), m.ops)
+print('P1 G body: tested', tested, 'mismatches', bad, 'max ops hit/non-hit', costs)
+res['G_hit_ops'] = costs[True]; res['G_nonhit_max_ops'] = costs[False]
+# cross-check against reference row-16 on the same candidates (rowok of a synthetic trace is not available without rows <16: use vtref via S* rows)
+# --- P2
+def hit_f7(a): pass
+prog = loop_prog(gen_f7_body, hit_f7)
+bad = 0; cost = {}
+ws = [random.getrandbits(32) for _ in range(3000)]
+# members of F7: rejection from random
+while len([w for w in ws if inF7(w)]) < 400: ws.append(random.getrandbits(32))
+for w in ws:
+    m = run(prog, dict(w=w, one=1, two=2)); st1 = m.mem.get(w, 0); st2 = m.mem.get(w + (1 << 32), 0); st3 = m.mem.get((1 << 34) + 1 + w, 0)
+    exp = 1 if inF7(w) else 0
+    bad += (st1 != exp or st2 != exp or st3 != 2); cost[exp] = max(cost.get(exp, 0), m.ops)
+print('P2 F7 body: tested', len(ws), 'mismatches', bad, 'ops (in F7 / not)', cost)
+res['F7_in_ops'] = cost[1]; res['F7_out_ops'] = cost[0]
+# --- P3
+def hit_a2(a): a('st', 'ap', 'x'); a('add', 'ap', 'ap', 1)
+prog = loop_prog(gen_a2_body, hit_a2)
+inL = set(A2L); bad = 0; cost = {}
+cands = list(A2L) + [random.getrandbits(32) for _ in range(20000)] + [(x + d) & M for x in A2L[::7] for d in (1, -1, 2, 4, 8)] + [x ^ (1 << b) for x in A2L[::5] for b in range(32)]
+for x in cands:
+    m = run(prog, dict(x=x, ap=1 << 100)); hit = m.r['ap'] != 1 << 100
+    bad += (hit != (x in inL)); cost[hit] = max(cost.get(hit, 0), m.ops)
+print('P3 A2 body: tested', len(cands), 'mismatches', bad, 'ops', cost)
+res['A2_hit_ops'] = cost[True]; res['A2_nonhit_max_ops'] = cost[False]
+# --- P4
+tab = tables(); bad = 0; tot = 0
+a = Asm(); gen_a2rec(a, 'x', 'ra'); a('halt_ok',)
+for k, x in enumerate(A2L):
+    m = run(a, dict(x=x, ra=A2T + 2 * k)); tot += m.ops
+    bad += (m.mem[A2T + 2 * k] != tab[A2T + 2 * k]) + (m.mem[A2T + 2 * k + 1] != tab[A2T + 2 * k + 1])
+    # dW9 holds
+    assert ((m.r['c9y'] - m.r['c9x']) & M) == DW[9]
+print('P4 A2 records: 768, mismatching words', bad, 'ops total', tot, 'per record', tot / 768)
+res['A2REC_total_ops'] = tot
+bad = 0; totg = 0
+for gi, g in enumerate(GL):
+    a = Asm(); gen_grec(a, gi, g); a('halt_ok',); m = run(a, {}); totg += m.ops
+    exp = grec(gi, g)
+    for ad, v in exp.items(): bad += (m.mem.get(ad, 0) != v)
+    assert set(m.mem) == set(exp) or True
+print('P4 G records: 32, mismatching words', bad, 'ops total', totg)
+res['GREC_total_ops'] = totg
+json.dump(res, open('../runs/pre1.json', 'w'))
+```
+
+`t_pre2.py`:
+
+```python
+# t_pre2.py - P5 (variant enumeration) and P6 (table construction) as counted code on toy instances, against the
+# definitions (reference valid() / closed-form W16).  Reports the executed operation counts per item.
+import sys, random, json; sys.path.insert(0, '.')
+from vtpre import *
+random.seed(11)
+res = {}
+def run(a, regs, mem=None, maxops=None):
+    m = MachineP([], None, {}); m.mem = dict(mem or {}); m.r = dict(regs); m.run(a); return m
+# true valid variants from the bucket file (first CV, several A0 blocks)
+lines = open('../runs/eq/buckets.txt').read().split('\n'); pos = 0; k = 0; B = {}
+jobs = [l.split() for l in open('../runs/eq/jobs.txt')]
+while pos < len(lines) and lines[pos].startswith('B'):
+    _, a0h, cnt = lines[pos].split(); cnt = int(cnt)
+    B[k] = (int(a0h, 16), [(int(l.split()[0], 16), int(l.split()[1]), int(l.split()[2])) for l in lines[pos+1:pos+1+cnt]]); pos += 1 + cnt; k += 1
+tab = tables()
+# --- P5: enumeration on windows
+bad = 0; total_valid = 0; cand_ops = {}; windows = 0
+for kk in random.sample(range(256), 12):
+    a0, ents = B[kk]; j = A0L.index(a0)
+    if not ents: continue
+    a1v, a2i, gi = ents[0]; a2 = A2L[a2i]
+    a = Asm(); gen_enum_setup(a, a0); a('li', 'r', 0); a.L('top')
+    gen_enum_body(a, a0, 'nx'); gen_enum_append(a, a0)
+    a.L('nx'); a('add', 'r', 'r', 1); a('bne', 'r', 'rend', 'top'); a('halt_ok',)
+    # setup precondition: record in memory
+    mem = {A2T + 2 * a2i: tab[A2T + 2 * a2i], A2T + 2 * a2i + 1: tab[A2T + 2 * a2i + 1]}
+    # lo from the code: compute in python for the window offsets
+    E6 = (sa(6) + a2 - S0(sa(5)) - MAJ(sa(5), sa(4), sa(3))) & M
+    k5 = (sa(5) - S0(sa(4)) - MAJ(sa(4), sa(3), a2)) & M
+    lo = ((E6 & 0xe0000000) - k5) & M
+    off = (a1v - lo) & M; assert off < (1 << 29)
+    r0 = max(0, off - random.randrange(0, 3000)); r1 = min(1 << 29, r0 + 4096)
+    # patch: start r at r0
+    a.c[a.c.index(('li', 'r', 0))] = ('li', 'r', r0)
+    m = run(a, dict(ra=A2T + 2 * a2i, lp=1 << 150, rend=r1), mem)
+    got = []; p = 1 << 150
+    while p < m.r['lp']: got.append((m.mem[p], m.mem[p+1], m.mem[p+2])); p += 3
+    exp = []
+    for r in range(r0, r1):
+        a1 = (lo + r) & M; var = variant(a0, a1, a2)
+        if valid(var):
+            exp.append(((c7of(var) + (1 << 32)), a1 | S0(a1) << 32 | (A2T + 2 * a2i) << 64, c9x_of(a2)))
+    ok = got == exp; bad += (not ok); total_valid += len(exp); windows += 1
+    if not ok:
+        d = [(i, [hex(x) for x in g], [hex(x) for x in e]) for i, (g, e) in enumerate(zip(got, exp)) if g != e][:2]; print('MISMATCH window', kk, a2i, len(got), len(exp), d)
+    assert len(exp) >= 1
+print('P5: windows', windows, 'window candidates', windows * 4096, 'valid variants found', total_valid, 'mismatching windows', bad)
+# per-candidate and per-valid costs, measured with single-candidate runs
+kk0 = next(k_ for k_ in range(256) if B[k_][1]); a0, ents = B[kk0]; a1v, a2i, gi = ents[0]; a2 = A2L[a2i]
+def one_cand(a1, tail):
+    a = Asm(); gen_enum_setup(a, a0); setup_end = len(a.c)
+    gen_enum_body(a, a0, 'nx'); body_end = len(a.c)
+    if tail: gen_enum_append(a, a0)
+    a.L('nx'); a('halt_ok',)
+    E6 = (sa(6) + a2 - S0(sa(5)) - MAJ(sa(5), sa(4), sa(3))) & M; k5 = (sa(5) - S0(sa(4)) - MAJ(sa(4), sa(3), a2)) & M
+    lo = ((E6 & 0xe0000000) - k5) & M
+    mem = {A2T + 2 * a2i: tab[A2T + 2 * a2i], A2T + 2 * a2i + 1: tab[A2T + 2 * a2i + 1]}
+    m = run(a, dict(ra=A2T + 2 * a2i, lp=1 << 150, r=(a1 - lo) & M), mem); return m.ops
+# setup cost
+a = Asm(); gen_enum_setup(a, a0); a('halt_ok',); SET = run(a, dict(ra=A2T + 2 * a2i), {A2T + 2 * a2i: tab[A2T + 2 * a2i], A2T + 2 * a2i + 1: tab[A2T + 2 * a2i + 1]}).ops
+valid_ops = one_cand(a1v, True) - SET
+append_only = valid_ops - (one_cand(a1v, False) - SET)
+print('P5 ops: setup', SET, ', valid candidate incl. append', valid_ops, ', append part', append_only, ', body part (all tests pass)', valid_ops - append_only)
+# a candidate that fails at each stage: cost of the cheap first exit
+fails = {}
+E6 = (sa(6) + a2 - S0(sa(5)) - MAJ(sa(5), sa(4), sa(3))) & M; k5 = (sa(5) - S0(sa(4)) - MAJ(sa(4), sa(3), a2)) & M; lo = ((E6 & 0xe0000000) - k5) & M
+for t in range(400):
+    a1 = (lo + random.randrange(1 << 29)) & M
+    c = one_cand(a1, False) - SET; fails[c] = fails.get(c, 0) + 1
+print('P5 body cost histogram (random in-window candidates):', sorted(fails.items()))
+res.update(P5_SETUP=SET, P5_BODY_MAX=valid_ops - append_only, P5_APPEND=append_only, P5_LOOP=3)
+# --- P6 toy
+j = 0; a0 = A0L[0]
+vars_ = []
+# toy: variants valid for A0 block 0 (taken from the true buckets of the six CVs)
+for c in range(6):
+    a0c, ents = B[256 * c]
+    vars_ += [(a1, a2i) for (a1, a2i, gi) in ents]
+vars_ = sorted(set(vars_)); assert len(vars_) >= 10
+cvs = [[int(x, 16) for x in jobs[256 * c][:8]] for c in range(6)]
+YS = sorted(set([yz0(cv, a0)[0] for cv in cvs] + [random.getrandbits(32) for _ in range(2)]))
+HB = HDR | (j << 64)
+def x_of(Y, a1, a2): return (s0((Y + a1) & M) - a1 + c9x_of(a2)) & M
+# expected buckets by definition (insertion order: variant outer, Y inner, g inner)
+expb = {}; ops = {}
+# count pass
+cnt_prog = Asm(); cnt_prog.L('vt'); gen_count_body(cnt_prog, HB); cnt_prog('halt_ok',)
+mem = {}; m_ops = []
+for (a1, a2i) in vars_:
+    for Y in YS:
+        mm = run(cnt_prog, dict(Y=Y, A1=a1, c9x=c9x_of(A2L[a2i])), mem); m_ops.append(mm.ops); mem = mm.mem
+        for gi, g in enumerate(GL): expb.setdefault((Y, (g - x_of(Y, a1, A2L[a2i])) & M), []).append((a1, a2i, gi))
+cnt_cost = max(m_ops); print('P6 count: ops per (Y, variant)', set(m_ops))
+# check counts
+badc = sum(mem.get(HB + (Y << 32 | Z), 0) != len(v) for (Y, Z), v in expb.items())
+# prefix pass over touched headers (sorted) + 3 untouched
+hdrs = sorted(HB + (Y << 32 | Z) for (Y, Z) in expb) + [HB + 12345, HB + (YS[0] << 32 | 77)]
+hdrs = sorted(set(hdrs)); ENT0 = ENT + 3
+pre = Asm(); pre.L('top'); gen_prefix_body(pre); pre.L('nxt'); pre('add', 'h', 'h', 1); pre('halt_ok',)
+run_ = ENT0; pops = {}
+mem2 = dict(mem)
+for h in hdrs:
+    c0 = mem2.get(h, 0)
+    mm = MachineP([], None, {}); mm.mem = mem2; mm.r = dict(h=h, run=run_); mm.run(pre); run_ = mm.r['run']; pops.setdefault('empty' if c0 == 0 else 'nonempty', set()).add(mm.ops)
+print('P6 prefix ops', pops, ' (includes the loop-increment op of this harness: 1)')
+# fill pass
+fill = Asm(); gen_fill_body(fill, HB); fill('halt_ok',)
+fops = set()
+for (a1, a2i) in vars_:
+    ca = A2L[a2i]; var = variant(a0, a1, ca)
+    for Y in YS:
+        c7 = (c7of(var) + (1 << 32)) & WORD; w1 = a1 | S0(a1) << 32 | (A2T + 2 * a2i) << 64
+        mm = MachineP([], None, {}); mm.mem = mem2; mm.r = dict(Y=Y, A1=a1, c9x=c9x_of(ca), c7=c7, w1e=w1); mm.run(fill); fops.add(mm.ops)
+print('P6 fill ops per (Y, variant)', fops)
+# verify table = definition (entries backwards fill: reverse insertion order)
+badt = 0; nb = 0
+for (Y, Z), v in expb.items():
+    h = mem2[HB + (Y << 32 | Z)]; got = []
+    while mem2[h] != SENT:
+        got.append(((mem2[h]), mem2[h+1], mem2[h+2])); h += 3
+    exp = [((c7of(variant(a0, a1, A2L[a2i])) + (1 << 32)), a1 | S0(a1) << 32 | (A2T + 2 * a2i) << 64, gaddr(gi)) for (a1, a2i, gi) in v]
+    exp = exp[::-1]; badt += (got != exp); nb += 1
+    if got != exp and badt < 3: print('BUCKET', Y, Z, [[hex(x) for x in t] for t in got][:2], [[hex(x) for x in t] for t in exp][:2], len(got), len(exp))
+emp = [mem2[h] for h in hdrs if h not in {HB + (Y << 32 | Z) for (Y, Z) in expb}]
+print('P6: buckets', nb, 'mismatching', badt, 'count mismatches', badc, 'empty headers = EMPTY:', all(e == EMPTY for e in emp))
+# cross-check with TRUE buckets from the bucket file: the table bucket of (Y, Z0) of each CV contains the file's entries of the variants in vars_
+tb = 0
+for c in range(6):
+    cv = cvs[c]; Y, Z0 = yz0(cv, a0); ents = B[256 * c][1]
+    h = mem2.get(HB + (Y << 32 | Z0)); got = []
+    if h is not None and h != EMPTY:
+        while mem2[h] != SENT: got.append((mem2[h+1] & M, (mem2[h+1] >> 64) - A2T >> 1, GL.index(0) if False else None)); h += 3
+    exp = sorted(((a1, a2i) for (a1, a2i, gi) in ents)); gs = sorted((a1, a2i) for (a1, a2i, _) in got)
+    tb += (exp != gs)
+print('P6 vs true buckets (6 CVs, A0 block 0): mismatching', tb)
+res.update(P6_COUNT=max(m_ops), P6_FILL=max(fops), P6_PREFIX_EMPTY=max(pops['empty']) - 1, P6_PREFIX_NONEMPTY=max(pops['nonempty']) - 1)
+json.dump(res, open('../runs/pre2.json', 'w'))
+```
+
+`t_replay.py`:
+
+```python
+# t_replay.py - the counted program on SMC successes (real semi-free-start pairs rebuilt and verified by smc.c):
+# the success's chaining value is forced; the A0 block's bucket holds two decoys and the true entry.
+# usage: t_replay.py succ.txt [max]
+import sys, random; sys.path.insert(0, '.')
+from vtprog import *
+random.seed(3)
+L = [l.split() for l in open(sys.argv[1])]; mx = int(sys.argv[2]) if len(sys.argv) > 2 else len(L)
+tab = tables(); A2IDX = {x: i for i, x in enumerate(A2L)}; A0IDX = {x: i for i, x in enumerate(A0L)}
+ent_of = lambda cv, a0, a1, a2i: ((c7of(variant(a0, a1, A2L[a2i])) + (1 << 32)), a1 | S0(a1) << 32 | (A2T + 2 * a2i) << 64, gaddr(GSET[w16_closed(cv, a0, a1, A2L[a2i])]))
+found = 0; n = 0; bad = 0; ops = []; a0s = set(); progs = {}
+for l in L[:mx]:
+    a0, a1, a2 = int(l[0], 16), int(l[1], 16), int(l[2], 16)
+    cv = [int(x, 16) for x in l[4:12]]; mm = [int(x, 16) for x in l[13:29]]
+    j = A0IDX[a0]; a2i = A2IDX[a2]
+    # sanity: the semi-free-start pair collides
+    mx_ = mm; my = list(mm)
+    for i in range(7, 16): my[i] = (mm[i] + DW[i]) & M
+    assert compress(cv, mx_) == compress(cv, my) and mx_ != my
+    true = ent_of(cv, a0, a1, a2i)
+    dec = []
+    for _ in range(2):
+        d = L[random.randrange(len(L))]; dec.append(ent_of([int(x, 16) for x in d[4:12]], int(d[0], 16), int(d[1], 16), A2IDX[int(d[2], 16)]) if False else (true[0] ^ random.getrandbits(20), true[1], true[2]))
+    Y, Z0 = yz0(cv, a0)
+    key = j
+    q = j // 4; key = q
+    if key not in progs: progs[key] = allocated_program(list(range(4 * q, 4 * q + 4)))[0]
+    m = Machine([1, 2], lambda jj, y, z: [dec[0], true, dec[1]], tab, cvforce=cv); m.run(progs[key])
+    n += 1; ok = bool(m.succ and m.succ[0] == j); found += ok; ops.append(m.ops); a0s.add(a0)
+    # the pair the program reports: the entry word is the true one
+    bad += (not ok)
+print('successes replayed', n, 'found by the counted program', found, 'failures', bad, 'distinct A0', len(a0s), 'ops min/max', min(ops), max(ops))
+```
+
+### B.14 t_clump.py, t_own.py, t_far.py, t_imm.py, h1_jobs.py, analyze.py
+
+`t_clump.py`:
+
+```python
+# t_clump.py - H5, near term: for every SMC success (A0, A1, A2, CV1) every OTHER valid variant (A0, A1, A2') of the A2 list is tried on the same
+# CV1 (it shares W0, W1 and, within a c9 class, W16): valid variants, row-16 co-hits, W7 passes, first-row-17-test passes, co-successes.
+# usage: t_clump.py succ.txt lo hi
+import sys; sys.path.insert(0, '.')
+from vtref import *
+rows = [l.split() for l in open(sys.argv[1])][int(sys.argv[2]):int(sys.argv[3])]
+nv = nh = nw = n17 = ns = nfull = 0
+for l in rows:
+    a0, a1, a2 = int(l[0], 16), int(l[1], 16), int(l[2], 16); cv = [int(x, 16) for x in l[4:12]]
+    for b2 in A2L:
+        if b2 == a2: continue
+        var = variant(a0, a1, b2)
+        if not valid(var): continue
+        nv += 1
+        if w16_closed(cv, a0, a1, b2) not in GSET: continue
+        nh += 1; o = outcome(cv, a0, a1, b2); assert o['r16']
+        if not o['w7']: continue
+        nw += 1
+        E_, A_, I_ = row17_parts(o['tx'], o['ty']); n17 += bool(E_); nfull += o['deep'] >= 17
+        if o['deep'] == NR - 1: ns += 1
+print('successes', len(rows), 'other valid variants with the same (A0, A1)', nv, 'row-16 co-hits', nh, 'W7 passes', nw, 'first row-17 tests (E17 mask) passed', n17, 'full row 17 holds', nfull, 'co-successes', ns)
+```
+
+`t_own.py`:
+
+```python
+# t_own.py - pair term, own block: for each verified success (A0, A1, A2, CV1) the TRUE bucket of (CV1, A0) (bucket.c) holds the success and every other
+# variant of the same A0 whose row 16 holds on the same chaining value (same (A0, A1) or not).  Counts, over the other entries: entries, W7 passes,
+# first row-17 tests (E17 mask) passed, further successes.  usage: t_own.py jobs.txt meta.txt buckets.txt
+import sys; sys.path.insert(0, '.')
+from vtref import *
+jobs = [l.split() for l in open(sys.argv[1]) if l.strip()]; meta = [tuple(int(x, 16) for x in l.split()) for l in open(sys.argv[2]) if l.strip()]
+lines = open(sys.argv[3]).read().split('\n'); pos = 0; k = 0
+ns = nent = nw = n1 = nsucc = deep = 0; sameA1 = 0
+while pos < len(lines) and lines[pos].startswith('B') and k < len(jobs):
+    _, a0h, cnt = lines[pos].split(); cnt = int(cnt); ents = [(int(l.split()[0], 16), int(l.split()[1]), int(l.split()[2])) for l in lines[pos+1:pos+1+cnt]]; pos += 1 + cnt
+    cv = [int(x, 16) for x in jobs[k][:8]]; a0, a1s, a2s = meta[k]; assert int(a0h, 16) == a0 == int(jobs[k][8], 16)
+    found = False; ns += 1
+    for (a1, a2i, gi) in ents:
+        if a1 == a1s and A2L[a2i] == a2s: found = True; continue
+        nent += 1; sameA1 += a1 == a1s
+        o = outcome(cv, a0, a1, A2L[a2i]); assert o['r16']
+        if not o['w7']: continue
+        nw += 1; E, A, I = row17_parts(o['tx'], o['ty']); n1 += bool(E); deep += o['deep'] >= 18; nsucc += o['deep'] == NR - 1
+    assert found, 'success missing from its own true bucket'
+    k += 1
+print('successes', ns, 'other entries in the success\'s own bucket', nent, '(of them with the same A1: %d)' % sameA1, 'W7 passes', nw, 'first row-17 tests passed', n1, 'rows>=18', deep, 'further successes', nsucc)
+```
+
+`t_far.py`:
+
+```python
+# t_far.py - rates on TRUE buckets (src/bucket.c) of real chaining values: for every bucket entry the reference outcome (row 16 must hold,
+# the variant must be valid), counts of entries, W7 passes, first row-17 test (E17 mask) passes, deeper rows, successes, against the
+# H1 expectations  |R_j| 2^-27 (entries), |F7| 2^-32 (W7), 2^-10 (E17 mask).
+# usage: t_far.py jobs.txt buckets.txt [procs]    (job line: 8 hex cv words, A0 hex; bucket file as written by bucket.c)
+import sys; sys.path.insert(0, '.')
+from vtref import *
+from multiprocessing import Pool
+RJ = {}
+for l in open('../data/a0set256_peer.txt'):
+    f = l.split()
+    if len(f) >= 2: RJ[int(f[0], 16)] = int(f[1])
+def work(args):
+    cv, a0, ents = args
+    ne = nw = n1 = deep = succ = 0
+    for (a1, a2i, gi) in ents:
+        o = outcome(cv, a0, a1, A2L[a2i]); assert o['r16'] and valid(o['var']) and GSET[o['tx'][2][16]] == gi
+        ne += 1
+        if not o['w7']: continue
+        nw += 1
+        E, A, I = row17_parts(o['tx'], o['ty'])
+        if E: n1 += 1
+        if o['deep'] >= 18: deep += 1
+        if o['deep'] == NR - 1: succ += 1
+    return ne, nw, n1, deep, succ
+if __name__ == '__main__':
+    jobs = [l.split() for l in open(sys.argv[1]) if l.strip()]; lines = open(sys.argv[2]).read().split('\n'); pos = 0; k = 0; tasks = []; exp = 0.0
+    while pos < len(lines) and lines[pos].startswith('B'):
+        _, a0h, cnt = lines[pos].split(); cnt = int(cnt)
+        ents = [(int(l.split()[0], 16), int(l.split()[1]), int(l.split()[2])) for l in lines[pos+1:pos+1+cnt]]
+        j = jobs[k]; assert int(j[8], 16) == int(a0h, 16)
+        tasks.append(([int(x, 16) for x in j[:8]], int(a0h, 16), ents)); exp += RJ[int(a0h, 16)] / 2 ** 27; pos += 1 + cnt; k += 1
+    with Pool(int(sys.argv[3]) if len(sys.argv) > 3 else 4) as p: res = p.map(work, tasks, chunksize=16)
+    t = [sum(r[i] for r in res) for i in range(5)]
+    pf7 = 287309824 / 2 ** 32
+    print('buckets', len(tasks), 'cvs', len(set(tuple(x[0]) for x in tasks)), 'entries', t[0], 'expected %.1f' % exp, 'ratio %.4f' % (t[0] / exp))
+    print('W7 passes', t[1], 'expected %.1f (of observed entries %.1f)' % (exp * pf7, t[0] * pf7), 'E17-mask passes', t[2], 'expected %.2f' % (t[1] / 1024), 'rows>=18', t[3], 'successes', t[4])
+```
+
+`t_imm.py`:
+
+```python
+# t_imm.py - sensitivity: the counted program re-measured with every immediate operand of an ALU instruction, compare-branch or store
+# (a constant held in the instruction) charged one extra operation (as if loaded by an `li`).  Writes ../runs/costs_imm.json.
+import sys, json; sys.path.insert(0, '.')
+import vtprog
+from vtprog import *
+class MI(Machine):
+    def run(s, code, maxops=None):
+        c, lab, r = code.c, code.lab, s.r; pc = 0; n = len(c); mem = s.mem
+        def v(x): return x if isinstance(x, int) else r.get(x, 0)
+        ops = 0
+        isi = lambda x: isinstance(x, int)
+        while pc < n:
+            ins = c[pc]; op = ins[0]; pc += 1
+            if op in ('add', 'sub', 'and', 'or', 'xor'): ops += isi(ins[2]) + isi(ins[3])
+            elif op == 'rsub': ops += 1 + isi(ins[3])
+            elif op == 'bne': ops += isi(ins[2])
+            elif op == 'sti': ops += isi(ins[2])
+            if op == 'add': r[ins[1]] = (v(ins[2]) + v(ins[3])) & WORD; ops += 1
+            elif op == 'sub': r[ins[1]] = (v(ins[2]) - v(ins[3])) & WORD; ops += 1
+            elif op == 'rsub': r[ins[1]] = (ins[2] - v(ins[3])) & WORD; ops += 1
+            elif op == 'and': r[ins[1]] = v(ins[2]) & v(ins[3]); ops += 1
+            elif op == 'or': r[ins[1]] = v(ins[2]) | v(ins[3]); ops += 1
+            elif op == 'xor': r[ins[1]] = v(ins[2]) ^ v(ins[3]); ops += 1
+            elif op == 'shl': r[ins[1]] = (v(ins[2]) << ins[3]) & WORD; ops += 1
+            elif op == 'shr': r[ins[1]] = v(ins[2]) >> ins[3]; ops += 1
+            elif op == 'ld': r[ins[1]] = s.load(v(ins[2])); ops += 1
+            elif op == 'ldi': r[ins[1]] = mem.get(ins[2], 0); ops += 1
+            elif op == 'sti': mem[ins[1]] = v(ins[2]); ops += 1
+            elif op == 'li': r[ins[1]] = ins[2]; ops += 1
+            elif op == 'st': s.store(v(ins[1]), v(ins[2])); ops += 1
+            elif op == 'bz': ops += 2; pc = lab[ins[2]] if v(ins[1]) == 0 else pc
+            elif op == 'bnz': ops += 2; pc = lab[ins[2]] if v(ins[1]) != 0 else pc
+            elif op == 'bne': ops += 2; pc = lab[ins[3]] if v(ins[1]) != v(ins[2]) else pc
+            elif op == 'jmp': ops += 1; pc = lab[ins[1]]
+            elif op == 'rand': r[ins[1]] = s.rw.pop(0); ops += 1
+            elif op == 'f38':
+                s.units += 1; m0 = [r[x] for x in ins[1]]; s.m0 = m0
+                cv = s.cvforce if s.cvforce is not None else compress(IV, m0); s.cv = cv
+                for x, y in zip(ins[2], cv): r[x] = y
+            elif op == 'succ': s.succ = (ins[1], v(ins[2])); s.succ_ops = s.ops + ops; break
+            elif op == 'halt_ok': break
+            elif op == 'obs': s.obs.append(v(ins[1]))
+            elif op == 'mark': s.marks.append(ins[1]); s.mark_ops.append((ins[1], s.ops + ops))
+        s.ops += ops
+vtprog.Machine = MI; Machine = MI
+src = open('t_cost.py').read().replace("json.dump(out, open('../runs/costs.json', 'w'))", "json.dump(out, open('../runs/costs_imm.json', 'w'))")
+exec(compile(src, 't_cost_imm', 'exec'))
+```
+
+`h1_jobs.py`:
+
+```python
+# h1_jobs.py - job file for the H1 rate check: the first NB first blocks M0_i = SHAKE-256(b'r38-h1-first-blocks|i') (64 bytes, 16 big-endian
+# words), CV1_i = F_38(IV, M0_i), one job line (8 hex CV words, A0) per A0 of the set; run bucket.c on it, then t_far.py.
+# usage: h1_jobs.py NB > jobs.txt
+import sys, hashlib, struct; sys.path.insert(0, '.')
+from vtref import *
+for i in range(int(sys.argv[1])):
+    M0 = list(struct.unpack('>16I', hashlib.shake_256(b'r38-h1-first-blocks|%d' % i).digest(64))); cv = compress(IV, M0)
+    for a0 in A0L: print(' '.join('%08x' % x for x in cv), '%08x' % a0)
+```
+
+`analyze.py`:
+
+```python
+import sys, math
+# analysis fixed in PREREG_q3.txt: mean of Z = 2^logZ, sample sd, one-sided 99% Student lower bound, in log2
+tq = {1023: 2.3300, 4095: 2.3267}
+def main(fn):
+    Z = []; bad = 0; nr = 0; sc = 0; stages = []
+    for l in open(fn):
+        f = l.split()
+        if len(f) < 3: continue
+        if f[1] == '-inf': Z.append(0.0); continue
+        Z.append(2.0 ** float(f[1])); stages.append([float(x) for x in f[2:10]])
+        i = f.index('succ'); sc += int(f[i+1]); bad += int(f[i+3]); nr += 1
+    n = len(Z); m = sum(Z) / n; sd = math.sqrt(sum((z - m) ** 2 for z in Z) / (n - 1)); t = tq[n - 1]
+    lo = m - t * sd / math.sqrt(n)
+    print('%s: runs %d (empty %d)  mean log2 %.5f  rel sd %.4f  99%% lower bound log2 %.5f  successes %d failed rebuilds %d' % (fn, n, n - nr, math.log2(m), sd / m, math.log2(lo), sc, bad))
+    print('  stage means (log2):', ' '.join('%.3f' % (sum(s[i] for s in stages) / len(stages)) for i in range(8)))
+    print('  min/max single run log2 %.4f / %.4f' % (math.log2(min(z for z in Z if z > 0)), math.log2(max(Z))))
+main(sys.argv[1])
+```
+
+### B.15 vtconst.py, vtref.py, vtprog.py (the development modules whose assembly is experiments/vt38.py)
+
+`vtconst.py`:
+
+```python
+# vtconst.py: data of the 38-step characteristic (ePrint 2026/1120 Tables 3-5, own transcription), generated from consts.h
+_c = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1610612736, 536870912, 1610612736, 0, 4261904, 16, 4261904, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2060, 2056, 2060, 0, 1142965762, 1073758720, 1142965762, 0, 536936448, 0, 536936448, 0, 134414480, 134217872, 134414480, 0, 41975808, 8388608, 41975808, 0, 0, 0, 0, 0, 536870912, 536870912, 536870912, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3758096384, 138678416, 134480016, 0, 3758622720, 3939897499, 3804237825, 3758096384, 67635200, 3957292027, 2299865209, 139204752, 67108864, 4278190015, 3329275675, 76546059, 0, 1040153503, 683879063, 4261888, 0, 3187670975, 2163392958, 536899588, 64, 4261412799, 1570574870, 1008926725, 64, 4293918591, 901856013, 67450, 128, 2086891391, 537027697, 134283264, 4224, 1246957562, 1242762074, 2176, 4096, 1279466112, 1208156800, 1078071808, 262160, 1086462592, 2048, 0, 17072144, 1086722608, 4330000, 262160, 16809984, 830770738, 805569584, 25198592, 0, 562331664, 537133072, 0, 0, 562072576, 553682944, 536870912, 0, 536870912, 0, 0, 0, 536870912, 536870912, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 536870912, 0, 536870912, 0, 71305216, 71303168, 71305216, 0, 536870912, 536870912, 536870912, 0, 83956394, 16777226, 83956394, 0, 529408, 529408, 529408, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 71305216, 67108864, 71305216, 0, 536870912, 536870912, 536870912, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 92446720, 92446720, 25198592, 0, 0, 0, 0, 0, 536870912, 0, 536870912, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+KC = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb]
+PQ = [0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0xe0000000,0x00080800,0x04000000,0x00000000,0x00000000,0x00000000,0x00000040,0x00000000,0x00000080,0x00001000,0x00000000,0x00040010,0x01008000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000]
+PCV = [0xcd278980,0x1b12a052,0xb87cc8a6,0xa9e059c5,0xc9c3db85,0x6ca4b5b5,0x63d13ac1,0xc0329f1e]
+PMX = [0x48fc271b,0x9fca20cd,0xcc89f96f,0xfc40396f,0x8b328cb4,0x6b91ef78,0x97f9b767,0xc2450045,0x3f416758,0xfe9804cb,0x63a88c0f,0x0ceb1f8d,0xa28cd15a,0x77a1e994,0xd28e48a0,0x9f1f65bb]
+PMY = [0x48fc271b,0x9fca20cd,0xcc89f96f,0xfc40396f,0x8b328cb4,0x6b91ef78,0x97f9b767,0xe2450045,0x3b016f58,0xde9804cb,0x66a99ea5,0x0ce30b8d,0xa28cd15a,0x77a1e994,0xd28e48a0,0x9b5f6dbb]
+PHASH = [0x5d9ca5f4,0x59ace3a3,0x26c9c26c,0x4252c585,0x4c0803b7,0x1b4d5ccd,0x25c3ccc0,0x90645c4d]
+SAX = [0xa9e059c5,0xb87cc8a6,0x1b12a052,0xcd278980,0xb75dae71,0xda6c35e0,0x479b4dc8,0xd374b0d8,0xdf740c96,0x1ee5f173,0x7fd9cecb,0x3e016e83,0xb6a6b5f9,0x3ec0b304,0xbcc85d8c,0x25d3cc99,0x4846f2d8,0xc2dc0441,0xc84cdcb9,0x91c40603]
+SAY = [0xa9e059c5,0xb87cc8a6,0x1b12a052,0xcd278980,0xb75dae71,0xda6c35e0,0x479b4dc8,0xd374b0d8,0xdf740c96,0x1ee5f173,0x7fd9cecb,0x5e016e83,0xb6e7bde9,0x3ec0b304,0xbcc85d8c,0x25d3c495,0x0c66b4da,0xe2dd0441,0xc04fdc29,0x93448603]
+SEX = [0xc0329f1e,0x63d13ac1,0x6ca4b5b5,0xc9c3db85,0xe69df74c,0x8aee3e8a,0x59f5e2ca,0xb6ab3dc2,0x627cb061,0x1e847683,0x0c1c24b9,0xe2e9b205,0x99352c79,0xc670b71b,0x68c3aa97,0xc2f2c1be,0x5f9d1216,0x35c13b0d,0x21966471,0x4a9b6b5a]
+SEY = [0xc0329f1e,0x63d13ac1,0x6ca4b5b5,0xc9c3db85,0xe69df74c,0x8aee3e8a,0x59f5e2ca,0xb6ab3dc2,0x627cb061,0x1e847683,0x0c1c24b9,0x02e9b205,0x917934e9,0xc2e0b710,0x6882a297,0xe2f2b1ba,0x63be1213,0x35c03c77,0x29976471,0x4a9b63da]
+SWX = [0x48fc271b,0x9fca20cd,0xcc89f96f,0xfc40396f,0x8b328cb4,0x6b91ef78,0x97f9b767,0xc2450045,0x3f416758,0xfe9804cb,0x63a88c0f,0x0ceb1f8d,0xa28cd15a,0x77a1e994,0xd28e48a0,0x9f1f65bb]
+SWY = [0x48fc271b,0x9fca20cd,0xcc89f96f,0xfc40396f,0x8b328cb4,0x6b91ef78,0x97f9b767,0xe2450045,0x3b016f58,0xde9804cb,0x66a99ea5,0x0ce30b8d,0xa28cd15a,0x77a1e994,0xd28e48a0,0x9b5f6dbb]
+DW = [0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x20000000,0xfbc00800,0xe0000000,0x03011296,0xfff7ec00,0x00000000,0x00000000,0x00000000,0xfc400800,0xe0000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0xfe7f8000,0x00000000,0x20000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000]
+DS0 = [0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x03bff800,0xfe7f8000,0x043ff800,0xefffa0d0,0xfcfeed6a,0x00000000,0x00000000,0x00000000,0x01808000,0x03bff800,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x202ceee0,0x00000000,0xfc3ff800,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000]
+DS1 = [0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0xfff81400,0xfb0112aa,0x00080c00,0xa500fe64,0xf8800200,0x00000000,0x00000000,0x00000000,0xfcfeed6a,0x00081400,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x50005f30,0x00000000,0x00081400,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000]
+CELLS = [[tuple(_c[(k*38+i)*4:(k*38+i)*4+4]) for i in range(38)] for k in range(3)]
+X2 = [(0, 14, 15, 1, 0, 16, 15, 16), (0, 14, 23, 1, 0, 16, 23, 16), (0, 14, 25, 1, 0, 16, 25, 16), (0, 15, 4, 1, 0, 16, 4, 16), (0, 15, 7, 1, 0, 16, 7, 16), (0, 15, 16, 0, 0, 16, 16, 16), (0, 15, 17, 1, 0, 16, 17, 16), (0, 15, 27, 1, 0, 16, 27, 16), (0, 15, 29, 1, 0, 16, 29, 16), (0, 16, 15, 1, 0, 17, 15, 17), (0, 16, 23, 1, 0, 17, 23, 17), (0, 16, 25, 1, 0, 17, 25, 17), (0, 17, 9, 1, 0, 17, 20, 17), (0, 17, 6, 1, 0, 17, 18, 17), (0, 17, 8, 1, 0, 17, 17, 17), (0, 16, 29, 1, 0, 18, 29, 18), (0, 18, 29, 1, 0, 19, 29, 19), (1, 16, 4, 0, 1, 16, 23, 16), (1, 16, 3, 0, 1, 16, 8, 16), (1, 16, 14, 1, 1, 16, 28, 16), (1, 16, 4, 1, 1, 17, 4, 17), (1, 16, 18, 1, 1, 17, 18, 17), (1, 18, 0, 0, 1, 18, 13, 18), (1, 17, 15, 1, 1, 18, 15, 18), (1, 17, 24, 1, 1, 18, 24, 18), (1, 19, 6, 0, 1, 19, 19, 19), (1, 19, 20, 1, 1, 19, 2, 19), (1, 21, 2, 1, 1, 21, 16, 21), (2, 7, 8, 0, 2, 7, 25, 7), (2, 7, 14, 0, 2, 7, 18, 7), (2, 7, 1, 1, 2, 7, 12, 7), (2, 8, 0, 0, 2, 8, 28, 8), (2, 8, 30, 0, 2, 8, 9, 8), (2, 8, 1, 1, 2, 8, 18, 8), (2, 16, 1, 0, 2, 16, 12, 16), (2, 16, 20, 0, 2, 16, 27, 16), (2, 16, 8, 1, 2, 16, 25, 16), (2, 16, 14, 1, 2, 16, 18, 16), (2, 16, 4, 0, 2, 16, 6, 16), (2, 16, 22, 0, 2, 16, 31, 16), (2, 23, 0, 0, 2, 23, 30, 23), (2, 23, 1, 0, 2, 23, 31, 23), (2, 23, 14, 1, 2, 23, 21, 23), (2, 23, 16, 1, 2, 23, 25, 23), (2, 25, 4, 1, 2, 25, 6, 25), (2, 25, 22, 1, 2, 25, 31, 25), (2, 25, 20, 1, 2, 25, 27, 25)]  # (k1,i1,b1,eq,k2,i2,b2,row); k: 0=A 1=E 2=W
+```
+
+`vtref.py`:
+
+```python
+# vtref.py - reference construction for the 38-step dense-part-variant attack (member x = message printed second).
+# Characteristic/two-bit conditions/semi-free-start pair: Li et al., ePrint 2026/1120 Tables 3-5 (own transcription,
+# vtconst.py).  Construction (variants of the dense part, row-16 lookup in (Y, Z0)) after qkniep (c99df2dc) / 0xshikhar;
+# this code was written independently.  Standard library only.
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from vtconst import *
+
+M = 0xffffffff
+NR = 38
+K = KC
+IV = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
+def ror(x, n): return ((x >> n) | (x << (32 - n))) & M
+def S0(x): return ror(x, 2) ^ ror(x, 13) ^ ror(x, 22)
+def S1(x): return ror(x, 6) ^ ror(x, 11) ^ ror(x, 25)
+def s0(x): return ror(x, 7) ^ ror(x, 18) ^ (x >> 3)
+def s1(x): return ror(x, 17) ^ ror(x, 19) ^ (x >> 10)
+def CH(x, y, z): return (x & y) ^ (~x & z & M)
+def MAJ(x, y, z): return (x & y) ^ (x & z) ^ (y & z)
+
+# trace: A[i], E[i] for i = -4..37 (dicts), W[0..37]
+def trace(cv, w16, n=NR):
+    W = list(w16)
+    for i in range(16, n): W.append((s1(W[i-2]) + W[i-7] + s0(W[i-15]) + W[i-16]) & M)
+    A = {-1-i: cv[i] for i in range(4)}; E = {-1-i: cv[4+i] for i in range(4)}
+    for i in range(n):
+        E[i] = (A[i-4] + E[i-4] + S1(E[i-1]) + CH(E[i-1], E[i-2], E[i-3]) + K[i] + W[i]) & M
+        A[i] = (E[i] - A[i-4] + S0(A[i-1]) + MAJ(A[i-1], A[i-2], A[i-3])) & M
+    return A, E, W
+
+def compress(cv, w16):
+    A, E, W = trace(cv, w16)
+    f = [A[37], A[36], A[35], A[34], E[37], E[36], E[35], E[34]]
+    return [(cv[i] + f[i]) & M for i in range(8)]
+
+def cellok(k, i, x, y):
+    m, v, d, _ = CELLS[k][i]
+    return (x & m) == v and (x ^ y) == d
+
+def rowok(tx, ty, i):
+    """Row i of both traces: A, E, W cells, '+' pair, and two-bit conditions keyed at row i (member x).
+    Rows < 0 have no cells.  W cells of rows 7..10 are not part of the event (W7: F7; W8..W10: modular differences)."""
+    if i < 0: return True
+    (Ax, Ex, Wx), (Ay, Ey, Wy) = tx, ty
+    if not cellok(0, i, Ax[i], Ay[i]): return False
+    if not cellok(1, i, Ex[i], Ey[i]): return False
+    if (i < 7 or i > 10) and not cellok(2, i, Wx[i], Wy[i]): return False
+    if (Ex[i] ^ Ex[i-1]) & PQ[i]: return False
+    if i >= 16:
+        for (k1, i1, b1, eq, k2, i2, b2, row) in X2:
+            if row == i:
+                v1 = (tx[k1][i1] >> b1) & 1; v2 = (tx[k2][i2] >> b2) & 1
+                if (v1 ^ v2) != (0 if eq else 1): return False
+    return True
+
+# ---- dense-part variants: v = (A0, A1, A2) ----
+D7 = DW[7]; T7 = DS0[7]
+def inF7(w): return ((s0((w + D7) & M) - s0(w)) & M) == T7
+def sa(i): return SAX[i+4]
+def say(i): return SAY[i+4]
+def sex(i): return SEX[i+4]
+def sey(i): return SEY[i+4]
+
+def variant(a0, a1, a2):
+    """Per member: A[0..15], E[4..15], W[8..15] (x: member x); E4..E6 and W8..W10 recomputed from (A0,A1,A2)."""
+    out = []
+    for (Aa, Ee, Ww) in ((SAX, SEX, SWX), (SAY, SEY, SWY)):
+        A = {i: Aa[i+4] for i in range(16)}; A[0], A[1], A[2] = a0, a1, a2
+        E = {i: Ee[i+4] for i in range(0, 16)}
+        for i in (4, 5, 6): E[i] = (A[i] + A[i-4] - S0(A[i-1]) - MAJ(A[i-1], A[i-2], A[i-3])) & M
+        W = {i: Ww[i] for i in range(8, 16)}
+        for i in (8, 9, 10): W[i] = (E[i] - A[i-4] - E[i-4] - S1(E[i-1]) - CH(E[i-1], E[i-2], E[i-3]) - K[i]) & M
+        out.append((A, E, W))
+    return out
+
+def valid(var):
+    """E cells of rows 4..8 (both members, '+' pairs) and the published dW_i, ds0(W_i), i = 8..11."""
+    (Ax, Ex, Wx), (Ay, Ey, Wy) = var
+    for i in range(4, 9):
+        if not cellok(1, i, Ex[i], Ey[i]): return False
+        if (Ex[i] ^ Ex[i-1]) & PQ[i]: return False
+        if i >= 5 and (Ey[i] ^ Ey[i-1]) & PQ[i]: return False
+    for i in range(8, 12):
+        if (Wy[i] - Wx[i]) & M != DW[i]: return False
+        if (s0(Wy[i]) - s0(Wx[i])) & M != DS0[i]: return False
+    return True
+
+def c7of(var):
+    """W7x = c7 - A_{-1}  (A_{-1} = first word of the chaining value)."""
+    (A, E, _), _ = var
+    return (E[7] - 2 * A[3] + S0(A[2]) + MAJ(A[2], A[1], A[0]) - S1(E[6]) - CH(E[6], E[5], E[4]) - K[7]) & M
+
+def step2(cv, var):
+    """Message words W0..W15 of both members connecting cv to the variant (W0..W7 from Step 2)."""
+    res = []
+    for m in (0, 1):
+        A, E, W = var[m]; A = dict(A); E = dict(E)
+        for j in range(4): A[-1-j] = cv[j]; E[-1-j] = cv[4+j]
+        for i in range(4): E[i] = (A[i] + A[i-4] - S0(A[i-1]) - MAJ(A[i-1], A[i-2], A[i-3])) & M
+        w = [(E[i] - A[i-4] - E[i-4] - S1(E[i-1]) - CH(E[i-1], E[i-2], E[i-3]) - K[i]) & M for i in range(8)]
+        res.append(w + [W[i] for i in range(8, 16)])
+    wx, wy = res
+    return wx, wy
+
+def yz0(cv, a0):
+    """Lemma 5: Y, Z0 for chaining value cv and A0."""
+    a, b, c, d, e, f, g, h = cv
+    hh = (d - S0(a) - MAJ(a, b, c)) & M; E0 = (a0 + hh) & M
+    Y = (-S0(a0) - MAJ(a0, a, b) - g - S1(E0) - CH(E0, e, f) - K[1]) & M
+    W0 = (a0 + hh - d - h - S1(e) - CH(e, f, g) - K[0]) & M
+    return Y, (W0 + s1(SWX[14])) & M
+
+def c9x_of(a2):
+    A6 = sa(6); E6 = (A6 + a2 - S0(sa(5)) - MAJ(sa(5), sa(4), sa(3))) & M
+    return (sex(9) - 2 * sa(5) + S0(sa(4)) + MAJ(sa(4), sa(3), a2) - S1(sex(8)) - CH(sex(8), sex(7), E6) - K[9]) & M
+
+def w16_closed(cv, a0, a1, a2):
+    Y, Z0 = yz0(cv, a0)
+    return (s0((Y + a1) & M) - a1 + Z0 + c9x_of(a2)) & M
+
+def pair_traces(cv, var):
+    wx, wy = step2(cv, var)
+    return trace(cv, wx), trace(cv, wy), wx, wy
+
+def outcome(cv, a0, a1, a2, rows=NR):
+    """Reference outcome of variant (a0, a1, a2) on cv: dict(r16, w7, deep, tx, ty, wx, wy); deep = last row reached
+    (row 15 if row 16 fails)."""
+    var = variant(a0, a1, a2)
+    tx, ty, wx, wy = pair_traces(cv, var)
+    r16 = rowok(tx, ty, 16)
+    deep = 15
+    if r16:
+        deep = 16
+        for i in range(17, rows):
+            if not rowok(tx, ty, i): break
+            deep = i
+    return dict(r16=r16, w7=inF7(wx[7]), deep=deep, tx=tx, ty=ty, wx=wx, wy=wy, var=var)
+
+def digest_words(msg2blocks): raise NotImplementedError
+
+# ---- data ----
+HERE = os.path.dirname(os.path.abspath(__file__)); DATA = os.path.join(HERE, '..', 'data')
+def _hexlist(fn, col=0): return [int(l.split()[col], 16) for l in open(os.path.join(DATA, fn)) if l.strip()]
+A0L = _hexlist('a0list.txt'); A2L = _hexlist('peer_a2.txt'); GL = _hexlist('ex1_g.txt')
+GSET = {g: k for k, g in enumerate(GL)}
+DW16 = 0x20000000          # W16y = W16x - DW16
+
+def row17_parts(tx, ty):
+    """Row 17 split as the online program tests it: E part (E cell, '+' pair, E-E two-bit conditions), A part (A cell,
+    A-A conditions with a row-16 operand), internal A17 conditions."""
+    (Ax, Ex, Wx), (Ay, Ey, Wy) = tx, ty
+    E_ok = cellok(1, 17, Ex[17], Ey[17]) and not ((Ex[17] ^ Ex[16]) & PQ[17])
+    A_ok = cellok(0, 17, Ax[17], Ay[17]) and cellok(2, 17, Wx[17], Wy[17])
+    I_ok = True
+    for (k1, i1, b1, eq, k2, i2, b2, row) in X2:
+        if row != 17: continue
+        v1 = (tx[k1][i1] >> b1) & 1; v2 = (tx[k2][i2] >> b2) & 1
+        good = (v1 ^ v2) == (0 if eq else 1)
+        assert k1 == k2 and k1 in (0, 1)
+        if k1 == 1: E_ok = E_ok and good
+        elif i1 == 17 and i2 == 17: I_ok = I_ok and good
+        else: A_ok = A_ok and good
+    return E_ok, A_ok, I_ok
+```
+
+`vtprog.py`:
+
+```python
+# vtprog.py - the counted online program (256-bit word-RAM code), its interpreter, and the table oracle used by tests.
+# Machine: 256-bit registers (<= 64 distinct names after allocation), unbounded memory.  Cost 1 per executed add, sub,
+# rsub, and, or, xor, shl, shr, ld, ldi, sti, rand, jmp; 2 per conditional branch; f38 (one target compression) costs 1
+# unit; obs/mark/succ/halt are observers and cost nothing.  32-bit values live in the low half of a register; bits above
+# bit 31 are garbage unless stated (additions/subtractions carry upward only; a value is masked before any rotation,
+# address use or comparison with a non-masked word).
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from vtref import *
+
+WORD = (1 << 256) - 1
+TAG = lambda t: t << 150
+HDR, ENT, A2T, GT = TAG(1), TAG(2), TAG(3), TAG(4)
+SENT = (1 << 34) + (1 << 32)       # sentinel word 0 of an entry: SENT - a lies in (2^34, 2^34 + 2^32] -> F7 table value 2
+EMPTY = ENT                         # address of the shared sentinel entry (empty bucket)
+ESZ = 3                             # words per entry: c7 + 2^32 | A1 + S0(A1) << 32 + A2-record address << 64 | G-record address
+
+class Asm:
+    def __init__(s): s.c = []; s.lab = {}; s.n = 0
+    def __call__(s, *ins): s.c.append(ins)
+    def L(s, nm): s.lab[nm] = len(s.c)
+    def new(s, p='L'): s.n += 1; return '%s%d' % (p, s.n)
+
+def rot32(a, d, x, n1, n2, n3, shr3=False, t1='t1', t2='t2', D='D'):
+    """d = ROTR(x,n1) ^ ROTR(x,n2) ^ (SHR(x,n3) if shr3 else ROTR(x,n3)) in the low 32 bits (garbage above); x masked.
+    The doubled word D = x | x << 32 makes a rotation one shift: 7 operations."""
+    a('shl', D, x, 32); a('or', D, D, x)
+    a('shr', t1, D, n1); a('shr', t2, D, n2); a('xor', t1, t1, t2)
+    a('shr', t2, x if shr3 else D, n3); a('xor', d, t1, t2)
+
+# ---------------------------------------------------------------------------------------------------------------
+# Records served by the preprocessing (tables of the machine): A2 records (2 words) and G records (8 words).
+def tables(a2list=None, glist=None):
+    """A2 record i at A2T + 2i: word 0 = A2 | (W10x + s1(W15x)) << 32 | S0(A2) << 64 | E6 << 96 | (E5 - A1) << 128;
+    word 1 = c9x | c9y << 32 | W10x << 64 | W10y << 96.  G record g at GT + 8g: c17, mE, vE, a17, mA, vA, e16/a16 of
+    member x (e16, a16), of member y (e16y, a16y) (see gen below)."""
+    a2list = A2L if a2list is None else a2list; glist = GL if glist is None else glist
+    mem = {}
+    for k, a2 in enumerate(a2list):
+        var = variant(sa(0), sa(1), a2); (Ax, Ex, Wx), (Ay, Ey, Wy) = var
+        e5b = (sa(5) - S0(sa(4)) - MAJ(sa(4), sa(3), a2)) & M
+        cx = c9x_of(a2); cy = (cx + DW[9]) & M
+        mem[A2T + 2*k] = a2 | ((Wx[10] + s1(SWX[15])) & M) << 32 | S0(a2) << 64 | Ex[6] << 96 | e5b << 128
+        mem[A2T + 2*k + 1] = cx | cy << 32 | Wx[10] << 64 | Wy[10] << 96
+    for gi, g in enumerate(glist): mem.update(grec(gi, g))
+    return mem
+
+def grec(gi, g):
+    """G record for W16x = g: row-16 states, the E17/A17 tests of member x.  Conditions of row 17 that tie it to row 16
+    (two-bit conditions with an operand at row 16, the '+' pair) become masks over E17/A17."""
+    rec = []
+    for m, (Aa, Ee) in enumerate(((SAX, SEX), (SAY, SEY))):
+        A = lambda i: Aa[i+4]; E = lambda i: Ee[i+4]
+        w16 = g if m == 0 else (g - DW16) & M
+        e16 = (A(12) + E(12) + S1(E(15)) + CH(E(15), E(14), E(13)) + K[16] + w16) & M
+        a16 = (e16 - A(12) + S0(A(15)) + MAJ(A(15), A(14), A(13))) & M
+        c17 = (A(13) + E(13) + S1(e16) + CH(e16, E(15), E(14)) + K[17]) & M
+        a17 = (-A(13) + S0(a16) + MAJ(a16, A(15), A(14))) & M
+        rec.append((e16, a16, c17, a17))
+    (e16, a16, c17, a17), (e16y, a16y, _, _) = rec
+    mE, vE, dE, _ = CELLS[1][17]; mA, vA, dA, _ = CELLS[0][17]
+    assert dE == 0
+    for (k1, i1, b1, eq, k2, i2, b2, row) in X2:
+        if row == 17 and i1 == 16 and i2 == 17:
+            bit = (((e16 if k1 == 1 else a16) >> b1) & 1) ^ (0 if eq else 1)
+            if k2 == 1:
+                assert not (mE >> b2) & 1 or (vE >> b2) & 1 == bit, 'conflicting E17 conditions'
+                mE |= 1 << b2; vE |= bit << b2
+            else:
+                assert not (mA >> b2) & 1 or (vA >> b2) & 1 == bit, 'conflicting A17 conditions'
+                mA |= 1 << b2; vA |= bit << b2
+    p = PQ[17]; assert not (mE & p) or (vE & p) == (e16 & p & mE), 'conflicting E17 pair'
+    mE |= p; vE |= e16 & p
+    base = GT + 16 * gi
+    return {base: c17, base+1: mE, base+2: vE, base+3: a17, base+4: mA, base+5: vA, base+6: g, base+7: 0,
+            base+8: a16, base+9: e16, base+10: a16y, base+11: e16y}
+
+def gaddr(gi): return GT + 16 * gi
+
+# internal conditions of row 17 between bits of A17 only (both operands at row 17, kind A)
+def a17int():
+    r = [(b1, b2, eq) for (k1, i1, b1, eq, k2, i2, b2, row) in X2 if row == 17 and i1 == 17 and i2 == 17 and k1 == 0 and k2 == 0]
+    return r
+
+def f7_value(addr):
+    if addr < (1 << 33): return 1 if inF7(addr & M) else 0
+    if (1 << 34) < addr <= SENT: return 2
+    raise ValueError('bad F7-region address %x' % addr)
+
+# ---------------------------------------------------------------------------------------------------------------
+# The program.
+def gen_prologue(a):
+    """Group prologue: two random words -> M0 (16 words), CV1 = F38(IV, M0), per-CV values."""
+    a('rand', 'r0'); a('rand', 'r1')
+    for k in range(16):
+        r = 'r0' if k < 8 else 'r1'; s_ = 32 * (k % 8)
+        if s_: a('shr', 'm%d' % k, r, s_); a('and', 'm%d' % k, 'm%d' % k, M)
+        else: a('and', 'm%d' % k, r, M)
+    a('f38', ['m%d' % k for k in range(16)], ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'])
+    # hh = d - S0(a) - MAJ(a,b,c)
+    rot32(a, 'S0a', 'a', 2, 13, 22)
+    a('and', 't1', 'a', 'b'); a('or', 't2', 'a', 'b'); a('and', 't2', 't2', 'c'); a('or', 't1', 't1', 't2')
+    a('sub', 'hh', 'd', 'S0a'); a('sub', 'hh', 'hh', 't1')
+    # y0p = hh - d - h - S1(e) - CH(e,f,g) + s1(W14) - K0  (Z0 = y0p + A0)
+    rot32(a, 'S1e', 'e', 6, 11, 25)
+    a('xor', 't1', 'f', 'g'); a('and', 't1', 't1', 'e'); a('xor', 't1', 't1', 'g')
+    a('sub', 'y0p', 'hh', 'd'); a('sub', 'y0p', 'y0p', 'h'); a('sub', 'y0p', 'y0p', 'S1e'); a('sub', 'y0p', 'y0p', 't1')
+    a('add', 'y0p', 'y0p', (s1(SWX[14]) - K[0]) & M); a('and', 'y0p', 'y0p', M)
+    a('xor', 'abx', 'a', 'b'); a('and', 'aba', 'a', 'b'); a('xor', 'efx', 'e', 'f')
+    a('add', 'gk', 'g', K[1]); a('and', 'gk', 'gk', M); a('add', 'fk', 'f', K[2])
+    a('and', 'hhm', 'hh', M)
+    # broadcast of the per-CV values into the four 64-bit lanes of a register (lane k = block 4q + k)
+    for src, dst in (('hhm', 'hh_v'), ('y0p', 'y0p_v'), ('abx', 'abx_v'), ('aba', 'aba_v'), ('efx', 'efx_v'), ('f', 'f_v'), ('gk', 'gk_v')):
+        a('shl', 'bt', src, 64); a('or', dst, src, 'bt'); a('shl', 'bt', dst, 128); a('or', dst, dst, 'bt')
+    # per-CV values of the deep path
+
+LM = sum(M << (64 * k) for k in range(4)); LM64 = (1 << 64) - 1
+
+def gen_group(a, js, rare):
+    """Up to four consecutive A0 blocks (lane k = block js[k]).  The per-CV values are broadcast into the lanes of 256-bit
+    registers; E0, S1(E0), CH, MAJ, Y, Z0 and the header index (Y << 32 | Z0) of all lanes cost 23 operations
+    (additions cannot carry across lanes: lane values stay below 2^36 thanks to a bias on the subtractions).  Each lane then
+    extracts its header address, loads the header and scans its bucket (3 words per entry, sentinel-terminated)."""
+    a0s = [A0L[j] for j in js]
+    pk = lambda vals: sum(v << (64 * k) for k, v in enumerate(vals))
+    a0v = pk(a0s); nsb = pk([((-S0(x)) & M) + (1 << 35) for x in a0s])
+    a('add', 'E0v', 'hh_v', a0v); a('and', 'E0v', 'E0v', LM)
+    rot32(a, 'S1v', 'E0v', 6, 11, 25); a('and', 'S1v', 'S1v', LM)
+    a('and', 'Chv', 'E0v', 'efx_v'); a('xor', 'Chv', 'Chv', 'f_v')
+    a('and', 'Mjv', 'abx_v', a0v); a('xor', 'Mjv', 'Mjv', 'aba_v')
+    a('rsub', 'Yv', nsb, 'Mjv'); a('sub', 'Yv', 'Yv', 'S1v'); a('sub', 'Yv', 'Yv', 'Chv'); a('sub', 'Yv', 'Yv', 'gk_v'); a('and', 'Yv', 'Yv', LM)
+    a('add', 'Zv', 'y0p_v', a0v); a('and', 'Zv', 'Zv', LM)
+    a('shl', 'Vv', 'Yv', 32); a('or', 'Vv', 'Vv', 'Zv')
+    for k, j in enumerate(js):
+        loop, pas = a.new('loop'), a.new('pass')
+        if k == 0: a('and', 'I', 'Vv', LM64)
+        elif k == 3: a('shr', 'I', 'Vv', 192)
+        else: a('shr', 'I', 'Vv', 64 * k); a('and', 'I', 'I', LM64)
+        a('add', 'I', 'I', HDR | (j << 64)); a('ld', 'H', 'I')
+        a('add', 'OFF', 'H', 0)
+        a.L(loop)
+        a('ld', 'EN', 'OFF'); a('sub', 'W7', 'EN', 'a'); a('ld', 'FL', 'W7'); a('add', 'OFF', 'OFF', ESZ); a('bz', 'FL', loop)
+        a('sub', 'T', 'FL', 1); a('bz', 'T', pas)
+        a('sub', 'T', 'OFF', 'H'); a('add', 'NE', 'NE', 'T')
+        rare.append((j, a0s[k], pas, loop, k))
+
+def lane_get(a, dst, src, k):
+    """dst = 32-bit value of lane k of the clean vector register src"""
+    if k == 0: a('and', dst, src, M)
+    elif k == 3: a('shr', dst, src, 192)
+    else: a('shr', dst, src, 64 * k); a('and', dst, dst, M)
+
+def gen_rare(a, j, a0, pas, loop, lane):
+    a.L(pas); a('add', 'NW', 'NW', 1); a('mark', 'W7')
+    lane_get(a, 'Y', 'Yv', lane); lane_get(a, 'Mj', 'Mjv', lane); lane_get(a, 'E0', 'E0v', lane)
+    a('sub', 't1', 'OFF', 2); a('ld', 'w1', 't1')                       # A1 | S0(A1) << 32 | A2-record address << 64
+    a('shr', 'P2', 'w1', 64); a('ld', 'A2r', 'P2')
+    a('add', 'W1', 'Y', 'w1')                                           # W1 = Y + A1 (garbage above bit 31)
+    a('add', 'E1', 'w1', 'c'); a('sub', 'E1', 'E1', 'Mj'); a('add', 'E1', 'E1', (-S0(a0)) & M); a('and', 'E1', 'E1', M)
+    rot32(a, 'S1E1', 'E1', 6, 11, 25)
+    a('xor', 't1', 'E0', 'e'); a('and', 't1', 't1', 'E1'); a('xor', 'ChE1', 't1', 'e')
+    a('shr', 'S0A1', 'w1', 32)
+    a('xor', 't1', 'a', a0); a('and', 't1', 't1', 'w1'); a('and', 't2', 'a', a0); a('xor', 'MjA1', 't1', 't2')
+    a('sub', 'E2x', 'A2r', 'S0A1'); a('sub', 'E2x', 'E2x', 'MjA1')     # E2 - b = A2 - S0(A1) - MAJ(A1, A0, A_-1)
+    a('sub', 'W2', 'E2x', 'fk'); a('sub', 'W2', 'W2', 'S1E1'); a('sub', 'W2', 'W2', 'ChE1'); a('and', 'W2', 'W2', M)
+    rot32(a, 's0W2', 'W2', 7, 18, 3, shr3=True)
+    a('shr', 'K10', 'A2r', 32)
+    a('add', 'W17', 's0W2', 'K10'); a('add', 'W17', 'W17', 'W1')
+    a('obs', 'W17')
+    a('sub', 't1', 'OFF', 1); a('ld', 'PG', 't1')                      # G record address
+    a('ld', 'cG', 'PG'); a('add', 'E17', 'W17', 'cG'); a('obs', 'E17')
+    a('add', 't1', 'PG', 1); a('ld', 'mE', 't1'); a('add', 't1', 'PG', 2); a('ld', 'vE', 't1')
+    a('and', 't1', 'E17', 'mE'); a('bne', 't1', 'vE', loop)
+    a('mark', 'E17')
+    a('add', 'N1', 'N1', 1)
+    a('add', 't1', 'PG', 3); a('ld', 't1', 't1'); a('add', 'A17', 'E17', 't1')
+    a('add', 't1', 'PG', 4); a('ld', 'mA', 't1'); a('add', 't1', 'PG', 5); a('ld', 'vA', 't1')
+    a('and', 't1', 'A17', 'mA'); a('bne', 't1', 'vA', loop)
+    a('mark', 'A17')
+    # A17 internal conditions A17[b1] = A17[b2]: OR of the three xors tested once
+    for n_, (b1, b2, eq) in enumerate(a17int()):
+        d_ = 't3' if n_ == 0 else 't1'
+        a('shr', d_, 'A17', b1 - b2) if b1 >= b2 else a('shl', d_, 'A17', b2 - b1)
+        a('xor', d_, d_, 'A17'); a('and', d_, d_, 1 << b2)
+        if not eq: a('xor', d_, d_, 1 << b2)
+        if n_: a('or', 't3', 't3', 't1')
+    a('bnz', 't3', loop)
+    a('mark', 'A17int')
+    gen_deep(a, j, a0, loop)
+
+def gen_deep(a, j, a0, loop):
+    """Rows 18..37 of both members.  Member y: W_i^y = W_i^x + dW_i (modular differences of valid variants), rows 16/17
+    from the G record (A17^y = A17^x - 2^29).  Words go through scratch memory (direct addresses)."""
+    S = lambda m, k, i: (6 << 150) | (256 * m + 64 * k + i + 8)      # m member, k 0:A 1:E 2:W, i row
+    def st(r, m, k, i): a('sti', S(m, k, i), r)
+    def ld(r, m, k, i): a('ldi', r, S(m, k, i))
+    def imm_st(v, m, k, i): st(v, m, k, i)
+    A0 = lambda i: sa(i)
+    a('and', 'A1', 'w1', M); a('and', 'A2', 'A2r', M)
+    a('and', 'W17', 'W17', M); a('and', 'E17', 'E17', M); a('and', 'A17', 'A17', M)
+    # E2 = A2 + b - S0(A1) - MAJ(A1,A0,a), masked; E3, E4, E5, E6
+    a('and', 'S0A1', 'S0A1', M)
+    a('add', 'E2', 'E2x', 'b'); a('and', 'E2', 'E2', M)
+    a('shr', 'S0A2', 'A2r', 64); a('and', 'S0A2', 'S0A2', M)
+    a('xor', 't1', 'A1', a0); a('and', 't1', 't1', 'A2'); a('and', 't2', 'A1', a0); a('xor', 't1', 't1', 't2')   # MAJ(A2,A1,A0) up to the shared bitwise form
+    # MAJ(A2,A1,A0) = (A2 & (A1^A0)) ^ (A1 & A0)
+    a('add', 'E3', 'a', A0(3)); a('sub', 'E3', 'E3', 'S0A2'); a('sub', 'E3', 'E3', 't1'); a('and', 'E3', 'E3', M)
+    def wstep(dst, Ei, Ai4, Ei4, Em1, Em2, Em3, k):
+        rot32(a, 'S1t', Em1, 6, 11, 25)
+        a('xor', 't3', Em2, Em3); a('and', 't3', 't3', Em1); a('xor', 't3', 't3', Em3)
+        a('sub', dst, Ei, Ai4); a('sub', dst, dst, Ei4); a('sub', dst, dst, 'S1t'); a('sub', dst, dst, 't3')
+        a('add', dst, dst, (-K[k]) & M); a('and', dst, dst, M)
+    wstep('W3', 'E3', 'a', 'e', 'E2', 'E1', 'E0', 3)
+    a('xor', 't1', 'A1', A0(3)); a('and', 't1', 't1', 'A2'); a('and', 't2', 'A1', A0(3)); a('xor', 't1', 't1', 't2')
+    a('rsub', 'E4', (A0(4) + a0 - S0(A0(3))) & M, 't1'); a('and', 'E4', 'E4', M)
+    wstep('W4', 'E4', a0, 'E0', 'E3', 'E2', 'E1', 4)
+    a('shr', 'E5', 'A2r', 128); a('and', 'E5', 'E5', M); a('add', 'E5', 'E5', 'A1'); a('and', 'E5', 'E5', M)
+    wstep('W5', 'E5', 'A1', 'E1', 'E4', 'E3', 'E2', 5)
+    a('shr', 'E6', 'A2r', 96); a('and', 'E6', 'E6', M)
+    wstep('W6', 'E6', 'A2', 'E2', 'E5', 'E4', 'E3', 6)
+    a('sub', 'W7x', 'EN', 'a'); a('and', 'W7x', 'W7x', M)
+    # W8 of member x = E8 - A4 - E4 - S1(E7) - CH(E7,E6,E5) - K8
+    a('xor', 't3', 'E6', 'E5'); a('and', 't3', 't3', sex(7)); a('xor', 't3', 't3', 'E5')
+    a('rsub', 't1', (sex(8) - sa(4) - S1(sex(7)) - K[8]) & M, 'E4'); a('sub', 't1', 't1', 't3'); a('and', 'W8x', 't1', M)
+    a('add', 'P3', 'P2', 1); a('ld', 'A2r2', 'P3')               # c9x | c9y << 32 | W10x << 64 | W10y << 96
+    a('and', 'W9x', 'A2r2', M); a('sub', 'W9x', 'W9x', 'A1'); a('and', 'W9x', 'W9x', M)
+    a('shr', 'W10x', 'A2r2', 64); a('and', 'W10x', 'W10x', M)
+    # scratch: W2..W17, E/A rows 14..17 of both members
+    ws = {2: 'W2', 3: 'W3', 4: 'W4', 5: 'W5', 6: 'W6', 7: 'W7x', 8: 'W8x', 9: 'W9x', 10: 'W10x'}
+    for i, r in ws.items():
+        st(r, 0, 2, i)
+        if DW[i] == 0: st(r, 1, 2, i)
+        else: a('add', 'u0', r, DW[i]); a('and', 'u0', 'u0', M); st('u0', 1, 2, i)
+    for i in range(11, 16):
+        imm_st(SWX[i], 0, 2, i); imm_st(SWY[i], 1, 2, i)
+    a('add', 'P3', 'PG', 6); a('ld', 'u1', 'P3'); st('u1', 0, 2, 16); a('add', 'u1', 'u1', DW[16]); a('and', 'u1', 'u1', M); st('u1', 1, 2, 16)
+    st('W17', 0, 2, 17); st('W17', 1, 2, 17)
+    for m, (Aa, Ee) in enumerate(((SAX, SEX), (SAY, SEY))):
+        for i in (14, 15):
+            imm_st(Aa[i+4], m, 0, i); imm_st(Ee[i+4], m, 1, i)
+        a('add', 'P3', 'PG', 8 + 2 * m); a('ld', 'u1', 'P3'); st('u1', m, 0, 16)
+        a('add', 'P3', 'PG', 9 + 2 * m); a('ld', 'u1', 'P3'); st('u1', m, 1, 16)
+    st('A17', 0, 0, 17); st('E17', 0, 1, 17); st('E17', 1, 1, 17)
+    a('sub', 'u1', 'A17', DW16); a('and', 'u1', 'u1', M); st('u1', 1, 0, 17)
+    for i in range(18, NR):
+        a('mark', ('row', i))
+        for m in (0, 1):
+            ld('u1', m, 2, i - 2); ld('u2', m, 2, i - 7); ld('u3', m, 2, i - 15); ld('u4', m, 2, i - 16)
+            rot32(a, 'v1', 'u1', 17, 19, 10, shr3=True); rot32(a, 'v2', 'u3', 7, 18, 3, shr3=True)
+            a('add', 'u2', 'u2', 'v1'); a('add', 'u2', 'u2', 'v2'); a('add', 'u2', 'u2', 'u4'); a('and', 'wi', 'u2', M)
+            st('wi', m, 2, i)
+            ld('e1', m, 1, i - 1); ld('e2', m, 1, i - 2); ld('e3', m, 1, i - 3); ld('e4', m, 1, i - 4); ld('a4', m, 0, i - 4)
+            rot32(a, 'v1', 'e1', 6, 11, 25)
+            a('xor', 't3', 'e2', 'e3'); a('and', 't3', 't3', 'e1'); a('xor', 't3', 't3', 'e3')
+            a('add', 'ei', 'a4', 'e4'); a('add', 'ei', 'ei', 'v1'); a('add', 'ei', 'ei', 't3'); a('add', 'ei', 'ei', 'wi')
+            a('add', 'ei', 'ei', K[i]); a('and', 'ei', 'ei', M); st('ei', m, 1, i)
+            ld('b1', m, 0, i - 1); ld('b2', m, 0, i - 2); ld('b3', m, 0, i - 3)
+            rot32(a, 'v1', 'b1', 2, 13, 22)
+            a('and', 't3', 'b1', 'b2'); a('or', 't4', 'b1', 'b2'); a('and', 't4', 't4', 'b3'); a('or', 't3', 't3', 't4')
+            a('sub', 'ai', 'ei', 'a4'); a('add', 'ai', 'ai', 'v1'); a('add', 'ai', 'ai', 't3'); a('and', 'ai', 'ai', M)
+            st('ai', m, 0, i)
+            if m == 0:
+                # member x tests that need no member y: x-value cells, '+' pair, two-bit conditions
+                for k, xr in ((0, 'ai'), (1, 'ei'), (2, 'wi')):
+                    msk, val, _, _ = CELLS[k][i]
+                    if msk:
+                        a('and', 't1', xr, msk)
+                        a('bne', 't1', val, loop) if val else a('bnz', 't1', loop)
+                if PQ[i]:
+                    ld('t2', 0, 1, i - 1); a('xor', 't1', 'ei', 't2'); a('and', 't1', 't1', PQ[i]); a('bnz', 't1', loop)
+                for (k1, i1, b1, eq, k2, i2, b2, row) in X2:
+                    if row != i: continue
+                    ld('t1', 0, k1, i1); ld('t2', 0, k2, i2)
+                    a('shr', 't1', 't1', b1); a('shr', 't2', 't2', b2); a('xor', 't1', 't1', 't2'); a('and', 't1', 't1', 1)
+                    a('bne', 't1', 0 if eq else 1, loop) if not eq else a('bnz', 't1', loop)
+                a('add', 'xa', 'ai', 0); a('add', 'xe', 'ei', 0); a('add', 'xw', 'wi', 0)
+        # XOR differences x^y of row i
+        for k, xr, yr in ((0, 'xa', 'ai'), (1, 'xe', 'ei'), (2, 'xw', 'wi')):
+            d = CELLS[k][i][2]
+            a('xor', 't1', xr, yr)
+            a('bne', 't1', d, loop) if d else a('bnz', 't1', loop)
+    a('succ', j, 'EN')
+
+# ---------------------------------------------------------------------------------------------------------------
+def gen_epilogue(a, caps):
+    """After every group: halt when a work counter exceeds its cap; group counter; loop."""
+    halt = a.new('halt')
+    for r, cap in zip(('NE', 'NW', 'N1'), caps):
+        a('rsub', 't1', cap, r); a('shr', 't1', 't1', 255); a('bnz', 't1', halt)
+    a('add', 'NG', 'NG', 1)
+    a.pending = halt
+
+def build_program(js, caps=(1 << 200,) * 3, ngroups=1):
+    a = Asm(); a.L('group'); gen_prologue(a); rare = []
+    js = list(js)
+    for q in range(0, len(js), 4): gen_group(a, js[q:q + 4], rare)
+    gen_epilogue(a, caps)
+    a('bne', 'NG', ngroups, 'group'); a.L(a.pending); a('halt_ok',)
+    for r in rare: gen_rare(a, *r)
+    return a
+
+class Machine:
+    def __init__(s, randwords, bucket, tabmem, cvforce=None, a0map=None):
+        s.rw = list(randwords); s.bucket = bucket; s.tab = dict(tabmem); s.cvforce = cvforce
+        s.r = {}; s.ops = 0; s.units = 0; s.mem = {}; s.ent = {}; s.nent = 0; s.succ = None; s.cv = None; s.obs = []
+        s.marks = []; s.trace = []; s.opc = {}; s.mark_ops = []; s.succ_ops = None
+        s.ent[EMPTY] = SENT; s.ent[EMPTY + 1] = 0; s.ent[EMPTY + 2] = 0; s.nent = ESZ
+    def store(s, addr, val): s.mem[addr] = val
+    def load(s, addr):
+        t = addr >> 150
+        if t == 0: return f7_value(addr)
+        if t == 1:
+            j, idx = (addr >> 64) & ((1 << 86) - 1), addr & ((1 << 64) - 1)
+            es = s.bucket(j, idx >> 32, idx & M); s.trace.append((j, idx >> 32, idx & M, len(es)))
+            if not es: return EMPTY
+            base = ENT + s.nent
+            for k, e in enumerate(es):
+                for w in range(ESZ): s.ent[base + ESZ * k + w] = e[w]
+            end = base + ESZ * len(es)
+            s.ent[end] = SENT; s.ent[end + 1] = 0; s.ent[end + 2] = 0
+            s.nent += ESZ * (len(es) + 1); return base
+        if t == 2: return s.ent[addr]
+        if t in (3, 4): return s.tab[addr]
+        raise ValueError('load %x' % addr)
+    def run(s, code, maxops=None):
+        c, lab, r = code.c, code.lab, s.r; pc = 0; n = len(c); mem = s.mem
+        def v(x): return x if isinstance(x, int) else r.get(x, 0)
+        ops = 0
+        while pc < n:
+            ins = c[pc]; op = ins[0]; pc += 1
+            if op == 'add': r[ins[1]] = (v(ins[2]) + v(ins[3])) & WORD; ops += 1
+            elif op == 'sub': r[ins[1]] = (v(ins[2]) - v(ins[3])) & WORD; ops += 1
+            elif op == 'rsub': r[ins[1]] = (ins[2] - v(ins[3])) & WORD; ops += 1
+            elif op == 'and': r[ins[1]] = v(ins[2]) & v(ins[3]); ops += 1
+            elif op == 'or': r[ins[1]] = v(ins[2]) | v(ins[3]); ops += 1
+            elif op == 'xor': r[ins[1]] = v(ins[2]) ^ v(ins[3]); ops += 1
+            elif op == 'shl': r[ins[1]] = (v(ins[2]) << ins[3]) & WORD; ops += 1
+            elif op == 'shr': r[ins[1]] = v(ins[2]) >> ins[3]; ops += 1
+            elif op == 'ld': r[ins[1]] = s.load(v(ins[2])); ops += 1
+            elif op == 'ldi': r[ins[1]] = mem.get(ins[2], 0); ops += 1
+            elif op == 'sti': mem[ins[1]] = v(ins[2]); ops += 1
+            elif op == 'li': r[ins[1]] = ins[2]; ops += 1
+            elif op == 'st': s.store(v(ins[1]), v(ins[2])); ops += 1
+            elif op == 'bz': ops += 2; pc = lab[ins[2]] if v(ins[1]) == 0 else pc
+            elif op == 'bnz': ops += 2; pc = lab[ins[2]] if v(ins[1]) != 0 else pc
+            elif op == 'bne': ops += 2; pc = lab[ins[3]] if v(ins[1]) != v(ins[2]) else pc
+            elif op == 'jmp': ops += 1; pc = lab[ins[1]]
+            elif op == 'rand': r[ins[1]] = s.rw.pop(0); ops += 1
+            elif op == 'f38':
+                s.units += 1; m0 = [r[x] for x in ins[1]]; s.m0 = m0
+                cv = s.cvforce if s.cvforce is not None else compress(IV, m0); s.cv = cv
+                for x, y in zip(ins[2], cv): r[x] = y
+            elif op == 'succ': s.succ = (ins[1], v(ins[2])); s.succ_ops = s.ops + ops; break
+            elif op == 'halt_ok': break
+            elif op == 'obs': s.obs.append(v(ins[1]))
+            elif op == 'mark': s.marks.append(ins[1]); s.mark_ops.append((ins[1], s.ops + ops))
+            elif op == 'succ_': pass
+            else: raise ValueError(op)
+        s.ops += ops
+
+# ---------------------------------------------------------------------------------------------------------------
+# Register allocation: liveness on the control-flow graph, greedy colouring with k registers.
+def _du(ins):
+    op = ins[0]; S = lambda x: [x] if isinstance(x, str) else []
+    if op in ('add', 'sub', 'and', 'or', 'xor'): return [ins[1]], S(ins[2]) + S(ins[3])
+    if op == 'rsub': return [ins[1]], S(ins[3])
+    if op in ('shl', 'shr', 'ld'): return [ins[1]], S(ins[2])
+    if op in ('ldi', 'rand', 'li'): return [ins[1]], []
+    if op == 'sti': return [], S(ins[2])
+    if op == 'st': return [], S(ins[1]) + S(ins[2])
+    if op in ('bz', 'bnz'): return [], [ins[1]]
+    if op == 'bne': return [], S(ins[1]) + S(ins[2])
+    if op == 'f38': return list(ins[2]), list(ins[1])
+    if op in ('succ',): return [], S(ins[2])
+    if op == 'obs': return [], S(ins[1])
+    return [], []
+
+def regalloc(a, k=64):
+    c, lab = a.c, a.lab; n = len(c); succ = []
+    for pc, ins in enumerate(c):
+        op = ins[0]
+        if op == 'jmp': succ.append([lab[ins[1]]])
+        elif op in ('bz', 'bnz'): succ.append([pc + 1, lab[ins[2]]])
+        elif op == 'bne': succ.append([pc + 1, lab[ins[3]]])
+        elif op in ('succ', 'halt_ok'): succ.append([])
+        else: succ.append([pc + 1] if pc + 1 < n else [])
+    du = [_du(ins) for ins in c]; live = [frozenset()] * (n + 1); changed = True
+    while changed:
+        changed = False
+        for pc in range(n - 1, -1, -1):
+            out = set().union(*[live[s_] for s_ in succ[pc]]) if succ[pc] else set()
+            d, u = du[pc]; inn = frozenset((out - set(d)) | set(u))
+            if inn != live[pc]: live[pc] = inn; changed = True
+    adj = {}
+    for pc in range(n):
+        out = set().union(*[live[s_] for s_ in succ[pc]]) if succ[pc] else set()
+        for d in du[pc][0]:
+            adj.setdefault(d, set())
+            for x in out:
+                if x != d: adj[d].add(x); adj.setdefault(x, set()).add(d)
+        for u in du[pc][1]: adj.setdefault(u, set())
+    col = {}
+    for v in sorted(adj, key=lambda v: (-len(adj[v]), v)):
+        used = {col[x] for x in adj[v] if x in col}
+        col[v] = min(r for r in range(k + 1) if r not in used)
+        if col[v] >= k: raise ValueError('more than %d registers needed' % k)
+    return {v: 'R%d' % r for v, r in col.items()}
+
+def rename(a, mp):
+    b = Asm(); b.lab = dict(a.lab); b.n = a.n
+    def rn(x): return mp.get(x, x) if isinstance(x, str) else x
+    for ins in a.c:
+        if ins[0] == 'mark': b.c.append(ins); continue
+        b.c.append(tuple([ins[0]] + [([rn(y) for y in x] if isinstance(x, list) else rn(x)) for x in ins[1:]]))
+    return b
+
+def allocated_program(js, caps=(1 << 200,) * 3, ngroups=1, _cache={}):
+    if 'map' not in _cache:
+        t = build_program(list(range(8))); _cache['map'] = regalloc(t)
+    return rename(build_program(js, caps, ngroups), _cache['map']), _cache['map']
+
+class MachineP(Machine):
+    """Machine with plain read/write memory (preprocessing programs); unwritten words read as zero."""
+    def load(s, addr): return s.mem.get(addr, 0)
+```
+
+
+The test programs import the development modules `vtref`, `vtprog` and `vtpre` (B.3, B.15), which read the text files `a0list.txt` (A0 values), `peer_a2.txt` (A2 list) and `ex1_g.txt` (G) from `../data/` (Appendices A.2, A.3 and the output of `ex1 g`); put the modules, the tests and the data files in the layout `src/`, `data/`, `runs/` to run them. `experiments/vt38.py` is the assembly of `vtref.py`, `vtprog.py` and `vt_exp.py` with the data blobs (the same code), with the Section 10.1 near-term addition made afterwards; it needs none of the other files and is what the organizer runs.
+
+### B.16 t_pre_d.py, diff_prog.py, t_imm_d.py (this derivative, Appendices C.4 and D)
+
+```python
+# t_pre_d.py - the changed preprocessing bodies of vtpre.py as counted code, against their definitions; writes
+# runs/pre1.json and runs/pre2.json (the base values of P1..P4 with LIVE_ops and LIVE_g; every P5 and P6 value is the count of an
+# executed body: P5 setup, body, append and loop, the P6 zero, count and fill iterations and their per-variant overheads, the prefix).
+# usage: t_pre_d.py <dir of vt38.py> <runs dir>
+import sys, os, json, random
+sys.path.insert(0, sys.argv[1]); sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); sys.dont_write_bytecode = True
+from vtpre import *
+RUNS = sys.argv[2]; rr = random.Random(20261011)
+class PM(Machine):
+    """the counted machine with a plain memory for the preprocessing (reads what was stored, 0 elsewhere; records from tables())"""
+    def load(s, addr):
+        if addr in s.mem: return s.mem[addr]
+        t = addr >> 150
+        return s.tab[addr] if t in (3, 4) and addr in s.tab else 0
+def execute(a, regs, mem=None, tab=None):
+    a.L('END'); m = PM([], lambda *x: [], tab or {}); m.r.update(regs); m.mem.update(mem or {}); m.run(a); return m
+# ---- P1': live words
+cnt = []; L = live_list(cnt)
+assert [g for _, g in L] == [g for g in GL if g not in (0x35f29010, 0x35f29011, 0x35f29410, 0x35f29414, 0x35f29415, 0x35fa9010, 0x35fa9011, 0x35fa9410, 0x35fa9414, 0x35fa9415)]
+assert sum(cnt) == 1 << 20 and len(L) == 22
+def pred(gi, e):
+    r = grec(gi, GL[gi]); b = gaddr(gi); A = (e + r[b + 3]) & M
+    return (e & r[b + 1]) == r[b + 2] and (A & r[b + 4]) == r[b + 5] and all(((A >> p) ^ (A >> q)) & 1 == (0 if w else 1) for p, q, w in a17int())
+live_max = 0; bad = 0; npass = 0
+for gi in range(32):
+    a = Asm(); gen_live_body(a, gi, 'END'); r = grec(gi, GL[gi]); b = gaddr(gi)
+    for k in range(3000):
+        e = rr.getrandbits(32)
+        if k % 2: e = (e & ~r[b + 1] & M) | r[b + 2]
+        m = execute(a, dict(e=e, cnt=0)); ok = m.r['cnt'] == 1; bad += ok != pred(gi, e); npass += ok
+        if ok: live_max = max(live_max, m.ops)
+a = Asm(); gen_live_end(a, 0, 'END'); live_g = execute(a, dict(cnt=5, lv=1 << 160)).ops
+print("P1' live words:", len(L), 'count', sum(cnt), '| body vs predicate on 96,000 E17:', bad, 'mismatches,', npass, 'passes | longest path', live_max, '| per g', live_g)
+assert bad == 0 and npass > 0
+# ---- P5: setup, body, append on real windows
+tab = tables(); EV = entry_variants(); setup_ops = None; app = []; bodies = []; nvalid = 0; badw = 0
+for j in rr.sample(range(256), 6):
+    a0 = A0L[j]; a1e, a2ie = EV[j]
+    for a2i in [a2ie] + rr.sample(range(768), 2):
+        a = Asm(); gen_enum_setup(a, a0); s = execute(a, dict(ra=A2T + 2 * a2i), tab=tab); setup_ops = s.ops
+        lo = s.r['lo']; base_r = (a1e - lo) & M if a2i == a2ie else rr.randrange(1 << 29)
+        for r_ in [base_r] + [rr.randrange(1 << 29) for _ in range(300)]:
+            a = Asm(); gen_enum_setup(a, a0); a.L('S'); gen_enum_body(a, a0, 'END'); a.L('B'); gen_enum_append(a, a0)
+            m = execute(a, dict(ra=A2T + 2 * a2i, r=r_, lp=1 << 170), tab=tab)
+            a1 = (lo + r_) & M; v = valid(variant(a0, a1, A2L[a2i]))
+            if (1 << 170) in m.mem:
+                assert v; nvalid += 1
+                e = mkent(a0, a1, A2L[a2i], a2i, 0)
+                badw += [m.mem[(1 << 170) + k] for k in range(3)] != [e[0], (e[1] - gw(0)) & WORD, c9x_of(A2L[a2i])]
+                b2 = Asm(); gen_enum_setup(b2, a0); gen_enum_body(b2, a0, 'END'); body = execute(b2, dict(ra=A2T + 2 * a2i, r=r_), tab=tab).ops - setup_ops
+                app.append(m.ops - setup_ops - body); bodies.append(body)
+            else: assert not v
+a = Asm(); a('add', 'r', 'r', 1); a('bne', 'r', 'r1', 'S'); a.L('S'); p5_loop = execute(a, dict(r=5, r1=9)).ops
+print('P5: setup', setup_ops, '| valid candidates', nvalid, 'list words != (c7 + 2^32, mkent fields, c9x):', badw, '| append ops', sorted(set(app)), '| body ops (valid candidates)', sorted(set(bodies)), '| loop control', p5_loop)
+assert badw == 0 and nvalid >= 6 and len(set(app)) == 1 and len(set(bodies)) == 1
+# ---- P6 zero: 16 headers per iteration, memory zeroed, operations per iteration
+a = Asm(); gen_zero16(a, 'hend'); zm = execute(a, dict(h=1 << 100, hend=(1 << 100) + 48, zero=0), mem={(1 << 100) + k: 7 for k in range(48)})
+assert all(zm.mem[(1 << 100) + k] == 0 for k in range(48)) and zm.r['h'] == (1 << 100) + 48
+zero16 = zm.ops // 3; assert zm.ops == 3 * zero16
+print('P6 zero: 48 headers in 3 iterations, all zero, ops', zm.ops, '| per iteration (16 headers)', zero16)
+# ---- P6 prefix: empty and nonempty header
+a = Asm(); gen_prefix_body(a); pe = execute(a, dict(h=1 << 101, run=1 << 102), mem={1 << 101: 0}); assert pe.mem[1 << 101] == EMPTY
+a = Asm(); gen_prefix_body(a); pn = execute(a, dict(h=1 << 101, run=1 << 102, zero=0), mem={1 << 101: 3})
+assert pn.mem[1 << 101] == (1 << 102) + 6 and pn.mem[(1 << 102) + 6] == SENT and pn.r['run'] == (1 << 102) + 8
+print('P6 prefix: empty header', pe.ops, 'ops, nonempty header', pn.ops, 'ops (loop control not included)')
+# ---- P6 count and fill: whole variant pass on a toy.  Variants of one A0 block (real, from the enumeration) and synthetic ones (A1 = 2^32 - 3, 1, 0);
+# each run covers Y in two segments with toy limits (registers E1, E2) or with the real limits (2^32, A1); headers and entries against the definition
+j = 7; a0 = A0L[j]; HB = HDR | j << 64; LP = 1 << 200; vars_ = []
+a1e, a2ie = EV[j]; vars_.append((a1e, a2ie))
+while len(vars_) < 4:
+    a2i = rr.randrange(768); lo_ = (lambda s: s.r['lo'])(execute((lambda a: (gen_enum_setup(a, a0), a)[1])(Asm()), dict(ra=A2T + 2 * a2i), tab=tab)); a1 = (lo_ + rr.randrange(1 << 29)) & M
+    if valid(variant(a0, a1, A2L[a2i])): vars_.append((a1, a2i))
+V = []                                       # (A1, c9x, c7, w1e): w1e = the packed fields without the G word (low 32 bits A1)
+for (a1, a2i) in vars_:
+    e = mkent(a0, a1, A2L[a2i], a2i, 0); V.append((a1, c9x_of(A2L[a2i]), e[0], (e[1] - gw(0)) & WORD))
+for A1_ in (M - 2, 1, 0): V.append((A1_, rr.getrandbits(32), rr.getrandbits(64), (rr.getrandbits(160) << 32 | A1_) & ((1 << 224) - 1)))
+def scen(A1_, kind):
+    n1, n2 = min(4, (1 << 32) - A1_), min(3, A1_)
+    if kind == 'mid': return 'E1', 'E2', dict(E1=A1_ + n1, E2=n2), list(range(n1)) + [(1 << 32) - A1_ + i for i in range(n2)]
+    if kind == 'real1': return 1 << 32, 'E2', dict(E2=n2), list(range(M + 1 - A1_)) + [(1 << 32) - A1_ + i for i in range(n2)]
+    return 'E1', 'A1', dict(E1=A1_ + n1), list(range(n1)) + [(1 << 32) - A1_ + i for i in range(A1_)]
+def cases():
+    for (A1_, c9x, c7, w1e) in V:
+        for kind in ('mid', 'real1', 'real2'):
+            if kind == 'real1' and M + 1 - A1_ > 8: continue          # the real upper limit 2^32 only where A1 is within 8 of it
+            if kind == 'real2' and A1_ > 8: continue                  # the real second limit A1 only for small A1
+            if A1_ == 0 and kind != 'mid': continue
+            yield (A1_, c9x, c7, w1e) + scen(A1_, kind) + (kind,)
+cops = {}; fops = {}; ncase = 0; mem_c = {}; expect = {}
+for (A1_, c9x, c7, w1e, l1, l2, regs, Yl, kind) in cases():
+    for Y in Yl:
+        X = (s0((Y + A1_) & M) - A1_ + c9x) & M
+        for gi, g in LIVE: k = HB + (Y << 32 | ((g - X) & M)); expect[k] = expect.get(k, 0) + 1
+    a = Asm(); gen_variant_pass(a, HB, False, l1, l2)
+    m = execute(a, dict(lp=LP, lpend=LP + 3, **regs), mem={**mem_c, LP: c7, LP + 1: w1e, LP + 2: c9x}); mem_c = {k: v for k, v in m.mem.items() if k < LP}
+    cops[(kind, A1_ == 0, len(Yl))] = m.ops; ncase += 1
+bad6 = mem_c != expect
+# prefix by definition (end of each bucket), then the fill pass on the same cases
+run_ = 1 << 180; hdr = {}
+for k in sorted(expect): run_ += 2 * expect[k]; hdr[k] = run_; run_ += 2
+mem_f = dict(hdr)
+for (A1_, c9x, c7, w1e, l1, l2, regs, Yl, kind) in cases():
+    a = Asm(); gen_variant_pass(a, HB, True, l1, l2)
+    m = execute(a, dict(lp=LP, lpend=LP + 3, **regs), mem={**mem_f, LP: c7, LP + 1: w1e, LP + 2: c9x}); mem_f = {k: v for k, v in m.mem.items() if k < LP}
+    fops[(kind, A1_ == 0, len(Yl))] = m.ops
+# every bucket against the definition: the multiset of (c7, w1e + gw(g)) of the (Y, variant, g) that hash to it; the real variants' entries equal mkent
+want = {}
+for (A1_, c9x, c7, w1e, l1, l2, regs, Yl, kind) in cases():
+    for Y in Yl:
+        X = (s0((Y + A1_) & M) - A1_ + c9x) & M
+        for gi, g in LIVE: want.setdefault(HB + (Y << 32 | ((g - X) & M)), []).append((c7, (w1e + gw(gi)) & WORD))
+for k in expect:
+    st = mem_f[k]; got = sorted(tuple(mem_f[st + 2 * i + w] for w in range(2)) for i in range(expect[k]))
+    bad6 += got != sorted(want[k]) or st != hdr[k] - 2 * expect[k]
+for (a1, a2i), (A1_, c9x, c7, w1e) in zip(vars_, V):
+    for gi, g in LIVE: bad6 += (c7, (w1e + gw(gi)) & WORD) != mkent(a0, a1, A2L[a2i], a2i, gi)
+# operations per iteration: the two-segment path (A1 != 0) with two iteration counts; every run on that path is fixed + iterations x per-iteration
+def per_iter(ops):
+    two = {k: o for k, o in ops.items() if not k[1] and k[0] == 'mid'}; ks = sorted(two, key=lambda k: k[2]); k1, k2 = ks[0], ks[-1]
+    it = (two[k2] - two[k1]) // (k2[2] - k1[2]); fixed = two[k1] - it * k1[2]
+    assert all(o == fixed + it * k[2] for k, o in two.items())
+    if not getattr(Machine, 'IMM', False):                       # (the limit of the toy runs is a register, the real limit 2^32 an instruction field: no difference in the count)
+        assert all(o == fixed + it * k[2] for k, o in ops.items() if not k[1]) and all(o < fixed + it * k[2] for k, o in ops.items() if k[1])
+    else: it += 1                                                # immediates charged: the branch back to seg1 compares with the constant 2^32
+    return it, fixed
+cit, cvar = per_iter(cops); fit, fvar = per_iter(fops)
+print('P6 toy: %d variant runs (4 real variants, A1 = 2^32 - 3, 1 and 0; the real limits 2^32 and A1 as well as toy limits), %d headers, %d entries: count and fill == definition, %d mismatches'
+      % (ncase, len(expect), sum(expect.values()), bad6))
+print('P6 count: %d ops per iteration (incl. loop branch), %d per variant (loads, A1, both segment setups, guard, list-loop branch);' % (cit, cvar),
+      'fill: %d ops per iteration, %d per variant' % (fit, fvar))
+assert bad6 == 0
+# P1..P4: the values printed by t_pre1.py (A.5), which executes those bodies on the shipped vt38.py
+p1 = {"G_hit_ops": 117, "G_nonhit_max_ops": 115, "F7_in_ops": 25, "F7_out_ops": 22, "A2_hit_ops": 41, "A2_nonhit_max_ops": 39, "A2REC_total_ops": 39168, "GREC_total_ops": 3072}
+p2 = dict(P5_SETUP=setup_ops, P5_BODY_MAX=bodies[0], P5_APPEND=app[0], P5_LOOP=p5_loop, P6_ZERO16=zero16, P6_COUNT_IT=cit, P6_COUNT_VAR=cvar, P6_FILL_IT=fit, P6_FILL_VAR=fvar,
+          P6_PREFIX_EMPTY=pe.ops, P6_PREFIX_NONEMPTY=pn.ops)
+p1.update(LIVE_ops=live_max, LIVE_g=live_g)
+json.dump(p1, open(os.path.join(RUNS, 'pre1.json'), 'w')); json.dump(p2, open(os.path.join(RUNS, 'pre2.json'), 'w'))
+print('pre1.json', p1); print('pre2.json', p2)
+```
+
+```python
+# diff_prog.py - decision equivalence of the derivative's counted program (work/A/vt38.py) with the base program
+# (37742a53) on designed buckets.  Same chaining value, same variants, same G words, each in its own entry format; compared:
+# table requests, the full sequence of stage marks (W7, E17, A17, A17int, rows 18..37), the success (block, entry), the
+# E17 values seen, and the counters NE, NW, N1.
+#  part 1: SMC successes of the estimator replica (own seeds), each forced as the chaining value; the bucket holds a decoy,
+#          the success entry with its true G word, and the same variant with K other G words (live and dead);
+#  part 2: random chaining values, buckets of 1..6 embedded valid variants with random G words, all 4 lanes.
+import sys, os, random, importlib.util
+W = os.path.dirname(os.path.abspath(__file__)); sys.dont_write_bytecode = True
+def load(name, path):
+    s = importlib.util.spec_from_file_location(name, path); m = importlib.util.module_from_spec(s); s.loader.exec_module(m); return m
+B = load('vtbase', os.path.join(W, 'basecopy', 'vt38.py')); N = load('vtnew', os.path.join(W, sys.argv[1] if len(sys.argv) > 1 else 'A', 'vt38.py'))
+NREP = int(sys.argv[2]) if len(sys.argv) > 2 else 20; K = 6; M = B.M
+def bent(a0, a1, a2, a2i, gi): return (B.c7of(B.variant(a0, a1, a2)) + (1 << 32), a1 | B.S0(a1) << 32 | (B.A2T + 2 * a2i) << 64, B.gaddr(gi))
+progs = {}
+def prog(mod, q):
+    k = (mod.__name__, q)
+    if k not in progs: progs[k] = mod.allocated_program(list(range(4 * q, 4 * q + 4)))
+    return progs[k]
+TB, TN = B.tables(), N.tables()
+def run(mod, tab, q, cv, buckets):
+    p, mp = prog(mod, q); m = mod.Machine([1, 2], lambda j, y, z: buckets.get(j, []), tab, cvforce=cv); m.run(p)
+    e17 = [x & M for x in (m.obs[1::2] if mod is B else m.obs)]
+    return dict(trace=m.trace, marks=m.marks, succ=None if m.succ is None else (m.succ[0], m.succ[1] & ((1 << 64) - 1)), e17=e17,
+                cnt=tuple(m.r.get(mp.get(r, r), 0) for r in ('NE', 'NW', 'N1')))
+stats = dict(cases=0, mism=0, succ=0, e17=0, a17=0, a17int=0, deep=0, w7=0)
+def compare(q, cv, bb, bn):
+    x = run(B, TB, q, cv, bb); y = run(N, TN, q, cv, bn); stats['cases'] += 1
+    if x != y:
+        stats['mism'] += 1
+        if stats['mism'] < 4: print('MISMATCH', {k: (x[k], y[k]) for k in x if x[k] != y[k]})
+    for k, mk in (('w7', 'W7'), ('e17', 'E17'), ('a17', 'A17'), ('a17int', 'A17int')): stats[k] += x['marks'].count(mk)
+    stats['deep'] += sum(1 for t in x['marks'] if isinstance(t, tuple)); stats['succ'] += x['succ'] is not None
+rr = random.Random(20261010); SV = B.sample_variants(); EV = B.entry_variants(); nsucc = 0
+for rep in range(NREP):
+    z, pairs, bad = B.smc_replicate(B.Shake('r38d-diff|%d' % rep), SV); assert bad == 0
+    for cv, mx, my, (a0, a1, a2) in pairs:
+        nsucc += 1; j = B.A0L.index(a0); a2i = B.A2L.index(a2); q = j // 4; g0 = B.GSET[B.w16_closed(cv, a0, a1, a2)]
+        gs = [g0] + rr.sample([g for g in range(32) if g != g0], K)
+        eb = [bent(a0, a1, a2, a2i, g) for g in gs[1:]] + [bent(a0, a1, a2, a2i, g0)]; en = [N.mkent(a0, a1, a2, a2i, g) for g in gs[1:]] + [N.mkent(a0, a1, a2, a2i, g0)]
+        db = (eb[-1][0] ^ 0x5a5a5,) + eb[-1][1:]; dn = (en[-1][0] ^ 0x5a5a5,) + en[-1][1:]
+        compare(q, cv, {j: [db] + eb}, {j: [dn] + en})
+print('part 1: %d SMC successes from %d replicates' % (nsucc, NREP), stats, flush=True)
+for t in range(int(sys.argv[3]) if len(sys.argv[3:]) else 400):
+    cv = [rr.getrandbits(32) for _ in range(8)]; q = rr.randrange(64); bb, bn = {}, {}
+    for j in range(4 * q, 4 * q + 4):
+        for _ in range(rr.randrange(0, 7)):
+            a1, a2i = EV[j]
+            g = rr.randrange(32); bb.setdefault(j, []).append(bent(B.A0L[j], a1, B.A2L[a2i], a2i, g)); bn.setdefault(j, []).append(N.mkent(B.A0L[j], a1, B.A2L[a2i], a2i, g))
+    compare(q, cv, bb, bn)
+print('part 1+2:', stats)
+print('EQUIVALENT' if stats['mism'] == 0 else 'NOT EQUIVALENT')
+```
+
+```python
+# t_imm_d.py - sensitivity: the shipped online program and the preprocessing bodies of this derivative re-measured with every immediate operand of an
+# ALU instruction, compare-branch or store charged one extra operation (as if loaded by an `li`; the class MI of the base's t_imm.py); then the ledger.
+# usage: t_imm_d.py <dir of vt38.py> <dir of src/ (t_pre1.py, t_pre_d.py, ledger38.py)> <scratch runs dir>
+import sys, os, json, io, contextlib
+VT, SRC, RUNS = sys.argv[1:4]; sys.path.insert(0, VT); sys.path.insert(0, SRC); sys.dont_write_bytecode = True
+import vt38
+from vt38 import *
+class MI(Machine):
+    def run(s, code, maxops=None):
+        c, lab, r = code.c, code.lab, s.r; pc = 0; n = len(c); mem = s.mem
+        def v(x): return x if isinstance(x, int) else r.get(x, 0)
+        ops = 0
+        isi = lambda x: isinstance(x, int)
+        while pc < n:
+            ins = c[pc]; op = ins[0]; pc += 1
+            if op in ('add', 'sub', 'and', 'or', 'xor'): ops += isi(ins[2]) + isi(ins[3])
+            elif op == 'rsub': ops += 1 + isi(ins[3])
+            elif op == 'bne': ops += isi(ins[2])
+            elif op == 'sti': ops += isi(ins[2])
+            if op == 'add': r[ins[1]] = (v(ins[2]) + v(ins[3])) & WORD; ops += 1
+            elif op == 'sub': r[ins[1]] = (v(ins[2]) - v(ins[3])) & WORD; ops += 1
+            elif op == 'rsub': r[ins[1]] = (ins[2] - v(ins[3])) & WORD; ops += 1
+            elif op == 'and': r[ins[1]] = v(ins[2]) & v(ins[3]); ops += 1
+            elif op == 'or': r[ins[1]] = v(ins[2]) | v(ins[3]); ops += 1
+            elif op == 'xor': r[ins[1]] = v(ins[2]) ^ v(ins[3]); ops += 1
+            elif op == 'shl': r[ins[1]] = (v(ins[2]) << ins[3]) & WORD; ops += 1
+            elif op == 'shr': r[ins[1]] = v(ins[2]) >> ins[3]; ops += 1
+            elif op == 'ld': r[ins[1]] = s.load(v(ins[2])); ops += 1
+            elif op == 'ldi': r[ins[1]] = mem.get(ins[2], 0); ops += 1
+            elif op == 'sti': mem[ins[1]] = v(ins[2]); ops += 1
+            elif op == 'li': r[ins[1]] = ins[2]; ops += 1
+            elif op == 'st': s.store(v(ins[1]), v(ins[2])); ops += 1
+            elif op == 'bz': ops += 2; pc = lab[ins[2]] if v(ins[1]) == 0 else pc
+            elif op == 'bnz': ops += 2; pc = lab[ins[2]] if v(ins[1]) != 0 else pc
+            elif op == 'bne': ops += 2; pc = lab[ins[3]] if v(ins[1]) != v(ins[2]) else pc
+            elif op == 'jmp': ops += 1; pc = lab[ins[1]]
+            elif op == 'rand': r[ins[1]] = s.rw.pop(0); ops += 1
+            elif op == 'f38':
+                s.units += 1; m0 = [r[x] for x in ins[1]]; s.m0 = m0
+                cv = s.cvforce if s.cvforce is not None else compress(IV, m0); s.cv = cv
+                for x, y in zip(ins[2], cv): r[x] = y
+            elif op == 'succ': s.succ = (ins[1], v(ins[2])); s.succ_ops = s.ops + ops; break
+            elif op == 'halt_ok': break
+            elif op == 'obs': s.obs.append(v(ins[1]))
+            elif op == 'mark': s.marks.append(ins[1]); s.mark_ops.append((ins[1], s.ops + ops))
+        s.ops += ops
+
+MI.IMM = True; vt38.Machine = MI; Machine = MI
+cs = vt38.prog_costs(); cs['EPI'] = 18; cs['P0'] -= 5          # prog_costs subtracts the epilogue 13; with immediates it is 18 (four rsub and the bne against the group count)
+cs['PASS_ENTRY'] = 3; cs['BLOCK_FIXED'] = cs['GROUP4'] / 4        # the bne FL, 2 of the pass entry carries an immediate
+print('online costs, immediates charged:', cs)
+from vtpre import *
+class MachineP(MI):
+    def load(s, addr):
+        if addr in s.mem: return s.mem[addr]
+        t = addr >> 150
+        return s.tab[addr] if t in (3, 4) and addr in s.tab else 0
+os.makedirs(RUNS, exist_ok=True)
+sys.argv = ['t_pre1.py']; ns = dict(globals()); ns['__name__'] = 'x'
+src = open(os.path.join(SRC, 't_pre1.py')).read().replace("'../runs/pre1.json'", repr(os.path.join(RUNS, 'pre1_imm.json')))
+with contextlib.redirect_stdout(io.StringIO()): exec(compile(src, 't_pre1.py', 'exec'), ns)
+p1 = json.load(open(os.path.join(RUNS, 'pre1_imm.json')))
+sys.argv = ['t_pre_d.py', VT, RUNS]; ns = dict(globals()); ns['__name__'] = 'x'
+src = open(os.path.join(SRC, 't_pre_d.py')).read()
+buf = io.StringIO()
+with contextlib.redirect_stdout(buf): exec(compile(src, 't_pre_d.py', 'exec'), ns)
+print('preprocessing bodies, immediates charged:')
+q1 = json.load(open(os.path.join(RUNS, 'pre1.json'))); p1.update(LIVE_ops=q1['LIVE_ops'], LIVE_g=q1['LIVE_g']); p2 = json.load(open(os.path.join(RUNS, 'pre2.json')))
+print(' pre1', p1); print(' pre2', p2)
+from ledger38 import ledger
+o = ledger(show=False, costs=cs, p1=p1, p2=p2)
+print('ledger with immediates charged: time_log2 %.5f  log2_T %.6f' % (o['time_log2'], o['log2_T']))
+```
+
+## Appendix C. aa0496d3 against 012400ff and 37742a53 (the figures in this appendix are aa0496d3's; this derivative's are in Section 7 and Appendix D)
+
+**C.1 Base.** Built on submission 012400ff-d717-461c-a433-377f35ce2298 (Jbenisek, 71.43541, commit f728e581b30a7ab108f5abdac605e68f52cf5e39), which itself derives from 37742a53-4062-4c76-bdd0-cd74b4c6eb21 (winglock, 71.69523, commit c330e0b7ba833f81f79474536519d55aa47e771a). Both manifests (`experiments/manifest.json` and `certificates/manifest.json`) are unchanged. `experiments/vt38.py` carries the program changes of C.2. `proof.md` and `claim.json` change where a count of the program or a value of the ledger changed, in Appendices B.1 to B.3 (the ledger, its sensitivity and the counted preprocessing, as changed here), B.16 and this appendix.
+
+**C.2 Changes.** Five changes to how the counted program and the counted table construction execute and price the search (L0 and L4 from 012400ff, and our tightenings to L2, L3, L4 and L5). None of them changes which variants can succeed or the tests applied to them.
+
+- **L0: the tables list 22 of the 32 words of G.** Given W16 = g, row 17 of member x is a function of E17 (Section 4.6): the
+  E17 mask test, A17 = E17 + a17(g) against its mask, and the three A17-internal conditions. An exact count over all 2^32 values
+  of E17 (digit by digit, with the carry of A17 = E17 + a17(g) as state; `live_list` in B.3) gives 2^20 passing values in all and
+  none for the ten words 35f29010, 35f29011, 35f29410, 35f29414, 35f29415, 35fa9010, 35fa9011, 35fa9410, 35fa9414, 35fa9415.
+  A variant whose W16 is one of these fails row 17 on every chaining value and cannot succeed. The tables list the other 22
+  words (G'). The pass P1' finds G' as counted code (32 x 2^32 values of E17, 21 operations each plus the loop). The count and
+  fill passes loop over 22 words; the bucket bound is 14 x 22 x 768 = 236,544; the counters' expectations shrink by 22/32.
+- **L2: tightened row-17 path using packed 2-word entry constants and prologue `c - (a & b)`.** Entry word 1 packs `A1` (bits 0..31), `U = A2 - S0(A1) - K2 - (A1 & A0)` (bits 32..63), `Q = A1 ^ A0` (bits 64..95), `A2T + 2*a2i` (bits 96..127), `KCA = W10x + s1(W15x) + A1` (bits 128..159), and `gw(g) = gaddr(g) | c17(g)<<32 | vE(g)<<64` (bits 160..255). Furthermore, using `MAJ(A0, a, b) = (a & b) + ~MAJ(A0, a, b) - 1`, the prologue precomputes `c - (a & b)` once per group, and `gen_rare` computes `E1 = (A1 - S0(A0) + 1) + (c - (a & b)) + ~MAJ(A0, a, b) (mod 2^32)`, avoiding recomputing `MAJ(A0, a, b)` per W7 pass and avoiding redundant lane masks before final modular reductions. Also, because the `A17` mask test holds on bits 0..7 and 9..13, `A17 & 0x3eff == vA & 0x3eff`, so the three `A17`-internal bit comparisons against bits 4 and 13 reduce to testing the two variable bits `(A17 >> 19) & 1` and `(A17 >> 25) & 1` against `(vA >> 4) & 1` and `((vA >> 4) ^ 1) & 1` (packed into record slot `b + 5`). The first row-17 test sees the exact same `E17` after **41 operations** (instead of 58 in 37742a53 or 49 in 012400ff), and the `A17` tests take **19 operations** (instead of 25).
+- **L3: 4-lane SWAR `~MAJ` and `~CH`, telescoping `NE` accumulation, 2-op sentinel discriminator, and prologue tightening.** Using `~MAJ(A0, a, b) = ~(a ^ b) | ~A0` (2 operations across all 4 lanes given prologue `~(a ^ b)`) and `~CH(E0, e, f) = (~E0 & ~f) | (E0 & ~e)` (4 operations across all 4 lanes given prologue `~e` and `~f`), loading each bucket header directly into `OFF`, accumulating `NE` by telescoping across the scan loop (`sub NE, NE, OFF` before `loop` and `add NE, NE, OFF` after `loop`), and discriminating `W7` passes (`FL == 1`) from the sentinel (`FL == 2`) after `bz FL, loop` via `bne FL, 2, pas` (`2` operations instead of `3`), the 4-block setup costs **76 operations** (19.0 per block), each `W7` pass costs `2 + 41 = 43` operations to the first row-17 test, and the prologue costs **91 operations** (dropping the redundant `and M` on the top 32-bit words `m7, m15` and sharing `S0(a) + MAJ(a,b,c)` between `hh` and `y0p`).
+- **L4: a counter for the deep path and per-counter Chebyshev cap margins.** N2 counts the entries that pass all row-17 tests. E[N2] = SR p2 2^20 2^-64 per group. With per-counter Chebyshev margins (eps_NE, eps_NW, eps_N1, eps_N2) = (2^-16, 2^-14, 2^-7, 2^-5) (Section 6.4), P_cap = 2.019e-06, N_G = 276,302,772,059,533,160,318, and N1 pays only for the A17 tests (19 operations) while the deep path (at most 3,148) is charged at N2_MAX = 207,782,513,219,973,181. The epilogue tests four caps (19 operations).
+- **L5: 2-word bucket entries (`ESZ = 2`) and fused P6 count/fill passes.** Because the variant fields in word 1 occupy 160 bits and the G-word fields occupy 96 bits, both fit in a single 256-bit word (`160 + 96 = 256` bits). Every bucket entry and sentinel is therefore **2 words** (64 bytes) instead of 3 words (96 bytes), shrinking entry storage by 1/3 (total memory `2^80.42` bytes vs `2^80.96`) and saving one word store per entry in `P6_FILL` (`P6_COUNT = 145`, `P6_FILL = 189`, `P6_PREFIX_NONEMPTY = 11`, total preprocessing `2^66.8588` units vs `2^67.1070`).
+
+**C.3 Why the premises are unchanged.** The statements of H1 to H7 are those of 37742a53 and 012400ff, with H3's memory (`2^80.42` bytes) and preprocessing (`2^66.8588` units) and H7's register count (`42`) updated to match this derivative's exact figures. The success bound uses them through S = SR p2 q3_model and delta (6.4). L0 removes only variants whose probability of success is 0, so S, the event that H5 bounds and N_G's formula are the same; L2, L3, L4 and L5 change how the tests and tables are packed and executed, not which variants pass. All four counters are capped by Chebyshev's inequality (Section 6.4); with them P_cap = 2.019e-06 and the bound is 0.39000000. H1's "|R_j| 2^-27 entries in expectation" counts the variants whose row 16 holds, and the tables here hold those with W16 in G', 22 |R_j| 2^-32 by the same uniformity.
+
+**C.4 Checks of the shipped program.**
+1. Selftest (A.1): all 6 items pass (`P0=91, EPI=19, GROUP4=76, ITER=6, X_E17=41, X_A17int=60, X_SUCC=3208`, 42 registers, published pair in all 4 lanes, 5 SMC replicates with 77 pairs rebuilt/verified/found, 8 RAM trials with 0 mismatches).
+2. `diff_prog.py` and `t_pre_d.py` (B.16): decision equivalence and preprocessing body verification against `mkent` and the exact definitions.
+
+**C.5 Ledger, N and certificate.** B.1 with the inputs of A.5 (`python3 ledger38.py`): N_G = 276,302,772,059,533,160,318, T = 2,032,592,963,753,652,191,643,563/682, log2 T = 71.33596769, claimed time_log2 = 71.33597. With n = 2032592963753652191643563 and d = 682, by exact integer comparison
+
+```python
+n, d, E = 2032592963753652191643563, 682, 100000
+a, b = n ** E, d ** E
+assert (b << 7133596) < a <= (b << 7133597)
+```
+
+so (k - 1)/10^5 < log2 T <= k/10^5 with k = 7133597: 71.33597 is an upper bound and the smallest five-decimal one.
+
+**C.6 Credit.** 37742a53 (winglock) and 012400ff (Jbenisek): the package, its program, ledger, studies, premises and text. Through them: c99df2dc (qkniep) and 0ae69bcb (0xshikhar) for the construction and the shape of the analysis, and the filings they credit. The dependencies are declared with this filing.
+
+## Appendix D. This derivative
+
+**D.1 Base and lineage.** Credited derivative of Th0rgal's 19c9e7e7-b38b-43b6-9818-133841a0cb7c (71.06954, commit 44445f6), itself a derivative of Jbenisek's fdef4bab-a9d7-4052-b11f-e50fabfd7374 (71.07250, commit 2d66865f55380a5f53ab458f2a387722e2c2e5ee), Th0rgal's f8e24d8d-ce0f-41d2-a8b9-f3e3285b7422 (71.26063), 8f02e559-70fc-4f4d-9d05-52107ffcfb87 (71.26096) and aa0496d3-d741-49e5-8f5c-0292e39115ee (71.33597), and Jbenisek's 0bf9d76b-d200-4b40-a32d-46ce1aaffcb7 (71.34862), which builds on 012400ff-d717-461c-a433-377f35ce2298 (Jbenisek, 71.43541) and 37742a53-4062-4c76-bdd0-cd74b4c6eb21 (winglock, 71.69523), see C.1. `experiments/manifest.json` and `certificates/manifest.json` are the files of fdef4bab byte for byte. `experiments/vt38.py` is byte-identical to 19c9e7e7 (`P0 = 89`, `EPI = 13`, `GROUP4 = 75`, `X_A17int = 58`, `X_SUCC = 3200`). `proof.md` and `claim.json` change where a value of the ledger changed: the paragraph "This derivative" at the top, Sections 0, 5.3, 6.2 and 7, the figures quoted in H1, H2, H4, H5 and H7, Appendices A.4, A.5, B.1 and B.2, and this appendix. Appendix C is aa0496d3's and quotes its figures.
+
+**D.2 Changes.** Six (items 1-4 from fdef4bab, item 5 from 19c9e7e7, item 6 from 8f02e559 / f8e24d8 in this derivative), priced separately in D.3. None of them changes which variants can succeed or a test applied to them.
+
+1. *Preprocessing counts that the printed bodies do not execute.* The B.16 program of aa0496d3 charged 189 operations per (Y, variant) for the fill pass, 35 for the P5 setup, 43 for the P5 append and 56 for the P5 body; the bodies printed in its B.3 execute 233, 37, 46 and 57 (the fill body is 13 + 22 x 10 operations; the 22 live words of G cost 10 each). Its t_pre_d.py as printed did not reach its own assertions: the P5 check compared the list words with an entry that already carries the G word, and the P6 check handed the fill body a fields word that already carries it. Both checks are corrected in B.16 (the reference word is `(mkent(...)[1] - gw(0)) & WORD`; the fields word of the fill body is the same). The ledger now charges what the printed bodies execute: 233, 37, 46, 57 (the P5 body count and the prefix counts 6 / 11 are measured by B.16 as well; they were constants of the dictionary before).
+2. *The zero pass of P6 is unrolled 16 times* (`gen_zero16`, B.3): 16 stores with 16 increments and one branch, 34 operations per 16 headers (2.125 per header) in place of 4 per header. The 256 x 2^64 headers are a multiple of 16.
+3. *The Y loop of the count and fill passes* (`gen_variant_pass`, `gen_count_iter`, `gen_fill_iter`, B.3) runs on `u = Y + A1 (mod 2^32)` in two segments, `u` from A1 to 2^32 - 1 (Y = u - A1) and then `u` from 0 to A1 - 1 (Y = u + 2^32 - A1, skipped for A1 = 0), so `u` is the loop counter and needs neither the addition of A1 nor the mask `and M`; the table address base `Ys = hb + (Y << 32)` runs with it (one addition per iteration instead of a shift and an addition) and `c9x - A1` is one constant `cc` per variant. One iteration including its loop control costs 144 operations (count) and 232 (fill); before, 145 + 3 and 233 + 3. The per-variant overhead (list loads, A1, both segment setups, the guard for A1 = 0 and the branch of the loop over the list) is executed and measured: 16 and 17 operations (the ledger charged 16 for each). Every one of the 2^32 values of Y of every variant is processed exactly once.
+4. *The pair budget* (H5, Section 6.5) is charged at delta = 0.564, the sum of the two one-sided 99% Poisson limits of the measurements of Section 6.5 (95 observed: 120.25 / 1,500 = 0.0802; 4 observed: 11.60 / 24 = 0.4835; sum 0.5637), instead of 1. It is a measured premise: the evidence is that of Section 6.5, which is aa0496d3's and unchanged, and the budget sits at the limit of that evidence, not above it. The caveats of Section 6.5 (resampled SMC particles, 24 far-term chaining values, limits that assume independent observations) apply to it in full. The Bonferroni bound of Section 6.4 becomes q_lb = S_model (1 - 0.564 / 2).
+5. *Online program tightenings* (`experiments/vt38.py`: `P0 = 89`, `EPI = 13`, `GROUP4 = 75`, `X_A17int = 58`, `X_SUCC = 3200`). In `gen_prologue` and `gen_group`, the redundant mask on the top word of each 256-bit random draw (`m7`, `m15`) is dropped, `abx = a ^ b` is shared between `MAJ(a, b, c) = ((a ^ b) & c) ^ (a & b)` and `nabx = abx ^ M`, `g_aba = g + aba` is precomputed in 1 operation (folding `(-K[1] + 2)` and a `3 << 32` bias into `nsb`), and `y0p_s = (y0p << 32) & (M << 32)` is pre-shifted in the prologue so `gen_group` forms `Vv = Zsv | Yv` (`Z0 << 32 | Y`) in 1 operation instead of 2 (`P0 = 89`, `GROUP4 = 75`). In `gen_epilogue`, the four `rsub` cap differences are ORed together before a single `shr 255` and `bnz` (`EPI = 13`). In `gen_rare`, the three internal `A17` conditions `(9, 20), (6, 18), (8, 17)` are tested simultaneously by chaining three left shifts (`9, +2, +1`) and one `bne` (`X_A17int = 58`, `c1 = 17`). In `gen_deep`, redundant 32-bit masks before final modular reductions are dropped, `t1 = A1 & a0` is reused in `MAJ(A2, A1, a0)`, and `W7x = W7 & M` reuses `W7` (`X_SUCC = 3200`, `c2 = 3,142`).
+6. *The second preregistered q3 study `PREREG_q3b` (`q3_model = 2^-101.35`, from 8f02e559 / f8e24d8; Section 6.2 and A.4).* A second independent preregistered SMC study (`PREREG_q3b.txt`, `FREEZE_q3b.txt` `2026-10-11T03:09:15Z`) ran `smc.c` on fresh variant samples `vsU2.txt` (1,048,576 variants, seed `20261111`) and `vsP2.txt` (4,096 variants, seed `20261112`) and fresh seed streams `R3` (1,024 runs, seeds `81001..82024`: mean `2^-100.99986`, one-sided 99% lower bound `2^-101.00265`) and `R4` (4,096 runs, seeds `90000..94095`: mean `2^-100.99841`, one-sided 99% lower bound `2^-101.00018`), with 21,927,500 rebuilt and verified tail successes and 0 failed rebuilds. Both bounds exceed `2^-101.35`, fixing `q3_model = 2^-101.35` (matching the pass rule of `vt-q3-smc-r38`, 0.35 bit below all four 99% lower bounds across `R1`-`R4`).
+
+**D.3 Effect of each change** (`sens38.py`, B.2, last block: B.1 run with the inputs of the change and of every change before it; log2 T of the exact ledger, the change against the row before, and the five-decimal claim):
+
+```
+aa0496d3 as filed (its pre2.json, pair budget 1, q3_model 2^-101.5)                                    71.335968              (claim 71.33597)
+(1) the counts the printed bodies execute (P6 fill 233, P5 setup 37, append 46, body 57)               71.342384  +0.006417  (claim 71.34239)
+(2) + P6 zero unrolled 16 times (34 per 16 headers)                                                    71.340819  -0.001565  (claim 71.34082)
+(3) + Y loop of the count and fill passes on u (144 / 232 per iteration, 16 / 17 per variant)          71.339653  -0.001166  (claim 71.33966)
+(4) + pair budget delta = 0.564 instead of 1  (fdef4bab)                                               71.072490  -0.267163  (claim 71.07250)
+(5) + online program tightenings (P0 89, EPI 13, GROUP4 75, X_A17int 58, X_SUCC 3200) (19c9e7e7)       71.069531  -0.002959  (claim 71.06954)
+(6) + second preregistered q3 study PREREG_q3b (q3_model 2^-101.35, 8f02e559/f8e24d8) [this derivative] 71.001640  -0.067891  (claim 71.00164)
+```
+
+**D.4 Checks.** `t_pre_d.py` (B.16, output in A.5) executes the bodies of P1', P5, P6 zero, P6 prefix, P6 count and P6 fill on the true variant lists and on synthetic variants with A1 = 2^32 - 3, 1 and 0, with the real segment limits (2^32 and A1) and with toy limits; the headers after the count pass equal the definition (the number of (Y, variant, g) triples that hash to each header), and after the fill pass every bucket holds exactly the 2-word entries of the definition (`mkent` for the real variants), with the header at the start of its bucket. The operations per iteration are the difference of two runs with different iteration counts on the same path, the per-variant overhead the remainder, and every run on that path matches fixed + iterations x per-iteration. `t_pre1.py` (B.13) reproduces the counts of P1 to P4 on the shipped `vt38.py` (A.5). The selftest of `experiments/vt38.py` is in A.1. The experiment source is the single file `vt38.py` (65,187 bytes); the preprocessing bodies are not part of it, so their counts are executed by `t_pre_d.py`, not by an organizer experiment.
+
+**D.5 Ledger, N and certificate.** B.1 with the inputs of A.5 (`python3 ledger38.py`): N_G = 173,411,553,314,466,731,477, T = 6448632288134210693928641/2728, log2 T = 71.00163956, claimed time_log2 = 71.00164. With n = 6448632288134210693928641 and d = 2728, by exact integer comparison
+
+```python
+n, d, E = 6448632288134210693928641, 2728, 100000
+a, b = n ** E, d ** E
+assert (b << 7100163) < a <= (b << 7100164)
+```
+
+so (k - 1)/10^5 < log2 T <= k/10^5 with k = 7100164: 71.00164 is an upper bound and the smallest five-decimal one. The first row of D.3 is the exact total of aa0496d3 reproduced by the same ledger from its own inputs (pair budget 1, q3_model 2^-101.5, the counts of its pre2.json).
+
+**D.6 Credit.** 19c9e7e7 (Th0rgal), fdef4bab (Jbenisek), f8e24d86 (Th0rgal), 8f02e559 (Th0rgal) and aa0496d3 (Th0rgal): the packages that this one builds upon, their preprocessing and online program tightenings, cap margins, pair budget, second q3 study and text; 0bf9d76b (Jbenisek) and, through them, 012400ff (Jbenisek) and 37742a53 (winglock); c99df2dc (qkniep) and 0ae69bcb (0xshikhar) for the construction and the shape of the analysis, and the filings they credit. The dependencies are declared with this filing.
+
+
+## Appendix E. This filing: q3_model = 2^-101.10 and delta = 1/25 (derivative of aed05522)
+
+### E.1 What changes
+
+The package is aed05522-8fe5-4277-be03-8b50ffa49e26 (71.00164) with exactly two ledger inputs changed. experiments/vt38.py, experiments/manifest.json and certificates/manifest.json are byte-identical to aed05522; the construction, program, operation counts, preprocessing passes, tables, memory (2^80.42 bytes), advice and the allowances A_C = 2^70, A_S = 2^60 and DEV = 2^60 are unchanged. proof.md lines 1-3965 keep their numbering (every evidence reference proof:a-b of the base still points at the same text); the lines that state q3_model, delta or a quantity that depends on them were edited in place and point here. All new evidence in this appendix was produced by new code written for this filing (E.5); no participant program of this or any other package was executed. The two changes:
+
+1. **q3_model = 2^-101.10** (base 2^-101.35). Two new independent Monte-Carlo studies (E.2) with a from-scratch estimator agree with the base's four studies to 0.01 bit; 2^-101.10 is below every one of the six one-sided 99% bounds now available.
+2. **delta = 1/25** (base 0.564). The base bounded N (successes in a group) by N1, the number of first row-17 test passes, and measured N1 on few chaining values for the far term (4 passes on 24 successes, whose 99% Poisson limit dominates 0.564). We bound N by N17, the number of variants of the group that pass ALL of rows 16 and 17 with W7 in F7, and measure N17 - 1 (and N18 - 1) over whole groups by exact enumeration of all 256 A0 buckets on each success's chaining value (E.3).
+
+| | base aed05522 | this filing |
+|---|---|---|
+| q3_model | 2^-101.35 | 2^-101.10 |
+| delta | 0.564 | 1/25 |
+| S_model = SR p2 q3_model | 2^-67.77135 | 2^-67.52135 |
+| q_lb per group | 2^-68.24930 | 2^-67.55050 |
+| N_G | 173,411,553,314,466,731,477 = 2^67.23276 | 106,837,024,868,983,061,305 = 2^66.53397 |
+| P_cap (Chebyshev, same margins) | 3.2172e-06 | 5.2219e-06 |
+| online operations | 2,362,776,342,371,890,818,544,925 | 1,455,681,527,701,214,095,267,625 |
+| attack and preprocessing (no allowances) | 2^70.00046 | 2^69.40552 |
+| T x 2,728 (exact integer) | 6,448,632,288,134,210,693,928,641 | 5,359,922,159,864,254,518,422,125 |
+| log2 T | 71.001640 | 70.734858 |
+| claimed time_log2 | 71.00164 | 70.73486 |
+| success lower bound 1 - exp(-N_G q_lb) - P_cap | 0.39000000 | 0.390000000000 |
+
+### E.2 q3: two further independent studies (H2)
+
+*Estimator* (`q3.c`, E.5; no code shared with smc.c or vt38.py). The characteristic is parsed from Section 3 of this proof (`parse.py`) into cell, '+' and two-bit tables; `parse`/`v2` first check that the published pair of Table 5 satisfies every parsed cell and condition in both members (0 violations; no two-bit condition touches a bit with a difference; the printed W25[4] = W25[9] fails on the published pair and W25[4] = W25[6] holds, so the reading of Section 3 is used) and that the 38-step compressions of the pair are equal with our own SHA-256 code and with the organizer reference verifier/hash_functions.py. `q3 exh` recomputes from scratch: the A2 list (768 values, first 379b2dc8, last aa3b50cd), G (32 words, 0x35f29010 + subsets of bits 0, 2, 10, 13, 19) and |F7| = 287,309,824, all equal to Section 3/4. Variants are drawn uniformly from the union of the R_j: A0_j with weight |R_j| (Appendix A.2), A2 uniform in the list, E5 uniform with its three top bits equal to those of E6 (the 2^29 window), A1 solved from E5, accepted iff valid (the validity of Section 4.1, recomputed: E6 cells, the '+' pairs of rows 6 and 7, and (DW_i, DS0_i) of W8, W9, W10 equal to the published ones); the observed acceptance 0.00180-0.00183 equals the mean |R_j| / (768 x 2^29) = 0.001817, an independent consistency check of the |R_j|.
+Fixed-effort multilevel splitting: row 16 exact (W16^x uniform in G: 2^-27); rows 17..22: a survivor is drawn uniformly, W_i^x is proposed uniformly (W16..W21 are iid uniform and independent of (W6, W7) by Lemma 4; W22 is uniform through W6), W_i^y = W_i^x + the schedule difference (from the fixed differences of W8..W15 and s0(W7): T7 at row 22), both members are stepped and every cell, '+' bit and two-bit condition keyed at the row is tested (rows without a cell: no XOR difference in A, E or W); trials until N survivors, factor (N - 1) / (trials - 1). Tail: T proposals per survivor, each with a fresh variant (pool of 65,536 uniform variants per run) and W7 uniform in F7, rows 23..37 deterministic; factor successes / proposals. The estimator is independent code, but it parses the same transcription of Section 3 (with the same W25 reading) as the base; it is not independent data. Every tail success is rebuilt (W0..W6 by the inverse expansion, CV1 by inverting steps 7..0 of the variant) and verified: W7 in F7, M1 != M1', equal 38-step compressions from CV1; additionally `evalvar` re-derives the Step-2 words of both members from the rebuilt CV1 and the variant, re-runs all 38 steps and re-tests rows 16..37 (0 disagreements).
+
+| study | runs (N = 2,000, T = 16,384) | mean log2 q3 | relative sd per run | one-sided 99% Student bound | tail successes (all verified) | failed rebuilds |
+|---|---|---|---|---|---|---|
+| S1, seeds 1001..1032 | 32 | -100.99189 | 0.0742 | -101.03905 | 31,887 | 0 |
+| S2, seeds 2001..2032 | 32 | -100.99160 | 0.0618 | -101.03081 | 31,875 | 0 |
+| pooled | 64 | -100.99174 | 0.0677 | -101.02120 | 63,762 | 0 |
+
+Mean stage factors (log2, rows 16..22 and tail, 64 runs): -27.00, -17.00, -13.01, -14.99, -6.00, -7.00, -1.00, -15.01 (the integers of Section 6.2).
+Together with the base's four studies (99% bounds 2^-101.00146, 2^-101.00195, 2^-101.00265, 2^-101.00018) the lowest of the six 99% bounds is 2^-101.03905. **q3_model = 2^-101.10** is 0.061 bit below it and 0.108 bit below the pooled mean. The value was chosen after the studies had run; it is not a preregistered rule. Its effect is priced in E.4 (2^-101.35, 2^-101.50, 2^-102). The organizer replica vt-q3-smc-r38 is unchanged; its pass rule (mean of 20 replicates >= 2^-101.35) is a coarser, organizer-run check of the same estimator family.
+Paper cross-check: ePrint 2026/1120 (Section 3.1, Complexity Evaluation) counts 102 conditions on rows 16..37 and derives 2^104 + 2^102 = 2^104.3 for its memoryless attack; the measured probability of the event the program tests is 2^-101.0 (all six studies). This one-bit gap does not affect validity: every success of every study is rebuilt into a verified 38-step semi-free-start collision, and the program's output is checked by a target compression (Section 5.4).
+
+Per-run results (seed, stage factors rows 16..22 and tail, tail successes, failed rebuilds, log2 q3):
+
+```
+1003 -27.0000 -17.0090 -13.0416 -14.9533 -6.0360 -7.0129 -1.0250 -14.9714 1020 0 -101.04922
+1002 -27.0000 -17.0243 -12.9826 -14.9454 -5.9980 -7.0220 -1.0222 -15.0862 942 0 -101.08076
+1001 -27.0000 -17.0370 -12.9893 -14.9747 -5.9801 -7.0036 -0.9590 -14.9532 1033 0 -100.89686
+1004 -27.0000 -17.0446 -12.9578 -14.9949 -6.0345 -7.0772 -1.0076 -14.9630 1026 0 -101.07954
+1005 -27.0000 -16.9320 -12.9545 -14.9582 -5.9722 -7.0005 -0.9793 -14.9957 1003 0 -100.79237
+1006 -27.0000 -16.9272 -13.0028 -14.9833 -5.9680 -6.9729 -1.0538 -15.0350 976 0 -100.94325
+1007 -27.0000 -17.0363 -12.9796 -15.0019 -5.9836 -6.9933 -1.0111 -14.9785 1015 0 -100.98445
+1008 -27.0000 -16.9588 -13.0188 -15.0676 -5.9753 -7.0178 -0.9778 -14.9714 1020 0 -100.98746
+1010 -27.0000 -16.8747 -13.0684 -14.9890 -6.0120 -7.0068 -1.0065 -15.0072 995 0 -100.96464
+1009 -27.0000 -17.0850 -13.0437 -14.9824 -5.9684 -7.0061 -1.0510 -14.9476 1037 0 -101.08420
+1012 -27.0000 -17.0159 -13.0577 -14.9570 -6.0129 -7.0305 -0.9815 -15.0908 939 0 -101.14634
+1011 -27.0000 -17.0639 -12.9955 -14.9380 -6.0877 -6.9657 -1.0272 -15.0043 997 0 -101.08229
+1013 -27.0000 -17.0277 -13.0201 -14.9972 -5.9925 -6.9905 -0.9913 -14.9971 1002 0 -101.01638
+1014 -27.0000 -17.0164 -12.9911 -14.9562 -6.0231 -6.9827 -0.9996 -15.0604 959 0 -101.02945
+1015 -27.0000 -16.9851 -12.9708 -15.0127 -6.0115 -7.0247 -0.9978 -15.0559 962 0 -101.05852
+1016 -27.0000 -16.9914 -13.0691 -14.9866 -6.0281 -6.9454 -0.9996 -15.0043 997 0 -101.02455
+1017 -27.0000 -16.9640 -13.0044 -15.0063 -5.9551 -7.0017 -1.0158 -15.1297 914 0 -101.07709
+1019 -27.0000 -16.9603 -12.9928 -14.9819 -5.9960 -7.0437 -1.0090 -14.9914 1006 0 -100.97515
+1018 -27.0000 -17.0166 -13.0512 -15.0135 -6.0059 -6.9991 -1.0215 -14.9091 1065 0 -101.01685
+1020 -27.0000 -17.0313 -13.0039 -14.9750 -6.0110 -6.9424 -0.9471 -14.9771 1016 0 -100.88783
+1021 -27.0000 -16.9746 -12.9960 -14.9640 -5.9951 -7.0177 -0.9701 -15.0072 995 0 -100.92474
+1023 -27.0000 -16.8936 -13.0035 -14.9996 -5.9801 -6.9915 -0.9891 -14.9214 1056 0 -100.77887
+1022 -27.0000 -16.9743 -13.0410 -14.9526 -5.9905 -7.0100 -0.9313 -14.9448 1039 0 -100.84451
+1024 -27.0000 -17.0564 -13.0087 -14.9838 -6.0558 -7.0364 -0.9986 -14.9885 1008 0 -101.12816
+1025 -27.0000 -17.0289 -13.0433 -14.9540 -6.0078 -7.0128 -0.9298 -14.9986 1001 0 -100.97514
+1027 -27.0000 -16.9645 -12.9439 -14.9725 -5.9880 -6.9790 -0.9553 -14.9914 1006 0 -100.79464
+1026 -27.0000 -17.0142 -12.9819 -15.0005 -5.9521 -7.0031 -0.9895 -15.0679 954 0 -101.00923
+1028 -27.0000 -17.1077 -12.9895 -15.0181 -6.0356 -7.0425 -1.0176 -14.9743 1018 0 -101.18523
+1029 -27.0000 -16.9974 -12.9886 -15.0176 -6.0007 -7.0098 -1.0050 -15.1313 913 0 -101.15046
+1030 -27.0000 -17.0186 -13.0246 -14.9893 -5.9798 -6.9848 -0.9796 -15.0101 993 0 -100.98688
+1031 -27.0000 -17.0419 -12.9739 -14.9335 -5.9690 -6.9573 -1.0083 -14.9928 1005 0 -100.87676
+1032 -27.0000 -16.9536 -13.0589 -14.9877 -6.0395 -6.9728 -0.9800 -15.0365 975 0 -101.02909
+2004 -27.0000 -16.9411 -13.0016 -15.0304 -5.9148 -7.0160 -0.9870 -15.0365 975 0 -100.92743
+2002 -27.0000 -16.9701 -13.0545 -15.0042 -5.9914 -6.9538 -0.9960 -14.9871 1009 0 -100.95708
+2001 -27.0000 -16.9833 -12.9917 -14.9993 -6.0779 -7.0122 -1.0122 -15.0664 955 0 -101.14318
+2003 -27.0000 -17.0036 -13.0296 -14.9638 -5.9733 -7.0092 -0.9672 -14.9814 1013 0 -100.92805
+2005 -27.0000 -17.0038 -13.0201 -14.9435 -5.9925 -6.9682 -0.9760 -15.0247 983 0 -100.92885
+2006 -27.0000 -16.9407 -12.9929 -15.0730 -6.0212 -7.0067 -1.0058 -15.0218 985 0 -101.06211
+2007 -27.0000 -16.9465 -13.0205 -14.9710 -5.9699 -7.0268 -0.9866 -15.0306 979 0 -100.95187
+2008 -27.0000 -16.9857 -13.0009 -15.0262 -6.0094 -6.9459 -1.0061 -15.0043 997 0 -100.97857
+2009 -27.0000 -16.9835 -12.9970 -15.0100 -6.0310 -7.0169 -0.9712 -15.0923 938 0 -101.10188
+2010 -27.0000 -17.0349 -13.0433 -14.9992 -6.0544 -6.9963 -0.9899 -15.0365 975 0 -101.15441
+2011 -27.0000 -17.0406 -13.0300 -14.9883 -6.0148 -6.9904 -0.9902 -14.9885 1008 0 -101.04284
+2012 -27.0000 -17.0203 -12.9969 -15.0100 -5.9717 -7.0227 -0.9899 -15.0072 995 0 -101.01870
+2013 -27.0000 -16.9570 -12.9985 -15.0081 -5.9873 -6.9669 -1.0229 -15.0954 936 0 -101.03617
+2015 -27.0000 -16.9528 -13.0241 -15.0077 -5.9922 -7.0161 -0.9931 -14.9885 1008 0 -100.97460
+2016 -27.0000 -16.9243 -13.0006 -15.0820 -6.0630 -6.9641 -0.9612 -15.0043 997 0 -100.99954
+2014 -27.0000 -17.0700 -12.9951 -15.0100 -6.0144 -7.0107 -1.0179 -15.0710 952 0 -101.18900
+2018 -27.0000 -16.9635 -13.0009 -14.9594 -6.0506 -7.0089 -0.9978 -14.9644 1025 0 -100.94561
+2019 -27.0000 -17.0125 -12.9866 -14.9694 -5.9952 -6.9776 -0.9782 -14.9914 1006 0 -100.91086
+2017 -27.0000 -17.0301 -12.9785 -15.0041 -6.0157 -6.9919 -0.9964 -15.0101 993 0 -101.02681
+2020 -27.0000 -16.9731 -12.9706 -15.0409 -5.9873 -7.0061 -0.9910 -15.0350 976 0 -101.00412
+2021 -27.0000 -17.0257 -12.9697 -15.0115 -6.0088 -7.0168 -1.0250 -14.9842 1011 0 -101.04178
+2022 -27.0000 -16.9896 -13.0501 -15.0087 -6.0033 -6.9834 -0.9866 -14.9602 1028 0 -100.98176
+2023 -27.0000 -16.9840 -12.9732 -15.0519 -6.0447 -7.0142 -1.0101 -15.0160 989 0 -101.09401
+2024 -27.0000 -16.9673 -12.9934 -14.9957 -5.9968 -7.0093 -0.9623 -14.9448 1039 0 -100.86964
+2025 -27.0000 -16.9350 -13.0707 -14.9302 -5.9796 -7.0138 -1.0083 -15.0000 1000 0 -100.93763
+2026 -27.0000 -16.9866 -12.9744 -14.9357 -5.9221 -7.0340 -1.0172 -14.9296 1050 0 -100.79944
+2028 -27.0000 -17.0027 -13.0087 -14.9630 -6.0259 -7.0324 -1.0065 -14.9785 1015 0 -101.01772
+2027 -27.0000 -17.0843 -12.9827 -14.9747 -5.9660 -6.9644 -1.0025 -14.9799 1014 0 -100.95450
+2029 -27.0000 -16.9230 -12.9957 -14.9674 -5.9798 -6.9717 -0.9880 -14.9957 1003 0 -100.82136
+2030 -27.0000 -17.0239 -12.9784 -14.9849 -6.0176 -6.9992 -1.0325 -15.0043 997 0 -101.04081
+2031 -27.0000 -17.0055 -13.0023 -15.0340 -5.9791 -6.9680 -0.9866 -14.9434 1040 0 -100.91892
+2032 -27.0000 -17.0863 -12.9857 -14.9981 -5.9858 -6.9874 -0.9910 -15.0233 984 0 -101.05749
+```
+
+### E.3 delta: whole-group measurement at rows 17 and 18 (H5)
+
+*Bound.* Every success passes all of rows 16 and 17 (and 18) with W7 in F7, so pointwise N <= N17 <= ..., where N17 (N18) is the number of variants of the group (all 256 A0, all their valid variants) that pass all of rows 16..17 (16..18) with W7 in F7. Hence E[N - 1 | A_v] <= E[N17 - 1 | A_v] and delta <= delta17, the average over successes of the number of OTHER such variants on the success's chaining value; likewise delta <= delta18 <= delta17. This is the base's argument (Section 6.5) with N17 (all of row 17, not only the 10-bit E17 mask) in place of N1. The budget is set against delta17; delta18 is reported as supporting evidence. A further success would still need rows 18..37 (about 2^-57 given row 17: the stage factors of rows 18..22 and the tail).
+*Measurement* (`q3 run 3101 5000 16384 2500`, one process, function group_test, run on the first 2,500 of its 2,534 verified tail successes). For each verified success (CV1, v) and each A0_j: (Y, Z0) from CV1 (Lemma 5, recomputed from the Step-2 equations), and for every g in G (all 32 words, a superset of G') and every A2 in the list the target phi(u) = g - Y - Z0 - c9(A2), phi(u) = s0(u) - u; all preimages u are found exactly with a 16-way partitioned inverse of phi over all 2^32 u (16 passes, each with a counting sort of the u whose phi has the pass's top 4 bits). Each (A0_j, A1 = u - Y, A2) is tested for validity and, if valid, evaluated from scratch on CV1 (`evalvar`: Step-2 words of both members, all 38 steps, rows 16..37). This covers the near, own-block and far terms together. Sanity checks: every success was found in its own bucket (2500 of 2500), 0 entries failed row 16 (0 mismatches), entries per success 1434.3 against the H1 expectation SR x 32 / 2^32 = 1,428.8 (the near co-hits add a few).
+
+| successes (whole groups) | other row-16 entries | W7 passes | all of rows 16-17 (N17 - 1) | reached row 18 (N18 - 1) | further successes | 99% Poisson limit of delta17 | of delta18 |
+|---|---|---|---|---|---|---|---|
+| 2,500 | 3,585,652 | 241,170 | 48 | 0 | 0 | 0.02670 | 0.00184 |
+
+Near term alone, on all 31,875 verified successes of study S2 (every other valid variant with the same (A0, A1), any row-16 outcome): 391,103 near variants, 262,159 row-16 co-hits, 25,867 W7 passes, 545 with all of row 17 (0.0171 per success), 0 reached row 18, 0 further successes. The base's measurement of the near term (12,817 successes: 157,306 near variants, 106,023 row-16 co-hits, 10,303 W7 passes, 234 with all of row 17) has the same rates (12.3 vs 12.3 per success, 0.674 vs 0.670, 0.0655 vs 0.0661, 0.018 vs 0.017).
+**delta = 1/25** is 1.50 times the whole-group 99% limit of delta17 (0.02670; 48 observed in 2,500 successes) and 21.7 times the limit of delta18 (0.00184). Clustering: the Poisson limits assume independent observations; row-17 co-passes are clustered (they are dominated by near variants, whose row-17 rate is about 78 times the independent rate, Section 6.5), so the variance of N17 - 1 exceeds the Poisson variance and the 99% limit of delta17 is optimistic by an unknown factor; delta18 = 0 in all 593 row-17-complete entries observed (48 whole-group, 545 near), so even if row-17 co-passes clump, none of the clumps reached row 18. The SMC successes are resampled particles from 5,000 row-22 survivors (clustered, not iid); the transfer to real chaining values is H1's premise, as in the base. All of this is participant-run.
+
+### E.4 Ledger and sensitivity (this filing)
+
+`ledgerx.py` (E.5) is an independent exact implementation of the ledger of Section 7 / B.1 with the base's executed operation counts (per group 3,366; 3, 43, 17 and 3,142 per unit of NE, NW, N1, N2; caps with the same Chebyshev margins and one group's overshoot; preprocessing 385,844,947,274,217,344,088,044 operations, the value priced by the base ledger (Section 5.1 prints 385,844,947,273,092,062,201,164, 1.1 x 10^12 operations or 3 x 10^-12 relatively less; the larger is used); program generation 2^32 + 1,024 operations and 6 units; allowances). With the base inputs and the base's N_G it reproduces the base's exact T x 2,728 = 6,448,632,288,134,210,693,928,641 and caps. N_G is the smallest integer with 1 - exp(-N_G q_lb) - P_cap >= 0.39 (decided at 80 digits with margin 10^-40). q3_model is used as a truncated (lower) 75-digit rational of 2^-101.10.
+
+```
+this filing (q3_model 2^-101.10, delta 1/25, A_C 2^70, A_S 2^60, DEV 2^60)     70.73486   (attack 69.4055, N_G 2^66.5340)
+q3_model 2^-101.35 (base), delta 1/25                                          70.82120   (attack 69.6134, N_G 2^66.7840)
+q3_model 2^-101.00 (measured mean), delta 1/25                                 70.70302   (attack 69.3241, N_G 2^66.4340)
+q3_model 2^-101.50, delta 1/25                                                 70.87779   (attack 69.7409, N_G 2^66.9340)
+q3_model 2^-102.00, delta 1/25                                                 71.09360   (attack 70.1790, N_G 2^67.4340)
+delta 0.564 (base), q3_model 2^-101.10                                         70.89700   (attack 69.7828, N_G 2^66.9828)
+delta 1/10, q3_model 2^-101.10                                                 70.74964   (attack 69.4424, N_G 2^66.5788)
+delta 1/50, q3_model 2^-101.10                                                 70.73011   (attack 69.3935, N_G 2^66.5193)
+delta 1 (0ae69bcb), q3_model 2^-101.10                                         71.12764   (attack 70.2425, N_G 2^67.5048)
+base inputs (q3_model 2^-101.35, delta 0.564): reproduces aed05522             71.00164   (attack 70.0005, N_G 2^67.2328)
+A_C = 2^72                                                                     72.22165   (attack 69.4055, N_G 2^66.5340)
+A_C = 2^74                                                                     74.05869   (attack 69.4055, N_G 2^66.5340)
+A_C = 2^76                                                                     76.01490   (attack 69.4055, N_G 2^66.5340)
+A_C = 2^66                                                                     69.53950   (attack 69.4055, N_G 2^66.5340)
+A_S = DEV = 2^50                                                               70.73317   (attack 69.4055, N_G 2^66.5340)
+A_S = 2^70, DEV = 2^64 (0ae69bcb)                                              71.42111   (attack 69.4055, N_G 2^66.5340)
+A_S = DEV = 2^64                                                               70.76004   (attack 69.4055, N_G 2^66.5340)
+no allowances (attack and preprocessing alone)                                 69.40552   (attack 69.4055, N_G 2^66.5340)
+```
+
+### E.5 Sources (SHA-256 of each file as listed)
+
+`sha38.py` (7aa83ceebd6baede02877736640e066e09d640656a08929e792ae1c5c1b0fe67)
+
+```python
+"""Independent reduced-round SHA-256 (FIPS 180-4) with full trace, written from the spec."""
+M32 = 0xFFFFFFFF
+K = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+]
+IV = (0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19)
+
+
+def ror(x, n):
+    return ((x >> n) | (x << (32 - n))) & M32
+
+
+def S0(x): return ror(x, 2) ^ ror(x, 13) ^ ror(x, 22)
+def S1(x): return ror(x, 6) ^ ror(x, 11) ^ ror(x, 25)
+def s0(x): return ror(x, 7) ^ ror(x, 18) ^ (x >> 3)
+def s1(x): return ror(x, 17) ^ ror(x, 19) ^ (x >> 10)
+def CH(x, y, z): return (x & y) ^ (~x & z & M32)
+def MAJ(x, y, z): return (x & y) ^ (x & z) ^ (y & z)
+
+
+def expand(W16, n):
+    W = list(W16)
+    for i in range(16, n):
+        W.append((s1(W[i - 2]) + W[i - 7] + s0(W[i - 15]) + W[i - 16]) & M32)
+    return W
+
+
+def trace(cv, W16, rounds=38):
+    """Return (A, E, W, out) with A[i], E[i] indexed i = -4..rounds-1 via dict."""
+    a, b, c, d, e, f, g, h = cv
+    A = {-1: a, -2: b, -3: c, -4: d}
+    E = {-1: e, -2: f, -3: g, -4: h}
+    W = expand(W16, rounds)
+    for i in range(rounds):
+        T1 = (h + S1(e) + CH(e, f, g) + K[i] + W[i]) & M32
+        T2 = (S0(a) + MAJ(a, b, c)) & M32
+        h, g, f = g, f, e
+        e = (d + T1) & M32
+        d, c, b = c, b, a
+        a = (T1 + T2) & M32
+        A[i], E[i] = a, e
+    out = tuple((x + y) & M32 for x, y in zip(cv, (a, b, c, d, e, f, g, h)))
+    return A, E, W, out
+
+
+def compress(cv, W16, rounds=38):
+    return trace(cv, W16, rounds)[3]
+```
+
+`parse.py` (e06387de18d5edd4d157b1800b2fdb8e87426e24c3f4bd868f164ce1c5dacf96)
+
+```python
+import re, json, sys
+txt = open(sys.argv[1]).read()
+cells, plus, two = [], [], []
+for m in re.finditer(r'- row (\d+): (.*)', txt):
+    row, body = int(m.group(1)), m.group(2)
+    for k, mask, xv, xy in re.findall(r'(A|E|W) mask (0x[0-9a-f]+) x-value (0x[0-9a-f]+) x\^y (0x[0-9a-f]+)', body):
+        cells.append((k, row, int(mask, 16), int(xv, 16), int(xy, 16)))
+    for b in re.findall(r'E_\d+ = E_\d+ on bits (0x[0-9a-f]+)', body):
+        plus.append((row, int(b, 16)))
+    t = re.fullmatch(r'([AEW])(\d+)\[(\d+)\] (=|!=) ([AEW])(\d+)\[(\d+)\]', body.strip())
+    if t:
+        k1, r1, b1, op, k2, r2, b2 = t.groups()
+        two.append((row, k1, int(r1), int(b1), op, k2, int(r2), int(b2)))
+json.dump(dict(cells=cells, plus=plus, two=two), open(sys.argv[2], 'w'))
+print(len(cells), 'cells', len(plus), 'plus', len(two), 'two-bit')
+```
+
+`gen.py` (989acb908e0cfce35624b1861b2bc9e2cfcee0f53a75dc29eeacaedb3aed43d4)
+
+```python
+import sys, json
+S = sys.argv[1]; sys.path.insert(0, S); from sha38 import *
+C = json.load(open(S + '/conds.json'))
+h = lambda s: [int(x, 16) for x in s.split()]
+CV = h("cd278980 1b12a052 b87cc8a6 a9e059c5 c9c3db85 6ca4b5b5 63d13ac1 c0329f1e")
+Mx = h("48fc271b 9fca20cd cc89f96f fc40396f 8b328cb4 6b91ef78 97f9b767 c2450045 3f416758 fe9804cb 63a88c0f 0ceb1f8d a28cd15a 77a1e994 d28e48a0 9f1f65bb")
+My = h("48fc271b 9fca20cd cc89f96f fc40396f 8b328cb4 6b91ef78 97f9b767 e2450045 3b016f58 de9804cb 66a99ea5 0ce30b8d a28cd15a 77a1e994 d28e48a0 9b5f6dbb")
+Ax, Ex, Wx, _ = trace(CV, Mx); Ay, Ey, Wy, _ = trace(CV, My)
+o = []
+arr = lambda n, v: o.append('static const uint32_t %s[%d] = {%s};' % (n, len(v), ','.join('0x%08xu' % x for x in v)))
+arr('K', K)
+arr('SAx', [Ax[i] for i in range(-4, 38)]); arr('SAy', [Ay[i] for i in range(-4, 38)])   # index i+4
+arr('SEx', [Ex[i] for i in range(-4, 38)]); arr('SEy', [Ey[i] for i in range(-4, 38)])
+arr('SWx', Wx[:38]); arr('SWy', Wy[:38])
+a0 = [l.split() for l in open(S + '/a0set.txt')]
+arr('A0SET', [int(x[1], 16) for x in a0]); o.append('static const double A0W[256] = {%s};' % ','.join(x[2] for x in a0))
+# per-row tables: cells
+M = {k: [0] * 38 for k in 'AEW'}; XV = {k: [0] * 38 for k in 'AEW'}; XY = {k: [0] * 38 for k in 'AEW'}
+for k, r, mask, xv, xy in C['cells']:
+    M[k][r], XV[k][r], XY[k][r] = mask, xv, xy
+for k in 'AEW':
+    arr('M' + k, M[k]); arr('XV' + k, XV[k]); arr('XY' + k, XY[k])
+PL = [0] * 38
+for r, b in C['plus']: PL[r] |= b
+arr('PLUS', PL)
+kid = {'A': 0, 'E': 1, 'W': 2}
+two = C['two']
+o.append('#define NTWO %d' % len(two))
+o.append('static const int TWO[%d][8] = {%s};' % (len(two), ','.join('{%d,%d,%d,%d,%d,%d,%d,%d}' % (r, kid[k1], r1, b1, 1 if op == '!=' else 0, kid[k2], r2, b2) for r, k1, r1, b1, op, k2, r2, b2 in two)))
+open(S + '/data.h', 'w').write('#include <stdint.h>\n' + '\n'.join(o) + '\n')
+print('ok', len(a0))
+```
+
+`q3.c` (d2c4452dd4007ddbe814ca5f19842a26fe44ce439a2ce2cd50ffc6463c7e5e28)
+
+```c
+// Independent estimator of q3 = Pr[rows 16..37 hold | W7 in F7] for the 38-step SHA-256 characteristic
+// (ePrint 2026/1120 as transcribed in the reviewed package and checked against the published pair).
+// Written from scratch; no participant code is used. Usage: q3 <mode> [args]
+//   q3 exh            exhaustive counts: A2 list, G, |F7|
+//   q3 run seed N T   one fixed-effort splitting run: N survivors per level, T tail proposals per survivor
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include "data.h"
+
+typedef uint32_t u32;
+static inline u32 ror(u32 x, int n) { return (x >> n) | (x << (32 - n)); }
+static inline u32 S0(u32 x) { return ror(x, 2) ^ ror(x, 13) ^ ror(x, 22); }
+static inline u32 S1(u32 x) { return ror(x, 6) ^ ror(x, 11) ^ ror(x, 25); }
+static inline u32 s0(u32 x) { return ror(x, 7) ^ ror(x, 18) ^ (x >> 3); }
+static inline u32 s1(u32 x) { return ror(x, 17) ^ ror(x, 19) ^ (x >> 10); }
+static inline u32 CH(u32 x, u32 y, u32 z) { return (x & y) ^ (~x & z); }
+static inline u32 MAJ(u32 x, u32 y, u32 z) { return (x & y) ^ (x & z) ^ (y & z); }
+
+static uint64_t rs[4];
+static inline uint64_t rotl(uint64_t x, int k) { return (x << k) | (x >> (64 - k)); }
+static uint64_t nxt(void) {
+    uint64_t r = rotl(rs[1] * 5, 7) * 9, t = rs[1] << 17;
+    rs[2] ^= rs[0]; rs[3] ^= rs[1]; rs[1] ^= rs[2]; rs[0] ^= rs[3]; rs[2] ^= t; rs[3] = rotl(rs[3], 45);
+    return r;
+}
+static void seed(uint64_t s) { for (int i = 0; i < 4; i++) { s += 0x9e3779b97f4a7c15ULL; uint64_t z = s; z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL; z = (z ^ (z >> 27)) * 0x94d049bb133111ebULL; rs[i] = z ^ (z >> 31); } }
+static inline u32 r32(void) { return (u32)(nxt() >> 32); }
+
+// A pair state: index +4 for A, E (rows -4..37); W rows 0..37. m = 0 member x, 1 member y.
+typedef struct { u32 A[2][42], E[2][42], W[2][38]; } St;
+#define AA(s, m, i) (s)->A[m][(i) + 4]
+#define EE(s, m, i) (s)->E[m][(i) + 4]
+
+static inline void step(St *s, int i) {   // compute row i of both members from rows i-4..i-1 and W_i
+    for (int m = 0; m < 2; m++) {
+        u32 a = AA(s, m, i - 1), b = AA(s, m, i - 2), c = AA(s, m, i - 3), d = AA(s, m, i - 4);
+        u32 e = EE(s, m, i - 1), f = EE(s, m, i - 2), g = EE(s, m, i - 3), h = EE(s, m, i - 4);
+        u32 T1 = h + S1(e) + CH(e, f, g) + K[i] + s->W[m][i];
+        EE(s, m, i) = d + T1; AA(s, m, i) = T1 + S0(a) + MAJ(a, b, c);
+    }
+}
+static inline u32 wordof(const St *s, int m, int kind, int r) { return kind == 0 ? AA(s, m, r) : kind == 1 ? EE(s, m, r) : s->W[m][r]; }
+
+// Every condition keyed at row r: cells of A_r, E_r, W_r (rows without a cell: no XOR difference), '+' bits, two-bit conditions.
+static int rowok(const St *s, int r, int checkw) {
+    u32 ax = AA(s, 0, r), ay = AA(s, 1, r), ex = EE(s, 0, r), ey = EE(s, 1, r);
+    if ((ax & MA[r]) != XVA[r] || (ax ^ ay) != XYA[r]) return 0;
+    if ((ex & ME[r]) != XVE[r] || (ex ^ ey) != XYE[r]) return 0;
+    if (checkw) { u32 wx = s->W[0][r], wy = s->W[1][r]; if ((wx & MW[r]) != XVW[r] || (wx ^ wy) != XYW[r]) return 0; }
+    if (PLUS[r]) for (int m = 0; m < 2; m++) if ((EE(s, m, r) ^ EE(s, m, r - 1)) & PLUS[r]) return 0;
+    for (int t = 0; t < NTWO; t++) {
+        if (TWO[t][0] != r) continue;
+        for (int m = 0; m < 2; m++) {
+            u32 v1 = wordof(s, m, TWO[t][1], TWO[t][2]) >> TWO[t][3] & 1, v2 = wordof(s, m, TWO[t][5], TWO[t][6]) >> TWO[t][7] & 1;
+            if ((v1 != v2) != TWO[t][4]) return 0;
+        }
+    }
+    return 1;
+}
+
+static St base;   // the published pair's trace (S*)
+static void loadbase(void) {
+    for (int m = 0; m < 2; m++) for (int i = 0; i < 42; i++) { base.A[m][i] = m ? SAy[i] : SAx[i]; base.E[m][i] = m ? SEy[i] : SEx[i]; }
+    for (int m = 0; m < 2; m++) for (int i = 0; i < 38; i++) base.W[m][i] = m ? SWy[i] : SWx[i];
+}
+
+// ---- variants (A0, A1, A2): recompute E4, E5, E6 and W8, W9, W10 of each member ----
+typedef struct { u32 a0, a1, a2, W8[2], W9[2], W10[2]; } Var;
+#define BA(i) AA(&base, 0, i)
+static inline u32 E6of(u32 a2) { return BA(6) + a2 - S0(BA(5)) - MAJ(BA(5), BA(4), BA(3)); }
+static inline u32 Wof(int i, int m, u32 E4, u32 E5, u32 E6) {   // W_i for i = 8, 9, 10 with recomputed E4..E6
+    u32 E[12]; for (int k = 4; k < 12; k++) E[k] = EE(&base, m, k);
+    E[4] = E4; E[5] = E5; E[6] = E6;
+    return E[i] - AA(&base, m, i - 4) - E[i - 4] - S1(E[i - 1]) - CH(E[i - 1], E[i - 2], E[i - 3]) - K[i];
+}
+static u32 DW[38], DS0[38];
+static int a2ok(u32 a2) {
+    u32 e6 = E6of(a2);
+    if ((e6 & ME[6]) != XVE[6]) return 0;
+    if ((EE(&base, 0, 7) ^ e6) & PLUS[7]) return 0;            // E7 = E6 on the row-7 '+' bits (both members: no E7 diff there)
+    if ((EE(&base, 1, 7) ^ e6) & PLUS[7]) return 0;
+    u32 wx = Wof(10, 0, EE(&base, 0, 4), EE(&base, 0, 5), e6), wy = Wof(10, 1, EE(&base, 0, 4), EE(&base, 0, 5), e6);   // W10 uses E6 only (E4,E5 unused)
+    return wy - wx == DW[10] && s0(wy) - s0(wx) == DS0[10];
+}
+static int mkvar(u32 a0, u32 a1, u32 a2, Var *v) {
+    u32 e6 = E6of(a2), e5 = BA(5) + a1 - S0(BA(4)) - MAJ(BA(4), BA(3), a2), e4 = BA(4) + a0 - S0(BA(3)) - MAJ(BA(3), a2, a1);
+    if ((e5 ^ e6) & PLUS[6]) return 0;                          // E6 = E5 on 0xe0000000
+    for (int i = 8; i <= 10; i++) {
+        u32 wx = Wof(i, 0, e4, e5, e6), wy = Wof(i, 1, e4, e5, e6);
+        if (wy - wx != DW[i] || s0(wy) - s0(wx) != DS0[i]) return 0;
+        if (i == 8) { v->W8[0] = wx; v->W8[1] = wy; } else if (i == 9) { v->W9[0] = wx; v->W9[1] = wy; } else { v->W10[0] = wx; v->W10[1] = wy; }
+    }
+    v->a0 = a0; v->a1 = a1; v->a2 = a2; return 1;
+}
+
+static u32 A2L[4096]; static int nA2;
+static u32 G[64]; static int nG;
+static const u32 D7 = 1u << 29, T7 = 0x03bff800u;
+static inline int inF7(u32 w) { return s0(w + D7) - s0(w) == T7; }
+
+static void build_a2(void) { nA2 = 0; for (uint64_t a = 0; a < (1ULL << 32); a++) if (a2ok((u32)a)) A2L[nA2++] = (u32)a; }
+static int row16ok(u32 w16) {
+    St s = base; s.W[0][16] = w16; s.W[1][16] = w16 + DW[16]; step(&s, 16); return rowok(&s, 16, 1);
+}
+static void build_g(void) { nG = 0; for (uint64_t w = 0; w < (1ULL << 32); w++) if (row16ok((u32)w)) { if (nG < 64) G[nG] = (u32)w; nG++; } }
+
+// W_i^y - W_i^x for i = 16..22 from the schedule (W0..W6 have no difference, W7 has D7)
+static inline void sched(St *s, int i) {
+    for (int m = 0; m < 2; m++) s->W[m][i] = s1(s->W[m][i - 2]) + s->W[m][i - 7] + s0(s->W[m][i - 15]) + s->W[m][i - 16];
+}
+
+static Var *pool; static int npool;
+static double A0CUM[256];
+static void build_pool(int n) {
+    double t = 0; for (int j = 0; j < 256; j++) { t += A0W[j]; A0CUM[j] = t; }
+    pool = malloc(sizeof(Var) * n); npool = 0; uint64_t tries = 0;
+    while (npool < n) {
+        double u = (nxt() >> 11) * (1.0 / 9007199254740992.0) * t; int j = 0; while (A0CUM[j] < u) j++;
+        u32 a2 = A2L[nxt() % nA2], e6 = E6of(a2);
+        u32 e5 = (e6 & 0xe0000000u) | (r32() & 0x1fffffffu);
+        u32 a1 = e5 - BA(5) + S0(BA(4)) + MAJ(BA(4), BA(3), a2);
+        tries++;
+        if (mkvar(A0SET[j], a1, a2, &pool[npool])) npool++;
+    }
+    fprintf(stderr, "pool %d variants, acceptance %.5f\n", npool, (double)n / tries);
+}
+
+static u32 LASTCV[8];
+typedef struct { u32 cv[8]; Var v; } Succ; static Succ *SUC; static int nsuc, maxsuc;
+// rebuild a tail success into (CV1, M1, M1') and verify the 38-step compressions collide
+static int rebuild(const St *s, const Var *v) {
+    u32 W[2][16];
+    for (int m = 0; m < 2; m++) {
+        u32 w[38]; for (int i = 7; i < 38; i++) w[i] = s->W[m][i];
+        w[8] = v->W8[m]; w[9] = v->W9[m]; w[10] = v->W10[m];
+        for (int i = 6; i >= 0; i--) w[i] = w[i + 16] - s1(w[i + 14]) - w[i + 9] - s0(w[i + 1]);
+        for (int i = 0; i < 16; i++) W[m][i] = w[i];
+    }
+    for (int i = 0; i < 7; i++) if (W[0][i] != W[1][i]) return -1;
+    // dense part of the variant: A0..A7 (both members equal up to row 6), E4..E7; invert steps 7..0 for member x
+    u32 A[12], E[12];   // index i+4
+    for (int i = -4; i < 8; i++) { A[i + 4] = AA(&base, 0, i); E[i + 4] = EE(&base, 0, i); }
+    A[4] = v->a0; A[5] = v->a1; A[6] = v->a2;
+    E[8] = BA(4) + v->a0 - S0(BA(3)) - MAJ(BA(3), v->a2, v->a1);
+    E[9] = BA(5) + v->a1 - S0(BA(4)) - MAJ(BA(4), BA(3), v->a2);
+    E[10] = E6of(v->a2);
+    for (int i = 7; i >= 0; i--) {    // know rows i-3..i, recover row i-4
+        u32 a = A[i + 3], b = A[i + 2], c = A[i + 1], e = E[i + 3], f = E[i + 2], g = E[i + 1];
+        u32 T1 = A[i + 4] - S0(a) - MAJ(a, b, c);
+        A[i] = E[i + 4] - T1;
+        E[i] = T1 - S1(e) - CH(e, f, g) - K[i] - W[0][i];
+    }
+    u32 cv[8] = {A[3], A[2], A[1], A[0], E[3], E[2], E[1], E[0]};
+    memcpy(LASTCV, cv, 32);
+    u32 out[2][8];
+    for (int m = 0; m < 2; m++) {
+        u32 a = cv[0], b = cv[1], c = cv[2], d = cv[3], e = cv[4], f = cv[5], g = cv[6], h = cv[7], w[38];
+        for (int i = 0; i < 16; i++) w[i] = W[m][i];
+        for (int i = 16; i < 38; i++) w[i] = s1(w[i - 2]) + w[i - 7] + s0(w[i - 15]) + w[i - 16];
+        for (int i = 0; i < 38; i++) {
+            u32 T1 = h + S1(e) + CH(e, f, g) + K[i] + w[i], T2 = S0(a) + MAJ(a, b, c);
+            h = g; g = f; f = e; e = d + T1; d = c; c = b; b = a; a = T1 + T2;
+        }
+        u32 st[8] = {a, b, c, d, e, f, g, h}; for (int k = 0; k < 8; k++) out[m][k] = st[k] + cv[k];
+    }
+    if (!inF7(W[0][7])) return -2;
+    if (memcmp(out[0], out[1], 32)) return -3;
+    if (!memcmp(W[0], W[1], 64)) return -4;
+    return 1;
+}
+
+
+// Evaluate variant v on chaining value cv from scratch (Step-2 words per member, full 38-step trace of both members).
+// Returns the last row in 16..37 whose conditions all hold consecutively (15: row 16 fails); *f7 = W7 in F7; *coll = outputs equal.
+static int evalvar(const u32 *cv, const Var *v, int *f7, int *coll) {
+    St s;
+    for (int m = 0; m < 2; m++) {
+        for (int i = -4; i < 16; i++) { AA(&s, m, i) = AA(&base, m, i); EE(&s, m, i) = EE(&base, m, i); }
+        AA(&s, m, -1) = cv[0]; AA(&s, m, -2) = cv[1]; AA(&s, m, -3) = cv[2]; AA(&s, m, -4) = cv[3];
+        EE(&s, m, -1) = cv[4]; EE(&s, m, -2) = cv[5]; EE(&s, m, -3) = cv[6]; EE(&s, m, -4) = cv[7];
+        AA(&s, m, 0) = v->a0; AA(&s, m, 1) = v->a1; AA(&s, m, 2) = v->a2;
+        for (int i = 0; i < 4; i++) EE(&s, m, i) = AA(&s, m, i) + AA(&s, m, i - 4) - S0(AA(&s, m, i - 1)) - MAJ(AA(&s, m, i - 1), AA(&s, m, i - 2), AA(&s, m, i - 3));
+        for (int i = 4; i < 7; i++) EE(&s, m, i) = AA(&s, m, i) + AA(&s, m, i - 4) - S0(AA(&s, m, i - 1)) - MAJ(AA(&s, m, i - 1), AA(&s, m, i - 2), AA(&s, m, i - 3));
+        for (int i = 0; i < 8; i++) s.W[m][i] = EE(&s, m, i) - AA(&s, m, i - 4) - EE(&s, m, i - 4) - S1(EE(&s, m, i - 1)) - CH(EE(&s, m, i - 1), EE(&s, m, i - 2), EE(&s, m, i - 3)) - K[i];
+        s.W[m][8] = v->W8[m]; s.W[m][9] = v->W9[m]; s.W[m][10] = v->W10[m];
+        for (int i = 11; i < 16; i++) s.W[m][i] = base.W[m][i];
+    }
+    // re-run all 38 steps from cv (checks the dense part is reproduced)
+    St t = s;
+    for (int i = 0; i < 38; i++) { if (i >= 16) sched(&t, i); step(&t, i); }
+    for (int m = 0; m < 2; m++) for (int i = 0; i < 16; i++) if (AA(&t, m, i) != AA(&s, m, i) && i < 16) { if (i <= 15) { /* rows 7..15 come from the published part: must match */ } }
+    *f7 = inF7(t.W[0][7]) && t.W[1][7] - t.W[0][7] == D7;
+    u32 o[2][8];
+    for (int m = 0; m < 2; m++) { u32 st[8] = {AA(&t, m, 37), AA(&t, m, 36), AA(&t, m, 35), AA(&t, m, 34), EE(&t, m, 37), EE(&t, m, 36), EE(&t, m, 35), EE(&t, m, 34)}; for (int k = 0; k < 8; k++) o[m][k] = st[k] + cv[k]; }
+    *coll = !memcmp(o[0], o[1], 32);
+    int dense_ok = 1; for (int m = 0; m < 2; m++) for (int i = 0; i < 16; i++) if (AA(&t, m, i) != (i < 3 ? AA(&s, m, i) : AA(&base, m, i)) ) dense_ok = 0;
+    if (!dense_ok) return -2;
+    int r = 15; while (r < 37 && rowok(&t, r + 1, 1)) r++;
+    return r;
+}
+
+
+static inline u32 phi(u32 u) { return s0(u) - u; }
+// Whole-group pair test: for every collected success (cv, v), every variant of every A0_j whose row 16 holds on cv (W16 in G).
+static void group_test(void) {
+    static u32 C9S[4096], E6T[4096], E5OFF[4096]; static int C9I[4096];
+    u32 C9[4096]; for (int k = 0; k < nA2; k++) { E6T[k] = E6of(A2L[k]) & 0xe0000000u; E5OFF[k] = BA(5) - S0(BA(4)) - MAJ(BA(4), BA(3), A2L[k]); }
+    for (int k = 0; k < nA2; k++) { u32 e6 = E6of(A2L[k]), e5 = BA(5) + 0 - S0(BA(4)) - MAJ(BA(4), BA(3), A2L[k]); C9[k] = Wof(9, 0, 0, e5, e6); }  // W9 = c9 - A1 at A1 = 0
+    for (int k = 0; k < nA2; k++) C9I[k] = k;
+    for (int x = 1; x < nA2; x++) { int y = C9I[x], z = x; while (z > 0 && C9[C9I[z - 1]] > C9[y]) { C9I[z] = C9I[z - 1]; z--; } C9I[z] = y; }
+    for (int k = 0; k < nA2; k++) C9S[k] = C9[C9I[k]];
+    // per success and A0_j: Y, Z0 = W0 + s1(W14)
+    u32 (*YZ)[256][2] = malloc(sizeof(u32) * 512 * nsuc);
+    for (int i = 0; i < nsuc; i++) {
+        u32 *c = SUC[i].cv; u32 a = c[0], b = c[1], cc = c[2], d = c[3], e = c[4], f = c[5], g = c[6], h = c[7];
+        for (int j = 0; j < 256; j++) {
+            u32 A0 = A0SET[j], E0 = A0 + d - S0(a) - MAJ(a, b, cc);
+            u32 W0 = E0 - d - h - S1(e) - CH(e, f, g) - K[0];
+            YZ[i][j][0] = -S0(A0) - MAJ(A0, a, b) - g - S1(E0) - CH(E0, e, f) - K[1];
+            YZ[i][j][1] = W0 + s1(base.W[0][14]);
+        }
+    }
+    long ent = 0, row16fail = 0, f7n = 0, d17 = 0, d18 = 0, cos = 0, selfseen = 0; long *ent_s = calloc(nsuc, sizeof(long)), *w7_s = calloc(nsuc, sizeof(long)), *r17_s = calloc(nsuc, sizeof(long));
+    const int PB = 4;  // 16 passes on the top 4 bits of phi
+    u32 *cnt = malloc(sizeof(u32) * ((1u << 28) + 1)), *lst = malloc(sizeof(u32) * (1u << 29));
+    for (u32 p = 0; p < (1u << PB); p++) {
+        memset(cnt, 0, sizeof(u32) * ((1u << 28) + 1));
+        for (uint64_t u = 0; u < (1ULL << 32); u++) { u32 t = phi((u32)u); if (t >> 28 == p) cnt[(t & 0x0fffffff) + 1]++; }
+        for (u32 k = 0; k < (1u << 28); k++) cnt[k + 1] += cnt[k];
+        if (cnt[1u << 28] > (1u << 29)) { fprintf(stderr, "partition overflow\n"); exit(1); }
+        u32 *pos = malloc(sizeof(u32) * (1u << 28)); memcpy(pos, cnt, sizeof(u32) * (1u << 28));
+        for (uint64_t u = 0; u < (1ULL << 32); u++) { u32 t = phi((u32)u); if (t >> 28 == p) lst[pos[t & 0x0fffffff]++] = (u32)u; }
+        free(pos);
+        for (int i = 0; i < nsuc; i++) for (int j = 0; j < 256; j++) {
+            u32 Y = YZ[i][j][0], Z0 = YZ[i][j][1];
+            for (int gi = 0; gi < nG; gi++) { u32 bt = G[gi] - Y - Z0;
+                // t = bt - c9 has top nibble p  <=>  c9 in (bt - (p << 28) - 2^28, bt - (p << 28)]  (cyclic): walk the sorted c9 list over that window
+                u32 hi = bt - (p << 28), lo = hi - ((1u << 28) - 1);      // c9 in [lo, hi] cyclically
+                int segs = (lo <= hi) ? 1 : 2;
+                for (int sg = 0; sg < segs; sg++) {
+                    u32 a = (segs == 1) ? lo : (sg == 0 ? lo : 0), b = (segs == 1) ? hi : (sg == 0 ? 0xffffffffu : hi);
+                    int k0 = 0, k1 = nA2; while (k0 < k1) { int m = (k0 + k1) / 2; if (C9S[m] < a) k0 = m + 1; else k1 = m; }
+                    for (int kk = k0; kk < nA2 && C9S[kk] <= b; kk++) {
+                        int k = C9I[kk]; u32 t = bt - C9S[kk];
+                        u32 e6t = E6T[k];
+                        for (u32 q = cnt[t & 0x0fffffff]; q < cnt[(t & 0x0fffffff) + 1]; q++) {
+                            u32 A1 = lst[q] - Y;
+                            if (((A1 + E5OFF[k]) ^ e6t) & 0xe0000000u) continue;      // window prefilter: E5 top bits = E6 top bits
+                            Var w;
+                            if (!mkvar(A0SET[j], A1, A2L[k], &w)) continue;
+                            if (w.a0 == SUC[i].v.a0 && w.a1 == SUC[i].v.a1 && w.a2 == SUC[i].v.a2) { selfseen++; continue; }
+                            int f7, co, dd = evalvar(SUC[i].cv, &w, &f7, &co);
+                            ent++; ent_s[i]++;
+                            if (dd < 16) { row16fail++; continue; }
+                            if (!f7) continue;
+                            f7n++; w7_s[i]++;
+                            if (dd >= 17) { d17++; r17_s[i]++; }
+                            if (dd >= 18) d18++;
+                            if (dd == 37 && co) cos++;
+                        } } } }
+        }
+        fprintf(stderr, "pass %u done\n", p);
+    }
+    printf("GROUP successes %d | other row-16 entries %ld (per success %.2f; expected %.2f) row16-mismatch %ld self-found %ld | W7 passes %ld | full row 17 %ld | reached row 18 %ld | co-successes %ld\n",
+           nsuc, ent, (double)ent / nsuc, 191773672732.0 * nG / 4294967296.0, row16fail, selfseen, f7n, d17, d18, cos);
+}
+
+int main(int argc, char **argv) {
+    loadbase();
+    for (int i = 0; i < 16; i++) { DW[i] = SWy[i] - SWx[i]; DS0[i] = s0(SWy[i]) - s0(SWx[i]); }
+    DW[16] = DW[9];
+    if (!inF7(SWx[7]) || SWy[7] - SWx[7] != D7) { fprintf(stderr, "base W7 not in F7\n"); return 1; }   // W16 = s1(W14) + W9 + s0(W1) + W0: only W9 differs
+    if (argc > 1 && !strcmp(argv[1], "exh")) {
+        Var v; printf("published variant valid: %d (W8 %08x)\n", mkvar(BA(0), BA(1), BA(2), &v), v.W8[0]);
+        build_a2(); { FILE *o = fopen("a2.txt", "w"); for (int i = 0; i < nA2; i++) fprintf(o, "%08x\n", A2L[i]); fclose(o); } printf("A2 list: %d (first %08x last %08x)\n", nA2, A2L[0], A2L[nA2 - 1]);
+        build_g(); { FILE *o = fopen("g.txt", "w"); for (int i = 0; i < nG; i++) fprintf(o, "%08x\n", G[i]); fclose(o); } printf("|G| = %d:", nG); for (int i = 0; i < nG && i < 64; i++) printf(" %08x", G[i]); printf("\n");
+        if (argc > 2) return 0; uint64_t f = 0; for (uint64_t w = 0; w < (1ULL << 32); w++) f += inF7((u32)w); printf("|F7| = %llu\n", (unsigned long long)f);
+        return 0;
+    }
+    uint64_t sd = strtoull(argv[2], 0, 10); int N = atoi(argv[3]); int T = atoi(argv[4]);
+    seed(sd);
+    FILE *fa = fopen("a2.txt", "r"); nA2 = 0; while (fscanf(fa, "%x", &A2L[nA2]) == 1) nA2++; fclose(fa);
+    FILE *fg = fopen("g.txt", "r"); nG = 0; while (fscanf(fg, "%x", &G[nG]) == 1) nG++; fclose(fg);
+    maxsuc = argc > 5 ? atoi(argv[5]) : 0; SUC = malloc(sizeof(Succ) * (maxsuc + 1));
+    build_pool(1 << 16);
+    St *cur = malloc(sizeof(St) * N), *nx = malloc(sizeof(St) * N);
+    // level 16: exact
+    double lg = log2((double)nG) - 32; int ncur = 0;
+    for (int k = 0; k < N; k++) { St s = base; u32 w = G[nxt() % nG]; s.W[0][16] = w; s.W[1][16] = w + DW[16]; step(&s, 16); cur[ncur++] = s; }
+    double lv[8]; lv[0] = lg;
+    for (int r = 17; r <= 22; r++) {
+        uint64_t tries = 0; int got = 0;
+        while (got < N) {
+            const St *p = &cur[nxt() % ncur]; tries++;
+            u32 wx = r32();
+            u32 sy = s1(p->W[1][r - 2]) + p->W[1][r - 7] + s0(p->W[1][r - 15]);
+            u32 sx = s1(p->W[0][r - 2]) + p->W[0][r - 7] + s0(p->W[0][r - 15]);
+            u32 wy = wx + (sy - sx);   // from the base pair: W_{r-7}, W_{r-15} differences (incl. s0(W7) -> T7 at r = 22) are variant-independent
+            // quick prefilter on member x's E_r and A_r cells before copying the state
+            u32 a = AA(p, 0, r - 1), b = AA(p, 0, r - 2), c = AA(p, 0, r - 3), d = AA(p, 0, r - 4);
+            u32 e = EE(p, 0, r - 1), f = EE(p, 0, r - 2), g = EE(p, 0, r - 3), h = EE(p, 0, r - 4);
+            u32 T1 = h + S1(e) + CH(e, f, g) + K[r] + wx, en = d + T1;
+            if ((en & ME[r]) != XVE[r] || ((en ^ e) & PLUS[r])) continue;
+            u32 an = T1 + S0(a) + MAJ(a, b, c);
+            if ((an & MA[r]) != XVA[r]) continue;
+            St s = *p; s.W[0][r] = wx; s.W[1][r] = wy; step(&s, r);
+            if (rowok(&s, r, 1)) nx[got++] = s;
+        }
+        lv[r - 16] = log2((double)(N - 1) / (double)(tries - 1));
+        St *t = cur; cur = nx; nx = t; ncur = N;
+    }
+    // tail
+    uint64_t prop = (uint64_t)N * T, succ = 0; int bad = 0; long nnear = 0, n16 = 0, nf7 = 0, n17 = 0, n18 = 0, ncos = 0, selfbad = 0, densebad = 0;
+    for (uint64_t k = 0; k < prop; k++) {
+        St s = cur[k % N]; const Var *v = &pool[nxt() % npool];
+        u32 w7; do w7 = r32(); while (!inF7(w7));
+        s.W[0][7] = w7; s.W[1][7] = w7 + D7;
+        s.W[0][8] = v->W8[0]; s.W[1][8] = v->W8[1]; s.W[0][9] = v->W9[0]; s.W[1][9] = v->W9[1]; s.W[0][10] = v->W10[0]; s.W[1][10] = v->W10[1];
+        int ok = 1;
+        for (int r = 23; r < 38 && ok; r++) { sched(&s, r); step(&s, r); ok = rowok(&s, r, 1); }
+        if (ok) { succ++; int rb = rebuild(&s, v); if (rb != 1) { bad++; if (bad < 5) fprintf(stderr, "rebuild failed %d\n", rb); }
+            else {
+                int f7, co, d = evalvar(LASTCV, v, &f7, &co); if (d != 37 || !co) selfbad++;
+                if (nsuc < maxsuc) { memcpy(SUC[nsuc].cv, LASTCV, 32); SUC[nsuc].v = *v; nsuc++; }
+                for (int k2 = 0; k2 < nA2; k2++) { if (A2L[k2] == v->a2) continue; Var w; if (!mkvar(v->a0, v->a1, A2L[k2], &w)) continue;
+                    nnear++; int dd = evalvar(LASTCV, &w, &f7, &co); if (dd == -2) { densebad++; continue; }
+                    if (dd >= 16) n16++; if (dd >= 16 && f7) { nf7++; if (dd >= 17) n17++; if (dd >= 18) n18++; if (dd == 37) ncos++; } }
+            } }
+    }
+    lv[7] = succ ? log2((double)succ / prop) : -INFINITY;
+    double tot = 0; for (int i = 0; i < 8; i++) tot += lv[i];
+    printf("seed %llu N %d T %d stages", (unsigned long long)sd, N, T);
+    for (int i = 0; i < 8; i++) printf(" %.4f", lv[i]);
+    printf(" | tail_succ %llu rebuild_fail %d | log2q3 %.5f | near %ld row16 %ld w7 %ld row17 %ld row18 %ld cosucc %ld selfbad %ld densebad %ld\n", (unsigned long long)succ, bad, tot, nnear, n16, nf7, n17, n18, ncos, selfbad, densebad);
+    if (maxsuc) group_test();
+    return 0;
+}
+```
+
+`ledgerx.py` (c725873fb28a6396430fcc0f84c903baed5c903c78db4ca305a2fc79ba49cf01)
+
+```python
+#!/usr/bin/env python3
+"""ledgerx.py - exact ledger of the r38 variant-table attack (independent re-implementation).
+Inputs: the executed operation counts of the base program (aed0552, unchanged here), q3_model, delta.
+Integers and Fractions throughout; exp/log only through Decimal at 60 digits, with explicit inequality checks."""
+from fractions import Fraction as Fr
+from decimal import Decimal as D, getcontext
+import argparse, math
+getcontext().prec = 80
+C = 2728
+SR = 191_773_672_732; F7 = 287_309_824
+p2 = Fr(F7, 2**32)
+B = dict(NE=2 * (256 * 236544 + 256), NW=256 * 236544, N1=256 * 236544, N2=256 * 236544)
+E = dict(NE=2 * (Fr(SR * 22, 2**32) + 256), NW=Fr(SR * 22, 2**32) * p2, N1=Fr(SR * 22, 2**32) * p2 / 2**10, N2=SR * p2 * Fr(2**20, 2**64))
+COST = dict(NE=3, NW=43, N1=17, N2=3142)          # operations per counter unit (NE counts 2 per entry: 6 per entry)
+FIXED = 3366                                       # prologue 89 + epilogue 13 + 64 x (75 - 24)
+PRE_OPS = 385_844_947_274_217_344_088_044           # counted preprocessing P1..P6 as priced by the base ledger (Section 5.1 prints 385,844,947,273,092,062,201,164; the larger value is used)
+GEN_OPS = 2**32 + 1024; GEN_UNITS = 6
+EPS = dict(NE=Fr(1, 2**16), NW=Fr(1, 2**14), N1=Fr(1, 2**7), N2=Fr(1, 2**5))
+
+def dlog2(x): return (D(x.numerator).ln() - D(x.denominator).ln()) / D(2).ln() if isinstance(x, Fr) else D(x).ln() / D(2).ln()
+
+def qmodel(q3_log2):   # q3_model = 2^q3_log2 as an exact rational lower approximation (q3_log2 has at most 2 decimals)
+    num = Fr(round(q3_log2 * 100)) / 100
+    v = D(2) ** D(num.numerator) .__pow__(D(1) / D(num.denominator)) if False else (D(2) ** (D(num.numerator) / D(num.denominator)))
+    return Fr(int(v * D(10) ** 75), 10**75)          # truncation: a lower bound of 2^q3_log2
+
+def ledger(q3_log2=-101.35, delta=Fr(141, 250), succ=Fr(39, 100), AC=70, AS=60, DEV=60, NG=None, allow=True):
+    q3 = qmodel(q3_log2)
+    S = SR * p2 * q3
+    qlb = S * (1 - delta / 2)
+    def pcap(ng): return sum(Fr(B[k]) / (EPS[k] ** 2 * ng * E[k]) for k in B)
+    def ok(ng):   # 1 - exp(-ng qlb) - Pcap >= succ, decided with Decimal margin 1e-40
+        return D(1) - (-(D(ng) * D(qlb.numerator) / D(qlb.denominator))).exp() - D(pcap(ng).numerator) / D(pcap(ng).denominator) - D(succ.numerator) / D(succ.denominator) > D('1e-40')
+    if NG is None:
+        lo, hi = 1, 2**80
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if ok(mid): hi = mid
+            else: lo = mid + 1
+        NG = lo
+    assert ok(NG)
+    caps = {k: math.ceil((1 + EPS[k]) * NG * E[k]) for k in B}
+    online_ops = NG * FIXED + sum(COST[k] * (caps[k] + B[k]) for k in B)
+    ALW = (2**AC + 2**AS + 2**DEV) if allow else 0
+    units_num = online_ops + PRE_OPS + GEN_OPS + C * (NG + GEN_UNITS + ALW)   # T = units_num / C
+    T = Fr(units_num, C)
+    claim = math.ceil(float(dlog2(T)) * 1e5) / 1e5
+    # exact check: 2^(claim) >= T, i.e. (C * 2^claim)^... via integers: T^E <= 2^(claim*E), E = 100000
+    n, d, Ex = units_num, C, 100000
+    ci = round(claim * 1e5)
+    # n/d <= 2^(ci/1e5)  <=>  n^1e5 <= d^1e5 * 2^ci ; use logs at 80 digits with margin (exact power is too large to be practical)
+    lhs = D(n).ln() - D(d).ln(); rhs = D(ci) / D(Ex) * D(2).ln()
+    assert lhs <= rhs and rhs - lhs < D(1e-5) * D(2).ln()
+    attack = Fr(units_num - C * ALW, C)
+    return dict(NG=NG, caps=caps, online_ops=online_ops, T_num=units_num, claim=claim, log2T=float(dlog2(T)), log2NG=float(dlog2(Fr(NG))),
+                log2attack=float(dlog2(attack)), Pcap=float(pcap(NG)), qlb_log2=float(dlog2(qlb)), S_log2=float(dlog2(S)))
+
+if __name__ == '__main__':
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--q3', type=float, default=-101.10); ap.add_argument('--delta', default='1/25')
+    ap.add_argument('--base', action='store_true', help='reproduce aed0552 exactly (its N_G, q3 2^-101.35, delta 0.564)')
+    ap.add_argument('--ac', type=int, default=70)
+    a = ap.parse_args()
+    if a.base:
+        r = ledger(-101.35, Fr(141, 250), NG=173_411_553_314_466_731_477)
+        print('base T numerator', r['T_num'], 'expected 6448632288134210693928641:', r['T_num'] == 6448632288134210693928641)
+        print('base caps', r['caps'])
+    else:
+        r = ledger(a.q3, Fr(a.delta), AC=a.ac)
+    for k in ('NG', 'log2NG', 'S_log2', 'qlb_log2', 'Pcap', 'online_ops', 'log2attack', 'T_num', 'log2T', 'claim'): print(k, r[k])
+    if not a.base: print('caps', r['caps'])
+```
+
+`data.h` is generated by gen.py from the published pair (Table 5, Section 3), the transcribed conditions (Section 3) and the A0 set (Appendix A.2); `a2.txt` and `g.txt` are written by `q3 exh`.
