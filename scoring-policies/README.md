@@ -84,8 +84,11 @@ addition to the existing checker and review sources. Historical rows retain thei
 original evidence fingerprints during migration. Judge `normalized_score_log2`
 and nominal security/reference fields retain their computation meanings; the
 nominal reference does not include a memory bound or combined-score baseline.
-The separate trusted Pareto successor's `timeLog2` objective continues to use the
-time bound without scalar-policy markers, including its Orchard accounting path.
+For a trusted Pareto adapter, this root scorer returns the reviewed time bound
+without scalar-policy markers, including Orchard. The separately maintained
+production Pareto harness declares its own normalized objectives and projects raw
+metrics independently; its objectives are outside this scalar maintenance.
+
 The original v5 cost-model file and resource accounting stay unchanged.
 
 [Golden vectors](../tests/fixtures/scalar-scoring/approved-policy-vectors.json)
@@ -94,107 +97,37 @@ arithmetic fixtures, not qualified attacks or historical artifacts.
 
 ## One-time offline Yukon plan filling
 
-This operator workflow is limited to migrating the original HashSmash scalar
-challenge with the approved `hashsmash-scalar-tm-v1` definition and hash above.
-The backend rejects standalone benchmarks, other challenges and other policies.
-Its allowed challenge IDs are:
+Migration uses a separately reviewed local operator and offline Python filler,
+retained outside the application and this repository. Obtain their private
+`LOCAL_SCALAR_MAINTENANCE.md` runbook, pinned source and checksum receipt before
+use. The one-time tools may be retired after verified migration; the normal
+scorer, resource/policy helpers, policy definition, UI decoding, review guards and
+audit data remain in use.
+
+The operator accepts only this exact approved policy and the original HashSmash
+challenges:
 
 - Production: `24e42a9c-0c09-4876-93c9-f59a1038c0e9`.
-- Development: `f7921907-1e83-4b42-93b4-4d4a4dc2607c` (preview/dry-run rehearsal only).
+- Development: `f7921907-1e83-4b42-93b4-4d4a4dc2607c` (preview/dry-run only; apply is rejected).
 
-The filler and backend maintenance commands can be retired after the verified
-migration. The normal scorer, pure resource/policy helpers, policy definition,
-UI decoding and review workflow remain in use. Artificial definitions supported
-by the arithmetic helper do not expand the maintenance workflow's scope.
+Its six-field policy reference is `{id,sourceRef,definitionSha256,scoreMetric,sourceCostModelId,timeUnit}`.
+The operator independently verifies finite nonnegative resource exponents and
+exact agreement with the approved formula. A frozen preview binds all identities,
+source fields, metrics and descriptions. The offline filler changes only null
+`newScore` proposals, preserves opaque hashes and uses no database. Any description
+proposal is separately reviewed. Follow the local runbook for strict schema,
+exclusive mode0600 outputs, snapshot and exact approval-hash checks.
 
-The backend's `scalar-rescore preview` produces a frozen plan with `newScore: null`
-for each baseline, current incumbent and scored submission. Fill all proposed
-values with the approved policy definition without database access:
+`metricsSha256` binds original PostgreSQL metrics-column text, not the readable
+JSON projection; never reconstruct it from parsed metrics. Locked dry-run/apply
+must preserve the incumbent as the best baseline/eligible-published score, with
+ties allowed. A mismatch or stale plan aborts without choosing a new winner.
+Original evidence, reviewed bounds, decisions, publication history and exact
+unrelated database values remain intact.
 
-```sh
-python3 scripts/fill_scalar_rescore_plan.py \
-  --plan /path/to/frozen-preview.json \
-  --policy scoring-policies/hashsmash-scalar-tm-v1.json \
-  --out /path/to/new-filled-plan.json
-```
-
-`--policy` is the complete definition described above. This differs from the
-backend preview's policy-reference JSON, which contains `id`, `sourceRef`,
-`definitionSha256`, `scoreMetric`, `sourceCostModelId` and `timeUnit`. The reference's
-ID, hash, metric, source model and time unit must match the full definition exactly.
-Preview and locked apply also require every retained resource record to match
-that source model and unit. The backend independently verifies the fixed approved
-formula `timeLog2 + max(0, memoryLog2Bytes - 20)`: retained time/memory exponents
-must be finite, nonnegative numbers, and every proposed `newScore` must be finite
-and exactly equal to that result. This check supports only the approved policy.
-The policy's `sourceRef` is operator provenance,
-preserved unchanged; it is not an execution pin.
-
-The maintenance plan preserves every track's existing source fields. It has no
-`nextSourceRef` field or source-activation operation. Scalar GitHub Actions jobs
-execute the live branch tip. Publish and verify the approved scorer on that branch
-before applying the score migration, with submissions paused, jobs drained and
-the source held stable through the reviewed maintenance window. Updating a stored
-source reference alone would not select the scorer for future scalar submissions.
-
-The filler requires compatible v5 time and memory metrics and a consistent existing
-score. Original `scoreMetric: timeLog2` records must have `oldScore == timeLog2`
-and no scalar projection markers. A previously normalized record requires its
-exact policy ID and hash, with `oldScore` matching that definition applied to the
-retained bounds. The target definition is recognized automatically; supply any
-other existing definitions explicitly with repeated
-`--existing-policy /path/to/previous-definition.json` arguments. Unknown, partial
-or conflicting markers fail closed. Historical review conclusions are not
-revalidated or replaced by the filler.
-
-Every proposal must initially be null. Incomplete entries, unknown structural
-fields, duplicate identities, nonfinite inputs or results and a mismatched policy
-stop without emitting a plan. The current incumbent is calculated from its own
-record; the filler never selects a replacement. After frozen-plan validation,
-backend dry-run and apply require that proposed incumbent to equal the best
-proposed score among the baseline and eligible published submissions under DB
-locks (the minimum for HashSmash, with ties allowed). Eligible rows must be
-nondeleted, accepted, promoted, have a nonnull promoted source reference and a
-nonnull official score. Eligibility comes only from locked DB rows, never plan
-metrics or caller-supplied IDs. A mismatch stops maintenance without selecting a
-winner or rewriting publication history; it requires a separately reviewed
-resolution. The null-valued preview and offline filler cannot establish this
-invariant.
-
-The output preserves all input identities, row order, the supplied metrics
-projection, source references and frozen hashes,
-changing only each `newScore`. Each track's required `description` is the exact
-frozen existing text. An optional operator-authored `nextDescription` is preserved
-exactly, including whitespace; the filler never generates, trims or applies it.
-The backend accepts proposals of 1–10,000 characters with nonwhitespace content,
-validates them in its strict schema and applies them in the maintenance transaction.
-Omitting `nextDescription` leaves that track's description unchanged. Parent/operator
-populates approved descriptions from the final manifest separately; the filler
-still changes only score proposals. JSON formatting may change. Input JSON rejects
-duplicate keys and nonfinite values and is limited to 64 MiB per file.
-
-The destination must be a distinct new file. It is created exclusively with mode
-`0600`; existing files and final-path symlinks are refused. The printed JSON summary
-reports track, submission and score counts, increases/decreases/ties, policy
-identity, and the next Yukon `scalar-rescore dry-run --plan` command. No individual score values or
-metrics are dumped to stdout.
-
-The filler checks the version-1 traversal contract and HashSmash arithmetic. The
-backend's strict schema and locked dry-run remain authoritative for authentic
-metrics, complete membership, stale state and the approval hash. In particular,
-`metricsSha256` is SHA-256 of the original PostgreSQL metrics column's `::text`
-UTF-8 bytes without a trailing LF; SQL NULL uses the literal bytes `null`. It must
-remain opaque: parsed `plan.metrics` can round unrelated enormous integers, so
-neither Python nor JavaScript may reconstruct this digest from that projection.
-`metricsSha256` and the exact raw-row `snapshotSha256` are preserved unchanged.
-The backend applies SQL JSONB patches to the original metrics column, preserving
-unrelated exact numbers instead of writing the parsed projection back to the DB.
-The approval plan hash uses Yukon's sorted JavaScript JSON without LF; the
-explicit mathematical definition hash uses the LF described above.
-
-Run the backend dry-run in the maintained environment after filling, review its
-exact result and approval hash, and apply in production only through the separate
-authorized operator procedure. The backend rejects development apply even with a
-matching approval hash; development preview/dry-run remain available.
-If state changed, obtain a fresh preview and fill a new file.
-This command has no DB connection, source activation, rejudging or apply operation.
+The tools run locally, but live apply must wait for permanent UI support for
+normalized scores and stale-review guards to be released. Verify the approved
+scalar harness on the registered branch within a paused/drained maintenance
+window, holding source, configuration and reviews stable. Policy `sourceRef` is
+provenance, not an execution pin; neither tool activates the source branch. Use
+only the separately authorized production plan; development remains read-only.
