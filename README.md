@@ -8,10 +8,11 @@ and BLAKE3 1/2. Operators must close SHA-256 31/32 while retaining their registr
 and public history; the manifest cannot set lifecycle state. The new SHA-256 pair
 is organizer-selected exploration, with no first-unbroken boundary asserted.
 
-The local registry contains 26 runnable lanes: 22 current research lanes and four
-historical SHA-256 31/32 lanes, plus four deferred Poseidon slots. The new pair has
+The local registry contains 28 runnable lanes: 24 current research lanes and four
+historical SHA-256 31/32 lanes. Poseidon is defined at rounds 1/2, so no slot
+remains deferred. The SHA-256 and Poseidon pairs have
 exploratory lanes only. Other defined targets retain independent exploratory and
-rigorous lanes. Rigorous, MD5, SHA-1 and Keccak[800] tracks remain outside the manifest.
+rigorous lanes. Rigorous, MD5, SHA-1, Keccak[800] and Poseidon tracks remain outside the manifest.
 See the [round migration handoff](./docs/SHA256_ROUND_MIGRATION.md) for qualification,
 closure, configuration refresh and the separate Yukon UI change.
 
@@ -125,7 +126,8 @@ changes for every lane, so reconciliation alone is insufficient: follow the
 [guarded refresh and UI handoff](./docs/SHA256_ROUND_MIGRATION.md). New draft values
 cannot seed an import. A separately intended fresh import would require eight
 qualified baselines and explicit closure of r31/r32; it does not preserve an
-existing challenge's history. Poseidon remains deferred.
+existing challenge's history. Poseidon is defined locally but unregistered,
+pending an admissible baseline for each lane.
 
 Before opening, test Yukon-driven validation, non-editable-path rejection, and
 promotion while preserving sibling tracks in both lanes. Humans review harness

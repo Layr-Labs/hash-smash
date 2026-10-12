@@ -41,10 +41,13 @@ gate and candidate-only baseline restoration before replay.
 
 SHA-256 rounds 37/38 and BLAKE3 rounds 1/2 are organizer-selected exploration
 targets. An eventual eight competing tracks would include two exploratory
-Poseidon targets (ten registrations with SHA history retained), still excluded
-until their parameters, round pair, and qualified baselines are ready. The broader
+Poseidon targets (ten registrations with SHA history retained). Their parameters
+and round pair are now pinned, so they remain excluded only until each lane has
+a qualified baseline. The broader
 local catalog is retained for research; it does not define live membership.
-Do not manufacture boundaries or scores to make `--require-complete` pass.
+Every slot now has a definition, so `--require-complete` passes on definitions
+alone. Do not read that as a boundary or a baseline, and do not manufacture
+either to keep it passing.
 
 HashSmash needs neither Willow's M3 Max runner group and JIT App nor its Rust
 toolchain, Seatbelt bridge, private leaf tarball, or wall-time attack score.

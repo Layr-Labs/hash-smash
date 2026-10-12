@@ -24,9 +24,9 @@ rounds. Yukon archival removes records from normal public benchmark endpoints.
 Keeping the old records closed preserves access to their results and URLs.
 
 All four local r31/r32 lane identities, profiles, workflows, candidates and
-historical artifact references remain intact. The registry has 26 runnable lanes:
-22 current research lanes plus four historical lanes. The current plan has 26
-slots: 22 defined and four deferred Poseidon slots. The new SHA pair has only two
+historical artifact references remain intact. The registry has 28 runnable lanes:
+24 current research lanes plus four historical lanes. The current plan has 24
+slots, all defined, since Poseidon took exploratory lanes only. The new SHA pair has only two
 exploratory lanes; rigorous r37/r38 packages/workflows are not introduced. Local
 registry membership does not imply registration or open admission.
 

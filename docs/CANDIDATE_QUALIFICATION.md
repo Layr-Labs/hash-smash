@@ -4,7 +4,7 @@ This is an organizer baseline-authoring handoff, reached through the
 [builder guide](./BUILDER_GUIDE.md). Its feature-branch/PR deliverables and local
 provider review are for explicitly assigned import preparation. Ranked Yukon
 solvers follow [TASK.md](../TASK.md) and submit through Yukon instead.
-The registry retains 26 runnable lanes and four deferred Poseidon slots. The
+The registry retains 28 runnable lanes, with Poseidon defined at rounds 1/2. The
 manifest keeps eight exploratory registrations, including historical SHA-256
 31/32 records to close. The new organizer assignment covers **only the two
 exploratory SHA-256 37/38 starter packages**. Existing candidates remain unchanged.
@@ -34,8 +34,8 @@ Assign explicit candidate directories to each worker; a solver edits only its
 assigned directory. Use a separate worktree and feature branch, then open a PR,
 so candidate work does not interfere with the harness branch. Do not change target
 profiles, cost models, schemas, manifests, judge prompts, validators, workflows,
-or generated scores to get a candidate accepted. Use the pinned SHA-256 37/38 profiles; do not invent a Poseidon
-definition. Keep all packages
+or generated scores to get a candidate accepted. Use the pinned SHA-256 37/38 profiles; do not invent a target
+definition or alter the pinned Poseidon one. Keep all packages
 independent even when they adapt the same underlying argument.
 
 Read `docs/BUILDER_GUIDE.md`, `docs/FRONTIER_LANES.md`, `docs/JUDGE_LANES.md`,

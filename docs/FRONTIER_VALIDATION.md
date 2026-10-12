@@ -1,5 +1,63 @@
 # Paired-lane validation record
 
+## Poseidon target definition: 2026-10-12
+
+Offline checks against base `c2a8d4c7d7716ca9855375a585e50c09ec55a538`:
+
+- `bash .yukon/setup.sh`: **348 tests discovered, 343 passed, five opt-in Docker
+  tests skipped** (23 verifier, 84 judge, 241 general). The same base without
+  this change discovers 311 and passes 306, so the 37 added tests are the whole
+  difference. No live provider or participant code executed.
+- `python3 scripts/validate_frontier_config.py`: eight manifest registrations,
+  28 runnable local lanes (four historical), 24 current planned slots and zero
+  pending slots. `--require-complete` now passes, because every slot has a
+  definition. That reports definitions only, never a boundary or a baseline.
+- All 22 official Orchard vectors reproduce against the deployed instance:
+  **11/11 permutation vectors and 11/11 hash vectors**, pinned from
+  `halo2_poseidon` 0.2.0 at tag `halo2_poseidon-0.2.0` with provenance recorded
+  in [the fixture notes](../tests/fixtures/orchard-poseidon-vectors.md). All 192
+  round constants and the 3x3 MDS matrix equal that pinned source, and every
+  value is a canonical field element.
+- Negative controls fail as they must: a changed round constant, a changed MDS
+  entry, a wrong capacity element, a wrong round count and an all-full-round
+  schedule each break the official vectors, measured against a passing baseline
+  in the same test class.
+- Rounds 1 and 2 have no official vector upstream, so every prefix from 1 to 64
+  is checked against a reference written independently from the round
+  definition, and the three digests for rounds 1, 2 and 64 are mutually
+  distinct.
+- Canonical encoding is enforced. An element encoded as `x + p`, an element
+  equal to `p`, and any length other than 64 bytes are rejected by the hash and
+  reported by certificate verification as a message outside the target domain.
+  Without that gate `x` and `x + p` would be a trivial collision. Domain
+  failures raise a dedicated error, so a configuration fault such as an
+  unsupported round count is never relabeled as a rejected witness.
+- Instrumented reference prices are **C = 27 and C = 54**, counting one modular
+  addition and one modular multiplication as one primitive operation each: 18
+  multiplications and 9 additions for one round, 36 and 18 for two. The same
+  counter reports 816 multiplications (240 in S-boxes, 576 in the MDS) and 576
+  additions at the deployed 64 rounds. The shared `collision-frontier-v5` policy
+  text is unchanged, so this counting rule remains a proposal.
+- The nominal reference is 127 for both targets, not 128, because the output
+  space is the Pallas field order of about 2^254 rather than the 32-byte digest
+  encoding. The draft claim template now reads that exponent from the registry.
+- Both draft packages pass `local_tracks.py check` mechanically as drafts, with
+  zero certificates and `qualified: false`.
+- All 128 existing candidate files, 15 existing target profiles and the reorg
+  history are byte-identical to base, and `benchmark.json` is unchanged.
+- [Fingerprint comparison](./validation/poseidon-orchard-fingerprints.json)
+  records every existing lane before and after: **26/26 hashes change** from the
+  shared registry, schema, cost-table and checker inputs. Each change is confined
+  to `cost_model`, `qualification_policy` and `reference_checker_sha256`, and
+  every existing lane's selected operation weights are unchanged.
+  `yukon-unsafe` and a guarded refresh are required; old evidence remains
+  historical and cannot satisfy new configuration gates.
+
+These checks define the target. They do not qualify a cryptanalytic baseline,
+register a track, or establish any live Yukon state. Both Poseidon packages
+remain unqualified drafts, the root manifest still holds eight registrations,
+and the round pair is explicitly provisional.
+
 ## SHA-256 round migration: 2026-10-07
 
 Offline checks against production base `453b888ec54f554e63250dd2c26d638c254c2358`:

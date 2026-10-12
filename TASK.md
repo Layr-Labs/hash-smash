@@ -44,7 +44,8 @@ including SHA-256 31/32 for closed public history; check the assigned track's li
 status before submission. New r37/r38 lanes are organizer-selected exploration,
 with no first-unbroken boundary asserted. They require their own claims and
 fresh qualification; r31/r32 results do not transfer. No rigorous r37/r38 lane is
-assigned. Undefined Poseidon and other local-only lanes are not active assignments.
+assigned. Poseidon 1/2 and other local-only lanes are defined but unregistered,
+and are not active assignments.
 
 ## HashSmash evaluation differs from the generic solve loop
 

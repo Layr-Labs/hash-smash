@@ -94,7 +94,7 @@ class FrontierPipelineTests(unittest.TestCase):
 
     def test_every_registered_track_runs_end_to_end_with_independent_bound_outputs(self):
         tracks = frontier_tracks()
-        self.assertEqual(len(tracks), 26)
+        self.assertEqual(len(tracks), 28)
         manifest = read_json(ROOT / "benchmark.json")
         atomic_write_json(self.root / "benchmark.json", manifest)
         manifest_tracks = {row["name"]: row for row in manifest["tracks"]}
@@ -138,18 +138,19 @@ class FrontierPipelineTests(unittest.TestCase):
                 outputs.add(paths.score)
                 configs.add(score["metrics"]["targetConfigSha256"])
                 packages.add(score["metrics"]["inputPackageSha256"])
-        self.assertEqual(len(outputs), 26)
-        self.assertEqual(len(configs), 26)
-        self.assertEqual(len(packages), 26)
+        self.assertEqual(len(outputs), 28)
+        self.assertEqual(len(configs), 28)
+        self.assertEqual(len(packages), 28)
 
-    def test_catalog_and_yukon_manifests_preserve_pending_slots_and_literal_routes(self):
+    def test_catalog_and_yukon_manifests_have_no_pending_slots_and_literal_routes(self):
         slots = planned_slots()
-        self.assertEqual(len(slots), 26)
-        self.assertEqual(sum(slot["rounds"] is None for slot in slots), 4)
+        self.assertEqual(len(slots), 24)
+        self.assertEqual(sum(slot["rounds"] is None for slot in slots), 0)
         self.assertEqual({slot["cost_model_id"] for slot in slots}, {"collision-frontier-v5"})
         families = {family["id"]: family for family in catalog()["families"]}
         self.assertEqual(families["sha256"]["round_pair"], [37, 38])
-        for family, pair in (("sha256", [37, 38]), ("blake3", [1, 2]), ("keccak800", [5, 6])):
+        for family, pair in (("sha256", [37, 38]), ("blake3", [1, 2]), ("keccak800", [5, 6]),
+                             ("poseidon", [1, 2])):
             self.assertEqual(families[family]["round_pair"], pair)
             self.assertEqual(families[family]["selection_status"], "organizer_selected")
             self.assertIsNone(families[family]["first_unbroken_round"])

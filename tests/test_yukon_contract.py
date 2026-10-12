@@ -15,8 +15,8 @@ class YukonContractTests(unittest.TestCase):
         configuration = validate_configuration()
         self.assertEqual(configuration["yukon_challenges"], 1)
         self.assertEqual(configuration["import_tracks"], 8)
-        self.assertEqual(configuration["runnable_tracks"], 26)
-        self.assertEqual(configuration["pending_tracks"], 4)
+        self.assertEqual(configuration["runnable_tracks"], 28)
+        self.assertEqual(configuration["pending_tracks"], 0)
         for track in frontier_tracks():
             workflow = (ROOT / ".github/workflows" / f"{track.id}.yml").read_text()
             self.assertIn("workflow_dispatch:", workflow)

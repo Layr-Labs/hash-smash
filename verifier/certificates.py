@@ -13,6 +13,7 @@ from .intake import validate_candidate
 from .io import atomic_write_json, ensure_output_outside_root, sha256_bytes
 from .hash_functions import digest
 from .frontier_tracks import LaneTrack
+from .poseidon import MessageDomainError
 
 
 def _read_certificate_file(candidate: Path, relative: str) -> bytes:
@@ -64,8 +65,18 @@ def verify_certificates(candidate_root: str | os.PathLike[str], output_path: str
                 raise VerificationError(
                     f"certificate {certificate['id']}: ordinary collision messages must differ"
                 )
-            digest_a = digest(message_a, track.algorithm, track.rounds).hex()
-            digest_b = digest(message_b, track.algorithm, track.rounds).hex()
+            # A target may restrict its message domain, for example to a fixed
+            # length or to canonical field element encodings. A witness outside
+            # that domain is a failed certificate, not a harness crash. Only a
+            # domain failure is caught here; a configuration error such as an
+            # unsupported round count must stay an error, not a rejected witness.
+            try:
+                digest_a = digest(message_a, track.algorithm, track.rounds).hex()
+                digest_b = digest(message_b, track.algorithm, track.rounds).hex()
+            except MessageDomainError as error:
+                raise VerificationError(
+                    f"certificate {certificate['id']}: message outside the target message domain: {error}"
+                ) from error
             expected = certificate["expected_digest"]
             if digest_a != expected:
                 raise VerificationError(

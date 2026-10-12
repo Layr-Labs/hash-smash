@@ -1,7 +1,8 @@
 # HashSmash documentation
 
-The local registry contains 26 runnable lanes (22 current and four historical),
-with four deferred Poseidon slots. The root manifest retains eight exploratory
+The local registry contains 28 runnable lanes (24 current and four historical),
+with no slot deferred now that Poseidon is defined at rounds 1/2 with
+exploratory lanes only. The root manifest retains eight exploratory
 registrations; six are intended to compete after closing SHA-256 31/32. Shell commands and
 plain file paths in current guides are relative to the repository root, which
 is the single Yukon import and CLI work directory. Markdown links resolve from

@@ -136,11 +136,16 @@ class LaneTrack:
         return float(self.nominal_security_bits)
 
     def draft_claim(self) -> dict:
-        """Organizer template, independent of the mutable solver candidate."""
+        """Organizer template, independent of the mutable solver candidate.
+
+        The template starts at the registry's nominal exponent. That is half
+        the digest width only when the output space fills the encoding, which
+        is false for a prime-field target whose output space is below 2^256.
+        """
         return {
             "schema_version": 3, "submission_state": "draft", "target_profile": self.profile_id,
             "attack_class": "ordinary-collision", "rounds": self.rounds,
-            "claim": {"time_log2": self.digest_bits / 2, "time_unit": "target-compressions",
+            "claim": {"time_log2": self.nominal_score, "time_unit": "target-compressions",
                       "memory_log2_bytes": 0,
                       "preprocessing_log2": 0, "success_probability": 0.39,
                       "nonuniform_advice_log2_bytes": 0},

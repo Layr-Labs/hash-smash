@@ -56,6 +56,8 @@
     "blake3-r1": 222,
     "blake3-r2": 430,
     "sha256-r37": 2644,
-    "sha256-r38": 2728
+    "sha256-r38": 2728,
+    "poseidon-r1": 27,
+    "poseidon-r2": 54
   }
 }

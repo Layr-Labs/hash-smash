@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "cost_model_id": "collision-frontier-v5",
-  "selection_date": "2026-10-07",
+  "selection_date": "2026-10-12",
   "mockup": "https://zooko.github.io/hashsmash-webdesigns/small-multiples.html",
-  "planned_lane_count": 26,
+  "planned_lane_count": 24,
   "families": [
     {
       "id": "md5",
@@ -117,13 +117,19 @@
       "id": "poseidon",
       "algorithm": "poseidon",
       "label": "Poseidon",
-      "full_rounds": null,
-      "digest_bits": null,
-      "nominal_security_bits": 128,
-      "round_pair": null,
+      "full_rounds": 64,
+      "digest_bits": 256,
+      "nominal_security_bits": 127,
+      "round_pair": [
+        1,
+        2
+      ],
       "first_unbroken_round": null,
-      "selection_status": "needs_definition",
-      "selection_note": "Mockup is provisional. Choose field, width, exponent, constants, sponge/compression encoding, full/partial schedule and reduction convention before selecting or executing two round counts."
+      "selection_status": "organizer_selected",
+      "selection_note": "Organizer-selected exploration pair (2026-10-12); no established first-unbroken ordinary-collision boundary is asserted. Zcash Orchard PoseidonHash, the deployed P128Pow5T3 instance over the Pallas base field: width 3, rate 2, capacity 1, S-box x^5, R_F=8 and R_P=56 for 64 deployed rounds. ConstantLength<2> hashing with initial state [m0, m1, 2^65], one permutation, and output state element 0. Prefix rounds of the deployed schedule, keeping deployed constant row i for round i and the deployed MDS matrix. Messages are exactly 64 bytes holding two canonical little-endian field elements; digests are one element in 32 little-endian bytes. The output space is the field order, about 2^254, so the nominal exponent is 127 rather than half the digest encoding.",
+      "lanes": [
+        "exploratory"
+      ]
     }
   ]
 }

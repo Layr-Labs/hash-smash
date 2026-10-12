@@ -7,16 +7,16 @@ those registrations and public history; no track is to be archived in this rollo
 A manifest edit does not change live lifecycle state. See the
 [round migration handoff](./SHA256_ROUND_MIGRATION.md).
 
-The local catalog contains **26 runnable lanes**: 22 current research lanes plus
-four historical r31/r32 lanes. Four Poseidon slots remain deferred; two exploratory
-Poseidon targets are eventual challenge additions after definition and qualification.
-The current plan has 26 slots (22 defined plus four deferred), excluding history.
-New r37/r38 targets have exploratory lanes only. See
+The local catalog contains **28 runnable lanes**: 24 current research lanes plus
+four historical r31/r32 lanes. The two exploratory Poseidon targets are now
+defined and are eventual challenge additions after qualification.
+The current plan has 24 slots, all defined, excluding history.
+New r37/r38 and Poseidon targets have exploratory lanes only. See
 [FRONTIER_VALIDATION.md](./FRONTIER_VALIDATION.md) for evidence and limits.
 
 ## Roster and selection limits
 
-New SHA-256 37/38 targets have only an `exploratory` lane. Other concrete targets
+New SHA-256 37/38 and Poseidon 1/2 targets have only an `exploratory` lane. Other concrete targets
 retain independent `exploratory` and `rigorous` lanes; local definition does not
 mean that a track is registered or open in Yukon.
 
@@ -29,7 +29,7 @@ mean that a track is registered or open in Yukon.
 | Keccak[1600] | `sha3-256-r5`, `sha3-256-r6` | 4 | Selected SHA3-256 instance; rate 1088, capacity 512, output 256 |
 | BLAKE3 | `blake3-r1`, `blake3-r2` | 4 local / 2 registered | Organizer-selected unkeyed BLAKE3-256 exploration pair; boundary unverified |
 | Keccak[800] r544/c256 | `keccak800-r5`, `keccak800-r6` | 4 local / 0 registered | Organizer-selected exploration pair; output 256, legacy pad10*1, prefix rounds; boundary unverified |
-| Poseidon | Not yet assigned | 4 reserved | Field, width, mode, constants, output and reduction schedule unresolved |
+| Poseidon | `poseidon-r1`, `poseidon-r2` | 2 local / 0 registered | Organizer-selected exploration pair; deployed Zcash Orchard P128Pow5T3, Pallas field, width 3, x^5, prefix rounds; nominal reference 127 |
 
 The user approved deferring undefined round pairs. The MD5/SHA-1 control exception
 and precise SHA3-256 instantiation are explicit organizer choices to confirm before
@@ -38,7 +38,7 @@ publication. There is no first-unbroken standard round for MD5 or SHA-1; rounds
 synthetic, not cryptanalytic evidence. See [FRONTIER_RESEARCH.md](./FRONTIER_RESEARCH.md)
 for primary sources, exact problem distinctions, and unresolved choices.
 
-SHA-256 37/38, BLAKE3 1/2 and Keccak[800] 5/6 are organizer-selected
+SHA-256 37/38, BLAKE3 1/2, Keccak[800] 5/6 and Poseidon 1/2 are organizer-selected
 exploration pairs without first-unbroken claims. Other selection notes retain their
 dated literature/control context, not proofs of security or normalized best-known scores.
 For every implementation, execute the **first** `r` rounds in every compression
@@ -74,12 +74,13 @@ The fixed `collision-frontier-v5` cost model ranks
 probability at least 0.39. Preprocessing, failed trials, verification, advice and
 code storage count in the resource ledger. Memory is required and reviewed, but
 does not affect the scalar or break ties. Time sums work across all processors.
-This shared policy applies to the current plan and retained historical lanes,
-including deferred targets; it does not activate unresolved slots. A trusted selected-target compression/permutation costs one
+This shared policy applies to the current plan and retained historical lanes. A trusted selected-target compression/permutation costs one
 unit; other 256-bit RAM operations are charged as specified in the model.
 
 The display reference is nominal collision-security exponent: 64 for MD5, 80 for
-SHA-1, 128 for these 256-bit targets. It is **not** a measured attack, an executable
+SHA-1, 128 for the binary 256-bit targets, and 127 for Poseidon, whose output
+space is the Pallas field order of about 2^254 rather than the full 32-byte
+digest encoding. It is **not** a measured attack, an executable
 baseline, or a proved total-computation bound. A birthday exponent alone does not account
 for implementation constants. Actual submissions must still report memory bytes.
 Profiles, policies and scores are isolated by lane; historical artifacts are never
@@ -207,7 +208,7 @@ must not transfer old scores to the new round counts. Shared protected hashes
 change for all lanes in this migration: reconciliation alone cannot refresh them.
 Follow the [guarded all-eight refresh](./SHA256_ROUND_MIGRATION.md), preserving
 closed history and restoring admission only on the intended six competing tracks.
-Poseidon still requires exact definitions and qualified baselines.
+Poseidon is now defined but still requires qualified baselines before registration.
 
 Workflow separation is intentional: a credential-free job validates and executes
 experiments, a fresh secret-bearing job reviews immutable same-run artifacts
@@ -223,10 +224,11 @@ Before activating the new exploratory lanes:
 
 1. Preserve historical definitions and qualify the new SHA-256 37/38 packages
    separately. Do not relabel a 31/32 result, invent an attack, or assert a first-unbroken boundary.
-2. Keep the undefined Poseidon slots deferred. To add two exploratory targets later,
-   establish exact definitions and defensible or explicitly provisional round pairs, then
-   update catalog, profiles, templates, schemas, manifest, wrappers and checker
-   tests. `--require-complete` checks that eventual full roster only.
+2. The two exploratory Poseidon targets are defined at rounds 1/2 as an explicitly
+   provisional pair, with catalog, profiles, templates, schemas, wrappers and checker
+   tests updated and the manifest deliberately left unchanged. Because no slot is
+   deferred any more, `--require-complete` now passes; it reports only that every
+   slot has a definition, never that any lane has a baseline.
 3. Establish an admissible baseline separately for each activated lane, or obtain a
    supported Yukon change allowing an initially empty frontier. Drafts/nominal
    references cannot be passed off as successful baselines.

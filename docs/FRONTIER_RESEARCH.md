@@ -26,8 +26,8 @@ names seven families: MD5, SHA-1, SHA-256, BLAKE3, Keccak[1600],
 Keccak[800] with rate 544/capacity 256, and an explicitly provisional Poseidon
 profile. The file explicitly identifies all its records as synthetic UI data.
 Consequently its illustrated costs and last attacked rounds cannot establish
-the challenge roster. Its Poseidon field, width, and round schedule are marked
-TBD; its Keccak[1600] row does not specify rate, capacity, padding, or output
+the challenge roster. Its Poseidon field, width, and round schedule were marked
+TBD and are now pinned to the deployed Orchard instance below; its Keccak[1600] row does not specify rate, capacity, padding, or output
 length. Its linked [Lean SHA-3 paper](https://eprint.iacr.org/2024/1880) is an
 implementation paper, not a collision-frontier source.
 
@@ -44,7 +44,7 @@ can be reserved without claiming that its target or frontier has been establishe
 | Keccak[1600] | 5 / 6 rounds of SHA3-256 | Recommended concrete instance: width 1600, rate 1088, capacity 512, output 256, SHA-3 domain suffix `01`, first `r` rounds. Actual 5-round collisions exist; the inspected literature does not provide a classical ordinary-collision attack on 6-round SHA3-256. |
 | BLAKE3 | 1 / 2 rounds | Organizer-selected exploration pair (2026-09-13); unkeyed BLAKE3-256 with standard complete tree-hash semantics and prefix reduction. No matching ordinary-collision frontier is asserted. |
 | Keccak[800], r544/c256 | 5 / 6 rounds | Organizer-selected exploration pair (2026-09-13); output256, zero state, legacy pad10*1, prefix rounds. Crunchy r640/c160 results do not establish this boundary. |
-| Poseidon | Unresolved | A concrete parameter set, mode, output, and full/partial round reduction rule are needed before a meaningful boundary can be named. |
+| Poseidon | 1 / 2 rounds | Organizer-selected exploration pair (2026-10-12); the deployed Zcash Orchard P128Pow5T3 instance over the Pallas base field, width 3, rate 2, capacity 1, x^5, deployed R_F=8 and R_P=56, `ConstantLength<2>` hashing, prefix rounds of the deployed schedule with deployed constants. No matching ordinary-collision frontier is asserted. Its output space is the field order, so the generic exponent is about 127. |
 
 The MD5/SHA-1 exception requires organizer acknowledgment because it changes the
 selection criterion, although it preserves the requested two settings per family.
@@ -165,6 +165,17 @@ count, partial-round count, and reduction schedule. A collision target with
 `q` output elements has output space at most `p^q`; its generic output-size
 exponent is `q*log2(p)/2`, not automatically 128. For a sponge, capacity imposes
 an additional limitation. A guessed 30/31 pair from the mockup has no authority.
+
+The selected family is instead the instance deployed in Zcash Orchard, pinned
+to `halo2_poseidon` 0.2.0 at tag `halo2_poseidon-0.2.0`: `P128Pow5T3` over the
+Pallas base field, width 3 with rate 2 and capacity 1, `x^5`, deployed
+`R_F = 8` and `R_P = 56`, and `ConstantLength<2>` hashing with initial state
+`[m0, m1, 2^65]`. Rounds 1/2 are prefix rounds of that deployed schedule,
+keeping deployed constant row `i` for round `i` and the deployed MDS matrix,
+so the first two rounds are full rounds. Messages are exactly two canonical
+little-endian field elements and the digest is one element, so the output space
+is `p` and the generic exponent is about 127 rather than 128. The two
+exploratory lanes remain unregistered until each has an admissible baseline.
 
 ## Cost and round conventions required before publication
 

@@ -35,7 +35,9 @@
         "keccak800-r5-prefix-v1",
         "keccak800-r6-prefix-v1",
         "sha256-r37-prefix-v1",
-        "sha256-r38-prefix-v1"
+        "sha256-r38-prefix-v1",
+        "poseidon-r1-prefix-v1",
+        "poseidon-r2-prefix-v1"
       ]
     },
     "attack_class": {

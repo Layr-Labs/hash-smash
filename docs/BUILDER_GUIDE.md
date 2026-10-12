@@ -7,20 +7,20 @@ Builder work does not grant an unassigned candidate directory to edit.
 
 ## Context and ownership
 
-The [frontier guide](./FRONTIER_LANES.md) retains 26 runnable local tracks,
-including four historical SHA-256 31/32 lanes, and four deferred Poseidon slots.
+The [frontier guide](./FRONTIER_LANES.md) retains 28 runnable local tracks,
+including four historical SHA-256 31/32 lanes, with no slot deferred.
 The manifest retains eight exploratory registrations: six intended competing
 tracks (SHA-256 37/38, SHA3-256 5/6 and BLAKE3 1/2) and two SHA-256 31/32 tracks to
 close while preserving public history. New SHA-256 rounds have exploratory lanes
-only. Two exploratory Poseidon targets remain deferred pending definition.
+only. The two exploratory Poseidon targets are defined at rounds 1/2 and remain
+unregistered pending an admissible baseline for each lane.
 The SHA-1 pilot and nine unpaired local tracks are retired. Preserve the single repository-root schema-v2
 [manifest](../benchmark.json), lane-suffixed public track IDs, and independent
 candidate, score, and report paths. Lane metadata is bound by the protected
 registry, claim validation, review fingerprints, and score `metrics.lane`.
 
-SHA-256 37/38, BLAKE3 1/2 and Keccak[800] 5/6 are organizer-selected exploration pairs, not
-assertions of a first-unbroken boundary. Keep the four Poseidon slots deferred
-until their exact definition is assigned. Never emit placeholder scores. MD5/SHA-1 endpoints
+SHA-256 37/38, BLAKE3 1/2, Keccak[800] 5/6 and Poseidon 1/2 are organizer-selected exploration pairs, not
+assertions of a first-unbroken boundary. Never emit placeholder scores. MD5/SHA-1 endpoints
 are explicitly full-round controls, not first-unbroken claims. Follow the frontier
 guide and [research context](./FRONTIER_RESEARCH.md) for target-definition work.
 
@@ -101,4 +101,4 @@ the existing six records and adding two; archive none. Close SHA-256 r31/r32 thr
 Yukon and preserve their jobs, reviews and results. Shared registry/schema/cost
 changes invalidate every existing lane's configuration hash; label the harness PR
 `yukon-unsafe` and use the guarded all-track refresh before restoring admission.
-Undefined Poseidon slots remain inactive.
+Poseidon slots are defined but inactive until each lane has an admissible baseline.

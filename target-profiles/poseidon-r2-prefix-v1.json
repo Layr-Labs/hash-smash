@@ -1,0 +1,46 @@
+{
+  "id": "poseidon-r2-prefix-v1",
+  "status": "organizer-selected-experiment",
+  "algorithm": "poseidon",
+  "primitive": "Zcash Orchard PoseidonHash (P128Pow5T3)",
+  "specification": "Zcash Protocol Specification, section 5.4.1.10; halo2_poseidon 0.2.0",
+  "specification_url": "https://github.com/zcash/halo2/blob/halo2_poseidon-0.2.0/halo2_poseidon/src/lib.rs",
+  "rounds": 2,
+  "full_rounds": 64,
+  "round_count_unit": "Poseidon permutation rounds",
+  "round_selection": "Prefix rounds 0 through 1, inclusive, of the deployed R_F=8/R_P=56 schedule, in which rounds 0 to 3 and 60 to 63 are full and rounds 4 to 59 are partial. Round i uses deployed round-constant row i and the deployed MDS matrix; constants are never regenerated for a reduced instance. Rounds 0 and 1 are both full rounds: add constants to all three state elements, apply x^5 to all three, then multiply by the MDS matrix.",
+  "digest_bits": 256,
+  "attack_class": "ordinary-collision",
+  "message_domain": "Exactly 64 bytes: two 32-byte little-endian Pallas base field elements, each strictly less than p = 0x40000000000000000000000000000000224698fc094cf91b992d30ed00000001. Non-canonical encodings are rejected, so an element encoding x + p is not a valid message even though it is congruent to x. Any other length is rejected.",
+  "word_bits": 255,
+  "reference_implementation": "verifier/poseidon.py:poseidon",
+  "relation": {
+    "preconditions": [
+      "Both messages satisfy the domain",
+      "Messages are distinct"
+    ],
+    "postcondition": "The two output field elements are equal (equivalently, identical 32-byte canonical encodings)."
+  },
+  "out_of_scope": [
+    "Free-start or compression-only collisions",
+    "Quantum attacks",
+    "Changing rounds, constants, capacity element, mode or output length",
+    "Non-canonical field element encodings"
+  ],
+  "selection_note": "Organizer-selected exploration target; no first-unbroken boundary is asserted.",
+  "field_modulus": "0x40000000000000000000000000000000224698fc094cf91b992d30ed00000001",
+  "field": "Pallas base field",
+  "width": 3,
+  "rate": 2,
+  "capacity": 1,
+  "sbox": "x^5",
+  "deployed_full_rounds": 8,
+  "deployed_partial_rounds": 56,
+  "constants": "The 192 deployed round constants (64 rows of 3) and the deployed 3x3 MDS matrix from halo2_poseidon 0.2.0, halo2_poseidon/src/fp.rs, reproducible with the Poseidon v1.1 reference generator as recorded in that file. A reduced instance keeps the first r rows unchanged.",
+  "padding": "None at this length. The deployed ConstantLength<2> domain pads with zeros to a multiple of the rate, and two elements already fill one rate block, so no padding element is absorbed.",
+  "initialization": "Initial state [m0, m1, 2^65]. The capacity element is L * 2^64 with L = 2 and a hard-coded output length of 1, encoding the constant input length as the Poseidon authors specify.",
+  "schedule": "One permutation over the whole message. Each round adds its constants to all three elements, applies the S-box (to all three in a full round, to element 0 only in a partial round), then multiplies the state by the MDS matrix.",
+  "feed_forward": "None. This is a sponge with a fixed capacity element, not a Davies-Meyer construction.",
+  "digest_encoding": "State element 0 after the selected rounds, as 32 little-endian bytes. The output space is p, about 2^254, not 2^256, so the generic collision exponent is about 127.",
+  "nominal_security_note": "The nominal reference for this target is 127, not the 128 used for binary 256-bit targets, because the output space is the field order rather than the full digest encoding."
+}
