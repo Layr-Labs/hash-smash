@@ -4,21 +4,181 @@
   "target_profile": "sha256-r38-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 38,
-  "claim": {
-    "time_log2": 132,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 123,
-    "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 0
-  },
-  "restrictions": [
-    "Samples 2^128 independent uniform 48-byte complete messages with replacement; no chosen IV, digest truncation, or output-distribution assumption.",
-    "Classical probabilistic 256-bit word RAM using the independent uniform word primitive of collision-frontier-v5; no PRNG substitution.",
-    "Worst-case single-batch resource upper bounds include unsuccessful batches; no restart or amplification is required for success_probability 0.39."
-  ],
+  "lane": "exploratory",
   "baseline_improved": "sha256-r38-nominal-v2",
   "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  "experiment_manifest": "experiments/manifest.json",
+  "claim": {
+    "time_log2": 70.23392,
+    "time_unit": "target-compressions",
+    "memory_log2_bytes": 80.42,
+    "preprocessing_log2": 70.16576,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 14
+  },
+  "heuristics": [
+    {
+      "id": "H1-single-trial-chaining-value",
+      "role": "score-critical",
+      "statement": "For one group, the chaining value CV1 = F_38(IV, M0) of a first block M0 built from two fresh uniform random words behaves as a uniform 256-bit value as far as the events of ONE fixed variant are concerned: for each A0 the table index (Y, Z0) is uniform (a bucket holds |R_j| 2^-27 entries in expectation), W7 is uniform and independent of (W0, W1) (an entry is a W7 pass with probability p2 = |F7| / 2^32 = 2^-3.90197), the first row-17 test passes with probability 2^-10 given a W7 pass, and the second-block words that realise a success have the distribution of proof.md Section 6.2 and Lemma 4. Groups use fresh coins and are independent. A statement about one first block and one variant at a time; nothing is assumed about two variants of one group (H5).",
+      "scope": "The four expected work counters (hence the caps and N_G), the per-variant success probability p2 q3 (hence the success bound). Not the validity of any output: every output is a verified collision (Lemma 7', Section 5.4).",
+      "extrapolation": "Measured by us on real chaining values (compression of uniform-looking first blocks by the real 38-step function, true buckets by exhaustive search, reference outcomes; proof.md Section 6.3): 12 real first blocks x 256 A0 (3,072 true buckets): entries 0.991 and W7 passes 0.99 times the H1 expectations, 1 first row-17 test passed (1.1 expected), 0 successes; 6 more chaining values: 1.037 and 0.92; The lemmas of Section 4 make the rest exact. The organizer experiment vt-ram-r38 runs the counted program on organizer-seeded first blocks and compares its table index, W7 decisions and W17 with the reference (a code-consistency check; the returned-pair count is a witness frequency of mismatch-free trials, not an inference). The caps use per-counter Chebyshev margins (2^-16, 2^-14, 2^-7, 2^-5) above the expectations over N_G = 2^63.2126 independent groups (Section 6.4).",
+      "limitations": "A premise, not a theorem. What is measured: on 18 real chaining values (4,608 true buckets, 25,884 entries) the events of one variant at per-variant probability 2^-27 (table index; entries 0.991 and 1.037 times expected), 2^-30.9 (W7 pass; 0.99 and 0.92) and 2^-40.9 (first row-17 test; 3 passes, 1.6 expected); no success event can be observed on real chaining values. What is extrapolated: (a) these rates to all N_G = 2^63.2126 groups (the caps and N_G), and (b) the per-variant success probability p2 q3 = 2^-101.680 for the chaining value of a real first block, about 2^61 below the rarest measured event: (b) is the statement that the Step-2 words (W0..W7) of a real CV1 are uniform for an event of probability 2^-101.680; the studies of H2 measure that event on uniform chaining values only. Only the first block varies between groups. Joint events of two variants on one real chaining value are the premise of H5.",
+      "evidence_ids": [
+        "proof:218-235",
+        "proof:236-249",
+        "proof:330-338",
+        "proof:372-383",
+        "proof:596-601",
+        "proof:3463-3498",
+        "experiment:vt-ram-r38"
+      ]
+    },
+    {
+      "id": "H2-variant-q3",
+      "role": "score-critical",
+      "statement": "The average of q3(v) = Pr[A'(CV1, v) | W7 in F7] (the accepted event of Section 4.7: rows 16..21 with the four E19 patterns and the tie, equal outputs after step 37) over the variants the program examines (uniform on the union of the 256 sets R_j) and over uniform chaining values is at least q3_model = 2^-97.7784 = 2^-101.10 x 2^3.3216. Rows 16..22 have the same probability for every valid variant (Lemma 4, exact); only the tail (rows 23..37, through W8, W9, W10 of the variant) is averaged.",
+      "scope": "The expected number of successes per group S_model = SR p2 q3_model = 2^-64.19975, hence N_G, the success bound and the whole attack term of the ledger.",
+      "extrapolation": "For the gain to the accepted event (Appendix E.2, from 14b3b6ff): a preregistered paired run of traillab on this attack's own variant law (32 fresh seeds 7101..7132 x 2^28 proposals on real compressions with the real expansion; every proposal draws W8, W9, W10 from a fresh uniform sample of 131,072 dense-part variants of its seed, checked against vt38.py's valid(); the printed prefix and the relaxed prefix per seed; cells and the exact event counted on the same samples): gain of the accepted event over the printed one, mean +3.4015, seed sd 0.184, declared one-sided 99% Student lower bound over seeds +3.3216 (the seed is the cluster: its spread carries the overdispersion and the variant sampling), halves 3.340 / 3.463; pattern part +2.038, exact-event part +1.363; absolute level on the tie arm -97.6058 (99% bound -97.6818), printed event on the same law -101.0074. For the printed event (Section 6.2 and Appendix E.2): six independent studies across two independent C estimators (smc.c R1..R4 and 1db43310's q3.c S1..S2; 43.9M verified tail successes, 0 failed rebuilds) give one-sided 99% lower bounds -101.00146, -101.00195, -101.00265, -101.00018, -101.03905, -101.03081; the printed-event baseline 2^-101.10 (1db43310) lies 0.061 bit below the lowest of all six 99% bounds (and using aed05522's 2^-101.35 or 14b3b6ff's 2^-101.50 gives 2^-98.0284 -> 70.24646 or 2^-98.1784 -> 70.25503, Appendix E.5). Organizer-executed: vt-q3-smc-r38 runs a reduced replica of the estimator for the accepted event on organizer seeds with rebuilt, verified pairs replayed through the tightened counted program (calibration 2^-97.6753 over 960 replicates; pass rule mean of 20 >= 2^-98.5838, fixed before its calibration); its counts are witness frequencies of passing trials, not an iid inference.",
+      "limitations": "Monte-Carlo bounds relying on the central limit theorem (1,024, 4,096 and 64 runs for the printed event; 32 seeds for the gain); q3 itself cannot be observed. The printed-event baseline 2^-101.10 was chosen after S1..S2 had run rather than by a preregistered threshold (see H8; the preregistered 2^-101.35 and 2^-101.50 rules are priced in E.5). The gain is measured on 32 x 131,072 sampled variants of the 2^37.48 (uniform samples of the law the program uses) with traillab (not shipped: 64 KiB limit); the shipped replica agrees. Rests on H1 for the distribution of the second-block words. The reading W25[4] = W25[6] of the printed condition (Section 3) is used identically by the program, the estimator and the replay; any reading that holds on the published pair yields only verified collisions, so it enters q3 only.",
+      "evidence_ids": [
+        "proof:218-235",
+        "proof:338-371",
+        "proof:590-595",
+        "proof:1028-1106",
+        "proof:3548-3568",
+        "proof:3585-3715",
+        "experiment:vt-q3-smc-r38"
+      ]
+    },
+    {
+      "id": "H3-table-pricing",
+      "role": "score-critical",
+      "statement": "Under collision-frontier-v5 the online program is charged by its counted primitives: the model is a 256-bit word RAM whose primitives include 256-bit load and store, and memory is a reported metric with no scalar contribution. A load from any address costs one operation whatever the memory size; the memory used (2^80.42 bytes) is reported. Every table word is written by the counted preprocessing of proof.md Section 5.1 (zero initialisation included; the whole preprocessing is 2^66.9387 units).",
+      "scope": "The online cost per (chaining value, A0): one header load and a scan of the sentinel-terminated bucket (6 operations per entry) instead of a search over 2^29.5 variants.",
+      "extrapolation": "Follows the text of the cost model collision-frontier-v5: memory_scoring is \"Required and reviewed as a metric only; no scalar contribution and no tie-break\" and memory_includes lists code, nonuniform advice, precomputed data, messages, working state, tables and randomness retained in memory (all of which are in the reported figure); the same pricing is used by the public package 0ae69bcb (rank 1 on this track, passed review), which also reports the sensitivity if tables were not unit cost. The online and table-construction costs are counted by the interpreter of experiments/vt38.py and the preprocessing bodies of Appendix B.3; every table word of every table is written by the charged P6 passes (the zero pass over the 2^64 headers of every A0 costs 2^73.1 operations by itself).",
+      "limitations": "The tables are far beyond physical memory; without unit-cost table access the claim does not hold. Finding the buckets through the inverse of s0(u) - u instead of tables costs much more (Section 7 of 0ae69bcb: about 80.7).",
+      "evidence_ids": [
+        "proof:271-290",
+        "proof:301-321",
+        "proof:411-457",
+        "proof:458-465",
+        "proof:3463-3498",
+        "proof:3500-3532"
+      ]
+    },
+    {
+      "id": "H4a-allowance-characteristic-search",
+      "role": "score-critical",
+      "statement": "The total computation spent to obtain the published 38-step characteristic of [LZLLQZ26] (IACR ePrint 2026/1120, Table 3: failed and repeated searches and tool development included) is at most A_C = 2^70 target compressions.",
+      "scope": "The allowance part of the ledger: A_C is 85.0% of T (2^70 of 2^70.23392) and the largest single term.",
+      "extrapolation": "Evidence for the allowance (Appendix E.10 part A states every conversion). (i) Published, for the same kind of search: Mendel, Nad and Schlaeffer (EUROCRYPT 2013, ePrint 2015/350, Sect. 6.3 p.14) found the differential characteristic and the confirming message pair of a 38-step semi-free-start collision of SHA-256 in \"about 8 hours on a single CPU. This is equivalent to about 2^37 SHA-256 evaluations\" (one combined figure, no hardware named; for 31 steps, Sect. 6.2 p.12: about 21 hours, 2^38.4 evaluations); Li, Liu and Wang (EUROCRYPT 2024, ePrint 2024/349 p.16) found a practical 39-step semi-free-start pair \"in 120 seconds with 26 threads\". (ii) Measured by us: with the authors' public tool of [LLW24a] (github.com/Peace9911/sha_2_attack, commit 6a9f35fd; model find_dc_model_39: rows 8..26, message support W8..W12, W16, W17, W24, W26, weights W 25, A 10, E at most 90) a 39-step characteristic was derived from scratch in 772.58 s wall on 12 threads (CryptoMiniSat 5.11.21; a Kissat call of 1,800 s on the same file returned no result): 11,071.7 solver CPU-seconds (wall x threads, the failed call included), at the 3,797,484 SHA-256 compressions per second measured here (portable C, one thread, AMD Ryzen 9 7900X, slowest of five runs) 2^35.29 SHA-256 evaluations, 2^36.04 units (an evaluation of 64 steps charged 64/38 units) and 2^47.46 word operations. (iii) Measured by us, our pair searches (E.10 part B): the 38-step pair search given the published cells took 4,055,969,700 propagations (2^31.917 word operations = 2^20.504 units; 2,852.83 CPU-seconds, 2^34.09 units at the compression rate above), the sparse part 113,081,800 word operations (2^26.753, 0.55 CPU-seconds); Kissat seed 4 returned a new pair, not the published one (CV, M, M' and digest in E.10). Result: the largest of these figures is 2^39.15 units (Mendel et al.'s 31-step 2^38.4 evaluations; their 38-step figure is 2^37.75, our 39-step derivation 2^36.04), 30.8 bits below A_C = 2^70 target compressions; counted as word operations without the factor C = 2728 the largest is 2^50.57, 19.4 bits below 2^70. Not measured, hence the allowance: deriving the dense signed characteristic of rows 0..16 of the 38-step characteristic of [LZLLQZ26] itself (its search time is not published; the pair searches load its cells; a 37-step attempt with those cells unset returned no model) and the authors' failed and repeated searches; the 30.8 bits are the margin for them. Bound for the allowance. [LZLLQZ26] uses the CPU SAT/SMT characteristic-search tool of [LLW24a] (EUROCRYPT 2024) in the two-block framework of [LLWS26] (IACR ePrint 2026/1080): 10^5 CPU cores for 10 years at 10^10 word operations per second is 3.2 x 10^23 operations = 2^66.6 units at C = 2728, and A_C = 2^70 is 10.3 times that ceiling. The promoted filing 6eeefb64 (sha256-r32) priced a complete measured re-run of the predecessor 35-step characteristic search with the same tool at 593,858 solver CPU-seconds over 59 solver calls; at its calibrated price of 2^32.796 primitive operations per solver CPU-second (2^21.383 units) and a 32-fold blind-rediscovery factor (as in 0ae69bcb) that is 2^45.6 units; A_C = 2^70 is 2^24.4 times that. Every cell and two-bit condition of the 38-step characteristic used here is verified on the published pair by the organizer-executed package (selftest items 1-3, vt-q3-smc-r38). The same A_C = 2^70 is charged by the accepted filings 0ae69bcb, 63028099, 37742a53 and 012400ff on this track. A_C = 2^72 gives 72.06213, 2^74 gives 74.01579, 2^76 gives 76.00397 (Appendix E.5).",
+      "limitations": "A_C is an allowance, not a measurement of the [LZLLQZ26] search: the published figures and our measurements are for the same kind of search (a 38- or 39-step semi-free-start characteristic and pair) but for other characteristics, on unstated or different hardware, with combined or windowed figures; we did not derive the dense signed characteristic of rows 0..16 of Table 3 (a 37-step attempt returned no model) and the authors' failed and repeated searches are in no log. The margin of 30.8 bits between the largest measured or published figure (2^39.15 units) and A_C = 2^70, the CPU-hardware ceiling and 2^24.4 times the measured predecessor re-run carry the claim that the whole search is below 2^70; A_C is not lowered. A GPU branch of the bound chain (10^4 GPUs, 10 years: 2^73.3) is not the operative branch because the solver is a CPU SAT/SMT tool; A_C = 2^74 is priced in E.5.",
+      "evidence_ids": [
+        "proof:411-457",
+        "proof:513-524",
+        "proof:3980-4030",
+        "experiment:vt-q3-smc-r38"
+      ]
+    },
+    {
+      "id": "H4b-allowance-step1-solve",
+      "role": "supporting",
+      "statement": "The total computation spent to obtain the Step-1 solution (the published semi-free-start pair of Table 5 and its dense part S) is at most A_S = 2^60 target compressions. The variants (A0, A1, A2) of S needed by this package are not solved for: they are enumerated by the charged preprocessing P5.",
+      "scope": "The allowance part of the ledger (2^60 of the allowances; A_S and DEV together are 0.06% of T).",
+      "extrapolation": "[LZLLQZ26] reports about 2^38.3 compression-equivalent calls for the 38-step Step-1 solve (and 2^41.3 for 37 steps); A_S = 2^60 is 2^21.7 times the published Step-1 figure (a margin of more than three million-fold; the accepted r37 filings 087a18c4, 1f12a09a, 7319bba9 and 8de337d5 charge A_S = 2^50, and A_S = DEV = 2^50 here would give 70.23153). Moreover, the published semi-free-start pair (Table 5) and its dense part S* are verified directly by experiments/vt38.py (selftest item 1), and the organizer-executed experiment vt-q3-smc-r38 constructs and verifies dozens of fresh 38-step semi-free-start collisions from variant dense parts in a few seconds inside the organizer sandbox (21 returned verified pairs per organizer run, 0 failed rebuilds), directly demonstrating that completing a variant dense part to a verified 38-step semi-free-start collision costs well below 2^35 units. The same A_S = 2^60 allowance is accepted in 37742a53 and 012400ff on this track.",
+      "limitations": "The original SAT/SMT search for the base dense part S* was performed by the paper's authors and is bounded by 2^21.7 times their reported figure rather than re-solved from scratch in the organizer sandbox (which instead verifies S* and constructs fresh 38-step semi-free-start pairs from its variants in vt-q3-smc-r38). Raising A_S to 2^70 (the allowance of 0ae69bcb and 63028099) together with DEV = 2^64 gives 71.13074 (Appendix E.5); A_S = DEV = 2^64 gives 70.26942.",
+      "evidence_ids": [
+        "proof:411-457",
+        "proof:525-536",
+        "proof:590-595",
+        "experiment:vt-q3-smc-r38"
+      ]
+    },
+    {
+      "id": "H4c-allowance-development",
+      "role": "supporting",
+      "statement": "All target-specific development computation of this package (and of the earlier versions in this lineage) is at most DEV = 2^60 target compressions; this includes the computation that selects the 256 A0 values (H6) and everything that is not in the counted preprocessing or the attack.",
+      "scope": "The allowance part of the ledger (with A_S 0.06% of T).",
+      "extrapolation": "Physical bound: the base runs used one 15-core machine for 14 days (1.8 x 10^7 CPU-seconds = 2^24.1; at the generous calibration of 2^21.383 units per CPU-second that is 2^45.5 units, 2^14.5 times below DEV, and even one full machine-year of all 15 cores is 2^50.2 units); the recorded runs (q3 studies, exhaustive passes, bucket measurements) are a small fraction of it. Selection of the A0 set (H6): the counts |R(A0)| are the cyclic cross-correlation over Z/2^32 of the histogram of F over the 9.9 x 10^9 valid pairs with the indicator of the 68,157,440 words w with s0(w + DW_8) - s0(w) = DS0_8, which one pass of the P5 kind (2^44.4 operations) plus a number-theoretic transform of length 2^32 (below 2^45 operations) computes: below 2^35 units, far inside DEV (and the exact sizes of the published set are recomputed in P5). The derivative work (Appendices C, D, E) used at most two workstation machines for 30 days (below 2^55 units) plus less than 1 CPU-hour for this filing's code/proof updates and selftests.",
+      "limitations": "A physical bound by wall-clock and core count, not a log of CPU time. The time spent by the author reading and writing is not computation in the cost model.",
+      "evidence_ids": [
+        "proof:411-457",
+        "proof:537-548",
+        "proof:208-217",
+        "proof:3463-3498"
+      ]
+    },
+    {
+      "id": "H5-pairs-in-group",
+      "role": "score-critical",
+      "statement": "Let N be the number of successful variants on one chaining value (one group). The expected number of further successes seen from a success, sum_v Pr[A_v] E[N - 1 | A_v] / sum_v Pr[A_v], is at most delta = 1/25 = 0.04: on average a success brings at most 0.04 further successes on the same chaining value (every success passes all of rows 16 and 17 with W7 in F7, so N <= N17, and 1/25 is 1.50 times the one-sided 99% Poisson limit 0.02670 of N17 - 1 and 21.7 times the 99% limit 0.00184 of N18 - 1 measured across all 256 A0 on 2,500 verified successes in Appendix E.3). This includes the premise that joint events of two variants on a real chaining value behave as on a uniform one (H1 covers one variant at a time).",
+      "scope": "The group success bound Pr[N >= 1] >= S (1 - delta / 2) (Bonferroni, Section 6.4), hence N_G and the success bound. Not the validity of any output. delta = 296687/1000000 gives 70.24392, delta = 0.564 (the first-row-17 bound of fdef4bab and 14b3b6ff) gives 70.25801, and delta = 1 (0ae69bcb and aa0496d3) gives 70.29645.",
+      "extrapolation": "Structure: every success in A' passes all of rows 16 and 17 (and 18) with W7 in F7 (rows 16..18 are identical in A and A'), so pointwise N <= N17 <= N18, where N17 (N18) is the number of variants of the whole group (all 256 A0) passing rows 16..17 (16..18) with W7 in F7, and delta <= delta17 (delta18). Whole-group measurement (1db43310, Appendix E.3, q3.c function group_test on 2,500 verified successes): all 256 A0 buckets enumerated via 16-way partitioned inverse of phi over 2^32 u; 3,585,652 other row-16 entries, 241,170 W7 passes, 48 passing all of row 17 (99% Poisson limit 0.02670 for delta17), 0 reaching row 18 (99% limit 0.00184 for delta18), 0 further successes. Near term on 31,875 verified successes of S2: 391,103 near variants, 262,159 row-16 co-hits, 25,867 W7 passes, 545 with all of row 17 (0.0171 per success), 0 reaching row 18; in the base (12,817 successes): 234 with all of row 17 (0.018 per success), 0 further successes; in 14b3b6ff's preregistered near-variant rerun (Appendix E.3): 5,715 of 19,767 first-test passes complete row 17 (99% Clopper-Pearson upper bound 0.29669). Earlier first-row-17 bound (Section 6.5): own-block 95 / 1,500 (99% limit 0.0802) + far 4 / 24 (99% limit 0.4835) = 0.5637 -> delta = 0.564 (priced in E.5: 70.25801). The organizer experiment vt-q3-smc-r38 repeats the near-term test on organizer seeds. The public package 0ae69bcb measured the far term over 513,481 successes (~0.0018, 99%) and close term over 1,883,203 successes (0 further successes).",
+      "limitations": "A premise. Our measurements are participant-run; the successes are resampled SMC particles (clustered, not iid) of the printed event (rows 16..18 are identical in A and A', so the pointwise bounds N <= N17 <= N18 are unchanged); row-17 co-passes are dominated by correlated near variants, so the variance of N17 - 1 can exceed the Poisson variance, though delta = 0.04 has a 1.50x margin over the 99% Poisson limit of delta17 and 21.7x over delta18 (where 0 of 593 row-17-complete entries across the whole-group and near-term studies reached row 18).",
+      "evidence_ids": [
+        "proof:384-395",
+        "proof:396-410",
+        "proof:590-595",
+        "proof:3500-3532",
+        "proof:3569-3584",
+        "experiment:vt-q3-smc-r38"
+      ]
+    },
+    {
+      "id": "H6-reused-A0-set",
+      "role": "score-critical",
+      "statement": "The 256 values A0_j of the set published by c99df2dc (qkniep) and 0ae69bcb (0xshikhar) are used as non-uniform advice (1 KiB). They are not claimed to be optimal; the cost of obtaining such a set is inside DEV (H4c); every quantity that depends on the set is recomputed here: the sizes |R_j| (exhaustively, 0 mismatches against the published sizes), SR = 191,773,672,732, and q3 (averaged over variants of this set in H2).",
+      "scope": "SR (hence N_G, the caps and the table sizes) and the variant sample of H2.",
+      "extrapolation": "The set matters: for a uniformly random A0 the mean size of R(A0) is 9,945,876,032 x 68,157,440 / 2^32 = 157.8 million, the set's mean is 749.1 million, a factor 4.75 (2.25 bits of attack cost). The maximum possible per-A0 count is 750,798,738 in the set. The selection is a correlation of two explicit objects (H4c) whose cost is below 2^35 units; even at the direct pair-by-pair cost, 2^33.2 pairs x 2^26.0 words x 3 operations = 2^60.8 operations = 2^49.4 units, together with the physical bound of H4c (2^45.5) it is 2^49.5, inside DEV = 2^60. The 256 values and sizes are listed in Appendix A.2; the file read by ledger38.py has these two columns.",
+      "limitations": "The set is advice from public filings and was not derived by us; the derivation cost is bounded, not executed.",
+      "evidence_ids": [
+        "proof:208-217",
+        "proof:458-465",
+        "proof:667-927"
+      ]
+    },
+    {
+      "id": "H7-counted-machine",
+      "role": "score-critical",
+      "statement": "The counted program is an honest program of the word RAM of collision-frontier-v5: every executed instruction of the classes add, sub, rsub, and, or, xor, shl, shr, ld, ldi, st, sti, li, rand, jmp costs 1, a conditional branch costs 2 (comparison and branch), one target compression costs 1 unit and the unit of every other operation is 1/C with C = 2728; constants (including 256-bit lane masks and per-lane constants) are instruction fields (immediates); the observers obs, mark, succ and halt are instrumentation of the interpreter and are not executed by the real program; scratch memory addresses are direct fields; at most 64 registers are live (43 are used).",
+      "scope": "Every operation count of the ledger (89, 75, 6, 43, 17, 2,923 (2,981 from the W7 pass), 13, the preprocessing bodies of Appendix B.3 as executed by t_pre_d.py).",
+      "extrapolation": "The interpreter is in experiments/vt38.py (class Machine); the instruction classes are those of the model's primitive list; the per-body and per-path counts are executed counts, asserted by selftest item 4 and re-derived by t_cost.py, t_pre1.py and t_pre2.py (for this derivative's program and bodies: selftest item 4 and t_pre_d.py, Appendices C.4, D.4 and E.1); on 1,536 true buckets the machine's total operation count equals the reference model's (t_eq.py). Both the 0ae69bcb program and the earlier accepted r37 programs use 256-bit immediates and a branch price of 2 in the same way. Sensitivity: if every immediate operand of an ALU instruction, compare-branch or store were charged one extra operation (one load per immediate), the claim would be 70.30173 (+0.068 bit; proof.md Section 7, t_imm_e.py in Appendix E.5).",
+      "limitations": "The organizer's reference note says \"instruction constants require accounting in each submission\"; our accounting is that an immediate is a field of an executed instruction that costs 1, and the sensitivity above charges one more operation for each immediate. No organizer ruling on immediates of 256 bits is cited. The four-lane vector trick relies on explicit lane arithmetic (bias 2^35), checked by the equivalence tests of Section 6.3.",
+      "evidence_ids": [
+        "proof:63-74",
+        "proof:301-321",
+        "proof:372-383",
+        "proof:3463-3498",
+        "proof:3500-3532",
+        "proof:3536-3547",
+        "proof:3716-3793",
+        "experiment:vt-ram-r38"
+      ]
+    },
+    {
+      "id": "H8-experimental-selection-and-multiple-testing",
+      "role": "supporting",
+      "statement": "The empirical parameters charged in the ledger (q3_model = 2^-97.7784 = 2^-101.10 x 2^3.3216 and delta = 1/25 = 0.04) are not artifacts of seed selection, optional stopping, or multiple-comparison inflation across studies or derivatives.",
+      "scope": "Statistical validity and selection-bias robustness of the empirical estimates feeding H2 and H5.",
+      "extrapolation": "(1) For the printed-event baseline 2^-101.10, all six studies (R1: 1,024 runs, R2: 4,096 runs, R3: 1,024 runs, R4: 4,096 runs, S1: 32 runs, S2: 32 runs; contiguous seed ranges, 0 runs dropped, 43.9M verified tail successes) agree with the analytic stage-factor sum 2^-101.00 within 0.01 bit, and 2^-101.10 lies 0.061 bit below the minimum of all six 99% lower bounds (-101.03905). (2) For the accepted-event gain +3.3216 (E.2), the 32 fresh seeds 7101..7132 were preregistered before execution (mean +3.4015, seed sd 0.1844; even at a Bonferroni-corrected alpha = 0.001, t_0.999,31 = 3.375 gives +3.2916, and the shipped replica independently measures 2^-97.6753 over 960 fresh replicates). (3) For delta = 1/25 = 0.04 (E.3), the 1.50x margin over the 99% limit of delta17 (0.02670) and 21.7x over delta18 (0.00184, 0 of 593 row-17-complete entries reaching row 18) absorbs seed clustering. (4) Organizer public seeds are fixed canonical SHA-256 hashes of [experiment_id, trial_index] with 0 bits charged from organizer trial counts, and Appendix E.5 prices the preregistered baselines (70.24646, 70.25503) and delta = 0.564 (70.25801).",
+      "limitations": "The organizer runner uses deterministic public seeds without a post-submission holdout nonce, and participant preregistration hashes are embedded records rather than externally notarized commitments; the contiguous seed ranges, full disclosure of v1/v2 calibrations and low-memory runs, analytical stage-factor cross-checks, and sensitivity table in E.5 bound any residual selection effect.",
+      "evidence_ids": [
+        "proof:338-371",
+        "proof:571-583",
+        "proof:1028-1106",
+        "proof:3548-3584",
+        "proof:3585-3715",
+        "experiment:vt-q3-smc-r38",
+        "experiment:vt-ram-r38"
+      ]
+    }
+  ],
+  "restrictions": [
+    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words. Output: two distinct complete 128-byte messages M0||M1 and M0||M1' (common first block; padding appends the same third block) with equal digests; every output is a verified collision of the target (Lemma 7', proof.md Section 5.4).",
+    "Construction: the two-block attack of ePrint 2026/1120 (38-step characteristic of its Table 3, two-bit conditions of Table 4, published semi-free-start pair of Table 5) with dense-part variants (A0, A1, A2) of the published dense part: the 256 A0 values of the public set (H6), the 768-value A2 list and every A1 for which the variant is valid (exact test). Lemma 3: every valid variant reproduces all A/E cells of rows -4..15 and every modular and s0 difference reaching rows >= 16. 2^37.48061 variants per chaining value. Row 16 by table: W16 = s0(Y + A1) - A1 + Z0 + c9(A2), (Y, Z0) depends on (CV1, A0) only (Lemma 5); row 16 holds iff W16 is in a set G of 32 words, and row 17 can hold for 22 of them (exact count); table T_j lists for each (Y, Z0) the variants of A0_j with W16 in these 22 words (at most 236,544 per bucket, 2 words per entry); each entry is then tested exactly: W7 in F7, rows 17..21 (row 19: four E19 patterns; row 20: tie E20[29] = E19[29]) and equal outputs after row 37 (rows 22..37 untested).",
+    "Cost: fixed work caps. N_G = 10,687,797,395,951,771,071 groups (2^63.21260), each one first-block compression and 256 A0 blocks; caps on bucket entries, W7 passes, first-row-17-test passes and deep-path entries (Chebyshev, per-counter margins 2^-16, 2^-14, 2^-7, 2^-5), tested after every group with one group's overshoot charged. Counted program (experiments/vt38.py): prologue 89 operations + 1 unit, four blocks 75, 6 per entry, 43 per W7 pass, 17 per first-test pass, 2,923 per deep-path entry, epilogue 13; preprocessing as counted code (2^66.9387 units, tables zero-initialised and written, charged). Allowances A_C = 2^70 (H4a), A_S = 2^60 (H4b), DEV = 2^60 (H4c): 2^70.002815. Exact total 2^70.233918 (3787567726383001418618713/2728, ledger_e.py, proof.md Section 7 and Appendix E.6), claimed 70.23392.",
+    "Success probability at least 0.39 under H1 (one-trial uniform chaining value), H2 (q3 >= q3_model = 2^-97.7784 for the accepted event of proof.md Section 4.7: 1db43310's printed-event baseline 2^-101.10 times 2^3.3216, 14b3b6ff's one-sided 99% lower bound over seeds of the gain in a preregistered paired run on this attack's own variant law) and H5 (pair budget delta = 1/25 = 0.04: 1.50x the one-sided 99% Poisson limit 0.02670 of N17 - 1 and 21.7x the 99% limit 0.00184 of N18 - 1 from 1db43310's whole-group enumeration on 2,500 verified successes), by Bonferroni per group, independence of groups and Chebyshev for the caps: bound 0.39000000. No expected-work bound is used; the total cost is deterministic.",
+    "Memory (a reported metric): 2^80.42 bytes, dominated by the 256 tables (2-word bucket entries); the claim is a time bound in the track's word-RAM model with unit-cost table access (H3). baseline_improved names the organizer reference and does not assert an improvement over any submitted score."
+  ]
 }
