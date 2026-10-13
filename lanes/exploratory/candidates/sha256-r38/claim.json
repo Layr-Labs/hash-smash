@@ -4,21 +4,105 @@
   "target_profile": "sha256-r38-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 38,
-  "claim": {
-    "time_log2": 132,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 123,
-    "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 0
-  },
-  "restrictions": [
-    "Samples 2^128 independent uniform 48-byte complete messages with replacement; no chosen IV, digest truncation, or output-distribution assumption.",
-    "Classical probabilistic 256-bit word RAM using the independent uniform word primitive of collision-frontier-v5; no PRNG substitution.",
-    "Worst-case single-batch resource upper bounds include unsuccessful batches; no restart or amplification is required for success_probability 0.39."
-  ],
+  "lane": "exploratory",
   "baseline_improved": "sha256-r38-nominal-v2",
   "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  "claim": {
+    "time_log2": 69.65675,
+    "time_unit": "target-compressions",
+    "memory_log2_bytes": 80.26,
+    "preprocessing_log2": 66.97342,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 14
+  },
+  "restrictions": [
+    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; outputs two distinct 128-byte messages M0 || M1, M0 || M1' with equal digests.",
+    "Construction: the variant-table attack of the HashSmash lineage (c99df2dc, 0ae69bcb, aed05522, 1db43310) on the two-block framework of ePrint 2026/1120, instantiated with the characteristic NEW3 found by our own measured search (state trail equal to the published one with members swapped; different signed message difference in W10, W11, W23).",
+    "Cost: exact ledger ledger_n3.py: N_G = 146,227,926,952,758,750,725 groups, 64 tables, counted-program operation counts of the lineage (H7), preprocessing scaled per pass, allowances 2^45 + 2^50 + 2^50 from the measured campaign; T x 2728 = 2538710716289933555947482; claimed 69.65675.",
+    "Success probability at least 0.39 under H1, H2 (q3_model 2^-100.0), H5 (delta = 1) and H6 (SR lower bound), by Bonferroni per group, independent groups and Chebyshev caps.",
+    "Memory (reported): 2^80.26 bytes; the claim is a time bound in the word-RAM model with unit-cost table access (H3)."
+  ],
+  "heuristics": [
+    {
+      "id": "H1-single-trial-chaining-value",
+      "role": "score-critical",
+      "statement": "For a first block M0 drawn with fresh coins, CV1 = F_38(IV, M0) behaves as a uniform 256-bit value for the events of one fixed variant: (Y, Z0) and W7 are uniform, as in the variant-table lineage.",
+      "scope": "Expected work counters and the per-variant success probability.",
+      "extrapolation": "Same structure as the lineage (aed05522 H1); Step-2 bijection: for a uniform CV1, (W0..W7) is uniform.",
+      "limitations": "A premise; not re-measured on real chaining values for NEW3.",
+      "evidence_ids": [
+        "proof:109-112",
+        "proof:113-129"
+      ]
+    },
+    {
+      "id": "H2-variant-q3",
+      "role": "score-critical",
+      "statement": "The average of q3(v) = Pr[rows 16..37 follow the trail and its derived conditions | W7 in F7] over the variants examined is at least q3_model = 2^-100.0.",
+      "scope": "S_model, N_G and the whole attack term.",
+      "extrapolation": "Six estimator runs on S* (Section 7): mean 2^-99.7471, 99% bound 2^-99.8946, 5,901 successes, all verified collisions; the same estimator gives 2^-101.05 for the published characteristic (paper conditions: 2^-101.0); stage factors integer-like; one explicit 38-step SFS pair checked with the organizer reference.",
+      "limitations": "Participant-run Monte Carlo on one dense part; the variants change W8..W10 values (rows 23..25), not re-measured per variant.",
+      "evidence_ids": [
+        "proof:93-102",
+        "proof:113-129"
+      ]
+    },
+    {
+      "id": "H3-table-pricing",
+      "role": "score-critical",
+      "statement": "Unit-cost table access in the 256-bit word RAM of collision-frontier-v5; memory (2^80.26 bytes) is reported, not scored.",
+      "scope": "The online cost per (CV1, A0) lookup.",
+      "extrapolation": "Text of the cost model, as used by every filing of the lineage.",
+      "limitations": "Without unit-cost tables the claim does not hold.",
+      "evidence_ids": [
+        "proof:109-112",
+        "proof:130-162"
+      ]
+    },
+    {
+      "id": "H4-measured-allowances",
+      "role": "score-critical",
+      "statement": "The computation spent to obtain NEW3, S* and everything else for this package is at most A_C + A_S + DEV = 2^45 + 2^50 + 2^50 target compressions.",
+      "scope": "The allowance part of the ledger (negligible against T).",
+      "extrapolation": "One 10-core machine for 24.0 hours in all (863,260 core-seconds = 2^19.72) at 2^21.383 units per core-second (calibration of aed05522/6eeefb64) = 2^41.1 units; NEW3 itself: 2,586 s search + 1,262 s coupling check.",
+      "limitations": "A wall-clock bound; inputs from the literature (shape, published weight profile as bounds) are disclosed (Section 9).",
+      "evidence_ids": [
+        "proof:163-170"
+      ]
+    },
+    {
+      "id": "H5-pairs-in-group",
+      "role": "score-critical",
+      "statement": "The expected number of further successes on the chaining value of a success is at most delta = 1.",
+      "scope": "The group success bound S (1 - delta/2).",
+      "extrapolation": "The budget of 0ae69bcb; the lineage measured far smaller values (0.04 in 1db43310) for the mirrored trail.",
+      "limitations": "Not measured for NEW3.",
+      "evidence_ids": [
+        "proof:113-129"
+      ]
+    },
+    {
+      "id": "H6-variant-count",
+      "role": "score-critical",
+      "statement": "SR = sum of |R_j| over the 64 A0 values of Section 5 is at least 128,114,134,546.",
+      "scope": "N_G, the caps and the table sizes.",
+      "extrapolation": "Selection on an independent screening run; 85,421 valid of 256,000,000 fresh samples; one-sided 99% lower bound.",
+      "limitations": "Statistical bound, not an exhaustive count.",
+      "evidence_ids": [
+        "proof:103-108"
+      ]
+    },
+    {
+      "id": "H7-counted-program",
+      "role": "score-critical",
+      "statement": "The executed per-path operation counts of the public counted program (aed05522/1db43310) apply to NEW3 with its constants, and the preprocessing passes scale with their drivers (zero/prefix with tables, count/fill with SR x |G'|).",
+      "scope": "Every operation count of the ledger.",
+      "extrapolation": "The program's paths do not depend on the constants (immediates); deep-path and first-test fractions are charged at 2^-14 and 2^-6 of the W7 passes, above the measured rates.",
+      "limitations": "Not re-counted for NEW3 by an executed interpreter.",
+      "evidence_ids": [
+        "proof:109-112",
+        "proof:130-162"
+      ]
+    }
+  ]
 }
