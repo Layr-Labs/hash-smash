@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "vt-q3-smc-r38",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/vt38.py",
+      "event": {
+        "kind": "full-collision"
+      },
+      "scope": "H2 and H5 (near term) (proof.md 4.7, 6.5, 10.1, Appendix E). experiments/vt38.py runs q3_experiment for the accepted event (row 16, rows 17..21 with the four E19 patterns and the tie E20[29] = E19[29], equal outputs after step 37): trials 0..19 each run one reduced replicate of the SMC estimator (row 16 exact over the 32 words of G; NP 64; 128, 4, 4, 1, 1, 1 children per particle at rows 17..22 with the E cells and + bits imposed, row 19 one of the four patterns, row 20 bit 29 = E19[29], row 22 only E22[29] = 0; 256 tail proposals per particle, each drawing a variant from 512 embedded variants and W23 by importance sampling over 27 classes of its ten printed conditions; rows 23..37 computed and the outputs compared; randomness from SHAKE-256 of the trial seed). Every tail success is rebuilt (W0..W6 by the inverse expansion, CV1 by inverting steps 7..0 of that variant) and accepted only if F_38(CV1, M1) = F_38(CV1, M1') with M1 != M1', the variant's Step-2 words map CV1 back to W0..W7, W7 is in F7 and rows 0..21 hold in the accepted form; the first two accepted pairs of a replicate are run through the counted online program, which must report the success (program_found), and get the near-term pair test. Trial t < 20 returns its first accepted pair as the 96-byte strings CV1||M1 and CV1||M1'; trial 20 returns a pair iff all 20 trials had a success, all were accepted, every replayed pair was found and the mean of the 20 estimates is >= 2^-98.5838; trials 21..255 return no pair by design.",
+      "hypothesis": "Returned pairs: 21 (a pass of the rule; the returned strings are semi-free-start collisions from CV1, never collisions from the IV: full collisions of the target from the IV, 0). Each replicate estimates a lower bound of q3 for the accepted event (the ledger's q3_model is 2^-97.7784, 0.805 bit above the pass threshold 2^-98.5838, which was fixed against the earlier q3_model 2^-98.2338 and left unchanged). The pass rule was fixed before its calibration: 960 local replicates on fresh labels, mean 2^-97.675, the 48 pooled means of 20 have mean -97.689, sd 0.201, minimum -98.177, none below the threshold; 0 failed rebuilds; 9,008 of 12,000 pairs use an E19 pattern other than the published one. A pass is a check of a reduced replica, not an estimate of q3, and no independence of the organizer's trials is assumed. Observations (participant numbers, untrusted): log2_estimate, accepted_pairs, failed_rebuilds (0), program_found (2 per trial), other_patterns, near_variants, near_row16, near_w7, near_first17, near_cosuccess (0 expected); trial 20: log2_pooled_mean, pass_threshold. Local emulation (seeds sha256(id|trial)): 21 pairs returned, 279 accepted pairs, every replayed pair found, pooled mean 2^-97.226, about 9 seconds."
+    },
+    {
+      "id": "vt-ram-r38",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/vt38.py",
+      "event": {
+        "kind": "full-collision"
+      },
+      "scope": "The counted online program against the reference construction on real first blocks (H1, H7; proof.md 5.3, 10.2). Per organizer seed: two 256-bit words from SHAKE-256 of the seed are the program's two RAND outputs; its prologue unpacks M0 and computes CV1 = F_38(IV, M0); then 32 A0 blocks (A0 indices 32t..32t+31 mod 256, t = trial mod 8) run with a table oracle whose bucket holds one entry, the embedded valid variant of that A0 (in general not a row-16 hit). Checks: M0 is the unpack of the two words, CV1 equals the reference compression, every block requests the table index (Y, Z0) that the reference computes from (CV1, A0) (Lemma 5), and the program enters its row-17 path exactly for the entries whose reference W7 is in F7, with W17 equal to the reference pair's. Returns M0||M1 and M0||M1' of the first block's variant (128 bytes each) only if every check passed. The group epilogue and loop run once.",
+      "hypothesis": "Returned pairs: 256 (every trial mismatch-free); full collisions of the target: 0 (a returned pair is one variant of one chaining value, never a collision). The count of returned pairs is the organizer-visible number of mismatch-free trials (a witness frequency, not an inference); the W7 passes per trial are reported as an observation. Observations (untrusted): blocks (32), w7_passes, mismatches, ops (counted operations of the trial's program run), units (1). Validation by us (same five runs): 256 returned pairs each, mismatches 0, W7 passes 584, 553, 593, 551 and 569; about 1 second per run."
+    }
+  ]
+}
