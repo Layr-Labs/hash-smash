@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "vt-q3-smc-r38n",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/vt38n.py",
+      "event": {
+        "kind": "full-collision"
+      },
+      "scope": "H2 and H5 near term (proof.md 6.2, 6.4, 11). Trials 0..19 each run one reduced replicate of the q3 estimator for NEW3 (row 16 exact over the 40 words of G; 64 particles; 128, 4, 4, 1, 1, 1 children per particle at rows 17..22 with the E-cell, + and two-bit E bits imposed; 512 tail proposals per particle with the W23 cells and two-bit conditions imposed; each tail proposal draws a variant from 512 embedded variants sampled uniformly from the table entries; randomness from SHAKE-256 of the experiment id and trial seed). Every tail success is rebuilt into (CV1, M1, M1') and accepted only if the two 38-step compressions from CV1 are equal, M1 != M1', the Step-2 words of (CV1, variant) are W0..W7, W7 is in F7 and every cell of rows 0..37 holds. For the first two accepted pairs of a replicate every other valid variant with the same (A0, A1) is tried on the same CV1 (near term). Trial t < 20 returns its first accepted pair as CV1 || M1 and CV1 || M1' (96 bytes each); trial 20 returns a pair iff all 20 replicates succeeded with 0 failed rebuilds and the mean of the 20 estimates is >= 2^-100.0; trials 21..255 return no pair by design.",
+      "hypothesis": "Returned pairs: 21 (a pass). The returned strings are semi-free-start collisions from CV1, never collisions of the target from the IV: full collisions of the target, 0. Each replicate is an estimate of the variant-averaged q3 with relative sd about 0.21; the pass rule (mean of 20 >= q3_model = 2^-100.0) was fixed from 1,200 development replicates (mean 2^-99.7997; 0.1% quantile of the 20-mean 2^-100.015) before any validation run; a pass is a check of a reduced replica, not an estimate of q3. Observations (participant numbers, untrusted): log2_estimate, accepted_pairs, failed_rebuilds (0), near_variants, near_row16, near_w7, near_first17, near_cosuccess (0 expected); trial 20 log2_pooled_mean. Validation by us (public seed and four holdout nonces, 256 trials, 1 CPU, 128 MiB): 21 pairs returned in all five, pooled means 2^-99.775, -99.764, -99.820, -99.784, -99.634, 0 failed rebuilds, 0 near co-successes; under 7 s per run."
+    },
+    {
+      "id": "vt-ram-r38n",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/vt38n.py",
+      "event": {
+        "kind": "full-collision"
+      },
+      "scope": "The counted online program against the reference construction on real first blocks (H1, H7; proof.md 5.3, 11). Per organizer seed: two 256-bit words from SHAKE-256 of the seed are the program's RAND outputs; its prologue unpacks M0 and computes CV1 = F_38(IV, M0); then 32 A0 blocks (A0 indices 32 t .. 32 t + 31, t = trial mod 2) run with a table oracle whose bucket holds one entry, the embedded valid variant of that A0. Checks: M0 is the unpack of the two words, CV1 equals the reference compression, every block requests the header (Y, Z0) that the reference computes from (CV1, A0) (Lemma 5), and the program enters its row-17 path exactly for the entries whose reference W7 is in F7, with W17 equal to the reference W17 (the oracle entries carry G index 0, so E17 itself is not compared). Returns M0 || M1 and M0 || M1' of the first block's variant (128 bytes each) only if every check passed.",
+      "hypothesis": "Returned pairs: 256 (every trial mismatch-free); full collisions of the target: 0 (a returned pair is one variant of one chaining value, never a collision). The count of returned pairs is the number of mismatch-free trials (a witness frequency, not an inference). Observations (untrusted): blocks (32), w7_passes, mismatches, ops (counted operations), units (1). Validation by us (five seed sets, 256 trials each): 256 pairs returned each, mismatches 0, W7 passes 532, 539, 542, 556, 567 (uniform expectation 548); under 2 s per run."
+    }
+  ]
+}
