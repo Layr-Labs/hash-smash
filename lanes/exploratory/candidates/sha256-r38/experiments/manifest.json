@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "splitcheck",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/splitcheck.py",
+      "event": {
+        "kind": "full-collision"
+      },
+      "scope": "H6 split-search completeness and soundness (proof.md Section 5) plus the published-pair transcription check (proof.md Section 3). Per trial seed: d is 4 bytes of SHAKE-256(seed); the program (1) checks F_38(CV,M) == F_38(CV,M') on the transcribed Table-5 semi-free-start pair; (2) runs the split search over an 8-by-64 (H,L) window placed by the seed (1024 index probes: 64 L values x 16 low G values), verifies every returned u, requires equality with a brute-force enumeration of the same window, runs the per-L body through an operation counter in Section 1 primitives on all 64 window L values (asserting at most 975 each), and samples H1 uniformity on 32 true first-block chaining values with A0 varying over the published set (M0 of sixteen fresh words, CV1 by real compression, Step-2 W7); (3) on trial 0 only, verifies the H-index partitions all 65536 H values into correct buckets and runs the full-space soundness search for d (2^20 probes, every returned u verified). Randomness derives deterministically from the trial seed; output is byte-identical across reruns. No thresholds are fitted to seeds: wmatch, pair_ok, index_ok and maxperl bounds are exact equalities fixed before seeing any seed; counts are reported verbatim.",
+      "hypothesis": "Returned pairs: the transcribed semi-free-start pair per trial. Max counted per-L operations stay within the charged 975 (observed maxima well below). W7-pass counts, joint (W7,Y-half) bins jy00..jy11 (expect ~14.9,~14.9,~1.1,~1.1 per trial under independence), and Z0 quartile bins track H1 predictions. Full collisions: 0 (CV differs from the IV; the pair collides only from CV1, checkable offline with the 38-step compression). Every trial: published_pair_ok, wmismatches 0, wmatch true; trial 0 additionally index_ok, mismatches 0. Observations (flat scalars, at most 16 keys): published_pair_ok, w7passes, jybin0-3, zbin0-3, wmatch, maxperl every trial; trial 0 additionally index_ok, nsolutions, mismatches, probes0 (= 1048576). Window probes total 1024 per trial; trial-0 full probes total 1048576."
+    }
+  ]
+}
