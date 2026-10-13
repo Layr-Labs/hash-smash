@@ -4,21 +4,108 @@
   "target_profile": "sha256-r38-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 38,
-  "claim": {
-    "time_log2": 132,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 123,
-    "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 0
-  },
-  "restrictions": [
-    "Samples 2^128 independent uniform 48-byte complete messages with replacement; no chosen IV, digest truncation, or output-distribution assumption.",
-    "Classical probabilistic 256-bit word RAM using the independent uniform word primitive of collision-frontier-v5; no PRNG substitution.",
-    "Worst-case single-batch resource upper bounds include unsuccessful batches; no restart or amplification is required for success_probability 0.39."
-  ],
+  "lane": "exploratory",
   "baseline_improved": "sha256-r38-nominal-v2",
   "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  "experiment_manifest": "experiments/manifest.json",
+  "claim": {
+    "time_log2": 68.708,
+    "time_unit": "target-compressions",
+    "memory_log2_bytes": 79.39,
+    "preprocessing_log2": 66.20709,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 14
+  },
+  "restrictions": [
+    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; outputs two distinct 128-byte messages M0 || M1, M0 || M1' with equal digests.",
+    "Construction: the variant-table attack of the HashSmash lineage (c99df2dc, 0ae69bcb, aa0496d3, 19c9e7e7, aed05522, 1db43310) on the two-block framework of ePrint 2026/1120, instantiated with the characteristic NEW3 found by our own measured search (state trail equal to the published one with members swapped; different signed message difference in W10, W11, W23); online program and its executed counts in experiments/vt38n.py.",
+    "Cost: exact ledger ledger38n.py: N_G = 74,352,616,974,709,103,729 groups, 64 tables, executed counts of the counted program and of the P6 bodies, P1..P5 at most 2^56 operations, allowances 2^48 + 2^50 + 2^50; T x 2728 = 1315258766762705804196191; claimed 68.70800.",
+    "Success probability at least 0.39 under H1, H2 (q3_model 2^-100.0), H5 (delta = 1/25) and H6 (SR lower bound), by Bonferroni per group, independent groups and Chebyshev caps (variance bound derived from Lemma 6).",
+    "Memory (reported): 2^79.39 bytes with SR at its upper bound; the claim is a time bound in the word-RAM model with unit-cost table access (H3)."
+  ],
+  "heuristics": [
+    {
+      "id": "H1-single-trial-chaining-value",
+      "role": "score-critical",
+      "statement": "For a first block M0 uniform on {0,1}^512 (two fresh RAND words per group), CV1 = F_38(IV, M0) behaves as a uniform 256-bit value for the events of one fixed variant: (Y, Z0), W16 and W7 are uniform as for a uniform CV1 (Lemma 1, Lemma 4).",
+      "scope": "Expected work counters, the per-variant success probability and the group bound.",
+      "extrapolation": "The lineage premise; the vt-ram experiment checks the W7 rate on real first blocks (2,736 in 5 x 256 x 32 blocks, uniform expectation 2,740; W7 depends on CV1[0] only); the whole-group counts (1,204.9 entries per group against 1,201.1) are on chaining values rebuilt from successes, not on F_38 outputs.",
+      "limitations": "A premise about the first-block compression; the experiments test rates, not full uniformity.",
+      "evidence_ids": [
+        "proof:196-199",
+        "proof:321-342"
+      ]
+    },
+    {
+      "id": "H2-variant-q3",
+      "role": "score-critical",
+      "statement": "The average of q3(v) = Pr[rows 16..37 hold | W7 in F7] (including the row-16 factor 40/2^32) over the table entries (variants uniform on the disjoint union of the R_j) is at least q3_model = 2^-100.0.",
+      "scope": "S_model, N_G and the whole attack term.",
+      "extrapolation": "20 independent multilevel-splitting runs with a variant drawn per tail proposal from 420,000 sampled table variants: mean 2^-99.7971, one-sided 99% Student bound 2^-99.8319, 50,137 successes, all verified collisions; second implementation (vt38n replicate, 1,200 runs): mean 2^-99.7997; S* fixed: 2^-99.7471; published characteristic 2^-101.05 by the same estimator; organizer experiment vt-q3-smc-r38n with pass rule mean >= 2^-100.0.",
+      "limitations": "Participant-run Monte Carlo (resampled particles, not iid); the organizer experiment checks a reduced replica.",
+      "evidence_ids": [
+        "proof:200-228",
+        "proof:321-342"
+      ]
+    },
+    {
+      "id": "H3-table-pricing",
+      "role": "score-critical",
+      "statement": "Unit-cost table access in the 256-bit word RAM of collision-frontier-v5; memory (2^79.39 bytes) is reported, not scored.",
+      "scope": "The online cost per (CV1, A0) lookup.",
+      "extrapolation": "Text of the cost model, as used by every filing of the lineage.",
+      "limitations": "Without unit-cost tables the claim does not hold.",
+      "evidence_ids": [
+        "proof:161-193",
+        "proof:299-302"
+      ]
+    },
+    {
+      "id": "H4-measured-allowances",
+      "role": "score-critical",
+      "statement": "The computation spent to obtain NEW3, S*, the A0 set and everything else for this package is at most A_C + A_S + DEV = 2^48 + 2^50 + 2^50 target compressions.",
+      "scope": "The allowance part of the ledger (2^51.17 against T = 2^68.71).",
+      "extrapolation": "One 10-core machine: 24.0 hours for the first filing (2^19.72 core-seconds), about 2 hours for this one; A_C = 2^48 holds at any rate up to 2^28.28 compressions per core-second (the borrowed calibration is 2^21.383); literature inputs (shape, published weight profile as bounds) disclosed in Section 9.",
+      "limitations": "Wall-clock bound; if the published allowance A_C = 2^70 were charged the claim would be 70.49404.",
+      "evidence_ids": [
+        "proof:303-310"
+      ]
+    },
+    {
+      "id": "H5-pairs-in-group",
+      "role": "score-critical",
+      "statement": "The average over successful events of the expected number of further successes in the same group is at most delta = 1/25.",
+      "scope": "The group bound q_lb = S_model (1 - delta/2).",
+      "extrapolation": "Whole-group exact enumeration on 2,507 rebuilt successes: 3,020,683 other row-16 entries, 202,521 W7 passes, 5 with all of rows 16..17, 0 reaching row 18, 0 further successes; 99% Poisson limit of delta17 0.0052 (delta <= delta17 pointwise).",
+      "limitations": "Successes are resampled particles; Poisson limits assume independence; the budget is 7.65 times the limit.",
+      "evidence_ids": [
+        "proof:235-246",
+        "proof:229-234"
+      ]
+    },
+    {
+      "id": "H6-variant-count",
+      "role": "score-critical",
+      "statement": "SR = sum of |R_j| over the 64 A0 values satisfies 128,550,630,995 <= SR <= 129,394,551,076.",
+      "scope": "N_G (lower bound); caps, preprocessing and memory (upper bound); through the tight caps (eps_NE = 2^-8) the upper bound is also success-critical.",
+      "extrapolation": "Pooled fresh samples (505,421 valid of 1,516,703,439 draws, the A0 selection used a separate screening run); one-sided 99% Wilson bounds.",
+      "limitations": "Statistical bounds, not an exhaustive count.",
+      "evidence_ids": [
+        "proof:113-134"
+      ]
+    },
+    {
+      "id": "H7-counted-program",
+      "role": "score-critical",
+      "statement": "The counted program of experiments/vt38n.py implements the online algorithm of Section 5.2; its executed per-path counts (88, 13, 75, 6, 38, 55, 3291; 1-word entries) bound the cost of every path, and the preprocessing P6 bodies of vtpre_n.py (173, 213, 24, 64, 77, 77, 34, 6, 8) bound the table passes and build the tables the online program reads; P1..P5 cost at most 2^56 operations.",
+      "scope": "Every operation count of the ledger.",
+      "extrapolation": "Executed by the interpreter on the semi-free-start pair in all four lanes, on 64 estimator successes and on real first blocks (vt-ram experiment); P6 passes checked against the definition on toy segments, and the online program run on the tables they build (24 headers).",
+      "limitations": "The program is run on reduced inputs (oracle buckets, toy segments); full-scale execution is infeasible. P1..P5 are bounded, not executed for NEW3.",
+      "evidence_ids": [
+        "proof:163-179",
+        "proof:184-189",
+        "proof:321-342"
+      ]
+    }
+  ]
 }
