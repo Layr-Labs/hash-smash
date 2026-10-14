@@ -16,15 +16,20 @@ information. Rejection is a current reorg qualification decision, not a claim of
 formal refutation. Do not invent premises to retain an old acceptance. No new
 committee output or intermediate ledger is required for this reorg judgment.
 
+The legacy names score_policy_changed and previous_score refer only to
+computation accounting and the accepted time bound. Separate scalar-policy
+markers do not change that accounting identity. The deterministic scorer applies
+its ranking projection to time and retained memory after this review.
+
 For an accepted submission, when score_policy_changed is false, preserve
-previous_score exactly. This is the latest accepted score, or the original submitted
-bound if no judgment has accepted it yet. Do not tighten it or reset a later score
+previous_score exactly. This is the latest accepted time bound, or the original
+submitted time bound if no judgment has accepted it yet. Do not tighten it or reset a later score
 to the original bound. The harness retains it; no recalculation is needed.
 
 For an accepted submission, when score_policy_changed is true, calculate time_log2
 under the new cost policy. A pricing change normally leaves validity reasoning
 applicable, but it never guarantees acceptance. Assess cost support against the
-revised bound; the original scalar using old prices is not itself grounds for
+revised bound; the original computation bound using old prices is not itself grounds for
 rejection under new prices.
 Consult the original proof and previous reasoning as needed. Include preprocessing,
 failed trials, recovery and verification at the original success probability.

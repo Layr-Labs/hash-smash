@@ -1,5 +1,10 @@
 # Total-computation scoring migration
 
+This is the historical v3-to-v4 rejudging procedure. The later approved
+[scalar time-memory policy](../scoring-policies/README.md) uses retained v5
+resource metrics and a separate deterministic maintenance operation; it does not
+repeat this rejudging procedure.
+
 `collision-frontier-v4` changes the official scalar from `time_log2 +
 memory_log2_bytes` to `time_log2`. Computation units, the 0.39 success requirement,
 preprocessing, failed trials, verification, nonuniform construction costs and

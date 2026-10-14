@@ -9,6 +9,8 @@ from dataclasses import replace
 import io
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 import tempfile
 import unittest
@@ -112,10 +114,10 @@ class FrontierPipelineTests(unittest.TestCase):
                 with fake_provider() as (client, _):
                     self.assertEqual(pipeline.run_all(paths), 0)
                 score, aggregate = read_json(paths.score), read_json(paths.aggregate)
-                self.assertEqual(score["score"], track.nominal_score)
+                self.assertEqual(score["score"], track.nominal_score + 80)
                 self.assertEqual(score["metrics"]["memoryLog2Bytes"], 100)
                 self.assertEqual(score["metrics"]["costModelId"], "collision-frontier-v5")
-                self.assertEqual(score["metrics"]["scoreMetric"], "timeLog2")
+                self.assertEqual(score["metrics"]["scoreMetric"], "normalizedTimeMemoryLog2")
                 self.assertEqual(score["metrics"]["reviewStatus"], track.accepted_status)
                 self.assertEqual(score["metrics"]["lane"], track.lane)
                 self.assertFalse(score["metrics"]["referenceIsQualifiedBaseline"])
@@ -141,6 +143,25 @@ class FrontierPipelineTests(unittest.TestCase):
         self.assertEqual(len(outputs), 26)
         self.assertEqual(len(configs), 26)
         self.assertEqual(len(packages), 26)
+
+    def test_direct_cli_and_pipeline_emit_identical_scalar_projection(self):
+        paths = self.paths()
+        claim = read_json(paths.candidate / "claim.json")
+        claim["claim"].update(time_log2=80.125, memory_log2_bytes=40.5)
+        atomic_write_json(paths.candidate / "claim.json", claim)
+        candidate_before = (paths.candidate / "claim.json").read_bytes()
+        with fake_provider():
+            self.assertEqual(pipeline.run_all(paths), 0)
+        output = self.root / "direct-score.json"
+        result = subprocess.run([
+            sys.executable, "-m", "verifier", "score", "--track", paths.track.id,
+            "--candidate", str(paths.candidate), "--aggregate", str(paths.aggregate),
+            "--output", str(output),
+        ], cwd=ROOT, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(read_json(output), read_json(paths.score))
+        self.assertEqual(read_json(output)["score"], 100.625)
+        self.assertEqual((paths.candidate / "claim.json").read_bytes(), candidate_before)
 
     def test_catalog_and_yukon_manifests_preserve_pending_slots_and_literal_routes(self):
         slots = planned_slots()
@@ -212,7 +233,7 @@ class FrontierPipelineTests(unittest.TestCase):
                     score = read_json(paths.score)
                     self.assertEqual(score["score"], 128)
                     self.assertEqual(score["metrics"]["memoryLog2Bytes"], 17)
-                    self.assertEqual(score["metrics"]["scoreMetric"], "timeLog2")
+                    self.assertEqual(score["metrics"]["scoreMetric"], "normalizedTimeMemoryLog2")
                     self.assertNotIn("timeMemoryLog2", score["metrics"])
                     if value is None:
                         self.assertNotIn("dataLog2", score["metrics"])
@@ -232,7 +253,7 @@ class FrontierPipelineTests(unittest.TestCase):
                 with fake_provider():
                     self.assertEqual(pipeline.run_all(paths), 0)
                 score = read_json(paths.score)
-                self.assertEqual(score["score"], 94)
+                self.assertEqual(score["score"], 162)
                 self.assertEqual(score["metrics"]["nominalReferenceScore"], 80)
                 self.assertFalse(score["metrics"]["improvesNominalReference"])
                 self.assertFalse(score["metrics"]["referenceIsQualifiedBaseline"])

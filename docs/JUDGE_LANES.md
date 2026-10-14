@@ -17,13 +17,15 @@ the other result is retained for calibration.
 These are AI review outcomes. They do not certify mathematical truth, human
 acceptance, or measured false-positive/false-negative rates. An exploratory winner
 is a promising claim; it does not become an established baseline for the rigorous
-lane. The scalar is `time_log2` for a common target,
-round count, success requirement, and organizer cost model.
+lane. The original challenge's [scalar](../scoring-policies/README.md) is
+`time_log2 + max(0, memory_log2_bytes - 20)` for a common target, round count,
+success requirement and organizer cost model. The judge's `normalized_score_log2`
+field remains a time bound, separate from this deterministic ranking projection.
 
 The paired claim field `baseline_improved` is a required reference identifier,
 not an assertion that the candidate improves it. Intake requires the organizer's
 nominal reference ID even for an initial baseline. A fully supported construction
-can qualify with a scalar equal to or greater than the nominal display value;
+can qualify with a time bound equal to or greater than the nominal display value;
 qualification and Yukon's subsequent incumbent comparison are separate decisions.
 An honest disclaimer of improvement is consistent with this metadata. Explicit
 false comparisons, unsupported novelty claims and incorrect bounds remain subject
@@ -38,10 +40,11 @@ Four independent initial roles inspect the same immutable evidence:
    space, disclosed heuristics, and relevant evidence.
 2. **Cryptanalysis:** collision construction, probability argument, dependence
    assumptions, and heuristic justification.
-3. **Cost:** time, memory, preprocessing, advice, success budget, and scalar
-   arithmetic, explained in prose. Normal reviews score the submitted bound.
-   Organizer-pinned [reorgs](./RESCORING.md) reuse previous reasoning and adjust
-   the accepted score only when the public scoring policy changes.
+3. **Cost:** time, memory, preprocessing, advice and success budget, explained
+   in prose. Normal reviews check the submitted bounds. The scorer applies the
+   separate scalar policy to those bounds. Organizer-pinned [reorgs](./RESCORING.md)
+   reuse previous reasoning and adjust the accepted time bound only when
+   computation accounting changes.
 4. **Experiments:** relevance and reproducibility of organizer execution, finite
    counts, statistical interpretation, and extrapolation.
 

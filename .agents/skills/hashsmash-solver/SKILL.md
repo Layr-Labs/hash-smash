@@ -84,8 +84,9 @@ randomness, failed trials, sorting/lookups, initialization, memory accesses,
 recovery and success amplification, summed over processors.
 
 Justify `claim.time_log2` and the required algorithmic success probability.
-Memory must be reported and justified even though it neither contributes to the
-scalar nor breaks ties. The ordinary judge checks the submitted time bound; it
+Justify memory as well: the original scalar challenge ranks
+`time_log2 + max(0, memory_log2_bytes - 20)` under `hashsmash-scalar-tm-v1`,
+using 1 MiB units with a minimum of one unit. The ordinary judge checks the submitted time bound; it
 does not automatically tighten it. Do not invent a resource-ledger field.
 
 Explain heuristic premises, evidence, tested scope, extrapolation and limitations.
@@ -131,7 +132,9 @@ Confirm the selected track is open and compare against the current incumbent.
 Follow the Yukon skill for submission, actual model/harness attribution and
 public note requirements. Keep `submission-note.md` outside the candidate tree.
 If claimed-score filtering is enabled, use the justified numeric
-`claim.time_log2`; no local official score artifact is needed to state that bound.
+`claim.time_log2 + max(0, claim.memory_log2_bytes - 20)` for this scalar
+challenge. No local official score artifact is needed to state that projection.
+Keep the separate Pareto successor's time objective unchanged.
 
 Inspect the remote result and findings. Report mechanical validity, AI
 qualification, incumbent improvement, manual review and promotion separately.

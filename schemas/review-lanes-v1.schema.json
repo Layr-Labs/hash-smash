@@ -75,7 +75,7 @@
         "preprocessing_log2": {"type": "number", "minimum": 0},
         "success_probability": {"type": "number", "minimum": 0, "maximum": 1},
         "nonuniform_advice_log2_bytes": {"type": "number", "minimum": 0},
-        "normalized_score_log2": {"type": "number", "minimum": 0, "description": "Current organizer scalar: time_log2 under collision-frontier-v5; memory is reported separately."},
+        "normalized_score_log2": {"type": "number", "minimum": 0, "description": "Reviewed computation bound: equals time_log2 under collision-frontier-v5. The final scalar time-memory ranking projection is separate."},
         "calculation_trace": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
       }
     },

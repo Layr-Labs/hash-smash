@@ -33,8 +33,9 @@ research context and historical plans.
 The exploratory outcome `plausible_not_refuted` means relevant support exists and
 no fatal flaw survives adjudication. Rigorous qualification is `ai_rigor_qualified`.
 Both are AI review outcomes, not mathematical proof or human acceptance. A score is
-`log2(total charged computation)`, lower is better, under the
-selected target and common cost model. Nominal references are neither established
+`timeLog2 + max(0, memoryLog2Bytes - 20)`, lower is better, under
+[scalar policy hashsmash-scalar-tm-v1](./scoring-policies/README.md). Memory uses
+1 MiB units with a minimum of one unit; computation accounting remains v5. Nominal references are neither established
 attacks nor qualified baselines, and scalar improvement does not establish Pareto
 dominance.
 

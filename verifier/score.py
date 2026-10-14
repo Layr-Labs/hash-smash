@@ -25,8 +25,9 @@ def build_score(
 ) -> dict[str, Any]:
     """Build a score only for an explicitly AI-qualified judge aggregate.
 
-    Ordinary reviews use the validated submitted bound. Reorgs use the final
-    reviewed bound whose source and scoring policy the pipeline has verified.
+    Ordinary reviews use the validated submitted bounds. Reorgs use the final
+    reviewed time bound whose source and accounting policy the pipeline verified.
+    The original scalar challenge then applies its separately bound ranking policy.
     The caller may attach hashes of the judge configuration and dossier.
     """
 
@@ -73,6 +74,7 @@ def build_score(
             raise VerificationError("reviewed score must be a finite nonnegative number")
         time_log2 = float(value)
 
+    benchmark = track.benchmark()
     metrics: dict[str, Any] = {
         "reviewStatus": accepted_status,
         "targetProfile": intake["track"]["target_profile"],
@@ -81,7 +83,7 @@ def build_score(
         "timeLog2": time_log2,
         "memoryLog2Bytes": memory_log2_bytes,
         "scoreMetric": "timeLog2",
-        "costModelId": track.benchmark()["cost_model"]["id"],
+        "costModelId": benchmark["cost_model"]["id"],
         "preprocessingLog2": float(costs["preprocessing_log2"]),
         "nonuniformAdviceLog2Bytes": float(costs["nonuniform_advice_log2_bytes"]),
         "successProbability": float(costs["success_probability"]),
@@ -114,14 +116,29 @@ def build_score(
                        declaredPreprocessingLog2=metrics.pop("preprocessingLog2"),
                        declaredCostModelId=original_model["id"],
                        declaredOperationWeights=original_model.get("operation_weights", dict(UNIT_WEIGHTS)),
-                       operationWeights=track.benchmark()["cost_model"]["operation_weights"],
+                       operationWeights=benchmark["cost_model"]["operation_weights"],
                        rescoreSourceSha256=rescore_result["source"],
                        rescorePreviousScore=rescore_result["previous_score"],
                        rescoreMode="policy_change" if rescore_result["score_policy_changed"] else "preserve_score")
 
+    value = time_log2
+    # The separate organizer Pareto adapter consumes the time-only result as its
+    # timeLog2 objective. Candidate data cannot supply this benchmark marker.
+    if "pareto_adapter" in benchmark:
+        adapter = benchmark["pareto_adapter"]
+        if (not isinstance(adapter, Mapping) or adapter.get("id") != "hashsmash-pareto-v1"
+                or adapter.get("family") not in {"sha256", "sha3-256", "blake3", "poseidon"}):
+            raise VerificationError("unsupported organizer Pareto adapter")
+        require_sha256(adapter.get("sha256"), "Pareto adapter sha256")
+    else:
+        from scripts.scalar_scoring_policy import scalar_score, scoring_policy_metadata
+        policy = benchmark["scalar_scoring_policy"]
+        value = scalar_score(metrics, policy)
+        metrics.update(scoring_policy_metadata(policy))
+
     score = {
         "schema_version": SCHEMA_VERSION,
-        "score": time_log2,
+        "score": value,
         "metrics": metrics,
     }
     if output_path is not None:

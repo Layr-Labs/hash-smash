@@ -142,14 +142,18 @@ Organizer-pinned [reorgs](../docs/RESCORING.md#reorg-judgments) supply the origi
 submission, previous judgments and current judging instructions to one reviewer.
 It can accept, reject, or request missing evidence. Previous reasoning is reusable;
 the verdict is reconsidered under current rules. Accepted results preserve the last
-accepted score unless the scoring policy changed. Other results emit no score and
-remain in history.
+accepted time bound unless computation accounting changed. The separate scalar
+policy projects time and memory into the final rank. Other results emit no score
+and remain in history. Arithmetic-only scalar migration does not call this reviewer.
 
 ## Diagnostics and tests
 
 The provider contract contains only the selected role's substantive outputs.
 The harness attaches stage, version and evidence binding, derives the duplicate
-normalized score and prompt-injection flag, and supplies inapplicable empty fields.
+`normalized_score_log2` time bound and prompt-injection flag, and supplies
+inapplicable empty fields. Despite its legacy name, `normalized_score_log2` equals
+`time_log2`; it is not the scalar time-memory rank. The deterministic scorer
+applies [the scalar policy](../scoring-policies/README.md) separately.
 Normal cost reviews explain their calculation without a required resource ledger.
 
 JSON, schema, context and declared-heuristic coverage errors share the configured

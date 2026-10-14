@@ -4,7 +4,7 @@
   "tracks": [
     {
       "name": "sha256-r31-exploratory",
-      "description": "sha256-r31 ordinary collisions; exploratory AI review. Minimize log2(total charged computation); memory is a reported metric only. Pass means plausible_not_refuted.",
+      "description": "sha256-r31 ordinary collisions; exploratory AI review. Minimize timeLog2 + max(0, memoryLog2Bytes - 20): 1 MiB memory units, minimum one; hashsmash-scalar-tm-v1. Pass means plausible_not_refuted.",
       "category": "cryptanalysis",
       "direction": "-",
       "promotionMode": "manual",
@@ -32,7 +32,7 @@
     },
     {
       "name": "sha256-r32-exploratory",
-      "description": "sha256-r32 ordinary collisions; exploratory AI review. Minimize log2(total charged computation); memory is a reported metric only. Pass means plausible_not_refuted.",
+      "description": "sha256-r32 ordinary collisions; exploratory AI review. Minimize timeLog2 + max(0, memoryLog2Bytes - 20): 1 MiB memory units, minimum one; hashsmash-scalar-tm-v1. Pass means plausible_not_refuted.",
       "category": "cryptanalysis",
       "direction": "-",
       "promotionMode": "manual",
@@ -60,7 +60,7 @@
     },
     {
       "name": "sha3-256-r5-exploratory",
-      "description": "sha3-256-r5 ordinary collisions; exploratory AI review. Minimize log2(total charged computation); memory is a reported metric only. Pass means plausible_not_refuted.",
+      "description": "sha3-256-r5 ordinary collisions; exploratory AI review. Minimize timeLog2 + max(0, memoryLog2Bytes - 20): 1 MiB memory units, minimum one; hashsmash-scalar-tm-v1. Pass means plausible_not_refuted.",
       "category": "cryptanalysis",
       "direction": "-",
       "promotionMode": "manual",
@@ -88,7 +88,7 @@
     },
     {
       "name": "sha3-256-r6-exploratory",
-      "description": "sha3-256-r6 ordinary collisions; exploratory AI review. Minimize log2(total charged computation); memory is a reported metric only. Pass means plausible_not_refuted.",
+      "description": "sha3-256-r6 ordinary collisions; exploratory AI review. Minimize timeLog2 + max(0, memoryLog2Bytes - 20): 1 MiB memory units, minimum one; hashsmash-scalar-tm-v1. Pass means plausible_not_refuted.",
       "category": "cryptanalysis",
       "direction": "-",
       "promotionMode": "manual",
@@ -116,7 +116,7 @@
     },
     {
       "name": "blake3-r1-exploratory",
-      "description": "blake3-r1 ordinary collisions; exploratory AI review. Minimize log2(total charged computation); memory is a reported metric only. Pass means plausible_not_refuted.",
+      "description": "blake3-r1 ordinary collisions; exploratory AI review. Minimize timeLog2 + max(0, memoryLog2Bytes - 20): 1 MiB memory units, minimum one; hashsmash-scalar-tm-v1. Pass means plausible_not_refuted.",
       "category": "cryptanalysis",
       "direction": "-",
       "promotionMode": "manual",
@@ -144,7 +144,7 @@
     },
     {
       "name": "blake3-r2-exploratory",
-      "description": "blake3-r2 ordinary collisions; exploratory AI review. Minimize log2(total charged computation); memory is a reported metric only. Pass means plausible_not_refuted.",
+      "description": "blake3-r2 ordinary collisions; exploratory AI review. Minimize timeLog2 + max(0, memoryLog2Bytes - 20): 1 MiB memory units, minimum one; hashsmash-scalar-tm-v1. Pass means plausible_not_refuted.",
       "category": "cryptanalysis",
       "direction": "-",
       "promotionMode": "manual",
@@ -172,7 +172,7 @@
     },
     {
       "name": "sha256-r37-exploratory",
-      "description": "sha256-r37 ordinary collisions; exploratory AI review. Minimize log2(total charged computation); memory is a reported metric only. Pass means plausible_not_refuted.",
+      "description": "sha256-r37 ordinary collisions; exploratory AI review. Minimize timeLog2 + max(0, memoryLog2Bytes - 20): 1 MiB memory units, minimum one; hashsmash-scalar-tm-v1. Pass means plausible_not_refuted.",
       "category": "cryptanalysis",
       "direction": "-",
       "promotionMode": "manual",
@@ -200,7 +200,7 @@
     },
     {
       "name": "sha256-r38-exploratory",
-      "description": "sha256-r38 ordinary collisions; exploratory AI review. Minimize log2(total charged computation); memory is a reported metric only. Pass means plausible_not_refuted.",
+      "description": "sha256-r38 ordinary collisions; exploratory AI review. Minimize timeLog2 + max(0, memoryLog2Bytes - 20): 1 MiB memory units, minimum one; hashsmash-scalar-tm-v1. Pass means plausible_not_refuted.",
       "category": "cryptanalysis",
       "direction": "-",
       "promotionMode": "manual",

@@ -69,18 +69,20 @@ provider/model, with different strategies. No majority vote or numerical model
 confidence threshold substitutes for proof obligations. Success probability in a
 claim means algorithmic success, not confidence that the judge is right.
 
-The fixed `collision-frontier-v5` cost model ranks
-`log2(total charged time)`, lower is better, with success
-probability at least 0.39. Preprocessing, failed trials, verification, advice and
-code storage count in the resource ledger. Memory is required and reviewed, but
-does not affect the scalar or break ties. Time sums work across all processors.
+The fixed `collision-frontier-v5` model accounts for total charged computation,
+with success probability at least 0.39. The separate
+[scalar policy](../scoring-policies/README.md) ranks
+`timeLog2 + max(0, memoryLog2Bytes - 20)`, lower is better: 1 MiB memory units
+with a minimum of one unit. Preprocessing, failed trials, verification, advice and
+code storage remain charged resources. Both bounds are required and reviewed;
+time sums work across all processors.
 This shared policy applies to the current plan and retained historical lanes,
 including deferred targets; it does not activate unresolved slots. A trusted selected-target compression/permutation costs one
 unit; other 256-bit RAM operations are charged as specified in the model.
 
 The display reference is nominal collision-security exponent: 64 for MD5, 80 for
 SHA-1, 128 for these 256-bit targets. It is **not** a measured attack, an executable
-baseline, or a proved total-computation bound. A birthday exponent alone does not account
+baseline, a normalized time-memory score, or a proved total-computation bound. A birthday exponent alone does not account
 for implementation constants. Actual submissions must still report memory bytes.
 Profiles, policies and scores are isolated by lane; historical artifacts are never
 reinterpreted under the paired policy.

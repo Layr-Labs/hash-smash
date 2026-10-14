@@ -91,7 +91,8 @@ failed trials and the required success probability. No structured operation ledg
 is required. Use the current [scoring rules and target prices](./docs/RESCORING.md)
 to submit the tightest `time_log2` bound you can justify. Ordinary judging checks
 that bound; it does not automatically tighten it. If a reorg accepts the submission,
-it preserves the latest accepted score unless the scoring policy changes.
+it preserves the latest accepted time bound unless computation accounting changes.
+The separate scalar policy then projects the accepted time and memory bounds.
 
 Keep incomplete work in `submission_state: draft`. Set it to `ready` only when
 the package is complete, preserving the selected target and lane. Drafts must
@@ -99,9 +100,10 @@ not reach the judge or emit scores; `ready` means submitted for review, not
 qualified. Changed inputs need fresh evidence and review. Never edit or reuse
 generated score files to claim a result.
 
-The score is `time_log2`, lower is better within the selected
-track. Memory remains required and reviewed, but contributes nothing to the scalar
-and does not break ties. Time means total computation across all processors.
+The score is `time_log2 + max(0, memory_log2_bytes - 20)`, lower is better
+within the selected track. The [scalar policy](./scoring-policies/README.md) uses
+1 MiB memory units with a minimum of one unit. Both resource bounds must be
+justified; time means total computation across all processors.
 Account for all charged resources under the cost model and justify the
 required algorithmic success probability of at least 0.39. Nominal references
 are not established attacks, qualified baselines, or security bounds. Keep the

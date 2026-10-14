@@ -168,6 +168,15 @@ class LaneTrack:
         # Bind every organizer experiment/checker implementation, including dependencies.
         implementation_files = sorted((ROOT / "verifier").glob("*.py"))
         implementation_files += sorted((ROOT / "experiments").glob("*.py"))
+        # Scoring lives outside verifier/ so the offline operator can reuse it.
+        # Bind the complete effective helper sources and approved policy bytes.
+        from scripts.scalar_scoring_policy import ACTIVE_POLICY_PATH, active_scalar_policy
+        scalar_policy = active_scalar_policy()
+        implementation_files += [
+            ROOT / "scripts/scalar_scoring_policy.py",
+            ROOT / "scripts/scalar_score_resources.py",
+            ACTIVE_POLICY_PATH,
+        ]
         implementations = {str(path.relative_to(ROOT)): sha256_bytes(path.read_bytes())
                            for path in implementation_files}
         policies = sorted((ROOT / "judge" / "policies").glob("*lanes*.md"))
@@ -185,6 +194,7 @@ class LaneTrack:
         return {
             "track_id": self.id, "lane": self.lane, "target_id": self.target_id,
             "target_profile": profile, "cost_model": cost,
+            "scalar_scoring_policy": scalar_policy,
             "reference_checker_sha256": sha256_bytes(canonical_json_bytes(implementations)),
             "qualification_policy": {
                 "id": "paired-lanes-v1", "lane": self.lane,
@@ -199,7 +209,7 @@ class LaneTrack:
                 "rounds": self.rounds, "digest_bits": self.digest_bits,
                 "nominal_collision_security_bits": self.nominal_security_bits,
                 "score": self.nominal_score,
-                "note": "Organizer nominal security exponent, matching the mockup. It is neither an executed or qualified baseline nor a proved total-computation bound; instruction constants require accounting in each submission. Memory is reported separately.",
+                "note": "Organizer nominal computation/security exponent. It is neither an executed or qualified baseline nor a proved total-computation bound. It has no memory reference and is not a normalized time-memory score; instruction constants require accounting in each submission.",
             },
         }
 

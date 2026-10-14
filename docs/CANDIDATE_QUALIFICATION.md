@@ -65,8 +65,10 @@ configuration; this migration also needs the guarded refresh in the handoff.
    Explain the advice field and the units of every required bound. `data_log2` is
    optional legacy metadata; omit it from new claims. Existing claims may retain
    it without a separate data-bound justification. The emitted
-   score is `time_log2`; a birthday exponent is not a complete
-   total-computation implementation ledger. Memory remains a required reviewed metric.
+   score is `time_log2 + max(0, memory_log2_bytes - 20)` under the
+   [scalar policy](../scoring-policies/README.md). A birthday exponent alone is not
+   a complete total-computation bound or a normalized time-memory score. Memory
+   remains a required reviewed bound.
 3. **A success-probability argument of at least 0.39.** Specify the algorithm's
    probability space and distinguish repeated inputs from collisions of distinct
    inputs. Account for restart/amplification costs. This number is algorithmic

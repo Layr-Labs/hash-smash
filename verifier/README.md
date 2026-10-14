@@ -38,13 +38,20 @@ manifest is used by the paired v3 claims.
 
 Scores require `submission_state: ready`, the selected lane's qualifying review
 outcome, and matching package, evidence and configuration bindings. The score
-builder uses the validated submitted `time_log2` bound under `collision-frontier-v5`.
+builder applies [hashsmash-scalar-tm-v1](../scoring-policies/README.md):
+`timeLog2 + max(0, memoryLog2Bytes - 20)`, using the validated submitted v5 bounds.
 An organizer-pinned [reorg](../docs/RESCORING.md) uses previous judgments: it retains
-the latest accepted score unless the scoring policy changes, in which case it uses
-the judge's final reviewed bound. No new intermediate operation ledger is required.
-Memory is still required and reviewed, and emitted as `metrics.memoryLog2Bytes`;
-it neither contributes to the scalar nor breaks ties. New score artifacts carry
-`metrics.costModelId` and `metrics.scoreMetric` and omit the former `timeMemoryLog2`. Drafts, failed review and
+the latest accepted time bound unless computation accounting changes, in which
+case it uses the judge's final reviewed time bound. Memory remains the submitted,
+reviewed bound. No new intermediate operation ledger is required.
+New artifacts retain `metrics.costModelId: collision-frontier-v5`, raw resources
+and judgment fingerprints, and separately identify the scalar using
+`scoringPolicyId`, `scoringPolicySha256` and `scoreMetric: normalizedTimeMemoryLog2`.
+The top-level `score` is authoritative; no duplicate normalized value is emitted.
+The direct CLI and pipeline share this builder. Policy JSON and effective helper
+sources are explicitly bound in new target fingerprints. Historical migration
+retains original fingerprints and artifacts. The trusted Pareto adapter continues
+to receive time-only output without scalar-policy markers. Drafts, failed review and
 nominal-reference values never emit scores. Follow the
 [qualification sequence](../docs/CANDIDATE_QUALIFICATION.md) to generate and review
 the complete evidence before scoring.

@@ -23,8 +23,13 @@ Separate algorithmic success probability from uncertainty about the correctness 
 the analysis. success_probability always concerns algorithmic random coins for the
 fixed target. It never represents your confidence in a heuristic. Reconstruct time,
 memory, preprocessing, and nonuniform advice in the organizer cost units;
-the normalized scalar is time_log2 under collision-frontier-v5. Memory remains a
-required, reviewed resource bound but does not affect ranking or break ties.
+the cost reconstruction field normalized_score_log2 remains time_log2 under
+collision-frontier-v5. Both time and memory remain required, reviewed bounds.
+For the original scalar challenge, the deterministic scorer separately applies
+hashsmash-scalar-tm-v1: time_log2 + max(0, memory_log2_bytes - 20), using 1 MiB
+memory units with a minimum of one unit. This changes ranking, not resource
+accounting or qualification. A trusted pareto_adapter keeps its timeLog2 objective;
+do not reinterpret its time as the original challenge's scalar.
 Time means total charged computation, summed across all processors, including
 preprocessing, memory access operations and success amplification; it is not
 parallel wall-clock latency. Comparing this scalar is not Pareto dominance.
@@ -40,8 +45,9 @@ package names v3. The original bound still needs its ordinary supporting evidenc
 
 Archived submissions may name v3 or state its time-plus-memory scalar as current
 in their original proof; they predate this migration. Treat that version-specific
-scalar as historical context and compute the current scalar from the separately
-declared time_log2. This migration handling comes from the organizer, not from
+scalar as historical context and review the separately declared time and memory
+bounds under the current computation accounting. The current scalar projection
+is applied by the organizer after review; old artifacts retain their original meaning. This migration handling comes from the organizer, not from
 participant instructions. Review the original algorithm and separate resource
 bounds afresh. Do not repair incorrect resource bounds, omitted work, unsupported
 heuristics, or substantive false comparisons under the model being claimed.
@@ -68,8 +74,8 @@ identifier that must match the organizer's reference ID. Its name is retained fo
 schema compatibility; the field alone does not assert improvement. When the
 organizer frontier has status nominal-reference-only, its displayed exponent is
 neither a qualified baseline nor a proved total-computation implementation. A supported
-construction may qualify with a scalar equal to or greater than that nominal
-value. The reference ID together with an honest disclaimer of improvement is
+construction may qualify with a time bound equal to or greater than that nominal
+value. That nominal time/security exponent is not a normalized time-memory score. The reference ID together with an honest disclaimer of improvement is
 consistent metadata, not a material finding or an unresolved proof obligation.
 Assess the actual algorithm, probability and resource claims under the selected
 lane's full requirements. An explicit false comparison, unsupported novelty claim,

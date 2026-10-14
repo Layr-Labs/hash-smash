@@ -2,9 +2,14 @@
 
 ## Prices
 
-V5 scores log2(total computation in target-compression equivalents). One selected
+V5 accounts for total computation in target-compression equivalents. One selected
 compression/permutation costs 1; each other 256-bit RAM primitive costs 1/C.
-Memory remains a required metric, with no scalar contribution or tie-break.
+The separate [scalar policy](../scoring-policies/README.md), `hashsmash-scalar-tm-v1`,
+ranks `timeLog2 + max(0, memoryLog2Bytes - 20)`. Its 1 MiB normalization and floor
+at one memory unit do not change computation prices, resource bounds or success
+requirements. The v5 JSON's legacy `score`, `score_metric` and `memory_scoring`
+text describes its historical time-only projection; the explicit scalar policy
+controls new original-challenge ranking.
 
 | Target | C |
 | --- | ---: |
@@ -36,13 +41,13 @@ The definitions follow [MD5](https://www.rfc-editor.org/rfc/rfc1321),
 
 ## Submitted scores
 
-Ordinary submissions are scored at their justified `claim.time_log2` bound under
-the current public accounting rules. One target compression costs 1 and an ordinary
+Ordinary submissions use their justified `claim.time_log2` and
+`claim.memory_log2_bytes` bounds in the scalar formula above. One target compression costs 1 and an ordinary
 operation costs the selected `operation_weights.word_operation`. For example,
 H target compressions and W ordinary operations cost `log2(H + W/C)` before any
 additional charged work. Include preprocessing, failed trials and recovery at the
 claimed success probability. State the tightest bound you can support; the judge
-does not automatically tighten the submitted scalar.
+does not automatically tighten either submitted bound.
 
 Explain the calculation in the proof. Submissions and judge outputs have no
 `resource_ledger` field; there is no intermediate ledger schema or pricing engine.
@@ -64,30 +69,37 @@ applicable, but does not guarantee acceptance. Missing information can instead
 produce `needs_evidence`. Neither rejection nor missing evidence produces a score.
 Target, algorithm, success probability and lane remain bound to the submission.
 
-For accepted results, the score rule is explicit:
+Reorg fields named `previous_score` and `score_policy_changed` retain their
+computation-bound and computation-accounting meanings. For accepted results:
 
-- Same scoring policy: retain the latest accepted score exactly. A first reorg
-  retains the submitted score; a later reorg retains the previous reorg's score.
+- Same computation accounting: retain the latest accepted time bound exactly. A first reorg
+  retains the submitted time bound; a later reorg retains the previous reorg's bound.
   A tighter reconstruction or unrelated prompt/checker change does not alter it.
   An intervening rejected or incomplete review does not erase that scored judgment.
   If no judgment has accepted it yet, use the original submitted bound and policy.
-- Changed scoring policy: the judge gives a revised computation bound and a short
+- Changed computation accounting: the judge gives a revised computation bound and a short
   calculation with evidence references. No prescribed intermediate ledger is needed.
 
-Scoring policy identity is the public cost-model ID plus the selected target's
+Reorg computation-accounting identity is the public cost-model ID plus the selected target's
 actual operation weights. Bump the public ID when accounting rules change; a
 price-only change is detected without a version bump. Changes to other targets'
 prices, comments, judge prompts or general configuration hashes do not by themselves
-change a submission's scoring policy. Organizer pins still authorize the exact
+change a submission's computation accounting. Organizer pins still authorize the exact
 configuration transition independently of this score comparison.
 
 The final review contains only status, a computation bound (null unless accepted),
 and a concise explanation. The harness supplies stage/version/binding metadata and
-preserves the previous score on acceptance when policy is unchanged. Rejected and
+preserves the previous time bound on acceptance when accounting is unchanged. Rejected and
 incomplete judgments remain in history. Only the selected lane is reviewed; sibling
 lane decisions are not carried forward as current decisions.
-Memory, data and advice metrics remain reported separately. Scores record the
-original declared bound, previous score, `rescoreMode` and source packet.
+Memory, optional data and advice metrics retain their meanings. Final scoring
+applies the scalar policy to the accepted time and retained memory bounds. Scores
+record the original declared bound, previous time bound, `rescoreMode` and source packet.
+
+A deterministic scalar-policy migration uses the separate offline
+[plan filler](../scoring-policies/README.md#offline-yukon-plan-filling) and Yukon
+maintenance tool. It does not invoke this reorg judge or modify historical artifacts.
+The scalar-policy ID/hash do not widen computation-accounting identity.
 
 ## Artifact handoff
 

@@ -1,0 +1,90 @@
+{
+  "policy": {
+    "id": "hashsmash-scalar-tm-v1",
+    "version": 1,
+    "formula": "timeLog2 + log2(memoryUnits)",
+    "sourceCostModelId": "collision-frontier-v5",
+    "timeUnit": "target-compressions",
+    "memoryUnitBytes": 1048576,
+    "minimumMemoryUnits": 1
+  },
+  "metadata": {
+    "scoringPolicyId": "hashsmash-scalar-tm-v1",
+    "scoringPolicySha256": "65f6bd3eb8260395d5a9520ebe14be10f68efba6bf4625d9cebef2221b832c2d",
+    "scoreMetric": "normalizedTimeMemoryLog2"
+  },
+  "cases": [
+    {
+      "metrics": {
+        "costModelId": "collision-frontier-v5",
+        "timeUnit": "target-compressions",
+        "timeLog2": 128,
+        "memoryLog2Bytes": 0
+      },
+      "score": 128
+    },
+    {
+      "metrics": {
+        "costModelId": "collision-frontier-v5",
+        "timeUnit": "target-compressions",
+        "timeLog2": 128,
+        "memoryLog2Bytes": 19.5
+      },
+      "score": 128
+    },
+    {
+      "metrics": {
+        "costModelId": "collision-frontier-v5",
+        "timeUnit": "target-compressions",
+        "timeLog2": 128,
+        "memoryLog2Bytes": 20
+      },
+      "score": 128
+    },
+    {
+      "metrics": {
+        "costModelId": "collision-frontier-v5",
+        "timeUnit": "target-compressions",
+        "timeLog2": 128,
+        "memoryLog2Bytes": 20.25
+      },
+      "score": 128.25
+    },
+    {
+      "metrics": {
+        "costModelId": "collision-frontier-v5",
+        "timeUnit": "target-compressions",
+        "timeLog2": 128,
+        "memoryLog2Bytes": 21
+      },
+      "score": 129
+    },
+    {
+      "metrics": {
+        "costModelId": "collision-frontier-v5",
+        "timeUnit": "target-compressions",
+        "timeLog2": 80.125,
+        "memoryLog2Bytes": 40.5
+      },
+      "score": 100.625
+    },
+    {
+      "metrics": {
+        "costModelId": "collision-frontier-v5",
+        "timeUnit": "target-compressions",
+        "timeLog2": 0,
+        "memoryLog2Bytes": 20
+      },
+      "score": 0
+    },
+    {
+      "metrics": {
+        "costModelId": "collision-frontier-v5",
+        "timeUnit": "target-compressions",
+        "timeLog2": 128,
+        "memoryLog2Bytes": 1000
+      },
+      "score": 1108
+    }
+  ]
+}

@@ -40,16 +40,23 @@ class RescoringTests(unittest.TestCase):
     setUp = fixtures.FrontierPipelineTests.setUp
     paths = fixtures.FrontierPipelineTests.paths
 
-    def source(self, *, rigorous=False, rejected=False):
+    def source(self, *, rigorous=False, rejected=False, memory=0):
         lane = "rigorous" if rigorous else "exploratory"
         paths = self.paths("sha256-r31-" + lane)
+        claim = read_json(paths.candidate / "claim.json")
+        claim["claim"]["memory_log2_bytes"] = memory
+        atomic_write_json(paths.candidate / "claim.json", claim)
         old = paths.track.benchmark()
         old["cost_model"] = read_json(ROOT / "cost-models/collision-frontier-v4.json")
+        old.pop("scalar_scoring_policy")
         def old_review(stage, review, _):
             if rejected and stage == "lane_evaluability":
                 review["obligations"][1]["status"] = "unresolved"
         with patch.object(LaneTrack, "benchmark", return_value=old), fake_provider(old_review):
-            self.assertEqual(pipeline.run_all(paths), 2 if rejected else 0)
+            # Construct historical judgment evidence only: today's scalar policy
+            # intentionally cannot score a synthetic v4 accounting fixture.
+            self.assertEqual(pipeline.run_intake(paths), 0)
+            self.assertEqual(pipeline.run_judge(paths), 2 if rejected else 0)
         self.archives = paths.rescore_archives
         self.plan = self.root / "plan.json"
         self.enterContext(patch.object(rescore, "ARCHIVES", self.archives))
@@ -195,6 +202,21 @@ class RescoringTests(unittest.TestCase):
         self.assertNotIn("resourceLedger", result["metrics"])
         self.assertEqual(result["metrics"]["rescoreMode"], "policy_change")
 
+    def test_scalar_projection_uses_reviewed_time_and_retains_memory_and_history(self):
+        paths, entry = self.source(memory=40.5)
+        anchor = rescore.load_archive(entry["source"])
+        candidate_before = (paths.candidate / "claim.json").read_bytes()
+        self.run_cost(paths, CostClient(21.0))
+        result = read_json(paths.score)
+        self.assertEqual(result["score"], 41.5)
+        self.assertEqual(result["metrics"]["timeLog2"], 21)
+        self.assertEqual(result["metrics"]["memoryLog2Bytes"], 40.5)
+        self.assertEqual(result["metrics"]["declaredTimeLog2"], 128)
+        self.assertEqual(result["metrics"]["rescorePreviousScore"], 128)
+        self.assertEqual(result["metrics"]["scoreMetric"], "normalizedTimeMemoryLog2")
+        self.assertEqual(rescore.load_archive(entry["source"]), anchor)
+        self.assertEqual((paths.candidate / "claim.json").read_bytes(), candidate_before)
+
     def test_repeated_reorgs_reuse_reasoning_and_retain_history(self):
         paths, entry = self.source()
         self.run_cost(paths, CostClient(21.0))
@@ -263,6 +285,7 @@ class RescoringTests(unittest.TestCase):
         changed = deepcopy(evidence)
         changed["benchmark"]["cost_model"]["reference_operation_costs"]["md5-s63"] += 1
         changed["benchmark"]["qualification_policy"]["sha256"] = "f" * 64
+        changed["benchmark"]["scalar_scoring_policy"]["id"] = "irrelevant-ranking-projection"
         self.assertEqual(rescore.scoring_policy(evidence), rescore.scoring_policy(changed))
         changed["benchmark"]["cost_model"]["operation_weights"]["word_operation"] *= 2
         self.assertNotEqual(rescore.scoring_policy(evidence), rescore.scoring_policy(changed))

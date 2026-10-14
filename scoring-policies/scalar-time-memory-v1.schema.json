@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Explicit scalar time-memory policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "version",
+    "formula",
+    "sourceCostModelId",
+    "timeUnit",
+    "memoryUnitBytes",
+    "minimumMemoryUnits"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,95}$"
+    },
+    "version": {
+      "const": 1,
+      "type": "integer"
+    },
+    "formula": {
+      "const": "timeLog2 + log2(memoryUnits)"
+    },
+    "sourceCostModelId": {
+      "const": "collision-frontier-v5"
+    },
+    "timeUnit": {
+      "const": "target-compressions"
+    },
+    "memoryUnitBytes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "minimumMemoryUnits": {
+      "description": "1 floors normalized memory at one unit; null permits fractional units.",
+      "anyOf": [
+        {"type": "null"},
+        {"type": "integer", "const": 1}
+      ]
+    }
+  },
+  "description": "memoryUnits is memory bytes divided by memoryUnitBytes, floored at minimumMemoryUnits when non-null. Equal multiplicative time-memory weighting. All parameters are explicit. The runtime selects the separately pinned approved definition."
+}

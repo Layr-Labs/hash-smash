@@ -1,0 +1,9 @@
+{
+  "id": "organizer-fixture-scalar-v1",
+  "version": 1,
+  "formula": "timeLog2 + log2(memoryUnits)",
+  "sourceCostModelId": "collision-frontier-v5",
+  "timeUnit": "target-compressions",
+  "memoryUnitBytes": 1024,
+  "minimumMemoryUnits": 1
+}
