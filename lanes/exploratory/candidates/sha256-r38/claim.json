@@ -4,21 +4,83 @@
   "target_profile": "sha256-r38-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 38,
-  "claim": {
-    "time_log2": 132,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 123,
-    "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 0
-  },
-  "restrictions": [
-    "Samples 2^128 independent uniform 48-byte complete messages with replacement; no chosen IV, digest truncation, or output-distribution assumption.",
-    "Classical probabilistic 256-bit word RAM using the independent uniform word primitive of collision-frontier-v5; no PRNG substitution.",
-    "Worst-case single-batch resource upper bounds include unsuccessful batches; no restart or amplification is required for success_probability 0.39."
-  ],
+  "lane": "exploratory",
   "baseline_improved": "sha256-r38-nominal-v2",
   "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  "experiment_manifest": "experiments/manifest.json",
+  "claim": {
+    "time_log2": 87.22358,
+    "time_unit": "target-compressions",
+    "memory_log2_bytes": 28.1,
+    "preprocessing_log2": 51.16993,
+    "success_probability": 0.39,
+    "nonuniform_advice_log2_bytes": 14
+  },
+  "restrictions": [
+    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; outputs two distinct 128-byte messages M0 || M1, M0 || M1' with equal digests.",
+    "Construction: the memory-efficient A0-variant attack (design of 2d1c4fc2 and fb176310 on ePrint 2026/1120 / 2026/1080), our implementation experiments/a0p38.py, with our characteristic P8 and the accepted event rows 16..22 (row 19 on signed differences) plus a direct output comparison.",
+    "Cost: exact ledger ledger_a0p.py: N_FB = 6,005,607,090,201,049,622,085,684 first blocks, 8 classes of 24,576 variants, the row-16 program of 1511 instructions per 256 variants, executed counts; T x 2728 = 492898079323702689657340761015; claimed 87.22358.",
+    "Success probability at least 0.39 under H1, H2 (q3_model 2^-97.0000), H3, by Bonferroni per first block, independent first blocks and Chebyshev caps.",
+    "Memory 2^28.10 bytes (online 608,864 bytes; the preprocessing peak)."
+  ],
+  "heuristics": [
+    {
+      "id": "H1-single-trial-chaining-value",
+      "role": "score-critical",
+      "statement": "For M0 uniform on {0,1}^512 (two fresh random words per first block), CV1 = F_38(IV, M0) behaves as a uniform 256-bit value for the events of one fixed variant (W7, W16..W22 and E16x distributed as in Lemma 5.1).",
+      "scope": "g, the per-first-block success probability and the expected work.",
+      "extrapolation": "The premise of the A0-variant lineage; the organizer experiment a0p-online-r38 runs the program on real first blocks.",
+      "limitations": "A premise about the first-block compression.",
+      "evidence_ids": [
+        "proof:152-157",
+        "proof:310-330"
+      ]
+    },
+    {
+      "id": "H2-q3-accepted-event",
+      "role": "score-critical",
+      "statement": "The average over the 196,608 selected variants of Pr[the pair is in the accepted event (rows 16..22 with row 19 on signed differences, equal outputs) | good pair] is at least q3_model = 2^-97.0000.",
+      "scope": "N_FB and the whole attack term.",
+      "extrapolation": "20 multilevel-splitting runs (C) with the variants of the selected classes: mean 2^-96.3683, one-sided 99% Student bound 2^-96.9759, bootstrap 2^-96.8088, 89,254 verified collisions (one stalled run counted as 0); an independent Python implementation (the organizer replica, a lower-bound event restricted to four row-19 patterns and 512 sampled variants): 480 development replicates, mean 2^-96.2992; organizer replica a0p-q3-r38 with a frozen pass rule.",
+      "limitations": "Participant-run Monte Carlo with a heavy-tailed row-20 stage; the replica tests a reduced version.",
+      "evidence_ids": [
+        "proof:223-257",
+        "proof:310-330"
+      ]
+    },
+    {
+      "id": "H3-pairs-in-first-block",
+      "role": "score-critical",
+      "statement": "The average over successes of the expected number of other row-16 passes of the same first block is at most 2^-5.9.",
+      "scope": "The Bonferroni factor of a first block.",
+      "extrapolation": "750 rebuilt successes: 2 other row-16 passes among 36,741,120 evaluated variants of the passing classes; 99% Poisson limit 2^-6.48.",
+      "limitations": "Measured on rebuilt estimator successes.",
+      "evidence_ids": [
+        "proof:223-257"
+      ]
+    },
+    {
+      "id": "H4-allowances",
+      "role": "score-critical",
+      "statement": "The computation spent on the characteristic search, S and the class data, and all development is at most A_C + A_S + DEV = 2^48 + 2^50 + 2^50 target compressions.",
+      "scope": "The allowance term (negligible against T).",
+      "extrapolation": "One 10-core machine, less than 2^21 core-seconds in all; holds at up to 2^27 compressions per core-second.",
+      "limitations": "Wall-clock bound; A_C up to 2^84 changes the claim by less than 0.003.",
+      "evidence_ids": [
+        "proof:258-283"
+      ]
+    },
+    {
+      "id": "H5-bitsliced-planes",
+      "role": "score-critical",
+      "statement": "One instruction on a 256-bit plane costs one word operation (the 256-bit word RAM of the cost model); the row-16 program is charged at its executed instruction count, loads and stores included.",
+      "scope": "The dominant work term.",
+      "extrapolation": "Executed instruction by instruction and compared with the scalar definition on sampled batches (selftest, a0p-online-r38).",
+      "limitations": "Full-scale execution is infeasible.",
+      "evidence_ids": [
+        "proof:183-203",
+        "proof:310-330"
+      ]
+    }
+  ]
 }
