@@ -1,2178 +1,1595 @@
-# SHA3-256 with 6 prefix rounds: Gray-order enumeration of two-round-affine cosets, time_log2 122.66823
+# SHA3-256 with 6 prefix rounds: distinguished-point collision search with a linear-structure message embedding on a 1,024-register machine with every transfer charged, time_log2 124.67321
 
 ## 1. Claim
 
-Target `sha3-256-r6-prefix-v1` (organizer profile): SHA3-256 of FIPS 202 with "prefix rounds 0 through 5, inclusive,
-in every sponge permutation" (not the last-round convention of Keccak-p); all-zero 1600-bit initial state; rate 1088
-bits, capacity 512; "SHA3 domain suffix 01 followed by pad10*1; delimited suffix byte 0x06", standard little-endian
-lane and bit encoding; the digest is the first 32 squeeze bytes; messages are distinct byte strings of bit length
-below 2^64; reference `verifier/keccak.py:sha3_256`. Postcondition: "The two complete sha3-256-r6 sponge hashes agree
-on all 256 output bits." The algorithm CAMP of Section 8 outputs two distinct 135-byte messages with equal digests.
+Target `sha3-256-r6-prefix-v1`. This is SHA3-256 (FIPS 202) with Keccak-f rounds 0 to 5 in the single permutation call, zero initial state, rate 136 bytes, suffix 0x06 with pad10*1, and the full 256-bit digest. The algorithm outputs two distinct 128-byte one-block messages with equal complete digests (an ordinary collision).
 
 | Quantity | Value |
 |---|---|
-| time_log2 (collision-frontier-v5, reference operation cost 1626, rounded up) | 122.66823 (Section 10) |
-| success probability | at least 0.39 over CAMP's fresh coins (random coset origins), under premise H_coset (Section 9) |
-| memory | below 2^141 words of 256 bits, below 2^146 bytes (Section 11.1) |
-| preprocessing (included in time) | at most 2^70 + 16 word operations, below 2^59.34 target compressions (Section 11.2) |
-| nonuniform advice | none |
+| time_log2 (collision-frontier-v5, unit 1626 word operations, rounded up) | 124.67321 (Sections 4 and 5, certificate in Appendix A) |
+| memory | at most 1,032,320 bytes <= 2^20 (log2 19.9775), memory_log2_bytes = 20 (Section 6) |
+| score S = time_log2 + max(0, memory_log2 - 20) | 124.67321 |
+| success probability | at least 0.39 for one attempt, under the premise H_rand (Section 5) |
+| preprocessing | the constant-selection run `gen 512` and the generator `gen_s6ls` (which selects the polarity pattern and the boundary size), charged 513 x 2^32 + 512 x 2^10 + 2^34 operations; preprocessing_log2 = 31 (Section 3.6); no advice |
 
-CAMP is randomized: every coset origin is fresh randomness, drawn with the cost model's primitive "independent uniform
-random 256-bit word" (Section 6.1), and every probability in this document is over these coins for the fixed target.
-One premise is declared (Section 12): **H_coset**, that over these coins the occupancy, key-match and triple bounds of
-Section 9 hold for the messages CAMP enumerates (the bounds that independent uniform digests would give). Everything
-else is proved here: two-round affinity on every coset of W40, degree at most 8 before the last chi, exactness of the
-Gray-order finite differences and of their initialization, correctness of the sparse-set table for arbitrary initial
-memory, the duplicate-coset bound, and every operation count. Section 12 gives the premise's evidence: reduced-width
-tests that the organizer executes (the declared experiments), preregistered GPU counts of 32- to 64-bit digest
-projections of up to 2^34 messages (Appendix A: protocols with their hashes, programs, raw counts and validation
-printouts), and the effect of a pair-rate shortfall on the claim.
+The method is a generic distinguished-point search (van Oorschot-Wiener) on a chain function F with 256 walks per step. The search, its table, restart rule, deadlines, replay and success bound are those of our earlier entry 2d74a370 with the parameters of its register-resident successor (Section 4). What this package adds:
 
-## 2. Notation and messages
+1. **The message embedding.** The 256-bit point is placed in six message lanes so that round 0 and the theta step of round 1 are affine in the point (a one-round linear structure of Guo, Liu and Song, 2016). That part of the step is one affine map of 2,195 operations.
+2. **The machine.** The step runs on a machine with a register file of **1,024 words** of 256 bits. Every load, store and register move is an instruction and is charged as one word operation; code is counted at **32 bytes per instruction**. There is no other register or encoding convention. Section 3.3 gives the allocation: rounds 1 to 4 share one code body per buffer direction, with fixed boundary sets of 975 planes in registers and the rest in memory.
+3. **Everything that selected a constant is run by the attack and charged.** The message constants (`gen 512`, 512 candidate sets), the polarity pattern (all 2^25 patterns) and the boundary size (seven sizes) are selected inside the preprocessing programs printed in Appendices B and C. Their memory is measured and counted (Section 3.6).
 
-A state is 25 little-endian 64-bit lanes S[x + 5y] (x, y in 0..4); bit z of lane k is state bit 64k + z. Round r
-(r = 0..5) is theta, rho, pi, chi, iota with constant RC[r] as in the reference; P6 is rounds 0 to 5. XOR is
-addition over F_2. For t in F_2^320 let u_k(t) (k = 0..4) be bits 64k to 64k + 63 of t.
+Declared heuristics (claim.json): H_rand (Section 5), the one score-critical premise, and H_machine (Section 3.2), the statement of the machine and its charges (the 1,024-word register file with every transfer charged and code at 32 bytes per instruction).
 
-**Messages.** M(t) = U || 0^40 || U || 0^15 (135 bytes) with U = LE64(u_0) || ... || LE64(u_4). The padding of the
-profile appends 0x06 and the final bit 0x80, which share byte 135, so M(t) is one 136-byte block A(t): lanes 0 to 4
-and lanes 10 to 14 hold u_0 .. u_4, lane 16 holds 0x86 * 2^56, all other lanes (and the capacity) are zero. H(M(t)) is
-lanes 0 to 3 of P6(A(t)): one permutation call per message.
+## 2. The function F and the encoding
 
-**Lemma 1 (messages).** t -> M(t) is injective, and every M(t) is a message of the target domain whose hash is the
-first 32 bytes of P6(A(t)).
+Let u be a 256-bit point with little-endian 64-bit lanes u0, u1, u2, u3. The message m(u) has 128 bytes, the 16 lanes 0 to 15 of the absorbed state (lane index x + 5y):
 
-*Proof.* The first 40 bytes of M(t) are t in little-endian order. The block is the profile's padding of a 135-byte
-string (135 = 136 - 1, so the suffix and the final bit fall in byte 135), absorbed into the zero state. QED.
+- lane 1 = u0, lane 6 = u1, lane 11 = u0 xor u1 xor K11 (column x = 1, rows y = 0, 1, 2);
+- lane 4 = u2, lane 9 = u3, lane 14 = u2 xor u3 xor K14 (column x = 4, rows y = 0, 1, 2);
+- every other lane l in 0..15 holds the constant K_l (below).
 
-**Pre-chi6 bits.** For a block A let b(A) in F_2^320 be row y = 0 after theta, rho and pi of round 5 applied to
-rounds 0 to 4 of A: bits b_{x,z}, lane x = 0..4, bit z = 0..63. Digest lane x (x = 0..3), bit z, is
-b_{x,z} XOR (NOT b_{x+1,z} AND b_{x+2,z}) XOR RC[5]_z [x = 0] (lane indices mod 5; RC[5] = 0x0000000080000001 sets
-bits 0 and 31 of lane 0).
+With the SHA3 padding, byte 128 is 0x06 and byte 135 is 0x80. The message is one absorbed block, lane 16 = 0x8000000000000006, and lanes 17 to 24 are zero. Rounds 0 to 5 are applied, and the digest is lanes 0 to 3 of the result (32 bytes). Define
 
-**Gray code.** g(i) = i XOR floor(i/2) for i >= 0; an integer is identified with the set of its 1-bits. g is a
-bijection of [0, 2^n), and g(i) and g(i - 1) differ exactly in bit nu(i), the lowest set bit of i.
+    F(u) = SHA3-256-r6(m(u)) xor PD
 
-## 3. The field W40 and two-round affinity
+where PD is a fixed 256-bit mask: the stored polarity of the four output lanes of the program (Section 3.1), with the round-5 constant folded in. The map u -> m(u) is injective (lanes 1, 6, 4, 9 are u). Hence F(a) = F(b) with a != b gives two distinct messages m(a), m(b) with equal complete digests. XOR with a fixed mask is a bijection of the range, so F is a fixed function from 256 bits to 256 bits like the plain digest map.
 
-W40 = (w_0, ..., w_39), vectors of F_2^320 in hexadecimal, most significant digit first; bit 64k + b is bit b of u_k.
-The order is part of the algorithm (Gray enumeration, Section 6.1). Section 11.2 bounds the search that produced them.
+Constants (hexadecimal). They are trial 192 of the selection run `gen 512` (Section 3.6):
 
 ```
-w_0  00000000000000000000000040000004100100000000000000002000200000000000000000000000
-w_1  000000000000000000000000800200002000000a0000202000000001400000040000200000000800
-w_2  00000000000000000000000200000020800800000000000000010001000000000000000000000000
-w_3  00000000000000000000410010000104000100400000140000802000000000800000000040000010
-w_4  00000000000000000000820000820000000000080082000000040001000040000000200000200820
-w_5  00000000000000000020000000000000000000000000000000000000000004000000000000020800
-w_6  00000000000000000100000010000000000000000040040000800000000000800000000000000000
-w_7  00000000000000000800000000820000002000080000000000000001004004000000200000000800
-w_8  00000000000000008000020000000000000000002080000000000000000000000000000000200020
-w_9  00000000000000030000020010800100040000422082042000040000680040840000000040200020
-w_10 00000000000000410000020000820100000000002082000000040009200040000000200040200020
-w_11 00000000000008010041020012820500858000406892040010240000290040800000200040201020
-w_12 00000000000100010000020000000004000100802080000000002010200040000000080000208020
-w_13 00000000000200010000020010820101040040482082240000040001280040800000200040200820
-w_14 00000000000400010001020010800100040000406082440000040000280040800000200040200020
-w_15 00000000010000010041020010000100040000406092040000040000280040800000000040201020
-w_16 00000000040000010000020010820100808000402882040010840000210040800000200040200020
-w_17 00000000080000010041020010000100040000406010040000200000280000800000000040001020
-w_18 00000000800000010000020000820000900000002082000010040000000040000000200000200020
-w_19 00000001000000010000030010800100200000422082042000840000600040840000000040200030
-w_20 00000004000000010000020010820100840000406082040000040000280040800000200040200020
-w_21 00000080000000010041020010820500050000486092041000240021280040800000200040201020
-w_22 00000100000000010001020010800100040000406082042000040000280040800000000040201020
-w_23 00000200200000000000090000000000000000000000000000800000000000400000000000000000
-w_24 00000400000000010000000000000100000000402000000000000000200000000000000040000020
-w_25 00001000200000000000080010000104000100400000140000002000000002800000000040000000
-w_26 00008000000000010000020002820004808108002882100010042100210040000000200000200020
-w_27 00020000000000010001020010000100040000406080040000000000280000800000000040200020
-w_28 00100000000000010000020000000004000000002080000000000000200040000000000000200020
-w_29 004000000000000100000200108201000000004820c2040000840001200844800000200040220820
-w_30 00800000000000010041020010820120040000406082040000040001280040800000200040201020
-w_31 020000000000000100000200100001000020004020c2040000840000200040800000000040200020
-w_32 04000000000000010000020000000000000000002080000000000000200000000000000040000020
-w_33 08000000000040000400000002000104008100400000140000002100000002800000000040000000
-w_34 40000000000000010000020010820100840000402882040010040000200040800000200040200020
-w_35 0a8094012901484005004a005200842021a008000010000402000000000000000000000000000001
-w_36 080090012801480104004a0052008400318008002000000000000000000000000000000000000020
-w_37 08009001200048020400480012000001208009000000000000000000000080000000000000010000
-w_38 0a0294052801480185014a0052028400b1a008000000000000001000000000000008000000000000
-w_39 00001200040008000000010002000000000001000000000000000000000000400000000000000000
+K0  c9a9d386ab38e13a  K2  9be65c0f48819e78  K3  a42df10543300344  K5  9d9a486de15a3242
+K7  62628f16871056a6  K8  8d7196f55bc91f8b  K10 793ea2677e200f74  K11 7e8d7d4cce830045
+K12 fe58db5a1de5126a  K13 1b571a79774b02ce  K14 8a2d82f8f9dcb705  K15 f01a6a80f9aae74b
+K1 = K4 = K6 = K9 = 0;  K16 = 8000000000000006 (padding)
+PD (lanes 0..3) ffffffff7ffffffe 0000000000000000 0000000000000000 0000000000000000
 ```
 
-Let F2(t) in F_2^1600 be the state after rounds 0 and 1 of A(t), and for a, b in F_2^320 let
-beta_t(a, b) = F2(t XOR a XOR b) XOR F2(t XOR a) XOR F2(t XOR b) XOR F2(t).
-
-**Lemma 2 (round 0 is affine on all of F_2^320).** t -> round 0 (A(t)) is affine.
-
-*Proof.* The t-dependent lanes of A(t) are (x, 0) and (x, 2), both equal to u_x, so every column parity of theta is
-u_x XOR u_x XOR (a constant) and theta adds a constant to every lane. Rho and pi move bits linearly: lane (x, 0) goes to
-(0, 2x) and lane (x, 2) to (2, 2x + 1) (indices mod 5), so in every row only lanes x = 0 and x = 2 depend on t. Chi
-outputs a_x XOR (NOT a_{x+1}) a_{x+2}; the factor pairs (x + 1, x + 2) are (1, 2), (2, 3), (3, 4), (4, 0) and (0, 1),
-never {0, 2}, so every product has at most one t-dependent factor. Iota adds a constant. QED.
-
-**Lemma 3 (two-round affinity on every coset).** (a) beta_t(a, b) does not depend on t; as a function of (a, b) it is
-symmetric, bilinear, and zero when a = b. (b) If beta(w_i, w_j) = 0 for all 0 <= i < j < 40, then for every t in
-F_2^320 and every u in F_2^40,
-
-    F2(t XOR sum_j u_j w_j) = F2(t) XOR sum_j u_j (F2(t XOR w_j) XOR F2(t)).
-
-(c) The hypothesis of (b) holds.
-
-*Proof.* (a) By Lemma 2 the input of round 1 is affine in t; theta, rho, pi and iota are affine and every chi output
-bit has degree 2 in its inputs, so every bit of F2 is a polynomial of degree at most 2 in t: F2 = Q XOR Lin XOR c with
-Q a vector of quadratic forms, Lin linear and c constant. The polar form B(a, b) = Q(a XOR b) XOR Q(a) XOR Q(b) of a
-quadratic form is symmetric, bilinear and zero on the diagonal, and expanding the four terms gives beta_t(a, b) =
-B(a, b) for every t. (b) By bilinearity B vanishes on span(W40) x span(W40), so Q is additive there, and
-Q(t XOR x) = Q(t) XOR Q(x) XOR B(t, x) with B(t, .) linear. Hence x -> F2(t XOR x) XOR F2(t) = Q(x) XOR B(t, x) XOR
-Lin(x) is linear on span(W40), which is the displayed identity. (c) By (a) it suffices to take t = 0: the 780 values
-beta_0(w_i, w_j) = F2(w_i XOR w_j) XOR F2(w_i) XOR F2(w_j) XOR F2(0) (821 two-round evaluations) are all zero. QED.
-
-The 780 values of (c) and the rank 40 of W40 are recomputed by the experiment program at every run, with its own
-implementation of the organizer round function; a nonzero value stops the program. Consequently each of the 2^280
-cosets t + span(W40) consists of 2^40 distinct parameters and 2^40 distinct messages (Lemma 1), and F2 is affine on it.
-
-## 4. Degree and finite-difference enumeration
-
-For a coset origin t let phi_t(u) = t XOR sum_j u_j w_j (u in F_2^40) and f_t(u) = b(A(phi_t(u))) in F_2^320.
-
-**Lemma 4 (degree).** For every t and r = 2..6, every bit of the state after rounds 0 to r - 1 of A(phi_t(u)) has
-algebraic degree at most 2^(r-2) in u. Hence every bit of f_t has degree at most 8, for every outer coset.
-
-*Proof.* r = 2 is Lemma 3 (degree at most 1). Theta, rho and pi are linear and iota adds a constant; a chi output bit
-a XOR (1 XOR a') a'' has degree at most twice the largest degree of its inputs. So each round at most doubles the
-degree. f_t is a linear map of the state after five rounds. QED.
-
-### 4.1 Derivatives
-
-For f: F_2^n -> V (V a vector space over F_2), T a subset of {0..n-1} and y in F_2^n, let
-D_T f(y) = XOR over S subset of T of f(y XOR e_S), e_S the indicator vector of S (D_T f = f for empty T). Write
-s_T = sum over t in T of 2^t and, for nonempty T, R(T) = {b not in T : b + 1 in T}; as a bit mask
-R(T) = (s_T >> 1) AND NOT s_T.
-(P1) D_T f(y) does not depend on the coordinates of y in T.
-(P2) For s not in T, D_{T + {s}} f(y) = D_T f(y XOR e_s) XOR D_T f(y).
-(P3) If f = XOR over |S| <= d of a_S y^S (algebraic normal form, y^S = product of y_s over s in S), then
-D_T f(y) = XOR over S containing T of a_S y^(S - T); so D_T f is the constant a_T when |T| = d, and 0 when |T| > d.
-*Proof.* (P1) and (P2) follow from the definition. (P3): the derivative of y^S in direction e_s is y^(S - {s}) if s is
-in S and 0 otherwise; iterate over T. QED.
-
-### 4.2 Gray-order enumeration
-
-Let f have degree at most D. For i >= 1 let t_1(i) < t_2(i) < ... be the set bits of i, L(i) = min(D, popcount(i)) and
-T_j(i) = {t_1(i), ..., t_j(i)}. Algorithm FES (Bouillaguet et al., CHES 2010), with the initialization of Lemma 6:
-
-- Initialization: x = f(0) and tab[T] = D_T f(g(s_T - 1)) for every T with 1 <= |T| <= D.
-- Step i = 1, 2, ..., 2^n - 1: for j = L(i) - 1 down to 1, tab[T_j(i)] <- tab[T_j(i)] XOR tab[T_{j+1}(i)]; then
-  x <- x XOR tab[T_1(i)].
-
-**Lemma 5 (exactness).** After step i, x = f(g(i)).
-
-*Proof.* (A) Let T be nonempty, m = max T, and i = s_T + k 2^(m+1) with k >= 0. Bit b of g(i) is bit b XOR bit b + 1 of
-i; hence, outside T, the bits of g(i) below m are exactly R(T), and the bits above m are those of g(k) shifted by m + 1.
-The anchor g(s_T - 1) differs from g(s_T) only in bit min T, which is in T, so by (P1) the initial value is
-tab[T] = D_T f(g(s_T)).
-(B) An entry tab[T] with |T| = j is changed at step i iff T = T_j(i) and j < L(i), that is iff j < D and
-i = s_T + k 2^(m+1) with k >= 1; then T_{j+1}(i) = T + {u} with u = m + 1 + nu(k).
-(C) Claim: whenever step i uses tab[T_j(i)] (as the top j = L(i), or after its update when j < L(i)), its value is
-D_{T_j(i)} f(g(i)). Induction over the operations in execution order (i increasing; j decreasing within a step). Top
-entry T' = T_{L(i)}(i): if |T'| = D it is constant by (P3); otherwise L(i) = popcount(i), so i = s_{T'}, T' was never
-changed before (B), and its initial value is D_{T'} f(g(s_{T'})) by (A). Update of T = T_j(i), j < L(i), with
-i = s_T + k 2^(m+1), k >= 1, and T' = T_{j+1}(i) = T + {u}: by the claim for T' (top, or updated just before in this
-step), tab[T'] = D_{T'} f(g(i)). Before the update tab[T] holds D_T f(g(i')) with i' = s_T + (k - 1) 2^(m+1) (its
-previous change by the claim, or the initial value when k = 1). By (A), g(i) and g(i') agree outside T except above m,
-where they are g(k) and g(k - 1), which differ exactly in bit u. With (P1) and (P2):
-tab[T] XOR tab[T'] = D_T f(g(i) XOR e_u) XOR D_T f(g(i) XOR e_u) XOR D_T f(g(i)) = D_T f(g(i)).
-(D) By (C), x is XORed with D_{t_1(i)} f(g(i)) = f(g(i)) XOR f(g(i - 1)), since t_1(i) = nu(i). As x = f(g(0)) at
-the start, x = f(g(i)) after step i. QED.
-
-### 4.3 Initialization from evaluations of weight at most D
-
-**Lemma 6.** Let A[S] = f(e_S) for every S with |S| <= D. Processing j = 0, ..., n - 1 and, for each j, every S
-containing j with |S| <= D, the update A[S] <- A[S] XOR A[S - {j}] leaves A[S] = a_S. Then, for 1 <= |T| <= D,
-
-    tab[T] = D_T f(g(s_T - 1)) = XOR of a_(T + V) over V subset of R(T) with |V| <= D - |T|,
-
-and x = f(0) = a_S for S empty. This takes P_D = sum_{j<=D} C(n, j) evaluations of f, J_D = sum_{j<=D} j C(n, j)
-vector XORs in the transform, and v_T = #{V subset of R(T) : |V| <= D - |T|} terms for tab[T].
-
-*Proof.* Evaluating the normal form gives f(e_S) = XOR over S' subset of S of a_S'; by Moebius inversion
-a_S = XOR over S' subset of S of f(e_S'). After the passes over coordinates 0..j, A[S] is the XOR of f(e_S') over the
-S' subset of S that agree with S above j; the domain {|S| <= D} is closed under subsets, so every entry read exists.
-By (A) of Lemma 5 the anchor y = g(s_T - 1) has exactly the bits R(T) outside T; by (P3),
-D_T f(y) = XOR over S containing T of a_S y^(S - T), where y^V = 1 for V disjoint from T iff V is a subset of R(T),
-and a_(T + V) = 0 when |T + V| > D. QED.
-
-**Constants (n = 40, D = 8).** P_D = 100,146,724; J_D = 772,459,520; sum of L(i) over 1 <= i < 2^40 is
-sum_k C(40, k) min(8, k) = 8,796,064,307,936. |R(T)| is the number of runs of ones of T that do not start at bit 0, so
-exactly C(j, r) C(40 - j, r) sets T of size j have |R(T)| = r (compositions of the j ones and the 40 - j zeros), and
-V_D = sum over T of v_T = sum_{j=1..8} sum_r C(j, r) C(40 - j, r) sum_{k <= min(r, 8 - j)} C(r, k) = 282,214,108.
-
-## 5. Key, cone and the per-point schedule
-
-### 5.1 Machine and addressing convention
-
-The organizer machine is a 256-bit word RAM. Every executed primitive other than a permutation call is one word
-operation: load, store, AND, OR, XOR, NOT, add, subtract, shift, comparison, conditional branch (on a nonzero register),
-register move and the independent uniform random 256-bit word. The machine has 64 registers; reading a register
-costs nothing. The program is generated straight-line code: the FES steps of every plane, the 2^40 Gray sites of the
-chi phase, the setup and the table steps are unrolled, so an address or constant fixed at generation time is an
-immediate operand of its instruction and costs no operation. Generating and storing this code is charged in ONCE
-(Section 11.2).
-
-- **Immediate:** the FES record addresses of every plane and Gray step, the buffer words, the current-value frame,
-  the 144 intermediate tile words, every setup operand (working frames, bitplanes, transpose words, input words,
-  round buffers, D and wrap words, coefficient and derivative records), the NOT pattern of w(S) at every setup point
-  and the constant words of the folded setup rounds (Section 6.3), the basis constants w_b in two-word form, the
-  butterfly masks and the eight words of Section 5.4, at each emission site of the chi phase the record offset and
-  the two words of sum_b g(i)_b w_b of its candidate, the constant lanes of the folded verification rounds
-  (Section 7), the byte-table bases, the verification-count word, the spill words and the region bases.
-- **Computed at run time and charged:** the two random words of each coset origin (Section 6.2), the coset-record
-  address in the leader step and in verification (shifts, add, second-word add), the decoding of the earlier
-  candidate and its byte-table addresses in verification. The table addresses cost nothing: the key word is its own
-  sparse address, and the identifier register and the sparse word are dense addresses (Section 7).
-
-### 5.2 Key and cone
-
-For a message with pre-chi6 bits b, key is the 140-bit word whose bit 4z + x (x = 0..3, z = 0..34) is
-b_{x,z} XOR (NOT b_{x+1,z} AND b_{x+2,z}). By Section 2 it equals digest bit z of lane x XOR RC[5]_z [x = 0], so
-messages with equal digests have equal keys. Its inputs are exactly the 175 cone bits B[x, z] = b_{x,z}, x = 0..4,
-z = 0..34. Verification always uses the native 256-bit digest, iota included.
-
-### 5.3 Plane-major FES
-
-A group processes 256 cosets (lanes c = 0..255) in lockstep. Plane word p = (x, z) holds b_{x,z} of lane c at bit c.
-Every bit of every plane word has degree at most 8 in u (Lemma 4), and Lemmas 5 and 6 use only XORs, which act
-bitwise, so FES with D = 8 runs on each plane separately: plane p has a derivative record word tab[T][p] for each
-1 <= |T| <= 8 and a current value x_p, and step i of plane p reads and writes only these. The FES phase of a group
-therefore runs the planes one after the other, plane p alone over the steps i = 1, ..., 2^40 - 1; after step i,
-x_p = f_p(g(i)) by Lemma 5, and x_p is stored into the buffer word X[p][i].
-
-**Registers.** The 61 records of the cached set CR, the 31 nonempty subsets of {0..4} and the 30 subsets of {0..5}
-that contain 5 other than {5} and {0, 5}, are held in registers for the whole plane, with x_p and two chain
-temporaries: 64 registers. The group index h is the only value live across the setup and this phase (the
-verification count is a memory word and the identifier is formed from h afterwards, Section 6.2); it is stored to a
-fixed word right after the leader step and loaded back after the FES phase, 2 operations per group, so the setup
-(Section 6.3) and the FES phase have all 64 registers.
-
-**Lemma 5b (last change).** Let 1 <= |T| <= 7 and m = max T. (a) tab[T] is changed exactly at the steps
-i = s_T + k 2^(m+1) with 1 <= k < 2^(39 - m), so at least once iff m <= 38. (b) It is read only at those steps and,
-as the top, at i = s_T, which precedes them. Hence after its last change in a plane it is never read again, and
-omitting the STORE of that change alters no value that is used. A record with |T| = 8 is never changed.
-
-*Proof.* (a) is (B) of Lemma 5 with j = |T| < 8, restricted to i < 2^40; as 2^m <= s_T < 2^(m+1), s_T + k 2^(m+1) <
-2^40 iff k < 2^(39 - m). (b) Step i reads tab[T] only as T_{L(i)}(i) or as a link T_j(i) with j < L(i), and a link
-use is a change by (B). If T = T_{L(i)}(i) with |T| < 8, then L(i) = popcount(i) = |T| and the set bits of i are T,
-so i = s_T. QED.
-
-**Per plane:** 61 LOADs of the cached records and one LOAD of x_p from A[{}] (62). **Per step i**, with
-L = L(i) and shapes T_1 .. T_L: the top tab[T_L] costs one LOAD unless T_L is in CR (a register); each link T_j,
-j = L - 1 down to 1, costs one XOR into its register if T_j is in CR and otherwise LOAD, XOR and STORE, with the
-STORE omitted at the last change of tab[T_j] (i + 2^(max T_j + 1) >= 2^40, Lemma 5b); then x_p = x_p XOR v and the
-STORE of x_p into X[p][i] (2). So step i costs 2 + [T_L not in CR] + the sum over its links of 1 (in CR), 2 (not in
-CR, last change) or 3 (not in CR, otherwise).
-
-**Count.** Over the 2^40 - 1 steps of a plane, every T in CR (|T| <= 6) is the top exactly once, at i = s_T, and a
-link 2^(39 - max T) - 1 times (Lemma 5b); the links number sum L - (2^40 - 1) in all, those of CR number
-sum over CR of (2^(39 - max T) - 1) = 5 * 2^39 + 30 * 2^34 - 61 = 3,264,175,144,899. Every record of CR is changed,
-and U = sum_{k=1..7} C(39, k) - 61 = 19,311,426 records outside CR are changed at least once (Lemma 5b (a)), each
-losing one STORE. With the sum of Section 4.3 the steps of a plane cost Sc61 + (2^40 - 1) - U, where
-
-    Sc61 = sum L + (2^40 - 1 - 61) + 2 (sum L - (2^40 - 1) - 3,264,175,144,899) = 18,760,331,006,174
-
-counts the tops, the links at 1 or 3 and the XOR into x_p, and the extra 2^40 - 1 the buffer STOREs. Per group
-
-    F_g = 175 (62 + Sc61 + 2^40 - 1 - U) + 2 = 3,475,469,081,452,377.
-
-### 5.4 Chi fused into the transpose: 4664 operations per Gray point and group
-
-The chi phase of a group runs the Gray points i = 0, 1, ..., 2^40 - 1 in order. At a point i >= 1 the five values
-B[0..4, z] of each z are LOADed from the buffer, 175 LOADs per point; at point zero they are LOADed from A[{}], the
-175 point-zero loads charged in S_v. The 140 key rows (row 4z + x is a 256-bit word, bit c = key bit of lane c) are
-padded with 116 rows to a 256 x 256 bit matrix: row 140 is the all-ones word and the other 115 padding rows are zero.
-Write the row index as r = 16 tau + l (tile tau, local index l). A butterfly on rows k and k + d with column shift s
-is
-
-    t = ((A_k >> s) XOR A_{k+d}) AND mask_s;  A_k = A_k XOR (t << s);  A_{k+d} = A_{k+d} XOR t     [6 ALU]
-
-with mask_s the ones in the low half of every 2s-bit block. For k with bit b clear (d = 2^b in the row index of the
-stage) and s = 2^b it exchanges row-index bit b with column-index bit b: for every column c with bit b clear, the bits
-(k, c + s) and (k + d, c) are swapped and all others kept. If A_{k+d} is known to be zero the same result is
-A_{k+d} = (A_k >> s) AND mask_s, A_k = A_k AND mask_s [3 ALU]; pairs of two zero rows are omitted. After the eight
-stages b = 0..7 the bit (r, c) has moved to (c, r): output word c holds the key of lane c in bits 0..139 and, from
-the all-ones row 140, a one in bit 140. The emitted key word of a candidate is therefore key + 2^140.
-
-- **Tiles (row bits 0..3, s = 1, 2, 4, 8).** For tau = 0..8 and each z of the tile (z = 4 tau .. 4 tau + 3; tile 8 has
-  z = 32, 33, 34): with the five values B[0..4, z] LOADed as above, chi writes key rows 4(z - 4 tau) + x, x = 0..3,
-  into the tile registers with one temporary: NOT, AND, XOR per row, 12 ALU per z. Then the four stages and 16 STOREs
-  to fixed words. A full tile costs 4 x 48 = 192 ALU. Tile 8 runs its stages with local rows 12..15 known zero, 36, 36, 36, 48
-  ALU, and after stage b = 2 XORs into its local rows 8..15 the eight immediate words that stages 0..2 make of an
-  all-ones local row 12 alone (rows 0..7 of that image are zero): 156 + 8 = 164 ALU. Every stage is linear over F_2,
-  so this equals the tile with row 140 all ones. All 144 intermediate words are written.
-- **Columns (row bits 4..7, s = 16, 32, 64, 128).** For each l = 0..15: LOAD the nine words tau = 0..8 (tau = 9..15
-  are known zero and never read); the four stages cost 27, 30, 36, 48 = 141 ALU. The 16 results are the key words of
-  lanes c = 16 tau + l, handed to the table in registers in emission order e = 16 l + tau.
-
-Per Gray point and group:
-
-    35 * 12 + 8 * (192 + 16) + (164 + 16) + 16 * (9 + 141) = 4664   (ALU 4376, LOAD 144, STORE 144),
-
-and per group 4664 * 2^40 + 175 (2^40 - 1) with the buffer LOADs. The chi phase holds no current value in a register:
-the five values of one z, the tile, one temporary and two butterfly scratch registers, then the 16 key words of a
-column step, besides the identifier register cid (Section 7).
-
-## 6. Outer cosets and setup
-
-### 6.1 The cosets: fresh random origins
-
-Coset j (0 <= j < C = 256 G) has origin t_j, drawn by the leader step (Section 6.2) from two fresh calls r_0, r_1 of the
-cost model's primitive "independent uniform random 256-bit word": t_j = r_0 + (r_1 mod 2^64) 2^256. The C origins are
-therefore independent and uniform on F_2^320; they are CAMP's only coins, and every probability below is over them,
-for the fixed target. Group h (h < G) holds the cosets j = 256 h + c, c = 0..255. The candidate (h, i, e) (Gray point
-i, emission index e = 16 l + tau, lane c = 16 tau + l) is the message M(t_j XOR sum_b g(i)_b w_b) with j = 256 h + c;
-its identifier is cid = h 2^48 + 256 i + e < 2^128. Inside each coset the enumeration is the fixed Gray order of
-span(W40). CAMP probes the candidates in increasing cid, so cid is also the number of candidates probed before it.
-
-**Lemma 7 (distinct messages).** Let D be the event that the C cosets t_j + span(W40) are pairwise distinct. On D the
-Q = 2^48 G candidates are pairwise distinct messages, and Pr[not D] <= C(C, 2) 2^-280 = 2.4380...e-32 < 2.5e-32.
-
-*Proof.* Distinct cosets of span(W40) are disjoint. Inside a coset, distinct i give distinct g(i) and, by rank 40,
-distinct parameters; Lemma 1 gives distinct messages. For j < j' the sum t_j XOR t_j' is uniform on F_2^320 (t_j' is
-uniform and independent of t_j), so the two cosets coincide with probability |span(W40)|/2^320 = 2^-280; the union
-bound over the C(C, 2) pairs gives the bound. QED.
-
-The event not D (a duplicate coset) is counted as a failure in Section 9; no duplicate rejection is performed.
-
-### 6.2 Leader step (11 operations per coset, 5 per group)
-
-For lane c of group h: j = H8 OR c with H8 = h * 2^8 (1); two random words r_0, r_1 (2); r_1 AND (2^64 - 1) (1); the
-record address CSB + 2j (shift, add: 2); two STOREs of t_j into the global coset record with the second-word add (3);
-two STOREs into the lane's working frame (2). This is 11 operations per coset. Group control is 5 per group:
-H8 = h * 2^8 before the leader step, the identifier cid = h * 2^48 after the FES phase (Section 5.3), and after the
-chi phase the next index h = cid >> 48 (cid is then (h + 1) 2^48), its compare with G and the branch. S_v
-(Section 6.5) charges exactly these 11 C + 5 G operations.
-
-### 6.3 Bit-sliced evaluation (13,616 per group, 62,710 + popcount(w(S)) per point)
-
-The 256 lanes of a group are evaluated together at every S with |S| <= 8, the points in order of increasing |S|.
-State word (l, z) holds bit z of lane l of the state of lane c at bit c, so the word operations below apply
-theta, rho, pi, chi and iota to the 256 states at once (each acts bit by bit). Let w(S) = XOR of w_b over b in S;
-the lane-c input at point S is A(t_j XOR w(S)) (Section 4), and w(S) is fixed in the generated code.
-
-- **Transpose (13,616 per group).** The two working-frame words of the 256 origins become 320 bitplanes, bit c of
-  plane k = bit k of t_j, by the butterfly of Section 5.4. First words: four blocks of 64 rows. A block keeps rows
-  2..63 in registers and rows 0 and 1 in two fixed words (load: 62 LOADs and two LOAD, STORE pairs, 66); in stages
-  s = 1..32 a pair in registers costs 6, a pair whose row k is in its word 8 (LOAD, 6 ALU, STORE) and the pair
-  (0, 1) 12 (one spill word), so stage 1 costs 12 + 31 * 6 = 198 and stages 2..32 cost 2 * 8 + 30 * 6 = 196 each
-  (1,178); storing the 64 plane words costs 62 STOREs and two LOAD, STORE pairs (66): 1,310 per block. Then stages
-  s = 64 and 128 run on the 256 plane words as memory pairs, 10 each (2,560). Second words (below 2^64): four
-  64 x 64 blocks the same way, block 0 stored into planes 256..319 (1,310) and block g = 1..3 shifted left by 64g
-  and ORed into them (66 + 1,178 + 62 * 4 + 2 * 5 = 1,502). Total 4 * 1,310 + 2,560 + 1,310 + 3 * 1,502 = 13,616,
-  with 62 row registers and two scratch registers.
-- **Input (640 + popcount(w(S)) per point).** For k = 0..319: LOAD plane k, NOT it if bit k of w(S) is 1, STORE it
-  as bit k mod 64 of lane k div 64.
-- **Constant folding.** In A(t) lanes 10..14 equal lanes 0..4, lane 16 is the padding 0x86 * 2^56 and the other
-  lanes are zero (Section 2), the same in every lane c and at every point. Code generation therefore follows each of
-  the 1,600 state words through rounds 0 to 4 and the round-5 linear step as a known constant (the zero word or the
-  all-ones word, an immediate) or a data word, and emits an operation only when its result is not fixed: XOR with
-  the zero word, AND with the all-ones word and v XOR v are not emitted, XOR with the all-ones word is one NOT, AND
-  with the zero word gives the zero word. A data word is LOADed once per slice that reads it, theta's D words that
-  are data are STOREd once, and a round STOREs each new data word once, into its own buffer (one 1,600-word buffer
-  per round); round 0 reads lanes 10..14 from the words of lanes 0..4. No constant word is stored or loaded, and the
-  pattern does not depend on S (w(S) only inverts data words), so one code serves every point.
-- **Rounds 0 to 4 (57,840 per point).** A round with data parities forms theta's D words slice by slice, slice 63
-  first: the column parities of slice z (LOADs and XORs), then D[x][z] = C[x - 1][z] XOR C[x + 1][z - 1] and its
-  STORE; the data parities of slice 63 are stored after it and LOADed back for D[x][63] (the wrap, 2 per data
-  column). Then for each slice z: the rho-pi source words and D words (LOAD), their XOR, chi (NOT, AND, XOR), iota
-  as one NOT of lane 0 when bit z of RC[r] is 1, and the STOREs. A round on 1,600 data words costs
-  64 * 45 + 320 * 2 + 10 = 3,530 for the D words and 64 * 175 = 11,200 for the slices, plus the popcount of RC[r]
-  (5, 3, 5 for r = 2, 3, 4); rounds 2, 3 and 4 are of this kind: 14,735, 14,733 and 14,735. In round 0 every column
-  parity is constant (lanes x and x + 10 cancel), so theta adds constants: 640 LOADs, 668 NOTs, 314 XORs and 356
-  STOREs, 1,978. Round 1: 3,286 LOADs, 3,225 XORs, 1,674 NOTs, 1,600 ANDs and 1,874 STOREs, 11,659. Rounds 0 to 4
-  cost 1,978 + 11,659 + 14,735 + 14,733 + 14,735 = 57,840.
-- **Round-5 linear step (4,230 per point).** The D words as above (3,530), then for each of the 175 planes (x, z),
-  z <= 34: LOAD the source word, LOAD the D word, XOR, STORE into the coefficient record A[S] (4 * 175).
-
-**Lemma 10 (bit-sliced setup).** After the setup steps of point S, bit c of plane word p of A[S] is f_t(e_S)_p for
-the origin t = t_j of lane c; so A[S] = f(e_S) as Lemma 6 requires, for all 256 lanes.
-
-*Proof.* A stage with d = s = 2^b exchanges row-index bit b with column-index bit b (Section 5.4), so the eight
-stages on the 256 first words and the six stages on each 64-row block of second words, shifted by 64g (rows
-c = 64g .. 64g + 63), leave bit k of t_j at bit c of plane k. Bit k of t_j XOR w(S) is that bit inverted when bit k
-of w(S) is 1, so the input words hold lanes 0..4 of A(t_j XOR w(S)) in bit c; lanes 10..14 equal them and the
-other lanes are the constants of A(t), the same in every lane c. Theta, rho and pi are the D step and the fixed
-source addresses, chi and iota are bitwise (NOT of a lane-0 word is XOR with bit z of RC[r] in every lane), so the
-unfolded round maps the state of every lane to its next state. Folding replaces an operation by its value where an
-operand is the zero or all-ones word known at generation time (x XOR 0 = x, x AND 1 = x, x AND 0 = 0, x XOR 1 =
-NOT x, x XOR x = 0, constants combine to constants), which changes no word; every word that the code LOADs was
-STOREd earlier at the same point. So each folded round computes the same 1,600 words, and the linear step stores
-the bits b_{x,z} (z <= 34) of round 5. QED.
-
-Over all points the input NOTs number pop_D = sum over |S| <= 8 of popcount(w(S)). Bit k of w(S) is 1 iff
-|S & B_k| is odd, with B_k = {b : bit k of w_b is 1} and m_k = |B_k|, so pop_D = sum over k = 0..319 of
-sum_{j odd, j <= 8} C(m_k, j) sum_{l <= 8 - j} C(40 - m_k, l) = 4,592,341,856.
-
-### 6.4 Transform and phase
-
-The truncated transform of Lemma 6 on the coefficient records costs two LOADs, XOR and STORE per pair (j, S) and
-plane: 4 * 175 * J_D. The phase conversion writes the derivative records tab[T] (a frame disjoint from the
-coefficient records) with v_T LOADs, v_T - 1 XORs and one STORE per plane: 2 * 175 * V_D. After both, the
-coefficient record A[{}] is the current-value frame x = f(0).
-
-**Valid access.** Every work word is written before it is read: the working frames by the leader step, the bitplanes
-by the transpose (planes 256..319 by its block 0 before blocks 1..3 OR into them; the transpose words by each block
-before it reads them), the input words by the input of each point, the D words, wrap words and round buffers by
-the generated code of the same point before any of its LOADs reads them (a constant word is an immediate and is
-never read), A[S] by the linear step of point S (the transform reads only such records), tab[T] by the phase
-conversion before the FES phase, the buffer word X[p][i] by the FES phase before the chi phase, and the 144 tile
-words at every Gray point before its column step; the next group's setup rewrites the frames before reading them.
-The coset record of j is written by the leader step before any candidate of coset j exists. The verification-count
-word and the byte tables are written in preprocessing, the spill words by each use before they are read back
-(Sections 5.3, 7).
-
-### 6.5 Setup total
-
-Per group: the leader step and group control 11 * 256 + 5 = 2,821 (Section 6.2), the transpose 13,616, the points
-(640 + 57,840 + 4,230) P_D + pop_D = 62,710 P_D + pop_D, the transform 700 J_D, the phase 350 V_D and the 175
-point-zero loads (Section 5.4):
-
-    S_g = 2,821 + 13,616 + 62,710 P_D + 4,592,341,856 + 700 J_D + 350 V_D + 175 = 6,924,290,022,308,
-    S_v = G S_g = 8,324,727,858,445,183,221,990,590,914,749,247,816.
-
-## 7. Sparse-set table and verification
-
-The table is a Briggs-Torczon sparse set over the 140-bit key, indexed by the candidate identifier. The key word
-k = key + 2^140 (Section 5.4) is its own sparse address: SPARSE[key] is the word at address k, in [2^140, 2^141).
-DENSE[x] is the word at address x (x < Q). The identifier register cid = h 2^48 + 256 i + e (Section 6.1) is the
-current candidate; it runs through 0, 1, ..., Q - 1 in probe order. The probe of the key word k (in its register)
-executes exactly, in two scratch registers s and f:
+**Why round 0 is affine.**
+- *Theta of round 0.* The column sums of columns 1 and 4 are constants: u0 xor u1 xor (u0 xor u1 xor K11) xor lane 16 xor lane 21 = K11 xor 0x8000000000000006, and u2 xor u3 xor (u2 xor u3 xor K14) xor lane 19 xor lane 24 = K14. Theta adds only constants to every lane.
+- *Chi of round 0.* After rho and pi, no two of the six message lanes are adjacent inside a chi row, so every product of chi has a constant factor and chi of round 0 is affine in u. The generator checks this for every product (it stops with "round 0 not linear" otherwise).
+- *Round 1 theta.* A linear map of affine values is affine.
+
+The search uses no algebraic property of F: F is only evaluated.
+
+## 3. One step of 256 walks: the program
+
+### 3.1 Planes, polarity and the four sections
+
+A batch is 256 walks. Plane (lane, z) is one 256-bit word whose bit t is bit z of that lane for walk t. The rotations of rho and the moves of pi rename planes (the addresses and register numbers are immediates) and cost nothing.
+
+**Stored polarity.** Some planes are stored complemented, by a polarity pattern Q (bit X + 5Y for the chi output (X, Y)); the lane complementing transform of the Keccak designers is the origin of this device. chi of a row is x xor (not y and z); with the stored polarities of y and z different, an AND or an OR of the stored planes gives the term or its complement with no NOT, and the stored polarity of the result absorbs the complement. Q is a fixed point of a whole round: the stored polarity of every plane of the next round equals that of this round. The generator selects Q = 1336081 (Section 3.4).
+
+The step has four sections. The listing of the program (Appendix B prints the generator; the listing has SHA-256 e7fdf75c69a8fee561ce9874b14426d1af59daf2b74c7ef149b22e92613ccadc) gives, per section:
+
+| section | role | xor | and | or | shr | sub | ld (round constant) | mov of a plane value | ld | st | mov (allocation) | total |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| AFF | round 0 and theta of round 1: the affine map u -> 1600 planes | 1,804 | | | | | | 391 | 0 | 625 | 261 | 3,081 |
+| GB | one generic round, buffer 1 -> buffer 0 | 5,191 | 903 | 704 | 7 | 7 | 1 | | 625 | 625 | 0 | 8,063 |
+| GA | one generic round, buffer 0 -> buffer 1 | 5,191 | 903 | 704 | 7 | 7 | 1 | | 625 | 625 | 437 | 8,500 |
+| R5 | round 5, row 0 only, the four output lanes | 256 | 128 | 128 | | | | | 125 | 0 | 0 | 637 |
+
+- **AFF.** Each output plane of theta-1 is an affine form in the 256 input bits. The generator tracks the forms, emits one XOR for each new form (forms computed once are reused), adds D of round 1 once per (x, z) and stores the 1,600 planes of buffer 1 with the stored polarity of the generic round. A plane equal to an existing value is a counted `mov`.
+- **GB and GA.** The generic round reads planes T = A xor D (theta already added) and writes the planes T' of the next round, slice by slice: for slice z and each row it takes the five planes of B = pi(rho(T)), computes the five chi outputs with the polarity plan of the row, XORs them into the column sums C'[x][z], and adds D'[x][z] = C'[x-1][z] xor C'[x+1][z-1] when the slice is done; slice 0 is finished last (it needs C' of slice 63). Iota: the round constant is one memory word (its complement) loaded once per round; at the 7 positions z in {0, 1, 3, 7, 15, 31, 63} it is shifted, masked and turned into 0 or all-ones (shr, and, sub), then XORed. GB and GA are the same round with the buffers exchanged; rounds 1 to 4 run GB GA GB GA, each code body twice.
+- **R5.** Row 0 of round 5 and the outputs x = 0..3 (the digest lanes). Its output planes are the next step's input: digest plane j of the walks is input plane j of the next step (no copy).
+
+### 3.2 The machine (declared heuristic H_machine)
+
+The 256-bit word RAM of collision-frontier-v5 with:
+
+- **A register file of 1,024 words of 256 bits.** 1,018 registers hold program values; 6 hold the loop state (round-constant pointer, step counter c, next deadline nxt, next trail number idn, the address of rho, one temporary). The file is counted as memory (32,768 bytes, Section 6).
+- **Every transfer is an instruction and is charged.** `ld r, addr` (register from a memory word at an immediate address), `st r, addr`, and `mov r, s` (register to register) are one word operation each, like `xor`, `and`, `or`, `shr`, `sub`. No instruction reads memory except `ld`; none writes memory except `st`. A NOT is an XOR with the all-ones immediate. There is no fused operation.
+- **Code at 32 bytes per instruction.** Every instruction of every routine is counted as one 32-byte word of memory (Section 6). There is no compact encoding, no interpreter and no decode convention: the program is straight-line native code with immediate register numbers and addresses, so the instructions above are all that is executed.
+
+This is the convention under which our entry 0a9640ed (blake3-r3) was accepted by review (a 1,024-word register file, all transfers charged everywhere). It is stated as a heuristic only because the cost model fixes no register count; nothing in the time or memory ledger is free.
+
+### 3.3 Register allocation with shared section code
+
+The generator first builds each section as a program over plane names (the planes of buffers 0, 1 and 2, and temporaries), then allocates it to the 1,018 program registers. The allocation must let GB and GA each be one code body used twice, so it fixes what is in registers at each section boundary:
+
+- **Boundary sets.** S1 = the first KB planes of buffer 1 in the order of their first use by GB; S0 = the first KB planes of buffer 0 in the order of their first use by GA (KB = 975, Section 3.4). Plane number i of S1 lives in register i at every buffer-1 boundary (AFF -> GB, GA -> GB, GA -> R5). The registers of S0 at the buffer-0 boundary (GB -> GA) are wherever GB leaves them; GA's code is built from that map. At the loop boundary (R5 -> AFF) the 256 output planes are in the registers where R5 leaves them, and AFF's code reads them there. Every other live plane at a boundary is in memory.
+- **Inside a section** the allocator walks the instructions in order. An operand not in a register is loaded (`ld`). A free register is taken if one exists (the lowest one not reserved for a boundary plane); otherwise the register value whose next use is furthest is evicted (ties: the smaller plane name, then version), with a `st` if the value is still needed and not already in memory. A value that is never read again is dropped; an output plane not in the exit set is stored when it is dropped. A boundary plane is written into its fixed register; if another live value is there, that value is first moved to a free register (`mov`). At the end of the section, exit-set planes not in their registers are loaded or moved there.
+- **Counts.** The allocation adds 625 + 261 (AFF), 1,250 (GB), 1,250 + 437 (GA) and 125 (R5) transfers. The program uses the 1,018 registers 0..1,017 and 1,250 memory cells for spilled planes.
+
+The program is self-consistent by construction (GB is entered from AFF and from GA in the same state, GA from GB), and it is checked by execution (Section 3.7).
+
+### 3.4 Selections made by the generator
+
+The generator `gen_s6ls` (Appendix B) makes two selections before it writes the program. Both are part of the preprocessing, charged and measured (Section 3.6).
+
+- **Polarity pattern.** For every q < 2^25: compute the stored polarities pT of the round inputs from q, and for each of the five rows the cheapest plan (complement subset and AND/OR choice, `plan_row`) whose chi outputs have the stored polarities of q; q is a candidate when the five plans exist with total cost at most 7 (a fixed point of a round). There are 66 candidates. For each candidate the generator builds the load/store forms of AFF, GA and R5 and counts AFF + 4 x GA + R5; the smallest wins, ties to the smaller q. Result: q = 1336081 with 45,000.
+- **Boundary size.** For each KB in {930, 945, 960, 975, 990, 1000, 1012} the generator allocates the four sections as in 3.3 (without writing) and computes the step; the smallest wins, ties to the smaller KB. The steps are 36,936, 36,897, 36,885, **36,863**, 36,912, 37,030 and 37,067 (sections and loop control, without the prefilter): KB = 975.
+
+The message constants were selected before by `gen 512` (Section 3.6). The search parameters H, U, Lc and Tb are fixed numbers of the algorithm (Section 4); Tb is the least multiple of 2^96 that reaches the success bound.
+
+### 3.5 The ledger of one step
+
+| part | operations |
+|---|---:|
+| AFF | 3,081 |
+| GB, twice | 16,126 |
+| GA, twice | 17,000 |
+| R5 | 637 |
+| loop control (pointer initialisation, 5 pointer steps, 3 exit tests of 2, 2 jumps; kept from the five-round loop as an upper bound) | 14 |
+| prefilter word: OR of the 16 output planes 0..15 of lane 3 (15), compare and branch (2) | 17 |
+| step counter (add, compare with nxt, branch) | 3 |
+| **BSTEP** | **36,878** |
+
+That is 144.05 word operations per evaluation of F, 0.0886 of the reference cost 1626 per evaluation. Of these, 6,885 are loads, stores and moves added by the allocation (18.7 percent): 886 in AFF, 2 x 1,250 in GB, 2 x 1,687 in GA, 125 in R5.
+
+### 3.6 Preprocessing: the two programs, their time and memory
+
+The attack runs two programs before the search. Both are our own freestanding C (no libc), printed in Appendices B and C.
+
+1. **`gen 512`** (Appendix C, the LS1 generator of our team with `MAXN` 32768). For each of 512 constant sets (trial 0: all constants zero; trial t > 0: xorshift constants from seed t) it builds a bit-sliced straight line of the step and counts its operations, and keeps the trial with the fewest (trial 192). Only the constants K of the chosen trial are used here.
+   - Time: charged 513 x 2^32 + 512 x 2^10 word operations (each build at most 2^32; the run takes 0.56 s of user time).
+   - Memory: peak resident set (VmHWM, measured by the program) 552,960 bytes; its whole static image (text, data and bss, all counted whether touched or not) is 795,909 bytes. Run inside our 1 MiB WebAssembly sandbox (linear memory capped at 16 pages, the declared static span counted), it fits in 13 pages and picks trial 192.
+2. **`gen_s6ls`** (Appendix B). It selects Q and KB (Section 3.4) and writes the program: every instruction is written as a 32-byte word into a code region of 655,360 bytes, and its text listing to the output.
+   - Time: inside the sandbox, 15,479,831,909 executed WebAssembly instructions (2^33.85) for the whole run (both selections and the writing); natively 1.9 s. Charged 2^34 word operations.
+   - Memory: VmHWM of the native static build, **1,032,192 bytes (1,008 KiB), including the code region it writes** and its own code and stack. The work arrays of the generation phase and of the allocation phase share one region; the affine-form store of AFF (210,176 bytes) lives in the tail of the code region before code is written there. Inside the sandbox the run fits in 16 pages (1,048,576 bytes, the declared static span plus stack counted) and writes the byte-identical listing.
+   - The generator's listing and the Python generator of the experiment (Section 3.7) are byte-identical.
+
+PRE = 513 x 2^32 + 512 x 2^10 + 2^34 = 2,220,498,616,320 word operations, part of N (Section 4.4). 2^30 < PRE / 1626 <= 2^31, so preprocessing_log2 = 31. The two programs run one after the other and before the search, so memory is the maximum of the phases (Section 6).
+
+### 3.7 Correctness of the step (checked by execution)
+
+- The Python form of the generator (`final_ls.py`, the same functions as experiments/s6ls.py) builds the four sections, allocates them and executes the allocated program on a 1,018-register file and the memory cells, for 2 x 256 messages and two chained steps: 1,024 evaluations of F, 0 mismatches against a plain six-round implementation with the profile's padding.
+- experiments/s6ls.py regenerates the program, refuses to run unless its listing hashes to the SHA-256 of Section 3.1 and its step count is 36,863 (sections and loop), and checks two chained full-width steps against the plain implementation before every request.
+- The plain implementation matches hashlib.sha3_256 at 24 rounds (checked by the experiment at start), and the organizer recomputes every returned pair with the trusted digest (Section 7.1).
+
+## 4. The search
+
+Parameters (the search of 2d74a370 with the parameters of its successor S6RR):
+- L = 256 walks.
+- Distinguished point (DP): the 116 top bits of F are zero (lane 3 zero and the top 52 bits of lane 2 zero), theta = 2^-116.
+- Trail cap Lc = 2^120 - 2 steps (kappa = Lc theta = 16 - 2^-115).
+- U = 5,000: the limit on trails started in one attempt, and the number of table words S.
+- Tb = 17,750,576 x 2^96 = 1,406,345,520,049,800,208,543,858,999,779,393,536 = 1.05801678 x 2^120 steps of 256 walks per attempt.
+- HMAX = floor(Tb (1 + 2^-20) / 2^8) + 1 + Lc = 1,334,721,538,211,655,727,095,327,475,669,925,887: the cap on prefilter hits. The attempt aborts at hit HMAX + 1.
+
+State:
+- in registers: the 256 output planes of the last step (the input of the next one); the loop state (6 registers);
+- in memory: the 1,250 spill cells of the program; LID[l] and LST[l] for each walk l (its trail number and the step at which it started); the table TAB of S words; rho; the hit counter h and HMAX; the round constants.
+
+A table word holds a record: bits 0 to 122 the end of the trail (lane 0 and the low 59 bits of lane 1, 123 of the 140 bits of the end not forced to zero), bits 123 to 135 the trail number (13 bits), bits 136 to 255 the length (120 bits). A record is nonzero; an empty slot is zero.
 
 ```
-s = LOAD [k]                         1   (s is arbitrary if the word was never written)
-STORE [cid] = k                      1   DENSE[cid] = k, on every path
-f = (s < cid);  BRANCH f             2   bound test fails -> miss                   (6 with the miss)
-f = LOAD [s];  f = (f == k);  BRANCH f    3   dense test fails -> miss              (9 with the miss)
-hit:  verification of s against cid, then the increment                            (8)
-miss: STORE [k] = cid                1
-cid = cid + 1                        1   (every path)
+rho := random word; idn := 256; h := 0; TAB := 0; for l < 256: LID[l] := l; LST[l] := 0; input plane bits of walk l := rho + l
+c := 0; nxt := min(Tb, Lc)
+loop:
+  c += 1
+  the step (Section 3): AFF, GB, GA, GB, GA, R5; the output planes are the next inputs
+  pf := OR of the 16 planes 0..15 of lane 3 (15 ORs)
+  if pf != all-ones:                                  -- some walk has the low 16 bits of lane 3 zero (probability 2^-16 each)
+      h += 1; if h > HMAX: halt, the attempt failed   -- hit counter and abort (F5)
+      slow test of the remaining 48 planes of lane 3 and the top 52 planes of lane 2 -> the walks l at a DP
+      for each such walk l, in increasing order:
+          record := (end of walk l) | LID[l] << 123 | (c - LST[l]) << 136
+          probe TAB from the slot (low 13 bits of the end, folded into [0, S)), linear probing, wrap at S:
+             empty slot: store the record
+             a record with the same 123 end bits and a different trail number: REPLAY(that record, this record);
+                if it returns a != b, output m(a), m(b) and stop; otherwise halt, the attempt failed
+          restart(l)
+  if c = nxt:
+      if c = Tb: halt, the attempt failed
+      for each walk l with c - LST[l] = Lc: restart(l)        -- no DP within Lc steps
+      nxt := min(Tb, min over l of LST[l] + Lc)
+restart(l): if idn = U: halt, the attempt failed
+            LID[l] := idn; LST[l] := c; input plane bits of walk l := rho + idn; idn += 1
+REPLAY(trail a of length la, trail b of length lb, the same end):
+  p := rho + a, q := rho + b; the longer trail is advanced by |la - lb| evaluations of F
+  if p = q return nothing; repeat min(la, lb) times: if F(p) = F(q) return (p, q); p := F(p); q := F(q)
+  return nothing
 ```
 
-Every candidate costs at most 9 table operations, charged as 9 Q. The probe uses no register beyond s, f, the key
-word and cid.
+The walks are independent walks of F; only the instruction stream is shared. A walk at a DP is recorded and restarted in the same step, so all 256 lanes always work. If two trails end at the same DP and neither start lies on the other trail, they merge at a first point; after the advance both are at the same distance d <= min(la, lb) from the common end, so the replay finds F(p) = F(q) with p != q within d iterations.
 
-**Lemma 8 (sparse set, any initial memory).** At the probe of candidate cid with key k: (a) DENSE[x] = key(x) for
-every x < cid; (b) for every key k' of a candidate x < cid, SPARSE[k'] holds the first candidate with key k'; (c) the
-probe hits iff some candidate x < cid has key k, and then it returns the first such candidate.
+### 4.1 One iteration of the loop
 
-*Proof.* Induction over probes. (a) The probe of x stores DENSE[x] = key(x) and no other probe writes word x. If some
-x < cid has key k, let x0 be the first: no candidate before x0 has key k, so by (c) the probe of x0 missed and stored
-SPARSE[k] = x0; SPARSE[k] is stored only by misses of key k, and every later probe of k hits by the same argument, so
-SPARSE[k] = x0 < cid and DENSE[x0] = k: the probe hits and returns x0. If no x < cid has key k, the word SPARSE[k] was
-never written and holds an arbitrary s: either s >= cid and the bound test fails, or s < cid and DENSE[s] = key(s) != k
-by (a); both miss, and the miss stores SPARSE[k] = cid, the first candidate with key k, preserving (b). DENSE is read
-only at s < cid, at written words. QED.
+BSTEP = 36,878 operations (Section 3.5): the step, the prefilter and its test, the loop control and the step counter. No other operation runs in an iteration without a prefilter hit or a deadline.
 
-No word is initialized and no initial content matters: Lemma 8 is the valid-access argument for the never-written
-sparse array.
+### 4.2 The replay
 
-**Verification (charged 2664 operations: two six-round evaluations, 2 x 1271 = 2542, and at most 122 others).** The
-verification count F is a memory word: it is loaded, incremented, stored, compared with R140 and branched on (5); the
-current identifier is the cid register. The live registers (the 15 key words of the column step other than the one
-just probed, which is not read again, and cid; the chi phase holds no current value, Section 5.4) are stored to a
-fixed spill frame (16) and loaded back after the comparison (16), so the scalar schedule has the register file (at
-most 25 input and 25 output lanes, 5 D words and 2 rotation temporaries, beside the first digest and one identifier:
-62 registers; a constant lane is an immediate and needs none).
+The replay evaluates F on one point at a time with a one-walk straight-line program of F of 1,115 operations (lane-wise Keccak on 64-bit words in the 256-bit registers: XOR, AND, OR, shifts; a rotation is shl, shr, or, and; the first round folds the constant lanes; the last round computes only lanes 0 to 3; XOR with PD included). An advance step costs F + 7 (4 moves, counter 3), a lock-step iteration 2F + 26 (two evaluations, 16 moves, the equality test of four lanes 9, a jump). With both lengths at most Lc the replay costs at most (F + 7)(max - min) + (2F + 26) min <= (2F + 26) Lc. At most one replay runs per attempt.
 
-- **The earlier candidate (62)**, a run-time identifier s: e = s AND 255; i = (s >> 8) AND (2^40 - 1);
-  c = ((e AND 15) << 4) OR (e >> 4); j = ((s >> 48) << 8) OR c; the record address CSB + 2j; two LOADs of t_j with
-  the second-word add; g(i) = i XOR (i >> 1) (17 together); for each byte b = 0..4 of g(i), v = (g >> 8b) AND 255
-  (one operation for b = 0) and from each of the two tables TB_{b,0} and TB_{b,1} the add of its base, a LOAD and
-  an XOR into word 0, resp. 1, of t_j (8 per byte, 7 for byte 0: 39); lanes 0..4 (6: lanes 0..2 by two shifts and
-  three 64-bit masks, lane 3 by one shift, the first word >> 192 being below 2^64, and lane 4 is the second word
-  itself, below 2^64).
-- **The current candidate (15).** Its probe runs in the code generated for Gray site i at emission e (Section 11.2),
-  so i and e are immediates there: the hit path of each emission holds CSB + 2c and the two words of
-  sum_b g(i)_b w_b. The rebuild is h = cid >> 48, two shifts to 2^9 h, the add of CSB + 2c, two LOADs with the
-  second-word add (7), two XORs with the immediate words (2) and the lanes as above (6).
-- **The six rounds (1271 per message).** Lanes 10..14 are the registers of lanes 0..4, and the fourteen zero lanes
-  and the padding lane 16 = 0x86 * 2^56 are immediates. The rounds run as code generated once with the folding rule
-  of Section 6.3 on 64-bit lanes: an operation is emitted only when its result is not fixed by the constants, a
-  constant operand is an immediate, NOT of a lane is XOR with the immediate 2^64 - 1, and the rotation of a data
-  lane costs two shifts, OR and AND (4). A round of data lanes costs 242 (theta parities 20, D 25 with one rotation
-  each, application 25, rho 96 for the 24 nonzero rotations, pi as register renaming, chi 75, iota 1). In round 0
-  every column parity is constant (lanes x and x + 10 cancel): 9 rotations (36), 17 XORs, 5 NOTs and 9 ANDs, 67;
-  round 1: 29 rotations (116), 70 XORs, 25 NOTs and 25 ANDs, 236; rounds 2 to 5: 242 each. In all 1271, no
-  permutation call, giving the native digest lanes 0..3. Folding changes no lane (the argument of Lemma 10 on 64-bit
-  lanes), and the pattern is the same for every message.
+### 4.3 Rare operations
 
-Then at most four compares and branches (8). Total at most 5 + 2 * 16 + 62 + 15 + 8 = 122 besides the two six-round
-evaluations. If F reaches R140 the run stops (failure). The byte tables TB_{b,k} (b = 0..4, k = 0, 1) hold for each
-byte value v word k of the XOR of w_{8b+j} over the set bits j of v; the ten tables (2,560 words) are written once
-in preprocessing (Section 11.2).
+Each routine is straight-line code or a counted loop; its count is an upper bound on what it executes.
 
-**Address map (words).** DENSE [0, Q) with Q < 2^128; coset records [2^130, 2^130 + 2C); the work region (frames,
-records, byte tables, spill words and the buffer) from 2^131, fewer than 2^48 words; generated code from 2^132, fewer
-than 2^56 words; SPARSE [2^140, 2^141). The regions are disjoint and every address is below 2^141.
+- **A prefilter hit: 211.** The hit counter is 6 (load h, add, store, load HMAX, compare, branch). The slow test is 205: 48 loads and 48 ORs (lane 3 planes 16 to 63), 52 loads and 51 ANDs (lane 2 planes 12 to 63), 2 to combine, a compare and a branch, a call and a return (a load of a plane held in a register is charged as a load all the same). The driver aborts at hit HMAX + 1, so every execution processes at most HMAX + 1 hits, and the ledger charges that number. The abort enters the success bound as F5 (Section 5).
+- **A walk at a DP: 640 + 4 + (10 S + 20) + 6 + 2,460 + 1,100 = 54,230**: gathering the 123 end planes (5 per plane plus 2 for the polarity of lane 1 and the loop control), the record word, the probe (at most 10 per slot over at most S slots), the store, the restart of a walk (a 256-bit add, the new trail number, then for each of the 256 planes: shift/and for its bit, shift left, and, or, plus the polarity of two lanes), and the next deadline (a loop over the 256 LST words). It runs at most U + 1 times.
+- **Deadline scans: 1,300**, at most U + 1 times.
+- **Setup, replay entry and final bookkeeping: 704,000.**
 
-## 8. The algorithm CAMP
+R = (HMAX + 1) x 211 + (U + 1)(54,230 + 1,300) + 704,000 = 281,626,244,562,659,358,417,114,097,366,632,771,898.
+
+### 4.4 Total
+
+N = Tb x 36,878 + (2F + 26) Lc + R + PRE = **55,143,574,691,449,961,658,368,535,021,444,063,567,770** word operations (Appendix A).
+
+| part | operations | share |
+|---|---:|---:|
+| main loop, Tb x 36,878 | 51,863,210,088,396,532,090,680,432,193,864,474,820,608 | 0.94051 |
+| replay, (2F + 26) Lc | 2,998,738,358,490,770,209,270,988,727,992,457,358,944 | 0.05438 |
+| rare operations R | 281,626,244,562,659,358,417,114,097,366,632,771,898 | 5.11e-3 |
+| preprocessing PRE | 2,220,498,616,320 | 4e-29 |
+
+time_log2 = log2(N / 1626) rounded up at the fifth decimal = **124.67321**, checked in exact integer arithmetic:
+
+    1626^100000 * 2^12467320 < N^100000 <= 1626^100000 * 2^12467321
+
+## 5. Success probability and the premise H_rand
+
+This is the analysis of 2d74a370 (Section 6 there) with the parameters of Section 4, plus the abort term F5.
+
+**Premise H_rand.** F behaves as a uniformly random function from 256 bits to 256 bits: the values of F at distinct inputs are independent and uniform, and the random word rho is uniform. Two consequences are used, both for evaluations at distinct inputs:
+
+- (i) the first coincidence of images among e evaluations has probability 1 - prod_{k<e}(1 - k/n) >= 1 - exp(-e(e-1)/(2n)) =: G(e), where n = 2^256;
+- (ii) the point reached just after a coincidence is uniform, so the number l of further evaluations of a trail until its DP satisfies P(l >= j) = (1 - theta)^j, independently of when the coincidence happened.
+
+**The coincidence.** Evaluations are numbered step by step and, inside a step, by walk. Let e* be the first evaluation whose image equals an earlier image, at step b* = ceil(e*/256). The trail B of that evaluation and the earlier trail A have equal points from then on, and both end at the same DP after l further evaluations of B. B is recorded at step b* + l at the latest; A reached the same point no later, so A was recorded before (or in the same step, in a lower walk), and the later record finds the earlier one.
+
+The search succeeds if (a) b* + l <= Tb, (b) both trails have at most Lc evaluations, (c) fewer than U trails are started, (d) the coincidence is between two different trails, and (e) the 123 stored end bits are those of the real ends and the replay finds the merge.
+
+Split l into bins of w = 2^104 steps: bin j holds l in [(j - 1) w, j w - 1], j = 1 .. 2^16 - 1, with probability p_j = (1 - theta)^((j-1) w) - (1 - theta)^(j w). If l is in bin j, (a) holds when e* <= 256 (Tb - j w). By (ii),
+
+    Pr[(a)] >= sum_j p_j G(256 (Tb - j w)).
+
+The failure events that the sum does not cover:
+
+- **F1**, some trail of the attempt has no DP within Lc steps: at most U (1 - theta)^Lc <= U e^-kappa = 5.627e-04. This covers (b).
+- **F2**, more than U - 256 DPs among the 256 Tb evaluations: the number is binomial with mean mu = 256 Tb theta = 4,333.6, and the Chernoff bound e^-mu (e mu / (U - 256))^(U - 256) gives 6.553e-09. This covers (c).
+- **F3**, the coincidence lies inside one trail (a cycle or a self-merge): at most U 2^(2H) / n = 2.980e-04. This covers (d).
+- **F4**, 2^-90: a start rho + i equal to a point of another trail (U starts, about 2^128 images: below 2^-115), two different ends with the same 123 stored bits (U^2/2 pairs at 2^-123 each, below 2^-99), a failed replay for another reason. This covers (e).
+- **F5**, the hit counter aborts the attempt before it stops: below 2^-1000. Call a walk's input at a step fresh if F was not evaluated at it before in the attempt, and let X' count the steps at which some walk with a fresh input lands on planes 0..15 of lane 3 zero. Given the past, the images of the fresh inputs are independent and uniform (H_rand), so each step adds to X' with conditional probability at most 1 - (1 - 2^-16)^256 < 2^-8. A hit not counted in X' needs a walk at a repeated input. Outside F4 no start is a point of a trail, so repeated inputs occur only after the first image coincidence (step b*), and an attempt that succeeds outside F1 stops at step b* + l with l <= Lc. On success, therefore, h <= X' + Lc, and an abort needs X' >= floor(Tb (1 + d) 2^-8) + 2 > (1 + d) mu', with d = 2^-20 and mu' = Tb 2^-8. The Chernoff bound for indicators with conditional probabilities at most 2^-8 (supermartingale exp(s X'_t - (e^s - 1) t 2^-8)) gives probability at most exp(-d^2 mu' / (2 + d)) = exp(-2.498 x 10^21) < 2^-1000. Appendix A checks the exponent in exact rationals and subtracts 2^-1000. This is not sampled.
+
+With a further 2^-60 for rounding, the success probability of one attempt, with the abort, is at least **0.3900000075** at Tb. It is 0.3899999715 at Tb - 2^96, so Tb is the least multiple of 2^96 that reaches 0.39. Appendix A computes both with 80-digit decimals.
+
+In evaluations, 256 Tb = 1.058017 x 2^128; the birthday point for success 0.39 is 0.99430 x 2^128, and the wait for the DPs of the last trails, about 256 x 2^116 = 2^124 evaluations, is the main reason the count is above it.
+
+A failed attempt (probability up to 0.61 under the premise) can be repeated with a fresh rho at the same cost; the expected cost to a collision is at most N/0.39, 1.36 bits more. The claim is one attempt with success 0.39.
+
+## 6. Memory
+
+The search, at its peak (32-byte words):
+
+| region | words | bytes |
+|---|---:|---:|
+| register file (H_machine) | 1,024 | 32,768 |
+| program sections AFF, GB, GA, R5 (every ld, st, mov included) | 20,281 | 648,992 |
+| prefilter (17) | 17 | 544 |
+| loop control, slow test, probing, deadline, start and output routines | 435 | 13,920 |
+| DP gather and walk restart, unrolled over the output registers (register numbers are immediates) | 2,437 | 77,984 |
+| one-walk program of F (1,115) and the replay loops (120) | 1,235 | 39,520 |
+| spill cells of the program | 1,250 | 40,000 |
+| round constants | 5 | 160 |
+| LID and LST of the 256 walks | 512 | 16,384 |
+| table | 5,000 | 160,000 |
+| scratch: rho, h, HMAX, replay state | 64 | 2,048 |
+| **total** | **32,260** | **1,032,320** |
+
+The code sizes of the program sections are the generator's counts; the other routines are counted by the stated bounds (Section 4.3).
+
+**Preprocessing.** `gen 512` (peak 552,960 bytes, static image 795,909 bytes) and `gen_s6ls` (peak 1,032,192 bytes including the code region it writes) run one after the other and before the search; each releases its working memory before the next phase. The memory figure covers the preprocessing: peak = max(search 1,032,320, gen_s6ls 1,032,192, gen 512 795,909) = 1,032,320 bytes = 2^19.9775 <= 2^20, so memory_log2_bytes = 20 and the memory term of the score is 0. Both generators also run inside the 1 MiB sandbox (13 and 16 pages), where everything they declare is counted.
+
+**The declared experiments are not the attack.** They run in Python as reduced-width and short-run evidence; their peak resident memory (GNU time, Python 3, one organizer-shaped request of 256 trials) is 86,068 KiB (rho-w22) and 86,100 KiB (proj-w256). The C programs of the checks of Section 7.2 are not part of the attack either.
+
+## 7. Evidence for the step and for H_rand
+
+### 7.1 Organizer experiments (declared in experiments/manifest.json, program experiments/s6ls.py)
+
+Both experiments regenerate the program in Python (Section 3.7), check it, and execute it on Python integers, all trials side by side (one integer holds a plane for all trials of the request).
+
+- **rho-w22** runs the search of Section 4 end to end at width 22: after every step the planes 22 to 255 are set to zero (the only difference from the full program), DP = 4 low image bits zero, cap 128, 3,000 trails and 400 steps per attempt. At this width a start often lies on another trail, so a replay that returns nothing restarts the walk instead of ending the attempt (the full-size rule halts, as F4 accounts). Every trial returns two messages whose six-round digests agree on the 22 low bits. Our local runs on 5 x 256 seeds: 1,280 of 1,280 valid pairs, mean steps 17.88, 18.29, 17.90, 18.90, 18.47 (pooled 18.29). Our ideal-function control of the same search (20,000 trials, F replaced by a lazily sampled random function on 22 bits) gives 17.94, standard deviation 7.05; the pooled mean is z = +1.8 above it.
+- **proj-w256** runs eight chained full-width steps from 256 uniform points per trial and finds the first two distinct evaluated inputs whose images agree on the 22 low bits. The model gives 0.3934 per trial (100.7 of 256, sd 7.8). Our local runs: 90, 98, 106, 103, 93 of 256 (490 of 1,280 = 0.383, z = -0.8). The same trial in C at scale (Section 7.2): 0.3938 in 262,144 trials (z = +0.4).
+
+Each request takes about 4 s on one core.
+
+### 7.2 Our measured checks of H_rand on this F (not organizer runs)
+
+The linear embedding makes round 0 affine, so F has one fewer nonlinear round than the plain digest map. These checks (our C programs hrand_ls.c and proj_ls.c, Appendix D, and a GPU rho harness) measure the quantity the search depends on: the rate of image coincidences among evaluated points.
 
 ```
-Preprocessing (once, Section 11.2): generate the code, constants w_b, masks and byte tables; check rank and the
-  780 polarizations of Lemma 3; h = 0; F = 0.
-Group h (repeated):
-  Setup (Section 6): leader step of the 256 cosets j = 256 h + c, each origin t_j drawn from two fresh random
-    words; the transpose of the origins into 320 bitplanes; for every |S| <= 8, in order of increasing |S|, the
-    constant-folded bit-sliced evaluation of the 256 lanes into A[S]; the transform; the phase conversion.
-  FES phase (Section 5.3): for p = 0..174, plane p over the Gray steps i = 1..2^40 - 1 into the buffer X[p][i].
-  cid = h 2^48.
-  Chi phase: for i = 0, 1, ..., 2^40 - 1 (Gray point i):
-    chi and transpose (Section 5.4) on the 175 values of point i (A[{}] at i = 0, the buffer otherwise):
-      the 256 key words of the candidates (h, i, e), e = 0..255
-    for e = 0..255: probe the key word (Section 7); on a hit with s: verification of s against cid;
-      if the digests are equal, output the two messages and stop; if F reached R140, stop with failure
-  h = cid >> 48; if h = G, stop with failure.
+A uniform inputs: M=2^24, pairs agreeing on 32 bits: ratios low 0.9961 mid 0.9999 top 1.0033; z -0.71 -0.01 0.60
+B consecutive inputs R+i: ratios 0.9999 0.9962 1.0060; z -0.02 -0.68 1.09
+C chained iterates (256 chains x 65536 steps): ratios 0.9965 1.0006 0.9980; z -0.64 0.12 -0.37
+D single-bit differences: 65536 cells x 4096 pairs, max |z| 4.09 at input bit 0 output bit 0; mean z^2 0.9994 (expected 1)
+proj at scale: 262144 trials, 103229 successes = 0.3938; model 0.3934; z 0.44
+GPU rho, truncated chains (w low bits of F under a salted injective embedding, one function per start), mean rho length / random-function mean:
+  w=32, 4000 starts: 0.9982 CI95 [0.9823, 1.0140]
+  w=36, 2000 starts, 4 seeds: 1.0273 [1.0036, 1.0509], 0.9820 [0.9603, 1.0037], 1.0107 [0.9876, 1.0338], 0.9904 [0.9679, 1.0128]; pooled 1.0026 +- 0.011
+  w=40, 2000 starts, 3 seeds: 1.0193 [0.9961, 1.0426], 0.9924 [0.9698, 1.0151], 1.0136 [0.9897, 1.0374]; pooled 1.0084 +- 0.013
 ```
 
-Every bound (G groups, 2^40 sites, R140 verifications) is a halt of the algorithm, and every candidate is probed
-exactly once, so the operation count of Section 10 is an upper bound for every run.
+- **Windows A to C.** The windows are bits 0-31, 128-159 and 224-255 (the top window lies inside the DP bits). Pair-coincidence rates among 2^24 images match the random-function value within 0.6 percent (sd 0.55 percent), for uniform inputs (A), for the consecutive starts rho + i (B) and for the chained iterates a walk evaluates (C). A, B and D do not depend on the mask PD (an output XOR leaves coincidences unchanged); C and the rho runs do.
+- **Single-bit differences (D).** No bias: the largest |z| over 65,536 cells is 4.09, mean z^2 0.9994.
+- **Rho lengths.** The first w = 36 run read 1.027 with an interval excluding 1; three further seeds read 0.982, 1.011 and 0.990, and the pooled ratios (1.003 at w = 36, 1.008 at w = 40) include 1. A mean rho length (1 + r) times the random value corresponds to a coincidence rate of about (1 + r)^-2 and costs about 0.5 log2(1/(1 - 2r)): 0.006 bit for r = 0.003.
 
-## 9. Success
+How F is computed in the checks: hrand_ls.c and proj_ls.c execute the straight line prog.bin written by `gen 512` (it computes SHA3-256-r6(m(u)) with the same constants, xored with another fixed mask) and xor its output with the difference of the two masks, which gives F exactly; they read meta.txt with PD. This was checked against a scalar six-round reference on 8,192 chained evaluations and the reference against the Python F on 1,500 points, 0 mismatches. The GPU harness uses the scalar reference (0 mismatches on 20,000 points).
 
-Let G = 1,202,250,025,869,134,545,910,402, C = 256 G = 307,776,006,622,498,443,753,062,912 cosets,
-Q = 2^48 G = 338,403,298,031,900,219,834,956,980,958,854,643,712 candidates, lambda = Q(Q - 1)/2^257 =
-0.4944931595636236108406620045... and T40 = sum_{k=0..40} lambda^k / k!.
+What these checks do not show: a deficit of a fraction of a percent, or any effect that appears only for 256-bit coincidences at 2^128 evaluations. The premise remains a premise.
 
-**Lemma 9 (detection).** Suppose D holds (Lemma 7), the candidates contain two with equal digests, the run does not
-stop at the R140 cap, and there is no bad triple: candidates A, B, C, A not in {B, C}, with digest(B) = digest(C),
-key(A) = key(B) and digest(A) != digest(B). Then CAMP outputs a collision.
+## 8. Sensitivity and comparison
 
-*Proof.* Let C be the first candidate in probe order that has an earlier candidate B with the same digest, and k its
-key. By Lemma 8 the probe of C hits and returns the first candidate A0 with key k (A0 precedes or equals B). If
-digest(A0) = digest(B), the verification of A0 against C finds equal digests and CAMP outputs the two messages, which
-are distinct on D (Lemma 7). Otherwise A0 != B; A0 has the key of B and C and a different digest, a bad triple. QED.
+| variant | step | time_log2 | memory | score |
+|---|---:|---:|---|---:|
+| as claimed: 1,024 registers, all transfers charged, shared section code, code at 32 B/instruction | 36,878 | 124.67321 | 1,032,320 B | 124.67321 |
+| the same sections with 3,503 registers and no transfers (not claimed: the large register file is not an accepted convention) | 30,056 | 124.38871 | 947,328 B | 124.38871 |
+| 1,024 registers, rounds unrolled (no shared code), whole-step furthest-next-use allocation | about 35,300 | about 124.61 | about 1.56 MB (2^20.57) | about 125.18 |
+| 1,024 registers, every section entered and left with all planes in memory | about 45,300 | about 124.95 | about 1.26 MB | about 125.21 |
 
-**Random variables.** Over CAMP's coins (the origins t_j), let F1 be the event that no two of the Q candidates have
-equal digests, X the number of unordered pairs of candidates with equal 140-bit keys, and Y the number of bad triples
-of Lemma 9. Let mu140 = Q(Q - 1)/2^141, r140 = ceil(mu140) = 41,080,884,463,506,626,072,264,787,223,246,591, the
-Chebyshev parameter kappa = 19,345,871,228,983 and R140 = r140 + ceil(sqrt(kappa r140)) =
-41,080,884,464,398,111,069,785,063,816,008,882.
+The first row is certified (Appendix A); the others are our own computations with the earlier polarity pattern and are given for orientation only. Entry 67f781f8 (124.46633) declares a file of 2,304 registers with no transfers and a 5-byte code encoding; by its own Section 10 it is at 124.923 with 1,024 registers.
 
-**Premise H_coset (Section 12).** Conditioned on D: (a) Pr[F1 | D] <= 1/T40; (b) E[X | D] <= mu140 and
-Var[X | D] <= mu140; (c) E[Y | D] <= lambda (Q - 2)/2^140 = 0.000120059210262853... .
+## 9. Relation to other entries, credits and literature
 
-These are the bounds that independent uniform 256-bit digests of the Q distinct candidates give: (a) the probability
-of no equal pair is prod_{k=1}^{Q-1} (1 - k 2^-256) <= exp(-lambda) <= 1/T40 (T40 is a partial sum of exp(lambda));
-(b) the keys (140 digest bits XOR constants) are then uniform and the pair indicators pairwise independent (two pairs
-sharing a candidate agree with probability 2^-280), so Var X <= E X = mu140; (c) C(Q, 2) (Q - 2) 2^-256 2^-140 =
-lambda (Q - 2)/2^140. H_coset asserts these three bounds for CAMP's randomized enumeration; it is not proved.
+A credit is not an endorsement; nobody named here has reviewed this package.
 
-**Theorem.** Over CAMP's fresh coins and under H_coset, CAMP outputs a collision with probability greater than 0.39.
+- **Our entry 2d74a370 (sha3-256-r6).** It supplies the search: lockstep distinguished-point walks with restart on a DP, the table, deadlines, the replay, the success bound of Section 5 and the rare-operation accounting. Declared as a dependency.
+- **J. Guo, M. Liu, L. Song, Linear Structures: Applications to Cryptanalysis of Round-Reduced Keccak, ASIACRYPT 2016.** The linear-structure placement of message lanes that keeps round 0 affine (Section 2).
+- **jungjipdo, entry 67f781f8 (sha3-256-r6).** The step program here does not use its design (the rounds are our generic round code with carried theta and a round fixed-point polarity pattern, Section 3.1). What remains of its ideas is in the constant selection only: `gen 512` (Appendix C) is our LS1 generator, whose step design (lazy per-row theta, per-row complement subsets, last-use allocation) we took from 67f781f8's text as a description; it is used here only to choose the constants K. None of 67f781f8's code was run, imported or compiled.
+- **P. C. van Oorschot and M. J. Wiener, Parallel collision search with cryptanalytic applications, J. Cryptology 12 (1999); J. M. Pollard (1975).** The distinguished-point and rho methods.
+- **G. Bertoni, J. Daemen, M. Peeters, G. Van Assche, Keccak implementation overview.** The lane complementing transform, applied plane by plane (Section 3.1).
+- **L. A. Belady (1966).** Furthest-next-use replacement, used by the allocator (Section 3.3).
 
-*Proof.* If D holds, F1 fails, X < R140 and Y = 0, then CAMP outputs a collision: on D the candidates are distinct
-messages (Lemma 7); every verification follows a hit, which pairs the probing candidate with an earlier candidate of
-equal key, so the verification count stays at most X < R140 and the cap never stops the run; Lemma 9 applies. Hence
+## 10. Limits
 
-    Pr[failure] <= Pr[not D] + Pr[F1 | D] + Pr[X >= R140 | D] + Pr[Y >= 1 | D].
+- **H_rand** is not tested at 256 bits; no run reaches 2^128 and no full collision is claimed. The checks of Section 7 work at 22 to 40 bits; the rho readings are stated in 7.2.
+- **H_machine** states the machine (1,024-word register file, every transfer charged, 32 bytes per instruction). The cost model fixes no register count; the claim uses the convention accepted for 0a9640ed.
+- **What is executed, and what is bounded.** The program is generated by the printed C generator, executed and compared with the plain permutation (Section 3.7); the search runs at width 22 in the experiment. The routines of Section 4.3 and their code sizes are counted by stated bounds, not generated; their operations are 5.1e-3 of N.
+- **Replay cost.** The replay is a one-walk program of 1,115 operations per evaluation, charged as stated.
 
-(0) Pr[not D] <= C(C, 2) 2^-280 = 2.4380395092434897...e-32 (Lemma 7, proved).
-(i) Pr[F1 | D] <= 1/T40 by (a).
-(ii) By (b) and Chebyshev's inequality, as R140 - mu140 >= ceil(sqrt(kappa r140)) >= sqrt(kappa mu140):
-Pr[X >= R140 | D] <= Var[X | D]/(R140 - mu140)^2 <= mu140/(kappa mu140) = 1/kappa.
-(iii) Pr[Y >= 1 | D] <= E[Y | D] <= lambda (Q - 2)/2^140 by (c) and Markov's inequality.
-The exact rational comparison of the four terms (integer numerators) gives
+## Appendix A. The exact ledger
 
-    C(C, 2) 2^-280 + 1/T40 + 1/kappa + lambda (Q - 2)/2^140 = 0.6099999999999999999999999999530923062... < 61/100,
-
-G is the least group count for which this holds at this kappa (G - 1 gives a bound of at least 61/100), and kappa
-is the least parameter for which it holds at this G (kappa - 1 gives at least 61/100). Hence the success
-probability over the coins is greater than 0.3900000000000000000000000000469. QED.
-
-## 10. Cost ledger and certificate
-
-All charges are word operations of Section 5.1; no permutation call is made (verification evaluates the six rounds
-in word operations, Section 7).
-
-| term | value |
-|---|---|
-| FES, G F_g (Section 5.3) | 4,178,382,793,083,497,526,493,178,625,755,871,925,554 |
-| chi and transpose, G (4664 * 2^40 + 175 (2^40 - 1)) (Section 5.4) | 6,396,615,465,532,466,027,266,398,022,000,940,761,378 |
-| setup, S_v = G S_g (Section 6.5) | 8,324,727,858,445,183,221,990,590,914,749,247,816 |
-| table, 9 Q | 3,045,629,682,287,101,978,514,612,828,629,691,793,408 |
-| verification, 2664 R140 | 109,439,476,213,156,567,889,907,410,005,847,661,648 |
-| preprocessing, ONCE = 2^70 + 16 | 1,180,591,620,717,411,303,440 |
-
-    N = G F_g + G (4664 2^40 + 175 (2^40 - 1)) + G S_g + 9 Q + 2664 R140 + ONCE
-      = 13,738,392,144,974,667,284,566,679,098,024,512,693,244,
-
-about 40.5976 operations per candidate. The time is N/1626 target compressions, and the integer certificate
-
-    1626^100000 * 2^12266822 <= N^100000 < 1626^100000 * 2^12266823
-
-gives log2(N/1626) = 122.6682254..., so time_log2 = 122.66823 (rounded up at the fifth decimal).
-
-## 11. Memory, preprocessing and advice
-
-### 11.1 Memory
-
-SPARSE: 2^140 words (never initialized); DENSE: Q words; coset records: 2C words (the retained random origins); work:
-working frames 512, tile words 144, bitplanes 320, transpose words 3, input words 320, round buffers 5 * 1,600, D
-words 320, wrap words 5, coefficient and derivative records 2 * 175 * P_D, the byte tables 2,560, the
-verification-count word, 17 spill words and the buffer 175 (2^40 - 1), which every group reuses (fewer than 2^48
-words in all); generated code and its constants: fewer than 2^56 words. The regions are disjoint (Section 7) and
-every address is below 2^141, so memory is below 2^141 words of 32 bytes, below 2^146 bytes.
-
-### 11.2 Preprocessing: ONCE = 2^70 + 16 operations
-
-(a) **Code generation.** Each of the 175 (2^40 - 1) FES step sites (plane p, Gray step i) is decoded (the set bits of
-i, the record addresses of T_1..T_L in plane p and their cache and last-change flags) in fewer than 2^14 operations
-and emits at most 1 + 3 * 7 + 2 = 24 instructions; each of the 2^40 chi-phase sites is decoded (with the two
-words of sum_b g(i)_b w_b) in fewer than 2^14 operations and emits at most 4664 + 175 + 9 * 256 + 15 * 256 = 10,983
-instructions (the table steps of its 256 emissions and, on each hit path, the 15 operations of the current
-candidate, Section 7); the setup code (leader step, transpose, every point with the NOT pattern of w(S) and the
-folded rounds, transform pairs and phase terms) has one instruction per operation of S_g, fewer than 2^46, each
-generated in at most 16 operations; the folding pattern of the setup rounds (the same at every point) and the
-verification code (1,271 instructions per message, a rotation counted as its four) come from one symbolic pass over
-the 1,600 state words of each round and over the 25 lanes, fewer than 2^25 operations. In all fewer than 2^54
-instructions; at four words per instruction the code is below 2^56 words and is generated in fewer than 2^62
-operations.
-(b) **Constants and certificate.** The two-word forms of w_b, the eight butterfly masks, rank 40 and the 780
-polarizations of Lemma 3 (821 two-round evaluations): fewer than 2^25 operations.
-(c) **The search that produced W40.** Step 1: the linear parts of the 1600 coordinates before the chi
-of round 1 (affine in t by Lemma 2) from 321 evaluations (t = 0 and the 320 unit vectors). Step 2: greedy
-restriction: keep a list E of linear constraints in echelon form; while some product pair of round-1 chi (the forms f
-and g of adjacent coordinates a_{x+1}, a_{x+2} of one row and slice, 1600 pairs) is violated (f, g and f XOR g all
-nonzero modulo E), append the constraint among {f, g, f XOR g} of the violated pairs that occurs most often, then of
-minimum weight, then of smallest integer value; each step lowers the dimension by one, so at most 320 steps, each
-reducing at most 3200 forms against at most 320 pivots and sorting at most 4800 candidates; the result is the
-35-dimensional space spanned by w_0..w_34, checked by its 595 polarizations. Step 3: the kernel K of the linear map
-x -> (B(x, w_i))_{i<35} (columns from 320 x 35 x 4 two-round evaluations; Gaussian elimination of 320 vectors of
-56,000 bits), the polar form on a basis of K / span(w_0..w_34) (6 vectors, 15 polarizations), and a maximal totally
-isotropic extension (its radical and one line), giving w_35..w_39; then the rank and 780-polarization check above.
-With two-round evaluations below 2^12 operations each, steps 1 to 3 cost fewer than 2^34 operations.
-(d) **One-time control.** h = 0 and F = 0, at most 16 operations.
-(e) **Byte tables.** For each of the ten tables (b, k), b = 0..4, k = 0, 1: one zero STORE for v = 0, then each
-entry v = 1..255 from entry v - 2^j (j the lowest set bit of v) by LOAD, XOR with the immediate word k of w_{8b+j}
-and STORE: 10 (1 + 255 * 3) = 7,660.
-
-The total is below 2^62 + 2^35 + 16 + 7,660 < 2^70 + 16 = ONCE, which is in N. In target compressions
-ONCE/1626 < 2^59.34; the claim declares preprocessing_log2 = 59.34.
-
-### 11.3 Advice
-
-None. Every constant used by CAMP is produced by the procedures of Section 11.2, whose cost is in N.
-
-## 12. Premise H_coset and evidence
-
-**Statement.** Let the C = 256 G coset origins t_j be CAMP's coins: independent and uniform on F_2^320 (Section 6.1).
-For the Q messages they generate, with the fixed Gray enumeration of span(W40) inside each coset and CAMP's order
-(groups h = 0..G - 1, cosets j = 256 h + c, Gray points g(i)), and with F1, X, Y and D as in Sections 6.1 and 9,
-assume over the coins: (a) Pr[F1 | D] <= 1/T40 (no full collision); (b) E[X | D] <= Q(Q - 1)/2^141 and
-Var[X | D] <= Q(Q - 1)/2^141 (equal 140-bit keys); (c) E[Y | D] <= lambda (Q - 2)/2^140 (bad triples). These are the
-values for independent uniform digests of distinct messages (Section 9). Success is then a probability over CAMP's
-fresh coins; nothing is assumed about the randomness of the fixed target beyond (a) to (c).
-
-This is assumed, not proved. The concern it answers: on a coset every digest bit is a polynomial of degree at most 16
-in the 40 inner variables (Lemma 4 and the last chi), so equal-digest pairs inside a coset, or across random cosets,
-could be rarer than for uniform values.
-
-### 12.1 GPU evidence
-
-**Batches 1 to 3 (preregistered, our runs; Appendix A holds every text, program and raw count).** Three batches at six
-rounds, each fixed in a protocol file hashed before its runs (PREREG.txt, SHA-256
-67e381a2c0dececee0ce10a8ac4591304076a161259e1cb9045f2c87df54fa58; PREREG2.txt, SHA-256
-3b49de9f7c931d51a66ec7f31c2b0c4e3227bc8047cfd25ab5f727207bc01b4c; PREREG3.txt, SHA-256
-5f94fcd22a4d94dddeef79ebc91f47b858793804e7d47e6784862e46479efc6a): sizes, statistics and the pass rule (every count of
-the tested inputs at least expected - 4 sigma, sigma = sqrt(expected); no reruns). The GPU program computes real
-six-round SHA3-256 digests of the messages M(t) (validated against the organizer reference sha3_256(rounds=6) on
-2,048 of 2,048 digests for batches 1-2 and 512 of 512 for batch 3). Each run has 2^30 messages in ncos complete
-cosets of dimension n. Field runs (batches 1-2): uniform random origins, n random independent elements of span(W40);
-control runs (batches 1-2): uniform random origins, n random 320-bit directions; fixed-origin runs (batch 3): origins
-XOR(q_b : bit b of g(j) set) for j = 0..ncos - 1, q_0, q_1, ... the coordinate vectors that extend the ordered W40
-basis (an earlier fixed choice of origins), with the first n ordered vectors of W40 (the first 2^n Gray points
-of each coset). **Random origins:** all runs of batches 1 and 2 drew their coset origins uniformly at random
-(Appendix A.2, hc.py gen); they are the direct evidence for the premise as stated over random origins. Batch 3 shows
-that even fixed origins give no deficit. Counts are exact
-numbers of equal-key pairs: within-coset pairs with equal low 32 bits of digest lane L, expected
-ncos C(2^n, 2) 2^-32; global pairs among all 2^30 messages with equal low 44 bits of lane L, expected
-C(2^30, 2) 2^-44 = 32,767.99997; z = (count - expected)/sqrt(expected).
-
-| run | inputs | lane | within-coset pairs | expected | z | global pairs | z |
-|---|---|---|---:|---:|---:|---:|---:|
-| R1 | field, n = 20, 1024 cosets | 0 | 131,380 | 131,071.875 | +0.85 | 33,033 | +1.46 |
-| R2 | field, n = 20, 1024 cosets | 3 | 130,720 | 131,071.875 | -0.97 | 32,964 | +1.08 |
-| R3 | control, n = 20, 1024 cosets | 0 | 131,300 | 131,071.875 | +0.63 | 32,762 | -0.03 |
-| R4 | control, n = 20, 1024 cosets | 3 | 130,930 | 131,071.875 | -0.39 | 32,709 | -0.33 |
-| R5 | field, n = 24, 64 cosets | 0 | 2,097,299 | 2,097,151.875 | +0.10 | 32,651 | -0.65 |
-| R6 | control, n = 24, 64 cosets | 0 | 2,098,309 | 2,097,151.875 | +0.80 | 32,777 | +0.05 |
-| S1 | field, n = 20, 1024 cosets | 1 | 130,589 | 131,071.875 | -1.33 | 32,932 | +0.91 |
-| S2 | field, n = 20, 1024 cosets | 2 | 130,672 | 131,071.875 | -1.10 | 32,606 | -0.89 |
-| S3 | control, n = 20, 1024 cosets | 1 | 130,638 | 131,071.875 | -1.20 | 32,925 | +0.87 |
-| S4 | control, n = 20, 1024 cosets | 2 | 131,237 | 131,071.875 | +0.46 | 32,715 | -0.29 |
-| S5 | field, n = 28, 4 cosets | 0 | 33,555,785 | 33,554,431.875 | +0.23 | 32,648 | -0.66 |
-| S6 | field, n = 28, 4 cosets | 2 | 33,557,768 | 33,554,431.875 | +0.58 | 32,736 | -0.18 |
-| S7 | control, n = 28, 4 cosets | 0 | 33,566,477 | 33,554,431.875 | +2.08 | 32,926 | +0.87 |
-| D1 | fixed origins, n = 20, j = 0..1023 | 0 | 131,053 | 131,071.875 | -0.05 | 32,666 | -0.56 |
-| D2 | fixed origins, n = 20, j = 0..1023 | 3 | 131,447 | 131,071.875 | +1.04 | 32,846 | +0.43 |
-| D3 | fixed origins, n = 24, j = 0..63 | 1 | 2,095,169 | 2,097,151.875 | -1.37 | 32,689 | -0.44 |
-| D4 | fixed origins, n = 24, j = 0..63 | 2 | 2,095,504 | 2,097,151.875 | -1.14 | 32,710 | -0.32 |
-
-Verdict under the preregistered rule: all three batches pass. Over 17 runs, all four digest lanes and cosets of 2^20,
-2^24 and 2^28 messages, every count lies within 2.1 sigma of its expectation, no count is below expected - 1.4 sigma,
-and field, control and fixed-origin runs agree. A fourth preregistered batch at five rounds (Appendix A, context only)
-also passes, including one more random-origin run.
-
-**Batch W (preregistered, our runs; Appendix A.5).** One protocol, PREREG_W.txt (SHA-256
-9cf0977ec63ac39f391a26d6a2913ab846fd7853c1595a8a54d47078fe8b4573), fixed six runs before their inputs were generated:
-2^34 messages each, uniform random coset origins, one coset of dimension 34 (the first 34 ordered W40 vectors, 1/64 of
-a complete coset of CAMP) or 1024 cosets of dimension 24 (the first 24 ordered W40 vectors), at six rounds (W1, W2)
-and at five rounds (W4, W5, context), with random-direction controls W3 (six rounds) and W6 (five rounds). A second
-GPU program, hcw.cu (the digest code of hcoset.cu with a bucketed pair count), gives the exact number of
-equal-projection pairs among all 2^34 messages for the widths K = 36, 40, ..., 64 of six projections: the low K bits
-of each digest lane (L0 to L3) and two two-lane projections (X01: the low ceil(K/2) bits of lane 0 interleaved with
-the low floor(K/2) bits of lane 1; X23 the same for lanes 2 and 3). Expected for uniform digests:
-E(K) = C(2^34, 2)/2^K, from 2,147,483,647.9 at K = 36 to 8.0 at K = 64; sigma = sqrt(E (1 - 2^-K)), the exact
-standard deviation of a pair count of uniform values. Pass rule (one-sided; no reruns): every count of W1, W2, W4 and
-W5 has z >= -4 where E >= 1000, and an exact Poisson lower tail of at least 3.17e-5 where E < 1000 (K = 60, 64).
-Before the runs the GPU digests and keys were checked against the organizer reference at both round counts (1,536 of
-1,536, recorded in PREREG_W.txt); Appendix A.6 repeats the check on the run inputs.
-
-| run | rounds | inputs (2^34 messages, random origins) | counts | lowest z | highest z |
-|---|---:|---|---:|---:|---:|
-| W1 | 6 | 1 coset, first 34 W40 vectors | 48 | -2.45 (L1, K = 56) | +2.16 (L3, K = 48) |
-| W2 | 6 | 1024 cosets, first 24 W40 vectors | 48 | -3.14 (X23, K = 36) | +2.12 (L3 and X23, K = 64) |
-| W3 | 6 | control: 1 coset, 34 random directions | 48 | -2.63 (X23, K = 56) | +2.48 (L2, K = 44) |
-| W4 | 5 | as W1 | 48 | -1.77 (X23, K = 44) | +2.26 (X01, K = 52) |
-| W5 | 5 | as W2 | 48 | -1.26 (L0, K = 40) | +2.12 (L0, K = 64) |
-
-Verdict under the preregistered rule: pass. None of the 240 counts lies beyond 4 sigma; the lowest, z = -3.14 (W2,
-X23, K = 36), is a relative deficit of 6.8e-5 of about 2^31 expected pairs. W6 was stopped by us at 20 minutes of run
-time without a result line (Appendix A.5, w.log); it is a control, outside the pass rule, reported and not replaced.
-
-### 12.2 Organizer-executed tests
-
-The declared experiments hcoset-within16 and hcoset-cross16 (Section 13) test a reduced-width form of (a) and (b) at
-every organizer run, on the run's own six-round digests: per experiment 2^17 digests, one group of 256 cosets whose
-origins come from the trials' coins (the organizer's seeds), the first 2^9 Gray points of each coset, projected to 16
-and 24 digest bits (bits 0..3, resp. 0..5, of lanes 0..3). For uniform values every expectation below is exact and the
-pass intervals are the expectation +- 4 standard deviations.
-
-- Pair rates by class. The program stops (the experiment fails) unless each count lies in its interval: pairs inside
-  one coset agreeing on 16 bits (33,488,896 pairs, expectation 511, interval [421, 601]); pairs across two cosets
-  agreeing on 16 bits (8,556,380,160 pairs, expectation 130,560, [129115, 132005]) and on 24 bits (expectation 510,
-  [420, 600]). Pair indicators of uniform values are pairwise independent, so each variance is n p (1 - p) exactly.
-- Existence of an agreeing pair, the event that (a) bounds at full width. In hcoset-within16 each trial returns two of
-  the 512 points of its own coset that agree on the 16 bits; in hcoset-cross16 a point a < 256 of its own coset and a
-  point b >= 256 of the partner coset, whose origin is independent. The organizer recomputes both digests of every
-  returned pair; the trials' message sets are disjoint, so for uniform values the successes are Binomial(256, P):
-  P = 1 - prod_{i<512} (1 - i/2^16) = 0.864841510863844 (expectation 221.40, standard deviation 5.47, pass interval
-  [200, 243]) and P = 0.632121969489614 (exact, from the occupancy law of one set; 161.82, 7.72, [131, 192]). A pair
-  deficit or clustering, the dependence that (a) excludes, lowers these counts.
-
-Run locally on the requests that the organizer's runner builds from its public seed, the two experiments give 224 and
-165 successes and the group counts (pairs16_within, pairs16_cross, pairs24_cross) = (513, 131,526, 500) and (485,
-130,615, 519), all inside their intervals; two runs of each are byte-identical. Scope: this is the organizer-executed
-part of the evidence. It reaches 16 and 24 bits, 2^17 digests per run and 9-dimensional sub-cosets, not 256 bits,
-complete cosets or Q messages, and it does not measure the key-match variance or triples at 140 bits.
-
-### 12.3 Sensitivity
-
-Suppose the pair-collision rate of CAMP's messages is (1 - eps) of uniform: the expected number of equal-digest pairs
-is (1 - eps) lambda, and (a) becomes Pr[F1 | D] <= 1/T40((1 - eps) lambda), with T40(x) = sum_{k<=40} x^k/k!; (b) and
-(c) keep their values (a lower pair rate does not raise them). For each eps the table gives the success bound of
-Section 9 at this N (G and kappa unchanged; exact rational comparison with the printed value), and the least G at
-which the failure bound, with the same kappa, is again below 61/100 (exact comparison; G - 1 fails), with the ledger
-N of Section 10 at that G and the integer E of its certificate 1626^100000 2^(E - 1) <= N^100000 <
-1626^100000 2^E, so time_log2 = E/100000 (rounded up at the fifth decimal); extra is that time_log2 minus the claim,
-close to -(1/2) log2(1 - eps) in every row. Only the row eps = 0 is claimed.
-
-| eps | success at this N | least G | N at that G | E | time_log2 | extra |
-|---:|---:|---:|---:|---:|---:|---:|
-| 0 | > 0.39 | 1,202,250,025,869,134,545,910,402 | 13,738,392,144,974,667,284,566,679,098,024,512,693,244 | 12,266,823 | 122.66823 | 0 |
-| 0.01 | > 0.386976 | 1,208,310,394,929,860,051,769,630 | 13,808,199,848,717,445,574,424,908,359,501,653,091,524 | 12,267,554 | 122.67554 | 0.00731 |
-| 0.05 | > 0.374732 | 1,233,502,149,326,011,439,979,945 | 14,098,436,263,582,001,265,330,443,203,244,377,390,214 | 12,270,555 | 122.70555 | 0.03732 |
-| 0.10 | > 0.359083 | 1,267,326,018,839,002,222,734,854 | 14,488,275,173,184,530,570,448,955,663,089,112,535,836 | 12,274,490 | 122.74490 | 0.07667 |
-| 0.25 | > 0.309746 | 1,388,387,996,102,778,879,505,654 | 15,885,001,522,036,501,004,488,966,638,787,378,976,916 | 12,287,768 | 122.87768 | 0.20945 |
-
-**Scope and extrapolation.** The evidence covers projections of at most 64 digest bits: 32-bit within-coset and 44-bit
-global projections of single lanes on 2^30 messages (batches 1 to 3), 36- to 64-bit projections of single lanes and
-of two-lane projections on 2^34 messages (batch W), and the organizer-executed 16- and 24-bit tests on 2^17 messages
-per run (Section 12.2); sub-cosets of dimension 9 to 34 of span(W40); random origins (batches 1, 2 and W and the
-organizer-executed tests) and fixed origins (batch 3). No count shows a pair deficit beyond the preregistered
-thresholds. The premise extrapolates to the full 256-bit digest and its 140-bit key, to complete 40-dimensional
-cosets, to C = 256 G random cosets and to Q messages: the full 256-bit collision event, the key-match variance and the
-triple bound are not measured; they are the premise, and the table above gives the effect of a shortfall in the pair
-rate.
-
-**Limits.** No proof is known. Image size and balance do not imply the premise: a balanced linear map onto F_2^256 can
-be injective on every translate of a campaign space, so its campaigns contain no collision at all. No such structure is
-known for the native function and none is excluded by proof. The GPU batches are our runs; the organizer executes the
-tests of Section 12.2.
-
-## 13. Experiments
-
-`experiments/fes_campaign.py` (Python standard library) serves the three declared experiments. Each run executes the
-schedule of Sections 5 to 7 at a reduced size on the organizer's trials. fes-campaign-reduced checks the event of the
-claim (two distinct messages with equal 256-bit digests; none expected at this size); hcoset-within16 and
-hcoset-cross16 then run the premise test of Section 12.2, whose checked event is that the two returned digests agree
-on bits 0..3 of lanes 0..3 (a 16-bit mask event, not a collision). The request must name one of the three experiments
-with its event.
-
-- Once per run: the program's six-round SHA3-256 equals the organizer reference on M(0) and M(w_0 XOR w_39)
-  (hard-coded known-answer digests), and its 24-round version equals hashlib.sha3_256 on both; rank(W40) = 40; the 780
-  polarizations of Lemma 3 vanish. A failed check stops the program.
-- Groups: trials 256g .. 256g + 255 form one group; its index is h = int(seed of the group's first trial, 16) mod G,
-  and trial k is lane c = k mod 256 of the cosets j = 256 h + c of Section 6.1. The leader step draws the origin t_j
-  of lane c from the trial's own coins: its two random words (one counted RAND each) are the two halves of SHAKE-256
-  of the trial's seed. This seed expansion only makes the run reproducible; it is not the attack's randomness, which
-  is the fresh random-word primitive of Section 6.2.
-- Reduced size: the first 2^9 Gray points of each coset (directions w_0..w_8), D = 8, all 175 planes, the full
-  140-bit key and the sparse-set table of Section 7 with Q' = 2^17 candidates and the verification cap of the same
-  formula (4,398,396).
-- Every operation of the leader step, the setup schedule, the FES phase, chi and transpose, the table and
-  verification runs through a counting machine (one call per primitive of Section 5.1; no permutation call; the
-  generated code of the folded rounds runs one instruction, one primitive, at a time), and the program stops unless
-  the executed counts equal the formulas above: 11 per coset leader and 5 per group; 13,616 for the transpose; at
-  every point 640 + popcount(w(S)) for the input, 1,978, 11,659, 14,735, 14,733 and 14,735 for rounds 0 to 4 and
-  4,230 for the linear step, with the popcount sum 13,530 of the formula of Section 6.3 at n = 9;
-  4 * 175 J_D and 2 * 175 V_D for transform and phase; the step count of Section 5.3 at every plane and Gray step and
-  62 + Sc + 2^9 - 1 - U = 3,799 per plane (Sc = 3,419 and U = 193 by the formulas of Section 5.3 at n = 9), 2 per
-  group for the spill, every buffer word written once and 175 buffer reads per point i >= 1, 175 point-zero loads,
-  4664 per point, 6 / 9 / 8 table operations per candidate (each probe), 7,660 for the byte tables, 62 for the
-  earlier and 15 for the current candidate, 67, 236, 242, 242, 242 and 242 for the six folded rounds of each, and at
-  most 2664 operations per verification, the 16-register spill included. It also checks
-  Sc61 = 18,760,331,006,174, U = 19,311,426 and pop_D = 4,592,341,856 at n = 40.
-- The counted bit-sliced setup of Section 6.3 runs on all 256 lanes at all 511 points. The bitplanes must equal the
-  origins bit for bit, and every coefficient record must equal, on every lane, an independent evaluation that is not
-  counted (rounds 0 and 1 by Lemma 3 (b), then rounds 2 to 4 and the linear step). Never-written sparse
-  words read as a fixed pseudo-random function of their address, either a word of at least 2^255 or h 2^48 plus a
-  value below 2 Q', so fresh keys often reach the dense test (arbitrary initial memory; the dense words of earlier
-  groups do not exist in a one-group run); a read of a never-written work, dense or coset word stops the program.
-- Beside the algorithm, not counted: at point i the message of lane i mod 256 is hashed natively and its 140 key bits,
-  with bit 140 set, are compared with the emitted key word (key_mismatch); after the run the first candidate's key is
-  probed again (a valid hit, 8 operations) and verified against the candidate (i, e) = (1, 5), with the
-  reconstructed sources and digests compared with the native ones.
-- Also beside the algorithm, in fes-campaign-reduced: own_pairs16, the number of unordered pairs of the trial's own
-  512 candidates whose emitted keys agree on their low 16 bits (bits 0..3 of digest lanes 0..3). Uniform digests give
-  C(512, 2)/2^16 = 1.996 per trial and 511 per 256 trials; a local 256-trial request gave 527 (z = +0.71).
-- Premise test, in hcoset-within16 and hcoset-cross16, not counted. Key bit 4z + x is digest bit z of lane x (RC[5]
-  cancels in an equality), so key bits 0..15 and 0..23 are the 16- and 24-bit projections of Section 12.2. The program
-  counts pairs16_within, pairs16_cross and pairs24_cross over the group's 2^17 keys and stops unless each lies in its
-  pass interval. Trial k (lane c) then returns the first repeat of key bits 0..15 among the 512 points of its own coset
-  in Gray order (hcoset-within16), or the first point b >= 256 of coset c XOR 1, in Gray order, whose key bits 0..15
-  equal those of a point a < 256 of coset c, with that a (hcoset-cross16). Each returned pair is hashed natively and
-  must agree on the mask; a trial without such a pair returns two nulls. A full collision among 2^17 messages
-  (probability below 2^-222) would be returned by trial 0 instead, without the test.
-
-In fes-campaign-reduced the program reports 16 numbers per trial: own_pairs16 (its own coset), and 15 that are the
-same for all trials of a group: fes_ops = 664,827 (175 * 3,799 + 2); buffer_reads = 89,425 (175 * 511); chi_transpose_ops = 2,387,968
-(4664 * 512); table_ops = 6 (2^17 - x - m) + 9 x + 8 m with x = in_range_mismatches and
-m = key_matches; sparse_inserts = 2^17 - m; leader_ops = 2,821 (11 * 256 + 5); setup_group_ops = 13,616 (the
-transpose); setup_point_ops = 32,058,340 (62,710 * 511 + 13,530); transform_phase_ops = 2,419,200;
-verify_check_ops (at most 8 + 2664); perm_calls = 0; native_checks = 512; key_mismatch = 0. In hcoset-within16 and
-hcoset-cross16 it reports, the same for all trials of the group, these 15 without buffer_reads and sparse_inserts
-(checked inside the program) and pairs16_within, pairs16_cross and pairs24_cross. The program also asserts
-point_zero_loads = 175 and once_ops = 7,662 (control 2, byte tables 7,660) without reporting them. No trial of
-fes-campaign-reduced returns a pair: a 256-bit collision among 2^17 messages has probability below 2^-222. Nothing
-about cost is inferred from the runs, and the premise tests are evidence at 16 and 24 bits, not at 256 bits.
-
-## 14. Credits
-
-- GPT Sol cloud: the two-round affine field and its certificate.
-- GPT Sol local and GPT Luna: the exact ledger (initialization, schedule, setup, table and success).
-- Grok: transpose and table code, executed operation counts, the schedule savings of jobs 64, 67 and 70 (constant
-  folding, the verification schedule, the Chebyshev parameter) and the executed bit-sliced setup of job 69.
-- Bouillaguet, Chen, Cheng, Chou, Niederhagen, Shamir and Yang, CHES 2010: fast exhaustive search by Gray-code finite
-  differences.
-- Th0rgal (76ccfa1c): the earlier remark that the digest's degree in a 32-bit counter is at most 32 (prior context).
-- rubenmarcus (91f1424d, sha3-256-r5): earlier use of degree-4 Gray-order finite differences in this contest, there to solve connector equations (prior context).
-- Jbenisek, with the daydream panel (compiler and accountant voices, our agents): the preregistered H_coset runs,
-  the kernel checks, the schedule levers, the package and the experiment program with its premise tests.
-
-## Appendix A. H_coset evidence: preregistrations, programs and raw counts
-
-Everything below is copied byte for byte from our working files; for each text the SHA-256 is that of the
-file, which equals the SHA-256 of the lines of its block, each ending in LF (the one exception, w_analysis.txt in
-A.5, is marked there). Internal labels inside the texts
-(D17, D19, D23, SOLCLOUD_12, SOLCLOUD_16) name our working notes: "D19 Section 6" is the fixed choice of origins
-of batch 3 described in Section 12, the W40 order is that of Section 3, and SOLCLOUD_12_INPUT_keccak.py is a
-byte-identical copy of the organizer reference verifier/keccak.py (SHA-256
-95ce77dff0476301c05057e01296f3e3507c4926423257540cfc3e5fd36ee0ae).
-
-### A.1 Preregistrations
-
-Each protocol was written and hashed before any count run of its batch. Decimal expectations quoted inside the
-texts are approximations; the stated formula ncos C(2^n, 2)/2^32 governs (PREREG.txt misprints the n = 24 value
-as 2147483616.0; the formula gives 2,097,151.875). The z values of A.3 use the exact formulas.
-
-**PREREG.txt** (SHA-256 67e381a2c0dececee0ce10a8ac4591304076a161259e1cb9045f2c87df54fa58, recorded in PREREG.sha256 when written):
-
-```
-PREREGISTRATION - H_coset evidence for the SHA3-256 r6 low-degree route (written 2026-10-09 before any main run)
-
-Premise to support (H_coset): a campaign of N messages enumerated as whole cosets of the certified 2-round-affine field
-W40 (research/sha3r6/lowdegree/RESULT.md) contains an equal-digest pair with probability at least the value for N
-independent uniform 256-bit digests. Concern: the digest on a coset is a degree-16 function of the coset variables,
-so pairs inside a coset or across cosets of one field could be rarer than uniform.
-
-Program: hcoset.cu (real 6-round SHA3-256, organizer round function, 135-byte single block; GPU digests validated
-2048/2048 against SOLCLOUD_12_INPUT_keccak.py sha3_256(rounds=6) before this file). Exact pair counts
-(sum over equal-key runs of C(len,2)) on a projection of the digest: within-coset (low 32 bits of a digest lane,
-pairs only inside one coset) and global (low KG bits of the lane, all messages).
-
-Main runs (seeds fixed here; inputs from hc.py gen MODE SEED N NCOS):
-  R1 field seed 1001, n=20, 1024 cosets, KG=44, lane 0     R2 same inputs, lane 3
-  R3 ctrl  seed 1001, n=20, 1024 cosets, KG=44, lane 0     R4 same inputs, lane 3
-  R5 field seed 1002, n=24, 64 cosets,  KG=44, lane 0      R6 ctrl seed 1002, n=24, 64 cosets, KG=44, lane 0
-Expected under the uniform model: within32 = ncos * C(2^n,2) / 2^32 (R1-R4: 131071.97; R5-R6: 2147483616.0... per
-formula), global = C(2^30,2) / 2^44 (32767.97). Sigma = sqrt(expected) (Poisson).
-
-Pass criterion (one-sided, the premise only needs no deficit): for every field run R1, R2, R5 and both counts,
-observed >= expected - 4 sigma. Report two-sided z for all runs, field and control. A field deficit beyond 4 sigma
-on any count = H_coset NOT supported; reported as such, no reruns with other seeds.
-Scope: this is evidence at 32- and 44-bit projections, not a proof for 256 bits; stated as such in any filing.
-```
-
-**PREREG2.txt** (SHA-256 3b49de9f7c931d51a66ec7f31c2b0c4e3227bc8047cfd25ab5f727207bc01b4c, recorded in PREREG2.sha256 when written):
-
-```
-PREREGISTRATION 2 - H_coset, second batch (written 2026-10-09 23:55, after batch 1 PASSED; same program hcoset.cu,
-same pass rule). Purpose: cover the two digest lanes batch 1 did not test (1 and 2) and much larger cosets.
-
-Runs (inputs from hc.py gen MODE SEED N NCOS; seeds fixed here):
-  S1 field seed 2001, n=20, 1024 cosets, KG=44, lane 1     S2 same inputs, lane 2
-  S3 ctrl  seed 2001, n=20, 1024 cosets, KG=44, lane 1     S4 same inputs, lane 2
-  S5 field seed 2002, n=28, 4 cosets,    KG=44, lane 0     S6 same inputs, lane 2
-  S7 ctrl  seed 2002, n=28, 4 cosets,    KG=44, lane 0
-Expected (uniform digests): within32 = ncos * C(2^n,2) / 2^32  (S1-S4: 131071.97; S5-S7: 4 * C(2^28,2)/2^32 =
-33554431.5); global = C(2^30,2)/2^44 = 32767.97. Sigma = sqrt(expected).
-Pass (one-sided): every field count (S1, S2, S5, S6; both counts) >= expected - 4 sigma. Two-sided z reported for all.
-A field deficit beyond 4 sigma on any count = H_coset NOT supported; reported as such; no reruns with other seeds.
-```
-
-**PREREG3.txt** (SHA-256 5f94fcd22a4d94dddeef79ebc91f47b858793804e7d47e6784862e46479efc6a, recorded in PREREG3.sha256 when written):
-
-```
-PREREGISTRATION 3 - H_coset on the DETERMINISTIC input sequence of D19 Section 6 (written 2026-10-10 00:36, before
-any run of this mode; same program hcoset.cu, same pass rule as batches 1 and 2).
-
-Sequence: ordered W40 basis (SOLCLOUD_16 Appendix B order, then c0..c4 of D17 section 9) extended by standard
-coordinate vectors e_i = 1 << i (i increasing; bit 64k+b = bit b of source lane k) whenever they raise the rank;
-q_0, q_1, ... the appended vectors; coset j has representative t_j = XOR(q_b : bit b of g(j) set), g(j) = j ^ (j>>1).
-Inside a coset the points are t_j + span of the FIRST n ordered W40 vectors (the first 2^n Gray points of the route's
-enumeration of that coset). Inputs: hc.py gen det SEED N NCOS (SEED only names the file; nothing is random).
-
-Runs:
-  D1 det 3001, n=20, cosets j = 0..1023, KG=44, lane 0      D2 same inputs, lane 3
-  D3 det 3002, n=24, cosets j = 0..63,   KG=44, lane 1      D4 same inputs, lane 2
-Expected (uniform digests): within32 = ncos * C(2^n,2) / 2^32 (D1-D2: 131071.875; D3-D4: 2097151.875 approx. by the
-formula); global = C(2^30,2)/2^44 = 32767.97. Sigma = sqrt(expected).
-Pass (one-sided): every count >= expected - 4 sigma. Two-sided z reported. A deficit beyond 4 sigma on any count =
-H_coset NOT supported for the deterministic sequence; then the package uses random coset origins (batches 1-2) instead.
-No reruns with other parameters.
-```
-
-**PREREG_R5.txt** (SHA-256 0a98c8a57288c2403d3082da7484dac332eec8ded347a7666a9b7e30df109876, recorded in PREREG_R5.sha256 when written):
-
-```
-PREREGISTRATION R5 - H_coset at FIVE rounds (sha3-256-r5: prefix rounds 0-4), for the r5 low-degree line (D23).
-Written 2026-10-10 01:55, before any 5-round count run. Same program hcoset.cu (rounds from HC_ROUNDS=5; GPU digests
-validated 512/512 against the organizer sha3_256(rounds=5) on the deterministic sequence before this file), same
-deterministic input sequence as PREREG3 (D19 Section 6 representatives; points t_j + span of the first n ordered W40
-vectors), same pass rule.
-
-Runs (HC_ROUNDS=5; inputs from hc.py gen det SEED N NCOS and hc.py gen field/ctrl SEED N NCOS):
-  P1 det 4001, n=20, cosets j = 0..1023, KG=44, lane 0      P2 same inputs, lane 3
-  P3 det 4002, n=24, cosets j = 0..63,   KG=44, lane 1      P4 same inputs, lane 2
-  P5 field 4003 (random origins), n=20, 1024 cosets, lane 0  P6 ctrl 4003, n=20, 1024 cosets, lane 0
-Expected (uniform digests): within32 = ncos * C(2^n,2) / 2^32 (n=20, 1024 cosets: 131071.875; n=24, 64 cosets:
-2097151.875); global = C(2^30,2)/2^44 = 32767.97. Sigma = sqrt(expected).
-Pass (one-sided): every field/det count >= expected - 4 sigma. Two-sided z reported. A deficit beyond 4 sigma on any
-count = H_coset NOT supported at r5; reported as such; no reruns with other parameters.
-```
-
-### A.2 GPU program and driver
-
-hcoset.cu computes real SHA3-256 digests (organizer round function, rounds from HC_ROUNDS, default 6) of the
-135-byte one-block messages M(t) for t = origin_c XOR (subset sum of the n directions), and counts exact
-equal-key pairs (sum of C(len, 2) over equal keys after a sort). hc.py writes the inputs: for MODE field and
-ctrl the origins are rng.getrandbits(320) with rng = random.Random("MODE-SEED"), uniform random 320-bit
-origins; MODE det writes the fixed origins of batch 3. hc.py imports from our working folder cube_degree.W (the
-ordered W40 list of Section 3, checked equal), cube_degree.rank (GF(2) rank) and cube_degree.kec (the organizer
-verifier/keccak.py above).
-
-**hcoset.cu** (SHA-256 28c40823a37afd1d22fb487b5ab77622c2036e5bc6763a330d83d1a9f66069f8):
-
-```cpp
-// H_coset test: real 6-round SHA3-256 (organizer round function, single 135-byte block, zero capacity) on messages
-// enumerated as whole cosets: message lanes u = start_c ^ XOR_{j: bit j of p} dir_j, embedded as in cube_degree.py
-// (u0..u4 in lanes 0-4 and 10-14, lane 16 = 0x86<<56). Counts exact equal-key pairs (sum over runs of C(len,2)):
-//   within-coset at 32 bits (key = coset id << 32 | low 32 bits of digest lane L) and global at KG bits.
-// usage: hcoset count <infile> <n> <ncos> <KG> <lane>     -> one JSON line
-//        hcoset dump  <infile> <n> <ncos> <M> <outfile>    -> first M digests (4 lanes each), for validation
-// infile: ncos*5 u64 starts then n*5 u64 directions (little endian).
-#include <cstdio>
-#include <cstdlib>
-#include <cstdint>
-#include <vector>
-#include <thrust/device_vector.h>
-#include <thrust/sort.h>
-#include <thrust/transform_reduce.h>
-#include <thrust/iterator/counting_iterator.h>
-typedef unsigned long long u64;
-
-__constant__ u64 RC[6] = {0x0000000000000001ull, 0x0000000000008082ull, 0x800000000000808Aull,
-                          0x8000000080008000ull, 0x000000000000808Bull, 0x0000000080000001ull};
-__constant__ int NROUNDS = 6;   // set from the HC_ROUNDS environment variable (5 or 6)
-__constant__ int RHO[25] = {0, 1, 62, 28, 27, 36, 44, 6, 55, 20, 3, 10, 43, 25, 39, 41, 45, 15, 21, 8, 18, 2, 61, 56, 14};
-__constant__ u64 DIRS[64 * 5];
-
-__device__ __forceinline__ u64 rotl(u64 x, int r) { return r == 0 ? x : (x << r) | (x >> (64 - r)); }
-
-__device__ void digest(const u64 *starts, int n, u64 idx, u64 out[4]) {
-    u64 c = idx >> n, p = idx & ((1ull << n) - 1), u[5];
-    for (int k = 0; k < 5; k++) u[k] = starts[c * 5 + k];
-    for (int j = 0; j < n; j++)
-        if (p >> j & 1)
-            for (int k = 0; k < 5; k++) u[k] ^= DIRS[j * 5 + k];
-    u64 A[25], B[25], C[5], D[5];
-    for (int k = 0; k < 25; k++) A[k] = 0;
-    for (int k = 0; k < 5; k++) { A[k] = u[k]; A[10 + k] = u[k]; }
-    A[16] = 0x86ull << 56;
-    for (int r = 0; r < NROUNDS; r++) {
-        for (int x = 0; x < 5; x++) C[x] = A[x] ^ A[x + 5] ^ A[x + 10] ^ A[x + 15] ^ A[x + 20];
-        for (int x = 0; x < 5; x++) D[x] = C[(x + 4) % 5] ^ rotl(C[(x + 1) % 5], 1);
-        for (int y = 0; y < 5; y++)
-            for (int x = 0; x < 5; x++) B[y + 5 * ((2 * x + 3 * y) % 5)] = rotl(A[x + 5 * y] ^ D[x], RHO[x + 5 * y]);
-        for (int y = 0; y < 5; y++)
-            for (int x = 0; x < 5; x++)
-                A[x + 5 * y] = B[x + 5 * y] ^ (~B[(x + 1) % 5 + 5 * y] & B[(x + 2) % 5 + 5 * y]);
-        A[0] ^= RC[r];
-    }
-    for (int k = 0; k < 4; k++) out[k] = A[k];
-}
-
-__global__ void kkeys(const u64 *starts, int n, u64 base, u64 cnt, int lane, int mode, int KG, u64 *keys) {
-    u64 g = blockIdx.x * (u64)blockDim.x + threadIdx.x;
-    if (g >= cnt) return;
-    u64 idx = base + g, d[4];
-    digest(starts, n, idx, d);
-    u64 v = d[lane];
-    keys[g] = mode == 0 ? (((idx >> n) << 32) | (v & 0xffffffffull)) : (v & ((1ull << KG) - 1));
-}
-
-__global__ void kdump(const u64 *starts, int n, u64 cnt, u64 *out) {
-    u64 g = blockIdx.x * (u64)blockDim.x + threadIdx.x;
-    if (g >= cnt) return;
-    digest(starts, n, g, out + 4 * g);
-}
-
-struct EqAt {
-    const u64 *k; u64 d;
-    __device__ u64 operator()(u64 i) const { return k[i] == k[i + d]; }
-};
-
-static u64 pairs(thrust::device_vector<u64> &v) {   // sum over runs of C(len,2), exact
-    thrust::sort(v.begin(), v.end());
-    u64 tot = 0, N = v.size();
-    for (u64 d = 1; d < N; d++) {
-        u64 c = thrust::transform_reduce(thrust::counting_iterator<u64>(0), thrust::counting_iterator<u64>(N - d),
-                                         EqAt{thrust::raw_pointer_cast(v.data()), d}, 0ull, thrust::plus<u64>());
-        if (!c) break;
-        tot += c;
-    }
-    return tot;
-}
-
-int main(int argc, char **argv) {
-    if (argc < 7) { fprintf(stderr, "usage: see header\n"); return 1; }
-    const char *mode = argv[1];
-    int n = atoi(argv[3]); u64 ncos = strtoull(argv[4], 0, 10);
-    std::vector<u64> buf(ncos * 5 + n * 5);
-    FILE *f = fopen(argv[2], "rb");
-    if (!f || fread(buf.data(), 8, buf.size(), f) != buf.size()) { fprintf(stderr, "bad infile\n"); return 1; }
-    fclose(f);
-    cudaMemcpyToSymbol(DIRS, buf.data() + ncos * 5, n * 5 * 8);
-    { const char *e = getenv("HC_ROUNDS"); int nr = e ? atoi(e) : 6; if (nr < 1 || nr > 6) nr = 6; cudaMemcpyToSymbol(NROUNDS, &nr, sizeof(int)); }
-    thrust::device_vector<u64> starts(buf.begin(), buf.begin() + ncos * 5);
-    const u64 *sp = thrust::raw_pointer_cast(starts.data());
-    u64 total = ncos << n;
-    if (mode[0] == 'd') {
-        u64 M = strtoull(argv[5], 0, 10);
-        thrust::device_vector<u64> out(4 * M);
-        kdump<<<(M + 255) / 256, 256>>>(sp, n, M, thrust::raw_pointer_cast(out.data()));
-        std::vector<u64> h(4 * M);
-        thrust::copy(out.begin(), out.end(), h.begin());
-        FILE *g = fopen(argv[6], "wb"); fwrite(h.data(), 8, h.size(), g); fclose(g);
-        printf("{\"dumped\": %llu}\n", M);
-        return 0;
-    }
-    int KG = atoi(argv[5]), lane = atoi(argv[6]);
-    // within-coset, 32 bits, in batches of whole cosets (2^28 keys per batch)
-    u64 per = 1ull << n, bc = (1ull << 28) / per; if (!bc) bc = 1;
-    u64 within = 0;
-    for (u64 c0 = 0; c0 < ncos; c0 += bc) {
-        u64 nc = (c0 + bc <= ncos ? bc : ncos - c0), cnt = nc << n;
-        thrust::device_vector<u64> v(cnt);
-        kkeys<<<(cnt + 255) / 256, 256>>>(sp, n, c0 << n, cnt, lane, 0, KG, thrust::raw_pointer_cast(v.data()));
-        within += pairs(v);
-    }
-    thrust::device_vector<u64> v(total);
-    kkeys<<<(total + 255) / 256, 256>>>(sp, n, 0, total, lane, 1, KG, thrust::raw_pointer_cast(v.data()));
-    u64 glob = pairs(v);
-    cudaError_t e = cudaGetLastError();
-    printf("{\"n\": %d, \"ncos\": %llu, \"lane\": %d, \"messages\": %llu, \"within32_pairs\": %llu, \"global_bits\": %d, "
-           "\"global_pairs\": %llu, \"cuda\": \"%s\"}\n", n, ncos, lane, total, within, KG, glob, cudaGetErrorString(e));
-    return 0;
-}
-```
-
-**hc.py** (SHA-256 9ba0863a64aaaf87399a0f4b48d8ea595b28d43bb0ecf63436501fac5f1967ea):
+Run with `python3 cert_s6ls.py [listing]` (with the listing argument it recounts the sections from the generator output). Program:
 
 ```python
-"""Driver for hcoset.cu (see PREREG.txt). usage: python hc.py gen MODE SEED N NCOS   -> in_<MODE>_<SEED>.bin
-                                                 python hc.py validate MODE SEED N NCOS M (GPU dump vs organizer sha3_256)
-MODE field: N random independent elements of span(W40) (cube_degree.W); MODE ctrl: N random 320-bit directions."""
-import os, sys, random, struct, subprocess, pathlib
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / 'lowdegree'))
-import cube_degree as cd
+# S6LS exact ledger: step count, success bound, failure terms, hit cap, N, memory, integer certificate.
+# Integers and Fractions; Decimal with 80 digits only for the exponentials and logarithms of the success bound.
+import sys
+from fractions import Fraction as Fr
+from decimal import Decimal as D, getcontext, ROUND_CEILING
+getcontext().prec = 80
+ceil = lambda v: int(v.to_integral_value(rounding=ROUND_CEILING)) if isinstance(v, D) else -((-v.numerator) // v.denominator)
 
-HERE = pathlib.Path(__file__).resolve().parent
-WSL_HERE = '/mnt/d/~~Projects/~HashSmash/workspace/research/sha3r6/hcoset'
-BIN = '/root/hcoset_bin/hcoset'
-MASK = (1 << 64) - 1
+# ---- one step of 256 walks (Section 3; instruction counts of the program printed by gen_s6ls, Appendix B) ----
+SEC = {'AFF': 3081, 'GB': 8063, 'GA': 8500, 'R5': 637}       # listing lines per section, every ld/st/mov included
+if len(sys.argv) > 1:                                         # optional: recount from the listing file
+    cnt, cur = {}, None
+    for line in open(sys.argv[1]):
+        if line.startswith('== '): cur = line[3:].strip(); cnt[cur] = 0
+        else: cnt[cur] += 1
+    assert cnt == SEC, cnt
+loop = 1 + 5 + 3 * 2 + 2 * 1                                  # pointer init, five pointer steps, exit test after each GA, jump after each GB
+PREF = 15 + 2                                                 # prefilter word: OR of 16 output planes of lane 3 (15), compare and branch (2)
+CNT = 3                                                       # step counter: add, compare with nxt, branch
+BSTEP = SEC['AFF'] + 2 * SEC['GB'] + 2 * SEC['GA'] + SEC['R5'] + loop + PREF + CNT
+print('step of 256 walks: AFF %(AFF)d + 2 x GB %(GB)d + 2 x GA %(GA)d + R5 %(R5)d' % SEC, '+ loop', loop, '+ prefilter', PREF, '+ counter', CNT, '=', BSTEP)
+F = 1115                                                      # one-walk program of F for the replay (build_ops_ls with this PD)
 
-def det_reps(ncos):
-    """D19 Section 6 sequence: extend the ordered W40 basis by standard coordinate vectors e_i = 1 << i (i increasing,
-    bit 64k+b = bit b of source lane k) whenever they raise the rank; q_0, q_1, ... are the appended vectors;
-    coset j has representative t_j = XOR(q_b : bit b of g(j) set), g(j) = j ^ (j >> 1)."""
-    piv = {}
-    def add(v):
-        while v:
-            b = v.bit_length() - 1
-            if b in piv: v ^= piv[b]
-            else: piv[b] = v; return True
-        return False
-    for w in cd.W: assert add(w)
-    q, need = [], max(1, ncos.bit_length())
-    for i in range(320):
-        if add(1 << i): q.append(1 << i)
-        if len(q) >= need: break
-    reps = []
-    for j in range(ncos):
-        gj, t = j ^ (j >> 1), 0
-        for b in range(need):
-            if gj >> b & 1: t ^= q[b]
-        reps.append(t)
-    return reps
+# ---- parameters of the search (Section 4) ----
+L, Hb, U = 256, 116, 5000
+S = U
+Lc = 2 ** 120 - 2
+n = D(2) ** 256
+theta = D(2) ** -Hb
+J = 2 ** 16
+w = 2 ** 104
+lq = (1 - theta).ln()
 
-def gen(mode, seed, n, ncos):
-    if mode == 'det':      # the deterministic D19 input sequence: first n ordered W40 directions, cosets j = 0..ncos-1
-        d, starts = cd.W[:n], det_reps(ncos)
-        words = [(s >> (64 * k)) & MASK for s in starts for k in range(5)] + [(v >> (64 * k)) & MASK for v in d for k in range(5)]
-        p = HERE / f'in_{mode}_{seed}.bin'
-        p.write_bytes(struct.pack(f'<{len(words)}Q', *words))
-        return p, starts, d
-    rng = random.Random(f'{mode}-{seed}')
-    while True:
-        if mode == 'field':
-            d = []
-            for _ in range(n):
-                c = rng.getrandbits(40) or 1; v = 0
-                for j in range(40):
-                    if c >> j & 1: v ^= cd.W[j]
-                d.append(v)
-        else:
-            d = [rng.getrandbits(320) for _ in range(n)]
-        if cd.rank(d) == n: break
-    starts = [rng.getrandbits(320) for _ in range(ncos)]
-    words = [(s >> (64 * k)) & MASK for s in starts for k in range(5)] + [(v >> (64 * k)) & MASK for v in d for k in range(5)]
-    p = HERE / f'in_{mode}_{seed}.bin'
-    p.write_bytes(struct.pack(f'<{len(words)}Q', *words))
-    return p, starts, d
 
-def msg(starts, d, n, idx):
-    c, p = idx >> n, idx & ((1 << n) - 1); m = starts[c]
-    for j in range(n):
-        if p >> j & 1: m ^= d[j]
-    L = [0] * 25
-    for k in range(5): L[k] = (m >> (64 * k)) & MASK; L[10 + k] = L[k]
-    L[16] = 0x86 << 56
-    return b''.join(l.to_bytes(8, 'little') for l in L[:17])[:135]
+def success(Tb):
+    s = D(0)
+    qprev = D(1)
+    for j in range(1, J):
+        qj = (w * j * lq).exp()
+        e = L * (Tb - j * w)
+        if e > 1:
+            s += (qprev - qj) * (1 - (-D(e) * (e - 1) / (2 * n)).exp())
+        qprev = qj
+    kappa = D(Lc) * theta
+    e1 = U * (-kappa).exp()                                  # F1: some trail without a DP within Lc steps
+    mu, k = D(L * Tb) * theta, U - L
+    e2 = (-mu + k * (1 + (mu / k).ln())).exp()               # F2: more than U - L DPs (Chernoff)
+    e3 = D(U) * D(2) ** (2 * Hb) / n                         # F3: a coincidence inside one trail
+    e4 = D(2) ** -90                                         # F4: starts on trails, truncated-end matches, failed replay
+    e5 = D(2) ** -1000                                       # F5: the hit counter aborts (checked below)
+    return s - (e1 + e2 + e3 + e4 + e5 + D(2) ** -60), (e1, e2, e3, e4)
 
-if __name__ == '__main__':
-    cmd, mode, seed, n, ncos = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5])
-    p, starts, d = gen(mode, seed, n, ncos)
-    if cmd == 'validate':
-        M = int(sys.argv[6]); out = HERE / f'dump_{mode}_{seed}.bin'
-        R = int(os.environ.get('HC_ROUNDS', '6'))
-        subprocess.run(['wsl', '-d', 'Ubuntu', '--', 'env', f'HC_ROUNDS={R}', BIN, 'dump', f'{WSL_HERE}/{p.name}', str(n), str(ncos), str(M), f'{WSL_HERE}/{out.name}'], check=True)
-        raw = out.read_bytes(); ok = 0
-        for i in range(M):
-            ok += raw[32 * i:32 * i + 32] == cd.kec.sha3_256(msg(starts, d, n, i), rounds=R)
-        print(f'validate {mode} seed {seed}: {ok}/{M} GPU digests equal organizer sha3_256(rounds={R})')
-        out.unlink()
-    else:
-        print(p)
+
+TB = 17750576 * 2 ** 96
+p, (e1, e2, e3, e4) = success(TB)
+p_less, _ = success(TB - 2 ** 96)
+assert p >= D('0.39') > p_less
+print('Tb = %d = %.8f * 2^120' % (TB, D(TB) / D(2) ** 120), ' evaluations = %.6f * 2^128' % (D(L * TB) / D(2) ** 128))
+print('failure terms: F1 %.3e  F2 %.3e  F3 %.3e  F4 %.3e  F5 < 2^-1000' % (e1, e2, e3, e4), ' success bound', str(p)[:12], ' (Tb - 2^96:', str(p_less)[:12], ')')
+
+# ---- prefilter hit counter and abort (Sections 4 and 5, F5) ----
+DELTA = Fr(1, 2 ** 20)
+HMAX = (TB * (1 + DELTA)) // 2 ** 8 + 1 + Lc                 # the driver aborts (attempt failed) at hit number HMAX + 1
+MU = Fr(TB, 2 ** 8)
+EXPO = DELTA ** 2 * MU / (2 + DELTA)                         # P[F5] <= exp(-EXPO)
+assert EXPO > 1000 * Fr(6932, 10000)                         # ln 2 < 0.6932: P[F5] < 2^-1000
+print('hit counter: HMAX =', HMAX, '; P[abort before the stop on success] <= exp(-%d) < 2^-1000' % (EXPO.numerator // EXPO.denominator))
+
+# ---- rare operations (Section 4.3) ----
+C_hit = 205 + 6                                              # slow test 205 + counter 6 (load h, add, store, load HMAX, compare, branch)
+C_dp = 640 + 4 + (10 * S + 20) + 6 + 2460 + 1100             # gather the end, record, probe, store, restart, next deadline
+R = (HMAX + 1) * C_hit + (U + 1) * C_dp + (U + 1) * 1300 + 704000
+replay = (2 * F + 26) * Lc
+PRE = 513 * 2 ** 32 + 512 * 2 ** 10 + 2 ** 34                 # constant selection `gen 512` + the generator gen_s6ls (Section 3.6)
+N = TB * BSTEP + replay + R + PRE
+print('main', TB * BSTEP, ' replay', replay, ' rare R', R, ' PRE', PRE)
+for nm_, v in (('main', TB * BSTEP), ('replay', replay), ('rare', R), ('PRE', PRE)):
+    print('  share %-7s %.5e' % (nm_, D(v) / D(N)))
+print('N =', N)
+print('preprocessing_log2: 2^30 < PRE/1626 <= 2^31:', 2 ** 30 * 1626 < PRE <= 2 ** 31 * 1626)
+
+# ---- memory (Section 6), 32-byte words ----
+unroll = 123 * 5 + 10 + 256 * 7 + 20                          # DP gather and walk restart, unrolled over the output registers
+code = sum(SEC.values()) + 15 + 2 + 435 + unroll + (F + 120)   # program sections, prefilter, loop/slow test/probe/deadline/start/output routines, unrolled routines, replay
+SLOTS = 1250                                                  # memory cells the program loads or stores (printed by the generator)
+data = 1024 + SLOTS + 5 + 512 + S + 64                        # register file, spill cells, round constants, LID/LST, table, scratch
+mem = 32 * (code + data)
+GEN_PEAK = 1032192                                            # measured VmHWM of gen_s6ls (1,008 KiB), incl. the code region it writes
+mtot = max(mem, GEN_PEAK)
+mlog = D(mtot).ln() / D(2).ln()
+print('search memory: code words', code, 'data words', data, 'bytes', mem, '; generator peak', GEN_PEAK, '; memory', mtot, 'log2 %.4f' % mlog)
+assert mtot <= 2 ** 20
+
+K = 100000
+e = ceil(K * (D(N) / 1626).ln() / D(2).ln())
+while N ** K > (1626 ** K) << e: e += 1
+while N ** K <= (1626 ** K) << (e - 1): e -= 1
+print('certificate: 1626^%d * 2^%d < N^%d <= 1626^%d * 2^%d' % (K, e - 1, K, K, e))
+print('time_log2 = %d.%05d' % divmod(e, K))
+print('S = time_log2 + max(0, memory_log2 - 20) = %d.%05d' % divmod(e, K))
 ```
 
-### A.3 Run scripts, raw result lines and z
-
-Each run script appends one JSON line per run to its result file, in the order of its lines. Expected values
-for uniform digests: within = ncos C(2^n, 2)/2^32 (pairs inside one coset, low 32 bits of digest lane L);
-global = C(2^30, 2)/2^44 = 32,767.99997 (all 2^30 messages, low 44 bits of lane L); z = (count -
-expected)/sqrt(expected).
-
-**batch 1 (PREREG.txt), six rounds**: run_main.sh and main_results.jsonl (SHA-256 39fa7d2af4638d3bdeeceb45eb0cf844261f3796f2c4f8c00b4131b96c1e17fc).
-
-```sh
-#!/bin/bash
-B=/root/hcoset_bin/hcoset; D="/mnt/d/~~Projects/~HashSmash/workspace/research/sha3r6/hcoset"
-O="$D/main_results.jsonl"; date >> "$D/main.log"
-$B count "$D/in_field_1001.bin" 20 1024 44 0 >> "$O"
-$B count "$D/in_field_1001.bin" 20 1024 44 3 >> "$O"
-$B count "$D/in_ctrl_1001.bin" 20 1024 44 0 >> "$O"
-$B count "$D/in_ctrl_1001.bin" 20 1024 44 3 >> "$O"
-$B count "$D/in_field_1002.bin" 24 64 44 0 >> "$O"
-$B count "$D/in_ctrl_1002.bin" 24 64 44 0 >> "$O"
-date >> "$D/main.log"
-```
+Output:
 
 ```
-{"n": 20, "ncos": 1024, "lane": 0, "messages": 1073741824, "within32_pairs": 131380, "global_bits": 44, "global_pairs": 33033, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 3, "messages": 1073741824, "within32_pairs": 130720, "global_bits": 44, "global_pairs": 32964, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 0, "messages": 1073741824, "within32_pairs": 131300, "global_bits": 44, "global_pairs": 32762, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 3, "messages": 1073741824, "within32_pairs": 130930, "global_bits": 44, "global_pairs": 32709, "cuda": "no error"}
-{"n": 24, "ncos": 64, "lane": 0, "messages": 1073741824, "within32_pairs": 2097299, "global_bits": 44, "global_pairs": 32651, "cuda": "no error"}
-{"n": 24, "ncos": 64, "lane": 0, "messages": 1073741824, "within32_pairs": 2098309, "global_bits": 44, "global_pairs": 32777, "cuda": "no error"}
+step of 256 walks: AFF 3081 + 2 x GB 8063 + 2 x GA 8500 + R5 637 + loop 14 + prefilter 17 + counter 3 = 36878
+Tb = 1406345520049800208543858999779393536 = 1.05801678 * 2^120  evaluations = 1.058017 * 2^128
+failure terms: F1 5.627e-04  F2 6.553e-09  F3 2.980e-04  F4 8.078e-28  F5 < 2^-1000  success bound 0.3900000075  (Tb - 2^96: 0.3899999715 )
+hit counter: HMAX = 1334721538211655727095327475669925887 ; P[abort before the stop on success] <= exp(-2498170291879941981425) < 2^-1000
+main 51863210088396532090680432193864474820608  replay 2998738358490770209270988727992457358944  rare R 281626244562659358417114097366632771898  PRE 2220498616320
+  share main    9.40512e-01
+  share replay  5.43806e-02
+  share rare    5.10715e-03
+  share PRE     4.02676e-29
+N = 55143574691449961658368535021444063567770
+preprocessing_log2: 2^30 < PRE/1626 <= 2^31: True
+search memory: code words 24405 data words 7855 bytes 1032320 ; generator peak 1032192 ; memory 1032320 log2 19.9775
+certificate: 1626^100000 * 2^12467320 < N^100000 <= 1626^100000 * 2^12467321
+time_log2 = 124.67321
+S = time_log2 + max(0, memory_log2 - 20) = 124.67321
 ```
 
-| run | inputs | n, cosets | lane | within | expected | z | global | z |
-|---|---|---|---:|---:|---:|---:|---:|---:|
-| R1 | field 1001, random origins | 20, 1024 | 0 | 131,380 | 131,071.875 | +0.85 | 33,033 | +1.46 |
-| R2 | field 1001, random origins | 20, 1024 | 3 | 130,720 | 131,071.875 | -0.97 | 32,964 | +1.08 |
-| R3 | ctrl 1001, random origins | 20, 1024 | 0 | 131,300 | 131,071.875 | +0.63 | 32,762 | -0.03 |
-| R4 | ctrl 1001, random origins | 20, 1024 | 3 | 130,930 | 131,071.875 | -0.39 | 32,709 | -0.33 |
-| R5 | field 1002, random origins | 24, 64 | 0 | 2,097,299 | 2,097,151.875 | +0.10 | 32,651 | -0.65 |
-| R6 | ctrl 1002, random origins | 24, 64 | 0 | 2,098,309 | 2,097,151.875 | +0.80 | 32,777 | +0.05 |
+## Appendix B. The generator gen_s6ls.c
 
-**batch 2 (PREREG2.txt), six rounds**: run_main2.sh and main2_results.jsonl (SHA-256 c1f127c8880d3b90d3c61a47c3381a8a04e8a1f1e506ceb0e89dc4b8c714ba4b).
+Build and run as in its header (WSL, gcc). The listing on stdout has SHA-256 e7fdf75c69a8fee561ce9874b14426d1af59daf2b74c7ef149b22e92613ccadc and 417071 bytes; stderr prints the selections, the counts and the measured peak.
 
-```sh
-#!/bin/bash
-B=/root/hcoset_bin/hcoset; D="/mnt/d/~~Projects/~HashSmash/workspace/research/sha3r6/hcoset"
-O="$D/main2_results.jsonl"; date >> "$D/main2.log"
-$B count "$D/in_field_2001.bin" 20 1024 44 1 >> "$O"
-$B count "$D/in_field_2001.bin" 20 1024 44 2 >> "$O"
-$B count "$D/in_ctrl_2001.bin" 20 1024 44 1 >> "$O"
-$B count "$D/in_ctrl_2001.bin" 20 1024 44 2 >> "$O"
-$B count "$D/in_field_2002.bin" 28 4 44 0 >> "$O"
-$B count "$D/in_field_2002.bin" 28 4 44 2 >> "$O"
-$B count "$D/in_ctrl_2002.bin" 28 4 44 0 >> "$O"
-date >> "$D/main2.log"
-```
-
-```
-{"n": 20, "ncos": 1024, "lane": 1, "messages": 1073741824, "within32_pairs": 130589, "global_bits": 44, "global_pairs": 32932, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 2, "messages": 1073741824, "within32_pairs": 130672, "global_bits": 44, "global_pairs": 32606, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 1, "messages": 1073741824, "within32_pairs": 130638, "global_bits": 44, "global_pairs": 32925, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 2, "messages": 1073741824, "within32_pairs": 131237, "global_bits": 44, "global_pairs": 32715, "cuda": "no error"}
-{"n": 28, "ncos": 4, "lane": 0, "messages": 1073741824, "within32_pairs": 33555785, "global_bits": 44, "global_pairs": 32648, "cuda": "no error"}
-{"n": 28, "ncos": 4, "lane": 2, "messages": 1073741824, "within32_pairs": 33557768, "global_bits": 44, "global_pairs": 32736, "cuda": "no error"}
-{"n": 28, "ncos": 4, "lane": 0, "messages": 1073741824, "within32_pairs": 33566477, "global_bits": 44, "global_pairs": 32926, "cuda": "no error"}
-```
-
-| run | inputs | n, cosets | lane | within | expected | z | global | z |
-|---|---|---|---:|---:|---:|---:|---:|---:|
-| S1 | field 2001, random origins | 20, 1024 | 1 | 130,589 | 131,071.875 | -1.33 | 32,932 | +0.91 |
-| S2 | field 2001, random origins | 20, 1024 | 2 | 130,672 | 131,071.875 | -1.10 | 32,606 | -0.89 |
-| S3 | ctrl 2001, random origins | 20, 1024 | 1 | 130,638 | 131,071.875 | -1.20 | 32,925 | +0.87 |
-| S4 | ctrl 2001, random origins | 20, 1024 | 2 | 131,237 | 131,071.875 | +0.46 | 32,715 | -0.29 |
-| S5 | field 2002, random origins | 28, 4 | 0 | 33,555,785 | 33,554,431.875 | +0.23 | 32,648 | -0.66 |
-| S6 | field 2002, random origins | 28, 4 | 2 | 33,557,768 | 33,554,431.875 | +0.58 | 32,736 | -0.18 |
-| S7 | ctrl 2002, random origins | 28, 4 | 0 | 33,566,477 | 33,554,431.875 | +2.08 | 32,926 | +0.87 |
-
-**batch 3 (PREREG3.txt), six rounds**: run_main3.sh and main3_results.jsonl (SHA-256 d86b4fedfe8dfaaa6dec16353148fb2ac9e9f73229acffaf57341fe6c85a94c4).
-
-```sh
-#!/bin/bash
-B=/root/hcoset_bin/hcoset; D="/mnt/d/~~Projects/~HashSmash/workspace/research/sha3r6/hcoset"
-O="$D/main3_results.jsonl"; date >> "$D/main3.log"
-$B count "$D/in_det_3001.bin" 20 1024 44 0 >> "$O"
-$B count "$D/in_det_3001.bin" 20 1024 44 3 >> "$O"
-$B count "$D/in_det_3002.bin" 24 64 44 1 >> "$O"
-$B count "$D/in_det_3002.bin" 24 64 44 2 >> "$O"
-date >> "$D/main3.log"
-```
-
-```
-{"n": 20, "ncos": 1024, "lane": 0, "messages": 1073741824, "within32_pairs": 131053, "global_bits": 44, "global_pairs": 32666, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 3, "messages": 1073741824, "within32_pairs": 131447, "global_bits": 44, "global_pairs": 32846, "cuda": "no error"}
-{"n": 24, "ncos": 64, "lane": 1, "messages": 1073741824, "within32_pairs": 2095169, "global_bits": 44, "global_pairs": 32689, "cuda": "no error"}
-{"n": 24, "ncos": 64, "lane": 2, "messages": 1073741824, "within32_pairs": 2095504, "global_bits": 44, "global_pairs": 32710, "cuda": "no error"}
-```
-
-| run | inputs | n, cosets | lane | within | expected | z | global | z |
-|---|---|---|---:|---:|---:|---:|---:|---:|
-| D1 | det 3001, fixed origins | 20, 1024 | 0 | 131,053 | 131,071.875 | -0.05 | 32,666 | -0.56 |
-| D2 | det 3001, fixed origins | 20, 1024 | 3 | 131,447 | 131,071.875 | +1.04 | 32,846 | +0.43 |
-| D3 | det 3002, fixed origins | 24, 64 | 1 | 2,095,169 | 2,097,151.875 | -1.37 | 32,689 | -0.44 |
-| D4 | det 3002, fixed origins | 24, 64 | 2 | 2,095,504 | 2,097,151.875 | -1.14 | 32,710 | -0.32 |
-
-**batch R5 (PREREG_R5.txt), FIVE rounds, context only**: run_r5.sh and r5_results.jsonl (SHA-256 ca3a763a9b5a6567233848f8bf95908a9cf3aac1dab1712e88e70e5407054fad).
-
-```sh
-#!/bin/bash
-export HC_ROUNDS=5
-B=/root/hcoset_bin/hcoset; D="/mnt/d/~~Projects/~HashSmash/workspace/research/sha3r6/hcoset"
-O="$D/r5_results.jsonl"; date >> "$D/r5.log"
-$B count "$D/in_det_4001.bin" 20 1024 44 0 >> "$O"
-$B count "$D/in_det_4001.bin" 20 1024 44 3 >> "$O"
-$B count "$D/in_det_4002.bin" 24 64 44 1 >> "$O"
-$B count "$D/in_det_4002.bin" 24 64 44 2 >> "$O"
-$B count "$D/in_field_4003.bin" 20 1024 44 0 >> "$O"
-$B count "$D/in_ctrl_4003.bin" 20 1024 44 0 >> "$O"
-date >> "$D/r5.log"
-```
-
-```
-{"n": 20, "ncos": 1024, "lane": 0, "messages": 1073741824, "within32_pairs": 130774, "global_bits": 44, "global_pairs": 32882, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 3, "messages": 1073741824, "within32_pairs": 130530, "global_bits": 44, "global_pairs": 32926, "cuda": "no error"}
-{"n": 24, "ncos": 64, "lane": 1, "messages": 1073741824, "within32_pairs": 2095898, "global_bits": 44, "global_pairs": 32547, "cuda": "no error"}
-{"n": 24, "ncos": 64, "lane": 2, "messages": 1073741824, "within32_pairs": 2096787, "global_bits": 44, "global_pairs": 32836, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 0, "messages": 1073741824, "within32_pairs": 130789, "global_bits": 44, "global_pairs": 32857, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 0, "messages": 1073741824, "within32_pairs": 130646, "global_bits": 44, "global_pairs": 32555, "cuda": "no error"}
-```
-
-| run | inputs | n, cosets | lane | within | expected | z | global | z |
-|---|---|---|---:|---:|---:|---:|---:|---:|
-| P1 | det 4001, fixed origins | 20, 1024 | 0 | 130,774 | 131,071.875 | -0.82 | 32,882 | +0.63 |
-| P2 | det 4001, fixed origins | 20, 1024 | 3 | 130,530 | 131,071.875 | -1.50 | 32,926 | +0.87 |
-| P3 | det 4002, fixed origins | 24, 64 | 1 | 2,095,898 | 2,097,151.875 | -0.87 | 32,547 | -1.22 |
-| P4 | det 4002, fixed origins | 24, 64 | 2 | 2,096,787 | 2,097,151.875 | -0.25 | 32,836 | +0.38 |
-| P5 | field 4003, random origins | 20, 1024 | 0 | 130,789 | 131,071.875 | -0.78 | 32,857 | +0.49 |
-| P6 | ctrl 4003, random origins | 20, 1024 | 0 | 130,646 | 131,071.875 | -1.18 | 32,555 | -1.18 |
-
-Random-origin runs (R1-R6, S1-S7 at six rounds; P5 at five rounds): 14 runs, 28 counts, z from
--1.33 to +2.08. All 23 runs: z from -1.50 to +2.08; every count is above expected - 4 sigma, the preregistered pass rule.
-
-### A.4 Validation of the GPU digests
-
-Before the count runs, hc.py validate dumped GPU digests and compared each with the organizer reference
-sha3_256(message, rounds=R) of verifier/keccak.py: 2,048 of 2,048 equal at six rounds before batch 1 (recorded
-in PREREG.txt), 512 of 512 equal at six rounds on the fixed-origin inputs before batch 3, and 512 of 512 equal at
-five rounds before batch R5 (recorded in PREREG_R5.txt), with 256 of 256 still equal at six rounds. The batch 3
-and six-round R5 checks are recorded in our result notes, not in a hashed file; the validation printouts were
-not kept; Appendix A.6 repeats the checks on the input files of the count runs and keeps the printout. These are our
-runs; the organizer has not executed them.
-
-### A.5 Batch W: protocol, programs, raw counts and z
-
-Files of our working folder for batch W. hw.py gen writes the inputs: MODE rord takes 320-bit origins
-rng.getrandbits(320) with rng = random.Random("W-MODE-SEED"), uniform random origins, and the first n ordered W40
-vectors; MODE ctrl draws n random 320-bit directions of rank n, then the origins, from the same generator. hw.py
-imports cube_degree as in A.2. hcw.cu computes the six- or five-round digests and counts the exact equal-projection
-pairs of the six projections in 2^b passes over the top b key bits. W_HASHES.sha256, written after the runs, lists
-the SHA-256 of PREREG_W.txt, hcw.cu, hw.py, run_w.sh, w_results.jsonl and w_analysis.txt as given here.
-
-**PREREG_W.txt** (SHA-256 9cf0977ec63ac39f391a26d6a2913ab846fd7853c1595a8a54d47078fe8b4573, recorded in PREREG_W.sha256
-before the inputs were generated):
-
-```
-PREREGISTRATION W (lane-hcoset-wide) - H_coset, wider and larger, RANDOM coset origins, rounds 6 and 5.
-Written 2026-10-10 02:28 (local clock), before any count run of this batch and before its inputs were generated.
-
-Aim: the judges' material finding on e641788b (F-FULL-SCALE-EXTRAPOLATION: "Agreement of low-width projected pair
-counts on at most 2^30 messages does not establish independent uniform 256-bit outputs over the vastly larger
-campaign"). This batch is 16x larger (2^34 messages per run, was 2^30), wider (every width K = 36..64 in steps of 4,
-up to a whole 64-bit digest lane and 64-bit joint projections of two lanes; was 32 and 44 bits of one lane), uses
-random coset origins (the refiled design), puts 2^34 messages in ONE 34-dimensional coset (1/64 of a complete
-40-dimensional coset; was at most 28 dims) for within-coset pairs, and 1024 cosets of 24 dims for across-coset pairs.
-
-Program: hcw.cu in this folder (a copy of research/sha3r6/hcoset/hcoset.cu digest(), rounds and rotation offsets as
-compile-time constants; new bucketed width ladder; the original is not edited). Checks done before this file:
- - digests 1536/1536 equal the organizer sha3_256(rounds=6) and 1536/1536 equal sha3_256(rounds=5)
-   (SOL6Cloud/SOLCLOUD_12_INPUT_keccak.py) at the batch geometry: n=34 one coset (indices 0..511 and
-   2^33+12345..+511, rord seed 9001) and n=24 x 1024 cosets (coset 1000, ctrl seed 9002); the 6 GPU keys of the same
-   messages equal an independent pure-Python derivation from the organizer digests (1536/1536 at each round count).
- - end to end: GPU bucketed ladder (b=3, 8 passes) EQUAL to exact numpy pair counts over 2^20 GPU digests, all
-   6 projections x 8 widths (rounds 6 rord seed 9003; rounds 5 ctrl seed 9003).
- - timing: one full-size pass on throwaway seed 9004 (rord, n=34, rounds 6) took 4.1 s; its partial counts were
-   discarded unread. Seeds 9001-9004 are not used below.
-
-Inputs: python hw.py gen MODE SEED N NCOS. rord = random 320-bit origins + the first N ordered W40 vectors
-(cube_degree.W, the route's direction order); ctrl = random 320-bit origins + N random 320-bit directions (rank N).
-Message embedding as hcoset.cu / cube_degree.py (u0..u4 in lanes 0-4 and 10-14, lane 16 = 0x86<<56).
-
-Projections (top K bits of a 64-bit key): L0..L3 = low K bits of digest lane 0..3; X01 = low ceil(K/2) bits of
-lane 0 with low floor(K/2) bits of lane 1 (bit-interleaved); X23 = the same for lanes 2 and 3.
-Count: exact number of equal-projection pairs (sum over equal runs of C(len,2)) over all 2^34 messages; bucketed by
-the top b=6 key bits (64 passes; pairs at K >= 6 never straddle buckets).
-
-Runs (all 2^34 messages, b=6, widths 36,40,44,48,52,56,60,64), in this order, one GPU job:
-  W1 rounds 6  rord 5101  n=34  1 coset          W4 rounds 5  rord 5104  n=34  1 coset
-  W2 rounds 6  rord 5102  n=24  1024 cosets      W5 rounds 5  rord 5105  n=24  1024 cosets
-  W3 rounds 6  ctrl 5103  n=34  1 coset          W6 rounds 5  ctrl 5106  n=34  1 coset
-
-Expected under independent uniform digests: E(K) = C(2^34,2) / 2^K = 2^(67-K) - 2^(33-K):
-K=36 2147483647.9, 40 134217728.0, 44 8388608.0, 48 524288.0, 52 32768.0, 56 2048.0, 60 128.0, 64 8.0.
-Sigma = sqrt(E (1 - 2^-K)), the exact standard deviation of the pair count under that model (pair indicators are
-pairwise independent).
-
-Pass rule (one-sided; the premise needs no pair deficit): for EVERY rord (field) count, W1 W2 W4 W5, all 6
-projections and 8 widths: z = (observed - E)/sigma >= -4 when E >= 1000; for E < 1000 (K = 60, 64) the exact
-Poisson lower tail P(X <= observed) >= 3.17e-5 (the one-sided 4-sigma level). Any field failure = H_coset NOT
-supported at that round count; reported as such; no reruns, no other seeds or parameters. A run is valid only if
-every projection kept exactly 2^34 keys and no bucket overflowed; an invalid run is reported, not replaced.
-Reported: two-sided z for all 288 counts (field and control); any |z| > 4 excess is reported as an anomaly (an excess
-does not contradict the premise's direction). Control runs W3 W6 calibrate the method; they do not enter the rule.
-
-Power and scope (stated now): K=64 (E=8) cannot fail the rule (P(X=0) = 3.4e-4); K=60 fails only below about 87
-pairs. The decisive counts are K <= 56: a 4-sigma relative deficit is 8.6e-5 at K=36, 3.5e-4 at K=40, 1.4e-3 at
-K=44, 5.5e-3 at K=48, 2.2% at K=52, 8.8% at K=56. This is projection evidence (at most 64 bits, 2^34 messages,
-34-dimensional sub-cosets, random origins), not a proof for 256-bit digests or complete 40-dimensional cosets.
-```
-
-**hcw.cu** (SHA-256 ef34e1357728c086abd7aa90fde9d8964acbd4f1b32b610c4dd1d0e974add032):
-
-```cpp
-// hcw.cu - lane-hcoset-wide: wider and larger H_coset pair-count test (a COPY; research/sha3r6/hcoset/hcoset.cu is
-// not edited). digest() is hcoset.cu's digest (organizer round function: theta, rho+pi, chi, iota with RC[r]; single
-// 135-byte block, zero capacity; message lanes u = start_c ^ XOR_{j: bit j of p} dir_j placed in lanes 0-4 and 10-14,
-// lane 16 = 0x86<<56), with the round count and the rotation offsets made compile-time constants.
-// Keys (64-bit; a width-K projection is the top K bits of a key):
-//   P0..P3 (L0..L3): bit-reversed digest lane 0..3          -> top K bits = the low K bits of that lane
-//   P4 (X01): bit-interleave of the low 32 bits of lanes 0 and 1 (lane0 b0, lane1 b0, lane0 b1, lane1 b1, ...)
-//   P5 (X23): the same for lanes 2 and 3                    -> top K bits = ceil(K/2) bits of one lane, floor(K/2) of the other
-// ladder: pass p = 0..2^b-1 computes every digest of the campaign and keeps, per key, those whose top b bits equal p;
-// each kept set is radix-sorted and the exact number of equal-prefix pairs (sum over equal runs of C(len,2)) is counted
-// at every width K >= b (pairs at width K never straddle two passes).
-// usage: hcw dump   <infile> <n> <ncos> <M> <outfile> [base]      digests of messages base..base+M-1 (4 lanes each)
-//        hcw keys   <infile> <n> <ncos> <M> <outfile> [base]      the 6 keys of the same messages
-//        hcw ladder <infile> <n> <ncos> <b> <w1,w2,...> [maxpass]  -> one JSON line
-// rounds from env HC_ROUNDS (5 or 6 only). infile: ncos*5 u64 starts then n*5 u64 directions (little endian).
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <cstdint>
-#include <cmath>
-#include <vector>
-#include <string>
-#include <chrono>
-#include <algorithm>
-#include <cub/cub.cuh>
-typedef unsigned long long u64;
-#define NP 6
-
-__constant__ u64 RC[6] = {0x0000000000000001ull, 0x0000000000008082ull, 0x800000000000808Aull,
-                          0x8000000080008000ull, 0x000000000000808Bull, 0x0000000080000001ull};
-__constant__ u64 DIRS[64 * 5];
-
-__host__ __device__ constexpr int rho(int i) {
-    return i == 0 ? 0 : i == 1 ? 1 : i == 2 ? 62 : i == 3 ? 28 : i == 4 ? 27 : i == 5 ? 36 : i == 6 ? 44 : i == 7 ? 6 :
-           i == 8 ? 55 : i == 9 ? 20 : i == 10 ? 3 : i == 11 ? 10 : i == 12 ? 43 : i == 13 ? 25 : i == 14 ? 39 :
-           i == 15 ? 41 : i == 16 ? 45 : i == 17 ? 15 : i == 18 ? 21 : i == 19 ? 8 : i == 20 ? 18 : i == 21 ? 2 :
-           i == 22 ? 61 : i == 23 ? 56 : 14;
+```c
+/* gen_s6ls.c - S6LS program generator for sha3-256-r6 (proof.md Section 3). Freestanding C (no libc).
+   1. select_q: the polarity pattern q < 2^25 (round fixed points of row cost <= 7; fewest operations of AFF + 4 GA + R5).
+   2. select_kb: the boundary set size KB from a declared list (smallest step).
+   3. Builds the sections AFF (round 0 and theta of round 1, affine in the point under the Guo-Liu-Song 2016 linear
+      structure; constants of trial 192 of gen 512), GB/GA (generic round, buffers exchanged) and R5 (round 5, row 0),
+      allocates them to 1,018 registers (6 more hold the loop state) with every load, store and move written out, shared
+      GA/GB code and fixed boundary sets, writes each instruction as a 32-byte word into the code region and prints the
+      listing to stdout. Counts, the step and the peak memory go to stderr.
+   Build: gcc -O2 -static -nostdlib -ffreestanding -fno-builtin -fno-tree-loop-distribute-patterns -fno-stack-protector
+          -fno-pie -no-pie -o gen_s6ls gen_s6ls.c -lgcc        (sandbox: clang --target=wasm32 ... -DVM) */
+/* ---- freestanding runtime (no libc): Linux x86-64 syscalls, or the vm1mib host when built with -DVM ---- */
+#include <stdarg.h>
+#include <stdint.h>
+typedef unsigned long size_t;
+#ifndef VM
+__asm__(".global _start\n_start:\n xor %rbp,%rbp\n mov %rsp,%rdi\n and $-16,%rsp\n call cmain\n mov %rax,%rdi\n mov $60,%rax\n syscall\n");
+static long sc6(long n,long a,long b,long c,long d,long e,long f){ long r; register long r10 __asm__("r10")=d; register long r8 __asm__("r8")=e; register long r9 __asm__("r9")=f;
+  __asm__ volatile("syscall":"=a"(r):"a"(n),"D"(a),"S"(b),"d"(c),"r"(r10),"r"(r8),"r"(r9):"rcx","r11","memory"); return r; }
+static void wr(int fd,const void *p,long n){ sc6(1,fd,(long)p,n,0,0,0); }
+static void exit(int c){ sc6(60,c,0,0,0,0,0); for(;;); }
+#else
+__attribute__((import_module("env"),import_name("host_write"))) int host_write(int,const void*,int);
+__attribute__((import_module("env"),import_name("host_exit"))) void host_exit(int);
+static void wr(int fd,const void *p,long n){ host_write(fd,p,(int)n); }
+static void exit(int c){ host_exit(c); for(;;); }
+#endif
+void *memset(void *d,int c,size_t n){ unsigned char *p=d; while(n--) *p++=(unsigned char)c; return d; }
+void *memcpy(void *d,const void *s,size_t n){ unsigned char *p=d; const unsigned char *q=s; while(n--) *p++=*q++; return d; }
+int memcmp(const void *a,const void *b,size_t n){ const unsigned char *p=a,*q=b; for(;n--;p++,q++) if(*p!=*q) return *p-*q; return 0; }
+static size_t strlen(const char *s){ size_t n=0; while(s[n]) n++; return n; }
+static char *strcpy(char *d,const char *s){ char *o=d; while((*d++=*s++)); return o; }
+static int strcmp(const char *a,const char *b){ while(*a && *a==*b){ a++; b++; } return (unsigned char)*a-(unsigned char)*b; }
+static int strncmp(const char *a,const char *b,size_t n){ for(;n;n--,a++,b++){ if(*a!=*b) return (unsigned char)*a-(unsigned char)*b; if(!*a) return 0; } return 0; }
+static int atoi(const char *s){ int v=0, ng=0; if(*s=='-'){ ng=1; s++; } while(*s>='0'&&*s<='9') v=v*10+(*s++-'0'); return ng?-v:v; }
+/* vsnprintf for %s %d %ld %x only */
+static int vsn(char *o,size_t cap,const char *f,va_list ap){
+  size_t n=0;
+  #define PUTC(c) do{ if(n+1<cap) o[n]=(c); n++; }while(0)
+  for(;*f;f++){
+    if(*f!='%'){ PUTC(*f); continue; }
+    f++; int lng=0; if(*f=='l'){ lng=1; f++; }
+    if(*f=='s'){ const char *t=va_arg(ap,const char*); while(*t) PUTC(*t++); }
+    else if(*f=='x'){ unsigned long v= lng? va_arg(ap,unsigned long) : va_arg(ap,unsigned); char t[24]; int k=0; do{ t[k++]="0123456789abcdef"[v&15]; v>>=4; }while(v); while(k) PUTC(t[--k]); }
+    else { long v= lng? va_arg(ap,long) : va_arg(ap,int); char t[24]; int k=0; unsigned long u= v<0? -(unsigned long)v : (unsigned long)v;
+      do{ t[k++]='0'+u%10; u/=10; }while(u); if(v<0) PUTC('-'); while(k) PUTC(t[--k]); }
+  }
+  if(cap) o[n<cap?n:cap-1]=0;
+  return (int)n;
 }
-
-__device__ __forceinline__ u64 rotl(u64 x, int r) { return r == 0 ? x : (x << r) | (x >> (64 - r)); }
-
-template <int NR>
-__device__ __forceinline__ void digest(const u64 *starts, int n, u64 idx, u64 out[4]) {
-    u64 c = idx >> n, p = idx & ((1ull << n) - 1), u[5];
-#pragma unroll
-    for (int k = 0; k < 5; k++) u[k] = starts[c * 5 + k];
-    for (int j = 0; j < n; j++)
-        if (p >> j & 1)
-#pragma unroll
-            for (int k = 0; k < 5; k++) u[k] ^= DIRS[j * 5 + k];
-    u64 A[25], B[25], C[5], D[5];
-#pragma unroll
-    for (int k = 0; k < 25; k++) A[k] = 0;
-#pragma unroll
-    for (int k = 0; k < 5; k++) { A[k] = u[k]; A[10 + k] = u[k]; }
-    A[16] = 0x86ull << 56;
-#pragma unroll
-    for (int r = 0; r < NR; r++) {
-#pragma unroll
-        for (int x = 0; x < 5; x++) C[x] = A[x] ^ A[x + 5] ^ A[x + 10] ^ A[x + 15] ^ A[x + 20];
-#pragma unroll
-        for (int x = 0; x < 5; x++) D[x] = C[(x + 4) % 5] ^ rotl(C[(x + 1) % 5], 1);
-#pragma unroll
-        for (int y = 0; y < 5; y++)
-#pragma unroll
-            for (int x = 0; x < 5; x++) B[y + 5 * ((2 * x + 3 * y) % 5)] = rotl(A[x + 5 * y] ^ D[x], rho(x + 5 * y));
-#pragma unroll
-        for (int y = 0; y < 5; y++)
-#pragma unroll
-            for (int x = 0; x < 5; x++)
-                A[x + 5 * y] = B[x + 5 * y] ^ (~B[(x + 1) % 5 + 5 * y] & B[(x + 2) % 5 + 5 * y]);
-        A[0] ^= RC[r];
-    }
-#pragma unroll
-    for (int k = 0; k < 4; k++) out[k] = A[k];
+static int snprintf(char *o,size_t cap,const char *f,...){ va_list ap; va_start(ap,f); int r=vsn(o,cap,f,ap); va_end(ap); return r; }
+#define sprintf(o,...) snprintf(o,64,__VA_ARGS__)
+static int eprintf(const char *f,...){ char b[256]; va_list ap; va_start(ap,f); int r=vsn(b,sizeof b,f,ap); va_end(ap); wr(2,b,r<255?r:255); return r; }
+static long vm_hwm_kib(void){
+#ifndef VM
+  static char st[4096]; int fd=(int)sc6(2,(long)"/proc/self/status",0,0,0,0,0); long v=-1;
+  if(fd>=0){ long n=sc6(0,fd,(long)st,sizeof st-1,0,0,0); sc6(3,fd,0,0,0,0,0);
+    for(long i=0;i+6<n;i++) if(st[i]=='V'&&st[i+1]=='m'&&st[i+2]=='H'&&st[i+3]=='W'&&st[i+4]=='M'){ long j=i+6; v=0; while(st[j]==' '||st[j]=='\t') j++; while(st[j]>='0'&&st[j]<='9') v=v*10+(st[j++]-'0'); break; } }
+  return v;
+#else
+  return -1;
+#endif
 }
-
-__device__ __forceinline__ u64 spread(u64 x) {   // bit m of a 32-bit x -> bit 2m
-    x = (x | (x << 16)) & 0x0000FFFF0000FFFFull;
-    x = (x | (x << 8)) & 0x00FF00FF00FF00FFull;
-    x = (x | (x << 4)) & 0x0F0F0F0F0F0F0F0Full;
-    x = (x | (x << 2)) & 0x3333333333333333ull;
-    x = (x | (x << 1)) & 0x5555555555555555ull;
-    return x;
+#define NI 10100
+enum { LD, ST, XOR, AND, OR, SHR, SUB };
+static const char *KN[] = {"ld","st","xor","and","or","shr","sub"};
+typedef struct { short k, d, a, b; } In;
+static int n, nv;
+#define KR 1018                        /* registers for the program; 6 more hold the loop state (1,024 in all) */
+#define NNM 4900                      /* names: M<addr> = addr (< 4800), T<k> = 4800 + k */
+#define MAXOP 7000
+#define MAXV 8700
+#define INFV 30000                    /* "no further use" (sections have fewer than 7,000 operations) */
+struct GenPh { In ins_[NI]; short last_[NI], nameA_[NI], ldal_[NI], tmpn_[NI]; };
+struct AlPh { short vname_[MAXV], U_[MAXOP][2], unu_[MAXOP][2], dnu_[MAXOP], nxt_[MAXV], curv_[NNM], entry_[2000], xreg_[MAXV], reg_[MAXV];
+  unsigned char vver_[MAXV], UC_[MAXOP], verc_[NNM]; };
+static union { struct GenPh g; struct AlPh a; } UU;
+#define CODESZ 655360                 /* at most 20,480 instructions x 32 B: the four sections of the program */
+static unsigned char CODE[CODESZ] __attribute__((aligned(4096)));
+   /* generation phase, then allocation phase: one region */
+#define ins (UU.g.ins_)
+#define last (UU.g.last_)
+#define nameA (UU.g.nameA_)
+#define ldal (UU.g.ldal_)
+#define tmpn (UU.g.tmpn_)
+#define vname (UU.a.vname_)
+#define vver (UU.a.vver_)
+#define U (UU.a.U_)
+#define UC (UU.a.UC_)
+#define unu (UU.a.unu_)
+#define dnu (UU.a.dnu_)
+#define nxt (UU.a.nxt_)
+#define curv (UU.a.curv_)
+#define verc (UU.a.verc_)
+#define entry (UU.a.entry_)
+#define xreg (UU.a.xreg_)
+#define reg (UU.a.reg_)
+#define key (UU.a.nxt_)          /* after the backward pass nxt[] is the initial key: one array */
+#define IALL (-100)
+#define IMM(v) (-1 - (v))
+#define RCA (-1000)
+#define RCA0 0x1ULL
+static const int ROT[5][5] = {{0,36,3,41,18},{1,44,10,45,2},{62,6,43,15,61},{28,55,25,21,56},{27,20,39,8,14}};
+static long Q;                         /* polarity pattern, chosen by select_q() */
+static int Qp[5][5], pC[5], pD[5], pT[5][5];
+static int xmap(int X, int Y) { return (3*Y + X) % 5; }
+static void pol(void) {
+  for (int X=0;X<5;X++) for (int Y=0;Y<5;Y++) Qp[X][Y] = (Q >> (X+5*Y)) & 1;
+  for (int X=0;X<5;X++) { int s=0; for (int Y=0;Y<5;Y++) s+=Qp[X][Y]; pC[X]=s%2; }
+  for (int X=0;X<5;X++) pD[X] = pC[(X+4)%5] ^ pC[(X+1)%5];
+  for (int X=0;X<5;X++) for (int Y=0;Y<5;Y++) pT[X][Y] = Qp[X][Y] ^ pD[X];
 }
-
-__device__ __forceinline__ void mkkeys(const u64 d[4], u64 k[NP]) {
-    u64 r0 = __brevll(d[0]), r1 = __brevll(d[1]), r2 = __brevll(d[2]), r3 = __brevll(d[3]);
-    k[0] = r0; k[1] = r1; k[2] = r2; k[3] = r3;
-    k[4] = (spread(r0 >> 32) << 1) | spread(r1 >> 32);
-    k[5] = (spread(r2 >> 32) << 1) | spread(r3 >> 32);
-}
-
-template <int NR>
-__global__ void kdump(const u64 *starts, int n, u64 base, u64 cnt, int keys, u64 *out) {
-    u64 g = blockIdx.x * (u64)blockDim.x + threadIdx.x;
-    if (g >= cnt) return;
-    u64 d[4];
-    digest<NR>(starts, n, base + g, d);
-    if (!keys) { for (int k = 0; k < 4; k++) out[4 * g + k] = d[k]; }
-    else { u64 kk[NP]; mkkeys(d, kk); for (int j = 0; j < NP; j++) out[NP * g + j] = kk[j]; }
-}
-
-// every thread runs the same number of iterations (total is a multiple of the grid size), so full-warp ballots are safe
-template <int NR>
-__global__ void kpass(const u64 *starts, int n, u64 total, u64 pass, int b, u64 *buf, u64 cap, u64 *cnt) {
-    const u64 stride = (u64)gridDim.x * blockDim.x;
-    const unsigned lid = threadIdx.x & 31;
-    for (u64 idx = blockIdx.x * (u64)blockDim.x + threadIdx.x; idx < total; idx += stride) {
-        u64 d[4], k[NP];
-        digest<NR>(starts, n, idx, d);
-        mkkeys(d, k);
-#pragma unroll
-        for (int j = 0; j < NP; j++) {
-            bool m = b ? ((k[j] >> (64 - b)) == pass) : true;
-            unsigned bal = __ballot_sync(0xffffffffu, m);
-            if (bal) {
-                int leader = __ffs(bal) - 1;
-                u64 base = 0;
-                if ((int)lid == leader) base = atomicAdd(&cnt[j], (u64)__popc(bal));
-                base = __shfl_sync(0xffffffffu, base, leader);
-                if (m) {
-                    u64 pos = base + __popc(bal & ((1u << lid) - 1u));
-                    if (pos < cap) buf[(u64)j * cap + pos] = k[j];
-                }
-            }
+static int newv(void) { return nv++; }
+static void put(int k,int d,int a,int b){ ins[n].k=k; ins[n].d=d; ins[n].a=a; ins[n].b=b; n++; }
+static int ld(int addr){ int d=newv(); put(LD,d,addr,0); return d; }
+static void st(int addr,int r){ put(ST,addr,r,0); }
+static int op(int k,int a,int b){ int d=newv(); put(k,d,a,b); return d; }
+static int not_(int a){ return op(XOR,a,IALL); }
+static int addr(int buf,int lane,int z){ return buf*1600+lane*64+z; }
+typedef struct { int cost, S; int v1[5], v2[5], isand[5], ri[5], qq[5]; int ok; } Plan;
+static Plan plan_row(const int *pB, const int *qwant, const int *need, int nneed) {
+  Plan best; memset(&best,0,sizeof best);
+  for (int S=0; S<32; S++) {
+    int cS = __builtin_popcount(S), c = cS, good = 1;
+    Plan p; memset(&p,0,sizeof p);
+    for (int i=0;i<nneed && good;i++) {
+      int X = need[i], a=(X+1)%5, b=(X+2)%5, minr=9, found=0;
+      for (int v1=0; v1<=(((S>>a)&1)?1:0); v1++)
+       for (int v2=0; v2<=(((S>>b)&1)?1:0); v2++) {
+        int p1=pB[a]^v1, p2=pB[b]^v2;
+        if (p1==p2) continue;
+        int isand = (p1==1), flip = isand?0:1;
+        for (int ri=0; ri<2; ri++) {
+          int qq = pB[X]^flip^ri;
+          if (qwant[X] < 0 || qq == qwant[X]) {
+            if (ri < minr) { minr=ri; found=1; p.v1[X]=v1; p.v2[X]=v2; p.isand[X]=isand; p.ri[X]=ri; p.qq[X]=qq; }
+          }
         }
+       }
+      if (!found) good=0; else c += minr;
     }
+    if (!good) continue;
+    if (!best.ok || c < best.cost) { p.cost=c; p.S=S; p.ok=1; best=p; }
+  }
+  return best;
+}
+static void chi_row(const int *s, const Plan *pl, const int *need, int nneed, int *out) {
+  int inv[5] = {-1,-1,-1,-1,-1};
+  for (int j=0;j<5;j++) if ((pl->S>>j)&1) inv[j] = not_(s[j]);
+  for (int i=0;i<nneed;i++) {
+    int X=need[i], a=(X+1)%5, b=(X+2)%5;
+    int e1 = pl->v1[X]?inv[a]:s[a], e2 = pl->v2[X]?inv[b]:s[b];
+    int u = pl->isand[X]?op(AND,e1,e2):op(OR,e1,e2);
+    if (pl->ri[X]) u = not_(u);
+    out[X] = op(XOR,s[X],u);
+  }
+}
+static const int ALLN[5]={0,1,2,3,4};
+static int IOTA(int z){ return z==0||z==1||z==3||z==7||z==15||z==31||z==63; }
+static void gen_G(int src,int dst){
+  n=0; nv=0; Plan pl[5];
+  for (int Y=0;Y<5;Y++){ int pB[5], qw[5]; for (int X=0;X<5;X++){ pB[X]=pT[xmap(X,Y)][X]; qw[X]=Qp[X][Y]; } pl[Y]=plan_row(pB,qw,ALLN,5); }
+  int rcv = ld(RCA); int C0[5], Cprev[5];
+  for (int z=0; z<64; z++){
+    int o[5][5], Cc[5]={-1,-1,-1,-1,-1};
+    for (int Y=0;Y<5;Y++){
+      int s[5], res[5];
+      for (int X=0;X<5;X++){ int x=xmap(X,Y); s[X]=ld(addr(src,x+5*X,((z-ROT[x][X])%64+64)%64)); }
+      chi_row(s,&pl[Y],ALLN,5,res);
+      for (int X=0;X<5;X++){
+        int v=res[X];
+        if (Y==0&&X==0&&IOTA(z)){ int m=op(SHR,rcv,IMM(z)); m=op(AND,m,IMM(1)); m=op(SUB,m,IMM(1)); v=op(XOR,v,m); }
+        o[X][Y]=v;
+        Cc[X] = Cc[X]<0 ? v : op(XOR,Cc[X],v);
+      }
+    }
+    if (z==0){
+      for (int Y=0;Y<5;Y++) for (int X=0;X<5;X++) st(addr(dst,X+5*Y,0),o[X][Y]);
+      memcpy(C0,Cc,sizeof Cc);
+    } else {
+      int D[5]; for (int X=0;X<5;X++) D[X]=op(XOR,Cc[(X+4)%5],Cprev[(X+1)%5]);
+      for (int Y=0;Y<5;Y++) for (int X=0;X<5;X++){ int t=op(XOR,o[X][Y],D[X]); st(addr(dst,X+5*Y,z),t); }
+    }
+    memcpy(Cprev,Cc,sizeof Cc);
+  }
+  int D[5]; for (int X=0;X<5;X++) D[X]=op(XOR,C0[(X+4)%5],Cprev[(X+1)%5]);
+  for (int Y=0;Y<5;Y++) for (int X=0;X<5;X++){ int r=ld(addr(dst,X+5*Y,0)); int t=op(XOR,r,D[X]); st(addr(dst,X+5*Y,0),t); }
+}
+static int pOut[4];
+
+/* ---- AFF: affine forms over u (bits 0..255 = u_l[z] at 64*l+z; word 4 bit 0 = constant 1) ---- */
+typedef struct { uint64_t w[5]; } Fm;
+static const uint64_t KL[25] = {0xc9a9d386ab38e13aULL,0,0x9be65c0f48819e78ULL,0xa42df10543300344ULL,0,0x9d9a486de15a3242ULL,0,
+  0x62628f16871056a6ULL,0x8d7196f55bc91f8bULL,0,0x793ea2677e200f74ULL,0x7e8d7d4cce830045ULL,0xfe58db5a1de5126aULL,
+  0x1b571a79774b02ceULL,0x8a2d82f8f9dcb705ULL,0xf01a6a80f9aae74bULL,0x8000000000000006ULL,0,0,0,0,0,0,0,0};
+#define NC 2400
+#define HT 4096
+typedef struct { Fm SA[25][64], RW[5][64], CC[5][64]; uint64_t ck[NC][4]; int cr[NC], cp[NC], ht[HT], nk[1024], nvv[1024]; } AffMem;
+static AffMem *AM;  /* mmapped for AFF only, unmapped before the G sections */
+#define SA (AM->SA)
+#define RW (AM->RW)
+#define CC (AM->CC)
+#define ck (AM->ck)
+#define cr (AM->cr)
+#define cp (AM->cp)
+#define ht (AM->ht)
+#define nk (AM->nk)
+#define nvv (AM->nvv)
+static void fx(Fm *d,const Fm *a,const Fm *b){ for(int i=0;i<5;i++) d->w[i]=a->w[i]^b->w[i]; }
+static int isvar(const Fm *f){ return (f->w[0]|f->w[1]|f->w[2]|f->w[3])!=0; }
+static void setbit(Fm *f,int b){ f->w[b>>6]^=1ULL<<(b&63); }
+static void theta_f(Fm A[25][64]){
+  for(int x=0;x<5;x++) for(int z=0;z<64;z++){ Fm t=A[x][z]; for(int y=1;y<5;y++) fx(&t,&t,&A[x+5*y][z]); CC[x][z]=t; }
+  for(int i=0;i<25;i++) for(int z=0;z<64;z++){ int x=i%5; fx(&A[i][z],&A[i][z],&CC[(x+4)%5][z]); fx(&A[i][z],&A[i][z],&CC[(x+1)%5][(z+63)%64]); }
+}
+static void forms(void){
+  memset(SA,0,sizeof SA);
+  for(int i=0;i<25;i++) for(int z=0;z<64;z++){
+    if((KL[i]>>z)&1) SA[i][z].w[4]=1;
+    int us[2], nu=0;
+    if(i==1){us[0]=0;nu=1;} if(i==6){us[0]=1;nu=1;} if(i==11){us[0]=0;us[1]=1;nu=2;}
+    if(i==4){us[0]=2;nu=1;} if(i==9){us[0]=3;nu=1;} if(i==14){us[0]=2;us[1]=3;nu=2;}
+    for(int j=0;j<nu;j++) setbit(&SA[i][z],64*us[j]+z);
+  }
+  theta_f(SA);
+  /* rho and pi in place: lane x+5y (rotated) moves to y+5((2x+3y)%5); one lane buffer (RW[0]) per cycle */
+  { int done[25]={0};
+    for(int s0=0;s0<25;s0++){ if(done[s0]) continue;
+      int i=s0; memcpy(RW[0],SA[i],sizeof RW[0]);
+      for(;;){ int x=i%5, y=i/5, j=y+5*((2*x+3*y)%5);
+        memcpy(RW[1],SA[j],sizeof RW[1]);
+        for(int z=0;z<64;z++) SA[j][z]=RW[0][((z-ROT[x][y])%64+64)%64];
+        done[i]=1; memcpy(RW[0],RW[1],sizeof RW[0]); i=j; if(i==s0) break; } } }
+  for(int y=0;y<5;y++){
+    for(int x=0;x<5;x++) memcpy(RW[x],SA[x+5*y],sizeof RW[x]);
+    for(int x=0;x<5;x++) for(int z=0;z<64;z++){
+      const Fm *nb=&RW[(x+1)%5][z], *c=&RW[(x+2)%5][z]; Fm p; memset(&p,0,sizeof p);
+      if(!isvar(nb)){ if(!(nb->w[4]&1)) p=*c; }
+      else if(!isvar(c)){ if(c->w[4]&1){ p=*nb; p.w[4]^=1; } }
+      else { eprintf("round 0 not linear\n"); exit(1); }
+      fx(&SA[x+5*y][z],&RW[x][z],&p);
+    }
+  }
+  for(int z=0;z<64;z++) if((RCA0>>z)&1) SA[0][z].w[4]^=1;
+}
+static int nc;
+static unsigned hsh(const uint64_t *m){ uint64_t h=m[0]*0x9E3779B97F4A7C15ULL^m[1]*0xC2B2AE3D27D4EB4FULL^m[2]*0x165667B19E3779F9ULL^m[3]*0x27D4EB2F165667C5ULL; return (unsigned)(h>>40)&(HT-1); }
+static int cfind(const uint64_t *m){ unsigned h=hsh(m); while(ht[h]>=0){ int i=ht[h]; if(!memcmp(ck[i],m,32)) return i; h=(h+1)&(HT-1);} return -1; }
+static int cadd(const uint64_t *m,int r,int p){ unsigned h=hsh(m); while(ht[h]>=0) h=(h+1)&(HT-1); if(nc>=NC){eprintf("NC\n");exit(1);} memcpy(ck[nc],m,32); cr[nc]=r; cp[nc]=p; ht[h]=nc; return nc++; }
+static int var(const uint64_t *m){
+  int i=cfind(m); if(i>=0) return i;
+  int hi=-1, cnt=0; for(int b=0;b<256;b++) if((m[b>>6]>>(b&63))&1){ hi=b; cnt++; }
+  if(cnt==1) return cadd(m, ld(addr(2,hi/64,hi%64)), 0);
+  uint64_t r[4]; memcpy(r,m,32); r[hi>>6]^=1ULL<<(hi&63);
+  uint64_t h1[4]={0,0,0,0}; h1[hi>>6]=1ULL<<(hi&63);
+  int i1=var(r); int i2=var(h1);
+  return cadd(m, op(XOR,cr[i1],cr[i2]), cp[i1]^cp[i2]);
+}
+static int xr(const Fm *f,const Fm *g){
+  uint64_t m[4]; for(int k=0;k<4;k++) m[k]=f->w[k]^g->w[k];
+  int i=cfind(m); if(i>=0) return i;
+  int i1=cfind(f->w), i2=cfind(g->w);
+  return cadd(m, op(XOR,cr[i1],cr[i2]), cp[i1]^cp[i2]);
+}
+static Fm C1(int x,int z){
+  Fm f; memset(&f,0,sizeof f);
+  for(int y=0;y<5;y++){ const Fm *g=&SA[x+5*y][z];
+    if(isvar(g)){ var(g->w); if(isvar(&f)) xr(&f,g); }
+    fx(&f,&f,g); }
+  return f;
+}
+static void gen_aff(int dst){
+  AM=(AffMem*)(CODE+((CODESZ-sizeof(AffMem))&~4095L));   /* the tail of the empty code region (AFF is generated first) */
+  n=0; nv=0; nc=0; for(int i=0;i<HT;i++) ht[i]=-1;
+  forms();
+  int nnot=0;
+
+  for(int zz=0;zz<64;zz++){
+    int z=(zz+1)%64; Fm Cz[5], Cm[5];
+    for(int x=0;x<5;x++) Cz[x]=C1(x,z);
+    for(int x=0;x<5;x++) Cm[x]=C1(x,(z+63)%64);
+    for(int x=0;x<5;x++){
+      Fm d; fx(&d,&Cz[(x+4)%5],&Cm[(x+1)%5]);
+      xr(&Cz[(x+4)%5],&Cm[(x+1)%5]);
+      int cd=cfind(d.w), rd=cr[cd], pdd=cp[cd], nd=-1;   /* ~D made once per D value, when first needed */
+      for(int q=0;q<nnot;q++) if(nk[q]==rd) nd=nvv[q];
+      for(int pass=0;pass<2;pass++) for(int y=0;y<5;y++){
+        const Fm *av=&SA[x+5*y][z]; if(isvar(av)!=pass) continue;
+        int want=(int)((av->w[4]^d.w[4])&1)^pT[x][y];
+        if(want!=pdd && nd<0){ if(nnot>=1024) exit(1); nd=not_(rd); nk[nnot]=rd; nvv[nnot]=nd; nnot++; }
+        int dw = want==pdd ? rd : nd, r;
+        if(pass){ int ca=var(av->w); r=op(XOR,cr[ca],dw); } else r=dw;
+        st(addr(dst,x+5*y,z),r);
+      }
+    }
+  }
+}
+static void gen_R5(int src){
+  n=0; nv=0;
+  int pB[5]; for (int X=0;X<5;X++) pB[X]=pT[xmap(X,0)][X];
+  int qw[5]={-1,-1,-1,0,-1}; int need[4]={0,1,2,3};
+  Plan pl=plan_row(pB,qw,need,4);
+  for (int X=0;X<4;X++) pOut[X]=pl.qq[X];
+
+  for (int z=0;z<64;z++){
+    int s[5],res[5];
+    for (int X=0;X<5;X++){ int x=xmap(X,0); s[X]=ld(addr(src,x+5*X,((z-ROT[x][X])%64+64)%64)); }
+    chi_row(s,&pl,need,4,res);
+    for (int X=0;X<4;X++){
+      int v=res[X];
+      /* iota of round 5 folded into PD */
+      st(addr(2,X,z),v);
+      /* the prefilter word is formed after the step from the output planes (proof.md Section 4.1) */
+    }
+  }
+}
+/* ---- resident allocation + streamed emission ---- */
+static char obuf[1<<13]; static int olen;
+static void flush(void){ wr(1,obuf,olen); olen=0; }
+static int capmode=1;
+static void capture(const char *s);
+static void pr(const char *s){ if(capmode){ capture(s); return; } int l=strlen(s); if(olen+l>(int)sizeof obuf) flush(); memcpy(obuf+olen,s,l); olen+=l; }
+static void fmt(char *b,int kind,int num){ /* kind 0 M,1 T,2 imm */
+  if(kind==0) sprintf(b,"M%d",num); else if(kind==1) sprintf(b,"T%d",num);
+  else if(num==IALL) strcpy(b,"#ALL"); else sprintf(b,"#%d",-1-num);
+}
+static void nm(int x,int *kind,int *num){
+  if(x<0){ *kind=2; *num=x; return; }
+  if(ldal[x]>=0){ *kind=0; *num=ldal[x]; return; }
+  if(nameA[x]>=0){ *kind=0; *num=nameA[x]; return; }
+  *kind=1; *num=tmpn[x];
+}
+static void resident(const char *name){
+  char b[96], l1[40], l2[40], l3[40];
+  for(int i=0;i<nv;i++){ last[i]=-1; nameA[i]=-1; ldal[i]=-1; tmpn[i]=-1; }
+  for(int i=0;i<n;i++){ In *p=&ins[i];
+    if(p->k==LD && p->a!=RCA) ldal[p->d]=p->a;
+    if(p->k==ST && nameA[p->a]<0) nameA[p->a]=p->d; }
+  for(int i=0;i<n;i++){ In *p=&ins[i];
+    if(p->k==LD) continue;
+    if(p->k==ST){ if(p->a>=0) last[p->a]=i; }
+    else { if(p->a>=0) last[p->a]=i; if(p->b>=0) last[p->b]=i; } }
+  unsigned long long freem=0; int nxtT=0; long cnt=0;
+  snprintf(b,sizeof b,"== %s\n",name); pr(b);
+  for(int i=0;i<n;i++){ In *p=&ins[i];
+    int k=p->k;
+    if(k==LD){
+      if(p->a==RCA){
+        int t; if(freem){ t=__builtin_ctzll(freem); freem&=~(1ULL<<t);} else t=nxtT;
+        if(t==nxtT) nxtT++;
+        tmpn[p->d]=t;
+        snprintf(b,sizeof b,"ld T%d RC\n",t); pr(b); cnt++;
+        if(last[p->d]<0) freem|=1ULL<<t;
+      }
+      continue;
+    }
+    if(k==ST){
+      int ks,ns; nm(p->a,&ks,&ns);
+      if(!(ks==0&&ns==p->d)){
+        fmt(l1,0,p->d); fmt(l2,ks,ns); snprintf(b,sizeof b,"mov %s %s\n",l1,l2); pr(b); cnt++; }
+      continue;
+    }
+    int srcs[2]={p->a,p->b};
+    for(int j=0;j<2;j++){ int s=srcs[j]; if(s>=0 && tmpn[s]>=0 && last[s]==i && !(j==1&&srcs[0]==s)) freem|=1ULL<<tmpn[s]; }
+    int d=p->d;
+    if(nameA[d]<0){
+      int t; if(freem){ t=__builtin_ctzll(freem); freem&=~(1ULL<<t);} else t=nxtT;
+      if(t==nxtT) nxtT++;
+      tmpn[d]=t;
+      if(last[d]<0) freem|=1ULL<<t;
+    }
+    int kd,nd,ka,na,kb,nb; nm(d,&kd,&nd); nm(p->a,&ka,&na); nm(p->b,&kb,&nb);
+    fmt(l1,kd,nd); fmt(l2,ka,na); fmt(l3,kb,nb);
+    snprintf(b,sizeof b,"%s %s %s %s\n",KN[k],l1,l2,l3); pr(b); cnt++;
+  }
+  snprintf(b,sizeof b,"END %ld\n",cnt); pr(b);
+}
+/* ---- S6LS: capture of the resident sections, then the 1,024-register allocation with charged ld/st/mov ---- */
+#define KBMAX 1024
+static int KB;                         /* boundary set size, chosen by select_kb() */
+enum { XLD, XST, XXOR, XAND, XOR_, XSHR, XSUB, XMOV };
+static const char *XKN[] = {"ld","st","xor","and","or","shr","sub","mov"};
+static unsigned char SK[1][MAXOP]; static short SD[1][MAXOP], SAo[1][MAXOP], SBo[1][MAXOP];   /* the one section being processed */ static int SN[4], cursec = -1;
+static int parse_opnd(const char *t){
+  if(t[0]=='M') return atoi(t+1);
+  if(t[0]=='T') return 4800+atoi(t+1);
+  if(!strcmp(t,"RC")) return -2;
+  if(!strcmp(t,"#ALL")) return -3;
+  if(t[0]=='#') return -(16+atoi(t+1));
+  return -1;
+}
+static void capture(const char *s){
+  char a[4][24]; int m=0, i=0;
+  if(s[0]=='='){ const char *nmx=s+3; cursec = !strncmp(nmx,"AFF",3)?0: !strncmp(nmx,"GA",2)?1: !strncmp(nmx,"GB",2)?2:3; SN[cursec]=0; return; }
+  if(s[0]=='E') return;
+  while(*s && *s!='\n' && m<4){ while(*s==' ') s++; i=0; while(*s && *s!=' ' && *s!='\n' && i<23) a[m][i++]=*s++; a[m][i]=0; if(i) m++; }
+  int k; for(k=0;k<8;k++) if(!strcmp(a[0],XKN[k])) break;
+  int j=SN[cursec]++;
+  SK[0][j]=k; SD[0][j]=parse_opnd(a[1]);
+  SAo[0][j]= m>2? parse_opnd(a[2]) : -1; SBo[0][j]= m>3? parse_opnd(a[3]) : -1;
+}
+static void nmstr(char *b,int id){ if(id<4800) sprintf(b,"M%d",id); else sprintf(b,"T%d",id-4800); }
+static int cmpname(int x,int y){ char a[16],b[16]; nmstr(a,x); nmstr(b,y); return strcmp(a,b); }
+
+/* per-section working arrays */
+static int nentry, nvals;
+static unsigned char FL[MAXV];   /* bit 1 output, 2 in memory, 4 placed at exit */
+static short occ[KR]; static char freef[KR], reserved[KR];
+static short xord[2000]; static int nx;
+static int cnt_ld, cnt_st, cnt_mov, emit_on; static long nlines, cnt_lines_all;
+static short exitmap[NNM];
+static short first_entry[3][2000]; static int nfirst[4];
+static char slot_used[NNM];
+static long ncode;
+static void code_word(const char *s){   /* one 32-byte instruction record: the listing line, zero padded */
+  if(ncode+32>CODESZ){ eprintf("code region full\n"); exit(3); }
+  unsigned char *w=CODE+ncode; int i=0; for(;s[i] && s[i]!='\n' && i<32;i++) w[i]=(unsigned char)s[i]; for(;i<32;i++) w[i]=0; ncode+=32; }
+static void out(const char *s){ if(emit_on){ pr(s); nlines++; code_word(s); } }
+static void opnd(char *b,int x,int r){
+  if(x==-2) strcpy(b,"RC"); else if(x==-1) strcpy(b,"-");
+  else if(x==-3){ b[0]='#'; for(int i=0;i<64;i++) b[1+i]='f'; b[65]=0; }
+  else if(x<=-16) sprintf(b,"#%x",-(x+16)); else sprintf(b,"r%d",r);
+}
+static void analyse(int s){
+  int n=SN[s]; nvals=n; nentry=0;
+  for(int i=0;i<NNM;i++){ curv[i]=-1; verc[i]=0; }
+  for(int i=0;i<n;i++){
+    UC[i]=0;
+    if(SK[0][i]!=XLD){ int ops2[2]={SAo[0][i],SBo[0][i]};
+      for(int j=0;j<2;j++){ int x=ops2[j]; if(x<0) continue;
+        if(curv[x]<0){ vname[nvals]=x; vver[nvals]=0; curv[x]=nvals; entry[nentry++]=nvals; nvals++; }
+        U[i][UC[i]++]=curv[x]; } }
+    int d=SD[0][i]; vname[i]=d; vver[i]=++verc[d]; curv[d]=i;
+  }
+}
+static int vless(int a,int b){ /* (name string, version) of a < of b */
+  if(vname[a]!=vname[b]) return cmpname(vname[a],vname[b])<0;
+  return vver[a]<vver[b];
+}
+static void emit_st(int v,int p){ char b[64],nb[16]; nmstr(nb,vname[v]); snprintf(b,sizeof b,"st r%d %s\n",p,nb); out(b); if(emit_on) slot_used[vname[v]]=1; }
+static void emit_ld(int v,int p){ char b[64],nb[16]; nmstr(nb,vname[v]); snprintf(b,sizeof b,"ld r%d %s\n",p,nb); out(b); if(emit_on) slot_used[vname[v]]=1; }
+static void emit_mov(int q,int p){ char b[64]; snprintf(b,sizeof b,"mov r%d r%d\n",q,p); out(b); }
+static void release_(int p){ occ[p]=-1; freef[p]=1; }
+static int free_reg(const int *prot,int np,int avoid){
+  int best=-1;
+  for(int p=0;p<KR;p++) if(freef[p]){ if(best<0) best=p; if(!avoid) break; if(!reserved[p]) return p; }
+  if(best>=0) return best;
+  int v=-1;
+  for(int p=0;p<KR;p++){ int w=occ[p]; if(w<0 || reg[w]!=p) continue;
+    int pr_=0; for(int j=0;j<np;j++) if(prot[j]==w) pr_=1; if(pr_) continue;
+    if(v<0 || key[w]>key[v] || (key[w]==key[v] && vless(w,v))) v=w; }
+  int p=reg[v]; reg[v]=-1; release_(p);
+  if(!(FL[v]&2) && (key[v]<INFV || (FL[v]&1) || xreg[v]!=-1)){ cnt_st++; FL[v]|=2; emit_st(v,p); }
+  return p;
+}
+static void put_(int v,int p,int k){ reg[v]=p; occ[p]=v; freef[p]=0; key[v]=k; }
+static void drop_(int v){ int p=reg[v]; reg[v]=-1; release_(p);
+  if((FL[v]&1) && xreg[v]==-1 && !(FL[v]&2)){ cnt_st++; FL[v]|=2; emit_st(v,p); } }
+/* E: entry name -> register (or -1); X: list of names with forced register or -2 (natural); outs: M names written (or OUT) */
+static void alloc_sec(int s,const short *Emap,const short *Xn,const short *Xr,int nX,int outs_out){
+  analyse(s); int n=SN[s];
+  for(int v=0;v<nvals;v++){ xreg[v]=-1; FL[v]=0; reg[v]=-1; nxt[v]=INFV; }
+  nx=0; for(int j=0;j<nX;j++){ int v=curv[Xn[j]]; xreg[v]=Xr[j]; xord[nx++]=v; }
+  for(int nm_=0;nm_<NNM;nm_++){ int v=curv[nm_]; if(v<0||v>=n) continue;   /* written name: final version */
+    if(outs_out){ if(nm_>=3200 && nm_<3456) FL[v]|=1; } else if(nm_<4800) FL[v]|=1; }
+  for(int j=0;j<nx;j++) nxt[xord[j]]=n;
+  for(int i=n-1;i>=0;i--){
+    for(int j=0;j<UC[i];j++) unu[i][j]=nxt[U[i][j]];
+    dnu[i]=nxt[i]; nxt[i]=INFV;
+    for(int j=0;j<UC[i];j++) nxt[U[i][j]]=i; }
+  for(int p=0;p<KR;p++){ occ[p]=-1; freef[p]=1; reserved[p]=0; }
+  for(int e=0;e<nentry;e++){ int v=entry[e], r=Emap[vname[v]];
+    if(r>=0){ reg[v]=r; occ[r]=v; freef[r]=0; key[v]=nxt[v]; } else FL[v]|=2; }
+  for(int j=0;j<nx;j++) if(xreg[xord[j]]>=0) reserved[xreg[xord[j]]]=1;
+  cnt_ld=cnt_st=cnt_mov=0;
+  char b[160],l2[80],l3[80];
+  for(int i=0;i<n;i++){
+    int u[2]={U[i][0],U[i][1]}, nu_=UC[i];
+    for(int j=0;j<nu_;j++){ int v=u[j];
+      if(reg[v]<0){ int p=xreg[v]>=0? xreg[v] : -1;
+        if(p<0 || occ[p]>=0) p=free_reg(u,nu_,1);
+        cnt_ld++; emit_ld(v,p); put_(v,p,unu[i][j]); }
+      else key[v]=unu[i][j]; }
+    int ureg[2]; for(int j=0;j<nu_;j++) ureg[j]=reg[u[j]];
+    for(int j=0;j<nu_;j++){ int v=u[j]; if(unu[i][j]==INFV && reg[v]>=0) drop_(v); }
+    int d=i, p;
+    if(xreg[d]>=0){
+      p=xreg[d];
+      if(occ[p]>=0){
+        int w=occ[p]; reg[w]=-1; release_(p); freef[p]=0;
+        int hold[2], nh=0; for(int j=0;j<nu_;j++) if(freef[ureg[j]]){ int dup=0; for(int t=0;t<nh;t++) if(hold[t]==ureg[j]) dup=1; if(!dup){ hold[nh++]=ureg[j]; freef[ureg[j]]=0; } }
+        int prot[3]; int np=0; for(int j=0;j<nu_;j++) prot[np++]=u[j]; prot[np++]=w;
+        int q=free_reg(prot,np,1);
+        for(int t=0;t<nh;t++) freef[hold[t]]=1;
+        cnt_mov++; emit_mov(q,p);
+        reg[w]=q; occ[q]=w; freef[q]=0; release_(p);
+      }
+    } else p=free_reg(u,nu_,1);
+    if(emit_on){
+      int k=SK[0][i], ri=0, a=SAo[0][i], bb=SBo[0][i];
+      opnd(l2,a, a>=0? ureg[ri++] : 0); opnd(l3,bb, bb>=0? ureg[ri++] : 0);
+      snprintf(b,sizeof b,"%s r%d %s %s\n",XKN[k],p,l2,l3); out(b);
+    }
+    put_(d,p,dnu[i]);
+    if(dnu[i]==INFV) drop_(d);
+  }
+  for(int j=0;j<nx;j++){ int v=xord[j], p=xreg[v];
+    if(p==-2){
+      if(reg[v]<0){ int prot[2000], np=0; for(int t=0;t<nx;t++) if((FL[xord[t]]&4)) prot[np++]=xord[t];
+        int q=free_reg(prot,np,0); cnt_ld++; reg[v]=q; occ[q]=v; freef[q]=0; emit_ld(v,q); }
+      FL[v]|=4; continue; }
+    if(reg[v]==p){ FL[v]|=4; continue; }
+    if(occ[p]>=0){
+      int w=occ[p]; release_(p); freef[p]=0;
+      int prot[2002], np=0; prot[np++]=w; prot[np++]=v; for(int t=0;t<nx;t++) if((FL[xord[t]]&4)) prot[np++]=xord[t];
+      int q=free_reg(prot,np,0); occ[q]=w; reg[w]=q; freef[q]=0; cnt_mov++; release_(p);
+      emit_mov(q,p);
+    }
+    if(reg[v]>=0){ emit_mov(p,reg[v]); release_(reg[v]); cnt_mov++; }
+    else { cnt_ld++; emit_ld(v,p); }
+    reg[v]=p; occ[p]=v; freef[p]=0; FL[v]|=4;
+  }
+  /* remaining outputs in memory, in (name string, version) order */
+  { short *ol=&UU.a.U_[0][0]; int no=0;   /* U is no longer needed here */
+    for(int v=0;v<nvals;v++) if((FL[v]&1) && xreg[v]==-1 && !(FL[v]&2)) ol[no++]=v;
+    for(int a=1;a<no;a++){ int t=ol[a], c=a; while(c>0 && vless(t,ol[c-1])){ ol[c]=ol[c-1]; c--; } ol[c]=t; }
+    for(int t=0;t<no;t++){ cnt_st++; emit_st(ol[t],reg[ol[t]]); } }
+  for(int i=0;i<NNM;i++) exitmap[i]=-1;
+  for(int j=0;j<nx;j++) exitmap[vname[xord[j]]]=reg[xord[j]];
+}
+static short E1[NNM], E0[NNM], EO[NNM]; static short X1n[KBMAX], X1r[KBMAX], X0n[KBMAX], X0r[KBMAX], XOn[256], XOr[256];
+static long stepcount, seclen[4];
+static void gen_sec(int s){            /* (re)generate one resident section into SK/SD/SAo/SBo */
+  capmode=1;
+  if(s==0){ gen_aff(1); resident("AFF"); }
+  if(s==1){ gen_G(0,1); resident("GA"); }
+  if(s==2){ gen_G(1,0); resident("GB"); }
+  if(s==3){ gen_R5(1); resident("R5"); }
+  capmode=0;
+}
+static long eval_kb(int emit){
+  /* sections: 0 AFF, 1 GA, 2 GB, 3 R5; boundary sets from the consumer's first-use order */
+  for(int s=1;s<=2;s++){ gen_sec(s); analyse(s); nfirst[s]=nentry; for(int e=0;e<nentry;e++) first_entry[s][e]=vname[entry[e]]; }
+  for(int i=0;i<NNM;i++) E1[i]=-1;
+  int k1=0, k0=0;
+  for(int e=0;e<nfirst[2] && k1<KB;e++){ int nm_=first_entry[2][e]; if(nm_>=1600&&nm_<3200){ X1n[k1]=nm_; X1r[k1]=k1; E1[nm_]=k1; k1++; } }
+  for(int e=0;e<nfirst[1] && k0<KB;e++){ int nm_=first_entry[1][e]; if(nm_<1600){ X0n[k0]=nm_; X0r[k0]=-2; k0++; } }
+  for(int l=0;l<4;l++) for(int z=0;z<64;z++){ XOn[l*64+z]=3200+l*64+z; XOr[l*64+z]=-2; }
+  emit_on=0;
+  gen_sec(2); alloc_sec(2,E1,X0n,X0r,KB,0); memcpy(E0,exitmap,sizeof E0);
+  gen_sec(3); alloc_sec(3,E1,XOn,XOr,256,1); memcpy(EO,exitmap,sizeof EO);
+  char b[32];
+  int order[4]={0,2,1,3}; const char *nmS[4]={"AFF","GA","GB","R5"};
+  stepcount=19;
+  for(int t=0;t<4;t++){ int s=order[t]; long before=nlines;
+    gen_sec(s); emit_on=emit;
+    long l0=cnt_lines_all;
+    if(emit){ snprintf(b,sizeof b,"== %s\n",nmS[s]); pr(b); }
+    if(s==0) alloc_sec(0,EO,X1n,X1r,KB,0);
+    if(s==2) alloc_sec(2,E1,X0n,X0r,KB,0);
+    if(s==1) alloc_sec(1,E0,X1n,X1r,KB,0);
+    if(s==3) alloc_sec(3,E1,XOn,XOr,256,1);
+    emit_on=0; (void)before; (void)l0;
+    seclen[s]=SN[s]+cnt_ld+cnt_st+cnt_mov; stepcount+= (s==1||s==2? 2:1)*seclen[s];
+    if(emit) eprintf("%s ops %d ld %d st %d mov %d lines %ld\n",nmS[s],SN[s],cnt_ld,cnt_st,cnt_mov,seclen[s]);
+  }
+  if(emit){ int ns=0; for(int i=0;i<NNM;i++) ns+=slot_used[i];
+    eprintf("step %ld spill slots %d code bytes written %ld\n",stepcount,ns,ncode); }
+  return stepcount;
+}
+/* Selection 1: the polarity pattern. Every q < 2^25 whose five rows admit stored polarities equal to q (a fixed point of
+   one round) at total row cost <= 7 is a candidate (row cost = plan_row cost); among the candidates the one with the
+   fewest operations of the load/store sections AFF + 4 x G + R5 is taken, ties to the smaller q. */
+static short tabq[32][32];
+static void select_q(void){
+  for(int pB=0;pB<32;pB++) for(int qr=0;qr<32;qr++){ int pb[5], qw[5]; for(int X=0;X<5;X++){ pb[X]=(pB>>X)&1; qw[X]=(qr>>X)&1; }
+    Plan p=plan_row(pb,qw,ALLN,5); tabq[pB][qr]= p.ok? p.cost : 99; }
+  static int cand[256]; int nc_=0; long ncand_all=0;
+  for(long q=0;q<(1L<<25);q++){
+    int qp[5][5], c5[5], d5[5], cost=0;
+    for(int X=0;X<5;X++) for(int Y=0;Y<5;Y++) qp[X][Y]=(q>>(X+5*Y))&1;
+    for(int X=0;X<5;X++){ int s=0; for(int Y=0;Y<5;Y++) s+=qp[X][Y]; c5[X]=s&1; }
+    for(int X=0;X<5;X++) d5[X]=c5[(X+4)%5]^c5[(X+1)%5];
+    for(int Y=0;Y<5 && cost<=7;Y++){ int pB=0, qr=0; for(int X=0;X<5;X++){ int x=xmap(X,Y); pB|=(qp[x][X]^d5[x])<<X; qr|=qp[X][Y]<<X; } cost+=tabq[pB][qr]; }
+    if(cost<=7){ ncand_all++; if(nc_<256) cand[nc_++]=(int)q; }
+  }
+  long best=-1, bq=0;
+  for(int i=0;i<nc_;i++){ Q=cand[i]; pol();
+    gen_aff(1); long t=n; gen_G(0,1); t+=4L*n; gen_R5(1); t+=n;
+    eprintf("q %ld ldst-sections %ld\n",(long)cand[i],t);
+    if(best<0 || t<best){ best=t; bq=cand[i]; } }
+  Q=bq; pol();
+  eprintf("candidates %ld (kept %d); chosen q %ld with %ld operations\n",ncand_all,nc_,bq,best);
+}
+/* Selection 2: the boundary set size, over the declared list; the smallest step wins, ties to the smaller size. */
+static const int KBS[7]={930,945,960,975,990,1000,1012};
+static void select_kb(void){
+  long best=-1; int bk=0;
+  for(int i=0;i<7;i++){ KB=KBS[i]; long st_=eval_kb(0); eprintf("KB %d step %ld\n",KB,st_); if(best<0||st_<best){ best=st_; bk=KB; } }
+  KB=bk; eprintf("chosen KB %d step %ld\n",bk,best);
 }
 
-// histogram of common-prefix length L = clz(k[i] ^ k[i+d]) (64 = equal), only L >= minw recorded
-__global__ void kclz(const u64 *k, u64 N, u64 d, int minw, u64 *hist) {
-    __shared__ u64 sh[65];
-    for (int i = threadIdx.x; i < 65; i += blockDim.x) sh[i] = 0;
-    __syncthreads();
-    const u64 stride = (u64)gridDim.x * blockDim.x;
-    for (u64 i = blockIdx.x * (u64)blockDim.x + threadIdx.x; i + d < N; i += stride) {
-        u64 x = k[i] ^ k[i + d];
-        int L = x ? __clzll((long long)x) : 64;
-        if (L >= minw) atomicAdd(&sh[L], 1ull);
-    }
-    __syncthreads();
-    for (int i = threadIdx.x; i < 65; i += blockDim.x) if (sh[i]) atomicAdd(&hist[i], sh[i]);
+int cmain(long *sp){
+  (void)sp;
+  select_q();
+  select_kb();
+  eval_kb(1);
+  flush();
+  eprintf("generator peak RSS (VmHWM, includes the written code region) %ld KiB\n", vm_hwm_kib());
+  return 0;
 }
 
-#define CK(x) do { cudaError_t e_ = (x); if (e_ != cudaSuccess) { fprintf(stderr, "CUDA %s at %d: %s\n", #x, __LINE__, cudaGetErrorString(e_)); exit(2); } } while (0)
+#ifdef VM
+__attribute__((export_name("run_s6ls"))) int run_s6ls(void){ return cmain(0); }
+#endif
+```
 
-template <int NR>
-static int ladder(const u64 *sp, int n, u64 ncos, int b, const std::vector<int> &widths, u64 maxpass, int nr) {
-    auto t0 = std::chrono::steady_clock::now();
-    u64 total = ncos << n;
-    if (total & (total - 1)) { fprintf(stderr, "messages must be a power of two\n"); return 1; }
-    if (total < 256) { fprintf(stderr, "too few messages\n"); return 1; }
-    int minw = 64;
-    for (int w : widths) { if (w < b || w > 64 || w < 1) { fprintf(stderr, "width %d invalid for b=%d\n", w, b); return 1; } minw = std::min(minw, w); }
-    u64 mean = total >> b;
-    u64 cap = mean + std::max<u64>(4096, (u64)(16.0 * sqrt((double)mean)));
-    if (cap >= (1ull << 31)) { fprintf(stderr, "bucket too large; raise b\n"); return 1; }
-    u64 *buf, *alt, *cnt, *hist; void *tmp = nullptr; size_t tmpb = 0;
-    CK(cudaMalloc(&buf, (size_t)NP * cap * 8)); CK(cudaMalloc(&alt, (size_t)cap * 8));
-    CK(cudaMalloc(&cnt, NP * 8)); CK(cudaMalloc(&hist, 65 * 8));
-    { cub::DoubleBuffer<u64> db(buf, alt); CK(cub::DeviceRadixSort::SortKeys(nullptr, tmpb, db, (int)cap, 0, 64)); }
-    CK(cudaMalloc(&tmp, tmpb));
-    std::vector<std::vector<u64>> pairs(NP, std::vector<u64>(widths.size(), 0));
-    std::vector<u64> kept(NP, 0);
-    bool overflow = false;
-    u64 npass = b ? (1ull << b) : 1;
-    if (maxpass && maxpass < npass) npass = maxpass;
-    int threads = 256;
-    u64 blocks = std::min<u64>(total / threads, 1ull << 16);
-    for (u64 p = 0; p < npass; p++) {
-        CK(cudaMemset(cnt, 0, NP * 8));
-        kpass<NR><<<(unsigned)blocks, threads>>>(sp, n, total, p, b, buf, cap, cnt);
-        CK(cudaGetLastError());
-        u64 hc[NP];
-        CK(cudaMemcpy(hc, cnt, NP * 8, cudaMemcpyDeviceToHost));
-        for (int j = 0; j < NP; j++) {
-            if (hc[j] > cap) overflow = true;
-            kept[j] += hc[j];
-            u64 N = std::min(hc[j], cap);
-            cub::DoubleBuffer<u64> db(buf + (u64)j * cap, alt);
-            CK(cub::DeviceRadixSort::SortKeys(tmp, tmpb, db, (int)N, 0, 64 - b));
-            const u64 *s = db.Current();
-            for (u64 d = 1; d < N; d++) {
-                CK(cudaMemset(hist, 0, 65 * 8));
-                kclz<<<1024, 256>>>(s, N, d, minw, hist);
-                CK(cudaGetLastError());
-                u64 hh[65];
-                CK(cudaMemcpy(hh, hist, 65 * 8, cudaMemcpyDeviceToHost));
-                u64 any = 0;
-                for (int L = minw; L <= 64; L++) any += hh[L];
-                if (!any) break;
-                for (size_t w = 0; w < widths.size(); w++)
-                    for (int L = widths[w]; L <= 64; L++) pairs[j][w] += hh[L];
-            }
-        }
+## Appendix C. The constant-selection program gen.c (run as `gen 512`)
+
+Our LS1 generator with `#define MAXN 32768` (output identical to MAXN 65535: trial 192, prog.bin SHA-256 016bc4cd3465a74680fa0b1844e750dcff72945c0f10be80fde95c5b26cbec88). Build: `gcc -O2 -static -nostdlib -ffreestanding -fno-builtin -fno-tree-loop-distribute-patterns -fno-stack-protector -fno-pie -no-pie -o gen gen.c -lgcc`; the attack uses the constants of the trial it reports.
+
+```c
+/* gen.c - LS1 step generator for sha3-256-r6 (6 prefix rounds of Keccak-f[1600]).
+ * Freestanding (no libc) so the measured peak RSS is the generator's own working set.
+ *
+ * Chain function on physical 256-bit points u (4 lanes u0..u3):
+ *   message m(u) = 128 bytes = lanes 0..15 of the absorbed state:
+ *     lane 1 = u0, lane 6 = u1, lane 11 = u0^u1^K[11]   (column x=1, rows 0,1,2)
+ *     lane 4 = u2, lane 9 = u3, lane 14 = u2^u3^K[14]   (column x=4, rows 0,1,2)
+ *     other lanes 0..15 = constants K[l]; lane 16 = 0x8000000000000006 (SHA3 pad);
+ *   F(u) = SHA3-256-r6(m(u)) XOR PD   (PD = fixed digest polarity mask of the program).
+ * Column parities of the message lanes are constant, so round-0 theta adds only
+ * constants; no two message lanes are chi-adjacent after rho/pi, so round 0 is
+ * linear in u and round-1 theta stays linear (Guo-Liu-Song 2016 linear structure).
+ *
+ * Representation: plane (lane,z) is one 256-bit word (bit t = trail t). A value is
+ * (node, polarity): logical = physical(node) XOR p. Constants folded. Linear nodes
+ * carry their GF(2) form over the 256 input bits, deduplicated by form.
+ * Lazy theta: C, D per round; each chi row XORs D into its five planes when computed.
+ * Per-row complement subset (32 candidates) minimizing NOTs + two-op terms.
+ * Dead-code elimination, last-use register allocation; digest plane j written to
+ * register j (= input register j of the next step: free chain feed).
+ * Outputs: prog.bin (5 bytes/instr: 3-bit op, 12-bit dst, a, b), meta.txt, ledger.txt.
+ * Usage: gen [ntrials] [first]  (trial 0: all constants 0; trial t>0: xorshift constants seed t).
+ * The preprocessing of the attack is the selection run "gen 512": 512 trial builds, the best (trial 192) rebuilt and written.
+ */
+typedef unsigned long u64; typedef unsigned int u32; typedef unsigned short u16; typedef unsigned char u8;
+typedef long i64;
+
+/* ---------- freestanding runtime ---------- */
+__asm__(".global _start\n_start:\n xor %rbp,%rbp\n mov %rsp,%rdi\n and $-16,%rsp\n call cmain\n mov %rax,%rdi\n mov $60,%rax\n syscall\n");
+static i64 sc3(i64 n, i64 a, i64 b, i64 c){ i64 r; __asm__ volatile("syscall":"=a"(r):"a"(n),"D"(a),"S"(b),"d"(c):"rcx","r11","memory"); return r; }
+void *memset(void *d, int c, unsigned long n){ u8 *p=d; while(n--) *p++=(u8)c; return d; }
+void *memcpy(void *d, const void *s, unsigned long n){ u8 *p=d; const u8 *q=s; while(n--) *p++=*q++; return d; }
+static int fd_out = 1;
+static char obuf[4096]; static int olen;
+static void oflush(void){ if(olen){ sc3(1,fd_out,(i64)obuf,olen); olen=0; } }
+static void oc(char c){ if(olen==4096) oflush(); obuf[olen++]=c; }
+static void os(const char *s){ while(*s) oc(*s++); }
+static void ou(u64 v){ char t[24]; int n=0; do{ t[n++]='0'+v%10; v/=10; }while(v); while(n) oc(t[--n]); }
+static void ox(u64 v){ for(int i=60;i>=0;i-=4) oc("0123456789abcdef"[(v>>i)&15]); }
+static int fopen_w(const char *p){ return (int)sc3(2,(i64)p,01|0100|01000,0644); } /* O_WRONLY|O_CREAT|O_TRUNC */
+static void fclose_(int fd){ sc3(3,fd,0,0); }
+static void die(const char *m){ oflush(); fd_out=2; os("gen: "); os(m); oc('\n'); oflush(); sc3(60,1,0,0); }
+static int atoi_(const char *s){ int v=0; while(*s>='0'&&*s<='9') v=v*10+(*s++-'0'); return v; }
+
+/* ---------- Keccak constants ---------- */
+static const u64 RC[24]={0x0000000000000001UL,0x0000000000008082UL,0x800000000000808aUL,0x8000000080008000UL,
+ 0x000000000000808bUL,0x0000000080000001UL,0x8000000080008081UL,0x8000000000008009UL,0x000000000000008aUL,
+ 0x0000000000000088UL,0x0000000080008009UL,0x000000008000000aUL,0x000000008000808bUL,0x800000000000008bUL,
+ 0x8000000000008089UL,0x8000000000008003UL,0x8000000000008002UL,0x8000000000000080UL,0x000000000000800aUL,
+ 0x800000008000000aUL,0x8000000080008081UL,0x8000000000008080UL,0x0000000080000001UL,0x8000000080008008UL};
+static const int ROT[5][5]={{0,36,3,41,18},{1,44,10,45,2},{62,6,43,15,61},{28,55,25,21,56},{27,20,39,8,14}}; /* ROT[x][y] */
+#define NROUNDS 6
+
+/* ---------- node store ---------- */
+#define MAXN 32768
+#define NC 0xFFFF            /* constant marker */
+enum { O_IN=0, O_XOR=1, O_AND=2, O_OR=3, O_NOT=4 };
+#define F_OPM 7
+#define F_K 8                /* physical constant of a linear node */
+#define F_LIVE 16
+#define F_LIN 32
+static u8 nf[MAXN];          /* op | flags */
+static u16 na[MAXN], nb[MAXN];
+static u16 linid[MAXN];      /* form index for linear nodes; reused as reg[] */
+#define MAXF 8192
+static u64 form[MAXF][4]; static u16 formnode[MAXF]; static int nform;
+#define FH 16384
+static u16 fh[FH];           /* form hash: form index+1 */
+#define CH 65536
+static u16 ch[CH];           /* cons hash: node+1; reused as lastuse[] */
+static int nn;
+
+typedef struct { u16 n; u8 p; } V;
+static V K_(int c){ V v; v.n=NC; v.p=(u8)c; return v; }
+static V MK(int n,int p){ V v; v.n=(u16)n; v.p=(u8)p; return v; }
+
+static u32 hmix(u32 x){ x^=x>>16; x*=0x7feb352dU; x^=x>>15; x*=0x846ca68bU; x^=x>>16; return x; }
+static int newnode(int op,int a,int b){ if(nn>=MAXN-1) die("node overflow"); nf[nn]=(u8)op; na[nn]=(u16)a; nb[nn]=(u16)b; linid[nn]=0xFFFF; return nn++; }
+static int cons(int op,int a,int b){
+  if(op!=O_NOT && a>b){ int t=a;a=b;b=t; }
+  u32 h=hmix((u32)op*0x9E3779B1u ^ (u32)a*0x85EBCA77u ^ (u32)b*0xC2B2AE3Du)&(CH-1);
+  for(;;){ u16 e=ch[h]; if(!e) break; int m=e-1; if((nf[m]&F_OPM)==op && na[m]==a && nb[m]==b) return m; h=(h+1)&(CH-1); }
+  int m=newnode(op,a,b); ch[h]=(u16)(m+1); return m;
+}
+static int isk(int n){ return (nf[n]&F_K)?1:0; }
+static int islin(int n){ return (nf[n]&F_LIN)?1:0; }
+static u32 fhash(const u64 *m){ return hmix((u32)(m[0]^m[0]>>32^m[1]*3^m[2]*5^m[3]*7^(m[1]>>29)^(m[3]>>31))); }
+static int flookup(const u64 *m){ u32 h=fhash(m)&(FH-1); for(;;){ u16 e=fh[h]; if(!e) return -1; int f=e-1; if(form[f][0]==m[0]&&form[f][1]==m[1]&&form[f][2]==m[2]&&form[f][3]==m[3]) return f; h=(h+1)&(FH-1);} }
+static int fadd(const u64 *m,int node){ if(nform>=MAXF) die("form overflow"); int f=nform++; for(int i=0;i<4;i++) form[f][i]=m[i]; formnode[f]=(u16)node;
+  u32 h=fhash(m)&(FH-1); while(fh[h]) h=(h+1)&(FH-1); fh[h]=(u16)(f+1); return f; }
+
+static long cnt_emit; /* ops created (pre-DCE) */
+
+static V xorv(V a,V b){
+  if(a.n==NC) return MK(b.n==NC?NC:b.n, b.p^a.p);
+  if(b.n==NC) return MK(a.n, a.p^b.p);
+  if(a.n==b.n) return K_(a.p^b.p);
+  if(islin(a.n)&&islin(b.n)){
+    const u64 *fa=form[linid[a.n]], *fb=form[linid[b.n]]; u64 m[4];
+    for(int i=0;i<4;i++) m[i]=fa[i]^fb[i];
+    int kk=isk(a.n)^isk(b.n);
+    if(!(m[0]|m[1]|m[2]|m[3])) return K_(kk^a.p^b.p);
+    int f=flookup(m);
+    if(f>=0){ int n3=formnode[f]; return MK(n3, kk^a.p^b.p^isk(n3)); }
+    int n=newnode(O_XOR,a.n<b.n?a.n:b.n,a.n<b.n?b.n:a.n); nf[n]|=F_LIN|(kk?F_K:0);
+    linid[n]=(u16)fadd(m,n); cnt_emit++; return MK(n,a.p^b.p);
+  }
+  int before=nn; int n=cons(O_XOR,a.n,b.n); if(nn>before) cnt_emit++;
+  return MK(n,a.p^b.p);
+}
+static V notv(V a){ /* physical complement, logical value unchanged */
+  if(a.n==NC) return a;
+  int before=nn; int n=cons(O_NOT,a.n,0);
+  if(nn>before){ cnt_emit++; if(islin(a.n)){ nf[n]|=F_LIN|(isk(a.n)?0:F_K); linid[n]=linid[a.n]; } }
+  return MK(n,a.p^1);
+}
+static V and2(V a,V b){ /* logical a AND b */
+  if(a.n==NC) return a.p? b : K_(0);
+  if(b.n==NC) return b.p? a : K_(0);
+  if(a.n==b.n) return a.p==b.p? a : K_(0);
+  int before=nn;
+  if(a.p==0&&b.p==0){ int n=cons(O_AND,a.n,b.n); if(nn>before) cnt_emit++; return MK(n,0); }
+  if(a.p==1&&b.p==1){ int n=cons(O_OR,a.n,b.n); if(nn>before) cnt_emit++; return MK(n,1); }
+  /* A & ~B with A the pol-0 operand: A ^ (A & B) */
+  int A=a.p==0?a.n:b.n, B=a.p==0?b.n:a.n;
+  int t=cons(O_AND,A,B); if(nn>before) cnt_emit++;
+  return xorv(MK(A,0),MK(t,0));
+}
+static V andnot(V b1,V b2){ b1.p^=1; return and2(b1,b2); } /* (~b1) & b2 */
+
+/* cost estimate of (~b1)&b2 given polarities */
+static int cost_term(V b1,V b2){ if(b1.n==NC||b2.n==NC||b1.n==b2.n) return 0; return ((b1.p^1)==b2.p)?1:2; }
+
+/* ---------- the step ---------- */
+static V S[25][64], NS[25][64], Cc[5][64], Dd[5][64];
+static u64 KL[25];          /* lane constants of the absorbed state (var lanes: offset) */
+static int outnode[256];
+static u64 PD[4];
+static long nnot_rows;
+
+static void build(void){
+  nn=0; nform=0; cnt_emit=0; nnot_rows=0;
+  memset(fh,0,sizeof fh); memset(ch,0,sizeof ch);
+  for(int j=0;j<256;j++){ int n=newnode(O_IN,0,0); u64 m[4]={0,0,0,0}; m[j>>6]=1UL<<(j&63); nf[n]|=F_LIN; linid[n]=(u16)fadd(m,n); }
+  for(int l=0;l<25;l++) for(int z=0;z<64;z++) S[l][z]=K_((KL[l]>>z)&1);
+  for(int z=0;z<64;z++){
+    S[1][z]=MK(z,(KL[1]>>z)&1); S[6][z]=MK(64+z,(KL[6]>>z)&1);
+    S[4][z]=MK(128+z,(KL[4]>>z)&1); S[9][z]=MK(192+z,(KL[9]>>z)&1);
+  }
+  for(int z=0;z<64;z++){
+    S[11][z]=xorv(xorv(MK(z,0),MK(64+z,0)),K_((KL[11]>>z)&1));
+    S[14][z]=xorv(xorv(MK(128+z,0),MK(192+z,0)),K_((KL[14]>>z)&1));
+  }
+  for(int r=0;r<NROUNDS;r++){
+    int last=(r==NROUNDS-1);
+    /* theta: C[.][63] first, then per z: C[.][z], D[.][z] (keeps few C live) */
+    for(int x=0;x<5;x++){ V s=S[x][63]; for(int y=1;y<5;y++) s=xorv(s,S[x+5*y][63]); Cc[x][63]=s; }
+    for(int z=0;z<64;z++){
+      if(z<63) for(int x=0;x<5;x++){ V s=S[x][z]; for(int y=1;y<5;y++) s=xorv(s,S[x+5*y][z]); Cc[x][z]=s; }
+      for(int x=0;x<5;x++) Dd[x][z]=xorv(Cc[(x+4)%5][z],Cc[(x+1)%5][(z+63)&63]);
     }
-    CK(cudaDeviceSynchronize());
-    double secs = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
-    const char *pn[NP] = {"L0", "L1", "L2", "L3", "X01", "X23"};
-    printf("{\"rounds\": %d, \"n\": %d, \"ncos\": %llu, \"messages\": %llu, \"b\": %d, \"passes\": %llu, \"widths\": [", nr, n, ncos, total, b, npass);
-    for (size_t w = 0; w < widths.size(); w++) printf("%s%d", w ? ", " : "", widths[w]);
-    printf("], \"kept\": [");
-    for (int j = 0; j < NP; j++) printf("%s%llu", j ? ", " : "", kept[j]);
-    printf("], \"pairs\": {");
-    for (int j = 0; j < NP; j++) {
-        printf("%s\"%s\": [", j ? ", " : "", pn[j]);
-        for (size_t w = 0; w < widths.size(); w++) printf("%s%llu", w ? ", " : "", pairs[j][w]);
-        printf("]");
+    int nY=last?1:5, needmask=last?0x0F:0x1F;
+    for(int Y=0;Y<nY;Y++) for(int z=0;z<64;z++){
+      V b[5];
+      for(int X=0;X<5;X++){ int y=X, x=(3*Y+X)%5; int zz=(z-ROT[x][y]+64)&63; b[X]=xorv(S[x+5*y][zz],Dd[x][zz]); }
+      /* complement subset */
+      int best=-1,bc=1<<30;
+      for(int s=0;s<32;s++){
+        int c=0; V bb[5];
+        for(int X=0;X<5;X++){ bb[X]=b[X]; if(s>>X&1){ if(b[X].n==NC){ c=1<<29; } else { bb[X].p^=1; c++; } } }
+        for(int X=0;X<5;X++) if(needmask>>X&1) c+=cost_term(bb[(X+1)%5],bb[(X+2)%5]);
+        if(c<bc){ bc=c; best=s; }
+      }
+      for(int X=0;X<5;X++) if(best>>X&1){ b[X]=notv(b[X]); nnot_rows++; }
+      for(int X=0;X<5;X++) if(needmask>>X&1){
+        V t=andnot(b[(X+1)%5],b[(X+2)%5]);
+        NS[X+5*Y][z]=xorv(b[X],t);
+      }
     }
-    printf("}, \"overflow\": %s, \"seconds\": %.1f, \"cuda\": \"%s\"}\n", overflow ? "true" : "false", secs, cudaGetErrorString(cudaGetLastError()));
-    return overflow ? 3 : 0;
+    for(int z=0;z<64;z++) NS[0][z].p^=(RC[r]>>z)&1;   /* iota */
+    for(int l=0;l<25;l++) for(int z=0;z<64;z++) S[l][z]=NS[l][z];
+  }
+  PD[0]=PD[1]=PD[2]=PD[3]=0;
+  for(int j=0;j<256;j++){ V v=S[j>>6][j&63]; if(v.n==NC||v.n<256) die("digest plane constant or input"); outnode[j]=v.n; PD[j>>6]|=(u64)v.p<<(j&63); }
+  for(int j=0;j<256;j++) for(int k=j+1;k<256;k++) if(outnode[j]==outnode[k]) die("shared digest node");
 }
 
-template <int NR>
-static int dumpk(const u64 *sp, int n, u64 ncos, u64 M, u64 base, int keys, const char *outf) {
-    u64 total = ncos << n;
-    if (base + M > total) { fprintf(stderr, "range past the campaign\n"); return 1; }
-    int per = keys ? NP : 4;
-    u64 *out; CK(cudaMalloc(&out, (size_t)per * M * 8));
-    kdump<NR><<<(unsigned)((M + 255) / 256), 256>>>(sp, n, base, M, keys, out);
-    CK(cudaGetLastError());
-    std::vector<u64> h((size_t)per * M);
-    CK(cudaMemcpy(h.data(), out, (size_t)per * M * 8, cudaMemcpyDeviceToHost));
-    FILE *g = fopen(outf, "wb");
-    if (!g) { fprintf(stderr, "cannot write %s\n", outf); return 1; }
-    fwrite(h.data(), 8, h.size(), g); fclose(g);
-    printf("{\"dumped\": %llu, \"base\": %llu, \"keys\": %d}\n", M, base, keys);
-    return 0;
+static long cnt[5], nlive, maxlive, maxreg;
+static void dce(void){
+  for(int i=0;i<nn;i++) nf[i]&=~F_LIVE;
+  for(int j=0;j<256;j++) nf[outnode[j]]|=F_LIVE;
+  for(int i=nn-1;i>=256;i--) if(nf[i]&F_LIVE){ int op=nf[i]&F_OPM; nf[na[i]]|=F_LIVE; if(op!=O_NOT) nf[nb[i]]|=F_LIVE; }
+  for(int k=0;k<5;k++) cnt[k]=0; nlive=0;
+  for(int i=256;i<nn;i++) if(nf[i]&F_LIVE){ cnt[nf[i]&F_OPM]++; nlive++; }
 }
 
-int main(int argc, char **argv) {
-    if (argc < 7) { fprintf(stderr, "usage: see header\n"); return 1; }
-    const char *mode = argv[1];
-    int n = atoi(argv[3]); u64 ncos = strtoull(argv[4], 0, 10);
-    if (n < 1 || n > 40 || ncos < 1) { fprintf(stderr, "bad n/ncos\n"); return 1; }
-    std::vector<u64> buf(ncos * 5 + n * 5);
-    FILE *f = fopen(argv[2], "rb");
-    if (!f || fread(buf.data(), 8, buf.size(), f) != buf.size()) { fprintf(stderr, "bad infile\n"); return 1; }
-    fclose(f);
-    CK(cudaMemcpyToSymbol(DIRS, buf.data() + ncos * 5, n * 5 * 8));
-    const char *e = getenv("HC_ROUNDS");
-    int nr = e ? atoi(e) : 6;
-    if (nr != 5 && nr != 6) { fprintf(stderr, "HC_ROUNDS must be 5 or 6\n"); return 1; }
-    u64 *sp; CK(cudaMalloc(&sp, ncos * 5 * 8));
-    CK(cudaMemcpy(sp, buf.data(), ncos * 5 * 8, cudaMemcpyHostToDevice));
-    if (!strcmp(mode, "dump") || !strcmp(mode, "keys")) {
-        u64 M = strtoull(argv[5], 0, 10), base = argc > 7 ? strtoull(argv[7], 0, 10) : 0;
-        int keys = mode[0] == 'k';
-        return nr == 6 ? dumpk<6>(sp, n, ncos, M, base, keys, argv[6]) : dumpk<5>(sp, n, ncos, M, base, keys, argv[6]);
+/* register allocation; writes prog.bin when emit */
+#define NREG 2304
+static u16 freestk[NREG]; static int nfree;
+static u16 outdef[256];
+static int alloc_emit(int emit){
+  u16 *last=ch, *reg=linid;     /* reuse */
+  for(int i=0;i<nn;i++) last[i]=0;
+  for(int i=256;i<nn;i++) if(nf[i]&F_LIVE){ last[na[i]]=(u16)i; if((nf[i]&F_OPM)!=O_NOT) last[nb[i]]=(u16)i; }
+  for(int j=0;j<256;j++){ last[outnode[j]]=0xFFFF; outdef[j]=(u16)outnode[j]; }
+  static u8 outof[MAXN/8+1]; memset(outof,0,sizeof outof);
+  static u8 regbusy[NREG]; memset(regbusy,0,sizeof regbusy);
+  static short outj[MAXN];  /* only touched for out nodes */
+  for(int j=0;j<256;j++){ outof[outnode[j]>>3]|=1<<(outnode[j]&7); outj[outnode[j]]=(short)j; }
+  nfree=0; for(int r=NREG-1;r>=256;r--) freestk[nfree++]=(u16)r;
+  long live=0; maxlive=0; maxreg=0;
+  for(int j=0;j<256;j++){ reg[j]=(u16)j; if(last[j]){ regbusy[j]=1; live++; } }
+  if(live>maxlive) maxlive=live;
+  int fd=-1; if(emit){ fd=fopen_w("prog.bin"); if(fd<0) die("open prog.bin"); }
+  static u8 eb[4000]; int el=0; long ninstr=0;
+  for(int i=256;i<nn;i++){
+    if(!(nf[i]&F_LIVE)) continue;
+    int op=nf[i]&F_OPM; int a=na[i], b=(op==O_NOT)?a:nb[i];
+    /* free operands whose last use is here */
+    int ops[2]={a,b};
+    for(int k=0;k<2;k++){ int o=ops[k]; if(k==1&&o==a) break; if(last[o]==i){ int r=reg[o]; regbusy[r]=0; live--; if(r>=256) freestk[nfree++]=(u16)r; } }
+    int dst;
+    if(outof[i>>3]>>(i&7)&1){ dst=outj[i]; if(regbusy[dst]) die("output register busy"); }
+    else if(nfree>0) dst=freestk[--nfree];
+    else { dst=-1; for(int r=0;r<256;r++) if(!regbusy[r] && outdef[r]>=last[i]) { dst=r; break; } if(dst<0) die("out of registers"); }
+    regbusy[dst]=1; live++; reg[i]=(u16)dst; if(live>maxlive) maxlive=live; if(dst+1>maxreg) maxreg=dst+1;
+    if(last[i]==0){ /* dead value (cannot happen after DCE) */ die("live node without use"); }
+    if(emit){
+      int code= op==O_XOR?0: op==O_AND?1: op==O_OR?2: 3;
+      u64 w=(u64)code | (u64)dst<<3 | (u64)reg[a]<<15 | (u64)(op==O_NOT?0:reg[nb[i]])<<27;
+      for(int k=0;k<5;k++) eb[el++]=(u8)(w>>(8*k));
+      if(el>=3995){ sc3(1,fd,(i64)eb,el); el=0; }
     }
-    if (!strcmp(mode, "ladder")) {
-        int b = atoi(argv[5]);
-        if (b < 0 || b > 16) { fprintf(stderr, "bad b\n"); return 1; }
-        std::vector<int> widths;
-        std::string ws(argv[6]); size_t pos = 0;
-        while (pos < ws.size()) { size_t q = ws.find(',', pos); if (q == std::string::npos) q = ws.size(); widths.push_back(atoi(ws.substr(pos, q - pos).c_str())); pos = q + 1; }
-        u64 maxpass = argc > 7 ? strtoull(argv[7], 0, 10) : 0;
-        return nr == 6 ? ladder<6>(sp, n, ncos, b, widths, maxpass, nr) : ladder<5>(sp, n, ncos, b, widths, maxpass, nr);
+    ninstr++;
+  }
+  if(emit){ if(el) sc3(1,fd,(i64)eb,el); fclose_(fd); }
+  return (int)ninstr;
+}
+
+static u64 rs;
+static u64 xs(void){ rs^=rs<<13; rs^=rs>>7; rs^=rs<<17; return rs; }
+static void set_consts(int trial){
+  for(int l=0;l<25;l++) KL[l]=0;
+  KL[16]=0x8000000000000006UL;
+  if(trial>0){ rs=0x9E3779B97F4A7C15UL*(u64)trial+1; for(int i=0;i<10;i++) xs();
+    static const int fl[12]={0,2,3,5,7,8,10,12,13,15,11,14};
+    for(int i=0;i<12;i++) KL[fl[i]]=xs(); }
+}
+
+static int work(int argc,char **argv);
+/* The work runs in a forked child: its own signal struct starts with ru_maxrss 0, so the
+   parent's wait4 rusage gives the worker's peak RSS without the high-water mark that Linux
+   carries over from the shell across fork+execve. */
+int cmain(long *sp){
+  int argc=(int)sp[0]; char **argv=(char**)(sp+1);
+  i64 pid=sc3(57,0,0,0);
+  if(pid==0){ int rc=work(argc,argv); oflush(); sc3(60,rc,0,0); }
+  if(pid<0) die("fork");
+  struct { long ut[2], st[2]; long maxrss, rest[14]; } ru; int status=0;
+  { i64 r; register i64 r10 __asm__("r10")=(i64)&ru; __asm__ volatile("syscall":"=a"(r):"a"(61L),"D"(pid),"S"((i64)&status),"d"(0L),"r"(r10):"rcx","r11","memory"); }
+  int fd=(int)sc3(2,(i64)"ledger.txt",01|02000,0);
+  for(int pass=0;pass<2;pass++){ fd_out= pass?1:fd;
+    os("worker peak RSS (getrusage via wait4, worker forked from the 1-page parent) "); ou(ru.maxrss); os(" KiB = "); ou(ru.maxrss*1024); os(" bytes (limit 1048576)\n"); oflush(); }
+  fclose_(fd);
+  return ((status>>8)&255);
+}
+static int work(int argc,char **argv){
+  int ntr= argc>1? atoi_(argv[1]) : 1; if(ntr<1) ntr=1;
+  int t0= argc>2? atoi_(argv[2]) : 0;   /* gen <ntrials> [first trial]; the attack runs "gen 512" */
+  int bestt=t0; long bestc=1L<<60;
+  for(int t=t0;t<t0+ntr;t++){ set_consts(t); build(); dce(); long tot=cnt[1]+cnt[2]+cnt[3]+cnt[4];
+    if(ntr>1){ os("trial "); ou(t); os(" ops "); ou(tot); oc('\n'); }
+    if(tot<bestc){ bestc=tot; bestt=t; } }
+  oflush();
+  set_consts(bestt); build(); dce();
+  long pre=cnt_emit;
+  int ninstr=alloc_emit(1);
+  long tot=cnt[1]+cnt[2]+cnt[3]+cnt[4];
+  if(ninstr!=tot) die("instr count mismatch");
+  struct { long ut[2], st[2]; long maxrss, ixrss, idrss, isrss, minflt, majflt, nswap, inblock, oublock, msgsnd, msgrcv, nsignals, nvcsw, nivcsw; } ru;
+  sc3(98,0,(i64)&ru,0);
+  /* VmHWM from /proc/self/status: peak RSS of this process image only (ru_maxrss on Linux
+     can carry over the parent's high-water mark across fork+execve) */
+  long hwm=-1; { static char st[4096]; int fd=(int)sc3(2,(i64)"/proc/self/status",0,0);
+    if(fd>=0){ long n=sc3(0,fd,(i64)st,sizeof st-1); fclose_(fd); if(n>0){ st[n]=0;
+      for(long i=0;i+6<n;i++) if(st[i]=='V'&&st[i+1]=='m'&&st[i+2]=='H'&&st[i+3]=='W'&&st[i+4]=='M'){ long j=i+6,v=0; while(st[j]==' '||st[j]=='	') j++; while(st[j]>='0'&&st[j]<='9') v=v*10+(st[j++]-'0'); hwm=v; break; } } } }
+  /* meta.txt */
+  fd_out=fopen_w("meta.txt");
+  os("trial "); ou(bestt); oc('\n');
+  for(int l=0;l<25;l++){ os("lane "); ou(l); oc(' '); ox(KL[l]); oc('\n'); }
+  os("varlanes 1 6 4 9 ; lane11 = u0^u1^K11 ; lane14 = u2^u3^K14\n");
+  os("pd "); for(int i=0;i<4;i++){ ox(PD[i]); oc(i<3?' ':'\n'); }
+  os("ninstr "); ou(ninstr); oc('\n');
+  oflush(); fclose_(fd_out);
+  /* ledger.txt + stdout */
+  for(int pass=0;pass<2;pass++){
+    fd_out= pass? 1 : fopen_w("ledger.txt");
+    os("LS1 step ledger (256 lanes, one chain step, 6 rounds)\n");
+    os("XOR "); ou(cnt[O_XOR]); oc('\n');
+    os("AND "); ou(cnt[O_AND]); oc('\n');
+    os("OR  "); ou(cnt[O_OR]); oc('\n');
+    os("NOT "); ou(cnt[O_NOT]); os("  (row complements chosen pre-DCE: "); ou(nnot_rows); os(")\n");
+    os("LOAD 0\nSTORE 0\nTOTAL "); ou(tot); oc('\n');
+    os("feed NOTs 0 (digest polarity folded into the chain function: F(u)=H(m(u))^PD)\n");
+    os("nodes created pre-DCE "); ou(pre); os(" ; nodes "); ou(nn); os(" ; linear forms "); ou(nform); oc('\n');
+    os("max live values "); ou(maxlive); os(" ; registers used "); ou(maxreg); os(" (limit 2304)\n");
+    os("constants trial "); ou(bestt); os(" of "); ou(ntr); oc('\n');
+    os("generator peak RSS (VmHWM, this process image) "); ou(hwm); os(" KiB = "); ou(hwm*1024); os(" bytes (limit 1048576)\n");
+    os("getrusage ru_maxrss "); ou(ru.maxrss); os(" KiB (Linux carries the parent's high-water mark across fork+execve)\n");
+    oflush(); if(!pass) fclose_(fd_out);
+  }
+  if(maxreg>NREG) return 2;
+  return 0;
+}
+```
+
+## Appendix D. Programs of the measured checks of Section 7.2 (not part of the attack)
+
+### D.1 hrand_ls.c
+
+```c
+/* hrand_test.c - measured checks of the premise H_rand for the LS1 chain function F (prog.bin + meta.txt).
+ * Executes the emitted straight line (256 lanes per step) and counts, among M = 2^24 evaluations,
+ * the pairs of images that agree on a 32-bit window (low bits 0..31, bits 128..159, top bits 224..255):
+ *   A: uniform random inputs (independent images expected: C(M,2)/2^32 pairs, Poisson)
+ *   B: structured inputs R + i, i < M (the start pattern of the search: consecutive integers)
+ *   C: iterates: 256 chains of 65,536 chained steps from random starts (the points a walk evaluates)
+ * and D: single-bit input differences: for each of the 256 input bits j, 4,096 random u, the count of output bit k
+ *   flipping in F(u) ^ F(u ^ e_j), for all 65,536 (j,k) cells; reports the largest |z| (binomial 4096, 1/2).
+ * Usage: hrand_test [seed]   (reads prog.bin and meta.txt from the current directory) */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <math.h>
+typedef uint64_t u64;
+static long ninstr; static uint8_t *prog;
+typedef struct { u64 w[4]; } W256;
+static W256 R[2304];
+static void load(void){
+  FILE *f=fopen("meta.txt","r"); char line[512];
+  while(fgets(line,sizeof line,f)) sscanf(line,"ninstr %ld",&ninstr);
+  fclose(f); f=fopen("prog.bin","rb"); prog=malloc(ninstr*5);
+  if(fread(prog,5,ninstr,f)!=(size_t)ninstr) exit(2); fclose(f);
+}
+static void run_prog0(void){
+  const uint8_t *p=prog;
+  for(long i=0;i<ninstr;i++,p+=5){
+    u64 w=(u64)p[0]|(u64)p[1]<<8|(u64)p[2]<<16|(u64)p[3]<<24|(u64)p[4]<<32;
+    int op=w&7, d=(w>>3)&4095, a=(w>>15)&4095, b=(w>>27)&4095;
+    W256 *x=&R[a],*y=&R[b],t;
+    switch(op){ case 0: for(int k=0;k<4;k++) t.w[k]=x->w[k]^y->w[k]; break;
+                case 1: for(int k=0;k<4;k++) t.w[k]=x->w[k]&y->w[k]; break;
+                case 2: for(int k=0;k<4;k++) t.w[k]=x->w[k]|y->w[k]; break;
+                default: for(int k=0;k<4;k++) t.w[k]=~x->w[k]; }
+    R[d]=t;
+  }
+}
+
+static const u64 PD_LS1[4]={0xbc67dc6bab8bcb17ULL,0x3820000300821020ULL,0x2220094600040088ULL,0x422009c4d01014c0ULL};
+static u64 PD_NEW[4]; static int pdloaded=0;
+static void loadpd(void){ FILE *f=fopen("meta.txt","r"); char line[512]; unsigned long long a,b,c,d;
+  while(fgets(line,sizeof line,f)) if(sscanf(line,"pd %llx %llx %llx %llx",&a,&b,&c,&d)==4){PD_NEW[0]=a;PD_NEW[1]=b;PD_NEW[2]=c;PD_NEW[3]=d;pdloaded=1;}
+  fclose(f); if(!pdloaded) exit(5); }
+static void fixpd(void){ if(!pdloaded) loadpd();
+  for(int j=0;j<256;j++) if(((PD_LS1[j>>6]^PD_NEW[j>>6])>>(j&63))&1) for(int k=0;k<4;k++) R[j].w[k]=~R[j].w[k]; }
+static void run_prog(void){ run_prog0(); fixpd(); }
+static u64 sm;
+static u64 rnd(void){ u64 z=(sm+=0x9E3779B97F4A7C15ULL); z=(z^(z>>30))*0xBF58476D1CE4E5B9ULL; z=(z^(z>>27))*0x94D049BB133111EBULL; return z^(z>>31); }
+/* set lane t (0..255) of the 256 input planes to point u[4] */
+static void set_point(int t,const u64 u[4]){ for(int j=0;j<256;j++){ u64 bit=(u[j>>6]>>(j&63))&1; u64 m=1ULL<<(t&63); R[j].w[t>>6]=(R[j].w[t>>6]&~m)|(bit<<(t&63)); } }
+static void get_point(int t,u64 o[4]){ o[0]=o[1]=o[2]=o[3]=0; for(int j=0;j<256;j++) o[j>>6]|=((R[j].w[t>>6]>>(t&63))&1)<<(j&63); }
+static uint32_t window(int t,int lo){ uint32_t v=0; for(int j=0;j<32;j++) v|=(uint32_t)((R[lo+j].w[t>>6]>>(t&63))&1)<<j; return v; }
+static int cmpu(const void*a,const void*b){ uint32_t x=*(const uint32_t*)a,y=*(const uint32_t*)b; return x<y?-1:x>y; }
+static double pairs(uint32_t *k,long M){ qsort(k,M,4,cmpu); double p=0; long i=0; while(i<M){ long j=i; while(j<M&&k[j]==k[i]) j++; double c=j-i; p+=c*(c-1)/2; i=j; } return p; }
+#define LM 24
+static uint32_t *K0,*K1,*K2;
+static void report(const char *name,long M){
+  double E=(double)M*(M-1)/2/4294967296.0;
+  double p0=pairs(K0,M),p1=pairs(K1,M),p2=pairs(K2,M);
+  printf("%s: M=2^%d, pairs agreeing on 32 bits: low %.0f, mid %.0f, top %.0f; expected %.1f each (sd %.1f); ratios %.4f %.4f %.4f; z %.2f %.2f %.2f\n",
+    name,LM,p0,p1,p2,E,sqrt(E),p0/E,p1/E,p2/E,(p0-E)/sqrt(E),(p1-E)/sqrt(E),(p2-E)/sqrt(E));
+}
+int main(int argc,char**argv){
+  sm= argc>1? strtoull(argv[1],0,0) : 0x15c0ffee;
+  load();
+  long M=1L<<LM, S=M/256;
+  K0=malloc(M*4); K1=malloc(M*4); K2=malloc(M*4);
+  /* A: uniform random inputs */
+  for(long s=0;s<S;s++){
+    for(int j=0;j<256;j++) for(int k=0;k<4;k++) R[j].w[k]=rnd();
+    run_prog();
+    for(int t=0;t<256;t++){ long e=s*256+t; K0[e]=window(t,0); K1[e]=window(t,128); K2[e]=window(t,224); }
+  }
+  report("A uniform inputs",M);
+  /* B: consecutive inputs R0 + i */
+  u64 R0[4]={rnd(),rnd(),rnd(),rnd()};
+  for(long s=0;s<S;s++){
+    for(int t=0;t<256;t++){ u64 i=(u64)(s*256+t), u[4]; u[0]=R0[0]+i; u64 c=u[0]<R0[0]; for(int k=1;k<4;k++){ u[k]=R0[k]+c; c=c&&u[k]==0; } set_point(t,u); }
+    run_prog();
+    for(int t=0;t<256;t++){ long e=s*256+t; K0[e]=window(t,0); K1[e]=window(t,128); K2[e]=window(t,224); }
+  }
+  report("B consecutive inputs R+i",M);
+  /* C: iterates of 256 chains */
+  for(int j=0;j<256;j++) for(int k=0;k<4;k++) R[j].w[k]=rnd();
+  for(long s=0;s<S;s++){
+    run_prog();
+    for(int t=0;t<256;t++){ long e=s*256+t; K0[e]=window(t,0); K1[e]=window(t,128); K2[e]=window(t,224); }
+  }
+  report("C chained iterates (256 chains x 65536 steps)",M);
+  /* D: single-bit input differences */
+  static uint32_t cnt[256][256]; memset(cnt,0,sizeof cnt);
+  int NS=4096;
+  for(int j=0;j<256;j++){
+    for(int s=0;s<NS/128;s++){
+      u64 u[128][4];
+      for(int t=0;t<128;t++){ for(int k=0;k<4;k++) u[t][k]=rnd(); u64 v[4]; memcpy(v,u[t],32); set_point(t,v); v[j>>6]^=1ULL<<(j&63); set_point(128+t,v); }
+      run_prog();
+      for(int t=0;t<128;t++){ u64 a[4],b[4]; get_point(t,a); get_point(128+t,b); for(int k=0;k<256;k++) cnt[j][k]+=((a[k>>6]^b[k>>6])>>(k&63))&1; }
     }
-    fprintf(stderr, "unknown mode\n");
-    return 1;
+  }
+  double zmax=0; int jm=0,km=0; double sum=0;
+  for(int j=0;j<256;j++) for(int k=0;k<256;k++){ double z=(cnt[j][k]-NS/2.0)/sqrt(NS/4.0); sum+=z*z; if(fabs(z)>zmax){ zmax=fabs(z); jm=j; km=k; } }
+  printf("D single-bit differences: 65536 cells x %d pairs, max |z| %.2f at input bit %d output bit %d (largest of 65536 normal cells is about 4.4); mean z^2 %.4f (expected 1)\n",NS,zmax,jm,km,sum/65536);
+  return 0;
 }
 ```
 
-**hw.py** (SHA-256 62a37307c0067d44da0bcc15db9c5ceb482ccd89f8f29ac0edff00ef2981da0c):
+### D.2 proj_ls.c
 
-```python
-"""Driver for hcw.cu (lane-hcoset-wide). Inputs, validation against the organizer, and the verdict table.
-usage: python hw.py gen MODE SEED N NCOS        -> in_<MODE>_<SEED>.bin
-       python hw.py validate R                  GPU digests and keys vs organizer sha3_256(rounds=R) (3 x 512 messages)
-       python hw.py pipecheck R MODE            GPU ladder counts vs numpy exact counts over 2^20 GPU digests
-       python hw.py analyze RESULTS.jsonl       observed vs expected, z, verdict by PREREG_W rule
-MODE rord: random 320-bit coset origins, directions = first N ordered W40 vectors (cube_degree.W, the route's order);
-     ctrl: random 320-bit coset origins, N random 320-bit directions (rank N)."""
-import os, sys, math, json, random, struct, subprocess, pathlib
-import numpy as np
-sys.path.insert(0, r'D:\~~Projects\~HashSmash\workspace\research\sha3r6\lowdegree')
-import cube_degree as cd            # W (40 ordered W40 vectors), rank, kec (organizer SOLCLOUD_12_INPUT_keccak.py)
-
-HERE = pathlib.Path(__file__).resolve().parent
-WSL_HERE = '/mnt/d/~~Projects/~HashSmash/workspace/research/lanes/lane-hcoset-wide'
-BIN = WSL_HERE + '/hcw'
-MASK = (1 << 64) - 1
-PROJ = ['L0', 'L1', 'L2', 'L3', 'X01', 'X23']
-
-def gen(mode, seed, n, ncos):
-    rng = random.Random(f'W-{mode}-{seed}')
-    if mode == 'rord':
-        d = cd.W[:n]
-    elif mode == 'ctrl':
-        while True:
-            d = [rng.getrandbits(320) for _ in range(n)]
-            if cd.rank(d) == n: break
-    else:
-        raise SystemExit('mode must be rord or ctrl')
-    assert cd.rank(d) == n
-    starts = [rng.getrandbits(320) for _ in range(ncos)]
-    words = [(s >> (64 * k)) & MASK for s in starts for k in range(5)] + [(v >> (64 * k)) & MASK for v in d for k in range(5)]
-    p = HERE / f'in_{mode}_{seed}.bin'
-    p.write_bytes(struct.pack(f'<{len(words)}Q', *words))
-    return p, starts, d
-
-def msg(starts, d, n, idx):          # identical to research/sha3r6/hcoset/hc.py msg()
-    c, p = idx >> n, idx & ((1 << n) - 1); m = starts[c]
-    for j in range(n):
-        if p >> j & 1: m ^= d[j]
-    L = [0] * 25
-    for k in range(5): L[k] = (m >> (64 * k)) & MASK; L[10 + k] = L[k]
-    L[16] = 0x86 << 56
-    return b''.join(l.to_bytes(8, 'little') for l in L[:17])[:135]
-
-def brev(x): return int(f'{x:064b}'[::-1], 2)
-def spread(x):
-    o = 0
-    for m in range(32): o |= ((x >> m) & 1) << (2 * m)
-    return o
-def pykeys(lanes):                   # independent (pure Python) derivation of the 6 keys from the 4 digest lanes
-    r = [brev(v) for v in lanes]
-    return r + [(spread(r[0] >> 32) << 1) | spread(r[1] >> 32), (spread(r[2] >> 32) << 1) | spread(r[3] >> 32)]
-
-def gpu(R, *args):
-    subprocess.run(['wsl', '-d', 'Ubuntu', '--', 'env', f'HC_ROUNDS={R}', BIN, *map(str, args)], check=True)
-
-def validate(R):
-    cases = [('rord', 9001, 34, 1, 0), ('rord', 9001, 34, 1, (1 << 33) + 12345), ('ctrl', 9002, 24, 1024, 1000 * (1 << 24) + 777)]
-    M = 512; okd = okk = tot = 0
-    for mode, seed, n, ncos, base in cases:
-        p, starts, d = gen(mode, seed, n, ncos)
-        od, ok_ = HERE / f'v_dump_{seed}.bin', HERE / f'v_keys_{seed}.bin'
-        gpu(R, 'dump', f'{WSL_HERE}/{p.name}', n, ncos, M, f'{WSL_HERE}/{od.name}', base)
-        gpu(R, 'keys', f'{WSL_HERE}/{p.name}', n, ncos, M, f'{WSL_HERE}/{ok_.name}', base)
-        rd, rk = od.read_bytes(), ok_.read_bytes()
-        for i in range(M):
-            ref = cd.kec.sha3_256(msg(starts, d, n, base + i), rounds=R)
-            okd += rd[32 * i:32 * i + 32] == ref
-            lanes = [int.from_bytes(ref[8 * k:8 * k + 8], 'little') for k in range(4)]
-            gk = list(struct.unpack('<6Q', rk[48 * i:48 * i + 48]))
-            okk += gk == pykeys(lanes)
-            tot += 1
-        od.unlink(); ok_.unlink(); p.unlink()
-    print(f'validate rounds={R}: digests {okd}/{tot} equal organizer sha3_256(rounds={R}); keys {okk}/{tot} equal Python keys of the organizer digests')
-
-def np_brev(x):
-    LUT = np.array([int(f'{i:08b}'[::-1], 2) for i in range(256)], dtype=np.uint8)
-    return np.ascontiguousarray(LUT[x.view(np.uint8).reshape(-1, 8)][:, ::-1]).view(np.uint64).reshape(-1)
-def np_spread(x):
-    x = x.astype(np.uint64)
-    for s, m in ((16, 0x0000FFFF0000FFFF), (8, 0x00FF00FF00FF00FF), (4, 0x0F0F0F0F0F0F0F0F), (2, 0x3333333333333333), (1, 0x5555555555555555)):
-        x = (x | (x << np.uint64(s))) & np.uint64(m)
-    return x
-
-def pipecheck(R, mode):
-    n, ncos, b = 16, 16, 3
-    widths = [12, 16, 20, 24, 28, 32, 40, 64]
-    p, starts, d = gen(mode, 9003, n, ncos)
-    M = ncos << n; od = HERE / 'pc_dump.bin'
-    gpu(R, 'dump', f'{WSL_HERE}/{p.name}', n, ncos, M, f'{WSL_HERE}/{od.name}', 0)
-    D = np.frombuffer(od.read_bytes(), dtype=np.uint64).reshape(-1, 4)
-    r = [np_brev(D[:, k].copy()) for k in range(4)]
-    K = r + [(np_spread(r[0] >> np.uint64(32)) << np.uint64(1)) | np_spread(r[1] >> np.uint64(32)),
-             (np_spread(r[2] >> np.uint64(32)) << np.uint64(1)) | np_spread(r[3] >> np.uint64(32))]
-    ref = {}
-    for j, nm in enumerate(PROJ):
-        ref[nm] = []
-        for w in widths:
-            _, c = np.unique(K[j] >> np.uint64(64 - w), return_counts=True)
-            ref[nm].append(int((c.astype(np.int64) * (c.astype(np.int64) - 1) // 2).sum()))
-    out = subprocess.run(['wsl', '-d', 'Ubuntu', '--', 'env', f'HC_ROUNDS={R}', BIN, 'ladder', f'{WSL_HERE}/{p.name}', str(n), str(ncos), str(b),
-                          ','.join(map(str, widths))], check=True, capture_output=True, text=True).stdout
-    g = json.loads(out.strip().splitlines()[-1])
-    same = all(g['pairs'][nm] == ref[nm] for nm in PROJ) and g['kept'] == [M] * 6 and not g['overflow']
-    print(f'pipecheck rounds={R} {mode}: GPU ladder (b={b}, {g["passes"]} passes) vs numpy on {M} GPU digests: {"EQUAL" if same else "DIFFERENT"}')
-    print('  numpy', json.dumps(ref)); print('  gpu  ', json.dumps(g['pairs']))
-    od.unlink(); p.unlink()
-
-def expected(N, K): return N * (N - 1) / 2 / 2.0 ** K
-
-def pois_lower(obs, lam):            # P(X <= obs), X ~ Poisson(lam), for small lam
-    s, t = 0.0, math.exp(-lam)
-    for k in range(obs + 1):
-        s += t; t *= lam / (k + 1)
-    return min(1.0, s)
-
-def analyze(path):
-    rows = [json.loads(l) for l in open(path) if l.strip().startswith('{')]
-    TH = 3.167e-5                    # one-sided 4-sigma normal tail
-    worst, fail, allz = None, [], []
-    for row in rows:
-        tag, kind = row.get('tag', '?'), row.get('kind', '?')
-        N = row['messages']
-        print(f"## {tag} ({kind}) rounds={row['rounds']} n={row['n']} ncos={row['ncos']} N=2^{int(math.log2(N))} b={row['b']} {row['seconds']} s  kept_ok={row['kept'] == [N] * 6}  overflow={row['overflow']}")
-        print('| width | expected | ' + ' | '.join(PROJ) + ' |')
-        print('|---|---|' + '---|' * len(PROJ))
-        for wi, K in enumerate(row['widths']):
-            E = expected(N, K); sd = math.sqrt(E * (1 - 2.0 ** -K)); cells = []
-            for nm in PROJ:
-                o = row['pairs'][nm][wi]; z = (o - E) / sd
-                if E >= 1000:
-                    pl = 0.5 * math.erfc(-z / math.sqrt(2))
-                else:
-                    pl = pois_lower(o, E)
-                cells.append(f'{o} ({z:+.2f})')
-                allz.append((z, tag, nm, K, E, o))
-                if kind != 'ctrl' and pl < TH: fail.append((tag, nm, K, o, E, z, pl))
-            print(f'| {K} | {E:.2f} | ' + ' | '.join(cells) + ' |')
-        print()
-    lo = min(allz); hi = max(allz)
-    print(f'counts: {len(allz)}; lowest z {lo[0]:+.2f} ({lo[1]} {lo[2]} K={lo[3]}); highest z {hi[0]:+.2f} ({hi[1]} {hi[2]} K={hi[3]})')
-    fz = [a for a in allz if any(r.get('tag') == a[1] and r.get('kind') != 'ctrl' for r in rows)]
-    flo = min(fz); fhi = max(fz)
-    print(f'field counts: {len(fz)}; lowest z {flo[0]:+.2f} ({flo[1]} {flo[2]} K={flo[3]}); highest z {fhi[0]:+.2f} ({fhi[1]} {fhi[2]} K={fhi[3]}); |z|>4: {sum(abs(a[0]) > 4 for a in allz)}')
-    invalid = [r.get('tag') for r in rows if r['kept'] != [r['messages']] * 6 or r['overflow'] or r['cuda'] != 'no error']
-    print(f'runs: {len(rows)}; invalid runs: {invalid or "none"}')
-    # EXPLORATORY (not in the preregistered rule): per width, Stouffer z over L0..L3 (lanes are uncorrelated under the
-    # uniform model) of the field runs, and of the control runs, to show any width trend.
-    print('exploratory Stouffer z over L0..L3 per width (field runs | control runs):')
-    for wi, K in enumerate(rows[0]['widths']):
-        out = []
-        for want_ctrl in (False, True):
-            zz = [ (r['pairs'][nm][wi] - expected(r['messages'], K)) / math.sqrt(expected(r['messages'], K)) for r in rows
-                   if (r.get('kind') == 'ctrl') == want_ctrl for nm in PROJ[:4]]
-            out.append(f'{sum(zz) / math.sqrt(len(zz)):+.2f} (m={len(zz)})' if zz else '-')
-        print(f'  K={K}: {out[0]} | {out[1]}')
-    v = 'FAIL ' + json.dumps(fail) if fail else 'PASS'
-    if invalid: v += ' (INCOMPLETE: invalid runs ' + json.dumps(invalid) + ', reported, not replaced)'
-    print('VERDICT: ' + v)
-
-if __name__ == '__main__':
-    cmd = sys.argv[1]
-    if cmd == 'gen':
-        print(gen(sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]))[0])
-    elif cmd == 'validate':
-        validate(int(sys.argv[2]))
-    elif cmd == 'pipecheck':
-        pipecheck(int(sys.argv[2]), sys.argv[3])
-    elif cmd == 'analyze':
-        analyze(sys.argv[2])
-```
-
-**run_w.sh** (SHA-256 c84135cab4b43c2be2be67573e8609b5eb24b63eab7def1faa20b7e432691d0e), its log **w.log** (SHA-256
-62b3007bdbf63fd1fe129bbe1dbcd9372ae3ca98c47dab1b82346f13d047b3c6) and **cap_w6.sh** (SHA-256 14fb4bc9746c89ca5de843bb691dbb051a73e5bb822f86f60fa86a2980d66b5d),
-which stopped W6 at 20 minutes of run time (rc=143):
-
-```sh
-#!/bin/bash
-# Batch W per PREREG_W.txt: six ladder runs, sequential, one GPU job.
-D="/mnt/d/~~Projects/~HashSmash/workspace/research/lanes/lane-hcoset-wide"
-B="$D/hcw"; O="$D/w_results.jsonl"; L="$D/w.log"
-WID="36,40,44,48,52,56,60,64"
-run() {  # tag kind rounds seed n ncos
-  echo "$(date '+%F %T') start $1" >> "$L"
-  HC_ROUNDS=$3 "$B" ladder "$D/in_$2_$4.bin" $5 $6 6 "$WID" 2>> "$L" | sed "s/^{/{\"tag\": \"$1\", \"kind\": \"$2\", /" >> "$O"
-  echo "$(date '+%F %T') end $1 rc=${PIPESTATUS[0]}" >> "$L"
+```c
+/* hrand_test.c - measured checks of the premise H_rand for the LS1 chain function F (prog.bin + meta.txt).
+ * Executes the emitted straight line (256 lanes per step) and counts, among M = 2^24 evaluations,
+ * the pairs of images that agree on a 32-bit window (low bits 0..31, bits 128..159, top bits 224..255):
+ *   A: uniform random inputs (independent images expected: C(M,2)/2^32 pairs, Poisson)
+ *   B: structured inputs R + i, i < M (the start pattern of the search: consecutive integers)
+ *   C: iterates: 256 chains of 65,536 chained steps from random starts (the points a walk evaluates)
+ * and D: single-bit input differences: for each of the 256 input bits j, 4,096 random u, the count of output bit k
+ *   flipping in F(u) ^ F(u ^ e_j), for all 65,536 (j,k) cells; reports the largest |z| (binomial 4096, 1/2).
+ * Usage: hrand_test [seed]   (reads prog.bin and meta.txt from the current directory) */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <math.h>
+typedef uint64_t u64;
+static long ninstr; static uint8_t *prog;
+typedef struct { u64 w[4]; } W256;
+static W256 R[2304];
+static void load(void){
+  FILE *f=fopen("meta.txt","r"); char line[512];
+  while(fgets(line,sizeof line,f)) sscanf(line,"ninstr %ld",&ninstr);
+  fclose(f); f=fopen("prog.bin","rb"); prog=malloc(ninstr*5);
+  if(fread(prog,5,ninstr,f)!=(size_t)ninstr) exit(2); fclose(f);
 }
-run W1 rord 6 5101 34 1
-run W2 rord 6 5102 24 1024
-run W3 ctrl 6 5103 34 1
-run W4 rord 5 5104 34 1
-run W5 rord 5 5105 24 1024
-run W6 ctrl 5 5106 34 1
-echo "$(date '+%F %T') done" >> "$L"
-```
+static void run_prog0(void){
+  const uint8_t *p=prog;
+  for(long i=0;i<ninstr;i++,p+=5){
+    u64 w=(u64)p[0]|(u64)p[1]<<8|(u64)p[2]<<16|(u64)p[3]<<24|(u64)p[4]<<32;
+    int op=w&7, d=(w>>3)&4095, a=(w>>15)&4095, b=(w>>27)&4095;
+    W256 *x=&R[a],*y=&R[b],t;
+    switch(op){ case 0: for(int k=0;k<4;k++) t.w[k]=x->w[k]^y->w[k]; break;
+                case 1: for(int k=0;k<4;k++) t.w[k]=x->w[k]&y->w[k]; break;
+                case 2: for(int k=0;k<4;k++) t.w[k]=x->w[k]|y->w[k]; break;
+                default: for(int k=0;k<4;k++) t.w[k]=~x->w[k]; }
+    R[d]=t;
+  }
+}
 
-```
-2026-10-10 02:27:19 start W1
-2026-10-10 02:31:26 end W1 rc=0
-2026-10-10 02:31:26 start W2
-2026-10-10 02:38:35 end W2 rc=0
-2026-10-10 02:38:35 start W3
-2026-10-10 02:42:29 end W3 rc=0
-2026-10-10 02:42:29 start W4
-2026-10-10 02:46:43 end W4 rc=0
-2026-10-10 02:46:43 start W5
-2026-10-10 02:52:09 end W5 rc=0
-2026-10-10 02:52:09 start W6
-2026-10-10 03:12:11 end W6 rc=143
-2026-10-10 03:12:11 done
-```
-
-```sh
-#!/bin/bash
-# stop my own W6 hcw process (pid given) once it reaches the 20-minute run cap; touches no other process
-P=$1
-E=$(ps -o etimes= -p "$P" | tr -d ' ')
-echo "pid $P elapsed ${E:-gone} s: $(ps -o args= -p "$P")"
-while [ -n "$E" ] && [ "$E" -lt 1200 ]; do sleep 2; E=$(ps -o etimes= -p "$P" | tr -d ' '); done
-if [ -n "$E" ]; then kill "$P"; echo "stopped pid $P at $E s (20-minute run cap)"; else echo "pid $P finished before the cap"; fi
-date '+%F %T'
-```
-
-**w_results.jsonl** (SHA-256 270f2042b09f6c58d2d4c9610dc08eb02235dc8f6fa32316291cd86b50454d79), the raw result lines,
-one per completed run in run order:
-
-```
-{"tag": "W1", "kind": "rord", "rounds": 6, "n": 34, "ncos": 1, "messages": 17179869184, "b": 6, "passes": 64, "widths": [36, 40, 44, 48, 52, 56, 60, 64], "kept": [17179869184, 17179869184, 17179869184, 17179869184, 17179869184, 17179869184], "pairs": {"L0": [2147434141, 134208200, 8387828, 523286, 32513, 1969, 110, 7], "L1": [2147535368, 134227743, 8384488, 524498, 32909, 1937, 131, 5], "L2": [2147495205, 134220252, 8389761, 524389, 32941, 1974, 141, 8], "L3": [2147463719, 134227938, 8391034, 525849, 32880, 2036, 137, 6], "X01": [2147561746, 134240843, 8389303, 525102, 32929, 1991, 138, 7], "X23": [2147437452, 134216325, 8391241, 523784, 32786, 2017, 122, 12]}, "overflow": false, "seconds": 246.6, "cuda": "no error"}
-{"tag": "W2", "kind": "rord", "rounds": 6, "n": 24, "ncos": 1024, "messages": 17179869184, "b": 6, "passes": 64, "widths": [36, 40, 44, 48, 52, 56, 60, 64], "kept": [17179869184, 17179869184, 17179869184, 17179869184, 17179869184, 17179869184], "pairs": {"L0": [2147391126, 134219152, 8388132, 524335, 32757, 2027, 120, 5], "L1": [2147519764, 134236548, 8391176, 524695, 32747, 2115, 127, 6], "L2": [2147400372, 134206586, 8387739, 524340, 32629, 2052, 128, 7], "L3": [2147533470, 134234197, 8391670, 523136, 32866, 2067, 139, 14], "X01": [2147511997, 134222584, 8391874, 525322, 33026, 2037, 128, 3], "X23": [2147338230, 134207618, 8389594, 523780, 33084, 2012, 129, 14]}, "overflow": false, "seconds": 429.1, "cuda": "no error"}
-{"tag": "W3", "kind": "ctrl", "rounds": 6, "n": 34, "ncos": 1, "messages": 17179869184, "b": 6, "passes": 64, "widths": [36, 40, 44, 48, 52, 56, 60, 64], "kept": [17179869184, 17179869184, 17179869184, 17179869184, 17179869184, 17179869184], "pairs": {"L0": [2147450433, 134215578, 8387195, 524255, 33139, 2095, 133, 7], "L1": [2147539278, 134216888, 8390532, 525375, 32548, 2066, 130, 10], "L2": [2147473446, 134230335, 8395803, 524576, 32680, 2047, 111, 9], "L3": [2147419567, 134212722, 8387285, 525100, 32433, 2062, 138, 11], "X01": [2147434882, 134219744, 8389355, 525588, 32910, 2055, 119, 6], "X23": [2147458088, 134209328, 8387741, 523796, 32443, 1929, 107, 5]}, "overflow": false, "seconds": 234.0, "cuda": "no error"}
-{"tag": "W4", "kind": "rord", "rounds": 5, "n": 34, "ncos": 1, "messages": 17179869184, "b": 6, "passes": 64, "widths": [36, 40, 44, 48, 52, 56, 60, 64], "kept": [17179869184, 17179869184, 17179869184, 17179869184, 17179869184, 17179869184], "pairs": {"L0": [2147509921, 134218375, 8391319, 524512, 32672, 1999, 127, 10], "L1": [2147478047, 134228182, 8392201, 524727, 32675, 2035, 128, 11], "L2": [2147484523, 134213465, 8392227, 524137, 32769, 2040, 135, 5], "L3": [2147421184, 134217090, 8393502, 524849, 32774, 2056, 122, 4], "X01": [2147423629, 134219174, 8389791, 523909, 33178, 2060, 139, 10], "X23": [2147420853, 134209010, 8383468, 524025, 32696, 2062, 125, 5]}, "overflow": false, "seconds": 253.2, "cuda": "no error"}
-{"tag": "W5", "kind": "rord", "rounds": 5, "n": 24, "ncos": 1024, "messages": 17179869184, "b": 6, "passes": 64, "widths": [36, 40, 44, 48, 52, 56, 60, 64], "kept": [17179869184, 17179869184, 17179869184, 17179869184, 17179869184, 17179869184], "pairs": {"L0": [2147455537, 134203112, 8389161, 525678, 32644, 2068, 143, 14], "L1": [2147472522, 134209194, 8388726, 525060, 32796, 2059, 122, 12], "L2": [2147463007, 134215142, 8389302, 524310, 32658, 2023, 141, 13], "L3": [2147515738, 134206629, 8390098, 524860, 32929, 2011, 125, 8], "X01": [2147542449, 134227319, 8388920, 523836, 32594, 2063, 150, 10], "X23": [2147490038, 134230469, 8391239, 524649, 32779, 2050, 138, 11]}, "overflow": false, "seconds": 325.3, "cuda": "no error"}
-```
-
-**w_analysis.txt** (output of hw.py analyze w_results.jsonl): the observed count and its z for every run, projection
-and width. The file's SHA-256 is 2f102e94f4dfa00a2accc8d005621f1e33c5d92fac6b54e86dec40866ec8fdff; it begins with a
-UTF-8 byte-order mark and ends its lines in CR LF, so it is shown without the mark and with LF line ends (SHA-256 of
-the text below: 16ef971004d5d0aad25f07d24f339269b58f30c383e605ae9d65ad55384d83e9). The Stouffer lines at the end are exploratory and outside the preregistered rule.
-
-```
-## W1 (rord) rounds=6 n=34 ncos=1 N=2^34 b=6 246.6 s  kept_ok=True  overflow=False
-| width | expected | L0 | L1 | L2 | L3 | X01 | X23 |
-|---|---|---|---|---|---|---|---|
-| 36 | 2147483647.88 | 2147434141 (-1.07) | 2147535368 (+1.12) | 2147495205 (+0.25) | 2147463719 (-0.43) | 2147561746 (+1.69) | 2147437452 (-1.00) |
-| 40 | 134217727.99 | 134208200 (-0.82) | 134227743 (+0.86) | 134220252 (+0.22) | 134227938 (+0.88) | 134240843 (+2.00) | 134216325 (-0.12) |
-| 44 | 8388608.00 | 8387828 (-0.27) | 8384488 (-1.42) | 8389761 (+0.40) | 8391034 (+0.84) | 8389303 (+0.24) | 8391241 (+0.91) |
-| 48 | 524288.00 | 523286 (-1.38) | 524498 (+0.29) | 524389 (+0.14) | 525849 (+2.16) | 525102 (+1.12) | 523784 (-0.70) |
-| 52 | 32768.00 | 32513 (-1.41) | 32909 (+0.78) | 32941 (+0.96) | 32880 (+0.62) | 32929 (+0.89) | 32786 (+0.10) |
-| 56 | 2048.00 | 1969 (-1.75) | 1937 (-2.45) | 1974 (-1.64) | 2036 (-0.27) | 1991 (-1.26) | 2017 (-0.69) |
-| 60 | 128.00 | 110 (-1.59) | 131 (+0.27) | 141 (+1.15) | 137 (+0.80) | 138 (+0.88) | 122 (-0.53) |
-| 64 | 8.00 | 7 (-0.35) | 5 (-1.06) | 8 (+0.00) | 6 (-0.71) | 7 (-0.35) | 12 (+1.41) |
-
-## W2 (rord) rounds=6 n=24 ncos=1024 N=2^34 b=6 429.1 s  kept_ok=True  overflow=False
-| width | expected | L0 | L1 | L2 | L3 | X01 | X23 |
-|---|---|---|---|---|---|---|---|
-| 36 | 2147483647.88 | 2147391126 (-2.00) | 2147519764 (+0.78) | 2147400372 (-1.80) | 2147533470 (+1.08) | 2147511997 (+0.61) | 2147338230 (-3.14) |
-| 40 | 134217727.99 | 134219152 (+0.12) | 134236548 (+1.62) | 134206586 (-0.96) | 134234197 (+1.42) | 134222584 (+0.42) | 134207618 (-0.87) |
-| 44 | 8388608.00 | 8388132 (-0.16) | 8391176 (+0.89) | 8387739 (-0.30) | 8391670 (+1.06) | 8391874 (+1.13) | 8389594 (+0.34) |
-| 48 | 524288.00 | 524335 (+0.06) | 524695 (+0.56) | 524340 (+0.07) | 523136 (-1.59) | 525322 (+1.43) | 523780 (-0.70) |
-| 52 | 32768.00 | 32757 (-0.06) | 32747 (-0.12) | 32629 (-0.77) | 32866 (+0.54) | 33026 (+1.43) | 33084 (+1.75) |
-| 56 | 2048.00 | 2027 (-0.46) | 2115 (+1.48) | 2052 (+0.09) | 2067 (+0.42) | 2037 (-0.24) | 2012 (-0.80) |
-| 60 | 128.00 | 120 (-0.71) | 127 (-0.09) | 128 (+0.00) | 139 (+0.97) | 128 (+0.00) | 129 (+0.09) |
-| 64 | 8.00 | 5 (-1.06) | 6 (-0.71) | 7 (-0.35) | 14 (+2.12) | 3 (-1.77) | 14 (+2.12) |
-
-## W3 (ctrl) rounds=6 n=34 ncos=1 N=2^34 b=6 234.0 s  kept_ok=True  overflow=False
-| width | expected | L0 | L1 | L2 | L3 | X01 | X23 |
-|---|---|---|---|---|---|---|---|
-| 36 | 2147483647.88 | 2147450433 (-0.72) | 2147539278 (+1.20) | 2147473446 (-0.22) | 2147419567 (-1.38) | 2147434882 (-1.05) | 2147458088 (-0.55) |
-| 40 | 134217727.99 | 134215578 (-0.19) | 134216888 (-0.07) | 134230335 (+1.09) | 134212722 (-0.43) | 134219744 (+0.17) | 134209328 (-0.73) |
-| 44 | 8388608.00 | 8387195 (-0.49) | 8390532 (+0.66) | 8395803 (+2.48) | 8387285 (-0.46) | 8389355 (+0.26) | 8387741 (-0.30) |
-| 48 | 524288.00 | 524255 (-0.05) | 525375 (+1.50) | 524576 (+0.40) | 525100 (+1.12) | 525588 (+1.80) | 523796 (-0.68) |
-| 52 | 32768.00 | 33139 (+2.05) | 32548 (-1.22) | 32680 (-0.49) | 32433 (-1.85) | 32910 (+0.78) | 32443 (-1.80) |
-| 56 | 2048.00 | 2095 (+1.04) | 2066 (+0.40) | 2047 (-0.02) | 2062 (+0.31) | 2055 (+0.15) | 1929 (-2.63) |
-| 60 | 128.00 | 133 (+0.44) | 130 (+0.18) | 111 (-1.50) | 138 (+0.88) | 119 (-0.80) | 107 (-1.86) |
-| 64 | 8.00 | 7 (-0.35) | 10 (+0.71) | 9 (+0.35) | 11 (+1.06) | 6 (-0.71) | 5 (-1.06) |
-
-## W4 (rord) rounds=5 n=34 ncos=1 N=2^34 b=6 253.2 s  kept_ok=True  overflow=False
-| width | expected | L0 | L1 | L2 | L3 | X01 | X23 |
-|---|---|---|---|---|---|---|---|
-| 36 | 2147483647.88 | 2147509921 (+0.57) | 2147478047 (-0.12) | 2147484523 (+0.02) | 2147421184 (-1.35) | 2147423629 (-1.30) | 2147420853 (-1.36) |
-| 40 | 134217727.99 | 134218375 (+0.06) | 134228182 (+0.90) | 134213465 (-0.37) | 134217090 (-0.06) | 134219174 (+0.12) | 134209010 (-0.75) |
-| 44 | 8388608.00 | 8391319 (+0.94) | 8392201 (+1.24) | 8392227 (+1.25) | 8393502 (+1.69) | 8389791 (+0.41) | 8383468 (-1.77) |
-| 48 | 524288.00 | 524512 (+0.31) | 524727 (+0.61) | 524137 (-0.21) | 524849 (+0.77) | 523909 (-0.52) | 524025 (-0.36) |
-| 52 | 32768.00 | 32672 (-0.53) | 32675 (-0.51) | 32769 (+0.01) | 32774 (+0.03) | 33178 (+2.26) | 32696 (-0.40) |
-| 56 | 2048.00 | 1999 (-1.08) | 2035 (-0.29) | 2040 (-0.18) | 2056 (+0.18) | 2060 (+0.27) | 2062 (+0.31) |
-| 60 | 128.00 | 127 (-0.09) | 128 (+0.00) | 135 (+0.62) | 122 (-0.53) | 139 (+0.97) | 125 (-0.27) |
-| 64 | 8.00 | 10 (+0.71) | 11 (+1.06) | 5 (-1.06) | 4 (-1.41) | 10 (+0.71) | 5 (-1.06) |
-
-## W5 (rord) rounds=5 n=24 ncos=1024 N=2^34 b=6 325.3 s  kept_ok=True  overflow=False
-| width | expected | L0 | L1 | L2 | L3 | X01 | X23 |
-|---|---|---|---|---|---|---|---|
-| 36 | 2147483647.88 | 2147455537 (-0.61) | 2147472522 (-0.24) | 2147463007 (-0.45) | 2147515738 (+0.69) | 2147542449 (+1.27) | 2147490038 (+0.14) |
-| 40 | 134217727.99 | 134203112 (-1.26) | 134209194 (-0.74) | 134215142 (-0.22) | 134206629 (-0.96) | 134227319 (+0.83) | 134230469 (+1.10) |
-| 44 | 8388608.00 | 8389161 (+0.19) | 8388726 (+0.04) | 8389302 (+0.24) | 8390098 (+0.51) | 8388920 (+0.11) | 8391239 (+0.91) |
-| 48 | 524288.00 | 525678 (+1.92) | 525060 (+1.07) | 524310 (+0.03) | 524860 (+0.79) | 523836 (-0.62) | 524649 (+0.50) |
-| 52 | 32768.00 | 32644 (-0.69) | 32796 (+0.15) | 32658 (-0.61) | 32929 (+0.89) | 32594 (-0.96) | 32779 (+0.06) |
-| 56 | 2048.00 | 2068 (+0.44) | 2059 (+0.24) | 2023 (-0.55) | 2011 (-0.82) | 2063 (+0.33) | 2050 (+0.04) |
-| 60 | 128.00 | 143 (+1.33) | 122 (-0.53) | 141 (+1.15) | 125 (-0.27) | 150 (+1.94) | 138 (+0.88) |
-| 64 | 8.00 | 14 (+2.12) | 12 (+1.41) | 13 (+1.77) | 8 (+0.00) | 10 (+0.71) | 11 (+1.06) |
-
-counts: 240; lowest z -3.14 (W2 X23 K=36); highest z +2.48 (W3 L2 K=44)
-field counts: 192; lowest z -3.14 (W2 X23 K=36); highest z +2.26 (W4 X01 K=52); |z|>4: 0
-runs: 5; invalid runs: none
-exploratory Stouffer z over L0..L3 per width (field runs | control runs):
-  K=36: -0.89 (m=16) | -0.56 (m=4)
-  K=40: +0.18 (m=16) | +0.20 (m=4)
-  K=44: +1.78 (m=16) | +1.10 (m=4)
-  K=48: +1.40 (m=16) | +1.49 (m=4)
-  K=52: -0.18 (m=16) | -0.75 (m=4)
-  K=56: -1.66 (m=16) | +0.86 (m=4)
-  K=60: +0.62 (m=16) | +0.00 (m=4)
-  K=64: +0.62 (m=16) | +0.88 (m=4)
-VERDICT: PASS
-```
-
-### A.6 GPU digest checks on the run inputs
-
-gpu_validate_s6g.py (below) re-runs the checks of A.4 on the input files of the count runs, after all count runs:
-for each file the GPU binary dumps 512 digests (hcw also its six projection keys) at the stated message indices, and
-each is compared with the organizer reference verifier/keccak.py sha3_256(message, rounds=R) of the same message.
-File times show that the hcoset binary checked here was built on 2026-10-10 at 01:55:12, 8 seconds after the last
-change of the hcoset.cu of A.2 and before batch R5 (01:55:56), after batches 1 to 3 had run (2026-10-09 23:40 to
-2026-10-10 00:37); the build that ran batches 1 to 3 was not kept, and its checks are those of A.4. The hcw binary
-(built at 02:24:57) is the one that ran batch W (02:27 to 03:12). The printout, verbatim:
-
-```
-GPU digest re-validation, 2026-10-10 06:02 (local clock); organizer reference verifier/keccak.py sha256 95ce77dff0476301c05057e01296f3e3507c4926423257540cfc3e5fd36ee0ae
-hcoset binary sha256 911096f0a08566ff21513f445506a9c175fe9fbc544f84c46d79f5fabd75c3b3, hcoset.cu sha256 28c40823a37afd1d22fb487b5ab77622c2036e5bc6763a330d83d1a9f66069f8
-hcw binary sha256 514d71d742d92afcfce353bc9330cc50cf2430c87d5ddd03aee38a5d187d77bb, hcw.cu sha256 ef34e1357728c086abd7aa90fde9d8964acbd4f1b32b610c4dd1d0e974add032
-batch 1  hcoset rounds=6 in_field_1001.bin (n=20, 1024 cosets, sha256 ae25659fe1787dd6): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 1  hcoset rounds=6 in_ctrl_1001.bin (n=20, 1024 cosets, sha256 d4ce2391e9a900de): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 1  hcoset rounds=6 in_field_1002.bin (n=24, 64 cosets, sha256 02b3e135c0b50faf): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 1  hcoset rounds=6 in_ctrl_1002.bin (n=24, 64 cosets, sha256 48709b11f389be48): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 2  hcoset rounds=6 in_field_2001.bin (n=20, 1024 cosets, sha256 469aeb54fcb3097c): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 2  hcoset rounds=6 in_ctrl_2001.bin (n=20, 1024 cosets, sha256 4d257597424bc506): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 2  hcoset rounds=6 in_field_2002.bin (n=28, 4 cosets, sha256 8d624daa72be49a1): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 2  hcoset rounds=6 in_ctrl_2002.bin (n=28, 4 cosets, sha256 fd191b6dca98502f): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 3  hcoset rounds=6 in_det_3001.bin (n=20, 1024 cosets, sha256 a80bc01f218d0615): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 3  hcoset rounds=6 in_det_3002.bin (n=24, 64 cosets, sha256 fb0b86df4f169ba9): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch R5 hcoset rounds=5 in_det_4001.bin (n=20, 1024 cosets, sha256 a80bc01f218d0615): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=5)
-batch R5 hcoset rounds=5 in_det_4002.bin (n=24, 64 cosets, sha256 fb0b86df4f169ba9): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=5)
-batch R5 hcoset rounds=5 in_field_4003.bin (n=20, 1024 cosets, sha256 873ecab65c578fef): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=5)
-batch R5 hcoset rounds=5 in_ctrl_4003.bin (n=20, 1024 cosets, sha256 8917acd85ef6d2eb): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=5)
-batch W  hcw rounds=6 W1 in_rord_5101.bin (n=34, 1 cosets, sha256 461e3cd2f1813046): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6); 512/512 GPU keys equal the six projections of the organizer digests
-batch W  hcw rounds=6 W1 in_rord_5101.bin (n=34, 1 cosets, sha256 461e3cd2f1813046): messages 8589946937..8589947448: 512/512 GPU digests equal organizer sha3_256(rounds=6); 512/512 GPU keys equal the six projections of the organizer digests
-batch W  hcw rounds=6 W2 in_rord_5102.bin (n=24, 1024 cosets, sha256 c516ca6aec7a9e47): messages 16777216777..16777217288: 512/512 GPU digests equal organizer sha3_256(rounds=6); 512/512 GPU keys equal the six projections of the organizer digests
-batch W  hcw rounds=6 W3 in_ctrl_5103.bin (n=34, 1 cosets, sha256 b3614685b0fc3638): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6); 512/512 GPU keys equal the six projections of the organizer digests
-batch W  hcw rounds=5 W4 in_rord_5104.bin (n=34, 1 cosets, sha256 56366cd3bd2973f1): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=5); 512/512 GPU keys equal the six projections of the organizer digests
-batch W  hcw rounds=5 W4 in_rord_5104.bin (n=34, 1 cosets, sha256 56366cd3bd2973f1): messages 8589946937..8589947448: 512/512 GPU digests equal organizer sha3_256(rounds=5); 512/512 GPU keys equal the six projections of the organizer digests
-batch W  hcw rounds=5 W5 in_rord_5105.bin (n=24, 1024 cosets, sha256 dc30ac34bec88ab9): messages 16777216777..16777217288: 512/512 GPU digests equal organizer sha3_256(rounds=5); 512/512 GPU keys equal the six projections of the organizer digests
-total: 10752/10752 digests equal
-```
-
-**gpu_validate_s6g.py** (SHA-256 f8713e1771b1777a7e8cd435b63730ed26b02370345389d1a612a68d33783512):
-
-```python
-"""Dev tool (not shipped): re-run the GPU-versus-organizer digest checks of the H_coset batches on the exact input files
-of the count runs, and print the lines that proof.md Appendix A.6 keeps verbatim. Read-only on the inputs, the GPU
-binaries and the live organizer checkout; the GPU dumps go to a fresh temporary directory that is removed after.
-For each input file: the GPU binary dumps 512 digests (hcw: also the six projection keys) at the given message index
-base, and each is compared with the organizer reference verifier/keccak.py sha3_256(message, rounds=R) of the same
-message, built from the file's origins and directions exactly as the drivers hc.py and hw.py build it.
-Run in WSL: python3 -B gpu_validate_s6g.py"""
-import sys, os, struct, hashlib, subprocess, tempfile, shutil, datetime, importlib.util
-
-sys.dont_write_bytecode = True
-KEC = '/root/hashsmash/yukon/hashsmash_S6/verifier/keccak.py'
-spec = importlib.util.spec_from_file_location('okec', KEC)
-okec = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(okec)
-HC_DIR = '/mnt/d/~~Projects/~HashSmash/workspace/research/sha3r6/hcoset'
-W_DIR = '/mnt/d/~~Projects/~HashSmash/workspace/research/lanes/lane-hcoset-wide'
-HC_BIN, W_BIN = '/root/hcoset_bin/hcoset', W_DIR + '/hcw'
-MASK, M = (1 << 64) - 1, 512
-
-
-def sha(p):
-    return hashlib.sha256(open(p, 'rb').read()).hexdigest()
-
-
-def load(path, n, ncos):  # ncos * 5 u64 origins, then n * 5 u64 directions, little-endian
-    raw = open(path, 'rb').read()
-    assert len(raw) == 8 * 5 * (ncos + n), path
-    w = struct.unpack(f'<{5 * (ncos + n)}Q', raw)
-    v = [sum(w[5 * k + j] << 64 * j for j in range(5)) for k in range(ncos + n)]
-    return v[:ncos], v[ncos:]
-
-
-def msg(starts, d, n, idx):   # as hc.py / hw.py msg(): coset idx >> n, point = XOR of directions at the set bits
-    c, p = idx >> n, idx & ((1 << n) - 1)
-    m = starts[c]
-    for j in range(n):
-        if p >> j & 1:
-            m ^= d[j]
-    L = [0] * 25
-    for k in range(5):
-        L[k] = (m >> (64 * k)) & MASK
-        L[10 + k] = L[k]
-    L[16] = 0x86 << 56
-    return b''.join(x.to_bytes(8, 'little') for x in L[:17])[:135]
-
-
-def brev(x):
-    return int(f'{x:064b}'[::-1], 2)
-
-
-def spread(x):
-    o = 0
-    for m in range(32):
-        o |= ((x >> m) & 1) << (2 * m)
-    return o
-
-
-def pykeys(lanes):        # as hw.py pykeys(): L0..L3 bit-reversed lanes, X01 and X23 interleaved halves
-    r = [brev(v) for v in lanes]
-    return r + [(spread(r[0] >> 32) << 1) | spread(r[1] >> 32), (spread(r[2] >> 32) << 1) | spread(r[3] >> 32)]
-
-
-def gpu(binary, rounds, *args):
-    subprocess.run(['env', f'HC_ROUNDS={rounds}', binary, *map(str, args)], check=True, stdout=subprocess.DEVNULL)
-
-
-tmp = tempfile.mkdtemp(prefix='s6g-gpuval-')
-try:
-    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
-    print(f'GPU digest re-validation, {now} (local clock); organizer reference verifier/keccak.py sha256 {sha(KEC)}')
-    print(f'hcoset binary sha256 {sha(HC_BIN)}, hcoset.cu sha256 {sha(HC_DIR + "/hcoset.cu")}')
-    print(f'hcw binary sha256 {sha(W_BIN)}, hcw.cu sha256 {sha(W_DIR + "/hcw.cu")}')
-    tot_ok = tot = 0
-    for tag, rounds, f, n, ncos in (('batch 1', 6, 'in_field_1001.bin', 20, 1024), ('batch 1', 6, 'in_ctrl_1001.bin', 20, 1024),
-                                    ('batch 1', 6, 'in_field_1002.bin', 24, 64), ('batch 1', 6, 'in_ctrl_1002.bin', 24, 64),
-                                    ('batch 2', 6, 'in_field_2001.bin', 20, 1024), ('batch 2', 6, 'in_ctrl_2001.bin', 20, 1024),
-                                    ('batch 2', 6, 'in_field_2002.bin', 28, 4), ('batch 2', 6, 'in_ctrl_2002.bin', 28, 4),
-                                    ('batch 3', 6, 'in_det_3001.bin', 20, 1024), ('batch 3', 6, 'in_det_3002.bin', 24, 64),
-                                    ('batch R5', 5, 'in_det_4001.bin', 20, 1024), ('batch R5', 5, 'in_det_4002.bin', 24, 64),
-                                    ('batch R5', 5, 'in_field_4003.bin', 20, 1024), ('batch R5', 5, 'in_ctrl_4003.bin', 20, 1024)):
-        p = f'{HC_DIR}/{f}'
-        starts, d = load(p, n, ncos)
-        out = f'{tmp}/dump.bin'
-        gpu(HC_BIN, rounds, 'dump', p, n, ncos, M, out)
-        raw = open(out, 'rb').read()
-        ok = sum(raw[32 * i:32 * i + 32] == okec.sha3_256(msg(starts, d, n, i), rounds=rounds) for i in range(M))
-        os.unlink(out)
-        tot_ok, tot = tot_ok + ok, tot + M
-        print(f'{tag:8s} hcoset rounds={rounds} {f} (n={n}, {ncos} cosets, sha256 {sha(p)[:16]}): messages 0..{M - 1}: '
-              f'{ok}/{M} GPU digests equal organizer sha3_256(rounds={rounds})')
-    for tag, rounds, f, n, ncos, base in (('W1', 6, 'in_rord_5101.bin', 34, 1, 0), ('W1', 6, 'in_rord_5101.bin', 34, 1, (1 << 33) + 12345),
-                                          ('W2', 6, 'in_rord_5102.bin', 24, 1024, 1000 * (1 << 24) + 777),
-                                          ('W3', 6, 'in_ctrl_5103.bin', 34, 1, 0),
-                                          ('W4', 5, 'in_rord_5104.bin', 34, 1, 0), ('W4', 5, 'in_rord_5104.bin', 34, 1, (1 << 33) + 12345),
-                                          ('W5', 5, 'in_rord_5105.bin', 24, 1024, 1000 * (1 << 24) + 777)):
-        p = f'{W_DIR}/{f}'
-        starts, d = load(p, n, ncos)
-        od, ok_ = f'{tmp}/dump.bin', f'{tmp}/keys.bin'
-        gpu(W_BIN, rounds, 'dump', p, n, ncos, M, od, base)
-        gpu(W_BIN, rounds, 'keys', p, n, ncos, M, ok_, base)
-        rd, rk = open(od, 'rb').read(), open(ok_, 'rb').read()
-        okd = okk = 0
-        for i in range(M):
-            ref = okec.sha3_256(msg(starts, d, n, base + i), rounds=rounds)
-            okd += rd[32 * i:32 * i + 32] == ref
-            lanes = [int.from_bytes(ref[8 * k:8 * k + 8], 'little') for k in range(4)]
-            okk += list(struct.unpack('<6Q', rk[48 * i:48 * i + 48])) == pykeys(lanes)
-        os.unlink(od)
-        os.unlink(ok_)
-        tot_ok, tot = tot_ok + okd, tot + M
-        print(f'batch W  hcw rounds={rounds} {tag} {f} (n={n}, {ncos} cosets, sha256 {sha(p)[:16]}): messages {base}..{base + M - 1}: '
-              f'{okd}/{M} GPU digests equal organizer sha3_256(rounds={rounds}); {okk}/{M} GPU keys equal the six projections '
-              f'of the organizer digests')
-    print(f'total: {tot_ok}/{tot} digests equal')
-finally:
-    shutil.rmtree(tmp)
+static const u64 PD_LS1[4]={0xbc67dc6bab8bcb17ULL,0x3820000300821020ULL,0x2220094600040088ULL,0x422009c4d01014c0ULL};
+static u64 PD_NEW[4]; static int pdloaded=0;
+static void loadpd(void){ FILE *f=fopen("meta.txt","r"); char line[512]; unsigned long long a,b,c,d;
+  while(fgets(line,sizeof line,f)) if(sscanf(line,"pd %llx %llx %llx %llx",&a,&b,&c,&d)==4){PD_NEW[0]=a;PD_NEW[1]=b;PD_NEW[2]=c;PD_NEW[3]=d;pdloaded=1;}
+  fclose(f); if(!pdloaded) exit(5); }
+static void fixpd(void){ if(!pdloaded) loadpd();
+  for(int j=0;j<256;j++) if(((PD_LS1[j>>6]^PD_NEW[j>>6])>>(j&63))&1) for(int k=0;k<4;k++) R[j].w[k]=~R[j].w[k]; }
+static void run_prog(void){ run_prog0(); fixpd(); }
+static u64 sm;
+static u64 rnd(void){ u64 z=(sm+=0x9E3779B97F4A7C15ULL); z=(z^(z>>30))*0xBF58476D1CE4E5B9ULL; z=(z^(z>>27))*0x94D049BB133111EBULL; return z^(z>>31); }
+/* set lane t (0..255) of the 256 input planes to point u[4] */
+static void set_point(int t,const u64 u[4]){ for(int j=0;j<256;j++){ u64 bit=(u[j>>6]>>(j&63))&1; u64 m=1ULL<<(t&63); R[j].w[t>>6]=(R[j].w[t>>6]&~m)|(bit<<(t&63)); } }
+static void get_point(int t,u64 o[4]){ o[0]=o[1]=o[2]=o[3]=0; for(int j=0;j<256;j++) o[j>>6]|=((R[j].w[t>>6]>>(t&63))&1)<<(j&63); }
+static uint32_t window(int t,int lo){ uint32_t v=0; for(int j=0;j<32;j++) v|=(uint32_t)((R[lo+j].w[t>>6]>>(t&63))&1)<<j; return v; }
+static int cmpu(const void*a,const void*b){ uint32_t x=*(const uint32_t*)a,y=*(const uint32_t*)b; return x<y?-1:x>y; }
+static double pairs(uint32_t *k,long M){ qsort(k,M,4,cmpu); double p=0; long i=0; while(i<M){ long j=i; while(j<M&&k[j]==k[i]) j++; double c=j-i; p+=c*(c-1)/2; i=j; } return p; }
+/* proj_test: the proj-w256 trial at scale: NT trials of 256 random points and 8 chained full-width steps each;
+   a trial succeeds when two of its 2,048 evaluated inputs have images agreeing on the 22 low bits. */
+int main(int argc,char**argv){
+  sm= argc>1? strtoull(argv[1],0,0) : 0x9e1f;
+  long NT= argc>2? atol(argv[2]) : 16384;
+  load();
+  static uint32_t key[2048]; long succ=0;
+  for(long tr=0;tr<NT;tr++){
+    for(int j=0;j<256;j++) for(int k=0;k<4;k++) R[j].w[k]=rnd();
+    for(int s=0;s<8;s++){ run_prog(); for(int t=0;t<256;t++){ uint32_t v=0; for(int j=0;j<22;j++) v|=(uint32_t)((R[j].w[t>>6]>>(t&63))&1)<<j; key[s*256+t]=v; } }
+    qsort(key,2048,4,cmpu); int hit=0; for(int i=1;i<2048;i++) if(key[i]==key[i-1]){ hit=1; break; }
+    succ+=hit;
+  }
+  double p=0.39337; /* 1-prod_{i<2048}(1-i/2^22) */
+  printf("proj at scale: %ld trials, %ld successes = %.4f; model %.4f; z %.2f\n",NT,succ,(double)succ/NT,p,(succ-NT*p)/sqrt(NT*p*(1-p)));
+  return 0;
+}
 ```
