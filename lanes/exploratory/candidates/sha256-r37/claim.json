@@ -4,21 +4,37 @@
   "target_profile": "sha256-r37-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 37,
+  "lane": "exploratory",
   "claim": {
-    "time_log2": 132,
+    "time_log2": 130.36,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 125,
+    "memory_log2_bytes": 16,
+    "preprocessing_log2": 0,
     "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Samples exactly 2^128 independent uniformly random 48-byte complete messages with replacement; each hashes to the full 256-bit output from the standard fixed IV using one padded 37-round compression.",
-    "Classical 256-bit probabilistic word RAM under collision-frontier-v5, C=2644; no random-oracle, output-balance, PRNG or differential heuristic.",
-    "Worst-case total work and peak memory upper bounds; no witness, executed full search, novelty, nominal-reference improvement or qualification is asserted."
+    "Generic memoryless Pollard-rho (Floyd) on f(x)=H(enc32(x)), H the complete sha256-r37-prefix-v1 hash (rounds 0..36 on every padded block), enc32 the 32-byte big-endian-compatible byte string of a 256-bit word; each evaluation is one padded block and one 37-round compression.",
+    "Distinct 32-byte messages; full 256-bit digests agree.",
+    "At most 5*2^128 compressions plus <=80 word ops per compression at 1/2644 each: T < 2^130.36.",
+    "Memory < 2^16 bytes. No tables, preprocessing or advice.",
+    "Success >= 0.3934 - 2^-128 under heuristic H_random (random-mapping first-repeat distribution)."
   ],
   "baseline_improved": "sha256-r37-nominal-v2",
+  "heuristics": [
+    {
+      "id": "H_random",
+      "role": "score-critical",
+      "statement": "Let x0 be uniform random and x_{i+1}=f(x_i). Let L be the number of distinct values before the first repeat. Assume Pr[L<=2^128] >= 1-exp(-(1-2^-128)/2) and Pr[mu=0 and L<=2^128] <= 2^-128 as for a uniform random mapping. Then success >= 0.3934 - 2^-128 > 0.39 (proof.md).",
+      "scope": "One trajectory of the full-width map f on 2^256 points from a fresh uniform start, complete 37-round SHA-256 on 32-byte messages.",
+      "extrapolation": "Organizer experiment rho-reduced runs the same Floyd algorithm on the 16-bit truncation of f; organizer checks digest bits 0..15 agree on returned distinct messages. Extrapolated to 256 bits. 37-round SHA-256 has no published practical full-message collision at birthday cost that would make the first-repeat distribution of f substantially worse than random; a deviation that shortens rho would help, not hurt, the attack.",
+      "evidence_ids": [
+        "proof:1-50",
+        "experiment:rho-reduced"
+      ],
+      "limitations": "Assumption, not proved for 37-round SHA-256. Experiment is 16-bit only; no 256-bit witness. Generic attack."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  "experiment_manifest": "experiments/manifest.json"
 }

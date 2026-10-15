@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "rho-reduced",
+      "kind": "python-message-pairs-v1",
+      "scope": "Floyd on the 16-bit truncation of f for sha256-r37 on 32-byte messages, from the trial seed's low 16 bits. Table of 2^16 truncations is built once per process.",
+      "hypothesis": "Under a random mapping almost every trial returns distinct messages agreeing on digest bits 0..15; mean evaluations ~800.",
+      "program": "experiments/rho_reduced.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffff000000000000000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
