@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-# a0lean38.py - sha256-r38, the A0-variant attack of ePrint 2026/1120 priced for a program that fits in about one mebibyte.
-# Class schedule (90 classes, 7 plane programs, operand order, W7 loop): Grok (xAI).  Own code (no program of another participant is executed; the numeric tables of the characteristic are data from earlier transcriptions,
-# credited in proof.md Section 2).  Standard library only.
-# Contents: (1) the reference construction and the A0-variant family of the published dense part S, (2) a plane-program builder with a
-# 64-register allocator that counts every load, store and spill, (3) the bit-sliced E16x filter, (4) a counting machine and the online
-# program, (5) the organizer experiments (stdin JSON -> stdout JSON), (6) `selftest`, `calibrate` and `ledger`.
-import sys, json, hashlib, struct, math, random, zlib, base64
+# a0lean38.py - sha256-r38, the A0-variant attack of ePrint 2026/1120 with the characteristic P8 of dariolina's 1a695f0b (data, credited) and
+# one counted plane program per batch.  Own code (no program of another participant is executed; P8's cells, pair and row-19 conditions are data
+# read from the public proof of 1a695f0b, credited in proof.md Section 2).  Standard library only.
+# Contents: (1) the reference construction and the A0-variant family of P8's dense part S, (2) a plane-program builder with a 64-register
+# allocator that counts every load, store and spill, (3) the bit-sliced E16x filter, (4) a counting machine and the online program, (5) the
+# organizer experiments (stdin JSON -> stdout JSON), (6) `selftest`, `calibrate` and `ledger`.
+import sys, json, hashlib, struct, math, random
 from fractions import Fraction
 
 # ---------------------------------------------------------------- (1) reference
@@ -37,57 +37,76 @@ def compress(cv, w16, n=NR):
     f = [A[n-1], A[n-2], A[n-3], A[n-4], E[n-1], E[n-2], E[n-3], E[n-4]]
     return [(cv[i] + f[i]) & M for i in range(8)]
 
-# ePrint 2026/1120 Tables 3-5 (member x = the message printed second).  CELLS[kind][row] = (mask, x-value, x^y difference); kinds A, E, W.
-# PQ[i]: bits where E_i = E_{i-1} (the '+' pairs).  X2: two-bit conditions (kind1, row1, bit1, equal, kind2, row2, bit2, keyed row).
-PCV = [0xcd278980, 0x1b12a052, 0xb87cc8a6, 0xa9e059c5, 0xc9c3db85, 0x6ca4b5b5, 0x63d13ac1, 0xc0329f1e]
-PMX = [0x48fc271b, 0x9fca20cd, 0xcc89f96f, 0xfc40396f, 0x8b328cb4, 0x6b91ef78, 0x97f9b767, 0xc2450045, 0x3f416758, 0xfe9804cb, 0x63a88c0f,
-       0x0ceb1f8d, 0xa28cd15a, 0x77a1e994, 0xd28e48a0, 0x9f1f65bb]
-PMY = [0x48fc271b, 0x9fca20cd, 0xcc89f96f, 0xfc40396f, 0x8b328cb4, 0x6b91ef78, 0x97f9b767, 0xe2450045, 0x3b016f58, 0xde9804cb, 0x66a99ea5,
-       0x0ce30b8d, 0xa28cd15a, 0x77a1e994, 0xd28e48a0, 0x9b5f6dbb]
-_CH = [{7: (1610612736, 536870912, 1610612736, 0), 8: (4261904, 16, 4261904, 0), 11: (2060, 2056, 2060, 0), 12: (1142965762, 1073758720, 1142965762, 0), 13: (536936448, 0, 536936448, 0), 14: (134414480, 134217872, 134414480, 0), 15: (41975808, 8388608, 41975808, 0), 17: (536870912, 536870912, 536870912, 0)}, {5: (0, 0, 0, 3758096384), 6: (138678416, 134480016, 0, 3758622720), 7: (3939897499, 3804237825, 3758096384, 67635200), 8: (3957292027, 2299865209, 139204752, 67108864), 9: (4278190015, 3329275675, 76546059, 0), 10: (1040153503, 683879063, 4261888, 0), 11: (3187670975, 2163392958, 536899588, 64), 12: (4261412799, 1570574870, 1008926725, 64), 13: (4293918591, 901856013, 67450, 128), 14: (2086891391, 537027697, 134283264, 4224), 15: (1246957562, 1242762074, 2176, 4096), 16: (1279466112, 1208156800, 1078071808, 262160), 17: (1086462592, 2048, 0, 17072144), 18: (1086722608, 4330000, 262160, 16809984), 19: (830770738, 805569584, 25198592, 0), 20: (562331664, 537133072, 0, 0), 21: (562072576, 553682944, 536870912, 0), 22: (536870912, 0, 0, 0), 23: (536870912, 536870912, 0, 0)}, {7: (536870912, 0, 536870912, 0), 8: (71305216, 71303168, 71305216, 0), 9: (536870912, 536870912, 536870912, 0), 10: (83956394, 16777226, 83956394, 0), 11: (529408, 529408, 529408, 0), 15: (71305216, 67108864, 71305216, 0), 16: (536870912, 536870912, 536870912, 0), 23: (92446720, 92446720, 25198592, 0), 25: (536870912, 0, 536870912, 0)}]
-CELLS = [[(0, 0, 0, 0)] * NR for _ in range(3)]
-for _k in range(3):
-    for _i, _c in _CH[_k].items(): CELLS[_k][_i] = _c
-PQ = [0, 0, 0, 0, 0, 0, 3758096384, 526336, 67108864, 0, 0, 0, 64, 0, 128, 4096, 0, 262160, 16809984, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-X2 = [(0, 14, 15, 1, 0, 16, 15, 16), (0, 14, 23, 1, 0, 16, 23, 16), (0, 14, 25, 1, 0, 16, 25, 16), (0, 15, 4, 1, 0, 16, 4, 16), (0, 15, 7, 1, 0, 16, 7, 16), (0, 15, 16, 0, 0, 16, 16, 16), (0, 15, 17, 1, 0, 16, 17, 16), (0, 15, 27, 1, 0, 16, 27, 16), (0, 15, 29, 1, 0, 16, 29, 16), (0, 16, 15, 1, 0, 17, 15, 17), (0, 16, 23, 1, 0, 17, 23, 17), (0, 16, 25, 1, 0, 17, 25, 17), (0, 17, 9, 1, 0, 17, 20, 17), (0, 17, 6, 1, 0, 17, 18, 17), (0, 17, 8, 1, 0, 17, 17, 17), (0, 16, 29, 1, 0, 18, 29, 18), (0, 18, 29, 1, 0, 19, 29, 19), (1, 16, 4, 0, 1, 16, 23, 16), (1, 16, 3, 0, 1, 16, 8, 16), (1, 16, 14, 1, 1, 16, 28, 16), (1, 16, 4, 1, 1, 17, 4, 17), (1, 16, 18, 1, 1, 17, 18, 17), (1, 18, 0, 0, 1, 18, 13, 18), (1, 17, 15, 1, 1, 18, 15, 18), (1, 17, 24, 1, 1, 18, 24, 18), (1, 19, 6, 0, 1, 19, 19, 19), (1, 19, 20, 1, 1, 19, 2, 19), (1, 21, 2, 1, 1, 21, 16, 21), (2, 7, 8, 0, 2, 7, 25, 7), (2, 7, 14, 0, 2, 7, 18, 7), (2, 7, 1, 1, 2, 7, 12, 7), (2, 8, 0, 0, 2, 8, 28, 8), (2, 8, 30, 0, 2, 8, 9, 8), (2, 8, 1, 1, 2, 8, 18, 8), (2, 16, 1, 0, 2, 16, 12, 16), (2, 16, 20, 0, 2, 16, 27, 16), (2, 16, 8, 1, 2, 16, 25, 16), (2, 16, 14, 1, 2, 16, 18, 16), (2, 16, 4, 0, 2, 16, 6, 16), (2, 16, 22, 0, 2, 16, 31, 16), (2, 23, 0, 0, 2, 23, 30, 23), (2, 23, 1, 0, 2, 23, 31, 23), (2, 23, 14, 1, 2, 23, 21, 23), (2, 23, 16, 1, 2, 23, 25, 23), (2, 25, 4, 1, 2, 25, 6, 25), (2, 25, 22, 1, 2, 25, 31, 25), (2, 25, 20, 1, 2, 25, 27, 25)]
+# P8 (proof.md Section 3; 1a695f0b Section 3.1 and Appendix C, our transcription).  Member x = M, member y = M'.  Rows 7..22 of A, E, W, MSB
+# first: n = (x, y) = (0, 1), u = (1, 0), 0/1 fixed and equal, = equal, + equal to the same bit of the + directly above or below.  Row 19 is
+# given on its signed differences only (the accepted event).  CELLS[kind][row] = (mask, x-value, x^y); PQ[i]: bits with E_i = E_{i-1}.
+PCV = [0x95a24959, 0xb4053f95, 0x1bf0473e, 0x1eab3b7c, 0x650c63d3, 0xe6493d3b, 0xed004f1d, 0xeb7eaad3]
+PMX = [0xbd047e95, 0x1dc94891, 0x4bbe458b, 0xc7dc3c0a, 0x8b6235e1, 0x9d7630ee, 0x569da3a0, 0x94ddb1c2, 0x464e545d, 0xa804c932, 0xacecbe75,
+       0xc8280172, 0x9a4d6768, 0x16139532, 0xe00d6a99, 0x5fb2827b]
+PMY = [0xbd047e95, 0x1dc94891, 0x4bbe458b, 0xc7dc3c0a, 0x8b6235e1, 0x9d7630ee, 0x569da3a0, 0xb4ddb1c2, 0x420e5c5d, 0x8804c932, 0xa9edacdf,
+       0xc8200d72, 0x9a4d6768, 0x16139532, 0xe00d6a99, 0x5bf28a7b]
+_ROWS = """=nu============================= uuu============================= ==n=============================
+=========n=====n====n======n==== ==n=u====n==nu=====nu===u==n==== =====u===u==========n===========
+================================ ======nn===n================n=nn ==u=============================
+===============n===========u==== =u=============n===========u==== =====u=n=======n===u==u=n=u=n=n=
+====n===============n========u== ==n==n==u=====un================ ============u=======nn==========
+==u====u==u==========uu=======u= =nu=u==n==n=====u=n=nn=========u ================================
+==n============================= =========n============n=nuu==uu= ================================
+====n=========n=========n==n==== ====u=========n================= ================================
+======n=u======un=============== ====================n===u======= =====u===n==========n===========
+================================ =u==1====n===+u====u0=u=0==+==== ==u=============================
+==u============================= =0=====++0===+0=+==01=0=0==+==== ================================
+================================ =0=====++1===n1=+==1==1====n==== ================================
+================================ ==+====nn=======u=============== ================================
+================================ ==+====00====1==0==========1==== ================================
+================================ ==u====10=======1=============== ================================
+================================ ==0============================= ================================""".split('\n')
+CELLS = [[(0, 0, 0)] * NR for _ in range(3)]; PQ = [0] * NR; _PL = {}
+for _r, _l in enumerate(_ROWS):
+    for _k, _s in enumerate(_l.split()):
+        m = v = x = p = 0
+        for _j, _c in enumerate(_s):
+            b = 1 << (31 - _j); m |= b * (_c in 'un01'); v |= b * (_c in 'u1'); x |= b * (_c in 'un'); p |= b * (_c == '+')
+        CELLS[_k][_r + 7] = (m, v, x); _PL[_r + 7] = _PL.get(_r + 7, 0) | p
+for _i in _PL: PQ[_i] = _PL[_i] & _PL.get(_i - 1, 0)
+# two-bit conditions of rows 16..21 (kind1, row1, bit1, equal, kind2, row2, bit2, keyed row = the larger row)
+X2 = []
+for _t in ('E16 7 = E16 26,E16 14 ! E16 28,A15 4 = A16 4,E16 11 = E16 16,A15 7 = A16 7,A14 15 = A16 15,A14 16 = A16 16,A15 17 = A16 17,'
+           'A14 23 = A16 23,A14 25 = A16 25,A15 27 = A16 27,E16 3 ! E16 8,E16 4 = E16 23,W16 20 ! W16 27,W16 22 = W16 31,W16 4 ! W16 6,'
+           'A15 29 = A16 29,W16 14 = W16 18,W16 8 = W16 25,W16 1 ! W16 12,A17 9 ! A17 20,A16 15 = A17 15,A17 6 = A17 18,A16 16 ! A17 16,'
+           'A16 23 = A17 23,A16 25 = A17 25,A17 8 ! A17 17,E18 0 = E18 13,E18 17 = E18 22,E18 5 ! E18 23,A16 29 = A18 29,E18 9 = E18 23,'
+           'E21 10 = E21 15,E21 11 = E21 24,E21 2 = E21 16').split(','):
+    _a, _b, _e, _c, _d = _t.split()
+    X2.append(('AEW'.index(_a[0]), int(_a[1:]), int(_b), int(_e == '='), 'AEW'.index(_c[0]), int(_c[1:]), int(_d), max(int(_a[1:]), int(_c[1:]))))
 def cellok(k, i, x, y):
-    m, v, df = CELLS[k][i][:3]
+    m, v, df = CELLS[k][i]
     return (x & m) == v and (x ^ y) == df
-P19 = (0x00040832, 0x10000010, 0x20000c12, 0x30040430); M19 = 0x30040e32; B29 = 1 << 29
-def ecell(i, Ex, Ey):
-    """E cell of row i in the accepted event: row 19 takes any of the four patterns P19 on the bits M19, row 20 the tie E20[29] = E19[29]
-    in place of its value bit 29; every other value bit and every XOR difference as printed."""
-    m, v, d = CELLS[1][i][:3]
-    t = (Ex[19] & M19) in P19 if i == 19 else not (Ex[20] ^ Ex[19]) & B29 if i == 20 else True
-    m &= ~(M19 if i == 19 else B29 if i == 20 else 0)
-    return t and (Ex[i] & m) == (v & m) and (Ex[i] ^ Ey[i]) == d
 def exact(tx, ty): return all(tx[k][i] == ty[k][i] for k in (0, 1) for i in range(34, 38))
 def rowok(tx, ty, i):
-    """Row i of both traces in the accepted event: cells of A, E (ecell), W (not the W cells of rows 7..10), '+' pair, two-bit conditions keyed at i."""
+    """Row i of both traces in the accepted event: cells of A, E, W (not the W cells of rows 7 and 8, replaced by F7 and G), '+' pair,
+    two-bit conditions keyed at i."""
     if i < 0: return True
     (Ax, Ex, Wx), (Ay, Ey, Wy) = tx, ty
-    if not (cellok(0, i, Ax[i], Ay[i]) and ecell(i, Ex, Ey)): return False
-    if (i < 7 or i > 10) and not cellok(2, i, Wx[i], Wy[i]): return False
+    if not (cellok(0, i, Ax[i], Ay[i]) and cellok(1, i, Ex[i], Ey[i])): return False
+    if i not in (7, 8) and not cellok(2, i, Wx[i], Wy[i]): return False
     if (Ex[i] ^ Ex[i-1]) & PQ[i]: return False
     for (k1, i1, b1, eq, k2, i2, b2, row) in X2:
         if row == i and (((tx[k1][i1] >> b1) ^ (tx[k2][i2] >> b2)) & 1) != (0 if eq else 1): return False
     return True
 _tx = trace(PCV, PMX); _ty = trace(PCV, PMY)
-SAx = [_tx[0][i] for i in range(14)]; SAy = [_ty[0][i] for i in range(14)]
-SE = {i: _tx[1][i] for i in range(4, 14)}
+SAx = [_tx[0][i] for i in range(16)]; SAy = [_ty[0][i] for i in range(16)]
+SE = {i: _tx[1][i] for i in range(4, 16)}
 D7, T7 = 0x20000000, 0x03bff800                 # W7y = W7x + D7; the exact filter F7 (no W6 filter at 38 steps)
 def inF7(w): return ((s0((w + D7) & M) - s0(w)) & M) == T7
 
 # ---- the A0-variants of S: replace A0 by a0 in both members ----
 C4 = (SAx[4] - S0(SAx[3]) - MAJ(SAx[3], SAx[2], SAx[1])) & M          # E4 = a0 + C4
 W8C = (SE[8] - SAx[4] - S1(SE[7]) - CH(SE[7], SE[6], SE[5]) - K[8]) & M   # W8x = W8C - E4
-D8 = (PMY[8] - PMX[8]) & M
+D8 = (PMY[8] - PMX[8]) & M; T8 = (s0(PMY[8]) - s0(PMX[8])) & M          # fbc00800, fe808000
 def in_G(a0):
-    w = (W8C - ((a0 + C4) & M)) & M; y = (w + D8) & M
-    m, v, df = CELLS[2][8][:3]
-    if (w & m) != v or (w ^ y) != df: return False
-    b = lambda k: (w >> k) & 1
-    return b(0) != b(28) and b(30) != b(9) and b(1) == b(18)
+    """a0 is a valid variant iff s0(W8y) - s0(W8x) is S's (W8 reaches rows >= 16 only through W23 and W24)."""
+    w = (W8C - ((a0 + C4) & M)) & M
+    return ((s0((w + D8) & M) - s0(w)) & M) == T8
 def c7of(a0):
     """W7x = c7 - A_{-1}."""
     e4 = (a0 + C4) & M
@@ -102,24 +121,30 @@ def words_from_cv(cv, a0):
         for i in range(14): E[i] = (A[i] + A[i-4] - S0(A[i-1]) - MAJ(A[i-1], A[i-2], A[i-3])) & M
         out.append([(E[i] - A[i-4] - E[i-4] - S1(E[i-1]) - CH(E[i-1], E[i-2], E[i-3]) - K[i]) & M for i in range(14)])
     return out
-# the 90 classes (advice): lines `c7 base mask-low-16-bits program`, sorted by c7; a class = {base ^ s : s subset of mask, in_G, c7of == c7}, 3840 members each.
-# The 64 smallest c7 are the classes of the earlier filing; the 26 others are the remaining size-3840 classes whose shape lies inside its three shapes. `program` (0..6) is the plane program that evaluates the class.
-_CT = zlib.decompress(base64.b64decode('eNpd1N1xhDAMReH3VLElyCwoUA4Cu/8SYn7OxLqv+WZzB8ScvS1rrWf7mO/FSvHPMp/lM//sN9QvMGVo/GK6frGVT3mgGb+YJoFfoAoEsGfY3g1b+sbSx/2F/QtMAr9AFQhgzxBs+Psc0wsHGz4JsOFVgA3fM/B2Td5u4+2avN1W2ShVgI2yZ+Aelu/RjHtYvkcHNvI9OrCR7nH0j6FcsPSPYX7Gv8ACmMAJrAma8a+m+dkwgH81mcAGHAJsTGuG/d2wZX5uvgALYAIbcAicwJrhYMPn4eYXsOEmwIYfAmz4moHXbvLaG6/d5LW3ykY5BNjI9+g3ZyPfowMb+R4d2Mj36MDGeA8nMiGRcSITEhknMiGRcSITEhknMiGRcSITEhknMiGRcSITEhknMiGRcSITEhknMiGRcSITEhknMiGRcSITEhknMiGRcSITEhknMiGRcSITEhknMiGRcSLT/275Hm9kbqgCAYz3IDJl7t/08LU7kbnBBE5gTfBE5oLxo3Yic4MJbMAhwEb6qIlMB7MhMk5kbjCBDTgETmDNcLAxRsaJzA0mwMYYGScyN6wZ6vgc40us43MkGJ8jwfgc//BG5oJ8jzcyN5gAG/keb2Ru4B5/WsYVUg==')).decode().split('\n')
-CLASSES = [(int(a, 16), int(b, 16), int('91eb' + m, 16)) for a, b, m, g in map(str.split, _CT)]
-GRP = [int(l.split()[3]) for l in _CT]
-def class_members(c7, base, mask):
-    out, s = [], 0
-    while True:
-        a = base ^ s
-        if in_G(a) and c7of(a) == c7: out.append(a)
-        s = (s - mask) & mask
-        if s == 0: break
-    return sorted(out)
-# row 16: E16x = C16 + W0 + s0(W1); its exact pass set (32 words, additive: R16B + any subset sum of R16F) and the ten cell bits
+# The 8 classes (advice): (c7, base); a class = {base ^ s : s subset of MASK, in_G, c7of == c7}, 24,576 members each (exhaustive pass,
+# Appendix A.1).  Each class is the product LANES x G1 x G3 over the constant bits of its base: 7 free bits and the pair (bit 10, bit 11) in
+# {01, 10} (the 256 lanes of a batch), bits 5..4 in G1, bits 30..21 in G3 (96 batches; batch b = (G1[b % 3], G3[b // 3])).
+MASK = 0x7fe96c7c
+CLASSES = [(0x2a7beb1b, 0x9b649791), (0x2a7bfb1b, 0x9b648791), (0x2a7feb1b, 0x9b609793), (0x2a7ffb1b, 0x9b608793),
+           (0xaa7beb1b, 0x1b649791), (0xaa7bfb1b, 0x1b648791), (0xaa7feb1b, 0x1b609793), (0xaa7ffb1b, 0x1b608793)]
+LB = (11, 2, 3, 6, 13, 14, 16, 19)               # lane bit k -> bit LB[k] of a0; bit 10 of a0 = NOT bit 11
+G1 = (0x10, 0x20, 0x30)
+G3 = [int(t, 16) << 20 for t in '1b6 1b8 236 238 240 246 248 24e 250 256 258 260 266 268 26e 270 3b6 3b8 436 438 440 446 448 44e 450 456 458 460 466 468 46e 470'.split()]
+NB = 96
+def bconst(ci, b): return (CLASSES[ci][1] & ~MASK & M) | G1[b % 3] | G3[b // 3]
+def lane_a0(c, L):
+    a = c | (0x800 if L & 1 else 0x400)
+    for k in range(1, 8): a |= ((L >> k) & 1) << LB[k]
+    return a
+def class_members(ci): return [lane_a0(bconst(ci, b), L) for b in range(NB) for L in range(256)]
+# row 16: E16x = C16 + W0 + s0(W1); its exact pass set R16W (160 words: the 20 heads R16H, any value of the bits 0, 2, 10)
 _A, _E = _tx[0], _tx[1]
 C16 = (_A[12] + _E[12] + S1(_E[15]) + CH(_E[15], _E[14], _E[13]) + K[16] + s1(PMX[14]) + PMX[9]) & M
-R16B, R16F = 0x481b02f9, 0x82405
-def r16ok(e): return ((e - R16B) & M & ~R16F) == 0
+R16H = [int(t, 16) for t in ('4b02d320 7b1ab320 7b22b320 7b3ab320 c802f320 c80ad320 c80af320 c812d320 c822f320 c82ad320 c82af320 c832d320 '
+                             'cb12f320 cb1ad320 cb1af320 cb22d320 cb32f320 cb3ad320 cb3af320 fb02b320').split()]
+R16F = 0x405
+R16W = sorted(h | (t & 1) | (t & 2) << 1 | (t & 4) << 8 for h in R16H for t in range(8))
+def r16ok(e): return (e & ~R16F & M) in R16H
 EM, EV = CELLS[1][16][0], CELLS[1][16][1]
 def e16x_ref(cv, a0):
     wx = words_from_cv(cv, a0)[0]
@@ -132,7 +157,6 @@ def e16x(cv, a0):
     E1 = (SAx[1] + c - S0(a0) - MAJ(a0, a, b)) & M
     W1 = (E1 - c - g - S1(E0) - CH(E0, e, f) - K[1]) & M
     return (C16 + W0 + s0(W1)) & M
-
 # ---------------------------------------------------------------- (2) plane programs: builder, register allocator, interpreter
 ONES = (1 << 256) - 1
 REGS = 64
@@ -260,30 +284,23 @@ def run_prog(instrs, inputs, planes):
     return R
 
 # ---------------------------------------------------------------- (3) the bit-sliced prefilter of E16x
-# Lane L of every plane is variant a0 = (member L).  Per first block the broadcast planes (all-zero or all-one words) of the scalars
-# HH = d - S0(a) - MAJ(a,b,c), PP = a & b, QQ = a | b, EF = e ^ f, FF = f, K1 = A1(S) - g - K1c and KP = C16 + W0 - a0 are loaded.
-#   E0 = a0 + HH;  W1 = K1 - S0(a0) - MAJ(a0,a,b) - S1(E0) - CH(E0,e,f);  E16x = KP + a0 + s0(W1)   (all mod 2^32)
-# and the lane passes iff E16x agrees with the row-16 set on the TBITS (the ten cell bits and TX further bits that the 32 words share).
-def _r16words():
-    fb = [1, 4, 0x400, 0x2000, 0x80000]
-    return sorted((R16B + sum(f for k, f in enumerate(fb) if (t >> k) & 1)) & M for t in range(32))
-R16W = _r16words()
+# Lane L of every plane is the variant a0 = lane_a0(c, L) of the batch constant c.  Per first block the broadcast planes (all-zero or all-one
+# words) of the scalars HH = d - S0(a) - MAJ(a,b,c), PP = a & b, QQ = a | b, EF = e ^ f, FF = f, K1 = A1(S) - g - K1c and KP = C16 + W0 - a0 are
+# loaded.   E0 = a0 + HH;  W1 = K1 - S0(a0) - MAJ(a0,a,b) - S1(E0) - CH(E0,e,f);  E16x = KP + a0 + s0(W1)   (all mod 2^32)
+# and the lane passes iff E16x agrees with the row-16 set on the TBITS (the TK lowest bits that the 160 words share).
 _inv = M
 for _w in R16W: _inv &= ~(_w ^ R16W[0]) & M
-TK = 12                                          # tested bits: the TK lowest bits that the 32 words share (the ledger scan, Section 11, picks TK)
+TK = 8                                           # tested bits: bits 1, 3..9 (the ledger scan, Section 11, picks TK)
 TBITS = [j for j in range(32) if (_inv >> j) & 1][:TK]
 TVAL = R16W[0]
 PERM = (1, 3, 2, 0)                              # order of the operands SA, MAJ, S1, CH in the carry-save layers (a scan of all 24 orders)
-def build_e16(mask, base, shared=0):
-    """The program for a class shape: bits of a0 in `mask` are batch planes, bits in `shared` are per-class inputs C<j>, the rest is the
-    constant `base`.  One pass over the bit positions j = 0..31 computes S1, CH, MAJ, SA of bit j, the three carry-save layers and the
+def build_e16(c):
+    """The program of one batch: the 8 lane bits of a0 are the global lane planes P:A<j> (bit 10 = NOT bit 11), every other bit is the
+    constant c of the batch.  One pass over the bit positions j = 0..31 computes S1, CH, MAJ, SA of bit j, the three carry-save layers and the
     ripple step of W1; then the E16x sum is formed up to the highest tested bit."""
-    P = Prog(); one = P.const(1); zero = P.const(0); nt = P.notv
-    A = []
-    for j in range(32):
-        if (mask >> j) & 1: A.append(P.inp('P:A%d' % j))
-        elif (shared >> j) & 1: A.append(P.inp('P:C%d' % j))
-        else: A.append(P.const((base >> j) & 1))
+    P = Prog(); one = P.const(1); nt = P.notv
+    A = [P.inp('P:A%d' % j) if j in LB else P.const((c >> j) & 1) for j in range(32)]
+    A[10] = nt(A[11])
     bc = lambda nm: [P.inp('%s%d' % (nm, j)) for j in range(32)]
     HH, EF, FF, K1, KP, PPi, QQi = (bc(n) for n in ('HH', 'EF', 'FF', 'K1', 'KP', 'PP', 'QQ'))
     E0 = P.add(A, HH)
@@ -303,30 +320,26 @@ def build_e16(mask, base, shared=0):
         if j < 31: cw = P.xor(s3[j], P.and_(t, P.xor(s3[j], cw)))
     zero = P.const(0)
     s0w = [P.xor(P.xor(W1[(j+7) % 32], W1[(j+18) % 32]), W1[j+3] if j + 3 < 32 else zero) for j in range(32)]
-    s, c = P.csa(KP, A, s0w)
-    E16 = P.add(s, c, need=set(TBITS))
+    s, cr = P.csa(KP, A, s0w)
+    E16 = P.add(s, cr, need=set(TBITS))
     ok = None
     for j in TBITS:
         t = P.xor(E16[j], P.const(1 - ((TVAL >> j) & 1)))
         ok = t if ok is None else P.and_(ok, t)
     return P, ok
 _PROG = {}
-def shape_of(g):
-    """Shared constant positions of plane program g: the positions outside the mask where its classes differ."""
-    cls = [c for c, h in zip(CLASSES, GRP) if h == g]; mask = cls[0][2]
-    sh = 0
-    for c in cls: sh |= (c[1] ^ cls[0][1]) & ~mask & M
-    return sh, cls[0][1] & ~mask & ~sh & M
-def program(g):
-    if g not in _PROG:
-        sh, cb = shape_of(g); P, ok = build_e16(CLASSES[GRP.index(g)][2], cb, sh); ins, res = P.schedule([ok]); _PROG[g] = (ins, res[0], sh)
-    return _PROG[g]
-
+def program(ci, b):
+    """The instruction list of batch b of class ci (generated once; Section 9.2).  The Python cache keeps the lists of one class only."""
+    if _PROG and next(iter(_PROG))[0] != ci: _PROG.clear()
+    if (ci, b) not in _PROG:
+        P, ok = build_e16(bconst(ci, b)); ins, res = P.schedule([ok]); _PROG[(ci, b)] = (ins, res[0])
+    return _PROG[(ci, b)]
+LPL = {'P:A%d' % j: sum(((L >> k) & 1) << L for L in range(256)) for k, j in enumerate(LB)}   # the 8 lane planes (the same for every batch)
 # ---------------------------------------------------------------- (4) the counting machine and the online program
 # 256-bit word RAM.  Cost 1 per executed load, store, add, sub, and, or, xor, not, shift, rotate-free primitive, immediate load, random
 # word; 2 per compare-and-branch; one target compression (f38) is 1 unit.  Immediates and shift amounts are instruction fields.  A
 # 32-bit value lives in the low bits of a word and is masked by one AND where the program needs it exact.  Straight-line plane programs
-# are charged their instruction count (Section 2: every load, store and spill included, 64 registers).
+# are charged their instruction count (Section 9.2: every load, store and spill included, 64 registers).
 class Mach:
     def __init__(s, rnd=None): s.ops = 0; s.units = 0; s.mem = {}; s.rnd = rnd
     def li(s, v): s.ops += 1; return v
@@ -397,17 +410,6 @@ def planes_of(m, name, x):
         v = x if j == 0 else m.shr(x, j)
         if j < 31: v = m.and_(v, 1)
         m.st(name + str(j), m.sub(0, v) & ONES)
-class ClassData:
-    """Planes of the 15 batches of a class (bit L of 'P:A<j>' of batch b = bit j of member 256 b + L) and its shared-constant words."""
-    def __init__(s, ci):
-        c7, base, mask = CLASSES[ci]; s.ci = ci; s.members = class_members(c7, base, mask)
-        assert len(s.members) == 3840
-        s.batches = []
-        for b in range(15):
-            mem = s.members[256 * b:256 * b + 256]
-            s.batches.append({'P:A%d' % j: sum(((x >> j) & 1) << k for k, x in enumerate(mem)) for j in range(32) if (mask >> j) & 1})
-        s.sh = shape_of(GRP[ci])[0]; s.cw = {'P:C%d' % j: (ONES if (base >> j) & 1 else 0) for j in range(32) if (s.sh >> j) & 1}
-        s.mask = mask; s.base = base
 def first_lane(m, ok):
     """Index of the lowest set lane of the 256-bit word ok (chunk scan, then binary search)."""
     q = 0
@@ -421,18 +423,14 @@ def first_lane(m, ok):
         x = m.shr(lb, k); m.br()
         if x: lb = x; pos = m.add(pos, k)
     return m.add(pos, 32 * q) if q else pos
-def lane_value(m, cd, b, ell):
-    """a0 of lane ell of batch b from the stored planes (conditional shifts by 128, 64, ..., 1, then the bit of each plane)."""
-    mask = cd.mask; js = [j for j in range(32) if (mask >> j) & 1]
-    xs = [m.ld(('plane', cd.ci, b, j)) for j in js]
-    for k in range(8):
-        m.br()
-        if (ell >> k) & 1: xs = [m.shr(x, 1 << k) for x in xs]
-    acc = None
-    for j, x in zip(js, xs):
-        bit = m.and_(x, 1); bit = m.shl(bit, j) if j else bit
-        acc = bit if acc is None else m.or_(acc, bit)
-    return m.or_(acc, cd.base & ~mask & M)                  # the constant bits of the class are an immediate
+LT = [lane_a0(0, L) for L in range(256)]          # the lane offsets (static table of 256 words)
+def static(m):
+    """The static tables of the online program (precomputed once): the row-16 heads and the lane offsets."""
+    for j in range(32): m.mem[('r16', j)] = R16T[j]
+    for L in range(256): m.mem[('lt', L)] = LT[L]
+def lane_value(m, c, ell):
+    """a0 of lane ell of the batch with constant c: the lane offset from the table, OR the batch constant (an immediate of the batch's code)."""
+    return m.or_(m.ld(('lt', ell)), c)
 def scalar_e16(m, fb, a0):
     """E16x of the variant a0 from the per-first-block scalars (the Step-2 equations; 38 operations)."""
     e0 = m.and_(m.add(a0, fb['HH']), M)
@@ -440,30 +438,24 @@ def scalar_e16(m, fb, a0):
     t = m.add(t, sg(m, e0, 'S1')); t = m.add(t, m.xor(fb['FF'], m.and_(e0, fb['EF'])))
     w1 = m.and_(m.sub(fb['K1'], t), M)
     return m.and_(m.add(m.add(fb['KP'], a0), sg(m, w1, 's0')), M)
+R16T = R16H + [M] * 12                           # the table of the 20 heads, padded to 32 words
 def row16_pass(m, e):
-    m.br()
-    return m.and_(m.sub(e, R16B), M & ~R16F) == 0
-
+    """E16x in the 160-word set: h = E16x with bits 0, 2, 10 cleared, then a fixed-length binary search of h in R16T (5 probes) and one
+    comparison (29 operations on every path)."""
+    h = m.and_(e, M & ~R16F); lo = 0
+    for st in (16, 8, 4, 2, 1):
+        j = m.add(lo, st); x = m.ld(('r16', j)); m.br(); m.ops += 1
+        if x <= h: lo = j
+    x = m.ld(('r16', lo)); m.br()
+    return x == h
 def row_check(m, i, tx, ty):
-    """The tests of row i (rows 16..21; rows 22..37 carry none, the exact event is tested after row 37): member x against the cells
-    (row 19: one AND, then one compare-and-branch per pattern of P19, the published one last; row 20: value bit 29 dropped, the tie
-    E20[29] = E19[29] by xor, and, branch), x ^ y against the differences, the '+' pair, the two-bit conditions."""
+    """The tests of row i (rows 16..21; rows 22..37 carry none, the outputs are compared after row 37): member x against the cells, x ^ y
+    against the differences, the '+' pair, the two-bit conditions."""
     if i >= 22: return True
     for k in range(3):
-        msk, val, df = CELLS[k][i][:3]
+        msk, val, df = CELLS[k][i]
         x, y = tx[k][i], ty[k][i]
-        if msk and k == 1 and i == 19:
-            t = m.and_(x, msk)
-            for p in sorted(P19, key=lambda q: q == val & M19):
-                m.br()
-                if t == (val & ~M19) | p: break
-            else: return False
-        elif msk and k == 1 and i == 20:
-            t = m.and_(x, msk & ~B29); m.br()
-            if t != val & ~B29: return False
-            t = m.and_(m.xor(x, tx[1][19]), B29); m.br()
-            if t: return False
-        elif msk:
+        if msk:
             t = m.and_(x, msk); m.br()
             if t != val: return False
         d = m.xor(x, y); m.br()
@@ -476,10 +468,9 @@ def row_check(m, i, tx, ty):
         v = m.and_(m.xor(m.shr(tx[k1][i1], b1), m.shr(tx[k2][i2], b2)), 1); m.br()
         if v != (0 if eq else 1): return False
     return True
-def majm(m, a, b, c): return m.or_(m.and_(a, b), m.and_(c, m.or_(a, b)))
 def step3b(m, cv, fb, a0):
     """Rows 16..37 of both members for a row-16 pass.  Step 2 (Lemma 4.1: E0..E4 and W0..W8 from the first-block scalars, the other state
-    words are the published ones), then the rows with an early abort at the first failing test.  Returns (tx, ty) iff all rows hold."""
+    words are those of S), then the rows with an early abort at the first failing test.  Returns (tx, ty) iff all rows hold."""
     a, b, c, d, e, f, g, h = cv
     A = {-1: a, -2: b, -3: c, -4: d, 0: a0}; E = {-1: e, -2: f, -3: g, -4: h}
     for i in range(1, 14): A[i] = SAx[i]
@@ -527,10 +518,6 @@ class Shake:
         v = int.from_bytes(s.buf[s.pos:s.pos + 32], 'little'); s.pos += 32; return v
     def below(s, n): return s.word() % n
     def u32(s): return s.word() & M
-_CD = {}
-def classdata(ci):
-    if ci not in _CD: _CD[ci] = ClassData(ci)
-    return _CD[ci]
 def unpack16(m, r0, r1):
     out = []
     for r in (r0, r1):
@@ -542,25 +529,23 @@ def pre_ok(cv, a0):
     """The scalar definition of the prefilter: E16x agrees with the row-16 set on the TBITS."""
     e = e16x(cv, a0)
     return all(((e ^ TVAL) >> j) & 1 == 0 for j in TBITS)
-def process_class(m, ci, cv, fb, st, check=True, vmax=None):
-    cd = classdata(ci); ins, res, sh = program(GRP[ci])
-    for b in range(15):
-        for name, w in cd.batches[b].items(): m.mem[('plane', ci, b, int(name[3:]))] = w
-    inputs = dict(fb['planes'])
+def process_class(m, ci, cv, fb, st, check=True, vmax=None, batches=NB):
+    """The 96 batches of class ci: per batch its straight-line program (the batch constant folded), then the passing lanes."""
+    inputs = fb['planes']
     m.li(0); m.li(0); m.li(0)                         # batch pointer, end pointer, class constants
-    for b in range(15):
-        m.ops += len(ins)                             # the straight-line program of the shape: every load, store and operation
-        R = run_prog(ins, inputs, {**cd.batches[b], **cd.cw}); ok = R[res]
+    for b in range(batches):
+        ins, res = program(ci, b); c = bconst(ci, b)
+        m.ops += len(ins)                             # the straight-line program of the batch: every load, store and operation
+        ok = run_prog(ins, inputs, LPL)[res]
         st.good += 256
         if check:
-            for k in range(256):
-                if pre_ok(cv, cd.members[256 * b + k]) != bool((ok >> k) & 1): st.lane_mism += 1
+            for k in range(256): st.lane_mism += pre_ok(cv, lane_a0(c, k)) != bool((ok >> k) & 1)
         m.br()
         x = ok
         while x:
             ell = first_lane(m, x)
-            a0 = lane_value(m, cd, b, ell)
-            if check and a0 != cd.members[256 * b + ell]: st.lane_mism += 1
+            a0 = lane_value(m, c, ell)
+            if check and a0 != lane_a0(c, ell): st.lane_mism += 1
             e = scalar_e16(m, fb, a0); st.pre += 1; m.ops += 1          # work counter update
             if row16_pass(m, e):
                 st.r16 += 1
@@ -571,15 +556,15 @@ def process_class(m, ci, cv, fb, st, check=True, vmax=None):
     m.ops += 4                                        # work counter update and cap test
     st.classes += 1
     if vmax is not None and m.ops - 35 * st.fb > vmax: st.halt = 1
-def process_fb(m, st, check=True, only_first=False, vmax=None):
-    """One first block: two random words, CV1, the 64 W7 tests, and, if a class passes, the per-first-block scalars, the broadcast planes
-    and the bit-sliced program on each passing class."""
+def process_fb(m, st, check=True, only_first=False, vmax=None, batches=NB):
+    """One first block: two random words, CV1, the 8 W7 tests, and, if a class passes, the per-first-block scalars, the broadcast planes
+    and the plane programs of each passing class."""
     r0 = m.rand(); r1 = m.rand()
     M0 = unpack16(m, r0, r1); cv = m.f38(M0); a = cv[0]
     m.ops += 3; st.fb += 1                            # first-block counter, cap compare and branch
     if vmax is not None and m.ops - 35 * st.fb + 2 > vmax: st.halt = 1; return cv, [], M0  # cap test on every block
     hits = []
-    for ci, (c7, base, mask) in enumerate(CLASSES):
+    for ci, (c7, base) in enumerate(CLASSES):
         m.ops += 4                                    # loop over the class table: load c7, advance the pointer, compare and branch (2)
         if w7test(m, c7, a): hits.append(ci); m.ops += 2        # append to the hit list
     m.br(); st.hits += len(hits)
@@ -590,23 +575,23 @@ def process_fb(m, st, check=True, only_first=False, vmax=None):
         for nm in ('HH', 'PP', 'QQ', 'EF', 'FF', 'K1', 'KP'):
             planes_of(m, nm, fb[nm])
         fb['planes'] = {k: v for k, v in m.mem.items() if isinstance(k, str)}
+        static(m)
         for ci in (hits[:1] if only_first else hits):
-            process_class(m, ci, cv, fb, st, check, vmax)
+            process_class(m, ci, cv, fb, st, check, vmax, batches)
             if st.halt: break
     return cv, hits, M0
 
 # ---------------------------------------------------------------- (5) organizer experiments
-VARIANTS = list(struct.unpack('<512I', zlib.decompress(base64.b64decode('eNoNlP9vU9cZh4/R9X3p2Lpz6bn3jFZrR0gcEr5kJCgQp5R7yXWy0Aau4RoUmKZ1X0TXTuKHTUXqNDp12zmbtrUbsHNYNdHaaWxs187i0ASbihBHdhqnNiTZ0trpyloK28pKu/5A1a1i8z/w6nnf9/N5kihiBPBl8RaOwSotZ5xxIiA8c+wb9m5+EM+KG05O/cAuUosMG7/AZcCmj/8ENcNxVFP/btYEUQrqd0hFjYaq/D17WNVRTO50w/RxJa4+iUfVa3aefpWk2LfxovgIF4G4e/geJcx+jArGxlCAT2sLcgQ30C94U7IJR6UIzvJTnrRaUfaDj3TziLKWnwgtsCErbpzVi7wtNEpdkuZHlSnK0AK7Zc/yFd5BII4PuoJFYyOJqQ16jU1oVfE2rsJnSoFNe7vobpKAbzmD/HkzDC/qaTUdWgufusPCsIN8M5ljKwJ+0JQR42duke0M+Om/SDPPhPL8SbQMHYGasY9Y8NvAJnjV3QTXlIj4Ohlmk/qo0aT45HP2Ltri8ckJbUE8TTbQPrJFHrFrxr1OSY2iZdVnZTjos+INEjbWoKjRHcyLK25RlXjKyGs11ohj6n9QPz9mtsg7ZgM/GwzwY8pu6eJeKKPLxjIZMvqDw+J+ZPEms0hXhWaNBssPu80gLLuWXKmn4VGUFh/beVbCY3zGzhn/tMuiAe8CiuMiilr5K6SZHsNV+UtSlj4zz7utuGjWsgJCLXK/kqEHyDwkQrPQHMzKVivB/qfMS9M7oi4qYWNSm6IPaTne4FlU3zOHYYWng6925xl3MsYe0gITnqTwBlJ0hXcdtGk1o2gtsGa3gV7EYXUJJ3jMyom7tD5p4xi74Ybhm24ZTrr98ozTBXG3KFZ7EuxtM89+RLplZyjBaTBrTHty4n6yDHfsGmS0RficNwIvOWn1Zn1up3eOCy3C8mhRLZOoQVBU/ZUdMaQ1a5zGfdznrcJ6dxNvxMOceqbleWdYnQwl5GqS5LozLJ5B7XDes5evMX103BNhF71J9rqbBl8gx3rJnDqANsuTVliur+dzCM0KGWqhJTsC13FBTOIpGg028CtuFKI4yHd4C/IpXGU38CBsUSrGlGfGWEKL3Occ4hdwQvY5GXpcibAH9Rg0BlLqBA6LJ5wtlOqL8rQ3Bh36FG0NRmCc5NjL3gLb7jTxi7ikNjoV9TNUYV9yomxcseAuPSCTAUtGg/38pjslryi98AnaQHPBODR6R+DVeg/70CH5AzNinDSr9FlcYjdJUv63zvtrMsKEvQ/+aDfxNmWOxty8vG6n6aNKr3wAV42IFlfvxXk4gg7TT5U22uAZZQ2hiPph/dYpp2IcMv3wAs6K9kA/H/es40OhEn3fqbGH8bKxOdTK07iHH1Gy4ixqg5XBAh9DPXKrUuRXlRKN2VW5UkuxHZ69NI5joor65FVSk7ie+X+YmyETbOW/QSnxQp35uNLNL6B18m59HWz07oWPnDL/GknxHm3ROOpkja0oxh/De2FEnxPX3bSQuJtuJ5chiIrGDIlQzR2QbdYC9QVa4XEly47hHroPjYFd986D+gjsx1njb04vf0Dpkp16O+z0dst/u3vkNjdDqZ2j6z2XeRQt8LeUEXXIqsoJd8qYtLL0lFlR31HKMuwU5HHFDxOBVnnLCbNtuCaqZET2eRdpUkvSTVZZJPRF9Skyz55FQ+xuq8aSoQV6AeWFX5kCVme6p54JEirwqOvnO60SfRONwPfrez1BeuQBdxQe0rtgyE3Q0+4Ab7AGwRMoy4NmydhrhuW5Op9fX8dvKXk1F5plB+w4fxrN0yWnHU5pRfV8vVePKNG6n+JGCfv5+2aOrdDH2AlzLX8XtcKQZ5pedRLiDN7Px5Ut/B0SFa+gipy0qmJSa5e3yC64aFn8HlQyvmunjYtoF/i1QfgdHpAvuz4gnmFG9Bne6VaZTir0IErQDk9NrPaOsT/hCttttsBhJW8Y5iDESZT2ehc4IxkYrPdpxp4XN8l+2al18DeUC+Jdc5Tfxmt5p55l99X/9LG5D+4js8ITSMmoZ4H/lGTrtzwEy2ZJnCMxXrAKxgdKUb6kN8GXUcV4xKnAc84gpUpGrg6OQi/KqC4qsw/rrtyhz4g3STM06gX1KumgwqrB1kBFNUMDfB+eZtutAdgU8MmHUdz4vDfKT1iRej6HRY93lCYDfrnGTcnf2xW6ZGbYWCgrn3Ez7Ciqya+EKqpfm4NCsLfeqw76upNSx7S8XBXKi786ZfEX3EzPBcrqTTQtb5Ac/9SN0kt1l19CFXhN8cE2q10mvaNyhiTkH7TN8oRZZX9WhqELzRiNnhmokKwa1dbyLwaDdI2Toj8nBfE8mlI/URbESbOddpE0vW1X1R/ae2DccxhmlHnjMTICS2iQ38H9/DWrCQw9x66Zs7TTauGXcB+ccEfVZCAul2w//x65TF8MDvD1TpHfdmqwQSvR/wMYgQsU'))))                          # 512 variants drawn once, uniformly, from the 245,760 selected ones (advice for the replica)
 C7SET = frozenset(c[0] for c in CLASSES)
 def variant_ok(a0): return in_G(a0) and c7of(a0) in C7SET
 def step_row(A, E, W, i):
     E[i] = (A[i-4] + E[i-4] + S1(E[i-1]) + CH(E[i-1], E[i-2], E[i-3]) + K[i] + W[i]) & M
     A[i] = (E[i] - A[i-4] + S0(A[i-1]) + MAJ(A[i-1], A[i-2], A[i-3])) & M
-DWT = [(_ty[2][i] - _tx[2][i]) & M for i in range(NR)]           # published modular differences of the words (member y minus member x)
+DWT = [(_ty[2][i] - _tx[2][i]) & M for i in range(NR)]           # modular differences of the pair's words (member y minus member x)
 def rebuild(Wx, a0, w8):
     """A tail success -> a real semi-free-start pair: W7..W0 by the inverse expansion (member x words W16..W23 and W8..W15), CV1 by
     inverting steps 7..0 of the variant a0.  Returns (cv, mx, my) iff the pair passes every check (equal outputs, m != m', Step 2 returns the
-    words, rows -4..21 of the accepted event except the W7 XOR cell, W7 in F7)."""
+    words, rows -4..21 of the accepted event, W7 in F7, a0 a selected variant)."""
     W = dict(Wx); W[8] = w8
     for i in range(9, 16): W[i] = PMX[i]
     W[7] = (W[23] - s1(W[21]) - W[16] - s0(W[8])) & M
@@ -618,131 +603,162 @@ def rebuild(Wx, a0, w8):
     cv = [Aa[-1], Aa[-2], Aa[-3], Aa[-4], Ea[-1], Ea[-2], Ea[-3], Ea[-4]]
     mx = [W[i] for i in range(16)]; my = list(mx)
     for i in range(7, 16): my[i] = (mx[i] + DWT[i]) & M
-    if mx == my or compress(cv, mx) != compress(cv, my) or not inF7(mx[7]): return None
+    if mx == my or compress(cv, mx) != compress(cv, my) or not inF7(mx[7]) or not variant_ok(a0): return None
     wx, wy = words_from_cv(cv, a0)
     if wx != mx[:14] or wy != my[:14]: return None
     tx, ty = trace(cv, mx), trace(cv, my)
-    if not all(rowok(tx, ty, i) for i in range(22)): return None
+    if not all(rowok(tx, ty, i) for i in range(-4, 22)): return None
     return cv, mx, my
-NP_R, CH_R, NT_R = 64, (32, 8, 2, 2, 2), 384
-SIG = [(int(a, 16), int(b)) for a, b in (x.split(':') for x in '3ff:63 177:14 357:9 377:7 367:7 167:7 1f7:5 3c7:5 347:5 3e5:4 3ed:4 1d7:4 3d7:4 1c7:3 157:3 3e7:3 3f7:3 147:2 355:2 345:2 3c5:2 1e7:1 3d5:1 3f5:1 365:1 375:1 165:1'.split())]
+def f7_draw(rng):
+    """W7 uniform on F7: one of its three affine families (2^28, 2^24, 2^21 words, Section 5.1) with probability by size, uniform inside."""
+    r = rng.below(287309824); w = [rng.u32()]
+    def put(k, v): w[0] = w[0] & ~(1 << k) | (v & 1) << k
+    b = lambda k: (w[0] >> k) & 1
+    put(29, r >= 1 << 28); put(14, b(18) ^ 1); put(8, b(25) ^ 1); put(1, b(12))
+    if r >= 1 << 28:
+        put(30, r >= 285212672); put(15, b(19) ^ 1); put(9, b(26) ^ 1); put(2, b(13))
+        if r >= 285212672: put(16, b(20) ^ b(31) ^ 1); put(10, b(27) ^ b(31) ^ 1); put(3, b(14) ^ b(31))
+    return w[0]
+# Row-19 proposal of the replica: the ten imposed relations of the row-19 conditions 1-9 and 11 of 1a695f0b (data, Section 7.3): (bit, source,
+# flip) sets E19[bit] = E19[source] ^ flip (source -1: the constant flip); set B violates conditions 2, 7 and 8, set A none.
+R19A = [(4, -1, 1), (18, -1, 0), (10, 29, 0), (20, 2, 1), (5, 18, 1), (19, 6, 0), (28, 10, 1), (11, 29, 0), (1, 28, 0), (9, 4, 1)]
+R19B = [(4, -1, 1), (18, -1, 1), (10, 29, 0), (20, 2, 1), (5, 18, 1), (19, 6, 0), (28, 10, 0), (11, 29, 1), (1, 28, 0), (9, 4, 1)]
+# F23 = {w : s1(w + D23) - s1(w) = T23} (the pair's W23 differences; |F23| = 9,830,400, exhaustive pass f23.c, Appendix A.1) by XOR pattern
+# w ^ (w + D23): (pattern, size, bits fixed to 1, bits fixed to 0 in the pattern).  Uniform draw: a pattern by size, then rejection in its cylinder.
+D23, T23 = DWT[23], (s1(_ty[2][23]) - s1(_tx[2][23])) & M
+F23P = [(0x02808000, 1 << 22, 0x02000000, 0x0082a000), (0x01808000, 1 << 22, 0x05800000, 0x0002a000), (0x02818000, 1 << 20, 0x02208000, 0x00836000),
+        (0x03818000, 1 << 18, 0x06a08000, 0x01036000), (0x07818000, 1 << 16, 0x04a08000, 0x03036000), (0x06818000, 1 << 16, 0x04608000, 0x03836000)]
+NF23 = sum(p[1] for p in F23P)
+def f23_draw(rng):
+    r = rng.below(NF23)
+    for (x, n, f1, f0) in F23P:
+        r -= n
+        if r < 0: break
+    while True:
+        w = (rng.u32() | f1) & ~f0
+        if (w ^ ((w + D23) & M)) == x and ((s1((w + D23) & M) - s1(w)) & M) == T23: return w
+NP_R, CH_R, NT_R = 64, (256, 32, 4, 8, 8), 48
 def smc_replicate(rng):
-    """One replicate of the sequential Monte-Carlo estimate of q3: row 16 exact (the 32 words), rows 17..21 by proposals with the E cell and
-    '+' bits imposed (row 19: one of the four patterns, weight 4 x 2^-f; row 20: bit 29 = E19[29]), tail: W23 drawn in one of the
-    classes SIG of its ten printed conditions with probability (n + 2)/218, uniform inside it (weight 218 2^-10 / (n + 2)), W7 in F7, W6 uniform, a
-    variant's W8, rows 22..37 computed and the exact event tested.  Every success is rebuilt
-    and run through the counted program step3b, which must accept it.  Returns (log2 estimate or None, verified pairs, failed checks,
-    successes, stage logs, successes with an E19 pattern other than the published one)."""
-    lg = [-27.0]; P = []
+    """One replicate of the sequential Monte-Carlo estimate of q3: row 16 exact (the 160 words), rows 17..21 by proposals with the E cell and
+    '+' bits imposed (row 19: one of the two relation sets R19A/R19B, weight 2 x 2^-f), the row and its two-bit conditions checked, multinomial
+    resampling; tail: a selected variant (W8), W23 uniform in F23 and W7 = W23 - s1(W21) - W16 - s0(W8) kept iff in F7 (weight |F23|/|F7|), E22x with bit 29 = 0 (W6 = W22 - s1(W20) - W15 - s0(W7), weight 1/2), rows
+    22..37 computed with an abort at the first row whose A or E words differ, and the outputs compared.  Every success is rebuilt and run
+    through the counted program step3b, which must accept it.  Returns (log2 estimate or None, verified pairs, failed checks, successes, stage logs)."""
+    lg = [math.log2(160) - 32]; P = []
+    dw16 = (s1(PMY[14]) + PMY[9] - s1(PMX[14]) - PMX[9]) & M
     for _ in range(NP_R):
-        e16 = R16W[rng.below(32)]
+        e16 = R16W[rng.below(160)]
         Ax = {i: _tx[0][i] for i in range(-4, 16)}; Ex = {i: _tx[1][i] for i in range(-4, 16)}; Wx = {i: PMX[i] for i in range(16)}
         Ay = {i: _ty[0][i] for i in range(-4, 16)}; Ey = {i: _ty[1][i] for i in range(-4, 16)}; Wy = {i: PMY[i] for i in range(16)}
-        Wx[16] = (e16 - (Ax[12] + Ex[12] + S1(Ex[15]) + CH(Ex[15], Ex[14], Ex[13]) + K[16])) & M
-        Wy[16] = (Wx[16] + ((s1(PMY[14]) + PMY[9] - s1(PMX[14]) - PMX[9]) & M)) & M
+        Wx[16] = (e16 - (Ax[12] + Ex[12] + S1(Ex[15]) + CH(Ex[15], Ex[14], Ex[13]) + K[16])) & M; Wy[16] = (Wx[16] + dw16) & M
         for (A, E, W) in ((Ax, Ex, Wx), (Ay, Ey, Wy)): step_row(A, E, W, 16)
-        P.append((Ax, Ex, Wx, Ay, Ey, Wy))
+        P.append(((Ax, Ex, Wx), (Ay, Ey, Wy)))
     for i in range(17, 22):
-        cm, cvv = CELLS[1][i][:2]; pq = PQ[i]; imp = cm | pq; f = bin(imp).count('1') - 2 * (i == 19); Mi = CH_R[i - 17]; surv = []
-        for (Ax, Ex, Wx, Ay, Ey, Wy) in P:
+        cm, cvv = CELLS[1][i][:2]; pq = PQ[i]; imp = cm | pq; f = bin(imp).count('1') + 9 * (i == 19); Mi = CH_R[i - 17]; surv = []
+        for (tx, ty) in P:
+            (Ax, Ex, Wx), (Ay, Ey, Wy) = tx, ty
             rx = (Ax[i-4] + Ex[i-4] + S1(Ex[i-1]) + CH(Ex[i-1], Ex[i-2], Ex[i-3]) + K[i]) & M
+            dw = (s1(Wy[i-2]) - s1(Wx[i-2]) + Wy[i-7] - Wx[i-7]) & M
             fixed = cvv | (Ex[i-1] & pq & ~cm & M)
-            if i == 20: fixed = (fixed & ~B29) | (Ex[19] & B29)
             for _ in range(Mi):
-                e = (rng.u32() & ~imp & M) | (fixed if i != 19 else (fixed & ~M19) | P19[rng.below(4)])
-                Wxi = (e - rx) & M; Wyi = (Wxi + DWT[i]) & M
-                nA = {**Ax}; nE = {**Ex}; nW = {**Wx}; mA = {**Ay}; mE = {**Ey}; mW = {**Wy}
-                nW[i] = Wxi; mW[i] = Wyi; step_row(nA, nE, nW, i); step_row(mA, mE, mW, i)
-                if nE[i] == e and rowok((nA, nE, nW), (mA, mE, mW), i): surv.append((nA, nE, nW, mA, mE, mW))
-        if not surv: return None, [], 0, 0, lg, 0
+                e = (rng.u32() & ~imp & M) | fixed
+                if i == 19:
+                    for (bt, sr, fl) in (R19A, R19B)[rng.below(2)]: e = e & ~(1 << bt) | (((e >> sr) & 1 if sr >= 0 else 0) ^ fl) << bt
+                wx = (e - rx) & M
+                nx = ({**Ax}, {**Ex}, {**Wx, i: wx}); ny = ({**Ay}, {**Ey}, {**Wy, i: (wx + dw) & M})
+                step_row(*nx, i); step_row(*ny, i)
+                if rowok(nx, ny, i): surv.append((nx, ny))
+        if not surv: return None, [], 0, 0, lg
         lg.append(math.log2(len(surv) / (len(P) * Mi)) - f)
         P = [surv[rng.below(len(surv))] for _ in range(NP_R)]
-    cm, cvv = CELLS[2][23][:2]; imposed = cm; plan = []
-    for (k1, i1, b1, eq, k2, i2, b2, row) in X2:
-        if row != 23: continue
-        if not (imposed >> b2) & 1: plan.append((b1, b2, 0 if eq else 1)); imposed |= 1 << b2
-        elif not (imposed >> b1) & 1: plan.append((b2, b1, 0 if eq else 1)); imposed |= 1 << b1
-        else: raise ValueError('over-determined row-23 condition')
-    tailw = 2.0 ** 22 / 287309824; cb = [b for b in range(32) if cm >> b & 1]; ns = sum(n + 2 for _, n in SIG); ws = 0.0
-    pairs = []; bad = 0; succ = 0; alt = 0
-    for (Ax, Ex, Wx, Ay, Ey, Wy) in P:
+    pairs = []; bad = 0; succ = 0; B29 = 1 << 29
+    for (tx, ty) in P:
+        (Ax, Ex, Wx), (Ay, Ey, Wy) = tx, ty
+        r22 = (Ax[18] + Ex[18] + S1(Ex[21]) + CH(Ex[21], Ex[20], Ex[19]) + K[22]) & M
         for _ in range(NT_R):
-            a0 = VARIANTS[rng.below(len(VARIANTS))]; w8 = (W8C - (a0 + C4)) & M
-            r = rng.below(ns)
-            for sg_, n in SIG:
-                r -= n + 2
-                if r < 0: break
-            w23 = rng.u32()
-            for t, b in enumerate(cb): w23 = w23 & ~(1 << b) | ((cvv >> b ^ ~sg_ >> t) & 1) << b
-            for t, (bs_, bd, fl) in enumerate(plan): w23 = w23 & ~(1 << bd) | ((w23 >> bs_ ^ fl ^ ~sg_ >> (6 + t)) & 1) << bd
-            w7 = (w23 - s1(Wx[21]) - Wx[16] - s0(w8)) & M
+            ci, b, L = rng.below(8), rng.below(NB), rng.below(256); a0 = lane_a0(bconst(ci, b), L); w8 = (W8C - (a0 + C4)) & M
+            w23 = f23_draw(rng); w7 = (w23 - s1(Wx[21]) - Wx[16] - s0(w8)) & M
             if not inF7(w7): continue
-            w6 = rng.u32()
-            nA = {**Ax}; nE = {**Ex}; nW = {**Wx}; mA = {**Ay}; mE = {**Ey}; mW = {**Wy}
-            for i, v in ((7, w7), (8, w8)): nW[i] = v; mW[i] = (v + DWT[i]) & M
-            nW[6] = w6; mW[6] = w6
+            e22 = rng.u32() & ~B29
+            nW = {**Wx}; mW = {**Wy}; nW[7] = w7; mW[7] = (w7 + D7) & M; nW[8] = w8; mW[8] = (w8 + D8) & M
+            nW[22] = (e22 - r22) & M; w6 = (nW[22] - s1(Wx[20]) - Wx[15] - s0(w7)) & M
+            mW[22] = (s1(Wy[20]) + Wy[15] + s0(mW[7]) + w6) & M
+            nA = {**Ax}; nE = {**Ex}; mA = {**Ay}; mE = {**Ey}; ok = True
             for i in range(22, NR):
-                nW[i] = (s1(nW[i-2]) + nW[i-7] + s0(nW[i-15]) + nW[i-16]) & M
-                mW[i] = (s1(mW[i-2]) + mW[i-7] + s0(mW[i-15]) + mW[i-16]) & M
+                if i > 22:
+                    nW[i] = (s1(nW[i-2]) + nW[i-7] + s0(nW[i-15]) + nW[i-16]) & M; mW[i] = (s1(mW[i-2]) + mW[i-7] + s0(mW[i-15]) + mW[i-16]) & M
                 step_row(nA, nE, nW, i); step_row(mA, mE, mW, i)
-            if exact((nA, nE), (mA, mE)):
-                succ += 1; ws += ns / (n + 2); r = rebuild(nW, a0, w8); alt += (nE[19] & M19) != 0x30040430
+                if nA[i] != mA[i] or nE[i] != mE[i]: ok = False; break
+            if ok and exact((nA, nE), (mA, mE)):
+                succ += 1; r = rebuild(nW, a0, w8)
                 if r and step3b(Mach(), r[0], fb_scalars(Mach(), r[0]), a0): pairs.append(r)
                 else: bad += 1
-    if succ == 0: return None, pairs, bad, 0, lg, alt
-    lg.append(math.log2(ws * tailw / (NP_R * NT_R)))
-    return sum(lg), pairs, bad, succ, lg, alt
+    if succ == 0: return None, pairs, bad, 0, lg
+    lg.append(math.log2(succ * NF23 / (2 * 287309824 * NP_R * NT_R)))
+    return sum(lg), pairs, bad, succ, lg
 
 def pair_check15(cv, a0):
-    """Reference check of a good pair: the Step-2 words of (cv, a0) give a trace that follows every cell of rows -4..15 (the W7 XOR cell
-    excepted) and every printed two-bit condition of rows 8..15; W7 is in F7."""
+    """Reference check of a good pair: the Step-2 words of (cv, a0) give a trace whose rows 1..15 (A) and 5..15 (E) are S's in both members
+    and that follows every cell of rows -4..15 (the W7 and W8 cells excepted); W7 is in F7 and a0 in G."""
     wx, wy = words_from_cv(cv, a0)
     mx = wx + [PMX[14], PMX[15]]; my = wy + [PMY[14], PMY[15]]
     tx, ty = trace(cv, mx, 16), trace(cv, my, 16)
-    if not inF7(mx[7]): return False
-    if not all(rowok(tx, ty, i) for i in range(-4, 16)): return False
-    for (k1, i1, b1, eq, k2, i2, b2, row) in X2:
-        if 8 <= row < 16 and (((tx[k1][i1] >> b1) ^ (tx[k2][i2] >> b2)) & 1) != (0 if eq else 1): return False
-    return True
+    if not (inF7(mx[7]) and in_G(a0)): return False
+    if any(tx[0][i] != SAx[i] or ty[0][i] != SAy[i] for i in range(1, 16)) or any(tx[1][i] != _tx[1][i] or ty[1][i] != _ty[1][i] for i in range(5, 16)): return False
+    return all(rowok(tx, ty, i) for i in range(-4, 16))
 def online_experiment(req):
     out = []
     for tr in req['trials']:
         t = tr['trial']; rec = dict(trial=t, message_a_hex=None, message_b_hex=None)
         if t < 6:
             rng = Shake(req['experiment_id'] + '|' + tr['seed']); m = Mach(rng.word); st = Stats(); fm = 0; ncell = 0; cm = 0; nfb = 0; hits = []
-            while nfb < 16 and not hits:
+            while nfb < 64 and not hits:
                 nfb += 1; cv, hits, M0 = process_fb(m, st, True, True)
                 ref = [ci for ci, c in enumerate(CLASSES) if inF7((c[0] - cv[0]) & M)]
                 fm += int(ref != hits)
             if hits:
-                cd = classdata(hits[0])
-                for a0 in cd.members[::480]:
+                mem = class_members(hits[0])
+                for a0 in mem[::3072]:
                     ncell += 1; cm += int(not pair_check15(cv, a0))
-                a0 = cd.members[0]; wx, wy = words_from_cv(cv, a0)
+                wx, wy = words_from_cv(cv, mem[0])
             rec['observations'] = dict(first_blocks=st.fb, w7_classes=len(hits), classes_processed=st.classes, good_pairs=st.good, prefilter_passes=st.pre,
                                        row16_passes=st.r16, counted_ops=m.ops, units=m.units, filter_mismatches=fm, cell_mismatches=cm,
                                        lane_mismatches=st.lane_mism, pairs_cell_checked=ncell)
             if hits and fm == 0 and cm == 0 and st.lane_mism == 0:
                 rec['message_a_hex'] = struct.pack('>32I', *(M0 + wx + [PMX[14], PMX[15]])).hex()
                 rec['message_b_hex'] = struct.pack('>32I', *(M0 + wy + [PMY[14], PMY[15]])).hex()
+        elif t < 14:                                  # coverage: every batch program of class t - 6 on a seed-drawn first block
+            ci = t - 6; rng = Shake(req['experiment_id'] + '|' + tr['seed']); m = Mach(rng.word); M0 = unpack16(m, m.rand(), m.rand()); cv = compress(IV, M0)
+            fb = fb_scalars(m, cv); inp = {'%s%d' % (nm, j): (ONES if (fb[nm] >> j) & 1 else 0) for nm in ('HH', 'PP', 'QQ', 'EF', 'FF', 'K1', 'KP') for j in range(32)}
+            lm = 0; pp = 0
+            for b in range(NB):
+                ins, res = program(ci, b); okp = run_prog(ins, inp, LPL)[res]; c = bconst(ci, b)
+                for k in range(256):
+                    v = pre_ok(cv, lane_a0(c, k)); lm += v != bool((okp >> k) & 1); pp += v
+            rec['observations'] = dict(class_index=ci, programs=NB, lanes=NB * 256, prefilter_passes=pp, lane_mismatches=lm)
+            if lm == 0:
+                wx, wy = words_from_cv(cv, bconst(ci, 0) | LT[0])
+                rec['message_a_hex'] = struct.pack('>32I', *(M0 + wx + [PMX[14], PMX[15]])).hex()
+                rec['message_b_hex'] = struct.pack('>32I', *(M0 + wy + [PMY[14], PMY[15]])).hex()
         out.append(rec)
     return dict(schema_version=1, trials=out)
-Q3_THRESH = -98.4338                          # log2 threshold of the pooled mean (frozen before the calibration, Section 7.3)
+NREP = 20
+Q3_THRESH = -97.0                             # log2 threshold of the pooled mean (frozen before the calibration, Section 7.3)
 def q3_experiment(req):
     out = []; est = []; bad_total = 0; last = None
     for tr in req['trials']:
         t = tr['trial']; rec = dict(trial=t, message_a_hex=None, message_b_hex=None)
-        if t < 20:
-            rng = Shake(req['experiment_id'] + '|' + tr['seed']); z, pairs, bad, succ, lg, alt = smc_replicate(rng)
-            rec['observations'] = dict(log2_estimate=z if z is not None else 0.0, estimate_zero=int(z is None), successes=succ, failed_rebuilds=bad, other_pattern_successes=alt,
+        if t < NREP:
+            rng = Shake(req['experiment_id'] + '|' + tr['seed']); z, pairs, bad, succ, lg = smc_replicate(rng)
+            rec['observations'] = dict(log2_estimate=z if z is not None else 0.0, estimate_zero=int(z is None), successes=succ, failed_rebuilds=bad,
                                        verified_pairs=len(pairs), tail_log2=lg[-1] if z is not None else 0.0)
             est.append(0.0 if z is None else 2.0 ** z); bad_total += bad
             if pairs:
                 cv, mx, my = pairs[0]; last = pairs[-1]
                 rec['message_a_hex'] = struct.pack('>24I', *(cv + mx)).hex(); rec['message_b_hex'] = struct.pack('>24I', *(cv + my)).hex()
-        elif t == 20 and len(est) == 20:
-            mean = sum(est) / 20; lz = math.log2(mean) if mean > 0 else -1000.0
-            rec['observations'] = dict(log2_pooled_mean=lz, pooled_zero=int(mean == 0), replicates=20, failed_rebuilds=bad_total, pass_threshold_log2=Q3_THRESH)
+        elif t == NREP and len(est) == NREP:
+            mean = sum(est) / NREP; lz = math.log2(mean) if mean > 0 else -1000.0
+            rec['observations'] = dict(log2_pooled_mean=lz, pooled_zero=int(mean == 0), replicates=NREP, failed_rebuilds=bad_total, pass_threshold_log2=Q3_THRESH)
             if lz >= Q3_THRESH and bad_total == 0 and last:
                 cv, mx, my = last
                 rec['message_a_hex'] = struct.pack('>24I', *(cv + mx)).hex(); rec['message_b_hex'] = struct.pack('>24I', *(cv + my)).hex()
@@ -752,15 +768,13 @@ def run_request(req):
     return online_experiment(req) if 'online' in req['experiment_id'] else q3_experiment(req)
 
 # ---------------------------------------------------------------- (6) selftest, calibrate (every counted constant), ledger
-HIT0 = 2992758256           # number of values of A_{-1} (of 2^32) for which none of the 90 classes passes F7 (exhaustive pass, Appendix A.2)
-def lane_cost(ci, ell):
-    """Operations of one stage-3a lane from the isolated lowest lane to the end of its row-16 test (lane k = ell of batch 0)."""
-    cd = classdata(ci); m = Mach()
-    for j in range(32):
-        if (cd.mask >> j) & 1: m.mem[('plane', ci, 0, j)] = cd.batches[0]['P:A%d' % j]
-    fb = fb_scalars(Mach(), PCV); fb['planes'] = {}
+HIT0 = 3137339392           # number of values of A_{-1} (of 2^32) for which none of the 8 classes passes F7 (exhaustive pass, Appendix A.2)
+def lane_cost(ell):
+    """Operations of one stage-3a lane from the isolated lowest lane to the end of its row-16 test (the same code for every batch)."""
+    m = Mach(); fb = fb_scalars(Mach(), PCV); c = bconst(3, 0)
+    static(m)
     ok = 1 << ell; k0 = m.ops
-    e = first_lane(m, ok); a0 = lane_value(m, cd, 0, e); assert e == ell and a0 == cd.members[ell]
+    e = first_lane(m, ok); a0 = lane_value(m, c, e); assert e == ell and a0 == lane_a0(c, ell)
     scalar_e16(m, fb, a0); row16_pass(m, e16x(PCV, a0))
     m.and_(ok, m.sub(ok, 1)); m.br(); m.ops += 1
     return m.ops - k0
@@ -777,32 +791,31 @@ def calibrate(full=True):
     m = Mach()
     for nm in ('HH', 'PP', 'QQ', 'EF', 'FF', 'K1', 'KP'): planes_of(m, nm, fb[nm])
     cal['planes'] = m.ops
-    m = Mach(); r = step3b(m, PCV, fb, 0xb75dae71); assert r is not None; cal['step3b'] = m.ops + 1
+    m = Mach(); r = step3b(m, PCV, fb, _tx[0][0]); assert r is not None; cal['step3b'] = m.ops + 1
     rr = Shake('cal'); m = Mach(rr.word); r0 = m.rand(); r1 = m.rand(); M0 = unpack16(m, r0, r1); m.ops += 3; m.br(); cal['fixed'] = m.ops
-    cal['prog'] = {g: len(program(g)[0]) for g in sorted(set(GRP))}
-    cal['classes_of'] = {g: GRP.count(g) for g in cal['prog']}
     if full:
+        cal['prog'] = [[len(program(ci, b)[0]) for b in range(NB)] for ci in range(len(CLASSES))]
         cal['w7'] = w7_distribution()
-        cal['lane_max'] = {mk: max(lane_cost(next(i for i, c in enumerate(CLASSES) if c[2] == mk), ell) for ell in range(256)) for mk in sorted({c[2] for c in CLASSES})}
+        cal['lane_max'] = max(lane_cost(ell) for ell in range(256))
     return cal
-def ledger(cal=None, tx=None, show=True, q3_log2='-97.7838', h3_log2='-9.5', eps_log2=16, succ='0.39', A_C=2**78, A_S=2**74, DEV=2**70):
+Q3M, H3M = '-96.5755', '-8.5'                    # q3_model (Section 7.4) and the pair term of H3 (Section 13.5), log2
+def ledger(cal=None, show=True, q3_log2=Q3M, h3_log2=H3M, eps_log2=16, succ='0.39', A_C=2**78, A_S=2**74, DEV=2**70):
     from decimal import Decimal, getcontext
     getcontext().prec = 80
     cal = cal or calibrate()
-    C = 2728; p7 = Fraction(287309824, 2**32); K = len(CLASSES); g = K * 3840 * p7; assert g == Fraction(92475, 4)
+    C = 2728; p7 = Fraction(287309824, 2**32); Kc = len(CLASSES); g = Kc * 24576 * p7; assert g == 13152
     ntb = len(TBITS); two = Decimal(2)
-    pany = Fraction(2**32 - HIT0, 2**32); khit = K * p7
-    w7 = (sum(c * p for (c, ok), p in cal['w7'].items()) + 4) * K
-    cls = sum(p7 * (7 + 15 * (cal['prog'][h] + 6)) for h in GRP)
-    lanes = sum(p7 * 3840 * Fraction(1, 2**ntb) * cal['lane_max'][c[2]] for c in CLASSES)
-    r16 = g * Fraction(32, 2**32) * cal['step3b']
+    pany = Fraction(2**32 - HIT0, 2**32); khit = Kc * p7
+    w7 = (sum(c * p for (c, ok), p in cal['w7'].items()) + 4) * Kc
+    cls = sum(p7 * (7 + sum(n + 6 for n in cal['prog'][ci])) for ci in range(Kc))
+    lanes = Kc * p7 * 24576 * Fraction(1, 2**ntb) * cal['lane_max']
+    r16 = g * Fraction(160, 2**32) * cal['step3b']
     vbar = w7 + 2 * khit + pany * (cal['fb_scalars'] + cal['planes']) + cls + lanes + r16
-    class_max = max(7 + 15 * (cal['prog'][h] + 6) + 3840 * (cal['lane_max'][c[2]] + cal['step3b']) for c, h in zip(CLASSES, GRP))
-    wmax = max(c for c, ok in cal['w7']); P0 = K * (wmax + 2 + 4) + cal['fb_scalars'] + cal['planes']
-    vmax_f = P0 + K * class_max
+    class_max = max(7 + sum(n + 6 for n in cal['prog'][ci]) + 24576 * (cal['lane_max'] + cal['step3b']) for ci in range(Kc))
+    wmax = max(c for c, ok in cal['w7']); P0 = Kc * (wmax + 2 + 4) + cal['fb_scalars'] + cal['planes']
+    vmax_f = P0 + Kc * class_max
     F = cal['fixed']; PRE = sum(v for _, v in pre_terms()); FIN = 1600
     q3 = two ** Decimal(q3_log2); h3 = 1 - two ** Decimal(h3_log2); eps = Fraction(1, 2**eps_log2)
-    need = Decimal(1) - Decimal(succ) - two ** -60
     N = 1
     for _ in range(6):
         vb = Decimal(vbar.numerator) / Decimal(vbar.denominator)
@@ -813,7 +826,7 @@ def ledger(cal=None, tx=None, show=True, q3_log2='-97.7838', h3_log2='-9.5', eps
     rows = [('allowance A_C (characteristic search)', A_C * C), ('allowance A_S (Step-1 solve)', A_S * C), ('allowance DEV (development)', DEV * C),
             ('first-block compressions, N_FB x C', N * C), ('fixed operations per first block, N_FB x %d' % F, N * F),
             ('data-dependent operations, cap V_MAX', VMAX), ('overshoot past V_MAX: the work before the first class cap test of a block plus one class at its maximum', P0 + class_max),
-            ('precomputation (member tests, batch planes, program generation)', PRE), ('final verification (6 compressions and 1600 operations)', 6 * C + FIN)]
+            ('precomputation (lane planes, program generation)', PRE), ('final verification (6 compressions and 1600 operations)', 6 * C + FIN)]
     info = dict(N_FB=N, vbar=vbar, VMAX=VMAX, vmax_f=vmax_f, pcap=pcap, g=g, pany=pany, rows=rows)
     if show:
         print('N_FB = %d (2^%.5f); vbar = %.4f (w7 tests %.2f, hit list %.3f, per-first-block scalars and planes %.2f, classes %.2f, lanes %.4f, row 16 %.5f);'
@@ -840,13 +853,14 @@ def main():
     if len(sys.argv) > 1 and sys.argv[1] == 'ledger':
         rows, info = ledger(); report(rows)
     elif len(sys.argv) > 1 and sys.argv[1] == 'calibrate':
-        cal = calibrate(); print(json.dumps({k: (v if not isinstance(v, dict) else {str(a): str(b) for a, b in v.items()}) for k, v in cal.items()}, indent=1))
+        cal = calibrate(); pr = cal.pop('prog'); print(json.dumps({k: (v if not isinstance(v, dict) else {str(a): str(b) for a, b in v.items()}) for k, v in cal.items()}, indent=1))
+        for ci, r in enumerate(pr): print('class %d, programs of batches 0..95 (instructions): %s; sum %d' % (ci, ' '.join(map(str, r)), sum(r)))
     elif len(sys.argv) > 1 and sys.argv[1] == 'selftest':
         selftest()
     else:
         sys.stdout.write(json.dumps(run_request(json.load(sys.stdin))))
 def row16_full(e):
-    """Every cell of row 16 of both members and every two-bit condition closing at row 16, as a function of E16x (rows 12..15 are those of S)."""
+    """Every cell of row 16 of both members, its '+' bits and every two-bit condition closing at row 16, as a function of E16x (rows 12..15 are S's)."""
     A, E = _tx[0], _tx[1]; Ay, Ey = _ty[0], _ty[1]
     w16x = (e - (A[12] + E[12] + S1(E[15]) + CH(E[15], E[14], E[13]) + K[16])) & M
     w16y = (w16x + ((s1(PMY[14]) + PMY[9] - s1(PMX[14]) - PMX[9]) & M)) & M
@@ -856,105 +870,76 @@ def row16_full(e):
         tr.append(((e16_ - a[12] + S0(a[15]) + MAJ(a[15], a[14], a[13])) & M, e16_, w))
     X = {0: {**{i: A[i] for i in range(-4, 16)}, 16: tr[0][0]}, 1: {**{i: E[i] for i in range(-4, 16)}, 16: tr[0][1]}, 2: {**{i: PMX[i] for i in range(16)}, 16: tr[0][2]}}
     for k in range(3):
-        m, v, d = CELLS[k][16][:3]
+        m, v, d = CELLS[k][16]
         if (tr[0][k] & m) != v or (tr[0][k] ^ tr[1][k]) != d: return False
     if (tr[0][1] ^ E[15]) & PQ[16]: return False
     return all((((X[k1][i1] >> b1) ^ (X[k2][i2] >> b2)) & 1) == (0 if eq else 1) for (k1, i1, b1, eq, k2, i2, b2, row) in X2 if row == 16)
 def selftest():
     ok = lambda s: print('ok  ' + s)
-    assert compress(PCV, PMX) == compress(PCV, PMY) and compress(PCV, PMX)[0] == 0x5d9ca5f4
-    assert all(rowok(_tx, _ty, i) for i in range(-4, NR)) and all(cellok(1, i, _tx[1][i], _ty[1][i]) for i in range(NR)); ok('published pair: equal 38-step outputs (hash 5d9ca5f4 ...), every printed cell and condition of rows -4..37')
-    assert in_G(0xb75dae71) and c7of(0xb75dae71) == 0x8f6c89c5 and words_from_cv(PCV, 0xb75dae71)[0] == PMX[:14]; ok('published A0 is in G, c7 = 8f6c89c5, Step 2 returns the published words')
-    cs = set()
-    for ci, (c7, base, mask) in enumerate(CLASSES):
-        mem = class_members(c7, base, mask); assert len(mem) == 3840 and all(c7of(a) == c7 for a in mem); cs.add(c7)
-    assert len(cs) == 90 and len(set(GRP)) == 7; ok('90 classes of 3840 members in 7 plane programs, distinct c7 values, masks %s' % sorted({hex(c[2]) for c in CLASSES}))
-    assert all(r16ok(w) and row16_full(w) for w in R16W); rr = random.Random(5)
-    nb = 0
-    for _ in range(3000):
-        e = (EV | (rr.getrandbits(32) & ~EM)) & M
-        assert row16_full(e) == r16ok(e); nb += r16ok(e)
+    assert compress(PCV, PMX) == compress(PCV, PMY) and PMX != PMY and compress(PCV, PMX)[0] == 0xc7dfd8a1
+    assert all(rowok(_tx, _ty, i) for i in range(-4, 22)) and inF7(PMX[7]); ok('P8 pair: equal 38-step outputs (c7dfd8a1 ...), rows -4..21 of the accepted event, W7 in F7')
+    a0 = _tx[0][0]
+    assert variant_ok(a0) and c7of(a0) == CLASSES[3][0] and words_from_cv(PCV, a0)[0] == PMX[:14]; ok('its A0 %08x is in G and in class 3 (c7 %08x); Step 2 returns its words' % (a0, c7of(a0)))
+    for ci, (c7, base) in enumerate(CLASSES):
+        mem = class_members(ci); assert len(set(mem)) == 24576 and all(a & ~MASK & M == base & ~MASK & M and in_G(a) and c7of(a) == c7 for a in mem)
+    ok('8 classes: 24,576 distinct members each from the product description, every one in G with its c7 and base ^ (subset of %08x)' % MASK)
+    assert all(r16ok(w) and row16_full(w) for w in R16W) and len(set(R16W)) == 160; rr = random.Random(5)
+    for _ in range(20000):
+        e = (EV | (rr.getrandbits(32) & ~EM)) & M; assert row16_full(e) == r16ok(e)
     for w in R16W:
-        for _ in range(40):
+        for _ in range(8):
             e = w ^ (1 << rr.randrange(32)) ^ (1 << rr.randrange(32)); assert row16_full(e) == r16ok(e)
-    ok('row-16 set: 32 words pass the full row-16 test; 3000 random words with the ten cell bits and 1280 two-bit neighbours of the members agree with the affine description')
+    ok('row-16 set: 160 words pass the full row-16 test; 20,000 random words with the fixed cell bits and 1,280 two-bit neighbours agree with the head test')
     for _ in range(300):
-        cv_ = [rr.getrandbits(32) for _ in range(8)]; a_ = rr.choice(VARIANTS)
+        cv_ = [rr.getrandbits(32) for _ in range(8)]; a_ = lane_a0(bconst(rr.randrange(8), rr.randrange(NB)), rr.randrange(256))
         assert e16x(cv_, a_) == e16x_ref(cv_, a_)
-    assert all(((w ^ TVAL) >> j) & 1 == 0 for w in R16W for j in TBITS); ok('the %d prefilter bits are shared by all 32 words' % len(TBITS))
+    assert all(((w ^ TVAL) >> j) & 1 == 0 for w in R16W for j in TBITS); ok('E16x formula on 300 chaining values; the %d prefilter bits %s are shared by all 160 words' % (len(TBITS), TBITS))
     for _ in range(4000):
         w = rr.getrandbits(32)
         for t_ in (0, 1):
             if t_: w = (w & ~(1 << 14 | 1 << 8 | 2)) | (((w >> 18) & 1 ^ 1) << 14) | (((w >> 25) & 1 ^ 1) << 8) | (((w >> 12) & 1) << 1)
             assert w7test(Mach(), w, 0) == inF7(w)
     ok('W7 decision tree agrees with the definition of F7 on 8000 words')
-    m = Mach(); fb = fb_scalars(m, PCV); r = step3b(m, PCV, fb, 0xb75dae71); assert r is not None
-    A, E, W = trace(PCV, PMX); assert all(r[0][0][i] == A[i] and r[0][1][i] == E[i] and r[0][2][i] == W[i] for i in range(NR))
-    ok('step 3b on the published pair: all rows pass, exact event, traces equal the reference (%d operations)' % m.ops)
-    acc = []; bits = [b for b in range(32) if M19 >> b & 1]
-    for v in range(512):
-        X = [dict(d) for d in r[0]]; Y = [dict(d) for d in r[1]]; p = sum((v >> j & 1) << b for j, b in enumerate(bits))
-        X[1][19] = X[1][19] & ~M19 | p; Y[1][19] = X[1][19] ^ _tx[1][19] ^ _ty[1][19]
-        c = row_check(Mach(), 19, X, Y); assert c == ecell(19, X[1], Y[1]); acc += [p] * c
-    for v in range(4):
-        X = [dict(d) for d in r[0]]; Y = [dict(d) for d in r[1]]; X[1][19] ^= (v & 1) * B29; X[1][20] ^= (v >> 1) * B29; Y[1][20] ^= (v >> 1) * B29
-        assert row_check(Mach(), 20, X, Y) == ecell(20, X[1], Y[1]) == (v in (0, 3))
-    assert sorted(acc) == sorted(P19)
-    ok('counted rows 19 and 20 equal the definition: row 19 accepts exactly the patterns %s of 512, row 20 exactly when E20[29] = E19[29]' % [hex(p) for p in sorted(acc)])
-    for g in sorted(set(GRP)):
-        ci = GRP.index(g); cd = classdata(ci); ins, res, sh = program(g); bad = 0
-        for t in range(3):
-            cv = [rr.getrandbits(32) for _ in range(8)]; fm = Mach(); f2 = fb_scalars(fm, cv); inp = {}
-            for nm in ('HH', 'PP', 'QQ', 'EF', 'FF', 'K1', 'KP'):
-                for j in range(32): inp['%s%d' % (nm, j)] = ONES if (f2[nm] >> j) & 1 else 0
-            okp = run_prog(ins, inp, {**cd.batches[t], **cd.cw})[res]
-            bad += sum(pre_ok(cv, cd.members[256 * t + k]) != bool((okp >> k) & 1) for k in range(256))
-        assert bad == 0
-    ok('bit-sliced prefilter equals the scalar definition on 768 lanes of each of the 7 plane programs (%s instructions)' % [len(program(g)[0]) for g in sorted(set(GRP))])
+    fb = fb_scalars(Mach(), PCV); m = Mach(); r = step3b(m, PCV, fb, a0); assert r is not None
+    A, E, W = _tx; assert all(r[0][0][i] == A[i] and r[0][1][i] == E[i] and r[0][2][i] == W[i] for i in range(NR))
+    ok('step 3b on the P8 pair: rows 16..21 pass, equal outputs, traces equal the reference (%d operations; 1 more for the work counter)' % m.ops)
+    for e in rr.sample(R16W, 8) + [rr.getrandbits(32) for _ in range(8)]:
+        m = Mach(); static(m)
+        assert row16_pass(m, e) == r16ok(e) and m.ops == 29
+    bad = 0
+    for t in range(6):
+        ci, b = rr.randrange(8), rr.randrange(NB); ins, res = program(ci, b); c = bconst(ci, b)
+        cv = [rr.getrandbits(32) for _ in range(8)]; f2 = fb_scalars(Mach(), cv)
+        inp = {'%s%d' % (nm, j): (ONES if (f2[nm] >> j) & 1 else 0) for nm in ('HH', 'PP', 'QQ', 'EF', 'FF', 'K1', 'KP') for j in range(32)}
+        okp = run_prog(ins, inp, LPL)[res]; bad += sum(pre_ok(cv, lane_a0(c, k)) != bool((okp >> k) & 1) for k in range(256))
+    assert bad == 0; ok('counted row-16 test (29 operations) equals the definition; bit-sliced programs equal the scalar definition on 6 x 256 lanes')
+    st = Stats(); m = Mach(); fb = fb_scalars(m, PCV); fb['planes'] = {}
+    for nm in ('HH', 'PP', 'QQ', 'EF', 'FF', 'K1', 'KP'): planes_of(m, nm, fb[nm])
+    fb['planes'] = {k: v for k, v in m.mem.items() if isinstance(k, str)}
+    static(m)
+    bp = next(b for b in range(NB) if a0 in [lane_a0(bconst(3, b), L) for L in range(256)])
+    k0 = m.ops; process_class(m, 3, PCV, fb, st, True, None, bp + 1)
+    assert st.lane_mism == 0 and any(x == a0 for x, _ in st.found); ok('the counted program finds and accepts the P8 pair in batch %d of class 3 (%d operations for batches 0..%d)' % (bp, m.ops - k0, bp))
     st = Stats(); rng = Shake('selftest'); mm = Mach(rng.word); nf = 0
-    while not st.classes and nf < 40: nf += 1; process_fb(mm, st, True, True)
-    assert st.classes == 1 and st.lane_mism == 0; ok('online program: first block %d, one class of 3840 good pairs, %d lane mismatches' % (nf, st.lane_mism))
-    zs = smc_replicate(Shake('selftest-q3')); assert zs[2] == 0; ok('q3 replicate: estimate 2^%.2f, %d verified 38-step semi-free-start collisions accepted by step3b, %d failed checks, %d with another E19 pattern' % (zs[0] if zs[0] else 0, len(zs[1]), zs[2], zs[5]))
-    st = Stats(); mm = Mach(Shake('cap').word); process_fb(mm, st, True, True, 1000); o = mm.ops; st.halt = 0; process_fb(mm, st, True, True, 1000)
-    assert st.halt and mm.ops - o <= 35; ok('cap test on every block: V > V_MAX halts at the next block start, before its 90 W7 tests')
-    assert all(variant_ok(a) for a in VARIANTS) and len(set(VARIANTS)) == 512; ok('512 embedded variants are in G and in the selected classes')
-
-def member_test(m, a):
-    """Counted test of one candidate a0 = base ^ s: a0 in G (W8's cell and its three two-bit conditions) and its c7 (the longest path is charged)."""
-    e4 = m.and_(m.add(a, C4), M); w = m.and_(m.sub(W8C, e4), M); y = m.and_(m.add(w, D8), M)
-    cm_, cv_, cd_ = CELLS[2][8][:3]
-    t = m.and_(w, cm_); m.br()
-    if t != cv_: return None
-    t = m.xor(w, y); m.br()
-    if t != cd_: return None
-    for (b1, b2, eq) in ((0, 28, 0), (30, 9, 0), (1, 18, 1)):
-        v = m.and_(m.xor(m.shr(w, b1), m.shr(w, b2)), 1); m.br()
-        if v != (0 if eq else 1): return None
-    mj = m.or_(m.and_(a, SAx[2] | SAx[1]), SAx[2] & SAx[1])
-    ch = m.xor(m.and_(e4, ~SE[6] & M), SE[6] & SE[5])
-    c7 = m.and_(m.sub(m.add((SE[7] - 2 * SAx[3] + S0(SAx[2]) - S1(SE[6]) - K[7]) & M, mj), ch), M)
-    return c7
+    while not st.classes and nf < 64: nf += 1; process_fb(mm, st, True, True)
+    assert st.classes == 1 and st.lane_mism == 0; ok('online program: first block %d, one class of 24,576 good pairs, %d lane mismatches' % (nf, st.lane_mism))
+    zs = smc_replicate(Shake('selftest-q3')); assert zs[2] == 0; ok('q3 replicate: estimate 2^%.2f, %d verified 38-step semi-free-start collisions accepted by step3b, %d failed checks' % (zs[0] if zs[0] else 0, len(zs[1]), zs[2]))
+    st = Stats(); mm = Mach(Shake('cap').word)
+    while not st.halt: process_fb(mm, st, True, True, 1000, 1)
+    o = mm.ops; st.halt = 0; process_fb(mm, st, True, True, 1000, 1)
+    assert st.halt and mm.ops - o <= 35; ok('cap test on every block: V > V_MAX halts at the next block start, before its 8 W7 tests')
 def memory(cal):
-    """Bytes of the program's memory: batch planes, class constants, broadcast planes, spill slots, scalars, class table, and code at
-    32 bytes (one word) per instruction."""
-    K = len(CLASSES); planes = sum(15 * bin(c[2]).count('1') * 32 for c in CLASSES)
-    shared = sum(bin(shape_of(h)[0]).count('1') * 32 for h in GRP)
-    ninstr = sum(cal['prog'].values()); nw7 = 52 + 5; nother = 600
-    parts = [('batch planes of the %d classes (15 batches, one word per variable bit of a0)' % K, planes), ('shared-constant words of the classes', shared),
-             ('per-first-block broadcast planes (7 x 32 words)', 7 * 32 * 32), ('spill slots of the plane programs (at most 40 words)', 40 * 32),
-             ('scalars, counters, hit list and F7 constants (64 words)', 64 * 32), ('class table (c7, base, mask: 3 words each)', K * 3 * 32),
-             ('code of the %d plane programs: %d instructions at 32 bytes' % (len(cal['prog']), ninstr), ninstr * 32),
-             ('code of the W7 test loop: %d instructions at 32 bytes (the 52-instruction tree once, 5 for the loop)' % nw7, nw7 * 32),
-             ('code of the other routines (first-block words, scalars, planes, lane scan, row 16, step 3b, loops): %d instructions at 32 bytes' % nother, nother * 32)]
+    """Bytes of the online program's memory: code at 32 bytes (one word) per instruction, lane planes, broadcast planes, spill slots,
+    scalars, the row-16 table and the class table."""
+    ninstr = sum(sum(p) for p in cal['prog']); spill = max(sum(1 for x in program(ci, b)[0] if x[0] == 'st') for ci in range(8) for b in range(NB))
+    parts = [('code of the %d batch programs: %d instructions at 32 bytes' % (8 * NB, ninstr), ninstr * 32), ('lane planes (8 words)', 8 * 32),
+             ('per-first-block broadcast planes (7 x 32 words)', 7 * 32 * 32), ('spill slots of the batch programs (at most %d used)' % spill, spill * 32),
+             ('scalars, counters, hit list, F7 constants and the two traces of step 3b (128 words)', 128 * 32), ('row-16 table (32 words) and lane table (256 words)', 288 * 32),
+             ('class table (c7, base: 2 words each)', 8 * 2 * 32), ('code of the W7 test loop: 57 instructions at 32 bytes', 57 * 32),
+             ('code of the other routines (first-block words, scalars, planes, lane scan, row 16, step 3b, loops): 700 instructions at 32 bytes', 700 * 32)]
     return parts, sum(v for _, v in parts)
 def pre_terms():
-    """Preprocessing as counted code: member lists of the 64 classes (every subset of the mask is tested), the batch planes (4 operations per
-    member and variable bit), program generation (charged 2^32 operations)."""
-    worst = 0
-    for a in (0xb75dae71,):
-        m = Mach(); member_test(m, a); worst = max(worst, m.ops)
-    cands = sum(2 ** bin(c[2]).count('1') for c in CLASSES)
-    return [('member tests: %d candidates x %d operations (longest path)' % (cands, worst), cands * worst),
-            ('batch planes: %d member-bits x 4 operations' % sum(3840 * bin(c[2]).count('1') for c in CLASSES), 4 * sum(3840 * bin(c[2]).count('1') for c in CLASSES)),
-            ('program generation (charged in full)', 2 ** 32)]
+    """Precomputation as counted work: the 8 lane planes and the lane table (256 lanes x 8 bits x 4 operations each), and the generation of
+    the 768 batch programs (charged 2^32 operations each)."""
+    return [('lane planes and lane table: 2 x 256 x 8 x 4 operations', 2 * 256 * 8 * 4), ('generation of the %d batch programs (2^32 operations each)' % (8 * NB), 8 * NB * 2 ** 32)]
 if __name__ == '__main__': main()

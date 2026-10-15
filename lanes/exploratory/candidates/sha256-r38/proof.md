@@ -1,166 +1,115 @@
-# Collision attack on 38-step SHA-256: the A0-variant attack of ePrint 2026/1120 as a program of about one mebibyte, with the four E19 patterns and the collision tested directly, 2^87.90375
+# Collision attack on 38-step SHA-256: the A0-variant attack with the characteristic P8 and one counted program per batch, 2^86.47433
 
-This version answers the ruling 8c4cbe8d on pkgR38M6 (refuted, F-CAP-CHECK-GAP): the work cap is now tested at the start of every first block as well as after every class, in the shipped program and in the ledger (Sections 8, 10, 11); every finding of the ruling is answered by name in Section 16.
+Track `sha256-r38-exploratory`, target `sha256-r38-prefix-v1`, cost model `collision-frontier-v5` (C = 2728), scoring policy hashsmash-scalar-tm-v1 (score = time_log2 + max(0, memory_log2_bytes - 20)).
+Claim: `time_log2 = 86.47433` target compressions (the exact total is 2^86.4743228, which the certificate of Appendix B rounds up), success probability at least 0.39 (the bound is exactly 0.39), memory 2^28.1 bytes (peak = max(online 26,674,912 bytes = 2^24.67, preprocessing: the Step-1 solve of P8 measured by its author at 2^28.094; Section 14), nonuniform advice below 2^13 bytes, preprocessing 2^78.09276 (allowances and counted precomputation, included in the time). Score: 86.47433 + 8.1 = 94.57433.
 
-Track `sha256-r38-exploratory`, target `sha256-r38-prefix-v1`, cost model `collision-frontier-v5` (C = 2728).
-Claim: `time_log2 = 87.90375` target compressions (the exact total is 2^87.9037417, which the certificate of Appendix B rounds up to 87.90375), success probability at least 0.39 (the bound is exactly 0.39), memory
-2^28 bytes (peak = max(online 1,044,992 bytes = 2^19.9951, preprocessing bound 2^28): Section 14), nonuniform advice below 2^13 bytes, preprocessing 2^78.09276 (allowances and counted precomputation, included in the time).
-
-**This derivative.** Credited derivative of itseasypop's 2d1c4fc2-7bdd-4b92-af0c-f0c041883b07 (91.5962). That package is the 38-step
-attack of ePrint 2026/1120 with the 2^26 A0-variants of the published dense part, the c7 classes of those variants (one W7 test decides a whole
-class), a bit-sliced evaluation of the row-16 filter E16x for 256 variants per batch, and the premises H1, H2 and H3 with their evidence. Its
-claim is 2^91.59620 time with 2^30.6 bytes of memory: two bitmaps of 2^32 bits (F7 and the row-16 set), the 245,760 variants with S0(a0) and a sort of the 2^26
-pairs (c7, a0) of the precomputation. The construction, the characteristic, the 64 class descriptors it gives (26 more classes of the same family are added here, Section 9.3), the premises H1, H2, H3 and H4, the
-success analysis and its allowances are theirs and those of the packages they credit (dependencies.json); we executed none of their code. This
-package keeps all of that and changes how the program is built and priced, and which pairs it accepts as a collision, with these effects on log2 T (Section 11, each row computed by the exact ledger with the inputs of that row):
+**This derivative.** Credited derivative of our accepted fb176310 (sha256-r38, 95.90375) and of dariolina's 1a695f0b (sha256-r38, 95.32358). fb176310 is the program, the success analysis, the measurement method and the accounting; 1a695f0b is the characteristic P8 (its 38-step semi-free-start pair, hence the Step-1 solution S), its selection of 8 c7 classes of 24,576 variants, and its accepted event with row 19 on signed differences. We read 1a695f0b's public proof as a document and transcribed P8 as data; we executed none of its code. What is new here is listed in Section 2. Effects on log2 T (each row computed by the exact ledger of Section 11 with the program counts of that row; `sens.py`, Appendix A.7):
 
 | step | log2 T | change |
 |---|---:|---:|
-| 2d1c4fc2 as filed (91.59619 recomputed from its printed ledger inputs) | 91.59619 | |
-| the success target is exactly 0.39 and the work-cap margin is 2^-16 (the base targets 0.3934 and 2^-8) | 91.57341 | -0.02278 |
-| no bitmaps: F7 by a decision tree on its affine description, the row-16 set by an affine test; the per-first-block scalars and planes only for first blocks with a passing class | 91.56653 | -0.00688 |
-| own plane programs: constants of the class folded, complements absorbed, common subexpressions shared, a 64-register allocator that counts every load, store and spill, dead code removed (the ten cell bits tested, as in the base) | 91.34834 | -0.21819 |
-| the 12 lowest bits shared by the 32 row-16 words are tested, so the carry chain of the E16x sum ends at bit 16; the passing lanes are resolved by a counted lane scan | 91.20612 | -0.14221 |
-| rows 19 and 20 accept the four E19 patterns with E20[29] = E19[29] (Section 6.1); q3_model 2^-99.1523 (the program of the next row; its counts move T by less than 10^-6 bit) | 89.30887 | -1.89725 |
-| rows 22..37 are not tested; the eight output words of the two members are compared after row 37 (the collision itself); step 3b 3000 -> 2829 operations; q3_model 2^-97.7838 = 2^-101.05 x 2^3.2662, the one-sided 99% lower bound of a preregistered paired measurement of both changes together (Section 7.4) | 87.94132 | -1.36755 |
-| 90 classes of 3840 variants in 7 plane programs (Section 9.3): the 26 size-3840 classes whose shape lies in the three shapes are added, the W7 tests run as one loop (+4 operations per class), the plane programs are split along the shape bits and the operand order is (1, 3, 2, 0); q3_model unchanged | 87.90375 | -0.03759 |
+| fb176310 as filed (published characteristic, 90 classes of 3,840, seven plane programs, q3_model 2^-97.7838) | 87.90375 | |
+| P8: 8 classes of 24,576 variants, the accepted event of Section 6.1, q3_model 2^-96.5755 (our preregistered measurement, Section 7.4); one program per class over its 21 varying bits (1,447 instructions per batch), TK = 12, lane table | 86.72503 | -1.17872 |
+| one program per batch of 256 variants, the 24 constant bits of the batch folded into it (768 programs, mean 1,304.41 instructions at TK = 12) | 86.58351 | -0.14152 |
+| stage 3a on the 8 lowest shared bits of the 160 row-16 words (TK = 8 by a scan; mean 1,083.55 instructions), 128 operations per passing lane | 86.47433 | -0.10918 |
 
-The online memory falls from 2^30.6 to exactly 1,044,992 bytes (log2 = 19.99506046703272, under 2^20 = 1,048,576); the claimed peak is max(online, preprocessing bound 2^28 bytes) = 2^28 (Section 14, peak memory). The old 1,045,792-byte figure reserved 40 spill slots; the shipped allocator uses 15, reducing the total by 800 bytes. If memory above 2^20 bytes were priced at one bit of time per doubling (the proposal S = time + max(0, memory - 20)), the score S of the base is 102.196 and of this package 87.90375 + (28 - 20) = 95.90375; the time itself is also lower than the base's.
+Memory: fb176310 claims 2^28 (its preprocessing envelope); this package claims 2^28.1 because the Step-1 solve of P8 was measured by its author at 2^28.094 bytes (Section 14). Score 94.57433 against 95.90375 (fb176310) and 95.32358 (1a695f0b: time 87.22358, memory 2^28.1).
+
+**Revision.** This package revises pkgR38P8 after the ruling b7e5ee68 (aggregate refuted by the fatal finding F-COST-MEMORY-DISCARDED-DEVELOPMENT). The counted program, the experiments, the ledger and the claim (time 86.47433, success 0.39, memory 2^28.1, score 94.57433) are unchanged. New are the memory and development text (Sections 12 H4c and H6, 13.4, 14, 15), a repetition of the development executions under address-space caps with measured peaks (Sections 7.4, 13.1, 13.4, 14 (c2), Appendix A.10) and the answers of Section 16.
 
 ## 0. Summary
 
-- **Algorithm (Sections 4-8).** Messages M0 || M1 and M0 || M1' (128 bytes; the same third block pads both). A first block M0 is two uniform 256-bit words; CV1 = F_38(IV, M0)
-  costs one unit. For each of 90 fixed classes of variants of the published dense part S (3840 variants each, 345,600 in all) one test W7x = c7 - A_{-1} in F7 decides whether every variant of the class
-  is a *good pair* (the 38-step characteristic has no W6 filter). For the variants of a passing class a counted bit-sliced program computes E16x = C16 + W0 + s0(W1) for 256 variants at a time and tests the 12 lowest bits that all 32
-  row-16 words share (stage 3a, probability 2^-12 per good pair). A passing lane is resolved in scalar form (E16x against the exact 32-word set), a row-16 pass is checked through row 21 (rows 19 and 20 in the accepted form of Section 6.1), rows 22..37 are computed without tests and the two outputs are compared: equal outputs are a collision; it is verified with the target.
-- **Rates (exact under H1).** Per first block: 90 p7 = 6.02051 passing classes and g = 90 x 3840 x p7 = 92475/4 = 23,118.75 good pairs (p7 = |F7| / 2^32 = 2^-3.90197). The classes are strongly correlated: the number of passing classes is 0 with probability 0.69681 (exhaustive pass over all 2^32 values of A_{-1}, Appendix A), so a scalar and plane block is needed for only 0.30319 of the first blocks.
-- **Probability (Section 7, H2).** q3_model = 2^-97.7838: the printed event's 2^-101.05 (the base's one-sided 99% lower bound of its preregistered estimate) times 2^3.2662, the one-sided 99% lower bound of the gain of the accepted event in a preregistered paired run (32 seeds x 2^28 proposals; mean gain 2^3.3439). Our replica of q3 for the accepted event (an independent implementation, organizer experiment `a0-q3-r38`) has mean 2^-97.5860 over 960 replicates.
-- **Cost (Sections 9 and 11).** N_FB = 5,840,904,760,525,073,226,269,327 = 2^82.27247 first blocks; per first block 1 unit plus 35 fixed operations, plus on average 132300.1864 counted data-dependent operations (W7 tests, 1497.66; the plane programs of the passing classes, 128796.72; passing lanes, 1714.3396; scalars, planes, hit list and row 16, 291.47), all capped by V_MAX (tested at the start of every first block and after every class, Lemma 8.1).
-  The seven plane programs have 1410, 1413, 1421, 1426, 1425, 1426, 1425 instructions per batch of 256 variants (each covers the classes of one part of one of the three shapes; the shape is the set of bits of a0 that vary in the class), against 1,871 to 1,911 in the base.
-- **Memory (Section 14).** Peak 2^28 bytes (preprocessing bound); online exactly 1,044,992 bytes (log2 = 19.99506046703272, under 2^20): the batch planes of the 90 classes (675,840 bytes), shared constants, broadcast planes, 15 used spill slots (480 bytes), scalar/counter/hit/F7 storage, class table, code and other routines. Nothing is stored that a computation of the program does not write.
-- **Premises (Section 12).** H1 uniform independent chaining values; H2 q3 >= 2^-97.7838 for the accepted event; H3 given a success, the other variants of the same first block pass row 16 at most 2^-8.5 times on average (measured at 2^-10.63 by the base on 65,030 successes and again here on 33,222, both on the first 64 classes; scaled to 90 classes, Section 12); H4 advice allowances (the base's, unchanged); H5 counted word-RAM pricing of the bit-sliced filter with a 64-register allocator; H6 the memory figure.
-- **Checks (Section 13).** Exhaustive: |G| = 2^26, 102,696 c7 values, 180 classes of 3840 (90 used), |F7| = 287,309,824, the 32-word row-16 set (2^22 values enumerated). End to end on 2^22, 2^23 and 2^24 real first blocks with the first 64 classes (C, Appendix A.3): every rate as predicted and all 3,561 row-16 passes checked exactly in Python (the first block gives the chaining value, W7 is in F7, every cell of rows -4..16). The shipped program is run on seed-drawn first blocks by two organizer experiments and by `selftest`.
+- **Algorithm (Sections 4-8).** Messages M0 || M1 and M0 || M1' (128 bytes; the same third block pads both). A first block M0 is two uniform 256-bit words; CV1 = F_38(IV, M0) costs one unit. For each of 8 fixed classes of variants of P8's dense part S (24,576 variants each, 196,608 in all) one test W7x = c7 - A_{-1} in F7 decides whether every variant of the class is a *good pair*. For a passing class, 96 straight-line programs (one per batch of 256 variants, the batch's constant bits of a0 folded into the code) compute E16x = C16 + W0 + s0(W1) bit-sliced and test the 8 lowest bits that all 160 row-16 words share (stage 3a, probability 2^-8 per good pair). A passing lane is resolved in scalar form (E16x against the exact 160-word set), a row-16 pass is checked through row 21 (row 19 on its signed differences), rows 22..37 are computed without tests and the two outputs are compared: equal outputs are a collision; it is verified with the target.
+- **Rates (exact under H1).** Per first block: 8 p7 = 0.53516 passing classes and g = 8 x 24,576 x p7 = 13,152 good pairs (p7 = |F7| / 2^32 = 2^-3.90197). Pr[some class passes] = 0.26953 exactly (all 2^32 values of A_{-1}); never more than 2 classes pass.
+- **Probability (Section 7, H2).** q3_model = 2^-96.5755: the one-sided 99% lower bound of a preregistered measurement of the accepted event (32 fresh seeds of 2^28 samples on real compressions, row 16 exact, W8 from the 196,608 selected variants; mean 2^-96.3251). Our replica (an independent implementation, organizer experiment `a0-q3-r38`) has mean 2^-96.3095 over 960 calibration replicates; 1a695f0b's estimator gave 2^-96.3683.
+- **Cost (Sections 9 and 11).** N_FB = 4,449,581,490,679,991,464,212,814 = 2^81.87994 first blocks; per first block 1 unit plus 35 fixed operations, plus on average 62,939.1683 counted data-dependent operations (W7 tests 133.13; the batch programs of the passing classes 55,979.62; passing lanes 6,576.00; scalars, planes, hit list and row 16 250.43), all capped by V_MAX (tested at the start of every first block and after every class, Lemma 8.1). The 768 batch programs have 1,067 to 1,102 instructions; one program per class over the 21 varying bits (the design of fb176310 and 1a695f0b) has 1,447 to 1,511.
+- **Memory (Section 14).** Peak 2^28.1 bytes, set by P8's Step-1 solve as measured by its author (2^28.094); the online program needs 26,674,912 bytes (2^24.67), mostly the code of the 768 batch programs; the development executions whose outputs the claim uses were run under address-space caps of at most 2^28 bytes with measured peaks of at most 2^27.77 (Sections 13.4 and 14), and two superseded exploratory executions that held a 1 GiB table and a 512 MiB bitmap are stated in Section 14 (d).
+- **Premises (Section 12).** H1 uniform independent chaining values; H2 q3 >= 2^-96.5755 for the accepted event; H3 given a success, the other variants of the same first block pass row 16 at most 2^-7.5 times on average (measured: 2^-8.55, 99% upper bounds 2^-7.97 and 2^-7.79, on 12,028 successes of the accepted event with all 8 classes); H4a/H4b advice allowances (P8's search is published with its run log); H4c the development charge (declared); H5 counted word-RAM pricing of the bit-sliced filter; H6 the memory figure.
+- **Checks (Section 13).** Exhaustive: |G| = 68,157,440, 45,032 c7 values, 32 classes of 24,576 (8 used), |F7| = 287,309,824, the 160-word row-16 set (2^24 values enumerated), |F23| = 9,830,400, the hit distribution over all 2^32 values of A_{-1}. End to end on 2^22, 2^23 and 2^24 real first blocks with the 8 classes (C): every rate as predicted and every row-16 pass checked exactly in Python. The shipped program is run on seed-drawn first blocks by two organizer experiments (all 768 batch programs among them) and by `selftest`.
 
 ## 1. Target, cost model and output
 
 - **Target** sha256-r38-prefix-v1: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words
   (repository `verifier/hash_functions.digest(m, "sha256", 38)`). The output is two distinct complete messages with equal digests, verified with the target before output.
 - **Cost model** collision-frontier-v5: one 38-step target compression = 1 unit; every other executed 256-bit word-RAM primitive (load, store, add/sub, and/or/xor/not, shift, compare, branch, uniform random word) = 1/C unit
-  with C = 2728; a conditional branch (compare and branch) counts 2, everything else 1; 64 registers; immediates and shift amounts are instruction fields; memory is reported (and, under the rule that prices it, charged above 2^20 bytes).
+  with C = 2728; a conditional branch (compare and branch) counts 2, everything else 1; 64 registers; immediates and shift amounts are instruction fields. The track ranks time_log2 + max(0, memory_log2_bytes - 20) (scoring policy hashsmash-scalar-tm-v1).
 - **Notation.** E_i = A_{i-4} + E_{i-4} + S1(E_{i-1}) + CH(E_{i-1}, E_{i-2}, E_{i-3}) + K_i + W_i and A_i = E_i - A_{i-4} + S0(A_{i-1}) + MAJ(A_{i-1}, A_{i-2}, A_{i-3}) (mod 2^32); (A_{-1..-4}, E_{-1..-4}) = (a, ..., h) of the
-  incoming chaining value; F_R(cv, B) is the R-step compression with feed-forward. Member x is the message printed second in the paper (M'), member y the message printed first (M).
+  incoming chaining value; F_R(cv, B) is the R-step compression with feed-forward. Member x is the message M of the P8 pair, member y the message M' (as printed in 1a695f0b).
 
 ## 2. Sources, credit, and what is reused or new
 
-- [LZLLQZ26] ePrint 2026/1120 (Li, Zhang, Li, Liu, Qian, Zhu, "Pushing Collision Attacks on SHA-2 to 39 Steps"): the 38-step characteristic (Table 3), the two-bit conditions (Table 4), the semi-free-start pair (Table 5), the two-block memory-efficient
-  framework (Section 3.1) with its Step 1 (a SAT solve of the dense part, reported at 2^38.3 compressions), Step 2 (first blocks filtered on W7, 2^-4 in the paper) and Step 3 (the freedom in (W14, W15)), total 2^104.3 time with negligible memory; [LLWS26] ePrint 2026/1080 (the framework); [LLW24] EUROCRYPT 2024 (the SAT/SMT tool).
-- itseasypop's 2d1c4fc2 (91.5962): the A0-variants of the Step-1 solution (the word A0 carries no condition of the 38-step characteristic), the c7 classes and the 64 class descriptors, the observation that every variant of a passing class is a good pair, the
-  bit-sliced E16x filter for 256 variants per word, the success analysis (Bonferroni per first block, Chebyshev caps), the premises H1 to H3 and their evidence, and the allowances. Their result is quoted where it is used and marked as theirs. Its own lineage, which it credits, is in dependencies.json: the earlier r38 filings of the same attack
-  (b99301f4 leech1996, 349e3a6a Th0rgal, 20dbd783 GordoAR: transcription of Tables 3-5, orientation, the `+` reading, the corrected condition W25[4] = W25[6], the exact set F7, the q3 estimator design), 1c368173 (the r37 filing the method comes from) and 6eeefb64 (the calibrated price of a solver CPU-second).
-- The numeric tables of the characteristic in the program (cells of A, E and W by row, the + pairs, the two-bit conditions) are data, taken from Th0rgal's transcription in aa0496d3 (experiments/vt38.py) through our earlier r38 package and verified here on the published pair (`selftest`); this is the only thing taken from a participant's program, as data.
-- New in this package (all code and measurements are ours; nothing of any other participant's program was executed): the memory-free decision tree for F7 and the affine test for the row-16 set; the plane-program builder with constant folding, absorbed complements, common subexpressions, dead-code removal and a 64-register Belady allocator whose loads, stores and spills are counted; the choice of the 12 tested bits;
-  the counted online program (first-block words, W7 tests, per-first-block scalars and planes, lane scan, step 3b); the exact ledger and its inputs; the exhaustive passes (`fam38.c`, `hits38.c`), the end-to-end program on real first blocks (`e2e38m.c`); a sequential Monte-Carlo replica of q3 and its calibration; the two organizer experiments.
-- Tools and credit for them: this package was written, run and checked by Claude Code (models Claude Sonnet 5.5 and, for this version, Claude Opus 5.5; Anthropic) under the direction of the project owner; the trail tool of Section 7.4 was written in this project with Claude Code; Grok (xAI) pointed out that the paper's Table 1 lists the 38-step attack at 2^104.3 time with negligible memory and framed the memory-rule arithmetic; GPT Luna (OpenAI) computed the earlier sharded-table memory trade that this result is compared with in the note; Grok (xAI) computed the class schedule of Section 9.3 (which classes, how many plane programs, the operand order, the looped W7 test) and its ledger, which we re-derived with the program of this package (the same N).
+- [LZLLQZ26] ePrint 2026/1120 (Li, Zhang, Li, Liu, Qian, Zhu): the 38-step two-block framework, its memory-efficient Step 1-3 procedure and the message-difference shape (W7..W11, W15, W16, W23, W25); [LLWS26] ePrint 2026/1080 (the framework); [LLW24] EUROCRYPT 2024 (the SAT/SMT tool).
+- **fb176310 (our accepted filing, 95.90375; the base of this derivative).** Everything about the program is reused from it: the counting machine, the plane-program builder with the 64-register Belady allocator, the memory-free W7 decision tree for F7, the per-first-block scalars and broadcast planes, the lane scan, the counted step 3b with an early abort and the output comparison after step 37, the work cap tested at every first block and after every class (Lemma 8.1), the success analysis (Bonferroni per first block, independence, Chebyshev for the cap) with its exact target 0.39 and cap margin 2^-16, the preregistered Monte-Carlo method for q3 (one-sided 99% Student lower bound over 32 fresh seeds of 2^28 samples, `traillab`), the replica design of the organizer experiment `a0-q3-r38`, the H3 measurement, the allowances A_C = 2^78, A_S = 2^74 and the development charge DEV = 2^70, and the exact integer ledger with its certificate. Its own lineage (2d1c4fc2 itseasypop and the packages that one credits) is in dependencies.json.
+- **1a695f0b (dariolina, sha256-r38, 95.32358; credited).** The characteristic **P8** and its 38-step semi-free-start pair (Section 3), hence the Step-1 solution S; the observation that P8's maximal c7 classes have 24,576 members and the selection of the 8 classes of mask 7fe96c7c (their c7 and bases); the accepted event in which row 19 is checked on its signed differences only; the twelve row-19 conditions and the four condition patterns of its successes, which our replica uses only as a proposal distribution (Section 7.3); its measured memory of the computations behind P8 (Section 14). We read its public proof as a document and transcribed P8 as data (our file `chi38p8.txt`, checked on the pair); we executed none of its code.
+- **New here (own work).** The transcription of P8 and its checks; the exhaustive passes for P8 (G, the c7 classes and their product description, F7, the exact hit distribution, the row-16 set, the set F23); **one straight-line program per batch of 256 variants** in which the 24 bits of a0 that are constant on the batch are folded into the code (768 programs, 1,067 to 1,102 instructions, against 1,501 for one program over the 21 varying bits); the 8-bit stage 3a chosen by a scan; the lane table; the 29-operation row-16 test; the preregistered measurement of q3 for P8 with W8 drawn from the 196,608 selected variants and row 16 exact (Section 7.4); the replica of q3 for P8 with W23 importance-sampled from F23 (Section 7.3); the H3 measurement on successes of the accepted event with all 8 classes (Section 13.5); end-to-end runs of the filters on real first blocks for P8 (Section 13.1); the ledger.
 
-## 3. The characteristic (ePrint 2026/1120, as transcribed in the earlier r38 filings of this attack; verified here)
+## 3. The characteristic P8 (1a695f0b, our transcription; verified here)
 
-Symbols MSB first: `n` = (x, y) = (0, 1), `u` = (1, 0), `0`/`1` fixed and equal, `=` equal, `+` equal to the same bit
-of the vertically adjacent `+` (no difference). Member x is the message printed second (M').
+Symbols MSB first: `n` = (x, y) = (0, 1), `u` = (1, 0), `0`/`1` fixed and equal, `=` equal, `+` equal to the same bit of the vertically adjacent `+` (no difference). Rows -4..6 and 23..37 of A and E have no difference; W carries the differences of the message shape. Rows 16..22 carry the conditions of the accepted event, with row 19 on its signed differences only (Section 6.1). The table is the one of the shipped program (`_ROWS`); rows 7..15 are the dense part S, given by its values:
 
 ```text
-  5  ================================  +++=============================  ================================
-  6  ================================  +++=1====0==+1=====0+===1==1====  ================================
-  7  =nu=============================  uuu=0+1=11=0+00====1+===0==00=01  ==n=============================
-  8  =========n=====n====n======u====  100=u+010n=1nu01=01nu=00n11u1=01  =====u===u==========n===========
-  9  ================================  11000u1=n11u0000101101110=01u0uu  ==u=============================
- 10  ================================  ==1010=01u00001u=010u=101==10111  =====n=u=======n===n==n=n=n=u=u=
- 11  ====================u=======un==  1=n000=0111100101unn00011+111u10  ============u======u=u==========
- 12  =u===n====n======u===nu=======n=  01nuuu=110n111nu000100100+010u1n  ================================
- 13  ==n============n================  00110101110=000u00111nuu+nnnu1n1  ================================
- 14  ====u=========nn========u==u====  =010n0===00===1n=11+0100+1110001  ================================
- 15  ======n=u=======n===============  =1==1=1==0=1==11===+u011n1011=1=  =====u===n==========n===========
- 16  ================================  =u==10===n===+u1===n0=u=1==+====  ==u=============================
- 17  ==u=============================  =0=====+00===+0=+==01=0=0==+====  ================================
- 18  ================================  =0=====+01===n1=+==1==1===0u====  ================================
- 19  ================================  ==11===nn====1==n===010===11==0=  ================================
- 20  ================================  ==1====00====1==0==========1====  ================================
- 21  ================================  ==u====10=======1===10==========  ================================
+     A                                 E                                 W
+  7  =nu=============================  uuu=============================  ==n=============================
+  8  =========n=====n====n======n====  ==n=u====n==nu=====nu===u==n====  =====u===u==========n===========
+  9  ================================  ======nn===n================n=nn  ==u=============================
+ 10  ===============n===========u====  =u=============n===========u====  =====u=n=======n===u==u=n=u=n=n=
+ 11  ====n===============n========u==  ==n==n==u=====un================  ============u=======nn==========
+ 12  ==u====u==u==========uu=======u=  =nu=u==n==n=====u=n=nn=========u  ================================
+ 13  ==n=============================  =========n============n=nuu==uu=  ================================
+ 14  ====n=========n=========n==n====  ====u=========n=================  ================================
+ 15  ======n=u======un===============  ====================n===u=======  =====u===n==========n===========
+ 16  ================================  =u==1====n===+u====u0=u=0==+====  ==u=============================
+ 17  ==u=============================  =0=====++0===+0=+==01=0=0==+====  ================================
+ 18  ================================  =0=====++1===n1=+==1==1====n====  ================================
+ 19  ================================  ==+====nn=======u===============  ================================
+ 20  ================================  ==+====00====1==0==========1====  ================================
+ 21  ================================  ==u====10=======1===============  ================================
  22  ================================  ==0=============================  ================================
- 23  ================================  ==1=============================  =====1=uu=====1=u=1=============
- 25  ================================  ================================  ==n=============================
 ```
 
-Rows -4..4 are entirely `=`: **A0..A4 and E0..E4 carry no condition** (no difference: the chaining value is common and
-rows 0..6 of A and E have no u/n).
-
-Two-bit conditions (Table 4) with the corrected reading:
+(W23 and W25 differ, `=======uu=======n===============` and `==n=============================`; rows 22..37 carry no test of the accepted event.) Two-bit conditions closing at rows 16..21 (the table `X2` of the program; the keyed row is the larger row):
 
 ```text
-A14[15] = A16[15], A14[23] = A16[23], A14[25] = A16[25], A15[4] = A16[4], A15[7] = A16[7], A15[16] != A16[16]
-A15[17] = A16[17], A15[27] = A16[27], A15[29] = A16[29], A16[15] = A17[15], A16[23] = A17[23], A16[25] = A17[25]
-A17[9] = A17[20], A17[6] = A17[18], A17[8] = A17[17], A16[29] = A18[29], A18[29] = A19[29], E16[4] != E16[23]
-E16[3] != E16[8], E16[14] = E16[28], E16[4] = E17[4], E16[18] = E17[18], E18[0] != E18[13], E17[15] = E18[15]
-E17[24] = E18[24], E19[6] != E19[19], E19[20] = E19[2], E21[2] = E21[16], W7[8] != W7[25], W7[14] != W7[18]
-W7[1] = W7[12], W8[0] != W8[28], W8[30] != W8[9], W8[1] = W8[18], W16[1] != W16[12], W16[20] != W16[27]
-W16[8] = W16[25], W16[14] = W16[18], W16[4] != W16[6], W16[22] != W16[31], W23[0] != W23[30], W23[1] != W23[31]
-W23[14] = W23[21], W23[16] = W23[25], W25[4] = W25[6] (printed W25[9]), W25[22] = W25[31], W25[20] = W25[27]
+row 16: E16[7] = E16[26], E16[14] != E16[28], E16[11] = E16[16], E16[3] != E16[8], E16[4] = E16[23], A15[4] = A16[4], A15[7] = A16[7],
+        A14[15] = A16[15], A14[16] = A16[16], A15[17] = A16[17], A14[23] = A16[23], A14[25] = A16[25], A15[27] = A16[27], A15[29] = A16[29],
+        W16[20] != W16[27], W16[22] = W16[31], W16[4] != W16[6], W16[14] = W16[18], W16[8] = W16[25], W16[1] != W16[12]
+row 17: A17[9] != A17[20], A16[15] = A17[15], A17[6] = A17[18], A16[16] != A17[16], A16[23] = A17[23], A16[25] = A17[25], A17[8] != A17[17]
+row 18: E18[0] = E18[13], E18[17] = E18[22], E18[5] != E18[23], A16[29] = A18[29], E18[9] = E18[23]
+row 21: E21[10] = E21[15], E21[11] = E21[24], E21[2] = E21[16]
+'+' pairs: E17 = E16 on 00040010, E18 = E17 on 01808000, E20 = E19 on 20000000
 ```
 
-The SFS pair (Table 5):
+The semi-free-start pair (1a695f0b Section 3.1), x = M, y = M':
 
 ```text
-CV  cd278980 1b12a052 b87cc8a6 a9e059c5 c9c3db85 6ca4b5b5 63d13ac1 c0329f1e
-M   48fc271b 9fca20cd cc89f96f fc40396f 8b328cb4 6b91ef78 97f9b767 e2450045
-    3b016f58 de9804cb 66a99ea5 0ce30b8d a28cd15a 77a1e994 d28e48a0 9b5f6dbb
-M'  48fc271b 9fca20cd cc89f96f fc40396f 8b328cb4 6b91ef78 97f9b767 c2450045
-    3f416758 fe9804cb 63a88c0f 0ceb1f8d a28cd15a 77a1e994 d28e48a0 9f1f65bb
-hash 5d9ca5f4 59ace3a3 26c9c26c 4252c585 4c0803b7 1b4d5ccd 25c3ccc0 90645c4d
+CV1 95a24959 b4053f95 1bf0473e 1eab3b7c 650c63d3 e6493d3b ed004f1d eb7eaad3
+M   bd047e95 1dc94891 4bbe458b c7dc3c0a 8b6235e1 9d7630ee 569da3a0 94ddb1c2 464e545d a804c932 acecbe75 c8280172 9a4d6768 16139532 e00d6a99 5fb2827b
+M'  bd047e95 1dc94891 4bbe458b c7dc3c0a 8b6235e1 9d7630ee 569da3a0 b4ddb1c2 420e5c5d 8804c932 a9edacdf c8200d72 9a4d6768 16139532 e00d6a99 5bf28a7b
+out c7dfd8a1 35575813 87ce86fa f1d48e72 29b25310 e8ff5e13 15d145de 81104761
 ```
 
-F_38(CV, M) = F_38(CV, M') = the printed hash under our reference code (`a0lean38.py`, `selftest`); every cell of rows -4..37 and every two-bit condition (corrected reading) holds with x = M', y = M.
-
+F_38(CV1, M) = F_38(CV1, M') = out under our reference code (`selftest`, first line), and the pair follows every cell, '+' pair and two-bit condition above at rows -4..21; its A0 = c500a7ff. The same transcription (`chi38p8.txt`) passes our trail tool's `check` (pair, digest, 0 failing rows, rebuild, 2,000 random draws of the free coordinates with 0 mismatches). Every difference of rows 7..15 and every cell of rows 16..21 is checked on fresh pairs by the organizer experiments (Section 13.3).
 
 ## 4. Step 1: the solution S and its A0-variants
 
-### 4.1 S
+### 4.1 S and the Step-2 equations (Lemma 4.1)
 
-S is the inner part of the published pair (x | y):
+S is the inner part of the P8 pair: the state rows A0..A15, E4..E15 and the words W8..W15 of both members (A0 = c500a7ff). For fixed state rows A0..A15 (both members) and a chaining value CV1, for each member
+E_i = A_i + A_{i-4} - S0(A_{i-1}) - MAJ(A_{i-1}, A_{i-2}, A_{i-3}) and W_i = E_i - A_{i-4} - E_{i-4} - S1(E_{i-1}) - CH(E_{i-1}, E_{i-2}, E_{i-3}) - K_i (i = 0..13), the words of CV1 entering as A_{-1..-4}, E_{-1..-4}.
+**Lemma 4.1.** Steps 0..13 of F_38 from CV1 with these words reproduce the state rows; for fixed A0..A13 the map CV1 -> (W0, ..., W7) is a bijection (invert steps 7..0); W8..W13 do not depend on CV1; W14, W15 are S's. W0..W6 carry no difference (rows 0..6 have none) and W7 differs by D7 = 20000000 (the framework of [LLWS26]; checked on every constructed pair, Section 13).
 
-```text
-A0  b75dae71 | b75dae71  A5  1ee5f173 | 1ee5f173  A10 bcc85d8c | bcc85d8c  E4  627cb061 | 627cb061  E9  c670b71b | c2e0b710
-A1  da6c35e0 | da6c35e0  A6  7fd9cecb | 7fd9cecb  A11 25d3cc99 | 25d3c495  E5  1e847683 | 1e847683  E10 68c3aa97 | 6882a297
-A2  479b4dc8 | 479b4dc8  A7  3e016e83 | 5e016e83  A12 4846f2d8 | 0c66b4da  E6  0c1c24b9 | 0c1c24b9  E11 c2f2c1be | e2f2b1ba
-A3  d374b0d8 | d374b0d8  A8  b6a6b5f9 | b6e7bde9  A13 c2dc0441 | e2dd0441  E7  e2e9b205 | 02e9b205  E12 5f9d1216 | 63be1213
-A4  df740c96 | df740c96  A9  3ec0b304 | 3ec0b304  W8  3f416758 | 3b016f58  E8  99352c79 | 917934e9  E13 35c13b0d | 35c03c77
-W9  fe9804cb | de9804cb  W10 63a88c0f | 66a99ea5  W11 0ceb1f8d | 0ce30b8d  W12 a28cd15a | a28cd15a  W13 77a1e994 | 77a1e994
-```
+### 4.2 The A0-variants
 
+**Lemma 4.2.** Replace A0 of S by any a0 (both members) and keep A1..A15. For every chaining value: (a) E5..E15 and W9..W15 are unchanged; (b) E4 = a0 + C4 with C4 = A4 - S0(A3) - MAJ(A3, A2, A1) = 8431a46f, and W8x = W8C - E4 with W8C = E8 - A4 - S1(E7) - CH(E7, E6, E5) - K8 = 8f80a0cb (both members shift by the same E4, so W8y - W8x = D8 = fbc00800 is unchanged); (c) W0..W7 absorb E0..E4, with member differences 0 for i <= 6 and D7 for i = 7. W8 reaches rows >= 16 only through W23 = s1(W21) + W16 + s0(W8) + W7 and W24 = s1(W22) + W17 + s0(W9) + W8 (and later words through them), so the variant keeps every modular difference of the expansion iff s0(W8y) - s0(W8x) = T8 = fe808000, S's value.
 
-### 4.2 The Step-2 equations (Lemma 4.1)
+Define **G = {a0 : s0(W8x + D8) - s0(W8x) = T8, W8x = W8C - (a0 + C4)}** (the rule of 1a695f0b). Exhaustively (`p8fam.c`, Appendix A.1): |G| = 68,157,440 = 2^26.022, and S's A0 is in G.
 
-For fixed state rows A0..A13 (both members) and a chaining value CV1, for each member
-E_i = A_i + A_{i-4} - S0(A_{i-1}) - MAJ(A_{i-1}, A_{i-2}, A_{i-3}) and W_i = E_i - A_{i-4} - E_{i-4} - S1(E_{i-1}) - CH(E_{i-1}, E_{i-2}, E_{i-3}) - K_i (i = 0..13), the words of the incoming CV1 entering as A_{-1..-4}, E_{-1..-4}.
-**Lemma 4.1.** Steps 0..13 of F_38 from CV1 with these words reproduce the state rows; for fixed A0..A13 the map CV1 -> (W0, ..., W7) is a bijection (W7 depends only on A_{-1}, W6 is -A_{-2} plus a function of A_{-1}, ..., W0 is -E_{-4} plus
-a function of the earlier coordinates); W8..W13 do not depend on CV1. (This is the framework of [LLWS26] for a dense part with no conditions on W5, W6 and E1..E3; checked here on every constructed pair, Section 13.)
-
-### 4.3 The A0-variants
-
-**Lemma 4.2.** Replace A0 of S by any a0 (both members) and keep A1..A13. For every chaining value: (a) E5..E13 and W9..W13 are unchanged; (b) E4 = a0 + C4 with C4 = A4 - S0(A3) - MAJ(A3, A2, A1), and W8x = W8C - E4 with
-W8C = E8 - A4 - S1(E7) - CH(E7, E6, E5) - K8 (both members shift by the same E4, so W8y - W8x = D8 = fbc00800 is unchanged); (c) W0..W7 absorb E0..E4; their member differences are 0 for i <= 6 and d7 = 20000000 for i = 7, because E4, E5, E6 carry
-no difference; (d) the only cells involving E4 or W8 are W8's cell (u at bits 26, 22, n at bit 11, the x-values fixed there) and the printed W8 two-bit conditions W8[0] != W8[28], W8[30] != W8[9], W8[1] = W8[18]; these fix the signed XOR difference of s0(W8) and hence
-s0(W8y) - s0(W8x) = fe7f8000, the value of the published pair.
-
-Define **G = {a0 : W8x = W8C - (a0 + C4) and W8y = W8x + D8 follow W8's cell, and the three W8 two-bit conditions hold}**. Exhaustively (`fam38.c`, Appendix A) |G| = 67,108,864 = 2^26, the modular difference s0(W8y) - s0(W8x) equals fe7f8000 for all of them, and the published A0 (b75dae71) is in G.
-
-**Lemma 4.3 (validity).** For a0 in G, every chaining value whose words satisfy W7x in F7 (Section 5.1) and the single l in L*, the pair follows every cell of rows -4..15 (W7's XOR cell excepted) and every printed two-bit condition closing at a row <= 15 except those on W7, and every
-modular difference entering the expansion equals the published pair's. (Checked on 3,561 real row-16 passes, Section 13.1, and on every constructed pair.)
+**Lemma 4.3 (validity).** For a0 in G and every chaining value with W7x in F7 (Section 5.1), the pair of the variant has rows 5..15 equal to S's in both members, follows every cell of rows -4..15 (the W7 and W8 cells excepted; F7 and G replace them), and every modular difference entering the expansion equals the P8 pair's. (Checked on every row-16 pass of the end-to-end runs, Section 13.1, on every good pair checked by `a0-online-r38`, and on every constructed pair of the replica.)
 
 ## 5. Step 2 with variants
 
 ### 5.1 The exact filter F7 and its decision tree
 
-With d7 = 20000000, the cells of rows 22/23 require s0(W7y) - s0(W7x) = t7 = 03bff800; W6 carries no difference in the 38-step characteristic, so there is no W6 filter: F7 = {w : s0(w + d7) - s0(w) = t7}, |F7| = 287,309,824 (exhaustive pass of `fam38.c`), p7 = |F7| / 2^32 = 2^-3.90197 = 274/4096.
-By the carry pattern of w + d7, F7 is the union of three affine families:
+P8 has the same W7 difference as the published characteristic (D7 = 20000000) and needs the same s0 difference, so F7 = {w : s0(w + D7) - s0(w) = 03bff800} is the set of fb176310: |F7| = 287,309,824 (exhaustive pass of `p8fam.c`), p7 = |F7| / 2^32 = 2^-3.90197; W6 carries no difference, so there is no W6 filter. F7 is the union of three affine families:
 
 ```text
 [w29=0, 14^18=1, 8^25=1, 1^12=0]                                                          2^28 words
@@ -168,397 +117,490 @@ By the carry pattern of w + d7, F7 is the union of three affine families:
 [w29=1, w30=1, 14^18=1, 15^19=1, 16^20^31=1, 8^25=1, 9^26=1, 10^27^31=1, 1^12=0, 2^13=0, 3^14^31=0]  2^21 words
 ```
 
-(a^b is the XOR of bits a and b of w.) Memory-free test of w = c7 - A_{-1} (the program of `w7test`): form t = w ^ (w >> 4), u = w ^ (w >> 17), v = w ^ (w >> 11) (bits 14..16 of t are 14^18, 15^19, 16^20; bits 8..10 of u are 8^25, 9^26, 10^27; bits 1..3 of v are 1^12, 2^13, 3^14); leave if t[14] = 0, then if u[8] = 0, then if v[1] = 1;
-if w29 = 0 accept; else leave unless t[15] = 1, u[9] = 1, v[2] = 0 (one comparison of three masked bits); if w30 = 0 accept; else compare the three words t[16], u[10], v[3] each XOR w31 with (1, 1, 0). Every exit adds one operation to the work counter. The operation counts of the exits are
-8 (probability 1/2), 13 (probability 1/4), 18 (probability 1/8), 21 (probability 1/16), 28 (probability 7/128), 31 (probability 1/256), 45 (probability 7/2048), 45 (probability 1/2048) and the expected count is 809/64 = 12.640625 operations per test (64 tests: 809.00 per first block, the counter update included). `selftest` and the test of Section 13.2 compare the tree with the definition of F7 on random and structured words (0 disagreements in 1.1 million words). The base looks the word up in a bitmap of 2^32 bits (2^29 bytes); this is the only change at this place.
+The memory-free test of w = c7 - A_{-1} is fb176310's decision tree (`w7test`, unchanged): exits of 8 (probability 1/2), 13 (1/4), 18 (1/8), 21 (1/16), 28 (7/128), 31 (1/256), 45 (7/2048) and 45 (1/2048) operations, the work-counter update included; mean 809/64 = 12.640625 operations. It agrees with the definition of F7 on 1,100,000 structured and random words (`w7check.py`, Appendix A.6) and in `selftest`.
 
 ### 5.2 Lemma 5.1 (distribution, per variant)
 
-Under H1, for every fixed a0: Pr[W7x in F7] = p7 exactly; conditioned on it, (W0..W6) is uniform on (2^32)^7 and independent of W7, which is uniform on F7; for the l of L*, (W16..W21) is a bijective image of (W0..W5) for fixed (W6, W9..W15) (inverse expansion), hence iid uniform and independent of (W6, W7).
+Under H1, for every fixed a0: Pr[W7x in F7] = p7 exactly; conditioned on it, (W0..W6) is uniform on (2^32)^7 and independent of W7, which is uniform on F7; (W16..W21) is a bijective image of (W0..W5) for fixed (W6, W9..W15) (inverse expansion), hence iid uniform and independent of (W6, W7).
 
-### 5.3 The c7 classes and the first-block statistics
+### 5.3 The c7 classes, their product description and the first-block statistics
 
-W7x = c7(a0) - A_{-1} with c7(a0) = E7 - 2 A3 + S0(A2) + MAJ(A2, A1, a0) - S1(E6) - CH(E6, E5, a0 + C4) - K7 (c7(b75dae71) = 8f6c89c5, the published constant). The exhaustive pass of `fam38.c` finds 102,696 distinct c7 values on G and
-180 classes of size 3840 (the maximum). The 64 smallest c7 among them are the 64 descriptors of the base (the pass reproduces their c7 values and member sets); the 180 classes of size 3840 have only three masks (15, 16 or 17 bits: 91eb5491 for 96 classes, 91eb54d1 for 52, 91eb55d1 for 32), and each class equals {base ^ s : s subset of mask, in G, c7 = the class value} with 3840 members. The 90 used are the 64 of the base and the 26 other classes whose constant bits outside the mask already lie in the shape of the base classes of that mask (48 classes of mask 91eb5491, 26 of 91eb54d1, 16 of 91eb55d1); no class that would enlarge a shape is used.
-For a given CV1, W7x is the same word for all variants of a class, so one membership test decides the whole class and every variant of a passing class is a good pair. Per first block E[passing classes] = 90 p7 = 6.02051 and E[good pairs] = g = 90 x 3840 x p7 = 23,118.75 (exact under H1, by linearity).
-The classes are not independent: the 90 selected c7 values are close, so the passing classes of one first block come in clumps. The exact distribution (all 2^32 values of A_{-1}, `hits38.c`, Appendix A.2) has Pr[no class passes] = 2,992,758,256 / 2^32 = 0.69681, Pr[some class passes] = 0.30319, mean 6.02051 and second moment 148.226 (maximum 39 passing classes). Only the expectations enter the ledger (linearity); the exact Pr[some class passes] prices the per-first-block scalars and planes.
-
-## 6. Step 3: row 16
-
-L* (from the earlier filings, re-checked): for the published S, |L| = 8 and |L*| = 1, the published (W14, W15) = (d28e48a0, 9f1f65bb) on the x side ((d28e48a0, 9b5f6dbb) on the y side). Rows 12..15 of both members depend only on S and l, not on CV1 or the variant.
-
-**Row 16.** W16 = s1(W14) + W9 + s0(W1) + W0, so E16x = C16 + W0 + s0(W1) with C16 = A12 + E12 + S1(E15) + CH(E15, E14, E13) + K16 + s1(W14) + W9 = fe314838 (member x), and every cell of row 16 (both members) and every two-bit condition closing at row 16 is a function of E16x. The ten fixed bits of the E16 cell form the mask 4c431a80.
-Exhaustive enumeration of the 2^22 values with those bits (`r16enum.py`, Appendix A.4) gives exactly 32 passing words:
+W7x = c7(a0) - A_{-1} with c7(a0) = E7 - 2 A3 + S0(A2) + MAJ(A2, A1, a0) - S1(E6) - CH(E6, E5, a0 + C4) - K7 (c7(c500a7ff) = 2a7ffb1b). For a given CV1, all variants with the same c7 share W7x, so one F7 test decides a whole class and every variant of a passing class is a good pair.
+The exhaustive pass of `p8fam.c` finds 45,032 distinct c7 values on G and 32 classes of the maximal size 24,576 (masks 7fe96c7c, 7feb6c7c: 8 classes each; 3fe96c7c, 3feb6c7c, 7fe96c7e, 7feb6c7e: 4 each). The attack uses the 8 classes of mask 7fe96c7c selected by 1a695f0b (196,608 variants):
 
 ```text
-481b02f9 481b02fa 481b02fd 481b02fe 481b06f9 481b06fa 481b06fd 481b06fe 481b22f9 481b22fa 481b22fd 481b22fe
-481b26f9 481b26fa 481b26fd 481b26fe 482302f9 482302fa 482302fd 482302fe 482306f9 482306fa 482306fd 482306fe
-482322f9 482322fa 482322fd 482322fe 482326f9 482326fa 482326fd 482326fe
+class   c7        base      (class = {base ^ s : s subset of 7fe96c7c, a0 in G, c7(a0) = c7}, 24,576 members each; p8fam.c checks every one)
+0       2a7beb1b  9b649791
+1       2a7bfb1b  9b648791
+2       2a7feb1b  9b609793
+3       2a7ffb1b  9b608793      (S's A0 c500a7ff is in this class)
+4       aa7beb1b  1b649791
+5       aa7bfb1b  1b648791
+6       aa7feb1b  1b609793
+7       aa7ffb1b  1b608793
 ```
 
-They are R16B = 481b02f9 plus any subset sum of {1, 4, 0x400, 0x2000, 0x80000}, so E16x is in the set iff (E16x - R16B) & ~0x82405 = 0 (an affine test: three operations and a branch). All 32 words agree on 24 bits; the 12 lowest of them are bits 3, 4, 5, 6, 7, 8, 9, 11, 12, 14, 15, 16, with common value 481b02f9 on the mask 0001dbf8. By Lemma 5.1 E16x is uniform for a good pair, so Pr[stage 3a] = 2^-12 and Pr[row 16] = 32/2^32 = 2^-27 exactly.
-Stage 3a is a necessary condition of row 16 (a lane that fails a shared bit cannot be in the set), and it tests the *lowest* shared bits on purpose: the sum E16x = KP + a0 + s0(W1) is formed by a ripple adder whose length is set by the highest tested bit (here 16) and nothing above it is computed; the base tests the ten cell bits, the highest being bit 30.
-For a row-16 pass the program computes W0..W8 of both members (Lemma 4.1), the y-words, rows 16..37 of both members with the tests of rows 16..21 (early abort), and then compares the eight words A34..A37, E34..E37 of the two members.
+*Product description (ours).* Every one of the 8 classes is the product {B | g1 | g3 | lane : g1 in G1, g3 in G3, lane in LANES} over the 11 bits of its base outside the mask (B = base & ~7fe96c7c): bits 5..4 take the three values G1 = {10, 20, 30}; bits 30..21 take the 32 values G3 listed in the program; and the 256 *lanes* are the 2^7 values of the free bits 2, 3, 6, 13, 14, 16, 19 times the two values 400, 800 of bits 11..10 (bit 10 = NOT bit 11). 3 x 32 = 96 batches of 256 lanes: batch b has the constant c_b = B | G1[b mod 3] | G3[b div 3] and lane L the offset LT[L] (bit 11 of a0 = bit 0 of L, bit 10 its complement, and bit LB[k] of a0 = bit k of L for k = 1..7, with LB = (11, 2, 3, 6, 13, 14, 16, 19)). `selftest` regenerates the 8 x 24,576 members from the product, checks that they are distinct, in G, with the class's c7 and of the form base ^ (subset of the mask), and `p8fam.c` shows that each class has exactly 24,576 members, so the product is the class.
 
-### 6.1 The accepted event (this version)
+*First-block statistics.* Per first block E[passing classes] = 8 p7 = 0.53516 and E[good pairs] = g = 8 x 24,576 x p7 = 13,152 exactly (by linearity under H1). The exact distribution of the number of passing classes over all 2^32 values of A_{-1} (`p8hits.c`, Appendix A.2): 0 classes for 3,137,339,392 values, 1 for 16,777,216, 2 for 1,140,850,688, never more (classes i and i + 4 have c7 values that differ only in bit 31, and w and w + 2^31 are both in F7 unless w is in the third family of F7; two different pairs never pass together, by the exhaustive count). So Pr[some class passes] = 1,157,627,904 / 2^32 = 0.26953; only the expectations and this probability enter the ledger.
 
-The program accepts a row-16 pass iff (i) rows 16..21 of both members follow every printed cell, '+' pair and two-bit condition closing at rows 16..21, except that at row 19 the nine value bits of E19 on the mask 30040e32 may take any of the four patterns 00040832, 10000010, 20000c12, 30040430 (the published one is 30040430) and at row 20 the value bit E20[29] is replaced by the tie E20[29] = E19[29]; and (ii) the state words A34..A37, E34..E37 after step 37 are equal for the two members. No cell, difference or two-bit condition of rows 22..37 (W23 and W25 included) is tested.
+## 6. Step 3: row 16 and the accepted event
 
-**Lemma 6.1.** If (ii) holds, the two second-block outputs are equal (the output is the chaining value plus (A37, A36, A35, A34, E37, E36, E35, E34), and the chaining value is common), so m = M0 || M1 and m' = M0 || M1' collide under the complete target (the third block is the common FIPS padding block; M1 is a full data block). m != m' because M1 and M1' differ in W7, W8..W11, W15. The program accepts exactly the pairs it can certify, whatever path rows 22..37 take; condition (i) only decides where the tests stop.
+**Row 16.** W16 = s1(W14) + W9 + s0(W1) + W0, so E16x = C16 + W0 + s0(W1) with C16 = A12 + E12 + S1(E15) + CH(E15, E14, E13) + K16 + s1(W14) + W9 = 9a6f7b9f (member x), and every cell of row 16 (both members), its '+' bits and every two-bit condition closing at row 16 are functions of E16x. The E16 cell fixes 8 bits (mask 48421a80).
+Exhaustive enumeration of the 2^24 values with those bits (`r16p8.py`, Appendix A.4) gives exactly 160 passing words (the same count as 1a695f0b's): the 20 *heads*
 
-Why these four patterns: an exhaustive enumeration over the nine E19 value bits and the six E20 value bits on 64 sampled prefixes (every other word held) finds exactly eight combinations that pass rows 19..21, the four E19 patterns times E20[29] in {0, 1}; with E20[29] != E19[29] the CH of row 22 passes E21's bit-29 difference and the pair dies at row 22 (derivation computed, not proved). Correctness does not depend on this: the program tests exactly the event whose probability H2 states, and that probability is measured (Section 7.4). The counted tests: row 19 is one AND with the cell mask and one compare-and-branch per pattern (the published pattern last, so the longest path is charged), row 20 tests its other value bits and then E20 xor E19, AND 2^29, branch; the comparison of the outputs is 8 xor, 7 or and one branch. `selftest` checks the counted tests against the definition on all 512 values of the nine bits and the four values of (E19[29], E20[29]).
+```text
+4b02d320 7b1ab320 7b22b320 7b3ab320 c802f320 c80ad320 c80af320 c812d320 c822f320 c82ad320 c82af320 c832d320 cb12f320 cb1ad320 cb1af320 cb22d320 cb32f320 cb3ad320 cb3af320 fb02b320
+```
+
+each with any value of the bits 0, 2 and 10 (20 x 8 = 160). So E16x is in the set iff E16x with bits 0, 2, 10 cleared is one of the 20 heads. The counted test (`row16_pass`) clears the three bits (one AND) and runs a binary search of fixed length over the heads padded to 32 words (5 probes, each an address add, a load, a compare-and-branch and the update: 5 operations) and a final load and compare-and-branch: 29 operations on every path. All 160 words agree on 19 bits (mask 4cc79bfa); the 8 lowest of them are bits 1, 3, 4, 5, 6, 7, 8, 9 with common value 4b02d320 on the mask 000003fa. By Lemma 5.1 E16x is uniform for a good pair, so Pr[stage 3a] = 2^-8 and Pr[row 16] = 160/2^32 = 2^-24.678 exactly.
+Stage 3a is a necessary condition of row 16, and it tests the *lowest* shared bits on purpose: the sum E16x = KP + a0 + s0(W1) is formed only up to bit 9, and s0(W1) up to bit 9 needs W1 only up to bit 27, so nothing above is computed (Section 9.3 scans the number of tested bits).
+
+### 6.1 The accepted event
+
+The program accepts a row-16 pass iff (i) rows 16..21 of both members follow every cell (the x-values on the fixed bits and the XOR difference on every bit of A, E and W), '+' pair and two-bit condition of Section 3 closing at rows 16..21 (row 19 on its signed differences only: the x-values of the difference bits 24, 23, 15 of E19 and the XOR differences of A19, E19, W19; the '+' pair E20[29] = E19[29] is tested at row 20); and (ii) the state words A34..A37, E34..E37 after step 37 are equal for the two members. No cell, difference or condition of rows 22..37 (W23 and W25 included) is tested. This is the event of 1a695f0b except that its row-22 cell (E22[29] = 0) is not tested: whatever rows 22..37 do, (ii) is the collision itself.
+
+**Lemma 6.1.** If (ii) holds, the two second-block outputs are equal (the output is the chaining value plus (A37, A36, A35, A34, E37, E36, E35, E34), and the chaining value is common), so m = M0 || M1 and m' = M0 || M1' collide under the complete target (the third block is the common FIPS padding block; M1 is a full data block). m != m' because M1 and M1' differ in W7. The program accepts exactly the pairs it can certify; condition (i) only decides where the tests stop.
+
+The counted tests of a row (`row_check`): for A, E and W one AND with the cell mask and one compare-and-branch when the cell fixes bits, then one XOR and one compare-and-branch for the difference; the '+' pair by XOR, AND, branch; each two-bit condition by two shifts, XOR, AND and a branch. The comparison of the outputs is 8 XOR, 7 OR and one branch. `selftest` runs step 3b on the P8 pair (all tests pass, the traces equal the reference).
+
 
 ## 7. The Step-3 probability for the variants (H2)
 
 ### 7.1 Quantity and Lemma 7.1
 
-q3 = the average over the 345,600 selected variants of Pr[the pair is in the accepted event of Section 6.1 | good pair], the probability over CV1 (Lemma 5.1). (The earlier filings used the printed event, every cell and printed two-bit condition of rows 16..37; Sections 7.2 and 7.3 quote its estimates where they are the starting point.) **Lemma 7.1.** Rows 16..22 are functions of S's rows 12..15, l and W16..W22 (W22 = s1(W20) + W15 + s0(W7) + W6), whose law given goodness is the same for every variant: the probability of rows 16..22 is identical for all variants (so also for the 26 classes added in Section 9.3, whose variants are in G like the others).
-W8 enters rows >= 23 only through W23 = s1(W21) + W16 + s0(W8) + W7 and W24 = s1(W22) + W17 + s0(W9) + W8 (and later words through them), with fixed modular differences (Lemma 4.2); only the values of W23, W24 move, each by a constant added to a word that is near-uniform given rows 16..22.
+q3 = the average over the 196,608 selected variants of Pr[the pair is in the accepted event of Section 6.1 | good pair], the probability over CV1 (Lemma 5.1). **Lemma 7.1.** Rows 16..22 are functions of S's rows 12..15 and W16..W22 (W22 = s1(W20) + W15 + s0(W7) + W6), whose law given goodness is the same for every variant; W8 enters rows >= 23 only through W23 and W24 (and later words through them). In this package the lemma is not needed for any transfer: q3 is measured directly with W8 drawn from the 196,608 selected variants (Section 7.4), and the replica (Section 7.3) and the H3 measurement (Section 13.5) draw their variants from the same 196,608.
 
-### 7.2 The estimate of the base for the printed event (quoted)
+### 7.2 The estimate of 1a695f0b (quoted)
 
-The base's preregistered sequential Monte-Carlo estimate of the printed-event probability (32 replicates, W8 drawn from the 245,760 variants; from its public proof, Section 7.3; participant-run, not repeated here): mean 2^-101.015, one-sided 99% lower bound 2^-101.045 (Student and bootstrap agree), all replicates at least 2^-101.19; on 1,073,754,023 common row-22 samples rows 23..37 pass 32,542 times with the variants' W8 and 32,538 times with the published W8.
-The stage factors (log2) are -27, -17, -13, -15, -6, -7, -1 for rows 16..22 and -15 for the tail, whose sum -101 is the analytic prediction (the factors count condition bits). 2^-101.05 is the base's value for the printed event; Section 7.4 measures the factor from the printed event to the accepted one.
+1a695f0b measured q3 for its event (rows 16..22 with row 19 on signed differences, outputs compared) over the same 196,608 variants with its own estimator (fixed-effort multilevel splitting, 4,000 particles, 20 runs of seeds 3001..3020; participant-run, not repeated here): mean 2^-96.3683, one-sided 99% Student bound 2^-96.9759 (one run stalled at row 20 and is counted as 0), and it uses q3_model = 2^-97.0. Our development run and our preregistered run below agree with its mean (Section 7.4); this package uses only its own preregistered value.
 
-### 7.3 Our own estimator for the accepted event and its calibration (`smc_replicate`)
+### 7.3 Our replica for the accepted event and its calibration (`smc_replicate`)
 
-An independent implementation of the base's estimator, changed for the accepted event: row 16 exact (64 particles uniform on the 32 words); rows 17..21 with 32, 8, 2, 2, 2 proposals per particle (E_t^x proposed uniformly with its fixed x-bits imposed and its '+' bits copied from E_{t-1}^x, exact weight 2^-f; at row 19 the nine pattern bits are one of the four patterns drawn uniformly, weight 4 x 2^-f; at row 20 bit 29 is set to E19[29]; W_t^x from the step equation, W_t^y = W_t^x + the published difference, the whole row in the accepted form and its two-bit conditions checked, multinomial resampling);
-tail: 384 proposals per particle of a variant (one of 512 embedded variants drawn once and uniformly from the 245,760 variants of the first 64 classes by SHAKE-256 of a fixed label, each checked to be in G and in a selected class; it was not redrawn for the 26 added classes, Section 12 H2), W23 by importance sampling over the classes of its ten printed conditions (the six value bits of its cell and its four two-bit conditions): one of the 27 classes listed in `SIG` with probability (n + 2)/218, uniform inside it, weight 218 x 2^-10 / (n + 2); W7 = W23 - s1(W21) - W16 - s0(W8) accepted iff in F7 (weight 2^22/|F7| on top), W6 uniform, rows 22..37 computed and the outputs compared.
-The 27 classes and their counts n are those seen among the 164 exact events of a development run with W23 uniform (Appendix A.5); 63 of the 164 were in the printed class. Classes never seen are not proposed, so the replica estimates a lower bound of q3 (the unseen classes held at most a few percent of the development events: 6 classes were seen once).
-The replicate estimate is the product of the stage means. Every tail success is rebuilt into a real 38-step semi-free-start pair (W7..W0 by the inverse expansion, CV1 by inverting steps 7..0 of the variant) and verified: equal outputs, M1 != M1', Lemma 4.1 returns W0..W13 of both members, rows -4..21 in the accepted form except W7's XOR cell, W7 in F7; then the counted program `step3b` is run on (CV1, a0) and must accept it. A failure of either check counts as a failed check.
-Calibrations (Appendix A.5; each preregistered with its program hash and fresh labels before its first replicate; all replicates kept):
+An independent implementation (shipped; the organizer experiment `a0-q3-r38` runs it) of the sequential Monte-Carlo estimator of fb176310, changed for P8:
 
-| version | proposal of W23 | replicates | mean (log2) | halves | pooled means of 20: mean, sd, min | below 2^-98.4338 | failed checks |
-|---|---|---:|---:|---|---|---:|---:|
-| printed event (earlier package) | printed class | 960 | -101.0253 | | -101.0356, 0.1719, -101.4077 | | 0 |
-| v1 | printed class | 960 | -98.8675 | -98.847 / -98.889 | -98.8763, 0.1606, -99.3667 | 48 | 0 |
-| v2 | classes, n/164, 192 per particle | 960 | -97.6273 | -97.637 / -97.617 | -97.6777, 0.3815, -98.4245 | 0 | 0 |
-| v3 (shipped) | classes, (n + 2)/218, 384 per particle | 960 | -97.5860 | -97.590 / -97.582 | -97.5997, 0.2007, -98.0335 | 0 | 0 |
+- **Row 16 exact**: 64 particles, E16x uniform on the 160 words (weight 160/2^32).
+- **Rows 17..21**: 256, 32, 4, 8, 8 proposals per particle; E_t^x proposed uniformly with its fixed x-bits imposed and its '+' bits copied from E_{t-1}^x (exact weight 2^-f, f = the imposed bits); W_t^x from the step equation and W_t^y = W_t^x + s1(W_{t-2}^y) - s1(W_{t-2}^x) + W_{t-7}^y - W_{t-7}^x (the exact difference of the expansion); the whole row and its two-bit conditions checked; multinomial resampling. At row 19, where the event tests only the signed differences, ten more bits of E19 are imposed by one of two relation sets drawn with probability 1/2 each (weight 2 x 2^-f): the relations of 1a695f0b's row-19 conditions 1..9 and 11 (E19[4] = 1, E19[18] = 0, E19[10] = E19[29], E19[2] != E19[20], E19[5] != E19[18], E19[6] = E19[19], E19[10] != E19[28], E19[11] = E19[29], E19[1] = E19[28], E19[4] != E19[9]), the second set with conditions 2, 7 and 8 reversed; their condition 10 (A18[29] = A19[29]) and 12 (E19[5] != E19[10]) are left free. 1a695f0b reports that all 57,392 of its classified successes lie in four patterns of these twelve conditions, which are covered by the two sets; values of E19 outside them are not proposed, so the replica estimates a lower bound.
+- **Tail**: 48 proposals per particle. A selected variant a0 uniform on the 196,608 (class, batch and lane uniform), W8 = W8C - (a0 + C4). W23 is drawn uniformly from F23 = {w : s1(w + fe808000) - s1(w) = 4fffa0d0} (the W23 differences of the pair; |F23| = 9,830,400 = 75 x 2^17 exhaustively, `f23.c`, Appendix A.1; six XOR patterns, drawn by size, uniform inside by rejection in the pattern's cylinder), and W7 = W23 - s1(W21) - W16 - s0(W8) is kept iff it is in F7 (weight |F23|/|F7|: the target law of W23 given W8 is uniform on F7 + c, the proposal uniform on F23). E22x is drawn uniformly with bit 29 = 0 (weight 1/2), which fixes W22 and W6 = W22 - s1(W20) - W15 - s0(W7) (W6 is uniform in the attack, so E22 is). Rows 22..37 are computed for both members with an abort at the first row whose A or E words differ, and the outputs are compared.
+  The restrictions of the tail are necessary conditions of the counted success along P8's path (zero A and E differences from row 22, which needs s1(W23y) - s1(W23x) = 4fffa0d0, i.e. W23 in F23, and E22[29] = 0, so that CH at step 23 blocks E21's difference); successes off that path are not counted, so again a lower bound.
+- The replicate estimate is the product of the stage means. Every tail success is rebuilt into a real 38-step semi-free-start pair (W7..W0 by the inverse expansion, CV1 by inverting steps 7..0 of the variant) and verified: equal outputs, M1 != M1', W7 in F7, a0 a selected variant, Lemma 4.1 returns W0..W13 of both members, rows -4..21 of the accepted event; then the counted program `step3b` is run on (CV1, a0) and must accept it. A failure of either check counts as a failed check.
 
-v1 kept the printed W23 class and measured 2^-98.87: the accepted event does not need the printed W23 class (in the development run 101 of 164 exact events lie outside it), so v1 is a lower bound that misses most of the gain at row 23; the rule fails for it. v2 and v3 propose the other classes; v3 only lowers the variance (Appendix A.5). In v3, 6,813 of 9,090 successes have an E19 pattern other than the published one.
-The replica is an estimate of a lower bound of q3 by an implementation independent of the tool of Section 7.4; its mean is 0.198 bit above q3_model.
+*Calibration* (Appendix A.5; preregistered with the program's hash and fresh labels before its first replicate; all replicates kept): 960 replicates, 3 without a success, 6,512 successes, every one rebuilt, verified and accepted by `step3b`, 0 failed checks; mean of the linear estimates 2^-96.3095 (halves 2^-96.3321 / 2^-96.2872); the 48 pooled means of 20: min -96.9314, median -96.3209, max -95.9116, mean -96.3208, sd 0.1848; **0 below the threshold 2^-97.0** of the frozen pass rule (the lowest is 0.07 bit above it). Before the preregistration only development replicates were run (a development look of 240 replicates, pooled means of 20: mean -96.336, sd 0.130, min -96.595); no version of the replica failed a rule, and the threshold was not moved.
+The replica estimates a lower bound of q3 with an implementation independent of the tool of Section 7.4; its mean 2^-96.31 is 0.27 bit above q3_model.
 
-### 7.4 The preregistered paired measurement of the gain (H2's declared value)
+### 7.4 The preregistered measurement of q3 (H2's declared value)
 
-*Tool.* `traillab` (our own C program, written for this project with Claude Code; not shipped: the experiment sources are limited to 65,536 bytes) estimates rates of the 38-step characteristic by sequential Monte Carlo on real compressions: every sample is a chaining value and W0..W15 of both members with the real message expansion, the state is replayed from the words (0 replay mismatches are required), rows 6..21 are the prefix (sampled with the attack's conditions; `prefix log2 P(rows 6..21)` is its SMC estimate) and rows 22..37 the window, with the late words of the attack redrawn per sample (W6 uniform, W7 in F7, W8 in its cell, W23 free). For each window sample it counts two events: *cells* (every printed cell and condition of rows 22..37) and *EXACT* (zero output difference after step 37). The tool passed its validation suite (48 of 48 quick tests: exact counts of the row-16 set and F7, the flip tables, digests of the published pair).
+*Tool.* `traillab` (our own C program, written in this project with Claude Code; the tool that measured fb176310's declared value; not shipped: the experiment sources are limited to 65,536 bytes) estimates rates of a 38-step characteristic by sequential Monte Carlo on real compressions: every sample is a chaining value and W0..W15 of both members with the real message expansion, the state is replayed from the words (0 replay mismatches are required), rows 16..21 are the prefix (E-driven: E_t^x chosen, W_t from it, W0..W5 solved by the inverse expansion; 8,192 particles, 256 proposals per particle per row) and rows 22..37 the window, with the late words of the attack redrawn for every window sample (W6 uniform, W7 uniform in F7, W8 from a list). For each window sample it counts EXACT (zero output difference after step 37). With `--autolist` the row-16 stage is exact: the tool enumerates the E16 values that pass row 16 under the prefix conditions (160 values, enumerated over 2^24 candidates; the same set as Section 6) and weights the stage 160/2^32. Its model of P8 is our transcription `chi38p8.txt` (the cells of Section 3; anchor row 15: S's rows 12..15 held); its prefix conditions are exactly the tests of rows 16..21 of the accepted event (cells, '+' pairs, two-bit conditions keyed at the larger row; row 19 signed only). Per seed, log2 q3 = prefix log2 P(rows 16..21) + log2 rate(EXACT) (the tool labels its prefix "rows 7..21", from the lowest row with a condition; rows 7..15 are held at S and pass with probability 1, so the prefix is rows 16..21). The tool reproduces fb176310's preregistered value exactly with the same seeds (2^-97.6619 for the published characteristic) and passed its validation suite (48 of 48 quick known-answer tests: exact counts of the row-16 sets and of F7, the flip tables, digests of the pairs).
 
-*Preregistration* (written and hashed, SHA-256 2a8482bfbd4d426a3b28b4751ec9f4385929238d702b1c53f74b2a2cbcae4c82, together with the run script, 2026-10-12 03:29:20 MDT; the first seed started 03:29:30): 32 fresh seeds 3001..3032, each 2^28 window proposals (8192 particles, 32768 per particle), each seed run twice: *base* (the printed prefix) and *tie* (prefix with the nine E19 value bits 30040e32 and E20 value bit 29 dropped and the linear condition E20[29] xor E19[29] = 0 added). Per seed (log2): JOINT = tie prefix + log2 rate(EXACT) - (base prefix + log2 rate(cells)), A = tie EXACT - base EXACT, B = base EXACT - base cells. Declared value of each: the one-sided 99% Student lower bound over the 32 per-seed values, mean - t(0.99, 31) sd / sqrt(32), t = 2.4528 (the seed is the cluster, which absorbs over-dispersion). Halves 3001..3016 and 3017..3032. Diagnostics required 0: prefix broken by redraw, y-anchor inconsistent, replay mismatches. No interim look, no stopping rule used.
+*Preregistration* (`PREREG_Q3P8.md`, Appendix A.9; written and hashed, SHA-256 b1a2d290a3aad1b2c224be407ec9796e1fbf55d9ff2ea9bec9783aab76c0ae97, with the run script 003dd4124e76ab52acaffe0c125fc8fe6f6b19e17b057af1e6f75ae8fd237b8b, before the first seed; the first seed started 2026-10-14 15:00:08 MDT): 32 fresh seeds 5001..5032, each 2^28 window samples (8,192 particles x 32,768), W8 drawn from the list of the 196,608 selected variants (`--var "W8 a0list @sel_members.txt late"`), row 16 exact. Per-seed value L_s as above (a dead seed or 0 EXACT counts as -128); declared value q3_model = the one-sided 99% Student lower bound over the 32 values, mean - t(0.99, 31) sd / sqrt(32), t = 2.4528, rounded down to 4 decimals (the seed is the cluster, which absorbs over-dispersion); halves 5001..5016 / 5017..5032; diagnostics required 0; no interim look, no stopping rule.
 
-*Results* (all 64 runs completed, every diagnostic 0):
+*Results* (all 32 seeds completed at 15:29:19; every diagnostic 0: prefix broken by the redraw 0, y-anchor inconsistent 0, replay mismatches 0; 326,084 EXACT events, at least 7,218 per seed):
 
-| statistic (log2) | mean | seed sd | declared 99% lower bound | half 1 / half 2 | halves apart |
-|---|---:|---:|---:|---|---|
-| JOINT (accepted event against printed cells) | +3.3439 | 0.1793 | **+3.2662** | 3.3502 / 3.3377 | 0.19 se |
-| A (four patterns and tie, both to EXACT) | +1.9762 | 0.1811 | +1.8977 | 1.9854 / 1.9669 | 0.28 se |
-| B (EXACT over cells, base proposals) | +1.3677 | 0.0217 | +1.3583 | 1.3647 / 1.3707 | 0.77 se |
-| B on the tie proposals | +1.3627 | 0.0520 | +1.3401 | | |
+| statistic (log2) | mean | seed sd | declared 99% lower bound | half 1 / half 2 |
+|---|---:|---:|---:|---|
+| q3 (rows 16..21 prefix + EXACT) | -96.3251 | 0.5774 | **-96.5755** | -96.3137 / -96.3365 |
 
-Absolute levels: base cells -101.0058 (sd 0.034), base EXACT -99.6381, tie EXACT -97.6619 (99% lower bound -97.7396). Pooled counts: base 130,815 cells and 337,541 EXACT (2.580), tie 131,865 and 338,678 (2.568). A and B do not interact (B on the tie proposals equals B), and JOINT = A + B.
-Per-seed JOINT values: 3.1888 3.1705 3.3086 3.3669 3.1971 3.4284 3.5346 3.2685 3.4709 3.7306 3.3312 3.6130 3.5114 3.3677 2.9719 3.1429 3.4818 3.5111 3.3630 3.4275 3.5465 3.1062 3.5527 3.2206 3.4169 3.2265 3.5234 3.1995 3.0763 3.1393 3.1931 3.4181.
+Per-seed values: -96.0936 -96.1145 -96.8146 -96.4524 -96.0050 -96.6254 -96.6832 -96.2310 -95.2810 -95.6406 -97.3955 -96.8232 -95.5504 -96.0120 -96.1050 -97.1926 -96.5681 -95.7822 -95.5645 -96.4855 -96.8302 -96.2105 -95.9267 -96.4217 -96.9911 -96.0865 -95.9854 -95.5153 -96.7022 -96.0010 -96.4846 -97.8288 (prefix mean -81.6266, EXACT-rate mean -14.6986). The run was repeated for this revision under an address-space cap of 2^28 bytes (Section 13.4): every per-seed output is identical.
 
-*Use.* q3_model = 2^(-101.05 + 3.2662) = 2^-97.7838: the base's 99% lower bound for the printed event times the 99% lower bound of the paired gain. The tool's own level for the printed event (2^-101.006) is 0.044 bit above the base's 2^-101.05; the gain is applied to the lower value. The joint factor replaces every earlier credit for the same effects (the E19 coset of earlier analyses, the measured exact-event factor and the W25 carry factor); none of them is used. The tool's model is the one of this package (W8 in its cell, W6 uniform, W7 in F7); the shipped replica of Section 7.3 (another implementation, the shipped law of W8) agrees: 2^-97.5860 against 2^-97.6619 for the tool's mean.
+*Use.* **q3_model = 2^-96.5755.** Since the mean of log2 of an unbiased estimate is at most log2 of its mean (Jensen), the bound on the mean of the per-seed log2 values is conservative for log2 q3. A development run before the preregistration (seeds 3001..3032, row 16 by SMC instead of the exact list, W8 over all of G) gave mean -96.3857, sd 0.5966, lower bound -96.6444; it is not used. The three independent estimates agree: our preregistered mean -96.3251, our replica's -96.31 (a lower bound), and 1a695f0b's -96.3683 (another tool).
 
 ## 8. The algorithm (fixed caps)
 
 ```text
-input: N_FB, V_MAX; advice: S, L*, the 90 class descriptors (c7, base, mask, program), the three shapes
-precompute: for each class every subset s of mask: a0 = base ^ s, kept iff in G and c7(a0) = c7 (3840 variants), stored as 15 batches of 256 in bit-sliced form;
-            the seven plane programs (each covers the classes of one part of one shape)
+input: N_FB, V_MAX; advice: S, the 8 class descriptors (c7, base) with the product description (G1, G3, the lane bits)
+precompute: the lane table LT (256 words), the 8 lane planes, the 768 batch programs (one per class and batch, the batch constant folded)
 V = 0                                   (V = the data-dependent operations executed so far, a register of the program)
 for f = 1 .. N_FB:
     draw two uniform 256-bit words; M0 := their sixteen 32-bit fields; CV1 := F_38(IV, M0)                       [1 unit]
-    if V > V_MAX: halt (failure)            (cap test on EVERY first block, hit or not, before the 90 W7 tests; its compare-and-branch is among the 35 fixed operations)
-    hits := [c : c7_c - A_{-1} in F7]   (one decision tree run in a loop over the 90 classes; V += its operations and 4 per class)
+    if V > V_MAX: halt (failure)            (cap test on EVERY first block, before its W7 tests; its compare-and-branch is among the 35 fixed operations)
+    hits := [c : c7_c - A_{-1} in F7]   (the decision tree in a loop over the 8 classes; V += its operations and 4 per class, 2 per hit)
     if hits: the per-first-block scalars (HH, PP, QQ, EF, FF, K1, KP) and their 224 broadcast planes; V += 920
         for c in hits:
-            for each of the 15 batches of c: run the plane program of c -> ok plane (lanes passing the 12 tested bits of E16x)
-                for each passing lane (lowest first): a0 from the stored planes; E16x in scalar form; V += ...
+            for b = 0..95: run the program of (c, b) -> ok plane (lanes whose E16x agrees with the row-16 set on bits 1, 3..9)
+                for each passing lane (lowest first): a0 = LT[lane] | c_b; E16x in scalar form; V += ...
                     if E16x in the row-16 set: Step 2 (rows -4..15), rows 16..37 of both members, the tests of rows 16..21 with early abort
                         if they pass and A34..A37, E34..E37 are equal for both members: build m, m'; if digest(m) = digest(m') and m != m': output, halt
             V += the class's counted work; if V > V_MAX: halt (failure)
 halt (failure)
 ```
 
-The run executes at most N_FB compressions, N_FB x 35 fixed operations, at most V_MAX + OVER data-dependent operations, the precomputation and one final verification, whatever the coins. OVER = 12,119,157 = P0 + one class at its maximum (12,113,647), with P0 = 5,510 = 90 x (45 + 4 + 2) + 38 + 882, the work of a block before its first class cap test (all 90 W7 tests at their longest path of 45 operations, with the loop and the hit-list append, the scalars and the planes).
+The run executes at most N_FB compressions, N_FB x 35 fixed operations, at most V_MAX + OVER data-dependent operations, the precomputation and one final verification, whatever the coins. OVER = 72,777,454 = P0 + one class at its maximum (72,776,126), with P0 = 1,328 = 8 x (45 + 2 + 4) + 38 + 882, the work of a block before its first class cap test (all 8 W7 tests at their longest path with the loop and the hit-list append, the scalars and the planes).
 
-*Lemma 8.1 (the cap).* Every first block starts with V <= V_MAX, or the run halts at once (at most 33 of the 35 fixed operations are executed). From a start with V <= V_MAX the block adds at most P0 before its first class cap test; after each class the test either halts or leaves V <= V_MAX, and a class adds at most 12,113,647. A block with no passing class adds at most P0 and is followed by the start test of the next block. Hence at every moment V <= V_MAX + P0 + 12,113,647 = V_MAX + OVER, for every execution and every coin sequence: a run of hitless first blocks cannot pass V_MAX by more than one block's W7 phase. (The previous version tested only after a class, which hitless blocks never reach: the fatal finding F-CAP-CHECK-GAP.) `selftest` runs the test: after a block with V > V_MAX the next block halts before any W7 test, with at most 35 operations.
+*Lemma 8.1 (the cap).* Every first block starts with V <= V_MAX, or the run halts at once (at most 33 of the 35 fixed operations are executed). From a start with V <= V_MAX the block adds at most P0 before its first class cap test; after each class the test either halts or leaves V <= V_MAX, and a class adds at most 72,776,126. A block with no passing class adds at most P0 and is followed by the start test of the next block. Hence at every moment V <= V_MAX + P0 + 72,776,126 = V_MAX + OVER, for every execution and every coin sequence. `selftest` runs the test: after a block with V > V_MAX the next block halts before any W7 test, with at most 35 operations.
 
 ## 9. The counted program (`experiments/a0lean38.py`, commands `calibrate` and `ledger`)
 
 ### 9.1 Machine, pricing and scalar routines
 
 A 256-bit word RAM with 64 registers; every executed primitive is counted: load, store, add, sub, and, or, xor, not, shift, immediate load, random word 1 each; compare-and-branch 2; one target compression 1 unit; immediates and shift amounts are instruction fields; reduction mod 2^32 is one AND where the program needs a masked value.
-S0, S1, s0, s1 cost 8 each (doubled word, shifts, xors, one mask), CH 3, MAJ 4. The scalar routines are written in the machine's primitives (class `Mach`) and executed; the table lists their counts as produced by `calibrate`.
+S0, S1, s0, s1 cost 8 each (doubled word, shifts, xors, one mask), CH 3, MAJ 4. The scalar routines are written in the machine's primitives (class `Mach`) and executed; the table lists their counts as produced by `calibrate` (Appendix A.7).
 
 | routine | operations |
 |---|---|
 | first-block words (2 random words, 16 fields) | 30 |
-| first-block control (counter, cap compare and branch executed on every first block as `if V > V_MAX: halt` before the W7 tests, the test of the hit list) | 5 (the 35 of the ledger are these 5 and the 30 above) |
+| first-block control (counter, the cap compare and branch executed on every first block before the W7 tests, the test of the hit list) | 5 (the 35 of the ledger are these 5 and the 30 above) |
 | one W7 test: 7, 12, 17, 20, 27, 30, 44 operations by exit, plus 1 for the work counter; the loop over the class table adds 4 (load c7, advance the pointer, compare and branch 2) | mean 12.640625 + 4 |
 | appending a passing class to the hit list | 2 |
 | per-first-block scalars HH, PP, QQ, EF, FF, K1, KP (`fb_scalars`) and one work-counter update | 38 |
 | the 7 x 32 broadcast planes (plane j = 0 - ((x >> j) & 1), stored; 3 or 4 operations each) | 882 |
-| per passing class: setup 3 (batch pointer, end pointer, class constants; the class entry's mask word also holds the number of its plane program), per batch of 256 variants the plane program + `ok` test 2 + pointer, compare, branch 4, end of class (work counter, cap test) 4 | 7 + 15 x (program + 6) |
-| the plane program of a part of a shape (Section 9.2) | 1410, 1413, 1421, 1426, 1425, 1426, 1425 |
-| a passing lane: `first_lane` (chunk scan, binary search), `lane_value` (conditional shifts of the stored planes, assembly of a0), `scalar_e16`, the row-16 test, the work counter, clearing the lane and the loop test | at most 296, 308, 320 for the shapes of mask 91eb5491, 91eb54d1, 91eb55d1 (maximum over the 256 lanes of one class of each shape) |
+| per passing class: setup 3 (batch pointer, end pointer, class constants), per batch of 256 variants the batch's program + `ok` test 2 + pointer, compare, branch 4, end of class (work counter, cap test) 4 | 7 + sum over the 96 batches of (program + 6) |
+| the program of one batch (Section 9.2) | 1,067 to 1,102 instructions (mean 1,083.55) |
+| a passing lane: `first_lane` (chunk scan, binary search), `lane_value` (one load from the lane table and one OR with the batch constant, an immediate of the batch's code), `scalar_e16`, the row-16 test (29), the work counter, clearing the lane and the loop test | at most 128 (maximum over the 256 lanes) |
 | `scalar_e16`: E0, S0(a0), MAJ(a0, a, b) from PP and QQ, S1(E0), CH from EF and FF, W1, s0(W1), E16x | 38 |
-| a row-16 pass: Step 2 (E0..E4, W0..W8 of both members), rows 16..37 of both members (106 per row), the tests of rows 16..21 (cells, differences, '+' pair, two-bit conditions; row 19 one AND and four compare-and-branches, row 20 the tie by xor, and, branch) with an early abort, and the comparison of the eight output words (8 xor, 7 or, 1 branch); `step3b` on the published pair, every test passing, the published E19 pattern compared last | 2829 (maximum; 3000 with the printed tests of rows 16..37) |
+| a row-16 pass: Step 2 (E0..E4, W0..W8 of both members), rows 16..37 of both members (106 per row), the tests of rows 16..21 (cells, differences, '+' pair, two-bit conditions) with an early abort, and the comparison of the eight output words (8 xor, 7 or, 1 branch); `step3b` on the P8 pair, every test passing | 2828 + 1 (the work counter) = 2829 |
 
 The per-first-block block (scalars and planes, 920 operations with the counter update) is executed only when a class passes (`process_fb`); the 35 fixed operations are executed on every first block.
 
-### 9.2 The plane program (per program, per batch of 256 variants)
+### 9.2 The batch programs
 
-Bit L of every 256-bit plane belongs to the variant 256 b + L of the class. Per first block the broadcast planes of Section 9.1 are stored (HH, PP, QQ, EF, FF, K1, KP; a plane is all zero or all one). Per batch the stored planes A<j> of the bits j of a0 that vary in the class (15, 16 or 17 of them) are loaded through the batch base register; bits that are
-constant on the class are folded into the program, and the 3 to 5 positions where the classes of one program differ are inputs C<j> (all-zero or all-one words stored with the class, loaded through the class base register). With E0 = a0 + HH, S1(E0), CH(E0, e, f) = FF ^ (E0 & EF), MAJ(a0, a, b) = PP | (a0 & QQ) (or PP, or QQ, where a0 is constant), S0(a0) and K1' = K1:
+Bit L of every 256-bit plane belongs to lane L. The 8 lane planes P:A<j> (j in LB, plane j has bit L set iff bit j of LT[L] is 1; bit 10 is the complement of bit 11, which costs nothing) are the same for every batch and stored once; per first block the broadcast planes HH, PP, QQ, EF, FF, K1, KP are stored. The program of batch b of class c folds the 24 constant bits of a0 (c_b) into the code: an S0 output bit whose three input bits are constant, a MAJ bit (PP or QQ where a0 is constant), the a0 term of E0 = a0 + HH and of E16x = KP + a0 + s0(W1) at a constant bit, all simplify. With E0 = a0 + HH, S1(E0), CH(E0, e, f) = FF ^ (E0 & EF), MAJ(a0, a, b) = PP | (a0 & QQ):
 
 ```text
 W1   = K1 - S0(a0) - MAJ(a0,a,b) - S1(E0) - CH(E0,e,f)      (K1 + ~SA + ~MAJ + ~S1 + ~CH + 4: three carry-save layers, then one ripple step per bit)
-E16x = KP + a0 + s0(W1)                                       (one carry-save layer, then a ripple adder up to the highest tested bit)
-ok   = AND over the 12 tested bits j of (E16x[j] == common bit j of the 32 row-16 words)
+E16x = KP + a0 + s0(W1)                                       (one carry-save layer, then a ripple adder up to bit 9)
+ok   = AND over the 8 tested bits j (1, 3, 4, 5, 6, 7, 8, 9) of (E16x[j] == bit j of 4b02d320)
 ```
 
-The program is built by `build_e16` as a DAG of xor/and/or nodes over 256-bit planes. A value carries a complement flag (complements cost nothing, except a mixed and/or: one extra operation, no fused AND-NOT); constants are folded; equal nodes are shared; only nodes that `ok` depends on are emitted.
-The allocator (`Prog.schedule`) walks the nodes in creation order with 64 registers: an operand that is not in a register is loaded (inputs from their address, a spilled value from its slot), the register whose value is needed farthest in the future is evicted and stored first if it has a later use and no copy in memory (Belady's rule), a dead operand's register is reused for the result.
-Every load, store and spill is one instruction of the list, and the instruction count is the charge (`run_prog` executes the list; nothing else is charged or free). The loop over the bit positions interleaves S1/CH/MAJ/SA of bit j, the three carry-save layers and the ripple step of W1 so that the carry-save vectors are never stored; the operand order of the layers is (1, 3, 2, 0), the best of the 24 orders on the final cut (on the three full shapes the 24 orders give 4342 to 4346 instructions in total; the order of the earlier filing gave 4342, this one 4343).
+The builder (`build_e16`) and the allocator (`Prog.schedule`) are fb176310's, unchanged: a DAG of xor/and/or nodes over 256-bit planes, a complement flag on every value (complements cost nothing, except a mixed and/or: one extra operation, no fused AND-NOT), constants folded, equal nodes shared, only the nodes that `ok` depends on emitted (s0(W1) up to bit 9 needs W1 only up to bit 27); then Belady's rule over 64 registers, every load, store and spill an instruction of the list, the instruction count the charge (`run_prog` executes the list; nothing else is charged or free). Operand order (1, 3, 2, 0) of the carry-save layers (the best of the 24 orders, rescanned here on 24 sampled batches).
+The 768 programs have 1,067 to 1,102 instructions (mean 1,083.55, total 832,170); each loads 171 inputs and none spills (no store is needed with 64 registers). `calibrate` prints every count (Appendix A.7). One program per class, over the 21 varying bits stored as planes (the shape of fb176310 and 1a695f0b), has 1,447 instructions with the class constants folded, 1,501 with the 4 bits where the bases differ as inputs (1a695f0b counts 1,511).
+The programs are compared with the scalar definition (E16x from the Step-2 equations, Lemma 4.1) lane by lane: in `selftest` (6 random batches), in the organizer experiment `a0-online-r38` (every one of the 768 programs on all its 256 lanes, and every batch of the passing classes of trials 0..5), and in the end-to-end runs: 0 disagreements (Section 13).
 
-| program | mask of a0 bits that vary | classes | varying bits | shared input positions | instructions | spill stores |
-|---:|---|---:|---:|---:|---:|---:|
-| 0 | 91eb5491 | 16 | 15 | 4 | 1410 | 14 |
-| 1 | 91eb5491 | 16 | 15 | 4 | 1413 | 14 |
-| 2 | 91eb5491 | 16 | 15 | 5 | 1421 | 15 |
-| 3 | 91eb54d1 | 14 | 16 | 4 | 1426 | 15 |
-| 4 | 91eb54d1 | 12 | 16 | 4 | 1425 | 15 |
-| 5 | 91eb55d1 | 8 | 17 | 3 | 1426 | 15 |
-| 6 | 91eb55d1 | 8 | 17 | 3 | 1425 | 15 |
+### 9.3 The number of tested bits, the lane table and the schedule
 
-The seven programs total 9,946 instructions; at most 15 spill slots are used (the memory budget has 40).
+Fewer tested bits shorten the program (the E16x adder and the part of W1 that s0(W1) needs) but pass more lanes to the scalar lane scan, at 2^-TK per good pair. The scan over TK (24 sampled batches, lane cost 128; the vbar terms of the programs and the lanes in operations per first block):
 
-The programs are executed on the lanes of 768 variants of each program in `selftest` and on every lane of every processed batch in the organizer experiment `a0-online-r38`, and their `ok` plane is compared with the scalar definition (E16x from the Step-2 equations, Lemma 4.1) lane by lane: 0 disagreements (Section 13).
-Section 11 scans the number of tested bits (`TK`): fewer tested bits shorten the program but pass more lanes to the scalar lane scan, more tested bits lengthen the carry chain.
+```text
+TK  top bit  mean program  programs   lanes    sum
+ 6     7        996.8        51,520   26,304   77,824
+ 7     8      1,040.8        53,781   13,152   66,933
+ 8     9      1,084.1        56,007    6,576   62,583     (shipped)
+ 9    11      1,171.5        60,498    3,288   63,786
+10    12      1,216.9        62,829    1,644   64,473
+12    16      1,306.3        67,423      411   67,834
+```
 
-### 9.3 The class schedule (credit: Grok, xAI)
-
-Grok (xAI), asked to re-optimise the schedule of the earlier filing for the memory rule, proposed this schedule; we re-derived its counts with the program of this package (the same programs, the same N). The earlier filing ran the 64 smallest size-3840 classes as three unrolled programs (one per mask) with 64 unrolled W7 tests, 775,680 bytes. The new schedule uses the memory that the loop frees:
-
-- **90 classes.** All size-3840 classes whose constant bits outside the mask already lie in one of the three shapes (48 + 26 + 16); the 64 of the earlier filing are among them (the 64 smallest c7). The list is the table `CLASSES` of the program (c7, base, mask, program number). One more class that keeps a shape does not exist; a class that enlarges a shape needs another program of about 1,400 instructions (about 45 KB), which does not fit under 2^20.
-- **A looped W7 test.** The decision tree of Section 5.1 is stored once (52 instructions) with a loop over the class table (load c7, pointer add, compare-and-branch: 4 operations per class, charged); the unrolled 64 copies took 106,496 bytes, the loop 1,824.
-- **Seven plane programs.** Each shape is cut along its shape bits (a guillotine partition; every cut tried, the cheapest total kept under the byte budget): a part has more constant bits, hence a shorter program (1410 to 1426 instructions against 1445 to 1452). The class table lists, for each class, its program; the sum over classes of the program length is 127,776 (130,374 for three unsplit programs).
-- **Operand order (1, 3, 2, 0)** of the carry-save layers and TK = 12 tested bits (rescanned on the seven programs: 11 and 13 bits are worse); lane caps 296, 308 and 320 measured per shape.
-- Memory 1,044,992 bytes (Section 14), 3,584 bytes under 2^20. The model counts the dispatch to a class's program and its loop as the 7 + 4 operations listed in Section 9.1; no other charge is made for it.
-
-Not established: q3 and the H3 rate were not measured again on the 26 added classes (Section 12); the loop is a count under the machine model, not an instruction list from the allocator (charging 5 instead of 4 operations per class gives 87.90470).
+The lane value is one load from the 256-word lane table and one OR with the batch constant (2 operations instead of rebuilding a0 from stored planes). The W7 tests run as one loop over the class table (4 operations per class) and the operand order (1, 3, 2, 0) are the schedule of fb176310 (Grok, xAI). Per-batch programs cost code memory (832,170 instructions, 26.6 MB at 32 bytes each, Section 14), which the memory claim (2^28.1, set by the preprocessing) absorbs.
 
 ## 10. Success probability, independence and caps
 
 A *trial* is (first block f, selected variant a0); A_t: a0 is good for f and the pair is in the accepted event (Section 6.1). The program examines every good pair of every processed first block and every row-16 pass, so it finds a success iff some A_t occurs before the caps; every output is verified (Lemma 6.1).
 
-- **Expectation.** E[X_f] = g q3 with g = 23,118.75 and q3 >= q3_model = 2^-97.7838.
+- **Expectation.** E[X_f] = g q3 with g = 13,152 and q3 >= q3_model = 2^-96.5755.
 - **One first block (H3).** Bonferroni: Pr[X_f >= 1] >= E[X_f] - (1/2) E[X_f (X_f - 1)], and E[X_f (X_f - 1)] = sum_t Pr[A_t] E[X_f - 1 | A_t]. Let R_f be the number of selected variants of f that are good and pass row 16. Every success passes row 16, so given A_t, X_f - 1 <= R_f - 1 (the other variants of f that pass row 16).
-  H3 states sum_t Pr[A_t] E[R_f - 1 | A_t] <= 2^-8.5 E[X_f]. Hence Pr[X_f >= 1] >= (1 - 2^-9.5) E[X_f].
-- **Many first blocks (H1).** Independent chaining values give Pr[X >= 1] >= 1 - exp(-N_FB g q3 (1 - 2^-9.5)).
-- **Work cap.** The data-dependent work v_f of a first block (W7 tests, scalars, planes, programs, lanes) has mean at most vbar = 132300.1864 (exact rational in Appendix B) and is at most 1,090,233,650 (all 90 classes passing, every lane of every batch passing stage 3a and row 16 with the longest path); by Chebyshev over the independent first blocks, Pr[sum v_f > (1 + 2^-16) N_FB vbar] <= vmax_f / (2^-32 N_FB vbar) = 3.29e-31.
-  V_MAX = ceil((1 + 2^-16) N_FB vbar), tested at the start of every first block and after every class (Lemma 8.1); the overshoot is at most OVER = 12,119,157 operations (a block's work before its first class test, 5,510, and one class at its maximum, 12,113,647). vmax_f = 5,510 + 90 x 12,113,647 = 1,090,233,740 (P_cap = 3.285e-31).
+  H3 states sum_t Pr[A_t] E[R_f - 1 | A_t] <= 2^-7.5 E[X_f]. Hence Pr[X_f >= 1] >= (1 - 2^-8.5) E[X_f].
+- **Many first blocks (H1).** Independent chaining values give Pr[X >= 1] >= 1 - exp(-N_FB g q3 (1 - 2^-8.5)).
+- **Work cap.** The data-dependent work v_f of a first block (W7 tests, scalars, planes, programs, lanes, row-16 passes) has mean at most vbar = 263986005339 / 4194304 = 62939.1683 (exact rational, Appendix B) and is at most vmax_f = 582,210,336 (all 8 classes passing, every lane of every batch passing stage 3a and row 16 with the longest path); by Chebyshev over the independent first blocks, Pr[sum v_f > (1 + 2^-16) N_FB vbar] <= vmax_f / (2^-32 N_FB vbar) = 4.84e-31.
+  V_MAX = ceil((1 + 2^-16) N_FB vbar), tested at the start of every first block and after every class (Lemma 8.1); the overshoot is at most OVER = 72,777,454 operations. vmax_f = P0 + 8 x 72,776,126 = 582,210,336.
 - **The abort in the success bound (proved, not sampled).** Let S = the sum of v_f over all N_FB first blocks, the whole work of each block counted, and E_cap = {S > V_MAX}. Every value of V that a test reads counts a part of the work of the first blocks started so far, all terms are nonnegative, so it is at most S; on the complement of E_cap no test ever halts and the program examines all N_FB first blocks exactly as the success analysis assumes. Hence Pr[output a collision] >= Pr[some X_f >= 1] - Pr[E_cap], and Pr[E_cap] <= P_cap by Chebyshev as above (the variance of a sum of independent terms in [0, vmax_f] with mean vbar is at most N_FB vmax_f vbar). When the program halts it halts with a failure, never with a wrong output (Lemma 6.1). No cap probability is sampled and no expected-work bound is used.
-- **Success.** N_FB is the least integer with 1 - exp(-N_FB g q3 (1 - 2^-9.5)) - P_cap - 2^-60 >= 0.39, i.e. N_FB = 5,840,904,760,525,073,226,269,327. Pr[output a collision] >= 0.39. The base targets 0.3934 with a 2^-8 cap margin; the exact target and the smaller margin account for 0.02278 bit (Section 11).
+- **Success.** N_FB is the least integer with 1 - exp(-N_FB g q3_model (1 - 2^-8.5)) - P_cap - 2^-60 >= 0.39 (2^-60 covers the rounding of the exponential, evaluated at 80 decimal digits), i.e. N_FB = 4,449,581,490,679,991,464,212,814 = 2^81.87994. Pr[output a collision] >= 0.39.
 
 ## 11. Ledger (exact; `python3 experiments/a0lean38.py ledger`, program of Appendix B)
 
 ```text
 T = A_C + A_S + DEV + N_FB + (N_FB x 35 + V_MAX + OVER + PRE + FIN) / C + 6
-  A_C = 2^78, A_S = 2^74 (the base's allowances, unchanged, H4a, H4b), DEV = 2^70 (this package's explicit development charge, Section 13.4; together 2^-9.8 of T)
-  N_FB = 5,840,904,760,525,073,226,269,327 first-block compressions (2^82.27247)
+  A_C = 2^78, A_S = 2^74 (allowances, H4a, H4b), DEV = 2^70 (development charge, H4c); together 0.30% of T
+  N_FB = 4,449,581,490,679,991,464,212,814 first-block compressions (2^81.87994)
   35 fixed operations per first block (Section 9.1)
-  V_MAX = 772,764,579,970,529,091,929,220,381,051 = ceil((1 + 2^-16) N_FB vbar), vbar = 71028121742895 / 536870912 = 132300.1864 (unchanged: the compare-and-branch of the new test was already among the 35 fixed operations):
-      W7 tests (90 x (12.640625 + 4))            1497.66
-      hit list (2 per passing class)             12.041
-      scalars and planes, 920 x Pr[some class passes]   278.94
-      plane programs of the passing classes      128796.72   (sum over the 90 classes of p7 x (7 + 15 x (program + 6)))
-      passing lanes (sum over the classes of p7 x 3840 x 2^-12 x the lane cap of the shape: 296, 308, 320)        1714.3396
-      row-16 passes (g 2^-27 x 2829)        0.4873
-  OVER = 12,119,157 = 5,510 + 12,113,647 (the work of a block before its first class cap test, plus one class at its maximum; Lemma 8.1; replaces the earlier 12,114,647)
-  PRE = 4,515,430,400 operations (2^32.0722): the member tests of the 90 classes, the batch planes, and 2^32 for the generation of the seven programs (all charged)
+  V_MAX = 280,057,231,556,008,856,988,397,824,874 = ceil((1 + 2^-16) N_FB vbar), vbar = 263986005339 / 4194304 = 62939.1683:
+      W7 tests (8 x (12.640625 + 4))                          133.125
+      hit list (2 per passing class)                            1.0703
+      scalars and planes, 920 x Pr[some class passes] (0.26953)    247.97
+      batch programs of the passing classes                  55979.6182   (sum over the 8 classes of p7 x (7 + sum over the 96 batches of (program + 6)))
+      passing lanes (8 p7 x 24,576 x 2^-8 x 128)             6576.0000
+      row-16 passes (g x 160/2^32 x 2829)                       1.38607
+  OVER = 72,777,454 = 1,328 + 72,776,126 (Lemma 8.1)
+  PRE = 3,298,534,899,712 operations (2^41.585): the lane planes and lane table (16,384) and 2^32 for the generation of each of the 768 batch programs (all charged)
   FIN = 1600 operations and 6 compressions (the final verification with the target)
-N = T x 2728 = 789,782,238,349,839,437,021,687,302,533   ->   T = 2^87.9037417   ->   time_log2 = 87.90375 (certificate of Appendix B; the ledger of the refuted version differed by 4,510 operations)
+N = T x 2728 = 293,230,663,740,737,244,466,382,728,546   ->   T = 2^86.4743228   ->   time_log2 = 86.47433 (certificate of Appendix B)
 preprocessing = A_C + A_S + DEV + PRE/C = 2^78.09276
+score (hashsmash-scalar-tm-v1) = 86.47433 + (28.1 - 20) = 94.57433
 ```
 
 Sensitivity (`ledger` with the inputs named, N_FB recomputed; `sens.py`, Appendix A.7; log2 T):
 
 ```text
-claimed configuration (q3_model 2^-97.7838, H3 2^-9.5, success 0.39, cap margin 2^-16, A_C 2^78, A_S 2^74, DEV 2^70)   87.90374
-q3_model 2^-97.6619 (the mean of the preregistered run, not its lower bound)                                           87.78198
-q3_model 2^-98.0                                                                                                       88.11972
-q3_model 2^-98.5                                                                                                       88.61931
-q3_model 2^-99.0                                                                                                       89.11903
-four patterns and tie only (q3_model 2^-99.1523, this program)                                                         89.27126
-exact event only (q3_model 2^-99.6917, this program)                                                                   89.81046
-neither (q3_model 2^-101.05, this program)                                                                             91.16850
-neither, with the printed tests (q3_model 2^-101.05, step3b 3000: the earlier package)                                 91.16850
-H3 premise 2^-7.5                                                                                                      87.90973
-A_C = 2^84                                                                                                             87.99564
+claimed configuration (q3_model 2^-96.5755, H3 2^-7.5, success 0.39, cap margin 2^-16, A_C 2^78, A_S 2^74, DEV 2^70)   86.47432
+q3_model 2^-96.3251 (the mean of the preregistered run, not its lower bound)                                           86.22474
+q3_model 2^-96.6444 (the lower bound of the development run, W8 over all of G)                                         86.54302
+q3_model 2^-97.0 (the q3_model of 1a695f0b)                                                                            86.89772
+q3_model 2^-97.7838 (the q3_model of fb176310 for the published characteristic)                                        87.68017
+H3 premise 2^-4.9 (the pair term charged by 1a695f0b, 2^-5.9 after Bonferroni)                                         86.49464
+A_C = 2^84                                                                                                             86.70961
+one program per batch, TK = 12 (mean 1304.41 instructions)                                                             86.58351
+one program per class (21 varying bits stored as planes, class constants folded: 1447 instructions), TK = 12           86.72503
 ```
+
+(The first line prints 86.47432 because `sens.py` prints log2 N - log2 C to five decimals; the certificate rounds up to 86.47433.)
+
 
 ## 12. Premises
 
 **H1 - uniform independent chaining values (score-critical).** First blocks are fresh uniform 512-bit strings (two uniform 256-bit words each); their chaining values behave as independent uniform 256-bit values. Used for Lemma 5.1 (exact p7 and the law of the second-block words, per variant), the expected counts and the independence across first blocks.
-Evidence: the exact distribution of the number of passing classes over all 2^32 values of A_{-1} (Appendix A.2); 29,360,128 (2^22 + 2^23 + 2^24) real first blocks through the attack's own filters (Section 13.1): passing classes, good pairs, stage-3a passes and row-16 passes at 1.00, 1.00, 1.00 and 0.99 of their expectations, every row-16 pass checked exactly; the organizer experiment `a0-online-r38`; the base's own runs on 2^23 first blocks (quoted: good pairs 1.0005 x expected). Limitations: tested on 2^24 first blocks, not 2^86.
+Evidence: the exact distribution of the number of passing classes over all 2^32 values of A_{-1} (Appendix A.2); 29,360,128 (2^22 + 2^23 + 2^24) real first blocks through the attack's own filters with the 8 classes (Section 13.1): passing classes, good pairs and stage-3a passes within 0.07% of their expectations, row-16 passes 14,199 against 14,385.0 expected (z = -1.55), every row-16 pass checked exactly; the organizer experiment `a0-online-r38` (real first blocks drawn from the organizer's seeds). Limitations: tested on 2^24 first blocks, not 2^82.
 
-**H2 - Step-3 probability of the variants for the accepted event (score-critical).** q3 >= q3_model = 2^-97.7838, q3 being the probability of the accepted event of Section 6.1 (rows 16..21 with the four E19 patterns and the tie, equal outputs after step 37) for a good pair, averaged over the selected variants (345,600 here). Evidence: Lemma 7.1; the base's preregistered estimate for the printed event (quoted, Section 7.2: mean 2^-101.015, 99% lower bound 2^-101.045); the preregistered paired measurement of the gain from the printed to the accepted event (Section 7.4: 32 seeds x 2^28, mean +3.3439, declared one-sided 99% lower bound +3.2662, halves agree); q3_model = 2^(-101.05 + 3.2662). Our own replica for the accepted event (Section 7.3: mean 2^-97.5860 over 960 replicates, every success rebuilt into a verified 38-step semi-free-start collision and accepted by the counted program) and the organizer experiment `a0-q3-r38` that runs it with a frozen pass rule (pooled mean >= 2^-98.4338).
-Limitations: a product of two Monte-Carlo lower bounds (the base's for the printed event, ours for the gain); the gain was measured by our own tool, whose model is this package's (W8 in its cell, W6 uniform, W7 in F7), and confirmed by the shipped replica, an independent implementation that estimates a lower bound; the replica resolves q3 to about 0.3 bit in 20 replicates; the `+` reading and the W25 correction of the printed event are those of the earlier filings. The base's estimate, our gain and the replica all drew the tail variant (W8) from the first 64 classes; q3 was not measured again with variants of the 26 added classes. By Lemma 7.1 rows 16..22 do not depend on the variant and W8 enters only W23 and W24 (each moved by a constant), so we take the average over 90 classes to equal that over 64; this is a premise, not a measurement.
+**H2 - Step-3 probability of the variants for the accepted event (score-critical).** q3 >= q3_model = 2^-96.5755, q3 being the probability of the accepted event of Section 6.1 (rows 16..21 with row 19 on its signed differences, equal outputs after step 37) for a good pair, averaged over the 196,608 selected variants. Evidence: the preregistered measurement of Section 7.4 (32 fresh seeds x 2^28 samples on real compressions with the real message expansion, row 16 exact, W8 drawn from the 196,608 selected variants: mean 2^-96.3251, declared one-sided 99% lower bound 2^-96.5755, halves agree); our replica (Section 7.3: an independent implementation that estimates a lower bound, mean 2^-96.3095 over 960 replicates, every success rebuilt into a verified 38-step semi-free-start collision and accepted by the counted program) and the organizer experiment `a0-q3-r38` that runs it with a frozen pass rule (pooled mean >= 2^-97.0); 1a695f0b's independent estimate for its event (quoted: mean 2^-96.3683 over 20 runs).
+Limitations: a Monte-Carlo lower bound (32 seeds, the seed as the cluster), measured by our own tool, which is not shipped; the replica and 1a695f0b's estimator are other implementations that agree with it. No transfer between classes or events is used: the tool, the replica and the H3 measurement all draw their variants from the 196,608 selected ones and test the accepted event itself.
 
-**H3 - few other row-16 passes in a successful first block (score-critical).** With R_f the number of selected variants of first block f that are good and pass row 16: sum_t Pr[A_t] E[R_f - 1 | A_t] <= 2^-8.5 E[X_f]. Evidence: the base's direct measurement on 65,030 sampled successes (quoted from its public proof, Section 13.5; participant-run, not repeated here): 41 other row-16 passes against 35.45 under independence, 2^-10.63 per success, one-sided 99% upper bounds 2^-10.12 (Poisson) and 2^-9.92 (Student over 8 runs), 1.4 bits below the premise;
-the clumped passing classes of one first block (73,169 other good pairs per success, 4.45 g) are included in that measurement. The premise ignores rows 17..37 of the other variants. Our own repetition (Section 13.5, Appendix A.8): 33,222 sampled successes of 8 independent runs, all selected variants of each rebuilt chaining value tested, 21 other row-16 passes against 18.15 under independence, 2^-10.63 per success, one-sided 99% upper bounds 2^-9.92 (Poisson) and 2^-9.85 (Student over the 8 runs): 1.3 bits below the premise.
-Both measurements sampled successes of the printed event. Every success of the accepted event also passes row 16, so the pointwise bound X_f - 1 <= R_f - 1 of Section 10 is unchanged; the average of R_f - 1 over successes of the accepted event was not measured again (the accepted event differs at rows 19, 20 and 22..37, while R_f counts row-16 passes of the other variants). This is a premise. Both measurements are on the first 64 classes (245,760 variants). Scaled to 90 classes the rate is 21 x 90 / (33,222 x 64) = 2^-10.14 per success, below the premise 2^-8.5 and the ledger factor (derived by scaling, not a new sample).
+**H3 - few other row-16 passes in a successful first block (score-critical).** With R_f the number of selected variants of first block f that are good and pass row 16: sum_t Pr[A_t] E[R_f - 1 | A_t] <= 2^-7.5 E[X_f]. Evidence: our measurement on successes of the accepted event (Section 13.5): 12,028 successes of 8 independent runs of the replica's sampler, each rebuilt into a verified pair, every one of the 196,608 selected variants of every passing class of its chaining value tested; 32 other row-16 passes against 21.95 under independence, 2^-8.55 per success; one-sided 99% upper bounds 2^-7.97 (Poisson) and 2^-7.79 (Student over the 8 runs), below the premise 2^-7.5. 1a695f0b measured 2 other row-16 passes on 750 successes (quoted) and charges 2^-5.9.
+Limitations: the successes are drawn by the replica's sampler (row-19 relation sets, W23 in F23, the characteristic's path from row 22), a subset of the accepted event; the law of (CV1, a0) given such a success is the sampler's law under H1 (Section 13.5); the premise counts row-16 passes only, which is conservative (an other success must pass row 16).
 
-**H4 - advice allowances (H4a score-critical, H4b supporting).** The published characteristic, its two-bit conditions, S, L* and the 90 class descriptors are advice, charged as in the base through two allowances: A_C = 2^78 (the characteristic search, H4a) and A_S = 2^74 (the Step-1 solve, H4b); the development of this package is charged by an explicit item of the ledger, DEV = 2^70 (Section 13.4), which is a declared charge and not a premise. Together the three are 2^-9.8 of T. Their memory is covered by the preprocessing bound of H6 (2^28 bytes, Section 14, peak memory).
+**H4 - advice allowances.** P8, its pair and S, the 8 class descriptors and their product description are advice, charged through two allowances: A_C = 2^78 (the characteristic search, H4a) and A_S = 2^74 (the Step-1 solve and the class data, H4b); the development of this package is charged by an explicit item of the ledger, DEV = 2^70 (H4c). Together the three are 0.30% of T (log2 T would be 86.4700 without them). Their memory enters the peak of Section 14.
 
-**H4a - characteristic search (score-critical).** *Statement.* The total computation spent to obtain the published 38-step characteristic of [LZLLQZ26] (IACR ePrint 2026/1120, Table 3: failed and repeated searches and tool development included) is at most A_C = 2^78 target compressions.
+**H4a - characteristic search (score-critical).** *Statement.* The total computation spent to obtain P8 (1a695f0b's signed-difference SAT sweep over the 24 XOR patterns of weight 25, its coupling checks and estimators, failed and repeated runs included) is at most A_C = 2^78 target compressions.
+*Evidence.* The search that found P8 is published with its run times (1a695f0b Section 3.2): 38 solver runs of at most 10,800 s each, every run listed with its outcome (230,183 s in all), P8 found in 4,714 s with a 662-s coupling check, and the author's statement that the search for P8, S, the class data and all of its development used one 10-core machine for less than 2^21 core-seconds. 2^21 core-seconds at the 3,797,484 SHA-256 compressions per second measured here (Appendix C) are 2^42.86 SHA-256 evaluations, 2^43.61 units (an evaluation of 64 steps charged 64/38 units): A_C = 2^78 is 2^34.4 times that. Our own measurements of the same kind of search (Appendix C, from fb176310): a 39-step characteristic derived from scratch with the public tool of [LLW24] in 2^36.04 units; published figures up to 2^39.15 units. A_C is fb176310's value, kept so that the accounting is the same (1a695f0b charges 2^48).
+*Limitations.* A_C is an allowance: P8's search was run and timed by its author, not by us; we did not rerun it.
 
-*Scope.* The preprocessing part of the ledger: A_C = 2^78 is the largest allowance (0.104% of T: 2^78 of 2^87.90375; A_C + A_S + DEV together 0.111%). It enters the claimed time and preprocessing (78.09276); its memory enters the preprocessing bound of H6.
+**H4b - Step-1 solve and class data (supporting).** S (the P8 pair's dense part) and the 8 class descriptors are obtained at a total cost of at most A_S = 2^74 target compressions. 1a695f0b obtained the pair by its coupling check (662 s, single-threaded) and the descriptors by 32 passes over a hash of c7 (`a0cls.c`); our exhaustive pass over all 2^32 values of a0 (`p8fam.c`, 102 s) reproduces the classes and their members. A_S is fb176310's value.
 
-*Evidence and extrapolation.* *Evidence for the allowance (Appendix C part A states every conversion).* (i) Published, for the same kind of search: Mendel, Nad and Schlaeffer (EUROCRYPT 2013, ePrint 2015/350, Sect. 6.3 p.14) found the differential characteristic and the confirming message pair of a 38-step semi-free-start collision of SHA-256 in "about 8 hours on a single CPU. This is equivalent to about 2^37 SHA-256 evaluations" (one combined figure, no hardware named; for 31 steps, Sect. 6.2 p.12: about 21 hours, 2^38.4 evaluations); Li, Liu and Wang (EUROCRYPT 2024, ePrint 2024/349 p.16) found a practical 39-step semi-free-start pair "in 120 seconds with 26 threads". (ii) Measured by us: with the authors' public tool of [LLW24a] (github.com/Peace9911/sha_2_attack, commit 6a9f35fd; model find_dc_model_39: rows 8..26, message support W8..W12, W16, W17, W24, W26, weights W 25, A 10, E at most 90) a 39-step characteristic was derived from scratch in 772.58 s wall on 12 threads (CryptoMiniSat 5.11.21; a Kissat call of 1,800 s on the same file returned no result): 11,071.7 solver CPU-seconds (wall x threads, the failed call included), at the 3,797,484 SHA-256 compressions per second measured here (portable C, one thread, AMD Ryzen 9 7900X, slowest of five runs) 2^35.29 SHA-256 evaluations, 2^36.04 units (an evaluation of 64 steps charged 64/38 units) and 2^47.46 word operations. (iii) Measured by us, our pair searches (Appendix C part B): the 38-step pair search given the published cells took 4,055,969,700 propagations (2^31.917 word operations = 2^20.504 units; 2,852.83 CPU-seconds, 2^34.09 units at the compression rate above), the sparse part 113,081,800 word operations (2^26.753, 0.55 CPU-seconds); Kissat seed 4 returned a new pair, not the published one (CV, M, M' and digest in Appendix C). *Result:* the largest of these figures is 2^39.15 units (Mendel et al.'s 31-step 2^38.4 evaluations; their 38-step figure is 2^37.75, our 39-step derivation 2^36.04), 38.85 bits below A_C = 2^78 target compressions; counted as word operations without the factor C = 2728 the largest is 2^50.57, 27.43 bits below 2^78. *Not measured, hence the allowance:* deriving the dense signed characteristic of rows 0..16 of the 38-step characteristic of [LZLLQZ26] itself (its search time is not published; the pair searches load its cells; a 37-step attempt with those cells unset returned no model) and the authors' failed and repeated searches; the 38.85 bits are the margin for them. *Bound for the allowance.* [LZLLQZ26] uses the CPU SAT/SMT characteristic-search tool of [LLW24a] (EUROCRYPT 2024) in the two-block framework of [LLWS26] (IACR ePrint 2026/1080): 10^5 CPU cores for 10 years at 10^10 word operations per second is 3.2 x 10^23 operations = 2^66.6 units at C = 2728, and A_C = 2^78 is 2^11.4 (about 2,600) times that ceiling. The promoted filing 6eeefb64 (sha256-r32) priced a complete measured re-run of the predecessor 35-step characteristic search with the same tool at 593,858 solver CPU-seconds over 59 solver calls; at its calibrated price of 2^32.796 primitive operations per solver CPU-second (2^21.383 units) and a 32-fold blind-rediscovery factor (as in 0ae69bcb) that is 2^45.6 units; A_C = 2^78 is 2^32.4 times that. Every cell and two-bit condition of the 38-step characteristic used here is verified on the published pair by `selftest` (Section 13.2, first item, run locally) and, on fresh pairs, by the organizer experiments `a0-online-r38` (cells of rows -4..15) and `a0-q3-r38` (step3b, all rows). For comparison, the accepted filings 0ae69bcb, 63028099, 37742a53 and 012400ff on this track charge A_C = 2^70, and the time-only filing 14b3b6ff (sha256-r38, 70.28679), which carries the same evidence, passed review at A_C = 2^70; this package charges 2^78, 256 times more. A_C = 2^84 gives 87.99564 (Appendix A.7).
+**H4c - development charge (declared heuristic; a ledger item).** DEV = 2^70 target compressions (2^70 x 2,728 word operations in the ledger) is the time charged for all development of this package, failed trials and reruns included: the exhaustive passes, the end-to-end runs, the q3 runs (development and preregistered), the replica's development and calibration, the H3 measurement, the program scans, and the superseded exploratory executions of Section 14 (d). That development was below 10^5 CPU-seconds (Section 13.4); at 10^10 word operations per second per CPU-second this is below 2^50 operations = 2^38.3 compressions, so 2^70 is more than 2^31 times the recorded work, which leaves room for any unlogged or discarded trial. H4c is a time charge. The memory figure (H6) is the maximum over the counted phases; for the development these are the executions whose outputs the claim uses, which were run under address-space caps of at most 2^28 bytes (Sections 13.4 and 14 (c2)); the superseded exploratory executions, whose outputs the claim does not use, are stated with their memory in Section 14 (d). It is declared in `claim.json` as the heuristic H4c (the review of fb176310 recorded it as an implicit one).
 
-*Limitations.* A_C is an allowance, not a measurement of the [LZLLQZ26] search: the published figures and our measurements are for the same kind of search (a 38- or 39-step semi-free-start characteristic and pair) but for other characteristics, on unstated or different hardware, with combined or windowed figures; we did not derive the dense signed characteristic of rows 0..16 of Table 3 (a 37-step attempt returned no model) and the authors' failed and repeated searches are in no log. The margin of 38.85 bits between the largest measured or published figure (2^39.15 units) and A_C = 2^78, the CPU-hardware ceiling (A_C is 2^11.4 times it) and 2^32.4 times the measured predecessor re-run carry the claim that the whole search is below 2^78; A_C is not lowered. A GPU branch of the bound chain (10^4 GPUs, 10 years: 2^73.3) is not the operative branch because the solver is a CPU SAT/SMT tool; A_C = 2^78 is also 4.7 bits above it. The memory of these computations is bounded in H6 (2^28 bytes).
+**H5 - counted word-RAM pricing of the bit-sliced filter (score-critical; cost reading).** A straight-line program of 256-bit primitives that evaluates E16x and its stage-3a test for 256 variants at once (bit L of each word belongs to variant L) is charged its instruction list: every load, store and spill counted, 64 registers, complements free but a mixed and/or charged one more, no fused AND-NOT; it evaluates no target compression, every compression is charged one unit. Folding the constant bits of a batch into its program is part of the program: the 768 lists are generated once (charged 2^32 operations each) and stored (Section 14).
+Evidence: the programs are generated and counted by `experiments/a0lean38.py` (`build_e16`, `Prog.schedule`, `run_prog`), equal to the scalar definition on every checked lane, and the organizer experiment `a0-online-r38` executes all 768 of them. The same reading was accepted in fb176310 and 2d1c4fc2. With a scalar evaluation (38 operations per variant instead of the programs) the claim would be 89.42650, 2.95 bits higher.
 
-*Evidence references.* Section 11 (ledger), this paragraph, Section 13.2 and 13.3, Appendix C (parts A and B), the organizer experiments `a0-online-r38` and `a0-q3-r38`.
-
-**H4b - Step-1 solve (supporting).** The Step-1 solution (the published semi-free-start pair of Table 5 and its dense part S) is obtained at a total cost of at most A_S = 2^74 target compressions (the Step-1 SAT solve, reported at 2^38.3 compressions, and the completion to the SFS pair). A_S is 2^35.7 times the paper's reported Step-1 cost of 2^38.3. Limitations: a bound by comparison with the paper's reported figure, not a re-solve.
-
-**DEV - development charge (a declared ledger item, not a premise).** DEV = 2^70 target compressions (= 2^70 x 2,728 word operations in the ledger) is charged for all development of this package, failed trials and reruns included: the exhaustive passes, end-to-end runs, replica calibration, H3 measurement, program scans and the SAT pair-search and derivation runs of Section 13.4. That development was below 10^5 CPU-seconds; at 10^10 word operations per second per CPU-second this is below 2^50 operations = 2^38.3 compressions, so 2^70 is more than 2^31 times the recorded work, which leaves room for any unlogged or discarded trial.
-
-**H5 - counted word-RAM pricing of the bit-sliced filter (score-critical; cost reading).** A straight-line program of 256-bit primitives that evaluates E16x and its stage-3a test for 256 variants at once (bit L of each word belongs to variant L) is charged its instruction list: every load, store and spill counted, 64 registers, complements free but a mixed and/or charged one more, no fused AND-NOT; it evaluates no target compression, every compression is charged one unit.
-Evidence: the programs are generated and counted by `experiments/a0lean38.py` (`build_e16`, `Prog.schedule`, `run_prog`), equal to the scalar definition on every checked lane (Section 13). The same reading in the base was accepted by the AI review lanes with no organizer ruling cited. With a scalar evaluation (38 operations per variant) the claim would be about 2.79 bits higher (93.99125 at the earlier q3_model 2^-101.05, 64 classes).
-
-**H6 - memory (score-critical under a rule that prices it; otherwise a reported metric).** Peak = max(online, preprocessing) = 2^28 bytes (claim 28); the preprocessing bound is 2^28 bytes from the measured solver peaks and the assumptions of Section 14 (peak memory). The online program needs exactly 1,044,992 bytes (log2 = 19.99506046703272; 3,584 under 2^20): Section 14 lists every component, with the code counted at 32 bytes (one word) per instruction and 15 spill slots actually allocated rather than the 40-slot upper budget. The online figure covers the online program, its tables and the precomputation of Section 5.3 (the member lists of the classes are produced one class at a time from the 90 descriptors; no array indexed by a 32-bit quantity is built).
-Not included: the allowance computations of H4 (the paper's solver runs and our development), as in the base. Limitations: the machine model does not define a code size; with 4 bytes per instruction the code (10,603 instructions) would be 42 KB instead of 339 KB, with 32 bytes it is already counted in full.
+**H6 - memory (score-critical).** Peak = the maximum over the counted phases <= 2^28.1 bytes (claim 28.1). The counted phases are the online program (26,674,912 bytes = 2^24.67; Section 14: code of the 768 batch programs at 32 bytes per instruction, tables, planes and state), the computations behind the advice (P8, S, the class data) and the development executions whose outputs the claim uses. The preprocessing peak is set by the computations behind the advice: 1a695f0b measured the single-threaded Step-1 solve of P8 at 279,720 KB = 2^28.094 bytes and its signed search at most 2^27.92 (quoted, Section 14); our own measured solver instances (fb176310's pair searches and characteristic derivation) peak at 2^27.56; our development executions whose outputs the claim uses were run under address-space caps of 2^27 and 2^28 bytes with measured peaks of at most 2^27.77 (Section 14 (c2)). Two superseded exploratory executions, the first versions of `p8fam` (a 1 GiB table) and `e2ep8` (a 512 MiB bitmap), are outside the counted phases because the claim uses none of their outputs; their memory is stated in Section 14 (d). Limitations: the 2^28.094 figure is the author's sampled measurement (every 0.2 s), not ours; the peak of the claim does not include the superseded executions of Section 14 (d).
 
 ## 13. Evidence and runs
 
-### 13.1 End to end on real first blocks (`e2e38m.c`, Appendix A.3)
+### 13.1 End to end on real first blocks (`e2ep8.c`, Appendix A.3)
 
-The runs of this section are those of the 64-class schedule of the earlier filing (e2e38m.c reads its class list; the filters of the added classes are the same code on other c7 values and masks, and are exercised by `selftest`, the hit distribution of Appendix A.2 and `a0-online-r38`). Random M0, CV1 = F_38(IV, M0) (38 steps, feed-forward), the 64 W7 tests (a bitmap of F7), E16x of every variant of every passing class by the closed form of Section 6, stage 3a (12 bits), the exact row-16 set; every row-16 pass is printed with M0 and checked in Python (`verify_r16.py`, Appendix A.3):
-CV1 equals F_38(IV, M0), a0 is in G and in a selected class, W7 is in F7, every cell of rows -4..16 and every two-bit condition closing at rows 8..16 holds (none reaches row 17, as expected at 2^-17).
+Random M0, CV1 = F_38(IV, M0) (38 steps, feed-forward), the 8 W7 tests (F7 by its definition), E16x of every variant of every passing class by the closed form of Section 6 (the members from the product description), stage 3a (8 bits), the exact row-16 set; every row-16 pass is printed with M0 and checked in Python (`verify_r16p8.py`, Appendix A.3): CV1 equals F_38(IV, M0), a0 is a selected variant, `pair_check15` holds (rows 1..15 of A and 5..15 of E are S's in both members, every cell of rows -4..15, W7 in F7, a0 in G), and row 16 holds for both members.
 
 | seed | first blocks | passing classes (expected) | good pairs (ratio) | stage-3a passes (ratio) | row-16 passes (expected; z) | exact checks |
 |---|---|---|---|---|---|---|
-| 19 | 2^22 | 17,972,582 (17,956,864) | 69,014,714,880 (1.0009) | 16,849,545 (1.0009) | 468 (513.75; -2.02) | 468, 0 failures |
-| 23 | 2^23 | 35,894,449 (35,913,728) | 137,834,684,160 (0.9995) | 33,644,771 (0.9993) | 1062 (1027.50; +1.08) | 1062, 0 failures |
-| 17 | 2^24 | 71,766,725 (71,827,456) | 275,584,224,000 (0.9992) | 67,279,849 (0.9991) | 2031 (2055.00; -0.53) | 2031, 0 failures |
+| 19 | 2^22 | 2,243,836 (2,244,608) | 55,144,513,536 (0.9997) | 215,418,004 (0.9997) | 2089 (2055.00; +0.75) | 2089, 0 failures |
+| 23 | 2^23 | 4,486,323 (4,489,216) | 110,255,874,048 (0.9994) | 430,662,940 (0.9993) | 4050 (4110.00; -0.94) | 4050, 0 failures |
+| 17 | 2^24 | 8,979,982 (8,978,432) | 220,692,037,632 (1.0002) | 862,060,186 (1.0002) | 8060 (8220.00; -1.76) | 8060, 0 failures |
 
-### 13.2 Self-test (`python3 experiments/a0lean38.py selftest`, 11 s)
+In all, 29,360,128 first blocks: 386,092,425,216 good pairs (ratio 0.99987 to the expectation), 14199 row-16 passes against 14385.0 expected (z = -1.55), every one checked exactly (`verify_r16p8.py`: CV1 = F_38(IV, M0), the variant is selected, `pair_check15`, row 16 of both members). The distribution of the number of passing classes per first block matches the exact one of Appendix A.2 (0, 1, 2 classes: 0.73042, 0.00391, 0.26567 of the 2^24 first blocks against 0.73047, 0.00391, 0.26563).
+
+*Repeat under a cap (this revision; Section 14 (c2), Appendix A.10).* The same program, seeds and sizes were run again with 3 threads under `prlimit --as` (2^27 bytes); the threads draw the first blocks in dynamic order, so the counts differ from the table above by sampling noise. Every row-16 pass was again checked exactly with `verify_r16p8.py` (CV1 = F_38(IV, M0), the variant is selected, `pair_check15`, row 16 of both members; 0 failures).
+
+| seed | first blocks | passing classes (expected) | good pairs (ratio) | stage-3a passes (ratio) | row-16 passes (expected; z) |
+|---|---|---|---|---|---|
+| 19 | 2^22 | 2,243,856 (2,244,608) | 55,145,005,056 (0.9997) | 215,397,922 (0.9996) | 2054 (2055.00; -0.02) |
+| 23 | 2^23 | 4,485,977 (4,489,216) | 110,247,370,752 (0.9993) | 430,650,244 (0.9993) | 4028 (4110.00; -1.28) |
+| 17 | 2^24 | 8,979,207 (8,978,432) | 220,672,991,232 (1.0001) | 861,985,633 (1.0001) | 8216 (8220.00; -0.04) |
+
+In all, 29,360,128 first blocks: 386,065,367,040 good pairs (ratio 0.99980 to the expectation), 14,298 row-16 passes against 14385.0 expected (z = -0.73). The claim uses the first table (H1 evidence); the repeat is a second execution of the same program.
+
+### 13.2 Self-test (`python3 experiments/a0lean38.py selftest`, 3 s)
 
 ```text
-ok  published pair: equal 38-step outputs (hash 5d9ca5f4 ...), every printed cell and condition of rows -4..37
-ok  published A0 is in G, c7 = 8f6c89c5, Step 2 returns the published words
-ok  90 classes of 3840 members in 7 plane programs, distinct c7 values, masks ['0x91eb5491', '0x91eb54d1', '0x91eb55d1']
-ok  row-16 set: 32 words pass the full row-16 test; 3000 random words with the ten cell bits and 1280 two-bit neighbours of the members agree with the affine description
-ok  the 12 prefilter bits are shared by all 32 words
+ok  P8 pair: equal 38-step outputs (c7dfd8a1 ...), rows -4..21 of the accepted event, W7 in F7
+ok  its A0 c500a7ff is in G and in class 3 (c7 2a7ffb1b); Step 2 returns its words
+ok  8 classes: 24,576 distinct members each from the product description, every one in G with its c7 and base ^ (subset of 7fe96c7c)
+ok  row-16 set: 160 words pass the full row-16 test; 20,000 random words with the fixed cell bits and 1,280 two-bit neighbours agree with the head test
+ok  E16x formula on 300 chaining values; the 8 prefilter bits [1, 3, 4, 5, 6, 7, 8, 9] are shared by all 160 words
 ok  W7 decision tree agrees with the definition of F7 on 8000 words
-ok  step 3b on the published pair: all rows pass, exact event, traces equal the reference (2865 operations)
-ok  counted rows 19 and 20 equal the definition: row 19 accepts exactly the patterns ['0x40832', '0x10000010', '0x20000c12', '0x30040430'] of 512, row 20 exactly when E20[29] = E19[29]
-ok  bit-sliced prefilter equals the scalar definition on 768 lanes of each of the 7 plane programs ([1410, 1413, 1421, 1426, 1425, 1426, 1425] instructions)
-ok  online program: first block 3, one class of 3840 good pairs, 0 lane mismatches
-ok  q3 replicate: estimate 2^-96.92, 11 verified 38-step semi-free-start collisions accepted by step3b, 0 failed checks, 4 with another E19 pattern
-ok  cap test on every block: V > V_MAX halts at the next block start, before its 90 W7 tests
-ok  512 embedded variants are in G and in the selected classes
+ok  step 3b on the P8 pair: rows 16..21 pass, equal outputs, traces equal the reference (2828 operations; 1 more for the work counter)
+ok  counted row-16 test (29 operations) equals the definition; bit-sliced programs equal the scalar definition on 6 x 256 lanes
+ok  the counted program finds and accepts the P8 pair in batch 74 of class 3 (92830 operations for batches 0..74)
+ok  online program: first block 1, one class of 24,576 good pairs, 0 lane mismatches
+ok  q3 replicate: estimate 2^-96.42, 6 verified 38-step semi-free-start collisions accepted by step3b, 0 failed checks
+ok  cap test on every block: V > V_MAX halts at the next block start, before its 8 W7 tests
 ```
 
 A longer development run of the W7 tree against the definition of F7 (`w7check.py`, Appendix A.6) compared 1,100,000 words (random words and words forced into each of the three families): 0 disagreements.
 
 ### 13.3 Organizer experiments (`experiments/a0lean38.py`)
 
-- `a0-online-r38` (H1, H5): trials 0..5 run the counted online program on seed-drawn first blocks (two uniform words from SHAKE-256 of the seed per first block; real 38-step compressions) until a first block has a passing class (at most 16 first blocks), processing one passing class (3840 good pairs, 15 bit-sliced batches): the stage-3a decision of every lane is compared with the scalar definition,
-  every passing lane is extracted from the stored planes and compared with the class member, the hit list is compared with the definition of F7 for all 90 classes, and 8 good pairs are checked against every cell of rows -4..15. A trial returns the complete 128-byte messages M0||M1 and M0||M1' of its first good pair iff all checks passed. Trials 6..255 return no pair by design. Local emulation of the organizer request (seeds sha256(id|trial), no container): 6 pairs returned, 13 first blocks, 128 passing classes in the final first blocks of the trials, 23,040 good pairs checked lane by lane, 3 stage-3a passes, 0 row-16 passes, filter mismatches 0, cell mismatches 0, lane mismatches 0, 154,458 counted operations; 1.0 s, byte-identical on the second run.
-- `a0-q3-r38` (H2): the organizer replica of q3 for the accepted event (Section 7.3). Trials 0..19 are replicates, each returning its first verified 38-step semi-free-start collision (CV1||M1, CV1||M1', 96 bytes each) that the counted program `step3b` also accepts (so the organizer's run executes the new tests of rows 19 and 20 and the output comparison on real successes, most of them with an E19 pattern other than the published one); trial 20 returns a pair iff the pooled mean of the 20 linear estimates is at least 2^-98.4338 and no check failed. Trials 21..255 return no pair by design. Local emulation of the organizer request: 21 pairs returned (20 replicates with a success and trial 20), 178 successes (139 of them with an E19 pattern other than the published one), every one rebuilt, verified and accepted by `step3b`, 0 failed checks, estimates 2^-100.21 to 2^-96.01, log2 of the pooled mean -97.620 (threshold -98.4338); 7.4 s, byte-identical on the second run.
-- Both experiments are deterministic (the second execution of the organizer is byte-identical). Locally (Python 3.14) `a0-online-r38` takes 1.0 s and `a0-q3-r38` 7 to 13 s (the second under machine load; the q3 replica code is unchanged from the earlier version and returns the same 21 pairs and the same pooled mean); the organizer's intake on a scratch clone of its code (pinned Python 3.12 container, 128 MB, 20-second limit per experiment, each experiment run twice) of the earlier version took 18 s in all, returned 6 and 21 pairs with byte-identical replays, and its judge evidence was 230,358 bytes (this version: Section A.7).
+- `a0-online-r38` (H1, H5): trials 0..5 run the counted online program on seed-drawn first blocks (two uniform words from SHAKE-256 of the seed per first block; real 38-step compressions) until a first block has a passing class (at most 64 first blocks), processing its first passing class completely (24,576 good pairs, 96 batch programs): the stage-3a decision of every lane is compared with the scalar definition, every passing lane's a0 with the class member, the hit list with the definition of F7 for all 8 classes, and 8 good pairs are checked by `pair_check15` (rows -4..15). A trial returns the complete 128-byte messages M0||M1 and M0||M1' of its first good pair iff all checks passed.
+  Trials 6..13 are coverage trials: trial t runs every one of the 96 programs of class t - 6 on a seed-drawn first block and compares all 24,576 lanes with the scalar definition; it returns M0||M1 and M0||M1' of the class's first member (Step-2 words of that first block; not a good pair unless its W7 is in F7) iff there is no mismatch. So the organizer's run executes all 768 programs. Trials 14..255 return no pair by design.
+  Local emulation of the organizer request (seeds sha256(label|trial), no container), run twice: 14 pairs returned, byte-identical outputs, 5.4 s; trials 0..5: 15 first blocks, 12 passing classes, 6 classes processed (147,456 good pairs checked lane by lane), 0 row-16 passes, 48 good pairs checked through row 15, filter mismatches 0, cell mismatches 0, lane mismatches 0; trials 6..13: 196,608 lanes of the 768 programs, 0 mismatches.
+- `a0-q3-r38` (H2): the organizer replica of q3 for the accepted event (Section 7.3). Trials 0..19 are replicates, each returning its first verified 38-step semi-free-start collision (CV1||M1, CV1||M1', 96 bytes each) that the counted program `step3b` also accepts (so the organizer's run executes the row tests and the output comparison on real successes); trial 20 returns a pair iff the pooled mean of the 20 linear estimates is at least 2^-97.0 and no check failed. Trials 21..255 return no pair by design. The returned witnesses are semi-free-start collisions from CV1, not collisions of the target: the organizer's recomputation finds 0 full collisions in this experiment, by design. Local emulation, run twice: 21 pairs returned, byte-identical outputs, 7.7 s; 141 successes, every one rebuilt, verified and accepted by `step3b`, 0 failed checks, estimates 2^-98.10 to 2^-94.63, log2 of the pooled mean -96.158 (threshold -97.0).
+- Both experiments are deterministic (the organizer's second execution is byte-identical). Locally (Python 3.14) `a0-online-r38` takes 5.4 s and `a0-q3-r38` 7.7 s, with peaks of 35 MB and 27 MB.
 
 ### 13.4 Development computation
 
-Below 10^5 CPU-seconds in total (the exhaustive passes, the end-to-end runs, the calibration of the replica, the H3 measurement, the scans of the program), far inside the charge DEV = 2^70 (Section 11). Machine: Windows 10 with Python 3.14 for the programs in Python, and an Ubuntu 26.04 distribution with 24 cores, 46 GB and gcc for the programs in C.
+Below 10^5 CPU-seconds in total (the exhaustive passes, the end-to-end runs, the q3 runs of Section 7.4 (about 2 x 32 x 90 s on 3 to 4 threads), the replica's development and calibration, the H3 measurement, the program scans), far inside the charge DEV = 2^70 (H4c). Machine: Windows 10 with Python 3.14 for the programs in Python, and an Ubuntu distribution under WSL2 (24 cores, 46 GB, gcc) for the programs in C; heavy jobs ran at reduced priority on at most 4 threads each.
+
+*Memory of the development executions (H4c, H6).* The development executions whose outputs the claim uses are the exhaustive pass `p8fam` (lean version: the class descriptors and the list of the 196,608 selected variants), the preregistered q3 run (`traillab`), the end-to-end runs `e2ep8` (table-free version) with their exact checks, and the programs of Section 14 (c). For this revision each of them was run again under a hard address-space cap (`prlimit --as=N`: an allocation beyond N fails and the program stops), with its peak resident memory measured by `research/tools/memmeter` (Appendix A.10, `run_chain.sh` and `run_small.sh`). The caps are 2^27 = 134,217,728 bytes for the C filters and the Python programs and 2^28 = 268,435,456 bytes for `traillab`, whose model, particles and per-stage records need about 218 MiB over the 32 seeds (222,756 KiB). Every run exited with status 0 under its cap; the peaks are in Section 14 (c2), the largest being 222,756 KiB = 2^27.77 bytes.
+- `p8fam` (lean): peak 69,496 KiB. Its class descriptors (`maxclasses.txt`, SHA-256 b7a3fc4e118c0871ef8b197f7967c84c95e97ec013062f6864b27a5f51903d26) and its list of the 196,608 selected variants (`sel_members.txt`, SHA-256 ff582e64e060db2807d85fbe31b054ef04eea26ed00b46dbcafb66b2c36a7138) are byte-identical to the files that the first version of `p8fam` wrote (Section 14 (d)) and that the preregistered q3 run read.
+- The preregistered q3 run: the same binary (SHA-256 17425aaa624561ceeb641977d72d86f6f4c1b8e57c6a05b7c82ad9ed1d12d485), model file `chi38p8.txt` (SHA-256 c47e5ec605a25ae03df29ada92f68c3462468262dc30730a1e201de335c8a14d), list and seeds 5001..5032 as in `PREREG_Q3P8.md`; the command differs from the preregistered one only in `--threads 3` instead of 4 (the tool's output does not depend on the thread count) and in the environment variable `MALLOC_ARENA_MAX=1` (one malloc arena, so that the address space stays under the cap). All 32 seeds completed under the cap 2^28 (peak 222,756 KiB = 2^27.77 bytes). Each of the 449 result lines (prefix estimate, sample counts, diagnostics, cell and EXACT counts and rates, ratios) and of the stage lines of the 32 seeds is identical to the earlier run, so mean -96.3251, seed sd 0.5774 and the declared bound -96.5755 of Section 7.4 are those of the repeat.
+- `e2ep8` (table-free): three runs under the cap 2^27, peaks in Section 14 (c2); counts in Section 13.1 (repeat).
+- The Python and C programs of Section 14 (c): run under the cap 2^27, exit status 0.
+The earlier executions of the same programs (no cap) have the peaks of Section 14 (c). Two superseded exploratory executions are stated in Section 14 (d).
+
 
 ### 13.5 The other variants of a successful first block (H3; `h3gen.py`, `h3count.c`, Appendix A.8)
 
-*The law of a success.* Fix a variant a0. Lemma 4.1 is a bijection between CV1 and W0..W7 (given S), and the inverse expansion is a bijection between W0..W5 and W16..W21 (given W6..W15). Under H1, CV1 is uniform, so (W16..W21, W6, W7) is uniform and, for good pairs, W7 is uniform on F7 (Lemma 5.1);
-a0 is uniform on the selected variants because every first block tries all of them. Hence the law of (CV1, a0) given a success is the law of (rows 16..21, W6, W7, a0) given that rows 16..37 hold, mapped back to CV1: exactly what the sampler of Section 7.3 draws (constant weights, so its surviving particles are draws of the conditional law, correlated through common ancestors).
+*The law of a success.* Fix a variant a0. Lemma 4.1 is a bijection between CV1 and W0..W7 (given S), and the inverse expansion is a bijection between W0..W5 and W16..W21 (given W6..W15). Under H1, CV1 is uniform, so (W16..W21, W6, W7) is uniform and, for good pairs, W7 is uniform on F7 (Lemma 5.1); a0 is uniform on the selected variants because every first block tries all of them. Hence the law of (CV1, a0) given a success is the law of (rows 16..21, W6, W7, a0) given the event, mapped back to CV1: what the replica's sampler draws (its importance weights are constant on its successes except through the stage means, so its surviving particles are draws of the conditional law of its sub-event, correlated through common ancestors).
 
-*Measurement.* `h3gen.py` runs that sampler with 512 particles (the proposal counts of Section 7.3) and a0 drawn from all 245,760 variants, 8 independent runs of 80 replicates, every success rebuilt and verified as a 38-step semi-free-start pair; `h3count.c` takes each success (CV1, a0) and tries every other selected variant b0 of that CV1:
-b0's class passes iff c7 - A_{-1} is in F7; for a good b0 it computes E16x by the closed form, the 12-bit prefilter and the exact 32-word set. Each success must itself pass row 16 (self failures: 0).
+*Measurement.* `h3gen.py` runs the replica (Section 7.3; labels 'h3p8|r|k') until each of 8 independent runs has at least 1,500 verified successes (every success rebuilt and verified as a 38-step semi-free-start pair and accepted by `step3b`); `h3count.c` takes each success (CV1, a0), finds the classes that pass F7 for CV1 and computes E16x for every one of their 24,576 members by the closed form: the 8-bit prefilter and the exact 160-word set. Each success must itself pass row 16 (self failures: 0).
 
 | run | successes | other good pairs | other stage-3a passes (independent expectation) | other row-16 passes (independent expectation) |
 |---|---|---|---|---|
-| 1 | 4,088 | 301,147,912 | 73,681 (73522.4) | 5 (2.24) |
-| 2 | 4,204 | 307,042,196 | 74,943 (74961.5) | 3 (2.29) |
-| 3 | 4,225 | 308,102,015 | 74,839 (75220.2) | 1 (2.30) |
-| 4 | 4,183 | 307,337,897 | 75,205 (75033.7) | 0 (2.29) |
-| 5 | 4,212 | 308,539,788 | 75,484 (75327.1) | 3 (2.30) |
-| 6 | 4,051 | 297,530,669 | 72,492 (72639.3) | 2 (2.22) |
-| 7 | 4,088 | 301,151,752 | 74,062 (73523.4) | 2 (2.24) |
-| 8 | 4,171 | 304,669,109 | 74,686 (74382.1) | 5 (2.27) |
-| **total** | **33,222** | **2,435,521,338** | **595,392 (594609.7; ratio 1.0013)** | **21 (18.15; ratio 1.16, z = +0.67)** |
+| 1 | 1,503 | 73,800,225 | 288,536 (288,282.1) | 7 (2.75) |
+| 2 | 1,505 | 73,701,919 | 287,346 (287,898.1) | 6 (2.75) |
+| 3 | 1,502 | 73,505,314 | 287,672 (287,130.1) | 6 (2.74) |
+| 4 | 1,501 | 73,431,587 | 286,870 (286,842.1) | 6 (2.74) |
+| 5 | 1,509 | 73,873,947 | 289,211 (288,570.1) | 3 (2.75) |
+| 6 | 1,502 | 73,677,346 | 288,446 (287,802.1) | 0 (2.74) |
+| 7 | 1,504 | 73,628,192 | 287,955 (287,610.1) | 1 (2.74) |
+| 8 | 1,502 | 73,480,738 | 287,039 (287,034.1) | 3 (2.74) |
+| **total** | **12,028** | **589,099,268** | **2,303,075 (2,301,169.0; ratio 1.0008)** | **32 (21.95; ratio 1.46, z = +2.15)** |
 
-E[R_f - 1 | success] is estimated by 21 / 33,222 = 2^-10.63; one-sided 99% upper bounds: Poisson 2^-9.92; Student t over the 8 runs (7 degrees of freedom; the runs are independent, the successes within a run are not) 2^-9.85. H3 assumes 2^-8.5. The conditional number of good pairs (73310.5 per success, 4.46 g) is larger than the unconditional g because the
-W7 tests of one first block are positively correlated (Section 5.3); the measurement includes this. The base's measurement (65,030 successes: 41 passes, 2^-10.63; 2^-10.12 and 2^-9.92) agrees with ours.
+E[R_f - 1 | success] is estimated by 32 / 12,028 = 2^-8.55; one-sided 99% upper bounds: Poisson 47.81 / 12,028 = 2^-7.97; Student t over the 8 runs (7 degrees of freedom, t = 2.998; the runs are independent, the successes within a run are not) 2^-7.79. H3 assumes 2^-7.5. The other row-16 passes exceed the independent expectation by a factor 1.46 (the success and the other variants of its first block are not independent); the measurement includes this and the premise is above its upper bounds. Per success, 48,977 other good pairs (3.72 g): the two classes of a pair pass together (Section 5.3).
 
 ## 14. Memory and advice
 
-| component | bytes |
+| component (online program) | bytes |
 |---:|---:|
-| batch planes of the 90 classes (15 batches, one word per variable bit of a0) | 675,840 |
-| shared-constant words of the classes | 11,520 |
+| code of the 768 batch programs: 832,170 instructions at 32 bytes | 26,629,440 |
+| lane planes (8 words) | 256 |
 | per-first-block broadcast planes (7 x 32 words) | 7,168 |
-| spill slots of the plane programs (15 used; the 40-word figure was only a budget) | 480 |
-| scalars, counters, hit list and F7 constants (64 words) | 2,048 |
-| class table (c7, base, mask and program number: 3 words each) | 8,640 |
-| code of the seven plane programs: 9,946 instructions at 32 bytes | 318,272 |
-| code of the W7 test loop: 57 instructions at 32 bytes (the 52-instruction tree once, 5 for the loop) | 1,824 |
-| code of the other routines (first-block words, scalars, planes, lane scan, row 16, step 3b, loops): 600 instructions at 32 bytes | 19,200 |
-| **total** | **1,044,992 bytes** (log2 = 19.99506046703272; under 2^20 = 1,048,576 by 3,584 bytes; online figure; the peak is 2^28, see below) |
+| spill slots of the batch programs (none used) | 0 |
+| scalars, counters, hit list, F7 constants and the two traces of step 3b (128 words) | 4,096 |
+| row-16 table (32 words) and lane table (256 words) | 9,216 |
+| class table (c7, base: 2 words each) | 512 |
+| code of the W7 test loop: 57 instructions at 32 bytes | 1,824 |
+| code of the other routines (first-block words, scalars, planes, lane scan, row 16, step 3b, loops): 700 instructions at 32 bytes | 22,400 |
+| **total** | **26,674,912 bytes (2^24.67)** |
 
-If the hit list kept one 32-byte word per class instead of the 64-word lump, 832 bytes more: 1,046,624, still under 2^20. The model has no code size of its own; 5 instruction slots for the loop is the figure used, and any loop whose static size exceeds this by fewer than 87 instructions stays under 2^20.
+The precomputation generates the 768 programs one at a time (each a DAG of a few thousand nodes) and the two small tables; it holds nothing larger than the code it writes. The online program touches only the components above. Nonuniform advice: P8's tables, S, the 8 class descriptors and the product description (G1, G3, the lane bits): below 2^13 bytes, charged through the allowances (H4).
 
-The precomputation (Section 5.3) builds one class at a time: it tests every subset s of the mask (at most 2^17 candidates, 3840 survivors, 15 KB) and writes the 15 x (varying bits) planes of the class; nothing larger than a class is held. The seven programs are generated once (about 1,400 instructions each). The online program touches only the components above.
-Nonuniform advice: the characteristic, S, L*, the 90 class descriptors (1,080 bytes) and the three shapes: below 2^13 bytes, charged through the allowances (H4). The 512 embedded variants of the replica are not part of the attack; they are in the experiment source only.
+**Peak memory: the maximum over the counted phases (H6).** The peak is max(online, preprocessing, the development executions whose outputs the claim uses); the claim is memory_log2_bytes = 28.1, i.e. 2^28.1 = 287,701,998 bytes (rounded down).
+(a) The computations behind the advice (P8 and S), measured by their author (1a695f0b Section 11, quoted; single-threaded, sequential, peak of the summed resident memory sampled every 0.2 s): the Step-1 solve of P8 (Python model and Kissat) 279,720 KB = 286,433,280 bytes = 2^28.094; the signed search that found P8 at most 248,000 KB = 2^27.92; the class descriptors (`a0cls.c`) 2^25.14; the condition tables and the pair below 2^24. Largest: 2^28.094 < 2^28.1.
+(b) Measured by us (fb176310 Section 14; `/usr/bin/time -v`, single-threaded): Kissat 4.0.3 and CaDiCaL 2.1.3 on the 38-step pair-search circuits, 2^26.82 to 2^27.15; the characteristic-derivation instance of Appendix C part A, CaDiCaL 2^27.56, Kissat 2^27.49.
+(c) Our development programs (Section 13.4) in the runs that produced the outputs used by the claim, each measured with `/usr/bin/time -v` (maximum resident set size; `memmeas.sh`), without an address-space cap:
 
-**Peak memory: online and preprocessing (H6).** The peak is max(online, preprocessing). Online: 1,044,992 bytes (table above). Preprocessing bound: 2^28 bytes = 268,435,456, derived below. Online and preprocessing do not run at the same time, so peak = 2^28 bytes (log2 = 28).
-(a) Measured. Single-thread Kissat 4.0.3 and CaDiCaL 2.1.3 (`/usr/bin/time -v`, 600 s cap, nice 10, four runs at once on separate cores) on the two Appendix C pair-search files: file a `dense_chi38_e16_new.cnf` (110,437 variables, 383,938 clauses) and file b `dense_chi38_elist_new.cnf` (110,469 variables, 385,435 clauses), the circuit of Appendix C part B with the file-specific pins or selection. Maximum resident set size: Kissat a 115,688 kB (118,464,512 bytes, 2^26.82), Kissat b 118,648 kB (121,495,552 bytes, 2^26.86), CaDiCaL b 136,468 kB (139,743,232 bytes, 2^27.06; this run found the pair, 8:28.98), CaDiCaL a 145,868 kB (149,368,832 bytes, 2^27.15). Largest: 149,368,832 bytes = 2^27.15. The logs are not shipped (evidence budget, declared-file list); the four `Maximum resident set size` values are quoted here.
-Further, on the characteristic-derivation instance itself (the 39-step window search of Appendix C part A, the CNF `ex39_search_90.cnf` of 132,265 variables and 771,857 clauses that CryptoMiniSat 5.11.21 solved in 772.58 s on 12 threads), single-thread runs (`/usr/bin/time -v`, 900 s cap, nice 10, run side by side): CaDiCaL 2.1.3 found a model in 1:52.11 with maximum resident set size 193,412 kB (198,053,888 bytes, 2^27.56); Kissat 4.0.3 found a model in 7:33.76 with 184,016 kB (188,432,384 bytes, 2^27.49). Largest measured preprocessing peak: 198,053,888 bytes = 2^27.56.
-(b) Characteristic derivation (H4a, Appendix C part A): measured above on its own CNF with single-thread CaDiCaL and Kissat, peak 2^27.56 bytes. The operation count of the preprocessing (the allowances A_C, A_S and the charge DEV, in target compressions) does not depend on the number of threads, and this package declares that every preprocessing solver run is single-threaded; the recorded 12-thread CryptoMiniSat run is the timing evidence of H4a only and its memory is not claimed. Bound: 2^27.56 < 2^28 bytes.
-(c) Step-1 solve (H4b) and development (DEV): the package gives no measured basis for their memory. Declared statement: the development runs the same solver family (Kissat, CaDiCaL), single-threaded, on instances no larger than the measured characteristic-derivation instance (largest peak 2^27.56), together with the package's own Python and C programs; the Step-1 solve is declared to run single-threaded solvers of the same family (SAT solves of the dense part and of the pair-search circuit, no larger than the instances of (a) and (b), whose largest peak is 2^27.56); both are covered by the same 2^28-byte envelope (1.35 times the largest measured peak).
-Not measured: the resident size of the Step-1 solve and of the development; (c) rests on the stated assumption. The 12-thread CryptoMiniSat run is not claimed to fit the envelope. Score under the rule S = time + max(0, memory - 20): 87.90375 + (28 - 20) = 95.90375.
+```text
+traillab window (q3 run configuration, one seed, 4 threads)   182,824 kB   (2^27.48 bytes)
+p8fam (exhaustive pass over a0, 16 buckets)                     69,348 kB
+python a0lean38.py ledger                                       43,244 kB
+python verify_r16p8.py (the 2^24 end-to-end run)                36,660 kB
+python a0lean38.py selftest                                     36,100 kB
+python a0lean38.py calibrate                                    33,832 kB
+python sens.py                                                  31,520 kB
+python calq3.py (20 replicates)                                 19,580 kB
+python h3gen.py (100 successes)                                 19,536 kB
+python w7check.py                                               16,980 kB
+python r16p8.py                                                 12,168 kB
+p8hits (4 threads), f23, h3count, e2ep8 (2^22 first blocks, 4 threads)   8,020 kB, 7,948 kB, 7,976 kB, 7,684 kB
+```
+
+The organizer experiments peak at 35,104 kB (`a0-online-r38`) and 26,612 kB (`a0-q3-r38`) under Python 3.14, inside the sandbox's 128 MiB.
+
+(c2) The same programs, run again for this revision under hard address-space caps (`prlimit --as=N`), peak resident memory by `research/tools/memmeter` (maximum of the child's wait4 ru_maxrss, the per-process VmHWM and the summed RSS of the process tree sampled every 10 ms; floor about 1.4 MB). `traillab` and the OpenMP programs ran on 3 threads with `MALLOC_ARENA_MAX=1`; everything ran under `nice -n 10`. Appendix A.10 lists the scripts and the records.
+
+| execution (run for this revision) | cap `--as` (bytes) | exit | peak resident KiB (memmeter) | log2 bytes |
+|---|---|---:|---:|---:|
+| `p8fam` (lean): exhaustive pass over a0, class descriptors, list of the 196,608 selected variants | 2^27 = 134,217,728 | 0 | 69,496 | 26.08 |
+| `traillab window`, preregistered q3 run: seeds 5001..5032, 3 threads, `MALLOC_ARENA_MAX=1` | 2^28 = 268,435,456 | 0 | 222,756 | 27.77 |
+| `e2ep8` (table-free): seed 19, 2^22 first blocks, 3 threads | 2^27 = 134,217,728 | 0 | 7,700 | 22.91 |
+| `e2ep8` (table-free): seed 23, 2^23 first blocks, 3 threads | 2^27 = 134,217,728 | 0 | 7,616 | 22.89 |
+| `e2ep8` (table-free): seed 17, 2^24 first blocks, 3 threads | 2^27 = 134,217,728 | 0 | 7,716 | 22.91 |
+| `a0lean38.py selftest` | 2^27 = 134,217,728 | 0 | 36,208 | 25.14 |
+| `a0lean38.py calibrate` | 2^27 = 134,217,728 | 0 | 33,840 | 25.05 |
+| `a0lean38.py ledger` | 2^27 = 134,217,728 | 0 | 44,728 | 25.45 |
+| `sens.py` | 2^27 = 134,217,728 | 0 | 35,200 | 25.10 |
+| `w7check.py` | 2^27 = 134,217,728 | 0 | 23,796 | 24.54 |
+| `h3gen.py 99 100` | 2^27 = 134,217,728 | 0 | 23,624 | 24.53 |
+| `calq3.py 2000 2020` | 2^27 = 134,217,728 | 0 | 24,768 | 24.60 |
+| `verify_r16p8.py (seed 19, 2^22 first blocks)` | 2^27 = 134,217,728 | 0 | 27,304 | 24.74 |
+| `verify_r16p8.py (seed 23, 2^23 first blocks)` | 2^27 = 134,217,728 | 0 | 32,008 | 24.97 |
+| `verify_r16p8.py (seed 17, 2^24 first blocks)` | 2^27 = 134,217,728 | 0 | 41,596 | 25.34 |
+| `p8hits` | 2^27 = 134,217,728 | 0 | 7,616 | 22.89 |
+| `f23` | 2^27 = 134,217,728 | 0 | 7,596 | 22.89 |
+| `h3count` | 2^27 = 134,217,728 | 0 | 7,548 | 22.88 |
+| `r16p8.py` | 2^27 = 134,217,728 | 0 | 12,336 | 23.59 |
+
+Largest: 222,756 KiB = 2^27.77 bytes, under a cap of 2^28 (`traillab`); the peaks of the other programs are lower. Every run completed under its cap.
+
+(d) Superseded exploratory executions. Two programs had earlier versions that held a whole table. Each ran on 2026-10-14 before the version of (c) replaced it, without an address-space cap and with no measurement of resident memory:
+- `p8fam`, first version (compiled 14:58, run at about 14:58 and again at about 15:38): a table of all |G| = 68,157,440 pairs (c7, a0), allocated as 2^27 entries of 8 bytes = 1 GiB (2^30 bytes) and written for 68,157,440 of them (545,259,520 bytes), and two index arrays of 8 and 4 bytes per entry, allocated for |G| + 1 entries (545,259,528 and 272,629,764 bytes) and written for 45,032 entries. Its outputs, the class descriptors (SHA-256 b7a3fc4e118c0871ef8b197f7967c84c95e97ec013062f6864b27a5f51903d26) and the list of the 196,608 selected variants (SHA-256 ff582e64e060db2807d85fbe31b054ef04eea26ed00b46dbcafb66b2c36a7138), are byte-identical to those of the lean version in (c) and (c2), which the claim uses.
+- `e2ep8`, first version (runs on 2^16 first blocks and on 2^22, 2^23 and 2^24 first blocks, finished between 15:22 and 15:37): a bitmap of F7 over all 2^32 values of A_{-1}, 2^32 bits = 512 MiB (2^29 bytes). Its counts differ from those of the table-free version in the last digits, because a rerun with another thread schedule draws other first blocks (Appendix A.3): row-16 passes on 2^22, 2^23 and 2^24 first blocks 2,083, 4,051 and 8,059 against 2,089, 4,050 and 8,060, all verified exactly.
+The claim uses no output of these two versions: the list and the descriptors are those of the lean version (identical bytes), and the end-to-end counts of Section 13.1 are those of the table-free version. They are within the time charge of H4c (failed trials and reruns included) and outside the counted phases of the peak (H6).
+Not measured by us: the memory of P8's search and Step-1 solve (the author's figures are used); the 12-thread solver runs of fb176310's Appendix C are timing evidence only. Score: 86.47433 + (28.1 - 20) = 94.57433.
 
 ## 15. Limitations
 
-- H1, H2, H3 are premises; q3 is a product of two Monte-Carlo lower bounds (the base's printed-event estimate and our preregistered gain), replicated for the accepted event by our own code and by the organizer experiment `a0-q3-r38` to about 0.3 bit; H3 is measured on sampled successes of the printed event (the base's 65,030 and our 33,222), not on real collisions and not again for the accepted event; no collision has been found and none is expected at our scale.
-- The gain of Section 7.4 was measured with our own tool (not shipped); the shipped replica, an independent implementation, agrees with it. Not done for this version: a solver re-run of the whole system with the four patterns and the tie, and a fresh reading of the cells from the paper's tables (the tables are those of the earlier filings, verified on the published pair).
-- The replica's W23 classes come from a development run; classes never seen there are not proposed (the replica is a lower bound).
-- The published characteristic and SFS pair are advice under allowances (H4a, H4b) and the development charge DEV; we did not rerun the paper's searches, and the memory of the allowance computations is bounded in H6 by 2^28 bytes (measured for the pair searches, assumed for the characteristic derivation, Step-1 solve and development). A_C = 2^78 is an allowance, not a measurement of the [LZLLQZ26] characteristic search: we measured a 39-step characteristic derivation with the authors' tool (2^36.04 units), our 38-step pair searches and the sparse part (Appendix C), and compared with published figures (largest 2^39.15 units, 38.85 bits under A_C); we did not derive the dense signed characteristic of rows 0..16 of Table 3 and the authors' failed and repeated searches are in no log (H4a).
-- The single element of L* is the published one; the paper's stated 2^2 freedom is not reproduced for S. With q3 = 2^-102 (the paper's text count of 102 conditions) log2 T would be 92.15605.
-- The bit-sliced filter relies on H5 (no organizer ruling is cited); the memory figure relies on H6, on the 2^28-byte preprocessing envelope (unmeasured for the CryptoMiniSat run, the Step-1 solve and the development) and, for the online part, on the instruction size chosen there (it is 2,784 bytes under 2^20; the loop of the W7 test and the dispatch to the class's program are counted, not an instruction list from the allocator).
-- The lane scan and the preprocessing are counted code but are not part of an organizer experiment at full size; their counts are produced by `calibrate` and printed in Appendix A.7. The step-3b path is run by `a0-q3-r38` on every replicate success.
+- H1, H2, H3 are premises. q3 is a Monte-Carlo lower bound from our own tool (32 preregistered seeds), confirmed by the shipped replica (an independent implementation that estimates a lower bound) and by 1a695f0b's estimator (another tool, quoted); H3 is measured on sampled successes of the replica's sub-event of the accepted event, not on real collisions; no collision has been found and none is expected at our scale.
+- The tool of Section 7.4 is not shipped (the experiment sources are limited to 65,536 bytes); its source is ours and its model file is the transcription checked on the pair.
+- The replica's row-19 proposals use the relations of 1a695f0b's twelve conditions (data); values outside them are not proposed, and successes off P8's path from row 22 are not counted, so the replica estimates a lower bound. Its pass rule has a margin of 0.07 bit on the lowest of 48 calibration pooled means.
+- P8, its pair and S are advice from 1a695f0b (H4a, H4b): we did not rerun its searches; their memory is the author's measurement (Section 14). The memory claim 2^28.1 rests on it.
+- Development memory: the peak of the claim is the maximum over the counted phases (Section 14). The two superseded exploratory executions of Section 14 (d) allocated a 1 GiB table and a 512 MiB bitmap; their resident memory was not measured, and the claim uses none of their outputs. The executions whose outputs the claim uses were repeated under address-space caps of at most 2^28 bytes (Section 14 (c2)).
+- The bit-sliced filter relies on H5 (no organizer ruling is cited). The online memory counts code at one 32-byte word per instruction (the machine model defines no code size); 832,170 instructions make the online figure 2^24.67, below the claimed peak.
+- The lane scan and the preprocessing are counted code but are not run at full size by an organizer experiment; their counts are produced by `calibrate` (Appendix A.7). The step-3b path is run by `a0-q3-r38` on every replicate success and by `selftest` on the P8 pair.
+
+## 16. Answers to the prior rulings, finding by finding
+
+This package is a derivative of fb176310, whose review (plausible_not_refuted) listed 13 material and 3 minor findings, and which answered the ruling 8c4cbe8d on pkgR38M6; it revises pkgR38P8 (ruling b7e5ee68). Each finding is answered by its identifier; IMPROVED marks what this package changes, STATED what is declared and left as it is.
+
+**b7e5ee68 (pkgR38P8; aggregate refuted by one fatal finding, 1 fatal, 14 material and 1 minor in all; this package is its revision).** CHANGED marks what this revision changes, STATED what is declared and left as it is. The counted program, the experiment sources, the ledger and the claim (time 86.47433, success 0.39, memory 2^28.1, score 94.57433) are those of pkgR38P8.
+- **F-COST-MEMORY-DISCARDED-DEVELOPMENT (fatal).** CHANGED. The finding is correct that H6 said every development program is smaller than the peak while two earlier versions of evidence programs, the first `p8fam` (a 1 GiB table) and the first `e2ep8` (a 512 MiB bitmap), had been run in development and were disclosed only as replaced. This revision (1) states both in Section 14 (d) with their allocations, their times, and the facts that they ran without an address-space cap and without a measurement of resident memory; (2) states that the claim uses none of their outputs: the class descriptors and the list of the 196,608 selected variants written by the first `p8fam` are byte-identical to those of its lean version, and the end-to-end counts of Section 13.1 are those of the table-free `e2ep8`; (3) runs again, under hard address-space caps with peaks measured by memmeter, every development execution whose outputs the claim uses (Sections 13.4 and 14 (c2), Appendix A.10): the exhaustive pass under 2^27 bytes, the preregistered q3 run (`traillab`, seeds 5001..5032, 3 threads) under 2^28 bytes with every per-seed output identical to the earlier run, the end-to-end runs and the other programs under 2^27 bytes; the largest measured peak is 222,756 KiB = 2^27.77 bytes; (4) separates in H4c the time charge (all development, failed trials and reruns, the superseded executions included) from the memory figure, which is the maximum over the counted phases; (5) rewrites H6 accordingly. The peak stays 2^28.1, the maximum over the counted phases (the Step-1 solve of P8 as measured by its author, 2^28.094). STATED: the superseded executions took place and allocated the stated memory; the claim places them outside the counted phases because none of its numbers depends on their outputs.
+- **F-COST-H2-PROBABILITY-EVIDENCE-GAP, F-CRYPTO-H2-BOUND-EVIDENCE-GAP, F-EVAL-H2-PROBABILITY-INFERENCE-LIMIT, F-EXP-H2-THRESHOLD-WEAKER-THAN-CLAIM.** STATED. q3_model = 2^-96.5755 is the one-sided 99% lower bound of our preregistered measurement with our own tool, which is not shipped (65,536-byte source limit). The organizer replica `a0-q3-r38` runs a restricted lower-bound sampler with a frozen pass threshold of 2^-97.0, which is below q3_model, and the organizer's report allows no probability inference from it; this package does not claim that the organizer execution discharges the bound. The bound rests on the preregistered measurement of Section 7.4 and Appendix A.9 (binary hash, model file, list, seeds and command are given). CHANGED (evidence): the measurement was repeated for this revision under an address-space cap and reproduces every per-seed output (Section 13.4). The replica (2^-96.31) and the estimator of 1a695f0b (2^-96.37) are other implementations whose means are listed in Section 7.
+- **F-COST-H3-CONDITIONING-EXTRAPOLATION, F-CRYPTO-H3-CONDITIONING-TRANSFER, F-EVAL-H3-NO-ORGANIZER-EXECUTION, F-EXP-H3-CONDITIONING-NOT-ORGANIZER-TESTED.** STATED. H3 is measured on 12,028 successes of the sampler of the accepted event with all 8 classes (Section 13.5, Appendix A.8): 32 other row-16 passes, one-sided 99% upper bounds 2^-7.97 and 2^-7.79 against the premise 2^-7.5. The sampler is a sub-event of the accepted event (row-19 relation sets, W23 in F23, zero differences from row 22), the successes are not real collisions, no organizer experiment executes H3, and the transfer to successes outside the sub-event is not tested; these limits are in H3 of `claim.json` and Section 15. No change.
+- **F-CRYPTO-H1-FULL-SCALE-EXTRAPOLATION, F-EXP-H1-FULL-SCALE-EXTRAPOLATION.** STATED. H1 is a declared score-critical premise, tested on up to 2^24 real first blocks (Section 13.1, repeated under a cap) and by `a0-online-r38` on its seed-drawn first blocks, not on 2^82 first blocks; the clumping of the class tests inside a first block is computed exactly (Section 5.3) and enters only through expectations and the exact probability that some class passes. No change.
+- **F-EVAL-PREPROCESSING-MEASUREMENT-PROVENANCE (minor).** STATED. The memory of P8's search and Step-1 solve is the measurement of their author (1a695f0b; 2^28.094 and 2^27.92, sampled every 0.2 s); we did not rerun them, and the allowances A_C and A_S are declared (H4a, H4b). The memory of our own development executions is measured by us (Section 14 (c), (c2)).
+- **F-EXP-EVENT-LABEL-MISMATCH.** STATED. The schema offers only the events `full-collision` and `digest-xor-mask`; both manifests keep `full-collision` and their hypotheses say that the organizer's recomputation finds 0 full collisions by design: `a0-online-r38` returns good pairs and coverage messages, `a0-q3-r38` returns 96-byte semi-free-start witnesses (CV1 || M1). They test the counted program and the replica, not the success event of the attack.
+- **F-EXP-NO-TRUSTED-PROBABILITY-OR-COST-INFERENCE.** STATED. The package does not take a probability or a cost from the organizer experiments; the evidence for H1, H2, H3 and the counts is the local runs of Section 13 and the exact ledger. A returned pair is the host-checkable signal that a trial's checks passed.
+- **F-EXP-PUBLIC-SEED-SELECTION-GAP.** STATED. The organizer fixes the seeds and the holdout nonce. The replica has one version: its pass rule (2^-97.0) was frozen in a preregistration hashed before its calibration (960 replicates, all kept; Appendix A.5). The q3 measurement of Section 7.4 used seeds 5001..5032, preregistered before the first seed and not drawn by the organizer.
+- **F-EXP-RESOURCE-CLAIMS-NOT-EXECUTED.** STATED, with a change in evidence. No organizer experiment reruns the characteristic search, the Step-1 solve, the development or the memory computation; H4a and H4b are allowances and the memory of P8's computations is the author's. CHANGED: the development executions whose outputs the claim uses were run again by us under caps with measured peaks (Section 14, Appendix A.10), so H4c and H6 rest on recorded runs.
+
+
+**fb176310 (accepted; dossier 961bdf43...).**
+- **F-COST-H2-H3-TRANSFER, F-CRYPTO-H2-BOUND-TRANSFER, F-H2-POPULATION-TRANSFER.** IMPROVED. There is no transfer between classes or events: q3_model is the preregistered 99% lower bound of a measurement of the accepted event itself with W8 drawn from all 196,608 selected variants (Section 7.4); the replica draws its variant uniformly from all 196,608 (not from a fixed subset of 512) and tests the accepted event; the 8 classes are exactly those whose variants were sampled.
+- **F-CRYPTO-H3-CONDITIONING-TRANSFER, F-H3-EVENT-CLASS-TRANSFER.** IMPROVED. H3 is measured on 12,028 successes of the accepted event's replica (all 8 classes; Section 13.5): 32 other row-16 passes, upper bounds 2^-7.97 / 2^-7.79 against the premise 2^-7.5. STATED: the successes come from the replica's sampler (a sub-event of the accepted event), not from real collisions, and H3 has no organizer execution.
+- **F-COST-H1-EXTRAPOLATION, F-CRYPTO-H1-EXTRAPOLATION, F-H1-FULL-SCALE-EXTRAPOLATION.** STATED. H1 is a declared score-critical premise, tested on up to 2^24 real first blocks for P8 (Section 13.1) and by `a0-online-r38`, not on 2^82 first blocks; the clumping of the class tests inside a first block is computed exactly (Section 5.3) and enters only through expectations and the exact probability that some class passes.
+- **F-COST-PREPROCESSING-ALLOWANCES.** IMPROVED in evidence, STATED as an allowance. P8's search is published with its run log and an author's bound of 2^21 core-seconds (H4a); A_C = 2^78 is 2^34.4 times that. We did not rerun it.
+- **F-COST-MEMORY-ENVELOPE, F-PREPROCESSING-MEMORY-NOT-EXECUTED.** IMPROVED. The preprocessing peak is no longer an envelope asserted over unmeasured steps: the Step-1 solve and the search of P8 were measured by their author (2^28.094 and 2^27.92 bytes), and the claim is raised to 2^28.1 to cover the larger one. STATED: these are the author's measurements; no organizer experiment executes the preprocessing.
+- **F-EXP-TARGET-EVENT-MISMATCH, F-EVAL-EXPERIMENT-EVENT-LABEL.** STATED. The schema offers only the events `full-collision` and `digest-xor-mask`; both manifests keep `full-collision` and their hypotheses say that the organizer's recomputation finds 0 full collisions by design: `a0-online-r38` returns good pairs and coverage messages, `a0-q3-r38` returns 96-byte semi-free-start witnesses (CV1 || M1). They test the counted program and the replica, not the attack's success event.
+- **F-EXP-NO-TRUSTED-PROBABILITY-INFERENCE.** STATED. The package uses the experiments as executions of the shipped code on organizer seeds; the evidence for H1, H2, H3 and the counts is the local runs of Section 13 and the exact ledger. The returned pairs are the host-checkable signal: a trial returns a pair only if its checks passed.
+- **F-EXP-SELECTION-AND-HOLDOUT-GAP.** STATED. The organizer fixes the seeds and the holdout nonce. This replica has one version: its pass rule (2^-97.0) was frozen in a preregistration hashed before its calibration (960 replicates, all kept, 0 below; Appendix A.5); only development replicates preceded it.
+- **F-H5-EXPERIMENT-COVERAGE (minor).** IMPROVED. Trials 6..13 of `a0-online-r38` execute every one of the 768 batch programs on all their lanes; a trial returns its pair only if all 24,576 lanes of its class agree with the scalar definition.
+- **F-EVAL-DEV-HEURISTIC-CLASSIFICATION (minor), H-implicit-development-bound.** IMPROVED. The development bound is declared in `claim.json` as the heuristic H4c-development-charge.
+
+**8c4cbe8d (pkgR38M6, refuted; answered in fb176310).** F-CAP-CHECK-GAP stays fixed: the cap is tested at the start of every first block and after every class (Section 8, Lemma 8.1, `selftest`). F-STEP3B-TRANSCRIPT-DISCREPANCY: `selftest` now measures step 3b on a fresh machine and prints 2828 operations and the work-counter update separately (2829 in the ledger). The other findings of that ruling (F-MEMORY-ENVELOPE, F-PREPROCESSING-ALLOWANCES, F-COST-AND-MEMORY-VALIDATION: memory and allowances; F-PROBABILITY-EXTRAPOLATION, CRYPTO-H2-CLASS-EXTRAPOLATION, F-H2-UNMEASURED-CLASSES, F-EXP-03: q3 beyond the measured classes; CRYPTO-H3-CONDITIONING-GAP, F-H3-EVENT-AND-CLASS-TRANSFER: H3; CRYPTO-H1-EXTRAPOLATION, F-H1-EXTRAPOLATION: H1; F-EXP-01, F-EXP-02, F-EXP-04, F-EXP-05: the experiments) are the same topics as the fb176310 findings answered above.
+
 
 ## Appendix A. Local evidence programs and records
+All programs are ours. `a0lean38.py` is the shipped experiment source; the others are evidence code (not shipped). Python 3.14 and C (gcc -O3 -march=native, OpenMP where marked) on the machine of Section 13.4. The memory of every program is in Section 14 (c).
 
-All programs are ours. `a0lean38.py` is the shipped experiment source; the others are evidence code (not shipped). Python 3.14 and C on the machine named in Section 13.4, C compiled with `gcc -O3 -march=native -fopenmp`.
-
-### A.1 `fam38.c`: the exhaustive passes over G, the c7 classes and F7 (4,460 bytes)
-
-Enumerates all 2^32 values of a0, keeps those in G (W8's cell and its three two-bit conditions), computes c7 for each, sorts the 2^26 pairs, reports the runs, regenerates the 64 class descriptors of `classes.txt` (c7, base, mask) and checks them, and counts F7. Output (the earlier version of the pass; the pass writes all 180 size-3840 classes, and Grok's run of an independent enumeration of all 2^32 values of a0 (not shipped) found the same 180 classes, the same three masks (96, 52 and 32 classes), the same 102,696 c7 values and |F7|, and the 90 used):
-
-```text
-|G| = 67108864 (2^26 = 67108864), modular s0 difference of W8 wrong on 0
-distinct c7 = 102696, max class size = 3840
-classes of size >= 3840: 180 (size 3840: 180)
-descriptors checked: 64, bad 0
-first 64 size-3840 runs by c7 vs descriptors: mismatches 0 (selected 64)
-|F7| = 287309824
-```
-
+### A.1 `p8fam.c`, `f23.c`: the exhaustive passes over a0 (G, the c7 classes, F7) and over F23
+`p8consts.h` is generated from our transcription by `mkh.py` (with the parser `p8const.py`, A.4):
 ```c
-// fam.c - exhaustive check of the A0-variant family G, its c7 classes and the exact filter F7 (own code).
+#define C4 0x8431a46fu
+#define W8C 0x8f80a0cbu
+#define D8 0xfbc00800u
+#define T8 0xfe808000u
+#define SE7 0xee321249u
+#define SE6 0x925a0446u
+#define SE5 0xbf9ddfa1u
+#define A3 0x0a893fdcu
+#define A2 0x0d70da4fu
+#define A1 0xe083b276u
+#define K7 0xab1c5ed5u
+#define PA0 0xc500a7ffu
+#define PC7 0x2a7ffb1bu
+```
+```python
+# mkh.py - writes p8consts.h (values of S for P8) from chi38p8.txt (own code)
+from p8const import *
+d = load('../chi38p8.txt'); cv, mx, my = d['cv'], d['mx'], d['my']
+tx, ty = trace(cv, mx), trace(cv, my)
+A, E = tx[0], tx[1]
+C4 = (A[4] - S0(A[3]) - MAJ(A[3], A[2], A[1])) & M
+W8C = (E[8] - A[4] - S1(E[7]) - CH(E[7], E[6], E[5]) - K[8]) & M
+D8 = (my[8] - mx[8]) & M; T8 = (s0(my[8]) - s0(mx[8])) & M
+assert (W8C - ((A[0] + C4) & M)) & M == mx[8]
+c7 = (E[7] - 2 * A[3] + S0(A[2]) + MAJ(A[2], A[1], A[0]) - S1(E[6]) - CH(E[6], E[5], (A[0] + C4) & M) - K[7]) & M
+assert (c7 - cv[0]) & M == mx[7], hex(c7)
+with open('p8consts.h', 'w') as f:
+    for n, v in (('C4', C4), ('W8C', W8C), ('D8', D8), ('T8', T8), ('SE7', E[7]), ('SE6', E[6]), ('SE5', E[5]), ('A3', A[3]), ('A2', A[2]), ('A1', A[1]), ('K7', K[7]), ('PA0', A[0]), ('PC7', c7)):
+        f.write('#define %s 0x%08xu\n' % (n, v))
+print(open('p8consts.h').read())
+```
+The pass over all 2^32 values of a0 (16 passes, one per bucket of a hash of c7, at most 2^23 pairs resident); `sel_classes.txt` holds the 8 descriptors of Section 5.3:
+```c
+// p8fam.c - exhaustive pass over all 2^32 values of a0 for P8: the A0-variant family G (s0 difference of W8 kept), its c7 classes,
+// the class descriptors (c7, base, mask) of every maximal class, the members of the selected classes, and |F7|.  Own code.
+// Memory-lean version: 16 passes, pass k keeps only the pairs (c7, a0) with the top 4 bits of c7 * 9e3779b1 equal to k (at most 2^23 pairs resident).
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include "p8consts.h"
 typedef uint32_t u32; typedef uint64_t u64;
 static inline u32 ror(u32 x, int n){ return (x>>n)|(x<<(32-n)); }
 static inline u32 S0(u32 x){ return ror(x,2)^ror(x,13)^ror(x,22); }
@@ -566,123 +608,80 @@ static inline u32 S1(u32 x){ return ror(x,6)^ror(x,11)^ror(x,25); }
 static inline u32 s0(u32 x){ return ror(x,7)^ror(x,18)^(x>>3); }
 static inline u32 MAJ(u32 x,u32 y,u32 z){ return (x&y)^(x&z)^(y&z); }
 static inline u32 CH(u32 x,u32 y,u32 z){ return (x&y)^(~x&z); }
-#define C4 0xab1f01f0u
-#define W8C 0xa1be17b9u
-#define D8 0xfbc00800u
-#define T8 0xfe7f8000u
-#define SE7 0xe2e9b205u
-#define SE6 0x0c1c24b9u
-#define SE5 0x1e847683u
-#define A3 0xd374b0d8u
-#define A2 0x479b4dc8u
-#define A1 0xda6c35e0u
-#define K7 0xab1c5ed5u
-#define CM 71305216u
-#define CV 71303168u
-#define CD 71305216u
-static inline int inG(u32 a0){
-  u32 w = W8C - (a0 + C4), y = w + D8;
-  if ((w & CM) != CV || (w ^ y) != CD) return 0;
-  int b0=(w>>0)&1,b28=(w>>28)&1,b30=(w>>30)&1,b9=(w>>9)&1,b1=(w>>1)&1,b18=(w>>18)&1;
-  return b0!=b28 && b30!=b9 && b1==b18;
-}
+static inline int inG(u32 a0){ u32 w = W8C - (a0 + C4); return (u32)(s0(w + D8) - s0(w)) == T8; }
 static inline u32 c7of(u32 a0){ u32 e4=a0+C4; return SE7 - 2*A3 + S0(A2) + MAJ(A2,A1,a0) - S1(SE6) - CH(SE6,SE5,e4) - K7; }
 typedef struct { u32 c7, a0; } pr;
 static int cmp(const void*a,const void*b){ const pr*x=a,*y=b; if(x->c7!=y->c7) return x->c7<y->c7?-1:1; return x->a0<y->a0?-1:(x->a0>y->a0); }
 int main(int argc,char**argv){
-  u64 n=0; pr *v = malloc(sizeof(pr)*(1u<<26));
-  u64 ds0bad=0;
-  for (u64 a=0;a<(1ull<<32);a++){ u32 a0=(u32)a; if(inG(a0)){ if(n>=(1u<<26)){ fprintf(stderr,"more than 2^26\n"); return 1;} v[n].c7=c7of(a0); v[n].a0=a0; n++;
-       u32 w = W8C - (a0 + C4), y = w + D8; if ((s0(y)-s0(w))!=T8) ds0bad++; } }
-  printf("|G| = %llu (2^26 = %u), modular s0 difference of W8 wrong on %llu\n",(unsigned long long)n,1u<<26,(unsigned long long)ds0bad);
-  qsort(v,n,sizeof(pr),cmp);
-  // runs
-  u64 nr=0, i=0; u64 hist[8192]; memset(hist,0,sizeof hist); u32 maxsz=0;
-  typedef struct { u64 start; u32 size, c7; } run;
-  run *rs = malloc(sizeof(run)*200000);
-  while(i<n){ u64 j=i; while(j<n && v[j].c7==v[i].c7) j++; rs[nr].start=i; rs[nr].size=(u32)(j-i); rs[nr].c7=v[i].c7; nr++; if(j-i<8192) hist[j-i]++; if(j-i>maxsz) maxsz=(u32)(j-i); i=j; }
-  printf("distinct c7 = %llu, max class size = %u\n",(unsigned long long)nr,maxsz);
-  u64 big=0; for(int s=3840;s<8192;s++) big+=hist[s]; printf("classes of size >= 3840: %llu (size 3840: %llu)\n",(unsigned long long)big,(unsigned long long)hist[3840]);
-  { FILE*g=fopen("allclasses.txt","w"); for(u64 k=0;k<nr;k++) if(rs[k].size==3840){ u32 b0=v[rs[k].start].a0, m=0; for(u32 t=0;t<3840;t++) m|=v[rs[k].start+t].a0^b0; fprintf(g,"%08x %08x %08x\n",rs[k].c7,b0&~m,m);} fclose(g);}
-  // descriptors
-  FILE*f=fopen("classes.txt","r"); unsigned c7,base,mask; int nc=0, bad=0;
-  while(fscanf(f,"%x %x %x",&c7,&base,&mask)==3){
-    // find run
-    u64 k; for(k=0;k<nr;k++) if(rs[k].c7==c7) break;
-    if(k==nr){ printf("class %08x not found\n",c7); bad++; continue; }
-    // members from descriptor: base ^ s, s subset of mask
-    u32 s=0; u32 cnt=0, hit=0;
-    do { u32 a=base^s; if(inG(a)&&c7of(a)==c7){ cnt++; // check membership in run
-          // binary search in run
-          u64 lo=rs[k].start, hi=rs[k].start+rs[k].size; while(lo<hi){ u64 mid=(lo+hi)/2; if(v[mid].a0<a) lo=mid+1; else hi=mid; }
-          if(lo<rs[k].start+rs[k].size && v[lo].a0==a) hit++; }
-      s=(s-mask)&mask; } while(s!=0);
-    if(cnt!=3840 || hit!=3840 || rs[k].size!=3840) { printf("class %08x: desc count %u hit %u run size %u  BAD\n",c7,cnt,hit,rs[k].size); bad++; }
-    nc++;
-  }
-  printf("descriptors checked: %d, bad %d\n",nc,bad);
-  // the 64 largest by (size desc, c7 asc)
-  // selection check: all runs of size 3840 sorted by c7; the first 64 must be the descriptors' c7
-  int idx=0; rewind(f); unsigned want[64]; int nw=0; while(fscanf(f,"%x %x %x",&c7,&base,&mask)==3) want[nw++]=c7;
-  int sel=0, mism=0; for(u64 k=0;k<nr && sel<64;k++){ if(rs[k].size==maxsz && maxsz==3840){ if(rs[k].c7!=want[sel]) mism++; sel++; } }
-  printf("first 64 size-3840 runs by c7 vs descriptors: mismatches %d (selected %d)\n",mism,sel);
-  // F7 size
+  u64 cap=1ull<<23; pr *v = malloc(sizeof(pr)*cap); u64 ng=0, nr=0; u32 maxsz=0; u64 nmax=0, hsz[24577]; memset(hsz,0,sizeof hsz);
+  FILE*g=fopen("maxclasses.txt","w"); FILE*o=fopen("sel_members.txt","w");
+  unsigned sc7[64],sbase[64],smask[64]; int ns=0; FILE*f=fopen("sel_classes.txt","r"); while(fscanf(f,"%x %x %x",&sc7[ns],&sbase[ns],&smask[ns])==3) ns++; fclose(f);
+  u32 runsz[64]; memset(runsz,0,sizeof runsz);
+  for (u32 k=0;k<16;k++){ u64 n=0;
+    for (u64 a=0;a<(1ull<<32);a++){ u32 a0=(u32)a; if(!inG(a0)) continue; u32 c=c7of(a0); if(((u32)(c*0x9e3779b1u)>>28)!=k) continue; if(n>=cap){ fprintf(stderr,"cap\n"); return 1;} v[n].c7=c; v[n].a0=a0; n++; }
+    ng+=n; qsort(v,n,sizeof(pr),cmp);
+    u64 i=0; while(i<n){ u64 j=i; while(j<n && v[j].c7==v[i].c7) j++; u32 sz=(u32)(j-i); nr++; if(sz<=24576) hsz[sz]++; if(sz>maxsz) maxsz=sz;
+      for(int q=0;q<ns;q++) if(sc7[q]==v[i].c7) runsz[q]=sz;
+      if(sz==24576){ u32 b0=v[i].a0, m=0; for(u64 t=i;t<j;t++) m|=v[t].a0^b0; fprintf(g,"%08x %08x %08x\n",v[i].c7,b0&~m,m); }
+      i=j; } }
+  fclose(g); nmax=hsz[maxsz<=24576?maxsz:0];
+  printf("|G| = %llu\n",(unsigned long long)ng);
+  printf("distinct c7 = %llu, max class size = %u, classes of max size = %llu\n",(unsigned long long)nr,maxsz,(unsigned long long)nmax);
+  int bad=0;
+  for(int q=0;q<ns;q++){ u32 s=0, cnt=0; do { u32 a=sbase[q]^s; if(inG(a)&&c7of(a)==sc7[q]){ cnt++; fprintf(o,"%08x\n",a);} s=(s-smask[q])&smask[q]; } while(s!=0);
+    printf("class %08x base %08x mask %08x: members %u, run size %u\n",sc7[q],sbase[q],smask[q],cnt,runsz[q]); if(cnt!=runsz[q]) bad++; }
+  fclose(o); printf("selected classes %d, bad %d\n",ns,bad);
   u64 nf=0; for(u64 w=0;w<(1ull<<32);w++){ u32 x=(u32)w; if(((s0(x+0x20000000u)-s0(x))==0x03bff800u)) nf++; }
   printf("|F7| = %llu\n",(unsigned long long)nf);
   return 0; }
 ```
-
-### A.2 `hits38.c`: the exact distribution of the number of passing classes (1751 bytes)
-
-For every value of A_{-1} (all 2^32) the number k of classes c (the 90 classes of `classes.txt`) with c7_c - A_{-1} in F7. Output (k, number of values of A_{-1}); the pass over the 64 classes of the earlier version gave 0 for 3,013,859,374 values, mean 4.28125, second moment 81.606 and maximum 32:
-
 ```text
-0 2992758256
-1 14982596
-2 29466208
-3 9487100
-4 41863120
-5 280912
-6 36005328
-7 1384098
-8 23652456
-9 314348
-10 9213978
-11 1455818
-12 190149696
-13 111234
-14 201331328
-15 350198
-16 114181246
-17 137312
-18 16670376
-19 220314
-20 32708046
-21 61102
-22 47246654
-23 14831352
-24 48762716
-25 2474
-26 16257032
-27 3410
-28 40646914
-29 2254
-30 40644516
-31 3928
-32 369709316
-33 2842
-34 9154
-35 7516
-36 10924
-37 4008
-38 22200
-39 15016
-total 4294967296 sum_k 25857884160 sum_k2 636623874688  (90*|F7| = 25857884160)
+|G| = 68157440
+distinct c7 = 45032, max class size = 24576, classes of max size = 32
+class 2a7beb1b base 9b649791 mask 7fe96c7c: members 24576, run size 24576
+class 2a7bfb1b base 9b648791 mask 7fe96c7c: members 24576, run size 24576
+class 2a7feb1b base 9b609793 mask 7fe96c7c: members 24576, run size 24576
+class 2a7ffb1b base 9b608793 mask 7fe96c7c: members 24576, run size 24576
+class aa7beb1b base 1b649791 mask 7fe96c7c: members 24576, run size 24576
+class aa7bfb1b base 1b648791 mask 7fe96c7c: members 24576, run size 24576
+class aa7feb1b base 1b609793 mask 7fe96c7c: members 24576, run size 24576
+class aa7ffb1b base 1b608793 mask 7fe96c7c: members 24576, run size 24576
+selected classes 8, bad 0
+|F7| = 287309824
+```
+Its output files: `maxclasses.txt` (the 32 classes of 24,576: c7, the class minimum with the mask bits cleared, the mask) and `sel_members.txt` (the 196,608 selected variants; the list given to the tool of Section 7.4, SHA-256 ff582e64e060db2807d85fbe31b054ef04eea26ed00b46dbcafb66b2c36a7138). An earlier version that held all 2^26 pairs at once gave the same output and the same files.
+The set F23 of the replica (Section 7.3), by XOR pattern:
+```c
+// f23.c - the set F23 = {w : s1(w + d) - s1(w) = t} (d = fe808000, t = 4fffa0d0, the pair's W23 differences): size and XOR patterns.  Own code.
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+typedef uint32_t u32; typedef uint64_t u64;
+static inline u32 ror(u32 x,int n){return (x>>n)|(x<<(32-n));}
+static inline u32 s1(u32 x){return ror(x,17)^ror(x,19)^(x>>10);}
+typedef struct{u32 x; u64 n; u32 and_, or_;} pat;
+int main(){ u32 d=0xfe808000u,t=0x4fffa0d0u; pat P[4096]; int np=0; u64 tot=0;
+  for(u64 a=0;a<(1ull<<32);a++){ u32 w=(u32)a; if((u32)(s1(w+d)-s1(w))!=t) continue; tot++; u32 x=w^(w+d); int k; for(k=0;k<np;k++) if(P[k].x==x) break;
+    if(k==np){ if(np==4096) {printf("many\n"); return 1;} P[np].x=x; P[np].n=0; P[np].and_=0xffffffffu; P[np].or_=0; np++; }
+    P[k].n++; P[k].and_&=w; P[k].or_|=w; }
+  printf("|F23| = %llu, XOR patterns %d\n",(unsigned long long)tot,np);
+  for(int k=0;k<np;k++) printf("x %08x n %llu fixed1 %08x fixed0 %08x\n",P[k].x,(unsigned long long)P[k].n,P[k].and_,~P[k].or_);
+  return 0;}
+```
+```text
+|F23| = 9830400, XOR patterns 6
+x 02808000 n 4194304 fixed1 02000000 fixed0 0082a000
+x 02818000 n 1048576 fixed1 02208000 fixed0 00836000
+x 06818000 n 65536 fixed1 04608000 fixed0 03836000
+x 07818000 n 65536 fixed1 04a08000 fixed0 03036000
+x 01808000 n 4194304 fixed1 05800000 fixed0 0002a000
+x 03818000 n 262144 fixed1 06a08000 fixed0 01036000
 ```
 
+### A.2 `p8hits.c`: the exact distribution of the number of passing classes
 ```c
-// hits.c - exact distribution of the number of passing classes per first block under H1 (a = A_{-1} uniform): for each of the 2^32
-// values of a count the classes c with c7_c - a in F7.  Own code.  Output: histogram of the count, E, E^2, P(any).
+// p8hits.c - exact distribution of the number of passing classes per first block under H1 (A_{-1} uniform): for each of the 2^32 values
+// a of A_{-1}, the number of the 8 selected classes c with c7_c - a in F7.  Own code.
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -692,55 +691,49 @@ typedef uint32_t u32; typedef uint64_t u64;
 static inline u32 ror(u32 x, int n){ return (x>>n)|(x<<(32-n)); }
 static inline u32 s0(u32 x){ return ror(x,7)^ror(x,18)^(x>>3); }
 int main(){
-  u32 c7[90]; int n=0; FILE*f=fopen("classes.txt","r"); unsigned a,b,c; while(fscanf(f,"%x %x %x",&a,&b,&c)==3) c7[n++]=a;
-  fclose(f);
-  u64 words = 1ull<<26; uint64_t *bm = calloc(words, 8);   // 2^32 bits
-  #pragma omp parallel for schedule(static)
-  for (u64 q=0;q<words;q++){ u64 v=0; for(int k=0;k<64;k++){ u32 w=(u32)(q*64+k); if (((s0(w+0x20000000u)-s0(w))==0x03bff800u)) v|=1ull<<k; } bm[q]=v; }
-  u64 nf=0; for(u64 q=0;q<words;q++) nf+=__builtin_popcountll(bm[q]);
-  printf("|F7| = %llu\n",(unsigned long long)nf);
-  u64 hist[91]; memset(hist,0,sizeof hist);
+  u32 c7[64]; int n=0; FILE*f=fopen("sel_classes.txt","r"); unsigned a,b,c; while(fscanf(f,"%x %x %x",&a,&b,&c)==3) c7[n++]=a; fclose(f);
+  u64 hist[65]; memset(hist,0,sizeof hist);
   #pragma omp parallel
-  { u64 h[91]; memset(h,0,sizeof h);
+  { u64 h[65]; memset(h,0,sizeof h);
     #pragma omp for schedule(static)
-    for (long long x=0;x<(1ll<<32);x++){ u32 av=(u32)x; int k=0; for(int i=0;i<n;i++){ u32 w=c7[i]-av; k+=(bm[w>>6]>>(w&63))&1; } h[k]++; }
+    for (long long x=0;x<(1ll<<32);x++){ u32 av=(u32)x; int k=0; for(int i=0;i<n;i++){ u32 w=c7[i]-av; k+=((u32)(s0(w+0x20000000u)-s0(w))==0x03bff800u); } h[k]++; }
     #pragma omp critical
-    for(int i=0;i<91;i++) hist[i]+=h[i];
+    for(int i=0;i<65;i++) hist[i]+=h[i];
   }
-  u64 tot=0, s1=0, s2=0; for(int k=0;k<=90;k++){ tot+=hist[k]; s1+=hist[k]*k; s2+=hist[k]*(u64)k*k; if(hist[k]) printf("%d %llu\n",k,(unsigned long long)hist[k]); }
-  printf("total %llu sum_k %llu sum_k2 %llu  (90*|F7| = %llu)\n",(unsigned long long)tot,(unsigned long long)s1,(unsigned long long)s2,(unsigned long long)(90*nf));
+  u64 tot=0,s1=0,s2=0; for(int k=0;k<=n;k++){ tot+=hist[k]; s1+=hist[k]*k; s2+=hist[k]*(u64)k*k; printf("%d %llu\n",k,(unsigned long long)hist[k]); }
+  printf("classes %d total %llu sum_k %llu sum_k2 %llu\n",n,(unsigned long long)tot,(unsigned long long)s1,(unsigned long long)s2);
   return 0; }
 ```
-
-### A.3 `e2e38m.c`: the attack's filters on real first blocks, and `verify_r16.py`
-
-`consts_m.h` is generated from `a0lean38.py` (the values of S, C16, the row-16 set and the mask of the 12 tested bits):
-
-```c
-// consts_m.h - generated from a0lean38.py (values of S and of the row-16 set)
-#define C4 0xab1f01f0u
-#define W8C 0xa1be17b9u
-#define D8 0xfbc00800u
-#define CM 71305216u
-#define CV 71303168u
-#define CD 71305216u
-#define SE7 0xe2e9b205u
-#define SE6 0xc1c24b9u
-#define SE5 0x1e847683u
-#define SA1 0xda6c35e0u
-#define SA2 0x479b4dc8u
-#define SA3 0xd374b0d8u
-#define C16 0xfe314838u
-#define R16B 0x481b02f9u
-#define R16F 0x82405u
-#define TVAL 0x481b02f9u
-#define PMASK 0x1dbf8u
+```text
+0 3137339392
+1 16777216
+2 1140850688
+3 0
+4 0
+5 0
+6 0
+7 0
+8 0
+classes 8 total 4294967296 sum_k 2298478592 sum_k2 4580179968
 ```
 
+### A.3 `e2ep8.c`: the attack's filters on real first blocks, and `verify_r16p8.py`
+`h3consts.h` (shared with `h3count.c`) is generated from `a0lean38.py`: the 8 c7 values, the 8 x 96 batch constants, the lane table, the 20 heads, A1 of S and C16:
+```python
+# mkh3consts.py - writes h3consts.h (constants of a0lean38.py for h3count.c and e2ep8.c); run next to a0lean38.py
+import a0lean38 as A
+f = open('h3consts.h', 'w', newline='\n')
+f.write('static const u32 C7[8]={%s};\n' % ','.join('0x%08xu' % c for c, b in A.CLASSES))
+f.write('static const u32 BC[8][96]={%s};\n' % ','.join('{' + ','.join('0x%08xu' % A.bconst(ci, b) for b in range(96)) + '}' for ci in range(8)))
+f.write('static const u32 LT[256]={%s};\n' % ','.join('0x%08xu' % x for x in A.LT))
+f.write('static const u32 R16H[20]={%s};\n' % ','.join('0x%08xu' % x for x in A.R16H))
+f.write('#define SA1 0x%08xu\n#define C16 0x%08xu\n' % (A.SAx[1], A.C16))
+f.close()
+```
 ```c
-// e2e38m.c - the attack's own filters on real first blocks (own code).  Random M0, CV1 = F_38(IV, M0) (38 steps, feed-forward), the 64 W7
-// tests (F7 bitmap), E16x of every variant of every passing class by the closed form of Section 6, the 14-bit prefilter, the exact row-16
-// set.  Every row-16 pass is printed (first block words, a0) for an exact check in Python.  Usage: ./e2e38m <seed> <log2 first blocks>
+// e2ep8.c - the attack's own filters on real first blocks for P8 (own code).  Random M0, CV1 = F_38(IV, M0) (38 steps, feed-forward), the 8 W7
+// tests (F7 by its definition, no table), E16x of every variant of every passing class by the closed form of Section 6, the 8-bit prefilter, the exact row-16
+// set (20 heads).  Every row-16 pass is printed (first block words, a0) for an exact check in Python.  Usage: ./e2ep8 <seed> <log2 first blocks>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -762,22 +755,15 @@ static void comp38(const u32*cv,const u32*w16,u32*out){
   for(int i=0;i<38;i++){ u32 t1=h+S1(e)+CH(e,f,g)+K[i]+W[i], t2=S0(a)+MAJ(a,b,c); h=g;g=f;f=e;e=d+t1;d=c;c=b;b=a;a=t1+t2; }
   out[0]=cv[0]+a;out[1]=cv[1]+b;out[2]=cv[2]+c;out[3]=cv[3]+d;out[4]=cv[4]+e;out[5]=cv[5]+f;out[6]=cv[6]+g;out[7]=cv[7]+h; }
 // S constants (Python prints them)
-#include "consts_m.h"
-static u32 *mem; static int ncls; static u32 c7s[64];
+#include "h3consts.h"
+#define TVAL 0x4b02d320u
+#define PMASK 0x3fau
+static int ncls; static u32 c7s[64];
+static int r16ok(u32 e){ u32 h=e&~0x405u; for(int i=0;i<20;i++) if(R16H[i]==h) return 1; return 0; }
 static inline u64 sm(u64 *s){ u64 z=(*s+=0x9e3779b97f4a7c15ull); z=(z^(z>>30))*0xbf58476d1ce4e5b9ull; z=(z^(z>>27))*0x94d049bb133111ebull; return z^(z>>31); }
 int main(int argc,char**argv){
   u64 seed=argc>1?strtoull(argv[1],0,10):1; int lg=argc>2?atoi(argv[2]):20; u64 nfb=1ull<<lg;
-  // F7 bitmap
-  u64 words=1ull<<26; u64*bm=calloc(words,8);
-  #pragma omp parallel for schedule(static)
-  for(u64 q=0;q<words;q++){ u64 v=0; for(int k=0;k<64;k++){ u32 w=(u32)(q*64+k); if((s0(w+0x20000000u)-s0(w))==0x03bff800u) v|=1ull<<k; } bm[q]=v; }
-  // classes
-  mem=malloc(4*3840*64); FILE*f=fopen("classes.txt","r"); unsigned c7,base,mask; ncls=0;
-  while(fscanf(f,"%x %x %x",&c7,&base,&mask)==3){ u32 s=0; int n=0; do{ u32 a=base^s; u32 w=W8C-(a+C4), y=w+D8;
-      if((w&CM)==CV && (w^y)==CD){ int b0=w&1,b28=(w>>28)&1,b30=(w>>30)&1,b9=(w>>9)&1,b1=(w>>1)&1,b18=(w>>18)&1;
-        if(b0!=b28&&b30!=b9&&b1==b18){ u32 e4=a+C4; u32 c=SE7-2*SA3+S0(SA2)+MAJ(SA2,SA1,a)-S1(SE6)-CH(SE6,SE5,e4)-0xab1c5ed5u; if(c==c7){ mem[ncls*3840+n]=a; n++; } } }
-      s=(s-mask)&mask; }while(s); if(n!=3840){ fprintf(stderr,"class %08x has %d\n",c7,n); return 1; } c7s[ncls++]=c7; }
-  fclose(f);
+  ncls=8; for(int i=0;i<8;i++) c7s[i]=C7[i];
   u64 hist[65]; memset(hist,0,sizeof hist); u64 good=0, pre=0, r16=0, nhit=0;
   #pragma omp parallel
   { u64 h[65]; memset(h,0,sizeof h); u64 g=0,p=0,r=0,nh=0; u64 st=seed*0x1000193ull+omp_get_thread_num()*7919+12345;
@@ -787,13 +773,13 @@ int main(int argc,char**argv){
       u32 cv[8]; comp38(IVW,m0,cv);
       u32 a=cv[0],b=cv[1],c=cv[2],d=cv[3],e=cv[4],ff=cv[5],gg=cv[6],hh_=cv[7];
       int k=0; int hit[64];
-      for(int i=0;i<64;i++){ u32 w=c7s[i]-a; if((bm[w>>6]>>(w&63))&1) hit[k++]=i; }
+      for(int i=0;i<ncls;i++){ u32 w=c7s[i]-a; if((u32)(s0(w+0x20000000u)-s0(w))==0x03bff800u) hit[k++]=i; }
       h[k]++;
       if(k){ u32 PP=a&b, QQ=a|b, HH=d-S0(a)-MAJ(a,b,c), EF=e^ff, FF=ff, K1=SA1-gg-0x71374491u;
              u32 kap0=HH-d-hh_-S1(e)-CH(e,ff,gg)-0x428a2f98u, KP=C16+kap0;
-        for(int q=0;q<k;q++){ u32*mm=mem+hit[q]*3840;
-          for(int t=0;t<3840;t++){ u32 a0=mm[t]; u32 E0=a0+HH; u32 T=S0(a0)+(PP|(a0&QQ))+S1(E0)+(FF^(E0&EF)); u32 W1=K1-T; u32 E16=KP+a0+s0(W1);
-            g++; if(((E16^TVAL)&PMASK)==0){ p++; u32 dd=(E16-R16B); if((dd&~R16F)==0){ r++;
+        for(int q=0;q<k;q++){
+          for(int t=0;t<24576;t++){ u32 a0=BC[hit[q]][t>>8]|LT[t&255]; u32 E0=a0+HH; u32 T=S0(a0)+(PP|(a0&QQ))+S1(E0)+(FF^(E0&EF)); u32 W1=K1-T; u32 E16=KP+a0+s0(W1);
+            g++; if(((E16^TVAL)&PMASK)==0){ p++; if(r16ok(E16)){ r++;
                #pragma omp critical
                { printf("R16 %08x %08x %08x %08x %08x %08x %08x %08x %08x\n",cv[0],cv[1],cv[2],cv[3],cv[4],cv[5],cv[6],cv[7],a0); for(int i=0;i<16;i++)printf("M %08x\n",m0[i]); } } } } } }
       nh+=k;
@@ -805,34 +791,8 @@ int main(int argc,char**argv){
   for(int i=0;i<65;i++) if(hist[i]) printf("H %d %llu\n",i,(unsigned long long)hist[i]);
   return 0; }
 ```
-
-Outputs (the lines of the row-16 passes, `R16` and sixteen `M` lines each, are omitted here; they are checked by the script below):
-
-```text
-seed 19:
-FB 4194304
-hits_total 17972582
-good_pairs 69014714880
-prefilter_passes 16849545
-row16_passes 468
-seed 23:
-FB 8388608
-hits_total 35894449
-good_pairs 137834684160
-prefilter_passes 33644771
-row16_passes 1062
-seed 17:
-FB 16777216
-hits_total 71766725
-good_pairs 275584224000
-prefilter_passes 67279849
-row16_passes 2031
-```
-
-`verify_r16.py` (reads those lines) and its output on both runs:
-
 ```python
-# verify_r16.py - exact check of the row-16 passes printed by e2e38m (R16 line: CV1 and a0; sixteen M lines: the first block).  Run next to a0lean38.py.
+# verify_r16p8.py - exact check of the row-16 passes printed by e2ep8 (R16 line: CV1 and a0; sixteen M lines: the first block).  Run next to a0lean38.py.
 import sys
 import a0lean38 as T
 lines = open(sys.argv[1]).read().split('\n'); recs = []; i = 0
@@ -841,266 +801,271 @@ while i < len(lines):
         t = lines[i].split(); cv = [int(x, 16) for x in t[1:9]]; a0 = int(t[9], 16)
         recs.append((cv, a0, [int(lines[i + 1 + k].split()[1], 16) for k in range(16)])); i += 17
     else: i += 1
-cvbad = vbad = w7bad = cellbad = 0; deepest = {}
+cvbad = vbad = cellbad = r16bad = 0; deepest = {}
 for cv, a0, m0 in recs:
     cvbad += T.compress(T.IV, m0) != cv
     vbad += not T.variant_ok(a0)
+    cellbad += not T.pair_check15(cv, a0)
     wx, wy = T.words_from_cv(cv, a0); mx = wx + [T.PMX[14], T.PMX[15]]; my = wy + [T.PMY[14], T.PMY[15]]
-    w7bad += not T.inF7(mx[7])
     tx, ty = T.trace(cv, mx), T.trace(cv, my)
-    ok = all(T.rowok(tx, ty, i) for i in range(-4, 17))
-    for (k1, i1, b1, eq, k2, i2, b2, row) in T.X2:
-        if 8 <= row <= 16 and (((tx[k1][i1] >> b1) ^ (tx[k2][i2] >> b2)) & 1) != (0 if eq else 1): ok = False
-    cellbad += not ok
+    r16bad += not (T.rowok(tx, ty, 16) and T.r16ok(tx[1][16]))
     r = 16
-    while r < 37 and T.rowok(tx, ty, r + 1): r += 1
+    while r < 21 and T.rowok(tx, ty, r + 1): r += 1
     deepest[r] = deepest.get(r, 0) + 1
-print('row-16 passes', len(recs), '| CV1 != F38(IV, M0):', cvbad, '| variant not selected:', vbad, '| W7 not in F7:', w7bad, '| failures of rows -4..16:', cellbad, '| deepest row reached:', deepest)
+print('row-16 passes', len(recs), '| CV1 != F38(IV, M0):', cvbad, '| variant not selected:', vbad, '| failures of rows -4..15 (pair_check15):', cellbad,
+      '| failures of row 16:', r16bad, '| deepest row reached:', deepest)
 ```
+Outputs (the lines of the row-16 passes, `R16` and sixteen `M` lines each, are omitted here; they are checked by `verify_r16p8.py`). `e2ep8` draws M0 per thread from a splitmix64 stream seeded by (seed, thread), so a rerun with a different thread schedule draws other first blocks; the runs below are those of the table-free version (an earlier version with an F7 bitmap of 512 MiB, superseded, gave 2,083, 4,051 and 8,059 row-16 passes on the same sizes, all verified; Section 14 (d)).
 
 ```text
 == e2e_19_22.txt
-row-16 passes 468 | CV1 != F38(IV, M0): 0 | variant not selected: 0 | W7 not in F7: 0 | failures of rows -4..16: 0 | deepest row reached: {16: 468}
+FB 4194304
+hits_total 2243836
+good_pairs 55144513536
+prefilter_passes 215418004
+row16_passes 2089
+H 0 3064166
+H 1 16440
+H 2 1113698
+row-16 passes 2089 | CV1 != F38(IV, M0): 0 | variant not selected: 0 | failures of rows -4..15 (pair_check15): 0 | failures of row 16: 0 | deepest row reached: {16: 2089}
 == e2e_23_23.txt
-row-16 passes 1062 | CV1 != F38(IV, M0): 0 | variant not selected: 0 | W7 not in F7: 0 | failures of rows -4..16: 0 | deepest row reached: {16: 1062}
+FB 8388608
+hits_total 4486323
+good_pairs 110255874048
+prefilter_passes 430662940
+row16_passes 4050
+H 0 6128936
+H 1 33021
+H 2 2226651
+row-16 passes 4050 | CV1 != F38(IV, M0): 0 | variant not selected: 0 | failures of rows -4..15 (pair_check15): 0 | failures of row 16: 0 | deepest row reached: {16: 4050}
 == e2e_17_24.txt
-row-16 passes 2031 | CV1 != F38(IV, M0): 0 | variant not selected: 0 | W7 not in F7: 0 | failures of rows -4..16: 0 | deepest row reached: {16: 2031}
+FB 16777216
+hits_total 8979982
+good_pairs 220692037632
+prefilter_passes 862060186
+row16_passes 8060
+H 0 12254411
+H 1 65628
+H 2 4457177
+row-16 passes 8060 | CV1 != F38(IV, M0): 0 | variant not selected: 0 | failures of rows -4..15 (pair_check15): 0 | failures of row 16: 0 | deepest row reached: {16: 8060}
 ```
 
-### A.4 `r16enum.py`: the row-16 set by exhaustive enumeration
-
+### A.4 `r16p8.py`: the row-16 set by exhaustive enumeration, and the transcription parser `p8const.py`
 ```python
-# r16enum.py - exhaustive derivation of the row-16 set: every E16x with the ten fixed cell bits (2^22 values), tested with row16_full
-# (every cell of row 16 of both members and every two-bit condition closing at row 16).  Run next to a0lean38.py.
-import sys, time
+# p8const.py - P8 constants from our transcription chi38p8.txt (own code; data only)
+import re, sys
 sys.path.insert(0, '.')
-import a0lean38 as T
-free = ~T.EM & T.M; s = 0; good = []; t0 = time.time(); n = 0
-while True:
-    e = T.EV | s; n += 1
-    if T.row16_full(e): good.append(e)
-    s = (s - free) & free
-    if s == 0: break
-print('candidates', n, 'passing', len(good))
-print(' '.join('%08x' % x for x in sorted(good)))
-print('equals the affine set R16B + subset sums of 0x1, 0x4, 0x400, 0x2000, 0x80000:', sorted(good) == T.R16W)
-print('time %.0f s' % (time.time() - t0))
-```
-
-```text
-candidates 4194304 passing 32
-481b02f9 481b02fa 481b02fd 481b02fe 481b06f9 481b06fa 481b06fd 481b06fe 481b22f9 481b22fa 481b22fd 481b22fe 481b26f9 481b26fa 481b26fd 481b26fe 482302f9 482302fa 482302fd 482302fe 482306f9 482306fa 482306fd 482306fe 482322f9 482322fa 482322fd 482322fe 482326f9 482326fa 482326fd 482326fe
-equals the affine set R16B + subset sums of 0x1, 0x4, 0x400, 0x2000, 0x80000: True
-time 141 s
-```
-
-### A.5 The q3 replica for the accepted event: development run, preregistrations, calibrations
-
-*Development run of the W23 classes* (`diag_w23.py`, five processes of 24 replicates, labels `diag-w23|k`, k = 0..119; the front of Section 7.3 with the four patterns and the tie, then 8192 tail proposals per particle with W23 uniform, W7 in F7). For every exact event it records which of the ten printed conditions of W23 hold (bit t of the class: the six value bits of the cell in increasing bit order 12, 15, 17, 23, 24, 26, then the two-bit conditions W23[0] != W23[30], W23[1] != W23[31], W23[14] = W23[21], W23[16] = W23[25]); 3ff is the printed class.
-
-```python
-# Development diagnostic (not part of any declared value): exact events with W23 drawn uniformly (only W7 in F7 required);
-# records which of the 10 printed W23 conditions (6 value bits of the cell, 4 two-bit conditions) each exact event satisfies.
-import sys, json
-import a0lean38 as T
-from a0lean38 import *
-_tx = T._tx; _ty = T._ty
-def front(rng):
-    P = []
-    for _ in range(NP_R):
-        e16 = R16W[rng.below(32)]
-        Ax = {i: _tx[0][i] for i in range(-4, 16)}; Ex = {i: _tx[1][i] for i in range(-4, 16)}; Wx = {i: PMX[i] for i in range(16)}
-        Ay = {i: _ty[0][i] for i in range(-4, 16)}; Ey = {i: _ty[1][i] for i in range(-4, 16)}; Wy = {i: PMY[i] for i in range(16)}
-        Wx[16] = (e16 - (Ax[12] + Ex[12] + S1(Ex[15]) + CH(Ex[15], Ex[14], Ex[13]) + K[16])) & M
-        Wy[16] = (Wx[16] + ((s1(PMY[14]) + PMY[9] - s1(PMX[14]) - PMX[9]) & M)) & M
-        for (A, E, W) in ((Ax, Ex, Wx), (Ay, Ey, Wy)): step_row(A, E, W, 16)
-        P.append((Ax, Ex, Wx, Ay, Ey, Wy))
-    for i in range(17, 22):
-        cm, cvv = CELLS[1][i][:2]; pq = PQ[i]; imp = cm | pq; Mi = CH_R[i - 17]; surv = []
-        for (Ax, Ex, Wx, Ay, Ey, Wy) in P:
-            rx = (Ax[i-4] + Ex[i-4] + S1(Ex[i-1]) + CH(Ex[i-1], Ex[i-2], Ex[i-3]) + K[i]) & M
-            fixed = cvv | (Ex[i-1] & pq & ~cm & M)
-            if i == 20: fixed = (fixed & ~B29) | (Ex[19] & B29)
-            for _ in range(Mi):
-                e = (rng.u32() & ~imp & M) | (fixed if i != 19 else (fixed & ~M19) | P19[rng.below(4)])
-                Wxi = (e - rx) & M; Wyi = (Wxi + DWT[i]) & M
-                nA = {**Ax}; nE = {**Ex}; nW = {**Wx}; mA = {**Ay}; mE = {**Ey}; mW = {**Wy}
-                nW[i] = Wxi; mW[i] = Wyi; step_row(nA, nE, nW, i); step_row(mA, mE, mW, i)
-                if nE[i] == e and rowok((nA, nE, nW), (mA, mE, mW), i): surv.append((nA, nE, nW, mA, mE, mW))
-        if not surv: return None
-        P = [surv[rng.below(len(surv))] for _ in range(NP_R)]
-    return P
-cm, cvv = CELLS[2][23][:2]
-X23 = [(b1, b2, eq) for (k1, i1, b1, eq, k2, i2, b2, row) in X2 if row == 23]
-def sig(w):
-    s = [((w >> b) & 1) == ((cvv >> b) & 1) for b in range(32) if (cm >> b) & 1]
-    s += [(((w >> b1) ^ (w >> b2)) & 1) == (0 if eq else 1) for (b1, b2, eq) in X23]
-    return ''.join('1' if x else '0' for x in s)
-def work(k0, k1, out):
-    ev = []; props = 0
-    for k in range(k0, k1):
-        rng = Shake('diag-w23|%d' % k); P = front(rng)
-        if not P: continue
-        for (Ax, Ex, Wx, Ay, Ey, Wy) in P:
-            for _ in range(8192):
-                a0 = VARIANTS[rng.below(len(VARIANTS))]; w8 = (W8C - (a0 + C4)) & M; w23 = rng.u32()
-                w7 = (w23 - s1(Wx[21]) - Wx[16] - s0(w8)) & M
-                if not inF7(w7): continue
-                props += 1; w6 = rng.u32()
-                nA = {**Ax}; nE = {**Ex}; nW = {**Wx}; mA = {**Ay}; mE = {**Ey}; mW = {**Wy}
-                for i, v in ((7, w7), (8, w8)): nW[i] = v; mW[i] = (v + DWT[i]) & M
-                nW[6] = w6; mW[6] = w6
-                for i in range(22, NR):
-                    nW[i] = (s1(nW[i-2]) + nW[i-7] + s0(nW[i-15]) + nW[i-16]) & M
-                    mW[i] = (s1(mW[i-2]) + mW[i-7] + s0(mW[i-15]) + mW[i-16]) & M
-                    step_row(nA, nE, nW, i); step_row(mA, mE, mW, i)
-                if exact((nA, nE), (mA, mE)): ev.append((k, sig(nW[23]), hex(nW[23] ^ mW[23]), hex(nW[25] ^ mW[25])))
-    json.dump(dict(props=props, ev=ev), open(out, 'w'))
+M=0xffffffff
+K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be,
+     0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa,
+     0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85,
+     0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb]
+def ror(x, n): return ((x >> n) | (x << (32 - n))) & M
+def S0(x): return ror(x, 2) ^ ror(x, 13) ^ ror(x, 22)
+def S1(x): return ror(x, 6) ^ ror(x, 11) ^ ror(x, 25)
+def s0(x): return ror(x, 7) ^ ror(x, 18) ^ (x >> 3)
+def s1(x): return ror(x, 17) ^ ror(x, 19) ^ (x >> 10)
+def CH(x, y, z): return (x & y) ^ (~x & z & M)
+def MAJ(x, y, z): return (x & y) ^ (x & z) ^ (y & z)
+def trace(cv, w16, n=38):
+    W = list(w16)
+    for i in range(16, n): W.append((s1(W[i-2]) + W[i-7] + s0(W[i-15]) + W[i-16]) & M)
+    A = {-1-i: cv[i] for i in range(4)}; E = {-1-i: cv[4+i] for i in range(4)}
+    for i in range(n):
+        E[i] = (A[i-4] + E[i-4] + S1(E[i-1]) + CH(E[i-1], E[i-2], E[i-3]) + K[i] + W[i]) & M
+        A[i] = (E[i] - A[i-4] + S0(A[i-1]) + MAJ(A[i-1], A[i-2], A[i-3])) & M
+    return A, E, W
+def load(fn):
+    d = {'rows': {}, 'x2': []}
+    for l in open(fn):
+        l = l.split('#')[0].strip()
+        if not l: continue
+        t = l.split()
+        if t[0] in ('cv', 'mx', 'my', 'digest'): d[t[0]] = [int(x, 16) for x in t[1:]]
+        elif t[0] == 'row': d['rows'][int(t[1])] = t[2:5]
+        elif t[0] == 'x2':
+            m = re.match(r'x2 ([AEW])(-?\d+)\[(\d+)\] (=|!=) ([AEW])(-?\d+)\[(\d+)\]', l)
+            k1, i1, b1, op, k2, i2, b2 = m.groups()
+            d['x2'].append(('AEW'.index(k1), int(i1), int(b1), 1 if op == '=' else 0, 'AEW'.index(k2), int(i2), int(b2), max(int(i1), int(i2))))
+    return d
+def cells(d):
+    """CELLS[k][i] = (mask, x-value, xor); PQ[i] = bits with E_i = E_{i-1} (both '+')."""
+    CE = [[(0, 0, 0)] * 38 for _ in range(3)]; PL = {}
+    for i, ws in d['rows'].items():
+        for k in range(3):
+            m = v = x = 0
+            for j, c in enumerate(ws[k]):
+                b = 31 - j
+                if c in 'un01': m |= 1 << b
+                if c in 'u1': v |= 1 << b
+                if c in 'unx': x |= 1 << b
+                if c == '+': PL.setdefault((k, i), 0); PL[(k, i)] |= 1 << b
+                if c not in 'un01=+x': raise ValueError(c)
+            CE[k][i] = (m, v, x)
+    PQ = [0] * 38
+    for (k, i), b in PL.items():
+        assert k == 1
+        up = PL.get((1, i - 1), 0) & b; dn = PL.get((1, i + 1), 0) & b
+        PQ[i] |= up
+        assert (b & ~(up | dn)) == 0, (i, hex(b))
+    return CE, PQ
 if __name__ == '__main__':
-    work(int(sys.argv[1]), int(sys.argv[2]), sys.argv[3])
+    d = load('../chi38p8.txt'); CE, PQ = cells(d)
+    cv, mx, my = d['cv'], d['mx'], d['my']
+    tx, ty = trace(cv, mx), trace(cv, my)
+    f = lambda t: [(cv[i] + v) & M for i, v in enumerate([t[0][37], t[0][36], t[0][35], t[0][34], t[1][37], t[1][36], t[1][35], t[1][34]])]
+    print('digest eq', f(tx) == f(ty), [hex(x) for x in f(tx)] , d['digest'] == f(tx))
+    for i in range(-4, 38):
+        for k in range(3):
+            if k == 2 and i < 0: continue
+            xv, yv = tx[k][i], ty[k][i]
+            m, v, x = CE[k][i] if i >= 0 else (0, 0, 0)
+            if (xv & m) != v or (xv ^ yv) != x: print('cell fail', 'AEW'[k], i, hex(xv ^ yv), hex(x))
+    print('PQ', {i: hex(p) for i, p in enumerate(PQ) if p})
+    for c in d['x2']:
+        k1, i1, b1, eq, k2, i2, b2, r = c
+        if (((tx[k1][i1] >> b1) ^ (tx[k2][i2] >> b2)) & 1) != (0 if eq else 1): print('x2 fail', c)
+    for i in range(38):
+        if PQ[i] and (tx[1][i] ^ tx[1][i-1]) & PQ[i]: print('PQ fail', i)
+    print('A0', hex(tx[0][0]), 'W7 diff', hex((my[7]-mx[7]) & M), 'D8', hex((my[8]-mx[8]) & M), 'T8', hex((s0(my[8]) - s0(mx[8])) & M))
+    print('rows with cells', sorted(d['rows']))
+    print('x2 rows', sorted(set(c[7] for c in d['x2'])))
+```
+```python
+# r16p8.py - the row-16 set of P8 by exhaustive enumeration: every E16x with the fixed bits of the E16 cell (2^24 values), tested with
+# every cell of row 16 of both members, the '+' bits and every two-bit condition closing at row 16 (own code).
+from p8const import *
+d = load('../chi38p8.txt'); CE, PQ = cells(d); cv, mx, my = d['cv'], d['mx'], d['my']
+tx, ty = trace(cv, mx), trace(cv, my)
+A, E = tx[0], tx[1]; Ay, Ey = ty[0], ty[1]
+X16 = [c for c in d['x2'] if c[7] == 16]
+base_x = (A[12] + E[12] + S1(E[15]) + CH(E[15], E[14], E[13]) + K[16]) & M
+base_y = (Ay[12] + Ey[12] + S1(Ey[15]) + CH(Ey[15], Ey[14], Ey[13]) + K[16]) & M
+dw16 = ((s1(my[14]) + my[9] - s1(mx[14]) - mx[9]) & M)
+def full(e):
+    w16x = (e - base_x) & M; w16y = (w16x + dw16) & M
+    tr = []
+    for (a, ee, w, b) in ((A, E, w16x, base_x), (Ay, Ey, w16y, base_y)):
+        e16 = (b + w) & M
+        tr.append(((e16 - a[12] + S0(a[15]) + MAJ(a[15], a[14], a[13])) & M, e16, w))
+    for k in range(3):
+        m, v, x = CE[k][16]
+        if (tr[0][k] & m) != v or (tr[0][k] ^ tr[1][k]) != x: return False
+    if (tr[0][1] ^ E[15]) & PQ[16]: return False
+    X = {0: {**{i: A[i] for i in range(-4, 16)}, 16: tr[0][0]}, 1: {**{i: E[i] for i in range(-4, 16)}, 16: tr[0][1]}, 2: {**{i: mx[i] for i in range(16)}, 16: tr[0][2]}}
+    return all((((X[k1][i1] >> b1) ^ (X[k2][i2] >> b2)) & 1) == (0 if eq else 1) for (k1, i1, b1, eq, k2, i2, b2, row) in X16)
+if __name__ == '__main__':
+    m, v, x = CE[1][16]
+    free = [j for j in range(32) if not m >> j & 1]
+    out = []
+    for t in range(1 << len(free)):
+        e = v
+        for k, j in enumerate(free):
+            if t >> k & 1: e |= 1 << j
+        if full(e): out.append(e)
+    print(len(out))
+    open('r16set.txt', 'w').write('\n'.join('%08x' % w for w in sorted(out)) + '\n')
+    inv = M
+    for w in out: inv &= ~(w ^ out[0]) & M
+    print('shared mask %08x value %08x' % (inv, out[0] & inv))
+    print('E16x of the pair', hex(tx[1][16]), tx[1][16] in out)
+```
+```text
+160
+shared mask 4cc79bfa value 48029320
+E16x of the pair 0xcb1af725 True
+```
+
+### A.5 The q3 replica: development look, preregistration, calibration
+*Development look* (`devq3.py`, four processes of three groups, labels `a0-q3-r38|dev|g|k`; written and run before the preregistration; not part of any declared value). Output (group, log2 of the pooled mean of 20, successes, failed checks, replicates without a success):
+
+```python
+# devq3.py - development look at the replica (labels 'a0-q3-r38|dev|g|k'), NOT the calibration; prints pooled means of 20
+import sys, math, json, a0lean38 as T
+g0, g1 = int(sys.argv[1]), int(sys.argv[2]); res = []
+for g in range(g0, g1):
+    lin = []; succ = 0; bad = 0
+    for k in range(20):
+        z, pairs, b, s, lg = T.smc_replicate(T.Shake('a0-q3-r38|dev|%d|%d' % (g, k))); lin.append(0.0 if z is None else 2.0 ** z); succ += s; bad += b
+    res.append((g, math.log2(sum(lin) / 20), succ, bad, sum(1 for x in lin if x == 0)))
+    print(res[-1], flush=True)
 ```
 
 ```text
-F7 tail proposals 4206855, exact events 164, in the printed class 3ff: 63, classes seen 27
-class:count  3ff:63 177:14 357:9 377:7 367:7 167:7 1f7:5 3c7:5 347:5 3e5:4 3ed:4 1d7:4 3d7:4 1c7:3 157:3 3e7:3 3f7:3 147:2 355:2 345:2 3c5:2 1e7:1 3d5:1 3f5:1 365:1 375:1 165:1
-XOR difference of W23 in the exact events: 0x2808000 82, 0x1808000 63, 0x2818000 14, 0x3818000 4, 0x6818000 1
+(0, -96.16172104882752, 150, 0, 0)
+(1, -96.35019376591961, 132, 0, 0)
+(10, -96.29226128484625, 126, 0, 0)
+(11, -96.16088493967683, 140, 0, 0)
+(2, -96.24477194959356, 142, 0, 0)
+(3, -96.3096343541145, 144, 0, 1)
+(4, -96.34672312363264, 127, 0, 0)
+(5, -96.5471200919031, 135, 0, 0)
+(6, -96.33575281630698, 140, 0, 0)
+(7, -96.32493181363843, 139, 0, 0)
+(8, -96.59546207932378, 128, 0, 0)
+(9, -96.36553933376817, 125, 0, 0)
 ```
 
-The 101 exact events outside the printed class are real: every one of them carries the published modular difference of W23 with another carry pattern (XOR differences 2808000, 2818000, 3818000, 6818000 against the printed 1808000), and the replica rebuilds and verifies every success it counts (Section 7.3).
+*Preregistration* (`PREREG_REPL.md`, SHA-256 02a70abd9f2a7a8430cb4fbb047d73fd933d2265c6c616b0191ed230064f794a, written 2026-10-14 15:26 MDT before the first calibration replicate; the calibration started 15:26:44):
 
-*Calibration program* (v3; v1 and v2 differ only in the labels and output file names):
+```text
+# Preregistration: calibration of the q3 replica of a0lean38.py (P8, accepted event), written before any calibration replicate
+
+Program: build/a0lean38.py, sha256 636ed9a56391a22e66c6233862face19f1c6eb9adcdd97a75b3c2a9439980b20; its section (5) (from the line
+"# ---------------------------------------------------------------- (5) organizer experiments" up to "def run_request"), sha256 of that text
+given below as REGION.  The shipped file may change only outside section (5) (constants of the ledger, comments); section (5) stays byte-identical.
+Replica: smc_replicate (64 particles; rows 17..21 with 256, 32, 4, 8, 8 proposals, row 19 by the two relation sets R19A/R19B; tail 48 proposals
+per particle, W23 uniform in F23 with W7 kept iff in F7, E22 bit 29 = 0, abort at the first differing row of 22..37, outputs compared; every
+success rebuilt and accepted by step3b).
+Pass rule of the organizer experiment a0-q3-r38, fixed here: the pooled mean of the 20 linear estimates (zero for a replicate without a success)
+is >= 2^-97.0 and no check failed.
+Before this file: 1 selftest replicate, 6 + 20 test replicates (t3.py, emu.py label dev1), 4,029 successes for H3 (labels h3p8|r|k) and a
+development look of 240 replicates (labels 'a0-q3-r38|dev|g|k', g = 0..11): pooled means of 20 mean -96.336, sd 0.130, min -96.595.
+Calibration: 960 replicates with labels 'a0-q3-r38|calp8-%d' (k = 0..959, never used before), all kept, replicates without a success count as 0;
+pooled means over the 48 consecutive groups of 20.  Reported: mean of the linear estimates, halves k < 480 / k >= 480, the 48 pooled means
+(min, median, max, mean, sd), the number below the threshold, failed checks, successes.  No interim look; the threshold is not moved after.
+REGION sha256 e574df111fe41d5ed829d809a4f7c020682fd7d132c971fce9f86c2220a33149
+```
+
+The whole-file hash in the preregistration is that of the file as it was then. Afterwards the file changed only outside section (5) (the values of q3_model and H3 in the ledger, the `calibrate` print, the step-3b line of `selftest`, two comments, the one-class program cache) and its line endings were normalized to LF; its section (5) still has the SHA-256 e574df111fe41d5ed829d809a4f7c020682fd7d132c971fce9f86c2220a33149 recorded in the preregistration (computed on the text with LF line endings).
+
+*Calibration program* (`calq3.py`, SHA-256 bf44715f8c1fed7b4238a1342e6cd781193b1ceffdb4c2bc47b34d43e1c6c015; four processes of 240 replicates) and its summary (`calsum.py`):
 
 ```python
-# calibrate_q3.py - 960 replicates of the q3 estimator for the accepted event (48 requests of 20), labels fixed by PREREG_Q3c.md.  Run next to a0lean38.py.
-import sys, time, math, json, statistics
+# calq3.py - calibration of the q3 replica (PREREG_REPL.md): replicates k = k0..k1-1 with labels 'a0-q3-r38|calp8-%d' (never used before).  Run next to a0lean38.py.
+import sys, json, a0lean38 as T
+k0, k1 = int(sys.argv[1]), int(sys.argv[2]); out = []
+for k in range(k0, k1):
+    z, pairs, b, s, lg = T.smc_replicate(T.Shake('a0-q3-r38|calp8-%d' % k)); out.append((k, z, s, b, len(pairs)))
+json.dump(out, open('calq3_%d_%d.json' % (k0, k1), 'w'))
+```
+
+```python
+# calsum.py - summary of the replica calibration (PREREG_REPL.md)
+import json, math, statistics, glob
 import a0lean38 as T
-t = time.time(); zs = []; bad = 0; alt = 0; succ = 0
-for k in range(960):
-    z, pairs, b, s, lg, a = T.smc_replicate(T.Shake('a0-q3-r38|calib38v3-%d' % k)); bad += b; zs.append(z); alt += a; succ += s
-lin = [0.0 if z is None else 2.0 ** z for z in zs]
-print('replicates', len(zs), '| without success', sum(z is None for z in zs), '| failed checks', bad, '| successes', succ, '| other E19 pattern', alt)
+rows = []
+for f in sorted(glob.glob('calq3_*_*.json'), key=lambda s: int(s.split('_')[1])): rows += json.load(open(f))
+rows.sort(); assert [r[0] for r in rows] == list(range(960))
+zs = [r[1] for r in rows]; lin = [0.0 if z is None else 2.0 ** z for z in zs]
+print('replicates', len(zs), '| without success', sum(z is None for z in zs), '| failed checks', sum(r[3] for r in rows), '| successes', sum(r[2] for r in rows), '| verified pairs', sum(r[4] for r in rows))
 print('mean of the linear estimates: 2^%.4f' % math.log2(sum(lin) / len(lin)))
 for nm, sl in (('half 1', lin[:480]), ('half 2', lin[480:])): print('%s: 2^%.4f' % (nm, math.log2(sum(sl) / len(sl))))
-pooled = sorted(math.log2(sum(lin[20 * g:20 * g + 20]) / 20) for g in range(48))
-print('pooled means of 20: min %.4f median %.4f max %.4f mean %.4f sd %.4f' % (pooled[0], pooled[24], pooled[-1], statistics.mean(pooled), statistics.pstdev(pooled)))
+pooled = [math.log2(sum(lin[20 * g:20 * g + 20]) / 20) for g in range(48)]; ps = sorted(pooled)
+print('pooled means of 20: min %.4f median %.4f max %.4f mean %.4f sd %.4f' % (ps[0], (ps[23] + ps[24]) / 2, ps[-1], statistics.mean(ps), statistics.stdev(ps)))
 print('pass rule threshold %.4f: pooled means below it: %d' % (T.Q3_THRESH, sum(p < T.Q3_THRESH for p in pooled)))
-print('time %.0f s' % (time.time() - t))
-json.dump(dict(zs=zs, pooled=pooled), open('calibrate_q3c.json', 'w'))
-```
-
-*v1: preregistration* (SHA-256 lines and the time they were written):
-
-```text
-# Preregistration: calibration of the q3 replica for the accepted event (written before any calibration replicate)
-
-Program: experiments/a0lean38.py of this package (smc_replicate with four E19 patterns, the E20[29] = E19[29] tie and the exact event).
-Before this file only the one selftest replicate (label 'selftest-q3') was run with the new estimator.
-Pass rule of the organizer experiment a0-q3-r38, fixed here: pooled mean of the 20 linear estimates >= 2^-98.4338
-(the filed rule 2^-101.7 shifted by the declared joint multiplier 2^3.2662, so its distance to q3_model 2^-97.7838 is the filed 0.65 bit), and 0 failed checks.
-Calibration: 960 replicates with labels 'a0-q3-r38|calib38n%d' (k = 0..959, never used before), all kept, replicates without a success count as 0.
-Reported: mean of the linear estimates (log2), the 48 pooled means of 20 (min, median, max, mean, sd), the number below the threshold,
-failed checks, successes with an E19 pattern other than the published one; halves k < 480 and k >= 480 separately.
-Use: the calibration reports the pass probability of the frozen rule; it does not move the threshold or q3_model.
 ```
 
 ```text
-a2ac275a16f8b0d9c03588ca32f569897be9f723dde074eed20a555cf71b5541 *PREREG_Q3.md
-550675c62076a84705ac065924d6dcaf9adc79a01171fefc0c410c25e42ccbfc *calibrate_q3.py
-fe61174d09f9b9b9f7be63681673fd22b587269ef2e0a01c40300c71bacaf31c *a0lean38.py
-2026-10-12 04:49:21
+replicates 960 | without success 3 | failed checks 0 | successes 6512 | verified pairs 6512
+mean of the linear estimates: 2^-96.3095
+half 1: 2^-96.3321
+half 2: 2^-96.2872
+pooled means of 20: min -96.9314 median -96.3209 max -95.9116 mean -96.3208 sd 0.1848
+pass rule threshold -97.0000: pooled means below it: 0
 ```
-
-(In this preregistration "the filed rule" means the rule of the earlier version of this package, 2^-101.7; that version was not submitted.)
-
-*v1: output*
-
-```text
-replicates 960 | without success 3 | failed checks 0 | successes 6776 | other E19 pattern 5065
-mean of the linear estimates: 2^-98.8675
-half 1: 2^-98.8468
-half 2: 2^-98.8885
-pooled means of 20: min -99.3667 median -98.8739 max -98.5506 mean -98.8763 sd 0.1606
-pass rule threshold -98.4338: pooled means below it: 48
-time 93 s
-```
-
-*v2: preregistration* (SHA-256 lines and the time they were written):
-
-```text
-# Preregistration v2: calibration of the q3 replica for the accepted event (written before any v2 calibration replicate)
-
-v1 (PREREG_Q3.md, run 04:49) imposed the printed W23 cell and its four two-bit conditions in the tail. Its 960 replicates gave
-2^-98.8675 and every pooled mean failed the rule. A development diagnostic (diag_w23.py: 120 replicates x 64 particles x 8192 tail
-proposals with W23 uniform; 164 exact events, 63 of them in the printed W23 class, 27 classes seen) showed that the exact event does not
-need the printed W23 class. v2 draws W23 by importance sampling over the classes seen (probability n/164, weight 164 2^-10 / n; classes
-never seen are not proposed, so the replica estimates a lower bound) with 192 tail proposals per particle. 40 development replicates
-(labels 'dev-try|k') gave 2^-97.956; they are not used below.
-
-Program: experiments/a0lean38.py of this package as hashed in PREREG_Q3b.sha256.
-Pass rule of a0-q3-r38 (unchanged from v1): pooled mean of 20 linear estimates >= 2^-98.4338, and 0 failed checks.
-Calibration: 960 replicates, labels 'a0-q3-r38|calib38v2-%d' (k = 0..959, never used before), all kept, replicates without a
-success count as 0. Reported: mean of the linear estimates (log2), halves k < 480 and k >= 480, the 48 pooled means of 20 (min,
-median, max, mean, sd), the number below the threshold, failed checks, successes, successes with an E19 pattern other than the
-published one. The calibration reports the pass probability of the frozen rule and the replica's level against q3_model 2^-97.7838;
-it does not move the threshold or q3_model. If the replica's mean is below q3_model this is reported as found.
-```
-
-```text
-7b6e48ecc75d232bbb7d6ff8f33ebf334219fc2e43b2d1d4cb83dbb14e0640b5 *PREREG_Q3b.md
-cad1398ece67f8676e13ed12c42369e11cd79b13a182e9311c2f1ffad2663b3b *calibrate_q3b.py
-edf502f79db355050e9dee1e3ad64c941eee307f1a429dc37fe6863d8b10d674 *a0lean38.py
-2026-10-12 04:58:32
-```
-
-*v2: output*
-
-```text
-replicates 960 | without success 7 | failed checks 0 | successes 5842 | other E19 pattern 4419
-mean of the linear estimates: 2^-97.6273
-half 1: 2^-97.6374
-half 2: 2^-97.6173
-pooled means of 20: min -98.4245 median -97.6774 max -96.8874 mean -97.6777 sd 0.3815
-pass rule threshold -98.4338: pooled means below it: 0
-time 196 s
-```
-
-*v3 (shipped program): preregistration* (SHA-256 lines and the time they were written):
-
-```text
-# Preregistration v3: calibration of the q3 replica for the accepted event (written before any v3 calibration replicate)
-
-v2 (PREREG_Q3b.md) gave mean 2^-97.6273 over 960 replicates and 0 of 48 pooled means below the rule, but a pooled sd of 0.38 bit (the
-importance weights of the W23 classes seen once reach 164). v3 changes only the proposal: class probability (n + 2)/218 (weight
-218 2^-10 / (n + 2)) and 384 tail proposals per particle. 100 development replicates of v3 (labels 'dev3|k') gave relative sd 0.73 per
-replicate (v2 1.17); they are not used below.
-Program: experiments/a0lean38.py as hashed in PREREG_Q3c.sha256. Pass rule of a0-q3-r38 unchanged: pooled mean of 20 >= 2^-98.4338,
-0 failed checks. Calibration: 960 replicates, labels 'a0-q3-r38|calib38v3-%d' (k = 0..959, never used before), all kept. Reported as in
-v1/v2. The v2 and v3 results are both reported in the package; the declared q3_model does not depend on either.
-```
-
-```text
-eb5040a855c7c2762e55f7e957101b88849687323c19a27ba0b5838ef13d3d0a *PREREG_Q3c.md
-16ad0685e08992d2c9fc1cb6b73c0daff0639e7447494a72749e6102a0054c1d *calibrate_q3c.py
-3b53ce763f483236bd644151b542908ced37d5825efc7be1d24bf634663f7ca9 *a0lean38.py
-2026-10-12 05:03:49
-```
-
-*v3 (shipped program): output*
-
-```text
-replicates 960 | without success 0 | failed checks 0 | successes 9090 | other E19 pattern 6813
-mean of the linear estimates: 2^-97.5860
-half 1: 2^-97.5903
-half 2: 2^-97.5816
-pooled means of 20: min -98.0335 median -97.5731 max -97.2483 mean -97.5997 sd 0.2007
-pass rule threshold -98.4338: pooled means below it: 0
-time 378 s
-```
-
-In v1 and v2 the program file differed from the shipped one only in the tail of `smc_replicate` (v1: the printed W23 class imposed, 96 proposals; v2: classes with probability n/164, 192 proposals). The earlier package (printed event) calibrated its replica on 960 replicates at 2^-101.0253 (pooled means of 20: mean -101.0356, sd 0.1719, min -101.4077).
 
 ### A.6 `w7check.py`: the W7 decision tree against the definition of F7
-
 ```python
 # w7check.py - the decision tree of w7test against the definition of F7 on 1,100,000 words (run next to a0lean38.py)
 import random
@@ -1122,30 +1087,29 @@ for n in range(1100000):
     got = T.w7test(T.Mach(), w, 0); want = T.inF7(w); bad += got != want; mem += want
 print('words 1100000, members of F7', mem, ', disagreements', bad)
 ```
-
 ```text
 words 1100000, members of F7 587344 , disagreements 0
 ```
 
-### A.7 The shipped program: size, hash, `selftest`, `calibrate`, `sens.py`
-
-`experiments/a0lean38.py`: 65459 bytes, SHA-256 c72b756b489ab89687ffca1b28c02b58b621096d47b6770267c02bc13e45b6ee (the only experiment source; the limit is 65,536 bytes). The class table is stored compressed (zlib, base64); `selftest` regenerates and checks all 90 classes. The code of `smc_replicate` and of the two organizer experiments is unchanged from the version that was calibrated in Appendix A.5 (its outputs, the 21 pairs and the pooled mean, are identical); `process_fb` and `process_class` (the cap tests: `vmax`, `st.halt`), `Stats`, the overshoot row of `ledger` and one `selftest` item are new in this version, and the class table, the plane-program builder keys, the operand order, the W7 loop, `calibrate`, `ledger` and `memory` changed.
+### A.7 The shipped program: size, hash, `selftest`, `calibrate`, `sens.py`, regression
+`experiments/a0lean38.py`: 61720 bytes, SHA-256 d769a72b12b123fac707a07d08f62a469136e9bded8d8e279f7b5ecec0b957e0 (the only experiment source; the limit is 65,536 bytes; standard library only). Its section (5), the organizer experiments, has the SHA-256 e574df111fe41d5ed829d809a4f7c020682fd7d132c971fce9f86c2220a33149 recorded in the replica's preregistration (Appendix A.5). `selftest` (3 s):
 
 ```text
-ok  published pair: equal 38-step outputs (hash 5d9ca5f4 ...), every printed cell and condition of rows -4..37
-ok  published A0 is in G, c7 = 8f6c89c5, Step 2 returns the published words
-ok  90 classes of 3840 members in 7 plane programs, distinct c7 values, masks ['0x91eb5491', '0x91eb54d1', '0x91eb55d1']
-ok  row-16 set: 32 words pass the full row-16 test; 3000 random words with the ten cell bits and 1280 two-bit neighbours of the members agree with the affine description
-ok  the 12 prefilter bits are shared by all 32 words
+ok  P8 pair: equal 38-step outputs (c7dfd8a1 ...), rows -4..21 of the accepted event, W7 in F7
+ok  its A0 c500a7ff is in G and in class 3 (c7 2a7ffb1b); Step 2 returns its words
+ok  8 classes: 24,576 distinct members each from the product description, every one in G with its c7 and base ^ (subset of 7fe96c7c)
+ok  row-16 set: 160 words pass the full row-16 test; 20,000 random words with the fixed cell bits and 1,280 two-bit neighbours agree with the head test
+ok  E16x formula on 300 chaining values; the 8 prefilter bits [1, 3, 4, 5, 6, 7, 8, 9] are shared by all 160 words
 ok  W7 decision tree agrees with the definition of F7 on 8000 words
-ok  step 3b on the published pair: all rows pass, exact event, traces equal the reference (2865 operations)
-ok  counted rows 19 and 20 equal the definition: row 19 accepts exactly the patterns ['0x40832', '0x10000010', '0x20000c12', '0x30040430'] of 512, row 20 exactly when E20[29] = E19[29]
-ok  bit-sliced prefilter equals the scalar definition on 768 lanes of each of the 7 plane programs ([1410, 1413, 1421, 1426, 1425, 1426, 1425] instructions)
-ok  online program: first block 3, one class of 3840 good pairs, 0 lane mismatches
-ok  q3 replicate: estimate 2^-96.92, 11 verified 38-step semi-free-start collisions accepted by step3b, 0 failed checks, 4 with another E19 pattern
-ok  cap test on every block: V > V_MAX halts at the next block start, before its 90 W7 tests
-ok  512 embedded variants are in G and in the selected classes
+ok  step 3b on the P8 pair: rows 16..21 pass, equal outputs, traces equal the reference (2828 operations; 1 more for the work counter)
+ok  counted row-16 test (29 operations) equals the definition; bit-sliced programs equal the scalar definition on 6 x 256 lanes
+ok  the counted program finds and accepts the P8 pair in batch 74 of class 3 (92830 operations for batches 0..74)
+ok  online program: first block 1, one class of 24,576 good pairs, 0 lane mismatches
+ok  q3 replicate: estimate 2^-96.42, 6 verified 38-step semi-free-start collisions accepted by step3b, 0 failed checks
+ok  cap test on every block: V > V_MAX halts at the next block start, before its 8 W7 tests
 ```
+
+`calibrate` (every counted constant of the ledger; the instruction counts of all 768 batch programs):
 
 ```text
 {
@@ -1153,24 +1117,6 @@ ok  512 embedded variants are in G and in the selected classes
  "planes": 882,
  "step3b": 2829,
  "fixed": 35,
- "prog": {
-  "0": "1410",
-  "1": "1413",
-  "2": "1421",
-  "3": "1426",
-  "4": "1425",
-  "5": "1426",
-  "6": "1425"
- },
- "classes_of": {
-  "0": "16",
-  "1": "16",
-  "2": "16",
-  "3": "14",
-  "4": "12",
-  "5": "8",
-  "6": "8"
- },
  "w7": {
   "(8, False)": "1/2",
   "(13, False)": "1/4",
@@ -1181,128 +1127,364 @@ ok  512 embedded variants are in G and in the selected classes
   "(45, False)": "7/2048",
   "(45, True)": "1/2048"
  },
- "lane_max": {
-  "2448118929": "296",
-  "2448118993": "308",
-  "2448119249": "320"
- }
+ "lane_max": 128
 }
+class 0, programs of batches 0..95 (instructions): 1089 1077 1086 1082 1078 1082 1086 1084 1085 1083 1085 1084 1082 1077 1085 1084 1087 1091 1079 1077 1085 1084 1087 1091 1081 1077 1084 1083 1087 1083 1081 1082 1083 1081 1085 1084 1088 1084 1089 1083 1087 1091 1089 1087 1093 1083 1085 1087 1078 1072 1080 1083 1071 1080 1088 1085 1091 1081 1079 1087 1076 1067 1074 1080 1075 1079 1078 1074 1074 1083 1079 1081 1087 1080 1077 1080 1078 1073 1083 1077 1080 1079 1077 1080 1083 1077 1083 1079 1079 1084 1089 1077 1089 1084 1080 1080; sum 103877
+class 1, programs of batches 0..95 (instructions): 1082 1079 1080 1082 1079 1082 1092 1085 1097 1088 1088 1091 1083 1075 1079 1080 1082 1083 1085 1082 1084 1084 1088 1092 1084 1080 1086 1089 1089 1083 1087 1087 1089 1084 1085 1083 1087 1088 1087 1085 1087 1090 1082 1090 1091 1086 1079 1084 1083 1078 1077 1084 1076 1078 1086 1078 1081 1084 1085 1087 1075 1068 1071 1082 1076 1075 1077 1075 1079 1082 1084 1080 1082 1073 1075 1081 1079 1074 1083 1077 1082 1079 1076 1078 1081 1075 1080 1074 1079 1082 1082 1081 1082 1083 1076 1080; sum 103879
+class 2, programs of batches 0..95 (instructions): 1090 1086 1091 1084 1078 1080 1102 1088 1097 1080 1078 1075 1081 1082 1091 1084 1090 1092 1084 1080 1090 1088 1085 1088 1077 1077 1080 1088 1092 1097 1079 1078 1080 1080 1086 1084 1081 1091 1092 1077 1079 1083 1084 1086 1091 1076 1088 1081 1087 1082 1085 1084 1076 1077 1088 1092 1091 1085 1086 1090 1080 1075 1084 1083 1083 1089 1084 1075 1080 1088 1083 1086 1083 1078 1084 1088 1089 1091 1087 1075 1083 1082 1081 1081 1078 1084 1093 1089 1080 1080 1085 1083 1085 1080 1087 1089; sum 104099
+class 3, programs of batches 0..95 (instructions): 1086 1080 1084 1085 1082 1084 1091 1094 1088 1085 1087 1081 1080 1081 1083 1086 1088 1091 1083 1079 1086 1090 1088 1089 1078 1072 1082 1085 1087 1092 1081 1078 1079 1087 1093 1088 1089 1101 1087 1088 1097 1087 1087 1096 1085 1080 1083 1084 1096 1087 1089 1082 1078 1078 1086 1094 1090 1082 1091 1087 1078 1070 1081 1087 1086 1084 1085 1082 1084 1092 1085 1082 1081 1073 1085 1084 1083 1079 1088 1080 1084 1083 1080 1082 1080 1090 1089 1084 1086 1079 1086 1089 1086 1080 1079 1087; sum 104150
+class 4, programs of batches 0..95 (instructions): 1078 1078 1083 1077 1076 1078 1089 1080 1090 1086 1086 1090 1081 1081 1089 1092 1091 1096 1081 1084 1086 1091 1099 1097 1085 1081 1087 1091 1095 1096 1079 1081 1091 1082 1086 1089 1091 1091 1095 1083 1086 1092 1087 1095 1099 1085 1091 1088 1080 1075 1081 1079 1073 1075 1080 1082 1084 1082 1084 1094 1080 1075 1073 1081 1080 1077 1081 1073 1072 1089 1083 1079 1085 1076 1080 1088 1080 1079 1081 1076 1082 1085 1076 1081 1088 1084 1089 1074 1079 1082 1087 1085 1087 1086 1087 1084; sum 104078
+class 5, programs of batches 0..95 (instructions): 1077 1081 1082 1085 1077 1079 1084 1081 1081 1080 1085 1084 1082 1079 1081 1085 1087 1086 1082 1085 1081 1085 1095 1086 1081 1076 1078 1084 1084 1085 1081 1077 1086 1080 1085 1085 1090 1091 1091 1079 1087 1085 1088 1097 1095 1079 1078 1086 1081 1077 1076 1075 1079 1075 1080 1078 1079 1078 1085 1089 1075 1070 1070 1080 1079 1073 1081 1076 1072 1086 1085 1081 1085 1072 1077 1083 1076 1077 1082 1075 1079 1079 1075 1086 1082 1080 1083 1071 1078 1081 1081 1081 1084 1080 1081 1081; sum 103807
+class 6, programs of batches 0..95 (instructions): 1086 1076 1083 1089 1081 1087 1089 1089 1089 1083 1084 1083 1092 1085 1097 1090 1087 1092 1093 1086 1091 1093 1086 1093 1090 1085 1094 1096 1092 1093 1094 1085 1089 1084 1089 1088 1087 1089 1089 1085 1084 1084 1087 1087 1089 1078 1086 1087 1091 1079 1086 1084 1074 1082 1087 1087 1088 1089 1094 1093 1085 1076 1086 1086 1083 1085 1089 1073 1085 1090 1084 1085 1086 1078 1088 1088 1087 1087 1091 1079 1088 1084 1086 1085 1084 1087 1087 1085 1079 1089 1084 1084 1085 1082 1094 1088; sum 104311
+class 7, programs of batches 0..95 (instructions): 1085 1081 1087 1085 1083 1085 1081 1085 1083 1076 1085 1082 1079 1072 1080 1080 1085 1083 1083 1081 1079 1085 1085 1084 1072 1072 1076 1085 1088 1081 1078 1072 1079 1089 1094 1088 1081 1093 1089 1087 1091 1088 1084 1084 1084 1079 1082 1087 1089 1079 1083 1090 1078 1084 1078 1080 1081 1083 1093 1093 1082 1074 1081 1086 1081 1081 1082 1077 1083 1096 1085 1085 1083 1076 1082 1080 1083 1085 1088 1077 1083 1078 1083 1083 1080 1089 1085 1084 1081 1082 1089 1082 1082 1086 1081 1086; sum 103969
 ```
 
-`sens.py` (the sensitivity rows of Section 11):
+`ledger`:
+
+```text
+N_FB = 4449581490679991464212814 (2^81.87994); vbar = 62939.1683 (w7 tests 133.12, hit list 1.070, per-first-block scalars and planes 247.97, classes 55979.62, lanes 6576.0000, row 16 1.38607);
+P_cap = 4.840e-31; V_MAX = 280057231556008856988397824874; class max = 72776126; fixed per first block = 35
+allowance A_C (characteristic search)                                                                                 824,487,408,977,177,097,149,612,032
+allowance A_S (Step-1 solve)                                                                                           51,530,463,061,073,568,571,850,752
+allowance DEV (development)                                                                                             3,220,653,941,317,098,035,740,672
+first-block compressions, N_FB x C                                                                                 12,138,458,306,575,016,714,372,556,592
+fixed operations per first block, N_FB x 35                                                                           155,735,352,173,799,701,247,448,490
+data-dependent operations, cap V_MAX                                                                              280,057,231,556,008,856,988,397,824,874
+overshoot past V_MAX: the work before the first class cap test of a block plus one class at its maximum                                        72,777,454
+precomputation (lane planes, program generation)                                                                                        3,298,534,899,712
+final verification (6 compressions and 1600 operations)                                                                                            17,968
+N = 293230663740737244466382728546
+certificate: 2^8647432 * 2728^100000 <= N^100000 < 2^8647433 * 2728^100000
+log2(N/C) = 86.4743227997
+time_log2 = 86.47433
+```
+
+`sens.py` (the sensitivity rows of Section 11 and the program designs of the opening table):
 
 ```python
-# sens.py - sensitivity of the exact ledger of a0lean38.py (each row: ledger() with the inputs named; N_FB recomputed).
+# sens.py - sensitivity of the exact ledger of a0lean38.py (each row: ledger() with the inputs named; N_FB recomputed).  Run next to a0lean38.py.
+import math, copy
 import a0lean38 as L
 cal = L.calibrate()
-def t(**kw):
-    c = dict(cal); c.update(kw.pop('cal', {}))
-    rows, info = L.ledger(cal=c, show=False, **kw); N = sum(int(v) for _, v in rows); a, cl = L.certificate(N, 2728)
-    import math; return math.log2(N) - math.log2(2728)
-R = [('claimed configuration (q3_model 2^-97.7838, H3 2^-9.5, success 0.39, cap margin 2^-16, A_C 2^78, A_S 2^74, DEV 2^70)', {}),
-     ('q3_model 2^-97.6619 (the mean of the preregistered run, not its lower bound)', dict(q3_log2='-97.6619')),
-     ('q3_model 2^-98.0', dict(q3_log2='-98.0')), ('q3_model 2^-98.5', dict(q3_log2='-98.5')), ('q3_model 2^-99.0', dict(q3_log2='-99.0')),
-     ('four patterns and tie only (q3_model 2^-99.1523, this program)', dict(q3_log2='-99.1523')),
-     ('exact event only (q3_model 2^-99.6917, this program)', dict(q3_log2='-99.6917')),
-     ('neither (q3_model 2^-101.05, this program)', dict(q3_log2='-101.05')),
-     ('neither, with the printed tests (q3_model 2^-101.05, step3b 3000: the earlier package)', dict(q3_log2='-101.05', cal=dict(step3b=3000))),
-     ('H3 premise 2^-7.5', dict(h3_log2='-7.5')), ('A_C = 2^84', dict(A_C=2**84))]
+def t(cal_=None, **kw):
+    rows, info = L.ledger(cal=cal_ or cal, show=False, **kw); N = sum(int(v) for _, v in rows); return math.log2(N) - math.log2(2728)
+R = [('claimed configuration (q3_model 2^-96.5755, H3 2^-7.5, success 0.39, cap margin 2^-16, A_C 2^78, A_S 2^74, DEV 2^70)', {}),
+     ('q3_model 2^-96.3251 (the mean of the preregistered run, not its lower bound)', dict(q3_log2='-96.3251')),
+     ('q3_model 2^-96.6444 (the lower bound of the development run, W8 over all of G)', dict(q3_log2='-96.6444')),
+     ('q3_model 2^-97.0 (the q3_model of 1a695f0b)', dict(q3_log2='-97.0')),
+     ('q3_model 2^-97.7838 (the q3_model of fb176310 for the published characteristic)', dict(q3_log2='-97.7838')),
+     ('H3 premise 2^-4.9 (the pair term charged by 1a695f0b, 2^-5.9 after Bonferroni)', dict(h3_log2='-5.9')),
+     ('A_C = 2^84', dict(A_C=2**84))]
 for k, kw in R: print('%-118s %.5f' % (k, t(**kw)))
+# the program designs of Section 0 (same ledger, other plane-program counts)
+c12 = copy.deepcopy(cal); tb = L.TBITS; L.TBITS = [j for j in range(32) if (L._inv >> j) & 1][:12]; L._PROG.clear()
+c12['prog'] = [[len(L.program(ci, b)[0]) for b in range(L.NB)] for ci in range(8)]
+print('%-118s %.5f' % ('one program per batch, TK = 12 (mean %.2f instructions)' % (sum(map(sum, c12['prog'])) / 768), t(c12)))
+cc = copy.deepcopy(cal); cc['prog'] = [[1447] * L.NB for _ in range(8)]
+print('%-118s %.5f' % ('one program per class (21 varying bits stored as planes, class constants folded: 1447 instructions), TK = 12', t(cc)))
+L.TBITS = tb; L._PROG.clear()
 ```
 
 ```text
-claimed configuration (q3_model 2^-97.7838, H3 2^-9.5, success 0.39, cap margin 2^-16, A_C 2^78, A_S 2^74, DEV 2^70)   87.90374
-q3_model 2^-97.6619 (the mean of the preregistered run, not its lower bound)                                           87.78198
-q3_model 2^-98.0                                                                                                       88.11972
-q3_model 2^-98.5                                                                                                       88.61931
-q3_model 2^-99.0                                                                                                       89.11903
-four patterns and tie only (q3_model 2^-99.1523, this program)                                                         89.27126
-exact event only (q3_model 2^-99.6917, this program)                                                                   89.81046
-neither (q3_model 2^-101.05, this program)                                                                             91.16850
-neither, with the printed tests (q3_model 2^-101.05, step3b 3000: the earlier package)                                 91.16850
-H3 premise 2^-7.5                                                                                                      87.90973
-A_C = 2^84                                                                                                             87.99564
+claimed configuration (q3_model 2^-96.5755, H3 2^-7.5, success 0.39, cap margin 2^-16, A_C 2^78, A_S 2^74, DEV 2^70)   86.47432
+q3_model 2^-96.3251 (the mean of the preregistered run, not its lower bound)                                           86.22474
+q3_model 2^-96.6444 (the lower bound of the development run, W8 over all of G)                                         86.54302
+q3_model 2^-97.0 (the q3_model of 1a695f0b)                                                                            86.89772
+q3_model 2^-97.7838 (the q3_model of fb176310 for the published characteristic)                                        87.68017
+H3 premise 2^-4.9 (the pair term charged by 1a695f0b, 2^-5.9 after Bonferroni)                                         86.49464
+A_C = 2^84                                                                                                             86.70961
+one program per batch, TK = 12 (mean 1304.41 instructions)                                                             86.58351
+one program per class (21 varying bits stored as planes, class constants folded: 1447 instructions), TK = 12           86.72503
+```
+
+*Same-function regression against fb176310* (`regress.py`; `dev_m7.py` is a copy of fb176310's shipped `a0lean38.py`, SHA-256 c72b756b489ab89687ffca1b28c02b58b621096d47b6770267c02bc13e45b6ee): the functions this package keeps have the same source text (the three differences are a tuple slice, a comment and a docstring, shown below), the allocator reproduces fb176310's seven plane programs instruction for instruction, and with fb176310's characteristic constants the scalar routines return the same values with the same operation counts.
+
+```python
+# regress.py - same-function regression of a0lean38.py (P8) against fb176310's a0lean38.py (dev_m7.py, a copy of the accepted file).
+# (1) the functions this package keeps unchanged have identical source text; (2) they behave identically on shared inputs.
+import inspect, random, hashlib
+import dev_m7 as O, a0lean38 as N
+same = ['ror', 'S0', 'S1', 's0', 's1', 'CH', 'MAJ', 'trace', 'compress', 'cellok', 'exact', 'inF7', 'words_from_cv', 'e16x_ref', 'e16x', 'run_prog', 'sg', 'chm',
+        'majm', 'w7test', '_w7core', 'fb_scalars', 'planes_of', 'first_lane', 'scalar_e16', 'step3b', 'unpack16', 'pre_ok', 'step_row', 'w7_distribution', 'certificate', 'report']
+cls_same = ['Prog', 'Mach', 'Stats', 'Shake']
+bad = []
+for f in same:
+    a, b = inspect.getsource(getattr(O, f)), inspect.getsource(getattr(N, f))
+    if a != b: bad.append(f)
+for c in cls_same:
+    if inspect.getsource(getattr(O, c)) != inspect.getsource(getattr(N, c)): bad.append(c)
+print('source-identical:', len(same) + len(cls_same) - len(bad), 'of', len(same) + len(cls_same), '| differing:', bad)
+rr = random.Random(77); diff = 0
+# behaviour: the allocator and interpreter on fb176310's own programs (its 7 shapes), identical instruction lists and results
+for g in range(7):
+    ins_o = O.program(g)[0]
+    sh, cb = O.shape_of(g); P, ok = O.build_e16(O.CLASSES[O.GRP.index(g)][2], cb, sh); ins_n, res = N.Prog.schedule(P, [ok])
+    diff += ins_o != ins_n
+print('fb176310 plane programs rescheduled by the new Prog.schedule: %d of 7 differ' % diff)
+d2 = 0; d3 = 0
+sv = (N.SAx, N.C16); N.SAx, N.C16 = O.SAx, O.C16          # the characteristic constants of fb176310, so that the values must agree too
+for _ in range(2000):
+    cv = [rr.getrandbits(32) for _ in range(8)]; a0 = rr.getrandbits(32)
+    mo, mn = O.Mach(), N.Mach(); fo, fn = O.fb_scalars(mo, cv), N.fb_scalars(mn, cv); d2 += fo != fn; d3 += mo.ops != mn.ops
+    mo, mn = O.Mach(), N.Mach(); d2 += O.scalar_e16(mo, fo, a0) != N.scalar_e16(mn, fn, a0); d3 += mo.ops != mn.ops
+    w = rr.getrandbits(32); mo, mn = O.Mach(), N.Mach(); d2 += O.w7test(mo, w, 0) != N.w7test(mn, w, 0); d3 += mo.ops != mn.ops
+    x = rr.getrandbits(256) or 1; mo, mn = O.Mach(), N.Mach(); d2 += O.first_lane(mo, x) != N.first_lane(mn, x); d3 += mo.ops != mn.ops
+N.SAx, N.C16 = sv
+print('fb_scalars, scalar_e16, w7test, first_lane on 2000 random inputs (fb176310 constants): %d value differences, %d operation-count differences' % (d2, d3))
+print('w7_distribution equal:', O.w7_distribution() == N.w7_distribution())
+print('certificate equal on 3 integers:', all(O.certificate(n, 2728, 1000) == N.certificate(n, 2728, 1000) for n in (789782238349839437021687302533, 293230663740737244466382728546, 12345678901234567890123456789)))
+m1 = O.Mach(); m2 = N.Mach(); print('step3b of fb176310 on its published pair: %d operations (fb176310 calibrate: 2829 - 1)' % (O.step3b(m1, O.PCV, O.fb_scalars(O.Mach(), O.PCV), 0xb75dae71) is not None and m1.ops))
+```
+
+```text
+source-identical: 33 of 36 | differing: ['cellok', 'majm', 'step3b']
+fb176310 plane programs rescheduled by the new Prog.schedule: 0 of 7 differ
+fb_scalars, scalar_e16, w7test, first_lane on 2000 random inputs (fb176310 constants): 0 value differences, 0 operation-count differences
+w7_distribution equal: True
+certificate equal on 3 integers: True
+step3b of fb176310 on its published pair: 2828 operations (fb176310 calibrate: 2829 - 1)
+== cellok
+@@ -2 +2 @@
+-    m, v, df = CELLS[k][i][:3]
++    m, v, df = CELLS[k][i]
+
+== majm
+@@ -1 +1 @@
+-def majm(m, a, b, c): return m.or_(m.and_(a, b), m.and_(c, m.or_(a, b)))
++def majm(m, a, b, c): return m.or_(m.and_(a, b), m.and_(c, m.or_(a, b)))          # MAJ: 4 operations
+
+== step3b
+@@ -3 +3 @@
+-    words are the published ones), then the rows with an early abort at the first failing test.  Returns (tx, ty) iff all rows hold."""
++    words are those of S), then the rows with an early abort at the first failing test.  Returns (tx, ty) iff all rows hold."""
 ```
 
 ### A.8 `h3gen.py` and `h3count.c`: the other variants of a successful first block (H3)
-
 ```python
-# h3gen.py - successes of the Step-3 sampler for the measurement of H3: 8 independent runs of R replicates (NP particles), a0 drawn from all 245,760 variants.
-import sys, time, struct
-import a0lean38 as T
-run = int(sys.argv[1]); R = int(sys.argv[2]); NP = int(sys.argv[3])
-allv = []
-for c7, base, mask in T.CLASSES: allv.extend(T.class_members(c7, base, mask))
-T.VARIANTS[:] = allv
-T.NP_R = NP
-out = open('h3_run%d.bin' % run, 'wb'); n = 0; t0 = time.time()
-for rep in range(R):
-    z, pairs, bad, succ, lg, alt = T.smc_replicate(T.Shake('h3|%d|%d' % (run, rep)))
+# h3gen.py - successes of the q3 replica of a0lean38.py for the measurement of H3: run r (0..7) draws replicates from SHAKE-256 labels
+# 'h3p8|r|k' until it has N verified successes; each success is written as its chaining value and a0 (own code; run next to a0lean38.py).
+import sys, a0lean38 as A
+r, N = int(sys.argv[1]), int(sys.argv[2]); out = open('h3_succ_%d.txt' % r, 'w'); n = 0; k = 0
+while n < N:
+    z, pairs, bad, succ, lg = A.smc_replicate(A.Shake('h3p8|%d|%d' % (r, k))); k += 1
     assert bad == 0
     for cv, mx, my in pairs:
-        # recover a0: the variant is in the rebuild (words_from_cv must return mx[:14]); find it from E4: A0 = E4 - C4 via the Step-2 inversion is implicit, so store cv and mx
-        out.write(struct.pack('<8I16I', *(cv + mx))); n += 1
-out.close(); print('run', run, 'successes', n, 'time %.0f s' % (time.time() - t0))
+        a0 = A.trace(cv, mx, 1)[0][0]; out.write(' '.join('%08x' % x for x in cv) + ' %08x\n' % a0); n += 1
+out.close(); print('run', r, 'replicates', k, 'successes', n)
 ```
-
 ```c
-// h3count.c - the other variants of a successful first block (H3), own code.  Input: records of 24 words (CV1: 8, M1 of member x: 16) written
-// by h3gen.py.  For each success (CV1, a0) every selected variant b0 != a0 of the same CV1 is tried: its class passes F7 iff c7 - A_{-1} is in F7;
-// for a good b0 the closed form E16x, the 12-bit prefilter and the exact row-16 set.  Usage: ./h3count file1 file2 ...  (one line per file).
+// h3count.c - for each success (CV1, a0) of the replica: the classes passing F7 for CV1 and, over all 24,576 members of each, the number
+// of other members that pass stage 3a and row 16 (own code).  Input lines: 8 CV words and a0 (hex).  Constants from a0lean38.py (h3consts.h).
 #include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
-#include <string.h>
-typedef uint32_t u32; typedef uint64_t u64;
-static inline u32 ror(u32 x, int n){ return (x>>n)|(x<<(32-n)); }
-static inline u32 S0(u32 x){ return ror(x,2)^ror(x,13)^ror(x,22); }
-static inline u32 S1(u32 x){ return ror(x,6)^ror(x,11)^ror(x,25); }
-static inline u32 s0(u32 x){ return ror(x,7)^ror(x,18)^(x>>3); }
-static inline u32 MAJ(u32 x,u32 y,u32 z){ return (x&y)^(x&z)^(y&z); }
-static inline u32 CH(u32 x,u32 y,u32 z){ return (x&y)^(~x&z); }
-#include "consts_m.h"
-static u32 mem[64*3840], c7s[64];
-static inline int inF7(u32 w){ return (s0(w+0x20000000u)-s0(w))==0x03bff800u; }
-int main(int argc,char**argv){
-  FILE*f=fopen("classes.txt","r"); unsigned c7,base,mask; int nc=0;
-  while(fscanf(f,"%x %x %x",&c7,&base,&mask)==3){ u32 s=0; int n=0; do{ u32 a=base^s; u32 w=W8C-(a+C4), y=w+D8;
-      if((w&CM)==CV && (w^y)==CD){ int b0=w&1,b28=(w>>28)&1,b30=(w>>30)&1,b9=(w>>9)&1,b1=(w>>1)&1,b18=(w>>18)&1;
-        if(b0!=b28&&b30!=b9&&b1==b18){ u32 e4=a+C4; u32 c=SE7-2*SA3+S0(SA2)+MAJ(SA2,SA1,a)-S1(SE6)-CH(SE6,SE5,e4)-0xab1c5ed5u; if(c==c7) mem[nc*3840+n++]=a; } }
-      s=(s-mask)&mask; }while(s); if(n!=3840) return 1; c7s[nc++]=c7; }
-  fclose(f);
-  for(int ai=1; ai<argc; ai++){
-    FILE*g=fopen(argv[ai],"rb"); u32 rec[24]; u64 succ=0, good=0, pre=0, r16=0, selfbad=0;
-    while(fread(rec,4,24,g)==24){
-      u32 cv[8]; for(int i=0;i<8;i++) cv[i]=rec[i]; u32 *mx=rec+8; u32 a0s=W8C-mx[8]-C4;
-      u32 a=cv[0],b=cv[1],c=cv[2],d=cv[3],e=cv[4],ff=cv[5],gg=cv[6],hh_=cv[7];
-      u32 PP=a&b, QQ=a|b, HH=d-S0(a)-MAJ(a,b,c), EF=e^ff, FF=ff, K1=SA1-gg-0x71374491u;
-      u32 kap0=HH-d-hh_-S1(e)-CH(e,ff,gg)-0x428a2f98u, KP=C16+kap0; int self_seen=0;
-      succ++;
-      for(int ci=0; ci<64; ci++){ u32 w=c7s[ci]-a; if(!inF7(w)) continue;
-        for(int t=0;t<3840;t++){ u32 a0=mem[ci*3840+t]; u32 E0=a0+HH; u32 T=S0(a0)+(PP|(a0&QQ))+S1(E0)+(FF^(E0&EF)); u32 W1=K1-T; u32 E16=KP+a0+s0(W1);
-          int pp=(((E16^TVAL)&PMASK)==0), rr=pp && (((E16-R16B)&~R16F)==0);
-          if(a0==a0s){ self_seen=1; if(!rr) selfbad++; continue; }
-          good++; pre+=pp; r16+=rr; } }
-      if(!self_seen) selfbad++;
-    }
-    fclose(g);
-    printf("%s successes %llu other_good %llu other_prefilter %llu other_row16 %llu self_failures %llu\n",argv[ai],(unsigned long long)succ,(unsigned long long)good,(unsigned long long)pre,(unsigned long long)r16,(unsigned long long)selfbad);
-  }
+#include <stdlib.h>
+typedef uint32_t u32;
+static inline u32 ror(u32 x,int n){return (x>>n)|(x<<(32-n));}
+static inline u32 S0(u32 x){return ror(x,2)^ror(x,13)^ror(x,22);} static inline u32 S1(u32 x){return ror(x,6)^ror(x,11)^ror(x,25);}
+static inline u32 s0(u32 x){return ror(x,7)^ror(x,18)^(x>>3);}
+static inline u32 MAJ(u32 x,u32 y,u32 z){return (x&y)^(x&z)^(y&z);} static inline u32 CH(u32 x,u32 y,u32 z){return (x&y)^(~x&z);}
+#include "h3consts.h"
+static int inF7(u32 w){ return (u32)(s0(w+0x20000000u)-s0(w))==0x03bff800u; }
+static int r16ok(u32 e){ u32 h=e&~0x405u; for(int i=0;i<20;i++) if(R16H[i]==h) return 1; return 0; }
+int main(){ u32 cv[8],a0; long ns=0, other=0, cls=0, evals=0, opre=0, selff=0;
+  while(scanf("%x %x %x %x %x %x %x %x %x",&cv[0],&cv[1],&cv[2],&cv[3],&cv[4],&cv[5],&cv[6],&cv[7],&a0)==9){
+    ns++; u32 a=cv[0],b=cv[1],c=cv[2],d=cv[3],e=cv[4],f=cv[5],g=cv[6],h=cv[7]; int found=0;
+    for(int ci=0;ci<8;ci++){ if(!inF7(C7[ci]-a)) continue; cls++;
+      for(int bb=0;bb<96;bb++) for(int L=0;L<256;L++){ u32 x=BC[ci][bb]|LT[L]; evals++;
+        u32 E0=x+d-S0(a)-MAJ(a,b,c), W0=E0-d-h-S1(e)-CH(e,f,g)-0x428a2f98u, E1=SA1+c-S0(x)-MAJ(x,a,b), W1=E1-c-g-S1(E0)-CH(E0,e,f)-0x71374491u;
+        u32 ee=C16+W0+s0(W1); if(x!=a0 && ((ee^0x4b02d320u)&0x3fau)==0) opre++;
+        if(r16ok(ee)){ if(x==a0) found++; else { other++; printf("success %ld: other row-16 pass %08x\n",ns,x); } } } }
+    if(found!=1){ printf("success %ld: own variant found %d times\n",ns,found); selff++; } }
+  printf("successes %ld other_good %ld other_prefilter %ld other_row16 %ld self_failures %ld passing_classes %ld\n",ns,evals-ns,opre,other,selff,cls);
   return 0; }
 ```
+```text
+run 1: successes 1503 other_good 73800225 other_prefilter 288536 other_row16 7 self_failures 0 passing_classes 3003
+run 2: successes 1505 other_good 73701919 other_prefilter 287346 other_row16 6 self_failures 0 passing_classes 2999
+run 3: successes 1502 other_good 73505314 other_prefilter 287672 other_row16 6 self_failures 0 passing_classes 2991
+run 4: successes 1501 other_good 73431587 other_prefilter 286870 other_row16 6 self_failures 0 passing_classes 2988
+run 5: successes 1509 other_good 73873947 other_prefilter 289211 other_row16 3 self_failures 0 passing_classes 3006
+run 6: successes 1502 other_good 73677346 other_prefilter 288446 other_row16 0 self_failures 0 passing_classes 2998
+run 7: successes 1504 other_good 73628192 other_prefilter 287955 other_row16 1 self_failures 0 passing_classes 2996
+run 8: successes 1502 other_good 73480738 other_prefilter 287039 other_row16 3 self_failures 0 passing_classes 2990
+```
 
-Output of `h3count` on the eight runs (one line per run):
+### A.9 The preregistered measurement of q3 (Section 7.4)
+*Preregistration* (`PREREG_Q3P8.md`, SHA-256 b1a2d290a3aad1b2c224be407ec9796e1fbf55d9ff2ea9bec9783aab76c0ae97, and the run script `run_q3p8.sh`, SHA-256 003dd4124e76ab52acaffe0c125fc8fe6f6b19e17b057af1e6f75ae8fd237b8b; both written and hashed at 15:00:00 MDT, before the first seed, which started at 15:00:08):
 
 ```text
-h3_run1.bin successes 4088 other_good 301147912 other_prefilter 73681 other_row16 5 self_failures 0
-h3_run2.bin successes 4204 other_good 307042196 other_prefilter 74943 other_row16 3 self_failures 0
-h3_run3.bin successes 4225 other_good 308102015 other_prefilter 74839 other_row16 1 self_failures 0
-h3_run4.bin successes 4183 other_good 307337897 other_prefilter 75205 other_row16 0 self_failures 0
-h3_run5.bin successes 4212 other_good 308539788 other_prefilter 75484 other_row16 3 self_failures 0
-h3_run6.bin successes 4051 other_good 297530669 other_prefilter 72492 other_row16 2 self_failures 0
-h3_run7.bin successes 4088 other_good 301151752 other_prefilter 74062 other_row16 2 self_failures 0
-h3_run8.bin successes 4171 other_good 304669109 other_prefilter 74686 other_row16 5 self_failures 0
+# Preregistration: q3 of P8 for the accepted event (written before the first seed of this run)
+
+Quantity. q3 = the average over the 196,608 selected variants (the 8 classes of mask 7fe96c7c, sel_members.txt) of Pr[accepted event | good pair],
+probability over the chaining value (Lemma 5.1: W0..W6 uniform, W7 uniform in F7, W16..W21 uniform). Accepted event: rows 16..21 of both members follow
+every cell (A, E, W: x-values on the fixed bits, XOR difference on every bit), '+' pair and two-bit condition of chi38p8.txt closing at rows 16..21
+(row 19: signed differences only; rows 7..15 are those of S), and the eight output words after step 37 are equal for the two members.
+
+Tool. traillab (own C), binary sha256 17425aaa624561ceeb641977d72d86f6f4c1b8e57c6a05b7c82ad9ed1d12d485, chi/chi38p8.txt sha256
+c47e5ec605a25ae03df29ada92f68c3462468262dc30730a1e201de335c8a14d, sel_members.txt sha256 ff582e64e060db2807d85fbe31b054ef04eea26ed00b46dbcafb66b2c36a7138.
+Command (run_q3p8.sh): window --rows 22 37 --event out --np 8192 --mt 32768 --threads 4 --autolist (row 16 exact: the 160-word set, weight 160/2^32)
+--var "W8 a0list @sel_members.txt late" (W8 from the selected variants, redrawn per window sample; W6 uniform, W7 uniform in F7, both redrawn).
+Seeds: 32 fresh seeds 5001..5032 (not used before for P8), each 2^28 window samples.
+
+Per-seed value (log2): L_s = prefix log2 P(rows 7..21) (the SMC line "[s] prefix log2 P(rows 7..21)") + log2 rate(EXACT) (the "[s] EXACT" line).
+A seed whose SMC dies or whose EXACT count is 0 gets L_s = -128.
+Declared value: q3_model = floor_4dec( mean(L) - t sd(L) / sqrt(32) ), t = t(0.99, 31) = 2.4528 (one-sided 99% Student lower bound; the seed is the cluster).
+Halves 5001..5016 / 5017..5032 reported. Diagnostics required 0: prefix broken by redraw, y-anchor inconsistent, replay mismatches; a non-zero diagnostic
+voids the run (reported, not replaced). No interim look, no stopping rule; all 32 seeds are used.
+Development (not part of the declared value): seeds 3001..3032, row 16 by SMC, W8 over all of G: mean -96.3857, sd 0.5966 (p8_32seeds.log).
 ```
+
+```bash
+#!/bin/bash
+# run_q3p8.sh - preregistered q3 run for P8 (PREREG_Q3P8.md).  Run in WSL.
+cd /mnt/d/'~~Projects/~HashSmash/workspace/research/tools/traillab'
+D=/mnt/d/'~~Projects/~HashSmash/workspace/research/day_1014/r38-p8/build'
+S=$(seq -s, 5001 5032)
+date -Iseconds > $D/q3p8_start.txt
+nice -n 10 ./traillab window --chi chi/chi38p8.txt --rows 22 37 --event out --np 8192 --mt 32768 --seeds $S --threads 4 --autolist --var "W8 a0list @$D/sel_members.txt late" > $D/q3p8_32seeds.log 2>&1
+date -Iseconds > $D/q3p8.done
+```
+
+The tool printed its model header and, for the first seed, the stages (the full log has the same block for every seed):
+
+```text
+model p8: 38 steps, anchor row 15 (x and y rows 12..15 held), E-driven rows 16..21, lowest conditioned row 7
+  conditions: 35 two-bit/linear (printed), 35 in the attack model; 'except' words: W7 W8
+  free word W6 (late): W6 rand late
+  free word W7 (late): W7 fset s0 03bff800 late
+  free word W8 (late): W8 a0list @/mnt/d/~~Projects/~HashSmash/workspace/research/day_1014/r38-p8/build/sel_membe
+WINDOW rows 22..37 event=out np 8192 m 256 mt2 1024 mw 256 mt 32768 threads 4 prefix-conditions cells
+-- seed 5001
+  init: 8192 particles, acceptance 1.000000 (rows 16..15)
+  E16 set under the prefix conditions: 160 values (enumerated 2^24 candidates)
+  stage 16 (E-driven, list of 160): accepted 2097152 of 2097152, log2 est -24.6781
+  stage 17 (E-driven): forced  7 bits, accepted 2082 of 2097152, log2 est -41.6543
+  stage 18 (E-driven): forced  7 bits, accepted 16444 of 2097152, log2 est -55.6490
+  stage 19 (E-driven): forced  3 bits, accepted 2097152 of 2097152, log2 est -58.6490
+  stage 20 (E-driven): forced  5 bits, accepted 1165 of 2097152, log2 est -74.4629
+  stage 21 (E-driven): forced  4 bits, accepted 262292 of 2097152, log2 est -81.4621
+[s5001] prefix log2 P(rows 7..21) = -81.4621
+[s5001] samples 268435456 (late words redrawn per sample), prefix broken by redraw 0, y-anchor inconsistent 0, replay mismatches 0
+[s5001]   cells          rows 22..37:    134219011  rate 5.000048e-01 (log2  -1.0000) 95% [4.9994e-01, 5.0006e-01]  with exact 10576
+[s5001]   EXACT          zero output difference after the last step:        10576  rate 3.939867e-05 (log2 -14.6315) 95% [3.8655e-05, 4.0157e-05]
+[s5001]   ratios to 'cells' (95% cluster-robust over particles; halves = particles split in two):
+[s5001]     EXACT/cells = 0.00008 +- 0.00000  (log2 -13.6315)  halves 0.00008 +- 0.00000 | 0.00008 +- 0.00000
+[s5001]   log2 P(rows 7..37, model cells) = prefix + log2 rate(cells) = -82.4621
+[s5001]   time 54.2 s
+```
+
+The declared value is computed from the log by `q3analysis.py`:
+
+```python
+# q3analysis.py - the declared value of PREREG_Q3P8.md from the log of run_q3p8.sh
+import re, statistics as st, math, sys
+pre = {}; ex = {}; cnt = {}; diag = 0
+for l in open(sys.argv[1]):
+    m = re.match(r'\[s(\d+)\] prefix log2 P\(rows \d+\.\.21\) = (-?[\d.]+)', l)
+    if m: pre[int(m[1])] = float(m[2])
+    m = re.match(r'\[s(\d+)\]\s+EXACT\s+zero output difference after the last step:\s+(\d+)\s+rate\s+(\S+)\s+\(log2 (-?[\d.]+)\)', l)
+    if m: ex[int(m[1])] = float(m[4]); cnt[int(m[1])] = int(m[2])
+    if 'prefix broken by redraw 0, y-anchor inconsistent 0, replay mismatches 0' in l: diag += 1
+S = sorted(pre); L = [pre[s] + ex[s] if cnt[s] > 0 else -128.0 for s in S]
+n = len(L); mu = st.mean(L); sd = st.stdev(L); lb = mu - 2.4528 * sd / math.sqrt(n)
+print('seeds', n, S[0], '..', S[-1], '| seeds with all diagnostics 0:', diag, '| EXACT events', sum(cnt.values()), 'min per seed', min(cnt.values()))
+print('mean %.4f  seed sd %.4f  one-sided 99%% Student lower bound %.6f  ->  q3_model = %.4f' % (mu, sd, lb, math.floor(lb * 10000) / 10000))
+print('halves %.4f / %.4f' % (st.mean(L[:16]), st.mean(L[16:])))
+print('per seed:', ' '.join('%.4f' % x for x in L))
+```
+
+```text
+seeds 32 5001 .. 5032 | seeds with all diagnostics 0: 32 | EXACT events 326084 min per seed 7218
+mean -96.3251  seed sd 0.5774  one-sided 99% Student lower bound -96.575493  ->  q3_model = -96.5755
+halves -96.3137 / -96.3365
+per seed: -96.0936 -96.1145 -96.8146 -96.4524 -96.0050 -96.6254 -96.6832 -96.2310 -95.2810 -95.6406 -97.3955 -96.8232 -95.5504 -96.0120 -96.1050 -97.1926 -96.5681 -95.7822 -95.5645 -96.4855 -96.8302 -96.2105 -95.9267 -96.4217 -96.9911 -96.0865 -95.9854 -95.5153 -96.7022 -96.0010 -96.4846 -97.8288
+```
+
+The development run before the preregistration (`traillab window` with the same model, seeds 3001..3032, row 16 by SMC instead of the exact list, W8 drawn from all of G; reported, not used) gives with the same script: mean -96.3857, seed sd 0.5966, lower bound -96.6444, halves -96.4494 / -96.3220, 324,239 EXACT events, every diagnostic 0.
+
+
+### A.10 The capped development executions (`run_chain.sh`, `run_small.sh`) and their records
+
+Run in WSL (Ubuntu) on 2026-10-14 for this revision, after the ruling b7e5ee68. `prlimit --as=N` sets RLIMIT_AS, the virtual address space of the process and its children: an allocation beyond N fails. `research/tools/memmeter` runs the command and reports the peak resident memory (maximum of the child's wait4 ru_maxrss, the per-process VmHWM and the summed RSS of the process tree sampled every 10 ms) as JSON, with the exit status. The programs are the binaries and scripts of the first build (`p8fam_lean`, `traillab`, `e2ep8`, `a0lean38.py` of this package, SHA-256 d769a72b12b123fac707a07d08f62a469136e9bded8d8e279f7b5ecec0b957e0, and the evidence scripts of Appendix A); `traillab`, `chi38p8.txt`, `sel_members.txt` have the SHA-256 values of Section 13.4. `MALLOC_ARENA_MAX=1` limits the C library to one malloc arena (by default each thread reserves 64 MiB of address space). The resident memory of `traillab` is about 218 MiB over the 32 seeds with 3 threads (about 181 MiB for one seed); without the environment variable its address space exceeds 2^28 bytes (a one-seed test failed at the cap with a segmentation fault, and passed with it). The table of Section 14 (c2) lists the peaks.
+
+```text
+#!/bin/bash
+# run_chain.sh - the development chain of the q3 claim re-run under hard address-space caps (prlimit --as), peaks by research/tools/memmeter.
+# R1 p8fam_lean (exhaustive pass over a0; writes the list of the 196,608 selected variants), R2 the preregistered q3 run (traillab, 32 seeds,
+# 3 threads), R3 e2ep8 (end to end on 2^22, 2^23, 2^24 first blocks, 3 threads).  nice 10.  Run in WSL.
+W=/mnt/d/'~~Projects/~HashSmash/workspace'
+D=$W/research/day_1014/r38-p8
+L=$D/lean
+MM=$W/research/tools/memmeter/memmeter.py
+T=$W/research/tools/traillab
+cd $L
+date -Iseconds > chain_start.txt
+cp $D/build/sel_classes.txt .
+sha256sum $D/build/p8fam_lean $T/traillab $D/build/e2ep8 $T/chi/chi38p8.txt $D/build/sel_members.txt > bins.sha
+# R1: cap 2^27 = 134,217,728
+date -Iseconds > r1_start.txt
+nice -n 10 python3 $MM --label "p8fam_lean prlimit --as=2^27" -- prlimit --as=134217728 $D/build/p8fam_lean > r1_p8fam_lean.out 2>&1
+echo "r1 rc=$?" >> r1_p8fam_lean.out
+date -Iseconds > r1_end.txt
+sha256sum sel_members.txt maxclasses.txt $D/build/maxclasses.txt > r1_sha.txt
+if [ "$(sha256sum sel_members.txt | cut -c1-64)" != "ff582e64e060db2807d85fbe31b054ef04eea26ed00b46dbcafb66b2c36a7138" ]; then echo "STOP: sel_members differs" > chain_stop.txt; exit 1; fi
+# R2: the preregistered q3 run, cap 2^28 = 268,435,456, one malloc arena
+cd $T
+S=$(seq -s, 5001 5032)
+date -Iseconds > $L/r2_start.txt
+nice -n 10 python3 $MM --label "traillab q3 32 seeds prlimit --as=2^28" -- env MALLOC_ARENA_MAX=1 prlimit --as=268435456 ./traillab window --chi chi/chi38p8.txt --rows 22 37 --event out --np 8192 --mt 32768 --seeds $S --threads 3 --autolist --var "W8 a0list @$L/sel_members.txt late" > $L/r2_q3p8_32seeds_capped.log 2>&1
+echo "r2 rc=$?" >> $L/r2_q3p8_32seeds_capped.log
+date -Iseconds > $L/r2_end.txt
+# R3: e2ep8, cap 2^27 (fallback 2^28)
+cd $D/build
+for pr in "19 22" "23 23" "17 24"; do
+  set -- $pr; tag=$1_$2
+  export OMP_NUM_THREADS=3
+  nice -n 10 python3 $MM --label "e2ep8 $pr prlimit --as=2^27" -- env MALLOC_ARENA_MAX=1 prlimit --as=134217728 ./e2ep8 $1 $2 > $L/r3_e2e_${tag}_capped.txt 2>&1
+  rc=$?
+  if [ $rc -ne 0 ]; then
+    mv $L/r3_e2e_${tag}_capped.txt $L/r3_e2e_${tag}_cap27_failed.txt
+    nice -n 10 python3 $MM --label "e2ep8 $pr prlimit --as=2^28" -- env MALLOC_ARENA_MAX=1 prlimit --as=268435456 ./e2ep8 $1 $2 > $L/r3_e2e_${tag}_capped.txt 2>&1
+  fi
+done
+date -Iseconds > $L/chain_end.txt
+```
+
+```text
+#!/bin/bash
+# run_small.sh - the other development programs of the package re-run under prlimit --as=2^27 (134,217,728 bytes), peaks by memmeter.
+# Run in WSL after run_chain.sh (needs r3_e2e_17_24_capped.txt).  nice 10, one thread each (the OpenMP programs 3).
+W=/mnt/d/'~~Projects/~HashSmash/workspace'
+D=$W/research/day_1014/r38-p8
+L=$D/lean
+MM=$W/research/tools/memmeter/memmeter.py
+cd $L/small
+cp ../sel_classes.txt .
+: > results.jsonl
+CAP=134217728
+m() { name="$1"; shift
+  nice -n 10 python3 $MM --label "$name" -- env MALLOC_ARENA_MAX=1 prlimit --as=$CAP "$@" > "out_$(echo $name | tr -c 'A-Za-z0-9' _).txt" 2>&1
+  rc=$?; echo "{\"name\": \"$name\", \"rc\": $rc, \"memmeter\": $(grep '^{' "out_$(echo $name | tr -c 'A-Za-z0-9' _).txt" | tail -1)}" >> results.jsonl; }
+export OMP_NUM_THREADS=3
+m "a0lean38.py selftest" python3 -B a0lean38.py selftest
+m "a0lean38.py calibrate" python3 -B a0lean38.py calibrate
+m "a0lean38.py ledger" python3 -B a0lean38.py ledger
+m "sens.py" python3 -B sens.py
+m "w7check.py" python3 -B w7check.py
+m "h3gen.py 99 100" python3 -B h3gen.py 99 100
+m "calq3.py 2000 2020" python3 -B calq3.py 2000 2020
+m "verify_r16p8.py (seed 19, 2^22 first blocks)" python3 -B verify_r16p8.py ../r3_e2e_19_22_capped.txt
+m "verify_r16p8.py (seed 23, 2^23 first blocks)" python3 -B verify_r16p8.py ../r3_e2e_23_23_capped.txt
+m "verify_r16p8.py (seed 17, 2^24 first blocks)" python3 -B verify_r16p8.py ../r3_e2e_17_24_capped.txt
+m "p8hits" $D/build/p8hits
+m "f23" $D/build/f23
+m "h3count" bash -c "$D/build/h3count < $D/build/h3_succ_0.txt"
+m "r16p8.py" python3 -B r16p8.py
+date -Iseconds > ../small_end.txt
+```
+
+Records: for each run the memmeter JSON line (command, exit status, signal, wall and CPU seconds, ru_maxrss, tree VmHWM, tree summed RSS, peak bytes) is the last line of the run's output; the repeated q3 run compares equal to the earlier one on all 449 result and stage lines of its 32 seeds.
+
 
 ## Appendix B. The exact ledger (integers and fractions only)
 
@@ -1311,17 +1493,17 @@ The program recomputes the exact total from the counted inputs of Sections 9 and
 ```python
 from fractions import Fraction
 C = 2728
-N_FB = 5840904760525073226269327
+N_FB = 4449581490679991464212814
 FIXED = 35                       # operations on every first block (Section 9.1)
-VBAR = Fraction(71028121742895, 536870912)       # mean data-dependent operations per first block (Section 11)
+VBAR = Fraction(263986005339, 4194304)       # mean data-dependent operations per first block (Section 11)
 EPS = Fraction(1, 2 ** 16)
 V_MAX = -((-N_FB * VBAR * (1 + EPS)) // 1)
-OVER = 12119157                     # Lemma 8.1: 5,510 (work before a block's first class cap test) + 12,113,647 (one class at its maximum)
-PRE = 4515430400
+OVER = 72777454                     # Lemma 8.1: 1,328 (work before a block's first class cap test) + 72,776,126 (one class at its maximum)
+PRE = 3298534899712
 rows = [("allowance A_C (characteristic search)", 2 ** 78 * C), ("allowance A_S (Step-1 solve)", 2 ** 74 * C), ("allowance DEV (development)", 2 ** 70 * C),
         ("first-block compressions, N_FB x C", N_FB * C), ("fixed operations per first block, N_FB x 35", N_FB * FIXED),
         ("data-dependent operations, cap V_MAX", V_MAX), ("overshoot past V_MAX: the work before the first class cap test of a block plus one class at its maximum", OVER),
-        ("precomputation (member tests, batch planes, program generation)", PRE), ("final verification (6 compressions and 1600 operations)", 6 * C + 1600)]
+        ("precomputation (lane planes, program generation)", PRE), ("final verification (6 compressions and 1600 operations)", 6 * C + 1600)]
 def certificate(N, C, P=100000, digits=5):
     NP, CP = N ** P, C ** P
     a = (NP // CP).bit_length() - 1
@@ -1342,20 +1524,23 @@ Output:
 ```text
 allowance A_C (characteristic search)                                                824,487,408,977,177,097,149,612,032
 allowance A_S (Step-1 solve)                                                          51,530,463,061,073,568,571,850,752
-allowance DEV (development)                                                               3,220,653,941,317,098,035,740,672
-first-block compressions, N_FB x C                                                15,933,988,186,712,399,761,262,724,056
-fixed operations per first block, N_FB x 35                                          204,431,666,618,377,562,919,426,445
-data-dependent operations, cap V_MAX                                             772,764,579,970,529,091,929,220,381,051
-overshoot past V_MAX: the work before the first class cap test of a block plus one class at its maximum   12,119,157
-precomputation (member tests, batch planes, program generation)                                            4,515,430,400
+allowance DEV (development)                                                            3,220,653,941,317,098,035,740,672
+first-block compressions, N_FB x C                                                12,138,458,306,575,016,714,372,556,592
+fixed operations per first block, N_FB x 35                                          155,735,352,173,799,701,247,448,490
+data-dependent operations, cap V_MAX                                             280,057,231,556,008,856,988,397,824,874
+overshoot past V_MAX: the work before the first class cap test of a block plus one class at its maximum                                        72,777,454
+precomputation (lane planes, program generation)                                                       3,298,534,899,712
 final verification (6 compressions and 1600 operations)                                                           17,968
-N = 789782238349839437021687302533
-certificate: 2^8790374 * 2728^100000 <= N^100000 < 2^8790375 * 2728^100000
-time_log2 = 87.90375
+N = 293230663740737244466382728546
+certificate: 2^8647432 * 2728^100000 <= N^100000 < 2^8647433 * 2728^100000
+time_log2 = 86.47433
 ```
 
+## Appendix C. The characteristic search (H4a): P8's published search, and what we measured for the same kind of search
 
-## Appendix C. The characteristic search: what we measured (H4a)
+**P8.** 1a695f0b Section 3.2 publishes the search that found P8 (quoted; participant-run): a signed-difference SAT model run over the 24 XOR patterns of weight 25 of the message shape, each with every known signed difference blocked, 38 solver runs with a limit of 10,800 s each (12 UNSAT in 8 to 22 s, 11 SAT in 2,514 to 9,890 s, 15 TIMEOUT at 10,800 s), each SAT solution through a value-level coupling check and an estimator; P8 = run SW_p08_k1 (4,714 s, coupling 662 s). The listed run times total 230,183 s = 2^17.81 s; the author bounds the whole search, S, the class data and all its development by one 10-core machine for less than 2^21 core-seconds. At the hash rate below (3,797,484 SHA-256 compressions per second, one thread) 2^21 core-seconds are 2^42.86 SHA-256 evaluations = 2^43.61 units, 34.4 bits under A_C = 2^78. The measurements below (from fb176310, for the published characteristic and for a 39-step characteristic) are the same kind of search; they put the allowance in the same range.
+
+**Measured by us (fb176310 Appendix C, unchanged).**
 
 **Part A. Published and measured cost of the same kind of search (the basis of A_C = 2^78).** Units are target compressions (one 38-step compression = 1 unit = 2728 word operations); a full 64-step SHA-256 evaluation is charged 64/38 units = 4,594.5 word operations, more than a target compression.
 
@@ -1411,18 +1596,3 @@ Words that differ: 7..11, 15, 16, 23, 25 (dW16 = e0000000, dW23 = fe7f8000, dW25
 | total | 113,081,800 = 2^26.753 | 0.554 | |
 
 **Not measured (the allowance A_C = 2^78):** deriving the dense signed characteristic of rows 0..16 with its two-bit conditions (the pair searches load those cells; a 37-step attempt with them unset, by SAT, step-6 cubes and a pattern beam, returned no model; of 4,614 message pairs realising the 38-step dW23, dW25 at CV = 0, none meets the zero window), and the authors' failed and repeated searches.
-
-## 16. Answers to the ruling 8c4cbe8d (pkgR38M6, refuted), finding by finding
-
-Each finding of the ruling is answered here by its identifier; what is fixed is marked FIXED, what is stated plainly and left as it is is marked STATED.
-
-- **F-CAP-CHECK-GAP (fatal).** FIXED. The cap was tested only after a class, so first blocks without a passing class ran all 90 W7 tests unchecked. Now `if V > V_MAX: halt` runs at the start of every first block (Section 8; `process_fb`, with `vmax`) and after every class (`process_class`); Lemma 8.1 proves V <= V_MAX + OVER at every moment, OVER = 12,119,157 (5,510 for a block's work before its first class test, which includes all 90 W7 tests at 45 + 4 + 2 operations, plus one class at its maximum). The test is one compare-and-branch, already among the 35 fixed operations; the ledger is recomputed (Section 11, Appendix B: N = 789,782,238,349,839,437,021,687,302,533, T = 2^87.9037417, claim 87.90375 unchanged at five decimals). The success bound accounts for the abort by a proof: the run halts only on E_cap = {S > V_MAX}, whose probability is bounded by the Chebyshev P_cap = 3.285e-31 already inside N_FB (Section 10). The reviewers' reconstruction (87.9501) added 4,410 operations to each of N_FB blocks; with the test in place that charge does not arise, because the run stops at the first block that starts above V_MAX.
-- **F-MEMORY-ENVELOPE, F-COST-AND-MEMORY-VALIDATION.** STATED. The 2^28-byte preprocessing envelope is measured for the pair searches and the characteristic-derivation instance (largest peak 2^27.56) and assumed for the Step-1 solve and the development (Section 14, H6); no organizer experiment exercises the preprocessing at full size. Nothing new was measured; the claim keeps 2^28 bytes as declared in H6.
-- **F-PREPROCESSING-ALLOWANCES, F-EXP-05 (H4a, H4b).** STATED. A_C = 2^78 and A_S = 2^74 are allowances, not measurements of the historical computations (Section 12, Appendix C); the authors' failed and repeated searches are unavailable. They are the base's, unchanged, and sit 38.85 bits above the largest figure we measured or found published. The organizer experiments do not exercise them.
-- **F-PROBABILITY-EXTRAPOLATION, F-H2-UNMEASURED-CLASSES, F-EXP-03, CRYPTO-H2-CLASS-EXTRAPOLATION.** STATED. q3 was measured with variants of the first 64 classes. For the 26 added classes the claim rests on Lemma 7.1 (rows 16..22 are the same for every variant; W8 enters only W23 and W24, with fixed modular differences) and on the declared premise H2 that their tail averages are at least those of the 64. No new sample was drawn in this version.
-- **CRYPTO-H3-CONDITIONING-GAP, F-H3-EVENT-AND-CLASS-TRANSFER.** STATED. H3 was measured on sampled successes of the printed event and the first 64 classes (33,222 successes, 2^-10.63 against the 2^-8.5 used, 1.3 bits of margin); the transfer to the accepted event (every success of it also passes row 16) and to 90 classes is the declared premise H3, not a new measurement.
-- **CRYPTO-H1-EXTRAPOLATION, F-H1-EXTRAPOLATION.** STATED. H1 (independent uniform chaining values) is a declared score-critical premise, tested on 2^24 first blocks and by `a0-online-r38`, not on 2^82 first blocks; the correlation of the class tests inside a first block is measured and enters only through expectations and the exact probability that some class passes.
-- **F-EXP-01.** STATED. The organizer assigns no probability or cost inference to the experiments and treats observations as untrusted. The package uses them as executions of the shipped code on organizer seeds (checks in Section 13.3), not as the evidence for H1, H2, H3 or the counts, which come from the local runs of Section 13 and the exact ledger.
-- **F-EXP-02.** STATED, scope text corrected. `a0-q3-r38` returns 96-byte CV1 || M1 and CV1 || M1' witnesses: each is a verified 38-step semi-free-start collision from the chaining value CV1 (the second-block step of the attack), and it is not a full collision of the target. The organizer's schema offers only the events `full-collision` and `digest-xor-mask`, so the manifest keeps `full-collision` and its hypothesis now says that the organizer's recomputation finds 0 full collisions in this experiment, by design. The experiment tests the replica of q3 and the counted step-3b program, not the complete two-block attack. `a0-online-r38` returns 128-byte M0 || M1 candidates that are not collisions either (0 full collisions by design). No experiment finds a full collision and none is claimed.
-- **F-EXP-04.** STATED. The organizer fixes the seeds and the holdout nonce; a candidate cannot supply a holdout. A split inside the experiment was not added: the source is 65,459 of 65,536 bytes and the pass rule was frozen before its calibration, whose versions are all listed in Appendix A.5 (v1 failed, a development diagnostic, v2, v3; all replicates kept). The pass rule has 0.40 bit of margin (lowest of the 48 calibration pooled means 2^-98.034 against the threshold 2^-98.4338). The claim does not take its probability from the experiment's outcome: q3_model comes from the preregistered paired run and the base's bound.
-- **F-STEP3B-TRANSCRIPT-DISCREPANCY.** STATED. The selftest line prints 2865 operations for the published pair because its machine also holds the 37 operations of `fb_scalars`, executed there before step 3b; 2865 - 37 + 1 (the work-counter update) = 2829, the figure `calibrate` takes from a fresh machine and the ledger charges (the scalars are charged separately, 38 per first block with a passing class).
