@@ -1,4 +1,4 @@
-"""v25 experiments (proof.md). PASS = (00^135, 01||00^134), FAIL = (00^135, 02||00^134)."""
+"""R5N experiments (proof.md). PASS = (00^135, 01||00^134), FAIL = (00^135, 02||00^134)."""
 import hashlib
 import json
 import math
@@ -365,30 +365,45 @@ class Cand:
    if opts:
     return (None, opts)
   return (None, [])
+XT = [0]
+def xd(x):
+ WK.d+=x
+ XT[0]+=x
 class Aff:
- __slots__ = ("T", "rank")
- def __init__(s, T, rank=0):
-  s.T, s.rank = T, rank
+ __slots__=("T","rank","lg")
+ def __init__(s,T,rank=0):
+  s.T,s.rank,s.lg=T,rank,None
  def copy(s):
-  WK.row += len(s.T)
-  WK.d -= len(s.T) * (253 - 2 * ((len(s.T) + 256) // 256))
-  return Aff(list(s.T), s.rank)
- def add(s, idx, c):
-  T = s.T
-  a = 0
+  WK.row+=len(s.T)
+  WK.d-=len(s.T)*(253-2*((len(s.T)+256)//256))
+  return Aff(list(s.T),s.rank)
+ def add(s,idx,c):
+  T=s.T
+  a=0
   for j in idx:
-   a ^= T[j]
-  WK.row += len(idx) + 1
-  coef = a >> 1
+   a^=T[j]
+  WK.row+=len(idx)+1
+  coef=a >> 1
   if not coef:
-   return 0 if (a & 1) == c else -1
-  pb = (coef & -coef) << 1
-  af = a ^ c
-  s.T = [t ^ af if t & pb else t for t in T]
-  WK.row += 2 * len(T)
-  WK.d += 4 * ((len(T) + 256) // 256) * sum(1 for t in T if t & pb) - 505 * len(T)
-  s.rank += 1
+   return 0 if (a&1)==c else -1
+  pb=(coef&-coef) << 1
+  af=a^c
+  s.T=[t^af if t&pb else t for t in T]
+  WK.row+=2*len(T)
+  WK.d+=4*((len(T)+256)//256)*sum(1 for t in T if t&pb)-505*len(T)
+  if s.lg is not None:
+   s.lg.append((af,pb))
+   xd(2*((len(T)+256)//256)+2)
+  s.rank+=1
   return 1
+def rep(X,lg):
+ T,w=X.T,(len(X.T)+256)//256
+ x=len(T)*(3+2*w)
+ for af,pb in lg:
+  x+=7*len(T)+1+4*w*sum(1 for t in T if t&pb)
+  T=[t^af if t&pb else t for t in T]
+ xd(x)
+ return Aff(T,X.rank+len(lg))
 PARMW = {}
 def parmw(n):
  if n not in PARMW:
@@ -788,63 +803,68 @@ def dom_of(M, X, D, r, Ar):
  ad = projn(D.T, rowbits(*r))
  WK.small += 4 * len(M.cands[r])
  return [c for c in M.cands[r] if c[0] in Ar and (ad >> c[0]) & 1 and (c[2] & ax)]
-def m2(M, X, D, A, coins):
- un = list(ROWS)
+def m2(M,X,D,A,coins):
+ un=list(ROWS)
  coins.perm(un)
- Afull = {r: (set(A[r]) if r in A else {0}) for r in ROWS}
- dom = {r: dom_of(M, X, D, r, Afull[r]) for r in un}
- choice = {}
+ Afull={r: (set(A[r]) if r in A else {0}) for r in ROWS}
+ dom={r: dom_of(M,X,D,r,Afull[r]) for r in un}
+ choice={}
  while un:
-  WK.small += 2 * len(un)
-  r = min(un, key=lambda q: len(dom[q]))
+  WK.small+=2*len(un)
+  r=min(un,key=lambda q: len(dom[q]))
   if not dom[r]:
-   return None, choice, X, D
-  cl = list(dom[r])
+   return None,choice,X,D
+  cl=list(dom[r])
   coins.perm(cl)
   cl.sort(key=lambda c: c[4])
   un.remove(r)
-  chosen = None
-  rb = rowbits(*r)
-  tent = []
+  chosen=None
+  rb=rowbits(*r)
+  tent,bx=[],None
   for c in cl:
-   d, Wl, g, eqs, cost = c
-   X2, D2 = X.copy(), D.copy()
-   good = True
+   d,Wl,g,eqs,cost=c
+   X2,D2=X.copy(),D.copy()
+   X2.lg,D2.lg=[],[]
+   good=True
    for x in range(5):
-    if D2.add([rb[x]], (d >> x) & 1) < 0:
-     good = False
+    if D2.add([rb[x]],(d >> x)&1)<0:
+     good=False
      break
    if good:
-    for idx, cc in eqs:
-     if X2.add(idx, cc) < 0:
-      good = False
+    for idx,cc in eqs:
+     if X2.add(idx,cc)<0:
+      good=False
       break
    if good:
-    tent.append((X2.rank - X.rank, len(tent), c, X2, D2))
-  tent.sort(key=lambda z: (z[0], z[1]))
-  for (_, _, c, X2, D2) in tent:
-   nd = {}
-   dead = False
+    k=X2.rank-X.rank
+    if bx is None or k<bx[0]:
+     bx=(k,len(tent),X2,D2)
+    tent.append((k,len(tent),c,X2.lg,D2.lg))
+  tent.sort(key=lambda z: (z[0],z[1]))
+  for (_,i,c,lx,ld) in tent:
+   X2,D2=bx[2:] if i==bx[1] else (rep(X,lx),rep(D,ld))
+   nd={}
+   dead=False
    for q in un:
-    cs = M.coords[q]
-    WK.row += len(cs) + 5
+    cs=M.coords[q]
+    WK.row+=len(cs)+5
     if all(X2.T[j] is X.T[j] for j in cs) and all(D2.T[j] is D.T[j] for j in rowbits(*q)):
-     nd[q] = dom[q]
+     nd[q]=dom[q]
      continue
-    v = dom_of(M, X2, D2, q, Afull[q])
+    v=dom_of(M,X2,D2,q,Afull[q])
     if not v:
-     dead = True
+     dead=True
      break
-    nd[q] = v
+    nd[q]=v
    if dead:
     continue
-   chosen = (c, X2, D2, nd)
+   chosen=(c,X2,D2,nd)
    break
   if chosen is None:
-   return None, choice, X, D
-  c, X, D, dom = chosen
-  choice[r] = c
- return True, choice, X, D
+   return None,choice,X,D
+  c,X,D,dom=chosen
+  choice[r]=c
+ return True,choice,X,D
 def point(X, coins):
  T = X.T
  live = 0
@@ -1502,7 +1522,7 @@ def fes_setup(v0,basis,no=24):
    D[w][sum(CN[b][i+1] for i,b in enumerate(cb))]=deriv(K,gray(K-1) if w < 4 else 0)
  return deriv(0,0),D
 def ctz(low):
- lo,hi=10,24
+ lo,hi=11,24
  while hi - lo > 1:
   mid=(lo + hi) // 2
   if test(low >= (1 << mid)):
@@ -1513,7 +1533,7 @@ def ctz(low):
  return lo
 def pro(t):
  t=load(t)
- test(t + 1024 == 1 << 24)
+ test(t + 2048 == 1 << 24)
  st()
  n=0
  for _ in range(4):
@@ -1531,11 +1551,11 @@ def pro(t):
    st()
 EP = 12
 RES = ((1,0),(1,1),(2,0),(1,2),(2,1),(2,2),(3,0),(1,3),(2,3),(2,4),(3,1),(2,5),(3,2),(3,3),(1,4),(2,6),(2,7),(3,4),(2,8),(3,5),(3,6),
- (2,9),(3,7),(3,8),(3,9),(1,5),(2,10),(2,11),(3,10))
+ (2,9),(3,7),(3,8),(3,9),(4,0),(4,1),(4,2),(4,3))
 EW = 24 // EP
 SP = 62 - EW * (1 + len(RES))
-def e_blk(i0,f,D,s=0,e=1024,o=None,fs=None):
- buf=[0]*1024
+def e_blk(i0,f,D,s=0,e=2048,o=None,fs=None):
+ buf=[0]*2048
  for p in range(EP):
   ks=range(EW*p,EW*p+EW)
   R={}
@@ -1548,7 +1568,7 @@ def e_blk(i0,f,D,s=0,e=1024,o=None,fs=None):
    while len(b) < 4 and t:
     b.append((t & -t).bit_length() - 1)
     t &= t - 1
-   d,dy=len(b),sum(q > 9 for q in b)
+   d,dy=len(b),sum(q > 10 for q in b)
    rk=[sum(CN[b[v]][v + 1] for v in range(w + 1)) for w in range(d)]
    for _ in range(dy):
     load(0)
@@ -1592,11 +1612,11 @@ def e_blk(i0,f,D,s=0,e=1024,o=None,fs=None):
 def e_block(seed):
  D=[None] + [collections.defaultdict(lambda: [0] * 24) for _ in range(4)]
  OPS[0]=0
- e_blk(1024 * (h64(seed) % (1 << 14) | 15),[0] * 24,D)
+ e_blk(2048 * (h64(seed) % (1 << 13) | 15),[0] * 24,D)
  s,mx=OPS[0],0
- for b in range(1,1 << 14):
+ for b in range(1,1 << 13):
   OPS[0]=0
-  pro(1024 * b)
+  pro(2048 * b)
   mx=max(mx,OPS[0])
  return s == E_STEPS and mx == E_PRO,{"block_steps": s,"pro_max": mx}
 def fes_trial(seed,no=11):
@@ -1616,15 +1636,15 @@ def fes_trial(seed,no=11):
  o[0]=ps
  ok,mx=(ps>>p)&1==1,0
  OPS[0]=0
- pro(1024)
+ pro(2048)
  ok=ok and 0 < OPS[0] <= E_PRO
- for blk in range(1<<no-10):
+ for blk in range(1<<no-11):
   OPS[0]=0
-  e_blk(1024*blk,f,D,blk==0,1024,o,fs)
+  e_blk(2048*blk,f,D,blk==0,2048,o,fs)
   mx=max(mx,OPS[0])
-  for r in range(1024):
-   y=gray(1024*blk+r)
-   for q in ((p,77,200) if blk+r==0 else ((1024*blk+r)*37%256,)):
+  for r in range(2048):
+   y=gray(2048*blk+r)
+   for q in ((p,77,200) if blk+r==0 else ((2048*blk+r)*37%256,)):
     x=v0
     for j in range(8+no):
      if (((y<<8)|q)>>j)&1:
@@ -1632,7 +1652,7 @@ def fes_trial(seed,no=11):
     e=e_plain(x)
     ok=ok and all(((fs[r,k]>>q)&1)==1-e[k] for k in range(24)) and ((o[r]>>q)&1)==int(all(e))
  return ok and mx <= E_STEPS,{"block_max": mx}
-E_PRO, E_STEPS = 87, 207920
+E_PRO, E_STEPS = 87, 410392
 def linv(A):
  B = [rot(A[y + 5 * ((2 * x + 3 * y) % 5)], 64 - RHO[x + 5 * y]) for y in range(5) for x in range(5)]
  Q = [B[x] ^ B[x + 5] ^ B[x + 10] ^ B[x + 15] ^ B[x + 20] for x in range(5)]
@@ -1796,29 +1816,28 @@ def trail_search(mcap=M_CAP, cores=None):
    return (c, b2, r[0], r[1]), M[0]
  return None, M[0]
 def algorithm(label):
- base, OB = Base(), own_bits()
- left, tl, c, att = B_BUDGET, B_TRUE, 0, 0
- while att < A_MAX:
-  h, g = WK.cost(), WK.cost() + WK.d
-  r = bprime(base, OB, label, left, None, c, CCAP, tl)
+ base,OB=Base(),own_bits()
+ left,tl,c,att=B_BUDGET,B_TRUE,0,0
+ while att<A_MAX:
+  h,g=WK.cost(),WK.cost()+WK.d
+  r=bprime(base,OB,label,left,None,c,CCAP,tl)
   if r is None:
    return None
-  left -= WK.cost() - h
-  tl -= WK.cost() + WK.d - g
-  c = r[2] + 1
-  st = Setup(base, r[0], r[1])
-  spaces = []
+  left-=WK.cost()-h
+  tl-=WK.cost()+WK.d-g
+  c=r[2]+1
+  st=Setup(base,r[0],r[1])
+  spaces=[]
   for i in range(A_ADV):
-   att += 1
-   status, info = attempt(st, Coins(run_seed(label + b"conn" + c.to_bytes(4, "little"), i)))
-   if status == "ok":
-    spaces.append(info)
-   if len(spaces) == K_SPACES or att == A_MAX:
+   att+=1
+   status,info=attempt(st,Coins(run_seed(label+b"conn"+c.to_bytes(4,"little"),i)))
+   if status=="ok":
+    spaces.append(enum_basis(info["EM"],info["beta0"],32)+(info["beta0"],))
+   if len(spaces)==K_SPACES or att==A_MAX:
     break
-  if len(spaces) == K_SPACES:
-   for info in spaces:
-    v0, basis = enum_basis(info["EM"], info["beta0"], 32)
-    _, out = e_window(st, v0, basis, info["beta0"], 0, 1 << 32, S2CAP)
+  if len(spaces)==K_SPACES:
+   for v0,basis,b0 in spaces:
+    _,out=e_window(st,v0,basis,b0,0,1 << 32,S2CAP)
     if out:
      return out[1:]
    return None
@@ -1840,7 +1859,7 @@ def keywords(v):
  return kw
 SW = [sum(c << 8 * i for i in range(32)) for c in (0x55, 0x33, 0x0F, 0x11)]
 HM = sum(255 << 16 * i for i in range(16))
-UNR = 16
+UNR = 256
 def per_a(A,e,M,mcap):
  a=[load(w) for w in A]
  e=W(e) - 0
@@ -1876,33 +1895,35 @@ def match_step(a,B,nb):
  for s in (16,32,64,128):
   c=c + (c << s)
  return test(c < nb << 240),int(c) >> 240
-HV_STEP, MATCH_STEP, PER_A = 80, 49, 18
+HV_STEP, KW_STEP, MATCH_STEP, PER_A = 38, 20, 49, 18
 def hv_trial():
  c=ALPHA3_BITS
  rows,ins,LI=core_tables(c)
  ms=[len(v) for v in ins]
  h=min(range(1,10),key=lambda k: (math.prod(ms[:k])+math.prod(ms[k:]),k))
- ok,mx,n=True,0,0
+ ok,mx,n=True,[0,0,0],0
  for (lo,hi),(V,W2,CH) in zip(((0,h),(h,10)),halves(c)):
   R=range(lo,hi)
-  vs=[[to_planes(rowmaj(LI[j][x]))+keywords(rowmaj(LI[j][x])) for x in ins[j]] for j in R]
-  T,G=gtab(vs,[[5-(DDT[d][rows[j][1]].bit_length()-1) for d in ins[j]] for j in R])
-  G0=list(G[1])
-  v0=0
-  for j in R:
-   v0 ^= rowmaj(LI[j][ins[j][0]])
-  vec,w2=[W(w) for w in to_planes(v0)+keywords(v0)],W(sum(5-(DDT[ins[j][0]][rows[j][1]].bit_length()-1) for j in R))
   idx={ch: i for i,ch in enumerate(CH)}
-  while True:
-   OPS[0]=0
-   w2=gstep(G,vec,T,w2)
-   if w2 is None:
-    break
-   mx,n=max(mx,OPS[0]),n+1
-   if n%4099==1:
-    i=idx[tuple(gpos(G[1],G0,ms[lo:hi]))]
-    ok=ok and [int(w) for w in vec]==to_planes(V[i])+keywords(V[i]) and int(w2)==W2[i]
- return ok and mx==HV_STEP and n==2*(9 ** 5-1),{"steps": n,"ops_max": mx}
+  for q in range(3):
+   f=lambda v: keywords(v)[:q*13-12] if q else to_planes(v)
+   wt=[[(q==0)*(5-(DDT[d][rows[j][1]].bit_length()-1)) for d in ins[j]] for j in R]
+   T,G=gtab([[f(rowmaj(LI[j][x])) for x in ins[j]] for j in R],wt)
+   G0=list(G[1])
+   v0=0
+   for j in R:
+    v0 ^= rowmaj(LI[j][ins[j][0]])
+   vec,w2=[W(w) for w in f(v0)],W(sum(x[0] for x in wt))
+   while True:
+    OPS[0]=0
+    w2=gstep(G,vec,T,w2)
+    if w2 is None:
+     break
+    mx[q],n=max(mx[q],OPS[0]),n+1
+    if n%4099==1:
+     i=idx[tuple(gpos(G[1],G0,ms[lo:hi]))]
+     ok=ok and [int(w) for w in vec]==f(V[i]) and (q or int(w2)==W2[i])
+ return ok and mx==[HV_STEP,KW_STEP,KW_STEP+39] and n==6*(9 ** 5-1),{"steps": n,"ops_plane": mx[0],"ops_key": mx[1],"ops_14": mx[2]}
 def match_trial(seed):
  (VA,_,_),(VB,_,_)=halves(ALPHA3_BITS)
  CACHE.clear()
@@ -1925,7 +1946,7 @@ def match_trial(seed):
  v=VA[h64(seed)%len(VA)]
  OPS[0]=0
  res=match_run(to_planes(v),[to_planes(VB[i]) for i in range(37)],64,[W(0)],M_CAP)
- ok=ok and OPS[0]==PER_A+37*MATCH_STEP+6
+ ok=ok and OPS[0]==PER_A+37*MATCH_STEP+3*(37//UNR)
  for i,(dec,asn) in enumerate(res):
   x=v^VB[i]
   ok=ok and asn==((x|x>>1|x>>2|x>>3|x>>4)&FM).bit_count()
@@ -1988,19 +2009,19 @@ def mitm_trial(q):
 def rlab(t,k):
  return b"hashsmash sha3-256-r5 R%d run %d"%(t,k)
 RUNS = [
-(2,46,35,"c77293bd8cc36bc5",0,50,0x00000000,0,""),
+(2,46,35,"c77293bd8cc36bc5",0,50,0,0,""),
 (0,13,41,"93441f6d8ef1c998",29,35,0x14afb8c6,38,"5A5AAAAAAA55AAAAAAAAAAAAAAAAAAA55A5A"),
 (0,13,46,"1a053b00d974731b",18,83,0x3f841d38,42,"55A55555555AA5A5555A55555A5555A5A5A555555A555A55555555A5555555555A55555A555A5A55A55A"),
 (3,11,64,"ed18bb096de7e629",6,5,0x7b036919,58,"AAAAAA"),
 (1,0,44,"d8ff2e2f9d27bb33",12,40,0xea8b24fb,42,"55AA55555AA5A5A55AA5555555A55AA555555555A"),
 (0,9,36,"98e524f22bce3628",46,309,0xcf0d4d9d,34,"5555555555A55555555A55AA5555A55A5555555555555AA55A55555555555555A5555A55555A5555555555AA55555555555A5A55A5555555555555A55555A555555AA5555555A555A55A55A555555555555555555A55555555A55555A5555A5A5555555555555A5A55A5555555555A5A555A55555A555555A5555A55555555555555555555555555A555555A555A5A55555555555A55555555A55A"),
-(0,2,51,"abb122235c4adbe6",0,63,0x00000000,0,""),
+(0,2,51,"abb122235c4adbe6",0,63,0,0,""),
 (3,10,52,"fbaf37444aad12b9",7,8,0x701bd5c0,48,"A5A5AAAAA"),
 (0,22,53,"ccb18ee87d9d191a",37,78,0xa39eedce,53,"5AA55A5A5AA55A5AA5AA5A5A55A555A5A5A5555A5AAAA5AA5A5555555AA5A5A5A55AA55A55A5AAA"),
 (0,10,36,"fddf5180a8ca2813",25,43,0x46d9e789,35,"A5AAAA5AA5A5555AAA55A5A55555AAAA5AAA5AA5AA5A"),
 (10,11,51,"b79426b76d04f41f",28,31,0x099dbac3,46,"AAAAA5AA5AA5A5AAAAAAAAAAAAAAAAAA"),
 (0,17,43,"c4ce8f0c8901cf72",6,5,0xd6ddbc42,42,"AAAAAA"),
-(3,6,46,"3fa981f80b948630",0,133,0x00000000,0,""),
+(3,6,46,"3fa981f80b948630",0,133,0,0,""),
 (5,22,34,"61abdc6a7e6182bd",11,10,0x0f571823,34,"AAAAAAAAAAA"),
 (1,0,55,"a2b5d3279e774592",28,44,0x8874542d,49,"AA55AA555A55AA5A5AA5A55AAAAAAAA5AAAA5AA5A55AA"),
 (0,4,43,"ac15905391f68258",27,26,0x17cbaca4,41,"AAAAAAAAAAAAAAAAAAAAAAAAAAA"),
@@ -2013,13 +2034,13 @@ RUNS = [
 (0,22,34,"f92d23303be1dd52",26,386,0x2517d4eb,33,"55A55A555555555555555555555555555A555A555555A55A5555555555555A5555555A5A555555555555555555A55A555555555555A555A555555555A5555555555555555555555555555555555555555A55555555555555555555A55555555555555555555555555555555555555555555555555555555555555555555555A555555555555555A5555555555555555555555A5A5555555555555555555555555555555555555555555555555AA55555555A55555555555555555A5555555555A5A"),
 (0,11,35,"ddcc3e19ee60a957",36,56,0xa32a9ebe,33,"555AAA5A55AAAA5A5555AA5AAAAAAAA555A5AA55AA5AA5AAAAA5AAAAA"),
 (1,53,51,"4f9e4e217b2de888",10,13,0xefd6d6e4,51,"AA555AAAAA5AAA"),
-(0,2,37,"9ac10084122c6e93",0,149,0x00000000,0,""),
+(0,2,37,"9ac10084122c6e93",0,149,0,0,""),
 (4,6,40,"0c0b6086331ecea3",10,37,0xc8bb7651,35,"55566A555655A56A565555A66656A56AA5AA5A"),
-(0,9,35,"f17b2b118903399a",0,49,0x00000000,0,""),
-(3,17,41,"5c6ace3df80889ce",0,49,0x00000000,0,""),
-(0,38,34,"d9dfb5304f2dc12b",0,111,0x00000000,0,""),
-(5,19,57,"e6010c2cf39b5f0f",0,102,0x00000000,0,""),
-(2,5,35,"3d0b87a51b8a22eb",0,49,0x00000000,0,""),
+(0,9,35,"f17b2b118903399a",0,49,0,0,""),
+(3,17,41,"5c6ace3df80889ce",0,49,0,0,""),
+(0,38,34,"d9dfb5304f2dc12b",0,111,0,0,""),
+(5,19,57,"e6010c2cf39b5f0f",0,102,0,0,""),
+(2,5,35,"3d0b87a51b8a22eb",0,49,0,0,""),
 (11,0,34,"2c7856ac76b55201",23,50,0xd6b309ed,33,"A66A6AAA666A66A66AAA666A666666AA666A6A66AA666AAAAAA"),
 (0,4,54,"19f57b569b6b95fd",13,17,0x02e46ab6,52,"A5AAAA5A5A5A5AAAAA"),
 (2,22,46,"7f146b852380cc50",1,0,0x771c8283,43,"A"),

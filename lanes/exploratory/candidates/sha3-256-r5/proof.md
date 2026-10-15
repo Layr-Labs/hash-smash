@@ -1,10 +1,49 @@
-# 5-round SHA3-256: v25 (v22b with Y's advice reading, v24's counted programs and a multi-pass E block), time 2^32.926202
+# 5-round SHA3-256: R5N2, R5N with the advice produced by a memory-capped run (R.8; Appendices K and L govern), time 2^33.08452, memory 2^25.509178
 
-Exploratory claim (v25). **v25 is our v22b (08930c1e) with the changes of Section Z and nothing else:** (1) leech1996's Y (1d1f98ee): algorithm() reads P's certified output as nonuniform advice instead of running P a second time; (2) Th0rgal's v23/v24 (017f48c9, 08c9e7c1) counted programs, re-implemented by us: match step 49, T2 leaf 4, half-vector step 80 with 14 key words, and their E prologue ideas; (3) new here: E's stage-1 block as a multi-pass block of 1,024 Gray steps (12 passes of 2 equation words, 60 resident words per pass), 208,007 counted primitives per 1,024 steps, i.e. 52,001.75 per 256 steps (v22b 66,831, v24 66,499). Development is repriced by v22b's rule (X.5) and every run we made for v25 is charged (D23). Total 2^32.926202, **claimed 32.92621**; preprocessing 2^32.832519, claimed 32.83252. Section Z governs wherever the later text (v22b's, unchanged from the line "Exploratory claim. **v22 is our v20" on) states v22b's prices, says that the algorithm runs P, uses premise P or has no advice.
+## R. What R5N changes (B' tent as update logs, P's key words by Gray walks, bases at acceptance; Appendices K and L govern)
+
+R.0. R5N is our 0f72a85e (pkgR5M, accepted 39.75228: time 32.79669, memory 130,149,253 bytes) with three program changes in experiments/r5.py, one changed organizer check and Appendices K (memory) and L (ledger). The algorithm's values and order, K = 50, every cap, rule K, premise R, R7 and its replays, the advice, H2 and the certificates are 0f72a85e's and the lineage's (credits: Sections Z-0). r5.py (65,463 bytes) is AST-identical to 0f72a85e's except Aff (a log field), the new XT, xd and rep, m2, algorithm, hv_trial with its price constants, and the docstring (RUNS writes 0x00000000 as 0: same AST); whitespace was compacted in the changed functions. manifest.json changes only r5-mitm-1's trial-1 text and hypothesis and one parenthesis of r5-bpfull's scope. R5N2 (this package) is R5N (e268e947, refuted on one finding: R.9) with no program or experiment changed: it adds the memory-capped run that produces the advice (R.8), rows L9 and L10 of Appendix L, and the answers of R.9.
+
+R.1. A: m2's tentative list as update logs. 0f72a85e's m2 keeps a copy of X (at most 3,200 entries of 13 words) and D (1,600 x 7 words) for every candidate of the chosen row until one is accepted (structural maximum 216 copies, 365 MB; measured maximum 36). R5N builds each candidate exactly as before (same copies, adds, order and WK charges) but keeps only the materialised entry that sorts first (least rank increase, then least index) and, for every entry, its update log: the (af, pb) of each table-changing Aff.add (at most 10 for X, 5 for D). The trial loop is unchanged; any other entry is rebuilt when tried by rep(): a copy of the current table with the logged updates replayed by the same expression `t ^ af if t & pb else t`.
+- Lemma A. A replayed table equals the eagerly built one entry by entry, and an untouched entry is the same object (a touched entry is a new integer from the same operation on the same values, so CPython's small-integer identity also agrees). So the identity tests, dom_of, the accepted entry, choice, X, D, every coin draw and the counters row, small, keccak, sha256, r2 equal 0f72a85e's on every input; WK.cost(), CCAP and B_BUDGET act identically.
+- Extras, counted in WK.d (inside B_TRUE) and in XT[0]: 2w + 2 per log write; per rebuild len(T)(3 + 2w) for the copy and 7 len(T) + 1 + 4w x (entries with the pivot bit) per replayed update (V.5's prices). A rebuild repeats a subset of its entry's build at the same prices and each entry is rebuilt at most once; a log write is at most 28 primitives against at least 7 x 1,600 for its update. So extras <= 1.0025 x 0f72a85e's true cost, on every execution.
+- Online charge unchanged: B_TRUE = 2^29 units caps WK cost + WK.d including the extras; the largest single update (a rebuild) is below 2^11 units.
+- R7 transfer (H1). R5N on R7's labels equals 0f72a85e unless B_TRUE acts where it did not, which needs 2.0025 x (old true cost) > 2^29, i.e. old true cost above 2^27.998 units: in R7 (W.2) only runs 10 (2^28.39) and 32 (2^28.60); next is run 13 (2^27.90). Counting runs 10 and 32 as failures, 37 of 48, one-sided 95% Clopper-Pearson bound 0.6493 >= 0.40. The claim stays 0.40.
+- Regression run here: whole B' runs (bprime from candidate 0 under B_BUDGET, CCAP, B_TRUE) of R7 runs 1, 2, 4, 6, 33, 37 with 0f72a85e's r5.py and R5N's give identical (c, j, DF), advice and WK cost, and R5N's true cost = old true cost + XT exactly (Table R.1, primitives; a process's first run includes V.5's 11,182,080 memo setup).
+
+| R7 run k | (c, j, DF) | WK cost (both) | true cost 0f72a85e | true cost R5N | extras (XT) |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 0, 13, 41 | 26,960,409,156 | 4,267,896,176 | 4,268,054,328 | 158,152 |
+| 2 | 0, 13, 46 | 30,140,691,100 | 5,193,057,253 | 5,193,183,251 | 125,998 |
+| 4 | 1, 0, 44 | 100,098,075,558 | 81,307,444,040 | 81,307,525,488 | 81,448 |
+| 6 | 0, 2, 51 | 16,435,064,578 | 2,785,537,578 | 2,785,916,829 | 379,251 |
+| 33 | 0, 4, 54 | 13,220,514,578 | 2,296,034,182 | 2,296,102,134 | 67,952 |
+| 37 | 0, 0, 36 | 11,319,984,179 | 1,668,994,911 | 1,669,110,679 | 115,768 |
+
+R.2. B: P's half table without the 14 key words. 0f72a85e prices P (and, by X.5, D15 and D19) with 22-word entries (7 plane words, all 127 keys in 14 key words): 83.1 MB per core. R5N's entry holds the 7 plane words, w2 and the choice (8 bytes) and one key-word slot; each key word is produced when its level needs it by a Gray walk of that word alone (same reflected mixed-radix walk, one-word difference tables). Per core and level nb: tabulate planes, w2 and choice (HV_STEP 38: X.2's state step with 7 words and the weight); for each key word holding keys of nb (keywords() packing: 1, 1, 1, 2, 3, 4, 7 words for nb = 1 .. 64; 19), walk both halves writing it (KW_STEP 20: the state step with one word and its store), then sort and merge its blocks as before (3 + 28 + 6, per_a 18, match 49). Keys, matches, evaluations and P's output are unchanged (trail_search is unchanged; Lemma W). r5-mitm-1 trial 1 walks both full half tables of the output core for the planes with w2, key word 0, and all 14 key words; PASS iff the sampled words equal to_planes/keywords of halves()'s vector, w2 equals halves()'s weight and the longest steps count exactly 38, 20 and 59 (= 20 + 3 x 13). Local: PASS.
+- Repricing (X.5, W.5: tables at every level, as the native runs computed them): D15's certified run 7 x 38 + 19 x 20 = 646 per half vector instead of 7 x 80: +86 x HV. D15's stopped ten-level run: 10 x 38 + 21 x 20 = 800 (keys of each level from a fresh word), below its charge 10 x 83, which stays. The layout comparison keeps v15's key price, above the new one. D19's contig.c (4 cores, 329 blocks, charged 80 per half vector): bound 38 + 329 x 20, +6,538. D20's ptrial_check (4 trail_search runs, at most 14,580 half vectors): +550 each. A full per-block stream without plane tables was prototyped and not adopted (about 70 primitives per match to regenerate B, and D15's stopped run has over 5.4 x 10^10 matches).
+
+R.3. Bases at acceptance. 0f72a85e's algorithm() keeps each accepted attempt's info, with its echelon system, until E: 50 systems resident (Section 7: about 31 MB; Appendix I counted one). R5N's algorithm() computes enum_basis(EM, beta0, 32) at acceptance and keeps (v0, basis, beta0), 7,616 bytes; E runs on the same values in the same order. Every accepted space's basis is now computed: at most 3 x 49 + 50 = 197 per run (at most 4 advice rounds), so the Bases term is 197 x 2^24 primitives.
+
+R.4. Memory (Appendix K). Dense model of the lineage, code included, no allowance: peak = E phase, 47,755,983 bytes = 2^25.509178 (B' 37,604,113; P per core and level 35,598,680; connector 6,288,399). Development runs are priced at the submitted programs for time (X.5) and so also for memory. The execution that generates the advice is the capped run of R.8 (peak 36,118,528 bytes under an address-space cap of 45,000,000); v15's native run of P (233 MB) is superseded and generates nothing used here. Python RSS for orientation (memmeter, whole B' of R7 run 2): 0f72a85e 45,476 KiB, R5N 33,988 KiB.
+
+R.5. Time (Appendix L): online B' unchanged, Bases 197 x 2^24; development B' rows at true cost (G2's B', D20's replay test and R7 self-test) at 2.0025 x their true cost; the half-vector terms of R.2; D26. D15's driver self-test stays at WK's count (R5N's true cost is below WK's at every event). Rows L9 and L10 (R.8) added. Total 2^33.084513 units, claimed 33.08452, preprocessing claimed 33.02958.
+
+R.6. D26, every run made for R5N (organizer-harness executions excepted, U.5), at counters or stated bounds, 2^31 per module load: (a) design studies: 12 Python processes on a copy of 0f72a85e's r5.py (logged B' true costs 58,759,434,763; two tracemalloc runs at R7 run 1's B' true cost each; a lazy-candidate run at its WK cost 50,829,192,458; a state dump at one CCAP; prototype T1/T2 at U.4's prices), 38 Rust stream-prototype runs at 41 per Gray step, 50 per query, 128 per hit (scaled from 33 logged), 3 Rust log-prototype runs at 189,819,989 + 2^25; (b) this build: 19 module loads; the B' regression and memory runs of R.1 (14 whole B' runs in 5 processes, measured true cost 198,399,326,599 primitives in all, plus 2^27 per Base and own_bits); 13 executions of hv_trial, mitm_trial or match_trial (each below 2^31 primitives).
+
+R.7. Not shown: no R7 re-tally (charged it would cost about 2^30.7 units); runs 10 and 32 count as failures instead. Measured extras were 6.8 x 10^-5 to 1.4 x 10^-4 of the true cost (Table R.1), against the bound 1.0025. The code term uses the arm64 size of the lineage's instruction-count bounds (at most 8 bytes per primitive of the unrolled E block); with a 2 MiB allowance instead of r5.py's 65,536 bytes the E phase is 49,787,599 bytes (2^25.5693). E's ANF table (31.8 MB) is now the largest structure; rebuilding it from its 165,796-byte coefficients was not built.
+
+R.8. The advice is produced by a memory-capped run. Finding F-memory-preprocessing-peak of ruling e268e947 (on R5N) held that the memory bound left out the peak of the execution that generated the fixed advice, v15's native mitm2 run (233 MB, five cores in flight). R5N2 does not take its advice from that run: ALPHA3_BITS and BETA2 are the output of the run below, made for this package on 2026-10-15 (02:24:31Z-02:27:18Z), every stage under `prlimit --as=45000000` (a hard cap on the address space, 2,755,983 bytes below the claimed peak), `nice -n 10`, one thread, peak resident memory read by memmeter. Stage 1, export_cores.py: trail_search's enumeration with r5.py's own functions (lane_dfs from the 25 lanes, 8,674,833 nodes; p45pos on the 1,741 cores found, 467 kept; core_tables and rowmaj), each kept core's option vectors written to disk one core at a time (48,592,224 half vectors, sum C2 1,379,275,399,350): 45.505 s, peak 36,118,528 bytes. Stage 2, capadv (Rust; P's T3 with both half tables regenerated for each level and block by reflected mixed-radix Gray walks of the vector, its weight and the block's key, a hash table of one half's keys, the other half's vector regenerated from its index at a key hit; one core resident): levels nb = 1, 2, ..., 64 over all 467 cores with the global cap M_CAP = 2^24; 7,251,935 matches (per level 20,490, 40,849, 81,791, 165,085, 329,494, 818,094, 5,796,132, as the native run), 30 evaluations, all at nb = 64, least leaf W* = 127 at nb = 64 on core 17, w2 = 24, choice (0, 0, 3, 0, 0, 0, 0, 0, 3, 1): 120.596 s, peak at most 8,028,160 bytes. Stage 3, finalize.py: beta2 from that leaf as trail_search does, compared with the constants: the core equals ALPHA3_BITS and beta2 equals BETA2 (SHA-256 of the core tuple's repr and the 200 bytes of beta2: e97373f75db5f2ff838e2fda81e059c33e009106e834c5ac808a828bce18d7d9 for the produced and for the shipped constants): 0.213 s, 28,041,216 bytes. The run's peak is 36,118,528 bytes, below the cap and below Appendix K's 47,755,983, so the claim's memory stays Appendix K's.
+
+Events of stage 2 (log SHA-256 bc5b345dea4c1c90bb29bc7ac1ce9312dac61f55de9bc47c54b76ce344cce336): 127 x 48,592,224 = 6,171,212,448 Gray steps (3,123,009,756 inserts of the second half's keys, 3,048,202,692 probes of the first), 7,251,935 key hits, 30 evaluations. L9 charges them at counted prices: per Gray step 41 (r5.py's own gstep on 7 plane words, the weight and one key word, 17 + 3 x 8, checked at 41 on both halves of the output core), per insert 8, per probe 50, per key hit 1,024 (counted program 128; the native loop executes about 800 word operations per hit), per evaluation 2^11, per core and block 2^17 (hash-head clearing and key difference tables: native about 10^7 per core against 127 x 2^17 = 1.7 x 10^7), per core 2^20; stage 1 at U.4's bound, 8,674,833 x 2^12 + 1,639,088,128 x 21 + 2^32 (the term L7 charges for the prototype run of the same program); 2^31 for each of the two loads of r5.py: 524,646,301,384 primitives = 2^28.5285 units. The first execution of this pipeline (run_1: the same sources except that stage 2 recomputed each key from its vector; same events, log lines and advice; 360.8 s) and the test runs are charged in L10. Sources, which are not part of the package (the experiment-source limit is 64 KiB and r5.py has 73 bytes left), by SHA-256 (first 32 hex digits): r5.py as shipped f9a88567b9cadffcdd7995bd6dc68a54...; export_cores.py (1,479 bytes) 6f18b9ec44fdea59d849cc3612b93440...; finalize.py (1,626) d41507d8242c5f0855ef6d5f6e32707a...; capadv main.rs (18,963) 2c5be3e431da66d53744ec4100ee89e5..., binary f7795446b4ae837ee82ee1c394859c8a...; run_capped.sh a9fa862face8d49e0f8df70e5c233b56...; the kept-core file (20,949,963 bytes) 66d01cc0f3cbcd2d92518b877c28d62b...; the advice file 2502f28f1832522867050abdf5be338b.... v15's native run stays in the record (Section 2.1, Appendix A; its time stays charged inside D15) as a superseded earlier execution with the same output and the same per-level match counts; it is not used to produce the advice.
+
+R.9. Answers to ruling e268e947 (R5N, refuted; reason lane_cost/F-memory-preprocessing-peak), by finding id. F-memory-preprocessing-peak (fatal): R.8; the advice-generating execution peaks at 36,118,528 bytes and is charged in L9. Material findings, which are evidence gaps stated by the organizer's report and not removed here (H1 and H2 disclose them): F-cost-ledger-independent-verification and F-EXP-3: the time and preprocessing bounds are conditional on H2 (completeness of the historical ledger and the repricing rule X.5); the organizer's experiments check counted routines, not attack cost, and L9 and L10 are rows of the same kind, with their counters in the run log. F-success-iid-premise, F-PROB-IID-1 and F-EXP-1: 0.40 rests on premise R (label-seeded coins act as fresh coins and R7's 48 runs are an unselected sample); the organizer's report draws no iid inference and has no holdout nonce, and R5N2 does not change that. F-EXP-2: organizer experiment 7 checks v20's R7 table (39 of 48, bound 0.6956); the transfer to this program counts R7 runs 10 and 32 as failures (37 of 48, bound 0.6493, R.1) and is arithmetic in the proof, not an experiment.
+
+Exploratory claim (v25/v25h, b5213766): v22b (08930c1e) plus Section Z (1d1f98ee advice; v23/v24 T2/T3 steps; 12-pass 1,024-step E block at 208,007 primitives; development item 23 at per-invocation counts; 32.92344 / 32.82958).
 
 ## Z. What v25 changes
 
-**Credits first.** Every algorithm, study, certificate and development record is v22b's lineage's (Sections X, W, U, V and 0-8, with their credits): winglock's v22b/v22, v20, v19, v14, v13, v8; Th0rgal's v21 (a9ec6971) and zero-advice framing (7deb1595); 0xshikhar's T3 memory repair (6667fc4f, 395e8a28); Meganpark980320's v17/v18 (168a1b3a, f1eb6445); rubenmarcus's v15 (91f1424d), whose D15 contains the certified run of P; Subflatus3's zero-block half-sum match (9bccf245). v25 adds: **leech1996**'s Y (1d1f98ee, 33.03168): the advice reading of P's certified output and its argument (Z.1), adopted unchanged; **Th0rgal**'s v23 (017f48c9, 32.98298) and v24 (08c9e7c1, 32.97491): the match step with nibble-aligned tail planes and a carry-free nibble fold, the single-AND T2 leaf with its complemented lanes, the 14 key words, and the E prologue (ctz over the block-index bits only, ten partial ranks, base ranks as plain loads) (Z.2, Z.3). We read their notes and packages as data, wrote each idea into v22b's experiment file ourselves and checked it against v22b's programs and the plain evaluation; their stated build checks are charged (D_Y, D_v23, D_v24). The multi-pass block of Z.3 and its register accounting are ours, and so is any error in them. Considered and not adopted: GordoAR's rev-7 (83697db1, 32.94842), which lowers K to 36 with the attempt limits scaled, a rung chosen with R7's outcomes known while R7 stays uncharged (R7 charged: 33.8051); and v23/v24's Python refactors of functions that algorithm() reaches, which would break the byte identity with the file R7 ran (Z.1).
+**Credits first.** Every algorithm, study, certificate and development record is v22b's lineage's (Sections X, W, U, V and 0-8, with their credits): winglock's v22b/v22, v20, v19, v14, v13, v8; Th0rgal's v21 (a9ec6971) and zero-advice framing (7deb1595); 0xshikhar's T3 memory repair (6667fc4f, 395e8a28); Meganpark980320's v17/v18 (168a1b3a, f1eb6445); rubenmarcus's v15 (91f1424d), whose D15 contains the certified run of P; Subflatus3's zero-block half-sum match (9bccf245). v25 adds: **leech1996**'s Y (1d1f98ee, 33.03168): the advice reading of P's certified output and its argument (Z.1), adopted unchanged; **Th0rgal**'s v23 (017f48c9, 32.98298) and v24 (08c9e7c1, 32.97491): the match step with nibble-aligned tail planes and a carry-free nibble fold, the single-AND T2 leaf with its complemented lanes, the 14 key words, and the E prologue (ctz over the block-index bits only, ten partial ranks, base ranks as plain loads) (Z.2, Z.3). We read their notes and packages as data, wrote each idea into v22b's experiment file ourselves and checked it against v22b's programs and the plain evaluation; their stated build checks are charged (D_Y, D_v23, D_v24). The multi-pass block of Z.3 and its register accounting are ours, and so is any error in them. Considered and not adopted: GordoAR's rev-7 (83697db1, 32.94842), which lowers K to 36 with the attempt limits scaled, a rung chosen with R7's outcomes known while R7 stays uncharged (R7 charged: 33.8036); and v23/v24's Python refactors of functions that algorithm() reaches, which would break the byte identity with the file R7 ran (Z.1).
 
 | Change | Where | v22b | v25 | Evidence |
 | --- | --- | --- | --- | --- |
@@ -12,15 +51,15 @@ Exploratory claim (v25). **v25 is our v22b (08930c1e) with the changes of Sectio
 | Z.2 match step (v24) | D15, D19 | 56 (899/16 per match) | 49 (787/16 per match), per_a 18 | r5-mitm-1 trial 2 |
 | Z.2 T2 leaf with its Gray step (v24) | D15 | 26 | 21 | r5-count trials 1, 3, 5, 7 |
 | Z.2 half-vector step (v24) | D15, D19 | 83 (86 with 15 key words) | 80 (83) | r5-mitm-1 trial 1 |
-| Z.3 E stage 1 | E, G2, D20 | 66,831 per 256 steps | 208,007 per 1,024 steps (52,001.75 per 256) | r5-count trials 0, 2, 4, 6; r5-count-2 trial 11; check_e.py |
-| Z.4 development | G2, D15, D19, D20; D_Y, D_v23, D_v24, D23 | v22's prices | v25's prices (X.5's rule); peers' checks and our runs charged | ledger_v23.py |
+| Z.3 E stage 1 | E, G2, development item 20 | 66,831 per 256 steps | 208,007 per 1,024 steps (52,001.75 per 256) | r5-count trials 0, 2, 4, 6; r5-count-2 trial 11; check_e.py |
+| Z.4 development | G2, D15, D19, development item 20; D_Y, D_v23, D_v24, development item 23 | v22's prices | v25's prices (X.5's rule); peers' checks and our runs charged | ledger_v23.py |
 
 ### Z.1 P's certified output as advice (leech1996's Y, adopted)
 
 - **The change.** algorithm() begins with `base, OB = Base(), own_bits()` in place of `trail_search()`, its two failure returns and `Base(tr[0], tr[1])`; this is Y's edit, character for character. The defaults of Base() are ALPHA3_BITS and BETA2 (Section 3), P's certified output. By AST (files parsed as data), the 101 top-level definitions that algorithm() reaches in v25's r5.py, including the helpers that build its import-time tables, are v22b's byte for byte except algorithm() itself; they no longer include trail_search and its helpers. trail_search() is still called by p_trial (r5-count-2 trials 8, 9) and mitm_core by mitm_trial (r5-count-2 trial 10, r5-mitm-0/1).
-- **Where the advice is charged.** The cost model requires that "all construction/preprocessing and advice must be accounted for, including any search omitted from the submitted program". The omitted search is P. It was executed once as v15's certified native run (mitm2.c, Appendix A, on cores.bin from the T1/T2 export of U.4): 7,251,935 matches, all seven levels, W* = 127 certified at level 64 by Lemma P. That run and the export are D15's items "certified run" and "T1/T2 export", charged at v25's counted prices (Z.4). The run computes P's output from the target alone, and P's output is a deterministic function of the target (the least leaf of Lemma P). v22b ran P a second time online; v25 removes only that second execution and keeps P's 2^32-primitive setup bound online (DDT, L^-1 and Base()'s tables). The organizer still recomputes the output core's certifying level and compares (core, beta2) with ALPHA3_BITS and BETA2 in every review (r5-count-2 trial 10).
+- **Where the advice is charged.** The cost model requires that "all construction/preprocessing and advice must be accounted for, including any search omitted from the submitted program". The omitted search is P. R5N2 produces it by the capped run of R.8 (L9; the pipeline T1, T2 export, streamed T3 over all 467 cores and seven levels, 7,251,935 matches, W* = 127 certified at level 64 by Lemma P). v15's certified native run (mitm2.c, Appendix A; the same output and per-level counts) is superseded and not used; its time and its export stay charged as D15's items "certified run" and "T1/T2 export" at v25's counted prices (Z.4). The run computes P's output from the target alone, and P's output is a deterministic function of the target (the least leaf of Lemma P). v22b ran P a second time online; v25 removes only that second execution and keeps P's 2^32-primitive setup bound online (DDT, L^-1 and Base()'s tables). The organizer still recomputes the output core's certifying level and compares (core, beta2) with ALPHA3_BITS and BETA2 in every review (r5-count-2 trial 10).
 - **Success.** R7's 48 runs never executed trail_search: each started from P's certified output and made algorithm()'s later calls in algorithm()'s order (W.2). v25's algorithm() makes exactly those calls with the same constants, caps and label-derived coins, so every R7 run is a complete run of v25: 39 of 48 succeed, one-sided 95% Clopper-Pearson bound 0.6956, claim 0.40 by R7's pre-registered rule. Premise P leaves H1; the probability space is the algorithm's own coins with the target and the advice fixed. The counted programs of Z.2 and Z.3 are the price model; algorithm() never calls them (X.11).
-- **Earlier uncharged sources of the same constants** (GLL+20's core No. 3, v7's P run, v14's two native T3 passes; item B of Section 0.1) are not relied on. Charged as three executions of P at v25's prices: 33.1153. P kept online, as in v22b: 32.9915.
+- **Earlier uncharged sources of the same constants** (GLL+20's core No. 3, v7's P run, v14's two native T3 passes; item B of Section 0.1) are not relied on. Charged as three executions of P at v25's prices: 33.1129. P kept online, as in v22b: 32.9889.
 - **Advice size.** ALPHA3_BITS (at most 10 bit positions below 1600) and BETA2 (1,600 bits): under 2^8 bytes, declared nonuniform_advice_log2_bytes = 8.
 
 ### Z.2 Counted programs from Th0rgal's v23/v24 (re-implemented)
@@ -41,15 +80,15 @@ E's computation is unchanged (Lemma 4): the same F, derivative vectors, pass wor
 - **Prologue (once per block, at most 87).** The block counter's load, the block loop's end test and B's store; up to four isolations of the lowest set bit of B, each located by a comparison tree over positions 10..23 (4 comparisons; Th0rgal's v23 searched [8, 24) for v22b's 256-step blocks), with the end tests; then the ten partial ranks that depend on B (four base ranks as plain table loads, six with an add; Th0rgal's v23/v24) and their stores. The largest prologue over all 2^14 block indices is 87.
 - **Count.** In each pass and at each step: dy rank loads, 2 x max(0, dy - 2) spill primitives, for each of the two words 1 + (top level: 0 resident, 1 loaded) + (each lower level: 1 resident, 3 not) (the last 1 is F_k's XOR), the OR of the two words (1), and the buffer: load and OR (2) in passes 1..11, store (1) in passes 0..10 or the comparison with its branch (2) in pass 11. Over a block whose index has at least four set bits (then every step's positions >= 10 all come from B; any other index costs less: a step's levels are the lowest set bits of 1024 B + r, at most four; with fewer set bits in B a step keeps its levels from r and has at most as many levels from B, so its level updates, dy, rank loads and spills do not increase; check_e.py confirms it on all 469 indices with one to three set bits) this is exactly **207,920**; with the prologue, **208,007 per 1,024 steps** (2^14 blocks per space).
 - **Stage 2.** The pass words of a block are known after its pass 11; stage 2 handles the block's passing steps in step order, so the pairs and their order (outer Gray order, then inner point), S2CAP and E's stopping rule are as in 2.4 (e_window, which algorithm() runs, enumerates in natural order; success is identical while S2CAP does not act, as in X.4). Stage 2 uses only the pass word and the coordinate 1024 B + r (it forms x by basis additions); its hand-off (spilling and restoring the 60 resident words, 120, and the coordinate) lies inside 2.4's 2^11 primitives per pair, as in X.4.
-- **Memory.** The unrolled code of a block (12 passes of 1,024 straight-line step bodies: 207,920 counted primitives, under 2^18 instructions) and the 32 KiB buffer, beside the 10 MB of derivative vectors: within the declared 2^30 bytes (Section 7).
+- **Memory.** The unrolled code of a block (12 passes of 1,024 straight-line step bodies: 207,920 counted primitives, under 2^18 instructions) and the 32 KiB buffer, beside the 10 MB of derivative vectors: far below Appendix K's memory figure.
 
 Evidence. r5-count trials 0, 2, 4, 6 (organizer seeds): fes_setup with 11 outer coordinates, then two blocks of 1,024 steps through e_blk; every F_k after every step (recorded in its pass) and the pass bit equal e_plain at 3 slots of the start and 1 seeded slot of every step; the prologue counts at most 87 and each block at most 207,920. r5-count-2 trial 11 computes the block price itself (trials 0, 2, 4, 6 check values, trial 11 checks the price): count-only e_blk on zero tables with 24 outer coordinates over the 1,024 steps of a seed-picked block index with at least four set bits (exactly 207,920) and the prologue for all 2^14 block indices (largest exactly 87). Our check_e.py: two seeded spaces with 11 outer coordinates (2,047 steps each), e_blk next to v22b's fes_step on copies of one state: F and every derivative vector compared word by word after every block, and the pass words equal (no step of either space had a passing point, so the pass-word comparison is between all-zero results); and e_blk's count over all 469 block indices with one to three set bits and three with at least four: largest 207,920.
 
 ### Z.4 Development at v25's prices; D_Y, D_v23, D_v24 and D23
 
-- **Repricing (X.5's rule, unchanged).** G2's 530 E spaces at 208,007 per 1,024 steps: G2 **30.6668**; D15 at 787/16 per match, 83 or 80 per half vector and 21 per T2 leaf: **31.8816**; D19's contig.c at 787/16 + 31 per match and 80 per half vector: **28.7232**; D20's R7 self-test at v25's E: **29.0730**. D16 27, D21 22.6078 and D22 26.7962 are unchanged. Without the repricing beyond v22b (G2, D15, D19, D20 at v22b's prices): 33.0545.
+- **Repricing (X.5's rule, unchanged).** G2's 530 E spaces at 208,007 per 1,024 steps: G2 **30.6668**; D15 at 787/16 per match, 83 or 80 per half vector and 21 per T2 leaf: **31.8816**; D19's contig.c at 787/16 + 31 per match and 80 per half vector: **28.7232**; D20's R7 self-test at v25's E: **29.0730**. D16 27, D21 22.6078 and D22 26.7962 are unchanged. Without the repricing beyond v22b (G2, D15, D19, D20 at v22b's prices): 33.0520.
 - **Peers' build checks of adopted programs** (W.11's rule, as D21): D_Y 2^14 (Y's checks, as Y states them), D_v23 2^25 (Th0rgal's v23 states 2^25, its v24 note 2^24.53; we take 2^25) and D_v24 2^24.53.
-- **D23: every run we made for v25** except executions of the organizer's harness and (v25s) the timing runs of the experiment programs, which choose no constant of the algorithm or of its prices (both priced in Z.5, not charged), priced as D22 (X.8: counted prices of v25's programs; 2^31 primitives per load of an experiment module; 2^16 units per E space setup; 2^11 per plain comparison; count-only prototype blocks bounded by 2^17 or 2^20 primitives, a single-pass step by 299, a prototype step by 512, end-of-run comparisons by 2^14 per step). d23.py prices each item; d23.json SHA-256 c8619db9....
+- **D23: every run we made for v25** except executions of the organizer's harness and (v25s) the timing runs of the experiment programs, which choose no constant of the algorithm or of its prices (both priced in Z.5, not charged), priced as D22 (X.8: counted prices of v25's programs; 2^31 primitives per load of an experiment module; 2^16 units per E space setup; 2^11 per plain comparison; count-only prototype blocks bounded by 2^17 or 2^20 primitives, a single-pass step by 299, a prototype step by 512, end-of-run comparisons by 2^14 per step). d23.py prices each item; d23.json SHA-256 34ae1985....
 
 | When (UTC) | Run (what it computed) | log2 units |
 | --- | --- | --- |
@@ -67,11 +106,13 @@ Evidence. r5-count trials 0, 2, 4, 6 (organizer seeds): fes_setup with 11 outer 
 | 2026-10-09T18:09:37Z | qc.py match_trial on the final build | 20.9565 |
 | 2026-10-09T18:09:37Z-18:09:49Z | quick_check.py r5-count (12/12 PASS) and r5-mitm-1 (3/3 PASS) on the final build | 24.4245 |
 | 2026-10-09T18:16:10Z-18:16:22Z | quick_check.py r5-count (12/12 PASS), r5-mitm-1 (3/3 PASS) and r5-mitm-0 (1/1 PASS) on the final build 268461b0 | 24.7291 |
-| 2026-10-09T17:47:07Z-17:48:50Z | model.py: arithmetic cost model of multi-pass 256-step blocks (selected the pass and resident-table layout tried in proto.py); every invocation in this window, bounded by 103 s x 2 processes x 2^27 interpreter operations per second, one primitive per operation | 24.2824 |
-| 2026-10-09T18:07:35Z-18:08:21Z | sweep.py and sweep2.py: arithmetic block-count sweeps over block size (256-4,096 steps), passes and resident tables (selected 1,024-step blocks, 12 passes of 2 words, 29 resident tables and the spill rule); every invocation in this window, bounded by 46 s x 2 processes x 2^27 interpreter operations per second, one primitive per operation | 23.1195 |
-| | **D23** | **26.8163** |
+| 2026-10-09T17:47:07Z | model.py (one invocation, Python 3.9; 0.09 s): arithmetic cost model of multi-pass 256-step blocks, passes 1-12 (chose the layouts tried in proto.py); analytic count (Z.8), 78 passes x 256 steps x 2^11 plus setup, plus 2^31 for the process | 20.6243 |
+| 2026-10-09T18:07:35Z | sweep.py 8 10 (one invocation, 4.74 s): block sizes 256 and 1,024 x 4-12 passes x 0-29 resident tables; analytic count (Z.8), 340 block() calls, 2,852 passes, 2,042,540 inner iterations x 2^11, plus 2^31 for the process | 22.1637 |
+| 2026-10-09T18:07:48Z | sweep2.py 9 10 11 12 (one invocation, 6.40 s; selected 1,024-step blocks, 12 passes of 2 words, 29 resident tables): analytic count (Z.8), 112 block() calls, 1,400 passes, 2,902,928 inner iterations x 2^11, plus 2^31 for the process | 22.5120 |
+| 2026-10-09T18:08:09Z | python3 -c block(10, 12, 29), cands(10) (one invocation, 0.07 s; listed RES): analytic count (Z.8), 14,334 inner iterations x 2^11, plus 2^31 for the process | 20.6156 |
+| | **D23** | **26.6118** |
 
-**Runs that chose constants are charged.** The E constants of Z.3 (1,024-step blocks, 12 passes of 2 equation words, 29 resident tables, the spill rule) were chosen by arithmetic block-count sweeps: model.py (17:47Z, 256-step blocks), the two count-only sweeps of 17:49:05Z and 17:57:22Z (run from proto.py's functions in one interpreter call each; no separate script or log was kept, so each is priced as a module load plus its stated block bounds), then sweep.py and sweep2.py (18:07Z). The sweeps read only the Gray-step bit positions and the combinatorial ranks (no target function, no table of r5.py); every invocation of model.py, sweep.py and sweep2.py is charged through its time window at 2 concurrent processes x 2^27 interpreter operations per second (above CPython's rate on this machine), one primitive per operation (rows 17:47:07Z and 18:07:35Z above). Scripts that compute no target function, load no target code and chose no constant are not runs: ledger_v23.py, d23.py, ksim.py (reads R7's logged result files), mk_r5v25.py and gen_manifest_v25.py (text replacements), astcmp.py (AST as data; its output, 101 top-level definitions reached by algorithm(), is kept as a log).
+**Runs that chose constants are charged.** The E constants of Z.3 (1,024-step blocks, 12 passes of 2 equation words, 29 resident tables, the spill rule) were chosen by arithmetic block-count sweeps: model.py (17:47Z, 256-step blocks), the two count-only sweeps of 17:49:05Z and 17:57:22Z (run from proto.py's functions in one interpreter call each, with no separate script file, so each is priced as a module load plus its stated block bounds), then sweep.py and sweep2.py (18:07Z). The sweeps read only the Gray-step bit positions and the combinatorial ranks (no target function, no table of r5.py). v25h charges each of the four invocations of model.py, sweep.py and sweep2.py (rows 17:47:07Z, 18:07:35Z, 18:07:48Z and 18:08:09Z above) at its operation count plus 2^31 primitives for the process (Z.8). v25 bounded them by their time windows instead (2 processes x 2^27 interpreter operations per second); that bound gives 32.92621. Scripts that compute no target function, load no target code and chose no constant are not runs: ledger_v23.py, d23.py, ksim.py (reads R7's logged result files), mk_r5v25.py and gen_manifest_v25.py (text replacements), astcmp.py (AST as data; its output, 101 top-level definitions reached by algorithm(), is kept as a log).
 
 ### Z.5 Ledger (log2 units; exact rationals, rate 1355; ledger_v23.py)
 
@@ -86,26 +127,27 @@ Evidence. r5-count trials 0, 2, 4, 6 (organizer seeds): fes_setup with 11 outer 
 | **Online algorithm** | | 30.4623 | **29.980777** |
 | G2 / D15 / D16 | X.5's rule at v25's programs (Z.4) | 30.9572 / 32.0018 / 27 | 30.6668 / 31.8816 / 27 |
 | D19 / D20 / D21 / D22 | | 28.8303 / 29.0748 / 22.6078 / 26.7962 | 28.7232 / 29.0730 / 22.6078 / 26.7962 |
-| D_Y / D_v23 / D_v24 / D23 | Z.4 | - | 14 / 25 / 24.53 / 26.8163 |
-| **Development** | | 32.8394 | **32.725590** |
-| **Total** | | 33.093387 -> 33.09339 | **32.926202 -> claimed 32.92621** |
-| Preprocessing (P's setup bound, B', S, development) | | 33.004263 -> 33.00427 | **32.832519 -> claimed 32.83252** |
+| D_Y / D_v23 / D_v24 / D23 | Z.4 | - | 14 / 25 / 24.53 / 26.6118 |
+| **Development** | | 32.8394 | **32.722414** |
+| **Total** | | 33.093387 -> 33.09339 | **32.923440 -> claimed 32.92344** |
+| Preprocessing (P's setup bound, B', S, development) | | 33.004263 -> 33.00427 | **32.829571 -> claimed 32.82958** |
 
 Claims are rounded up at the fifth decimal from the exact rational sum. Reference: v24's stated prices under this ledger (D_Y, D_v23, D_v24, no D23) give 32.9765. Sensitivities (not claimed):
 
 | Change | Total |
 | --- | --- |
-| P kept online (v22b's accounting) | 32.9915 |
-| E block at v24's price (66,499 per 256 steps) / at v22b's (66,831) | 32.9965 / 32.9981 |
-| no repricing of development beyond v22b | 33.0545 |
-| B charged as three executions of P | 33.1153 |
-| D23 doubled / D_v23 and D_v24 not charged | 32.9470 / 32.9160 |
-| D15 doubled | 33.4965 |
-| C charged / R7 charged | 33.4311 / 33.8051 |
-| our local organizer runs for v25 charged (Z.6) | 33.0531 |
-| also every other verification and timing execution charged (v25's metered runs, the v25s timing gates, the timing runs of the experiment programs: 475 executions at the largest per-execution price, 2^32.7123 units) | 33.8927 |
+| P kept online (v22b's accounting) | 32.9889 |
+| E block at v24's price (66,499 per 256 steps) / at v22b's (66,831) | 32.9939 / 32.9955 |
+| no repricing of development beyond v22b | 33.0520 |
+| B charged as three executions of P | 33.1129 |
+| D23 doubled / D_v23 and D_v24 not charged | 32.9415 / 32.9132 |
+| E-constant sweeps charged by v25's time-window bound instead of Z.8's counts | 32.92621 |
+| D15 doubled | 33.4946 |
+| C charged / R7 charged | 33.4292 / 33.8036 |
+| our local organizer runs for v25 charged (Z.6) | 33.0505 |
+| also every other verification and timing execution charged (v25's metered runs, the v25s timing gates, the timing runs of the experiment programs: 475 executions at the largest per-execution price, 2^32.7123 units) | 33.8913 |
 
-Memory: 2^30 bytes declared, unchanged. P's T3 tables are no longer built online; B' (at most 113.5 MB) is the largest phase. The declared bound also covers every charged development item added in v25: each D23 run was one Python process (the experiment module with its tables, under 2^28 bytes; our local organizer runs peaked at 99 MB per execution, Z.6), the arithmetic sweeps hold a few KB of counters, and D_Y, D_v23 and D_v24 are their authors' checks of programs run in the organizer's 128 MB experiment sandbox; v22b's items keep their memory statements (7, X.8).
+Memory (R5N): the claim's figure is Appendix K's, 47,755,983 bytes (the E phase); the rest of this paragraph is v25's record. P's T3 tables are no longer built online; B' (at most 113.5 MB) is the largest online phase. Every charged development item added in v25 stays below the development peak: each D23 run was one Python process (the experiment module with its tables, under 2^28 bytes; our local organizer runs peaked at 99 MB per execution, Z.6), the arithmetic sweeps hold a few KB of counters, and D_Y, D_v23 and D_v24 are their authors' checks of programs run in the organizer's 128 MB experiment sandbox; v22b's items keep their memory statements (7, X.8).
 
 ### Z.6 Organizer experiments and our local checks
 
@@ -120,14 +162,107 @@ Memory: 2^30 bytes declared, unchanged. P's T3 tables are no longer built online
 | nonce-1 | 10-09T21:45:05Z-21:46:51Z | 64817175 | 10096f9a | c8bbbcbe | 1e9aa802 |
 | nonce-2 | 10-09T21:46:51Z-21:48:40Z | 80ab7af2 | 9721826e | 0611ade3 | eed9b752 |
 
-  The runner executes every experiment twice with byte-identical output; on each of the 3 seeds all 16 experiments completed with every predicted PASS: r5-trail-0, r5-trail-1 1/1 and r5-trail-23 2/2 with the exact structural counts predicted, r5-count 8/8, r5-count-2 4/4, r5-mitm-0 2/2, r5-mitm-1 3/3, r5-bpfull trials 0 and 2 PASS (trials 3-26 descriptive only), r5-R-0..7 1/1 full 5-round collision each. Each execution took at most 5.3 CPU-s and 99 MB. Priced like X.10, the runs and our local_tracks checks are 2^29.4821 units; charged, the total would be 33.0531.
+  The runner executes every experiment twice with byte-identical output; on each of the 3 seeds all 16 experiments completed with every predicted PASS: r5-trail-0, r5-trail-1 1/1 and r5-trail-23 2/2 with the exact structural counts predicted, r5-count 8/8, r5-count-2 4/4, r5-mitm-0 2/2, r5-mitm-1 3/3, r5-bpfull trials 0 and 2 PASS (trials 3-26 descriptive only), r5-R-0..7 1/1 full 5-round collision each. Each execution took at most 5.3 CPU-s and 99 MB. Priced like X.10, the runs and our local_tracks checks are 2^29.4821 units; charged, the total would be 33.0505.
 - `python3 scripts/local_tracks.py check sha3-256-r5-exploratory`: mechanically_valid (16 certificates verified)
 
 ### Z.7 Limitations
 
-- v25's gain over v22b rests on Y's advice reading (Z.1; P online: 32.9915), on X.5's repricing rule applied to v25's programs (without it: 33.0545) and on the multi-pass block's register accounting (Z.3), which follows v22b's 64-word convention; the cost model sets no register limit.
+- v25's gain over v22b rests on Y's advice reading (Z.1; P online: 32.9889), on X.5's repricing rule applied to v25's programs (without it: 33.0520) and on the multi-pass block's register accounting (Z.3), which follows v22b's 64-word convention; the cost model sets no register limit.
 - The multi-pass block computes the same values in a different order (Lemma Z); the organizer checks it against the plain evaluation (trials 0, 2, 4, 6) and its exact price (trial 11), not against fes_step, which r5.py no longer contains; our check_e.py compared the two.
 - Everything else is inherited from v22b unchanged: rule K's premise (W.1), premise R, R7's fallback to v19 (W.3), A1 uncharged (V.6), v17's B' re-derivations listed and not charged, and local organizer runs priced and not charged (X.10, Z.6).
+
+- Z.8's invocation list comes from our session command log; the package carries its excerpt for these commands, not the log itself, so completeness of the list is our statement (v25's window bound: 32.92621). sweep.py, sweep2.py and the counting rule are in Z.8, so their counts can be re-derived; model.py's source is not (its count is 2% of its 2^31 process charge).
+
+### Z.8 v25h: the E-constant sweeps counted per invocation; what verification, X.5's rule and R7 fix
+
+- **Change.** v25 bounded model.py, sweep.py and sweep2.py by time windows (103 s and 46 s x 2 processes x 2^27 operations/s: 2^24.8151 units) because v25 did not consult a per-invocation record. For v25h we searched our session command log (2026-10-10); it records each command with the script text it ran. It shows exactly the four invocations below (commands verbatim, working directory omitted), with each script's SHA-256 equal to the file named here; no other run or import of these scripts occurred in it (the 17:49:05Z and 17:57:22Z sweeps imported proto.py and are separate D23 rows). v25h charges each invocation at its operation count plus 2^31 primitives for the process (X.8's allowance): 2^23.7288 units, so D23 is 2^26.6118 and the total 2^32.923440. v25's window bound gives 32.92621 (v25's claim).
+
+| 2026-10-09 | Command | Time | Inner iterations | Charged primitives (2^31 +) | log2 units | time x 2^27/s |
+| --- | --- | --- | --- | --- | --- | --- |
+| 17:47:07Z | `python3 model.py` | 0.09 s | 20,224 | 42,643,456 | 20.6243 | 2^23.57 |
+| 18:07:35Z | `time python3 sweep.py 8 10 2>&1 \| tail -40` | 4.74 s | 2,042,540 | 4,218,719,616 | 22.1637 | 2^29.24 |
+| 18:07:48Z | `time python3 sweep2.py 9 10 11 12` | 6.40 s | 2,902,928 | 5,957,182,848 | 22.5120 | 2^29.68 |
+| 18:08:09Z | `python3 -c "from sweep import block, cands; t,R=block(10,12,29); print(t); print(tuple(R)); print(cands(10)[:19])"` | 0.07 s | 14,334 | 29,508,992 | 20.6156 | 2^23.06 |
+| | **total** | | | | **23.7288** | |
+
+- **Counting rule** (sweepcount.py, SHA-256 7fb639b1b31dbbd5...; reads the loop structure, runs nothing). 1 primitive per arithmetic, bitwise, comparison, indexing, len/append/bit_length or loop-control operation; 16 per tuple, list, slice, generator or frozenset of at most 4 elements; 32 per set/dict/Counter lookup or update (key of at most 4 small integers); 4 per call. Worst case per innermost iteration (4 Gray-position levels) read from the source: 529 (sweep.block step), 1,000 (cands step), 930 (model.block_cost step), 1,168 (model.py's module-level step); each charged 2^11 (that last 2^12), at least twice the read-off; per-call overheads are charged at 2^16 per block() call, 2^15 for cands()'s most_common, 2^9 per pass and 2^11 per driver configuration, not doubled, and the inner slack (over 1,500 primitives per iteration) exceeds any of them many times over. Trip counts follow the control flow exactly: block() returns None at the first pass that does not fit, after the earlier passes ran; sweep.py then breaks; cands() is recomputed in every block() call. model.py (SHA-256 44202c188808c7ea..., 2,754 B; source not included) runs one module-level loop over 256 Gray steps, then best(P) for P = 1..12, each P passes of 256 block_cost() steps (78 passes); its count is 2% of its 2^31 process charge, so even 100 times it would move the total by under 0.0003. sweep.py and sweep2.py follow.
+- **Basis.** A primitive is one word operation of the computation, the unit of every counted program and D item here; interpreter instructions are not counted, as for every D23 row priced at r5.py's counted programs. Cross-check: recorded time x 2^27 operations/s is below each count charged (table). Time-based bases, not claimed: the 11.3 s recorded at 2^32 / 2^33 / 2^34 / 2^36 primitives per second give 32.9274 / 32.9337 / 32.9462 / 33.0193; v25's windows (298 process-seconds) at the counts' own rate (2^29.77 per second) give 32.9562, so v25's window bound was not an upper bound on this basis, and the per-invocation record is what v25h adds.
+- **v25h's own scripts** (sweepcount.py; astindep.py, SHA-256 b19bc5890410c4bc...; the regenerated ledger and text) compute no target function, load no target code and choose no constant: not runs by Z.4's rule. Charged as two processes of 2^31 primitives: 32.9241. v25h's checks, priced and not charged as verification: one run of the organizer's runner (Python 3.12 in place of Docker) on the public seed, 2026-10-10T10:01:23Z-10:03:03Z: all 16 experiments completed twice with every predicted PASS, report_sha256 fde85f4d..., equal to v25s's public-seed report (Z.6); at most 5.1 s and 87 MB per process; one earlier attempt under Python 3.9 stopped after 47 s in its first experiment (int.bit_count is missing in 3.9); `local_tracks.py check`: mechanically_valid (16 certificates verified).
+- **No verification execution fixes a number.** The executions of Z.5's last row (475), the local organizer runs and v25h's checks chose only the experiment grouping (v25s) and one R7 replay per stratum. astindep.py (AST as data) shows that r5.py 959ea423 (v25s, submitted) and 268461b0 (v25, first metered runs) differ only in rows_for and bp_rows, which algorithm() does not reach; the 101 definitions algorithm() reaches and the 20 constants read by the algorithm or a price (E_PRO, E_STEPS, T2_LEAF, HV_STEP, MATCH_STEP, PER_A, EP, EW, RES, SP, K_SPACES, A_ADV, A_MAX, S2CAP, X_MAX, B_BUDGET, CCAP, B_TRUE, ALPHA3_BITS, BETA2) are identical. No number read by algorithm() or by a price depends on these executions, so H2 (runs whose result fixed, or under their plan could have changed, such a number) does not charge them. This keeps v25's Z.4 exclusion; it differs from W.6, which charged replay_test.py (the replay function run outside the harness), a run of the same kind as v25's timing runs. Charged anyway: 33.8913.
+- **X.5's rule and actual-operation upper bounds:** the earlier runs (mitm2.c, contig.c, fes.c) executed native 64-bit C loops with strictly fewer actual word operations per vector/match/step (<30 ops/vector/block, <35 ops/match, <150 ops/256-step block; D15 native <1,860 CPU-s total) than the submitted counted-program bounds charged under X.5; thus X.5 is a conservative upper bound on actual historical operations, not merely a functional-equivalence substitution. With G2, D15, D19 and D20 at v22b's prices instead: 33.0520.
+- **R7 is listed, not charged** (W.1, 0.1). R7 measures success; its plan's only outcome-dependent decision is whether v20 is claimed; K = 50, the caps and S2CAP were fixed by rule K before it ran. GordoAR's K = 36 was chosen with R7's outcomes known, so v25 does not adopt it. R7 charged: 33.8036.
+
+```python
+# sweep.py (SHA-256 d7a5884dc8bba53e...)
+"""Arithmetic count of the multi-pass E block (mirrors e_blk's counted ops) for (LB, EP, NRES); spill rule:
+a step needs x, a load temporary and one address register per B-dependent level: spills = max(0, 2 + dy - (64 - resident))."""
+import math, itertools, sys
+from collections import Counter
+CN = [[math.comb(n, k) for k in range(5)] for n in range(30)]
+def pos(i):
+    b = []
+    while len(b) < 4 and i:
+        b.append((i & -i).bit_length() - 1); i &= i - 1
+    return b
+def cands(LB):
+    fr = Counter()
+    for r in range(1, 1 << LB):
+        b = pos((1 << LB) * 0b1111 + r)
+        for w in range(1, len(b) + 1):
+            s = b[:w]
+            if max(s) < LB and w < 4:
+                rk = sum(CN[s[v]][v + 1] for v in range(w))
+                top = (w == len(b))
+                fr[(w, rk)] += 0 if top else 2   # lower level: saves load+store; top: saves load but store at pass end
+                if top: fr[(w, rk)] += 1
+    return [k for k, _ in fr.most_common()]
+def block(LB, EP, NRES, spill=2):
+    C = cands(LB); RES = set(C[:NRES])
+    sizes = [24 * (p + 1) // EP - 24 * p // EP for p in range(EP)]
+    tot = 0
+    for p, m in enumerate(sizes):
+        nres = m * (1 + NRES)
+        if nres > 62: return None
+        tot += nres
+        for r in range(1 << LB):
+            b = pos((1 << LB) * 0b1111 + r)
+            d, dy = len(b), sum(q >= LB for q in b)
+            rk = [sum(CN[b[v]][v + 1] for v in range(w + 1)) for w in range(d)]
+            tot += dy + 2 * max(0, spill + dy - (64 - nres))
+            per = 0
+            for w in range(d, 0, -1):
+                res = (w, rk[w - 1]) in RES
+                per += (0 if res else 1) if w == d else (1 if res else 3)
+            tot += m * (per + 1) + (m - 1) + (2 if p else 0) + (1 if p < EP - 1 else 2)
+        tot += m + m * sum(1 for (w, q) in RES if w < 4)
+    return tot, sorted(RES, key=C.index)
+if __name__ == '__main__':
+    for LB in map(int, sys.argv[1:]):
+        best = None
+        for EP in (4, 5, 6, 7, 8, 9, 10, 11, 12):
+            for NRES in range(0, 30):
+                out = block(LB, EP, NRES)
+                if out is None: break
+                t = out[0]
+                if best is None or t < best[0]: best = (t, EP, NRES)
+                if NRES == int(62 / (24 // EP)) - 1 or EP in (6, 8) and NRES in (14, 18, 19):
+                    print(LB, EP, NRES, t, round(t / (1 << LB), 2), flush=True)
+        print('best', LB, best, round(best[0] / (1 << LB), 3))
+```
+
+```python
+# sweep2.py (SHA-256 cfee1a9ea535490f...)
+import sys; from sweep import block
+for LB in map(int, sys.argv[1:]):
+    res = []
+    for EP in (6, 8, 12, 24):
+        m = 24 // EP; top = 62 // m - 1
+        for NRES in range(max(0, top - 6), top + 1):
+            out = block(LB, EP, NRES)
+            if out: res.append((out[0], EP, NRES))
+    res.sort()
+    print(LB, [(t, EP, N, round(t / (1 << LB), 2)) for t, EP, N in res[:6]], flush=True)
+```
 
 Exploratory claim. **v22 is our v20 (84668773) with the changes of Section X and nothing else.** Its algorithm and every definition that algorithm() reaches are v20's, byte for byte; v22 prices the same computation with cheaper counted programs, four of which start from **Th0rgal**'s v21 (a9ec6971, itself our v20 with four tightened routines; "v21" below means it). v22's total is 2^33.093387, claimed 33.09339. v20's preface follows.
 
@@ -191,7 +326,7 @@ Evidence (v22). r5-count trials 0, 2, 4, 6 and 11 checked fes_step's values and 
 
 ### X.5 Development at v22's prices
 
-The lineage prices development at the counted prices of the submitted programs: v14 priced G2 at v14's E, v15 priced G2 and C at v15's E, v17-v19 repriced D15 at their counted T3 programs (V.3, U.6), and v21's own gain over v20 comes from the same rule. With v22's programs: G2's 530 E spaces at 66,831 per block; D15's contiguous run, layouts and certified run at 899/16 per match and 86 or 83 per half vector; D15's T1/T2 export at 26 per leaf; D19's contig.c run at 899/16 + 31 per match and 83 per half vector; D20's R7 self-test at 66,831 per block. The other D19 and D20 items keep v20's prices, which only over-charges (without any repricing of D19 and D20: 33.0979). These runs were made by native or older programs (mitm2.c, contig.c, fes.c) that compute the same functions; the rule prices the computation they performed at the submitted program's counted price. **A reader who rejects that rule should use 33.1571** (G2, D15, D19 and D20 at v20's prices, D21 and D22 charged), which is above v20's 33.14493: v22's improvement over v20 comes from the rule, as v17's to v21's did.
+The lineage prices development at the counted prices of the submitted programs: v14 priced G2 at v14's E, v15 priced G2 and C at v15's E, v17-v19 repriced D15 at their counted T3 programs (V.3, U.6), and v21's own gain over v20 comes from the same rule. With v22's programs: G2's 530 E spaces at 66,831 per block; D15's contiguous run, layouts and certified run at 899/16 per match and 86 or 83 per half vector; D15's T1/T2 export at 26 per leaf; D19's contig.c run at 899/16 + 31 per match and 83 per half vector; D20's R7 self-test at 66,831 per block. The other D19 and D20 items keep v20's prices, which only over-charges (without any repricing of D19 and D20: 33.0979). These runs were made by native or older programs (mitm2.c, contig.c, fes.c) whose native 64-bit C loops execute strictly fewer actual word operations (<30/vector/block, <35/match, <150/block; <1,860 CPU-s in D15) than the submitted counted-program bounds charged here, so X.5 is a conservative upper bound on actual historical operations. **A reader who rejects that rule should use 33.1571** (G2, D15, D19 and D20 at v20's prices, D21 and D22 charged), which is above v20's 33.14493: v22's improvement over v20 comes from the rule, as v17's to v21's did.
 
 ### X.6 Th0rgal's v21: what we checked
 
@@ -228,46 +363,7 @@ Scripts that compute no target function and load no target code are not runs: le
 
 ### X.9 Ledger (log2 units; exact rationals, rate 1355; ledger_v22.py)
 
-| Term | v20 | v21 (Th0rgal, as stated) | v22 |
-| --- | --- | --- | --- |
-| P: T2 | 26.0135 | 25.5985 | 24.9066 |
-| P: T3 half vectors | 21.7151 | 21.6693 | 21.5052 |
-| P: T3 matches | 24.6390 | 24.6376 | 24.6350 |
-| P | 28.6592 | 28.5999 | 28.5281 |
-| B' / S / connector | 29.0000 / 22.5959 / 28.5132 | same | same |
-| E stage 1 | 27.3191 | 27.3030 | 27.2680 |
-| **Algorithm** | 30.5033 | 30.4852 | **30.4623** |
-| G2 | 30.9994 | 30.9861 | 30.9572 |
-| D15 | 32.1064 | 32.0701 | 32.0018 |
-| D16 / D19 / D20 | 27 / 28.9135 / 29.0751 | 27 / 28.9135 / 29.0751 | 27 / 28.8303 / 29.0748 |
-| D21 / D22 | - | 22.6077 / - | 22.6078 / 26.7962 |
-| **Development** | 32.8930 | 32.8696 | **32.8394** |
-| **Total** | 33.144923 -> 33.14493 | 33.122414 -> 33.12242 | **33.093387 -> 33.09339** |
-| Preprocessing (P, B', S, development) | 33.058081 -> 33.05809 | 33.034470 -> 33.03447 | 33.004263 -> 33.00427 |
-
-ledger_v22.py reproduces v20's 2^33.144923 exactly with v20's prices. Sensitivities (not claimed; totals rounded up, lower bounds rounded down):
-
-| Change | Total |
-| --- | --- |
-| no development repricing (G2, D15, D19, D20 at v20's prices; X.5) | 33.1571 |
-| C charged | 33.6128 |
-| C, R5 and R6 charged | 35.3218 |
-| R7 charged | 33.9770 |
-| C, R5, R6 and R7 charged | 35.5610 |
-| S2CAP kept at 2^21 | 33.1502 |
-| our local organizer runs for v22 charged | 33.3294 |
-| D21 not charged | 33.0924 |
-| D22 doubled | 33.1117 |
-| D15 doubled | 33.6485 |
-| no repricing of D19 and D20 only | 33.0979 |
-| match step at v20's price | 33.1410 |
-| T2 leaf and step at v20's price | 33.1048 |
-| half-vector step at v20's price | 33.0948 |
-| E block at v20's price | 33.1041 |
-| B2 with its re-count charged (lower bound, X.7) | 33.1422 |
-| 395e8a28's T.1 / T.3 adopted, their runs charged (X.7) | 33.1850 / 33.0970 |
-| v17's B' re-derivations charged | 33.9101 |
-| A1 charged | 40.9861 |
+(R5N: superseded ledger condensed to fit the 512 KiB judge-evidence budget; its table and sensitivities are in 0f72a85e's proof, unchanged. Appendices J and L govern.)
 
 ### X.10 Organizer experiments and our local checks in v22
 
@@ -311,7 +407,7 @@ Every SHA-256 value, every disclosed run and every number that a claim, bound, p
 | W.1 K, A_ADV, A_MAX, S2CAP | 2.3-2.6 | 96, 2^11, 2^13 (v10, from G2; K kept by C's rule); S2CAP = 2^21 (v13's cap rule) | 50, 1067, 4268 and 2^11 by rule K: an analysis of P's exact output and of R7's design, written and hashed before any run of R7; no run outcome is an input | rule.txt, krule.py (Appendix F) |
 | W.2 Success evidence | 5 | R6 44/48 and R5 46/48, complete runs of v19 (K = 96) | R7: 48 pre-registered complete runs of v20; 39 succeed, one-sided 95% Clopper-Pearson bound 0.6956 | W.2, Appendix F; certificates; r5-R-0..7 and r5-bpfull replay R7 runs |
 | W.3 C | 0.1 | charged, 2^31.9189 (its only role: keeping K = 96) | not charged (K no longer depends on it); G2 stays charged | W.3 |
-| W.4 Order of P's T3 (= 0xshikhar's T.2) | 2.1, 7 | level by level over all cores (r5.py's trail_search kept every core's half tables: 48,592,224 vectors of 1,600 bits, about 2^33.2 bytes, above the declared 2^30) | core by core, all seven levels per core: the same output, counts and terms, with one core's half tables in memory | Lemma W; r5-count trials 8-10 |
+| W.4 Order of P's T3 (= 0xshikhar's T.2) | 2.1, 7 | level by level over all cores (r5.py's trail_search kept every core's half tables: 48,592,224 vectors of 1,600 bits, about 2^33.2 bytes, above 2^30) | core by core, all seven levels per core: the same output, counts and terms, with one core's half tables in memory | Lemma W; r5-count trials 8-10 |
 | W.5 D15 (includes 0xshikhar's T.4) | V.3 | the native T3 runs' half vectors priced once | priced at every level, as those programs computed them | Appendix A (mitm2.c) |
 | W.6 D20 | 0.1 | - | every run we made for v20 except executions of the organizer's harness and the study R7 (our replay test included): 2^29.0751 units | W.6 |
 | W.11 395e8a28's T.1 and T.3 | 2.4, V.3 | - | considered, not adopted: with their runs charged as this lineage charges such runs, neither lowers the total | W.11 |
@@ -413,11 +509,11 @@ R7's plan and rule 0.1. plan.txt's one outcome-dependent decision reads: "the v2
 
 ### W.4 P's T3 core by core: the same output and terms, one core's tables in memory
 
-v19 inherited a gap in T3's memory schedule; a review of 0xshikhar's v17 (cade0f12), which ran the same code, rated it fatal. The gap is real: P's half-vector term charges every core's half tables once (HV x 96, all 127 keys included), the reference trail_search kept the half tables of all 467 cores across the seven levels (48,592,224 vectors of 1,600 bits, about 2^33.2 bytes, above the declared 2^30 bytes), and the native mitm2.c instead recomputed each core's tables at every level (7 x HV steps, more time than the term charges). v20 makes the schedule part of the algorithm. P's T3 runs core by core: for each kept core in T2's order it builds the two half tables once (hv_step, all keys), runs the seven levels on them (sort and merge per block, the match step with the global counter and its cap M_CAP), keeps for each level the least (w1, w2, choice) found so far (on ties the earlier core), and frees the tables. After the last core it outputs the best leaf of the first level nb whose best has w1 <= 2 nb - 1, or nothing. trail_search in r5.py is now this loop.
+v19 inherited a gap in T3's memory schedule; a review of 0xshikhar's v17 (cade0f12), which ran the same code, rated it fatal. The gap is real: P's half-vector term charges every core's half tables once (HV x 96, all 127 keys included), the reference trail_search kept the half tables of all 467 cores across the seven levels (48,592,224 vectors of 1,600 bits, about 2^33.2 bytes, above 2^30 bytes), and the native mitm2.c instead recomputed each core's tables at every level (7 x HV steps, more time than the term charges). v20 makes the schedule part of the algorithm. P's T3 runs core by core: for each kept core in T2's order it builds the two half tables once (hv_step, all keys), runs the seven levels on them (sort and merge per block, the match step with the global counter and its cap M_CAP), keeps for each level the least (w1, w2, choice) found so far (on ties the earlier core), and frees the tables. After the last core it outputs the best leaf of the first level nb whose best has w1 <= 2 nb - 1, or nothing. trail_search in r5.py is now this loop.
 
 Lemma W (same output). The matches, evaluations and best leaf of a core at a level depend only on that core's half tables and on nb, not on the order in which the (core, level) pairs are processed. The level-by-level order stops at the first certifying level; on the target only level 64, the last, certifies (2.1), so both orders process every (core, level) pair: the same 7,251,935 matches (below M_CAP = 2^24), the same per-level bests, the same certifying level and the same output (core 17, w1 = 127, w2 = 24, Section 3). In general the core-by-core order processes all seven levels, so its counter can reach M_CAP where the level order would have stopped earlier; that ends P without output, and every cost bound holds either way. The terms of 2.1 already charge all seven levels for all cores (127 blocks per core), HV x 96 once and the matches at M_CAP, so P's charge is unchanged.
 
-Memory. One core's half tables hold at most 2 x 9^5 entries of 22 words (7 plane words, 15 key words) of 32 bytes, 83.1 MB; with the w2 and choice arrays and the key-index pairs of one block's sort (2 x 9^5 x 8 bytes) they stay under 2^27 bytes, beside T1/T2's list of 467 kept cores. With B' (at most 113.5 MB, v14) and E (about 42 MB), every phase stays under 2^28 bytes; declared 2^30 (Section 7). The organizer checks the new loop: r5-count trials 8 and 9 run trail_search on the sub-problem [core 874, core 1136] (102 matches with all levels; CapReached with cap 0), and trial 10 and r5-mitm-0, 1 check single cores at level 64 as before. Our check ptrial_check.py ran trials 8 and 9 on the new loop before the organizer runs (D20). The sensitivity with every core's half tables recomputed at every level (7 x HV x 96) is 33.1481.
+Memory. One core's half tables hold at most 2 x 9^5 entries of 22 words (7 plane words, 15 key words) of 32 bytes, 83.1 MB; with the w2 and choice arrays and the key-index pairs of one block's sort (2 x 9^5 x 8 bytes) they stay under 2^27 bytes, beside T1/T2's list of 467 kept cores. With B' (at most 113.5 MB, v14) and E (about 42 MB), every phase stays under 2^28 bytes; the claim's memory figure is Appendix K's (Section 7). The organizer checks the new loop: r5-count trials 8 and 9 run trail_search on the sub-problem [core 874, core 1136] (102 matches with all levels; CapReached with cap 0), and trial 10 and r5-mitm-0, 1 check single cores at level 64 as before. Our check ptrial_check.py ran trials 8 and 9 on the new loop before the organizer runs (D20). The sensitivity with every core's half tables recomputed at every level (7 x HV x 96) is 33.1481.
 
 The bound of 2 x 9^5 entries per core. A row's factor in the half tables is the number of chi input differences compatible with its output difference: 9 for a single-bit output, at most 10 for two bits, at most 12 in all. A core has at most 10 bits. A ten-row core has ten single-bit rows, and its best split (h minimises the sum of the two products) gives 9^5 + 9^5. A core with r <= 9 rows has at most 10 - r extra bits, and its best split is at most the balanced one: at most 9^4 x 10 + 9^4 = 72,171 entries for r = 9, fewer for fewer rows. So every core's two half tables hold at most 2 x 9^5 = 118,098 entries (48,592,224 over all 467 kept cores, as r5-trail-0..3 recount).
 
@@ -445,7 +541,7 @@ Scripts that compute no target function and load no target code are not runs: kr
 
 ### W.7 Considered and not adopted: a re-count of v15's contiguous run with a popcount filter (B2)
 
-(v22: at v22's prices in X.7.) Our study proposed a 31-primitive filter in front of the match step (the popcount of alpha2's bit-0 plane on rows 0..255 must be below nb, a necessary condition for AS < nb) and an exact re-count of v15's stopped contiguous run on all 467 cores, to price D15's largest item with the filter. The re-count would fix a number of the claim, so by our rule and v15's precedent (its count-only recounts were charged) it is charged. It must evaluate the filter on every match of the run, at least 4.245 x 10^10 + 1.145 x 10^10 (v15's two last levels at their smallest rounding), and sort and merge 138 blocks of HV half vectors: the repriced item is at least 2^30.5678 units and the re-count at least 2^30.5386, together at least 2^31.5533, above the item as v20 prices it without them (2^31.5139). B2 cannot lower the total; we did not adopt it and did not run the re-count (ledger_v20.py prints these bounds).
+(v22: at v22's prices in X.7. R5N2: condensed.) Our study proposed a 31-primitive filter in front of the match step and an exact re-count of v15's stopped contiguous run; the re-count would fix a number of the claim, so by our rule and v15's precedent it is charged, and then B2 cannot lower the total: the repriced item is at least 2^30.5678 units and the re-count at least 2^30.5386, together at least 2^31.5533, above the item as v20 prices it without them (2^31.5139). We did not adopt B2 and did not run the re-count (ledger_v20.py prints these bounds).
 
 ### W.8 R5 and R6 in v20
 
@@ -453,24 +549,7 @@ R5 (v14's) and R6 (v15's) are complete runs of v19 (Lemma 6) with K = 96, A_ADV 
 
 ### W.9 Ledger (log2 units; exact rationals, rate 1355; ledger_v20.py)
 
-| Term | v19 | v20 |
-| --- | --- | --- |
-| P | 28.6592 | 28.6592 (unchanged; T3 core by core, W.4) |
-| B' / S | 29.0000 / 22.5959 | 29.0000 / 22.5959 |
-| Connector | 29.4539 | 28.5132 (A_MAX = 4268) |
-| Bases / E setup | 20.1809 / 22.5850 | 19.2398 / 21.6439 (K = 50) |
-| E stage 1 | 28.2602 | 27.3191 (K = 50) |
-| E stage 2 | 29.3970 | 18.4559 (K = 50, S2CAP = 2^11) |
-| **Algorithm** | 31.3507 | **30.5033** |
-| G2 | 30.9994 | 30.9994 |
-| C | 31.9189 | not charged (W.3) |
-| D15 | 32.0899 | 32.1064 (W.5) |
-| D16 / D19 / D20 | 27 / 28.9135 / - | 27 / 28.9135 / 29.0751 |
-| **Development** | 33.4106 | **32.8930** |
-| **Total** | 33.7207 -> 33.7208 | **33.144923 -> 33.14493** |
-| Preprocessing (P, B', S, development) | 33.5279 -> 33.53 | 33.058081 -> 33.05809 |
-
-Sensitivities at v20's prices (not claimed; totals rounded up; X.9 gives v22's): C charged 33.6585; C, R5 and R6 charged 35.3462; R7 charged 34.0173; C, R5, R6 and R7 charged 35.5857; S2CAP kept at 2^21 33.1998; v19's constants (K = 96, A_ADV = 2^11, A_MAX = 2^13, S2CAP = 2^21) with C charged 33.7824; 395e8a28's T.1 adopted with its development charged (W.11) 33.2334, not charged 33.1447; its T.3 adopted with its measurement charged (W.11) 33.1484, not charged 33.1270; both adopted, neither charged 33.1268; P's half vectors recomputed at every level 33.1481; D15 at v19's pricing (half vectors once) 33.1370; our local organizer runs for v20 charged 33.3739; D20 doubled 33.2284; D15 doubled 33.7172; v17's B' re-derivations charged 33.9396; A1 charged 40.9864.
+(R5N: superseded ledger condensed to fit the 512 KiB judge-evidence budget; its table and sensitivities are in 0f72a85e's proof, unchanged. Appendices J and L govern.)
 
 ### W.10 Organizer experiments and our local checks in v20
 
@@ -518,15 +597,15 @@ Credits first. v19 is **Meganpark980320's v18** (f1eb6445; its v17 168a1b3a) wit
 
 ### U.1 Match step: 62 per match, 11 per (a, block) (match_step and per_a in r5.py)
 
-(v22: superseded by Section X.1, which gives v20's step of 62 in full.) v19 moved A's 7 word loads and the match counter's update and M_CAP test from every match (v18: 83, V.1) to per_a, once per (a, block) whose run is not empty: 7 + 2 + 2 = 11, inside 2.1's bound of 2^6 per half vector per block, of which V.1 uses 37 (37 + 11 = 48 <= 64). per_a raises CapReached at the same (a, block) run as v18, so P's output and stopping rule are unchanged (mitm_core, the Python driver, keeps v15's per-match test). Checked by r5-mitm-1 trial 2 and our proto_match.py (all 49,060 level-64 matches of the output core and 344 level-32 matches, against v18's step and the plain evaluation). Price then: P's matches 2^24 x (62 + 2^11) = 2^24.6390 units (v18 2^24.6532).
+(v22: superseded by Section X.1, which gives v20's step of 62 in full. R5N2: condensed; v19's per_a, once per (a, block) whose run is not empty, 7 + 2 + 2 = 11, was checked by r5-mitm-1 trial 2. Price then: P's matches 2^24 x (62 + 2^11) = 2^24.6390 units.)
 
 ### U.2 E stage 1 with D1[0] in registers (fes_step in r5.py)
 
-(v22: superseded by Section X.4, which starts from this block.) D1[0] is read and written exactly at the odd steps, so v19 keeps its 24 words in registers for the whole space (loaded inside the setup bound of 2^16 units): a step counts 29 + 2 x (positions from the block index) + 24 x (2, 5, 8, 11) at even steps or 24 x (1, 3, 6, 9) at odd steps, 128 x 245 + 128 x 293 + 280 + 98 = 69,242 per block (v18 75,386), in at most 64 registers. Stage 2's spill and restore of the 48 register words (at most 96 per pair) lies inside its 2^11 per pair. Checked by r5-count trials 0, 2, 4, 6 and our check_e1.py (2 x 1,023 steps next to v18's step: equal words at every step).
+(v22: superseded by Section X.4, which starts from this block. R5N2: condensed; v19 kept D1[0] in registers for the whole space, 69,242 per block (v18 75,386), checked by r5-count trials 0, 2, 4, 6.)
 
 ### U.3 T2 leaf: a bitsliced test (t2_leaf in r5.py)
 
-(v22: superseded by Section X.2.) v19 kept the 64 digest-plane rows of L(alpha4) bitsliced and tested ALLOW = {q : DDT[q][0] + DDT[q][16] > 0} = {0, 16, 20, 21, 24, 26, 28, 29, 30, 31} = x4 (x2 OR NOT x0)(x3 OR NOT x1) OR NOT (x4 OR x3 OR x2 OR x1 OR x0) with 12 gates: 22 per leaf, 56 with v15's 2-word Gray step (v18: 166), the same decisions, so C1, P45 > 0 and the 467 kept cores are unchanged. Checked by r5-count trials 1, 3, 5, 7, our t2walk.py (the first 300,000 leaves of the output core) and proto_t2.py (80,000 leaves against v18's t2_leaf). Price then: C1 x 56 = 2^26.0135 units (v18 2^27.5812).
+(v22: superseded by Section X.2. R5N2: condensed; v19's bitsliced ALLOW test, 22 per leaf, 56 with v15's Gray step (v18: 166), the same decisions, was checked by r5-count trials 1, 3, 5, 7. Price then: C1 x 56 = 2^26.0135 units.)
 
 ### U.4 D15 completed: the T1/T2 run behind cores.bin
 
@@ -564,7 +643,7 @@ Inherited premises, disclosed and unchanged: A1 uncharged (V.6); v17's B' re-der
 
 ### U.8 Ledger (log2 units; exact rationals, rate 1355; ledger_v19.py)
 
-v19's terms are W.9's v19 column. Against v18: P 29.0537 -> 28.6592 (T2 27.5812 -> 26.0135, matches 24.6532 -> 24.6390); B' 29.0000, connector 29.4539, E stage 2 29.3970 and S, bases, E setup and output unchanged; E stage 1 28.3829 -> 28.2602; algorithm 31.4335 -> 31.3507; G2 31.1003 -> 30.9994; C 31.9977 -> 31.9189; D15 32.3521 -> 32.0899 (contiguous run 31.4988, layouts 29.1769, certified run 28.1652, rest 28.9858, T1/T2 export 26.5335); D16 27; D19 28.9135 added; total 33.8145 -> 33.7207 (claimed 33.7208); preprocessing (P, B', S, development) 33.6315 -> 33.5279 (claimed 33.53). v19's sensitivities at its prices (not claimed): match step at 83 33.83; E at 75,386 per block 33.77; T2 at 166 33.75; all three program changes undone (v18 with U.4 and D19) 33.89; D19 doubled 33.78; our local organizer runs charged 33.76; S2CAP 2^11 (not adopted) 33.65; D15 doubled 34.13; v17's B' re-derivations charged 34.30; A1 charged 40.99.
+(R5N: superseded ledger condensed to fit the 512 KiB judge-evidence budget; its table and sensitivities are in 0f72a85e's proof, unchanged. Appendices J and L govern.)
 
 ## V. What v17 and v18 change (accounting of v15's own computation; no new heuristic; v18's text and numbers, superseded where Section U says so)
 
@@ -581,7 +660,7 @@ Result: algorithm 2^33.9407 -> 2^31.4335; development 2^35.2659 -> 2^33.5070; to
 
 ### V.1 The counted T3 programs (hv_step, match_step in r5.py)
 
-(v22: superseded by Sections X.1 and X.3.) v17 replaced v15's T3 bounds by counted steps. Every key of every level is a linear function of the half vector (the block's row fields folded into 26 bits; at 64 blocks the 25-bit field itself), so hv_step tabulates with each half vector all 127 keys of the 7 levels (15 key words of 9 keys of 26 bits) and steps them by the same mixed-radix Gray XOR as its 7 plane words: 96 per half vector (v15: 2^7, plus 2^11 per level for the keys). The per-row difference tables cost below 2^31 primitives over all 467 cores, and P's setup bound is raised from 2^31 to 2^32 primitives to cover them; extracting a key (3) lies inside the sort-and-merge price of 2^6 per half vector per block (37 with two radix passes of 14 and the merge step of 6). The keys are v15's (r5-mitm-1 trial 1 compares all 22 words with v15's halves() and mkey at sampled steps of both full tables of the output core), so match sets, counts (7,251,935 in the native run), evaluations and P's output are v15's (Lemma P unchanged). The match step (alpha2 = LA(a) + LB(b) in 7 plane words) was counted at 83 (v15: 2^9); the full evaluation keeps 2^11.
+(v22: superseded by Sections X.1 and X.3. R5N2: condensed.) v17 replaced v15's T3 bounds by counted steps: every key of every level is a linear function of the half vector, so hv_step tabulates all 127 keys with each half vector and steps them with its 7 plane words by the same mixed-radix Gray XOR (96 per half vector; P's setup bound 2^32 primitives covers the difference tables). The keys are v15's (r5-mitm-1 trial 1 compares them at sampled steps of both full tables of the output core), so match sets, counts (7,251,935), evaluations and P's output are v15's (Lemma P unchanged). The match step was counted at 83 (v15: 2^9); the full evaluation keeps 2^11.
 
 ### V.2 Caps by v13's run-free rule
 
@@ -606,7 +685,7 @@ D16 (our development for v16/v17, charged at a stated bound of **2^27 units**): 
 
 ### V.4 Ledger
 
-v15 -> v17 (log2 units): P 30.0286 -> 29.0537 (half vectors incl. all keys 21.7151; keys term 28.9375 -> 0; matches 25.5959 -> 24.6532; setup 2^32 primitives); B' 32.0000 -> 29.0000 (B_TRUE); connector 32.2180 -> 29.4539; E stage 1 28.6887 -> 28.3829 (v18, V.7); E stage 2 32.3970 -> 29.3970; S, bases, E setup and output as v15; algorithm 33.9407 -> 31.4335; G2 31.8877 -> 31.1003 (its B' 2^30.4349 -> 2^27.8175; 530 E spaces at v18's E); C 33.2426 -> 31.9977 (its B' 2^32.5422 -> 2^29.9498; 768 E spaces at v18's E); D15 34.6617 -> 32.3521; D16 27; total 35.7504 -> 33.8145 (claimed 35.76 -> 33.82); preprocessing (P, B', S, development) 35.4430 -> 33.6315. Sensitivities (not claimed; every one below v15's 35.76): E stage 1 at v17's 364 per step 33.9248; B' at v15's 2^32 budget (no B_TRUE) 34.1350; G2 and C B' at WK prices 34.3990; D15 doubled 34.2612; B_TRUE, G2/C B' repricing and the E change all undone 34.6249.
+v15 -> v17: log2-unit comparison, superseded by X.9/Z.9 (condensed; total 35.7504 -> 33.8145).
 
 ### V.5 B' at its true cost
 
@@ -629,7 +708,7 @@ So C's B' costs 2^29.9498 units instead of 2^32.5422 and G2's B' 2^27.8175 inste
 
 ### V.7 E stage 1 as unrolled blocks (v18)
 
-(v22: the block price is X.4's; the structure is v18's.) v15 charged each of the 2^24 Gray steps at its longest path, 364 primitives per 256 pairs (264 for the derivative vectors, 26 for the pass test, 74 of control that depends only on the step index i). v18's stage 1 is the same recursion in the same Gray order, computing the same words (Lemma 4 and every output unchanged), as blocks of 256 steps of straight-line code: in step r of block B (i = 256 B + r) the set bits below bit 8 and their ranks are constants of the step's code; the set bits taken from B and their partial ranks are computed once per block by the prologue pro (the comparison tree on B and 16 load-and-add pairs: at most 98; v22: 117 with the stores, X.4). Over a block (r = 0 takes four positions from B, the 8 values of r with one set bit three, the 28 with two two, the 56 with three one) v18's bound is 256 x 293 + 2 x (4 + 24 + 56 + 56) + 98 = 75,386 per block (294.48 per step, against 364). r5-count trials 0, 2, 4, 6 run two blocks (511 steps, the second prologue included). The same price applies, by V.3's rule, to the E spaces of the charged development (G2's 530, C's 768).
+(v22: block price in X.4; v25: Z.3.) v18 unrolled v15's 2^24 Gray steps (364/step) into 256-step blocks (75,386/block = 294.48/step, prologue 98; r5-count trials 0,2,4,6 run 2 blocks), applied to G2 (530 spaces) and C (768 spaces) by V.3.
 
 ### V.6 A1 (v7's design study) stays uncharged, as in v13, v14 and v15
 
@@ -648,12 +727,12 @@ Credits for v17: the base is rubenmarcus's v15 (91f1424d); everything not listed
 | time_log2 (v22) | 33.09339 | v22: 2^33.093387, rounded up (Section X.9); v20: 2^33.144923 (Section W.9); v19: 2^33.7207 (Section U.8); v18: 2^33.8145 (Section V). v15's basis was 2^35.7504, rounded up: the algorithm, 2^33.9407 (Section 6), plus the charged development: v14's G2 (2^31.8877) and C (2^33.2426), priced at v15's counted programs as v14's rule prescribes, and our own development D15 (2^34.6617) (Section 0.1) |
 | success_probability | 0.40 | (v20) R7 (pre-registered, 48 complete runs of v20): 39 successes, one-sided 95% Clopper-Pearson bound 0.6956 (Section W.2). v19's basis: R6 (pre-registered, 48 complete runs of v15): 44 successes, one-sided 95% Clopper-Pearson bound 0.8193; R5 (v14's, 48 runs that are complete runs of v15): 46 successes, bound 0.874 (Section 5) |
 | preprocessing_log2 (v22) | 33.00427 | P, B', S and the charged development: v22 2^33.004263, v20 2^33.058081, v19 2^33.5279, v18 2^33.6315 (v15 2^35.4430) |
-| memory_log2_bytes | 30 | largest phase under 2^28 bytes (Section 7; v20: T3 core by core, Section W.4) |
+| memory_log2_bytes | 25.509178153459 (K) | largest phase, E: 47,755,983 B (Appendix K; R5N) |
 | nonuniform_advice_log2_bytes | 0 | the algorithm computes its trail and its connector advice; development is charged as preprocessing |
 
 Board when this was written (2026-10-08): v8 113fc836 promoted at 40.26; lowest pending claim v14 f1cedf6b at 37.05. (v22, 2026-10-09, as given to us: Th0rgal's v21 a9ec6971 at 33.12242 in review; our v20 84668773 at 33.14493, plausible_not_refuted; v8 113fc836 promoted at 40.26.) (v20, 2026-10-08T18:46Z: v8 113fc836 promoted at 40.26; lowest in review 0xshikhar's 395e8a28 at 33.6804, then our v19 a2d6ce92 at 33.7208 and Meganpark980320's v18 f1eb6445 at 33.82.)
 
-(v15's text, condensed.) v15's two changes, term by term (log2 units, v15's prices; Section 6): P 33.65 -> 30.03; E stage 1 32.76 -> 28.69, with the fast exhaustive search's setup (96 x 2^16 units, 2^22.59; larger, and negligible) in place of v14's (96 x 2^24 primitives, 2^20.18); the algorithm 2^35.0558 -> 2^33.9407, its remaining large terms v14's caps (B' 2^32, connector 2^32.22, stage 2 2^32.40), which v15 kept (2.6). v14's charged development G2 and C, mostly E on 530 and 768 spaces, priced at v15's E as v14 priced it at v14's E: 2^35.28 and 2^35.91 -> 2^31.89 and 2^33.24. v15's own development D15 (2^34.66, mostly one abandoned run of an earlier block layout of T3) is charged in full. Sensitivities then (0.1): G2 and C at v14's prices 37.13, not below v14's 37.05, so the improvement rested on pricing development at the submitted programs' counted prices, v14's own rule (H2); without D15 34.83; D15 at twice its charge 36.31; v14's uncharged items charged: see 0.1.
+(v15 summary, superseded by X.9/Z.9; condensed: total 37.05 -> 35.76.)
 
 ### 0.1 Development: what is charged, and why (H2)
 
@@ -729,7 +808,7 @@ T3 (backward) by meet-in-the-middle on zero blocks of alpha2 (new in v15; replac
 
 Lemma P (certification gives v14's output). At level nb every leaf with AS(alpha2) <= nb - 1 is found: its nb - 1 or fewer active rows miss some block, on which LA(a) = LB(b), so the keys agree. Every leaf not found has AS >= nb, so w1 >= 2 AS >= 2 nb > W* (no nonzero chi5 DDT entry exceeds 8 of 32, so every active row of alpha2 costs at least 2). Hence W* is the least w1 over all leaves of all kept cores, and every leaf with w1 = W* is found (its AS <= W*/2 < nb), so the tie-break among them is exact. This is the output of v14's T3 (which visits all 1.38 x 10^12 leaves): the least (w1, w2), then the earlier core, then the least choice vector.
 
-Native run (mitm2.c, Appendix A; P's T3 on the 467 kept cores exported by the experiment file's T1, T2 and core_tables). Levels 1, 2, 4, 8, 16, 32 find no leaf with AS <= nb - 1. Level 64 evaluates 30 matches, all on core 17 of T2's order (core No. 349 of T1's list), and certifies W* = 127 <= 127: w2 = 24, choice (0, 0, 3, 0, 0, 0, 0, 0, 3, 1), whose beta2 is BETA2 of Section 3. That is v14's trail (GLL+20 core No. 3), found exactly. Matches per level: 20,490, 40,849, 81,791, 165,085, 329,494, 818,094 and 5,796,132 (7,251,935 in all, 2.31 times below M_CAP). The run took 370 s on 5 threads (250 CPU-s user, 46 s system, 233 MB). The per-core log (matches and evaluations of every core at every level) has SHA-256 given in Appendix A; r5.py holds its level-64 column (MT6).
+Native run (mitm2.c, Appendix A; P's T3 on the 467 kept cores exported by the experiment file's T1, T2 and core_tables; R.8's capped run reproduces its counts and result). Levels 1, 2, 4, 8, 16, 32 find no leaf with AS <= nb - 1. Level 64 evaluates 30 matches, all on core 17 of T2's order (core No. 349 of T1's list), and certifies W* = 127 <= 127: w2 = 24, choice (0, 0, 3, 0, 0, 0, 0, 0, 3, 1), whose beta2 is BETA2 of Section 3. That is v14's trail (GLL+20 core No. 3), found exactly. Matches per level: 20,490, 40,849, 81,791, 165,085, 329,494, 818,094 and 5,796,132 (7,251,935 in all, 2.31 times below M_CAP). The run took 370 s on 5 threads (250 CPU-s user, 46 s system, 233 MB). The per-core log (matches and evaluations of every core at every level) has SHA-256 given in Appendix A; r5.py holds its level-64 column (MT6).
 
 The block layout matters for the cost, not for correctness: an earlier run with contiguous blocks (rows 5t..5t+4 of one plane, so a block's rows share theta's column effect) produced 1.15 x 10^10 matches at nb = 32 alone and was stopped. That run and the small comparison that chose the slice stride 13 are charged as development (0.1, D15).
 
@@ -850,7 +929,7 @@ G2 (charged, 0.1): the v6 run (one advice, 14 positive spaces in the first 512 a
 
 ### 4.6 Organizer experiments
 
-(v15's section, condensed; the current experiments and local runs are in Sections W.10 and X.10, and experiments/manifest.json states each experiment's scope and hypothesis.) r5.py holds the reference algorithm and all experiments in one file (the organizer's limits: 16 experiments and 64 KiB of source). r5-R-* return real collisions; the others check programs and counts and return sentinels, PASS (00^135, 01 || 00^134) or FAIL (00^135, 02 || 00^134): r5-trail-0..3 recount P's structural counts per lane group (T1 nodes per lane; cores, C1, P45 > 0, C2, HV); r5-count checks the counted stage 1 against e_plain, T2's counted leaf, P's driver on the sub-problem [core 874, core 1136] with all levels and with its cap, and T3's certifying level on the output core (49,060 matches, 30 evaluations, the trail of Section 3); r5-mitm-0, 1 run T3's level of 64 blocks on a seed-picked kept core (re-derived by T1 from its lane and the mask LANEM; match count = the native log MT6), and r5-mitm-1 also the counted half-vector step over both half tables of the output core and the counted match step on 4 seed-picked level-64 blocks of it; r5-bpfull runs a whole logged B' from its label (logged cost and advice), both B' caps, the study's table and bound, and connector attempts with organizer coins; r5-R-0..7 replay two seed-picked logged successes of a stratum (advice re-derived from the label, logged connector statuses re-run, E's 2^12-coordinate window returns the logged collision). r5-mitm-0, 1 audit 2 of the 467 per-core match counts per review (each wrong count caught with probability about 2/467 per review); the output core, whose count and trail matter for the certification, is checked on every review (r5-count trial 10). v15's local runs (experiments/runner.py with Python 3.12 in place of Docker, each experiment twice with byte-identical output, on the public seed and the nonces "v15-nonce-1" and "v15-nonce-2", written down before the runs) passed all 16 experiments on all three seeds, at most 11.8 CPU-s and 93 MB per experiment.
+(v15's section, condensed; the current experiments and local runs are in Sections W.10 and X.10, and experiments/manifest.json states each experiment's scope and hypothesis.) r5.py holds the reference algorithm and all experiments in one file (the organizer's limits: 16 experiments and 64 KiB of source). r5-R-* return real collisions; the others check programs and counts and return sentinels, PASS (00^135, 01 || 00^134) or FAIL (00^135, 02 || 00^134): r5-trail-0..3 recount P's structural counts per lane group (T1 nodes per lane; cores, C1, P45 > 0, C2, HV); r5-count checks the counted stage 1 against e_plain, T2's counted leaf, P's driver on the sub-problem [core 874, core 1136] with all levels and with its cap, and T3's certifying level on the output core (49,060 matches, 30 evaluations, the trail of Section 3); r5-mitm-0, 1 run T3's level of 64 blocks on a seed-picked kept core (re-derived by T1 from its lane and the mask LANEM; match count = the native log MT6), and r5-mitm-1 also the counted half-vector step over both half tables of the output core and the counted match step on 4 seed-picked level-64 blocks of it; r5-bpfull runs a whole logged B' from its label (logged cost and advice), both B' caps, the study's table and bound, and connector attempts with organizer coins; r5-R-0..7 replay two seed-picked logged successes of a stratum (advice re-derived from the label, logged connector statuses re-run, E's 2^12-coordinate window returns the logged collision). r5-mitm-0, 1 review 2 of the 467 per-core match counts per review (each wrong count caught with probability about 2/467 per review); the output core, whose count and trail matter for the certification, is checked on every review (r5-count trial 10). v15's local runs (experiments/runner.py with Python 3.12 in place of Docker, each experiment twice with byte-identical output, on the public seed and the nonces "v15-nonce-1" and "v15-nonce-2", written down before the runs) passed all 16 experiments on all three seeds, at most 11.8 CPU-s and 93 MB per experiment.
 
 ### 4.7 The R6 study (ours: 48 complete runs of v15's algorithm)
 
@@ -867,54 +946,10 @@ Per-run table (from the result files; "attempts", "accepted": connector attempts
 
 | k | candidates | (c, j) per round | DF | B' log2 units | attempts | accepted | spaces | first positive space | success | coordinate | results/k.json SHA-256 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 0 | 4 | 3, 26 | 35 | 27.91 | 394 | 96 | 96 | none in 96 | no (none-in-K) | - | a84aa30d96d1ab02 |
-| 1 | 1 | 0, 2 | 44 | 23.48 | 187 | 96 | 9 | 9 | yes | 733dc3d4 | 4822c1e11f5d860c |
-| 2 | 5 | 4, 0 | 46 | 28.04 | 148 | 96 | 12 | 12 | yes | aeb1ace2 | f6e72cd110cb40b6 |
-| 3 | 1 | 0, 1 | 55 | 23.15 | 148 | 96 | 19 | 19 | yes | 9f192bb6 | a15c38ff624fc3f9 |
-| 4 | 1 | 0, 0 | 34 | 22.62 | 178 | 96 | 4 | 4 | yes | f3dd4cdf | 5da9c63bebd6f9d0 |
-| 5 | 1 | 0, 22 | 45 | 25.68 | 135 | 96 | 22 | 22 | yes | b6021820 | f627e11d04843d74 |
-| 6 | 6 | 5, 27 | 40 | 28.53 | 96 | 96 | 10 | 10 | yes | 5aa44394 | 6422e511b00a7f40 |
-| 7 | 2 | 1, 45 | 40 | 26.89 | 113 | 96 | 1 | 1 | yes | 22221082 | 6f1f8c87c08d5350 |
-| 8 | 2 | 1, 14 | 42 | 26.43 | 111 | 96 | 14 | 14 | yes | da6e0cfe | 57c6a567d71757c6 |
-| 9 | 3 | 2, 1 | 38 | 27.08 | 123 | 96 | 14 | 14 | yes | c3d64ae2 | 465d6491e7fa4d47 |
-| 10 | 3 | 0, 12; 2, 26 | 34, 48 | 26.98 | 2048 + 315 | 1 + 96 | 34 | 34 | yes | c3a04f0c | 36a4fb52888dea11 |
-| 11 | 6 | 3, 8; 5, 4 | 34, 40 | 28.20 | 2048 + 207 | 53 + 96 | 10 | 10 | yes | ca1e3e01 | 43c320a866b4d99d |
-| 12 | 3 | 0, 33; 2, 8 | 33, 33 | 26.97 | 2048 + 359 | 0 + 96 | 49 | 49 | yes | 41ec9bbd | a5b3165e10b69720 |
-| 13 | 2 | 1, 7 | 37 | 26.35 | 128 | 96 | 37 | 37 | yes | 2d49b6a5 | f2851e658c987b43 |
-| 14 | 4 | 3, 19 | 39 | 27.77 | 304 | 96 | 34 | 34 | yes | f49e4560 | 4e8690c39fb4f2b2 |
-| 15 | 2 | 1, 9 | 41 | 26.52 | 176 | 96 | 60 | 60 | yes | 379f9b2a | 19d10cb1c934a2da |
-| 16 | 1 | 0, 23 | 55 | 24.79 | 263 | 96 | 37 | 37 | yes | f5736e5f | bbb5f7760d562bb7 |
-| 17 | 1 | 0, 5 | 34 | 24.22 | 412 | 96 | 7 | 7 | yes | 0e5db5e4 | e23da358f7f85478 |
-| 18 | 3 | 1, 27; 2, 14 | 35, 45 | 27.20 | 2048 + 139 | 66 + 96 | 14 | 14 | yes | 792508e9 | f82e1453ff943062 |
-| 19 | 3 | 2, 21 | 42 | 27.36 | 96 | 96 | 8 | 8 | yes | 6715b085 | 4b20e9084e4d2baa |
-| 20 | 1 | 0, 55 | 51 | 25.77 | 204 | 96 | 15 | 15 | yes | 96f56a4d | 3dbc0a07659f1dbf |
-| 21 | 6 | 5, 4 | 36 | 28.39 | 329 | 96 | 11 | 11 | yes | c577495b | 69228c4addd403a5 |
-| 22 | 4 | 3, 4 | 33 | 27.69 | 911 | 96 | 2 | 2 | yes | c3d944ad | e50ea677268ec276 |
 | 23 | 13 | 10, 10; 12, 31 | 34, 41 | 29.61 | 2048 + 139 | 1 + 96 | 32 | 32 | yes | ebc5894d | 2814d456fcc74d59 |
-| 24 | 4 | 3, 13 | 42 | 27.75 | 144 | 96 | 20 | 20 | yes | d2801e58 | 2400fa1caab6f627 |
-| 25 | 1 | 0, 0 | 42 | 23.02 | 484 | 96 | 30 | 30 | yes | 0fa14f06 | aacff4de352af232 |
-| 26 | 3 | 2, 23 | 33 | 27.36 | 1221 | 96 | 4 | 4 | yes | 5fafb237 | 3426eb60dbdc80ab |
-| 27 | 7 | 3, 1; 6, 6 | 39, 41 | 28.44 | 2048 + 124 | 64 + 96 | 45 | 45 | yes | 2f03107c | ffa8c593d26a2e5c |
 | 28 | 9 | 8, 9 | 45 | 29.05 | 347 | 96 | 9 | 9 | yes | 69da8cfa | 465e78731bb2c763 |
-| 29 | 3 | 2, 45 | 50 | 27.42 | 163 | 96 | 96 | none in 96 | no (none-in-K) | - | 84d54cde2c744b9b |
-| 30 | 2 | 1, 33 | 58 | 26.73 | 471 | 96 | 96 | none in 96 | no (none-in-K) | - | 04a599c4a533d4c9 |
-| 31 | 1 | 0, 11 | 35 | 25.04 | 677 | 96 | 1 | 1 | yes | 40b61df1 | 87ec1f75f0acd2fd |
-| 32 | 2 | 1, 0 | 39 | 26.15 | 112 | 96 | 5 | 5 | yes | 96e0a49f | a0ce8908b0ccbeb9 |
-| 33 | 7 | 1, 4; 6, 2 | 36, 33 | 28.42 | 2048 + 897 | 2 + 96 | 78 | 78 | yes | 30fda680 | 6ded5e58002d3594 |
-| 34 | 8 | 2, 13; 4, 1; 7, 5 | 34, 33, 60 | 28.49 | 2048 + 2048 + 96 | 46 + 0 + 96 | 53 | 53 | yes | 53086d2a | ce1936749fc79c9d |
-| 35 | 2 | 1, 27 | 39 | 26.73 | 96 | 96 | 23 | 23 | yes | a8b48eb3 | 3a12557a5fbb1d93 |
-| 36 | 6 | 5, 4 | 62 | 28.37 | 113 | 96 | 46 | 46 | yes | 2a9b0523 | 4b0193e32bfebbdb |
-| 37 | 4 | 3, 2 | 40 | 27.67 | 158 | 96 | 9 | 9 | yes | 954a987d | 7446e4a27da48f7e |
-| 38 | 2 | 1, 5 | 44 | 26.25 | 263 | 96 | 74 | 74 | yes | fe494614 | 2eed0cfb3b028778 |
-| 39 | 1 | 0, 2 | 35 | 23.34 | 120 | 96 | 11 | 11 | yes | b71c6547 | 824cd748b618223b |
-| 40 | 1 | 0, 25 | 38 | 25.46 | 188 | 96 | 19 | 19 | yes | ab9e046c | bd645536e56b7bff |
-| 41 | 4 | 3, 7 | 39 | 27.79 | 96 | 96 | 4 | 4 | yes | a16efce5 | fea81d90d21e8fb4 |
-| 42 | 6 | 5, 9 | 33 | 28.39 | 448 | 96 | 32 | 32 | yes | 4fe16868 | f83afb2240ac0b72 |
-| 43 | 1 | 0, 10 | 43 | 24.21 | 96 | 96 | 49 | 49 | yes | 9cd474ef | c847e451ed83ac18 |
-| 44 | 2 | 1, 7 | 44 | 26.30 | 174 | 96 | 18 | 18 | yes | 41cc1562 | 5bfb4a18fcb69808 |
-| 45 | 4 | 0, 17; 3, 10 | 33, 50 | 27.54 | 2048 + 222 | 3 + 96 | 96 | none in 96 | no (none-in-K) | - | 5e286c1d122053a5 |
-| 46 | 2 | 1, 32 | 46 | 26.66 | 118 | 96 | 32 | 32 | yes | 30e8e5e2 | 24701c7cb905fbde |
-| 47 | 2 | 1, 9 | 37 | 26.41 | 208 | 96 | 7 | 7 | yes | 5056934e | 3dbcf6b99075f6e1 |
+
+(R5N: 46 rows condensed out to fit the 512 KiB judge-evidence budget; kept: runs 23 and 28, the two re-derived in V.5. The full table is in 0f72a85e's and v15's proofs, unchanged; R6 is listed, not charged.)
 
 ## 5. Success probability (end to end, over the algorithm's own coins)
 
@@ -969,21 +1004,19 @@ Sensitivity (v15's, not the claim; v20's sensitivities are in Section W.9, v22's
 
 ## 7. Memory
 
-(v20) P's T3 runs core by core (Section W.4; the same repair as 0xshikhar's T.2 in 395e8a28, published first in their 6667fc4f): one core's half tables of 22-word entries, 83.1 MB, under 2^27 bytes with its sort arrays; trail_search deletes a core's tables before it builds the next core's. v19's trail_search kept all 467 cores' tables (48,592,224 vectors of 1,600 bits, about 2^33.2 bytes, above the declared 2^30). T1's set of found cores has 1,741 entries (r5-trail-0..3). algorithm() keeps the echelon systems of K = 50 accepted spaces before E (about 16 MB). Every phase stays under 2^28 bytes; declared 2^30. v19's text follows.
-
-P: per core, the two half tables (at most 2 x 9^5 vectors of 320 bytes, 38 MB, plus keys and indices); the native run peaked at 233 MB with 5 cores in flight. B' at most 113.5 MB (v14), connector under 2^23 bytes. E: the derivative vectors (24 + 276 + 2,024 + 10,626 vectors of 24 words of 32 bytes, 10 MB) and, during setup, the ANF table of fes.c (41,449 x 768 bytes, 32 MB). Before E starts, algorithm() keeps the echelon system of each of the K accepted spaces (about 31 MB in all). Declared 2^30 bytes, more than 4 x the largest phase.
+(R5N2: the claim's memory figure is Appendix K's, and the advice-generating run is R.8's capped run. P's T3 runs core by core (Section W.4): in the shipped counted program one core's half tables are resident and are deleted before the next core's. T1's set of found cores has 1,741 entries (r5-trail-0..3). algorithm() keeps one basis per accepted space before E (R.3).)
 
 ## 8. Not claimed; credits
 
 Not claimed: any improvement on [GLL+20] beyond the byte-aligned (p = 8) adaptation, B', the counted programs and the accounting. The certificates show that the construction works; they are not the claimed cost.
 
-(v22: v22 is our v20 (84668773) with the changes of Section X, which re-derive, adopt and extend Th0rgal's v21 (a9ec6971); co-authors Th0rgal, Meganpark980320, rubenmarcus, Subflatus3, 0xshikhar.) (v20: v20 is our v19 (a2d6ce92) with the changes of Section W, which is Meganpark980320's v18 with Section U, rubenmarcus's v15, winglock's v14 with Th0rgal; its T3 memory repair is the one 0xshikhar published first (6667fc4f, 395e8a28); co-authors Meganpark980320, rubenmarcus, Th0rgal, Subflatus3, 0xshikhar.) (v19: v19 is Meganpark980320's v18 with the changes of Section U, whose credits come first; co-authors Meganpark980320, rubenmarcus, Th0rgal, Subflatus3. v15's text follows.) This package is winglock's v14 (f1cedf6b, with Th0rgal as co-author), with two of its phases replaced. Everything not named as new in Section 0 is theirs: the construction, B', the connector, the driver, the caps, the R5 study and its replay experiments, every certificate of R5 and v6, fes.c and most of the experiment file and of this proof's text. The new parts are T3 by meet-in-the-middle on zero blocks (2.1), the counted fast exhaustive search for E's stage 1 (2.4), the repricing of the charged development at v15's programs (0.1), our development ledger D15, and the R6 study (4.7).
+Lineage: v25h (b5213766) <- v25 (fa625146) <- v22b (08930c1e) <- v22 <- v20 (84668773) <- v19 (a2d6ce92) <- v18 <- v15 <- v14 (f1cedf6b); co-authors winglock, Th0rgal, Meganpark980320, rubenmarcus, Subflatus3, 0xshikhar, leech1996.
 
 Credits: [GLL+20] for the connector and linearisation framework and the 5-round trail core that P re-derives; Dinur, Dunkelman, Shamir (FSE 2012) for the target-difference algorithm; Qiao, Song, Liu, Guo (EUROCRYPT 2017) for linearisation; Daemen, Van Assche (FSE 2012) and KeccakTools for in-kernel trail cores; Bouillaguet, Chen, Cheng, Chou, Niederhagen, Shamir, Yang (CHES 2010) [BCC+10] for fast exhaustive search, used by v14's evidence enumerator fes.c and now by the counted E. winglock (v8 113fc836, v13 7f16e461, v14 f1cedf6b) and Th0rgal (7deb1595, with Subflatus3 and rubenmarcus) for the zero-advice framing and the whole algorithm this package modifies; Subflatus3 (9bccf245) also used fast exhaustive search inside E (on the round-1 input, at 429 primitives per pair) and enumerated the output core's leaves with AS(alpha2) <= 63 by a half-sum match on 5-row blocks, an idea close to our T3; GordoAR (e3ce0518, bc0f7b56, ed433634) for re-sizing work on the same lineage; hybridnoise (ef4a0c66) and jagnani73 (654cb3d2) as credited by v14. baseline_improved is the required nominal reference ID, not a claim of dominance.
 
 ## Appendix A. Trail search P as run (T1 and T2 in the experiment file; T3 in C)
 
-These programs are our evidence for premise P (2.1); the algorithm's P is trail_search in r5.py. T1 and T2 ran as the experiment file's lane_dfs and p45pos (cores.py: 1741 cores, 467 kept, sum C2 = 1,379,275,399,350, the counts that r5-trail-0..3 recompute); export.py wrote, for every kept core in T2's order, its rows and, for every compatible input difference of every row, the row values of L^-1 of that difference (core_tables), and the tables MINW and WT2 (cores.bin, SHA-256 a3a10277c3cd2fd0eb6cf82eb509ca57907b1597e37a8a8057db584c53a9a9b9). mitm2.c is T3 (2.1); its header comment is the one of the earlier contiguous-block program mitm.c (D15), while its blocks and levels are those of set_level, which are the ones of 2.1 and of r5.py. Built with clang -O3 -mcpu=apple-m4 and run as `mitm2 cores.bin 5` (5 threads, 370 s, 296 CPU-s, 233 MB). Its output mitm2.log (3,277 lines: per core and level the half-vector entries, matches and evaluations, per level the totals and the best leaf, then "CERTIFIED at level 6 (nb 64)") has SHA-256 e0430adb40d7f166ed1625494d02283a285092c33a608175a76371b74bbdbebc. SHA-256 of the sources: cores.py 7e77b07d0514846a4be75e0fc58a3ecd69b7fedc6b8b14aaa63e4c9fcd213bd5, export.py d3e5256998b947b6265eab09b4b4d63025f8dea9cea0b3cfe63146d46a5e897c, mitm2.c 7a2ba2db66cf57ec664c623af8ed922067829d3f2a25c850d8d2f6a842b47d7f (the file hashed in R6's commit record, Appendix E). v14's native T3 (trail3b, two exhaustive passes over all batches; v14's Appendix A) found the same trail.
+(R5N2: the advice is produced by R.8's capped run; mitm2.c's run below is superseded.) These programs are our evidence for premise P (2.1); the algorithm's P is trail_search in r5.py. T1 and T2 ran as the experiment file's lane_dfs and p45pos (cores.py: 1741 cores, 467 kept, sum C2 = 1,379,275,399,350, the counts that r5-trail-0..3 recompute); export.py wrote, for every kept core in T2's order, its rows and, for every compatible input difference of every row, the row values of L^-1 of that difference (core_tables), and the tables MINW and WT2 (cores.bin, SHA-256 a3a10277c3cd2fd0eb6cf82eb509ca57907b1597e37a8a8057db584c53a9a9b9). mitm2.c is T3 (2.1); its header comment is the one of the earlier contiguous-block program mitm.c (D15), while its blocks and levels are those of set_level, which are the ones of 2.1 and of r5.py. Built with clang -O3 -mcpu=apple-m4 and run as `mitm2 cores.bin 5` (5 threads, 370 s, 296 CPU-s, 233 MB). Its output mitm2.log (3,277 lines: per core and level the half-vector entries, matches and evaluations, per level the totals and the best leaf, then "CERTIFIED at level 6 (nb 64)") has SHA-256 e0430adb40d7f166ed1625494d02283a285092c33a608175a76371b74bbdbebc. SHA-256 of the sources: cores.py 7e77b07d0514846a4be75e0fc58a3ecd69b7fedc6b8b14aaa63e4c9fcd213bd5, export.py d3e5256998b947b6265eab09b4b4d63025f8dea9cea0b3cfe63146d46a5e897c, mitm2.c 7a2ba2db66cf57ec664c623af8ed922067829d3f2a25c850d8d2f6a842b47d7f (the file hashed in R6's commit record, Appendix E). v14's native T3 (trail3b, two exhaustive passes over all batches; v14's Appendix A) found the same trail.
 
 `cores.py` (with the experiment file imported as r5v14, which is byte-identical to v14's experiments/r5.py):
 
@@ -1425,80 +1458,14 @@ Per-run table and ledger (v22b: Section 4.3's table and the ledger, merged). Fro
 
 | k | candidates | (c, j) per round | DF | B' log2 units | attempts | accepted | spaces | first positive space | success | runs/k.json SHA-256 | per round: advice hash prefix, B' WK primitives | largest attempt | passes | coordinate | output pair SHA-256 | CPU s |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 0 | 1 | 0, 25 | 46 | 24.74 | 128 | 96 | 14 | 14 | yes | 8fa1ef8f4fd841ec | 280945655e1ee829 38074812258 | 169059 | 214-274 | 0x666ad35a | 9790baf7d8718ff7 | 17.9 |
-| 1 | 4 | 3, 17 | 45 | 27.78 | 238 | 96 | 75 | 75 | yes | f485643ce92a4968 | 3e77c8b3006fc433 312337330281 | 158726 | 227-305 | 0x583943c6 | cef3599bb02542bf | 115.2 |
-| 2 | 3 | 2, 41 | 40 | 27.47 | 96 | 96 | 44 | 44 | yes | 73a80a83c838ca43 | fcc740d15e2c123c 251078095236 | 180277 | 222-295 | 0xeb9478a8 | 3c8e4adc35fcb485 | 245.6 |
-| 3 | 7 | 6, 12 | 37 | 28.67 | 441 | 96 | 22 | 22 | yes | 2f52e9bb31af72c9 | 2582f7e5e1ee05a3 578328306529 | 162093 | 233-294 | 0x2bed516e | 63f2680f2788a88c | 806.9 |
 | 4 | 4 | 3, 37 | 41 | 27.92 | 96 | 96 | 1 | 1 | yes | 3fbcb7090b2dd3bb | 990540e7f5ee7f2e 343020384242 | 155543 | 253 | 0x809f225b | 12586fc0e3f70e78 | 389.0 |
-| 5 | 7 | 6, 23 | 44 | 28.72 | 122 | 96 | 27 | 27 | yes | 3c79f927df5b3a0f | 0ed8a41be7b8d0f2 599657552824 | 160667 | 232-271 | 0xb046f6d2 | 06bd06bef66154b1 | 799.3 |
-| 6 | 4 | 3, 22 | 52 | 27.79 | 452 | 96 | 96 | none in 96 | no | f03afbf368c1cf62 | a66cd4311a4614e7 313594643595 | 159967 | 200-293 | none | - | 577.8 |
-| 7 | 3 | 2, 19 | 46 | 27.31 | 557 | 96 | 5 | 5 | yes | d611f95aafa75944 | c0a660ea8ca083fb 225008224082 | 172832 | 249-282 | 0xb29f36d1 | c650e07bd8a9c29a | 393.7 |
-| 8 | 2 | 1, 46 | 42 | 26.88 | 110 | 96 | 8 | 8 | yes | eab8ceba3524ef5a | 86143858d2186b3e 167812154154 | 170670 | 235-301 | 0x49b7c1aa | 7e6c2481e01f8ba6 | 192.2 |
-| 9 | 4 | 0, 18; 3, 37 | 38, 37 | 27.69 | 2048 + 239 | 65 + 96 | 26 | 26 | yes | dfe861dbf8745df9 | 084ea8d296fc5738 40954994054 (discarded); 0bb3d38f1b42a976 251622426462 | 173127 | 234-269 | 0xea0802ec | e665b1b063910547 | 308.1 |
-| 10 | 4 | 3, 24 | 35 | 27.85 | 176 | 96 | 1 | 1 | yes | 806069b5dd52cea9 | 150f8e0160df3ae2 327621245214 | 165466 | 253 | 0x18794793 | 7a156f9cfc4ea84d | 585.9 |
-| 11 | 3 | 2, 11 | 40 | 27.19 | 425 | 96 | 25 | 25 | yes | 08122e68e1e97559 | dfd46d98c5bac015 207393917721 | 166768 | 223-302 | 0x24cde90d | 9b4b72563b26a439 | 77.4 |
-| 12 | 3 | 2, 1 | 38 | 27.08 | 173 | 96 | 42 | 42 | yes | f7bc4fe75d8e7b79 | 47aaaf1baf7ff3e9 192180288756 | 172687 | 226-287 | 0x8c2e14b6 | 9b18bfce3758e2b5 | 225.7 |
-| 13 | 1 | 0, 30 | 51 | 25.03 | 145 | 96 | 29 | 29 | yes | 36373c25a87f3910 | 8525d2214e680d20 46500147486 | 150197 | 226-284 | 0xb78632c1 | 6666fedb64a3c018 | 24.4 |
-| 14 | 4 | 3, 16 | 45 | 27.76 | 191 | 96 | 7 | 7 | yes | f497860587819887 | e8f4d11f7e68145f 309025389420 | 171880 | 240-267 | 0x2fd52b7c | af194024ce73148d | 421.6 |
-| 15 | 5 | 4, 6 | 51 | 28.15 | 124 | 96 | 12 | 12 | yes | ac5b8c14273a1db0 | 0f79c3f921bf1079 403494575287 | 171019 | 232-279 | 0xf798b773 | 9bfb43265ce31e91 | 278.1 |
-| 16 | 1 | 0, 16 | 59 | 24.55 | 137 | 96 | 18 | 18 | yes | 905e52e68c94959a | e555cc23f6c334fc 33239383121 | 169904 | 235-285 | 0xfd207a79 | d93bce4aaa25c925 | 18.3 |
-| 17 | 3 | 0, 29; 2, 11 | 33, 34 | 27.33 | 2048 + 260 | 0 + 96 | 6 | 6 | yes | e7007a7bf08887e5 | e8437f477f92fd1a 77092244681 (discarded); 4c655d9b3d5148e9 151180478561 | 182357 | 221-276 | 0xf802f1a0 | 60fab94516deda7d | 137.4 |
-| 18 | 7 | 6, 9 | 51 | 28.66 | 96 | 96 | 62 | 62 | yes | 81ef2bcb468e4a7b | faeeaff303a4bc16 574144202201 | 151924 | 216-294 | 0x9a5263fe | 141ee6a1b7d78e90 | 682.6 |
-| 19 | 4 | 3, 6 | 67 | 27.70 | 153 | 96 | 48 | 48 | yes | cbd905e414806864 | e825a2f1d8233c5b 295807253548 | 157812 | 224-291 | 0x1d43683a | aa0ed22edfcd7faf | 259.2 |
-| 20 | 1 | 0, 42 | 44 | 25.63 | 138 | 96 | 1 | 1 | yes | 48d3030ca0ee16fc | 779e8a13a798fff0 70134455323 | 150376 | 248 | 0xdc7d40cd | 52474a896f0d5268 | 22.4 |
 | 21 | 1 | 0, 3 | 49 | 23.51 | 206 | 96 | 1 | 1 | yes | 52348f87ec499825 | 76a6a0b06305286a 16241153777 | 145190 | 240 | 0x18c48859 | a0a8f20cf4ea8c44 | 10.6 |
-| 22 | 5 | 4, 10 | 47 | 28.12 | 419 | 96 | 20 | 20 | yes | 90bb393d3411faff | 307b89e477e629a7 394934128877 | 155808 | 228-276 | 0xedac52b | 211619b1de35f064 | 811.7 |
-| 23 | 3 | 2, 4 | 36 | 27.14 | 120 | 96 | 8 | 8 | yes | b7a31881c49fc152 | ed6b47add7f42842 200506769832 | 189059 | 243-291 | 0x4c97b04d | bc098599327e16a9 | 227.6 |
-| 24 | 1 | 0, 2 | 38 | 23.20 | 215 | 96 | 10 | 10 | yes | 64ed2d76e0d1f8be | c512e5d242700b34 13054253838 | 180653 | 232-281 | 0xd37d80d0 | 26633a06f988d538 | 13.6 |
-| 25 | 1 | 0, 5 | 50 | 23.67 | 147 | 96 | 27 | 27 | yes | 3d81b91a491a912c | 0bc2399f10895341 18097029411 | 163758 | 229-279 | 0x32e5b851 | f0ad4c091ec5fee0 | 17.7 |
-| 26 | 4 | 3, 22 | 76 | 27.79 | 339 | 96 | 22 | 22 | yes | d753c7d46d0c2b2c | b2bf1e43951643a3 314294025988 | 141284 | 222-278 | 0x2ddd6f8c | bd9be57c03c3c3c1 | 613.5 |
-| 27 | 2 | 1, 29 | 35 | 26.91 | 154 | 96 | 5 | 5 | yes | c4bcbeae9630a3cf | f1f0e642722eb6c1 170544972982 | 183028 | 241-296 | 0x9d691e84 | ef451682763b4290 | 219.0 |
-| 28 | 2 | 1, 21 | 47 | 26.62 | 195 | 96 | 13 | 13 | yes | 1d137a7c51c92827 | c4d9ae4a6e956874 139927868687 | 169261 | 228-271 | 0xb692bd00 | fea11aa78821859f | 48.5 |
-| 29 | 1 | 0, 18 | 38 | 24.84 | 142 | 96 | 86 | 86 | yes | 52a9912c0a1fcaa1 | 080af7ab45188e38 40805517088 | 156593 | 206-290 | 0x8a033888 | 2da2bb4d2daa786c | 40.3 |
-| 30 | 2 | 1, 2 | 51 | 26.16 | 122 | 96 | 14 | 14 | yes | f8f1215f84e944ed | 0886a4cd8c109dfb 101712554082 | 154824 | 228-276 | 0x7677e6d5 | 9848ec7bfcabce7e | 200.9 |
-| 31 | 1 | 0, 18 | 40 | 25.52 | 181 | 96 | 96 | none in 96 | no | bde3e12b2fd8cb89 | 90e806abff67dd73 65385934933 | 182799 | 222-308 | none | - | 48.1 |
-| 32 | 3 | 2, 49 | 59 | 27.49 | 113 | 96 | 69 | 69 | yes | 81814ecaee495de0 | f0aacc181f17e5f2 255263864595 | 174374 | 222-298 | 0x7ee68969 | fc09481a5284ea18 | 445.9 |
-| 33 | 4 | 3, 0 | 33 | 27.63 | 96 | 96 | 89 | 89 | yes | fd5220669294ec8b | 06cbae2481d762d4 281425137060 | 174985 | 213-294 | 0x6de67ec4 | 10b5a22fca2345ca | 451.5 |
-| 34 | 1 | 0, 9 | 39 | 24.59 | 121 | 96 | 17 | 17 | yes | 61890e4957637e45 | 80224146e6c5ad7d 34267480602 | 169150 | 229-278 | 0x5c9dc6b0 | ff07535ef3c39e48 | 18.4 |
-| 35 | 2 | 1, 17 | 50 | 26.52 | 119 | 96 | 18 | 18 | yes | d7b319ec8a3c90e8 | d729790d79918f57 130539795895 | 159671 | 213-279 | 0x5268c733 | c22b7cdf49d76a3c | 42.0 |
-| 36 | 2 | 1, 8 | 42 | 26.36 | 96 | 96 | 10 | 10 | yes | 3603e35ca4fc8073 | 939a664bfd2456cc 116965248146 | 175091 | 241-278 | 0x9c81d199 | ec370eba500ebe99 | 206.9 |
-| 37 | 1 | 0, 10 | 49 | 24.06 | 115 | 96 | 53 | 53 | yes | 612e67e05d789e2e | 6588bac5e87ef9ee 23668632583 | 183729 | 206-292 | 0x136a479b | 1a550fb769069466 | 25.9 |
-| 38 | 2 | 1, 19 | 54 | 26.64 | 136 | 96 | 10 | 10 | yes | ecb36361dcc89e1d | b88715e46286f374 142182257663 | 143571 | 228-274 | 0x4fcaba49 | 63b8222073c805c9 | 219.5 |
-| 39 | 1 | 0, 7 | 40 | 23.83 | 242 | 96 | 18 | 18 | yes | d8f4c15c64359426 | f44365f8536ce4d4 20177747396 | 180978 | 214-287 | 0xefa3368e | 7e87c7aade0e30bc | 20.1 |
-| 40 | 6 | 5, 60 | 59 | 28.58 | 200 | 96 | 34 | 34 | yes | be0478e710916bc1 | 5ad68acd639f683c 541898590494 | 177677 | 217-307 | 0x4ef55bf4 | 78871e4218d3c3ae | 180.4 |
-| 41 | 1 | 0, 46 | 46 | 25.80 | 349 | 96 | 1 | 1 | yes | 6bf0cd8306d13304 | 94f6adda90602420 79341484558 | 189224 | 285 | 0xed7a8466 | 0b1dab5303216b4e | 36.1 |
-| 42 | 1 | 0, 3 | 41 | 23.21 | 191 | 96 | 2 | 2 | yes | 50cab7b8eb8eb413 | 16eea1c45f2d5de2 13145128283 | 149231 | 234-245 | 0x87fe5ef6 | fe9113444fa950bd | 10.9 |
-| 43 | 1 | 0, 4 | 35 | 23.60 | 96 | 96 | 13 | 13 | yes | 2adb605a1e4b4298 | ef3d7a787676e3c5 17261581360 | 171725 | 232-281 | 0xb113a784 | 5fc8460f157b99ad | 12.4 |
-| 44 | 5 | 4, 2 | 53 | 28.05 | 117 | 96 | 1 | 1 | yes | b0ee344f4897ff15 | 4f6dc8abb4410242 375519444704 | 158889 | 248 | 0xca7141d7 | d85549a7777e2b6e | 268.6 |
-| 45 | 2 | 1, 28 | 37 | 26.75 | 182 | 96 | 1 | 1 | yes | 0937e7a81ef8afd2 | 61673a9db5e52775 152553772122 | 165802 | 260 | 0xbd1a064f | 6657af21acd6e0da | 221.0 |
-| 46 | 5 | 4, 25 | 38 | 28.16 | 96 | 96 | 23 | 23 | yes | ebe8889cbc404097 | a5133030b527d4ff 406851160974 | 181510 | 221-291 | 0xd8e38715 | 15235ad44a92e225 | 560.8 |
-| 47 | 6 | 4, 2; 5, 18 | 34, 57 | 28.22 | 2048 + 173 | 1 + 96 | 6 | 6 | yes | 1cd3fa50765d7470 | f23cf80cb8fe925b 379453154095 (discarded); a0c0d48e3d81f87a 43936069583 | 180855 | 232-277 | 0x1ac2c743 | 1d72f7077eae20ca | 599.2 |
+
+(R5N: 46 rows condensed out to fit the 512 KiB judge-evidence budget; kept: run 4, whose replay is D15's driver self-test, and run 21, the R7 self-test's label. The full table is in 0f72a85e's and v22b's proofs, unchanged; R5 is listed, not charged, and no number of the claim reads the other rows.)
 
 ## Appendix E. The R6 study: plan, commit record, driver, analysis, launcher and per-run ledger (condensed)
 
-(v22b: the plan is summarised; the driver, analysis and launcher are described by function, with their SHA-256 values in the commit record, which is verbatim; the per-run ledger is merged into Section 4.7's table. The verbatim texts are in v20's proof, 84668773, Appendix E.)
-
-plan.txt (SHA-256 9c7659c3acf661348f3d8e031cb28bb16bc309614f0a9763cdb9a2e4c22e5e7c), summarised (Section 4.7 gives the runs, the labels, the launch and the self-test). Written before any run of R6. Purpose: measure, end to end and independently of R5, the success probability of v15's algorithm over its own coins: v14's algorithm (B_BUDGET = 2^32 units, CCAP = 2^26 units, no attempt limit per candidate, DMIN = 33, unweighted D2u; X_MAX = 2^23; K = 96, A_ADV = 2^11, A_MAX = 2^13; S2CAP = 2^24) with P's T3 by mitm2.c (whose native run certified the trail of Section 3 before the plan; every run uses that trail) and E's stage 1 as computed by the binary fes (built from fes.c), then stage 2 by complete digests in fes's order on at most S2CAP pairs per space; B', S, the connector and the driver from r5v14.py, called by r6run.py in algorithm()'s order. Every run is reported, none stopped, excluded or repeated; an abnormal exit or a missing or malformed result file counts as a failure. Analysis (analyze.py): success iff two distinct 135-byte messages with equal complete 5-round digests, by the experiment file's digest and by the organizer verifier (organizer_keccak.py = verifier/keccak.py); count x of 48 and the one-sided 95% Clopper-Pearson bound; the v15 package may claim 0.40 on R6 iff the bound is at least 0.40 (x >= 26), otherwise R6 supports no claim; no rule changes a constant; R5 is reported beside R6, not pooled.
-
-commit.txt (SHA-256 446a29920246ac5c796fb510aa7447765b6841ed4b43d9e5887e473e430329c2):
-
-```text
-R6 commit record
-utc 2026-10-08T00:19:33Z
-9c7659c3acf661348f3d8e031cb28bb16bc309614f0a9763cdb9a2e4c22e5e7c  plan.txt
-0ae6ea6628e27337a06d12076746442ca3638b48cc44a1318dba6c25d11c143f  r6run.py
-0be4334dfc215f181b8cae5332c87551971bbd60617c28b0f50e18737e9d7ef4  r5v14.py
-9a023ce614609bb9c27ba94683a6dc340f7a1324a3550ca4ba3f45775ae30de4  fes.c
-93eff750b3529c2d54a48f5368f6c19f3d8ff70b935cbf380d13b4b564199a86  fes
-7a2ba2db66cf57ec664c623af8ed922067829d3f2a25c850d8d2f6a842b47d7f  mitm2.c
-e31fcfd247866de2993f01c7c95b23e6ccd52d6ea65c7e3e49070188114a0862  analyze.py
-56d9360b3f6d28e74d227a910e1f92be689c7caf10b5ee34f75987ac9d198e46  run_all.py
-95ce77dff0476301c05057e01296f3e3507c4926423257540cfc3e5fd36ee0ae  organizer_keccak.py
-```
-
-r6run.py (0ae6ea66...): `python3 r6run.py <label> <outfile.json>` makes algorithm()'s calls of r5v14.py in algorithm()'s order: bprime from the next candidate under the remaining B_BUDGET ("bprime-budget" if none); Setup; connector attempts with Coins(run_seed(label || "conn" || (c + 1) as 4 little-endian bytes, i)) (4.1) until K_SPACES are accepted, discarding the advice after A_ADV attempts, at most A_MAX in all ("a_max"); then each accepted space in order: enum_basis, the binary fes (exit code 0 and selfcheck=ok required, else "selfcheck-fail"), and for the first S2CAP passes in fes's order the complete 5-round digests of L^-1(x) and L^-1(x + beta0); it stops at the first equal pair ("collision": space, coordinate, messages) or ends "none-in-K". It records per round c, j, DF, B''s units, the advice hash prefix (16 hex digits of SHA-256 of hex(beta1) + hex(beta0)), the attempt statuses and the largest work count; per space DF, self-check, passes and hit; CPU and wall time and WK's total. analyze.py (e31fcfd2...): success as in the plan, rechecked with digest5 (on m || 0x86 || 0^512) and organizer_keccak.sha3_256(m, 5); a missing or malformed result counts as a failure; the bound by 100 bisection steps on the binomial tail at 0.05; analysis.json with per-run k, success, result and space. run_all.py (56d9360b...): k = 0..47 in increasing k, at most 5 at a time, each `nice -n 10 python3 r6run.py "hashsmash sha3-256-r5 R6 run <k>" results/<k>.json` with its own stdout and stderr files; launch.log records every start and end with its return code; no run is stopped, excluded or repeated.
-
-Per-run ledger (k, result, output coordinate, SHA-256 of results/k.json): merged into Section 4.7's per-run table (v22b). launch.log SHA-256 ed8292923f2d931bbb6724ecc20e2da3b39c4ef2374e0591709e430bc37dbf17; analysis.json SHA-256 35c979811047ee5fea6d2759d6abce254f68e72b95f4fbe5ba138cba9a15d162.
+(R5N: condensed to fit the 512 KiB judge-evidence budget; the full appendix is in 0f72a85e's and v15's proofs, unchanged. R6 is listed, not charged, and no number of the claim reads it; Section 4.7 keeps its plan hash, results and analysis.) SHA-256 values of the study's files, in 0f72a85e's order: 9c7659c3acf661348f3d8e031cb28bb16bc309614f0a9763cdb9a2e4c22e5e7c, 446a29920246ac5c796fb510aa7447765b6841ed4b43d9e5887e473e430329c2, 9c7659c3acf661348f3d8e031cb28bb16bc309614f0a9763cdb9a2e4c22e5e7c, 0ae6ea6628e27337a06d12076746442ca3638b48cc44a1318dba6c25d11c143f, 0be4334dfc215f181b8cae5332c87551971bbd60617c28b0f50e18737e9d7ef4, 9a023ce614609bb9c27ba94683a6dc340f7a1324a3550ca4ba3f45775ae30de4, 93eff750b3529c2d54a48f5368f6c19f3d8ff70b935cbf380d13b4b564199a86, 7a2ba2db66cf57ec664c623af8ed922067829d3f2a25c850d8d2f6a842b47d7f, e31fcfd247866de2993f01c7c95b23e6ccd52d6ea65c7e3e49070188114a0862, 56d9360b3f6d28e74d227a910e1f92be689c7caf10b5ee34f75987ac9d198e46, 95ce77dff0476301c05057e01296f3e3507c4926423257540cfc3e5fd36ee0ae, ed8292923f2d931bbb6724ecc20e2da3b39c4ef2374e0591709e430bc37dbf17, 35c979811047ee5fea6d2759d6abce254f68e72b95f4fbe5ba138cba9a15d162.
 
 ## Appendix F. The R7 study (v20): rule K, plan, commit records, driver, analysis, launcher and per-run ledger
 
@@ -1670,3 +1637,166 @@ utc 2026-10-08T15:29:39Z (before any R7 result file exists: 0 files)
 ```
 
 Per-run ledger (k, result, output coordinate, SHA-256 of results/k.json): merged into Section W.2's per-run table (v22b). launch.log SHA-256 afd375abf670a1b5cc2505d3e9ca9e9234fc2b32c75867c0522a3eec7a6f1784; analysis.json SHA-256 aebc7346398e321273b8f4c230439e2187c3993405bcb20ae9110d691a95c4de.
+
+## Appendix G. This derivative: L2-L6 and development rows D24/D25; K = 50 unchanged
+
+G.0. Lineage is b5213766/1d801017; this appendix re-prices their programs and adds D24/D25. Algorithm, r5.py, manifests, certificates, K, caps, rule K, premise R, R7, H1 and H2 are inherited; no new premise or target run.
+
+G.1. L2: T1 uses 2^9 per node outside 17,100 core events and 2^15 per event (the 2^12/node bound). D15 export and D19 p45meter/export use these exact sums, saving 2^25.4891 units.
+
+G.2. L3: 2,048-step E blocks use Z.3's 12 passes and 29 resident tables. Exact block count is 410,392 (at least four index bits), at most 410,284 otherwise; plus prologue <=87 gives 410,479 per block and 2^13 blocks/space. Savings: online 2^20.6741; G2/D20 2^24.0829.
+
+G.3. L4: E setup is 41,449 units + 2^23 primitives/space, saving 2^19.7712 online and 2^23.1772 on G2.
+
+G.4. L5: with UNR = 256, e matches cost 18 + 49e + 3 floor(e/256); D15/D19 savings are 2^23.1483 units.
+
+G.4b. L6: the stated sort/merge components are 3 + 14 + 14 + 6 + 18 = 55 primitives per half-vector/block, replacing 64. Across D15 and D19 the exact saving is 117,291,268,224 primitives = 117,291,268,224/1355 units = 2^26.3672; the three component terms are recorded in the earlier sections.
+
+G.5. D24 charged every lever/check at inherited prices: 2^26.0674 units. D25 is claim arithmetic with no target run: 2^31 + 2^23 primitives = 2,155,872,256/1355 = 2^20.6015. Non-runs and verification stay uncharged under Z.4/Z.8.
+
+G.6. Superseded ledger: total 2^32.90547 (numerator 2180223758084977334573/271000000000) and preprocessing 2^32.81088; sensitivities are inherited. Appendix J supersedes this total.
+
+G.7. Historical native C runs were below submitted bounds (mitm2/contig <30 ops/vector/block, <35 ops/match; fes <150 ops/256-step block); X.5 and L2-L6 are conservative. H1/H2 are inherited.
+
+## Appendix H. This derivative (pkgR5R): A, B1, B2, C
+
+H.0. Base is 4e24cebd on 1d801017/b5213766; A-C re-price existing counts, with no new premise or target run. J supersedes H.
+
+H.1. A = -110,951,289,234 primitives; B1 = -57,497,664,672; B2 = -1,398,752,712 (exact derivations: U.1/X.1/U.5).
+
+H.2. C re-prices D15's driver self-test: B' = 343,020,384,242 WK primitives, 96 attempts and one E space at inherited charges; 2^28.016215 units; C = 6321272920235813/135500000.
+
+H.3. Historical H total was 2^32.87429 (numerator 2133611670920905708573/271000000000), preprocessing 2^32.77757; J supersedes it; no target function runs here.
+
+## Appendix I. Memory
+(Superseded by Appendix K.) 0f72a85e's figure was 130,149,253 bytes: B' 113.5 MiB (an allowance) + connector 8 MiB + code 2 MiB + one echelon system 650,117; P 89,233,818; E 44,591,237.
+
+## Appendix J. Exact executed-count memory-rule ledger
+
+J.0. This appendix supersedes H.3's total and the claim values. It applies only
+the seven measured development-row changes listed below and one exact small
+development row. It does not apply any outcome-informed online cap (X_MAX,
+A_MAX or B_TRUE), and it does not apply the overlapping D15 early-exit row.
+The primitive rate is 1355 primitives per target unit, so a primitive saving
+P subtracts `200000000*P` from the numerator whose denominator is 271000000000.
+
+J.1. The seven non-overlapping row savings, in primitives, are:
+
+| row | executed/measured count used by the ledger | saving |
+| --- | --- | ---: |
+| D20 replay B' | 374867584175 - 62313484289 | 312554099886 |
+| D20 replay connector attempts | 39*24*(2^20*96 + 2^15*512 + 2^22) - (107089798*96 + 3144113*512 + 751*2^22) | 98809859008 |
+| D20 replay module tables | 39*2^31 | 83751862272 |
+| D20 R7 self-test B' | 16241153777 - 2573293728 | 13667860049 |
+| D20 R7 self-test connectors | 91*(2^20*96 + 2^15*512 + 2^22 - (142596*96 + 4409*512 + 2^22)) | 9235943808 |
+| D15 T1/T2 export | 1639088128*21 - (1181844*64 + 3412138*32 + 6731804*64 + 1741*2^17) | 33576992448 |
+| G2 connector attempts | 2176*(2^18 - 142596)*96 | 24973099008 |
+
+The values are the review's measured counters, not safe-bound substitutions.
+The D20 replay connector row uses 751 executed attempts and the recorded
+107089798 work-unit and 3144113-draw totals. The self-test and G2 connector
+rows use the review's recorded measured mean/counter values; they are marked
+as measured-count rows rather than universal caps. D15's stopped-run early
+exit is omitted because it overlaps the D15 export repricing.
+
+J.2. The exact small development row is the two-round evaluation charge in
+532 development spaces: `532*41449*(3/5) = 66152604/5` units. It is a
+development cost and is added to the total (the seven savings are subtracted). No online
+small-row or low-confidence power-of-two allowance is used.
+
+J.3. A standalone arithmetic reproduction is included in the build record
+(`research/luna_jobs/current ledger/r5m_ledger.py`, SHA-256
+`b3a8452cd15989d9c6b68f556972765c3bdb104eee8623a15c00c113e17918ea`); its exact expressions are repeated
+here so the package's result is independently reproducible:
+
+```python
+from fractions import Fraction
+DEN, RATE = 271000000000, 1355
+old = Fraction(2133611670920905708573, DEN)
+a = (374867584175-62313484289)
+b = 39*24*((1<<20)*96+(1<<15)*512+(1<<22))-(107089798*96+3144113*512+751*(1<<22))
+c = 39*(1<<31)
+d = 16241153777-2573293728
+e = 91*((1<<20)*96+(1<<15)*512+(1<<22)-(142596*96+4409*512+(1<<22)))
+f = 1639088128*21-(1181844*64+3412138*32+6731804*64+1741*(1<<17))
+g = 2176*((1<<18)-142596)*96
+small = Fraction(532*41449*3, 5)
+saving = Fraction(a+b+c+d+e+f+g, RATE)
+N = old - saving + small
+assert N == Fraction(2021883198761905708573, DEN)
+assert N.numerator**100000 <= N.denominator**100000 * (1<<3279669)
+assert N.numerator**100000 > N.denominator**100000 * (1<<3279668)
+# Standalone exact ledger. DEN and RATE are fixed by the target-unit definition. Inputs: the old rational total, the seven measured savings (subtracted) and the exact small development charge (added). Only Fraction arithmetic and integer power certificates are used: no target evaluation, random draw, cap, file, floating-point operation or clock. The two certificates bracket the filed upward-rounded logarithm, and the integer ceiling of N*RATE is the printed numerator.
+ops = N * RATE
+N_int = (ops.numerator + ops.denominator - 1) // ops.denominator
+assert N_int == 10109415993810
+print("N =", f"{N_int:016d}")
+print("time_log2 = 32.79669")
+```
+
+J.4. The exact total is
+
+`N = 2021883198761905708573 / 271000000000 = 7460823611.6675...`
+
+The integer primitive-operation numerator printed by the ledger is `N = 10109415993810` (the ceiling of the exact primitive total `N*1355`); the rational value above remains the exact target-unit total.
+
+and the power certificate in J.3 gives `log2(N) <= 32.79669`; the filed
+upward-rounded value is **time_log2 = 32.79669**. The preprocessing bound
+uses the lineage's starting bound `2^32.81088` and the same seven savings (subtracted) and the same small development charge (added):
+
+`P <= 2^32.81088 - 576569716479/1355 + 66152604/5 = 2^32.729695673...`,
+
+so its upward-rounded filed value is **preprocessing_log2 = 32.72970**.
+The total and all seven row savings are exact rational arithmetic; the
+preprocessing figure remains an upper bound because its inherited starting
+quantity is itself a stated bound. The memory figure is Appendix K's and the time figure Appendix L's (R5N); the success probability is
+unchanged.
+
+## Appendix K. Memory (R5N; supersedes Appendix I)
+
+Dense model: every resident structure at 32-byte words (a GF(2) row of at most 1,601 bits is 7 words, 224 bytes), phases sequential, code resident in every phase. Code = r5.py (at most 65,536 bytes) + the unrolled 2,048-step E block (410,479 counted primitives, at most 8 bytes each: two 4-byte arm64 instructions per 256-bit primitive) = 3,349,368 bytes. One echelon system: 1,600 x (224 + 8) + 1,600 x 8 = 384,000. One basis: 34 x 224 = 7,616. Setup's Cand: lin 307,200, condparts 277,890, a1rows, act and rowmasks 15,360: 600,450. Base (Lrow, Linv): 716,800. Module tables 131,072 and the parmw memo (n <= 10) 349,525: 480,597.
+
+| Phase | Components (bytes) | Total | log2 |
+| --- | --- | ---: | ---: |
+| E | ANF table G 41,449 x 768 = 31,832,832; derivative vectors 12,950 x 24 x 32 = 9,945,600; pass buffer 65,536; 50 bases 380,800; the last attempt's info (one echelon system) 384,000; Setup 600,450; Base 716,800; tables 480,597; code 3,349,368 | 47,755,983 | 25.509178 |
+| B' | X buffers (X0, current, materialised, working or rebuilt) 4 x 3,200 x 13 x 32 = 5,324,800; 6 D buffers 2,150,400; 2 port systems (1,600 x 14 words) 1,433,600; update logs 216 x (10 x 424 + 5 x 232 + 24) = 1,171,584; Model.cands 320 x 216 x 288 = 19,906,560; t.lin 307,200; conds 277,890; domain lists 398,080; d2u candidates 729,600; Base 716,800; tables 480,597; previous advice round (algorithm()): 49 bases 373,184, one echelon system 384,000, Setup 600,450; code 3,349,368 | 37,604,113 | 25.164387 |
+| P, per core and level (development, at the submitted program) | planes 2 x 9^5 x 224 = 26,453,952; key-word slot 2 x 9^5 x 32 = 3,779,136; w2 and choice 2 x 9^5 x 8 = 944,784; one block's sort pairs 944,784; Gray tables 10 x 16 x 256 = 40,960; core tables 10 x 9 x 224 = 20,160; T1/T2 core lists 65,536; code 3,349,368 | 35,598,680 | 25.085320 |
+| Connector | ED and EM 2 x 384,000; Setup 600,450; Base 716,800; 49 bases 373,184; tables 480,597; code 3,349,368 | 6,288,399 | 22.584261 |
+
+Peak = max(online phases: B', connector, E; preprocessing and development phases: P and every development run, at the submitted programs (X.5)) = E = 47,755,983 bytes, memory_log2_bytes = 25.509178153459 (rounded up). The B' item sizes other than the update logs are the dense structural maxima of our memory study (tent bound 216 computed over all 374 subspaces of F2^5; Model.cands at 216 entries for every row), re-checked by arithmetic; 0f72a85e's tent copies (up to 216 x 1,689,600 bytes) are gone. The advice-generating execution (R.8) is a measured peak: 36,118,528 bytes (stage 1; stages 2 and 3: 8,028,160 and 28,041,216) under a hard address-space cap of 45,000,000, below E's 47,755,983. Sensitivity (not claimed): a 2 MiB code allowance instead of r5.py's 65,536 bytes: 49,787,599 (2^25.5693).
+
+## Appendix L. Exact ledger (R5N2; supersedes Appendix J's total)
+
+L.0. Start: Appendix J's exact total N_J = 2021883198761905708573 / 271000000000 units. Every row below is added (no saving); rows L1-L5 and L7-L10 are development (preprocessing), L6 is online. A primitive count P enters as P/1355 units. L1-L8 are R5N's rows, unchanged.
+
+| Row | What | Exact value (units) | log2 |
+| --- | --- | --- | ---: |
+| L1 | G2's B' (V.5: 2^27.8175 units, taken as 236,546,734): extras at most 401/400 of the true cost | 47427620167/200 | 27.8212 |
+| L2 | D20's replay test B' (62,313,484,289) and R7 self-test B' (2,573,293,728 primitives): 401/400 of each | 26019597984817/542000 | 25.5167 |
+| L3 | D15 certified run: (7 x 38 + 19 x 20 - 7 x 80) x HV = 86 x 48,592,224 primitives | 4178931264/1355 | 21.5564 |
+| L4 | D19 contig.c: (38 + 329 x 20 - 80) x 4 x 2 x 9^5 primitives | 3088498896/1355 | 21.1202 |
+| L5 | D20 ptrial_check: (646 - 96) x 4 x 14,580 primitives | 6415200/271 | 14.5309 |
+| L6 | online Bases: (197 - 50) x 2^24 primitives | 2466250752/1355 | 20.7956 |
+| L7 | D26(a) design studies (R.6) | 424085561324/1355 | 28.2215 |
+| L8 | D26(b) the R5N build (R.6) | 268997851527/1355 | 27.5647 |
+| L9 | the capped advice run (R.8, run_2): stage 1 8,674,833 x 2^12 + 1,639,088,128 x 21 + 2^32; stage 2 41 x 6,171,212,448 + 8 x 3,123,009,756 + 50 x 3,048,202,692 + 1,024 x 7,251,935 + 2^11 x 30 + 127 x 467 x 2^17 + 467 x 2^20; 2 x 2^31 (loads) | 524646301384/1355 | 28.5285 |
+| L10 | D26(c) other runs made for R5N2: run_1 of the pipeline (stage 1, stage 2 at the same counters, stage 3, 2 loads), one more stage 1 with a load, two 3-core tests of stage 2 (44,995,338 steps, 22,497,669 inserts and probes, 46,091 hits each), 3 more loads (a probe of r5.py's import, check41.py with its trial execution), and the negative control (stage 1 under caps of 30,000,000 and 20,000,000, which fail with MemoryError, and capadv under 3,000,000 and 2,000,000, which fail at start) | 618281144384/1355 | 28.7654 |
+
+L.1. Total N = 2468312746186799208573 / 271000000000 = 9108165115.0804 units; log2 N = 33.084513; certificate below; **time_log2 = 33.08452**.
+
+L.2. Preprocessing: Appendix J's bound 2^32.81088 - 576569716479/1355 + 66152604/5 plus rows L1-L5 and L7-L10: **preprocessing_log2 = 33.02958** (rounded up; the starting quantity is a stated bound).
+
+L.3. Score: 33.08452 + (25.509178 - 20) = **38.59370** (R5N: 38.45350; 0f72a85e: 39.75228).
+
+L.4. Reproduction (Fraction arithmetic and integer powers only):
+
+```python
+from fractions import Fraction as F
+old = F(2021883198761905708573, 271000000000)
+rows = [F(47427620167, 200), F(26019597984817, 542000), F(4178931264, 1355), F(3088498896, 1355), F(6415200, 271), F(2466250752, 1355), F(424085561324, 1355), F(268997851527, 1355), F(524646301384, 1355), F(618281144384, 1355)]
+N = old + sum(rows)
+assert N == F(2468312746186799208573, 271000000000)
+assert N.numerator**100000 <= N.denominator**100000 * (1 << 3308452)
+assert N.numerator**100000 > N.denominator**100000 * (1 << 3308451)
+print('time_log2 =', 33.08452)
+```
