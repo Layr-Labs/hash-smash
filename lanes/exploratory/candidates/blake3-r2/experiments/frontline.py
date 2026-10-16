@@ -3,8 +3,8 @@ work register W of the six budgets and the meter of the credit. Exact 32-bit ari
 BLAKE3 library. Instance: the last chunk of the 55/63-byte pair, flags 3, counter t by step CT. One trial = one context
 (seven outer words from the seed): representative batches 0..TRIAL_REPS-2 and the last (four-lane) one.
   step 0  automata of (1) and (2) on S; in every lane i (word f at f << 36 i): T1 in two levels, R1 at 2^34 + l
-          (l < 2^16) and L1 at 2^34 + 2^26 + st + 2^16 h' (Lemma T26), T2 in two levels, R2 at 2^35 + l and L2 at
-          2^33 + st + 2^16 h, and PXR at 2^35 + 2^16 + l;
+          (l < 2^16) and L1 at 2^34 + 2^26 + c + 2^16 h' (Lemma T26), T2 in two levels, R2 at 2^35 + l and L2 at
+          2^33 + c + 2^16 h (c the class of the state: 35 and 4 rows), and PXR at 2^35 + 2^16 + l;
           the member lists with the broadcast words of each representative; every entry read is evaluated by the
           rule that fills it.
   step 1  context: the W test, the 39 context lines, sixteen packed operands (omega's marker 2^35 in -S0 - S5),
@@ -116,7 +116,7 @@ CREDIT = _MC + isqrt(40 * _LC * _MC - 1) + 1 + 14 * _LC + 15012
 CALL_BUDGET = -(-_MC // 4272) + (_S << 19)
 FB_BUDGET = -(-9 * RUN_CONTEXTS // 4) + (_S << 7)
 A_BUDGET = -(-852139 * RUN_CONTEXTS >> 7) + 16384 * _S
-G_BUDGET = 7164 * RUN_CONTEXTS + 84261 * _S
+G_BUDGET = 7198 * RUN_CONTEXTS + 84261 * _S
 S_OLD = 5486510246044225536
 U_REP, U_REP_TAIL, U_E, U_FILL, U_PASS, U_CALL, U_IX = 52, 40, 9, 56, 43, 6, 17
 U_PART, U_PART_TAIL, U_NEST, U_REP_T2, U_STATE, U_BCAST = 66, 38, 21, 7, 3, 4
@@ -137,10 +137,10 @@ assert U_PAIR == max(_C(a) + _C(b) for a in range(1, 8) for b in range(8) if a +
 assert U_OPEN == 160 and U_FALLBACK == 346 and U_FB == 189 and U_PART_TAIL == _C(3) and U_FILL == 54 + 2
 assert U_REP == 3 + 17 + 8 + 3 * 7 + 3 and U_REP_TAIL == 3 + 17 + 8 + 3 * 4 and U_REP * 2340 + U_REP_TAIL == 121720
 assert U_IX == 9 + 4 + 1 + 3 and U_PASS == 1 + 35 + 7 and U_BCAST == 2 * (1 + 1) and U_CONTEXT == 90917
-assert _MC == 768327282601085944857 and (WB, W_CTX) == (2129196039312246918115, 37772952) and N == 3162212250308201329187
+assert _MC == 768327282601085944857 and (WB, W_CTX) == (2131516846240021680115, 37772952) and N == 3164533057235976091187
 TEXT = dict(RUN_CONTEXTS=1218911201562375, E_BUDGET=34776155800492855966, PASS_BUDGET=633770615067648623,
-            CREDIT=768342835467316325136, A_BUDGET=8114703155646753044, G_BUDGET=8732289150770587932,
-            CALL_BUDGET=179909775650566080, FB_BUDGET=2742564335267280, N=3162212250308201329187)
+            CREDIT=768342835467316325136, A_BUDGET=8114703155646753044, G_BUDGET=8773732131623708682,
+            CALL_BUDGET=179909775650566080, FB_BUDGET=2742564335267280, N=3164533057235976091187)
 U_GLOBAL, U_FAMILY, U_ROW, U_FORCED, U_SELECTED, U_G15, U_FREE, U_LEAF, U_ROOT = 614, 2304, 1354, 20, 4, 64, 48, 80, 120
 
 
@@ -345,6 +345,16 @@ S2B, T3B, K7 = len(AUT2[0]) + len(AUT2[1]), len(F1) - len(AUT1[3]), ror(X11, 7)
 S1B, B1 = len(AUT1[0]) + len(AUT1[1]), B34 + (1 << 26)
 
 
+def classes(f, sb, n, w):
+    k = [tuple(tuple(f[t:t + w]) for t in f[sb + 256 * s:sb + 256 * s + 256]) for s in range(n)]
+    u = list(dict.fromkeys(k))
+    return [u.index(x) for x in k], [k.index(x) for x in u]
+
+
+C1, P1 = classes(F1, S1B, 43, 4)
+C2, P2 = classes(F2, S2B, 7, 256)
+
+
 def split(a):
     i = (a.bit_length() - 34) // 36
     f = a >> 36 * i
@@ -356,28 +366,28 @@ def R1(a):
     i, f = split(a)
     lo = f - B34
     assert lo >> 16 == 0
-    return B1 + (F1[F1[lo & 255] + (lo >> 8)] - S1B >> 8) - lo << 36 * i
+    return B1 + C1[F1[F1[lo & 255] + (lo >> 8)] - S1B >> 8] - lo << 36 * i
 
 
 def L1(a):
     i, f = split(a)
     v, h = f - B1 & L16, f - B1 >> 16
-    assert v < 43 and h >> 10 == 0
-    return F1[F1[S1B + 256 * v + (h & 255)] + (h >> 8)]
+    assert v < 35 and h >> 10 == 0
+    return F1[F1[S1B + 256 * P1[v] + (h & 255)] + (h >> 8)]
 
 
 def R2(a):
     i, f = split(a)
     lo = f - B35
     assert lo >> 16 == 0
-    return B33 + (F2[F2[lo & 255] + (lo >> 8)] - S2B >> 8) - lo << 36 * i
+    return B33 + C2[F2[F2[lo & 255] + (lo >> 8)] - S2B >> 8] - lo << 36 * i
 
 
 def L2(a):
     i, f = split(a)
     v, h = f - B33 & L16, f - B33 >> 16
-    assert v < 7 and h >> 16 == 0
-    return F2[F2[S2B + 256 * v + (h & 255)] + (h >> 8)]
+    assert v < 4 and h >> 16 == 0
+    return F2[F2[S2B + 256 * P2[v] + (h & 255)] + (h >> 8)]
 
 
 def cond1(x, theta):
@@ -1504,6 +1514,9 @@ def selftest(n):
         T3B, len(F1), 256) for b in range(256)) and {F2[F2[b & 255] + (b >> 8)] for b in range(1 << 16)} == set(
         range(S2B, S2B + 7 * 256, 256)) and {F1[F1[b & 255] + (b >> 8)] for b in range(1 << 16)} == set(
         range(S1B, S1B + 43 * 256, 256))
+    rep["classes"] = len(P1) == 35 and len(P2) == 4 and all(F2[F2[S2B + 256 * s + (h & 255)] + (h >> 8)] == L2(
+        B33 + C2[s] + (h << 16)) for s in range(7) for h in range(1 << 16)) and all(F1[F1[S1B + 256 * s + (h & 255)] + (
+        h >> 8)] == L1(B1 + C1[s] + (h << 16)) for s in range(43) for h in range(1 << 10))
     f1 = 0
     for s in range(32):
         ow = struct.unpack("<7I", hashlib.shake_256(b"f1 %d" % s).digest(28))
@@ -1541,7 +1554,7 @@ def selftest(n):
                  and rep["T1_T2_vs_bitserial"] == 2 * n and all(d[0] for d in drills.values()) and rep["S7_partition"]
                  and t[4] == t[5] == op[4] == op[5] == op[1] == cl[0] == cl[6] == 0 and t[2:4] == op[2:4]
                  and t[6] == op[6] > 0 and cl[4] == op[2] > 0 and cl[5] >= cl[4] and rep["F1_fill"] == 224
-                 and rep["XG"][0] == 0 < rep["XG"][1] and rep["XG"][2] and rep["tables"] and gf == 3584
+                 and rep["XG"][0] == 0 < rep["XG"][1] and rep["XG"][2] and rep["tables"] and rep["classes"] and gf == 3584
                  and nm_[:6] == t[:6] and t[6] <= nm_[6] and t[7] < nm_[7])
     json.dump(rep, sys.stdout, separators=(",", ":"))
     sys.stdout.write("\n")
