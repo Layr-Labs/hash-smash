@@ -1,7 +1,7 @@
-# 38-step SHA-256 collision with the characteristic P8 in the memory-efficient A0-variant attack, 32 classes and per-class row-16 programs: time 2^87.14808, memory 2^28.10 bytes
+# 38-step SHA-256 collision with the characteristic P8 in the memory-efficient A0-variant attack, 32 classes and invariant-folded carry-save row-16 programs: time 2^86.89079, memory 2^28.10 bytes
 
 **Track** sha256-r38-exploratory, target sha256-r38-prefix-v1, cost model collision-frontier-v5 (C = 2728), scalar policy hashsmash-scalar-tm-v1 (score = time_log2 + max(0, memory_log2_bytes - 20)).
-**Claim** time_log2 = 87.14808 (exact total 2^87.148072 target compressions), algorithmic success probability at least 0.39, memory 2^28.10 bytes (online 3,659,904 bytes; the preprocessing peak, Section 11), preprocessing 2^78.09276, non-uniform advice below 2^14 bytes. Score under the scalar policy: 95.24808.
+**Claim** time_log2 = 86.89079 (exact total 2^86.890780 target compressions), algorithmic success probability at least 0.39, memory 2^28.10 bytes (online 3,476,064 bytes; the preprocessing peak, Section 11), preprocessing 2^78.09276, non-uniform advice below 2^14 bytes. Score under the scalar policy: 94.99079.
 
 ## 0. Summary
 
@@ -11,23 +11,23 @@ This package runs the memory-efficient A0-variant collision attack on 38-step SH
 2. **The accepted event.** Rows 16..22 of both members follow the trail, except that row 19 is checked on its signed differences only (not on its derived value conditions), and the two outputs after step 37 are compared directly (rows 23..37 untested). All 188,796 estimator successes that were classified fall into four row-19 condition patterns (Section 6.2).
 3. **The measured q3 for that event** over the variants of the selected classes: 40 independent runs, mean 2^-96.1821, one-sided 99% Student bound 2^-96.5603 (bootstrap 2^-96.5278); **q3_model = 2^-97.0000**. The corresponding value of fb176310 for the published characteristic is 2^-97.7838.
 
-| | fb176310 (published characteristic) | 1a695f0b (P8, 8 classes) | this package (P8, 32 classes) |
-|---|---|---|---|
-| q3_model of the accepted event | 2^-97.7838 | 2^-97.0000 | 2^-97.0000 |
-| selected variants, good pairs per first block | 345,600, 23,118.75 | 196,608, 13,152 | 786,432, 52,608 |
-| row-16 program per batch of 256 variants | 1,410 to 1,426 instructions | 1,511 instructions (one shared program) | 1,438 to 1,482 instructions (per class; mean 1462.25) |
-| time_log2 | 87.90375 | 87.22358 | **87.14808** |
-| memory | 2^28 (online 1,044,992 bytes) | 2^28.10 | 2^28.10 (online 3,659,904 bytes) |
-| score (scalar policy) | 95.90375 | 95.32358 | **95.24808** |
+| | fb176310 (published characteristic) | 1a695f0b (P8, 8 classes) | 08e2e0d3 (P8, 32 classes) | this package (P8, 32 classes) |
+|---|---|---|---|---|
+| q3_model of the accepted event | 2^-97.7838 | 2^-97.0000 | 2^-97.0000 | 2^-97.0000 |
+| selected variants, good pairs per first block | 345,600, 23,118.75 | 196,608, 13,152 | 786,432, 52,608 | 786,432, 52,608 |
+| row-16 program per batch of 256 variants | 1,410 to 1,426 instructions | 1,511 instructions (one shared program) | 1,438 to 1,482 instructions (per class; mean 1462.25) | 1,169 to 1,207 instructions (per class; mean 1188.31) |
+| time_log2 | 87.90375 | 87.22358 | 87.14808 | **86.89079** |
+| memory | 2^28 (online 1,044,992 bytes) | 2^28.10 | 2^28.10 (online 3,659,904 bytes) | 2^28.10 (online 3,476,064 bytes) |
+| score (scalar policy) | 95.90375 | 95.32358 | 95.24808 | **94.99079** |
 
-### 0.1 Changes from 1a695f0b
+### 0.1 Changes from 1a695f0b and 08e2e0d3
 
-1. **All 32 largest c7 classes.** 1a695f0b used the 8 classes of mask 7fe96c7c (196,608 variants). This package uses every class of the maximal size 24,576 of P8 (32 classes, 786,432 variants), with 6 different masks: 7feb6c7c (22 bits) x 8, 7fe96c7c (21 bits) x 8, 7feb6c7e (23 bits) x 4, 7fe96c7e (22 bits) x 4, 3feb6c7c (21 bits) x 4, 3fe96c7c (20 bits) x 4. Good pairs per first block: 52,608 (was 13,152).
-2. **Per-class row-16 programs.** Each class gets its own bit-sliced row-16 program in which every bit of a0 outside the class's mask is the class's base bit, folded as a constant (Section 7.2). The idea is that of 08be594 (johnservil), which did it for the 8 classes of 1a695f0b; our implementation (`cbits`, `program` in `experiments/a0p38.py`) is our own. 32 programs, 1,438 to 1,482 instructions, mean 1462.25, against the shared program of 1,511 instructions of 1a695f0b. On the 8 classes of 1a695f0b alone this lowers time_log2 from 87.22358 to 87.17957 (Section 10).
-3. **The F7 sampler of the organizer replica.** 1a695f0b sampled W7 in F7 by its three affine families, choosing the family by `(w >> 4) % 274` of the same random word whose bits then formed the value: the family choice was correlated with the value and had a modulo bias. Both were pointed out in 08be594 (johnservil). The replica now draws the family by rejection from its own word (9 bits, accepted below 274: shares 256, 16, 2, no bias) and the value bits from a fresh word (`f7_sample`; 200,000 draws: all in F7, family frequencies 93,187 + 93,579 / 11,769 / 1,465 against 186,861 / 11,679 / 1,460 expected). A generic rejection sampler on the definition is kept for other (D7, T7) only, as it is slower.
-4. **Deterministic class selection.** The classes are selected by `lp_classes.py` (ALLMAX=1: every class of the largest size, ordered by c7) from the output of `a0cls.c`, replacing the hand-run selection of 1a695f0b.
-5. **Lane cost.** The scalar recovery of a0 from the stored planes costs 4 per mask bit; it is charged at the widest mask (7feb6c7e, 23 bits): 208 operations per stage-3a lane (was 200).
-6. **q3 re-measured** over the 786,432 variants of the 32 classes (seeds 4001..4040, Section 9). Memory is unchanged at 2^28.10: P8 and S are those of 1a695f0b (Section 11).
+1. **All 32 largest c7 classes (from 08e2e0d3).** 1a695f0b used the 8 classes of mask 7fe96c7c (196,608 variants). 08e2e0d3 and this package use every class of the maximal size 24,576 of P8 (32 classes, 786,432 variants), with 6 different masks: 7feb6c7c (22 bits) x 8, 7fe96c7c (21 bits) x 8, 7feb6c7e (23 bits) x 4, 7fe96c7e (22 bits) x 4, 3feb6c7c (21 bits) x 4, 3fe96c7c (20 bits) x 4. Good pairs per first block: 52,608 (was 13,152).
+2. **Carry-save per-class row-16 programs and algebraic invariant folding (new over 08e2e0d3 and 0906b03e).** Each class gets its own bit-sliced row-16 program in which every bit of a0 outside the class's mask is the class's base bit, folded as a constant (Section 7.2; 08be594 and 08e2e0d3). In 08e2e0d3 the 32 programs took 1,438 to 1,482 instructions (mean 1462.25, with 16..20 spill stores); in 0906b03e carry-save column reduction (`reduce_col`), polarity-carrying wires, and absorbing `A0_CONST = 0x380` into `HH, K1, KP` reduced them to 1,179..1,220 (mean 1200.38, 0 spills). Here (`build_e16`, `cbits`, `fb_scalars`, `broadcast` in `experiments/a0p38.py`) we further exploit exact algebraic invariants across all 786,432 variants of the 32 classes: (i) `a0[11] ^ a0[10] = 1` (`a0[10] + 2 a0[11] = 1 + a0[11]`, absorbed into `A0_ADD = 0x780` in `HH` and `KP` with `a0e[10] = a0[11], a0e[11] = 0`), `a0[22] = a0[21]`, `a0[20] = 0` (`AB` bit 20 omitted), and per-class `a0[28] = a0[27] ^ 1` (folded into `E0` bit 27 in classes `ci % 16 in {0,2,4,6}`) or `a0[28] = a0[27]` (in the remaining 24 classes) plus `a0[16] = a0[1] ^ 1` (in classes `ci % 16 in {8,9,10,11}`), eliminating 3 to 4 `a0` plane loads per batch; (ii) pruning `W1` to bits 0..30 (`max(TBITS) + 18 = 30` for `TK = 10`, omitting bit 31 of `EF, FF, K1, AB`), reducing per-first-block scalars from 44 to 39 ops and broadcast planes from 173 (692 ops) to 165 (660 ops). Result: 32 programs, **1,169 to 1,207 instructions, mean 1188.31**, with 0 spill stores across all 32 classes, lowering time_log2 to **86.89079** (score **94.99079**).
+3. **The F7 sampler of the organizer replica (from 08e2e0d3 / 08be594).** 1a695f0b sampled W7 in F7 by its three affine families, choosing the family by `(w >> 4) % 274` of the same random word whose bits then formed the value: the family choice was correlated with the value and had a modulo bias. Both were pointed out in 08be594 (johnservil). The replica draws the family by rejection from its own word (9 bits, accepted below 274: shares 256, 16, 2, no bias) and the value bits from a fresh word (`f7_sample`; 200,000 draws: all in F7, family frequencies 93,187 + 93,579 / 11,769 / 1,465 against 186,861 / 11,679 / 1,460 expected). A generic rejection sampler on the definition is kept for other (D7, T7) only, as it is slower.
+4. **Deterministic class selection (from 08e2e0d3).** The classes are selected by `lp_classes.py` (ALLMAX=1: every class of the largest size, ordered by c7) from the output of `a0cls.c`, replacing the hand-run selection of 1a695f0b.
+5. **Stage-3a tested bits (TK = 10) and canonical-batch lane cost.** Testing the TK = 10 lowest shared bits of R16 (bits 1, 3, 4, 5, 6, 7, 8, 9, 11, 12; `max(TBITS) = 12` instead of 16) avoids computing bits 13..16 of E16x and bit 31 of W1 in every batch while keeping stage-3a lane work small (24,576 x 2^-10 = 24 expected lanes per passing class). Because each class decomposes as 24 high-11-bit prefixes times 1,024 = 4 x 256 low-21-bit solutions (`LV_MASK = 0x1fffff`), bits 21..31 of a0 are constant across all 256 lanes of every canonical batch (`planes['base']`), so `lane_value` recovers only the varying bits in `mk & 0x1fffff` (at most 13 bits: 4 x 13 + 1 = 53 ops) and `scalar_e16` costs 38 ops: 168 operations per stage-3a lane (was 209 in 0906b03e).
+6. **q3 re-measured** over the 786,432 variants of the 32 classes (seeds 4001..4040, Section 9, from 08e2e0d3). Memory is unchanged at 2^28.10 (online memory is 3,476,064 bytes; the preprocessing peak is unchanged, Section 11).
 
 ## 1. Target and cost model
 
@@ -38,7 +38,7 @@ Target sha256-r38-prefix-v1: SHA-256 steps 0..37 on every padded block, the stan
 - ePrint 2026/1120 (Li, Zhang, Li, Liu, Qian, Zhu): the 38-step two-block framework and its memory-efficient Step 1-3 procedure, the message-difference shape (W7..W11, W15, W16, W23, W25), the published characteristic (comparison only). ePrint 2026/1080 [LLWS26]: the memory-efficient framework.
 - 2d1c4fc2 (itseasypop): A0-variants of the Step-1 solution, the c7 classes decided by one W7 test, the bit-sliced evaluation of the row-16 filter for 256 variants per word, the success analysis with a pair term and work caps. fb176310 (Jbenisek): the accepted event with a direct output comparison and alternative row-19 patterns, lowest-shared-bit stage 3a, the memory-free W7 test, a counted register allocator. We read their packages as documents; we executed none of their code. `experiments/a0p38.py` is our own implementation of that design for P8.
 - 08be594 (johnservil): per-class row-16 programs with the class's non-mask bits folded as constants (for the 8 classes of 1a695f0b), and the observation that the F7 sampler of 1a695f0b's replica correlated the family choice with the value and had a modulo bias. Our per-class programs and the corrected sampler are our own implementation (for those 8 classes our per-class counts, [1466, 1457, 1469, 1466, 1463, 1454, 1466, 1463], equal the counts listed in 08be594's submission note).
-- Ours: the characteristic P8 and the search that found it (signed-difference SAT model, sign sweep, joint coupling check), the condition derivation and estimators, the accepted event with row 19 on signed differences and its measurement, the class selection for P8 (`lp_classes.py`), the program `experiments/a0p38.py` (reference, bit-sliced program builder and allocator, counted scalar routines, replica, experiments), the ledger. Our filings 1db43310, 49b543d1 and 242fcec3 (table attack, NEW3) and 1a695f0b (this attack with 8 classes) are the earlier steps of this work.
+- 08e2e0d3 (dariolina, base package of this line; extending 1a695f0b, 49b543d1, 242fcec3 and 1db43310): the characteristic P8 and the search that found it (signed-difference SAT model, sign sweep, joint coupling check), the condition derivation and estimators, the accepted event with row 19 on signed differences and its 40-run measurement, the 32-class selection (`lp_classes.py`), the base program `experiments/a0p38.py` and `ledger_a0p.py`. Our prior filing 0906b03e introduced `reduce_col` carry-save column reduction, polarity-carrying wires, `A0_CONST = 0x380` folding, and `TK = 10` (1,179..1,220 instructions, mean 1200.38, `time_log2` = 86.91630; a concurrent derivative fa3a15cc by 2121 adjusted `fb_scalars` and `scalar_e16` to 86.91627). This package extends 0906b03e in `a0p_core.py`, `a0p_prog.py`, `a0p_scal.py`, `a0p_run.py` and `ledger_a0p.py` with algebraic invariant folding across all 32 classes (`a0[11]^a0[10]=1`, `a0[22]=a0[21]`, `a0[20]=0`, `a0[28]=a0[27]^c`, `a0[16]=a0[1]^1`), `W1` pruning to bit 30 (165 broadcast planes / 660 ops, 39 scalar ops), and canonical-batch `LV_MASK = 0x1fffff` lane recovery (168 ops per lane), reducing the 32 per-class programs to 1,169..1,207 (mean 1188.31) instructions and `time_log2` to 86.89079.
 - Execution: everything ran in Linux containers on one 10-core machine (OrbStack; Ubuntu 22.04 for the C tools and solvers; the shipped program also on the official python:3.12.12-slim-bookworm image, Section 13).
 
 ## 3. The characteristic P8
@@ -193,7 +193,7 @@ F7 = {w : s0(w + D7) - s0(w) = 03bff800}, |F7| = 287,309,824 (exhaustive), p7 = 
 
 ### 6.1 Row 16
 
-W16 = s1(W14) + W9 + s0(W1) + W0 and, by Lemma 4.1, W0 = a0 + KW0(CV1), W1 = K1(CV1) - S0(a0) - MAJ(a0, a, b) - S1(E0) - CH(E0, e, f) with E0 = a0 + HH(CV1). So E16x = KP + a0 + s0(W1) with per-first-block constants HH, KP, K1, and row 16 (both members, all its conditions) is a function of E16x alone: an exhaustive pass over all 2^32 values of W16 gives the 160 words of the set R16 (`q3tv.c`, the exhaustive pass of `main`; `selftest` item 2 re-checks it on 20,000 random words and the bit-flip neighbours). The 160 words share 19 bits (mask 4cc79bfa); the program tests the TK = 12 lowest of them (bits 1, 3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 16): stage 3a passes with probability 2^-12 exactly (E16x uniform, Lemma 5.1), row 16 with 160 / 2^32.
+W16 = s1(W14) + W9 + s0(W1) + W0 and, by Lemma 4.1, W0 = a0 + KW0(CV1), W1 = K1(CV1) - S0(a0) - MAJ(a0, a, b) - S1(E0) - CH(E0, e, f) with E0 = a0 + HH(CV1). So E16x = KP + a0 + s0(W1) with per-first-block constants HH, KP, K1, and row 16 (both members, all its conditions) is a function of E16x alone: an exhaustive pass over all 2^32 values of W16 gives the 160 words of the set R16 (`q3tv.c`, the exhaustive pass of `main`; `selftest` item 2 re-checks it on 20,000 random words and the bit-flip neighbours). The 160 words share 19 bits (mask 4cc79bfa); the program tests the TK = 10 lowest of them (bits 1, 3, 4, 5, 6, 7, 8, 9, 11, 12): stage 3a passes with probability 2^-10 exactly (E16x uniform, Lemma 5.1), row 16 with 160 / 2^32.
 
 ### 6.2 The accepted event
 
@@ -214,7 +214,7 @@ successes of 40 estimator runs (seeds 4001..4040, 32 classes, rebuilt and checke
 188,796 of 188,796 successes in these four patterns (complete dumps)
 ```
 
-## 7. The counted program (`experiments/a0p38.py`, 51,228 bytes, SHA-256 63552a536ebc2c4893d01838fd65235e91bbbf9f7c3334c49be4bb657a2b30a4)
+## 7. The counted program (`experiments/a0p38.py`, 56,008 bytes, SHA-256 9be5d888d551fb0b12646132b5498183ab18d6087a158c1c65d7659b848a4dc5)
 
 ### 7.1 Machine and scalar routines
 
@@ -224,16 +224,16 @@ successes of 40 estimator runs (seeds 4001..4040, 32 classes, rebuilt and checke
 |---|---|
 | first block: 2 random words and their 16 fields (30), counter, cap test, hit-list test (5) | 35 |
 | one W7 test (computed, no table), plus 4 for the class loop | 24 + 4 |
-| per-first-block scalars HH, PP, QQ, EF, FF, K1, KP | 39 |
-| the 7 x 32 broadcast planes (4 each) | 896 |
+| per-first-block scalars HH, AB, EF, FF, K1, KP | 39 |
+| the 165 per-first-block broadcast planes (32 + 27 + 3 x 31 + 13; 4 operations each) | 660 |
 | per passing class: setup 3, end of class (work counter, cap test) 4 | 7 |
-| per batch of 256 variants: the class's row-16 program (1,438 to 1,482, mean 1462.25) + ok test 2 + pointer, compare, branch 4 | prog_i + 6 |
-| per stage-3a lane: lowest lane (32), clear and loop (3), a0 from the stored planes (4 x 23 + 1 = 93, the widest mask), E16x (38), the row-16 table test (42) | 208 |
+| per batch of 256 variants: the class's row-16 program (1,169 to 1,207, mean 1188.31) + ok test 2 + pointer, compare, branch 4 | prog_i + 6 |
+| per stage-3a lane: lowest lane (32), clear and loop (3), a0 from the stored low-21-bit planes (4 x 13 + 1 = 53, widest low mask), E16x (38), the row-16 table test (42) | 168 |
 | per row-16 pass (itemised declared count): Step 2 for both members, the expansion and rows 16..37 of both members with the tests of rows 16..22, the output comparison | 3105 |
 
 ### 7.2 The row-16 programs (one per class)
 
-Bit L of a 256-bit plane belongs to lane L (one variant). Inputs of the program of class i: the planes of the bits of a0 in mask_i (20 to 23 bits, stored per batch) and the 224 broadcast planes; every bit of a0 outside mask_i is the corresponding bit of base_i and is folded as a constant (the per-class construction of 08be594; Section 0.1). `build_e16` builds, bit-interleaved, the DAG of E0 = a0 + HH, then per bit j: S0(a0), MAJ(a0, a, b) = PP | (a0 & QQ), S1(E0), CH(E0, e, f) = FF ^ (E0 & EF), the three ripple adders of their sum T and the subtraction W1 = K1 - T, then per tested position j <= 16: s0(W1), the two adders of E16x and the comparison with the common value; constants are folded and equal nodes shared. `schedule` allocates 64 registers by Belady's rule (evict the value needed farthest ahead; store it first if it is needed again and has no copy); every load, store and spill is an instruction. Result: 32 programs (32 distinct input patterns), **1,438 to 1,482 instructions per batch, mean 1462.25** (calibration list in Section 10). The expected work uses the mean (each class passes its W7 test with the same p7), the work cap the maximum. The programs are executed instruction by instruction (`run_prog`) and compared with the scalar definition lane by lane (`selftest` item 4 and the organizer experiment `a0p-online-r38`: 0 mismatches).
+Bit L of a 256-bit plane belongs to lane L (one variant). Inputs of the program of class i: the independent varying planes of a0 in mask_i (16 to 19 planes loaded per batch after folding `a0[11] = ~a0[10]`, `a0[22] = a0[21]`, `a0[28] = a0[27] ^ c`, and `a0[16] = ~a0[1]` in classes `ci % 16 in {8,9,10,11}`) and the 165 per-first-block broadcast planes (`HH` 0..31, `AB` on the 27 active bits of `AB_MASK = 0x7feffc7f`, `EF, FF, K1` 0..30, `KP` 0..12); every bit of a0 outside mask_i is the corresponding bit of base_i and is folded as a constant (Section 0.1). `build_e16` builds the DAG of `E0 = a0e + HH` (with `A0_ADD = 0x780` and `a0[10] + 2 a0[11] = 1 + a0[11]` absorbed into `HH, KP` and `a0e`), then for j = 0..30 (`max(TBITS) + 18` for `TK = 10`, `max(TBITS) = 12`): `S0(a0)`, `a0z & AB`, `S1(E0)`, `CH(E0, e, f) = FF ^ (E0 & EF)`, and reduces each column of `~W1 = K1 + S0(a0) + (a0z & AB) + S1(E0) + CH(E0, e, f)` via `reduce_col` (pairing same-polarity wires), then for k = 0..12: `s0(W1)`, `E16x = KP + a0e + s0(W1)` and the comparison with the common value on the 10 tested bits; constants are folded and equal nodes shared. `schedule` allocates 64 registers by Belady's rule (evict the value needed farthest ahead; store it first if it is needed again and has no copy); every load, store and spill is an instruction. Result: 32 programs (32 distinct input patterns), **1,169 to 1,207 instructions per batch, mean 1188.31, with 0 spill stores across all 32 classes** (calibration list in Section 10). The expected work uses the mean (each class passes its W7 test with the same p7), the work cap the maximum. The programs are executed instruction by instruction (`run_prog`) and compared with the scalar definition lane by lane (`selftest` item 4 and the organizer experiment `a0p-online-r38`: 0 mismatches).
 
 ## 8. The algorithm (fixed caps)
 
@@ -252,7 +252,7 @@ for f = 1 .. N_FB:
 halt (failure)
 ```
 
-*Lemma 8.1 (the cap).* V accumulates every data-dependent operation of every first block (all of v_f in Section 9) and is tested before every first block and after every class, so V <= V_MAX + OVER at every moment (V is updated for every first block, including first blocks with no passing class: their data-dependent work is the W7 tests and the hit-list test, added to V before the next cap test), OVER = 2,610,022,471 (one first block at its maximum: all classes passing, each charged at the longest program, every lane a row-16 pass). The 35 fixed operations per first block are charged separately (N_FB x 35). The run never outputs a non-collision (Lemma 6.1).
+*Lemma 8.1 (the cap).* V accumulates every data-dependent operation of every first block (all of v_f in Section 9) and is tested before every first block and after every class, so V <= V_MAX + OVER at every moment (V is updated for every first block, including first blocks with no passing class: their data-dependent work is the W7 tests and the hit-list test, added to V before the next cap test), OVER = 2,577,720,155 (one first block at its maximum: all classes passing, each charged at the longest program, every lane a row-16 pass). The 35 fixed operations per first block are charged separately (N_FB x 35). The run never outputs a non-collision (Lemma 6.1).
 
 ## 9. The success probability
 
@@ -303,41 +303,42 @@ halt (failure)
 | 4039 | -24.678 -17.017 -13.926 -3.031 -15.195 -6.994 -1.022 -13.541 | 5,500 | -95.4025 |
 | 4040 | -24.678 -17.004 -13.954 -2.983 -15.604 -6.983 -1.005 -13.440 | 5,899 | -95.6513 |
 
-Mean 2^-96.1821, relative sd 0.601, one-sided 99% Student bound (t = 2.4258, 39 degrees of freedom) 2^-96.5603, bootstrap 1% quantile of the mean 2^-96.5278; 188,796 successes. The row-20 stage has the largest spread across the runs (sd 0.97 bits of its log2 factor; the others at most 0.20). Runs 4012 and 4018 found no survivor at row 20 and are counted as an estimate of 0. **q3_model = 2^-97.0000.** q3_model = 2^-97.0 was set from the first 20 runs (seeds 4001..4020: their 99% bound 2^-96.9989, rounded down to a tenth) and kept when 20 further runs were added after a first review found its margin thin (seeds 4021..4040, fixed before those runs; all runs are reported); over all 40 runs the 99% bound is 0.4397 bits above q3_model. Rounding the 40-run bound down would give 2^-96.6; we keep 2^-97.0 for the margin. At the 40-run bound 2^-96.5603 the ledger gives 86.70934.
+Mean 2^-96.1821, relative sd 0.601, one-sided 99% Student bound (t = 2.4258, 39 degrees of freedom) 2^-96.5603, bootstrap 1% quantile of the mean 2^-96.5278; 188,796 successes. The row-20 stage has the largest spread across the runs (sd 0.97 bits of its log2 factor; the others at most 0.20). Runs 4012 and 4018 found no survivor at row 20 and are counted as an estimate of 0. **q3_model = 2^-97.0000.** q3_model = 2^-97.0 was set from the first 20 runs (seeds 4001..4020: their 99% bound 2^-96.9989, rounded down to a tenth) and kept when 20 further runs were added after a first review found its margin thin (seeds 4021..4040, fixed before those runs; all runs are reported); over all 40 runs the 99% bound is 0.4397 bits above q3_model. Rounding the 40-run bound down would give 2^-96.6; we keep 2^-97.0 for the margin. At the 40-run bound 2^-96.5603 the ledger gives 86.45224.
 
 *The pair term (H3).* Every success passes row 16, so given A_t, X_f - 1 <= R_f - 1 (the other row-16 passes of f). Measured (`h3p.py`): 750 successes rebuilt and verified (all accepted by the program's event, so the estimator's event and the program's agree on every one; 99% bound on a disagreement rate 0.6%), all 750 re-found in their own class; every selected variant of every passing class evaluated on the success's CV1: 6,252 passing classes, 153,649,152 variants, **6 other row-16 passes, 0 further accepted pairs** (5.72 expected under independence). One-sided 99% Poisson limit of E[R_f - 1 | A_t]: 0.0194 = 2^-5.69; charged 2^-5.1 (the limit rounded up to a tenth plus 0.5, the rule of 1a695f0b). Sampling: every 25th success line of the study's dump files in sorted file order, the first 750 of them (`h3p.py`, `POOL` and `STUDY` set to this study's pool and dumps), so they come from the first runs and successes within a run are not independent; the Poisson limit assumes independence, which the 0.5 margin only partly covers (pair term 2^-3 moves the claim by +0.07, Section 10). A second sample of 750 successes spread evenly over all 40 runs (`SPREAD=750`; every success of the sorted dump files, equally spaced) gives 750 verified, 6,278 passing classes, 154,288,128 variants, 6 other row-16 passes, 0 further accepted pairs: 99% limit 2^-5.69, charge 2^-5.1 by the same rule. We charge the larger value, that of the first sample. Given a success, its CV1 passes the W7 test for 8.34 classes on average (1 + 31 p7 = 3.07 if the classes were independent): the c7 values of the classes are related, so their W7 tests pass together. The expectations of the ledger are linear and unaffected; the effect is inside the measured pair term and the work cap.
 
-*Bonferroni, independence, caps.* Pr[X_f >= 1] >= E[X_f] - E[X_f (X_f - 1)] / 2 >= g q3 (1 - 2^h3 / 2); first blocks are independent (fresh coins); the data-dependent work v_f of a first block satisfies 0 <= v_f <= vmax_f = 2,610,022,471 with mean at most vbar = 306253.2258 (exact rational in the ledger), so Var(sum v_f) <= N_FB vmax_f vbar and Chebyshev bounds Pr[sum v_f > (1 + 2^-16) N_FB vbar] by P_cap = 2.423e-11; V_MAX = ceil((1 + 2^-16) N_FB vbar). On the complement no cap halts the run. N_FB is the least integer with 1 - exp(-N_FB g q3_model (1 - 2^h3 / 2)) - P_cap - 2^-60 >= 0.39 (2^-60 covers the rounding of the exponential, evaluated at 80 decimal digits).
+*Bonferroni, independence, caps.* Pr[X_f >= 1] >= E[X_f] - E[X_f (X_f - 1)] / 2 >= g q3 (1 - 2^h3 / 2); first blocks are independent (fresh coins); the data-dependent work v_f of a first block satisfies 0 <= v_f <= vmax_f = 2,577,720,155 with mean at most vbar = 255682.5696 (exact rational in the ledger), so Var(sum v_f) <= N_FB vmax_f vbar and Chebyshev bounds Pr[sum v_f > (1 + 2^-16) N_FB vbar] by P_cap = 2.866e-11; V_MAX = ceil((1 + 2^-16) N_FB vbar). On the complement no cap halts the run. N_FB is the least integer with 1 - exp(-N_FB g q3_model (1 - 2^h3 / 2)) - P_cap - 2^-60 >= 0.39 (2^-60 covers the rounding of the exponential, evaluated at 80 decimal digits).
 
 ## 10. Ledger (exact; `ledger_a0p.py`, Appendix C)
 
 ```text
 T = A_C + A_S + DEV + N_FB + (N_FB x 35 + V_MAX + OVER + PRE + FIN) / C + 6
   A_C = 2^78, A_S = 2^74, DEV = 2^70 (Section 12, H4; the levels of fb176310)
-  N_FB = 1,510,856,422,634,357,630,235,398 = 2^80.32164   (g = 52,608 good pairs per first block, g q3_model = 2^-81.3170)
-  vbar = 306253.2258 operations per first block: W7 tests 32 x (24 + 4), hit list, scalars and planes (935) x min(1, 32 p7),
-         passing classes 32 p7 x (7 + 96 x (5849/4 + 6)) (the mean program, 5849/4 = 1462.25), stage-3a lanes 32 p7 x 24,576 x 2^-12 x 208, row-16 passes 32 p7 x 24,576 x 160 / 2^32 x 3105
-  vmax_f = OVER: every class at the longest program (1,482), every lane a row-16 pass
-  V_MAX = 462,711,713,474,543,096,131,143,149,032, OVER = 2,610,022,471, PRE = 8,858,632,192 (member tests over the 32 class cubes, the batch planes, program generation)
+  N_FB = 1,510,856,422,656,568,670,938,611 = 2^80.32164   (g = 52,608 good pairs per first block, g q3_model = 2^-81.3170)
+  vbar = 255682.5696 operations per first block: W7 tests 32 x (24 + 4), hit list, scalars and planes (699) x min(1, 32 p7),
+         passing classes 32 p7 x (7 + 96 x (19013/16 + 6)) (the mean program, 19013/16 = 1188.3125), stage-3a lanes 32 p7 x 24,576 x 2^-10 x 168, row-16 passes 32 p7 x 24,576 x 160 / 2^32 x 3105
+  vmax_f = OVER: every class at the longest program (1,207), every lane a row-16 pass
+  V_MAX = 386,305,546,840,284,932,073,036,074,922, OVER = 2,577,720,155, PRE = 8,858,632,192 (member tests over the 32 class cubes, the batch planes, program generation)
   FIN = 1,600 operations and 6 units (the final verification)
-N = T x 2728 = 467,765,448,296,261,394,038,709,429,793  ->  T = 2^87.14807212  ->  time_log2 = 87.14808
+N = T x 2728 = 391,359,281,662,064,599,086,033,030,886  ->  T = 2^86.89078048  ->  time_log2 = 86.89079
 ```
 
 Calibration (`calibrate.json`, the output of `calibrate()` of `experiments/a0p38.py`; `selftest` prints the same):
 
 ```
-{"prog": [1447, 1466, 1441, 1457, 1449, 1468, 1443, 1459, 1482, 1475, 1482, 1475, 1469, 1466, 1472, 1469, 1444, 1463, 1438, 1454, 1446, 1465, 1440, 1456, 1479, 1472, 1479, 1472, 1466, 1463, 1469, 1466], "w7": 24, "fb_fixed": 35, "w7_loop": 4, "scalars": 39, "planes": 896, "batch_ctl": 6, "class_ctl": 7, "lane": 208, "deep": 3105, "tk": 12, "classes": 32, "class_size": 24576}
+{"prog": [1173, 1186, 1169, 1180, 1182, 1195, 1176, 1189, 1201, 1196, 1204, 1199, 1186, 1182, 1194, 1190, 1174, 1186, 1170, 1180, 1183, 1195, 1177, 1189, 1204, 1199, 1207, 1202, 1187, 1183, 1196, 1192], "w7": 24, "fb_fixed": 35, "w7_loop": 4, "scalars": 39, "planes": 660, "batch_ctl": 6, "class_ctl": 7, "lane": 168, "deep": 3105, "tk": 10, "classes": 32, "class_size": 24576}
 ```
 
-*Certificate.* `python3 ledger_a0p.py --q3 -97.0 --h3 -5.1 --cal calibrate.json` prints the ledger and checks `(2728^E << 8714807) < N^E <= (2728^E << 8714808)` with E = 100000 (exact integers), so 87.14808 is the smallest five-decimal upper bound on log2 T. *Sensitivity* (each row recomputed by the ledger with this calibration unless marked reference):
+*Certificate.* `python3 ledger_a0p.py --q3 -97.0 --h3 -5.1 --cal calibrate.json` prints the ledger and checks `(2728^E << 8689078) < N^E <= (2728^E << 8689079)` with E = 100000 (exact integers), so 86.89079 is the smallest five-decimal upper bound on log2 T. *Sensitivity* (each row recomputed by the ledger with this calibration unless marked reference):
 
 ```
-claimed                                                                                          87.14808   (N_FB 2^80.3216)
-q3_model = the study mean 2^-96.1821                                                             86.33224   (N_FB 2^79.5037)
-q3_model 2^-97.78 (the q3_model of fb176310 for the published characteristic)                    87.92694   (N_FB 2^81.1016)
-pair term 2^-3                                                                                   87.21987   (N_FB 2^80.3936)
-allowances of 1a695f0b (A_C = 2^48, A_S = 2^50, DEV = 2^50)                                      87.14536   (N_FB 2^80.3216)
-A_C = 2^84                                                                                       87.29999   (N_FB 2^80.3216)
+claimed                                                                                          86.89079   (N_FB 2^80.3216)
+q3_model = the study mean 2^-96.1821                                                             86.07536   (N_FB 2^79.5037)
+q3_model 2^-97.78 (the q3_model of fb176310 for the published characteristic)                    87.66943   (N_FB 2^81.1016)
+pair term 2^-3                                                                                   86.96255   (N_FB 2^80.3936)
+allowances of 1a695f0b (A_C = 2^48, A_S = 2^50, DEV = 2^50)                                      86.88754   (N_FB 2^80.3216)
+A_C = 2^84                                                                                       87.07058   (N_FB 2^80.3216)
+08e2e0d3: 32 classes, per-class programs (1,438..1,482, mean 1462.25), TK = 12                   87.14808   (reference)
 1a695f0b: 8 classes, one shared program of 1,511, q3_model 2^-97.0, pair term 2^-5.9             87.22358   (reference)
 the same with per-class programs (08be594's construction; ours, 1,454..1,469, mean 1463.00)      87.17957   (reference)
 ```
@@ -345,8 +346,8 @@ the same with per-class programs (08be594's construction; ours, 1,454..1,469, me
 ## 11. Memory and advice
 
 ```
-online 3659904 bytes = 2^21.803: 32 row-16 programs (one per class) 46,792 instructions, class planes 32 x 96 batches x (20..23) words = 66,048 words,
-  class table 32 x 6 words, broadcast planes 224 words, row-16 table 160 words, spill slots 24 words, scalar routines at most 700 instructions,
+online 3476064 bytes = 2^21.729: 32 row-16 programs (one per class) 38,058 instructions, class planes and batch base words 32 x 96 batches x ((20..23) + 1) words = 69,120 words,
+  class table 32 x 6 words, broadcast planes 165 words, row-16 table 160 words, spill slots 0 words, scalar routines at most 700 instructions,
   the deep path's two traces (200 words), M0, CV1 and counters (32 words); 32 bytes per word or instruction
 preprocessing (single-threaded, sequential stages; peak of the summed resident memory of all processes, sampled every 0.2 s):
   Step-1 solve of P8 (joint.py: Python model + Kissat; the S in use, as in 1a695f0b): 279,720 KB = 2^28.0936
@@ -367,12 +368,12 @@ Claimed memory 2^28.10 bytes: the maximum of the online footprint and the measur
 - **H1** single-trial chaining value: CV1 = F_38(IV, M0) for uniform M0 behaves as uniform for the events of one variant (Lemma 5.1).
 - **H2** q3 >= q3_model for the accepted event, averaged over the selected variants (Section 9; 40 runs).
 - **H3** the pair term within a first block is at most 2^h3 (Section 9; measured).
-- **H4** allowances: The allowances are envelopes, not measurements: A_C = 2^78, A_S = 2^74, DEV = 2^70 target compressions (the levels charged by fb176310). All of our computation for this line of work (the characteristic search and sweep, the Step-1 solve, the class data, the q3 studies and all development) ran on one 10-core machine, for less than 2^22 core-seconds by our own accounting. The bound does not depend on that accounting or on a rate: ten cores running continuously for a full year are 2^28.3 core-seconds, and even at 2^30 target compressions per core-second (above any CPU core; SHA-256 runs at about 2^24 compressions per second per core) that is 2^58.3, below DEV = 2^70 alone. With A_C = 2^84 the ledger gives time_log2 = 87.29999 (+0.15191; Section 10); with the smaller allowances of 1a695f0b, 87.14536.
+- **H4** allowances: The allowances are envelopes, not measurements: A_C = 2^78, A_S = 2^74, DEV = 2^70 target compressions (the levels charged by fb176310). All of our computation for this line of work (the characteristic search and sweep, the Step-1 solve, the class data, the q3 studies and all development) ran on one 10-core machine, for less than 2^22 core-seconds by our own accounting. The bound does not depend on that accounting or on a rate: ten cores running continuously for a full year are 2^28.3 core-seconds, and even at 2^30 target compressions per core-second (above any CPU core; SHA-256 runs at about 2^24 compressions per second per core) that is 2^58.3, below DEV = 2^70 alone. With A_C = 2^84 the ledger gives time_log2 = 87.07058 (+0.17979; Section 10); with the smaller allowances of 1a695f0b, 86.88754.
 - **H5** unit-cost bit-sliced planes: the row-16 programs are charged as their instruction counts on 256-bit planes, as in the cost model.
 
 ## 13. Organizer experiments (`experiments/manifest.json`)
 
-**a0p-online-r38** (H1, H5, Lemma 4.1). Trials 0..7: first blocks drawn from the organizer seed (two uniform words each, real 38-step compressions) until one has a passing class (at most 64); its first passing class is run on two batches (the class's first 512 members) with that class's program: the ok plane is compared lane by lane with E16x from the Step-2 words and the 38-step trace, and W7 with c7 - A_{-1} and F7; trial 0 also runs the batch of the semi-free-start pair's variant and requires the counted program to find and accept it. A pair M0 || M1, M0 || M1' (one variant, not a collision) is returned iff there is no mismatch. Trials 8..255 return no pair by design. Before any selection, each active trial draws 64 first blocks from the organizer seed and counts the W7 passes of all 32 classes (observations uncond_first_blocks, uncond_class_passes; expectation 64 x 32 x |F7| / 2^32 = 137.0 per trial under H1). Validation by us: 2,560 unconditional first blocks over 5 requests, 5,693 class W7 passes against 5,480 expected (ratio 1.039); passes come in groups of related classes (a success's CV1 passes 8.3 classes on average), so the per-trial count has a large variance.
+**a0p-online-r38** (H1, H5, Lemma 4.1). Trials 0..7: first blocks drawn from the organizer seed (two uniform words each, real 38-step compressions) until one has a passing class (at most 64); its first passing class is run on two batches (the class's first 512 members) with that class's program: the ok plane is compared lane by lane with E16x from the Step-2 words and the 38-step trace, and W7 with c7 - A_{-1} and F7; trial 0 also runs the batch of the semi-free-start pair's variant and requires the counted program to find and accept it. A pair M0 || M1, M0 || M1' (one variant, not a collision) is returned iff there is no mismatch. Trials 8..255 return no pair by design. Before any selection, each active trial draws 64 first blocks from the organizer seed and counts the W7 passes of all 32 classes (observations uncond_first_blocks, uncond_class_passes; expectation 64 x 32 x |F7| / 2^32 = 137.0 per trial under H1). Validation by us: 2,560 unconditional first blocks over 5 requests, 5,514 class W7 passes against 5,480 expected (ratio 1.006); passes come in groups of related classes (a success's CV1 passes 8.3 classes on average), so the per-trial count has a large variance.
 
 **a0p-q3-r38** (consistency check of H2). Trials 0..9: 10 replicates of the estimator of q3 for the accepted event (64 particles; 64, 8, 8, 4, 2, 1 children at rows 17..22 with the row's E bits imposed, at row 19 one of the four patterns drawn uniformly, weight 4 x 2^-f; tail: 192 proposals per particle, a variant of 512 embedded samples of the selected classes (32 of the 32 classes represented), W7 uniform in F7 (its three affine families; the family drawn by rejection from its own word, the value bits from a fresh word), rows 23..37, outputs compared; every success rebuilt into CV1, M1, M1' and accepted only if it is a 38-step collision in the accepted event with W7 in F7). Trial t < 10 returns its first verified pair as CV1 || M1 and CV1 || M1' (semi-free-start collisions, never collisions from the IV); trial 10 returns a pair iff no rebuild failed and the mean of the 10 estimates is at least 2^-98.6000 (pass rule fixed from 48 development requests before any validation run; their pooled means: minimum -98.100, 5% quantile -97.100, median -96.398; replicate mean 2^-96.2059).
  What a pass shows: the replica estimates the same event as the study, restricted to the four row-19 patterns (a lower bound) and to 512 of the selected variants; its 48 development requests (480 replicates) have mean 2^-96.2059 against the study mean 2^-96.1821. Shifting their pooled means down by 1, 2 or 3 bits (a q3 that much lower) makes 2%, 38% and 90% of requests fail the rule (none at the claimed level): a pass excludes a gross error in the estimator or the program, it does not certify the bound.
@@ -380,16 +381,16 @@ Claimed memory 2^28.10 bytes: the maximum of the online footprint and the measur
 *Validation by us* (the shipped file; 256 trials; network-less container, 1 CPU, 128 MiB; python:3.12.12-slim-bookworm):
 
 ```
-holdA  a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 1  first blocks 39  unconditional: 512 first blocks, 1060 class W7 passes (expected 1096.0)  0.6s
-holdA  a0p-q3-r38      returned  7  pooled 2^-96.275 (rule >= 2^-98.6)  replicates with a success 6/10  verified pairs 9  failed rebuilds 0  6.7s
-holdB  a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 0  first blocks 15  unconditional: 512 first blocks, 1052 class W7 passes (expected 1096.0)  0.5s
-holdB  a0p-q3-r38      returned  6  pooled 2^-95.847 (rule >= 2^-98.6)  replicates with a success 5/10  verified pairs 12  failed rebuilds 0  7.1s
-holdC  a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 1  first blocks 22  unconditional: 512 first blocks, 1298 class W7 passes (expected 1096.0)  0.6s
-holdC  a0p-q3-r38      returned  5  pooled 2^-97.554 (rule >= 2^-98.6)  replicates with a success 4/10  verified pairs 5  failed rebuilds 0  6.9s
-holdD  a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 0  first blocks 40  unconditional: 512 first blocks, 1273 class W7 passes (expected 1096.0)  0.5s
-holdD  a0p-q3-r38      returned  5  pooled 2^-96.270 (rule >= 2^-98.6)  replicates with a success 4/10  verified pairs 7  failed rebuilds 0  6.9s
-public a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 1  first blocks 32  unconditional: 512 first blocks, 1010 class W7 passes (expected 1096.0)  0.5s
-public a0p-q3-r38      returned  7  pooled 2^-96.673 (rule >= 2^-98.6)  replicates with a success 6/10  verified pairs 8  failed rebuilds 0  6.9s
+holdA  a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 3  first blocks 21  unconditional: 512 first blocks, 1127 class W7 passes (expected 1096.0)  0.4s
+holdA  a0p-q3-r38      returned  8  pooled 2^-95.857 (rule >= 2^-98.6)  replicates with a success 7/10  verified pairs 12  failed rebuilds 0  5.6s
+holdB  a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 4  first blocks 21  unconditional: 512 first blocks, 1145 class W7 passes (expected 1096.0)  0.5s
+holdB  a0p-q3-r38      returned  9  pooled 2^-96.047 (rule >= 2^-98.6)  replicates with a success 8/10  verified pairs 13  failed rebuilds 0  5.7s
+holdC  a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 5  first blocks 31  unconditional: 512 first blocks, 1110 class W7 passes (expected 1096.0)  0.4s
+holdC  a0p-q3-r38      returned 10  pooled 2^-95.773 (rule >= 2^-98.6)  replicates with a success 9/10  verified pairs 16  failed rebuilds 0  5.8s
+holdD  a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 5  first blocks 36  unconditional: 512 first blocks, 1048 class W7 passes (expected 1096.0)  0.4s
+holdD  a0p-q3-r38      returned  8  pooled 2^-96.397 (rule >= 2^-98.6)  replicates with a success 7/10  verified pairs 14  failed rebuilds 0  5.8s
+public a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 10  first blocks 20  unconditional: 512 first blocks, 1084 class W7 passes (expected 1096.0)  0.4s
+public a0p-q3-r38      returned  9  pooled 2^-95.650 (rule >= 2^-98.6)  replicates with a success 8/10  verified pairs 14  failed rebuilds 0  5.6s
 ```
 
 ## 14. Limitations
@@ -405,11 +406,11 @@ public a0p-q3-r38      returned  7  pooled 2^-96.673 (rule >= 2^-98.6)  replicat
   its variant A0 is in G and in a selected class                       ok (class 13)
 2 row 16: the 160 W16 words hold it; 20,000 random words and 1,280 neighbours agree ok 
 3 Lemma 4.1: E16x formula, W7 = c7 - A_-1, rows 11..15 and the word differences on 20 chaining values ok 
-4 row-16 programs (one per class): instructions mean / max, loads, spill stores ok 1462.25 / 1482 (loads 240..249, stores 16..20)
+4 row-16 programs (one per class): instructions mean / max, loads, spill stores ok 1188.31 / 1207 (loads 186..193, stores 0..0)
   program against the definition on 2 x 512 lanes of real first blocks ok [{'uncond_first_blocks': 64, 'uncond_class_passes': 181, 'first_blocks': 2, 'passing_classes': 8, 'lanes': 512, 'stage3a_passes': 0, 'mismatches': 0}, {'uncond_first_blocks': 64, 'uncond_class_passes': 134, 'first_blocks': 1, 'passing_classes': 6, 'lanes': 512, 'stage3a_passes': 0, 'mismatches': 0}]
-5 the counted program finds the semi-free-start pair in its batch      ok (5712 operations)
+5 the counted program finds the semi-free-start pair in its batch      ok (5312 operations)
 6 replicate: estimate, accepted pairs rebuilt and verified, failed rebuilds 0 ok (log2 -94.887, 3 pairs)
-   calibrate: {'prog': [1447, 1466, 1441, 1457, 1449, 1468, 1443, 1459, 1482, 1475, 1482, 1475, 1469, 1466, 1472, 1469, 1444, 1463, 1438, 1454, 1446, 1465, 1440, 1456, 1479, 1472, 1479, 1472, 1466, 1463, 1469, 1466], 'w7': 24, 'fb_fixed': 35, 'w7_loop': 4, 'scalars': 39, 'planes': 896, 'batch_ctl': 6, 'class_ctl': 7, 'lane': 208, 'deep': 3105, 'tk': 12, 'classes': 32, 'class_size': 24576}
+   calibrate: {'prog': [1173, 1186, 1169, 1180, 1182, 1195, 1176, 1189, 1201, 1196, 1204, 1199, 1186, 1182, 1194, 1190, 1174, 1186, 1170, 1180, 1183, 1195, 1177, 1189, 1204, 1199, 1207, 1202, 1187, 1183, 1196, 1192], 'w7': 24, 'fb_fixed': 35, 'w7_loop': 4, 'scalars': 39, 'planes': 660, 'batch_ctl': 6, 'class_ctl': 7, 'lane': 168, 'deep': 3105, 'tk': 10, 'classes': 32, 'class_size': 24576}
 SELFTEST PASSED
 ```
 
@@ -479,16 +480,16 @@ row 22 E: mask 20000000 x-value 00000000 xor 00000000
 
 ## Appendix C. Programs (SHA-256 and full listings; `experiments/a0p38.py` is assembled by `mka0p.py` from the `a0p_*.py` parts)
 
-- `experiments/a0p38.py`: 63552a536ebc2c4893d01838fd65235e91bbbf9f7c3334c49be4bb657a2b30a4
-- `ledger_a0p.py`: 6627e0b3c5b4de46b9e5b1c210d52239b8c46b57c537a6c87f1023fb61a2776d
+- `experiments/a0p38.py`: 9be5d888d551fb0b12646132b5498183ab18d6087a158c1c65d7659b848a4dc5
+- `ledger_a0p.py`: bf183e83d5393c99f5674c24880a5c859bdd38c148dbf043104082c2bf088649
 - `lp_classes.py`: f2df440ab9ef74f5d9aedfa57ca1b1c86a8ba5d379509dcb5b1afe2cadf2f1f5
 - `a0cls.c`: 6521cee23d00bd58118dddec95d3b47edf9b1cef6efd9e66ba141cc69f90aa72
 - `a0p_ref.py`: 74b6b6d789225225fa9aef2a11f3d6a97106a896277707e560c0138600070c48
-- `a0p_core.py`: 9fb748904f2e525e2ff8e69d57c244cd887ca13564f4c9d2547351191773b029
-- `a0p_prog.py`: 8a57e82530b0f3518653b793af3b2579b240d4139b98f0d02b22e076b16b002b
-- `a0p_scal.py`: d4ee1e2db69ca2968a71c736996c34e821fe25e71a30b3afca8ef207d757a3ed
-- `a0p_run.py`: 50a21c92433990ce7a34b50ba592ea54bd5a46f17f9ed288dc6fcd3538b56e77
-- `a0p_main.py`: 1e0e3eccf38923f0c958db57dd33b3516137327da317f1fbe3dcdc620499bcb5
+- `a0p_core.py`: e36d2d5665bf944eee1935290aaeb825eea1138016d3c5c6a60e069dac4cc3f1
+- `a0p_prog.py`: dadbb5ae5e0f455bbce1c1ba67ed8779cf8024d0125baa9c64773809a9b8cb1d
+- `a0p_scal.py`: 2c91c10be225c23c52f836f4e3d94609c2ac26a2499188a37b473a3c887d2300
+- `a0p_run.py`: 31e607d05b2272ad3a53ab573b0c118a08017ed24debfd49f2e625eb997902ec
+- `a0p_main.py`: 2ec04f94538d0893a2dc1f441dfb01ba4ce5159edd1a4d3d62abbecc0dadfd0e
 - `mka0p.py`: 03042e080b33dfaec2add1e23af1be06ed3bda2543b5ddc02e07cada09e9f3ec
 - `mkvt.py`: 19e95c874e6d0b05447836aea5d7289a467c581bcb03bb94376154d04e25b26a
 - `a0fam.c`: e74ead8bd7d20ce7ef40284fd91a104ce71b3fe5b8cadcd59b9c274b3ad4eb69
@@ -512,7 +513,7 @@ row 22 E: mask 20000000 x-value 00000000 xor 00000000
 #!/usr/bin/env python3
 """ledger_a0p.py - exact ledger of the A0-variant attack with P8 (own code; the structure of the ledger of 2d1c4fc2 / fb176310).
 T = A_C + A_S + DEV + N_FB + (N_FB x FIXED + V_MAX + OVER + PRE + FIN_OPS) / C + FIN_UNITS, in target compressions, C = 2728.
-Every count is an executed count of experiments/a0p38.py (`calibrate`); probabilities: p7 = |F7| / 2^32 (exhaustive), the stage-3a rate 2^-12
+Every count is an executed count of experiments/a0p38.py (`calibrate`); probabilities: p7 = |F7| / 2^32 (exhaustive), the stage-3a rate 2^-10
 and the row-16 rate 160 / 2^32 (exact under Lemma 5.1), q3_model (H2), the pair term (H3).  Integers and fractions; logs at 80 digits."""
 from fractions import Fraction as Fr
 from decimal import Decimal as D, getcontext
@@ -520,8 +521,8 @@ import math, argparse, json
 getcontext().prec = 80
 C = 2728
 F7 = 287_309_824; p7 = Fr(F7, 2 ** 32)
-CAL = dict(prog=[1447, 1466, 1441, 1457, 1449, 1468, 1443, 1459, 1482, 1475, 1482, 1475, 1469, 1466, 1472, 1469, 1444, 1463, 1438, 1454, 1446, 1465, 1440, 1456, 1479, 1472, 1479, 1472, 1466, 1463, 1469, 1466],
-           w7=24, fb_fixed=35, w7_loop=4, scalars=39, planes=896, batch_ctl=6, class_ctl=7, lane=208, deep=3105, tk=12, classes=32, class_size=24576, gl=160, f7=F7,
+CAL = dict(prog=[1173, 1186, 1169, 1180, 1182, 1195, 1176, 1189, 1201, 1196, 1204, 1199, 1186, 1182, 1194, 1190, 1174, 1186, 1170, 1180, 1183, 1195, 1177, 1189, 1204, 1199, 1207, 1202, 1187, 1183, 1196, 1192],
+           w7=24, fb_fixed=35, w7_loop=4, scalars=39, planes=660, batch_ctl=6, class_ctl=7, lane=168, deep=3105, tk=10, classes=32, class_size=24576, gl=160, f7=F7,
            mask_bits=[20, 21, 20, 21, 21, 22, 21, 22, 22, 22, 23, 23, 21, 21, 22, 22, 20, 21, 20, 21, 21, 22, 21, 22, 22, 22, 23, 23, 21, 21, 22, 22])   # the 32 classes of P8 (per-class programs; mask widths of the classes, in class order)
 
 def dlog2(x):
@@ -759,6 +760,10 @@ def compress(cv, w16, n=NR):
 # ---- the characteristic P8 (proof.md Section 3); member x = M, member y = M'.  PCV/PMX/PMY: a 38-step semi-free-start pair in the accepted
 # event whose rows 0..15 are the Step-1 solution S.  Cells per kind (A, E, W) and row: (mask, x-value, x^y difference, 0) = the signed trail with
 # its one-bit conditions; PQ[i]: bits with E_i = E_{i-1}; X2: the other two-bit conditions (k1, i1, b1, equal, k2, i2, b2, row), member x.
+_CH = [{7: (1610612736, 536870912, 1610612736, 0), 8: (4261904, 0, 4261904, 0), 10: (65552, 16, 65552, 0), 11: (134219780, 4, 134219780, 0), 12: (555746818, 555746818, 555746818, 0), 13: (536870912, 0, 536870912, 0), 14: (134348944, 0, 134348944, 0), 15: (42041344, 8454144, 42041344, 0), 17: (536870912, 536870912, 536870912, 0)}, {5: (536870912, 536870912, 0, 0), 6: (675811328, 4718592, 0, 0), 7: (3897036800, 3892318208, 3758096384, 0), 8: (3897301136, 3355707520, 676075664, 0), 9: (51380235, 0, 51380235, 0), 10: (1073807376, 1073741840, 1073807376, 0), 11: (612564992, 8519680, 612564992, 0), 12: (1763748865, 671121409, 1763748865, 0), 13: (4195046, 102, 4195046, 0), 14: (134348800, 134217728, 134348800, 0), 15: (2176, 128, 2176, 0), 16: (1212291712, 1208095232, 1078071808, 0), 17: (1078073984, 2048, 0, 0), 18: (1078333968, 4329984, 262160, 0), 19: (25460752, 32784, 25198592, 0), 20: (25460752, 262160, 0, 0), 21: (562069504, 553680896, 536870912, 0), 22: (536870912, 0, 0, 0), 23: (536870912, 536870912, 0, 0)}, {7: (536870912, 0, 536870912, 0), 8: (71305216, 71303168, 71305216, 0), 9: (536870912, 536870912, 536870912, 0), 10: (83956394, 67113504, 83956394, 0), 11: (527360, 524288, 527360, 0), 15: (71305216, 67108864, 71305216, 0), 16: (536870912, 536870912, 536870912, 0), 23: (25337856, 25165824, 25198592, 0), 25: (536870912, 0, 536870912, 0)}]
+PQ = [0, 0, 0, 0, 0, 0, 3221225472, 264336, 0, 0, 0, 0, 0, 0, 0, 0, 0, 262160, 25198592, 0, 536870912, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+X2 = [(1, 16, 7, 1, 1, 16, 26, 16), (1, 16, 14, 0, 1, 16, 28, 16), (0, 15, 4, 1, 0, 16, 4, 16), (1, 16, 11, 1, 1, 16, 16, 16), (0, 15, 7, 1, 0, 16, 7, 16), (0, 14, 15, 1, 0, 16, 15, 16), (0, 14, 16, 1, 0, 16, 16, 16), (0, 15, 17, 1, 0, 16, 17, 16), (0, 14, 23, 1, 0, 16, 23, 16), (0, 14, 25, 1, 0, 16, 25, 16), (0, 15, 27, 1, 0, 16, 27, 16), (1, 16, 3, 0, 1, 16, 8, 16), (1, 16, 4, 1, 1, 16, 23, 16), (0, 17, 9, 0, 0, 17, 20, 17), (2, 16, 20, 0, 2, 16, 27, 16), (2, 16, 22, 1, 2, 16, 31, 16), (0, 16, 15, 1, 0, 17, 15, 17), (0, 17, 6, 1, 0, 17, 18, 17), (0, 16, 16, 0, 0, 17, 16, 17), (2, 16, 4, 0, 2, 16, 6, 16), (0, 16, 23, 1, 0, 17, 23, 17), (0, 16, 25, 1, 0, 17, 25, 17), (0, 17, 8, 0, 0, 17, 17, 17), (0, 15, 29, 1, 0, 16, 29, 16), (1, 18, 0, 1, 1, 18, 13, 18), (1, 18, 17, 1, 1, 18, 22, 18), (1, 18, 5, 0, 1, 18, 23, 18), (0, 16, 29, 1, 0, 18, 29, 18), (1, 18, 9, 1, 1, 18, 23, 18), (1, 19, 10, 1, 1, 19, 29, 19), (1, 19, 2, 0, 1, 19, 20, 19), (1, 19, 5, 0, 1, 19, 18, 19), (1, 19, 6, 1, 1, 19, 19, 19), (1, 19, 10, 0, 1, 19, 28, 19), (1, 19, 11, 1, 1, 19, 29, 19), (1, 19, 1, 1, 1, 19, 28, 19), (0, 18, 29, 1, 0, 19, 29, 19), (1, 19, 4, 0, 1, 19, 9, 19), (1, 19, 5, 0, 1, 19, 10, 19), (1, 21, 10, 1, 1, 21, 15, 21), (1, 21, 11, 1, 1, 21, 24, 21), (1, 21, 2, 1, 1, 21, 16, 21), (2, 23, 14, 0, 2, 23, 21, 23), (2, 23, 16, 0, 2, 23, 25, 23), (2, 23, 17, 0, 2, 23, 26, 23), (2, 23, 0, 1, 2, 23, 30, 23), (2, 23, 1, 1, 2, 23, 31, 23), (2, 25, 20, 1, 2, 25, 27, 25), (2, 25, 22, 0, 2, 25, 31, 25), (2, 25, 4, 1, 2, 25, 6, 25), (2, 16, 14, 1, 2, 16, 18, 16), (2, 16, 8, 1, 2, 16, 25, 16), (2, 16, 1, 0, 2, 16, 12, 16)]
+GL = [549441552, 549441553, 549441556, 549441557, 549442576, 549442577, 549442580, 549442581, 1891627024, 1891627025, 1891627028, 1891627029, 1891628048, 1891628049, 1891628052, 1891628053, 2698498064, 2698498065, 2698498068, 2698498069, 2698499088, 2698499089, 2698499092, 2698499093, 2699022352, 2699022353, 2699022356, 2699022357, 2699023376, 2699023377, 2699023380, 2699023381, 2700595216, 2700595217, 2700595220, 2700595221, 2700596240, 2700596241, 2700596244, 2700596245, 3988787216, 3988787217, 3988787220, 3988787221, 3988788240, 3988788241, 3988788244, 3988788245, 3989303312, 3989303313, 3989303316, 3989303317, 3989304336, 3989304337, 3989304340, 3989304341, 3989311504, 3989311505, 3989311508, 3989311509, 3989312528, 3989312529, 3989312532, 3989312533, 3989827600, 3989827601, 3989827604, 3989827605, 3989828624, 3989828625, 3989828628, 3989828629, 3990884368, 3990884369, 3990884372, 3990884373, 3990885392, 3990885393, 3990885396, 3990885397, 3991400464, 3991400465, 3991400468, 3991400469, 3991401488, 3991401489, 3991401492, 3991401493, 3991408656, 3991408657, 3991408660, 3991408661, 3991409680, 3991409681, 3991409684, 3991409685, 3991924752, 3991924753, 3991924756, 3991924757, 3991925776, 3991925777, 3991925780, 3991925781, 4040167440, 4040167441, 4040167444, 4040167445, 4040168464, 4040168465, 4040168468, 4040168469, 4040683536, 4040683537, 4040683540, 4040683541, 4040684560, 4040684561, 4040684564, 4040684565, 4040691728, 4040691729, 4040691732, 4040691733, 4040692752, 4040692753, 4040692756, 4040692757, 4041207824, 4041207825, 4041207828, 4041207829, 4041208848, 4041208849, 4041208852, 4041208853, 4042264592, 4042264593, 4042264596, 4042264597, 4042265616, 4042265617, 4042265620, 4042265621, 4042780688, 4042780689, 4042780692, 4042780693, 4042781712, 4042781713, 4042781716, 4042781717, 4042788880, 4042788881, 4042788884, 4042788885, 4042789904, 4042789905, 4042789908, 4042789909]
 #<<CONSTS>>
 CELLS = [[(0, 0, 0, 0)] * NR for _ in range(3)]
 for _k in range(3):
@@ -819,7 +824,7 @@ R16SET = frozenset(R16)
 _sh = M
 for _v in R16: _sh &= ~(_v ^ R16[0]) & M
 SHARED = _sh                                                       # bits on which all row-16 words agree
-TK = 12                                                            # tested bits of the row-16 filter: the TK lowest shared bits
+TK = 10                                                            # tested bits of the row-16 filter: the TK lowest shared bits
 TBITS = [j for j in range(32) if (SHARED >> j) & 1][:TK]
 
 # ---- classes (proof.md Section 5): class i = {base ^ s : s subset of its mask, a0 in G, c7(a0) = c7_i}, 24,576 variants each ----
@@ -831,15 +836,15 @@ def dep(t, mask):
         if (t >> j) & 1: r |= b
         mask ^= b; j += 1
     return r
+_MEM = {}
 def members(ci, count, start=0):
     """the members number start..start+count-1 of class ci in the canonical order (increasing t of base ^ dep(t, mask))"""
-    c7, base, mk = CLASSES[ci]; out = []; t = 0; k = 0
-    while len(out) < count and t < (1 << bin(mk).count('1')):
-        a0 = base ^ dep(t, mk); t += 1
-        if in_G(a0) and c7of(a0) == c7:
-            if k >= start: out.append(a0)
-            k += 1
-    return out
+    if ci not in _MEM:
+        c7, base, mk = CLASSES[ci]; mlo = mk & 0x1fffff; mhi = mk & 0xffe00000; blo = base & 0x1fffff; bhi = base & 0xffe00000
+        lo = [x for t in range(1 << bin(mlo).count('1')) if in_G(bhi | (x := blo ^ dep(t, mlo))) and c7of(bhi | x) == c7]
+        hi = [y for t in range(1 << bin(mhi).count('1')) if in_G((y := bhi ^ dep(t, mhi)) | lo[0]) and c7of(y | lo[0]) == c7]
+        _MEM[ci] = [y | x for y in hi for x in lo]
+    return _MEM[ci][start:start + count]
 
 def rebuild(W, a0):
     """A success of the estimator (member-x words W[7..22] with W7 in F7, rows 16..22 sampled) and its variant a0 -> (cv, Mx, My):
@@ -861,92 +866,148 @@ def rebuild(W, a0):
 
 # ---- the bit-sliced row-16 program (proof.md Section 7.2) ----
 # Bit L of every 256-bit plane belongs to lane L (one variant).  The program computes, for 256 variants of one batch, the TK tested bits of
-# E16x = KP + a0 + s0(W1), W1 = K1 - S0(a0) - MAJ(a0, a, b) - S1(E0) - CH(E0, e, f), E0 = a0 + HH (Lemma 4.1), and their AND with the
-# tested values.  Inputs: the planes of the bits of a0 that vary in the batch (A<j>), the class constants (C<j>, broadcast words), and the
-# per-first-block broadcast planes of HH, PP = a & b, QQ = a | b, EF = e ^ f, FF = f, K1 = A1 - g - K1, KP (7 x 32).  Constant bits of a0 are
-# folded.  Nodes: xor, and, or, not; equal nodes are shared.  The allocator gives an instruction list over 64 registers in which every
-# load, store and spill is one instruction; the list is the charge.
+# E16x = KP + a0e + s0(W1), ~W1 = K1 + S0(a0) + (a0z & AB) + S1(E0) + CH(E0, e, f), E0 = a0e + HH (Lemma 4.1, with A0_CONST = 0x380 absorbed into
+# K1 and a0z = a0 & ~0x380, and A0_ADD = 0x780 plus a0[11]^a0[10]=1 absorbed into HH, KP and a0e), and their AND with the tested values.
+# Constant and correlated bits of a0 are folded; wires carry a polarity bit (0 or 1) so complementation is free until materialised.  The allocator
+# gives a spill-free instruction list over 64 registers in which every load, store and spill is one instruction; the list is the charge.
 ONES = (1 << 256) - 1
+A0_CONST = 0x380                                                    # bits 7..9 of a0 are 1 in all 786,432 variants across all 32 classes
+A0_ADD = 0x780                                                      # 0x380 + 2^10 (from a0[10] + 2*a0[11] = 2^10 + a0[11]*2^10)
+AB_MASK = 0x7feffc7f                                                # bits 0..30 except 7..9 (folded into K1) and 20 (always 0 in a0)
 class Prog:
-    def __init__(s): s.nodes = [None, None]; s.cache = {}; s.inputs = {}
+    def __init__(s): s.nodes = [None]; s.cache = {}; s.inputs = {}
     def inp(s, name):
         if name not in s.inputs: s.nodes.append(('in', name)); s.inputs[name] = len(s.nodes) - 1
-        return s.inputs[name]
+        return (s.inputs[name], 0)
     def _mk(s, op, a, b=None):
         key = (op, a, b) if op == 'not' or b is None else (op,) + tuple(sorted((a, b)))
         if key not in s.cache: s.nodes.append(key); s.cache[key] = len(s.nodes) - 1
         return s.cache[key]
-    def not_(s, a):
-        if a < 2: return 1 - a
-        n = s.nodes[a]
-        return n[1] if n[0] == 'not' else s._mk('not', a)
+    def not_(s, a): return (a[0], a[1] ^ 1)
+    def _mat(s, a):
+        if a[0] == 0: return a[1]
+        return s._mk('not', a[0]) if a[1] else a[0]
     def xor(s, a, b):
-        if a == 0: return b
-        if b == 0: return a
-        if a == b: return 0
-        if a == 1: return s.not_(b)
-        if b == 1: return s.not_(a)
-        return s._mk('xor', a, b)
+        if a[0] == 0: return (b[0], b[1] ^ a[1])
+        if b[0] == 0: return (a[0], a[1] ^ b[1])
+        if a[0] == b[0]: return (0, a[1] ^ b[1])
+        return (s._mk('xor', a[0], b[0]), a[1] ^ b[1])
     def and_(s, a, b):
-        if a == 0 or b == 0: return 0
-        if a == 1: return b
-        if b == 1 or a == b: return a
-        return s._mk('and', a, b)
-    def or_(s, a, b):
-        if a == 1 or b == 1: return 1
-        if a == 0: return b
-        if b == 0 or a == b: return a
-        return s._mk('or', a, b)
-    def add(s, x, y, cin=0, n=32):
-        """ripple addition of two bit lists (LSB first), n result bits"""
-        out = []; c = cin
-        for j in range(n):
-            t = s.xor(x[j], y[j]); out.append(s.xor(t, c))
-            c = s.or_(s.and_(x[j], y[j]), s.and_(c, t))
-        return out
+        if a[0] == 0: return b if a[1] else (0, 0)
+        if b[0] == 0: return a if b[1] else (0, 0)
+        if a == b: return a
+        if a[0] == b[0] and a[1] != b[1]: return (0, 0)
+        if a[1] and b[1]: return (s._mk('or', a[0], b[0]), 1)
+        return (s._mk('and', s._mat(a), s._mat(b)), 0)
+    def or_(s, a, b): return s.not_(s.and_(s.not_(a), s.not_(b)))
+    def ha(s, x, y): return s.xor(x, y), s.and_(x, y)
+    def fa(s, x, y, z):
+        if x[0] == 0 and x[1] == 0: return s.ha(y, z)
+        if y[0] == 0 and y[1] == 0: return s.ha(x, z)
+        if z[0] == 0 and z[1] == 0: return s.ha(x, y)
+        if x[0] == 0 and x[1] == 1: return s.not_(s.xor(y, z)), s.or_(y, z)
+        if y[0] == 0 and y[1] == 1: return s.not_(s.xor(x, z)), s.or_(x, z)
+        if z[0] == 0 and z[1] == 1: return s.not_(s.xor(x, y)), s.or_(x, y)
+        if x[1] == y[1]: p, q, r = x, y, z
+        elif x[1] == z[1]: p, q, r = x, z, y
+        else: p, q, r = y, z, x
+        t = s.xor(p, q); u = s.xor(p, r) if p[1] == r[1] else s.xor((p[0], 0), (r[0], 0))
+        return s.xor(t, r), s.xor(p if p[1] == r[1] else q, s.and_(t, u))
+
+def reduce_col(p, col, nxt_col, last=False):
+    """Carry-save reduction of one bit column col to a single wire, pairing same-polarity wires and pushing carries to nxt_col."""
+    col = [x for x in col if not (x[0] == 0 and x[1] == 0)]
+    while sum(1 for x in col if x == (0, 1)) >= 2:
+        col.remove((0, 1)); col.remove((0, 1))
+        if nxt_col is not None: nxt_col.append((0, 1))
+    def pop_pair(arr):
+        for i in range(len(arr)):
+            for j in range(i + 1, len(arr)):
+                if arr[i][0] != 0 and arr[j][0] != 0 and arr[i][1] == arr[j][1]:
+                    y = arr.pop(j); x = arr.pop(i); return x, y
+        return arr.pop(0), arr.pop(0)
+    while len(col) > 1:
+        c1 = [x for x in col if x == (0, 1)]; vs = [x for x in col if x != (0, 1)]
+        if len(col) == 2:
+            a, b = col.pop(0), col.pop(0)
+            if last: col.append(p.xor(a, b)); break
+            sm, cy = p.ha(a, b); col.append(sm)
+            if nxt_col is not None: nxt_col.append(cy)
+        elif c1 and len(vs) >= 2:
+            col.remove((0, 1)); x, y = pop_pair(col)
+            if last and not col: col.append(p.xor(p.xor((0, 1), x), y)); break
+            sm, cy = p.fa((0, 1), x, y); col.append(sm)
+            if nxt_col is not None: nxt_col.append(cy)
+        elif not c1 and len(vs) % 2 == 0 and len(vs) >= 2:
+            x, y = pop_pair(col); sm, cy = p.ha(x, y); col.append(sm)
+            if nxt_col is not None: nxt_col.append(cy)
+        else:
+            a, b, c = col.pop(0), col.pop(0), col.pop(0)
+            if last and not col: col.append(p.xor(p.xor(a, b), c)); break
+            sm, cy = p.fa(a, b, c); col.append(sm)
+            if nxt_col is not None: nxt_col.append(cy)
+    return col[0] if col else (0, 0)
 
 def build_e16(cbits, nlane):
-    """cbits[j]: 'L' (lane-varying bit of a0), 'C' (class constant, input), 0 or 1 (folded).  Returns (Prog, ok node)."""
+    """cbits[j]: 'L' (lane-varying bit of a0), (nm, pol) (correlated plane), 0 or 1 (folded).  Returns (Prog, ok node)."""
     p = Prog()
-    a0 = [p.inp('A%d' % j) if cbits[j] == 'L' else p.inp('C%d' % j) if cbits[j] == 'C' else cbits[j] for j in range(32)]
-    bc = lambda nm: [p.inp('%s%d' % (nm, j)) for j in range(32)]
-    HH, PP, QQ, EF, FF, K1, KP = (bc(n) for n in ('HH', 'PP', 'QQ', 'EF', 'FF', 'K1', 'KP'))
-    rot = lambda w, r: [w[(j + r) % 32] for j in range(32)]
-    x3 = lambda u, v, w: [p.xor(p.xor(u[j], v[j]), w[j]) for j in range(32)]
-    E0 = p.add(a0, HH)
-    # bit-interleaved: at bit j the four operands of T = S0(a0) + MAJ + S1(E0) + CH, the three adders of T and the subtraction K1 - T
-    c = [0, 0, 0, 1]; T1 = []; W1 = []
-    def fa(x, y, ci):
-        t = p.xor(x, y); return p.xor(t, ci), p.or_(p.and_(x, y), p.and_(ci, t))
-    for j in range(32):
-        sa = p.xor(p.xor(a0[(j + 2) % 32], a0[(j + 13) % 32]), a0[(j + 22) % 32])
-        mj = p.or_(PP[j], p.and_(a0[j], QQ[j]))
-        ss = p.xor(p.xor(E0[(j + 6) % 32], E0[(j + 11) % 32]), E0[(j + 25) % 32])
-        cv = p.xor(FF[j], p.and_(E0[j], EF[j]))
-        u, c[0] = fa(sa, mj, c[0]); v, c[1] = fa(ss, cv, c[1]); t, c[2] = fa(u, v, c[2])
-        w, c[3] = fa(K1[j], p.not_(t), c[3]); W1.append(w)
-    n = max(TBITS) + 1; d = [0, 0]; ok = 1
-    for j in range(n):
-        s0w = p.xor(p.xor(W1[(j + 7) % 32], W1[(j + 18) % 32]), W1[j + 3] if j + 3 < 32 else 0)
-        u, d[0] = fa(KP[j], a0[j], d[0]); e, d[1] = fa(u, s0w, d[1])
-        if j in TBITS: ok = p.and_(ok, e if (R16[0] >> j) & 1 else p.not_(e))
-    return p, ok
+    def a0_wire(c, j):
+        if c == 'L': return p.inp('A%d' % j)
+        if isinstance(c, tuple): w = p.inp(c[0]); return p.not_(w) if c[1] else w
+        return (0, c)
+    a0 = [a0_wire(cbits[j], j) for j in range(32)]
+    a0z = [(0, 0) if (A0_CONST >> j) & 1 else a0[j] for j in range(32)]
+    a0e = list(a0z); a0e[10] = a0[11]; a0e[11] = (0, 0); c27 = (cbits[28] == ('A27', 1))
+    if c27: a0e[27] = a0[28]; a0e[28] = (0, 0)
+    bc = lambda nm, n=32: [p.inp('%s%d' % (nm, j)) for j in range(n)]
+    HH = bc('HH', 32); EF, FF, K1 = (bc(nm, 31) for nm in ('EF', 'FF', 'K1'))
+    AB = [p.inp('AB%d' % j) if (AB_MASK >> j) & 1 else (0, 0) for j in range(31)]
+    hi = max(TBITS); n = hi + 1; KP = bc('KP', n)
+    ec = [[] for _ in range(32)]; E0 = [None] * 32; e0_idx = 0
+    if c27: ec[27].append((0, 1))
+    def get_e0(m):
+        nonlocal e0_idx
+        while e0_idx <= m:
+            k = e0_idx; ec[k].extend([a0e[k], HH[k]])
+            E0[k] = reduce_col(p, ec[k], ec[k + 1] if k + 1 < 32 else None, last=(k == 31)); e0_idx += 1
+        return E0[m]
+    cols = [[] for _ in range(31)]; W1 = []; u = {}; ecols = [[] for _ in range(n)]; ok0 = (0, 1); ok1 = (0, 1); tset = set(TBITS)
+    def step_e16(k, s0w):
+        nonlocal ok0, ok1
+        ecols[k].extend([KP[k], a0e[k], s0w])
+        e = reduce_col(p, ecols[k], ecols[k + 1] if k + 1 < n else None, last=(k == hi))
+        if k in tset:
+            b = e if (R16[0] >> k) & 1 else p.not_(e)
+            if b[1] == 0: ok0 = p.and_(ok0, b)
+            else: ok1 = p.and_(ok1, b)
+    for j in range(31):
+        e0_j = get_e0(j); e0_6 = get_e0((j + 6) % 32); e0_11 = get_e0((j + 11) % 32); e0_25 = get_e0((j + 25) % 32)
+        ss = p.xor(p.xor(e0_6, e0_11), e0_25); cv = p.xor(FF[j], p.and_(e0_j, EF[j]))
+        sa = p.xor(p.xor(a0[(j + 2) % 32], a0[(j + 13) % 32]), a0[(j + 22) % 32]); mj = p.and_(a0z[j], AB[j])
+        cols[j].extend([K1[j], sa, mj, ss, cv])
+        nw1 = reduce_col(p, cols[j], cols[j + 1] if j + 1 < 31 else None, last=(j == 30)); W1.append(p.not_(nw1))
+        if 7 <= j <= 7 + min(hi, 13): k = j - 7; u[k] = p.xor(W1[k + 3], W1[k + 7])
+        elif 21 <= j <= 7 + hi: k = j - 7; u[k] = p.xor(p.xor(W1[k - 14], W1[k + 3]), W1[k + 7])
+        if 18 <= j <= 18 + min(hi, 13): k = j - 18; step_e16(k, p.xor(u.pop(k), W1[j]))
+    for k in range(14, hi + 1): step_e16(k, u.pop(k))
+    return p, p._mat(p.and_(ok0, ok1))
 
 def schedule(p, root, nreg=64):
     """Belady allocation of the nodes root depends on, in creation order: instruction list [(op, dst, src...)] with 'ld' (input or spill
     slot), 'st' (spill), 'xor', 'and', 'or', 'not', 'out'; returns (instructions, spill slots used)."""
+    if isinstance(root, tuple): root = p._mat(root)
     need = set(); st = [root]
     while st:
         x = st.pop()
-        if x < 2 or x in need: continue
+        if x < 1 or x in need: continue
         need.add(x); n = p.nodes[x]
         if n[0] != 'in': st.extend(n[1:] if n[0] != 'not' else n[1:2])
-    order = [x for x in range(2, len(p.nodes)) if x in need and p.nodes[x][0] != 'in']
+    order = [x for x in range(1, len(p.nodes)) if x in need and p.nodes[x][0] != 'in']
     uses = {}
     for t, x in enumerate(order):
         n = p.nodes[x]
         for o in (n[1:] if n[0] != 'not' else n[1:2]):
-            if o >= 2: uses.setdefault(o, []).append(t)
+            if o >= 1: uses.setdefault(o, []).append(t)
     uses.setdefault(root, []).append(len(order))
     ptr = {x: 0 for x in uses}
     def nxt(x):
@@ -955,7 +1016,7 @@ def schedule(p, root, nreg=64):
     reg = {}; free = list(range(nreg)); inmem = set(x for x in need if p.nodes[x][0] == 'in'); slots = {}; ins = []; maxslot = 0
     def evict(t, keep):
         nonlocal maxslot
-        v = max((x for x in reg if x not in keep), key=nxt)
+        v = max((x for x in reg if x not in keep), key=lambda x: (x in inmem, nxt(x)))
         if nxt(v) < (1 << 40) and v not in inmem:
             if v not in slots: slots[v] = len(slots); maxslot = max(maxslot, len(slots))
             ins.append(('st', ('S', slots[v]), reg[v])); inmem.add(v)
@@ -970,18 +1031,15 @@ def schedule(p, root, nreg=64):
     CONST = {0: 'Z', 1: 'O'}
     for t, x in enumerate(order):
         n = p.nodes[x]; ops = n[1:] if n[0] != 'not' else n[1:2]
-        keep = set(o for o in ops if o >= 2)
-        rs = []
+        keep = set(o for o in ops if o >= 1)
+        rs = [CONST[o] if o < 1 else load(o, t, keep) for o in ops]
         for o in ops:
-            if o < 2: rs.append(CONST[o])
-            else: rs.append(load(o, t, keep))
-        for o in ops:
-            if o >= 2: ptr[o] += 1
-        dead = [o for o in ops if o >= 2 and nxt(o) >= (1 << 40) and o in reg]
+            if o >= 1: ptr[o] += 1
+        dead = [o for o in ops if o >= 1 and nxt(o) >= (1 << 40) and o in reg]
         if dead: r = reg.pop(dead[0]); [free.append(reg.pop(d)) for d in dead[1:] if d in reg]
         else: r = getreg(t, keep)
         ins.append((n[0], r) + tuple(rs)); reg[x] = r
-    ins.append(('out', reg[root] if root >= 2 else CONST[root]))
+    ins.append(('out', reg[root] if root >= 1 else CONST[root]))
     return ins, maxslot
 
 def run_prog(ins, inputs):
@@ -1037,25 +1095,34 @@ def w7test(m, c7, a):
     return m.br(d == T7)
 
 def fb_scalars(m, cv):
-    """per first block: HH, PP, QQ, EF, FF, K1, KP of the program (Lemma 4.1) and A1-independent words"""
+    """per first block: HH, AB, EF, FF, K1, KP of the program (Lemma 4.1, with A0_CONST = 0x380 and A0_ADD = 0x780 absorbed)"""
     a, b, c, d, e, f, g, h = cv
-    hh = m.and_(m.sub(m.sub(d, S0m(m, a)), MAJm(m, a, b, c)), M)
-    kw0 = m.and_(m.sub(m.sub(m.sub(m.sub(m.sub(hh, d), h), S1m(m, e)), CHm(m, e, f, g)), K[0]), M)
-    sc = dict(HH=hh, PP=m.and_(a, b), QQ=m.or_(a, b), EF=m.xor(e, f), FF=f, K1=m.and_(m.sub(KK1, g), M), KP=m.and_(m.add(KKP, kw0), M))
-    return sc
-KK1 = (SAx[1] - K[1]) & M                                          # K1 = A1 - g - K1
-KKP = (C16 + s1(PMX[14]) + PMX[9]) & M                            # KP = C16 + s1(W14) + W9 + (W0 - a0)
+    ab0 = m.xor(a, b); anb = m.and_(a, b)
+    sm = m.add(S0m(m, a), m.or_(anb, m.and_(c, ab0)))
+    hh = m.and_(m.sub(m.add(d, A0_ADD), sm), M)
+    kp = m.and_(m.sub(m.sub(m.sub(m.sub(KKP0, sm), h), S1m(m, e)), CHm(m, e, f, g)), M)
+    k1 = m.and_(m.add(m.add(KK1_N, g), m.or_(anb, m.and_(ab0, A0_CONST))), M)
+    return dict(HH=hh, AB=m.and_(ab0, ~A0_CONST & M), EF=m.xor(e, f), FF=f, K1=k1, KP=kp)
+KK1 = (SAx[1] - K[1]) & M; KK1_N = (~KK1) & M                       # K1 = ~KK1 + g + ((a & b) | (0x380 & (a ^ b)))
+KKP = (C16 + s1(PMX[14]) + PMX[9] + A0_ADD) & M; KKP0 = (KKP - K[0]) & M
 PLANE_OPS = 4                                                       # one broadcast plane: shift, and, negate, store
+KP_BITS = max(TBITS) + 1                                            # KP is only needed on bits 0..12
+LV_MASK = 0x1fffff                                                  # bits 21..31 of a0 are constant within each 256-lane canonical batch
 
 def broadcast(m, sc):
-    """the 7 x 32 broadcast planes (plane j = 0 - ((x >> j) & 1)); 4 operations each"""
-    out = {}
+    """the 32 + 27 + 3 x 31 + 13 = 165 broadcast planes (plane j = 0 - ((x >> j) & 1)); 4 operations each (660 operations)"""
+    out = {}; nplanes = 0
     for nm, v in sc.items():
-        for j in range(32): out['%s%d' % (nm, j)] = ONES if (v >> j) & 1 else 0
-    m.ops += PLANE_OPS * 32 * len(sc); return out
+        if nm == 'AB':
+            for j in range(31):
+                if (AB_MASK >> j) & 1: out['AB%d' % j] = ONES if (v >> j) & 1 else 0; nplanes += 1
+            continue
+        nb = KP_BITS if nm == 'KP' else 32 if nm == 'HH' else 31; nplanes += nb
+        for j in range(nb): out['%s%d' % (nm, j)] = ONES if (v >> j) & 1 else 0
+    m.ops += PLANE_OPS * nplanes; return out
 
 def lane_value(m, planes, L, cmask, base):
-    """a0 of lane L from the stored planes of the varying bits: per bit one shift, and, shift-left, or (4), plus the class base (1)"""
+    """a0 of lane L from the stored planes of the varying bits: per bit one shift, and, shift-left, or (4), plus the batch base (1)"""
     v = base
     for j in range(32):
         if (cmask >> j) & 1:
@@ -1067,12 +1134,13 @@ def first_lane(m, ok):
     m.ops += 32; return (ok & -ok).bit_length() - 1
 
 def scalar_e16(m, sc, a0):
-    """E16x of one variant (Lemma 4.1): E0, S0(a0), MAJ, S1(E0), CH, W1, s0(W1), E16x"""
-    e0 = m.and_(m.add(a0, sc['HH']), M)
-    mj = m.or_(sc['PP'], m.and_(a0, sc['QQ']))
+    """E16x of one variant (Lemma 4.1): ae = a0 - 0x780, E0, S0(a0), MAJ, S1(E0), CH, ~W1, s0(W1), E16x"""
+    ae = m.sub(a0, A0_ADD)
+    e0 = m.and_(m.add(ae, sc['HH']), M)
+    mj = m.and_(a0, sc['AB'])
     ch = m.xor(sc['FF'], m.and_(e0, sc['EF']))
-    w1 = m.and_(m.sub(m.sub(m.sub(m.sub(sc['K1'], S0m(m, a0)), mj), S1m(m, e0)), ch), M)
-    return m.and_(m.add(m.add(sc['KP'], a0), s0m(m, w1)), M)
+    nw1 = m.add(m.add(m.add(m.add(sc['K1'], S0m(m, a0)), mj), S1m(m, e0)), ch)
+    return m.and_(m.add(m.add(sc['KP'], ae), s0m(m, m.xor(nw1, M))), M)
 
 def r16test(m, e):
     """E16x in the 160-word row-16 set: binary search in the sorted table (8 steps of load, compare-and-branch, shift: 5 each) + 2"""
@@ -1110,9 +1178,12 @@ def deep(m, cv, a0):
 
 # ---- the online algorithm on one first block (proof.md Section 6) ----
 def cbits(ci):
-    """per-class program inputs: 'L' (a plane) on the class's own mask bits, elsewhere the class's base bit as a constant"""
+    """per-class program inputs: 'L' (a plane) on the class's independent mask bits, correlated planes on bits 11, 16, 22, 28, elsewhere constant"""
     c7, base, mk = CLASSES[ci]
-    return ['L' if (mk >> j) & 1 else (base >> j) & 1 for j in range(32)]
+    cb = ['L' if (mk >> j) & 1 else (base >> j) & 1 for j in range(32)]
+    cb[11] = ('A10', 1); cb[22] = ('A21', 0); cb[28] = ('A27', 1 if (ci % 16) in (0, 2, 4, 6) else 0)
+    if (ci % 16) in (8, 9, 10, 11): cb[16] = ('A1', 1)
+    return cb
 _PROG = {}
 def program(ci=0):
     """the row-16 plane program of class ci (one per distinct mask and base bits outside it; constants folded)"""
@@ -1127,18 +1198,19 @@ FB_FIXED = 30 + 5      # per first block: two random words and their 16 fields (
 W7_LOOP = 4            # per class: load c7, advance the class pointer, compare and branch
 
 def batch_planes(mem):
-    """the stored planes of a batch: plane j = bits j of the 256 variants (lane L = variant L)"""
-    return {j: sum(((x >> j) & 1) << L for L, x in enumerate(mem)) for j in range(32)}
+    """the stored planes of a batch: plane j = bits j of the 256 variants (lane L = variant L), plus the batch base word"""
+    d = {j: sum(((x >> j) & 1) << L for L, x in enumerate(mem)) for j in range(32)}
+    d['base'] = mem[0] & ~LV_MASK & M; return d
 
 def process_batch(m, ins, inp, planes, ci, cv, sc, found):
     """one batch of one passing class: the plane program, then every passing lane in scalar form; row-16 passes go to the deep check"""
-    mk = CLASSES[ci][2]
+    mk = CLASSES[ci][2]; lmk = mk & LV_MASK; b0 = planes['base'] | (CLASSES[ci][1] & ~mk & LV_MASK)
     for j in range(32):
         if (mk >> j) & 1: inp['A%d' % j] = planes[j]
     ok, n = run_prog(ins, inp); m.ops += n + BATCH_CTL
     while ok:
         L = first_lane(m, ok); ok &= ok - 1; m.ops += LANE_CTL
-        a0 = lane_value(m, planes, L, mk, CLASSES[ci][1] & ~mk & M)
+        a0 = lane_value(m, planes, L, lmk, b0)
         e = scalar_e16(m, sc, a0)
         if r16test(m, e) and deep(m, cv, a0): found.append(a0)
     return found
@@ -1360,8 +1432,7 @@ def online_experiment(req):
                 wx, wy = words(cv, mem[0])
                 rec['message_a_hex'] = struct.pack('>32I', *(M0 + wx)).hex(); rec['message_b_hex'] = struct.pack('>32I', *(M0 + wy)).hex()
         if tr['trial'] == 0:                                               # positive lanes: the batch of the semi-free-start pair's variant
-            ci = class_of(A0S); mem = members(ci, 256)
-            if A0S not in mem: mem[17] = A0S
+            ci = class_of(A0S); mem = members(ci, 256, 78 * 256)
             m2 = Mach(); sc2 = fb_scalars(m2, PCV); inp2 = broadcast(m2, sc2); fnd = []
             process_batch(m2, program(ci), inp2, batch_planes(mem), ci, PCV, sc2, fnd); bad += A0S not in fnd
         rec['observations'] = dict(uncond_first_blocks=UNCOND_FB, uncond_class_passes=un, first_blocks=k + 1, passing_classes=len(hits), lanes=lanes, stage3a_passes=passed, mismatches=bad)
@@ -1375,7 +1446,7 @@ def calibrate():
     w7 = []
     for _ in range(200): m = Mach(); w7test(m, rr.getrandbits(32), rr.getrandbits(32)); w7.append(m.ops)
     m = Mach(); sc = fb_scalars(m, cv); n_sc = m.ops; m = Mach(); broadcast(m, sc); n_bc = m.ops
-    m = Mach(); a0 = members(0, 1)[0]; lane_value(m, {j: 0 for j in range(32)}, 0, max((c[2] for c in CLASSES), key=lambda x: bin(x).count('1')), 0); n_lv = m.ops
+    m = Mach(); a0 = members(0, 1)[0]; lane_value(m, {j: 0 for j in range(32)}, 0, max((c[2] & LV_MASK for c in CLASSES), key=lambda x: bin(x).count('1')), 0); n_lv = m.ops
     m = Mach(); scalar_e16(m, sc, a0); n_e16 = m.ops
     m = Mach(); deep(m, PCV, A0S); n_deep = m.ops
     progs = [len(program(ci)) - 1 for ci in range(len(CLASSES))]
@@ -1409,8 +1480,7 @@ def selftest():
         sum(n for n, _ in cnt) / len(cnt), max(n for n, _ in cnt), min(c['ld'] for _, c in cnt), max(c['ld'] for _, c in cnt), min(c['st'] for _, c in cnt), max(c['st'] for _, c in cnt)))
     r = online_experiment(dict(experiment_id='a0p-online-r38', trials=[dict(trial=t, seed='%064x' % t) for t in range(2)]))
     chk('  program against the definition on 2 x 512 lanes of real first blocks', all(t['observations']['mismatches'] == 0 for t in r['trials']), str([t['observations'] for t in r['trials']]))
-    ci = class_of(A0S); mem = members(ci, 256); found = []
-    if A0S not in mem: mem[17] = A0S
+    ci = class_of(A0S); mem = members(ci, 256, 78 * 256); found = []
     m = Mach(); sc = fb_scalars(m, PCV); inp = broadcast(m, sc); process_batch(m, program(ci), inp, batch_planes(mem), ci, PCV, sc, found)
     chk('5 the counted program finds the semi-free-start pair in its batch', A0S in found, '(%d operations)' % m.ops)
     z, pairs, bad = smc_replicate(Shake('selftest'), vsample())
