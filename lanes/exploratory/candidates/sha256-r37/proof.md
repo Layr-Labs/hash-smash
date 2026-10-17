@@ -1,11 +1,11 @@
-# A distribution-free complete-message baseline for SHA-256 r37
+# Tighter time and memory bounds for the SHA-256 r37 birthday construction
 
 ## Claim and scope
 
 This package specifies a classical randomized algorithm for the exact
 `sha256-r37-prefix-v1` target in the exploratory lane. Its worst-case total
-charged time is less than `2^132` target-compression units, its peak memory is
-less than `2^136` bytes, its preprocessing is less than `2^125` such time units,
+charged time is less than `2^131.804703` target-compression units, its peak memory is
+less than `2^135.584963` bytes, its preprocessing is less than `2^125` such time units,
 and its probability of returning distinct complete messages with equal full
 256-bit digests exceeds `0.39`. The probability is over fresh independent
 algorithmic coins for the fixed target; no property resembling a random oracle,
@@ -17,6 +17,17 @@ The required `baseline_improved` value `sha256-r37-nominal-v2` identifies an
 organizer nominal reference, not an established attack. This construction does
 not claim to beat that reference's display value of 128. `ready` requests review;
 it is not qualification, a trusted score, or human acceptance.
+
+The algorithm, operation counts, storage layout and probability argument are
+the organizer construction introduced by commit
+`b75b400e36d50ad77e5879e2cdc6e0dc0c523075`. The tighter time exponent and its
+finite rational check reuse submission
+`9c809454-bcde-4836-9d6b-72cb5bb84104`. This package additionally tightens the
+memory exponent using the already stated byte bound, with an analogous finite
+rational check. No operation or allocated byte has been removed. The separate
+`hashsmash-scalar-tm-v1` projection of these submitted bounds is
+`131.804703 + (135.584963 - 20) = 247.389666`. This is a proposed resource-bound
+improvement, not new cryptanalysis, reduced runtime, or an official result.
 
 All arithmetic in the algorithm below fits a 256-bit RAM word except that a
 message block occupies two words and each retained record occupies three.
@@ -290,12 +301,16 @@ Thus the worst-case charged total is
 ```
 T <= n+2 + (34304*n + 2^25)/2644
    = (36948*n + 2^25 + 5288)/2644
-   < 16*n = 2^132.
+   < 2^131.804703.
 ```
 
-For the strict inequality, `16*2644 - 36948 = 5356` and
-`2^25 + 5288 < 5356*2^128`. The claim `time_log2 = 132` is therefore rounded
-up conservatively. It is not merely the birthday sample exponent 128.
+The exact total upper bound has base-two logarithm
+`131.80470219125828173052...`; the submitted exponent rounds upward to six
+decimal places. The finite rational argument below establishes the strict
+inequality including fixed overhead, independently of numerical logarithms.
+This is the time-bound refinement of submission
+`9c809454-bcde-4836-9d6b-72cb5bb84104`, reproduced here so the argument is
+self-contained. It is not merely the birthday sample exponent 128.
 Preprocessing separately obeys
 
 ```
@@ -325,7 +340,10 @@ and fixed masks fit these static bounds. Reading/initializing this storage is
 included in the fixed preprocessing allowance. Code storage is counted even
 though execution of the selected compression is priced as one unit.
 
-Peak live storage is at most `192*n + 2^20 < 256*n = 2^136` bytes. Array bases,
+Peak live storage is at most `192*n + 2^20 < 2^135.584963` bytes. The exact byte
+bound has base-two logarithm `135.58496250072115618145...`; the submitted exponent
+rounds upward to six decimal places. The finite rational argument below includes
+the entire fixed storage allowance. Array bases,
 endpoints and byte addresses, including fixed storage, are below `2^137` and
 fit within a 256-bit word. The largest loop count is n and products by 2 or 3
 are exact without overflow; no multiplication instruction is needed. The
@@ -339,6 +357,48 @@ the schema requires a nonnegative logarithmic advice bound, the claim's
 `nonuniform_advice_log2_bytes = 0` means an upper bound of one byte, which covers
 zero bytes; it does not assign a logarithm to zero or hide the code. No legacy
 `data_log2` field is used.
+
+## Finite rational checks of both resource exponents
+
+Define the following positive rational numbers; these are analysis quantities,
+not data computed or stored by the collision-search algorithm:
+
+```
+L = 2 * sum(j=0,...,15) 1/((2*j+1)*3^(2*j+1))
+q_t = (804703/1000000)*L
+q_m = (584963/1000000)*L
+S_t = sum(k=0,...,16) q_t^k/k!
+S_m = sum(k=0,...,16) q_m^k/k!
+```
+
+Integrating the geometric series for `1/(1-z^2)` on `0 <= z <= 1/3` gives
+`ln(2) = 2*sum(j>=0) 1/((2*j+1)*3^(2*j+1))`. Every omitted term is positive,
+so `L < ln(2)`. The positive exponential series then gives
+`S_t < exp(q_t) < 2^0.804703` and
+`S_m < exp(q_m) < 2^0.584963`.
+
+The remaining comparisons involve only the explicit finite rational sums:
+
+```
+S_t > 36948/(8*2644) + 2^-100
+S_m > 3/2 + 2^-100
+2^25 + 5288 < 2644*2^31
+2^-115 < 2^-100
+```
+
+Each can be checked by exact integer fraction arithmetic. For orientation,
+`S_t - 36948/(8*2644)` is greater than `9/10^7`, and
+`S_m - 3/2` is greater than `5/10^7`; these stronger rational comparisons also
+hold and leave ample room above `2^-100`. Decimal approximations are not used
+as proof premises.
+
+Dividing the full time bound by `2^131 = 8*n` gives
+`36948/(8*2644) + (2^25+5288)/(2644*2^131)`. Its second term is strictly less
+than `2^-100` by the third comparison. Thus `T/2^131 < S_t < 2^0.804703`.
+Dividing the full memory bound by `2^135 = 128*n` gives `3/2 + 2^-115`.
+Thus `memory/2^135 < S_m < 2^0.584963`. Both claimed exponents therefore cover
+their full respective bounds, including all fixed allowances. They do not
+depend on truncating a small positive term to zero.
 
 ## Evidence and source context
 
