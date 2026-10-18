@@ -1,28 +1,7 @@
-"""frontline.py - the counter search of proof.md 9.1, 9.8 and 9.9, executed: the batch cache of the packed Y9, the
-work register W of the six budgets and the meter of the credit. Exact 32-bit arithmetic, standard library only, no
-BLAKE3 library. Instance: the last chunk of the 55/63-byte pair, flags 3, counter t by step CT. One trial = one context
-(seven outer words from the seed): representative batches 0..TRIAL_REPS-2 and the last (four-lane) one.
-  step 0  automata of (1) and (2) on S; in every lane i (word f at f << 36 i): T1 in two levels, R1 at 2^34 + l
-          (l < 2^16) and L1 at 2^34 + 2^26 + st + 2^16 h' (Lemma T26), T2 in two levels, R2 at 2^35 + l and L2 at
-          2^33 + st + 2^16 h, and PXR at 2^35 + 2^16 + l;
-          the member lists with the broadcast words of each representative; every entry read is evaluated by the
-          rule that fills it.
-  step 1  context: the W test, the 39 context lines, sixteen packed operands (omega's marker 2^35 in -S0 - S5),
-          AW and the flags hbad_i of the gate, the descriptor slab; per representative batch (a loop): omega side,
-          the gate words t, g and c, carry word IX' (bits at their native places), a gate test per lane; a closed
-          gate skips its cluster; an opened one runs the state test, the representative's test (2) and paths, then
-          by the gate state adds its units to W and runs the five old partner batches or the descriptor's two
-          chunks. Test (2) on R2 and L2 of the lane; E lane: W add, at the first E lane the cached Y9 path, the
-          R1 and L1 at the lane's Y9 fields, X; passing lane: the shortcut (scalar rotations), the pre-check, W added on either side,
-          preflight of CM(T).
-  step 2  the source bank; joint solver of 9.4 with (G7) and (G15) under the meter.
-  step 3  the root predicate; for the first certified root both last-chunk compressions compared on 256 bits.
-In-run reference (checks / mismatches): every walked member recomputed straight-line against its cluster's two exact
-prefixes; closed clusters and masked partners tested bit-serially for (2); gate keys, entries and descriptors against
-scalar words; T1, T2 entries bit-serially; cached Y9 against a fresh fill; shortcut words, pre-check and bank against
-a scalar rebuild; debits against the ledger; every call repeated without G15 with real-compression certificates;
-every E lane's step-CT message compressed; every 8th trial a planted joint root. The returned pair is the
-root-instance pair (counter 0, flags 11) of the trial's context and first passing member.
+"""frontline.py - the counter search of proof.md 9.1, 9.8 and 9.9, executed (instance: the last chunk of the 55/63-byte pair, flags 3,
+counter t by step CT; one trial = one context: representative batches 0..TRIAL_REPS-2 and the last one): the batch cache of the packed Y9,
+the work register W, the metered joint solver of 9.4, the root predicate and the in-run references listed in experiments/manifest.json.
+Exact 32-bit arithmetic, standard library only, no BLAKE3 library.
   python3 frontline.py              organizer request on stdin, response on stdout
   python3 frontline.py --selftest   constants, automata, masks, S7, tables, halt and gate drills
 """
@@ -105,7 +84,7 @@ VMASK = [0, 0, 0x3F80, 0x3FFF, 0x3FFF, 0x3F80, 0, 0]
 QSTAR_MASK, QSTAR_VALUE = 0x0E09818B, 0x02008000
 SHARE, E_COUNT, ONCE = 18289159183466496, 233715456, 1125918437277736
 U_U = 335060079487497
-FACTOR = 10 * 138512695296 // 11
+FACTOR = 20 * 138512695296 // 21
 RUN_CONTEXTS = -(-(-(-(24797 << 128) // (50000 * FACTOR * ((1 << 21) - 1)))) >> 19)
 RUN_STEPS = RUN_CONTEXTS << 19
 _S = isqrt(10 * RUN_CONTEXTS - 1) + 1
@@ -116,11 +95,11 @@ CREDIT = _MC + isqrt(40 * _LC * _MC - 1) + 1 + 14 * _LC + 15012
 CALL_BUDGET = -(-_MC // 4272) + (_S << 19)
 FB_BUDGET = -(-9 * RUN_CONTEXTS // 4) + (_S << 7)
 A_BUDGET = -(-852139 * RUN_CONTEXTS >> 7) + 16384 * _S
-G_BUDGET = 7164 * RUN_CONTEXTS + 84261 * _S
+G_BUDGET = 7198 * RUN_CONTEXTS + 84261 * _S
 S_OLD = 5486510246044225536
-U_REP, U_REP_TAIL, U_E, U_FILL, U_PASS, U_CALL, U_IX = 52, 40, 9, 56, 43, 6, 17
-U_PART, U_PART_TAIL, U_NEST, U_REP_T2, U_STATE, U_BCAST = 66, 38, 21, 7, 3, 4
-U_BOOK, U_SEL, U_CHUNK_A, U_CHUNK_B, U_PAIR, U_SLOW = 3, 6, 11, 13, 97, 12
+U_REP, U_REP_TAIL, U_E, U_FILL, U_PASS, U_CALL, U_IX = 52, 40, 10, 56, 43, 6, 17
+U_PART, U_PART_TAIL, U_NEST, U_REP_T2, U_STATE, U_BCAST = 72, 40, 21, 8, 3, 4
+U_BOOK, U_SEL, U_CHUNK_A, U_CHUNK_B, U_PAIR, U_SLOW = 3, 6, 11, 13, 104, 12
 U_RET = 16  # entry into and return from the one copy of an opened cluster (9.9): no statement of this program
 U_FALLBACK = 4 * U_PART + U_PART_TAIL + U_NEST + U_REP_T2 + U_RET
 U_OPEN = U_REP_T2 + U_BOOK + U_SEL + U_STATE + U_BCAST + U_PAIR + U_CHUNK_A + U_CHUNK_B + U_RET
@@ -132,79 +111,79 @@ WB = (U_OPEN * A_BUDGET + U_E * E_BUDGET + U_FILL * G_BUDGET + U_PASS * PASS_BUD
 W_CTX = U_OPEN * 16384 + U_E * (1 << 19) + U_FILL * 84261 + U_PC * (1 << 19) + U_FB * 128
 N = ((U_REP * (REP_BATCHES - 1) + U_REP_TAIL) * RUN_CONTEXTS + U_CONTEXT * (RUN_CONTEXTS + 1) + WB + W_CTX + CREDIT
      + ONCE + S_OLD + 430 * 2 ** 38)
-_C = lambda n: n and 17 + 7 * n
+_C = lambda n: n and 16 + 8 * n
 assert U_PAIR == max(_C(a) + _C(b) for a in range(1, 8) for b in range(8) if a + b < 10) and U_PART == _C(7)
-assert U_OPEN == 160 and U_FALLBACK == 346 and U_FB == 189 and U_PART_TAIL == _C(3) and U_FILL == 54 + 2
+assert U_OPEN == 168 and U_FALLBACK == 373 and U_FB == 208 and U_PART_TAIL == _C(3) and U_FILL == 54 + 2
 assert U_REP == 3 + 17 + 8 + 3 * 7 + 3 and U_REP_TAIL == 3 + 17 + 8 + 3 * 4 and U_REP * 2340 + U_REP_TAIL == 121720
 assert U_IX == 9 + 4 + 1 + 3 and U_PASS == 1 + 35 + 7 and U_BCAST == 2 * (1 + 1) and U_CONTEXT == 90917
-assert _MC == 768327282601085944857 and (WB, W_CTX) == (2129196039312246918115, 37772952) and N == 3162212250308201329187
-TEXT = dict(RUN_CONTEXTS=1218911201562375, E_BUDGET=34776155800492855966, PASS_BUDGET=633770615067648623,
-            CREDIT=768342835467316325136, A_BUDGET=8114703155646753044, G_BUDGET=8732289150770587932,
-            CALL_BUDGET=179909775650566080, FB_BUDGET=2742564335267280, N=3162212250308201329187)
+assert _MC == 733403315213304143573 and (WB, W_CTX) == (2129841797870956034638, 38430744) and N == 3116152519299297796865
+TEXT = dict(RUN_CONTEXTS=1163506146950943, E_BUDGET=33195422746307643993, PASS_BUDGET=604964160078784312,
+            CREDIT=733418510497114084683, A_BUDGET=7745853052874278996, G_BUDGET=8374926334645110837,
+            CALL_BUDGET=171733358815147214, FB_BUDGET=2617902637480326, N=3116152519299297796865)
 U_GLOBAL, U_FAMILY, U_ROW, U_FORCED, U_SELECTED, U_G15, U_FREE, U_LEAF, U_ROOT = 614, 2304, 1354, 20, 4, 64, 48, 80, 120
 
 
 
 def Sum(*t):
-    return ("sum", t)
+    return ('sum', t)
 
 
 def Neg(x):
-    return ("neg", x)
+    return ('neg', x)
 
 
 def X(a, b):
-    return ("xor", a, b)
+    return ('xor', a, b)
 
 
 def R(a, r):
-    return ("ror", a, r)
+    return ('ror', a, r)
 
 
 def L(a, r):
-    return ("ror", a, 32 - r)
+    return ('ror', a, 32 - r)
 
 
 LINES = [
-    ("X2", Sum("D2.a1", "D2.b1", W13)), ("X8", X(rol(X7, 7), "D2.b1")), ("C0.c1", Sum("X8", "C0.d1")),
-    ("K3.a1", Sum((IV[3] + IV[7]) & M, "w6")), ("K3.d1", R(X("K3.a1", "fl"), 16)), ("K3.c1", Sum(IV[3], "K3.d1")),
-    ("S15", Sum("S11", Neg("K3.c1"))), ("S3", X(L("S15", 8), "K3.d1")), ("K3.b1", R(X(IV[7], "K3.c1"), 12)),
-    ("D3.a1", Sum("S3", "S4")), ("S7", R(X("K3.b1", "S11"), 7)), ("D3.b1", Sum(X3, Neg("D3.a1"))),
-    ("D2.c1", X(L("D2.b1", 12), "S7")), ("D3.c1", X(L("D3.b1", 12), "S4")), ("X4", R(X("D3.b1", "X9"), 7)),
-    ("X13", Sum("X8", Neg("D2.c1"))), ("X14", Sum("X9", Neg("D3.c1"))), ("C0.b1", R(X("X4", "C0.c1"), 12)),
-    ("D2.d1", X(L("X13", 8), "X2")), ("D3.d1", X(L("X14", 8), X3)), ("Y8", X(L("Y4", 7), "C0.b1")),
-    ("S13", X(L("D2.d1", 16), "D2.a1")), ("S9", Sum("D3.c1", Neg("D3.d1"))), ("Y12", Sum("Y8", Neg("C0.c1"))),
-    ("K1.c1", Sum("S9", Neg("S13"))), ("Y0", X(L("Y12", 8), "C0.d1")), ("K1.d1", Sum("K1.c1", Neg(IV[1]))),
-    ("C0.a1", Sum("Y0", Neg("C0.b1"), Neg("w6"))), ("K1.a1", L("K1.d1", 16)),
-    ("w2", Sum("K1.a1", Neg(IV[1]), Neg(IV[5]))), ("X0", Sum("C0.a1", Neg("X4"), Neg("w2"))),
-    ("S14", X(L("D3.d1", 16), "D3.a1")), ("K1.b1", R(X(IV[5], "K1.c1"), 12)), ("S10", Sum(K2C, "S14")),
-    ("D0.d1", X(rol(X15, 8), "X0")), ("S5", R(X("K1.b1", "S9"), 7)), ("D0.c1", Sum("S10", "D0.d1")),
-    ("D0.b1", R(X("S5", "D0.c1"), 12)), ("X10", Sum("D0.c1", X15)), ("X5", R(X("D0.b1", "X10"), 7)),
-    ("S1", X(L("S13", 8), "K1.d1")), ("w3", Sum("S1", Neg("K1.a1"), Neg("K1.b1"))),
-    ("X12", X(L("C0.d1", 16), "C0.a1")), ("D1.c1", Sum(X11, Neg("X12"))), ("D1.d1", Sum("D1.c1", Neg("S11"))),
-    ("S8", Sum("D2.c1", Neg("D2.d1"))), ("K0.b1", X(L("S4", 7), "S8")), ("S2", X(L("S14", 8), K2D)),
-    ("S6", R(X(K2B, "S10"), 7)), ("X1", X(L("X12", 8), "D1.d1")), ("K0.c1", X(L("K0.b1", 12), IV[4])),
-    ("D1.b1", R(X("S6", "D1.c1"), 12)), ("C1.a1", Sum("X1", "X5", "w3")), ("S12", Sum("S8", Neg("K0.c1"))),
-    ("w7", Sum("S3", Neg("K3.a1"), Neg("K3.b1"))), ("X6", R(X("D1.b1", X11), 7)),
-    ("C1.d1", R(X("X13", "C1.a1"), 16)), ("D1.a1", X(L("D1.d1", 16), "S12")), ("C1.c1", Sum("X9", "C1.d1")),
-    ("C2.a1", Sum("X2", "X6", "w7")), ("w10", Sum("D1.a1", Neg("S1"), Neg("S6"))),
-    ("C1.b1", R(X("X5", "C1.c1"), 12)), ("C2.d1", R(X("X14", "C2.a1"), 16)),
-    ("w12", Sum("D2.a1", Neg("S2"), Neg("S7"))), ("Y1", Sum("C1.a1", "C1.b1", "w10")),
-    ("C2.c1", Sum("X10", "C2.d1")), ("Y13", R(X("C1.d1", "Y1"), 8)), ("C2.b1", R(X("X6", "C2.c1"), 12)),
-    ("K0.d1", Sum("K0.c1", Neg(IV[0]))), ("Y9", Sum("C1.c1", "Y13")), ("S0", X(L("S12", 8), "K0.d1")),
-    ("D0.a1", X(L("D0.d1", 16), "S15")), ("w8", Sum("D0.a1", Neg("S0"), Neg("S5"))),
-    ("w5", Sum("S2", Neg(K2A), Neg(K2B))), ("w9", Sum("X0", Neg("D0.a1"), Neg("D0.b1"))),
-    ("w11", Sum("X1", Neg("D1.a1"), Neg("D1.b1"))), ("Y5", R(X("C1.b1", "Y9"), 7)),
+    ('X2', Sum('D2.a1', 'D2.b1', W13)), ('X8', X(rol(X7, 7), 'D2.b1')), ('C0.c1', Sum('X8', 'C0.d1')),
+    ('K3.a1', Sum((IV[3] + IV[7]) & M, 'w6')), ('K3.d1', R(X('K3.a1', 'fl'), 16)), ('K3.c1', Sum(IV[3], 'K3.d1')),
+    ('S15', Sum('S11', Neg('K3.c1'))), ('S3', X(L('S15', 8), 'K3.d1')), ('K3.b1', R(X(IV[7], 'K3.c1'), 12)),
+    ('D3.a1', Sum('S3', 'S4')), ('S7', R(X('K3.b1', 'S11'), 7)), ('D3.b1', Sum(X3, Neg('D3.a1'))),
+    ('D2.c1', X(L('D2.b1', 12), 'S7')), ('D3.c1', X(L('D3.b1', 12), 'S4')), ('X4', R(X('D3.b1', 'X9'), 7)),
+    ('X13', Sum('X8', Neg('D2.c1'))), ('X14', Sum('X9', Neg('D3.c1'))), ('C0.b1', R(X('X4', 'C0.c1'), 12)),
+    ('D2.d1', X(L('X13', 8), 'X2')), ('D3.d1', X(L('X14', 8), X3)), ('Y8', X(L('Y4', 7), 'C0.b1')),
+    ('S13', X(L('D2.d1', 16), 'D2.a1')), ('S9', Sum('D3.c1', Neg('D3.d1'))), ('Y12', Sum('Y8', Neg('C0.c1'))),
+    ('K1.c1', Sum('S9', Neg('S13'))), ('Y0', X(L('Y12', 8), 'C0.d1')), ('K1.d1', Sum('K1.c1', Neg(IV[1]))),
+    ('C0.a1', Sum('Y0', Neg('C0.b1'), Neg('w6'))), ('K1.a1', L('K1.d1', 16)),
+    ('w2', Sum('K1.a1', Neg(IV[1]), Neg(IV[5]))), ('X0', Sum('C0.a1', Neg('X4'), Neg('w2'))),
+    ('S14', X(L('D3.d1', 16), 'D3.a1')), ('K1.b1', R(X(IV[5], 'K1.c1'), 12)), ('S10', Sum(K2C, 'S14')),
+    ('D0.d1', X(rol(X15, 8), 'X0')), ('S5', R(X('K1.b1', 'S9'), 7)), ('D0.c1', Sum('S10', 'D0.d1')),
+    ('D0.b1', R(X('S5', 'D0.c1'), 12)), ('X10', Sum('D0.c1', X15)), ('X5', R(X('D0.b1', 'X10'), 7)),
+    ('S1', X(L('S13', 8), 'K1.d1')), ('w3', Sum('S1', Neg('K1.a1'), Neg('K1.b1'))),
+    ('X12', X(L('C0.d1', 16), 'C0.a1')), ('D1.c1', Sum(X11, Neg('X12'))), ('D1.d1', Sum('D1.c1', Neg('S11'))),
+    ('S8', Sum('D2.c1', Neg('D2.d1'))), ('K0.b1', X(L('S4', 7), 'S8')), ('S2', X(L('S14', 8), K2D)),
+    ('S6', R(X(K2B, 'S10'), 7)), ('X1', X(L('X12', 8), 'D1.d1')), ('K0.c1', X(L('K0.b1', 12), IV[4])),
+    ('D1.b1', R(X('S6', 'D1.c1'), 12)), ('C1.a1', Sum('X1', 'X5', 'w3')), ('S12', Sum('S8', Neg('K0.c1'))),
+    ('w7', Sum('S3', Neg('K3.a1'), Neg('K3.b1'))), ('X6', R(X('D1.b1', X11), 7)),
+    ('C1.d1', R(X('X13', 'C1.a1'), 16)), ('D1.a1', X(L('D1.d1', 16), 'S12')), ('C1.c1', Sum('X9', 'C1.d1')),
+    ('C2.a1', Sum('X2', 'X6', 'w7')), ('w10', Sum('D1.a1', Neg('S1'), Neg('S6'))),
+    ('C1.b1', R(X('X5', 'C1.c1'), 12)), ('C2.d1', R(X('X14', 'C2.a1'), 16)),
+    ('w12', Sum('D2.a1', Neg('S2'), Neg('S7'))), ('Y1', Sum('C1.a1', 'C1.b1', 'w10')),
+    ('C2.c1', Sum('X10', 'C2.d1')), ('Y13', R(X('C1.d1', 'Y1'), 8)), ('C2.b1', R(X('X6', 'C2.c1'), 12)),
+    ('K0.d1', Sum('K0.c1', Neg(IV[0]))), ('Y9', Sum('C1.c1', 'Y13')), ('S0', X(L('S12', 8), 'K0.d1')),
+    ('D0.a1', X(L('D0.d1', 16), 'S15')), ('w8', Sum('D0.a1', Neg('S0'), Neg('S5'))),
+    ('w5', Sum('S2', Neg(K2A), Neg(K2B))), ('w9', Sum('X0', Neg('D0.a1'), Neg('D0.b1'))),
+    ('w11', Sum('X1', Neg('D1.a1'), Neg('D1.b1'))), ('Y5', R(X('C1.b1', 'Y9'), 7)),
 ]
 DEF = dict(LINES)
-OUTER_WORDS = ("C0.d1", "D2.a1", "D2.b1", "S11", "S4", "X9", "w6")
+OUTER_WORDS = ('C0.d1', 'D2.a1', 'D2.b1', 'S11', 'S4', 'X9', 'w6')
 
 
 def deps(e, out):
     if isinstance(e, str):
         out.add(e)
     elif isinstance(e, tuple):
-        for t in (e[1] if e[0] == "sum" else e[1:2] if e[0] in ("neg", "ror") else e[1:]):
+        for t in (e[1] if e[0] == 'sum' else e[1:2] if e[0] in ('neg', 'ror') else e[1:]):
             deps(t, out)
     return out
 
@@ -219,25 +198,25 @@ def closure(names):
     return need
 
 
-NEEDED, MARKED = closure(["Y9", "w8"]), set()
+NEEDED, MARKED = closure(['Y9', 'w8']), set()
 for _n, _e in LINES:
-    if deps(_e, set()) & (MARKED | {"Y4"}):
+    if deps(_e, set()) & (MARKED | {'Y4'}):
         MARKED.add(_n)
 MEMBER_LINES = [n for n, _ in LINES if n in NEEDED and n in MARKED]
 CONTEXT_LINES = [n for n, _ in LINES if n in NEEDED and n not in MARKED]
-OMEGA_SIDE = [n for n in MEMBER_LINES if n in closure(["w8"])]
+OMEGA_SIDE = [n for n in MEMBER_LINES if n in closure(['w8'])]
 Y9_PATH = [n for n in MEMBER_LINES if n not in OMEGA_SIDE]
-assert len(NEEDED) == 64 and MEMBER_LINES == ("Y8 Y12 Y0 C0.a1 X0 D0.d1 D0.c1 D0.b1 X10 X5 X12 D1.c1 D1.d1 X1 C1.a1 "
-                                              "C1.d1 D1.a1 C1.c1 w10 C1.b1 Y1 Y13 Y9 D0.a1 w8").split()
-assert CONTEXT_LINES == ("X2 X8 C0.c1 K3.a1 K3.d1 K3.c1 S15 S3 K3.b1 D3.a1 S7 D3.b1 D2.c1 D3.c1 X4 X13 X14 C0.b1 "
-                         "D2.d1 D3.d1 S13 S9 K1.c1 K1.d1 K1.a1 w2 S14 K1.b1 S10 S5 S1 w3 S8 K0.b1 S6 K0.c1 S12 "
-                         "K0.d1 S0").split()
-assert OMEGA_SIDE == "Y8 Y12 Y0 C0.a1 X0 D0.d1 D0.a1 w8".split() and set(Y9_PATH) <= closure(["Y9"])
-assert {"C0.a1", "D0.d1"} == {d for n in Y9_PATH for d in deps(DEF[n], set())} & set(OMEGA_SIDE)
+assert len(NEEDED) == 64 and MEMBER_LINES == ('Y8 Y12 Y0 C0.a1 X0 D0.d1 D0.c1 D0.b1 X10 X5 X12 D1.c1 D1.d1 X1 C1.a1 '
+                                              'C1.d1 D1.a1 C1.c1 w10 C1.b1 Y1 Y13 Y9 D0.a1 w8').split()
+assert CONTEXT_LINES == ('X2 X8 C0.c1 K3.a1 K3.d1 K3.c1 S15 S3 K3.b1 D3.a1 S7 D3.b1 D2.c1 D3.c1 X4 X13 X14 C0.b1 '
+                         'D2.d1 D3.d1 S13 S9 K1.c1 K1.d1 K1.a1 w2 S14 K1.b1 S10 S5 S1 w3 S8 K0.b1 S6 K0.c1 S12 '
+                         'K0.d1 S0').split()
+assert OMEGA_SIDE == 'Y8 Y12 Y0 C0.a1 X0 D0.d1 D0.a1 w8'.split() and set(Y9_PATH) <= closure(['Y9'])
+assert {'C0.a1', 'D0.d1'} == {d for n in Y9_PATH for d in deps(DEF[n], set())} & set(OMEGA_SIDE)
 
 
 def nm(s):
-    return s.replace(".", "_")
+    return s.replace('.', '_')
 
 
 def src(e, tmp):
@@ -245,33 +224,33 @@ def src(e, tmp):
         return str(e)
     if isinstance(e, str):
         return nm(e)
-    if e[0] == "sum":
-        return "((%s) & M)" % " ".join("- " + src(t[1], tmp) if type(t) is tuple and t[0] == "neg" else
-                                       "+ " + src(t, tmp) for t in e[1])
-    if e[0] == "xor":
-        return "(%s ^ %s)" % (src(e[1], tmp), src(e[2], tmp))
+    if e[0] == 'sum':
+        return '((%s) & M)' % ' '.join('- ' + src(t[1], tmp) if type(t) is tuple and t[0] == 'neg' else
+                                       '+ ' + src(t, tmp) for t in e[1])
+    if e[0] == 'xor':
+        return '(%s ^ %s)' % (src(e[1], tmp), src(e[2], tmp))
     tmp.append(1)
-    t = "_t%d" % len(tmp)
-    return "((((%s := %s) >> %d) | (%s << %d)) & M)" % (t, src(e[1], tmp), e[2], t, 32 - e[2])
+    t = '_t%d' % len(tmp)
+    return '((((%s := %s) >> %d) | (%s << %d)) & M)' % (t, src(e[1], tmp), e[2], t, 32 - e[2])
 
 
 def compile_lines(name, args, lines, ret):
     tmp = []
-    body = "\n    ".join("%s = %s" % (nm(n), src(DEF[n], tmp)) for n in lines)
-    ns = {"M": M}
-    exec("def %s(%s):\n    %s\n    return %s\n" % (name, ", ".join(args), body, ret), ns)
+    body = "\n    ".join('%s = %s' % (nm(n), src(DEF[n], tmp)) for n in lines)
+    ns = {'M': M}
+    exec("def %s(%s):\n    %s\n    return %s\n" % (name, ', '.join(args), body, ret), ns)
     return ns[name]
 
 
 ARGS = [nm(n) for n in OUTER_WORDS]
-co_full = compile_lines("co_full", ARGS + ["Y4", "fl"], [n for n, _ in LINES], "locals()")
-co_ref = compile_lines("co_ref", ARGS + ["Y4", "fl"], [n for n, _ in LINES], "(%d + Y4 + w8) & M, Y9" % Y3)
-co_ctx = compile_lines("co_ctx", ARGS + ["fl"], CONTEXT_LINES, "locals()")
+co_full = compile_lines('co_full', ARGS + ['Y4', 'fl'], [n for n, _ in LINES], 'locals()')
+co_ref = compile_lines('co_ref', ARGS + ['Y4', 'fl'], [n for n, _ in LINES], '(%d + Y4 + w8) & M, Y9' % Y3)
+co_ctx = compile_lines('co_ctx', ARGS + ['fl'], CONTEXT_LINES, 'locals()')
 
 
 def rebuild(ow, y, e1, fl=FLAGS):
     v = co_full(*ow, y, fl)
-    v["e1"], v["omega"] = e1, (Y3 + y + v["w8"]) & M
+    v['e1'], v['omega'] = e1, (Y3 + y + v['w8']) & M
     return v
 
 
@@ -345,39 +324,42 @@ S2B, T3B, K7 = len(AUT2[0]) + len(AUT2[1]), len(F1) - len(AUT1[3]), ror(X11, 7)
 S1B, B1 = len(AUT1[0]) + len(AUT1[1]), B34 + (1 << 26)
 
 
-def split(a):
-    i = (a.bit_length() - 34) // 36
-    f = a >> 36 * i
-    assert f << 36 * i == a and B33 <= f < 1 << 36
-    return i, f
+def classes(f, sb, n, w):
+    k = [tuple(tuple(f[t:t + w]) for t in f[sb + 256 * s:sb + 256 * s + 256]) for s in range(n)]
+    u = list(dict.fromkeys(k))
+    return [u.index(x) for x in k], [k.index(x) for x in u]
 
 
-def R1(a):
-    i, f = split(a)
+C1, P1 = classes(F1, S1B, 43, 4)
+C2, P2 = classes(F2, S2B, 7, 256)
+
+
+def R1(f):
+    assert B33 <= f < 1 << 36
     lo = f - B34
     assert lo >> 16 == 0
-    return B1 + (F1[F1[lo & 255] + (lo >> 8)] - S1B >> 8) - lo << 36 * i
+    return B1 + C1[F1[F1[lo & 255] + (lo >> 8)] - S1B >> 8] - lo
 
 
-def L1(a):
-    i, f = split(a)
+def L1(f):
+    assert B33 <= f < 1 << 36
     v, h = f - B1 & L16, f - B1 >> 16
-    assert v < 43 and h >> 10 == 0
-    return F1[F1[S1B + 256 * v + (h & 255)] + (h >> 8)]
+    assert v < 35 and h >> 10 == 0
+    return F1[F1[S1B + 256 * P1[v] + (h & 255)] + (h >> 8)]
 
 
-def R2(a):
-    i, f = split(a)
+def R2(f):
+    assert B33 <= f < 1 << 36
     lo = f - B35
     assert lo >> 16 == 0
-    return B33 + (F2[F2[lo & 255] + (lo >> 8)] - S2B >> 8) - lo << 36 * i
+    return B33 + C2[F2[F2[lo & 255] + (lo >> 8)] - S2B >> 8] - lo
 
 
-def L2(a):
-    i, f = split(a)
+def L2(f):
+    assert B33 <= f < 1 << 36
     v, h = f - B33 & L16, f - B33 >> 16
-    assert v < 7 and h >> 16 == 0
-    return F2[F2[S2B + 256 * v + (h & 255)] + (h >> 8)]
+    assert v < 4 and h >> 16 == 0
+    return F2[F2[S2B + 256 * P2[v] + (h & 255)] + (h >> 8)]
 
 
 def cond1(x, theta):
@@ -463,9 +445,8 @@ DB, IXM = (1 << 36) + (1 << 30), 1 << 9 | 1 << 10 | 1 << 17 | 1 << 25
 assert IXM + 512 < 1 << 26
 
 
-def PXR(a):
-    i, f = split(a)
-    assert f - B35 >> 16 == 1
+def PXR(f):
+    assert B33 <= f < 1 << 36 and f - B35 >> 16 == 1
     return DB + 4 * PXT[f & 511]
 
 
@@ -524,8 +505,7 @@ RX15, PX15 = rol(X15, 8) * ONES, X15 * ONES
 YM, QM, X11P = 0xFF00 * ONES, B34 | L16, X11 + 1
 GF1, GF2, GF3 = 0x5B * ONES, 0x5F * ONES, 0x66 * ONES
 N9, N10, N17, N25 = (1 << 9) * ONES, (1 << 10) * ONES, (1 << 17) * ONES, (1 << 25) * ONES
-LQ, LX, QL, XL = ([(B35 | L16) << LB * i for i in range(LANES)], [M << LB * i for i in range(LANES)],
-                  [QM << LB * i for i in range(LANES)], [M26 << LB * i for i in range(LANES)])
+LQ, LX, QL, XL = B35 | L16, M, QM, M26
 GB7, GB16 = [1 << LB * i + 7 for i in range(LANES)], [1 << LB * i + 16 for i in range(LANES)]
 
 
@@ -535,9 +515,9 @@ def pror(x, r):
 
 def operands(cx):
     n = lambda w: -w & M
-    w = (cx["C0_b1"], n(cx["C0_c1"]), cx["C0_d1"], n(cx["C0_b1"] + cx["w6"]), rol(cx["C0_d1"], 16),
-         (X11 + 1 - cx["S11"]) & M, cx["S12"], n(cx["C0_b1"] + cx["w6"] + cx["X4"] + cx["w2"]), n(cx["S1"] + cx["S6"]),
-         cx["S15"] ^ ror(X15, 8), cx["S10"], cx["S5"], cx["w3"], cx["X13"], cx["X9"], n(cx["S0"] + cx["S5"]) | B35)
+    w = (cx['C0_b1'], n(cx['C0_c1']), cx['C0_d1'], n(cx['C0_b1'] + cx['w6']), rol(cx['C0_d1'], 16),
+         (X11 + 1 - cx['S11']) & M, cx['S12'], n(cx['C0_b1'] + cx['w6'] + cx['X4'] + cx['w2']), n(cx['S1'] + cx['S6']),
+         cx['S15'] ^ ror(X15, 8), cx['S10'], cx['S5'], cx['w3'], cx['X13'], cx['X9'], n(cx['S0'] + cx['S5']) | B35)
     return tuple(x * ONES for x in w)
 
 
@@ -634,27 +614,37 @@ def arc_of(d, u, a, v):
     return 0x10 | (0 if li else u1) << 3 | (0 if lk else a1) << 2 | v << 1 | e2
 
 
+def word_of(key14):
+    """(word, field j): the word holds the 8 entries of the 8 values of (eta[i], gamma[i], gamma[i+1])"""
+    return (key14 >> 10) << 7 | (key14 >> 6 & 3) << 5 | key14 & 31, (key14 >> 9 & 1) << 2 | (key14 >> 8 & 1) << 1 | key14 >> 5 & 1
+
+
+def ent(A, key14, low, nlow, m):
+    w, j = word_of(key14)
+    return A[w << nlow | low] >> 32 * j & m
+
+
 def build_arrays():
-    forced, dual, selected = [0] * (1 << 16), [0] * (1 << 16), [0] * (1 << 17)
+    forced, dual, selected = [0] * (1 << 13), [0] * (1 << 13), [0] * (1 << 14)
     for key14 in range(1 << 14):
         d = tuple(key14 >> 13 - t & 1 for t in range(14))
         Qi, yi, Ek, Epk, etai, gi, sk, kk, gi1, kk1, hasc, cval, li, lk = d
         prescribed = (not li and gi) or (not lk and (kk ^ Ek ^ Epk))
+        w, j = word_of(key14)
         for cp in range(4):
             arcs = [arc_of(d, cp >> 1, cp & 1, 0), arc_of(d, cp >> 1, cp & 1, 1)]
-            key = key14 << 2 | cp
-            dual[key] = arcs[0] | arcs[1] << 5
+            dual[w << 2 | cp] |= (arcs[0] | arcs[1] << 5) << 32 * j
             if hasc:
-                forced[key] = arcs[cval]
+                forced[w << 2 | cp] |= arcs[cval] << 32 * j
             else:
                 passing = [x for x in arcs if x]
                 if len(passing) == 1:
-                    forced[key] = passing[0]
-                assert not (len(passing) == 2 and prescribed), "Lemma S5"
+                    forced[w << 2 | cp] |= passing[0] << 32 * j
+                assert not (len(passing) == 2 and prescribed), 'Lemma S5'
             for want in (0, 1):
                 cand = [x for x in ((arcs[cval],) if hasc else arcs) if x and x & 1 == want]
                 assert len(cand) <= 1
-                selected[key << 1 | want] = cand[0] if cand else 0
+                selected[w << 3 | cp << 1 | want] |= (cand[0] if cand else 0) << 32 * j
     return forced, dual, selected
 
 
@@ -702,7 +692,7 @@ def row_setup(row, Q, y, E, Ep, e1, kappa, C, B, notes):
     if not kept:
         return None
     if len({a22 for _, a22 in kept}) != 1:
-        notes.append("two kept guesses with different a[22]")
+        notes.append('two kept guesses with different a[22]')
     a22 = kept[0][1]
     f22 = prescription(Eb(22), Epb(22), sb(22), kb(23), a22)
     a23 = maj(Eb(22), f22, a22)
@@ -764,7 +754,7 @@ def row_setup(row, Q, y, E, Ep, e1, kappa, C, B, notes):
     for a20, _ in kept:
         uu, aa, ok = 0, a20, True
         for i in range(7):
-            arc = FORCED[descriptor(row, Q, y, E, Ep, kappa, i, 1, h[i]) << 2 | uu << 1 | aa]
+            arc = ent(FORCED, descriptor(row, Q, y, E, Ep, kappa, i, 1, h[i]), uu << 1 | aa, 2, 31)
             if not arc:
                 ok = False
                 break
@@ -776,17 +766,17 @@ def row_setup(row, Q, y, E, Ep, e1, kappa, C, B, notes):
     if not states:
         return None
     if len(states) > 1:
-        notes.append("kept guesses reach different states at depth 7")
+        notes.append('kept guesses reach different states at depth 7')
     if not row.low:
         if len(e2_26) != 1:
-            notes.append("e2[26] differs between guesses")
+            notes.append('e2[26] differs between guesses')
         h[26] = min(e2_26)
     return h, sorted(states)
 
 
 def g15_meta(h6, e1, bk):
-    C, B, V = bk["C2_c1"], bk["C2_b1"], bk["Y12"]
-    A = (bk["Y1"] + bk["w12"]) & M
+    C, B, V = bk['C2_c1'], bk['C2_b1'], bk['Y12']
+    A = (bk['Y1'] + bk['w12']) & M
     alpha22 = h6 ^ bit(e1, 22) ^ bit(C, 22) ^ bit(B, 22)
     v16 = bit(V, 16) ^ 1 ^ bit(A, 16)
     return e1 >> 22, (C >> 22) + alpha22, B >> 22, (A >> 16 & 511) + v16, V >> 16 & 511
@@ -818,7 +808,7 @@ def traverse(row, Q, y, E, Ep, kappa, e1, h, states, cnt, meta):
         if i in free:
             cnt[4] += 1
             cnt[7] += U_FREE
-            w = DUAL[keys[i] << 2 | cp]
+            w = ent(DUAL, keys[i], cp, 2, 1023)
             arcs = (w & 0x1F, w >> 5 & 0x1F)
         else:
             cnt[0] += 1
@@ -830,17 +820,17 @@ def traverse(row, Q, y, E, Ep, kappa, e1, h, states, cnt, meta):
                 cs = c_star(pref, meta)
                 if cs & 0x8B:
                     continue
-                arcs = (FORCED[(key | 8 | (cs >> 8 & 1) << 2) << 2 | cp],)
+                arcs = (ent(FORCED, key | 8 | (cs >> 8 & 1) << 2, cp, 2, 31),)
             elif i == 20:
                 cnt[1] += 1
                 cnt[7] += U_SELECTED
-                arcs = (SELECTED[(key << 2 | cp) << 1 | bit(pref, 8)],)
+                arcs = (ent(SELECTED, key, cp << 1 | bit(pref, 8), 3, 31),)
             elif i == 25:
-                arcs = (FORCED[(key | 8 | (bit(pref, 6) ^ bit(pref, 13) ^ u) << 2) << 2 | cp],)
+                arcs = (ent(FORCED, key | 8 | (bit(pref, 6) ^ bit(pref, 13) ^ u) << 2, cp, 2, 31),)
             elif i == 29:
-                arcs = (FORCED[(key | 8 | (1 ^ e29) << 2) << 2 | cp],)
+                arcs = (ent(FORCED, key | 8 | (1 ^ e29) << 2, cp, 2, 31),)
             else:
-                arcs = (FORCED[key << 2 | cp],)
+                arcs = (ent(FORCED, key, cp, 2, 31),)
         for arc in arcs:
             if arc:
                 stack.append((i + 1, arc >> 3 & 1, arc >> 2 & 1, pref | (arc >> 1 & 1) << i,
@@ -849,7 +839,7 @@ def traverse(row, Q, y, E, Ep, kappa, e1, h, states, cnt, meta):
 
 
 def solve(bk, rows, g15, cnt, notes):
-    Q, y, E, e1, C, B = bk["Y9"], bk["Y4"], bk["omega"], bk["e1"], bk["C2_c1"], bk["C2_b1"]
+    Q, y, E, e1, C, B = bk['Y9'], bk['Y4'], bk['omega'], bk['e1'], bk['C2_c1'], bk['C2_b1']
     Ep, out = (E + DY3) & M, []
     for t in rows:
         row = ROWS[t]
@@ -900,7 +890,7 @@ assert all(31 not in ROWS[t].free for t in TAUS)
 
 def compress2(msg, t, flags):
     n = len(msg)
-    w = list(struct.unpack("<16I", msg + bytes(64 - n)))
+    w = list(struct.unpack('<16I', msg + bytes(64 - n)))
     v = list(IV) + list(IV[:4]) + [t & M, t >> 32, n, flags]
     s, yst = w, None
     for r in range(2):
@@ -913,36 +903,36 @@ def compress2(msg, t, flags):
 
 
 def c1_of(v, h):
-    y6 = ror((((rol(h, 16) ^ v["e1"]) + v["C2_c1"]) & M) ^ v["C2_b1"], 7)
-    return (Y11 + ror(((y6 + v["Y1"] + v["w12"]) & M) ^ v["Y12"], 16)) & M
+    y6 = ror((((rol(h, 16) ^ v['e1']) + v['C2_c1']) & M) ^ v['C2_b1'], 7)
+    return (Y11 + ror(((y6 + v['Y1'] + v['w12']) & M) ^ v['Y12'], 16)) & M
 
 
 def c1_t0(v):
-    w0 = (rol(v["K0_d1"], 16) - IV[0] - IV[4]) & M
-    y14 = ror(((w0 + v["C2_a1"] + v["C2_b1"]) & M) ^ v["C2_d1"], 8)
-    return c1_of(v, ror(y14 ^ v["e1"], 16))
+    w0 = (rol(v['K0_d1'], 16) - IV[0] - IV[4]) & M
+    y14 = ror(((w0 + v['C2_a1'] + v['C2_b1']) & M) ^ v['C2_d1'], 8)
+    return c1_of(v, ror(y14 ^ v['e1'], 16))
 
 
 def step_ct(v, c1):
     u = dict(v)
-    u["E1_a1"] = rol((c1 - Y11) & M, 16) ^ u["Y12"]
-    u["Y6"] = (u["E1_a1"] - u["Y1"] - u["w12"]) & M
-    u["Y10"] = rol(u["Y6"], 7) ^ u["C2_b1"]
-    u["Y14"] = (u["Y10"] - u["C2_c1"]) & M
-    u["E1_b1"] = ror(u["Y6"] ^ c1, 12)
-    u["Y2"] = rol(u["Y14"], 8) ^ u["C2_d1"]
-    u["E3_h1"] = ror(u["Y14"] ^ u["e1"], 16)
-    u["w0"] = (u["Y2"] - u["C2_a1"] - u["C2_b1"]) & M
-    u["K0_a1"] = (IV[0] + IV[4] + u["w0"]) & M
-    u["t"] = rol(u["K0_d1"], 16) ^ u["K0_a1"]
-    u["w1"] = (u["S0"] - u["K0_a1"] - u["K0_b1"]) & M
-    w = [u.get("w%d" % i, 0) for i in range(16)]
+    u['E1_a1'] = rol((c1 - Y11) & M, 16) ^ u['Y12']
+    u['Y6'] = (u['E1_a1'] - u['Y1'] - u['w12']) & M
+    u['Y10'] = rol(u['Y6'], 7) ^ u['C2_b1']
+    u['Y14'] = (u['Y10'] - u['C2_c1']) & M
+    u['E1_b1'] = ror(u['Y6'] ^ c1, 12)
+    u['Y2'] = rol(u['Y14'], 8) ^ u['C2_d1']
+    u['E3_h1'] = ror(u['Y14'] ^ u['e1'], 16)
+    u['w0'] = (u['Y2'] - u['C2_a1'] - u['C2_b1']) & M
+    u['K0_a1'] = (IV[0] + IV[4] + u['w0']) & M
+    u['t'] = rol(u['K0_d1'], 16) ^ u['K0_a1']
+    u['w1'] = (u['S0'] - u['K0_a1'] - u['K0_b1']) & M
+    w = [u.get('w%d' % i, 0) for i in range(16)]
     w[4], w[13] = W4, W13
     b = list(w)
     b[4], b[5] = W4B, (w[5] + DELTA5) & M
-    pa, pb = struct.pack("<16I", *w), struct.pack("<16I", *b)
+    pa, pb = struct.pack('<16I', *w), struct.pack('<16I', *b)
     assert not any(pa[LEN_A:]) and not any(pb[LEN_B:])
-    u["A"], u["B"], u["c1"] = pa[:LEN_A], pb[:LEN_B], c1
+    u['A'], u['B'], u['c1'] = pa[:LEN_A], pb[:LEN_B], c1
     return u
 
 
@@ -956,9 +946,9 @@ def e1_g(y, w):
 
 
 def chart(u, flags=FLAGS):
-    t = u["t"] if flags == FLAGS else 0
-    wa, cva, ya = compress2(u["A"], t, flags)
-    wb, cvb, yb = compress2(u["B"], t, flags)
+    t = u['t'] if flags == FLAGS else 0
+    wa, cva, ya = compress2(u['A'], t, flags)
+    wb, cvb, yb = compress2(u['B'], t, flags)
     ea, eb = e1_g(ya, wa), e1_g(yb, wb)
     j = []
     for y_, w_ in ((ya, wa), (yb, wb)):
@@ -967,21 +957,21 @@ def chart(u, flags=FLAGS):
         c1 = (y_[9] + d1) & M
         a2 = (a1 + ror(y_[4] ^ c1, 12) + w_[8]) & M
         j.append((c1, a2, (c1 + ror(d1 ^ a2, 8)) & M, d1))
-    cons = (all(ya[i] == u["Y%d" % i] for i in (0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14))
-            and (ya[3], ya[11], yb[3], yb[11], yb[4]) == (Y3, Y11, Y3B, Y11B, u["Y4"])
-            and (ea[2], ea[1], j[0][3]) == (u["c1"], u["E1_b1"], u["E3_h1"]))
+    cons = (all(ya[i] == u['Y%d' % i] for i in (0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14))
+            and (ya[3], ya[11], yb[3], yb[11], yb[4]) == (Y3, Y11, Y3B, Y11B, u['Y4'])
+            and (ea[2], ea[1], j[0][3]) == (u['c1'], u['E1_b1'], u['E3_h1']))
     return dict(cons=cons, ea=ea, eb=eb, j=tuple(j[0][k] ^ j[1][k] for k in range(3)), cva=cva, cvb=cvb)
 
 
 def pvals(bk, h):
-    y14 = rol(h, 16) ^ bk["e1"]
-    t = rol(bk["K0_d1"], 16) ^ ((IV[0] + IV[4] + (rol(y14, 8) ^ bk["C2_d1"]) - bk["C2_a1"] - bk["C2_b1"]) & M)
-    y6 = ror(((y14 + bk["C2_c1"]) & M) ^ bk["C2_b1"], 7)
-    a1 = (y6 + bk["Y1"] + bk["w12"]) & M
-    d = ror(a1 ^ bk["Y12"], 16)
+    y14 = rol(h, 16) ^ bk['e1']
+    t = rol(bk['K0_d1'], 16) ^ ((IV[0] + IV[4] + (rol(y14, 8) ^ bk['C2_d1']) - bk['C2_a1'] - bk['C2_b1']) & M)
+    y6 = ror(((y14 + bk['C2_c1']) & M) ^ bk['C2_b1'], 7)
+    a1 = (y6 + bk['Y1'] + bk['w12']) & M
+    d = ror(a1 ^ bk['Y12'], 16)
     c = (Y11 + d) & M
     b = ror(y6 ^ c, 12)
-    a = (a1 + b + bk["w5"]) & M
+    a = (a1 + b + bk['w5']) & M
     return t, c, a, b, b & BETA, d, ror(d ^ a, 8)
 
 
@@ -1001,33 +991,33 @@ def predicate(bk, h, tau):
 def cert_full(v, h, tau):
     c1 = c1_of(v, h)
     u = step_ct(v, c1)
-    if c1 & QSTAR_MASK != QSTAR_VALUE or u["t"] == 0:
+    if c1 & QSTAR_MASK != QSTAR_VALUE or u['t'] == 0:
         return False
     r = chart(u)
-    return (r["cons"] and r["j"] == (theta_of(tau), EPS, tau) and r["cva"] == r["cvb"]
-            and (r["ea"][4] ^ r["eb"][4], r["ea"][5] ^ r["eb"][5], r["ea"][1] ^ r["eb"][1]) == (tau, EPS, BETA))
+    return (r['cons'] and r['j'] == (theta_of(tau), EPS, tau) and r['cva'] == r['cvb']
+            and (r['ea'][4] ^ r['eb'][4], r['ea'][5] ^ r['eb'][5], r['ea'][1] ^ r['eb'][1]) == (tau, EPS, BETA))
 
 
 def chart_check(v, c1):
     u = step_ct(v, c1)
-    r, h = chart(u), u["E3_h1"]
+    r, h = chart(u), u['E3_h1']
     t, c, a, b, s, d, z = pvals(v, h)
-    ea, eb = r["ea"], r["eb"]
-    Q, y, E = v["Y9"], v["Y4"], v["omega"]
+    ea, eb = r['ea'], r['eb']
+    Q, y, E = v['Y9'], v['Y4'], v['omega']
     ga, gb = (Q + h) & M, (Q + (h ^ ETA)) & M
     fa, fb = (E + ror(y ^ ga, 12)) & M, (E + DY3 + ror(y ^ gb, 12)) & M
-    ok = (r["cons"] and all(r["cva"][i] == r["cvb"][i] for i in (0, 2, 5, 7))
-          and r["j"] == (ga ^ gb, fa ^ fb, ((ga + ror(h ^ fa, 8)) ^ (gb + ror(h ^ ETA ^ fb, 8))) & M)
-          and (t, c, a, b, d) == (u["t"], c1, ea[4], ea[1], ea[3]) and eb[1] == b ^ BETA
+    ok = (r['cons'] and all(r['cva'][i] == r['cvb'][i] for i in (0, 2, 5, 7))
+          and r['j'] == (ga ^ gb, fa ^ fb, ((ga + ror(h ^ fa, 8)) ^ (gb + ror(h ^ ETA ^ fb, 8))) & M)
+          and (t, c, a, b, d) == (u['t'], c1, ea[4], ea[1], ea[3]) and eb[1] == b ^ BETA
           and eb[4] == (a + BETA - 2 * s - 8) & M and eb[5] == (c + DY11 + ror(d ^ eb[4], 8)) & M
           and all(test_a(a, s, tau) == (ea[4] ^ eb[4] == tau) for tau in TAUS))
     if ok and ea[4] ^ eb[4] in TAUS:
         ok = test_c(c, z, ea[4] ^ eb[4]) == (ea[5] ^ eb[5] == EPS)
-    x14 = rol(h, 16) ^ v["e1"]
-    y6 = ror(((x14 + v["C2_c1"]) & M) ^ v["C2_b1"], 7)
-    A = (v["Y1"] + v["w12"]) & M
-    meta = g15_meta(bit(h, 6), v["e1"], v)
-    g15 = (((x14 + v["C2_c1"]) ^ x14 ^ v["C2_c1"]) >> 22 & 1) == meta[1] - (v["C2_c1"] >> 22) and \
+    x14 = rol(h, 16) ^ v['e1']
+    y6 = ror(((x14 + v['C2_c1']) & M) ^ v['C2_b1'], 7)
+    A = (v['Y1'] + v['w12']) & M
+    meta = g15_meta(bit(h, 6), v['e1'], v)
+    g15 = (((x14 + v['C2_c1']) ^ x14 ^ v['C2_c1']) >> 22 & 1) == meta[1] - (v['C2_c1'] >> 22) and \
         (((y6 + A) ^ y6 ^ A) >> 16 & 1) == meta[3] - (A >> 16 & 511)
     if g15:
         cs = c_star(h & 0x7FFF, meta)
@@ -1043,7 +1033,7 @@ SOLS = {}
 class Rng:
 
     def __init__(self, seed):
-        self.s = int.from_bytes(hashlib.sha256(b"frontline plant" + seed).digest()[:8], "little")
+        self.s = int.from_bytes(hashlib.sha256(b'frontline plant' + seed).digest()[:8], 'little')
 
     def __call__(self, n=32):
         self.s = (self.s + 0x9E3779B97F4A7C15) & (1 << 64) - 1
@@ -1146,7 +1136,7 @@ def plant_check(seed, k):
              + U_LEAF * cnt[6] + U_ROOT * len(new))
     T = 1 << TAUS.index(tau)
     bad = (((h, tau) not in new) + ((h, tau) not in old) + (not set(new) <= set(old))
-           + (not all(jroot_words(bk["Y9"], bk["Y4"], bk["omega"], *t) for t in old)) + (units > CT[T])
+           + (not all(jroot_words(bk['Y9'], bk['Y4'], bk['omega'], *t) for t in old)) + (units > CT[T])
            + meter_bad(U_GLOBAL + U_FAMILY + U_ROW + cnt[7], units, T))
     return bad, 6
 
@@ -1155,8 +1145,8 @@ def meter_bad(d, units, T):
     return d != units or d > CM[T]
 
 
-OBS = ("members", "e_lanes", "passes", "solver_calls", "leaves", "roots", "certified", "units", "solver_units",
-       "opened", "closed", "skipped_pass", "checks", "mismatches", "fills", "halted")
+OBS = ('members', 'e_lanes', 'passes', 'solver_calls', 'leaves', 'roots', 'certified', 'units', 'solver_units',
+       'opened', 'closed', 'skipped_pass', 'checks', 'mismatches', 'fills', 'halted')
 
 
 class Halt(Exception):
@@ -1177,10 +1167,10 @@ def steps23(ow, y, e1, T, o, A, bk):
     d = A + cnt[7]
     units = (A + U_FORCED * cnt[0] + U_SELECTED * cnt[1] + U_G15 * cnt[2] + U_FREE * cnt[4] + U_LEAF * cnt[6]
              + U_ROOT * len(roots))
-    o["units"] += d
-    o["solver_units"] += units
-    o["leaves"] += cnt[6]
-    o["roots"] += len(roots)
+    o['units'] += d
+    o['solver_units'] += units
+    o['leaves'] += cnt[6]
+    o['roots'] += len(roots)
     old = solve(v, rows, False, [0] * 8, [])
     full = {r for r in old if cert_full(v, *r)}
     bad = (bad0 + len(set(roots) - set(old)) + len(full - set(roots)) + (units > CT[T]) + len(notes)
@@ -1190,14 +1180,14 @@ def steps23(ow, y, e1, T, o, A, bk):
         ok, c, t = predicate(bk, h, tau)
         bad += ok != ((h, tau) in full)
         if ok:
-            o["certified"] += 1
+            o['certified'] += 1
             found = found or (c, t)
     if found:
         u = step_ct(v, found[0])
-        cva, cvb = compress2(u["A"], u["t"], FLAGS)[1], compress2(u["B"], u["t"], FLAGS)[1]
-        bad += u["t"] != found[1] or cva != cvb
+        cva, cvb = compress2(u['A'], u['t'], FLAGS)[1], compress2(u['B'], u['t'], FLAGS)[1]
+        bad += u['t'] != found[1] or cva != cvb
         if cva == cvb:
-            o["mismatches"] += bad
+            o['mismatches'] += bad
             raise Found(u)
     return bad, d
 
@@ -1224,20 +1214,20 @@ def bc(w):
 
 def walk(seed, nr=TRIAL_REPS, WR=0, credit=CREDIT, t2_every=T2_EVERY, gt=None, mk=True):
     gt = gt or (lambda v: v)
-    sh = hashlib.shake_256(b"frontline context" + seed).digest(160)
-    ow = struct.unpack("<7I", sh[:28])
-    draws = [QSTAR_VALUE | w & ~QSTAR_MASK & M for w in struct.unpack("<32I", sh[32:])]
+    sh = hashlib.shake_256(b'frontline context' + seed).digest(160)
+    ow = struct.unpack('<7I', sh[:28])
+    draws = [QSTAR_VALUE | w & ~QSTAR_MASK & M for w in struct.unpack('<32I', sh[32:])]
     o = dict.fromkeys(OBS, 0)
-    o["units"] = U_CONTEXT
+    o['units'] = U_CONTEXT
     first, bad, chk = None, 0, 0
     cx = co_ctx(*ow, FLAGS)
     P = operands(cx)
     PF = P[:14] + (P[14] + B34 * ONES, P[15])
-    XW, S6, X14 = cx["X2"] + cx["S3"] - cx["K3_a1"] - cx["K3_b1"] & M, cx["S6"], cx["X14"]
-    S2 = rol(cx["S14"], 8) ^ K2D
-    BW = dict(w5=S2 - (K2A + K2B) & M, w12=cx["D2_a1"] - S2 - cx["S7"] & M, K0_d1=cx["K0_d1"])
-    A = cx["C0_b1"] + cx["w6"] + cx["X4"] + cx["w2"] & M
-    HB = hbad(cx["C0_b1"], cx["C0_c1"], cx["C0_d1"], A)
+    XW, S6, X14 = cx['X2'] + cx['S3'] - cx['K3_a1'] - cx['K3_b1'] & M, cx['S6'], cx['X14']
+    S2 = rol(cx['S14'], 8) ^ K2D
+    BW = dict(w5=S2 - (K2A + K2B) & M, w12=cx['D2_a1'] - S2 - cx['S7'] & M, K0_d1=cx['K0_d1'])
+    A = cx['C0_b1'] + cx['w6'] + cx['X4'] + cx['w2'] & M
+    HB = hbad(cx['C0_b1'], cx['C0_c1'], cx['C0_d1'], A)
     AH8 = A >> 8 & 255
     AW, HBW = (A & 0xFF00) * ONES, [HB >> k & 1 for k in range(4)]
     DS, DJ, OW9 = ds_build(P)
@@ -1245,8 +1235,9 @@ def walk(seed, nr=TRIAL_REPS, WR=0, credit=CREDIT, t2_every=T2_EVERY, gt=None, m
     def lane(ms, E, i, om, X0, Y0, Y12, W, cy):
         nonlocal WR, credit, first, bad, chk
         sh_ = LB * i
-        lo = om & LQ[i]
-        m2 = L2(R2(lo) + (om & LX[i]))
+        t = om >> sh_
+        lo = t & LQ
+        m2 = L2(R2(lo) + (t & LX))
         omi = om >> sh_ & M
         e1, y, _ = ms[i]
         rom, ry9 = co_ref(*ow, y, FLAGS)
@@ -1255,23 +1246,24 @@ def walk(seed, nr=TRIAL_REPS, WR=0, credit=CREDIT, t2_every=T2_EVERY, gt=None, m
         x = 0
         bad += om >> sh_ & L36 ^ B35 >= 3 << 32
         if m2:
-            o["e_lanes"] += 1
+            o['e_lanes'] += 1
             if not cy:
-                o["fills"] += 1
-                o["units"] += U_EG
+                o['fills'] += 1
+                o['units'] += U_EG
                 WR += U_EG
                 cy.append(y9_path(X0, Y0, PF))
             else:
-                o["units"] += U_E
+                o['units'] += U_E
                 WR += U_E
             Y9p, ov2, Y1p, C0a1, D0d1 = cy[0]
             bad += cy[0] != y9_path(X0, Y0, PF)
-            y9a, y9x = Y9p & QL[i], Y9p & XL[i]
+            t = Y9p >> sh_
+            y9a, y9x = t & QL, t & XL
             m1 = L1(R1(y9a) + y9x)
             x = m1 & m2
-            bad += m1 != mask1_ref(ry9) or (y9a, y9x) != ((B34 + (ry9 & L16)) << sh_, (ry9 & M26) << sh_) or bool(ov2 & BOUND)
-            u = step_ct(rebuild(ow, y, e1), draws[o["e_lanes"] & 31])
-            wr, _, ys = compress2(u["A"], u["t"], FLAGS)
+            bad += m1 != mask1_ref(ry9) or (y9a, y9x) != (B34 + (ry9 & L16), ry9 & M26) or bool(ov2 & BOUND)
+            u = step_ct(rebuild(ow, y, e1), draws[o['e_lanes'] & 31])
+            wr, _, ys = compress2(u['A'], u['t'], FLAGS)
             bad += (ys[4], ys[9] + B34, (ys[3] + ys[4] + wr[15] + wr[8]) & M) != (y, Y9p >> sh_ & (B34 | M), omi)
             chk += 3
         bad += omi != rom or m2 != rm2 or x != rx or rom & 511 not in W
@@ -1281,7 +1273,7 @@ def walk(seed, nr=TRIAL_REPS, WR=0, credit=CREDIT, t2_every=T2_EVERY, gt=None, m
             chk += 1
         if not x:
             return lo
-        o["passes"] += 1
+        o['passes'] += 1
         if first is None:
             first = ms[i][2]
         es = E >> sh_ & M
@@ -1294,24 +1286,24 @@ def walk(seed, nr=TRIAL_REPS, WR=0, credit=CREDIT, t2_every=T2_EVERY, gt=None, m
         B = ror(x6 ^ C, 12)
         r = (Y9p >> sh_ + 16 ^ es) & 4 ^ 3
         v = rebuild(ow, y, e1)
-        bad += (v["Y9"], v["omega"], v["C2_c1"], v["C2_b1"], v["C2_a1"], v["C2_d1"], e1) != (
+        bad += (v['Y9'], v['omega'], v['C2_c1'], v['C2_b1'], v['C2_a1'], v['C2_d1'], e1) != (
             Y9p >> sh_ & M, omi, C, B, C2a, C2d, es)
-        T = x & VMASK[nu_of(v["Y9"], e1, v["C2_c1"], v["C2_b1"])]
-        ok, gc = chart_check(v, draws[2 + o["passes"] % 30])
+        T = x & VMASK[nu_of(v['Y9'], e1, v['C2_c1'], v['C2_b1'])]
+        ok, gc = chart_check(v, draws[2 + o['passes'] % 30])
         bad, chk = bad + (not ok), chk + 3 + gc
         if ((r + C) ^ B ^ 5) + 5 & 6:
-            o["units"] += U_PASS
+            o['units'] += U_PASS
             WR += U_PASS
             bad += T != 0
             return lo
-        o["units"] += U_PC
+        o['units'] += U_PC
         WR += U_PC
         bad += T != x
         ct = CTW[x]
         a = ct >> 16
         if ct & 65535 > credit:
             raise Halt(3)
-        o["solver_calls"] += 1
+        o['solver_calls'] += 1
         bk = dict(Y9=Y9p >> sh_ & M, Y4=es - Y3 & M, omega=omi, e1=es, C2_a1=C2a, C2_b1=B, C2_c1=C, C2_d1=C2d,
                   Y1=Y1p >> sh_ & M, Y12=Y12 >> sh_ & M, **BW)
         b, d = steps23(ow, y, es, x, o, a, bk)
@@ -1328,8 +1320,8 @@ def walk(seed, nr=TRIAL_REPS, WR=0, credit=CREDIT, t2_every=T2_EVERY, gt=None, m
         for c1 in draws[:2]:
             ok, gc = chart_check(v, c1)
             bad, chk = bad + (not ok), chk + 1 + gc
-        cw = (v["C0_b1"], v["C0_c1"], v["C0_d1"], v["C0_b1"] + v["w6"] + v["X4"] + v["w2"] & M,
-              rol(X15, 24) ^ v["S15"], v["S0"] + v["S5"])
+        cw = (v['C0_b1'], v['C0_c1'], v['C0_d1'], v['C0_b1'] + v['w6'] + v['X4'] + v['w2'] & M,
+              rol(X15, 24) ^ v['S15'], v['S0'] + v['S5'])
         for rb in list(range(nr - 1)) + [REP_BATCHES - 1]:
             reps = [cmember(g, 0) for g in range(7 * rb, min(7 * rb + 7, 1 << 14))]
             U, E = pack(reps)
@@ -1337,52 +1329,52 @@ def walk(seed, nr=TRIAL_REPS, WR=0, credit=CREDIT, t2_every=T2_EVERY, gt=None, m
             tw, gm, cl = gate_words(om, Y0, AW)
             w8 = D0a1 + P[15]
             IX = (Y12 ^ Y8 ^ P[1]) & N17 | (X0 ^ Y0 ^ P[7]) & N25 | (w8 ^ D0a1 ^ P[15]) & N9 | (om ^ E ^ w8) << 1 & N10
-            o["units"] += U_REP if len(reps) == 7 else U_REP_TAIL
-            o["members"] += len(reps)
+            o['units'] += U_REP if len(reps) == 7 else U_REP_TAIL
+            o['members'] += len(reps)
             rc = []
             for i in range(len(reps)):
                 g, sh_ = 7 * rb + i, LB * i
                 W = prefixes(cw, *reps[i][1::-1])
                 rv = co_full(*ow, reps[i][1], FLAGS)
-                ro = Y3 + reps[i][1] + rv["w8"] & M
-                rk = ro & 127 | rv["Y0"] & 0xFF00 | HB << 16 | reps[i][0] & 3 << 20 | AH8 << 22
+                ro = Y3 + reps[i][1] + rv['w8'] & M
+                rk = ro & 127 | rv['Y0'] & 0xFF00 | HB << 16 | reps[i][0] & 3 << 20 | AH8 << 22
                 gv = gate(tw, gm, cl, E, HBW, i)
                 bad += gv != (S7 >> (ro & 127) & 1 | (len(W) > 1) << 1) or gv != xg_entry(rk)
                 chk += 1
                 gv = gt(gv)
                 if not gv:
-                    o["closed"] += 1
+                    o['closed'] += 1
                     for j in range(32):
                         rom = co_ref(*ow, cmember(g, j)[1], FLAGS)[0]
                         m = mask2_ref(rom) > 0
-                        o["skipped_pass"] += m
+                        o['skipped_pass'] += m
                         bad += m or rom & 511 not in W or S7 >> (rom & 127) & 1 or (j == 0 and rom != om >> sh_ & M)
                         chk += 1
                     continue
-                o["opened"] += 1
+                o['opened'] += 1
                 lok = lane(reps, E, i, om, X0, Y0, Y12, W, rc)
                 fb = gv > 1 or not mk
-                o["units"] += U_FALLBACK + U_STATE if fb else U_OPEN
+                o['units'] += U_FALLBACK + U_STATE if fb else U_OPEN
                 WR += U_FALLBACK + U_STATE if fb else U_OPEN
                 if fb:
                     for j0, j1 in OLD:
                         ms = [cmember(g, j) for j in range(j0, j1)]
                         pU, pE = pack(ms)
                         pX0, pY0, pY12, _, _, _, pom, pov = omega_side(pU, pE, P)
-                        o["members"] += len(ms)
+                        o['members'] += len(ms)
                         pc = []
                         for t in range(len(ms)):
                             lane(ms, pE, t, pom, pX0, pY0, pY12, W, pc)
                         bad += bool(pov & BOUND)
                         chk += 1
                     continue
-                da = (IX >> sh_ & IXM) + PXR(lok + (1 << 16 << sh_))
+                da = (IX >> sh_ & IXM) + PXR(lok + (1 << 16))
                 ch, ixr = DJ.get(da, ((), ())), ixdec(IX >> sh_ & IXM)
                 for j in range(1, 32):
                     rom = co_ref(*ow, cmember(g, j)[1], FLAGS)[0]
                     sv = j in ch[0] or j in ch[1]
                     m = not sv and mask2_ref(rom) > 0
-                    o["skipped_pass"] += m
+                    o['skipped_pass'] += m
                     bad += m or rom & 511 != om >> sh_ & 511 or OW9[ixr, j] != rom >> 9 & 31 or sv != (
                         S7 >> (rom & 127) & LW[rom >> 8 & 1] >> (rom >> 9 & 31) & 1)
                     chk += 1
@@ -1402,7 +1394,7 @@ def walk(seed, nr=TRIAL_REPS, WR=0, credit=CREDIT, t2_every=T2_EVERY, gt=None, m
                     bad += JU >> 7 != DS[da + (s + 2)]
                     cX0, cY0, cY12, _, _, _, com, cov = omega_side(cU, cE, P)
                     ms = [cmember(g, j) for j in ch[s >> 2]]
-                    o["members"] += k
+                    o['members'] += k
                     pc = []
                     for t in range(k):
                         lane(ms, cE, t, com, cX0, cY0, cY12, W, pc)
@@ -1411,11 +1403,11 @@ def walk(seed, nr=TRIAL_REPS, WR=0, credit=CREDIT, t2_every=T2_EVERY, gt=None, m
             bad += bool(ov & BOUND)
             chk += 1
     except Halt as e:
-        o["halted"] = e.args[0]
+        o['halted'] = e.args[0]
     except Found:
         pass
-    o["mismatches"] += bad
-    o["checks"] += chk
+    o['mismatches'] += bad
+    o['checks'] += chk
     return ow, first, o, WR
 
 
@@ -1423,30 +1415,30 @@ def root_pair(ow, k):
     e1, y = member(k)
     v = rebuild(ow, y, e1, ROOT_FLAGS)
     u = step_ct(v, c1_t0(v))
-    da, db = compress2(u["A"], 0, ROOT_FLAGS)[1], compress2(u["B"], 0, ROOT_FLAGS)[1]
-    return u["A"], u["B"], u["t"] == 0 and all(da[i] == db[i] for i in (0, 2, 5, 7))
+    da, db = compress2(u['A'], 0, ROOT_FLAGS)[1], compress2(u['B'], 0, ROOT_FLAGS)[1]
+    return u['A'], u['B'], u['t'] == 0 and all(da[i] == db[i] for i in (0, 2, 5, 7))
 
 
 def trial(seed, k=0):
     ow, first, o, _ = walk(seed)
     a, b, ok = root_pair(ow, 0 if first is None else first)
-    o["checks"] += 1
-    o["mismatches"] += not ok
+    o['checks'] += 1
+    o['mismatches'] += not ok
     if k % PLANT_EVERY == 0:
         bad, n = plant_check(seed, k)
-        o["checks"] += n
-        o["mismatches"] += bad
+        o['checks'] += n
+        o['mismatches'] += bad
     return a, b, o
 
 
 def selftest(n):
-    rep = {"constants": all(globals()[k] == x for k, x in TEXT.items())}
+    rep = {'constants': all(globals()[k] == x for k, x in TEXT.items())}
     th = [theta_of(t) for t in TAUS]
     tq, te = [(ETA & 255, x & 255) for x in th], [(ror(x, 12) & 255, EPS & 255) for x in th]
     a1, a2 = automaton(tq, 0, 8)[0], automaton(te, DY3 & 255, 8)[0]
     bf = lambda tg, dy, x: sum(1 << j for j, (dz, out) in enumerate(tg)
                                if any(((x + v) ^ (x + dy + (v ^ dz))) & 255 == out for v in range(256)))
-    rep["automata_vs_bruteforce_w8"] = sum(a1[x] == bf(tq, 0, x) and a2[x] == bf(te, DY3, x) for x in range(256))
+    rep['automata_vs_bruteforce_w8'] = sum(a1[x] == bf(tq, 0, x) and a2[x] == bf(te, DY3, x) for x in range(256))
     cnt = []
     for t in (AUT1, AUT2):
         cur = {}
@@ -1459,22 +1451,22 @@ def selftest(n):
                     nxt[tb[s + b]] = nxt.get(tb[s + b], 0) + c
             cur = nxt
         cnt.append(cur)
-    rep["SHARE_E_COUNT"] = (sum(c1 * c2 for p, c1 in cnt[0].items() for q, c2 in cnt[1].items() if p & q) == SHARE
+    rep['SHARE_E_COUNT'] = (sum(c1 * c2 for p, c1 in cnt[0].items() for q, c2 in cnt[1].items() if p & q) == SHARE
                             and sum(c for q, c in cnt[1].items() if q) == E_COUNT)
-    rnd = hashlib.shake_256(b"frontline selftest").digest(8 * n)
-    xs = struct.unpack("<%dI" % (2 * n), rnd)
-    rep["T1_T2_vs_bitserial"] = sum(T1(x) == mask1_ref(x) and T2(x) == mask2_ref(x) for x in xs)
+    rnd = hashlib.shake_256(b'frontline selftest').digest(8 * n)
+    xs = struct.unpack('<%dI' % (2 * n), rnd)
+    rep['T1_T2_vs_bitserial'] = sum(T1(x) == mask1_ref(x) and T2(x) == mask2_ref(x) for x in xs)
     al = [any(((w + f) ^ ((w + DY3) + (f ^ s))) & 511 == EPS & 511 for s in {SIGMAS[j] & 511 for j, _, _ in SIG3}
               for f in range(512)) for w in range(512)]
-    rep["S7_partition"] = (sum(al) == 208 and all(al[w] == S7 >> (w & 127) & 1 for w in range(512))
+    rep['S7_partition'] = (sum(al) == 208 and all(al[w] == S7 >> (w & 127) & 1 for w in range(512))
                            and all(S7 >> (x & 127) & 1 for x in xs if T2(x))
                            and len({g & 63 | j << 6 | g >> 6 << 11 for g in range(1 << 14) for j in range(32)}) == 1 << 19
                            and all(cmember(g, j)[0] >> 10 & 31 == j for g in (0, 9999, 16383) for j in range(32)))
-    rep["precheck"] = all(((((a >> 16 ^ b) & 4 ^ 3) + c ^ d ^ 5) + 5 & 6 == 0) == (VMASK[nu_of(a, b, c, d)] & S_MASK > 0)
+    rep['precheck'] = all(((((a >> 16 ^ b) & 4 ^ 3) + c ^ d ^ 5) + 5 & 6 == 0) == (VMASK[nu_of(a, b, c, d)] & S_MASK > 0)
                           for a, b, c, d in zip(xs, xs[1:], xs[2:], xs[3:]))
     sd = st = 0
     for s in range(16):
-        b, c, d, A, L, SS = struct.unpack("<6I", hashlib.shake_256(b"xg %d" % s).digest(24))
+        b, c, d, A, L, SS = struct.unpack('<6I', hashlib.shake_256(b'xg %d' % s).digest(24))
         for g in range(s, 1 << 14, 997):
             e1, y, _ = cmember(g, 0)
             p = rol((rol(y, 7) ^ b) - c & M, 8) ^ d
@@ -1484,87 +1476,91 @@ def selftest(n):
                 r = hbad(b, c, d, A) >> (e1 >> 20 & 3) & 1
                 st += r
                 sd += r != (len(prefixes((b, c, d, A, L, SS), y, e1)) > 1)
-    rep["XG"] = [sd, st, all(xg_entry(i) == xg_entry(i ^ 128) == int(i % 128 - 0x25 & 0x5F <= 0x19) + 2 * int(
+    rep['XG'] = [sd, st, all(xg_entry(i) == xg_entry(i ^ 128) == int(i % 128 - 0x25 & 0x5F <= 0x19) + 2 * int(
         i // 256 % 256 == i >> 22 and i // 65536 % 16 >> i // 2 ** 20 % 4 & 1 > 0)
         for x in xs for i in (x >> 2, x >> 2 & ~(255 << 22) | (x >> 10 & 255) << 22))
         and all((w + 0x5B & 0x5F) + 0x66 >> 7 == 1 - (S7 >> w & 1) for w in range(128))]
     gf = 0
     for s in range(512):
-        w = struct.unpack("<23I", hashlib.shake_256(b"gate %d" % s).digest(92))
+        w = struct.unpack('<23I', hashlib.shake_256(b'gate %d' % s).digest(92))
         ys = [w[2 + j] if j % 2 else w[2 + j] & ~0xFF00 | w[0] & 0xFF00 for j in range(7)]
         om, Y0, E = (sum(B35 + v << LB * j for j, v in enumerate(w[9:16])), sum(v << LB * j for j, v in enumerate(ys)),
                      sum(v << LB * j for j, v in enumerate(w[16:])))
         g3 = gate_words(om, Y0, (w[0] & 0xFF00) * ONES)
         gf += sum(gate(*g3, E, [w[1] >> k & 1 for k in range(4)], j) == xg_entry(w[9 + j] & 127 | ys[j] & 0xFF00 | (
             w[1] & 15) << 16 | (w[16 + j] >> 20 & 3) << 20 | (w[0] >> 8 & 255) << 22) for j in range(7))
-    rep["gate_formula"] = gf
-    rep["tables"] = all(L2(R2(B35 + (x & L16) << LB * l) + (x << LB * l)) == T2(x) and L1(R1(B34 + (x & L16) << LB * l) + ((x & M26) << LB * l))
-                        == T1(x) and PXR(B35 + (1 << 16) + (x & L16) << LB * l) == DB + 4 * PXT[x & 511] and bc(x) == x * ONES
-                        for x in xs[:256] for l in range(7)) and all(F1[s + b] == F1[s + (b & 3)] for s in range(
+    rep['gate_formula'] = gf
+    rep['tables'] = all(L2(R2(t & LQ) + (t & LX)) == T2(x) and L1(R1(u & QL) + (u & XL)) == T1(x)
+                        and PXR((t & LQ) + (1 << 16)) == DB + 4 * PXT[x & 511] and bc(x) == x * ONES
+                        for x in xs[:256] for l in range(7)
+                        for t, u in [((B35 + x << LB * l) >> LB * l, (B34 + x << LB * l) >> LB * l)]) and all(F1[s + b] == F1[s + (b & 3)] for s in range(
         T3B, len(F1), 256) for b in range(256)) and {F2[F2[b & 255] + (b >> 8)] for b in range(1 << 16)} == set(
         range(S2B, S2B + 7 * 256, 256)) and {F1[F1[b & 255] + (b >> 8)] for b in range(1 << 16)} == set(
         range(S1B, S1B + 43 * 256, 256))
+    rep['classes'] = len(P1) == 35 and len(P2) == 4 and all(F2[F2[S2B + 256 * s + (h & 255)] + (h >> 8)] == L2(
+        B33 + C2[s] + (h << 16)) for s in range(7) for h in range(1 << 16)) and all(F1[F1[S1B + 256 * s + (h & 255)] + (
+        h >> 8)] == L1(B1 + C1[s] + (h << 16)) for s in range(43) for h in range(1 << 10))
     f1 = 0
     for s in range(32):
-        ow = struct.unpack("<7I", hashlib.shake_256(b"f1 %d" % s).digest(28))
+        ow = struct.unpack('<7I', hashlib.shake_256(b'f1 %d' % s).digest(28))
         P = operands(co_ctx(*ow, FLAGS))
-        ms = [member(k & 0x7FFFF) + (0,) for k in struct.unpack("<7I", hashlib.shake_256(b"f1 m%d" % s).digest(28))]
+        ms = [member(k & 0x7FFFF) + (0,) for k in struct.unpack('<7I', hashlib.shake_256(b'f1 m%d' % s).digest(28))]
         U, E = pack(ms)
         X0, Y0, Y12, _, D0a1, _, om, _ = omega_side(U, E, P)
         Y9, _, Y1, C0a1, D0d1 = y9_path(X0, Y0, P)
         for i, (e1, y, _) in enumerate(ms):
             v = rebuild(ow, y, e1)
             f1 += [w >> LB * i & M for w in (om, X0, Y0, Y12, C0a1, D0d1, D0a1, Y9, Y1)] == [v[k] for k in (
-                "omega", "X0", "Y0", "Y12", "C0_a1", "D0_d1", "D0_a1", "Y9", "Y1")]
-    rep["F1_fill"] = f1
+                'omega', 'X0', 'Y0', 'Y12', 'C0_a1', 'D0_d1', 'D0_a1', 'Y9', 'Y1')]
+    rep['F1_fill'] = f1
     drills = {}
-    for name, kw, code in (("W", dict(WR=WB + 1), 1), ("C", dict(credit=0), 3), ("R", dict(credit=15012), 0)):
+    for name, kw, code in (('W', dict(WR=WB + 1), 1), ('C', dict(credit=0), 3), ('R', dict(credit=15012), 0)):
         for s in range(64):
-            o = walk(b"drill%d" % s, **kw)[2]
-            if o["halted"] if code else o["solver_calls"]:
+            o = walk(b'drill%d' % s, **kw)[2]
+            if o['halted'] if code else o['solver_calls']:
                 break
-        drills[name] = (o["halted"] in (0, 3) and o["solver_calls"] >= 1 and not o["mismatches"] if name == "R" else
-                        o["halted"] == code and (o["members"] == 0 and o["units"] == U_CONTEXT if name == "W"
-                        else o["solver_calls"] == 0 and o["passes"] >= 1), s)
-    _, _, o, w = walk(b"drill0", WR=WB)
-    drills["WB"] = (o["halted"] == 0 and WB < w <= WB + W_CTX and not o["mismatches"], 0)
-    rep["halt_drills"] = drills
+        drills[name] = (o['halted'] in (0, 3) and o['solver_calls'] >= 1 and not o['mismatches'] if name == 'R' else
+                        o['halted'] == code and (o['members'] == 0 and o['units'] == U_CONTEXT if name == 'W'
+                        else o['solver_calls'] == 0 and o['passes'] >= 1), s)
+    _, _, o, w = walk(b'drill0', WR=WB)
+    drills['WB'] = (o['halted'] == 0 and WB < w <= WB + W_CTX and not o['mismatches'], 0)
+    rep['halt_drills'] = drills
     gd = {}
-    for name, gt, mk in (("table", None, True), ("open", lambda v: v | 1, True), ("closed", lambda v: 0, True),
-                         ("nomask", None, False)):
-        r = [walk(b"gate%d" % s, gt=gt, mk=mk)[2] for s in range(8)]
-        gd[name] = [sum(o[k] for o in r) for k in ("opened", "closed", "e_lanes", "passes", "skipped_pass", "mismatches",
-                                                   "fills", "members")]
-    t, op, cl, nm_ = gd["table"], gd["open"], gd["closed"], gd["nomask"]
-    rep["gate_drills"] = gd
-    rep["ok"] = (rep["constants"] and rep["automata_vs_bruteforce_w8"] == 256 and rep["SHARE_E_COUNT"] and rep["precheck"]
-                 and rep["T1_T2_vs_bitserial"] == 2 * n and all(d[0] for d in drills.values()) and rep["S7_partition"]
+    for name, gt, mk in (('table', None, True), ('open', lambda v: v | 1, True), ('closed', lambda v: 0, True),
+                         ('nomask', None, False)):
+        r = [walk(b'gate%d' % s, gt=gt, mk=mk)[2] for s in range(8)]
+        gd[name] = [sum(o[k] for o in r) for k in ('opened', 'closed', 'e_lanes', 'passes', 'skipped_pass', 'mismatches',
+                                                   'fills', 'members')]
+    t, op, cl, nm_ = gd['table'], gd['open'], gd['closed'], gd['nomask']
+    rep['gate_drills'] = gd
+    rep['ok'] = (rep['constants'] and rep['automata_vs_bruteforce_w8'] == 256 and rep['SHARE_E_COUNT'] and rep['precheck']
+                 and rep['T1_T2_vs_bitserial'] == 2 * n and all(d[0] for d in drills.values()) and rep['S7_partition']
                  and t[4] == t[5] == op[4] == op[5] == op[1] == cl[0] == cl[6] == 0 and t[2:4] == op[2:4]
-                 and t[6] == op[6] > 0 and cl[4] == op[2] > 0 and cl[5] >= cl[4] and rep["F1_fill"] == 224
-                 and rep["XG"][0] == 0 < rep["XG"][1] and rep["XG"][2] and rep["tables"] and gf == 3584
+                 and t[6] == op[6] > 0 and cl[4] == op[2] > 0 and cl[5] >= cl[4] and rep['F1_fill'] == 224
+                 and rep['XG'][0] == 0 < rep['XG'][1] and rep['XG'][2] and rep['tables'] and rep['classes'] and gf == 3584
                  and nm_[:6] == t[:6] and t[6] <= nm_[6] and t[7] < nm_[7])
-    json.dump(rep, sys.stdout, separators=(",", ":"))
+    json.dump(rep, sys.stdout, separators=(',', ':'))
     sys.stdout.write("\n")
-    return 0 if rep["ok"] else 1
+    return 0 if rep['ok'] else 1
 
 
 def main():
     if len(sys.argv) > 1:
-        if sys.argv[1] != "--selftest":
-            raise SystemExit("usage: frontline.py [--selftest [N]]   (else: organizer request on stdin)")
+        if sys.argv[1] != '--selftest':
+            raise SystemExit('usage: frontline.py [--selftest [N]]   (else: organizer request on stdin)')
         raise SystemExit(selftest(int(sys.argv[2]) if len(sys.argv) > 2 else 2000))
     request = json.load(sys.stdin)
-    if request["schema_version"] != 1 or request["target_profile"] != "blake3-r2-prefix-v1":
-        raise ValueError("unexpected organizer target")
-    if request["event"].get("kind") != "digest-xor-mask" or request["experiment_id"] != "frontline-search":
-        raise ValueError("unexpected organizer event or experiment")
+    if request['schema_version'] != 1 or request['target_profile'] != 'blake3-r2-prefix-v1':
+        raise ValueError('unexpected organizer target')
+    if request['event'].get('kind') != 'digest-xor-mask' or request['experiment_id'] != 'frontline-search':
+        raise ValueError('unexpected organizer event or experiment')
     trials = []
-    for tr in request["trials"]:
-        a, b, obs = trial(bytes.fromhex(tr["seed"]), tr["trial"])
-        trials.append({"trial": tr["trial"], "message_a_hex": a.hex(), "message_b_hex": b.hex(), "observations": obs})
-    json.dump({"schema_version": 1, "trials": trials}, sys.stdout, separators=(",", ":"), sort_keys=True)
+    for tr in request['trials']:
+        a, b, obs = trial(bytes.fromhex(tr['seed']), tr['trial'])
+        trials.append({'trial': tr['trial'], 'message_a_hex': a.hex(), 'message_b_hex': b.hex(), 'observations': obs})
+    json.dump({'schema_version': 1, 'trials': trials}, sys.stdout, separators=(',', ':'), sort_keys=True)
     sys.stdout.write("\n")
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
