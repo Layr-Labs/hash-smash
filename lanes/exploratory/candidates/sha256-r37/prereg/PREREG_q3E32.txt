@@ -1,0 +1,119 @@
+PREREGISTRATION -- direct study of q3c on the SUBMITTED pool, block E
+iteration 32, sha256-r37-exploratory
+stamp 2026-10-18T08:15:29Z (written and committed BEFORE any listed seed below ran)
+
+1. WHAT IS BEING ESTIMATED
+
+q3c is the probability that a good pair of the submitted variant list closes rows 16..36 of
+both members under every cell and every printed two-bit condition.  It enters the ledger only
+through nfb = ceil(XREQ / (g * 32 * q3c)), so 0.01 bit of q3c is 0.01 bit of claim.
+
+The organiser's dossier on our scored package raises the same defect four times
+(F-COST-02, F-CRYPT-02, F-EXP-02, F-EXP-04), of which the two material forms are:
+
+  * a family-transfer argument: an aggregate tail mean within 0.001 bit of uniform is used to
+    bound the RETAINED sub-pool (lists 0, 1, 5, 6) within 0.002 bit.  Closeness of an
+    aggregate does not bound a subgroup mean;
+  * the declared q3c was adopted after the preregistered rule had fixed something else.
+
+This block answers both by measuring the submitted pool directly: nothing is transferred,
+and the rule below is fixed before the first seed runs.  It also tests, as a checkable
+claim rather than an assertion, that the pool the estimator draws from is THIS filing's
+list -- 599,760 words, the 170 classes of lists 0, 1, 5 and 6 -- and not the parents'
+782,800-word pool.
+
+2. FIXED ARTEFACTS (sha256 of the files actually used)
+
+  estimator          q3smc.c        f0e3efc8d06c58c03c7dd7fe86ef08d8d00b8868202e6c49557f85c479c61f9c
+                     extracted verbatim from proof.md Appendix F.4
+  constants source   gen_consts.py  721d7949d1038a6f01e8cac62eaa8ecc9362a7af105176ab56c82beef90efd5b
+                     extracted verbatim from proof.md Appendix F.5
+  program            lowm.py        f25781839ce321eb1f0574eb674cfc2f381a9b4e1851c20c8e94bf845b842b33
+                     the shipped program of the 57.71598 filing
+  constants          q3consts_orig.h efd62db9220a667258d8dbde25ec572e1104460f2a1971894292870c6ec7e4cb
+                     produced by `python3 gen_consts.py lowm.py`
+  pool               variants.bin   b767171018fb5ba2d43e55adea23b72de820d9a43ffaa780f51f8c99ae695cbd
+                     2399040 bytes = 599760 words
+
+A run whose wc/word count or hashes differ from the above is void and must not be reported.
+
+3. ESTIMATOR CONFIGURATION AND SEEDS
+
+  build    gcc -O2 -DCONSTS='"q3consts_orig.h"' q3smc.c -lm -o q3smc_orig
+  call     ./q3smc_orig <seed0> <nper> 8192 512 16384        (variants.bin in the cwd)
+  seeds    772000 .. 788383 inclusive = 16384 fresh replicates, 32 shards of 512 seeds
+           (32 processes, one shard each, shard k starts at 772000 + 512k)
+
+None of these seeds was used by any earlier block of this filing: the blocks already reported
+use 740000..740127 and 741000..741127 (Appendix G.2) and 760000..761023 (Appendix G.4).
+
+Every listed seed is reported.  No seed may be dropped, replaced, truncated or re-run, and no
+interim look may change the rule below.
+
+4. STATISTIC AND DECISION RULE (fixed now, applied once)
+
+For replicate i let x_i be the value printed on its RESULT line as `log2est` (log2 of the
+linear SMC estimate; this is the convention of Appendix G.2 and G.4, and it is the convention
+the declared q3c has always used).
+
+  mean = sum x_i / n,  sd = the sample standard deviation (n-1 denominator),  n = 16384
+  LB   = mean - t(0.99, n-1) * sd / sqrt(n)          one-sided 99% Student lower bound
+  x_declared = floor(10000 * LB) / 10000             rounded DOWN (more negative), never up
+
+  declared q3c = 2^x_declared, unless x_declared > -71.4355, in which case the declared
+  value REMAINS -71.4355 (this block may only make the claim more conservative, never less).
+
+Reported alongside, and NOT used in the claim unless the rule above yields it:
+  the pooled bound of this block together with the 1024 replicates of Appendix G.4
+  (n = 17408, same statistic, reported as a sensitivity).
+
+5. WHAT WOULD REFUTE WHAT
+
+  * If the mean lands materially above -71.42391 (the G.4 mean) the difference is not a
+    property of the estimator's configuration but of the pool, and the pool hashes in
+    section 2 are then the thing to check first.
+  * If the pool hashes in section 2 do not reproduce from the shipped files, this filing's
+    claim that the study measured its own list is refuted, and the correct action is not to
+    re-run with a different pool but to correct the text.
+  * Nothing in this block can make q3c larger; a worse outcome costs an iteration, not
+    credibility.
+
+6. WHY THIS AND NOT A LEDGER CUT
+
+Iteration 31's own retraction (reports/iter31b-r37-gather-retraction.md) records that the
+fused-gather price cut is not a saving once the run label has to be recovered.  A statistical
+tightening of a quantity the ledger already uses at first order is the remaining lever that
+needs no new cryptanalytic assumption.
+
+AMENDMENT A1 -- replaces section 4.  stamp 2026-10-18T08:20Z.  Written BEFORE any seed of
+block E ran (the run is launched immediately after this commit; no seed 772000..788383 has a
+RESULT line anywhere at the time of writing -- the only blocks that exist are 740xxx, 741xxx,
+760000..761023).
+
+Section 4 as first written made the wrong guard.  A larger q3c is a STRONGER claim, not a
+weaker one (nfb is inversely proportional to it), so "may only become more conservative"
+pointed the wrong way and would have forbidden exactly the measurement this block exists to
+make.  The rule is restated below, with no branch that depends on the outcome.
+
+4'.  STATISTIC AND DECISION RULE (fixed now, applied once, no discretion)
+
+For replicate i let x_i be `log2est` printed on its RESULT line.
+
+  LB_pooled = mean(x) - t(0.99, n-1) * sd(x) / sqrt(n)
+  over the union of block E (16384 seeds, this prereg) and appendix G.4's block
+  (1024 seeds, 760000..761023, mean -71.42391, sd 0.15878) -> n = 17408.
+  Same pool, same estimator, same configuration, each seed run exactly once.
+  sd uses the n-1 denominator.  t is the Student 99% quantile.
+
+  x_declared = floor(10000 * LB_pooled) / 10000        (rounded DOWN, more negative, never up)
+  declared q3c = 2^x_declared.
+
+This is applied as written whatever it yields:
+  * if x_declared > -71.4355 the filing's claim improves and is filed;
+  * if x_declared <= -71.4355 the current declaration -71.4355 stands, no new claim is filed,
+    and block E is reported as evidence that the existing declaration is not too generous.
+
+Pooling is used rather than "the better of the two blocks" precisely because taking the better
+of two bounds is a selection over looks and would not be a 99% bound at all.
+
+Also reported, and not used for any claim: block E alone (n = 16384, same statistic).
