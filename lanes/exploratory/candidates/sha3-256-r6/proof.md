@@ -1,2178 +1,4000 @@
-# SHA3-256 with 6 prefix rounds: Gray-order enumeration of two-round-affine cosets, time_log2 122.66823
-
-## 1. Claim
-
-Target `sha3-256-r6-prefix-v1` (organizer profile): SHA3-256 of FIPS 202 with "prefix rounds 0 through 5, inclusive,
-in every sponge permutation" (not the last-round convention of Keccak-p); all-zero 1600-bit initial state; rate 1088
-bits, capacity 512; "SHA3 domain suffix 01 followed by pad10*1; delimited suffix byte 0x06", standard little-endian
-lane and bit encoding; the digest is the first 32 squeeze bytes; messages are distinct byte strings of bit length
-below 2^64; reference `verifier/keccak.py:sha3_256`. Postcondition: "The two complete sha3-256-r6 sponge hashes agree
-on all 256 output bits." The algorithm CAMP of Section 8 outputs two distinct 135-byte messages with equal digests.
-
-| Quantity | Value |
-|---|---|
-| time_log2 (collision-frontier-v5, reference operation cost 1626, rounded up) | 122.66823 (Section 10) |
-| success probability | at least 0.39 over CAMP's fresh coins (random coset origins), under premise H_coset (Section 9) |
-| memory | below 2^141 words of 256 bits, below 2^146 bytes (Section 11.1) |
-| preprocessing (included in time) | at most 2^70 + 16 word operations, below 2^59.34 target compressions (Section 11.2) |
-| nonuniform advice | none |
-
-CAMP is randomized: every coset origin is fresh randomness, drawn with the cost model's primitive "independent uniform
-random 256-bit word" (Section 6.1), and every probability in this document is over these coins for the fixed target.
-One premise is declared (Section 12): **H_coset**, that over these coins the occupancy, key-match and triple bounds of
-Section 9 hold for the messages CAMP enumerates (the bounds that independent uniform digests would give). Everything
-else is proved here: two-round affinity on every coset of W40, degree at most 8 before the last chi, exactness of the
-Gray-order finite differences and of their initialization, correctness of the sparse-set table for arbitrary initial
-memory, the duplicate-coset bound, and every operation count. Section 12 gives the premise's evidence: reduced-width
-tests that the organizer executes (the declared experiments), preregistered GPU counts of 32- to 64-bit digest
-projections of up to 2^34 messages (Appendix A: protocols with their hashes, programs, raw counts and validation
-printouts), and the effect of a pair-rate shortfall on the claim.
-
-## 2. Notation and messages
-
-A state is 25 little-endian 64-bit lanes S[x + 5y] (x, y in 0..4); bit z of lane k is state bit 64k + z. Round r
-(r = 0..5) is theta, rho, pi, chi, iota with constant RC[r] as in the reference; P6 is rounds 0 to 5. XOR is
-addition over F_2. For t in F_2^320 let u_k(t) (k = 0..4) be bits 64k to 64k + 63 of t.
-
-**Messages.** M(t) = U || 0^40 || U || 0^15 (135 bytes) with U = LE64(u_0) || ... || LE64(u_4). The padding of the
-profile appends 0x06 and the final bit 0x80, which share byte 135, so M(t) is one 136-byte block A(t): lanes 0 to 4
-and lanes 10 to 14 hold u_0 .. u_4, lane 16 holds 0x86 * 2^56, all other lanes (and the capacity) are zero. H(M(t)) is
-lanes 0 to 3 of P6(A(t)): one permutation call per message.
-
-**Lemma 1 (messages).** t -> M(t) is injective, and every M(t) is a message of the target domain whose hash is the
-first 32 bytes of P6(A(t)).
-
-*Proof.* The first 40 bytes of M(t) are t in little-endian order. The block is the profile's padding of a 135-byte
-string (135 = 136 - 1, so the suffix and the final bit fall in byte 135), absorbed into the zero state. QED.
-
-**Pre-chi6 bits.** For a block A let b(A) in F_2^320 be row y = 0 after theta, rho and pi of round 5 applied to
-rounds 0 to 4 of A: bits b_{x,z}, lane x = 0..4, bit z = 0..63. Digest lane x (x = 0..3), bit z, is
-b_{x,z} XOR (NOT b_{x+1,z} AND b_{x+2,z}) XOR RC[5]_z [x = 0] (lane indices mod 5; RC[5] = 0x0000000080000001 sets
-bits 0 and 31 of lane 0).
-
-**Gray code.** g(i) = i XOR floor(i/2) for i >= 0; an integer is identified with the set of its 1-bits. g is a
-bijection of [0, 2^n), and g(i) and g(i - 1) differ exactly in bit nu(i), the lowest set bit of i.
-
-## 3. The field W40 and two-round affinity
-
-W40 = (w_0, ..., w_39), vectors of F_2^320 in hexadecimal, most significant digit first; bit 64k + b is bit b of u_k.
-The order is part of the algorithm (Gray enumeration, Section 6.1). Section 11.2 bounds the search that produced them.
-
-```
-w_0  00000000000000000000000040000004100100000000000000002000200000000000000000000000
-w_1  000000000000000000000000800200002000000a0000202000000001400000040000200000000800
-w_2  00000000000000000000000200000020800800000000000000010001000000000000000000000000
-w_3  00000000000000000000410010000104000100400000140000802000000000800000000040000010
-w_4  00000000000000000000820000820000000000080082000000040001000040000000200000200820
-w_5  00000000000000000020000000000000000000000000000000000000000004000000000000020800
-w_6  00000000000000000100000010000000000000000040040000800000000000800000000000000000
-w_7  00000000000000000800000000820000002000080000000000000001004004000000200000000800
-w_8  00000000000000008000020000000000000000002080000000000000000000000000000000200020
-w_9  00000000000000030000020010800100040000422082042000040000680040840000000040200020
-w_10 00000000000000410000020000820100000000002082000000040009200040000000200040200020
-w_11 00000000000008010041020012820500858000406892040010240000290040800000200040201020
-w_12 00000000000100010000020000000004000100802080000000002010200040000000080000208020
-w_13 00000000000200010000020010820101040040482082240000040001280040800000200040200820
-w_14 00000000000400010001020010800100040000406082440000040000280040800000200040200020
-w_15 00000000010000010041020010000100040000406092040000040000280040800000000040201020
-w_16 00000000040000010000020010820100808000402882040010840000210040800000200040200020
-w_17 00000000080000010041020010000100040000406010040000200000280000800000000040001020
-w_18 00000000800000010000020000820000900000002082000010040000000040000000200000200020
-w_19 00000001000000010000030010800100200000422082042000840000600040840000000040200030
-w_20 00000004000000010000020010820100840000406082040000040000280040800000200040200020
-w_21 00000080000000010041020010820500050000486092041000240021280040800000200040201020
-w_22 00000100000000010001020010800100040000406082042000040000280040800000000040201020
-w_23 00000200200000000000090000000000000000000000000000800000000000400000000000000000
-w_24 00000400000000010000000000000100000000402000000000000000200000000000000040000020
-w_25 00001000200000000000080010000104000100400000140000002000000002800000000040000000
-w_26 00008000000000010000020002820004808108002882100010042100210040000000200000200020
-w_27 00020000000000010001020010000100040000406080040000000000280000800000000040200020
-w_28 00100000000000010000020000000004000000002080000000000000200040000000000000200020
-w_29 004000000000000100000200108201000000004820c2040000840001200844800000200040220820
-w_30 00800000000000010041020010820120040000406082040000040001280040800000200040201020
-w_31 020000000000000100000200100001000020004020c2040000840000200040800000000040200020
-w_32 04000000000000010000020000000000000000002080000000000000200000000000000040000020
-w_33 08000000000040000400000002000104008100400000140000002100000002800000000040000000
-w_34 40000000000000010000020010820100840000402882040010040000200040800000200040200020
-w_35 0a8094012901484005004a005200842021a008000010000402000000000000000000000000000001
-w_36 080090012801480104004a0052008400318008002000000000000000000000000000000000000020
-w_37 08009001200048020400480012000001208009000000000000000000000080000000000000010000
-w_38 0a0294052801480185014a0052028400b1a008000000000000001000000000000008000000000000
-w_39 00001200040008000000010002000000000001000000000000000000000000400000000000000000
-```
-
-Let F2(t) in F_2^1600 be the state after rounds 0 and 1 of A(t), and for a, b in F_2^320 let
-beta_t(a, b) = F2(t XOR a XOR b) XOR F2(t XOR a) XOR F2(t XOR b) XOR F2(t).
-
-**Lemma 2 (round 0 is affine on all of F_2^320).** t -> round 0 (A(t)) is affine.
-
-*Proof.* The t-dependent lanes of A(t) are (x, 0) and (x, 2), both equal to u_x, so every column parity of theta is
-u_x XOR u_x XOR (a constant) and theta adds a constant to every lane. Rho and pi move bits linearly: lane (x, 0) goes to
-(0, 2x) and lane (x, 2) to (2, 2x + 1) (indices mod 5), so in every row only lanes x = 0 and x = 2 depend on t. Chi
-outputs a_x XOR (NOT a_{x+1}) a_{x+2}; the factor pairs (x + 1, x + 2) are (1, 2), (2, 3), (3, 4), (4, 0) and (0, 1),
-never {0, 2}, so every product has at most one t-dependent factor. Iota adds a constant. QED.
-
-**Lemma 3 (two-round affinity on every coset).** (a) beta_t(a, b) does not depend on t; as a function of (a, b) it is
-symmetric, bilinear, and zero when a = b. (b) If beta(w_i, w_j) = 0 for all 0 <= i < j < 40, then for every t in
-F_2^320 and every u in F_2^40,
-
-    F2(t XOR sum_j u_j w_j) = F2(t) XOR sum_j u_j (F2(t XOR w_j) XOR F2(t)).
-
-(c) The hypothesis of (b) holds.
-
-*Proof.* (a) By Lemma 2 the input of round 1 is affine in t; theta, rho, pi and iota are affine and every chi output
-bit has degree 2 in its inputs, so every bit of F2 is a polynomial of degree at most 2 in t: F2 = Q XOR Lin XOR c with
-Q a vector of quadratic forms, Lin linear and c constant. The polar form B(a, b) = Q(a XOR b) XOR Q(a) XOR Q(b) of a
-quadratic form is symmetric, bilinear and zero on the diagonal, and expanding the four terms gives beta_t(a, b) =
-B(a, b) for every t. (b) By bilinearity B vanishes on span(W40) x span(W40), so Q is additive there, and
-Q(t XOR x) = Q(t) XOR Q(x) XOR B(t, x) with B(t, .) linear. Hence x -> F2(t XOR x) XOR F2(t) = Q(x) XOR B(t, x) XOR
-Lin(x) is linear on span(W40), which is the displayed identity. (c) By (a) it suffices to take t = 0: the 780 values
-beta_0(w_i, w_j) = F2(w_i XOR w_j) XOR F2(w_i) XOR F2(w_j) XOR F2(0) (821 two-round evaluations) are all zero. QED.
-
-The 780 values of (c) and the rank 40 of W40 are recomputed by the experiment program at every run, with its own
-implementation of the organizer round function; a nonzero value stops the program. Consequently each of the 2^280
-cosets t + span(W40) consists of 2^40 distinct parameters and 2^40 distinct messages (Lemma 1), and F2 is affine on it.
-
-## 4. Degree and finite-difference enumeration
-
-For a coset origin t let phi_t(u) = t XOR sum_j u_j w_j (u in F_2^40) and f_t(u) = b(A(phi_t(u))) in F_2^320.
-
-**Lemma 4 (degree).** For every t and r = 2..6, every bit of the state after rounds 0 to r - 1 of A(phi_t(u)) has
-algebraic degree at most 2^(r-2) in u. Hence every bit of f_t has degree at most 8, for every outer coset.
-
-*Proof.* r = 2 is Lemma 3 (degree at most 1). Theta, rho and pi are linear and iota adds a constant; a chi output bit
-a XOR (1 XOR a') a'' has degree at most twice the largest degree of its inputs. So each round at most doubles the
-degree. f_t is a linear map of the state after five rounds. QED.
-
-### 4.1 Derivatives
-
-For f: F_2^n -> V (V a vector space over F_2), T a subset of {0..n-1} and y in F_2^n, let
-D_T f(y) = XOR over S subset of T of f(y XOR e_S), e_S the indicator vector of S (D_T f = f for empty T). Write
-s_T = sum over t in T of 2^t and, for nonempty T, R(T) = {b not in T : b + 1 in T}; as a bit mask
-R(T) = (s_T >> 1) AND NOT s_T.
-(P1) D_T f(y) does not depend on the coordinates of y in T.
-(P2) For s not in T, D_{T + {s}} f(y) = D_T f(y XOR e_s) XOR D_T f(y).
-(P3) If f = XOR over |S| <= d of a_S y^S (algebraic normal form, y^S = product of y_s over s in S), then
-D_T f(y) = XOR over S containing T of a_S y^(S - T); so D_T f is the constant a_T when |T| = d, and 0 when |T| > d.
-*Proof.* (P1) and (P2) follow from the definition. (P3): the derivative of y^S in direction e_s is y^(S - {s}) if s is
-in S and 0 otherwise; iterate over T. QED.
-
-### 4.2 Gray-order enumeration
-
-Let f have degree at most D. For i >= 1 let t_1(i) < t_2(i) < ... be the set bits of i, L(i) = min(D, popcount(i)) and
-T_j(i) = {t_1(i), ..., t_j(i)}. Algorithm FES (Bouillaguet et al., CHES 2010), with the initialization of Lemma 6:
-
-- Initialization: x = f(0) and tab[T] = D_T f(g(s_T - 1)) for every T with 1 <= |T| <= D.
-- Step i = 1, 2, ..., 2^n - 1: for j = L(i) - 1 down to 1, tab[T_j(i)] <- tab[T_j(i)] XOR tab[T_{j+1}(i)]; then
-  x <- x XOR tab[T_1(i)].
-
-**Lemma 5 (exactness).** After step i, x = f(g(i)).
-
-*Proof.* (A) Let T be nonempty, m = max T, and i = s_T + k 2^(m+1) with k >= 0. Bit b of g(i) is bit b XOR bit b + 1 of
-i; hence, outside T, the bits of g(i) below m are exactly R(T), and the bits above m are those of g(k) shifted by m + 1.
-The anchor g(s_T - 1) differs from g(s_T) only in bit min T, which is in T, so by (P1) the initial value is
-tab[T] = D_T f(g(s_T)).
-(B) An entry tab[T] with |T| = j is changed at step i iff T = T_j(i) and j < L(i), that is iff j < D and
-i = s_T + k 2^(m+1) with k >= 1; then T_{j+1}(i) = T + {u} with u = m + 1 + nu(k).
-(C) Claim: whenever step i uses tab[T_j(i)] (as the top j = L(i), or after its update when j < L(i)), its value is
-D_{T_j(i)} f(g(i)). Induction over the operations in execution order (i increasing; j decreasing within a step). Top
-entry T' = T_{L(i)}(i): if |T'| = D it is constant by (P3); otherwise L(i) = popcount(i), so i = s_{T'}, T' was never
-changed before (B), and its initial value is D_{T'} f(g(s_{T'})) by (A). Update of T = T_j(i), j < L(i), with
-i = s_T + k 2^(m+1), k >= 1, and T' = T_{j+1}(i) = T + {u}: by the claim for T' (top, or updated just before in this
-step), tab[T'] = D_{T'} f(g(i)). Before the update tab[T] holds D_T f(g(i')) with i' = s_T + (k - 1) 2^(m+1) (its
-previous change by the claim, or the initial value when k = 1). By (A), g(i) and g(i') agree outside T except above m,
-where they are g(k) and g(k - 1), which differ exactly in bit u. With (P1) and (P2):
-tab[T] XOR tab[T'] = D_T f(g(i) XOR e_u) XOR D_T f(g(i) XOR e_u) XOR D_T f(g(i)) = D_T f(g(i)).
-(D) By (C), x is XORed with D_{t_1(i)} f(g(i)) = f(g(i)) XOR f(g(i - 1)), since t_1(i) = nu(i). As x = f(g(0)) at
-the start, x = f(g(i)) after step i. QED.
-
-### 4.3 Initialization from evaluations of weight at most D
-
-**Lemma 6.** Let A[S] = f(e_S) for every S with |S| <= D. Processing j = 0, ..., n - 1 and, for each j, every S
-containing j with |S| <= D, the update A[S] <- A[S] XOR A[S - {j}] leaves A[S] = a_S. Then, for 1 <= |T| <= D,
-
-    tab[T] = D_T f(g(s_T - 1)) = XOR of a_(T + V) over V subset of R(T) with |V| <= D - |T|,
-
-and x = f(0) = a_S for S empty. This takes P_D = sum_{j<=D} C(n, j) evaluations of f, J_D = sum_{j<=D} j C(n, j)
-vector XORs in the transform, and v_T = #{V subset of R(T) : |V| <= D - |T|} terms for tab[T].
-
-*Proof.* Evaluating the normal form gives f(e_S) = XOR over S' subset of S of a_S'; by Moebius inversion
-a_S = XOR over S' subset of S of f(e_S'). After the passes over coordinates 0..j, A[S] is the XOR of f(e_S') over the
-S' subset of S that agree with S above j; the domain {|S| <= D} is closed under subsets, so every entry read exists.
-By (A) of Lemma 5 the anchor y = g(s_T - 1) has exactly the bits R(T) outside T; by (P3),
-D_T f(y) = XOR over S containing T of a_S y^(S - T), where y^V = 1 for V disjoint from T iff V is a subset of R(T),
-and a_(T + V) = 0 when |T + V| > D. QED.
-
-**Constants (n = 40, D = 8).** P_D = 100,146,724; J_D = 772,459,520; sum of L(i) over 1 <= i < 2^40 is
-sum_k C(40, k) min(8, k) = 8,796,064,307,936. |R(T)| is the number of runs of ones of T that do not start at bit 0, so
-exactly C(j, r) C(40 - j, r) sets T of size j have |R(T)| = r (compositions of the j ones and the 40 - j zeros), and
-V_D = sum over T of v_T = sum_{j=1..8} sum_r C(j, r) C(40 - j, r) sum_{k <= min(r, 8 - j)} C(r, k) = 282,214,108.
-
-## 5. Key, cone and the per-point schedule
-
-### 5.1 Machine and addressing convention
-
-The organizer machine is a 256-bit word RAM. Every executed primitive other than a permutation call is one word
-operation: load, store, AND, OR, XOR, NOT, add, subtract, shift, comparison, conditional branch (on a nonzero register),
-register move and the independent uniform random 256-bit word. The machine has 64 registers; reading a register
-costs nothing. The program is generated straight-line code: the FES steps of every plane, the 2^40 Gray sites of the
-chi phase, the setup and the table steps are unrolled, so an address or constant fixed at generation time is an
-immediate operand of its instruction and costs no operation. Generating and storing this code is charged in ONCE
-(Section 11.2).
-
-- **Immediate:** the FES record addresses of every plane and Gray step, the buffer words, the current-value frame,
-  the 144 intermediate tile words, every setup operand (working frames, bitplanes, transpose words, input words,
-  round buffers, D and wrap words, coefficient and derivative records), the NOT pattern of w(S) at every setup point
-  and the constant words of the folded setup rounds (Section 6.3), the basis constants w_b in two-word form, the
-  butterfly masks and the eight words of Section 5.4, at each emission site of the chi phase the record offset and
-  the two words of sum_b g(i)_b w_b of its candidate, the constant lanes of the folded verification rounds
-  (Section 7), the byte-table bases, the verification-count word, the spill words and the region bases.
-- **Computed at run time and charged:** the two random words of each coset origin (Section 6.2), the coset-record
-  address in the leader step and in verification (shifts, add, second-word add), the decoding of the earlier
-  candidate and its byte-table addresses in verification. The table addresses cost nothing: the key word is its own
-  sparse address, and the identifier register and the sparse word are dense addresses (Section 7).
-
-### 5.2 Key and cone
-
-For a message with pre-chi6 bits b, key is the 140-bit word whose bit 4z + x (x = 0..3, z = 0..34) is
-b_{x,z} XOR (NOT b_{x+1,z} AND b_{x+2,z}). By Section 2 it equals digest bit z of lane x XOR RC[5]_z [x = 0], so
-messages with equal digests have equal keys. Its inputs are exactly the 175 cone bits B[x, z] = b_{x,z}, x = 0..4,
-z = 0..34. Verification always uses the native 256-bit digest, iota included.
-
-### 5.3 Plane-major FES
-
-A group processes 256 cosets (lanes c = 0..255) in lockstep. Plane word p = (x, z) holds b_{x,z} of lane c at bit c.
-Every bit of every plane word has degree at most 8 in u (Lemma 4), and Lemmas 5 and 6 use only XORs, which act
-bitwise, so FES with D = 8 runs on each plane separately: plane p has a derivative record word tab[T][p] for each
-1 <= |T| <= 8 and a current value x_p, and step i of plane p reads and writes only these. The FES phase of a group
-therefore runs the planes one after the other, plane p alone over the steps i = 1, ..., 2^40 - 1; after step i,
-x_p = f_p(g(i)) by Lemma 5, and x_p is stored into the buffer word X[p][i].
-
-**Registers.** The 61 records of the cached set CR, the 31 nonempty subsets of {0..4} and the 30 subsets of {0..5}
-that contain 5 other than {5} and {0, 5}, are held in registers for the whole plane, with x_p and two chain
-temporaries: 64 registers. The group index h is the only value live across the setup and this phase (the
-verification count is a memory word and the identifier is formed from h afterwards, Section 6.2); it is stored to a
-fixed word right after the leader step and loaded back after the FES phase, 2 operations per group, so the setup
-(Section 6.3) and the FES phase have all 64 registers.
-
-**Lemma 5b (last change).** Let 1 <= |T| <= 7 and m = max T. (a) tab[T] is changed exactly at the steps
-i = s_T + k 2^(m+1) with 1 <= k < 2^(39 - m), so at least once iff m <= 38. (b) It is read only at those steps and,
-as the top, at i = s_T, which precedes them. Hence after its last change in a plane it is never read again, and
-omitting the STORE of that change alters no value that is used. A record with |T| = 8 is never changed.
-
-*Proof.* (a) is (B) of Lemma 5 with j = |T| < 8, restricted to i < 2^40; as 2^m <= s_T < 2^(m+1), s_T + k 2^(m+1) <
-2^40 iff k < 2^(39 - m). (b) Step i reads tab[T] only as T_{L(i)}(i) or as a link T_j(i) with j < L(i), and a link
-use is a change by (B). If T = T_{L(i)}(i) with |T| < 8, then L(i) = popcount(i) = |T| and the set bits of i are T,
-so i = s_T. QED.
-
-**Per plane:** 61 LOADs of the cached records and one LOAD of x_p from A[{}] (62). **Per step i**, with
-L = L(i) and shapes T_1 .. T_L: the top tab[T_L] costs one LOAD unless T_L is in CR (a register); each link T_j,
-j = L - 1 down to 1, costs one XOR into its register if T_j is in CR and otherwise LOAD, XOR and STORE, with the
-STORE omitted at the last change of tab[T_j] (i + 2^(max T_j + 1) >= 2^40, Lemma 5b); then x_p = x_p XOR v and the
-STORE of x_p into X[p][i] (2). So step i costs 2 + [T_L not in CR] + the sum over its links of 1 (in CR), 2 (not in
-CR, last change) or 3 (not in CR, otherwise).
-
-**Count.** Over the 2^40 - 1 steps of a plane, every T in CR (|T| <= 6) is the top exactly once, at i = s_T, and a
-link 2^(39 - max T) - 1 times (Lemma 5b); the links number sum L - (2^40 - 1) in all, those of CR number
-sum over CR of (2^(39 - max T) - 1) = 5 * 2^39 + 30 * 2^34 - 61 = 3,264,175,144,899. Every record of CR is changed,
-and U = sum_{k=1..7} C(39, k) - 61 = 19,311,426 records outside CR are changed at least once (Lemma 5b (a)), each
-losing one STORE. With the sum of Section 4.3 the steps of a plane cost Sc61 + (2^40 - 1) - U, where
-
-    Sc61 = sum L + (2^40 - 1 - 61) + 2 (sum L - (2^40 - 1) - 3,264,175,144,899) = 18,760,331,006,174
-
-counts the tops, the links at 1 or 3 and the XOR into x_p, and the extra 2^40 - 1 the buffer STOREs. Per group
-
-    F_g = 175 (62 + Sc61 + 2^40 - 1 - U) + 2 = 3,475,469,081,452,377.
-
-### 5.4 Chi fused into the transpose: 4664 operations per Gray point and group
-
-The chi phase of a group runs the Gray points i = 0, 1, ..., 2^40 - 1 in order. At a point i >= 1 the five values
-B[0..4, z] of each z are LOADed from the buffer, 175 LOADs per point; at point zero they are LOADed from A[{}], the
-175 point-zero loads charged in S_v. The 140 key rows (row 4z + x is a 256-bit word, bit c = key bit of lane c) are
-padded with 116 rows to a 256 x 256 bit matrix: row 140 is the all-ones word and the other 115 padding rows are zero.
-Write the row index as r = 16 tau + l (tile tau, local index l). A butterfly on rows k and k + d with column shift s
-is
-
-    t = ((A_k >> s) XOR A_{k+d}) AND mask_s;  A_k = A_k XOR (t << s);  A_{k+d} = A_{k+d} XOR t     [6 ALU]
-
-with mask_s the ones in the low half of every 2s-bit block. For k with bit b clear (d = 2^b in the row index of the
-stage) and s = 2^b it exchanges row-index bit b with column-index bit b: for every column c with bit b clear, the bits
-(k, c + s) and (k + d, c) are swapped and all others kept. If A_{k+d} is known to be zero the same result is
-A_{k+d} = (A_k >> s) AND mask_s, A_k = A_k AND mask_s [3 ALU]; pairs of two zero rows are omitted. After the eight
-stages b = 0..7 the bit (r, c) has moved to (c, r): output word c holds the key of lane c in bits 0..139 and, from
-the all-ones row 140, a one in bit 140. The emitted key word of a candidate is therefore key + 2^140.
-
-- **Tiles (row bits 0..3, s = 1, 2, 4, 8).** For tau = 0..8 and each z of the tile (z = 4 tau .. 4 tau + 3; tile 8 has
-  z = 32, 33, 34): with the five values B[0..4, z] LOADed as above, chi writes key rows 4(z - 4 tau) + x, x = 0..3,
-  into the tile registers with one temporary: NOT, AND, XOR per row, 12 ALU per z. Then the four stages and 16 STOREs
-  to fixed words. A full tile costs 4 x 48 = 192 ALU. Tile 8 runs its stages with local rows 12..15 known zero, 36, 36, 36, 48
-  ALU, and after stage b = 2 XORs into its local rows 8..15 the eight immediate words that stages 0..2 make of an
-  all-ones local row 12 alone (rows 0..7 of that image are zero): 156 + 8 = 164 ALU. Every stage is linear over F_2,
-  so this equals the tile with row 140 all ones. All 144 intermediate words are written.
-- **Columns (row bits 4..7, s = 16, 32, 64, 128).** For each l = 0..15: LOAD the nine words tau = 0..8 (tau = 9..15
-  are known zero and never read); the four stages cost 27, 30, 36, 48 = 141 ALU. The 16 results are the key words of
-  lanes c = 16 tau + l, handed to the table in registers in emission order e = 16 l + tau.
-
-Per Gray point and group:
-
-    35 * 12 + 8 * (192 + 16) + (164 + 16) + 16 * (9 + 141) = 4664   (ALU 4376, LOAD 144, STORE 144),
-
-and per group 4664 * 2^40 + 175 (2^40 - 1) with the buffer LOADs. The chi phase holds no current value in a register:
-the five values of one z, the tile, one temporary and two butterfly scratch registers, then the 16 key words of a
-column step, besides the identifier register cid (Section 7).
-
-## 6. Outer cosets and setup
-
-### 6.1 The cosets: fresh random origins
-
-Coset j (0 <= j < C = 256 G) has origin t_j, drawn by the leader step (Section 6.2) from two fresh calls r_0, r_1 of the
-cost model's primitive "independent uniform random 256-bit word": t_j = r_0 + (r_1 mod 2^64) 2^256. The C origins are
-therefore independent and uniform on F_2^320; they are CAMP's only coins, and every probability below is over them,
-for the fixed target. Group h (h < G) holds the cosets j = 256 h + c, c = 0..255. The candidate (h, i, e) (Gray point
-i, emission index e = 16 l + tau, lane c = 16 tau + l) is the message M(t_j XOR sum_b g(i)_b w_b) with j = 256 h + c;
-its identifier is cid = h 2^48 + 256 i + e < 2^128. Inside each coset the enumeration is the fixed Gray order of
-span(W40). CAMP probes the candidates in increasing cid, so cid is also the number of candidates probed before it.
-
-**Lemma 7 (distinct messages).** Let D be the event that the C cosets t_j + span(W40) are pairwise distinct. On D the
-Q = 2^48 G candidates are pairwise distinct messages, and Pr[not D] <= C(C, 2) 2^-280 = 2.4380...e-32 < 2.5e-32.
-
-*Proof.* Distinct cosets of span(W40) are disjoint. Inside a coset, distinct i give distinct g(i) and, by rank 40,
-distinct parameters; Lemma 1 gives distinct messages. For j < j' the sum t_j XOR t_j' is uniform on F_2^320 (t_j' is
-uniform and independent of t_j), so the two cosets coincide with probability |span(W40)|/2^320 = 2^-280; the union
-bound over the C(C, 2) pairs gives the bound. QED.
-
-The event not D (a duplicate coset) is counted as a failure in Section 9; no duplicate rejection is performed.
-
-### 6.2 Leader step (11 operations per coset, 5 per group)
-
-For lane c of group h: j = H8 OR c with H8 = h * 2^8 (1); two random words r_0, r_1 (2); r_1 AND (2^64 - 1) (1); the
-record address CSB + 2j (shift, add: 2); two STOREs of t_j into the global coset record with the second-word add (3);
-two STOREs into the lane's working frame (2). This is 11 operations per coset. Group control is 5 per group:
-H8 = h * 2^8 before the leader step, the identifier cid = h * 2^48 after the FES phase (Section 5.3), and after the
-chi phase the next index h = cid >> 48 (cid is then (h + 1) 2^48), its compare with G and the branch. S_v
-(Section 6.5) charges exactly these 11 C + 5 G operations.
-
-### 6.3 Bit-sliced evaluation (13,616 per group, 62,710 + popcount(w(S)) per point)
-
-The 256 lanes of a group are evaluated together at every S with |S| <= 8, the points in order of increasing |S|.
-State word (l, z) holds bit z of lane l of the state of lane c at bit c, so the word operations below apply
-theta, rho, pi, chi and iota to the 256 states at once (each acts bit by bit). Let w(S) = XOR of w_b over b in S;
-the lane-c input at point S is A(t_j XOR w(S)) (Section 4), and w(S) is fixed in the generated code.
-
-- **Transpose (13,616 per group).** The two working-frame words of the 256 origins become 320 bitplanes, bit c of
-  plane k = bit k of t_j, by the butterfly of Section 5.4. First words: four blocks of 64 rows. A block keeps rows
-  2..63 in registers and rows 0 and 1 in two fixed words (load: 62 LOADs and two LOAD, STORE pairs, 66); in stages
-  s = 1..32 a pair in registers costs 6, a pair whose row k is in its word 8 (LOAD, 6 ALU, STORE) and the pair
-  (0, 1) 12 (one spill word), so stage 1 costs 12 + 31 * 6 = 198 and stages 2..32 cost 2 * 8 + 30 * 6 = 196 each
-  (1,178); storing the 64 plane words costs 62 STOREs and two LOAD, STORE pairs (66): 1,310 per block. Then stages
-  s = 64 and 128 run on the 256 plane words as memory pairs, 10 each (2,560). Second words (below 2^64): four
-  64 x 64 blocks the same way, block 0 stored into planes 256..319 (1,310) and block g = 1..3 shifted left by 64g
-  and ORed into them (66 + 1,178 + 62 * 4 + 2 * 5 = 1,502). Total 4 * 1,310 + 2,560 + 1,310 + 3 * 1,502 = 13,616,
-  with 62 row registers and two scratch registers.
-- **Input (640 + popcount(w(S)) per point).** For k = 0..319: LOAD plane k, NOT it if bit k of w(S) is 1, STORE it
-  as bit k mod 64 of lane k div 64.
-- **Constant folding.** In A(t) lanes 10..14 equal lanes 0..4, lane 16 is the padding 0x86 * 2^56 and the other
-  lanes are zero (Section 2), the same in every lane c and at every point. Code generation therefore follows each of
-  the 1,600 state words through rounds 0 to 4 and the round-5 linear step as a known constant (the zero word or the
-  all-ones word, an immediate) or a data word, and emits an operation only when its result is not fixed: XOR with
-  the zero word, AND with the all-ones word and v XOR v are not emitted, XOR with the all-ones word is one NOT, AND
-  with the zero word gives the zero word. A data word is LOADed once per slice that reads it, theta's D words that
-  are data are STOREd once, and a round STOREs each new data word once, into its own buffer (one 1,600-word buffer
-  per round); round 0 reads lanes 10..14 from the words of lanes 0..4. No constant word is stored or loaded, and the
-  pattern does not depend on S (w(S) only inverts data words), so one code serves every point.
-- **Rounds 0 to 4 (57,840 per point).** A round with data parities forms theta's D words slice by slice, slice 63
-  first: the column parities of slice z (LOADs and XORs), then D[x][z] = C[x - 1][z] XOR C[x + 1][z - 1] and its
-  STORE; the data parities of slice 63 are stored after it and LOADed back for D[x][63] (the wrap, 2 per data
-  column). Then for each slice z: the rho-pi source words and D words (LOAD), their XOR, chi (NOT, AND, XOR), iota
-  as one NOT of lane 0 when bit z of RC[r] is 1, and the STOREs. A round on 1,600 data words costs
-  64 * 45 + 320 * 2 + 10 = 3,530 for the D words and 64 * 175 = 11,200 for the slices, plus the popcount of RC[r]
-  (5, 3, 5 for r = 2, 3, 4); rounds 2, 3 and 4 are of this kind: 14,735, 14,733 and 14,735. In round 0 every column
-  parity is constant (lanes x and x + 10 cancel), so theta adds constants: 640 LOADs, 668 NOTs, 314 XORs and 356
-  STOREs, 1,978. Round 1: 3,286 LOADs, 3,225 XORs, 1,674 NOTs, 1,600 ANDs and 1,874 STOREs, 11,659. Rounds 0 to 4
-  cost 1,978 + 11,659 + 14,735 + 14,733 + 14,735 = 57,840.
-- **Round-5 linear step (4,230 per point).** The D words as above (3,530), then for each of the 175 planes (x, z),
-  z <= 34: LOAD the source word, LOAD the D word, XOR, STORE into the coefficient record A[S] (4 * 175).
-
-**Lemma 10 (bit-sliced setup).** After the setup steps of point S, bit c of plane word p of A[S] is f_t(e_S)_p for
-the origin t = t_j of lane c; so A[S] = f(e_S) as Lemma 6 requires, for all 256 lanes.
-
-*Proof.* A stage with d = s = 2^b exchanges row-index bit b with column-index bit b (Section 5.4), so the eight
-stages on the 256 first words and the six stages on each 64-row block of second words, shifted by 64g (rows
-c = 64g .. 64g + 63), leave bit k of t_j at bit c of plane k. Bit k of t_j XOR w(S) is that bit inverted when bit k
-of w(S) is 1, so the input words hold lanes 0..4 of A(t_j XOR w(S)) in bit c; lanes 10..14 equal them and the
-other lanes are the constants of A(t), the same in every lane c. Theta, rho and pi are the D step and the fixed
-source addresses, chi and iota are bitwise (NOT of a lane-0 word is XOR with bit z of RC[r] in every lane), so the
-unfolded round maps the state of every lane to its next state. Folding replaces an operation by its value where an
-operand is the zero or all-ones word known at generation time (x XOR 0 = x, x AND 1 = x, x AND 0 = 0, x XOR 1 =
-NOT x, x XOR x = 0, constants combine to constants), which changes no word; every word that the code LOADs was
-STOREd earlier at the same point. So each folded round computes the same 1,600 words, and the linear step stores
-the bits b_{x,z} (z <= 34) of round 5. QED.
-
-Over all points the input NOTs number pop_D = sum over |S| <= 8 of popcount(w(S)). Bit k of w(S) is 1 iff
-|S & B_k| is odd, with B_k = {b : bit k of w_b is 1} and m_k = |B_k|, so pop_D = sum over k = 0..319 of
-sum_{j odd, j <= 8} C(m_k, j) sum_{l <= 8 - j} C(40 - m_k, l) = 4,592,341,856.
-
-### 6.4 Transform and phase
-
-The truncated transform of Lemma 6 on the coefficient records costs two LOADs, XOR and STORE per pair (j, S) and
-plane: 4 * 175 * J_D. The phase conversion writes the derivative records tab[T] (a frame disjoint from the
-coefficient records) with v_T LOADs, v_T - 1 XORs and one STORE per plane: 2 * 175 * V_D. After both, the
-coefficient record A[{}] is the current-value frame x = f(0).
-
-**Valid access.** Every work word is written before it is read: the working frames by the leader step, the bitplanes
-by the transpose (planes 256..319 by its block 0 before blocks 1..3 OR into them; the transpose words by each block
-before it reads them), the input words by the input of each point, the D words, wrap words and round buffers by
-the generated code of the same point before any of its LOADs reads them (a constant word is an immediate and is
-never read), A[S] by the linear step of point S (the transform reads only such records), tab[T] by the phase
-conversion before the FES phase, the buffer word X[p][i] by the FES phase before the chi phase, and the 144 tile
-words at every Gray point before its column step; the next group's setup rewrites the frames before reading them.
-The coset record of j is written by the leader step before any candidate of coset j exists. The verification-count
-word and the byte tables are written in preprocessing, the spill words by each use before they are read back
-(Sections 5.3, 7).
-
-### 6.5 Setup total
-
-Per group: the leader step and group control 11 * 256 + 5 = 2,821 (Section 6.2), the transpose 13,616, the points
-(640 + 57,840 + 4,230) P_D + pop_D = 62,710 P_D + pop_D, the transform 700 J_D, the phase 350 V_D and the 175
-point-zero loads (Section 5.4):
-
-    S_g = 2,821 + 13,616 + 62,710 P_D + 4,592,341,856 + 700 J_D + 350 V_D + 175 = 6,924,290,022,308,
-    S_v = G S_g = 8,324,727,858,445,183,221,990,590,914,749,247,816.
-
-## 7. Sparse-set table and verification
-
-The table is a Briggs-Torczon sparse set over the 140-bit key, indexed by the candidate identifier. The key word
-k = key + 2^140 (Section 5.4) is its own sparse address: SPARSE[key] is the word at address k, in [2^140, 2^141).
-DENSE[x] is the word at address x (x < Q). The identifier register cid = h 2^48 + 256 i + e (Section 6.1) is the
-current candidate; it runs through 0, 1, ..., Q - 1 in probe order. The probe of the key word k (in its register)
-executes exactly, in two scratch registers s and f:
-
-```
-s = LOAD [k]                         1   (s is arbitrary if the word was never written)
-STORE [cid] = k                      1   DENSE[cid] = k, on every path
-f = (s < cid);  BRANCH f             2   bound test fails -> miss                   (6 with the miss)
-f = LOAD [s];  f = (f == k);  BRANCH f    3   dense test fails -> miss              (9 with the miss)
-hit:  verification of s against cid, then the increment                            (8)
-miss: STORE [k] = cid                1
-cid = cid + 1                        1   (every path)
-```
-
-Every candidate costs at most 9 table operations, charged as 9 Q. The probe uses no register beyond s, f, the key
-word and cid.
-
-**Lemma 8 (sparse set, any initial memory).** At the probe of candidate cid with key k: (a) DENSE[x] = key(x) for
-every x < cid; (b) for every key k' of a candidate x < cid, SPARSE[k'] holds the first candidate with key k'; (c) the
-probe hits iff some candidate x < cid has key k, and then it returns the first such candidate.
-
-*Proof.* Induction over probes. (a) The probe of x stores DENSE[x] = key(x) and no other probe writes word x. If some
-x < cid has key k, let x0 be the first: no candidate before x0 has key k, so by (c) the probe of x0 missed and stored
-SPARSE[k] = x0; SPARSE[k] is stored only by misses of key k, and every later probe of k hits by the same argument, so
-SPARSE[k] = x0 < cid and DENSE[x0] = k: the probe hits and returns x0. If no x < cid has key k, the word SPARSE[k] was
-never written and holds an arbitrary s: either s >= cid and the bound test fails, or s < cid and DENSE[s] = key(s) != k
-by (a); both miss, and the miss stores SPARSE[k] = cid, the first candidate with key k, preserving (b). DENSE is read
-only at s < cid, at written words. QED.
-
-No word is initialized and no initial content matters: Lemma 8 is the valid-access argument for the never-written
-sparse array.
-
-**Verification (charged 2664 operations: two six-round evaluations, 2 x 1271 = 2542, and at most 122 others).** The
-verification count F is a memory word: it is loaded, incremented, stored, compared with R140 and branched on (5); the
-current identifier is the cid register. The live registers (the 15 key words of the column step other than the one
-just probed, which is not read again, and cid; the chi phase holds no current value, Section 5.4) are stored to a
-fixed spill frame (16) and loaded back after the comparison (16), so the scalar schedule has the register file (at
-most 25 input and 25 output lanes, 5 D words and 2 rotation temporaries, beside the first digest and one identifier:
-62 registers; a constant lane is an immediate and needs none).
-
-- **The earlier candidate (62)**, a run-time identifier s: e = s AND 255; i = (s >> 8) AND (2^40 - 1);
-  c = ((e AND 15) << 4) OR (e >> 4); j = ((s >> 48) << 8) OR c; the record address CSB + 2j; two LOADs of t_j with
-  the second-word add; g(i) = i XOR (i >> 1) (17 together); for each byte b = 0..4 of g(i), v = (g >> 8b) AND 255
-  (one operation for b = 0) and from each of the two tables TB_{b,0} and TB_{b,1} the add of its base, a LOAD and
-  an XOR into word 0, resp. 1, of t_j (8 per byte, 7 for byte 0: 39); lanes 0..4 (6: lanes 0..2 by two shifts and
-  three 64-bit masks, lane 3 by one shift, the first word >> 192 being below 2^64, and lane 4 is the second word
-  itself, below 2^64).
-- **The current candidate (15).** Its probe runs in the code generated for Gray site i at emission e (Section 11.2),
-  so i and e are immediates there: the hit path of each emission holds CSB + 2c and the two words of
-  sum_b g(i)_b w_b. The rebuild is h = cid >> 48, two shifts to 2^9 h, the add of CSB + 2c, two LOADs with the
-  second-word add (7), two XORs with the immediate words (2) and the lanes as above (6).
-- **The six rounds (1271 per message).** Lanes 10..14 are the registers of lanes 0..4, and the fourteen zero lanes
-  and the padding lane 16 = 0x86 * 2^56 are immediates. The rounds run as code generated once with the folding rule
-  of Section 6.3 on 64-bit lanes: an operation is emitted only when its result is not fixed by the constants, a
-  constant operand is an immediate, NOT of a lane is XOR with the immediate 2^64 - 1, and the rotation of a data
-  lane costs two shifts, OR and AND (4). A round of data lanes costs 242 (theta parities 20, D 25 with one rotation
-  each, application 25, rho 96 for the 24 nonzero rotations, pi as register renaming, chi 75, iota 1). In round 0
-  every column parity is constant (lanes x and x + 10 cancel): 9 rotations (36), 17 XORs, 5 NOTs and 9 ANDs, 67;
-  round 1: 29 rotations (116), 70 XORs, 25 NOTs and 25 ANDs, 236; rounds 2 to 5: 242 each. In all 1271, no
-  permutation call, giving the native digest lanes 0..3. Folding changes no lane (the argument of Lemma 10 on 64-bit
-  lanes), and the pattern is the same for every message.
-
-Then at most four compares and branches (8). Total at most 5 + 2 * 16 + 62 + 15 + 8 = 122 besides the two six-round
-evaluations. If F reaches R140 the run stops (failure). The byte tables TB_{b,k} (b = 0..4, k = 0, 1) hold for each
-byte value v word k of the XOR of w_{8b+j} over the set bits j of v; the ten tables (2,560 words) are written once
-in preprocessing (Section 11.2).
-
-**Address map (words).** DENSE [0, Q) with Q < 2^128; coset records [2^130, 2^130 + 2C); the work region (frames,
-records, byte tables, spill words and the buffer) from 2^131, fewer than 2^48 words; generated code from 2^132, fewer
-than 2^56 words; SPARSE [2^140, 2^141). The regions are disjoint and every address is below 2^141.
-
-## 8. The algorithm CAMP
-
-```
-Preprocessing (once, Section 11.2): generate the code, constants w_b, masks and byte tables; check rank and the
-  780 polarizations of Lemma 3; h = 0; F = 0.
-Group h (repeated):
-  Setup (Section 6): leader step of the 256 cosets j = 256 h + c, each origin t_j drawn from two fresh random
-    words; the transpose of the origins into 320 bitplanes; for every |S| <= 8, in order of increasing |S|, the
-    constant-folded bit-sliced evaluation of the 256 lanes into A[S]; the transform; the phase conversion.
-  FES phase (Section 5.3): for p = 0..174, plane p over the Gray steps i = 1..2^40 - 1 into the buffer X[p][i].
-  cid = h 2^48.
-  Chi phase: for i = 0, 1, ..., 2^40 - 1 (Gray point i):
-    chi and transpose (Section 5.4) on the 175 values of point i (A[{}] at i = 0, the buffer otherwise):
-      the 256 key words of the candidates (h, i, e), e = 0..255
-    for e = 0..255: probe the key word (Section 7); on a hit with s: verification of s against cid;
-      if the digests are equal, output the two messages and stop; if F reached R140, stop with failure
-  h = cid >> 48; if h = G, stop with failure.
-```
-
-Every bound (G groups, 2^40 sites, R140 verifications) is a halt of the algorithm, and every candidate is probed
-exactly once, so the operation count of Section 10 is an upper bound for every run.
-
-## 9. Success
-
-Let G = 1,202,250,025,869,134,545,910,402, C = 256 G = 307,776,006,622,498,443,753,062,912 cosets,
-Q = 2^48 G = 338,403,298,031,900,219,834,956,980,958,854,643,712 candidates, lambda = Q(Q - 1)/2^257 =
-0.4944931595636236108406620045... and T40 = sum_{k=0..40} lambda^k / k!.
-
-**Lemma 9 (detection).** Suppose D holds (Lemma 7), the candidates contain two with equal digests, the run does not
-stop at the R140 cap, and there is no bad triple: candidates A, B, C, A not in {B, C}, with digest(B) = digest(C),
-key(A) = key(B) and digest(A) != digest(B). Then CAMP outputs a collision.
-
-*Proof.* Let C be the first candidate in probe order that has an earlier candidate B with the same digest, and k its
-key. By Lemma 8 the probe of C hits and returns the first candidate A0 with key k (A0 precedes or equals B). If
-digest(A0) = digest(B), the verification of A0 against C finds equal digests and CAMP outputs the two messages, which
-are distinct on D (Lemma 7). Otherwise A0 != B; A0 has the key of B and C and a different digest, a bad triple. QED.
-
-**Random variables.** Over CAMP's coins (the origins t_j), let F1 be the event that no two of the Q candidates have
-equal digests, X the number of unordered pairs of candidates with equal 140-bit keys, and Y the number of bad triples
-of Lemma 9. Let mu140 = Q(Q - 1)/2^141, r140 = ceil(mu140) = 41,080,884,463,506,626,072,264,787,223,246,591, the
-Chebyshev parameter kappa = 19,345,871,228,983 and R140 = r140 + ceil(sqrt(kappa r140)) =
-41,080,884,464,398,111,069,785,063,816,008,882.
-
-**Premise H_coset (Section 12).** Conditioned on D: (a) Pr[F1 | D] <= 1/T40; (b) E[X | D] <= mu140 and
-Var[X | D] <= mu140; (c) E[Y | D] <= lambda (Q - 2)/2^140 = 0.000120059210262853... .
-
-These are the bounds that independent uniform 256-bit digests of the Q distinct candidates give: (a) the probability
-of no equal pair is prod_{k=1}^{Q-1} (1 - k 2^-256) <= exp(-lambda) <= 1/T40 (T40 is a partial sum of exp(lambda));
-(b) the keys (140 digest bits XOR constants) are then uniform and the pair indicators pairwise independent (two pairs
-sharing a candidate agree with probability 2^-280), so Var X <= E X = mu140; (c) C(Q, 2) (Q - 2) 2^-256 2^-140 =
-lambda (Q - 2)/2^140. H_coset asserts these three bounds for CAMP's randomized enumeration; it is not proved.
-
-**Theorem.** Over CAMP's fresh coins and under H_coset, CAMP outputs a collision with probability greater than 0.39.
-
-*Proof.* If D holds, F1 fails, X < R140 and Y = 0, then CAMP outputs a collision: on D the candidates are distinct
-messages (Lemma 7); every verification follows a hit, which pairs the probing candidate with an earlier candidate of
-equal key, so the verification count stays at most X < R140 and the cap never stops the run; Lemma 9 applies. Hence
-
-    Pr[failure] <= Pr[not D] + Pr[F1 | D] + Pr[X >= R140 | D] + Pr[Y >= 1 | D].
-
-(0) Pr[not D] <= C(C, 2) 2^-280 = 2.4380395092434897...e-32 (Lemma 7, proved).
-(i) Pr[F1 | D] <= 1/T40 by (a).
-(ii) By (b) and Chebyshev's inequality, as R140 - mu140 >= ceil(sqrt(kappa r140)) >= sqrt(kappa mu140):
-Pr[X >= R140 | D] <= Var[X | D]/(R140 - mu140)^2 <= mu140/(kappa mu140) = 1/kappa.
-(iii) Pr[Y >= 1 | D] <= E[Y | D] <= lambda (Q - 2)/2^140 by (c) and Markov's inequality.
-The exact rational comparison of the four terms (integer numerators) gives
-
-    C(C, 2) 2^-280 + 1/T40 + 1/kappa + lambda (Q - 2)/2^140 = 0.6099999999999999999999999999530923062... < 61/100,
-
-G is the least group count for which this holds at this kappa (G - 1 gives a bound of at least 61/100), and kappa
-is the least parameter for which it holds at this G (kappa - 1 gives at least 61/100). Hence the success
-probability over the coins is greater than 0.3900000000000000000000000000469. QED.
-
-## 10. Cost ledger and certificate
-
-All charges are word operations of Section 5.1; no permutation call is made (verification evaluates the six rounds
-in word operations, Section 7).
-
-| term | value |
-|---|---|
-| FES, G F_g (Section 5.3) | 4,178,382,793,083,497,526,493,178,625,755,871,925,554 |
-| chi and transpose, G (4664 * 2^40 + 175 (2^40 - 1)) (Section 5.4) | 6,396,615,465,532,466,027,266,398,022,000,940,761,378 |
-| setup, S_v = G S_g (Section 6.5) | 8,324,727,858,445,183,221,990,590,914,749,247,816 |
-| table, 9 Q | 3,045,629,682,287,101,978,514,612,828,629,691,793,408 |
-| verification, 2664 R140 | 109,439,476,213,156,567,889,907,410,005,847,661,648 |
-| preprocessing, ONCE = 2^70 + 16 | 1,180,591,620,717,411,303,440 |
-
-    N = G F_g + G (4664 2^40 + 175 (2^40 - 1)) + G S_g + 9 Q + 2664 R140 + ONCE
-      = 13,738,392,144,974,667,284,566,679,098,024,512,693,244,
-
-about 40.5976 operations per candidate. The time is N/1626 target compressions, and the integer certificate
-
-    1626^100000 * 2^12266822 <= N^100000 < 1626^100000 * 2^12266823
-
-gives log2(N/1626) = 122.6682254..., so time_log2 = 122.66823 (rounded up at the fifth decimal).
-
-## 11. Memory, preprocessing and advice
-
-### 11.1 Memory
-
-SPARSE: 2^140 words (never initialized); DENSE: Q words; coset records: 2C words (the retained random origins); work:
-working frames 512, tile words 144, bitplanes 320, transpose words 3, input words 320, round buffers 5 * 1,600, D
-words 320, wrap words 5, coefficient and derivative records 2 * 175 * P_D, the byte tables 2,560, the
-verification-count word, 17 spill words and the buffer 175 (2^40 - 1), which every group reuses (fewer than 2^48
-words in all); generated code and its constants: fewer than 2^56 words. The regions are disjoint (Section 7) and
-every address is below 2^141, so memory is below 2^141 words of 32 bytes, below 2^146 bytes.
-
-### 11.2 Preprocessing: ONCE = 2^70 + 16 operations
-
-(a) **Code generation.** Each of the 175 (2^40 - 1) FES step sites (plane p, Gray step i) is decoded (the set bits of
-i, the record addresses of T_1..T_L in plane p and their cache and last-change flags) in fewer than 2^14 operations
-and emits at most 1 + 3 * 7 + 2 = 24 instructions; each of the 2^40 chi-phase sites is decoded (with the two
-words of sum_b g(i)_b w_b) in fewer than 2^14 operations and emits at most 4664 + 175 + 9 * 256 + 15 * 256 = 10,983
-instructions (the table steps of its 256 emissions and, on each hit path, the 15 operations of the current
-candidate, Section 7); the setup code (leader step, transpose, every point with the NOT pattern of w(S) and the
-folded rounds, transform pairs and phase terms) has one instruction per operation of S_g, fewer than 2^46, each
-generated in at most 16 operations; the folding pattern of the setup rounds (the same at every point) and the
-verification code (1,271 instructions per message, a rotation counted as its four) come from one symbolic pass over
-the 1,600 state words of each round and over the 25 lanes, fewer than 2^25 operations. In all fewer than 2^54
-instructions; at four words per instruction the code is below 2^56 words and is generated in fewer than 2^62
-operations.
-(b) **Constants and certificate.** The two-word forms of w_b, the eight butterfly masks, rank 40 and the 780
-polarizations of Lemma 3 (821 two-round evaluations): fewer than 2^25 operations.
-(c) **The search that produced W40.** Step 1: the linear parts of the 1600 coordinates before the chi
-of round 1 (affine in t by Lemma 2) from 321 evaluations (t = 0 and the 320 unit vectors). Step 2: greedy
-restriction: keep a list E of linear constraints in echelon form; while some product pair of round-1 chi (the forms f
-and g of adjacent coordinates a_{x+1}, a_{x+2} of one row and slice, 1600 pairs) is violated (f, g and f XOR g all
-nonzero modulo E), append the constraint among {f, g, f XOR g} of the violated pairs that occurs most often, then of
-minimum weight, then of smallest integer value; each step lowers the dimension by one, so at most 320 steps, each
-reducing at most 3200 forms against at most 320 pivots and sorting at most 4800 candidates; the result is the
-35-dimensional space spanned by w_0..w_34, checked by its 595 polarizations. Step 3: the kernel K of the linear map
-x -> (B(x, w_i))_{i<35} (columns from 320 x 35 x 4 two-round evaluations; Gaussian elimination of 320 vectors of
-56,000 bits), the polar form on a basis of K / span(w_0..w_34) (6 vectors, 15 polarizations), and a maximal totally
-isotropic extension (its radical and one line), giving w_35..w_39; then the rank and 780-polarization check above.
-With two-round evaluations below 2^12 operations each, steps 1 to 3 cost fewer than 2^34 operations.
-(d) **One-time control.** h = 0 and F = 0, at most 16 operations.
-(e) **Byte tables.** For each of the ten tables (b, k), b = 0..4, k = 0, 1: one zero STORE for v = 0, then each
-entry v = 1..255 from entry v - 2^j (j the lowest set bit of v) by LOAD, XOR with the immediate word k of w_{8b+j}
-and STORE: 10 (1 + 255 * 3) = 7,660.
-
-The total is below 2^62 + 2^35 + 16 + 7,660 < 2^70 + 16 = ONCE, which is in N. In target compressions
-ONCE/1626 < 2^59.34; the claim declares preprocessing_log2 = 59.34.
-
-### 11.3 Advice
-
-None. Every constant used by CAMP is produced by the procedures of Section 11.2, whose cost is in N.
-
-## 12. Premise H_coset and evidence
-
-**Statement.** Let the C = 256 G coset origins t_j be CAMP's coins: independent and uniform on F_2^320 (Section 6.1).
-For the Q messages they generate, with the fixed Gray enumeration of span(W40) inside each coset and CAMP's order
-(groups h = 0..G - 1, cosets j = 256 h + c, Gray points g(i)), and with F1, X, Y and D as in Sections 6.1 and 9,
-assume over the coins: (a) Pr[F1 | D] <= 1/T40 (no full collision); (b) E[X | D] <= Q(Q - 1)/2^141 and
-Var[X | D] <= Q(Q - 1)/2^141 (equal 140-bit keys); (c) E[Y | D] <= lambda (Q - 2)/2^140 (bad triples). These are the
-values for independent uniform digests of distinct messages (Section 9). Success is then a probability over CAMP's
-fresh coins; nothing is assumed about the randomness of the fixed target beyond (a) to (c).
-
-This is assumed, not proved. The concern it answers: on a coset every digest bit is a polynomial of degree at most 16
-in the 40 inner variables (Lemma 4 and the last chi), so equal-digest pairs inside a coset, or across random cosets,
-could be rarer than for uniform values.
-
-### 12.1 GPU evidence
-
-**Batches 1 to 3 (preregistered, our runs; Appendix A holds every text, program and raw count).** Three batches at six
-rounds, each fixed in a protocol file hashed before its runs (PREREG.txt, SHA-256
-67e381a2c0dececee0ce10a8ac4591304076a161259e1cb9045f2c87df54fa58; PREREG2.txt, SHA-256
-3b49de9f7c931d51a66ec7f31c2b0c4e3227bc8047cfd25ab5f727207bc01b4c; PREREG3.txt, SHA-256
-5f94fcd22a4d94dddeef79ebc91f47b858793804e7d47e6784862e46479efc6a): sizes, statistics and the pass rule (every count of
-the tested inputs at least expected - 4 sigma, sigma = sqrt(expected); no reruns). The GPU program computes real
-six-round SHA3-256 digests of the messages M(t) (validated against the organizer reference sha3_256(rounds=6) on
-2,048 of 2,048 digests for batches 1-2 and 512 of 512 for batch 3). Each run has 2^30 messages in ncos complete
-cosets of dimension n. Field runs (batches 1-2): uniform random origins, n random independent elements of span(W40);
-control runs (batches 1-2): uniform random origins, n random 320-bit directions; fixed-origin runs (batch 3): origins
-XOR(q_b : bit b of g(j) set) for j = 0..ncos - 1, q_0, q_1, ... the coordinate vectors that extend the ordered W40
-basis (an earlier fixed choice of origins), with the first n ordered vectors of W40 (the first 2^n Gray points
-of each coset). **Random origins:** all runs of batches 1 and 2 drew their coset origins uniformly at random
-(Appendix A.2, hc.py gen); they are the direct evidence for the premise as stated over random origins. Batch 3 shows
-that even fixed origins give no deficit. Counts are exact
-numbers of equal-key pairs: within-coset pairs with equal low 32 bits of digest lane L, expected
-ncos C(2^n, 2) 2^-32; global pairs among all 2^30 messages with equal low 44 bits of lane L, expected
-C(2^30, 2) 2^-44 = 32,767.99997; z = (count - expected)/sqrt(expected).
-
-| run | inputs | lane | within-coset pairs | expected | z | global pairs | z |
-|---|---|---|---:|---:|---:|---:|---:|
-| R1 | field, n = 20, 1024 cosets | 0 | 131,380 | 131,071.875 | +0.85 | 33,033 | +1.46 |
-| R2 | field, n = 20, 1024 cosets | 3 | 130,720 | 131,071.875 | -0.97 | 32,964 | +1.08 |
-| R3 | control, n = 20, 1024 cosets | 0 | 131,300 | 131,071.875 | +0.63 | 32,762 | -0.03 |
-| R4 | control, n = 20, 1024 cosets | 3 | 130,930 | 131,071.875 | -0.39 | 32,709 | -0.33 |
-| R5 | field, n = 24, 64 cosets | 0 | 2,097,299 | 2,097,151.875 | +0.10 | 32,651 | -0.65 |
-| R6 | control, n = 24, 64 cosets | 0 | 2,098,309 | 2,097,151.875 | +0.80 | 32,777 | +0.05 |
-| S1 | field, n = 20, 1024 cosets | 1 | 130,589 | 131,071.875 | -1.33 | 32,932 | +0.91 |
-| S2 | field, n = 20, 1024 cosets | 2 | 130,672 | 131,071.875 | -1.10 | 32,606 | -0.89 |
-| S3 | control, n = 20, 1024 cosets | 1 | 130,638 | 131,071.875 | -1.20 | 32,925 | +0.87 |
-| S4 | control, n = 20, 1024 cosets | 2 | 131,237 | 131,071.875 | +0.46 | 32,715 | -0.29 |
-| S5 | field, n = 28, 4 cosets | 0 | 33,555,785 | 33,554,431.875 | +0.23 | 32,648 | -0.66 |
-| S6 | field, n = 28, 4 cosets | 2 | 33,557,768 | 33,554,431.875 | +0.58 | 32,736 | -0.18 |
-| S7 | control, n = 28, 4 cosets | 0 | 33,566,477 | 33,554,431.875 | +2.08 | 32,926 | +0.87 |
-| D1 | fixed origins, n = 20, j = 0..1023 | 0 | 131,053 | 131,071.875 | -0.05 | 32,666 | -0.56 |
-| D2 | fixed origins, n = 20, j = 0..1023 | 3 | 131,447 | 131,071.875 | +1.04 | 32,846 | +0.43 |
-| D3 | fixed origins, n = 24, j = 0..63 | 1 | 2,095,169 | 2,097,151.875 | -1.37 | 32,689 | -0.44 |
-| D4 | fixed origins, n = 24, j = 0..63 | 2 | 2,095,504 | 2,097,151.875 | -1.14 | 32,710 | -0.32 |
-
-Verdict under the preregistered rule: all three batches pass. Over 17 runs, all four digest lanes and cosets of 2^20,
-2^24 and 2^28 messages, every count lies within 2.1 sigma of its expectation, no count is below expected - 1.4 sigma,
-and field, control and fixed-origin runs agree. A fourth preregistered batch at five rounds (Appendix A, context only)
-also passes, including one more random-origin run.
-
-**Batch W (preregistered, our runs; Appendix A.5).** One protocol, PREREG_W.txt (SHA-256
-9cf0977ec63ac39f391a26d6a2913ab846fd7853c1595a8a54d47078fe8b4573), fixed six runs before their inputs were generated:
-2^34 messages each, uniform random coset origins, one coset of dimension 34 (the first 34 ordered W40 vectors, 1/64 of
-a complete coset of CAMP) or 1024 cosets of dimension 24 (the first 24 ordered W40 vectors), at six rounds (W1, W2)
-and at five rounds (W4, W5, context), with random-direction controls W3 (six rounds) and W6 (five rounds). A second
-GPU program, hcw.cu (the digest code of hcoset.cu with a bucketed pair count), gives the exact number of
-equal-projection pairs among all 2^34 messages for the widths K = 36, 40, ..., 64 of six projections: the low K bits
-of each digest lane (L0 to L3) and two two-lane projections (X01: the low ceil(K/2) bits of lane 0 interleaved with
-the low floor(K/2) bits of lane 1; X23 the same for lanes 2 and 3). Expected for uniform digests:
-E(K) = C(2^34, 2)/2^K, from 2,147,483,647.9 at K = 36 to 8.0 at K = 64; sigma = sqrt(E (1 - 2^-K)), the exact
-standard deviation of a pair count of uniform values. Pass rule (one-sided; no reruns): every count of W1, W2, W4 and
-W5 has z >= -4 where E >= 1000, and an exact Poisson lower tail of at least 3.17e-5 where E < 1000 (K = 60, 64).
-Before the runs the GPU digests and keys were checked against the organizer reference at both round counts (1,536 of
-1,536, recorded in PREREG_W.txt); Appendix A.6 repeats the check on the run inputs.
-
-| run | rounds | inputs (2^34 messages, random origins) | counts | lowest z | highest z |
-|---|---:|---|---:|---:|---:|
-| W1 | 6 | 1 coset, first 34 W40 vectors | 48 | -2.45 (L1, K = 56) | +2.16 (L3, K = 48) |
-| W2 | 6 | 1024 cosets, first 24 W40 vectors | 48 | -3.14 (X23, K = 36) | +2.12 (L3 and X23, K = 64) |
-| W3 | 6 | control: 1 coset, 34 random directions | 48 | -2.63 (X23, K = 56) | +2.48 (L2, K = 44) |
-| W4 | 5 | as W1 | 48 | -1.77 (X23, K = 44) | +2.26 (X01, K = 52) |
-| W5 | 5 | as W2 | 48 | -1.26 (L0, K = 40) | +2.12 (L0, K = 64) |
-
-Verdict under the preregistered rule: pass. None of the 240 counts lies beyond 4 sigma; the lowest, z = -3.14 (W2,
-X23, K = 36), is a relative deficit of 6.8e-5 of about 2^31 expected pairs. W6 was stopped by us at 20 minutes of run
-time without a result line (Appendix A.5, w.log); it is a control, outside the pass rule, reported and not replaced.
-
-### 12.2 Organizer-executed tests
-
-The declared experiments hcoset-within16 and hcoset-cross16 (Section 13) test a reduced-width form of (a) and (b) at
-every organizer run, on the run's own six-round digests: per experiment 2^17 digests, one group of 256 cosets whose
-origins come from the trials' coins (the organizer's seeds), the first 2^9 Gray points of each coset, projected to 16
-and 24 digest bits (bits 0..3, resp. 0..5, of lanes 0..3). For uniform values every expectation below is exact and the
-pass intervals are the expectation +- 4 standard deviations.
-
-- Pair rates by class. The program stops (the experiment fails) unless each count lies in its interval: pairs inside
-  one coset agreeing on 16 bits (33,488,896 pairs, expectation 511, interval [421, 601]); pairs across two cosets
-  agreeing on 16 bits (8,556,380,160 pairs, expectation 130,560, [129115, 132005]) and on 24 bits (expectation 510,
-  [420, 600]). Pair indicators of uniform values are pairwise independent, so each variance is n p (1 - p) exactly.
-- Existence of an agreeing pair, the event that (a) bounds at full width. In hcoset-within16 each trial returns two of
-  the 512 points of its own coset that agree on the 16 bits; in hcoset-cross16 a point a < 256 of its own coset and a
-  point b >= 256 of the partner coset, whose origin is independent. The organizer recomputes both digests of every
-  returned pair; the trials' message sets are disjoint, so for uniform values the successes are Binomial(256, P):
-  P = 1 - prod_{i<512} (1 - i/2^16) = 0.864841510863844 (expectation 221.40, standard deviation 5.47, pass interval
-  [200, 243]) and P = 0.632121969489614 (exact, from the occupancy law of one set; 161.82, 7.72, [131, 192]). A pair
-  deficit or clustering, the dependence that (a) excludes, lowers these counts.
-
-Run locally on the requests that the organizer's runner builds from its public seed, the two experiments give 224 and
-165 successes and the group counts (pairs16_within, pairs16_cross, pairs24_cross) = (513, 131,526, 500) and (485,
-130,615, 519), all inside their intervals; two runs of each are byte-identical. Scope: this is the organizer-executed
-part of the evidence. It reaches 16 and 24 bits, 2^17 digests per run and 9-dimensional sub-cosets, not 256 bits,
-complete cosets or Q messages, and it does not measure the key-match variance or triples at 140 bits.
-
-### 12.3 Sensitivity
-
-Suppose the pair-collision rate of CAMP's messages is (1 - eps) of uniform: the expected number of equal-digest pairs
-is (1 - eps) lambda, and (a) becomes Pr[F1 | D] <= 1/T40((1 - eps) lambda), with T40(x) = sum_{k<=40} x^k/k!; (b) and
-(c) keep their values (a lower pair rate does not raise them). For each eps the table gives the success bound of
-Section 9 at this N (G and kappa unchanged; exact rational comparison with the printed value), and the least G at
-which the failure bound, with the same kappa, is again below 61/100 (exact comparison; G - 1 fails), with the ledger
-N of Section 10 at that G and the integer E of its certificate 1626^100000 2^(E - 1) <= N^100000 <
-1626^100000 2^E, so time_log2 = E/100000 (rounded up at the fifth decimal); extra is that time_log2 minus the claim,
-close to -(1/2) log2(1 - eps) in every row. Only the row eps = 0 is claimed.
-
-| eps | success at this N | least G | N at that G | E | time_log2 | extra |
-|---:|---:|---:|---:|---:|---:|---:|
-| 0 | > 0.39 | 1,202,250,025,869,134,545,910,402 | 13,738,392,144,974,667,284,566,679,098,024,512,693,244 | 12,266,823 | 122.66823 | 0 |
-| 0.01 | > 0.386976 | 1,208,310,394,929,860,051,769,630 | 13,808,199,848,717,445,574,424,908,359,501,653,091,524 | 12,267,554 | 122.67554 | 0.00731 |
-| 0.05 | > 0.374732 | 1,233,502,149,326,011,439,979,945 | 14,098,436,263,582,001,265,330,443,203,244,377,390,214 | 12,270,555 | 122.70555 | 0.03732 |
-| 0.10 | > 0.359083 | 1,267,326,018,839,002,222,734,854 | 14,488,275,173,184,530,570,448,955,663,089,112,535,836 | 12,274,490 | 122.74490 | 0.07667 |
-| 0.25 | > 0.309746 | 1,388,387,996,102,778,879,505,654 | 15,885,001,522,036,501,004,488,966,638,787,378,976,916 | 12,287,768 | 122.87768 | 0.20945 |
-
-**Scope and extrapolation.** The evidence covers projections of at most 64 digest bits: 32-bit within-coset and 44-bit
-global projections of single lanes on 2^30 messages (batches 1 to 3), 36- to 64-bit projections of single lanes and
-of two-lane projections on 2^34 messages (batch W), and the organizer-executed 16- and 24-bit tests on 2^17 messages
-per run (Section 12.2); sub-cosets of dimension 9 to 34 of span(W40); random origins (batches 1, 2 and W and the
-organizer-executed tests) and fixed origins (batch 3). No count shows a pair deficit beyond the preregistered
-thresholds. The premise extrapolates to the full 256-bit digest and its 140-bit key, to complete 40-dimensional
-cosets, to C = 256 G random cosets and to Q messages: the full 256-bit collision event, the key-match variance and the
-triple bound are not measured; they are the premise, and the table above gives the effect of a shortfall in the pair
-rate.
-
-**Limits.** No proof is known. Image size and balance do not imply the premise: a balanced linear map onto F_2^256 can
-be injective on every translate of a campaign space, so its campaigns contain no collision at all. No such structure is
-known for the native function and none is excluded by proof. The GPU batches are our runs; the organizer executes the
-tests of Section 12.2.
-
-## 13. Experiments
-
-`experiments/fes_campaign.py` (Python standard library) serves the three declared experiments. Each run executes the
-schedule of Sections 5 to 7 at a reduced size on the organizer's trials. fes-campaign-reduced checks the event of the
-claim (two distinct messages with equal 256-bit digests; none expected at this size); hcoset-within16 and
-hcoset-cross16 then run the premise test of Section 12.2, whose checked event is that the two returned digests agree
-on bits 0..3 of lanes 0..3 (a 16-bit mask event, not a collision). The request must name one of the three experiments
-with its event.
-
-- Once per run: the program's six-round SHA3-256 equals the organizer reference on M(0) and M(w_0 XOR w_39)
-  (hard-coded known-answer digests), and its 24-round version equals hashlib.sha3_256 on both; rank(W40) = 40; the 780
-  polarizations of Lemma 3 vanish. A failed check stops the program.
-- Groups: trials 256g .. 256g + 255 form one group; its index is h = int(seed of the group's first trial, 16) mod G,
-  and trial k is lane c = k mod 256 of the cosets j = 256 h + c of Section 6.1. The leader step draws the origin t_j
-  of lane c from the trial's own coins: its two random words (one counted RAND each) are the two halves of SHAKE-256
-  of the trial's seed. This seed expansion only makes the run reproducible; it is not the attack's randomness, which
-  is the fresh random-word primitive of Section 6.2.
-- Reduced size: the first 2^9 Gray points of each coset (directions w_0..w_8), D = 8, all 175 planes, the full
-  140-bit key and the sparse-set table of Section 7 with Q' = 2^17 candidates and the verification cap of the same
-  formula (4,398,396).
-- Every operation of the leader step, the setup schedule, the FES phase, chi and transpose, the table and
-  verification runs through a counting machine (one call per primitive of Section 5.1; no permutation call; the
-  generated code of the folded rounds runs one instruction, one primitive, at a time), and the program stops unless
-  the executed counts equal the formulas above: 11 per coset leader and 5 per group; 13,616 for the transpose; at
-  every point 640 + popcount(w(S)) for the input, 1,978, 11,659, 14,735, 14,733 and 14,735 for rounds 0 to 4 and
-  4,230 for the linear step, with the popcount sum 13,530 of the formula of Section 6.3 at n = 9;
-  4 * 175 J_D and 2 * 175 V_D for transform and phase; the step count of Section 5.3 at every plane and Gray step and
-  62 + Sc + 2^9 - 1 - U = 3,799 per plane (Sc = 3,419 and U = 193 by the formulas of Section 5.3 at n = 9), 2 per
-  group for the spill, every buffer word written once and 175 buffer reads per point i >= 1, 175 point-zero loads,
-  4664 per point, 6 / 9 / 8 table operations per candidate (each probe), 7,660 for the byte tables, 62 for the
-  earlier and 15 for the current candidate, 67, 236, 242, 242, 242 and 242 for the six folded rounds of each, and at
-  most 2664 operations per verification, the 16-register spill included. It also checks
-  Sc61 = 18,760,331,006,174, U = 19,311,426 and pop_D = 4,592,341,856 at n = 40.
-- The counted bit-sliced setup of Section 6.3 runs on all 256 lanes at all 511 points. The bitplanes must equal the
-  origins bit for bit, and every coefficient record must equal, on every lane, an independent evaluation that is not
-  counted (rounds 0 and 1 by Lemma 3 (b), then rounds 2 to 4 and the linear step). Never-written sparse
-  words read as a fixed pseudo-random function of their address, either a word of at least 2^255 or h 2^48 plus a
-  value below 2 Q', so fresh keys often reach the dense test (arbitrary initial memory; the dense words of earlier
-  groups do not exist in a one-group run); a read of a never-written work, dense or coset word stops the program.
-- Beside the algorithm, not counted: at point i the message of lane i mod 256 is hashed natively and its 140 key bits,
-  with bit 140 set, are compared with the emitted key word (key_mismatch); after the run the first candidate's key is
-  probed again (a valid hit, 8 operations) and verified against the candidate (i, e) = (1, 5), with the
-  reconstructed sources and digests compared with the native ones.
-- Also beside the algorithm, in fes-campaign-reduced: own_pairs16, the number of unordered pairs of the trial's own
-  512 candidates whose emitted keys agree on their low 16 bits (bits 0..3 of digest lanes 0..3). Uniform digests give
-  C(512, 2)/2^16 = 1.996 per trial and 511 per 256 trials; a local 256-trial request gave 527 (z = +0.71).
-- Premise test, in hcoset-within16 and hcoset-cross16, not counted. Key bit 4z + x is digest bit z of lane x (RC[5]
-  cancels in an equality), so key bits 0..15 and 0..23 are the 16- and 24-bit projections of Section 12.2. The program
-  counts pairs16_within, pairs16_cross and pairs24_cross over the group's 2^17 keys and stops unless each lies in its
-  pass interval. Trial k (lane c) then returns the first repeat of key bits 0..15 among the 512 points of its own coset
-  in Gray order (hcoset-within16), or the first point b >= 256 of coset c XOR 1, in Gray order, whose key bits 0..15
-  equal those of a point a < 256 of coset c, with that a (hcoset-cross16). Each returned pair is hashed natively and
-  must agree on the mask; a trial without such a pair returns two nulls. A full collision among 2^17 messages
-  (probability below 2^-222) would be returned by trial 0 instead, without the test.
-
-In fes-campaign-reduced the program reports 16 numbers per trial: own_pairs16 (its own coset), and 15 that are the
-same for all trials of a group: fes_ops = 664,827 (175 * 3,799 + 2); buffer_reads = 89,425 (175 * 511); chi_transpose_ops = 2,387,968
-(4664 * 512); table_ops = 6 (2^17 - x - m) + 9 x + 8 m with x = in_range_mismatches and
-m = key_matches; sparse_inserts = 2^17 - m; leader_ops = 2,821 (11 * 256 + 5); setup_group_ops = 13,616 (the
-transpose); setup_point_ops = 32,058,340 (62,710 * 511 + 13,530); transform_phase_ops = 2,419,200;
-verify_check_ops (at most 8 + 2664); perm_calls = 0; native_checks = 512; key_mismatch = 0. In hcoset-within16 and
-hcoset-cross16 it reports, the same for all trials of the group, these 15 without buffer_reads and sparse_inserts
-(checked inside the program) and pairs16_within, pairs16_cross and pairs24_cross. The program also asserts
-point_zero_loads = 175 and once_ops = 7,662 (control 2, byte tables 7,660) without reporting them. No trial of
-fes-campaign-reduced returns a pair: a 256-bit collision among 2^17 messages has probability below 2^-222. Nothing
-about cost is inferred from the runs, and the premise tests are evidence at 16 and 24 bits, not at 256 bits.
-
-## 14. Credits
-
-- GPT Sol cloud: the two-round affine field and its certificate.
-- GPT Sol local and GPT Luna: the exact ledger (initialization, schedule, setup, table and success).
-- Grok: transpose and table code, executed operation counts, the schedule savings of jobs 64, 67 and 70 (constant
-  folding, the verification schedule, the Chebyshev parameter) and the executed bit-sliced setup of job 69.
-- Bouillaguet, Chen, Cheng, Chou, Niederhagen, Shamir and Yang, CHES 2010: fast exhaustive search by Gray-code finite
-  differences.
-- Th0rgal (76ccfa1c): the earlier remark that the digest's degree in a 32-bit counter is at most 32 (prior context).
-- rubenmarcus (91f1424d, sha3-256-r5): earlier use of degree-4 Gray-order finite differences in this contest, there to solve connector equations (prior context).
-- Jbenisek, with the daydream panel (compiler and accountant voices, our agents): the preregistered H_coset runs,
-  the kernel checks, the schedule levers, the package and the experiment program with its premise tests.
-
-## Appendix A. H_coset evidence: preregistrations, programs and raw counts
-
-Everything below is copied byte for byte from our working files; for each text the SHA-256 is that of the
-file, which equals the SHA-256 of the lines of its block, each ending in LF (the one exception, w_analysis.txt in
-A.5, is marked there). Internal labels inside the texts
-(D17, D19, D23, SOLCLOUD_12, SOLCLOUD_16) name our working notes: "D19 Section 6" is the fixed choice of origins
-of batch 3 described in Section 12, the W40 order is that of Section 3, and SOLCLOUD_12_INPUT_keccak.py is a
-byte-identical copy of the organizer reference verifier/keccak.py (SHA-256
-95ce77dff0476301c05057e01296f3e3507c4926423257540cfc3e5fd36ee0ae).
-
-### A.1 Preregistrations
-
-Each protocol was written and hashed before any count run of its batch. Decimal expectations quoted inside the
-texts are approximations; the stated formula ncos C(2^n, 2)/2^32 governs (PREREG.txt misprints the n = 24 value
-as 2147483616.0; the formula gives 2,097,151.875). The z values of A.3 use the exact formulas.
-
-**PREREG.txt** (SHA-256 67e381a2c0dececee0ce10a8ac4591304076a161259e1cb9045f2c87df54fa58, recorded in PREREG.sha256 when written):
-
-```
-PREREGISTRATION - H_coset evidence for the SHA3-256 r6 low-degree route (written 2026-10-09 before any main run)
-
-Premise to support (H_coset): a campaign of N messages enumerated as whole cosets of the certified 2-round-affine field
-W40 (research/sha3r6/lowdegree/RESULT.md) contains an equal-digest pair with probability at least the value for N
-independent uniform 256-bit digests. Concern: the digest on a coset is a degree-16 function of the coset variables,
-so pairs inside a coset or across cosets of one field could be rarer than uniform.
-
-Program: hcoset.cu (real 6-round SHA3-256, organizer round function, 135-byte single block; GPU digests validated
-2048/2048 against SOLCLOUD_12_INPUT_keccak.py sha3_256(rounds=6) before this file). Exact pair counts
-(sum over equal-key runs of C(len,2)) on a projection of the digest: within-coset (low 32 bits of a digest lane,
-pairs only inside one coset) and global (low KG bits of the lane, all messages).
-
-Main runs (seeds fixed here; inputs from hc.py gen MODE SEED N NCOS):
-  R1 field seed 1001, n=20, 1024 cosets, KG=44, lane 0     R2 same inputs, lane 3
-  R3 ctrl  seed 1001, n=20, 1024 cosets, KG=44, lane 0     R4 same inputs, lane 3
-  R5 field seed 1002, n=24, 64 cosets,  KG=44, lane 0      R6 ctrl seed 1002, n=24, 64 cosets, KG=44, lane 0
-Expected under the uniform model: within32 = ncos * C(2^n,2) / 2^32 (R1-R4: 131071.97; R5-R6: 2147483616.0... per
-formula), global = C(2^30,2) / 2^44 (32767.97). Sigma = sqrt(expected) (Poisson).
-
-Pass criterion (one-sided, the premise only needs no deficit): for every field run R1, R2, R5 and both counts,
-observed >= expected - 4 sigma. Report two-sided z for all runs, field and control. A field deficit beyond 4 sigma
-on any count = H_coset NOT supported; reported as such, no reruns with other seeds.
-Scope: this is evidence at 32- and 44-bit projections, not a proof for 256 bits; stated as such in any filing.
-```
-
-**PREREG2.txt** (SHA-256 3b49de9f7c931d51a66ec7f31c2b0c4e3227bc8047cfd25ab5f727207bc01b4c, recorded in PREREG2.sha256 when written):
-
-```
-PREREGISTRATION 2 - H_coset, second batch (written 2026-10-09 23:55, after batch 1 PASSED; same program hcoset.cu,
-same pass rule). Purpose: cover the two digest lanes batch 1 did not test (1 and 2) and much larger cosets.
-
-Runs (inputs from hc.py gen MODE SEED N NCOS; seeds fixed here):
-  S1 field seed 2001, n=20, 1024 cosets, KG=44, lane 1     S2 same inputs, lane 2
-  S3 ctrl  seed 2001, n=20, 1024 cosets, KG=44, lane 1     S4 same inputs, lane 2
-  S5 field seed 2002, n=28, 4 cosets,    KG=44, lane 0     S6 same inputs, lane 2
-  S7 ctrl  seed 2002, n=28, 4 cosets,    KG=44, lane 0
-Expected (uniform digests): within32 = ncos * C(2^n,2) / 2^32  (S1-S4: 131071.97; S5-S7: 4 * C(2^28,2)/2^32 =
-33554431.5); global = C(2^30,2)/2^44 = 32767.97. Sigma = sqrt(expected).
-Pass (one-sided): every field count (S1, S2, S5, S6; both counts) >= expected - 4 sigma. Two-sided z reported for all.
-A field deficit beyond 4 sigma on any count = H_coset NOT supported; reported as such; no reruns with other seeds.
-```
-
-**PREREG3.txt** (SHA-256 5f94fcd22a4d94dddeef79ebc91f47b858793804e7d47e6784862e46479efc6a, recorded in PREREG3.sha256 when written):
-
-```
-PREREGISTRATION 3 - H_coset on the DETERMINISTIC input sequence of D19 Section 6 (written 2026-10-10 00:36, before
-any run of this mode; same program hcoset.cu, same pass rule as batches 1 and 2).
-
-Sequence: ordered W40 basis (SOLCLOUD_16 Appendix B order, then c0..c4 of D17 section 9) extended by standard
-coordinate vectors e_i = 1 << i (i increasing; bit 64k+b = bit b of source lane k) whenever they raise the rank;
-q_0, q_1, ... the appended vectors; coset j has representative t_j = XOR(q_b : bit b of g(j) set), g(j) = j ^ (j>>1).
-Inside a coset the points are t_j + span of the FIRST n ordered W40 vectors (the first 2^n Gray points of the route's
-enumeration of that coset). Inputs: hc.py gen det SEED N NCOS (SEED only names the file; nothing is random).
-
-Runs:
-  D1 det 3001, n=20, cosets j = 0..1023, KG=44, lane 0      D2 same inputs, lane 3
-  D3 det 3002, n=24, cosets j = 0..63,   KG=44, lane 1      D4 same inputs, lane 2
-Expected (uniform digests): within32 = ncos * C(2^n,2) / 2^32 (D1-D2: 131071.875; D3-D4: 2097151.875 approx. by the
-formula); global = C(2^30,2)/2^44 = 32767.97. Sigma = sqrt(expected).
-Pass (one-sided): every count >= expected - 4 sigma. Two-sided z reported. A deficit beyond 4 sigma on any count =
-H_coset NOT supported for the deterministic sequence; then the package uses random coset origins (batches 1-2) instead.
-No reruns with other parameters.
-```
-
-**PREREG_R5.txt** (SHA-256 0a98c8a57288c2403d3082da7484dac332eec8ded347a7666a9b7e30df109876, recorded in PREREG_R5.sha256 when written):
-
-```
-PREREGISTRATION R5 - H_coset at FIVE rounds (sha3-256-r5: prefix rounds 0-4), for the r5 low-degree line (D23).
-Written 2026-10-10 01:55, before any 5-round count run. Same program hcoset.cu (rounds from HC_ROUNDS=5; GPU digests
-validated 512/512 against the organizer sha3_256(rounds=5) on the deterministic sequence before this file), same
-deterministic input sequence as PREREG3 (D19 Section 6 representatives; points t_j + span of the first n ordered W40
-vectors), same pass rule.
-
-Runs (HC_ROUNDS=5; inputs from hc.py gen det SEED N NCOS and hc.py gen field/ctrl SEED N NCOS):
-  P1 det 4001, n=20, cosets j = 0..1023, KG=44, lane 0      P2 same inputs, lane 3
-  P3 det 4002, n=24, cosets j = 0..63,   KG=44, lane 1      P4 same inputs, lane 2
-  P5 field 4003 (random origins), n=20, 1024 cosets, lane 0  P6 ctrl 4003, n=20, 1024 cosets, lane 0
-Expected (uniform digests): within32 = ncos * C(2^n,2) / 2^32 (n=20, 1024 cosets: 131071.875; n=24, 64 cosets:
-2097151.875); global = C(2^30,2)/2^44 = 32767.97. Sigma = sqrt(expected).
-Pass (one-sided): every field/det count >= expected - 4 sigma. Two-sided z reported. A deficit beyond 4 sigma on any
-count = H_coset NOT supported at r5; reported as such; no reruns with other parameters.
-```
-
-### A.2 GPU program and driver
-
-hcoset.cu computes real SHA3-256 digests (organizer round function, rounds from HC_ROUNDS, default 6) of the
-135-byte one-block messages M(t) for t = origin_c XOR (subset sum of the n directions), and counts exact
-equal-key pairs (sum of C(len, 2) over equal keys after a sort). hc.py writes the inputs: for MODE field and
-ctrl the origins are rng.getrandbits(320) with rng = random.Random("MODE-SEED"), uniform random 320-bit
-origins; MODE det writes the fixed origins of batch 3. hc.py imports from our working folder cube_degree.W (the
-ordered W40 list of Section 3, checked equal), cube_degree.rank (GF(2) rank) and cube_degree.kec (the organizer
-verifier/keccak.py above).
-
-**hcoset.cu** (SHA-256 28c40823a37afd1d22fb487b5ab77622c2036e5bc6763a330d83d1a9f66069f8):
-
-```cpp
-// H_coset test: real 6-round SHA3-256 (organizer round function, single 135-byte block, zero capacity) on messages
-// enumerated as whole cosets: message lanes u = start_c ^ XOR_{j: bit j of p} dir_j, embedded as in cube_degree.py
-// (u0..u4 in lanes 0-4 and 10-14, lane 16 = 0x86<<56). Counts exact equal-key pairs (sum over runs of C(len,2)):
-//   within-coset at 32 bits (key = coset id << 32 | low 32 bits of digest lane L) and global at KG bits.
-// usage: hcoset count <infile> <n> <ncos> <KG> <lane>     -> one JSON line
-//        hcoset dump  <infile> <n> <ncos> <M> <outfile>    -> first M digests (4 lanes each), for validation
-// infile: ncos*5 u64 starts then n*5 u64 directions (little endian).
-#include <cstdio>
-#include <cstdlib>
-#include <cstdint>
-#include <vector>
-#include <thrust/device_vector.h>
-#include <thrust/sort.h>
-#include <thrust/transform_reduce.h>
-#include <thrust/iterator/counting_iterator.h>
-typedef unsigned long long u64;
-
-__constant__ u64 RC[6] = {0x0000000000000001ull, 0x0000000000008082ull, 0x800000000000808Aull,
-                          0x8000000080008000ull, 0x000000000000808Bull, 0x0000000080000001ull};
-__constant__ int NROUNDS = 6;   // set from the HC_ROUNDS environment variable (5 or 6)
-__constant__ int RHO[25] = {0, 1, 62, 28, 27, 36, 44, 6, 55, 20, 3, 10, 43, 25, 39, 41, 45, 15, 21, 8, 18, 2, 61, 56, 14};
-__constant__ u64 DIRS[64 * 5];
-
-__device__ __forceinline__ u64 rotl(u64 x, int r) { return r == 0 ? x : (x << r) | (x >> (64 - r)); }
-
-__device__ void digest(const u64 *starts, int n, u64 idx, u64 out[4]) {
-    u64 c = idx >> n, p = idx & ((1ull << n) - 1), u[5];
-    for (int k = 0; k < 5; k++) u[k] = starts[c * 5 + k];
-    for (int j = 0; j < n; j++)
-        if (p >> j & 1)
-            for (int k = 0; k < 5; k++) u[k] ^= DIRS[j * 5 + k];
-    u64 A[25], B[25], C[5], D[5];
-    for (int k = 0; k < 25; k++) A[k] = 0;
-    for (int k = 0; k < 5; k++) { A[k] = u[k]; A[10 + k] = u[k]; }
-    A[16] = 0x86ull << 56;
-    for (int r = 0; r < NROUNDS; r++) {
-        for (int x = 0; x < 5; x++) C[x] = A[x] ^ A[x + 5] ^ A[x + 10] ^ A[x + 15] ^ A[x + 20];
-        for (int x = 0; x < 5; x++) D[x] = C[(x + 4) % 5] ^ rotl(C[(x + 1) % 5], 1);
-        for (int y = 0; y < 5; y++)
-            for (int x = 0; x < 5; x++) B[y + 5 * ((2 * x + 3 * y) % 5)] = rotl(A[x + 5 * y] ^ D[x], RHO[x + 5 * y]);
-        for (int y = 0; y < 5; y++)
-            for (int x = 0; x < 5; x++)
-                A[x + 5 * y] = B[x + 5 * y] ^ (~B[(x + 1) % 5 + 5 * y] & B[(x + 2) % 5 + 5 * y]);
-        A[0] ^= RC[r];
+# SHA3-256 round 6: resynthesized register step and compact checkpoint search
+
+## 1. Claim and resources
+
+This package prices an ordinary distinguished-point birthday search for two distinct 128-byte messages with the same `sha3-256-r6-prefix-v1` digest. It claims no weakness in full SHA3-256. Under H1 in Section 6, one bounded attempt succeeds with probability at least 0.39.
+
+The exact ledger has N = 35365839573689163998150249571824361251543 word operations. One target compression costs C = 1626, so `log2(N/C) = 124.0323687642467400606714396723026325270967582274419052062779115384278463312139326826948117306734844562611649936557178484163387690137227278425959969012203812655098149309882005624392756917196067567724771248191874200866023633103087261079460380134662825` and the upward-rounded claim is **124.03237**. Peak memory is 710297 bytes. Preprocessing is 184030978853888 word operations and no nonuniform advice.
+
+Under `hashsmash-scalar-tm-v1` the rank is `time_log2 + max(0, memory_log2_bytes - 20)`
+with one-MiB memory units floored at one unit. Peak memory is 710,297 bytes, below
+2^20 = 1,048,576, so the memory term is zero and the projected scalar score equals the time
+bound, **124.03237**. The `collision-frontier-v5` score metric is `timeLog2` and that model
+records memory as a reviewed metric with no scalar contribution, so both readings agree
+here. The promoted incumbent on this track stands at 124.03648; this package is 0.00411
+lower. `baseline_improved` names the organizer nominal reference and asserts no improvement
+over it: at 6 of 24 rounds this bound is above the nominal 128-bit reference and the
+construction is an ordinary distinguished-point birthday search.
+
+## 2. Target and chain function
+
+Write the 256-bit point as four little-endian lanes u0..u3. The one-block message has lanes 1, 6, 11 equal to `u0, u1, u0 xor u1 xor K11`; lanes 4, 9, 14 equal to `u2, u3, u2 xor u3 xor K14`; all other rate lanes are fixed. The remaining absorbed state includes SHA3 suffix `0x06` and pad10*1. This map is injective. Define `g(u) = SHA3-256-r6(m(u)) xor PD`. Equal values of g for different points give equal digests for different messages because the common PD cancels.
+
+The 25 lane constants in lane order are:
+
+`0000000000000000 0000000000000000 e612b8e44c9e9b1c 0000000000000000 0000000000000000 ffffffffffffffff 0000000000000000 0000000000000000 0000000000000000 0000000000000000 ffffffffffffffff b984ae391327a6c1 0000000000000000 9cc2571c8993d363 8cf6a38dd9b0b271 ffffffffffffffff 8000000000000006 0000000000000000 0000000000000000 0000000000000000 0000000000000000 0000000000000000 0000000000000000 0000000000000000 0000000000000000`
+
+PD is `77858ceb7afeef63 2a754023590aaa98 007820040d081089 8808331404011015`. The normative emitter in `experiments/compact.py` derives PD again from the emitted circuit and rejects a mismatch.
+
+## 3. Bit-sliced register step
+
+One 256-bit register word carries one bit plane for 256 walks. Round 0 and the theta of round 1 are affine in the point. Later theta columns are built in z order, chi rows use the cheapest exact complement subset and optional 10-gate dependency, and the last round retains only four digest lanes. The frozen plan contains the C/D complements and compact chi decisions for every row. It is bound by SHA-256 `bc0efa7a784bb0eedabe0b682baa64b1ab0532bd850efffe37bc5ada6f05c0be`.
+
+The emitted straight-line register program has 26527 operations: 19147 XOR, 3577 AND, 3079 OR and 724 NOT. Lowest-free last-use allocation names registers 0..1928. It contains 383 14-bit, 16773 25-bit and 9371 36-bit encoded records, 16815 with destination equal to the first operand. Its measured stored size is 95256 bytes and SHA-256 is `800513de5f99fa3d6e9893b2ac9a841a94bfd24ad41be7ef014c66dec29bc252`.
+
+### 3.6 Registers and code encoding (machine conventions H_reg and H_code)
+
+**Registers.** Input and digest plane j use register j. Each other value receives the lowest free register allowed by its last use. Values in registers above 255 are dead between steps and may be reused by handlers. The straight line uses registers 0 through 1928; persistent search state begins at register 1929. The declared file has 1940 words, or 62080 bytes, all included in Section 5.
+
+**H_reg (declared machine convention, role supporting in claim.json).** The cost model and target profile fix no register count. This package uses the 256-bit word RAM of collision-frontier-v5 with the declared 1940-register file above. An operation on register operands costs one word operation, with no load or store. Every load and store in the assembled other code is an explicit charged word operation. H_reg affects the time and memory ledgers, not the success bound.
+
+**H_code (declared code-memory charging convention, role supporting in claim.json).** The cost model and target profile fix no code encoding.
+
+- **Encoding.** Each straight-line instruction has register operands only. Bits 0..1 give XOR, AND, OR or NOT and bit 2 flags destination equal to the first operand. With that flag, NOT carries one 11-bit register and a binary operation carries two; without it, NOT carries destination and source while a binary operation carries destination and two sources. Commutative operations swap operands when the destination equals the second. Records are packed without inter-record padding in a little-endian bit stream. The straight-line file is 95256 bytes. The separate prefilter is a 15-operation OR chain from digest planes 240 through 255 into register 1933: first `OR R_PREFILTER,240,241`, then `OR R_PREFILTER,R_PREFILTER,plane`. It uses the same encoding, occupies 49 bytes, and has SHA-256 `9d37c799e6735d7583803750971187fe83f8ee186f5b3c9b9313b928bd45ce49`. The two files occupy 95305 bytes under H_code.
+- **Other code.** Setup, loop control, handlers, restart, replay and output are assembled as 1002 fixed 8-byte instruction words followed by 12 distinct 32-byte literal words, 8400 bytes total, SHA-256 `0026e7ffc96cc4ded46b98e040e743596254f8c9b64e46a2e9cebe33140454ca`. A word has a 5-bit opcode, one literal flag, three 11-bit register fields and a 25-bit immediate or literal index. The assembled operations are model primitives; each is charged as the word operation it performs, except PERM at C operations. Loads and stores are explicit among those instructions.
+- **Time ledger.** The straight line contributes one charged word operation for each logical XOR, AND, OR or NOT under H_reg. H_code determines only the stored code bytes charged in memory. The bounded C emitters and organizer experiment reconstruct the encodings, hashes and functional program.
+
+### Construction campaign
+
+The construction first builds the exact chained-chi table. For each of 32 input polarities and 32 requested output polarities it enumerates every complement subset, every trick mask except the five-cycle, and every mixed-term polarity mask. A non-trick output anchors the row; outputs are then built backward, and a trick reads the already computed next output using `(not out[k]) and b[k+1] = (not b[k]) and b[k+1]`. Before use, the builder evaluates each selected entry on all 32 concrete row inputs and requires ordinary chi and the requested output polarity. The 1,024-entry C and Python tables have the same FNV-1a checksum `c8fa4bd9170966dc`.
+
+The generator then builds all 512 S3-04 trials without annealing and retains the lowest eight counts. Each retained trial runs deterministic one-round-lookahead annealing for 200,000,000 iterations per planned round. A state move flips one C complement, one D complement, or an output-polarity subset. Current and lookahead row costs come from the verified chained table. The objective is 16 times current exact row cost plus 3 times the next-round lower bound. For `x = -3.1780538303479458*i/200000000`, the declared temperature is `19.2*E(x)`, where `E(x) = (1+y+y^2/2+y^3/6+y^4/24)^64` and `y=x/64`; acceptance uses the same deterministic bounded exponential. Ties retain the earlier deterministic choice. That campaign ran at nr = 20, where trial 1333 wins with 118445 operations. This package reuses the resulting frozen plan at nr = 6 without re-running the search: plan rows `FG 2` through `FG 5` are live, rows `FG 6` through `FG 19` are inert and are never read by the emitter, and round 5 becomes the last round, so its complement masks and chi decisions were searched in a non-last-round context. The masks are representation choices and the emitter compensates polarity symbolically, so the circuit is correct at this nr: the self-test re-derives PD and every hash, and the organizer experiment checks two chained bit-sliced steps against scalar selected-round Keccak. It is not plan-optimal, and a fresh search at this nr would likely emit fewer operations. The operation count stated in Section 3 above is this package's own emitted count, not trial 1333's nr = 20 count. Lowest-free allocation and the two-address packer then emit the frozen program. The charged ledger below totals the chained-table build and verification, every cheap build, every TOPK process, every annealing move, and the separate emitter, hashing and verification work.
+
+## 4. Search, table, and controller
+
+The attempt starts 256 walks from `rho + trail_number`. It advances all walks through the step, applies a 15-OR prefilter, and handles exact distinguished points with probability `630 * 2^-121`. The table has 16488 256-bit words and 82440 slots. Each word has five 51-bit slots: written bit followed by 50 endpoint bits. The word and slot position encode the trail number, so no trail number is stored in a slot. The 256 live walks use one packed word apiece: low 128 bits are the start step and high 128 bits are the positional trail number.
+
+On a prefilter hit, 256 stores copy the carried planes to a scratch matrix. Charged indexed loops gather or replace one lane; 256 fixed loads restore the planes. A matching endpoint starts the final replay. Replay measures the stored trail while keeping every `G = ceil(LRC/(S-1)) = 2687423885757092749185025704247`-th point in the now-free table, advances the other trail to alignment, locates the merge segment by checkpoints, then lock-steps only that segment. With `e = C+29 = 1655`, at most one replay costs `(2e+17)LRC + (3e+20)G + 17*nck + e + 93 = 147424640958166104101746264353840690602` operations.
+
+The assembled controller and handlers have the H_code size and hash stated in Section 3.6. Their register-register, immediate, compare, branch, jump, load, store and random-word instructions each contribute their explicit word operation; PERM contributes C. The step peaks at register 1928; the controller places its first persistent register at 1929 and declares 1940 words, so the lifetimes do not overlap. The controller permits at most HMAX = 49488991847959593483692939797331969 prefilter hits and aborts on hit 49488991847959593483692939797331970; that exact abort value is a checked controller literal and the input to F5 below.
+
+Setup initializes `remaining = Tb = 1326445901334107559259970314262544384`. Every continuation path executes `remaining -= 1`, branches to the step only while the result is nonzero, and otherwise reaches HALT. The exact-byte experiment starts `remaining` at three, supplies only no-DP prefilter results, requires exactly two back-edges, and then requires the charged-limit HALT. Thus every path stops by the batch bound or at an earlier charged halt.
+
+## 5. Exact operation and memory ledgers
+
+`BSTEP = 26527 + 15 + 2 + 2 = 26546`. The added terms are the emitted prefilter ORs, its compare and branch, then the count-down subtract and conditional back-edge. Main work is `35211832896815219268115171962413503217664`, this package's own `Tb * BSTEP`. Replay is `147424640958166104101746264353840690602`, the closed form of Section 4 evaluated at this round's `e = C + 29 = 1655`. The hit, DP, probe, restart, setup, cap and final-halt paths contribute `6582035915778625933331161026038489389` and preprocessing contributes `184030978853888`; those two terms are carried from the r20 package and Section 9 shows that each bounds this package's own figure. Their sum is N above.
+
+| preprocessing phase | class | word operations |
+|---|---|---:|
+| 512-trial cheap constant scan | word operations | 2199023255552 |
+| eight sequential full graph campaigns | word operations | 67276367724544 |
+| eight sequential annealing campaigns | word operations | 111411200000000 |
+| chained row-table candidate evaluations in ten sequential processes | word operations | 1300234240 |
+| chained row-table exhaustive truth checks in ten sequential processes | word operations | 83886080 |
+| row-table setup and deterministic selection | word operations | 10485760 |
+| constant derivation and comparisons | word operations | 524288 |
+| structured affine basis | word operations | 16777216 |
+| native parameter scan bins and fixed work | word operations | 3074137325568 |
+| normative step, prefilter and controller emission | word operations | 30582272 |
+| streaming SHA-256 of basis, step and controller | word operations | 56950784 |
+| construction-time step parsing, field, and ledger verification | word operations | 31630848 |
+| exact Decimal certificate and package rendering | word operations | 68719476736 |
+
+The search memory is:
+
+| region | bytes |
+|---|---:|
+| step program (H_code) | 95256 |
+| prefilter (H_code) | 49 |
+| other code and literal pool (H_code) | 8400 |
+| register file | 62080 |
+| table | 527616 |
+| transpose scratch | 8192 |
+| packed walk words | 8192 |
+| data image | 512 |
+| online stack | 0 |
+| replay checkpoints (alias table) | 0 |
+| **search total** | **710297** |
+
+The online controller uses link registers and zero stack. Replay checkpoints alias the table after a match, when the ordinary endpoint table is no longer needed. Construction phases run sequentially before the search; their measured memory ledger follows the search table and their lifetimes do not overlap it.
+
+| sequential construction phase | image bytes | stack reserve | measured VmHWM | retained input/output | charged peak |
+|---|---:|---:|---:|---:|---:|
+| 512-trial cheap scan | 329527 | 262144 | 417792 | 18432 | 610103 |
+| TOPK full build 1 | 329527 | 262144 | 417792 | 51625 | 643296 |
+| TOPK full build 2 | 329527 | 262144 | 413696 | 51625 | 643296 |
+| TOPK full build 3 | 329527 | 262144 | 413696 | 51625 | 643296 |
+| TOPK full build 4 | 329527 | 262144 | 417792 | 51625 | 643296 |
+| TOPK full build 5 | 329527 | 262144 | 417792 | 51625 | 643296 |
+| TOPK full build 6 | 329527 | 262144 | 417792 | 51625 | 643296 |
+| TOPK full build 7 | 329527 | 262144 | 413696 | 51625 | 643296 |
+| TOPK full build 8 | 329527 | 262144 | 413696 | 51625 | 643296 |
+| structured-basis file verification | 9766 | 16384 | 32768 | 22999 | 55767 |
+| native finite parameter scan | 12286 | 16384 | 28672 | 73 | 28745 |
+| streaming native step emission | 423581 | 98304 | 438272 | 413080 | 934965 |
+| streaming step SHA-256 | 9766 | 16384 | 24576 | 413080 | 439230 |
+| construction-time step parsing, field, and ledger verification | 9298 | 16384 | 24576 | 413080 | 438762 |
+| native 15-OR prefilter emission | 8254 | 16384 | 24576 | 49 | 24687 |
+| streaming prefilter SHA-256 | 9766 | 16384 | 28672 | 49 | 28721 |
+| native8 controller emission | 50645 | 16384 | 57344 | 8400 | 75429 |
+| streaming controller SHA-256 | 9766 | 16384 | 28672 | 8400 | 37072 |
+
+Every phase ran alone under `prlimit --as=1048576` and its listed stack cap. The charged peak is `max(VmHWM,image+stack)+retained input/output`; this deliberately charges an entire generated program even though the emitters stream it. Construction peaks at 934965 bytes, measured on the r20 emission of the inherited campaign; this package's straight line is smaller, so that row bounds it. Search peaks at 710297 bytes. The claimed peak is their maximum, 710297 bytes.
+
+## 6. Probability space, H1, and success
+
+The real attempt samples one uniform 256-bit rho. Everything afterward is deterministic. H1 is the following single aggregate comparison:
+
+H1 is one premise. Let A_g be this bounded attempt on the fixed deterministic walk g. In the real algorithm's probability space, only the fresh uniform word r is random. Let F be a uniformly random function on 256-bit values, independent of r, and let P_F = Pr_(r,F)[A_F succeeds] for the same attempt with each g evaluation replaced by lazy sampling from F. H1 asserts only the aggregate comparison Pr_r[A_g succeeds] >= P_F. Appendix A proves P_F >= 0.39. The following clauses are properties of comparator F used by that proof, not additional premises about g: outputs at distinct fresh inputs are uniform and independent; its iterates have the random-mapping first-collision law; a fresh output satisfies the exact distinguished-point predicate with its stated probability independently of prior collision bookkeeping; and after any lazy-sampling history, a fresh input maps to any fixed earlier output with probability 2^-256. H1 assigns no per-history conditional probability to deterministic g because the history determines r and hence all later g outputs. The aggregate success comparison is the only heuristic step.
+
+### Lazy-sampling order and first coincidence
+
+Let `M = 2^256`, `L = 256`, `theta = 630 / 2^121`, `q = 1-theta`, and `E = L*Tb`. Comparator F starts undefined. Evaluations are ordered first by batch and then by lane. A fresh input is one not queried earlier in that order; it receives a new independent uniform image and stores it. A repeated input returns its stored image and consumes no new random value. For bookkeeping, attach an independent candidate image `V_t` to every evaluation position and use it exactly when that position's input is fresh. Its DP indicator is Bernoulli(theta), independently across t.
+
+This also proves the restart domination used by F2. A fresh-input DP uses one Bernoulli indicator. A DP returned at a repeated input was already the endpoint of the earlier trail that first exposed it, so the table lookup finds that record and enters replay instead of consuming a new trail number. Thus the number of DP restarts is at most the number of DP indicators among `V_1..V_E`.
+
+Outside the start part of F4, every queried input before the first image coincidence is fresh. If the first m images are distinct, the next fresh uniform image avoids them with probability `1-m/M`. Hence `pi_e = product_(m=0)^(e-1)(1-m/M)` is the exact no-coincidence probability through e fresh evaluations, and the first coincidence is a stopping time with mass `pi_(e-1)*(e-1)/M = pi_(e-1)-pi_e`. In particular `1-pi_e >= B(e) = 1-exp(-e(e-1)/(2M))`, using `1-x <= exp(-x)` term by term. No independence is asserted for the fixed target g.
+
+### Conditional DP-tail lemma
+
+Suppose the first coincidence occurs at evaluation t with earlier partner s. The two trails then follow a common functional-graph path. Let l be the number of further evaluations on that path before its first DP. Without conditioning on firstness, `Pr[l>=j]=q^j`. Firstness reveals that the preceding images were distinct, so the following comparison controls the conditioning rather than assuming independence.
+
+Given the first `m=t-1` DP indicators, with fewer than U ones outside F2, images are uniform within the `theta*M` DP values and the `(1-theta)*M` non-DP values. Comparing their without-replacement products with `pi_m` bounds the relative deviation by
+
+`Delta = U*E/M + E^2*theta/(2M) + U^2/(2*theta*M) = 4.8359525202541534942256638908983861189812216092296326327469927043306618689838140446698686739029671634505904273141193730875134601124695369175502232142857142857142857142857142857142857142857142857142857E-34`.
+
+Appendix A checks `Delta < 2^-109`. The upper product ratio is `(1-E/M)^(-U) = 1.0000000000000000000000000000000002417623121883373883523121065861231479941112815674869928863810458190162276186634375402114863411630772211512665212377381081531418584113949255108916440248011359197646072` and the Bayes ratio is at most `R=(1-E/M)^(-U)/(1-Delta) = 1.0000000000000000000000000000000007253575642137527377748784956759621106717075169816032968875288411101453066137556446764280627573300624436159937317896489962949806680099993161223792475321929788645303965 <= 1+2^-108`. This requires the checked nonempty DP and non-DP partitions and `E/M <= 1/2`.
+
+The Bayes calculation uses a masked filtration: it reveals the equality structure and the indicators of other walks but integrates over the DP indicators on the suffix currently selected by the common path. This is a probability calculation over comparator F; the operational run may already have exposed that suffix.
+
+For the base case, write the first coincidence as `V_t=V_s`, `s<t`, with s on the older walk A. Evaluations of one continuing lane occur 256 indices apart. Therefore A evaluates each later common-path point first: its relevant indices are `s+256, s+2*256, ...`, all before B reaches the same respective points at `t+256, t+2*256, ...`. The tail length l is the first `k>=1` with `xi_(s+256k)=1`. For every fixed completion of these suffix indicators, the equality `V_t=V_s` has probability exactly `1/M`; fresh `V_t` is uniform after `V_s` is fixed. The event that `(t,s)` is the first pair differs between indicator completions only through D, the distinctness of `V_1..V_(t-1)`. The product bounds above place `Pr[D | indicators]` between `pi_m*(1-Delta)` and `pi_m*(1-E/M)^(-U)`. Bayes' formula thus bounds the conditional law of A's masked suffix by R times its iid Bernoulli(theta) law, proving `Pr[l>=j | first pair (t,s), masked history] <= R*q^j`.
+
+The induction invariant is the same likelihood-ratio bound R for the masked suffix of the older trail at every later merge. Suppose the common path enters a point p whose continuation belongs to a third trail C, first evaluated at index u. The filtration records p and the merge equality but withholds the indicators `xi_(u+256), xi_(u+2*256), ...` of C's selected continuation. At the fresh evaluation that created the merge, equality with fixed p has conditional probability exactly `1/M` for every completion of those withheld indicators. That common factor cancels in Bayes' numerator and denominator. No new firstness event is imposed after `(t,s)`, so the distinct-prefix ratio R is not multiplied. This proves the inductive step. Repeating it over every merge preserves `Pr[l>=j] <= R*q^j`; a DP ends the path and can only shorten l.
+
+The excess `R-1 <= 2^-108` adds at most `2^-108` to a bin sum whose weights total at most one and at most `2^-108*F6` to the replay-tail subtraction. These enter once as `FL = 2^-108*(1+F6)`. This product-comparison and masked-suffix argument follows the structure published by credited entry `20eb70ca-366a-4fbd-9594-4fa85f158a0b` and is re-derived here with this package's U, E, theta and LRC.
+
+For bin `j = 1..J`, the common tail l lies in `((j-1)W,jW]` with iid reference mass `q^((j-1)W)-q^(jW)`. Put `n_j = L*(Tb-jW)`. If the first coincidence occurs among those `n_j` positions, the tail finishes by the deadline. The covered term is therefore
+
+`Pcov = sum_(j=1)^J (q^((j-1)W)-q^(jW))*B(n_j)`.
+
+Here `J = 69905`, `W = 633825300114114700748351602688`, and `J*W = LRC = 44307557604477188155813518785904640`. The experiment asserts that equality and recomputes every term in order.
+
+### Failure bounds F2 through F6
+
+F1 is the covered event counted by `Pcov`. The remaining named terms are upper bounds subtracted from it.
+
+- F2, table exhaustion. The restart domination above gives `X <= Binomial(E,theta)` with mean `mu = E*theta = 80471.219251155853271484375000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000`. Starting the `(U-L+1)`-st replacement trail needs at least `k=U-L=82184` such fresh DP outputs. For `k>mu`, the exponential-moment Chernoff bound is `Pr[X>=k] <= exp(-mu+k*(1+ln(mu/k)))`. Appendix A asserts its strict precondition.
+- F3, a coincidence within one trail. If a trail has geometric length A, then a union bound over its input pairs is `A*(A-1)/(2M)`. Since `E[A*(A-1)/2]=q/theta^2 <= 1/theta^2`, at most U trails contribute `F3=U/(theta^2*M)`.
+- F4, starts/replay boundaries and endpoint aliases. The U starts are fixed distinct translations of rho. Comparing them with at most E exposed inputs and images, plus the four selected replay boundary values, gives the explicit union bound `2*U*(E+4)/M = 4.8352462437667477670462421317224623754419370582498990814927230813382754327931946096474217243136157821895862753833613701827336862869004353118121215130336462613549020765741460548339802905104534147540107E-34 <= 2^-90`. Replay otherwise re-evaluates already exposed trail points and creates no new F sample. For aliases, conditioning on the DP predicate leaves the low 50 stored bits uniform. Fewer than `U*(U-1)/2` pairs therefore contribute less than `U^2*2^-51`.
+- F5, hit-cap abort. Let X' count steps in which at least one fresh input has a 16-bit-prefilter image. Conditional on every prior adaptive choice, its one-step probability is at most `1-(1-2^-16)^256 = 0.00389866021631819777212921699057604228934907591347168173766934280389107431763886868964603102771424503147662168070206359168124436875563141323855886959184928433004874414589474610857484934350677083543632 < 2^-8`. Outside F4, a hit not counted by X' requires a repeated input and therefore occurs only after the first coincidence. Outside F6 the attempt stops within LRC later steps, so `hits <= X'+LRC`. Abort at hit 49488991847959593483692939797331970 therefore requires `X' >= h-LRC = 5181434243482405327879421011427330`. For the supermartingale `exp(s*X'_t-(exp(s)-1)*t/256)`, multiplicative Chernoff with `mu'=Tb/256=5181429302086357653359259040088064.00000000` and `delta=9.536743164062500000000000003859938799502057693648455539806599680402885584762688388210490300376409036908642326109783193224630242747329317517912407024974779477769136700328977714010890654473991469E-7>2^-20` gives exponent `-mu'*delta^2/(2+delta) = -2356240125386426341793.5359356231991878161194442580232028034535217093261954979668872426316278284684093874687837187587059103902305952787444210257610465136849859332688481405455145756998361839143745607314`. This is below `-1000*ln(2)`, so F5 is safely rounded up to `2^-1000`.
+- F6, replay-cap refusal for the first-collision pair. Define an evaluation's age as its position in its current trail. Before the first coincidence, `Pr[age>=a] <= q^(a-1)`. Put `g(a)=min(1,q^(LRC+1-a))`. Summation by parts gives `E[g(age)] <= q^LRC + LRC*theta*q^LRC = G6`, where `G6=0.00031667206278890493147751918392665261643025029051423959929495529161996152885454777106180254515383109569845280083703091648398449619236172968257429797443421883287732836229703531009720296887137848883417358`. For a first-collision pair with ages a and b, refusal is bounded by `g(max(a,b)) <= g(a)+g(b)`, producing `2*G6`. Given fewer than U DPs, the distinct-prefix conditioning costs `(1-E/M)^(-U)`. Summing first-collision mass telescopes because `(t-1)*pi_(t-1)/M=pi_(t-1)-pi_t`. Finally `ln(1-x)>=-x-x^2` for `0<=x<=1/2` gives `1-pi_E <= 1-exp(-E^2/(2M)-E^3/(3M^2)) = 0.39219986422859216320962855998398785803227971663134774250643564775962471000143379649294346888946237469869803372998891745365223677793563949099743849731381176095656876178781085455829312578928410618143810`. Hence `F6=2*G6*(1-exp(-E^2/(2M)-E^3/(3M^2)))*(1-E/M)^(-U)`.
+
+The conditioning lemma contributes `2^-108*(1+F6)` after the same lazy-sampling exposure, and `2^-60` covers all numerical approximation and bin-boundary rounding. A union bound gives
+
+`P_F >= Pcov - F2 - F3 - 2^-90 - U^2/2^51 - F5 - F6 - 2^-108*(1+F6) - 2^-60`.
+
+Every exponential and logarithm is evaluated with 200-digit Decimal arithmetic. The certificate counts at most 4478016 final-scale rounded operations. Recurrence multipliers lie in `[0,1]`; all other probability-scale intermediates are below four; integer products through `E^2` are exact and the only larger power is divided by `M^2`. The subtraction `q=1-theta` has absolute error below `1e-199`; on the live domain `q>1/2`, logarithm propagation and multiplication by `LRC<1e36` remain below `2e-163`. The audited `1e-140` final-scale allowance per counted operation is therefore conservative. Its accumulated bound is `4.478016E-134 < 2^-200`, strictly below the subtracted `2^-60` numerical term. Appendix A records 200-digit values and outward intervals by moving every endpoint one representable value outward. Its computed comparator-F bound is `0.39000000100893169635571528749243769938549682679120376397273046820937097830053366886552323272984604902280450211507298764194915861683568901882430340090679603824923948337297548455813900594513814919182329`, a margin of `1.00893169635571528749243769938549682679120376397273046820937097830053366886552323272984604902280450211507298764194915861683568901882430340090679603824923948337297548455813900594513814919182329E-9` above 0.39. The outward-rounded lower endpoint is `0.39000000100893169635571528749243769938549682679120376397273046820937097830053366886552323272984604902280450211507298764194915861683568901882430340090679603824923948337297548455813900594513814919182328 >= 0.39`; the preceding allowed Tb grid point is `0.38999999988001382652894024974508532215440647359061991312544547090451464667561690534994773597454350304807242064782681088349536179823691528039343902551835580590058295390677655147066760098685970719551153 < 0.39`.
+
+Support for H1 is positive and specific. The algorithm is the parallel collision search of Paul C. van Oorschot and Michael J. Wiener, "Parallel Collision Search with Cryptanalytic Applications", Journal of Cryptology 12(1):1-28, 1999, DOI 10.1007/PL00003816. Generic entries in this track use the same random-function premise. The six-lane affine embedding separates circuit savings from the generic collision law. A collision-hazard deficit can be priced by scaling the comparator hazard and rerunning Appendix A. The emitted-program, scalar target, table, restart and replay checks test consistency of the exact program used by the ledger.
+
+## 7. Organizer experiments
+
+`experiments/compact.py` contains compressed source text, not prebuilt program bytes. It invokes the step emitter and controller emitter, checks their counts, lengths and hashes, parses the exact emitted streams as experiment tooling, and executes the reconstructed programs. It tests the upper and rejected boundaries of every 11-bit step field, every 8-byte-code register and 25-bit immediate/literal field, the literal pool, all five 51-bit slots, and the first invalid table position. It checks two chained bit-sliced steps against scalar selected-round Keccak, evalF against scalar g, gather/setwalk, all slot probe positions, restart packing, replay success, replay refusal, and the all-no-DP limit halt. The `success-certificate` experiment also recomputes Appendix A at 200-digit precision. Each response row returns the same projected pair derived from the first request seed. The projection probe evaluates 512 seed-derived points and returns the first pair whose chain images agree on the declared 12-bit mask; the birthday expectation is 512*511/2/4096 = 31.9, so a pair is found with probability above 1 - 2^-45 and the sentence above holds for effectively every organizer seed. This probe is a scaled-down demonstration of the chain and the masked event, not a measurement of the attack: the full search is the Tb-step distinguished-point run priced in Section 5.
+
+## 8. Credit
+
+This is a credited derivative of `fe76bfc4-6a5b-4883-b428-50796e22c9a3`, the direct round-20 incumbent. `20eb70ca-366a-4fbd-9594-4fa85f158a0b` supplies the wider one-round-lookahead S3-04 generator, lowest-free allocation, two-address encoding, positional five-slot table, one-word walk and checkpoint replay; for round 10 it is also the direct incumbent and is credited only once. `d258ba65-054d-4098-bbac-0b974fee36c8` supplies the chained-chi identity and pinned-output row minimization used at every round in this family. This package independently integrates that identity into the free C/D lookahead search and exhaustively verifies its own table. It also credits `3509abf0-ecab-457b-8d5d-ea8aec5d5e8c` for the structured-constant lineage and `911bffce-8e7a-4502-90ab-c69a473fff48` for our compact-controller lineage. Credit is not an endorsement and none of those authors reviewed this package.
+
+## Appendix A. Outward-rounded success certificate
+
+```json
+{
+  "computed_bound": "0.39000000100893169635571528749243769938549682679120376397273046820937097830053366886552323272984604902280450211507298764194915861683568901882430340090679603824923948337297548455813900594513814919182329",
+  "computed_previous": "0.38999999988001382652894024974508532215440647359061991312544547090451464667561690534994773597454350304807242064782681088349536179823691528039343902551835580590058295390677655147066760098685970719551153",
+  "covered_success": {
+    "lower": "0.39026410805702264388024168816391629386521325955252999671897150378721582852899605728402154787948264219227102271210953848710526589534322817598325799789076806322889331607587475711881598826640465915542857",
+    "upper": "0.39026410805702264388024168816391629386521325955252999671897150378721582852899605728402154787948264219227102271210953848710526589534322817598325799789076806322889331607587475711881598826640465915542859"
+  },
+  "failure_intervals": {
+    "endpoint_alias": {
+      "lower": "0.0000030181873000856285216286778450012207031249999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999",
+      "upper": "0.0000030181873000856285216286778450012207031250000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "hit_cap_F5": {
+      "lower": "9.3326361850321887899008954472381716961709144637170802462171433979596691097577563445444032709788110235959498993032424262421548752135403239484152081720393075623441066613832515027399507598590183151110048E-302",
+      "upper": "9.3326361850321887899008954472381716961709144637170802462171433979596691097577563445444032709788110235959498993032424262421548752135403239484152081720393075623441066613832515027399507598590183151110050E-302"
+    },
+    "lemma_conditioning": {
+      "lower": "3.0822533448515148916196899124384346839659164097164955383001063496233598379080379206450709380789429643628351818586443157338372545444807376994334601834853146616378167422719216641231686356727380109414975E-33",
+      "upper": "3.0822533448515148916196899124384346839659164097164955383001063496233598379080379206450709380789429643628351818586443157338372545444807376994334601834853146616378167422719216641231686356727380109414977E-33"
+    },
+    "numeric_rounding": {
+      "lower": "8.6736173798840354720596224069595336914062499999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999E-19",
+      "upper": "8.6736173798840354720596224069595336914062500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001E-19"
+    },
+    "replay_cap_F6": {
+      "lower": "0.00024839748006159345339076688438166839005899097330434186624086613215455955100887153697241887437598705662887424323276502344096440167034952401407131633108251234454081687480021672312260948439635925184666765",
+      "upper": "0.00024839748006159345339076688438166839005899097330434186624086613215455955100887153697241887437598705662887424323276502344096440167034952401407131633108251234454081687480021672312260948439635925184666767"
+    },
+    "self_coincidence_F3": {
+      "lower": "0.000012677597080498866213151927437641723356009070294784580498866213151927437641723356009070294784580498866213151927437641723356009070294784580498866213151927437641723356009070294784580498866213151927437641",
+      "upper": "0.000012677597080498866213151927437641723356009070294784580498866213151927437641723356009070294784580498866213151927437641723356009070294784580498866213151927437641723356009070294784580498866213151927437643"
+    },
+    "start_replay_collision": {
+      "lower": "8.0779356694631608874161005084957309918536338955163955688476562499999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999E-28",
+      "upper": "8.0779356694631608874161005084957309918536338955163955688476562500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001E-28"
+    },
+    "table_exhaustion_F2": {
+      "lower": "1.3783648768709039114385614086739975126765272066619390765612491007771762520145212900874126402254133525163955703109053707924802532013382525770124003747942926811734390552082586307023342299743088913226467E-8",
+      "upper": "1.3783648768709039114385614086739975126765272066619390765612491007771762520145212900874126402254133525163955703109053707924802532013382525770124003747942926811734390552082586307023342299743088913226469E-8"
     }
-    for (int k = 0; k < 4; k++) out[k] = A[k];
+  },
+  "hit_abort": 49488991847959593483692939797331970,
+  "hit_limit": 49488991847959593483692939797331969,
+  "key_bits": 50,
+  "margin_above_target": "1.00893169635571528749243769938549682679120376397273046820937097830053366886552323272984604902280450211507298764194915861683568901882430340090679603824923948337297548455813900594513814919182329E-9",
+  "parameters": {
+    "DK": 10,
+    "DPLO": 145,
+    "DT": 630,
+    "HF": 111,
+    "HIT_ABORT": 49488991847959593483692939797331970,
+    "HMAX": 49488991847959593483692939797331969,
+    "J": 69905,
+    "LRC": 44307557604477188155813518785904640,
+    "NR": 20,
+    "PFLO": 240,
+    "PFN": 16,
+    "S": 16488,
+    "SB": 15,
+    "Tb": 1326445901334107559259970314262544384,
+    "U": 82440,
+    "W": 633825300114114700748351602688
+  },
+  "preconditions": {
+    "available_gt_mean": true,
+    "bins_cover_replay_cap": true,
+    "conditioning_delta_lt_2^-109": true,
+    "conditioning_ratio_le_1_plus_2^-108": true,
+    "dp_partition_nonempty": true,
+    "evaluation_fraction_le_half": true,
+    "fresh_hit_delta_gt_2^-20": true,
+    "fresh_hit_threshold_gt_mean": true,
+    "fresh_step_probability_lt_2^-8": true,
+    "hit_threshold_equals_abort_minus_lrc": true,
+    "replay_cap_below_deadline": true,
+    "start_replay_bound_le_2^-90": true,
+    "table_has_initial_walks": true
+  },
+  "probability_inputs": {
+    "age_g6": "0.00031667206278890493147751918392665261643025029051423959929495529161996152885454777106180254515383109569845280083703091648398449619236172968257429797443421883287732836229703531009720296887137848883417358",
+    "available_restarts": 82184,
+    "coincidence_upper": "0.39219986422859216320962855998398785803227971663134774250643564775962471000143379649294346888946237469869803372998891745365223677793563949099743849731381176095656876178781085455829312578928410618143810",
+    "conditioning_delta": "4.8359525202541534942256638908983861189812216092296326327469927043306618689838140446698686739029671634505904273141193730875134601124695369175502232142857142857142857142857142857142857142857142857142857E-34",
+    "conditioning_dp_term": "1.2383859224625986893939656578934064069517807235807262844619732903136569543026520737579890659877232142857142857142857142857142857142857142857142857142857142857142857142857142857142857142857142857142857E-34",
+    "conditioning_inflation": "1.0000000000000000000000000000000002417623121883373883523121065861231479941112815674869928863810458190162276186634375402114863411630772211512665212377381081531418584113949255108916440248011359197646072",
+    "conditioning_partition_term": "1.1799434759081809213085771671437485243369509859512362481353319072506377959102767888899338272536902226333109522382613931767991743981838226318359375E-34",
+    "conditioning_ratio": "1.0000000000000000000000000000000007253575642137527377748784956759621106717075169816032968875288411101453066137556446764280627573300624436159937317896489962949806680099993161223792475321929788645303965",
+    "conditioning_start_term": "2.417623121883373883523121065861231187692489899697670100149687506766367118770885182021945780661553726531565189361572265625E-34",
+    "evaluations": 339570150741531535170552400451211362304,
+    "fresh_hit_delta": "9.536743164062500000000000003859938799502057693648455539806599680402885584762688388210490300376409036908642326109783193224630242747329317517912407024974779477769136700328977714010890654473991469E-7",
+    "fresh_hit_mean_upper": "5181429302086357653359259040088064.00000000",
+    "fresh_hit_threshold": 5181434243482405327879421011427330,
+    "fresh_step_probability_exact": "0.00389866021631819777212921699057604228934907591347168173766934280389107431763886868964603102771424503147662168070206359168124436875563141323855886959184928433004874414589474610857484934350677083543632",
+    "fresh_step_probability_upper": "0.00390625",
+    "hit_chernoff_exponent": "-2356240125386426341793.5359356231991878161194442580232028034535217093261954979668872426316278284684093874687837187587059103902305952787444210257610465136849859332688481405455145756998361839143745607314",
+    "mean_dp": "80471.219251155853271484375000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "prefilter_bits": 16,
+    "start_replay_union_bound": "4.8352462437667477670462421317224623754419370582498990814927230813382754327931946096474217243136157821895862753833613701827336862869004353118121215130336462613549020765741460548339802905104534147540107E-34",
+    "theta_denominator_bits": 121,
+    "theta_numerator": 630
+  },
+  "round": 20,
+  "rounding": "200-digit Decimal; every interval moved one representable value outward",
+  "rounding_audit": {
+    "accumulated_absolute_bound": "4.478016E-134",
+    "accumulated_lt_2^-200": true,
+    "charged_numeric_term": "8.67361737988403547205962240695953369140625E-19",
+    "operation_bound": 4478016,
+    "per_operation_absolute_bound": "1E-140",
+    "precision_digits": 200
+  },
+  "schema": "hashsmash-random-function-success-v1",
+  "target": "0.39",
+  "trails": 82440,
+  "union_lower": "0.39000000100893169635571528749243769938549682679120376397273046820937097830053366886552323272984604902280450211507298764194915861683568901882430340090679603824923948337297548455813900594513814919182328"
+}
+```
+
+## Appendix B. Bounded construction sources
+
+These are the complete sources used for the measured sequential phases in Section 5. They use no participant executable. The freestanding binaries were linked without libc.
+
+### freestanding_runtime.c
+
+```c
+/* Minimal x86-64 Linux runtime for the charged construction binaries. */
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef long i64;
+static i64 sc3(i64 n,i64 a,i64 b,i64 c){i64 r;__asm__ volatile("syscall":"=a"(r):"a"(n),"D"(a),"S"(b),"d"(c):"rcx","r11","memory");return r;}
+
+__asm__(".global _start\n_start:\n xor %rbp,%rbp\n mov (%rsp),%rdi\n lea 8(%rsp),%rsi\n and $-16,%rsp\n call main\n mov %rax,%rdi\n mov $60,%rax\n syscall\n");
+
+FILE *stdin=(FILE*)1,*stdout=(FILE*)2,*stderr=(FILE*)3;
+int errno;
+
+static int fdof(FILE *f){return (int)(intptr_t)f-1;}
+static FILE *fileof(int fd){return (FILE*)(intptr_t)(fd+1);}
+static long write_all(int fd,const void *data,size_t length){
+    const unsigned char *p=data;size_t done=0;
+    while(done<length){long n=sc3(1,fd,(i64)(p+done),(i64)(length-done));if(n<=0)return -1;done+=(size_t)n;}
+    return (long)done;
 }
 
-__global__ void kkeys(const u64 *starts, int n, u64 base, u64 cnt, int lane, int mode, int KG, u64 *keys) {
-    u64 g = blockIdx.x * (u64)blockDim.x + threadIdx.x;
-    if (g >= cnt) return;
-    u64 idx = base + g, d[4];
-    digest(starts, n, idx, d);
-    u64 v = d[lane];
-    keys[g] = mode == 0 ? (((idx >> n) << 32) | (v & 0xffffffffull)) : (v & ((1ull << KG) - 1));
+long construction_vmhwm_bytes(void){
+    static char status[4096];long fd=sc3(2,(i64)"/proc/self/status",0,0);if(fd<0)return -1;
+    long n=sc3(0,fd,(i64)status,sizeof(status)-1);sc3(3,fd,0,0);if(n<=0)return -1;status[n]=0;
+    for(long i=0;i+6<n;i++)if(status[i]=='V'&&status[i+1]=='m'&&status[i+2]=='H'&&status[i+3]=='W'&&status[i+4]=='M'){
+        long j=i+5;while(status[j]==' '||status[j]=='\t'||status[j]==':')j++;long value=0;
+        while(status[j]>='0'&&status[j]<='9')value=value*10+(status[j++]-'0');return value*1024;
+    }
+    return -1;
 }
 
-__global__ void kdump(const u64 *starts, int n, u64 cnt, u64 *out) {
-    u64 g = blockIdx.x * (u64)blockDim.x + threadIdx.x;
-    if (g >= cnt) return;
-    digest(starts, n, g, out + 4 * g);
+long construction_read_file(const char *path,void *buffer,size_t capacity){
+    long fd=sc3(2,(i64)path,0,0);if(fd<0)return -1;size_t used=0;
+    while(used<capacity){long n=sc3(0,fd,(i64)((unsigned char*)buffer+used),(i64)(capacity-used));if(n<0){sc3(3,fd,0,0);return -1;}if(!n)break;used+=(size_t)n;}
+    sc3(3,fd,0,0);return (long)used;
 }
 
-struct EqAt {
-    const u64 *k; u64 d;
-    __device__ u64 operator()(u64 i) const { return k[i] == k[i + d]; }
+void *memset(void *d,int c,size_t n){unsigned char *p=d;while(n--)*p++=(unsigned char)c;return d;}
+void *memcpy(void *d,const void *s,size_t n){unsigned char *p=d;const unsigned char *q=s;while(n--)*p++=*q++;return d;}
+int memcmp(const void *a,const void *b,size_t n){const unsigned char *p=a,*q=b;while(n--){if(*p!=*q)return *p-*q;p++;q++;}return 0;}
+size_t strlen(const char *s){const char *p=s;while(*p)p++;return (size_t)(p-s);}
+int strcmp(const char *a,const char *b){while(*a&&*a==*b){a++;b++;}return (unsigned char)*a-(unsigned char)*b;}
+char *getenv(const char *name){(void)name;return 0;}
+int atoi(const char *s){int v=0;while(*s>='0'&&*s<='9')v=v*10+(*s++-'0');return v;}
+long strtol(const char *s,char **end,int base){long v=0;(void)base;while(*s>='0'&&*s<='9')v=v*10+(*s++-'0');if(end)*end=(char*)s;return v;}
+
+FILE *fopen(const char *path,const char *mode){
+    int flags=(mode&&mode[0]=='r')?0:(1|64|512);long fd=sc3(2,(i64)path,flags,0644);
+    return fd<0?0:fileof((int)fd);
+}
+int fclose(FILE *f){return (int)sc3(3,fdof(f),0,0);}
+int fflush(FILE *f){(void)f;return 0;}
+size_t fwrite(const void *p,size_t size,size_t count,FILE *f){size_t n=size*count;return write_all(fdof(f),p,n)<0?0:count;}
+size_t fread(void *p,size_t size,size_t count,FILE *f){size_t want=size*count,done=0;while(done<want){long n=sc3(0,fdof(f),(i64)((unsigned char*)p+done),(i64)(want-done));if(n<=0)break;done+=(size_t)n;}return size?done/size:0;}
+int fputc(int c,FILE *f){unsigned char b=(unsigned char)c;return write_all(fdof(f),&b,1)<0?EOF:c;}
+int fgetc(FILE *f){unsigned char b;long n=sc3(0,fdof(f),(i64)&b,1);return n==1?b:EOF;}
+
+static void emit_char(char **dst,size_t *left,FILE *f,char c,int *total){
+    if(dst){if(*left>1){**dst=c;(*dst)++;(*left)--;}}
+    else fputc((unsigned char)c,f);
+    (*total)++;
+}
+static void emit_text(char **dst,size_t *left,FILE *f,const char *s,int *total){while(*s)emit_char(dst,left,f,*s++,total);}
+static void emit_uint(char **dst,size_t *left,FILE *f,unsigned long long v,unsigned base,int width,int zero,int *total){
+    char buf[32];int n=0;do{unsigned d=(unsigned)(v%base);buf[n++]=(char)(d<10?'0'+d:'a'+d-10);v/=base;}while(v);
+    while(n<width){emit_char(dst,left,f,zero?'0':' ',total);width--;}
+    while(n)emit_char(dst,left,f,buf[--n],total);
+}
+static int vformat(char *out,size_t cap,FILE *f,const char *fmt,va_list ap){
+    char *dst=out;size_t left=cap;int total=0;
+    while(*fmt){
+        if(*fmt!='%'){emit_char(out?&dst:0,out?&left:0,f,*fmt++,&total);continue;}
+        fmt++;if(*fmt=='%'){emit_char(out?&dst:0,out?&left:0,f,*fmt++,&total);continue;}
+        int zero=0,width=0,longness=0;if(*fmt=='0'){zero=1;fmt++;}while(*fmt>='0'&&*fmt<='9')width=width*10+(*fmt++-'0');
+        if(*fmt=='z'){longness=1;fmt++;}else if(*fmt=='l'){longness=1;fmt++;if(*fmt=='l'){longness=2;fmt++;}}
+        char kind=*fmt++;if(kind=='s'){emit_text(out?&dst:0,out?&left:0,f,va_arg(ap,const char*),&total);}
+        else if(kind=='c'){emit_char(out?&dst:0,out?&left:0,f,(char)va_arg(ap,int),&total);}
+        else if(kind=='d'||kind=='i'){
+            long long v=longness?va_arg(ap,long):va_arg(ap,int);if(v<0){emit_char(out?&dst:0,out?&left:0,f,'-',&total);v=-v;}emit_uint(out?&dst:0,out?&left:0,f,(unsigned long long)v,10,width,zero,&total);
+        }else if(kind=='u'||kind=='x'){
+            unsigned long long v=longness?va_arg(ap,unsigned long):va_arg(ap,unsigned int);emit_uint(out?&dst:0,out?&left:0,f,v,kind=='x'?16:10,width,zero,&total);
+        }else{emit_char(out?&dst:0,out?&left:0,f,'?',&total);}
+    }
+    if(out&&cap){*dst=0;}
+    return total;
+}
+int fprintf(FILE *f,const char *fmt,...){va_list ap;va_start(ap,fmt);int n=vformat(0,0,f,fmt,ap);va_end(ap);return n;}
+int printf(const char *fmt,...){va_list ap;va_start(ap,fmt);int n=vformat(0,0,stdout,fmt,ap);va_end(ap);return n;}
+int snprintf(char *out,size_t cap,const char *fmt,...){va_list ap;va_start(ap,fmt);int n=vformat(out,cap,0,fmt,ap);va_end(ap);return n;}
+void perror(const char *s){fprintf(stderr,"%s\n",s);}
+char *strerror(int value){(void)value;return "runtime error";}
+void exit(int code){sc3(60,code,0,0);for(;;){}}
+void abort(void){exit(134);}
+
+```
+
+### plan_search_local.c
+
+```c
+#include <errno.h>
+#include <inttypes.h>
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/*
+ * Independent generator for the r24 S3-04 / look-ahead / eight-body step.
+ *
+ * The graph builder descends from our sha3-r6 generator.  The structured
+ * constants and the high-level polarity and loop constructions are transcribed
+ * from the public proofs, not from executable participant source.
+ */
+
+enum { O_IN = 0, O_XOR = 1, O_AND = 2, O_OR = 3, O_NOT = 4 };
+enum {
+    NC = -1,
+    MAX_NODES = 9000,
+    MAX_FORMS = 2048,
+    CONS_SIZE = 1 << 14,
+    FORM_SIZE = 1 << 12,
+    NREG = 4096,
+    PLAN_ROWS = 320,
+    PLAN_BITS = 320,
 };
 
-static u64 pairs(thrust::device_vector<u64> &v) {   // sum over runs of C(len,2), exact
-    thrust::sort(v.begin(), v.end());
-    u64 tot = 0, N = v.size();
-    for (u64 d = 1; d < N; d++) {
-        u64 c = thrust::transform_reduce(thrust::counting_iterator<u64>(0), thrust::counting_iterator<u64>(N - d),
-                                         EqAt{thrust::raw_pointer_cast(v.data()), d}, 0ull, thrust::plus<u64>());
-        if (!c) break;
-        tot += c;
-    }
-    return tot;
+typedef struct {
+    uint8_t op;
+    uint8_t k;
+    int16_t a, b, lin;
+} Node;
+
+typedef struct {
+    uint64_t mask[4];
+    int node;
+} Form;
+
+typedef struct {
+    int n;
+    uint8_t p;
+} Value;
+
+typedef struct {
+    uint8_t op;
+    uint16_t d, a, b;
+} Insn;
+
+typedef struct {
+    uint8_t subset;
+    uint8_t tricks;
+    uint8_t select_mask;
+    uint8_t cost;
+} Decision;
+
+typedef struct {
+    uint8_t cnot[PLAN_BITS];
+    uint8_t dnot[PLAN_BITS];
+    uint8_t target[PLAN_ROWS];
+    uint64_t ib;
+} Plan;
+
+_Static_assert(sizeof(Decision) == 4, "Decision must have a stable byte encoding");
+_Static_assert(sizeof(Plan) == 968, "Plan must have a stable byte encoding");
+
+static Node nodes[MAX_NODES];
+static Form forms[MAX_FORMS];
+static uint16_t cons_table[CONS_SIZE];
+static uint16_t form_table[FORM_SIZE];
+static int node_count, form_count;
+static Decision row_table[32][32];
+static uint8_t row_min_cost[32];
+static uint8_t row_min_target[32];
+
+static const uint64_t RC[24] = {
+    UINT64_C(0x0000000000000001), UINT64_C(0x0000000000008082),
+    UINT64_C(0x800000000000808a), UINT64_C(0x8000000080008000),
+    UINT64_C(0x000000000000808b), UINT64_C(0x0000000080000001),
+    UINT64_C(0x8000000080008081), UINT64_C(0x8000000000008009),
+    UINT64_C(0x000000000000008a), UINT64_C(0x0000000000000088),
+    UINT64_C(0x0000000080008009), UINT64_C(0x000000008000000a),
+    UINT64_C(0x000000008000808b), UINT64_C(0x800000000000008b),
+    UINT64_C(0x8000000000008089), UINT64_C(0x8000000000008003),
+    UINT64_C(0x8000000000008002), UINT64_C(0x8000000000000080),
+    UINT64_C(0x000000000000800a), UINT64_C(0x800000008000000a),
+    UINT64_C(0x8000000080008081), UINT64_C(0x8000000000008080),
+    UINT64_C(0x0000000080000001), UINT64_C(0x8000000080008008),
+};
+
+static const int ROT[5][5] = {
+    {0, 36, 3, 41, 18}, {1, 44, 10, 45, 2}, {62, 6, 43, 15, 61},
+    {28, 55, 25, 21, 56}, {27, 20, 39, 8, 14},
+};
+
+/* S3-04 trial 1230.  Lanes 1, 4, 6 and 9 are overwritten by the point. */
+static uint64_t KL[25] = {
+    UINT64_C(0x0000000000000000), UINT64_C(0x0000000000000000),
+    UINT64_C(0x2d58eceb83b21614), UINT64_C(0x0000000000000000),
+    UINT64_C(0x0000000000000000), UINT64_C(0xffffffffffffffff),
+    UINT64_C(0x0000000000000000), UINT64_C(0x0000000000000000),
+    UINT64_C(0x0000000000000000), UINT64_C(0x0000000000000000),
+    UINT64_C(0xffffffffffffffff), UINT64_C(0x8b563b3ae0ec8583),
+    UINT64_C(0x0000000000000000), UINT64_C(0x85ab1d9d707642c2),
+    UINT64_C(0xe953898a3e26f4f5), UINT64_C(0xffffffffffffffff),
+    UINT64_C(0x8000000000000006), 0, 0, 0, 0, 0, 0, 0, 0,
+};
+
+static void fail(const char *msg) {
+    fprintf(stderr, "gen_combined: %s\n", msg);
+    exit(1);
 }
 
-int main(int argc, char **argv) {
-    if (argc < 7) { fprintf(stderr, "usage: see header\n"); return 1; }
-    const char *mode = argv[1];
-    int n = atoi(argv[3]); u64 ncos = strtoull(argv[4], 0, 10);
-    std::vector<u64> buf(ncos * 5 + n * 5);
-    FILE *f = fopen(argv[2], "rb");
-    if (!f || fread(buf.data(), 8, buf.size(), f) != buf.size()) { fprintf(stderr, "bad infile\n"); return 1; }
-    fclose(f);
-    cudaMemcpyToSymbol(DIRS, buf.data() + ncos * 5, n * 5 * 8);
-    { const char *e = getenv("HC_ROUNDS"); int nr = e ? atoi(e) : 6; if (nr < 1 || nr > 6) nr = 6; cudaMemcpyToSymbol(NROUNDS, &nr, sizeof(int)); }
-    thrust::device_vector<u64> starts(buf.begin(), buf.begin() + ncos * 5);
-    const u64 *sp = thrust::raw_pointer_cast(starts.data());
-    u64 total = ncos << n;
-    if (mode[0] == 'd') {
-        u64 M = strtoull(argv[5], 0, 10);
-        thrust::device_vector<u64> out(4 * M);
-        kdump<<<(M + 255) / 256, 256>>>(sp, n, M, thrust::raw_pointer_cast(out.data()));
-        std::vector<u64> h(4 * M);
-        thrust::copy(out.begin(), out.end(), h.begin());
-        FILE *g = fopen(argv[6], "wb"); fwrite(h.data(), 8, h.size(), g); fclose(g);
-        printf("{\"dumped\": %llu}\n", M);
-        return 0;
-    }
-    int KG = atoi(argv[5]), lane = atoi(argv[6]);
-    // within-coset, 32 bits, in batches of whole cosets (2^28 keys per batch)
-    u64 per = 1ull << n, bc = (1ull << 28) / per; if (!bc) bc = 1;
-    u64 within = 0;
-    for (u64 c0 = 0; c0 < ncos; c0 += bc) {
-        u64 nc = (c0 + bc <= ncos ? bc : ncos - c0), cnt = nc << n;
-        thrust::device_vector<u64> v(cnt);
-        kkeys<<<(cnt + 255) / 256, 256>>>(sp, n, c0 << n, cnt, lane, 0, KG, thrust::raw_pointer_cast(v.data()));
-        within += pairs(v);
-    }
-    thrust::device_vector<u64> v(total);
-    kkeys<<<(total + 255) / 256, 256>>>(sp, n, 0, total, lane, 1, KG, thrust::raw_pointer_cast(v.data()));
-    u64 glob = pairs(v);
-    cudaError_t e = cudaGetLastError();
-    printf("{\"n\": %d, \"ncos\": %llu, \"lane\": %d, \"messages\": %llu, \"within32_pairs\": %llu, \"global_bits\": %d, "
-           "\"global_pairs\": %llu, \"cuda\": \"%s\"}\n", n, ncos, lane, total, within, KG, glob, cudaGetErrorString(e));
-    return 0;
-}
-```
-
-**hc.py** (SHA-256 9ba0863a64aaaf87399a0f4b48d8ea595b28d43bb0ecf63436501fac5f1967ea):
-
-```python
-"""Driver for hcoset.cu (see PREREG.txt). usage: python hc.py gen MODE SEED N NCOS   -> in_<MODE>_<SEED>.bin
-                                                 python hc.py validate MODE SEED N NCOS M (GPU dump vs organizer sha3_256)
-MODE field: N random independent elements of span(W40) (cube_degree.W); MODE ctrl: N random 320-bit directions."""
-import os, sys, random, struct, subprocess, pathlib
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / 'lowdegree'))
-import cube_degree as cd
-
-HERE = pathlib.Path(__file__).resolve().parent
-WSL_HERE = '/mnt/d/~~Projects/~HashSmash/workspace/research/sha3r6/hcoset'
-BIN = '/root/hcoset_bin/hcoset'
-MASK = (1 << 64) - 1
-
-def det_reps(ncos):
-    """D19 Section 6 sequence: extend the ordered W40 basis by standard coordinate vectors e_i = 1 << i (i increasing,
-    bit 64k+b = bit b of source lane k) whenever they raise the rank; q_0, q_1, ... are the appended vectors;
-    coset j has representative t_j = XOR(q_b : bit b of g(j) set), g(j) = j ^ (j >> 1)."""
-    piv = {}
-    def add(v):
-        while v:
-            b = v.bit_length() - 1
-            if b in piv: v ^= piv[b]
-            else: piv[b] = v; return True
-        return False
-    for w in cd.W: assert add(w)
-    q, need = [], max(1, ncos.bit_length())
-    for i in range(320):
-        if add(1 << i): q.append(1 << i)
-        if len(q) >= need: break
-    reps = []
-    for j in range(ncos):
-        gj, t = j ^ (j >> 1), 0
-        for b in range(need):
-            if gj >> b & 1: t ^= q[b]
-        reps.append(t)
-    return reps
-
-def gen(mode, seed, n, ncos):
-    if mode == 'det':      # the deterministic D19 input sequence: first n ordered W40 directions, cosets j = 0..ncos-1
-        d, starts = cd.W[:n], det_reps(ncos)
-        words = [(s >> (64 * k)) & MASK for s in starts for k in range(5)] + [(v >> (64 * k)) & MASK for v in d for k in range(5)]
-        p = HERE / f'in_{mode}_{seed}.bin'
-        p.write_bytes(struct.pack(f'<{len(words)}Q', *words))
-        return p, starts, d
-    rng = random.Random(f'{mode}-{seed}')
-    while True:
-        if mode == 'field':
-            d = []
-            for _ in range(n):
-                c = rng.getrandbits(40) or 1; v = 0
-                for j in range(40):
-                    if c >> j & 1: v ^= cd.W[j]
-                d.append(v)
-        else:
-            d = [rng.getrandbits(320) for _ in range(n)]
-        if cd.rank(d) == n: break
-    starts = [rng.getrandbits(320) for _ in range(ncos)]
-    words = [(s >> (64 * k)) & MASK for s in starts for k in range(5)] + [(v >> (64 * k)) & MASK for v in d for k in range(5)]
-    p = HERE / f'in_{mode}_{seed}.bin'
-    p.write_bytes(struct.pack(f'<{len(words)}Q', *words))
-    return p, starts, d
-
-def msg(starts, d, n, idx):
-    c, p = idx >> n, idx & ((1 << n) - 1); m = starts[c]
-    for j in range(n):
-        if p >> j & 1: m ^= d[j]
-    L = [0] * 25
-    for k in range(5): L[k] = (m >> (64 * k)) & MASK; L[10 + k] = L[k]
-    L[16] = 0x86 << 56
-    return b''.join(l.to_bytes(8, 'little') for l in L[:17])[:135]
-
-if __name__ == '__main__':
-    cmd, mode, seed, n, ncos = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5])
-    p, starts, d = gen(mode, seed, n, ncos)
-    if cmd == 'validate':
-        M = int(sys.argv[6]); out = HERE / f'dump_{mode}_{seed}.bin'
-        R = int(os.environ.get('HC_ROUNDS', '6'))
-        subprocess.run(['wsl', '-d', 'Ubuntu', '--', 'env', f'HC_ROUNDS={R}', BIN, 'dump', f'{WSL_HERE}/{p.name}', str(n), str(ncos), str(M), f'{WSL_HERE}/{out.name}'], check=True)
-        raw = out.read_bytes(); ok = 0
-        for i in range(M):
-            ok += raw[32 * i:32 * i + 32] == cd.kec.sha3_256(msg(starts, d, n, i), rounds=R)
-        print(f'validate {mode} seed {seed}: {ok}/{M} GPU digests equal organizer sha3_256(rounds={R})')
-        out.unlink()
-    else:
-        print(p)
-```
-
-### A.3 Run scripts, raw result lines and z
-
-Each run script appends one JSON line per run to its result file, in the order of its lines. Expected values
-for uniform digests: within = ncos C(2^n, 2)/2^32 (pairs inside one coset, low 32 bits of digest lane L);
-global = C(2^30, 2)/2^44 = 32,767.99997 (all 2^30 messages, low 44 bits of lane L); z = (count -
-expected)/sqrt(expected).
-
-**batch 1 (PREREG.txt), six rounds**: run_main.sh and main_results.jsonl (SHA-256 39fa7d2af4638d3bdeeceb45eb0cf844261f3796f2c4f8c00b4131b96c1e17fc).
-
-```sh
-#!/bin/bash
-B=/root/hcoset_bin/hcoset; D="/mnt/d/~~Projects/~HashSmash/workspace/research/sha3r6/hcoset"
-O="$D/main_results.jsonl"; date >> "$D/main.log"
-$B count "$D/in_field_1001.bin" 20 1024 44 0 >> "$O"
-$B count "$D/in_field_1001.bin" 20 1024 44 3 >> "$O"
-$B count "$D/in_ctrl_1001.bin" 20 1024 44 0 >> "$O"
-$B count "$D/in_ctrl_1001.bin" 20 1024 44 3 >> "$O"
-$B count "$D/in_field_1002.bin" 24 64 44 0 >> "$O"
-$B count "$D/in_ctrl_1002.bin" 24 64 44 0 >> "$O"
-date >> "$D/main.log"
-```
-
-```
-{"n": 20, "ncos": 1024, "lane": 0, "messages": 1073741824, "within32_pairs": 131380, "global_bits": 44, "global_pairs": 33033, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 3, "messages": 1073741824, "within32_pairs": 130720, "global_bits": 44, "global_pairs": 32964, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 0, "messages": 1073741824, "within32_pairs": 131300, "global_bits": 44, "global_pairs": 32762, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 3, "messages": 1073741824, "within32_pairs": 130930, "global_bits": 44, "global_pairs": 32709, "cuda": "no error"}
-{"n": 24, "ncos": 64, "lane": 0, "messages": 1073741824, "within32_pairs": 2097299, "global_bits": 44, "global_pairs": 32651, "cuda": "no error"}
-{"n": 24, "ncos": 64, "lane": 0, "messages": 1073741824, "within32_pairs": 2098309, "global_bits": 44, "global_pairs": 32777, "cuda": "no error"}
-```
-
-| run | inputs | n, cosets | lane | within | expected | z | global | z |
-|---|---|---|---:|---:|---:|---:|---:|---:|
-| R1 | field 1001, random origins | 20, 1024 | 0 | 131,380 | 131,071.875 | +0.85 | 33,033 | +1.46 |
-| R2 | field 1001, random origins | 20, 1024 | 3 | 130,720 | 131,071.875 | -0.97 | 32,964 | +1.08 |
-| R3 | ctrl 1001, random origins | 20, 1024 | 0 | 131,300 | 131,071.875 | +0.63 | 32,762 | -0.03 |
-| R4 | ctrl 1001, random origins | 20, 1024 | 3 | 130,930 | 131,071.875 | -0.39 | 32,709 | -0.33 |
-| R5 | field 1002, random origins | 24, 64 | 0 | 2,097,299 | 2,097,151.875 | +0.10 | 32,651 | -0.65 |
-| R6 | ctrl 1002, random origins | 24, 64 | 0 | 2,098,309 | 2,097,151.875 | +0.80 | 32,777 | +0.05 |
-
-**batch 2 (PREREG2.txt), six rounds**: run_main2.sh and main2_results.jsonl (SHA-256 c1f127c8880d3b90d3c61a47c3381a8a04e8a1f1e506ceb0e89dc4b8c714ba4b).
-
-```sh
-#!/bin/bash
-B=/root/hcoset_bin/hcoset; D="/mnt/d/~~Projects/~HashSmash/workspace/research/sha3r6/hcoset"
-O="$D/main2_results.jsonl"; date >> "$D/main2.log"
-$B count "$D/in_field_2001.bin" 20 1024 44 1 >> "$O"
-$B count "$D/in_field_2001.bin" 20 1024 44 2 >> "$O"
-$B count "$D/in_ctrl_2001.bin" 20 1024 44 1 >> "$O"
-$B count "$D/in_ctrl_2001.bin" 20 1024 44 2 >> "$O"
-$B count "$D/in_field_2002.bin" 28 4 44 0 >> "$O"
-$B count "$D/in_field_2002.bin" 28 4 44 2 >> "$O"
-$B count "$D/in_ctrl_2002.bin" 28 4 44 0 >> "$O"
-date >> "$D/main2.log"
-```
-
-```
-{"n": 20, "ncos": 1024, "lane": 1, "messages": 1073741824, "within32_pairs": 130589, "global_bits": 44, "global_pairs": 32932, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 2, "messages": 1073741824, "within32_pairs": 130672, "global_bits": 44, "global_pairs": 32606, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 1, "messages": 1073741824, "within32_pairs": 130638, "global_bits": 44, "global_pairs": 32925, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 2, "messages": 1073741824, "within32_pairs": 131237, "global_bits": 44, "global_pairs": 32715, "cuda": "no error"}
-{"n": 28, "ncos": 4, "lane": 0, "messages": 1073741824, "within32_pairs": 33555785, "global_bits": 44, "global_pairs": 32648, "cuda": "no error"}
-{"n": 28, "ncos": 4, "lane": 2, "messages": 1073741824, "within32_pairs": 33557768, "global_bits": 44, "global_pairs": 32736, "cuda": "no error"}
-{"n": 28, "ncos": 4, "lane": 0, "messages": 1073741824, "within32_pairs": 33566477, "global_bits": 44, "global_pairs": 32926, "cuda": "no error"}
-```
-
-| run | inputs | n, cosets | lane | within | expected | z | global | z |
-|---|---|---|---:|---:|---:|---:|---:|---:|
-| S1 | field 2001, random origins | 20, 1024 | 1 | 130,589 | 131,071.875 | -1.33 | 32,932 | +0.91 |
-| S2 | field 2001, random origins | 20, 1024 | 2 | 130,672 | 131,071.875 | -1.10 | 32,606 | -0.89 |
-| S3 | ctrl 2001, random origins | 20, 1024 | 1 | 130,638 | 131,071.875 | -1.20 | 32,925 | +0.87 |
-| S4 | ctrl 2001, random origins | 20, 1024 | 2 | 131,237 | 131,071.875 | +0.46 | 32,715 | -0.29 |
-| S5 | field 2002, random origins | 28, 4 | 0 | 33,555,785 | 33,554,431.875 | +0.23 | 32,648 | -0.66 |
-| S6 | field 2002, random origins | 28, 4 | 2 | 33,557,768 | 33,554,431.875 | +0.58 | 32,736 | -0.18 |
-| S7 | ctrl 2002, random origins | 28, 4 | 0 | 33,566,477 | 33,554,431.875 | +2.08 | 32,926 | +0.87 |
-
-**batch 3 (PREREG3.txt), six rounds**: run_main3.sh and main3_results.jsonl (SHA-256 d86b4fedfe8dfaaa6dec16353148fb2ac9e9f73229acffaf57341fe6c85a94c4).
-
-```sh
-#!/bin/bash
-B=/root/hcoset_bin/hcoset; D="/mnt/d/~~Projects/~HashSmash/workspace/research/sha3r6/hcoset"
-O="$D/main3_results.jsonl"; date >> "$D/main3.log"
-$B count "$D/in_det_3001.bin" 20 1024 44 0 >> "$O"
-$B count "$D/in_det_3001.bin" 20 1024 44 3 >> "$O"
-$B count "$D/in_det_3002.bin" 24 64 44 1 >> "$O"
-$B count "$D/in_det_3002.bin" 24 64 44 2 >> "$O"
-date >> "$D/main3.log"
-```
-
-```
-{"n": 20, "ncos": 1024, "lane": 0, "messages": 1073741824, "within32_pairs": 131053, "global_bits": 44, "global_pairs": 32666, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 3, "messages": 1073741824, "within32_pairs": 131447, "global_bits": 44, "global_pairs": 32846, "cuda": "no error"}
-{"n": 24, "ncos": 64, "lane": 1, "messages": 1073741824, "within32_pairs": 2095169, "global_bits": 44, "global_pairs": 32689, "cuda": "no error"}
-{"n": 24, "ncos": 64, "lane": 2, "messages": 1073741824, "within32_pairs": 2095504, "global_bits": 44, "global_pairs": 32710, "cuda": "no error"}
-```
-
-| run | inputs | n, cosets | lane | within | expected | z | global | z |
-|---|---|---|---:|---:|---:|---:|---:|---:|
-| D1 | det 3001, fixed origins | 20, 1024 | 0 | 131,053 | 131,071.875 | -0.05 | 32,666 | -0.56 |
-| D2 | det 3001, fixed origins | 20, 1024 | 3 | 131,447 | 131,071.875 | +1.04 | 32,846 | +0.43 |
-| D3 | det 3002, fixed origins | 24, 64 | 1 | 2,095,169 | 2,097,151.875 | -1.37 | 32,689 | -0.44 |
-| D4 | det 3002, fixed origins | 24, 64 | 2 | 2,095,504 | 2,097,151.875 | -1.14 | 32,710 | -0.32 |
-
-**batch R5 (PREREG_R5.txt), FIVE rounds, context only**: run_r5.sh and r5_results.jsonl (SHA-256 ca3a763a9b5a6567233848f8bf95908a9cf3aac1dab1712e88e70e5407054fad).
-
-```sh
-#!/bin/bash
-export HC_ROUNDS=5
-B=/root/hcoset_bin/hcoset; D="/mnt/d/~~Projects/~HashSmash/workspace/research/sha3r6/hcoset"
-O="$D/r5_results.jsonl"; date >> "$D/r5.log"
-$B count "$D/in_det_4001.bin" 20 1024 44 0 >> "$O"
-$B count "$D/in_det_4001.bin" 20 1024 44 3 >> "$O"
-$B count "$D/in_det_4002.bin" 24 64 44 1 >> "$O"
-$B count "$D/in_det_4002.bin" 24 64 44 2 >> "$O"
-$B count "$D/in_field_4003.bin" 20 1024 44 0 >> "$O"
-$B count "$D/in_ctrl_4003.bin" 20 1024 44 0 >> "$O"
-date >> "$D/r5.log"
-```
-
-```
-{"n": 20, "ncos": 1024, "lane": 0, "messages": 1073741824, "within32_pairs": 130774, "global_bits": 44, "global_pairs": 32882, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 3, "messages": 1073741824, "within32_pairs": 130530, "global_bits": 44, "global_pairs": 32926, "cuda": "no error"}
-{"n": 24, "ncos": 64, "lane": 1, "messages": 1073741824, "within32_pairs": 2095898, "global_bits": 44, "global_pairs": 32547, "cuda": "no error"}
-{"n": 24, "ncos": 64, "lane": 2, "messages": 1073741824, "within32_pairs": 2096787, "global_bits": 44, "global_pairs": 32836, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 0, "messages": 1073741824, "within32_pairs": 130789, "global_bits": 44, "global_pairs": 32857, "cuda": "no error"}
-{"n": 20, "ncos": 1024, "lane": 0, "messages": 1073741824, "within32_pairs": 130646, "global_bits": 44, "global_pairs": 32555, "cuda": "no error"}
-```
-
-| run | inputs | n, cosets | lane | within | expected | z | global | z |
-|---|---|---|---:|---:|---:|---:|---:|---:|
-| P1 | det 4001, fixed origins | 20, 1024 | 0 | 130,774 | 131,071.875 | -0.82 | 32,882 | +0.63 |
-| P2 | det 4001, fixed origins | 20, 1024 | 3 | 130,530 | 131,071.875 | -1.50 | 32,926 | +0.87 |
-| P3 | det 4002, fixed origins | 24, 64 | 1 | 2,095,898 | 2,097,151.875 | -0.87 | 32,547 | -1.22 |
-| P4 | det 4002, fixed origins | 24, 64 | 2 | 2,096,787 | 2,097,151.875 | -0.25 | 32,836 | +0.38 |
-| P5 | field 4003, random origins | 20, 1024 | 0 | 130,789 | 131,071.875 | -0.78 | 32,857 | +0.49 |
-| P6 | ctrl 4003, random origins | 20, 1024 | 0 | 130,646 | 131,071.875 | -1.18 | 32,555 | -1.18 |
-
-Random-origin runs (R1-R6, S1-S7 at six rounds; P5 at five rounds): 14 runs, 28 counts, z from
--1.33 to +2.08. All 23 runs: z from -1.50 to +2.08; every count is above expected - 4 sigma, the preregistered pass rule.
-
-### A.4 Validation of the GPU digests
-
-Before the count runs, hc.py validate dumped GPU digests and compared each with the organizer reference
-sha3_256(message, rounds=R) of verifier/keccak.py: 2,048 of 2,048 equal at six rounds before batch 1 (recorded
-in PREREG.txt), 512 of 512 equal at six rounds on the fixed-origin inputs before batch 3, and 512 of 512 equal at
-five rounds before batch R5 (recorded in PREREG_R5.txt), with 256 of 256 still equal at six rounds. The batch 3
-and six-round R5 checks are recorded in our result notes, not in a hashed file; the validation printouts were
-not kept; Appendix A.6 repeats the checks on the input files of the count runs and keeps the printout. These are our
-runs; the organizer has not executed them.
-
-### A.5 Batch W: protocol, programs, raw counts and z
-
-Files of our working folder for batch W. hw.py gen writes the inputs: MODE rord takes 320-bit origins
-rng.getrandbits(320) with rng = random.Random("W-MODE-SEED"), uniform random origins, and the first n ordered W40
-vectors; MODE ctrl draws n random 320-bit directions of rank n, then the origins, from the same generator. hw.py
-imports cube_degree as in A.2. hcw.cu computes the six- or five-round digests and counts the exact equal-projection
-pairs of the six projections in 2^b passes over the top b key bits. W_HASHES.sha256, written after the runs, lists
-the SHA-256 of PREREG_W.txt, hcw.cu, hw.py, run_w.sh, w_results.jsonl and w_analysis.txt as given here.
-
-**PREREG_W.txt** (SHA-256 9cf0977ec63ac39f391a26d6a2913ab846fd7853c1595a8a54d47078fe8b4573, recorded in PREREG_W.sha256
-before the inputs were generated):
-
-```
-PREREGISTRATION W (lane-hcoset-wide) - H_coset, wider and larger, RANDOM coset origins, rounds 6 and 5.
-Written 2026-10-10 02:28 (local clock), before any count run of this batch and before its inputs were generated.
-
-Aim: the judges' material finding on e641788b (F-FULL-SCALE-EXTRAPOLATION: "Agreement of low-width projected pair
-counts on at most 2^30 messages does not establish independent uniform 256-bit outputs over the vastly larger
-campaign"). This batch is 16x larger (2^34 messages per run, was 2^30), wider (every width K = 36..64 in steps of 4,
-up to a whole 64-bit digest lane and 64-bit joint projections of two lanes; was 32 and 44 bits of one lane), uses
-random coset origins (the refiled design), puts 2^34 messages in ONE 34-dimensional coset (1/64 of a complete
-40-dimensional coset; was at most 28 dims) for within-coset pairs, and 1024 cosets of 24 dims for across-coset pairs.
-
-Program: hcw.cu in this folder (a copy of research/sha3r6/hcoset/hcoset.cu digest(), rounds and rotation offsets as
-compile-time constants; new bucketed width ladder; the original is not edited). Checks done before this file:
- - digests 1536/1536 equal the organizer sha3_256(rounds=6) and 1536/1536 equal sha3_256(rounds=5)
-   (SOL6Cloud/SOLCLOUD_12_INPUT_keccak.py) at the batch geometry: n=34 one coset (indices 0..511 and
-   2^33+12345..+511, rord seed 9001) and n=24 x 1024 cosets (coset 1000, ctrl seed 9002); the 6 GPU keys of the same
-   messages equal an independent pure-Python derivation from the organizer digests (1536/1536 at each round count).
- - end to end: GPU bucketed ladder (b=3, 8 passes) EQUAL to exact numpy pair counts over 2^20 GPU digests, all
-   6 projections x 8 widths (rounds 6 rord seed 9003; rounds 5 ctrl seed 9003).
- - timing: one full-size pass on throwaway seed 9004 (rord, n=34, rounds 6) took 4.1 s; its partial counts were
-   discarded unread. Seeds 9001-9004 are not used below.
-
-Inputs: python hw.py gen MODE SEED N NCOS. rord = random 320-bit origins + the first N ordered W40 vectors
-(cube_degree.W, the route's direction order); ctrl = random 320-bit origins + N random 320-bit directions (rank N).
-Message embedding as hcoset.cu / cube_degree.py (u0..u4 in lanes 0-4 and 10-14, lane 16 = 0x86<<56).
-
-Projections (top K bits of a 64-bit key): L0..L3 = low K bits of digest lane 0..3; X01 = low ceil(K/2) bits of
-lane 0 with low floor(K/2) bits of lane 1 (bit-interleaved); X23 = the same for lanes 2 and 3.
-Count: exact number of equal-projection pairs (sum over equal runs of C(len,2)) over all 2^34 messages; bucketed by
-the top b=6 key bits (64 passes; pairs at K >= 6 never straddle buckets).
-
-Runs (all 2^34 messages, b=6, widths 36,40,44,48,52,56,60,64), in this order, one GPU job:
-  W1 rounds 6  rord 5101  n=34  1 coset          W4 rounds 5  rord 5104  n=34  1 coset
-  W2 rounds 6  rord 5102  n=24  1024 cosets      W5 rounds 5  rord 5105  n=24  1024 cosets
-  W3 rounds 6  ctrl 5103  n=34  1 coset          W6 rounds 5  ctrl 5106  n=34  1 coset
-
-Expected under independent uniform digests: E(K) = C(2^34,2) / 2^K = 2^(67-K) - 2^(33-K):
-K=36 2147483647.9, 40 134217728.0, 44 8388608.0, 48 524288.0, 52 32768.0, 56 2048.0, 60 128.0, 64 8.0.
-Sigma = sqrt(E (1 - 2^-K)), the exact standard deviation of the pair count under that model (pair indicators are
-pairwise independent).
-
-Pass rule (one-sided; the premise needs no pair deficit): for EVERY rord (field) count, W1 W2 W4 W5, all 6
-projections and 8 widths: z = (observed - E)/sigma >= -4 when E >= 1000; for E < 1000 (K = 60, 64) the exact
-Poisson lower tail P(X <= observed) >= 3.17e-5 (the one-sided 4-sigma level). Any field failure = H_coset NOT
-supported at that round count; reported as such; no reruns, no other seeds or parameters. A run is valid only if
-every projection kept exactly 2^34 keys and no bucket overflowed; an invalid run is reported, not replaced.
-Reported: two-sided z for all 288 counts (field and control); any |z| > 4 excess is reported as an anomaly (an excess
-does not contradict the premise's direction). Control runs W3 W6 calibrate the method; they do not enter the rule.
-
-Power and scope (stated now): K=64 (E=8) cannot fail the rule (P(X=0) = 3.4e-4); K=60 fails only below about 87
-pairs. The decisive counts are K <= 56: a 4-sigma relative deficit is 8.6e-5 at K=36, 3.5e-4 at K=40, 1.4e-3 at
-K=44, 5.5e-3 at K=48, 2.2% at K=52, 8.8% at K=56. This is projection evidence (at most 64 bits, 2^34 messages,
-34-dimensional sub-cosets, random origins), not a proof for 256-bit digests or complete 40-dimensional cosets.
-```
-
-**hcw.cu** (SHA-256 ef34e1357728c086abd7aa90fde9d8964acbd4f1b32b610c4dd1d0e974add032):
-
-```cpp
-// hcw.cu - lane-hcoset-wide: wider and larger H_coset pair-count test (a COPY; research/sha3r6/hcoset/hcoset.cu is
-// not edited). digest() is hcoset.cu's digest (organizer round function: theta, rho+pi, chi, iota with RC[r]; single
-// 135-byte block, zero capacity; message lanes u = start_c ^ XOR_{j: bit j of p} dir_j placed in lanes 0-4 and 10-14,
-// lane 16 = 0x86<<56), with the round count and the rotation offsets made compile-time constants.
-// Keys (64-bit; a width-K projection is the top K bits of a key):
-//   P0..P3 (L0..L3): bit-reversed digest lane 0..3          -> top K bits = the low K bits of that lane
-//   P4 (X01): bit-interleave of the low 32 bits of lanes 0 and 1 (lane0 b0, lane1 b0, lane0 b1, lane1 b1, ...)
-//   P5 (X23): the same for lanes 2 and 3                    -> top K bits = ceil(K/2) bits of one lane, floor(K/2) of the other
-// ladder: pass p = 0..2^b-1 computes every digest of the campaign and keeps, per key, those whose top b bits equal p;
-// each kept set is radix-sorted and the exact number of equal-prefix pairs (sum over equal runs of C(len,2)) is counted
-// at every width K >= b (pairs at width K never straddle two passes).
-// usage: hcw dump   <infile> <n> <ncos> <M> <outfile> [base]      digests of messages base..base+M-1 (4 lanes each)
-//        hcw keys   <infile> <n> <ncos> <M> <outfile> [base]      the 6 keys of the same messages
-//        hcw ladder <infile> <n> <ncos> <b> <w1,w2,...> [maxpass]  -> one JSON line
-// rounds from env HC_ROUNDS (5 or 6 only). infile: ncos*5 u64 starts then n*5 u64 directions (little endian).
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <cstdint>
-#include <cmath>
-#include <vector>
-#include <string>
-#include <chrono>
-#include <algorithm>
-#include <cub/cub.cuh>
-typedef unsigned long long u64;
-#define NP 6
-
-__constant__ u64 RC[6] = {0x0000000000000001ull, 0x0000000000008082ull, 0x800000000000808Aull,
-                          0x8000000080008000ull, 0x000000000000808Bull, 0x0000000080000001ull};
-__constant__ u64 DIRS[64 * 5];
-
-__host__ __device__ constexpr int rho(int i) {
-    return i == 0 ? 0 : i == 1 ? 1 : i == 2 ? 62 : i == 3 ? 28 : i == 4 ? 27 : i == 5 ? 36 : i == 6 ? 44 : i == 7 ? 6 :
-           i == 8 ? 55 : i == 9 ? 20 : i == 10 ? 3 : i == 11 ? 10 : i == 12 ? 43 : i == 13 ? 25 : i == 14 ? 39 :
-           i == 15 ? 41 : i == 16 ? 45 : i == 17 ? 15 : i == 18 ? 21 : i == 19 ? 8 : i == 20 ? 18 : i == 21 ? 2 :
-           i == 22 ? 61 : i == 23 ? 56 : 14;
+static uint64_t read_u64_le(FILE *f) {
+    uint8_t bytes[8];
+    if (fread(bytes, 1, sizeof(bytes), f) != sizeof(bytes))
+        fail("short constant record");
+    uint64_t value = 0;
+    for (int i = 0; i < 8; i++) value |= (uint64_t)bytes[i] << (8 * i);
+    return value;
 }
 
-__device__ __forceinline__ u64 rotl(u64 x, int r) { return r == 0 ? x : (x << r) | (x >> (64 - r)); }
-
-template <int NR>
-__device__ __forceinline__ void digest(const u64 *starts, int n, u64 idx, u64 out[4]) {
-    u64 c = idx >> n, p = idx & ((1ull << n) - 1), u[5];
-#pragma unroll
-    for (int k = 0; k < 5; k++) u[k] = starts[c * 5 + k];
-    for (int j = 0; j < n; j++)
-        if (p >> j & 1)
-#pragma unroll
-            for (int k = 0; k < 5; k++) u[k] ^= DIRS[j * 5 + k];
-    u64 A[25], B[25], C[5], D[5];
-#pragma unroll
-    for (int k = 0; k < 25; k++) A[k] = 0;
-#pragma unroll
-    for (int k = 0; k < 5; k++) { A[k] = u[k]; A[10 + k] = u[k]; }
-    A[16] = 0x86ull << 56;
-#pragma unroll
-    for (int r = 0; r < NR; r++) {
-#pragma unroll
-        for (int x = 0; x < 5; x++) C[x] = A[x] ^ A[x + 5] ^ A[x + 10] ^ A[x + 15] ^ A[x + 20];
-#pragma unroll
-        for (int x = 0; x < 5; x++) D[x] = C[(x + 4) % 5] ^ rotl(C[(x + 1) % 5], 1);
-#pragma unroll
-        for (int y = 0; y < 5; y++)
-#pragma unroll
-            for (int x = 0; x < 5; x++) B[y + 5 * ((2 * x + 3 * y) % 5)] = rotl(A[x + 5 * y] ^ D[x], rho(x + 5 * y));
-#pragma unroll
-        for (int y = 0; y < 5; y++)
-#pragma unroll
-            for (int x = 0; x < 5; x++)
-                A[x + 5 * y] = B[x + 5 * y] ^ (~B[(x + 1) % 5 + 5 * y] & B[(x + 2) % 5 + 5 * y]);
-        A[0] ^= RC[r];
-    }
-#pragma unroll
-    for (int k = 0; k < 4; k++) out[k] = A[k];
+static void validate_kl(const uint64_t kl[25]) {
+    static const int variable_lanes[4] = {1, 4, 6, 9};
+    for (int i = 0; i < 4; i++) if (kl[variable_lanes[i]])
+        fail("constant record overwrites a direct point lane");
+    if (kl[16] != UINT64_C(0x8000000000000006))
+        fail("constant record has invalid SHA3 padding lane");
+    for (int lane = 17; lane < 25; lane++) if (kl[lane])
+        fail("constant record has nonzero capacity lane");
 }
 
-__device__ __forceinline__ u64 spread(u64 x) {   // bit m of a 32-bit x -> bit 2m
-    x = (x | (x << 16)) & 0x0000FFFF0000FFFFull;
-    x = (x | (x << 8)) & 0x00FF00FF00FF00FFull;
-    x = (x | (x << 4)) & 0x0F0F0F0F0F0F0F0Full;
-    x = (x | (x << 2)) & 0x3333333333333333ull;
-    x = (x | (x << 1)) & 0x5555555555555555ull;
+static void load_kl_record(const char *path) {
+    FILE *f = fopen(path, "rb");
+    if (!f) fail("cannot open constant record");
+    for (int lane = 0; lane < 25; lane++) KL[lane] = read_u64_le(f);
+    if (fgetc(f) != EOF || fclose(f)) fail("constant record has trailing data");
+    validate_kl(KL);
+}
+
+static uint64_t mix64(uint64_t x) {
+    x ^= x >> 30;
+    x *= UINT64_C(0xbf58476d1ce4e5b9);
+    x ^= x >> 27;
+    x *= UINT64_C(0x94d049bb133111eb);
+    return x ^ (x >> 31);
+}
+
+static uint64_t rng_next(uint64_t *state) {
+    uint64_t x = *state;
+    x ^= x << 13;
+    x ^= x >> 7;
+    x ^= x << 17;
+    *state = x;
     return x;
 }
 
-__device__ __forceinline__ void mkkeys(const u64 d[4], u64 k[NP]) {
-    u64 r0 = __brevll(d[0]), r1 = __brevll(d[1]), r2 = __brevll(d[2]), r3 = __brevll(d[3]);
-    k[0] = r0; k[1] = r1; k[2] = r2; k[3] = r3;
-    k[4] = (spread(r0 >> 32) << 1) | spread(r1 >> 32);
-    k[5] = (spread(r2 >> 32) << 1) | spread(r3 >> 32);
+static uint64_t node_hash(int op, int a, int b) {
+    return mix64((uint64_t)(uint32_t)op * UINT64_C(0x9e3779b97f4a7c15) ^
+                 (uint64_t)(uint32_t)a * UINT64_C(0x85ebca77c2b2ae63) ^
+                 (uint64_t)(uint32_t)b * UINT64_C(0x27d4eb2f165667c5));
 }
 
-template <int NR>
-__global__ void kdump(const u64 *starts, int n, u64 base, u64 cnt, int keys, u64 *out) {
-    u64 g = blockIdx.x * (u64)blockDim.x + threadIdx.x;
-    if (g >= cnt) return;
-    u64 d[4];
-    digest<NR>(starts, n, base + g, d);
-    if (!keys) { for (int k = 0; k < 4; k++) out[4 * g + k] = d[k]; }
-    else { u64 kk[NP]; mkkeys(d, kk); for (int j = 0; j < NP; j++) out[NP * g + j] = kk[j]; }
+static uint64_t form_hash(const uint64_t m[4]) {
+    return mix64(m[0] ^ mix64(m[1]) ^ (m[2] << 1) ^ (m[2] >> 63) ^
+                 (m[3] << 7) ^ (m[3] >> 57));
 }
 
-// every thread runs the same number of iterations (total is a multiple of the grid size), so full-warp ballots are safe
-template <int NR>
-__global__ void kpass(const u64 *starts, int n, u64 total, u64 pass, int b, u64 *buf, u64 cap, u64 *cnt) {
-    const u64 stride = (u64)gridDim.x * blockDim.x;
-    const unsigned lid = threadIdx.x & 31;
-    for (u64 idx = blockIdx.x * (u64)blockDim.x + threadIdx.x; idx < total; idx += stride) {
-        u64 d[4], k[NP];
-        digest<NR>(starts, n, idx, d);
-        mkkeys(d, k);
-#pragma unroll
-        for (int j = 0; j < NP; j++) {
-            bool m = b ? ((k[j] >> (64 - b)) == pass) : true;
-            unsigned bal = __ballot_sync(0xffffffffu, m);
-            if (bal) {
-                int leader = __ffs(bal) - 1;
-                u64 base = 0;
-                if ((int)lid == leader) base = atomicAdd(&cnt[j], (u64)__popc(bal));
-                base = __shfl_sync(0xffffffffu, base, leader);
-                if (m) {
-                    u64 pos = base + __popc(bal & ((1u << lid) - 1u));
-                    if (pos < cap) buf[(u64)j * cap + pos] = k[j];
+static int new_node(int op, int a, int b) {
+    if (node_count >= MAX_NODES) fail("node capacity exceeded");
+    int n = node_count++;
+    nodes[n] = (Node){(uint8_t)op, 0, a, b, -1};
+    return n;
+}
+
+static int cons_node(int op, int a, int b) {
+    if (op != O_NOT && a > b) {
+        int t = a;
+        a = b;
+        b = t;
+    }
+    size_t h = (size_t)node_hash(op, a, b) & (CONS_SIZE - 1);
+    for (;;) {
+        int e = cons_table[h];
+        if (!e) break;
+        int n = e - 1;
+        if (nodes[n].op == op && nodes[n].a == a && nodes[n].b == b) return n;
+        h = (h + 1) & (CONS_SIZE - 1);
+    }
+    int n = new_node(op, a, b);
+    cons_table[h] = n + 1;
+    return n;
+}
+
+static int mask_zero(const uint64_t m[4]) {
+    return (m[0] | m[1] | m[2] | m[3]) == 0;
+}
+
+static int find_form(const uint64_t m[4]) {
+    size_t h = (size_t)form_hash(m) & (FORM_SIZE - 1);
+    for (;;) {
+        int e = form_table[h];
+        if (!e) return -1;
+        int f = e - 1;
+        if (!memcmp(forms[f].mask, m, sizeof(forms[f].mask))) return f;
+        h = (h + 1) & (FORM_SIZE - 1);
+    }
+}
+
+static int add_form(const uint64_t m[4], int node) {
+    if (form_count >= MAX_FORMS) fail("linear-form capacity exceeded");
+    int f = form_count++;
+    memcpy(forms[f].mask, m, sizeof(forms[f].mask));
+    forms[f].node = node;
+    size_t h = (size_t)form_hash(m) & (FORM_SIZE - 1);
+    while (form_table[h]) h = (h + 1) & (FORM_SIZE - 1);
+    form_table[h] = f + 1;
+    return f;
+}
+
+static Value val(int n, int p) { return (Value){n, (uint8_t)(p & 1)}; }
+static Value constant(int p) { return val(NC, p); }
+
+static Value xor_value(Value a, Value b) {
+    if (a.n == NC) return val(b.n, b.p ^ a.p);
+    if (b.n == NC) return val(a.n, a.p ^ b.p);
+    if (a.n == b.n) return constant(a.p ^ b.p);
+    int la = nodes[a.n].lin, lb = nodes[b.n].lin;
+    if (la >= 0 && lb >= 0) {
+        uint64_t m[4];
+        for (int i = 0; i < 4; i++) m[i] = forms[la].mask[i] ^ forms[lb].mask[i];
+        int k = nodes[a.n].k ^ nodes[b.n].k;
+        if (mask_zero(m)) return constant(k ^ a.p ^ b.p);
+        int f = find_form(m);
+        if (f >= 0) {
+            int n = forms[f].node;
+            return val(n, k ^ a.p ^ b.p ^ nodes[n].k);
+        }
+        int n = cons_node(O_XOR, a.n, b.n);
+        nodes[n].k = (uint8_t)k;
+        nodes[n].lin = add_form(m, n);
+        return val(n, a.p ^ b.p);
+    }
+    return val(cons_node(O_XOR, a.n, b.n), a.p ^ b.p);
+}
+
+static Value complement_representation(Value a) {
+    if (a.n == NC) return a;
+    int before = node_count;
+    int n = cons_node(O_NOT, a.n, 0);
+    if (node_count > before && nodes[a.n].lin >= 0) {
+        nodes[n].lin = nodes[a.n].lin;
+        nodes[n].k = nodes[a.n].k ^ 1;
+    }
+    return val(n, a.p ^ 1);
+}
+
+static Value and_value(Value a, Value b, int select_polarity) {
+    if (a.n == NC) return a.p ? b : constant(0);
+    if (b.n == NC) return b.p ? a : constant(0);
+    if (a.n == b.n) return a.p == b.p ? a : constant(0);
+    if (!a.p && !b.p) return val(cons_node(O_AND, a.n, b.n), 0);
+    if (a.p && b.p) return val(cons_node(O_OR, a.n, b.n), 1);
+    int A = !a.p ? a.n : b.n;
+    int B = !a.p ? b.n : a.n;
+    if (select_polarity) {
+        Value na = complement_representation(val(A, 0));
+        return val(cons_node(O_OR, na.n, B), 1);
+    }
+    int t = cons_node(O_AND, A, B);
+    return xor_value(val(A, 0), val(t, 0));
+}
+
+static int term_cost(Value a, Value b) {
+    if (a.n == NC || b.n == NC || a.n == b.n) return 0;
+    return ((a.p ^ 1) == b.p) ? 1 : 2;
+}
+
+static void reset_graph(int inputs, int affine_inputs) {
+    memset(cons_table, 0, sizeof(cons_table));
+    memset(form_table, 0, sizeof(form_table));
+    node_count = form_count = 0;
+    for (int j = 0; j < inputs; j++) {
+        int n = new_node(O_IN, 0, 0);
+        if (affine_inputs) {
+            uint64_t m[4] = {0, 0, 0, 0};
+            if (j >= 256) fail("too many affine inputs");
+            m[j >> 6] = UINT64_C(1) << (j & 63);
+            nodes[n].lin = add_form(m, n);
+        }
+    }
+}
+
+static void choose_dynamic_row(const Value b[5], int need, int *subset, int *trick) {
+    int distinct = 1;
+    for (int x = 0; x < 5; x++) {
+        if (b[x].n == NC) distinct = 0;
+        for (int y = x + 1; y < 5; y++) if (b[x].n == b[y].n) distinct = 0;
+    }
+    int best_subset = -1, best_trick = -1, best_cost = 1 << 30;
+    int jmax = distinct ? 5 : 0;
+    for (int j = -1; j < jmax; j++) {
+        if (j >= 0 && (!((need >> j) & 1) || !((need >> ((j + 1) % 5)) & 1))) continue;
+        for (int s = 0; s < 32; s++) {
+            Value bb[5];
+            memcpy(bb, b, sizeof(bb));
+            int cost = 0;
+            for (int x = 0; x < 5; x++) if ((s >> x) & 1) {
+                if (b[x].n == NC) cost = 1 << 29;
+                else { bb[x].p ^= 1; cost++; }
+            }
+            for (int x = 0; x < 5; x++) if ((need >> x) & 1) {
+                if (x == j) {
+                    int k = (j + 1) % 5;
+                    Value p1 = bb[(k + 1) % 5], p2 = bb[(k + 2) % 5];
+                    if ((p1.p ^ 1) == p2.p) {
+                        Value bk = bb[k];
+                        bk.p ^= (p1.p ^ 1);
+                        cost += term_cost(bk, bb[(x + 2) % 5]);
+                    } else {
+                        cost++;
+                    }
+                } else {
+                    cost += term_cost(bb[(x + 1) % 5], bb[(x + 2) % 5]);
+                }
+            }
+            if (cost < best_cost) {
+                best_cost = cost;
+                best_subset = s;
+                best_trick = j;
+            }
+        }
+    }
+    *subset = best_subset;
+    *trick = best_trick;
+}
+
+static void build_dynamic_row(Value b[5], int need, Value out[5]) {
+    int subset, trick;
+    choose_dynamic_row(b, need, &subset, &trick);
+    for (int x = 0; x < 5; x++) if ((subset >> x) & 1)
+        b[x] = complement_representation(b[x]);
+    int k = (trick + 1) % 5;
+    if (trick >= 0) {
+        Value t = and_value(val(b[(k + 1) % 5].n, b[(k + 1) % 5].p ^ 1),
+                            b[(k + 2) % 5], 0);
+        out[k] = xor_value(b[k], t);
+    }
+    for (int x = 0; x < 5; x++) if ((need >> x) & 1) {
+        if (trick >= 0 && x == k) continue;
+        Value t1 = x == trick ? out[k] : b[(x + 1) % 5];
+        Value t = and_value(val(t1.n, t1.p ^ 1), b[(x + 2) % 5], 0);
+        out[x] = xor_value(b[x], t);
+    }
+}
+
+static int sim_term(int pa, int pb, int select, int *pout) {
+    if (pa == pb) {
+        *pout = pa;
+        return 1;
+    }
+    *pout = select;
+    return 2;
+}
+
+static void make_row_table(void) {
+    for (int pin = 0; pin < 32; pin++) {
+        int min_cost = 255, min_target = 0;
+        for (int target = 0; target < 32; target++) {
+            Decision best = {0, 0, 0, 255};
+            for (int subset = 0; subset < 32; subset++) {
+                int bp[5];
+                for (int x = 0; x < 5; x++) bp[x] = ((pin >> x) & 1) ^ ((subset >> x) & 1);
+                for (int trick = -1; trick < 5; trick++) {
+                    for (int sel = 0; sel < 32; sel++) {
+                        int op[5] = {0, 0, 0, 0, 0};
+                        int cost = __builtin_popcount((unsigned)subset);
+                        int k = (trick + 1) % 5;
+                        if (trick >= 0) {
+                            int tp;
+                            cost += sim_term(bp[(k + 1) % 5] ^ 1, bp[(k + 2) % 5],
+                                             (sel >> k) & 1, &tp) + 1;
+                            op[k] = bp[k] ^ tp;
+                        }
+                        for (int x = 0; x < 5; x++) {
+                            if (trick >= 0 && x == k) continue;
+                            int first = x == trick ? op[k] : bp[(x + 1) % 5];
+                            int tp;
+                            cost += sim_term(first ^ 1, bp[(x + 2) % 5],
+                                             (sel >> x) & 1, &tp) + 1;
+                            op[x] = bp[x] ^ tp;
+                        }
+                        int got = 0;
+                        for (int x = 0; x < 5; x++) got |= op[x] << x;
+                        if (got == target && cost < best.cost) {
+                            best = (Decision){(uint8_t)subset, (uint8_t)(trick + 1),
+                                              (uint8_t)sel, (uint8_t)cost};
+                        }
+                    }
+                }
+            }
+            if (best.cost == 255) fail("unreachable row target polarity");
+            row_table[pin][target] = best;
+            if (best.cost < min_cost) {
+                min_cost = best.cost;
+                min_target = target;
+            }
+        }
+        row_min_cost[pin] = (uint8_t)min_cost;
+        row_min_target[pin] = (uint8_t)min_target;
+    }
+}
+
+static void build_target_row(Value b[5], int target, Value out[5]) {
+    int pin = 0;
+    for (int x = 0; x < 5; x++) pin |= b[x].p << x;
+    Decision d = row_table[pin][target];
+    for (int x = 0; x < 5; x++) if ((d.subset >> x) & 1)
+        b[x] = complement_representation(b[x]);
+    int trick = (int)d.tricks - 1;
+    int k = (trick + 1) % 5;
+    if (trick >= 0) {
+        Value t = and_value(val(b[(k + 1) % 5].n, b[(k + 1) % 5].p ^ 1),
+                            b[(k + 2) % 5], (d.select_mask >> k) & 1);
+        out[k] = xor_value(b[k], t);
+    }
+    for (int x = 0; x < 5; x++) {
+        if (trick >= 0 && x == k) continue;
+        Value t1 = x == trick ? out[k] : b[(x + 1) % 5];
+        Value t = and_value(val(t1.n, t1.p ^ 1), b[(x + 2) % 5],
+                            (d.select_mask >> x) & 1);
+        out[x] = xor_value(b[x], t);
+    }
+    int got = 0;
+    for (int x = 0; x < 5; x++) got |= out[x].p << x;
+    if (got != target) fail("row-table construction mismatch");
+}
+
+static void row_patterns(const uint8_t state[1600], const uint8_t cnot[320],
+                         const uint8_t dnot[320], uint8_t patterns[320]) {
+    uint8_t cp[320], dp[320];
+    for (int x = 0; x < 5; x++) for (int z = 0; z < 64; z++) {
+        int p = 0;
+        for (int y = 0; y < 5; y++) p ^= state[64 * (x + 5 * y) + z];
+        cp[64 * x + z] = (uint8_t)(p ^ cnot[64 * x + z]);
+    }
+    for (int x = 0; x < 5; x++) for (int z = 0; z < 64; z++)
+        dp[64 * x + z] = (uint8_t)(cp[64 * ((x + 4) % 5) + z] ^
+            cp[64 * ((x + 1) % 5) + ((z + 63) & 63)] ^ dnot[64 * x + z]);
+    for (int Y = 0; Y < 5; Y++) for (int z = 0; z < 64; z++) {
+        int pin = 0;
+        for (int X = 0; X < 5; X++) {
+            int y = X, x = (3 * Y + X) % 5;
+            int zz = (z - ROT[x][y]) & 63;
+            int p = state[64 * (x + 5 * y) + zz] ^ dp[64 * x + zz];
+            pin |= p << X;
+        }
+        patterns[64 * Y + z] = (uint8_t)pin;
+    }
+}
+
+static void targets_to_state(const uint8_t target[320], uint8_t state[1600]) {
+    for (int Y = 0; Y < 5; Y++) for (int z = 0; z < 64; z++)
+        for (int X = 0; X < 5; X++)
+            state[64 * (X + 5 * Y) + z] = (target[64 * Y + z] >> X) & 1;
+}
+
+static void state_to_targets(const uint8_t state[1600], uint8_t target[320]) {
+    for (int Y = 0; Y < 5; Y++) for (int z = 0; z < 64; z++) {
+        int t = 0;
+        for (int X = 0; X < 5; X++) t |= state[64 * (X + 5 * Y) + z] << X;
+        target[64 * Y + z] = (uint8_t)t;
+    }
+}
+
+static int current_cost(const uint8_t input[1600], const Plan *p) {
+    uint8_t patterns[320];
+    row_patterns(input, p->cnot, p->dnot, patterns);
+    int cost = 3200;
+    for (int i = 0; i < 320; i++) {
+        int target = p->target[i] ^ (i < 64 && ((p->ib >> i) & 1));
+        cost += p->cnot[i] + p->dnot[i] + row_table[patterns[i]][target].cost;
+    }
+    return cost;
+}
+
+static int next_estimate(const Plan *p) {
+    static const uint8_t zero[320] = {0};
+    uint8_t state[1600], patterns[320];
+    targets_to_state(p->target, state);
+    row_patterns(state, zero, zero, patterns);
+    int cost = 3200;
+    for (int i = 0; i < 320; i++) cost += row_min_cost[patterns[i]];
+    return cost;
+}
+
+static int fixed_next_estimate(const Plan *p, const uint8_t fixed_output[1600]) {
+    static const uint8_t zero[320] = {0};
+    uint8_t state[1600], patterns[320], targets[320];
+    targets_to_state(p->target, state);
+    state_to_targets(fixed_output, targets);
+    row_patterns(state, zero, zero, patterns);
+    int cost = 3200;
+    for (int i = 0; i < 320; i++) cost += row_table[patterns[i]][targets[i]].cost;
+    return cost;
+}
+
+static int output_distance(const Plan *p, const uint8_t reference[1600]) {
+    uint8_t state[1600];
+    targets_to_state(p->target, state);
+    int distance = 0;
+    for (int i = 0; i < 1600; i++) distance += state[i] != reference[i];
+    return distance;
+}
+
+static int objective(const uint8_t input[1600], const Plan *p,
+                     const uint8_t next_fixed_output[1600],
+                     const uint8_t bridge_reference[1600]) {
+    int tail = bridge_reference ? 16 * output_distance(p, bridge_reference) :
+        next_fixed_output ? 16 * fixed_next_estimate(p, next_fixed_output) :
+                            3 * next_estimate(p);
+    return 16 * current_cost(input, p) + tail;
+}
+
+static int free_output_cost(const uint8_t input[1600], const Plan *p) {
+    uint8_t patterns[320];
+    row_patterns(input, p->cnot, p->dnot, patterns);
+    int cost = 3200;
+    for (int i = 0; i < 320; i++)
+        cost += p->cnot[i] + p->dnot[i] + row_min_cost[patterns[i]];
+    return cost;
+}
+
+static void optimize_plan(const uint8_t input[1600], const uint8_t fixed_output[1600],
+                          const uint8_t next_fixed_output[1600],
+                          const uint8_t bridge_reference[1600], uint64_t ib,
+                          uint64_t seed,
+                          int iterations, Plan *result) {
+    Plan cur = {0}, best;
+    cur.ib = ib;
+    uint8_t patterns[320];
+    if (!fixed_output) {
+        int free_cur = free_output_cost(input, &cur), free_best = free_cur;
+        Plan free_plan = cur;
+        int free_iterations = iterations < 10000 ? 10000 : iterations;
+        for (int it = 0; it < free_iterations; it++) {
+            uint64_t r = rng_next(&seed);
+            int kind = (int)(r & 1), index = (int)((r >> 8) % 320);
+            uint8_t *bit = kind ? &cur.dnot[index] : &cur.cnot[index];
+            *bit ^= 1;
+            int trial = free_output_cost(input, &cur);
+            int diff = trial - free_cur;
+            int temp = 1 + (free_iterations - it) * 24 / free_iterations;
+            uint64_t denom = (uint64_t)temp + (uint64_t)(diff > 0 ? diff * 12 : 0);
+            int accept = diff <= 0 || (rng_next(&seed) % denom) < (uint64_t)temp;
+            if (accept) {
+                free_cur = trial;
+                if (trial < free_best) {
+                    free_best = trial;
+                    free_plan = cur;
+                }
+            } else {
+                *bit ^= 1;
+            }
+        }
+        cur = free_plan;
+        for (int sweep = 0; sweep < 3; sweep++)
+            for (int kind = 0; kind < 2; kind++) for (int i = 0; i < 320; i++) {
+                uint8_t *bit = kind ? &cur.dnot[i] : &cur.cnot[i];
+                int before = free_output_cost(input, &cur);
+                *bit ^= 1;
+                if (free_output_cost(input, &cur) > before) *bit ^= 1;
+            }
+    }
+    row_patterns(input, cur.cnot, cur.dnot, patterns);
+    if (fixed_output) state_to_targets(fixed_output, cur.target);
+    else for (int i = 0; i < 320; i++) cur.target[i] = row_min_target[patterns[i]];
+    int cur_obj = objective(input, &cur, next_fixed_output, bridge_reference), best_obj = cur_obj;
+    best = cur;
+    for (int it = 0; it < iterations; it++) {
+        uint64_t r = rng_next(&seed);
+        int kind = fixed_output ? (int)(r & 1) : 2, index, old;
+        if (kind == 0) {
+            index = (int)((r >> 8) % 320);
+            old = cur.cnot[index];
+            cur.cnot[index] ^= 1;
+        } else if (kind == 1) {
+            index = (int)((r >> 8) % 320);
+            old = cur.dnot[index];
+            cur.dnot[index] ^= 1;
+        } else if (!fixed_output) {
+            index = (int)((r >> 8) % 320);
+            old = cur.target[index];
+            cur.target[index] ^= (uint8_t)(1 + ((r >> 24) % 31));
+        } else {
+            continue;
+        }
+        int trial = objective(input, &cur, next_fixed_output, bridge_reference);
+        int diff = trial - cur_obj;
+        int temp = 1 + (iterations - it) * 96 / (iterations ? iterations : 1);
+        uint64_t denom = (uint64_t)temp + (uint64_t)(diff > 0 ? diff * 24 : 0);
+        int accept = diff <= 0 || (rng_next(&seed) % denom) < (uint64_t)temp;
+        if (accept) {
+            cur_obj = trial;
+            if (trial < best_obj) {
+                best_obj = trial;
+                best = cur;
+            }
+        } else if (kind == 0) cur.cnot[index] = (uint8_t)old;
+        else if (kind == 1) cur.dnot[index] = (uint8_t)old;
+        else cur.target[index] = (uint8_t)old;
+    }
+    cur = best;
+    cur_obj = best_obj;
+    for (int sweep = 0; sweep < 2; sweep++) {
+        if (fixed_output)
+            for (int kind = 0; kind < 2; kind++) for (int i = 0; i < 320; i++) {
+                uint8_t *bit = kind ? &cur.dnot[i] : &cur.cnot[i];
+                *bit ^= 1;
+                int trial = objective(input, &cur, next_fixed_output, bridge_reference);
+                if (trial <= cur_obj) cur_obj = trial;
+                else *bit ^= 1;
+            }
+        if (!fixed_output) for (int i = 0; i < 320; i++) {
+            int old = cur.target[i], chosen = old, chosen_obj = cur_obj;
+            for (int t = 0; t < 32; t++) {
+                cur.target[i] = (uint8_t)t;
+                int trial = objective(input, &cur, next_fixed_output, bridge_reference);
+                if (trial < chosen_obj) {
+                    chosen_obj = trial;
+                    chosen = t;
+                }
+            }
+            cur.target[i] = (uint8_t)chosen;
+            cur_obj = chosen_obj;
+        }
+    }
+    *result = cur;
+}
+
+static void theta_graph(Value S[25][64], Value D[5][64], const uint8_t *cnot,
+                        const uint8_t *dnot) {
+    Value C[5][64];
+    for (int x = 0; x < 5; x++) for (int z = 0; z < 64; z++) {
+        Value s = S[x][z];
+        for (int y = 1; y < 5; y++) s = xor_value(s, S[x + 5 * y][z]);
+        if (cnot && cnot[64 * x + z]) s = complement_representation(s);
+        C[x][z] = s;
+    }
+    for (int x = 0; x < 5; x++) for (int z = 0; z < 64; z++) {
+        Value d = xor_value(C[(x + 4) % 5][z], C[(x + 1) % 5][(z + 63) & 63]);
+        if (dnot && dnot[64 * x + z]) d = complement_representation(d);
+        D[x][z] = d;
+    }
+}
+
+static Value lazy_c(Value S[25][64], Value C[5][64], uint8_t have_c[320],
+                    const uint8_t *cnot, int x, int z) {
+    int index = 64 * x + z;
+    if (!have_c[index]) {
+        Value s = S[x][z];
+        for (int y = 1; y < 5; y++) s = xor_value(s, S[x + 5 * y][z]);
+        if (cnot && cnot[index]) s = complement_representation(s);
+        C[x][z] = s;
+        have_c[index] = 1;
+    }
+    return C[x][z];
+}
+
+static Value lazy_d(Value S[25][64], Value C[5][64], Value D[5][64],
+                    uint8_t have_c[320], uint8_t have_d[320],
+                    const uint8_t *cnot, const uint8_t *dnot, int x, int z) {
+    int index = 64 * x + z;
+    if (!have_d[index]) {
+        Value a = lazy_c(S, C, have_c, cnot, (x + 4) % 5, z);
+        Value b = lazy_c(S, C, have_c, cnot, (x + 1) % 5, (z + 63) & 63);
+        Value d = xor_value(a, b);
+        if (dnot && dnot[index]) d = complement_representation(d);
+        D[x][z] = d;
+        have_d[index] = 1;
+    }
+    return D[x][z];
+}
+
+static void build_prefix_graph(const Plan *prefix_plan, int outputs[1600],
+                               uint8_t output_p[1600]) {
+    Value S[25][64], NS[25][64], D[5][64];
+    reset_graph(256, 1);
+    for (int l = 0; l < 25; l++) for (int z = 0; z < 64; z++)
+        S[l][z] = constant((KL[l] >> z) & 1);
+    for (int z = 0; z < 64; z++) {
+        S[1][z] = val(z, 0);
+        S[6][z] = val(64 + z, 0);
+        S[4][z] = val(128 + z, 0);
+        S[9][z] = val(192 + z, 0);
+        S[11][z] = xor_value(xor_value(val(z, 0), val(64 + z, 0)),
+                             constant((KL[11] >> z) & 1));
+        S[14][z] = xor_value(xor_value(val(128 + z, 0), val(192 + z, 0)),
+                             constant((KL[14] >> z) & 1));
+    }
+    for (int round = 0; round < 2; round++) {
+        theta_graph(S, D, round == 1 ? prefix_plan->cnot : NULL,
+                    round == 1 ? prefix_plan->dnot : NULL);
+        memcpy(NS, S, sizeof(NS));
+        for (int Y = 0; Y < 5; Y++) for (int z = 0; z < 64; z++) {
+            Value b[5], out[5];
+            for (int X = 0; X < 5; X++) {
+                int y = X, x = (3 * Y + X) % 5;
+                int zz = (z - ROT[x][y]) & 63;
+                b[X] = xor_value(S[x + 5 * y][zz], D[x][zz]);
+            }
+            build_dynamic_row(b, 0x1f, out);
+            for (int X = 0; X < 5; X++) NS[X + 5 * Y][z] = out[X];
+        }
+        for (int z = 0; z < 64; z++) NS[0][z].p ^= (RC[round] >> z) & 1;
+        memcpy(S, NS, sizeof(S));
+    }
+    for (int q = 0; q < 1600; q++) {
+        Value v = S[q >> 6][q & 63];
+        if (v.n == NC) fail("constant prefix output");
+        outputs[q] = v.n;
+        output_p[q] = v.p;
+    }
+}
+
+static int live_operation_count(const int *outputs, int output_count, int input_count) {
+    static uint8_t live_storage[MAX_NODES];
+    uint8_t *live = live_storage;
+    memset(live, 0, (size_t)node_count);
+    for (int j = 0; j < output_count; j++) live[outputs[j]] = 1;
+    int count = 0;
+    for (int i = node_count - 1; i >= input_count; i--) if (live[i]) {
+        count++;
+        live[nodes[i].a] = 1;
+        if (nodes[i].op != O_NOT) live[nodes[i].b] = 1;
+    }
+    return count;
+}
+
+static void optimize_prefix(Plan *plan, int outputs[1600], uint8_t output_p[1600]) {
+    memset(plan, 0, sizeof(*plan));
+    build_prefix_graph(plan, outputs, output_p);
+    int best = live_operation_count(outputs, 1600, 256);
+    int gain = 0;
+    for (int sweep = 0; sweep < 3; sweep++) {
+        for (int kind = 0; kind < 2; kind++) for (int i = 0; i < 320; i++) {
+            uint8_t *bit = kind ? &plan->dnot[i] : &plan->cnot[i];
+            *bit ^= 1;
+            build_prefix_graph(plan, outputs, output_p);
+            int trial = live_operation_count(outputs, 1600, 256);
+            if (trial < best) {
+                gain += best - trial;
+                best = trial;
+            } else {
+                *bit ^= 1;
+            }
+        }
+    }
+    build_prefix_graph(plan, outputs, output_p);
+    if (live_operation_count(outputs, 1600, 256) != best)
+        fail("prefix greedy count mismatch");
+    printf("prefix-round1-greedy-gain %d\n", gain);
+}
+
+static void optimize_prefix_from_seed(Plan *plan, int outputs[1600],
+                                      uint8_t output_p[1600]) {
+    build_prefix_graph(plan, outputs, output_p);
+    int best = live_operation_count(outputs, 1600, 256);
+    int gain = 0;
+    for (int sweep = 0; sweep < 3; sweep++) {
+        int improved = 0;
+        for (int kind = 0; kind < 2; kind++) for (int i = 0; i < 320; i++) {
+            uint8_t *bit = kind ? &plan->dnot[i] : &plan->cnot[i];
+            *bit ^= 1;
+            build_prefix_graph(plan, outputs, output_p);
+            int trial = live_operation_count(outputs, 1600, 256);
+            if (trial < best) {
+                gain += best - trial;
+                best = trial;
+                improved = 1;
+            } else {
+                *bit ^= 1;
+            }
+        }
+        if (!improved) break;
+    }
+    build_prefix_graph(plan, outputs, output_p);
+    if (live_operation_count(outputs, 1600, 256) != best)
+        fail("seeded prefix greedy count mismatch");
+    printf("prefix-round1-seeded-greedy-gain %d\n", gain);
+}
+
+static void build_body_graph(const uint8_t input_p[1600], const Plan *plan,
+                             int outputs[1600], uint8_t output_p[1600]) {
+    Value S[25][64], NS[25][64], C[5][64], D[5][64];
+    uint8_t have_c[320] = {0}, have_d[320] = {0};
+    reset_graph(1600, 0);
+    for (int q = 0; q < 1600; q++) S[q >> 6][q & 63] = val(q, input_p[q]);
+    memcpy(NS, S, sizeof(NS));
+    for (int Y = 0; Y < 5; Y++) for (int z = 0; z < 64; z++) {
+        Value b[5], out[5];
+        for (int X = 0; X < 5; X++) {
+            int y = X, x = (3 * Y + X) % 5;
+            int zz = (z - ROT[x][y]) & 63;
+            Value d = lazy_d(S, C, D, have_c, have_d, plan->cnot, plan->dnot, x, zz);
+            b[X] = xor_value(S[x + 5 * y][zz], d);
+        }
+        int target = plan->target[64 * Y + z] ^
+            (Y == 0 && ((plan->ib >> z) & 1));
+        build_target_row(b, target, out);
+        for (int X = 0; X < 5; X++) NS[X + 5 * Y][z] = out[X];
+    }
+    for (int q = 0; q < 1600; q++) {
+        Value v = NS[q >> 6][q & 63];
+        outputs[q] = v.n;
+        output_p[q] = v.p ^ (q < 64 && ((plan->ib >> q) & 1));
+    }
+}
+
+static void build_end_graph(const uint8_t input_p[1600], int outputs[256],
+                            uint8_t output_p[256]) {
+    Value S[25][64], C[5][64], D[5][64];
+    uint8_t have_c[320] = {0}, have_d[320] = {0};
+    reset_graph(1600, 0);
+    for (int q = 0; q < 1600; q++) S[q >> 6][q & 63] = val(q, input_p[q]);
+    for (int z = 0; z < 64; z++) {
+        Value b[5], out[5];
+        for (int X = 0; X < 5; X++) {
+            int y = X, x = X;
+            int zz = (z - ROT[x][y]) & 63;
+            Value d = lazy_d(S, C, D, have_c, have_d, NULL, NULL, x, zz);
+            b[X] = xor_value(S[x + 5 * y][zz], d);
+        }
+        build_dynamic_row(b, 0x0f, out);
+        for (int X = 0; X < 4; X++) {
+            Value v = out[X];
+            if (X == 0) v.p ^= (RC[23] >> z) & 1;
+            int j = 64 * X + z;
+            outputs[j] = v.n;
+            output_p[j] = v.p;
+        }
+    }
+}
+
+static Insn *allocate_block(const int *outputs, const int *output_regs, int output_count,
+                            const int *input_regs, int input_count, size_t *program_count,
+                            int counts[5], int *high_reg) {
+    uint8_t *live = calloc((size_t)node_count, 1);
+    uint16_t *last = calloc((size_t)node_count, sizeof(*last));
+    uint16_t *reg = calloc((size_t)node_count, sizeof(*reg));
+    uint16_t *out_index = malloc((size_t)node_count * sizeof(*out_index));
+    uint16_t *free_regs = malloc(NREG * sizeof(*free_regs));
+    uint8_t *busy = calloc(NREG, 1);
+    uint8_t *reserved = calloc(NREG, 1);
+    Insn *prog = malloc((size_t)node_count * sizeof(*prog));
+    if (!live || !last || !reg || !out_index || !free_regs || !busy || !reserved || !prog)
+        fail("allocator memory failure");
+    memset(out_index, 0xff, (size_t)node_count * sizeof(*out_index));
+    memset(counts, 0, 5 * sizeof(*counts));
+    for (int j = 0; j < output_count; j++) {
+        if (outputs[j] < input_count || out_index[outputs[j]] != UINT16_MAX)
+            fail("invalid/shared block output");
+        live[outputs[j]] = 1;
+        out_index[outputs[j]] = j;
+        reserved[output_regs[j]] = 1;
+    }
+    for (int i = node_count - 1; i >= input_count; i--) if (live[i]) {
+        live[nodes[i].a] = 1;
+        if (nodes[i].op != O_NOT) live[nodes[i].b] = 1;
+    }
+    for (int i = input_count; i < node_count; i++) if (live[i]) {
+        last[nodes[i].a] = i;
+        if (nodes[i].op != O_NOT) last[nodes[i].b] = i;
+    }
+    for (int j = 0; j < output_count; j++) last[outputs[j]] = UINT16_MAX;
+    for (int j = 0; j < input_count; j++) {
+        reg[j] = input_regs[j];
+        if (last[j]) busy[input_regs[j]] = 1;
+    }
+    int free_count = 0;
+    for (int r = NREG - 1; r >= 0; r--)
+        if (!busy[r] && !reserved[r]) free_regs[free_count++] = r;
+    size_t pc = 0;
+    int high = 0;
+    for (int j = 0; j < input_count; j++) if (input_regs[j] + 1 > high) high = input_regs[j] + 1;
+    for (int j = 0; j < output_count; j++) if (output_regs[j] + 1 > high) high = output_regs[j] + 1;
+    for (int i = input_count; i < node_count; i++) if (live[i]) {
+        int op = nodes[i].op, a = nodes[i].a, b = op == O_NOT ? a : nodes[i].b;
+        if (last[a] == i) {
+            int r = reg[a];
+            busy[r] = 0;
+            if (!reserved[r]) free_regs[free_count++] = r;
+        }
+        if (b != a && last[b] == i) {
+            int r = reg[b];
+            busy[r] = 0;
+            if (!reserved[r]) free_regs[free_count++] = r;
+        }
+        int d;
+        if (out_index[i] != UINT16_MAX) {
+            d = output_regs[out_index[i]];
+            if (busy[d]) fail("fixed output register busy");
+        } else {
+            if (!free_count) fail("register file exhausted");
+            d = free_regs[--free_count];
+        }
+        busy[d] = 1;
+        reg[i] = d;
+        if (d + 1 > high) high = d + 1;
+        uint8_t enc = op == O_XOR ? 0 : op == O_AND ? 1 : op == O_OR ? 2 : 3;
+        prog[pc++] = (Insn){enc, (uint16_t)d, (uint16_t)reg[a],
+                           (uint16_t)(op == O_NOT ? 0 : reg[nodes[i].b])};
+        counts[op]++;
+    }
+    free(live); free(last); free(reg); free(out_index); free(free_regs); free(busy); free(reserved);
+    *program_count = pc;
+    *high_reg = high;
+    return prog;
+}
+
+#ifndef PACKED_ONLY
+static void write_program(const char *path, const Insn *prog, size_t n) {
+    FILE *f = fopen(path, "wb");
+    if (!f) {
+        fprintf(stderr, "gen_combined: fopen %s: %s\n", path, strerror(errno));
+        exit(1);
+    }
+    for (size_t i = 0; i < n; i++) {
+        uint64_t w = (uint64_t)prog[i].op | (uint64_t)prog[i].d << 3 |
+                     (uint64_t)prog[i].a << 15 | (uint64_t)prog[i].b << 27;
+        uint8_t out[5];
+        for (int j = 0; j < 5; j++) out[j] = (uint8_t)(w >> (8 * j));
+        if (fwrite(out, 1, 5, f) != 5) fail("program write failed");
+    }
+    if (fclose(f)) fail("program close failed");
+}
+#endif
+
+static void write_packed_program(const char *path, const Insn *prog, size_t n) {
+    size_t bytes = (39 * n + 7) / 8;
+    uint8_t *packed = calloc(bytes ? bytes : 1, 1);
+    if (!packed) fail("packed-program allocation failure");
+    for (size_t i = 0; i < n; i++) {
+        uint64_t w = (uint64_t)prog[i].op | (uint64_t)prog[i].d << 3 |
+                     (uint64_t)prog[i].a << 15 | (uint64_t)prog[i].b << 27;
+        size_t bit = 39 * i;
+        for (int k = 0; k < 39; k++)
+            packed[(bit + (size_t)k) >> 3] |= (uint8_t)(((w >> k) & 1) << ((bit + (size_t)k) & 7));
+    }
+    FILE *f = fopen(path, "wb");
+    if (!f || (bytes && fwrite(packed, 1, bytes, f) != bytes) || fclose(f))
+        fail("packed program write failed");
+    free(packed);
+}
+
+static size_t emit_block(const char *dir, const char *name, const int *outputs,
+                         int output_count, int input_count, int input_base,
+                         int output_base, int *highest) {
+    int *input_regs = malloc((size_t)input_count * sizeof(*input_regs));
+    int *output_regs = malloc((size_t)output_count * sizeof(*output_regs));
+    if (!input_regs || !output_regs) fail("register-map allocation failure");
+    for (int i = 0; i < input_count; i++) input_regs[i] = input_base + i;
+    for (int i = 0; i < output_count; i++) output_regs[i] = output_base + i;
+    size_t n;
+    int mix[5], high;
+    Insn *prog = allocate_block(outputs, output_regs, output_count, input_regs,
+                                input_count, &n, mix, &high);
+    char path[4096];
+#ifndef PACKED_ONLY
+    if (snprintf(path, sizeof(path), "%s/%s.bin", dir, name) >= (int)sizeof(path))
+        fail("output path too long");
+    write_program(path, prog, n);
+#endif
+    if (snprintf(path, sizeof(path), "%s/%s.p39", dir, name) >= (int)sizeof(path))
+        fail("packed output path too long");
+    write_packed_program(path, prog, n);
+    printf("block %s XOR %d AND %d OR %d NOT %d total %zu highest-register+1 %d\n",
+           name, mix[O_XOR], mix[O_AND], mix[O_OR], mix[O_NOT], n, high);
+    if (high > *highest) *highest = high;
+    free(prog); free(input_regs); free(output_regs);
+    return n;
+}
+
+static size_t emit_bridge(const char *dir, const uint8_t from[1600],
+                          const uint8_t to[1600]) {
+    Insn *prog = malloc(1600 * sizeof(*prog));
+    if (!prog) fail("bridge allocation failure");
+    size_t n = 0;
+    for (int q = 0; q < 1600; q++) if (from[q] != to[q])
+        prog[n++] = (Insn){3, (uint16_t)(256 + q), (uint16_t)(256 + q), 0};
+    char path[4096];
+#ifndef PACKED_ONLY
+    if (snprintf(path, sizeof(path), "%s/G.bin", dir) >= (int)sizeof(path))
+        fail("output path too long");
+    write_program(path, prog, n);
+#endif
+    if (snprintf(path, sizeof(path), "%s/G.p39", dir) >= (int)sizeof(path))
+        fail("packed bridge path too long");
+    write_packed_program(path, prog, n);
+    printf("block G XOR 0 AND 0 OR 0 NOT %zu total %zu highest-register+1 1856\n", n, n);
+    free(prog);
+    return n;
+}
+
+static void write_regeneration_data(const char *path, const Plan *prefix_plan,
+                                    const Plan best_chain[8],
+                                    const uint8_t best_cycle[1600]) {
+    static const uint8_t magic[8] = {'H', 'S', '2', '4', 'P', 'L', 'N', '1'};
+    FILE *f = fopen(path, "wb");
+    if (!f || fwrite(magic, sizeof(magic), 1, f) != 1 ||
+        fwrite(prefix_plan, sizeof(*prefix_plan), 1, f) != 1 ||
+        fwrite(best_chain, sizeof(*best_chain), 8, f) != 8 ||
+        fwrite(best_cycle, 1600, 1, f) != 1 ||
+        fwrite(row_table, sizeof(row_table), 1, f) != 1 || fclose(f))
+        fail("cannot write regeneration data");
+}
+
+static void read_seed_plan(const char *path, Plan *prefix_plan,
+                           Plan chain[8], uint8_t cycle[1600]) {
+    static const uint8_t expected[8] = {'H', 'S', '2', '4', 'O', 'P', 'T', '1'};
+    uint8_t magic[8];
+    FILE *f = fopen(path, "rb");
+    if (!f || fread(magic, sizeof(magic), 1, f) != 1 ||
+        memcmp(magic, expected, sizeof(magic)))
+        fail("cannot read seed-plan header");
+    memset(prefix_plan, 0, sizeof(*prefix_plan));
+    if (fread(prefix_plan->cnot, 320, 1, f) != 1 ||
+        fread(prefix_plan->dnot, 320, 1, f) != 1 ||
+        fread(cycle, 1600, 1, f) != 1)
+        fail("cannot read seed prefix");
+    for (int b = 0; b < 8; b++) {
+        memset(&chain[b], 0, sizeof(chain[b]));
+        if (fread(chain[b].cnot, 320, 1, f) != 1 ||
+            fread(chain[b].dnot, 320, 1, f) != 1 ||
+            fread(chain[b].target, 320, 1, f) != 1 ||
+            fread(&chain[b].ib, sizeof(chain[b].ib), 1, f) != 1)
+            fail("cannot read seed body");
+    }
+    if (fgetc(f) != EOF || fclose(f)) fail("seed plan has trailing data");
+}
+
+static long long chain_cost(const Plan chain[8], const uint8_t cycle[1600]) {
+    static const int runs[8] = {3, 3, 3, 3, 3, 2, 2, 2};
+    uint8_t input[1600];
+    memcpy(input, cycle, sizeof(input));
+    long long total = 0;
+    for (int b = 0; b < 8; b++) {
+        total += (long long)runs[b] * current_cost(input, &chain[b]);
+        targets_to_state(chain[b].target, input);
+    }
+    if (memcmp(input, cycle, sizeof(input))) fail("polished chain does not close");
+    return total;
+}
+
+static long long body_pair_cost(const Plan chain[8], const uint8_t cycle[1600],
+                                int body) {
+    static const int runs[8] = {3, 3, 3, 3, 3, 2, 2, 2};
+    uint8_t input[1600];
+    if (body == 0) memcpy(input, cycle, sizeof(input));
+    else targets_to_state(chain[body - 1].target, input);
+    long long total = (long long)runs[body] * current_cost(input, &chain[body]);
+    if (body < 7) {
+        uint8_t next[1600];
+        targets_to_state(chain[body].target, next);
+        total += (long long)runs[body + 1] * current_cost(next, &chain[body + 1]);
+    }
+    return total;
+}
+
+static long long weighted_body_cost(const Plan chain[8], const uint8_t cycle[1600],
+                                    int body) {
+    uint8_t input[1600];
+    if (body == 0) memcpy(input, cycle, sizeof(input));
+    else targets_to_state(chain[body - 1].target, input);
+    return (long long)(body < 5 ? 3 : 2) * current_cost(input, &chain[body]);
+}
+
+static long long global_polish(Plan chain[8], const uint8_t cycle[1600],
+                               int max_sweeps) {
+    long long total = chain_cost(chain, cycle);
+    for (int sweep = 0; sweep < max_sweeps; sweep++) {
+        int improvements = 0;
+        for (int b = 0; b < 8; b++) {
+            uint8_t input[1600];
+            if (b == 0) memcpy(input, cycle, sizeof(input));
+            else targets_to_state(chain[b - 1].target, input);
+            int before = current_cost(input, &chain[b]);
+            for (int kind = 0; kind < 2; kind++) for (int i = 0; i < 320; i++) {
+                uint8_t *bit = kind ? &chain[b].dnot[i] : &chain[b].cnot[i];
+                *bit ^= 1;
+                int after = current_cost(input, &chain[b]);
+                if (after < before) {
+                    total += (long long)(after - before) *
+                        (b < 5 ? 3 : 2);
+                    before = after;
+                    improvements++;
+                } else {
+                    *bit ^= 1;
                 }
             }
         }
-    }
-}
-
-// histogram of common-prefix length L = clz(k[i] ^ k[i+d]) (64 = equal), only L >= minw recorded
-__global__ void kclz(const u64 *k, u64 N, u64 d, int minw, u64 *hist) {
-    __shared__ u64 sh[65];
-    for (int i = threadIdx.x; i < 65; i += blockDim.x) sh[i] = 0;
-    __syncthreads();
-    const u64 stride = (u64)gridDim.x * blockDim.x;
-    for (u64 i = blockIdx.x * (u64)blockDim.x + threadIdx.x; i + d < N; i += stride) {
-        u64 x = k[i] ^ k[i + d];
-        int L = x ? __clzll((long long)x) : 64;
-        if (L >= minw) atomicAdd(&sh[L], 1ull);
-    }
-    __syncthreads();
-    for (int i = threadIdx.x; i < 65; i += blockDim.x) if (sh[i]) atomicAdd(&hist[i], sh[i]);
-}
-
-#define CK(x) do { cudaError_t e_ = (x); if (e_ != cudaSuccess) { fprintf(stderr, "CUDA %s at %d: %s\n", #x, __LINE__, cudaGetErrorString(e_)); exit(2); } } while (0)
-
-template <int NR>
-static int ladder(const u64 *sp, int n, u64 ncos, int b, const std::vector<int> &widths, u64 maxpass, int nr) {
-    auto t0 = std::chrono::steady_clock::now();
-    u64 total = ncos << n;
-    if (total & (total - 1)) { fprintf(stderr, "messages must be a power of two\n"); return 1; }
-    if (total < 256) { fprintf(stderr, "too few messages\n"); return 1; }
-    int minw = 64;
-    for (int w : widths) { if (w < b || w > 64 || w < 1) { fprintf(stderr, "width %d invalid for b=%d\n", w, b); return 1; } minw = std::min(minw, w); }
-    u64 mean = total >> b;
-    u64 cap = mean + std::max<u64>(4096, (u64)(16.0 * sqrt((double)mean)));
-    if (cap >= (1ull << 31)) { fprintf(stderr, "bucket too large; raise b\n"); return 1; }
-    u64 *buf, *alt, *cnt, *hist; void *tmp = nullptr; size_t tmpb = 0;
-    CK(cudaMalloc(&buf, (size_t)NP * cap * 8)); CK(cudaMalloc(&alt, (size_t)cap * 8));
-    CK(cudaMalloc(&cnt, NP * 8)); CK(cudaMalloc(&hist, 65 * 8));
-    { cub::DoubleBuffer<u64> db(buf, alt); CK(cub::DeviceRadixSort::SortKeys(nullptr, tmpb, db, (int)cap, 0, 64)); }
-    CK(cudaMalloc(&tmp, tmpb));
-    std::vector<std::vector<u64>> pairs(NP, std::vector<u64>(widths.size(), 0));
-    std::vector<u64> kept(NP, 0);
-    bool overflow = false;
-    u64 npass = b ? (1ull << b) : 1;
-    if (maxpass && maxpass < npass) npass = maxpass;
-    int threads = 256;
-    u64 blocks = std::min<u64>(total / threads, 1ull << 16);
-    for (u64 p = 0; p < npass; p++) {
-        CK(cudaMemset(cnt, 0, NP * 8));
-        kpass<NR><<<(unsigned)blocks, threads>>>(sp, n, total, p, b, buf, cap, cnt);
-        CK(cudaGetLastError());
-        u64 hc[NP];
-        CK(cudaMemcpy(hc, cnt, NP * 8, cudaMemcpyDeviceToHost));
-        for (int j = 0; j < NP; j++) {
-            if (hc[j] > cap) overflow = true;
-            kept[j] += hc[j];
-            u64 N = std::min(hc[j], cap);
-            cub::DoubleBuffer<u64> db(buf + (u64)j * cap, alt);
-            CK(cub::DeviceRadixSort::SortKeys(tmp, tmpb, db, (int)N, 0, 64 - b));
-            const u64 *s = db.Current();
-            for (u64 d = 1; d < N; d++) {
-                CK(cudaMemset(hist, 0, 65 * 8));
-                kclz<<<1024, 256>>>(s, N, d, minw, hist);
-                CK(cudaGetLastError());
-                u64 hh[65];
-                CK(cudaMemcpy(hh, hist, 65 * 8, cudaMemcpyDeviceToHost));
-                u64 any = 0;
-                for (int L = minw; L <= 64; L++) any += hh[L];
-                if (!any) break;
-                for (size_t w = 0; w < widths.size(); w++)
-                    for (int L = widths[w]; L <= 64; L++) pairs[j][w] += hh[L];
+        for (int b = 0; b < 7; b++) for (int i = 0; i < 320; i++) {
+            int old = chain[b].target[i], chosen = old;
+            long long before = body_pair_cost(chain, cycle, b), best = before;
+            for (int target = 0; target < 32; target++) {
+                chain[b].target[i] = (uint8_t)target;
+                long long trial = body_pair_cost(chain, cycle, b);
+                if (trial < best) {
+                    best = trial;
+                    chosen = target;
+                }
+            }
+            chain[b].target[i] = (uint8_t)chosen;
+            if (best < before) {
+                total += best - before;
+                improvements++;
             }
         }
+        long long checked = chain_cost(chain, cycle);
+        if (checked != total) fail("global polish delta mismatch");
+        printf("global polish sweep %d operations %lld improvements %d\n",
+               sweep, total, improvements);
+        if (!improvements) break;
     }
-    CK(cudaDeviceSynchronize());
-    double secs = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
-    const char *pn[NP] = {"L0", "L1", "L2", "L3", "X01", "X23"};
-    printf("{\"rounds\": %d, \"n\": %d, \"ncos\": %llu, \"messages\": %llu, \"b\": %d, \"passes\": %llu, \"widths\": [", nr, n, ncos, total, b, npass);
-    for (size_t w = 0; w < widths.size(); w++) printf("%s%d", w ? ", " : "", widths[w]);
-    printf("], \"kept\": [");
-    for (int j = 0; j < NP; j++) printf("%s%llu", j ? ", " : "", kept[j]);
-    printf("], \"pairs\": {");
-    for (int j = 0; j < NP; j++) {
-        printf("%s\"%s\": [", j ? ", " : "", pn[j]);
-        for (size_t w = 0; w < widths.size(); w++) printf("%s%llu", w ? ", " : "", pairs[j][w]);
-        printf("]");
-    }
-    printf("}, \"overflow\": %s, \"seconds\": %.1f, \"cuda\": \"%s\"}\n", overflow ? "true" : "false", secs, cudaGetErrorString(cudaGetLastError()));
-    return overflow ? 3 : 0;
+    return total;
 }
 
-template <int NR>
-static int dumpk(const u64 *sp, int n, u64 ncos, u64 M, u64 base, int keys, const char *outf) {
-    u64 total = ncos << n;
-    if (base + M > total) { fprintf(stderr, "range past the campaign\n"); return 1; }
-    int per = keys ? NP : 4;
-    u64 *out; CK(cudaMalloc(&out, (size_t)per * M * 8));
-    kdump<NR><<<(unsigned)((M + 255) / 256), 256>>>(sp, n, base, M, keys, out);
-    CK(cudaGetLastError());
-    std::vector<u64> h((size_t)per * M);
-    CK(cudaMemcpy(h.data(), out, (size_t)per * M * 8, cudaMemcpyDeviceToHost));
-    FILE *g = fopen(outf, "wb");
-    if (!g) { fprintf(stderr, "cannot write %s\n", outf); return 1; }
-    fwrite(h.data(), 8, h.size(), g); fclose(g);
-    printf("{\"dumped\": %llu, \"base\": %llu, \"keys\": %d}\n", M, base, keys);
-    return 0;
+static long long global_anneal(Plan chain[8], const uint8_t cycle[1600],
+                               int iterations, uint64_t seed) {
+    Plan best[8];
+    long long total = chain_cost(chain, cycle), best_cost = total;
+    memcpy(best, chain, sizeof(best));
+    for (int it = 0; it < iterations; it++) {
+        uint64_t r = rng_next(&seed);
+        int body = (int)((r >> 8) & 7);
+        int kind = (int)(r % (body < 7 ? 3 : 2));
+        int index = (int)((r >> 16) % 320);
+        int old;
+        long long before = kind == 2 ? body_pair_cost(chain, cycle, body) :
+            weighted_body_cost(chain, cycle, body);
+        if (kind == 0) {
+            old = chain[body].cnot[index];
+            chain[body].cnot[index] ^= 1;
+        } else if (kind == 1) {
+            old = chain[body].dnot[index];
+            chain[body].dnot[index] ^= 1;
+        } else {
+            old = chain[body].target[index];
+            chain[body].target[index] ^= (uint8_t)(1 + ((r >> 32) % 31));
+        }
+        long long after = kind == 2 ? body_pair_cost(chain, cycle, body) :
+            weighted_body_cost(chain, cycle, body);
+        long long diff = after - before;
+        double progress = iterations ? (double)it / iterations : 1.0;
+        double temperature = 24.0 * exp(-5.5 * progress) + 0.05;
+        double uniform = (double)(rng_next(&seed) >> 11) * (1.0 / 9007199254740992.0);
+        int accept = diff <= 0 || uniform < exp(-(double)diff / temperature);
+        if (accept) {
+            total += diff;
+            if (total < best_cost) {
+                best_cost = total;
+                memcpy(best, chain, sizeof(best));
+            }
+        } else if (kind == 0) chain[body].cnot[index] = (uint8_t)old;
+        else if (kind == 1) chain[body].dnot[index] = (uint8_t)old;
+        else chain[body].target[index] = (uint8_t)old;
+    }
+    memcpy(chain, best, sizeof(best));
+    if (chain_cost(chain, cycle) != best_cost) fail("global anneal mismatch");
+    return best_cost;
 }
 
 int main(int argc, char **argv) {
-    if (argc < 7) { fprintf(stderr, "usage: see header\n"); return 1; }
-    const char *mode = argv[1];
-    int n = atoi(argv[3]); u64 ncos = strtoull(argv[4], 0, 10);
-    if (n < 1 || n > 40 || ncos < 1) { fprintf(stderr, "bad n/ncos\n"); return 1; }
-    std::vector<u64> buf(ncos * 5 + n * 5);
-    FILE *f = fopen(argv[2], "rb");
-    if (!f || fread(buf.data(), 8, buf.size(), f) != buf.size()) { fprintf(stderr, "bad infile\n"); return 1; }
-    fclose(f);
-    CK(cudaMemcpyToSymbol(DIRS, buf.data() + ncos * 5, n * 5 * 8));
-    const char *e = getenv("HC_ROUNDS");
-    int nr = e ? atoi(e) : 6;
-    if (nr != 5 && nr != 6) { fprintf(stderr, "HC_ROUNDS must be 5 or 6\n"); return 1; }
-    u64 *sp; CK(cudaMalloc(&sp, ncos * 5 * 8));
-    CK(cudaMemcpy(sp, buf.data(), ncos * 5 * 8, cudaMemcpyHostToDevice));
-    if (!strcmp(mode, "dump") || !strcmp(mode, "keys")) {
-        u64 M = strtoull(argv[5], 0, 10), base = argc > 7 ? strtoull(argv[7], 0, 10) : 0;
-        int keys = mode[0] == 'k';
-        return nr == 6 ? dumpk<6>(sp, n, ncos, M, base, keys, argv[6]) : dumpk<5>(sp, n, ncos, M, base, keys, argv[6]);
+    int rebase_seed = 0;
+    if (argc >= 3 && !strcmp(argv[1], "--kl")) {
+        load_kl_record(argv[2]);
+        argc -= 2;
+        argv += 2;
     }
-    if (!strcmp(mode, "ladder")) {
-        int b = atoi(argv[5]);
-        if (b < 0 || b > 16) { fprintf(stderr, "bad b\n"); return 1; }
-        std::vector<int> widths;
-        std::string ws(argv[6]); size_t pos = 0;
-        while (pos < ws.size()) { size_t q = ws.find(',', pos); if (q == std::string::npos) q = ws.size(); widths.push_back(atoi(ws.substr(pos, q - pos).c_str())); pos = q + 1; }
-        u64 maxpass = argc > 7 ? strtoull(argv[7], 0, 10) : 0;
-        return nr == 6 ? ladder<6>(sp, n, ncos, b, widths, maxpass, nr) : ladder<5>(sp, n, ncos, b, widths, maxpass, nr);
+    if (argc >= 2 && !strcmp(argv[1], "--rebase")) {
+        rebase_seed = 1;
+        argc--;
+        argv++;
     }
-    fprintf(stderr, "unknown mode\n");
-    return 1;
+    const char *dir = argc > 1 ? argv[1] : ".";
+    int iterations = argc > 2 ? atoi(argv[2]) : 30000;
+    int trials = argc > 3 ? atoi(argv[3]) : 4;
+    uint64_t seed_offset = argc > 6 ? strtoull(argv[6], NULL, 0) : 0;
+    int perturbations = argc > 7 ? atoi(argv[7]) : 0;
+    if (iterations < 0 || trials < 1 || trials > 32) fail("invalid optimizer settings");
+    make_row_table();
+
+    int prefix_nodes[1600], body_nodes[1600], end_nodes[256];
+    uint8_t prefix_p[1600], out_p[1600], end_p[256];
+    Plan prefix_plan, seed_chain[8];
+    uint8_t seed_cycle[1600];
+    int have_seed = argc > 5;
+    if (rebase_seed && !have_seed) fail("--rebase requires a seed plan");
+    if (have_seed) {
+        read_seed_plan(argv[5], &prefix_plan, seed_chain, seed_cycle);
+        if (rebase_seed) {
+            optimize_prefix_from_seed(&prefix_plan, prefix_nodes, prefix_p);
+            memcpy(seed_cycle, prefix_p, sizeof(seed_cycle));
+            state_to_targets(seed_cycle, seed_chain[7].target);
+            printf("rebased seed plan %s onto loaded constants\n", argv[5]);
+        } else {
+            build_prefix_graph(&prefix_plan, prefix_nodes, prefix_p);
+            if (memcmp(prefix_p, seed_cycle, 1600)) fail("seed prefix polarity mismatch");
+            printf("loaded seed plan %s\n", argv[5]);
+        }
+    } else {
+        optimize_prefix(&prefix_plan, prefix_nodes, prefix_p);
+    }
+    int prefix_node_count = node_count;
+    Node *prefix_copy = malloc((size_t)node_count * sizeof(*prefix_copy));
+    Form *form_copy = malloc((size_t)form_count * sizeof(*form_copy));
+    int prefix_form_count = form_count;
+    if (!prefix_copy || !form_copy) fail("prefix snapshot allocation failure");
+    memcpy(prefix_copy, nodes, (size_t)node_count * sizeof(*nodes));
+    memcpy(form_copy, forms, (size_t)form_count * sizeof(*forms));
+
+    static const int runs[8] = {3, 3, 3, 3, 3, 2, 2, 2};
+    Plan best_chain[8], chain[8], scratch[8];
+    uint8_t best_cycle[1600];
+    long long best_weighted = -1;
+    if (have_seed) {
+        uint8_t input[1600];
+        memcpy(input, seed_cycle, sizeof(input));
+        long long weighted = 0;
+        for (int b = 0; b < 8; b++) {
+            int cost = current_cost(input, &seed_chain[b]);
+            weighted += (long long)runs[b] * cost;
+            targets_to_state(seed_chain[b].target, input);
+        }
+        if (memcmp(input, seed_cycle, sizeof(input))) fail("seed cycle does not close");
+        printf("seed body operations %lld\n", weighted);
+        best_weighted = weighted;
+        memcpy(best_chain, seed_chain, sizeof(best_chain));
+        memcpy(best_cycle, seed_cycle, sizeof(best_cycle));
+        long long polished = global_polish(best_chain, best_cycle, 8);
+        if (polished < best_weighted) best_weighted = polished;
+        for (int trial = 0; trial < trials && iterations > 0; trial++) {
+            Plan candidate[8];
+            memcpy(candidate, seed_chain, sizeof(candidate));
+            uint64_t seed = UINT64_C(0x6a09e667f3bcc909) ^
+                (uint64_t)(trial + 1 + seed_offset) * UINT64_C(0x9e3779b97f4a7c15);
+            for (int move = 0; move < perturbations; move++) {
+                uint64_t r = rng_next(&seed);
+                int body = (int)((r >> 8) & 7);
+                int kind = (int)(r % (body < 7 ? 3 : 2));
+                int index = (int)((r >> 16) % 320);
+                if (kind == 0) candidate[body].cnot[index] ^= 1;
+                else if (kind == 1) candidate[body].dnot[index] ^= 1;
+                else candidate[body].target[index] ^=
+                    (uint8_t)(1 + ((r >> 32) % 31));
+            }
+            long long annealed = global_anneal(candidate, seed_cycle, iterations, seed);
+            long long candidate_cost = global_polish(candidate, seed_cycle, 4);
+            printf("global trial %d annealed %lld polished %lld\n",
+                   trial, annealed, candidate_cost);
+            if (candidate_cost < best_weighted) {
+                best_weighted = candidate_cost;
+                memcpy(best_chain, candidate, sizeof(best_chain));
+            }
+        }
+    }
+    if (!have_seed) for (int trial = 0; trial < trials; trial++) {
+        uint8_t cycle[1600], input[1600];
+        memcpy(cycle, prefix_p, sizeof(cycle));
+        int derivations = trial % 3;
+        for (int outer = 0; outer < derivations; outer++) {
+            memcpy(input, cycle, sizeof(input));
+            for (int b = 0; b < 7; b++) {
+                uint64_t seed = UINT64_C(0x243f6a8885a308d3) ^
+                    (uint64_t)(trial + 1) * UINT64_C(0xd1b54a32d192ed03) ^
+                    (uint64_t)(outer + 1) * UINT64_C(0x9e3779b97f4a7c15) ^
+                    (uint64_t)(b + 1) * UINT64_C(0x94d049bb133111eb);
+                optimize_plan(input, NULL, NULL, NULL,
+                              have_seed ? seed_chain[b].ib : 0,
+                              seed, iterations, &scratch[b]);
+                targets_to_state(scratch[b].target, input);
+            }
+            uint64_t seed = UINT64_C(0x13198a2e03707344) ^
+                (uint64_t)(trial + 1) * UINT64_C(0x94d049bb133111eb) ^
+                (uint64_t)(outer + 1) * UINT64_C(0xd1b54a32d192ed03);
+            optimize_plan(input, NULL, NULL, prefix_p,
+                          have_seed ? seed_chain[7].ib : 0,
+                          seed, iterations, &scratch[7]);
+            targets_to_state(scratch[7].target, cycle);
+        }
+
+        memcpy(input, cycle, sizeof(input));
+        long long weighted = 0;
+        for (int b = 0; b < 8; b++) {
+            const uint8_t *fixed = b == 7 ? cycle : NULL;
+            uint64_t seed = UINT64_C(0x9e3779b97f4a7c15) ^
+                (uint64_t)(trial + 1) * UINT64_C(0xd1b54a32d192ed03) ^
+                (uint64_t)(b + 1) * UINT64_C(0x94d049bb133111eb);
+            const uint8_t *next_fixed = b == 6 ? cycle : NULL;
+            optimize_plan(input, fixed, next_fixed, NULL,
+                          have_seed ? seed_chain[b].ib : 0,
+                          seed, iterations, &chain[b]);
+            int cost = current_cost(input, &chain[b]);
+            weighted += (long long)runs[b] * cost;
+            targets_to_state(chain[b].target, input);
+        }
+        int bridge = 0;
+        for (int i = 0; i < 1600; i++) bridge += cycle[i] != prefix_p[i];
+        weighted += bridge;
+        printf("optimizer trial %d body-plus-bridge-operations %lld bridge %d\n",
+               trial, weighted, bridge);
+        if (best_weighted < 0 || weighted < best_weighted) {
+            best_weighted = weighted;
+            memcpy(best_chain, chain, sizeof(best_chain));
+            memcpy(best_cycle, cycle, sizeof(best_cycle));
+        }
+    }
+
+    if (argc > 4)
+        write_regeneration_data(argv[4], &prefix_plan, best_chain, best_cycle);
+
+    int highest = 0;
+    memcpy(nodes, prefix_copy, (size_t)prefix_node_count * sizeof(*nodes));
+    memcpy(forms, form_copy, (size_t)prefix_form_count * sizeof(*forms));
+    node_count = prefix_node_count;
+    form_count = prefix_form_count;
+    free(prefix_copy);
+    free(form_copy);
+    size_t stored = emit_block(dir, "P", prefix_nodes, 1600, 256, 0, 256, &highest);
+    size_t prefix_count = stored;
+    size_t bridge_count = emit_bridge(dir, prefix_p, best_cycle);
+    stored += bridge_count;
+
+    uint8_t input[1600];
+    memcpy(input, best_cycle, sizeof(input));
+    size_t body_count[8];
+    for (int b = 0; b < 8; b++) {
+        build_body_graph(input, &best_chain[b], body_nodes, out_p);
+        int expected = current_cost(input, &best_chain[b]);
+        int in_base = (b & 1) ? 1856 : 256;
+        int out_base = (b & 1) ? 256 : 1856;
+        char name[8];
+        snprintf(name, sizeof(name), "B%d", b + 1);
+        body_count[b] = emit_block(dir, name, body_nodes, 1600, 1600, in_base,
+                                   out_base, &highest);
+        if ((int)body_count[b] != expected) fail("body count differs from polarity ledger");
+        stored += body_count[b];
+        memcpy(input, out_p, sizeof(input));
+    }
+    if (memcmp(input, best_cycle, sizeof(input))) fail("eight-body polarity cycle does not close");
+
+    uint8_t round22_p[1600];
+    targets_to_state(best_chain[4].target, round22_p);
+    build_end_graph(round22_p, end_nodes, end_p);
+    size_t end_count = emit_block(dir, "E", end_nodes, 256, 1600, 1856, 0, &highest);
+    stored += end_count;
+
+    int iota = 0;
+    for (int r = 2; r <= 22; r++) {
+        int b = (r - 2) & 7;
+        iota += __builtin_popcountll(RC[r] ^ best_chain[b].ib);
+    }
+    int driver = 2 * 21 + iota;
+    long long executed = (long long)prefix_count + bridge_count + end_count + driver;
+    for (int b = 0; b < 8; b++) executed += (long long)runs[b] * body_count[b];
+    uint64_t pd[4] = {0, 0, 0, 0};
+    for (int j = 0; j < 256; j++) pd[j >> 6] |= (uint64_t)end_p[j] << (j & 63);
+    char pd_path[4096];
+    if (snprintf(pd_path, sizeof(pd_path), "%s/PD.bin", dir) >= (int)sizeof(pd_path))
+        fail("PD path too long");
+    FILE *pd_file = fopen(pd_path, "wb");
+    if (!pd_file || fwrite(pd, sizeof(pd), 1, pd_file) != 1 || fclose(pd_file))
+        fail("cannot write PD.bin");
+
+    printf("stored-block-instructions %zu\n", stored);
+    printf("iota-xors %d\n", iota);
+    printf("driver %d\n", driver);
+    printf("TOTAL %lld\n", executed);
+    printf("highest-register+1 %d\n", highest);
+    printf("PD %016" PRIx64 " %016" PRIx64 " %016" PRIx64 " %016" PRIx64 "\n",
+           pd[0], pd[1], pd[2], pd[3]);
+    printf("optimizer iterations-per-body %d trials %d\n", iterations, trials);
+    return highest > 4096 ? 2 : 0;
+}
+
+```
+
+### step_search.c
+
+```c
+#define main r24_library_main
+#define make_row_table inherited_make_row_table
+#define build_target_row inherited_build_target_row
+#include "plan_search_local.c"
+#undef build_target_row
+#undef make_row_table
+#undef main
+#include "s3_basis.h"
+#ifndef FREESTANDING
+#include <time.h>
+#endif
+
+static double bounded_exp(double x){
+    if(x < -40.0) return 0.0;
+    double y=x/64.0;
+    double e=1.0+y+y*y/2.0+y*y*y/6.0+y*y*y*y/24.0;
+    for(int i=0;i<6;i++)e*=e;
+    return e;
+}
+
+static const int S3_LANES[12]={0,2,3,5,7,8,10,12,13,15,11,14};
+
+static void chain_order(int tricks,int order[5]){
+    int start=0;while((tricks>>start)&1)start++;
+    for(int i=0;i<5;i++)order[i]=(start-i+5)%5;
+}
+
+static void eval_native_row(int pin,int subset,int tricks,int selected,
+                            int *cost_out,int *target_out){
+    int bp[5],op[5]={0,0,0,0,0},order[5],cost=__builtin_popcount((unsigned)subset);
+    for(int x=0;x<5;x++)bp[x]=((pin>>x)&1)^((subset>>x)&1);
+    chain_order(tricks,order);
+    for(int i=0;i<5;i++){
+        int x=order[i],a=((tricks>>x)&1)?op[(x+1)%5]^1:bp[(x+1)%5]^1,b=bp[(x+2)%5],tp;
+        cost+=sim_term(a,b,(selected>>x)&1,&tp)+1;op[x]=bp[x]^tp;
+    }
+    int target=0;for(int x=0;x<5;x++)target|=op[x]<<x;*cost_out=cost;*target_out=target;
+}
+
+static void verify_native_row(int pin,int target,Decision d){
+    int order[5];chain_order(d.tricks,order);
+    for(int bits=0;bits<32;bits++){
+        int w[5],p[5],ow[5]={0,0,0,0,0},op[5]={0,0,0,0,0};
+        for(int x=0;x<5;x++){w[x]=((bits>>x)&1)^((pin>>x)&1);p[x]=(pin>>x)&1;if((d.subset>>x)&1){w[x]^=1;p[x]^=1;}}
+        for(int i=0;i<5;i++){
+            int x=order[i],lw,lp;if((d.tricks>>x)&1){lw=ow[(x+1)%5];lp=op[(x+1)%5]^1;}else{lw=w[(x+1)%5];lp=p[(x+1)%5]^1;}
+            int rw=w[(x+2)%5],rp=p[(x+2)%5],tw,tp;
+            if(lp==rp){if(!lp){tw=lw&rw;tp=0;}else{tw=lw|rw;tp=1;}}
+            else{int pw=lp?rw:lw,other=lp?lw:rw;if((d.select_mask>>x)&1){tw=(pw^1)|other;tp=1;}else{tw=pw^(pw&other);tp=0;}}
+            ow[x]=w[x]^tw;op[x]=p[x]^tp;
+        }
+        int got_p=0;for(int x=0;x<5;x++){int logical=ow[x]^op[x],truth=((bits>>x)&1)^((((bits>>((x+1)%5))&1)^1)&((bits>>((x+2)%5))&1));if(logical!=truth)fail("chained row truth mismatch");got_p|=op[x]<<x;}
+        if(got_p!=target)fail("chained row polarity mismatch");
+    }
+}
+
+static void make_row_table(void){
+    for(int pin=0;pin<32;pin++){
+        for(int target=0;target<32;target++)row_table[pin][target]=(Decision){0,0,0,255};
+        for(int subset=0;subset<32;subset++)for(int tricks=0;tricks<31;tricks++)for(int selected=0;selected<32;selected++){
+            int cost,target;eval_native_row(pin,subset,tricks,selected,&cost,&target);Decision best=row_table[pin][target];
+            Decision candidate={(uint8_t)subset,(uint8_t)tricks,(uint8_t)selected,(uint8_t)cost};
+            int better=candidate.cost<best.cost;
+            if(candidate.cost==best.cost){int ct=__builtin_popcount((unsigned)candidate.tricks),bt=__builtin_popcount((unsigned)best.tricks),cs=__builtin_popcount((unsigned)candidate.subset),bs=__builtin_popcount((unsigned)best.subset);better=ct<bt||(ct==bt&&(cs<bs||(cs==bs&&(candidate.subset<best.subset||(candidate.subset==best.subset&&(candidate.tricks<best.tricks||(candidate.tricks==best.tricks&&candidate.select_mask<best.select_mask)))))));}
+            if(better)row_table[pin][target]=candidate;
+        }
+        int min_cost=255,min_target=0;
+        for(int target=0;target<32;target++){
+            Decision best=row_table[pin][target];
+            if(best.cost==255)fail("unreachable native row target polarity");
+            verify_native_row(pin,target,best);row_table[pin][target]=best;
+            if(best.cost<min_cost){min_cost=best.cost;min_target=target;}
+        }
+        row_min_cost[pin]=(uint8_t)min_cost;row_min_target[pin]=(uint8_t)min_target;
+    }
+}
+
+static uint64_t chained_table_checksum(void){uint64_t h=UINT64_C(1469598103934665603);for(int p=0;p<32;p++)for(int q=0;q<32;q++){Decision d=row_table[p][q];uint8_t bytes[4]={d.subset,d.tricks,d.select_mask,d.cost};for(int i=0;i<4;i++){h^=bytes[i];h*=UINT64_C(1099511628211);}}return h;}
+
+static void build_target_row(Value b[5],int target,Value out[5]){
+    int pin=0;for(int x=0;x<5;x++)pin|=b[x].p<<x;
+    Decision d=row_table[pin][target];int order[5];chain_order(d.tricks,order);
+    for(int x=0;x<5;x++)if((d.subset>>x)&1)b[x]=complement_representation(b[x]);
+    for(int i=0;i<5;i++){
+        int x=order[i];Value first=((d.tricks>>x)&1)?out[(x+1)%5]:b[(x+1)%5];
+        Value t=and_value(val(first.n,first.p^1),b[(x+2)%5],(d.select_mask>>x)&1);out[x]=xor_value(b[x],t);
+    }
+    int got=0;for(int x=0;x<5;x++)got|=out[x].p<<x;
+    if(got!=target)fail("native row construction mismatch");
+}
+
+static uint16_t emitter_decisions[24][320];static uint8_t emitter_has_decisions[24];
+static void build_encoded_row(Value b[5],uint16_t word,Value out[5]){
+    int subset=word&31,tricks=(word>>5)&31,selected=(word>>10)&31,order[5];chain_order(tricks,order);
+    for(int x=0;x<5;x++)if((subset>>x)&1)b[x]=complement_representation(b[x]);
+    for(int i=0;i<5;i++){int x=order[i];Value first=((tricks>>x)&1)?out[(x+1)%5]:b[(x+1)%5];Value t=and_value(val(first.n,first.p^1),b[(x+2)%5],(selected>>x)&1);out[x]=xor_value(b[x],t);}
+}
+
+static void set_s3_trial(int trial){
+    memset(KL,0,sizeof(KL)); KL[16]=UINT64_C(0x8000000000000006);
+    uint64_t s=UINT64_C(0x9e3779b97f4a7c15)*(uint64_t)trial+1;
+    for(int i=0;i<11;i++) rng_next(&s);
+    uint64_t selector=s;
+    for(int i=0;i<12;i++){
+        uint64_t value=S3_KB0[i];
+        for(int bit=0;bit<64;bit++) if((selector>>bit)&1) value^=S3_KBV[bit][i];
+        KL[S3_LANES[i]]=value;
+    }
+}
+
+static void make_min_plan(const uint8_t input[1600],int round,Plan *p){
+    memset(p,0,sizeof(*p)); p->ib=RC[round];
+    uint8_t patterns[320]; row_patterns(input,p->cnot,p->dnot,patterns);
+    for(int i=0;i<320;i++) p->target[i]=(uint8_t)(row_min_target[patterns[i]] ^
+        (i<64 && ((RC[round]>>i)&1)));
+}
+
+static void exact_round(Value state[25][64],int round,int last,const Plan *plan,
+                        int *outputs,uint8_t *output_p){
+    Value next[25][64],column[5][64],delta[5][64]; memcpy(next,state,sizeof(next));
+    const uint8_t *cn=plan?plan->cnot:NULL,*dn=plan?plan->dnot:NULL;
+    for(int x=0;x<5;x++){
+        Value s=state[x][63];
+        for(int y=1;y<5;y++) s=xor_value(s,state[x+5*y][63]);
+        if(cn&&cn[64*x+63]) s=complement_representation(s);
+        column[x][63]=s;
+    }
+    for(int z=0;z<64;z++){
+        if(z<63) for(int x=0;x<5;x++){
+            Value s=state[x][z];
+            for(int y=1;y<5;y++) s=xor_value(s,state[x+5*y][z]);
+            if(cn&&cn[64*x+z]) s=complement_representation(s);
+            column[x][z]=s;
+        }
+        for(int x=0;x<5;x++){
+            Value d=xor_value(column[(x+4)%5][z],column[(x+1)%5][(z+63)&63]);
+            if(dn&&dn[64*x+z]) d=complement_representation(d);
+            delta[x][z]=d;
+        }
+    }
+    int ny=last?1:5;
+    for(int Y=0;Y<ny;Y++)for(int z=0;z<64;z++){
+        Value b[5],out[5];for(int X=0;X<5;X++){int y=X,x=(3*Y+X)%5,zz=(z-ROT[x][y])&63;b[X]=xor_value(state[x+5*y][zz],delta[x][zz]);}
+        if(plan&&plan->ib==RC[round]&&!last){
+            if(emitter_has_decisions[round])build_encoded_row(b,emitter_decisions[round][64*Y+z],out);
+            else{int target=plan->target[64*Y+z]^(Y==0&&((RC[round]>>z)&1));build_target_row(b,target,out);}
+        }
+        else build_dynamic_row(b,last?15:31,out);
+        for(int X=0;X<(last?4:5);X++)next[X+5*Y][z]=out[X];
+    }
+    for(int z=0;z<64;z++)next[0][z].p^=(RC[round]>>z)&1;
+    memcpy(state,next,sizeof(next));
+    int count=last?256:1600;
+    for(int q=0;q<count;q++){Value v=state[q>>6][q&63];outputs[q]=v.n;output_p[q]=v.p;}
+}
+
+static void build_prefix_exact(const Plan *prefix,int outputs[1600],uint8_t output_p[1600]){
+    Value state[25][64];reset_graph(256,1);
+    for(int l=0;l<25;l++)for(int z=0;z<64;z++)state[l][z]=constant((KL[l]>>z)&1);
+    for(int z=0;z<64;z++){state[1][z]=val(z,0);state[6][z]=val(64+z,0);state[4][z]=val(128+z,0);state[9][z]=val(192+z,0);
+        state[11][z]=xor_value(xor_value(val(z,0),val(64+z,0)),constant((KL[11]>>z)&1));
+        state[14][z]=xor_value(xor_value(val(128+z,0),val(192+z,0)),constant((KL[14]>>z)&1));}
+    uint8_t scratch[1600];int nodes[1600];exact_round(state,0,0,NULL,nodes,scratch);exact_round(state,1,0,prefix,nodes,scratch);
+    memcpy(outputs,nodes,sizeof(nodes));memcpy(output_p,scratch,1600);
+}
+
+static void build_body_exact(const uint8_t input[1600],int round,const Plan *plan,int outputs[1600],uint8_t output_p[1600]){
+    Value state[25][64];reset_graph(1600,0);for(int q=0;q<1600;q++)state[q>>6][q&63]=val(q,input[q]);
+    exact_round(state,round,0,plan,outputs,output_p);
+}
+
+static void build_last_generic(const uint8_t input[1600],int round,int outputs[256],uint8_t output_p[256]){
+    Value S[25][64],C[5][64],D[5][64]; uint8_t hc[320]={0},hd[320]={0};
+    reset_graph(1600,0); for(int q=0;q<1600;q++) S[q>>6][q&63]=val(q,input[q]);
+    for(int z=0;z<64;z++){
+        Value b[5],out[5];
+        for(int X=0;X<5;X++){ int x=X,y=X,zz=(z-ROT[x][y])&63;
+            Value d=lazy_d(S,C,D,hc,hd,NULL,NULL,x,zz); b[X]=xor_value(S[x+5*y][zz],d); }
+        build_dynamic_row(b,15,out);
+        for(int X=0;X<4;X++){ Value v=out[X]; if(X==0)v.p^=(RC[round]>>z)&1;
+            outputs[64*X+z]=v.n; output_p[64*X+z]=v.p; }
+    }
+}
+
+static long straight_count(int rounds,int full,Plan *prefix,Plan plans[24],uint8_t inputs[24][1600]){
+    int nodes1600[1600],nodes256[256]; uint8_t polarity[1600],lastp[256]; long total=0;
+    if(!full) memset(prefix,0,sizeof(*prefix));
+    build_prefix_exact(prefix,nodes1600,polarity);
+    long part=live_operation_count(nodes1600,1600,256);total+=part;
+    if(full&&getenv("STEP_DEBUG"))fprintf(stderr,"segment 0-1 %ld\n",part);
+    memcpy(inputs[2],polarity,1600);
+    for(int r=2;r<rounds-1;r++){
+        if(full) build_body_exact(polarity,r,&plans[r],nodes1600,polarity);
+        else {
+            make_min_plan(polarity,r,&plans[r]);
+            build_body_exact(polarity,r,&plans[r],nodes1600,polarity);
+        }
+        part=live_operation_count(nodes1600,1600,1600);total+=part;
+        if(full&&getenv("STEP_DEBUG"))fprintf(stderr,"segment %d %ld\n",r,part);
+        memcpy(inputs[r+1],polarity,1600);
+    }
+    build_last_generic(polarity,rounds-1,nodes256,lastp);
+    part=live_operation_count(nodes256,256,1600);total+=part;
+    if(full&&getenv("STEP_DEBUG"))fprintf(stderr,"segment %d %ld\n",rounds-1,part);
+    return total;
+}
+
+static int last_row_cost[32];
+
+/* Static streaming allocator used by the charged emitter.  One graph segment
+   is live at a time and the packed program is written as records are made. */
+enum { EMIT_REGS=1936, EMIT_BUFFER=4096 };
+static uint8_t ea_live[MAX_NODES],ea_busy[EMIT_REGS];
+static uint16_t ea_last[MAX_NODES],ea_reg[MAX_NODES],ea_out_index[MAX_NODES];
+static uint16_t ea_input_regs[1600];
+static uint16_t ea_final_last[1600],ea_final_output[256];
+static uint8_t ea_buffer[EMIT_BUFFER];static int ea_length,ea_bits;static uint64_t ea_acc;
+static FILE *ea_file;static long ea_ops,ea_short,ea_forms[3],ea_mix[4];static int ea_peak;
+
+static void ea_flush(void){if(ea_length&&fwrite(ea_buffer,1,(size_t)ea_length,ea_file)!=(size_t)ea_length)fail("step program write");ea_length=0;}
+static void ea_byte(uint8_t value){ea_buffer[ea_length++]=value;if(ea_length==EMIT_BUFFER)ea_flush();}
+static void ea_record(int op,int d,int a,int b){
+    if(op<0||op>3||d<0||a<0||b<0||d>=2048||a>=2048||b>=2048)fail("native step field overflow");
+    if(d==b&&op!=3){int t=a;a=b;b=t;}
+    uint64_t word;int width,same=d==a;
+    if(same){word=(uint64_t)op|4|((uint64_t)a<<3);width=op==3?14:25;if(op!=3)word|=(uint64_t)b<<14;ea_short++;}
+    else{word=(uint64_t)op|((uint64_t)d<<3)|((uint64_t)a<<14);width=op==3?25:36;if(op!=3)word|=(uint64_t)b<<25;}
+    ea_forms[width==14?0:width==25?1:2]++;ea_mix[op]++;ea_ops++;
+    ea_acc|=word<<ea_bits;ea_bits+=width;while(ea_bits>=8){ea_byte((uint8_t)ea_acc);ea_acc>>=8;ea_bits-=8;}
+}
+
+static void ea_segment(const int *outputs,int output_count,int input_count,int round,int rounds,int final){
+    long before_ops=ea_ops;int expected_ops=live_operation_count(outputs,output_count,input_count);
+    memset(ea_live,0,(size_t)node_count);memset(ea_last,0,(size_t)node_count*sizeof(*ea_last));
+    memset(ea_out_index,0xff,(size_t)node_count*sizeof(*ea_out_index));memset(ea_busy,0,sizeof(ea_busy));
+    for(int j=0;j<output_count;j++){int node=outputs[j];if(node<input_count||ea_out_index[node]!=UINT16_MAX)fail("shared state output");ea_live[node]=1;ea_out_index[node]=(uint16_t)j;}
+    for(int i=node_count-1;i>=input_count;i--)if(ea_live[i]){ea_live[nodes[i].a]=1;if(nodes[i].op!=O_NOT)ea_live[nodes[i].b]=1;}
+    for(int i=input_count;i<node_count;i++)if(ea_live[i]){ea_last[nodes[i].a]=(uint16_t)i;if(nodes[i].op!=O_NOT)ea_last[nodes[i].b]=(uint16_t)i;}
+    for(int j=0;j<output_count;j++)ea_last[outputs[j]]=UINT16_MAX;
+    for(int i=0;i<input_count;i++){ea_reg[i]=ea_input_regs[i];if(ea_last[i])ea_busy[ea_input_regs[i]]=1;}
+    for(int i=input_count;i<node_count;i++)if(ea_live[i]){
+        int op=nodes[i].op,a=nodes[i].a,b=op==O_NOT?a:nodes[i].b,ra=ea_reg[a],rb=op==O_NOT?0:ea_reg[b];
+        if(ea_last[a]==i)ea_busy[ra]=0;
+        if(b!=a&&ea_last[b]==i)ea_busy[rb]=0;
+        int destination=-1;
+        if(final&&ea_out_index[i]!=UINT16_MAX){destination=ea_out_index[i];if(ea_busy[destination])fail("digest destination busy");}
+        else for(int physical=0;physical<EMIT_REGS;physical++){
+            if(ea_busy[physical])continue;
+            if(!final&&round==rounds-2&&physical<256&&ea_out_index[i]!=UINT16_MAX){int state_index=ea_out_index[i];if(ea_final_output[physical]<ea_final_last[state_index])continue;}
+            if(final&&physical<256){int output_node=outputs[physical];if(output_node!=i&&ea_last[i]>output_node)continue;}
+            destination=physical;break;
+        }
+        if(destination<0)fail("emitter register exhausted");
+        ea_busy[destination]=1;ea_reg[i]=(uint16_t)destination;
+        if(destination+1>ea_peak)ea_peak=destination+1;
+        int code=op==O_XOR?0:op==O_AND?1:op==O_OR?2:3;ea_record(code,destination,ra,rb);
+    }
+    for(int j=0;j<output_count;j++)ea_input_regs[j]=ea_reg[outputs[j]];
+    for(int r=0;r<EMIT_REGS;r++){
+        int expected=0;for(int j=0;j<output_count;j++)if(ea_input_regs[j]==r){expected=1;break;}
+        if((int)ea_busy[r]!=expected)fail("emitter boundary live set");
+    }
+    if(ea_ops-before_ops!=expected_ops){fprintf(stderr,"segment round=%d emitted=%ld expected=%d nodes=%d\n",round,ea_ops-before_ops,expected_ops,node_count);fail("emitter DCE mismatch");}
+}
+
+static void emit_straight(const char *path,int rounds,Plan *prefix,Plan plans[24]){
+    ea_file=fopen(path,"wb");if(!ea_file)fail("step output");ea_length=ea_bits=0;ea_acc=0;ea_ops=ea_short=0;ea_peak=256;
+    memset(ea_forms,0,sizeof(ea_forms));memset(ea_mix,0,sizeof(ea_mix));for(int i=0;i<256;i++)ea_input_regs[i]=(uint16_t)i;
+    int nodes1600[1600],nodes256[256];uint8_t polarity[1600],lastp[256];
+    /* Prebuild the final graph to identify state inputs that remain live past
+       the first digest definition.  Those inputs may not occupy low digest
+       registers at the preceding boundary. */
+    build_prefix_exact(prefix,nodes1600,polarity);
+    for(int r=2;r<rounds-1;r++)build_body_exact(polarity,r,&plans[r],nodes1600,polarity);
+    build_last_generic(polarity,rounds-1,nodes256,lastp);
+    memset(ea_live,0,(size_t)node_count);memset(ea_last,0,(size_t)node_count*sizeof(*ea_last));for(int j=0;j<256;j++)ea_live[nodes256[j]]=1;
+    for(int i=node_count-1;i>=1600;i--)if(ea_live[i]){ea_live[nodes[i].a]=1;if(nodes[i].op!=O_NOT)ea_live[nodes[i].b]=1;}
+    for(int i=1600;i<node_count;i++)if(ea_live[i]){ea_last[nodes[i].a]=(uint16_t)i;if(nodes[i].op!=O_NOT)ea_last[nodes[i].b]=(uint16_t)i;}
+    for(int q=0;q<1600;q++)ea_final_last[q]=ea_last[q];
+    for(int j=0;j<256;j++)ea_final_output[j]=(uint16_t)nodes256[j];
+    /* Rebuild and emit from round zero. */
+    build_prefix_exact(prefix,nodes1600,polarity);ea_segment(nodes1600,1600,256,1,rounds,0);
+    for(int r=2;r<rounds-1;r++){build_body_exact(polarity,r,&plans[r],nodes1600,polarity);ea_segment(nodes1600,1600,1600,r,rounds,0);}
+    build_last_generic(polarity,rounds-1,nodes256,lastp);ea_segment(nodes256,256,1600,rounds-1,rounds,1);
+    if(ea_bits)ea_byte((uint8_t)ea_acc);
+    ea_flush();if(fclose(ea_file))fail("step close");
+    uint64_t pd[4]={0,0,0,0};for(int bit=0;bit<256;bit++)pd[bit>>6]|=(uint64_t)(lastp[bit]&1)<<(bit&63);
+    fprintf(stderr,"emitted step_ops=%ld peak=%d bytes=%ld forms14=%ld forms25=%ld forms36=%ld short=%ld mix=%ld,%ld,%ld,%ld pd=%016lx,%016lx,%016lx,%016lx\n",
+        ea_ops,ea_peak,(ea_forms[0]*14+ea_forms[1]*25+ea_forms[2]*36+7)/8,ea_forms[0],ea_forms[1],ea_forms[2],ea_short,
+        ea_mix[0],ea_mix[1],ea_mix[2],ea_mix[3],
+        (unsigned long)pd[0],(unsigned long)pd[1],(unsigned long)pd[2],(unsigned long)pd[3]);
+}
+
+/* Cost of a last-round chi row, where only outputs 0..3 are live. */
+static void make_last_row_cost(void){
+    for(int pin=0;pin<32;pin++){
+        int best=1<<30;
+        for(int subset=0;subset<32;subset++){
+            int bp[5];
+            for(int x=0;x<5;x++) bp[x]=((pin>>x)&1)^((subset>>x)&1);
+            for(int trick=-1;trick<5;trick++){
+                int k=(trick+1)%5;
+                if(trick>=0 && (!((15>>trick)&1)||!((15>>k)&1))) continue;
+                int cost=__builtin_popcount((unsigned)subset),op[5]={0,0,0,0,0};
+                if(trick>=0){
+                    int a=bp[(k+1)%5]^1,b=bp[(k+2)%5];
+                    int tp=a==b?a:0;
+                    cost+=(a==b?1:2)+1; op[k]=bp[k]^tp;
+                }
+                for(int x=0;x<5;x++) if((15>>x)&1){
+                    if(trick>=0&&x==k) continue;
+                    int a=(x==trick?op[k]:bp[(x+1)%5])^1,b=bp[(x+2)%5];
+                    cost+=(a==b?1:2)+1;
+                }
+                if(cost<best) best=cost;
+            }
+        }
+        last_row_cost[pin]=best;
+    }
+}
+
+/* One-round-lookahead annealer.  Each move updates only the affected chi rows,
+   so the charged 200,000,000-iteration campaign is practical and auditable. */
+static void anneal_straight(const uint8_t input[1600],int round,int rounds,long iterations,Plan *result){
+    uint8_t zero[320]={0},pat0[320],pat1[320],outv[320];
+    uint8_t cnot[320]={0},dnot[320]={0},bestc[320]={0},bestd[320]={0},besto[320];
+    uint16_t vrow[5][64][5]; uint8_t vbit[5][64][5];
+    row_patterns(input,zero,zero,pat0);
+    for(int i=0;i<320;i++) outv[i]=row_min_target[pat0[i]];
+    uint8_t next[1600]; targets_to_state(outv,next);
+    for(int z=0;z<64;z++) next[z]^=(uint8_t)((RC[round]>>z)&1);
+    row_patterns(next,zero,zero,pat1);
+    for(int x=0;x<5;x++) for(int zz=0;zz<64;zz++) for(int y=0;y<5;y++){
+        int Y=(2*(x-y)+10)%5,z=(zz+ROT[x][y])&63;
+        vrow[x][zz][y]=(uint16_t)(64*Y+z); vbit[x][zz][y]=(uint8_t)(1<<y);
+    }
+    int next_last=round+1==rounds-1;
+    #define COST0(i) ((int)row_table[pat0[(i)]][outv[(i)]].cost)
+    #define COST1(i) (next_last? ((i)<64?last_row_cost[pat1[(i)]]:0) : (int)row_min_cost[pat1[(i)]])
+    long a0=0,a1=0;
+    for(int i=0;i<320;i++){a0+=COST0(i);a1+=COST1(i);}
+    long cost=16*a0+3*a1,best=cost;
+    memcpy(besto,outv,sizeof(besto));
+    uint64_t seed=UINT64_C(0x2545f4914f6cdd1d)^(uint64_t)round*UINT64_C(0x9e3779b97f4a7c15)^UINT64_C(0x1234567);
+    #define FLIP0(rw,bit) do{cost-=16*COST0(rw);pat0[(rw)]^=(uint8_t)(bit);cost+=16*COST0(rw);}while(0)
+    #define FLIPD0(xx,zz) do{for(int kk=0;kk<5;kk++){int rw=vrow[(xx)][(zz)][kk];FLIP0(rw,vbit[(xx)][(zz)][kk]);}}while(0)
+    #define FLIP1(rw,bit) do{cost-=3*COST1(rw);pat1[(rw)]^=(uint8_t)(bit);cost+=3*COST1(rw);}while(0)
+    #define FLIPD1(xx,zz) do{for(int kk=0;kk<5;kk++){int rw=vrow[(xx)][(zz)][kk];FLIP1(rw,vbit[(xx)][(zz)][kk]);}}while(0)
+    for(long it=0;it<iterations;it++){
+        uint64_t random=rng_next(&seed);int move=(int)(random%5),x=(int)((random>>3)%5),z=(int)((random>>8)&63),Y=(int)((random>>16)%5);
+        if(move>=2)move=2;
+        int mask=((random>>24)&1)?(int)(1+((random>>28)%31)):(1<<x);
+        long before=cost;
+        #define APPLY_MOVE() do{ \
+            if(move==0){FLIPD0(x,z);dnot[64*x+z]^=1;cost+=dnot[64*x+z]?16:-16;} \
+            else if(move==1){int x1=(x+1)%5,x2=(x+4)%5,z2=(z+1)&63;FLIPD0(x1,z);FLIPD0(x2,z2);cnot[64*x+z]^=1;cost+=cnot[64*x+z]?16:-16;} \
+            else{int rw=64*Y+z;cost-=16*COST0(rw);outv[rw]^=(uint8_t)mask;cost+=16*COST0(rw); \
+                for(int X=0;X<5;X++)if((mask>>X)&1){int x1=(X+1)%5,x2=(X+4)%5,z2=(z+1)&63,rw1=vrow[X][z][Y];FLIP1(rw1,vbit[X][z][Y]);FLIPD1(x1,z);FLIPD1(x2,z2);}} \
+        }while(0)
+        APPLY_MOVE(); long difference=cost-before;
+        double temperature=19.2*bounded_exp(-3.1780538303479458*(double)it/(double)(iterations?iterations:1));
+        double uniform=(double)(rng_next(&seed)>>11)*(1.0/9007199254740992.0);
+        int accept=difference<=0||uniform<bounded_exp(-(double)difference/temperature);
+        if(accept){if(cost<best){best=cost;memcpy(bestc,cnot,sizeof(bestc));memcpy(bestd,dnot,sizeof(bestd));memcpy(besto,outv,sizeof(besto));}}
+        else APPLY_MOVE();
+    }
+    memset(result,0,sizeof(*result));result->ib=RC[round];
+    memcpy(result->cnot,bestc,320);memcpy(result->dnot,bestd,320);
+    for(int i=0;i<320;i++) result->target[i]=(uint8_t)(besto[i]^(i<64&&((RC[round]>>i)&1)));
+    #undef APPLY_MOVE
+    #undef FLIPD1
+    #undef FLIP1
+    #undef FLIPD0
+    #undef FLIP0
+    #undef COST1
+    #undef COST0
+}
+
+static void hex_bytes(FILE *f,const uint8_t *data,int n){
+    static const char h[]="0123456789abcdef"; for(int i=0;i<n;i++){fputc(h[data[i]>>4],f);fputc(h[data[i]&15],f);}
+}
+
+static void hex_bits(FILE *f,const uint8_t *bits,int n){
+    uint8_t packed[200]={0};
+    if(n>(int)(8*sizeof(packed))) fail("bitset too wide");
+    for(int i=0;i<n;i++) packed[i>>3]|=(uint8_t)((bits[i]&1)<<(i&7));
+    hex_bytes(f,packed,(n+7)/8);
+}
+
+static void write_plan_file(const char *path,int rounds,int trial,const Plan *prefix,Plan plans[24],uint8_t inputs[24][1600]){
+    FILE *f=fopen(path,"w"); if(!f)fail("plan output");
+    fprintf(f,"trial %d\nnr %d optmode 4 chained 1 lasttrick 1 notfold 0\n",trial,rounds);
+    fprintf(f,"F1 ");hex_bits(f,prefix->dnot,320);fprintf(f,"\nG1 ");hex_bits(f,prefix->cnot,320);fputc('\n',f);
+    for(int r=2;r<rounds;r++){ fprintf(f,"FG %d ",r);hex_bits(f,plans[r].dnot,320);fputc(' ',f);hex_bits(f,plans[r].cnot,320);fputc('\n',f); }
+    for(int r=0;r<rounds;r++){ fprintf(f,"PHI %d ",r);for(int i=0;i<200;i++)fprintf(f,"00");fputc('\n',f); }
+    for(int r=2;r<rounds;r++){fprintf(f,"POL %d ",r);hex_bits(f,inputs[r],1600);fputc('\n',f);}
+    for(int r=2;r<rounds-1;r++){
+        uint8_t patterns[320];row_patterns(inputs[r],plans[r].cnot,plans[r].dnot,patterns);fprintf(f,"DEC %d ",r);
+        for(int i=0;i<320;i++){int target=plans[r].target[i]^(i<64&&((RC[r]>>i)&1));Decision d=row_table[patterns[i]][target];
+            uint16_t word=(uint16_t)(d.subset|d.tricks<<5|d.select_mask<<10);fprintf(f,"%02x%02x",word&255,word>>8);}
+        fputc('\n',f);
+        fprintf(f,"TGT %d ",r);hex_bytes(f,plans[r].target,320);fputc('\n',f);
+    }
+    if(fclose(f))fail("plan close");
+}
+
+static void usage(void){fprintf(stderr,"usage: step_search cheap ROUNDS | full ROUNDS TRIAL ITERATIONS PLAN | multi TRIAL ITERATIONS OUTDIR [R,R,...]\n");exit(2);}
+
+#ifndef EMITTER_ONLY
+int generator_work(int argc,char **argv){
+    if(argc<3)usage();
+    make_row_table(); make_last_row_cost();
+    fprintf(stderr,"chained-table entries=1024 candidate_evaluations=1015808 truth_checks=32768 bytes=%zu checksum=%016lx\n",sizeof(row_table),(unsigned long)chained_table_checksum());
+    if(!strcmp(argv[1],"multi")){
+        if(argc!=5&&argc!=6)usage();
+        int trial=atoi(argv[2]);long iterations=strtol(argv[3],NULL,10);const char *outdir=argv[4];
+        int wanted[25]={0},max_round=0;
+        if(argc==5){const int defaults[7]={9,13,17,19,20,21,22};for(int j=0;j<7;j++){wanted[defaults[j]]=1;max_round=defaults[j];}}
+        else{
+            const char *p=argv[5];
+            while(*p){char *end=NULL;long value=strtol(p,&end,10);if(end==p||value<7||value>24)usage();wanted[value]=1;if(value>max_round)max_round=(int)value;p=end;if(*p==',')p++;else if(*p)usage();}
+        }
+        set_s3_trial(trial);Plan prefix={0},plans[24]={0};uint8_t inputs[24][1600]={{0}};
+        int nodes[1600];uint8_t polarity[1600];
+        optimize_prefix(&prefix,nodes,polarity);build_prefix_exact(&prefix,nodes,polarity);memcpy(inputs[2],polarity,1600);
+        for(int r=2;r<=max_round-2;r++){
+            int target_rounds=wanted[r+2]?r+2:0;
+            if(target_rounds&&r<max_round-2){
+                Plan candidate[24];uint8_t candidate_inputs[24][1600];uint8_t tail_polarity[1600];
+                memcpy(candidate,plans,sizeof(candidate));memcpy(candidate_inputs,inputs,sizeof(candidate_inputs));
+                anneal_straight(polarity,r,target_rounds,iterations,&candidate[r]);
+                memcpy(tail_polarity,polarity,1600);build_body_exact(tail_polarity,r,&candidate[r],nodes,tail_polarity);
+                memcpy(candidate_inputs[r+1],tail_polarity,1600);
+                char path[4096];snprintf(path,sizeof(path),"%s/r%d-t%d.plan",outdir,target_rounds,trial);
+                long count=straight_count(target_rounds,1,&prefix,candidate,candidate_inputs);
+                fprintf(stderr,"trial=%d rounds=%d iterations=%ld step_ops=%ld\n",trial,target_rounds,iterations,count);
+                write_plan_file(path,target_rounds,trial,&prefix,candidate,candidate_inputs);
+            }
+            anneal_straight(polarity,r,max_round,iterations,&plans[r]);
+            build_body_exact(polarity,r,&plans[r],nodes,polarity);memcpy(inputs[r+1],polarity,1600);
+            if(target_rounds&&r==max_round-2){
+                char path[4096];snprintf(path,sizeof(path),"%s/r%d-t%d.plan",outdir,max_round,trial);
+                long count=straight_count(max_round,1,&prefix,plans,inputs);
+                fprintf(stderr,"trial=%d rounds=%d iterations=%ld step_ops=%ld\n",trial,max_round,iterations,count);
+                write_plan_file(path,max_round,trial,&prefix,plans,inputs);
+            }
+        }
+        return 0;
+    }
+    int rounds=atoi(argv[2]);
+    if(rounds<7||rounds>24)usage();
+    if(!strcmp(argv[1],"cheap")){
+        for(int trial=1000;trial<1512;trial++){set_s3_trial(trial);Plan prefix={0},plans[24]={0};uint8_t inputs[24][1600]={{0}};
+            long count=straight_count(rounds,0,&prefix,plans,inputs);printf("{\"trial\":%d,\"cheap_count\":%ld}\n",trial,count);fflush(stdout);}return 0;
+    }
+    if(!strcmp(argv[1],"full")){
+        if(argc!=6&&argc!=7)usage();
+        int trial=atoi(argv[3]);long iterations=strtol(argv[4],NULL,10);set_s3_trial(trial);
+        Plan prefix={0},plans[24]={0};uint8_t inputs[24][1600]={{0}};int nodes[1600];uint8_t polarity[1600];
+        optimize_prefix(&prefix,nodes,polarity);build_prefix_exact(&prefix,nodes,polarity);memcpy(inputs[2],polarity,1600);
+        for(int r=2;r<rounds-1;r++){anneal_straight(polarity,r,rounds,iterations,&plans[r]);build_body_exact(polarity,r,&plans[r],nodes,polarity);memcpy(inputs[r+1],polarity,1600);}
+        long count=straight_count(rounds,1,&prefix,plans,inputs);fprintf(stderr,"trial=%d rounds=%d iterations=%ld step_ops=%ld\n",trial,rounds,iterations,count);
+        write_plan_file(argv[5],rounds,trial,&prefix,plans,inputs);if(argc==7)emit_straight(argv[6],rounds,&prefix,plans);return 0;
+    }
+    usage();return 2;
+}
+
+#ifdef FREESTANDING
+extern long construction_vmhwm_bytes(void);
+int main(int argc,char **argv){
+    int status=generator_work(argc,argv);
+    fprintf(stderr,"construction VmHWM %ld bytes\n",construction_vmhwm_bytes());
+    return status;
+}
+#else
+int main(int argc,char **argv){return generator_work(argc,argv);}
+#endif
+#else
+extern long construction_vmhwm_bytes(void);
+extern long construction_read_file(const char *,void *,size_t);
+static uint8_t plan_text[65536];
+static int hex_digit(int c){if(c>='0'&&c<='9')return c-'0';if(c>='a'&&c<='f')return c-'a'+10;if(c>='A'&&c<='F')return c-'A'+10;return -1;}
+static void parse_hex_field(const char *text,uint8_t *output,int bytes){
+    for(int i=0;i<bytes;i++){int high=hex_digit(text[2*i]),low=hex_digit(text[2*i+1]);if(high<0||low<0)fail("plan hex");output[i]=(uint8_t)(high*16+low);}
+    if(text[2*bytes]&&text[2*bytes]!=' '&&text[2*bytes]!='\n'&&text[2*bytes]!='\r')fail("plan hex length");
+}
+static void parse_bit_field(const char *text,uint8_t *output,int bits){uint8_t packed[200];int bytes=(bits+7)/8;parse_hex_field(text,packed,bytes);for(int i=0;i<bits;i++)output[i]=(packed[i>>3]>>(i&7))&1;}
+static char *skip_word(char *p){while(*p&&*p!=' '&&*p!='\n')p++;while(*p==' ')p++;return p;}
+static int parse_number(char **cursor){char *p=*cursor;int value=0;if(*p<'0'||*p>'9')fail("plan number");while(*p>='0'&&*p<='9')value=value*10+(*p++-'0');while(*p==' ')p++;*cursor=p;return value;}
+static void parse_emitter_plan(const char *path,int expected_rounds,int *trial,Plan *prefix,Plan plans[24]){
+    long length=construction_read_file(path,plan_text,sizeof(plan_text)-1);if(length<=0||length>=(long)sizeof(plan_text))fail("plan read");plan_text[length]=0;
+    memset(prefix,0,sizeof(*prefix));memset(plans,0,24*sizeof(*plans));memset(emitter_has_decisions,0,sizeof(emitter_has_decisions));for(int r=0;r<24;r++)plans[r].ib=RC[r];
+    int seen_nr=0,seen_f1=0,seen_g1=0,seen_target[24]={0};char *line=(char*)plan_text;
+    while(*line){char *end=line;while(*end&&*end!='\n')end++;char saved=*end;*end=0;
+        char *p=line;
+        if(!memcmp(p,"trial ",6)){p+=6;*trial=parse_number(&p);}
+        else if(!memcmp(p,"nr ",3)){p+=3;int nr=parse_number(&p);if(nr!=expected_rounds)fail("plan round count");seen_nr=1;}
+        else if(!memcmp(p,"F1 ",3)){parse_bit_field(p+3,prefix->dnot,320);seen_f1=1;}
+        else if(!memcmp(p,"G1 ",3)){parse_bit_field(p+3,prefix->cnot,320);seen_g1=1;}
+        else if(!memcmp(p,"FG ",3)){p+=3;int r=parse_number(&p);if(r<2||r>=expected_rounds)fail("FG round");parse_bit_field(p,plans[r].dnot,320);p=skip_word(p);parse_bit_field(p,plans[r].cnot,320);}
+        else if(!memcmp(p,"DEC ",4)){p+=4;int r=parse_number(&p);if(r<2||r>=expected_rounds-1)fail("DEC round");uint8_t raw[640];parse_hex_field(p,raw,640);for(int i=0;i<320;i++)emitter_decisions[r][i]=(uint16_t)(raw[2*i]|raw[2*i+1]<<8);}
+        else if(!memcmp(p,"TGT ",4)){p+=4;int r=parse_number(&p);if(r<2||r>=expected_rounds-1)fail("TGT round");parse_hex_field(p,plans[r].target,320);seen_target[r]=1;}
+        *end=saved;line=saved?end+1:end;
+    }
+    if(!seen_nr||!seen_f1||!seen_g1)fail("incomplete plan header");for(int r=2;r<expected_rounds-1;r++)if(!seen_target[r])fail("missing target plan");
+}
+int main(int argc,char **argv){
+    if(argc!=4)fail("usage: construction_emitter ROUNDS PLAN PROGRAM");int rounds=atoi(argv[1]),trial=0;if(rounds<7||rounds>24)fail("rounds");
+    make_row_table();make_last_row_cost();fprintf(stderr,"chained-table entries=1024 candidate_evaluations=1015808 truth_checks=32768 bytes=%zu checksum=%016lx\n",sizeof(row_table),(unsigned long)chained_table_checksum());static Plan prefix,plans[24];parse_emitter_plan(argv[2],rounds,&trial,&prefix,plans);set_s3_trial(trial);emit_straight(argv[3],rounds,&prefix,plans);
+    fprintf(stderr,"construction emitter trial=%d VmHWM %ld bytes\n",trial,construction_vmhwm_bytes());return 0;
+}
+#endif
+
+```
+
+### s3_basis.h
+
+```c
+#ifndef S3_BASIS_H
+#define S3_BASIS_H
+static const uint64_t S3_KB0[12]={UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0xffffffffffffffff),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0xffffffffffffffff),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0xffffffffffffffff),UINT64_C(0x8000000000000006),UINT64_C(0xffffffffffffffff)};
+static const uint64_t S3_KBV[64][12]={
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000001),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x2000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x4000000000000000),UINT64_C(0x8000000000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000002),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x4000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x8000000000000000),UINT64_C(0x0000000000000001)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000004),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x8000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000001),UINT64_C(0x0000000000000002)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000008),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000001),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000002),UINT64_C(0x0000000000000004)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000010),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000002),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000004),UINT64_C(0x0000000000000008)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000020),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000004),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000008),UINT64_C(0x0000000000000010)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000040),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000008),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000010),UINT64_C(0x0000000000000020)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000080),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000010),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000020),UINT64_C(0x0000000000000040)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000100),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000020),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000040),UINT64_C(0x0000000000000080)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000200),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000040),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000080),UINT64_C(0x0000000000000100)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000400),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000080),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000100),UINT64_C(0x0000000000000200)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000800),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000100),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000200),UINT64_C(0x0000000000000400)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000001000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000200),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000400),UINT64_C(0x0000000000000800)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000002000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000400),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000800),UINT64_C(0x0000000000001000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000004000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000800),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000001000),UINT64_C(0x0000000000002000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000008000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000001000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000002000),UINT64_C(0x0000000000004000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000010000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000002000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000004000),UINT64_C(0x0000000000008000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000020000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000004000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000008000),UINT64_C(0x0000000000010000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000040000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000008000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000010000),UINT64_C(0x0000000000020000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000080000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000010000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000020000),UINT64_C(0x0000000000040000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000100000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000020000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000040000),UINT64_C(0x0000000000080000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000200000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000040000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000080000),UINT64_C(0x0000000000100000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000400000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000080000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000100000),UINT64_C(0x0000000000200000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000000800000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000100000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000200000),UINT64_C(0x0000000000400000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000001000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000200000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000400000),UINT64_C(0x0000000000800000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000002000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000400000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000800000),UINT64_C(0x0000000001000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000004000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000800000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000001000000),UINT64_C(0x0000000002000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000008000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000001000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000002000000),UINT64_C(0x0000000004000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000010000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000002000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000004000000),UINT64_C(0x0000000008000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000020000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000004000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000008000000),UINT64_C(0x0000000010000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000040000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000008000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000010000000),UINT64_C(0x0000000020000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000080000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000010000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000020000000),UINT64_C(0x0000000040000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000100000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000020000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000040000000),UINT64_C(0x0000000080000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000200000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000040000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000080000000),UINT64_C(0x0000000100000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000400000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000080000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000100000000),UINT64_C(0x0000000200000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000000800000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000100000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000200000000),UINT64_C(0x0000000400000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000001000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000200000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000400000000),UINT64_C(0x0000000800000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000002000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000400000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000800000000),UINT64_C(0x0000001000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000004000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000800000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000001000000000),UINT64_C(0x0000002000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000008000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000001000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000002000000000),UINT64_C(0x0000004000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000010000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000002000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000004000000000),UINT64_C(0x0000008000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000020000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000004000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000008000000000),UINT64_C(0x0000010000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000040000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000008000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000010000000000),UINT64_C(0x0000020000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000080000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000010000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000020000000000),UINT64_C(0x0000040000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000100000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000020000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000040000000000),UINT64_C(0x0000080000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000200000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000040000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000080000000000),UINT64_C(0x0000100000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000400000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000080000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000100000000000),UINT64_C(0x0000200000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0000800000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000100000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000200000000000),UINT64_C(0x0000400000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0001000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000200000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000400000000000),UINT64_C(0x0000800000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0002000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000400000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000800000000000),UINT64_C(0x0001000000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0004000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000800000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0001000000000000),UINT64_C(0x0002000000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0008000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0001000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0002000000000000),UINT64_C(0x0004000000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0010000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0002000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0004000000000000),UINT64_C(0x0008000000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0020000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0004000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0008000000000000),UINT64_C(0x0010000000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0040000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0008000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0010000000000000),UINT64_C(0x0020000000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0080000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0010000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0020000000000000),UINT64_C(0x0040000000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0100000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0020000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0040000000000000),UINT64_C(0x0080000000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0200000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0040000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0080000000000000),UINT64_C(0x0100000000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0400000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0080000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0100000000000000),UINT64_C(0x0200000000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x0800000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0100000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0200000000000000),UINT64_C(0x0400000000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x1000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0200000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0400000000000000),UINT64_C(0x0800000000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x2000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0400000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0800000000000000),UINT64_C(0x1000000000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x4000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0800000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x1000000000000000),UINT64_C(0x2000000000000000)},
+ {UINT64_C(0x0000000000000000),UINT64_C(0x8000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x1000000000000000),UINT64_C(0x0000000000000000),UINT64_C(0x2000000000000000),UINT64_C(0x4000000000000000)},
+};
+#endif
+
+```
+
+### construction_prefilter.c
+
+```c
+/* Freestanding emitter for the separate native 15-OR digest prefilter. */
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+extern long construction_vmhwm_bytes(void);
+
+typedef struct { FILE *out; uint64_t pending; int used; long bytes; } Writer;
+
+static void put(Writer *w,uint64_t value,int width){
+    w->pending|=value<<w->used;w->used+=width;
+    while(w->used>=8){uint8_t byte=(uint8_t)w->pending;if(fwrite(&byte,1,1,w->out)!=1)exit(2);w->bytes++;w->pending>>=8;w->used-=8;}
+}
+
+int main(int argc,char **argv){
+    if(argc!=3){fprintf(stderr,"usage: construction_prefilter REGISTER OUTPUT\n");return 2;}
+    int d=atoi(argv[1]);if(d<0||d>=2048)return 2;FILE *out=fopen(argv[2],"wb");if(!out)return 2;Writer w={out,0,0,0};
+    put(&w,2|((uint64_t)d<<3)|((uint64_t)240<<14)|((uint64_t)241<<25),36);
+    for(int plane=242;plane<256;plane++)put(&w,2|4|((uint64_t)d<<3)|((uint64_t)plane<<14),25);
+    if(w.used){uint8_t byte=(uint8_t)w.pending;if(fwrite(&byte,1,1,out)!=1)return 2;w.bytes++;}
+    if(fclose(out)||w.bytes!=49)return 2;
+    fprintf(stderr,"prefilter instructions=15 bytes=%ld register=%d VmHWM %ld bytes\n",w.bytes,d,construction_vmhwm_bytes());return 0;
+}
+
+```
+
+### construction_scan_template.c
+
+```c
+/* Freestanding float mirror for the charged finite parameter scan. */
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "scan_candidates.h"
+extern long construction_vmhwm_bytes(void);
+static const long double LN2=0.693147180559945309417232121458176568L,M=1.1579208923731619542357098500868790785e77L,GRID=2.475880078570760549798248448e27L,W=6.33825300114114700748351602688e29L;
+static uint64_t scan_evaluations,scan_bins;
+static long double lexp(long double x){if(x<-11000.0L)return 0.0L;int k=(int)(x/LN2);if((long double)k*LN2>x)k--;long double r=x-(long double)k*LN2,term=1.0L,sum=1.0L;for(int i=1;i<=32;i++){term*=r/(long double)i;sum+=term;}while(k>0){sum*=2.0L;k--;}while(k<0){sum*=0.5L;k++;}return sum;}
+static long double llog(long double x){if(!(x>0))return -1.0L/0.0L;int e=0;while(x>=2.0L){x*=0.5L;e++;}while(x<1.0L){x*=2.0L;e--;}long double y=(x-1.0L)/(x+1.0L),p=y*y,term=y,sum=0;for(int k=1;k<=101;k+=2){sum+=term/(long double)k;term*=p;}return 2.0L*sum+(long double)e*LN2;}
+static long double success(uint64_t t,const Candidate *c){
+ scan_evaluations++;scan_bins+=c->j;
+ long double tb=(long double)t*GRID,theta=(long double)c->dt/2.658455991569831744e36L,logq=-theta,qstep=lexp(W*logq),previous=1.0L,covered=0.0L;
+ long double delta=256.0L*W,first=256.0L*(tb-W),collision=lexp(-first*(first-1.0L)/(2.0L*M));
+ long double ratio=lexp((2.0L*first*delta-delta*delta-delta)/(2.0L*M)),ratio_step=lexp(-delta*delta/M);
+ for(uint32_t j=1;j<=c->j;j++){long double current=previous*qstep;if(tb>(long double)j*W)covered+=(previous-current)*(1.0L-collision);previous=current;collision*=ratio;ratio*=ratio_step;}
+ long double n=256.0L*tb,mean=n*theta,available=(long double)(5*c->table-256);if(!(available>mean))return -1.0L;
+ long double f2=lexp(-mean+available*(1.0L+llog(mean/available))),f3=(long double)(5*c->table)/(theta*theta*M),alias=(long double)(5*c->table)*(long double)(5*c->table)/2251799813685248.0L;
+ long double trails=(long double)(5*c->table),lrc=(long double)c->j*W,g6=lexp(lrc*logq)*(1.0L+lrc*theta),coincidence=1.0L-lexp(-n*n/(2.0L*M)-n*n*n/(3.0L*M*M));
+ long double inflation=lexp(-trails*llog(1.0L-n/M));
+ long double f6=2.0L*g6*coincidence*inflation;
+ return covered-(f2+f3+alias+8.077935669463161e-28L+f6+8.673617379884035e-19L+3.0814879110195774e-33L*(1.0L+f6));
+}
+static uint64_t least_tb(const Candidate *c){uint64_t lo=HINT_T>SPAN?HINT_T-SPAN:1,hi=HINT_T+SPAN;long double theta=(long double)c->dt/2.658455991569831744e36L;uint64_t domain=(uint64_t)(((long double)(5*c->table-256)/(256.0L*theta))/GRID);if(hi>=domain)hi=domain-1;if(hi<=lo||success(hi,c)<0.39L)return 0;while(success(lo,c)>=0.39L&&lo>SPAN)lo-=SPAN;while(hi-lo>1){uint64_t mid=(lo+hi)/2;if(success(mid,c)>=0.39L)hi=mid;else lo=mid;}return hi;}
+static long double total_cost(const Candidate *c,uint64_t t){long double tb=(long double)t*GRID,lrc=(long double)c->j*W,hit=tb*(1.0L+1.0L/1048576.0L)/256.0L+1.0L+lrc;long double gap=(lrc+(long double)c->table-2.0L)/(long double)(c->table-1),nck=(lrc-1.0L)/gap+1.0L;long double replay=(long double)c->replay_rate*lrc+(long double)c->replay_g*gap+(long double)c->replay_nck*nck+(long double)c->replay_const;long double trails=5.0L*c->table;long double rare=(hit+1.0L)*c->hit+(trails-255.0L)*(c->dp_fixed+c->probe_word*c->table)+(trails-256.0L)*(c->restart+3)+c->restart_halt+c->deadline+c->setup;return tb*(STEP_OPS+19.0L)+replay+rare+PREPROCESSING;}
+int main(void){int best=-1;uint64_t best_t=0;long double best_cost=0;for(unsigned i=0;i<sizeof(candidates)/sizeof(candidates[0]);i++){uint64_t t=least_tb(&candidates[i]);if(!t)continue;long double cost=total_cost(&candidates[i],t);if(best<0||cost<best_cost){best=(int)i;best_t=t;best_cost=cost;}}if(best<0){printf("no candidate hint_success_scaled=%ld\n",(long)(success(HINT_T,&candidates[0])*1000000000000.0L));return 2;}const Candidate *c=&candidates[best];printf("candidate=%d table=%d dt=%d j=%u tb_grid=%lu memory=%d\n",best,c->table,c->dt,c->j,(unsigned long)best_t,c->memory);fprintf(stderr,"scan candidates=%lu evaluations=%lu bins=%lu VmHWM %ld bytes\n",(unsigned long)(sizeof(candidates)/sizeof(candidates[0])),(unsigned long)scan_evaluations,(unsigned long)scan_bins,construction_vmhwm_bytes());return 0;}
+
+```
+
+### scan_candidates.h
+
+```c
+#include <stdint.h>
+typedef struct{int table,dt;uint32_t j;int memory,hit,dp_fixed,probe_word,restart,restart_halt,deadline,setup,replay_rate,replay_g,replay_nck,replay_const;} Candidate;
+#define HINT_T 535758194UL
+#define SPAN (1UL<<20)
+#define STEP_OPS 118445
+#define PREPROCESSING 180956727443456
+static const Candidate candidates[]={
+ {16360,630,69905,1024025,133,2893,24,2835,3,1,747082,10915,16367,17,5542},
+ {16368,630,69905,1024281,133,2893,24,2835,3,1,747093,10915,16367,17,5542},
+ {16376,630,69905,1024537,133,2893,24,2835,3,1,747104,10915,16367,17,5542},
+ {16384,630,69905,1024793,133,2893,24,2835,3,1,747115,10915,16367,17,5542},
+ {16392,630,69905,1025049,133,2893,24,2835,3,1,747126,10915,16367,17,5542},
+ {16400,630,69905,1025305,133,2893,24,2835,3,1,747137,10915,16367,17,5542},
+ {16408,630,69905,1025561,133,2893,24,2835,3,1,747148,10915,16367,17,5542},
+ {16416,630,69905,1025817,133,2893,24,2835,3,1,747159,10915,16367,17,5542},
+ {16424,630,69905,1026073,133,2893,24,2835,3,1,747170,10915,16367,17,5542},
+ {16432,630,69905,1026329,133,2893,24,2835,3,1,747181,10915,16367,17,5542},
+ {16440,630,69905,1026585,133,2893,24,2835,3,1,747192,10915,16367,17,5542},
+ {16448,630,69905,1026841,133,2893,24,2835,3,1,747203,10915,16367,17,5542},
+ {16456,630,69905,1027097,133,2893,24,2835,3,1,747214,10915,16367,17,5542},
+ {16464,630,69905,1027353,133,2893,24,2835,3,1,747225,10915,16367,17,5542},
+ {16472,630,69905,1027609,133,2893,24,2835,3,1,747236,10915,16367,17,5542},
+ {16480,630,69905,1027865,133,2893,24,2835,3,1,747247,10915,16367,17,5542},
+ {16488,630,69905,1028121,133,2893,24,2835,3,1,747258,10915,16367,17,5542},
+ {16496,630,69905,1028377,133,2893,24,2835,3,1,747269,10915,16367,17,5542},
+ {16504,630,69905,1028633,133,2893,24,2835,3,1,747280,10915,16367,17,5542},
+ {16512,630,69905,1028889,133,2893,24,2835,3,1,747291,10915,16367,17,5542},
+ {16520,630,69905,1029145,133,2893,24,2835,3,1,747302,10915,16367,17,5542},
+ {16528,630,69905,1029401,133,2893,24,2835,3,1,747313,10915,16367,17,5542},
+ {16536,630,69905,1029657,133,2893,24,2835,3,1,747324,10915,16367,17,5542},
+ {16544,630,69905,1029913,133,2893,24,2835,3,1,747335,10915,16367,17,5542},
+ {16552,630,69905,1030169,133,2893,24,2835,3,1,747346,10915,16367,17,5542},
+ {16560,630,69905,1030425,133,2893,24,2835,3,1,747357,10915,16367,17,5542},
+ {16568,630,69905,1030681,133,2893,24,2835,3,1,747368,10915,16367,17,5542},
+ {16576,630,69905,1030937,133,2893,24,2835,3,1,747379,10915,16367,17,5542},
+ {16584,630,69905,1031193,133,2893,24,2835,3,1,747390,10915,16367,17,5542},
+ {16592,630,69905,1031449,133,2893,24,2835,3,1,747401,10915,16367,17,5542},
+ {16600,630,69905,1031705,133,2893,24,2835,3,1,747412,10915,16367,17,5542},
+ {16608,630,69905,1031961,133,2893,24,2835,3,1,747423,10915,16367,17,5542},
+ {16616,630,69905,1032217,133,2893,24,2835,3,1,747434,10915,16367,17,5542},
+};
+
+```
+
+### construction_hash.c
+
+```c
+/* Freestanding streaming SHA-256 for charged construction outputs. */
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+extern long construction_vmhwm_bytes(void);
+typedef struct{uint32_t h[8];uint64_t bits;uint8_t block[64];unsigned used;} SHA256;
+static const uint32_t K[64]={
+0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2};
+static uint32_t rr(uint32_t x,unsigned n){return(x>>n)|(x<<(32-n));}
+static void compress(SHA256 *s,const uint8_t b[64]){
+    uint32_t w[64];for(int i=0;i<16;i++)w[i]=(uint32_t)b[4*i]<<24|(uint32_t)b[4*i+1]<<16|(uint32_t)b[4*i+2]<<8|b[4*i+3];
+    for(int i=16;i<64;i++){uint32_t a=w[i-15],z=w[i-2];w[i]=(rr(z,17)^rr(z,19)^(z>>10))+w[i-7]+(rr(a,7)^rr(a,18)^(a>>3))+w[i-16];}
+    uint32_t a=s->h[0],c=s->h[2],b0=s->h[1],d=s->h[3],e=s->h[4],f=s->h[5],g=s->h[6],h=s->h[7];
+    for(int i=0;i<64;i++){uint32_t t1=h+(rr(e,6)^rr(e,11)^rr(e,25))+((e&f)^((~e)&g))+K[i]+w[i];uint32_t t2=(rr(a,2)^rr(a,13)^rr(a,22))+((a&b0)^(a&c)^(b0&c));h=g;g=f;f=e;e=d+t1;d=c;c=b0;b0=a;a=t1+t2;}
+    s->h[0]+=a;s->h[1]+=b0;s->h[2]+=c;s->h[3]+=d;s->h[4]+=e;s->h[5]+=f;s->h[6]+=g;s->h[7]+=h;
+}
+static void init(SHA256 *s){static const uint32_t h[8]={0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19};for(int i=0;i<8;i++)s->h[i]=h[i];s->bits=0;s->used=0;}
+static void update(SHA256 *s,const uint8_t *p,size_t n){s->bits+=(uint64_t)n*8;while(n){unsigned take=64-s->used;if(take>n)take=(unsigned)n;for(unsigned i=0;i<take;i++)s->block[s->used+i]=p[i];s->used+=take;p+=take;n-=take;if(s->used==64){compress(s,s->block);s->used=0;}}}
+static void finish(SHA256 *s,uint8_t out[32]){uint64_t bits=s->bits;s->block[s->used++]=0x80;if(s->used>56){while(s->used<64)s->block[s->used++]=0;compress(s,s->block);s->used=0;}while(s->used<56)s->block[s->used++]=0;for(int i=7;i>=0;i--)s->block[s->used++]=(uint8_t)(bits>>(8*i));compress(s,s->block);for(int i=0;i<8;i++)for(int j=0;j<4;j++)out[4*i+j]=(uint8_t)(s->h[i]>>(24-8*j));}
+int main(int argc,char **argv){if(argc!=2){fprintf(stderr,"usage: construction_hash FILE\n");return 2;}FILE *f=fopen(argv[1],"rb");if(!f){fprintf(stderr,"open failed\n");return 2;}SHA256 s;init(&s);uint8_t buf[4096],digest[32];size_t n,total=0;while((n=fread(buf,1,sizeof(buf),f))){update(&s,buf,n);total+=n;}fclose(f);finish(&s,digest);for(int i=0;i<32;i++)printf("%02x",digest[i]);printf("  %s\n",argv[1]);fprintf(stderr,"hash bytes=%lu VmHWM %ld bytes\n",(unsigned long)total,construction_vmhwm_bytes());return 0;}
+
+```
+
+### construction_verify.c
+
+```c
+/* Freestanding construction-time parser/verifier for the stored step image. */
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+extern long construction_vmhwm_bytes(void);
+typedef struct{FILE *file;uint8_t buffer[4096];size_t length,index;uint64_t bits;int available;long bytes;} Reader;
+static int next_byte(Reader *r){if(r->index==r->length){r->length=fread(r->buffer,1,sizeof(r->buffer),r->file);r->index=0;if(!r->length)return -1;}r->bytes++;return r->buffer[r->index++];}
+static uint64_t take(Reader *r,int width){while(r->available<width){int value=next_byte(r);if(value<0){fprintf(stderr,"short native step\n");exit(2);}r->bits|=(uint64_t)(unsigned)value<<r->available;r->available+=8;}uint64_t result=r->bits&(((uint64_t)1<<width)-1);r->bits>>=width;r->available-=width;return result;}
+int main(int argc,char **argv){
+    if(argc!=3){fprintf(stderr,"usage: construction_verify PROGRAM INSTRUCTIONS\n");return 2;}long instructions=atoi(argv[2]);FILE *file=fopen(argv[1],"rb");if(!file)return 2;
+    Reader r={0};r.file=file;long forms14=0,forms25=0,forms36=0,shorts=0,mix[4]={0,0,0,0};int high=0;
+    for(long i=0;i<instructions;i++){
+        int op=(int)take(&r,2),same=(int)take(&r,1),d,a,b=0;if(same){a=(int)take(&r,11);d=a;shorts++;}else{d=(int)take(&r,11);a=(int)take(&r,11);}if(op!=3)b=(int)take(&r,11);
+        if(op<0||op>3||d>=2048||a>=2048||b>=2048){fprintf(stderr,"native field overflow at %ld\n",i);return 2;}int width=3+(same?11:22)+(op==3?0:11);if(width==14)forms14++;else if(width==25)forms25++;else if(width==36)forms36++;else return 2;mix[op]++;
+        if(d+1>high)high=d+1;if(a+1>high)high=a+1;if(b+1>high)high=b+1;
+    }
+    if(r.available&&r.bits){fprintf(stderr,"nonzero native padding\n");return 2;}if(next_byte(&r)>=0){fprintf(stderr,"trailing native bytes\n");return 2;}fclose(file);
+    printf("instructions=%ld bytes=%ld peak=%d forms14=%ld forms25=%ld forms36=%ld short=%ld mix=%ld,%ld,%ld,%ld\n",instructions,r.bytes,high,forms14,forms25,forms36,shorts,mix[0],mix[1],mix[2],mix[3]);
+    fprintf(stderr,"verify VmHWM %ld bytes\n",construction_vmhwm_bytes());return 0;
+}
+
+```
+
+### controller_emitter.c
+
+```c
+/* Generated native8 assembly source and bounded emitter. */
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+extern long construction_vmhwm_bytes(void);
+typedef struct{uint8_t op;uint16_t d,a,b;uint64_t imm[4];} Record;
+static const Record records[]={
+ {27,1931,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,1930,0,0,{0x0000000000000100UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,1934,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,1929,0,0,{0x0000000000000000UL,0x00ff76d508000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,1937,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {3,1932,1937,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,269,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,269,1937,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,269,1937,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,269,1937,{0x0000000000000002UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,269,1937,{0x0000000000000003UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,269,1937,{0x0000000000000004UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,269,1937,{0x0000000000000005UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,269,1937,{0x0000000000000006UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,269,1937,{0x0000000000000007UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,269,269,0,{0x0000000000000008UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {17,264,269,0,{0x0000000000004168UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x0000000000000007UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,256,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {4,267,1931,256,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {13,265,256,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,256,265,{0x0000000000004168UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1935,0,0,{0x0000000000000224UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,256,256,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {17,264,256,0,{0x0000000000000100UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x0000000000000013UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1935,0,0,{0x0000000000000242UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0xffffffffffffffffUL,0xffffffffffffffffUL,0xffffffffffffffffUL,0x0000000000000000UL}},
+ {8,264,1933,1932,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x0000000000000213UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,1934,1934,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {17,264,1934,0,{0x8000000000000002UL,0x000987fee4ff6d50UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x0000000000000022UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {29,0,0,0,{0x000000000000000aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,145,146,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,147,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,148,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,149,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,150,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,151,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,152,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,153,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,154,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,155,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,156,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,157,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,158,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,159,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,160,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,161,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,162,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,163,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,164,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,165,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,166,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,167,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,168,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,169,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,170,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,171,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,172,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,173,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,174,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,175,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,176,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,177,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,178,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,179,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,180,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,181,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,182,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,183,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,184,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,185,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,186,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,187,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,188,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,189,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,190,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,191,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,192,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,193,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,194,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,195,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,196,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,197,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,198,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,199,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,200,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,201,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,202,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,203,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,204,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,205,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,206,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,207,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,208,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,209,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,210,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,211,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,212,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,213,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,214,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,215,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,216,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,217,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,218,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,219,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,220,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,221,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,222,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,223,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,224,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,225,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,226,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,227,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,228,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,229,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,230,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,231,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,232,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,233,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,234,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,235,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,236,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,237,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,238,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,260,260,239,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,257,1933,260,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {3,257,257,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {3,265,144,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,266,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,257,257,144,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {3,265,143,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,257,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {3,265,142,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,257,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {3,265,141,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,265,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,266,266,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,257,257,141,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {3,265,140,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,265,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,266,266,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,257,257,140,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {3,265,139,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,265,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,266,266,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,257,257,139,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {3,265,138,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,257,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {3,265,137,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,265,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,266,266,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,257,257,137,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {3,265,136,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,265,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,266,266,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,257,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,258,0,0,{0x0000000000000000UL,0x00ff76d508000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {5,258,258,1929,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,258,258,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,257,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x0000000000000213UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,0,{0x0000000000004068UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,1,{0x0000000000004069UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,2,{0x000000000000406aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,3,{0x000000000000406bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,4,{0x000000000000406cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,5,{0x000000000000406dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,6,{0x000000000000406eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,7,{0x000000000000406fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,8,{0x0000000000004070UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,9,{0x0000000000004071UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,10,{0x0000000000004072UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,11,{0x0000000000004073UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,12,{0x0000000000004074UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,13,{0x0000000000004075UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,14,{0x0000000000004076UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,15,{0x0000000000004077UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,16,{0x0000000000004078UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,17,{0x0000000000004079UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,18,{0x000000000000407aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,19,{0x000000000000407bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,20,{0x000000000000407cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,21,{0x000000000000407dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,22,{0x000000000000407eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,23,{0x000000000000407fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,24,{0x0000000000004080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,25,{0x0000000000004081UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,26,{0x0000000000004082UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,27,{0x0000000000004083UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,28,{0x0000000000004084UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,29,{0x0000000000004085UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,30,{0x0000000000004086UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,31,{0x0000000000004087UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,32,{0x0000000000004088UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,33,{0x0000000000004089UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,34,{0x000000000000408aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,35,{0x000000000000408bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,36,{0x000000000000408cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,37,{0x000000000000408dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,38,{0x000000000000408eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,39,{0x000000000000408fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,40,{0x0000000000004090UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,41,{0x0000000000004091UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,42,{0x0000000000004092UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,43,{0x0000000000004093UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,44,{0x0000000000004094UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,45,{0x0000000000004095UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,46,{0x0000000000004096UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,47,{0x0000000000004097UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,48,{0x0000000000004098UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,49,{0x0000000000004099UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,50,{0x000000000000409aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,51,{0x000000000000409bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,52,{0x000000000000409cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,53,{0x000000000000409dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,54,{0x000000000000409eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,55,{0x000000000000409fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,56,{0x00000000000040a0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,57,{0x00000000000040a1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,58,{0x00000000000040a2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,59,{0x00000000000040a3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,60,{0x00000000000040a4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,61,{0x00000000000040a5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,62,{0x00000000000040a6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,63,{0x00000000000040a7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,64,{0x00000000000040a8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,65,{0x00000000000040a9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,66,{0x00000000000040aaUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,67,{0x00000000000040abUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,68,{0x00000000000040acUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,69,{0x00000000000040adUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,70,{0x00000000000040aeUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,71,{0x00000000000040afUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,72,{0x00000000000040b0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,73,{0x00000000000040b1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,74,{0x00000000000040b2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,75,{0x00000000000040b3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,76,{0x00000000000040b4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,77,{0x00000000000040b5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,78,{0x00000000000040b6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,79,{0x00000000000040b7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,80,{0x00000000000040b8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,81,{0x00000000000040b9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,82,{0x00000000000040baUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,83,{0x00000000000040bbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,84,{0x00000000000040bcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,85,{0x00000000000040bdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,86,{0x00000000000040beUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,87,{0x00000000000040bfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,88,{0x00000000000040c0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,89,{0x00000000000040c1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,90,{0x00000000000040c2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,91,{0x00000000000040c3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,92,{0x00000000000040c4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,93,{0x00000000000040c5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,94,{0x00000000000040c6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,95,{0x00000000000040c7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,96,{0x00000000000040c8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,97,{0x00000000000040c9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,98,{0x00000000000040caUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,99,{0x00000000000040cbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,100,{0x00000000000040ccUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,101,{0x00000000000040cdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,102,{0x00000000000040ceUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,103,{0x00000000000040cfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,104,{0x00000000000040d0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,105,{0x00000000000040d1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,106,{0x00000000000040d2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,107,{0x00000000000040d3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,108,{0x00000000000040d4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,109,{0x00000000000040d5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,110,{0x00000000000040d6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,111,{0x00000000000040d7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,112,{0x00000000000040d8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,113,{0x00000000000040d9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,114,{0x00000000000040daUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,115,{0x00000000000040dbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,116,{0x00000000000040dcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,117,{0x00000000000040ddUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,118,{0x00000000000040deUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,119,{0x00000000000040dfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,120,{0x00000000000040e0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,121,{0x00000000000040e1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,122,{0x00000000000040e2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,123,{0x00000000000040e3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,124,{0x00000000000040e4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,125,{0x00000000000040e5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,126,{0x00000000000040e6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,127,{0x00000000000040e7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,128,{0x00000000000040e8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,129,{0x00000000000040e9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,130,{0x00000000000040eaUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,131,{0x00000000000040ebUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,132,{0x00000000000040ecUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,133,{0x00000000000040edUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,134,{0x00000000000040eeUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,135,{0x00000000000040efUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,136,{0x00000000000040f0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,137,{0x00000000000040f1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,138,{0x00000000000040f2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,139,{0x00000000000040f3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,140,{0x00000000000040f4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,141,{0x00000000000040f5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,142,{0x00000000000040f6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,143,{0x00000000000040f7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,144,{0x00000000000040f8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,145,{0x00000000000040f9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,146,{0x00000000000040faUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,147,{0x00000000000040fbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,148,{0x00000000000040fcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,149,{0x00000000000040fdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,150,{0x00000000000040feUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,151,{0x00000000000040ffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,152,{0x0000000000004100UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,153,{0x0000000000004101UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,154,{0x0000000000004102UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,155,{0x0000000000004103UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,156,{0x0000000000004104UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,157,{0x0000000000004105UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,158,{0x0000000000004106UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,159,{0x0000000000004107UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,160,{0x0000000000004108UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,161,{0x0000000000004109UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,162,{0x000000000000410aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,163,{0x000000000000410bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,164,{0x000000000000410cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,165,{0x000000000000410dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,166,{0x000000000000410eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,167,{0x000000000000410fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,168,{0x0000000000004110UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,169,{0x0000000000004111UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,170,{0x0000000000004112UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,171,{0x0000000000004113UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,172,{0x0000000000004114UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,173,{0x0000000000004115UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,174,{0x0000000000004116UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,175,{0x0000000000004117UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,176,{0x0000000000004118UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,177,{0x0000000000004119UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,178,{0x000000000000411aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,179,{0x000000000000411bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,180,{0x000000000000411cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,181,{0x000000000000411dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,182,{0x000000000000411eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,183,{0x000000000000411fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,184,{0x0000000000004120UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,185,{0x0000000000004121UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,186,{0x0000000000004122UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,187,{0x0000000000004123UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,188,{0x0000000000004124UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,189,{0x0000000000004125UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,190,{0x0000000000004126UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,191,{0x0000000000004127UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,192,{0x0000000000004128UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,193,{0x0000000000004129UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,194,{0x000000000000412aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,195,{0x000000000000412bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,196,{0x000000000000412cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,197,{0x000000000000412dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,198,{0x000000000000412eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,199,{0x000000000000412fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,200,{0x0000000000004130UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,201,{0x0000000000004131UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,202,{0x0000000000004132UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,203,{0x0000000000004133UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,204,{0x0000000000004134UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,205,{0x0000000000004135UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,206,{0x0000000000004136UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,207,{0x0000000000004137UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,208,{0x0000000000004138UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,209,{0x0000000000004139UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,210,{0x000000000000413aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,211,{0x000000000000413bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,212,{0x000000000000413cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,213,{0x000000000000413dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,214,{0x000000000000413eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,215,{0x000000000000413fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,216,{0x0000000000004140UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,217,{0x0000000000004141UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,218,{0x0000000000004142UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,219,{0x0000000000004143UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,220,{0x0000000000004144UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,221,{0x0000000000004145UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,222,{0x0000000000004146UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,223,{0x0000000000004147UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,224,{0x0000000000004148UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,225,{0x0000000000004149UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,226,{0x000000000000414aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,227,{0x000000000000414bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,228,{0x000000000000414cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,229,{0x000000000000414dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,230,{0x000000000000414eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,231,{0x000000000000414fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,232,{0x0000000000004150UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,233,{0x0000000000004151UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,234,{0x0000000000004152UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,235,{0x0000000000004153UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,236,{0x0000000000004154UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,237,{0x0000000000004155UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,238,{0x0000000000004156UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,239,{0x0000000000004157UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,240,{0x0000000000004158UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,241,{0x0000000000004159UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,242,{0x000000000000415aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,243,{0x000000000000415bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,244,{0x000000000000415cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,245,{0x000000000000415dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,246,{0x000000000000415eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,247,{0x000000000000415fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,248,{0x0000000000004160UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,249,{0x0000000000004161UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,250,{0x0000000000004162UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,251,{0x0000000000004163UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,252,{0x0000000000004164UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,253,{0x0000000000004165UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,254,{0x0000000000004166UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,255,{0x0000000000004167UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,257,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x0000000000000212UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,256,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,265,257,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,266,265,0,{0xffffffffffffffffUL,0xffffffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001adUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,265,265,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,256,256,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,266,265,0,{0xffffffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001b2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,265,265,0,{0x0000000000000040UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,256,256,0,{0x0000000000000040UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,266,265,0,{0x00000000ffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001b7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,265,265,0,{0x0000000000000020UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,256,256,0,{0x0000000000000020UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,266,265,0,{0x000000000000ffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001bcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,265,265,0,{0x0000000000000010UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,256,256,0,{0x0000000000000010UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,266,265,0,{0x00000000000000ffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001c1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,265,265,0,{0x0000000000000008UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,256,256,0,{0x0000000000000008UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,266,265,0,{0x000000000000000fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001c6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,265,265,0,{0x0000000000000004UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,256,256,0,{0x0000000000000004UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,266,265,0,{0x0000000000000003UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001cbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,265,265,0,{0x0000000000000002UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,256,256,0,{0x0000000000000002UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,266,265,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001d0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,265,265,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,256,256,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {12,266,257,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,257,257,266,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1935,0,0,{0x0000000000000235UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,261,259,0,{0x0003ffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {13,261,261,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,261,261,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,272,261,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {13,265,261,0,{0x0000000000000033UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,272,272,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {13,265,261,0,{0x0000000000000066UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,272,272,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {13,265,261,0,{0x0000000000000099UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,272,272,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {13,265,261,0,{0x00000000000000ccUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,272,272,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,262,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,263,262,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,263,263,272,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,265,263,0,{0x0007ffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,265,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x0000000000000203UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,266,263,0,{0x0000000000000033UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,265,266,0,{0x0007ffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,265,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x0000000000000206UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,266,263,0,{0x0000000000000066UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,265,266,0,{0x0007ffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,265,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x0000000000000209UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,266,263,0,{0x0000000000000099UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,265,266,0,{0x0007ffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,265,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x000000000000020cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,266,263,0,{0x00000000000000ccUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,265,266,0,{0x0007ffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,265,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x000000000000020fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,262,262,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,262,0,{0x0000000000004068UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001e0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,271,256,0,{0x0000000000004168UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,271,271,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,262,271,0,{0x0000000000007fffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,266,271,0,{0x000000000000000fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {6,265,261,266,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,263,262,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,263,263,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,262,263,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,260,258,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000216UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x00000000000001a4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,265,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,265,265,262,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x000000000000037cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,265,0,0,{0x0000000000198000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,265,265,262,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x000000000000037cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,265,0,0,{0x0000000000330000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,265,265,262,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x000000000000037cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,265,0,0,{0x00000000004c8000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,265,265,262,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x000000000000037cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,265,0,0,{0x0000000000660000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,265,265,262,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x000000000000037cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1935,0,0,{0x0000000000000242UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {12,1929,1929,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,1929,0,{0xffffffffffffffffUL,0xffffffffffffffffUL,0xffffffffffffffffUL,0x0000000000000000UL}},
+ {29,0,0,0,{0x000000000000000cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,1930,0,{0x00000000007f8000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x0000000000000219UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {29,0,0,0,{0x000000000000000bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {13,265,1930,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,265,265,260,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,256,265,{0x0000000000004168UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {4,267,1931,1930,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,1930,1930,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,265,1930,0,{0x0000000000007fffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,265,0,{0x0000000000004068UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x0000000000000222UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,1930,1930,0,{0x0000000000193f98UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1935,0,0,{0x0000000000000224UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {26,0,1936,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,273,0,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {6,273,273,256,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {3,268,273,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {21,269,0,0,{0x0000000000004068UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,270,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,265,269,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,265,265,268,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {7,266,267,270,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,266,266,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {6,266,266,256,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,265,265,266,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,269,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,269,269,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,270,270,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,270,0,{0x0000000000000100UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x0000000000000229UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {26,0,1935,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,259,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {21,269,0,0,{0x0000000000004068UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,270,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,265,269,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {7,265,265,256,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,265,265,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {6,265,265,270,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,259,259,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,269,269,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,270,270,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,270,0,{0x0000000000000100UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x0000000000000238UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {26,0,1935,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,0,1937,0,{0x0000000000004068UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,1,1937,0,{0x0000000000004069UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,2,1937,0,{0x000000000000406aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,3,1937,0,{0x000000000000406bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,4,1937,0,{0x000000000000406cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,5,1937,0,{0x000000000000406dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,6,1937,0,{0x000000000000406eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,7,1937,0,{0x000000000000406fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,8,1937,0,{0x0000000000004070UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,9,1937,0,{0x0000000000004071UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,10,1937,0,{0x0000000000004072UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,11,1937,0,{0x0000000000004073UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,12,1937,0,{0x0000000000004074UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,13,1937,0,{0x0000000000004075UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,14,1937,0,{0x0000000000004076UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,15,1937,0,{0x0000000000004077UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,16,1937,0,{0x0000000000004078UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,17,1937,0,{0x0000000000004079UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,18,1937,0,{0x000000000000407aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,19,1937,0,{0x000000000000407bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,20,1937,0,{0x000000000000407cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,21,1937,0,{0x000000000000407dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,22,1937,0,{0x000000000000407eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,23,1937,0,{0x000000000000407fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,24,1937,0,{0x0000000000004080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,25,1937,0,{0x0000000000004081UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,26,1937,0,{0x0000000000004082UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,27,1937,0,{0x0000000000004083UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,28,1937,0,{0x0000000000004084UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,29,1937,0,{0x0000000000004085UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,30,1937,0,{0x0000000000004086UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,31,1937,0,{0x0000000000004087UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,32,1937,0,{0x0000000000004088UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,33,1937,0,{0x0000000000004089UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,34,1937,0,{0x000000000000408aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,35,1937,0,{0x000000000000408bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,36,1937,0,{0x000000000000408cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,37,1937,0,{0x000000000000408dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,38,1937,0,{0x000000000000408eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,39,1937,0,{0x000000000000408fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,40,1937,0,{0x0000000000004090UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,41,1937,0,{0x0000000000004091UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,42,1937,0,{0x0000000000004092UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,43,1937,0,{0x0000000000004093UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,44,1937,0,{0x0000000000004094UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,45,1937,0,{0x0000000000004095UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,46,1937,0,{0x0000000000004096UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,47,1937,0,{0x0000000000004097UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,48,1937,0,{0x0000000000004098UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,49,1937,0,{0x0000000000004099UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,50,1937,0,{0x000000000000409aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,51,1937,0,{0x000000000000409bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,52,1937,0,{0x000000000000409cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,53,1937,0,{0x000000000000409dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,54,1937,0,{0x000000000000409eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,55,1937,0,{0x000000000000409fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,56,1937,0,{0x00000000000040a0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,57,1937,0,{0x00000000000040a1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,58,1937,0,{0x00000000000040a2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,59,1937,0,{0x00000000000040a3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,60,1937,0,{0x00000000000040a4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,61,1937,0,{0x00000000000040a5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,62,1937,0,{0x00000000000040a6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,63,1937,0,{0x00000000000040a7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,64,1937,0,{0x00000000000040a8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,65,1937,0,{0x00000000000040a9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,66,1937,0,{0x00000000000040aaUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,67,1937,0,{0x00000000000040abUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,68,1937,0,{0x00000000000040acUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,69,1937,0,{0x00000000000040adUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,70,1937,0,{0x00000000000040aeUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,71,1937,0,{0x00000000000040afUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,72,1937,0,{0x00000000000040b0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,73,1937,0,{0x00000000000040b1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,74,1937,0,{0x00000000000040b2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,75,1937,0,{0x00000000000040b3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,76,1937,0,{0x00000000000040b4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,77,1937,0,{0x00000000000040b5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,78,1937,0,{0x00000000000040b6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,79,1937,0,{0x00000000000040b7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,80,1937,0,{0x00000000000040b8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,81,1937,0,{0x00000000000040b9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,82,1937,0,{0x00000000000040baUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,83,1937,0,{0x00000000000040bbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,84,1937,0,{0x00000000000040bcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,85,1937,0,{0x00000000000040bdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,86,1937,0,{0x00000000000040beUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,87,1937,0,{0x00000000000040bfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,88,1937,0,{0x00000000000040c0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,89,1937,0,{0x00000000000040c1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,90,1937,0,{0x00000000000040c2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,91,1937,0,{0x00000000000040c3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,92,1937,0,{0x00000000000040c4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,93,1937,0,{0x00000000000040c5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,94,1937,0,{0x00000000000040c6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,95,1937,0,{0x00000000000040c7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,96,1937,0,{0x00000000000040c8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,97,1937,0,{0x00000000000040c9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,98,1937,0,{0x00000000000040caUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,99,1937,0,{0x00000000000040cbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,100,1937,0,{0x00000000000040ccUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,101,1937,0,{0x00000000000040cdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,102,1937,0,{0x00000000000040ceUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,103,1937,0,{0x00000000000040cfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,104,1937,0,{0x00000000000040d0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,105,1937,0,{0x00000000000040d1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,106,1937,0,{0x00000000000040d2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,107,1937,0,{0x00000000000040d3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,108,1937,0,{0x00000000000040d4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,109,1937,0,{0x00000000000040d5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,110,1937,0,{0x00000000000040d6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,111,1937,0,{0x00000000000040d7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,112,1937,0,{0x00000000000040d8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,113,1937,0,{0x00000000000040d9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,114,1937,0,{0x00000000000040daUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,115,1937,0,{0x00000000000040dbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,116,1937,0,{0x00000000000040dcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,117,1937,0,{0x00000000000040ddUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,118,1937,0,{0x00000000000040deUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,119,1937,0,{0x00000000000040dfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,120,1937,0,{0x00000000000040e0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,121,1937,0,{0x00000000000040e1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,122,1937,0,{0x00000000000040e2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,123,1937,0,{0x00000000000040e3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,124,1937,0,{0x00000000000040e4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,125,1937,0,{0x00000000000040e5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,126,1937,0,{0x00000000000040e6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,127,1937,0,{0x00000000000040e7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,128,1937,0,{0x00000000000040e8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,129,1937,0,{0x00000000000040e9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,130,1937,0,{0x00000000000040eaUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,131,1937,0,{0x00000000000040ebUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,132,1937,0,{0x00000000000040ecUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,133,1937,0,{0x00000000000040edUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,134,1937,0,{0x00000000000040eeUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,135,1937,0,{0x00000000000040efUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,136,1937,0,{0x00000000000040f0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,137,1937,0,{0x00000000000040f1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,138,1937,0,{0x00000000000040f2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,139,1937,0,{0x00000000000040f3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,140,1937,0,{0x00000000000040f4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,141,1937,0,{0x00000000000040f5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,142,1937,0,{0x00000000000040f6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,143,1937,0,{0x00000000000040f7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,144,1937,0,{0x00000000000040f8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,145,1937,0,{0x00000000000040f9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,146,1937,0,{0x00000000000040faUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,147,1937,0,{0x00000000000040fbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,148,1937,0,{0x00000000000040fcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,149,1937,0,{0x00000000000040fdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,150,1937,0,{0x00000000000040feUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,151,1937,0,{0x00000000000040ffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,152,1937,0,{0x0000000000004100UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,153,1937,0,{0x0000000000004101UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,154,1937,0,{0x0000000000004102UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,155,1937,0,{0x0000000000004103UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,156,1937,0,{0x0000000000004104UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,157,1937,0,{0x0000000000004105UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,158,1937,0,{0x0000000000004106UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,159,1937,0,{0x0000000000004107UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,160,1937,0,{0x0000000000004108UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,161,1937,0,{0x0000000000004109UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,162,1937,0,{0x000000000000410aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,163,1937,0,{0x000000000000410bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,164,1937,0,{0x000000000000410cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,165,1937,0,{0x000000000000410dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,166,1937,0,{0x000000000000410eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,167,1937,0,{0x000000000000410fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,168,1937,0,{0x0000000000004110UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,169,1937,0,{0x0000000000004111UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,170,1937,0,{0x0000000000004112UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,171,1937,0,{0x0000000000004113UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,172,1937,0,{0x0000000000004114UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,173,1937,0,{0x0000000000004115UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,174,1937,0,{0x0000000000004116UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,175,1937,0,{0x0000000000004117UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,176,1937,0,{0x0000000000004118UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,177,1937,0,{0x0000000000004119UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,178,1937,0,{0x000000000000411aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,179,1937,0,{0x000000000000411bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,180,1937,0,{0x000000000000411cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,181,1937,0,{0x000000000000411dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,182,1937,0,{0x000000000000411eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,183,1937,0,{0x000000000000411fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,184,1937,0,{0x0000000000004120UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,185,1937,0,{0x0000000000004121UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,186,1937,0,{0x0000000000004122UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,187,1937,0,{0x0000000000004123UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,188,1937,0,{0x0000000000004124UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,189,1937,0,{0x0000000000004125UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,190,1937,0,{0x0000000000004126UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,191,1937,0,{0x0000000000004127UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,192,1937,0,{0x0000000000004128UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,193,1937,0,{0x0000000000004129UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,194,1937,0,{0x000000000000412aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,195,1937,0,{0x000000000000412bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,196,1937,0,{0x000000000000412cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,197,1937,0,{0x000000000000412dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,198,1937,0,{0x000000000000412eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,199,1937,0,{0x000000000000412fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,200,1937,0,{0x0000000000004130UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,201,1937,0,{0x0000000000004131UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,202,1937,0,{0x0000000000004132UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,203,1937,0,{0x0000000000004133UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,204,1937,0,{0x0000000000004134UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,205,1937,0,{0x0000000000004135UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,206,1937,0,{0x0000000000004136UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,207,1937,0,{0x0000000000004137UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,208,1937,0,{0x0000000000004138UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,209,1937,0,{0x0000000000004139UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,210,1937,0,{0x000000000000413aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,211,1937,0,{0x000000000000413bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,212,1937,0,{0x000000000000413cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,213,1937,0,{0x000000000000413dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,214,1937,0,{0x000000000000413eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,215,1937,0,{0x000000000000413fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,216,1937,0,{0x0000000000004140UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,217,1937,0,{0x0000000000004141UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,218,1937,0,{0x0000000000004142UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,219,1937,0,{0x0000000000004143UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,220,1937,0,{0x0000000000004144UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,221,1937,0,{0x0000000000004145UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,222,1937,0,{0x0000000000004146UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,223,1937,0,{0x0000000000004147UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,224,1937,0,{0x0000000000004148UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,225,1937,0,{0x0000000000004149UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,226,1937,0,{0x000000000000414aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,227,1937,0,{0x000000000000414bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,228,1937,0,{0x000000000000414cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,229,1937,0,{0x000000000000414dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,230,1937,0,{0x000000000000414eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,231,1937,0,{0x000000000000414fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,232,1937,0,{0x0000000000004150UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,233,1937,0,{0x0000000000004151UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,234,1937,0,{0x0000000000004152UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,235,1937,0,{0x0000000000004153UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,236,1937,0,{0x0000000000004154UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,237,1937,0,{0x0000000000004155UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,238,1937,0,{0x0000000000004156UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,239,1937,0,{0x0000000000004157UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,240,1937,0,{0x0000000000004158UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,241,1937,0,{0x0000000000004159UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,242,1937,0,{0x000000000000415aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,243,1937,0,{0x000000000000415bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,244,1937,0,{0x000000000000415cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,245,1937,0,{0x000000000000415dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,246,1937,0,{0x000000000000415eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,247,1937,0,{0x000000000000415fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,248,1937,0,{0x0000000000004160UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,249,1937,0,{0x0000000000004161UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,250,1937,0,{0x0000000000004162UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,251,1937,0,{0x0000000000004163UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,252,1937,0,{0x0000000000004164UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,253,1937,0,{0x0000000000004165UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,254,1937,0,{0x0000000000004166UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,255,1937,0,{0x0000000000004167UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {26,0,1935,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,300,1937,0,{0x0000000000004268UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,301,1937,0,{0x0000000000004269UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,302,1937,0,{0x000000000000426aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,303,1937,0,{0x000000000000426bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,304,1937,0,{0x000000000000426cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,305,1937,0,{0x000000000000426dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,306,1937,0,{0x000000000000426eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,290,286,0,{0xffffffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,291,286,0,{0x0000000000000040UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,291,291,0,{0xffffffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,292,286,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,292,292,0,{0xffffffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,293,286,0,{0x00000000000000c0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {13,294,290,0,{0x0000000000000040UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,300,300,294,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {13,294,291,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,301,301,294,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,301,301,292,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {13,294,293,0,{0x0000000000000040UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,302,302,294,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,294,290,291,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {13,294,294,0,{0x00000000000000c0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,302,302,294,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,294,292,293,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {13,294,294,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,303,303,294,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {28,0,300,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,289,1937,0,{0x000000000000426fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,287,300,289,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {26,0,1936,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,300,1937,0,{0x0000000000004268UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,301,1937,0,{0x0000000000004269UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,302,1937,0,{0x000000000000426aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,303,1937,0,{0x000000000000426bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,304,1937,0,{0x000000000000426cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,305,1937,0,{0x000000000000426dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,306,1937,0,{0x000000000000426eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,290,286,0,{0xffffffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,291,286,0,{0x0000000000000040UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,291,291,0,{0xffffffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,292,286,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,292,292,0,{0xffffffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,293,286,0,{0x00000000000000c0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {13,294,290,0,{0x0000000000000040UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,300,300,294,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {13,294,291,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,301,301,294,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,301,301,292,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {13,294,293,0,{0x0000000000000040UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,302,302,294,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,294,290,291,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {13,294,294,0,{0x00000000000000c0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,302,302,294,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,294,292,293,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {13,294,294,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {0,303,303,294,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {26,0,1936,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,285,256,0,{0x0000000000004168UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {14,266,285,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {15,285,285,0,{0xffffffffffffffffUL,0xffffffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL}},
+ {5,285,258,285,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {17,264,285,0,{0x0000000000000001UL,0x0008888800000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000003e9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {4,280,1931,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {4,281,1931,266,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,286,280,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,284,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,269,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,274,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {8,264,284,274,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x000000000000038dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,269,286,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,269,269,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,274,274,0,{0x5d221d192b7e0137UL,0x00000021eb88ef9eUL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000343UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,284,284,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {17,264,287,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000013b00UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x0000000000000395UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {17,264,284,0,{0x0000000000000000UL,0x0008888800000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000003e9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,286,287,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x0000000000000388UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {9,264,284,285,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x00000000000003adUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {5,282,284,285,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,275,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,277,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,294,275,0,{0x5d221d192b7e0137UL,0x00000021eb88ef9eUL,0x0000000000000000UL,0x0000000000000000UL}},
+ {9,264,282,294,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x00000000000003a0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,275,294,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,277,277,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x000000000000039aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,280,277,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,277,277,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,276,275,0,{0x5d221d192b7e0137UL,0x00000021eb88ef9eUL,0x0000000000000000UL,0x0000000000000000UL}},
+ {5,282,282,275,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,282,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x00000000000003abUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,286,280,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000343UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,280,287,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {12,282,282,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x00000000000003a4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {5,275,284,285,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x00000000000003b8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {5,282,285,284,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,275,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,276,0,0,{0x5d221d192b7e0137UL,0x00000021eb88ef9eUL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,277,0,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,282,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x00000000000003b8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,286,281,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000343UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,281,287,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {12,282,282,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x00000000000003b1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {8,264,280,281,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x00000000000003e9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {9,264,276,284,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000003ceUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {5,279,276,275,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,282,279,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,278,281,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,286,278,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000343UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,278,287,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {12,282,282,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,282,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000003bfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,294,277,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {8,264,294,278,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x00000000000003cfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,280,294,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,281,278,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,275,276,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,276,276,0,{0x5d221d192b7e0137UL,0x00000021eb88ef9eUL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,277,277,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x00000000000003baUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {5,279,284,275,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,279,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x00000000000003e9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,286,280,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000343UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,288,287,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,286,281,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000343UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {8,264,288,287,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x00000000000003dcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,280,288,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,281,287,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {12,279,279,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x00000000000003cfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,286,280,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000361UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,300,{0x0000000000004270UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,301,{0x0000000000004271UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,302,{0x0000000000004272UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,303,{0x0000000000004273UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {10,286,281,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000361UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,300,{0x0000000000004274UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,301,{0x0000000000004275UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,302,{0x0000000000004276UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,303,{0x0000000000004277UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {29,0,0,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {29,0,0,0,{0x000000000000000dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}}
+};
+static uint64_t literals[64][4];static int literal_count;
+static int same256(const uint64_t a[4],const uint64_t b[4]){return a[0]==b[0]&&a[1]==b[1]&&a[2]==b[2]&&a[3]==b[3];}
+static int literal(const uint64_t value[4]){for(int i=0;i<literal_count;i++)if(same256(literals[i],value))return i;if(literal_count==64){fprintf(stderr,"literal capacity\n");exit(2);}for(int j=0;j<4;j++)literals[literal_count][j]=value[j];return literal_count++;}
+int main(int argc,char **argv){if(argc!=2)return 2;FILE *out=fopen(argv[1],"wb");if(!out)return 2;const int count=(int)(sizeof(records)/sizeof(records[0]));
+ for(int i=0;i<count;i++){const Record *r=&records[i];if(r->op>29||r->d>=2048||r->a>=2048||r->b>=2048)return 2;int flag=0;uint64_t field=r->imm[0];if(r->imm[1]||r->imm[2]||r->imm[3]||field>=(1UL<<25)){flag=1;field=(uint64_t)literal(r->imm);}if(field>=(1UL<<25))return 2;}
+ for(int i=0;i<count;i++){const Record *r=&records[i];int flag=0;uint64_t field=r->imm[0];if(r->imm[1]||r->imm[2]||r->imm[3]||field>=(1UL<<25)){flag=1;field=(uint64_t)literal(r->imm);}uint64_t word=(uint64_t)r->op|((uint64_t)flag<<5)|((uint64_t)r->d<<6)|((uint64_t)r->a<<17)|((uint64_t)r->b<<28)|(field<<39);uint8_t bytes[8];for(int j=0;j<8;j++)bytes[j]=(uint8_t)(word>>(8*j));if(fwrite(bytes,1,8,out)!=8)return 2;}
+ for(int i=0;i<literal_count;i++){uint8_t bytes[32];for(int j=0;j<32;j++)bytes[j]=(uint8_t)(literals[i][j>>3]>>(8*(j&7)));if(fwrite(bytes,1,32,out)!=32)return 2;}if(fclose(out))return 2;
+ fprintf(stderr,"controller instructions=%d literals=%d bytes=%d VmHWM %ld bytes\n",count,literal_count,8*count+32*literal_count,construction_vmhwm_bytes());return 0;}
+
+```
+
+## Appendix C. Measured construction record
+
+```json
+{
+  "address_space_limit": 1048576,
+  "chained_table": {
+    "bytes": 4096,
+    "candidate_evaluations": 1015808,
+    "checksum": "c8fa4bd9170966dc",
+    "entries": 1024,
+    "truth_checks": 32768
+  },
+  "operation_counts": {
+    "annealing_rounds_per_process": 17,
+    "cheap_builds": 512,
+    "controller_bytes": 8400,
+    "controller_instructions": 1002,
+    "controller_literals": 12,
+    "full_processes": 8,
+    "iterations_per_round": 200000000,
+    "prefilter_bytes": 49,
+    "prefilter_instructions": 15,
+    "scan_bins": 46906255,
+    "scan_evaluations": 671,
+    "step_bytes": 413080,
+    "step_instructions": 118445,
+    "table_processes": 10
+  },
+  "peak_bytes": 934965,
+  "phases": [
+    {
+      "binary": "construction_generator",
+      "charged_peak_bytes": 610103,
+      "image": {
+        "bss": 288448,
+        "data": 216,
+        "image": 329527,
+        "text": 40863
+      },
+      "name": "512-trial cheap scan",
+      "output_bytes": 18432,
+      "retained_input_output_bytes": 18432,
+      "seconds": 3.7055015079677105,
+      "sequential": true,
+      "stack_reserve": 262144,
+      "trial": null,
+      "vmhwm_bytes": 417792
+    },
+    {
+      "binary": "construction_generator",
+      "charged_peak_bytes": 643296,
+      "cheap_count": 121166,
+      "image": {
+        "bss": 288448,
+        "data": 216,
+        "image": 329527,
+        "text": 40863
+      },
+      "name": "TOPK full build 1",
+      "output_bytes": 51625,
+      "retained_best_bytes": 51625,
+      "retained_input_output_bytes": 51625,
+      "seconds": 336.8171928040683,
+      "sequential": true,
+      "stack_reserve": 262144,
+      "step_ops": 118456,
+      "trial": 1331,
+      "vmhwm_bytes": 417792
+    },
+    {
+      "binary": "construction_generator",
+      "charged_peak_bytes": 643296,
+      "cheap_count": 121187,
+      "image": {
+        "bss": 288448,
+        "data": 216,
+        "image": 329527,
+        "text": 40863
+      },
+      "name": "TOPK full build 2",
+      "output_bytes": 51625,
+      "retained_best_bytes": 51625,
+      "retained_input_output_bytes": 51625,
+      "seconds": 336.3919523428194,
+      "sequential": true,
+      "stack_reserve": 262144,
+      "step_ops": 118445,
+      "trial": 1333,
+      "vmhwm_bytes": 413696
+    },
+    {
+      "binary": "construction_generator",
+      "charged_peak_bytes": 643296,
+      "cheap_count": 121187,
+      "image": {
+        "bss": 288448,
+        "data": 216,
+        "image": 329527,
+        "text": 40863
+      },
+      "name": "TOPK full build 3",
+      "output_bytes": 51625,
+      "retained_best_bytes": 51625,
+      "retained_input_output_bytes": 51625,
+      "seconds": 335.1065367020201,
+      "sequential": true,
+      "stack_reserve": 262144,
+      "step_ops": 118466,
+      "trial": 1466,
+      "vmhwm_bytes": 413696
+    },
+    {
+      "binary": "construction_generator",
+      "charged_peak_bytes": 643296,
+      "cheap_count": 121191,
+      "image": {
+        "bss": 288448,
+        "data": 216,
+        "image": 329527,
+        "text": 40863
+      },
+      "name": "TOPK full build 4",
+      "output_bytes": 51625,
+      "retained_best_bytes": 51625,
+      "retained_input_output_bytes": 51625,
+      "seconds": 331.7827916620299,
+      "sequential": true,
+      "stack_reserve": 262144,
+      "step_ops": 118482,
+      "trial": 1059,
+      "vmhwm_bytes": 417792
+    },
+    {
+      "binary": "construction_generator",
+      "charged_peak_bytes": 643296,
+      "cheap_count": 121192,
+      "image": {
+        "bss": 288448,
+        "data": 216,
+        "image": 329527,
+        "text": 40863
+      },
+      "name": "TOPK full build 5",
+      "output_bytes": 51625,
+      "retained_best_bytes": 51625,
+      "retained_input_output_bytes": 51625,
+      "seconds": 334.0516005018726,
+      "sequential": true,
+      "stack_reserve": 262144,
+      "step_ops": 118503,
+      "trial": 1215,
+      "vmhwm_bytes": 417792
+    },
+    {
+      "binary": "construction_generator",
+      "charged_peak_bytes": 643296,
+      "cheap_count": 121193,
+      "image": {
+        "bss": 288448,
+        "data": 216,
+        "image": 329527,
+        "text": 40863
+      },
+      "name": "TOPK full build 6",
+      "output_bytes": 51625,
+      "retained_best_bytes": 51625,
+      "retained_input_output_bytes": 51625,
+      "seconds": 334.34883660217747,
+      "sequential": true,
+      "stack_reserve": 262144,
+      "step_ops": 118483,
+      "trial": 1375,
+      "vmhwm_bytes": 417792
+    },
+    {
+      "binary": "construction_generator",
+      "charged_peak_bytes": 643296,
+      "cheap_count": 121200,
+      "image": {
+        "bss": 288448,
+        "data": 216,
+        "image": 329527,
+        "text": 40863
+      },
+      "name": "TOPK full build 7",
+      "output_bytes": 51625,
+      "retained_best_bytes": 51625,
+      "retained_input_output_bytes": 51625,
+      "seconds": 333.4790043910034,
+      "sequential": true,
+      "stack_reserve": 262144,
+      "step_ops": 118466,
+      "trial": 1377,
+      "vmhwm_bytes": 413696
+    },
+    {
+      "binary": "construction_generator",
+      "charged_peak_bytes": 643296,
+      "cheap_count": 121203,
+      "image": {
+        "bss": 288448,
+        "data": 216,
+        "image": 329527,
+        "text": 40863
+      },
+      "name": "TOPK full build 8",
+      "output_bytes": 51625,
+      "retained_best_bytes": 51625,
+      "retained_input_output_bytes": 51625,
+      "seconds": 331.87462322297506,
+      "sequential": true,
+      "stack_reserve": 262144,
+      "step_ops": 118480,
+      "trial": 1184,
+      "vmhwm_bytes": 413696
+    },
+    {
+      "binary": "construction_hash",
+      "charged_peak_bytes": 55767,
+      "image": {
+        "bss": 4096,
+        "data": 16,
+        "image": 9766,
+        "text": 5654
+      },
+      "name": "structured-basis file verification",
+      "retained_input_output_bytes": 22999,
+      "sequential": true,
+      "stack_reserve": 16384,
+      "vmhwm_bytes": 32768
+    },
+    {
+      "binary": "construction_scan",
+      "charged_peak_bytes": 28745,
+      "image": {
+        "bss": 4160,
+        "data": 24,
+        "image": 12286,
+        "text": 8102
+      },
+      "name": "native finite parameter scan",
+      "retained_input_output_bytes": 73,
+      "sequential": true,
+      "stack_reserve": 16384,
+      "vmhwm_bytes": 28672
+    },
+    {
+      "binary": "construction_emitter",
+      "charged_peak_bytes": 934965,
+      "image": {
+        "bss": 393504,
+        "data": 208,
+        "image": 423581,
+        "text": 29869
+      },
+      "name": "streaming native step emission",
+      "retained_input_output_bytes": 413080,
+      "sequential": true,
+      "stack_reserve": 98304,
+      "vmhwm_bytes": 438272
+    },
+    {
+      "binary": "construction_hash",
+      "charged_peak_bytes": 439230,
+      "image": {
+        "bss": 4096,
+        "data": 16,
+        "image": 9766,
+        "text": 5654
+      },
+      "name": "streaming step SHA-256",
+      "retained_input_output_bytes": 413080,
+      "sequential": true,
+      "stack_reserve": 16384,
+      "vmhwm_bytes": 24576
+    },
+    {
+      "binary": "construction_verify",
+      "charged_peak_bytes": 438762,
+      "image": {
+        "bss": 4096,
+        "data": 16,
+        "image": 9298,
+        "text": 5186
+      },
+      "name": "construction-time step parsing, field, and ledger verification",
+      "retained_input_output_bytes": 413080,
+      "sequential": true,
+      "stack_reserve": 16384,
+      "vmhwm_bytes": 24576
+    },
+    {
+      "binary": "construction_prefilter",
+      "charged_peak_bytes": 24687,
+      "image": {
+        "bss": 4128,
+        "data": 24,
+        "image": 8254,
+        "text": 4102
+      },
+      "name": "native 15-OR prefilter emission",
+      "retained_input_output_bytes": 49,
+      "sequential": true,
+      "stack_reserve": 16384,
+      "vmhwm_bytes": 24576
+    },
+    {
+      "binary": "construction_hash",
+      "charged_peak_bytes": 28721,
+      "image": {
+        "bss": 4096,
+        "data": 16,
+        "image": 9766,
+        "text": 5654
+      },
+      "name": "streaming prefilter SHA-256",
+      "retained_input_output_bytes": 49,
+      "sequential": true,
+      "stack_reserve": 16384,
+      "vmhwm_bytes": 28672
+    },
+    {
+      "binary": "controller_emitter",
+      "charged_peak_bytes": 75429,
+      "image": {
+        "bss": 6208,
+        "data": 24,
+        "image": 50645,
+        "text": 44413
+      },
+      "name": "native8 controller emission",
+      "retained_input_output_bytes": 8400,
+      "sequential": true,
+      "stack_reserve": 16384,
+      "vmhwm_bytes": 57344
+    },
+    {
+      "binary": "construction_hash",
+      "charged_peak_bytes": 37072,
+      "image": {
+        "bss": 4096,
+        "data": 16,
+        "image": 9766,
+        "text": 5654
+      },
+      "name": "streaming controller SHA-256",
+      "retained_input_output_bytes": 8400,
+      "sequential": true,
+      "stack_reserve": 16384,
+      "vmhwm_bytes": 28672
+    }
+  ],
+  "round": 20,
+  "schema": "hashsmash-construction-memory-v1",
+  "sequential": true
 }
 ```
 
-**hw.py** (SHA-256 62a37307c0067d44da0bcc15db9c5ceb482ccd89f8f29ac0edff00ef2981da0c):
+## 9. Provenance of this round count and what was re-derived
 
-```python
-"""Driver for hcw.cu (lane-hcoset-wide). Inputs, validation against the organizer, and the verdict table.
-usage: python hw.py gen MODE SEED N NCOS        -> in_<MODE>_<SEED>.bin
-       python hw.py validate R                  GPU digests and keys vs organizer sha3_256(rounds=R) (3 x 512 messages)
-       python hw.py pipecheck R MODE            GPU ladder counts vs numpy exact counts over 2^20 GPU digests
-       python hw.py analyze RESULTS.jsonl       observed vs expected, z, verdict by PREREG_W rule
-MODE rord: random 320-bit coset origins, directions = first N ordered W40 vectors (cube_degree.W, the route's order);
-     ctrl: random 320-bit coset origins, N random 320-bit directions (rank N)."""
-import os, sys, math, json, random, struct, subprocess, pathlib
-import numpy as np
-sys.path.insert(0, r'D:\~~Projects\~HashSmash\workspace\research\sha3r6\lowdegree')
-import cube_degree as cd            # W (40 ordered W40 vectors), rank, kec (organizer SOLCLOUD_12_INPUT_keccak.py)
+This package is a re-targeting of **a3e65dc9-491c-423c-85fc-c2d24ccf4e5e** (0xplemonade), a
+submission to the *separate* `mooselumph/hashsmash-pareto/sha3-256` benchmark at round 20
+with normalized time 124.45149, to round 6 of this scalar track. The two benchmarks share
+the `collision-frontier-v5` cost model and the identical `sha3-256-r<r>-prefix-v1` target
+profiles (byte-for-byte apart from the round count and its round-selection sentence), so
+the construction transfers; no score, qualification or decision from that benchmark is
+carried over, and this package is reviewed afresh here. All credit for the construction campaign, the plan search, the
+chained-chi table, the two-address and native8 encodings, the controller, and the 200-digit
+success certificate belongs to that lineage; the author of this package contributed the
+re-targeting, the re-derived circuit and the ledger below.
 
-HERE = pathlib.Path(__file__).resolve().parent
-WSL_HERE = '/mnt/d/~~Projects/~HashSmash/workspace/research/lanes/lane-hcoset-wide'
-BIN = WSL_HERE + '/hcw'
-MASK = (1 << 64) - 1
-PROJ = ['L0', 'L1', 'L2', 'L3', 'X01', 'X23']
+**What the round count changes.** The plan header's `nr` field, the emitted straight line
+and its hashes, the derived PD, the register peak and the link/prefilter register indices,
+the controller's `271 * rounds` permutation price and its round-dependent instruction
+counts, the reference operation cost `C = 271 * 6 = 1626`, and every ledger term that
+reads `C`.
 
-def gen(mode, seed, n, ncos):
-    rng = random.Random(f'W-{mode}-{seed}')
-    if mode == 'rord':
-        d = cd.W[:n]
-    elif mode == 'ctrl':
-        while True:
-            d = [rng.getrandbits(320) for _ in range(n)]
-            if cd.rank(d) == n: break
-    else:
-        raise SystemExit('mode must be rord or ctrl')
-    assert cd.rank(d) == n
-    starts = [rng.getrandbits(320) for _ in range(ncos)]
-    words = [(s >> (64 * k)) & MASK for s in starts for k in range(5)] + [(v >> (64 * k)) & MASK for v in d for k in range(5)]
-    p = HERE / f'in_{mode}_{seed}.bin'
-    p.write_bytes(struct.pack(f'<{len(words)}Q', *words))
-    return p, starts, d
+**What it does not change.** The plan body (the per-round C/D complement masks and compact
+chi decisions), the 25 folded lane constants, the chained-chi table and its checksum, the
+six-lane embedding, and the search parameters `S = 16488`, `U = 82440`, `Tb`, `LRC`, `J` and the
+trail count. Appendix A therefore transfers verbatim: no input of the success argument is a
+function of the round count. H1 compares a bounded attempt on the fixed deterministic walk
+`g` with the same attempt against a uniformly random comparator `F`, and the comparator
+calculation reads only the distinguished-point threshold, the step budget, the replay cap
+and the trail count. The r20 and r24 packages of this same family already share one plan
+binding and one set of lane constants, so re-targeting the round count is this
+construction's own method rather than a new assumption.
 
-def msg(starts, d, n, idx):          # identical to research/sha3r6/hcoset/hc.py msg()
-    c, p = idx >> n, idx & ((1 << n) - 1); m = starts[c]
-    for j in range(n):
-        if p >> j & 1: m ^= d[j]
-    L = [0] * 25
-    for k in range(5): L[k] = (m >> (64 * k)) & MASK; L[10 + k] = L[k]
-    L[16] = 0x86 << 56
-    return b''.join(l.to_bytes(8, 'little') for l in L[:17])[:135]
+**Ledger terms evaluated at this round.** Main work is exact, from this package's own
+emitted circuit: `Tb * BSTEP`. Replay is exact too, from the closed form of Section 4 at
+this round's `e = C + 29 = 1655`, with `G = ceil(LRC/(S-1)) = 2687423885757092749185025704247` and `nck = S - 1 = 16487`;
+it comes to 147424640958166104101746264353840690602, which is 0.3048 of the r20 figure, as the smaller `C`
+requires. `preprocessing_log2` is recomputed as an upper bound on `log2(PRE/C)` =
+36.71984; the parent's value bounds that ratio only at the parent's larger `C`.
 
-def brev(x): return int(f'{x:064b}'[::-1], 2)
-def spread(x):
-    o = 0
-    for m in range(32): o |= ((x >> m) & 1) << (2 * m)
-    return o
-def pykeys(lanes):                   # independent (pure Python) derivation of the 6 keys from the 4 digest lanes
-    r = [brev(v) for v in lanes]
-    return r + [(spread(r[0] >> 32) << 1) | spread(r[1] >> 32), (spread(r[2] >> 32) << 1) | spread(r[3] >> 32)]
+**The one carried term.** The hit, DP, probe, restart, setup, cap and final-halt paths are
+charged at the r20 package's figure, 6582035915778625933331161026038489389. That is an upper bound here: those paths are
+priced from the emitted controller's own counts, every round-dependent count is strictly
+smaller at this round (replay_rate 3,327 against 10,915, replay_g 4,985 against 16,367, replay_const 1,748 against 5,542 and eval_f 1,655 against 5,449), every other count entering them (`hit`, `ctz_clear`,
+`record_slot`, `probe_word`, `insert`, `dp_fixed`, `restart`, `restart_halt`,
+`deadline_final`, `setup`) is identical to the parent's, and any path charging a permutation
+at `C` is cheaper. The term is 0.019% of N, so the conservatism costs under
+0.0003 bit. Preprocessing is the same inherited construction campaign and is charged
+in full at the parent's figure. Nothing in the ledger is reduced by an unexecuted path.
 
-def gpu(R, *args):
-    subprocess.run(['wsl', '-d', 'Ubuntu', '--', 'env', f'HC_ROUNDS={R}', BIN, *map(str, args)], check=True)
-
-def validate(R):
-    cases = [('rord', 9001, 34, 1, 0), ('rord', 9001, 34, 1, (1 << 33) + 12345), ('ctrl', 9002, 24, 1024, 1000 * (1 << 24) + 777)]
-    M = 512; okd = okk = tot = 0
-    for mode, seed, n, ncos, base in cases:
-        p, starts, d = gen(mode, seed, n, ncos)
-        od, ok_ = HERE / f'v_dump_{seed}.bin', HERE / f'v_keys_{seed}.bin'
-        gpu(R, 'dump', f'{WSL_HERE}/{p.name}', n, ncos, M, f'{WSL_HERE}/{od.name}', base)
-        gpu(R, 'keys', f'{WSL_HERE}/{p.name}', n, ncos, M, f'{WSL_HERE}/{ok_.name}', base)
-        rd, rk = od.read_bytes(), ok_.read_bytes()
-        for i in range(M):
-            ref = cd.kec.sha3_256(msg(starts, d, n, base + i), rounds=R)
-            okd += rd[32 * i:32 * i + 32] == ref
-            lanes = [int.from_bytes(ref[8 * k:8 * k + 8], 'little') for k in range(4)]
-            gk = list(struct.unpack('<6Q', rk[48 * i:48 * i + 48]))
-            okk += gk == pykeys(lanes)
-            tot += 1
-        od.unlink(); ok_.unlink(); p.unlink()
-    print(f'validate rounds={R}: digests {okd}/{tot} equal organizer sha3_256(rounds={R}); keys {okk}/{tot} equal Python keys of the organizer digests')
-
-def np_brev(x):
-    LUT = np.array([int(f'{i:08b}'[::-1], 2) for i in range(256)], dtype=np.uint8)
-    return np.ascontiguousarray(LUT[x.view(np.uint8).reshape(-1, 8)][:, ::-1]).view(np.uint64).reshape(-1)
-def np_spread(x):
-    x = x.astype(np.uint64)
-    for s, m in ((16, 0x0000FFFF0000FFFF), (8, 0x00FF00FF00FF00FF), (4, 0x0F0F0F0F0F0F0F0F), (2, 0x3333333333333333), (1, 0x5555555555555555)):
-        x = (x | (x << np.uint64(s))) & np.uint64(m)
-    return x
-
-def pipecheck(R, mode):
-    n, ncos, b = 16, 16, 3
-    widths = [12, 16, 20, 24, 28, 32, 40, 64]
-    p, starts, d = gen(mode, 9003, n, ncos)
-    M = ncos << n; od = HERE / 'pc_dump.bin'
-    gpu(R, 'dump', f'{WSL_HERE}/{p.name}', n, ncos, M, f'{WSL_HERE}/{od.name}', 0)
-    D = np.frombuffer(od.read_bytes(), dtype=np.uint64).reshape(-1, 4)
-    r = [np_brev(D[:, k].copy()) for k in range(4)]
-    K = r + [(np_spread(r[0] >> np.uint64(32)) << np.uint64(1)) | np_spread(r[1] >> np.uint64(32)),
-             (np_spread(r[2] >> np.uint64(32)) << np.uint64(1)) | np_spread(r[3] >> np.uint64(32))]
-    ref = {}
-    for j, nm in enumerate(PROJ):
-        ref[nm] = []
-        for w in widths:
-            _, c = np.unique(K[j] >> np.uint64(64 - w), return_counts=True)
-            ref[nm].append(int((c.astype(np.int64) * (c.astype(np.int64) - 1) // 2).sum()))
-    out = subprocess.run(['wsl', '-d', 'Ubuntu', '--', 'env', f'HC_ROUNDS={R}', BIN, 'ladder', f'{WSL_HERE}/{p.name}', str(n), str(ncos), str(b),
-                          ','.join(map(str, widths))], check=True, capture_output=True, text=True).stdout
-    g = json.loads(out.strip().splitlines()[-1])
-    same = all(g['pairs'][nm] == ref[nm] for nm in PROJ) and g['kept'] == [M] * 6 and not g['overflow']
-    print(f'pipecheck rounds={R} {mode}: GPU ladder (b={b}, {g["passes"]} passes) vs numpy on {M} GPU digests: {"EQUAL" if same else "DIFFERENT"}')
-    print('  numpy', json.dumps(ref)); print('  gpu  ', json.dumps(g['pairs']))
-    od.unlink(); p.unlink()
-
-def expected(N, K): return N * (N - 1) / 2 / 2.0 ** K
-
-def pois_lower(obs, lam):            # P(X <= obs), X ~ Poisson(lam), for small lam
-    s, t = 0.0, math.exp(-lam)
-    for k in range(obs + 1):
-        s += t; t *= lam / (k + 1)
-    return min(1.0, s)
-
-def analyze(path):
-    rows = [json.loads(l) for l in open(path) if l.strip().startswith('{')]
-    TH = 3.167e-5                    # one-sided 4-sigma normal tail
-    worst, fail, allz = None, [], []
-    for row in rows:
-        tag, kind = row.get('tag', '?'), row.get('kind', '?')
-        N = row['messages']
-        print(f"## {tag} ({kind}) rounds={row['rounds']} n={row['n']} ncos={row['ncos']} N=2^{int(math.log2(N))} b={row['b']} {row['seconds']} s  kept_ok={row['kept'] == [N] * 6}  overflow={row['overflow']}")
-        print('| width | expected | ' + ' | '.join(PROJ) + ' |')
-        print('|---|---|' + '---|' * len(PROJ))
-        for wi, K in enumerate(row['widths']):
-            E = expected(N, K); sd = math.sqrt(E * (1 - 2.0 ** -K)); cells = []
-            for nm in PROJ:
-                o = row['pairs'][nm][wi]; z = (o - E) / sd
-                if E >= 1000:
-                    pl = 0.5 * math.erfc(-z / math.sqrt(2))
-                else:
-                    pl = pois_lower(o, E)
-                cells.append(f'{o} ({z:+.2f})')
-                allz.append((z, tag, nm, K, E, o))
-                if kind != 'ctrl' and pl < TH: fail.append((tag, nm, K, o, E, z, pl))
-            print(f'| {K} | {E:.2f} | ' + ' | '.join(cells) + ' |')
-        print()
-    lo = min(allz); hi = max(allz)
-    print(f'counts: {len(allz)}; lowest z {lo[0]:+.2f} ({lo[1]} {lo[2]} K={lo[3]}); highest z {hi[0]:+.2f} ({hi[1]} {hi[2]} K={hi[3]})')
-    fz = [a for a in allz if any(r.get('tag') == a[1] and r.get('kind') != 'ctrl' for r in rows)]
-    flo = min(fz); fhi = max(fz)
-    print(f'field counts: {len(fz)}; lowest z {flo[0]:+.2f} ({flo[1]} {flo[2]} K={flo[3]}); highest z {fhi[0]:+.2f} ({fhi[1]} {fhi[2]} K={fhi[3]}); |z|>4: {sum(abs(a[0]) > 4 for a in allz)}')
-    invalid = [r.get('tag') for r in rows if r['kept'] != [r['messages']] * 6 or r['overflow'] or r['cuda'] != 'no error']
-    print(f'runs: {len(rows)}; invalid runs: {invalid or "none"}')
-    # EXPLORATORY (not in the preregistered rule): per width, Stouffer z over L0..L3 (lanes are uncorrelated under the
-    # uniform model) of the field runs, and of the control runs, to show any width trend.
-    print('exploratory Stouffer z over L0..L3 per width (field runs | control runs):')
-    for wi, K in enumerate(rows[0]['widths']):
-        out = []
-        for want_ctrl in (False, True):
-            zz = [ (r['pairs'][nm][wi] - expected(r['messages'], K)) / math.sqrt(expected(r['messages'], K)) for r in rows
-                   if (r.get('kind') == 'ctrl') == want_ctrl for nm in PROJ[:4]]
-            out.append(f'{sum(zz) / math.sqrt(len(zz)):+.2f} (m={len(zz)})' if zz else '-')
-        print(f'  K={K}: {out[0]} | {out[1]}')
-    v = 'FAIL ' + json.dumps(fail) if fail else 'PASS'
-    if invalid: v += ' (INCOMPLETE: invalid runs ' + json.dumps(invalid) + ', reported, not replaced)'
-    print('VERDICT: ' + v)
-
-if __name__ == '__main__':
-    cmd = sys.argv[1]
-    if cmd == 'gen':
-        print(gen(sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]))[0])
-    elif cmd == 'validate':
-        validate(int(sys.argv[2]))
-    elif cmd == 'pipecheck':
-        pipecheck(int(sys.argv[2]), sys.argv[3])
-    elif cmd == 'analyze':
-        analyze(sys.argv[2])
-```
-
-**run_w.sh** (SHA-256 c84135cab4b43c2be2be67573e8609b5eb24b63eab7def1faa20b7e432691d0e), its log **w.log** (SHA-256
-62b3007bdbf63fd1fe129bbe1dbcd9372ae3ca98c47dab1b82346f13d047b3c6) and **cap_w6.sh** (SHA-256 14fb4bc9746c89ca5de843bb691dbb051a73e5bb822f86f60fa86a2980d66b5d),
-which stopped W6 at 20 minutes of run time (rc=143):
-
-```sh
-#!/bin/bash
-# Batch W per PREREG_W.txt: six ladder runs, sequential, one GPU job.
-D="/mnt/d/~~Projects/~HashSmash/workspace/research/lanes/lane-hcoset-wide"
-B="$D/hcw"; O="$D/w_results.jsonl"; L="$D/w.log"
-WID="36,40,44,48,52,56,60,64"
-run() {  # tag kind rounds seed n ncos
-  echo "$(date '+%F %T') start $1" >> "$L"
-  HC_ROUNDS=$3 "$B" ladder "$D/in_$2_$4.bin" $5 $6 6 "$WID" 2>> "$L" | sed "s/^{/{\"tag\": \"$1\", \"kind\": \"$2\", /" >> "$O"
-  echo "$(date '+%F %T') end $1 rc=${PIPESTATUS[0]}" >> "$L"
-}
-run W1 rord 6 5101 34 1
-run W2 rord 6 5102 24 1024
-run W3 ctrl 6 5103 34 1
-run W4 rord 5 5104 34 1
-run W5 rord 5 5105 24 1024
-run W6 ctrl 5 5106 34 1
-echo "$(date '+%F %T') done" >> "$L"
-```
-
-```
-2026-10-10 02:27:19 start W1
-2026-10-10 02:31:26 end W1 rc=0
-2026-10-10 02:31:26 start W2
-2026-10-10 02:38:35 end W2 rc=0
-2026-10-10 02:38:35 start W3
-2026-10-10 02:42:29 end W3 rc=0
-2026-10-10 02:42:29 start W4
-2026-10-10 02:46:43 end W4 rc=0
-2026-10-10 02:46:43 start W5
-2026-10-10 02:52:09 end W5 rc=0
-2026-10-10 02:52:09 start W6
-2026-10-10 03:12:11 end W6 rc=143
-2026-10-10 03:12:11 done
-```
-
-```sh
-#!/bin/bash
-# stop my own W6 hcw process (pid given) once it reaches the 20-minute run cap; touches no other process
-P=$1
-E=$(ps -o etimes= -p "$P" | tr -d ' ')
-echo "pid $P elapsed ${E:-gone} s: $(ps -o args= -p "$P")"
-while [ -n "$E" ] && [ "$E" -lt 1200 ]; do sleep 2; E=$(ps -o etimes= -p "$P" | tr -d ' '); done
-if [ -n "$E" ]; then kill "$P"; echo "stopped pid $P at $E s (20-minute run cap)"; else echo "pid $P finished before the cap"; fi
-date '+%F %T'
-```
-
-**w_results.jsonl** (SHA-256 270f2042b09f6c58d2d4c9610dc08eb02235dc8f6fa32316291cd86b50454d79), the raw result lines,
-one per completed run in run order:
-
-```
-{"tag": "W1", "kind": "rord", "rounds": 6, "n": 34, "ncos": 1, "messages": 17179869184, "b": 6, "passes": 64, "widths": [36, 40, 44, 48, 52, 56, 60, 64], "kept": [17179869184, 17179869184, 17179869184, 17179869184, 17179869184, 17179869184], "pairs": {"L0": [2147434141, 134208200, 8387828, 523286, 32513, 1969, 110, 7], "L1": [2147535368, 134227743, 8384488, 524498, 32909, 1937, 131, 5], "L2": [2147495205, 134220252, 8389761, 524389, 32941, 1974, 141, 8], "L3": [2147463719, 134227938, 8391034, 525849, 32880, 2036, 137, 6], "X01": [2147561746, 134240843, 8389303, 525102, 32929, 1991, 138, 7], "X23": [2147437452, 134216325, 8391241, 523784, 32786, 2017, 122, 12]}, "overflow": false, "seconds": 246.6, "cuda": "no error"}
-{"tag": "W2", "kind": "rord", "rounds": 6, "n": 24, "ncos": 1024, "messages": 17179869184, "b": 6, "passes": 64, "widths": [36, 40, 44, 48, 52, 56, 60, 64], "kept": [17179869184, 17179869184, 17179869184, 17179869184, 17179869184, 17179869184], "pairs": {"L0": [2147391126, 134219152, 8388132, 524335, 32757, 2027, 120, 5], "L1": [2147519764, 134236548, 8391176, 524695, 32747, 2115, 127, 6], "L2": [2147400372, 134206586, 8387739, 524340, 32629, 2052, 128, 7], "L3": [2147533470, 134234197, 8391670, 523136, 32866, 2067, 139, 14], "X01": [2147511997, 134222584, 8391874, 525322, 33026, 2037, 128, 3], "X23": [2147338230, 134207618, 8389594, 523780, 33084, 2012, 129, 14]}, "overflow": false, "seconds": 429.1, "cuda": "no error"}
-{"tag": "W3", "kind": "ctrl", "rounds": 6, "n": 34, "ncos": 1, "messages": 17179869184, "b": 6, "passes": 64, "widths": [36, 40, 44, 48, 52, 56, 60, 64], "kept": [17179869184, 17179869184, 17179869184, 17179869184, 17179869184, 17179869184], "pairs": {"L0": [2147450433, 134215578, 8387195, 524255, 33139, 2095, 133, 7], "L1": [2147539278, 134216888, 8390532, 525375, 32548, 2066, 130, 10], "L2": [2147473446, 134230335, 8395803, 524576, 32680, 2047, 111, 9], "L3": [2147419567, 134212722, 8387285, 525100, 32433, 2062, 138, 11], "X01": [2147434882, 134219744, 8389355, 525588, 32910, 2055, 119, 6], "X23": [2147458088, 134209328, 8387741, 523796, 32443, 1929, 107, 5]}, "overflow": false, "seconds": 234.0, "cuda": "no error"}
-{"tag": "W4", "kind": "rord", "rounds": 5, "n": 34, "ncos": 1, "messages": 17179869184, "b": 6, "passes": 64, "widths": [36, 40, 44, 48, 52, 56, 60, 64], "kept": [17179869184, 17179869184, 17179869184, 17179869184, 17179869184, 17179869184], "pairs": {"L0": [2147509921, 134218375, 8391319, 524512, 32672, 1999, 127, 10], "L1": [2147478047, 134228182, 8392201, 524727, 32675, 2035, 128, 11], "L2": [2147484523, 134213465, 8392227, 524137, 32769, 2040, 135, 5], "L3": [2147421184, 134217090, 8393502, 524849, 32774, 2056, 122, 4], "X01": [2147423629, 134219174, 8389791, 523909, 33178, 2060, 139, 10], "X23": [2147420853, 134209010, 8383468, 524025, 32696, 2062, 125, 5]}, "overflow": false, "seconds": 253.2, "cuda": "no error"}
-{"tag": "W5", "kind": "rord", "rounds": 5, "n": 24, "ncos": 1024, "messages": 17179869184, "b": 6, "passes": 64, "widths": [36, 40, 44, 48, 52, 56, 60, 64], "kept": [17179869184, 17179869184, 17179869184, 17179869184, 17179869184, 17179869184], "pairs": {"L0": [2147455537, 134203112, 8389161, 525678, 32644, 2068, 143, 14], "L1": [2147472522, 134209194, 8388726, 525060, 32796, 2059, 122, 12], "L2": [2147463007, 134215142, 8389302, 524310, 32658, 2023, 141, 13], "L3": [2147515738, 134206629, 8390098, 524860, 32929, 2011, 125, 8], "X01": [2147542449, 134227319, 8388920, 523836, 32594, 2063, 150, 10], "X23": [2147490038, 134230469, 8391239, 524649, 32779, 2050, 138, 11]}, "overflow": false, "seconds": 325.3, "cuda": "no error"}
-```
-
-**w_analysis.txt** (output of hw.py analyze w_results.jsonl): the observed count and its z for every run, projection
-and width. The file's SHA-256 is 2f102e94f4dfa00a2accc8d005621f1e33c5d92fac6b54e86dec40866ec8fdff; it begins with a
-UTF-8 byte-order mark and ends its lines in CR LF, so it is shown without the mark and with LF line ends (SHA-256 of
-the text below: 16ef971004d5d0aad25f07d24f339269b58f30c383e605ae9d65ad55384d83e9). The Stouffer lines at the end are exploratory and outside the preregistered rule.
-
-```
-## W1 (rord) rounds=6 n=34 ncos=1 N=2^34 b=6 246.6 s  kept_ok=True  overflow=False
-| width | expected | L0 | L1 | L2 | L3 | X01 | X23 |
-|---|---|---|---|---|---|---|---|
-| 36 | 2147483647.88 | 2147434141 (-1.07) | 2147535368 (+1.12) | 2147495205 (+0.25) | 2147463719 (-0.43) | 2147561746 (+1.69) | 2147437452 (-1.00) |
-| 40 | 134217727.99 | 134208200 (-0.82) | 134227743 (+0.86) | 134220252 (+0.22) | 134227938 (+0.88) | 134240843 (+2.00) | 134216325 (-0.12) |
-| 44 | 8388608.00 | 8387828 (-0.27) | 8384488 (-1.42) | 8389761 (+0.40) | 8391034 (+0.84) | 8389303 (+0.24) | 8391241 (+0.91) |
-| 48 | 524288.00 | 523286 (-1.38) | 524498 (+0.29) | 524389 (+0.14) | 525849 (+2.16) | 525102 (+1.12) | 523784 (-0.70) |
-| 52 | 32768.00 | 32513 (-1.41) | 32909 (+0.78) | 32941 (+0.96) | 32880 (+0.62) | 32929 (+0.89) | 32786 (+0.10) |
-| 56 | 2048.00 | 1969 (-1.75) | 1937 (-2.45) | 1974 (-1.64) | 2036 (-0.27) | 1991 (-1.26) | 2017 (-0.69) |
-| 60 | 128.00 | 110 (-1.59) | 131 (+0.27) | 141 (+1.15) | 137 (+0.80) | 138 (+0.88) | 122 (-0.53) |
-| 64 | 8.00 | 7 (-0.35) | 5 (-1.06) | 8 (+0.00) | 6 (-0.71) | 7 (-0.35) | 12 (+1.41) |
-
-## W2 (rord) rounds=6 n=24 ncos=1024 N=2^34 b=6 429.1 s  kept_ok=True  overflow=False
-| width | expected | L0 | L1 | L2 | L3 | X01 | X23 |
-|---|---|---|---|---|---|---|---|
-| 36 | 2147483647.88 | 2147391126 (-2.00) | 2147519764 (+0.78) | 2147400372 (-1.80) | 2147533470 (+1.08) | 2147511997 (+0.61) | 2147338230 (-3.14) |
-| 40 | 134217727.99 | 134219152 (+0.12) | 134236548 (+1.62) | 134206586 (-0.96) | 134234197 (+1.42) | 134222584 (+0.42) | 134207618 (-0.87) |
-| 44 | 8388608.00 | 8388132 (-0.16) | 8391176 (+0.89) | 8387739 (-0.30) | 8391670 (+1.06) | 8391874 (+1.13) | 8389594 (+0.34) |
-| 48 | 524288.00 | 524335 (+0.06) | 524695 (+0.56) | 524340 (+0.07) | 523136 (-1.59) | 525322 (+1.43) | 523780 (-0.70) |
-| 52 | 32768.00 | 32757 (-0.06) | 32747 (-0.12) | 32629 (-0.77) | 32866 (+0.54) | 33026 (+1.43) | 33084 (+1.75) |
-| 56 | 2048.00 | 2027 (-0.46) | 2115 (+1.48) | 2052 (+0.09) | 2067 (+0.42) | 2037 (-0.24) | 2012 (-0.80) |
-| 60 | 128.00 | 120 (-0.71) | 127 (-0.09) | 128 (+0.00) | 139 (+0.97) | 128 (+0.00) | 129 (+0.09) |
-| 64 | 8.00 | 5 (-1.06) | 6 (-0.71) | 7 (-0.35) | 14 (+2.12) | 3 (-1.77) | 14 (+2.12) |
-
-## W3 (ctrl) rounds=6 n=34 ncos=1 N=2^34 b=6 234.0 s  kept_ok=True  overflow=False
-| width | expected | L0 | L1 | L2 | L3 | X01 | X23 |
-|---|---|---|---|---|---|---|---|
-| 36 | 2147483647.88 | 2147450433 (-0.72) | 2147539278 (+1.20) | 2147473446 (-0.22) | 2147419567 (-1.38) | 2147434882 (-1.05) | 2147458088 (-0.55) |
-| 40 | 134217727.99 | 134215578 (-0.19) | 134216888 (-0.07) | 134230335 (+1.09) | 134212722 (-0.43) | 134219744 (+0.17) | 134209328 (-0.73) |
-| 44 | 8388608.00 | 8387195 (-0.49) | 8390532 (+0.66) | 8395803 (+2.48) | 8387285 (-0.46) | 8389355 (+0.26) | 8387741 (-0.30) |
-| 48 | 524288.00 | 524255 (-0.05) | 525375 (+1.50) | 524576 (+0.40) | 525100 (+1.12) | 525588 (+1.80) | 523796 (-0.68) |
-| 52 | 32768.00 | 33139 (+2.05) | 32548 (-1.22) | 32680 (-0.49) | 32433 (-1.85) | 32910 (+0.78) | 32443 (-1.80) |
-| 56 | 2048.00 | 2095 (+1.04) | 2066 (+0.40) | 2047 (-0.02) | 2062 (+0.31) | 2055 (+0.15) | 1929 (-2.63) |
-| 60 | 128.00 | 133 (+0.44) | 130 (+0.18) | 111 (-1.50) | 138 (+0.88) | 119 (-0.80) | 107 (-1.86) |
-| 64 | 8.00 | 7 (-0.35) | 10 (+0.71) | 9 (+0.35) | 11 (+1.06) | 6 (-0.71) | 5 (-1.06) |
-
-## W4 (rord) rounds=5 n=34 ncos=1 N=2^34 b=6 253.2 s  kept_ok=True  overflow=False
-| width | expected | L0 | L1 | L2 | L3 | X01 | X23 |
-|---|---|---|---|---|---|---|---|
-| 36 | 2147483647.88 | 2147509921 (+0.57) | 2147478047 (-0.12) | 2147484523 (+0.02) | 2147421184 (-1.35) | 2147423629 (-1.30) | 2147420853 (-1.36) |
-| 40 | 134217727.99 | 134218375 (+0.06) | 134228182 (+0.90) | 134213465 (-0.37) | 134217090 (-0.06) | 134219174 (+0.12) | 134209010 (-0.75) |
-| 44 | 8388608.00 | 8391319 (+0.94) | 8392201 (+1.24) | 8392227 (+1.25) | 8393502 (+1.69) | 8389791 (+0.41) | 8383468 (-1.77) |
-| 48 | 524288.00 | 524512 (+0.31) | 524727 (+0.61) | 524137 (-0.21) | 524849 (+0.77) | 523909 (-0.52) | 524025 (-0.36) |
-| 52 | 32768.00 | 32672 (-0.53) | 32675 (-0.51) | 32769 (+0.01) | 32774 (+0.03) | 33178 (+2.26) | 32696 (-0.40) |
-| 56 | 2048.00 | 1999 (-1.08) | 2035 (-0.29) | 2040 (-0.18) | 2056 (+0.18) | 2060 (+0.27) | 2062 (+0.31) |
-| 60 | 128.00 | 127 (-0.09) | 128 (+0.00) | 135 (+0.62) | 122 (-0.53) | 139 (+0.97) | 125 (-0.27) |
-| 64 | 8.00 | 10 (+0.71) | 11 (+1.06) | 5 (-1.06) | 4 (-1.41) | 10 (+0.71) | 5 (-1.06) |
-
-## W5 (rord) rounds=5 n=24 ncos=1024 N=2^34 b=6 325.3 s  kept_ok=True  overflow=False
-| width | expected | L0 | L1 | L2 | L3 | X01 | X23 |
-|---|---|---|---|---|---|---|---|
-| 36 | 2147483647.88 | 2147455537 (-0.61) | 2147472522 (-0.24) | 2147463007 (-0.45) | 2147515738 (+0.69) | 2147542449 (+1.27) | 2147490038 (+0.14) |
-| 40 | 134217727.99 | 134203112 (-1.26) | 134209194 (-0.74) | 134215142 (-0.22) | 134206629 (-0.96) | 134227319 (+0.83) | 134230469 (+1.10) |
-| 44 | 8388608.00 | 8389161 (+0.19) | 8388726 (+0.04) | 8389302 (+0.24) | 8390098 (+0.51) | 8388920 (+0.11) | 8391239 (+0.91) |
-| 48 | 524288.00 | 525678 (+1.92) | 525060 (+1.07) | 524310 (+0.03) | 524860 (+0.79) | 523836 (-0.62) | 524649 (+0.50) |
-| 52 | 32768.00 | 32644 (-0.69) | 32796 (+0.15) | 32658 (-0.61) | 32929 (+0.89) | 32594 (-0.96) | 32779 (+0.06) |
-| 56 | 2048.00 | 2068 (+0.44) | 2059 (+0.24) | 2023 (-0.55) | 2011 (-0.82) | 2063 (+0.33) | 2050 (+0.04) |
-| 60 | 128.00 | 143 (+1.33) | 122 (-0.53) | 141 (+1.15) | 125 (-0.27) | 150 (+1.94) | 138 (+0.88) |
-| 64 | 8.00 | 14 (+2.12) | 12 (+1.41) | 13 (+1.77) | 8 (+0.00) | 10 (+0.71) | 11 (+1.06) |
-
-counts: 240; lowest z -3.14 (W2 X23 K=36); highest z +2.48 (W3 L2 K=44)
-field counts: 192; lowest z -3.14 (W2 X23 K=36); highest z +2.26 (W4 X01 K=52); |z|>4: 0
-runs: 5; invalid runs: none
-exploratory Stouffer z over L0..L3 per width (field runs | control runs):
-  K=36: -0.89 (m=16) | -0.56 (m=4)
-  K=40: +0.18 (m=16) | +0.20 (m=4)
-  K=44: +1.78 (m=16) | +1.10 (m=4)
-  K=48: +1.40 (m=16) | +1.49 (m=4)
-  K=52: -0.18 (m=16) | -0.75 (m=4)
-  K=56: -1.66 (m=16) | +0.86 (m=4)
-  K=60: +0.62 (m=16) | +0.00 (m=4)
-  K=64: +0.62 (m=16) | +0.88 (m=4)
-VERDICT: PASS
-```
-
-### A.6 GPU digest checks on the run inputs
-
-gpu_validate_s6g.py (below) re-runs the checks of A.4 on the input files of the count runs, after all count runs:
-for each file the GPU binary dumps 512 digests (hcw also its six projection keys) at the stated message indices, and
-each is compared with the organizer reference verifier/keccak.py sha3_256(message, rounds=R) of the same message.
-File times show that the hcoset binary checked here was built on 2026-10-10 at 01:55:12, 8 seconds after the last
-change of the hcoset.cu of A.2 and before batch R5 (01:55:56), after batches 1 to 3 had run (2026-10-09 23:40 to
-2026-10-10 00:37); the build that ran batches 1 to 3 was not kept, and its checks are those of A.4. The hcw binary
-(built at 02:24:57) is the one that ran batch W (02:27 to 03:12). The printout, verbatim:
-
-```
-GPU digest re-validation, 2026-10-10 06:02 (local clock); organizer reference verifier/keccak.py sha256 95ce77dff0476301c05057e01296f3e3507c4926423257540cfc3e5fd36ee0ae
-hcoset binary sha256 911096f0a08566ff21513f445506a9c175fe9fbc544f84c46d79f5fabd75c3b3, hcoset.cu sha256 28c40823a37afd1d22fb487b5ab77622c2036e5bc6763a330d83d1a9f66069f8
-hcw binary sha256 514d71d742d92afcfce353bc9330cc50cf2430c87d5ddd03aee38a5d187d77bb, hcw.cu sha256 ef34e1357728c086abd7aa90fde9d8964acbd4f1b32b610c4dd1d0e974add032
-batch 1  hcoset rounds=6 in_field_1001.bin (n=20, 1024 cosets, sha256 ae25659fe1787dd6): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 1  hcoset rounds=6 in_ctrl_1001.bin (n=20, 1024 cosets, sha256 d4ce2391e9a900de): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 1  hcoset rounds=6 in_field_1002.bin (n=24, 64 cosets, sha256 02b3e135c0b50faf): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 1  hcoset rounds=6 in_ctrl_1002.bin (n=24, 64 cosets, sha256 48709b11f389be48): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 2  hcoset rounds=6 in_field_2001.bin (n=20, 1024 cosets, sha256 469aeb54fcb3097c): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 2  hcoset rounds=6 in_ctrl_2001.bin (n=20, 1024 cosets, sha256 4d257597424bc506): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 2  hcoset rounds=6 in_field_2002.bin (n=28, 4 cosets, sha256 8d624daa72be49a1): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 2  hcoset rounds=6 in_ctrl_2002.bin (n=28, 4 cosets, sha256 fd191b6dca98502f): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 3  hcoset rounds=6 in_det_3001.bin (n=20, 1024 cosets, sha256 a80bc01f218d0615): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch 3  hcoset rounds=6 in_det_3002.bin (n=24, 64 cosets, sha256 fb0b86df4f169ba9): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6)
-batch R5 hcoset rounds=5 in_det_4001.bin (n=20, 1024 cosets, sha256 a80bc01f218d0615): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=5)
-batch R5 hcoset rounds=5 in_det_4002.bin (n=24, 64 cosets, sha256 fb0b86df4f169ba9): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=5)
-batch R5 hcoset rounds=5 in_field_4003.bin (n=20, 1024 cosets, sha256 873ecab65c578fef): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=5)
-batch R5 hcoset rounds=5 in_ctrl_4003.bin (n=20, 1024 cosets, sha256 8917acd85ef6d2eb): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=5)
-batch W  hcw rounds=6 W1 in_rord_5101.bin (n=34, 1 cosets, sha256 461e3cd2f1813046): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6); 512/512 GPU keys equal the six projections of the organizer digests
-batch W  hcw rounds=6 W1 in_rord_5101.bin (n=34, 1 cosets, sha256 461e3cd2f1813046): messages 8589946937..8589947448: 512/512 GPU digests equal organizer sha3_256(rounds=6); 512/512 GPU keys equal the six projections of the organizer digests
-batch W  hcw rounds=6 W2 in_rord_5102.bin (n=24, 1024 cosets, sha256 c516ca6aec7a9e47): messages 16777216777..16777217288: 512/512 GPU digests equal organizer sha3_256(rounds=6); 512/512 GPU keys equal the six projections of the organizer digests
-batch W  hcw rounds=6 W3 in_ctrl_5103.bin (n=34, 1 cosets, sha256 b3614685b0fc3638): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=6); 512/512 GPU keys equal the six projections of the organizer digests
-batch W  hcw rounds=5 W4 in_rord_5104.bin (n=34, 1 cosets, sha256 56366cd3bd2973f1): messages 0..511: 512/512 GPU digests equal organizer sha3_256(rounds=5); 512/512 GPU keys equal the six projections of the organizer digests
-batch W  hcw rounds=5 W4 in_rord_5104.bin (n=34, 1 cosets, sha256 56366cd3bd2973f1): messages 8589946937..8589947448: 512/512 GPU digests equal organizer sha3_256(rounds=5); 512/512 GPU keys equal the six projections of the organizer digests
-batch W  hcw rounds=5 W5 in_rord_5105.bin (n=24, 1024 cosets, sha256 dc30ac34bec88ab9): messages 16777216777..16777217288: 512/512 GPU digests equal organizer sha3_256(rounds=5); 512/512 GPU keys equal the six projections of the organizer digests
-total: 10752/10752 digests equal
-```
-
-**gpu_validate_s6g.py** (SHA-256 f8713e1771b1777a7e8cd435b63730ed26b02370345389d1a612a68d33783512):
-
-```python
-"""Dev tool (not shipped): re-run the GPU-versus-organizer digest checks of the H_coset batches on the exact input files
-of the count runs, and print the lines that proof.md Appendix A.6 keeps verbatim. Read-only on the inputs, the GPU
-binaries and the live organizer checkout; the GPU dumps go to a fresh temporary directory that is removed after.
-For each input file: the GPU binary dumps 512 digests (hcw: also the six projection keys) at the given message index
-base, and each is compared with the organizer reference verifier/keccak.py sha3_256(message, rounds=R) of the same
-message, built from the file's origins and directions exactly as the drivers hc.py and hw.py build it.
-Run in WSL: python3 -B gpu_validate_s6g.py"""
-import sys, os, struct, hashlib, subprocess, tempfile, shutil, datetime, importlib.util
-
-sys.dont_write_bytecode = True
-KEC = '/root/hashsmash/yukon/hashsmash_S6/verifier/keccak.py'
-spec = importlib.util.spec_from_file_location('okec', KEC)
-okec = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(okec)
-HC_DIR = '/mnt/d/~~Projects/~HashSmash/workspace/research/sha3r6/hcoset'
-W_DIR = '/mnt/d/~~Projects/~HashSmash/workspace/research/lanes/lane-hcoset-wide'
-HC_BIN, W_BIN = '/root/hcoset_bin/hcoset', W_DIR + '/hcw'
-MASK, M = (1 << 64) - 1, 512
-
-
-def sha(p):
-    return hashlib.sha256(open(p, 'rb').read()).hexdigest()
-
-
-def load(path, n, ncos):  # ncos * 5 u64 origins, then n * 5 u64 directions, little-endian
-    raw = open(path, 'rb').read()
-    assert len(raw) == 8 * 5 * (ncos + n), path
-    w = struct.unpack(f'<{5 * (ncos + n)}Q', raw)
-    v = [sum(w[5 * k + j] << 64 * j for j in range(5)) for k in range(ncos + n)]
-    return v[:ncos], v[ncos:]
-
-
-def msg(starts, d, n, idx):   # as hc.py / hw.py msg(): coset idx >> n, point = XOR of directions at the set bits
-    c, p = idx >> n, idx & ((1 << n) - 1)
-    m = starts[c]
-    for j in range(n):
-        if p >> j & 1:
-            m ^= d[j]
-    L = [0] * 25
-    for k in range(5):
-        L[k] = (m >> (64 * k)) & MASK
-        L[10 + k] = L[k]
-    L[16] = 0x86 << 56
-    return b''.join(x.to_bytes(8, 'little') for x in L[:17])[:135]
-
-
-def brev(x):
-    return int(f'{x:064b}'[::-1], 2)
-
-
-def spread(x):
-    o = 0
-    for m in range(32):
-        o |= ((x >> m) & 1) << (2 * m)
-    return o
-
-
-def pykeys(lanes):        # as hw.py pykeys(): L0..L3 bit-reversed lanes, X01 and X23 interleaved halves
-    r = [brev(v) for v in lanes]
-    return r + [(spread(r[0] >> 32) << 1) | spread(r[1] >> 32), (spread(r[2] >> 32) << 1) | spread(r[3] >> 32)]
-
-
-def gpu(binary, rounds, *args):
-    subprocess.run(['env', f'HC_ROUNDS={rounds}', binary, *map(str, args)], check=True, stdout=subprocess.DEVNULL)
-
-
-tmp = tempfile.mkdtemp(prefix='s6g-gpuval-')
-try:
-    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
-    print(f'GPU digest re-validation, {now} (local clock); organizer reference verifier/keccak.py sha256 {sha(KEC)}')
-    print(f'hcoset binary sha256 {sha(HC_BIN)}, hcoset.cu sha256 {sha(HC_DIR + "/hcoset.cu")}')
-    print(f'hcw binary sha256 {sha(W_BIN)}, hcw.cu sha256 {sha(W_DIR + "/hcw.cu")}')
-    tot_ok = tot = 0
-    for tag, rounds, f, n, ncos in (('batch 1', 6, 'in_field_1001.bin', 20, 1024), ('batch 1', 6, 'in_ctrl_1001.bin', 20, 1024),
-                                    ('batch 1', 6, 'in_field_1002.bin', 24, 64), ('batch 1', 6, 'in_ctrl_1002.bin', 24, 64),
-                                    ('batch 2', 6, 'in_field_2001.bin', 20, 1024), ('batch 2', 6, 'in_ctrl_2001.bin', 20, 1024),
-                                    ('batch 2', 6, 'in_field_2002.bin', 28, 4), ('batch 2', 6, 'in_ctrl_2002.bin', 28, 4),
-                                    ('batch 3', 6, 'in_det_3001.bin', 20, 1024), ('batch 3', 6, 'in_det_3002.bin', 24, 64),
-                                    ('batch R5', 5, 'in_det_4001.bin', 20, 1024), ('batch R5', 5, 'in_det_4002.bin', 24, 64),
-                                    ('batch R5', 5, 'in_field_4003.bin', 20, 1024), ('batch R5', 5, 'in_ctrl_4003.bin', 20, 1024)):
-        p = f'{HC_DIR}/{f}'
-        starts, d = load(p, n, ncos)
-        out = f'{tmp}/dump.bin'
-        gpu(HC_BIN, rounds, 'dump', p, n, ncos, M, out)
-        raw = open(out, 'rb').read()
-        ok = sum(raw[32 * i:32 * i + 32] == okec.sha3_256(msg(starts, d, n, i), rounds=rounds) for i in range(M))
-        os.unlink(out)
-        tot_ok, tot = tot_ok + ok, tot + M
-        print(f'{tag:8s} hcoset rounds={rounds} {f} (n={n}, {ncos} cosets, sha256 {sha(p)[:16]}): messages 0..{M - 1}: '
-              f'{ok}/{M} GPU digests equal organizer sha3_256(rounds={rounds})')
-    for tag, rounds, f, n, ncos, base in (('W1', 6, 'in_rord_5101.bin', 34, 1, 0), ('W1', 6, 'in_rord_5101.bin', 34, 1, (1 << 33) + 12345),
-                                          ('W2', 6, 'in_rord_5102.bin', 24, 1024, 1000 * (1 << 24) + 777),
-                                          ('W3', 6, 'in_ctrl_5103.bin', 34, 1, 0),
-                                          ('W4', 5, 'in_rord_5104.bin', 34, 1, 0), ('W4', 5, 'in_rord_5104.bin', 34, 1, (1 << 33) + 12345),
-                                          ('W5', 5, 'in_rord_5105.bin', 24, 1024, 1000 * (1 << 24) + 777)):
-        p = f'{W_DIR}/{f}'
-        starts, d = load(p, n, ncos)
-        od, ok_ = f'{tmp}/dump.bin', f'{tmp}/keys.bin'
-        gpu(W_BIN, rounds, 'dump', p, n, ncos, M, od, base)
-        gpu(W_BIN, rounds, 'keys', p, n, ncos, M, ok_, base)
-        rd, rk = open(od, 'rb').read(), open(ok_, 'rb').read()
-        okd = okk = 0
-        for i in range(M):
-            ref = okec.sha3_256(msg(starts, d, n, base + i), rounds=rounds)
-            okd += rd[32 * i:32 * i + 32] == ref
-            lanes = [int.from_bytes(ref[8 * k:8 * k + 8], 'little') for k in range(4)]
-            okk += list(struct.unpack('<6Q', rk[48 * i:48 * i + 48])) == pykeys(lanes)
-        os.unlink(od)
-        os.unlink(ok_)
-        tot_ok, tot = tot_ok + okd, tot + M
-        print(f'batch W  hcw rounds={rounds} {tag} {f} (n={n}, {ncos} cosets, sha256 {sha(p)[:16]}): messages {base}..{base + M - 1}: '
-              f'{okd}/{M} GPU digests equal organizer sha3_256(rounds={rounds}); {okk}/{M} GPU keys equal the six projections '
-              f'of the organizer digests')
-    print(f'total: {tot_ok}/{tot} digests equal')
-finally:
-    shutil.rmtree(tmp)
-```
+**Status.** `plausible_not_refuted` under the exploratory policy would not make this a proof
+or a human-accepted result, and the claim asserts no weakness in full 24-round SHA3-256: at
+round 6 of 24 the bound 124.03237 is above the organizer nominal reference and the whole
+attack is an ordinary distinguished-point birthday search whose only gain over the nominal
+scaffold is the bit-sliced pricing of the chain under collision-frontier-v5.
