@@ -9,77 +9,139 @@
   "certificate_manifest": "certificates/manifest.json",
   "experiment_manifest": "experiments/manifest.json",
   "claim": {
-    "time_log2": 87.14808,
+    "time_log2": 83.01264,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 28.1,
+    "memory_log2_bytes": 28.00811,
     "preprocessing_log2": 78.09276,
     "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 14
+    "nonuniform_advice_log2_bytes": 13
   },
   "restrictions": [
-    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; outputs two distinct 128-byte messages M0 || M1, M0 || M1' with equal digests.",
-    "Construction: the memory-efficient A0-variant attack (design of 2d1c4fc2 and fb176310 on ePrint 2026/1120 / 2026/1080; per-class row-16 programs as in 08be594), our implementation experiments/a0p38.py, with our characteristic P8 and the accepted event rows 16..22 (row 19 on signed differences) plus a direct output comparison.",
-    "Cost: exact ledger ledger_a0p.py: N_FB = 1,510,856,422,634,357,630,235,398 first blocks, 32 classes of 24,576 variants (786,432 in all), per-class row-16 programs of 1,438 to 1,482 instructions (mean 1462.25) per 256 variants, executed counts; T x 2728 = 467765448296261394038709429793; claimed 87.14808.",
-    "Success probability at least 0.39 under H1, H2 (q3_model 2^-97.0000), H3, by Bonferroni per first block, independent first blocks and Chebyshev caps.",
-    "Memory 2^28.10 bytes (online 3,659,904 bytes; the preprocessing peak)."
+    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words. Output: two distinct 128-byte messages M0||M1 and M0||M1' (common first block; FIPS padding appends the same third block) with equal digests; step 3b accepts a pair only if A34..A37, E34..E37 of both members are equal, so every output is a collision (Lemma 2, proof.md Section 1).",
+    "Algorithm (proof.md Sections 2, 3; experiments/p1b38.py): per chaining value a table of 2^23 buckets b = F >> 9, one 256-bit word each (7 lanes of a 9-bit exact tag F mod 512 and a 27-bit offset, a 3-bit count; 3 padding words), loaded with the 2^27 candidates a0 of the set P (bits 25..27 = 010, bits 30..31 = 00) in the order n -> o = rotr2((n + R) mod 2^27) with a fresh random 27-bit R per chaining value, first 7 per bucket kept (the kept a0 are uniform on P on average over R); a scan of all 2^32 words u = u0 + n; the 20 row-16 heads are equal mod 2^13, so one w = (H - P) mod 512 serves every head, whose two windows are the buckets b and b + 2: one SWAR pass tests their 14 tags exactly (plus a straddle pass on b + 1, b + 3 when w >= 507); a claw (a0, u) has E16x = F(a0) + s0(u) - u in the 160-word row-16 set; claws pass the post-filters C1, C2, G, F7 on the real words; every good pair runs step 3b (rows 16..37 of both members with the P8 tests of rows 16..21, early abort, output comparison).",
+    "Cost: N_CV = 12,014,587,405,061,634 chaining values (each one first block: one compression plus 76 operations inside the per-chaining-value work); online work counted per operation (one 256-bit load per bucket, the table at RAM word 0; 17 per head, 369 fixed per scan word, 44 per matching field, step 3b at most 3,014, every work-counter add) with mean wbar = 2.142067e12 per chaining value (the 2^27-candidate build at 57 and the (2^23 + 3) x 5 reset included; 228.187 operations per claw), capped at V_MAX = ceil((1 + 2^-16) N_CV wbar) = 25,736,438,737,648,325,429,509,603,446, cap tested per chaining value, OVER = vmax = 7,574,569,065,909,037. N = (2^78 + 2^74 + 2^70) C + V_MAX + OVER + FIN = 26,615,677,263,635,467,762,332,733,907 = 2^83.01264 compressions (C = 2,728).",
+    "Success probability at least 0.39 under H1 (independent uniform chaining values), H1-P1 (q_pf = 2^-16.17850 for claws, the exact count of the smallest of P's four windows; 2.185656 claws per scan word from the exact Binomial(2^27, 2^-23) bucket fill), H2-P1 (q3r >= 2^-71.3657 per good pair: the registered q3_model 2^-96.0133 plus the smaller of our two registered paired lower bounds, -0.02721 against the A0 family and -0.03042 against the selected-variant family q3_model was measured on) and H3-P1 (no positive correlation of acceptance between unlinked good pairs over the random chaining value); Lemma 5 is the second-moment bound Pr[X_j >= 1] >= E[X_j]^2/E[X_j^2], with the measured full-scan link rate E[L]/E[K] charged through the factor (1 - 2^-6.5); independence across chaining values, and Bernstein's inequality for the cap (Lemma 4).",
+    "Memory: peak 2^28.00811 bytes = 263,620 KiB, the largest measured peak resident set of our full-table C-port executions of the online program (2^23 + 3 bucket words of 32 bytes = 2^28-byte table, 2^27 candidates, post-filters and step 3b on every good pair, advice, registers, scan state and code; host overhead included); every preprocessing cell is lower (the Step-1 solve re-measured under a 2^28 cap at 2^27.7542 in 377cb363, our solver-alone rerun 2^26.08, the signed search at most 2^27.92, the exact window counts recomputed in 2^25 bytes). H6. Score under hashsmash-scalar-tm-v1: 83.01264 + 8.00811 = 91.02075. baseline_improved names the organizer reference and does not assert an improvement over any submitted score."
   ],
   "heuristics": [
     {
-      "id": "H1-single-trial-chaining-value",
+      "id": "H1-uniform-chaining-values",
       "role": "score-critical",
-      "statement": "For M0 uniform on {0,1}^512 (two fresh random words per first block), CV1 = F_38(IV, M0) behaves as a uniform 256-bit value for the events of one fixed variant (W7, W16..W22 and E16x distributed as in Lemma 5.1).",
-      "scope": "g, the per-first-block success probability and the expected work.",
-      "extrapolation": "The premise of the A0-variant lineage. Organizer evidence: a0p-online-r38 draws 64 unconditional first blocks per active trial and counts the W7 passes of all 32 classes (our validation: 5,693 passes in 2,560 blocks against 5,480 expected); it then runs the counted program on real first blocks.",
-      "limitations": "A premise about the first-block compression.",
+      "statement": "The first blocks M0 are fresh uniform 512-bit strings and their chaining values cv = F_38(IV, M0) behave as independent uniform 256-bit values. Consequences used, all as expectations over the random chaining value (for a fixed chaining value and R the table is determined): the 2^27 table values F(a0) are distributed as independent uniform words for the table statistics (bucket loads Binomial(2^27, 2^-23), E[min(load, 7)] = 6.994098 stored lanes, uniform tags, 160 x 6.994098 / 512 = 2.185656 expected claws per scan word); F7 has probability |F7|/2^32; the good pairs and the online works W_j of different chaining values are independent (proof.md Lemma 4, Section 7).",
+      "scope": "The expected claw count, the mean online work wbar (hence V_MAX), the independence used by Bernstein's inequality (Lemma 4) and the product over chaining values in the success bound (proof.md Sections 5, 7).",
+      "extrapolation": "Our C port of the bucket claw at full table size (2^23 buckets, 2^27 candidates) on 64 seed-drawn chaining values, 2^22 scan words each: claws 586,702,214, claws/expected 0.99999, stored lanes per bucket 6.994111 (expected 6.994098); with the full table the claws equal an independent reference search (chaining value 24: 573,516 claws, reference 573,516; chaining value 25: 572,352 claws, reference 572,352); the C port reproduces p1b38.run_cv (which executes the SWAR test literally) exactly at reduced sizes. The organizer experiment p1b-online-r38 reports stored lanes, claws and reference claws on seed-drawn chaining values.",
+      "limitations": "A premise, not a theorem: over the random chaining value the table values and the claws are taken to follow the random-function law in expectation; checked at full table size on 64 chaining values, not on 2^53 of them.",
       "evidence_ids": [
-        "proof:186-191",
-        "proof:373-394"
+        "proof:76-140",
+        "proof:173-226",
+        "proof:271-298",
+        "proof:473-636",
+        "experiment:p1b-online-r38"
       ]
     },
     {
-      "id": "H2-q3-accepted-event",
+      "id": "H1-P1-postfilter-law",
       "role": "score-critical",
-      "statement": "The average over the 786,432 selected variants (32 classes) of Pr[the pair is in the accepted event (rows 16..22 with row 19 on signed differences, equal outputs) | good pair] is at least q3_model = 2^-97.0000.",
-      "scope": "N_FB and the whole attack term.",
-      "extrapolation": "40 multilevel-splitting runs (seeds 4001..4040) with the variants of the selected classes: mean 2^-96.1821, one-sided 99% Student bound 2^-96.5603, bootstrap 2^-96.5278, 188,796 verified collisions (two stalled runs counted as 0); an independent Python implementation (the organizer replica, a lower-bound event restricted to four row-19 patterns and 512 sampled variants): 480 development replicates, mean 2^-96.2059; organizer replica a0p-q3-r38 with a frozen pass rule.",
-      "limitations": "Participant-run Monte Carlo with a heavy-tailed middle stage; the replica tests a reduced version.",
+      "statement": "For the claws the procedure finds, Pr[C1 and C2 and G and F7] >= q_pf = 116,189,231,624,828 x 287,309,824 / 2^91 = 2^-16.17850: P(C1) = 1/8, |C1 and C2| = 53,096,854 over a1, the C1 C2 G count of the smallest of P's four 2^25-windows times four (116,189,231,624,828 over 2^59), |F7| = 287,309,824; the stage rates set the mean post-filter cost.",
+      "scope": "The good pairs per chaining value (E[K] = 2^16.95) and the mean post-filter work in wbar (proof.md Sections 5, 6).",
+      "extrapolation": "Exact counts by our exhaustive programs (gwin38, recomputed identically in small memory by gwin38lm; proof.md Appendix R.1). Full-size bucket panel (64 chaining values, 7,699 good pairs): C1 0.12498, C2|C1 2^-3.3388 (exact 2^-3.3379), G|C1C2 2^-5.9358 (exact over P 2^-5.9387), F7|C1C2G 0.06503 (0.06689), good per claw 2^-16.2176; dispersion chi-square on 63 dof: C1 77.2 and C2 49.4 binomial, G 437.5 (by design: each chaining value's kept a0 follow its own rotation R; averaged over R the law is uniform on P and the pooled G rate matches), F7 158.4 (it reads the chaining value). The stored a0 are the first 7 candidates per bucket in the order o = rotr2((n + R) mod 2^27) with R a fresh random word per chaining value, so their law averaged over R is uniform on P (with R = 0 the panel showed a lower G rate, 2^-5.9937, proof.md Appendix H.5); the charge uses the smallest window count, a lower bound for any mixture of the windows.",
+      "limitations": "A premise that the exhaustive rates hold for the claws found; F7 varies with the chaining value (E[K^2]/E[K]^2 = 1.0248. in the panel).",
       "evidence_ids": [
-        "proof:257-311",
-        "proof:373-394"
+        "proof:227-270",
+        "proof:473-636",
+        "proof:1983-2023",
+        "experiment:p1b-online-r38",
+        "experiment:p1b-rows-r38"
       ]
     },
     {
-      "id": "H3-pairs-in-first-block",
+      "id": "H2-P1-q3-transfer",
       "role": "score-critical",
-      "statement": "The average over successes of the expected number of other row-16 passes of the same first block is at most 2^-5.1.",
-      "scope": "The Bonferroni factor of a first block.",
-      "extrapolation": "750 rebuilt successes: 6 other row-16 passes among 153,649,152 evaluated variants of the passing classes; 99% Poisson limit 2^-5.69.",
-      "limitations": "Measured on rebuilt estimator successes.",
+      "statement": "A good pair is accepted by step 3b with probability q3r >= q3_P1 x 2^32 / 160 = 2^-71.3657, where q3_P1 = 2^-96.0438 = q3_model x 2^min(0, D_LB(A0), D_LB(A0sel)): q3_model = 2^-96.0133 is the registered accepted-event rate (E18 = E17 not imposed) of the A0-variant good pairs on P8 before row 16 (e4243e7a, from 9aaf71a2's registered runs), and the D_LB are our registered one-sided 99% lower bounds of the paired per-seed difference log2 q(P1 on P) - log2 q(reference) for the A0 family (-0.02721) and for the 196,608 selected variants on which q3_model was measured (-0.03042).",
+      "scope": "E[X_j] and hence N_CV (proof.md Sections 7, 9).",
+      "extrapolation": "Registered runs, registration texts, hashes, per-seed values and every result line in proof.md Appendix P (40 seeds, three families, our q3tv, rows 16..22 by splitting, final stage rows 23..37 with the outputs compared); the base runs' registrations and per-seed values reproduced in Appendix Q.",
+      "limitations": "Three Monte-Carlo bounds (level, relaxation ratio, paired difference), each by a rule registered before its run; joint confidence at least 97%% (union bound). The amendment adding the A0sel family was written after 7 seeds of the first two families were seen; it charges the smaller of the two bounds. 17 of 40 seeds stalled at row 20 in the prefix shared by the three families and are excluded by the registered rule (n = 23). Our estimator conditions on row 22 of the characteristic before its final stage, the base runs' tool starts its final stage at row 22 (W8 first enters at W23). The P1 pairs are drawn from the exact C1 C2 G law on P, not from claws of the procedure.",
       "evidence_ids": [
-        "proof:257-311"
+        "proof:338-373",
+        "proof:637-821",
+        "proof:822-1982",
+        "experiment:p1b-rows-r38"
       ]
     },
     {
-      "id": "H4-allowances",
+      "id": "H3-P1-pairwise-acceptance",
       "role": "score-critical",
-      "statement": "The computation spent on the characteristic search, S and the class data, and all development is at most A_C + A_S + DEV = 2^78 + 2^74 + 2^70 target compressions.",
-      "scope": "The allowance term (negligible against T).",
-      "extrapolation": "One 10-core machine, less than 2^22 core-seconds in all (participant accounting); the envelope holds for any machine running ten cores for a full year at up to 2^30 target compressions per core-second (2^58.3 < 2^70).",
-      "limitations": "Envelope independent of the measured rate; with A_C = 2^84 the ledger gives time_log2 = 87.29999 (+0.15191).",
+      "statement": "Pairwise behaviour of acceptance over the random chaining value (all probabilities over the procedure's coins: the random first block, hence by H1 a uniform chaining value, and the rotation R; nothing is conditional on the chaining value or its good pairs, which determine the outcome). With p = E[X_j]/E[K_j] the mean acceptance rate of good pairs (H2-P1: p >= q3r): for two claw positions c, c' sharing neither a0 nor u, Pr[c and c' both accepted] <= p^2 Pr[c and c' both good]; for linked positions (sharing a0 or u) nothing beyond Pr[A_c and A_c'] <= Pr[A_c and G_c'] is assumed, and a good pair's acceptance is not positively correlated with its number of linked partners. Consequence used (Lemma 5): E[X_j(X_j - 1)] <= 2 p E[L_j] + p^2 E[K_j(K_j - 1)], hence by the second-moment bound Pr[X_j >= 1] >= E[X_j]^2/E[X_j^2] >= q3r E[K_j] (1 - 2 E[L_j]/E[K_j] - q3r E[K_j^2]/E[K_j]) >= (1 - 2^-6.5) q3r E[K_j].",
+      "scope": "The factor (1 - 2^-6.5) per chaining value (proof.md Sections 7, 8).",
+      "extrapolation": "The link rate is measured exactly at the full scan: for all 7,699 good pairs of the bucket panel, every claw of the same a0 over all 2^32 scan words was enumerated and tested: 47 good partners (0.006105 per good pair, 2.8 times the independent rate 2^-8.85); the one-sided 99% bounds and the u links give E[L]/E[K] <= 0.0049, so 2 E[L]/E[K] + 2^-50 < 2^-6.5 (proof.md Section 8, Appendix H.3); the earlier measurement on 7,789 good pairs of the residue table (same set P) gave 0.006548. Second-moment term: q3r E[K^2]/E[K] < 2^-50.",
+      "limitations": "The pairwise behaviour of the rows 17..37 event between unlinked good pairs, over the random chaining value, is the premise and is not testable at any sample size (an accepted pair has probability about 2^-71). The link rate is measured on the good pairs of 64 chaining values.",
       "evidence_ids": [
-        "proof:312-344"
+        "proof:271-298",
+        "proof:299-337",
+        "proof:554-607",
+        "experiment:p1b-rows-r38"
       ]
     },
     {
-      "id": "H5-bitsliced-planes",
+      "id": "H4a-allowance-characteristic-search",
       "role": "score-critical",
-      "statement": "One instruction on a 256-bit plane costs one word operation (the 256-bit word RAM of the cost model); each class's row-16 program is charged at its executed instruction count, loads and stores included (expected work at the mean over the classes, the work cap at the maximum).",
-      "scope": "The dominant work term.",
-      "extrapolation": "Executed instruction by instruction and compared with the scalar definition on sampled batches (selftest, a0p-online-r38).",
-      "limitations": "Full-scale execution is infeasible.",
+      "statement": "The total computation spent to obtain the characteristic P8 (our 1a695f0b: its signed-difference SAT sweep, coupling checks and estimators, failed and repeated runs included) is at most A_C = 2^78 target compressions.",
+      "scope": "The preprocessing part of the ledger: A_C = 2^78 enters the claimed time and preprocessing (78.09276).",
+      "extrapolation": "P8 is our own: all of the P8 line ran on one 10-core machine for less than 2^22 core-seconds (our accounting, proof.md Appendix R.2); at 2^30 target compressions per core-second, above any CPU core, that is under 2^52, 26 bits under A_C.",
+      "limitations": "A charged allowance (an upper bound charged in full), supported by our own accounting of one machine.",
       "evidence_ids": [
-        "proof:217-237",
-        "proof:373-394"
+        "proof:422-433",
+        "proof:1983-2023"
+      ]
+    },
+    {
+      "id": "H4b-allowance-step1-solve",
+      "role": "supporting",
+      "statement": "S (the dense part of P8's semi-free-start pair) is obtained at a total cost of at most A_S = 2^74 target compressions.",
+      "scope": "The preprocessing part of the ledger (A_S = 2^74).",
+      "extrapolation": "Our Step-1 solve is inside the accounting of H4a; our solver-alone rerun took 18 min 17 s (proof.md Appendix R.2). selftest checks that the transcribed pair reproduces and passes every test of rows 16..21 with equal outputs.",
+      "limitations": "A charged allowance, not a measurement.",
+      "evidence_ids": [
+        "proof:40-75",
+        "proof:422-433",
+        "proof:1983-2023"
+      ]
+    },
+    {
+      "id": "H4c-development-charge",
+      "role": "supporting",
+      "statement": "All development computation of this package (exhaustive counts, C ports, the panel, the partner count, the q3 runs, checks, failed runs and reruns) is at most DEV = 2^70 target compressions, and DEV is charged in full.",
+      "scope": "The development item of the ledger (DEV = 2^70 x C operations).",
+      "extrapolation": "Hardware envelope: every execution ran on one 10-core machine, at most 10 cores for at most 30 days (2.6 x 10^6 s) at 2^40 word operations per core-second: under 2^64.6 operations = 2^53.2 compressions; the predecessors' development reproduced in Appendix Q (under 2^56.7) is also far inside DEV.",
+      "limitations": "A charged allowance; the envelope rests on the machine and the dates.",
+      "evidence_ids": [
+        "proof:422-433"
+      ]
+    },
+    {
+      "id": "H5prime-table-pricing",
+      "role": "score-critical",
+      "statement": "Under collision-frontier-v5 (256-bit word RAM) a bucket is one 256-bit word and the table occupies RAM words 0 .. 2^23 + 2, so bucket b is read by one load and b + 2 by an add and a load; a head costs 17 (bucket index 2, loads 3, combine 4, field arithmetic 3, zero test 3, branch 2); the per-chaining-value reset is (2^23 + 3) word stores of 5 operations and the build 57 per candidate. Every other operation, including the field location and extraction of a match (44), each work-counter add (1) and step 3b, is counted at the unit costs of fb176310 (S0/S1/s0/s1 8, CH 3, MAJ 4, compare-and-branch 2, the rest 1).",
+      "scope": "The counted operations of the online procedure (proof.md Sections 4, 5): 369 fixed per scan word, 228.187 per claw and at most 3,014 per step 3b.",
+      "extrapolation": "run_cv executes the SWAR operations literally and counts every operation; selftest compares the counted run with the model mean at that size; the organizer experiment reports counted_ops against model_ops.",
+      "limitations": "The ledger is an exact analytic count read from the code, not a measurement; the unit costs are the fb176310 convention; registers hold the masks, the field value C and the 20 bucket deltas.",
+      "evidence_ids": [
+        "proof:141-172",
+        "proof:173-226",
+        "experiment:p1b-online-r38"
+      ]
+    },
+    {
+      "id": "H6-memory-figure",
+      "role": "score-critical",
+      "statement": "The peak memory is the maximum over the counted phases, 2^28.00811 bytes: online, the (2^23 + 3) x 32-byte bucket table plus advice (1,224 bytes), registers, scan state, step 3b state and code, measured as our full-table C-port executions of the online program, the largest peak resident set being 263,620 KiB (host overhead included); every preprocessing cell is lower. The peak covers the procedure and every computation whose output it reads (P8, S, the choice of P); the statistical studies supporting the premises (q3 studies, panels, partner counts) are evidence, not phases: the procedure reads none of their output (N_CV is an input fixed from the declared premise values), as for the organizer experiments; our q3 processes peak at 6.6 MB each.",
+      "scope": "The memory metric and the score 83.01264 + 8.00811.",
+      "extrapolation": "/usr/bin/time -v and the program's VmHWM on the 16 full-table panel processes (proof.md Appendix H.4); preprocessing: the Step-1 solve under a 2^28 cap at 2^27.7542 (377cb363), our solver-alone rerun 2^26.08, the signed search at most 2^27.92 (our record), the window counts recomputed by gwin38lm in under 2^26 bytes (proof.md Appendices H.4, R).",
+      "limitations": "The online figure is the measured execution of our C port of the online program; the Step-1 cell is 377cb363's capped measurement, not ours.",
+      "evidence_ids": [
+        "proof:374-421",
+        "proof:608-632",
+        "proof:1983-2023"
       ]
     }
   ]
