@@ -2,24 +2,34 @@
   "schema_version": 1,
   "experiments": [
     {
-      "id": "a0p-online-r38",
+      "id": "p1-online-r38",
       "kind": "python-message-pairs-v1",
-      "program": "experiments/a0p38.py",
+      "program": "experiments/p1claw38.py",
       "event": {
         "kind": "full-collision"
       },
-      "scope": "H1 (unconditional first blocks), H5 and the Lemma 4.1 identities on real first blocks (proof.md Sections 4, 7, 13). Trials 0..7: first 64 unconditional organizer-seeded first blocks per trial, the W7 passes of all 32 classes counted without selection (expectation 137.0 per trial under H1); then first blocks drawn from the organizer seed (two uniform 256-bit words from SHAKE-256 of the experiment id and seed per first block; real 38-step compressions) until one has a passing class (at most 64); its first passing class is run on two batches (its first 512 members): the counted row-16 program of that class is executed instruction by instruction and its ok plane compared lane by lane with E16x computed from the Step-2 words and the 38-step trace; W7 is compared with c7 - A_{-1} and checked in F7. Trial 0 also runs the batch of the semi-free-start pair's variant on its chaining value: the counted program must find and accept it (positive lanes). Returns M0 || M1 and M0 || M1' of the class's first member (128 bytes each; one variant of one chaining value, not a collision) iff there is no mismatch. Trials 8..255 return no pair by design.",
-      "hypothesis": "Returned pairs: 8 (every executed trial mismatch-free); full collisions of the target: 0 (a returned pair is not a collision). Observations (untrusted): uncond_first_blocks (64), uncond_class_passes (H1: mean 137.0 per trial; grouped passes give a large variance), first_blocks, passing_classes, lanes (512), stage3a_passes, mismatches (0). Validation by us: 8 pairs returned per request, 0 mismatches, at most 0.6 s; unconditional: 5,693 class W7 passes in 2,560 first blocks against 5,480 expected."
+      "scope": "Inherited reduced lineage fixture for the unchanged P1 family, post-filters and step 3b. Trials 0..7 draw real 38-step chaining values, build the parent reduced table, scan 2^12 words, and independently check every claw, E16 and real-word post-filter flag; trial 8 checks the P8 pair in 3,014 operations. It supplies structural evidence only. Appendix A.15 is the binding bucket7 algorithm and ledger; no parent table price, scan count or score from this fixture is used.",
+      "hypothesis": "Returned pairs: 0 (none expected at the reduced size; any returned pair is a full collision). On every working trial: claws_equal_ref = 1, claw_e16_bad = 0, postfilter_ref_mismatch = 0, distinct_pairs = claws. Trial 8: step3b_P8_pair_ok = 1, step3b_P8_pair_ops = 3014. Reproducible observations: occ_frac (about 0.632), claws against expected_claws, the stage counts c1, c1c2, c1c2g, all4, good_pairs (each runs step 3b), step3b_collisions and counted_ops. A local emulation of the 256-trial request took 8.2 s on a loaded host (load 28 on 24 threads)."
     },
     {
-      "id": "a0p-q3-r38",
+      "id": "p1-q3-r38",
       "kind": "python-message-pairs-v1",
-      "program": "experiments/a0p38.py",
+      "program": "experiments/p1claw38.py",
       "event": {
         "kind": "full-collision"
       },
-      "scope": "Consistency check of the q3 estimator (H2; proof.md Sections 6, 9, 13): it is not an estimate of q3 and not evidence for the bound q3_model, which rests on the participant study. Trials 0..9: 10 independent replicates of the estimator of q3 for the accepted event (row 16 exact over the 160 W16 words; rows 17..22 by proposals with the row's E bits imposed, at row 19 one of the four observed condition patterns drawn uniformly with weight 4 x 2^-f and the row checked on signed differences; tail: a variant of 512 embedded samples of the selected classes, W7 uniform in F7 (its three affine families; the family drawn by rejection from its own word, the value bits from a fresh word), rows 23..37, outputs compared; randomness SHAKE-256 of the experiment id and trial seed). Every success is rebuilt into (CV1, M1, M1') and accepted only if the two 38-step compressions from CV1 are equal, M1 != M1', the pair is in the accepted event and W7 is in F7. Trial t < 10 returns its first verified pair as CV1 || M1 and CV1 || M1' (96 bytes each; semi-free-start collisions, never collisions from the IV); trial 10 returns a pair iff no rebuild failed and the mean of the 10 estimates is at least 2^-98.6000; trials 11..255 return no pair by design.",
-      "hypothesis": "Returned pairs: one semi-free-start pair per replicate with a tail success (development requests: 4 to 10 of 10 replicates; validation by us: 4 to 6) and 1 from trial 10 (a pass; trial 10 needs trials 0..9 in the same request); full collisions of the target: 0. The pass rule was fixed from 48 development requests (pooled means: min -98.100, median -96.398) before any validation run; a pass checks a reduced replica, it is not an estimate of q3. Observations (untrusted): log2_estimate (-1000 for no success), accepted_pairs, failed_rebuilds (0); trial 10 log2_pooled_mean. What a pass shows: the replica estimates the same event as the study, restricted to the four row-19 patterns (a lower bound) and to 512 of the selected variants; its 48 development requests (480 replicates) have mean 2^-96.2059 against the study mean 2^-96.1821. Shifting their pooled means down by 1, 2 or 3 bits (a q3 that much lower) makes 2%, 38% and 90% of requests fail the rule (none at the claimed level): a pass excludes a gross error in the estimator or the program, it does not certify the bound."
+      "scope": "Inherited reduced lineage observations for the unchanged H2-P1 q3 transfer and H3-P1 accepted-event structure. Trials 0..7 rebuild both members of every parent-fixture claw and report cumulative rows 16..21 and distinct pairs; trial 8 checks the P8 pair. No pair is returned by design and no rate is inferred. Appendix A.15 is the binding bucket7 algorithm and ledger.",
+      "hypothesis": "Returned pairs: 0 by design. distinct_pairs = claws and rows_le16 = row16_passes = claws on every working trial (every claw is a row-16 pass of member x and the row-16 tests of both members are functions of E16x); rows_le17 and beyond are 0 at this size because a claw reaches row 17 only as a good pair. Trial 8: step3b_P8_pair_ok = 1. A local emulation took 4.8 s on the same loaded host."
+    },
+    {
+      "id": "p1-bucket7-r38",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/p1claw38.py",
+      "event": {
+        "kind": "full-collision"
+      },
+      "scope": "Structural evidence for the draft seven-entry uniform-reservoir P1 table and the full-scale all-head QREP identity. Trials 0..3 build 2^16 candidates into 2^13 packed 256-bit buckets using the exact capped reservoir build layout, normalize in place to guarded query lanes, and scan 2^12 distinct u words. Because this fixture has 19-bit tags, it computes q and QREP per Wsub through the generic path. Every emitted claw is compared with an independent sorted search, its real E16 and post-filter flags are rebuilt, and step 3b runs on every good pair. Trial 4 checks step 3b on the published P8 pair. Trial 5 exhausts all 127 nonempty handler marker subsets and checks exactly 19 operations per marker. Trial 6 exhausts 35,840 q=507..511 ordinary/adjacent polarity cases. Trial 7 separately exhausts all 512 low-nine-bit P values across all 20 full-scale heads and both offsets, checking the common-q identity and the corrected 538/681, ordinary-12/adjacent-14 inventories. This reduced fixture establishes semantics and the synthetic full-scale identity, not full-scale success rates, H2 or H3.",
+      "hypothesis": "Every non-aborted working trial has set_mismatches = 0, claw_e16_bad = 0, postfilter_ref_mismatch = 0, distinct_pairs = claws, ordinary_lookup_ops = 12, adjacent_lookup_ops = 14, qrep_hoist_ops = 2 and extract_ops = 19. Trial 5 has handler_mismatches = 0 and the charged count is 19 operations per marker; trial 6 has straddle_polarity_cases = 35,840 and straddle_polarity_mismatches = 0; trial 7 has head_common_q_cases = 20,480, head_common_q_mismatches = 0, common_q_values = 512, full_fixed_ops = 538 and full_straddle_extra_ops = 681. No returned collision is expected at this size; the organizer independently checks any returned pair as a complete sha256-r38-prefix-v1 collision."
     }
   ]
 }
