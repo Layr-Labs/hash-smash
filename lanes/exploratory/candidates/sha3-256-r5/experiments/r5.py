@@ -1,11 +1,10 @@
 """v25 experiments (proof.md). PASS = (00^135, 01||00^134), FAIL = (00^135, 02||00^134)."""
-import hashlib
-import json
+try:import _sha2 as _h2,_sha3 as _s3
+except ImportError:import hashlib as _h2;_s3=_h2
 import math
 import sys
-import collections
+from _collections import defaultdict
 import itertools
-from fractions import Fraction
 N = 1600
 MASK = (1 << N) - 1
 M64 = (1 << 64) - 1
@@ -17,23 +16,23 @@ def rot(v, a):
 def lanes(s):
  return [(s >> (64 * i)) & M64 for i in range(25)]
 def unlanes(A):
- s = 0
+ s=0
  for i, v in enumerate(A):
   s |= v << (64 * i)
  return s
 def Lmap(s):
- A = lanes(s)
- P = [A[x] ^ A[x + 5] ^ A[x + 10] ^ A[x + 15] ^ A[x + 20] for x in range(5)]
- T = [P[(x - 1) % 5] ^ rot(P[(x + 1) % 5], 1) for x in range(5)]
- B = [0] * 25
+ A=lanes(s)
+ P=[A[x] ^ A[x + 5] ^ A[x + 10] ^ A[x + 15] ^ A[x + 20] for x in range(5)]
+ T=[P[(x - 1) % 5] ^ rot(P[(x + 1) % 5], 1) for x in range(5)]
+ B=[0] * 25
  for y in range(5):
   for x in range(5):
-   i = x + 5 * y
+   i=x + 5 * y
    B[y + 5 * ((2 * x + 3 * y) % 5)] = rot(A[i] ^ T[x], RHO[i])
  return unlanes(B)
 def chi(s):
- A = lanes(s)
- O = [0] * 25
+ A=lanes(s)
+ O=[0] * 25
  for y in range(5):
   for x in range(5):
    O[x + 5 * y] = A[x + 5 * y] ^ ((~A[(x + 1) % 5 + 5 * y]) & A[(x + 2) % 5 + 5 * y] & M64)
@@ -43,7 +42,7 @@ def rnd(s, r):
 def par(v):
  return bin(v).count("1") & 1
 def chi5(v):
- o = 0
+ o=0
  for i in range(5):
   o |= (((v >> i) & 1) ^ ((1 ^ ((v >> ((i + 1) % 5)) & 1)) & ((v >> ((i + 2) % 5)) & 1))) << i
  return o
@@ -58,17 +57,17 @@ def rowbits(y, z):
 def getrow(s, y, z):
  return sum(((s >> (64 * (x + 5 * y) + z)) & 1) << x for x in range(5))
 def _affine_subsets():
- lin = {0: {(0,)}}
+ lin={0: {(0,)}}
  for k in range(1, 6):
   lin[k] = set()
   for S in lin[k - 1]:
-   Sset = set(S)
+   Sset=set(S)
    for v in range(1, 32):
     if v not in Sset:
      lin[k].add(tuple(sorted(Sset | {s ^ v for s in Sset})))
- out = {}
+ out={}
  for k in range(6):
-  aff = set()
+  aff=set()
   for S in lin[k]:
    for b in range(32):
     aff.add(tuple(sorted(s ^ b for s in S)))
@@ -81,28 +80,28 @@ COMPAT = {o: [d for d in range(32) if DDT[d][o]] for o in range(32)}
 AFFIN = {o: {k: [W for W in AFFL[k] if set(W) <= set(COMPAT[o])] for k in (0, 1, 2)} for o in range(1, 32)}
 _ANN = {}
 def annih(W):
- key = tuple(sorted(W))
- r = _ANN.get(key)
+ key=tuple(sorted(W))
+ r=_ANN.get(key)
  if r is not None:
   return r
- base = key[0]
- dirs = [w ^ base for w in key]
- out = []
+ base=key[0]
+ dirs=[w ^ base for w in key]
+ out=[]
  for m in range(1, 32):
   if all(par(m & u) == 0 for u in dirs):
-   mm = m
+   mm=m
    for q in sorted(out, reverse=True):
     if mm ^ q < mm:
      mm ^= q
    if mm:
     out.append(mm)
- r = [(m, par(m & base)) for m in out]
+ r=[(m, par(m & base)) for m in out]
  _ANN[key] = r
  return r
 def row_forms(W, rb):
- fl = []
+ fl=[]
  for (m, c) in annih(W):
-  f = c << N
+  f=c << N
   for x in range(5):
    if (m >> x) & 1:
     f |= 1 << rb[x]
@@ -116,16 +115,16 @@ class Ech:
   s.log = []
   s.budget = budget if budget is not None else [0, 1 << 62]
  def reduce(s, f):
-  piv = s.piv
-  bud = s.budget
+  piv=s.piv
+  bud=s.budget
   bud[0] += 1
   if bud[0] > bud[1]:
    raise CapExceeded()
   while True:
-   low = f & MASK
+   low=f & MASK
    if not low:
     return f
-   r = piv.get(low.bit_length() - 1)
+   r=piv.get(low.bit_length() - 1)
    if r is None:
     return f
    f ^= r
@@ -133,10 +132,10 @@ class Ech:
    if bud[0] > bud[1]:
     raise CapExceeded()
  def add(s, f):
-  f = s.reduce(f)
+  f=s.reduce(f)
   if not (f & MASK):
    return -1 if f else 0
-  p = (f & MASK).bit_length() - 1
+  p=(f & MASK).bit_length() - 1
   s.piv[p] = f
   s.log.append(p)
   return 1
@@ -148,38 +147,38 @@ class Ech:
  def rank(s):
   return len(s.piv)
 def linear_rows(fn):
- rows = [0] * N
+ rows=[0] * N
  for i in range(N):
-  c = fn(1 << i)
+  c=fn(1 << i)
   while c:
-   lb = c & -c
+   lb=c & -c
    rows[lb.bit_length() - 1] |= 1 << i
    c ^= lb
  return rows
 def Linv_map(s):
- B = lanes(s)
- A = [0] * 25
+ B=lanes(s)
+ A=[0] * 25
  for y in range(5):
   for x in range(5):
-   i = x + 5 * y
+   i=x + 5 * y
    A[i] = rot(B[y + 5 * ((2 * x + 3 * y) % 5)], 64 - RHO[i])
  return _theta_inv(unlanes(A))
 def _theta_inv_setup():
  def T(p):
-  P = [(p >> (64 * x)) & M64 for x in range(5)]
+  P=[(p >> (64 * x)) & M64 for x in range(5)]
   return sum((P[(x - 1) % 5] ^ rot(P[(x + 1) % 5], 1)) << (64 * x) for x in range(5))
- n = 320
- rows = [0] * n
+ n=320
+ rows=[0] * n
  for i in range(n):
-  c = (1 << i) ^ T(1 << i)
+  c=(1 << i) ^ T(1 << i)
   for j in range(n):
    if (c >> j) & 1:
     rows[j] |= 1 << i
- aug = [(rows[j], 1 << j) for j in range(n)]
- A = [a for a, _ in aug]
- Bm = [b for _, b in aug]
+ aug=[(rows[j], 1 << j) for j in range(n)]
+ A=[a for a, _ in aug]
+ Bm=[b for _, b in aug]
  for col in range(n):
-  p = next(k for k in range(col, n) if (A[k] >> col) & 1)
+  p=next(k for k in range(col, n) if (A[k] >> col) & 1)
   A[col], A[p] = A[p], A[col]
   Bm[col], Bm[p] = Bm[p], Bm[col]
   for k in range(n):
@@ -189,26 +188,26 @@ def _theta_inv_setup():
  return T, Bm
 _T, _IPT_ROWS = _theta_inv_setup()
 def _theta_inv(b):
- Lb = lanes(b)
- P = sum((Lb[x] ^ Lb[x + 5] ^ Lb[x + 10] ^ Lb[x + 15] ^ Lb[x + 20]) << (64 * x) for x in range(5))
- Q = 0
+ Lb=lanes(b)
+ P=sum((Lb[x] ^ Lb[x + 5] ^ Lb[x + 10] ^ Lb[x + 15] ^ Lb[x + 20]) << (64 * x) for x in range(5))
+ Q=0
  for j in range(320):
   if par(_IPT_ROWS[j] & P):
    Q |= 1 << j
- E = _T(Q)
- El = [(E >> (64 * x)) & M64 for x in range(5)]
+ E=_T(Q)
+ El=[(E >> (64 * x)) & M64 for x in range(5)]
  return unlanes([Lb[i] ^ El[i % 5] for i in range(25)])
 def linv_rows():
- rows = [0] * N
+ rows=[0] * N
  for o in range(N):
-  lane, z = divmod(o, 64)
-  x = lane % 5
-  m = _IPT_ROWS[64 * ((x - 1) % 5) + z] ^ _IPT_ROWS[64 * ((x + 1) % 5) + (z - 1) % 64]
-  A = lanes((m | (m << 320) | (m << 640) | (m << 960) | (m << 1280)) ^ (1 << o))
-  B = [0] * 25
+  lane,z=divmod(o, 64)
+  x=lane % 5
+  m=_IPT_ROWS[64 * ((x - 1) % 5) + z] ^ _IPT_ROWS[64 * ((x + 1) % 5) + (z - 1) % 64]
+  A=lanes((m | (m << 320) | (m << 640) | (m << 960) | (m << 1280)) ^ (1 << o))
+  B=[0] * 25
   for yy in range(5):
    for xx in range(5):
-    i = xx + 5 * yy
+    i=xx + 5 * yy
     B[yy + 5 * ((2 * xx + 3 * yy) % 5)] = rot(A[i], RHO[i])
   rows[o] = unlanes(B)
  return rows
@@ -223,44 +222,44 @@ class _WKMeta(type):
   if cls.cap is not None and cls.cost() > cls.cap or cls.tcap is not None and cls.cost() + cls.d > cls.tcap:
    raise BudgetExceeded()
 class WK(metaclass=_WKMeta):
- row = 0
- small = 0
- keccak = 0
- sha256 = 0
- r2 = 0
- cap = tcap = None
- d = 0
+ row=0
+ small=0
+ keccak=0
+ sha256=0
+ r2=0
+ cap=tcap = None
+ d=0
  @staticmethod
  def snap():
   return (WK.row, WK.small, WK.keccak, WK.sha256, WK.r2)
  @staticmethod
  def cost(s=None):
-  r, sm, k, h, r2 = s or WK.snap()
+  r,sm,k,h,r2=s or WK.snap()
   return 256 * r + 8 * sm + 1355 * (5 * k + 2 * h + r2)
 def sha256(b):
  WK.sha256 += (len(b) + 9 + 63) // 64
- return hashlib.sha256(b).digest()
+ return _h2.sha256(b).digest()
 class Coins:
  def __init__(s, seed):
   s.seed, s.k, s.buf, s.pos, s.draws = seed, 0, b"", 0, 0
  def word(s):
   if s.pos >= len(s.buf):
-   s.buf = hashlib.shake_256(s.seed + s.k.to_bytes(4, "little")).digest(4096)
+   s.buf = _s3.shake_256(s.seed + s.k.to_bytes(4, "little")).digest(4096)
    WK.keccak += 31
    s.k += 1
    s.pos = 0
-  w = int.from_bytes(s.buf[s.pos:s.pos + 32], "little")
+  w=int.from_bytes(s.buf[s.pos:s.pos + 32], "little")
   s.pos += 32
   s.draws += 1
   WK.small += 4
   return w
  def perm(s, a):
   for i in range(len(a) - 1, 0, -1):
-   j = (s.word() & M64) % (i + 1)
+   j=(s.word() & M64) % (i + 1)
    a[i], a[j] = a[j], a[i]
    WK.small += 4
 def run_seed(label, i):
- return hashlib.sha256(label + i.to_bytes(8, "little")).digest()
+ return _h2.sha256(label + i.to_bytes(8, "little")).digest()
 class Base:
  def __init__(s, a3b=ALPHA3_BITS, b2=BETA2):
   for k in range(6):
@@ -276,7 +275,7 @@ class Base:
    s.fixval[1080 + k] = (0x86 >> k) & 1
   s.beta2 = b2
   s.alpha2 = Linv_map(b2)
-  a3 = 0
+  a3=0
   for b in a3b:
    a3 |= 1 << b
   s.alpha3 = a3
@@ -286,13 +285,13 @@ class Base:
      for (y, z) in ROWS if getrow(s.beta2, y, z)]
 KW, MW, LB, PREF = 1.0, 1.0, 1.0, 1.0
 def rand_min_beta1(base, coins):
- b = 0
+ b=0
  for (y, z, o2) in base.a2rows:
-  best = max(DDT[d][o2] for d in range(32))
-  opts = [d for d in range(32) if DDT[d][o2] == best]
+  best=max(DDT[d][o2] for d in range(32))
+  opts=[d for d in range(32) if DDT[d][o2] == best]
   coins.perm(opts)
-  d = opts[0]
-  rb = rowbits(y, z)
+  d=opts[0]
+  rb=rowbits(y, z)
   for x in range(5):
    if (d >> x) & 1:
     b |= 1 << rb[x]
@@ -305,16 +304,16 @@ class Cand:
   s.alpha2 = base.alpha2
   s.beta2, s.alpha3, s.e_rows = base.beta2, base.alpha3, base.e_rows
   s.beta1 = beta1
-  alpha1 = Linv_map(beta1)
+  alpha1=Linv_map(beta1)
   WK.row += 64
   s.a1rows = {(y, z): getrow(alpha1, y, z) for (y, z) in ROWS}
   s.act = [(y, z) for (y, z) in ROWS if s.a1rows[(y, z)]]
-  conds = []
+  conds=[]
   for (y, z, o2) in base.a2rows:
-   d1 = getrow(beta1, y, z)
-   rb = rowbits(y, z)
+   d1=getrow(beta1, y, z)
+   rb=rowbits(y, z)
    for (m, c) in annih(VSET[(d1, o2)]):
-    ym = 0
+    ym=0
     for x in range(5):
      if (m >> x) & 1:
       ym ^= s.Lrow[rb[x]]
@@ -322,13 +321,13 @@ class Cand:
     conds.append((ym, c ^ par(ym & RCS[0])))
   s.rowmasks, s.condparts = {}, []
   for (ym, c) in conds:
-   parts = {}
-   v = ym
+   parts={}
+   v=ym
    while v:
-    lb = v & -v
-    i = lb.bit_length() - 1
+    lb=v & -v
+    i=lb.bit_length() - 1
     v ^= lb
-    lane, z = divmod(i, 64)
+    lane,z=divmod(i, 64)
     parts[(lane // 5, z)] = parts.get((lane // 5, z), 0) | (1 << (lane % 5))
     WK.small += 8
    s.condparts.append((parts, c))
@@ -336,16 +335,16 @@ class Cand:
     s.rowmasks.setdefault(r, set()).add(m)
   s.lin_rows = [r for r in ROWS if r in s.rowmasks]
   s.lin = {}
-  full = frozenset(range(32))
+  full=frozenset(range(32))
   for r in s.lin_rows:
-   masks = tuple(sorted(s.rowmasks[r]))
-   o = s.a1rows[r]
-   Ss = [VSET[(d, o)] for d in COMPAT[o]] if o else [full]
+   masks=tuple(sorted(s.rowmasks[r]))
+   o=s.a1rows[r]
+   Ss=[VSET[(d, o)] for d in COMPAT[o]] if o else [full]
    for S in Ss:
     s.lin[(r, S)] = s._lin_options(S, masks)
  def _is_aff(s, Wl, masks):
-  Wl = sorted(Wl)
-  b = Wl[0]
+  Wl=sorted(Wl)
+  b=Wl[0]
   for m in masks:
    for u in Wl:
     for w in Wl:
@@ -357,7 +356,7 @@ class Cand:
   if s._is_aff(S, masks):
    return (S, None)
   for k in range(len(S).bit_length() - 2, -1, -1):
-   opts = []
+   opts=[]
    for Wl in AFFL[k]:
     WK.small += 8
     if set(Wl) <= S and s._is_aff(Wl, masks):
@@ -365,36 +364,51 @@ class Cand:
    if opts:
     return (None, opts)
   return (None, [])
+XT = [0]
+def xd(x):
+ WK.d += x
+ XT[0] += x
 class Aff:
- __slots__ = ("T", "rank")
+ __slots__=("T", "rank", "lg")
  def __init__(s, T, rank=0):
-  s.T, s.rank = T, rank
+  s.T, s.rank, s.lg = T, rank, None
  def copy(s):
   WK.row += len(s.T)
   WK.d -= len(s.T) * (253 - 2 * ((len(s.T) + 256) // 256))
   return Aff(list(s.T), s.rank)
  def add(s, idx, c):
-  T = s.T
-  a = 0
+  T=s.T
+  a=0
   for j in idx:
    a ^= T[j]
   WK.row += len(idx) + 1
-  coef = a >> 1
+  coef=a >> 1
   if not coef:
    return 0 if (a & 1) == c else -1
-  pb = (coef & -coef) << 1
-  af = a ^ c
+  pb=(coef & -coef) << 1
+  af=a ^ c
   s.T = [t ^ af if t & pb else t for t in T]
   WK.row += 2 * len(T)
   WK.d += 4 * ((len(T) + 256) // 256) * sum(1 for t in T if t & pb) - 505 * len(T)
+  if s.lg is not None:
+   s.lg.append((af, pb))
+   xd(2 * ((len(T) + 256) // 256) + 2)
   s.rank += 1
   return 1
+def rep(X, lg):
+ T,w=X.T, (len(X.T) + 256) // 256
+ x=len(T) * (3 + 2 * w)
+ for af, pb in lg:
+  x += 7 * len(T) + 1 + 4 * w * sum(1 for t in T if t & pb)
+  T=[t ^ af if t & pb else t for t in T]
+ xd(x)
+ return Aff(T, X.rank + len(lg))
 PARMW = {}
 def parmw(n):
  if n not in PARMW:
-  tab = []
+  tab=[]
   for lam in range(1 << n):
-   m0 = m1 = 0
+   m0=m1 = 0
    for v in range(1 << n):
     if par(lam & v):
      m1 |= 1 << v
@@ -405,13 +419,13 @@ def parmw(n):
   WK.small += (1 << n) * (1 << n)
  return PARMW[n]
 def projn(T, cs):
- n = len(cs)
- tab = parmw(n)
- piv = []
- mask = (1 << (1 << n)) - 1
+ n=len(cs)
+ tab=parmw(n)
+ piv=[]
+ mask=(1 << (1 << n)) - 1
  for i in range(n):
-  t_ = T[cs[i]]
-  cf, k, cb = t_ >> 1, t_ & 1, 1 << i
+  t_=T[cs[i]]
+  cf,k,cb=t_ >> 1, t_ & 1, 1 << i
   WK.row += 2
   for (pc, pk, pcb, lb) in piv:
    WK.row += 1
@@ -428,10 +442,10 @@ def projn(T, cs):
    WK.row += 1
  return mask
 def form_idx(f):
- idx = []
- v = f & MASK
+ idx=[]
+ v=f & MASK
  while v:
-  lb = v & -v
+  lb=v & -v
   idx.append(lb.bit_length() - 1)
   v ^= lb
  WK.row += len(idx) + 1
@@ -440,9 +454,9 @@ WT = [0] * 32
 for _d in range(1, 32):
  WT[_d] = 5 - (max(DDT[_d]).bit_length() - 1)
 def base_D(t):
- D = Aff([1 << (j + 1) for j in range(N)])
+ D=Aff([1 << (j + 1) for j in range(N)])
  for j in t.FIX:
-  idx, _ = form_idx(t.Linv[j])
+  idx,_=form_idx(t.Linv[j])
   assert D.add(idx, 0) >= 0
  for r in ROWS:
   if t.a1rows[r] == 0:
@@ -450,52 +464,52 @@ def base_D(t):
     assert D.add([b], 0) >= 0
  return D
 def own_bits():
- out = []
+ out=[]
  for b in range(N):
-  Bl = lanes(1 << b)
-  A = [0] * 25
+  Bl=lanes(1 << b)
+  A=[0] * 25
   for y in range(5):
    for x in range(5):
-    i = x + 5 * y
+    i=x + 5 * y
     A[i] = rot(Bl[y + 5 * ((2 * x + 3 * y) % 5)], 64 - RHO[i])
   out.append(unlanes(A).bit_length() - 1)
   WK.small += 200
  return out
 def link_constants(t):
- X = Aff([1 << (j + 1) for j in range(N)])
+ X=Aff([1 << (j + 1) for j in range(N)])
  for j in t.FIX:
-  idx, _ = form_idx(t.Linv[j])
+  idx,_=form_idx(t.Linv[j])
   assert X.add(idx, t.fixval[j]) >= 0
  return X
 def build_links(t, OB):
- X0 = link_constants(t)
- fs = set(t.FIX)
- colfix = collections.defaultdict(list)
+ X0=link_constants(t)
+ fs=set(t.FIX)
+ colfix=defaultdict(list)
  for r in ROWS:
-  rb = rowbits(*r)
+  rb=rowbits(*r)
   for i in range(5):
-   a = OB[rb[i]]
+   a=OB[rb[i]]
    if a in fs:
-    lane, z = divmod(a, 64)
+    lane,z=divmod(a, 64)
     colfix[(lane % 5, z)].append((r, i, rb[i]))
- links = []
+ links=[]
  for key in sorted(colfix):
-  v = colfix[key]
+  v=colfix[key]
   if len(v) == 2:
    (r1, i1, b1), (r2, i2, b2) = v
-   a = X0.T[b1] ^ X0.T[b2]
+   a=X0.T[b1] ^ X0.T[b2]
    WK.row += 1
    assert (a >> 1) == 0
    links.append((r1, i1, b1, r2, i2, b2, a & 1))
- ports = collections.defaultdict(list)
+ ports=defaultdict(list)
  for (r1, i1, b1, r2, i2, b2, c) in links:
   ports[r1].append(i1)
   ports[r2].append(i2)
  return links, {r: sorted(v) for r, v in ports.items()}
 def fixed_combos(S, P):
- out = {}
+ out={}
  for m in range(1, 1 << len(P)):
-  vals = set()
+  vals=set()
   for v in sorted(S):
    vals.add(sum((v >> P[k]) & 1 for k in range(len(P)) if (m >> k) & 1) & 1)
    WK.small += 4
@@ -503,9 +517,9 @@ def fixed_combos(S, P):
    out[m] = vals.pop()
  return out
 def combo_basis(ms):
- basis = []
+ basis=[]
  for m in sorted(ms):
-  v = m
+  v=m
   for b in basis:
    if v ^ b < v:
     v ^= b
@@ -513,39 +527,39 @@ def combo_basis(ms):
    basis.append(m)
  return basis
 def uniform_info(Wd, o, P):
- fcs = [fixed_combos(VSET[(d, o)], P) for d in Wd]
+ fcs=[fixed_combos(VSET[(d, o)], P) for d in Wd]
  if len(set(tuple(sorted(f)) for f in fcs)) != 1:
   return None
- ms = combo_basis(list(fcs[0]))
- a0 = Wd[0]
- dirs = [d ^ a0 for d in Wd[1:]]
- out = []
+ ms=combo_basis(list(fcs[0]))
+ a0=Wd[0]
+ dirs=[d ^ a0 for d in Wd[1:]]
+ out=[]
  for m in ms:
-  tgt = [fcs[i][m] ^ fcs[0][m] for i in range(1, len(Wd))]
-  lam = None
+  tgt=[fcs[i][m] ^ fcs[0][m] for i in range(1, len(Wd))]
+  lam=None
   for L in range(32):
    WK.small += 4
    if all(par(L & dirs[i]) == tgt[i] for i in range(len(dirs))):
-    lam = L
+    lam=L
     break
   if lam is None:
    return None
   out.append((m, lam, fcs[0][m] ^ par(lam & a0)))
  return out
 class PortSys:
- __slots__ = ("piv",)
+ __slots__=("piv",)
  def __init__(s):
   s.piv = {}
  def copy(s):
-  p = PortSys()
+  p=PortSys()
   p.piv = dict(s.piv)
   WK.row += len(s.piv)
   return p
  def add(s, lhs, rhs):
-  piv = s.piv
+  piv=s.piv
   while lhs:
-   p = lhs.bit_length() - 1
-   e = piv.get(p)
+   p=lhs.bit_length() - 1
+   e=piv.get(p)
    WK.row += 2
    if e is None:
     piv[p] = (lhs, rhs)
@@ -554,135 +568,135 @@ class PortSys:
    rhs ^= e[1]
   return rhs
 def make_cost(t):
- out = {}
+ out={}
  for r in t.act:
-  o = t.a1rows[r]
+  o=t.a1rows[r]
   for d in COMPAT[o]:
-   S = VSET[(d, o)]
-   lc = 0
+   S=VSET[(d, o)]
+   lc=0
    if r in t.rowmasks:
-    Wl, best = t.lin[(r, S)]
+    Wl,best=t.lin[(r, S)]
     if Wl is None:
-     k = max((len(x) for x in best), default=1)
-     lc = (len(S).bit_length() - 1) - (k.bit_length() - 1)
+     k=max((len(x) for x in best), default=1)
+     lc=(len(S).bit_length() - 1) - (k.bit_length() - 1)
    out[(r, d)] = WT[d] + lc
    WK.small += 8
  return out
 def d2u_cands(t, ports):
- cands = {}
+ cands={}
  for r in t.act:
-  o = t.a1rows[r]
-  P = ports.get(r, [])
-  cl = []
+  o=t.a1rows[r]
+  P=ports.get(r, [])
+  cl=[]
   for k in (2, 1, 0):
    for Wd in AFFIN[o][k]:
-    ui = uniform_info(Wd, o, P)
+    ui=uniform_info(Wd, o, P)
     if ui is not None:
      cl.append((k, Wd, ui))
   cands[r] = cl
  return cands
 def d2u(t, D, ports, links, cands, COST, coins):
- linkof = collections.defaultdict(list)
+ linkof=defaultdict(list)
  for L in links:
   linkof[L[0]].append(L)
   linkof[L[3]].append(L)
- PS = PortSys()
- un = list(t.act)
+ PS=PortSys()
+ un=list(t.act)
  coins.perm(un)
- A = {}
- rb_of = {r: rowbits(*r) for r in t.act}
- added_links = set()
+ A={}
+ rb_of={r: rowbits(*r) for r in t.act}
+ added_links=set()
  def viable(Dv, r):
-  m = projn(Dv.T, rb_of[r])
+  m=projn(Dv.T, rb_of[r])
   WK.small += 4 * len(cands[r])
   return [c for c in cands[r] if any((m >> d) & 1 for d in c[1])]
- dom = {r: viable(D, r) for r in un}
- nlinkc = 0
+ dom={r: viable(D, r) for r in un}
+ nlinkc=0
  while un:
   WK.small += 2 * len(un)
-  r = min(un, key=lambda q: (len(dom[q]) > 0, len(dom[q])))
+  r=min(un, key=lambda q: (len(dom[q]) > 0, len(dom[q])))
   if not dom[r]:
    return None, D, len(A), nlinkc
-  cl = list(dom[r])
+  cl=list(dom[r])
   coins.perm(cl)
   cl.sort(key=lambda c: (2 - c[0]) * KW + PREF * (min(COST[(r, d)] for d in c[1]) + MW * sum(COST[(r, d)] for d in c[1]) / len(c[1])) - LB * len(c[2]))
   WK.small += 16 * len(cl)
   un.remove(r)
-  chosen = None
+  chosen=None
   for (k, Wd, ui) in cl:
-   D2 = D.copy()
-   PS2 = PS.copy()
-   rb = rb_of[r]
-   good = True
+   D2=D.copy()
+   PS2=PS.copy()
+   rb=rb_of[r]
+   good=True
    for m, c in annih(Wd):
     if D2.add([rb[x] for x in range(5) if (m >> x) & 1], c) < 0:
-     good = False
+     good=False
      break
    if not good:
     continue
-   P = ports.get(r, [])
-   newc = 0
+   P=ports.get(r, [])
+   newc=0
    for (m, lam, c0) in ui:
-    lhs = 0
+    lhs=0
     for kk in range(len(P)):
      if (m >> kk) & 1:
       lhs |= 1 << rb[P[kk]]
-    rhs = c0 << N
+    rhs=c0 << N
     for x in range(5):
      if (lam >> x) & 1:
       rhs ^= 1 << rb[x]
     WK.row += 4
-    res = PS2.add(lhs, rhs)
+    res=PS2.add(lhs, rhs)
     if res is not None:
-     idx, cc = form_idx(res)
+     idx,cc=form_idx(res)
      if D2.add(idx, cc) < 0:
-      good = False
+      good=False
       break
      newc += 1
    if not good:
     continue
    for L in linkof[r]:
-    key = (L[2], L[5])
+    key=(L[2], L[5])
     if key in added_links:
      continue
-    res = PS2.add((1 << L[2]) | (1 << L[5]), L[6] << N)
+    res=PS2.add((1 << L[2]) | (1 << L[5]), L[6] << N)
     if res is not None:
-     idx, cc = form_idx(res)
+     idx,cc=form_idx(res)
      if D2.add(idx, cc) < 0:
-      good = False
+      good=False
       break
      newc += 1
    if not good:
     continue
-   nd = {}
-   dead = False
+   nd={}
+   dead=False
    for q in un:
-    rq = rb_of[q]
+    rq=rb_of[q]
     WK.row += 5
     if all(D2.T[j] is D.T[j] for j in rq):
      nd[q] = dom[q]
      continue
-    v = viable(D2, q)
+    v=viable(D2, q)
     if not v:
-     dead = True
+     dead=True
      break
     nd[q] = v
    if dead:
     continue
-   chosen = (Wd, D2, PS2, nd, newc)
+   chosen=(Wd, D2, PS2, nd, newc)
    break
   if chosen is None:
    return None, D, len(A), nlinkc
-  Wd, D, PS, dom, newc = chosen
+  Wd,D,PS,dom,newc=chosen
   nlinkc += newc
   for L in linkof[r]:
    added_links.add((L[2], L[5]))
   A[r] = Wd
  return A, D, len(A), nlinkc
 def mask_basis(masks):
- out = []
+ out=[]
  for m in sorted(masks):
-  v = m
+  v=m
   for b in out:
    if v ^ b < v:
     v ^= b
@@ -690,9 +704,9 @@ def mask_basis(masks):
    out.append(m)
  return out
 def express(m, basis):
- n = len(basis)
+ n=len(basis)
  for c in range(1 << n):
-  v = 0
+  v=0
   for i in range(n):
    if (c >> i) & 1:
     v ^= basis[i]
@@ -703,178 +717,188 @@ class Model:
  def __init__(s, t):
   s.t = t
   s.mb, s.ucoord = {}, {}
-  nxt = N
+  nxt=N
   for r in ROWS:
-   ms = sorted(t.rowmasks.get(r, ()))
-   b = mask_basis(ms)
+   ms=sorted(t.rowmasks.get(r, ()))
+   b=mask_basis(ms)
    s.mb[r] = b
    s.ucoord[r] = list(range(nxt, nxt + len(b)))
    nxt += len(b)
   s.NC = nxt
   s.conds = []
   for (parts, c) in t.condparts:
-   idx = set()
+   idx=set()
    for r, m in sorted(parts.items()):
-    co = express(m, s.mb[r])
+    co=express(m, s.mb[r])
     for i in range(len(s.mb[r])):
      if (co >> i) & 1:
       idx ^= {s.ucoord[r][i]}
     WK.small += 64
    s.conds.append((sorted(idx), c))
   s.cands = {}
-  full = frozenset(range(32))
+  s._I = {}
+  full=frozenset(range(32))
   for r in ROWS:
-   o = t.a1rows[r]
-   ds = COMPAT[o] if o else [0]
-   lst = []
+   o=t.a1rows[r]
+   ds=COMPAT[o] if o else [0]
+   lst=[]
    for d in ds:
-    S = VSET[(d, o)] if o else full
+    S=VSET[(d, o)] if o else full
     if r in t.rowmasks:
-     Wl, best = t.lin[(r, S)]
-     Ws = [Wl] if Wl is not None else list(best)
+     Wl,best=t.lin[(r, S)]
+     Ws=[Wl] if Wl is not None else list(best)
     else:
-     Ws = [S]
+     Ws=[S]
     for Wl in Ws:
      lst.append(s._cand(r, d, frozenset(Wl)))
    s.cands[r] = lst
+  s._I = None
   s.coords = {r: rowbits(*r) + s.ucoord[r] for r in ROWS}
+ def _eq(s, i, c):
+  k=(tuple(i), c)
+  return s._I.setdefault(k, k)
  def _cand(s, r, d, Wl):
-  b = s.mb[r]
-  k = len(b)
-  g = 0
+  b=s.mb[r]
+  k=len(b)
+  g=0
   for x in sorted(Wl):
-   u = 0
+   u=0
    for i in range(k):
     u |= par(b[i] & CHI5[x]) << i
    g |= 1 << (x | (u << 5))
-  rb = rowbits(*r)
-  eqs = []
+  rb=rowbits(*r)
+  eqs=[]
   for m, c in annih(Wl):
-   eqs.append(([rb[x] for x in range(5) if (m >> x) & 1], c))
-  Ws = sorted(Wl)
-  b0 = Ws[0]
-  ech = []
+   eqs.append(s._eq([rb[x] for x in range(5) if (m >> x) & 1], c))
+  Ws=sorted(Wl)
+  b0=Ws[0]
+  ech=[]
   for w in Ws:
-   v = w ^ b0
+   v=w ^ b0
    for (pp, ee) in ech:
     if (v >> pp) & 1:
      v ^= ee
    if v:
-    pp = v.bit_length() - 1
-    ech = [(q, e ^ v if (e >> pp) & 1 else e) for (q, e) in ech]
+    pp=v.bit_length() - 1
+    ech=[(q, e ^ v if (e >> pp) & 1 else e) for (q, e) in ech]
     ech.append((pp, v))
   for i in range(k):
-   m = b[i]
-   idx = [s.ucoord[r][i]]
-   c = par(m & CHI5[b0])
+   m=b[i]
+   idx=[s.ucoord[r][i]]
+   c=par(m & CHI5[b0])
    for (pp, e) in ech:
     if par(m & (CHI5[b0 ^ e] ^ CHI5[b0])):
      idx.append(rb[pp])
      c ^= (b0 >> pp) & 1
-   eqs.append((idx, c))
+   eqs.append(s._eq(idx, c))
   WK.small += 512
   return (d, Wl, g, eqs, 5 - (len(Wl).bit_length() - 1))
 def base_X(t, M):
- X = Aff([1 << (j + 1) for j in range(M.NC)])
+ X=Aff([1 << (j + 1) for j in range(M.NC)])
  for j in t.FIX:
-  idx, _ = form_idx(t.Linv[j])
+  idx,_=form_idx(t.Linv[j])
   assert X.add(idx, t.fixval[j]) >= 0
  for idx, c in M.conds:
   if X.add(idx, c) < 0:
    return None
  return X
 def dom_of(M, X, D, r, Ar):
- ax = projn(X.T, M.coords[r])
- ad = projn(D.T, rowbits(*r))
+ ax=projn(X.T, M.coords[r])
+ ad=projn(D.T, rowbits(*r))
  WK.small += 4 * len(M.cands[r])
  return [c for c in M.cands[r] if c[0] in Ar and (ad >> c[0]) & 1 and (c[2] & ax)]
 def m2(M, X, D, A, coins):
- un = list(ROWS)
+ un=list(ROWS)
  coins.perm(un)
- Afull = {r: (set(A[r]) if r in A else {0}) for r in ROWS}
- dom = {r: dom_of(M, X, D, r, Afull[r]) for r in un}
- choice = {}
+ Afull={r: (set(A[r]) if r in A else {0}) for r in ROWS}
+ dom={r: dom_of(M, X, D, r, Afull[r]) for r in un}
+ choice={}
  while un:
   WK.small += 2 * len(un)
-  r = min(un, key=lambda q: len(dom[q]))
+  r=min(un, key=lambda q: len(dom[q]))
   if not dom[r]:
    return None, choice, X, D
-  cl = list(dom[r])
+  cl=list(dom[r])
   coins.perm(cl)
   cl.sort(key=lambda c: c[4])
   un.remove(r)
-  chosen = None
-  rb = rowbits(*r)
-  tent = []
+  chosen=None
+  rb=rowbits(*r)
+  tent,bx=[], None
   for c in cl:
-   d, Wl, g, eqs, cost = c
-   X2, D2 = X.copy(), D.copy()
-   good = True
+   d,Wl,g,eqs,cost=c
+   X2,D2=X.copy(), D.copy()
+   X2.lg, D2.lg = [], []
+   good=True
    for x in range(5):
     if D2.add([rb[x]], (d >> x) & 1) < 0:
-     good = False
+     good=False
      break
    if good:
     for idx, cc in eqs:
      if X2.add(idx, cc) < 0:
-      good = False
+      good=False
       break
    if good:
-    tent.append((X2.rank - X.rank, len(tent), c, X2, D2))
+    k=X2.rank - X.rank
+    if bx is None or k < bx[0]:
+     bx=(k, len(tent), X2, D2)
+    tent.append((k, len(tent), c, X2.lg, D2.lg))
   tent.sort(key=lambda z: (z[0], z[1]))
-  for (_, _, c, X2, D2) in tent:
-   nd = {}
-   dead = False
+  for (_, i, c, lx, ld) in tent:
+   X2,D2=bx[2:] if i == bx[1] else (rep(X, lx), rep(D, ld))
+   nd={}
+   dead=False
    for q in un:
-    cs = M.coords[q]
+    cs=M.coords[q]
     WK.row += len(cs) + 5
     if all(X2.T[j] is X.T[j] for j in cs) and all(D2.T[j] is D.T[j] for j in rowbits(*q)):
      nd[q] = dom[q]
      continue
-    v = dom_of(M, X2, D2, q, Afull[q])
+    v=dom_of(M, X2, D2, q, Afull[q])
     if not v:
-     dead = True
+     dead=True
      break
     nd[q] = v
    if dead:
     continue
-   chosen = (c, X2, D2, nd)
+   chosen=(c, X2, D2, nd)
    break
   if chosen is None:
    return None, choice, X, D
-  c, X, D, dom = chosen
+  c,X,D,dom=chosen
   choice[r] = c
  return True, choice, X, D
 def point(X, coins):
- T = X.T
- live = 0
+ T=X.T
+ live=0
  for v in T[:N]:
   live |= v
  live >>= 1
- pv = 0
- i = 0
+ pv=0
+ i=0
  while live >> i:
   if (live >> i) & 1 and coins.word() & 1:
    pv |= 1 << i
   i += 1
- x = 0
+ x=0
  for j in range(N):
-  v = T[j]
+  v=T[j]
   if (v & 1) ^ par((v >> 1) & pv):
    x |= 1 << j
  WK.row += 3 * N
  return x
 def verify(t, X, beta0, coins, npts=64):
- alpha0 = Linv_map(beta0)
- good = 0
+ alpha0=Linv_map(beta0)
+ good=0
  for _ in range(npts):
-  x = point(X, coins)
-  A1, A2 = Linv_map(x), Linv_map(x ^ beta0)
+  x=point(X, coins)
+  A1,A2=Linv_map(x), Linv_map(x ^ beta0)
   WK.row += 2 * 64
-  ok = (A1 ^ A2 == alpha0) and A1 != A2
-  ok = ok and all(((A1 >> j) & 1) == t.fixval[j] for j in t.FIX) and all(((A2 >> j) & 1) == t.fixval[j] for j in t.FIX)
+  ok=(A1 ^ A2 == alpha0) and A1 != A2
+  ok=ok and all(((A1 >> j) & 1) == t.fixval[j] for j in t.FIX) and all(((A2 >> j) & 1) == t.fixval[j] for j in t.FIX)
   WK.r2 += 2
-  ok = ok and (rnd(rnd(A1, 0), 1) ^ rnd(rnd(A2, 0), 1)) == t.alpha2
+  ok=ok and (rnd(rnd(A1, 0), 1) ^ rnd(rnd(A2, 0), 1)) == t.alpha2
   good += ok
  return good
 class CandSetup:
@@ -889,23 +913,23 @@ class CandSetup:
   s.links, s.ports = build_links(s.t, OB)
   s.cands = d2u_cands(s.t, s.ports)
 def b_attempt(cs, label, j, dmin):
- coins = Coins(sha256(label + b"att" + cs.c.to_bytes(4, "little") + j.to_bytes(4, "little")))
+ coins=Coins(sha256(label + b"att" + cs.c.to_bytes(4, "little") + j.to_bytes(4, "little")))
  if cs.X0 is None:
   return {"st": "r1inc"}, None
- A, D, na, nlc = d2u(cs.t, cs.D0.copy(), cs.ports, cs.links, cs.cands, cs.COST, coins)
+ A,D,na,nlc=d2u(cs.t, cs.D0.copy(), cs.ports, cs.links, cs.cands, cs.COST, coins)
  if A is None:
   return {"st": "d2u", "rows": na}, None
- ok, ch, X, D2 = m2(cs.M, cs.X0.copy(), D, A, coins)
+ ok,ch,X,D2=m2(cs.M, cs.X0.copy(), D, A, coins)
  if not ok:
   return {"st": "m2", "rows": len(ch), "nlc": nlc}, None
- DF = cs.M.NC - X.rank
- beta0 = 0
+ DF=cs.M.NC - X.rank
+ beta0=0
  for r, cc in ch.items():
-  rb = rowbits(*r)
+  rb=rowbits(*r)
   for x in range(5):
    if (cc[0] >> x) & 1:
     beta0 |= 1 << rb[x]
- res = {"st": "ok" if DF >= dmin else "lowdf", "DF": DF, "nlc": nlc,
+ res={"st": "ok" if DF >= dmin else "lowdf", "DF": DF, "nlc": nlc,
   "sumwt": sum(WT[cc[0]] for cc in ch.values()), "cost": sum(cc[4] for cc in ch.values())}
  if DF >= dmin:
   res["verified"] = verify(cs.t, X, beta0, coins)
@@ -915,19 +939,20 @@ def b_attempt(cs, label, j, dmin):
 B_R, B_DMIN = 1 << 62, 33
 B_BUDGET, CCAP, B_TRUE = 1355 << 32, 1355 << 26, 1355 << 29
 def bprime(base, OB, label, budget=B_BUDGET, log=None, c=0, ccap=CCAP, tb=None):
- top = WK.cost() + budget
+ top=WK.cost() + budget
  WK.tcap = None if tb is None else WK.cost() + WK.d + tb
  try:
   while True:
+   cs = None
    WK.cap = min(top, WK.cost() + ccap)
-   s0 = WK.snap()
+   s0=WK.snap()
    try:
-    cs = CandSetup(base, OB, label, c)
+    cs=CandSetup(base, OB, label, c)
     if log:
      log("cand", c, -1, {"st": "r1inc" if cs.X0 is None else "setup"}, s0)
     for j in range(B_R):
-     s1 = WK.snap()
-     res, b0 = b_attempt(cs, label, j, B_DMIN)
+     s1=WK.snap()
+     res,b0=b_attempt(cs, label, j, B_DMIN)
      if log:
       log("att", c, j, res, s1)
      if res["st"] == "ok":
@@ -941,25 +966,25 @@ def bprime(base, OB, label, budget=B_BUDGET, log=None, c=0, ccap=CCAP, tb=None):
  finally:
   WK.cap = WK.tcap = None
 def Setup(base, beta1, beta0):
- st = Cand(base, beta1)
+ st=Cand(base, beta1)
  st.ref = beta0
  return st
 X_MAX = 1 << 20
 def attempt(st, coins, dmin=33, xor_cap=X_MAX):
- budget = [0, xor_cap]
+ budget=[0, xor_cap]
  try:
-  status, info = _attempt(st, coins, dmin, budget)
+  status,info=_attempt(st, coins, dmin, budget)
  except CapExceeded:
-  status, info = "cap", None
- info = dict(info or {})
+  status,info="cap", None
+ info=dict(info or {})
  info["xors"] = budget[0]
  info["draws"] = coins.draws
  return status, info
 def _attempt(st, coins, dmin, budget):
- rows_a1 = st.a1rows
- ref = st.ref
- Linv = st.Linv
- ED = Ech(budget)
+ rows_a1=st.a1rows
+ ref=st.ref
+ Linv=st.Linv
+ ED=Ech(budget)
  for j in st.FIX:
   if ED.add(Linv[j]) < 0:
    return "dinc", None
@@ -968,27 +993,27 @@ def _attempt(st, coins, dmin, budget):
    for b in rowbits(y, z):
     if ED.add(1 << b) < 0:
      return "dinc", None
- order = list(st.act)
+ order=list(st.act)
  coins.perm(order)
- A2sel = {}
+ A2sel={}
  for (y, z) in order:
-  o = rows_a1[(y, z)]
-  rb = rowbits(y, z)
-  rv = getrow(ref, y, z)
-  sel = None
+  o=rows_a1[(y, z)]
+  rb=rowbits(y, z)
+  rv=getrow(ref, y, z)
+  sel=None
   for k in (2, 1, 0):
-   cands = list(AFFIN[o][k])
+   cands=list(AFFIN[o][k])
    coins.perm(cands)
-   cands = [W for W in cands if rv in W]
+   cands=[W for W in cands if rv in W]
    for W in cands:
-    mk = ED.mark()
-    good = True
+    mk=ED.mark()
+    good=True
     for f in row_forms(W, rb):
      if ED.add(f) < 0:
-      good = False
+      good=False
       break
     if good:
-     sel = W
+     sel=W
      break
     ED.undo(mk)
    if sel is not None:
@@ -996,35 +1021,35 @@ def _attempt(st, coins, dmin, budget):
   if sel is None:
    return "dinc", None
   A2sel[(y, z)] = sel
- EM = Ech(budget)
+ EM=Ech(budget)
  for j in st.FIX:
   if EM.add(Linv[j] | (st.fixval[j] << N)) < 0:
    return "minc", None
- beta0 = 0
- Srow = {}
+ beta0=0
+ Srow={}
  for (y, z) in order:
-  o = rows_a1[(y, z)]
-  rb = rowbits(y, z)
-  rv = getrow(ref, y, z)
-  cands = list(A2sel[(y, z)])
+  o=rows_a1[(y, z)]
+  rb=rowbits(y, z)
+  rv=getrow(ref, y, z)
+  cands=list(A2sel[(y, z)])
   coins.perm(cands)
   cands.sort(key=lambda d: -DDT[d][o])
   cands.sort(key=lambda d: d != rv)
-  ok = False
+  ok=False
   for d in cands:
-   md, mm = ED.mark(), EM.mark()
-   good = True
+   md,mm=ED.mark(), EM.mark()
+   good=True
    for x in range(5):
     if ED.add(1 << rb[x] | (((d >> x) & 1) << N)) < 0:
-     good = False
+     good=False
      break
    if good:
     for f in row_forms(VSET[(d, o)], rb):
      if EM.add(f) < 0:
-      good = False
+      good=False
       break
    if good:
-    ok = True
+    ok=True
     Srow[(y, z)] = VSET[(d, o)]
     for x in range(5):
      if (d >> x) & 1:
@@ -1034,78 +1059,78 @@ def _attempt(st, coins, dmin, budget):
    EM.undo(mm)
   if not ok:
    return "tda", None
- aff = {}
- full = frozenset(range(32))
+ aff={}
+ full=frozenset(range(32))
  for r in st.lin_rows:
-  y, z = r
-  rb = rowbits(y, z)
-  masks = tuple(sorted(st.rowmasks[r]))
-  W, best = st.lin[(r, Srow.get(r, full))]
+  y,z=r
+  rb=rowbits(y, z)
+  masks=tuple(sorted(st.rowmasks[r]))
+  W,best=st.lin[(r, Srow.get(r, full))]
   if W is None:
-   best = list(best)
+   best=list(best)
    coins.perm(best)
-   forms = {Wo: row_forms(Wo, rb) for Wo in best}
-   implied = [Wo for Wo in best if all(EM.reduce(f) == 0 for f in forms[Wo])]
+   forms={Wo: row_forms(Wo, rb) for Wo in best}
+   implied=[Wo for Wo in best if all(EM.reduce(f) == 0 for f in forms[Wo])]
    if implied:
-    W = implied[0]
+    W=implied[0]
    else:
     for Wo in best:
-     mk = EM.mark()
-     good = True
+     mk=EM.mark()
+     good=True
      for f in forms[Wo]:
       if EM.add(f) < 0:
-       good = False
+       good=False
        break
      if good:
-      W = Wo
+      W=Wo
       break
      EM.undo(mk)
     if W is None:
      return "lin", None
-  Ws = sorted(W)
-  b = Ws[0]
-  ech = []
+  Ws=sorted(W)
+  b=Ws[0]
+  ech=[]
   for w in Ws:
-   v = w ^ b
+   v=w ^ b
    for (pp, ee) in ech:
     if (v >> pp) & 1:
      v ^= ee
    if v:
-    pp = v.bit_length() - 1
-    ech = [(q, e ^ v if (e >> pp) & 1 else e) for (q, e) in ech]
+    pp=v.bit_length() - 1
+    ech=[(q, e ^ v if (e >> pp) & 1 else e) for (q, e) in ech]
     ech.append((pp, v))
   for m in masks:
-   f = par(m & CHI5[b]) << N
+   f=par(m & CHI5[b]) << N
    for (pp, e) in ech:
     if par(m & (CHI5[b ^ e] ^ CHI5[b])):
      f ^= (1 << rb[pp]) ^ (((b >> pp) & 1) << N)
    aff[(r, m)] = f
  for (parts, c) in st.condparts:
-  f = c << N
+  f=c << N
   for r, m in parts.items():
    f ^= aff[(r, m)]
   if EM.add(f) < 0:
    return "cond", None
- DF = N - EM.rank()
+ DF=N - EM.rank()
  if DF < dmin:
   return "lowdf", {"DF": DF}
  return "ok", {"EM": EM, "beta0": beta0, "DF": DF}
 def solve(EM, xfree):
- piv = EM.piv
- xv = xfree
+ piv=EM.piv
+ xv=xfree
  for p in sorted(piv):
-  f = piv[p]
+  f=piv[p]
   if par(f & ((1 << p) - 1) & xv) ^ ((f >> N) & 1):
    xv |= 1 << p
  return xv
 def enum_basis(EM, beta0, nb=32):
- free = [i for i in range(N) if i not in EM.piv]
- v0 = solve(EM, 0)
- piv = {}
+ free=[i for i in range(N) if i not in EM.piv]
+ v0=solve(EM, 0)
+ piv={}
  def addv(w):
-  v = w
+  v=w
   while v:
-   p = v.bit_length() - 1
+   p=v.bit_length() - 1
    if p in piv:
     v ^= piv[p]
    else:
@@ -1113,37 +1138,37 @@ def enum_basis(EM, beta0, nb=32):
     return True
   return False
  addv(beta0)
- basis = []
+ basis=[]
  for i in free:
   if len(basis) == nb:
    break
-  b = solve(EM, 1 << i) ^ v0
+  b=solve(EM, 1 << i) ^ v0
   if addv(b):
    basis.append(b)
  return v0, basis
 def digest5(A0):
- s = A0
+ s=A0
  for r in range(5):
-  s = rnd(s, r)
+  s=rnd(s, r)
  return s & ((1 << 256) - 1)
 def message(A0):
  return (A0 & ((1 << 1080) - 1)).to_bytes(135, "little")
 def e_window(st, v0, basis, beta0, lo, count, s2cap=None):
- passes = 0
- out = None
+ passes=0
+ out=None
  for c in range(lo, lo + count):
-  x = v0
+  x=v0
   for j in range(len(basis)):
    if (c >> j) & 1:
     x ^= basis[j]
-  u = Lmap(chi(Lmap(chi(x) ^ RCS[0])) ^ RCS[1])
+  u=Lmap(chi(Lmap(chi(x) ^ RCS[0])) ^ RCS[1])
   if all(getrow(u, y, z) in V for (y, z, V) in st.e_rows):
    passes += 1
    if s2cap is not None and passes > s2cap:
     break
-   A, B = Linv_map(x), Linv_map(x ^ beta0)
+   A,B=Linv_map(x), Linv_map(x ^ beta0)
    if out is None and digest5(A) == digest5(B):
-    out = (c, message(A), message(B))
+    out=(c, message(A), message(B))
  return passes, out
 SENTINEL = (bytes(135), b"\x01" + bytes(134))
 STATUS = {"ok": 0, "dinc": 1, "minc": 2, "tda": 3, "lin": 4, "cond": 5, "lowdf": 6, "cap": 7}
@@ -1155,6 +1180,7 @@ def active_rows(s):
 def wt(d,o):
  return 5-(DDT[d][o].bit_length()-1)
 def facts(st):
+ from fractions import Fraction
  ok=[]
  a3=st.alpha3
  b3=Lmap(a3)
@@ -1219,7 +1245,7 @@ def facts(st):
  ok.append(len(st.e_rows)==10)
  good_linv=True
  for k in range(16):
-  sv=int.from_bytes(hashlib.shake_256(b"linv"+bytes([k])).digest(200),"little")
+  sv=int.from_bytes(_s3.shake_256(b"linv"+bytes([k])).digest(200),"little")
   img=Linv_map(sv)
   good_linv=good_linv and all(par(st.Linv[j]&sv)==(img>>j)&1 for j in range(N))
  ok.append(good_linv)
@@ -1254,9 +1280,9 @@ NOUT = [sum(1 for o in range(32) if DDT[d][o]) for d in range(32)]
 NIN = [sum(1 for d in range(32) if DDT[d][o]) for o in range(32)]
 ALLOW = sum(1 << q for q in range(32) if DDT[q][0] + DDT[q][16])
 def L(A):
- P = [A[x] ^ A[x + 5] ^ A[x + 10] ^ A[x + 15] ^ A[x + 20] for x in range(5)]
- T = [P[(x - 1) % 5] ^ rot(P[(x + 1) % 5], 1) for x in range(5)]
- B = [0] * 25
+ P=[A[x] ^ A[x + 5] ^ A[x + 10] ^ A[x + 15] ^ A[x + 20] for x in range(5)]
+ T=[P[(x - 1) % 5] ^ rot(P[(x + 1) % 5], 1) for x in range(5)]
+ B=[0] * 25
  for y in range(5):
   for x in range(5):
    B[y + 5 * ((2 * x + 3 * y) % 5)] = rot(A[x + 5 * y] ^ T[x], RHO[x + 5 * y])
@@ -1264,8 +1290,8 @@ def L(A):
 def chiL(A):
  return [A[x+5*y]^(~A[(x+1)%5+5*y]&A[(x+2)%5+5*y]) for y in range(5) for x in range(5)]
 def fwd(i):
- lane, z = i >> 6, i & 63
- x, y = lane % 5, lane // 5
+ lane,z=i >> 6, i & 63
+ x,y=lane % 5, lane // 5
  return 64 * (y + 5 * ((2 * x + 3 * y) % 5)) + ((z + RHO[lane]) & 63)
 FWD = [fwd(i) for i in range(1600)]
 BWD = [0] * 1600
@@ -1276,21 +1302,21 @@ COLB = [((FWD[i] >> 6) % 5) * 64 + (FWD[i] & 63) for i in range(1600)]
 def canon(b):
  return min(tuple(sorted(64 * (i >> 6) + (((i & 63) - t) & 63) for i in b)) for t in range(64))
 def lane_dfs(lane, kmax=10):
- cA, cB, cur, found, nodes = [0] * 320, [0] * 320, [], set(), [0]
+ cA,cB,cur,found,nodes=[0] * 320, [0] * 320, [], set(), [0]
  def dfs():
   nodes[0] += 1
-  ca = min((COLA[i] for i in cur if cA[COLA[i]] & 1), default=-1)
-  cb = -1 if ca >= 0 else min((COLB[i] for i in cur if cB[COLB[i]] & 1), default=-1)
+  ca=min((COLA[i] for i in cur if cA[COLA[i]] & 1), default=-1)
+  cb=-1 if ca >= 0 else min((COLB[i] for i in cur if cB[COLB[i]] & 1), default=-1)
   if ca < 0 and cb < 0:
    found.add(canon(cur))
    return
   if len(cur) >= kmax:
    return
-  c = ca if ca >= 0 else cb
+  c=ca if ca >= 0 else cb
   for y in range(5):
-   i = 64 * (c // 64 + 5 * y) + c % 64
+   i=64 * (c // 64 + 5 * y) + c % 64
    if ca < 0:
-    i = BWD[i]
+    i=BWD[i]
    if i in cur:
     continue
    cur.append(i)
@@ -1306,46 +1332,46 @@ def lane_dfs(lane, kmax=10):
  dfs()
  return nodes[0], found
 def rows_of(bits):
- r = {}
+ r={}
  for b in bits:
   r[((b >> 6) // 5, b & 63)] = r.get(((b >> 6) // 5, b & 63), 0) | (1 << ((b >> 6) % 5))
  return sorted(r.items())
 def p45pos(core):
- opts, sup = [], []
+ opts,sup=[], []
  for (y, z), d in rows_of([FWD[b] for b in core]):
-  ol, s = [], 0
+  ol,s=[], 0
   for o in range(32):
    if DDT[d][o]:
-    A = [0] * 25
+    A=[0] * 25
     for x in range(5):
      if (o >> x) & 1:
       A[x + 5 * y] |= 1 << z
-    v = L(A)[:5]
+    v=L(A)[:5]
     ol.append(v)
     s |= v[0] | v[1] | v[2] | v[3] | v[4]
   opts.append(ol)
   sup.append(s)
- n = len(opts)
- rest = [0] * (n + 1)
+ n=len(opts)
+ rest=[0] * (n + 1)
  for k in range(n - 1, -1, -1):
   rest[k] = rest[k + 1] | sup[k]
  def ok(v, z):
   while z:
-   p = (z & -z).bit_length() - 1
+   p=(z & -z).bit_length() - 1
    z &= z - 1
    if not (ALLOW >> sum(((v[x] >> p) & 1) << x for x in range(5))) & 1:
     return False
   return True
- dead = set()
+ dead=set()
  def dfs(k, v):
   if k == n:
    return True
-  key = (k,) + tuple(w & rest[k] for w in v)
+  key=(k,) + tuple(w & rest[k] for w in v)
   if key in dead:
    return False
-  fin = sup[k] & ~rest[k + 1]
+  fin=sup[k] & ~rest[k + 1]
   for w in opts[k]:
-   u = [v[x] ^ w[x] for x in range(5)]
+   u=[v[x] ^ w[x] for x in range(5)]
    if ok(u, fin) and dfs(k + 1, u):
     return True
   dead.add(key)
@@ -1590,7 +1616,7 @@ def e_blk(i0,f,D,s=0,e=1024,o=None,fs=None):
      st()
      D[w][q][k]=int(R[w,q,k])
 def e_block(seed):
- D=[None] + [collections.defaultdict(lambda: [0] * 24) for _ in range(4)]
+ D=[None] + [defaultdict(lambda: [0] * 24) for _ in range(4)]
  OPS[0]=0
  e_blk(1024 * (h64(seed) % (1 << 14) | 15),[0] * 24,D)
  s,mx=OPS[0],0
@@ -1600,7 +1626,7 @@ def e_block(seed):
   mx=max(mx,OPS[0])
  return s == E_STEPS and mx == E_PRO,{"block_steps": s,"pro_max": mx}
 def fes_trial(seed,no=11):
- s=hashlib.shake_256(seed).digest(200*33)
+ s=_s3.shake_256(seed).digest(200*33)
  basis=[int.from_bytes(s[200*i:200*i+200],"little") for i in range(32)]
  p=s[-1]
  v0=sum(w<<(64*i) for i,w in enumerate(L([int.from_bytes((CERT_A+b"\x86"+bytes(65))[8*i:8*i+8],"little") for i in range(25)])))
@@ -1634,13 +1660,13 @@ def fes_trial(seed,no=11):
  return ok and mx <= E_STEPS,{"block_max": mx}
 E_PRO, E_STEPS = 87, 207920
 def linv(A):
- B = [rot(A[y + 5 * ((2 * x + 3 * y) % 5)], 64 - RHO[x + 5 * y]) for y in range(5) for x in range(5)]
- Q = [B[x] ^ B[x + 5] ^ B[x + 10] ^ B[x + 15] ^ B[x + 20] for x in range(5)]
+ B=[rot(A[y + 5 * ((2 * x + 3 * y) % 5)], 64 - RHO[x + 5 * y]) for y in range(5) for x in range(5)]
+ Q=[B[x] ^ B[x + 5] ^ B[x + 10] ^ B[x + 15] ^ B[x + 20] for x in range(5)]
  for _ in range(191):
-  Q = [Q[x] ^ Q[(x - 1) % 5] ^ rot(Q[(x + 1) % 5], 1) for x in range(5)]
+  Q=[Q[x] ^ Q[(x - 1) % 5] ^ rot(Q[(x + 1) % 5], 1) for x in range(5)]
  return sum((B[i] ^ Q[(i - 1) % 5] ^ rot(Q[(i + 1) % 5], 1)) << (64 * i) for i in range(25))
 def one_row(y, z, v):
- A = [0] * 25
+ A=[0] * 25
  for x in range(5):
   A[x + 5 * y] |= ((v >> x) & 1) << z
  return A
@@ -1660,11 +1686,11 @@ def gray_walk(ms,steps):
 CACHE = {}
 def core_tables(bits):
  if bits not in CACHE:
-  rows = rows_of(bits)
-  ins = [[d for d in range(32) if DDT[d][o]] for (_, o) in rows]
-  LI = []
+  rows=rows_of(bits)
+  ins=[[d for d in range(32) if DDT[d][o]] for (_, o) in rows]
+  LI=[]
   for ((y, z), _) in rows:
-   u = [linv(one_row(y, z, 1 << x)) for x in range(5)]
+   u=[linv(one_row(y, z, 1 << x)) for x in range(5)]
    LI.append([0] * 32)
    for d in range(1, 32):
     LI[-1][d] = LI[-1][d & (d - 1)] ^ u[(d & -d).bit_length() - 1]
@@ -1677,7 +1703,7 @@ def t2_leaf(base):
  return int(w & v) == 0
 DUP = 1 << 128 | 1 << 192
 def t2_trial(seed):
- h=hashlib.sha256(seed).digest()
+ h=_h2.sha256(seed).digest()
  rows=rows_of([FWD[b] for b in ALPHA3_BITS])
  outs=[[o for o in range(32) if DDT[d][o]] for (_,d) in rows]
  def pk(v,c):
@@ -1722,16 +1748,16 @@ FM = sum(1 << 5 * r for r in range(320))
 def rowmaj(s):
  return sum(getrow(s, r // 64, r % 64) << POS[r] for r in range(320))
 def halves(bits):
- rows, ins, LI = core_tables(bits)
- ms, n = [len(v) for v in ins], len(ins)
- h = min(range(1, n), key=lambda k: (math.prod(ms[:k]) + math.prod(ms[k:]), k))
- vec = [[rowmaj(LI[j][d]) for d in ins[j]] for j in range(n)]
- out = []
+ rows,ins,LI=core_tables(bits)
+ ms,n=[len(v) for v in ins], len(ins)
+ h=min(range(1, n), key=lambda k: (math.prod(ms[:k]) + math.prod(ms[k:]), k))
+ vec=[[rowmaj(LI[j][d]) for d in ins[j]] for j in range(n)]
+ out=[]
  for lo, hi in ((0, h), (h, n)):
-  V, W2, CH = [], [], []
+  V,W2,CH=[], [], []
   for cb in itertools.product(*[range(ms[j]) for j in range(hi - 1, lo - 1, -1)]):
-   cb = cb[::-1]
-   v, w = 0, 0
+   cb=cb[::-1]
+   v,w=0, 0
    for j, i in zip(range(lo, hi), cb):
     v ^= vec[j][i]
     w += 5 - (DDT[ins[j][i]][rows[j][1]].bit_length() - 1)
@@ -1744,19 +1770,19 @@ BR = {nb: [[POS[r] for r in range(320) if BLK[r] % nb == t] for t in range(nb)] 
 def mkey(v, nb, t):
  if nb == 64:
   return (v >> 25 * t) & 0x1FFFFFF
- k, p = 0, 0
+ k,p=0, 0
  for q in BR[nb][t]:
-   c = (v >> q) & 31
+   c=(v >> q) & 31
    k ^= (c << p) & 0x3FFFFFF
    if p > 21:
     k ^= c >> (26 - p)
-   p = p + 5 - (26 if p >= 21 else 0)
+   p=p + 5 - (26 if p >= 21 else 0)
  return k
 def mitm_core(H, nb, M, mcap):
  (VA, WA, CA), (VB, WB, CB) = H
- best, f = None, 0
+ best,f=None, 0
  for t in range(nb):
-  D = {}
+  D={}
   for i, v in enumerate(VB):
    D.setdefault(mkey(v, nb, t), []).append(i)
   for a, v in enumerate(VA):
@@ -1764,61 +1790,61 @@ def mitm_core(H, nb, M, mcap):
     M[0] += 1
     if M[0] > mcap:
      raise CapReached()
-    x = v ^ VB[b]
+    x=v ^ VB[b]
     if ((x | x >> 1 | x >> 2 | x >> 3 | x >> 4) & FM).bit_count() < nb:
      f += 1
-     c = (sum(MINW[(x >> 5 * r) & 31] for r in range(320)), WA[a] + WB[b], CA[a] + CB[b])
-     best = c if best is None or c < best else best
+     c=(sum(MINW[(x >> 5 * r) & 31] for r in range(320)), WA[a] + WB[b], CA[a] + CB[b])
+     best=c if best is None or c < best else best
  return best, f
 def trail_search(mcap=M_CAP, cores=None):
  if cores is None:
-  reach = set()
+  reach=set()
   for lane in range(25):
    reach |= lane_dfs(lane)[1]
-  cores = [c for c in sorted(reach) if p45pos(c)]
- M, bl = [0], {nb: None for nb in NBL}
+  cores=[c for c in sorted(reach) if p45pos(c)]
+ M,bl=[0], {nb: None for nb in NBL}
  for c in cores:
-  H = halves(c)
+  H=halves(c)
   CACHE.clear()
   for nb in NBL:
-   r, _ = mitm_core(H, nb, M, mcap)
+   r,_=mitm_core(H, nb, M, mcap)
    if r and (bl[nb] is None or (r[0], r[1]) < bl[nb][0][:2]):
     bl[nb] = (r, c)
   del H
  for nb in NBL:
   if bl[nb] and bl[nb][0][0] < 2 * nb:
-   r, c = bl[nb]
-   rows, ins, _ = core_tables(c)
-   b2 = 0
+   r,c=bl[nb]
+   rows,ins,_=core_tables(c)
+   b2=0
    for ((y, z), _), v, i in zip(rows, ins, r[2]):
     for x in range(5):
      b2 |= ((v[i] >> x) & 1) << (64 * (x + 5 * y) + z)
    return (c, b2, r[0], r[1]), M[0]
  return None, M[0]
 def algorithm(label):
- base, OB = Base(), own_bits()
- left, tl, c, att = B_BUDGET, B_TRUE, 0, 0
+ base,OB=Base(), own_bits()
+ left,tl,c,att=B_BUDGET, B_TRUE, 0, 0
  while att < A_MAX:
-  h, g = WK.cost(), WK.cost() + WK.d
-  r = bprime(base, OB, label, left, None, c, CCAP, tl)
+  h,g=WK.cost(), WK.cost() + WK.d
+  r=bprime(base, OB, label, left, None, c, CCAP, tl)
   if r is None:
    return None
   left -= WK.cost() - h
   tl -= WK.cost() + WK.d - g
-  c = r[2] + 1
-  st = Setup(base, r[0], r[1])
-  spaces = []
+  c=r[2] + 1
+  st=Setup(base, r[0], r[1])
+  spaces=[]
   for i in range(A_ADV):
    att += 1
-   status, info = attempt(st, Coins(run_seed(label + b"conn" + c.to_bytes(4, "little"), i)))
+   status,info=attempt(st, Coins(run_seed(label + b"conn" + c.to_bytes(4, "little"), i)))
    if status == "ok":
     spaces.append(info)
    if len(spaces) == K_SPACES or att == A_MAX:
     break
   if len(spaces) == K_SPACES:
    for info in spaces:
-    v0, basis = enum_basis(info["EM"], info["beta0"], 32)
-    _, out = e_window(st, v0, basis, info["beta0"], 0, 1 << 32, S2CAP)
+    v0,basis=enum_basis(info["EM"], info["beta0"], 32)
+    _,out=e_window(st, v0, basis, info["beta0"], 0, 1 << 32, S2CAP)
     if out:
      return out[1:]
    return None
@@ -2048,7 +2074,7 @@ def replay(base,OB,k,seed):
  res,b0=b_attempt(cs,lab,j,B_DMIN)
  st=cs.t
  st.ref=b0
- ok=res["st"]=="ok" and res["DF"]==df and hashlib.sha256((hex(cs.beta1)+hex(b0)).encode()).hexdigest()[:16]==h
+ ok=res["st"]=="ok" and res["DF"]==df and _h2.sha256((hex(cs.beta1)+hex(b0)).encode()).hexdigest()[:16]==h
  ok=ok and facts(st)[0] and len(s)==i+1 and s[i]=="A" and s.count("A")==idx<=K_SPACES
  pool=list(range(i))
  for q in range(min(23,i)):
@@ -2094,7 +2120,7 @@ def bp_rows(trials,cap):
  c0,d0=WK.cost(),WK.d
  r=bprime(base,OB,rlab(7,k))
  sp=WK.cost()-c0
- ok=r is not None and r[2:]==(c,j,df) and sp==CHEAP[k] and hashlib.sha256((hex(r[0])+hex(r[1])).encode()).hexdigest()[:16]==h
+ ok=r is not None and r[2:]==(c,j,df) and sp==CHEAP[k] and _h2.sha256((hex(r[0])+hex(r[1])).encode()).hexdigest()[:16]==h
  st=Setup(base,r[0],r[1]) if ok else None
  out[0]=(SENTINEL if ok and facts(st)[0] else FAIL_PAIR,{"k": k,"cost": sp,"true": sp+WK.d-d0})
  x=len(R7S)
@@ -2136,6 +2162,7 @@ def rows_for(mode,trials):
  out[0]=replay(Base(),own_bits(),L[h64(trials[0]["seed"])%len(L)],trials[0]["seed"])
  return out
 def main():
+ import json
  req=json.loads(sys.stdin.read())
  rows=[]
  for tr,(pair,obs) in zip(req["trials"],rows_for(req["experiment_id"],req["trials"])):
