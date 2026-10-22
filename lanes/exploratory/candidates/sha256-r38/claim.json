@@ -9,78 +9,151 @@
   "certificate_manifest": "certificates/manifest.json",
   "experiment_manifest": "experiments/manifest.json",
   "claim": {
-    "time_log2": 87.14808,
+    "time_log2": 83.3378,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 28.1,
+    "memory_log2_bytes": 28.094,
     "preprocessing_log2": 78.09276,
     "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 14
+    "nonuniform_advice_log2_bytes": 16
   },
-  "restrictions": [
-    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; outputs two distinct 128-byte messages M0 || M1, M0 || M1' with equal digests.",
-    "Construction: the memory-efficient A0-variant attack (design of 2d1c4fc2 and fb176310 on ePrint 2026/1120 / 2026/1080; per-class row-16 programs as in 08be594), our implementation experiments/a0p38.py, with our characteristic P8 and the accepted event rows 16..22 (row 19 on signed differences) plus a direct output comparison.",
-    "Cost: exact ledger ledger_a0p.py: N_FB = 1,510,856,422,634,357,630,235,398 first blocks, 32 classes of 24,576 variants (786,432 in all), per-class row-16 programs of 1,438 to 1,482 instructions (mean 1462.25) per 256 variants, executed counts; T x 2728 = 467765448296261394038709429793; claimed 87.14808.",
-    "Success probability at least 0.39 under H1, H2 (q3_model 2^-97.0000), H3, by Bonferroni per first block, independent first blocks and Chebyshev caps.",
-    "Memory 2^28.10 bytes (online 3,659,904 bytes; the preprocessing peak)."
-  ],
   "heuristics": [
     {
-      "id": "H1-single-trial-chaining-value",
+      "id": "H1-uniform-chaining-values",
       "role": "score-critical",
-      "statement": "For M0 uniform on {0,1}^512 (two fresh random words per first block), CV1 = F_38(IV, M0) behaves as a uniform 256-bit value for the events of one fixed variant (W7, W16..W22 and E16x distributed as in Lemma 5.1).",
-      "scope": "g, the per-first-block success probability and the expected work.",
-      "extrapolation": "The premise of the A0-variant lineage. Organizer evidence: a0p-online-r38 draws 64 unconditional first blocks per active trial and counts the W7 passes of all 32 classes (our validation: 5,693 passes in 2,560 blocks against 5,480 expected); it then runs the counted program on real first blocks.",
-      "limitations": "A premise about the first-block compression.",
+      "statement": "The first-block chaining values behave as independent uniform 256-bit values. Within one chaining value, the 2^26 values F(a0) behave as iid uniform words jointly independent of post-filter/tail labels and fresh reservoir coins. Conditional on a bucket of size n, Algorithm R retains a uniform min(n,7)-subset; therefore every fixed candidate-label first moment is multiplied by one common rho. The exact retained mean is 6.33626861212226023369 entries per bucket.",
+      "scope": "The retained population, 1.980083941 claws per scan word, first-moment reservoir transfer, cross-CV independence and Bernstein cap.",
+      "extrapolation": "The exact reservoir reduction is proved in A.15.5 and finite-checked by the transfer experiment. The frozen 200-CV panel used the full 2^26 build and 2^20 scan words per CV: 10,631,835,913 retained entries, 415,269,109 exact claws, and zero structural errors or cap aborts.",
       "evidence_ids": [
-        "proof:186-191",
-        "proof:373-394"
-      ]
+        "proof:2014-2139",
+        "proof:2239-2278",
+        "proof:2402-2469",
+        "experiment:p1-bucket7-r38",
+        "experiment:p1-reservoir-transfer-r38",
+        "experiment:p1-bucket7-lowering-r38"
+      ],
+      "limitations": "The random-map and cross-CV independence assertions are score-critical premises about SHA-256. The reservoir theorem is conditional on them. The panel does not cover complete 2^32 scans or all N_CV values."
     },
     {
-      "id": "H2-q3-accepted-event",
+      "id": "H1-P1-postfilter-law",
       "role": "score-critical",
-      "statement": "The average over the 786,432 selected variants (32 classes) of Pr[the pair is in the accepted event (rows 16..22 with row 19 on signed differences, equal outputs) | good pair] is at least q3_model = 2^-97.0000.",
-      "scope": "N_FB and the whole attack term.",
-      "extrapolation": "40 multilevel-splitting runs (seeds 4001..4040) with the variants of the selected classes: mean 2^-96.1821, one-sided 99% Student bound 2^-96.5603, bootstrap 2^-96.5278, 188,796 verified collisions (two stalled runs counted as 0); an independent Python implementation (the organizer replica, a lower-bound event restricted to four row-19 patterns and 512 sampled variants): 480 development replicates, mean 2^-96.2059; organizer replica a0p-q3-r38 with a frozen pass rule.",
-      "limitations": "Participant-run Monte Carlo with a heavy-tailed middle stage; the replica tests a reduced version.",
+      "statement": "For retained claws, Pr[C1 and C2 and G and F7] = q_pf = 57,726,359,870,197*287,309,824/2^90 = 2^-16.1877. Under H1 the uniform-reservoir lemma preserves every fixed joint-law good-pair first moment. The historical conditional list law is different and is handled separately by H2's 0.20-bit allowance.",
+      "scope": "The good-pair first moment and mean post-filter cost in the binding bucket7 ledger.",
+      "extrapolation": "The reduced fixtures rebuild every emitted claw and post-filter flag. The frozen panel's observed/exact cumulative-rate ratios were 1.000191, 0.999613, 1.000054 and 0.998457; every rate lay inside its predeclared 99% cluster interval.",
       "evidence_ids": [
-        "proof:257-311",
-        "proof:373-394"
-      ]
+        "proof:88-91",
+        "proof:2239-2278",
+        "experiment:p1-bucket7-r38",
+        "experiment:p1-online-r38",
+        "experiment:p1-reservoir-transfer-r38"
+      ],
+      "limitations": "The transfer remains conditional on H1. The full panel scans 2^20 words per CV and does not measure the accepted tail."
     },
     {
-      "id": "H3-pairs-in-first-block",
+      "id": "H2-P1-q3-transfer",
       "role": "score-critical",
-      "statement": "The average over successes of the expected number of other row-16 passes of the same first block is at most 2^-5.1.",
-      "scope": "The Bonferroni factor of a first block.",
-      "extrapolation": "750 rebuilt successes: 6 other row-16 passes among 153,649,152 evaluated variants of the passing classes; 99% Poisson limit 2^-5.69.",
-      "limitations": "Measured on rebuilt estimator successes.",
+      "statement": "The registered historical list-law bound is q3_Q >= 2^-96.0791. The online good-pair law is uniform on all (a1,a0) satisfying C1,C2,G, whereas the registered generator chose a1 uniformly and then a0 conditional on G. A separately declared 0.20-bit paired-law allowance gives q3_P >= 2^-96.2791 and q0 = q3_P*2^32/160 = 2^-71.6010280949 per retained good pair.",
+      "scope": "The accepted-pair first moment and hence N_CV.",
+      "extrapolation": "An exhaustive degree scan reproduces |C1&C2|=53,096,854, total G incidence 57,726,359,870,197 and nonconstant degrees 364,288..1,798,400. A source-frozen post-discovery study used 24 preregistered shards and 288 paired SMC replicates: mean ratio -0.01178 bit, one-sided 99% Student endpoint -0.13747, above the fixed -0.20 gate, with zero rebuild failures. Two organizer panels execute the correct joint sampler as supporting observations.",
       "evidence_ids": [
-        "proof:257-311"
-      ]
+        "proof:108-120",
+        "proof:150-357",
+        "proof:435-974",
+        "proof:977-1590",
+        "proof:2140-2238",
+        "proof:2494-2826",
+        "experiment:p1-q3-r38",
+        "experiment:p1-law-joint-a-r38",
+        "experiment:p1-law-joint-b-r38"
+      ],
+      "limitations": "The inherited q3 level, A0-to-P1 adjustment and row-18 relaxation transfer retain their original Monte Carlo assumptions. The new study was designed after the law mismatch was found; Student calibration and finite-seed SMC transfer to the full deterministic family are additional score-critical heuristics. No complete about-2^-71 event is directly observed."
     },
     {
-      "id": "H4-allowances",
+      "id": "H3-P1-within-cv-dependence",
       "role": "score-critical",
-      "statement": "The computation spent on the characteristic search, S and the class data, and all development is at most A_C + A_S + DEV = 2^78 + 2^74 + 2^70 target compressions.",
-      "scope": "The allowance term (negligible against T).",
-      "extrapolation": "One 10-core machine, less than 2^22 core-seconds in all (participant accounting); the envelope holds for any machine running ten cores for a full year at up to 2^30 target compressions per core-second (2^58.3 < 2^70).",
-      "limitations": "Envelope independent of the measured rate; with A_C = 2^84 the ledger gives time_log2 = 87.29999 (+0.15191).",
+      "statement": "Conditional on the exposed table-selection sigma-field, endpoint-disjoint representatives have independent accepted-tail indicators with one common p >= q0=2^-71.6010280949; shared-endpoint pairs form one group. H3 also declares E[L]>=(1-2^-9)E[K]. Coupling iid Bernoulli(q0) proxies and L<=G_max=2^32*20*4*7 gives E[J0(J0-1)]/E[J0] <= q0*G_max = 2^-30.4717450779. Thus (1-2^-9)(1-q0*G_max/2) > 1-2^-8.5.",
+      "scope": "The representative first-moment loss and per-CV Bonferroni factor 1-2^-8.5.",
+      "extrapolation": "The full-event independence/common-p premise is inherited for the unchanged P1 tail from eligible parent 711c4bf8. The new reduction conditions on arbitrary correlated reservoir selection and uses a deterministic G_max. The random-incidence group-loss forecast is 0.00108507, or 0.00137965 after the panel's 1.271481 spread, below 2^-9; the panel observed 3/5555.",
       "evidence_ids": [
-        "proof:312-344"
-      ]
+        "proof:102-107",
+        "proof:358-434",
+        "proof:2279-2348",
+        "experiment:p1-bucket7-r38",
+        "experiment:p1-online-r38",
+        "experiment:p1-reservoir-transfer-r38"
+      ],
+      "limitations": "Complete rows-17-through-37 accepted-event independence with common p remains an inherited score-critical premise. The 2^-9 representative-loss bound is a random-incidence extrapolation; 2^20-word panel scans do not test full-scan repeated-a0 incidence. The exact transfer checker proves neither heuristic."
     },
     {
-      "id": "H5-bitsliced-planes",
+      "id": "H4a-allowance-characteristic-search",
       "role": "score-critical",
-      "statement": "One instruction on a 256-bit plane costs one word operation (the 256-bit word RAM of the cost model); each class's row-16 program is charged at its executed instruction count, loads and stores included (expected work at the mean over the classes, the work cap at the maximum).",
-      "scope": "The dominant work term.",
-      "extrapolation": "Executed instruction by instruction and compared with the scalar definition on sampled batches (selftest, a0p-online-r38).",
-      "limitations": "Full-scale execution is infeasible.",
+      "statement": "The total computation spent to obtain the characteristic P8 of 1a695f0b (its signed-difference SAT sweep, coupling checks and estimators; failed and repeated runs included) is at most A_C = 2^78 target compressions.",
+      "scope": "The preprocessing part of the ledger: A_C = 2^78 is the largest allowance; it enters the claimed time and preprocessing (78.09276).",
+      "extrapolation": "The search for P8 was run by the author of 1a695f0b, whose published run log (38 solver runs, 230,183 s listed) and total (under 2^21 core-seconds) are quoted with their source hash in proof.md Appendix R.4: at our measured 3,797,484 SHA-256 compressions per second that is 2^43.61 units, 34.4 bits under A_C. Our own measurements of the same kind of computation (proof.md Appendix R.2): a 39-step characteristic derived from scratch with the public tool of [LLW24] in 2^36.04 units; a 38-step pair from the published cells in 2^34.09 units; published figures up to 2^39.15 units.",
       "evidence_ids": [
-        "proof:217-237",
-        "proof:373-394"
-      ]
+        "proof:126-129",
+        "proof:1591-1653",
+        "proof:1735-1750"
+      ],
+      "limitations": "A charged allowance (an upper bound charged in full): we did not rerun P8's search; its log is the author's, quoted. With A_C = 2^84 the claim would be 84.96832."
+    },
+    {
+      "id": "H4b-allowance-step1-solve",
+      "role": "supporting",
+      "statement": "S (the dense part of P8's semi-free-start pair) is obtained at a total cost of at most A_S = 2^74 target compressions.",
+      "scope": "The preprocessing part of the ledger (A_S = 2^74).",
+      "extrapolation": "The Step-1 solve was run by the author of 1a695f0b (coupling check 662 s, single-threaded, inside the quoted total under 2^21 core-seconds; proof.md Appendix R.4); our own 38-step pair search from the published cells took 2,852.83 CPU-seconds = 2^34.09 units (proof.md Appendix R.2), 39.9 bits under A_S. selftest checks that the transcribed pair S reproduces and passes every test of rows 16..21 with equal outputs.",
+      "evidence_ids": [
+        "proof:21-27",
+        "proof:126-129",
+        "proof:1591-1653",
+        "proof:1735-1750"
+      ],
+      "limitations": "A charged allowance, not a new computation measurement. H6 uses the self-contained author Step-1 peak 279,720 KB = 286,433,280 bytes, rounded upward to 28.094. The absent 2^27.7542 capped receipt is not used."
+    },
+    {
+      "id": "H4c-development-charge",
+      "role": "supporting",
+      "statement": "All development computation of this package, whether or not the procedure reads its output (exhaustive passes, C ports, the q3 and ratio studies, the F7 measurement, checks, failed runs and reruns), is at most DEV = 2^70 target compressions, and DEV is charged in full in the time.",
+      "scope": "The development item of the ledger (DEV = 2^70 x C operations).",
+      "extrapolation": "Hardware envelope (the bound for this allowance): every code execution of the project (10-05 to 10-21) ran on a 24-thread workstation with one GPU, a 12-thread server and one 32-vCPU cloud machine: at most 68 threads and one GPU for 1.4688 x 10^6 s at 2^40 word operations per thread-second and 2^47 per GPU-second, below 2^68.11 operations = 2^56.7 compressions, under DEV by more than 2^13; the recorded development of the A0-variant line is in proof.md Appendix R.3.",
+      "evidence_ids": [
+        "proof:126-129",
+        "proof:1654-1734"
+      ],
+      "limitations": "A charged allowance (an upper bound charged in full), not a measurement: the hardware envelope above is the bound; it rests on the project's machine list and dates, and is more than 2^13 below the charge."
+    },
+    {
+      "id": "H5prime-table-pricing",
+      "role": "score-critical",
+      "statement": "On the 256-bit RAM, every intended u32 value is explicitly reduced with AND MASK32 before a SHA, nonlinear, shift, address or table-target boundary. Four logical seven-entry buckets are transposed in place into two guarded 14-lane tag words and two exact 26-bit-payload words; a separator bit prevents inter-group borrow. The eight class/path complete-u costs are ordinary 267/267/527/527 and straddle 547/847/1127/827. Direct physical tag-address chaining costs ADD;AND;LOAD at each of 19 later heads and removes 38 operations per u. Fixed scan work is exactly 401.296875/u. A match handler is charged 28; post-filter segments are 10/25/33/33; Step-3b is 3,178 plus a 20-operation continuation wrapper. Build work is 80 mean and 2,200 maximum per insert; reset is 5 per bucket and the combined normalize/transpose is charged 512 per four-bucket block.",
+      "scope": "The binding transposed-table mean, deterministic maximum, Bernstein cap, total computation and time bound.",
+      "extrapolation": "The inherited typed checker materializes 2,101 operations and reports zero CFG/state/semantic/u32/body mismatches. The final executable supplement checks 1,572,864 exact tag-role cases, 112 payload round trips, 57,344 structured packed entries, separator behavior, wrap-boundary address identities, all eight cost rows and the final ledger. Separate complete-domain C audits enumerated all 2^23 base buckets on both paths and all 2^32 scan words; the proof gives their algorithm, counts and hashes. The final exact total is 33,344,121,387,140,981,194,339,542,341 operations, or time_log2 83.3377911625996..., rounded upward to 83.33780.",
+      "evidence_ids": [
+        "proof:2856-3195",
+        "experiment:p1-bucket7-r38",
+        "experiment:p1-bucket7-lowering-r38"
+      ],
+      "limitations": "The participant execution is an abstract word-RAM verifier, not a physical full attack. Its bounded Python run samples address wrap boundaries and representative packed lanes while the self-contained algebra proves the general identities; full-domain C audit results are reproduced records rather than organizer-recomputed experiment predicates. It does not discharge H1-H3."
+    },
+    {
+      "id": "H6-memory-figure",
+      "role": "score-critical",
+      "statement": "The binding whole-computation peak is the self-contained Step-1 measurement 279,720 KB = 286,433,280 bytes = 2^28.0936238847..., rounded upward to 28.094. The final online cap is 286,298,112 bytes. It includes the 268,435,584-byte table plus four guards, exact auxiliary tables, an 11 MiB executable reserve covering the 5,086,720-byte code upper bound, stack, advice, runtime and scratch, leaving 135,168 bytes below the binding peak.",
+      "scope": "The scalar score 83.33780+(28.094-20)=91.43180.",
+      "extrapolation": "The final checker reconstructs the aligned region map, 168,256-operation-record code bound, 50,608-byte advice upper bound and online cap. Four guards consume the former alignment gap; the executable starts at byte 268,472,320. The inherited degree scan remains below the same whole-computation peak.",
+      "evidence_ids": [
+        "proof:3157-3195",
+        "experiment:p1-bucket7-lowering-r38"
+      ],
+      "limitations": "The online figure is an analytic complete word-RAM cap, not a physical full solver execution. The binding peak is inherited from the disclosed Step-1 measurement. H1-H3 remain outside the memory checker."
     }
+  ],
+  "restrictions": [
+    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, standard IV once, FIPS 180-4 padding, feed-forward and all eight digest words. Output is two distinct 128-byte messages sharing the first block; Step-3b accepts only equal second-block output states, so every output is a complete collision.",
+    "Algorithm: per chaining value, insert the 2^26 R9 a0 values into 2^23 logical buckets with an exact seven-entry uniform reservoir. Transpose each block of four buckets into two guarded 14-lane tag words and two exact 26-bit-payload words, copy four guards, then scan all 2^32 u words. The twenty r38 heads share q and bucket class. Straddle residues query ordinary and wrapped adjacent groups with polarity filters before C1,C2,G,F7 and Step-3b.",
+    "Machine semantics and cost: explicit MASK32 reductions remain at every u32 consumption boundary. Combined normalization/transpose costs 512 per four buckets. Complete-u class rows are ordinary 267/267/527/527 and straddle 547/847/1127/827, giving fixed scan 401.296875/u. Direct physical tag-address chaining uses ADD;AND;LOAD on each later head. Match handler 28; post-filters 10/25/33/33; Step-3b 3178 plus 20 wrapper; build 80 mean/2200 max per insert; reset 5 per bucket. N_CV=15,580,353,037,155,665; wbar=2,083,674,703,422.4625255...; one-CV maximum=8,007,028,651,854,659; total N=33,344,121,387,140,981,194,339,542,341 operations; time_log2=83.3377911625996..., rounded upward to 83.33780.",
+    "Fail-closed count and bounded-draw caps and the Bernstein work cap are charged. Their global probabilities remain within the separately subtracted 2^-60 exception reserve; the final Bernstein negative log2 exponent is 680.9548....",
+    "Success at least 0.39 is projected under the unchanged H1, H1-P1, H2-P1 and H3-P1 premises. H2 keeps the 0.20-bit transfer from q3_Q >= 2^-96.0791 to q3_P >= 2^-96.2791. H3 keeps the 2^-9 representative-loss charge and endpoint-disjoint full-tail independence/common-p premise. The table transpose and address chain do not strengthen these explicit score-critical heuristics.",
+    "Memory uses the Step-1 peak 286,433,280 bytes, declared as 28.094. The online cap is 286,298,112 bytes; table plus guards is 268,435,584 bytes; code upper bound 5,086,720 bytes fits the 11 MiB executable reserve; advice upper bound 50,608 bytes fits 64 KiB. Score from rounded claims is 91.43180, 0.51680 bit below the live incumbent 91.94860. The package is ready for exploratory review; no qualification, human acceptance or physical full-scale execution is asserted."
   ]
 }
