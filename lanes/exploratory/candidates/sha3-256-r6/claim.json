@@ -7,7 +7,7 @@
     "nonuniform_advice_log2_bytes": 0,
     "preprocessing_log2": 37,
     "success_probability": 0.39,
-    "time_log2": 124.03079,
+    "time_log2": 124.03135,
     "time_unit": "target-compressions"
   },
   "experiment_manifest": "experiments/manifest.json",
@@ -20,9 +20,9 @@
       ],
       "extrapolation": "van Oorschot-Wiener 1999, the common generic-track premise, separation and priced sensitivity in proof Section 6, plus exact-program consistency checks.",
       "id": "H1-random-function-model",
-      "limitations": "Experiments do not reach birthday scale; circuit, memory and comparator-F arithmetic do not depend on H1.",
+      "limitations": "Experiments do not reach birthday scale; circuit, memory and comparator-F arithmetic do not depend on H1. The search parameters, the DP threshold and the whole 200-digit certificate are inherited unchanged from the r20 package: no input of the probability argument depends on the round count, which enters only the chain function, the emitted circuit and the ledger terms that read C.",
       "role": "score-critical",
-      "scope": "The fixed r6 chain, 93000 trails, exact DP threshold, replay cap, 256 lanes and at most 256*Tb evaluations.",
+      "scope": "The fixed r6 chain, 82440 trails, exact DP threshold, replay cap, 256 lanes and at most 256*Tb evaluations.",
       "statement": "H1 is one premise. Let A_g be this bounded attempt on the fixed deterministic walk g. In the real algorithm's probability space, only the fresh uniform word r is random. Let F be a uniformly random function on 256-bit values, independent of r, and let P_F = Pr_(r,F)[A_F succeeds] for the same attempt with each g evaluation replaced by lazy sampling from F. H1 asserts only the aggregate comparison Pr_r[A_g succeeds] >= P_F. Appendix A proves P_F >= 0.39. The following clauses are properties of comparator F used by that proof, not additional premises about g: outputs at distinct fresh inputs are uniform and independent; its iterates have the random-mapping first-collision law; a fresh output satisfies the exact distinguished-point predicate with its stated probability independently of prior collision bookkeeping; and after any lazy-sampling history, a fresh input maps to any fixed earlier output with probability 2^-256. H1 assigns no per-history conditional probability to deterministic g because the history determines r and hence all later g outputs. The aggregate success comparison is the only heuristic step."
     },
     {
@@ -30,9 +30,9 @@
         "experiment:exact-controller",
         "proof:3-5"
       ],
-      "extrapolation": "Quantified in proof Section 3.6: treating every register as ordinary addressed memory gives N_RAM <= 4N, time_log2 <= 126.03078049432722768333238447219848535196858074202785068448764872884781934528590480716757425419022710111845841849412729159392602964492863756241406596605809174039714498988013100445183560172825922304073, and unchanged memory.",
+      "extrapolation": "None statistical: a declared convention. Executed checks validate the program with this allocation, not the convention's cost of register access.",
       "id": "H_reg",
-      "limitations": "Under the alternative ordinary-memory reading, every emitted non-PERM instruction has at most three register accesses and PERM adds at most 3C state accesses. Thus N_RAM <= 4N, time_log2 rises by at most 2.00000 to 126.03078049432722768333238447219848535196858074202785068448764872884781934528590480716757425419022710111845841849412729159392602964492863756241406596605809174039714498988013100445183560172825922304073, and memory is unchanged.",
+      "limitations": "A smaller required register file would add loads and stores absent from this ledger; the success argument is unaffected.",
       "role": "supporting",
       "scope": "The register file used by the straight-line program and the search; it affects the time and memory ledgers only, not the success bound.",
       "statement": "Machine convention: the 256-bit word RAM of collision-frontier-v5 with a declared file of 1940 registers of 256 bits (1929 used by the straight line; the search state begins at register 1929; handler temporaries reuse dead straight-line registers above 255). An operation on register operands costs one word operation, with no load or store; every load and store of the other code is a charged word operation (proof Sections 3.6 and 4). The 62080 bytes of the file are counted as memory. The cost model fixes no register count."
@@ -47,19 +47,19 @@
       "limitations": "A requirement of 32 bytes per straight-line instruction would add code memory; the success argument is unaffected.",
       "role": "supporting",
       "scope": "The code rows of the memory ledger; it does not affect the success bound.",
-      "statement": "Code-memory charging convention: a declared encoding, since the cost model and the target profile fix none. The straight line and prefilter are stored in the two-address encoding of proof Section 3.6 (95301 bytes measured); the other code is stored in 994 8-byte instruction words followed by 12 literal words of 32 bytes (8336 bytes measured). The encoding determines the code bytes counted in memory."
+      "statement": "Code-memory charging convention: a declared encoding, since the cost model and the target profile fix none. The straight line and prefilter are stored in the two-address encoding of proof Section 3.6 (95259 bytes measured); the other code is stored in 1002 8-byte instruction words followed by 12 literal words of 32 bytes (8400 bytes measured). The encoding determines the code bytes counted in memory."
     }
   ],
   "lane": "exploratory",
   "restrictions": [
     "Two distinct 128-byte one-block messages for sha3-256-r6-prefix-v1 under the injective six-lane embedding of proof Section 2.",
-    "The bit-sliced straight line has 26521 register operations, is stored in 95252 bytes under H_code, and has SHA-256 81138a005577147105f8d3c38576c84dfe5484bc8c0d82237419ff359d988de7.",
+    "The bit-sliced straight line has 26508 register operations, is stored in 95210 bytes under H_code, and has SHA-256 2b1eec1753cefed6d1839719754253a0e5ddc4cfa7f0a065c0ce0fd8a5ba1e31. Complement folds NOT(NOT(x)) before a gate is allocated, deleting 19 NOTs from round 1.",
     "The separate prefilter has 15 OR operations, 49 encoded bytes, destination register 1933 and SHA-256 9d37c799e6735d7583803750971187fe83f8ee186f5b3c9b9313b928bd45ce49; the experiment executes the emitted register program.",
     "The chained-chi table has 1,024 entries, checksum c8fa4bd9170966dc, and both shipped builders verify every selected entry against all 32 concrete row inputs before use.",
-    "The assembled other code has 994 8-byte instruction words, 12 32-byte literals, 8336 bytes and SHA-256 30fbe49b3bc5f420ca18261ddb4c37fc9e5b1ff7873c30a90ba6cc93afb9b77b; the experiment executes it and checks the all-no-DP limit halt.",
-    "Machine conventions H_reg and H_code (role supporting; the cost model and target profile fix neither; proof Section 3.6): H_reg declares 1940 registers of 256 bits, whose 62080 bytes are counted as memory; an operation on register operands costs one word operation, with no load or store, and every load and store of the other code is charged. H_code is a declared encoding: the straight line and prefilter use the measured two-address encoding (95301 bytes), while the other code uses 8-byte words plus its literal pool (8336 bytes); the encoding determines the code bytes counted in memory.",
-    "The table has 18600 words and 93000 positional 51-bit slots; every packed-field boundary is exercised.",
-    "Appendix A and the experiment certify success >= 0.39. Exact N=35326926574241068889123645431971742528944, C=1626, memory=866668 bytes, preprocessing=163967893034496 word operations."
+    "The assembled other code has 1002 8-byte instruction words, 12 32-byte literals, 8400 bytes and SHA-256 0026e7ffc96cc4ded46b98e040e743596254f8c9b64e46a2e9cebe33140454ca; the experiment executes it and checks the all-no-DP limit halt.",
+    "Machine conventions H_reg and H_code (role supporting; the cost model and target profile fix neither; proof Section 3.6): H_reg declares 1940 registers of 256 bits, whose 62080 bytes are counted as memory; an operation on register operands costs one word operation, with no load or store, and every load and store of the other code is charged. H_code is a declared encoding: the straight line and prefilter use the measured two-address encoding (95259 bytes), while the other code uses 8-byte words plus its literal pool (8400 bytes); the encoding determines the code bytes counted in memory.",
+    "The table has 16488 words and 82440 positional 51-bit slots; every packed-field boundary is exercised.",
+    "Appendix A and the experiment certify success >= 0.39. Exact N=35340637101563815954524310135853372908247, C=1626, memory=710251 bytes, preprocessing=184030978853888 word operations."
   ],
   "rounds": 6,
   "schema_version": 3,

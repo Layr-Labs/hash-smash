@@ -4,7 +4,18 @@
 
 This package prices an ordinary distinguished-point birthday search for two distinct 128-byte messages with the same `sha3-256-r6-prefix-v1` digest. It claims no weakness in full SHA3-256. Under H1 in Section 6, one bounded attempt succeeds with probability at least 0.39.
 
-The exact ledger has N = 35326926574241068889123645431971742528944 word operations. One target compression costs C = 1626, so `log2(N/C) = 124.03078049432722768333238447219848535196858074202785068448764872884781934528590480716757425419022710111845841849412729159392602964492863756241406596605809174039714498988013100445183560172825922304073` and the upward-rounded claim is **124.03079**. Peak memory is 866668 bytes. Preprocessing is 163967893034496 word operations and no nonuniform advice. 163967893034496 / 1626 = 100841262628.84132841328413284132841328413284132841328413284132841328413284132841328413284132841328413284132841328413284132841328413284132841328413284132841328413284132841328413284132841328413284132841 target compressions, with exact log2 36.553295131101847421230048443797743831453109069854030667214931012344609877445825773186105082246490669315540157309898588570631541975401067377297918041437543245704592794860849091279435157055444154010833; it is declared upward as preprocessing_log2 = 37. Every *_log2 field in claim.json uses the target-compression unit, the same unit as time_log2.
+The exact ledger has N = 35340637101563815954524310135853372908247 word operations. One target compression costs C = 1626, so `log2(N/C) = 124.0313403016559599495104660773756646797426833930963673227770422992653193463892615999117885213722905852741814098787989923370938489303439141855638236827301055386516200003444180057103442220223942162253276928916592193637215` and the upward-rounded claim is **124.03135**. Peak memory is 710251 bytes. Preprocessing is 184030978853888 word operations and no nonuniform advice.
+
+Under `hashsmash-scalar-tm-v1` the rank is `time_log2 + max(0, memory_log2_bytes - 20)`
+with one-MiB memory units floored at one unit. Peak memory is 710,251 bytes, below
+2^20 = 1,048,576, so the memory term is zero and the projected scalar score equals the time
+bound, **124.03135**. The `collision-frontier-v5` score metric is `timeLog2` and that model
+records memory as a reviewed metric with no scalar contribution, so both readings agree
+here. The promoted incumbent on this track stands at 124.03648; this package is 0.00513
+lower. The 0.00102 bit under the previous filing of this package is the 19 NOTs that
+`NOT(NOT(x))` folding removes from the emitted step. `baseline_improved` names the organizer nominal reference and asserts no improvement
+over it: at 6 of 24 rounds this bound is above the nominal 128-bit reference and the
+construction is an ordinary distinguished-point birthday search.
 
 ## 2. Target and chain function
 
@@ -14,13 +25,13 @@ The 25 lane constants in lane order are:
 
 `0000000000000000 0000000000000000 e612b8e44c9e9b1c 0000000000000000 0000000000000000 ffffffffffffffff 0000000000000000 0000000000000000 0000000000000000 0000000000000000 ffffffffffffffff b984ae391327a6c1 0000000000000000 9cc2571c8993d363 8cf6a38dd9b0b271 ffffffffffffffff 8000000000000006 0000000000000000 0000000000000000 0000000000000000 0000000000000000 0000000000000000 0000000000000000 0000000000000000 0000000000000000`
 
-PD is `73858cebfafeef63 2e754022510aaa98 0478200485081089 8808331404011015`. The normative emitter in `experiments/compact.py` derives PD again from the emitted circuit and rejects a mismatch.
+PD is `77858ceb7afeef63 2a754023590aaa98 007820040d081089 8808331404011015`. The normative emitter in `experiments/compact.py` derives PD again from the emitted circuit and rejects a mismatch.
 
 ## 3. Bit-sliced register step
 
-One 256-bit register word carries one bit plane for 256 walks. Round 0 and the theta of round 1 are affine in the point. Later theta columns are built in z order, chi rows use the cheapest exact complement subset and optional 10-gate dependency, and the last round retains only four digest lanes. The frozen plan contains the C/D complements and compact chi decisions for every row. It is bound by SHA-256 `cc656eef16a06e0bfe6e5f63a3ad4d670245895d2886cf6dfed9a45b8e45e6ca`.
+One 256-bit register word carries one bit plane for 256 walks. Round 0 and the theta of round 1 are affine in the point. Later theta columns are built in z order, chi rows use the cheapest exact complement subset and optional 10-gate dependency, and the last round retains only four digest lanes. The frozen plan contains the C/D complements and compact chi decisions for every row. It is bound by SHA-256 `bc0efa7a784bb0eedabe0b682baa64b1ab0532bd850efffe37bc5ada6f05c0be`.
 
-The emitted straight-line register program has 26521 operations: 19147 XOR, 3577 AND, 3079 OR and 718 NOT. Lowest-free last-use allocation names registers 0..1928. It contains 376 14-bit, 16770 25-bit and 9375 36-bit encoded records, 16804 with destination equal to the first operand. Its measured stored size is 95252 bytes and SHA-256 is `81138a005577147105f8d3c38576c84dfe5484bc8c0d82237419ff359d988de7`.
+The emitted straight-line register program has 26508 operations: 19147 XOR, 3577 AND, 3079 OR and 705 NOT. Complement folds `NOT(NOT(x))` to `x` before a node is allocated, which deletes 19 NOTs that round 1 used to emit; the scalar digest is unchanged. Lowest-free last-use allocation names registers 0..1928. It contains 368 14-bit, 16774 25-bit and 9366 36-bit encoded records, 16805 with destination equal to the first operand. Its measured stored size is 95210 bytes and SHA-256 is `2b1eec1753cefed6d1839719754253a0e5ddc4cfa7f0a065c0ce0fd8a5ba1e31`.
 
 ### 3.6 Registers and code encoding (machine conventions H_reg and H_code)
 
@@ -28,99 +39,88 @@ The emitted straight-line register program has 26521 operations: 19147 XOR, 3577
 
 **H_reg (declared machine convention, role supporting in claim.json).** The cost model and target profile fix no register count. This package uses the 256-bit word RAM of collision-frontier-v5 with the declared 1940-register file above. An operation on register operands costs one word operation, with no load or store. Every load and store in the assembled other code is an explicit charged word operation. H_reg affects the time and memory ledgers, not the success bound.
 
-**Sensitivity of H_reg (quantified).** The emitted straight-line and prefilter records read at most two register operands and write at most one. The emitted controller opcode table likewise gives every non-PERM word at most two semantic register reads and one write; unused encoded register fields cause no access. PERM reads and rewrites seven packed state words, so its 14 state accesses are below `3C` for this package's C=1626. Under the alternative reading in which every register is an ordinary memory word addressed immediately, charging each access as a separate load or store makes every ordinary instruction cost at most `1+3=4` word operations and every PERM cost at most `C+3C=4C`. Applying the same factor conservatively to preprocessing gives `N_RAM <= 4N`; therefore `time_log2_RAM <= 126.03078049432722768333238447219848535196858074202785068448764872884781934528590480716757425419022710111845841849412729159392602964492863756241406596605809174039714498988013100445183560172825922304073`, exactly at most 2.00000 above the claimed model, while the memory bound is unchanged because the register file is already included. The claim is made under H_reg because the cost model fixes no register count; this replacement bound only quantifies that dependence.
-
 **H_code (declared code-memory charging convention, role supporting in claim.json).** The cost model and target profile fix no code encoding.
 
-- **Encoding.** Each straight-line instruction has register operands only. Bits 0..1 give XOR, AND, OR or NOT and bit 2 flags destination equal to the first operand. With that flag, NOT carries one 11-bit register and a binary operation carries two; without it, NOT carries destination and source while a binary operation carries destination and two sources. Commutative operations swap operands when the destination equals the second. Records are packed without inter-record padding in a little-endian bit stream. The straight-line file is 95252 bytes. The separate prefilter is a 15-operation OR chain from digest planes 240 through 255 into register 1933: first `OR R_PREFILTER,240,241`, then `OR R_PREFILTER,R_PREFILTER,plane`. It uses the same encoding, occupies 49 bytes, and has SHA-256 `9d37c799e6735d7583803750971187fe83f8ee186f5b3c9b9313b928bd45ce49`. The two files occupy 95301 bytes under H_code.
-- **Other code.** Setup, loop control, handlers, restart, replay and output are assembled as 994 fixed 8-byte instruction words followed by 12 distinct 32-byte literal words, 8336 bytes total, SHA-256 `30fbe49b3bc5f420ca18261ddb4c37fc9e5b1ff7873c30a90ba6cc93afb9b77b`. A word has a 5-bit opcode, one literal flag, three 11-bit register fields and a 25-bit immediate or literal index. The assembled operations are model primitives; each is charged as the word operation it performs, except PERM at C operations. Loads and stores are explicit among those instructions.
+- **Encoding.** Each straight-line instruction has register operands only. Bits 0..1 give XOR, AND, OR or NOT and bit 2 flags destination equal to the first operand. With that flag, NOT carries one 11-bit register and a binary operation carries two; without it, NOT carries destination and source while a binary operation carries destination and two sources. Commutative operations swap operands when the destination equals the second. Records are packed without inter-record padding in a little-endian bit stream. The straight-line file is 95210 bytes. The separate prefilter is a 15-operation OR chain from digest planes 240 through 255 into register 1933: first `OR R_PREFILTER,240,241`, then `OR R_PREFILTER,R_PREFILTER,plane`. It uses the same encoding, occupies 49 bytes, and has SHA-256 `9d37c799e6735d7583803750971187fe83f8ee186f5b3c9b9313b928bd45ce49`. The two files occupy 95259 bytes under H_code.
+- **Other code.** Setup, loop control, handlers, restart, replay and output are assembled as 1002 fixed 8-byte instruction words followed by 12 distinct 32-byte literal words, 8400 bytes total, SHA-256 `0026e7ffc96cc4ded46b98e040e743596254f8c9b64e46a2e9cebe33140454ca`. A word has a 5-bit opcode, one literal flag, three 11-bit register fields and a 25-bit immediate or literal index. The assembled operations are model primitives; each is charged as the word operation it performs, except PERM at C operations. Loads and stores are explicit among those instructions.
 - **Time ledger.** The straight line contributes one charged word operation for each logical XOR, AND, OR or NOT under H_reg. H_code determines only the stored code bytes charged in memory. The bounded C emitters and organizer experiment reconstruct the encodings, hashes and functional program.
 
 ### Construction campaign
 
-This is a selected-round re-target of the fully charged and accepted round-17 construction campaign. That source campaign built and verified the chained-chi table, scanned all 512 S3-04 trials, ran the TOPK=8 full planners for 200,000,000 iterations per planned round, selected trial 1333, emitted and verified its program, and produced the Appendix A search parameters used here. All of its preprocessing rows are inherited in full below.
+The construction first builds the exact chained-chi table. For each of 32 input polarities and 32 requested output polarities it enumerates every complement subset, every trick mask except the five-cycle, and every mixed-term polarity mask. A non-trick output anchors the row; outputs are then built backward, and a trick reads the already computed next output using `(not out[k]) and b[k+1] = (not b[k]) and b[k+1]`. Before use, the builder evaluates each selected entry on all 32 concrete row inputs and requires ordinary chi and the requested output polarity. The 1,024-entry C and Python tables have the same FNV-1a checksum `c8fa4bd9170966dc`.
 
-For this package the same trial, constants, prefix decisions and retained polarity-plan prefix are cropped at round 6; the now-closing round's unused generic complement record is reset to zero, exactly as in a plan built for this target. No new plan search occurs. The bounded C emitter and the independent Python emitter re-derive the round-6 circuit, PD, allocation, packed bytes and hash. The native8 controller is independently assembled at C=1626. Re-emission, hashing, parsing, field checks, scalar verification, the 200-digit certificate check and package rendering are added to—not substituted for—the inherited construction charge. The chained table is verified again by both emitters.
+The generator then builds all 512 S3-04 trials without annealing and retains the lowest eight counts. Each retained trial runs deterministic one-round-lookahead annealing for 200,000,000 iterations per planned round. A state move flips one C complement, one D complement, or an output-polarity subset. Current and lookahead row costs come from the verified chained table. The objective is 16 times current exact row cost plus 3 times the next-round lower bound. For `x = -3.1780538303479458*i/200000000`, the declared temperature is `19.2*E(x)`, where `E(x) = (1+y+y^2/2+y^3/6+y^4/24)^64` and `y=x/64`; acceptance uses the same deterministic bounded exponential. Ties retain the earlier deterministic choice. That campaign ran at nr = 20, where trial 1333 wins with 118445 operations. This package reuses the resulting frozen plan at nr = 6 without re-running the search: plan rows `FG 2` through `FG 5` are live, rows `FG 6` through `FG 19` are inert and are never read by the emitter, and round 5 becomes the last round, so its complement masks and chi decisions were searched in a non-last-round context. The masks are representation choices and the emitter compensates polarity symbolically, so the circuit is correct at this nr: the self-test re-derives PD and every hash, and the organizer experiment checks two chained bit-sliced steps against scalar selected-round Keccak. It is not plan-optimal, and a fresh search at this nr would likely emit fewer operations. The operation count stated in Section 3 above is this package's own emitted count, not trial 1333's nr = 20 count. Lowest-free allocation and the two-address packer then emit the frozen program. The charged ledger below totals the chained-table build and verification, every cheap build, every TOPK process, every annealing move, and the separate emitter, hashing and verification work.
 
 ## 4. Search, table, and controller
 
-The attempt starts 256 walks from `rho + trail_number`. It advances all walks through the step, applies a 15-OR prefilter, and handles exact distinguished points with probability `712 * 2^-121`. The table has 18600 256-bit words and 93000 slots. Each word has five 51-bit slots: written bit followed by 50 endpoint bits. The word and slot position encode the trail number, so no trail number is stored in a slot. The 256 live walks use one packed word apiece: low 128 bits are the start step and high 128 bits are the positional trail number.
+The attempt starts 256 walks from `rho + trail_number`. It advances all walks through the step, applies a 15-OR prefilter, and handles exact distinguished points with probability `630 * 2^-121`. The table has 16488 256-bit words and 82440 slots. Each word has five 51-bit slots: written bit followed by 50 endpoint bits. The word and slot position encode the trail number, so no trail number is stored in a slot. The 256 live walks use one packed word apiece: low 128 bits are the start step and high 128 bits are the positional trail number.
 
-On a prefilter hit, 256 stores copy the carried planes to a scratch matrix. Charged indexed loops gather or replace one lane; 256 fixed loads restore the planes. A matching endpoint starts the final replay. Replay measures the stored trail while keeping every `G = ceil(LRC/(S-1)) = 2107889139913890569390211303440`-th point in the now-free table, advances the other trail to alignment, locates the merge segment by checkpoints, then lock-steps only that segment. With `e = C+29`, at most one replay costs `(2e+17)LRC + (3e+20)G + 17*nck + e + 93 = 130444312214173336223682982892019603835` operations.
+On a prefilter hit, 256 stores copy the carried planes to a scratch matrix. Charged indexed loops gather or replace one lane; 256 fixed loads restore the planes. A matching endpoint starts the final replay. Replay measures the stored trail while keeping every `G = ceil(LRC/(S-1)) = 2687423885757092749185025704247`-th point in the now-free table, advances the other trail to alignment, locates the merge segment by checkpoints, then lock-steps only that segment. With `e = C+29 = 1655`, at most one replay costs `(2e+17)LRC + (3e+20)G + 17*nck + e + 93 = 147424640958166104101746264353840690602` operations.
 
-The assembled controller and handlers have the H_code size and hash stated in Section 3.6. Their register-register, immediate, compare, branch, jump, load, store and random-word instructions each contribute their explicit word operation; PERM contributes C. The step peaks at register 1928; the controller places its first persistent register at 1929 and declares 1940 words, so the lifetimes do not overlap. The controller permits at most HMAX = 44384159803516906822519431956004865 prefilter hits and aborts on hit 44384159803516906822519431956004866; that exact abort value is a checked controller literal and the input to F5 below.
+The assembled controller and handlers have the H_code size and hash stated in Section 3.6. Their register-register, immediate, compare, branch, jump, load, store and random-word instructions each contribute their explicit word operation; PERM contributes C. The step peaks at register 1928; the controller places its first persistent register at 1929 and declares 1940 words, so the lifetimes do not overlap. The controller permits at most HMAX = 49488991847959593483692939797331969 prefilter hits and aborts on hit 49488991847959593483692939797331970; that exact abort value is a checked controller literal and the input to F5 below.
 
-Setup initializes `remaining = Tb = 1325958336173754933667940744388673536`. Every continuation path executes `remaining -= 1`, branches to the step only while the result is nonzero, and otherwise reaches HALT. The exact-byte experiment starts `remaining` at three, supplies only no-DP prefilter results, requires exactly two back-edges, and then requires the charged-limit HALT. Thus every path stops by the batch bound or at an earlier charged halt.
+Setup initializes `remaining = Tb = 1326445901334107559259970314262544384`. Every continuation path executes `remaining -= 1`, branches to the step only while the result is nonzero, and otherwise reaches HALT. The exact-byte experiment starts `remaining` at three, supplies only no-DP prefilter results, requires exactly two back-edges, and then requires the charged-limit HALT. Thus every path stops by the batch bound or at an earlier charged halt.
 
 ## 5. Exact operation and memory ledgers
 
-`BSTEP = 26521 + 15 + 2 + 2 = 26540`. The added terms are the emitted prefilter ORs, its compare and branch, then the count-down subtract and conditional back-edge. Main work is `35190934242051455939547147356075395645440`. Replay is `130444312214173336223682982892019603835`. All hit, DP, probe, restart, setup, cap and final-halt paths contribute `5548019975439613352814929036434245173`. Preprocessing contributes `163967893034496`. 163967893034496 / 1626 = 100841262628.84132841328413284132841328413284132841328413284132841328413284132841328413284132841328413284132841328413284132841328413284132841328413284132841328413284132841328413284132841328413284132841 target compressions, with exact log2 36.553295131101847421230048443797743831453109069854030667214931012344609877445825773186105082246490669315540157309898588570631541975401067377297918041437543245704592794860849091279435157055444154010833; it is declared upward as preprocessing_log2 = 37. Every *_log2 field in claim.json uses the target-compression unit, the same unit as time_log2. Their sum is N above.
+`BSTEP = 26508 + 15 + 2 + 2 = 26527`. The added terms are the emitted prefilter ORs, its compare and branch, then the count-down subtract and conditional back-edge. Main work is `35186630424689871224489232526442514874368`, this package's own `Tb * BSTEP`. Replay is `147424640958166104101746264353840690602`, the closed form of Section 4 evaluated at this round's `e = C + 29 = 1655`. The hit, DP, probe, restart, setup, cap and final-halt paths contribute `6582035915778625933331161026038489389` and preprocessing contributes `184030978853888`; those two terms are carried from the r20 package and Section 9 shows that each bounds this package's own figure. Their sum is N above.
 
 | preprocessing phase | class | word operations |
 |---|---|---:|
-| inherited source campaign: 512-trial cheap constant scan | word operations | 2199023255552 |
-| inherited source campaign: eight sequential full graph campaigns | word operations | 67070209294336 |
-| inherited source campaign: eight sequential annealing campaigns | word operations | 91750400000000 |
-| inherited source campaign: chained row-table candidate evaluations in ten sequential processes | word operations | 1300234240 |
-| inherited source campaign: chained row-table exhaustive truth checks in ten sequential processes | word operations | 83886080 |
-| inherited source campaign: row-table setup and deterministic selection | word operations | 10485760 |
-| inherited source campaign: constant derivation and comparisons | word operations | 524288 |
-| inherited source campaign: structured affine basis | word operations | 16777216 |
-| inherited source campaign: native parameter scan bins and fixed work | word operations | 2809280856064 |
-| inherited source campaign: normative step, prefilter and controller emission | word operations | 25534720 |
-| inherited source campaign: streaming SHA-256 of basis, step and controller | word operations | 48201728 |
-| inherited source campaign: construction-time step parsing, field, and ledger verification | word operations | 26583296 |
-| inherited source campaign: exact Decimal certificate and package rendering | word operations | 68719476736 |
-| selected-round step, prefilter and controller re-emission | word operations | 7047680 |
-| streaming SHA-256 of re-emitted selected-round programs | word operations | 13303808 |
-| selected-round parsing, field, ledger and scalar verification | word operations | 8096256 |
-| 200-digit selected-round certificate and package rendering | word operations | 68719476736 |
+| 512-trial cheap constant scan | word operations | 2199023255552 |
+| eight sequential full graph campaigns | word operations | 67276367724544 |
+| eight sequential annealing campaigns | word operations | 111411200000000 |
+| chained row-table candidate evaluations in ten sequential processes | word operations | 1300234240 |
+| chained row-table exhaustive truth checks in ten sequential processes | word operations | 83886080 |
+| row-table setup and deterministic selection | word operations | 10485760 |
+| constant derivation and comparisons | word operations | 524288 |
+| structured affine basis | word operations | 16777216 |
+| native parameter scan bins and fixed work | word operations | 3074137325568 |
+| normative step, prefilter and controller emission | word operations | 30582272 |
+| streaming SHA-256 of basis, step and controller | word operations | 56950784 |
+| construction-time step parsing, field, and ledger verification | word operations | 31630848 |
+| exact Decimal certificate and package rendering | word operations | 68719476736 |
 
 The search memory is:
 
 | region | bytes |
 |---|---:|
+| step program (H_code) | 95210 |
+| prefilter (H_code) | 49 |
+| other code and literal pool (H_code) | 8400 |
+| register file | 62080 |
+| table | 527616 |
+| transpose scratch | 8192 |
+| packed walk words | 8192 |
 | data image | 512 |
 | online stack | 0 |
-| other code and literal pool (H_code) | 8336 |
-| packed walk words | 8192 |
-| prefilter (H_code) | 49 |
-| register file | 62080 |
 | replay checkpoints (alias table) | 0 |
-| step program (H_code) | 95252 |
-| table | 595200 |
-| transpose scratch | 8192 |
-| **search total** | **777813** |
+| **search total** | **710251** |
 
 The online controller uses link registers and zero stack. Replay checkpoints alias the table after a match, when the ordinary endpoint table is no longer needed. Construction phases run sequentially before the search; their measured memory ledger follows the search table and their lifetimes do not overlap it.
 
 | sequential construction phase | image bytes | stack reserve | measured VmHWM | retained input/output | charged peak |
 |---|---:|---:|---:|---:|---:|
-| inherited r17 campaign: 512-trial cheap scan | 329527 | 262144 | 421888 | 18432 | 610103 |
-| inherited r17 campaign: TOPK full build 1 | 329527 | 262144 | 417792 | 42865 | 634536 |
-| inherited r17 campaign: TOPK full build 2 | 329527 | 262144 | 421888 | 42865 | 634536 |
-| inherited r17 campaign: TOPK full build 3 | 329527 | 262144 | 417792 | 42865 | 634536 |
-| inherited r17 campaign: TOPK full build 4 | 329527 | 262144 | 413696 | 42865 | 634536 |
-| inherited r17 campaign: TOPK full build 5 | 329527 | 262144 | 417792 | 42865 | 634536 |
-| inherited r17 campaign: TOPK full build 6 | 329527 | 262144 | 417792 | 42865 | 634536 |
-| inherited r17 campaign: TOPK full build 7 | 329527 | 262144 | 413696 | 42865 | 634536 |
-| inherited r17 campaign: TOPK full build 8 | 329527 | 262144 | 417792 | 42865 | 634536 |
-| inherited r17 campaign: structured-basis file verification | 9766 | 16384 | 28672 | 22999 | 51671 |
-| inherited r17 campaign: native finite parameter scan | 12286 | 16384 | 24576 | 73 | 28743 |
-| inherited r17 campaign: streaming native step emission | 423581 | 98304 | 430080 | 344783 | 866668 |
-| inherited r17 campaign: streaming step SHA-256 | 9766 | 16384 | 28672 | 344783 | 373455 |
-| inherited r17 campaign: construction-time step parsing, field, and ledger verification | 9298 | 16384 | 28672 | 344783 | 373455 |
-| inherited r17 campaign: native 15-OR prefilter emission | 8254 | 16384 | 20480 | 49 | 24687 |
-| inherited r17 campaign: streaming prefilter SHA-256 | 9766 | 16384 | 28672 | 49 | 28721 |
-| inherited r17 campaign: native8 controller emission | 50325 | 16384 | 57344 | 8336 | 75045 |
-| inherited r17 campaign: streaming controller SHA-256 | 9766 | 16384 | 32768 | 8336 | 41104 |
-| selected-round streaming step re-emission | 416757 | 98304 | 376832 | 95252 | 610313 |
-| selected-round streaming step SHA-256 | 9766 | 16384 | 32768 | 95252 | 128020 |
-| selected-round parsing, field and ledger verification | 9298 | 16384 | 24576 | 95252 | 120934 |
-| selected-round prefilter emission | 8254 | 16384 | 20480 | 49 | 24687 |
-| selected-round native8 controller emission | 50325 | 16384 | 57344 | 8336 | 75045 |
+| 512-trial cheap scan | 329527 | 262144 | 417792 | 18432 | 610103 |
+| TOPK full build 1 | 329527 | 262144 | 417792 | 51625 | 643296 |
+| TOPK full build 2 | 329527 | 262144 | 413696 | 51625 | 643296 |
+| TOPK full build 3 | 329527 | 262144 | 413696 | 51625 | 643296 |
+| TOPK full build 4 | 329527 | 262144 | 417792 | 51625 | 643296 |
+| TOPK full build 5 | 329527 | 262144 | 417792 | 51625 | 643296 |
+| TOPK full build 6 | 329527 | 262144 | 417792 | 51625 | 643296 |
+| TOPK full build 7 | 329527 | 262144 | 413696 | 51625 | 643296 |
+| TOPK full build 8 | 329527 | 262144 | 413696 | 51625 | 643296 |
+| structured-basis file verification | 9766 | 16384 | 32768 | 22999 | 55767 |
+| native finite parameter scan | 12286 | 16384 | 28672 | 73 | 28745 |
+| streaming native step emission | 423581 | 98304 | 438272 | 413080 | 934965 |
+| streaming step SHA-256 | 9766 | 16384 | 24576 | 413080 | 439230 |
+| construction-time step parsing, field, and ledger verification | 9298 | 16384 | 24576 | 413080 | 438762 |
+| native 15-OR prefilter emission | 8254 | 16384 | 24576 | 49 | 24687 |
+| streaming prefilter SHA-256 | 9766 | 16384 | 28672 | 49 | 28721 |
+| native8 controller emission | 50645 | 16384 | 57344 | 8400 | 75429 |
+| streaming controller SHA-256 | 9766 | 16384 | 28672 | 8400 | 37072 |
 
-Every phase ran alone under `prlimit --as=1048576` and its listed stack cap. The charged peak is `max(VmHWM,image+stack)+retained input/output`; this deliberately charges an entire generated program even though the emitters stream it. Construction peaks at 866668 bytes. Search peaks at 777813 bytes. The claimed peak is their maximum, 866668 bytes.
+Every phase ran alone under `prlimit --as=1048576` and its listed stack cap. The charged peak is `max(VmHWM,image+stack)+retained input/output`; this deliberately charges an entire generated program even though the emitters stream it. Construction peaks at 934965 bytes, measured on the r20 emission of the inherited campaign; this package's straight line is smaller, so that row bounds it. Search peaks at 710251 bytes. The claimed peak is their maximum, 710251 bytes.
 
 ## 6. Probability space, H1, and success
 
@@ -130,7 +130,7 @@ H1 is one premise. Let A_g be this bounded attempt on the fixed deterministic wa
 
 ### Lazy-sampling order and first coincidence
 
-Let `M = 2^256`, `L = 256`, `theta = 712 / 2^121`, `q = 1-theta`, and `E = L*Tb`. Comparator F starts undefined. Evaluations are ordered first by batch and then by lane. A fresh input is one not queried earlier in that order; it receives a new independent uniform image and stores it. A repeated input returns its stored image and consumes no new random value. For bookkeeping, attach an independent candidate image `V_t` to every evaluation position and use it exactly when that position's input is fresh. Its DP indicator is Bernoulli(theta), independently across t.
+Let `M = 2^256`, `L = 256`, `theta = 630 / 2^121`, `q = 1-theta`, and `E = L*Tb`. Comparator F starts undefined. Evaluations are ordered first by batch and then by lane. A fresh input is one not queried earlier in that order; it receives a new independent uniform image and stores it. A repeated input returns its stored image and consumes no new random value. For bookkeeping, attach an independent candidate image `V_t` to every evaluation position and use it exactly when that position's input is fresh. Its DP indicator is Bernoulli(theta), independently across t.
 
 This also proves the restart domination used by F2. A fresh-input DP uses one Bernoulli indicator. A DP returned at a repeated input was already the endpoint of the earlier trail that first exposed it, so the table lookup finds that record and enters replay instead of consuming a new trail number. Thus the number of DP restarts is at most the number of DP indicators among `V_1..V_E`.
 
@@ -142,9 +142,9 @@ Suppose the first coincidence occurs at evaluation t with earlier partner s. The
 
 Given the first `m=t-1` DP indicators, with fewer than U ones outside F2, images are uniform within the `theta*M` DP values and the `(1-theta)*M` non-DP values. Comparing their without-replacement products with `pi_m` bounds the relative deviation by
 
-`Delta = U*E/M + E^2*theta/(2M) + U^2/(2*theta*M) = 5.4533062764251491470095373418931247360122632654733671223983927457219700157819766912873779723310149476577043667003831512957230587019009536571716994382022471910112359550561797752808988764044943820224719E-34`.
+`Delta = U*E/M + E^2*theta/(2M) + U^2/(2*theta*M) = 4.8359525202541534942256638908983861189812216092296326327469927043306618689838140446698686739029671634505904273141193730875134601124695369175502232142857142857142857142857142857142857142857142857142857E-34`.
 
-Appendix A checks `Delta < 2^-109`. The upper product ratio is `(1-E/M)^(-U) = 1.0000000000000000000000000000000002726301621773591511517191645631968685404080640696878517072889918802069767925173701693764597790205097319758373780398409025808778435642707328862701945274277581961927645` and the Bayes ratio is at most `R=(1-E/M)^(-U)/(1-Delta) = 1.0000000000000000000000000000000008179607898198740658526728987525097882007052900561730562656607259066431124041736972533003008046582210148551527107344484086510313086140581362812808572324402777108526801 <= 1+2^-108`. This requires the checked nonempty DP and non-DP partitions and `E/M <= 1/2`.
+Appendix A checks `Delta < 2^-109`. The upper product ratio is `(1-E/M)^(-U) = 1.0000000000000000000000000000000002417623121883373883523121065861231479941112815674869928863810458190162276186634375402114863411630772211512665212377381081531418584113949255108916440248011359197646072` and the Bayes ratio is at most `R=(1-E/M)^(-U)/(1-Delta) = 1.0000000000000000000000000000000007253575642137527377748784956759621106717075169816032968875288411101453066137556446764280627573300624436159937317896489962949806680099993161223792475321929788645303965 <= 1+2^-108`. This requires the checked nonempty DP and non-DP partitions and `E/M <= 1/2`.
 
 The Bayes calculation uses a masked filtration: it reveals the equality structure and the indicators of other walks but integrates over the DP indicators on the suffix currently selected by the common path. This is a probability calculation over comparator F; the operational run may already have exposed that suffix.
 
@@ -158,98 +158,98 @@ For bin `j = 1..J`, the common tail l lies in `((j-1)W,jW]` with iid reference m
 
 `Pcov = sum_(j=1)^J (q^((j-1)W)-q^(jW))*B(n_j)`.
 
-Here `J = 61854`, `W = 633825300114114700748351602688`, and `J*W = LRC = 39204630113258450700088540032663552`. The experiment asserts that equality and recomputes every term in order.
+Here `J = 69905`, `W = 633825300114114700748351602688`, and `J*W = LRC = 44307557604477188155813518785904640`. The experiment asserts that equality and recomputes every term in order.
 
 ### Failure bounds F2 through F6
 
 F1 is the covered event counted by `Pcov`. The remaining named terms are upper bounds subtracted from it.
 
-- F2, table exhaustion. The restart domination above gives `X <= Binomial(E,theta)` with mean `mu = E*theta = 90911.8219814300537109375000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000`. Starting the `(U-L+1)`-st replacement trail needs at least `k=U-L=92744` such fresh DP outputs. For `k>mu`, the exponential-moment Chernoff bound is `Pr[X>=k] <= exp(-mu+k*(1+ln(mu/k)))`. Appendix A asserts its strict precondition.
+- F2, table exhaustion. The restart domination above gives `X <= Binomial(E,theta)` with mean `mu = E*theta = 80471.219251155853271484375000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000`. Starting the `(U-L+1)`-st replacement trail needs at least `k=U-L=82184` such fresh DP outputs. For `k>mu`, the exponential-moment Chernoff bound is `Pr[X>=k] <= exp(-mu+k*(1+ln(mu/k)))`. Appendix A asserts its strict precondition.
 - F3, a coincidence within one trail. If a trail has geometric length A, then a union bound over its input pairs is `A*(A-1)/(2M)`. Since `E[A*(A-1)/2]=q/theta^2 <= 1/theta^2`, at most U trails contribute `F3=U/(theta^2*M)`.
-- F4, starts/replay boundaries and endpoint aliases. The U starts are fixed distinct translations of rho. Comparing them with at most E exposed inputs and images, plus the four selected replay boundary values, gives the explicit union bound `2*U*(E+4)/M = 5.4526032435471830230343832912639366275923689142961314587863202347118983689293825552691994999341855538039161012748058010613080158258338244056104718669593534971616435361644296834007783481013120763236657E-34 <= 2^-90`. Replay otherwise re-evaluates already exposed trail points and creates no new F sample. For aliases, conditioning on the DP predicate leaves the low 50 stored bits uniform. Fewer than `U*(U-1)/2` pairs therefore contribute less than `U^2*2^-51`.
-- F5, hit-cap abort. Let X' count steps in which at least one fresh input has a 16-bit-prefilter image. Conditional on every prior adaptive choice, its one-step probability is at most `1-(1-2^-16)^256 = 0.00389866021631819777212921699057604228934907591347168173766934280389107431763886868964603102771424503147662168070206359168124436875563141323855886959184928433004874414589474610857484934350677083543632 < 2^-8`. Outside F4, a hit not counted by X' requires a repeated input and therefore occurs only after the first coincidence. Outside F6 the attempt stops within LRC later steps, so `hits <= X'+LRC`. Abort at hit 44384159803516906822519431956004866 therefore requires `X' >= h-LRC = 5179529690258456122430891923341314`. For the supermartingale `exp(s*X'_t-(exp(s)-1)*t/256)`, multiplicative Chernoff with `mu'=Tb/256=5179524750678730209640393532768256.00000000` and `delta=9.536743164062500000000000003861358128924700975250345118698451486303657888206937888329881958222834143571875498896875807411310101256276564883007339962182114854057958741866616089905443747602967950E-7>2^-20` gives exponent `-mu'*delta^2/(2+delta) = -2355374036092164233315.6298372126397293502850487704264466298685017655594979025667042548433997237016794469251118091236642105967763978569439521257431398894485124113252314609966301552294685041300260454366`. This is below `-1000*ln(2)`, so F5 is safely rounded up to `2^-1000`.
-- F6, replay-cap refusal for the first-collision pair. Define an evaluation's age as its position in its current trail. Before the first coincidence, `Pr[age>=a] <= q^(a-1)`. Put `g(a)=min(1,q^(LRC+1-a))`. Summation by parts gives `E[g(age)] <= q^LRC + LRC*theta*q^LRC = G6`, where `G6=0.00031667909426037105941508320214937060199154109117358893263827061925923399740035084155734768296066160736452070007565526017915969197254168193964689892970815481258300740805731394400598576251592025327473506`. For a first-collision pair with ages a and b, refusal is bounded by `g(max(a,b)) <= g(a)+g(b)`, producing `2*G6`. Given fewer than U DPs, the distinct-prefix conditioning costs `(1-E/M)^(-U)`. Summing first-collision mass telescopes because `(t-1)*pi_(t-1)/M=pi_(t-1)-pi_t`. Finally `ln(1-x)>=-x-x^2` for `0<=x<=1/2` gives `1-pi_E <= 1-exp(-E^2/(2M)-E^3/(3M^2)) = 0.39197738796240174026269689679162809178335059558866342738985263399843128558663918161304509101245262829684350600623096875328734024718557078930609888907136331575878305125119026094673472946673255326244082`. Hence `F6=2*G6*(1-exp(-E^2/(2M)-E^3/(3M^2)))*(1-E/M)^(-U)`.
+- F4, starts/replay boundaries and endpoint aliases. The U starts are fixed distinct translations of rho. Comparing them with at most E exposed inputs and images, plus the four selected replay boundary values, gives the explicit union bound `2*U*(E+4)/M = 4.8352462437667477670462421317224623754419370582498990814927230813382754327931946096474217243136157821895862753833613701827336862869004353118121215130336462613549020765741460548339802905104534147540107E-34 <= 2^-90`. Replay otherwise re-evaluates already exposed trail points and creates no new F sample. For aliases, conditioning on the DP predicate leaves the low 50 stored bits uniform. Fewer than `U*(U-1)/2` pairs therefore contribute less than `U^2*2^-51`.
+- F5, hit-cap abort. Let X' count steps in which at least one fresh input has a 16-bit-prefilter image. Conditional on every prior adaptive choice, its one-step probability is at most `1-(1-2^-16)^256 = 0.00389866021631819777212921699057604228934907591347168173766934280389107431763886868964603102771424503147662168070206359168124436875563141323855886959184928433004874414589474610857484934350677083543632 < 2^-8`. Outside F4, a hit not counted by X' requires a repeated input and therefore occurs only after the first coincidence. Outside F6 the attempt stops within LRC later steps, so `hits <= X'+LRC`. Abort at hit 49488991847959593483692939797331970 therefore requires `X' >= h-LRC = 5181434243482405327879421011427330`. For the supermartingale `exp(s*X'_t-(exp(s)-1)*t/256)`, multiplicative Chernoff with `mu'=Tb/256=5181429302086357653359259040088064.00000000` and `delta=9.536743164062500000000000003859938799502057693648455539806599680402885584762688388210490300376409036908642326109783193224630242747329317517912407024974779477769136700328977714010890654473991469E-7>2^-20` gives exponent `-mu'*delta^2/(2+delta) = -2356240125386426341793.5359356231991878161194442580232028034535217093261954979668872426316278284684093874687837187587059103902305952787444210257610465136849859332688481405455145756998361839143745607314`. This is below `-1000*ln(2)`, so F5 is safely rounded up to `2^-1000`.
+- F6, replay-cap refusal for the first-collision pair. Define an evaluation's age as its position in its current trail. Before the first coincidence, `Pr[age>=a] <= q^(a-1)`. Put `g(a)=min(1,q^(LRC+1-a))`. Summation by parts gives `E[g(age)] <= q^LRC + LRC*theta*q^LRC = G6`, where `G6=0.00031667206278890493147751918392665261643025029051423959929495529161996152885454777106180254515383109569845280083703091648398449619236172968257429797443421883287732836229703531009720296887137848883417358`. For a first-collision pair with ages a and b, refusal is bounded by `g(max(a,b)) <= g(a)+g(b)`, producing `2*G6`. Given fewer than U DPs, the distinct-prefix conditioning costs `(1-E/M)^(-U)`. Summing first-collision mass telescopes because `(t-1)*pi_(t-1)/M=pi_(t-1)-pi_t`. Finally `ln(1-x)>=-x-x^2` for `0<=x<=1/2` gives `1-pi_E <= 1-exp(-E^2/(2M)-E^3/(3M^2)) = 0.39219986422859216320962855998398785803227971663134774250643564775962471000143379649294346888946237469869803372998891745365223677793563949099743849731381176095656876178781085455829312578928410618143810`. Hence `F6=2*G6*(1-exp(-E^2/(2M)-E^3/(3M^2)))*(1-E/M)^(-U)`.
 
 The conditioning lemma contributes `2^-108*(1+F6)` after the same lazy-sampling exposure, and `2^-60` covers all numerical approximation and bin-boundary rounding. A union bound gives
 
 `P_F >= Pcov - F2 - F3 - 2^-90 - U^2/2^51 - F5 - F6 - 2^-108*(1+F6) - 2^-60`.
 
-Every exponential and logarithm is evaluated with 200-digit Decimal arithmetic. The certificate counts at most 3962752 final-scale rounded operations. Recurrence multipliers lie in `[0,1]`; all other probability-scale intermediates are below four; integer products through `E^2` are exact and the only larger power is divided by `M^2`. The subtraction `q=1-theta` has absolute error below `1e-199`; on the live domain `q>1/2`, logarithm propagation and multiplication by `LRC<1e36` remain below `2e-163`. The audited `1e-140` final-scale allowance per counted operation is therefore conservative. Its accumulated bound is `3.962752E-134 < 2^-200`, strictly below the subtracted `2^-60` numerical term. Appendix A records 200-digit values and outward intervals by moving every endpoint one representable value outward. Its computed comparator-F bound is `0.39000000083297832218182518858987050679688137049021269065978753904866744482080022033782053734016026473489127221889034980598706700011875266565836780577125735073281058080645700971565330113085300125471478`, a margin of `8.3297832218182518858987050679688137049021269065978753904866744482080022033782053734016026473489127221889034980598706700011875266565836780577125735073281058080645700971565330113085300125471478E-10` above 0.39. The outward-rounded lower endpoint is `0.39000000083297832218182518858987050679688137049021269065978753904866744482080022033782053734016026473489127221889034980598706700011875266565836780577125735073281058080645700971565330113085300125471477 >= 0.39`; the preceding allowed Tb grid point is `0.38999999970405103831799711012993292851780650713135186412010880704062044388718787195857532220359102323044901767831255498318342240183288410329464520407329347348490504134052422314995409777910418983778432 < 0.39`.
+Every exponential and logarithm is evaluated with 200-digit Decimal arithmetic. The certificate counts at most 4478016 final-scale rounded operations. Recurrence multipliers lie in `[0,1]`; all other probability-scale intermediates are below four; integer products through `E^2` are exact and the only larger power is divided by `M^2`. The subtraction `q=1-theta` has absolute error below `1e-199`; on the live domain `q>1/2`, logarithm propagation and multiplication by `LRC<1e36` remain below `2e-163`. The audited `1e-140` final-scale allowance per counted operation is therefore conservative. Its accumulated bound is `4.478016E-134 < 2^-200`, strictly below the subtracted `2^-60` numerical term. Appendix A records 200-digit values and outward intervals by moving every endpoint one representable value outward. Its computed comparator-F bound is `0.39000000100893169635571528749243769938549682679120376397273046820937097830053366886552323272984604902280450211507298764194915861683568901882430340090679603824923948337297548455813900594513814919182329`, a margin of `1.00893169635571528749243769938549682679120376397273046820937097830053366886552323272984604902280450211507298764194915861683568901882430340090679603824923948337297548455813900594513814919182329E-9` above 0.39. The outward-rounded lower endpoint is `0.39000000100893169635571528749243769938549682679120376397273046820937097830053366886552323272984604902280450211507298764194915861683568901882430340090679603824923948337297548455813900594513814919182328 >= 0.39`; the preceding allowed Tb grid point is `0.38999999988001382652894024974508532215440647359061991312544547090451464667561690534994773597454350304807242064782681088349536179823691528039343902551835580590058295390677655147066760098685970719551153 < 0.39`.
 
 Support for H1 is positive and specific. The algorithm is the parallel collision search of Paul C. van Oorschot and Michael J. Wiener, "Parallel Collision Search with Cryptanalytic Applications", Journal of Cryptology 12(1):1-28, 1999, DOI 10.1007/PL00003816. Generic entries in this track use the same random-function premise. The six-lane affine embedding separates circuit savings from the generic collision law. A collision-hazard deficit can be priced by scaling the comparator hazard and rerunning Appendix A. The emitted-program, scalar target, table, restart and replay checks test consistency of the exact program used by the ledger.
 
 ## 7. Organizer experiments
 
-`experiments/compact.py` contains compressed source text, not prebuilt program bytes. It invokes the step emitter and controller emitter, checks their counts, lengths and hashes, parses the exact emitted streams as experiment tooling, and executes the reconstructed programs. It tests the upper and rejected boundaries of every 11-bit step field, every 8-byte-code register and 25-bit immediate/literal field, the literal pool, all five 51-bit slots, and the first invalid table position. It checks two chained bit-sliced steps against scalar selected-round Keccak, evalF against scalar g, gather/setwalk, all slot probe positions, restart packing, replay success, replay refusal, and the all-no-DP limit halt. The `success-certificate` experiment also recomputes Appendix A at 200-digit precision. Each response row returns the same projected pair derived from the first request seed.
+`experiments/compact.py` contains compressed source text, not prebuilt program bytes. It invokes the step emitter and controller emitter, checks their counts, lengths and hashes, parses the exact emitted streams as experiment tooling, and executes the reconstructed programs. It tests the upper and rejected boundaries of every 11-bit step field, every 8-byte-code register and 25-bit immediate/literal field, the literal pool, all five 51-bit slots, and the first invalid table position. It checks two chained bit-sliced steps against scalar selected-round Keccak, evalF against scalar g, gather/setwalk, all slot probe positions, restart packing, replay success, replay refusal, and the all-no-DP limit halt. The `success-certificate` experiment also recomputes Appendix A at 200-digit precision. Each response row returns the same projected pair derived from the first request seed. The projection probe evaluates 512 seed-derived points and returns the first pair whose chain images agree on the declared 12-bit mask; the birthday expectation is 512*511/2/4096 = 31.9, so a pair is found with probability above 1 - 2^-45 and the sentence above holds for effectively every organizer seed. This probe is a scaled-down demonstration of the chain and the masked event, not a measurement of the attack: the full search is the Tb-step distinguished-point run priced in Section 5.
 
 ## 8. Credit
 
-This package re-targets our accepted round-17 construction to round 6; its package SHA-256 is `31fe97caa1d82ac45300da908afa4510439e2ed62a9d48454e73e58d424ad676`. `20eb70ca-366a-4fbd-9594-4fa85f158a0b` supplies the wider one-round-lookahead S3-04 generator, lowest-free allocation, two-address encoding, positional five-slot table, one-word walk and checkpoint replay. `d258ba65-054d-4098-bbac-0b974fee36c8` supplies the chained-chi identity and pinned-output row minimization. `3509abf0-ecab-457b-8d5d-ea8aec5d5e8c` supplies the structured-constant lineage and `911bffce-8e7a-4502-90ab-c69a473fff48` the compact-controller lineage. Our previous scalar r6 entry `ccda9da9-0426-49ef-863f-052eda7de2e8` supplies the earlier r6 search lineage and comparison point. No participant executable was used. Credit is not endorsement.
+This is a credited derivative of `fe76bfc4-6a5b-4883-b428-50796e22c9a3`, the direct round-20 incumbent. `20eb70ca-366a-4fbd-9594-4fa85f158a0b` supplies the wider one-round-lookahead S3-04 generator, lowest-free allocation, two-address encoding, positional five-slot table, one-word walk and checkpoint replay; for round 10 it is also the direct incumbent and is credited only once. `d258ba65-054d-4098-bbac-0b974fee36c8` supplies the chained-chi identity and pinned-output row minimization used at every round in this family. This package independently integrates that identity into the free C/D lookahead search and exhaustively verifies its own table. It also credits `3509abf0-ecab-457b-8d5d-ea8aec5d5e8c` for the structured-constant lineage and `911bffce-8e7a-4502-90ab-c69a473fff48` for our compact-controller lineage. Credit is not an endorsement and none of those authors reviewed this package.
 
 ## Appendix A. Outward-rounded success certificate
 
 ```json
 {
-  "computed_bound": "0.39000000083297832218182518858987050679688137049021269065978753904866744482080022033782053734016026473489127221889034980598706700011875266565836780577125735073281058080645700971565330113085300125471478",
-  "computed_previous": "0.38999999970405103831799711012993292851780650713135186412010880704062044388718787195857532220359102323044901767831255498318342240183288410329464520407329347348490504134052422314995409777910418983778432",
+  "computed_bound": "0.39000000100893169635571528749243769938549682679120376397273046820937097830053366886552323272984604902280450211507298764194915861683568901882430340090679603824923948337297548455813900594513814919182329",
+  "computed_previous": "0.38999999988001382652894024974508532215440647359061991312544547090451464667561690534994773597454350304807242064782681088349536179823691528039343902551835580590058295390677655147066760098685970719551153",
   "covered_success": {
-    "lower": "0.39026331172952838124627563602059655204753983679928666789240345748437719719340950331790050255058207989655624448868284381521381499496605127956630825613966758544672456604342953964221862635595419413188901",
-    "upper": "0.39026331172952838124627563602059655204753983679928666789240345748437719719340950331790050255058207989655624448868284381521381499496605127956630825613966758544672456604342953964221862635595419413188903"
+    "lower": "0.39026410805702264388024168816391629386521325955252999671897150378721582852899605728402154787948264219227102271210953848710526589534322817598325799789076806322889331607587475711881598826640465915542857",
+    "upper": "0.39026410805702264388024168816391629386521325955252999671897150378721582852899605728402154787948264219227102271210953848710526589534322817598325799789076806322889331607587475711881598826640465915542859"
   },
   "failure_intervals": {
     "endpoint_alias": {
-      "lower": "0.0000038409275759931915672495961189270019531249999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999",
-      "upper": "0.0000038409275759931915672495961189270019531250000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
+      "lower": "0.0000030181873000856285216286778450012207031249999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999",
+      "upper": "0.0000030181873000856285216286778450012207031250000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
     },
     "hit_cap_F5": {
       "lower": "9.3326361850321887899008954472381716961709144637170802462171433979596691097577563445444032709788110235959498993032424262421548752135403239484152081720393075623441066613832515027399507598590183151110048E-302",
       "upper": "9.3326361850321887899008954472381716961709144637170802462171433979596691097577563445444032709788110235959498993032424262421548752135403239484152081720393075623441066613832515027399507598590183151110050E-302"
     },
     "lemma_conditioning": {
-      "lower": "3.0822529276436877636627719019139768856221085002424637934448000204427951434042801056887098101184405503777941268476758958328526368914990811970221991030816208204415704040790419790844091894922685747186988E-33",
-      "upper": "3.0822529276436877636627719019139768856221085002424637934448000204427951434042801056887098101184405503777941268476758958328526368914990811970221991030816208204415704040790419790844091894922685747186990E-33"
+      "lower": "3.0822533448515148916196899124384346839659164097164955383001063496233598379080379206450709380789429643628351818586443157338372545444807376994334601834853146616378167422719216641231686356727380109414975E-33",
+      "upper": "3.0822533448515148916196899124384346839659164097164955383001063496233598379080379206450709380789429643628351818586443157338372545444807376994334601834853146616378167422719216641231686356727380109414977E-33"
     },
     "numeric_rounding": {
       "lower": "8.6736173798840354720596224069595336914062499999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999E-19",
       "upper": "8.6736173798840354720596224069595336914062500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001E-19"
     },
     "replay_cap_F6": {
-      "lower": "0.00024826208838095891388188359586761104462409055556067766015941095897697378192003992639258315620087815941800759846207355109483094851303797094948660988135432277097519164432933936654679825175369936243414448",
-      "upper": "0.00024826208838095891388188359586761104462409055556067766015941095897697378192003992639258315620087815941800759846207355109483094851303797094948660988135432277097519164432933936654679825175369936243414450"
+      "lower": "0.00024839748006159345339076688438166839005899097330434186624086613215455955100887153697241887437598705662887424323276502344096440167034952401407131633108251234454081687480021672312260948439635925184666765",
+      "upper": "0.00024839748006159345339076688438166839005899097330434186624086613215455955100887153697241887437598705662887424323276502344096440167034952401407131633108251234454081687480021672312260948439635925184666767"
     },
     "self_coincidence_F3": {
-      "lower": "0.000011197034645345442494634515843959096073728064638303244539830829440727180911501073096831208180785254387072339351092033834111854563817699785380633758363842949122585532129781593233177629087236460042923872",
-      "upper": "0.000011197034645345442494634515843959096073728064638303244539830829440727180911501073096831208180785254387072339351092033834111854563817699785380633758363842949122585532129781593233177629087236460042923874"
+      "lower": "0.000012677597080498866213151927437641723356009070294784580498866213151927437641723356009070294784580498866213151927437641723356009070294784580498866213151927437641723356009070294784580498866213151927437641",
+      "upper": "0.000012677597080498866213151927437641723356009070294784580498866213151927437641723356009070294784580498866213151927437641723356009070294784580498866213151927437641723356009070294784580498866213151927437643"
     },
     "start_replay_collision": {
       "lower": "8.0779356694631608874161005084957309918536338955163955688476562499999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999E-28",
       "upper": "8.0779356694631608874161005084957309918536338955163955688476562500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001E-28"
     },
     "table_exhaustion_F2": {
-      "lower": "1.0845947760649144940926695351702801549563547913565816663485043039749637942632031481046019708952716488051873639714487686751220065149046225530832859216356924708979316386767682267723439815484293091380264E-8",
-      "upper": "1.0845947760649144940926695351702801549563547913565816663485043039749637942632031481046019708952716488051873639714487686751220065149046225530832859216356924708979316386767682267723439815484293091380266E-8"
+      "lower": "1.3783648768709039114385614086739975126765272066619390765612491007771762520145212900874126402254133525163955703109053707924802532013382525770124003747942926811734390552082586307023342299743088913226467E-8",
+      "upper": "1.3783648768709039114385614086739975126765272066619390765612491007771762520145212900874126402254133525163955703109053707924802532013382525770124003747942926811734390552082586307023342299743088913226469E-8"
     }
   },
-  "hit_abort": 44384159803516906822519431956004866,
-  "hit_limit": 44384159803516906822519431956004865,
+  "hit_abort": 49488991847959593483692939797331970,
+  "hit_limit": 49488991847959593483692939797331969,
   "key_bits": 50,
-  "margin_above_target": "8.3297832218182518858987050679688137049021269065978753904866744482080022033782053734016026473489127221889034980598706700011875266565836780577125735073281058080645700971565330113085300125471478E-10",
+  "margin_above_target": "1.00893169635571528749243769938549682679120376397273046820937097830053366886552323272984604902280450211507298764194915861683568901882430340090679603824923948337297548455813900594513814919182329E-9",
   "parameters": {
     "DK": 10,
     "DPLO": 145,
-    "DT": 712,
+    "DT": 630,
     "HF": 111,
-    "HIT_ABORT": 44384159803516906822519431956004866,
-    "HMAX": 44384159803516906822519431956004865,
-    "J": 61854,
-    "LRC": 39204630113258450700088540032663552,
-    "NR": 6,
+    "HIT_ABORT": 49488991847959593483692939797331970,
+    "HMAX": 49488991847959593483692939797331969,
+    "J": 69905,
+    "LRC": 44307557604477188155813518785904640,
+    "NR": 20,
     "PFLO": 240,
     "PFN": 16,
-    "S": 18600,
+    "S": 16488,
     "SB": 15,
-    "Tb": 1325958336173754933667940744388673536,
-    "U": 93000,
+    "Tb": 1326445901334107559259970314262544384,
+    "U": 82440,
     "W": 633825300114114700748351602688
   },
   "preconditions": {
@@ -268,42 +268,42 @@ This package re-targets our accepted round-17 construction to round 6; its packa
     "table_has_initial_walks": true
   },
   "probability_inputs": {
-    "age_g6": "0.00031667909426037105941508320214937060199154109117358893263827061925923399740035084155734768296066160736452070007565526017915969197254168193964689892970815481258300740805731394400598576251592025327473506",
-    "available_restarts": 92744,
-    "coincidence_upper": "0.39197738796240174026269689679162809178335059558866342738985263399843128558663918161304509101245262829684350600623096875328734024718557078930609888907136331575878305125119026094673472946673255326244082",
-    "conditioning_delta": "5.4533062764251491470095373418931247360122632654733671223983927457219700157819766912873779723310149476577043667003831512957230587019009536571716994382022471910112359550561797752808988764044943820224719E-34",
-    "conditioning_dp_term": "1.3944613874130371994082473323433114887988333919254993873893403138718550952729897238732723707563421699438202247191011235955056179775280898876404494382022471910112359550561797752808988764044943820224719E-34",
-    "conditioning_inflation": "1.0000000000000000000000000000000002726301621773591511517191645631968685404080640696878517072889918802069767925173701693764597790205097319758373780398409025808778435642707328862701945274277581961927645",
-    "conditioning_partition_term": "1.33254326723852043608409836391784493344937196342475333962232954342378322244884721113520881835986817772095325285164335582521744072437286376953125E-34",
-    "conditioning_ratio": "1.0000000000000000000000000000000008179607898198740658526728987525097882007052900561730562656607259066431124041736972533003008046582210148551527107344484086510313086140581362812808572324402777108526801",
-    "conditioning_start_term": "2.726301621773591511517191645631968313764057910123114395386722888426331698060139756278896783214804599992930889129638671875E-34",
-    "evaluations": 339445334060481263018992830563500425216,
-    "fresh_hit_delta": "9.536743164062500000000000003861358128924700975250345118698451486303657888206937888329881958222834143571875498896875807411310101256276564883007339962182114854057958741866616089905443747602967950E-7",
-    "fresh_hit_mean_upper": "5179524750678730209640393532768256.00000000",
-    "fresh_hit_threshold": 5179529690258456122430891923341314,
+    "age_g6": "0.00031667206278890493147751918392665261643025029051423959929495529161996152885454777106180254515383109569845280083703091648398449619236172968257429797443421883287732836229703531009720296887137848883417358",
+    "available_restarts": 82184,
+    "coincidence_upper": "0.39219986422859216320962855998398785803227971663134774250643564775962471000143379649294346888946237469869803372998891745365223677793563949099743849731381176095656876178781085455829312578928410618143810",
+    "conditioning_delta": "4.8359525202541534942256638908983861189812216092296326327469927043306618689838140446698686739029671634505904273141193730875134601124695369175502232142857142857142857142857142857142857142857142857142857E-34",
+    "conditioning_dp_term": "1.2383859224625986893939656578934064069517807235807262844619732903136569543026520737579890659877232142857142857142857142857142857142857142857142857142857142857142857142857142857142857142857142857142857E-34",
+    "conditioning_inflation": "1.0000000000000000000000000000000002417623121883373883523121065861231479941112815674869928863810458190162276186634375402114863411630772211512665212377381081531418584113949255108916440248011359197646072",
+    "conditioning_partition_term": "1.1799434759081809213085771671437485243369509859512362481353319072506377959102767888899338272536902226333109522382613931767991743981838226318359375E-34",
+    "conditioning_ratio": "1.0000000000000000000000000000000007253575642137527377748784956759621106717075169816032968875288411101453066137556446764280627573300624436159937317896489962949806680099993161223792475321929788645303965",
+    "conditioning_start_term": "2.417623121883373883523121065861231187692489899697670100149687506766367118770885182021945780661553726531565189361572265625E-34",
+    "evaluations": 339570150741531535170552400451211362304,
+    "fresh_hit_delta": "9.536743164062500000000000003859938799502057693648455539806599680402885584762688388210490300376409036908642326109783193224630242747329317517912407024974779477769136700328977714010890654473991469E-7",
+    "fresh_hit_mean_upper": "5181429302086357653359259040088064.00000000",
+    "fresh_hit_threshold": 5181434243482405327879421011427330,
     "fresh_step_probability_exact": "0.00389866021631819777212921699057604228934907591347168173766934280389107431763886868964603102771424503147662168070206359168124436875563141323855886959184928433004874414589474610857484934350677083543632",
     "fresh_step_probability_upper": "0.00390625",
-    "hit_chernoff_exponent": "-2355374036092164233315.6298372126397293502850487704264466298685017655594979025667042548433997237016794469251118091236642105967763978569439521257431398894485124113252314609966301552294685041300260454366",
-    "mean_dp": "90911.8219814300537109375000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "hit_chernoff_exponent": "-2356240125386426341793.5359356231991878161194442580232028034535217093261954979668872426316278284684093874687837187587059103902305952787444210257610465136849859332688481405455145756998361839143745607314",
+    "mean_dp": "80471.219251155853271484375000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
     "prefilter_bits": 16,
-    "start_replay_union_bound": "5.4526032435471830230343832912639366275923689142961314587863202347118983689293825552691994999341855538039161012748058010613080158258338244056104718669593534971616435361644296834007783481013120763236657E-34",
+    "start_replay_union_bound": "4.8352462437667477670462421317224623754419370582498990814927230813382754327931946096474217243136157821895862753833613701827336862869004353118121215130336462613549020765741460548339802905104534147540107E-34",
     "theta_denominator_bits": 121,
-    "theta_numerator": 712
+    "theta_numerator": 630
   },
-  "round": 6,
+  "round": 20,
   "rounding": "200-digit Decimal; every interval moved one representable value outward",
   "rounding_audit": {
-    "accumulated_absolute_bound": "3.962752E-134",
+    "accumulated_absolute_bound": "4.478016E-134",
     "accumulated_lt_2^-200": true,
     "charged_numeric_term": "8.67361737988403547205962240695953369140625E-19",
-    "operation_bound": 3962752,
+    "operation_bound": 4478016,
     "per_operation_absolute_bound": "1E-140",
     "precision_digits": 200
   },
   "schema": "hashsmash-random-function-success-v1",
   "target": "0.39",
-  "trails": 93000,
-  "union_lower": "0.39000000083297832218182518858987050679688137049021269065978753904866744482080022033782053734016026473489127221889034980598706700011875266565836780577125735073281058080645700971565330113085300125471477"
+  "trails": 82440,
+  "union_lower": "0.39000000100893169635571528749243769938549682679120376397273046820937097830053366886552323272984604902280450211507298764194915861683568901882430340090679603824923948337297548455813900594513814919182328"
 }
 ```
 
@@ -2226,7 +2226,7 @@ int generator_work(int argc,char **argv){
         if(argc==5){const int defaults[7]={9,13,17,19,20,21,22};for(int j=0;j<7;j++){wanted[defaults[j]]=1;max_round=defaults[j];}}
         else{
             const char *p=argv[5];
-            while(*p){char *end=NULL;long value=strtol(p,&end,10);if(end==p||value<6||value>24)usage();wanted[value]=1;if(value>max_round)max_round=(int)value;p=end;if(*p==',')p++;else if(*p)usage();}
+            while(*p){char *end=NULL;long value=strtol(p,&end,10);if(end==p||value<7||value>24)usage();wanted[value]=1;if(value>max_round)max_round=(int)value;p=end;if(*p==',')p++;else if(*p)usage();}
         }
         set_s3_trial(trial);Plan prefix={0},plans[24]={0};uint8_t inputs[24][1600]={{0}};
         int nodes[1600];uint8_t polarity[1600];
@@ -2256,7 +2256,7 @@ int generator_work(int argc,char **argv){
         return 0;
     }
     int rounds=atoi(argv[2]);
-    if(rounds<6||rounds>24)usage();
+    if(rounds<7||rounds>24)usage();
     if(!strcmp(argv[1],"cheap")){
         for(int trial=1000;trial<1512;trial++){set_s3_trial(trial);Plan prefix={0},plans[24]={0};uint8_t inputs[24][1600]={{0}};
             long count=straight_count(rounds,0,&prefix,plans,inputs);printf("{\"trial\":%d,\"cheap_count\":%ld}\n",trial,count);fflush(stdout);}return 0;
@@ -2313,7 +2313,7 @@ static void parse_emitter_plan(const char *path,int expected_rounds,int *trial,P
     if(!seen_nr||!seen_f1||!seen_g1)fail("incomplete plan header");for(int r=2;r<expected_rounds-1;r++)if(!seen_target[r])fail("missing target plan");
 }
 int main(int argc,char **argv){
-    if(argc!=4)fail("usage: construction_emitter ROUNDS PLAN PROGRAM");int rounds=atoi(argv[1]),trial=0;if(rounds<6||rounds>24)fail("rounds");
+    if(argc!=4)fail("usage: construction_emitter ROUNDS PLAN PROGRAM");int rounds=atoi(argv[1]),trial=0;if(rounds<7||rounds>24)fail("rounds");
     make_row_table();make_last_row_cost();fprintf(stderr,"chained-table entries=1024 candidate_evaluations=1015808 truth_checks=32768 bytes=%zu checksum=%016lx\n",sizeof(row_table),(unsigned long)chained_table_checksum());static Plan prefix,plans[24];parse_emitter_plan(argv[2],rounds,&trial,&prefix,plans);set_s3_trial(trial);emit_straight(argv[3],rounds,&prefix,plans);
     fprintf(stderr,"construction emitter trial=%d VmHWM %ld bytes\n",trial,construction_vmhwm_bytes());return 0;
 }
@@ -2426,6 +2426,85 @@ int main(int argc,char **argv){
 
 ```
 
+### construction_scan_template.c
+
+```c
+/* Freestanding float mirror for the charged finite parameter scan. */
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "scan_candidates.h"
+extern long construction_vmhwm_bytes(void);
+static const long double LN2=0.693147180559945309417232121458176568L,M=1.1579208923731619542357098500868790785e77L,GRID=2.475880078570760549798248448e27L,W=6.33825300114114700748351602688e29L;
+static uint64_t scan_evaluations,scan_bins;
+static long double lexp(long double x){if(x<-11000.0L)return 0.0L;int k=(int)(x/LN2);if((long double)k*LN2>x)k--;long double r=x-(long double)k*LN2,term=1.0L,sum=1.0L;for(int i=1;i<=32;i++){term*=r/(long double)i;sum+=term;}while(k>0){sum*=2.0L;k--;}while(k<0){sum*=0.5L;k++;}return sum;}
+static long double llog(long double x){if(!(x>0))return -1.0L/0.0L;int e=0;while(x>=2.0L){x*=0.5L;e++;}while(x<1.0L){x*=2.0L;e--;}long double y=(x-1.0L)/(x+1.0L),p=y*y,term=y,sum=0;for(int k=1;k<=101;k+=2){sum+=term/(long double)k;term*=p;}return 2.0L*sum+(long double)e*LN2;}
+static long double success(uint64_t t,const Candidate *c){
+ scan_evaluations++;scan_bins+=c->j;
+ long double tb=(long double)t*GRID,theta=(long double)c->dt/2.658455991569831744e36L,logq=-theta,qstep=lexp(W*logq),previous=1.0L,covered=0.0L;
+ long double delta=256.0L*W,first=256.0L*(tb-W),collision=lexp(-first*(first-1.0L)/(2.0L*M));
+ long double ratio=lexp((2.0L*first*delta-delta*delta-delta)/(2.0L*M)),ratio_step=lexp(-delta*delta/M);
+ for(uint32_t j=1;j<=c->j;j++){long double current=previous*qstep;if(tb>(long double)j*W)covered+=(previous-current)*(1.0L-collision);previous=current;collision*=ratio;ratio*=ratio_step;}
+ long double n=256.0L*tb,mean=n*theta,available=(long double)(5*c->table-256);if(!(available>mean))return -1.0L;
+ long double f2=lexp(-mean+available*(1.0L+llog(mean/available))),f3=(long double)(5*c->table)/(theta*theta*M),alias=(long double)(5*c->table)*(long double)(5*c->table)/2251799813685248.0L;
+ long double trails=(long double)(5*c->table),lrc=(long double)c->j*W,g6=lexp(lrc*logq)*(1.0L+lrc*theta),coincidence=1.0L-lexp(-n*n/(2.0L*M)-n*n*n/(3.0L*M*M));
+ long double inflation=lexp(-trails*llog(1.0L-n/M));
+ long double f6=2.0L*g6*coincidence*inflation;
+ return covered-(f2+f3+alias+8.077935669463161e-28L+f6+8.673617379884035e-19L+3.0814879110195774e-33L*(1.0L+f6));
+}
+static uint64_t least_tb(const Candidate *c){uint64_t lo=HINT_T>SPAN?HINT_T-SPAN:1,hi=HINT_T+SPAN;long double theta=(long double)c->dt/2.658455991569831744e36L;uint64_t domain=(uint64_t)(((long double)(5*c->table-256)/(256.0L*theta))/GRID);if(hi>=domain)hi=domain-1;if(hi<=lo||success(hi,c)<0.39L)return 0;while(success(lo,c)>=0.39L&&lo>SPAN)lo-=SPAN;while(hi-lo>1){uint64_t mid=(lo+hi)/2;if(success(mid,c)>=0.39L)hi=mid;else lo=mid;}return hi;}
+static long double total_cost(const Candidate *c,uint64_t t){long double tb=(long double)t*GRID,lrc=(long double)c->j*W,hit=tb*(1.0L+1.0L/1048576.0L)/256.0L+1.0L+lrc;long double gap=(lrc+(long double)c->table-2.0L)/(long double)(c->table-1),nck=(lrc-1.0L)/gap+1.0L;long double replay=(long double)c->replay_rate*lrc+(long double)c->replay_g*gap+(long double)c->replay_nck*nck+(long double)c->replay_const;long double trails=5.0L*c->table;long double rare=(hit+1.0L)*c->hit+(trails-255.0L)*(c->dp_fixed+c->probe_word*c->table)+(trails-256.0L)*(c->restart+3)+c->restart_halt+c->deadline+c->setup;return tb*(STEP_OPS+19.0L)+replay+rare+PREPROCESSING;}
+int main(void){int best=-1;uint64_t best_t=0;long double best_cost=0;for(unsigned i=0;i<sizeof(candidates)/sizeof(candidates[0]);i++){uint64_t t=least_tb(&candidates[i]);if(!t)continue;long double cost=total_cost(&candidates[i],t);if(best<0||cost<best_cost){best=(int)i;best_t=t;best_cost=cost;}}if(best<0){printf("no candidate hint_success_scaled=%ld\n",(long)(success(HINT_T,&candidates[0])*1000000000000.0L));return 2;}const Candidate *c=&candidates[best];printf("candidate=%d table=%d dt=%d j=%u tb_grid=%lu memory=%d\n",best,c->table,c->dt,c->j,(unsigned long)best_t,c->memory);fprintf(stderr,"scan candidates=%lu evaluations=%lu bins=%lu VmHWM %ld bytes\n",(unsigned long)(sizeof(candidates)/sizeof(candidates[0])),(unsigned long)scan_evaluations,(unsigned long)scan_bins,construction_vmhwm_bytes());return 0;}
+
+```
+
+### scan_candidates.h
+
+```c
+#include <stdint.h>
+typedef struct{int table,dt;uint32_t j;int memory,hit,dp_fixed,probe_word,restart,restart_halt,deadline,setup,replay_rate,replay_g,replay_nck,replay_const;} Candidate;
+#define HINT_T 535758194UL
+#define SPAN (1UL<<20)
+#define STEP_OPS 118445
+#define PREPROCESSING 180956727443456
+static const Candidate candidates[]={
+ {16360,630,69905,1024025,133,2893,24,2835,3,1,747082,10915,16367,17,5542},
+ {16368,630,69905,1024281,133,2893,24,2835,3,1,747093,10915,16367,17,5542},
+ {16376,630,69905,1024537,133,2893,24,2835,3,1,747104,10915,16367,17,5542},
+ {16384,630,69905,1024793,133,2893,24,2835,3,1,747115,10915,16367,17,5542},
+ {16392,630,69905,1025049,133,2893,24,2835,3,1,747126,10915,16367,17,5542},
+ {16400,630,69905,1025305,133,2893,24,2835,3,1,747137,10915,16367,17,5542},
+ {16408,630,69905,1025561,133,2893,24,2835,3,1,747148,10915,16367,17,5542},
+ {16416,630,69905,1025817,133,2893,24,2835,3,1,747159,10915,16367,17,5542},
+ {16424,630,69905,1026073,133,2893,24,2835,3,1,747170,10915,16367,17,5542},
+ {16432,630,69905,1026329,133,2893,24,2835,3,1,747181,10915,16367,17,5542},
+ {16440,630,69905,1026585,133,2893,24,2835,3,1,747192,10915,16367,17,5542},
+ {16448,630,69905,1026841,133,2893,24,2835,3,1,747203,10915,16367,17,5542},
+ {16456,630,69905,1027097,133,2893,24,2835,3,1,747214,10915,16367,17,5542},
+ {16464,630,69905,1027353,133,2893,24,2835,3,1,747225,10915,16367,17,5542},
+ {16472,630,69905,1027609,133,2893,24,2835,3,1,747236,10915,16367,17,5542},
+ {16480,630,69905,1027865,133,2893,24,2835,3,1,747247,10915,16367,17,5542},
+ {16488,630,69905,1028121,133,2893,24,2835,3,1,747258,10915,16367,17,5542},
+ {16496,630,69905,1028377,133,2893,24,2835,3,1,747269,10915,16367,17,5542},
+ {16504,630,69905,1028633,133,2893,24,2835,3,1,747280,10915,16367,17,5542},
+ {16512,630,69905,1028889,133,2893,24,2835,3,1,747291,10915,16367,17,5542},
+ {16520,630,69905,1029145,133,2893,24,2835,3,1,747302,10915,16367,17,5542},
+ {16528,630,69905,1029401,133,2893,24,2835,3,1,747313,10915,16367,17,5542},
+ {16536,630,69905,1029657,133,2893,24,2835,3,1,747324,10915,16367,17,5542},
+ {16544,630,69905,1029913,133,2893,24,2835,3,1,747335,10915,16367,17,5542},
+ {16552,630,69905,1030169,133,2893,24,2835,3,1,747346,10915,16367,17,5542},
+ {16560,630,69905,1030425,133,2893,24,2835,3,1,747357,10915,16367,17,5542},
+ {16568,630,69905,1030681,133,2893,24,2835,3,1,747368,10915,16367,17,5542},
+ {16576,630,69905,1030937,133,2893,24,2835,3,1,747379,10915,16367,17,5542},
+ {16584,630,69905,1031193,133,2893,24,2835,3,1,747390,10915,16367,17,5542},
+ {16592,630,69905,1031449,133,2893,24,2835,3,1,747401,10915,16367,17,5542},
+ {16600,630,69905,1031705,133,2893,24,2835,3,1,747412,10915,16367,17,5542},
+ {16608,630,69905,1031961,133,2893,24,2835,3,1,747423,10915,16367,17,5542},
+ {16616,630,69905,1032217,133,2893,24,2835,3,1,747434,10915,16367,17,5542},
+};
+
+```
+
 ### construction_hash.c
 
 ```c
@@ -2499,7 +2578,7 @@ static const Record records[]={
  {27,1931,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,1930,0,0,{0x0000000000000100UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,1934,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {18,1929,0,0,{0x0000000000000000UL,0x00ff5ecb18000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,1929,0,0,{0x0000000000000000UL,0x00ff76d508000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,1937,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {3,1932,1937,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,269,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
@@ -2512,22 +2591,22 @@ static const Record records[]={
  {20,0,269,1937,{0x0000000000000006UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {20,0,269,1937,{0x0000000000000007UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,269,269,0,{0x0000000000000008UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {17,264,269,0,{0x00000000000049a8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {17,264,269,0,{0x0000000000004168UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {22,0,264,0,{0x0000000000000007UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,256,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {4,267,1931,256,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {13,265,256,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,256,265,{0x00000000000049a8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {25,1935,0,0,{0x000000000000021cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,256,265,{0x0000000000004168UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1935,0,0,{0x0000000000000224UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,256,256,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {17,264,256,0,{0x0000000000000100UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {22,0,264,0,{0x0000000000000013UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {25,1935,0,0,{0x000000000000023aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1935,0,0,{0x0000000000000242UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {24,0,0,0,{0xffffffffffffffffUL,0xffffffffffffffffUL,0xffffffffffffffffUL,0x0000000000000000UL}},
  {8,264,1933,1932,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {22,0,264,0,{0x000000000000020bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x0000000000000213UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,1934,1934,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {17,264,1934,0,{0x8000000000000002UL,0x00088c4edb0decb1UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {17,264,1934,0,{0x8000000000000002UL,0x000987fee4ff6d50UL,0x0000000000000000UL,0x0000000000000000UL}},
  {22,0,264,0,{0x0000000000000022UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {29,0,0,0,{0x000000000000000aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {2,260,145,146,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
@@ -2632,329 +2711,337 @@ static const Record records[]={
  {3,265,143,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {1,257,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {3,265,142,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {1,265,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {2,266,266,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {1,257,257,142,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,257,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {3,265,141,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {1,265,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {2,266,266,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {1,257,257,141,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {3,265,140,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {1,257,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,265,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,266,266,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,257,257,140,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {3,265,139,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {1,257,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,265,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,266,266,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,257,257,139,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {3,265,138,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,257,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {3,265,137,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,265,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {2,266,266,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {1,257,257,137,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {3,265,136,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {1,265,257,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {2,266,266,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,257,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {18,258,0,0,{0x0000000000000000UL,0x00ff5ecb18000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,258,0,0,{0x0000000000000000UL,0x00ff76d508000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {5,258,258,1929,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,258,258,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,257,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {22,0,264,0,{0x000000000000020bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,0,{0x00000000000048a8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,1,{0x00000000000048a9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,2,{0x00000000000048aaUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,3,{0x00000000000048abUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,4,{0x00000000000048acUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,5,{0x00000000000048adUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,6,{0x00000000000048aeUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,7,{0x00000000000048afUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,8,{0x00000000000048b0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,9,{0x00000000000048b1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,10,{0x00000000000048b2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,11,{0x00000000000048b3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,12,{0x00000000000048b4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,13,{0x00000000000048b5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,14,{0x00000000000048b6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,15,{0x00000000000048b7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,16,{0x00000000000048b8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,17,{0x00000000000048b9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,18,{0x00000000000048baUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,19,{0x00000000000048bbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,20,{0x00000000000048bcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,21,{0x00000000000048bdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,22,{0x00000000000048beUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,23,{0x00000000000048bfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,24,{0x00000000000048c0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,25,{0x00000000000048c1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,26,{0x00000000000048c2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,27,{0x00000000000048c3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,28,{0x00000000000048c4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,29,{0x00000000000048c5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,30,{0x00000000000048c6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,31,{0x00000000000048c7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,32,{0x00000000000048c8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,33,{0x00000000000048c9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,34,{0x00000000000048caUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,35,{0x00000000000048cbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,36,{0x00000000000048ccUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,37,{0x00000000000048cdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,38,{0x00000000000048ceUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,39,{0x00000000000048cfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,40,{0x00000000000048d0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,41,{0x00000000000048d1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,42,{0x00000000000048d2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,43,{0x00000000000048d3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,44,{0x00000000000048d4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,45,{0x00000000000048d5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,46,{0x00000000000048d6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,47,{0x00000000000048d7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,48,{0x00000000000048d8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,49,{0x00000000000048d9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,50,{0x00000000000048daUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,51,{0x00000000000048dbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,52,{0x00000000000048dcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,53,{0x00000000000048ddUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,54,{0x00000000000048deUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,55,{0x00000000000048dfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,56,{0x00000000000048e0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,57,{0x00000000000048e1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,58,{0x00000000000048e2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,59,{0x00000000000048e3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,60,{0x00000000000048e4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,61,{0x00000000000048e5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,62,{0x00000000000048e6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,63,{0x00000000000048e7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,64,{0x00000000000048e8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,65,{0x00000000000048e9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,66,{0x00000000000048eaUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,67,{0x00000000000048ebUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,68,{0x00000000000048ecUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,69,{0x00000000000048edUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,70,{0x00000000000048eeUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,71,{0x00000000000048efUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,72,{0x00000000000048f0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,73,{0x00000000000048f1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,74,{0x00000000000048f2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,75,{0x00000000000048f3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,76,{0x00000000000048f4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,77,{0x00000000000048f5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,78,{0x00000000000048f6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,79,{0x00000000000048f7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,80,{0x00000000000048f8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,81,{0x00000000000048f9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,82,{0x00000000000048faUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,83,{0x00000000000048fbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,84,{0x00000000000048fcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,85,{0x00000000000048fdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,86,{0x00000000000048feUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,87,{0x00000000000048ffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,88,{0x0000000000004900UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,89,{0x0000000000004901UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,90,{0x0000000000004902UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,91,{0x0000000000004903UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,92,{0x0000000000004904UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,93,{0x0000000000004905UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,94,{0x0000000000004906UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,95,{0x0000000000004907UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,96,{0x0000000000004908UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,97,{0x0000000000004909UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,98,{0x000000000000490aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,99,{0x000000000000490bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,100,{0x000000000000490cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,101,{0x000000000000490dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,102,{0x000000000000490eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,103,{0x000000000000490fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,104,{0x0000000000004910UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,105,{0x0000000000004911UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,106,{0x0000000000004912UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,107,{0x0000000000004913UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,108,{0x0000000000004914UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,109,{0x0000000000004915UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,110,{0x0000000000004916UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,111,{0x0000000000004917UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,112,{0x0000000000004918UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,113,{0x0000000000004919UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,114,{0x000000000000491aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,115,{0x000000000000491bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,116,{0x000000000000491cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,117,{0x000000000000491dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,118,{0x000000000000491eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,119,{0x000000000000491fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,120,{0x0000000000004920UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,121,{0x0000000000004921UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,122,{0x0000000000004922UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,123,{0x0000000000004923UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,124,{0x0000000000004924UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,125,{0x0000000000004925UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,126,{0x0000000000004926UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,127,{0x0000000000004927UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,128,{0x0000000000004928UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,129,{0x0000000000004929UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,130,{0x000000000000492aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,131,{0x000000000000492bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,132,{0x000000000000492cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,133,{0x000000000000492dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,134,{0x000000000000492eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,135,{0x000000000000492fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,136,{0x0000000000004930UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,137,{0x0000000000004931UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,138,{0x0000000000004932UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,139,{0x0000000000004933UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,140,{0x0000000000004934UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,141,{0x0000000000004935UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,142,{0x0000000000004936UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,143,{0x0000000000004937UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,144,{0x0000000000004938UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,145,{0x0000000000004939UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,146,{0x000000000000493aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,147,{0x000000000000493bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,148,{0x000000000000493cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,149,{0x000000000000493dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,150,{0x000000000000493eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,151,{0x000000000000493fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,152,{0x0000000000004940UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,153,{0x0000000000004941UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,154,{0x0000000000004942UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,155,{0x0000000000004943UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,156,{0x0000000000004944UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,157,{0x0000000000004945UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,158,{0x0000000000004946UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,159,{0x0000000000004947UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,160,{0x0000000000004948UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,161,{0x0000000000004949UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,162,{0x000000000000494aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,163,{0x000000000000494bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,164,{0x000000000000494cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,165,{0x000000000000494dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,166,{0x000000000000494eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,167,{0x000000000000494fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,168,{0x0000000000004950UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,169,{0x0000000000004951UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,170,{0x0000000000004952UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,171,{0x0000000000004953UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,172,{0x0000000000004954UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,173,{0x0000000000004955UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,174,{0x0000000000004956UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,175,{0x0000000000004957UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,176,{0x0000000000004958UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,177,{0x0000000000004959UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,178,{0x000000000000495aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,179,{0x000000000000495bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,180,{0x000000000000495cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,181,{0x000000000000495dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,182,{0x000000000000495eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,183,{0x000000000000495fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,184,{0x0000000000004960UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,185,{0x0000000000004961UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,186,{0x0000000000004962UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,187,{0x0000000000004963UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,188,{0x0000000000004964UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,189,{0x0000000000004965UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,190,{0x0000000000004966UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,191,{0x0000000000004967UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,192,{0x0000000000004968UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,193,{0x0000000000004969UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,194,{0x000000000000496aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,195,{0x000000000000496bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,196,{0x000000000000496cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,197,{0x000000000000496dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,198,{0x000000000000496eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,199,{0x000000000000496fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,200,{0x0000000000004970UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,201,{0x0000000000004971UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,202,{0x0000000000004972UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,203,{0x0000000000004973UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,204,{0x0000000000004974UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,205,{0x0000000000004975UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,206,{0x0000000000004976UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,207,{0x0000000000004977UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,208,{0x0000000000004978UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,209,{0x0000000000004979UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,210,{0x000000000000497aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,211,{0x000000000000497bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,212,{0x000000000000497cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,213,{0x000000000000497dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,214,{0x000000000000497eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,215,{0x000000000000497fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,216,{0x0000000000004980UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,217,{0x0000000000004981UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,218,{0x0000000000004982UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,219,{0x0000000000004983UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,220,{0x0000000000004984UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,221,{0x0000000000004985UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,222,{0x0000000000004986UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,223,{0x0000000000004987UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,224,{0x0000000000004988UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,225,{0x0000000000004989UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,226,{0x000000000000498aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,227,{0x000000000000498bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,228,{0x000000000000498cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,229,{0x000000000000498dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,230,{0x000000000000498eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,231,{0x000000000000498fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,232,{0x0000000000004990UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,233,{0x0000000000004991UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,234,{0x0000000000004992UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,235,{0x0000000000004993UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,236,{0x0000000000004994UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,237,{0x0000000000004995UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,238,{0x0000000000004996UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,239,{0x0000000000004997UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,240,{0x0000000000004998UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,241,{0x0000000000004999UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,242,{0x000000000000499aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,243,{0x000000000000499bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,244,{0x000000000000499cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,245,{0x000000000000499dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,246,{0x000000000000499eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,247,{0x000000000000499fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,248,{0x00000000000049a0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,249,{0x00000000000049a1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,250,{0x00000000000049a2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,251,{0x00000000000049a3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,252,{0x00000000000049a4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,253,{0x00000000000049a5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,254,{0x00000000000049a6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,255,{0x00000000000049a7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x0000000000000213UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,0,{0x0000000000004068UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,1,{0x0000000000004069UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,2,{0x000000000000406aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,3,{0x000000000000406bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,4,{0x000000000000406cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,5,{0x000000000000406dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,6,{0x000000000000406eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,7,{0x000000000000406fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,8,{0x0000000000004070UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,9,{0x0000000000004071UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,10,{0x0000000000004072UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,11,{0x0000000000004073UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,12,{0x0000000000004074UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,13,{0x0000000000004075UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,14,{0x0000000000004076UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,15,{0x0000000000004077UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,16,{0x0000000000004078UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,17,{0x0000000000004079UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,18,{0x000000000000407aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,19,{0x000000000000407bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,20,{0x000000000000407cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,21,{0x000000000000407dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,22,{0x000000000000407eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,23,{0x000000000000407fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,24,{0x0000000000004080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,25,{0x0000000000004081UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,26,{0x0000000000004082UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,27,{0x0000000000004083UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,28,{0x0000000000004084UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,29,{0x0000000000004085UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,30,{0x0000000000004086UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,31,{0x0000000000004087UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,32,{0x0000000000004088UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,33,{0x0000000000004089UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,34,{0x000000000000408aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,35,{0x000000000000408bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,36,{0x000000000000408cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,37,{0x000000000000408dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,38,{0x000000000000408eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,39,{0x000000000000408fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,40,{0x0000000000004090UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,41,{0x0000000000004091UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,42,{0x0000000000004092UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,43,{0x0000000000004093UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,44,{0x0000000000004094UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,45,{0x0000000000004095UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,46,{0x0000000000004096UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,47,{0x0000000000004097UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,48,{0x0000000000004098UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,49,{0x0000000000004099UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,50,{0x000000000000409aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,51,{0x000000000000409bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,52,{0x000000000000409cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,53,{0x000000000000409dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,54,{0x000000000000409eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,55,{0x000000000000409fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,56,{0x00000000000040a0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,57,{0x00000000000040a1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,58,{0x00000000000040a2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,59,{0x00000000000040a3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,60,{0x00000000000040a4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,61,{0x00000000000040a5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,62,{0x00000000000040a6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,63,{0x00000000000040a7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,64,{0x00000000000040a8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,65,{0x00000000000040a9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,66,{0x00000000000040aaUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,67,{0x00000000000040abUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,68,{0x00000000000040acUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,69,{0x00000000000040adUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,70,{0x00000000000040aeUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,71,{0x00000000000040afUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,72,{0x00000000000040b0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,73,{0x00000000000040b1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,74,{0x00000000000040b2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,75,{0x00000000000040b3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,76,{0x00000000000040b4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,77,{0x00000000000040b5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,78,{0x00000000000040b6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,79,{0x00000000000040b7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,80,{0x00000000000040b8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,81,{0x00000000000040b9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,82,{0x00000000000040baUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,83,{0x00000000000040bbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,84,{0x00000000000040bcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,85,{0x00000000000040bdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,86,{0x00000000000040beUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,87,{0x00000000000040bfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,88,{0x00000000000040c0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,89,{0x00000000000040c1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,90,{0x00000000000040c2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,91,{0x00000000000040c3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,92,{0x00000000000040c4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,93,{0x00000000000040c5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,94,{0x00000000000040c6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,95,{0x00000000000040c7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,96,{0x00000000000040c8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,97,{0x00000000000040c9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,98,{0x00000000000040caUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,99,{0x00000000000040cbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,100,{0x00000000000040ccUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,101,{0x00000000000040cdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,102,{0x00000000000040ceUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,103,{0x00000000000040cfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,104,{0x00000000000040d0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,105,{0x00000000000040d1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,106,{0x00000000000040d2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,107,{0x00000000000040d3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,108,{0x00000000000040d4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,109,{0x00000000000040d5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,110,{0x00000000000040d6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,111,{0x00000000000040d7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,112,{0x00000000000040d8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,113,{0x00000000000040d9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,114,{0x00000000000040daUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,115,{0x00000000000040dbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,116,{0x00000000000040dcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,117,{0x00000000000040ddUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,118,{0x00000000000040deUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,119,{0x00000000000040dfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,120,{0x00000000000040e0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,121,{0x00000000000040e1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,122,{0x00000000000040e2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,123,{0x00000000000040e3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,124,{0x00000000000040e4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,125,{0x00000000000040e5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,126,{0x00000000000040e6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,127,{0x00000000000040e7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,128,{0x00000000000040e8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,129,{0x00000000000040e9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,130,{0x00000000000040eaUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,131,{0x00000000000040ebUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,132,{0x00000000000040ecUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,133,{0x00000000000040edUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,134,{0x00000000000040eeUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,135,{0x00000000000040efUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,136,{0x00000000000040f0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,137,{0x00000000000040f1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,138,{0x00000000000040f2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,139,{0x00000000000040f3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,140,{0x00000000000040f4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,141,{0x00000000000040f5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,142,{0x00000000000040f6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,143,{0x00000000000040f7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,144,{0x00000000000040f8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,145,{0x00000000000040f9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,146,{0x00000000000040faUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,147,{0x00000000000040fbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,148,{0x00000000000040fcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,149,{0x00000000000040fdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,150,{0x00000000000040feUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,151,{0x00000000000040ffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,152,{0x0000000000004100UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,153,{0x0000000000004101UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,154,{0x0000000000004102UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,155,{0x0000000000004103UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,156,{0x0000000000004104UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,157,{0x0000000000004105UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,158,{0x0000000000004106UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,159,{0x0000000000004107UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,160,{0x0000000000004108UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,161,{0x0000000000004109UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,162,{0x000000000000410aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,163,{0x000000000000410bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,164,{0x000000000000410cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,165,{0x000000000000410dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,166,{0x000000000000410eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,167,{0x000000000000410fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,168,{0x0000000000004110UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,169,{0x0000000000004111UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,170,{0x0000000000004112UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,171,{0x0000000000004113UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,172,{0x0000000000004114UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,173,{0x0000000000004115UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,174,{0x0000000000004116UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,175,{0x0000000000004117UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,176,{0x0000000000004118UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,177,{0x0000000000004119UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,178,{0x000000000000411aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,179,{0x000000000000411bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,180,{0x000000000000411cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,181,{0x000000000000411dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,182,{0x000000000000411eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,183,{0x000000000000411fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,184,{0x0000000000004120UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,185,{0x0000000000004121UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,186,{0x0000000000004122UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,187,{0x0000000000004123UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,188,{0x0000000000004124UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,189,{0x0000000000004125UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,190,{0x0000000000004126UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,191,{0x0000000000004127UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,192,{0x0000000000004128UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,193,{0x0000000000004129UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,194,{0x000000000000412aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,195,{0x000000000000412bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,196,{0x000000000000412cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,197,{0x000000000000412dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,198,{0x000000000000412eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,199,{0x000000000000412fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,200,{0x0000000000004130UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,201,{0x0000000000004131UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,202,{0x0000000000004132UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,203,{0x0000000000004133UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,204,{0x0000000000004134UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,205,{0x0000000000004135UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,206,{0x0000000000004136UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,207,{0x0000000000004137UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,208,{0x0000000000004138UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,209,{0x0000000000004139UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,210,{0x000000000000413aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,211,{0x000000000000413bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,212,{0x000000000000413cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,213,{0x000000000000413dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,214,{0x000000000000413eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,215,{0x000000000000413fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,216,{0x0000000000004140UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,217,{0x0000000000004141UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,218,{0x0000000000004142UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,219,{0x0000000000004143UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,220,{0x0000000000004144UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,221,{0x0000000000004145UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,222,{0x0000000000004146UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,223,{0x0000000000004147UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,224,{0x0000000000004148UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,225,{0x0000000000004149UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,226,{0x000000000000414aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,227,{0x000000000000414bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,228,{0x000000000000414cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,229,{0x000000000000414dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,230,{0x000000000000414eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,231,{0x000000000000414fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,232,{0x0000000000004150UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,233,{0x0000000000004151UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,234,{0x0000000000004152UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,235,{0x0000000000004153UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,236,{0x0000000000004154UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,237,{0x0000000000004155UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,238,{0x0000000000004156UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,239,{0x0000000000004157UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,240,{0x0000000000004158UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,241,{0x0000000000004159UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,242,{0x000000000000415aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,243,{0x000000000000415bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,244,{0x000000000000415cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,245,{0x000000000000415dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,246,{0x000000000000415eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,247,{0x000000000000415fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,248,{0x0000000000004160UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,249,{0x0000000000004161UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,250,{0x0000000000004162UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,251,{0x0000000000004163UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,252,{0x0000000000004164UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,253,{0x0000000000004165UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,254,{0x0000000000004166UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,255,{0x0000000000004167UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,257,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {22,0,264,0,{0x000000000000020aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x0000000000000212UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,256,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,265,257,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,266,265,0,{0xffffffffffffffffUL,0xffffffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x00000000000001a5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001adUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {14,265,265,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,256,256,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,266,265,0,{0xffffffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x00000000000001aaUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001b2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {14,265,265,0,{0x0000000000000040UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,256,256,0,{0x0000000000000040UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,266,265,0,{0x00000000ffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x00000000000001afUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001b7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {14,265,265,0,{0x0000000000000020UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,256,256,0,{0x0000000000000020UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,266,265,0,{0x000000000000ffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x00000000000001b4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001bcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {14,265,265,0,{0x0000000000000010UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,256,256,0,{0x0000000000000010UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,266,265,0,{0x00000000000000ffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x00000000000001b9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001c1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {14,265,265,0,{0x0000000000000008UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,256,256,0,{0x0000000000000008UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,266,265,0,{0x000000000000000fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x00000000000001beUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001c6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {14,265,265,0,{0x0000000000000004UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,256,256,0,{0x0000000000000004UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,266,265,0,{0x0000000000000003UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x00000000000001c3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001cbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {14,265,265,0,{0x0000000000000002UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,256,256,0,{0x0000000000000002UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,266,265,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,266,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x00000000000001c8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001d0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {14,265,265,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,256,256,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {12,266,257,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {1,257,257,266,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {25,1935,0,0,{0x000000000000022dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1935,0,0,{0x0000000000000235UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,261,259,0,{0x0003ffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {13,261,261,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,261,261,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
@@ -2972,27 +3059,27 @@ static const Record records[]={
  {0,263,263,272,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,265,263,0,{0x0007ffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,265,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {22,0,264,0,{0x00000000000001fbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x0000000000000203UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {14,266,263,0,{0x0000000000000033UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,265,266,0,{0x0007ffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,265,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {22,0,264,0,{0x00000000000001feUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x0000000000000206UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {14,266,263,0,{0x0000000000000066UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,265,266,0,{0x0007ffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,265,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {22,0,264,0,{0x0000000000000201UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x0000000000000209UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {14,266,263,0,{0x0000000000000099UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,265,266,0,{0x0007ffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,265,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {22,0,264,0,{0x0000000000000204UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x000000000000020cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {14,266,263,0,{0x00000000000000ccUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,265,266,0,{0x0007ffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,265,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {22,0,264,0,{0x0000000000000207UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x000000000000020fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,262,262,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {16,264,262,0,{0x00000000000048a8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x00000000000001d8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,271,256,0,{0x00000000000049a8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,262,0,{0x0000000000004068UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000001e0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,271,256,0,{0x0000000000004168UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {14,271,271,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,262,271,0,{0x0000000000007fffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {14,266,271,0,{0x000000000000000fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
@@ -3001,45 +3088,45 @@ static const Record records[]={
  {2,263,263,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {20,0,262,263,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,260,258,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {25,1936,0,0,{0x000000000000020eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {24,0,0,0,{0x000000000000019cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000216UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x00000000000001a4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,265,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {2,265,265,262,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {24,0,0,0,{0x0000000000000374UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x000000000000037cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,265,0,0,{0x0000000000198000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {2,265,265,262,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {24,0,0,0,{0x0000000000000374UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x000000000000037cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,265,0,0,{0x0000000000330000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {2,265,265,262,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {24,0,0,0,{0x0000000000000374UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x000000000000037cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,265,0,0,{0x00000000004c8000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {2,265,265,262,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {24,0,0,0,{0x0000000000000374UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x000000000000037cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,265,0,0,{0x0000000000660000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {2,265,265,262,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {24,0,0,0,{0x0000000000000374UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {25,1935,0,0,{0x000000000000023aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x000000000000037cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1935,0,0,{0x0000000000000242UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {12,1929,1929,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {22,0,1929,0,{0xffffffffffffffffUL,0xffffffffffffffffUL,0xffffffffffffffffUL,0x0000000000000000UL}},
  {29,0,0,0,{0x000000000000000cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,1930,0,{0x00000000007f8000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x0000000000000211UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x0000000000000219UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {29,0,0,0,{0x000000000000000bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {13,265,1930,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {2,265,265,260,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,256,265,{0x00000000000049a8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,256,265,{0x0000000000004168UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {4,267,1931,1930,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,1930,1930,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,265,1930,0,{0x0000000000007fffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {16,264,265,0,{0x00000000000048a8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x000000000000021aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {11,1930,1930,0,{0x0000000000193758UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {25,1935,0,0,{0x000000000000021cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {16,264,265,0,{0x0000000000004068UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x0000000000000222UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,1930,1930,0,{0x0000000000193f98UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1935,0,0,{0x0000000000000224UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {26,0,1936,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,273,0,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {6,273,273,256,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {3,268,273,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {21,269,0,0,{0x00000000000048a8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {21,269,0,0,{0x0000000000004068UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,270,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {19,265,269,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {1,265,265,268,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
@@ -3051,10 +3138,10 @@ static const Record records[]={
  {11,269,269,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,270,270,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,270,0,{0x0000000000000100UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x0000000000000221UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x0000000000000229UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {26,0,1935,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,259,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {21,269,0,0,{0x00000000000048a8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {21,269,0,0,{0x0000000000004068UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,270,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {19,265,269,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {7,265,265,256,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
@@ -3064,272 +3151,272 @@ static const Record records[]={
  {11,269,269,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,270,270,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,270,0,{0x0000000000000100UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x0000000000000230UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x0000000000000238UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {26,0,1935,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,0,1937,0,{0x00000000000048a8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,1,1937,0,{0x00000000000048a9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,2,1937,0,{0x00000000000048aaUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,3,1937,0,{0x00000000000048abUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,4,1937,0,{0x00000000000048acUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,5,1937,0,{0x00000000000048adUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,6,1937,0,{0x00000000000048aeUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,7,1937,0,{0x00000000000048afUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,8,1937,0,{0x00000000000048b0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,9,1937,0,{0x00000000000048b1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,10,1937,0,{0x00000000000048b2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,11,1937,0,{0x00000000000048b3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,12,1937,0,{0x00000000000048b4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,13,1937,0,{0x00000000000048b5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,14,1937,0,{0x00000000000048b6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,15,1937,0,{0x00000000000048b7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,16,1937,0,{0x00000000000048b8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,17,1937,0,{0x00000000000048b9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,18,1937,0,{0x00000000000048baUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,19,1937,0,{0x00000000000048bbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,20,1937,0,{0x00000000000048bcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,21,1937,0,{0x00000000000048bdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,22,1937,0,{0x00000000000048beUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,23,1937,0,{0x00000000000048bfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,24,1937,0,{0x00000000000048c0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,25,1937,0,{0x00000000000048c1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,26,1937,0,{0x00000000000048c2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,27,1937,0,{0x00000000000048c3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,28,1937,0,{0x00000000000048c4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,29,1937,0,{0x00000000000048c5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,30,1937,0,{0x00000000000048c6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,31,1937,0,{0x00000000000048c7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,32,1937,0,{0x00000000000048c8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,33,1937,0,{0x00000000000048c9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,34,1937,0,{0x00000000000048caUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,35,1937,0,{0x00000000000048cbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,36,1937,0,{0x00000000000048ccUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,37,1937,0,{0x00000000000048cdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,38,1937,0,{0x00000000000048ceUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,39,1937,0,{0x00000000000048cfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,40,1937,0,{0x00000000000048d0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,41,1937,0,{0x00000000000048d1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,42,1937,0,{0x00000000000048d2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,43,1937,0,{0x00000000000048d3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,44,1937,0,{0x00000000000048d4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,45,1937,0,{0x00000000000048d5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,46,1937,0,{0x00000000000048d6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,47,1937,0,{0x00000000000048d7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,48,1937,0,{0x00000000000048d8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,49,1937,0,{0x00000000000048d9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,50,1937,0,{0x00000000000048daUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,51,1937,0,{0x00000000000048dbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,52,1937,0,{0x00000000000048dcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,53,1937,0,{0x00000000000048ddUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,54,1937,0,{0x00000000000048deUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,55,1937,0,{0x00000000000048dfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,56,1937,0,{0x00000000000048e0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,57,1937,0,{0x00000000000048e1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,58,1937,0,{0x00000000000048e2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,59,1937,0,{0x00000000000048e3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,60,1937,0,{0x00000000000048e4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,61,1937,0,{0x00000000000048e5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,62,1937,0,{0x00000000000048e6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,63,1937,0,{0x00000000000048e7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,64,1937,0,{0x00000000000048e8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,65,1937,0,{0x00000000000048e9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,66,1937,0,{0x00000000000048eaUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,67,1937,0,{0x00000000000048ebUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,68,1937,0,{0x00000000000048ecUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,69,1937,0,{0x00000000000048edUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,70,1937,0,{0x00000000000048eeUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,71,1937,0,{0x00000000000048efUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,72,1937,0,{0x00000000000048f0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,73,1937,0,{0x00000000000048f1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,74,1937,0,{0x00000000000048f2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,75,1937,0,{0x00000000000048f3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,76,1937,0,{0x00000000000048f4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,77,1937,0,{0x00000000000048f5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,78,1937,0,{0x00000000000048f6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,79,1937,0,{0x00000000000048f7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,80,1937,0,{0x00000000000048f8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,81,1937,0,{0x00000000000048f9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,82,1937,0,{0x00000000000048faUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,83,1937,0,{0x00000000000048fbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,84,1937,0,{0x00000000000048fcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,85,1937,0,{0x00000000000048fdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,86,1937,0,{0x00000000000048feUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,87,1937,0,{0x00000000000048ffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,88,1937,0,{0x0000000000004900UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,89,1937,0,{0x0000000000004901UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,90,1937,0,{0x0000000000004902UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,91,1937,0,{0x0000000000004903UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,92,1937,0,{0x0000000000004904UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,93,1937,0,{0x0000000000004905UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,94,1937,0,{0x0000000000004906UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,95,1937,0,{0x0000000000004907UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,96,1937,0,{0x0000000000004908UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,97,1937,0,{0x0000000000004909UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,98,1937,0,{0x000000000000490aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,99,1937,0,{0x000000000000490bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,100,1937,0,{0x000000000000490cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,101,1937,0,{0x000000000000490dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,102,1937,0,{0x000000000000490eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,103,1937,0,{0x000000000000490fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,104,1937,0,{0x0000000000004910UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,105,1937,0,{0x0000000000004911UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,106,1937,0,{0x0000000000004912UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,107,1937,0,{0x0000000000004913UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,108,1937,0,{0x0000000000004914UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,109,1937,0,{0x0000000000004915UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,110,1937,0,{0x0000000000004916UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,111,1937,0,{0x0000000000004917UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,112,1937,0,{0x0000000000004918UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,113,1937,0,{0x0000000000004919UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,114,1937,0,{0x000000000000491aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,115,1937,0,{0x000000000000491bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,116,1937,0,{0x000000000000491cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,117,1937,0,{0x000000000000491dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,118,1937,0,{0x000000000000491eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,119,1937,0,{0x000000000000491fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,120,1937,0,{0x0000000000004920UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,121,1937,0,{0x0000000000004921UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,122,1937,0,{0x0000000000004922UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,123,1937,0,{0x0000000000004923UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,124,1937,0,{0x0000000000004924UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,125,1937,0,{0x0000000000004925UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,126,1937,0,{0x0000000000004926UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,127,1937,0,{0x0000000000004927UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,128,1937,0,{0x0000000000004928UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,129,1937,0,{0x0000000000004929UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,130,1937,0,{0x000000000000492aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,131,1937,0,{0x000000000000492bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,132,1937,0,{0x000000000000492cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,133,1937,0,{0x000000000000492dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,134,1937,0,{0x000000000000492eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,135,1937,0,{0x000000000000492fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,136,1937,0,{0x0000000000004930UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,137,1937,0,{0x0000000000004931UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,138,1937,0,{0x0000000000004932UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,139,1937,0,{0x0000000000004933UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,140,1937,0,{0x0000000000004934UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,141,1937,0,{0x0000000000004935UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,142,1937,0,{0x0000000000004936UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,143,1937,0,{0x0000000000004937UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,144,1937,0,{0x0000000000004938UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,145,1937,0,{0x0000000000004939UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,146,1937,0,{0x000000000000493aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,147,1937,0,{0x000000000000493bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,148,1937,0,{0x000000000000493cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,149,1937,0,{0x000000000000493dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,150,1937,0,{0x000000000000493eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,151,1937,0,{0x000000000000493fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,152,1937,0,{0x0000000000004940UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,153,1937,0,{0x0000000000004941UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,154,1937,0,{0x0000000000004942UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,155,1937,0,{0x0000000000004943UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,156,1937,0,{0x0000000000004944UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,157,1937,0,{0x0000000000004945UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,158,1937,0,{0x0000000000004946UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,159,1937,0,{0x0000000000004947UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,160,1937,0,{0x0000000000004948UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,161,1937,0,{0x0000000000004949UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,162,1937,0,{0x000000000000494aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,163,1937,0,{0x000000000000494bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,164,1937,0,{0x000000000000494cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,165,1937,0,{0x000000000000494dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,166,1937,0,{0x000000000000494eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,167,1937,0,{0x000000000000494fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,168,1937,0,{0x0000000000004950UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,169,1937,0,{0x0000000000004951UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,170,1937,0,{0x0000000000004952UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,171,1937,0,{0x0000000000004953UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,172,1937,0,{0x0000000000004954UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,173,1937,0,{0x0000000000004955UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,174,1937,0,{0x0000000000004956UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,175,1937,0,{0x0000000000004957UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,176,1937,0,{0x0000000000004958UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,177,1937,0,{0x0000000000004959UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,178,1937,0,{0x000000000000495aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,179,1937,0,{0x000000000000495bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,180,1937,0,{0x000000000000495cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,181,1937,0,{0x000000000000495dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,182,1937,0,{0x000000000000495eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,183,1937,0,{0x000000000000495fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,184,1937,0,{0x0000000000004960UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,185,1937,0,{0x0000000000004961UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,186,1937,0,{0x0000000000004962UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,187,1937,0,{0x0000000000004963UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,188,1937,0,{0x0000000000004964UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,189,1937,0,{0x0000000000004965UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,190,1937,0,{0x0000000000004966UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,191,1937,0,{0x0000000000004967UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,192,1937,0,{0x0000000000004968UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,193,1937,0,{0x0000000000004969UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,194,1937,0,{0x000000000000496aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,195,1937,0,{0x000000000000496bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,196,1937,0,{0x000000000000496cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,197,1937,0,{0x000000000000496dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,198,1937,0,{0x000000000000496eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,199,1937,0,{0x000000000000496fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,200,1937,0,{0x0000000000004970UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,201,1937,0,{0x0000000000004971UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,202,1937,0,{0x0000000000004972UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,203,1937,0,{0x0000000000004973UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,204,1937,0,{0x0000000000004974UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,205,1937,0,{0x0000000000004975UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,206,1937,0,{0x0000000000004976UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,207,1937,0,{0x0000000000004977UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,208,1937,0,{0x0000000000004978UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,209,1937,0,{0x0000000000004979UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,210,1937,0,{0x000000000000497aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,211,1937,0,{0x000000000000497bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,212,1937,0,{0x000000000000497cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,213,1937,0,{0x000000000000497dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,214,1937,0,{0x000000000000497eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,215,1937,0,{0x000000000000497fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,216,1937,0,{0x0000000000004980UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,217,1937,0,{0x0000000000004981UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,218,1937,0,{0x0000000000004982UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,219,1937,0,{0x0000000000004983UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,220,1937,0,{0x0000000000004984UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,221,1937,0,{0x0000000000004985UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,222,1937,0,{0x0000000000004986UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,223,1937,0,{0x0000000000004987UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,224,1937,0,{0x0000000000004988UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,225,1937,0,{0x0000000000004989UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,226,1937,0,{0x000000000000498aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,227,1937,0,{0x000000000000498bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,228,1937,0,{0x000000000000498cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,229,1937,0,{0x000000000000498dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,230,1937,0,{0x000000000000498eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,231,1937,0,{0x000000000000498fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,232,1937,0,{0x0000000000004990UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,233,1937,0,{0x0000000000004991UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,234,1937,0,{0x0000000000004992UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,235,1937,0,{0x0000000000004993UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,236,1937,0,{0x0000000000004994UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,237,1937,0,{0x0000000000004995UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,238,1937,0,{0x0000000000004996UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,239,1937,0,{0x0000000000004997UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,240,1937,0,{0x0000000000004998UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,241,1937,0,{0x0000000000004999UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,242,1937,0,{0x000000000000499aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,243,1937,0,{0x000000000000499bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,244,1937,0,{0x000000000000499cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,245,1937,0,{0x000000000000499dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,246,1937,0,{0x000000000000499eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,247,1937,0,{0x000000000000499fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,248,1937,0,{0x00000000000049a0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,249,1937,0,{0x00000000000049a1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,250,1937,0,{0x00000000000049a2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,251,1937,0,{0x00000000000049a3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,252,1937,0,{0x00000000000049a4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,253,1937,0,{0x00000000000049a5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,254,1937,0,{0x00000000000049a6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,255,1937,0,{0x00000000000049a7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,0,1937,0,{0x0000000000004068UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,1,1937,0,{0x0000000000004069UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,2,1937,0,{0x000000000000406aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,3,1937,0,{0x000000000000406bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,4,1937,0,{0x000000000000406cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,5,1937,0,{0x000000000000406dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,6,1937,0,{0x000000000000406eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,7,1937,0,{0x000000000000406fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,8,1937,0,{0x0000000000004070UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,9,1937,0,{0x0000000000004071UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,10,1937,0,{0x0000000000004072UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,11,1937,0,{0x0000000000004073UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,12,1937,0,{0x0000000000004074UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,13,1937,0,{0x0000000000004075UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,14,1937,0,{0x0000000000004076UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,15,1937,0,{0x0000000000004077UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,16,1937,0,{0x0000000000004078UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,17,1937,0,{0x0000000000004079UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,18,1937,0,{0x000000000000407aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,19,1937,0,{0x000000000000407bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,20,1937,0,{0x000000000000407cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,21,1937,0,{0x000000000000407dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,22,1937,0,{0x000000000000407eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,23,1937,0,{0x000000000000407fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,24,1937,0,{0x0000000000004080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,25,1937,0,{0x0000000000004081UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,26,1937,0,{0x0000000000004082UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,27,1937,0,{0x0000000000004083UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,28,1937,0,{0x0000000000004084UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,29,1937,0,{0x0000000000004085UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,30,1937,0,{0x0000000000004086UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,31,1937,0,{0x0000000000004087UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,32,1937,0,{0x0000000000004088UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,33,1937,0,{0x0000000000004089UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,34,1937,0,{0x000000000000408aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,35,1937,0,{0x000000000000408bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,36,1937,0,{0x000000000000408cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,37,1937,0,{0x000000000000408dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,38,1937,0,{0x000000000000408eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,39,1937,0,{0x000000000000408fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,40,1937,0,{0x0000000000004090UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,41,1937,0,{0x0000000000004091UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,42,1937,0,{0x0000000000004092UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,43,1937,0,{0x0000000000004093UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,44,1937,0,{0x0000000000004094UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,45,1937,0,{0x0000000000004095UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,46,1937,0,{0x0000000000004096UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,47,1937,0,{0x0000000000004097UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,48,1937,0,{0x0000000000004098UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,49,1937,0,{0x0000000000004099UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,50,1937,0,{0x000000000000409aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,51,1937,0,{0x000000000000409bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,52,1937,0,{0x000000000000409cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,53,1937,0,{0x000000000000409dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,54,1937,0,{0x000000000000409eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,55,1937,0,{0x000000000000409fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,56,1937,0,{0x00000000000040a0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,57,1937,0,{0x00000000000040a1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,58,1937,0,{0x00000000000040a2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,59,1937,0,{0x00000000000040a3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,60,1937,0,{0x00000000000040a4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,61,1937,0,{0x00000000000040a5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,62,1937,0,{0x00000000000040a6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,63,1937,0,{0x00000000000040a7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,64,1937,0,{0x00000000000040a8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,65,1937,0,{0x00000000000040a9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,66,1937,0,{0x00000000000040aaUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,67,1937,0,{0x00000000000040abUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,68,1937,0,{0x00000000000040acUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,69,1937,0,{0x00000000000040adUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,70,1937,0,{0x00000000000040aeUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,71,1937,0,{0x00000000000040afUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,72,1937,0,{0x00000000000040b0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,73,1937,0,{0x00000000000040b1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,74,1937,0,{0x00000000000040b2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,75,1937,0,{0x00000000000040b3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,76,1937,0,{0x00000000000040b4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,77,1937,0,{0x00000000000040b5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,78,1937,0,{0x00000000000040b6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,79,1937,0,{0x00000000000040b7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,80,1937,0,{0x00000000000040b8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,81,1937,0,{0x00000000000040b9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,82,1937,0,{0x00000000000040baUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,83,1937,0,{0x00000000000040bbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,84,1937,0,{0x00000000000040bcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,85,1937,0,{0x00000000000040bdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,86,1937,0,{0x00000000000040beUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,87,1937,0,{0x00000000000040bfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,88,1937,0,{0x00000000000040c0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,89,1937,0,{0x00000000000040c1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,90,1937,0,{0x00000000000040c2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,91,1937,0,{0x00000000000040c3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,92,1937,0,{0x00000000000040c4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,93,1937,0,{0x00000000000040c5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,94,1937,0,{0x00000000000040c6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,95,1937,0,{0x00000000000040c7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,96,1937,0,{0x00000000000040c8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,97,1937,0,{0x00000000000040c9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,98,1937,0,{0x00000000000040caUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,99,1937,0,{0x00000000000040cbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,100,1937,0,{0x00000000000040ccUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,101,1937,0,{0x00000000000040cdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,102,1937,0,{0x00000000000040ceUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,103,1937,0,{0x00000000000040cfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,104,1937,0,{0x00000000000040d0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,105,1937,0,{0x00000000000040d1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,106,1937,0,{0x00000000000040d2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,107,1937,0,{0x00000000000040d3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,108,1937,0,{0x00000000000040d4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,109,1937,0,{0x00000000000040d5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,110,1937,0,{0x00000000000040d6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,111,1937,0,{0x00000000000040d7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,112,1937,0,{0x00000000000040d8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,113,1937,0,{0x00000000000040d9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,114,1937,0,{0x00000000000040daUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,115,1937,0,{0x00000000000040dbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,116,1937,0,{0x00000000000040dcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,117,1937,0,{0x00000000000040ddUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,118,1937,0,{0x00000000000040deUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,119,1937,0,{0x00000000000040dfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,120,1937,0,{0x00000000000040e0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,121,1937,0,{0x00000000000040e1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,122,1937,0,{0x00000000000040e2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,123,1937,0,{0x00000000000040e3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,124,1937,0,{0x00000000000040e4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,125,1937,0,{0x00000000000040e5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,126,1937,0,{0x00000000000040e6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,127,1937,0,{0x00000000000040e7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,128,1937,0,{0x00000000000040e8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,129,1937,0,{0x00000000000040e9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,130,1937,0,{0x00000000000040eaUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,131,1937,0,{0x00000000000040ebUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,132,1937,0,{0x00000000000040ecUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,133,1937,0,{0x00000000000040edUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,134,1937,0,{0x00000000000040eeUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,135,1937,0,{0x00000000000040efUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,136,1937,0,{0x00000000000040f0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,137,1937,0,{0x00000000000040f1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,138,1937,0,{0x00000000000040f2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,139,1937,0,{0x00000000000040f3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,140,1937,0,{0x00000000000040f4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,141,1937,0,{0x00000000000040f5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,142,1937,0,{0x00000000000040f6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,143,1937,0,{0x00000000000040f7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,144,1937,0,{0x00000000000040f8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,145,1937,0,{0x00000000000040f9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,146,1937,0,{0x00000000000040faUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,147,1937,0,{0x00000000000040fbUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,148,1937,0,{0x00000000000040fcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,149,1937,0,{0x00000000000040fdUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,150,1937,0,{0x00000000000040feUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,151,1937,0,{0x00000000000040ffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,152,1937,0,{0x0000000000004100UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,153,1937,0,{0x0000000000004101UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,154,1937,0,{0x0000000000004102UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,155,1937,0,{0x0000000000004103UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,156,1937,0,{0x0000000000004104UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,157,1937,0,{0x0000000000004105UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,158,1937,0,{0x0000000000004106UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,159,1937,0,{0x0000000000004107UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,160,1937,0,{0x0000000000004108UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,161,1937,0,{0x0000000000004109UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,162,1937,0,{0x000000000000410aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,163,1937,0,{0x000000000000410bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,164,1937,0,{0x000000000000410cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,165,1937,0,{0x000000000000410dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,166,1937,0,{0x000000000000410eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,167,1937,0,{0x000000000000410fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,168,1937,0,{0x0000000000004110UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,169,1937,0,{0x0000000000004111UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,170,1937,0,{0x0000000000004112UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,171,1937,0,{0x0000000000004113UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,172,1937,0,{0x0000000000004114UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,173,1937,0,{0x0000000000004115UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,174,1937,0,{0x0000000000004116UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,175,1937,0,{0x0000000000004117UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,176,1937,0,{0x0000000000004118UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,177,1937,0,{0x0000000000004119UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,178,1937,0,{0x000000000000411aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,179,1937,0,{0x000000000000411bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,180,1937,0,{0x000000000000411cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,181,1937,0,{0x000000000000411dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,182,1937,0,{0x000000000000411eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,183,1937,0,{0x000000000000411fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,184,1937,0,{0x0000000000004120UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,185,1937,0,{0x0000000000004121UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,186,1937,0,{0x0000000000004122UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,187,1937,0,{0x0000000000004123UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,188,1937,0,{0x0000000000004124UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,189,1937,0,{0x0000000000004125UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,190,1937,0,{0x0000000000004126UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,191,1937,0,{0x0000000000004127UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,192,1937,0,{0x0000000000004128UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,193,1937,0,{0x0000000000004129UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,194,1937,0,{0x000000000000412aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,195,1937,0,{0x000000000000412bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,196,1937,0,{0x000000000000412cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,197,1937,0,{0x000000000000412dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,198,1937,0,{0x000000000000412eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,199,1937,0,{0x000000000000412fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,200,1937,0,{0x0000000000004130UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,201,1937,0,{0x0000000000004131UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,202,1937,0,{0x0000000000004132UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,203,1937,0,{0x0000000000004133UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,204,1937,0,{0x0000000000004134UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,205,1937,0,{0x0000000000004135UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,206,1937,0,{0x0000000000004136UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,207,1937,0,{0x0000000000004137UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,208,1937,0,{0x0000000000004138UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,209,1937,0,{0x0000000000004139UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,210,1937,0,{0x000000000000413aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,211,1937,0,{0x000000000000413bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,212,1937,0,{0x000000000000413cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,213,1937,0,{0x000000000000413dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,214,1937,0,{0x000000000000413eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,215,1937,0,{0x000000000000413fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,216,1937,0,{0x0000000000004140UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,217,1937,0,{0x0000000000004141UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,218,1937,0,{0x0000000000004142UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,219,1937,0,{0x0000000000004143UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,220,1937,0,{0x0000000000004144UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,221,1937,0,{0x0000000000004145UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,222,1937,0,{0x0000000000004146UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,223,1937,0,{0x0000000000004147UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,224,1937,0,{0x0000000000004148UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,225,1937,0,{0x0000000000004149UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,226,1937,0,{0x000000000000414aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,227,1937,0,{0x000000000000414bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,228,1937,0,{0x000000000000414cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,229,1937,0,{0x000000000000414dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,230,1937,0,{0x000000000000414eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,231,1937,0,{0x000000000000414fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,232,1937,0,{0x0000000000004150UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,233,1937,0,{0x0000000000004151UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,234,1937,0,{0x0000000000004152UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,235,1937,0,{0x0000000000004153UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,236,1937,0,{0x0000000000004154UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,237,1937,0,{0x0000000000004155UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,238,1937,0,{0x0000000000004156UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,239,1937,0,{0x0000000000004157UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,240,1937,0,{0x0000000000004158UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,241,1937,0,{0x0000000000004159UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,242,1937,0,{0x000000000000415aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,243,1937,0,{0x000000000000415bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,244,1937,0,{0x000000000000415cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,245,1937,0,{0x000000000000415dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,246,1937,0,{0x000000000000415eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,247,1937,0,{0x000000000000415fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,248,1937,0,{0x0000000000004160UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,249,1937,0,{0x0000000000004161UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,250,1937,0,{0x0000000000004162UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,251,1937,0,{0x0000000000004163UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,252,1937,0,{0x0000000000004164UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,253,1937,0,{0x0000000000004165UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,254,1937,0,{0x0000000000004166UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,255,1937,0,{0x0000000000004167UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {26,0,1935,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,300,1937,0,{0x0000000000004aa8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,301,1937,0,{0x0000000000004aa9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,302,1937,0,{0x0000000000004aaaUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,303,1937,0,{0x0000000000004aabUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,304,1937,0,{0x0000000000004aacUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,305,1937,0,{0x0000000000004aadUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,306,1937,0,{0x0000000000004aaeUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,300,1937,0,{0x0000000000004268UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,301,1937,0,{0x0000000000004269UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,302,1937,0,{0x000000000000426aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,303,1937,0,{0x000000000000426bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,304,1937,0,{0x000000000000426cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,305,1937,0,{0x000000000000426dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,306,1937,0,{0x000000000000426eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,290,286,0,{0xffffffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {14,291,286,0,{0x0000000000000040UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,291,291,0,{0xffffffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
@@ -3350,16 +3437,16 @@ static const Record records[]={
  {13,294,294,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {0,303,303,294,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {28,0,300,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,289,1937,0,{0x0000000000004aafUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,289,1937,0,{0x000000000000426fUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {0,287,300,289,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {26,0,1936,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,300,1937,0,{0x0000000000004aa8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,301,1937,0,{0x0000000000004aa9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,302,1937,0,{0x0000000000004aaaUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,303,1937,0,{0x0000000000004aabUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,304,1937,0,{0x0000000000004aacUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,305,1937,0,{0x0000000000004aadUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,306,1937,0,{0x0000000000004aaeUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,300,1937,0,{0x0000000000004268UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,301,1937,0,{0x0000000000004269UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,302,1937,0,{0x000000000000426aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,303,1937,0,{0x000000000000426bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,304,1937,0,{0x000000000000426cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,305,1937,0,{0x000000000000426dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,306,1937,0,{0x000000000000426eUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,290,286,0,{0xffffffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {14,291,286,0,{0x0000000000000040UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,291,291,0,{0xffffffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
@@ -3380,12 +3467,12 @@ static const Record records[]={
  {13,294,294,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {0,303,303,294,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {26,0,1936,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {19,285,256,0,{0x00000000000049a8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {19,285,256,0,{0x0000000000004168UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {14,266,285,0,{0x0000000000000080UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {15,285,285,0,{0xffffffffffffffffUL,0xffffffffffffffffUL,0x0000000000000000UL,0x0000000000000000UL}},
  {5,285,258,285,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {17,264,285,0,{0x0000000000000001UL,0x00078cf000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x00000000000003e1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {17,264,285,0,{0x0000000000000001UL,0x0008888800000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000003e9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {4,280,1931,265,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {4,281,1931,266,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,286,280,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
@@ -3393,101 +3480,101 @@ static const Record records[]={
  {18,269,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,274,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {8,264,284,274,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x0000000000000385UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x000000000000038dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {20,0,269,286,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,269,269,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {11,274,274,0,{0xa97dfbc9c4e58810UL,0x0000001a9af507aaUL,0x0000000000000000UL,0x0000000000000000UL}},
- {25,1936,0,0,{0x000000000000033bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,274,274,0,{0x5d221d192b7e0137UL,0x00000021eb88ef9eUL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000343UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,284,284,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {17,264,287,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000016400UL,0x0000000000000000UL}},
- {22,0,264,0,{0x000000000000038dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {17,264,284,0,{0x0000000000000000UL,0x00078cf000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x00000000000003e1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {17,264,287,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000013b00UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x0000000000000395UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {17,264,284,0,{0x0000000000000000UL,0x0008888800000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000003e9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,286,287,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {24,0,0,0,{0x0000000000000380UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x0000000000000388UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {9,264,284,285,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {22,0,264,0,{0x00000000000003a5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x00000000000003adUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {5,282,284,285,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,275,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,277,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {11,294,275,0,{0xa97dfbc9c4e58810UL,0x0000001a9af507aaUL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,294,275,0,{0x5d221d192b7e0137UL,0x00000021eb88ef9eUL,0x0000000000000000UL,0x0000000000000000UL}},
  {9,264,282,294,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {22,0,264,0,{0x0000000000000398UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x00000000000003a0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,275,294,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,277,277,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {24,0,0,0,{0x0000000000000392UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x000000000000039aUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {19,280,277,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,277,277,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {11,276,275,0,{0xa97dfbc9c4e58810UL,0x0000001a9af507aaUL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,276,275,0,{0x5d221d192b7e0137UL,0x00000021eb88ef9eUL,0x0000000000000000UL,0x0000000000000000UL}},
  {5,282,282,275,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,282,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {22,0,264,0,{0x00000000000003a3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x00000000000003abUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,286,280,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {25,1936,0,0,{0x000000000000033bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000343UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,280,287,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {12,282,282,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {24,0,0,0,{0x000000000000039cUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x00000000000003a4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {5,275,284,285,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {24,0,0,0,{0x00000000000003b0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x00000000000003b8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {5,282,285,284,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,275,0,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {18,276,0,0,{0xa97dfbc9c4e58810UL,0x0000001a9af507aaUL,0x0000000000000000UL,0x0000000000000000UL}},
+ {18,276,0,0,{0x5d221d192b7e0137UL,0x00000021eb88ef9eUL,0x0000000000000000UL,0x0000000000000000UL}},
  {18,277,0,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,282,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {22,0,264,0,{0x00000000000003b0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x00000000000003b8UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,286,281,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {25,1936,0,0,{0x000000000000033bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000343UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,281,287,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {12,282,282,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {24,0,0,0,{0x00000000000003a9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x00000000000003b1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {8,264,280,281,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {22,0,264,0,{0x00000000000003e1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x00000000000003e9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {9,264,276,284,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x00000000000003c6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000003ceUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {5,279,276,275,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,282,279,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,278,281,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,286,278,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {25,1936,0,0,{0x000000000000033bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000343UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,278,287,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {12,282,282,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,282,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {23,0,264,0,{0x00000000000003b7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {23,0,264,0,{0x00000000000003bfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {19,294,277,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {8,264,294,278,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {22,0,264,0,{0x00000000000003c7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x00000000000003cfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,280,294,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,281,278,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,275,276,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {11,276,276,0,{0xa97dfbc9c4e58810UL,0x0000001a9af507aaUL,0x0000000000000000UL,0x0000000000000000UL}},
+ {11,276,276,0,{0x5d221d192b7e0137UL,0x00000021eb88ef9eUL,0x0000000000000000UL,0x0000000000000000UL}},
  {11,277,277,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {24,0,0,0,{0x00000000000003b2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x00000000000003baUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {5,279,284,275,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {16,264,279,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {22,0,264,0,{0x00000000000003e1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x00000000000003e9UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,286,280,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {25,1936,0,0,{0x000000000000033bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000343UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,288,287,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,286,281,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {25,1936,0,0,{0x000000000000033bUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000343UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {8,264,288,287,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {22,0,264,0,{0x00000000000003d4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {22,0,264,0,{0x00000000000003dcUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,280,288,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,281,287,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {12,279,279,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {24,0,0,0,{0x00000000000003c7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {24,0,0,0,{0x00000000000003cfUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,286,280,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {25,1936,0,0,{0x0000000000000359UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,300,{0x0000000000004ab0UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,301,{0x0000000000004ab1UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,302,{0x0000000000004ab2UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,303,{0x0000000000004ab3UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000361UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,300,{0x0000000000004270UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,301,{0x0000000000004271UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,302,{0x0000000000004272UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,303,{0x0000000000004273UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {10,286,281,0,{0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {25,1936,0,0,{0x0000000000000359UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,300,{0x0000000000004ab4UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,301,{0x0000000000004ab5UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,302,{0x0000000000004ab6UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
- {20,0,1937,303,{0x0000000000004ab7UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {25,1936,0,0,{0x0000000000000361UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,300,{0x0000000000004274UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,301,{0x0000000000004275UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,302,{0x0000000000004276UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
+ {20,0,1937,303,{0x0000000000004277UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {29,0,0,0,{0x0000000000000001UL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}},
  {29,0,0,0,{0x000000000000000dUL,0x0000000000000000UL,0x0000000000000000UL,0x0000000000000000UL}}
 };
@@ -3515,9 +3602,22 @@ int main(int argc,char **argv){if(argc!=2)return 2;FILE *out=fopen(argv[1],"wb")
     "truth_checks": 32768
   },
   "operation_counts": {
-    "retarget": true
+    "annealing_rounds_per_process": 17,
+    "cheap_builds": 512,
+    "controller_bytes": 8400,
+    "controller_instructions": 1002,
+    "controller_literals": 12,
+    "full_processes": 8,
+    "iterations_per_round": 200000000,
+    "prefilter_bytes": 49,
+    "prefilter_instructions": 15,
+    "scan_bins": 46906255,
+    "scan_evaluations": 671,
+    "step_bytes": 413080,
+    "step_instructions": 118445,
+    "table_processes": 10
   },
-  "peak_bytes": 866668,
+  "peak_bytes": 934965,
   "phases": [
     {
       "binary": "construction_generator",
@@ -3528,257 +3628,257 @@ int main(int argc,char **argv){if(argc!=2)return 2;FILE *out=fopen(argv[1],"wb")
         "image": 329527,
         "text": 40863
       },
-      "name": "inherited r17 campaign: 512-trial cheap scan",
+      "name": "512-trial cheap scan",
       "output_bytes": 18432,
       "retained_input_output_bytes": 18432,
-      "seconds": 3.5773924058303237,
+      "seconds": 3.7055015079677105,
       "sequential": true,
       "stack_reserve": 262144,
       "trial": null,
-      "vmhwm_bytes": 421888
+      "vmhwm_bytes": 417792
     },
     {
       "binary": "construction_generator",
-      "charged_peak_bytes": 634536,
-      "cheap_count": 100990,
+      "charged_peak_bytes": 643296,
+      "cheap_count": 121166,
       "image": {
         "bss": 288448,
         "data": 216,
         "image": 329527,
         "text": 40863
       },
-      "name": "inherited r17 campaign: TOPK full build 1",
-      "output_bytes": 42865,
-      "retained_best_bytes": 42865,
-      "retained_input_output_bytes": 42865,
-      "seconds": 276.2350001600571,
+      "name": "TOPK full build 1",
+      "output_bytes": 51625,
+      "retained_best_bytes": 51625,
+      "retained_input_output_bytes": 51625,
+      "seconds": 336.8171928040683,
       "sequential": true,
       "stack_reserve": 262144,
-      "step_ops": 98769,
+      "step_ops": 118456,
       "trial": 1331,
       "vmhwm_bytes": 417792
     },
     {
       "binary": "construction_generator",
-      "charged_peak_bytes": 634536,
-      "cheap_count": 100996,
+      "charged_peak_bytes": 643296,
+      "cheap_count": 121187,
       "image": {
         "bss": 288448,
         "data": 216,
         "image": 329527,
         "text": 40863
       },
-      "name": "inherited r17 campaign: TOPK full build 2",
-      "output_bytes": 42865,
-      "retained_best_bytes": 42865,
-      "retained_input_output_bytes": 42865,
-      "seconds": 274.21132717304863,
+      "name": "TOPK full build 2",
+      "output_bytes": 51625,
+      "retained_best_bytes": 51625,
+      "retained_input_output_bytes": 51625,
+      "seconds": 336.3919523428194,
       "sequential": true,
       "stack_reserve": 262144,
-      "step_ops": 98769,
-      "trial": 1304,
-      "vmhwm_bytes": 421888
-    },
-    {
-      "binary": "construction_generator",
-      "charged_peak_bytes": 634536,
-      "cheap_count": 101005,
-      "image": {
-        "bss": 288448,
-        "data": 216,
-        "image": 329527,
-        "text": 40863
-      },
-      "name": "inherited r17 campaign: TOPK full build 3",
-      "output_bytes": 42865,
-      "retained_best_bytes": 42865,
-      "retained_input_output_bytes": 42865,
-      "seconds": 273.58576244092546,
-      "sequential": true,
-      "stack_reserve": 262144,
-      "step_ops": 98762,
-      "trial": 1466,
-      "vmhwm_bytes": 417792
-    },
-    {
-      "binary": "construction_generator",
-      "charged_peak_bytes": 634536,
-      "cheap_count": 101016,
-      "image": {
-        "bss": 288448,
-        "data": 216,
-        "image": 329527,
-        "text": 40863
-      },
-      "name": "inherited r17 campaign: TOPK full build 4",
-      "output_bytes": 42865,
-      "retained_best_bytes": 42865,
-      "retained_input_output_bytes": 42865,
-      "seconds": 275.87167480797507,
-      "sequential": true,
-      "stack_reserve": 262144,
-      "step_ops": 98776,
-      "trial": 1375,
-      "vmhwm_bytes": 413696
-    },
-    {
-      "binary": "construction_generator",
-      "charged_peak_bytes": 634536,
-      "cheap_count": 101018,
-      "image": {
-        "bss": 288448,
-        "data": 216,
-        "image": 329527,
-        "text": 40863
-      },
-      "name": "inherited r17 campaign: TOPK full build 5",
-      "output_bytes": 42865,
-      "retained_best_bytes": 42865,
-      "retained_input_output_bytes": 42865,
-      "seconds": 274.137685429072,
-      "sequential": true,
-      "stack_reserve": 262144,
-      "step_ops": 98763,
-      "trial": 1377,
-      "vmhwm_bytes": 417792
-    },
-    {
-      "binary": "construction_generator",
-      "charged_peak_bytes": 634536,
-      "cheap_count": 101019,
-      "image": {
-        "bss": 288448,
-        "data": 216,
-        "image": 329527,
-        "text": 40863
-      },
-      "name": "inherited r17 campaign: TOPK full build 6",
-      "output_bytes": 42865,
-      "retained_best_bytes": 42865,
-      "retained_input_output_bytes": 42865,
-      "seconds": 276.35113340104,
-      "sequential": true,
-      "stack_reserve": 262144,
-      "step_ops": 98750,
-      "trial": 1259,
-      "vmhwm_bytes": 417792
-    },
-    {
-      "binary": "construction_generator",
-      "charged_peak_bytes": 634536,
-      "cheap_count": 101020,
-      "image": {
-        "bss": 288448,
-        "data": 216,
-        "image": 329527,
-        "text": 40863
-      },
-      "name": "inherited r17 campaign: TOPK full build 7",
-      "output_bytes": 42865,
-      "retained_best_bytes": 42865,
-      "retained_input_output_bytes": 42865,
-      "seconds": 278.64172472897917,
-      "sequential": true,
-      "stack_reserve": 262144,
-      "step_ops": 98793,
-      "trial": 1215,
-      "vmhwm_bytes": 413696
-    },
-    {
-      "binary": "construction_generator",
-      "charged_peak_bytes": 634536,
-      "cheap_count": 101022,
-      "image": {
-        "bss": 288448,
-        "data": 216,
-        "image": 329527,
-        "text": 40863
-      },
-      "name": "inherited r17 campaign: TOPK full build 8",
-      "output_bytes": 42865,
-      "retained_best_bytes": 42865,
-      "retained_input_output_bytes": 42865,
-      "seconds": 276.6532299730461,
-      "sequential": true,
-      "stack_reserve": 262144,
-      "step_ops": 98736,
+      "step_ops": 118445,
       "trial": 1333,
+      "vmhwm_bytes": 413696
+    },
+    {
+      "binary": "construction_generator",
+      "charged_peak_bytes": 643296,
+      "cheap_count": 121187,
+      "image": {
+        "bss": 288448,
+        "data": 216,
+        "image": 329527,
+        "text": 40863
+      },
+      "name": "TOPK full build 3",
+      "output_bytes": 51625,
+      "retained_best_bytes": 51625,
+      "retained_input_output_bytes": 51625,
+      "seconds": 335.1065367020201,
+      "sequential": true,
+      "stack_reserve": 262144,
+      "step_ops": 118466,
+      "trial": 1466,
+      "vmhwm_bytes": 413696
+    },
+    {
+      "binary": "construction_generator",
+      "charged_peak_bytes": 643296,
+      "cheap_count": 121191,
+      "image": {
+        "bss": 288448,
+        "data": 216,
+        "image": 329527,
+        "text": 40863
+      },
+      "name": "TOPK full build 4",
+      "output_bytes": 51625,
+      "retained_best_bytes": 51625,
+      "retained_input_output_bytes": 51625,
+      "seconds": 331.7827916620299,
+      "sequential": true,
+      "stack_reserve": 262144,
+      "step_ops": 118482,
+      "trial": 1059,
       "vmhwm_bytes": 417792
+    },
+    {
+      "binary": "construction_generator",
+      "charged_peak_bytes": 643296,
+      "cheap_count": 121192,
+      "image": {
+        "bss": 288448,
+        "data": 216,
+        "image": 329527,
+        "text": 40863
+      },
+      "name": "TOPK full build 5",
+      "output_bytes": 51625,
+      "retained_best_bytes": 51625,
+      "retained_input_output_bytes": 51625,
+      "seconds": 334.0516005018726,
+      "sequential": true,
+      "stack_reserve": 262144,
+      "step_ops": 118503,
+      "trial": 1215,
+      "vmhwm_bytes": 417792
+    },
+    {
+      "binary": "construction_generator",
+      "charged_peak_bytes": 643296,
+      "cheap_count": 121193,
+      "image": {
+        "bss": 288448,
+        "data": 216,
+        "image": 329527,
+        "text": 40863
+      },
+      "name": "TOPK full build 6",
+      "output_bytes": 51625,
+      "retained_best_bytes": 51625,
+      "retained_input_output_bytes": 51625,
+      "seconds": 334.34883660217747,
+      "sequential": true,
+      "stack_reserve": 262144,
+      "step_ops": 118483,
+      "trial": 1375,
+      "vmhwm_bytes": 417792
+    },
+    {
+      "binary": "construction_generator",
+      "charged_peak_bytes": 643296,
+      "cheap_count": 121200,
+      "image": {
+        "bss": 288448,
+        "data": 216,
+        "image": 329527,
+        "text": 40863
+      },
+      "name": "TOPK full build 7",
+      "output_bytes": 51625,
+      "retained_best_bytes": 51625,
+      "retained_input_output_bytes": 51625,
+      "seconds": 333.4790043910034,
+      "sequential": true,
+      "stack_reserve": 262144,
+      "step_ops": 118466,
+      "trial": 1377,
+      "vmhwm_bytes": 413696
+    },
+    {
+      "binary": "construction_generator",
+      "charged_peak_bytes": 643296,
+      "cheap_count": 121203,
+      "image": {
+        "bss": 288448,
+        "data": 216,
+        "image": 329527,
+        "text": 40863
+      },
+      "name": "TOPK full build 8",
+      "output_bytes": 51625,
+      "retained_best_bytes": 51625,
+      "retained_input_output_bytes": 51625,
+      "seconds": 331.87462322297506,
+      "sequential": true,
+      "stack_reserve": 262144,
+      "step_ops": 118480,
+      "trial": 1184,
+      "vmhwm_bytes": 413696
     },
     {
       "binary": "construction_hash",
-      "charged_peak_bytes": 51671,
+      "charged_peak_bytes": 55767,
       "image": {
         "bss": 4096,
         "data": 16,
         "image": 9766,
         "text": 5654
       },
-      "name": "inherited r17 campaign: structured-basis file verification",
+      "name": "structured-basis file verification",
       "retained_input_output_bytes": 22999,
       "sequential": true,
       "stack_reserve": 16384,
-      "vmhwm_bytes": 28672
+      "vmhwm_bytes": 32768
     },
     {
       "binary": "construction_scan",
-      "charged_peak_bytes": 28743,
+      "charged_peak_bytes": 28745,
       "image": {
         "bss": 4160,
         "data": 24,
         "image": 12286,
         "text": 8102
       },
-      "name": "inherited r17 campaign: native finite parameter scan",
+      "name": "native finite parameter scan",
       "retained_input_output_bytes": 73,
       "sequential": true,
       "stack_reserve": 16384,
-      "vmhwm_bytes": 24576
+      "vmhwm_bytes": 28672
     },
     {
       "binary": "construction_emitter",
-      "charged_peak_bytes": 866668,
+      "charged_peak_bytes": 934965,
       "image": {
         "bss": 393504,
         "data": 208,
         "image": 423581,
         "text": 29869
       },
-      "name": "inherited r17 campaign: streaming native step emission",
-      "retained_input_output_bytes": 344783,
+      "name": "streaming native step emission",
+      "retained_input_output_bytes": 413080,
       "sequential": true,
       "stack_reserve": 98304,
-      "vmhwm_bytes": 430080
+      "vmhwm_bytes": 438272
     },
     {
       "binary": "construction_hash",
-      "charged_peak_bytes": 373455,
+      "charged_peak_bytes": 439230,
       "image": {
         "bss": 4096,
         "data": 16,
         "image": 9766,
         "text": 5654
       },
-      "name": "inherited r17 campaign: streaming step SHA-256",
-      "retained_input_output_bytes": 344783,
+      "name": "streaming step SHA-256",
+      "retained_input_output_bytes": 413080,
       "sequential": true,
       "stack_reserve": 16384,
-      "vmhwm_bytes": 28672
+      "vmhwm_bytes": 24576
     },
     {
       "binary": "construction_verify",
-      "charged_peak_bytes": 373455,
+      "charged_peak_bytes": 438762,
       "image": {
         "bss": 4096,
         "data": 16,
         "image": 9298,
         "text": 5186
       },
-      "name": "inherited r17 campaign: construction-time step parsing, field, and ledger verification",
-      "retained_input_output_bytes": 344783,
+      "name": "construction-time step parsing, field, and ledger verification",
+      "retained_input_output_bytes": 413080,
       "sequential": true,
       "stack_reserve": 16384,
-      "vmhwm_bytes": 28672
+      "vmhwm_bytes": 24576
     },
     {
       "binary": "construction_prefilter",
@@ -3789,11 +3889,11 @@ int main(int argc,char **argv){if(argc!=2)return 2;FILE *out=fopen(argv[1],"wb")
         "image": 8254,
         "text": 4102
       },
-      "name": "inherited r17 campaign: native 15-OR prefilter emission",
+      "name": "native 15-OR prefilter emission",
       "retained_input_output_bytes": 49,
       "sequential": true,
       "stack_reserve": 16384,
-      "vmhwm_bytes": 20480
+      "vmhwm_bytes": 24576
     },
     {
       "binary": "construction_hash",
@@ -3804,7 +3904,7 @@ int main(int argc,char **argv){if(argc!=2)return 2;FILE *out=fopen(argv[1],"wb")
         "image": 9766,
         "text": 5654
       },
-      "name": "inherited r17 campaign: streaming prefilter SHA-256",
+      "name": "streaming prefilter SHA-256",
       "retained_input_output_bytes": 49,
       "sequential": true,
       "stack_reserve": 16384,
@@ -3812,113 +3912,90 @@ int main(int argc,char **argv){if(argc!=2)return 2;FILE *out=fopen(argv[1],"wb")
     },
     {
       "binary": "controller_emitter",
-      "charged_peak_bytes": 75045,
+      "charged_peak_bytes": 75429,
       "image": {
         "bss": 6208,
         "data": 24,
-        "image": 50325,
-        "text": 44093
+        "image": 50645,
+        "text": 44413
       },
-      "name": "inherited r17 campaign: native8 controller emission",
-      "retained_input_output_bytes": 8336,
+      "name": "native8 controller emission",
+      "retained_input_output_bytes": 8400,
       "sequential": true,
       "stack_reserve": 16384,
       "vmhwm_bytes": 57344
     },
     {
       "binary": "construction_hash",
-      "charged_peak_bytes": 41104,
+      "charged_peak_bytes": 37072,
       "image": {
         "bss": 4096,
         "data": 16,
         "image": 9766,
         "text": 5654
       },
-      "name": "inherited r17 campaign: streaming controller SHA-256",
-      "retained_input_output_bytes": 8336,
+      "name": "streaming controller SHA-256",
+      "retained_input_output_bytes": 8400,
       "sequential": true,
       "stack_reserve": 16384,
-      "vmhwm_bytes": 32768
-    },
-    {
-      "binary": "construction_emitter_r6",
-      "charged_peak_bytes": 610313,
-      "image": {
-        "bss": 393504,
-        "data": 208,
-        "image": 416757,
-        "text": 23045
-      },
-      "name": "selected-round streaming step re-emission",
-      "retained_input_output_bytes": 95252,
-      "sequential": true,
-      "stack_reserve": 98304,
-      "vmhwm_bytes": 376832
-    },
-    {
-      "binary": "construction_hash",
-      "charged_peak_bytes": 128020,
-      "image": {
-        "bss": 4096,
-        "data": 16,
-        "image": 9766,
-        "text": 5654
-      },
-      "name": "selected-round streaming step SHA-256",
-      "retained_input_output_bytes": 95252,
-      "sequential": true,
-      "stack_reserve": 16384,
-      "vmhwm_bytes": 32768
-    },
-    {
-      "binary": "construction_verify",
-      "charged_peak_bytes": 120934,
-      "image": {
-        "bss": 4096,
-        "data": 16,
-        "image": 9298,
-        "text": 5186
-      },
-      "name": "selected-round parsing, field and ledger verification",
-      "retained_input_output_bytes": 95252,
-      "sequential": true,
-      "stack_reserve": 16384,
-      "vmhwm_bytes": 24576
-    },
-    {
-      "binary": "construction_prefilter",
-      "charged_peak_bytes": 24687,
-      "image": {
-        "bss": 4128,
-        "data": 24,
-        "image": 8254,
-        "text": 4102
-      },
-      "name": "selected-round prefilter emission",
-      "retained_input_output_bytes": 49,
-      "sequential": true,
-      "stack_reserve": 16384,
-      "vmhwm_bytes": 20480
-    },
-    {
-      "binary": "controller_emitter",
-      "charged_peak_bytes": 75045,
-      "image": {
-        "bss": 6208,
-        "data": 24,
-        "image": 50325,
-        "text": 44093
-      },
-      "name": "selected-round native8 controller emission",
-      "retained_input_output_bytes": 8336,
-      "sequential": true,
-      "stack_reserve": 16384,
-      "vmhwm_bytes": 57344
+      "vmhwm_bytes": 28672
     }
   ],
-  "round": 6,
-  "schema": "hashsmash-retarget-construction-memory-v1",
-  "sequential": true,
-  "source_round": 17
+  "round": 20,
+  "schema": "hashsmash-construction-memory-v1",
+  "sequential": true
 }
 ```
+
+## 9. Provenance of this round count and what was re-derived
+
+This package is a re-targeting of **a3e65dc9-491c-423c-85fc-c2d24ccf4e5e** (0xplemonade), a
+submission to the *separate* `mooselumph/hashsmash-pareto/sha3-256` benchmark at round 20
+with normalized time 124.45149, to round 6 of this scalar track. The two benchmarks share
+the `collision-frontier-v5` cost model and the identical `sha3-256-r<r>-prefix-v1` target
+profiles (byte-for-byte apart from the round count and its round-selection sentence), so
+the construction transfers; no score, qualification or decision from that benchmark is
+carried over, and this package is reviewed afresh here. All credit for the construction campaign, the plan search, the
+chained-chi table, the two-address and native8 encodings, the controller, and the 200-digit
+success certificate belongs to that lineage; the author of this package contributed the
+re-targeting, the re-derived circuit and the ledger below.
+
+**What the round count changes.** The plan header's `nr` field, the emitted straight line
+and its hashes, the derived PD, the register peak and the link/prefilter register indices,
+the controller's `271 * rounds` permutation price and its round-dependent instruction
+counts, the reference operation cost `C = 271 * 6 = 1626`, and every ledger term that
+reads `C`.
+
+**What it does not change.** The plan body (the per-round C/D complement masks and compact
+chi decisions), the 25 folded lane constants, the chained-chi table and its checksum, the
+six-lane embedding, and the search parameters `S = 16488`, `U = 82440`, `Tb`, `LRC`, `J` and the
+trail count. Appendix A therefore transfers verbatim: no input of the success argument is a
+function of the round count. H1 compares a bounded attempt on the fixed deterministic walk
+`g` with the same attempt against a uniformly random comparator `F`, and the comparator
+calculation reads only the distinguished-point threshold, the step budget, the replay cap
+and the trail count. The r20 and r24 packages of this same family already share one plan
+binding and one set of lane constants, so re-targeting the round count is this
+construction's own method rather than a new assumption.
+
+**Ledger terms evaluated at this round.** Main work is exact, from this package's own
+emitted circuit: `Tb * BSTEP`. Replay is exact too, from the closed form of Section 4 at
+this round's `e = C + 29 = 1655`, with `G = ceil(LRC/(S-1)) = 2687423885757092749185025704247` and `nck = S - 1 = 16487`;
+it comes to 147424640958166104101746264353840690602, which is 0.3048 of the r20 figure, as the smaller `C`
+requires. `preprocessing_log2` is recomputed as an upper bound on `log2(PRE/C)` =
+36.71984; the parent's value bounds that ratio only at the parent's larger `C`.
+
+**The one carried term.** The hit, DP, probe, restart, setup, cap and final-halt paths are
+charged at the r20 package's figure, 6582035915778625933331161026038489389. That is an upper bound here: those paths are
+priced from the emitted controller's own counts, every round-dependent count is strictly
+smaller at this round (replay_rate 3,327 against 10,915, replay_g 4,985 against 16,367, replay_const 1,748 against 5,542 and eval_f 1,655 against 5,449), every other count entering them (`hit`, `ctz_clear`,
+`record_slot`, `probe_word`, `insert`, `dp_fixed`, `restart`, `restart_halt`,
+`deadline_final`, `setup`) is identical to the parent's, and any path charging a permutation
+at `C` is cheaper. The term is 0.019% of N, so the conservatism costs under
+0.0003 bit. Preprocessing is the same inherited construction campaign and is charged
+in full at the parent's figure. Nothing in the ledger is reduced by an unexecuted path.
+
+**Status.** `plausible_not_refuted` under the exploratory policy would not make this a proof
+or a human-accepted result, and the claim asserts no weakness in full 24-round SHA3-256: at
+round 6 of 24 the bound 124.03135 is above the organizer nominal reference and the whole
+attack is an ordinary distinguished-point birthday search whose only gain over the nominal
+scaffold is the bit-sliced pricing of the chain under collision-frontier-v5.
