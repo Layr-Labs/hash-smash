@@ -9,77 +9,132 @@
   "certificate_manifest": "certificates/manifest.json",
   "experiment_manifest": "experiments/manifest.json",
   "claim": {
-    "time_log2": 87.14808,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 28.1,
+    "memory_log2_bytes": 28.03552941,
+    "nonuniform_advice_log2_bytes": 16,
     "preprocessing_log2": 78.09276,
     "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 14
+    "time_log2": 82.87826569,
+    "time_unit": "target-compressions"
   },
   "restrictions": [
-    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; outputs two distinct 128-byte messages M0 || M1, M0 || M1' with equal digests.",
-    "Construction: the memory-efficient A0-variant attack (design of 2d1c4fc2 and fb176310 on ePrint 2026/1120 / 2026/1080; per-class row-16 programs as in 08be594), our implementation experiments/a0p38.py, with our characteristic P8 and the accepted event rows 16..22 (row 19 on signed differences) plus a direct output comparison.",
-    "Cost: exact ledger ledger_a0p.py: N_FB = 1,510,856,422,634,357,630,235,398 first blocks, 32 classes of 24,576 variants (786,432 in all), per-class row-16 programs of 1,438 to 1,482 instructions (mean 1462.25) per 256 variants, executed counts; T x 2728 = 467765448296261394038709429793; claimed 87.14808.",
-    "Success probability at least 0.39 under H1, H2 (q3_model 2^-97.0000), H3, by Bonferroni per first block, independent first blocks and Chebyshev caps.",
-    "Memory 2^28.10 bytes (online 3,659,904 bytes; the preprocessing peak)."
+    "Exact sha256-r38-prefix-v1 ordinary complete-message collisions: standard IV once, rounds0..37 on every padded block, full feed-forward, FIPS padding and all256 digest bits. P8 fixtures are semi-free-start plumbing only.",
+    "Frozen v4 program979ce9bb2d6505f8614aab65a56e8eff830fdb3d02cc36f5569d6321134bb718:290283 records,2322264 bytes,241 constants,94 mutable names,234 native words. Complete source and expanded organizer VM appear in proof.",
+    "BUDGET is an admitted full256-bit word. All20480 leaf/nonfull/late-stage additions and the fixed1489431040983 per-CV ADD are priced; cap decisions receive no histogram total or external execution clock.",
+    "Time and memory exponents are rounded upward82.87826569 and28.03552941; scalar90.91379510 is a projection, not an official score. V_MAX23369453903347697850258080090; complete word total24248692429337297059623672673.",
+    "Whole native memory275128320 bytes includes all twelve retained native outcomes, complete code/state/table/mirrors and preprocessing co-residency, plus65536 guard; no subtraction. Advice16 covers initialized state; code is separately counted.",
+    "Success0.39 remains conditional on H1/H1-P1/H2-P1/H3-P1. Mean-log-ratio statistics do not by themselves establish the arithmetic online acceptance-rate transfer. No new rare-event frequency or independent-coin evidence is inferred.",
+    "H4 preprocessing/development allowances remain charged in full. Historical inventory completeness and absence of deleted unrecorded trials remain heuristic or UNKNOWN. H5 inherited narrow arithmetic and unexpanded LEGACY conventions remain conditions.",
+    "The organizer source is a self-contained compressed transport of the exact expanded code reproduced in proof. Its hash is checked before execution. Native C bytes are expanded and checksum checked, not compiled by this experiment.",
+    "First-trial finite fixtures and two sparse seeded scans do not establish full physical native memory, full retention, full N_CV/LU32 execution or success probability. Returned-pair checking is the organizer responsibility.",
+    "Local conditional GO and replay are not organizer qualification, human acceptance, submission or an official incumbent improvement. The nominal baseline reference field makes no improvement assertion."
   ],
   "heuristics": [
     {
-      "id": "H1-single-trial-chaining-value",
+      "id": "H1-uniform-chaining-values",
       "role": "score-critical",
-      "statement": "For M0 uniform on {0,1}^512 (two fresh random words per first block), CV1 = F_38(IV, M0) behaves as a uniform 256-bit value for the events of one fixed variant (W7, W16..W22 and E16x distributed as in Lemma 5.1).",
-      "scope": "g, the per-first-block success probability and the expected work.",
-      "extrapolation": "The premise of the A0-variant lineage. Organizer evidence: a0p-online-r38 draws 64 unconditional first blocks per active trial and counts the W7 passes of all 32 classes (our validation: 5,693 passes in 2,560 blocks against 5,480 expected); it then runs the counted program on real first blocks.",
-      "limitations": "A premise about the first-block compression.",
+      "statement": "The first blocks M0 are fresh uniform 512-bit strings and their chaining values cv = F_38(IV, M0) behave as independent uniform 256-bit values. Consequences used, all as expectations over the random chaining value (for a fixed chaining value and R the table is determined): the 2^27 table values F(a0) are distributed as independent uniform words for the table statistics (bucket loads Binomial(2^27, 2^-23), E[min(load, 7)] = 6.994098 stored lanes, uniform tags, 160 x 6.994098 / 512 = 2.185656 expected claws per scan word); F7 has probability |F7|/2^32; the good pairs and the online works W_j of different chaining values are independent (proof.md Lemma 4, Section 7).",
+      "scope": "Expected claw and budget means, the bucket/tag law, independent complete-CV budgets in Bernstein, and the product over fresh chaining values. Current proof Sections4,6 and7.",
+      "extrapolation": "Historical staged-candidate evidence, historical statistical evidence, not a new v4 probability report. Our C port of the bucket claw at full table size (2^23 buckets, 2^27 candidates) on 64 seed-drawn chaining values, 2^22 scan words each: claws 586,702,214, claws/expected 0.99999, stored lanes per bucket 6.994111 (expected 6.994098); with the full table the claws equal an independent reference search (chaining value 24: 573,516 claws, reference 573,516; chaining value 25: 572,352 claws, reference 572,352); the C port reproduces p1b38.run_cv (which executes the SWAR test literally) exactly at reduced sizes. The organizer experiment p1b-online-r38 reports stored lanes, claws and reference claws on seed-drawn chaining values.",
+      "limitations": "A premise, not a theorem: over the random chaining value the table values and the claws are taken to follow the random-function law in expectation; checked at full table size on 64 chaining values, not on 2^53 of them. The sealed v4 implementation adds no statistical evidence for this premise; Section5 applies the same inherited probability parameters and charged allowances.",
       "evidence_ids": [
-        "proof:186-191",
-        "proof:373-394"
+        "proof:82-135",
+        "experiment:p1b-native-v4-r38"
       ]
     },
     {
-      "id": "H2-q3-accepted-event",
+      "id": "H1-P1-postfilter-law",
       "role": "score-critical",
-      "statement": "The average over the 786,432 selected variants (32 classes) of Pr[the pair is in the accepted event (rows 16..22 with row 19 on signed differences, equal outputs) | good pair] is at least q3_model = 2^-97.0000.",
-      "scope": "N_FB and the whole attack term.",
-      "extrapolation": "40 multilevel-splitting runs (seeds 4001..4040) with the variants of the selected classes: mean 2^-96.1821, one-sided 99% Student bound 2^-96.5603, bootstrap 2^-96.5278, 188,796 verified collisions (two stalled runs counted as 0); an independent Python implementation (the organizer replica, a lower-bound event restricted to four row-19 patterns and 512 sampled variants): 480 development replicates, mean 2^-96.2059; organizer replica a0p-q3-r38 with a frozen pass rule.",
-      "limitations": "Participant-run Monte Carlo with a heavy-tailed middle stage; the replica tests a reduced version.",
+      "statement": "For the claws the procedure finds, Pr[C1 and C2 and G and F7] >= q_pf = 116,189,231,624,828 x 287,309,824 / 2^91 = 2^-16.17850: P(C1) = 1/8, |C1 and C2| = 53,096,854 over a1, the C1 C2 G count of the smallest of P's four 2^25-windows times four (116,189,231,624,828 over 2^59), |F7| = 287,309,824; the stage rates set the mean post-filter cost. For mean-cost upper bounds, H1-P1 also transfers P(C1)<=1/8, P(C1C2)<=53096854/2^32, P(C1C2G)<=116189231640576/2^59, and the corresponding qpf upper using287309824/2^32 to retained claws. Success uses the minimum-window lower bound separately.",
+      "scope": "Good-pair success lower bounds and marginal reached-stage cost upper bounds on retained claws. Current proof Sections4 and6.",
+      "extrapolation": "Historical staged-candidate evidence, historical statistical evidence, not a new v4 probability report. Exact counts by our exhaustive programs (gwin38, recomputed identically in small memory by gwin38lm; proof.md Appendix R.1). Full-size bucket panel (64 chaining values, 7,699 good pairs): C1 0.12498, C2|C1 2^-3.3388 (exact 2^-3.3379), G|C1C2 2^-5.9358 (exact over P 2^-5.9387), F7|C1C2G 0.06503 (0.06689), good per claw 2^-16.2176; dispersion chi-square on 63 dof: C1 77.2 and C2 49.4 binomial, G 437.5 (by design: each chaining value's kept a0 follow its own rotation R; averaged over R the law is uniform on P and the pooled G rate matches), F7 158.4 (it reads the chaining value). The stored a0 are the first 7 candidates per bucket in the order o = rotr2((n + R) mod 2^27) with R a fresh random word per chaining value, so their law averaged over R is uniform on P (with R = 0 the panel showed a lower G rate, 2^-5.9937, proof.md Appendix H.5); the charge uses the smallest window count, a lower bound for any mixture of the windows.",
+      "limitations": "A premise that the exhaustive rates hold for the claws found; F7 varies with the chaining value (E[K^2]/E[K]^2 = 1.0248. in the panel). The sealed v4 implementation adds no statistical evidence for this premise; Section5 applies the same inherited probability parameters and charged allowances.",
       "evidence_ids": [
-        "proof:257-311",
-        "proof:373-394"
+        "proof:82-181",
+        "experiment:p1b-native-v4-r38"
       ]
     },
     {
-      "id": "H3-pairs-in-first-block",
+      "id": "H2-P1-q3-transfer",
       "role": "score-critical",
-      "statement": "The average over successes of the expected number of other row-16 passes of the same first block is at most 2^-5.1.",
-      "scope": "The Bonferroni factor of a first block.",
-      "extrapolation": "750 rebuilt successes: 6 other row-16 passes among 153,649,152 evaluated variants of the passing classes; 99% Poisson limit 2^-5.69.",
-      "limitations": "Measured on rebuilt estimator successes.",
+      "statement": "A good pair is accepted by step 3b with probability q3r >= q3_P1 x 2^32 / 160 = 2^-71.3657, where q3_P1 = 2^-96.0438 = q3_model x 2^min(0, D_LB(A0), D_LB(A0sel)): q3_model = 2^-96.0133 is the registered accepted-event rate (E18 = E17 not imposed) of the A0-variant good pairs on P8 before row 16 (e4243e7a, from 9aaf71a2's registered runs), and the D_LB are our registered one-sided 99% lower bounds of the paired per-seed difference log2 q(P1 on P) - log2 q(reference) for the A0 family (-0.02721) and for the 196,608 selected variants on which q3_model was measured (-0.03042).",
+      "scope": "E[X_j] and hence N_CV (proof.md Sections 7, 9).",
+      "extrapolation": "Historical staged-candidate evidence, historical statistical evidence, not a new v4 probability report. Registered runs, registration texts, hashes, per-seed values and every result line in proof.md Appendix P (40 seeds, three families, our q3tv, rows 16..22 by splitting, final stage rows 23..37 with the outputs compared); the base runs' registrations and per-seed values reproduced in Appendix Q.",
+      "limitations": "The nominal joint confidence of at least 97% applies to the three registered statistics (level, relaxation ratio, and mean per-seed paired log-difference), not to the online arithmetic acceptance-rate ratio used by H2-P1. A mean log-ratio does not by itself bound that arithmetic ratio; equal seed weighting omits prefix/claw weights, and the descriptive pooled counts omit them too. The 17 of 40 seeds stalled at row20 in the shared prefix and are symmetrically excluded by the registered rule, but a rigorous transfer would require a prefix-weighted linear-ratio analysis with stalled prefixes included. The A0sel amendment was written after 7 seeds of the first two families were seen and charges the smaller bound. The estimator conditions on row22 while the base tool starts its final stage there. P1 pairs follow the exact C1 C2 G law on P, not the online claw law. Thus q3_P1>=2^-96.0438 remains an explicit score-critical extrapolation premise supported by these studies, not a consequence of their confidence interval. Sealed v3 adds no statistical evidence.",
       "evidence_ids": [
-        "proof:257-311"
+        "proof:252-292",
+        "experiment:p1b-native-v4-r38"
       ]
     },
     {
-      "id": "H4-allowances",
+      "id": "H3-P1-pairwise-acceptance",
       "role": "score-critical",
-      "statement": "The computation spent on the characteristic search, S and the class data, and all development is at most A_C + A_S + DEV = 2^78 + 2^74 + 2^70 target compressions.",
-      "scope": "The allowance term (negligible against T).",
-      "extrapolation": "One 10-core machine, less than 2^22 core-seconds in all (participant accounting); the envelope holds for any machine running ten cores for a full year at up to 2^30 target compressions per core-second (2^58.3 < 2^70).",
-      "limitations": "Envelope independent of the measured rate; with A_C = 2^84 the ledger gives time_log2 = 87.29999 (+0.15191).",
+      "statement": "Pairwise behaviour of acceptance over the random chaining value (all probabilities over the procedure's coins: the random first block, hence by H1 a uniform chaining value, and the rotation R; nothing is conditional on the chaining value or its good pairs, which determine the outcome). With p = E[X_j]/E[K_j] the mean acceptance rate of good pairs (H2-P1: p >= q3r): for two claw positions c, c' sharing neither a0 nor u, Pr[c and c' both accepted] <= p^2 Pr[c and c' both good]; for linked positions (sharing a0 or u) nothing beyond Pr[A_c and A_c'] <= Pr[A_c and G_c'] is assumed, and a good pair's acceptance is not positively correlated with its number of linked partners. Consequence used (Lemma 5): E[X_j(X_j - 1)] <= 2 p E[L_j] + p^2 E[K_j(K_j - 1)], hence by the second-moment bound Pr[X_j >= 1] >= E[X_j]^2/E[X_j^2] >= q3r E[K_j] (1 - 2 E[L_j]/E[K_j] - q3r E[K_j^2]/E[K_j]) >= (1 - 2^-6.5) q3r E[K_j].",
+      "scope": "The factor (1 - 2^-6.5) per chaining value (proof.md Sections 7, 8).",
+      "extrapolation": "Historical staged-candidate evidence, historical statistical evidence, not a new v4 probability report. The link rate is measured exactly at the full scan: for all 7,699 good pairs of the bucket panel, every claw of the same a0 over all 2^32 scan words was enumerated and tested: 47 good partners (0.006105 per good pair, 2.8 times the independent rate 2^-8.85); the one-sided 99% bounds and the u links give E[L]/E[K] <= 0.0049, so 2 E[L]/E[K] + 2^-50 < 2^-6.5 (proof.md Section 8, Appendix H.3); the earlier measurement on 7,789 good pairs of the residue table (same set P) gave 0.006548. Second-moment term: q3r E[K^2]/E[K] < 2^-50.",
+      "limitations": "The pairwise behaviour of the rows 17..37 event between unlinked good pairs, over the random chaining value, is the premise and is not testable at any sample size (an accepted pair has probability about 2^-71). The link rate is measured on the good pairs of 64 chaining values. The sealed v4 implementation adds no statistical evidence for this premise; Section5 applies the same inherited probability parameters and charged allowances.",
       "evidence_ids": [
-        "proof:312-344"
+        "proof:182-251",
+        "experiment:p1b-native-v4-r38"
       ]
     },
     {
-      "id": "H5-bitsliced-planes",
+      "id": "H4a-allowance-characteristic-search",
       "role": "score-critical",
-      "statement": "One instruction on a 256-bit plane costs one word operation (the 256-bit word RAM of the cost model); each class's row-16 program is charged at its executed instruction count, loads and stores included (expected work at the mean over the classes, the work cap at the maximum).",
-      "scope": "The dominant work term.",
-      "extrapolation": "Executed instruction by instruction and compared with the scalar definition on sampled batches (selftest, a0p-online-r38).",
-      "limitations": "Full-scale execution is infeasible.",
+      "statement": "The total computation spent to obtain the characteristic P8 (our 1a695f0b: its signed-difference SAT sweep, coupling checks and estimators, failed and repeated runs included) is at most A_C = 2^78 target compressions.",
+      "scope": "The preprocessing part of the ledger: A_C = 2^78 enters the claimed time and preprocessing (78.09276).",
+      "extrapolation": "Historical staged-candidate evidence, historical statistical evidence, not a new v4 probability report. P8 is our own: all of the P8 line ran on one 10-core machine for less than 2^22 core-seconds (our accounting, proof.md Appendix R.2); at 2^30 target compressions per core-second, above any CPU core, that is under 2^52, 26 bits under A_C.",
+      "limitations": "A charged allowance (an upper bound charged in full), supported by our own accounting of one machine. The sealed v4 implementation adds no statistical evidence for this premise; Section5 applies the same inherited probability parameters and charged allowances.",
       "evidence_ids": [
-        "proof:217-237",
-        "proof:373-394"
+        "proof:293-309",
+        "experiment:p1b-native-v4-r38"
+      ]
+    },
+    {
+      "id": "H4b-allowance-step1-solve",
+      "role": "supporting",
+      "statement": "S (the dense part of P8's semi-free-start pair) is obtained at a total cost of at most A_S = 2^74 target compressions.",
+      "scope": "The preprocessing part of the ledger (A_S = 2^74).",
+      "extrapolation": "Historical staged-candidate evidence, historical statistical evidence, not a new v4 probability report. Our Step-1 solve is inside the accounting of H4a; our solver-alone rerun took 18 min 17 s (proof.md Appendix R.2). selftest checks that the transcribed pair reproduces and passes every test of rows 16..21 with equal outputs.",
+      "limitations": "A charged allowance, not a measurement. The sealed v4 implementation adds no statistical evidence for this premise; Section5 applies the same inherited probability parameters and charged allowances.",
+      "evidence_ids": [
+        "proof:293-309",
+        "experiment:p1b-native-v4-r38"
+      ]
+    },
+    {
+      "id": "H4c-development-charge",
+      "role": "supporting",
+      "statement": "DEV=2^70 target-compressions is charged in full for all development, including failed/repeated historical work, sealed v3 and v4 implementation/review runs, and integration/organizer experiments. Disclosed records support this as a declared upper allowance; completeness is not independently audited.",
+      "scope": "Full charged development term in the exact total. Section11 preserves historical support; AppendixR4 includes sealed v4 development provenance and retained superseded attempts.",
+      "extrapolation": "Historical envelope and disclosed v3/v4 development records, with no independent machine/date inventory audit or deduction of failed/repeated work. Integration adds no statistical confidence.",
+      "limitations": "A charged upper allowance supported by participant records and inherited evidence. Completeness of the full development/preprocessing inventory remains conditional; local implementation/resource passes do not establish that historical premise.",
+      "evidence_ids": [
+        "proof:293-309",
+        "experiment:p1b-native-v4-r38"
+      ]
+    },
+    {
+      "id": "H5prime-table-pricing",
+      "role": "score-critical",
+      "statement": "Under disclosed programmed-RAM semantics, sealed v4 uses actual literal in-band BUDGET additions and no readable work clock. Native program has290283 records; recurring callback4024, fixed CV8321635287, maximum budget scan2335626, cap23369453903347697850258080090 and complete total24248692429337297059623672673 word operations at C2728. The direct rational mean upper and frozen native/scalar/SWAR records support this conditional accounting; inherited narrow/LEGACY conventions remain dependencies.",
+      "scope": "Current proof Sections3 through5, complete native source AppendixV4, expanded organizer source AppendixVM, and selected raw local receipts AppendixR4. Includes reset/build/transform, literal control, actual in-band BUDGET, cap overshoot, FIN and installation.",
+      "extrapolation": "Complete v4 native source, fixed model/protocol, selected raw receipts, direct mean/cap proof and byte-identical verification-only replay are included. The exact self-contained organizer program independently assembles frozen v4 bytes and runs bounded fixtures. No full-scale probability or native-memory inference follows from it.",
+      "limitations": "No external execution supervisor is needed. Finite named instruction/register selection follows the disclosed programmed-RAM convention. Unchanged scanner/build/postfilter narrow arithmetic and unexpanded LEGACY reserves remain inherited dependencies. Full N_CV/LU32 and the astronomical cap were not dynamically executed. Native receipts are local, not organizer qualification; the declared organizer source needs an exact attached execution report.",
+      "evidence_ids": [
+        "proof:70-135",
+        "experiment:p1b-native-v4-r38"
+      ]
+    },
+    {
+      "id": "H6-memory-figure",
+      "role": "score-critical",
+      "statement": "Complete v4 guarded native memory is275128320 bytes: max(all twelve retained native cgroup/RSS peaks, inherited269946880 and preprocessing+new complete ELF/program+2048 state words273241520)+65536. Code,335 named words,234 native words, full table/mirrors, messages, controller and physical overhead are included without subtraction.",
+      "scope": "Complete capped-production memory bound and scalar projection. Rounded memory_log2_bytes28.03552941; exact value and guarded275128320 bytes are in Section5 and raw AppendixR4. Native measurement and sparse organizer scopes remain distinct.",
+      "extrapolation": "Complete v4 native source, fixed model/protocol, selected raw receipts, direct mean/cap proof and byte-identical verification-only replay are included. The exact self-contained organizer program independently assembles frozen v4 bytes and runs bounded fixtures. No full-scale probability or native-memory inference follows from it.",
+      "limitations": "Local native measurements and independent replay, not organizer-authenticated H6 or a full N_CV/LU32 run. Raw selected receipts are embedded; the full archive remains identified by hashes. Deleted unrecorded-trial provenance remains UNKNOWN. The bounded organizer VM uses sparse storage and supplies no full native-memory measurement.",
+      "evidence_ids": [
+        "proof:123-135",
+        "experiment:p1b-native-v4-r38"
       ]
     }
   ]
