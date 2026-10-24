@@ -9,78 +9,202 @@
   "certificate_manifest": "certificates/manifest.json",
   "experiment_manifest": "experiments/manifest.json",
   "claim": {
-    "time_log2": 87.14808,
+    "time_log2": 82.6905,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 28.1,
+    "memory_log2_bytes": 28.0447,
     "preprocessing_log2": 78.09276,
     "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 14
+    "nonuniform_advice_log2_bytes": 13
   },
-  "restrictions": [
-    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; outputs two distinct 128-byte messages M0 || M1, M0 || M1' with equal digests.",
-    "Construction: the memory-efficient A0-variant attack (design of 2d1c4fc2 and fb176310 on ePrint 2026/1120 / 2026/1080; per-class row-16 programs as in 08be594), our implementation experiments/a0p38.py, with our characteristic P8 and the accepted event rows 16..22 (row 19 on signed differences) plus a direct output comparison.",
-    "Cost: exact ledger ledger_a0p.py: N_FB = 1,510,856,422,634,357,630,235,398 first blocks, 32 classes of 24,576 variants (786,432 in all), per-class row-16 programs of 1,438 to 1,482 instructions (mean 1462.25) per 256 variants, executed counts; T x 2728 = 467765448296261394038709429793; claimed 87.14808.",
-    "Success probability at least 0.39 under H1, H2 (q3_model 2^-97.0000), H3, by Bonferroni per first block, independent first blocks and Chebyshev caps.",
-    "Memory 2^28.10 bytes (online 3,659,904 bytes; the preprocessing peak)."
-  ],
   "heuristics": [
     {
-      "id": "H1-single-trial-chaining-value",
+      "id": "H1-uniform-chaining-values",
       "role": "score-critical",
-      "statement": "For M0 uniform on {0,1}^512 (two fresh random words per first block), CV1 = F_38(IV, M0) behaves as a uniform 256-bit value for the events of one fixed variant (W7, W16..W22 and E16x distributed as in Lemma 5.1).",
-      "scope": "g, the per-first-block success probability and the expected work.",
-      "extrapolation": "The premise of the A0-variant lineage. Organizer evidence: a0p-online-r38 draws 64 unconditional first blocks per active trial and counts the W7 passes of all 32 classes (our validation: 5,693 passes in 2,560 blocks against 5,480 expected); it then runs the counted program on real first blocks.",
-      "limitations": "A premise about the first-block compression.",
+      "statement": "The first blocks M0 are fresh uniform 512-bit strings and their chaining values cv = F_38(IV, M0) behave as independent uniform 256-bit values. Consequences used: within one chaining value the 2^27 table values F(a0) of the binding two-window set (W9 = [9 x 2^26, 10 x 2^26) and W11 = [11 x 2^26, 12 x 2^26), proof.md A.27) behave as independent uniform words over the 2^23-bucket table of Appendix A.15, whose buckets are loaded in a uniform cyclic order and capped at seven lanes (H7), so a bucket holds E[min(Binomial(2^27, 2^-23), 7)] = 6.99410 filled lanes and the scan's fused test passes 40 x 6.99410 x 4/512 = 2.18566 two-window positions per u, of which it emits claws/u = 2.18566 x (1 - 2/2^9) = 2.17712 (A.23/A.25/A.27; one side bit per lane restores a0's window bit); F7 has probability |F7|/2^32; the X_j and the online works W_j of different chaining values are independent (proof.md Lemma 3, Section 7).",
+      "scope": "The expected emitted claw count 2.17712 per u of the shipped two-window cell, the mean online work wbar (hence V_MAX) of A.15.4/A.27, the independence used by Bernstein's inequality for the cap (proof.md Section 5, Lemmas 2 and 3) and the product over chaining values in the success bound (proof.md Section 7).",
+      "extrapolation": "Our C port (dev/claw/t7.c) at 2^25 slots loaded with the 2^26 candidates of window R = 9 measured occupancy 0.864763 to 0.864816 on four chaining values (formula 0.864665) and 1.07836 to 1.07917 claws per scanned word over 2^23 scan words each, against the formula 160 occ / 2^7 = 1.08100 (ratio 0.9976 to 0.9983); the parent's own port at 2^26 slots measured 0.63216 and 0.99898. The organizer experiment p1-online-r38 reports occupancy, claws, reference claws and expected claws on seed-drawn chaining values at a reduced table (ls = 16, 2^17 candidates). The scan words u0 + n are distinct and u0 is a fresh random word per chaining value, so the scan adds no dependence (proof.md Section 3). The shipped two-window set itself was executed on the filed machine at fixture scale (experiments/a23_fixture.py, S_P = 2^27: claws EQUAL the independent reference multiset-exact, occupancy 6.9941289 against binomial 6.9940983) and in C at the filed layout (dev/claw/t10.c: side reads 1.0000/claw over 73,340,552 claws, straddle 0.3906/u = the ledger's 0.390625 exactly, peak resident set 272,268 KiB).",
       "evidence_ids": [
-        "proof:186-191",
-        "proof:373-394"
-      ]
+        "proof:16",
+        "proof:1959-1986",
+        "proof:2076-2094",
+        "proof:80-82",
+        "proof:84-93",
+        "experiment:p1-online-r38"
+      ],
+      "limitations": "A premise, not a theorem: within each chaining value the table values F(a0), their tags and the claws found are taken to follow the per-chaining-value random-function law; independent first blocks do not by themselves prove it. The retained lanes of a bucket are the seven positions that follow a uniform rotation of the insertion order, i.e. an arc of seven rather than an arbitrary subset (H7); the score uses only that their tags are uniform, which retention does not condition on. Checked at reduced and full table size on a few chaining values, not on 2^54 of them. The W11 half's deep-event transfer is declared separately as H10-P1-W11-deep-transfer."
     },
     {
-      "id": "H2-q3-accepted-event",
+      "id": "H1-P1-postfilter-law",
       "role": "score-critical",
-      "statement": "The average over the 786,432 selected variants (32 classes) of Pr[the pair is in the accepted event (rows 16..22 with row 19 on signed differences, equal outputs) | good pair] is at least q3_model = 2^-97.0000.",
-      "scope": "N_FB and the whole attack term.",
-      "extrapolation": "40 multilevel-splitting runs (seeds 4001..4040) with the variants of the selected classes: mean 2^-96.1821, one-sided 99% Student bound 2^-96.5603, bootstrap 2^-96.5278, 188,796 verified collisions (two stalled runs counted as 0); an independent Python implementation (the organizer replica, a lower-bound event restricted to four row-19 patterns and 512 sampled variants): 480 development replicates, mean 2^-96.2059; organizer replica a0p-q3-r38 with a frozen pass rule.",
-      "limitations": "Participant-run Monte Carlo with a heavy-tailed middle stage; the replica tests a reduced version.",
+      "statement": "For the claws the procedure finds, Pr[C1 and C2 and G and F7] = q_pf = 57,726,359,870,197 x 287,309,824 / 2^90 = 2^-16.1877, the rate enumerated exhaustively over all 2^32 words (P(C1) = 1/8, |C1 and C2| = 53,096,854, the window-R = 9 G count 57,726,359,870,197, |F7| = 287,309,824); the stage rates 1/8, 2^-6.3379, 2^-12.2857 set the mean post-filter cost.",
+      "scope": "The good pairs per chaining value (62,193.16) and the mean post-filter work in wbar (proof.md Sections 5, 6).",
+      "extrapolation": "Section 7 already takes E[K] over all 2^32 scan words, and this filing's ledger scans all 2^32 words u = u0 + n per chaining value, so the ledger and the probability analysis use the same scan. Our C port at n0 = 2^26 measured occupancy 0.63216 and claws/expected 0.99898 over 2^20 scan words; the organizer experiment p1-online-r38 reports occupancy, claws and expected claws on seed-drawn chaining values, and the scan words u0 + n are distinct with u0 a fresh random word per chaining value (proof.md Section 3).",
       "evidence_ids": [
-        "proof:257-311",
-        "proof:373-394"
-      ]
+        "proof:80-83",
+        "proof:350-426",
+        "experiment:p1-online-r38",
+        "experiment:p1-q3-r38"
+      ],
+      "limitations": "A premise that the exhaustive rates hold for the claws found; F7 is chaining-value dependent (measured heterogeneity 1.254)."
     },
     {
-      "id": "H3-pairs-in-first-block",
+      "id": "H2-P1-q3-transfer",
       "role": "score-critical",
-      "statement": "The average over successes of the expected number of other row-16 passes of the same first block is at most 2^-5.1.",
-      "scope": "The Bonferroni factor of a first block.",
-      "extrapolation": "750 rebuilt successes: 6 other row-16 passes among 153,649,152 evaluated variants of the passing classes; 99% Poisson limit 2^-5.69.",
-      "limitations": "Measured on rebuilt estimator successes.",
+      "statement": "A good pair is accepted by step 3b with probability q3r >= q3_P1 x 2^32 / 160 = 2^-71.4010, where q3_P1 = 2^-96.0791 = q3_model x 2^D_LB: q3_model = 2^-96.0133 is the registered accepted-event rate of the A0-variant good pairs on P8 before row 16 (row 16 has probability 160/2^32 and a P1 good pair has passed it) and D_LB = -0.0658 is the registered one-sided 99% lower bound of the paired per-seed difference L(P1) - L(A0) measured with the P1 law of this package's window (a0 in [9 x 2^26, 10 x 2^26) given G, a1 uniform on C1 and C2). This filing inherits the bound unchanged: the table retune does not touch q3, q3r, the relaxation ratio, the paired R9 run or any part of the transfer, and the identical bound (q3_model 2^-96.0133, D_LB -0.0658, ratio +0.41488) is the one this workspace's accepted row 711c4bf8 and its predecessor a32131ff were scored on.",
+      "scope": "E[X_j] and hence N_CV (proof.md Sections 7, 9).",
+      "extrapolation": "Registered runs, per-seed values and registration hashes in proof.md (Section 9, Appendices P, Q, R.1): level -96.42816 (128 seeds), ratio +0.41488 (400 seeds), paired P1 difference R9 D = -0.0121, sd 0.1321, n = 36, D_LB = -0.0658 (declared), and the earlier A25 run on the window [0, 2^25) D = +0.0022, D_LB = -0.0345 (n = 76, reported). Every diagnostic 0.",
       "evidence_ids": [
-        "proof:257-311"
-      ]
+        "proof:100-112",
+        "proof:142-349",
+        "proof:427-966",
+        "proof:969-1582",
+        "experiment:p1-q3-r38"
+      ],
+      "limitations": "Three Monte-Carlo bounds (level, relaxation ratio, paired P1 difference), each by a rule registered before its run; joint confidence at least 97%% (union bound). The relaxation ratio (row-18 relation E18 = E17 not imposed) is measured on the A0 family and applied to the P1 family. The paired runs use the printed-cell event; their P1 pairs are drawn from the exact law of C1, C2, G on the window, not from claws of the procedure (F7 is the separate late word W7, as in the A0 runs). The complete event (about 2^-71 per good pair) is not observed by any organizer run. The relaxation ratio is measured on the A0 family and applied to the P1 family; the argument is that the relaxed cells (E17, E18) are read identically by both families and that the paired R9 run measures the family difference on the printed-cell event. This is the parent's premise, unchanged and unweakened here."
     },
     {
-      "id": "H4-allowances",
+      "id": "H3-P1-within-cv-dependence",
       "role": "score-critical",
-      "statement": "The computation spent on the characteristic search, S and the class data, and all development is at most A_C + A_S + DEV = 2^78 + 2^74 + 2^70 target compressions.",
-      "scope": "The allowance term (negligible against T).",
-      "extrapolation": "One 10-core machine, less than 2^22 core-seconds in all (participant accounting); the envelope holds for any machine running ten cores for a full year at up to 2^30 target compressions per core-second (2^58.3 < 2^70).",
-      "limitations": "Envelope independent of the measured rate; with A_C = 2^84 the ledger gives time_log2 = 87.29999 (+0.15191).",
+      "statement": "Group independence within a chaining value (the form of H5-group-independence of the accepted 44870635): good pairs of one chaining value that share no endpoint (a0 or u) are independent trials of the accepted event, each with probability q3r; good pairs sharing an endpoint form a group counted once. Consequence used: for a uniform chaining value, J (accepted good pairs over all 2^32 scan words) has E[J(J-1)] <= 2^-7.5 E[J].",
+      "scope": "The Bonferroni factor (1 - 2^-8.5) per chaining value. Lemma 4 (proof.md Section 7) derives E[X_j(X_j-1)]/E[X_j] <= E[J(J-1)]/E[J] exactly from the distinct scan words u0 + n with u0 uniform.",
+      "extrapolation": "Under the statement E[J(J-1)]/E[J] = q3r E[K(K-1)]/E[K] <= q3r E[K] x 1.246 = 2^-54.61, below 2^-7.5 by a factor 2^47.1 (K = good pairs per chaining value, E[K] = 2^16.47; 1.246 = the measured E[K^2]/E[K]^2 over 24 chaining values, proof.md Appendix H). Panel: 0 of 2,124 good pairs share an endpoint; C2|C1 and G|C1C2 binomial across chaining values; F7 overdispersed (it reads the chaining value). Registered test on components of the accepted event (proof.md Appendix H.2): Part B of the 10-17 registration, run unchanged on 10-21: the forced-bit events B_t = ((E_t^x & m_t) == v_t) of rows 17..21 (the value-only cells of E17..E21, rates 2^-7, 2^-7, 2^-3, 2^-5, 2^-4), computed on the real compressions of both members of every good pair, ONE = every good pair of one chaining value over all 2^32 scan words (17,576; the registered target 20,000 exceeds what the chaining value has), MANY = 100 good pairs of each of 200 chaining values (20,000), all re-verified by an independent rebuild (0 and 0 bad): against N p_t the largest |z| is 2.43 (ONE) and 1.58 (MANY); ONE against MANY on rates, |z| at most 1.57; dispersion of E19, E20, E21 across the 200 chaining values chi-square 205.2, 190.2, 193.3 on 199 dof (two-sided p 0.734, 0.680, 0.798). The registered ONE-against-MANY formula (n1 - n2)/sqrt(n1 + n2) assumes equal sizes; applied to the unequal sizes it gives |z| up to 3.77, which is the size difference, not dependence (Appendix H.2). No within-chaining-value dependence of these components is detected.",
       "evidence_ids": [
-        "proof:312-344"
-      ]
+        "proof:84-93",
+        "proof:94-99",
+        "proof:352-384",
+        "proof:385-426",
+        "experiment:p1-online-r38"
+      ],
+      "limitations": "Independence of the rows 17..37 event between good pairs of one chaining value is not testable at any sample size and is the premise. The registered Part B test covers the forced-bit components of rows 17..21 only, not the full rows 17..37 event; C1 clusters in scan order (u's high bits) and F7 varies with the chaining value; both are measured and enter the derivation as the spread factor."
     },
     {
-      "id": "H5-bitsliced-planes",
+      "id": "H4a-allowance-characteristic-search",
       "role": "score-critical",
-      "statement": "One instruction on a 256-bit plane costs one word operation (the 256-bit word RAM of the cost model); each class's row-16 program is charged at its executed instruction count, loads and stores included (expected work at the mean over the classes, the work cap at the maximum).",
-      "scope": "The dominant work term.",
-      "extrapolation": "Executed instruction by instruction and compared with the scalar definition on sampled batches (selftest, a0p-online-r38).",
-      "limitations": "Full-scale execution is infeasible.",
+      "statement": "The total computation spent to obtain the characteristic P8 of 1a695f0b (its signed-difference SAT sweep, coupling checks and estimators; failed and repeated runs included) is at most A_C = 2^78 target compressions.",
+      "scope": "The preprocessing part of the ledger: A_C = 2^78 is the largest allowance; it enters the claimed time and preprocessing (78.09276).",
+      "extrapolation": "The search for P8 was run by the author of 1a695f0b, whose published run log (38 solver runs, 230,183 s listed) and total (under 2^21 core-seconds) are quoted with their source hash in proof.md Appendix R.4: at our measured 3,797,484 SHA-256 compressions per second that is 2^43.61 units, 34.4 bits under A_C. Our own measurements of the same kind of computation (proof.md Appendix R.2): a 39-step characteristic derived from scratch with the public tool of [LLW24] in 2^36.04 units; a 38-step pair from the published cells in 2^34.09 units; published figures up to 2^39.15 units.",
       "evidence_ids": [
-        "proof:217-237",
-        "proof:373-394"
-      ]
+        "proof:118-121",
+        "proof:1583-1645",
+        "proof:1727-1741"
+      ],
+      "limitations": "A charged allowance (an upper bound charged in full): we did not rerun P8's search; its log is the author's, quoted. With A_C = 2^84 the claim would be 84.96832."
+    },
+    {
+      "id": "H4b-allowance-step1-solve",
+      "role": "supporting",
+      "statement": "S (the dense part of P8's semi-free-start pair) is obtained at a total cost of at most A_S = 2^74 target compressions.",
+      "scope": "The preprocessing part of the ledger (A_S = 2^74).",
+      "extrapolation": "The Step-1 solve was run by the author of 1a695f0b (coupling check 662 s, single-threaded, inside the quoted total under 2^21 core-seconds; proof.md Appendix R.4); our own 38-step pair search from the published cells took 2,852.83 CPU-seconds = 2^34.09 units (proof.md Appendix R.2), 39.9 bits under A_S. selftest checks that the transcribed pair S reproduces and passes every test of rows 16..21 with equal outputs.",
+      "evidence_ids": [
+        "proof:15",
+        "proof:118-121",
+        "proof:1583-1645",
+        "proof:1727-1741"
+      ],
+      "limitations": "A charged allowance (an upper bound charged in full), not a measurement; its support is the author-reported core-seconds. The Step-1 peak memory, re-measured under a 2^28 cap at 2^27.7542 (377cb363), is below the online cell 2^28.01141, which is the claimed peak (H6)."
+    },
+    {
+      "id": "H4c-development-charge",
+      "role": "supporting",
+      "statement": "All development computation of this package, whether or not the procedure reads its output (exhaustive passes, C ports, the q3 and ratio studies, the F7 measurement, checks, failed runs and reruns), is at most DEV = 2^70 target compressions, and DEV is charged in full in the time.",
+      "scope": "The development item of the ledger (DEV = 2^70 x C operations).",
+      "extrapolation": "Hardware envelope (the bound for this allowance): every code execution of the project (10-05 to 10-21) ran on a 24-thread workstation with one GPU, a 12-thread server and one 32-vCPU cloud machine: at most 68 threads and one GPU for 1.4688 x 10^6 s at 2^40 word operations per thread-second and 2^47 per GPU-second, below 2^68.11 operations = 2^56.7 compressions, under DEV by more than 2^13; the recorded development of the A0-variant line is in proof.md Appendix R.3.",
+      "evidence_ids": [
+        "proof:118-121",
+        "proof:1646-1726"
+      ],
+      "limitations": "A charged allowance (an upper bound charged in full), not a measurement: the hardware envelope above is the bound; it rests on the project's machine list and dates, and is more than 2^13 below the charge."
+    },
+    {
+      "id": "H5prime-table-pricing",
+      "role": "score-critical",
+      "statement": "The counted table is the seven-lane bucket table of Appendix A.15: 2^23 buckets, each one 256-bit word (2^28 bytes), holding seven 36-bit lanes = [1 filled bit][9-bit tag = F mod 512][26-bit index into the R = 9 window]. A bucket access is address add 1 + 256-bit load 1 = 2. The tag test per head is two windows of address 1, load 1, add 1, and 1, add 1 = 5 each, then one merge `and` and one guard-mask `and`, plus compare-and-branch 2 = 14 operations, the per-head setup being the per-u base word plus a compile-time displacement the address op already absorbs (A.19: the per-u term pays W0 = h0 - P and T = W0 & tmask, every other head is W0 + d_i with d_i = 2^13 t_i, and A.18 already charges the second window's +2^10 as one address op): the guard mask is applied once, after the accumulate, because (z0 & G) & (z1 & G) = (z0 & z1) & G, and the first window's merge is an assignment, not an `and` (A.18; A.15.2's filed 17 is the same predicate charged with two redundant ands) (the windows are alternatives, so by De Morgan a lane is a candidate iff it passes either: claws/u carries the factor 40 = 20 heads x 2 windows; an `or` of the same planes would test the intersection and find no claw), with no fused AND-NOT (Appendix A.15.2: the bias 2^9 - w puts the field's carry in the lane's guard bit, a = r AND 0x1FA keeps exactly the bits the P1 variant forces, and (a + (2^9-1)) AND G is exactly G on a fail and 0 on a pass, the polarity being read off the guard bit; the NOT of the earlier draft is eliminated, not repriced); a match is resolved by halving to the lane (3 x (and 1 + compare-and-branch 2) = 9) and extracting the field (shift 1, and 1), its tag (shift 1) and index (and 1), forming a0 (or 1) and F (shift 1, or 1): 18 operations per match, plus the other window's lane at the same position when the first fails its own check (extract 2, index 1, a0 1, F 2 = 6; mean 3 per match, the worst case 6 in the maximum path); the fused mask says a position passed, not which window, and both windows can pass (A.15.3: the two windows read the same lane position of two independently loaded bucket words), so the mask fires once per position and the resolver emits one claw per fired position: the emitted rate 1.972349 of A.15.7, not the two-window population 1.980084. The per-head charge is 14, executed and counted by experiments/p1claw38.py counted-head (14 and 0 mismatches on 3,666,432 (tag, window, lane) comparisons, 56,700 of them one-window-only and 224 both-window) and by selftest (40,180 exact identity checks over 2,009 scan words, a resolver run with an element-identical claw list and an op delta of exactly 20 x 2^13 per scan word): two windows x (address 1, load 1, add 1, and 1, add 1) = 10, merge `and` 1, guard-mask `and` 1, compare-and-branch 2 = 14, with w = W mod 512 shared by all 20 heads (they are equal mod 2^13) and each head's bucket base one add. The straddle pass (tag - tag_target wraps into the next bucket, 5/512 of the window queries) costs 9 per lookup. The post-filter segments are 7, 22, 29 and 30 operations, work-counter adds included. Every work-counter add is 1 and is counted.",
+      "scope": "The counted operations of the online procedure (proof.md A.15.2-A.15.4): 175.822 per claw (per u / claws/u; the table build and reset are charged in wbar and add 0.3302 per claw, 186.9 fully loaded) and 3,014 per step 3b, with the maximum path vmax = 3,799,601,077,291,763 charged as a bound, not as an expectation (A.22 rule kept: the build term in that maximum is 2^27 x 48 + 4 x 7 x 2^23 = 3,271,557,120, the hard maximum, not the expected 3,044,069,414 used by wbar).",
+      "extrapolation": "run_claw counts every operation; selftest checks the counted run against the per-u charge of Section 5 at a table where the a0 offset does not fit the entry (ls = 14, aw = 16, two side bits); our C port's scan count 425.592 per u (before packed access and counters) matches the straight-line count at the parent's size.",
+      "evidence_ids": [
+        "proof:1959-1986",
+        "proof:1987-2075",
+        "experiment:p1-online-r38",
+        "experiment:p1-bucket-r38",
+        "proof:2304-2329"
+      ],
+      "limitations": "The ledger is an exact analytic count read from the code, not a measurement; it does not rely on the organizer runs' counted_ops (reduced size). The unit costs are the fb176310 convention; the bucket access sequence is the explicit list of proof.md A.15.2."
+    },
+    {
+      "id": "H6-memory-figure",
+      "role": "score-critical",
+      "statement": "The counted memory cell is the maximum over the counted phases, and that maximum is the measured peak resident set of the online program: the 2^23-bucket table of 2^23 x 32 = 268,435,456 bytes = 2^28 plus the port's own resident overhead on the identical 2^28-byte allocation. Two full-scale C ports were metered here: dev/claw/t6.c (flat 2^26 slots) peaked at 263,836 KiB = 270,168,064 bytes = 2^28.00928 and dev/claw/t7.c (2^25 slots plus a 1-bit side array) at 137,460 KiB = 140,759,040 bytes = 2^27.0687; the accepted parent filing's full-table port measured 264,224 KiB = 270,565,376 bytes = 2^28.01141. Both receipt files are reproduced verbatim in proof.md Appendix A.16 with their programs, allocation identity, measurement method and process scope, so the counts are auditable inside the package. The shipped two-window construction was metered on this machine in C (dev/claw/t10.c: four full chaining values, ru_maxrss 271,720 to 272,268 KiB), re-metered on the lean static-link runtime of the identical program (dev/claw/t11.c: eight full four-cv runs, ru_maxrss 270,464 to 270,988 KiB; max 270,988 KiB = 277,491,712 bytes = 2^28.04788, proof.md A.29) and re-metered again on the freestanding (-nostdlib) runtime of the identical program (dev/claw/t12n.c: eight full four-cv runs, peak resident set 270,372 to 270,376 KiB; max 270,376 KiB = 276,865,024 bytes = 2^28.04461, proof.md A.30) on the identical 2^28-byte table allocation plus the 2^23-byte side array, and the charged cell 2^28.0447 is that maximum, above all twenty-four measurements. The cited characteristic's preprocessing cells (Step-1 solve 2^27.7542, signed search 2^27.92) are below 2^28.0115, so the table's cell is the maximum over the counted phases.",
+      "scope": "The memory metric and the scored sum 82.6905 + (28.0447 - 20) = 90.7352. The superseded A.29 cell 28.0479 (the t11 static-link runtime's measured maximum) and the A.25 cell 28.0547 remain the record of their runs; the A.30 freestanding maximum supersedes both.",
+      "extrapolation": "Our C port of the claw at 2^25 slots loaded with the 2^26 candidates of window R = 9 ran with a peak resident set of 137,460 KiB = 140,759,040 bytes = 2^27.069 (ru_maxrss; four chaining values peak at 136,948 to 137,460 KiB). The Step-1 re-measurement is reports/receipts/r38-step1-stream.json (two runs, 48,984 and 49,228 KiB, CNF sha256 cc4670c3...); the signed-search re-measurement is reports/receipts/r38-signedsearch-round1-notp8.json (86,404 KiB) and reports/receipts/r38-signedsearch-seed1.log (81,608 KiB). Every development execution ran under address-space caps of at most 2^28 bytes (proof.md Appendix R.3).",
+      "evidence_ids": [
+        "proof:113-117",
+        "proof:2136-2146",
+        "proof:2330-2429",
+        "proof:1646-1726",
+        "proof:1727-1741",
+        "experiment:p1-bucket-r38"
+      ],
+      "limitations": "The charged 2^28.0447 figure is the measured peak of the shipped two-window program on the identical 2^28-byte table (plus the 2^23-byte side array) on the freestanding -nostdlib runtime, the minimum of twenty-four runs across the t10, t11 and t12n instruments; it is above the abstract table-plus-state enumeration because it includes host overhead, and above both receipts. The measurement covers the build and the scan; the post-filters and step 3b allocate no table and are not part of that run. The receipts are workspace files that intake cannot admit; Appendix A.16 reproduces them verbatim and states the one metadata field they lack (the host), which is why this heuristic is supported rather than established for the rigorous lane."
+    },
+    {
+      "id": "H8-empty-lane-chain-law",
+      "role": "score-critical",
+      "statement": "An empty lane fires the mask when (0 - T) mod 2^b is in {0,1,4,5}, a 4/2^b event on the head's tag T, and the 20 heads share their low nine bits, so for a given u the empty lanes of every bucket read fire at the same residue: a read is one of the 20 x 2 = 40 (head, window) lookups of a scan word, the maximum path already charges 280 = 40 x 7 lane resolutions, and A.15.10 charges the mean on the same 40. The lane word is zero, so the resolver reads index 0 and a0 = (9 << 26) | 0 always and forms F = Wsub - w in the main bucket (w = 0, accepted) and F = Wsub + 2^b - w in the straddle read (the three wrap residues, rejected in the main bucket after 18 operations). Firing DOES condition on u, so the chain law is not transferred from claws by an invariance argument: it is measured conditionally, drawing uniform u, applying the scan's own predicate and running the chain only on a fire with the resolver's F and a1 = u - F + K2 + a0. 32,768 conditional fires out of 4,187,704 draws (rate 0.0078248 against 4/2^b = 0.0078125): mean chain cost 10.1501 (i.i.d. s.e. 0.0490; claw law 10.1145). The 32,768 fires are 16 independent chaining-value streams of 2,048 fires each (the sampler's own `for c in range(16)`, re-executed with per-stream counters by `reports/iter53-h8-cluster-probe.py`, totals identical): the stream means span 9.672 to 10.684, their s.d. is 0.2542, so the cluster-level s.e. of the pooled mean is 0.0635 and 10.35 = 10.1501 + 3 x 0.0635 replaces the i.i.d. 10.30 = 10.1501 + 3 x 0.0490; for the all-four gate every stream shows 0 events in 32,768 fires (4,187,704 draws).  A.22 infers no per-fire rate from that sample by division, and charges the step-3b part of a fire at q = 1.66e-4 per fire, the pooled 99% Wilson upper bound of the sample, USED AS A DECLARED PREMISE (H8) and not as a bound: under arbitrary within-stream correlation the effective sample is smaller than 32,768, so the marginal all-four rate can exceed 1.66e-4 and this term is then under-charged -- disclosed, and the score is priced with the premise, exactly as the scored 90.8861 row was; the route that would remove it is a cluster-aware sample large enough to bound the marginal at the chaining-value level. The remaining conditional statistics are unchanged: P(C1) = 0.12640, P(C1 and C2) = 0.012543, 99% upper bound 1.65e-4 (q_pf = 1.34e-5). Charged: 10.35 per fire (measured + 3 cluster-level s.e.) and max(q_pf, 1.66e-4), i.e. 40 x (4/2^b) x 0.663731 x (21 + 10.35 + 3014 x 1.66e-4) + 40 x (3/2^b) x 0.663731 x 18 = 9.4064 per u of 376.8425, so E[W_j] <= wbar holds under H8.",
+      "scope": "The empty-lane term of A.15.3/A.15.10 (9.4064 per u of 376.8425) and the Bernstein cap-halt subtraction of A.15.4, which is stated on wbar.",
+      "extrapolation": "counted_empty_chain (experiments/p1claw38.py, `empty-chain`) draws uniform u, applies the scan predicate w = (h - (s0(u) - u)) & 2^b-1 in {0, 2^b-5, 2^b-4, 2^b-1} and runs the post-filters only on a fire, with F = Wsub - w (w = 0) or Wsub + 2^b - w (the wrap residues); it prints the fire rate, the mean, the standard error, the C1 and C1-and-C2 counts, the all-four count and its 99% upper bound. The organizer experiment p1-bucket-r38 runs it on trial 4 and reports empty_draws, empty_n, empty_rate_e7, empty_ops_milli, empty_sd_milli, empty_charge_milli, empty_c1, empty_c12, empty_all4, empty_ub_e7.",
+      "evidence_ids": [
+        "proof:2220-2252",
+        "experiment:p1-bucket-r38"
+      ],
+      "limitations": "The conditional measurement covers 32,768 fires from 4,187,704 draws over 16 chaining values and all 20 heads; the all-four rate is observed at 0 events in 32,768 fires, whose pooled 99% upper bound is 1.66e-4 (12.4x q_pf), and the step-3b part of the empty-lane term is charged at that value as a declared premise (H8): the charge is an estimate supported by the sample, NOT an unconditional bound. Under arbitrary within-stream correlation the effective sample is smaller than 32,768 and the marginal rate can exceed the charge, in which case this term is under-charged by 3014 x (q_true - 1.66e-4) operations per fire; that is the disclosed failure mode, and it is the same premise the accepted 90.8861 row declared (\"the all-four rate is bounded statistically only\"). The previous filing argued by invariance that the fire does not condition on u; that argument was wrong and is withdrawn here. The mean is charged at measured + 3 s.e., not at the claw average, and the 40 reads are charged in the mean as they already were in the maximum path."
+    },
+    {
+      "id": "H7-bucket-retention-law",
+      "role": "score-critical",
+      "statement": "The bucket table of Appendix A.15 is loaded with the 2^27 candidates of the binding two-window set (W9 = [9 x 2^26, 10 x 2^26), W11 = [11 x 2^26, 12 x 2^26); the candidate's window bit rides in a side array of one bit per lane, A.25/A.27) in the cyclic order i = (n + ROT) mod 2^27, one fresh uniform ROT per chaining value, and each of the 2^23 buckets keeps the first seven candidates that arrive. The retained set of a bucket is therefore a uniformly placed block of seven consecutive positions in that bucket's insertion list -- an arc of seven, not an arbitrary seven-element subset. The filled-lane count is E[min(Binomial(2^27, 2^-23), 7)] = 6.99410 and the two-window pass rate is 40 x 6.99410 x 4/512 = 2.18566, of which the fused resolver emits claws/u = 2.17712 (A.23/A.25/A.27). Candidates that arrive after a bucket is full are dropped and pay the same build charge.",
+      "scope": "The emitted claw rate 2.17712 per u (the 2.18566 pass rate less the coincidences; hence wbar, V_MAX and the success bound of A.15.4/A.27) and the match rate 40 x 6.99410 x 4/512 x 18. It claims no uniform seven-element subset, and no number of the score conditions on which indices are retained.",
+      "extrapolation": "Retention depends on the bucket index and on the insertion position, never on the lane's tag F mod 512, so the tags of retained lanes are uniform; the arc structure lives in the indices. The ledger prints 6.99410 filled lanes for the shipped two-window cell (the filed A.22 single-window cell is preserved bit-for-bit under bucket-ledger-a22 and prints 6.33627); the organizer experiment p1-bucket-r38 checks the claws against an independent sorted search at 2^16 candidates over 2^23 buckets, the workspace fixture dev/occupancy38.py sweeps the window and word width, and the shipped structure was executed at S_P = 2^27 with claws equal to an independent reference (experiments/a23_fixture.py, occupancy 6.9941289) and in C (dev/claw/t10.c).",
+      "evidence_ids": [
+        "proof:1959-1986",
+        "proof:2054-2075",
+        "experiment:p1-bucket-r38"
+      ],
+      "limitations": "The arc structure is not excluded from influencing which index values are retained, and no measurement here separates an arc of seven from a uniform seven-subset at the tag level. That distinction does not enter the filed cost, which uses only the filled-lane count and tag uniformity; it would enter any claim about per-index statistics of retained lanes."
+    },
+    {
+      "id": "H9-fused-selection-no-bias",
+      "role": "score-critical",
+      "statement": "When both windows of a head fire at the same lane position, the fused resolver emits one claw and the one it emits is the word-1 claw. That rule is the constant `word-1` on the coincidence set: it reads the word-1 lane first and reads the other window's lane at the same position only when the word-1 lane fails its own filled-bit and tag test (A.15.7's conditional second read, 6 operations), so the emitted claw is chosen by window order, never by either claw's tag, index, a0, F, E16 or any post-filter argument. The emitted claw's law is therefore the claw law: the two windows compare the same lane position of two different bucket words, whose lanes were filled from different candidates, so the coincidence indicator constrains only the other candidate's F, and H1 makes F values of distinct a0 independent. Conditioning a claw on its own tag match is part of the claw's definition, not extra information, so P(C1 and C2 and G and F7) = q_pf = 2^-16.1877 and q3r >= 2^-71.4010 are the emitted claw's laws too, and suppressing the duplicate cannot lower the selected claw's q_pf or q3r below the laws the success calculation uses. The only effect of the suppression is on the emitted rate, and that is charged conservatively: claws/u = 1.972349 at the full-fill share 2/2^b = 1/256 = 0.003906 where the exact share at the filed load is 0.003588 (measured 0.00362), with N_CV inflated by 1/0.996094 = 1.0039216, and the maximum path charging 280 = 20 x 2 x 7 lane resolutions per scan word against the 20 x 7 a fused head can emit. Every direction of error is closed: the rate is charged above its exact value and the per-claw laws are unchanged. Score-critical because q_pf and q3r enter the 0.39 success bound.",
+      "scope": "The emitted-claw rate of A.15.3 (claws/u = 1.972349 of the 1.980084 two-window population), the 1.0039216 inflation of N_CV in A.15.4, and the success bound of A.15.4 through q_pf = 2^-16.1877 and q3r >= 2^-71.4010. It supports no other number: the time ledger is unchanged by it, and this appendix is a disclosure, not a repair.",
+      "extrapolation": "counted_fused (experiments/p1claw38.py, `fused-resolver`) is executed by the organizer as trial 5 of p1-online-r38: 40,000 random seven-lane words at b = 9 through probe_two's union mask and the conditional second read, reporting fires + coincidences == passes and the union mask equal to the per-window disjunction on every position (fused_fires 4328, fused_passes 4343, fused_coincidences 15, fused_mismatches 0). On real bucket words, `fused-table 11 26` (A.15.7) executes the binding resolver at the filed geometry: 40,700 fused positions, emitted 4140, two-window references 4155, coincidences 15, union-mask mismatches 0, row-16 bad 0, emitted + coincidences == references, coincidence/emitted 0.00362 against the charged 0.00391, and a word-1/word-2 split of 2032/2123 that shows the two windows are exchangeable populations. The conditional-rate step is the derivation of A.15.11 from H1 and from the two windows holding distinct a0; it is not itself an execution.",
+      "evidence_ids": [
+        "proof:2081-2110",
+        "proof:2257-2312",
+        "proof:2445-2503",
+        "experiment:p1-online-r38"
+      ],
+      "limitations": "No execution observes the four-filter event or step 3b's acceptance conditioned on a coincidence. At the filed load a coincidence is 0.3588% of emissions, so filling a 2^-16.19 cell would need about 2^22 emitted claws, which the reduced fixtures of this package cannot reach; the identity, the mask exactness and the exchangeability are measured, the conditional-rate step is derived. The bound on what any bias could do is the share itself: even if every coincident emission were worthless, the claw rate would move by 0.0036 x q_pf, and the 1.0039216 inflation of N_CV already charges that at the conservative full-fill share 2/2^b. The premise also inherits H1: if F values of distinct a0 within a chaining value were dependent, both this step and the claw law q_pf would move together."
+    },
+    {
+      "id": "H10-P1-W11-deep-transfer",
+      "role": "score-critical",
+      "statement": "The step-3b accepted-event law of rows 16-37 that H2-P1 lower-bounds on window R = 9 (q3r >= 2^-71.4010, i.e. q3_P1 = 2^-96.0791 with the paired D_LB = -0.0658) applies to good pairs whose a0 lies in the added window W11 = [11 x 2^26, 12 x 2^26) of the binding two-window 2^27-candidate set, and hence to the W9/W11 mixture the shipped search scans. The row gates of the accepted event consume (a1, E/W rows) and the free low bits of a0; a0's window bits enter only through F(a0) = Sigma-M + K + cv, whose per-chaining-value uniformity under H1-uniform-chaining-values does not depend on which high bits a0 carries, and no row gate reads them. The filed charge is unchanged and conservative: q3_P1 keeps D_LB measured on W9 and is applied uniformly to both halves.",
+      "scope": "E[X_j] and hence N_CV (proof.md Sections 7, 9) - the same quantity H2-P1 charges. No filed number changes through this declaration: the claim keeps time_log2 82.6905, memory 2^28.0447 and the unchanged q3r bound for both windows' good pairs.",
+      "extrapolation": "Measured on the machine's own predicate at the two shells that fit fixture scale (proof.md A.26; dev/a27q3/probe5.c with constants generated mechanically from p1claw38 by gen_constants.py, five real points bit-exact against the machine's counted chain via find_points.py): the paired two-window sweep (60,000 (cv, a1) samples x 2 x 2^26 a0, seed c38a27b4, 32 threads, 9m26s, dev/a27q3/sweep60k.log) gives all4 log-ratio +0.0422 +/- 0.0002 (the W11 half slightly better) and r16|all4 -0.116 +/- 0.167, consistent with zero; the measured window corrections sum to 2^-0.074, inside the s.e. The deeper rows (~2^-71 per good pair) are not measurable at fixture scale and are carried by this declared premise; the A.26 corrections are taken as confirmation, no credit. The registered premise H1 (uniform chaining values, per-chaining-value random-function law) is the model under which the invariance is asserted; the side bit restores a0's window bit on resolution, so the recovered a0 is exact in both windows (dev/claw/t10.c: side reads 1.0000/claw over 73,340,552 claws, bad_decode 0).",
+      "evidence_ids": [
+        "proof:3017-3058",
+        "proof:2945-3015",
+        "proof:3035-3040"
+      ],
+      "limitations": "A premise, not a theorem: the deeper rows' window-invariance is asserted under the same per-chaining-value random-function law as H1, not measured at full depth. The measurable shells (pf chain, row 16) were measured and transfer (A.26). Because the charge keeps the W9 D_LB for both halves, a mild W11 deep-rate deficit up to the measured +0.074 slack is absorbed without changing any filed number; a materially lower W11 deep rate would raise N_CV and is exactly the risk this declaration discloses."
     }
+  ],
+  "restrictions": [
+    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words. Output: two distinct 128-byte messages M0||M1 and M0||M1' (common first block; FIPS padding appends the same third block) with equal digests; step 3b accepts a pair only if A34..A37, E34..E37 of both members are equal, so every output is a collision (Lemma 1, proof.md Section 1).",
+    "Algorithm (proof.md Section 2, Appendix A.15, A.27; experiments/p1claw38.py): per chaining value a bucket table of 2^23 buckets, each one 256-bit word holding seven 36-bit lanes = [1 filled bit][9-bit tag][26-bit index], loaded with the 2^27 candidates a0 of the two-window set W9 = [9 x 2^26, 10 x 2^26) and W11 = [11 x 2^26, 12 x 2^26) in a random cyclic order, first seven per bucket (E[filled lanes] = 6.99410; the window bit rides in a one-bit-per-lane side array, A.25). The scan tests the 20 row-16 heads x 2 windows against the tag; a lane matches iff tag - tag_target is in {0,1,4,5}, the four values of F that differ from the target on bits 0 and 2 (the P1 variant's free bits), with a straddle pass into bucket + 1 when the difference wraps; the matching lane is resolved, the side bit restores a0's window bit, and the post-filters C1, C2, G, F7 and step 3b run exactly as in Section 3. The claw set is identical to the packed-slot machine's (selftest: claws = reference, every claw a true row-16 pass).",
+    "Cost: 2^32 words u = u0+n (mod 2^32) per chaining value; N_CV = 12,363,579,954,633,928 chaining values, each with C = 2,728, cv_begin 75, the reset (2^23 x 5) and the build (2^27 x 42 + 6 side-store ops per candidate + 4 per retained lane = 3,044,069,414 expected, used by wbar; hard maximum 2^27 x 48 + 4 x 7 x 2^23 = 3,271,557,120, used by vmax, A.22). Mean online work wbar = 1.650771e+12 (per u: fixed 22, 20 heads x 14, straddle 3.5156, matches x 25, empty lanes 40 x (4/512) x (7 - 6.99410) x (21 + 10.35 + 1.66e-4 x 3,014) + 40 x (3/512) x (7 - 6.99410) x 18, claws x (post-filters + q_pf x step 3b); per u 382.7856, 175.822 per claw). V_MAX = 20,409,745,598,650,479,087,733,606,529 charged in full, allowances A_C/A_S/DEV 4.308% inside it; vmax = 3,799,601,077,291,763; time_log2 = 82.6904658, charged 82.6905 (ceiling, A.21/A.22 rule). The candidate set is the reviewed 2^27 set of dariolina (db6b71d6) in our unchanged seven-lane table: E[filled lanes] = 6.99410 of 7 at load 2^4, claws/u = 2.17712 (A.23/A.25).",
+    "Success probability at least 0.39 under H1 (independent uniform chaining values), H1-P1 (q_pf = 2^-16.1877 for claws), H2-P1 (q3r >= 2^-71.4010 per good pair: the registered q3_model 2^-96.0133 plus the registered paired P1-vs-A0 lower bound -0.0658, measured on window R = 9 and declared by H10-P1-W11-deep-transfer to bind the added window W11 of the two-window set, charged uniformly to both halves) and H3-P1 (group independence within a chaining value, giving E[J(J-1)] <= 2^-7.5 E[J]); Lemma 4 reduces the within-chaining-value term to H3-P1 exactly; Bonferroni per chaining value, independence across them, and Bernstein's inequality for the cap (Lemma 3).",
+    "Memory: 2^28.0115 bytes = 270,565,376 bytes (the 2^23-bucket table of 2^28 bytes plus the port's measured resident overhead, the larger of the two full-scale receipts), the maximum over the counted phases (H6)."
   ]
 }
