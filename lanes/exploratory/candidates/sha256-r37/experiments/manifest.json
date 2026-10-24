@@ -1,0 +1,67 @@
+{
+ "experiments": [
+  {
+   "event": {
+    "kind": "full-collision"
+   },
+   "hypothesis": "Returned pairs: the organizer's record shows 118 of 256 trials; the participant's replay returns about 128 by its own count (a trial can fail only by exhausting its proposal budget). Full collisions of the complete target: 0 (these are semi-free-start collisions from CV1, not from the IV; anyone can verify them offline with the 37-step compression). This tests that A0-variants of S (proof.md Lemmas 4.2, 4.3) are valid dense parts that reach full 37-step semi-free-start collisions through every cell of rows 16..36 with their own W8 (Lemma 7.1), for each of the four accepted value patterns of rows 18 and 19 and each of the four R16x patterns of rows 16..19, and that the counted program of this filing finds exactly the constructed pair. It does not estimate q3. Observations (participant numbers): class_index, variant_index, l, pattern, checks_passed, restarts, proposals_row16, proposals_tail. detected_by_counted_program = 1 and counted_ops (operations counted for that detection) for all returned pairs of trials 0..15. P4 organizer executor observations under public seed hashsmash-public-seed-v1, no holdout nonce: 256 requested trials per experiment, two fresh executions with byte-identical stdout only. Internal counters are participant observations; the organizer independently checks returned-pair target events. These runs do not prove full-scale probabilities, H1-H7 or q3. P4 participant observations: 121 returned pairs and checks_passed=121; detected_by_counted_program=16 for all 16 returned trials 0..15. The organizer's checked-trial summary of all 256 trial records, which controls, shows 118 returned pairs and 0 full-target collisions; SFS validity remains an internal participant check. Runtime 7.65/7.48 s versus 20 s.",
+   "id": "a0-sfs-r37",
+   "kind": "python-message-pairs-v1",
+   "program": "experiments/lowm.py",
+   "scope": "Constructibility of the variant dense parts and detection by the counted program; design, trials and return condition in proof.md 4.3, 7 and 13.2. Supports H2 only by showing that variants reach full 37-step semi-free-start collisions, and H4 only through the cost of completing a Step-1 solution; it estimates no probability."
+  },
+  {
+   "event": {
+    "kind": "full-collision"
+   },
+   "hypothesis": "Full collisions: 0 (rows 16..36 are not expected to hold). Mismatches of every kind: 0. Returned pairs: those trials whose first block with a passing class had a good pair. Observations (participant numbers): uncond_first_blocks, uncond_class_passes, first_blocks, classes, good_pairs, groups, survivors, row16_pairs, counted_ops, class_lane_mismatches, pass_lane_mismatches, goodset_mismatches, address_mismatches, row16_mismatches, cell_mismatches, pairs_cell_checked. This tests the correctness of the bit-sliced class and W6 programs, of the cube expansion (Lemma 8.2), of the packed address and of the row-16 stage (Lemma 6.2) on organizer-seeded first blocks; it does not test q3, H1 at scale or H3 (see h1-cv1-filters-nonce, h3-cowpass-nonce, h3-ladder-r37). P4 organizer executor observations under public seed hashsmash-public-seed-v1, no holdout nonce: 256 requested trials per experiment, two fresh executions with byte-identical stdout only. Internal counters are participant observations; the organizer independently checks returned-pair target events. These runs do not prove full-scale probabilities, H1-H7 or q3. P4 participant observations: 512 unconditional first blocks, 2070 class passes; 52 selected first blocks, 24 processed classes, 7152 good pairs, 25 survivors. class_lane_mismatches, pass_lane_mismatches, goodset_mismatches, address_mismatches, row16_mismatches and cell_mismatches each total 0. Returned pairs: the organizer's record shows five (the participant's replay counted four), with 0 organizer full-target collisions. Runtime 1.92/1.93 s versus 20 s.",
+   "id": "a0-online-r37",
+   "kind": "python-message-pairs-v1",
+   "program": "experiments/lowm.py",
+   "scope": "Functional exactness of the counted online program against the scalar definitions; design, lane-by-lane checks and return condition in proof.md 6, 8, 9 and 13.2. Supports H5 and Lemmas 6.2, 8.1 and 8.2; a consistency check of H1, not a test of it."
+  },
+  {
+   "event": {
+    "kind": "full-collision"
+   },
+   "hypothesis": "Returned pairs: 0. Full collisions: 0. Observations (participant numbers): blocks, w7, w6, coW6, w7_and_w6, w7_w6_pairs. If H1 holds the expected counts per 150 blocks are about 150 x 2^-5.98 = 2.4 for w7 and 4 x 150 x 2^-3.90 = 40 for w6; historical aa0e8b6 replays over 100 trials each gave 244 and 214 for w7 (expected 238) and 4,011 and 3,988 for w6 (expected 4,014). The P4 run uses the public organizer seed; it is not a holdout test. P4 organizer executor observations under public seed hashsmash-public-seed-v1, no holdout nonce: 256 requested trials per experiment, two fresh executions with byte-identical stdout only. Internal counters are participant observations; the organizer independently checks returned-pair target events. These runs do not prove full-scale probabilities, H1-H7 or q3. P4 participant observations over 15000 blocks: W7=275, W6=3993, coW6=1267, w7_and_w6=22, w7_w6_pairs=60. No returned pairs. Runtime 6.75/6.35 s versus 20 s.",
+   "id": "h1-cv1-filters-nonce",
+   "kind": "python-message-pairs-v1",
+   "program": "experiments/lowm.py",
+   "scope": "Program check of the H1 consequence that the W7 class filter and the W6 filter pass at their exact rates on real 37-step chaining values; design in proof.md 5.1, Lemma 5.1 and Appendix H.7. Estimates no probability and says nothing about q3, rows 16 and later, independence across 2^55.8 first blocks, or cost; no statistic is claimed."
+  },
+  {
+   "event": {
+    "kind": "full-collision"
+   },
+   "hypothesis": "Returned pairs: 0. Full collisions: 0. Observation coW6 (and w7_w6_pairs) per 150 first blocks; if the four variants passed F6 independently (each with probability 2^-3.90) about 150 x 0.0245 = 3.7 first blocks per trial would have two or more passes. The four variants of one class share most of their bits, so a clearly higher count is expected (about 3.4 times that in our local replays); it measures the within-class correlation of the W6 filter, which the ledger does not need (it uses only expectations), and is not a test of success events. The code is the same as in h1-cv1-filters-nonce. P4 organizer executor observations under public seed hashsmash-public-seed-v1, no holdout nonce: 256 requested trials per experiment, two fresh executions with byte-identical stdout only. Internal counters are participant observations; the organizer independently checks returned-pair target events. These runs do not prove full-scale probabilities, H1-H7 or q3. P4 participant observations over 15000 blocks: W7=247, W6=4036, coW6=1264, w7_and_w6=27, w7_w6_pairs=82. No returned pairs. Runtime 6.70/6.54 s versus 20 s.",
+   "id": "h3-cowpass-nonce",
+   "kind": "python-message-pairs-v1",
+   "program": "experiments/lowm.py",
+   "scope": "Program check at the W6 level of the H3 consequence that distinct variants of one class are not unusually dependent within one first block; same code and trials as h1-cv1-filters-nonce, design in proof.md 10 and Appendix H.7. Does not test row 16 or any later row, where H3 has its weight, and cannot show H3 at full scale; no statistic is claimed."
+  },
+  {
+   "event": {
+    "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "kind": "digest-xor-mask",
+    "mask_hex": "000000000000000000000000000000000000000000000000000000000000000f"
+   },
+   "hypothesis": "Theory: R=1 at table/row-16 levels; within-class shared bits can raise W6 dependence. Historical aa0e8b6 LO12/MID12 replays: W6 R=3.62/4.92, LO12=0.99/1.00, MID12=0.95/0.94, exact row16=1.27/0.67 (32/9 passes), 5/2 witness trials. These are historical predecessor observations, not FIRST13/SECOND11 results. P4 organizer executor: 256 requested trials, two fresh runs with byte-identical stdout under hashsmash-public-seed-v1, no holdout nonce. Internal counts are participant observations, not independently established probabilities or costs. Totals on the 13/11 tables of R37P37 and earlier, kept as the record of that split (R37P38 resplits top-first 15/9, Section 6.2): W6=(839808,81608,171761468,5595314112,3.250841661); FIRST13/lo=(81608,15131,5880837,171761468,0.995963919); SECOND11/mid=(15131,307,2298,5880837,0.949225494); exact row16=(307,37,35,2298,1.048555259). R=P/[C(S/N)^2], computed from summed counters once, without double-counting reruns. FIRST rate 15131/81608=0.185410744045 vs uniform-address reference 1513/8192=0.1846923828125; SECOND rate 307/15131=0.020289471945 vs uniform-address reference 63512/(1513*2048)=467/22784=0.020496839888. Observation keys: first_blocks, classes, w6_cand, w6_candpairs, and w6/lo/mid/r16 _pass and _copairs. There are 64 selected blocks, 37 exact row16 passes among 81608 W6 passes. Eight returned generic 4-bit witnesses pass the organizer mask event; they are not full collisions and carry no cryptographic weight. Runtime 4.37/4.19 s vs 20 s. Two runs only; rows 17..36, full-scale H1-H7 and q3 remain inherited premises.",
+   "id": "h3-ladder-r37",
+   "kind": "python-message-pairs-v1",
+   "program": "experiments/lowm.py",
+   "scope": "H3 at depth: dependence among distinct variants of one first block, through the levels of the attack itself; design, levels, statistic R = P/E and trials in proof.md 10 and Appendix H. Rows 17..36 are not reached, so the allowance for them is the premise H3; the returned pair is a generic witness, not a collision."
+  },
+  {
+   "event": {
+    "kind": "full-collision"
+   },
+   "hypothesis": "The per-nl nonzero-row run counts and the pad counter run the participant instrument (r37-rowfix4-96/r37-padrate-73 discipline: means 1.4-2.0 at nl 176/194, 120-130 at 216/225, ~5 at 256 over real 2,000-block runs, pad ~0 per block) on organizer seeds at the same per-(row,chunk) event unit: strictly positive rates at every nl, order 10^2 events/block at nl 216/225, pad near 0, with sample-to-sample scatter consistent with the measured per-block overdispersion (Appendix P.3, class-pass design effect ~26). The organizer report counts only; the filed charges remain the block-bootstrap 99% discipline over 2,000-block participant runs, the organizer-side conservative re-pricing of the same keys is 57.16100 (reports/experiments/r37-orgstat-138.log), and the structural ceiling (all rows set = ROW_MAX, every block padded) 57.16040 is the declared analytic replacement.",
+   "id": "h6-orgstats-r37",
+   "kind": "python-message-pairs-v1",
+   "program": "experiments/lowm.py",
+   "scope": "Organizer-executed corroboration of H6-SCAN-PADDING-RATES: per trial, 20 fresh SHAKE-derived first blocks are processed by the counted program and the report counts, per batch lane count nl in {176, 194, 216, 225, 256}, the nonzero-row scan events (per (row,chunk) unit, as the participant instrument r37-rowfix4-96 counts), the total number of such events, and the residual-pad counter. Measures no probability, infers no attack cost, returns no pair (message_a_hex/message_b_hex stay null); it observes the rates behind the filed ROW_FIX/PAD_RATE charges on the organizer's own seeds, in the organizer's executor, counting at the instrument's per-(row,chunk) event unit."
+  }
+ ],
+ "schema_version": 1
+}
