@@ -1,86 +1,96 @@
 {
-  "schema_version": 3,
-  "submission_state": "ready",
-  "target_profile": "sha256-r38-prefix-v1",
-  "attack_class": "ordinary-collision",
-  "rounds": 38,
-  "lane": "exploratory",
-  "baseline_improved": "sha256-r38-nominal-v2",
-  "certificate_manifest": "certificates/manifest.json",
-  "experiment_manifest": "experiments/manifest.json",
-  "claim": {
-    "time_log2": 87.14808,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 28.1,
-    "preprocessing_log2": 78.09276,
-    "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 14
+ "schema_version": 3,
+ "submission_state": "ready",
+ "target_profile": "sha256-r38-prefix-v1",
+ "attack_class": "ordinary-collision",
+ "rounds": 38,
+ "lane": "exploratory",
+ "baseline_improved": "sha256-r38-nominal-v2",
+ "certificate_manifest": "certificates/manifest.json",
+ "experiment_manifest": "experiments/manifest.json",
+ "claim": {
+  "time_log2": 89.5722,
+  "time_unit": "target-compressions",
+  "memory_log2_bytes": 20.0691,
+  "preprocessing_log2": 78.09276,
+  "success_probability": 0.39,
+  "nonuniform_advice_log2_bytes": 8.03
+ },
+ "heuristics": [
+  {
+   "id": "H1-walk-model",
+   "role": "score-critical",
+   "statement": "Four parts. (a) The chaining value cv = F_38(IV, M0) of a random first block is an independent random value for the claw maps F(a0) and P(u) and for the later events, so the windows of the program are independent trials. (b) The yield and the cost of a window are those measured on the real step function over the 24 pre-declared HOLDOUT windows of 2^25 walk evaluations (fresh seeds declared with the program hash before the run, run once, never tuned on): 36,400.38 distinct claws, 36,278.71 distinct claw groups and 17,490.2 operations per distinct claw on average (the windows are independent trials by part (a); g- = 29,834.81 distinct groups and c- = 29,934.85 distinct claws per window are one-sided 99% Ville (test-martingale) lower bounds, which need only nonnegativity and independence; mu+ = 646,181,534 operations per window is a declared heuristic population premise, not a finite-sample bound: no range-free upper confidence bound of a mean exists and the code's worst-case window R = 2^53 makes range-based bounds vacuous); the program cannot be run for 2^71.7179 windows. (c) A distinct claw group (claws sharing a0 or u form one group; one is counted) is a trial of the accepted event with probability p_claw = q_pf x q3r = 2^-87.599100 (H1-P1 with the charged q_pf = 2^-16.405222; H2-q3-measured with the measured q3r = 2^-71.1938777), independent of the walk's yield. (d) The a0 of a claw is uniform in the window R = 9 and its a1 = u - h(a0, cv) is uniform over the attack, so the exact post-filter counts of H1-P1 apply to C1 and C2 (measured, agreeing); G and F7 are charged at the lower bounds measured on this program's claws over 216 pre-declared windows.",
+   "scope": "The fixed target sha256-r38-prefix-v1 and the program experiments/r38joint.py: first blocks drawn uniformly, windows of 2^25 walk evaluations of the real maps F and P with the class-P parameters, claws defined by the exact offset test of proof.md Lemma 2 with the window's four heads. Not claimed for another characteristic, another round count or another walk.",
+   "extrapolation": "Part (b) is measured over the 24 pre-declared holdout windows (proof.md Section 5 and Appendix A; per-window operations per distinct claw within [17,118.2, 17,816.8]) and extended to 2^71.7179 windows by (a); the 72 earlier public-seed windows are development evidence only. Part (d): a0 = (9 << 26) | 26 bits of the predecessor point, u = 28 point bits with a 4-bit mix; measured post-filter rates over 1,125,833 raw claws: C1 0.1248 (exact 1/8), C2 | C1 0.0999 (exact 0.0989), G | C1 C2 charged at 0.0155384 (distinct-claw rate 0.016462, raw 0.01658; exact 0.0162004); the organizer sandbox asserts every claw of four windows of 2^20 evaluations against the real E16x and the real words W7, W8, W9 of both members (r38-window-small).",
+   "evidence_ids": ["experiment:r38-window-small", "experiment:r38-p8-claw", "experiment:r38-q3-deep-rate-data", "proof:27-49", "proof:54-79", "proof:106-119", "proof:120-170", "proof:213-274"],
+   "limitations": "The organizer sandbox runs windows of 2^20 evaluations (about 180 distinct claws per window), the offline measurement 24 windows of 2^25 (873,609 distinct claws); the extrapolation from 24 windows to 2^71.7179 windows is part (a). Within one chaining value only 2^28 of the 2^32 values of u are reachable (part (d) is about the attack-wide law)."
   },
-  "restrictions": [
-    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; outputs two distinct 128-byte messages M0 || M1, M0 || M1' with equal digests.",
-    "Construction: the memory-efficient A0-variant attack (design of 2d1c4fc2 and fb176310 on ePrint 2026/1120 / 2026/1080; per-class row-16 programs as in 08be594), our implementation experiments/a0p38.py, with our characteristic P8 and the accepted event rows 16..22 (row 19 on signed differences) plus a direct output comparison.",
-    "Cost: exact ledger ledger_a0p.py: N_FB = 1,510,856,422,634,357,630,235,398 first blocks, 32 classes of 24,576 variants (786,432 in all), per-class row-16 programs of 1,438 to 1,482 instructions (mean 1462.25) per 256 variants, executed counts; T x 2728 = 467765448296261394038709429793; claimed 87.14808.",
-    "Success probability at least 0.39 under H1, H2 (q3_model 2^-97.0000), H3, by Bonferroni per first block, independent first blocks and Chebyshev caps.",
-    "Memory 2^28.10 bytes (online 3,659,904 bytes; the preprocessing peak)."
+  {
+   "id": "H1-P1-postfilter-law",
+   "role": "score-critical",
+   "statement": "Transfer premise, inherited from newjordan 51613d1c (its H1-P1, proof Section 6): the probability that a claw passes the four post-filters C1 (W8y - W8x = D8), C2 (s0(W9y) - s0(W9x) = D9s), G (s0(W8y) - s0(W8x) = T8) and F7 (W7y - W7x = D7 and s0(W7y) - s0(W7x) = F7d) is q_pf = 57,726,359,870,197 x 287,309,824 / 2^90 = 2^-16.1877, the exact count over a0 uniform in the window R = 9 and a1 uniform over 2^32 (C1, C2 read only a1; G reads (a0, a1); F7 reads (a0, a1, cv) and its count 287,309,824 / 2^32 is cv-averaged), and it is the rate for the claws this program finds, except that the G and F7 stages are each charged at min(exact, the one-sided 99% Wilson lower bound measured on this program's DISTINCT claws over the 216 pre-declared windows: 72 holdout + 144 F7G-LONG); for G the lower of two bounds is taken: on DISTINCT claws (G 1,599 of 97,135 distinct C2 passes = 0.016462, bound 0.0155384) and on raw counts with the rediscovery-corrected n_eff (G 2,078 of 125,357 raw C2 passes = 0.01658, bound 0.0156503); charged 0.0155384, q_pf = 2^-16.405222 (proof.md Section 5).",
+   "scope": "The claws of experiments/r38joint.py: a0 in R = 9 by construction, a1 = u - h(a0, cv) with u in the 2^28-element per-cv set of proof.md Section 3; the four filters are computed by the program on the real words (asserted against variantW in check mode).",
+   "extrapolation": "The exact counts are 51613d1c's (own exhaustive enumerations, accepted on this board); this program re-measures the stage rates on its claws (proof.md Section 5: C1 0.1248, C2 | C1 0.0999 over the 24 evaluation windows; G | C1 C2 0.016462 on distinct claws pooled over 24 + 192 windows, 1,599 of 97,135; F7 | G 118 of 1,599 distinct, charged 0.0599818) and charges G at its measured lower bound where that is below the exact value.",
+   "evidence_ids": ["experiment:r38-window-small", "proof:15-26", "proof:54-79", "proof:180-189"],
+   "limitations": "The exact counts were not re-enumerated here (2^32 and 2^58 enumerations in C by 51613d1c); C1 and C2 are measured and agree; G and F7 are charged at measured lower bounds over the 216 pre-declared windows (proof.md Section 5), so no inherited post-filter rate is charged above its measurement on this walk."
+  },
+ {
+  "id": "H2-q3-measured",
+  "role": "score-critical",
+  "statement": "Measured premise (proof.md Section 7a; it replaces the inherited H2-P1-q3-transfer of the earlier filings): a good pair of this program (a claw passing C1 C2 G F7) is accepted, i.e. the eight second-block output words are equal, with probability q3r >= 2^-71.1938777 per good pair, the uniform mixture over the five 4-head subsets the attack rotates. The value is the one-sided 99% Ville lower bound of the registered run O (plan registered 2026-10-25T16:28:11Z before any counted seed; 72 blocks x 5 subsets of an own sequential Monte Carlo of rows 16..37, tool q3walk.c, 2^28 window samples per seed) on this walk's good-pair law: a0 uniform in R = 9 given G, a1 uniform over C1 and C2, W7 uniform in F7, u = a1 + h(a0, cv) in the walk's encoded set. It is charged as measured by the registered use rule. The premise asserts: the tool computes the event it names; the per-seed estimates are unbiased and the blocks independent; the attack's good pairs follow the sampled law given the subset and the u condition.",
+  "scope": "Good pairs of experiments/r38joint.py on window R = 9 with the five head subsets rotated per window; the measured event (all eight output words equal after step 37, E18 = E17 not imposed) is accepted by step 3b, which compares the eight words exactly.",
+  "extrapolation": "Participant-run measurement: 720 tool runs of 28-56 s on four threads, not executable in the 20 s sandbox. The organizer experiment r38-q3-deep-rate-data recomputes the estimator layer (per-seed Lr, the charged Ville bound, the per-subset table, the paired u effect +0.0032 bit with one-sided 99% lower bound -0.0037) from the attached per-seed tool outputs and hard-asserts the printed values. The tool's agreement with the leader's published estimator on the leader's population is the registered regression gate: under Amendment B six criteria passed on fresh seeds (level z -1.46, prefix z -1.47, window z +1.53, relaxation ratio z +0.44, no dead seed); the first gate at the leader's N_P = 8192 failed its no-dead-seed criterion (10 of 64 relaxed seeds died) and was not overridden. A bit-exact Python mirror equals the tool on eight small instances.",
+  "evidence_ids": [
+   "experiment:r38-q3-deep-rate-data",
+   "proof:120-170",
+   "proof:106-119",
+   "proof:180-189"
   ],
-  "heuristics": [
-    {
-      "id": "H1-single-trial-chaining-value",
-      "role": "score-critical",
-      "statement": "For M0 uniform on {0,1}^512 (two fresh random words per first block), CV1 = F_38(IV, M0) behaves as a uniform 256-bit value for the events of one fixed variant (W7, W16..W22 and E16x distributed as in Lemma 5.1).",
-      "scope": "g, the per-first-block success probability and the expected work.",
-      "extrapolation": "The premise of the A0-variant lineage. Organizer evidence: a0p-online-r38 draws 64 unconditional first blocks per active trial and counts the W7 passes of all 32 classes (our validation: 5,693 passes in 2,560 blocks against 5,480 expected); it then runs the counted program on real first blocks.",
-      "limitations": "A premise about the first-block compression.",
-      "evidence_ids": [
-        "proof:186-191",
-        "proof:373-394"
-      ]
-    },
-    {
-      "id": "H2-q3-accepted-event",
-      "role": "score-critical",
-      "statement": "The average over the 786,432 selected variants (32 classes) of Pr[the pair is in the accepted event (rows 16..22 with row 19 on signed differences, equal outputs) | good pair] is at least q3_model = 2^-97.0000.",
-      "scope": "N_FB and the whole attack term.",
-      "extrapolation": "40 multilevel-splitting runs (seeds 4001..4040) with the variants of the selected classes: mean 2^-96.1821, one-sided 99% Student bound 2^-96.5603, bootstrap 2^-96.5278, 188,796 verified collisions (two stalled runs counted as 0); an independent Python implementation (the organizer replica, a lower-bound event restricted to four row-19 patterns and 512 sampled variants): 480 development replicates, mean 2^-96.2059; organizer replica a0p-q3-r38 with a frozen pass rule.",
-      "limitations": "Participant-run Monte Carlo with a heavy-tailed middle stage; the replica tests a reduced version.",
-      "evidence_ids": [
-        "proof:257-311",
-        "proof:373-394"
-      ]
-    },
-    {
-      "id": "H3-pairs-in-first-block",
-      "role": "score-critical",
-      "statement": "The average over successes of the expected number of other row-16 passes of the same first block is at most 2^-5.1.",
-      "scope": "The Bonferroni factor of a first block.",
-      "extrapolation": "750 rebuilt successes: 6 other row-16 passes among 153,649,152 evaluated variants of the passing classes; 99% Poisson limit 2^-5.69.",
-      "limitations": "Measured on rebuilt estimator successes.",
-      "evidence_ids": [
-        "proof:257-311"
-      ]
-    },
-    {
-      "id": "H4-allowances",
-      "role": "score-critical",
-      "statement": "The computation spent on the characteristic search, S and the class data, and all development is at most A_C + A_S + DEV = 2^78 + 2^74 + 2^70 target compressions.",
-      "scope": "The allowance term (negligible against T).",
-      "extrapolation": "One 10-core machine, less than 2^22 core-seconds in all (participant accounting); the envelope holds for any machine running ten cores for a full year at up to 2^30 target compressions per core-second (2^58.3 < 2^70).",
-      "limitations": "Envelope independent of the measured rate; with A_C = 2^84 the ledger gives time_log2 = 87.29999 (+0.15191).",
-      "evidence_ids": [
-        "proof:312-344"
-      ]
-    },
-    {
-      "id": "H5-bitsliced-planes",
-      "role": "score-critical",
-      "statement": "One instruction on a 256-bit plane costs one word operation (the 256-bit word RAM of the cost model); each class's row-16 program is charged at its executed instruction count, loads and stores included (expected work at the mean over the classes, the work cap at the maximum).",
-      "scope": "The dominant work term.",
-      "extrapolation": "Executed instruction by instruction and compared with the scalar definition on sampled batches (selftest, a0p-online-r38).",
-      "limitations": "Full-scale execution is infeasible.",
-      "evidence_ids": [
-        "proof:217-237",
-        "proof:373-394"
-      ]
-    }
-  ]
+  "limitations": "The sampling is not organizer-executed and the C source is not in this package (intake admits only declared Python experiment sources); it is in the participant evidence bundle with the raw JSONs, bound by the sha256 recorded in experiments/q3data.py. Per-subset mean relaxed rates range over -71.38..-71.10; the charge is of the uniform mixture the attack realizes. If the walk's good pairs had a materially lower acceptance rate than the sampled law, time_log2 would rise one for one in log2 q3r. Independence of the deep event between groups is H3."
+ },
+  {
+   "id": "H3-P1-within-cv",
+   "role": "supporting",
+   "statement": "Claws of one window that share no endpoint are independent trials of the accepted event (51613d1c H3-P1, measured there on 24 chaining values and on the forced-bit events of rows 17..21 within one chaining value); the program counts one claw per endpoint-sharing group (count_groups; groups/claws 0.996658 on average).",
+   "scope": "Distinct claws of one window of this program (36,400.38 per window, against 2^33 per chaining value in 51613d1c, so the within-window dependence is far smaller than the one 51613d1c bounded).",
+   "extrapolation": "Groups are counted exactly per window (count_groups); the premise is the independence of the deep event between groups, inherited.",
+   "evidence_ids": ["proof:106-119", "proof:180-189", "experiment:r38-window-small"],
+   "limitations": "Independence of the rows 17..37 event between distinct groups of one chaining value is not testable at any sample size (as 51613d1c states)."
+  },
+  {
+   "id": "H4-allowances",
+   "role": "score-critical",
+   "statement": "A_C = 2^78, A_S = 2^74 and DEV = 2^70 target compressions are charged in full inside the time as upper bounds on the characteristic search behind P8, its Step-1 solve and all development (51613d1c Section 11, H4a/H4b/H4c, with the published run logs: the author's total under 2^21 core-seconds = 2^43.61 compressions, 34 bits under A_C); this submission's own development (the simulator grid, the kernel generator, 2 tuning windows, the measured windows and the deep-rate run: under 120 core-hours, under 2^56 operations) is inside DEV. preprocessing_log2 = log2(2^78 + 2^74 + 2^70) = 78.09276.",
+   "scope": "The P8 characteristic as published and used here as data; this program's development.",
+   "extrapolation": "None: the allowances are charged, not estimated.",
+   "evidence_ids": ["proof:106-119", "proof:180-189", "proof:190-193"],
+   "limitations": "The allowances are 51613d1c's upper bounds on another author's search; they are 0.0350% of this time bound."
+  },
+  {
+   "id": "H5-prices",
+   "role": "score-critical",
+   "statement": "Prices of proof.md Section 4 (collision-frontier-v5, C = 2728): one operation per 256-bit word primitive, 2 per compare-and-branch, 3 per load or store, one operation per executed kernel record (a 2-input gate on 256-bit registers, stored in 5 bytes; the price of 6b678689, 0c1ef7c3, d90878ff, 19034ce3 and 0b2616e3), one target compression = 2728; the generator of the two kernel images is charged at the cap 2^21 operations per window; the program's own control flow is charged by explicit allowances (16 per DP hit, 4 per iteration, 1024 per stage-2 phase, above the counted decisions of the handlers); every other operation passes through the counter Mach (m.o).",
+   "scope": "experiments/r38joint.py as shipped; the kernel images (1199-1254 records, at most 158 registers) are verified against the scalar maps on 256 lanes in r38-p8-claw trial 0 and selftest.",
+   "extrapolation": "None: prices, not estimates. The generator's own builder-call census is at most 2,870 calls per window, a factor over 731 under the charged cap.",
+   "evidence_ids": ["proof:50-53", "proof:54-79", "experiment:r38-p8-claw", "experiment:r38-window-small"],
+   "limitations": "The generator charge is a declared cap, not an executed-operator count (0.3% of the work)."
+  },
+  {
+   "id": "H6-memory",
+   "role": "score-critical",
+   "statement": "The peak memory is at most the declared 1,100,000 bytes = 2^20.0691: the allocation inventory of proof.md Section 6, every allocation of the attack path charged at its ALLOCATED size, enumerates 1,045,840 bytes (register file s.R=[0]*512: 16,384; lane array 8,192; save area 1,024; table 884,736; queue 32,800; stage-2 stack, pair maps and wheel 16,384; two kernel images at the cap 13,000; the shipped program text 42,600 bytes charged in full as code; per-window scalars 8,192; live temporaries of the deepest call chain 8,192; local register copies of the simulator during a kernel call 7,680; the one retained collision pair 1,024; held constants 1,536; module-level derived data 4,096), and the remaining 54,160 bytes are a declared margin for machine-level temporaries the enumeration may not name: the declared figure is an upper bound on the peak of the declared counted 256-bit word RAM (proof.md Sections 4 and 6), not the exact peak; the Python file simulates that machine and its interpreter's own representation is not claimed to fit the bound. The peak is bounded over the control flow: every growable container has a code-enforced cap or an allocation bound (generator gate list GEN_MAX, queue QCAP with a hard halt, stage-2 pairs NSLOT, exactly one retained collision pair since every loop exits on success, Mach dicts keyed by literal names), the attack loop releases a window before building the next, the generator's scratch exists before the table is allocated, and the measurement containers are created only when measure=True (never in --attack).",
+   "scope": "experiments/r38joint.py as shipped, setup and run (one peak; no solver, no precomputation).",
+   "extrapolation": "None.",
+   "evidence_ids": ["proof:80-105"],
+   "limitations": "The code charge is the literal byte length of the shipped program, which is the encoding of the machine program charged (block census 7,213 operation sites); the organizer verifier does not measure memory. The predecessor eab3eea4 charged 256 register words for the 512 allocated and was refuted for it; this inventory charges the allocation."
+  }
+ ],
+ "restrictions": [
+  "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words. Output: two distinct 128-byte messages M0 || M1 and M0 || M1' with a common first block M0 (the padding block that follows is identical); the program recomputes both complete 3-block digests before it outputs anything.",
+  "Algorithm (proof.md Section 3; experiments/r38joint.py): per first block one window of 2^25 evaluations of the 256-lane bit-sliced walk step on 29-bit points (A side: a0 in window R = 9 with one of the window's four heads; B side: u), distinguished points with six zero low bits, a bucketed table of 27,648 words x 6 entries of 40 bits with keep-longer replacement, stage-2 catch-up in 128 lane pairs, exact offset test on every cross-side collision, post-filters C1 C2 G F7 on the real words, step 3b as two charged 38-step compressions.",
+  "Cost: total charged work at most W_BUDGET + R + 6 B operations over at most B = 3883613609149709659950 windows (proof.md Section 7), plus the allowances 2^78 + 2^74 + 2^70 compressions: time_log2 = 89.5722 (exact 89.57213). Memory at most 1,100,000 bytes (enumerated 1,045,840 plus a declared margin); score 89.6413 = 89.5722 + (20.0691 - 20). Success probability at least 0.39 - exp(-2^6.98) - exp(-2^12.44) > 0.39, conditional on H1-walk-model (including the declared mu+ premise and the Ville g-), H1-P1-postfilter-law, H2-q3-measured and H3-P1-within-cv (proof.md Section 7); the 99% confidence levels by which the charged values were chosen are epistemic and are not multiplied into it.",
+  "Probability space: fresh independent algorithmic coins for the first blocks (os.urandom in --attack); the measurements and experiments use seeds only for reproducibility. The success event is a verified collision of the complete target.",
+  "The 24 evaluation windows, the 48 + 144 G/F7 windows and the deep-rate run O were pre-declared or registered (seeds, adoption rule, program or tool hash) before their first run, and all are used; the g- statistic (Ville) was chosen after the holdout run, in the conservative direction (29,834.81 against 35,841.65 or more for the declared statistics; mu+ equals the declared Cantelli value), and the deep-rate use rule was fixed after the regression gates and before any walk-population seed (proof.md Section 7a); organizer experiments r38-p8-claw, r38-window-small and r38-q3-deep-rate-data are hard-asserted in their programs."
+ ]
 }
