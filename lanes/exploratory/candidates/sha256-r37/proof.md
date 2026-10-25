@@ -1,369 +1,429 @@
-# A distribution-free complete-message baseline for SHA-256 r37
+# A low-memory distinguished-point walk for SHA-256 r37 collisions
 
-## Claim and scope
+## 1. Claim and scope
 
 This package specifies a classical randomized algorithm for the exact
-`sha256-r37-prefix-v1` target in the exploratory lane. Its worst-case total
-charged time is less than `2^132` target-compression units, its peak memory is
-less than `2^136` bytes, its preprocessing is less than `2^125` such time units,
-and its probability of returning distinct complete messages with equal full
-256-bit digests exceeds `0.39`. The probability is over fresh independent
-algorithmic coins for the fixed target; no property resembling a random oracle,
-balance, differential independence, or pseudorandomness of SHA-256 is assumed.
-The claim reports conservative upper bounds, not measured work or an executed
-collision search. No collision witness or empirical evidence is asserted.
+`sha256-r37-prefix-v1` target in the exploratory lane. On every random tape its
+total charged time is below `2^128.15` target-compression units and its peak
+memory is below `2^20` bytes. Under one declared premise, `RM-WALK` (Section 5),
+it returns two distinct complete messages with equal full 256-bit digests with
+probability greater than `0.4249`, which exceeds the required `0.39` by 0.0349.
 
-The required `baseline_improved` value `sha256-r37-nominal-v2` identifies an
-organizer nominal reference, not an established attack. This construction does
-not claim to beat that reference's display value of 128. `ready` requests review;
-it is not qualification, a trusted score, or human acceptance.
+The method is the textbook one: a Pollard-rho walk whose repeat is detected with
+sparse distinguished points (van Oorschot and Wiener). No cryptanalytic property
+of SHA-256 is used, no novelty is claimed, and nothing here is specific to 37
+rounds except the target being hashed. The walk stores an 8192-entry table, so
+its memory stays below `2^20` bytes; that is its whole purpose. The scalar
+projection is `128.15 + max(0, 20 - 20) = 128.15`.
 
-All arithmetic in the algorithm below fits a 256-bit RAM word except that a
-message block occupies two words and each retained record occupies three.
-Large integers used only in the mathematical analysis need not be computed by
-the algorithm. The selected target compression is the cost model's priced
-primitive: standard SHA-256 schedule and constants, indices 0 through 36
-inclusive, and the standard wordwise feed-forward. Other operations, including
-its input/output marshaling, are charged separately at `1/C`, with `C = 2644`.
+The required `baseline_improved` value `sha256-r37-nominal-v2` names the
+organizer's nominal reference (display value 128). This construction does not
+beat that value and does not claim to. No collision witness is supplied: a full
+run is far beyond feasible computation. The success bound depends on
+`RM-WALK`, which is a heuristic, not a theorem (Sections 5 and 10).
 
-## Complete messages and their hashes
+## 2. Messages and the iteration family
 
-Put `n = 2^128`. In each of exactly n trials obtain two fresh independent uniform
-256-bit random words U and R, and set `V = R AND (2^128 - 1)`. The complete
-message is the 48-byte string `BE32(U) || BE16(V)`, where BEk denotes exactly k
-bytes in big-endian order. Thus messages are iid uniform on a domain D of size
-`d = 2^384`. All have original bit length 384, which satisfies the profile's
-length limit. Repeated sampled inputs are allowed and are not counted as
-collisions merely because their digests agree.
-
-The sole padded block, viewed as two 256-bit big-endian words, is exactly
+Write `H` for the complete `sha256-r37` hash of a byte string: the standard
+fixed IV, FIPS 180-4 padding, indices 0 through 36 of the standard schedule and
+round constants on every padded block, wordwise feed-forward, and big-endian
+serialization of all eight chaining words. Every message used here is 48 bytes,
 
 ```
-B0 = U
-B1 = (V << 128) OR (1 << 127) OR 384.
+m(x, r) = BE32(x) || BE16(r),   x in {0,1}^256,  r in {0,1}^128,
 ```
 
-Indeed, the message uses bytes 0 through 47; byte 48 is 0x80, bytes 49 through
-55 are zero, and bytes 56 through 63 encode the original bit length 384 in
-64-bit big-endian form. There is no omitted extra padding block. Each digest
-computation begins anew at the standard fixed SHA-256 IV, executes the first
-37 rounds of this block, adds each working word to its incoming chaining word
-modulo `2^32`, and serializes all eight resulting words in standard order.
-Denote this complete-message function by h and its 256-bit digest word by Y.
-No chaining state is chosen by the algorithm and no output bit is discarded.
+where BEk is k bytes big-endian. Its bit length 384 satisfies the domain. The
+padded message is exactly one block. Its sixteen 32-bit words are `x` (W0..W7,
+most significant first), `r` (W8..W11), `0x80000000` (W12, the `0x80` byte),
+`0, 0` (W13, W14, the zero bytes and the high half of the length) and `384`
+(W15). There is no second block. One call of the priced primitive on this
+block from the IV, followed by serialization, is `H(m(x, r))`.
 
-For clarity, the eight incoming 32-bit IV words are
-`6a09e667 bb67ae85 3c6ef372 a54ff53a 510e527f 9b05688c 1f83d9ab 5be0cd19`.
-Compression expands the usual schedule only as needed through index 36, uses
-the original-index constants, and performs the usual feed-forward after round
-36. The trusted profile defines this primitive; calling it once on the stated
-padded block computes h, not a compression-only collision relation.
+For each `r` define `f_r(x) = H(m(x, r))`, read back as a 256-bit integer. Then
+`f_r` maps `{0,1}^256` to itself. If `x != y` and `f_r(x) = f_r(y)`, then
+`m(x, r)` and `m(y, r)` are distinct messages with equal full digests: an
+ordinary collision of the exact target. Nothing is truncated and no chaining
+value is chosen.
 
-## Algorithm, data structures, and stopping rule
+The algorithm draws `r` once, uniformly, and draws a uniform start `x_0`. The
+walk is `x_{t+1} = f_r(x_t)`. Let `rho` be the first index with
+`x_rho in {x_0, ..., x_{rho-1}}`, let `mu < rho` be the index with
+`x_mu = x_rho`, and let `lambda = rho - mu >= 1`. Then `x_0, ..., x_{rho-1}`
+are distinct and `x_t = x_{t-lambda}` for every `t >= rho`. If `mu >= 1`, the
+pair `(x_{mu-1}, x_{rho-1})` has distinct entries (two different indices below
+`rho`) and equal images `x_mu = x_rho`. If `mu = 0` the start lies on its own
+cycle and gives no collision.
 
-Use two arrays A and B, each of n records. A record is three separate 256-bit
-words `(Y,U,V)`; the upper 128 bits of V are zero. There is no implicit nonce
-recovery algorithm, hash table, pointer per record, or stored list of trial
-seeds. Initialize both arrays to zero, counting this work. Sample all n messages,
-compute h once for each, and write their records into A. Discard R after forming
-V. No rejection sampling, deduplication, or early trial stopping occurs.
+A value `x` is *distinguished* (a DP) when its top 116 bits are zero, i.e.
+`x < 2^140`: the three most significant words are zero and the fourth is below
+`2^12`. The DP fraction is exactly `theta = 2^-116`.
 
-Sort A by its entire unsigned 256-bit Y key with bottom-up two-buffer merge
-sort. At width w, initially 1, merge each consecutive pair of runs of exactly w
-records from the source into the destination, then exchange the buffer roles
-and double w. Stop after width n/2. Since n is a power of two, every pair is
-full and there are exactly 128 passes. Copy all three record words on every
-emission. Compare full digest keys and choose the left run on equality. This
-sorting procedure has a distribution-independent work bound even when every
-digest or every message is the same.
+## 3. Algorithm
 
-The following is inert algorithmic pseudocode, not an experiment program.
-Indices in this description count records; the implementation maintains word
-pointers with stride 3, and computes `3*x` as `(x << 1) + x` when needed.
+Fixed parameters: `k = 68 * 2^122 = (17/16) * 2^128`, `L = 2^120`,
+`TCAP = k + L`, table capacity `K = 2^13`. The table holds pairs
+`(value, index)` of 256-bit words in insertion order, which is increasing index
+order. This is inert pseudocode, not an experiment program.
 
 ```
-for t = 0,...,n-1:
-    U = RANDOM256(); R = RANDOM256(); V = R AND (2^128-1)
-    form (B0,B1) as above; Y = COMPRESS37_WITH_FEEDFORWARD(IV,B0,B1)
-    A[t] = (Y,U,V)
-src = A; dst = B; w = 1
-while w < n:
-    for l = 0,2*w,4*w,...,n-2*w:
-        i = l; j = l+w; left_end = l+w; right_end = l+2*w
-        for k = l,...,right_end-1:
-            if i == left_end: p = j; j = j+1
-            else if j == right_end: p = i; i = i+1
-            else if src[i].Y <= src[j].Y: p = i; i = i+1
-            else: p = j; j = j+1
-            dst[k] = src[p]   # all three words
-    exchange(src,dst); w = w+w
-for k = 1,...,n-1:
-    if src[k-1].Y == src[k].Y:
-        if (src[k-1].U != src[k].U) OR (src[k-1].V != src[k].V):
-            reconstruct both 48-byte messages
-            recompute their complete hashes from the fixed IV
-            return the messages if they are distinct and both hashes agree
-            otherwise return FAILURE
-return FAILURE
+r  = RANDOM256() AND (2^128 - 1);   x0 = RANDOM256()
+table = []; x = x0; t = 0
+loop:                                           # walk
+    if x < 2^140:                               # DP test
+        if some table entry j has value x: s = index(j); goto found
+        if len(table) == K: return FAILURE      # overflow
+        append (x, t)
+    if t == TCAP: return FAILURE
+    x = f_r(x); t = t + 1
+found:
+    lam = t - s
+    (vp, sp) = entry before j in the table, or (x0, 0) if j is the first entry
+    tau = sp + lam
+    if tau >= s:
+        j* = last table entry with index <= tau  (scanning forward from j)
+        (base, steps) = (value(j*), tau - index(j*))
+    else:
+        (base, steps) = (vp, lam)
+    if steps > 2L: return FAILURE
+    A = vp; B = f_r applied steps times to base     # B-preparation
+    if A == B: return FAILURE
+    repeat at most L times:                         # lockstep
+        if f_r(A) == f_r(B):
+            recompute H(m(A,r)) and H(m(B,r)) from the IV
+            return (m(A,r), m(B,r)) if A != B and the digests agree, else FAILURE
+        A = f_r(A); B = f_r(B)
+    return FAILURE
 ```
 
-The final check uses two additional selected compressions at most; it never
-retries failed verifications. In the exact computation model this check cannot
-fail after a true table match. No restart or success amplification is used.
-Failures from samples containing no distinct-input collision return FAILURE
-after the bounded scan; their entire work is included in the claim.
+The lockstep keeps `f_r(A)` and `f_r(B)` from the comparison as the next `A` and
+`B`, so each iteration makes exactly two target calls. No step restarts, retries
+or amplifies. Every exit is bounded by an explicit counter.
 
-Merge correctness follows by induction on w: one-record runs are sorted;
-choosing the smaller unconsumed front key preserves order and emits every
-record exactly once. All equal digest keys are therefore consecutive in the
-final array. If any equal-key run contains two different messages, some adjacent
-records in that run have different messages: otherwise transitivity of equality
-would make the whole run one repeated message. Consequently the adjacent scan
-finds a distinct-input collision whenever one exists among the samples, even
-if other records are repeated copies of an input. Conversely the final explicit
-check prevents returning anything other than two distinct complete target inputs
-with equal full digests. Returning the same sampled input twice is not success.
+## 4. Deterministic correctness
 
-## Distribution-free success bound
+Fix `r` and `x_0`, so `rho`, `mu` and `lambda` are fixed.
 
-Fix h throughout. For each 256-bit digest y define
-`p_y = |{m in D : h(m)=y}| / d`. Applying a fixed deterministic function to iid
-inputs produces iid outputs with this distribution, which need not be uniform.
-There are `M = 2^256` possible output labels, including those with empty fibers.
-For `2 <= n <= M`, the probability that all outputs differ is
-`n! e_n(p_1,...,p_M)`, where e_n is the elementary symmetric polynomial of degree
-n: each unordered set of n distinct output labels has n! possible orders.
+**Lemma 1 (detection).** If the cycle `x_mu, ..., x_{rho-1}` contains a DP, let
+`s` be the smallest DP index with `s >= mu`. Provided no earlier exit (table
+overflow or the step limit) occurs, the walk detects at `t = s + lambda`, with
+table entry index `s`, so `lam = lambda`. If the cycle contains no DP, no
+detection ever happens and the walk ends at `TCAP` with FAILURE.
+*Proof.* Values at indices below `rho` are distinct, so no stored value recurs
+before index `rho`. A DP value stored at index `u` recurs first at `u + lambda`
+if `u >= mu` and never if `u < mu`. The first recurrence over all stored DPs is
+therefore at `s + lambda`. Every DP at index below `s + lambda` that is not a
+recurrence was stored there, so the lookup finds the entry of index `s`.
 
-Here is a full justification that this probability is maximized by the uniform
-output distribution. Holding the other coordinates fixed, e_n has the form
-`A + (a+b) B + a*b E` in any two selected coordinates, with `E >= 0`.
-Replacing a and b by their average preserves their sum and cannot decrease e_n.
-On the compact probability simplex choose a maximizer of e_n which minimizes
-the sum of squares of its coordinates among all maximizers. If two coordinates
-differ, averaging them either increases e_n, contradicting maximality, or
-preserves it while strictly decreasing the sum of squares, contradicting the
-choice of maximizer. Hence that maximizer is uniform. This also covers zero
-coordinates and distributions with fewer than n nonempty fibers.
+**Lemma 2 (bracket).** Let `s'` be `sp`, the index of the entry preceding `s`
+(or 0 for the anchor `x_0`). If `mu >= 1` then `s' < mu`. If `mu = 0` then
+`s' = 0 = mu` and the algorithm returns FAILURE at the `A == B` test.
+*Proof.* A stored entry with index in `[mu, s)` would be a DP at index at least
+`mu` smaller than `s`, contradicting the choice of `s`. If no entry precedes
+`s`, `s' = 0`, which is below `mu` exactly when `mu >= 1`. If `mu = 0`, then
+`A = x_0` and `B = x_lambda = x_0`.
 
-It follows, for this fixed target and without an output-distribution hypothesis,
-that
+**Lemma 3 (preparation).** `B = x_{s'+lambda}`.
+*Proof.* If `tau = s' + lambda >= s`, the entry `j*` is a stored DP with index
+in `[s, tau]` (the entry of index `s` qualifies), and walking `tau - index(j*)`
+steps from its value reaches index `tau`. Every DP index in `[s, tau]` is
+stored, since `tau < mu + lambda = rho` when `s' < mu`. If `tau < s`, walking
+`lambda` steps from `x_{s'}` reaches index `s' + lambda`.
 
-```
-Pr[no repeated output] <= n! choose(M,n) / M^n
-                       = product(i=0,...,n-1) (1-i/M)
-                       <= exp(-n(n-1)/(2*M)).
-```
+**Lemma 4 (output).** If `mu >= 1`, the lockstep stops at its iteration
+`q = mu - s' - 1 >= 0` with `A = x_{mu-1}` and `B = x_{rho-1}`, and returns two
+distinct messages with equal full digests.
+*Proof.* At iteration q, `A = x_{s'+q}` and `B = x_{s'+lambda+q}`. Their images
+agree exactly when `s' + q + 1 >= mu`. The first such q is `mu - s' - 1`. Then
+`A != B` because both indices are below `rho` and differ by `lambda >= 1`, so
+`m(A, r) != m(B, r)`, while `H(m(A, r)) = f_r(A) = f_r(B) = H(m(B, r))`. The
+final recomputation repeats the check from the IV and cannot fail after a true
+match.
 
-The last inequality follows by multiplying `1-z <= exp(-z)` for `0 <= z < 1`.
-For example, `log(1-z) <= -z` follows by integrating `1/(1-z) >= 1` from 0 to z.
-No independence among pairwise collision events was used.
+**Lemma 5 (counters).** Call a run a maximal block of consecutive non-DP
+values among `x_0, ..., x_{rho-1}`. Suppose `rho <= k`, `mu >= 1`, the cycle
+contains a DP, every run has length below `L`, and at most `K` DPs occur among
+`x_0, ..., x_{rho-1}`. Then no counter or capacity check fails, so the
+algorithm succeeds.
+*Proof.* The values `x_mu, ..., x_{s-1}` lie within one run, so `s - mu < L` and
+detection happens at `t = rho + (s - mu) < k + L = TCAP`. Stored entries are
+distinct first-lap DPs, at most K of them, so the table never overflows before
+detection. Lockstep needs `mu - s' <= s - s' <= L` iterations, because the
+values strictly between `s'` and `s` lie within one run (as do `x_0, ..., x_{s-1}`
+when `s' = 0` is the anchor). In the case `tau < s`, preparation needs
+`lambda < s - s' <= L` steps. In the case `tau >= s`, let `n` be the next DP
+index after `index(j*)`. If `n < rho`, it is stored and exceeds `tau`, so
+`steps < n - index(j*) <= L`. Otherwise the next DP occurrence is the detection
+index `s + lambda`, so
+`steps < (rho - 1 - index(j*)) + 1 + (s - mu) < L + L = 2L`.
 
-Let E_out be the event of any repeated output and E_in the event of any repeated
-input. Each of the `choose(n,2)` input pairs is equal with probability `1/d`,
-so the union bound gives `Pr[E_in] <= n(n-1)/(2*d)`. On `E_out` outside `E_in`
-there is a collision of distinct messages and the scan succeeds. This is a
-sufficient success event, not a claim that input repetition always prevents
-success. Therefore
+## 5. The declared premise RM-WALK
 
-```
-Pr[success] >= 1 - exp(-n(n-1)/(2*M)) - n(n-1)/(2*d).
-```
+**Statement.** Draw `r` uniformly from `{0,1}^128` and `x_0` uniformly from
+`{0,1}^256`, independently, and run the walk of the fixed target's `f_r`. The
+probability of the success event of Lemma 5 is at least its value when `f_r` is
+replaced by a uniformly random function on `{0,1}^256` that is independent of
+`x_0`. The claim tolerates a shortfall: Section 6 bounds the ideal value above
+`0.4249`, so the claim survives if the real probability is at least the ideal
+value minus `0.0349` (about 8% relative).
 
-For the actual chosen parameters,
+**Why the suffix r is drawn fresh.** A single fixed map has one functional
+graph, and its cycle and tail lengths are not concentrated: different maps give
+noticeably different probabilities over the start point alone. Drawing `r`
+makes the success probability an average over `2^128` maps `f_r`. If `H` behaved
+as a uniformly random function on 48-byte messages, these maps would be
+independent uniformly random functions, `RM-WALK` would hold exactly, and the
+average would concentrate at the ideal value. The premise is the usual
+random-mapping assumption of generic collision search, applied to this
+averaged family rather than to one map.
 
-```
-x = n(n-1)/(2*M) = 1/2 - 2^-129 > 499/1000,
-n(n-1)/(2*d) = 2^-129 - 2^-257 < 2^-129.
-```
+**Known structure.** For each fixed `r`, the first sixteen rounds act
+bijectively on `x`. From the fixed IV, the state after round 7 determines W0..W7
+uniquely: the state words give `a_5..a_8` and `e_5..e_8`, and each relation
+`e_{t+1} = a_{t+1} - T2(a_t, a_{t-1}, a_{t-2}) + a_{t-3}` recovers one earlier
+`a`, after which each `W_t` follows from its round equation. Rounds 8..15 use
+the fixed words W8..W15, so each is a fixed permutation of the state. A
+16-round analogue of `f_r` would therefore be a permutation plus a constant
+feed-forward: it has no collisions at all, and this walk would always end with
+`mu = 0`. The 21 further rounds use the expanded words W16..W36, which depend on
+`x` through the message schedule and break that bijectivity. No property is
+known to the author that makes the 37-round map injective or permutation-like.
+This structure is why `RM-WALK` is declared rather than assumed silently.
 
-A rational check avoids relying on rounded floating-point exponentials:
+**Evidence.** Section 8 runs a scaled analogue of this algorithm on 12-, 14-
+and 16-bit truncations of the real 37-round digest, with the same fresh-suffix
+randomization and a slightly smaller budget ratio, `k / 2^(n/2) = 65/64`. The organizer
+recomputes every returned event. The truncations test the random-mapping
+statistics of the target's digest bits and the implementation. They cannot test
+the full-width bijectivity risk above: truncating any map, permutation or not,
+gives a map that behaves like a random one. That risk rests on the structural
+argument alone.
 
-```
-exp(x) > 1 + 499/1000 + (499/1000)^2/2 + (499/1000)^3/6
-       = 9865254499/6000000000,
-exp(-x) < 6000000000/9865254499 < 609/1000.
-```
+## 6. Success probability under RM-WALK
 
-The final comparison is verified by
-`6000000000000 < 609*9865254499 = 6007939989891`.
-Also `2^-129 < 1/1000`. Thus success is strictly greater than
-`391/1000 - 2^-129 > 390/1000 = 0.39`. The bound applies to every fixed function
-on these messages with a 256-bit output, including the exact reduced SHA-256
-profile. It neither extrapolates from smaller rounds nor assumes a cryptanalytic
-property of the fixed target. The ideal independent random-word primitive is
-part of collision-frontier-v5, not an assumption that a finite deterministic
-seed expansion supplies the full attack's coins.
+Replace `f_r` by a uniformly random function and sample it lazily: each new
+argument receives a fresh uniform value. With `Z_0, Z_1, ...` iid uniform on
+`{0,1}^256` and `N = 2^256`, the walk satisfies `x_t = Z_t` for all `t <= rho`,
+where `rho` is the first repeat index of the Z sequence. Every event of Lemma 5
+is an event of this Z sequence. Failure is bounded by five terms.
 
-## Complete operation ledger
+1. *Late repeat.* `rho > k` means `Z_0, ..., Z_k` are distinct, with probability
+   `prod_{j=1..k} (1 - j/N) <= exp(-k(k+1)/(2N)) < exp(-x)`, where
+   `x = k^2/(2N) = 289/512`. Since `e^x` exceeds its degree-11 Taylor sum `S`,
+   this term is below `1/S < 0.568672`.
+2. *Start on the cycle.* `P(rho = t, mu = 0) <= P(Z_t = Z_0) = 1/N`, so
+   `P(mu = 0, rho <= k) <= k/N = 17 * 2^-132 < 2^-127`.
+3. *Cycle without a DP.* Given `rho = t`, the values `Z_0, ..., Z_{t-1}` are a
+   uniformly random sequence of distinct values, and `mu` is uniform on
+   `{0, ..., t-1}` independently of them, because the repeat `Z_t` is uniform
+   over the `t` earlier values. A fixed set of `l` positions holds no DP with
+   probability at most `(1 - theta)^l`, since sampling without replacement only
+   lowers it. Averaging over `lambda = l` uniform on `{1, ..., t}` gives at most
+   `(1/t) * sum_{l>=1} (1 - theta)^l < 1/(theta t)`. Hence
+   `P(no DP on cycle, rho <= k) <= P(rho <= t0) + 1/(theta t0)` for any `t0`.
+   With `t0 = 2^124`, `P(rho <= t0) <= t0(t0+1)/(2N) = 2^-9 + 2^-133` and
+   `1/(theta t0) = 2^-8`, so this term is below `0.0058594`.
+4. *Long run.* A run of length at least L inside `Z_0, ..., Z_{k-1}` starts at
+   position 0 or right after a DP, and is followed by L non-DP values. Hence its
+   probability is at most `(1 + k theta)(1 - theta)^L <= 4353 * e^-16`, using
+   `k theta = 4352` and `theta L = 16`. Bounding `e^16` below by its degree-59
+   Taylor sum gives a value below `0.00048987`. When `rho <= k`, the first-lap
+   runs lie inside this prefix.
+5. *Table overflow.* The DPs among `Z_0, ..., Z_{k-1}` are binomial with mean
+   `k theta = 4352`. By Markov's inequality on `2^X`, at least `K + 1 = 8193` of
+   them has probability at most `(1 + theta)^k / 2^8193 <= e^4352 / 2^8193`,
+   and `e^4352 < 3^4352 < 2^6898` makes this below `2^-1295`.
 
-One target compression costs 1 and every ordinary 256-bit primitive costs
-`1/2644`. Count total work on one processor; parallel latency is irrelevant.
-All bounds below hold on every random tape. There is no expected-time tail,
-uncharged offline search, advice generation, or unbounded restart loop.
+Summing, failure is below `0.568672 + 2^-127 + 0.0058594 + 0.00048987 + 2^-1295`,
+so success exceeds `0.42497 > 0.39`. Every comparison above was verified
+in exact rational arithmetic; the only analytic inputs are the series
+lower bounds `e^y > sum_{i<m} y^i/i!` for `y > 0`. The bound is
+over the algorithm's fresh coins `(r, x_0)` for the fixed target, as required
+by the cost model, with `RM-WALK` transferring the ideal-function calculation.
 
-For explicit lowering, a simple scalar assignment, one-operation arithmetic
-assignment, comparison-and-branch, or one direct array word load/store with a
-base-plus-offset address uses at most eight primitive operations. This allowance
-covers up to two operand loads, one arithmetic/address/comparison operation and
-one result store or branch, plus up to four instruction fetches if these are
-charged. More complex expressions are split into these elementary statements;
-copying a three-word record uses six elementary loads/stores. Registers, if
-spilled, fit the same convention. All loops below are iterative; no recursion
-stack or multiword comparison routine is needed. A branch back can use a fixed
-true condition. Loop tests, increments, moves and branches are charged.
+## 7. Time accounting
 
-Initialization: zero the `6*n` array words in a pointer loop. A word takes at
-most four elementary statements (store, pointer increment, comparison and
-branch), or 32 primitives. The bound `256*n` therefore covers all array clearing,
-including its end tests and initial pointers for n >= 2. Load/initialize the
-fixed program, constants and scratch area within an additional `2^24` primitives.
-This initialization is counted as preprocessing, even though the two large
-arrays could instead have been written lazily.
+**Machine model.** Classical 256-bit word RAM, as in `collision-frontier-v5`.
+There is a fixed register file of 32 words, counted in memory below. Every
+executed instruction is one primitive: a load, a store, an addition or
+subtraction, a bitwise operation, a shift, a comparison, a conditional branch,
+or a random word. A comparison and the branch on its result count as two
+primitives. Unconditional jumps are branches on a fixed true condition and also
+count one. One call of the priced primitive covers the schedule expansion
+through W36, rounds 0..36 and the feed-forward of one block, at cost 1. Its
+interface reads 8 chaining words and 16 block words from fixed memory regions
+and writes 8 result words, one 32-bit value per RAM word. Those 32 accesses and
+the call and return branches are charged separately: 34 primitives per call.
+Each ordinary primitive costs `1/C` with `C = 2644`.
 
-Sampling and hashing: allow 128 elementary statements, or 1024 ordinary
-primitives per trial, besides the one priced compression. This covers the two
-random words (each draw including destination storage fits the allowance), mask,
-padded-block formation, loading the fixed IV, compression argument setup,
-full digest packing, record stores and loop control. More explicitly, forming
-the mask and padded block needs at most 12 statements; initializing and
-marshaling the eight IV words and two block words at most 24; packing the eight
-32-bit output words by load/shift/OR at most 32; random draws, masking, three
-record stores, pointer operations and loop control at most 32. Their sum is
-100, below 128. The standard schedule, 37 rounds and feed-forward are in the
-priced compression primitive, not additional free hash computations.
+**One walk step**, worst case, with the current x as eight words in registers:
 
-Sorting: at most 256 ordinary primitives per emitted record per pass, with an
-additional fixed overhead of at most `2^24` primitives for all pass boundaries
-and final verification together. The following expansion establishes the per
-record bound instead of treating comparison sorting as a unit-cost black box:
-
-| Emission work in a word-pointer implementation | Elementary statements, at most |
+| Work | Primitives |
 | --- | ---: |
-| Left/right exhaustion tests, two front-key loads, key comparison/branch | 5 |
-| Choose source pointer and advance that run by three words | 2 |
-| Load and store the three fields using offsets 0, 1 and 2 | 6 |
-| Advance destination, output loop control, dispatch/back branches | 7 |
-| Reserved spill/address temporaries beyond those already counted | 4 |
-| Total per emission before pair setup | 24 |
+| DP test: three word-is-zero tests, one shift and test of the fourth word | 9 |
+| Step-limit test against TCAP | 2 |
+| Primitive call: interface accesses, call and return | 34 |
+| Copy the 8 result words to registers and to block words W0..W7 | 16 |
+| Index increment and loop branch | 2 |
+| Total, charged as 64 | 63 |
 
-Use pointer endpoints so each exhaustion test is one comparison/branch.
-A pair's setup/advance requires at most 16 elementary statements: deriving
-run span from w with shift/add, setting two source pointers and two endpoints,
-the destination pointer/end, and advancing/testing the next pair. Each pair
-emits at least two records, so this adds at most eight elementary statements
-per emission. The combined maximum is `(24+8)*8 = 256` primitives per record.
-Nonzero constant offsets in the six field moves use at most four underlying
-operations even when address construction and moves are charged. There are
-exactly `128*n` emissions across all passes. For the 128 outer passes, fewer
-than 32 elementary statements each suffice to exchange pointers and update/test
-w; these fit amply within the stated fixed overhead. No bucket distribution or
-expected lookup cost is assumed.
+The IV region and block words W8..W15 are written once per run, because `r`
+is fixed for the run, and the primitive does not modify its input regions.
+A preparation step is the same step without the DP test, also charged 64.
 
-Scanning: charge 256 ordinary primitives per adjacent pair, rounded to `256*n`.
-The worst case has two digest loads, comparison/branch, four message-word loads,
-two word comparisons, their Boolean combination, and loop/address control,
-within 32 elementary statements. This includes repeated-input matches that are
-skipped. On the first distinct pair only, reconstruct the two blocks, reload IVs,
-recompute two complete hashes, compare both full digests and messages, and write
-the output (96 bytes in at most four output words). Its ordinary work fits the
-fixed `2^24` sort/verification overhead above, and its two compressions are
-counted separately. No verification is repeatedly performed per identical input.
+**One lockstep iteration**: two primitive calls (68), loading and comparing
+the two 8-word results (32), copying both results back to the two block regions
+(16), and the iteration counter and branches (3). That is 119, charged as 160.
 
-The combined conservative ledger is consequently
+**DP events.** A DP is packed into one word with 7 shifts and 7 ORs. The table
+is scanned linearly; each entry costs a load, comparison, branch, pointer
+update, end test and branch, so 6 primitives. An insertion costs a few stores
+and pointer updates. Each event is charged `6K + 64`. There are at most `K + 1`
+events, because the `(K+1)`-th insertion attempt fails. Locating `s'` and `j*`
+scans at most `2K` further entries, charged `12K`, and unpacking `base` into
+eight words costs 24.
 
-| Category | Selected compressions | Ordinary primitives, upper bound |
-| --- | ---: | ---: |
-| Preprocessing, including both arrays | 0 | `256*n + 2^24` |
-| All n random messages and complete hashes | n | `1024*n` |
-| All 128 merge passes | 0 | `32768*n` |
-| Complete adjacency scan | 0 | `256*n` |
-| Pass boundaries, final verification and output | 2 | `2^24` |
-| Total | `n+2` | `34304*n + 2^25` |
+**Fixed work.** Loading the program and constants takes at most `2^13` words
+at 6 primitives each (load, store, two pointer updates, end test, branch), which
+is 49,152. Everything else happens once per run and is charged at most `2^12`:
+drawing `r` and `x_0`, setting the constant regions, the arithmetic after
+detection, unpacking `vp` into `A`, switching between the two lockstep block
+buffers, and the final recomputation's marshaling. Both together are charged
+`2^16` primitives.
 
-This includes `2*n` independent random words, even though half of each R is
-discarded. Random generation is streamed; no random tape is stored separately.
-All unsuccessful trials are among the n paid trials. There is no preprocessing
-that finds a collision for later inclusion in the code.
-
-Thus the worst-case charged total is
+**Totals.** Primitive calls are bounded by the walk (`TCAP`), preparation (`2L`),
+lockstep (`2L`) and final check (2):
 
 ```
-T <= n+2 + (34304*n + 2^25)/2644
-   = (36948*n + 2^25 + 5288)/2644
-   < 16*n = 2^132.
+H <= k + 5L + 2
+W <= 64 (TCAP + 1) + (K + 1)(6K + 64) + 12K + 24 + 64 * 2L + 160 L + 2^16
+T  = H + W / 2644
 ```
 
-For the strict inequality, `16*2644 - 36948 = 5356` and
-`2^25 + 5288 < 5356*2^128`. The claim `time_log2 = 132` is therefore rounded
-up conservatively. It is not merely the birthday sample exponent 128.
-Preprocessing separately obeys
+With `k = 68 * 2^122` and `L = 2^120`, `T / 2^128 = 1.1082699...` and
+`log2 T = 128.14831`. The claim `time_log2 = 128.15` is rounded up, and
+`T^100 < 2^12815` was checked in exact integer arithmetic. These bounds hold on
+every random tape: there is no expected-time tail and no restart loop.
+Preprocessing, the program and constant loading, is at most
+`2^16 / 2644 < 25 < 2^5` units and is already inside T; it is reported as
+`preprocessing_log2 = 5`.
 
-```
-P <= (256*n + 2^24)/2644 < n/8 = 2^125,
-```
+## 8. Experimental evidence
 
-because `2644/8 - 256 = 74.5` and `2^24 < 74.5*2^128`.
-Preprocessing is already included in T; it is not added again to the score.
+Three declared `python-message-pairs-v1` experiments (`rhodp-n12`, `rhodp-n14`,
+`rhodp-n16`) run a scaled analogue of the algorithm of Section 3 on the real
+target, with the walk state reduced to n bits. Each organizer trial derives, from its seed, a 32-byte
+template, a 16-byte suffix R and a start value. The walk iterates
+`g(x) = top n bits of H(enc(x) || R)` on n-bit values, where `enc(x)` flips bits
+of the template according to x (bit i of x goes to bit `i div 8` of word
+`i mod 8`), so every walk step evaluates the full 37-round digest of a 48-byte
+message. The experiments use the budget ratio `k = (65/64) * 2^(n/2)`. They
+were designed when the full attack used that ratio; the final attack uses the
+larger `17/16`, so the experiments test a slightly stricter budget:
 
-## Peak memory, code, and advice
+| Experiment | n | k | DP bits | L | K | Ideal success |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `rhodp-n12` | 12 | 65 | 1 | 32 | 256 | 0.375 |
+| `rhodp-n14` | 14 | 130 | 1 | 32 | 256 | 0.388 |
+| `rhodp-n16` | 16 | 260 | 2 | 64 | 512 | 0.384 |
 
-Each record occupies 96 bytes. Two n-record buffers use exactly `192*n` bytes;
-this includes retained complete messages (in reconstructible two-word form),
-the full digest and the unused upper half of V. Each table is initialized and
-fully charged above. No third table, sorting permutation, per-record pointer,
-auxiliary lookup structure, or retained random tape is used.
+The scaled analogue differs from the full attack in four ways:
 
-Reserve an additional `2^20` bytes for code, public constants, counters, stack,
-compression state/schedule, temporary record fields and output. This comfortably
-admits a direct bounded-loop implementation of the above pseudocode and SHA-256:
-at most 4096 instructions, each encoded in at most four 256-bit words, use
-`2^19` bytes; fewer than 4096 additional 256-bit words of constants, schedule,
-register spill slots and I/O use `2^17` bytes. The code needs no unrolled n-sized
-program: only the sample loop, three merge loops, scan and constant-round hash
-routine. A 37-word schedule, eight IV words, the first 37 public round constants
-and fixed masks fit these static bounds. Reading/initializing this storage is
-included in the fixed preprocessing allowance. Code storage is counted even
-though execution of the selected compression is priced as one unit.
+- The walk is cut off at k rather than `k + L`, so any trial that succeeds
+  under that cut-off also succeeds under the full rule on the same coins.
+- Distinguished points are dense (`theta` is 1/2 or 1/4), so a walk stores
+  about 32 to 65 of them instead of about 4352. Only `theta L = 16` and the
+  table's headroom are preserved.
+- x changes only the two lowest bits of each message word W0..W7, over a
+  seed-dependent random template, rather than all 256 bits.
+- The iteration reads only the top n bits of digest word 0.
 
-Peak live storage is at most `192*n + 2^20 < 256*n = 2^136` bytes. Array bases,
-endpoints and byte addresses, including fixed storage, are below `2^137` and
-fit within a 256-bit word. The largest loop count is n and products by 2 or 3
-are exact without overflow; no multiplication instruction is needed. The
-resource model permits this theoretical RAM size; feasibility on existing
-hardware is not asserted.
+The ideal rates were computed by the author by simulating the same scaled
+rules on lazily sampled ideal random functions: 200,000 runs per width with
+Python's `random.Random(20261025)`, giving a standard error of about 0.0011.
+That simulator is not part of the package; an independent advisory re-simulation
+agreed within its error. The decision rule is fixed in advance. Fewer than
+78 (n12), 81 (n14) or 80 (n16) successes out of 256 counts against `RM-WALK` for
+these truncations, or reveals a defect in the implementation. These are exact
+binomial cut-offs at the one-sided 1% level for each experiment, not corrected
+for testing three widths. The organizer checks each returned pair as a `digest-xor-mask`
+event on the top n digest bits, using its own target implementation, so a wrong
+hash implementation in the program would produce failed checks rather than
+successes.
 
-The program is uniform and uses only the public fixed profile constants and
-fixed numerical parameters stated here, all charged as code/constants. There
-is zero target-dependent nonuniform advice and no precomputed collision. Since
-the schema requires a nonnegative logarithmic advice bound, the claim's
-`nonuniform_advice_log2_bytes = 0` means an upper bound of one byte, which covers
-zero bytes; it does not assign a logarithm to zero or hide the code. No legacy
-`data_log2` field is used.
+**Local rehearsal (disclosed, not official).** Before submission the author
+ran these experiments through the organizer's `run_experiments` executor in
+Docker with the public seed, the pinned limits and the organizer's own event
+check. The isolation flags were unchanged, but the platform was swapped to the
+arm64 build of the same Python 3.12.12 release, because emulating the pinned
+amd64 image on the author's machine exceeded the 20-second timeout. The two
+fresh runs per experiment were byte-identical. Results: `rhodp-n12` 98/256
+(0.383), `rhodp-n14` 96/256 (0.375), `rhodp-n16` 103/256 (0.402), with no
+repeated pairs. All three are above their cut-offs and within one standard
+deviation (about 0.030) of their ideal rates. They show no visible trend with
+width, though three points at this precision cannot rule one out. A sample of
+256 cannot resolve a shortfall as small as the 0.0349 tolerance of Section 5;
+it can exclude only much larger departures. An earlier
+rehearsal of a variant using 32-byte messages and no suffix gave 104, 99 and
+107. Section 5 explains why the fresh-suffix family replaced it; the
+change was made for the analysis, not for its counts. The official
+remote report supersedes these numbers. Python integers are
+platform-independent, so it is expected to reproduce them.
 
-## Evidence and source context
+**Scope of this evidence.** It is a finite sample at widths 12 to 16 under
+public, SHAKE-derived seeds. Independence between trials is itself heuristic.
+It supports the random-mapping statistics of truncated r37 digests and the
+correctness of the algorithm's control flow. The extrapolation to 256 bits is
+the premise itself, not a consequence of the data.
 
-The entire success and resource argument is given above. The empty certificate
-manifest asserts no supplied witness. No experiment is declared or required by
-this analysis, and none of the bounds relies on sampled toy behavior, benchmark
-timing, a seeded PRNG, or executing the infeasible full search. `heuristics: []`
-means there are no premises beyond the specified RAM/random-word/target model
-and the mathematical arguments here; advisory or official reviewers may still
-identify mistakes in those arguments.
+## 9. Memory, code and advice
 
-Primary sources consulted for scope and conceptual context:
+| Item | Bytes, at most |
+| --- | ---: |
+| DP table: 8192 entries of two 32-byte words | 524,288 |
+| Program and public constants (IV, 37 round constants, masks) | 262,144 |
+| Registers, primitive interface regions, two block buffers, counters, output | 65,536 |
+| Total | 851,968 |
 
-- NIST, FIPS 180-4, Sections 5.1.1, 5.3.3 and 6.2.2, for standard SHA-256 padding,
-  initialization, schedule and feed-forward. The organizer profile, not the
-  unmodified 64-round standard, fixes the prefix reduction to 37 rounds.
-  Source: `https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf`.
-- Mihir Bellare and Tadayoshi Kohno, *Hash Function Balance and Its Impact on
-  Birthday Attacks*, full version, May 2004, Figure 1 and Sections 3-4, distinguish
-  fixed functions, iid sampled inputs and trivial repeated-input matches from
-  distinct-input collisions. Source:
-  `https://homes.cs.washington.edu/~yoshi/papers/Hash/balance.pdf`.
+`851,968 < 2^20`, so `memory_log2_bytes = 20` and the scalar memory term is
+zero. The allowances are generous: the program is a few hundred instructions
+and the scratch area is under 100 words. Indices are below `2^130` and fit a
+word. No random tape is stored; `r` and `x_0` are the only random words drawn.
+The program is uniform: it uses only public profile constants and the fixed
+parameters stated here. There is no target-dependent advice and no precomputed
+collision. `nonuniform_advice_log2_bytes = 0` is an upper bound of one byte,
+covering zero.
 
-Those citations supply context rather than a missing proof step or a claimed
-attack on this round count. The symmetric-polynomial maximization, distinct-input
-correction and target-specific operation ledger needed to assess this package
-are supplied directly here. No historical candidate's score or qualification is
-transferred to this package.
+## 10. Limitations and sensitivity
+
+- `RM-WALK` is a heuristic. If the 37-round map were permutation-like for most
+  suffixes, the walk would end with `mu = 0` and fail. Section 5 explains why
+  that is not expected, but it is not proved, and Section 8 cannot test it.
+- The time bound uses the register-machine accounting of Section 7. Under a
+  coarser lowering, at most 8 primitives per elementary statement (512 per step
+  and 1280 per lockstep iteration), the same algorithm bounds at
+  `log2 T = 128.370`. If memory traffic inside the priced compression were also
+  charged, at an allowance of 200 primitives per call, the bound is `128.251`.
+  Both stay below `2^128.37`.
+- Success is a probability over fresh coins, above 0.4249 under the premise.
+  It meets the 0.39 requirement as long as the real probability falls short of
+  the ideal-function value by less than 0.0349. The experiments of Section 8
+  cannot resolve a shortfall that small. The algorithm does not retry; a larger
+  shortfall would need a larger budget k, at roughly 0.04 bit of time per extra
+  0.02 of success near this point.
+- No witness, executed full search, novelty or improvement over the nominal
+  reference is claimed.
+
+## 11. Sources
+
+- NIST FIPS 180-4, Sections 5.1.1, 5.3.3 and 6.2.2: padding, IV, schedule and
+  feed-forward. The organizer profile fixes the reduction to 37 rounds.
+- J. M. Pollard, "A Monte Carlo method for factorization", BIT 15 (1975): the
+  rho walk on a function's graph.
+- P. C. van Oorschot and M. J. Wiener, "Parallel collision search with
+  cryptanalytic applications", Journal of Cryptology 12 (1999): distinguished
+  points for low-memory collision search.
+- P. Flajolet and A. M. Odlyzko, "Random mapping statistics", EUROCRYPT '89:
+  the tail and cycle statistics behind the random-mapping premise.
+
+These are context only. Every step needed to assess the claim is given above.
