@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "rhodp-n12",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected sha256-r37 target, organizer trial seeds. Each trial runs the proof's single-walk distinguished-point algorithm on g(x) = top 12 bits of the complete 37-round digest of a 48-byte message: a seed-dependent 32-byte template carrying x followed by a seed-dependent 16-byte suffix, walk cut off at k = 65 = (65/64)*2^6 steps, DP = top 1 of 12 bits zero, run bound 32, table capacity 256.",
+      "hypothesis": "If the random-mapping premise RM-WALK holds for this truncation, the success frequency over 256 trials matches the ideal random-function rate for identical parameters (0.375 by simulation, proof Section 8). Pre-set decision rule: fewer than 78 of 256 successes (exact one-sided 1% binomial cut-off, not corrected for three widths) counts against the premise or the implementation.",
+      "program": "experiments/rhodp.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "fff0000000000000000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "rhodp-n14",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected sha256-r37 target, organizer trial seeds. Same algorithm and message embedding on g(x) = top 14 bits of the complete 37-round digest, walk cut off at k = 130 = (65/64)*2^7 steps, DP = top 1 of 14 bits zero, run bound 32, table capacity 256.",
+      "hypothesis": "If RM-WALK holds for this truncation, the success frequency matches the ideal random-function rate for identical parameters (0.388 by simulation, proof Section 8). Pre-set decision rule: fewer than 81 of 256 successes (exact one-sided 1% binomial cut-off, not corrected for three widths) counts against the premise or the implementation.",
+      "program": "experiments/rhodp.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "fffc000000000000000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "rhodp-n16",
+      "kind": "python-message-pairs-v1",
+      "scope": "Selected sha256-r37 target, organizer trial seeds. Same algorithm and message embedding on g(x) = top 16 bits of the complete 37-round digest, walk cut off at k = 260 = (65/64)*2^8 steps, DP = top 2 of 16 bits zero, run bound 64, table capacity 512.",
+      "hypothesis": "If RM-WALK holds for this truncation, the success frequency matches the ideal random-function rate for identical parameters (0.384 by simulation, proof Section 8), at the same budget ratio k/2^(n/2) = 65/64 as rhodp-n12 and rhodp-n14. Pre-set decision rule: fewer than 80 of 256 successes (exact one-sided 1% binomial cut-off, not corrected for three widths) counts against the premise or the implementation.",
+      "program": "experiments/rhodp.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "ffff000000000000000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}

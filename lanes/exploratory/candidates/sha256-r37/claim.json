@@ -5,20 +5,38 @@
   "attack_class": "ordinary-collision",
   "rounds": 37,
   "claim": {
-    "time_log2": 132,
+    "time_log2": 128.15,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 125,
+    "memory_log2_bytes": 20,
+    "preprocessing_log2": 5,
     "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Samples exactly 2^128 independent uniformly random 48-byte complete messages with replacement; each hashes to the full 256-bit output from the standard fixed IV using one padded 37-round compression.",
-    "Classical 256-bit probabilistic word RAM under collision-frontier-v5, C=2644; no random-oracle, output-balance, PRNG or differential heuristic.",
-    "Worst-case total work and peak memory upper bounds; no witness, executed full search, novelty, nominal-reference improvement or qualification is asserted."
+    "Single rho walk x -> H37(BE32(x) || BE16(r)) on complete 48-byte one-block messages from the standard fixed IV, with a fresh uniform 128-bit suffix r and start x0 per run; full 256-bit digests, no truncation or chosen chaining value.",
+    "Repeat detection by distinguished points (top 116 bits zero) in an 8192-entry table; worst-case total work below 2^128.15 target-compression units and peak memory below 2^20 bytes on every random tape, under the register-machine accounting of proof Section 7 with C = 2644.",
+    "Success probability above 0.4249 (0.0349 above the requirement) rests on the declared random-mapping premise RM-WALK; no witness, executed full search, novelty or improvement over the nominal reference is asserted."
   ],
   "baseline_improved": "sha256-r37-nominal-v2",
   "certificate_manifest": "certificates/manifest.json",
+  "experiment_manifest": "experiments/manifest.json",
   "lane": "exploratory",
-  "heuristics": []
+  "heuristics": [
+    {
+      "id": "RM-WALK",
+      "statement": "With r uniform on {0,1}^128 and x0 uniform on {0,1}^256, independent, the walk x_{t+1} = f_r(x_t), where f_r(x) = H37(BE32(x) || BE16(r)), succeeds (the event of proof Lemma 5: first repeat within k steps, start not on its cycle, a distinguished point on the cycle, no non-DP run of length at least 2^120, at most 8192 distinguished points) with at least the probability it has when f_r is replaced by a uniformly random function on {0,1}^256 independent of x0. The claim tolerates a shortfall of up to 0.0349 below that ideal value (proof Section 5).",
+      "role": "score-critical",
+      "scope": "The fixed sha256-r37 target on 48-byte messages, averaged over the 2^128 suffix-indexed maps f_r and uniform starts; used only for the success bound of proof Section 6. Cost and correctness (proof Sections 4 and 7) do not depend on it.",
+      "extrapolation": "Experiments rhodp-n12/n14/n16 test a scaled analogue of the algorithm (dense distinguished points, low-bit input embedding, top digest bits of word 0) with the same fresh-suffix randomization and the slightly smaller budget ratio 65/64 instead of 17/16, on 12- to 16-bit truncations of the full 37-round digest. Applying the premise to the untruncated 256-bit maps is an extrapolation of random-mapping behaviour, supported by the structural argument of proof Section 5 rather than by data.",
+      "evidence_ids": [
+        "proof:160-201",
+        "proof:202-243",
+        "proof:311-378",
+        "experiment:rhodp-n12",
+        "experiment:rhodp-n14",
+        "experiment:rhodp-n16"
+      ],
+      "limitations": "Not proved. For each r the first 16 rounds act bijectively on x, so a 16-round analogue would be a permutation and the walk would fail; the claim relies on rounds 16-36, whose expanded message words depend on x, removing that structure. Truncation experiments cannot detect full-width permutation-like behaviour, the trials use public SHAKE-derived seeds, and independence between trials is itself heuristic. The 256-trial experiments cannot resolve a shortfall as small as the 0.0349 tolerance."
+    }
+  ]
 }
