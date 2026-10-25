@@ -1,25 +1,25 @@
 {
-  "schema_version": 1,
-  "experiments": [
-    {
-      "id": "a0p-online-r38",
-      "kind": "python-message-pairs-v1",
-      "program": "experiments/a0p38.py",
-      "event": {
-        "kind": "full-collision"
-      },
-      "scope": "H1 (unconditional first blocks), H5 and the Lemma 4.1 identities on real first blocks (proof.md Sections 4, 7, 13). Trials 0..7: first 64 unconditional organizer-seeded first blocks per trial, the W7 passes of all 32 classes counted without selection (expectation 137.0 per trial under H1); then first blocks drawn from the organizer seed (two uniform 256-bit words from SHAKE-256 of the experiment id and seed per first block; real 38-step compressions) until one has a passing class (at most 64); its first passing class is run on two batches (its first 512 members): the counted row-16 program of that class is executed instruction by instruction and its ok plane compared lane by lane with E16x computed from the Step-2 words and the 38-step trace; W7 is compared with c7 - A_{-1} and checked in F7. Trial 0 also runs the batch of the semi-free-start pair's variant on its chaining value: the counted program must find and accept it (positive lanes). Returns M0 || M1 and M0 || M1' of the class's first member (128 bytes each; one variant of one chaining value, not a collision) iff there is no mismatch. Trials 8..255 return no pair by design.",
-      "hypothesis": "Returned pairs: 8 (every executed trial mismatch-free); full collisions of the target: 0 (a returned pair is not a collision). Observations (untrusted): uncond_first_blocks (64), uncond_class_passes (H1: mean 137.0 per trial; grouped passes give a large variance), first_blocks, passing_classes, lanes (512), stage3a_passes, mismatches (0). Validation by us: 8 pairs returned per request, 0 mismatches, at most 0.6 s; unconditional: 5,693 class W7 passes in 2,560 first blocks against 5,480 expected."
-    },
-    {
-      "id": "a0p-q3-r38",
-      "kind": "python-message-pairs-v1",
-      "program": "experiments/a0p38.py",
-      "event": {
-        "kind": "full-collision"
-      },
-      "scope": "Consistency check of the q3 estimator (H2; proof.md Sections 6, 9, 13): it is not an estimate of q3 and not evidence for the bound q3_model, which rests on the participant study. Trials 0..9: 10 independent replicates of the estimator of q3 for the accepted event (row 16 exact over the 160 W16 words; rows 17..22 by proposals with the row's E bits imposed, at row 19 one of the four observed condition patterns drawn uniformly with weight 4 x 2^-f and the row checked on signed differences; tail: a variant of 512 embedded samples of the selected classes, W7 uniform in F7 (its three affine families; the family drawn by rejection from its own word, the value bits from a fresh word), rows 23..37, outputs compared; randomness SHAKE-256 of the experiment id and trial seed). Every success is rebuilt into (CV1, M1, M1') and accepted only if the two 38-step compressions from CV1 are equal, M1 != M1', the pair is in the accepted event and W7 is in F7. Trial t < 10 returns its first verified pair as CV1 || M1 and CV1 || M1' (96 bytes each; semi-free-start collisions, never collisions from the IV); trial 10 returns a pair iff no rebuild failed and the mean of the 10 estimates is at least 2^-98.6000; trials 11..255 return no pair by design.",
-      "hypothesis": "Returned pairs: one semi-free-start pair per replicate with a tail success (development requests: 4 to 10 of 10 replicates; validation by us: 4 to 6) and 1 from trial 10 (a pass; trial 10 needs trials 0..9 in the same request); full collisions of the target: 0. The pass rule was fixed from 48 development requests (pooled means: min -98.100, median -96.398) before any validation run; a pass checks a reduced replica, it is not an estimate of q3. Observations (untrusted): log2_estimate (-1000 for no success), accepted_pairs, failed_rebuilds (0); trial 10 log2_pooled_mean. What a pass shows: the replica estimates the same event as the study, restricted to the four row-19 patterns (a lower bound) and to 512 of the selected variants; its 48 development requests (480 replicates) have mean 2^-96.2059 against the study mean 2^-96.1821. Shifting their pooled means down by 1, 2 or 3 bits (a q3 that much lower) makes 2%, 38% and 90% of requests fail the rule (none at the claimed level): a pass excludes a gross error in the estimator or the program, it does not certify the bound."
-    }
-  ]
+ "schema_version": 1,
+ "experiments": [
+  {
+   "id": "r38-p8-claw",
+   "kind": "python-message-pairs-v1",
+   "program": "experiments/r38joint.py",
+   "event": {
+    "kind": "full-collision"
+   },
+   "scope": "The 38-step compression, the P8 data and the claw maps of the shipped program (proof.md Sections 2 and 3). Trial 0 builds the two kernel images for the P8 chaining value PCV, executes both images on 256 random lanes against the scalar walk step (29 output planes and the distinguished-point plane compared lane by lane), and runs the shipped claw_core on the P8 pair (a0 = A0, head of E16x, u = W1): the exact claw test, the post-filters C1, C2, G, F7 on the real words and step 3b (both second blocks, two 38-step compressions, exact comparison). Trials 1 to 255 draw a chaining value and a point pair (x on the a0 side, y on the u side) of the walk's encoding from the trial seed and check the row-16 identity F(a0) + P(u) = E16x on the real step-0..16 trace, W1 = u, and that the program's claw predicate equals 'E16x is a row-16 pass of P8 with the point's head'. Every trial output is verified by hard assert statements in r38joint.py._e1; no collision is expected (message fields are null).",
+   "hypothesis": "Hard-asserted in r38joint.py._e1. Trial 0: accepted 1, claws 1, c1 1, c2 1, g 1, f7 1, step3b 1, sfs_collision 1, kernel_lanes 512, kernel_bad 0 (both kernel images agree with the scalar step on every lane) (the P8 pair is a claw of its own chaining value and step 3b accepts it as a second-block collision); kernel_records <= 1300, kernel_regs <= 240. Trials 1..255: identity 1, w1_is_u 1, claw_iff_r16 1 (the claw predicate (F(a0) - t_j 2^13) - (H_0 - P(u)) in {0,1,4,5,1024,1025,1028,1029} holds iff the real E16x of the P1 pair equals head H_j on the 29 bits outside {0, 2, 10}); quot_match is an observation (1 iff the two points collide under the walk step)."
+  },
+  {
+   "id": "r38-window-small",
+   "kind": "python-message-pairs-v1",
+   "program": "experiments/r38joint.py",
+   "event": {
+    "kind": "full-collision"
+   },
+   "scope": "Trials 0 to 3 run four independent windows of the shipped program in check mode (every parameter of class P unchanged except the window length: 2^20 walk evaluations = 4096 iterations of 256 lanes instead of 2^25) on first blocks drawn from the trial seeds: the bit-sliced kernel, the bucketed distinguished-point table, stage 2, the claw decode, the exact claw test, the post-filters and step 3b. Check mode asserts, for every claw, F(a0) against the scalar map, the difference in the offset set, the real E16x in S160 with the point's head, and the post-filter words W7, W8, W9 of both members against the real rows of the P1 pair. Trials 4..255 return no observation.",
+   "hypothesis": "Hard-asserted in r38joint.py._e2 for the organizer trial seeds listed in WIN_EXP (dp_hits, matches, stage2_iterations, merges, cross, raw_claws, distinct_claws, distinct_groups, c1, c2, ops, kernel_records, blk_census per window); every assertion of check mode holds on every claw. Observations are the window counts; no collision is expected at this size (message fields are null)."
+  }
+ ]
 }
