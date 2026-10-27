@@ -1,36 +1,95 @@
-# Natural-bit descriptor candidate — current amendment
+# Calibrated-margin candidate — current amendment
 
-This amendment defines the current candidate. The inherited dossier below is preserved as the baseline derivation and provenance. Its resource totals, PXR layout, Python listing, experiment outputs and prior validation are historical; they are not measurements or validation of this modified candidate. The selected current `experiments/frontline.py` is the executable changed search oracle. The target, advice record, success assumptions and full-message collision event are unchanged. Bounded isolated equivalence checks, exact integer power certificates and advisory source review have passed as described below. Official judging remains pending.
+This amendment defines the current candidate. It has five layers over the inherited dossier below: (A) the natural-bit descriptor layout of promoted submission 1e179f43; (B) a recalibration of four declared premise margins against evidence that the dossier already reports (accepted for review as submission 785acf86); (C) a second copy of the opened-cluster code, paid for by memory below the existing peak; (D) opened clusters charged by the partner lanes they walk, with a new measured premise H_PL; (E) steps 2 and 3 charged at the instruction counts of their emitted code (Section 19) instead of block allowances. The target, construction, advice record, filter, gate, walk, solver code, memory bound and success event are unchanged. Every inherited number that depends on the changed constants (FACTOR at 97/100, 0.49594, the slack 0.001 and rho_c <= 0.0065, the factor 1.01 of H5_exec on the old u_U, the fill mean 7,198, the units 16 of entry and return, 104 of the chunks, 168 of U_OPEN, 614, 2,304, 1,354, 20, 4, 64, 48, 80 and 120 of the solver, 15,012 and 4,272, u_U, RUN_CONTEXTS, RUN_STEPS, s, the budgets, m_C, CREDIT, WB, N and time_log2, and the ledger program of Section 18 of the predecessor) is historical and superseded by the values here.
 
-## Actual changed path and invariant
+## A. Descriptor layout (1e179f43, unchanged)
 
-In the ordinary, non-overridden search, the descriptor branch is reached only with gate value 1 and `mk=True`. Thus the cluster is non-straddling and the low seven bits of omega belong to S7. In the historical layout PXR maps this condition and omega bit 8 to the appropriate descriptor. Its lookup does no other selection on this branch.
+In the ordinary search the descriptor branch is reached only with gate value 1 and `mk=True`: the cluster does not straddle and the low seven bits of omega lie in S7. There PXR only mapped that condition and omega bit 8 to a descriptor. The layout stores the descriptor of carry index ix and b8 at `DB + ixoff(ix) + (b8 << 8)`, DB = 2^32; chunk headers at offsets 0 and 4, payloads at 1, 2 and 5, 6; ix occupies bits 9, 10, 17 and 25, disjoint from bit 8 and from the offsets. Each representative batch ORs a precomputed DB marker into its seven 36-bit lanes once (all markers fit below bit 249; masking removes other lanes); selection is `(IX >> shift & (IXM | DB)) + (omega & 256)`. No PXR or PXT table exists. Forced-open diagnostics alone keep empty headers at the address plus 128; they authorize no shortcut in the attack. Costs: one unit less per non-straddling opened cluster, one OR per representative batch (2,341 per context): U_IX 18, selection 5, U_OPEN 167 (165 after C), straddling surcharge U_FB 209 (straddling path 376, 374 after C), U_CONTEXT 93,258. Removing PXR (65,536 words) and adding two instructions puts the search phase below 29,848,320 bytes. The networkless executor compared the historical and the descriptor source on 65,536 descriptor cases over eight contexts and 16 walk pairs (normal, forced-open, forced-closed, fallback): non-cost observations matched and halt checks passed.
 
-The new layout uses DB=2^32. For each carry index ix and b8 in {0,1}, the descriptor is stored at `DB + ixoff(ix) + (b8 << 8)`; the two chunk headers use offsets 0 and 4 and their payloads use offsets 1,2 and 5,6. The carry index occupies bits 9,10,17,25, so bit 8 is disjoint. Headers and payload offsets are disjoint from both. Each representative batch ORs a precomputed DB marker into every 36-bit packed lane, once per batch. Selection is then `(IX >> shift & (IXM | DB)) + (omega & 256)`. All seven markers fit in 256 bits (highest marker bit 248); masking removes other lanes. Descriptor addresses are in [2^32,2^33); the existing other table regions are disjoint. No PXR or PXT table is constructed or queried by the modified oracle.
+## B. Recalibrated premise margins
 
-Forced-open diagnostics can enter a branch excluded by the actual gate precondition. Only this diagnostic wrapper retains empty descriptor headers at the corresponding address plus 128. It does not authorize empty-lane shortcuts in the attack. The ordinary gate, fallback, candidate ordering, returned messages, masked experiment event, joint solver, root test, credit and primitive arithmetic remain unchanged. Boundary halts are tested against each program's own budget; identical halting time between the two budgets is not asserted.
+**B1. Rate factor of H1' (i): 97/100 to 98/100.** FACTOR = floor(98 * 138,512,695,296 / 100) = 135,742,441,390, so q = FACTOR * 2^-128 = 2^-91.0179. Evidence (Section 13): the preregistered 8-bit end-to-end rerun found 40,882 complete-message collisions against 40,800.63 predicted, 1.00199 +- 0.00496, one-sided 97.7 per cent lower bound 0.99213; its rule, fixed in advance, supports a margin m when that bound is at least 1/m, so it supports m = 100/98 (it would also support 100/99; the smaller step is taken). At 32 bits, real counter trials on the whole class gave the E1 side of the seven outcomes 1.0020 +- 0.0086 of the model and all fourteen 0.9988 +- 0.0070; both two-sigma lower bounds are about 0.985 >= 0.98. Limits: at 1 - 10^-9 the 8-bit bound is 0.97256 < 0.98, the older sub-class E1 measurement (0.9954, two-sigma 0.9756) is below 0.98, and the joint event at about 2^-91 is not measured, so the factor rests on two-sigma evidence and remains a score-critical assumption. Effect: -0.01477 in time_log2.
 
-## Revised operation ledger
+**B2. Dependence clause of H1' (ii) and run length.** New clause: the probability that no valid trial of the run is a listed good trial is at most exp(-0.49436) + 0.000038 = 0.6099992 (was exp(-0.49594) + 0.001, from rho_c <= 0.0065). Sufficient condition: rho_c = E[N_c (N_c - 1)] / E[N_c] <= 2^-12. By Lemma S8 over the independent contexts, b(rho_c) = 1 - rho_c / 2 >= 1 - 2^-13, the exponent is at least 0.49436 (1 - 2^-13) = 0.4942996..., and the probability is at most 0.6099980 <= 0.6099992. The success bound of 10.4 becomes 1 - 0.6099992 - 2 * 10^-8 = 0.3900008 > 0.39, with the same seven tails; with 0.49435 it would be 0.389995, so 0.49436 is the least five-decimal value. With E[N_c] = 2^19 (2^21 - 1) q = 2^-51.018 and rho_x about v * 2^-51.018 (10.3), the cross-member part fails only if the clustering ratio v of listed good trials by context exceeds about 2^39 (was 2^43.86); every measured ratio and upper limit of Section 13 (at most 1.94) lies 38 bits below. The within-step part rho_w (an outer step holds at most 16 listed good trials, Lemma CV) is not measured, as before; GPT Sol's fresh-word model bound rho_w <= 2^-13 (10.3), which does not transfer to the sampler, is half of the new allowance, against about 2^-7.3 under the old one. Rate and dependence stay separate assumptions. Effect: -0.00460.
 
-The actual removed lookup saves one primitive unit per non-straddling opened cluster. The added packed marker costs one OR per representative batch, including the final partial batch: 2341 per context. U_IX becomes 18, selection 5, U_OPEN 167, and the complementary straddling surcharge 209. The total straddling path stays 376. U_CONTEXT becomes 93258. No reduction is assigned to an unexecuted branch or to Python elapsed time.
+**B3. H5_exec factor: 1.01 to 1.001.** Premise: E[U] <= 1.001 u_U = 1.1915629, u_U = 335,060,079,487,497 / 2^48 unchanged. Evidence (Section 13): the preregistered sample of 51,549 whole contexts gives a one-sided 1 - 10^-6 upper bound 1.19097 on the mean of this row's U, below 1.1915629; the 2^32 real outer steps with each flag give at most 1.18354 and 1.18531, below u_U itself. m_C = ceil(1001 RUN_STEPS u_U / 1000); the Bernstein reserve, the preflight reserve and Lemma ME are unchanged. Effect: -0.00304. (Superseded by E, which restates H5_exec with the factor 1.01 on the new u_U.)
 
-All event budgets and the solver credit retain the inherited formulas. With A_B=7605157652531425333, F_B=2570351266169534 and RC=1142372260131981, the net ledger reduction is
+**B4. H_G_cluster mean: 7,198 to 7,164.** The premise value is the empirical Bernstein bound (Maurer and Pontil, 2009, Theorem 4) for i.i.d. variables in [0, R], R = 84,261, in place of the range-only Hoeffding bound: with probability at least 1 - delta, E[F] <= Fbar + sqrt(2 V_n ln(2/delta) / n) + 7 R ln(2/delta) / (3 (n - 1)), V_n the unbiased sample variance. On the preregistered sample of Section 13 (n = 2^24, sum F = 120,112,551,275, sum F^2 = 979,397,328,433,193): Fbar = 7,159.2660, V_n = 7,121,541.31; at delta = 10^-9, stricter than the old exp(-7), the bound is 7,159.2660 + 4.2640 + 0.2510 = 7,163.781, so the declared value is 7,164. Same caveats: one generator, evidence and not a proof. Effect: -0.00103.
 
-`(A_B+16384) - (F_B+128) - 2341*(RC+1) = 4928293840296302193`.
+## C. Two copies of the opened-cluster code
 
-The revised exact integers are WB=2083552872716367798605, W_CTX=38414488, and N=3054722389340628896899 primitive units, including unchanged ONCE, S_old and final output. The proposed upward-rounded time claim is 62.62334 target compressions in log2 units (N/430). The isolated integer check verified 430^100000 * 2^6262333 <= N^100000 < 430^100000 * 2^6262334. Therefore 62.62334 is an upward bound.
+The code of an opened cluster (9.9, Section 12: fewer than 2^17 instructions, with a return tree of fewer than 2^7) is written twice, identical except for the immediates of its return tree. Copy 1 serves 19 of the 28 representative lane sites of the loop body; copy 2 serves the other 9 and the 10 sites of the last batch. A site that opens a cluster sets K and the base and jumps to its own copy (3 units, as before); each copy's return tree selects among its 19 continuations by a balanced tree of five comparisons of K with an immediate, each with its branch (10 units, 2^4 < 19 <= 2^5), in place of six for 38 targets. Entry and return cost 3 + 10 + 1 in reserve = 14 in place of 16: U_OPEN = 165, U_FALLBACK = 371, the straddling surcharge stays 209 (straddling path 374). Registers, words, lane reads and the order of work are those of 9.9; nothing is stored differently. Memory: the second copy and its return tree add fewer than 2^17 + 2^7 = 131,200 instructions, 4,198,400 bytes, so the search phase is below 29,848,320 + 4,198,400 = 34,046,720 bytes, still below the historical construction peak 37,928,960; memory_log2_bytes is unchanged. The Python experiment does not model code layout and charges U_RET = 14. Effect: -0.00722.
 
-The probability argument uses the original bounded event premises and the newly derived budget, rather than assuming the old budget's executions halt identically. A complete context has at least 26*(256-2) qualifying non-straddling clusters; after 2341 marker units, the per-context change reduces its work by at least 4263. The inherited event caps, partial-context W_CTX allowance and credit argument are unchanged in structure. H1', H4', H5_exec and H_G_cluster remain heuristic assumptions. Neither the small oracle comparison nor the new operation ledger proves them or establishes full-scale attack success.
+## D. Opened clusters charged by the partner lanes they walk
 
-## Memory and provenance limits
+An opened cluster that does not straddle walks only the survivors of Lemma XF (c), in its two chunks. Since j -> o(IX, j) is a bijection (Lemma XF (a)), their number is exactly popcount(LW[b8]) - alive16 of the representative, that is 8 or 9 minus 0 or 1, where b8 is bit 8 of the representative's omega. Section 11 charged every such cluster the worst case, 104 = c(n_A) + c(n_B) with n_A + n_B = 9. This amendment charges two chunk headers, 32, in U_OPEN, which becomes 93, and 8 more for each partner lane that a chunk walks. The additions to W: chunk A's dispatch leaf adds u_O + 8 n_A in the one addition that U_BOOK already pays, and chunk B's leaf adds 8 n_B in one more addition, paid by the unit in reserve of U_RET (C). The 8 is the lane test (7 in lane 0); the omega side of each chunk is in the 32. For each chunk this is at least c(n) = 16 + 8 n, and 16 more for an empty chunk. Straddling clusters keep their path of 374 and pay U_FB = 374 - 93 = 281.
 
-Removing 65536 PXR words removes 2097152 bytes from the search-phase model; reserving two additional 32-byte OR instructions adds 64 bytes. The revised search upper ledger is 29848320 bytes, before any possible savings in unused old code. No memory benefit is taken for old code removal. The inherited historical advice-construction upper ledger 37928960 bytes remains the largest phase, so the candidate does not lower memory_log2_bytes=25.17680. Preprocessing_log2=54, advice_log2_bytes=7 and proposed success_probability=0.39 remain unchanged. These are inherited analytical claims, not measured RSS or freshly reproduced historical construction bounds. No process RSS subtraction is used to certify memory.
+Let L(C) be the number of partner lanes that the non-straddling opened clusters of a context walk, so 0 <= L(C) <= 9 * 16,384 = 147,456. The partner lanes have the budget PL_BUDGET = L_PL RUN_CONTEXTS + 147,456 s, which enters WB at 8 units and W_CTX as 8 * 147,456. The L(C) of the contexts are independent (Lemma CX), so Hoeffding's inequality puts an overflow at most exp(-20). This is an eighth tail: 8 exp(-20) = 1.65 * 10^-8 is still below the allowance 2 * 10^-8 of 10.4.
 
-The proposed scalar under the current penalized-time rule is 62.62334 + (25.17680-20) = 67.80014. This is a conditional claim, not an official score, human acceptance, promotion or weekly eligible gain.
+**Premise H_PL (supporting).** For a context with uniform outer words, E[L(C)] <= L_PL = 54,846.
 
-## Validation status
+Evidence comes from a participant measurement under a protocol fixed before the run (protocol SHA-256 e917c6ce...ce8ab). Its sampler draws 2^27 i.i.d. pairs of a uniform context (SHAKE256 words) and a uniform cluster g. X is the number of partner lanes that the walk of frontline.py walks there: popcount(LW[b8]) - alive16(rep) when the gate value is 1, else 0. It is computed with the declared program's own lines, and every 64th opened sample is recounted over j = 1 to 31 (851,971 recounts, 0 mismatches). Results:
 
-The protected networkless Python executor compared the exact historical and modified source on 65,536 descriptor cases over eight contexts and 16 walk pairs (normal, forced-open, forced-closed and fallback). Non-cost observations matched; boundary/credit halt checks passed. The corrected program was exercised twice, the second run additionally verifying the exact power inequalities above and 37928960^100000 < 2^2517680. The source SHA-256 was 9a61353cd306e358fe89f62e59cc0f585cb9da22bd8a1a9906f8e4a824e3f651. The first pre-correction attempt failed with a declaration-order NameError; this was fixed before both passing runs. Protected setup ran 336 tests, with 331 passing and five existing skips. A separate read-only advisory review found no fatal change-specific correctness or cost issue, with inherited assumptions explicitly outside its validation. These small fixtures are not full-scale success measurements or official qualification. No full attack has run.
+| Quantity | Value |
+| --- | --- |
+| Opened non-straddling clusters | 54,525,888 of 134,217,728 samples (0.4062495; 9,230 straddled) |
+| Mean X | 3.3451954 |
+| Variance | 16.529608 |
+| Empirical Bernstein bound at delta = 10^-9 (X in [0, 9]) | 3.3474955 |
+| L_PL = ceil(2^14 * bound) | 54,846 |
+
+For comparison, Section 11 charged 9 * 6,657.34 = 59,916 partner lanes per context. The run used SHAKE256 words in place of uniform words, so it is evidence, not a proof. Effect: -0.02621.
+
+## E. Steps 2 and 3 charged at the instruction counts of their emitted code
+
+Section 19 emits the code of steps 2 and 3 from `emit_b3z7.py`: the joint solver of the six rows of S with (G7), (G15) and the root certificate, the entry stubs and the global ledger. Its machine charges one unit per instruction. Every branch is forward, except the seven stub jumps to the common entry, so no instruction runs twice in a call.
+
+Section 11 charged allowances for these blocks. This amendment charges each block the largest instruction count the emitter reports for blocks of its kind, meter debits included:
+
+| Block | Old allowance | New charge |
+| --- | ---: | ---: |
+| Global ledger | 614 | 184: emitted 152 (stub at most 22, entry 60, the six row tests 12, exit 58) plus 32 for the lane-side call and return (below) |
+| Family | 2,304 | 0 (each row's code repeats the family formulas) |
+| Row | 1,354 | 1,089 |
+| Forced node | 20 | 16 (10 to 16) |
+| Selected node, position 20 | 4 | 0 (14 in all) |
+| Position-15 surcharge | 64 | 11 (27 in all) |
+| Free node | 48 | 17 |
+| Leaf | 80 | 35 |
+| Root | 120 | 88 |
+
+The six row preludes (set-up and descriptors, with (G7) and the (G15) words) have 1,084, 1,039, 1,089, 1,037, 1,038 and 1,030 instructions.
+
+The emitted `RET` stands for one branch back to the calling lane site; the dispatch among the call sites is lane code, which Section 19 does not emit. It is charged 32 inside the global 184: the site sets its number K and the lane words r0 to r8 that it already holds (at most 10 moves), and the return reaches its site through a tree of at most 10 comparisons of K with an immediate, each with its branch (fewer than 2^10 call sites: 2 * 202 + 38 lane sites), 20; 1 + 10 + 20 = 31 <= 32. The emitted meter reads these constants from frontline.py, so V = U of Lemma ME holds as before, and every call executes at most what it debits. As a result:
+
+- A(T) = 184 + 1,089 r.
+- ROW_CAP is 2,326 for a row with three free positions and 3,516 for one with four.
+- CM(T) <= CM(0x52) = 7,115 for every T that occurs (was 15,012). L_C and the preflight reserve use 7,115.
+- Lemma CP: every call has U >= 1,273 (was 4,272), and CALL_BUDGET = ceil(m_C / 1,273) + 2^19 s.
+
+Model value:
+
+- From the n_X certificate of 10.3, E_M[A(T) | call] = 184 + 1,089 * 354,874,366,665 / 279,070,422,111 = 1,568.81 exactly.
+- Every new node charge is at most 4/5 of its old one (16/20, 27/84, 17/48, 35/80, 88/120). So the tree part is at most 4/5 of GPT-6 Astra's 22,422,672 / 266,237 per call, that is 67.38.
+- Hence u_U' = p_call (1,568.81 + 67.38) <= 114,152,488,153,336 / 2^48 = 0.405551. H5_exec is restated as E[U] <= 1.01 u_U'. The factor is 1.01 again, not B3's 1.001, because the evidence for the new ledger is indirect.
+
+Validation used an independent interpreter of the Section 19 machine, written by the participant from the emitter's opcode list and not part of the package. It ran in the pinned networkless image:
+
+- With the historical charges, on 957 real calls captured from the walk of frontline.py and 600 planted-root cases, it matched frontline.py's solver in every case: the same roots in the same order, the same debits, and the 57 saved registers restored. Every planted root was returned.
+- With the charges of this amendment, on 1,944 real calls and 600 planted cases, every call executed at most its debit. Real calls executed 834 (the stub counted at its 22) instructions on average against a mean debit of 1,546.
+- The walk of this program gives 0.36696 debited units per outer step over 8,192,000 outer steps, against the 0.39762 of the emitted 152 (ratio 0.923; 0.905 of the u_U' above).
+
+The historical Section 13 measurements of U still describe the call frequency and the T law: calls are 0.99604 of the model frequency, and the pre-check keeps 0.249980 of passing outer steps. Effect: -0.24208.
+
+## Revised exact ledger
+
+The formulas of 9.1 and Section 11 with the unit costs of A, C, D and E and the constants of B, D and E; Section 18 lists the program that recomputes them. RUN_STEPS_MIN = ceil(0.49436 * 2^128 / (FACTOR (2^21 - 1))) = 590,931,867,153,450,501,380; RUN_CONTEXTS = 1,127,113,088,900,472 (2^50.0016); RUN_STEPS = 590,931,867,153,450,663,936; s = 106,165,583. E_BUDGET = 32,157,111,148,820,462,936, PASS_BUDGET = 586,042,493,902,474,223, A_BUDGET = 7,503,572,211,780,656,479, FB_BUDGET = 2,536,018,039,220,686, G_BUDGET = 8,074,647,114,501,170,571, PL_BUDGET = 54,846 RUN_CONTEXTS + 147,456 s = 61,817,660,128,587,494,160, m_C = ceil(1.01 RUN_STEPS u_U) = 242,049,603,096,140,337,236, CREDIT = 242,055,612,873,289,897,520, CALL_BUDGET = 190,196,747,826,757,546. Units: context 93,258, representative batch 52 (40 for the last), opened cluster 93, partner lane 8, straddling surcharge 281, E lane 10, fill 56, passing lane 43, call 6. WB = 1,993,178,475,418,359,136,794 and W_CTX = 38,390,936.
+
+N = contexts 93,258 (RUN_CONTEXTS + 1) + representative batches 121,720 RUN_CONTEXTS + WB + W_CTX + CREDIT + ONCE 1,125,918,437,277,736 + S_old 5,486,510,246,044,225,536 + 430 * 2^38 = 2,483,026,360,279,314,677,316 machine units. In integers 430^100000 * 2^6232439 <= N^100000 < 430^100000 * 2^6232440, so time_log2 = 62.32440 (log2(N / 430) = 62.3243967). The Hoeffding and Bernstein tails of 9.1, 9.9, 10.3 and D keep their form with the new s, eight tails each at most exp(-20).
+
+## Memory, scalar and validation
+
+Memory is unchanged: the historical advice construction, 37,928,960 bytes (37,928,960^100000 < 2^2517680), stays the peak, so memory_log2_bytes = 25.17680; the search phase is below 34,046,720 bytes (C; the emitted code of E is the same 17,267 instructions) and the output phase below 136,256. preprocessing_log2 54, advice 2^7 bytes and success 0.39 are unchanged. The projected scalar is 62.32440 + 5.17680 = 67.50120 against 67.80014 promoted and 67.76949 for 785acf86, a conditional claim and not an official score. `experiments/frontline.py` changes, against 1e179f43, only the constants of B, U_RET = 14 (C), U_HDR, U_PL, L_PL and PL_BUDGET with the per-lane charge of the chunk loop (D), the solver charges, U_U and CM_MAX (E), and its asserted integers. In the organizer's pinned networkless Docker image the intake ran 256 of 256 trials with 0 mismatches and no halt, twice byte-identically, and `--selftest` returned ok, including the W, C, R and WB halt drills; the emitter of Section 19, run with this frontline.py, emits the same 17,267 instructions. H1', H4', H5_exec, H_G_cluster and H_PL remain heuristic; no full attack has run.
 
 ---
 
@@ -921,59 +980,7 @@ In exact integers the sum of the rows is 90,917 * (RUN_CONTEXTS + 1) + 121,720 *
 *A representative batch, 52, and an opened cluster, 168* (derived in the paragraph *Charges (Section 11)* of 9.9, which gives the same sums). A run has 2,341 representative batches per context, the last with four used lanes and no loop step at 40, so the row of representative batches is (52 * 2,340 + 40) * RUN_CONTEXTS = 121,720 * RUN_CONTEXTS. The straddling surcharge is 376 - 168 = 208, counted in its own row. E lanes, fills and passing lanes of the representative and of the partners are charged in their own rows.
 *An E lane, 10, and a fill, 56* (9.8; GPT Sol, answers CA, CD 1, 6 and 8.1 and CM 5A; our audit). An E lane, a lane whose mask of (2) is not zero, pays 1 to add u_E to W, an addition with an immediate; 1 to shift the cached Y9 right by 36 i, which moves its lane to lane 0 (no shift in lane 0); 1 to keep 2^34 + (Y9 mod 2^16) of the shifted word (an AND with 2^34 + 2^16 - 1), the word address of R1; 1 to load R1 there; 1 to keep Y9 mod 2^26 of the shifted word (an AND with 2^26 - 1); 1 to add the two, the word address of L1 (Lemma DT); 1 to load the mask of (1) there (Lemmas DT and T26); and 3 to combine the masks, compare and branch: 10. The first E lane of a batch adds u_E + u_G in that one addition instead and pays 2 to rebuild C0a1 and D0d1 and 54 for the 17 Y9-path lines in 16 packed lines (seven rotations at five units, each next to an XOR, 42, and 12 single operations, two of them for the fused line (X12 XOR M) + K): 56. The not-ready chain of the code of a batch (9.8) makes the choice between the fill and the cached Y9 a position in the code, with no test. The simulation of 9.8 executed 78 units in every one of its 54,067 Q paths in the form of answer CA, with an allowance of 16 for the E count and 55 for the lines. A lane whose mask of (2) is zero cannot pass and pays neither (Lemma MB).
 *A passing lane, 43, and a call, 6, outside steps 2 and 3*: 35 for e1, C2.a1, C2.d1, C2.c1, C2.b1 and the word r' by the shortcut of 9.6 (32 for lane 0); 7 for the pre-check of 9.7; and 1 for the addition to W on either side of the pre-check, u_P where it ends the outer step and u_P + u_C where it falls through: 43, paid by every passing lane, also when T is empty. A call adds 6 for the preflight of 9.7, the address and load of CT[T], A(T) and CM(T) taken out, the comparison with the credit register and the branch: 6. The lane is written inline after its E handler and keeps no return link; the call and return edges of steps 2 and 3 are inside the global ledger (below). W and the credit stay in their registers, and the global ledger saves the live words of the batch around steps 2 and 3.
-*Steps 2 and 3: CM(T), at most 15,012.* Each outer step that reaches the solver is charged block by block, every block an upper bound on its operations, loads and stores, with addresses, branches, spills and the restoration of registers included:
-
-- 614 once for an outer step whose T is not zero, the global ledger below; none when T is zero, since then no part of steps 2 and
-  3 runs.
-- 2,304 for each family (9.4): at most 128 blocks of the formulas of (a) to (e) of 9.4, the phase checks, (P*) and their
-  preparation, at 12 units each, 1,536 (the 112 blocks of the formulas of answer AI 2 and 16 more; a block is the extraction of
-  one source bit, a majority of four operations, an XOR of at most five inputs, the comparison or choice of a carry prescription,
-  or a carry update, with its branch and assignment); the walks of bits 0 to 5 under the two guesses, at most 32 units a bit, 384;
-  and 384 for the record of the family, which at most two rows of a set share (64 to store a record of 32 words and 128 to load it
-  twice), the packing of the guard planes and the dispatch.
-- 1,354 for each searched row. Its 32 descriptors are built in 32 registers at 32 units each, 1,024 (seven fields vary with the
-  outer step, Q[i], y[i], E[k], E'[k], kappa[k], kappa[k+1] and the value of a constant, at 4 operations each, and 4 for the
-  static base, the shift of the key and the assignment); 128 for the walks of bit 6 under the two guesses (64), the patches of
-  h[6], h[7], h[13] and h[26] (24), kappa and the consistency of bit 6 (8), and the dispatch of the row (32); the guard (G7) of
-  9.7 adds 128, and the guard (G15) of 9.7 74 more for its five words (answer CF 7.2, at its itemized 74).
-- 20 for each forced node: the key from the carry pair, the descriptor and the base of the array, and the read of the packed word, 3; the validity
-  (the word ANDed with the validity bit of the entry's field), its comparison and the branch, 3; the next carry pair, a shift and a mask of the
-  word, 2, and the saved bit e2[29] (at position 9 the new bit is put in its place), a shift and a mask of the word, 2: 4; the chosen bit of h, masked, shifted to its place and ORed into the prefix, 3; the guard of position 25 or 29 written into the key,
-  at most 5 (at 25, bit 13 of the prefix shifted and masked, XORed with h[6] XOR u, which is held, shifted and ORed into the key,
-  5; at 29, the saved bit e2[29] masked, shifted and XORed into the key, 3; none at 31); and the continuation, 1: at most 19, 14
-  at position 31. Its debit of the meter (9.7) is one more operation, and at position 31 the debit of its leaf one more.
-- 4 more for each selected node, at position 20: bit 8 of the prefix as the desired bit of the key of the selected array.
-- 64 more for each node at position 15: the test of (G15) and the prescription of h[15] in a temporary copy of the descriptor
-  (9.7).
-- 48 for each free node: the parent saved in one register, 2; the key and the read of the packed word of the dual array, 3; the two arcs taken apart
-  (the word ANDed with the validity bit of each arc), 2; 11 for each of the two children, for the validity, the carry pair and the saved bit, the prefix and the control; the parent
-  restored before the second child, 2; and 5 for dispatch and return: 36, charged 48, and its debit of the meter one more
-  operation. No guard reads a free position.
-- 80 for each leaf: g, f, e2 and h2 of its h and (J1), (J2) and (J3) as words, a rotation at five operations, 64; and 16 to reload
-  the context words: 80; its debit of the meter is made by its parent at position 31.
-- 120 for each root: the certificate of step 3 (Lemma RC), run at the leaf of the root: Y14, Z, Y6, E1.a1, E1.d1 and c1, 22; the
-  test (Q), 3; E1.b1, s, E1.a2, p and the test (A), 16; z and the test (C), 15; Y2, w0, K0.a1, t and the test (T), 17; twelve
-  addressed loads, h, e1, C2.c1, C2.b1 twice, Y1, w12, Y12, w5, K0.d1, C2.a1 and C2.d1, 24; dispatch, return and control, 16: 113,
-  charged 120, and its debit of the meter one more operation. A rotation on scalar words takes four units (two shifts, an OR and a
-  mask), every sum is masked to 32 bits, and Y11, beta*, DY11, eps, IV[0] + IV[4] and the constants tau_j - beta* + 8 and
-  ROR(tau_j, 8) of each row are immediates of the written code.
-*The global ledger, 614.* This is a specified layout, not a count of a program. The lane of 9.8 has finished its paid pre-check and preflight when it calls steps 2 and 3, and it calls them only when T is not zero. So that a lane with T = 0 stores nothing for the solver, steps 2 and 3 store the names that they read, as these become available, in a fixed bank of 32 memory words, disjoint from the saved words of the batch, the family records and the words of (G15). The names are the seven outer words of the context, reloaded; Q = Y9, taken out of the lane's cached Y9 (a shift and an AND); y = e1 - Y3; E and e1 of the lane; C2.a1, C2.b1, C2.c1 and C2.d1 of the shortcut of 9.6; Y1 and Y12 taken out of their packed words of the batch (a shift and an AND each); w5, w12 and K0.d1 of the context (9.8); E' and E XOR E'; and the two phase bits: 24 words, each stored before its register is reused. No scalar rebuild of step CO runs for a call; the one rebuild of the found trial is inside the once-only allowance of the root certificate. Every word of the bank that is read later was written in this outer step, and no other word of it is read, so the bank needs no clearing. Every address is a fixed offset from an immediate base, and every name of a word, register and row is written in the code; nothing is looked up by value. Once for a nonempty T:
-
-| item | units, at most |
-| --- | ---: |
-| the source bank: Y1, Y12, y and Q from the words of the batch (8), and the addressed reloads of the seven outer words and E[b] (16) | 24 |
-| the 24 addressed stores of names into the bank, 2 each | 48 |
-| E' = E + DY3, E XOR E', the phase fields, their normalisation and stores | 16 |
-| loading sources at the boundaries of families and rows | 66 |
-| the choice of outcomes and families from the fixed mask, and the top-level dispatch | 100 |
-| entry into the frame, bookkeeping of bank slots and control, and the final return | 128 |
-| saving at the entry and reloading before the return the live words of the batch, at most 57 (49 of the walk, W among them, and the eight words of the masked walk), at 4 units each with the addresses | 228 |
-| the meter's debit of A(T) | 1 |
-| unused reserve | 3 |
-| total | 614 |
-
-The loads are five source words for each family, at most three families, 30, and six context words for each row, at most three rows, 36; the reloads of a leaf and the loads of (G7) and (G15) keep their own allowances above. The choice runs a fixed decision tree over the six bits of T: six bit tests at 6 units each, three family entries and three row entries and exits at 8 units each, and 16 for entry and exit, 100 in all. The last 128 pay the call and return edges, the preparation of the bank base and offsets, and up to 32 further addressed accesses. Each root is certified at its leaf and a rejected root returns straight into the traversal (step 3), so no list of roots is kept, allocated or sorted. Forming the first certified pair is in the once-only allowance of the root certificate.
-Summing the blocks: when an outer step reaches the solver with searched outcomes T, at most one row of each family reaches depth 7 (Lemma FX), so steps 2 and 3 cost at most CM(T) = 614 + 2,304 F + 1,354 A + the sum over the families of T of the largest tree of their rows, 20 N_f + 48 N_r + 4 N_s + 64 N_15 + (80 + 120) Lf for its forced, free and selected nodes, nodes at position 15 and leaves with (G7) and (G15) (9.4): 1,920 for a row with four leaves and 3,808 for a row with eight; roots are at most leaves, and CT[T] of 9.7 holds CM(T). The four sets of rows of 9.4, restricted to the outcomes of S, contain every T that occurs, and give at most 8,080 ({275}), 6,192 ({175}), 9,434 ({285, 385}) and 15,012 ({185, 385, 685}). So steps 2 and 3 cost at most 15,012 machine units in every outer step that reaches them, whatever its words and whatever its T, which the pre-check never enlarges: 614 + 2 * 2,304 + 3 * 1,354 + 3,808 + 1,920 = 15,012 on the rows 185, 385 and 685 (GPT Sol, answers CF 7.2, CD 10, CD 11.3 and D12; GPT-6 Astra, Batch 17; the trees and the arithmetic recomputed by the participant). With the global part 1,024 of the earlier layout the same sum is 15,422, the bound of the ledger U0 of the earlier layout (9.7). The counts are those of the static trees, and the blocks are added whether or not they occur together, so this is an upper bound; it is not claimed to be attained or to be the least such bound.
+*Steps 2 and 3 (historical allowances, superseded by amendment E).* The predecessor charged steps 2 and 3 block by block with allowances: a global ledger of 614 (source bank, 24 stores of names, the choice of outcomes and families, entry and return, the save and reload of 57 live words), 2,304 per family, 1,354 per row, 20 per forced node with 4 more at position 20 and 64 more at position 15, 48 per free node, 80 per leaf and 120 per root, so that CM(T) <= 15,012 on the four sets of rows of 9.4. Amendment E replaces these allowances by the instruction counts of the emitted code of Section 19, which implements the same blocks: the bank stores in the entry stubs, the 57 saved words, the six row tests, the formulas (a) to (g) of 9.4 for each row, its descriptors, (G7) and the (G15) words, the static traversal, the leaves and the root certificates. The itemized allowance list is omitted here. With the new charges, CM(T) <= CM(0x52) = 7,083 (rows 185, 385 and 685) over the four sets of rows. Lemma FX applies unchanged, and the counts are those of the static trees.
 *The meter and CM(T) (Lemma ME; GPT Sol, answers CD 11.3, CK3 2 and 3 and D12; our audit).* Every T that occurs lies inside a mask X of Section 8 (T is X or empty), and each of the ten masks X lies inside one of the four sets of rows of 9.4, {275}, {175}, {285, 385} and {185, 385, 685}; the table lists every nonempty subset of these four sets, so every nonempty T that occurs. For each it gives F, A(T) = 614 + 2,304 F + 1,354 r, the counts of forced, free and leaf blocks of the largest tree of each family (the roots are at most the leaves) and CM(T):
 
 | T | F | A(T) | n_f, n_d, n_l (= n_o) at most | CM(T) |
@@ -1112,95 +1119,7 @@ The required baseline_improved identifier blake3-r2-nominal-v2 names the organiz
 
 This section preserves the 116-run record of the predecessor package for provenance only. It is not part of the attack execution or a success premise; its work is covered by the conservative construction charge S_old. The harness does not check it. The solver log, trail5_lx.log (116 lines, SHA-256 ae0fc528b515c0fbd7b17693b79f73855fd3c15df331f5e3b2514068f7224771), has one line per run in the order the runs ended. A run called the generator trailmin5.py, with r2_sat.py and r2_trail.py (SHA-256 beginning 2e20272c8bfdc850, d38ab14e1478bfaa and 9335c9f697e5f18e), for the logged variant pin-lxN (N the XOR of the two lengths, 8 for 55 and 63), bound and seed; it builds the historical instance and runs `kissat -q --sat --seed=S --time=T` on it, on one processor core. The driver scripts set T to 5,400, 7,200 or 9,000 seconds, and two of them add one clause per pair (D3, D11) of the variant then in the log; the log records neither T, these clauses nor start times, and the sign of delta of some variants only with a model. No operation counter was kept: t is the logged wall time of the solver call.
 The counter is the C program pair_calc_sub, built with gcc -O2 -fopenmp from pair_calc_sub.c, pair_calc_batch.c, r2_e3count.c, n3x.inc and n3r.inc (SHA-256 beginning c2c5fa4a5aa0b5e6, 6b96bb1fdd72e331, 9335052ba5764843, 4390344d557488cf and a5fa399525d9cb52). It was called once per returned instance (D3, D11, delta, Y3, Y11, eta, beta) on the whole class of its eta, with one thread; it adds L * N3 over the outcomes of beta in integers and divides by 2^(96 - k), the class having 2^(32 - k) members: for eta = 830303cf, k = 13 and this is the sum of Section 17 divided by 2^83. All 65 calls exited 0 with no outcome uncounted, and a second enumeration of the outcomes gave the same numerators. The sources, 41,570 bytes for the generator and 75,010 for the counter, would not fit in the organizer's 512 KiB review budget and are not printed.
-Columns: run, the line of the log; lx, bnd (bound) and seed as logged; t in seconds; result SAT, UNSAT, cap (UNKNOWN at a driver's time cap) or out (UNKNOWN, stopped from outside below every cap); for SAT, the beta returned and its exact part. Run 20 returns the record; its log line follows the table. The 32 runs stopped from outside (result out, no result) are not listed; they are runs 16, 23, 44, 46, 48, 55, 56, 59, 61, 63, 68, 73, 74, 77, 78, 79, 80, 86, 87, 90, 91, 93, 94, 96, 97, 100, 102, 104, 105, 106, 107, 109.
-
-```text
-run lx bnd seed t result beta part
-1 1 110 201 0 UNSAT
-2 3 108 205 0 UNSAT
-3 3 106 206 1 UNSAT
-4 1 106 203 2 UNSAT
-5 3 110 204 3 UNSAT
-6 1 108 202 5 UNSAT
-7 4 118 501 364 SAT 403864b4 174021/16
-8 8 118 504 651 SAT c5960780 128
-9 4 114 601 360 SAT 90948931 3477/8
-10 8 116 604 463 SAT 5c182484 555/4
-11 16 114 507 1487 SAT a35f8170 112863/4
-12 8 113 704 585 SAT 82392898 22224
-13 8 110 505 1926 SAT 81199182 19351/8
-14 8 110 804 880 SAT 011cc4b6 34867/2
-15 4 110 502 2746 SAT afbc3054 8448
-17 4 111 701 2599 SAT 907df8c2 2162688
-18 4 108 521 1787 SAT 81584e44 1328640
-19 4 105 522 2774 SAT 409c6132 591360
-20 8 104 506 4770 SAT 18b0e098 71698432 <- the record
-21 8 105 524 2865 SAT 11198c98 786432
-22 8 108 717 1112 SAT a4980680 2359296
-24 8 104 601 2747 SAT b0188284 9304576
-25 8 104 712 2628 SAT 009b4089 49152
-26 8 108 1717 2380 SAT 65560c80 9984
-27 8 104 711 3931 SAT 18f05282 1897952
-28 8 108 2717 985 SAT 92d50080 933888
-29 8 106 605 4972 SAT 83924388 3858432
-30 8 102 714 5043 SAT 45be4188 460800
-31 8 108 3717 589 SAT 01192093 57344
-32 8 106 715 5114 SAT 5897c098 4628480
-33 6 112 801 205 SAT d234801a 4048
-34 8 102 713 5400 cap
-35 8 100 716 5400 cap
-36 6 106 802 1089 SAT e91e11a6 1863680
-37 6 106 804 1294 SAT 10910c51 7485511/256
-38 10 110 806 1456 SAT 823a119a 72687/64
-39 8 100 603 7101 SAT 82df8088 13107200
-40 8 104 1711 2938 SAT 05160c85 860487
-41 6 112 803 2214 SAT c0d09dea 52224
-42 6 111 1801 2237 SAT 84930914 42931/1024
-43 10 109 1806 1012 SAT 10dd0552 44032
-45 6 112 1803 691 SAT 207601d6 81920
-47 8 104 1712 5400 cap
-49 6 105 1802 2092 SAT f8902310 79800
-50 4 100 608 9000 cap
-51 4 104 607 9000 cap
-52 8 98 604 9000 cap
-53 8 106 1715 3907 SAT 6c982280 818400
-54 6 111 2801 1576 SAT 405720a1 3072
-57 8 108 4717 4331 SAT f8b7c181 61440
-58 6 110 2803 1637 SAT 69160422 67632
-60 8 106 2715 725 SAT 811f9490 786432
-62 6 106 2804 2486 SAT 48152212 2573556
-64 10 110 805 5099 SAT 89139496 80256
-65 6 110 3801 1208 SAT aa193012 14892
-66 116 108 904 919 SAT a03ba070 9510
-67 120 104 901 1224 SAT 849510b8 884736
-69 8 102 1713 5400 cap
-70 6 110 4801 1240 SAT 217a5025 67200
-71 8 104 2711 5400 cap
-72 112 108 906 2914 SAT f990e10a 2355712
-75 120 104 2901 2091 SAT 825ba088 73728
-76 10 109 1805 2896 SAT 835580d6 1024
-81 8 104 2712 5400 cap
-82 8 100 2716 5400 cap
-83 6 105 2802 5400 cap
-84 6 109 5801 2140 SAT c07d40a0 121344
-85 6 108 3803 4135 SAT 029c4263 54512
-88 116 106 2904 1282 SAT 233f88d0 2266691/16
-89 8 108 5717 4740 SAT 80790998 786432
-92 116 108 1905 4983 SAT b9748048 344560
-95 120 100 902 5400 cap
-98 120 104 1903 4941 SAT 8cf806b0 98304
-99 6 108 6801 1539 SAT c1160c60 102568
-101 8 102 3714 5400 cap
-103 112 105 1906 3117 SAT c0d063f0 236096
-108 8 108 6717 2216 SAT 26782888 842005/256
-110 6 108 7801 1626 SAT 243a08a1 86592
-111 6 107 4803 3165 SAT 111603ea 49152
-112 10 108 4806 2031 SAT 4ed204a6 65424
-113 8 104 3712 3586 SAT 1893c498 645120
-114 6 105 4802 3351 SAT 40bc2162 439296
-115 8 102 4714 2908 SAT 271a1080 7249920
-116 8 104 4712 1181 SAT 8ad48098 6912
-```
+Summary of the run table, which is printed in full in the proof.md of submissions 3b9c6ced and 1e179f43 (Section 14) and is omitted here for the review budget: 84 runs ended by themselves, 6 UNSAT (at most 5 s), 13 at a driver's time cap (5,400 to 9,000 s) and 65 SAT (205 to 7,101 s); the 32 other runs (16, 23, 44, 46, 48, 55, 56, 59, 61, 63, 68, 73, 74, 77, 78, 79, 80, 86, 87, 90, 91, 93, 94, 96, 97, 100, 102, 104, 105, 106, 107 and 109) were stopped from outside below every cap. No logged wall time exceeds 9,000 s. Run 20 (lx 8, bound 104, seed 506, 4,770 s, SAT, beta 18b0e098, exact part 71,698,432) returns the record; its log line:
 
 ```text
 RES model=pin-lx8 bound=104 fixed=no seed=506 t=4770s status=SATISFIABLE cost=100 x1w=13 PIN=29d4fa98,bee3af28,44036000,40c58500,97475638,0007c006 D3=fdb77cfd D11=0a08818b delta=fffffff8 Y3=8127c181 Y11=7af77f38 eta=830303cf beta=18b0e098 tau=185020a0 eps=6e21be55 parts=A1:11,A4:13,A5:21,A3:14,A6:23,A7:18 sol=27e956dc,027077ff,800817b3,e614819a,615469a6,9ff1dcb4,6fc881ad
@@ -1565,96 +1484,57 @@ exit 0
 
 ## 18. The ledger program and its output
 
-`ledger.py` (Python standard library; integers only) computes the constants of 9.1, the units and rows of Section 11 and the total
-from the formulas of this text, and prints them. Its listing, then its output:
+`ledger.py` (Python standard library; integers only) recomputes the constants, budgets and total of the current amendment (A to E) from its formulas, and prints them; it replaces the predecessor's program, whose output was the historical ledger. Listing, then output:
 
 ```python
-from fractions import Fraction
 from math import isqrt, log2
 cd = lambda a, b: -(-a // b)
-FACTOR = 97 * 138512695296 // 100
-RC = cd(cd(24797 << 128, 50000 * FACTOR * ((1 << 21) - 1)), 1 << 19)
-STEPS = RC << 19
-s = isqrt(10 * RC - 1) + 1
+FACTOR = 98 * 138512695296 // 100
+RC = cd(cd(12359 << 128, 25000 * FACTOR * ((1 << 21) - 1)), 1 << 19)
+STEPS, s = RC << 19, isqrt(10 * RC - 1) + 1
 E_B = cd(1000026 * STEPS * 233715456, 10 ** 6 << 32) + (s << 19)
 P_B = cd(1000176 * STEPS * 18289159183466496, 10 ** 6 << 64) + (s << 19)
 A_B = cd(852139 * RC, 128) + 16384 * s
-G_B = 7198 * RC + 84261 * s
+G_B = 7164 * RC + 84261 * s
 F_B = cd(9 * RC, 4) + 128 * s
-MC = cd(101 * STEPS * 335060079487497, 100 << 48)
-LC = 15012 << 19
-CREDIT = MC + isqrt(40 * LC * MC - 1) + 1 + 14 * LC + 15012
-C_B = cd(MC, 4272) + (s << 19)
-OPEN = 8 + 3 + 6 + 3 + 4 + 104 + 11 + 13 + 16
-U = dict(open=OPEN, E=10, fill=56, pas=1 + 35 + 7, call=6, strad=8 + 21 + 4 * 72 + 40 + 3 + 16 - OPEN)
-REP, TAIL = (3 + 17 + 8 + 3 * 7 + 3, 3 + 17 + 8 + 3 * 4)
-CTX = 509 + 160 + 48896 + 17 * 2341 + 16 + 128 * 12 + 2 + 1
-WB = U['open'] * A_B + U['E'] * E_B + U['fill'] * G_B + U['pas'] * P_B + U['call'] * C_B + U['strad'] * F_B
-WCTX = U['open'] * 16384 + U['E'] * 2 ** 19 + U['fill'] * 84261 + (U['pas'] + U['call']) * 2 ** 19 + U['strad'] * 128
-ONCE = sum([2 ** 25, 2 ** 27, 2 ** 26, 2 ** 20, 2 ** 20, 2 ** 20, 4 * 2 ** 26, 2 ** 50, 40, 11 * 2 ** 20, 2 ** 34, 3 * 2 ** 20, 14 * 2 ** 20, 2 * 2 ** 22, 2 ** 29, 2 ** 28, 2 ** 20])
-ROWS = [('context', CTX * (RC + 1)), ('representative batches', (REP * 2340 + TAIL) * RC), ('opened clusters', U['open'] * (A_B + 16384)), ('E lanes', U['E'] * (E_B + 2 ** 19)), ('fills', U['fill'] * (G_B + 84261)), ('passing lanes', U['pas'] * (P_B + 2 ** 19)), ('calls', U['call'] * (C_B + 2 ** 19)), ('straddling clusters', U['strad'] * (F_B + 128)), ('credit', CREDIT), ('one-time work', ONCE)]
-S_OLD = 116 * 5 * 2 ** 53 + 116 * (2 ** 51 + 2 ** 10) + 2 ** 50
-N = sum((v for _, v in ROWS)) + S_OLD + 430 * 2 ** 38
-assert WB + WCTX == sum((v for k, v in ROWS if k in ('opened clusters', 'E lanes', 'fills', 'passing lanes', 'calls', 'straddling clusters')))
-print('RUN_CONTEXTS', RC, 's', s)
-for name, v in (('E_BUDGET', E_B), ('PASS_BUDGET', P_B), ('A_BUDGET', A_B), ('G_BUDGET', G_B), ('FB_BUDGET', F_B), ('m_C', MC), ('CREDIT', CREDIT), ('CALL_BUDGET', C_B), ('WB', WB), ('W_CTX', WCTX)):
- print(name, v)
-print('units', U, 'representative', REP, TAIL, 'context', CTX)
-for k, v in ROWS:
- print('%-24s %d  log2 %.3f' % (k, v, log2(v)))
-print('S_old', S_OLD)
-print('N =', N)
-PW = 100000
-a = (N ** PW // 430 ** PW).bit_length() - 1
-while (1 << a + 1) * 430 ** PW <= N ** PW:
- a += 1
-while (1 << a) * 430 ** PW > N ** PW:
- a -= 1
-claim = Fraction(-(-(a + 1) * 10 ** 5 // PW), 10 ** 5)
-print('certificate: 2^%d * 430^%d <= N^%d < 2^%d * 430^%d' % (a, PW, PW, a + 1, PW))
-print('log2(N/430) = %.10f' % (log2(N) - log2(430)))
-print('time_log2 = %.5f' % float(claim))
+L_PL = 54846
+PL_B = L_PL * RC + 147456 * s
+UU, CMX = 114152488153336, 7115
+MC = cd(101 * STEPS * UU, 100 << 48)
+LC = CMX << 19
+CREDIT = MC + isqrt(40 * LC * MC - 1) + 1 + 14 * LC + CMX
+C_B = cd(MC, 184 + 1089) + (s << 19)
+OPEN = 8 + 3 + 5 + 3 + 4 + 32 + 11 + 13 + 14
+U = dict(open=OPEN, E=10, fill=56, pas=43, call=6, strad=8 + 21 + 4 * 72 + 40 + 14 + 3 - OPEN, lane=8)
+B = dict(open=A_B, E=E_B, fill=G_B, pas=P_B, call=C_B, strad=F_B, lane=PL_B)
+M1 = dict(open=16384, E=2 ** 19, fill=84261, pas=2 ** 19, call=2 ** 19, strad=128, lane=147456)
+CTX = 509 + 160 + 48896 + 18 * 2341 + 16 + 128 * 12 + 3
+REP = (52 * 2340 + 40) * RC
+WB, WCTX = sum(U[k] * B[k] for k in U), sum(U[k] * M1[k] for k in U)
+ONCE, S_OLD = 1125918437277736, 116 * 5 * 2 ** 53 + 116 * (2 ** 51 + 2 ** 10) + 2 ** 50
+N = CTX * (RC + 1) + REP + WB + WCTX + CREDIT + ONCE + S_OLD + 430 * 2 ** 38
+print('RC', RC, 's', s, 'budgets', E_B, P_B, A_B, G_B, F_B, PL_B, C_B)
+print('m_C', MC, 'CREDIT', CREDIT, 'WB', WB, 'W_CTX', WCTX, 'N', N)
+a = (N ** 100000 // 430 ** 100000).bit_length() - 1
+print('2^%d <= (N/430)^100000 < 2^%d' % (a, a + 1), (1 << a) * 430 ** 100000 <= N ** 100000 < (2 << a) * 430 ** 100000)
+print('log2(N/430) = %.7f' % (log2(N) - log2(430)))
 ```
 
 ```text
-RUN_CONTEXTS 1142372260131981 s 106881817
-E_BUDGET 32592462706762850655
-PASS_BUDGET 593976122525029364
-A_BUDGET 7605157652531425333
-G_BUDGET 8222804534398781475
-FB_BUDGET 2570351266169534
-m_C 720081801874515573539
-CREDIT 720096858523588089938
-CALL_BUDGET 168614511075633931
-WB 2091155460017633054404
-W_CTX 38430744
-units {'open': 168, 'E': 10, 'fill': 56, 'pas': 43, 'call': 6, 'strad': 208} representative 52 40 context 90917
-context                  103861058774419407494  log2 66.493
-representative batches   139049551503264727320  log2 66.914
-opened clusters          1277666485625282208456  log2 70.114
-E lanes                  325924627067633749430  log2 68.143
-fills                    460477053926336481216  log2 68.642
-passing lanes            25540973268598807036  log2 64.469
-calls                    1011687066456949314  log2 59.811
-straddling clusters      534633063363289696  log2 58.891
-credit                   720096858523588089938  log2 69.287
-one-time work            1125918437277736  log2 50.000
-S_old 5486510246044225536
-N = 3059650683180925199092
-certificate: 2^6262566 * 430^100000 <= N^100000 < 2^6262567 * 430^100000
-log2(N/430) = 62.6256640945
-time_log2 = 62.62567
+RC 1127113088900472 s 106165583 budgets 32157111148820462936 586042493902474223 7503572211780656479 8074647114501170571 2536018039220686 61817660128587494160 190196747826757546
+m_C 242049603096140337236 CREDIT 242055612873289897520 WB 1993178475418359136794 W_CTX 38390936 N 2483026360279314677316
+2^6232439 <= (N/430)^100000 < 2^6232440 True
+log2(N/430) = 62.3243967
 ```
 
-The printed values are those of 9.1 and Section 11. `experiments/frontline.py` computes the same constants and asserts them.
-
+The printed values are those of the amendment. `experiments/frontline.py` computes the same constants and asserts them.
 
 ## 19. The emitter of the counted code
 
 The code of the joint solver (9.4) for the six outcomes of S, of the entry stubs of steps 2 and 3 with the global ledger, of the context and of the routine of step 3 is counted from the program that emits it, listed below (`emit_b3z7.py`, 19,632 bytes, SHA-256 c86676749d18953ac8131d747b9eccaae7ff49f94e6a6d9424878c572d36406b as listed). It imports the constants of `experiments/frontline.py` of this package (`import frontline as F`: the unit charges U_*, IV, ETA and the functions that the context and routine mirror), and `python3 -B -c "import emit_b3z7 as X; print(len(X.build()[0]))"` run next to that file prints 17267.
 Machine of Section 11 (64 registers: r0 to r59 allocated, r60 the constant c1, r61 the ledger A(T), r62 the trial counter T, r63 the credit; constants as immediates; one unit and 32 bytes an instruction): ADD XOR AND OR, SHL SHR, MOV, LI, LD LDA STA, BZ BNZ JMP RET HALT; no subtraction (x - y is x + (y XOR M) + 1), no rotation (4 instructions), no indirect jump, no call; a comparison with a branch is two units. A node loads the packed word of an array at its key and takes the bits of its entry out of it by AND, SHR and SHL with constants of the instruction (9.4); the masks are immediates of at most 229 bits, like the lane masks of 9.8. The lane code owns r0 to r8, the 57 live words r0 to r56 are stored and reloaded by the emitted ledger, and RET is one branch back to the calling lane site; the dispatch among call sites is lane code, which is not emitted.
 Counts: joint solver for the six outcomes 15,401 (set-up 3,387; descriptors 2,924; forced nodes 4,260; free nodes 402; leaf tests 1,260; the root certificate of Lemma RC inline at each of the 36 leaves 3,168); entry stubs (7 lanes) and ledger 281; context 233; routine of step 3 1,352; total 17,267 instructions, 552,544 bytes. The solver has 432 static nodes, 366 forced, 30 free and 36 leaves, the 432 of 9.4. Kept as the bounds above: the lane sites, the one copy of an opened cluster and the last batch (150,656), and 2^20 for the remaining code, whole although part of what it covered is now emitted.
-Every static block is inside the charge of Section 11: a forced node is 10 instructions, at most 16 (charge 20; 27 at position 15 against 84), a free node 13 or 17 (48), a leaf test 35 (80), the root certificate 88 (120), a row's set-up and descriptors 1,030 to 1,089 (1,354 per row), the entry and ledger at most 152 (614). Participant checks, not organizer-run, through an interpreter of this machine: 14,000 synthetic cases and 993 real solver calls recorded from the walk of `frontline.py` returned the same roots in the same order and debited the credit register by exactly the ledger of Section 11, with the 57 words restored (14,993 of 14,993); 200 of 200 certified roots reached the routine and gave the same two messages, both compressions and halt code; the context (2,000 cases) and the routine (2,000 cases) matched `frontline.py`; 17,255 of 17,267 instructions were executed (the 12 not executed repeat code that is executed at other leaves). Not tested: the equal-chaining-value branch exists only by forcing registers, as no real collision exists; the interface to the lane code is a convention of the emitter; the 150,656 and 2^20 parts are bounds. The listing is the compact form of the checked file (docstrings, comments and the interpreter removed, statements joined, identifiers shortened); it emits the same instruction stream, SHA-256 of its repr beginning afad1f1c09d10119.
+Every static block is inside the historical charge of Section 11, in parentheses below; amendment E charges exactly the maxima (forced 16 and 11 more at position 15, free 17, leaf 35, root 88, row 1,089, entry and ledger 152): a forced node is 10 instructions, at most 16 (charge 20; 27 at position 15 against 84), a free node 13 or 17 (48), a leaf test 35 (80), the root certificate 88 (120), a row's set-up and descriptors 1,030 to 1,089 (1,354 per row), the entry and ledger at most 152 (614). Participant checks, not organizer-run, through an interpreter of this machine: 14,000 synthetic cases and 993 real solver calls recorded from the walk of `frontline.py` returned the same roots in the same order and debited the credit register by exactly the ledger of Section 11, with the 57 words restored (14,993 of 14,993); 200 of 200 certified roots reached the routine and gave the same two messages, both compressions and halt code; the context (2,000 cases) and the routine (2,000 cases) matched `frontline.py`; 17,255 of 17,267 instructions were executed (the 12 not executed repeat code that is executed at other leaves). Not tested: the equal-chaining-value branch exists only by forcing registers, as no real collision exists; the interface to the lane code is a convention of the emitter; the 150,656 and 2^20 parts are bounds. The listing is the compact form of the checked file (docstrings, comments and the interpreter removed, statements joined, identifiers shortened); it emits the same instruction stream, SHA-256 of its repr beginning afad1f1c09d10119.
 
 ```python
 import sys, weakref; sys.dont_write_bytecode = True; import frontline as F; dK = (1 << 256) - 1; an = 4294967295; cJ = ['ADD', 'SUB', 'XOR', 'AND', 'OR', 'ADDI', 'XORI', 'ANDI', 'ORI', 'SHLI', 'SHRI', 'MOV', 'LI', 'LD', 'LDA', 'ST', 'STA', 'SEQ', 'SNE', 'SEQI', 'SNEI', 'SLT', 'BZ', 'BNZ', 'JMP', 'CALL', 'RET', 'HALT']
