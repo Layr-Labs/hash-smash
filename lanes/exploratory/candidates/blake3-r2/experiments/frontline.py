@@ -1,9 +1,5 @@
-"""frontline.py - the counter search of proof.md 9.1, 9.8 and 9.9, executed (instance: the last chunk of the 55/63-byte pair, flags 3,
-counter t by step CT; one trial = one context: representative batches 0..TRIAL_REPS-2 and the last one): the batch cache of the packed Y9,
-the work register W, the metered joint solver of 9.4, the root predicate and the in-run references listed in experiments/manifest.json.
-Exact 32-bit arithmetic, standard library only, no BLAKE3 library.
-  python3 frontline.py              organizer request on stdin, response on stdout
-  python3 frontline.py --selftest   constants, automata, masks, S7, tables, halt and gate drills
+"""frontline.py: the counter search of proof.md 9.1, 9.8, 9.9 and amendment H (flags 3, counter t by step CT; a trial is one context).
+Standard library only.  python3 frontline.py < request   |   python3 frontline.py --selftest
 """
 import hashlib
 import json
@@ -84,47 +80,52 @@ VMASK = [0, 0, 0x3F80, 0x3FFF, 0x3FFF, 0x3F80, 0, 0]
 QSTAR_MASK, QSTAR_VALUE = 0x0E09818B, 0x0C008000
 SHARE, E_COUNT = 18289159183466496, 233715456
 ONCE = sum((2 ** 25, 2 ** 27, 2 ** 26, 2 ** 20, 2 ** 20, 2 ** 20, 4 * 2 ** 26, 2 ** 50, 40,
-            11 * 2 ** 20, 2 ** 34, 3 * 2 ** 20, 14 * 2 ** 20, 2 * 2 ** 22, 2 ** 29, 2 ** 28, 2 ** 20))
+            11 * 2 ** 20, 2 ** 34, 3 * 2 ** 20, 14 * 2 ** 20, 2 * 2 ** 22, 2 ** 29, 2 ** 28, 2 ** 20, 2 ** 22))
 S_OLD = 116 * 5 * 2 ** 53 + 116 * (2 ** 51 + 2 ** 10) + 2 ** 50
-U_U = 335060079487497
-FACTOR = 97 * 138512695296 // 100
-RUN_CONTEXTS = -(-(-(-(24797 << 128) // (50000 * FACTOR * ((1 << 21) - 1)))) >> 19)
+U_GLOBAL, U_FAMILY, U_ROW, U_FORCED, U_SELECTED, U_G15, U_FREE, U_LEAF, U_ROOT = 184, 0, 1089, 16, 0, 11, 17, 35, 88
+CM_MAX = 7115
+U_U = 65117111395830  # amendment F: declared mean of the refunded ledger per outer step, over 2^48
+FACTOR = 98 * 138512695296 // 100
+RUN_CONTEXTS = -(-(-(-(12359 << 128) // (25000 * FACTOR * ((1 << 21) - 1)))) >> 19)
 RUN_STEPS = RUN_CONTEXTS << 19
 _S = isqrt(10 * RUN_CONTEXTS - 1) + 1
 E_BUDGET = -(-(1000026 * RUN_STEPS * E_COUNT) // (10 ** 6 << 32)) + (_S << 19)
 PASS_BUDGET = -(-(1000176 * RUN_STEPS * SHARE) // (10 ** 6 << 64)) + (_S << 19)
-_MC, _LC = -(-(101 * RUN_STEPS * U_U) // (100 << 48)), 15012 << 19
-CREDIT = _MC + isqrt(40 * _LC * _MC - 1) + 1 + 14 * _LC + 15012
-CALL_BUDGET = -(-_MC // 4272) + (_S << 19)
+_MC, _LC = -(-(RUN_STEPS * U_U) >> 48), CM_MAX << 19
+CREDIT = _MC + isqrt(40 * _LC * _MC - 1) + 1 + 14 * _LC + CM_MAX
+CALL_BUDGET = -(-_MC // (U_GLOBAL + 68)) + (_S << 19)
 FB_BUDGET = -(-9 * RUN_CONTEXTS // 4) + (_S << 7)
 A_BUDGET = -(-852139 * RUN_CONTEXTS >> 7) + 16384 * _S
-G_BUDGET = 7198 * RUN_CONTEXTS + 84261 * _S
+G_BUDGET = 7164 * RUN_CONTEXTS + 84261 * _S
 U_REP, U_REP_TAIL, U_E, U_FILL, U_PASS, U_CALL, U_IX = 52, 40, 10, 56, 43, 6, 18
 U_PART, U_PART_TAIL, U_NEST, U_REP_T2, U_STATE, U_BCAST = 72, 40, 21, 8, 3, 4
 U_BOOK, U_SEL, U_CHUNK_A, U_CHUNK_B, U_PAIR, U_SLOW = 3, 5, 11, 13, 104, 12
-U_RET = 16  # entry into and return from the one copy of an opened cluster (9.9): no statement of this program
+U_HDR, U_PL = 32, 8  # amendment D: two chunk headers per opened cluster, 8 per partner lane walked
+U_HEAD, U_LIVE, L_Z, Z_MAX = 10, 88, 756150, 160  # amendment H: every opened cluster; a live one; premise H_LZ
+U_RET = 14  # entry into and return from one of two copies of an opened cluster (amendment C): no statement here
 U_FALLBACK = 4 * U_PART + U_PART_TAIL + U_NEST + U_REP_T2 + U_RET
-U_OPEN = U_REP_T2 + U_BOOK + U_SEL + U_STATE + U_BCAST + U_PAIR + U_CHUNK_A + U_CHUNK_B + U_RET
-U_FB = U_FALLBACK + U_STATE - U_OPEN
+U_OPEN = U_REP_T2 + U_BOOK + U_SEL + U_STATE + U_BCAST + U_HDR + U_CHUNK_A + U_CHUNK_B + U_RET
+Z_BUDGET = L_Z * RUN_CONTEXTS + 16384 * Z_MAX * _S
+U_FB = U_FALLBACK + U_STATE - U_HEAD
 U_EG, U_PC = U_E + U_FILL, U_PASS + U_CALL
-U_CONTEXT = 509 + 160 + 48896 + U_IX * REP_BATCHES + 16 + 128 * U_SLOW + 3
-WB = (U_OPEN * A_BUDGET + U_E * E_BUDGET + U_FILL * G_BUDGET + U_PASS * PASS_BUDGET + U_CALL * CALL_BUDGET
-      + U_FB * FB_BUDGET)
-W_CTX = U_OPEN * 16384 + U_E * (1 << 19) + U_FILL * 84261 + U_PC * (1 << 19) + U_FB * 128
+U_CONTEXT = 509 + 160 + 12800 + U_IX * REP_BATCHES + 16 + 128 * U_SLOW + 3 + 64
+WB = (U_HEAD * A_BUDGET + U_E * E_BUDGET + U_FILL * G_BUDGET + U_PASS * PASS_BUDGET + U_CALL * CALL_BUDGET
+      + U_FB * FB_BUDGET + Z_BUDGET)
+W_CTX = U_HEAD * 16384 + U_E * (1 << 19) + U_FILL * 84261 + U_PC * (1 << 19) + U_FB * 128 + Z_MAX * 16384
 N = ((U_REP * (REP_BATCHES - 1) + U_REP_TAIL) * RUN_CONTEXTS + U_CONTEXT * (RUN_CONTEXTS + 1) + WB + W_CTX + CREDIT
      + ONCE + S_OLD + 430 * 2 ** 38)
 _C = lambda n: n and 16 + 8 * n
 assert U_PAIR == max(_C(a) + _C(b) for a in range(1, 8) for b in range(8) if a + b < 10) and U_PART == _C(7)
-assert U_OPEN == 167 and U_FALLBACK == 373 and U_FB == 209 and U_PART_TAIL == _C(3) and U_FILL == 54 + 2
+assert U_OPEN == 93 == U_HEAD + U_LIVE - 5 and U_FALLBACK == 371 and U_FB == 364 and U_LIVE + 9 * U_PL <= Z_MAX and U_PAIR == U_HDR + 9 * U_PL and U_PART_TAIL == _C(3) and U_FILL == 54 + 2
 assert U_REP == 3 + 17 + 8 + 3 * 7 + 3 and U_REP_TAIL == 3 + 17 + 8 + 3 * 4 and U_REP * 2340 + U_REP_TAIL == 121720
-assert U_IX == 9 + 4 + 1 + 3 + 1 and U_PASS == 1 + 35 + 7 and U_BCAST == 2 * (1 + 1) and U_CONTEXT == 93258
-assert ONCE == 1125918437277736
+assert U_IX == 9 + 4 + 1 + 3 + 1 and U_PASS == 1 + 35 + 7 and U_BCAST == 2 * (1 + 1) and U_CONTEXT == 57226
+assert ONCE == 1125918441472040
 assert S_OLD == 5486510246044225536
-assert _MC == 720081801874515573539 and (WB, W_CTX) == (2083552872716367798605, 38414488) and N == 3054722389340628896899
-TEXT = dict(RUN_CONTEXTS=1142372260131981, E_BUDGET=32592462706762850655, PASS_BUDGET=593976122525029364,
-            CREDIT=720096858523588089938, A_BUDGET=7605157652531425333, G_BUDGET=8222804534398781475,
-            CALL_BUDGET=168614511075633931, FB_BUDGET=2570351266169534, N=3054722389340628896899)
-U_GLOBAL, U_FAMILY, U_ROW, U_FORCED, U_SELECTED, U_G15, U_FREE, U_LEAF, U_ROOT = 614, 2304, 1354, 20, 4, 64, 48, 80, 120
+assert _MC == 136707627336736912199 and (WB, W_CTX) == (1730432127777021894695, 38483480) and N == 2074324404800749025353
+TEXT = dict(RUN_CONTEXTS=1127113088900472, E_BUDGET=32157111148820462936, PASS_BUDGET=586042493902474223,
+            CREDIT=136712143855319043944, A_BUDGET=7503572211780656479, G_BUDGET=8074647114501170571,
+            CALL_BUDGET=542546246010770826, FB_BUDGET=2536018039220686, Z_BUDGET=852266840478797802320,
+            N=2074324404800749025353)
 
 
 
@@ -336,6 +337,11 @@ def classes(f, sb, n, w):
 
 C1, P1 = classes(F1, S1B, 43, 4)
 C2, P2 = classes(F2, S2B, 7, 256)
+HE = [0] * 2048  # amendment H
+for _s in P2:
+    for _h in range(1 << 16):
+        HE[_h >> 1 & 2047] |= F2[F2[S2B + 256 * _s + (_h & 255)] + (_h >> 8)] > 0
+HE3 = [HE[k - 1] | HE[k] | HE[k + 1 & 2047] | (k == 0) for k in range(2048)]
 
 
 def R1(f):
@@ -459,16 +465,23 @@ def ixdec(f):
 OLD = [(j0, min(j0 + 7, 32)) for j0 in range(1, 32, 7)]
 
 
-def ds_build(P):
+O8 = sum(1 << 8 * j for j in range(32))
+J16, H8, M5 = sum(16 + j << 8 * j for j in range(32)), sum(1 + 2 * (j & 15) << 8 * j for j in range(32)), 31 * O8
+
+
+def ds_build(P):  # amendment G: o(IX, j) for all j in 8-bit fields of one word, survivors by two packed tests
     C0b1, nC0c1, C0d1, Kp, S15p, nS0S5 = (P[k] & M for k in (0, 1, 2, 7, 9, 15))
     ds, dj, ow = {}, {}, {}
     for ix in range(16):
+        X = (J16 ^ (C0b1 >> 17 & 31) * O8) + ((nC0c1 >> 17 & 31) + (ix & 1)) * O8 & M5
+        X = (X ^ (C0d1 >> 25 & 31) * O8) + ((Kp >> 25 & 31) + (ix >> 1 & 1)) * O8 & M5
+        X = (X ^ (S15p >> 9 & 31) * O8) + ((nS0S5 >> 9 & 31) + (ix >> 2 & 1)) * O8 & M5
+        X = X + H8 + (ix >> 3) * O8 & M5
+        TT = (X + 3 * O8 & 24 * O8, (X + 4 * O8 & M5) + 7 * O8 & 48 * O8)
         for j in range(1, 32):
-            w = (((16 + j) ^ C0b1 >> 17) + (nC0c1 >> 17) + (ix & 1) & 31) ^ C0d1 >> 25
-            w = ((w + (Kp >> 25) + (ix >> 1 & 1) & 31) ^ S15p >> 9) + (nS0S5 >> 9) + (ix >> 2 & 1) & 31
-            ow[ix, j] = w + (1 | (j & 15) << 1) + (ix >> 3) & 31
+            ow[ix, j] = X >> 8 * j & 255
         for b8 in (0, 1):
-            sv = [j for j in range(1, 32) if LW[b8] >> ow[ix, j] & 1]
+            sv = [j for j in range(1, 32) if not TT[b8] >> 8 * j & 255]
             ch = max(([j for j in sv if a <= j < b] for a, b in OLD), key=len)
             ch = sorted((ch, [j for j in sv if j not in ch]), key=lambda c: c[:1] or [32])
             assert len(ch[0]) <= 7 and len(ch[1]) <= 7
@@ -878,14 +891,14 @@ ROW_CAP = {t: U_ROW + sum(a * b for a, b in zip(tree(ROWS[t]), (U_FORCED, U_SELE
            for t in TAUS}
 CT = [1024 + U_FAMILY * families(rows_of(T)) + sum(ROW_CAP[t] for t in rows_of(T)) if rows_of(T) else 0
       for T in range(128)]
-assert all(ROW_CAP[t] == (5162 if len(ROWS[t].free) == 4 else 3274) for t in TAUS if t != 0x675020A0)
+assert all(ROW_CAP[t] == (3516 if len(ROWS[t].free) == 4 else 2326) for t in TAUS if t != 0x675020A0)
 ENVELOPES = (0x04, 0x01, 0x18, 0x52)
-assert max(CT[T] for e in ENVELOPES for T in range(128) if T & ~e == 0) == 17342
+assert max(CT[T] for e in ENVELOPES for T in range(128) if T & ~e == 0) == 9192
 A_T = [U_GLOBAL + U_FAMILY * families(rows_of(T)) + U_ROW * len(rows_of(T)) if rows_of(T) else 0 for T in range(128)]
 CM = [A_T[T] + sum(max(ROW_CAP[t] - U_ROW for t in rows_of(T) if ROWS[t].family == f) for f in
                    {ROWS[t].family for t in rows_of(T)}) for T in range(128)]
 CTW = [CM[T] | A_T[T] << 16 for T in range(128)]
-assert max(CM[T] for e in ENVELOPES for T in range(128) if T & ~e == 0) == CM[0x52] == 15012 and max(CM) < 65536
+assert max(CM[T] for e in ENVELOPES for T in range(128) if T & ~e == 0) == CM[0x52] == CM_MAX and max(CM) < 65536
 assert all(31 not in ROWS[t].free for t in TAUS)
 
 
@@ -1233,6 +1246,8 @@ def walk(seed, nr=TRIAL_REPS, WR=0, credit=CREDIT, t2_every=T2_EVERY, gt=None, m
     AH8 = A >> 8 & 255
     AW, HBW = (A & 0xFF00) * ONES, [HB >> k & 1 for k in range(4)]
     DS, DJ, OW9 = ds_build(P)
+    Rj = [(16 + j ^ cx['C0_b1'] >> 17) & 63 | (cx['C0_b1'] >> 23 & 1) << 6 for j in range(32)]
+    HM = 2047 if max(Rj) < cx['C0_c1'] >> 17 & 127 or min(Rj) > cx['C0_c1'] >> 17 & 127 else 0  # plain context (H)
 
     def lane(ms, E, i, om, X0, Y0, Y12, W, cy):
         nonlocal WR, credit, first, bad, chk
@@ -1356,10 +1371,22 @@ def walk(seed, nr=TRIAL_REPS, WR=0, credit=CREDIT, t2_every=T2_EVERY, gt=None, m
                         chk += 1
                     continue
                 o['opened'] += 1
+                if gv == 1 and mk and not HE3[om >> sh_ + 17 & HM]:  # dead (H)
+                    o['units'] += U_HEAD
+                    WR += U_HEAD
+                    for j in range(32):
+                        y = cmember(g, j)[1]
+                        jv = co_full(*ow, y, FLAGS)
+                        jo = Y3 + y + jv['w8'] & M
+                        m = mask2_ref(jo) > 0
+                        o['skipped_pass'] += m
+                        bad += m or jv['Y0'] & 255 != rv['Y0'] & 255 or (jo >> 17) - (ro >> 17) + 1 & 2047 > 2
+                        chk += 1
+                    continue
                 lok = lane(reps, E, i, om, X0, Y0, Y12, W, rc)
                 fb = gv > 1 or not mk
-                o['units'] += U_FALLBACK + U_STATE if fb else U_OPEN
-                WR += U_FALLBACK + U_STATE if fb else U_OPEN
+                o['units'] += U_FALLBACK + U_STATE if fb else U_HEAD + U_LIVE
+                WR += U_FALLBACK + U_STATE if fb else U_HEAD + U_LIVE
                 if fb:
                     for j0, j1 in OLD:
                         ms = [cmember(g, j) for j in range(j0, j1)]
@@ -1373,8 +1400,7 @@ def walk(seed, nr=TRIAL_REPS, WR=0, credit=CREDIT, t2_every=T2_EVERY, gt=None, m
                         chk += 1
                     continue
                 da = (IX >> sh_ & IXADDRMASK) + (lok & 256)
-                # Test-only forced-open violates the real gate=1 precondition.
-                # Its old empty descriptor remains an oracle, not a search branch.
+                # forced-open diagnostics only: empty descriptor
                 if diagnostic_gate and real_gv == 0:
                     da += 128
                 ch, ixr = DJ.get(da, ((), ())), ixdec(IX >> sh_ & IXM)
@@ -1403,6 +1429,8 @@ def walk(seed, nr=TRIAL_REPS, WR=0, credit=CREDIT, t2_every=T2_EVERY, gt=None, m
                     cX0, cY0, cY12, _, _, _, com, cov = omega_side(cU, cE, P)
                     ms = [cmember(g, j) for j in ch[s >> 2]]
                     o['members'] += k
+                    o['units'] += U_PL * k
+                    WR += U_PL * k
                     pc = []
                     for t in range(k):
                         lane(ms, cE, t, com, cX0, cY0, cY12, W, pc)
@@ -1464,6 +1492,7 @@ def selftest(n):
     rnd = hashlib.shake_256(b'frontline selftest').digest(8 * n)
     xs = struct.unpack('<%dI' % (2 * n), rnd)
     rep['T1_T2_vs_bitserial'] = sum(T1(x) == mask1_ref(x) and T2(x) == mask2_ref(x) for x in xs)
+    rep['HE3'] = all(HE3[x >> 17 & 2047] for x in xs if T2(x)) and sum(HE) == 1080 and sum(HE3) == 1189
     al = [any(((w + f) ^ ((w + DY3) + (f ^ s))) & 511 == EPS & 511 for s in {SIGMAS[j] & 511 for j, _, _ in SIG3}
               for f in range(512)) for w in range(512)]
     rep['S7_partition'] = (sum(al) == 208 and all(al[w] == S7 >> (w & 127) & 1 for w in range(512))
@@ -1541,7 +1570,7 @@ def selftest(n):
                                                    'fills', 'members')]
     t, op, cl, nm_ = gd['table'], gd['open'], gd['closed'], gd['nomask']
     rep['gate_drills'] = gd
-    rep['ok'] = (rep['constants'] and rep['automata_vs_bruteforce_w8'] == 256 and rep['SHARE_E_COUNT'] and rep['precheck']
+    rep['ok'] = (rep['constants'] and rep['HE3'] and rep['automata_vs_bruteforce_w8'] == 256 and rep['SHARE_E_COUNT'] and rep['precheck']
                  and rep['T1_T2_vs_bitserial'] == 2 * n and all(d[0] for d in drills.values()) and rep['S7_partition']
                  and t[4] == t[5] == op[4] == op[5] == op[1] == cl[0] == cl[6] == 0 and t[2:4] == op[2:4]
                  and t[6] == op[6] > 0 and cl[4] == op[2] > 0 and cl[5] >= cl[4] and rep['F1_fill'] == 224
