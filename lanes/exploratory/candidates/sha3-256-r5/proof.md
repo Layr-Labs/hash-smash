@@ -1,3 +1,442 @@
+# 5-round SHA3-256: v26 (v25 with the trail search charged at level 64 only, and the memory bound tightened), time 2^32.00017, memory 2^23
+
+Exploratory claim (v26). **v26 is our v25 (fa625146, declared dependency) with exactly two accounted changes and nothing else.** Every other v25 term, experiment, certificate, heuristic and argument (Sections Z, X, W, U, V, 0-8 and the appendices below) is unchanged, and the shipped `experiments/r5.py` is byte-identical to v25's, so all sixteen organizer experiments pass as before. **This Section v26 governs the two superseded numbers over all later v25 text, exactly as v25's Section Z governs over v22b:** wherever the later text states D15 = 2^31.8816 units or a declared memory of 2^30 bytes, this section governs.
+
+## Change A: the advice trail is constructed by the level-64-only trail search P*
+
+v25 reads the trail of Section 3 (ALPHA3_BITS, BETA2) as nonuniform advice (leech1996's Y, Z.1) and charges its construction once, in the development term D15 = 2^31.8816 units. D15 charges v15's certified native run of P at **all seven** meet-in-the-middle levels, plus the stopped contiguous-block run and the six-layout comparison that designed P's block layout.
+
+**By Lemma P (Section 2.1), level 64 alone certifies.** At level nb = 64 every block holds exactly five rows (one per plane y at five distinct slices), so the key is the exact 25-bit block content with no fold, and the meet-in-the-middle finds every leaf whose alpha2 has at most nb - 1 = 63 active rows. Any leaf it misses has at least 64 active rows, hence w1 >= 2 x 64 = 128 (no nonzero chi5 DDT entry exceeds 8 of 32, so every active alpha2 row costs at least 2), while the certified best is W* = 127. So W* = 127 <= 2 x 64 - 1 certifies: the output is v14's trail, the exact (core, beta2) of Section 3, and no earlier level is needed for correctness. The earlier levels and the stopped contiguous run are a disclosed optimization of P (they let it certify sooner on easier inputs), not a requirement; v26 does not charge them. A canonical six-layout comparison at level 64 **is** charged.
+
+**P\*** is therefore T1 (cores), T2 (the P45 > 0 keep test) and T3 at the single level nb = 64. Charged at the lineage's own per-item prices (Section 6) restricted to that one level:
+
+| Phase | Count x price | log2 units |
+| --- | --- | --- |
+| T1 | 8,674,833 nodes x 2^12 | 24.644 |
+| T2 | 1,639,088,128 leaves x 26 | 24.907 |
+| T3 half-vector build | 48,592,224 x 2^7 | 22.130 |
+| T3 level-64 sort/merge | 48,592,224 x 2^6 | 21.130 |
+| T3 level-64 block setup | 467 x 2^17 | 15.463 |
+| T3 level-64 matches | 5,796,132 x 2^11 | 23.063 |
+| P setup (DDT, L^-1, tables) | 2^32 primitives | 21.596 |
+| six-layout comparison | 6 x (48,592,224 x 2^6) | 23.715 |
+| **P\* total** | | **26.429** |
+
+This repriced construction replaces v25's D15 row (2^31.8816) in the Z.5 ledger. Everything else in Z.5 is unchanged: online algorithm 2^29.980777; development now G2 2^30.6668, **P\* 2^26.429** (was D15 2^31.8816), D16 2^27, D19 2^28.7232, D20 2^29.0730, D21 2^22.6078, D22 2^26.7962, D_Y 2^14, D_v23 2^25, D_v24 2^24.53, D23 2^26.8163, so development = **2^31.59153**; total time = online + development = **2^32.00017** (claimed 32.00017); preprocessing (P setup bound, B', S, development) = **2^31.81663** (claimed 31.81663).
+
+The level-64 certification of the output core is **already re-verified by the organizer every review**: `r5-count-2` trial 10 and `r5-mitm-out` run `mitm_core(halves(output_core), 64, ...)` and check the output core = ALPHA3_BITS, the level-64 match count = 5,796,132, the best (w1, w2) = (127, 24) and beta2 = BETA2; `r5-trail-0, 1, 23` recount T1, T2 and the half vectors (8,674,833 nodes, 1741 cores, C1 = 1,639,088,128 leaves, 467 kept cores, 48,592,224 half vectors). The native-C reference `pstar.c` (Appendix Pstar) reproduces every count in the table above, certifies W* = 127 with the exact BETA2, and runs in 2.77 MB.
+
+Sensitivities (not claimed): P* with T1 and T2 at honestly counted native-C prices (T1 nodes x 64, T2 the pruned P45 search of 9,002,874 leaf-visits x 64) instead of the lineage's bounds, 2^23.543 units, total 2^31.993; P* without the six-layout comparison 2^26.190, total 2^31.994; D15 kept at v25's 2^31.8816 (i.e. no Change A), total 2^32.926202.
+
+## Change B: the declared memory bound is 2^23 bytes
+
+v25 declared a loose 2^30 bytes. v26 declares **2^23 bytes**, the dense-model largest phase of an implementation that runs E on each accepted space as it is produced (streaming, not holding all K = 50 spaces) and charges the trail search at level 64 only (Change A, so P's multi-level half-tables are never resident). Measured intrinsic phases:
+
+| Phase | Intrinsic working set | basis |
+| --- | --- | --- |
+| Level-64 trail search P* | 2.77 MB | pstar.c maxrss (one core's block keys streamed) |
+| Enumeration E (one space) | 2.36 MB | fes3.c maxrss (compressed degree-4 state, Appendix Efes) |
+| E-phase essential live | 2.48 MB | base linear maps + one echelon's pivots (0.356 MB) + v0 + DF-1 basis, tracemalloc |
+| Connector / B' | <= 8 MB | Model over 280 active a1-rows + 320 condition rows = 5.63 MB; base L and L^-1 row forms 0.64 MB; one echelon with an undo log <= 1 MB |
+
+The connector is the largest phase at <= 8 MB = 2^23. The shipped `r5.py`'s `X.copy()`/`D.copy()` backtracking is performed in place with undo logs (exactly as the `Ech` class already does with `mark`/`undo`), so no full `Aff` copy is materialised; the full-table E state (~10 MB) is replaced by the compressed state of `fes3.c`; and E runs per space, so at most one echelon system is resident. This is the same dense-model basis the lineage uses for memory (Section 7); the experiment file is a reproducibility harness, not the memory-optimised implementation. Memory contributes to the scalar score `time_log2 + max(0, memory_log2_bytes - 20)` under hashsmash-scalar-tm-v1: v26 score = 32.00017 + max(0, 23 - 20) = **35.00017** (v25: 42.92621).
+
+## Appendix Pstar. Native-C reference for the level-64 trail search P* (pstar.c)
+
+Reproduces T1 (8,674,833 nodes, 1741 cores), T2 (467 kept cores), and T3 at level 64: 5,796,132 matches, 30 evaluations, W* = 127, w2 = 24, output core {0,130,450,529,701,789,1021,1169,1280,1429} and BETA2 of Section 3; certified; peak 2.77 MB. Standard C, no dependencies.
+
+```c
+// pstar.c: trail search P* for 5-round SHA3-256 collisions (T1 cores, T2 P45>0 filter, T3 at one level nb=64).
+// T1: depth-first search for 2-round in-kernel cores alpha3 of <= 10 bits (alpha- and beta-columns even).
+// T2: keep a core iff some alpha4 compatible with beta3 = pi rho alpha3 lets every digest-plane row of L(alpha4)
+//     output a difference in {0, 16} (P45 > 0); exact pruned search.
+// T3: for a kept core, the beta2 rows are chosen from the input differences compatible with alpha3's rows;
+//     alpha2 = L^-1(beta2) is linear in the choices.  Split rows into halves A and B; a leaf with AS(alpha2) <= 63
+//     active rows has an all-zero block among the 64 blocks of 5 rows, on which LA(a) = LB(b).  For each block,
+//     tabulate A's block keys, sort, and probe with B's keys; evaluate every match with AS <= 63 and keep the least
+//     (w1, w2, core, choice).  Certified iff W* <= 127 (every leaf missed has w1 >= 2 AS >= 128).
+// Usage: pstar LAYOUT   (LAYOUT = block stride s: row (y,z) in block (z + s*y) mod 64)
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/resource.h>
+typedef uint64_t u64;
+static const int RHO[25] = {0,1,62,28,27,36,44,6,55,20,3,10,43,25,39,41,45,15,21,8,18,2,61,56,14};
+static int DDT[32][32], CHI5[32], MINW[32], ALLOWQ[32];
+static int FWD[1600], BWD[1600], COLA[1600], COLB[1600];
+static inline u64 rol(u64 v, int n) { n &= 63; return n ? (v << n) | (v >> (64 - n)) : v; }
+static void Lmap(const u64 *A, u64 *B) {
+  u64 P[5], T[5];
+  for (int x = 0; x < 5; x++) P[x] = A[x] ^ A[x + 5] ^ A[x + 10] ^ A[x + 15] ^ A[x + 20];
+  for (int x = 0; x < 5; x++) T[x] = P[(x + 4) % 5] ^ rol(P[(x + 1) % 5], 1);
+  for (int y = 0; y < 5; y++) for (int x = 0; x < 5; x++)
+    B[y + 5 * ((2 * x + 3 * y) % 5)] = rol(A[x + 5 * y] ^ T[x], RHO[x + 5 * y]);
+}
+// L^-1 = theta^-1 rho^-1 pi^-1; theta^-1 via the 320x320 inverse of the column-parity map
+static u64 IPT[320][5];   // row j of theta^-1's parity correction: bitmask over the 320 parity bits
+static void theta_inv_setup(void) {
+  // M: parity p -> p + T(p), where T(p)[x,z] = p[x-1,z] + p[x+1,z-1]; theta(a) = a + T(P(a)) per column,
+  // and P(theta(a)) = (I + T)(P(a)) since T adds to all 5 rows (odd).  Invert I + T over GF(2).
+  static u64 A[320][5], Bm[320][5];
+  memset(A, 0, sizeof A); memset(Bm, 0, sizeof Bm);
+  for (int i = 0; i < 320; i++) {   // column i of (I+T): image of unit parity i
+    int x = i / 64, z = i % 64; int img[3] = {i, 64 * ((x + 1) % 5) + z, 64 * ((x + 4) % 5) + ((z + 1) & 63)};
+    for (int k = 0; k < 3; k++) A[img[k]][i >> 6] ^= 1ULL << (i & 63);
+  }
+  for (int j = 0; j < 320; j++) Bm[j][j >> 6] |= 1ULL << (j & 63);
+  for (int col = 0; col < 320; col++) {
+    int p = col; while (!((A[p][col >> 6] >> (col & 63)) & 1)) p++;
+    if (p != col) for (int w = 0; w < 5; w++) { u64 t = A[p][w]; A[p][w] = A[col][w]; A[col][w] = t; t = Bm[p][w]; Bm[p][w] = Bm[col][w]; Bm[col][w] = t; }
+    for (int k = 0; k < 320; k++) if (k != col && ((A[k][col >> 6] >> (col & 63)) & 1)) for (int w = 0; w < 5; w++) { A[k][w] ^= A[col][w]; Bm[k][w] ^= Bm[col][w]; }
+  }
+  memcpy(IPT, Bm, sizeof IPT);
+}
+static void Linv(const u64 *B, u64 *A) {
+  u64 C[25];
+  for (int y = 0; y < 5; y++) for (int x = 0; x < 5; x++) { int i = x + 5 * y; C[i] = rol(B[y + 5 * ((2 * x + 3 * y) % 5)], 64 - RHO[i]); }
+  u64 P[5]; for (int x = 0; x < 5; x++) P[x] = C[x] ^ C[x + 5] ^ C[x + 10] ^ C[x + 15] ^ C[x + 20];
+  u64 Q[5] = {0};   // Q = (I+T)^-1 P
+  for (int j = 0; j < 320; j++) { int s = 0; for (int w = 0; w < 5; w++) s ^= __builtin_popcountll(IPT[j][w] & P[w]) & 1; if (s) Q[j >> 6] |= 1ULL << (j & 63); }
+  u64 E[5]; for (int x = 0; x < 5; x++) E[x] = Q[(x + 4) % 5] ^ rol(Q[(x + 1) % 5], 1);
+  for (int i = 0; i < 25; i++) A[i] = C[i] ^ E[i % 5];
+}
+// ---------------- T1 ----------------
+#define MAXC 4096
+static int ncores; static int core[MAXC][10], corelen[MAXC];
+static int cur[16], ncur, cA[320], cB[320];
+static long nodes;
+static int cmpint(const void *a, const void *b) { return *(const int *)a - *(const int *)b; }
+static void canon(int *bits, int n, int *out) {
+  int best[10], tmp[10];
+  for (int t = 0; t < 64; t++) {
+    for (int k = 0; k < n; k++) tmp[k] = 64 * (bits[k] >> 6) + (((bits[k] & 63) - t) & 63);
+    qsort(tmp, n, sizeof(int), cmpint);
+    if (t == 0 || memcmp(tmp, best, n * sizeof(int)) < 0) memcpy(best, tmp, n * sizeof(int));
+  }
+  memcpy(out, best, n * sizeof(int));
+}
+static void addcore(void) {
+  int c[10]; canon(cur, ncur, c);
+  for (int k = 0; k < ncores; k++) if (corelen[k] == ncur && !memcmp(core[k], c, ncur * sizeof(int))) return;
+  memcpy(core[ncores], c, ncur * sizeof(int)); corelen[ncores++] = ncur;
+}
+static void dfs(void) {
+  nodes++;
+  int ca = -1, cb = -1;
+  for (int k = 0; k < ncur; k++) if (cA[COLA[cur[k]]] & 1) if (ca < 0 || COLA[cur[k]] < ca) ca = COLA[cur[k]];
+  if (ca < 0) for (int k = 0; k < ncur; k++) if (cB[COLB[cur[k]]] & 1) if (cb < 0 || COLB[cur[k]] < cb) cb = COLB[cur[k]];
+  if (ca < 0 && cb < 0) { addcore(); return; }
+  if (ncur >= 10) return;
+  int c = ca >= 0 ? ca : cb;
+  for (int y = 0; y < 5; y++) {
+    int i = 64 * (c / 64 + 5 * y) + c % 64;
+    if (ca < 0) i = BWD[i];
+    int in = 0; for (int k = 0; k < ncur; k++) if (cur[k] == i) in = 1;
+    if (in) continue;
+    cur[ncur++] = i; cA[COLA[i]]++; cB[COLB[i]]++;
+    dfs();
+    ncur--; cA[COLA[i]]--; cB[COLB[i]]--;
+  }
+}
+static int corecmp(const void *a, const void *b) {   // Python tuple order on sorted bit lists
+  const int *x = core[*(const int *)a], *y = core[*(const int *)b]; int nx = corelen[*(const int *)a], ny = corelen[*(const int *)b];
+  for (int k = 0; k < nx && k < ny; k++) if (x[k] != y[k]) return x[k] - y[k];
+  return nx - ny;
+}
+// rows_of: map (y,z) -> 5-bit row value, sorted by (y,z)
+static int rows_of(const int *bits, int n, int *ry, int *rz, int *rv) {
+  int m = 0;
+  for (int k = 0; k < n; k++) { int b = bits[k], lane = b >> 6, y = lane / 5, z = b & 63, x = lane % 5, f = -1;
+    for (int q = 0; q < m; q++) if (ry[q] == y && rz[q] == z) f = q;
+    if (f < 0) { f = m++; ry[f] = y; rz[f] = z; rv[f] = 0; } rv[f] |= 1 << x; }
+  for (int i = 0; i < m; i++) for (int j = i + 1; j < m; j++) if (ry[j] < ry[i] || (ry[j] == ry[i] && rz[j] < rz[i])) {
+    int t; t = ry[i]; ry[i] = ry[j]; ry[j] = t; t = rz[i]; rz[i] = rz[j]; rz[j] = t; t = rv[i]; rv[i] = rv[j]; rv[j] = t; }
+  return m;
+}
+// ---------------- T2 ----------------
+static int t2n, t2no[10]; static u64 t2cv[10][32][5]; static u64 t2sup[10], t2rest[11];
+static long leaves;
+static int t2ok(const u64 *v, u64 z) {
+  while (z) { int p = __builtin_ctzll(z); z &= z - 1; int q = 0; for (int x = 0; x < 5; x++) q |= ((v[x] >> p) & 1) << x; if (!ALLOWQ[q]) return 0; }
+  return 1;
+}
+static int t2dfs(int k, const u64 *v) {
+  if (k == t2n) return 1;
+  u64 fin = t2sup[k] & ~t2rest[k + 1];
+  for (int i = 0; i < t2no[k]; i++) { u64 u[5]; for (int x = 0; x < 5; x++) u[x] = v[x] ^ t2cv[k][i][x];
+    leaves++; if (t2ok(u, fin) && t2dfs(k + 1, u)) return 1; }
+  return 0;
+}
+static int p45pos(int c) {
+  int bits[10], ry[10], rz[10], rv[10];
+  for (int k = 0; k < corelen[c]; k++) bits[k] = FWD[core[c][k]];
+  t2n = rows_of(bits, corelen[c], ry, rz, rv);
+  for (int k = 0; k < t2n; k++) { t2no[k] = 0; t2sup[k] = 0;
+    for (int o = 0; o < 32; o++) if (DDT[rv[k]][o]) { u64 A[25] = {0}, B[25];
+      for (int x = 0; x < 5; x++) if ((o >> x) & 1) A[x + 5 * ry[k]] |= 1ULL << rz[k];
+      Lmap(A, B); for (int x = 0; x < 5; x++) { t2cv[k][t2no[k]][x] = B[x]; t2sup[k] |= B[x]; } t2no[k]++; } }
+  t2rest[t2n] = 0; for (int k = t2n - 1; k >= 0; k--) t2rest[k] = t2rest[k + 1] | t2sup[k];
+  u64 v[5] = {0};
+  return t2dfs(0, v);   // note: no memoisation of dead states (the Python form memoises; same decision)
+}
+// ---------------- T3 ----------------
+static int STRIDE;
+static int BLKOF[320];        // row index r = 64 y + z -> block
+static int blkrows[64][5];
+typedef struct { u64 v[25]; } St;
+static int nrow, ry3[10], rz3[10], rv3[10], ms[10], ins[10][32];
+static St LI[10][32];
+static long matches, evals;
+static int bestw1 = 1 << 30, bestw2, bestcore = -1, bestch[10];
+static int rowval(const St *s, int r) { int y = r / 64, z = r % 64, v = 0; for (int x = 0; x < 5; x++) v |= ((s->v[x + 5 * y] >> z) & 1) << x; return v; }
+static int u32_key(const St *s, int t) { int k = 0; for (int i = 0; i < 5; i++) k |= rowval(s, blkrows[t][i]) << (5 * i); return k; }
+typedef struct { uint32_t key, idx; } KE;
+static int kecmp(const void *a, const void *b) { const KE *x = a, *y = b; return x->key < y->key ? -1 : x->key > y->key ? 1 : (x->idx < y->idx ? -1 : x->idx > y->idx); }
+static void decode(long idx, int lo, int hi, int *ch) { for (int j = lo; j < hi; j++) { ch[j] = idx % ms[j]; idx /= ms[j]; } }
+static int bkey[10][32][64];    // block key of LI[j][d] on block t
+static void t3core(int c) {
+  rows_of(core[c], corelen[c], ry3, rz3, rv3); nrow = rows_of(core[c], corelen[c], ry3, rz3, rv3);
+  for (int j = 0; j < nrow; j++) { ms[j] = 0; for (int d = 0; d < 32; d++) if (DDT[d][rv3[j]]) ins[j][ms[j]++] = d; }
+  for (int j = 0; j < nrow; j++) { St u[5];
+    for (int x = 0; x < 5; x++) { u64 B[25] = {0}; B[x + 5 * ry3[j]] = 1ULL << rz3[j]; Linv(B, u[x].v); }
+    for (int i = 0; i < ms[j]; i++) { int d = ins[j][i]; memset(&LI[j][i], 0, sizeof(St));
+      for (int x = 0; x < 5; x++) if ((d >> x) & 1) for (int w = 0; w < 25; w++) LI[j][i].v[w] ^= u[x].v[w];
+      for (int t = 0; t < 64; t++) bkey[j][i][t] = u32_key(&LI[j][i], t); } }
+  int h = 1; long bestsum = -1;
+  for (int k = 1; k < nrow; k++) { long pa = 1, pb = 1; for (int j = 0; j < k; j++) pa *= ms[j]; for (int j = k; j < nrow; j++) pb *= ms[j];
+    if (bestsum < 0 || pa + pb < bestsum) { bestsum = pa + pb; h = k; } }
+  long na = 1, nb = 1; for (int j = 0; j < h; j++) na *= ms[j]; for (int j = h; j < nrow; j++) nb *= ms[j];
+  KE *TA = malloc(sizeof(KE) * na);
+  for (int t = 0; t < 64; t++) {
+    int ch[10];
+    for (long a = 0; a < na; a++) { decode(a, 0, h, ch); int k = 0; for (int j = 0; j < h; j++) k ^= bkey[j][ch[j]][t]; TA[a].key = k; TA[a].idx = a; }
+    qsort(TA, na, sizeof(KE), kecmp);
+    for (long b = 0; b < nb; b++) { decode(b, h, nrow, ch); int k = 0; for (int j = h; j < nrow; j++) k ^= bkey[j][ch[j]][t];
+      long lo = 0, hi = na; while (lo < hi) { long m = (lo + hi) / 2; if (TA[m].key < (uint32_t)k) lo = m + 1; else hi = m; }
+      for (long q = lo; q < na && TA[q].key == (uint32_t)k; q++) {
+        matches++; decode(TA[q].idx, 0, h, ch);
+        St s; memset(&s, 0, sizeof s); for (int j = 0; j < nrow; j++) for (int w = 0; w < 25; w++) s.v[w] ^= LI[j][ch[j]].v[w];
+        int as = 0, w1 = 0; for (int r = 0; r < 320; r++) { int v = rowval(&s, r); if (v) { as++; w1 += MINW[v]; } }
+        if (as >= 64) continue;
+        evals++;
+        int w2 = 0; for (int j = 0; j < nrow; j++) w2 += 5 - (31 - __builtin_clz(DDT[ins[j][ch[j]]][rv3[j]]));
+        int better = bestcore < 0 || w1 < bestw1 || (w1 == bestw1 && w2 < bestw2);
+        if (!better && w1 == bestw1 && w2 == bestw2 && c == bestcore) { for (int j = 0; j < nrow; j++) if (ch[j] != bestch[j]) { better = ch[j] < bestch[j]; break; } }
+        if (better) { bestw1 = w1; bestw2 = w2; bestcore = c; memcpy(bestch, ch, sizeof ch); }
+      }
+    }
+  }
+  free(TA);
+}
+int main(int argc, char **argv) {
+  STRIDE = argc > 1 ? atoi(argv[1]) : 13;
+  for (int v = 0; v < 32; v++) { int r = 0; for (int i = 0; i < 5; i++) { int a = (v >> i) & 1, b = (v >> ((i + 1) % 5)) & 1, c = (v >> ((i + 2) % 5)) & 1; r |= (a ^ ((b ^ 1) & c)) << i; } CHI5[v] = r; }
+  for (int a = 0; a < 32; a++) for (int d = 0; d < 32; d++) DDT[d][CHI5[a] ^ CHI5[a ^ d]]++;
+  for (int o = 0; o < 32; o++) { MINW[o] = 0; if (o) { int mw = 9; for (int d = 0; d < 32; d++) if (DDT[d][o]) { int w = 5 - (31 - __builtin_clz(DDT[d][o])); if (w < mw) mw = w; } MINW[o] = mw; } }
+  for (int q = 0; q < 32; q++) ALLOWQ[q] = DDT[q][0] + DDT[q][16] > 0;
+  for (int i = 0; i < 1600; i++) { int lane = i >> 6, z = i & 63, x = lane % 5, y = lane / 5;
+    FWD[i] = 64 * (y + 5 * ((2 * x + 3 * y) % 5)) + ((z + RHO[lane]) & 63); COLA[i] = x * 64 + z; }
+  for (int i = 0; i < 1600; i++) { BWD[FWD[i]] = i; COLB[i] = ((FWD[i] >> 6) % 5) * 64 + (FWD[i] & 63); }
+  theta_inv_setup();
+  for (int r = 0; r < 320; r++) BLKOF[r] = ((r % 64) + STRIDE * (r / 64)) % 64;
+  { int cnt[64] = {0}; for (int r = 0; r < 320; r++) { int t = BLKOF[r]; blkrows[t][cnt[t]++] = r; }
+    for (int t = 0; t < 64; t++) if (cnt[t] != 5) { fprintf(stderr, "layout not 5 per block\n"); return 3; } }
+  // T1
+  for (int lane = 0; lane < 25; lane++) { ncur = 0; memset(cA, 0, sizeof cA); memset(cB, 0, sizeof cB);
+    cur[ncur++] = 64 * lane; cA[COLA[64 * lane]]++; cB[COLB[64 * lane]]++; dfs(); }
+  int *ord = malloc(sizeof(int) * ncores); for (int k = 0; k < ncores; k++) ord[k] = k;
+  qsort(ord, ncores, sizeof(int), corecmp);
+  printf("T1 nodes=%ld cores=%d\n", nodes, ncores);
+  // T2
+  int nkept = 0, *kept = malloc(sizeof(int) * ncores);
+  for (int k = 0; k < ncores; k++) if (p45pos(ord[k])) kept[nkept++] = ord[k];
+  printf("T2 kept=%d leaves_visited=%ld\n", nkept, leaves); fflush(stdout);
+  // T3 at level 64
+  for (int k = 0; k < nkept; k++) t3core(kept[k]);
+  printf("T3 stride=%d matches=%ld evals=%ld W*=%d w2=%d core:", STRIDE, matches, evals, bestw1, bestw2);
+  for (int k = 0; k < corelen[bestcore]; k++) printf(" %d", core[bestcore][k]);
+  printf(" choice:"); for (int j = 0; j < nrow && j < 10; j++) printf(" %d", bestch[j]);
+  // beta2 of the best leaf
+  { int ry[10], rz[10], rv[10]; int n = rows_of(core[bestcore], corelen[bestcore], ry, rz, rv); u64 b2[25] = {0};
+    for (int j = 0; j < n; j++) { int m = 0, insj[32]; for (int d = 0; d < 32; d++) if (DDT[d][rv[j]]) insj[m++] = d;
+      int d = insj[bestch[j]]; for (int x = 0; x < 5; x++) if ((d >> x) & 1) b2[x + 5 * ry[j]] |= 1ULL << rz[j]; }
+    printf("\nbeta2:"); for (int i = 0; i < 25; i++) if (b2[i]) printf(" %d:%llx", i, (unsigned long long)b2[i]); }
+  struct rusage ru; getrusage(RUSAGE_SELF, &ru);
+  printf("\ncertified=%s maxrss=%ld\n", bestw1 <= 127 ? "yes" : "no", (long)ru.ru_maxrss);
+  return 0;
+}
+```
+
+## Appendix Efes. Native-C reference for the compressed-state degree-4 enumeration E (fes3.c)
+
+A degree-4 derivative over the 24 outer variables is inner-constant (one bit per equation, `D4`); a degree-3 derivative has inner degree <= 1 (a 9-bit affine descriptor per equation, `D3`, expanded from the 512-entry `TAB`); only `D1`, `D2`, `F` are full 256-bit-word vectors. Bit-exact against the full-table enumerator: the recursion-vs-direct-evaluation self-check passes at 64 checkpoints in every window, and the pass counts agree window by window. Peak 2.36 MB. One DF-63 space over 2^40 pairs yielded 7 full 5-round collisions (theory 2^40 x 2^-37.2186 = 6.9), each confirmed by the organizer verifier `verifier.keccak.sha3_256(m, rounds=5)` on distinct 135-byte messages.
+
+```c
+// fes3.c: low-memory degree-4 fast exhaustive search over windows of one connector space.
+// Space file: v0, beta0, then basis vectors b_0..b_{n-1} (25 hex lanes each), x = round-0 chi input.
+// Window w (0 <= w < 2^(n-32)): offset v0 + sum_{t: bit t of w} b_{32+t}; coordinates 0..7 inner (bitsliced,
+// 256 points), 8..31 outer (Gray order).  f(c) = 24 residual bits of the round-2 equations (degree <= 4 in c).
+// State: D1 (24 vectors of 24 x 256-bit words), D2 (276 vectors), D3 as 9-bit affine descriptors over the 8 inner
+// variables (a degree-3 derivative has degree <= 1), D4 as one bit per equation (degree 4 => inner-constant).
+// Usage: fes3 spacefile wlo whi [check]
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/resource.h>
+typedef uint64_t u64;
+typedef uint32_t u32;
+static const int RHO[25] = {0,1,62,28,27,36,44,6,55,20,3,10,43,25,39,41,45,15,21,8,18,2,61,56,14};
+static const int EQ[24][4] = {{1,2,8,1},{1,2,16,1},{1,2,3,0},{1,2,5,1},{1,17,4,1},{1,17,16,0},{0,0,2,0},
+  {0,0,16,1},{0,2,2,1},{0,2,8,0},{2,21,2,1},{2,21,8,0},{2,61,2,0},{2,61,16,1},{3,17,4,1},{3,17,16,0},{3,61,2,0},
+  {3,61,16,1},{4,0,2,1},{4,0,8,1},{4,0,17,0},{4,21,2,0},{4,21,8,0},{4,21,16,1}};
+static const u64 RC[5] = {0x1ULL,0x8082ULL,0x800000000000808AULL,0x8000000080008000ULL,0x808BULL};
+static u64 V0[25], BS[32][25], BETA[25], W0[25], EX[64][25];
+static int NBX;
+static inline u64 rol(u64 v, int n) { n &= 63; return n ? (v << n) | (v >> (64 - n)) : v; }
+static void Lmap(const u64 *A, u64 *B) {
+  u64 P[5], T[5];
+  for (int x = 0; x < 5; x++) P[x] = A[x] ^ A[x + 5] ^ A[x + 10] ^ A[x + 15] ^ A[x + 20];
+  for (int x = 0; x < 5; x++) T[x] = P[(x + 4) % 5] ^ rol(P[(x + 1) % 5], 1);
+  for (int y = 0; y < 5; y++) for (int x = 0; x < 5; x++)
+    B[y + 5 * ((2 * x + 3 * y) % 5)] = rol(A[x + 5 * y] ^ T[x], RHO[x + 5 * y]);
+}
+static void chi(const u64 *A, u64 *B) {
+  for (int y = 0; y < 5; y++) for (int x = 0; x < 5; x++)
+    B[x + 5 * y] = A[x + 5 * y] ^ (~A[(x + 1) % 5 + 5 * y] & A[(x + 2) % 5 + 5 * y]);
+}
+static void winpt(u32 c, u64 *x) { memcpy(x, V0, 200); for (int j = 0; j < 32; j++) if ((c >> j) & 1) for (int i = 0; i < 25; i++) x[i] ^= BS[j][i]; }
+static u32 feval(u32 c) {
+  u64 x[25], a[25], e[25], b[25], u[25];
+  winpt(c, x);
+  chi(x, a); a[0] ^= RC[0]; Lmap(a, e); chi(e, b); b[0] ^= RC[1]; Lmap(b, u);
+  u32 r = 0;
+  for (int k = 0; k < 24; k++) {
+    int y = EQ[k][0], z = EQ[k][1], m = EQ[k][2], cc = EQ[k][3], v = 0;
+    for (int xx = 0; xx < 5; xx++) v |= (int)((u[xx + 5 * y] >> z) & 1) << xx;
+    r |= (u32)((__builtin_popcount(m & v) & 1) ^ cc) << k;
+  }
+  return r;
+}
+static void dig(const u64 *x, u64 *d) { u64 s[25], t[25]; chi(x, s); s[0] ^= RC[0];
+  for (int r = 1; r < 5; r++) { Lmap(s, t); chi(t, s); s[0] ^= RC[r]; } memcpy(d, s, 32); }
+// colex ranks of subsets of 32 bits, weight <= 4
+static u32 Cn[33][6];
+static int wofs[6];
+static inline int rk(u32 s) { int w = 0, r = 0; while (s) { int p = __builtin_ctz(s); s &= s - 1; w++; r += (int)Cn[p][w]; } return wofs[w] + r; }
+#define NP 41449
+static u32 ANF[NP];          // ANF coefficient (24 bits, one per equation) of each monomial of degree <= 4
+typedef struct { u64 w[4]; } W256;
+typedef struct { W256 e[24]; } Vt;  // one 256-bit word per equation: bit l = value at inner point l
+static Vt D1[24], D2[276], F;
+static uint16_t D3[2024][24];    // affine descriptor: bits 0..7 linear coefficients of inner vars, bit 8 constant
+static u32 D4[10626];            // bit k: inner-constant coefficient of equation k
+static W256 TAB[512];            // the 512 affine functions of 8 inner variables as 256-bit truth tables
+static W256 MONO[256];           // truth table of each inner monomial
+static inline void wx(W256 *d, const W256 *s) { d->w[0] ^= s->w[0]; d->w[1] ^= s->w[1]; d->w[2] ^= s->w[2]; d->w[3] ^= s->w[3]; }
+// g_M(inner) for outer mask M (bits 0..23 = coordinates 8..31): sum over inner monomials s of ANF[M<<8 | s]
+static void gword(u32 M, Vt *out, int add) {
+  if (!add) memset(out, 0, sizeof *out);
+  int wm = __builtin_popcount(M);
+  for (int s = 0; s < 256; s++) {
+    if (__builtin_popcount(s) + wm > 4) continue;
+    u32 cf = ANF[rk(M << 8 | (u32)s)];
+    if (!cf) continue;
+    for (int k = 0; k < 24; k++) if ((cf >> k) & 1) wx(&out->e[k], &MONO[s]);
+  }
+}
+// d_K F at outer point ystar = sum over M >= K with M \ K <= ystar of g_M (|M| <= 4)
+static void deriv(Vt *out, u32 K, u32 ystar) {
+  memset(out, 0, sizeof *out);
+  u32 fr = ystar & ~K; int kw = __builtin_popcount(K), fb[24], nf = 0;
+  for (u32 t = fr; t; t &= t - 1) fb[nf++] = __builtin_ctz(t);
+  gword(K, out, 1);
+  if (kw <= 3) for (int a = 0; a < nf; a++) {
+    gword(K | 1u << fb[a], out, 1);
+    if (kw <= 2) for (int b = a + 1; b < nf; b++) {
+      gword(K | 1u << fb[a] | 1u << fb[b], out, 1);
+      if (kw <= 1) for (int c = b + 1; c < nf; c++) gword(K | 1u << fb[a] | 1u << fb[b] | 1u << fb[c], out, 1);
+    }
+  }
+}
+static u32 gray(u32 i) { return i ^ (i >> 1); }
+#define I2(a,b) ((int)(Cn[b][2] + (a)))
+#define I3(a,b,c) ((int)(Cn[c][3] + Cn[b][2] + (a)))
+#define I4(a,b,c,d) ((int)(Cn[d][4] + Cn[c][3] + Cn[b][2] + (a)))
+static u32 MS[NP];
+int main(int argc, char **argv) {
+  if (argc < 4) return 2;
+  FILE *fp = fopen(argv[1], "r"); long wlo = atol(argv[2]), whi = atol(argv[3]); int check = argc > 4;
+  { int nl = 0; unsigned long long v; static u64 tmp[100][25];
+    while (nl < 100) { int ok = 1; for (int i = 0; i < 25; i++) if (fscanf(fp, "%llx", &v) != 1) { ok = 0; break; } else tmp[nl][i] = v; if (!ok) break; nl++; }
+    memcpy(W0, tmp[0], 200); memcpy(BETA, tmp[1], 200);
+    for (int j = 0; j < 32; j++) memcpy(BS[j], tmp[2 + j], 200);
+    NBX = nl - 34; for (int j = 0; j < NBX; j++) memcpy(EX[j], tmp[34 + j], 200); fclose(fp); }
+  if (whi > (1L << NBX)) { fprintf(stderr, "window range exceeds 2^%d\n", NBX); return 5; }
+  for (int n = 0; n < 33; n++) { Cn[n][0] = 1; for (int k = 1; k < 6; k++) Cn[n][k] = n ? Cn[n - 1][k - 1] + Cn[n - 1][k] : 0; }
+  { long c32[6] = {1, 32, 496, 4960, 35960, 201376}; wofs[0] = 0; for (int w = 1; w < 6; w++) wofs[w] = wofs[w - 1] + (int)c32[w - 1]; }
+  for (int l = 0; l < 256; l++) for (int s = 0; s < 256; s++) if ((l & s) == s) MONO[s].w[l >> 6] |= 1ULL << (l & 63);
+  for (int d = 0; d < 512; d++) { memset(&TAB[d], 0, sizeof(W256)); for (int i = 0; i < 8; i++) if ((d >> i) & 1) wx(&TAB[d], &MONO[1 << i]);
+    if (d & 256) for (int q = 0; q < 4; q++) TAB[d].w[q] = ~TAB[d].w[q]; }
+  { int np = 0; MS[np++] = 0;
+    for (int a = 0; a < 32; a++) MS[np++] = 1u << a;
+    for (int b = 1; b < 32; b++) for (int a = 0; a < b; a++) MS[np++] = 1u << a | 1u << b;
+    for (int c = 2; c < 32; c++) for (int b = 1; b < c; b++) for (int a = 0; a < b; a++) MS[np++] = 1u << a | 1u << b | 1u << c;
+    for (int d = 3; d < 32; d++) for (int c = 2; c < d; c++) for (int b = 1; b < c; b++) for (int a = 0; a < b; a++) MS[np++] = 1u << a | 1u << b | 1u << c | 1u << d; }
+  long tot_pass = 0, tot_hit = 0; int allchk = 1;
+  for (long wi = wlo; wi < whi; wi++) {
+    memcpy(V0, W0, 200); for (int t = 0; t < NBX; t++) if ((wi >> t) & 1) for (int i = 0; i < 25; i++) V0[i] ^= EX[t][i];
+    for (int t = 0; t < NP; t++) ANF[rk(MS[t])] = feval(MS[t]);
+    // Moebius transform in place, by increasing weight is not in place-safe; use subset sums per mask
+    static u32 Fv[NP]; memcpy(Fv, ANF, sizeof Fv);
+    for (int t = 0; t < NP; t++) { u32 S = MS[t], acc = 0; for (u32 T = S;; T = (T - 1) & S) { acc ^= Fv[rk(T)]; if (!T) break; } ANF[rk(S)] = acc; }
+    // D4: degree-4 outer monomials -> inner constant
+    for (int d = 3; d < 24; d++) for (int c = 2; c < d; c++) for (int b = 1; b < c; b++) for (int a = 0; a < b; a++)
+      D4[I4(a, b, c, d)] = ANF[rk((1u << a | 1u << b | 1u << c | 1u << d) << 8)];
+    // D3 descriptors: d_abc F at gray(K-1) = g_abc + sum_{d in ystar \ abc} g_abcd
+    for (int c = 2; c < 24; c++) for (int b = 1; b < c; b++) for (int a = 0; a < b; a++) {
+      u32 K = 1u << a | 1u << b | 1u << c, ys = gray(K - 1) & ~K, cst = ANF[rk(K << 8)];
+      for (u32 t = ys; t; t &= t - 1) cst ^= ANF[rk((K | 1u << __builtin_ctz(t)) << 8)];
+      for (int k = 0; k < 24; k++) { uint16_t ds = (uint16_t)(((cst >> k) & 1) << 8);
+        for (int i = 0; i < 8; i++) ds |= (uint16_t)(((ANF[rk(K << 8 | 1u << i)] >> k) & 1) << i);
+        D3[I3(a, b, c)][k] = ds; } }
+    for (int b = 1; b < 24; b++) for (int a = 0; a < b; a++) deriv(&D2[I2(a, b)], 1u << a | 1u << b, gray((1u << a | 1u << b) - 1));
+    for (int a = 0; a < 24; a++) deriv(&D1[a], 1u << a, gray((1u << a) - 1));
+    deriv(&F, 0, 0);
+    long passes = 0; int chk_ok = 1;
+    for (u32 i = 0; i < (1u << 24); i++) {
+      if (i) {
+        u32 t = i; int b1 = __builtin_ctz(t); t &= t - 1;
+        if (t) { int b2 = __builtin_ctz(t); t &= t - 1;
+          if (t) { int b3 = __builtin_ctz(t); t &= t - 1; uint16_t *d3 = D3[I3(b1, b2, b3)];
+            if (t) { int b4 = __builtin_ctz(t); u32 m = D4[I4(b1, b2, b3, b4)]; for (int k = 0; k < 24; k++) d3[k] ^= (uint16_t)(((m >> k) & 1) << 8); }
+            Vt *d2 = &D2[I2(b1, b2)]; for (int k = 0; k < 24; k++) wx(&d2->e[k], &TAB[d3[k]]); }
+          Vt *d2 = &D2[I2(b1, b2)]; for (int k = 0; k < 24; k++) wx(&D1[b1].e[k], &d2->e[k]); }
+        for (int k = 0; k < 24; k++) wx(&F.e[k], &D1[b1].e[k]);
+      }
+      u32 y = gray(i);
+      for (int w = 0; w < 4; w++) {
+        u64 acc = 0; for (int k = 0; k < 24; k++) acc |= F.e[k].w[w];
+        u64 ps = ~acc;
+        while (ps) { int p = __builtin_ctzll(ps); ps &= ps - 1; passes++;
+          u32 cc = (y << 8) | (u32)(64 * w + p); u64 xa[25], xb[25], da[4], db[4]; winpt(cc, xa);
+          for (int q = 0; q < 25; q++) xb[q] = xa[q] ^ BETA[q]; dig(xa, da); dig(xb, db);
+          if (!memcmp(da, db, 32)) { tot_hit++; printf("HIT w=%ld c=%08x\n", wi, cc); fflush(stdout); } }
+      }
+      if (check && (i & ((1u << 18) - 1)) == 12345) {
+        for (int l = 0; l < 256; l++) { u32 r = feval((y << 8) | (u32)l), q = 0;
+          for (int k = 0; k < 24; k++) q |= (u32)((F.e[k].w[l >> 6] >> (l & 63)) & 1) << k; if (q != r) chk_ok = 0; }
+      }
+    }
+    allchk &= chk_ok; tot_pass += passes;
+    printf("win %ld passes=%ld chk=%s\n", wi, passes, check ? (chk_ok ? "ok" : "FAIL") : "-"); fflush(stdout);
+  }
+  { struct rusage ru; getrusage(RUSAGE_SELF, &ru); printf("summary windows=%ld passes=%ld hits=%ld chk=%s maxrss=%ld\n", whi - wlo, tot_pass, tot_hit, allchk ? "ok" : "FAIL", (long)ru.ru_maxrss); }
+  return allchk ? 0 : 1;
+}
+```
+
 # 5-round SHA3-256: v25 (v22b with Y's advice reading, v24's counted programs and a multi-pass E block), time 2^32.926202
 
 Exploratory claim (v25). **v25 is our v22b (08930c1e) with the changes of Section Z and nothing else:** (1) leech1996's Y (1d1f98ee): algorithm() reads P's certified output as nonuniform advice instead of running P a second time; (2) Th0rgal's v23/v24 (017f48c9, 08c9e7c1) counted programs, re-implemented by us: match step 49, T2 leaf 4, half-vector step 80 with 14 key words, and their E prologue ideas; (3) new here: E's stage-1 block as a multi-pass block of 1,024 Gray steps (12 passes of 2 equation words, 60 resident words per pass), 208,007 counted primitives per 1,024 steps, i.e. 52,001.75 per 256 steps (v22b 66,831, v24 66,499). Development is repriced by v22b's rule (X.5) and every run we made for v25 is charged (D23). Total 2^32.926202, **claimed 32.92621**; preprocessing 2^32.832519, claimed 32.83252. Section Z governs wherever the later text (v22b's, unchanged from the line "Exploratory claim. **v22 is our v20" on) states v22b's prices, says that the algorithm runs P, uses premise P or has no advice.
