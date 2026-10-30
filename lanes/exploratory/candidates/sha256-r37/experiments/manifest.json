@@ -1,0 +1,67 @@
+{
+  "experiments": [
+    {
+      "event": {
+        "kind": "full-collision"
+      },
+      "hypothesis": "Constructs full 37-step semi-free-start collisions for every accepted pattern (the four row-18/19 patterns and the four R16x patterns) and checks that the counted program detects them. Tests the validity of the variant dense parts (Lemmas 4.2, 4.3, 7.1) and the counted detection. It does not estimate q3. Returned pairs are SFS pairs from CV1, not collisions from the IV; every pair is verifiable offline with the 37-step compression.",
+      "id": "a0-sfs-r37",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/lowm.py",
+      "scope": "Constructibility and detection; supports H2 only for SFS reachability and H4 only for the Step-1 completion cost. No probability."
+    },
+    {
+      "event": {
+        "kind": "full-collision"
+      },
+      "hypothesis": "Runs the counted online program on organizer-seeded first blocks and reports the class/W6/address/row-16 mismatch counters, the unconditional pass rates (P_PASS and P_H) and any returned pairs. Full collisions: 0 expected. Tests exactness of the bit-sliced class and W6 programs, the cube expansion, the packed address and the row-16 stage (Lemmas 6.2, 8.1, 8.2); it does not test q3, H1 at scale or H3.",
+      "id": "a0-online-r37",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/lowm.py",
+      "scope": "Functional exactness of the counted online program against the scalar definitions; supports H5 and measures P_PASS and P_H as consistency checks."
+    },
+    {
+      "event": {
+        "kind": "full-collision"
+      },
+      "hypothesis": "Counts, on organizer-seeded real 37-step chaining values, how often the W7 class filter and the W6 filter pass. Expected per 150 blocks under H1: about 2.4 W7 and 40 W6. A program check of the filter rates; no probability claim.",
+      "id": "h1-cv1-filters-nonce",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/lowm.py",
+      "scope": "Checks the H1 consequence that the filters pass at their exact rates; estimates no probability and says nothing about q3 or independence at scale."
+    },
+    {
+      "event": {
+        "kind": "full-collision"
+      },
+      "hypothesis": "Counts first blocks in which several variants of one class pass F6 together (coW6). A higher count than independent Bernoulli is expected because variants share bits; it measures within-class correlation, which the ledger does not use. Not a test of success events.",
+      "id": "h3-cowpass-nonce",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/lowm.py",
+      "scope": "W6-level within-class dependence consistency check; does not test row 16 or later rows and cannot show H3 at scale."
+    },
+    {
+      "event": {
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000000000000000000000000000000000000000000000000000000f"
+      },
+      "hypothesis": "Counts, through the attack's levels (W6, FIRST13/SECOND11, exact row 16), pairs of distinct variants of one first block that both pass, against the independent expectation. Returns generic 4-bit witnesses, not collisions. Historical predecessor totals on the 13/11 tables are retained as the record of that split.",
+      "id": "h3-ladder-r37",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/lowm.py",
+      "scope": "H3 at depth through row 16; rows 17..36 remain the stated premise. Returned witnesses carry no cryptographic weight."
+    },
+    {
+      "event": {
+        "kind": "full-collision"
+      },
+      "hypothesis": "Runs the participant's scan/pad counter on organizer seeds: per-nl nonzero-row events, total events, and the residual pad counter. Counts only; the filed charges remain the 99% block-bootstrap discipline, with the organizer-side re-pricing and the structural ceiling as declared replacements.",
+      "id": "h6-orgstats-r37",
+      "kind": "python-message-pairs-v1",
+      "program": "experiments/lowm.py",
+      "scope": "Organizer-executed corroboration of the H6 rates; measures no probability, infers no cost and returns no pair."
+    }
+  ],
+  "schema_version": 1
+}
