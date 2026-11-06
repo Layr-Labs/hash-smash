@@ -21,15 +21,15 @@ use any published colliding pair, starting solution or first block. C works as f
 
 Every computation of C is charged (Section 9). Our own code is charged with explicit operation
 counts. The z3 runs and the synthetic checks are charged from their measured retired instructions
-at a measured per-instruction price: 25 word operations per instruction for z3 and 17 for the
+at a measured per-instruction price: 19 word operations per instruction for z3 and 13 for the
 synthetic checks (Section 14), instead of the flat 256 of our previous filing. The analysis programs
 that formulated R20 before any search ran are charged as well (Section 15). The complete source is
 in Appendices B and C.
 
 | field | value | where |
 |---|---|---|
-| time_log2 | 37.22 | executed work of C plus replay, 2^37.2169, Section 9 |
-| preprocessing_log2 | 37.22 | construction chain C, Section 9 |
+| time_log2 | 37.12 | executed work of C plus replay, 2^37.1195, Section 9 |
+| preprocessing_log2 | 37.12 | construction chain C, Section 9 |
 | success_probability | 1 | deterministic replay, Section 3 |
 | nonuniform_advice_log2_bytes | 9 | the stored 256-byte pair, Section 10 |
 | memory_log2_bytes | 27.5 | measured peak over C (the z3 runs), Section 10 |
@@ -242,8 +242,8 @@ The z3 runs and the synthetic checks are charged at the measured per-instruction
 Section 14 (H3). Our own code is charged with the operation counts of H2. The analysis programs of
 Section 15.2 are charged with operation bounds from their source (H2).
 
-    z3 attempts 1-3: 2,721,814,602,106 instructions * 25 / 2140                      31,796,899,558
-    synthetic completion checks: 3 runs * 500,284,109,323 instructions * 17 / 2140   11,922,658,681
+    z3 attempts 1-3: 2,721,814,602,106 instructions * 19 / 2140                      24,165,643,664
+    synthetic completion checks: 3 runs * 500,284,109,323 instructions * 13 / 2140    9,117,327,226
     yield checks: 5 * (three 2^32 scans <= 24 ops/word + table <= 6.4e6 * 64 ops)      723,470,929
     V8 dump (one 2^32 scan, <= 24 ops/word) and c8 residue scan
         (300,000 * 49408 candidates, <= 8 ops each)                                 103,578,699
@@ -260,11 +260,11 @@ Section 15.2 are charged with operation bounds from their source (H2).
       completion: 2,829 E13 + 19 E15 iterations * 160 ops, 1 setup  213
       candidate pairs hashed 1 * (6 compressions + 64 ops)             6
     -------------------------------------------------------------------------------------------
-    preprocessing (chain C)                                                  159,740,722,642 = 2^37.2169
+    preprocessing (chain C)                                                  149,304,135,293 = 2^37.1195
     replay R                                                                 6.36
-    total                                                                    159,740,722,648 = 2^37.2169
+    total                                                                    149,304,135,299 = 2^37.1195
 
-Claimed time_log2 = 37.22 and preprocessing_log2 = 37.22. Every term is the work actually executed
+Claimed time_log2 = 37.12 and preprocessing_log2 = 37.12. Every term is the work actually executed
 by C or by the analysis that formulated R20. Nothing is an expectation or a cap that went unused.
 
 The Python lump covers every Python run in the chain and in the pre-construction analysis:
@@ -297,8 +297,8 @@ charging its original discovery.
 - Provenance: Li, Liu, Wang, Dong and Sun (ASIACRYPT 2024). The authors' public search tool is
   Peace9911/sha_2_attack at commit 6a9f35fd8d8bdcc1a54dc6f170ed0038ebe5bb32.
 - Sensitivity: the trail search is not executed or bounded by our own evidence in this filing. A
-  charge of T units for it gives a total of 159,740,722,648 + T units. That stays below 2^39.15 (our
-  previous filing) for T up to 2^38.712, and below 2^40.4 for T up to 2^40.232.
+  charge of T units for it gives a total of 149,304,135,299 + T units. That stays below 2^39.15 (our
+  earlier filing) for T up to 2^38.745, and below 2^40.4 for T up to 2^40.243.
 
 H2-op-accounting (score-critical). For our own code (Appendix B), the per-event charges of
 Section 9 bound the primitive word operations:
@@ -313,7 +313,7 @@ Each trial is charged a full compression, although K shares steps 0..14 within a
 
 H3-instruction-price (score-critical). For the runs without an exact operation model (the z3
 attempts and the synthetic completion checks), the per-instruction prices of Section 14 bound their
-primitive word operations: 25 per retired instruction for z3 and 17 for the synthetic checks.
+primitive word operations: 19 per retired instruction for z3 and 13 for the synthetic checks.
 - Scope: the retired-instruction counts of Section 8 (macOS counters through `/usr/bin/time -l`).
 - Evidence: the per-form costing of the AArch64 code (Appendix C.1), applied statically to the z3
   binary that ran and dynamically to callgrind instruction counts of the same z3 version and the
@@ -321,9 +321,11 @@ primitive word operations: 25 per retired instruction for z3 and 17 for the synt
 - Extrapolation: the dynamic mix comes from the Linux build of z3 4.15.4. It covers all of
   attempt 1 (the same search, step for step) and the first 28% and 39% of attempts 2 and 3 by
   rlimit count. The static mixes of the two builds agree (Section 14.3). The price doubles the worst
-  of 23 measured intervals to cover the unprofiled remainder and the build difference.
+  per-form dynamic mean of 23 measured intervals to cover the unprofiled remainder and the build
+  difference.
 - Sensitivity: at 256 operations per instruction (our previous filing) the total would be
-  2^39.176; at four times the charged prices it would be 2^38.082.
+  2^39.176; at four times the charged prices it would be 2^37.858; at the class prices of our
+  promoted filing 50592e75 (25 and 17) it is 2^37.2169.
 
 H4-memory (supporting). The measured maximum resident set sizes bound C's peak memory.
 
@@ -436,7 +438,11 @@ with h, d and u the heavy, divide and unmapped shares: every ordinary instructio
 2.2 times its measured dynamic mean of 2.28-2.31 operations. The per-form mean is the exact
 dynamic average under the table of 14.2.
 
-**Price.** m_z3 = ceil(2 * max over all 23 intervals of m_class) = ceil(2 * 12.044) = **25**.
+**Price.** m_z3 = ceil(2 * max over all 23 intervals of the per-form mean) = ceil(2 * 9.3833) = **19**.
+The worst interval is one of attempt 2's (per-form mean 9.38333); the same interval has the
+largest class price, 12.044. Our promoted filing 50592e75 priced z3 at the class
+price, ceil(2 * 12.044) = 25, which also priced every ordinary instruction at 5 instead of its
+measured 2.28-2.31; this filing prices every executed instruction by its form.
 The factor 2 covers the unprofiled remainder of attempts 2 and 3 and the build difference. For
 attempt 1 the profile is complete. The macOS build retired 6.4% more instructions for the same
 search; if both builds execute the same multiplies and divides, its heavy share is the lower one.
@@ -455,7 +461,7 @@ retires 1499 instructions per trial (Section 8: 500,284,109,323 instructions, of
 the table build takes at most 124,752,621,861, over 250,544,128 trials), against 1334 in
 the Linux build. With the same heavy instructions per trial, the macOS heavy share is the lower one,
 so we keep the Linux shares (scale factor max(1, 1334/1499) = 1.000) and take
-m_sim = ceil(2 * m_class) = **17**, charged on all instructions of each run, including the table
+m_sim = ceil(2 * per-form mean) = ceil(2 * 6.3887) = **13** (the class price 8.32 gave 17 in 50592e75), charged on all instructions of each run, including the table
 build.
 
 ### 14.6 What this does not establish
@@ -463,8 +469,8 @@ build.
 - The dynamic profile is of the Linux build. The equal search transcript of attempt 1 and the equal
   static profiles support the transfer; they do not prove an identical instruction mix.
 - The price is an operation count under our per-form table. A reviewer who prices some form higher
-  can recompute the dynamic mean from the published scripts; the factor 2 and the class price of 5
-  per ordinary instruction (2.2 times the measured mean) are the reserve.
+  can recompute the dynamic mean from the published scripts; the factor 2 is the reserve. At the
+  class prices instead (25 and 17), the total is 2^37.2169.
 - The measurement runs of this section, like the post-K re-runs of Section 8, came after the stored
   pair existed and fixed nothing in C. They are not charged.
 
