@@ -1,3395 +1,796 @@
-# 38-step SHA-256 collision with the characteristic P8 in the memory-efficient A0-variant attack, 32 classes and per-class row-16 programs: time 2^87.14808, memory 2^28.10 bytes
+# sha256-r38: fourteen-column fixed u-table (time_log2 76.693746031168, memory_log2_bytes 27.820178962416, projected scalar 84.513924993584)
 
-**Track** sha256-r38-exploratory, target sha256-r38-prefix-v1, cost model collision-frontier-v5 (C = 2728), scalar policy hashsmash-scalar-tm-v1 (score = time_log2 + max(0, memory_log2_bytes - 20)).
-**Claim** time_log2 = 87.14808 (exact total 2^87.148072 target compressions), algorithmic success probability at least 0.39, memory 2^28.10 bytes (online 3,659,904 bytes; the preprocessing peak, Section 11), preprocessing 2^78.09276, non-uniform advice below 2^14 bytes. Score under the scalar policy: 95.24808.
+This filing retains relative columns 0 through 13 of the ordered-tree fixed table. It is a credited derivative of published base 4d1f5387-543e-4a35-9c4b-05ba077a5974, source fcb9a6f9ecbb1295503de107315376377365a182. Bucket format, first-six cyclic retention, ascending lane order, SEL, kept CV class, combined predicate, postfilters and step 3b are preserved. Appendix U proves the filtered restriction and records the exact census and all 24 full native witnesses. The complete online bound is 236,978,176 bytes, with cgroup memory.peak maximum 236,744,704; /proc maxima are VmPeak 236,597,248 and VmHWM 235,913,216. Appendix W reschedules the P8 signed-search cell (record and regenerate) to at most 211,431,424 bytes under H6-D and H6-E, so the online bound binds. H7 remains 65,265,200 bytes, including its inherited historical-input limitation.
 
-## 0. Summary
+Historical parent fd5259a8 supplies the kept class, SEL, direct-t front end and combined C1 test. Its two-half walk and older ledger are historical comparisons. The current ordered tree and 14-column restriction are specified below; all material sources remain declared.
 
-This package runs the memory-efficient A0-variant collision attack on 38-step SHA-256 (ePrint 2026/1120 and 2026/1080; the A0-variants, c7 classes, bit-sliced row-16 filter and accepted event with a direct output comparison of the public packages 2d1c4fc2 and fb176310) with **P8**, a characteristic we found ourselves (Section 3). It extends our filing 1a695f0b (same P8, same Step-1 solution S); the changes are listed in Section 0.1. What is new against the published characteristic:
+The inherited P8 complete-message framework and P1 claw F(a0)+P(u) in S160 remain. The fixed relative-column restriction recomputes geometry, exact population bounds, useful-pair rate and cost. Historical 15-column observations keep their original domain.
 
-1. **The characteristic P8.** Found by our systematic sign sweep over the 24 message-difference XOR patterns of weight 25 (Section 3.2): XOR pattern 8 (not the published pattern 0), a different dense trail and a different signed message difference. Its printed-event probability (rows 16..37 follow the trail and its derived conditions) is 2^-99.56 against 2^-101.05 for the published characteristic, measured with the same estimator.
-2. **The accepted event.** Rows 16..22 of both members follow the trail, except that row 19 is checked on its signed differences only (not on its derived value conditions), and the two outputs after step 37 are compared directly (rows 23..37 untested). All 188,796 estimator successes that were classified fall into four row-19 condition patterns (Section 6.2).
-3. **The measured q3 for that event** over the variants of the selected classes: 40 independent runs, mean 2^-96.1821, one-sided 99% Student bound 2^-96.5603 (bootstrap 2^-96.5278); **q3_model = 2^-97.0000**. The corresponding value of fb176310 for the published characteristic is 2^-97.7838.
+Claim: time_log2=76.693746031168 from N=333397547809852074420537264 operations at C=2728, exact log2(N/C)=76.6937460311670909566864363045264..., rounded upward. Success remains at least 0.39 under the stated premises. Memory_log2_bytes=27.820178962416 is the upward rounding of log2(236978176)=27.8201789624151878...; the online bound binds, with P8 at most 211,431,424 bytes (Appendix W). The online table is 234881024 bytes plus a complete 2097152-byte code/state allowance, totaling 236978176. Preprocessing remains 2^71.58497 with A_C=A_S=DEV=2^70, and FIN includes one-time 2^24 initialization. Scalar projection=84.513924993584, below the previous 14-column projection 84.572642, the prior tree projection 84.605464 and published-base projection 84.681507. These are resource projections, not qualification results.
 
-| | fb176310 (published characteristic) | 1a695f0b (P8, 8 classes) | this package (P8, 32 classes) |
-|---|---|---|---|
-| q3_model of the accepted event | 2^-97.7838 | 2^-97.0000 | 2^-97.0000 |
-| selected variants, good pairs per first block | 345,600, 23,118.75 | 196,608, 13,152 | 786,432, 52,608 |
-| row-16 program per batch of 256 variants | 1,410 to 1,426 instructions | 1,511 instructions (one shared program) | 1,438 to 1,482 instructions (per class; mean 1462.25) |
-| time_log2 | 87.90375 | 87.22358 | **87.14808** |
-| memory | 2^28 (online 1,044,992 bytes) | 2^28.10 | 2^28.10 (online 3,659,904 bytes) |
-| score (scalar policy) | 95.90375 | 95.32358 | **95.24808** |
+## 1. Target and output
 
-### 0.1 Changes from 1a695f0b
+SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words. The procedure outputs two distinct 128-byte messages m = M0||M1 and m' = M0||M1' with a common first block M0 (FIPS padding appends the same third block).
 
-1. **All 32 largest c7 classes.** 1a695f0b used the 8 classes of mask 7fe96c7c (196,608 variants). This package uses every class of the maximal size 24,576 of P8 (32 classes, 786,432 variants), with 6 different masks: 7feb6c7c (22 bits) x 8, 7fe96c7c (21 bits) x 8, 7feb6c7e (23 bits) x 4, 7fe96c7e (22 bits) x 4, 3feb6c7c (21 bits) x 4, 3fe96c7c (20 bits) x 4. Good pairs per first block: 52,608 (was 13,152).
-2. **Per-class row-16 programs.** Each class gets its own bit-sliced row-16 program in which every bit of a0 outside the class's mask is the class's base bit, folded as a constant (Section 7.2). The idea is that of 08be594 (johnservil), which did it for the 8 classes of 1a695f0b; our implementation (`cbits`, `program` in `experiments/a0p38.py`) is our own. 32 programs, 1,438 to 1,482 instructions, mean 1462.25, against the shared program of 1,511 instructions of 1a695f0b. On the 8 classes of 1a695f0b alone this lowers time_log2 from 87.22358 to 87.17957 (Section 10).
-3. **The F7 sampler of the organizer replica.** 1a695f0b sampled W7 in F7 by its three affine families, choosing the family by `(w >> 4) % 274` of the same random word whose bits then formed the value: the family choice was correlated with the value and had a modulo bias. Both were pointed out in 08be594 (johnservil). The replica now draws the family by rejection from its own word (9 bits, accepted below 274: shares 256, 16, 2, no bias) and the value bits from a fresh word (`f7_sample`; 200,000 draws: all in F7, family frequencies 93,187 + 93,579 / 11,769 / 1,465 against 186,861 / 11,679 / 1,460 expected). A generic rejection sampler on the definition is kept for other (D7, T7) only, as it is slower.
-4. **Deterministic class selection.** The classes are selected by `lp_classes.py` (ALLMAX=1: every class of the largest size, ordered by c7) from the output of `a0cls.c`, replacing the hand-run selection of 1a695f0b.
-5. **Lane cost.** The scalar recovery of a0 from the stored planes costs 4 per mask bit; it is charged at the widest mask (7feb6c7e, 23 bits): 208 operations per stage-3a lane (was 200).
-6. **q3 re-measured** over the 786,432 variants of the 32 classes (seeds 4001..4040, Section 9). Memory is unchanged at 2^28.10: P8 and S are those of 1a695f0b (Section 11).
+**Lemma 1.** Let cv = F_38(IV, M0). If the second-block computations of M1 and M1' from cv end with equal state words A34..A37, E34..E37, the digests of m and m' are equal. *Proof:* the second-block output is cv plus (A37, A36, A35, A34, E37, E36, E35, E34), and the third block is the same for both. m != m' because M1 and M1' differ in W7. Every output is therefore a collision of the target.
 
-## 1. Target and cost model
+## 2. Data and the P1 pair
 
-Target sha256-r38-prefix-v1: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; output two distinct 128-byte messages M0 || M1 and M0 || M1' with equal digests (the padding block is common). collision-frontier-v5: one target compression = 1 unit, every other word operation of the 256-bit word RAM 1/C, C = 2728; the scalar policy hashsmash-scalar-tm-v1 ranks time_log2 + max(0, memory_log2_bytes - 20).
+- **P8 (1a695f0b, transcribed as data).** The 38-step semi-free-start pair (PCV, PMX, PMY), the cells of rows 7..37 (`CELLS`: for A, E, W the mask of fixed bits, their values and the XOR difference), the '+' pairs (`PQE`, the printed pairs except E18 = E17 at row 18) and the two-bit conditions (`X2`). S denotes the state words of the pair: A2..A15 and E6..E15 of member x (= PMX) and member y (= PMY). The program checks that PCV, PMX, PMY reproduce the pair and that step 3b accepts it (Section 12).
+- **The P1 pair.** For a chaining value cv and two free words a0, a1, both members take A0 = a0, A1 = a1, A2..A15 and E6..E15 from S; E0..E5 and W0..W15 follow from the step equations (`variantW_P1`). W10..W15 are S's words; W0..W9 depend on (cv, a0, a1); W0..W6 and E0..E5 are equal in the two members. With a0 = A0, a1 = A1 and cv = PCV this is the P8 pair.
+- **Row 16.** W16 = s1(W14) + W9 + s0(W1) + W0, so E16 of member x is E16x = C16 + W0 + s0(W1). From the step equations of steps 0 and 1, W1 = u := a1 + h(a0, cv) and W0 + C16 = F(a0) - u with F(a0) := Cc2 + a0 + k0(cv) + h(a0, cv) (Cc2 = 0x7af32e15; k0, h are written out in `cv_consts`, `hfun`), hence **E16x = F(a0) + P(u), P(u) := s0(u) - u**. S160 is the set of 160 words that pass every row-16 cell and condition of P8: the 20 heads `R16H` (all equal mod 2^13: head j is R16H[0] + 2^13 t_j with 20 distinct t_j < 2^19) plus the 8 offsets OFFS = {0, 1, 4, 5, 1024, 1025, 1028, 1029} (bits 0, 2, 10 free). A **claw** is a pair (a0, u) with F(a0) + P(u) in S160; every claw is a row-16 pass of member x, and a1 = u - h(a0, cv).
+- **Post-filters.** For a claw, on the words of the two members: C1: W8y - W8x = D8 (tested as: the top three bits of E5 = a1 + cE5 are 101); C2: s0(W9y) - s0(W9x) = D9s; G: s0(W8y) - s0(W8x) = T8; F7: s0(W7y) - s0(W7x) = F7d (W9y - W9x = D9 and W7y - W7x = D7 always). The constants are those of the P8 pair. C1, C2 read only a1; G reads (a0, a1); F7 reads (a0, a1, cv[0]). A **good pair** is a claw passing all four. The counted chain (`postfilters` in utab38.py: the single-s0 folded segments of 6, 16, 24, 28 operations, each ending with its counter add) equals these definitions evaluated on the real words (`pf_ref`): 0 mismatches on every claw of every organizer trial and of the selftest.
 
-## 2. Sources, credit, and what is ours
+## 3. The procedure: the u-table
 
-- ePrint 2026/1120 (Li, Zhang, Li, Liu, Qian, Zhu): the 38-step two-block framework and its memory-efficient Step 1-3 procedure, the message-difference shape (W7..W11, W15, W16, W23, W25), the published characteristic (comparison only). ePrint 2026/1080 [LLWS26]: the memory-efficient framework.
-- 2d1c4fc2 (itseasypop): A0-variants of the Step-1 solution, the c7 classes decided by one W7 test, the bit-sliced evaluation of the row-16 filter for 256 variants per word, the success analysis with a pair term and work caps. fb176310 (Jbenisek): the accepted event with a direct output comparison and alternative row-19 patterns, lowest-shared-bit stage 3a, the memory-free W7 test, a counted register allocator. We read their packages as documents; we executed none of their code. `experiments/a0p38.py` is our own implementation of that design for P8.
-- 08be594 (johnservil): per-class row-16 programs with the class's non-mask bits folded as constants (for the 8 classes of 1a695f0b), and the observation that the F7 sampler of 1a695f0b's replica correlated the family choice with the value and had a modulo bias. Our per-class programs and the corrected sampler are our own implementation (for those 8 classes our per-class counts, [1466, 1457, 1469, 1466, 1463, 1454, 1466, 1463], equal the counts listed in 08be594's submission note).
-- Ours: the characteristic P8 and the search that found it (signed-difference SAT model, sign sweep, joint coupling check), the condition derivation and estimators, the accepted event with row 19 on signed differences and its measurement, the class selection for P8 (`lp_classes.py`), the program `experiments/a0p38.py` (reference, bit-sliced program builder and allocator, counted scalar routines, replica, experiments), the ledger. Our filings 1db43310, 49b543d1 and 242fcec3 (table attack, NEW3) and 1a695f0b (this attack with 8 classes) are the earlier steps of this work.
-- Execution: everything ran in Linux containers on one 10-core machine (OrbStack; Ubuntu 22.04 for the C tools and solvers; the shipped program also on the official python:3.12.12-slim-bookworm image, Section 13).
+### 3.1 The table and the epoch
 
-## 3. The characteristic P8
-
-### 3.1 The trail and a semi-free-start pair
-
-Signed differences (u: member x has 1, member y 0; n: the reverse), most significant bit first, rows -4..37, columns A_i, E_i, W_i (rows without a difference in all three words omitted: -4..6 and 26..37 are all `=`):
+The table has **14 columns x 2^19 rows of buckets**, each bucket **one 256-bit word** (14 x 2^19 x 32 = 234,881,024 bytes). A bucket holds **six 42-bit lanes** (6 x 42 = 252 <= 256; the lane format of this filing has a one-bit gap between u and the field, Section 3.6) and, in bits 252..255, the number of filled lanes:
 
 ```
-   6  ================================  ================================  ================================
-   7  =nu=============================  uuu=============================  ==n=============================
-   8  =========n=====n====n======n====  ==n=u====n==nu=====nu===u==n====  =====u===u==========n===========
-   9  ================================  ======nn===n================n=nn  ==u=============================
-  10  ===============n===========u====  =u=============n===========u====  =====u=n=======n===u==u=n=u=n=n=
-  11  ====n===============n========u==  ==n==n==u=====un================  ============u=======nn==========
-  12  ==u====u==u==========uu=======u=  =nu=u==n==n=====u=n=nn=========u  ================================
-  13  ==n=============================  =========n============n=nuu==uu=  ================================
-  14  ====n=========n=========n==n====  ====u=========n=================  ================================
-  15  ======n=u======un===============  ====================n===u=======  =====u===n==========n===========
-  16  ================================  =u=======n====u====u==u=========  ==u=============================
-  17  ==u=============================  ================================  ================================
-  18  ================================  =============n=============n====  ================================
-  19  ================================  =======nn=======u===============  ================================
-  20  ================================  ================================  ================================
-  21  ================================  ==u=============================  ================================
-  22  ================================  ================================  ================================
-  23  ================================  ================================  =======uu=======n===============
-  24  ================================  ================================  ================================
-  25  ================================  ================================  ==n=============================
-  26  ================================  ================================  ================================
+lane L (bits 42L .. 42L+41) = [u: 32 bits][gap: 1 bit, stored 0][field: 6 bits][spare: 3 bits, stored 0];   field = tag in 0..7 (filled) or 22 (empty)
 ```
 
-Conditions: for every bit of every boolean-function instance (S1, CH, S0, MAJ of the state; s0, s1 of the expansion) the trail fixes the input and output signed differences; the allowed values of the inputs without difference give the derived conditions (`cond.py`), which for P8 are all fixed bits or two-bit (in)equalities (the tables `_CH`, `PQ`, `X2` of `experiments/a0p38.py`, generated by `mkvt.py`; the conditions of rows 16..22, which define the accepted event, are listed in Appendix B). With W7 in F7 (D7 = 2^29, s0(W7y) - s0(W7x) = 03bff800: the same F7 as the published characteristic), the printed-event probability is 2^-99.56 (6 estimator runs of 2,000 particles; the published characteristic 2^-101.05 with the same estimator).
+An **epoch** draws one fresh word from the procedure's random source and takes **r** (13 bits, uniform in [0, 2^13)) and **ustart** (32 bits) from it. For a word u let G(u) = P(u) - r (mod 2^32). u is **covered** iff G(u) mod 2^13 < 112; its bucket is column (G mod 2^13) >> 3 (0..13), row G >> 13 (19 bits), and its tag is G mod 8. The loader resets every bucket to the empty word (every field 22, count 0) and then inserts u = ustart + n (mod 2^32), n = 0 .. 2^32 - 1: a covered u is written into the first empty lane of its bucket if fewer than six are filled, and dropped otherwise. The bucket therefore keeps the **first six covered words in the cyclic order starting at ustart** (the arc law of the lineage's H7, now on words u).
 
-An explicit 38-step semi-free-start collision in the accepted event (Section 6), rebuilt from an estimator success and verified with the reference of `experiments/a0p38.py` (`selftest` item 1) and the organizer reference `verifier/hash_functions.py`; its rows 0..15 are the Step-1 solution S of Section 4 (A0 = c500a7ff):
+Exact census: P is balanced mod 8192, with exactly 2^19 preimages per residue. Coverage is therefore 112*2^19=58,720,256 words per epoch. Eight pinned fillr2 traversals provide all 8192 rotation totals. The 14-column minimum is 41,471,916 at r=4409, maximum 41,577,489 at r=8154, sum 340,133,163,048 and mean 41,520,161.5048828125. The 15-column control has minimum 44,436,632, maximum 44,543,396 and sum 364,428,388,980. Integer identity 15*sum14=14*sum15 proves the mean law. Extrema are measured, never projected by 14/15. Appendix U includes every raw offset count.
 
-```
-CV1 = 95a24959 b4053f95 1bf0473e 1eab3b7c 650c63d3 e6493d3b ed004f1d eb7eaad3
-M   = bd047e95 1dc94891 4bbe458b c7dc3c0a 8b6235e1 9d7630ee 569da3a0 94ddb1c2 464e545d a804c932 acecbe75 c8280172 9a4d6768 16139532 e00d6a99 5fb2827b
-M'  = bd047e95 1dc94891 4bbe458b c7dc3c0a 8b6235e1 9d7630ee 569da3a0 b4ddb1c2 420e5c5d 8804c932 a9edacdf c8200d72 9a4d6768 16139532 e00d6a99 5bf28a7b
-out = c7dfd8a1 35575813 87ce86fa f1d48e72 29b25310 e8ff5e13 15d145de 81104761
-```
+### 3.2 The scan of one chaining value
 
-### 3.2 How P8 was found (the sign sweep)
+For each a0 of the scanned window (the 2^20 a0 of SEL, Section 3.7; the lineage scanned all of W9 = [9 x 2^26, 10 x 2^26)), in order:
 
-Our signed-difference SAT model (`sdmodel.py`, `stepk.py`) was run over the 24 XOR patterns of weight 25 on the shape W7..W11, W15, W16, W23, W25, with the signs free, the dense part bounded by the published weight profile (HW(dA7..15) <= 26, HW(dE7..15) <= 47, HW(dE14..15) <= 4, HW(dA13..15) <= 10) and the tail by an attack-aware weight (P <= 43); every signed message difference already found for a pattern (and its member-swapped mirror) was blocked. Each solution went through the value-level coupling check (`joint.py`: value-exact dense part and value-exact tail steps 16..19) and the estimator (`sweep.py`). Summary (`runs/sweep`): 
+1. F0 = F0(a0) = F(a0) - KFm and yp = Hrp - F0 = Hr + 1029 - F(a0) (mod 2^32), where Hrp = R16H[0] - r + 1029 - KFm is computed once per chaining value. (Binding implementation: steps 1 and 2 are executed for 256 consecutive a0 at once by the bitsliced front end of Section 3.5, which outputs exactly the a0 for which step 2 probes; for those a0 only, F0 and yp are evaluated in 21 operations reusing S0(B) from the batch and an 8-bit table S0_LO[l].)
+2. A claw (a0, u) requires G(u) = y + 2^13 t_j + o for a head j and an offset o in OFFS (Lemma C), where y = Hr - F(a0). Writing o = o' + 1024 win with o' in {0,1,4,5}, the low 13 bits of the target are those of yw + o' with yw = y + 1024 win, the same for all 20 heads. For a probing lane, bits 10..12 of (y + 5) mod 2^13 are either 000 (win = 0) or 111 (win = 1) and q = (y + 5) mod 1024 < 117 < 128; hence adding 1029 = 1024 + 5 in yp = y + 1029 gives rowb = yp >> 13 = (yw + 5) >> 13 and u0 = (yp & 127) + 3 = q + 3 in both cases without branching on win.
+3. **Probe of a window.** From u0 = (yw + 8) mod 128, w = u0 & 7 = yw mod 8, c1 = u0 >> 3 (which equals c + 1 for c in 0..14 and 0 for the frame-crossing case c = 1023), and c = c1 - 1; note also that rowb = (yw + 5) >> 13 already equals row0 + 1 when c = 1023 and row0 when c <= 14. The words WBL0 and WBL1 = WBL0 + W8L carry 32 - w and 40 - w in every lane's field and nphi = (0x60000000 - PHI) mod 2^32 in bits 0..31. For each head j (with t_0 = 0 so head 0 needs no row addition, and 19 heads j >= 1 adding t_j mod 2^19), the procedure reads
+   - the **main bucket** (column c, row rowj) if c < 14, testing for tags t with t - w in {0,1,4,5};
+   - the **next bucket** if w >= 3 and c1 < 14: (column c1, row rowj), which is (c + 1, row0 + t_j) when c < 13 and (0, row0 + 1 + t_j) when c = 1023 (the target crosses into the next 2^13 frame); its test is for tags t with t + 8 - w in {1,4,5}.
+4. **The combined test** of a bucket word d (Section 3.6): s = d + WBL and Z = ((s AND MT3) + KT3) AND G, four word operations (with WBL = WBL0 for the main bucket and WBL1 for the next bucket). WBL carries (32 - w) (main) or (40 - w) (next) in every lane's field and nphi = (0x60000000 - PHI) mod 2^32 below it (formed once per probing window in 2 ops from a0 - F0); MT3 = bits 1, 3 of every field and bits 29..31 of every lane; KT3 = 31 in every field plus 7 x 2^29 and the gap bit 32 in every lane; G = bit 5 of every field. **Lemma B''**: lane L fires (its bit 5 of Z is 0) iff its field is a filled tag t with t - w in {0,1,4,5} (main) or t + 8 - w in {1,4,5} (next) **and** the top three bits of E5 = u - PHI are 101 (C1). If Z != G the procedure walks the fired lanes with the ordered comparison tree (`walk_lanes`, exact maximum 18 operations per nonempty read and weighted mean at most 7 per C1 claw under H1; Appendix U). For each fired lane L, bits 0..31 of lane L in s = d + WBL already equal (E5 + 0x60000000) mod 2^32 with top 3 bits 000, so E5 = ((s >> 42L) & M) | 0xA0000000 recovers E5 directly in 2 operations, and the procedure runs the rest of the single-s0 post-filter chain (C2, G, F7: `pf_tail`) on (a0, E5). A good pair runs step 3b (rows 16..21 of both members, then the comparison of the eight output words; Lemma 1). If step 3b accepts, the procedure outputs m, m' and halts. The tag-only test Z0 = (((d + WB) AND MASK) + K) AND G (Lemma B' below; MASK = bits 1, 3, K = 31 in every field, WB carrying 32 - w or 40 - w) is kept in the program as an uncounted diagnostic.
 
-```
-SW_p05_k0    UNSAT 13s         
-SW_p06_k0    UNSAT 14s         
-SW_p07_k0    UNSAT 16s         
-SW_p00_k0    SAT 3547s          coupled; G 16, printed-event q 2^-102.0063 (one run)
-SW_p01_k0    SAT 7349s          not coupled
-SW_p09_k0    SAT 9890s          not coupled
-SW_p02_k0    TIMEOUT 10800s    
-SW_p03_k0    TIMEOUT 10800s    
-SW_p04_k0    TIMEOUT 10800s    
-SW_p08_k0    TIMEOUT 10800s    
-SW_p11_k0    UNSAT 22s         
-SW_p16_k0    UNSAT 9s          
-SW_p17_k0    UNSAT 8s          
-SW_p18_k0    UNSAT 9s          
-SW_p19_k0    UNSAT 13s         
-SW_p20_k0    UNSAT 10s         
-SW_p21_k0    UNSAT 10s         
-SW_p22_k0    UNSAT 10s         
-SW_p23_k0    UNSAT 11s         
-SW_p10_k0    TIMEOUT 10800s    
-SW_p14_k0    SAT 8395s          not coupled
-SW_p01_k1    SAT 5668s          coupled; G 32, printed-event q 2^-101.8546 (one run)
-SW_p12_k0    TIMEOUT 10800s    
-SW_p13_k0    TIMEOUT 10800s    
-SW_p15_k0    TIMEOUT 10800s    
-SW_p00_k1    TIMEOUT 10800s    
-SW_p08_k1    SAT 4714s          coupled; G 160, printed-event q 2^-99.7963 (one run)
-SW_p03_k1    SAT 4784s          coupled; G 64, printed-event q 2^-100.4655 (one run)
-SW_p04_k1    SAT 5055s          coupled; G 64, printed-event q 2^-100.8176 (one run)
-SW_p02_k1    TIMEOUT 10800s    
-SW_p10_k1    SAT 2514s          coupled; G 129, printed-event q 2^-99.7105 (one run)
-SW_p09_k1    SAT 9145s          not coupled
-SW_p13_k1    SAT 6977s          not coupled
-SW_p12_k1    TIMEOUT 10800s    
-SW_p14_k1    TIMEOUT 10800s    
-SW_p15_k1    TIMEOUT 10800s    
-SW_p00_k2    TIMEOUT 10800s    
-SW_p01_k2    TIMEOUT 10800s    
-```
+**Lemma B' (the four-op tag-only test is exact; Lemma B'' of Section 3.6 extends it).** In each field, with offset b = 32 (main) or 40 (next), r = t + b - w with t in 0..7 or 22 and w in 0..7 lies in [25, 62]: the add never leaves the 6-bit field. For t <= 7: in the main bucket (b = 32), t - w in {0,1,4,5} iff r in {32, 33, 36, 37} iff (r AND 0b01010) = 0; in the next bucket (b = 40), t + 8 - w in {1,4,5} iff r in {33, 36, 37} iff (r AND 0b01010) = 0 (r = 32 is impossible because t <= 7 and w <= 7 give t + 40 - w >= 33). For an empty lane (t = 22), r = 54 - w in [47, 54] (main) or 62 - w in [55, 62] (next), whose bits 1 and 3 are never both 0: an empty lane never fires. Thus x = r AND 0b01010 in [0, 10] has x + 31 <= 41 < 64 setting bit 5 iff x != 0, and no carry leaves the field. `probe_exhaustive` executes the 256-bit test on words with random u fields for every kind, w and tag (2,304 lane checks, 0 mismatches; organizer trial `utab-online-r38` 5). QED
 
-P8 = SW_p08_k1 (pattern 8, second iteration; search 4,714 s, coupling 662 s). For the A0-variant attack the relevant quantities are q3 of the accepted event and the c7 class structure (Sections 4-6); P8 has the best of both among the coupled characteristics.
+**Lemma C (completeness and uniqueness).** For a chaining value, an epoch's table and an a0, the scan outputs exactly the pairs (a0, u) with u retained and F(a0) + P(u) in S160, each once. *Proof.* F + P(u) = R16H[j] + o iff G(u) = y + 2^13 t_j + o (because R16H[j] = R16H[0] + 2^13 t_j and G = P - r). A retained u has G mod 2^13 < 112; with o = o' + 1024 win and z = yw mod 2^13, (z + o') mod 2^13 < 112 forces (z + 5) mod 2^13 < 117, i.e. (y + 5 + 1024 win) mod 2^13 < 117, which is v = 0, q < 117 for win = 0 and v = 7, q < 117 for win = 1 (the two cannot both hold); so step 2 skips only a0 without claws. If z + o' < 2^13 the target lies in column c + [w + o' >= 8] of row (row0 + t_j) mod 2^19 (adding 2^13 t_j does not change the low 13 bits) with tag (w + o') mod 8; the main bucket holds the offsets with w + o' <= 7 (tag t, t - w = o'), the next bucket those with w + o' >= 8 (t = w + o' - 8, t + 8 - w = o' in {1,4,5}), which needs w >= 3; if z + o' >= 2^13 (z >= 8187, c = 1023) the target is in column 0 of row rowj + 1. Uncovered columns hold no entry, so skipping them loses nothing. By Lemma B' a lane fires exactly for these targets. Each retained u sits in exactly one lane, the 160 targets are distinct, so each claw is output once. QED With the combined test, the same argument with Lemma B'' in place of Lemma B' gives **Lemma C1** (Section 3.6): the scan outputs exactly the claws of this lemma whose E5 passes C1, each once.
 
-## 4. Step 1: the solution S and its A0-variants
+The organizer trials compare the claw list with an independent search (`ref_claws`: every retained entry indexed by its low 13 bits of G and matched against the 8 low patterns y + o, high part in the 20 t_j) and rebuild the real E16 of member x of every claw: EQUAL and 0 bad on every trial (Section 12), at the binding geometry and at full-frame coverage.
 
-**Lemma 4.1 (Step 2).** For fixed state rows A0..A15, E4..E15 of both members and a chaining value CV1 = (A_{-1..-4}, E_{-1..-4}), the words W0..W7 with E_i = A_i + A_{i-4} - S0(A_{i-1}) - MAJ(A_{i-1}, A_{i-2}, A_{i-3}) (i = 0..3) and W_i = E_i - A_{i-4} - E_{i-4} - S1(E_{i-1}) - CH(E_{i-1}, E_{i-2}, E_{i-3}) - K_i (i = 0..7) reproduce the state rows; CV1 -> (W0, ..., W7) is a bijection (invert steps 7..0); W8..W15 do not depend on CV1. W0..W6 carry no difference (rows 0..6 have none), W7 differs by D7.
+### 3.3 Lemma S: the selection is exactly uniform
 
-**Lemma 4.2 (A0-variants).** Replace A0 of S by a0 in both members. Then E4 = a0 + C4 (C4 = A4 - S0(A3) - MAJ(A3, A2, A1)), W8 = W8C - E4 in each member (W8C = E8 - A4 - S1(E7) - CH(E7, E6, E5) - K8), so dW8 = W8y - W8x is unchanged, and all other words and rows 5..15 are unchanged. The variant is valid iff s0(W8y) - s0(W8x) also equals S's (W8 reaches rows >= 16 only through W23 = s1(W21) + W16 + s0(W8) + W7, W24 = s1(W22) + W17 + s0(W9) + W8 and the later words through them). G = {a0 : valid}; exhaustively (`a0fam.c`):
+**Lemma S.** For every word u, Pr_r[u covered] = 112/8192 exactly, whatever u, the chaining values and a0 are. *Proof.* G(u) mod 2^13 = (P(u) - r) mod 2^13 and r is uniform on [0, 2^13) and drawn independently of everything else. QED
 
-```
-family 68157440 = 2^26.022
-distinct c7 45032, largest class 24576
-largest classes: 24576 24576 24576 24576 24576 24576 24576 24576 24576 24576 24576 24576
-variants in the 64 largest classes: 1474560 = 2^20.492
-variants in the 90 largest classes: 1966080 = 2^20.907
-variants in the 128 largest classes: 2614272 = 2^21.318
-variants in the 256 largest classes: 4292736 = 2^22.033
-variants in the 1024 largest classes: 13130880 = 2^23.646
-```
+So the covered set is a uniformly random 112/8192 thinning of the 2^32 words, the same for every u; no condition on u, W1 or E16 is imposed by coverage. The only non-uniform effect is **retention** (at most six of the about eight covered words of a bucket are kept); its law is H7 (claim.json): over ustart, whether a covered u is retained depends on the positions of the bucket's covered words in the cyclic order (the arc law), i.e. on the bucket's population and its arc gaps, never on the claw or its post-filter words. Note also that for a fixed r all covered words lie in 112 of the 8192 classes of P(u) mod 2^13; the exact uniformity of Lemma S holds averaged over r, and the success argument (Section 7) uses only that average. H7 is the premise that the acceptance of a good pair is independent of its u's coverage class and retention, averaged over (r, ustart).
 
-**c7 classes.** W7x = c7(a0) - A_{-1} with c7(a0) = E7 - 2 A3 + S0(A2) + MAJ(A2, A1, a0) - S1(E6) - CH(E6, E5, a0 + C4) - K7. For a chaining value, all variants with the same c7 share W7, so one F7 test decides a class. P8 has 32 classes of the maximal size 24,576 (the published characteristic: classes of 3,840). The attack uses all 32 of them: class i = {base_i ^ s : s subset of mask_i, base_i ^ s in G, c7(base_i ^ s) = c7_i}, 24,576 members each (96 batches of 256), 786,432 variants in all. The mask of a class is the set of bits on which its members vary (`lp_classes.py`: the OR of a0 ^ (smallest member)); the masks have 20 to 23 bits: 7feb6c7c (22 bits) x 8, 7fe96c7c (21 bits) x 8, 7feb6c7e (23 bits) x 4, 7fe96c7e (22 bits) x 4, 3feb6c7c (21 bits) x 4, 3fe96c7c (20 bits) x 4.
+### 3.5 The bitsliced front end: direct-t register program (binding)
 
-| class | c7 | base | mask | members |
-|---|---|---|---|---|
-| 0 | 2a7beb19 | 8b649792 | 3fe96c7c | 24,576 |
-| 1 | 2a7beb1b | 9b649791 | 7fe96c7c | 24,576 |
-| 2 | 2a7bfb19 | 8b648792 | 3fe96c7c | 24,576 |
-| 3 | 2a7bfb1b | 9b648791 | 7fe96c7c | 24,576 |
-| 4 | 2a7c6b19 | 8b645b92 | 3feb6c7c | 24,576 |
-| 5 | 2a7c6b1b | 9b645b91 | 7feb6c7c | 24,576 |
-| 6 | 2a7c7b19 | 8b646792 | 3feb6c7c | 24,576 |
-| 7 | 2a7c7b1b | 9b646791 | 7feb6c7c | 24,576 |
-| 8 | 2a7deb1b | 9b629793 | 7fe96c7e | 24,576 |
-| 9 | 2a7dfb1b | 9b628793 | 7fe96c7e | 24,576 |
-| 10 | 2a7e6b1b | 9b601793 | 7feb6c7e | 24,576 |
-| 11 | 2a7e7b1b | 9b600793 | 7feb6c7e | 24,576 |
-| 12 | 2a7feb1b | 9b609793 | 7fe96c7c | 24,576 |
-| 13 | 2a7ffb1b | 9b608793 | 7fe96c7c | 24,576 |
-| 14 | 2a806b1b | 9b605b93 | 7feb6c7c | 24,576 |
-| 15 | 2a807b1b | 9b606793 | 7feb6c7c | 24,576 |
-| 16 | aa7beb19 | 0b649792 | 3fe96c7c | 24,576 |
-| 17 | aa7beb1b | 1b649791 | 7fe96c7c | 24,576 |
-| 18 | aa7bfb19 | 0b648792 | 3fe96c7c | 24,576 |
-| 19 | aa7bfb1b | 1b648791 | 7fe96c7c | 24,576 |
-| 20 | aa7c6b19 | 0b645b92 | 3feb6c7c | 24,576 |
-| 21 | aa7c6b1b | 1b645b91 | 7feb6c7c | 24,576 |
-| 22 | aa7c7b19 | 0b646792 | 3feb6c7c | 24,576 |
-| 23 | aa7c7b1b | 1b646791 | 7feb6c7c | 24,576 |
-| 24 | aa7deb1b | 1b629793 | 7fe96c7e | 24,576 |
-| 25 | aa7dfb1b | 1b628793 | 7fe96c7e | 24,576 |
-| 26 | aa7e6b1b | 1b601793 | 7feb6c7e | 24,576 |
-| 27 | aa7e7b1b | 1b600793 | 7feb6c7e | 24,576 |
-| 28 | aa7feb1b | 1b609793 | 7fe96c7c | 24,576 |
-| 29 | aa7ffb1b | 1b608793 | 7fe96c7c | 24,576 |
-| 30 | aa806b1b | 1b605b93 | 7feb6c7c | 24,576 |
-| 31 | aa807b1b | 1b606793 | 7feb6c7c | 24,576 |
+For a batch base B (a multiple of 256) the plane A_i (i = 0..31) holds bit i of a0 = B + l in bit lane l (l = 0..255): A_0..A_7 are the constant lane-index planes and A_8..A_31 are all-zero or all-one by the bits of B. Rather than rippling E0 = a0 + E0base across 32 bits per batch and reducing six 13-bit operands as in `bs_mask`, the binding register program (`bs_mask_rm` in utab38.py) exploits two exact identities on a0 = B + l (l in 0..255): (i) on bits 0..7, -l + (MAJ(l, a, b) & 255) + (CH(E_lo(l), e, f) & 255) = U_cv(l) - (~(a | b) & 255), where E_lo(l) = (l + E0base) & 255 and U_cv(l) = ((~l) & ~(a ^ b) & 255) + (CH(E_lo(l), e, f) & 255) in [0, 510] depends only on the chaining value and is precomputed in nine 256-bit planes U[0..8] once per chaining value (`cv_consts`, inside the 1,024-operation front-end setup); the carry of l + (E0base & 255) into bit 8 of E0 is the single plane c8 = {l : l >= 256 - (E0base & 255)}, so the high bits E_hi(l) = (B + E0base_hi) + 256 c8(l) take only two scalar values across the batch: e_hi0 = B + E0base_hi (where c8 = 0) and e_hi1 = e_hi0 + 256 (where c8 = 1); (ii) on bits 8..12, (B & 0x1f00) - (MAJ(B, a, b) & 0x1f00) = (B & ~(a ^ b) & 0x1f00) - (a & b & 0x1f00). Folding the chaining-value constants into K_cv = (KF + (~(a | b) & 255) - (a & b & 0x1f00) - 5) mod 2^13 and absorbing the scalar high-bit rotations (S0(B) & 0x13c0) and (S1(e_hi) & 0x107c) + CH_hi(e_hi) into the two 13-bit branch scalars k0 (for c8 = 0) and k1 (for c8 = 1) reduces each column i in 0..12 of **t = (Hr + 5 - F(B + l)) mod 2^13** to at most three active bit planes (one from U[0..8] or A_0..A_2, one from A_2..A_7 or EG[0..7], and one from G = (0, ~c8, c8, ONES) selected by the bits of k0 and k1). In `cv_consts`, the first CSA (or HA) stage of each column i = 0..12 over all 3- to 5-bit combinations of the column's selector bits is pre-folded once per chaining value into the column table `CT[0..12]` (396 planes in all; 1,024 operations including U, EG and G).
 
-## 5. Step 2: the W7 test and the good pairs
+**Pricing: a constant-time 218-operation register program.** Executed on a machine with **16 registers** of 256 bits (`bs_mask_rm`, whose class `RM` counts every operation and asserts that at most 16 planes are live; the peak is **8**), every load, store, gate (and, or, xor, not) and immediate/scalar operation is **one** operation: (1) batch scalar setup (43 ops) and packed 46-bit column-index word w_idx via five constant spread tables SP_S0, SP_S10, SP_S11, SP_K0, SP_K1 (17 ops): e_hi0, e_hi1, S0(B), S1(e_hi0), S1(e_hi1), ch_0, ch_1, k_base, k0, k1 and w_idx (60 ops); (2) column index extraction from w_idx across i = 0..12 (24 ops: 1 op for i = 0 and i = 12, 2 ops for i = 1..11); (3) register loads from CT[0..12] (27 planes x 2 ops [address + load] = 54 ops, 0 stores); (4) vector gates (80 ops): reducing the pre-folded column sums and carries to t_0..t_12 (4 gates in col 1 using the disjoint binary carry decomposition S_0 = ge_0 + 2 c1_0 + 4 c2_0 with c2_0 & (s1 & c1_0) = 0; 32 in cols 2..5; 9 in col 6; 12 in cols 7..8; 6 in col 9; 10 in cols 10..11; 2 in col 12), maintaining the De Morgan dual running comparison ge = ~lt = (t mod 2^(i+1) >= 117 mod 2^(i+1)) in 1 gate per column for i = 1..9 (`ge = t & ge` when bit i of 117 is 1, `ge = t | ge` when 0, eliminating all per-column NOT gates), and 5 gates testing bits 10..12 all equal and negating `(T10 ^ T11) | (T11 ^ T12) | ge`. Because every branch is replaced by table loads and bit-masking, the program executes **exactly 218 operations for every batch and every chaining value** (`gbs_worst` = 218; 3,000 random constant sets: min 218, max 218). The ledger charges 218 + 8 (batch loop and V add) + 2 (branch on an empty mask) per 256 a0 = **0.8906 per a0** (0.9180 with the sub-block loop of 7). For each lane of the mask (probability 234/8192 per a0) 16-bit table-assisted ctz extraction (20) and scalar F0, yp (21, reusing S0(B) from the batch) and the probe run as in Section 3.2.
 
-F7 = {w : s0(w + D7) - s0(w) = 03bff800}, |F7| = 287,309,824 (exhaustive), p7 = |F7| / 2^32 = 2^-3.90197 (the same set as for the published characteristic; it is the union of three affine families of 2^28, 2^24 and 2^21 words). The program tests w = c7 - A_{-1} by computing s0(w + D7) - s0(w) and comparing (24 operations, no table).
+Lemma F remains exact with threshold 117: the comparator computes the same scalar probing predicate and retains the constant 218-operation bound. The inherited full-W9 218-operation witness used threshold 125, with 2,048,074 probing a0 and zero mismatches; that is historical 15-column evidence. The current isolated selftest and organizer trial 6 compare the 14-column scalar and register masks, and Appendix U records the current native filtered comparisons.
 
-**Lemma 5.1 (distribution, per variant).** Under H1, for every fixed a0: Pr[W7x in F7] = p7; conditioned on it, (W0..W6) is uniform and independent of W7, and (W16..W21) is a bijective image of (W0..W5) for fixed (W6, W9..W15), hence uniform and independent of (W6, W7) (Lemma 4.1). Per first block, E[good pairs] = g = 32 x 24,576 x p7 = 52,608 (exact by linearity).
+### 3.6 C1 inside the bucket word (Lemmas B'' and C1)
 
-## 6. Step 3: row 16 and the accepted event
+**What is tested.** For a claw (a0, u), the lineage's chain forms E5 = (u - F) + K2E5 + a0 = a1 + cE5 (a1 = u - h(a0), K2E5 = Cc2 + k0 + cE5; `pf_consts`), and its first segment tests **C1: the top three bits of E5 are 101** (probability 1/8 for a uniform a1, Section 6). Write **PHI = PHI(a0) := F(a0) - a0 - K2E5 (mod 2^32)**. Then E5 = u - PHI (mod 2^32), and PHI depends only on the chaining value and a0. It is the same for the 20 heads and both buckets of a probe, so it is formed once per probing window. The u of every filled lane of a bucket is in the bucket word, so C1 can be decided for the six lanes at once, by the same kind of carry-confined lane arithmetic as the tag test (Lemma B').
 
-### 6.1 Row 16
+**Lane format and constants.** Lane L of a bucket (bits 42L .. 42L + 41) is [u: bits 0..31][gap: bit 32, stored 0][field: bits 33..38][spare: bits 39..41, stored 0]. The loader writes u | tag << 33 (with empty mark 22; the epoch build, its cost and the bucket contents are otherwise those of Section 3.1; the size is unchanged). Per probing window the procedure forms nphi = ((a0 - F0) + KNPHI) mod 2^32 = (0x60000000 - PHI) mod 2^32 (with KNPHI = (0x60000000 + K2E5 - KFm) mod 2^32, 2 operations), WBL0 (the 256-bit word with nphi + (32 - w) x 2^33 in every lane, formed by broadcasting nphi + ((32 - w) << 33) across the six lanes in 9 operations) and WBL1 = WBL0 + W8L (1 operation, where W8L has 8 << 33 in every lane, giving 40 - w in every field for the next bucket). The constants are MT3 (in every lane bits 29..31 and field bits 1, 3), KT3 (in every lane 7 x 2^29, the gap bit 32, and 31 in the field) and G (field bit 5 of every lane). The read computes **s = d + WBL** and **Z = ((s AND MT3) + KT3) AND G**: add, and, add, and, four word operations (with WBL = WBL0 for the main bucket and WBL1 for the next).
 
-W16 = s1(W14) + W9 + s0(W1) + W0 and, by Lemma 4.1, W0 = a0 + KW0(CV1), W1 = K1(CV1) - S0(a0) - MAJ(a0, a, b) - S1(E0) - CH(E0, e, f) with E0 = a0 + HH(CV1). So E16x = KP + a0 + s0(W1) with per-first-block constants HH, KP, K1, and row 16 (both members, all its conditions) is a function of E16x alone: an exhaustive pass over all 2^32 values of W16 gives the 160 words of the set R16 (`q3tv.c`, the exhaustive pass of `main`; `selftest` item 2 re-checks it on 20,000 random words and the bit-flip neighbours). The 160 words share 19 bits (mask 4cc79bfa); the program tests the TK = 12 lowest of them (bits 1, 3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 16): stage 3a passes with probability 2^-12 exactly (E16x uniform, Lemma 5.1), row 16 with 160 / 2^32.
+**Lemma B'' (the four-op combined test is exact).** Lane L fires (bit 5 of its field in Z is 0) iff the lane is filled with a tag t such that t - w is in {0,1,4,5} (main) or t + 8 - w is in {1,4,5} (next), **and** top3((u - PHI) mod 2^32) = 101. *Proof.* (i) *s = d + WBL.* In lane L the low part is u + nphi, in [0, 2^33), so its carry c0 in {0, 1} enters bit 32 (the gap bit, stored 0 in d and 0 in WBL) and never reaches bit 33. The field is r = f + b - w (b = 32 for main, 40 for next), in [25, 62] for f in 0..7 or 22 (Lemma B'), so it never reaches bit 39. The spare bits stay 0, so no carry enters lane L + 1. Since (u + nphi) mod 2^32 = (E5 + 0x60000000) mod 2^32, bits 29..31 of s are e' = (top3(E5) + 3) mod 8, which equals 0 iff top3(E5) = 5 = 101_2 (C1 holds). (ii) *AND MT3* clears the gap bit 32 and keeps e' at bits 29..31 and x = r AND 0b01010 in the field. (iii) *ADD KT3.* At bits 29..31, e' + 7 is at least 8 iff e' != 0, so a carry enters bit 32 iff C1 fails. Since KT3 has bit 32 set to 1, that carry propagates into bit 33 (bit 0 of the field). The field becomes x + 31 + c1 with c1 = [C1 fails]. Since x <= 10, x + 31 + c1 <= 42 < 64, so no carry leaves the field, and bit 5 of the field is 0 iff x = 0 and c1 = 0. (iv) *AND G* isolates bit 5 of every field. By Lemma B', x = 0 iff the lane is filled with a tag passing the bucket test. QED
 
-### 6.2 The accepted event
+**Lemma C1 (completeness and uniqueness with C1).** For a chaining value, an epoch's table and an a0, the scan with the combined test outputs exactly the claws of Lemma C whose E5 = u - PHI(a0) passes C1, each once. *Proof.* The windows, reads and offsets are those of Lemma C. By Lemma B'' a lane fires in the combined test iff it fires in the tag-only test and its u passes C1. QED
 
-The program accepts a row-16 pass iff (i) rows 16..22 of both members follow every cell, '+' pair and two-bit condition of P8 closing at rows 16..22, except that **row 19 is checked on its signed differences only** (the XOR differences of A19, E19, W19 and the member-x values on the difference bits), and (ii) the eight output words A34..A37, E34..E37 of the two members are equal after step 37. Nothing is tested at rows 23..37.
+C1 is the first postfilter, so fusing it into the bucket test preserves every good pair within the retained columns. This is an output-preserving restriction of the 15-column construction, not equality to its unfiltered output. The probability argument uses the new exact retained minimum and H7 in its stated averaged form; N_CV is recomputed in Section 7.
 
-**Lemma 6.1.** If (ii) holds, the two second-block outputs are equal (chaining value plus the same eight words), so M0 || M1 and M0 || M1' collide under the target; M1 != M1' because W7 differs. The program certifies exactly what it outputs.
+**Pricing.** A read is address + load 2, the four word operations and compare-and-branch 2: **8** (was 9). Per probing window: nphi = (a0 - F0) + KNPHI 2, (32 - w) << 33 and add nphi 3, broadcast to six lanes 6, WBL1 = WBL0 + W8L 1: **12**, plus window setup **14** (rowb, u0, w, c1, c, path flags, two column bases, V add). Per C1-claw, the ordered tree has a table-wide mean bound of **7** under H1. Each path consists only of charged word comparisons and conditional branches; the full-mask maximum is **18 per nonempty read**, and fixed leaves emit ascending lanes (Appendix U). Then direct recovery E5 = ((s >> 42L) & M) | 0xA0000000 **2** (since bits 0..31 of lane L of s = d + WBL equal (E5 + 0x60000000) mod 2^32 with top 3 bits 000 when C1 holds), then the single-s0 post-filter segments 2..4 (`pf_tail`: **16** (with the unconditional C1-claw V add folded into its V add), **24** on C2, **28** on C2 and G, each evaluating s0 on the base word only and testing the difference by carry-free bit identities) and step 3b on a good pair. Under H1 a claw passes C1 with probability 1/8. The full-scale C port measured 0.124995 over 778,357,004 claws (Section 13).
 
-*Why row 19.* Measured with the estimator (one row at a time checked on signed differences only, the others strict, outputs compared): relaxing row 19 raises q3 by about 3.6 bits for P8 (and 3.4 for the published characteristic); rows 17 and 18 lead to dead ends (the derived conditions there are needed by the next row), rows 20..22 add little. In the 40 runs of the study of Section 9 (seeds 4001..4040), 188,796 of 188,796 classified successes have their row-19 conditions in one of four patterns (`pat19`; the 12 conditions: the fixed bits E19[4], E19[18] and ten two-bit conditions):
+**Checks.** `probe_c1_exhaustive` (in `selftest` and in trial 5 of `utab-online-r38`) compares the 256-bit combined test with its scalar definition (filled, tag test, top3(u - PHI) = 101) on 16,128 lanes. 2,304 of them use edge values of PHI (0, 1, 2, 2^32 - 1, ...) and of E5 (at and around 0xA0000000, 0xC0000000, 0 and 2^32 - 1) and random ones. The other 13,824 are 2,304 words covering every lane class: kind x w x tag (0..7 and the empty mark) x top3(E5) (8 values) x [u + LAM >= 2^32], each placed at lane position (index mod 6) among random filled or empty neighbours, with all six lanes of every word checked. Result: 0 mismatches, 568 firing lanes. The organizer trials check Lemma C1 itself. The tag-only claws of the scan equal the independent search (`claws_equal_ref`). The C1-claws equal the independent search restricted to the claws whose C1 holds on the real words of both members (`c1_claws_equal_ref`, with C1 from `pf_ref`). The post-filter flags of every C1-claw equal the real-word definitions (`postfilter_ref_mismatch`). Development check (not shipped; `dense_trial` at full-frame coverage with 2^20 words and 2^14 a0, 128 seeds `dev|big|0..127`): 81,842 claws, every seed's tag-only claws equal to the independent search; 10,185 C1-claws (rate 0.12445; 1/8 = 0.125), every seed's C1-claws equal to the independent search restricted to C1 on the real words; 1,008 of them pass C2 (0.0990 against the exact P(C2 | C1) = 0.0989); 0 row-16 mismatches and 0 post-filter mismatches.
 
-```
-row-19 conditions (in order): E19[4] = 1, E19[18] = 0, E19[10] = E19[29], E19[2] != E19[20], E19[5] != E19[18], E19[6] = E19[19],
-E19[10] != E19[28], E19[11] = E19[29], E19[1] = E19[28], A18[29] = A19[29], E19[4] != E19[9], E19[5] != E19[10]
-successes of 40 estimator runs (seeds 4001..4040, 32 classes, rebuilt and checked), by the set of violated conditions (1 = violated):
-42,216  010000110001   E19[18], conditions 7, 8 and 12 violated
-51,411  010000110000   E19[18], conditions 7 and 8 violated
-46,939  000000000000   none (the strict row)
-48,230  000000000001   condition 12 violated
-188,796 of 188,796 successes in these four patterns (complete dumps)
-```
+### 3.7 The inherited SEL window and H8
 
-## 7. The counted program (`experiments/a0p38.py`, 51,228 bytes, SHA-256 63552a536ebc2c4893d01838fd65235e91bbbf9f7c3334c49be4bb657a2b30a4)
+SEL is the fixed 4096 selected 256-a0 sub-blocks of W9, totaling 2^20 a0, with the unchanged bitmap/hash in the program. Exact N12=53096854 and G_SEL=2051404269120 give the stated postfilter rate. The charged message factor is 2^-0.0468. H8 assumes the conditional state acceptance is independent of the selected sub-blocks given the message-difference profile. The complete original argument, exact counts, registration, paired message-profile/forced-bit records, confidence bounds and limitations are retained as historical/support-3.7.txt. Current 14-column geometry does not turn those historical measurements into new probability evidence.
 
-### 7.1 Machine and scalar routines
+### 3.8 The inherited kept CV class and H9
 
-256-bit word RAM, 64 registers; executed primitives count 1 (load, store, add, sub, and, or, xor, not, shift, immediate, random word), a compare-and-branch 2, one target compression 1 unit; S0, S1, s0, s1 cost 8 each (doubled word, shifts, xors, mask), CH 3, MAJ 4. The routines are executed with counting primitives; broadcast, lane_value, first_lane, r16test and deep add itemised declared counts (their docstrings) (`calibrate`):
+Keep exactly ((cv0>>24)&63)==12, a 2^-6 class under H1. Its F7 rate is charged at 0.11985, with upper 0.12136 for work/second-order bounds, and message factor 2^-0.0225. H9 retains the conditional-state transfer premise. The original 64-class selection, independent-pool rates, paired registration and bounds remain in historical/support-3.8.txt. No class, advice or acceptance condition changes here.
 
-| routine | operations |
-|---|---|
-| first block: 2 random words and their 16 fields (30), counter, cap test, hit-list test (5) | 35 |
-| one W7 test (computed, no table), plus 4 for the class loop | 24 + 4 |
-| per-first-block scalars HH, PP, QQ, EF, FF, K1, KP | 39 |
-| the 7 x 32 broadcast planes (4 each) | 896 |
-| per passing class: setup 3, end of class (work counter, cap test) 4 | 7 |
-| per batch of 256 variants: the class's row-16 program (1,438 to 1,482, mean 1462.25) + ok test 2 + pointer, compare, branch 4 | prog_i + 6 |
-| per stage-3a lane: lowest lane (32), clear and loop (3), a0 from the stored planes (4 x 23 + 1 = 93, the widest mask), E16x (38), the row-16 table test (42) | 208 |
-| per row-16 pass (itemised declared count): Step 2 for both members, the expansion and rows 16..37 of both members with the tests of rows 16..22, the output comparison | 3105 |
-
-### 7.2 The row-16 programs (one per class)
-
-Bit L of a 256-bit plane belongs to lane L (one variant). Inputs of the program of class i: the planes of the bits of a0 in mask_i (20 to 23 bits, stored per batch) and the 224 broadcast planes; every bit of a0 outside mask_i is the corresponding bit of base_i and is folded as a constant (the per-class construction of 08be594; Section 0.1). `build_e16` builds, bit-interleaved, the DAG of E0 = a0 + HH, then per bit j: S0(a0), MAJ(a0, a, b) = PP | (a0 & QQ), S1(E0), CH(E0, e, f) = FF ^ (E0 & EF), the three ripple adders of their sum T and the subtraction W1 = K1 - T, then per tested position j <= 16: s0(W1), the two adders of E16x and the comparison with the common value; constants are folded and equal nodes shared. `schedule` allocates 64 registers by Belady's rule (evict the value needed farthest ahead; store it first if it is needed again and has no copy); every load, store and spill is an instruction. Result: 32 programs (32 distinct input patterns), **1,438 to 1,482 instructions per batch, mean 1462.25** (calibration list in Section 10). The expected work uses the mean (each class passes its W7 test with the same p7), the work cap the maximum. The programs are executed instruction by instruction (`run_prog`) and compared with the scalar definition lane by lane (`selftest` item 4 and the organizer experiment `a0p-online-r38`: 0 mismatches).
-
-## 8. The algorithm (fixed caps)
+### 3.4 Pseudocode
 
 ```text
-advice: S (the semi-free-start pair's rows 0..15), the 32 class descriptors (c7, base, mask); precompute (charged): every class member (base ^ s, s subset of mask, in G, c7 = c7_i), stored as 96 batches of |mask| bit planes per class; the 32 row-16 programs
-V = 0
-for f = 1 .. N_FB:
-    if V > V_MAX: halt (failure)                    (V accumulates ALL data-dependent work of every first block: W7 tests, hit list, scalars, planes, classes, lanes, row-16 passes)
-    two uniform 256-bit random words -> M0 (16 words, uniform on {0,1}^512); CV1 := F_38(IV, M0)                     [1 unit]
-    hits := [i : c7_i - A_{-1} in F7]                                                                               [32 x (24 + 4)]
-    if hits: the scalars and the broadcast planes
-        for i in hits: for each of the 96 batches of class i: run the row-16 program of class i -> ok plane
-            for each lane of ok: a0 from the planes; E16x; if E16x in R16: Step 2, rows 16..37 of both members, the tests of rows 16..22
-                (row 19 on signed differences), compare the outputs; if equal: output M0 || M1, M0 || M1' and halt
-        V += the work of the class (and, before it, the W7 tests, the hit list, the scalars and the planes of this first block); if V > V_MAX: halt (failure)
+input: N_CV, K = 2^26, V_MAX, the advice SEL.  V = 0 (a register: the online operations executed so far)
+for e = 1 .. ceil(N_CV / K):                                   # an epoch
+    if V > V_MAX: halt (failure)
+    draw one random word: r (13 bits), ustart (32 bits)
+    reset the 14 x 2^19 buckets to EMPTY; for n = 0 .. 2^32-1: u = ustart + n; insert u (Section 3.1)
+    V += the epoch's counted work
+    for j = 1 .. K:                                            # a first block
+        if V > V_MAX: halt (failure)
+        draw M0 (16 random words); cv := F_38(IV, M0); V += C + 3
+        if (cv[0] >> 24) & 63 != 12: next j                    # the kept class (Section 3.8)
+        the claw scalars of cv; Hr = R16H[0] - r
+        V += 76 + 1,024                                         # this kept chaining value's fixed work (+ front-end setup)
+        for each sub-block of SEL (V += 7), its batch of 256 consecutive a0: the front end (V += its charge); for each a0 of the output mask:
+                      extract it, F0, yp (V += 41), probe: nphi, WBL0, WBL1, the combined test on every read (V +=
+                      the probe's counted work); a read with a fired lane: ordered lane tree; per C1-claw: E5 from s, the chain's
+                      segments 2..4 (each adds its own cost to V); a good pair runs step 3b; if it accepts: output, halt
 halt (failure)
 ```
 
-*Lemma 8.1 (the cap).* V accumulates every data-dependent operation of every first block (all of v_f in Section 9) and is tested before every first block and after every class, so V <= V_MAX + OVER at every moment (V is updated for every first block, including first blocks with no passing class: their data-dependent work is the W7 tests and the hit-list test, added to V before the next cap test), OVER = 2,610,022,471 (one first block at its maximum: all classes passing, each charged at the longest program, every lane a row-16 pass). The 35 fixed operations per first block are charged separately (N_FB x 35). The run never outputs a non-collision (Lemma 6.1).
+The procedure draws only its own first blocks; each costs one compression plus the 3 operations of the class test, and a kept one the 76 operations of the chaining value's setup (the lineage's cv_begin 75 plus Hr), inside the fixed part. No other first-block enumeration is executed, so none is charged.
 
-## 9. The success probability
+## 4. Pricing (H5')
 
-*Trials and expectation.* A trial is (first block f, selected variant a0); A_t: a0 is good for f (W7 in F7) and the pair is in the accepted event. E[X_f] = g q3 (Lemma 5.1; H1, H2).
+collision-frontier-v5, 256-bit word RAM, the unit costs of the lineage: load, store, add, sub, and, or, xor, not, shift, immediate, random word 1; compare-and-branch 2; S0, S1, s0, s1 8; CH 3; MAJ 4 (the folded forms below use 2); address 1; one target compression C = 2,728. Every work-counter add (V += k) is one operation and is counted. Word arithmetic on the 32-bit quantities of SHA-256 (adds, sigmas, the scan counter u = ustart + n) is priced as in the lineage, one operation per 32-bit add or logical operation, with the reduction mod 2^32 part of the operation (the convention of the cost model's reference count C, a scalar 32-bit data path). `scan_cv` and `build_table` charge every operation below through the counter `Mach`; the itemisation is the one in the code.
 
-*q3 (H2).* q3 = the average over the 786,432 selected variants of Pr[accepted event | good pair] (including the row-16 factor 160 / 2^32). Estimator `q3tv.c` (binary q3tv2, `DIFFROW=19 RELAX_TAIL=1`, `VARS` = the variant pool of the 32 classes): fixed-effort multilevel splitting, row 16 exact over the 160 W16 words, rows 17..22 with W_i^x uniform (Lemma 5.1) and the rows checked as in the event (row 19 on signed differences), tail: a variant drawn per proposal from the 786,432 selected variants, W7 uniform in F7, rows 23..37 computed, outputs compared. Every success is a verified collision; the successes are rebuilt into real pairs (750 of 750 checked with the reference). 40 runs, 4,000 particles, 16,384 tail proposals per particle, seeds 4001..4040 fixed before the runs:
+| segment | operations |
+|---|---|
+| per word u of an epoch: u = ustart + n 1, s0 8, sub 1, - r 1, and 8191 1, loop 3, covered? branch 2 | 17 |
+| covered and inserted: column, row, index (shift, add) 4, address + load 2, count 1, full? 2, lane (and, shift, or) 3, lane shift and clear mask from constant tables 2 + 2, and, shift, or, count add 4, address + store 2 | +22 |
+| covered and dropped (bucket full) | +9 |
+| reset, per bucket (address + store 2, loop 3); epoch setup (random word, split, V add, cap test) | 5; 6 |
+| per first block: compression C, class test 3 (and 1, compare-and-branch 2; Section 3.8); per kept chaining value: setup 76 (the lineage's cv_begin 75: first-block words 30, claw and post-filter scalars 38, random word 1, V add 1, cap test 2, loop 3; Hr 1) | C + 3; 76 |
+| per selected sub-block (Section 3.7): index load 2, base (shift, add) 2, loop 3 | 7 / 256 per a0 |
+| per batch of 256 a0 (Section 3.5): the register program, 218 (loads, gates, scalar/index ops) + batch loop and V add 8 + empty-mask branch 2; per chaining value 1,024 for the front-end setup | 228 / 256 = 0.8906 per a0 |
+| per a0 of the mask (probability 234/8192): 16-bit table-assisted ctz extraction 20 (neg, and, xor, 3 x (and, branch), shift, and, CTZ16 load, add, loop branch), a0 1, F0 18 (reusing S0(B) and S0_LO[l]), yp 1, V add 1 | 20 + 21 |
+| per probing window: rowb 1, u0 2, w 1, c1 1, c 1, two path flags 4, two column bases 3, V add 1 | 14 |
+| per probing window, Section 3.6: nphi = (a0 - F0) + KNPHI 2, (32 - w) << 33 + nphi 3, broadcast (3 x (shift, or)) 6, WBL1 = WBL0 + W8L 1 | 12 |
+| per head (19 nonzero heads j = 1..19; head 0 has t_0 = 0 and uses rowb directly): rowj (add t_j, and) | 2 (x 19 heads) |
+| per bucket read, the combined tag and C1 test of Section 3.6: address + load 2, add 1, and 1, add 1, and 1, compare-and-branch 2 | 8 |
+| ordered lane tree of a nonempty read: exact maximum 18 operations; additive per-lane bounds 6,6,6,8,8,8; prefix retention and H1 give mean at most 7 per C1 claw | 7 mean; 18/read maximum |
+| frame-crossing next bucket: rowb = (yp >> 13) already equals row0 + 1 when c = 1023 and c1 = 0, so no extra row add is needed | +0 |
+| per C1-claw (a lane that fires in the combined test): E5 = ((s >> 42L) & M) \| 0xA0000000 2; then the single-s0 post-filter segments 16 (with C1-claw V add folded) + 24 x [C2] + 28 x [C2 G] (`pf_tail` in utab38.py); step 3b on a good pair 3,014 | 2 + chain |
 
-| seed | stage factors log2 (rows 16..22, tail) | successes (all collisions) | log2 q3 |
-|---|---|---|---|
-| 4001 | -24.678 -16.997 -13.928 -2.967 -15.967 -6.961 -0.999 -14.152 | 3,601 | -96.6490 |
-| 4002 | -24.678 -17.000 -13.895 -3.019 -16.401 -6.989 -1.007 -13.836 | 4,483 | -96.8250 |
-| 4003 | -24.678 -17.003 -13.936 -3.038 -15.991 -7.020 -0.992 -13.843 | 4,459 | -96.5012 |
-| 4004 | -24.678 -16.984 -13.941 -3.005 -15.639 -6.990 -0.998 -13.949 | 4,145 | -96.1841 |
-| 4005 | -24.678 -17.003 -13.949 -3.010 -17.958 -6.985 -1.026 -13.777 | 4,670 | -98.3867 |
-| 4006 | -24.678 -17.008 -13.931 -3.014 -15.972 -6.988 -1.024 -14.020 | 3,946 | -96.6351 |
-| 4007 | -24.678 -16.965 -13.963 -2.995 -15.401 -6.985 -1.017 -13.910 | 4,258 | -95.9134 |
-| 4008 | -24.678 -17.017 -13.940 -2.999 -16.945 -6.963 -1.023 -13.458 | 5,822 | -97.0241 |
-| 4009 | -24.678 -16.983 -14.010 -2.995 -15.358 -7.042 -1.003 -13.942 | 4,165 | -96.0106 |
-| 4010 | -24.678 -16.962 -13.935 -3.002 -15.665 -6.979 -0.996 -13.918 | 4,235 | -96.1354 |
-| 4011 | -24.678 -17.010 -13.916 -2.969 -15.346 -7.001 -0.986 -13.529 | 5,546 | -95.4346 |
-| 4012 | stalled at row 20 (no estimate: counted as 0) | 0 | 0 (stalled) |
-| 4013 | -24.678 -16.956 -13.877 -2.962 -15.607 -7.016 -0.989 -13.331 | 6,359 | -95.4169 |
-| 4014 | -24.678 -17.025 -13.930 -3.019 -16.386 -7.017 -0.978 -13.887 | 4,327 | -96.9191 |
-| 4015 | -24.678 -17.006 -13.894 -3.000 -15.205 -7.020 -1.003 -13.867 | 4,386 | -95.6743 |
-| 4016 | -24.678 -17.028 -13.974 -2.999 -17.980 -6.992 -1.010 -13.671 | 5,023 | -98.3326 |
-| 4017 | -24.678 -17.012 -13.940 -3.013 -15.142 -6.997 -1.028 -13.785 | 4,644 | -95.5965 |
-| 4018 | stalled at row 20 (no estimate: counted as 0) | 0 | 0 (stalled) |
-| 4019 | -24.678 -16.983 -13.977 -3.033 -14.623 -7.004 -1.000 -13.569 | 5,394 | -94.8670 |
-| 4020 | -24.678 -16.954 -13.906 -3.034 -16.338 -6.999 -1.017 -13.542 | 5,494 | -96.4681 |
-| 4021 | -24.678 -17.001 -13.956 -3.040 -15.933 -6.991 -0.995 -13.596 | 5,294 | -96.1892 |
-| 4022 | -24.678 -16.961 -13.888 -2.990 -17.969 -6.985 -1.000 -13.453 | 5,846 | -97.9234 |
-| 4023 | -24.678 -17.027 -13.945 -2.979 -17.967 -7.013 -1.015 -13.333 | 6,351 | -97.9565 |
-| 4024 | -24.678 -16.962 -13.865 -2.987 -15.674 -6.988 -0.984 -13.561 | 5,422 | -95.6982 |
-| 4025 | -24.678 -17.014 -13.898 -2.981 -17.990 -7.005 -1.021 -14.004 | 3,990 | -98.5903 |
-| 4026 | -24.678 -17.030 -13.954 -2.992 -15.630 -6.957 -0.995 -13.567 | 5,401 | -95.8012 |
-| 4027 | -24.678 -17.011 -13.956 -2.985 -14.936 -7.015 -1.009 -13.572 | 5,380 | -95.1633 |
-| 4028 | -24.678 -17.021 -13.869 -3.027 -15.997 -6.981 -1.008 -13.942 | 4,164 | -96.5232 |
-| 4029 | -24.678 -17.005 -13.924 -3.024 -15.973 -7.010 -1.027 -13.571 | 5,386 | -96.2125 |
-| 4030 | -24.678 -17.006 -13.913 -2.982 -16.393 -6.990 -1.019 -13.656 | 5,076 | -96.6365 |
-| 4031 | -24.678 -17.016 -13.929 -2.977 -16.395 -6.984 -1.013 -13.776 | 4,673 | -96.7677 |
-| 4032 | -24.678 -17.013 -13.944 -3.010 -14.975 -6.976 -1.016 -13.758 | 4,732 | -95.3691 |
-| 4033 | -24.678 -16.980 -13.889 -2.988 -15.634 -7.005 -0.969 -13.618 | 5,214 | -95.7600 |
-| 4034 | -24.678 -16.992 -13.897 -3.052 -15.407 -7.033 -0.975 -13.543 | 5,491 | -95.5758 |
-| 4035 | -24.678 -16.999 -13.885 -3.041 -16.413 -7.017 -1.003 -13.762 | 4,717 | -96.7975 |
-| 4036 | -24.678 -17.013 -13.952 -3.038 -17.962 -6.999 -1.000 -13.776 | 4,672 | -98.4201 |
-| 4037 | -24.678 -17.016 -13.937 -2.989 -14.970 -6.984 -1.035 -13.639 | 5,139 | -95.2474 |
-| 4038 | -24.678 -17.007 -13.912 -3.024 -15.625 -6.999 -1.006 -13.543 | 5,492 | -95.7934 |
-| 4039 | -24.678 -17.017 -13.926 -3.031 -15.195 -6.994 -1.022 -13.541 | 5,500 | -95.4025 |
-| 4040 | -24.678 -17.004 -13.954 -2.983 -15.604 -6.983 -1.005 -13.440 | 5,899 | -95.6513 |
+Step 3b is charged at its longest path, 3,014 operations (every test passing, counted by `selftest` on the P8 pair). The 256-bit word test of a bucket is four word operations, C1 included (Section 3.6); rotations and sigmas of scalar words are the lineage's 8 operations; the front end is bitsliced and charged as a register program with every load and store counted (Section 3.5).
 
-Mean 2^-96.1821, relative sd 0.601, one-sided 99% Student bound (t = 2.4258, 39 degrees of freedom) 2^-96.5603, bootstrap 1% quantile of the mean 2^-96.5278; 188,796 successes. The row-20 stage has the largest spread across the runs (sd 0.97 bits of its log2 factor; the others at most 0.20). Runs 4012 and 4018 found no survivor at row 20 and are counted as an estimate of 0. **q3_model = 2^-97.0000.** q3_model = 2^-97.0 was set from the first 20 runs (seeds 4001..4020: their 99% bound 2^-96.9989, rounded down to a tenth) and kept when 20 further runs were added after a first review found its margin thin (seeds 4021..4040, fixed before those runs; all runs are reported); over all 40 runs the 99% bound is 0.4397 bits above q3_model. Rounding the 40-run bound down would give 2^-96.6; we keep 2^-97.0 for the margin. At the 40-run bound 2^-96.5603 the ledger gives 86.70934.
+## 5. The ledger
 
-*The pair term (H3).* Every success passes row 16, so given A_t, X_f - 1 <= R_f - 1 (the other row-16 passes of f). Measured (`h3p.py`): 750 successes rebuilt and verified (all accepted by the program's event, so the estimator's event and the program's agree on every one; 99% bound on a disagreement rate 0.6%), all 750 re-found in their own class; every selected variant of every passing class evaluated on the success's CV1: 6,252 passing classes, 153,649,152 variants, **6 other row-16 passes, 0 further accepted pairs** (5.72 expected under independence). One-sided 99% Poisson limit of E[R_f - 1 | A_t]: 0.0194 = 2^-5.69; charged 2^-5.1 (the limit rounded up to a tenth plus 0.5, the rule of 1a695f0b). Sampling: every 25th success line of the study's dump files in sorted file order, the first 750 of them (`h3p.py`, `POOL` and `STUDY` set to this study's pool and dumps), so they come from the first runs and successes within a run are not independent; the Poisson limit assumes independence, which the 0.5 margin only partly covers (pair term 2^-3 moves the claim by +0.07, Section 10). A second sample of 750 successes spread evenly over all 40 runs (`SPREAD=750`; every success of the sorted dump files, equally spaced) gives 750 verified, 6,278 passing classes, 154,288,128 variants, 6 other row-16 passes, 0 further accepted pairs: 99% limit 2^-5.69, charge 2^-5.1 by the same rule. We charge the larger value, that of the first sample. Given a success, its CV1 passes the W7 test for 8.34 classes on average (1 + 31 p7 = 3.07 if the classes were independent): the c7 values of the classes are related, so their W7 tests pass together. The expectations of the ledger are linear and unaffected; the effect is inside the measured pair term and the work cap.
+Under H1, y=R16H[0]-r-F(a0) is uniform. A window probes with probability 2*117/8192=234/8192. Conditional on probing, s=(yw+5) mod 8192 is uniform in [0,117). There are 112 main-read positions and 70 next-read positions: 13*5 interior positions and 5 frame crossings. Each of 20 heads therefore makes 182/117 reads, so reads/probe=3640/117. Frame crossings cost no extra operation beyond the charged read addressing.
 
-*Bonferroni, independence, caps.* Pr[X_f >= 1] >= E[X_f] - E[X_f (X_f - 1)] / 2 >= g q3 (1 - 2^h3 / 2); first blocks are independent (fresh coins); the data-dependent work v_f of a first block satisfies 0 <= v_f <= vmax_f = 2,610,022,471 with mean at most vbar = 306253.2258 (exact rational in the ledger), so Var(sum v_f) <= N_FB vmax_f vbar and Chebyshev bounds Pr[sum v_f > (1 + 2^-16) N_FB vbar] by P_cap = 2.423e-11; V_MAX = ceil((1 + 2^-16) N_FB vbar). On the complement no cap halts the run. N_FB is the least integer with 1 - exp(-N_FB g q3_model (1 - 2^h3 / 2)) - P_cap - 2^-60 >= 0.39 (2^-60 covers the rounding of the exponential, evaluated at 80 decimal digits).
+- Probe cost=14+12+19*2+8*(3640/117)=2816/9 operations. Read cost remains 8; the 218-operation front end and its setup/loop charges are unchanged.
+- Claws/a0=160*E/2^32. Use E_LO=41,471,916 for success and E_HI=41,577,489 for cost. C1-claws/a0=20*E/2^32. These statements follow per retained entry under H1 and require no fitted query-frequency model.
+- per C1-claw, in expectation under H1: 7 + 2 + 16 + 24 x P(C2 | C1) + 28 x P(C2 G | C1, SEL) + (q_pf_hi / P(C1)) x 3,014 = 25 + 2.373614... + 0.102033... + 1.332908... = **28.808555...**. The seven-operation walk charge is a table-wide mean bound derived from equal per-retained-entry C1 mass, not a worst-case bound for an individual claw. Appendix U supplies that derivation and the separate exact 18-operation maximum for a nonempty read.
+- Per_a0=(228+7)/256+(234/8192)*(20+21+2816/9)+(20*41577489/2^32)*per_C1=16.60424353254536562507844379117465626050087479370631626807153224945068359375. Per_C1 retains the exact class/window rational expression above. Displayed decimals never replace exact rational terms.
 
-## 10. Ledger (exact; `ledger_a0p.py`, Appendix C)
+**Per first block.** wbar = C + 3 + 2^-6 x (76 + 1,024 + 2^20 x per_a0) = **274,792.113537223270401285223074605568172046332620084285736083984375...**. This upper-bounds the mean for every fixed table: each retained entry has the same H1 C1 mass and every populated prefix has total lane weight at most seven times its population. For the maximum, use the exact tree bound of 18 per read: vmax = C + 3 + 76 + 1,024 + 2^20 x ((228 + 7)/256 + 20 + 21 + 14 + 12 + 19 x 2 + 40 x (8 + 18) + 240 x (2 + 16 + 24 + 28 + 3,014)) = **777,315,598,071**. The mean seven-operation bound is never substituted into this maximum.
 
-```text
-T = A_C + A_S + DEV + N_FB + (N_FB x 35 + V_MAX + OVER + PRE + FIN) / C + 6
-  A_C = 2^78, A_S = 2^74, DEV = 2^70 (Section 12, H4; the levels of fb176310)
-  N_FB = 1,510,856,422,634,357,630,235,398 = 2^80.32164   (g = 52,608 good pairs per first block, g q3_model = 2^-81.3170)
-  vbar = 306253.2258 operations per first block: W7 tests 32 x (24 + 4), hit list, scalars and planes (935) x min(1, 32 p7),
-         passing classes 32 p7 x (7 + 96 x (5849/4 + 6)) (the mean program, 5849/4 = 1462.25), stage-3a lanes 32 p7 x 24,576 x 2^-12 x 208, row-16 passes 32 p7 x 24,576 x 160 / 2^32 x 3105
-  vmax_f = OVER: every class at the longest program (1,482), every lane a row-16 pass
-  V_MAX = 462,711,713,474,543,096,131,143,149,032, OVER = 2,610,022,471, PRE = 8,858,632,192 (member tests over the 32 class cubes, the batch planes, program generation)
-  FIN = 1,600 operations and 6 units (the final verification)
-N = T x 2728 = 467,765,448,296,261,394,038,709,429,793  ->  T = 2^87.14807212  ->  time_log2 = 87.14808
+Per epoch: build=6+14*2^19*5+2^32*17+E_HI*22+(58,720,256-E_HI)*9=74120133859. N_CV uses the measured minimum 41,471,916 in the useful-pair rate. The conservative compensation ratio relative to the control is 44,436,632/41,471,916. It is not 15/14, and no extra multiplier is applied after inverting that rate.
+
+| quantity | value |
+|---|---|
+| N_CV first blocks | 1,173,376,831,126,095,356,125 |
+| epochs ceil(N_CV/2^26) | 17,484,677,301,737 |
+| V_MAX=epochs*build+V_CV | 323,735,585,985,900,002,980,921,993 |
+| ALLOW=3*2^70*C | 9,661,961,823,951,294,107,222,016 |
+| OVER=vmax | 777,315,598,071 |
+| FIN=6*C+1600+2^24 | 16,795,184 |
+| N | 333,397,547,809,852,074,420,537,264 |
+| time_log2=log2(N/2728) | 76.6937460311670909566864363045264..., charged 76.693746031168 |
+
+**Lemma 2 (the cap).** The cap test reads V at the start of every epoch and of every first block; at that moment V equals the online work executed so far. An epoch build started with V <= V_MAX adds at most build <= vmax, a chaining value at most vmax. Hence the executed online work is at most V_MAX + vmax for every execution.
+
+**Lemma 3 (cap halt).** Condition on the tables of all epochs. The epoch builds are then fixed and total at most epochs x build. The works W_j of the chaining values are independent (H1: fresh first blocks; the table is fixed), 0 <= W_j <= vmax and E[W_j | tables] <= wbar for every table. The procedure halts at a cap test only if the sum of the W_j exceeds (1 + 2^-16) N_CV wbar; Var(W_j) <= vmax wbar, so Bernstein's inequality gives a probability at most exp(-2^-32 N_CV wbar / (2 vmax (1 + 2^-16/3))) <= exp(-48,000) < 2^-69,000, for every set of tables, hence unconditionally. No variance premise beyond H1 and the deterministic bound vmax is used.
+
+## 6. The post-filter law q_pf (H1-P1)
+
+Exact counts over all 2^32 values (own exhaustive program of the lineage): P(C1) = 1/8; |C1 and C2| = 53,096,854 (C1, C2 read only a1); for a0 in W9 the (a1 in C1 and C2)-summed count of G is 57,726,359,870,197, so P(C1 C2 G) = 57,726,359,870,197 / 2^58; |F7| = 287,309,824. Hence q_pf = 57,726,359,870,197 x 287,309,824 / 2^90 = 2^-16.1877.
+
+**Why these rates bind the claws of the u-table (derived from H1).** For a uniform chaining value, F(a0) = Cc2 + a0 + k0 + h(a0) contains -cv[7] once (in k0) and h(a0) contains -cv[6] once (cv[6] enters k0 only through CH(e, f, g), inside F): so F(a0) and h(a0) are uniform and independent, and cv[0] is uniform given both. The table is fixed by the epoch, the claw's u depends only on F(a0) and the table, so **a1 = u - h(a0) is uniform and independent of the claw event**; C1 and C2 (a1 only) pass at the exact rates; every a0 of W9 has the same expected claw count (y is uniform for every a0), so the G rate of a claw is the W9-summed count above; and W7 = KK7c + MAJ(A2, a1, a0) - CH(E6, E5, E4) with KK7c = E7 - 2 A3 - cv[0] + ... is uniform given (a0, a1), so F7 passes at |F7|/2^32 (the lineage's statement "F7, averaged over a uniform chaining value, has probability |F7|/2^32 for any law of (a0, a1)"). H1-P1 is the premise that these rates hold for the claws the procedure finds; under H1 it is a consequence, and it is measured at full scale: the C port (Section 13) on seven chaining values, 778,357,004 claws, pooled C1 0.124995 (exact 1/8), C2|C1 2^-3.3380 (exact 2^-3.3379), G|C1C2 2^-5.9437 (exact 2^-5.9478), F7|C1C2G 0.0812 (|F7|/2^32 = 0.0669). F7 reads cv[0] and is strongly overdispersed across chaining values (per-chaining-value good-pair counts 605 to 2,495 on equal claw counts), so seven chaining values do not resolve its mean; the lineage's 24-chaining-value panel pooled 0.06618 (Appendix H.1), and the charge uses the exact |F7|/2^32, which holds in expectation over a uniform chaining value as derived above. **With the window (Section 3.7)** the same derivation holds with a0 uniform over SEL instead of W9. The G rate of a claw is then the exact SEL count, P(G | C1 C2, SEL) = 2,051,404,269,120 / (2^20 x 53,096,854) = 0.0368453386, and F7 stays at |F7| / 2^32. So **q_pf(SEL) = (53,096,854 / 2^32) x 0.0368453386 x 287,309,824 / 2^32 = 2^-15.0022** (W9: 2^-16.1877). **With the class (Section 3.8, H9)** cv[0] is uniform in the class instead of over all words, and F7 passes at the class's rate: q_pf(SEL, class) = (53,096,854 / 2^32) x 0.0368453386 x 0.11985 = 2^-14.1609 (the step-3b cost at 0.12136: 2^-14.1429).
+
+## 7. Success probability
+
+Let X_j be the number of good pairs of chaining value j that step 3b accepts, and q3r the probability that a good pair is accepted.
+
+- **H2-P1.** q3r >= q3_P1 x 2^32 / 160 = 2^-71.4010, q3_P1 = 2^-96.0791 = q3_model x 2^min(0, D_LB): q3_model = 2^-96.0133 is the registered accepted-event rate of the A0-variant good pairs before row 16 (Pr[row 16] = 160/2^32), and D_LB = -0.0658 is the registered one-sided 99% lower bound of the paired difference between the P1 family **on the window W9 = [9 x 2^26, 10 x 2^26)** and the A0-variant family (Section 9). Every a0 this procedure scans lies in W9, so the measured window contains the scanned one (the lineage's H10 for W11 is not needed). The procedure scans the subset SEL of W9, and that restriction is the separate premise H8 (Section 3.7).
+- **H8 (Section 3.7).** The good pairs of the window are accepted with probability at least 2^MSG_LO q3r = 2^-0.0468 q3r (the window's message part, measured, charged at its 99% lower bound; the state part unchanged by H8), and their average acceptance satisfies the same weak upper form a-bar <= 2^10 q3r.
+- **H9 (Section 3.8).** The good pairs of kept chaining values are accepted with probability at least 2^MSG_CLS x 2^MSG_LO q3r = 2^-0.0225 x 2^-0.0468 q3r (the class's message part, measured, charged at its 99% lower bound; the state part unchanged by H9), with the same weak upper form a-bar <= 2^10 q3r.
+- **Expectation over the epoch's coins.** Averaged over (r, ustart) and the chaining value, E[X_j] = 2^20 x (160 E-bar / 2^32) x q_pf(SEL, class) x q3r for a kept chaining value (X_j = 0 for a first block that is not kept), where E-bar is the mean retained count (Lemma C, Section 6, H2-P1 and H7, which states that acceptance is independent of the coverage class and the retention of u when averaged over (r, ustart)); every table has E >= 41,471,916 (the least over all r), which the bound uses. The argument below needs only this average E[p] over tables, not a per-table statement.
+- **Within a chaining value (H3-P1).** For a fixed chaining value and table the scan is deterministic and complete (Lemma C): X_j = J, the number of accepted good pairs among all claws of the chaining value. **H3-P1** (Section 8) gives E[J(J-1)] <= 2^-7.5 E[J]; Bonferroni gives Pr[X_j >= 1 | table] >= (1 - 2^-8.5) E[X_j | table].
+Across chaining values and epochs, retain the proof using independence under H1 and fresh r/ustart. Lemma T uses only nonnegative per-u acceptance and the exact lower bound |U_T|>=41,471,916, giving q3*(T)<=2^32*a-bar/41,471,916<=2^6.6944*a-bar. The per-table good-pair bound is 2^20*160*(6*14*2^19)/2^32*(2051404269120/2^52)*0.12136. Multiplying by K/64,2^32/E_LO and the weak upper form a-bar<=2^10*q3r gives K*p_max<2^-28. The exact Decimal verifier checks this inequality. Charge the unchanged second-order factor 1-2^-25. Thus an epoch fails with probability at most exp(-K*E[p]*(1-2^-25)). E[p] uses 1/64,1-2^-8.5,2^20,160*E_LO/2^32,q_pf(SEL,class),2^-0.0468,2^-0.0225 and q3r. H7 remains an explicit averaged acceptance/retention transfer premise for the fixed 14-column restriction. Finite parity does not prove it.
+N_CV=1173376831126095356125 is the least integer obtained by inverting the full rate with the 0.39 target and 2^-60 margin. N_E=17484677301737 full epochs includes extra first blocks only in the final epoch. The independent verifier reconstructs every integer and proves the Bernstein exponent>48000. The success expression is 0.3900000000000000000001991463900558028623... before subtracting the cap-failure bound, which is smaller than the reserved margin.
+
+## 8. Inherited within-CV dependence premise H3-P1
+
+H3-P1 gives E[J(J-1)]<=2^-7.5*E[J], counting one pair per endpoint-sharing group. Bonferroni then supplies 1-2^-8.5. The full argument and original registered 24-CV panel remain in historical/support-8.txt, including the registered DEPENDENCE DETECTED result, unequal group-size caveat and explicitly post-hoc rate comparison. Finite restriction checks do not prove this premise.
+
+## 9. Inherited P1 q3 transfer H2-P1 and estimator validity H2b
+
+Charge q3_P1=2^-96.0791 from the registered level-96.0133 and paired correction-0.0658; q3r=q3_P1*2^32/160=2^-71.4010. H2-P1 transfers this rate to good pairs, and H2b asserts estimator validity. The weak upper form a-bar<=2^10*q3r is used only in the epoch second-order term. Original registrations, seeded results, diagnostics, union-bound confidence and all transfer caveats remain in historical/support-9.txt and Appendices P/Q. No current small experiment measures this rare event.
+
+## 10. Memory (H6) and advice
+
+Online: 14*2^19 aligned 32-byte buckets occupy 234,881,024 bytes. A complete 2,097,152-byte allowance covers all code, advice, thresholds, SP/CTZ/S0_LO controls, CV planes, registers, stack, postfilter/step3b state, buffers, allocator and reserve. The bound is 236,978,176. Physical 14-column production witnesses have cgroup memory.peak 236,580,864..236,744,704, VmPeak 236,597,248 and VmHWM 235,868,160..235,913,216 bytes on Linux x86_64. The complete observed envelope is the cgroup maximum. Appendix U binds the source and all 24 full-table receipts; earlier 15-column measurements are historical controls only.
+
+**Preprocessing and advice (inherited, with only H7 rescheduled).** The historical P8-producing signed search is rescheduled by Appendix W to at most **211,431,424 bytes** under H6-D and H6-E; the R.6D schedule at 241,028 KiB = 246,812,672 bytes is retained unchanged as history. The Step-1 solve remains the recorded byte-identical sequential computation at 49,228 KiB; the class descriptors, condition tables and pair retain their previous status. The counted H7 execution is now the five-partition program of Appendix T, at a measured complete envelope of **65,265,200 bytes**, with all process state, mapped runtime images, retained files and startup/I/O reserves charged. The historical 247,400 KiB H7 measurement remains a record in Section 13, while its computation is rescheduled by the universal ownership proof; no replacement probability panel or newly discovered advice is claimed. The other counted development cells remain lower than the online maximum: p8fam 69,496 KiB, fillr2 66,916 KiB, pbal's 32 KiB counters, gmass 133,236 KiB, the class pools 59,104 KiB and smaller instruments. Earlier H7 validation executions used at most 132,505,136 bytes, also below gmass and the online phase. The parent's q3 evidence-only classification in R.3(c3) is unchanged. All repeated H7 builds, front-end scans, digest work, failed attempts and checks remain charged to DEV.
+
+The procedure maximum is the online bound 236,978,176 bytes, rounded upward to memory_log2_bytes 27.820178962416. It exceeds P8 under Appendix W (211,431,424), gmass 136,433,664, earlier H7 validation 132,505,136, H7 five-partition 65,265,200 and every other counted cell. Thresholds plus existing advice remain within 2^13 declared bytes. Appendix U gives the complete 2 MiB inventory. Inherited H7 sources/records and P8 derivation are preserved; only H7 verifier/current-resource metadata are rebound.
+
+## 11. Allowances and development
+
+A_C=A_S=DEV=2^70 target compressions remain fully charged, including failed and repeated characteristic/Step-1 searches and development. Preprocessing remains 2^71.58497. The complete inherited evidence and rationale remain in historical/allowances-11.txt. Appendix U bounds the current development and initialization separately.
+
+## 12. Finite checks
+
+The current isolated selftest, actual-method controls, registered experiments, real-pair checks and strict packet verification are specified in Appendix U. The full original check descriptions remain in historical/checks-12.txt. Finite checks establish their stated domains and do not establish the deep success probability.
+
+## 13. Historical 15-column full-scale evidence
+
+The complete original population census, seven-CV scalar scan record and H7 panel remain byte for byte in historical/historical-13.txt. Their old geometry, rate comparisons and original-input limitations remain historical. Appendix U supplies the current exact 14-column census and 24 full production-table witnesses.
+
+## 14. Lineage and credits
+
+All material 17 dependencies are declared. The complete original feature-by-feature lineage and credit text is retained in historical/credits-14.txt. The direct published base and its source/program hashes are identified above and in the packet. The current change is the fixed 14-column restriction and measured ledger/memory integration.
+
+## Appendix A. Exact 14-column ledger
+
+| Term | Operations or count |
+|---|---:|
+| Build per epoch | 74120133859 |
+| N_CV | 1173376831126095356125 |
+| N_E | 17484677301737 |
+| V_CV | 322439619363813837607708910 |
+| V_MAX=N_E*build+V_CV | 323735585985900002980921993 |
+| ALLOW=3*2^70*C | 9661961823951294107222016 |
+| OVER | 777315598071 |
+| FIN=6*C+1600+2^24 | 16795184 |
+| N=ALLOW+V_MAX+OVER+FIN | 333397547809852074420537264 |
+
+At C=2728, time is 76.6937460311670909566864..., charged 76.693746031168. The online bound 236978176 sets memory 27.820178962416 and scalar 84.513924993584; P8 is at most 211431424 (Appendix W). The 15-column identity is a historical control only, not a current procedure phase.
+
+## Appendix D. The development sources of Section 13 (not shipped as experiments; reproduced unchanged from 55328d60 so the full-scale measurements can be audited; they use that filing's lane format and tag-only test)
+
+Built with `gcc -O3 -march=native`; `consts.h` is the output of `gen_h.py`. `fillr2.c` is run once per residue j = 0..7 and its eight outputs S_j[c] are combined as retained(8m + j) = sum over c = m .. m+14 of S_j[c mod 1024].
+
+### `utab.c`: the full-scale port of the epoch build and the scan with the scalar front end (Section 13; the r = 663 run used the same file without the operation counters)
+
+> Historical record `AS01` (c), SHA-256 `64f954ea9d42230ab3a1e6de51de828a1f6bb9390ef0c18cb3e8ddb23a542d50`. Complete bytes and original line range are retained in Appendix V.
+
+### `h7.c`: utab.c plus a one-bit overflow mark per bucket and the rows 17..21 forced-bit events of every claw (Section 13, H7)
+
+> Historical record `AS02` (c), SHA-256 `bfdc45e5f101dcbcbacd6b5dacc1331a7d379cd2dbfc9162f279212e3ede2296`. Complete bytes and original line range are retained in Appendix V.
+
+### `fullbs.py`: the full-W9 check of the plain bitsliced circuit against the scalar predicate (Section 3.5, 13; imports utab38.py)
+
+> Historical record `AS03` (python), SHA-256 `8ff5fe66b2ffc3564a719e028da27b0d96892ec6e034366c3592ffb51ea734e8`. Complete bytes and original line range are retained in Appendix V.
+
+### `fullbs_rm.py`: the same check of the binding register program bs_mask_rm (Section 3.5, 13)
+
+> Historical record `AS04` (python), SHA-256 `062870179b1b62472c7a78bc000222df9bef1b4b659b2ae219f378cc7a7d167b`. Complete bytes and original line range are retained in Appendix V.
+
+### `fillr2.c`: the retained-entry count over all 8192 values of r, in 2^26-byte slices (Sections 3.1, 10, 13)
+
+> Historical record `AS05` (c), SHA-256 `92bd2e1d59613cc689a3fb258e3ca249142525a8c8224050115d678c7aa45dca`. Complete bytes and original line range are retained in Appendix V.
+
+### `pbal.c`: the class sizes of P mod 2^13 (Section 3.1, 13)
+
+> Historical record `AS06` (c), SHA-256 `5f4ccf28045d58bc2d7617ab38c206fde8b4d8a0fe5708b9626bcbae02fd8b12`. Complete bytes and original line range are retained in Appendix V.
+
+### `gen_h.py`: writes consts.h from utab38.py (no transcription)
+
+> Historical record `AS07` (python), SHA-256 `a5d864a2b6e68ec7f0c8036d53231f26b9a5b018d90706f20dfb4f99459d5509`. Complete bytes and original line range are retained in Appendix V.
+
+## Appendices P, H and Q. Inherited registered evidence
+
+The complete original text, registrations, per-seed records, source-block commitments and interpretations are losslessly retained in historical/historical-P-H-Q.txt. Existing AS records and Q-seed-records.txt remain unchanged. These support H2/H2b/H3 and retain their original limitations; they are not current 14-column runs.
+
+## Appendix R. Historical A0-variant records
+
+The complete R.1 through R.4 record is retained byte for byte as historical/R1-R4.txt in Appendix V, including its registrations, tables, search reports and explicitly superseded claims. Its SHA-256 is 895cca992f66b0f8ea9383851539241fac03253945c6d15a17736c3dcb2cd8ce. Sections 6 through 11 state the active probability, allowance and memory premises; R.5, R.6 and R.6D below preserve the remeasurement history and the R.6D P8 rescheduling argument, whose phase maximum Appendix W supersedes, in readable form.
+
+R.1 records the older q3_model and shared-carrier measurements; the active P1 estimates and qualifications are in Sections 8 and 9 and Appendices P and Q. R.2 records the characteristic search: the published P8 search comprised 38 solver runs with 230,183 seconds of listed time, with the author's broader development bound below 2^21 core-seconds on ten cores. The lineage charged A_C=2^78; this filing charges A_C=2^70 under H4a. These timings are historical support.
+
+R.3 retains all development memory receipts and their limitations. The capped earlier 32-seed q3 run peaked at 222,756 KiB; the later 128-seed run was uncapped, and its sampled memory record covered only seeds 7041 through 7128. Its data are probability evidence, not a runtime input. R.4 quotes the original P8 preprocessing report: Step-1 279,720 KiB, signed search at most 248,000 KiB, and class descriptors 37,036 KiB. The old R.3 claim that a replacement signed-search sample lowered the peak was refused; it is preserved as history and is not used. The active P8 bound is Appendix W's 211,431,424 bytes; the R.6D argument below is retained unchanged. None of these records is a new B measurement.
+
+## R.5 and R.6. Historical memory measurements
+
+The full Step-1 remeasurement and explicitly refused signed-search remeasurement remain in historical/historical-R5-R6.txt. The refused argument is not used. The unchanged H6-D derivation follows with current phase conclusions.
+
+## R.6D The signed-search cell as a rescheduling of the computation that found P8
+
+**Claim, under premise H6-D (below).** Rescheduled so that the formula is streamed through a pipe into the solver
+and never stored, and the model is decoded afterwards, the historical computation that produced P8 has a peak of at
+most 241,028 KiB = 246,812,672 bytes = 2^27.878841. All retained storage is counted: process state, pipe buffers
+and files. Its result is unchanged: it is the same deterministic solver run on the same historical formula, so it
+returns P8.
+
+Under this schedule the P8 signed-search cell exceeds the physical 14-column online bound of 236,978,176 bytes; Appendix W reschedules it below that bound.
+Appendix T reschedules the H7 evidence execution below 64 MiB while preserving its outputs for the same inputs.
+Appendix W's schedule is at most 211,431,424 bytes, so the online bound binds the procedure maximum, charged as **memory_log2_bytes = 27.820178962416**, with projected scalar **84.513924993584**. Evidence-only comparisons are excluded from this maximum.
+
+No new run is substituted, and no other characteristic enters the argument.
+
+### 1. The accepted figure is a sum of resident processes
+
+R.4 (1a695f0b §11) gives the accepted figure: "at most 248,000 KB = 2^27.92 over 2 h 20 min (Python 152,868 KB
+and Kissat 80,816 to 88,096 KB resident together; stopped after the original 78-minute solve time)". As in the
+parent (line 7), the author's KB are read as KiB.
+
+They are resident together because of how the driver is written. `stepk.py` (1a695f0b Appendix B, SHA-256
+`59284d8f…`) builds the formula in Python and writes it to a temporary file. It then runs
+`subprocess.run(['kissat', '-q', '--seed=%d' % seed, fn], capture_output=True, text=True)`, so the Python process,
+still holding the model, buffers Kissat's output. After Kissat exits, Python parses the model and calls
+`decode(m, …)`.
+
+### 2. Premise H6-D (declared)
+
+The author's reported per-process bounds for the same-specification-and-seed re-run bound the corresponding phases
+of the historical execution that produced P8:
+- the Python encoder at 152,868 KiB;
+- Kissat at 88,096 KiB.
+
+This rests on the same report as the accepted aggregate 2^27.92 (H6). It is a stronger use of that report, and it
+is stated here as a premise rather than inferred.
+
+### 3. The rescheduled computation
+
+Let F_hist be the historical formula: the bytes the author's encoder emitted for the P8-producing solve.
+No copy of F_hist is retained anywhere in the rescheduled computation.
+
+1. **Encoder streaming into the solver.** The author's `stepk.py` construction writes F_hist's header (its clause
+   count is known, because the construction holds the clause list) and then its clauses to a pipe. The same Kissat
+   4.0.1 binary reads that pipe as its standard input, with the same options (`-q --seed=101`). The encoder exits
+   after its last clause. While they overlap: encoder ≤ 152,868 KiB + Kissat ≤ 88,096 KiB (both H6-D) + one pipe
+   buffer of 64 KiB = **241,028 KiB**.
+2. **Solver alone.** Kissat continues and, at exit, writes its model (the "v" lines for 52,891 variables, at most
+   52,891 × 8 + 4,096 bytes ≤ 418 KiB) to a file: ≤ 88,096 + 418 = 88,514 KiB.
+3. **Decoder.** It starts only after Kissat exits, so it is never resident with phase 1 or phase 2. It recomputes
+   the variable map and decodes the model file into the A/E/W rows: ≤ 18,716 + 418 + 4 (row output) =
+   19,138 KiB.
+   - The map is independent of the encoder's cover draw. `SD.word` allocates each word's 32 (v, d) pairs in
+     a fixed call order, and `SD.add` always allocates its 33 carry pairs before applying any clause. `qm_cnf`
+     covers only produce clauses and allocate no identifiers.
+   - The decoder (listing below) stubs the covers, builds no clause, streams the model, and rejects an
+     incomplete or contradictory assignment.
+   - It decodes W0..W37, A3..A25 and E3..E25 (84 rows). These include the coupling-relevant W0..W37 and
+     A/E3..15. The intermediate S1/IF/S0/MJ/s1/s0 words are not needed: `joint.py` reads `char.json`, not
+     `inter.json`.
+   - Measured peak RSS 18,716 KiB, the larger of two measurements. On a known complete assignment it reproduces
+     P8's 84 printed rows exactly.
+
+**Why the result is unchanged.** Kissat 4.0.1 is deterministic for a fixed binary, platform, input, arguments and
+seed, provided it is not terminated by a signal or a resource limit:
+- its pseudo-random generator is seeded only by `--seed`;
+- CPU-time calls are used only for reporting;
+- mode switches depend on conflict and search-tick counts;
+- `getpid` is used only to read its own RSS.
+
+Reading the identical bytes from a pipe instead of a file, and writing its model to a file, change none of these.
+Measured: with `--seed=101 --conflicts=100000` on the reconstruction's formula, the file input and the
+standard-input input give identical counts (622,491 decisions, 26,949,414 propagations, 4,532 restarts). Phase 2
+therefore performs the identical search and returns the identical model, and the held rows remain P8's.
+
+The peak is max(phase 1, phase 2, phase 3) <= 241,028 KiB = 246,812,672 bytes. Appendix W supersedes this phase maximum with 211,431,424 bytes. H7 is accounted separately in Appendix T; the declared memory exponent is 27.820178962416.
+
+### 4. Precedent and status
+
+R.5 accepted "two sequential processes instead of the author's overlapping one … the same computation with a lower
+peak" for Step-1. This filing applies a similar transformation by derivation rather than re-execution, because
+F_hist is not recorded: the formula is streamed instead of stored, and the decoder is moved after the solver. Analytical bounds are admissible under the cost model, and the current cell already rests
+on the declared premise H6.
+
+### `decode_stream.py`
+
+It imports the author's `sdmodel.py` exactly as listed in 1a695f0b Appendix B (SHA-256 `fac660e9…`), saved beside it.
+
+> Historical record `AS29` (python), SHA-256 `7622dada6b1305f5c740bc470f03c69563b42aaecf916ed38143fad51b2d00eb`. Complete bytes and original line range are retained in Appendix V.
+
+## Appendix S. The development sources of Section 3.7 (own code; not shipped as experiments; reproduced so the window's numbers can be audited)
+
+Built with `gcc -O3 -march=native` (`-fopenmp` for gmass, gbrute, ugen3, msample). `consts_pf.h` and `pfd.c` are written by `gen_pf.py`, `uconsts.h` by `gen_consts.py`, both from `utab38.py` (no transcription). Commands: `ng4 16384 256 <seed> <sb0> <sb1>` (four processes, seeds 101..104, sub-block quarters), the 4,096 largest sampled masses form SEL; `gmass sel64.txt` (G_SEL); `gbrute <sb>` (cross-check, 11 sub-blocks); `ugen3 1024 <seed> sel64.txt` for seeds 21..44 and `h8an.py` on their outputs; `msample 25000000 <seed> sel64.txt` for seeds 101..104 (H8 evidence; `p8d.h` from `gen_p8d.py`). `ugen.c` also records cv[0] and splits nothing by it in this filing; its other options are unused.
+
+### `gen_pf.py`
+
+> Historical record `AS30` (python), SHA-256 `9e1c0eae96f9d66ba72f65a956b39bf05b584c136629f7ff86673b8aeadddc18`. Complete bytes and original line range are retained in Appendix V.
+
+### `gen_consts.py`
+
+> Historical record `AS31` (python), SHA-256 `f95538d7074b306e1507e89a1080c706b73b71dfd6e8fc0d3cbaaca54b5968aa`. Complete bytes and original line range are retained in Appendix V.
+
+### `gen_p8d.py`
+
+> Historical record `AS32` (python), SHA-256 `2c46678708fab9d7eb965fbffc50216bb8668c2ed8b714da9b16292db49c9654`. Complete bytes and original line range are retained in Appendix V.
+
+### `ng4.c`
+
+> Historical record `AS33` (c), SHA-256 `f502968ee416ddd3f8e7cca0c7e2f5aa3b8b956a39bd5180c442a2f9dd2d5cbb`. Complete bytes and original line range are retained in Appendix V.
+
+### `gmass.c`
+
+> Historical record `AS34` (c), SHA-256 `61f8a6a625becdcfa14448daa1e109703af0139e51f1b03e596fca8bfd9ec726`. Complete bytes and original line range are retained in Appendix V.
+
+### `gbrute.c`
+
+> Historical record `AS35` (c), SHA-256 `128f7eaf56efed4230bcb4b8e4bbff4e55624b04fe2c5907375889ae7a19c9d1`. Complete bytes and original line range are retained in Appendix V.
+
+### `ugen3.c`
+
+> Historical record `AS36` (c), SHA-256 `3b8b3bdbd07d4229ee7603fd3c1f977485564b2ef6423eb0b1b76b74a70092e9`. Complete bytes and original line range are retained in Appendix V.
+
+### `h8an.py`
+
+> Historical record `AS37` (python), SHA-256 `b6358b71eed3b936ec2a6ff908d22a6fffb858dfdd4fe881bbfd8086f969c3d9`. Complete bytes and original line range are retained in Appendix V.
+
+### `msample.c`
+
+> Historical record `AS38` (c), SHA-256 `fc2dc9768f411fe7bcfd190972665a64665c8a0d0f83ee36e4035dbfbbcb7db2`. Complete bytes and original line range are retained in Appendix V.
+
+
+## Appendix T. Five-partition H7 execution and selected evidence
+
+### T.1 Scope and exact output preservation
+
+This appendix concerns the H7 instrument, not the online u-table algorithm. The direct base is ecfe5a97-323a-4321-9162-2068ff243fc7. The source development commit is ce326a1f8f75f87a6a903609b39a9723141ef055. Its full package-provenance SHA-256 is 30fdd5aa70812a206bfc6ad884c655365b08e8524cd120ade28d2a9d9d869cd8. Essential source, commands, receipts and a strict replay verifier are included below; external retrieval is unnecessary.
+
+Partition the 15 columns into [0,3), [3,6), [6,9), [9,12), [12,15). For each partition, replay u=ustart+n modulo 2^32 in the original order and retain only its buckets. A bucket's updates depend only on that bucket. It therefore receives the identical ordered subsequence, retains the identical first six words, and marks overflow on the identical seventh visit. The W256 layout and spare overflow bit are unchanged. The largest table allocation is exactly 3*2^19*32 = 50,331,648 bytes.
+
+The build consumes no RNG output. Precomputing the three CVs before the passes preserves the original draws. Each query keeps its original CV/a0/window/head/side/lane identity and is processed in exactly one owning partition, including column-zero straddles and row wrap. It sees the same bucket and calls the same postfilter and row-trace functions. Integer counters add to the same totals; their source bounds are below uint64 wrap. Each logical claw is traced once. Hashing columns in order gives the original canonical table byte stream. Each column/CV event subsequence has its original order, so its separate digest is unchanged. Concatenating per-column digests is not claimed to reproduce a globally interleaved event-stream digest.
+
+This argument is universal for the original fixed three-CV H7 computation. The historical r=138/5651 seeds, starting words and CVs were not recovered. The numerical H7 panel in Section 13 is retained unchanged, and no fresh run is described as its reproduction. The new runs support scheduling, storage and reproducibility; they do not strengthen the deep-event probability premise.
+
+### T.2 Measured storage, maximum and limits
+
+The approved five-partition run has cgroup peak 51,298,304 bytes, worker maximum RSS 51,724 KiB, wall 117.651776734 seconds and worker CPU 117.527843 seconds. Its native worker and meter share one fresh cgroup: memory.max=58,720,256, swap.max=0, pids.max=2, one CPU. Exit=0, timeout=false, oom_kill=0 and cleanup_complete=true. The complete conservative envelope adds 7,675,440 bytes for full mapped external runtime images, 4,194,304 for all retained experiment files and 2,097,152 for precharged observer/startup state and late I/O, totaling 65,265,200 bytes. This leaves 1,843,664 bytes below 64 MiB. Shared/code pages are deliberately counted conservatively. The external test sequencer only observes and verifies; it supplies no algorithmic state. The native observer is counted.
+
+The scope is little-endian x86_64 Linux with cgroup v2 and the recorded build/runtime. The allocation and bounded working-state structure do not depend on the seed. The measurement is participant evidence, not an organizer-authenticated native run. The compact extraction plus its compiled programs fits within the same 4 MiB retained-file allowance; the omitted development archive is unnecessary during execution. Compilation and the wider development workflow are not asserted to fit the native phase's envelope.
+
+| Counted cell | Bytes used in the maximum |
+| --- | ---: |
+| Current online table and complete code/state allowance | 236,978,176 |
+| P8 under the record-and-regenerate schedule (Appendix W) | 211,431,424 |
+| gmass | 136,433,664 |
+| Earlier H7 validation schedule | 132,505,136 |
+| p8fam | 71,163,904 |
+| fillr2 | 68,521,984 |
+| Five-partition H7 complete envelope | 65,265,200 |
+| Class sampling pool | 60,522,496 |
+| Step-1 recorded sequential solve | 50,409,472 |
+
+The unchanged H7 execution remains historical 15-column validation evidence. For the current 14-column online procedure, the online bound 236,978,176 binds the maximum, charged 27.820178962416, with P8 at most 211,431,424 under Appendix W. Time 76.693746031168 gives projected scalar 84.513924993584. These current bindings replace the old online maximum; the native H7 source, records and limitations are unchanged.
+
+### T.3 Repeated work remains inside DEV
+
+Each full five-partition run visits 5*2^32 = 21,474,836,480 words and performs 5*3*2^26 = 1,006,632,960 front-end a0 evaluations. It traces 333,509,526 logical claws once and obtains 4,005 good pairs, with zero scalar-reference mismatches. All five retained full runs, including the earlier 7+7+1 schedules, have identical logical counters, canonical table digest and all 45 column/CV event digests. The table digest is 34f91399f0d8c2d5c9cc499bed3a6f075cb5c6a555fbf1e9758e364751962c72. These repetitions are reproducibility evidence, not independent probability samples.
+
+All repeated scans, resets, traces, digest work, failed attempts and checks are charged to the existing DEV=2^70. The source record has 171 native invocations, five full runs and 166 smaller invocations. Conservatively give each smaller invocation four passes of 2^24 words and four passes of three CVs of 2^16 a0. At most 80 buckets with six lanes are visited per a0. Even charging every possible smaller-run lane as a trace, the combined visit count is below 2^37, front-end count below 2^33 and trace/event count below 2^36. Straight-line bounds of 2^12 word operations per visited word, 2^16 per front-end a0 excluding its trace calls, and 2^20 per trace/event (including the 22-step trace, postfilters and streamed SHA-256 digest) exceed the explicit loops and standard 64-round digest computation. Table/file hashing and fixed initialization are smaller. Dividing by C=2,728 puts the concrete subtotal below 2^46 target compressions. Reserving 2^48 for this development line also covers the preparation, compilation, failed smoke tests and packaging checks. This remains inside the unchanged DEV allowance with large margin; no smaller allowance or time claim is taken. The inherited lineage bound below 2^57.1 is consistent with adding this small term to the earlier 2^56.7 lineage and lower development records.
+
+### T.4 Selected evidence and verification
+
+The full development packet contained 976 provenance-covered files and 171 mandatory native receipts. This candidate includes a deliberate 38-run subset: all 27 final bounded controls, the six-run initial LSan attempt including its failure, and all five complete production runs. It also includes native source and fixed headers, compiler/runtime information, the final guard/cleanup test outcomes and the independent frozen-oracle generator. Earlier successful bounded reruns, binary executables, duplicate intermediate source archives, unneeded generator inputs and individual hashes of original companion formatting are omitted. The selected record contents are fully retained and hashed. Original source hashes and the full source-commit/provenance commitments are retained. Command executable/output paths are normalized and private workspace names are removed; numerical data and full stdout/stderr are retained. The initial phase1-v1 command retains the old meter ABI with its implicit pids.max=2.
+
+The compact verifier requires this exact run inventory and every command/stdout/stderr/resource/memory-stat companion. The sole missing command is the documented initial LSan failure. Expected exits, limits and partitions are derived independently; an absent sanitizer class cannot disappear through filesystem discovery. The provenance file hashes every framed artifact and binds claim.json. Supported Python tools reject optimized execution before side effects. The native meter's centralized cleanup and failure controls are included. The retained cleanup report covers actual receipt-open failure and injected memory-stat failure; a separate actual memory-stat-write-failure test is optional hardening and is not claimed here.
+
+H7PACKET below contains the complete H7 file tree in bounded XZ/base85 form, with decoded size and SHA-256 commitments. The readable Appendix U verifier extracts it. Run its extracted verify_packet.py against this proof and claim to check the 38 complete record sets, sources and current-resource bindings. The inner runs.json and data.json encodings remain unchanged; meter.c is stored as its exact decoded source. Only framing, the loader and current bindings changed.
+
+The appendix's hashes and records provide reproducible participant evidence, not signatures or independent proof that every historical measurement occurred. The universal ownership argument, unchanged source operations, bounded controls and complete native receipts are the support for rescheduling the H7 memory cell. No P8 solve, online construction, success claim or probability premise is replaced.
+
+### T.5 Framed evidence artifacts
+
+<!-- H7PACKET -->
+```json
+{"data":"{Wp48S^xk9=GL@E0stWa5&!@IBe;hw;f)`qh5!IPh|GP_hGXe5_u=G44Ig7|^7s0vrOQZWi+GMCY9=>`Yv3A9Z^oG?$r@|!f2sI=k#~$DF%uWH?aU6IqKb~guSCHRfiM9;J0njIP4uLRcsAV2V?|Y!B|!iLz^4CtnE~M(u3`UsC?z*6;S2dxMfMuE-9WP|dkjB8hjzYHvqS<9w5;ysZt(#Xm%L%pm_)+!@r|yJChI_3e?y`N<Vw}Yy3(%J%CeMZ&9qS<F3PW2gCfp`X8^slM_zje`qMd^c9@}zrP<Ke*4op$!6)8X0H1ng)|qt4p{PK`#5p6@q{7a)H;uWLpyl?rs}>n+X*JnYAb8-;^TE`8&tm`t@a41BLywF&tSGs?udrJef~UO=z@3gFD#){xqWc9X2*^ER#tlEJAYWie^S6C>P?h|6El*Wbp5agvN8UxwDyi$GQ3L+8c?*Em>|ml2Ri+4z-w2Ns9;}ZI)Ow}eu+=DrIH)f@T@$kmzn5mPh$`!)xfTM9giNcpL4BfBf+B7GX4%A7d?EIVyb<vL^5tpQvk(3np}yo#E@Izg*J5y;LkeZLuU(q`*h|yA;>chcdFIcvye!z`vvkS^Y~mMlLi(nlP(mxfA2**(uZ2cuTQrD7&ma&rOEEcV%E^-RqQ;zo*PoQ~-T<))n;Qxa;6m1as$xNQUX6VqKB9UZS)|+#Zy3eu_4|r^{@(K)O#J(;9gCZ?*5lKOxusZlLTnmEK>hPIdlP4(exb7@3{YSA+{*aoPuFYr)hJt7>ca`Oh&s|ipiFzd>el`qj@ZZda-#F&-Uqg_u9S8c3_T^i4<(D%Cn)AqKe(mfSqvH7V;jS9NCzYdx=^yMco7)iYMa(BI1pFeXHX78p)F$-TlJcdb2T=W1`@rCQd2ukruSt+uvCgVHU5|Q<TS5t<M8yRky(?iCp7oynrDY_DZn}rH-+a^W?qs-L{a8tM=1;QfM@SYdmn`0iFy++_zkK}k&fcsXogmME{UHF3jj-oy{^kjR@|5GsT&%^w7MIOw9PpFD~+HiQJkF?5u+93GaR(a>n1-<zJfj_OXD)bSDsa0l<H|XY4iRcc(3-nJ9`EWq27(l70Sn~XU`k@AAuVkY6Uw6(aLOWAF>hnc2Wu!za(A|lMyd$Hrut13I1-l7{g=qN?NQ@R;la&CCtLt2xjIVPEB==CPVnlmYffJ){+XkNC3w(rH^26UA<Cuv&oiL*D%b7-V#7OuQ$-EjmC1KO7w3Oj-suCWiUp$3q72Wy)j(6zGtGS^R{+~2!(vUn6Ot<5sH~N7>((TiEMUD=!lthUpHjy0sSMqSF-wjIXjhgSm!w60kC>ZB?7FP31Nh20ryYq!gxBvjB?ID|E?@XOuG=4?Ah^%in=!atGyP2$hL!CA>5kKeTvlTqDtTSA%o)J0T?H>&y3<nk%y?Y&{^p0t1yrvq9SM{v81i4;G?JU#)(Frt%Y2c?!eMkzP+mEa8Oh{F)6DG(ZhytnY?e)o6xQ}2MUw!i@@lGE(Na#VG3b%WW4eUoR{70(@O?}dKQlWSEhk_X@{{c(gjoMQrpSGCLD2bS+pXpYEB8$Id$8}_jUY!g7PfxCR5InA1$P7=Wi9k_pv5KzT<O>HS9XNNQr^`n4)|x3t}n%v+zZQcc7}J$fCv>rmI5wEZ{%YXe1G;<t?>Lpv;Ut^XvtH>Yt%r#El>LDc7s1!2VAkAM<4)tZ_Q%39a=Qkip32ma_>w)Y{<{L#BSgzSNma4aXm1%5_C~8*I&IBC}2uyrkhRZ?;$%#BT&rwGhk-nPxYNp2&PHL{UFQkB@&^3d2QDSxh~3`zgmwRMy}ArF5AZ_|s(0IBR$^Nu$6}-uZ4gpGKy%e&aJ!a|8IVqVKcvWxX+w@C&9=qWY7K<phGDaEEM9`g@yT&Bkp-J>x_UBatfyi4~wAJ=rf&nM;)B@8Ec0=ofW<{|1Dt>tSd3x0}nB2I07t@+cLO03*Kxxm6y?+S6Xk0e(<(`r1i(ttbePs;<=#w7-C}C`Uu&RhTZJO|Kw@&*QPDL+HBIZ|1W#S0DAENf4U;bE~r6gzU=T<vPRe6l~_)*i;kJm(x#=I`l)AG3B(;kgjWNzD0mU!sTW<8^7ajE{P$B(;OMs<FZH!o(!|9GWL;<VYhz9@}U?&gJF7{C_nv=F!e2d(|`u+R-n}hI-G6uF8-2GgN|2WYzdqnNZgwKvP*BJlk`y<UP%{x#4^rN$?P5i@8v|hQol?b=gK?v{i@o|Bp>#>rRck7@g|>f#)T~Xy1d)C|6(95qvUQoumx`$*Y~WVu0Vx|)<KCDXtzG%`*oj7|Hw51%P9?q9GUH1Vl#|*#m6(%b-7{6P2G!;8l`Ee$QJtC0+gkf^UOJ2A8kFHp|m0kEU0piijAZqSLjWG8vIh+y_J4I$pv#9t`^Qm92kGARa3S|gaHDf++w9GFK;Zvd1sEQ2nGrxeh$CzBBN@oDUhw8oJZ5L0YH-o1%H_HlhO7}^&#E?D1je+UO2T<-qk8gw4nV3ck#flVFwhYgc9$;%@3PdzrTm=SUjiAbv@3z@G$THDLEV=j~W)pP$&2?#3NnYf`2HX@*97>q|=Y_BMkOGnpJ&+bDq*aABz~&qh$4XM9fBq4CDQ$)<lJxd)1FGa6}SAGo)eGC+&LPnYO`d9`J7+#`2?aI@|Vd^aa8Y`8Buz(VtWke7%{v{)}VR>dQv0MQBWl?u!A{d^jd5+U}2Ul_R#J_~hIkv)N?_-2d1TkA;gs`V_=4ATG&fh#)_|zyzHbQ0SP`)7?aMBN~?>>A)U%m{KwI2!A6{D-DiWz|{u2nzA}B1IAxJ<ai0D9gaKsr$?bi5lHz=e`&$TuTiSUP&&TTg`nsS{(ya_qjF)4FlGN#_EjuO@IEY9>lkgicQ9=@G4o!%s|3#Sc2TmY5C6YDDtFLVllJ<(8CxPEg3fkF9c}i$=P0a#e0k^}UXt`6ubA8U6Ah@d7L2Pxoy}HdNy5breZZeZp$wVDH2hp&T;MFoaEqfX)~`^kQO8Tx%HbTC`FGtIZYx1)&u4Ya(H0X4&)jWaV#ub-gp=nw=EIsljqn7CN&VfMQF`$kqTiZ#DK0vlM|mF0uM%r<$U!9$;JvXJm+8_kj!02-QKaPldqkm6weQ)7Lnv%M31YR{!R5P!K2k5bc-Oy>T3baf6ttN7YghCEI|x!Us|s3;-5%0_W$s#r?o0!vI8BhulxD5}DFe0q&J_z0GM<oObBA9@hwzwUTMiT0REq1Lg+1wi4OxRp@C8W5Nw$9n&1~oqI(=I;{ZB~(6JE`F0XZR5kNNBn^3IA$i@pvA6r8FUkG61iDrK{{j{aM-D9~KnRa#-KF(WjD$4&%*_D-m#K$qVuL`(-n1Z2$5Aw9#ZxU)Lapl*H%7I|$QK_8loqnuewv^LkB<}YrnCAm~Dt@h~*g3)AKHzuplPuVLyU9J*Dff3iDhme8v@~!Vsk*}_Xhd<b5e@{?|`y|Kbn`!T<-Xi+<YniFNC3@b4>o`V@ttl`oBS<9;VY@dz$f5WE%DAG7|ASAvFU*<J#t9u1rdP5P#Ayo4RwPFt)-V49{G-H%Fsx<l#usUD5S_{|629>YyS+iT&-HTKqswQ@-VIL=dvky7yVRdL*223UH6u~2Tm7o_)`Daj2~Xv))if)W;Wmc3d%Lvmd7}5b;*Ex_iWjC%Q!Q~k?fB9H-mjM+z~G2hwsb|2#g#)H>b8Y<s2#QTo-{hKJq?>Pg|S$WRc+0n<}{FIi~E2?F2!}r-mPMvC;n=lFlf%q5TWU5t;sQj(B?j-1fBv@R1)4+%sWNO%I>n-$&;!1Z$6A4!zd_i6ZMj5xGmL9N*(@B-7>r=Iqxfx{JH@_YzGD1*WZLbWJMG(348UU-SVQ1X~=)T$&$ulOJd_%Z_ZfpP#etl1Y~9g9YyV4F_)Wfu)mxlc3y%Vj1>~l>bnf^Fb*^`@MTyznNG4|_57$GUJ^~_N+snKv#Knmq3u@R5(2N#XkGtU?$1Ql1XKziV||YoJj`ol?_Gb4-wV2u=lrX@U4Jq4RoJPhAC%v}pRu8L50$#Y*LQBHW=zTw1i+M{Wj5lVdO^z&mi(zguqEio>!tTo1mQi9o@RLD>Bg^Lac?lv{bDvidV<TLYVUA{(Bvn)kR<%HA=@NlvtxuNzI9YL&G(+g#OHMGTpK+d5m<`v2`u@_`ue8qo#K?g^?B~r2yy@c-_6n^TnbOFe40Z_=NLuJGBGtlHR?BqMKGxK!|DTUKGKU4`Tk`1W(bINW_G@*t)TBm=gz0H=V#iYO-LDmW<3ZNE)Q5Pd+SPvU}z`Sor|$AM+wotszu?XG~SZWHeu=bC`=>*u^o;vAN&sQcCpvj@mhf<EwnvgW0E1yp<IBR-DlkhHIe06gyFAJSmxda%Z?Y5W%|GWfNxAgMG<1VP;!sHaD`)*;f`u%ZPpg?sc>rFMq4@c!Ra8;&KJ5>t3Q1JLlbK8e613Dh1P?|EkjhpnW$!m>l`Yz!Ih~gnP_s?*hd4*X=FtE&QR88ti(q#<92Xg?VBEv<1Gc3W7|SFV?>qB-8Ifp%u!l7mJO{;iTV==U*)p+*|z!t$i`fqwTE$&g$q%#5uRxWl)S2@f*w<eQ0g>aKP5OG%d&~btb78{YfHh>rfiUb8_xn2y@TnnzGeaq=7&7cHZUX5i}cJKDzM&%ckk_#&$^1=YW5VHVa-@bILaDOPnVD|#;Kpz?>~wD%cVw*Y>l(a68c%!t*SH-kJyAtmvKGH{7C(q|J0HWfKRKX8x{QPLNoJGnTu=-Tg=Ig(Y~v|$ljUY9|exqe3&ZW@Bjmmt=~wRvRs$>Aenw^XzW8<3i<kRzyY2zZamf4O0AZNK1%g&EATm9I}e!8!(=#r8O4OE!I^NWdd8Knhh_H7l-7#h3@xtN|GsudO=0KwH)oRropMDbk)j2*F_f+U#XOV)iSyHj6WO`XH}{CyfK4bcnW0Gncn6S>Eh(X#$y9kt_i^3+@k~-fwTU9Biy)>bc!gIT^~z$7eV`y6JzzUVw9Lk$6zc!InGtRFd`!|}=z+`P)matr>EV$2;_z$(!u6QniFgj^T*Nm)k%4Mn^MHuv%AJ6vWFB?znKJPm>rb#|9N2!5uC_ser8shRDZ#S-Y6UptEy<CtlMfgR!*V&L3GxCG1L$0r2)3@vmNx6DDsD+?HT%J%LjBszNIRMV-dm<_@nhAYc@+b!H16DE@?915v9(~`xL%T9Ny(?TN)5|^FPcJdXq&h$8XOQAK-b)*3NO^AmP#eCRN*Ji5No|aQxj#sI}T0187BWzzVlRJfo>36k^CLr*HcAeOu2APrKMd{^IyCPN{6EsW!dT?cnVo~-lxP0Y*`+7b*8+L@QGBi7$ugqdl<)A294??tkbbVi!+oCU<Vssz(pHj&CPZHCh8>l=~=aKn@vKre*V|M&!sgjikdn}BU`o0+*X>t@w89T@_xi6r@j_N{U`M}h!_iypdlZ{yLo<)!fB98#hSzb6U2n_@1-*tr%9T=vKb}3ss7x}xggo*`ISeEJmB*=&3YQ+XSSM+ui-wF8s{K_(`<)DCtQfae=WBLa!Rn3!DrpqbvGkM2iL?Sd@e(FRAuPTX(52WR5^Q9=}z<m@|`c47+QRb9O3noD=1Q!+AZ&}pz=#VDn#VHNlDa1rwki8(3s$}muwR{2R)$=So8h0D(dI0%A<d*xjtTFfjWA9(z5yoas*>Btwj&H0o$FPSC2!CnR|nGkv~=$3#tY^fO8Q3vQ*B_m8=+6k8>PRa5NuX!Z>`uURq$kmlaMANg#MpUk2M3C{o06m7oR-mO7%!`Bl{#D$iXEGN57|x5s7K2HP3wGzEu1Gd86|<h95;hvPEMlcw?!$n8ufaW$@_l4>$|BP?^Sy7?b%HbT&Nq_^0(x!~#jE^uHyedMtvYDT<H4i!KH_C=v>KH88FsO^dY2w`NB;%5p8lfLaX$w;+$k3>pr01X9K27x5G-HpT(_&4%hhphzqq#Y^W8=I#Wz<56uEXM`1UkSErYMJjh#x1^0^a^FCT9ehuz2c=h;AU@q%yI+OeHW!4z~R7H`OUiQ<|e)-jg$`E!$!I_t{)#zN537#ifNx&9(vxvej@d1N}H!h>(;e!={1QoR~fE#Ibx5nCfuMjF8OPC&ECCf=ynL4Lopz0{Ka}+(V1Q#W}A+k0V)m{#OEl#?Z9hBQ19BOt_<J%mggZrxX7zI9;jTYxzY3y@UN;ekS~h?khBP#%?s9ue#yDX%E<;(0lM`3nQXV$n_Kf;YN65>*DR{0R2V?a!^qzBM5cm(YIxUz7495d>T?!fNn!$QwRh-~Qg88PBzvVS{U;B1uB`uPn}rnY2ht1H<r@T0BYHK_0+rBD7C5OTG0WyZ(_BSkY1Bd=Ux<``IX_cr7chQUR$0ixlmUmj6uHM)Wht7>{c)L%RJjxjTusZfiym7u0Yl$O-yp3s@ah_scK){XbA#2?v(=+MiXnM;+Y3r-?$VGAl6HNEVK$uVSXI2vcV-h{s;t3CN5Ux5xFC{UG5-%{CQyQ5@enL3kWh!SqTrT6_Zg(tH=9;H03{{0NIV}A&AC_bv9&h^f4{oTvoZ~}f1m8AEojYcP>uJ&E7xAMf#^WnDyX<6(E9ff`lKW|b927R(k6{`&!_U~eHMr64|R0sRa~vhkwW29=nkNsX(nkdahKLep*F7#8=oY@OMzxB2Wm~oP`O=K(_ElgRZXpf7k#Ugy7PmOu}g=spjZFwCm3n82KvmrAaM}mhl^%@q)~q9Q`QBv8^Kw3OIeO}iu^CK8b@P7xJa3X0%f$blzkBLEi*EsIX?Ar8&n7`bF=0BW<ctimILh;0P@-hJ3lwpqLgvIB4v<EJfBehy0-~_lys2%Fz`iNe#~&?-9BL9DI)>9n>b)s0eZrB5{waRyY4N&6OzFpgoW@L^r5vhjpiKUEqH9q3Jpf6$cBTZ0-?E3C9C??=d(#G>pD!g(L8$z1|sF-Du)&d%Nel5LR(vLVivmf(&)(EBo5DpD?D&^`FX1QI13o<)_H=qG+$1G>}UceMFp|KLgJajIZ&2D=(lYS)qwKj7g}^eof%50*-UB(<}>?{!c-R@(sYdUzf)sC!Yw>CTofA_`jpxKpEd|uFgWwZcq3@=U#YZh5}=sqia{t?7Lx92AfGm07h482GiWjkD)I&BU~5@yE$0^X(gdOAX~d)h<%gMQ4;!aX6Os4Sp*`h74Ka)hLK<LiWB@s-={*K))mh!l6j#GXbzj-53*4F)i--TRsc(HK?E?xwRQrK1dGKmS*>>R}GtA^O)0giqdAn0@X*nb{D+6sWG?T}y2giaAIlAh1X2}f<`(vg+<k#TVb&Y-g?#Bs<2JuNRhnIN1b!0L2&)&#Iq-L0vpfZEqtUu;OgPH*jGo(wpvuIt_#e+rQzt*mc6MV^Ha=hJGKMMoO1&p>|dZU+u8le~V%ZRr?W8JSbXf={B6;}H25b#(w0xxk@UQW)^XWjfLZRt8PAZ9hYDLSH+bm6mR=&co#M+2prYz`QF-rt8njyWXPCjc&zZ^&E`s%IkJ^cax)NUz{`DWG-hZJdeBB%}ixm#}AqE8hOTCga{W5VPULVq!yC(y42@{W;Ee249HbC=+AtRoOYj>aNxU{>voxcjMC~(6W-j745$m9p*q+IeJV6FpS@9pn2-+al-_hX3wa44yfnUoM<EaC!@nJ>dwJS_d`7hHvKS(19G%^iNGI#5yo9^{6%H>OH&=rm_suXYMxdD$%HgCF4g(FCjN`JOtZOcA?2={1sIAPDGYk0n7YW?bc-<VrNVuy=I3{iiuI_b>$R*zC{?VNnL-E!yFl>LTbw5w5=r{PEf@cHlCe3S^k0z1h5@>NO<L3eCrycK&2>b!XRxu^{4>48GQGpKux%Q$uUt#?>ZJ4&yV2gvb{+C(K1a~a<xo)u%ml8pVo;Z;Y1x)=?P6rmv${K8+;Jg*HV#3OTr44BtOO>_oOi9)!vS`cOKU$8uQdt6)MKz3YWmXi>G7v6%PY<xRc}|0wb&s|xw-kp^4=K7i<3d#IMCfmWs3SCyDahSA@>t6%CgatVsapQJ-Vc}W1nJGfV8^JX^*=Fg0i@ocFjBEN-~TsOlHxR>l(Jb^uk`63|8^u1=XLo;`sm_!l#+?WpxPMMUu-wTes{jL9=#uX<?H+DJmMP!`~`4D4grvaCS-L;H9@mEsyphU{`*yqP72vsr_376fJc=q)E*lMX&IX%*zFBUAC@YjKZ&qLxt->#^hhhUSr(N16*WptC0FB{zA|7>xSripV3u5_cHPr66wJ(uJqVd=9U)kbw+yoSYfH-++@{FA~80Y6GCU)qEVl3p@YUHq#YIts-Iwm+Y+<b1ZHobT(jLJkKs+sGLod$l7~sI13&J`vP7AZ){{IFoC*}-LPrTa80|7G13kw-Y{uUmzXMb;@@FA&-AU*tU=&HR!5|ky!xElWd)KNA+fSK)nAsy144Y{<4UJUN(^qRtCu3>0vvK)vZAIS=E<|dI)?u4{{{T%&-zgI7#Ip7k<0s&Kw$9by*JaKzjUEe9liQ%?HQ)!Ah~iWHj<bJ}-ftgcD-F8Dqt!mh-HNmpQwAMEOv>v=pGf1zlc?s^r{y}D)enFvN|>M5*C5;NLF!|*w_29TSt;)&@RNaaVNQhB++8bRc)vU>;n{ROmeFmMAoev%S@o<m$zjU`J4Dy^|HRFwS2*wuEFsAh9^ve{A5oP`z}{4SA0BD(v|QL$Q&dSq=B|>>m)C#l!?Igyv=I5oA(r!8PS`Y8Dt3dRn9EURyg}sEXrKx}bH^pimngyE&Ii9#eqnDs*mRzVel2%$q<!O{mK17|ybHcEb22ZlD9=&`Q74OgTrFa}Ig7-(oQS9u;tZ(dh|NpI&cWPY+=9Gg{%rIN?lbOn8b0Q7<L@W>qA(30f<EZE7WYHaA;)hl-b{147O?EXJ-MSS(mL@om0eSU2(pk--H5)^-n=MdZGAl_Qa*Ldry#qHZSys9uEr8#v*fQBM^-8*T3>jCE@lrdf`@nV;PdHG<cUiR`&g12s0<{I6ufil>PLw-O-#MfIvpOdZh?2<_9(}tfKlHOawXqNUnJ_w<tccp-R|9--r`eTgE(rkYBchOwQ5&68{&tL-gk?^_@bFWN#gTBAt2D_y>9-RfSshOqBzIa@#8)b3L;8<j%xMeC@G?%EUwSAxWNrv;(s|E-d45Dww#M$>?DQ%UsWPNZY%v&x8q4rYaE(4CW{T^aez^pb7$_UhhAM-`k^#R^uSZ8Z*fi3+%`cV>;SL_mxD@%P%f|Ru$E4UrB^Z=P^<RFuzv^oJ1Im{<3M`e*-a93cQEHN-m5_SImEJ%wm-<{rPT*)v!5N11=4L7DQ;^w+=612mI4ItD`g#X>8qE@+>%dp5OWgexYPpv9hR9%=!Kx$eqxZC4<pSPVwwH`JM3=Si2Yf<K<!28{w**`jIUZcu$27CNaKIvK~@Qd#X0;^hqW(a`hJVnEVK15+-4=xcF?n<(57}MA@3t{6AZ&t`sUq#LgmO_!){ohKPK1plqj<^9C<E;Ul4b_F|_=K?W@&_h-I{{_|cEHR#m_83a7;K^elYe@uE2D<+Cs8RO&3%OcI$zC5p5UwJw?e8)_xsg;;wB6YNFMj?v6|D>(qf;rCC%p=>x0MHdTJ6o-~(-5#CSbKeqqjERT2bKo%F=?h_VXHo-_ytBLlI}wJz@3Hd9C$1N1_8$=_<}f);fP(FhwityD&0Is{uim%q?F^GVvOp|(p+O)1OxUR64BC@D(e~{ZGn{?sccE6JE?M0Z@PB(O)#7B}Y-O3#{o&7e^>+p!i6*Mor+I<`N!(53MyMxE;tQln@<N33h!|5{^c4KebzQE%x8a@VY?BHKz9=o$)q1sT(j_$JE38X9SgtWh7EmD@`Y8xnt{subxA~UqISp?u-%YfZgh*t#5E>?Gtm`jFh%m8MA{RYTjY4xfL#*xR+A;zMPDNPwscFI7X!<!e-zrveJdtExx<-e~8$C-PRv~fVsfF-Rj^e~VwK>&_gHEeE!M7$;U!#^gXDy)-hXzV_iuM?X57#b(?ZeNL79@#?P5G}6l|L=kn0BI8YH7SWx0*$eMD<*4*l~l1vF8C<4|uxK`MUuuIz-RAFb=>OTYVKdU4iK+u-BdKiZW%^AEEIx<YAjpF0wF1%`o81hKMDsfq^tyR^Fo05B*&!iwd?YirH&@@+kV&dMRp(JtCTRbYF{auW8-Afa&MSpjL7@-|~Zc!zR0w8-^pSagxdBvUd4hug}f09yoP*7IslgfYdyfthI<u9m{zh440YlaoR8nDPQQe*eOw<PUM*ef`a_De3sk309o@x@qim|taW1%Aw1m}nUaieJMtD~ch>zZ<IV*hkTrkZ%G(1H)8+2Xm9$2hc9P8`Y)G3_(Iwu*i2qwY9doRvM}rw&F0nc|JpCn`XlWseCbEe&rL(6s!g;eZm(BCCqX#3zt%T-jDPLl}fTwDRY`eDrueOs9aGNTHBkVbW2>PlN<62rWj3t|QJ>&;v%OR5=PiVZosIJapdd+yDFD`qQBTujjP;SWt2b&lJVSBQ+VCCO83Y_?O@Z}VpC?46`23iAKuiTO}f7&l`=l7hpNyVSPeBu{Rab*5$ZKs3HFMo70?SI^^psr1kXGd)~qg6ZGyaD|bGz^RZ@HJyg`iFD(`ojAejBG0}h5IMZ<3NrnSSAr5XIC7Z=>|%4r-&$L`0gCy?QA<v9D;uW?<<KIo@|AgU=M1^#y%22n1bZuaR!O2?V7++^m&zttJ7FfxU!cWD{=120U77+J*IqHpiujOA_XciK^cEro=J#HeBEUgIWP5F(Tw|w48C&S-PV;6p`$|&N!TSg$dK>dXZv^`8==9va#o!z(?$6~c+gSf8p7HZ0Ikxr&vcM&k>nAFA4*89eg+IkE~O-mk5|;B7Yuh#J?CR#E;9j8eChJq0O|!d1O#~O#HHH6w4Ete=i)rY&M_bUE3|W>QJGTObswjuL0}Qf2qE@K8EDH3g-F_NvYAW-q|`x`ho9Y*+kgWt6=Pk7)FMd}Y-z&RFUijLx_x@pbLr#Wr`b>V3_TEokjV`Si-o^)m(wvgPuE44_Dbrtng;;czHq81710C2sHX=$(9$<`x0#$kdz<;8F8IYfb9ig>G$#ihooob=W=kJ{3SI(chd04#EbI{s>7<u?tU%6y=6~K=*E7lPXA$2@!yA3tbX7Me9{i|~q&JDVx(^9Fx`vNrrrb5y>QU$NQkh2l+9K%}##y~Roq|gnd73--6gM7abo->aRM$U5L+!WzR9gu1UFi3Jb~P$3e`TaKkm08C<s|%tc5gb_ePJ`WB_2+zXgA4PItXh|+`89vk^ZM&%hg9dM~@+|7V>)I9jlc-JMWbh9p>nRK3=Zxr#3%lR@fq3Xdpz%a+wQ~v^5Gv-&&FE8W3qHG*lNRQntdN>$A63NjCyAe1l%<nr+s+H<US3J&<<hulzOt(r!4pu!Yme8aF1IlLo-ZA>Yf^LJ(Vrj7_IU9SRu#Z2_h_1MhtkwIGtn2Ci1+Tlsa^w$7Zr_||dFNLA<}q*2;^0)q%3sp2e+whu<$oM#pVnL8YmTk^P%ogEV=rAZ{{-FITJ$qQEd(u^BMAIQY+O3gPtjyJ5K29X2Vs=5yG_v<<b9v2&_^BL5{zIRsGPv{gEarar}ux<jEdWfUQ;_x*lR(Au^1)9i7Ty!cgWAWd=fuoD`_rScCg%8Ic_7(?49r()Dbz)lP<c&}NO|fl?9v2@0)@j!MA(dvSInwW{X{5-sgU1n@$>zT<kxwJNZl%gjW*{`N5p4i?ivW0hf3!vdQG3^JbBD5=E54xk_~iIK#sHEGL2+1-R(b6kP}bRvHNDO+*2Q*@REHQy{-{aZKskU6^~{|+_7#I4R8Uq)YwX^_XGkB<#;sQhueps=ej=?rQy2dFSR8|xBq$1|n*JSSL)R#id03!CIJKzPXE4dlqaCz#yZN)`fT{&95};bj`GoSS={Y;;ujS4c3xA-7`sP1^{&eV9@X&ba7fBGDKwy4!ef1htZ_CaU{B!@C%6V$nUW*8n0%H(@2cG|!B!3KLWF|@UFXGf&FL%k1wPTd=XglS>zUjyW6Wu$ku$jE6@9vC}L1ICoWC4SWAksvX4X^R^3nzYGm27Nk13ewn{DfP_bN#Kxu+RA_%WO;)Oe$u-<CZjybf7*0W02x!YwopoE0gx8l63i$o5@w|x{Zm@l80#|=%^-ucGX2Dq6bVSl1IFn1%9hh#PAVN38N)>uJTKkM%FqG1!O)(jX$XXB0ad*|Czsdf~_?PSE9`$d{DPq7Ub345+U+X#sB1dUh>{QLG#a)0fU|Z=OnVlHN*?%0y}Tn<vXL+mjijp(2b*H!M5H(dX(h%dMb(*VGMR*eFzE6qE2%L)k@4y=g_t}Ce(*XrU*xWflP8Gim*Z3x3M$MfAof@>bFRMt2@fOcZV=|-8bk?p!iZkk<aJVv%Y?R(G2rl8x12HtZme?s`4c>3VuF^iK4qLq4XJ|rt8VY%uAl^e3~SyUz>afN|o8RO3Hgt^_B2B)d|_MqrQ9nkCz1WS;I;gb5Q8JkxP977T&90soJ4Mn(t%sW|8g*$m*hpERukE2O$DX<}ut?N^BH%ei6RuK$P48BeILXvB9f_F17n`CSj5VFm=x85aTBL=ddrX=kf-fF8m0505R(*3w{b6LI~Iw5>KhNCK9;mA+n}$FDA>gg>k!)qPIyq)_J^%0T3VTp{@~d>__J9m+|}(W_Lc@2iC!b8Z1C#?J}gmhp7e`o5=@LyxGL77hAr=+Pe9wbBv@-i^;*`erX?;ZCW~MkV6>5omK1y55!!#!j~r*^|*iyQ35$6S7H$l#5PL<CO18wUTE8qPQ&#S*1VY8)%lL*2f&G&7iv^lbNm(EIt=i~!Q@1+LAyG5)rF{HUqG#Rkm_>NiMbpn90?JGU8Z^Ae+VNm!=2i31Cvo)<WZC3)Zs>TTeBo6E`QH-dkFAADT!f;W2%KEe6as5!3L8TmTCr1pRj<a#+81zR354v2~w0vrtx%F$+2?vLwCJ++kqETt<<rpX|=d&qO%h|A(n4_PKlr20RLddO7gCJyToNbOw`^Uvd_<Ue2P;*s3?A9&>7?!8V~zHC9rCkc{HxmeMzD2o;Tdn@-bTxkK}sCBDqWteuam=mo1@DL<~+ox=-dt-*nk8&!w%9kYu-?Cca$m6S>M<`AQ|^ts%$omdJg6f-s&|n-*W7Nc(*GrB5i*EW4UN<^or=w@-xM?o*f7e?LA4+z^lH%9%@>+;UEB>C4oCxc1JJlUU1CbmsM9Nft`6)OM$S?OHegyqe9LS?r`klAAS#jKY=fO|g!Hwy%Xw7bHssyJ694iy$nv<JYJ?Gb(I(k^vFi-N13D9)Ok&NCw#kvg|d}=F&~7xigguj<p+Yjmu>GC5*0!av^a=C4g4Ut)bTmEpo0Wafae2mf8P&F7bW|E=~_BqN=p^lt<?E!q%ITm1eP#RbxKP;ScYKCsshCGM#tR1JF}%lNdaF=}9I*ElmCwOHAnby%jL;D|S^)Wn(taL9&#3FYqyh+|9xAXC7;&;R{Fpw2S9wWn*aBa6q@n=A0-wcwAfgU*;Kp-=E{{tqecFB+H&vZ@v+521`<h!#J`~7YG>&3??rW!s6pU!cYnRBM`EYI0V#c>66}^pP6aq@nk;xlu0wDmiRQ5|1KWE6525dM!|TxAO98l*je%D=q`K~6>^zzzbCZ0TZ}?RYUgN0{|(3x8KxwmK+rmc9Nx6-p%c*{cN|>%6OGE0?T$HWZIGZ5d%=OaJ!-9Lk8@Lz;tH)LgD(LH$_TMkzLC$Mcz+CiZ{3E_09fVw_8v=QUAd?-`nKsxZ_xYo9TzR`kg~@nZCk}dv2Tt3>)^TH>AE#v#Xhy-7t(m;bG?o2y%ayAj9OUYAWvxBOxVA%XF(yJ>bfI7B&0WjAAQc>tZTjRS|$Iw-CZ#Ibd4rr+QuO>V$K@cQW(6BNu@ifCDLmaU($dIWOVi-!s^JVf3z7Z1MryaBio<DzR*{s8!h;nwli7oZ1r>mgVf7D^gEQinb%~f+cSXJjCP$VwD;li5Nw<kc2%H~*C|7k-4nwSH{>vrUz7z`bLRoicUiI@^~BD@`so4iMS8ZuSF845GDvgX6#$!|g8G2dGZO09>QE)1gcT{FYZF@l_llsrFBV>#C`A4Hqh%6BfiuZ%=#iwY6W~2snbw*KKK3BKA1gb^(P%!eY{ihb=dkF*h{Irnl#XARW@K2@?jTMD<nWtR1-`{aP(I=I(Nv%uBTw-y_3Wd-g~^?F*Z1HyoGY?L-&bBSCd4ehVS**@y);2Qk!N92r~;q+!h4zwY;8CM%y?MiAFuW_+I>BYOEj3I0L&rbxPejA3eLNAmLzbmUpA~K!gM6O<`&7E`tSMiGpnJ>#_w4AP-wnOotGduC{4+T$DW`CDu2j$hKc3gKq?lXGp5g~rRp|r`=GrH#v)kyJbi<QqnW$bOg(DEr;Zn9ddXYTk1-TAYqnqLn;t}Tx_*KF6dTp&D5GHNB%KwY>%Zvg;R$JoO<N-OJc1t=HH?e<S@hjD&|7<FY-sJWT7GYIuw%!URaVqy<H@tQDL#x@|JpXmDK8o-O8ItjRjnI}2QG!-ZYa@ISzSrmU;FqrP?8ho;bXc93qjm(ZDNnsTbO!hZ-W<I=&jI-H*>DG-XSacVJ)bz=kAox=dob_4Yw)cFMzVJ+1A<GK;jiQ5Tnx^M?41?2jRM!l=5;R(k3X{JkmTL`my@t)`+iB66h2_DNNC-ZSG8fhYh$BFk3@1|K0T9_L$F}kBVo51$*nIDGYT#lRWfHI$rMlWoVicRas7$R$$&Txz$D0Yc{#D-gN59&0yJIAfd7!3%0>h;7g|(@b;<*yR8H65?7+*ox$1NC3-P*%cXs>gL$10ZAv))@!D?c?J88&fUa7punk)+tp203D!92&<&0LDF>uOHA_;GnX&pY&p0D6ZYy76-wLpnqxSSjDI9i(OY$YeoKHPa(x?+vl3Hi4^VdiUKt9t2qoL*AX9tpBj%mZb5zyh(3m+@kEcXQ!p%*l1qle)p1MWLBogSX169N!zX{1xNbgo$F)DXGn*wa2d9k{5&DF*L&Uy!NP5Kktd=`zM3Iq5XM|)qsu~ktncXHTy;eLn&vgnnL!V83%={^_FmzXQAaO&I_5}6d52`Z1g2;%BU#6)Ux}z16vnXk*;r0adpLCq>z(`K~6p_s!V|65Jy(WqM|Uh*$7)>GrQc<c^On058Y91yU$4KMjy9$VO7`wlezhfDL?CevwJnu(|Fc{Hn|xPMgNGIPb#wgD%n{Vo>65EpoSo~xHqCrhpM<UpR3Lj;lU@dEDxR39b<CkK9SK7k;@K&h)c<R5<tmfO-1{7l7@&bAK8Td)?ad8%=fZOHpl<&rllHV#vEwr<Gq{vu&c{GgS%DK8JRWwDVXj5hn6LFvIcAI55C)nihiM0X<OX=_hep$cjO?qPKc0%Q1CLd@-pI8%>B~|=KgAx9=BkEfIRcd%=sO4g}m6O_I=p5j7V;IMEX%+exI!U`IhW=zu2q{%Q};tK@}*T3N2K}ejEfFa__-Ks01-LvwEaVSK<Nw4J9{%*{@iD-%*qhv#!2z(HqRFl-JrO2D#h=%P$d35P#YYwH~;Fx_he%g4n_Usm*Hv1jfLd9N4$Rz0{GTy<|IVXeO%PYGmRK1=rBIvfXqeND7X=pw@LFv8Lu_v}2~^es8(x>%dMom9xQ73@Dc$SZxeQFq(-QNB@<t6y+MvXRdQ*!-oqcHon!`!72)ur`v{Dq@#8LYFwfuJ3YV@UPwppR^TkBk_Fb1?ejR03S6FpR0f1WTKDy1-jSkznom4Bc#tR_Wg>HkMkS#ku3Qn?>2-W9&4RIEX+E#l^?(^mW$tG-7_41qW$4*-V6`$)G|rV&&}*^28C;VuX!WPX%o6%b^vFK39L1~L)dDDP$HJ<X1ZYWz@q@`H6(k#<Z(5C#Q!s)_J7}(nU$vCgi2oJ<B#2;5uj1u$*m)(<#dnVmFV3^=pR5pT2eIdC(+Aa&#8k+yR<AoHgxTN6;+*JpRtx{s9LU2D=h5yCc90Q4)`#cw7@7n$5d9%RZGu)$b!uaD;JeF*4ibguN2N_<L;9F~XP-+Y^g>Kcb}7_i2|`dV?|voqjGr1FU`}kBqni^y@)JFBYF5!EhQYFsepBt1_u<yVq!Aa!k%-ry!NA|EHxrjLx8S!KSp^E7$yFB5CYH#%ZUalkyGn-s=*@fBHv2eR&aqub2sb`^-7>G=ve-k!RM7MD3>TQ%A22EEl5d?}jsS^?c$q@%D>w>L0m{&{jvf_)7+roo9We7XlUDtP=Pg&FI|f_HSME|_!Ysl5vJdPLxzI;@z#b<HI}B6AJqyU<Y~v-|##kC+WoC+<9k!RAeESB94QaY1{!J%K_(J`V;!w~2vRT*R7be`dOg<-_TEsT@^CCv`hrj=Dt@a4jj+r?^GNWUTUE4c__wm0?liO0ue6(zzjYTw`!4jA>W4#nIGfk}2Nrjk^vCL0+CJfox!PuMW?_OPQ3E`rsD<&}*!;AoUG9xvZF~&gG-&;H7m7)XR1w>C%%=8uAEBgtVM$};(^*{QV*B#=Q03kd!U27N<-;y2&y<P7)fMTsu#6G2QQP8*>47A`Kkz4xedDB6wW(jc7vhVA?s~$&89hi^Y-8pa|6y|Vi@G~T}YXMnWY%qWa7{!V_chtPoN+gcG6^FosimWEONZPxcB=nj@BWJo+ctaSI0(n=5&^sp?uB(;9ElFKPHTw{s3$}RCtx3aSDjm;b%B%l<dpPrzTiXVO`>Hza%3KLBOYyS<+Ps|+q5O7Bz6w#yRwpq!l4{`y;RW5&ATx`MS4L&hwA$c>iO=J`(2rkoyx=n8?k?bzjxuLC{!9%A+q$B>8l3@qpWp(6*ZJ>0Eu}pw_ie=cT?!wAV{t2=jonH{YO_c5PA8cc$*|~nQ`onMrsdHj-C{Sg7U~{c@`6pSCB3hz#e8@`4t00-R55pv_$A*qW7SM(l(qIBvl3>ArdFbeFz}M`i}uQ&N%jK0Q<Ug8ZToV0{@F8Q{zU%Iln<#M7Q$6(e)~|ePVu9L?dwZa!JYY_aZK5;t6*b}eeo%D99Bp+S~iX_&9<+V=^Qmyp<Xe`s^9eOUm)9#IhS}?v51JzZM_bA!m5d+`w3vhy4uSz>^0=Z{O#sB22;j07eGjLWyAJhh1&blM>vVO^^>yv{hWa?rm;NTgT)FDh!>+J6n_s^(x?PSqlAdeSqKK$;`JVR33IPRt#4-3cY#JTnoIIc@wpB`v9YBmt1Y3`&ZvIw0!vt7u=*(o3D|;>!`rB3#+HtkO0siAi_8=d8nc03W)x%k&NRD=mON_iLe4zv{q|JB&MpR-_96yPc+URYeRfrd%q&WABYM#S#axFEq^r6HZIc{(c&i0nSg8WRRuTTzq&(cuxMZ0nku^hPBE#&Nj2lCOwD5<P$Agf!?^(?2)2*C+BhaE2T__Dq^<9V$7V%^YR^T~{@%IUVTMzT=y1}lGYM1*AX$`fq>HZ82wNe292sg9{$!HbXSj+2nTDj9C=ms!2n(P|r<oKgQ^hJRqpd7BZh*h8@_3BH7PX<Jmx(Wi;sA0ceX)Q@RR>TlKT~VxB(n2vp<2JWk@g`em+I2MlIj&MtuCgy-9EqeHvEu|~uRS|63msM)w1Eg*35Xh}R{$PJ_NouA3{za8v(Y+`^rfecs&|%beOHNgd@3V(%&0E56?*aQG(6bQRNjY-#^ZMi&e_@fOuR9{@hg$?W9e|PY0@042)kp)Jy{^v0Xm{AkQOJ%#AnFX45YQK%#s;fwcJ5q?H2Zmd=<_8W-9f2Kkt?YSY1C`T1@{W0pd*tAU4qW38|JDj9kWK0|I;pK1qp;?$jea8n5Qjg5RWEv}s#2NFUe@nTI&r=X|KmG`!i@Z#1+jAsqZ<cX%Q{1^`bzUFnv2uE{j~YO4x6CgfOZtK2-rqDVF34G`i#j~Q?Lr{}(Gu8oy8vVngvKyfBSHDigs93JwI(~Gs-QTxFn3!m@@cULNeJA6>-B?4(>)<lfa5T<#OF^829d}xHrzd%@6ili1q&_kP=oFQbjN|3#Qg0N>^<NxMT3)_l|nolN%YE}8ZbC+*j4ny2TJqZ%<!H67KvYMn(nTq~lR+*27QPeZB7FOfQ?X;>EOm16le1^MA%Xz<UQdQl{7mwC>kJj+PQIPZjHwv^Ob891@xD%~n-sJAg4!{qXeWxSsU*S-CcfE`2jMw*lZI#nY!XJ!cx<_%YicIqfB>AyBj;-f>%OYT=tD?Z+SP42+(Xc=64Oeq;hvw!2!$EpSK)B<)aPyLh_<h2*1X1Wm<=T&pNAUSV8k4{l*t<FLUp~JN=QwT9CVNx*$;^nBZ3IjWXa0o)Fuh<#u;jVL@IKiD!fdgIjSjy}jUWKY33Qvpj?(a2Ud0WcE2>d4T8{_#op7hHhdgaH*>2N(aq0P93w|-@lQ^#pj^>Rg1U~nXZ<QG(yLlt{dV3rf%;vvmu$2bmWD`l-8!vPrD_j$K5l|wLn2xia+U6|Q$kTNdHK8Kus+Lb6Bj!6=u=8}C1G5qp+v2(mCFa?LAQ%pti+T?}F0XU?fh#cqw(D2+0f0eY?7YH>;|B%h_mWTp-5<4GnC|kRam$fDhq)MDH5aX5(QWiPi|Pm>G%S!Jbj6;y@4E~VDx;%uRZ|P@Le4vsWX=P6y-V0_tH`zfXN8)JG?${Sk#bM$U`Xw~D$&mb&f~Sm&JP!RtNz$*rzF1m*c20boCmbz8@Ji_K8Q_%9j~i7GMf9|wNcYv0Y5m`>|4lUP*Qh8%VnA8p(XNyH&Ms4l-4c`-lPqgX6y?Lo#e~3%H`6fH)bzAcaz(Txp-g5_cc-V)I$2guifb<h^k8uSqph*W9*N~emcgh3@jlFqAt3c`_GVa3uABe@ni`%H~(#GQVOix$?*w}QVt${UknldQTNk(0YOR@y=IV@(kn$vVSQL>@vT1i1}s@97dO@lcfe%MJJ9vmY{iqd#F?wC1k2fn!f>_)UKaNAOu94(qnkRMW>iJLs28r*(qAPrA~4Lwwb@&Ra)h>TYSccw08WAwdu_TwSOMj>DV0)jog!4QET<*P)%?KMOeb)*o71jgq%YfjVTFDR%$F=Gw5-EvWB71h)<Fs$dl~cl#2@K}KH1QWmtX$d%yEv%NK?eGcl1!X{@qfnq{M~|vcD&`?ReE9OvOSgMYe4}lVG)ljpLEHH}znm1H#(5cUwhZ%)8IQWETyzytp;#;oVV;q(z&goWHZ5=MZON=8SS%#(bP@Ceaq3(QGwC1nfX7dT+`jlltf&61q2*rylIk-YbB-o<nNg3D5;gp9vK-IMp;c39%;-L>8>I6Xqiy3N|z(cLA#S^_x6r%M(WGjS|SSPvRg;on#;?2W`tT*vVgdM0kZ#E#^VxB?-@B2tVkT8r5r$)dRdzMf!%KHzg(zI{gIiYl1AoA%kZE$|_ki1c2_XT{sbek9sgby8K&tai#@ZOEZ6!6Y+7`v_^eN_ze=p-<sKaJx=G$F?4qxcMTytBwF0@W{GbwjE}PAq`;V$_@sVS{iKRMNR!q6zJ5{NMZ5RVI&3FEAq@d%HsY(uMbMDNX-ZgLe5cZR)$%$8&r*f)H^4|(vkv%;?eQS3O>9)q;(aUag~89BHgk?ql~NJiDL+MXqW%V=OkGP>j8$MC^ARjZEb}YB$VqmnMO(j|mnQIh;I%F1tCdQRmyFn4-YwJ+AkopAyBayItmVGAGJ)*2H%`;fA4W~Bt?)MK*Uw42r9>_0X63HKlWy7*3ScVZo<kS^3VN_Dhtpj0P_%DG>TH!1xQ|t~@wJLdB6~Rp88Z$5l5B&S#>RAQ4Z`9C?P-Laf?5W}XjEMIj69HM-LCUOaiwT9Ak{KM9URQT-uMSrS`Nu0StDQkL=YC03B6G~G{_?&NI!y0LkGgFUU;~pz12^(jj8piQ4kU!A*FxF`++gh47+dixJV3mQ}$7?DA;S<UvIlp%4t+`BEikG!AQ=iiDCe^5y}sC@NaZ5La}_E1dN+W5f8yv)HVVdKYKJg2lJ}-3NR8%FcsaWm4ylC6XpSsaQ_Xg^Ko*XH!wFpT|`U<GXW1?lp@{9@V^1+w9;<<pOFI{qogFwNmnH@>{w(=yzrREy$23psQ3x)_Z3eTZtmt?37o;e0?<4O^2YU+kc~CnX>IodUgSgnEi|?7*cgc&)iD6nwO>7b1Fy80FC`hEH)ON~I0$Rzk9YLXUd)u9ysI1|UF^_&M(~i2F_im<dVvTcCe~cAlMPy_h#0A6x;H;(@8Ba_()HCr8_EGocH_4*l&5fFZoQjFVGaR5mO@+wXq!tmKJcpmD?cw8to<Y%AA0OVY^AgWg^|>f4_7iNpX`fA*+Y!`<)DB*K0$;Jl{a~RtGAEh3X8%m@J<M^I2gw<s{{OF{=yd!tPE&bG98_tn<@rhWr%848qszy!swKNLkOfGdO1T#)jUsF+U@_AO8FB}3mq3z>xk!9{#Y-Oa>nHcUyWL-O(n{$kZn>Dwj}`d$})7k>7s|V6>}=1v$=St-@3KnHbF&`{FE?zzCKqOWwoq8HQ~lTYMc(-LEWokM8+}<XW8Btz&FUWD>;o9wEaAnDhT;{4c~t=94tzT?U**@qrYZ;k@5}K^0BfKz#bI=La(s(5L|K-oIy_0w{c<bs-4d`lIm&&vR>asS|(mx6SpQX82v^N7lx?w!4>pRHF<4P_o*3$jxh}*pv(6@cNLW!cE6b?*E|toa@BN;*4@CL0^Jv0CMQdH%w+*Oud+FUslR4sclI&OSWXg>Z2q+fUT&s8iwtx1T6CM_6hM^<Gr$=(izaI8_50HkNN+QIi>^=hl4VTH;pC}3f6>Sl{Z<75u1`h-P$yGfIg!PtW6qhXJ9lB0r)jz=b;NBZk_$rAdX(QGMs}LD(@Oc{r|>3a43Qjcn|Ie2L9~L)aBJa!ZX8U5qJG)$k_We~I0}?FNXjC2{})XkI2S;`DV}7gUWB=BW=bG$l59d@#m31C<6pBfKgW8v?UmOB_rp!)>NZTeP437^@Pyj^T&QK5M+}zbNCv(?G-?}B?h-lAWoKP{$VA!>D0{PMkJp@r7xByF8QvOa8RHscL@5H9me7?4H-*0zLK830PlVuUmRUa$#8r9U&DJtz^dciFU1rS|gI<WtmV|sHONX{$>>tQ5sA8Kxf2o0I<)ltSo?zr};z@Fv3QGU<mq+j)5hO1u%GXkdDLLhcC1h^fGZ&*5lYAG*BA>9(j34{q3F|arzyQ!slpKkYe5Ix#0+9x=$dUz5wn2<Jg1q2Ck$)_%6e3SkVe|Jw-e7kZ%G=xN%CCzl4HHB(e^-X9j@%cN-REgA{E>_boa9v96$rM%R?OjG;8F_CUeg#!iB#d!C6=`RjcVD%27xx`gY_l?PuYGDRX!%%)%;?hiCxXBA5B!8zoO&jrEqqXML~7rcEMK#{8_8>^`@TCv^C=39f6WvipEEy^LSueXn-=H%@Yuz{TY+eZ*o1zJsSIRUIoGX`hSSPLn8|6y`_)!>Vm@N5|B)g%&n|$D96faYoVKm*5Uz0g+#`baQ8io5>!<fE01k(gk6KZ2-K?Ae<vrzw97+X-qnvyc|{Br{gIx&mGx_nb;r#l`9XdjCrKBXIJx0W9>qtKaOHN^%e?@v=NN9k&h}vE$jW>S(^yqW?ch`-K4%+b;xX^8?zqOuR98c^XrJ*`Vk|SH$sFl$VNPWd7&<O#H?dTLduK-+b$HYW8Hw<zrH8q&E`-w@ooraL;~s2&XJPqz4ffblFfZ`oADHO7s6xu6Ge*9!sw3b)=F$Wi2`#y0QOR(subGg8w5%3uJR})&kOD<D%VeO8Xcg(pp?KC~4PwLpJ`M_f^Oae}^)aJsUUBkEHJ=!mC<`XhOUY_aN>yKhsF;{F%k4bz%k_(KQ$)mWZfYci!3xZ{FvR+WG6Kc1LRYvDNpHd13$uDKSqhVpSl~U^L--00W`iEl3QfwBEcg#!+zBJLMTO}{r>Wq~O)6h#%Em1sVq}R1lHa_e3<eu?u(AeCy8+6O>NWt?_(j!z35U;=uHnYLzB^s%K1DUW0w}eFZ?-h{JqiRK1Y=v;;&yFfinR642N6J=D*~3ank6c&TdSuiQ%TtW#)LFx#;x&ra3mm8RCWhWq`s7vYFLG)<?hi<8zEOln+<A>{7}D<1mdwJBoli#l&IVJ6>?N)K-4g?MF{Gz8BEagO|N?*v&nBQpo*KsG3Mam!Lwa_@{fkU30Z=NSK!$On!cVxpskzXQ5Y2{6^vrTMj|EK9Nf$kYwFG^W<c^JncG0K7V+t^S4Nz#eq4eVe94|Lgme}_AY$$SWv~SalfA|t40B3>3|2vV3x>|!IsQiJwZ@G9V?JDr&T10QDM&$y6JN=h_ykU&GzBHM9*91D)?O0idH$7lewojw6Rx4F0cnVUwI1q*|M1x9JLm=@WA3cEf{?N;OW8M66~kFOS>7pFp+F@LLc%)+d`^r+Kz$LPR6vIr=dJT#JEvWH`;?so2-pOVd;Kqbq3)q(NI_RPEqjfb&s^myEmnhz4|i+$i;PJ7mULJW{(W$%85}pXHT=wYQnnsMjgz0C&VZo~8=&2YM6L_L5kw-5`Qip);v!<hYFzmK<J%x_W5!TQejvnfcyv;X<ws80%~`pp9#|l-#N9GeTYFc-^PRI}D4<k!bGp0hp;S3MUGk2%R_p^8G6wg4Emoy!?n40Cv6=zFyYG@<L=V-LEnk`j9M8VfR$LH)oc?e@UD_gKn3XQIavGXEEUhyL6ON>h=Ur}KSQV+@pJVNQ?j@)pH2XfWCoXhb|9Q^zb5i6`@Tc$$-sS_Zq_Dj;Yj_j*N+yK~t4oOyykBM*^(f2v6J#pHbL&95A>TL&OjO9BR?&HQ-71VC+T)QAMt8tYek_hErMJlu5<`CuE^d~M6TTp<EqwANi|NYhvNG1;L8UfY@FD|G0yhbKqQmiNNFS{^lh}8%Y7IEi>tJrp(1+czR~iU!673H40RVjwic}2v9LXReR2V!BB9>o(TLP&O{OKQE1wlvtrwW9T?AhBgs)@B0&tmi^4CO`m-;(4NNWQw<PA24ZOYVd4I9ZL%IkeV+qhT+n3W}u$inDPx)A`NC{5gYw)@MP7mi>eV^pZW^J57e0FG>X{Lsy0}eE+k*!rWA|)L-$f)Ss6|HdK+JGtWgirx#SW32rD>Nqexeiq4e%IO?Fk-QN?9bjFrEB9<yG6cXsnIbXIUC)TeS$J1ma?XfZmLqse3up`LuyZRtVMXxuOv(?<7@-#7g&p$U}N>gMZ5yH0@3<!BqE&F-(30UmUFJqF9lcYyA&6KXS_(}_I-aw#OS$H9?Yy8^a?Q-}Z?uXHQhNa252g?xXC@SUdz<tlrEdgCKTF}~TxgrxOI?tJU)8@poRtabs-yq+{nc4%Ixeqvqp}2CVB97vPHL403Wzs88K3KybslU*#u!_<>LZgu036p$><}a|(w(Po<ZV)s}+F}cDKTlp=8bV{rT*5Ky-t-s;g8@2xFhngcM`9rpfns#zs^rS=w&G%=YOi`7OcdtA-7mj_3l5|9V^^~%eV@$CWp)LTZp=htohqPpr5H(lxogVH3FxoTjLwekyE}wO!wXMx3;gx)OHsli6d_+$acsmml`DfpQ7_*o!PqS{jpE1=i@dP68f7i}<#Qh`=E8p&1`06bHVhR9MduRCNxWW&tGsh`I-bjO7_m%l&(jf>SsH^hB~fNJX%4i^SQQpk)fbU&uF?QoVS@-OE9oB#jEYwo<O5&&Hh&m5EB#2e-+qT`oPjEs!mW;|J8|ei0Tiv<@|P(wXb51{NL=V$4P^#e+M1$1W(k68M7sQ)Y2_vWqnJwU=BC;{hUY4p_T(DH0XMUe$)k^(oLKCqh-dM4_lATGHXK<U{%G4gom+&cCCC#yQa3=-Oz8CPhzSU`a`cpJes>~+IZ9_A#+vi<*>aeT$UZR%$DM)xvX<3lUx<Rs%&M{Q1D|}6&naH*C(jynqPDyhhihtw%dP})nH1r*PSR=`lbPP9JcK@oWFoQ@w<}b%!wZQ_J&0kNHj1s(^j2kK-;IiK`9Mi0=#3bbj^)<JH77w5+D~mp-p$XI(DnVrCKu?1&wdc+3+cS{SsOlirfBF~6W8;?#Fy9rnc`&`?5gOKoQ!;tg#wg!%&0B=kdd*We;;w~_%cg<vZpFA$O8|Mr)RR}Z6JHwwN`^E$;7>EfmCnr)d)1^scl4-LJ{U7bOI4Hh97<tG^4NUxe`LsZq^;&^XuK4boVi54Te}7e@$U^`CP*-0E9xj>zK}C$gVHk%e4;!tqvSPN?Fci8Ri|y;`oji{Z$I5sxK9fYae5GvX>({D~620;B+Wrqwa_J5H@!%pHdR&L9jK!>aDYqX#hVqTDl}s)^ww&$h87`0*)c_^pWCV4|Q(;g=`&R0-8_zhNxz!77d(>An5%g9e#4bDYXu=UF%`#B=dqnt1F*JgN?79XJ>H)lY}D=QA#&o7bk<=T=)(KhuF~l4xf=bfd99hD|d3=>QXEypYr{KrzQCOHsp7Hj21Y78hTe%x#BK^8s5$aT#=8GLz1Gomv+7_(@W2|0MkDWO~IUAfmx^cGJ(KUO;32$yA^vvJUN20m@qc!VvJUz%8k71v(kM|f$(KrQvcYE;Y|+_=WfQ2Mf^U5GOH=alI`>jWJLV>y(q>{X`>Xf>>JhrzhV{AUL{m<#h@=Ihe&J{B4Sv}_ytgEKuS8CFs5|zF&lD7&`7smDzrj(xZ4kvIv;YASA%82kXxGrQ_75=ZfP}BbGitL{0LIhOyQkisHeiTvSl@fZ#vlD#76+i-asgQH(OBcUlTOU3kVR7T*){UvC|Q++}76XZ#4Hjt<P*2`(u}|-7x?cR61I)k~Af`#>2TC$euG%ls3+Al>L~`!4{W3;~YV=<!ux!&~`!uy(qzk8HG7owd$21FU3YcVNnjXgY~DDSgmpTbb;0aMTvL?B%#h2Xq}O{YD*E!tkycyt)(;=STq^1u*;B!?dIV`x_0f=PNPX?qdIK+OvYOIG>WWNixBK0j%f9;O%ej;Z-x1z*5f|{C=&TcO*eqqP@eK_uIBFt9R0Rrs-njt_D@GC@Yd(r2ePpy>oE&;Voz!#&k5ApO?fsO$kl?L$ap9o{Ht#uqb4K)6q@$|A1Wx0JCmYoy6Gs4Q|CJAF=7QlXk#0O>>+M0jQJC%)8PvZm8H`r*e9qU5|5f%x&<@R@YimzPv&f$scBf@KD<xg)*Vov{C_cOcf1l;_3C3wn}!Hq#27*C3{)@>Ytg)n)2(iXyd?IatP=C7tA&kqx?{Mi_tKD<Ov{USj2D0#96;SfglzvKr6A4#6$I~KZl_MFcP1>*Z6*C@!QdaO48l$!bUN-4?VxQAhc#MmS@MgPr3`3)Gf}b>iV8NXeqyNZpyum;8HkgMN#bhX@t7&)OCU}rw1i>A+H;r*_C`OE2}G|+%cECk!}c4jHemRdmJ|f$6$Fo$a@y`jarbASrn%DBXXTKZzj4AVzn9{+g2Q04=%E|jCbV=!e+ZbzLgs{<3DCYg9qK<Azo@xo&hW^uW!_KRlQ-gxr=mbUrbhX?XVZTu0YRI;oaJk;gS(mzV~z_{+;LcZ62-(#){FVTNg1h@3Kt<gt+(nxWM1p$HDU|rSaB*TmW%J2s~7Xtg)b{TomG3n@<gV8dSC>I6)-L2?eb|x?Cj!d$Hd-vtB)8iYi+%9oPg5|P=n#&h8zxg8PDe1V8#J&pl^f2E(w-%v40a!nRcugP6UJKxMBM%QoubucrpwUj17Ct+L_UGsX2p<%l#B@3%3LIb_+zE)KR62KMQDGT>{8J3_e~`nu;#*4HSVU9K<nb`*+AmabAz;{5VcAK{9me&vI_no=z~9^sOO-xHI8x{mdJxyoiBL`}XI(78Zsd*bFx9CnaWp1#fH<6T`hce{}6}kKM}vNuk8;6a4W{JwSy0twC-_Uu&gDO0%cQ%RV>)yac;o@52WL2ti^|aejywa64dz)^I=kSZyW$By@DTYFJ5HuNRJQ8_;w=irZV>ESMWFJN=CWDTW1&>f7P?d7MW+7mB{OxD_yN>ycWxWoo>w29l;2N$^?0W-Gv#s0V|#3!bA&1R1fhvFN)pNfmd(CH60~vI<3Q)aw@BU<-G}^lRU(%B91rG<0)4n9cJ<pV_zk)mMUZA}Dk0#w4}kp0FCRG+YQRhw<4*@pz0f9o3E=8b@sq`#TvGOoM%OrI~y0y9azC1Yta>!mX$Go@Zg6A~D!CLDH@JBm6t*%}ub$)yA3S5JW!8_83_Ky_2=rBYrsc^{-6tV}p~glet8#c0pODrnfc<zDGX(NUQNU82?o&kGepZLKy$5?vMP_3W20tP#~7Wb}RjXH~eqn<p>K2+BSwct&sX~<9&w*+AGSE1|$Ls%TsTfyp%(l%sAjOiTPlkzS}Z6f=ly0F60vGMLV1Y+e0*KDot)VZf9!EickITi$%GF=dLYlG?J$<;%N__kWoP^$zt=BYi;>wQrak;7<tKD$XL`OJ8?|p3)I&^jox5Zo38yOQ|aC^6axrACE%n65t{tkuGew~^3pryO`*{v8&6J_atVX+ok7N3k)MLz?l~q`YUA-a)BDXujBJrEx9ozn=pi;YjtKYlcfiIL_(k%FBcHl8xk8&x2j(T`N8TlPu!_}P7Y$puJNn^u6s?Lz2Q2M=cI9%s{bFyp7_W+e9&by4bR931mcUW`>qTFcwG7sUIq@%a8#w#)8>%x#$9`cUHGp^xDmN-*_^SJ!+!3mhRBy0EQb1}w{<09mEBv5+mx&aG?Y~vaR$vt1yE1$V6}YvYHgp6T)HmJBVrDeAGTxI-3ETBsm`a1(XB$g!EM1n{9qNj}Z1cuPvuz+fok^N*yiwJcvM%Uqn=v-q5r15tA?^`>nYh5m^*D)YN|C;mG`gzsMBkD+*Yd<e+MdFtT-x=7#9HbPQdJ~n^N{XjciiS%YZ#zV)gxx4gW3EysWWBGe~o-P!9y`G=g95M?naHez{R8BYfzAetvD|%$H~eA9-g`KAyn}5#tp7#n#Qdi9dqbH78l=BfNufSkSY_SgZaIPWcW&sCFOZ=J3O0_tQK?sZu9IOsnM7a_A!i_#D&NV(I4HTvhIg1&p}8IEI^O4yEeJkhi<^sp7PLm8jfetp|F$G#Q{RR3coxF$4ZQe-03jp+1a!1zosyjz(DGmC?6)qq0KxF5HTPrw`($z)gSC^PdTKn1aq>5Ube8hR*YQOAt`KaVv{$hq!*B*!(*#F96dYcYr_RlF$L%5D1C!?Eq@(h9O}la$F&eh=2;n4`)S3PMtZ#=c5ebv`Q$)V(f8CzFh1x)Sa84$gswa&2L&4VAT6DF(p33Wjm+F$K%_VpK*QxDTRt!<cM<%yM1YceK_)uTSa~s{e{P6o*y-Z996m&gP!q-f{?ak0ul^WrM^a1;OiEvnN)M0^(`D|fXHOx5?b<oC#mOWzhLZ!Ka3(=KzcW;S*e$lkFr(7Y8D8T&_yUh74e~_ZI$^y*NGWuCu8?oTVLw4A!><v{j3WtSxMt$m(^F?vVpa@@^ZBkn%wBw|G%TX(r6hGQy{n}r>RKc5Vj|*PM=1i);xCV`L{d9~jsHGa{!i4)8fy}?4C(a{VZn10Ex5XF&n!i-<#gW|jCH~JT!LxSFyzOs{d?;#Cifrz9|)j8T*H0wHq5H;7!JW>Yh-kcd^^+_n>VPOIfB~*a!$TRGDl;~QGX;c)(wp<^yu0dw*IDKXW!6HT$`R@&sIEvDC4dNBXCv~*hveQ```fBsTF+029l!EZAPM8J53r0FStD&Kqy01bFtOl05?yqJ09>#K-s#fT86OM=T1UC4;AZ^xt690Rr*V4P@OTKN|86q^8!OWS#HtZODbbbOWVD$g*pP@^|&#QXJwDo;kP^w9?7xlH~?%_EpB1T`2|bF;}_L@OrC_gbGYHG9LJ+UMpi0NIZu5Mxyy2D7o3?A)k(kUX<6DHwqMo$spim5pXzuoG@`xjZe6ee@wfuXzTUA2LCxgJe{XyBuT7%>O?wfmK30J!=9jhUfYs^fSy59D%1DND4SXF`Q}w3tn$d!$3jAam_)<isoA^1M+EL#`To<W8Cq3hCn~1fokx0ShYqYgK4Eln`!ElTTGWjvSL_$1;3BVR8$7{OIgf*^o(Hp6w4T(Nq8f9s3F0<)Arnj5lBegzzcYH*r6ys+Gk?5Bzu7Wf$ee!O8Jl=&C(?`~MJao?yd@!{38aBEny`%+Yp-T(}==2%q7AGfqP@<Vke)1%8ZQ~yNqco-u(g$`hRqNS?d+)++b`S!K-?l~IIA0>N+;tX63;I~vT1U8ifAbtKT=-O4N1U}ia(py@f#QStAYC$bTw{IE-Q#!dhI`IQ+e@@FxVokh#Gn>cw?7yGoQN@;&xB*aq~bzS>oU^3abCUR2#)CYNpWA-42_aB!!50eWNp<io^iTXZ~x}#YMX-2DIv_<wLu_s(S1VYS790x`^e}q=QobT_)?0KBKuMAaJW}f9NKVlBVDObpp(E?{n+?p-hW8!e<k>Qu_DK`wAWTl=0fD0AO(7(kn}c|B&4E!Fr#GIjd|F-LoT&(YNMW%J;<v^sd_XETFKm29?zbKLrv?T8EgJxF1-E)naqWqGehKSut%4LyOe5u$XK}G4tgiU9AeuPexocCvUtunJLNe_dqJZJ%(zhI1eQj(tVNNS;bDcdVu0ICJ<z=9sj%q1Bgduds`TWO#vj73$**eiSMxE4yl|e*t$}nKEZtB+TVOM~BT8yVD<{*s+fb>3tK^9W>va16G9ec<_PsVr8W~n{6^v{^#nv8iqD0D%85d1z)&>Eo4nR0CSGg*d#`_Q8nSYF>fn-Hk(xqn!r-%c2x9ae@JnJ}MC#-Y~AKZd3pLmX#_UvD*H^l;iW0Q)h3k-E(?5TJ6Qeq00EfJ)W1?nkWokqZ76`hd2fQ(;Juu|?UN0s`uDg-*CJdr{PrN(xAAcVso6tH?~76mpO5&1-WrbsDe{^IfSa5fi%e4lO8HpdXH!rtW>bpru?uQA^_odIuP3q%RCN>Kl8Wv=tJKlB-f4)LCoOp(ce7+p&eUtld$sK|s0K@kSu>Q}Qu1N;sQn!zI6RsHhl%<gGfpEL8|2)&3$hu!NYA_oN343Yg_2Hc8Fr`$6XGGAzFmsqb&9Jy$b7=*23I&V`XNYGw3HfqRVQOlieDJDPq4^mh(px~QjmkI&2Ap3z(g+p~&-n`33_11%ZNM|u+k9uow7FtDe`-VC6`>^!MS&BZMIsjAcrRM%&WIw~6BjvFWU(4XM`*TLqcj!S1MjvO)X*W9UY2rG_>F7aRedFj!?ZoTG0=H#KU5b|UN(;JIU||)gwufR1T&ga21|P-s2PNkA`aF)Z@&sZ&mq!9-Y`kY5{J2^8i$zuti$5tvjmZ+!71b$~y1LTq`MWxj96vK@=0Orla4CHoMDhyT>aaLh%pAElvgd@sC);(e>><VZ&HLgv;NOZx)j@}`L6JdysoGB_vyKAck?}kHea<W{w%5^Lcbd(2P<O<+CvZR^=0C?>FEeiRAc2v-I~XlRhmuqfM|N~s!)K4{p&%OtUiH~5-17aS(cwLj5y1SYxUszYx(LwD??&N!`Vu@ogD1R@NAi>j{(i6XEif&}*Jzw43L1)*W6N9jl-MtYoo$)9O7Mi7wL#nL%oeY&b<HZRQlN{{v10|V6_TB-F?Ps4btil|)cI5W#9mi*7==!j*b$@+Qkl5}_uZmKy6!IASSO|dVgG0_=~YvTKF4dYwB`MVT~oQ6(Y-|SKvTBOm(YiLwW#>VsaKphx$wwt)ZwX6cE&-{#^!}Y5%N5k%{0(QXlsD(I6D4R-xik|i!YNL5qJ3>De^rJ_=TOaKCpjvd|-VkUK=V_==r06WkHVZ9@454_PP{ZU9JpfX`49wtnt&1PHXL58vX1rspx0CA`$yrz%z~;jf!c3(6G~P3?N?j<9dJiV7Aa;JVC|-3jj-F>j&1#egnVwnlE`cW~KqRGj2hT`9TXm%nIf!Q$q+?$K;hZNC@eVvNBgaGue9F&Y%Ra)-B>r=`c~5lAJoe<dw(`a!7n*Nu6dAfbYrX)z|Y?0fX$gD{_ezu)@_K_#_BIw-Fg;3@*#dNh*3<>WLO7QAX)fAVbO<9GrO<nX{ph>^fI1@vxM#T4k|1(NzGQhWCfDy?pgxQuBwTZ&pYY#Poi#QdV*1%IA9**cS(=ikZu{lNB}yXPB@8AO2U3$*Gz#JfLEdD;;bc(z<E*y29@4|5+c7C2+XpFeq)Sn^Gw;NbpNI5a2+A+7UGneW*akWBj4B-(?svEaWS6ob}L?ywwtdEIZ1wb%2b0ERLDuPOTCKU=h_OFqN#bdiGLqcVNc37m1)iG=*M^R{mANS?YyyS@y5rqk*FersQ095cj7m4|UFA^}tptAT{240bkEkdk)Xs(4-Le@!HH=v_c^gW&ymQ%?`SLklRv$c=N^}>y~14g<Qj*bw|v<$bmqD%TjZ2nFFg#n@G$aQh1yd3-GoMd(+8DV3V|R4B-HWf1PyCs1QW9;@46Ci;%7%2f0Q`Ve!nrokB;T-3v@^yXqoMH(Zagem9rGXP61#@9C`<+pa3kY3t<9V$q?*n+F&GT4=uSdxh}ACaio4m-sY+z0Bmd%Y-mM>115&E$eCMEeKV78`P;At?3;|O<s29b_QpSvHRB-_%;Mma8#$?0B=ryj&&s*I6ftz6;etWR?V4LMON_O&k&@e-jZus3;-I1>VWMA;6BMj2%M^~GYbfB8<qt)u`)x0I9Wz}M(sXJeVX1xY9!sdaLg}zOnfZ5BL|-*akCaoQco|yavJ+rAPHDHpJcB<>Ev%GjYLPDwW<zJN#x!zoTel1G0q*q1TX~J=F|@lrCpPth@5a>I3$B|rsu&b<tPB+>CbPjFJtr{v$|GhA-UDnhf}^lk(@ceGPy5Ue+gZ|7jZs6+y8%9kw3gibiXl={qwu2RslzR*^p|jK`yMostPJjyfOl-wjBLqf2cdH{gM;fSyka;R2fBT$H6$JQAL!^&cV5PaS-F!-0U$TolywOxg#42o@{`#`rtAO)>!G*YAVQuNUs^{9WcKvfvH@ZWzmA#O5tjIr|j<uLlum?hn&TD5IIYCN~{?QYL{eivCIwt2L<q@Z#R-14l>Ml1s3&XrqYIHo>$Z7>^HFhzOM`y@8~~S*asBK^7Yd*TsOrI<jjBpYYg}SqA_(jF(!frj{SB|OHl%FvP@|Xu=>5G=vo_^cp(*iN(ro7@(Nx_nY^A=Q2m&?5Tz~uEH%J78o^!K{un0`P(jjnGsQy&e!^lzqt*G<9MPJal)Z}$IFMYLRino%N>)`@fLJ_3LDc?Co<Ij$<{Sz)acK2mqRq%Lj{e3xPDkx+MQk02VfikuV95IynXZ+%U%y<p?~yL4%xNgF`io=}(szI8Fl#(SMAZ*s$AeMf#;`0^DCto;JYLG=M&XF`9u-!;?yU$nM5c9`Acz<nxnbbNZ@}#BO6F=gG&JmB_4~#JR+u8%dxil;*F4SclvKCGuS~Y;1NwUBj&t05qIH#27l+i^0#oW`hl4Zp!)`t_S{ANeR2s&F%54I2>_=`@D$!iY``0kMi-CIveW)3NADsGqKH`u0{V}Er1{;X3l%}Q+f;&hmWY*I0Ma3!Nveu};+W^Js-2JDbw_4!3upnioWWTOw{Er^?K)XTjCs6qkoJY@G<B%0V*)4s&RK)ywC4Z>FcNf|Lq{#|=D34MY1&6U|$g+XL%)b;L^aVg$4rqAVsXW*JkWp!1b2@g703>>-hI+6a3Z<hays<rvr+DIn(It`P4tbze$1sJop4fM0gQtV3u3hVe2?#0odIjaz9N^G;onj}P6kIQ3iD(!6B7tae6?0X_n+OGz@{8&{sAI-_rKmdBr7vX~y^Mu_b$lh0y*R55r~#7#V5no-3BY8KE9d3$CYL)3Qul<<^9IVTkXVugZT5*$i;cq}X>5~H8YT)QadHX}axxM`8!poc0oYZg3Hi(<V$Up{3&wLT_Rr<lE1OUn7g~(L8nF=ggtnYq;F9LohEw?yn0Z30E^Ij{EMM1i?K_rr8s28#SWH_Xfhl$!i5M5+SCG1rcsq*uCJTu+(WPDHe}KtA&*H>rtndx6poNUTFR#09g3V9qVO6mVi6KWU1w0Q#$AC~nJ+n*`I6U8a-nPU3Us4YUqn2!}SYxy{QmgAs4CR*98(s4ontgz1$%sNWTGtGZGLYIHeRM0hRp2^+lD-d6GT|pq!Y?*CQ#x_jOI;rxS~xv)v{@9ked52Pp`Xckb`2B>42EY%wICF#l}ZGF_aRD$ij941uJ;A;&%MpE+3kOKP-<Rf{5Cw_AAR&CZ><sP?f`te?yZ5(AIuvC5EeyydDCW9tmr~l>h(n{!nA`3S!)M0{6V$74;i|ri;i*ykV&oB;(0Hf3$ADk#RmI}i|Im?k*z76(I2f`njS1~0f(x+w18a;@}9`TmYdxor*X^ZC}-Wb`w%dGDQ{L{q7_34K@DgE`5LnTYvr^w0n^MQ;<4BDu`t|NJZ;$5=DFs{&X)?wHJ%l34}6j|A+Up%TlOx6S;-J$HjycQ8eV0@WK^gm_=0OM&Lh11@~ShbwW8U{bWnLM?oYz<{~sao1+HfK4Z8S2%=!uM`dSI+pAYP<u;=}<vb#}`fC^Z64N5Yi#Nk$rI~vXJLFr0^1e072z5N?PL!8L-HM@Ba+3h%+x5LOeu5dZY&C8a9yqbS;2h=m7mS3MF`!1ZLQC$7887ZywA=K~_1NoS3i$Bl%4j9dM4mc6DwG}6MMQ<LzU(pk-_Vh_|U-|o|4yMGQA5`%>Wf3&;7cX51%|jmf+1G&=&q4XsAuFbrAH%ugRjL*iOA|kXo(q9RyccC2KTcU?l*J5X=p<UI@t!0iAIB(|*e%d`aXA2lj5$%J4+{{RkJG?*4!_X>Ha~_sN0W{6EB~YzfI!d|az^V^xT8KX39o58JW^xixBo%?=s<Iv%}iNvX>9y7gf+HC^xy~@>>0q4RO|B%;WhytV4@rHH1F{3DiCD_2%8IxjNma~cpp4}2kvgGM6G;H*W8AU_ODNS;5!)ub9=<11>Vxx2I-3F0vABj+kLS8OX+BKwk7Rfc%rhLE#F}DY#MIp9h$WC$4*(+E8w&QxjoeR7Q5p-k@f(nLIa8bnj+RxsP{h8DJDx`T$c&Mf#EVa!qQ3;_)59qK$orBQsQ9Ro9XCymv!`sngiNDxwO=L4aTP%@^dYlyCg5!xt|qd!KSQqrx3n}PpZUyrzS1R^~aVZ7;M_zByyz$#NOrpPwg^_CRs+^LkmhmZ2u4-6%y*19r(T<LRH_WNX*uedA?e3T{+?4rlt@@?v1Ronqd8yv)-uYhG_38yRtrlK*ehb%HMt7NE$I1WBqbPie`=M7pOA15{t?X-y-dCtU<pEL0gZ!Elul3V3Al4f@b`;9AB1+eE*I)<S-M}IT%LHbW7QjPmk^GQcn>6&f)98wjc5Tk6K@79w7c`Grsa;1ISJFsgCzZTmP!Mvn)|3JxZDvu)EbYrwvBZvPn+*?gGoj8CX^9kjz}hFICKUS9_0i!xIbGY*AU8ww0Hxv*bwx-OLAVZ(LlMY9f~K<DV$%<pg{NSwzNxkRqvOt0@WN$ULy2fzDc2WJ*`dtwIQ~m&Uo5BA@@wNqmi);xz50)@42~V%ka_-Q)6umymK^>7?e)y5ZVgCyl<-JU4U+RsX@_c3?QvhLIY>kAl)7jZa;icdzcv5m^_GulDgD@I5{%=o;0WFNgM@Xl4Z2S`A~Jp|-7XY`ClsCUBH@Jdub~2vQ&CN%bNR<fDQHq+*W_p!A9P9SU%;K1XfUhmY|`&Ssf;_pErx#+MJ<h8G0Wuh!~guTNEaWZJ$BHvz_Nk`s2aX%gt+%LA9<1wWzv6x?ioUh;i@N2!Eqlq%J^^{0dsWG98{m1d4s)|4*1v7>f+cr@&f$0uQ~LT_ZO>bSH*UDehXKo1HO)&S(O^soQBU4mwiE!{c~E!+>L#iK)A0^%nQ+*f*WR3)_~NF0o4VL9lQmpnu_bfh}G35#v~_1&v&BMRsf<~4d6QU9u~^V8N~Sl~*{%cC3b%2xXaem%xLtird_boa}NeRS}MqM`hXs1m{?hVLxCHawp)plej14PZml(TUQHRAF}=xgG;?put!qYSuYXpa-$iGK$?E>*X!>^75&ov6vyuxJ;^|F8f$5!G99X#~JC}-{lLFHJ-npRgMA(->PFe{K>BMwKloyxhFJ75a1u#TA7vTurSlwRjs&;I(SfBb1Z~GRgGUHxwA+G?n_L|O$wdR$6Qv<$NZlFK}6g-KfHQ4OMDn0M8zZ9(lQgh$|H&K@&UpF8-m*M{l&FqZ?)^|GY|ahWUJSU9WNM&%~?PHTs0|`Y~Hnrij=Do*`wC9x2juj2qUhj&3+PsZ!-4<d1DY@IEw#=zby}C#tCX7`i_lS)jDw;v6)MTWZon(oSji^10L?J!us*op(=$)cHH9yzA2K4*Px7IK%-<?=q)g&_|$!hg;GvIWDLVCDO8^06_tAGeG_d`mW_1kL@%uzL8LAVW(VuN9;U)A0UhU1J}z6u2-xG8DEWtE#sv?xq-k>&O`Ll>bF8CVLYm1@%6T~?hsq`3&@rORXQ_k_nv@pKzZ+Y~FYx~nt(kmhYkKtpVs5rH7na7;e_7(h$*M4`42Dyb?FC8%Ppr5%Jt<C*0Ooi8a`U3Vy85=;B6=FI790C96udu5qo@O9Rx<wl17GE|+IC{X4os))5}o$Am~l5tLeAaLLE~m@)%$^mw3<Xr4dAsjps;ZmS6uwDT$~#fHla1EHUJLol#*F}@7XbkKK(GK6%a6M9bBwZ)}OHUF_rNEOu#wZAtl<@>sP-(8qy;<l)<>^#9TvjcknZelW|=JR%0K$#09MKd3xN>;a5V$*#&uQ08nS!BS4=yK})J7k|QP^G~1^I&w5`$6El0BrgH#WWwp@q!YBKu(8Zg$&gWTroFZ_4qlZ_5Guh}1?mPt@mzPf><2qG`0zS!%WQ%X|un2!+$^oZpjABK1@tU_J23b!`Bksn>AyI?zhmJo1Eme=3>+}~pKCP`9Tm8U<YhUVTs_<!kH>@4o(;!_(J6=;Q;~O@UAX(dem{!t68J?;Rkz0!ayyN3$M%@Q3)oUE)ftVqERisVibQcW3H$vDV2v;BamCdh4b0DMoJHU>w%<+B$QP6v}6ogG6QWde^sZE`2y9~l!2Q55lDg08)G*Po!rni$2uf*qC^8=afvB8wCAX|||h7C)yA20b5R(StyJkTLNF3<34{Kh5Bpoz)<{5doo3rulV$gANi2xP|l%)fX&x%CO`58v~rD|#6(zG|+=cCkF3e5%Z3IrD*-Zj_i+!+BQz9;7H)!KbJ?`7gNtCRXnOZP`cW-BD~^EFSq>mM_j$sjS{R#_lA#^qwkY{l#Ud*O(5;ofk7sDSU~s1PQ;9Sp@oTWpv0A;-HSTtY=8lD$9SpPam3DM{p_)3gJ5?+DC32p}bzzh0((fhpkbzntTbqS$0+?JL(I>cWh>R<%a0Olkhn|5A3`xY!+<z3`uBE+xffXhX_=9-p`<{x`5(UW3CbcR)0#aNoAiZ11($TgQ$U>-H#pI4*#Gt{`DvyzfUtr6Nh+-UJRbE?M$r>bQ+U%AEsOYkN@W({i~Gft_L!ls(mUw8nouXTE3#!PxHau>{|ySe7U$<q${*A`--;A%{#G)RYne`7ELei(H2F`8#fd19sK2AkJf+>f8ptbyQQ=ZqqGXjew4adEK5t22qmxGFJ+X5n{g+Kqq;`sNTP;-V4NU=4-EIGc7F0mBl_U<V=4LsaeF{h529R6f(Y-LZ%bi8el*Xj3zE`EOmc-MBZxo?@*5wi3;1+nF@9a|EZ??-CiGh;z?<-2coW8FKsqQC;{n>+;n=Bd)Ly{y)zL3TwV^GE;J|=Ra+!4S{}&LZl*u)2t|eDksi|<BL(__vE*<(gi-(Jp*zq?D#Os|y^B=8;UE_p&(G`Y#ypTi;!X>mN-~CTW8twgbkqsE+TW3^bGF;=5xA`dxI|p9HjvpQetPDY^UHM3eY}>O)reJ6mUK?IWyBMyWy&FuWjaOb+L&>)?@(X{_W5@0usUZ(ewV)uP=KzsqAe5laoHOAz@D;G7@!x{tZ#K^P{k|`LnS479Ywk7Jj2s7X+ki#Kr5sd$Z3EP^PUNU6pHrXQO8?JB64xCDa2uRy(8*w?E@Ny7YI;<MloO3~n=7A2`Ijw83ulUO$F4!-9+2TRV`<F0YELy?GN&z<g5Kf%er~E)gYfWes0RzRSmx$(=y8%j_=h)5UW7Hn2OQRbhy%2T-ExfSwri{9;70!>^IUN&a>8fYTjZiPpb`J>lGOvVe*<@+aiz_X@)XuT$~DtdnZqN%t3Xbu5nV_9-+>Ex@;{2(@;#i&P#ZXn9!Vh7!ink`7G<zje~$iHoE!E<xf;|Yy#}MMM&2OX^{9;0a%Tn46AiLJr6?*{6f#V2Uh;}{Bqpu$z>Yz*8?``i8K~DZg&!%Svgb*D51l-+9zLp%%Cb~5Ofo9jqjNr%Zp=fuO83(Vv6NJTPd#c0H4^yP>?dG&lv3<F9H-=HUdY3OaZoXIPSi0Wqr-jG0uDZLg1;_$P(Ku2$`m?4T~x8zC?ZCMy+43P{rtore$0@3p{vd}I{kc5zmIm2Q1(oe@=bXZZ{$R}oA@fEjhc+9mqKJ?kh_scuw8@_^^y-r7j^iEPCBJc{;-vM&8K?e*_1GTUa`l-CC(VmJQGsu;887p^Rw-H!;iNF!`R;lSK^=r>Opb$B<Tb!)JzT<!Yyio->Dk&a!wZs9Z>U>e^0(@cIphNv%1xNbrjd#(uJrrbX;)&RW7fPA2a5{j!HIO$P?@xl^`T9T;xBzKSZ*##qTI?ADiaZyr5nz^{mNZSX3L=vr#K!J5tLUFX(urB&#c<GpP6=uWAX2I&^T`o7d|wIkwv(pV-1FZHP!v)#;8MJe+`GpTSjgs|`%EZ{s)z?D~m}j0^$h%(CaEfcbOx=4+PuUWQzjOsQxFFR}!H2!<CzneTfVBhMU`?B4EemAwz9i<+~@<+Frbl=bD<PA%rj`Nd#ecnv$^#?oI*bUx$9yuLW#8o96+-3ag7;{b=>DeCe-T5dN|iLhF34Imwp0mKBKpZr_p)01~U0Hj?bSSV%4^*BpJcVyhkOQx8<QQ*<r$avt5>FbH2{V_ir3YK@${qe4T^<;}$q3x-mHdU$%758sp(aAP)YS0>UyVT`OGC#J6kbjI?p&GcV1!Z=zOjAtu=eJP}zPGHjI}MbkjnoXMtaxHFQE6#C7Onq3HaAKe{DOgB#)9N*gbb){D&SInS99X&DBA~<^p^>}k7^@#05KMt7!P^Zi0PM!NPZ)wO}A8i+EXVe$$FPuwq3MSg-clO;z(iG(_P|W`tr*!-*3%1_n%CfSa9B~g(bu_o8`_P2_Z_2nQ?^L0^1=69S_&M7uVmdb=dK8wHoAzMc!WGL%UJh0pK{`GQDuMb;um#md7G5@xGn%k3RkY%u_@?_i*%d>%h{*e|LL)IUr^2P|UIn{<y{*7npJ7&ODP`4e)OFlZTdNaqqbzwCRxdJ)(lPO@{%>7XE3kD+I~mf5=gh%?D2=ytF>((c1WlEu*7xYV-H%B3is{O`f#~P2DLh&<a{dX^y;&7q}$)*3&!bp~h@H%f{~fs_?T;?hzfOq94x{5C@DG>hFT(rx<WUq>m9Lng3(v2TP5+`)raCufaaBBy*8;g0+(NzgV*1GXTm=!72(H!o+N;Q;}10i69#TSo^P}a)hvi7Rps#qSO7t=)JQW!UzdkXp`NVIU79Dy0WSniR`!D;5}vyLMN*e$96GS>m0l_BJ}}>-ixGR{@JO{vGaK0HiB`xJ0dYu=Fr>DX8?Sw@&xrLW7)=jI0&<YM?JwVjZ6&-jtfrR?;2ZOl5}gPR+OoDs*&K>flfb2S<s;h+6y9hmq!>Ljt;b_>!Iqf;<{-T^JT%%B^fV86q11Z4xfj0@9nzf3)&%QFtxGKY*S<&`8KTQ2(?%j_;@nvE03zt@A-M2rS=trG8nowFn0$nOS4rD{-_J;zBPk(w=SptQ*Iwr%#%oBO9rgDs(uHmLy34Zg+1PkR+%VgHgRVUU+a8V6F2QK4{WMCvAI6~&ZJ=zCUmDHVRYd+lRm0Xt}FT>&Cy|{lWSUQ*>I3!mj&i%xtF2fS`~Lz&VYh!4UB$u=B7XYctHT@D}wQ=#EydmdzF8b#)5O{VX6SDt1G3)ugDte9<IGITDO5NNV-$hcm-WHj|y{tap7&in>?&XyRd_JXZ;SzqQO@@<l_d3;&tM{KrBV-Q`z!pOw@(1S2aYK7Hfx#B?mZ^l5t8Jms#ZQz8B(oK*(=?-MeqbE)pz8RwE>;lL&F6>jw4X&&s`h#Ut9}zixv_6Y|hWb7CBCp}|>-BCYmDAKJHm2Xq&0mgmZ-1F>*1M@1nEfq9Z?W+_<>?Np3-U2gf|h53AX);R2sXB0BIE?c@rpaRpMtmS0{trr9>{F?ZWFWkPgCjn^;CYZ%YC<HReY14o+a08Bk(6P1@R)hni=U?Z#7f=Lj#>u!S|A6JeyaoE?nxY7)&8lgvI%@AGn#q?2S;dXNc67jacsoCfZGrl-sm)ZYU%Vn$yo;izmv3!*$6xqBnyb-lbr*60<9i7VA0n$Z6p=pX7{9A5e89D$n{BX;zK<=XxN%VAtF(!Q7ui^BeK+HQ(B9uljC0*1r#ag1E7>N=qC3_k0<h!<QeMx00oxUXYD=Ta3Tr_7fNOY4a31?vH3<lrvz4mBoz?}@Yt)vNXlUpyUYX4&2;$2XrJwYcTOFXVN$ab3!J~92z1|W^2VpL9bv}FT@F}k73!5Oq5WXeAP^L;1m>)0RzCN5L(>lTgs*B5mF9G=TW*+lzOQ3Ie>pHvilzmxt4J?s(x?Vh_0%n63atec6o6fy@ATk>~@P@E|p$;gjT3ypJkTi4moN|qjBhblnnAW5j5?!QM0C61)1~xCM%R)r(5B;QXA1YIU3ie8{-9bx<97kI|pw=|<!q8U(Ca--6NhrTdj4zQANZ~O8@RuVytW|ky1fp=Fh!n8yo3L(S*Nbi04wmtu((ZNC@e_2Mv8N3Bp`yb^AC`8Srmy;QM@X~IH0g2mS{EpJDNO(JNEplZj?yn@#(9=|AM}kjP>QZ$s2{eLi_ok<60EnU_RrIH7+8ryM68q1IYIc*N-6+h5}x?4;TH-{^R~{9*S~vPG4K8<cD4J+n)T_77@}^Vxgq;AxMKww2rh&lE(5WeB(r~?`J|bYsY8Q&GP5FZf>etonf+qwA9hq;#Iz`AC(A#Ji|-z590*l@{M7G4WfE3oz;R$mUx~rmVB^Jy`qaTp2x}$u<SB3^oRzP2`BYWKeV+6ue_!oS1n}R9sB|k*_XQH><6IQ8;3k-#bkkdAXI5i!Lz9bBGqnJ@A5{~B76^j~s`#ISPKEO{cA7?l;l+2GTBSqq(?1Ih&cDMd%FD~1u5#~b0{o<y)4vWu>|s6S_}>_E9AXBN-Jc2y5I%YfYdT!G$0~}f2yF1Gzo<tA?9mIdX)6!$puQY7w{Pi4L#om+WsZK(Py%~BY%=-hUdTkxn_0t<5{KphNFNxyB6A&@nOJdk>CpK*Tfo{`5s{ke2<0z}Zi}XrhewJoBl!2qd-^^FWJaFp(g(24j_(t2`eJszV71qzO+m_?L3NUHr_17JfCMp#xhi#=3ewWS#qKN$?#YM2jf@fspbxj<*)*lm@G>=9;02TIP8EQvh0Ln*fTNLO-4tn!Z509(X0mEU@`m2jL34rQI^KksL6nK6OZEsLB>}@CToTRJ8dN4z3dxCF@zYFzUO@^X&`hbyI{sjl8!E)rit;X(ax@}lX%s<{*ry|&Mpw!>GFwaUnR^03rEk_!SvG88KxhwGLf%zMV^{{^TP{W1+^-q6P){Q_RyYzq-n4QEv85C?SU4NPuzqK*{ZrckD)s_%%uVU3X{xml{_KP1ip|rnRH9Y!8dQGrnACko_fypyQwL@3o$8e`^j4^q3>vy@6^5>R8=3=3pl*Fxk~yp7$$X{XS~K`xtM@@h>jVoB%2m!O5-&B@`m~6=xIKusJ<8spv@jjM^!}Y2Lg0Y$YtGc~--<(PGylIZfqsl9xbckx<G3j-nF9MpE5X`yweJuKF;w~j4KiI5?q?xaKmjTGo8@Ck9tp5_D4@VaCx5{Ai5iTuh&y2czcRpl>(H5tH;?CpJPwA~cTFfiuCS|Kmh>|#EhQTv*99zD=}Cb^ldvGu9VG5;fZtP%W;|&pjtrTFQ&_)q#=bTan1cSx@GqwY!VguB?Z=-zTCc80d7lx^z7xzurw!PBW!>Jp!n*9i@z|k5aAPM;Qg*oyMzF8rg8Ow29z9WxzNeM|aYj%Z<CP8>2X?jM^diphmSV*C=@{WtYXG-Tr2Ot^ZT+3T4xpTeyk5-Z1tbCNTVV410$8wDxEAf4q({lXp4nslJv5r5=Aw@$H@V(Q<3ZY6ziBFbPNh6C-n22*2fbmzG0$=osi$wmS1vqcD8bVL{uPle6zK!hTt|%zuT?d|n=k?9z$3=^lzGff9~lv3u+w)endeSTbY%JWJKiONa%cw$J7pf>fbn7D#4y1V&;sT0Z36yGro*AlRHg$GIp#ENTlxg7XX_turxnOpn=<|VbDD(6dvkcS>%%8|u_rou?VQq-@vG(D<3EI>T$xi6wR)jbM;8Q?o{VJ_s24o25XTm><6nBfZ1eEEAZtVf(NKY#d*XE@rUw1E9$i->ENV`%WMFH&#w`%VqF4780f<A)Alx+r2jmHg93<=7oogkiy2r7_{MlNfd~2QKHgPTxm|=f$UqACyJC!<Xo7-Fsf9kK~BVv&piy+e#+|sI5Ny*3%vjuTj3uG^cw9HvV2#6gwmN|kDPGtP!vjXXi+8(n)IBRyQ0Q9&Pxq@H!7Ha7qaa>p6mm9|)O%VsaH$s76n_?+W%3=o=O8i8F)E>W^WOVUR-7D|y!n&a?aAEZEL`%IAe3bE)u_|?(Y!`-90DkUSfk`v;hQ~$jiIiQ<Zx!Q1g@V2QZKuis6=hL$bEE;K#-ml)vJs|#f9QMR3}rkE&$Y~<7N^-d)=-MjPwxn~FSO$jtb5T4ccO~zrIQ0Z6JIr$E*rdASvBC(#sYK*#4ouP<mrIE=H!PD<R>2NfE1A_#ofy$f{s_`F*FMl3ps74jxFwno~hTgLr63VH>d}-+Ax0^D74CKw82?RO*qC1B`pNMF3ISp%r4nP<+1E8Gk4PjPUlgY9pf=FMCEGrcEoeuGc8qB=<;DQY1HS5MSGQ`xVsHZze16t$vwcLhdP$r-%cBn;N^E-t|#3HO8edFaANc=`?)86w}YODiOAOjzJScT!Kg#bS`QeJH08%579t9p?cx(Uj{BC;{_uGxn@MRq=F<>+Xy&cNO<=Z-u!tkySB$kw$*t1L7vUd@8^!3(<#}dV!I_HQ15YZ84Z-;{ukOb6CjL%{if#z1yuInxd+@z-a3L?|LDUAwM4`ujhG{p<L*&x9?QQlcbEm100$jJT#F5Vupd(igUa6USNrFPCi}}*oyeS%b1*0MmA~nPg5c&TkpMQoMeA)yE9Fq)vhRFzb{O*E5_#BzLYp*K0`q`X;H%{k7ibX`>tuq<gbpPOzRu)*K>966GRu`)J=Y-q~-q|yr2UI=T!{w1iDJ6c!H<8pQmjPnn6nxG2R18X5;B!1JC0H4xK;x4>%POf~YzEUVjpQ(LqI4CwuJOfbG~vmu4-gLSQwGB=6_z;Ym5=FLxjZ93;#%Tb<$XjKx_gH!vt)vBul}M#;NaU)&-*%<2^`xNteSamg1cbXiRItd6p{T>3U?@U(XNkXGW4ceXgE?L`te1{mJJx*PDWBD6r&!@b?9j;#v$=S5*@^UPW9?q6KXyFNQkJhh<Pc=Z{#@C3HX!Ux`W;0YYZ}Kx0qM3BlkrkU(ad9elM+Ef|~XtvP5gn;E`UMyp;bIQKZcv(BdEcIlNhnFX&blV{TFKs}!cwRNV3-MJO97<@UKf=~>14X*9C2a83xKKDQ!S0L;6)ZXQ_a{U#iDPYqn~Kwc!hr?W+{;#}~Qn*1+rh_ftuJPGWsQsA`qdSPdGsK_cuKahZK58#?nOge^dPP(ZRurmMWMTdD0i~@>*zctke`uP`O2N&5%wY^I<5{&6_g*f>-N~5(NA;28Q;!fSOSlV5KspiW`^))Mrk#Iyl{DiGEqvBYbm{n-E_0CjVpGtNuF_uJZu&REU)Fa+R@ztxEu0A{>gJ0-=<@A`QBh3?$pRtzWB)LD=94!%IxydU{E3ddqAq3;a+4zW~ff`246@P0qRJrke&b!qvns;7Zf$pNx?a_aBH?3|{5YJ|a1t_2EC?!)Ar_u^{pYUoOu$Xeu*TS!EB$N7=cpr`r$SDeESIwkcgCUz>9s&xN`tt2zM8Wf>wK)xx)`NV*<HkyBM=Z|qzN>3|u(c6$t1QS@G@V$7*FAuqQ9)|3Kj7(3(Rp56__vV$SY6<|64hamc(|qHgBJ6&uYHFdgUOYKmGX9s+R*}g4wdmdC6jgIoDNeQk~ge!m<>e&)~Ti21vgqx+h~miKOLOLWTtjjaoj3zlpOsCnZ?_(h8Cvpu9pwE=!=8oxx(VwN{Tzc4?YDkS~boa4-O&*tn&e_+5CmG4*+?{9I<CLOEFhHh5qqkcjBNxx*F%irP4vIA(j+-o-XXLlaKN{O4xpFP9*8d@W|e&TjC)#g&;sw0UtFQ<(tE^=69@}qzH`JU23DMw#tMg;iy$V%x*!9L2+GPmF{&{G6rM(5=6b8mv3{AL~u=6?zH`E{JH&Gk&Yij1+q%Kx(6N}-BL_hq#9+{|32!MdFHo9x(vAuwTr9JHH<MVbY$axJQ~k<QK-8jTo`xXENax5N@3w96!VqbrG+Mk%Yh|b#*xpUBa@0Z`qgsq5vS(2oK4=yt+kCi<V?+hRmdXA_acq+R1-B9=<)&&AM?GfA3V3djy@jg@xw;BEZ+dX52H0Dd0G!r$F-yk86u<Mx~IM1A0H{vwR%pNJjiE75JC<!x@&H39v9Q@N2<N{@Ssz<X~5nUwJCMB0+(Qy>UCu5`2vH^wM%MMKx1olSzt!JnkGs(EM~$jsf%y5@irAaQY~{iZY`KOq##*B8#&7@0~BxwhZxNnK`*NJCKT@q5U4cHn%3Vujg5_g7IDjgY`E$XVs(Jp;BsLdilgJ<W;`v)TG&6D!qy&Ya+XcNA`DzP;g>2%i+7R~iK)KdfEy^pryWry6|9CX2077^$cEM%?mp3!<Eb>^Ro05Z&=P+zXp-8!5Y(Xfqrc_yV23!O7BbXj_q|(^zE>${`XHGZkJDC)7PCG~NhrB?{Jn6m{+X#GVRNv4w>xNPwUrnrbbXBbe>7+0VN~C{a$1H}|6Y;y@uomH^mh(9K`0{URG3V63i?MV?$A#922E{QI4s5I0eVTI+CLWtorCvlCo?pa6R-|A-2{2z&UkXeGQD*ZS#*i}I7eJ=HXi+5(4mK4#5fpkSnCmmXzZhV4LR5L^aLD%t^xWxc&JT=@!>+|tMk0qW^8sKkb1-yQZQ5hOa>fyj0L=rlMzy9W$q^95Y(-(yI!3P;?szyBF=W|8)o==8@p}FhU{)~r3`xT^g52@5N!D|G#K{5LPuq}J(hJN%Y-Mby2m%=opH54bd+SjTBj(GV=t9P6w#;+E<G;|q33<4qyBjoEM&U7;6v#evbsTx6VfQbeyxO?V}BS@A2jwmP*Dj)C{NuAYQ=(}&>eczsK52nWcf3I1hEQpNXWClJr39Ol4)>l5+G{=SChr%?MWEr1*!5CV%_W=RnIr@ZZX9Z#J#&?4jq~qM~8SIw4a&q41~ycPsog)_!skNN(~vgks+*^se(YcC0PT!7!5k=q{$4^VGKILX00>ql?mShEi1gL`A_y@wn>MMpX)b;Fp5NWN6T&CeyE7NMLu}$gdoPB;6>XRG$M3MX6Q=Z>~T!f6JLxj{GVpk?qXG$pzZT9bbzOsj4{h!7RIQvz365yDXErCWJ6<+he(q2!38QC2&W>g8y{EDonpPIi#sa58k8mRAuK7X2H@R3$uPRD8E~bQS&3lxgUnPN!59<6%r4EE<Oh8yC{(KTwQ&fekNR<%b{5t^f?jl;@eXq@=~^n?!{+Ajw4F9zGkjoikI=rFQFxS@>NyXNx>BIKpx6H5m8u?y73qmyoo0jIe@$dYkuw4m!$elMnnd@glU@%?8nf}Kuwl15i6rYlCb<Hk9#ad~+Du=F`WU26<5zc_YCPKU9#!u#MPd>@2_0A4N5CX?eF9#{Eac{yhRIH#RJTiXG+ypn!&8+h#v>K*+QLK^!*{%vYaZE6`gs693Xpw~dQNUYA`H2Bj(YJ^pTUv!^twYGrV=3oO02Fv?nA+jLbVSIv-G(wzRHu%#>mS*0v8VRD&#(vYMc4xOTHUTeNH&_H2CNPB&ejI<uFg)RO+B&H6dEm*y`zjA^oJVB`)v8XCvA3Sg{RE-6VWk?djRPZ$!8Jy-^T0q`P=x%V%-*Xm#5(V?1kTubPUC2fN+D<y3`TR_mCA-*@88CUx93kvg$vBxMVGp|}ABluQmK>+4&MqsU294*gBXIC*{wXM(Rt=wBFiAMmz)^}OE~2^@y4NaR@Q6`+zLXnC;|G9xa+w>9eA^-w5y70#aPys2qFlSn#t`J5;ilAKW_Ys|uj>mPuBk0afVUSu`7vYZm!74P;kwuBU+U_gacZ=5!%Dc7WGMs?|#+bksgCK9TSm0&+~Wp*Pg0O~1)&ZVGY;<pghKW-#V#s*TV1D&Wm?@VOj&pVF$Xb?26hmJ765Z0>hU4<Ka9+AE{)XmVoSuw&&!vrv+$sn=?c|S|0E)<k4U@y(!S=vGn7qHP=<MYMhTJU>dt2rkelhvoW64{a}xRpudb_IF?nIY1qmO?IGPHagV+IFA6M&{}Dppy3H#xdRMA;jU?p6V1RlJZ0D#Cv&o6E@3CuB0D@y#V58<66~JCHz{M(gH_YMJSwJ5v5(`M<2nU77?lu$leef0LbPlX9GGd1m_aoO>}v*C#kT)pqEJZv8)mSlttw*<R~1`SZK<fNC?0YHa<oTq~>866`xtojhCupy`hHy+7|LwdkRuD$l(Fq&aK!ImQ0$S_^*gBI+Z_}F;gVD@SZ*vvtbP>ysx*@&r^5tA#oWV^xJrec93!CLY<;+CI(N2PM#fRQZQ@SGrHxF+u(BiJdMJ(y>=D+gG~)3(Pd%i+t!#vn=<1BQoZ;*xL)fqpbsFpgc*9^Ed27y%>HR(Ik{uTD_3;{Oc??Mj>RYkumd*^a(r<SEyP~-V#I)gX5gy5EiB3<9QbI$JmB^y%E=BUYzysk1LS{t#j+m=Dc8pVI?21a{r`2datP!(#gagRA>#clJhS4uHQF_@wj;w_>c=Eu>I>L(T=r;~HvYMnH6a)-wEWzE+i32U#Wv6ElJyAVnqcEzBoa`S7Biy)z)s^&c*4;=roYc&K$fT4cyB`rYAY&~C{_K-UH3N<Lj2>RRzas|bzH6)0llR8xUgAwgxl-+#QGxTe9i?>OBEK8IMBVZOkGkQa^i@GG$}zvRJOcd#VtpDlUmoWGO{?cpj%xzIb8=0Bj^9$tC*A6$a@NFu2^8o2-3;T8<v)Ik5B^i`%};SI+f`ri9%?I!Jjrz^ofcZ#<LKn>s^tQ^S$pN$qfa0!f>I;*r~m0rPgEUBEk-ZbHNvjOEy&G^qqBr<Au6DRbiBu;4+unG%;Q{s0TyYLF<hQAx5#`wHg=yybWOzNUJt=!tZfCHNG!-8dZn*4)2=~bVvlxb1?ted7hJmjB&1?8=3{nXiYqOr5%!T(-IZVqkBs#i<`}I!AtjDMl5t{+BHtie;#vS!pFW>G3bSssGNn>aWapD@bs-b=CDgfvA1}^0V1O(DK<IQzlbf0c}c`v_rpaN8ZlEH+mTs^Z68<EMaA)dcgNDzG+Ogj9=mUHa~uFaeP0VGSaRL{R_uXmqKvHeIHh)Ajg)2E8ihWwOxQY00$iz?%e~pFp7Y#`@9nHz^De9KACong@21LqCj3+g2}#`--F&%HeqP{fpkeZxC|e2QdJI_$*Vj{KJEt|B=K7Ok>N`r0xIEdf<cz?H=0rxn5B9<$YVuGgzOOFNW`~%&#vpFS>8RK7LIbWc2BZ?Y7LA`d{iFZWIl)B_c8|MZNBvkqG{lzcHHHnPFu~X4s_uOy*tCaSLX;`L``DV!Z58&!OD`(31>-TyB1gjfo!3*dwZ>9mFhlNEzLWCmJZWs~)Q{JB{pV4<y5nH-ZE5R#53h8_^kt{s(){6GFMr@6Nd(d&O_&mNPQK};(BBiL;o?KfNlrrbEh_c~8;>O0PJkGY1rfuga%$cIPcACjCESG_#-s?qXgSNX)}a%+(07WU-gccm{(h)iWc%pmez7gIjfAkUq^U6CxnuQBYf-{E4k|Syk~z3JFmOi(#*UuG6&kHb1V8YZyUI_BI)z98@1aqcXY(RB%6Q$}Jv=#*zW49atO_Eh_RH!%HCZ!-T%17wcV?OJ7wvMj9<?+Wn-RC}Hp`FT=UG-Lx%g4OhmR*=(Xkj+h<@%JOC!P~%P^_1(~rjrIKMIp6*||C0MaxWpsbURX$TbrN9;?CyWe!#)QG`(MJI$*y5Gir+-2ZMB>S8qvDwOo@01{tdCHTw&hVM@vcZd8#ZiW&BKj>uC=8>$GlYB_=Lqo+S9)~iOs@tCJ)~muZ5r*2K_MCu*DD%u6Dj#Rgs1cBT-f0yKI>EDS&JlmGG!1qH!Y>kH-8W^PDk(0ciF(Pbz!>3+3nn5BpaD`;nUQC1!`&zp020hY(i3Kyc~dzQ7wi9rbSs;WFmGsP#lYXYei+4adQ%Kf~4v#*7B&7-o@U%sR@5G`$A?l+*2rgoM%;fa`yCXmd2}g$x}5%FnvyzOtU`Ngc(-A@FVCM_jRCPiJ+i8PDh`!(xtQR@8PO4!qO>~=7oi_xjuA{JI+>+j#>3VM1{v0jssWzItY&MQO0T(ATCXe*laj8xEUbwkkYJ5EEh=w#-P|5a6U2*v^5UkD&kX&Ex^LZzib&?U5fW=Ol#8qxb3qCkADObs7u^a@Q|U^sbRfh(hCk1-7E-7Wns#nu>oL$LH(|L=KwaNT_47&5`^CKv7ERlVrTciOcdaX0HJR}(>dm#bx=Utvt&A;6A|pO0YE96oZ&Y*l)RsZD?dlVtMB<!iIe<u1#*&<AwZ+JU$~ZZl$=+%JxJ<u=ORQI?k^|sOsY`ASD%$UJF_A@62*gKWSefymoU-UZrxBC(2-x0gsO7d>5Ian{(+VU;G$2Af^XVaR-#8y<R-T<h6l}?W^|8BVll4b9KsB&E-NL!?eIK6x7#pm4l}dFn=DCMp!LOwFKW+t1`Un(M~i6<k8p~zSg%v9<lAL2ChJ>T6;7?Xm7jczR09|s)1sMO$E%rHzv&#`u%V;g*AfM>rzC82un@WY1Eza@w8a(5C2iKUiPP>*C8Gy1l(}fmNMpOtmKjkchtC*hc6KNWos5xNDxbEIqCfw_*jA%vXj>+8X{t_&D{3wf;?Sp+rTG_+hU;u6-HBVuwxa5`@&_n@86=UFBH=(GmN5r_;uugMYz5>E@+vMjVc9^PTOQ?)bKB&LSij}I1LWCKXg1yJnkR&f0}0XqYC}+J;c2;x&L#iQu#RDbq5VVj4WY|49b<6N;+YzR?H61dZ~)mhIz`J?R*X!1bsF)s_2o>1#|{X%BIFkCYB~ln?fxfu8nY^2LU{XVE{8M6RAJ+@l83c?vSQEHL*87Zc{Yj658Iow;QN=)FwL^-_L!jr@i<6zF!~68nElc&6eHkd*nO@N$tO*6h<iaS*?>ZTVT{>^!!~en6NnTNq3XB(z3X3-?MGynbneyo3d1KEhBz74^pidG>RNt%bJ_^^1ze&u+ywy}1dn-ZNuiWM%j2>E6pU@-u69t(3w026lCK;tN_FnjY&n7!)W%U8d!oy~wAWKa==sptk7&14x>;b9(=$ONZm)PG^JjO_hsBYBcb%{y17uk~>y9(INY<_~=WGCggTR6jBfeKSzNk{Mo*wZO*-*3El}mdq%z*by?6~bVFC@@_Lm7pY9Db9SXoidr{4@Nxj%)Qe4(-~RkDcScrk$O^Qo+YDU%kvcMO}z6kDS3sK#S>i?an3m3JtDF=Ci6mVV;(})g)|VceVJDCALVQsuqit(;xl~%D)#hR-3VXCH`4h0Cg8z6(W3v7b?l&89ieK;Q+v{DFlLEH4fyG>j4`H)n?b_LhQJIp({CiICn)O-yUWICMwT*71WgWFJ@r!kuQ{jVIcPCDMrZ4I-?S^pMp-SpIhq}U2wy1NXzxvjALQ_RpU6fE2|Hn8^pUaAj3qK&3T?Ae_7^%PbZvS>Oyot{zpZ9aT%t}ti1e6bxu%b3}9Bt-${9+FCQqYaOKA=u-IgK`=dZsa7#=zFLH(Fgic=Qo12BGA{IQ&aNLw=PL!8(khwXGa<4r_DRv-*2SwD6S~-OU(HO>bo$$*Dg`y{oI=7j-PS>(YD<DHZ>@3HR1N)+w^0>io6<#p9L#mB}k5;8J{MlWU5}OY!3@>5p%v+k#1{&1LsCJ<g8I`+8DXfIkL+yGH6`r#&-bQ4DmN=TDZF=Mjqdjq|bd^b*C)6A(dVDuc**DK41Ohi-F>Kmn1=C44rj7u#Fer($D<RP^?!2R3N0aR*_WzMiQgi?w1)iv;<uHT_)MJge<DgBR`_9RvJ?)fi?RG*Vz>PdTpQ_(4WjaFqb&Q&AEQsnQ(-t#x{!NE+)Hav(;M#Ahyv31DGe)4c_hS68t(89ayNF&mT~j0>EireXRjcW^+u4O#8NEOX9yuRiEY+>4gpC?>!2^0PLJQ`@6f?M_MF?`gd-R^?=vqkISB@RXu%U~1fKh8qWcdoeZBAq%E3r?w*0qor=Yb%rq%jds?`ra=2vrGo!!=5julO7ZFMNtHKW;pwWc08!SlcsW@#21f?mJX@46*gOm+sQ}U{C2DQ8?ka>KXzt9AOU@^7f+1DpCDGe%_EKVn)Kz2si=^^~zHggc0gRF5kOo43tNzlzATI@Knq-tbQrvm!n|cw~#Rc7&6sx@ziuf7`?IL{<tTSh?1f#u^C*Jip{6%ETVAS_S}&`$?skT(s}+drAvrV={d}Ur}1vBZFb!}QXX9LGh4wQlA4~lfs%7_P${^NDtjuU)6mbUH{Zwc-r;*<5ie&nEPrJRfzLDv&to0k{ooid>CQ=n_#!1d*c*z@pqt9ZlWUBmdEJ*Xn1ombrydq`->*i=_zjzWnMxmWjwNTgy$nw<nryOF5tlfyH*fh4;ZyjOHSKzVjI^8P9&8YRUPB9?wj;}c$OuXuyQb~q<!Iqb8`>kqlKxuNKQ+AHA$KJaFnU4VayZ+0U5b}$q6joOEa5~zm2FT}eoCeL2ottMPq#Il$h!gNtekpzBOI@jBm-onG$$&5QSzS{<)sWOqCQ<4DHM|pnWpo11c(Mwp`oOa<=l>MJQmMtncqQpfOp#P6MXG|>*mlN5nvZH@08^#jRVqTMJE6I-D^!6z_NuJ+Hc-bAa|WpD4ra?m#bK6@*MUO&Xm2Wwo)FbZYIua2`NR{)YPO^o#+DzJUP2zxqhWSm=6AtkI+T-J+#KNyz|&2IjQ`4^omxnCV9lq+J^kQ*+i%}AmyuwPT7@y%zqkuG@dX;5AG560%n8VMGC8Fw1Gg=E8?=w6W=25poO<EM3@TucH;nT6Dty*el%$(kkKcQ)UuEaO;)#7x@Mo>9nPLjT%+hdcrAv|*P3Z8(Jn<q`d@%1+_@g#XTe5Ao+u9H)kt&Bmbi4Luus&;!&PPsTe<ng=A0z0Eqw`x@(#@r&YPn7nxQ=gBsuGY87J-N*Hp)jD2$gjEUfd}N}DN$A|N=rFg$YYVI?4~wMT1nBsbu!jqfvFSkHkYHV;<;xyyKeK9ji_Z7g3O72{KkK-{7lXMAiZW}v8B;J9r=`%$P<Ut#zRhdkr$I1jAsHo+(RE6v%<Jh-h0K~?>iqTm_;^~MhDiG9&GgL`FK>7{tL;d2wOWUps<>6g!8&_A1E5&18V88D~4a?O(C--X?$g$_lnWe$Hmj5!4HarE5sqGE9to2993s1P9`pl8!lPm~M5+$9Sqqa6CC!I9L<dwDTaLrWbt<Yi0<3dQ>~Pu!AW2@WcH>Qo0eM*EI13F@gQ0JXWH5;zf=itk=fs!T!5;Rd#@l5%j1p%0Tu^$UbF<zBL88;8Ik_W%|ap`L0j2717W<^mgQaujTwvkS})<UVk9T89ChqgkNdkr{WNg?x4tIbn^G1Mvtn2#V^&p2YF*B4`DypZ;E4*Q&M2sI>6MP~`l2BDZWFc;#>Np4e+rXz0Xc_UEBt@jI`2&(pzoV>{4&aG;s^fbb+JHHa4jDVsbz>ql<5qbMFbkDgFi;z)itOjq^qdS{XVp`4`QTi-nh@xpn>6|8Kw@gfsj3`dsTFc2^+;TX}FlE09BY?_S5kHO!b(}24P&ite-#i@@Xb-#PHm+JfZ$TN+GdTR@V3^n6B-Uge$v=xIH8_o8<0(nnGP^`>+?dEH|>e)13<G_@@wMp%!Iisy@3caPws8$3s#@*>uy3?qj@rG0xT_uy0%6Y5fD1k90wx)xhvoc{sCXI!jDX41}BxzfICTErP4u5)x52K9ocKJx>VHt+17uBOL`duaUp0yu!4i8r-X_BE9m8CuI%@D*Qf(1drufE-Mx6d5kvoQCGf7DjZ*t=#Qif{<Ef^tRw20-Z%Yq8lbVeY$FOSM9fKd_4j;a^C)d%sg--3+6jtllgGrprS}@NURVxi=L734_wcI3eyy1N%G-?xY~QR^tPk+Ujf9@1%}Niw)|YOa}IGzh`stei|Q0FgIsgQqQd?@0y^)ubtzqw7N8sO~OIQ+*Pjy`MTAz9#+9d`LoR;=p3wGiMh)eW*>09JK*SWz_6*xAaR{h5DsYuwto@q70j#Oi=@sgn~r;-ZDtZ&>MQfczYpNdyi_W{6tZ;7p4XNr8MRiWOQKRwN1hK}2vURjP_75mZb~e>YfK{nwdG1E)`0Q7P>(o7%y!kefpRWm#lc_S($pHmVq$a(c4PxVeHjC{5$Y;*i`Rwwxc@}SnnTEr*&X|)k1&y|Q_39pfazFz7WJElU`51wIEu7x`=sau@W{rrEpT}X1{v9yk@VSbh-EvBBO_yczCo{?C^@YA<e4r{HEi7<YJd4~uP(5)WwH|ewF_n3O=Kfs_&Bty0R#L+<t4(Jvm19q<f^*t(95K2YcA23@-~h<E!Vy#?#CN_T1>;7DzuyNomqwH0IOEW{Elwe%qA|6|Amx-Z6H4yW_fghF#0Mk&0x;v{(NE|BLWB8!H~kFaJ-DHN|V7$0!kXzfa>&|xO1^nnp?0zCD`Cm{CV4(s=KZM?om}G9RDl{@kP<UDYgLkLmF?^WaZjoLZ#v~CT%~KG!6c3;~S?Ynv=PIU1y^X;QBFru{Ri>w$!7}CQbTf8lqrDOldfW?t{e;XizWi)k?3n^O{pjri6L4c);&q(H=K5-xa_F^1dayh{#xM{=%T9KYU}k2@N?^A(suH@muc6joC#j^X8yjsvVYy+&wtk2wR#UWBL?^pG~<^mwW<oK!5B-O`{FbNhwM}`-I2t{Mb1<Z^;7G1Y7f6$DAPUCe9NL=Rg<a(}bJ7^u^ZYRP|)hZ7by}AY?DPO=<r`^v)i8F92jo>IK=v!lF5-aqo1ZwJfsgEwx)P^e}~k9%%vYzgNqg{8poPgiEsd`^sYh-cW}Ilw~mt`9XeKv#{V4_o)&i_Pdw)kN4p`wMdp!R(3bRU&`^017$dFy3Lpm;IquX*+X(Oylh9*u3l0`^N2{GDF7a&qDtL0VH8F^C?5|^IA)OcbyN7Z6TTmoAaFR<ZFs;)+ZgbD)sX1e7+O%gfr|PcWINP+Z9V+YN9IXBM9xdY%K179`Bh;!{)*g}hAGw{*X55GKp*{IZ1ZS}`s%&-({{rJ!D@dOsXES$Tdtd>Uj;vGZ4a4K7}2Y#&U7kS0=l;YQ(Q$g#{0K~`3S|vB;u(Owr;jX6d9<hH{eI&+}^oxvsB`*?_jZ5s)K}G8=4xCbU>|C=n}PvPkT}B)a@Tm|N5v!P{G&O??X{2R1h~p&-0#~xMYm~D+Om0+XlA#U8PCOVC<eL)-xVO86%Htt<}i2xzacw*y{f(ZaX36IngX>u=8EdOl9AK)fr7!-cDn^%P;<o7xNRjvc-3vu3`#E>zjhFRiCBC7)EMfR<lOI86wjJUoQTZ;aU9X8EWP*i%W!c@ZfH`pBY|3lig+spQL9{Pbnbk4_3JTYm6eQXcJS+(lSIH!FRY3FzTV8!nKO~>)20d(a>`a^!qh`QoJpfTY#uEqXZ1kxmqnGo)G|R0p(;_^ygN%h-FAN$#J91TrH5o#c~dG85bZ2v&>#tT530Il%MH1PWuBR?#G=IUatuKFQM;GI4aQkr`h1?QUh`4w>Wh*wjk#s>_27+0{Q3xL0wbPg-*(t{UxWZeS~e4uG^mUa#u|hIY7zmC2vS{QG2n~m;0|aeZZ0&gCs>%SM$YIu`F>@@eu;IX-)^nUZrQm$3714LJ?1G-=g&lhi#pp>#G~016_!`I)H+Bz1(pq<0w!R-{=bjYnV#J-BAsz4R@SqNcty_?Vh7!uz^a4BSbEGggqg0WbVW#bMQxTc>@2G&&zn5!Gz1cF^?CF_F$8byC!1XiK0cLZbEoGx`7UHTN1NJov$x3LqCU;V&xKU?;#7NtD!43=hGf58V{@1U4Zj&Vred9zx*&ODW<OU-B+|fcPeW;x}up%qxJ|3^A7$~tod(@N>-Ho5ld^%HrPHBFu5AK<7gODhCNAvZckCF_MmjY9qV}1r!$3oJtcXFusrOP4{TEpYW$ivv$m-@S%T~)t}f1?x{>A!5AVVNeUbV_`qurFDhyzS_KS(+d@fk$X9Bjtc|4p}*!e9wGS_pZ9^G1kqWxziiI*<+n6rL6I86p$y2V`aZLZI?PQ*v``mA;f>x3073Bgqq?=Ge{8K*UYZCvJO!i&O&qz*#laO~4U8T(-p4bvQ-nSzIU|D1bhuSkG&Qy8T5PuEJ?0ZH;#NdSj7i8^HRG2kI9$gZ+$f*R!g;+4)#Zc6-E8d4UL=B~x(4$w5Tdc=d;T%giLDT@YCd$QUGBplqhAF8$}BBNOY09$m|&5k$t2l7!pX2AeFk-Joid9((GY6X6Ha-<Y8L@zGQvyKsjKK<M$PMauXNyp@3tYc$hC(5E&`XVqHtT}7+j;^7Bg7;2pAJ7f4KKM@wUXU0pn;l4EZ<=S&U@l(Y{wVkV5;Q$S%NU6}iKD(SaiyM^$6w@$Scv8rf<i0qUId#d8-CMb^<wQW<s}N<zG%8+dRFzH6U?4-zL{qCqyUz2lap_F3U;3;v=!(!FLyWSxSCCZiAMrd8Ct-ZzU|l1KfZ`PWQJ6~BCrO?mB($60PTnZ;fqp^(&fv`)_1b^Z}8v96+%xZT+bm(q+ThgMs4a4<<Ow*UzkB2n5e)$e-zKmiltBd2pRsEFgKd{oSe?*p&(&mUkko&KRvx*`Bmrp*)x(@6o^!4dd3S$vxjW6^#z63H1GTetKsq0B>Zd6U=k=k_AP!RAzkY$^Dkq>Y{NFoc4VZEj=iO}Uoj)Wmn5e75}7Ta!3@nz(j^!=WXm6evTx>!e<c@F!5iLXqy~<%>W%ZwrfXao4-Sd@B)(B)Ze2^8bU?VYQKD5M=wY-s2iOk_1&3<o@}YdcA>R*laMV}O10?7``pERCS9q+z@=vr+XUC((rGo9i0HwuKK5e1S4ZNX@<cNagp@}bCqkGlOF0AD-p9E3TtByVHgi%EF>8VtEabeYr!5t}ZkQ-0KA|I$ziM5F*jgoMQVTvFjs>3LOJTGH&DsiLwF%!NJ1qX7eY%)Zn$f625T7_Vj`W!KD&Ey}9ohWqL61n^|cL4jT@)hlb({Y>BCQXWT-AD|M+iGjf4K$lam>4hE{pF{(pEcHI=AMEry;29+1T(Anx)He?Jp#bPU9!tvRM_lyK$_Qdj*~zaMI!@R%cVq!Ri*pk{F<b7Q4yRN0yiVz<giDfQVlj0u2!^HN>K!mXA#g#8PivWU<!d#6fsf$lBClSOlBpNeL&z1cg3pHH??L#u#tLgI`fI%!V8^oxDLTnMvDfUGKzVjo9H>2?|SifSm_j&fM*o%&F@Kx0YqOoBFN<sPuMCr$7nDjLWhD83<WFWAf*xI;x50mIXehibOSx+VVm=c;>3HbtaC-7xf!sal1}})00000^|8T*om-G700E-Q0-%}(yzlrJvBYQl0ssI200dcD","encoding":"xz-base85-v1","uncompressed_bytes":101664,"uncompressed_sha256":"2b6edef0cee4c9b2046656217a74645417445e3726f5a7db80e6e17d9bd935ad"}
 ```
+<!-- ENDH7PACKET -->
 
-Calibration (`calibrate.json`, the output of `calibrate()` of `experiments/a0p38.py`; `selftest` prints the same):
 
-```
-{"prog": [1447, 1466, 1441, 1457, 1449, 1468, 1443, 1459, 1482, 1475, 1482, 1475, 1469, 1466, 1472, 1469, 1444, 1463, 1438, 1454, 1446, 1465, 1440, 1456, 1479, 1472, 1479, 1472, 1466, 1463, 1469, 1466], "w7": 24, "fb_fixed": 35, "w7_loop": 4, "scalars": 39, "planes": 896, "batch_ctl": 6, "class_ctl": 7, "lane": 208, "deep": 3105, "tk": 12, "classes": 32, "class_size": 24576}
-```
+## Appendix U. Measured fourteen-column restriction
 
-*Certificate.* `python3 ledger_a0p.py --q3 -97.0 --h3 -5.1 --cal calibrate.json` prints the ledger and checks `(2728^E << 8714807) < N^E <= (2728^E << 8714808)` with E = 100000 (exact integers), so 87.14808 is the smallest five-decimal upper bound on log2 T. *Sensitivity* (each row recomputed by the ledger with this calibration unless marked reference):
+The production table has NCOL=14, coverage 112 and probe limit 117. It occupies 14*2^19*32=234,881,024 bytes. All columns are fixed relative to a fresh uniform r before any results are observed. Every new 15-column, filtered, scalar-reference and bounded comparison is evidence-only, never part of the procedure or read by it. Only physical 14-column production witnesses support online memory. Evidence-control peaks are excluded from the procedure maximum. No frequency map, codec, alternate layout or second resident table pass is part of the online algorithm.
 
-```
-claimed                                                                                          87.14808   (N_FB 2^80.3216)
-q3_model = the study mean 2^-96.1821                                                             86.33224   (N_FB 2^79.5037)
-q3_model 2^-97.78 (the q3_model of fb176310 for the published characteristic)                    87.92694   (N_FB 2^81.1016)
-pair term 2^-3                                                                                   87.21987   (N_FB 2^80.3936)
-allowances of 1a695f0b (A_C = 2^48, A_S = 2^50, DEV = 2^50)                                      87.14536   (N_FB 2^80.3216)
-A_C = 2^84                                                                                       87.29999   (N_FB 2^80.3216)
-1a695f0b: 8 classes, one shared program of 1,511, q3_model 2^-97.0, pair term 2^-5.9             87.22358   (reference)
-the same with per-class programs (08be594's construction; ours, 1,454..1,469, mean 1463.00)      87.17957   (reference)
-```
+### U.1 Same-bucket and ordered-output proof
 
-## 11. Memory and advice
+For fixed(r,ustart), the 14-column covered set is the 15-column set with relative column 14 removed. A bucket's updates depend only on words assigned to that bucket. Every retained bucket therefore receives the same cyclic ordered subsequence, keeps the same first six words and has identical bytes. Removing another bucket cannot change its population, insertion order, tag or lane. Tables compared in the witnesses have matching input commitments.
 
-```
-online 3659904 bytes = 2^21.803: 32 row-16 programs (one per class) 46,792 instructions, class planes 32 x 96 batches x (20..23) words = 66,048 words,
-  class table 32 x 6 words, broadcast planes 224 words, row-16 table 160 words, spill slots 24 words, scalar routines at most 700 instructions,
-  the deep path's two traces (200 words), M0, CV1 and counters (32 words); 32 bytes per word or instruction
-preprocessing (single-threaded, sequential stages; peak of the summed resident memory of all processes, sampled every 0.2 s):
-  Step-1 solve of P8 (joint.py: Python model + Kissat; the S in use, as in 1a695f0b): 279,720 KB = 2^28.0936
-  signed search of P8 (stepk.py): at most 2^27.92
-  class descriptors (a0cls.c, 32 hash passes): 37,036 KB = 2^25.14; class selection (lp_classes.py with the a0cls member pass): 46,804 KB = 2^25.48
-  condition tables and pair (mkvt.py, fromjoint.py): below 2^24
-preprocessing peak 2^28.0936
-```
+For a fixed CV and a0, the main and next bucket addresses, row wrap, tag predicate, C1 predicate and lane tree agree whenever the bucket's relative column is below 14. A probe skipped by threshold 117 can access only omitted columns in the 15-column scan. Thus the 14-column stream is exactly the ordered 15-column stream filtered by retained column, including tag claws, C1 claws, postfilter flags, good pairs and step3b results. Column-zero frame crossings retain their original row carry. Dense scanned fixtures exercise full and overflowing buckets, lanes 3 through 5, both row boundaries, retained column 13 and removed column 14. Both scalar and tree paths are checked. Fresh r rotates the omitted absolute P(u) class; every u has exact coverage probability 112/8192. The measured census sets the success-rate minimum. H7's acceptance/retention transfer and other inherited probability premises remain assumptions; parity is finite semantic evidence.
 
-*Sampling.* The peaks are maxima of the summed resident memory sampled every 0.2 s, so a shorter allocation spike could be missed; the claim 2^28.10 bytes = 288,630 KiB is 3.2%% above the largest sample (279,720 KiB), and the Step-1 solve is a single Kissat process whose resident memory grows with its clause database (it does not spike).
+### U.2 Exact retained census and useful-pair rate
 
-*Scope of the memory bound.* Peak memory covers code, advice, retained data, tables and working state of the whole computation: the online algorithm, the charged precomputation (class members, planes, the 32 programs) and the computations behind the advice and the allowances (the characteristic search, the Step-1 solve, the class descriptors and their selection, the condition tables), each run single-threaded and sequentially. P8 and S are those of 1a695f0b (produced by `stepk.py` and `joint.py`); the claimed figure is the largest measured peak in the record above. The class descriptors are found in 32 passes over a hash of c7 (`a0cls.c`, at most 2^23 pairs resident) and selected by `lp_classes.py`. The online figure also covers the deep path's working state (two traces, about 6 KB) and M0, CV1.
+All 8192 candidate totals are reconstructed from the eight raw j0 through j7 offset arrays. Candidate minimum 41,471,916 occurs at r=4409, maximum 41,577,489 at r=8154, sum 340,133,163,048 and mean 41,520,161.5048828125. The 15-column control has minimum 44,436,632 at r=4401, maximum 44,543,396 at r=8155, sum 364,428,388,980 and mean 44,485,887.32666015625. Exact integer identity 15*340133163048=14*364428388980 checks the mean law. Rotation-total hashes are 47e07305f76684a62e50fd5a47827aaee453b51b580a65eddd1c023eeb69d525 and f21fc356d85188b6326ab6674cace0db8a241e365d80ceb26da20cf3d92d901b respectively. Census peak RSS is within 66,916 KiB.
 
-Claimed memory 2^28.10 bytes: the maximum of the online footprint and the measured preprocessing peaks. Advice: S (16 words of each member and CV1), the 32 class descriptors (c7, base, mask: 384 bytes), the constants of the characteristic: below 2^14 bytes; everything else (class members, planes, the programs) is computed by the charged preprocessing.
+The conservative compensation ratio is 44,436,632/41,471,916. The exact minima, not 14/15 projections, enter the useful-pair rate. Invert that rate once to obtain N_CV=1173376831126095356125; no extra ratio is multiplied afterwards. The independent verifier reproduces N_E=17484677301737, build=74120133859, V_CV=322439619363813837607708910, V_MAX=323735585985900002980921993, ALLOW=9661961823951294107222016, OVER=777315598071, FIN=16795184 and N=333397547809852074420537264. It separately recovers the 15-column identity N=331729579250610990673207657. Under the inherited premises the current success lower expression exceeds 0.39 with the reserved cap-failure margin. Time is 76.69374603116709095668643630452643406..., charged 76.693746031168. The 234/8192 probe rate, 3640/117 reads per probe, 2816/9 probe cost and 8 read cost are exact rational terms.
 
-## 12. Premises
+### U.3 Ordered tree and complete resource inventory
 
-- **H1** single-trial chaining value: CV1 = F_38(IV, M0) for uniform M0 behaves as uniform for the events of one variant (Lemma 5.1).
-- **H2** q3 >= q3_model for the accepted event, averaged over the selected variants (Section 9; 40 runs).
-- **H3** the pair term within a first block is at most 2^h3 (Section 9; measured).
-- **H4** allowances: The allowances are envelopes, not measurements: A_C = 2^78, A_S = 2^74, DEV = 2^70 target compressions (the levels charged by fb176310). All of our computation for this line of work (the characteristic search and sweep, the Step-1 solve, the class data, the q3 studies and all development) ran on one 10-core machine, for less than 2^22 core-seconds by our own accounting. The bound does not depend on that accounting or on a rate: ten cores running continuously for a full year are 2^28.3 core-seconds, and even at 2^30 target compressions per core-second (above any CPU core; SHA-256 runs at about 2^24 compressions per second per core) that is 2^58.3, below DEV = 2^70 alone. With A_C = 2^84 the ledger gives time_log2 = 87.29999 (+0.15191; Section 10); with the smaller allowances of 1a695f0b, 87.14536.
-- **H5** unit-cost bit-sliced planes: the row-16 programs are charged as their instruction counts on 256-bit planes, as in the cost model.
+The guard word is z=GW-sparse(mask), with guard positions 42i+38. Numeric order of sparse masks equals numeric order of masks, so each comparison z>=GW-sparse(mid) classifies the mask. Fixed leaves emit ascending lane indices. All 63 nonempty masks are checked. Each comparison and conditional branch costs two operations. Additive lane bounds 6,6,6,8,8,8 give prefix totals 0,6,12,18,26,34,42, at most 7p for population p. H1 gives equal 20/2^32 C1 mass per retained entry; linearity gives mean walk cost at most 7 per C1 claw for every fixed table. The separate exact maximum 18 per nonempty read is used in vmax. No independence between lanes or conditioning work on success is required. The first emission folds the fixed leaf-path charge into its already charged counter update.
 
-## 13. Organizer experiments (`experiments/manifest.json`)
+The 62 resident threshold words occupy 1,984 bytes. One-time 2^24 initialization covers threshold generation and the retained front-end tables: 28672*256+65536*96+256*16+2^17=13,766,656 operations, below 2^24. The 218-operation register program and 1024-operation per-CV setup retain their exact prices. The complete 2,097,152-byte allowance includes the entire static executable, binding program/advice, generated tree, SEL, thresholds, registers, state, stack, buffers, allocator and reserve. It explicitly includes 505,216 bytes of SP, CTZ16, S0_LO and 396 CV planes, fully reserved and touched while the table is resident. The inventory sums exactly to 2 MiB with positive reserve.
 
-**a0p-online-r38** (H1, H5, Lemma 4.1). Trials 0..7: first blocks drawn from the organizer seed (two uniform words each, real 38-step compressions) until one has a passing class (at most 64); its first passing class is run on two batches (the class's first 512 members) with that class's program: the ok plane is compared lane by lane with E16x from the Step-2 words and the 38-step trace, and W7 with c7 - A_{-1} and F7; trial 0 also runs the batch of the semi-free-start pair's variant and requires the counted program to find and accept it. A pair M0 || M1, M0 || M1' (one variant, not a collision) is returned iff there is no mismatch. Trials 8..255 return no pair by design. Before any selection, each active trial draws 64 first blocks from the organizer seed and counts the W7 passes of all 32 classes (observations uncond_first_blocks, uncond_class_passes; expectation 64 x 32 x |F7| / 2^32 = 137.0 per trial under H1). Validation by us: 2,560 unconditional first blocks over 5 requests, 5,693 class W7 passes against 5,480 expected (ratio 1.039); passes come in groups of related classes (a success's CV1 passes 8.3 classes on average), so the per-trial count has a large variance.
+All 24 production witnesses build from all 2^32 u values. They cover both r=663 and r=2093, SEL and all-W9, tree and scalar walks, and three modes: full 15, physical 14 and 15 filtered to 14. Every retained table byte stream, ordered event digest and pair stream matches. Candidate retained counts are 41,518,849 and 41,507,785. The four candidate tree scans contain 5,422 real-word/postfilter/E16/step3b checks over 5,231 distinct epoch-specific pairs; 191 SEL records repeat in W9. Every record is independently rechecked by the actual binding Python methods in isolated jobs. Step3b acceptances and scalar mismatches are zero. The known P8 positive control passes at 3,014 operations, and is not a new fixed-IV certificate.
 
-**a0p-q3-r38** (consistency check of H2). Trials 0..9: 10 replicates of the estimator of q3 for the accepted event (64 particles; 64, 8, 8, 4, 2, 1 children at rows 17..22 with the row's E bits imposed, at row 19 one of the four patterns drawn uniformly, weight 4 x 2^-f; tail: 192 proposals per particle, a variant of 512 embedded samples of the selected classes (32 of the 32 classes represented), W7 uniform in F7 (its three affine families; the family drawn by rejection from its own word, the value bits from a fresh word), rows 23..37, outputs compared; every success rebuilt into CV1, M1, M1' and accepted only if it is a 38-step collision in the accepted event with W7 in F7). Trial t < 10 returns its first verified pair as CV1 || M1 and CV1 || M1' (semi-free-start collisions, never collisions from the IV); trial 10 returns a pair iff no rebuild failed and the mean of the 10 estimates is at least 2^-98.6000 (pass rule fixed from 48 development requests before any validation run; their pooled means: minimum -98.100, 5% quantile -97.100, median -96.398; replicate mean 2^-96.2059).
- What a pass shows: the replica estimates the same event as the study, restricted to the four row-19 patterns (a lower bound) and to 512 of the selected variants; its 48 development requests (480 replicates) have mean 2^-96.2059 against the study mean 2^-96.1821. Shifting their pooled means down by 1, 2 or 3 bits (a q3 that much lower) makes 2%, 38% and 90% of requests fail the rule (none at the claimed level): a pass excludes a gross error in the estimator or the program, it does not certify the bound.
+Each native process uses a fresh network namespace and fresh cgroup with swap disabled, a CPU pinned outside excluded work, nice 15 and an independent observer outside its cgroup. The observer records final /proc VmPeak and VmHWM before acknowledging completion. Address-space and cgroup limits include all code/state. Physical 14-column cgroup memory.peak ranges from 236,580,864 to 236,744,704; /proc VmPeak is 236,597,248 and VmHWM ranges from 235,868,160 to 235,913,216 bytes. The complete envelope 236,744,704 comes from cgroup memory.peak and remains below 236,978,176. With P8 rescheduled to at most 211,431,424 (Appendix W), this online bound binds the procedure memory, charged 27.820178962416 and projected scalar 84.513924993584. Native measurements are participant evidence scoped to the recorded Linux little-endian 64-bit environment; no wall-time attack estimate or platform-independent memory inference is claimed.
 
-*Validation by us* (the shipped file; 256 trials; network-less container, 1 CPU, 128 MiB; python:3.12.12-slim-bookworm):
+### U.4 Scope, controls and replay
 
-```
-holdA  a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 1  first blocks 39  unconditional: 512 first blocks, 1060 class W7 passes (expected 1096.0)  0.6s
-holdA  a0p-q3-r38      returned  7  pooled 2^-96.275 (rule >= 2^-98.6)  replicates with a success 6/10  verified pairs 9  failed rebuilds 0  6.7s
-holdB  a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 0  first blocks 15  unconditional: 512 first blocks, 1052 class W7 passes (expected 1096.0)  0.5s
-holdB  a0p-q3-r38      returned  6  pooled 2^-95.847 (rule >= 2^-98.6)  replicates with a success 5/10  verified pairs 12  failed rebuilds 0  7.1s
-holdC  a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 1  first blocks 22  unconditional: 512 first blocks, 1298 class W7 passes (expected 1096.0)  0.6s
-holdC  a0p-q3-r38      returned  5  pooled 2^-97.554 (rule >= 2^-98.6)  replicates with a success 4/10  verified pairs 5  failed rebuilds 0  6.9s
-holdD  a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 0  first blocks 40  unconditional: 512 first blocks, 1273 class W7 passes (expected 1096.0)  0.5s
-holdD  a0p-q3-r38      returned  5  pooled 2^-96.270 (rule >= 2^-98.6)  replicates with a success 4/10  verified pairs 7  failed rebuilds 0  6.9s
-public a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 1  first blocks 32  unconditional: 512 first blocks, 1010 class W7 passes (expected 1096.0)  0.5s
-public a0p-q3-r38      returned  7  pooled 2^-96.673 (rule >= 2^-98.6)  replicates with a success 6/10  verified pairs 8  failed rebuilds 0  6.9s
-```
+The 24 runs test two fixed CVs over complete tables, not full epochs of 2^26 fresh first blocks. Eighteen genuine restriction/ledger source mutants, five native lane mutants and six isolated method mutants are rejected. GCC/Clang warning-clean, ASan/UBSan/leak, dense/boundary and production-prefix controls are recorded. Current selftest and method controls use the actual immutable candidate bytes. The registered program's informational column_parameters() returns complete_peak_bytes=max(online,211431424), the Appendix W cell, so its ledger() reports 236,978,176 bytes (log2 27.8201789624151...) and score 84.5139249935822...; the previous program (SHA-256 9936e9fbe2f0465e...) returned max(online,246812672). No registered trial reports these values, and every trial record of both experiments equals the previous program's. The packet's program lineage rebuilds the previous program and checks that only this literal differs; it binds the native receipts made with that program. The selftest, method, real-pair, ledger and organizer receipts were rerun on this program. Both registered organizer experiments complete twice with byte-identical reports, hash 5f556011f3224d8dae7c393e654a616fe8da38c2a760cca31d67664be57004a2. Each request is itself repeated by the unchanged executor under its pinned Python image, non-root/read-only/no-network profile, one CPU, 128 MiB, 32-process, 64-descriptor, 20-second and 2 MiB-output limits. Numeric participant observations remain untrusted as costs or success probabilities. No empirical run proves the deep rare event or qualifies the claim.
 
-## 14. Limitations
+The packet contains all native source, exact census offsets, ledger records, all 24 full stdout/input/command records, complete kernel peak/final observations, both ordered 15-column SEL pair streams, source deltas and isolated-control receipts. The W9 streams are carried by SHA-256 and pair count only, to fit the 512 KiB judge-evidence budget; the filed base carried both 15-column W9 streams, and its verifier rederived all 24 runs' streams from them. The verifier rederives the 12 SEL runs' streams from the stored SEL streams, checks every stored a0 against SEL, and checks the 12 W9 runs against their digests. It cannot rederive SEL from W9, rederive the W9 14-column streams, or recheck the 5,040 W9-only pairs from the packet; fresh native replay regenerates the W9 streams for comparison with the digests. Full per-poll observer traces remain in the development notes with SHA-256 commitments; fresh native replay records new traces. The selected packet verifies without those raw polling logs. It preserves H7 sources and 38-run records byte for byte. P8's H6-D derivation is unchanged; its phase maximum is updated. The historical H7 seeds/ustart/CVs remain unavailable. Hashes detect changes and do not authenticate historical execution.
 
-- q3 is a Monte Carlo estimate (participant-run, resampled particles; the Student bound assumes independent runs); the organizer replica checks a reduced version of it. The row-19 pattern support of the replica is the four patterns of Section 9, which cover all 188,796 classified successes of this study (as they did in the study of 1a695f0b), so the replica estimates a lower bound of the event's probability.
-- The pair term and the success distribution are measured on rebuilt estimator successes (H1 premise for real chaining values).
-- The bit-sliced programs are executed on sampled batches; full-scale execution is infeasible.
+Extract the readable LTFILE verify_packet.py below and run it only in an approved isolated Python environment with --proof proof.md --claim claim.json --program experiments/utab38.py --manifest experiments/manifest.json --extract NEW_DIRECTORY. It verifies before extracting. At the extracted root, notes/sha256-r38-lane-tree/scripts/replay_native14.py rebuilds both native modes and replays a fresh bounded pair of witnesses; --full replays the 24-run matrix. It requires Linux cgroup-v2 write access, unshare, g++ and an available CPU. Run scripts with python3 -B. Native replay never imports the participant Python. Execute participant methods only through the organizer executor. The packet's malformed-input controls reject changed inventories, raw census, native observations, ledger terms, pair order, pair digests, program lineage and compressed framing. Both verifiers reject optimized Python before side effects.
 
-## Appendix A. Self-test and calibration of `experiments/a0p38.py`
+The additional development allowance conservatively bounds 128 complete 2^32-word builds and 128 full-W9 scans, charging up to 240 events per a0, 2^12 operations per build word and 2^20 per a0/event. This subtotal is below 2^50 target compressions; 2^52 covers it plus compilation, integration, failures and smaller tests. Combined inherited development remains below 2^59, inside unchanged DEV=2^70.
 
-```
-1 the semi-free-start pair collides, M != M', accepted event, W7 in F7 ok 
-  its variant A0 is in G and in a selected class                       ok (class 13)
-2 row 16: the 160 W16 words hold it; 20,000 random words and 1,280 neighbours agree ok 
-3 Lemma 4.1: E16x formula, W7 = c7 - A_-1, rows 11..15 and the word differences on 20 chaining values ok 
-4 row-16 programs (one per class): instructions mean / max, loads, spill stores ok 1462.25 / 1482 (loads 240..249, stores 16..20)
-  program against the definition on 2 x 512 lanes of real first blocks ok [{'uncond_first_blocks': 64, 'uncond_class_passes': 181, 'first_blocks': 2, 'passing_classes': 8, 'lanes': 512, 'stage3a_passes': 0, 'mismatches': 0}, {'uncond_first_blocks': 64, 'uncond_class_passes': 134, 'first_blocks': 1, 'passing_classes': 6, 'lanes': 512, 'stage3a_passes': 0, 'mismatches': 0}]
-5 the counted program finds the semi-free-start pair in its batch      ok (5712 operations)
-6 replicate: estimate, accepted pairs rebuilt and verified, failed rebuilds 0 ok (log2 -94.887, 3 pairs)
-   calibrate: {'prog': [1447, 1466, 1441, 1457, 1449, 1468, 1443, 1459, 1482, 1475, 1482, 1475, 1469, 1466, 1472, 1469, 1444, 1463, 1438, 1454, 1446, 1465, 1440, 1456, 1479, 1472, 1479, 1472, 1466, 1463, 1469, 1466], 'w7': 24, 'fb_fixed': 35, 'w7_loop': 4, 'scalars': 39, 'planes': 896, 'batch_ctl': 6, 'class_ctl': 7, 'lane': 208, 'deep': 3105, 'tk': 12, 'classes': 32, 'class_size': 24576}
-SELFTEST PASSED
-```
-
-## Appendix B. The conditions of rows 16..22 (the accepted event; member x, `experiments/a0p38.py` tables)
-
-Per row: for A, E, W the mask of fixed x-values (trail difference bits and one-bit conditions), their x-values and the XOR difference; the '+' pairs E_i[b] = E_{i-1}[b]; the two-bit conditions (kind 0 A / 1 E / 2 W, row, bit; = or !=). Row 19 is checked on its XOR differences and the x-values of its difference bits only.
-
-```
-row 16 E: mask 48421a80 x-value 48021200 xor 40421200
-row 16 W: mask 20000000 x-value 20000000 xor 20000000
-row 16: E16[7] = E16[26]
-row 16: E16[14] != E16[28]
-row 16: A15[4] = A16[4]
-row 16: E16[11] = E16[16]
-row 16: A15[7] = A16[7]
-row 16: A14[15] = A16[15]
-row 16: A14[16] = A16[16]
-row 16: A15[17] = A16[17]
-row 16: A14[23] = A16[23]
-row 16: A14[25] = A16[25]
-row 16: A15[27] = A16[27]
-row 16: E16[3] != E16[8]
-row 16: E16[4] = E16[23]
-row 16: W16[20] != W16[27]
-row 16: W16[22] = W16[31]
-row 16: W16[4] != W16[6]
-row 16: A15[29] = A16[29]
-row 16: W16[14] = W16[18]
-row 16: W16[8] = W16[25]
-row 16: W16[1] != W16[12]
-row 17 A: mask 20000000 x-value 20000000 xor 20000000
-row 17 E: mask 40421a80 x-value 00000800 xor 00000000
-row 17 +: E17[b] = E16[b] for the bits of 00040010
-row 17: A17[9] != A17[20]
-row 17: A16[15] = A17[15]
-row 17: A17[6] = A17[18]
-row 17: A16[16] != A17[16]
-row 17: A16[23] = A17[23]
-row 17: A16[25] = A17[25]
-row 17: A17[8] != A17[17]
-row 18 E: mask 40461210 x-value 00421200 xor 00040010
-row 18 +: E18[b] = E17[b] for the bits of 01808000
-row 18: E18[0] = E18[13]
-row 18: E18[17] = E18[22]
-row 18: E18[5] != E18[23]
-row 18: A16[29] = A18[29]
-row 18: E18[9] = E18[23]
-row 19 E: mask 01848010 x-value 00008010 xor 01808000
-row 19: E19[10] = E19[29]
-row 19: E19[2] != E19[20]
-row 19: E19[5] != E19[18]
-row 19: E19[6] = E19[19]
-row 19: E19[10] != E19[28]
-row 19: E19[11] = E19[29]
-row 19: E19[1] = E19[28]
-row 19: A18[29] = A19[29]
-row 19: E19[4] != E19[9]
-row 19: E19[5] != E19[10]
-row 20 E: mask 01848010 x-value 00040010 xor 00000000
-row 20 +: E20[b] = E19[b] for the bits of 20000000
-row 21 E: mask 21808000 x-value 21008000 xor 20000000
-row 21: E21[10] = E21[15]
-row 21: E21[11] = E21[24]
-row 21: E21[2] = E21[16]
-row 22 E: mask 20000000 x-value 00000000 xor 00000000
-```
-
-## Appendix C. Programs (SHA-256 and full listings; `experiments/a0p38.py` is assembled by `mka0p.py` from the `a0p_*.py` parts)
-
-- `experiments/a0p38.py`: 63552a536ebc2c4893d01838fd65235e91bbbf9f7c3334c49be4bb657a2b30a4
-- `ledger_a0p.py`: 6627e0b3c5b4de46b9e5b1c210d52239b8c46b57c537a6c87f1023fb61a2776d
-- `lp_classes.py`: f2df440ab9ef74f5d9aedfa57ca1b1c86a8ba5d379509dcb5b1afe2cadf2f1f5
-- `a0cls.c`: 6521cee23d00bd58118dddec95d3b47edf9b1cef6efd9e66ba141cc69f90aa72
-- `a0p_ref.py`: 74b6b6d789225225fa9aef2a11f3d6a97106a896277707e560c0138600070c48
-- `a0p_core.py`: 9fb748904f2e525e2ff8e69d57c244cd887ca13564f4c9d2547351191773b029
-- `a0p_prog.py`: 8a57e82530b0f3518653b793af3b2579b240d4139b98f0d02b22e076b16b002b
-- `a0p_scal.py`: d4ee1e2db69ca2968a71c736996c34e821fe25e71a30b3afca8ef207d757a3ed
-- `a0p_run.py`: 50a21c92433990ce7a34b50ba592ea54bd5a46f17f9ed288dc6fcd3538b56e77
-- `a0p_main.py`: 1e0e3eccf38923f0c958db57dd33b3516137327da317f1fbe3dcdc620499bcb5
-- `mka0p.py`: 03042e080b33dfaec2add1e23af1be06ed3bda2543b5ddc02e07cada09e9f3ec
-- `mkvt.py`: 19e95c874e6d0b05447836aea5d7289a467c581bcb03bb94376154d04e25b26a
-- `a0fam.c`: e74ead8bd7d20ce7ef40284fd91a104ce71b3fe5b8cadcd59b9c274b3ad4eb69
-- `h3p.py`: 0ce84d4db2dbe6e696b962e84db6f24e67e56d03535c6ab266e57042625b6717
-- `q3tv.c`: e01dbb414ef2a7e0cecf79638bb287130e1309dfa439727b57bc8b32b3957ead
-- `sweep.py`: 7e2dcef5b849da79236857a328306ddee77c3acf34975e6c5bb72ab69dcbc918
-- `stepk.py`: 59284d8f7f19bb62cc0265f3b9e18ac2d1532b79a755d6e3d3b672298dfc9ab0
-- `score.py`: 22df6e29bdeef726bb395123426656641e262e8d5cd3117839caba4e1682493e
-- `joint.py`: 7e641e68540e79d3be7902d52bccb372febe17dc16ca5364f9390c3ecf37cb95
-- `fromjoint.py`: a05593f8e0104ee3d2d378257159d45bce7108f7d5130f43a53c5850bd762b61
-- `prep.py`: 7550447964f6b5444638db1b60142475ea839cb066e262b6bfeb6d713b957299
-- `cond.py`: 2220ff08693b795d999eabb5c31dac06fcf9905eb57f403bdd2dbe05901426a8
-- `sdmodel.py`: 023a387e5eeb2f5ac58bc7e6175c0aa44e80775ddb88b1964dde21b461eaf420
-- `vmodel.py`: 86bafa88614a1b85b1d3601f3b27479c381442769b0fda054ff7651dbd84244d
-- `sha38.py`: 7aa83ceebd6baede02877736640e066e09d640656a08929e792ae1c5c1b0fe67
-- `mkpkg4.py`: 78347ae128bf31c2b4ab2c511902fc50c2c8676495e47443dc522899b0ac2f07
-
-### ledger_a0p.py
-
+<!-- LTFILE verify_packet.py -->
 ```python
-#!/usr/bin/env python3
-"""ledger_a0p.py - exact ledger of the A0-variant attack with P8 (own code; the structure of the ledger of 2d1c4fc2 / fb176310).
-T = A_C + A_S + DEV + N_FB + (N_FB x FIXED + V_MAX + OVER + PRE + FIN_OPS) / C + FIN_UNITS, in target compressions, C = 2728.
-Every count is an executed count of experiments/a0p38.py (`calibrate`); probabilities: p7 = |F7| / 2^32 (exhaustive), the stage-3a rate 2^-12
-and the row-16 rate 160 / 2^32 (exact under Lemma 5.1), q3_model (H2), the pair term (H3).  Integers and fractions; logs at 80 digits."""
-from fractions import Fraction as Fr
-from decimal import Decimal as D, getcontext
-import math, argparse, json
-getcontext().prec = 80
-C = 2728
-F7 = 287_309_824; p7 = Fr(F7, 2 ** 32)
-CAL = dict(prog=[1447, 1466, 1441, 1457, 1449, 1468, 1443, 1459, 1482, 1475, 1482, 1475, 1469, 1466, 1472, 1469, 1444, 1463, 1438, 1454, 1446, 1465, 1440, 1456, 1479, 1472, 1479, 1472, 1466, 1463, 1469, 1466],
-           w7=24, fb_fixed=35, w7_loop=4, scalars=39, planes=896, batch_ctl=6, class_ctl=7, lane=208, deep=3105, tk=12, classes=32, class_size=24576, gl=160, f7=F7,
-           mask_bits=[20, 21, 20, 21, 21, 22, 21, 22, 22, 22, 23, 23, 21, 21, 22, 22, 20, 21, 20, 21, 21, 22, 21, 22, 22, 22, 23, 23, 21, 21, 22, 22])   # the 32 classes of P8 (per-class programs; mask widths of the classes, in class order)
-
-def dlog2(x):
-    x = Fr(x); return (D(x.numerator).ln() - D(x.denominator).ln()) / D(2).ln()
-def qmodel(q):
-    num = Fr(round(q * 10000)) / 10000
-    return Fr(int((D(2) ** (D(num.numerator) / D(num.denominator))) * D(10) ** 75), 10 ** 75)
-
-def ledger(q3=-97.0, h3=-5.1, AC=78, AS=74, DEV=70, succ=Fr(39, 100), eps=Fr(1, 2 ** 16), cal=None, NFB=None):
-    k = dict(CAL, **(cal or {}))
-    ncl, size = k['classes'], k['class_size']; nb = size // 256
-    p7 = Fr(k['f7'], 2 ** 32)
-    q = qmodel(q3); g = ncl * size * p7                              # good pairs per first block (exact, linearity)
-    pr = k['prog'] if isinstance(k['prog'], list) else [k['prog']] * ncl   # per-class program lengths (one per class)
-    assert len(pr) == ncl
-    per_class = k['class_ctl'] + nb * (Fr(sum(pr), ncl) + k['batch_ctl'])     # expected work of one passing class (each passes with p7: the mean is exact)
-    per_class_max = k['class_ctl'] + nb * (max(pr) + k['batch_ctl'])          # the most expensive class (work cap)
-    lanes = Fr(size, 2 ** k['tk']) * k['lane']                         # expected stage-3a lanes of a passing class x their cost
-    r16 = Fr(size * k['gl'], 2 ** 32) * k['deep']                          # expected row-16 passes of a passing class x their cost
-    vbar = ncl * (k['w7'] + k['w7_loop']) + 2 * ncl * p7 + min(Fr(1), ncl * p7) * (k['scalars'] + k['planes']) + ncl * p7 * (per_class + lanes + r16)
-    vmax = ncl * (k['w7'] + k['w7_loop'] + 2) + k['scalars'] + k['planes'] + ncl * (per_class_max + size * (k['lane'] + k['deep']))
-    over = vmax                                                        # a first block's maximal work beyond V_MAX (the cap is tested before each first block and after each class)
-    h3f = Fr(int(D(2) ** D(str(h3)) * D(10) ** 30), 10 ** 30)          # H3: sum_t Pr[A_t] E[R_f - 1 | A_t] <= 2^h3 E[X_f]
-    lam = g * q * (1 - h3f / 2)                                        # per first block, Bonferroni
-    def pcap(n): return Fr(vmax, 1) / (eps ** 2 * n * vbar)
-    def ok(n): return D(1) - (-(D(n) * D(lam.numerator) / D(lam.denominator))).exp() - D(pcap(n).numerator) / D(pcap(n).denominator) - D(2) ** -60 - D(succ.numerator) / D(succ.denominator) >= 0
-    if NFB is None:
-        lo, hi = 1, 2 ** 100
-        while lo < hi:
-            mid = (lo + hi) // 2
-            if ok(mid): hi = mid
-            else: lo = mid + 1
-        NFB = lo
-    VMAX = math.ceil((1 + eps) * NFB * vbar)
-    mb = k.get('mask_bits'); mb = mb if isinstance(mb, list) and len(mb) == ncl else [21] * ncl   # mask width of each class (21: the mask 7fe96c7c)
-    PRE = sum((1 << b) * 40 + nb * 256 * b * 2 for b in mb) + 2 ** 32   # member tests over each class's cube (40 each), planes (2 per member bit), program generation
-    FIN_OPS, FIN_UNITS = 1600, 6
-    alw = 2 ** AC + 2 ** AS + 2 ** DEV
-    N = C * (alw + NFB + FIN_UNITS) + NFB * k['fb_fixed'] + VMAX + over + PRE + FIN_OPS
-    T = Fr(N, C); claim = math.ceil(float(dlog2(T)) * 1e5) / 1e5
-    assert D(N).ln() - D(C).ln() <= D(round(claim * 1e5)) / D(100000) * D(2).ln()
-    return dict(NFB=NFB, log2NFB=float(dlog2(NFB)), g=float(g), log2gq=float(dlog2(g * q)), vbar=float(vbar), vbar_exact=vbar, vmax=vmax, VMAX=VMAX,
-                over=over, PRE=PRE, Pcap=float(pcap(NFB)), N=N, log2T=float(dlog2(T)), claim=claim, per_class=per_class, alw=float(dlog2(alw)),
-                pre_log2=float(dlog2(Fr(PRE, C) + alw)), attack=float(dlog2(Fr(N - C * alw, C))))
-
-if __name__ == '__main__':
-    ap = argparse.ArgumentParser(); ap.add_argument('--q3', type=float, default=-97.0); ap.add_argument('--h3', type=float, default=-5.1)
-    ap.add_argument('--cal', default=None); ap.add_argument('--sens', action='store_true'); a = ap.parse_args()
-    cal = json.loads(open(a.cal).read()) if a.cal else None
-    r = ledger(a.q3, a.h3, cal=cal)
-    for key in ('NFB', 'log2NFB', 'g', 'log2gq', 'vbar', 'vmax', 'VMAX', 'over', 'PRE', 'Pcap', 'per_class', 'alw', 'pre_log2', 'attack', 'N', 'log2T', 'claim'): print(key, r[key])
-    n, E5, kk = r['N'], 100000, round(r['claim'] * 100000)
-    assert (C ** E5 << (kk - 1)) < n ** E5 <= (C ** E5 << kk); print('certificate: (2728^E << %d) < N^E <= (2728^E << %d)' % (kk - 1, kk))
-    if a.sens:
-        for nm, kw in [('q3_model = the study mean 2^-96.2971', dict(q3=-96.2971)), ('q3_model 2^-97.78 (the q3_model of fb176310)', dict(q3=-97.78)),
-                       ('pair term 2^-3', dict(h3=-3.0)), ('A_C = 2^78', dict(AC=78)), ('A_C = 2^84', dict(AC=84)), ('one shared row-16 program of 1,511 for every class', dict(cal=dict(prog=1511)))]:
-            kw2 = dict(q3=a.q3, h3=a.h3, cal=cal); kw2.update(kw); x = ledger(**kw2); print('%-40s %.5f (attack %.4f)' % (nm, x['claim'], x['attack']))
-```
-
-### lp_classes.py
-
-```python
-"""lp_classes.py <S prefix> <out dir> [n classes]: deterministic class selection for the A0-variant attack (own code; replaces the
-hand-run selection used for P8). From <S>.cls.txt (a0cls: c7 size, classes of size >= 256) and the members of the largest classes
-(a0cls member pass): mask of a class = OR of (a0 ^ min member); keep the mask shared by the most largest-size classes (ties: smaller
-mask value), take the first n of them by c7. Writes classes.txt (c7 base size), vars_pool.txt (j a0 A1 A2 w8 Wx9 Wx10, the q3tv VARS
-format) and derived.json (D7, T7, MASK, CBITS, class size, classes). With ALLMAX=1: every largest-size class, whatever its mask (for
-per-class programs); classes.txt then has a fourth column, the class's own mask."""
-import sys, os, json, subprocess, collections
-sys.path.insert(0, '/work/m38')
-from sha38 import trace, S0, S1, s0, CH, MAJ, M32 as M
-pre, out = sys.argv[1], sys.argv[2]; NC = int(sys.argv[3]) if len(sys.argv) > 3 else 8
-os.makedirs(out, exist_ok=True)
-sizes = [(int(c, 16), int(n)) for c, n in (l.split() for l in open(pre + '.cls.txt'))]
-top = max(n for _, n in sizes); big = sorted(c for c, n in sizes if n == top)
-open(out + '/big_c7.txt', 'w').write(''.join('%08x\n' % c for c in big))
-r = subprocess.run(['/work/m38/a0cls', pre + '.a0.txt', '0', out + '/big_agg.txt', out + '/big_c7.txt', 'agg'], capture_output=True, text=True, check=True)
-info = {}                                                             # c7 -> (min member, mask = bits that vary)
-for l in open(out + '/big_agg.txt'):
-    c, b, m, n = l.split(); info[int(c, 16)] = (int(b, 16), int(m, 16))
-cnt = collections.Counter(m for _, m in info.values())
-MASK = min(cnt, key=lambda m: (-cnt[m], m))
-ALL = os.environ.get('ALLMAX') == '1'
-sel = sorted(info)[:NC] if ALL else [c for c in sorted(info) if info[c][1] == MASK][:NC]
-open(out + '/sel_c7.txt', 'w').write(''.join('%08x\n' % c for c in sel))
-subprocess.run(['/work/m38/a0cls', pre + '.a0.txt', '0', out + '/sel_members.txt', out + '/sel_c7.txt'], capture_output=True, text=True, check=True)
-mem = collections.defaultdict(list)                                   # members of the selected classes only
-for l in open(out + '/sel_members.txt'):
-    c, a = l.split(); mem[int(c, 16)].append(int(a, 16))
-cbits = 0
-for c in sel: cbits |= info[c][0] ^ info[sel[0]][0]
-P = json.load(open(pre + '.pair.json')); cv, Wx, Wy = P['cv'], P['Wx'], P['Wy']
-tx = trace(cv, Wx, 16); A, E = tx[0], tx[1]
-C4 = (A[4] - S0(A[3]) - MAJ(A[3], A[2], A[1])) & M
-W8C = (E[8] - A[4] - S1(E[7]) - CH(E[7], E[6], E[5]) - 0xd807aa98) & M
-assert ((W8C - ((A[0] + C4) & M)) & M) == Wx[8], 'S own A0 does not reproduce W8'
-with open(out + '/classes.txt', 'w') as f:
-    for c in sel: f.write('%08x %08x %d' % (c, info[c][0], len(mem[c])) + (' %08x\n' % info[c][1] if ALL else '\n'))
-with open(out + '/vars_pool.txt', 'w') as f:
-    for j, c in enumerate(sel):
-        for a0 in sorted(mem[c]): f.write('%d %08x %08x %08x %08x %08x %08x\n' % (j, a0, A[1], A[2], (W8C - ((a0 + C4) & M)) & M, Wx[9], Wx[10]))
-sval = lambda row: sum((-(1 << (31 - k)) if c == 'u' else (1 << (31 - k))) for k, c in enumerate(row) if c in 'un') & M   # as prep.py
-C = json.load(open(pre + '.char.json'))
-D7 = (Wy[7] - Wx[7]) & M; T7 = (sval(C['22']['W']) - ((Wy[15] - Wx[15]) & M)) & M   # s0 difference of W7 the trail needs (W22 = .. + W15 + s0(W7))
-d = dict(D7='%08x' % D7, T7='%08x' % T7, MASK='%08x' % MASK, mask_bits=bin(MASK).count('1'), CBITS='%08x' % cbits, class_size=top,
-         classes_with_mask=cnt[MASK], n_largest=len(big), selected=['%08x' % c for c in sel], a0cls=r.stdout.strip())
-json.dump(d, open(out + '/derived.json', 'w'), indent=1); print(json.dumps(d))
-```
-
-### a0cls.c
-
-```c
-// A0-only variant family of a dense part and its c7 classes (own code). a0fam <pair: cv Wx[16] Wy[16] hex> [min class size, out file]
-// a0cls: the same in 32 passes over a hash of c7 (at most 2^23 pairs resident; peak memory measured in proof.md 11).
-// a0cls <pair> 0 <out> <c7 list>: one pass writing "c7 a0" for every member of the listed classes (in a0 order).
-// a0cls <pair> 0 <out> <c7 list> agg: one pass writing "c7 min mask size" per listed class (mask = bits that vary = OR & ~AND).
-// A variant changes A0 only (both members): E4 and W8 of each member change; valid iff the modular difference dW8 and the
-// s0 difference ds0(W8) equal the pair's (W8 enters rows >= 16 only through them). c7 = W7^x + A_{-1} depends on A0 through
-// MAJ(A2, A1, A0) and CH(E6, E5, E4). Prints the family size, the number of distinct c7 values and the largest class sizes.
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-#include <math.h>
-typedef uint32_t u32;
-static const u32 K[16] = {0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174};
-static inline u32 ror(u32 x, int n) { return (x >> n) | (x << (32 - n)); }
-static inline u32 S0(u32 x) { return ror(x, 2) ^ ror(x, 13) ^ ror(x, 22); }
-static inline u32 S1(u32 x) { return ror(x, 6) ^ ror(x, 11) ^ ror(x, 25); }
-static inline u32 s0(u32 x) { return ror(x, 7) ^ ror(x, 18) ^ (x >> 3); }
-static inline u32 CH(u32 x, u32 y, u32 z) { return (x & y) ^ (~x & z); }
-static inline u32 MAJ(u32 x, u32 y, u32 z) { return (x & y) ^ (x & z) ^ (y & z); }
-static u32 A[2][20], E[2][20], W[2][16];
-static int cmp(const void *a, const void *b) { u32 x = *(const u32 *)a, y = *(const u32 *)b; return x < y ? -1 : x > y; }
-static int cmp64(const void *a, const void *b) { uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b; return x < y ? -1 : x > y; }
-static int cmpl(const void *a, const void *b) { long x = *(const long *)a, y = *(const long *)b; return x > y ? -1 : x < y; }   // descending
-int main(int argc, char **argv) {
-    FILE *f = fopen(argv[1], "r"); u32 cv[8];
-    for (int j = 0; j < 8; j++) fscanf(f, "%x", &cv[j]);
-    for (int m = 0; m < 2; m++) for (int i = 0; i < 16; i++) fscanf(f, "%x", &W[m][i]);
-    fclose(f);
-    for (int m = 0; m < 2; m++) {
-        for (int j = 0; j < 4; j++) { A[m][3 - j] = cv[j]; E[m][3 - j] = cv[4 + j]; }
-        for (int i = 0; i < 16; i++) {
-            u32 T1 = E[m][i] + S1(E[m][i + 3]) + CH(E[m][i + 3], E[m][i + 2], E[m][i + 1]) + K[i] + W[m][i];
-            E[m][i + 4] = A[m][i] + T1; A[m][i + 4] = T1 + S0(A[m][i + 3]) + MAJ(A[m][i + 3], A[m][i + 2], A[m][i + 1]);
-        }
-    }
-#define a(m, i) A[m][(i) + 4]
-#define e(m, i) E[m][(i) + 4]
-    u32 dW8 = W[1][8] - W[0][8], ds8 = s0(W[1][8]) - s0(W[0][8]); int thr = atoi(argv[2]);
-    if (argc > 4) {                                             // members of the listed classes
-        static u32 sel[1 << 16]; int ns = 0; FILE *g = fopen(argv[4], "r"); FILE *o = fopen(argv[3], "w");
-        while (ns < (1 << 16) && fscanf(g, "%x%*[^\n]", &sel[ns]) == 1) ns++;
-        fclose(g); qsort(sel, ns, 4, cmp); long nm = 0; int agg = argc > 5;
-        static u32 mn[1 << 16], ro[1 << 16], ra[1 << 16]; static long cn[1 << 16];
-        for (int i = 0; i < ns; i++) { mn[i] = 0xffffffffu; ro[i] = 0; ra[i] = 0xffffffffu; cn[i] = 0; }
-        for (uint64_t x = 0; x < (1ULL << 32); x++) {
-            u32 a0 = (u32)x, w8[2], e4 = 0;
-            for (int m = 0; m < 2; m++) { e4 = a(m, 4) + a0 - S0(a(m, 3)) - MAJ(a(m, 3), a(m, 2), a(m, 1)); w8[m] = e(m, 8) - a(m, 4) - e4 - S1(e(m, 7)) - CH(e(m, 7), e(m, 6), e(m, 5)) - K[8]; }
-            if (w8[1] - w8[0] != dW8 || s0(w8[1]) - s0(w8[0]) != ds8) continue;
-            u32 c = e(0, 7) - 2 * a(0, 3) + S0(a(0, 2)) + MAJ(a(0, 2), a(0, 1), a0) - S1(e(0, 6)) - CH(e(0, 6), e(0, 5), e4) - K[7];
-            u32 *h = bsearch(&c, sel, ns, 4, cmp);
-            if (!h) continue;
-            nm++;
-            if (!agg) { fprintf(o, "%08x %08x\n", c, a0); continue; }
-            long i = h - sel; if (a0 < mn[i]) mn[i] = a0; ro[i] |= a0; ra[i] &= a0; cn[i]++;
-        }
-        if (agg) for (int i = 0; i < ns; i++) fprintf(o, "%08x %08x %08x %ld\n", sel[i], mn[i], ro[i] & ~ra[i], cn[i]);
-        fclose(o); printf("members of %d classes: %ld\n", ns, nm); return 0;
-    }
-    long cap = 1L << 23; uint64_t *pr = malloc(8 * cap); long fam = 0, ncls = 0; FILE *o = fopen(argv[3], "w");
-    for (u32 p = 0; p < 32; p++) {
-        long n = 0;
-        for (uint64_t x = 0; x < (1ULL << 32); x++) {
-            u32 a0 = (u32)x, w8[2], e4 = 0;
-            for (int m = 0; m < 2; m++) { e4 = a(m, 4) + a0 - S0(a(m, 3)) - MAJ(a(m, 3), a(m, 2), a(m, 1)); w8[m] = e(m, 8) - a(m, 4) - e4 - S1(e(m, 7)) - CH(e(m, 7), e(m, 6), e(m, 5)) - K[8]; }
-            if (w8[1] - w8[0] != dW8 || s0(w8[1]) - s0(w8[0]) != ds8) continue;
-            u32 c = e(0, 7) - 2 * a(0, 3) + S0(a(0, 2)) + MAJ(a(0, 2), a(0, 1), a0) - S1(e(0, 6)) - CH(e(0, 6), e(0, 5), e4) - K[7];
-            if (((c * 0x9e3779b1u) >> 27) != p) continue;           // pass by a hash of c7 (a class stays in one pass)
-            if (n >= cap) { fprintf(stderr, "pass too large\n"); return 1; }
-            pr[n++] = ((uint64_t)c << 32) | a0;
-        }
-        fam += n; qsort(pr, n, 8, cmp64);
-        for (long i = 0; i < n; ) { long j = i; while (j < n && (pr[j] >> 32) == (pr[i] >> 32)) j++; if (j - i >= thr) { ncls++; fprintf(o, "%08x %ld\n", (u32)(pr[i] >> 32), j - i); } i = j; }
-    }
-    fclose(o); printf("family %ld = 2^%.3f; classes of size >= %d: %ld\n", fam, log2((double)fam), thr, ncls); return 0;
-}
-```
-
-### a0p_ref.py
-
-```python
-# a0p_ref.py - part 1 of experiments/a0p38.py: target, characteristic P8 and the reference construction of the A0-variant attack (own code).
-# The attack design (A0-variants of one Step-1 solution, c7 classes decided by one W7 test, bit-sliced row-16 filter, accepted event with a
-# direct output comparison) is that of the public packages 2d1c4fc2 (itseasypop) and fb176310 (Jbenisek) on the framework of ePrint
-# 2026/1120 / 2026/1080; per-class row-16 programs (class bits folded as constants) follow 08be594 (johnservil); this code, the
-# characteristic P8, its accepted event (row 19 on signed differences) and the 32-class selection are ours.
-import sys, json, hashlib, struct, zlib, base64, math
-M = 0xffffffff
-NR = 38
-K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be,
-     0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa,
-     0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85,
-     0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb]
-IV = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
-def ror(x, n): return ((x >> n) | (x << (32 - n))) & M
-def S0(x): return ror(x, 2) ^ ror(x, 13) ^ ror(x, 22)
-def S1(x): return ror(x, 6) ^ ror(x, 11) ^ ror(x, 25)
-def s0(x): return ror(x, 7) ^ ror(x, 18) ^ (x >> 3)
-def s1(x): return ror(x, 17) ^ ror(x, 19) ^ (x >> 10)
-def CH(x, y, z): return (x & y) ^ (~x & z & M)
-def MAJ(x, y, z): return (x & y) ^ (x & z) ^ (y & z)
-
-def trace(cv, w16, n=NR):
-    """A[i], E[i] (i = -4..n-1, dicts) and W[0..n-1] of the first n steps from the chaining value cv."""
-    W = list(w16)
-    for i in range(16, n): W.append((s1(W[i-2]) + W[i-7] + s0(W[i-15]) + W[i-16]) & M)
-    A = {-1-i: cv[i] for i in range(4)}; E = {-1-i: cv[4+i] for i in range(4)}
-    for i in range(n):
-        E[i] = (A[i-4] + E[i-4] + S1(E[i-1]) + CH(E[i-1], E[i-2], E[i-3]) + K[i] + W[i]) & M
-        A[i] = (E[i] - A[i-4] + S0(A[i-1]) + MAJ(A[i-1], A[i-2], A[i-3])) & M
-    return A, E, W
-
-def compress(cv, w16, n=NR):
-    A, E, W = trace(cv, w16, n)
-    f = [A[n-1], A[n-2], A[n-3], A[n-4], E[n-1], E[n-2], E[n-3], E[n-4]]
-    return [(cv[i] + f[i]) & M for i in range(8)]
-```
-
-### a0p_core.py
-
-```python
-
-# ---- the characteristic P8 (proof.md Section 3); member x = M, member y = M'.  PCV/PMX/PMY: a 38-step semi-free-start pair in the accepted
-# event whose rows 0..15 are the Step-1 solution S.  Cells per kind (A, E, W) and row: (mask, x-value, x^y difference, 0) = the signed trail with
-# its one-bit conditions; PQ[i]: bits with E_i = E_{i-1}; X2: the other two-bit conditions (k1, i1, b1, equal, k2, i2, b2, row), member x.
-#<<CONSTS>>
-CELLS = [[(0, 0, 0, 0)] * NR for _ in range(3)]
-for _k in range(3):
-    for _i, _c in _CH[_k].items(): CELLS[_k][_i] = _c
-_tx, _ty = trace(PCV, PMX), trace(PCV, PMY)
-SAx = {i: _tx[0][i] for i in range(-4, 16)}; SEx = {i: _tx[1][i] for i in range(-4, 16)}
-SAy = {i: _ty[0][i] for i in range(-4, 16)}; SEy = {i: _ty[1][i] for i in range(-4, 16)}
-DWT = [(_ty[2][i] - _tx[2][i]) & M for i in range(NR)]          # modular differences of the words (y - x) of the pair
-D7 = DWT[7]; T7 = T7_C                                         # s0(W7y) - s0(W7x) required by rows 22/23 (the trail)
-def inF7(w): return ((s0((w + D7) & M) - s0(w)) & M) == T7
-R19 = 19                                                         # the row checked on its signed differences only (accepted event)
-
-def rowok(tx, ty, i, relax=True):
-    """Row i of both traces: cells (x-value on the mask, XOR difference), '+' pairs and two-bit conditions keyed at row i (member x).
-    The W cells of rows 7..10 are not part of the event (W7: F7; W8..W10: modular differences).  With relax, row R19 is checked on its
-    signed differences only (XOR difference and member-x value on the difference bits)."""
-    (Ax, Ex, Wx), (Ay, Ey, Wy) = tx, ty
-    sig = relax and i == R19
-    for k, (x, y) in enumerate(((Ax[i], Ay[i]), (Ex[i], Ey[i]), (Wx[i], Wy[i]))):
-        if k == 2 and 7 <= i <= 10: continue
-        m, v, d, _ = CELLS[k][i]
-        if (x ^ y) != d: return False
-        if (x & (d if sig else m)) != (v & (d if sig else m)): return False
-    if sig: return True
-    if (Ex[i] ^ Ex[i-1]) & PQ[i]: return False
-    for (k1, i1, b1, eq, k2, i2, b2, row) in X2:
-        if row == i and (((tx[k1][i1] >> b1) ^ (tx[k2][i2] >> b2)) & 1) != (0 if eq else 1): return False
-    return True
-
-def accepted(tx, ty):
-    """The accepted event: rows 16..22 (row 19 on signed differences) and equal outputs after step 37."""
-    return all(rowok(tx, ty, i) for i in range(16, 23)) and all(tx[k][i] == ty[k][i] for k in (0, 1) for i in range(34, 38))
-
-# ---- A0-variants (proof.md Section 4) ----
-C4 = (SAx[4] - S0(SAx[3]) - MAJ(SAx[3], SAx[2], SAx[1])) & M                                    # E4 = a0 + C4 (both members)
-W8C = [(E[8] - A[4] - S1(E[7]) - CH(E[7], E[6], E[5]) - K[8]) & M for A, E in ((SAx, SEx), (SAy, SEy))]   # W8 = W8C - E4
-D8 = DWT[8]; DS8 = (s0(PMY[8]) - s0(PMX[8])) & M
-def in_G(a0):
-    e4 = (a0 + C4) & M; x = (W8C[0] - e4) & M; y = (W8C[1] - e4) & M
-    return ((y - x) & M) == D8 and ((s0(y) - s0(x)) & M) == DS8
-def c7of(a0):
-    """W7x = c7(a0) - A_{-1}."""
-    return (SEx[7] - 2 * SAx[3] + S0(SAx[2]) + MAJ(SAx[2], SAx[1], a0) - S1(SEx[6]) - CH(SEx[6], SEx[5], (a0 + C4) & M) - K[7]) & M
-def words(cv, a0):
-    """Step 2: the message words W0..W15 of both members connecting cv to the variant a0 of S."""
-    out = []
-    for SA, SE, wp in ((SAx, SEx, PMX), (SAy, SEy, PMY)):
-        A = dict(SA); E = dict(SE); A[0] = a0
-        for j in range(4): A[-1-j] = cv[j]; E[-1-j] = cv[4+j]
-        for i in range(5): E[i] = (A[i] + A[i-4] - S0(A[i-1]) - MAJ(A[i-1], A[i-2], A[i-3])) & M
-        w = [(E[i] - A[i-4] - E[i-4] - S1(E[i-1]) - CH(E[i-1], E[i-2], E[i-3]) - K[i]) & M for i in range(9)]
-        out.append(w + list(wp[9:16]))
+"""Strict read-only verifier for the measured fourteen-column replay packet."""
+if not __debug__:
+    raise SystemExit('assertions required')
+import argparse,ast,base64,hashlib,json,lzma,re,struct,zlib
+from pathlib import Path
+from decimal import Decimal as D,getcontext,ROUND_CEILING
+from fractions import Fraction as F
+REQUIRED=('data/base_delta.json', 'data/binding_pair_checks_14col.json', 'data/census.json', 'data/h7_preservation.json', 'data/ledger14.json', 'data/ledger15.json', 'data/method_mutants_14col.json', 'data/method_summary_14col.json', 'data/native_build.json', 'data/native_records.json', 'data/organizer_summary_14col.json', 'data/p8rr_evidence.json', 'data/pair_streams.json', 'data/production_identity_14col.json', 'data/program_lineage.json', 'data/provenance.json', 'data/reference_SEL_pairs.json', 'data/selftest_14col.json', 'data/walk_certificate.json', 'results/column_census_runs/j0.json', 'results/column_census_runs/j1.json', 'results/column_census_runs/j2.json', 'results/column_census_runs/j3.json', 'results/column_census_runs/j4.json', 'results/column_census_runs/j5.json', 'results/column_census_runs/j6.json', 'results/column_census_runs/j7.json', 'results/constants_14col.json', 'results/e0_SEL_reference.json', 'results/e0_SEL_tree.json', 'results/e0_W9_reference.json', 'results/e0_W9_tree.json', 'results/e1_SEL_reference.json', 'results/e1_SEL_tree.json', 'results/e1_W9_reference.json', 'results/e1_W9_tree.json', 'results/final_14col_checks.json', 'results/ledger.json', 'results/native_14col_build.json', 'results/native_14col_lane_mutants.json', 'results/native_14col_sanitizer.json', 'results/prefix_bounded.json', 'results/restriction.json', 'results/restriction_clang.json', 'results/restriction_mutants.json', 'results/restriction_sanitizer.json', 'scripts/build_native.py', 'scripts/check_audit.py', 'scripts/check_prefix.py', 'scripts/check_restriction.py', 'scripts/check_task6.py', 'scripts/gen_tree.py', 'scripts/ledger_receipt.py', 'scripts/native_quality.py', 'scripts/program_lineage.py', 'scripts/replay_native14.py', 'scripts/restriction_mutants.py', 'scripts/run_column_census.py', 'scripts/run_full_native.py', 'scripts/verify_full_native.py', 'src/column_census.cpp', 'src/constants.hpp', 'src/crypto.hpp', 'src/front_storage.hpp', 'src/machine.hpp', 'src/online.cpp', 'src/restriction.cpp', 'src/restriction_fixtures.hpp', 'src/sha256.hpp', 'src/walk_tree.hpp', 'tests/packet_mutations.py')
+PROGRAM_SHA='dbebd90aad352af400b15281aedecd5e24b1e5c2536b2df2455fc2b413761514'
+PREVIOUS_PROGRAM_SHA='9936e9fbe2f0465e0a7de50bfc51ff38235f89df41db51ba379130d09fc5fe6d'
+SOURCE_TREE='34803b2c8a916bf1305b771de7c9eb5cf0b051d2dcfd8ce6147a3465445d349c'
+N=333397547809852074420537264
+PREFIX=('emitted_columns','emitted_entries','table_word_bytes','table_word_sha256','container_digest','containers_digest_covered','population','a0','reads','fired_reads','tag_claws','C1_claws','C2','G','good','step3b_accepts','real_word_failures','read_ops','guard_masks','trace_sha256','tag_sha256','C1_sha256','good_sha256','step3b_sha256','removed_column_events')
+def need(ok,why):
+    if not ok:raise ValueError(why)
+def unique(items):
+    out={}
+    for k,v in items:need(k not in out,'duplicate JSON key');out[k]=v
     return out
-def e16x(cv, a0): return trace(cv, words(cv, a0)[0], 17)[1][16]
-C16 = (SAx[12] + SEx[12] + S1(SEx[15]) + CH(SEx[15], SEx[14], SEx[13]) + K[16]) & M
-R16 = sorted((C16 + g) & M for g in GL)                          # the E16x values with row 16 holding (exhaustive, 160 words)
-R16SET = frozenset(R16)
-_sh = M
-for _v in R16: _sh &= ~(_v ^ R16[0]) & M
-SHARED = _sh                                                       # bits on which all row-16 words agree
-TK = 12                                                            # tested bits of the row-16 filter: the TK lowest shared bits
-TBITS = [j for j in range(32) if (SHARED >> j) & 1][:TK]
-
-# ---- classes (proof.md Section 5): class i = {base ^ s : s subset of its mask, a0 in G, c7(a0) = c7_i}, 24,576 variants each ----
-def dep(t, mask):
-    """bits of t deposited on the set bits of mask (lowest first)"""
-    r = 0; j = 0
-    while mask:
-        b = mask & -mask
-        if (t >> j) & 1: r |= b
-        mask ^= b; j += 1
-    return r
-def members(ci, count, start=0):
-    """the members number start..start+count-1 of class ci in the canonical order (increasing t of base ^ dep(t, mask))"""
-    c7, base, mk = CLASSES[ci]; out = []; t = 0; k = 0
-    while len(out) < count and t < (1 << bin(mk).count('1')):
-        a0 = base ^ dep(t, mk); t += 1
-        if in_G(a0) and c7of(a0) == c7:
-            if k >= start: out.append(a0)
-            k += 1
-    return out
-
-def rebuild(W, a0):
-    """A success of the estimator (member-x words W[7..22] with W7 in F7, rows 16..22 sampled) and its variant a0 -> (cv, Mx, My):
-    W0..W6 by the inverse expansion, CV1 by inverting steps 7..0 of the variant."""
-    W = dict(W)
-    for i in range(22, 15, -1): W[i - 16] = (W[i] - s1(W[i - 2]) - W[i - 7] - s0(W[i - 15])) & M
-    A = {i: SAx[i] for i in range(8)}; A[0] = a0; E = {i: SEx[i] for i in range(4, 8)}; E[4] = (a0 + C4) & M
-    for i in range(7, -1, -1):
-        A[i - 4] = (E[i] - A[i] + S0(A[i - 1]) + MAJ(A[i - 1], A[i - 2], A[i - 3])) & M
-        E[i - 4] = (E[i] - A[i - 4] - S1(E[i - 1]) - CH(E[i - 1], E[i - 2], E[i - 3]) - K[i] - W[i]) & M
-    cv = [A[-1], A[-2], A[-3], A[-4], E[-1], E[-2], E[-3], E[-4]]
-    wx, wy = words(cv, a0)
-    return cv, wx, wy
-```
-
-### a0p_prog.py
-
-```python
-
-# ---- the bit-sliced row-16 program (proof.md Section 7.2) ----
-# Bit L of every 256-bit plane belongs to lane L (one variant).  The program computes, for 256 variants of one batch, the TK tested bits of
-# E16x = KP + a0 + s0(W1), W1 = K1 - S0(a0) - MAJ(a0, a, b) - S1(E0) - CH(E0, e, f), E0 = a0 + HH (Lemma 4.1), and their AND with the
-# tested values.  Inputs: the planes of the bits of a0 that vary in the batch (A<j>), the class constants (C<j>, broadcast words), and the
-# per-first-block broadcast planes of HH, PP = a & b, QQ = a | b, EF = e ^ f, FF = f, K1 = A1 - g - K1, KP (7 x 32).  Constant bits of a0 are
-# folded.  Nodes: xor, and, or, not; equal nodes are shared.  The allocator gives an instruction list over 64 registers in which every
-# load, store and spill is one instruction; the list is the charge.
-ONES = (1 << 256) - 1
-class Prog:
-    def __init__(s): s.nodes = [None, None]; s.cache = {}; s.inputs = {}
-    def inp(s, name):
-        if name not in s.inputs: s.nodes.append(('in', name)); s.inputs[name] = len(s.nodes) - 1
-        return s.inputs[name]
-    def _mk(s, op, a, b=None):
-        key = (op, a, b) if op == 'not' or b is None else (op,) + tuple(sorted((a, b)))
-        if key not in s.cache: s.nodes.append(key); s.cache[key] = len(s.nodes) - 1
-        return s.cache[key]
-    def not_(s, a):
-        if a < 2: return 1 - a
-        n = s.nodes[a]
-        return n[1] if n[0] == 'not' else s._mk('not', a)
-    def xor(s, a, b):
-        if a == 0: return b
-        if b == 0: return a
-        if a == b: return 0
-        if a == 1: return s.not_(b)
-        if b == 1: return s.not_(a)
-        return s._mk('xor', a, b)
-    def and_(s, a, b):
-        if a == 0 or b == 0: return 0
-        if a == 1: return b
-        if b == 1 or a == b: return a
-        return s._mk('and', a, b)
-    def or_(s, a, b):
-        if a == 1 or b == 1: return 1
-        if a == 0: return b
-        if b == 0 or a == b: return a
-        return s._mk('or', a, b)
-    def add(s, x, y, cin=0, n=32):
-        """ripple addition of two bit lists (LSB first), n result bits"""
-        out = []; c = cin
-        for j in range(n):
-            t = s.xor(x[j], y[j]); out.append(s.xor(t, c))
-            c = s.or_(s.and_(x[j], y[j]), s.and_(c, t))
-        return out
-
-def build_e16(cbits, nlane):
-    """cbits[j]: 'L' (lane-varying bit of a0), 'C' (class constant, input), 0 or 1 (folded).  Returns (Prog, ok node)."""
-    p = Prog()
-    a0 = [p.inp('A%d' % j) if cbits[j] == 'L' else p.inp('C%d' % j) if cbits[j] == 'C' else cbits[j] for j in range(32)]
-    bc = lambda nm: [p.inp('%s%d' % (nm, j)) for j in range(32)]
-    HH, PP, QQ, EF, FF, K1, KP = (bc(n) for n in ('HH', 'PP', 'QQ', 'EF', 'FF', 'K1', 'KP'))
-    rot = lambda w, r: [w[(j + r) % 32] for j in range(32)]
-    x3 = lambda u, v, w: [p.xor(p.xor(u[j], v[j]), w[j]) for j in range(32)]
-    E0 = p.add(a0, HH)
-    # bit-interleaved: at bit j the four operands of T = S0(a0) + MAJ + S1(E0) + CH, the three adders of T and the subtraction K1 - T
-    c = [0, 0, 0, 1]; T1 = []; W1 = []
-    def fa(x, y, ci):
-        t = p.xor(x, y); return p.xor(t, ci), p.or_(p.and_(x, y), p.and_(ci, t))
-    for j in range(32):
-        sa = p.xor(p.xor(a0[(j + 2) % 32], a0[(j + 13) % 32]), a0[(j + 22) % 32])
-        mj = p.or_(PP[j], p.and_(a0[j], QQ[j]))
-        ss = p.xor(p.xor(E0[(j + 6) % 32], E0[(j + 11) % 32]), E0[(j + 25) % 32])
-        cv = p.xor(FF[j], p.and_(E0[j], EF[j]))
-        u, c[0] = fa(sa, mj, c[0]); v, c[1] = fa(ss, cv, c[1]); t, c[2] = fa(u, v, c[2])
-        w, c[3] = fa(K1[j], p.not_(t), c[3]); W1.append(w)
-    n = max(TBITS) + 1; d = [0, 0]; ok = 1
-    for j in range(n):
-        s0w = p.xor(p.xor(W1[(j + 7) % 32], W1[(j + 18) % 32]), W1[j + 3] if j + 3 < 32 else 0)
-        u, d[0] = fa(KP[j], a0[j], d[0]); e, d[1] = fa(u, s0w, d[1])
-        if j in TBITS: ok = p.and_(ok, e if (R16[0] >> j) & 1 else p.not_(e))
-    return p, ok
-
-def schedule(p, root, nreg=64):
-    """Belady allocation of the nodes root depends on, in creation order: instruction list [(op, dst, src...)] with 'ld' (input or spill
-    slot), 'st' (spill), 'xor', 'and', 'or', 'not', 'out'; returns (instructions, spill slots used)."""
-    need = set(); st = [root]
-    while st:
-        x = st.pop()
-        if x < 2 or x in need: continue
-        need.add(x); n = p.nodes[x]
-        if n[0] != 'in': st.extend(n[1:] if n[0] != 'not' else n[1:2])
-    order = [x for x in range(2, len(p.nodes)) if x in need and p.nodes[x][0] != 'in']
-    uses = {}
-    for t, x in enumerate(order):
-        n = p.nodes[x]
-        for o in (n[1:] if n[0] != 'not' else n[1:2]):
-            if o >= 2: uses.setdefault(o, []).append(t)
-    uses.setdefault(root, []).append(len(order))
-    ptr = {x: 0 for x in uses}
-    def nxt(x):
-        u = uses.get(x, []); i = ptr.get(x, 0)
-        return u[i] if i < len(u) else 1 << 40
-    reg = {}; free = list(range(nreg)); inmem = set(x for x in need if p.nodes[x][0] == 'in'); slots = {}; ins = []; maxslot = 0
-    def evict(t, keep):
-        nonlocal maxslot
-        v = max((x for x in reg if x not in keep), key=nxt)
-        if nxt(v) < (1 << 40) and v not in inmem:
-            if v not in slots: slots[v] = len(slots); maxslot = max(maxslot, len(slots))
-            ins.append(('st', ('S', slots[v]), reg[v])); inmem.add(v)
-        free.append(reg.pop(v))
-    def getreg(t, keep):
-        if not free: evict(t, keep)
-        return free.pop()
-    def load(x, t, keep):
-        if x in reg: return reg[x]
-        r = getreg(t, keep); src = ('I', p.nodes[x][1]) if p.nodes[x][0] == 'in' else ('S', slots[x])
-        ins.append(('ld', r, src)); reg[x] = r; return r
-    CONST = {0: 'Z', 1: 'O'}
-    for t, x in enumerate(order):
-        n = p.nodes[x]; ops = n[1:] if n[0] != 'not' else n[1:2]
-        keep = set(o for o in ops if o >= 2)
-        rs = []
-        for o in ops:
-            if o < 2: rs.append(CONST[o])
-            else: rs.append(load(o, t, keep))
-        for o in ops:
-            if o >= 2: ptr[o] += 1
-        dead = [o for o in ops if o >= 2 and nxt(o) >= (1 << 40) and o in reg]
-        if dead: r = reg.pop(dead[0]); [free.append(reg.pop(d)) for d in dead[1:] if d in reg]
-        else: r = getreg(t, keep)
-        ins.append((n[0], r) + tuple(rs)); reg[x] = r
-    ins.append(('out', reg[root] if root >= 2 else CONST[root]))
-    return ins, maxslot
-
-def run_prog(ins, inputs):
-    """execute an instruction list on 256-bit planes; inputs: name -> plane.  Returns (ok plane, executed instructions)."""
-    R = {}; S = {}; v = lambda a: 0 if a == 'Z' else ONES if a == 'O' else R[a]
-    for i in ins:
-        op = i[0]
-        if op == 'ld': R[i[1]] = inputs[i[2][1]] if i[2][0] == 'I' else S[i[2][1]]
-        elif op == 'st': S[i[1][1]] = R[i[2]]
-        elif op == 'xor': R[i[1]] = v(i[2]) ^ v(i[3])
-        elif op == 'and': R[i[1]] = v(i[2]) & v(i[3])
-        elif op == 'or': R[i[1]] = v(i[2]) | v(i[3])
-        elif op == 'not': R[i[1]] = v(i[2]) ^ ONES
-        elif op == 'out': return v(i[1]), len(ins) - 1
-    raise ValueError('no out')
-```
-
-### a0p_scal.py
-
-```python
-
-# ---- counted scalar routines (proof.md Section 7.1) ----
-# Machine: 256-bit word RAM; every executed primitive counts 1 (add, sub, and, or, xor, not, shl, shr, ld, st, li, rand), a compare-and-branch
-# counts 2, one target compression counts 1 unit.  32-bit values are reduced with one AND where the program needs a masked value.  The
-# routines below are written with the counting primitives of Mach and executed; broadcast, lane_value, first_lane, r16test, step_m and deep add
-# itemised declared counts (stated in their docstrings) instead of counting each primitive (the `calibrate` command).
-class Mach:
-    def __init__(s): s.ops = 0; s.units = 0
-    def op(s, v, n=1): s.ops += n; return v
-    def add(s, a, b): return s.op((a + b) & M)
-    def sub(s, a, b): return s.op((a - b) & M)
-    def xor(s, a, b): return s.op(a ^ b)
-    def and_(s, a, b): return s.op(a & b)
-    def or_(s, a, b): return s.op(a | b)
-    def shr(s, a, n): return s.op(a >> n)
-    def ld(s, v): return s.op(v)
-    def br(s, c): s.ops += 2; return c
-def sg(m, x, r1, r2, r3, shr3):
-    """ROTR(x,r1) ^ ROTR(x,r2) ^ (SHR or ROTR)(x,r3) of a masked 32-bit x: the doubled word D = x | x << 32 makes a rotation one shift; 8 ops"""
-    m.op(0, 2)                                                       # D = x << 32, D |= x
-    t = m.op(ror(x, r1) ^ ror(x, r2), 3); u = m.op((x >> r3) if shr3 else ror(x, r3), 1); return m.op((t ^ u) & M, 2)
-def S0m(m, x): return sg(m, x, 2, 13, 22, False)
-def S1m(m, x): return sg(m, x, 6, 11, 25, False)
-def s0m(m, x): return sg(m, x, 7, 18, 3, True)
-def s1m(m, x): return sg(m, x, 17, 19, 10, True)
-def CHm(m, e, f, g): return m.xor(g, m.and_(e, m.xor(f, g)))                    # 3
-def MAJm(m, a, b, c): return m.or_(m.and_(a, b), m.and_(c, m.or_(a, b)))       # 4
-
-def w7test(m, c7, a):
-    """W7 = c7 - A_{-1} in F7, computed (no table): s0(w + D7) - s0(w) = T7; 24 operations including the branch"""
-    w = m.and_(m.sub(c7, a), M); w2 = m.and_(m.add(w, D7), M)
-    d = m.and_(m.sub(s0m(m, w2), s0m(m, w)), M)
-    return m.br(d == T7)
-
-def fb_scalars(m, cv):
-    """per first block: HH, PP, QQ, EF, FF, K1, KP of the program (Lemma 4.1) and A1-independent words"""
-    a, b, c, d, e, f, g, h = cv
-    hh = m.and_(m.sub(m.sub(d, S0m(m, a)), MAJm(m, a, b, c)), M)
-    kw0 = m.and_(m.sub(m.sub(m.sub(m.sub(m.sub(hh, d), h), S1m(m, e)), CHm(m, e, f, g)), K[0]), M)
-    sc = dict(HH=hh, PP=m.and_(a, b), QQ=m.or_(a, b), EF=m.xor(e, f), FF=f, K1=m.and_(m.sub(KK1, g), M), KP=m.and_(m.add(KKP, kw0), M))
-    return sc
-KK1 = (SAx[1] - K[1]) & M                                          # K1 = A1 - g - K1
-KKP = (C16 + s1(PMX[14]) + PMX[9]) & M                            # KP = C16 + s1(W14) + W9 + (W0 - a0)
-PLANE_OPS = 4                                                       # one broadcast plane: shift, and, negate, store
-
-def broadcast(m, sc):
-    """the 7 x 32 broadcast planes (plane j = 0 - ((x >> j) & 1)); 4 operations each"""
-    out = {}
-    for nm, v in sc.items():
-        for j in range(32): out['%s%d' % (nm, j)] = ONES if (v >> j) & 1 else 0
-    m.ops += PLANE_OPS * 32 * len(sc); return out
-
-def lane_value(m, planes, L, cmask, base):
-    """a0 of lane L from the stored planes of the varying bits: per bit one shift, and, shift-left, or (4), plus the class base (1)"""
-    v = base
-    for j in range(32):
-        if (cmask >> j) & 1:
-            v |= ((planes[j] >> L) & 1) << j
-    m.ops += 4 * bin(cmask).count('1') + 1; return v
-
-def first_lane(m, ok):
-    """lowest set lane of a nonzero 256-bit word: binary search, 8 steps of (and, compare-and-branch, shift) = 32 operations"""
-    m.ops += 32; return (ok & -ok).bit_length() - 1
-
-def scalar_e16(m, sc, a0):
-    """E16x of one variant (Lemma 4.1): E0, S0(a0), MAJ, S1(E0), CH, W1, s0(W1), E16x"""
-    e0 = m.and_(m.add(a0, sc['HH']), M)
-    mj = m.or_(sc['PP'], m.and_(a0, sc['QQ']))
-    ch = m.xor(sc['FF'], m.and_(e0, sc['EF']))
-    w1 = m.and_(m.sub(m.sub(m.sub(m.sub(sc['K1'], S0m(m, a0)), mj), S1m(m, e0)), ch), M)
-    return m.and_(m.add(m.add(sc['KP'], a0), s0m(m, w1)), M)
-
-def r16test(m, e):
-    """E16x in the 160-word row-16 set: binary search in the sorted table (8 steps of load, compare-and-branch, shift: 5 each) + 2"""
-    m.ops += 8 * 5 + 2; return e in R16SET
-
-def step_m(m, A, E, W, i):
-    """one step of one member: 2 sigma (16), CH 3, MAJ 4, 9 additions/subtractions, 2 masks"""
-    m.ops += 16 + 3 + 4 + 9 + 2
-    E[i] = (A[i-4] + E[i-4] + S1(E[i-1]) + CH(E[i-1], E[i-2], E[i-3]) + K[i] + W[i]) & M
-    A[i] = (E[i] - A[i-4] + S0(A[i-1]) + MAJ(A[i-1], A[i-2], A[i-3])) & M
-
-def rowtest_m(m, tx, ty, i):
-    """the accepted tests of row i (Section 6): per word (A, E, W) one xor and compare-and-branch for the difference and one and +
-    compare-and-branch for the x-value bits (6 each, 18), the '+' pair (xor, and, branch: 4), per two-bit condition (2 shifts, xor, and,
-    branch: 6)"""
-    m.ops += 18 + (4 if PQ[i] and i != R19 else 0) + (6 * sum(1 for x in X2 if x[7] == i) if i != R19 else 0)
-    return rowok(tx, ty, i)
-
-def deep(m, cv, a0):
-    """a row-16 pass: the words of both members (Step 2: 5 E words and 9 W words each, 13 operations per word), the expansion W16..W37
-    (s0, s1, 3 additions, mask: 20 each), rows 16..37 of both members with the tests of rows 16..22 (early abort), the output comparison
-    (8 xor, 7 or, branch).  Returns True iff the pair is in the accepted event."""
-    wx, wy = words(cv, a0); m.ops += 2 * 14 * 13
-    tx = trace(cv, wx); ty = trace(cv, wy)
-    for i in range(16, 38):
-        m.ops += 2 * 20 + 2 * 34
-        if i <= 22 and not rowtest_m(m, tx, ty, i): return False
-    m.ops += 8 + 7 + 2
-    return all(tx[k][i] == ty[k][i] for k in (0, 1) for i in range(34, 38))
-```
-
-### a0p_run.py
-
-```python
-
-# ---- the online algorithm on one first block (proof.md Section 6) ----
-def cbits(ci):
-    """per-class program inputs: 'L' (a plane) on the class's own mask bits, elsewhere the class's base bit as a constant"""
-    c7, base, mk = CLASSES[ci]
-    return ['L' if (mk >> j) & 1 else (base >> j) & 1 for j in range(32)]
-_PROG = {}
-def program(ci=0):
-    """the row-16 plane program of class ci (one per distinct mask and base bits outside it; constants folded)"""
-    key = tuple(cbits(ci))
-    if key not in _PROG:
-        p, ok = build_e16(list(key), 256); _PROG[key] = schedule(p, ok)[0]
-    return _PROG[key]
-BATCH_CTL = 6          # per batch: ok test (compare-and-branch 2) and pointer advance, compare and branch (4)
-CLASS_CTL = 3 + 4      # per passing class: setup 3 (batch pointer, end pointer, class constants) and end of class (work counter, cap test) 4
-LANE_CTL = 3           # per passing lane: clear the lane (xor) and the loop test (compare-and-branch)
-FB_FIXED = 30 + 5      # per first block: two random words and their 16 fields (30), counter, cap test and hit-list test (5)
-W7_LOOP = 4            # per class: load c7, advance the class pointer, compare and branch
-
-def batch_planes(mem):
-    """the stored planes of a batch: plane j = bits j of the 256 variants (lane L = variant L)"""
-    return {j: sum(((x >> j) & 1) << L for L, x in enumerate(mem)) for j in range(32)}
-
-def process_batch(m, ins, inp, planes, ci, cv, sc, found):
-    """one batch of one passing class: the plane program, then every passing lane in scalar form; row-16 passes go to the deep check"""
-    mk = CLASSES[ci][2]
-    for j in range(32):
-        if (mk >> j) & 1: inp['A%d' % j] = planes[j]
-    ok, n = run_prog(ins, inp); m.ops += n + BATCH_CTL
-    while ok:
-        L = first_lane(m, ok); ok &= ok - 1; m.ops += LANE_CTL
-        a0 = lane_value(m, planes, L, mk, CLASSES[ci][1] & ~mk & M)
-        e = scalar_e16(m, sc, a0)
-        if r16test(m, e) and deep(m, cv, a0): found.append(a0)
-    return found
-
-def process_fb(m, cv, batches_of, check=None):
-    """one first block with chaining value cv: the W7 tests of all classes; for each passing class all its batches (batches_of(ci) yields
-    the member lists).  Returns the accepted variants found.  check(ci, mem, ok-plane-recomputation) may verify lanes."""
-    m.ops += FB_FIXED
-    hits = []
-    for ci, (c7, base, mk) in enumerate(CLASSES):
-        m.ops += W7_LOOP
-        if w7test(m, c7, cv[0]): hits.append(ci); m.ops += 2
-    found = []
-    if not hits: return found, hits
-    sc = fb_scalars(m, cv); inp = broadcast(m, sc)
-    for ci in hits:
-        m.ops += CLASS_CTL; ins = program(ci)
-        for mem in batches_of(ci):
-            process_batch(m, ins, inp, batch_planes(mem), ci, cv, sc, found)
-    return found, hits
-
-# ---- organizer experiments (proof.md Section 13).  Randomness: SHAKE-256 of (experiment id | trial seed) ----
-class Shake:
-    def __init__(self, seed): self.seed = seed.encode(); self.k = 0; self.buf = b''; self.pos = 0
-    def word(self):
-        if self.pos + 32 > len(self.buf):
-            self.buf = hashlib.shake_256(self.seed + b'|' + str(self.k).encode()).digest(1 << 14); self.k += 1; self.pos = 0
-        v = int.from_bytes(self.buf[self.pos:self.pos + 32], 'little'); self.pos += 32; return v
-    def u32(self): return self.word() & M
-    def below(self, n): return self.word() % n
-
-def vsample():
-    return list(struct.unpack('<512I', zlib.decompress(base64.b64decode(VS_B64))))
-
-def f7_sample(rng):
-    """W7 uniform on F7 = {w : s0(w + D7) - s0(w) = T7}.  For D7 = 2^29, T7 = 03bff800 (P8): its three affine families (2^28, 2^24 and
-    2^21 words; proof.md 5.1), the family drawn by rejection from its own word (shares 256, 16, 2 of 274; no modulo bias) and the value
-    bits from a fresh word (selector and value independent; the fix of 08be594).  Any other (D7, T7): rejection on the definition."""
-    if D7 != 1 << 29 or T7 != 0x03bff800:
-        while True:
-            w = rng.u32()
-            if inF7(w): return w
-    while True:
-        r = rng.u32() >> 23                                             # 9 bits; accept r < 274
-        if r < 274: break
-    w = rng.u32()
-    b = lambda x, j: (x >> j) & 1
-    def setb(x, j, v): return (x & ~(1 << j)) | (v << j)
-    if r < 256: w = setb(w, 29, 0)
-    elif r < 272: w = setb(setb(w, 29, 1), 30, 0)
-    else: w = setb(setb(w, 29, 1), 30, 1)
-    w = setb(w, 18, b(w, 14) ^ 1); w = setb(w, 25, b(w, 8) ^ 1); w = setb(w, 12, b(w, 1))
-    if r >= 256:
-        w = setb(w, 19, b(w, 15) ^ 1); w = setb(w, 26, b(w, 9) ^ 1); w = setb(w, 13, b(w, 2))
-    if r >= 272:
-        w = setb(w, 20, b(w, 16) ^ b(w, 31) ^ 1); w = setb(w, 27, b(w, 10) ^ b(w, 31) ^ 1); w = setb(w, 14, b(w, 3) ^ b(w, 31))
-        w = setb(w, 18, b(w, 14) ^ 1)
-    return w
-
-def step_row(A, E, W, i):
-    E[i] = (A[i-4] + E[i-4] + S1(E[i-1]) + CH(E[i-1], E[i-2], E[i-3]) + K[i] + W[i]) & M
-    A[i] = (E[i] - A[i-4] + S0(A[i-1]) + MAJ(A[i-1], A[i-2], A[i-3])) & M
-
-def erow_plan(i, cm, pq):
-    """bits of E_i imposed on a row-i proposal: x-value cells, '+' pairs, two-bit conditions with an earlier E row (prev) and inside E_i
-    (inner), each imposed once from a bit fixed before it (as in vt38n.py)"""
-    imp = cm | pq; prev = []; inner = []
-    for (k1, i1, b1, eq, k2, i2, b2, row) in X2:
-        if row != i or k1 != 1 or k2 != 1 or i2 != i: continue
-        fl = 0 if eq else 1
-        if i1 < i:
-            if not (imp >> b2) & 1: prev.append((i1, b1, b2, fl)); imp |= 1 << b2
-        elif not (imp >> b2) & 1: inner.append((b1, b2, fl)); imp |= 1 << b2
-        elif not (imp >> b1) & 1: inner.append((b2, b1, fl)); imp |= 1 << b1
-    done = cm | pq | sum(1 << b2 for (_, _, b2, _) in prev); out = []; todo = list(inner)
-    while todo:
-        nx = [t for t in todo if (done >> t[0]) & 1 or not any(u[1] == t[0] for u in todo)]
-        if not nx: imp &= ~sum(1 << t[1] for t in todo); break
-        for t in nx: out.append(t); done |= 1 << t[1]; todo.remove(t)
-    return imp, prev, out
-
-NP_R, CH_R, NT_R = 64, (64, 8, 8, 4, 2, 1), 192
-P19F = 1 << 18; P19A = ((10, 28), (11, 29)); P19B = ((5, 10),)   # the row-19 pattern flips: A = E19[18], conditions 6 and 7; B = condition 11
-def smc_replicate(rng, VS):
-    """one replicate of the estimator of q3 for the accepted event: row 16 exact (the 160 W16 words), rows 17..22 by proposals of E_i^x
-    with the row's E bits imposed (row 19: only its difference bits), tail: a variant of the sample, W7 uniform in F7, rows 23..37,
-    output comparison.  Returns (log2 estimate or None, accepted pairs, failed rebuilds)."""
-    lg = [math.log2(len(GL)) - 32]; P = []
-    for _ in range(NP_R):
-        w = GL[rng.below(len(GL))]; st = []
-        for (SA, SE, wp, dw) in ((SAx, SEx, PMX, 0), (SAy, SEy, PMY, DWT[16])):
-            A = dict(SA); E = dict(SE); W = {i: wp[i] for i in range(16)}; W[16] = (w + dw) & M; step_row(A, E, W, 16); st += [A, E, W]
-        P.append(st)
-    for i in range(17, 23):
-        cm, cvv, d, _ = CELLS[1][i]; pq = PQ[i] & ~cm
-        imp, prev, inner = erow_plan(i, cm, pq); f = bin(imp).count('1'); Mi = CH_R[i - 17]; surv = []
-        if i == R19:                     # one of the four row-19 patterns (proof.md 6.1), drawn uniformly: weight 4 x 2^-f
-            f -= 2; inners = []
-            for fa, fb in ((0, 0), (0, 1), (1, 0), (1, 1)):
-                fl = {(b1, b2) for b1, b2 in (P19A if fa else ()) + (P19B if fb else ())}
-                inners.append(([(bs, bd, x ^ ((bs, bd) in fl or (bd, bs) in fl)) for (bs, bd, x) in inner], cvv ^ (P19F if fa else 0)))
-        for (Ax, Ex, Wx, Ay, Ey, Wy) in P:
-            rx = (Ax[i-4] + Ex[i-4] + S1(Ex[i-1]) + CH(Ex[i-1], Ex[i-2], Ex[i-3]) + K[i]) & M
-            for _ in range(Mi):
-                inn, cv0 = inners[rng.below(4)] if i == R19 else (inner, cvv)
-                fixed = cv0 | (Ex[i-1] & pq)
-                for (i1, b1, b2, fl) in prev: fixed |= (((Ex[i1] >> b1) & 1) ^ fl) << b2
-                e = (rng.u32() & ~imp & M) | fixed
-                for (bs, bd, fl) in inn: e = (e & ~(1 << bd)) | (((e >> bs) & 1) ^ fl) << bd
-                Wxi = (e - rx) & M
-                nA = dict(Ax); nE = dict(Ex); nW = dict(Wx); mA = dict(Ay); mE = dict(Ey); mW = dict(Wy)
-                nW[i] = Wxi                                          # W_i^y = W_i^x + the schedule difference (W0..W6 carry none)
-                mW[i] = (Wxi + s1(mW[i-2]) - s1(nW[i-2]) + mW[i-7] - nW[i-7] + (T7 if i == 22 else s0(mW[i-15]) - s0(nW[i-15]))) & M
-                step_row(nA, nE, nW, i); step_row(mA, mE, mW, i)
-                if nE[i] == e and rowok((nA, nE, nW), (mA, mE, mW), i): surv.append((nA, nE, nW, mA, mE, mW))
-        if not surv: return None, [], 0
-        lg.append(math.log2(len(surv) / (len(P) * Mi)) - f)
-        P = [surv[rng.below(len(surv))] for _ in range(NP_R)]
-    pairs = []; bad = 0; succ = 0
-    Kt = K
-    for (Ax, Ex, Wx, Ay, Ey, Wy) in P:
-        bx = [Ax[18], Ax[19], Ax[20], Ax[21], Ax[22], Ex[18], Ex[19], Ex[20], Ex[21], Ex[22]]
-        by = [Ay[18], Ay[19], Ay[20], Ay[21], Ay[22], Ey[18], Ey[19], Ey[20], Ey[21], Ey[22]]
-        wxb = [Wx[i] for i in range(23)]; wyb = [Wy[i] for i in range(23)]
-        for _ in range(NT_R):
-            a0 = VS[rng.below(len(VS))]
-            w7 = f7_sample(rng)
-            w8 = (W8C[0] - ((a0 + C4) & M)) & M
-            ok = True; outs = []
-            for (b0, wb, d7, d8) in ((bx, wxb, 0, 0), (by, wyb, D7, D8)):
-                W = list(wb); W[7] = (w7 + d7) & M; W[8] = (w8 + d8) & M
-                a4, a3, a2, a1, a = b0[0], b0[1], b0[2], b0[3], b0[4]; e4, e3, e2, e1, e = b0[5], b0[6], b0[7], b0[8], b0[9]
-                for i in range(23, NR):                          # the step and expansion inlined; a3 = A[i-4], a = A[i-1]
-                    x = W[i-2]; y = W[i-15]; d = (x | x << 32); z = (y | y << 32)
-                    w = ((((d >> 17) ^ (d >> 19)) & M ^ (x >> 10)) + W[i-7] + (((z >> 7) ^ (z >> 18)) & M ^ (y >> 3)) + W[i-16]) & M; W.append(w)
-                    d = e | e << 32; ne = (a3 + e3 + ((d >> 6) ^ (d >> 11) ^ (d >> 25)) + ((e & e1) ^ (~e & e2)) + Kt[i] + w) & M
-                    d = a | a << 32; na = (ne - a3 + ((d >> 2) ^ (d >> 13) ^ (d >> 22)) + ((a & a1) ^ (a & a2) ^ (a1 & a2))) & M
-                    a4, a3, a2, a1, a = a3, a2, a1, a, na; e4, e3, e2, e1, e = e3, e2, e1, e, ne
-                outs.append((a, a1, a2, a3, e, e1, e2, e3))
-            if outs[0] == outs[1]:
-                succ += 1; cv, wx, wy = rebuild({i: (wxb[i] if i > 8 else w7 if i == 7 else w8) for i in range(7, 23)}, a0)
-                tx, ty = trace(cv, wx), trace(cv, wy)
-                if compress(cv, wx) == compress(cv, wy) and wx != wy and accepted(tx, ty) and inF7(wx[7]) and wx[7] == w7: pairs.append((cv, wx, wy, a0))
-                else: bad += 1
-    if succ == 0: return None, pairs, bad
-    lg.append(math.log2(succ / (NP_R * NT_R))); return sum(lg), pairs, bad
-```
-
-### a0p_main.py
-
-```python
-
-Q3_REPS = 10
-ONLINE_TRIALS = 8
-UNCOND_FB = 64          # per active online trial: unconditional first blocks whose class W7 passes are counted (H1)
-Q3_THRESH = -98.6       # log2 threshold of the pooled mean of the 10 replicates (fixed from 48 development requests before any validation run)
-
-def class_of(a0):
-    c = c7of(a0)
-    for ci, (c7, base, mk) in enumerate(CLASSES):
-        if c == c7 and in_G(a0) and (a0 ^ base) & ~mk & M == 0: return ci
-    return None
-
-def q3_experiment(req):
-    VS = vsample(); out = []; est = []; allok = True; last = None
-    for tr in req['trials']:
-        t = tr['trial']; rec = dict(trial=t, message_a_hex=None, message_b_hex=None)
-        if t < Q3_REPS:
-            z, pairs, bad = smc_replicate(Shake(req['experiment_id'] + '|' + tr['seed']), VS)
-            est.append(z); allok = allok and bad == 0
-            rec['observations'] = dict(log2_estimate=z if z is not None else -1000.0, accepted_pairs=len(pairs), failed_rebuilds=bad)
-            if pairs:
-                cv, mx, my, a0 = pairs[0]; last = pairs[0]
-                rec['message_a_hex'] = struct.pack('>24I', *(cv + mx)).hex(); rec['message_b_hex'] = struct.pack('>24I', *(cv + my)).hex()
-        elif t == Q3_REPS and len(est) == Q3_REPS:
-            mean = sum(2.0 ** z for z in est if z is not None) / Q3_REPS; lz = math.log2(mean) if mean > 0 else -1000.0
-            rec['observations'] = dict(log2_pooled_mean=lz)
-            if allok and Q3_THRESH is not None and lz >= Q3_THRESH and last:
-                cv, mx, my, a0 = last
-                rec['message_a_hex'] = struct.pack('>24I', *(cv + mx)).hex(); rec['message_b_hex'] = struct.pack('>24I', *(cv + my)).hex()
-        out.append(rec)
-    return dict(schema_version=1, trials=out)
-
-def online_experiment(req):
-    """the counted online program on organizer-seeded first blocks (real compressions): first UNCOND_FB first blocks are drawn and the W7
-    passes of all classes counted without any selection (H1: expected UNCOND_FB x len(CLASSES) x |F7| / 2^32); then first blocks are drawn until one has a passing
-    class (at most 64); its first passing class is run on two batches (the class's first 512 members) and every lane is compared with
-    the scalar definition (E16x from the Step-2 words and the 38-step trace); trial 0 also runs the batch of the semi-free-start pair's
-    variant on its chaining value and requires the counted program to find and accept it"""
-    out = []
-    for tr in req['trials']:
-        rng = Shake(req['experiment_id'] + '|' + tr['seed']); rec = dict(trial=tr['trial'], message_a_hex=None, message_b_hex=None)
-        if tr['trial'] >= ONLINE_TRIALS: out.append(rec); continue          # trials 8..255 return no pair by design
-        un = 0                                                             # H1: unconditional first blocks, before any selection
-        for k in range(UNCOND_FB):
-            r0, r1 = rng.word(), rng.word()
-            cv = compress(IV, [(r0 >> (32 * q)) & M for q in range(8)] + [(r1 >> (32 * q)) & M for q in range(8)])
-            un += sum(1 for c7, b, mk in CLASSES if inF7((c7 - cv[0]) & M))
-        for k in range(64):
-            r0, r1 = rng.word(), rng.word()
-            M0 = [(r0 >> (32 * q)) & M for q in range(8)] + [(r1 >> (32 * q)) & M for q in range(8)]
-            cv = compress(IV, M0); m = Mach()
-            hits = [ci for ci, (c7, b, mk) in enumerate(CLASSES) if inF7((c7 - cv[0]) & M)]
-            if hits: break
-        bad = 0; lanes = 0; passed = 0
-        if hits:
-            ci = hits[0]; mem = members(ci, 512)
-            sc = fb_scalars(m, cv); inp = broadcast(m, sc); ins = program(ci); mk = CLASSES[ci][2]
-            for b in range(2):
-                bm = mem[256 * b:256 * b + 256]; planes = batch_planes(bm)
-                for j in range(32):
-                    if (mk >> j) & 1: inp['A%d' % j] = planes[j]
-                ok, n = run_prog(ins, inp)
-                for L, a0 in enumerate(bm):
-                    wx = words(cv, a0)[0]; e = trace(cv, wx, 17)[1][16]
-                    want = all(((e >> j) & 1) == ((R16[0] >> j) & 1) for j in TBITS)
-                    bad += want != bool((ok >> L) & 1) or wx[7] != (CLASSES[ci][0] - cv[0]) & M or not inF7(wx[7]); lanes += 1; passed += want
-            if not bad:
-                wx, wy = words(cv, mem[0])
-                rec['message_a_hex'] = struct.pack('>32I', *(M0 + wx)).hex(); rec['message_b_hex'] = struct.pack('>32I', *(M0 + wy)).hex()
-        if tr['trial'] == 0:                                               # positive lanes: the batch of the semi-free-start pair's variant
-            ci = class_of(A0S); mem = members(ci, 256)
-            if A0S not in mem: mem[17] = A0S
-            m2 = Mach(); sc2 = fb_scalars(m2, PCV); inp2 = broadcast(m2, sc2); fnd = []
-            process_batch(m2, program(ci), inp2, batch_planes(mem), ci, PCV, sc2, fnd); bad += A0S not in fnd
-        rec['observations'] = dict(uncond_first_blocks=UNCOND_FB, uncond_class_passes=un, first_blocks=k + 1, passing_classes=len(hits), lanes=lanes, stage3a_passes=passed, mismatches=bad)
-        out.append(rec)
-    return dict(schema_version=1, trials=out)
-
-def calibrate():
-    """the executed counts used by the ledger (proof.md Section 7)"""
-    import random
-    rr = random.Random(9); m = Mach(); cv = [rr.getrandbits(32) for _ in range(8)]
-    w7 = []
-    for _ in range(200): m = Mach(); w7test(m, rr.getrandbits(32), rr.getrandbits(32)); w7.append(m.ops)
-    m = Mach(); sc = fb_scalars(m, cv); n_sc = m.ops; m = Mach(); broadcast(m, sc); n_bc = m.ops
-    m = Mach(); a0 = members(0, 1)[0]; lane_value(m, {j: 0 for j in range(32)}, 0, max((c[2] for c in CLASSES), key=lambda x: bin(x).count('1')), 0); n_lv = m.ops
-    m = Mach(); scalar_e16(m, sc, a0); n_e16 = m.ops
-    m = Mach(); deep(m, PCV, A0S); n_deep = m.ops
-    progs = [len(program(ci)) - 1 for ci in range(len(CLASSES))]
-    return dict(prog=progs, w7=max(w7), fb_fixed=FB_FIXED, w7_loop=W7_LOOP, scalars=n_sc, planes=n_bc, batch_ctl=BATCH_CTL,
-                class_ctl=CLASS_CTL, lane=32 + LANE_CTL + n_lv + n_e16 + 42, deep=n_deep, tk=TK, classes=len(CLASSES), class_size=CLASS_SIZE)
-
-def selftest():
-    import random
-    rr = random.Random(5); ok = True
-    def chk(name, cond, extra=''):
-        nonlocal ok; ok = ok and bool(cond); print('%-70s %s %s' % (name, 'ok' if cond else 'FAIL', extra), flush=True)
-    tx, ty = trace(PCV, PMX), trace(PCV, PMY)
-    chk('1 the semi-free-start pair collides, M != M\', accepted event, W7 in F7', compress(PCV, PMX) == compress(PCV, PMY) and PMX != PMY and accepted(tx, ty) and inF7(PMX[7]))
-    chk('  its variant A0 is in G and in a selected class', in_G(A0S) and class_of(A0S) is not None, '(class %s)' % class_of(A0S))
-    def g16(w):
-        A = dict(SAx); E = dict(SEx); W = {i: PMX[i] for i in range(16)}; B = dict(SAy); F = dict(SEy); V = {i: PMY[i] for i in range(16)}
-        W[16] = w; V[16] = (w + DWT[16]) & M; step_row(A, E, W, 16); step_row(B, F, V, 16)
-        return rowok((A, E, W), (B, F, V), 16)
-    cand = list(GL) + [rr.getrandbits(32) for _ in range(20000)] + [g ^ (1 << b) for g in GL[:40] for b in range(32)]
-    gs = set(GL); chk('2 row 16: the 160 W16 words hold it; 20,000 random words and 1,280 neighbours agree', all(g16(w) == (w in gs) for w in cand))
-    bad = 0
-    for _ in range(20):
-        cv = [rr.getrandbits(32) for _ in range(8)]; ci = rr.randrange(len(CLASSES)); a0 = members(ci, 1, rr.randrange(40))[0]
-        wx, wy = words(cv, a0); t = trace(cv, wx, 17); u = trace(cv, wy, 17); m = Mach(); sc = fb_scalars(m, cv)
-        bad += scalar_e16(m, sc, a0) != t[1][16] or wx[7] != (CLASSES[ci][0] - cv[0]) & M or not all(rowok(t, u, i) for i in range(11, 16))
-        bad += any(((wy[i] - wx[i]) & M) != DWT[i] for i in range(16))
-    chk('3 Lemma 4.1: E16x formula, W7 = c7 - A_-1, rows 11..15 and the word differences on 20 chaining values', bad == 0)
-    from collections import Counter
-    cnt = [(len(p) - 1, Counter(i[0] for i in p)) for p in (program(ci) for ci in range(len(CLASSES)))]
-    chk('4 row-16 programs (one per class): instructions mean / max, loads, spill stores', True, '%.2f / %d (loads %d..%d, stores %d..%d)' % (
-        sum(n for n, _ in cnt) / len(cnt), max(n for n, _ in cnt), min(c['ld'] for _, c in cnt), max(c['ld'] for _, c in cnt), min(c['st'] for _, c in cnt), max(c['st'] for _, c in cnt)))
-    r = online_experiment(dict(experiment_id='a0p-online-r38', trials=[dict(trial=t, seed='%064x' % t) for t in range(2)]))
-    chk('  program against the definition on 2 x 512 lanes of real first blocks', all(t['observations']['mismatches'] == 0 for t in r['trials']), str([t['observations'] for t in r['trials']]))
-    ci = class_of(A0S); mem = members(ci, 256); found = []
-    if A0S not in mem: mem[17] = A0S
-    m = Mach(); sc = fb_scalars(m, PCV); inp = broadcast(m, sc); process_batch(m, program(ci), inp, batch_planes(mem), ci, PCV, sc, found)
-    chk('5 the counted program finds the semi-free-start pair in its batch', A0S in found, '(%d operations)' % m.ops)
-    z, pairs, bad = smc_replicate(Shake('selftest'), vsample())
-    chk('6 replicate: estimate, accepted pairs rebuilt and verified, failed rebuilds 0', bad == 0, '(log2 %s, %d pairs)' % (None if z is None else round(z, 3), len(pairs)))
-    print('   calibrate:', calibrate())
-    print('SELFTEST', 'PASSED' if ok else 'FAILED'); return ok
-
-def run_request(req): return online_experiment(req) if 'online' in req['experiment_id'] else q3_experiment(req)
-
-if __name__ == '__main__':
-    if len(sys.argv) > 1 and sys.argv[1] == 'selftest': sys.exit(0 if selftest() else 1)
-    if len(sys.argv) > 1 and sys.argv[1] == 'calibrate': print(json.dumps(calibrate())); sys.exit(0)
-    sys.stdout.write(json.dumps(run_request(json.loads(sys.stdin.read())), separators=(',', ':')))
-```
-
-### mka0p.py
-
-```python
-"""mka0p.py <sha2-search dir> <out.py> [selection dir] [tables .py] [sfs pair .json]: assemble experiments/a0p38.py from its parts with the
-constants of one characteristic (own code). Defaults: P8. The selection dir is lp_classes.py output (derived.json, classes.txt, vars_pool.txt)."""
-import sys, json, re, os
-R, OUT = sys.argv[1], sys.argv[2]; parts = ['a0p_ref.py', 'a0p_core.py', 'a0p_prog.py', 'a0p_scal.py', 'a0p_run.py', 'a0p_main.py']
-SEL = sys.argv[3] if len(sys.argv) > 3 else None
-TAB = sys.argv[4] if len(sys.argv) > 4 else R + '/runs/vt/consts_p08.py'
-C = open(TAB).read().split('\n')
-keep = [l for l in C if l.startswith(('PCV', 'PMX', 'PMY', '_CH', 'PQ', 'X2', 'GL'))]
-sfs = sys.argv[5] if len(sys.argv) > 5 else R + '/runs/c/P08.sfs_pair.json'
-try:
-    P = json.load(open(sfs)); keep = [l for l in keep if not l.startswith(('PCV', 'PMX', 'PMY'))] + ['PCV = %s' % P['cv'], 'PMX = %s' % P['M'], 'PMY = %s' % P['M2'], 'A0S = 0x%08x' % P['a0']]
-except FileNotFoundError: pass
-if SEL:
-    DV = json.load(open(SEL + '/derived.json')); cls = [l.split() for l in open(SEL + '/classes.txt')]; pool = SEL + '/vars_pool.txt'
-    keep += ['MASK = 0x%s' % DV['MASK'], 'T7_C = 0x%s' % DV['T7'], 'CBITS_C = 0x%s' % DV['CBITS'], 'CLASS_SIZE = %d' % DV['class_size']]
-else:
-    cls = [l.split() for l in open(R + '/runs/p08_classes.txt')]; pool = R + '/runs/vars_p08_pool.txt'
-    keep += ['MASK = 0x7fe96c7c', 'T7_C = 0x03bff800', 'CBITS_C = 0x80041002', 'CLASS_SIZE = 24576']
-import random, struct as _st, zlib as _z, base64 as _b
-_pool = [int(l.split()[1], 16) for l in open(pool)]
-_vs = random.Random(20261014).sample(_pool, 512)
-keep.append("VS_B64 = '%s'" % _b.b64encode(_z.compress(_st.pack('<512I', *_vs), 9)).decode())
-_gm = [l for l in keep if l.startswith('MASK = ')][0].split()[-1]
-keep.append('CLASSES = [%s]' % ', '.join('(0x%s, 0x%s, 0x%s)' % (r[0], r[1], r[3] if len(r) > 3 else _gm[2:]) for r in cls))
-src = ''.join(open(R + '/m38/' + p).read() for p in parts).replace('#<<CONSTS>>', '\n'.join(keep))
-open(OUT, 'w').write(src); print('bytes', len(src.encode()))
-```
-
-### mkvt.py
-
-```python
-#!/usr/bin/env python3
-"""mkvt.py - constants of the NEW3 instantiation of the variant-table program (own code).
-Reads the NEW3 data files and writes the constants block of experiments/vt38n.py: the dense pair S*, the semi-free-start pair,
-the trail cells of rows 0..37 (mask, x-value, x^y difference, 0) with the fixed-bit conditions merged in, the '+' pairs PQ
-(E_i[b] = E_{i-1}[b]), the remaining two-bit conditions X2, the variant-validity conditions VC, G, the 64 A0 values, the A2
-list, 512 sampled variants and one valid variant per A0. Usage: mkvt.py <sha2-search dir> <out.py>"""
-import sys, json, struct, zlib, base64, os
-R = sys.argv[1]; OUT = sys.argv[2]
-PRE = sys.argv[3] if len(sys.argv) > 3 else R + '/runs/c/NEW3'   # characteristic prefix (char.json, .dat, .var.dat, .pair.json)
-SFS = sys.argv[4] if len(sys.argv) > 4 else R + '/runs/c/NEW3.sfs_pair.json'
-M = 0xffffffff
-char = {int(k): v for k, v in json.load(open(PRE + '.char.json')).items()}
-pair = json.load(open(PRE + '.pair.json')); sfs = json.load(open(SFS)) if os.path.exists(SFS) else dict(cv=pair['cv'], M=pair['Wx'], M2=pair['Wy'])
-KI = {'A': 0, 'E': 1, 'W': 2}
-
-def trail(row):
-    m = sum(1 << (31 - k) for k, c in enumerate(row) if c in 'un'); x = sum(1 << (31 - k) for k, c in enumerate(row) if c == 'u')
-    return m, x
-
-CELL = [[[0, 0, 0] for _ in range(38)] for _ in range(3)]          # mask, x-value, difference
-for i in range(38):
-    for k, kk in KI.items():
-        m, x = trail(char.get(i, {k: '=' * 32})[k]); CELL[kk][i] = [m, x, m]
-# conditions: rows >= 16 from the q3 data file (keyed), dense-part validity from the variant data file (key = largest row)
-def parse(fn, keyed):
-    out = []
-    for l in open(fn):
-        t = l.split()
-        if not t or t[0] != 'COND': continue
-        if keyed: key, n = int(t[1]), int(t[2]); rest = t[3:]
-        else: n = int(t[1]); rest = t[2:]; key = None
-        refs = [tuple(int(v) for v in rest[3 * q:3 * q + 3]) for q in range(n)]; al = int(rest[3 * n], 16)
-        out.append((key if keyed else max(r[1] for r in refs), refs, al))
-    return out
-TAIL = parse(PRE + '.dat', True); DENSE = parse(PRE + '.var.dat', False)
-PQ = [0] * 38; X2 = []
-def fix(k, i, b, v):
-    m, x, d = CELL[k][i]
-    if (m >> b) & 1: assert ((x >> b) & 1) == v, ('conflicting fixed bit', k, i, b)
-    CELL[k][i] = [m | 1 << b, (x & ~(1 << b)) | v << b, d]
-for key, refs, al in TAIL + DENSE:
-    ok = [idx for idx in range(1 << len(refs)) if (al >> idx) & 1]
-    if len(refs) == 1:
-        assert len(ok) == 1; fix(*refs[0], ok[0]); continue
-    assert len(refs) == 2, refs
-    b0 = {idx & 1 for idx in ok}; b1 = {idx >> 1 for idx in ok}
-    if len(ok) == 2 and (len(b0) == 1 or len(b1) == 1):            # one operand fixed, the other free
-        if len(b0) == 1: fix(*refs[0], b0.pop())
-        else: fix(*refs[1], b1.pop())
-        continue
-    if len(ok) == 1: fix(*refs[0], ok[0] & 1); fix(*refs[1], ok[0] >> 1); continue
-    assert sorted(ok) in ([0, 3], [1, 2]), (refs, al)
-    eq = 1 if sorted(ok) == [0, 3] else 0
-    (k1, i1, c1), (k2, i2, c2) = sorted(refs, key=lambda r: (r[1], r[0], r[2]))
-    if k1 == k2 == 1 and c1 == c2 and i2 == i1 + 1 and eq: PQ[i2] |= 1 << c1; continue
-    X2.append((k1, i1, c1, eq, k2, i2, c2, key))
-_g = open(PRE + '.dat.g16', 'rb').read(); G = list(struct.unpack('<%dI' % (len(_g) // 4), _g))
-NEW3 = PRE.endswith('NEW3')
-if NEW3:
-    A0 = [int(x, 16) for x in open(R + '/runs/a0_selected64.txt').read().split()]
-    pool = [l.split() for l in open(R + '/runs/vars_new3_pool.txt')]
-    A2 = sorted({int(t[3], 16) for t in pool}); assert len(A2) == 1408, len(A2)
-    A2I = {a: k for k, a in enumerate(A2)}
-    samp = [l.split() for l in open(R + '/runs/vars_new3_s17.txt')][:512]
-    S512 = b''.join(struct.pack('<BIH', int(t[0]), int(t[2], 16), A2I[int(t[3], 16)]) for t in samp)
-    ent = {}
-    for t in pool:
-        j = int(t[0]); ent.setdefault(j, (int(t[2], 16), A2I[int(t[3], 16)]))
-    assert len(ent) == 64
-    E64 = b''.join(struct.pack('<IH', *ent[j]) for j in range(64))
-b64 = lambda b: base64.b64encode(zlib.compress(b, 9)).decode()
-_CH = [{i: (CELL[k][i][0], CELL[k][i][1], CELL[k][i][2], 0) for i in range(38) if CELL[k][i][0]} for k in range(3)]
-o = []
-o.append('PCV = %s' % [w for w in pair['cv']]); o.append('PMX = %s' % pair['Wx']); o.append('PMY = %s' % pair['Wy'])
-o.append('SFS_CV = %s' % sfs['cv']); o.append('SFS_MX = %s' % sfs['M']); o.append('SFS_MY = %s' % sfs['M2'])
-o.append('_CH = %r' % _CH)
-o.append('PQ = %r' % PQ); o.append('X2 = %r' % X2)
-o.append('VC = %r' % [(refs, al) for key, refs, al in DENSE])
-o.append('GL = %r' % G)
-if NEW3:
-    o.append("A0_B64 = '%s'" % b64(struct.pack('<64I', *A0))); o.append("A2_B64 = '%s'" % b64(struct.pack('<1408I', *A2)))
-    o.append("S512_B64 = '%s'" % b64(S512)); o.append("E64_B64 = '%s'" % b64(E64))
-open(OUT, 'w').write('\n'.join(o) + '\n')
-print('cells', sum(len(c) for c in _CH), 'PQ rows', [i for i in range(38) if PQ[i]], 'X2', len(X2), 'VC', len(DENSE), 'G', len(G))
-for x in X2: print('  X2', x)
-```
-
-### a0fam.c
-
-```c
-// A0-only variant family of a dense part and its c7 classes (own code). a0fam <pair: cv Wx[16] Wy[16] hex> [min class size, out file]
-// a0cls: the same in 16 passes over the top four bits of c7 (at most about 2^22.1 pairs resident; peak memory measured in proof.md 11).
-// A variant changes A0 only (both members): E4 and W8 of each member change; valid iff the modular difference dW8 and the
-// s0 difference ds0(W8) equal the pair's (W8 enters rows >= 16 only through them). c7 = W7^x + A_{-1} depends on A0 through
-// MAJ(A2, A1, A0) and CH(E6, E5, E4). Prints the family size, the number of distinct c7 values and the largest class sizes.
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-#include <math.h>
-typedef uint32_t u32;
-static const u32 K[16] = {0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174};
-static inline u32 ror(u32 x, int n) { return (x >> n) | (x << (32 - n)); }
-static inline u32 S0(u32 x) { return ror(x, 2) ^ ror(x, 13) ^ ror(x, 22); }
-static inline u32 S1(u32 x) { return ror(x, 6) ^ ror(x, 11) ^ ror(x, 25); }
-static inline u32 s0(u32 x) { return ror(x, 7) ^ ror(x, 18) ^ (x >> 3); }
-static inline u32 CH(u32 x, u32 y, u32 z) { return (x & y) ^ (~x & z); }
-static inline u32 MAJ(u32 x, u32 y, u32 z) { return (x & y) ^ (x & z) ^ (y & z); }
-static u32 A[2][20], E[2][20], W[2][16];
-static int cmp(const void *a, const void *b) { u32 x = *(const u32 *)a, y = *(const u32 *)b; return x < y ? -1 : x > y; }
-static int cmp64(const void *a, const void *b) { uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b; return x < y ? -1 : x > y; }
-static int cmpl(const void *a, const void *b) { long x = *(const long *)a, y = *(const long *)b; return x > y ? -1 : x < y; }   // descending
-int main(int argc, char **argv) {
-    FILE *f = fopen(argv[1], "r"); u32 cv[8];
-    for (int j = 0; j < 8; j++) fscanf(f, "%x", &cv[j]);
-    for (int m = 0; m < 2; m++) for (int i = 0; i < 16; i++) fscanf(f, "%x", &W[m][i]);
-    fclose(f);
-    for (int m = 0; m < 2; m++) {
-        for (int j = 0; j < 4; j++) { A[m][3 - j] = cv[j]; E[m][3 - j] = cv[4 + j]; }
-        for (int i = 0; i < 16; i++) {
-            u32 T1 = E[m][i] + S1(E[m][i + 3]) + CH(E[m][i + 3], E[m][i + 2], E[m][i + 1]) + K[i] + W[m][i];
-            E[m][i + 4] = A[m][i] + T1; A[m][i + 4] = T1 + S0(A[m][i + 3]) + MAJ(A[m][i + 3], A[m][i + 2], A[m][i + 1]);
-        }
-    }
-#define a(m, i) A[m][(i) + 4]
-#define e(m, i) E[m][(i) + 4]
-    u32 dW8 = W[1][8] - W[0][8], ds8 = s0(W[1][8]) - s0(W[0][8]);
-    u32 *c7 = malloc(sizeof(u32) << 28); uint64_t *pr = malloc(sizeof(uint64_t) << 27); long n = 0;
-    for (uint64_t x = 0; x < (1ULL << 32); x++) {
-        u32 a0 = (u32)x, w8[2], e4 = 0;
-        for (int m = 0; m < 2; m++) {
-            e4 = a(m, 4) + a0 - S0(a(m, 3)) - MAJ(a(m, 3), a(m, 2), a(m, 1));
-            w8[m] = e(m, 8) - a(m, 4) - e4 - S1(e(m, 7)) - CH(e(m, 7), e(m, 6), e(m, 5)) - K[8];
-        }
-        if (w8[1] - w8[0] != dW8 || s0(w8[1]) - s0(w8[0]) != ds8) continue;
-        u32 c = e(0, 7) - 2 * a(0, 3) + S0(a(0, 2)) + MAJ(a(0, 2), a(0, 1), a0) - S1(e(0, 6)) - CH(e(0, 6), e(0, 5), e4) - K[7];
-        if (n < (1L << 27)) { c7[n] = c; pr[n] = ((uint64_t)c << 32) | a0; } n++;
-    }
-    printf("family %ld = 2^%.3f\n", n, log2((double)n));
-    if (argc > 2) {   // dump members of classes with size >= argv[2]
-        long m = n < (1L << 27) ? n : (1L << 27); int thr = atoi(argv[2]);
-        qsort(pr, m, 8, cmp64);
-        FILE *o = fopen(argv[3], "w");
-        for (long i = 0; i < m; ) { long j = i; while (j < m && (pr[j] >> 32) == (pr[i] >> 32)) j++; if (j - i >= thr) for (long k = i; k < j; k++) fprintf(o, "%08x %08x\n", (u32)(pr[k] >> 32), (u32)pr[k]); i = j; }
-        fclose(o);
-    }
-    if (n > (1L << 28)) n = 1L << 28;
-    qsort(c7, n, 4, cmp);
-    long *sz = malloc(sizeof(long) * (n + 1)); long nc = 0;
-    for (long i = 0; i < n; ) { long j = i; while (j < n && c7[j] == c7[i]) j++; sz[nc++] = j - i; i = j; }
-    qsort(sz, nc, sizeof(long), cmpl);
-    printf("distinct c7 %ld, largest class %ld\nlargest classes:", nc, sz[0]);
-    for (long i = 0; i < nc && i < 12; i++) printf(" %ld", sz[i]);
-    printf("\n");
-    long ks[5] = {64, 90, 128, 256, 1024}, acc = 0; int ki = 0;
-    for (long i = 0; i < nc && ki < 5; i++) { acc += sz[i]; if (i + 1 == ks[ki]) { printf("variants in the %ld largest classes: %ld = 2^%.3f\n", ks[ki], acc, log2((double)acc)); ki++; } }
-    return 0;
-}
-```
-
-### h3p.py
-
-```python
-"""h3p.py <a0p38 dir> <sha2-search dir> <first> <count>: the other row-16 passes of a successful first block (H3; own code).
-For each success of the q3 study (rebuilt into CV1, M1, M1'; checked), every variant of every selected class that passes its W7 test on
-CV1 is evaluated (E16x by the Step-2 formula); counts the row-16 passes other than the success and the further accepted pairs."""
-import sys, glob, collections
-sys.path.insert(0, sys.argv[1]); from a0p38 import *
-R = sys.argv[2]; first, count = int(sys.argv[3]), int(sys.argv[4])
-import os
-POOL = os.environ.get('POOL', R + '/runs/vars_p08_pool.txt'); STUDY = os.environ.get('STUDY', R + '/runs/q3p8')
-SPREAD = int(os.environ.get('SPREAD', '0'))         # 0: every 25th line, files in sorted order (the 1a695f0b sampling)
-pool = [l.split() for l in open(POOL)]
-sel = {c[0] for c in CLASSES}; mem = collections.defaultdict(list)
-for l in open(R + '/runs/c/P08.cls.txt'):
-    c, a = l.split(); c = int(c, 16)
-    if c in sel: mem[c].append(int(a, 16))
-succ = []
-for f in sorted(glob.glob(STUDY + '/succ_*.txt')):
-    for k, l in enumerate(open(f)):
-        t = l.split()
-        if len(t) == 33 and (SPREAD or k % 25 == 0): succ.append(t)
-if SPREAD: succ = [succ[i * len(succ) // SPREAD] for i in range(SPREAD)]   # SPREAD successes evenly over all runs (sorted files, file order)
-tot = dict(successes=0, verified=0, passing_classes=0, variants=0, other_r16=0, other_accepted=0, own_found=0)
-for t in succ[first:first + count]:
-    vi = int(t[1]); W = {7 + k: int(x, 16) for k, x in enumerate(t[2:])}; a0s = int(pool[vi][1], 16)
-    cv, wx, wy = rebuild(W, a0s); tx, ty = trace(cv, wx), trace(cv, wy)
-    tot['successes'] += 1
-    if not (compress(cv, wx) == compress(cv, wy) and accepted(tx, ty) and inF7(wx[7])): continue
-    tot['verified'] += 1
-    m = Mach(); sc = fb_scalars(m, cv); a, b = cv[0], cv[1]
-    for c, base, mk in CLASSES:
-        if not inF7((c - cv[0]) & M): continue
-        tot['passing_classes'] += 1
-        for a0 in mem[c]:
-            tot['variants'] += 1
-            e0 = (a0 + sc['HH']) & M
-            w1 = (sc['K1'] - S0(a0) - (sc['PP'] | (a0 & sc['QQ'])) - S1(e0) - (sc['FF'] ^ (e0 & sc['EF']))) & M
-            e16 = (sc['KP'] + a0 + s0(w1)) & M
-            if e16 in R16SET:
-                if a0 == a0s: tot['own_found'] += 1; continue
-                tot['other_r16'] += 1
-                if deep(Mach(), cv, a0): tot['other_accepted'] += 1
-print(tot)
-```
-
-### q3tv.c
-
-```c
-// Trail-based estimator of the uncontrolled probability of a 38-step SHA-256 characteristic (own code).
-// q3tv: q3t with the tail drawing a dense-part variant per proposal (env VARS = vsamp output: j a0 a1 a2 w8x w9x w10x;
-// member y gets w + dW_i of the base pair) and every success written to env DUMPALL (variant index, W7..W37 of member x).
-// q = Pr[rows 16..37 follow the signed trail | dense part, W7 in F7], W0..W6 uniform (Lemma 4 structure).
-// Input file (text, hex words): see prep.py. Usage: q3t <datafile> <seed> <N> <T> [g-cache]
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <stdint.h>
-typedef uint32_t u32;
-static const u32 K[64] = {
- 0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
- 0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
- 0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070};
-static inline u32 ror(u32 x, int n) { return (x >> n) | (x << (32 - n)); }
-static inline u32 S0(u32 x) { return ror(x, 2) ^ ror(x, 13) ^ ror(x, 22); }
-static inline u32 S1(u32 x) { return ror(x, 6) ^ ror(x, 11) ^ ror(x, 25); }
-static inline u32 s0(u32 x) { return ror(x, 7) ^ ror(x, 18) ^ (x >> 3); }
-static inline u32 s1(u32 x) { return ror(x, 17) ^ ror(x, 19) ^ (x >> 10); }
-static inline u32 CH(u32 x, u32 y, u32 z) { return (x & y) ^ (~x & z); }
-static inline u32 MAJ(u32 x, u32 y, u32 z) { return (x & y) ^ (x & z) ^ (y & z); }
-static uint64_t rs[4];
-static inline uint64_t rotl(uint64_t x, int k) { return (x << k) | (x >> (64 - k)); }
-static uint64_t nxt(void) { uint64_t r = rotl(rs[1] * 5, 7) * 9, t = rs[1] << 17; rs[2] ^= rs[0]; rs[3] ^= rs[1]; rs[1] ^= rs[2]; rs[0] ^= rs[3]; rs[2] ^= t; rs[3] = rotl(rs[3], 45); return r; }
-static void seed(uint64_t s) { for (int i = 0; i < 4; i++) { s += 0x9e3779b97f4a7c15ULL; uint64_t z = s; z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL; z = (z ^ (z >> 27)) * 0x94d049bb133111ebULL; rs[i] = z ^ (z >> 31); } }
-static inline u32 r32(void) { return (u32)(nxt() >> 32); }
-
-typedef struct { u32 A[2][42], E[2][42], W[2][38]; } St;     // A/E index +4
-#define AA(s, m, i) (s)->A[m][(i) + 4]
-#define EE(s, m, i) (s)->E[m][(i) + 4]
-static u32 MA[38], SA[38], ME[38], SE[38], MW[38], SW[38];   // trail: xor mask and x-value on the mask, rows 0..37
-static St base; static u32 D7, T7;
-typedef struct { int key, n, kind[3], row[3], bit[3]; u32 allowed; } Cond;
-static Cond CO[8192]; static int nCO;
-static u32 (*VW)[4]; static long nV;
-
-static inline void step(St *s, int i) {
-    for (int m = 0; m < 2; m++) {
-        u32 a = AA(s, m, i - 1), b = AA(s, m, i - 2), c = AA(s, m, i - 3), d = AA(s, m, i - 4);
-        u32 e = EE(s, m, i - 1), f = EE(s, m, i - 2), g = EE(s, m, i - 3), h = EE(s, m, i - 4);
-        u32 T1 = h + S1(e) + CH(e, f, g) + K[i] + s->W[m][i];
-        EE(s, m, i) = d + T1; AA(s, m, i) = T1 + S0(a) + MAJ(a, b, c);
-    }
-}
-static inline int condok(const St *s, int r) {
-    for (int c = 0; c < nCO; c++) {
-        if (CO[c].key != r) continue;
-        int idx = 0;
-        for (int q = 0; q < CO[c].n; q++) { u32 w = CO[c].kind[q] == 2 ? s->W[0][CO[c].row[q]] : CO[c].kind[q] ? EE(s, 0, CO[c].row[q]) : AA(s, 0, CO[c].row[q]); idx |= ((w >> CO[c].bit[q]) & 1) << q; }
-        if (!((CO[c].allowed >> idx) & 1)) return 0;
-    }
-    return 1;
-}
-static inline int rowok(const St *s, int r) {
-    u32 ax = AA(s, 0, r), ex = EE(s, 0, r), wx = s->W[0][r];
-    static long dfm = -1;   // DIFFROW=r[,r...]: these rows checked on signed differences only (no derived value conditions)
-    if (dfm < 0) { dfm = 0; const char *e = getenv("DIFFROW"); while (e && *e) { int v = atoi(e); if (v > 0) dfm |= 1L << v; while (*e && *e != ',') e++; if (*e) e++; } }
-    if (!((dfm >> r) & 1) && !condok(s, r)) return 0;
-    return ((ax ^ AA(s, 1, r)) == MA[r]) && ((ax & MA[r]) == SA[r]) && ((ex ^ EE(s, 1, r)) == ME[r]) && ((ex & ME[r]) == SE[r])
-        && ((wx ^ s->W[1][r]) == MW[r]) && ((wx & MW[r]) == SW[r]);
-}
-static inline void sched(St *s, int i) { for (int m = 0; m < 2; m++) s->W[m][i] = s1(s->W[m][i - 2]) + s->W[m][i - 7] + s0(s->W[m][i - 15]) + s->W[m][i - 16]; }
-static inline int inF7(u32 w) { return s0(w + D7) - s0(w) == T7; }
-
-static void load(const char *fn) {
-    FILE *f = fopen(fn, "r"); if (!f) { perror(fn); exit(1); }
-    char key[32];
-    while (fscanf(f, "%31s", key) == 1) {
-        if (!strcmp(key, "D7")) fscanf(f, "%x", &D7);
-        else if (!strcmp(key, "T7")) fscanf(f, "%x", &T7);
-        else if (!strcmp(key, "ROW")) { int r; u32 a, b, c, d, e, g; fscanf(f, "%d %x %x %x %x %x %x", &r, &a, &b, &c, &d, &e, &g); MA[r] = a; SA[r] = b; ME[r] = c; SE[r] = d; MW[r] = e; SW[r] = g; }
-        else if (!strcmp(key, "ST")) { int m, i; u32 a, e; fscanf(f, "%d %d %x %x", &m, &i, &a, &e); AA(&base, m, i) = a; EE(&base, m, i) = e; }
-        else if (!strcmp(key, "COND")) { Cond *c = &CO[nCO++]; fscanf(f, "%d %d", &c->key, &c->n); for (int q = 0; q < c->n; q++) fscanf(f, "%d %d %d", &c->kind[q], &c->row[q], &c->bit[q]); fscanf(f, "%x", &c->allowed); }
-        else if (!strcmp(key, "W")) { int m, i; u32 w; fscanf(f, "%d %d %x", &m, &i, &w); base.W[m][i] = w; }
-    }
-    fclose(f);
-}
-
-int main(int argc, char **argv) {
-    load(argv[1]); uint64_t sd = strtoull(argv[2], 0, 10); int N = atoi(argv[3]), T = atoi(argv[4]);
-    seed(sd);
-    u32 dW16 = (s1(base.W[1][14]) + base.W[1][9]) - (s1(base.W[0][14]) + base.W[0][9]);   // W0, W1 carry no difference
-    // row 16 exhaustive (cached)
-    static u32 G[1 << 20]; long nG = 0;
-    char cache[512]; snprintf(cache, sizeof cache, "%s.g16", argv[1]);
-    FILE *fc = fopen(cache, "rb");
-    if (fc) { nG = fread(G, 4, 1 << 20, fc); fclose(fc); }
-    else {
-        for (uint64_t w = 0; w < (1ULL << 32); w++) {
-            St s; memcpy(s.A, base.A, sizeof s.A); memcpy(s.E, base.E, sizeof s.E);
-            s.W[0][16] = (u32)w; s.W[1][16] = (u32)w + dW16; step(&s, 16);
-            if (rowok(&s, 16)) { if (nG < (1 << 20)) G[nG] = (u32)w; nG++; }
-        }
-        if (nG > (1 << 20)) { fprintf(stderr, "G too large %ld\n", nG); nG = 1 << 20; }
-        fc = fopen(cache, "wb"); fwrite(G, 4, nG, fc); fclose(fc);
-    }
-    if (argc > 5 && !strcmp(argv[5], "live")) {   // row-17 pass counts per G word (sampled W17)
-        int live = 0; uint64_t S = 1ULL << 24;
-        for (long gi = 0; gi < nG; gi++) {
-            St s = base; s.W[0][16] = G[gi]; s.W[1][16] = G[gi] + dW16; step(&s, 16);
-            uint64_t pass = 0;
-            for (uint64_t k = 0; k < S; k++) {
-                St t = s; u32 wx = r32();
-                u32 dsch = (s1(t.W[1][15]) + t.W[1][10]) - (s1(t.W[0][15]) + t.W[0][10]) + s0(t.W[1][2]) - s0(t.W[0][2]);
-                t.W[0][17] = wx; t.W[1][17] = wx + dsch; step(&t, 17); pass += rowok(&t, 17);
-            }
-            live += pass > 0;
-            printf("G %08x row17 passes %llu / 2^24\n", G[gi], (unsigned long long)pass);
-        }
-        printf("live G words: %d of %ld\n", live, nG); return 0;
-    }
-    uint64_t f7 = 0; for (int k = 0; k < 1 << 20; k++) f7 += inF7(r32());
-    double lv[8]; lv[0] = nG ? log2((double)nG) - 32 : -INFINITY;
-    if (!nG) { printf("seed %llu row16 impossible\n", (unsigned long long)sd); return 0; }
-    St *cur = malloc(sizeof(St) * N), *nx = malloc(sizeof(St) * N); int ncur = N;
-    for (int k = 0; k < N; k++) { St s = base; u32 w = G[nxt() % nG]; s.W[0][16] = w; s.W[1][16] = w + dW16; step(&s, 16); cur[k] = s; }
-    for (int r = 17; r <= 22; r++) {
-        uint64_t tries = 0; int got = 0;
-        while (got < N) {
-            if (tries > (1ULL << 34)) { printf("seed %llu stalled at row %d\n", (unsigned long long)sd, r); return 0; }
-            const St *p = &cur[nxt() % ncur]; tries++;
-            u32 wx = r32();
-            u32 dsch = (s1(p->W[1][r - 2]) + p->W[1][r - 7]) - (s1(p->W[0][r - 2]) + p->W[0][r - 7]);
-            if (r == 22) dsch += T7; else dsch += s0(p->W[1][r - 15]) - s0(p->W[0][r - 15]);
-            St s = *p; s.W[0][r] = wx; s.W[1][r] = wx + dsch; step(&s, r);
-            if (rowok(&s, r)) nx[got++] = s;
-        }
-        lv[r - 16] = log2((double)(N - 1) / (double)(tries - 1));
-        St *t = cur; cur = nx; nx = t;
-    }
-    FILE *dall = getenv("DUMPALL") ? fopen(getenv("DUMPALL"), "w") : 0;
-    if (getenv("VARS")) {
-        FILE *fv = fopen(getenv("VARS"), "r"); long cap = 1 << 22; VW = malloc(sizeof(*VW) * cap); int j; u32 a0, a1, a2, w8, w9, w10;
-        while (nV < cap && fscanf(fv, "%d %x %x %x %x %x %x", &j, &a0, &a1, &a2, &w8, &w9, &w10) == 7) { VW[nV][0] = (u32)nV; VW[nV][1] = w8; VW[nV][2] = w9; VW[nV][3] = w10; nV++; }
-        fclose(fv); fprintf(stderr, "variants %ld\n", nV);
-    }
-    uint64_t prop = (uint64_t)N * T, succ = 0, coll = 0;
-    for (uint64_t k = 0; k < prop; k++) {
-        St s = cur[k % N]; u32 w7; do w7 = r32(); while (!inF7(w7));
-        s.W[0][7] = w7; s.W[1][7] = w7 + D7;
-        long vi = -1;
-        if (nV) { vi = nxt() % nV; for (int i = 8; i <= 10; i++) { s.W[0][i] = VW[vi][i - 7]; s.W[1][i] = VW[vi][i - 7] + (base.W[1][i] - base.W[0][i]); } }
-        int ok = 1;
-        static int relax = -1; if (relax < 0) relax = getenv("RELAX_TAIL") != 0;
-        for (int r = 23; r < 38 && ok; r++) { sched(&s, r); step(&s, r); if (!relax) ok = rowok(&s, r); }
-        if (relax) { for (int i = 34; i < 38 && ok; i++) if (AA(&s, 0, i) != AA(&s, 1, i) || EE(&s, 0, i) != EE(&s, 1, i)) ok = 0; }
-        if (ok) {
-            succ++;
-            if (succ == 1 && getenv("DUMP")) {
-                FILE *fd = fopen(getenv("DUMP"), "w");
-                for (int m = 0; m < 2; m++) for (int i = 0; i < 38; i++) fprintf(fd, "W %d %d %08x\n", m, i, s.W[m][i]);
-                fclose(fd);
-            }
-            if (dall) { fprintf(dall, "S %ld", vi); for (int i = 7; i < 38; i++) fprintf(dall, " %08x", s.W[0][i]); fprintf(dall, "\n"); }
-            int eq = 1; for (int i = 34; i < 38; i++) if (AA(&s, 0, i) != AA(&s, 1, i) || EE(&s, 0, i) != EE(&s, 1, i)) eq = 0;
-            coll += eq;
-        }
-    }
-    lv[7] = succ ? log2((double)succ / prop) : -INFINITY;
-    double tot = 0; for (int i = 0; i < 8; i++) tot += lv[i];
-    printf("seed %llu |G| %ld p2 %.4f stages", (unsigned long long)sd, nG, log2((double)f7 / (1 << 20)));
-    for (int i = 0; i < 8; i++) printf(" %.3f", lv[i]);
-    printf(" | succ %llu coll %llu | log2q %.4f%s\n", (unsigned long long)succ, (unsigned long long)coll, tot, nV ? " (variant tail)" : "");
-    if (dall) fclose(dall);
-    return 0;
-}
-```
-
-### sweep.py
-
-```python
-"""sweep.py <outdir> <workers> <iters> [patterns]: systematic sign sweep over the HW-25 XOR patterns (own code).
-For each XOR pattern (round robin) and iteration k: signed search with the DT43 bounds (attack-aware tail weight P <= 43, published
-dense weight profile), the pattern fixed, signs free, and every signed message difference already found for that pattern blocked
-together with its member-swapped mirror; a solution goes through score.py -> joint.py (value-exact dense part + value-exact tail
-steps 16..19, P <= 43) -> fromjoint.py -> q3t (quick) and var (A2 list, mean |R(A0)|). One JSON line per stage in <outdir>/sweep.jsonl."""
-import sys, json, os, subprocess, time, re, threading, queue, glob
-OUT, NW, ITERS = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
-os.makedirs(OUT, exist_ok=True)
-PAT = json.load(open('/work/runs/dWxor_hw25.json'))
-pats = [int(x) for x in sys.argv[4].split(',')] if len(sys.argv) > 4 else list(range(len(PAT)))
-WN = ['W7', 'W8', 'W9', 'W10', 'W11', 'W15', 'W16', 'W23', 'W25']
-BASE = {"wbounds": [[[["E", [16], 2], ["E", [15], 1], ["E", list(range(17, 26)), 3], ["A", list(range(16, 26)), 3], ["W", list(range(16, 38)), 2]], "<=", 43]],
-        "solver": "kissat", "bounds": [["A", list(range(7, 16)), "<=", 26], ["E", list(range(7, 16)), "<=", 47], ["E", [14, 15], "<=", 4], ["A", [13, 14, 15], "<=", 10]]}
-flip = lambda r: r.translate(str.maketrans('un', 'nu'))
-lock = threading.Lock()
-def log(**kw):
-    kw['t'] = time.strftime('%H:%M:%S')
-    with lock:
-        with open(OUT + '/sweep.jsonl', 'a') as f: f.write(json.dumps(kw) + '\n')
-# signed message differences already known (published, earlier runs) -> blocked per pattern
-known = {p: [] for p in range(len(PAT))}
-def xorpat(rows): return tuple(''.join('x' if c in 'un' else '=' for c in rows[w]) for w in WN)
-patkey = {tuple(''.join('x' if c in 'un' else '=' for c in PAT[p][w[1:]]) for w in WN): p for p in range(len(PAT))}
-def add_known(rows):
-    p = patkey.get(xorpat(rows))
-    if p is None: return
-    s = {w: rows[w] for w in WN}
-    for b in (s, {w: flip(r) for w, r in s.items()}):
-        if b not in known[p]: known[p].append(b)
-pub = json.load(open('/work/m38/paper_table3.json')); add_known({w: pub[w[1:]]['W'] for w in WN})
-for f in glob.glob('/work/runs/q/*.json') + glob.glob(OUT + '/q/*.json'):
-    try:
-        q = json.load(open(f))
-        if q.get('sat') and all(w in q['rows'] for w in WN): add_known(q['rows'])
-    except Exception: pass
-def sh(cmd, tmo, env=None):
-    try:
-        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=tmo, env=dict(os.environ, **(env or {})))
-        return r.returncode, r.stdout, r.stderr
-    except subprocess.TimeoutExpired: return -1, '', 'TIMEOUT'
-def process(tag):
-    c = '/work/runs/c/' + tag
-    rc, o, e = sh('cd /work/m38 && python3 score.py /work/runs/q/%s.json %s' % (tag, c), 600)
-    log(tag=tag, stage='score', out=o.strip()[-600:], err=e[-200:])
-    rc, o, e = sh('cd /work/m38 && python3 joint.py %s 43 1 %s_j43' % (c, c), 7200, env=dict(EXACT_TAIL='16,17,18,19'))
-    coupled = os.path.exists(c + '_j43.tail.json')
-    log(tag=tag, stage='joint', coupled=coupled, out=o.strip()[-300:], err=e[-200:])
-    if not coupled: return
-    rc, o, e = sh('cd /work/m38 && python3 fromjoint.py %s_j43' % c, 1200)
-    log(tag=tag, stage='fromjoint', out=o.strip()[-600:], err=e[-300:])
-    if not os.path.exists(c + '_j43.dat'): return
-    rc, o, e = sh('/work/m38/q3t %s_j43.dat 7 1000 4096' % c, 7200)
-    log(tag=tag, stage='q3t', out=o.strip()[-400:], err=e[-200:])
-    rc, o, e = sh('/work/m38/var %s_j43.var.dat 7 32 200000 | tail -2' % c, 7200)
-    log(tag=tag, stage='var', out=o.strip()[-400:], err=e[-200:])
-tasks = queue.Queue()
-for k in range(ITERS):
-    for p in pats: tasks.put((p, k))
-dead = set()
-def worker():
-    while True:
-        try: p, k = tasks.get_nowait()
-        except queue.Empty: return
-        if p in dead: continue
-        tag = 'SW_p%02d_k%d' % (p, k)
-        with lock: blocks = list(known[p])
-        spec = dict(BASE, fix_xor={'W' + w: r for w, r in PAT[p].items()}, seed=100 + k, block_w=blocks)
-        t0 = time.time()
-        rc, o, e = sh("cd /work/m38 && python3 stepk.py %s '%s'" % (tag, json.dumps(spec)), 3 * 3600)
-        res = 'TIMEOUT' if e == 'TIMEOUT' else ('SAT' if ' SAT' in o else 'UNSAT' if 'UNSAT' in o else 'ERR ' + e[-200:])
-        log(tag=tag, stage='search', pattern=p, iter=k, blocked=len(blocks), result=res, wall=round(time.time() - t0))
-        if res == 'UNSAT':
-            with lock: dead.add(p)
-            continue
-        if res != 'SAT': continue
-        q = json.load(open('/work/runs/q/%s.json' % tag))
-        with lock: add_known(q['rows'])
-        process(tag)
-ths = [threading.Thread(target=worker) for _ in range(NW)]
-for t in ths: t.start()
-for t in ths: t.join()
-log(stage='done')
-```
-
-### stepk.py
-
-```python
-"""Generic bounded query: python3 stepk.py <name> <json spec>; spec: {"hw_w": 25, "bounds": [[kind, rows, op, k], ...], "fix": {...}}"""
-import sys, time, json, os
-sys.path.insert(0, '/work/m38')
-from sdmodel import sha256_model, decode
-from pysat.solvers import Solver
-name, spec = sys.argv[1], json.loads(sys.argv[2])
-t0 = time.time()
-m = sha256_model(n_msg=spec.get('n_msg', 38), diff_words=tuple(spec.get('diff_words', (7, 8, 9, 10, 11, 15, 16, 23, 25))), with_state=spec.get('with_state', True), state=tuple(spec.get('state', (7, 26))), zero_start=spec.get('zero_start', True), relax_steps=set(spec.get('relax_steps', ())), relax_kinds=tuple(spec.get('relax_kinds', ('S', 'B'))), exact_steps=set(spec.get('exact_steps', ())))
-if 'hw_w' in spec: m.card(m.hw_lits(m.W), spec.get('hw_w_op', '='), spec['hw_w'])
-for kind, rows, op, k in spec.get('bounds', []):
-    ws = [m.words['%s%d' % (kind, i)] for i in rows if '%s%d' % (kind, i) in m.words]
-    m.card(m.hw_lits(ws), op, k)
-for terms, op, k in spec.get('wbounds', []):   # weighted: terms = [[kind, rows, weight], ...] (literals repeated by weight)
-    lits = []
-    for kind, rows, wt in terms:
-        lits += m.hw_lits([m.words['%s%d' % (kind, i)] for i in rows]) * wt
-    from pysat.card import EncType
-    m.card(lits, op, k, enc=EncType.kmtotalizer if op == '<=' else EncType.totalizer)
-for wname, row in spec.get('fix_xor', {}).items():     # difference positions only, signs free
-    for q, ch in enumerate(row):
-        v_, d_ = m.words[wname][31 - q]; m.cnf.append([d_] if ch in 'un' else [-d_])
-for wname, row in spec.get('fix', {}).items():
-    m.fix(m.words[wname], row)
-for blk in spec.get('block_w', []):    # exclude a signed message difference: some difference bit of the listed words gets the other sign
-    cl = []
-    for wname, row in blk.items():
-        for q, ch in enumerate(row):
-            if ch in 'un':
-                v_, d_ = m.words[wname][31 - q]; cl.append(-v_ if ch == 'u' else v_)
-    if cl: m.cnf.append(cl)
-t1 = time.time()
-class _K:
-    def __init__(self, clauses, nv): self.clauses, self.nv = clauses, nv
-    def __enter__(self): return self
-    def __exit__(self, *a): pass
-    def solve(self):
-        import subprocess, tempfile
-        fn = tempfile.mktemp(suffix='.cnf', dir='/tmp')
-        with open(fn, 'w') as f:
-            f.write('p cnf %d %d\n' % (self.nv, len(self.clauses)))
-            for c in self.clauses: f.write(' '.join(map(str, c)) + ' 0\n')
-        r = subprocess.run(['kissat', '-q', '--seed=%d' % spec.get('seed', 0), fn], capture_output=True, text=True)
-        os.unlink(fn)
-        self.model = [int(x) for l in r.stdout.splitlines() if l.startswith('v') for x in l[1:].split() if x != '0']
-        return 's SATISFIABLE' in r.stdout
-    def get_model(self): return self.model
-_solver = (lambda: _K(m.cnf.clauses, m.pool.top)) if spec.get('solver') == 'kissat' else (lambda: Solver(name=spec.get('solver', 'cadical195'), bootstrap_with=m.cnf.clauses))
-with _solver() as s:
-    ok = s.solve()
-    dt = time.time() - t1
-    out = dict(name=name, spec=spec, sat=ok, solve_s=round(dt, 1), build_s=round(t1 - t0, 1))
-    if ok:
-        ms = set(l for l in s.get_model() if l > 0)
-        names = [n for n in ['A%d' % i for i in range(-4, 40)] + ['E%d' % i for i in range(-4, 40)] if n in m.words] + ['W%d' % i for i in range(spec.get('n_msg', 38))]
-        names += [n for n in m.words if n.split('_')[0] in ('S1', 'IF', 'S0', 'MJ', 's1', 's0') and n.count('_') == 1]
-        out['rows'] = decode(m, ms, names)
-os.makedirs('/work/runs/q', exist_ok=True)
-json.dump(out, open('/work/runs/q/%s.json' % name, 'w'))
-print(name, 'SAT' if ok else 'UNSAT', '%.1fs' % dt)
-```
-
-### score.py
-
-```python
-"""score.py <query.json> [out_prefix]: turn a SAT characteristic (stepk output) into char.json and inter.json,
-and count derived conditions per key row (own code)."""
-import sys, json
-sys.path.insert(0, '/work/m38')
-from cond import derive
-from collections import Counter
-Q = json.load(open(sys.argv[1])); R = Q['rows']
-NS = Q.get('spec', {}).get('n_msg', 38); ST0 = Q.get('spec', {}).get('state', [7, 26])[0]
-char = {}
-for i in range(-4, NS):
-    char[i] = {'A': R.get('A%d' % i, '=' * 32), 'E': R.get('E%d' % i, '=' * 32), 'W': R.get('W%d' % i, '=' * 32) if i >= 0 else '=' * 32}
-inter = {}
-for n, row in R.items():
-    if '_' in n:
-        k, r = n.split('_'); inter[(k, int(r))] = row
-rows = {}
-for i, r in char.items():
-    rows[('A', i)] = r['A']; rows[('E', i)] = r['E']; rows[('W', i)] = r['W']
-conds, bad = derive(rows, inter, range(ST0, NS))
-cnt = Counter(c['key'] for c in conds)
-bits = lambda c: len(c['refs']) - __import__('math').log2(len(c['allowed']))
-cost = Counter()
-for c in conds: cost[c['key']] += bits(c)
-hw = lambda s: sum(ch in 'un' for ch in s)
-summary = dict(name=Q['name'], bad=len(bad), cond_bits_by_key={k: round(v, 1) for k, v in sorted(cost.items())},
-               cond_bits_ge17=round(sum(v for k, v in cost.items() if k >= 17), 1), cond_bits_16=round(cost.get(16, 0), 1), cond_bits_ge16=round(sum(v for k, v in cost.items() if k >= 16), 1),
-               hwE=[hw(char[i]['E']) for i in range(14, 23)], hwA=[hw(char[i]['A']) for i in range(14, 19)],
-               hwW=[hw(char[i]['W']) for i in (7, 8, 9, 10, 11, 15, 16, 23, 25)])
-print(json.dumps(summary))
-if len(sys.argv) > 2:
-    json.dump({str(k): v for k, v in char.items()}, open(sys.argv[2] + '.char.json', 'w'))
-    json.dump({'%s_%d' % k: v for k, v in inter.items()}, open(sys.argv[2] + '.inter.json', 'w'))
-```
-
-### joint.py
-
-```python
-"""joint.py <char prefix> <P> <seed> <out prefix>: one CNF = value-exact dense part (rows <= 15, signed dense trail
-of <prefix>.char.json, expansion constraints) + signed tail model (steps 16..25, weighted bound P), linked at rows
-12..15 (tail (v, d) = dense (x, x XOR y)) and on the message words. Solved with Kissat (own code)."""
-import sys, json, time, subprocess, os, math
-sys.path.insert(0, '/work/m38')
-from sdmodel import sha256_model, decode
-from vmodel import dense_model, value
-from cond import derive
-from collections import Counter
-from pysat.card import EncType
-pre, P, seed, out = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
-C = {int(k): v for k, v in json.load(open(pre + '.char.json')).items()}
-free15 = len(sys.argv) > 5 and sys.argv[5] == 'free1215'   # let the dense rows 12..15 trail be free (only the tail fixes them)
-freerows = [int(x) for x in sys.argv[5].split(',')] if len(sys.argv) > 5 and sys.argv[5] != 'free1215' else (range(12, 16) if free15 else ())
-import os as _os
-m = sha256_model(state=(16, 26), zero_start=False, exact_steps=set(int(x) for x in _os.environ.get('EXACT_TAIL', '').split(',') if x))
-for i in range(38): m.fix(m.words['W%d' % i], ''.join(c if c in 'un' else '=' for c in C[i]['W']))
-lits = []
-for kind, rows, wt in (('E', [16], 2), ('E', [15], 1), ('E', range(17, 26), 3), ('A', range(16, 26), 3), ('W', range(16, 38), 2)):
-    lits += m.hw_lits([m.words['%s%d' % (kind, i)] for i in rows if '%s%d' % (kind, i) in m.words]) * wt
-m.card(lits, '<=', P, enc=EncType.kmtotalizer)
-N1 = m.pool.top
-v = dense_model(C, expansion=True, free_rows=freerows)
-sh = lambda l: (abs(l) + N1) * (1 if l > 0 else -1)
-cl = [list(c) for c in m.cnf.clauses] + [[sh(l) for l in c] for c in v.cl]
-nv = N1 + v.pool.top
-def xorvar(a, b):
-    global nv
-    nv += 1; d = nv
-    cl.extend([[-a, -b, -d], [a, b, -d], [a, -b, d], [-a, b, d]]); return d
-def eqlit(a, b): cl.extend([[-a, b], [a, -b]])
-for i in range(12, 16):
-    for nm, X, Y in (('A', v.A, v.Ay), ('E', v.E, v.Ey)):
-        for j in range(32):
-            sv, sd = m.words['%s%d' % (nm, i)][j]
-            x, y = sh(X[i][j]), sh(Y[i][j])
-            eqlit(sv, x); eqlit(sd, xorvar(x, y))
-for i in range(8, 16):     # message words: tail model value bits = dense member-x values
-    for j in range(32):
-        sv, sd = m.words['W%d' % i][j]; eqlit(sv, sh(v.W[i][j]))
-fn = out + '.cnf'
-with open(fn, 'w') as f:
-    f.write('p cnf %d %d\n' % (nv, len(cl)))
-    for c in cl: f.write(' '.join(map(str, c)) + ' 0\n')
-t = time.time(); r = subprocess.run(['kissat', '-q', '--seed=%d' % seed, fn], capture_output=True, text=True); os.unlink(fn)
-ok = 's SATISFIABLE' in r.stdout; print('joint SAT:', ok, '%.1fs' % (time.time() - t), 'vars', nv, 'clauses', len(cl), flush=True)
-if not ok: sys.exit(1)
-model = set(int(x) for l in r.stdout.splitlines() if l.startswith('v') for x in l[1:].split() if x != '0' and int(x) > 0)
-ms_sd = {l for l in model if l <= N1}
-ms_v = {l - N1 for l in model if N1 < l <= N1 + v.pool.top}
-names = ['A%d' % i for i in range(12, 26)] + ['E%d' % i for i in range(12, 26)] + ['W%d' % i for i in range(38)]
-names += [x for x in m.words if x.split('_')[0] in ('S1', 'IF', 'S0', 'MJ', 's1', 's0') and x.count('_') == 1]
-R = decode(m, ms_sd, names)
-rows = {(k, i): R.get('%s%d' % (k, i), '=' * 32) for k in 'AEW' for i in range(-4, 38)}
-inter = {(x.split('_')[0], int(x.split('_')[1])): rr for x, rr in R.items() if '_' in x}
-conds, bad = derive(rows, inter, range(17, 38))
-cost = Counter()
-for c in conds: cost[c['key']] += len(c['refs']) - math.log2(len(c['allowed']))
-print('tail ge17 %.1f k16 %.1f bad %d' % (sum(vv for kk, vv in cost.items() if kk >= 17), cost.get(16, 0), len(bad)), flush=True)
-Ws = {str(i): C[i]['W'] for i in range(38) if any(c in 'un' for c in C[i]['W'])}
-json.dump(dict(A={i: value(ms_v, v.A[i]) for i in range(0, 16)}, E={i: value(ms_v, v.E[i]) for i in range(3, 16)},
-               W={i: value(ms_v, v.W[i]) for i in range(7, 16)}, Ay={i: value(ms_v, v.Ay[i]) for i in range(7, 16)},
-               Ey={i: value(ms_v, v.Ey[i]) for i in range(7, 16)}, Wy={i: value(ms_v, v.Wy[i]) for i in range(7, 16)}, Wsigned=Ws),
-          open(out + '.dense.json', 'w'))
-json.dump(dict(rows=R, ge17=sum(vv for kk, vv in cost.items() if kk >= 17)), open(out + '.tail.json', 'w'))
-```
-
-### fromjoint.py
-
-```python
-"""fromjoint.py <joint out prefix> [seed]: dense values + tail of a joint solve -> char/inter/pair/q3t data/var data (own code)."""
-import sys, json, random, subprocess
-sys.path.insert(0, '/work/m38')
-from sha38 import S0, S1, CH, MAJ, M32, trace
-from vmodel import K
-pre = sys.argv[1]; seed = int(sys.argv[2]) if len(sys.argv) > 2 else 1
-D = json.load(open(pre + '.dense.json')); T = json.load(open(pre + '.tail.json'))['rows']
-A = {int(k): v for k, v in D['A'].items()}; E = {int(k): v for k, v in D['E'].items()}; W = {int(k): v for k, v in D['W'].items()}
-Wyd = {int(k): v for k, v in D['Wy'].items()}
-rnd = random.Random(seed); Af = dict(A); Ef = dict(E)
-for i in (-2, -3, -4): Af[i] = rnd.getrandbits(32)
-Af[-1] = (E[3] - A[3] + S0(A[2]) + MAJ(A[2], A[1], A[0])) & M32
-for i in (2, 1, 0): Ef[i] = (A[i] + Af[i - 4] - S0(Af[i - 1]) - MAJ(Af[i - 1], Af[i - 2], Af[i - 3])) & M32
-for i in (-1, -2, -3, -4): Ef[i] = rnd.getrandbits(32)
-Wx = [0] * 16
-for i in range(0, 7): Wx[i] = (Ef[i] - Af[i - 4] - Ef[i - 4] - S1(Ef[i - 1]) - CH(Ef[i - 1], Ef[i - 2], Ef[i - 3]) - K[i]) & M32
-for i in range(7, 16): Wx[i] = W[i]
-Wy = list(Wx)
-for i in range(7, 16): Wy[i] = Wyd[i]
-cv = [Af[-1], Af[-2], Af[-3], Af[-4], Ef[-1], Ef[-2], Ef[-3], Ef[-4]]
-ax, ex, wx, _ = trace(cv, Wx, 16); ay, ey, wy, _ = trace(cv, Wy, 16)
-sym = lambda x, y: ''.join('=' if ((x >> j) & 1) == ((y >> j) & 1) else ('u' if (x >> j) & 1 else 'n') for j in range(31, -1, -1))
-Z = '=' * 32
-char = {}
-for i in range(-4, 38):
-    if i <= 15: char[i] = {'A': sym(ax[i], ay[i]), 'E': sym(ex[i], ey[i]), 'W': sym(wx[i], wy[i]) if i >= 0 else Z}
-    else: char[i] = {'A': T.get('A%d' % i, Z), 'E': T.get('E%d' % i, Z), 'W': T.get('W%d' % i, Z)}
-for i in range(12, 16):   # consistency of the joint link
-    assert char[i]['A'] == ''.join(c if c in 'un' else '=' for c in T['A%d' % i]) and char[i]['E'] == ''.join(c if c in 'un' else '=' for c in T['E%d' % i]), i
-inter = {x: r for x, r in T.items() if '_' in x}
-json.dump({str(k): v for k, v in char.items()}, open(pre + '.char.json', 'w'))
-json.dump(inter, open(pre + '.inter.json', 'w'))
-json.dump(dict(cv=cv, Wx=Wx, Wy=Wy), open(pre + '.pair.json', 'w'))
-r = subprocess.run(['python3', '/work/m38/prep.py', pre + '.char.json', pre + '.pair.json', pre + '.dat', pre + '.inter.json'], capture_output=True, text=True)
-print(r.stdout.strip(), r.stderr.strip()[-600:])
-r = subprocess.run(['python3', '/work/m38/prepvar.py', pre], capture_output=True, text=True)
-print(r.stdout.strip(), r.stderr.strip()[-600:])
-```
-
-### prep.py
-
-```python
-"""prep.py <char.json> <pair.json> <out.dat> [inter.json]: data file for q3t.c (own code).
-pair.json: {"cv": [8 words], "Wx": [16], "Wy": [16]} (dense pair; if it is a full 38-step
-conforming pair and no inter.json is given, intermediates of rows >= 16 are taken from it).
-inter.json: {"S1_16": row, ...} intermediate signed outputs from the SAT solution."""
-import sys, json
-sys.path.insert(0, '/work/m38'); sys.path.insert(0, sys.argv[0].rsplit('/', 1)[0])
-from sha38 import trace, s1, M32
-from cond import derive, check, intermediates_from_pair
-C = {int(k): v for k, v in json.load(open(sys.argv[1])).items()}
-P = json.load(open(sys.argv[2]))
-cv, Wx, Wy = P['cv'], P['Wx'], P['Wy']
-ax, ex, _, _ = trace(cv, Wx, 16); ay, ey, _, _ = trace(cv, Wy, 16)
-def ms(row):
-    m = sum(1 << (31 - k) for k, c in enumerate(row) if c in 'un'); s = sum(1 << (31 - k) for k, c in enumerate(row) if c == 'u')
-    return m, s
-def sval(row):   # y - x for the signed row ('u': x = 1, y = 0)
-    return sum((-(1 << (31 - k)) if c == 'u' else (1 << (31 - k))) for k, c in enumerate(row) if c in 'un') & M32
-out = []
-for r in range(16, 38):
-    row = C.get(r, {'A': '=' * 32, 'E': '=' * 32, 'W': '=' * 32})
-    out.append('ROW %d %08x %08x %08x %08x %08x %08x' % ((r,) + ms(row['A']) + ms(row['E']) + ms(row['W'])))
-for m, (A, E) in enumerate(((ax, ex), (ay, ey))):
-    for i in range(-4, 16): out.append('ST %d %d %08x %08x' % (m, i, A[i], E[i]))
-for m, W in enumerate((Wx, Wy)):
-    for i in range(16): out.append('W %d %d %08x' % (m, i, W[i]))
-assert all(c not in 'un' for c in C.get(20, {'W': '='})['W']), 'W20 difference not supported'
-d7 = (Wy[7] - Wx[7]) & M32
-t7 = (sval(C.get(22, {'W': '=' * 32})['W']) - ((Wy[15] - Wx[15]) & M32)) & M32
-out = ['D7 %08x' % d7, 'T7 %08x' % t7] + out
-# value conditions of the boolean functions of steps 16..37
-rows = {}
-for i, r in C.items():
-    rows[('A', i)] = r['A']; rows[('E', i)] = r['E']; rows[('W', i)] = r['W']
-if len(sys.argv) > 4:
-    I = json.load(open(sys.argv[4])); inter = {(k.split('_')[0], int(k.split('_')[1])): v for k, v in I.items()}
-else:
-    fx, fy = trace(cv, Wx, 38), trace(cv, Wy, 38)
-    inter = intermediates_from_pair((fx[0], fx[1]), (fy[0], fy[1]), range(16, 38), fx[2], fy[2])
-conds, bad = derive(rows, inter, range(16, 38))
-assert not bad, ('impossible boolean instances', bad[:5])
-Ax, Ex = ax, ex
-early = [c for c in conds if c['key'] <= 15]
-fails = check(early, lambda k, i: {'A': Ax, 'E': Ex, 'W': dict(enumerate(Wx))}[k][i])
-print('conditions: %d (keyed <= 15: %d, violated by the dense pair: %d)' % (len(conds), len(early), len(fails)))
-for c in fails[:10]: print('  violated', c['src'], c['refs'], c['allowed'])
-for c in conds:
-    if c['key'] <= 15: continue
-    am = sum(1 << sum(b << q for q, b in enumerate(t)) for t in c['allowed'])
-    out.append('COND %d %d %s %x' % (c['key'], len(c['refs']), ' '.join('%d %d %d' % ({'A': 0, 'E': 1, 'W': 2}[k], i, b) for k, i, b in c['refs']), am))
-open(sys.argv[3], 'w').write('\n'.join(out) + '\n')
-from collections import Counter
-print('conditions per key row:', sorted(Counter(c['key'] for c in conds).items()))
-print('D7 %08x T7 %08x' % (d7, t7))
-```
-
-### cond.py
-
-```python
-"""Derive value conditions of a signed trail from its boolean-function instances (own code).
-For each step r and bit j, the instances Sigma1(E_{r-1}), IF(E_{r-1}, E_{r-2}, E_{r-3}),
-Sigma0(A_{r-1}), MAJ(A_{r-1}, A_{r-2}, A_{r-3}) must produce the trail's output signed difference
-(intermediate words S1_r, IF_r, S0_r, MJ_r). Inputs with a difference have their x value fixed by
-the sign; for the inputs without a difference, enumerate their values and keep the allowed set.
-A condition is (refs, allowed): refs = [(kind, row, bit)] of the non-difference inputs, allowed =
-set of value tuples. Keyed at the largest input row."""
-import itertools
-
-def sym_xy(s, v):
-    """symbol and a value for non-diff bits -> (x, y)"""
-    if s == 'u': return 1, 0
-    if s == 'n': return 0, 1
-    return v, v
-
-FN = {'XOR': lambda a, b, c: a ^ b ^ c, 'IF': lambda a, b, c: (a & b) ^ ((1 - a) & c), 'MAJ': lambda a, b, c: (a & b) ^ (a & c) ^ (b & c)}
-
-def bit(row, j):    # row string MSB first
-    return row[31 - j]
-
-def derive(rows, inter, steps):
-    """rows[(kind, i)] -> 32-symbol string ('=', 'u', 'n'; others mean '='), kinds 'A', 'E';
-    inter[(name, r)] -> 32-symbol output string for name in S1, IF, S0, MJ. Returns list of
-    dicts {key, refs, allowed, src} and a list of impossible instances."""
-    conds, bad = [], []
-    def g(kind, i, j):
-        if kind == 'Z': return '0'
-        s = rows.get((kind, i), '=' * 32)[31 - j]
-        return s if s in 'un' else '='
-    for r in steps:
-        specs = []
-        for j in range(32):
-            specs.append(('S1', 'XOR', [('E', r - 1, (j + 6) % 32), ('E', r - 1, (j + 11) % 32), ('E', r - 1, (j + 25) % 32)], j))
-            specs.append(('IF', 'IF', [('E', r - 1, j), ('E', r - 2, j), ('E', r - 3, j)], j))
-            specs.append(('S0', 'XOR', [('A', r - 1, (j + 2) % 32), ('A', r - 1, (j + 13) % 32), ('A', r - 1, (j + 22) % 32)], j))
-            specs.append(('MJ', 'MAJ', [('A', r - 1, j), ('A', r - 2, j), ('A', r - 3, j)], j))
-            if r >= 16:   # W_r = s1(W_{r-2}) + W_{r-7} + s0(W_{r-15}) + W_{r-16}
-                specs.append(('s1', 'XOR', [('W', r - 2, (j + 17) % 32), ('W', r - 2, (j + 19) % 32)] + ([('W', r - 2, j + 10)] if j + 10 < 32 else [('Z', 0, 0)]), j))
-                specs.append(('s0', 'XOR', [('W', r - 15, (j + 7) % 32), ('W', r - 15, (j + 18) % 32)] + ([('W', r - 15, j + 3)] if j + 3 < 32 else [('Z', 0, 0)]), j))
-        for name, fn, ins, j in specs:
-            out = inter.get((name, r), '=' * 32)[31 - j]
-            out = out if out in 'un' else '='
-            syms = [g(*t) for t in ins]
-            free = [k for k, s in enumerate(syms) if s == '=']
-            syms = [('=' if s == '0' else s) for s in syms]
-            # deduplicate repeated references (rotations never repeat a bit, MAJ/IF use distinct rows)
-            allowed = set()
-            for vals in itertools.product((0, 1), repeat=len(free)):
-                vv = dict(zip(free, vals))
-                xs, ys = zip(*[sym_xy(syms[k], vv.get(k, 0)) for k in range(3)])
-                ox, oy = FN[fn](*xs), FN[fn](*ys)
-                o = '=' if ox == oy else ('u' if ox == 1 else 'n')
-                if o == out: allowed.add(vals)
-            if not allowed:
-                bad.append((name, r, j)); continue
-            if len(allowed) < 2 ** len(free):
-                refs = [ins[k] for k in free]
-                conds.append(dict(key=max(t[1] for t in refs), refs=refs, allowed=sorted(allowed), src='%s_%d[%d]' % (name, r, j)))
-    return conds, bad
-
-def check(conds, val):
-    """val(kind, row) -> 32-bit word of member x. Returns failing conditions."""
-    fails = []
-    for c in conds:
-        t = tuple((val(k, i) >> b) & 1 for k, i, b in c['refs'])
-        if t not in set(map(tuple, c['allowed'])): fails.append(c)
-    return fails
-
-def intermediates_from_pair(trace_x, trace_y, steps, Wx=None, Wy=None):
-    """exact intermediate output differences from a conforming pair (A, E dicts of both members; W lists)."""
-    from sha38 import S0, S1, CH, MAJ, s0, s1
-    (Ax, Ex), (Ay, Ey) = trace_x, trace_y
-    def sym(x, y):
-        return ''.join('=' if ((x >> j) & 1) == ((y >> j) & 1) else ('u' if (x >> j) & 1 else 'n') for j in range(31, -1, -1))
-    inter = {}
-    for r in steps:
-        inter[('S1', r)] = sym(S1(Ex[r - 1]), S1(Ey[r - 1]))
-        inter[('IF', r)] = sym(CH(Ex[r - 1], Ex[r - 2], Ex[r - 3]), CH(Ey[r - 1], Ey[r - 2], Ey[r - 3]))
-        inter[('S0', r)] = sym(S0(Ax[r - 1]), S0(Ay[r - 1]))
-        inter[('MJ', r)] = sym(MAJ(Ax[r - 1], Ax[r - 2], Ax[r - 3]), MAJ(Ay[r - 1], Ay[r - 2], Ay[r - 3]))
-        if Wx is not None and r >= 16:
-            inter[('s1', r)] = sym(s1(Wx[r - 2]), s1(Wy[r - 2])); inter[('s0', r)] = sym(s0(Wx[r - 15]), s0(Wy[r - 15]))
-    return inter
-```
-
-### sdmodel.py
-
-```python
-"""Own signed-difference CNF model of reduced SHA-256 (written from scratch for this search).
-
-Each bit of every word is a pair (v, d): v = value in member x, d = 1 iff member y differs
-(member y's bit is v XOR d). Symbols: d = 0 '=' (value v), (v, d) = (1, 1) 'u', (0, 1) 'n'.
-- Boolean functions (XOR3 for Sigma/sigma, IF, MAJ): exact two-member relations.
-- Modular addition: signed-carry relation s_a + s_b + s_c = s_z + 2 s_c' with s = d (2v - 1),
-  values ignored (the standard signed-difference relaxation; value consistency is checked later
-  by solving for a conforming pair).
-Rows of the state are indexed as in FIPS / the paper: A_i, E_i for i = -4..; step i uses W_i."""
-import itertools
-from functools import lru_cache
-from pysat.formula import CNF, IDPool
-from pysat.card import CardEnc, EncType
-
-B = 32
-K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d]
-ROT = lambda w, n: w[n:] + w[:n]          # w[j] = bit j; ROTR by n: new[j] = old[j + n]
-
-
-def qm_cnf(nvars, allowed, dontcare=()):
-    """Minimal-ish CNF (prime implicates covering the forbidden set) of a boolean relation
-    over nvars variables; allowed and dontcare are sets of assignments (tuples of 0/1)."""
-    allowed, dontcare = set(allowed), set(dontcare)
-    forbidden = [a for a in itertools.product((0, 1), repeat=nvars) if a not in allowed and a not in dontcare]
-    if not forbidden:
-        return []
-    # implicants of the forbidden function (as cubes with None = free), merging with don't-cares
-    on = set(forbidden) | dontcare
-    cubes = {tuple(a) for a in on}
-    primes = set()
-    while cubes:
-        nxt, used = set(), set()
-        cl = list(cubes)
-        idx = {}
-        for c in cl:
-            for k in range(nvars):
-                if c[k] is None: continue
-                key = c[:k] + (None,) + c[k + 1:]
-                idx.setdefault((k, key), []).append(c)
-        for (k, key), group in idx.items():
-            vals = {g[k] for g in group}
-            if vals == {0, 1}:
-                nxt.add(key); used.update(group)
-        primes |= cubes - used
-        cubes = nxt
-    primes = sorted(primes, key=lambda p: tuple(2 if x is None else x for x in p))   # deterministic order (None hashes by address)
-    # greedy cover of the forbidden minterms (don't-cares need not be covered)
-    def covers(p, m): return all(p[k] is None or p[k] == m[k] for k in range(nvars))
-    todo = set(forbidden); chosen = []
-    while todo:
-        best = max(primes, key=lambda p: (sum(covers(p, m) for m in todo), -sum(x is not None for x in p)))
-        chosen.append(best); todo = {m for m in todo if not covers(best, m)}
-    # a cube of the forbidden set -> clause forbidding it
-    return [[(k + 1) * (-1 if p[k] == 1 else 1) for k in range(nvars) if p[k] is not None] for p in chosen]
-
-
-@lru_cache(None)
-def rel_bool(fn):
-    """inputs (v0,d0,v1,d1,v2,d2) -> output (vo,do); exact for both members."""
-    f = {'XOR': lambda a, b, c: a ^ b ^ c, 'IF': lambda a, b, c: (a & b) ^ ((1 - a) & c), 'MAJ': lambda a, b, c: (a & b) ^ (a & c) ^ (b & c)}[fn]
-    allowed = set()
-    for v0, d0, v1, d1, v2, d2 in itertools.product((0, 1), repeat=6):
-        x = f(v0, v1, v2); y = f(v0 ^ d0, v1 ^ d1, v2 ^ d2)
-        allowed.add((v0, d0, v1, d1, v2, d2, x, x ^ y))
-    return qm_cnf(8, allowed)
-
-
-@lru_cache(None)
-def rel_add():
-    """signed-carry addition bit: (va,da,vb,db,vc,dc,vz,dz,vn,dn) with s_a+s_b+s_c = s_z + 2 s_n.
-    For d = 0 the value bit is free (don't care)."""
-    allowed = set()
-    sg = lambda v, d: (2 * v - 1) if d else 0
-    for t in itertools.product((0, 1), repeat=10):
-        va, da, vb, db, vc, dc, vz, dz, vn, dn = t
-        if sg(va, da) + sg(vb, db) + sg(vc, dc) == sg(vz, dz) + 2 * sg(vn, dn):
-            allowed.add(t)
-    return qm_cnf(10, allowed)
-
-
-class SD:
-    def __init__(self):
-        self.pool = IDPool(); self.cnf = CNF(); self.words = {}
-
-    def word(self, name):
-        if name not in self.words:
-            self.words[name] = [(self.pool.id((name, j, 'v')), self.pool.id((name, j, 'd'))) for j in range(B)]
-        return self.words[name]
-
-    def const_word(self, c):
-        name = 'K_%08x' % c
-        if name not in self.words:
-            w = self.word(name)
-            for j, (v, d) in enumerate(w):
-                self.cnf.append([-d]); self.cnf.append([v] if (c >> j) & 1 else [-v])
-        return self.words[name]
-
-    def const0(self):
-        if 'ZERO' not in self.words:
-            w = self.word('ZERO')
-            for v, d in w: self.cnf.append([-v]); self.cnf.append([-d])
-        return self.words['ZERO'][0]
-
-    def apply(self, clauses, lits):
-        for c in clauses:
-            self.cnf.append([lits[abs(l) - 1] * (1 if l > 0 else -1) for l in c])
-
-    def relaxed_copy(self, w):
-        """per-instance value bits: shared sign (v when d = 1), free value when d = 0"""
-        out = []
-        for v, d in w:
-            v2 = self.pool.id()
-            self.cnf.append([-d, -v, v2]); self.cnf.append([-d, v, -v2])
-            out.append((v2, d))
-        return out
-
-    def boolfn(self, fn, a, b, c, out, relax=False):
-        cl = rel_bool(fn)
-        if relax: a, b, c = self.relaxed_copy(a), self.relaxed_copy(b), self.relaxed_copy(c)
-        for j in range(B):
-            self.apply(cl, [a[j][0], a[j][1], b[j][0], b[j][1], c[j][0], c[j][1], out[j][0], out[j][1]])
-
-    def add(self, a, b, out, tag):
-        """out = a + b with signed carries."""
-        cl = rel_add()
-        carry = [(self.pool.id((tag, j, 'cv')), self.pool.id((tag, j, 'cd'))) for j in range(B + 1)]
-        self.cnf.append([-carry[0][1]])          # no carry difference into bit 0
-        for j in range(B):
-            self.apply(cl, [a[j][0], a[j][1], b[j][0], b[j][1], carry[j][0], carry[j][1], out[j][0], out[j][1], carry[j + 1][0], carry[j + 1][1]])
-        # carry out of bit 31 is discarded (mod 2^32): no constraint
-
-    def yval(self, v, d):
-        y = self.pool.id(); self.cnf.extend([[-v, -d, -y], [v, d, -y], [v, -d, y], [-v, d, y]]); return y
-
-    def exact_add(self, a, b, out):
-        """value-exact z = a + b for member x (bits v) and member y (bits v XOR d)."""
-        for m in (0, 1):
-            av = [x[0] if m == 0 else self.yval(*x) for x in a]
-            bv = [x[0] if m == 0 else self.yval(*x) for x in b]
-            zv = [x[0] if m == 0 else self.yval(*x) for x in out]
-            c = None
-            for j in range(B):
-                if c is None:
-                    self.xor_eq(av[j], bv[j], None, zv[j]); c = self.pool.id()
-                    self.cnf.extend([[-av[j], -bv[j], c], [av[j], -c], [bv[j], -c]])
-                else:
-                    self.xor_eq(av[j], bv[j], c, zv[j])
-                    if j < B - 1:
-                        c2 = self.pool.id()
-                        self.cnf.extend([[-av[j], -bv[j], c2], [-av[j], -c, c2], [-bv[j], -c, c2], [av[j], bv[j], -c2], [av[j], c, -c2], [bv[j], c, -c2]])
-                        c = c2
-
-    def xor_eq(self, a, b, c, z):
-        lits = [a, b] + ([c] if c is not None else [])
-        import itertools
-        for vals in itertools.product((0, 1), repeat=len(lits)):
-            r = sum(vals) & 1
-            self.cnf.append([(-l if v else l) for l, v in zip(lits, vals)] + [z if r else -z])
-
-    def addn(self, terms, out, tag, exact=False):
-        acc = terms[0]
-        for k, t in enumerate(terms[1:]):
-            dst = out if k == len(terms) - 2 else self.word('%s_t%d' % (tag, k))
-            self.add(acc, t, dst, '%s_c%d' % (tag, k))
-            if exact: self.exact_add(acc, t, dst)
-            acc = dst
-
-    def sigma(self, w, r1, r2, r3, shift, out, relax=False):
-        z = self.const0()
-        if relax: w = self.relaxed_copy(w)
-        third = ROT(w, r3) if not shift else (w[r3:] + [z] * r3)
-        self.boolfn('XOR', ROT(w, r1), ROT(w, r2), third, out)
-
-    def zero_diff(self, w):
-        for v, d in w: self.cnf.append([-d])
-
-    def hw_lits(self, ws):
-        return [d for w in ws for v, d in w]
-
-    def fix(self, w, row):
-        """row: 32 symbols MSB first; '=' no diff (value free), 'u'/'n' diff, '0'/'1' value condition, '-' free."""
-        for k, s in enumerate(row):
-            v, d = w[B - 1 - k]
-            if s in '=0123456789+-' and s not in 'un':
-                self.cnf.append([-d])
-                if s == '0': self.cnf.append([-v])
-                if s == '1': self.cnf.append([v])
-            elif s == 'u': self.cnf.append([d]); self.cnf.append([v])
-            elif s == 'n': self.cnf.append([d]); self.cnf.append([-v])
-
-    def card(self, lits, op, k, enc=EncType.totalizer):
-        f = {'<=': CardEnc.atmost, '>=': CardEnc.atleast, '=': CardEnc.equals}[op](lits=lits, bound=k, vpool=self.pool, encoding=enc)
-        self.cnf.extend(f.clauses)
-
-
-def sha256_model(n_msg=38, diff_words=(7, 8, 9, 10, 11, 15, 16, 23, 25), state=(7, 26), with_state=True, zero_start=True, relax_steps=(), relax_kinds=('S', 'B'), exact_steps=()):
-    m = SD()
-    W = [m.word('W%d' % i) for i in range(n_msg)]
-    for i in range(16, n_msg):
-        s1, s0 = m.word('s1_%d' % i), m.word('s0_%d' % i)
-        m.sigma(W[i - 2], 17, 19, 10, True, s1)
-        m.sigma(W[i - 15], 7, 18, 3, True, s0)
-        m.addn([s1, W[i - 7], s0, W[i - 16]], W[i], 'mx%d' % i)
-    for i in range(n_msg):
-        if i not in diff_words: m.zero_diff(W[i])
-    A = {i: m.word('A%d' % i) for i in range(state[0] - 4, state[1])}
-    E = {i: m.word('E%d' % i) for i in range(state[0] - 4, state[1])}
-    if with_state:
-        for i in range(state[0], state[1]):
-            S1, IF, S0, MJ, T1 = (m.word('%s_%d' % (n, i)) for n in ('S1', 'IF', 'S0', 'MJ', 'T1'))
-            rs = i in relax_steps and 'S' in relax_kinds; rb = i in relax_steps and 'B' in relax_kinds
-            m.sigma(E[i - 1], 6, 11, 25, False, S1, relax=rs)
-            m.boolfn('IF', E[i - 1], E[i - 2], E[i - 3], IF, relax=rb)
-            ex = i in exact_steps
-            m.addn([E[i - 4], S1, IF, W[i], m.const_word(K[i]) if ex else None][:5 if ex else 4], T1, 't1_%d' % i, exact=ex)
-            m.add(A[i - 4], T1, E[i], 'e_%d' % i)
-            if ex: m.exact_add(A[i - 4], T1, E[i])
-            m.sigma(A[i - 1], 2, 13, 22, False, S0, relax=rs)
-            m.boolfn('MAJ', A[i - 1], A[i - 2], A[i - 3], MJ, relax=rb)
-            m.addn([T1, S0, MJ], A[i], 'a_%d' % i, exact=ex)
-        for i in range(state[0] - 4, state[0]):
-            if zero_start: m.zero_diff(A[i]); m.zero_diff(E[i])
-        for i in range(state[1] - 8, state[1]): m.zero_diff(A[i])
-        for i in range(state[1] - 4, state[1]): m.zero_diff(E[i])
-    m.W, m.A, m.E = W, A, E
-    return m
-
-
-def decode(m, model_set, words):
-    rows = {}
-    for name in words:
-        w = m.words[name]; s = ''
-        for j in range(B - 1, -1, -1):
-            v, d = w[j]
-            s += ('u' if v in model_set else 'n') if d in model_set else '='
-        rows[name] = s
-    return rows
-```
-
-### vmodel.py
-
-```python
-"""Exact value-level two-member model of SHA-256 rows 0..15 for a given signed characteristic
-(own code). Member x is computed exactly; member y's words are x XOR (difference mask) with the
-sign bits fixed ('u': x bit 1, 'n': x bit 0), and y's rows are also computed exactly, so every
-difference of the characteristic holds with real carries. Free: A0..A6 (with A_-4..A_-1, E_-4..E_-1
-implied by the Step-2 bijection, they need not be modeled), W7..W15. Rows 4..6 E words are derived
-from A0..A6 (E_i = A_i + A_{i-4} - S0(A_{i-1}) - MAJ(A_{i-1}, A_{i-2}, A_{i-3}), i >= 4)."""
-from pysat.formula import IDPool
-K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-     0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-     0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-     0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85]
-B = 32
-
-
-class V:
-    XOR_NATIVE = False
-    def __init__(self):
-        self.pool = IDPool(); self.cl = []; self.xors = []
-        self.T = self.pool.id('TRUE'); self.cl.append([self.T])
-
-    def new(self, n=B, tag=None):
-        return [self.pool.id() for _ in range(n)]
-
-    def const(self, c):
-        return [self.T if (c >> j) & 1 else -self.T for j in range(B)]
-
-    def xor2(self, a, b):
-        o = self.pool.id()
-        if V.XOR_NATIVE: self.xors.append([a, b, -o]); return o      # a ^ b ^ ~o = 1  <=>  o = a ^ b
-        self.cl += [[-a, -b, -o], [a, b, -o], [a, -b, o], [-a, b, o]]
-        return o
-
-    def xor3(self, a, b, c):
-        o = self.pool.id()
-        if V.XOR_NATIVE: self.xors.append([a, b, c, -o]); return o
-        for s in range(8):
-            x, y, z = s & 1, s >> 1 & 1, s >> 2 & 1
-            r = x ^ y ^ z
-            self.cl.append([(-a if x else a), (-b if y else b), (-c if z else c), (o if r else -o)])
-        return o
-
-    def maj(self, a, b, c):
-        o = self.pool.id()
-        self.cl += [[-a, -b, o], [-a, -c, o], [-b, -c, o], [a, b, -o], [a, c, -o], [b, c, -o]]
-        return o
-
-    def ifn(self, e, f, g):
-        o = self.pool.id()
-        self.cl += [[-e, -f, o], [-e, f, -o], [e, -g, o], [e, g, -o]]
-        return o
-
-    def add(self, a, b):
-        out, c = [], None
-        for j in range(B):
-            if c is None:
-                out.append(self.xor2(a[j], b[j])); c = self.and2(a[j], b[j])
-            else:
-                out.append(self.xor3(a[j], b[j], c))
-                if j < B - 1: c = self.maj(a[j], b[j], c)
-        return out
-
-    def and2(self, a, b):
-        o = self.pool.id()
-        self.cl += [[-a, -b, o], [a, -o], [b, -o]]
-        return o
-
-    def addn(self, ws):
-        acc = ws[0]
-        for w in ws[1:]: acc = self.add(acc, w)
-        return acc
-
-    def neg(self, w):  # two's complement: ~w + 1
-        return self.add([-x for x in w], self.const(1))
-
-    def rot(self, w, n): return w[n:] + w[:n]
-
-    def S0(self, w): return [self.xor3(*t) for t in zip(self.rot(w, 2), self.rot(w, 13), self.rot(w, 22))]
-    def S1(self, w): return [self.xor3(*t) for t in zip(self.rot(w, 6), self.rot(w, 11), self.rot(w, 25))]
-    def s0(self, w): return [self.xor3(*t) for t in zip(self.rot(w, 7), self.rot(w, 18), w[3:] + [-self.T] * 3)]
-    def s1(self, w): return [self.xor3(*t) for t in zip(self.rot(w, 17), self.rot(w, 19), w[10:] + [-self.T] * 10)]
-    def IF(self, e, f, g): return [self.ifn(*t) for t in zip(e, f, g)]
-    def MAJ(self, a, b, c): return [self.maj(*t) for t in zip(a, b, c)]
-
-    def eq(self, a, b):
-        for x, y in zip(a, b): self.cl += [[-x, y], [x, -y]]
-
-
-def masks(row):
-    """row MSB first -> (xor mask, sign fixes {bit: x value})"""
-    m, fx = 0, {}
-    for k, s in enumerate(row):
-        j = B - 1 - k
-        if s in 'un': m |= 1 << j; fx[j] = 1 if s == 'u' else 0
-    return m, fx
-
-
-def add_conditions(v, conds, Ax, Ex, W):
-    """value conditions on member-x bits (rows <= 15, W7 excluded) as clauses forbidding disallowed tuples."""
-    import itertools
-    n = 0
-    for c in conds:
-        if c['key'] > 15 or any(k == 'W' and i == 7 for k, i, b in c['refs']): continue
-        lits = []
-        for k, i, b in c['refs']:
-            src = {'A': Ax, 'E': Ex, 'W': W}[k]
-            if i not in src: lits = None; break
-            lits.append(src[i][b])
-        if lits is None: continue
-        allowed = set(map(tuple, c['allowed']))
-        for t in itertools.product((0, 1), repeat=len(lits)):
-            if t not in allowed:
-                v.cl.append([(-l if bit else l) for l, bit in zip(lits, t)])
-        n += 1
-    return n
-
-
-def dense_model(char, last=15, extra_rows=(), free_rows=(), skip=(), free_signs=False, expansion=False):
-    """char: {row: {'A': str, 'E': str, 'W': str}} for rows 0..last (signed differences only are used)."""
-    v = V()
-    A = {i: v.new() for i in range(0, 7)}          # member x A0..A6 (equal in y: rows < 7 carry no difference)
-    W = {i: v.new() for i in range(7, last + 1)}   # member x W7..W15
-    # E4..E6 from A0..A6
-    E = {3: v.new()}                              # E3 is free (it fixes A_-1 of the chaining value)
-    for i in (4, 5, 6):
-        E[i] = v.addn([A[i], A[i - 4], v.neg(v.S0(A[i - 1])), v.neg(v.MAJ(A[i - 1], A[i - 2], A[i - 3]))])
-    def ymask(w, row):
-        m, fx = masks(row)
-        if not free_signs:
-            for j, val in fx.items(): v.cl.append([w[j] if val else -w[j]])
-        return [(-x if (m >> j) & 1 else x) for j, x in enumerate(w)]
-    Wy = {i: ymask(W[i], char[i]['W']) for i in W}
-    # rows 4..6: no differences allowed
-    for i in (4, 5, 6):
-        assert set(char[i]['E']) <= set('=01+-') and set(char[i]['A']) <= set('=01+-'), i
-    Ax = dict(A); Ex = dict(E); Ay = dict(A); Ey = dict(E)
-    for i in range(7, last + 1):
-        for (AA, EE, WW) in ((Ax, Ex, W), (Ay, Ey, Wy)):
-            T1 = v.addn([EE[i - 4], v.S1(EE[i - 1]), v.IF(EE[i - 1], EE[i - 2], EE[i - 3]), v.const(K[i]), WW[i]])
-            EE[i] = v.add(AA[i - 4], T1)
-            AA[i] = v.addn([T1, v.S0(AA[i - 1]), v.MAJ(AA[i - 1], AA[i - 2], AA[i - 3])])
-        # link: y = x XOR mask with signs fixed (rows in free_rows: no link, the trail is whatever the values give)
-        if i in free_rows: continue
-        for nm, X, Y in (('A', Ax, Ay), ('E', Ex, Ey)):
-            if (nm, i) in skip: continue
-            m, fx = masks(char[i][nm])
-            for j, val in fx.items(): v.cl.append([X[i][j] if val else -X[i][j]])
-            v.eq(Y[i], [(-x if (m >> j) & 1 else x) for j, x in enumerate(X[i])])
-    if expansion:   # modular conditions of the expansion on the dense words (dW17 = dW24 = dW26 = dW30 = 0)
-        def diff(fx, fy): return v.add(fy, v.neg(fx))
-        zero = v.const(0)
-        v.eq(v.add(diff(v.s1(W[15]), v.s1(Wy[15])), diff(W[10], Wy[10])), zero)
-        v.eq(v.add(diff(v.s0(W[9]), v.s0(Wy[9])), diff(W[8], Wy[8])), zero)
-        v.eq(v.add(diff(v.s0(W[11]), v.s0(Wy[11])), diff(W[10], Wy[10])), zero)
-        v.eq(v.addn([diff(v.s0(W[15]), v.s0(Wy[15])), diff(W[9], Wy[9]), diff(v.s0(W[8]), v.s0(Wy[8])), diff(W[7], Wy[7])]), zero)
-    v.A, v.E, v.W, v.Ay, v.Ey, v.Wy = Ax, Ex, W, Ay, Ey, Wy
-    return v
-
-
-def value(model_set, w):
-    """model_set: set of true positive literals"""
-    return sum(1 << j for j, x in enumerate(w) if (x > 0 and x in model_set) or (x < 0 and (-x) not in model_set))
-
-
-def write_dimacs(v, fn):
-    """CNF plus CryptoMiniSat native XOR lines ('x' prefix: XOR of literals = true)."""
-    with open(fn, 'w') as f:
-        f.write('p cnf %d %d\n' % (v.pool.top, len(v.cl) + len(v.xors)))
-        for c in v.cl: f.write(' '.join(map(str, c)) + ' 0\n')
-        for x in v.xors: f.write('x' + ' '.join(map(str, x)) + ' 0\n')
-```
-
-### sha38.py
-
-```python
-"""Independent reduced-round SHA-256 (FIPS 180-4) with full trace, written from the spec."""
-M32 = 0xFFFFFFFF
-K = [
-    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
-]
-IV = (0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19)
-
-
-def ror(x, n):
-    return ((x >> n) | (x << (32 - n))) & M32
-
-
-def S0(x): return ror(x, 2) ^ ror(x, 13) ^ ror(x, 22)
-def S1(x): return ror(x, 6) ^ ror(x, 11) ^ ror(x, 25)
-def s0(x): return ror(x, 7) ^ ror(x, 18) ^ (x >> 3)
-def s1(x): return ror(x, 17) ^ ror(x, 19) ^ (x >> 10)
-def CH(x, y, z): return (x & y) ^ (~x & z & M32)
-def MAJ(x, y, z): return (x & y) ^ (x & z) ^ (y & z)
-
-
-def expand(W16, n):
-    W = list(W16)
-    for i in range(16, n):
-        W.append((s1(W[i - 2]) + W[i - 7] + s0(W[i - 15]) + W[i - 16]) & M32)
-    return W
-
-
-def trace(cv, W16, rounds=38):
-    """Return (A, E, W, out) with A[i], E[i] indexed i = -4..rounds-1 via dict."""
-    a, b, c, d, e, f, g, h = cv
-    A = {-1: a, -2: b, -3: c, -4: d}
-    E = {-1: e, -2: f, -3: g, -4: h}
-    W = expand(W16, rounds)
-    for i in range(rounds):
-        T1 = (h + S1(e) + CH(e, f, g) + K[i] + W[i]) & M32
-        T2 = (S0(a) + MAJ(a, b, c)) & M32
-        h, g, f = g, f, e
-        e = (d + T1) & M32
-        d, c, b = c, b, a
-        a = (T1 + T2) & M32
-        A[i], E[i] = a, e
-    out = tuple((x + y) & M32 for x, y in zip(cv, (a, b, c, d, e, f, g, h)))
-    return A, E, W, out
-
-
-def compress(cv, W16, rounds=38):
-    return trace(cv, W16, rounds)[3]
-```
-
-### mkpkg4.py
-
-```python
-#!/usr/bin/env python3
-"""mkpkg4.py <sha2-search dir> <candidate dir> <q3_model> <q3 threshold> [options]: proof.md, claim.json, dependencies.json and
-experiments/ of the A0-variant package with the characteristic P8, 32 classes and per-class row-16 programs (successor of the package
-filed as 1a695f0b, generated by mkpkg3.py).  Every number in the prose that derives from data is read from the run files listed in the
-INPUTS block below (each overridable on the command line) or recomputed here; a value that cannot be computed from files is a required
-option.  Without --allow-missing the generator stops before writing anything if an input is missing or inconsistent, and lists them.
-With --allow-missing it writes a dry-run package with **TODO(...)** markers and a banner listing every missing or provisional input."""
-import sys
-sys.dont_write_bytecode = True
-import argparse, json, re, glob, math, statistics as st, hashlib, os, shutil, collections, random, importlib.util
-from fractions import Fraction as Fr
-
-# ---- inputs (paths relative to the sha2-search dir) ----
-INPUTS = dict(
-    q3dir='runs/q3p8_32',                       # q3 study: out_<seed>.txt (q3tv2, DIFFROW=19 RELAX_TAIL=1, VARS = the class pool)
-    h3glob='runs/a0p32/h3_first750/h3_*.txt',   # pair term, charged sample (h3p.py output; last line a dict)
-    h3spread='runs/a0p32/h3_*.txt',             # pair term, cross-check sample spread over all runs (SPREAD=750)
-    devdir='runs/a0p32/dev',                    # replica development requests (dev_*.txt)
-    calib='runs/a0p32/calibrate.json',          # executed counts of experiments/a0p38.py (prog = list of per-class counts)
-    valid='runs/a0p32/validation.txt',          # our validation of the shipped experiments
-    memory='runs/a0p32/memory.txt',             # memory record
-    pat19='runs/a0p32/pat19.txt',               # row-19 patterns of the study's successes
-    selftest='runs/a0p32/selftest.txt',         # selftest output of the shipped program
-    classes='runs/lp/P8_32/classes.txt',        # c7 base size mask (lp_classes.py, ALLMAX=1)
-    vars='runs/lp/P8_32/vars_pool.txt',         # the variant pool of the selected classes
-    derived='runs/lp/P8_32/derived.json',       # lp_classes.py summary (number of largest classes etc.)
-    exp='runs/a0p32/a0p38.py',                  # the shipped program
-    fam='runs/a0p/a0fam_p08.txt',               # A0-variant family of S (same S as 1a695f0b)
-    sweep='runs/a0p/sweep_summary.txt',         # sign sweep summary (same as 1a695f0b)
-    char='runs/c/SW_p08_k1_j43.char.json',      # the characteristic P8
-    sfs='runs/c/P08.sfs_pair.json',             # the semi-free-start pair
-    ref_calib='runs/a0p/calibrate.json',        # 1a695f0b's calibration (8 classes, one shared program): reference rows
-    ref_classes='runs/p08_classes.txt',         # 1a695f0b's 8 classes (c7 base size): reference rows
-)
-# ---- reference values of earlier packages (filed numbers, used for comparison and checked where recomputable) ----
-REF = dict(id='1a695f0b', q3=-97.0, h3=-5.9, claim=87.22358, mem=28.10, score=95.32358, shared_prog=1511, mask=0x7fe96c7c)
-FB = dict(q3=-97.7838, variants='345,600', g='23,118.75', prog='1,410 to 1,426', claim='87.90375', mem='2^28 (online 1,044,992 bytes)', score='95.90375')
-# ---- study parameters (q3tv2 command-line arguments; not recorded in the out files; see DOWNSTREAM_RUNBOOK.md) ----
-STUDY = dict(seed0=4001, nruns=20, particles=4000, tail=16384)
-SRC = ['ledger_a0p.py', 'lp_classes.py', 'a0cls.c', 'a0p_ref.py', 'a0p_core.py', 'a0p_prog.py', 'a0p_scal.py', 'a0p_run.py', 'a0p_main.py',
-       'mka0p.py', 'mkvt.py', 'a0fam.c', 'h3p.py', 'q3tv.c', 'sweep.py', 'stepk.py', 'score.py', 'joint.py', 'fromjoint.py', 'prep.py', 'cond.py',
-       'sdmodel.py', 'vmodel.py', 'sha38.py', 'mkpkg4.py']
-DEPS_UUID = {'2d1c4fc2': '2d1c4fc2-7bdd-4b92-af0c-f0c041883b07', 'fb176310': 'fb176310-a5ab-4671-b610-23d90f5a3814',
-             '242fcec3': '242fcec3-3fb4-41a4-b808-945e2a75ced1', '49b543d1': '49b543d1-5b0d-48fa-bf34-a09503d37231',
-             '1a695f0b': '1a695f0b-4221-4159-b01f-a145022b5334', '08be594': None}     # 08be594: full id via --dep-08be594
-
-ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-ap.add_argument('R'); ap.add_argument('OUT'); ap.add_argument('q3_model', type=float); ap.add_argument('q3_threshold', type=float)
-for k, v in INPUTS.items(): ap.add_argument('--' + k.replace('_', '-'), dest=k, default=v, help='default %(default)s')
-for k, v in STUDY.items(): ap.add_argument('--' + k, dest=k, type=int, default=v, help='default %(default)s')
-ap.add_argument('--rebuilt-checked', default=None, help='rebuild check of the study successes, e.g. "300 of 300" (not in the run files)')
-ap.add_argument('--core-seconds-log2', type=float, default=None, help='bound (log2) on all core-seconds of search and development (H4)')
-ap.add_argument('--dep-08be594', default=None, help='full submission id of 08be594 (johnservil)')
-ap.add_argument('--allow-missing', action='store_true', help='write a dry-run package with TODO markers instead of failing')
-A = ap.parse_args()
-R, OUT, Q3M, THR = A.R, A.OUT, A.q3_model, A.q3_threshold
-P_ = lambda k: os.path.join(R, getattr(A, k))
-sys.path.insert(0, R + '/m38')
-from ledger_a0p import ledger
-
-MISSING, PROVISIONAL = [], []
-def miss(what): MISSING.append(what)
-def todo(name): return '**TODO(%s)**' % name
-def rd(k):
-    p = P_(k)
-    if not os.path.isfile(p) or os.path.getsize(p) == 0: miss('%s: %s' % (k, p)); return None
-    return open(p).read().rstrip('\n')
-c = lambda n: f'{n:,}'
-cg = lambda g: c(int(g)) if float(g) == int(g) else c(round(float(g), 2))   # good pairs per first block
-nz = lambda s: ''.join(ch if ch in 'un' else '=' for ch in s)
-WORDS = {1: 'one', 2: 'two', 3: 'three', 4: 'four', 5: 'five', 6: 'six', 7: 'seven', 8: 'eight', 9: 'nine', 10: 'ten'}
-wd = lambda n: WORDS.get(n, str(n))
-pop = lambda x: bin(x).count('1')
-
-# ---- fixed inputs (same P8 and S as 1a695f0b) ----
-CH = {int(k): v for k, v in json.load(open(P_('char'))).items()}
-PUB = {int(k): v for k, v in json.load(open(R + '/m38/paper_table3.json')).items()}
-SFS = json.load(open(P_('sfs')))
-FAM, SWEEP = rd('fam'), rd('sweep')
-for f in SRC:
-    if not os.path.isfile(R + '/m38/' + f): miss('source m38/' + f)
-
-# ---- the shipped program ----
-VT = P_('exp')
-spec = importlib.util.spec_from_file_location('a0p38', VT); AP = importlib.util.module_from_spec(spec); spec.loader.exec_module(AP)
-SHB = pop(AP.SHARED)
-vt_src = open(VT).read(); vt_hash = hashlib.sha256(open(VT, 'rb').read()).hexdigest(); vt_size = os.path.getsize(VT)
-if AP.Q3_THRESH != THR: miss('inconsistent: Q3_THRESH = %s in %s, q3 threshold argument %s' % (AP.Q3_THRESH, VT, THR))
-
-# ---- classes ----
-CLS = [l.split() for l in open(P_('classes')) if l.strip()]
-assert all(len(x) == 4 for x in CLS), 'classes.txt needs four columns (c7 base size mask): run lp_classes.py with ALLMAX=1'
-CLS = [(int(a, 16), int(b, 16), int(n), int(m, 16)) for a, b, n, m in CLS]
-ncl = len(CLS); sizes = sorted({n for _, _, n, _ in CLS}); nvar = sum(n for _, _, n, _ in CLS)
-assert len(sizes) == 1, 'classes of different sizes: the ledger assumes one class size'
-csize = sizes[0]; nb = csize // 256
-maskcnt = collections.Counter(m for _, _, _, m in CLS); masks_desc = ', '.join('%08x (%d bits) x %d' % (m, pop(m), n) for m, n in sorted(maskcnt.items(), key=lambda t: (-t[1], -t[0])))
-wmin, wmax = min(pop(m) for m in maskcnt), max(pop(m) for m in maskcnt); widest = max(maskcnt, key=lambda m: (pop(m), m))
-DER = json.load(open(P_('derived')))
-nlargest = DER['n_largest']
-assert DER['class_size'] == csize
-if [(a, b, m) for a, b, _, m in CLS] != [tuple(x) for x in AP.CLASSES]: miss('inconsistent: CLASSES of %s differ from %s' % (VT, P_('classes')))
-if AP.CLASS_SIZE != csize: miss('inconsistent: CLASS_SIZE of %s' % VT)
-pool_n = 0; pool_cls = set()
-with open(P_('vars')) as f:
-    for l in f: pool_n += 1; pool_cls.add(l.split(' ', 1)[0])
-if pool_n != nvar or len(pool_cls) != ncl: miss('inconsistent: %s has %d variants of %d classes, classes.txt %d of %d' % (P_('vars'), pool_n, len(pool_cls), nvar, ncl))
-# 1a695f0b's classes (reference) and our per-class programs for them
-RCLS = [l.split() for l in open(P_('ref_classes')) if l.strip()]
-ref_idx = [next(i for i, x in enumerate(AP.CLASSES) if x[0] == int(a, 16) and x[1] == int(b, 16)) for a, b, _ in RCLS]
-ref_nvar = sum(int(n) for _, _, n in RCLS)
-ref_progs = [len(AP.program(i)) - 1 for i in ref_idx]
-
-# ---- calibration (cross-checked against the shipped program) ----
-CAL_LIVE = AP.calibrate()
-CALT = rd('calib')
-if CALT is None:
-    CAL = CAL_LIVE; PROVISIONAL.append('calibration computed by calibrate() of %s (no %s)' % (VT, P_('calib')))
-else:
-    CAL = json.loads(CALT)
-    if CAL != CAL_LIVE: miss('inconsistent: %s differs from calibrate() of %s' % (P_('calib'), VT))
-CALREF = json.load(open(P_('ref_calib')))
-progs = CAL['prog']; assert isinstance(progs, list) and len(progs) == ncl == CAL['classes'] and CAL['class_size'] == csize
-pmean = Fr(sum(progs), ncl); pmin, pmax = min(progs), max(progs); ndistinct = len({tuple(AP.cbits(i)) for i in range(ncl)})
-# the lane cost, itemised from the shipped routines
-_m = AP.Mach(); AP.lane_value(_m, {j: 0 for j in range(32)}, 0, widest, 0); n_lv = _m.ops
-_m = AP.Mach(); _sc = AP.fb_scalars(_m, [1] * 8); _m = AP.Mach(); AP.scalar_e16(_m, _sc, AP.members(0, 1)[0]); n_e16 = _m.ops
-assert 32 + AP.LANE_CTL + n_lv + n_e16 + 42 == CAL['lane'], 'lane cost does not itemise'
-# the replica's embedded variant sample
-VS = AP.vsample(); vs_cls = collections.Counter(AP.class_of(a) for a in VS)
-if None in vs_cls: miss('inconsistent: %d embedded replica samples are not in a selected class' % vs_cls[None])
-
-# ---- q3 study ----
-RUNS, STALLED, qmiss = [], [], []
-seeds = list(range(A.seed0, A.seed0 + A.nruns))
-for sd in seeds:
-    f = '%s/out_%d.txt' % (P_('q3dir'), sd); t = open(f).read() if os.path.isfile(f) else ''
-    mv = re.search(r'variants (\d+)', t)
-    if mv and int(mv.group(1)) != nvar: miss('inconsistent: %s used %s variants, the classes have %d' % (f, mv.group(1), nvar))
-    m = re.search(r'seed (\d+) .*stages (.*) \| succ (\d+) coll (\d+) \| log2q (-?[\d.]+)', t)
-    if m: RUNS.append((int(m.group(1)), m.group(2), int(m.group(3)), int(m.group(4)), float(m.group(5))))
-    elif re.search(r'seed %d stalled' % sd, t):
-        s = re.search(r'seed (\d+) (stalled.*)', t); RUNS.append((sd, s.group(2) + ' (no estimate: counted as 0)', 0, 0, None)); STALLED.append((sd, s.group(2)))
-    else: qmiss.append(sd)
-if qmiss: miss('q3 study %s: %d of %d runs not finished (seeds %s)' % (P_('q3dir'), len(qmiss), A.nruns, ' '.join(map(str, qmiss))))
-nq = len(RUNS)
-def t_quant(p, v):
-    lc = math.lgamma((v + 1) / 2) - math.lgamma(v / 2) - 0.5 * math.log(v * math.pi)
-    pdf = lambda x: math.exp(lc - (v + 1) / 2 * math.log1p(x * x / v))
-    def cdf(x, n=4000):
-        h = x / n; return 0.5 + h / 3 * sum(pdf(i * h) * (1 if i in (0, n) else 4 if i % 2 else 2) for i in range(n + 1))
-    lo, hi = 0.0, 50.0
-    for _ in range(60):
-        mid = (lo + hi) / 2; lo, hi = (mid, hi) if cdf(mid) < p else (lo, mid)
-    return (lo + hi) / 2
-if nq >= 2:
-    qs = [2 ** r[4] if r[4] is not None else 0.0 for r in RUNS]; qm = sum(qs) / nq; qsd = st.stdev(qs); tq = t_quant(0.99, nq - 1)
-    qlo = math.log2(qm - tq * qsd / math.sqrt(nq))
-    rr = random.Random(1); bs = sorted(math.log2(sum(rr.choice(qs) for _ in qs) / nq) for _ in range(20000)); qbs = bs[200]
-    qsucc = sum(r[2] for r in RUNS)
-    if not all(r[2] == r[3] for r in RUNS): miss('inconsistent: a study run has successes that are not collisions')
-    stg = [list(map(float, r[1].split())) for r in RUNS if r[4] is not None]
-    lab = ['16', '17', '18', '19', '20', '21', '22', 'tail'] if all(len(x) == 8 for x in stg) else None
-    if lab and len(stg) >= 2:
-        sds = [st.stdev(x[k] for x in stg) for k in range(8)]; kmax = max(range(1, 8), key=lambda k: sds[k])
-        spread = 'The %s stage has the largest spread across the runs (sd %.2f bits of its log2 factor; the others at most %.2f)' % (
-            ('row-%s' % lab[kmax]) if lab[kmax] != 'tail' else 'tail', sds[kmax], max(sds[k] for k in range(1, 8) if k != kmax))
-    else: spread = todo('stage spread')
-    S_q = dict(mean='%.4f' % math.log2(qm), rsd='%.3f' % (qsd / qm), t='%.4f' % tq, df=str(nq - 1), lo='%.4f' % qlo, bs='%.4f' % qbs, succ=c(qsucc), n=str(nq))
-    if qmiss: PROVISIONAL.append('q3 study statistics over %d of %d runs' % (nq, A.nruns))
-else:
-    qm = None; spread = todo('stage spread'); S_q = {k: todo('q3 study') for k in ('mean', 'rsd', 't', 'df', 'lo', 'bs', 'succ', 'n')}
-stall_txt = (('Run%s %s found no survivor at row %s and %s counted as an estimate of 0.' % ('s' if len(STALLED) > 1 else '', ' and '.join(str(sd) for sd, _ in STALLED),
-              '/'.join(sorted({x.split()[-1] for _, x in STALLED})), 'are' if len(STALLED) > 1 else 'is')) if STALLED else 'No run stalled.')
-seed_txt = '%d..%d' % (seeds[0], seeds[-1])
-
-# ---- replica development requests ----
-DEV = []
-for f in sorted(glob.glob(P_('devdir') + '/dev_*.txt')):
-    for l in open(f):
-        t = l.split()
-        if len(t) >= 14: DEV.append((int(t[0]), float(t[1]), int(t[2]), int(t[3]), [None if v == 'None' else float(v) for v in t[4:14]]))
-if DEV:
-    reps = [z for d in DEV for z in d[4]]; rmean = math.log2(sum(2 ** z if z is not None else 0.0 for z in reps) / len(reps))
-    pm = sorted(d[1] for d in DEV); rs = [sum(z is not None for z in d[4]) for d in DEV]
-    S_d = dict(n=str(len(DEV)), nrep=str(len(reps)), min='%.3f' % pm[0], q5='%.3f' % pm[int(0.05 * len(pm))], med='%.3f' % ((pm[(len(pm) - 1) // 2] + pm[len(pm) // 2]) / 2),
-               rmean='%.4f' % rmean, rs='%d to %d' % (min(rs), max(rs)))
-    mm = re.search(r'fixed from (\d+) development requests', vt_src)
-    if mm and int(mm.group(1)) != len(DEV): miss('inconsistent: %s says the pass rule was fixed from %s development requests, %s has %d' % (VT, mm.group(1), P_('devdir'), len(DEV)))
-else:
-    miss('replica development requests: %s/dev_*.txt' % P_('devdir')); S_d = {k: todo('dev') for k in ('n', 'nrep', 'min', 'q5', 'med', 'rmean', 'rs')}
-
-# ---- replica power (approximation: a lower q3 shifts the replica's pooled means) ----
-_dv = sorted(float(l.split()[1]) for f in glob.glob(os.path.join(P_('devdir'), 'dev_*.txt')) for l in open(f) if len(l.split()) > 2)
-POW = {sh: sum(1 for x in _dv if x - sh < THR) / len(_dv) for sh in (0, 1, 2, 3)} if _dv else {}
-# ---- pair term ----
-H3 = collections.Counter(); h3f = glob.glob(P_('h3glob'))
-for f in h3f:
-    d = eval(open(f).read().strip().split('\n')[-1]); H3.update(d)
-def pois_up(k, a=0.01):
-    lo, hi = 0.0, 100.0 + 10 * k
-    for _ in range(200):
-        mid = (lo + hi) / 2; cdf = sum(math.exp(-mid) * mid ** i / math.factorial(i) for i in range(k + 1))
-        lo, hi = (mid, hi) if cdf > a else (lo, mid)
-    return hi
-if h3f and H3['verified']:
-    h3lim = pois_up(H3['other_r16']) / H3['verified']; H3B = math.ceil(math.log2(h3lim) * 10) / 10 + 0.5
-    if not (H3['verified'] == H3['successes'] == H3['own_found']): miss('inconsistent: pair-term run has unverified or not re-found successes (%s)' % dict(H3))
-    dis = 1 - 0.01 ** (1 / H3['verified'])
-    S_h = dict(succ=c(H3['successes']), own=c(H3['own_found']), pc=c(H3['passing_classes']), var=c(H3['variants']), r16=str(H3['other_r16']),
-               acc=str(H3['other_accepted']), exp='%.2f' % (H3['variants'] * 160 / 2 ** 32), lim='%.4f' % h3lim, llim='%.2f' % math.log2(h3lim),
-               H3B='%.1f' % H3B, ver=c(H3['verified']), dis='%.1f%%' % (100 * dis))
-    H3S = collections.Counter()
-    for f in glob.glob(P_('h3spread')): H3S.update(eval(open(f).read().strip().split('\n')[-1]))
-    if H3S['verified']:
-        h3lims = pois_up(H3S['other_r16']) / H3S['verified']
-        S_h['spread'] = ('A second sample of %s successes spread evenly over all %d runs (`SPREAD=%d`; every success of the sorted dump files, '
-            'equally spaced) gives %s verified, %s passing classes, %s variants, %s other row-16 passes, %s further accepted pairs: 99%% limit 2^%.2f, '
-            'charge 2^%.1f by the same rule. We charge the larger value, that of the first sample.') % (c(H3S['successes']), A.nruns, H3S['successes'],
-            c(H3S['verified']), c(H3S['passing_classes']), c(H3S['variants']), H3S['other_r16'], H3S['other_accepted'], math.log2(h3lims),
-            math.ceil(math.log2(h3lims) * 10) / 10 + 0.5)
-        H3B = max(H3B, math.ceil(math.log2(h3lims) * 10) / 10 + 0.5); S_h['H3B'] = '%.1f' % H3B
-    else: S_h['spread'] = ''
-else:
-    miss('pair term: %s' % P_('h3glob')); H3B = REF['h3']; PROVISIONAL.append('pair term h3 = %.1f (the value of %s) for the ledger' % (H3B, REF['id']))
-    S_h = {k: todo('pair term') for k in ('succ', 'own', 'pc', 'var', 'r16', 'acc', 'exp', 'lim', 'llim', 'ver', 'dis')}; S_h['H3B'] = '%.1f %s' % (H3B, todo('pair term'))
-
-# ---- memory ----
-MEM = rd('memory')
-if MEM:
-    memonline = int(re.search(r'online (\d+)', MEM).group(1)); mempre = float(re.search(r'preprocessing peak 2\^([\d.]+)', MEM).group(1))
-    memclaim = math.ceil(max(mempre, math.log2(memonline)) * 100) / 100
-    if 'lp_classes' not in MEM: miss('memory record %s does not cover lp_classes.py (class selection)' % P_('memory'))
-    S_m = dict(online=c(memonline))
-else:
-    memclaim = REF['mem']; PROVISIONAL.append('memory 2^%.2f (the value of %s; no memory record)' % (memclaim, REF['id'])); S_m = dict(online=todo('memory'))
-
-# ---- remaining files ----
-SELF, VAL, PAT19 = rd('selftest'), rd('valid'), rd('pat19')
-if SELF and 'SELFTEST PASSED' not in SELF: miss('selftest did not pass: %s' % P_('selftest'))
-if PAT19:
-    pats = re.findall(r'^\s*([\d,]+)\s+([01]{8,})\s', PAT19, re.M)
-    mp = re.search(r'([\d,]+) of ([\d,]+) successes in these (\w+) patterns', PAT19); ms = re.search(r'seeds (\d+)\.\.(\d+)', PAT19)
-    if not ms or (int(ms.group(1)), int(ms.group(2))) != (seeds[0], seeds[-1]): miss('inconsistent: %s is not from the study seeds %s' % (P_('pat19'), seed_txt))
-    npat = len(pats)
-    S_p = dict(npat=wd(npat), cls=mp.group(1) if mp else todo('pat19 count'), tot=mp.group(2) if mp else todo('pat19 count'))
-    S_p['all'] = mp is not None and mp.group(1) == mp.group(2)
-else:
-    S_p = dict(npat=todo('pat19'), cls=None, tot=todo('pat19'), all=False)
-if VAL:
-    on = [(int(a), int(b), float(t)) for a, b, t in re.findall(r'a0p-online-r38\s+returned\s+(\d+).*?mismatches (\d+).*?([\d.]+)s\s*$', VAL, re.M)]
-    un = [(int(a), int(b), float(e)) for a, b, e in re.findall(r'unconditional: (\d+) first blocks, (\d+) class W7 passes \(expected ([\d.]+)\)', VAL)]
-    UNC = dict(fb=c(sum(x[0] for x in un)), passes=c(sum(x[1] for x in un)), exp=c(round(sum(x[2] for x in un))), req=len(un),
-               ratio='%.3f' % (sum(x[1] for x in un) / sum(x[2] for x in un))) if un else None
-    if not un: miss('validation: no unconditional first-block counts (H1)')
-    qv = [(float(p), float(r), int(s), int(n), int(fr)) for p, r, s, n, fr in re.findall(
-        r'a0p-q3-r38\s+returned\s+\d+\s+pooled 2\^(-?[\d.]+) \(rule >= 2\^(-?[\d.]+)\)\s+replicates with a success (\d+)/(\d+)\s+verified pairs \d+\s+failed rebuilds (\d+)', VAL)]
-    if any(r != THR for _, r, _, _, _ in qv): miss('inconsistent: validation used a different pass rule')
-    S_v = dict(on_ret='%d to %d' % (min(x[0] for x in on), max(x[0] for x in on)) if on else todo('validation'), on_mis=str(sum(x[1] for x in on)) if on else todo('validation'),
-               on_t='%.1f' % max(x[2] for x in on) if on else todo('validation'), q_rs='%d to %d' % (min(x[2] for x in qv), max(x[2] for x in qv)) if qv else todo('validation'),
-               q_pool='%.3f to %.3f' % (min(x[0] for x in qv), max(x[0] for x in qv)) if qv else todo('validation'), n=str(len(qv)))
-    if on and min(x[0] for x in on) == max(x[0] for x in on): S_v['on_ret'] = str(on[0][0])
-else:
-    S_v = {k: todo('validation') for k in ('on_ret', 'on_mis', 'on_t', 'q_rs', 'q_pool', 'n')}
-REB = A.rebuilt_checked or todo('rebuild check of the study successes: --rebuilt-checked')
-if not A.rebuilt_checked: miss('--rebuilt-checked (how many study successes were rebuilt and checked with the reference)')
-CORE = ('%g' % A.core_seconds_log2) if A.core_seconds_log2 is not None else None
-if CORE is None: miss('--core-seconds-log2 (H4: core-seconds of search and all development, including the 32-class study)')
-CORE_S = CORE or todo('core-seconds, --core-seconds-log2')
-DEP08 = A.dep_08be594 or DEPS_UUID['08be594']
-if not DEP08: miss('--dep-08be594 (full submission id of 08be594)')
-
-# ---- ledger and sensitivity ----
-L = ledger(q3=Q3M, h3=H3B, cal=CAL); claim = L['claim']
-score = claim + max(0.0, memclaim - 20)
-pre_own = sum((1 << pop(m)) * 40 + nb * 256 * pop(m) * 2 for _, _, _, m in CLS) + 2 ** 32   # PRE with each class's own mask width
-pre_note = ''
-if pre_own != L['PRE']:
-    from ledger_a0p import dlog2
-    alt = math.ceil(float(dlog2(Fr(L['N'] - L['PRE'] + pre_own, 2728))) * 1e5) / 1e5
-    if alt == claim:
-        pre_note = '(the ledger counts 2^21 cube points and 21 planes per class, the width of %08x; with each class\'s own mask width PRE = %s and time_log2 is unchanged)' % (REF['mask'], c(pre_own))
-        print('mkpkg4: note: ledger PRE uses 21-bit masks; own masks give PRE %s, time_log2 unchanged' % c(pre_own), file=sys.stderr)
+def load(text):return json.loads(text,object_pairs_hook=unique,parse_constant=lambda x:(_ for _ in ()).throw(ValueError('nonfinite JSON')))
+def js(x):return (json.dumps(x,sort_keys=True,separators=(',',':'))+'\n').encode()
+def sha(raw):return hashlib.sha256(raw).hexdigest()
+def unpack(p,limit=2097152):
+    need(set(p)=={'encoding','uncompressed_bytes','uncompressed_sha256','data'} and p['encoding'] in ('xz-base85-v1','zlib-base85-v1'),'encoding')
+    need(type(p['uncompressed_bytes']) is int and 0<=p['uncompressed_bytes']<=limit,'decoded bound')
+    d=lzma.LZMADecompressor(memlimit=64<<20) if p['encoding']=='xz-base85-v1' else zlib.decompressobj();raw=d.decompress(base64.b85decode(p['data']),limit+1)
+    need(d.eof and not d.unused_data and not getattr(d,'unconsumed_tail',b'') and len(raw)==p['uncompressed_bytes'] and sha(raw)==p['uncompressed_sha256'],'compressed commitment')
+    return raw
+def frame(proof,name):
+    ending='ENDLT' if name.startswith('LTFILE ') else ('ENDH7PACKET' if name=='H7PACKET' else 'ENDHISTORICAL')
+    matches=list(re.finditer(r'^<!-- '+re.escape(name)+r' -->\n```[a-z]*\n(.*?)\n```\n<!-- '+ending+r' -->$',proof,re.M|re.S));need(len(matches)==1,'frame '+name);return matches[0][1]
+def history(proof):
+    h=load(unpack(load(frame(proof,'HISTORICAL-ARCHIVE')),300000));need(h['base_proof_sha256']=='17677271e8a33835caa247864c4ad02992568aacc0008cc9710a6334a3396f71' and len(h['blocks'])==38,'historical anchor')
+    need([b['id'] for b in h['blocks']]==['AS%02d'%i for i in range(1,39)] and [x['id'] for x in h['sections']]==['R1-R4', 'Q-seed-records', 'support-3.7', 'support-3.8', 'support-8', 'support-9', 'allowances-11', 'checks-12', 'historical-13', 'credits-14', 'historical-P-H-Q', 'historical-R5-R6'],'historical inventory')
+    for b in h['blocks']+h['sections']:need(sha(b['text'].encode())==b['source_sha256'],'historical bytes')
+    return h
+
+def census(files):
+    c=load(files['data/census.json']);offsets=c['offset_counts'];need(len(offsets)==8 and all(len(x)==1024 for x in offsets),'offset inventory')
+    for j in range(8):
+        raw=load(files[f'results/column_census_runs/j{j}.json']);need((raw['residue'],raw['word_bits'],raw['slice_bits'])==(j,32,26) and raw['offset_counts']==offsets[j],'raw offsets')
+    for k,key in ((14,'candidate_14'),(15,'reference_15')):
+        values=[sum(offsets[j][(m+i)%1024] for i in range(k)) for m in range(1024) for j in range(8)];r=c[key]
+        need((min(values),max(values),sum(values),len(values))==(r['minimum'],r['maximum'],r['sum'],r['rotations']),'retained census')
+        need(sha(json.dumps(values,separators=(',',':')).encode())==r['totals_sha256'],'all rotation totals');r['totals']=values
+    need((c['reference_15']['minimum'],c['reference_15']['maximum'],c['reference_15']['sum'])==(44436632,44543396,364428388980),'15-column control')
+    need((c['candidate_14']['minimum'],c['candidate_14']['maximum'],c['candidate_14']['sum'])==(41471916,41577489,340133163048),'14-column extrema')
+    need(15*c['candidate_14']['sum']==14*c['reference_15']['sum'] and c['maximum_rss_kib']<=66916,'mean law/resources');return c
+
+def ledger(k,c):
+    getcontext().prec=90;lo=c['candidate_14' if k==14 else 'reference_15']['minimum'];hi=c['candidate_14' if k==14 else 'reference_15']['maximum'];p12=F(53096854,1<<32);pg=F(2051404269120,1<<52)
+    claw=7+2+16+24*8*p12+28*8*pg+8*pg*F('0.12136')*3014;limit=8*k+5;reads=F(20*26*k,2*limit)
+    per=F(235,256)+F(2*limit,8192)*(20+21+14+12+38+8*reads)+F(20*hi,1<<32)*claw;wbar=2728+3+F(1100+(1<<20)*per,64)
+    build=6+k*(1<<19)*5+(1<<32)*17+hi*22+(8*k*(1<<19)-hi)*9;vmax=777315598071
+    p2=lambda x:(D(x)*D(2).ln()).exp();lam=D(1)/64*(1<<20)*(D(160)*lo/D(2)**32)*(D(53096854)/D(2)**32)*(D(2051404269120)/(D(1<<20)*53096854))*D('0.11985')*p2('-96.0791')*D(2)**32/160*p2('-0.0468')*p2('-0.0225')*(1-D(2)**D('-8.5'))*(1-D(2)**-25)
+    ncv=int(-(1-D('0.39')-D(2)**-60).ln()/lam)+1;ne=-(-ncv//(1<<26));vcv=(1+F(1,1<<16))*ncv*wbar;vcv=-(-vcv.numerator//vcv.denominator);allow=3*(1<<70)*2728;fin=6*2728+1600+(1<<24);over=max(vmax,build);vm=ne*build+vcv;n=allow+vm+over+fin
+    bern=F(1,1<<32)*ncv*wbar/(2*vmax*(1+F(1,3*(1<<16))));need(bern>48000,'Bernstein cap')
+    goodmax=D((1<<20)*160*6*k*(1<<19))/D(2)**32*(D(2051404269120)/D(2)**52)*D('0.12136');pmax=D(1<<26)/64*goodmax*D(2)**32/lo*(D(2)**10)*p2('-96.0791')*D(2)**32/160;need(pmax<D(2)**-28,'epoch second-order cap')
+    return dict(N=n,NCV=ncv,NE=ne,VCV=vcv,VMAX=vm,ALLOW=allow,OVER=over,FIN=fin,build=build,vmax=vmax)
+
+def base_source(program,delta):
+    need(delta['program_sha256']==sha(program),'delta input');lines=program.decode().splitlines(keepends=True);out=[];cursor=0
+    for a,b,text in delta['edits']:need(type(a) is int and cursor<=a<=b<=len(lines),'source delta');out+=lines[cursor:a]+[text];cursor=b
+    out+=lines[cursor:];raw=''.join(out);need(sha(raw.encode())==delta['base_sha256']=='7fd7e84f666611f85417126ed5bcd458fe5c821a8c6fbf94f32c721085f54eef','baseline source');return raw
+
+def walk(program):
+    nodes=ast.parse(program).body;assign={t.id:n.value for n in nodes if isinstance(n,ast.Assign) for t in n.targets if isinstance(t,ast.Name)};thresholds=ast.literal_eval(assign['WALK_THRESHOLDS']);fn=next(n for n in nodes if isinstance(n,ast.FunctionDef) and n.name=='walk_lanes')
+    def run(block,z,cost=0):
+        for n in block:
+            if isinstance(n,ast.Return):return ast.literal_eval(n.value),cost
+            need(isinstance(n,ast.If),'walk syntax')
+            if isinstance(n.test,ast.Name):need(n.test.id=='m' and ast.unparse(n.body[0])=='m.br()','walk charge');cost+=2;continue
+            need(isinstance(n.test,ast.Compare) and ast.unparse(n.test.left)=='z' and isinstance(n.test.ops[0],ast.GtE),'walk comparison');i=ast.literal_eval(n.test.comparators[0].slice);return run(n.body if z>=thresholds[i] else n.orelse,z,cost)
+        raise ValueError('walk leaf')
+    worst=0
+    for mask in range(1,64):
+        z=sum(1<<(42*i+38) for i in range(6) if not mask>>i&1);got,cost=run(fn.body,z);want=[i for i in range(6) if mask>>i&1];need(got==want and cost<=sum((6,6,6,8,8,8)[i] for i in want),'ordered walk');worst=max(worst,cost)
+    need(worst==18,'walk maximum');return assign
+
+def lineage(program,record):
+    lines=program.decode().splitlines(keepends=True);old,new='max(online,246812672)','max(online,211431424)';need(len(record['edits'])==1,'program lineage');(a,b,text),=record['edits']
+    need(record['previous_program_sha256']==PREVIOUS_PROGRAM_SHA and record['program_sha256']==sha(program) and type(a) is int and b==a+1 and 0<=a<len(lines) and isinstance(text,str) and text.count(old)==1 and text.replace(old,new)==lines[a] and lines[a].count('complete_peak_bytes='+new)==1,'program lineage')
+    need(sha(''.join(lines[:a]+[text]+lines[b:]).encode())==PREVIOUS_PROGRAM_SHA,'previous program');return PREVIOUS_PROGRAM_SHA
+
+def pair_digests(index):
+    need(set(index)=={'schema','storage','scope','streams'} and index['schema']==1 and index['storage']=='sha256-only','pair digest index');s=index['streams']
+    need(set(s)=={f'e{e}_{w}_{k}' for e in (0,1) for w in ('SEL','W9') for k in (14,15)} and all(set(x)=={'pairs','sha256'} and type(x['pairs']) is int and re.fullmatch('[0-9a-f]{64}',x['sha256']) for x in s.values()),'pair digest index')
+    need(all(s[f'e{e}_{w}_14']['pairs']<=s[f'e{e}_{w}_15']['pairs'] and s[f'e{e}_SEL_{k}']['pairs']<=s[f'e{e}_W9_{k}']['pairs'] for e in (0,1) for w in ('SEL','W9') for k in (14,15)),'pair counts');return s
+
+def p8rr(proof,files,claim):
+    heads=list(re.finditer(r'^## Appendix W\. ',proof,re.M));need(len(heads)==1,'Appendix W');w=proof[heads[0].start():];h6e=[h for h in claim['heuristics'] if h['id']=='H6E-p8rr-transfer'];need(len(h6e)==1 and h6e[0]['role']=='score-critical','P8RR premise')
+    if 'p8rr/procedure.json' in files:
+        pins=load(files['p8rr/procedure.json'])['pins'];need(all(sha(files['p8rr/'+k].encode())==v for k,v in pins.items()),'P8RR procedure pins')
+        receipt=sha(files['p8rr/results/clause-objects.json'].encode());table=load(files['p8rr/results/phase-table.json']);peak,gate=table['tables']['P5']['peak'],table['gate'];cells=[gate,peak]+list(table['inherited']['other_cells'].values())
     else:
-        pre_note = todo('ledger PRE assumes 21-bit class masks; with each class\'s own mask PRE = %s and time_log2 = %.5f' % (c(pre_own), alt))
-        miss('ledger_a0p.py PRE uses popcount(%08x) for every class; own masks give PRE %s instead of %s (time_log2 %.5f vs %.5f)' % (REF['mask'], c(pre_own), c(L['PRE']), alt, claim))
-ref_shared = ledger(q3=REF['q3'], h3=REF['h3'], cal=CALREF, AC=48, AS=50, DEV=50)   # 1a695f0b's allowances
-assert ref_shared['claim'] == REF['claim'], 'reference ledger does not reproduce %s' % REF['id']
-ref_pc = ledger(q3=REF['q3'], h3=REF['h3'], cal=dict(CALREF, prog=ref_progs), AC=48, AS=50, DEV=50)
-base = dict(q3=Q3M, h3=H3B, cal=CAL)
-SENS = [('claimed', {})]
-if qm: SENS.append(('q3_model = the study mean 2^%.4f' % math.log2(qm), dict(q3=round(math.log2(qm), 4))))
-SENS += [('q3_model 2^-97.78 (the q3_model of fb176310 for the published characteristic)', dict(q3=-97.78)), ('pair term 2^-3', dict(h3=-3.0)),
-         ('allowances of %s (A_C = 2^48, A_S = 2^50, DEV = 2^50)' % REF['id'], dict(AC=48, AS=50, DEV=50)), ('A_C = 2^84', dict(AC=84))]
-sens = []
-for nm, kw in SENS:
-    x = ledger(**dict(base, **kw)); sens.append('%-96s %.5f   (N_FB 2^%.4f)' % (nm, x['claim'], x['log2NFB']))
-    if nm == 'A_C = 2^84': ac84 = x['claim']
-sens.append('%-96s %.5f   (reference)' % ('%s: %d classes, one shared program of %s, q3_model 2^%.1f, pair term 2^%.1f' % (REF['id'], len(RCLS), c(CALREF['prog']), REF['q3'], REF['h3']), ref_shared['claim']))
-sens.append('%-96s %.5f   (reference)' % ('the same with per-class programs (08be594\'s construction; ours, %s..%s, mean %.2f)' % (c(min(ref_progs)), c(max(ref_progs)), sum(ref_progs) / len(ref_progs)), ref_pc['claim']))
+        e=load(files['data/p8rr_evidence.json']);receipt,peak,gate,cells=e['files']['results/clause-objects.json'],e['p5_peak'],e['gate'],e['cells']
+    need('`results/clause-objects.json` (SHA-256 `'+receipt+'`)' in w and 'results/clause-objects.json, SHA-256 '+receipt[:16]+'...' in h6e[0]['limitations'],'P8RR clause-object receipt')
+    getcontext().prec=90;q=D(1).scaleb(-12);mem=(D(max(cells)).ln()/D(2).ln()/q).to_integral_value(rounding=ROUND_CEILING)*q
+    need(peak==211431424<gate==max(cells)==236978176 and '**{:,} bytes**'.format(peak) in w and str(mem)=='27.820178962416'==repr(claim['claim']['memory_log2_bytes']),'P8RR cell and procedure maximum')
+    return peak
 
-if MISSING and not A.allow_missing:
-    print('mkpkg4: missing or inconsistent inputs (nothing written):', file=sys.stderr)
-    for x in MISSING: print('  - ' + x, file=sys.stderr)
-    print('rerun with --allow-missing for a dry run with TODO markers', file=sys.stderr); sys.exit(2)
+def verify(proof,claim_raw,program,manifest_raw):
+    hist=history(proof);packet=load(frame(proof,'LTFILE packet.json'));need(packet['schema']==2,'packet schema');payload=load(unpack(packet['payload'],4194304));need(set(payload)=={'files','sha256'},'payload keys');files=payload['files']
+    need(set(files)==set(payload['sha256'])==set(REQUIRED),'fixed payload inventory')
+    for name,text in files.items():need(isinstance(text,str) and sha(text.encode())==payload['sha256'][name],'payload file '+name)
+    p=load(files['data/provenance.json']);need(p['claim_sha256']==sha(claim_raw) and p['program_sha256']==sha(program)==PROGRAM_SHA and p['manifest_sha256']==sha(manifest_raw) and p['verifier_sha256']==sha((frame(proof,'LTFILE verify_packet.py')+'\n').encode()),'package bindings')
+    claim=load(claim_raw);need((claim['claim']['time_log2'],claim['claim']['memory_log2_bytes'],claim['claim']['success_probability'],claim['claim']['preprocessing_log2'])==(76.693746031168,27.820178962416,0.39,71.58497),'claim resources')
+    need(claim['target_profile']=='sha256-r38-prefix-v1' and claim['lane']=='exploratory' and claim['attack_class']=='ordinary-collision' and claim['rounds']==38 and claim['claim']['nonuniform_advice_log2_bytes']==13,'target')
+    h2=next(h for h in claim['heuristics'] if h['id']=='H2-P1-q3-transfer')['statement']
+    need('41,471,916' in h2 and '2^6.6944' in h2 and '44,436,632' not in h2 and '2^6.595' not in h2,'current table acceptance bound')
+    need('evidence-only' in claim['restrictions'][1] and 'Only physical 14-column' in claim['restrictions'][4],'comparison scope')
+    for token in ('1a695f0b','collision-frontier-v5','MAJ/CH','Cc2','k0','x86_64'):need(token in claim_raw.decode(),'critical identifier '+token)
+    sec=proof[proof.index('## R.6D'):proof.index('## Appendix S')];start=sec.index('**Claim, under premise H6-D')
+    deriv=sec[start:sec.index('\n\n',start)]+'\n\n'+sec[sec.index('### 1. The accepted figure'):sec.index('The peak is max(phase 1, phase 2, phase 3)')]+sec[sec.index('### 4. Precedent and status'):]
+    need(sha(deriv.encode())=='1d7a8d02bbe06b112dd15c11ec5d80df96bfc6c836d53b02f73628ddfca2a5fc','unchanged P8 derivation')
+    need('binding maximum is online' not in sec and 'below the binding online-with-SEL' not in sec and '27.878842' not in sec and '27.820178962416' in sec and 'Appendix W supersedes this phase maximum with 211,431,424 bytes' in sec,'current P8 conclusion')
+    appendix=proof[proof.index('## Appendix A'):proof.index('## Appendix D')];need(str(N) in appendix and 'Exact 14-column ledger' in appendix,'active ledger narrative')
+    need('The allowance remains A_C=2^78' not in proof[:proof.index('<!-- LTFILE verify_packet.py -->')],'current characteristic allowance')
+    c=census(files)
+    for k in (14,15):
+        expected=ledger(k,c);actual=load(files[f'data/ledger{k}.json']);need(actual['integer_ledger']==expected and actual['program_sha256']==sha(program),'independent ledger')
+        need(sum(actual['memory_inventory'].values())==2097152 and actual['memory_inventory']['remaining_reserve']>0,'complete inventory')
+    need(ledger(14,c)['N']==N and ledger(15,c)['N']==331729579250610990673207657,'ledger identities')
+    a=walk(program.decode());need(ast.literal_eval(a['NCOL'])==14 and ast.literal_eval(a['CENSUS14'])['candidate_14']['minimum']==41471916,'binding geometry')
+    baseline=base_source(program,load(files['data/base_delta.json']));old={n.name:ast.dump(n,include_attributes=False) for n in ast.parse(baseline).body if isinstance(n,ast.FunctionDef)};new={n.name:ast.dump(n,include_attributes=False) for n in ast.parse(program).body if isinstance(n,ast.FunctionDef)}
+    need({n for n in old if old[n]!=new[n]}=={'walk_lanes','ledger','selftest','run_request','bs_check'},'production function scope')
+    build=load(files['data/native_build.json']);sources={n:sha(files['src/'+n].encode()) for n in build['14']['source_sha256']};need(sources==build['14']['source_sha256']==build['15']['source_sha256'] and sha(json.dumps(sources,sort_keys=True,separators=(',',':')).encode())==SOURCE_TREE,'frozen native source')
+    cvtext=re.search(r'epoch_cv\[\]\[8\] = \{(.*?)\};',files['src/constants.hpp'],re.S);need(cvtext is not None,'native CV literals');cvs=[int(x,16) for x in re.findall(r'0x[0-9a-f]+',cvtext[1])];need(len(cvs)==16,'CV inventory')
+    native=load(files['data/native_records.json']);need(native['source_tree_sha256']==SOURCE_TREE and native['program_sha256']==lineage(program,load(files['data/program_lineage.json'])),'native provenance');catalog={f'e{e}_{w}_{m}_{k}' for e in (0,1) for w in ('SEL','W9') for m in ('n15','n14','f15') for k in ('tree','reference')};need(set(native['records'])==catalog,'24-run inventory')
+    bitmap=zlib.decompress(base64.b64decode(ast.literal_eval(a['SEL_Z'])));sel={(q<<2)|1 for q in range(1<<16) if bitmap[q>>3]>>(q&7)&1};need(len(sel)==4096 and sha(','.join(map(str,sorted(sel))).encode())==ast.literal_eval(a['SEL_SHA']),'SEL advice')
+    stored=load(files['data/reference_SEL_pairs.json']);need(set(stored)=={'0','1'},'SEL pair inventory');digests=pair_digests(load(files['data/pair_streams.json']));streams={};outputs={};groups=set();envelope=0;vm_peak=vm_hwm=0
+    for name in sorted(catalog):
+        r=native['records'][name];v=load(r['stdout']);m=r['receipt'];inp=r['input'];e=int(name[1]);window=name.split('_')[1];mode=name.split('_')[2];physical=14 if mode=='n14' else 15;keep=15 if mode=='n15' else 14;cap=physical*(1<<19)*32+2097152
+        need(r['stderr']=='' and m['passed'] and m['exit_code']==0 and m['stdout_sha256']==sha(r['stdout'].encode()) and m['binary_sha256']==build[str(physical)]['binary_sha256'],'run binding')
+        need(m['input_sha256']==sha(json.dumps(inp,sort_keys=True,separators=(',',':')).encode()) and inp['cv']==cvs[8*e:8*e+8] and inp['r']==(663,2093)[e] and inp['ustart']==(0xff5baf92,0xa026297d)[e] and inp['words']==4294967296 and inp['ncol']==physical and inp['emitted_columns']==keep and inp['window']==window and inp['walk']==name.rsplit('_',1)[1],'run input')
+        argv=r['command']['argv'];need(argv[:3]==['/usr/bin/unshare','--net','--'] and argv[4:16]==['--epoch',str(e),'--walk',name.rsplit('_',1)[1],'--words','4294967296','--keep-columns',str(keep),'--bounded','--check','--await-observer','--pairs'],'command domain')
+        need(v['bounded'] is True and v['address_space_limit']==cap and v['ncol']==physical and v['emitted_columns']==keep and v['words']==4294967296 and v['r']==(663,2093)[e] and v['ustart']==(0xff5baf92,0xa026297d)[e],'full domain')
+        need(v['table_bytes']==physical*(1<<19)*32 and v['table_word_bytes']==keep*(1<<19)*32 and v['containers_digest_covered']==keep*(1<<19) and sum(v['population'])==keep*(1<<19) and sum(i*n for i,n in enumerate(v['population']))==v['emitted_entries'],'table population')
+        need(v['a0']==(1<<20 if window=='SEL' else 1<<26) and v['read_ops']==8*v['reads'] and v['real_word_failures']==v['step3b_accepts']==0,'full scan semantics')
+        need(m['fresh_cgroup'] and m['cgroup'] not in groups and m['cgroup_memory_max']==cap and m['cgroup_swap_max']==m['cgroup_swap_current']==0,'fresh swap-off group');groups.add(m['cgroup'])
+        need(m['cgroup_memory_events'].get('oom',0)==m['cgroup_memory_events'].get('oom_kill',0)==0 and m['cgroup_memory_peak']<=cap and m['independent_proc_vm_peak_bytes']<=cap and m['independent_proc_vm_hwm_bytes']<=cap,'complete kernel bound')
+        need(m['observer_ack_after_result'] and m['observer_outside_native_cgroup'] and m['observed_address_space_limit'] and m['observed_cpu']==[13] and m['observed_nice']==15 and m['network_isolated'] and not m['gpu_fds_observed'],'observer profile')
+        final=m['final_proc_observation'];need(final['address_space_limit']==[cap,cap] and final['cpu']==[13] and final['nice']==15 and final['swap_current']==0 and final['VmPeak']==m['independent_proc_vm_peak_bytes'] and final['VmHWM']==m['independent_proc_vm_hwm_bytes'],'final monotone peaks')
+        need(m['parent_net_namespace'] not in m['observed_net_namespaces'] and m['final_cgroup_memory_stat']['anon']>=v['table_bytes'],'isolation/resident table')
+        d=digests[f'e{e}_{window}_{keep}']
+        if window=='SEL':
+            seq=list(struct.iter_unpack('<II',bytes.fromhex(stored[str(e)])));need(all(((aa-(9<<26))>>8) in sel for aa,_ in seq),'SEL window')
+            if keep==14:
+                def col(u):return ((((u>>7)|(u<<25))^((u>>18)|(u<<14))^(u>>3))-u-v['r'])&8191
+                seq=[(aa,u) for aa,u in seq if col(u)<112]
+            raw=b''.join(struct.pack('<II',*pair) for pair in seq);need(len(raw)==8*d['pairs'] and sha(raw)==d['sha256'],'ordered SEL pair derivation')
+        need(m['pairs_bytes']==8*v['good']==8*d['pairs'] and m['pairs_sha256']==v['good_sha256']==d['sha256'],'ordered pair digest');streams[name]=d['sha256']
+        if keep==14:need(v['emitted_entries']==(41518849,41507785)[e] and v['removed_column_events']==0,'retained entries')
+        if physical==14:
+            envelope=max(envelope,m['cgroup_memory_peak']);vm_peak=max(vm_peak,m['independent_proc_vm_peak_bytes']);vm_hwm=max(vm_hwm,m['independent_proc_vm_hwm_bytes'])
+        if keep==15:
+            archived=load(files[f'results/e{e}_{window}_{name.rsplit("_",1)[1]}.json']);need(all(v[k]==x for k,x in archived.items() if k!='maxrss_bytes'),'archived 15-column semantics')
+        outputs[name]=v
+    for e in (0,1):
+        for w in ('SEL','W9'):
+            key=f'e{e}_{w}';base=outputs[key+'_n14_tree']
+            for other in ('n14_reference','f15_tree','f15_reference'):need(all(base[k]==outputs[key+'_'+other][k] for k in PREFIX) and streams[key+'_n14_tree']==streams[key+'_'+other],'ordered filtered restriction')
+    need((envelope,vm_peak,vm_hwm)==(236744704,236597248,235913216),'separate native memory observations');need(max(envelope,vm_peak,vm_hwm)<=236978176,'measured online envelope')
+    need(sum(outputs[f'e{e}_{w}_n14_tree']['good'] for e in (0,1) for w in ('SEL','W9'))==5422,'candidate pair checks')
+    bound=load(files['data/binding_pair_checks_14col.json']);need(bound['program_sha256']==sha(program) and bound['checks']==5422 and bound['distinct_epoch_specific_pairs']==5231 and bound['bad']==bound['accepted']==0,'isolated real-word checks')
+    need(load(files['data/selftest_14col.json'])['observations']['selftest_passed']==1,'isolated selftest')
+    method=load(files['data/method_summary_14col.json']);need(method['program_sha256']==sha(program) and method['observations'][0]['ordered_mismatches']==0 and method['observations'][0]['masks']==63,'isolated method')
+    for obs in method['observations'][1:3]:need(obs['ordered_equal']==1 and obs['walk_calls']==obs['fired_reads']>0,'live scanner uses tree')
+    mutants=load(files['results/restriction_mutants.json']);need(mutants['all_rejected'] and len(mutants['mutants'])==18 and all(m['rejected'] and 'source' in m['kind'] for m in mutants['mutants']),'genuine source mutants')
+    need(len(load(files['data/method_mutants_14col.json'])['mutants'])==6 and all(x['killed'] for x in load(files['data/method_mutants_14col.json'])['mutants']),'isolated method mutants')
+    for name in ('restriction.json','restriction_sanitizer.json','restriction_clang.json'):
+        test=load(files['results/'+name]);need(test['passed'] and test['source_sha256']==sources,'bounded source');d=test['candidate']['dense'];need(all(d[k]>0 for k in ('full_bucket_events','overflowed_bucket_events','lanes_3_to_5_events','column_zero_next_events','column_13_events','row_wrap_events','row_zero_reads','row_last_reads')) and d['streams']==test['filtered_reference']['dense']['streams'] and d['removed_column_events']==0<test['filtered_reference']['dense']['removed_column_events'],'dense coverage')
+    organizer=load(files['data/organizer_summary_14col.json']);need(organizer['runs']==2 and organizer['identical_reports'] and len(set(organizer['report_sha256']))==1 and organizer['program_sha256']==sha(program) and organizer['manifest_file_sha256']==sha(manifest_raw),'organizer repeats')
+    need(organizer['organizer_limits']['trials']==256 and organizer['organizer_limits']['memory_mb']==128 and organizer['organizer_limits']['timeout_seconds']==20 and len(organizer['experiments'])==2,'unchanged organizer limits')
+    for experiment in organizer['experiments']:need(experiment['status']=='completed' and experiment['trials']==256 and experiment['observations']['10']['ledger_N']==N,'actual isolated ledger')
+    h7=load(unpack(load(frame(proof,'H7PACKET')),200000))['files'];need(set(h7)==set(load(files['data/h7_preservation.json']))|{'manifest.json','verify_packet.py'},'H7 inventory')
+    for name,digest in load(files['data/h7_preservation.json']).items():need(sha(h7[name].encode())==digest,'unchanged H7 file')
+    cell=p8rr(proof,files,claim)
+    return files,dict(schema=2,passed=True,N=N,procedure_peak_bytes=236978176,p8rr_cell_bytes=cell,online_bound_bytes=236978176,measured_online_envelope_bytes=envelope,proc_VmPeak_bytes=vm_peak,proc_VmHWM_bytes=vm_hwm,production_runs=24,checks=5422,distinct_epoch_specific_pairs=5231,census_rotations=8192,genuine_source_mutants=18,method_mutants=6)
 
-src = {f: open(R + '/m38/' + f).read() for f in SRC if os.path.isfile(R + '/m38/' + f)}
-hs = {f: hashlib.sha256(open(R + '/m38/' + f, 'rb').read()).hexdigest() for f in src}
-ref_g = len(RCLS) * int(RCLS[0][2]) * Fr(287309824, 2 ** 32)
-pat_src = ('%s of %s' % (S_p['cls'], S_p['tot'])) if S_p['cls'] else todo('pat19')
-
-P = []
-def add(s=''): P.extend(s.split('\n'))
-add('# 38-step SHA-256 collision with the characteristic P8 in the memory-efficient A0-variant attack, %d classes and per-class row-16 programs: time 2^%.5f, memory 2^%.2f bytes' % (ncl, claim, memclaim))
-add('')
-if MISSING or PROVISIONAL:
-    add('> **DRY RUN: not for submission.** Missing or inconsistent inputs:')
-    for x in MISSING: add('> - ' + x)
-    for x in PROVISIONAL: add('> - provisional: ' + x)
-    add('')
-add('**Track** sha256-r38-exploratory, target sha256-r38-prefix-v1, cost model collision-frontier-v5 (C = 2728), scalar policy hashsmash-scalar-tm-v1 (score = time_log2 + max(0, memory_log2_bytes - 20)).')
-add('**Claim** time_log2 = %.5f (exact total 2^%.6f target compressions), algorithmic success probability at least 0.39, memory 2^%.2f bytes (online %s bytes; the preprocessing peak, Section 11), preprocessing 2^%.5f, non-uniform advice below 2^14 bytes. Score under the scalar policy: %.5f.' % (claim, L['log2T'], memclaim, S_m['online'], L['pre_log2'], score))
-add('')
-add('## 0. Summary')
-add('')
-add('This package runs the memory-efficient A0-variant collision attack on 38-step SHA-256 (ePrint 2026/1120 and 2026/1080; the A0-variants, c7 classes, bit-sliced row-16 filter and accepted event with a direct output comparison of the public packages 2d1c4fc2 and fb176310) with **P8**, a characteristic we found ourselves (Section 3). It extends our filing %s (same P8, same Step-1 solution S); the changes are listed in Section 0.1. What is new against the published characteristic:' % REF['id'])
-add('')
-add('1. **The characteristic P8.** Found by our systematic sign sweep over the 24 message-difference XOR patterns of weight 25 (Section 3.2): XOR pattern 8 (not the published pattern 0), a different dense trail and a different signed message difference. Its printed-event probability (rows 16..37 follow the trail and its derived conditions) is 2^-99.56 against 2^-101.05 for the published characteristic, measured with the same estimator.')
-add('2. **The accepted event.** Rows 16..22 of both members follow the trail, except that row 19 is checked on its signed differences only (not on its derived value conditions), and the two outputs after step 37 are compared directly (rows 23..37 untested). %s fall into %s row-19 condition patterns (Section 6.2).' % (('All %s estimator successes that were classified' % S_p['tot']) if S_p['all'] else ('%s estimator successes that were classified' % pat_src), S_p['npat']))
-add('3. **The measured q3 for that event** over the variants of the selected classes: %s independent runs, mean 2^%s, one-sided 99%% Student bound 2^%s (bootstrap 2^%s); **q3_model = 2^%.4f**. The corresponding value of fb176310 for the published characteristic is 2^%.4f.' % (S_q['n'], S_q['mean'], S_q['lo'], S_q['bs'], Q3M, FB['q3']))
-add('')
-add('| | fb176310 (published characteristic) | %s (P8, %d classes) | this package (P8, %d classes) |' % (REF['id'], len(RCLS), ncl))
-add('|---|---|---|---|')
-add('| q3_model of the accepted event | 2^%.4f | 2^%.4f | 2^%.4f |' % (FB['q3'], REF['q3'], Q3M))
-add('| selected variants, good pairs per first block | %s, %s | %s, %s | %s, %s |' % (FB['variants'], FB['g'], c(ref_nvar), cg(ref_g), c(nvar), cg(L['g'])))
-add('| row-16 program per batch of 256 variants | %s instructions | %s instructions (one shared program) | %s to %s instructions (per class; mean %.2f) |' % (FB['prog'], c(CALREF['prog']), c(pmin), c(pmax), float(pmean)))
-add('| time_log2 | %s | %.5f | **%.5f** |' % (FB['claim'], REF['claim'], claim))
-add('| memory | %s | 2^%.2f | 2^%.2f (online %s bytes) |' % (FB['mem'], REF['mem'], memclaim, S_m['online']))
-add('| score (scalar policy) | %s | %.5f | **%.5f** |' % (FB['score'], REF['score'], score))
-add('')
-add('### 0.1 Changes from %s' % REF['id'])
-add('')
-add('1. **All %d largest c7 classes.** %s used the %d classes of mask %08x (%s variants). This package uses every class of the maximal size %s of P8 (%d classes, %s variants), with %d different masks: %s. Good pairs per first block: %s (was %s).' % (ncl, REF['id'], len(RCLS), REF['mask'], c(ref_nvar), c(csize), ncl, c(nvar), len(maskcnt), masks_desc, cg(L['g']), cg(ref_g)))
-add('2. **Per-class row-16 programs.** Each class gets its own bit-sliced row-16 program in which every bit of a0 outside the class\'s mask is the class\'s base bit, folded as a constant (Section 7.2). The idea is that of 08be594 (johnservil), which did it for the %d classes of %s; our implementation (`cbits`, `program` in `experiments/a0p38.py`) is our own. %d programs, %s to %s instructions, mean %.2f, against the shared program of %s instructions of %s. On the %d classes of %s alone this lowers time_log2 from %.5f to %.5f (Section 10).' % (len(RCLS), REF['id'], ncl, c(pmin), c(pmax), float(pmean), c(CALREF['prog']), REF['id'], len(RCLS), REF['id'], ref_shared['claim'], ref_pc['claim']))
-add('3. **The F7 sampler of the organizer replica.** %s sampled W7 in F7 by its three affine families, choosing the family by `(w >> 4) %% 274` of the same random word whose bits then formed the value: the family choice was correlated with the value and had a modulo bias. Both were pointed out in 08be594 (johnservil). The replica now draws the family by rejection from its own word (9 bits, accepted below 274: shares 256, 16, 2, no bias) and the value bits from a fresh word (`f7_sample`; 200,000 draws: all in F7, family frequencies 93,187 + 93,579 / 11,769 / 1,465 against 186,861 / 11,679 / 1,460 expected). A generic rejection sampler on the definition is kept for other (D7, T7) only, as it is slower.' % REF['id'])
-add('4. **Deterministic class selection.** The classes are selected by `lp_classes.py` (ALLMAX=1: every class of the largest size, ordered by c7) from the output of `a0cls.c`, replacing the hand-run selection of %s.' % REF['id'])
-add('5. **Lane cost.** The scalar recovery of a0 from the stored planes costs 4 per mask bit; it is charged at the widest mask (%08x, %d bits): %d operations per stage-3a lane (was %d).' % (widest, pop(widest), CAL['lane'], CALREF['lane']))
-add('6. **q3 re-measured** over the %s variants of the %d classes (seeds %s, Section 9). Memory %s: P8 and S are those of %s (Section 11).' % (c(nvar), ncl, seed_txt, ('is unchanged at 2^%.2f' % memclaim) if memclaim == REF['mem'] else ('changes from 2^%.2f to 2^%.2f' % (REF['mem'], memclaim)), REF['id']))
-add('')
-add('## 1. Target and cost model')
-add('')
-add('Target sha256-r38-prefix-v1: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; output two distinct 128-byte messages M0 || M1 and M0 || M1\' with equal digests (the padding block is common). collision-frontier-v5: one target compression = 1 unit, every other word operation of the 256-bit word RAM 1/C, C = 2728; the scalar policy hashsmash-scalar-tm-v1 ranks time_log2 + max(0, memory_log2_bytes - 20).')
-add('')
-add('## 2. Sources, credit, and what is ours')
-add('')
-add('- ePrint 2026/1120 (Li, Zhang, Li, Liu, Qian, Zhu): the 38-step two-block framework and its memory-efficient Step 1-3 procedure, the message-difference shape (W7..W11, W15, W16, W23, W25), the published characteristic (comparison only). ePrint 2026/1080 [LLWS26]: the memory-efficient framework.')
-add('- 2d1c4fc2 (itseasypop): A0-variants of the Step-1 solution, the c7 classes decided by one W7 test, the bit-sliced evaluation of the row-16 filter for 256 variants per word, the success analysis with a pair term and work caps. fb176310 (Jbenisek): the accepted event with a direct output comparison and alternative row-19 patterns, lowest-shared-bit stage 3a, the memory-free W7 test, a counted register allocator. We read their packages as documents; we executed none of their code. `experiments/a0p38.py` is our own implementation of that design for P8.')
-add('- 08be594 (johnservil): per-class row-16 programs with the class\'s non-mask bits folded as constants (for the %d classes of %s), and the observation that the F7 sampler of %s\'s replica correlated the family choice with the value and had a modulo bias. Our per-class programs and the corrected sampler are our own implementation (for those 8 classes our per-class counts, [1466, 1457, 1469, 1466, 1463, 1454, 1466, 1463], equal the counts listed in 08be594\'s submission note).' % (len(RCLS), REF['id'], REF['id']))
-add('- Ours: the characteristic P8 and the search that found it (signed-difference SAT model, sign sweep, joint coupling check), the condition derivation and estimators, the accepted event with row 19 on signed differences and its measurement, the class selection for P8 (`lp_classes.py`), the program `experiments/a0p38.py` (reference, bit-sliced program builder and allocator, counted scalar routines, replica, experiments), the ledger. Our filings 1db43310, 49b543d1 and 242fcec3 (table attack, NEW3) and %s (this attack with %d classes) are the earlier steps of this work.' % (REF['id'], len(RCLS)))
-add('- Execution: everything ran in Linux containers on one 10-core machine (OrbStack; Ubuntu 22.04 for the C tools and solvers; the shipped program also on the official python:3.12.12-slim-bookworm image, Section 13).')
-add('')
-add('## 3. The characteristic P8')
-add('')
-add('### 3.1 The trail and a semi-free-start pair')
-add('')
-add('Signed differences (u: member x has 1, member y 0; n: the reverse), most significant bit first, rows -4..37, columns A_i, E_i, W_i (rows without a difference in all three words omitted: -4..6 and 26..37 are all `=`):')
-add('')
-add('```')
-for i in range(6, 27): add('%4d  %s  %s  %s' % (i, nz(CH[i]['A']), nz(CH[i]['E']), nz(CH[i]['W'])))
-add('```')
-add('')
-add('Conditions: for every bit of every boolean-function instance (S1, CH, S0, MAJ of the state; s0, s1 of the expansion) the trail fixes the input and output signed differences; the allowed values of the inputs without difference give the derived conditions (`cond.py`), which for P8 are all fixed bits or two-bit (in)equalities (the tables `_CH`, `PQ`, `X2` of `experiments/a0p38.py`, generated by `mkvt.py`; the conditions of rows 16..22, which define the accepted event, are listed in Appendix B). With W7 in F7 (D7 = 2^29, s0(W7y) - s0(W7x) = %08x: the same F7 as the published characteristic), the printed-event probability is 2^-99.56 (6 estimator runs of 2,000 particles; the published characteristic 2^-101.05 with the same estimator).' % AP.T7)
-add('')
-add('An explicit 38-step semi-free-start collision in the accepted event (Section 6), rebuilt from an estimator success and verified with the reference of `experiments/a0p38.py` (`selftest` item 1) and the organizer reference `verifier/hash_functions.py`; its rows 0..15 are the Step-1 solution S of Section 4 (A0 = %08x):' % SFS['a0'])
-add('')
-add('```')
-add('CV1 = ' + ' '.join('%08x' % x for x in SFS['cv'])); add('M   = ' + ' '.join('%08x' % x for x in SFS['M'])); add("M'  = " + ' '.join('%08x' % x for x in SFS['M2'])); add('out = ' + ' '.join('%08x' % x for x in SFS['out']))
-add('```')
-add('')
-add('### 3.2 How P8 was found (the sign sweep)')
-add('')
-add('Our signed-difference SAT model (`sdmodel.py`, `stepk.py`) was run over the 24 XOR patterns of weight 25 on the shape W7..W11, W15, W16, W23, W25, with the signs free, the dense part bounded by the published weight profile (HW(dA7..15) <= 26, HW(dE7..15) <= 47, HW(dE14..15) <= 4, HW(dA13..15) <= 10) and the tail by an attack-aware weight (P <= 43); every signed message difference already found for a pattern (and its member-swapped mirror) was blocked. Each solution went through the value-level coupling check (`joint.py`: value-exact dense part and value-exact tail steps 16..19) and the estimator (`sweep.py`). Summary (`runs/sweep`): ')
-add('')
-add('```'); add(SWEEP or todo('sweep')); add('```')
-add('')
-add('P8 = SW_p08_k1 (pattern 8, second iteration; search 4,714 s, coupling 662 s). For the A0-variant attack the relevant quantities are q3 of the accepted event and the c7 class structure (Sections 4-6); P8 has the best of both among the coupled characteristics.')
-add('')
-add('## 4. Step 1: the solution S and its A0-variants')
-add('')
-add('**Lemma 4.1 (Step 2).** For fixed state rows A0..A15, E4..E15 of both members and a chaining value CV1 = (A_{-1..-4}, E_{-1..-4}), the words W0..W7 with E_i = A_i + A_{i-4} - S0(A_{i-1}) - MAJ(A_{i-1}, A_{i-2}, A_{i-3}) (i = 0..3) and W_i = E_i - A_{i-4} - E_{i-4} - S1(E_{i-1}) - CH(E_{i-1}, E_{i-2}, E_{i-3}) - K_i (i = 0..7) reproduce the state rows; CV1 -> (W0, ..., W7) is a bijection (invert steps 7..0); W8..W15 do not depend on CV1. W0..W6 carry no difference (rows 0..6 have none), W7 differs by D7.')
-add('')
-add('**Lemma 4.2 (A0-variants).** Replace A0 of S by a0 in both members. Then E4 = a0 + C4 (C4 = A4 - S0(A3) - MAJ(A3, A2, A1)), W8 = W8C - E4 in each member (W8C = E8 - A4 - S1(E7) - CH(E7, E6, E5) - K8), so dW8 = W8y - W8x is unchanged, and all other words and rows 5..15 are unchanged. The variant is valid iff s0(W8y) - s0(W8x) also equals S\'s (W8 reaches rows >= 16 only through W23 = s1(W21) + W16 + s0(W8) + W7, W24 = s1(W22) + W17 + s0(W9) + W8 and the later words through them). G = {a0 : valid}; exhaustively (`a0fam.c`):')
-add('')
-add('```'); add(FAM or todo('a0fam')); add('```')
-add('')
-add('**c7 classes.** W7x = c7(a0) - A_{-1} with c7(a0) = E7 - 2 A3 + S0(A2) + MAJ(A2, A1, a0) - S1(E6) - CH(E6, E5, a0 + C4) - K7. For a chaining value, all variants with the same c7 share W7, so one F7 test decides a class. P8 has %d classes of the maximal size %s (the published characteristic: classes of 3,840). The attack uses %s: class i = {base_i ^ s : s subset of mask_i, base_i ^ s in G, c7(base_i ^ s) = c7_i}, %s members each (%d batches of 256), %s variants in all. The mask of a class is the set of bits on which its members vary (`lp_classes.py`: the OR of a0 ^ (smallest member)); the masks have %d to %d bits: %s.' % (
-    nlargest, c(csize), ('all %d of them' % ncl) if ncl == nlargest else ('%d of them' % ncl), c(csize), nb, c(nvar), wmin, wmax, masks_desc))
-add('')
-add('| class | c7 | base | mask | members |'); add('|---|---|---|---|---|')
-for k, (c7, b, n, m) in enumerate(CLS): add('| %d | %08x | %08x | %08x | %s |' % (k, c7, b, m, c(n)))
-add('')
-add('## 5. Step 2: the W7 test and the good pairs')
-add('')
-add('F7 = {w : s0(w + D7) - s0(w) = %08x}, |F7| = 287,309,824 (exhaustive), p7 = |F7| / 2^32 = 2^-3.90197 (the same set as for the published characteristic; it is the union of three affine families of 2^28, 2^24 and 2^21 words). The program tests w = c7 - A_{-1} by computing s0(w + D7) - s0(w) and comparing (%d operations, no table).' % (AP.T7, CAL['w7']))
-add('')
-add('**Lemma 5.1 (distribution, per variant).** Under H1, for every fixed a0: Pr[W7x in F7] = p7; conditioned on it, (W0..W6) is uniform and independent of W7, and (W16..W21) is a bijective image of (W0..W5) for fixed (W6, W9..W15), hence uniform and independent of (W6, W7) (Lemma 4.1). Per first block, E[good pairs] = g = %d x %s x p7 = %s (exact by linearity).' % (ncl, c(csize), cg(L['g'])))
-add('')
-add('## 6. Step 3: row 16 and the accepted event')
-add('')
-add('### 6.1 Row 16')
-add('')
-add('W16 = s1(W14) + W9 + s0(W1) + W0 and, by Lemma 4.1, W0 = a0 + KW0(CV1), W1 = K1(CV1) - S0(a0) - MAJ(a0, a, b) - S1(E0) - CH(E0, e, f) with E0 = a0 + HH(CV1). So E16x = KP + a0 + s0(W1) with per-first-block constants HH, KP, K1, and row 16 (both members, all its conditions) is a function of E16x alone: an exhaustive pass over all 2^32 values of W16 gives the %d words of the set R16 (`q3tv.c`, the exhaustive pass of `main`; `selftest` item 2 re-checks it on 20,000 random words and the bit-flip neighbours). The %d words share %d bits (mask %08x); the program tests the TK = %d lowest of them (bits %s): stage 3a passes with probability 2^-%d exactly (E16x uniform, Lemma 5.1), row 16 with %d / 2^32.' % (len(AP.R16), len(AP.R16), SHB, AP.SHARED, AP.TK, ', '.join(map(str, AP.TBITS)), AP.TK, len(AP.R16)))
-add('')
-add('### 6.2 The accepted event')
-add('')
-add('The program accepts a row-16 pass iff (i) rows 16..22 of both members follow every cell, \'+\' pair and two-bit condition of P8 closing at rows 16..22, except that **row 19 is checked on its signed differences only** (the XOR differences of A19, E19, W19 and the member-x values on the difference bits), and (ii) the eight output words A34..A37, E34..E37 of the two members are equal after step 37. Nothing is tested at rows 23..37.')
-add('')
-add('**Lemma 6.1.** If (ii) holds, the two second-block outputs are equal (chaining value plus the same eight words), so M0 || M1 and M0 || M1\' collide under the target; M1 != M1\' because W7 differs. The program certifies exactly what it outputs.')
-add('')
-add('*Why row 19.* Measured with the estimator (one row at a time checked on signed differences only, the others strict, outputs compared): relaxing row 19 raises q3 by about 3.6 bits for P8 (and 3.4 for the published characteristic); rows 17 and 18 lead to dead ends (the derived conditions there are needed by the next row), rows 20..22 add little. In the %s runs of the study of Section 9 (seeds %s), %s classified successes have their row-19 conditions in one of %s patterns (`pat19`; the 12 conditions: the fixed bits E19[4], E19[18] and ten two-bit conditions):' % (S_q['n'], seed_txt, pat_src, S_p['npat']))
-add('')
-add('```'); add(PAT19 or todo('pat19')); add('```')
-add('')
-add('## 7. The counted program (`experiments/a0p38.py`, %s bytes, SHA-256 %s)' % (c(vt_size), vt_hash))
-add('')
-add('### 7.1 Machine and scalar routines')
-add('')
-add('256-bit word RAM, 64 registers; executed primitives count 1 (load, store, add, sub, and, or, xor, not, shift, immediate, random word), a compare-and-branch 2, one target compression 1 unit; S0, S1, s0, s1 cost 8 each (doubled word, shifts, xors, mask), CH 3, MAJ 4. The routines are executed with counting primitives; broadcast, lane_value, first_lane, r16test and deep add itemised declared counts (their docstrings) (`calibrate`):')
-add('')
-add('| routine | operations |'); add('|---|---|')
-add('| first block: 2 random words and their 16 fields (30), counter, cap test, hit-list test (5) | %d |' % CAL['fb_fixed'])
-add('| one W7 test (computed, no table), plus %d for the class loop | %d + %d |' % (CAL['w7_loop'], CAL['w7'], CAL['w7_loop']))
-add('| per-first-block scalars HH, PP, QQ, EF, FF, K1, KP | %d |' % CAL['scalars'])
-add('| the 7 x 32 broadcast planes (%d each) | %d |' % (AP.PLANE_OPS, CAL['planes']))
-add('| per passing class: setup 3, end of class (work counter, cap test) 4 | %d |' % CAL['class_ctl'])
-add('| per batch of 256 variants: the class\'s row-16 program (%s to %s, mean %.2f) + ok test 2 + pointer, compare, branch 4 | prog_i + %d |' % (c(pmin), c(pmax), float(pmean), CAL['batch_ctl']))
-add('| per stage-3a lane: lowest lane (32), clear and loop (%d), a0 from the stored planes (4 x %d + 1 = %d, the widest mask), E16x (%d), the row-16 table test (42) | %d |' % (AP.LANE_CTL, pop(widest), n_lv, n_e16, CAL['lane']))
-add('| per row-16 pass (itemised declared count): Step 2 for both members, the expansion and rows 16..37 of both members with the tests of rows 16..22, the output comparison | %d |' % CAL['deep'])
-add('')
-add('### 7.2 The row-16 programs (one per class)')
-add('')
-add('Bit L of a 256-bit plane belongs to lane L (one variant). Inputs of the program of class i: the planes of the bits of a0 in mask_i (%d to %d bits, stored per batch) and the 224 broadcast planes; every bit of a0 outside mask_i is the corresponding bit of base_i and is folded as a constant (the per-class construction of 08be594; Section 0.1). `build_e16` builds, bit-interleaved, the DAG of E0 = a0 + HH, then per bit j: S0(a0), MAJ(a0, a, b) = PP | (a0 & QQ), S1(E0), CH(E0, e, f) = FF ^ (E0 & EF), the three ripple adders of their sum T and the subtraction W1 = K1 - T, then per tested position j <= %d: s0(W1), the two adders of E16x and the comparison with the common value; constants are folded and equal nodes shared. `schedule` allocates 64 registers by Belady\'s rule (evict the value needed farthest ahead; store it first if it is needed again and has no copy); every load, store and spill is an instruction. Result: %d programs (%d distinct input patterns), **%s to %s instructions per batch, mean %.2f** (calibration list in Section 10). The expected work uses the mean (each class passes its W7 test with the same p7), the work cap the maximum. The programs are executed instruction by instruction (`run_prog`) and compared with the scalar definition lane by lane (`selftest` item 4 and the organizer experiment `a0p-online-r38`: 0 mismatches).' % (wmin, wmax, max(AP.TBITS), ncl, ndistinct, c(pmin), c(pmax), float(pmean)))
-add('')
-add('## 8. The algorithm (fixed caps)')
-add('')
-add('```text')
-add('advice: S (the semi-free-start pair\'s rows 0..15), the %d class descriptors (c7, base, mask); precompute (charged): every class member (base ^ s, s subset of mask, in G, c7 = c7_i), stored as %d batches of |mask| bit planes per class; the %d row-16 programs' % (ncl, nb, ncl))
-add('V = 0')
-add('for f = 1 .. N_FB:')
-add('    if V > V_MAX: halt (failure)                    (V accumulates ALL data-dependent work of every first block: W7 tests, hit list, scalars, planes, classes, lanes, row-16 passes)')
-add('    two uniform 256-bit random words -> M0 (16 words, uniform on {0,1}^512); CV1 := F_38(IV, M0)                     [1 unit]')
-add('    hits := [i : c7_i - A_{-1} in F7]                                                                               [%d x (%d + %d)]' % (ncl, CAL['w7'], CAL['w7_loop']))
-add('    if hits: the scalars and the broadcast planes')
-add('        for i in hits: for each of the %d batches of class i: run the row-16 program of class i -> ok plane' % nb)
-add('            for each lane of ok: a0 from the planes; E16x; if E16x in R16: Step 2, rows 16..37 of both members, the tests of rows 16..22')
-add('                (row 19 on signed differences), compare the outputs; if equal: output M0 || M1, M0 || M1\' and halt')
-add('        V += the work of the class (and, before it, the W7 tests, the hit list, the scalars and the planes of this first block); if V > V_MAX: halt (failure)')
-add('halt (failure)')
-add('```')
-add('')
-add('*Lemma 8.1 (the cap).* V accumulates every data-dependent operation of every first block (all of v_f in Section 9) and is tested before every first block and after every class, so V <= V_MAX + OVER at every moment (V is updated for every first block, including first blocks with no passing class: their data-dependent work is the W7 tests and the hit-list test, added to V before the next cap test), OVER = %s (one first block at its maximum: all classes passing, each charged at the longest program, every lane a row-16 pass). The %d fixed operations per first block are charged separately (N_FB x %d). The run never outputs a non-collision (Lemma 6.1).' % (c(L['over']), CAL['fb_fixed'], CAL['fb_fixed']))
-add('')
-add('## 9. The success probability')
-add('')
-add('*Trials and expectation.* A trial is (first block f, selected variant a0); A_t: a0 is good for f (W7 in F7) and the pair is in the accepted event. E[X_f] = g q3 (Lemma 5.1; H1, H2).')
-add('')
-add('*q3 (H2).* q3 = the average over the %s selected variants of Pr[accepted event | good pair] (including the row-16 factor %d / 2^32). Estimator `q3tv.c` (binary q3tv2, `DIFFROW=19 RELAX_TAIL=1`, `VARS` = the variant pool of the %d classes): fixed-effort multilevel splitting, row 16 exact over the %d W16 words, rows 17..22 with W_i^x uniform (Lemma 5.1) and the rows checked as in the event (row 19 on signed differences), tail: a variant drawn per proposal from the %s selected variants, W7 uniform in F7, rows 23..37 computed, outputs compared. Every success is a verified collision; the successes are rebuilt into real pairs (%s checked with the reference). %d runs, %s particles, %s tail proposals per particle, seeds %s fixed before the runs:' % (c(nvar), len(AP.R16), ncl, len(AP.R16), c(nvar), REB, A.nruns, c(A.particles), c(A.tail), seed_txt))
-add('')
-add('| seed | stage factors log2 (rows 16..22, tail) | successes (all collisions) | log2 q3 |'); add('|---|---|---|---|')
-RUND = {r[0]: r for r in RUNS}
-for sd in seeds:
-    if sd in RUND: _, stg_, sc_, cc, lq = RUND[sd]; add('| %d | %s | %s | %s |' % (sd, stg_, c(sc_), '%.4f' % lq if lq is not None else '0 (stalled)'))
-    else: add('| %d | %s | | |' % (sd, todo('run not finished')))
-add('')
-add('Mean 2^%s, relative sd %s, one-sided 99%% Student bound (t = %s, %s degrees of freedom) 2^%s, bootstrap 1%% quantile of the mean 2^%s; %s successes. %s. %s **q3_model = 2^%.4f.**' % (S_q['mean'], S_q['rsd'], S_q['t'], S_q['df'], S_q['lo'], S_q['bs'], S_q['succ'], spread, stall_txt, Q3M) + (' q3_model = 2^%.1f was set from the first 20 runs (seeds %d..%d: their 99%% bound 2^-96.9989, rounded down to a tenth) and kept when 20 further runs were added after a first review found its margin thin (seeds %d..%d, fixed before those runs; all runs are reported); over all %d runs the 99%% bound is %.4f bits above q3_model. Rounding the %d-run bound down would give 2^%.1f; we keep 2^%.1f for the margin. At the %d-run bound 2^%s the ledger gives %.5f.' % (Q3M, seeds[0], seeds[0] + 19, seeds[0] + 20, seeds[-1], A.nruns, float(S_q['lo']) - Q3M, A.nruns, math.floor(float(S_q['lo']) * 10) / 10, Q3M, A.nruns, S_q['lo'], ledger(q3=float(S_q['lo']), h3=H3B, cal=CAL)['claim']) if 'TODO' not in S_q['lo'] else ''))
-add('')
-add('*The pair term (H3).* Every success passes row 16, so given A_t, X_f - 1 <= R_f - 1 (the other row-16 passes of f). Measured (`h3p.py`): %s successes rebuilt and verified (all accepted by the program\'s event, so the estimator\'s event and the program\'s agree on every one; 99%% bound on a disagreement rate %s), all %s re-found in their own class; every selected variant of every passing class evaluated on the success\'s CV1: %s passing classes, %s variants, **%s other row-16 passes, %s further accepted pairs** (%s expected under independence). One-sided 99%% Poisson limit of E[R_f - 1 | A_t]: %s = 2^%s; charged 2^%s (the limit rounded up to a tenth plus 0.5, the rule of 1a695f0b). Sampling: every 25th success line of the study\'s dump files in sorted file order, the first %s of them (`h3p.py`, `POOL` and `STUDY` set to this study\'s pool and dumps), so they come from the first runs and successes within a run are not independent; the Poisson limit assumes independence, which the 0.5 margin only partly covers (pair term 2^-3 moves the claim by +0.07, Section 10). %s' % (S_h['succ'], S_h['dis'], S_h['own'], S_h['pc'], S_h['var'], S_h['r16'], S_h['acc'], S_h['exp'], S_h['lim'], S_h['llim'], S_h['H3B'], S_h['succ'], S_h.get('spread', '')) + (' Given a success, its CV1 passes the W7 test for %.2f classes on average (1 + %d p7 = %.2f if the classes were independent): the c7 values of the classes are related, so their W7 tests pass together. The expectations of the ledger are linear and unaffected; the effect is inside the measured pair term and the work cap.' % (H3['passing_classes'] / H3['verified'], ncl - 1, 1 + (ncl - 1) * 287309824 / 2 ** 32) if H3['verified'] else ''))
-add('')
-add('*Bonferroni, independence, caps.* Pr[X_f >= 1] >= E[X_f] - E[X_f (X_f - 1)] / 2 >= g q3 (1 - 2^h3 / 2); first blocks are independent (fresh coins); the data-dependent work v_f of a first block satisfies 0 <= v_f <= vmax_f = %s with mean at most vbar = %.4f (exact rational in the ledger), so Var(sum v_f) <= N_FB vmax_f vbar and Chebyshev bounds Pr[sum v_f > (1 + 2^-16) N_FB vbar] by P_cap = %.3e; V_MAX = ceil((1 + 2^-16) N_FB vbar). On the complement no cap halts the run. N_FB is the least integer with 1 - exp(-N_FB g q3_model (1 - 2^h3 / 2)) - P_cap - 2^-60 >= 0.39 (2^-60 covers the rounding of the exponential, evaluated at 80 decimal digits).' % (c(L['vmax']), L['vbar'], L['Pcap']))
-add('')
-add('## 10. Ledger (exact; `ledger_a0p.py`, Appendix C)')
-add('')
-add('```text')
-add('T = A_C + A_S + DEV + N_FB + (N_FB x %d + V_MAX + OVER + PRE + FIN) / C + 6' % CAL['fb_fixed'])
-add('  A_C = 2^78, A_S = 2^74, DEV = 2^70 (Section 12, H4; the levels of fb176310)')
-add('  N_FB = %s = 2^%.5f   (g = %s good pairs per first block, g q3_model = 2^%.4f)' % (c(L['NFB']), L['log2NFB'], cg(L['g']), L['log2gq']))
-add('  vbar = %.4f operations per first block: W7 tests %d x (%d + %d), hit list, scalars and planes (%d) x min(1, %d p7),' % (L['vbar'], ncl, CAL['w7'], CAL['w7_loop'], CAL['scalars'] + CAL['planes'], ncl))
-add('         passing classes %d p7 x (%d + %d x (%s + %d)) (the mean program, %s = %.2f), stage-3a lanes %d p7 x %s x 2^-%d x %d, row-16 passes %d p7 x %s x %d / 2^32 x %d' % (ncl, CAL['class_ctl'], nb, pmean, CAL['batch_ctl'], pmean, float(pmean), ncl, c(csize), CAL['tk'], CAL['lane'], ncl, c(csize), len(AP.R16), CAL['deep']))
-add('  vmax_f = OVER: every class at the longest program (%s), every lane a row-16 pass' % c(pmax))
-add('  V_MAX = %s, OVER = %s, PRE = %s (member tests over the %d class cubes, the batch planes, program generation)%s' % (c(L['VMAX']), c(L['over']), c(L['PRE']), ncl, (' ' + pre_note) if pre_note else ''))
-add('  FIN = 1,600 operations and 6 units (the final verification)')
-add('N = T x 2728 = %s  ->  T = 2^%.8f  ->  time_log2 = %.5f' % (c(L['N']), L['log2T'], claim))
-add('```')
-add('')
-add('Calibration (`calibrate.json`, the output of `calibrate()` of `experiments/a0p38.py`; `selftest` prints the same):')
-add('')
-add('```'); add(json.dumps(CAL)); add('```')
-add('')
-add('*Certificate.* `python3 ledger_a0p.py --q3 %s --h3 %s --cal calibrate.json` prints the ledger and checks `(2728^E << %d) < N^E <= (2728^E << %d)` with E = 100000 (exact integers), so %.5f is the smallest five-decimal upper bound on log2 T. *Sensitivity* (each row recomputed by the ledger with this calibration unless marked reference):' % (Q3M, H3B, round(claim * 1e5) - 1, round(claim * 1e5), claim))
-add('')
-add('```'); [add(x) for x in sens]; add('```')
-add('')
-add('## 11. Memory and advice')
-add('')
-add('```'); add(MEM or todo('memory record')); add('```')
-add('')
-add('*Sampling.* The peaks are maxima of the summed resident memory sampled every 0.2 s, so a shorter allocation spike could be missed; the claim 2^28.10 bytes = 288,630 KiB is 3.2%% above the largest sample (279,720 KiB), and the Step-1 solve is a single Kissat process whose resident memory grows with its clause database (it does not spike).')
-add('')
-add('*Scope of the memory bound.* Peak memory covers code, advice, retained data, tables and working state of the whole computation: the online algorithm, the charged precomputation (class members, planes, the %d programs) and the computations behind the advice and the allowances (the characteristic search, the Step-1 solve, the class descriptors and their selection, the condition tables), each run single-threaded and sequentially. P8 and S are those of %s (produced by `stepk.py` and `joint.py`); the claimed figure is the largest measured peak in the record above. The class descriptors are found in 32 passes over a hash of c7 (`a0cls.c`, at most 2^23 pairs resident) and selected by `lp_classes.py`. The online figure also covers the deep path\'s working state (two traces, about 6 KB) and M0, CV1.' % (ncl, REF['id']))
-add('')
-add('Claimed memory 2^%.2f bytes: the maximum of the online footprint and the measured preprocessing peaks. Advice: S (16 words of each member and CV1), the %d class descriptors (c7, base, mask: %s bytes), the constants of the characteristic: below 2^14 bytes; everything else (class members, planes, the programs) is computed by the charged preprocessing.' % (memclaim, ncl, c(12 * ncl)))
-add('')
-add('## 12. Premises')
-add('')
-add('- **H1** single-trial chaining value: CV1 = F_38(IV, M0) for uniform M0 behaves as uniform for the events of one variant (Lemma 5.1).')
-add('- **H2** q3 >= q3_model for the accepted event, averaged over the selected variants (Section 9; %s runs).' % S_q['n'])
-add('- **H3** the pair term within a first block is at most 2^h3 (Section 9; measured).')
-add('- **H4** allowances: ' + 'The allowances are envelopes, not measurements: A_C = 2^78, A_S = 2^74, DEV = 2^70 target compressions (the levels charged by fb176310). All of our computation for this line of work (the characteristic search and sweep, the Step-1 solve, the class data, the q3 studies and all development) ran on one 10-core machine, for less than 2^%s core-seconds by our own accounting. The bound does not depend on that accounting or on a rate: ten cores running continuously for a full year are 2^28.3 core-seconds, and even at 2^30 target compressions per core-second (above any CPU core; SHA-256 runs at about 2^24 compressions per second per core) that is 2^58.3, below DEV = 2^70 alone. With A_C = 2^84 the ledger gives time_log2 = %.5f (+%.5f; Section 10); with the smaller allowances of %s, %.5f.' % (CORE_S, ac84, ac84 - claim, REF['id'], ledger(**dict(base, AC=48, AS=50, DEV=50))['claim']))
-add('- **H5** unit-cost bit-sliced planes: the row-16 programs are charged as their instruction counts on 256-bit planes, as in the cost model.')
-add('')
-add('## 13. Organizer experiments (`experiments/manifest.json`)')
-add('')
-add('**a0p-online-r38** (H1, H5, Lemma 4.1). Trials 0..%d: first blocks drawn from the organizer seed (two uniform words each, real 38-step compressions) until one has a passing class (at most 64); its first passing class is run on two batches (the class\'s first 512 members) with that class\'s program: the ok plane is compared lane by lane with E16x from the Step-2 words and the 38-step trace, and W7 with c7 - A_{-1} and F7; trial 0 also runs the batch of the semi-free-start pair\'s variant and requires the counted program to find and accept it. A pair M0 || M1, M0 || M1\' (one variant, not a collision) is returned iff there is no mismatch. Trials %d..255 return no pair by design.' % (AP.ONLINE_TRIALS - 1, AP.ONLINE_TRIALS) + (' Before any selection, each active trial draws %d first blocks from the organizer seed and counts the W7 passes of all %d classes (observations uncond_first_blocks, uncond_class_passes; expectation %d x %d x |F7| / 2^32 = %.1f per trial under H1). Validation by us: %s unconditional first blocks over %d requests, %s class W7 passes against %s expected (ratio %s); passes come in groups of related classes (a success\'s CV1 passes %.1f classes on average), so the per-trial count has a large variance.' % (AP.UNCOND_FB, ncl, AP.UNCOND_FB, ncl, AP.UNCOND_FB * ncl * 287309824 / 2 ** 32, UNC['fb'], UNC['req'], UNC['passes'], UNC['exp'], UNC['ratio'], H3['passing_classes'] / H3['verified']) if UNC else ''))
-ch_r = ', '.join(map(str, AP.CH_R))
-add('')
-add('**a0p-q3-r38** (consistency check of H2). Trials 0..%d: %d replicates of the estimator of q3 for the accepted event (%d particles; %s children at rows 17..22 with the row\'s E bits imposed, at row 19 one of the four patterns drawn uniformly, weight 4 x 2^-f; tail: %d proposals per particle, a variant of %d embedded samples of the selected classes (%d of the %d classes represented), W7 uniform in F7 (its three affine families; the family drawn by rejection from its own word, the value bits from a fresh word), rows 23..37, outputs compared; every success rebuilt into CV1, M1, M1\' and accepted only if it is a 38-step collision in the accepted event with W7 in F7). Trial t < %d returns its first verified pair as CV1 || M1 and CV1 || M1\' (semi-free-start collisions, never collisions from the IV); trial %d returns a pair iff no rebuild failed and the mean of the %d estimates is at least 2^%.4f (pass rule fixed from %s development requests before any validation run; their pooled means: minimum %s, 5%% quantile %s, median %s; replicate mean 2^%s).' % (
-    AP.Q3_REPS - 1, AP.Q3_REPS, AP.NP_R, ch_r, AP.NT_R, len(VS), len(vs_cls), ncl, AP.Q3_REPS, AP.Q3_REPS, AP.Q3_REPS, THR, S_d['n'], S_d['min'], S_d['q5'], S_d['med'], S_d['rmean']))
-add((' What a pass shows: the replica estimates the same event as the study, restricted to the four row-19 patterns (a lower bound) and to %d of the selected variants; its 48 development requests (480 replicates) have mean 2^%s against the study mean 2^%s. Shifting their pooled means down by 1, 2 or 3 bits (a q3 that much lower) makes %.0f%%, %.0f%% and %.0f%% of requests fail the rule (none at the claimed level): a pass excludes a gross error in the estimator or the program, it does not certify the bound.' % (len(VS), S_d['rmean'], S_q['mean'], 100 * POW[1], 100 * POW[2], 100 * POW[3]) if POW else ''))
-add('')
-add('*Validation by us* (the shipped file; 256 trials; network-less container, 1 CPU, 128 MiB; python:3.12.12-slim-bookworm):')
-add('')
-add('```'); add(VAL or todo('validation')); add('```')
-add('')
-add('## 14. Limitations')
-add('')
-add('- q3 is a Monte Carlo estimate (participant-run, resampled particles; the Student bound assumes independent runs); the organizer replica checks a reduced version of it. The row-19 pattern support of the replica is the four patterns of Section 9, which cover all %s classified successes of this study (as they did in the study of %s), so the replica estimates a lower bound of the event\'s probability.' % (S_p['tot'], REF['id']))
-add('- The pair term and the success distribution are measured on rebuilt estimator successes (H1 premise for real chaining values).')
-add('- The bit-sliced programs are executed on sampled batches; full-scale execution is infeasible.')
-add('')
-add('## Appendix A. Self-test and calibration of `experiments/a0p38.py`')
-add('')
-add('```'); add(SELF or todo('selftest')); add('```')
-add('')
-add('## Appendix B. The conditions of rows 16..22 (the accepted event; member x, `experiments/a0p38.py` tables)')
-add('')
-add('Per row: for A, E, W the mask of fixed x-values (trail difference bits and one-bit conditions), their x-values and the XOR difference; the \'+\' pairs E_i[b] = E_{i-1}[b]; the two-bit conditions (kind 0 A / 1 E / 2 W, row, bit; = or !=). Row 19 is checked on its XOR differences and the x-values of its difference bits only.')
-add('')
-add('```')
-KN = 'AEW'
-for i in range(16, 23):
-    for k in range(3):
-        m_, v_, d_, _ = AP.CELLS[k][i]
-        if m_ or d_: add('row %d %s: mask %08x x-value %08x xor %08x' % (i, KN[k], m_, v_ & m_, d_))
-    if AP.PQ[i]: add('row %d +: E%d[b] = E%d[b] for the bits of %08x' % (i, i, i - 1, AP.PQ[i]))
-    for (k1, i1, b1, eq, k2, i2, b2, row) in AP.X2:
-        if row == i: add('row %d: %s%d[%d] %s %s%d[%d]' % (i, KN[k1], i1, b1, '=' if eq else '!=', KN[k2], i2, b2))
-add('```')
-add('')
-add('## Appendix C. Programs (SHA-256 and full listings; `experiments/a0p38.py` is assembled by `mka0p.py` from the `a0p_*.py` parts)')
-add('')
-add('- `experiments/a0p38.py`: %s' % vt_hash)
-for f in SRC: add('- `%s`: %s' % (f, hs.get(f, todo('missing source'))))
-add('')
-for f in SRC:
-    add('### %s' % f); add(''); add('```' + ('c' if f.endswith('.c') else 'python')); add(src.get(f, todo('missing source')).rstrip('\n')); add('```'); add('')
-
-os.makedirs(OUT + '/experiments', exist_ok=True)
-stray = [f for f in os.listdir(OUT + '/experiments') if f.endswith('.py') and f != 'a0p38.py']
-if stray: sys.exit('mkpkg4: %s/experiments has other programs (%s); remove them first (nothing written)' % (OUT, ', '.join(stray)))
-open(OUT + '/proof.md', 'w').write('\n'.join(P) + '\n')
-
-def rng(start, end=None):
-    a = next(i for i, l in enumerate(P) if l.startswith(start)) + 1
-    b = next(i for i, l in enumerate(P) if i >= a and l.startswith(end)) if end else len(P)
-    return 'proof:%d-%d' % (a, b)
-r0, r4, r5, r6, r7, r9, r10, r11, r13 = (rng('### 0.1', '## 1.'), rng('## 4.', '## 5.'), rng('## 5.', '## 6.'), rng('## 6.', '## 7.'), rng('## 7.', '## 8.'), rng('## 9.', '## 10.'),
-                                         rng('## 10.', '## 11.'), rng('## 11.', '## 12.'), rng('## 13.', '## 14.'))
-H = []
-def h(i, stmt, scope, ext, lim, ev): H.append(dict(id=i, role='score-critical', statement=stmt, scope=scope, extrapolation=ext, limitations=lim, evidence_ids=ev))
-nstall = len(STALLED)
-h('H1-single-trial-chaining-value', 'For M0 uniform on {0,1}^512 (two fresh random words per first block), CV1 = F_38(IV, M0) behaves as a uniform 256-bit value for the events of one fixed variant (W7, W16..W22 and E16x distributed as in Lemma 5.1).', 'g, the per-first-block success probability and the expected work.', ('The premise of the A0-variant lineage. Organizer evidence: a0p-online-r38 draws %d unconditional first blocks per active trial and counts the W7 passes of all %d classes (our validation: %s passes in %s blocks against %s expected); it then runs the counted program on real first blocks.' % (AP.UNCOND_FB, ncl, UNC['passes'], UNC['fb'], UNC['exp']) if UNC else 'The premise of the A0-variant lineage; the organizer experiment a0p-online-r38 runs the program on real first blocks.'), 'A premise about the first-block compression.', [r5, r13])
-h('H2-q3-accepted-event', 'The average over the %s selected variants (%d classes) of Pr[the pair is in the accepted event (rows 16..22 with row 19 on signed differences, equal outputs) | good pair] is at least q3_model = 2^%.4f.' % (c(nvar), ncl, Q3M), 'N_FB and the whole attack term.',
-  '%s multilevel-splitting runs (seeds %s) with the variants of the selected classes: mean 2^%s, one-sided 99%% Student bound 2^%s, bootstrap 2^%s, %s verified collisions (%s); an independent Python implementation (the organizer replica, a lower-bound event restricted to four row-19 patterns and %d sampled variants): %s development replicates, mean 2^%s; organizer replica a0p-q3-r38 with a frozen pass rule.' % (
-      S_q['n'], seed_txt, S_q['mean'], S_q['lo'], S_q['bs'], S_q['succ'], ('%s stalled run%s counted as 0' % (wd(nstall), 's' if nstall > 1 else '')) if nstall else 'no stalled run', len(VS), S_d['nrep'], S_d['rmean']),
-  'Participant-run Monte Carlo with a heavy-tailed middle stage; the replica tests a reduced version.', [r9, r13])
-h('H3-pairs-in-first-block', 'The average over successes of the expected number of other row-16 passes of the same first block is at most 2^%s.' % S_h['H3B'], 'The Bonferroni factor of a first block.', '%s rebuilt successes: %s other row-16 passes among %s evaluated variants of the passing classes; 99%% Poisson limit 2^%s.' % (S_h['ver'], S_h['r16'], S_h['var'], S_h['llim']), 'Measured on rebuilt estimator successes.', [r9])
-h('H4-allowances', 'The computation spent on the characteristic search, S and the class data, and all development is at most A_C + A_S + DEV = 2^78 + 2^74 + 2^70 target compressions.', 'The allowance term (negligible against T).', 'One 10-core machine, less than 2^%s core-seconds in all (participant accounting); the envelope holds for any machine running ten cores for a full year at up to 2^30 target compressions per core-second (2^58.3 < 2^70).' % CORE_S, 'Envelope independent of the measured rate; with A_C = 2^84 the ledger gives time_log2 = %.5f (+%.5f).' % (ac84, ac84 - claim), [r10])
-h('H5-bitsliced-planes', 'One instruction on a 256-bit plane costs one word operation (the 256-bit word RAM of the cost model); each class\'s row-16 program is charged at its executed instruction count, loads and stores included (expected work at the mean over the classes, the work cap at the maximum).', 'The dominant work term.', 'Executed instruction by instruction and compared with the scalar definition on sampled batches (selftest, a0p-online-r38).', 'Full-scale execution is infeasible.', [r7, r13])
-CL = dict(schema_version=3, submission_state='ready', target_profile='sha256-r38-prefix-v1', attack_class='ordinary-collision', rounds=38, lane='exploratory',
-          baseline_improved='sha256-r38-nominal-v2', certificate_manifest='certificates/manifest.json', experiment_manifest='experiments/manifest.json',
-          claim=dict(time_log2=claim, time_unit='target-compressions', memory_log2_bytes=memclaim, preprocessing_log2=math.ceil(L['pre_log2'] * 1e5) / 1e5, success_probability=0.39, nonuniform_advice_log2_bytes=14),
-          restrictions=['Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; outputs two distinct 128-byte messages M0 || M1, M0 || M1\' with equal digests.',
-                        'Construction: the memory-efficient A0-variant attack (design of 2d1c4fc2 and fb176310 on ePrint 2026/1120 / 2026/1080; per-class row-16 programs as in 08be594), our implementation experiments/a0p38.py, with our characteristic P8 and the accepted event rows 16..22 (row 19 on signed differences) plus a direct output comparison.',
-                        'Cost: exact ledger ledger_a0p.py: N_FB = %s first blocks, %d classes of %s variants (%s in all), per-class row-16 programs of %s to %s instructions (mean %.2f) per 256 variants, executed counts; T x 2728 = %d; claimed %.5f.' % (c(L['NFB']), ncl, c(csize), c(nvar), c(pmin), c(pmax), float(pmean), L['N'], claim),
-                        'Success probability at least 0.39 under H1, H2 (q3_model 2^%.4f), H3, by Bonferroni per first block, independent first blocks and Chebyshev caps.' % Q3M,
-                        'Memory 2^%.2f bytes (online %s bytes; the preprocessing peak).' % (memclaim, S_m['online'])],
-          heuristics=H)
-if MISSING or PROVISIONAL: CL['submission_state'] = 'draft'; CL['dry_run_todo'] = MISSING + ['provisional: ' + x for x in PROVISIONAL]
-for x in H:
-    for k, v in x.items():
-        if isinstance(v, str): assert len(v) <= 4096
-json.dump(CL, open(OUT + '/claim.json', 'w'), indent=2); open(OUT + '/claim.json', 'a').write('\n')
-shutil.copyfile(VT, OUT + '/experiments/a0p38.py')
-MAN = dict(schema_version=1, experiments=[
-    dict(id='a0p-online-r38', kind='python-message-pairs-v1', program='experiments/a0p38.py', event=dict(kind='full-collision'),
-         scope='H1 (unconditional first blocks), H5 and the Lemma 4.1 identities on real first blocks (proof.md Sections 4, 7, 13). Trials 0..%d: first %d unconditional organizer-seeded first blocks per trial, the W7 passes of all %d classes counted without selection (expectation %.1f per trial under H1); then first blocks drawn from the organizer seed (two uniform 256-bit words from SHAKE-256 of the experiment id and seed per first block; real 38-step compressions) until one has a passing class (at most 64); its first passing class is run on two batches (its first 512 members): the counted row-16 program of that class is executed instruction by instruction and its ok plane compared lane by lane with E16x computed from the Step-2 words and the 38-step trace; W7 is compared with c7 - A_{-1} and checked in F7. Trial 0 also runs the batch of the semi-free-start pair\'s variant on its chaining value: the counted program must find and accept it (positive lanes). Returns M0 || M1 and M0 || M1\' of the class\'s first member (128 bytes each; one variant of one chaining value, not a collision) iff there is no mismatch. Trials %d..255 return no pair by design.' % (AP.ONLINE_TRIALS - 1, AP.UNCOND_FB, ncl, AP.UNCOND_FB * ncl * 287309824 / 2 ** 32, AP.ONLINE_TRIALS),
-         hypothesis='Returned pairs: %d (every executed trial mismatch-free); full collisions of the target: 0 (a returned pair is not a collision). Observations (untrusted): uncond_first_blocks (%d), uncond_class_passes (H1: mean %.1f per trial; grouped passes give a large variance), first_blocks, passing_classes, lanes (512), stage3a_passes, mismatches (0). Validation by us: %s pairs returned per request, %s mismatches, at most %s s; unconditional: %s class W7 passes in %s first blocks against %s expected.' % (AP.ONLINE_TRIALS, AP.UNCOND_FB, AP.UNCOND_FB * ncl * 287309824 / 2 ** 32, S_v['on_ret'], S_v['on_mis'], S_v['on_t'], UNC['passes'] if UNC else '-', UNC['fb'] if UNC else '-', UNC['exp'] if UNC else '-')),
-    dict(id='a0p-q3-r38', kind='python-message-pairs-v1', program='experiments/a0p38.py', event=dict(kind='full-collision'),
-         scope='Consistency check of the q3 estimator (H2; proof.md Sections 6, 9, 13): it is not an estimate of q3 and not evidence for the bound q3_model, which rests on the participant study. Trials 0..%d: %d independent replicates of the estimator of q3 for the accepted event (row 16 exact over the %d W16 words; rows 17..22 by proposals with the row\'s E bits imposed, at row 19 one of the four observed condition patterns drawn uniformly with weight 4 x 2^-f and the row checked on signed differences; tail: a variant of %d embedded samples of the selected classes, W7 uniform in F7 (its three affine families; the family drawn by rejection from its own word, the value bits from a fresh word), rows 23..37, outputs compared; randomness SHAKE-256 of the experiment id and trial seed). Every success is rebuilt into (CV1, M1, M1\') and accepted only if the two 38-step compressions from CV1 are equal, M1 != M1\', the pair is in the accepted event and W7 is in F7. Trial t < %d returns its first verified pair as CV1 || M1 and CV1 || M1\' (96 bytes each; semi-free-start collisions, never collisions from the IV); trial %d returns a pair iff no rebuild failed and the mean of the %d estimates is at least 2^%.4f; trials %d..255 return no pair by design.' % (
-             AP.Q3_REPS - 1, AP.Q3_REPS, len(AP.R16), len(VS), AP.Q3_REPS, AP.Q3_REPS, AP.Q3_REPS, THR, AP.Q3_REPS + 1),
-         hypothesis='Returned pairs: one semi-free-start pair per replicate with a tail success (development requests: %s of %d replicates; validation by us: %s) and 1 from trial %d (a pass; trial %d needs trials 0..%d in the same request); full collisions of the target: 0. The pass rule was fixed from %s development requests (pooled means: min %s, median %s) before any validation run; a pass checks a reduced replica, it is not an estimate of q3. Observations (untrusted): log2_estimate (-1000 for no success), accepted_pairs, failed_rebuilds (0); trial %d log2_pooled_mean.' % (
-             S_d['rs'], AP.Q3_REPS, S_v['q_rs'], AP.Q3_REPS, AP.Q3_REPS, AP.Q3_REPS - 1, S_d['n'], S_d['min'], S_d['med'], AP.Q3_REPS) + (' What a pass shows: the replica estimates the same event as the study, restricted to the four row-19 patterns (a lower bound) and to %d of the selected variants; its 48 development requests (480 replicates) have mean 2^%s against the study mean 2^%s. Shifting their pooled means down by 1, 2 or 3 bits (a q3 that much lower) makes %.0f%%, %.0f%% and %.0f%% of requests fail the rule (none at the claimed level): a pass excludes a gross error in the estimator or the program, it does not certify the bound.' % (len(VS), S_d['rmean'], S_q['mean'], 100 * POW[1], 100 * POW[2], 100 * POW[3]) if POW else ''))])
-json.dump(MAN, open(OUT + '/experiments/manifest.json', 'w'), indent=2); open(OUT + '/experiments/manifest.json', 'a').write('\n')
-RAT = {
-    '2d1c4fc2': ('A0-variants of one Step-1 solution, c7 classes decided by one W7 test, the bit-sliced row-16 filter for 256 variants per word, the success analysis with a pair term and work caps; implemented anew in experiments/a0p38.py.', 'proof.md Section 2; Sections 4 to 9.'),
-    'fb176310': ('The accepted event with a direct output comparison and alternative row-19 patterns, lowest-shared-bit stage 3a, the memory-free W7 test and a counted register allocator; implemented anew.', 'proof.md Sections 2, 6 and 7.'),
-    '242fcec3': ('Our earlier filing (table attack with NEW3): the estimator, condition derivation and ledger methodology reused here.', 'proof.md Section 2.'),
-    '49b543d1': ('Our earlier filing that introduced the characteristic search (signed-difference SAT model) that later found P8.', 'proof.md Sections 2 and 3.2.'),
-    '1a695f0b': ('Our previous filing of this attack with P8 and %d classes; this package extends it to %d classes with per-class programs, an unbiased F7 sampler in the replica and a deterministic class selection.' % (len(RCLS), ncl), 'proof.md Sections 0 and 0.1.'),
-    '08be594': ('Per-class row-16 programs with the class\'s non-mask bits folded as constants (the idea used here for all %d classes, our implementation), and the observation that the F7 sampler of 1a695f0b\'s replica correlated the family choice with the value and had a modulo bias (fixed here).' % ncl, 'proof.md Sections 0.1, 2, 7.2 and 13.')}
-DEPS = [dict(submissionId=(DEPS_UUID[k] if k != '08be594' else (DEP08 or 'TODO-08be594-full-submission-id')), rationale=RAT[k][0], evidence=RAT[k][1])
-        for k in ('2d1c4fc2', 'fb176310', '242fcec3', '49b543d1', '1a695f0b', '08be594')]
-json.dump(DEPS, open(OUT + '/dependencies.json', 'w'), indent=2); open(OUT + '/dependencies.json', 'a').write('\n')
-if MISSING or PROVISIONAL:
-    print('DRY RUN (--allow-missing): %d missing/inconsistent, %d provisional' % (len(MISSING), len(PROVISIONAL)), file=sys.stderr)
-    for x in MISSING: print('  - ' + x, file=sys.stderr)
-    for x in PROVISIONAL: print('  - provisional: ' + x, file=sys.stderr)
-print('proof lines', len(P), 'bytes', len('\n'.join(P).encode()), 'claim', claim, 'memory', memclaim, 'score', round(score, 5))
+def main():
+    ap=argparse.ArgumentParser();ap.add_argument('--proof',type=Path,required=True);ap.add_argument('--claim',type=Path,required=True);ap.add_argument('--program',type=Path,required=True);ap.add_argument('--manifest',type=Path,required=True);ap.add_argument('--extract',type=Path);a=ap.parse_args()
+    files,result=verify(a.proof.read_text(),a.claim.read_bytes(),a.program.read_bytes(),a.manifest.read_bytes())
+    if a.extract:
+        a.extract.mkdir(parents=True,exist_ok=False);root=a.extract/'notes/sha256-r38-lane-tree';root.mkdir(parents=True)
+        for name,text in files.items():dest=root/name;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_text(text)
+        program_path=a.extract/'lanes/exploratory/candidates/sha256-r38/experiments/utab38.py';program_path.parent.mkdir(parents=True);program_path.write_bytes(a.program.read_bytes())
+        base=base_source(a.program.read_bytes(),load(files['data/base_delta.json']));dest=root/'reference/base/experiments/utab38.py';dest.parent.mkdir(parents=True);dest.write_text(base)
+        c=census(files);(root/'results/column_census.json').write_bytes(js(c));(root/'verify_packet.py').write_text(frame(a.proof.read_text(),'LTFILE verify_packet.py')+'\n')
+        for b in history(a.proof.read_text())['blocks']+history(a.proof.read_text())['sections']:dest=root/'historical'/(b['id']+'.txt');dest.parent.mkdir(exist_ok=True);dest.write_text(b['text'])
+        for name,text in load(unpack(load(frame(a.proof.read_text(),'H7PACKET')),200000))['files'].items():dest=root/'h7'/name;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_text(text)
+    print(json.dumps(result,sort_keys=True))
+if __name__=='__main__':main()
 ```
+<!-- ENDLT -->
 
+<!-- LTFILE packet.json -->
+```json
+{"payload":{"data":"{Wp48S^xk9=GL@E0stWa761SMbT8$j=MX*b{#^h)h=|72466Jy-mG6~gVq`%x9fgZ54;PPj-98hg$XAq+9x#zbsSMBmEj!<6-&EW6pMAw9<T@elJN&pO3;}0`IDD?;VmZtamArLsrtmbL5NO4IN%>@EdHwPf2>#)m?&DgY!ZuUN_wzk=b=x+{96ujY!lXvM0g-$in*FTV~K=h+j1sPMPkv~=ml;-4o1}Eo=Iw)en1NsQP;45DvJIBrr9d>^zr)TA<3u{azdVRkOJ7(`9NzQUFBwNMsn;w`PKH$IXgM+R+0Fz1{h3J>LWg3#iWsw_Sv^!w_`v9<_L?PtCgj>ZuS^GZZw-ZmIcMYc-~1v(}Hw9y^753=QIoLdLDr7h|4k^{p~V_wH6m>f6Kpa&KEx+vmsU%Gs6!DxP!C$QW>L6+UB0QZYKA{wu0XhKMmvt(U#k0GS4PC<t&rKlva-6ejaduOvDk!`@nE3PGaATBnpf8rJ~ffY5{KYj-%LSz^IOZf4D`99pAL0M<Id8*8>$LdrNU<nyqqPl`^7R&6M?Rd#z8&O;hKr3-uDo+{7b&w$7Hi2r=q+4XIgy#0U<y&ttbVxlht1y-u$SS)v%}7m|Qj)Myq^T!HxO-a7(u`&3mt-KJU*R((1j$60kPQ6=|;z~H+lol*ig`k*Aij1<G$bieKzG#}=s#enn%S|om}rU;Jqns6<zlz)BFz*rZsj3u3UNDCOY`!v9CV>6If%E31P$I6ax;GJ#xHqulwhDZJ_?=YlZ&3}gSB+{vRMo<QZ&rMC#PJAs)buF1Cut?3eqslqF+8*m0DDx5wQSCwod0*{BUcLqnNLx5hHh^BvZ$fH%qU;?EYdeCV+MqCcatUX>8gjWj3^Wq;S7c{v<@D%!4r|Q6Zr*)czzfJ%+fOCHQKDWG`S|wnQg1m+SNrZ}N!FNUCA&=182!W8#zY2|1TAcY1BKvY)KrE4V40cO@V_MksmwU`WH<1yvo&tS5&W3Jx=8Ys(!@*_QOx`mhyrr+<-ll4Z2IO}&X*1a`MuhA>e1Sk*CJE3F9j@-OPo#{FGwk_EJBxv$47GI7t0dSF(A$BemP}2+Daux8|(gNY<r{b?d1dYu`W#AYgwjwZHL=e*f(<a>h9@XFoPNzSLORFrkVJQHkx;YSm&g7%Q!^(ZK|O-=qV@JYv0ZFEzgrB5fNo8-zuPHhu!<ZTKWUZ^)=>#(Fr(kf?eS4;1<bqEf&12b@ly8EE&|7=%vG@A#eg(M$VHbSqCDTR?+F!U4QZ}2Q8xKimh?bdKv&~1Zq?6vUR(gVFED-r>BE$sHEYqwI(L7IS+7D`;JnevA!5vb)LYpq$Gy3(MmSSE)5rQ(oVRHbR_Rx=6hA8vrxn*6eX@9HRhmsSl-KGqW7!JcUM|XY6!~CHEl<lO?myq&px*B7tgH~PU7h$L*D4XW2U7!_4&qg1;4~*ge)av{2X@R5!9L-Z;WECdBO|-B?7>+PgN+gDAvx-E<tgZLD$Q;PlsdpH>fV!UD8?U*;?yp<0b;Fr+DgR6sRDzDAjn(SmsTdu-@J0C!fU@jFDPD8?=S$<?OxNRi3TQjwmgW{B*a#VS}Uv7u|xj-OUouSX$V#^BAL~)?Q`&nYHV$C*GsV#4Qxz2Rd9F72*(=HEJxobFX?L&|c3JwZ)%(s!As`CsZP~ku84Klt}N(9NFiD$I1m@wHYWB#m)>uW#t<LE4_t3m&>ZZMq(}L9<MgOY}bN2vLFXLIl6^^d0*N`$>n+$Su9)4d%rQu&a!@5p(bDW_HQ#U@jz=kkV?P)rNR(C;Bx=!{M}<}<GXyhoD|XXCik--NPsQ42(!4t`9<>AtQpPjrj=FPA!4s9Gc2}Iv+f4%i9BqNIQ)rkw2uq%W=spk8RXe?v8J;Q_mSQLPEXS=d8wSV+IDL4(R$*Op3sQ`H&`tWD+}8GbML?-ij-(rbaV!fLD2$y{hZ<~Lv}1dS)D%#=%Y<*X%%=}v7-xLJc7_A9U80=F8baJ>AfSS?P=dRx99Y{M;l%<yX0u#1iH^36fWV~x<!sQZIw!J4sjt`J3n2LY-v(bom7nh%AHZ?SzW#<qFFZh1$a$m#5R%)0Y37gG0IHcNMSfSIXAhv`KlG*1S@puTZ)!s+2wLNZTZ@z%#@iNLvMyE-4LfsG>I)3Kbc!&E|~-4&f4q96d{jZK22QJ<5%v{lhCOf2vo9d)`gPQ8U^CFdy;^|2s5MM$5zM@|M7VHKS0eY>qLfrMuJW!yO}-<EYV*oP0uG8iGu-2RyPB=;BOAeBbo(F5A?<7nM>3KuHZRz$y{<g!k8BP|C@fz$>GyMU{r>_M<>kQxDgsL{|wl<W%xvbU9RjvCk_Z}%1J?LMm}6RC!uhDQK3+Uj#IY~&;iW)|H>r=A|SjiVX?#h)?tFFtTZEJuw=DpeIE#qNi(<D-o^hsx;do;7drw0|787864wc@1&3*I^C<mQw+|6Fsb*-LTVI$O94)VSf%!xR(+?5nz`5U@^xWBr#xRvnl9H!D>SU+JQzd2gq&sPVk-6eL4Al6|4C6)qLj>@cQ{n7wg7OCz7JZ;=e|>fNG_NbqAt)PJe4-`nPd3<$TZ+@sf()g*B(dLkHkDHnRlKpI8tO-AO_LUk@u6QZ&bTmtqi~_ac=LsyJVsD$xUg;_MXSL#e;YoWxsn9=G5$}3%0&;zm^$PKR`s%YtXFKi<;i5+v<N-wZr9dP_Qhi-P=wf9nQ4}8E!@l0l8Y089*c!tSJ%x)1#E?)&8s1vwDtqh1$325e_qqx{$hh^ey@S@-xiRdu_z8e6-w07H-~MGxA$>i;F8%Fxy!6KKB?b<+}q?hZzX=MQs-IGRNMHn3crxB0H5Ad40tm`4QnI83xnbf-#f#9mEL-sh)C7If>$@EAjkhwv;+VLa~;|>L`a@>h{j*V@-m4&$sQ){h+3ly)EeIXbfYiJ<+S3MI*1!HTXdS>`wCRA+`F+Mc;LlDxO4xn6b9ZoM!IU<bkr05qJisaos<rUN(N}6=lamUSk+WpK@N1<p~oG5*-O^AA58oXNT!27T{f_E4}B#E%OUFrXlf9IzNI^z2>pL<Rvml{yBS$RnXjJDUNm$i75&-lh!3`%4{nE#r{f?BVdcbypki%5xg4*+*p)K8*?y7<m&Ydpqm6>{AGE_XNIRpEQ`<hd7;}a%l7ppgk5k+rgIA;wkVitqFV-b-4-Y?O-r?O-odtY!|9?H_3RGu?VbQKu1P@09n9+RhodJa}FF)I+UBRoHb_!y4bo<IQW}i}p)rsCY>rQAsIp%bOof?XcUwr`0Jx1p1=)OuT$;dPww|}Tpw`&?CEm(NOXaFfhpB)fwP-?KN_M*ilz5Z(4DO4cry*Vy6wPxKvjAj$2hc}Rh11R(H>IQEig;R5@(Xg(1NOAQKE@M()9D*l56>^KtLfY$J3Z0ySKO}E{3@xRDXE2qlE~^7PjB6-;Eqq7C&}A$(oWiHcEi;2?&VQm#Vp_l+<cx~d0+%m8qu<EE*H9wK;UqA?y3ybGCo8h0?(;DA$p|Csrv?kp)A$wBb}nK#xb>ZAGGra-js1{UeE;;mUdh%ZLGYetk!I{TF-4YV((Z^LJ)U;kT@8YmL*i^2&~(G^bW|Gvub^n{s%{)-Yz(Mxt!hTFf=y$r+B901CU11^&rX5=vm<BRQS2uZTZEJ?vTmJEYP|Jv`sU%^;ixIEJY^QsCV}$BMtxLrB{C_U7s%Z(3};iKtlh5nu~(TQ0~&uOTu*W|2c1t^R4IEyRogSkVPf;t{m#`wTSw8hWBQx4%;Q^f>}eUR19WO#hXqkwwCuh?5-|Qw-*nlV-XZXm_Y@1#+I$>iA($jaLKC!W5t)0BeEtMc=5f<ahkO^39EQtg-VH(iNVKW-7m7=HMJ^ZTjfJJy-Anz3ZZgr-DLJLI1ycwM`E_}0#kr7ml!{>@?J5{oKt7{mSX{-4w@m09ReC}Uby|Xe44=nA9L_#6qep*Zl}hMa7AxAA!vQ}Cfe}K4tf1}as=QxqSC3Mtoiq@)H4C2-^?ZuRnTb{yqaT$S>t)gW=bzxpG$C<yQXa_9lZg89o-ZC0emD{^MIG6BAA6{EplQwd#g;5xHl-UF&`>dpGnG$WbI5;av885L%}^9Q@Tu}sB(E;IP;ndfusp(v5&BO1Vwq4sIy!-lfVZTdIXFEBovG3)VIEbLM6`Nbbki)fC3q-RG_>;oIQy`gwYapMCr4|0>g(`<pX|?-`P{V=LxX{G)&frj$Mf6$30oN9(5Uvg6Q(Qsjk&$mC}uh0D&#4}E&kwpcIaX=%zJ}ApZW7)mnq)_-j2~5x?g1gzKxW;KckdMw_KeMqr9&xu1>WpifV*=8VZ6b0WPpH<*fn(=M6^rV*48~qnH6s6NF+gg>PR)m)M)@RJ(x~Jq5Shh7)81aCH^+MOJ$~WDRt8UpNrfVIVG-h&l2N>PV$>4sBCA+tDLuq<~d4E}dw$TGcyB*!H5i!FPt`1w$lo{Y=q!B1k)6A~ox#b=xyb180+H`!W243tF*3Q6oi;QX|u}t=i2fKzYb%zI7E@8E0oUljE&U#HbqgdNhgqq1He0MPQ9<C{h1m#9hCjPOtjy4n=<DYXNaN&2NJp4H*bMr0B@c&vWZ`lW6jHggqP#NZ$FPOF`Wy9qhhQM0WtAHbg5`czU3cUw&PZnJFTQ8b}K9*J)!_t%X8H@?iPL6nmf(UqUD>4cmlp`*zTw>x~eMmVSN(IOjLXn@7ekt+H2s4aNw%Uh)S7OXu>_;J1Y4Cns~z>OYef_hAGaA|5EMg7L*S9i0G33L@*R$6Vo+RRSP~Xyg-JM)=_FGZ{9?*5MuQyd{mB!U|2p;>Xez$iZ2}aEYjS4;gFIS9wPFiiAly-+X{J^^(bHEhGMzULI2LL#jsEm18tA*ukaBWTY{cmt(~ns<p>nz)R0Rb^?y6grYPCo%=4O9!!^S64RL(TS;YoSW4m<RHwb$!2=$HO5rCNhXX%nLcEWxmd#8Kp?e<@6V-zzXE)O7NG<hkeWJdx#OIe;G|frtTjSGMbC^{>j%FwYA~J^u<Dvw4IPV2|!3qNHwsymNoElBwgXXTs8&t4rsjJ9Y3}mdVQp9-vZn38a^QbtV8qaSRD7?9A7PjE60JBMHO%Lx99yKQw294tT#Y$6Ndlg-Mfa7HQjZeBkzN6S}y0jW7ZI}6-Ab}2)i0(CUb9YRYz}@1cwiQfAQX|Wde0$wtPR^tB)g9yI-C3`ngRo%I{Je2QMtM`y_z>G}g{dI;;%t^Xjhq(Cq-y;g<e+mk<IVId<-_0k7`3>efFe5}u(7|k8xY8`w0QJgB69M#yg<iJtuf#+DY(8JPCU6@rurXZ2W(s4g#L(UxaB({p(E-3$Ga_cv~iK6`P)r4-QWfU222|qDu^Yh8u;`$Z=A7~QY_4sB?%|mw2YjR<<oK^D%Hq-<1s<JUYkS5NKbLnQtz5`_uyZEl-Z!6Qqea~n8ww<@IxIZd+I_E^AlTqqfk!x-n8#+Cj63X5e)E$@Icv(tJ+1Sw|td%q(h#tmb`M|1V$Kgby)W1<eW^dYBN0Zg97ykuVYDkg=x6dxT+O|4pPK4Us@$=!I44g^{}XCkQK&~nWaC5Dk5^#jt+1Ek;UW0B(N?%drZZJ;QPg9*PQ)90-r0F)_)rMCB|jotp6<UrAH3rZ_k}rI-F(NgtU6&U@{16-e{r>vi5bo>J1L(Gr4_J?xq_=%Pk%S<p}xd?YHwjem%<Sfjt6|;`a_wkwf~`79M}WxGmmHDC}?}#bV;Ca|a-(b$4N_xNH8W`1}PY$BGbdGRn!o?jPe$F7lE13xIayAeBeeC{;OadiE|6tTZvlX>0{xp4!1Q%PyNZa3|#bTMa|E6vaRLF*GG+p{sfRve>)n@9#1HMg6Y(xt2cssz4ovYMkL$bfFKp)Xq*;`z#`f_>^nm_E>~Bo$vo=iBl*7aL&K+!`1%RA^CxbD5{~-`6ND%0%O`DE6;wNfQ2gV9pLGWP?U+_OB=5IP_3+~Ff<OjJu*yRk2w+RcG52rdD&b~DN4L?hj!Gb>g_MmU~{uEXpdi?n+PNWL^dM-TBhULt{<CN>5K^Pe=<EB7$mW2noOrLfhpm`*&l(g&7c_|-=mL+Q5jB>P-}9f`I{9phga=8m1dG62oTyh4J)ds;V*1f<~rlK?N_qcx_`9())J8$qzv86Fi4Th3=4xQR7=0lJ^=X^<&hiNRb!T{yVSjWiwIjbV2Es&V<n_d<!nHSaaHjfEvQosYS8^jlMZ$<FH2TeS1Bz_mM7Ap+dFWc*{SA$*bd}}H3L@#b#DDNC6ZT#w1t~XNq}@iZcIjB;XhvoOUTf6ayE;pad%?H2_!SIX?y54&>!%Co<m8;Lw&o>Gy$W>G6#7_Gb)(fxrwE^71DoZ<MjX1!GuH)A<7Vp%g{{Ag1-2FDJ$ZuSfN{&j}C#ts!`TX9(ylJp&rt%jcKpXUdlouF0skfz9?agaaNmsc0@kWP83xOQ-oGTb*kM%mB&DnH;ZC)2pm>~&3&$`paC}G_Y|&AX?QY0Nj&#>a<7*R;ZJtV7}<OlFf*&41@6v5>vo3E8sm^5bHB#_Xo~F!@v_0q7UP4S0Jh5*0&ZCYxK(F=VSF`gv!V~Meh3zH2npttXZO~YTSz^0_P2o%fkOBiX4%n9dAA-elAY9(FVPu%gBEy?^=2V&<;*RF@_<p*Q2XBAc*{I9w5a*S<6Z9!d(fAqqZcbANCy%}t;x~*@<HVxsEv@%R5aopxvptd#j1dQlU`ki?XpTsQX8PQZtms&f1SuS2%-R~|7*ved>Ii7Wg}Q%3qqgr!eP0w3QynUYs1Fq;a;_TnA+T+zD17EW_$^VjNWvjijTwZ!N%k+ldlaT4PDclzcgj9bw48{v(=1!YFv19Q2fDo7UcuX#PM4Z3abx+u~(vcdF(GNzXxLWZ~}I?0keE!ZQ6Nzxn!}Y_F$x>2-dI}j#1Z8BQNE1SWXYff}A{Jx1Ll~R<khW*+jO~<nVr&j$O%tn{OCTADXRhNIjli^c$~H<WoCEw0!=-T;-anlDF1@Im@bl4FP?ZL&vV2Y0?azlUdPio9ktsE2k@o8hhJ^D$(~HGBv|NqSMA+MDQLL_6`8XzC)qJxb&Dla$b`9nUG?L8SI*xi(;0tTbz55yvoak`@l*3CoA~-OIfDTHi7>B=Hhy<&&}om<TDSty0Ri5D$pKQ8u`I`B>S5o77#O!i=x8?@KZYIVe}Edd1__%N_Qi@RE-wsp9ZOE3E&nE6hy|ZJM2GM<17V!vAGE5P#d!STPM9YA{;1~zCy`Ba2<GX9}nf;R^mscFeoh1PEy^m6ToCg;Gx4SGWpI?IQwAf5+-uYxnAO?dyyE%?XHmbMtgUum!qtf$~7U~j6I{9vAPe8)N7@BZhuipYx~xh<6=HqkR#LQoG3Yw>fEkpr*S$EgMM9@ZQklZ>7|hX#$k0YVgX<-(Rs1)jQFzah@=d!numib!wLL2w%FzGfIuEOP9(V98Ewf$kby5L*BdhVLfkDV@maz_8j9QTOnF{uDX6!#H9Qj)Ry!DdrD*pp%YrFxln~yvCHdrO4q1oB4W#9t4aTbK_=x@sY=sV(G@FA{_i??CGZP<G1NHs$wI8(hdrz+}aEFZOlti$Q6Nb_9{Y&3HIF&ksMIn|-8;wsC6L6<|Me+7g5n-5uWY^i_W(On@j-Is;3A)$whE?yz!T?w8#tRf8Or3ilitge$JBnu<HFpz6RRoilw1#eive%b3WE*r8PNM0qFn_7n-iV{*X2f-wi$d|%;&9$^!A{#Dog3MVCN?ivFXOtue_Q{diAkP!BlReNPvkq_M1H?J#^X$shgK89d#9U};%aDXaGC}Kc%6c<kRU0a1B8;LNZiz90XMpSe3feAzWUGKQ(~R}Gp4CKRKohf?EaG1*(yId45khI>a-K%qCEe|m-$t0hB#ITLr>%BGJc&2V-&`b6SHH;^Kh|KHSQ>gQyVfh)*T7u1)?-BUFb8TRQy#JBb~s?eMgcrK<5~b+$jL?K{tn84SgyErz9!;63z<0a*{YK_F#<xjzrRCZ9*tXU`;Eut3(;9$$Tw>?t<158{19J-scRD@eYw;m!%7d66y+La(OZT(yMX7OW9~>OFyM^JbF+`1l$RW*>m`}q;a1rIJy6@m>CBaN|$&OC}{N-td1{&{zGDufpQcCmG>TcvAPN`;0=oO$yJg~r$>esYg-yTR^+`wc0G9RsEuW6U651vR{Smivyj(E8ys)MKf(L0*V&?^rL7dN%FZ&vUn1Ld0q%5H#gQf3?cb;AEf@)=XV-a`@ZaMzyD<!nV;Wn!WokWO$_Bo@%^dA@u@@XR2zWory{BqTa=B+7c~<{DO}|xh2$#it+2?oYd1y}M=2b|10@k|QGgjGSdqkEL7!XS%?k=x|zRya#KD21@D#A_rpKYKl-oBaCvng_oQm4u6$#uCHu9N0kc$ljJ3!>4`okg+(-3knBKz}k}{9{NesFb~&T<~NY=8V#5xv0VR0x#&9FSDbr@+PSb$4Hen74T+wW{xt{^R5E1M`EZ89{zu~RE?UIgSY|HCeqZp?!Qq49@6qFTI4<Yt-46J82?4JQd~S1HWd&;IAV#`LDBs)wU69wstmT#kgFgolBo7q<q}x7NRUK^M`lOc2&*HiG!W^10LBE3vaErMH=0sD0cA?|``<{j1S8}aeh?N(tZA+h4rm-`sIC6?M}$^>K6Rr`FTnEXNgiLQ+GiFZ9{TKaQ&OR$;+p0ocBr5^TR_8kz@Sk!fHKLOnxAbW4LY@$rG5V`Fpc_X1Agd~5%74yRL={NW_RKZ@a=_mgN$<jgQ`PtuJ&uKG0s>!cllgL+;%$3z8<|=&A{+<fHG6f){En3iH+7&V9gr+xEZiN0T{7xfr=H3o?NCjx`<(KlERr8F^iL=wI_>>U?ZzGUvb2oxI}M&^Ig=-TGQXU*6zz*#|!iXNW75=^>Y+KD<i#Y8(AjLPyDVLCxNtcW5@6Y36Cd*1=x^lPT+oVJH+8qF2*W-l(oE~b2P&)g$<G>YXh{KBKTGKTo31bXswars5^C1p@$KSnmV3B#Laidfp%py!cUYzZMOwT;iCyg%y$j5hPH<|Arh)Mo_GIqc58R{pQ$een2q#)?;gOq_O_hGy&K&DPKY~%lIK5c0(WJ8$3+Z!8cb9nwo+2RZ1$->Q1Vcon|-NNF+c)6;Kt^^R1TdzSwJ~wNi|OKfp$Fc?yTutjJZ?i;EDG3v>%F1^yt+*SVT*VlGs^L0R5k2m`6b?z=Mgx@)LKeKMgA~2@049%cx$a|L7Um`BEb5&=x92&9Z!Oe#{EB%XrGAfOhqv>=0;B+(P)Zz(wEumB_>SK<z~`=T^?4c~ha&60F_x(@UCaE+2_|G!E(;rUjR3J3!-k0C(d}tsaQ{^T&j-$l=Gj3x{q0_u;?Dt<NuRuV~g&)aRqK?$qb-38<i`Ij++lGCF2M#Qi@~T*0w2MEV`{a|VX#hULna6C@z{;v24Z_BxQ#1^A6c#EFE?*W!izGw!SmC-_HmQ{#vytXSpWx4(-|0^Tiep8HIsyloq_7}EHz%$`*41V@=(?)wa`89J|qla~sSAd7l;q<($j6L*a^u7&b&?8h_!v;<fdoHH&(Q)(TK0x?gwmk3)(*RA)NW>1}XL>;tx);58omL`T>2hI`Z%zP@<i3JMjoa4Y#E6iau5@0M1fqKq^f3X?O>PCN#W*$*Lj`Cb&QW8IpKk3?^IJxn7l}l}4Aq_%~s8x$Ka>xbGwfoT7IL#T#x7=M?vKNP_{k<w#rkl%fcYS#6nYIy3i+=tQhr93V#+93?{-edNF~mg6;63kgdW7jyr?jYAYUW^%cMf47p~JAM012?7xK`H8S_k(r>YQ%UhX>K;!l84%WKMM781XN%dReJC>7u<|pOfA|D<{}VYfGMl8cQ;GyrC;LS4{`-0)ydW+7ZP*{;MMvg&f}`sObt)MP4VB?GOQ%P|YFQBkMua`~-Kmp`UK-4TG@t8_Ii3Q;0qnU_uEwl}y>2Q(Bw322meizwghNz#3CuHK=RB%#66YyPrXBbKwsV?j)iqX5gqkldI|3PQAlWW4snEP}`;X*d&lg#u33|(iE|Y{+i+_JhzG&)z_UYU!<GOBAhMMkS6QF6Z=BqUII?2jB@kBqRNgr01xFpq+V6NSla8kao&3%E$#IsXkAV0<gJo&2m}~qwE_~jX<IDKk#&)WdNG6EsVA+8And9z{zI~u+ZTVWD`$W=u8jW%1PbO+hQX!X`L1KZr^V^gJ48k>E%Jo%bR$x<YCS$^CU)2?de0!?N{)D{&N2fMq10ymE@S!okMLx^bLXoZ2?f17-~{FG@0*BiWu*SapKnz+)6&lbgpbs;S1Yp6cBEyL!%9&W3XtB`6Eg@m__}5T*IXP#4g}AlGN2MdP)=qJ?~b}v0Xn31BF+*C-j=wPNuc=l<P6)Vwb}d&KN78rpmugw$ERggT*EE?dt58}t|y`=^=sG`9@uJhf2t8Kx{wwW{GL2CiU1<AE)cJJ@XaM(tI6=};;pG?>YJpC6Ua=)!N)Qg1hDsKz6|S&E420v)d_-SKI7~KCgAj`sUbZt`Ym#`VC8%}iHp+vV<rRk`*!|fv4T?=C`|Gt)!Ii-%ZVU%31CcgThH5e4F!vIho0dTl`;6Oa?ylBeFU1PzU2Z*zQCA~slhHJ+eybqbWS<pV}blA^X5l4V@G4)kja`J@Cj<x+SU{%9jqv<9n;Wd)}fv&S~$?jcZUVcxUW+*z*xZfS48)cWS)qWV{UtykJrpO0AA2DLgThOYjNL1P{N{DO@=kPi8q_}<l?wulA&`&x>y_VRTwFLxkPQXuN(AtE_d-KzY^jlaMAx$MedK!aKxgKQNvsgus$0d26^zrc5gHrVgwxnHXgM7Tx^D_<sZC!Jqi9tU>lMZt^FjcY$@$+*64P&q)#jdDB#-E3F=1os0I(pQ%R3c{~<iVYb!gGIsR>{FjLuD@FF4=P1=eS#d(p);KdyXmm%#;u$&pi#_UCQIt*eDMLc1(s9s*L{2NCs--r>G=Ndv;m6XX!sHD4M1N1@HYGFDyM#r7DfnSQt5by~ov~B1hkl;pL6O4wodnL+BFQp9wSk|t4(Eq+|if3~T)V6-V2a^%KQ$R3ph_J7?NL=3%p9%->MT3rn-)Z_21ppYm2D8EL?d;XKOC$HPl6yLt_t6;6>{X^}H$<wNNTMBngQYI0xC&-IGzusWskT(fvUjdu`Pg}rAKa6g0mNfgG|*($J?=G~myIfy-BI%2nQulbHFg6uHvVe{4ZV!TEGYAx5J;kiM$*_6z^ZmJQWT&0lk1<oz7G~nt%aztcWDLJwQ(akeCYQY7<l@b0Lj&xO$sKeA6q5QdTAN@`5T#nD$K61nc(dXA51SnX>A#cJ#)X`@K4H>pr>AXcBSV4Ze3{SfPyug+MxDaDQmtZD$z63czkZ8dpWHEd}!9bha|~vG8*R^#!EB6W1^1UrpEh^KNy1HCMM{=6S9r(b4KD31bPb<WI6&+Qf*ovzp~flQ#;HwyU%NT*1{eH_ZDVeUy?hP0$urMrpgW}Nirf?S)UCnFC##V)sD4%1aZ)J_{^gS%M9M9KF*}Mn$a^NsatT{=WCewysBei_uJN}Pa4QZyX72&BLXs<en6I=yXSKM2Bd4_3TJll(xx+XHtAe*OpthYF{z7qe|+t7?0Z5fi=V8tOn~S~1D_jEgpj0WI#1jBAR9_$QXnE$x|>bRDJklM$PMzi4jpkM$IMiFGE(v~Zt_84FUe;VfK{Ver&p!8`44t5MC{60re5mCf97N^S!h|wwLBU6Fu^n}D6AV%c{RM0bd*EEf3z3MDN@YR8HESjVzEq(X*>gawp3sQP@dq-^^X9<rsv{^-^~^3^MgoRiuxUaVj3BP&T~>I6naI&NVp{~y|Pb@UmBt06zMk1RS5V7q|)Lp)lc+2ym@xHC3ezKg%%f%Ituv#Y$T#tXp)4dv6I`VzeBGsE9`>0#J^S>sbC=&m(?dYcuiu!?4dA;={^sM8`$KmX8i+?%BPGaHgW4xO{=#Bf{Am|BN*{*MxL)c_Z9erK44&CQug#>aM-or*YI9h3W6^~Mh0n+zU15Db$;$$NKx^d9&yT0=D2Xso!sj4`bslIKDBaHJ7ZuqUQ6Vs=RSHANfKC)`Gi(knp-&Gzvq-PWEX-pL{J9u76ge73$5&B?EDikMN35D$u_a$`hoL|{}8)idF)5LPtl<qQD%lVki$lcmZ|$5ii6ZZh>8Se{xl=D{a%XX%-y$mB%#tBH2QP8z?a3p=Zi`eqYG>H3^OKzTw*PccGm8x|6u96A_jVirh9+VM(xseM~*#zHr*MepXL}H9S-c&k3SyfX@Y&52U?&T0PbPdFw1UzyMzb*lIT{vNVK1>R&hZ&*3>-fO<@R@qdZ7Ojy4=2g5%MGw)l%{=bj2A=s_Pmk@k`BPkMt*6mvJ{w+%819#07XMCW2I`9#^M^A5rMI+D8Zgzi$^>Om+^HL*MX=$UA{*WWC&5i;JiDMW$UI7llOjD#09gK$DPu6NOT>&wI2H<ja5By;E-iJXFTE7Q|);9YtRO;+|BbaW{_xFHEGb?}u)^61;>>*PMfmQBeU205CY_6J@?dUJnK1|fG$MD;gmH(~U7fi4pI2Y@apqQ4{?+M}T57o@t97v@P)R^{Jrdi#J`Z#Y8wO4(Kk{3Xo9OdoY)ZsZJv-s>A6lguG;*X(V`9yuT3#%4op$!L`w_&f4}-2ffMrU*Xl?^f>t#`?k-g*|+pLBt2+_(60=X)2*A4dff+sa*-7DaPZU(^HaBjnfpBW;X`tLfQ;!nrlioPIuj+6zVpW%!epSVC`H6u&ExKHtZFXv8~7;jN7B72L+amA#(m<i6=;E&m{i(%!WerRbs^gyOTU$14EYMnRcll83i!F(q;p|RszpkIp(<DPaOI9@H-bQ&e+OsvBR!NfKwNwnKnkpT<Dj(=~Js4scGLs*j@J3x<~5%-|mlYO<<uD+TBLAiw&K=+goxTBk?)GGlrh<uhy`SL6mbx-2Hk_85{ic=msU=(k($kt)w;Sy34dG@o?v__ei-W;mcLoYpTPKeU!9)+Pu|Q(EhT}uI7kTMzXGZPq@R?3hHMx$`PVYI>VGl^gEB;dEuwF6S4@yN<`8AZx4wM(mfhJ$7i_!jN+&Be2o-rtWdgTN1lLOMQao0gF%A+m>dS|uQm!k+<{S=2lM#-OYgw>V1?$LOpenC=Wi>wMfu;8KHYdR$sqtHtg$33mPd}c+Y(kKC*u|FYzz#6pGD^}Cb1fEBegBry<AviVR|i5pdY#E(07rN$L*w=|CA}Fy>;}_91%<dizmQw$&6ov@a@(A5t7MczaN}CobkKWDQEF4{0#-&X=|!>$h$%Z*;x=iZ>%~djE00Wm7tQHw8Drl>eyU6S{07{Eq<LYa%zD08>G%&Dm}Bp(LvITJmiwQpJU6sGL<)m7~xuBiLHfViub1mwe87Eny#*<J3EH^Op?{zrT5Zg+!B5aa`TKAFy;ooC(;+)csxe!CP6-lhn*@!<N135$868Ck3Y7THRGeU$;Py-?S%a1C&|+74wZk$)k%hX`>T#yi_GMK_Nsl<+pWOo3?EHoq6YCqs9r<vco(cc+}k~^OcjQEd%UF=E_5l^RZ0;sa>5!Hq5yY*r%eJI994}{fXB43C5Xyl=bX>p&QNIL5K?TN4wF$=&#A5<xMH)Y6+`@Ip*);ukyPFTSvrG`*s?L;7TO3mhK~cpC@I0%Etu0$x@O1Z*+<Oe;|{WDfib-6@s~+Ogm*0qQvl!!a>*hgzh-rxbrxmw$L*xdK}nlgs+>n-QplJ9HpNt>^b<SFDPzd?z~IZ40ponMe!j`I*bK&jod4e4LKwpVgXSZCmiL1$Euq-Eu+L}VcMrKf!0T@AH3|F{EK^k5U!XDx2p+4{MhxUxXR)nqD|U<CSC2B#lq2aM>e;a;ITk<>`2?XSu+N>H8%KNib(&waKb_<69B;jq{nA8bJ?wlE6Mqj(8>HP)$04K=In@VL5E5l`{bdvk8AUsrgc!_X1Kf|&j%D^4J6IElD`I(f!U|zgG}4gu=7oiQ=m)BYwIfznX=9I`7KQ^6>(84-jhl?=d_8%otdt%zYznx2!}@$MR3$r8*L@2>5sD}>4jU6VVfBYaKcfVbz%7t!6~WW`?h_A6=f0cWuMER$%D3p+4B?pp=r7eC0nyUypWMjLOQ-bj%`*dWfcetdMh|R7<RO+Z>mbRU=<W{G;susHydAxF)^(fPl<#wNW@}IOs(<(5IA{T$TiMW-tOHe9;r#*V)$i@O9U5`>ijClhK3#$k1n0Gpb1^GM1vs>2<G2Dn=6+gm+$~d!1p+-;NeE@SiH+pH%{*oZ18vfW&*xZ=&eHF^5BxJ=+obOxIVM_M=gd&j^iyZr950NUW<dz9$Kx(Q9F0s6>EX02RHhA1UoDcw=&DF~>7=QiE<x4&5N+R*%-q7#W^Y&=+cBG1IcF-@fs(0RssAA2XoZ-!g%%2AreO&;gaZX<Z;tAebz$JKr(&T`v8On*%I+32_`_jO&RUBg_Of7;2mk->g23x-BWR|CW|2c0{hSO&uE0zGH^SJQqy3#0YH%EB>s=F8l+Fd%vU@`N{;FqR*SxIbW>J8Ms|jfWUC$2NR~OhTU15(QH}Z|rN0{jn552XZe<*xJ-*{8<$w;tVES5H8qVov~IN?>NB2+btzt3GFIMi`0f#bO$o`^{Hz;bksOB^LBP&js?mESy%>XRrVBd-_QXB<F3|JQq&Hrd=ZUI(Jm+1C%s1DbOQtphnI-2$F6uwB+SRD-@4XB093k(2W<ZXIFuj3d`-s-r_T4@$NrRjUaL$kLJvM7+pW`onmwH&T$X?j|S(y2-XbmcLhxA<rTm)|37ODFtOv@qC!g%9FG{uv+*M2h~p1hW#T)r(FC~?3g56@2x4U{EzJ#q7us2cKR1HFu#4I&XGm99j!cWa;eXkjn~!WZ=@$cqGWu->W4a;v#$Ba4A#}}b+7sl-YW6`Mp5@?b4x{6PF*}0<`*H=%vN^fKi0F+gWdN`))A(x(_)pJdUY)M`<F%GINGz#@Y)~HW9Z7cy-_%lEJ%IP$NdgKQLQX-wgSiRNH|ol=+Ls~PSHN9xzviLp7Cztph{;Z-2;SesUrjFhNl_1v;ucnZ_JjSQzKb{F|g~D4KVb8+l7#A-f#)gFh^r1<H<IIcRLMjmdU$$f>xZ3F=>Z0xm1J=_`5a**GKT;Nc@ojoGyHSsUOrg9;om&5XPqX2VU+Xlwqb{Lv967d0ugcG~~-$*fC)*ehRLbr}kp@>H+~~V6Y8mdxoMok&T+&E(*|pL^r(jA@HP*MhAzqKRWrKlvb71g6kS?PlEdnEeU5+w7Q-{>h8q_#2BV93C*)?QK02^4gPu%?P*lACy>u&+bhLnV(M=ohsEyDTmtPB{c#LTmZJv&x5)glOLwXOwoc%24+k~m&0=9La=LyUveyMVzd4l-nm-fTMLLSs?WZ67guv9?&AwX#Z}jU_ayG~d<!IvJ*~=~;9~fe;RsSgQJ))wpA$-*p#i@SY+eS)8^S3F^Ng(A|#H+LZ{sa}y`!7J$6NMjiCKo&zn&tJr7j}uQCPpteizjE3c4iri%!BA^>I~8cJNe!ygp`y>lROrgoamwZ$LP}0)3GF3tOZA@DLMpW2!S<U`KSlqvwH!xNGYCUB@bEMQ@fc3T?xhBL0!gTm}zPNZGi({H*#ohX?)ZX;}%h{Q3wY-4Afn@6&L%!6SB*S)|p1)4FyB2GQC5n$t`ZKv0$u5$iT@vcjeZ!nsmI;8n&qWm)DPf(%N-}A64b->XVrGICx~EsfIb+ou4JJOrknnZ?S~|Nv$r>TraetFLPTjcA4x(H*IR)U3&2(Ds;}w7JDFI-G~;3E^q~9zlau@m*K^8BXwb^I7r>lZ;A|x<wm%dGK_$QUFLtUH^vM?wFHC$;x3v@C!L2f+}U$dSd*WXRf^A2GaidXg09eSWV#9&GW7S$H<kqybOAC2OS1A~&d{<cD8M}c-;Fm`*d=W@lVFqtmJjnCIBM0zmJn`XTr*XIgP7XAOE7)KG34j>)ugi%J&mu`*3F9u_hyQMB@ugX8NP*?7+olyt=<f$(=qG_ke@<B$86i=yp4u*In#zv79qwKn<=vJZ-yz=&C|7wpa7@>8&7fZ2iKIS-9AdBKJDDLzr}87CTW5hu;20g5#q$Uf(Omq-jjxFmd|f4#f06PW8imYL;gPYD6()7eYVSv<l)J@?a~e{Zqt>~vFR0?8meSjlEtoAcrXCg(aely{J#eYIRfU#-8I`v{4(~GR@vA;Mhsw$t*e4s_M-e@Bin;_ebb#NszW+qheq#SgD<)dj`R>gjc8eWCm&V+Gw0jU7oNLg(3i^i@RSV$i*-prLTkw6n+q?>A4?w#1_~^Wp-67kfG5pyX><7zZ(0EE>|^re2`s&dz&M8iKLV6ppeWs38ONW^@Cb(YhV{I1P;vNfc=ne}@+EU;>ldd_v#8kwY5hWnwkZfIM>U=Kc>Y1AnV>W+%w96E(}mT!K|N<GO3@Us4Uv)@Nu}Kx+7Lc$HXk{#K$lSoZ0J6_LT%cD@YE<un6pFC?p%I1u$YFr@29Rk$sg<bG886yiAn%0I<7F+%|gsca?j{`aZ~(fGQLD4R`fdD?zJ90@dh#d49GxPi&))xy>7IWC+0S=pXLsX51I<F0HOP5#6Rn!KN0(8^J?&^>;ve{43cu{!Kg-rH}6Pg-{H~VQfN0m?#|$<d8_$H>h=_%r>s?UivC%&>@qme=1tYfkC7vDx`P99OL1OhO3z8kTBa(=hikAO2TRA^XvI=B22d?B(gpn22}*(&qepH~7bVG)PV_2mh8gPcxO<T6LdiTY&7mC5=8&>Zg5L+n-qtYGJ8l~Ay8n`$;JPxIdCKoXlT!^i=gO?DsH#m?0|qNP#&sTm*QV;|>)J$0zQ8b!^XU9(c;;_6`l>8P+{RVvDa$@C(lnW+`CmIw@b!`fX1Jh-e}58~u3Z$oszbOkU~bCdonHw`{1@Q?{1x|1L%%bN&avm8<P#p(*@X#wUx!EMKG{0&O*EdOrK3eL2%;m;A{gnrsIV#LGc0Dg%cRmT9n~&C0K7GWkRFqF;Py_Yb(@OxpB5ntzRmk^G)=0d>Qmg0n{h1-ttLQ5Qy{U@-t)R}kgm=Z%53K8C3A|>yE~l`A`fC!Kb{|@v<AScqk%WCOrCD%HOgc}YMLDNiEo-DUfLL}#4YgSLY}DBF|H8F>P?2W8<D%i!c0({DtojBW`UT%gTY$uRc?XzZwR+TBp4(fs&+#HDy~Ya76Wld5mxJN@P^5sfNvoh6ALVJQuoL(XyRJq7UnqQyGH)gp`7)Gq5GgbLI<*lssb-Rco06n&#b$7gCoYrAEiKZKHM<tIP;($%NL-61`$k<8^vt}i`xch4=!*`DFLqZj-@ShQ6<gO{=^w-D=PEPe@yt$pP2=w?3bMZv{vo+DvENfmW1eEd!-Sd`zFc!TFFFaYs`tab^Rb#>LqbVtW7xp$eVF4sz%lx3T`>5+YKBo7|hHH(I!WqjLGhvO5G=RB94p`@3kVmy?V~!%UUD0N(^EicDThRdiDTgyY%Kz5>32Ucq9~1!`T;ia)mJdMOb*>79W;a>a!`a!3R?L01qXigYh~2EL%ju#{d2fou*%Lo#|L2m7|w)Ffs@=&^HcFyzEVP<LVkIV%C|}*ww+{1wUtdN`ZT9{zFmy+`>IaY$=RB><tcOSKSm}^zp)L<={&;QuL+s<3bxz9@YhFRFqgds{!iejR}#Vf;qNH8753N7ewxk{0g=rBMQirzIG596-WhS(Nj}NJC~V9Ju1iUxm-_V07*DR9VVdNnRg<}7Oa1Wbn2sDL@HI%j9W*?NZCN+M9DH81xE6L<}Con&o;s5*-viyjxr@!A*0e|_4mw9*9EaIuu65?1QD#r!lmaByoD(oM-HQVhyr#*JS8Uzy;~4BPghmg9o&Hc36+g_z<J_CfiQd_C-lJp9%dBvx**bqxJ5G(Q}iBZ6-A#XZiU9@8Wh+tZ!8yLHwfs9l(x#Kne1vnSaP{S%L&RZ^nGLryFmm}YY6{tw9o+0(zSp<sgNBc2<8h-@}0V{bgEv#GKDB>dAN)ds*+*u$claHs<$@<X4G_!h9s}AoJa$w+5YMD;lQDLZEQ+hD1WwzP+PtzUS|DtuMLz3ZU~6d%aQafkVhib2+Ff4E^31=J;qOuvvGKpw)b&baHt9!a28k90kkgdhl8RLqp7911ko}81#zBt!*>w`;Oxr<kTA!PS!bWvj5OI83Hh3O2Z>=}(2s3qj{$gG`mpXI=cc9V@Q-py=G;03y7Ri9Ln#2mm0B?JZ0(DVOUX5%+C5j4k2tnaT!1b8EEt?cIrQX|9~mm{fnfDZ0n@nIAxh&H(n*=iNt$&TGc}ITUDqs^&uCJc2b)J>0@}9Q!@`zl!X%J7ziLjz0)QE-3LeVMGH5@hW;kPnuA>J?vr^M1cg3K4PMF@GE8pA!O~2wzjmf7$<6#WvW0pBqHpWT<Nmx@G%}rd;`yL;%B>3aIiz>xs-kVzsC0}cML$P|6#tQLWu@@*|1e!gXWn<Ih8qDrTyc!af4F2khq#6?POU1Q!$Q#H*JTvc?O&O2`eL0`9k*4VP)A}y8lsXm5mo4O#O4S!(l8Q+V``!h6JW#;tD3yKAsZ|A$T=d}OUrm9tb~fh14c)6lS;O#doF<$ry+v!FWD?*K3Z_W{IgW$(OMl=*B=fJlQxHz#MN9gaOoq;Gye9~XqBxkyt4?(tDG{OK`|o}KcA}xz3gNM-;1m*ve1y~bMhu*H`Zg6pbEL=|Pcl-{DZH+GureRb!F6CVk*u)F=B8F=A9C?^z4xymCU66j6&z^u|1yF?B#yiWhYg!>sWzZQgN4=z@$8>*U;^l>sDSB|%wJb#kBj=iD|8hF!3cB0#oa0<*QSQDZ6Wo=epo>)m;|M9fYM-DL{e8bZoL^=Rj}c&pDsk$D!QVR3Q-~st&+Oi-<(6kOpyx9!fULJ(b)a>BY<S*JgIlfJxx!U(wtPQJEH?WE?;G)=;BS-E74WzYm062en6=n<lzQ;VBs)1Wk4Pds;eZiHhb4EQJx0Bp*Rp2&YwI@8LW|%x&mx@=SX5wnihj(-kNYcr$5EGrEA9|=DavbvtXtluf<0ViVmgz<sn<D=$2h6L2XnBj|0xk$s@`Gar{eewYF!a9%D}rnDkXo^(O_J)+%D~Pj@IM1@9MuhIOumN@IQ#2oqmZl|`yT=M=Z|nN5|ao1MdZ+9y^F4sB777=DR6Z_ow+A$o-g$ceBL13gii&qPGNbTHw!bZbsS)YyM?wz--QL%!Xv(aP_!2WxEll?;xFA_X6cQ6%1^dW_0M<f`rdz3eS!7ep*V6cb06MCfEJwo{;G-^1!UW9w@sTXKoj=$B<)@PVd<oY6Xpfrf-JVXx=3cMjYqAgOr~L?#Lfet`;mtZ9D!a_yd9jwel<UJ^Tql@?|J2`Ec|m90FG<>gW^gtWJE&ND1E9&3}Is0YL;rB*Q*ml@s~FPJ&F1lVoa4jT;JY_}JI(pL1vbE|U=A&H<)R#T^UZY*A7S0(?`IpgNKN|824nb4!&p+xUORjX$ey<~EpH3+o3PmOKu`*@V70ucsdiPi&7=pCe5066^>!A$was+b>mRqLL>p`f#w3G<u7&EQa_yz?!!ChHpCNh)L&tyXnbr#4lAwF2~phdFXGRkR6&d%4nC|JaSI7hI~BOYp7HtaEkh7q1m$T%0PE&)~uygp=S9DoGFU%rVp~43`X1`$1uWB_qlQgcj0#B^<JAViJN}OsW>5gmRqf3LR+>-Wne85c^`8hNM<WLOl@*l!gqo=vJJdyOH0QrItER#G10rP{GW*lnCEaX8j}D@#TQ&wp=M13lL7Rv%@4$aO4rJT~%9XZe}6+b<+lzGtqZq^We?`B#qGiAL`*G7K%)b7J}vc>9;T>B1ES1H>Q>Ku#u)w^#5wFl`~*5(;T78@pZ%B#LuU+_;XQ9XzJm#AFd@KZ%vh_;Mki$eIrFGEA)Kg8>$W)6%CS2_ST)Ite%g>)9XK~yf&N<P(|VtXdi$bv(-rl=5M3gxQWd)J5vm!VQ%v!<m5=_O|S0=od-;+_e}7PFKeDt01moEvKu$7+XMnNkxS|p)nax_9To+G4Nwzv-M}Z$M;Vox<SVO)fFO)Sd-Rc>b;r(cOP|JvC%|V?7@xR9z>dxfVGd<+a@q$rQdbR*B~kcfqWl4r)wfh+3-{lk9+rE&kp-naKHs^liDJcX{2Bm^gXJ(ZFiF!l*Ls5x`vyZ>Z=n*$ZNW@o{#q$=SaxIbfyJU&cY628+~2fuSQuh^xT#Rr)(6~~pfk51vRV6)8Eq;_G;a!^oCUlxj2tb{(S*!PU8Hf3R5307tuppkS3?D%X4Y#R4}1Oy;B-S1Q7EJ4FTt6+`!1opKxKJY)sVNU{|7S&mwvT33@}%}la+rxNgqP+%MR?Jx2)C=Qn&7hKoYDmJ>qWo?b2O0>3JOilgls#u&G9V7Y8ggqy9iTm|Aufc3!@?Ec)a_iY3PRzIzu+ac`i#pF3RJnbm?9*~8@SDlXavr0vza)B6w^&)d|qm#AhI1joKoeP;V}G4ze6j+!;S<(fbmu_$S+97>|SJLHr0D*1_9Zt4O0gpqE(D1g_!8ba)p0<<aFk6`Zk=uKMVd2<rVDT(4~vGpDPBoK?p0lU~qmCOcX*{Wa)Uy)h~+a){e^nDLGqr;h%p-nitENVi*mS-Yri7Uh}wl!=i%c}D?P8-i0VMNIx{JDj|BgqgsgPJfm&(RIJ6`x#FtKkZ<(r|C69X;zRG1^>vR$0A|AL>DiDq7-d8)a&;N*7Ag9o{Ten)jH*f%$Q<UD2dy7kfp0q8?uvNX0YL1cj6&VC>f&gFc)=JQd5{s7Xk0QCk>($Oar`$Y=XR-RuJGo7;;)rk&U;OgC`@>gm&8mOrX5y~NOcu*3Ff5Ah;5ZX?R{-&1MnaYXSckCdjkqxQ`c5vY8;pIg+Kj%rR#;w@vA0;T6_2Pke$@5whL8%Er+85CUJP&@BJ1}7v31Npe#c)`9!_G+JRt?m@5ACMm>iTt|=%i#rGG^=*@qYfo$P>LgZ?+imp{xe+b*YLPmh#Kn@`%*lEK7wxWI?IhKu(eYFVq{A$QyIX2C_IbS@;0qP6^KHQ7&og)y{s#$!`xq~KkP$s++3y!R`*or@&pA|Ct69`e--N#Xoa1)c7<A$T-~_<=yhYcbr|D6uL-S!iGbMK>wq0}qUa0GU#0;`rxz6M9_kSQVC9DI4`=NjoHa~<12B`ZLt(A}S8QyJxRJ~@Ak|OYpo>UN*8cf4&_nWdRX{fSwANyJ;ZZlLtX<1*TwSJ;aK29E+LD;KlMhj={OXmWo<7+3SuN%pZhvg^PfLLvR@IGMTiJ|v5(h;i{9M@_JZ)>w6aU$^>|0JG1Xv%*hcC#HE-1j<B14$bmi7*lGiC0zgqL2fqU1bm^9<ZgTma6LQk=8}zOXmd0WLZ?(Dse_BXkfw9aX&`g8^9nKtO9<(D^xioq6Nv`vlJvvO!rlQ<LS_5{r=vYV%}Y8-R%IxK9}1Sz8C00lO=cR|n)P+J811N}^mhC71Gr_1ZPPuV4qrig9k^FarYWVtzS8)!TdR3LjURFS^Wywu&W#+LLUy_v28B#5RKEJ)<y9QXrXRIh0A{{RZ7?bWPoA`V$E^C65bu?1Ld^tY&8hGhFGm_)tt_C`XJ_`Mbz325(UObcHQhrV9Y;kNh6Kw@9!uG&5POpKv1<ZfKXzl0I!o=_{pK8e^O9B=)EHWOYESukdLQh^Ur($p%dN`$~O%MYZP2ah>52b_<wl@HSTthzTK?b8t=zUI)BZ?xX_QnDdEX@i%MR{lCl7TRJ;+`m%Lw^u0M&ewsL55=WK!o;Ic+ojPE>I%(7RB5EFtTq*;!aR?NrH*S88?E&D8HPXkltS|4B)C~gH08QI~&LUc2BgzWy0F%%s3f0+k)bvrfZ+SZ|x-C}fE5Ym)sKPEW)Isdj)IEghgc4-^{}7DqVJJ>a`e62iv;_v^!%#Wv{y;(|ZDqFm!1VQ!rB8;5Cbt^-Wm-WdC}sJjCYBX%&saTq_e!9D`p_}!tFu$0po^2|fO_Pq>)J6pPnJ2HU2|VQP-}CJM}A)HDq3ewcvHy19o<NA^I+4esFGX6DLT6<ebwSv^9OTj4ctH{Q&4we+97Hq&cFArMI%Zm-?WW*wPPHvHr_F)lnbj?Nz>0-^|pW8qufJgny{6xXQpG_F0W`Vj`{Cz4W=i-m0=6ysNLwrwSTXWF_N-IjR6fO<4{V!o2v~GBv@fP5P}TZy8YW4acO&c%e-Y|bk7~JV#5Im*<rT4IZnzb`*=>}tif4ee$!nR2<))x01c)%`PWGXy~#x{Gi%C@F?5AC=9MZEAoRe|uGi@!Fc_Hz+}{(Xk?$BWL?R4PxL~u4k&3O5&6E27$K0My3wffk{4`AxWGadi5lf057VbKUGe8;tLdyC)hH6b7a+<f<kOB2I+<+1+97{k%(db@xIAJI%l-W->AjB2$92y~pO!9G#A4%nB&mNb!$QX*CBGx-G69{9f%DI}>RhbjS>RWX^Wfu1gObFtm;>QmcF0xJaNa%>_8ktk=7`Zo%>1m_Y{v4=^^HX-|gxJz(zlak~2ytWT1%H<T1p`tr9!Xn-1nIX+B-ZLndk?E-?G%53mV$iD*KnfuKL+jZGU#gLE$mA^$(2{}xa5TP%@tWGePG*beuvD7@&__Ekr2nu_GI)fYv4xIx}yj4{M|C<ggXF5J|lX0XSTW88h1Z8#_iGgNYg-`wHVAenX6D1x};3jTev~Y34Ca*XoMikSd4fq6VD>|A@0%IfKcgh;~0><O9|;SR6fgf8ax&Gb{elO!D*^0NxhCa^^`rK61nv}RznL6-{yZrdG#b4H?1sD*E1NzEM#m77ry6=pu-=<6<L8yS}{@`lW%Tta9q0KOBwBEYFczI3oG=iw<*Bb@1mi);6)NlL?al}YcJkJADt}h=hi7hhnsQY`O8i%FDt7&@jrRarsfolUd4XDnJ@&XG0JgtKG_uNDyXul4`aMA!<?*=57ahX%WzVQo?u(9qpTix9ypFWb^>EHSR){Qh$V^wA{Er7nKzM8cV>dCtg%N^O&d)TPXp@_c^<KFIB^?n7uD^`$vqEsJ5lNRPk5=XSgURV9Btr38K08q$aH!kC$iIog;ipA;f~?-3u7#5UP8<XIO3^MRy>fnZA?1Fw<YGAfo-Tqh#1$R=0pZN0K8-e+ewXF-95hQ-7cMe;8HR>2mT>;dTE7R&$xAX6ecAAt}stbp?F-I1OjBlv<i*g#e0|@G^WDzUvbbYxIzkJ7MxU-E`+KV$mxE1$7p&;(bSY`p1vI{XL1QDa5_@kdDqgZ?pCK@Qp$#OZ14KON-OiMKyLud6*HO4gzWEGI47-S{42;5-{Na$8?<)KSmDi=k2Y4SCF}-YZ;Q5?jUr{3D>d*oCVf(e&|>F<XL?jj;Wa5<+{qu1R)PA0lZZQJ0F|D6vaTSbukATWHcfXs|4bOYqVIj&BD(I~u?eKw8Xug9r12p#pjOF}!9V{7p2vy>c))4V*e~YLN-no}NqT!8CSTN#T&Mb%qS@)^tu16#P6JIshW0To-dH8TRN>_qA5{=5H8U00(|C$~nH6S(Zdl$IIYzjz-I~A3h99|95(UWs6QrN?j+E&V?5c<pPtCe<{O!RKt1MFx?1AH9<-dp79odjtAaOaW5YLtzPcZ(IXt><Go5Ww$5sB2OgC1!3o6ox|2GFiIM05FbQ+eE%fpxi>0-|(JR=XUX-wGF>y6c2AgyaIbn9ds}d+B~YM7nn#MI>}^LFEEE0f#Ez`?0&ld3{H=wealDLFj!DWnM&*#nyH)0(AM73m<vp;fH=dEgeQq2L_Dk1fM$O(;M75OQf9_y~)?jO-~eJvM>M8sm)5pV?Z15hXZcZzVPNkGT^vI!V+4NdNd9XOlk*Dz0t<(u4pKtXoPf@pCB1fK?3~>rafzJIYxKx+{s`+@xtv_>Y!tM;O6J>Mg=gNcdlao0PQT^*+hi>P{eiIA`uTR5OC_AsspA-l_%ih>;7LJmv_%L>hL=|b=fgwOhD^*8gn49B$YjPKeLgal@c7@N*Nm-hr-k_#*gUMo=YG+ps|1Y@m7nbCQ)$2K%=@TZ>QhxRfn@BW^ap{`ACa3LB{;HBjqZZvj#diy-U(9htRW`J>I@iPuZD6w1C&Nx$%3|qA+DarS%^P-2@<M9Ojdl;crPI@?eB~OF>0x%d;12YY8@@M;|b%URN-brn!^a?~qoxPU0Mm)9hC!@{x0CV#_c=Kn}c2+^OdTxjqCi8sDP^&n##sy#o8tbHc!*;Ge%4h69^8E&?TH`w*Z&m{c~}{O)m?mV1zUs|>w^@ZiHI@F$byAr6c_6nA&diya0x#{N$ICi>PWOwxEsEU`U|!B>XQjjfJh9wZ@Q^ju8+&^L+21+n!<x-V%}z|f={1o-wqt#XIXE*b&89iTG*Z(X-3&V5g@Q*W02Sv(t5U=vzXyZ87-z=MHB(Yv`cXu!muBTWr5T-)<TU5@NDkK_W}@2lM$=;XI%7GP$8PVSlU4W;(f%w+4)8NknNo51<OXT_D;1++KEsf&#Wxk%(e&B1i>mkGlHyefWkt5G8rJ&kvAu*Ixcu#!hfy0o?d5u0}QCZ3AyW+?9-wa^#BPR#d;#8h7O@81jM<Lfsj<(Ix(NxyTs5~snMJO9Y!S$*n46L6oGE=WkP?V9XuRXp4)c}6@-VI)jW?R;r7GB}$xkw}O6p*J`XW`~<wi8vBkj}Xf)*UO;EGt=s;$9x$~DMsnK$cO4*m{Jr0zPca*%SS*LwN?Thhm;-a4-Y9t|LQRp&P-*nY<6j5>0XFcow4Mtn$1d62#f%6MXOgANbJQ9JKKaRCGCaX2ENpZY*LE&amyj-v_05zvalnl*x`3hIX!{PU5tw>dQYKfmeXWcd4NpZ9FsMKH(Fc*L|!FH7+7+#cLGgjm!)wnvB1>Kbup)FL)Rrp+-0mqobY_FFaog-1_vZLc`cedf~DnQ7aC&cm^Uy(B@evEuQIAC8LQnj#pZ$O5l@=Aok2UtsBnw$+Ka#!)RhDXzBiv2|Dm^h|E7}a2^`{(Rv=d(g@{TvzudJ(T%&?2lgICD=ftKP4ZL8vr-WgR=2h{&Ged=@5z+E)d&wEFcM_Oz1u_NTyekNPIjVDO7{Qn@N^)U04VfI!_+P_(d=_-{=07r~iN4=Tb}mNrAP)|#JagZe-^TJIdOD!+L$KMnB9L{=kO#tb@KF;7a9{ye2<Kem#VXUO?{t!Y!bV*G^*=Y!R&bv#+Io6^IJHS`{%!dzi^z@Dd9%BKDqXMMP2V5~AXx%gs~g(CIs2(1&Z(n_ZiMWg)PK}JSWIY1J@hbObMptxttWp9{m2!$Ec^DD8t{QbI9C~M?5U<U1Gu~0!1or_J+>GKZVFwTFAADX_;oE*$<C<bDHhmT`vr@E*hxyShj-jqJ0x`Bu-#zuw8TP`5+sd0gK6hp3b(Uyk!7bX*W!k=?wIss+C!~T@4o<ofw$5fwV*Qg)5FSNY${<L$WqxeB|2EFt;s_XQSX>R$}`e-T^}_`yiw|><Ke-APQ&$X=F}2iamC$jSB(dy)&gsu@f%}{<u8IChi;hei8URCoDRE6Tf#yFom18sok~&E2Gt|6we*c^)&9Vv6|XVl_H9EG1nBgOQk%Ofn)n>O{9DBk88<*TNV9=}2{`vJlxoiW5PIWMDRq?)$It&Bi(;_AoS(<*pi)>&rPC=P8N<6+>MdQWpph{YeS_b+UKn21a4>O(Dd5=naRB>X8ECa~p^Q-AEV?XW+l`Xn*kPV&l0AMpJ8u9c)=zG9T#%Qr2gpDi<R@)TQmcQx={rEA!`%VB-imQvZr6Epju%rbE|zj3`4-H+MIFy>_T@w?!|cJHT`*ok>DpAI8H@p@OAICZf4MVB^TE%k_Wrm^rTDt3;Oyg^9uaBwp+Z-fu&E3V9nq^|Rg?-gXhsuS7oRFoK=++`&sgJvl0=!Q<_7G|wONiL1RVVi+w8QK|CcSy!}Nu5^-F@fY|jWdp=za0iozp#`R+Yw5>RJSOESF~;X+9(d)kK4v+P?Lh&*c6If2<YKDT_kJIdcvQ`x6n(O=!|uXdk}!pDw8QKm`Qv-K*8G>khCc+(0E#y!t)+Rj2$%0OdVTW$QOXZuL`-FrHA?|86Pove$5a)e88x-h`3B5ux>5eeG*g6)6#9}fKU4lFmWI!}vjYyrMXZgMd)*V}`k*>TEZlx`9$GfT*BPX{OnT+nOosrR?X3cME+`WaPXAnVN_r=c7&_G#lWm;nn&nX3AW61DmW_%x4M5bUlC+wj*=<5Gn~f5;?NZcS7b8K<v!67_x<J`7}S6&O>PE}knMTG?kl2c*!kjaY>ee@OFJJy@1+`_D$h5LbdyBeziJ^#@k*OfMc&a$qooWq=O)q$ZJprI%4g+)<X<2*5HmvDpC{S(hCwQd+Xn`En&IkEJ&<Uu6E7$<2h8RWbz~Zn*S}BSklxVZ9)QxEsFFm$RQRFOVnu2InS|%W~y-ei6DPzq^4Q{>BU<gs{^jA2cOwgga*J-><gD_enVhu!o^S5sLx6ZBg#W;iZN_=3bJO18cbIE>^r)&Z0~70Q=r|Rfz@q@SJZelqGk;z^9xMt?j;zsIg?4tB4=RyK}&_q2Jo1xH&h*q&R!$b!6~;35WsGkEe1lIE-ZOODerKv>4lA4rgqX+-wHh1*x2{Obit(8R-c?d}T4Hm%%Fc<SAH^qhQ97!=V7|`JZs(pdfqDlg5)YI2I;t<2LC1o(M^oz~bCW$B(y})>8u5<TJXcQXk}o9ION`6C-*srS@l~t6}Kt1|WNaat~N#&gRIuI)o3JGJkJs$og?!QF9GB>vnpcwOJc3i4;g1d#;{fLX4+~WnsN1|Na$l4_UQZB((^v2<{EY073zf$VAcm6RH=y>^?qz-|kaMHU(#tsMzk^+YTQP(S6pnDj2Nu-i+L3Jy6%{`rGfJdBt^z*YAc|CsbG5$`$vC-lu+?axlm*TFdXFVH))vnOBhY189u>YzM>iq<z`knd4!Qk2xL$A|NvMou3Dd&%P-ByR=dzwUaP9xg=qN^l$01I^22>aCIO@<QDL+Tgc7E5E!uMDo6#kmVF#$NrX$1kwLs!zits&$G`H%NB);Ni^H62Y$LSvf#i+MF}^AJYx&S(PzS@iKa$lg4`SU|!V45QaFjPfKg+jJ89uhVPDn>5Q%XMH&oqnI;H}S+G-&Y|k9_TS0jqiz-{CY32~qv~cm?okV0UbzoO|$bzY9KE7_Kw|5Vo~8?<#tg2~b`Jou72iWC_iCB@*o~(Hz~nG<LpnDBHy?G>;PYC7NSpa}S3wisf*)TzRko5dNSWd#9;jm74o^T=Tp_NXR3%S&h-vbil$YNn1XQDO4p%K?WEotrGgVRtZ%u!5qEO*7nrJjDsw;1+dg{i>n>M%TDfqp10}FXd++FrXyn*Tl!XW$E-|GmR8pHlmbCcEN*Sd?4H`)!jAdG@4riq2i@3r9C&5-T~b{E(9q}RE%7hu#G*?q$hLk{^k?5e(nGki7nlHKHA*g_SPu<gTU&)?IaTA^sy7y3t@1F1Q?97w$J2D-+OaWaq8JrK;EBU@R83G~IJCA(|Gu)|DcWVjQEZdHRPVuhf@aI@r!xG(81r)p$>dWcr94Kn%yj}51NQJ%ah7c9=+ZbzyFZxI&0jVlNUFn5Qvj}+k3V#i)A9j6$bH>u{jtY3p?0secX)Z0sClu0{JHZogE7y!repL4C&$g0C=gT~MS`C_*hoh)uaiEV>I=x!Sa<y6dtXIOzHO@0<LdcFilkk2I{=Q%DDmUea8?Wek-M7y=h9fKQ8ucerv5X!2-)JLoPR6h^a_lN0ydOtVyPl4D=|aO1M(@%1V#~JJ5OGEY;IVlxs_l2)NZnF@aYp9GL3=;^dNKvs43};5A93wbk21P3jZV9dcpa=?(8!fFUOHUTIi_F6P{gxm?{rdn2e)zvItuQ&3C9Gj8s52H}vQzX>JFKvaZz&ycYH^g^DcNkv!QL08E&VhDJ+&Q96!Q_<Zq_Zs9cwL(&uIvtEe#>tWtU{msB%0^Is_;z@qvV&oHA>pQf$KXlz-uLdB-qY+3OJINxbJ;5%fkF$>zV0P&YVGFLr+vSdoaKu&-`&UAjda;IM&?;a_c1&zLg^yKLsxJmG664W#N6JbDf7#MUe@JwwFTm=|%36tl)iAz*I_QfBkdi!Y&#A#^Y*z3`gPQKEpI4XtRP^(S4GbQf#oRJE-8&fCCsj5$-Ooi6n;fh-xXo$;Ycp++_mZthBm&7iv#Mb?V)d&tx~$m9@O>Ui(DAGzjeActiTcl&SajipA8u-;s2ZhcB(eeFb525LoczHNK!w)Zw7bY<9(alqc0d|aJpP*P!)CP_<~{&D*jkFmaW=*hUyjVjb7981ya<Z>qZzaDgrBXlKg?Hsv3O8`N9>{?kiRh7+Dhj3$+K>%w(32|8!*GyK-<McXbVWxk@%nC1&KKtU;H?)=+m(!WERH&5@$fR(WbtlM!giuc7a`TD_@V!Z7-LdJ}f>%VSxCH;MUDI{dv0nNAOAznC^1hlQ6cVtraA&s*>1u;T#T{gwUOKK@NJE^Tgzn9(LKw#7}Xl$y1%J65DjQJFDbY|5<SjUVfDOKlO>eZI`tNL8#QDjg5!9pK5z}O~AyOmmFrfy)}$KYz<W!bT)ltO1_znwnL)dL_Rr0$StKTD8TUtueZ5>rrrMZD_2^9k4Vt~L+2aq$o8_gT06lxmw8l8Dk#@{@y7!fR|dJEbmCBkoR83N157h%;y#|u)Q<&14N3xZp%lHmr%oe6hg2!0*S-b^Rjgv|`z6_#x$fn=Y)}RfGWhD&0?~GwoFlDz?-z;;=gr|%yuXq#ofohPkpf%TS|ivSQ8vNya<)B`#Q_)wDqJrG92ubnfs)~xCVH~$r`7eWBeu5mF{bqva>CD-eJ)phVX&`xGSfWDRC1@@(OjbQHJkOQIHLnw-+|PjOR1@XW^HU(mjhG`<^FAei}VtZUxj$<j_yst=}gK{EN~44<Ian4vomv_ygCxyW6sl|C$rqxnBgCE-km(|h1BZQ<j02b-5KFZAZ$C$Gm_V7H{*k^O9M<O6(tU(7R%OYBfy?qkI1~ttDn2K!+S0yKI3=FN_v4xU@9`Mn8G{%AqOVPssD7xG&Wje9kHK+%=K;%-md2oLavTuKP+xD*=h3Xk{Wck;keU6kw7(9htgo$f$vsu;!dEs{)at(Rms{IGxPpDSytJPKy3}uLcse~SK`FP^F1+#RzrfPIWK;(nZpojh%8Xk)|ar|V(W|J>QuW(BQVo5l~6CT1<knA66d<e>H8oup9Pgol`x!O43@XyGP{K}Xgs%oD+CmdQ0mot1ORYgs1me4^_Y~NrCt?{M>RrrY*JeK)rDb6*PRD4Hy!Sr3D<oiCgP=CEc;qc!apCHw>qndy&KeJs27tDrF`g2Tt0Hw02wP+Tv37pZM4#OPeTBh3{9UO9Zl#wi>T;RJlcv9^B<-rq&HYcxSWdCM{V8K)@L;pCMEF3p#YF*%E8y-Hl;c^%<3Co^&GToU**F|;-Y8SUepVk^Z&Y)(K!9apAo+}^{RDo6b>6nPzQT5rdhr5$+o2btFf$a^X@MD>-(h#Jkfp`5vMjZeu1)yqQ8B$IY}?S=NZmJBpOzqRS}zzR%`Vh7v2$X4ga<-*A)>{U%1F!sUboLEESVhciBse%{A59b%7*uO#wel*qtB8Ok21gD;>})8S?%m6-y$|kH30V)vv;WE;|OL3O0H==RyaqUv~?21P~`NS?D}h^)9Pb?c6@F@On=nA;X{IM`NcL8exTr<N}>P_cFO27=wNRlC-E6w8Zr`#hba$*-B(j7m6Z}os}DGttDGvWTNgyihnYQjDF5mUM2ZXzLK>|59t7^hqM8{mU-e8{$y)|`U0b|6c%ME?}=Ecr(pz)XWz<QQEGC~2n6T>p;$XfJ%-b>`PGbnq;TQVvY%ciC1^f|@W_FjdN}Fz`#$~<Mq=7yoYWD)QL$DAV}cy!9kx=bgH~2p8tqWcztvT6{pymh1m6n;BJHKg)4nP#5KlUJrc|$2YRur>zbj`-oDFpDnzXX$y9%ug-#QLh(S72f8AHrn!94mNj2asy6-~<8^QbPRh$4=T)T9io<`O^?Rs6)eU?eHiV#6rx=nN*?U4s$jAm#iJ9o;Dk1;g@9qTaJ0Rvd9+@?;wLId+;y>EK=a3sj?(F_v^EM|`!Bh^^4&8rvS?RM4v-@m<--cOj_NR)+t!iCgO7uS`AtcTIVGSF(6x#F?;B&BeNzu2uBfvAf}-h^PUE^_vV}<e)!ZznXe)EVCCfM$HlVS2gQG_Qf_9P<+_%(|UtcrNK{o95^6R;>5BvYcl5txNvI0AauHDam^0<5qj4#0D!q#_R~~XdVQIthX_DndLJEJh`>fZ(@m7YnVv5H-|-FEli4U4lP~8NRn5Ru)S9wHm=1w1ug~3mtR-tn2CK|98iwRfP<b~~1%yh`Q#CEKCf!Dyg?Ra{FWiBk*8^iP(RMM<K3H?gI*N)JOu~*B9%c%lvQ%(oJwnudxHcz;!6l)AZ@P?@QwT>O+UImK1I(TZp=N}}T#Y!s{*z2(F5a?`=XyCU?y9nFoHDj4_GvP06auq&9kqZevV=BiV&Fhkm-Y;pI60rs8Con&szzEJRRoPQVCD-jUX;`_RSzAKXyE-2+nDDR;38kl+<!<I6mE4{&Q8iE)nTl#QE=I%vGB;HNDVxgWoebjnf4bm62K(JhWIv&$;Z`(aH6uT)$@P~A2o<B)c;d{de7{WUyATWRI`ihS!hlLD|dy=neW6afvJ}U#xGDzfDNNZj)%?e|G2OSu|jj$-Y^!-v>kJ$xSR6_LJD)N@_ao1%smrx{qwxb&We^q1Jt&xof!VC_@F($D07?zg&M%Jg%rPhtus+J8)BAY=2bO?bo~INci=>p^~gMxdZ4<vtHSL84Qj3;f`KR|y{4e#{@$iTYDocsop{;u9a{h>I={mAHXQcxk8)i}A4FerN6zUpst%`$Z9xX<Kw(?41D6it+?gaD_n_IQP)~FJZh^6Ct<Sc}NHl^rXn07NO)3=7<RWzltstwvT<st8R&*6M@Qa#?A;rThY-uQzVX1=jK#q<#G^Og2rU*P34XckHvP4TLj1j@_y6YA-I%a2CfQW36po_cUOMk7famz;`q5N@HGa5M1I5OI)(Z*s1WLQQGcf9<6%V`7Y*!DHX;&!cWE{o5Nax?l)Ys75Vja?LQHe_Qt(cy2KvsuN!D&bh=!pOxdCgKTS)#RObn~M^hjZP$Wq-fU&uqcrqi&l#h>e8Jv8thn4q};81Vh_pZ4gYgK?CmL%#sIQVLplEMqT)EgH(dlc$U#$;NJ~U`jLJll@mXGcomM~6sK&P)R&;@A1n=#>_(w(o9)4tCCW6doc=#vgc?dYdTaU-~k`pZk>Z6<i(d{b8=0VG6pQ6K(T8KOLDml#_WfcLY%!19cYn!e|<|=m@$s6~uS>&dg)ip!R<MCZ#7Mth7gx9qBmV(p2NEjUek=|JU|5fUU9tu3svwb;>pL^g?TCgX?ML$BbwsYy6$I`ReEmoI<j7-?Wux$*t?|gp_UtjD{lSMV@>9ijZ!#1;ICwm4I6T_WiLTWWpF_BQW5b<gO{#FTqFz8c%`o&DtAV(M2I2rJ${flBYp;~v$6Nj-kCl`mj3w>Oj^==ChHfI!+vc8K1<m_}~L>N;ksNeRAJ_MWK<pl<_AWF@}(!0lZ**vroY5riKc9~TZU%#g$nOUg1h6)Je614uYc?r6=RSv6$?p>&ku^gI8p~ISewG_so@QsXgcECEAqf4{nVW7Zcp1_ID2zlW{{IoRkhzNuFZtEHxmFfr-qOBux3AB;!jximsh>F(zl@^_2Su56v+L<QLt@){Rgg@SbwIiHr<1p*T*i=ywMp{iTj9FUPE2kcqj`?UM(zqP8(?aB%DA%%r|Jl~IQ%fcm%^g&;J(6Q|hV()~9$A}E-%?{&RN-w20>{~Vbh(2#ZDsbZ0;+Q9Y@kP&6Gg2(+q25al;0^)=?=h@wB|brzzv;HFjdhKAwpFy&)aGs^2G>RwJC!wQjDB^GrtnPK9DZoIo#NeIrzPu`E4*tOtpoy)$i^R?xSEO4K-3uSv1nHFUDOco)|7x3>DLpr<C3bo_Hw#`3ux}(ps&7EH_w?_I5Q4FVxbgR%m1+43$I>o5lJZL@8{hTJ;Ihr7F?PLzdaW1Z@?i&9R>N*UNXb_J#92AfAU}sJrcJA)bff8ul<;%e)Pd{`qkWMYp)i6KM%OUbSUQ*JJC1GoNu9S>H?Ca41uE$Ia#?lO`tou8vWZmqU%+r)vB@YuSMZq+8hB#1=J-|BqDDMMJ%c;C0ytt0*e6=NN1Oj|P@k7+Sy~pi%|RN5%hrfjV<nDpcWucE7oq#8kp7X<}%6<6FvqX0U{)!+vAUG+XUDM8;;}X~0ODhloFb%6q<^MLl2k(JAxrvA-uaspg}4_`srPdX$gLMP*6rm2xr~5ECa>Nwb)-PD&#__)p>$?aXG<M|Cw)?zd6M&FqA8?A7jFB$yzohf>Cq_CfDo1%UY0t~hJ;JBC3*oOT)8*!NpJzO!>wPS~X~qUc@cq%JmD%XFp9qqMffrYlK}UAH@X|77b#2sx5-MEGpbCh5I#2pKb%j$g+9<_xP*_6wq!94-4qb*^LAGXj|P$h?QjbGKGfqa9DOAU>aIh%?`7vS??zl!z`MKkYT;JD?=lU<NP*KD<s9Vz|RekdxSRZzUQmppa#H4Wznmghg$V;K<<|l8Px~^!b99WI`Z|5#3y@O?xLSnB^9t>b2b7gsO1j*a=sLwtK)85^Y2_{EAea&Pg1oZa>46Xg1OZveWUlX?B!(3D)ZBl9%_Z9%woaA&9(j(JK{VOHw;`IQ(|?Ipfg7v_4q@mYu+H7lLwW{kTtg0bH}9h@E@lLw;$q#V^V5CM|Ud&p)*^-v0sX@aWD+k)piSNWaioTC%3T*r6<f-l}3-P&D-xs$@He@xf5+Njgc{DR?GcJD?_-`8C=zY^5^=ucJzP8?}n>Xz0-NzpF@CwZsx%T<(4e=ed$5ov@dO<)2aEepwifQV{q|idYGq7o7yune!H$$)9Du31N&lNsH{Z{a`B}%=im=TlwVdbqHF(uRIN~4il{)L$YGQrkVinDtj(-Wj-q-^hG;Ll;6YMtc<D#)+;726DaCGl)l@Y=>;QwX*;{(__p@4>Ej?ct;6$o@Fg<@TocBU=;+OGCPxcc0Aw8_?MG2>sbQrB^<@Ld4a4=->R6F{4?$lQazSW?gUc9eI36Nr+urD1G>5l{6x4HP@b!xGE~;!D#dCUmiZB<|H>YTyH+6G{G%TcQXmq~iAdmx$9yRroNyc2x$qwMjN59l7Hw8@JbLT+GgRZQZNs$;nnq!sR3ud2zKKRsEiHPoL`VpePo7ov>e!PL!Kc{Z&auH0H=<lB3f4Y@f>6xcQ<`*enUxdikO0&JX{Wdm3K9H;R{YPVL6=MViqg(!mYJ0u@BCB&@@+7dI3p3vTq|GIRP?`g>hY@aa)tG`j8$((K$$3xZwQT4#f<B<*Hc>>E;(p<yo9A`kkwo39)dHMrs~X7V9%OLlZVbYnX1OCc4UsHKz_H#XR7d*R8*Iy^Q*yXC7r}GI8UOr3>X&;Gqxv4Kq@f$Y6YS`SnrBw`cnN1gf;V6~QvZ+NOwhQXLz5UQD%s8zyj^j^>tv9Z;&D@*a}CW}t7zV_;DN{2zDw*-3}se(_d4AVwi<iKmm&y`B~xOkXyJ<)GX6wW3C|_5ixhmdPeoQ%+%tr)NlXnwm<Mf@x<a}j4G3))J)HP|3jWjfo}l&U+R>m2jYyX<X>Tc<k!LIXGdFqA1ka0?3r6}6+r8_r+h87I8R7Q)Tv^Csdj!uebI7Nh^$VOcQHWd+yA_?8-4<b7T^wO%j2tI^>aanpsu7D_qfx#e5YPgDS=?>9aZCu2m|spNU7L~Js0YzeT7(`zix`p_?`z2~{2GNq6TbVe?oGole-DV4)qJFbc-Le6$7e4xUvdphH@v0esT>#|>1|UkX#q}x7+F`@c4uxhm~<is>ySk=UGMmUM1>g6AjKPsBxuN`Y-4M12QwnBA}?0=yroe+jLBff-RB05yl!M@>41P(#v^nlq<~e>s0GKXu}XutB2;*(wv?)8V*F3onu`pSvmw}uko&+U72)St4H5(#iF_e00ynH+nzs>gLn}P@M9jCn?U@jLrWB!=lD4xDI^F^)kV~A6V)n;rRx7-PFvIny>!%(PW8l&~T`0%pi^H1JJi}RZmi0*{qz-uFl&!1)ZzD=yBsYDR#7~8aYsMB10XWtun#ad0*QHdJM#Ev4sNR-pADCj*;35<o;l%n-cQ2F@1hwVMvycS@q$SL}Z0A2?Rd{d#H_Cu}86(x@5~lnK463#Qpx@XF>|W0huWA%$Ss*{V$w^9qb%i;;u+)(V3*yGW+=^wG+J8hIT43!M<W3=$XD#we)|fA~s3gmgv610m`@a(x?B>_#5SQ$cW%r_9ywiM=y_bmJZjf!BBMknf;XEw2mqH(HI%_itzbGh)0xmCExTBLmr!JxGpLZ$ea0Z>;H0@~H0NQGqK)5B+8;!I$P{Vy9Z0m+yHFltYFo(4*r^hYKk;q4e9@%8bLLD<Q^_3Bk5)@a;?@lvLQ7f`#j4FMnA?5Q*V4ecnx4w9_NRuw4^5Yv&?C#`n-3LUJLLC~VaT9O~po!sVfwL<C&gGIkEnSxwxcH^EyZr)PUR%ycOj8HjLwzE554yF9mVX|9;Wkat7oZA)MRU{oU7833RvKE^61IGr%IWa~w&fW1Qo`c1S7<;6S{!*onQ|7eZyTKufSS6VHQIpafK29^MK`w6S1l}j%2s7_%`5fT`SAj=ozee=<qXDcDY?<8S|q>0y~xlTw*JYIqfXYq)C$m;Lp3|p9%fd9LON<$a_i5|&8l3L@x3A=M_FU#E7Cx;(|h)&@JPNLoh-PzH##T8_TNO8WuA|7?Yhovkv6MfERnR84L8Vs0(*Zb0#gWK6lKZD7_t8$lXKdfei2W2GD{}lcnO2c-b3C>a3IEuEz#u41N>WO+91WJ0S?ZUJ{_#fMNZ3`h&`*Q*PcRky=0{_<A}@kT*^i|C|m~2R~sBR{Q0*0$>o<ho6}9&mrkBa$w_4nz8%{uYhH=%B_)r#43+6VHm-nd%s+uPKE`I_6+H#nS%&ux%)cm#<DP#+vzK4L72i!btm|ZuuviadL&a9Xl^MjL>ALcOT5?)IXC~pzrmcmU>Fw8>qgJ$B(qMQ>q~9qVemddP4T_6rv>q$%GkZnNH`XN8-@j?%L(qxS#cdfuLd5fdb2DTAxqx!rmwG&__n`oSZ2U1{4C<v~(^-L-(tj<;rYHaHZn_cRQ05&2g-a`>G&|i7{I~*WXDrRTmlo7%(^$Qv;>BX#mn-Vg)xPv3eQ=yx@^hUjRv#&u2XYAjFv;XFqr1qV*1^OZF-35!uz1yPXOb@v?%Qd6v*6P6Vc~B#9K&iHNaN`29@uWt^tAH>*2TH6{PwS(v0L95bCik_vp+hUwOT#4ypC^^osaUrF|A;PFEWm9REDRH2b97eT&-S?<#D~5zk?P=F53-nNKwy>ime`<#FG$)n_dcgAE}wEcdL-JG@loX7j{Is0{=c7Q(;?B){@aTyN3Q4$!1&zt)8S<$N`yD2`|DTaiXRIGu&1)pu*5Bm1>UvWb^2qAp831B{EzK;k0=SXubC&?#;DxcmI$DxRvqXrnkuyE_d!j!(rKf^M<SGo=l#b%1_z%rlNp(#%U})lPOouk*nvMKvptA!-}s%q}&at)>!snY!zea^u)~3w6ed`wAb(z-EAR5EMM0`Ag4WGoqin_XeP|+fZ9iMgcFxP?9>ecEh^!q6jWpJf!(eWa^SSU4EYLVN;dt%*5X>$U>~@f`k>J=*60ejYWjA#NYUTI8Wqa82Us`i#7$IA294B?NaY0nzcNc{I_}l#I?lFmi@C{z0L{ImK1K@S5`8C@@6w+aEi6o|+zXS92CYuBJs4PIItz$A^^Q;LrRnHr|BAsdLt0vaIj_eZOjv8;Qb2b~O0SU}BuFA5^PUeHURf~R!_dSpmAmt?v&kz#y*>Fel<LwV?vuz;UG{OYN`<Sqj^Y?_ug2Ad&Ss19j}L){bbsYoI3Ba)S+;DR%>S7uv#Tt%%rBJD##bv#z>4J9c)psR^ypDas05&gHN1a_7~Quy6WHhaVK+@5t4nJLO~C6~oPF@7MwTE6=*oK>0i<D}B5JtsCcbEgN;17u!*25%4zFU%=UjkSW$0(bHfYaP2cV80&*akq?0_E#^!!M@ogI=&)`c+FI5Kz+V60r>eHJiBdsyZl66y%@!NVLxwN=;wZ1!`l0*RVBh+tICd9O&L?(w^mom;yih-1ICZ1$ie8$x{zN|?Y{ZpC{adkMhpkN2(id_MZ*1T~6LOp+I8WSri0K%eAEJqST>?Ohlnd5lAMvf&Q)pb?uup7kfk2E-N&t3%Iz+Rrq+I9f8*sVI7>&=14fM|rQD$=<a%?{xFb!P9T0yfl^_H>AK?eh&uF08zfOKL69zB(;sofuhOzeTjsMrW$Pb{1Z`H*OU+PjHpDK0+dYhz`vQ!`e}kxp8a1}*Mz~!48WB4q#xMo+$Z`{{O~Hi+>~nk5J_+da(6Yj2Bl{NI0YLSUk@S!^>YJlZTdJG1lp%r(qEJFlyx8@mdqM%$>lzZ5$(`jfeMY6E>~Ri!#7hsU{aY33bezM4yux^y{V(EtU7usc_~v;0$uR)Buqox{HGTM4p_R*gX<lQdBZSLL3S_Ti)uEfLs!!k?KqVlJikQgTUTAM>7j*=yqC}W=}$R2F}}HlMiQA`y<y=%+U>DDEehptY|_^=uUWj$^?pp&4iEU=^tAW^+sb7K|GP!sHIH^x8$`l!GWYz@cc`pK?7a({A&aeUsBaoypM+#caBAcrktwI{Nm<rSWbcX6<D$S=QO915UL95_Qh28SCA*0$L>%n*065E|5Cs1v8}=87GCOX12l5C~+IC=#&d0wI3r(_EK~IJkR*1r@dUZ*2pp&L}Ukp}3l>ye*LQnmaL$^-PLr}r=g0gAxJ=zB4^yG<>PYr0-)5ISpO>_4^2BA)tojOneQoa}3NyslJ$|tWg%~&1sf+?Du!IH~AJRF09Tl>9nFEP5s43zkwD8^Td<?)?pwoPgl()6juky6>QIi(<_fJbOG(7dUf^KC-vlNh=Nk*Adey*YM-6a!bZqTaprkYnXnp6@--)dw4vK^ug1o+GUOv@0bU?cZ&hzf(J?)6%4mtk48<uMbDLB3tG`2mZWdhw<6O;%^k#(BN#B4Ex$zc<jF*jB6$F)kUD_Yz`CzG@*<gHq+o-wU25d|H?&=THM<k4vLaRE0o~DA?4oBnQpDpF@+^h9hWzd<;HgJme+(#?uVKG2rjc&$uAQg@{IS5p6$<zMWeo>G<Rad68EGSd|dwL3lME59V4TIcWJ&)-0`hZp&K3KF?2Wqoq_SQkmb@6g#fL$Poqaqij9l1*cC=}3nbu(6=FjAHrNt8f+bbYJ2Mg>$z9Qj5V-S;vYp}}Yj5@yrjZs9_mf)=N7G7(4^DM4r+8<BE=L7-x+0#Kx5$_Cp`;hme~1x(H|qpj>Km1~MubUN$Db%ilEQo;Y4*=(BZyIo#{P6dWq|!b|C*-~8`###Qzlnfw@(i59D5H@K*5-lv+N1scI6PLEOk%)>GIr<X7<h&(Agi`><0*`<V?D=v(xhs(xyg*VJSjx?FC62Ho-n?lGNpaelhFVT`zwvtK)(lHmA4FpaMUjR>1m-;xx#zC5@K;7gNka71;rlP;;<%vOk6A_QanjNh<$@KoC%W0PtgPS)ino$|f%CgGc97HFVLqg<ZUP1~A-tYbj{JvNjx&%*Q{WF$*1UuAhYPNRAubML_WgM_95&oG7CndVf9z5^g(jOuFw@O4{LKP3{hDea|NLMi3yiohxcu1xeH=BhKo#wCE`cs$9G#wds0@-;{ge^+q|f=eMn1m6w0FQchu>7CqK<x85wdehLAmRPU$jQvv|yRr<I5pm_cy90;XL*)>}dR@qQBa?~)yRjG{8PL;?iGC1fczFqV+*;JpBQ)a%Jj?A{Ro7Ga>{54pA$yk<mh43$uZ6*rLZ#CN*#GkGR5|>0O?Z<J+mzTR^x8&oienA-YXNDZ*CI+SE(%r$7bITkbT*r=Z>bEWz<qJ7in3EMJV*d>`{+lXPj<Koo=rl1JGkf!NK!?J5f>M8t5Qkvs$U{VA>qzF0$hbKd+%g2APa6x5j%O|qQE-PZ-*%E!OvYVBw#O4Zl?z8@T`|a)gcRn%AFHm|tM2SOpnGP1mlX^+pIC2pp`I$Ecm4z;&R(*)C%lEUA(L0!BdSld3<a%?uo^{4!xg6Ou5LP8_LO0eqY-<}8~&^aJh?`fNu{Crj3o#wwn>bN;%e|Jf)DX;E>nV5MUYJ%Aqp1;Hti|Jw!N;d%_rOUC!BJ`xxkB4<^I4kIQ}M=XgR?C?l)>b*xP&MGze7lYW2@fGOsA2wn7^EqJh<sDodU(UVudl+oH^6K#U4Wb_lY1{WBS_j=k9Kr>{H#(~p^wjjqe8-R1&wNt#kmwr^{hZ)u`*r938X&LKnfNi?`<Tztbh^Nax)hKzs;&A#H{GjxTw-05<PV*c%<pc?}sy>N5xNw0XH_JV@W3F`4EN29y1g!wo7I?JWvr8#1g#E1kw03$PYUyi0u8AX4WyTy*-xq|NVnscGMbAPL&)U+nQ*+T{PDBs)AuYr4kbhqcu7`7O~y@!yj8!S;@4@7uht@^q47mzZoK&PIC&6!4sUfH-o;-0Xx_^;W)tj(T0vE7VqSLK1k{3!0-&&lcz-rW)ucW&vpG+gyjChDeHou)oE6ZYt`csq|QUp8+h<)XF=a~4_XV2Xnk##^_7v^csn722o%N&8nWSq?`;ZDi2td=k=B@s-!6%Aqn-Tc5e)he$S#bIPg%4pL4d6gaz%*BT)R6{(YYuhIw}cM=$$A%ii_;`BfBlKqaie1*~8ytxs(;2(|wuhS2)2Z#fU5)&?*bQt`so4^?Kz8SqVR!J^gxebzCjw<bXnBrQj6FO}8qd{T{4hbAO%n=w2Z@k$C$FPAsgA(X6_tpJ|6xXKkb1F3MLS5l3P0J}`HEOHof9@csnH?5yS_KWT4zIcMl#H5iy(3f-U=pfBFrdp?R->QJi}7ew$vW50IfVU|;5B{duFBjQbUzsqU;(_ON_V9+LWA=mN#z=YQS^Yis7VL^O&Z}~Fopoy;>8Pku2ywFkn%{mwc!`<H1|d>T3>)TfS*7=la7OCyuxr2o2S_oDecRrBNnwo`_jbieUtz(k@Jx9(r%iF?*TsRiQ#tuff+|u#Y&5?4go{08jB+he&bO0z4TG|_(mrrAwZyz>noo^E_3H6Vni1jLQ%SI3dcds)vgo<<+_H<DMaMZ<zc6W+ZC7Us{s=-oF0|K7;zR}&p++n5cM?dDJF0?@sA}!yVX}WQZd>#fMVDAltQV4K+}jxIctT()5!$E7PmLJ^LQ-o=G-g|8#G%_ibMbTd{XAsqaE6csY-YJtiRuN5zI<o{Wb^&*Ya{J(;*0QIOFh;FJu6wzbd8IG-L7!)+(q`wi@m?k#2fCUDd3y7IC#a$l;#AR1d$?n~sF^BxDQV5xCm;8@Xtn!i7NuW&W(6F8d`{HF==kAeb*9G=@orYE>wQ6IP|PDT&Je8@m2(7=>lf04eC7?|@#Q)$o6vgXnI_#v&E4(voc6kO1NcFseg=b`YYd=8#XDG{w8o6Ki;z*3&{(MUxE{0`zhy?Np4B(@Y>?lzSys1dhb3+lCjL?TA!g|IT&QK|k*b`BF-CsWYb=0;QPm;>kXTWrxBW)^riMlxquW042Gv5!fLxj4sV<P!vXU7d&i;fE5Wvmwr=R^o9vka}5L7FI!u}*!H8;8=y829Qj6Nn2TT^`%uA*JhOfGT%=_4AHuhcK34Y**zN*(lww8E@EgjlXtf2%Ti6RXUC1X$cz%Z!B6xR0ztS3Cy3>r?1JbYk#<+@wUXvnLr7ugWoa+hx6J~S%hANEI8oZr>DG9VM9X>Z2hrW6-)Y!c?PMxEzT|-`F83==gKvbpdf?pLf5T;f)8bW%ngzCYBnqI*Tfc8-_uVGH#vq!m9K6=J?!(9wkHi}$VA{58g>W<MFY{#(W&2{OBP_8Y<v(QeOv#5p}Cc}U^td|+Wf~@eiuj05n04VnMwiX0Y{7VpvSRu<~ZCjoyk8E^n(^hygjMy{ML%DZ5zZniHxfoZ4w9xd2r%woxRoWiLVaT7&yLZgCj*HWZA(z^s-B_KY<#+u|@`yKuK=bd)nQ1BE1*tT5{GdqGK9A9wYC?bbiuonlE5ZLnLQFPvXBr1jcwK?nzQS;NS$aXzj+WwyWwBje8iP{LF%M8PWifGhQLBWt>yT&4>V`AEW&18Gb~UPAj9C!C9)Nt^6yT<I<jESk`_=h)SYpwM>^|+V{}4w;yW=e$sS8|N->IIz>OT6&ee~2<aM{X~gj<1A$%axE94W5P8<W-xvwP!42%Yg^c3)N6QB(zx(9v$r8;k@{FGNoovk`z(sU^)5uF@E|OIWr-Bbs*`xC=-(#KO7_aDH_aq!*I$8YO~nBVQJ1f7zpigE^!}hwvkr;`|%iaH62m1!!v)kxdzSinR&>a0dc&G-mIi@#Ab#?sGH?ys)UXctvfoKB@KlR_wo9D6P|XmlX1amsegLe*Ie1e-o0}@X}pv<#iUJ=%YLPfX#=mwlj;08L7Z5sEBESbiO+q9#4jA;TM<f>e$(U*5vGX1<S9E0BsLP#tdDJvAvwH68nXTvePU=_r>K%w`~Mk;hmKgR~o{=rjc;Vg#!YPqo9{$7k5*n@9Wr&yfRwdX!j?<`GfCFTCAT=)np<%^d})kwuA?n5aYB6>-`9rfy!Vq?D;>mg|k$)?R@j{>MvR-gwFhSai$;iMlgcM{qBZPIe_2RTRh`sS%;CIbI$m^QJSVnEcG6t`8XDc(Dh<DUFzS86s0f?s#;S0&Meqd8T)+xP^!#C23}m%I|Pfrh7&$4fl^uH3`V-q)Fe+EK}|f9&&xNsrJ@OdAg(hl&^P38>(6-^Y>R(nvBvh#nc&hTcM#nFko&vl344cQ4NEh%wChjA^L|DXHDSMdBo8UTp9kbP2C7TM&F(Bmye_RaNzqrFL0a(-l({l*l4OV!8A4m3!_eL*75fUZ7Wx)MXI?y%p^liJW2=7(kAYEcv#0rTO~&uXg`aiw%6_@dyj~r6|N0<Wb~v5#bX1?V6h$NgVF=|69z^MF?Z975F2QsH(yNjhb6BWT!KtyXQ}!@dcBHh8%Iu-+l!RO?h$WGA%ujQ<x4V_)xw}nvKN5+7@6lMsPUq@|1Hi=(t;gV=Xwfql&+{BaO@r;#dY0_s$$sOyg9u1x*{++5m!*e&vc?Tf9_lv&(l5(JT&puR2tS~3Q?wtDmT*6}_6CU%yjBYL!?>Wfq)$J)sz*<Wjnn88Aq;5qz`D#{e_-6osQy#h<UQn1f*#<B<k3HbBd-g2ZdeYG9wNPPh^6mKqw>SA2&_TrzZPGFF6>oG%pryIw|uG=CtTwmP9}>va#89n2|o%f2&}2kK)g4CtURVZovya1P$R9>ys&;2TFIO;TW4_j3YuzL7F=-v4TdLeAGldVo7F0Lcrmbnw5m+a{VO+874)oBK_17tX-3+gkN`5jiBm5_>*@IO?Ek0$S=7&N^zNC^N?g~y$IrSS7$?*@cmk4WsgB)#p%;a35;jhT@hZv+-GaS@uowc*<>mvYV-#yOcv#pChS9UhX=b^u_2V(MKNfv?X+PxXUg&X7+_^S>3`M`WjhNG;<Z6MlDjIXjPA*bIyP4gkBwTWdua531q*&i`?DZv{Vq<|v6I!d39bkrH_jg>o)IUiw@t8NbcJgN*zvIgV>BOb4+XnPncGA}q(B!bz#3Txc1?GS7Glz?o&26ZQb~cp0Y&l6hmE6XOid?MCFXl}+o}>Tx!1~=%EjSQSX;>!BRUDo9D`PXuf}0p6y{}F(?EtTTU`T055e!;pk3Agjy|%0yx*ATjVhFpwtxn<(jAh=F0%o!pjfQLSReZTVRw3#=P7vb*U9z2idshy`y@~;cF5(&5Y<QFIxRP}L9H8GUq-#_s98%1FkxeAci-AjSJdVt)O=T59?p+TZy<)H4UUGoi1rHFFYzRsuJ6$1TvcnXkfz^YQ1g*cDOehU(E}<9Sy~Ipo{No^ij)^u8^IX@jWH~mx*+b$&)VZ<995-Aj?rCauHGWlyFZvH!L*4>q5%=TD=N5C9`qpX7oOw9_=E~yA?j5ygD^PayjdpMuZ9+C(?Z{S4?!sLvanNA5kNm=eGY&8vaO|)ic6ovG-ZD-3DTJO;<YAEEOq|Rf!@(Jdux<u=D#m#2qh&Su=Mf&gA>@K}Q@Q{QX|Agq)pyyX!bFeSC9%)!$*2c5tXiO=kBD(CfYA<|Rf-e;;~t%9&y9O2<+M?eYm|%Gu^8&<B!k~xEi|AE1G$am2?&4nF;ZXD|HXKVV{|@4IfP^YFmd?<H57mYS6lQkckBv%#}ZO&=i@Ykx6-WblaSTqY8%V4%HF_<rUFXMu^Qb;%E6faI5~{iW*xRZ*Vxt{B?C+x6G}5lni-fs{+I?Vo7&c!{1FazY%sgFo2nB8Y?}Ci@+%>fT)X?JPV_nHT!BcudM$X6v?VjmlvKOrO*;T4yK>)}xd#ROfWD%Vcn+%Rh7DKwCN_nMo8>GHxN2JWLb-jNIW}mCFGYHhVTRa|CKR2O;rXbMOTDZfqi;0yOpzeXXR&5w!eJnFO<UZoJz}EC+mLsED;Ux9N*Q^$T2A|0Cv{$^+CD6aFgZ(|B!wpp9q$SdhRK}dbG>aJZX%oA#zk9|YHz1T5GQ&8s{L1VahJV2OjcoaBq6biV3S$#7OIwX><u^nJsG(6{c3j+Ik!97;e*#<#xgt0GrgE?n$*)M)9jeM7;Gwz{gonMB{l8Q|38cptqqZXkF#BsNp5A-ZUD#sDhS~&N?vHxuxy_TAdg^%Ovox7SIOwl=C-svH^@#16iQvB4@u`2jw~w(K5ltm%IosA7v{TP@2e!%SFUUiJqtkk<L~Y8$td3aRi9ymn)rt_PNHo{K3O({xfIU`-FkR|CTh42R{S08ajDrIFMe5L=-YU{NSLB&ll3fvg4B;X#%V*FO>-=;EtE7Au0@4hte%g2=rJOM63j#=IQm~Smb<vZc|T37ebG%aF3?e^zb(;qZAU&{DOdVNNi&0sL!a4!>;}Iu%&FrA8kK60Xwe0>jHHi}l-;^ea{AV`VVK(^t(79Bo&d1y?6B=VDWO|k+k*$<Asv&YL-SSoWsf<*4TdFt(vXmc#)||>Bc}c|iO-j7n+PE;K&mqxBL=#k46g;Xzbe&>-P~GAlU9=((nl@iV&9W-1>y3blXh|*53ixXlG+l;*wamBAl$y%!JSdc0}?lXgW9*V8WZvaUWnA@P9~ROvJ4C6N|w*`eFNS6+z8P_&BE>aNMb!rr2%CLlB}FLH!={jehv{pcLPK<zknMW83H?{uSRoZ+z^C6o5Zs`4;Su3h_Ss|1bYqw#!NO|$~7x*ckBB?Xv@z#M#hBN0G;ra=toc1k<vrTse*4&Z{EUO?Ice~9?{S!y;aEr)}QWlLGk(E1k8gOctIvN5Hl;4+Qz+yyQJ?!@+74g(6zHJ_2K3*R4kFEha&dM-fc@04`=d*RPSfoD2#W?Y4eVA#AT)c)Ti{oOz20~&j~TzVIq-c%ZD$&G*r=!G72?~nbHtj&h4{|{PtkxYTen$<|-F<$3T(<Tr15U9Tbaq|GNTRrKw}is?joo1b%pXnI>U%-D@_FEgMHaR3vUcWZ4xQP8TRnw&0%ts$H53_(|jCDa^;%%MN0ZoCb3KU3I7w42<+;LH(S6oO7>g{KRUmN%dAMzzv>_^$cbeZ<LpfDT3odB7S&9CxlC46mD?!imV?4DA-!=YJ<FHIX%(xqjg?@z*K}vr(3`qrX6e6Pd%gBP2Vrw>_lfQ;*V_tK@oFD$}`z9q*Iy(tZy9YlL5kyU{F^B$MR9EiW>yRFI-u#Dlo>_IH~EL13BZ?*ZL+<VW*LRgoYB3MCv4unBE`LR(`>df0VHMu}jifPyxr~;YQI(_5)5oQv={`vR)kd+NplFr|p(ue#&zmXF<zM3phfC@eojnFdH22N_-;m*3b#kc6NdsPyIWw^(3OS^F;~YlT|aq%CNv66~N0EQxr=pYa3&{y#>r%sKW>nRy$B$0|Qnuc$nOtN!9@ZyIkqHnZ&p5CsZ<?Nqigws2Tpmejxi3Y4zeIrvk^=mn`66eOn)oZ+f%E*Nm?`|E14WXBhc~P@G6Oa*Ho%zfW+3hW0*7$RuF|FuAMC%@8~Z`-aT|v1XuYlTR^)9A<+xqnFmOmX2yTBVMT_3O0u>vVJ)l9`D>-wqY6{@W8YbWsDeJC0z2MiYA1Dc=b213xHtF(Tn;AaoS{{V&7eSZ28`sft2b=oL%d?n+C%aT3N`WE!3E~RSd(Gp#5QRmt@m{j^Hv2A}Kep2n6IM14r5VuHjvPh#3)_tDMo^H}`aZ0}f<dI#vkq$xhEDvckg-fKxA8q(vRDgRLp5pF7o;lB8WP+o8cK-nrM4No$)wuyq{72m;TG28#tvK-zj6vG7lJ#M%pCviMAM4A|#j6s#=mk<Jg0Fbnlhn5dpsurs{x0}chak3ek*yok!a3NQ8j1m+}PPve?-VlPmNbVqQ&oK?IL&(fct;DfFbc<7%(hX4~wmjBi)ICQzd4#k^YqY-Ehm^XWTP)k#0??iedGw6P5l*-AsMFjpHq&ErMj`VUZEjDDi)7#dlPKMVm6v2kf)nv&U)jI<SOuW#2xIBl@yQxKoKEj$U9v-pR5X3U|eo9Z%Yi?{YLVXwvc3C1q?;9=ET2ma#H|Q?CPg|f7LJCsJh9y?F4PrG90CF(-i@;9>i4LZZREGk%5OeYX%*IV@B?^Rx6KLw1x?%q}3vtY<E-y;t=z34^gM)5+VBqx2{`3S8+^#qQ3365Kj)9Swor}$7awm2=uI!MGXHG7FB;Gcuixlo%!*gOGmN#@c^J9BEL@7#zMCha=e>$YkD9au{s?N+lb6kYPj5@e7whIsdSf3y#!>DfU>qg=eF^u~)swY=Zu&XaB#+zbZWUsp;7I}jG_J_Kuyo`ALSejdYvOO%-Qe+IX1upfMMIpy=aw>GaSXKZ>BTpL-LQ!)vWt`$c`}CpHpr)`l`V5I9&8UuBf$b81!23WW(x>yTvdyyyOI=2oY8MdQgLm+<AQl3&b-XAe4xU@6{(Y(!%Mw4v(C&Slgd+Ts8w-}<o``5ZE+;7_hyW$Fs@d9(-3g%g#OXIZU~5eZfSM>9P6qQzPj%yC@Sj;%hZ2>*_p62n&U+q*yr0y=mV!6h={*3HMWobXd4wVoiVJ+KJ9G|7q0n@kgM&Nd=9Hj|InarwF!b5P#a1@bBu|)}2m)8-r5{qD_}_$Nk>9?vF_~l~(IW2UK%wrdec9Wjw`LUHYG%9=7M`MI%rIE&z9g4Wq(tCyj%TGTF)IlSj7KPrWt7J5RI0F{9!iq1KDn^br>3sh-+Vj13(Fi^5}v$yEgR(zu?8U0>4H9<*K?sYi)2h{#S8#maVo_(ZB{<P)qSP|!p9h_f61zN%i9s4F>~i_?~GlN@}Ufs<(*`Vzse#zR|F-I&4s6ID~)Gxq6*80Pp_bBIuR>y)*ypH$7+M*^gQlOVQhs5&3UnQA4k9{Z?dSPdf^q)$=P~+ODfn6(A$Fm%o{A}1Wz*)$!X6f-pjVG5J`~y@$sk+j|`kZu9e^L<9vh_BnGijFJe<utITQ30zhN~Iyu=F>5uWCh-7YI>1qY}860ne0#;z!d=ks*rvqw4f2h6*;bMM$Q4tX%_FOr0wZc$ykR}BgDOoORS6S;PmXe^%L=9t1ca<^X5V^`ILP;=)QmCo%>2ODWp!KUFf;ujQ9nPmG*QCRt`XQ|2RSGrbHmTf6kf_FMdkAyG1-F!4#8PEZ)Nm_*!g2CO-m&pQT90e%ejKR}mf+W{l<?JoRk<Ej&IIyG<6i_?HjXaa9@s?bzTGxdsltX&j>qZstyfPr-(GEtK&DRf3Wb*_FQ;WvNYz^aA}=IuTI_vri%SE`hxWOC?~2seQ~%KDIDUb993cH9?0{Z8A2&6W(MNW6_Iz*-R;GFvVD<==RpFMIj3XTc(POIeR`C?-lE$rzv5-zEsv>pA<qv7u0jRhMTBK?w*BmGTRofz@y>BfDI7J|_?M=n%RYtOKa#7!Nj0<oLpgu##Zjm!yd(&LdL9um~oP>`^0-W=`JDX?%!EXB<6du(|PVXV$d&5tf&El1ssdpqB6|j??CQX4kB7}?#1q+1kk?nx@Cv=?96uybJ03?}`Re@XYn8j?!IJt#SAcPkQk|A00fy7XN7H;o@;++40AQ~ZKN&A`C>?w2kzzsal168t+SF16@yT~i;WcP@Q1PA19rLiQ-vG*dvUI<K<cW<VT(~q?V(chOq%55#P#@c2q(v0$d`lpe7U<1XsI>|0I^T}TT?;V+WItN`Uo3oQbRvry?x0M&t5klt24`JYTxfeo^SZ&Olfq}W0?_HgMg5yyaDcG=>HzLK?FXF8F0U3lx3qsmPAK5^2P2y8I(!e#}5#uNLU{zN|+p4cV;4CjOstXahK)vB<hp|Nvv<kST`_IPF4++L=nXoQi$5{y24&Qz>GolUA6~(&aZG|~!G#axdDdj;kCa_zgfV#Z!&ewwa-m`OOgE_2<nFr3g?1@=vB^@8|o7MsXIGakwR=fT&v;Zl)mJwY9Cp{=yte_^YjMNY~8*wg*Nf7zVX+F1|fi4t+`hV}vNd9#^XP)^~rDNi|;GxoL=ZdVJ24UFQm0Io;_Od^8!>D(@T{qwY+uhxMbMX%z{b$<!QsGOoF0>msJFGd}=v8#~zX}|Y<}P&_0NFlFMmQMY(SoEdYqskN2I_f_7y~SL{N#HCkn4>0^ZIdJ`-z|7ig;5KTVPX|6_dxt{*<pm!ce<>4SmV8D0=evEzU*sw2AjU?%$TU5o}B_A@HkQDNs!LZCcn*6+<p=(c2LcUF9Ga0AISBqjWms*7(>-Y(}baRnHUYOpBagoHIY!_O!5k^{s*Yv1UuEz=}qs2$^G*3IRyeqw4XbPxEw`O2n*9Ow?^^?#8gi`=?*X`Rn0=bn$uyas%=dDQ6h6bHYv8B7uL`!x!mZ7t7&vc5zrznl$K64js1k9;<HqWa;{f&jgCP+-&X-6hYNYu;Z}kKtXqMaZ9M$ChgntP3S(o91y-~2^N!z=<^8swS@3ekrqbT(NcQe@#T|>@v<#2p^)zSDojqopUd}4p_OF@F7WurG2C2Jg(_u=MK~{(_BO6~?@C$~O)_^A(nHE7ET;{L(}d#1kXY_o*jB#&=R>R;9^$7vfa)s8+vLES6P`<UEcDm8RDQXUv;`~C(fQ<+<xxzR%~=J*tcW5I8eVTAT?-J|E$ws~31f&WJt|pg$o4k`+rGTzn*R(G#5}YBu&e;eBb4$SO?}o4r~|9z%U{Bjw7G9jW9+gW$6g&$j(x9BsPbNX7O_AT=2;i36f#}LY*_m+H^X1aAaMi7cEP?b6F*_$<++CQR<8o|epDnK#j}Y>CD_a9=gO<5?zJM)Oxw1OO?Aa!u^&27oDPVC9=f~Dj;tQ1GY10?t9V*h1twsMv1-YR%!-}+(0z<(bPx8A<cqHokVC|mP@<eUfC5QFnP=9$4zB9^kZfk*V;shC8XWIXo7@LG5%R#VH*C(8t&I-)N(XiXlV>4kWt&v~TNvB|I(-uT1UakupcBzXglhw5M(LzGcI;5@SgSK?%3->_id$N!nF?lSk#d$HiE+GO8r{IdVW!>Crz3l^B%<B9#|olmHu^Lx4XYYbp6@Anu8R+oibO!;u8}G#bHM=HGfCis4Z_;=Eew^u4$khq_o0-dp1oU(3nHzCp9vM*!5MrEZWB)9(JuM0Lv*-rH4f2S7<(1wGTF>v(M6fr`!1}#0tPUV=XZXhBGPEP!l$iTyc}4rDLo78FO^0ORR-meK`akW0Z8leDWpgE59T-H2;b(dT&1wvmjH*9<5_}GdO?)t8U=__<v^hg-H=5-SR711sN>|$&-a<4gtlDU4Z9^*ex9?@0422gmo0rqGvr$FZld6Jsq_J84OJ!B`@$dD%Z`eRH!I@d@Zic%WRaA&bvXC;JD}4wA({g#Hjl|>i`uY}&#c>c5!<*b!pM)BjpRVCk@seU3;ia{sW{SLXZJGn>^_FEMny&{6;6(}F@;|P^t6du8QU@UN4O$X%d;g-QlMeQ0KRkeeZfGArpLASlR{9=2(K}ZtAfZ_Q|FD=rRTdKHNmK`>X7rMm3G>}(Udd#(7Dz?Cu~CyN5!k=$64vlB+v$7f+p8E3nHG|;7<8g5%&vqj$i~jxsVi&>*jfVtBy1hHUs(j?A^Q-rv9<JFh8bUQEY^iby4K()zpJ8X%8RC<w)(Ijk8Z+VAx-K;*Pke{6!cg<p9;mVG?fRl_dM~FqWs82^ZA3*uz$9day~}ZEQen^Vw7?+JZOhOHnPVf}%q~fS{w(M;=>AvM=#q+`pQ!T`nUMg95>a4YTaTbHZrS%-v)!e<gcFt1QxD?luhn>-VHm5Uv^56(q)S>FBU_)Y_|1S1=8i2o!G&EzYo|$L4|~){rfr86l&VePb>p9Pew_6WENqOxcJU!7VmHQOiz=y8)f^L_h+#j)O<V>Syu$<R*)ZsHp5Z#WW&1xF|hlrZ|I3-x#*0LBhODr)IP9UAXp=5fE$6D*XwTcIqg7R^yPMm<(#l&RoWViycMW4mvc;{*-sAR*OIE=DQ)PXUK$`bphwfVNnZ`V81f^Lr4qH_1b8(u+N(^%8e~SOedfkcG9byiF-<ymH@Zddy0U{+tHmoS&!(sh(kG@Q|6dPoSdkeHXQ-WJ*CTgFV)A7d3uQ@H{L<5K5|5m^L<|nPh>wO=5#mQr-yN~@D4#=+;A{Vl!p7E$tD$Zlfi!@tvt?NFf#f}1(Fz_rsMU(D)G}h6j&Yj8q|dr^<|=j%<m_*Y*6CGrR!(A{^ud6q2int1-fFaReL-iSC~u&mZ#jLIw);d?WJ6^Q0D2R4~V)QiXbdG#$Es=Gg^dEse}4WPWsXr@<d4!cT<ToLPE%~#G&vl&jkHDEOG%)a|c$|s7EVtoj*k^lr00Hz6s_P8mDhwO(0wCg$S#Yb|eKqgNh-Tf*usQ^hdfVQ7Pk%eQ1;fgv<E{5XRl{<SWKXAgY+|7SMaiy{SK5a$fVmv|no`=x{E|P#&>5d3G}NXLp+EeoE=7ctxp%<bU<lB!o35(?!4-q3Y>52t6JfmpB?bPU}gqL0d1oaoC1WzIvW4fYAqM#ejzR-eeONhhhw=QsPoKWnvEwB7HgC3B6Z^nxB7+*;*me`+XunY^k8=--hOL3q^vcLa~&&QgzWVV2v@Tw{%a-&#&hkJdhXNYf^c^`76)mPsdl6@Pr=!pkH1W5lR@SpE8bs0dopLRieqf{xoE1lay-PuotC!&|rVJUsli2qxYvl)BSHT2lA#!E-434ykAhy_l!#_*__MlNShH?xNsORHUdRME&bIdh*u3bCAIx~W6BhYz=5bM1W~Is2zyL&ZnF%&AbeLj0T(O2eOT<~RL{PD1eT~(C9?byY$H*IEjtFXur3;x_WX9M+K>8I&kv!X<4KxhW3q=?2Y<2pkI4VDSBpwoIcaY}(+l@$h7)T+#r==!iq+%;YK+^DJ*jhtoMpPfh|~^1?xc$RXKO?i#Owxxv-yw=7tu6SBW7DT=$Mu*)^}`PJ?7XI1q8q6W`&pdE+Y?I?XGct3{LQSLh_da%W$jIlL#^NxkdQ6U#b-@zF@af{bU}bup*`eTP;Jz^ebXf><WY}E4aX<sTIcK$u1l}S!uRRo35d@x$n2PL`-SP7@}zk#EU<?Rymu~t|>W9+d-CG<g((4+n=~znRet8`G->QSFljRwv=Q~`rroey@-6Fhv8@@mp>VJsK`q`?e=*8=gi_u;cz|k7_QB1YxSSQb4>%xz|6w;qhzQzKUtUQGTzmqz9{Iyh|rC|WjDMQpD)6$eBon?0$(kWC@%rJ6}=rj)l1qJw}2#u{bx<H$(t7^1^cjwzX)WDu_j5MPD0_44sMtvdT*N>vcdYQJU4>P<466guC2?)3+})txw5j(_TR@$0-{|8hruK+DMNvF`{;_M7yfPe>apD+jY#dk97L+65dcxTG4tH7LPS8)T+n($2TXpGQ);aUrLjiu;dgfZU0|%0bLxa#%rqyL;RCxmK0b*<Ae`lbUBGfChc$})^vEVCd7;rJdKqpj4Uh{^R>N^oTKVt*q^bCPDxR~BHU?ygh?Iqmcqcgx`)Oo$Q9ecZLok0CtC#V)2m90AZPtKPwMVms+&-xkv%@mL5}Rl!&z+$%aX_&O2Y>#$l)dXvHMNXmy!gsYl5qY3Tj^QL;P<QAS$6-KA82tWDj05^tlUzkm-VeLaVZS@<R^Q=2BIsOarDGG(}f)s1EtptxL$~L$50IJ>P;7JE~G){YP!36elLSVU46%CZTT=duXr#?@lP5J+d)BwlDVI7`HrO6=d}Q3`<#xTUbxKQNmUX^oOORg&0euyr=6&^By>=9qqvqMDUy4UkofMIW7lEAsuiwGgt%Gwr29It0zW`%p#}dUaSi(BQ;;H&v=O(>QvOzwTn3m9NL-|HqKt*3z+o*0BMcZQf7E#p>q8Uzm$`Fcwmk;n^>Q)NL`@b1R{g_0TNV4{SNJ#vmOzEtRVHG*07BVRf{l32ndp&I+v02eS>eF1bg+WVy<wCtwzSHnv_;H6?}p^`O_2nJP=_c}`jLbJ_2J@b=D<Tq0v07BW^Xjrzc)fT>p^p&;boq9MaZIlt$MOVA-dgc0E`TqgDg%-T_cnBUYd>CiFXS^xelyjU^+MYaM**9$AJgm!!vN-I#(X6E9M94O6^<^o2@&7q&&|FRa_HviC36_6fqnZ+;^2Z&l=aARG8ypudr!2>;(*5#U1Z26Wp7%sGVxnUl@x(<5?)c1noDRN2(E?|N2_A^W3&wg?_Y|q(HF3cnC--yWUG}rjn_Jhmc5B>FK3u2XpZWX}oCSuCn4NZR(U6JeL(KPlLJLxE(wBPe46rA|<!RfnYOUm(D)95Hs;ON=-`sdmfykLBd6#raa-5qHHN4Te18UmuJw{4*WALeUU92h7uJ==kZPT*0w<0$Jbb>*ydhQ1s*)Mks^a*f=}Py9lV;iH=ec9oHU#DOs%p)4wI^%$m|)BLxGUSfUU;<NHhUl&%g*tx4mXSZduxc?)EE}q3fyMwipL2kOOK?XxHdJKaKmk-y3-sT;Uk$<jg6@oCPv6?Yk0)dq6t1cI|jv?7cr(1j&=mutr))w2<(1|8e3TX>;#&I(_8Twg?${Ii$<xCHtqg7^*vTDI0!YlJ*9ek0q(1l}%N7lc6J$!Iwo#RA7Nk>&Ra`JV-7YHf)lRU1ny$?W_{|!GPCO=tj793J5G=pC~oihr4@k9rpl~oC%m0Q`_c^_kC=g-J423*r@O{mI!1#eF8ORdXO0n&`RRgK;X#;JBjU>@1v+;D(Ss`u|7l)mfBpr=1O)56M!XNdzKHoT>S)EQ~1#&WNeaMUG^UyaPj{ZfPh4`vm$^<oYk#kJD9L>Jy7O}LrCYwzf*VrlwVADDaqHes8RsJ=s(C63cZco-au#V^cXs#IrE<nVmr!h(_EU{)3Je;q4NtT8~q+J8TQzQFDuU!X27V3sD=*kGnYOavN5H7a6mk>!5r4Ggfu5U_K$#O(_wrn6acoTi+(<BKI=y&N~Ijl0LoQC7_I;Ecx<u!omL7FI~XlI7R(Z1C)T6+!}nTg(xC<^CAwqPap6i(&I>H;zD!5?lFd#%Yk`0+ew;n@YhW-c3lQ<8=1<D#ja-c;jbVDcT%8}{lACibac7m8R=iQTbwnEQw2;x8UByT_WPj0Vu|BAf(}A_RQzSQcZmLTJd7==5tjL_s(2-<~Y*CG7tK~X^=rOfq<QvV^OVPA5-ou?dy)_jOv2p*!Ji@>V6A8Rbjlo^s<IOYNDFsoV8(u-Tibi%Zkzj;?N7e4O?1#h{p;!2q;(*Nsx4eP20{C5-eHO`Wn(^JzKAtjFaZ)Ztdlv4HC6r;t7gSis!~#Qk;DWbOxWLulT%N;YvnL(K=2Ps!s_CqPwK?fteqPMFQ7ly|;Nw*@LKl&8u1PD+vMNCuK_=l!v7CHs6g<^R#0S+<;%l`ZH0ES@8blAKt<>{+k<n}NQ3FB)6oyic1sHCGbO`r;e!LZG^pmU3ooge@=7pjJMwj_xOYq5-IP!d|b4DCjUSx&)gi-ug?KBLs_&HfbWd0FOb6?kiG@Da+V5P7OW+kCR)JOAW3GwX=;Uw#sUdq*2Wi-1B@otm|X3Gqq+dcG~#M(Hq>mVR=1BSGh_ewv}TC;nAxkVZ~&Pf$jom!*s0aKD(6W;r>A29YKpUU{E01pO}I*_uG=3|+AnIzBk<kM?4S4zOsMEiM_&z{8Bk)H<XE795D-nF9s#-H-h9Y0aOy>>qGPro2#%GPQ&1=FP^la-gFR7<tlMvMa3uQvS4j{QGD_}+*_^5T>|6_}MEF>J{NDvG!L`L>Qg66U~(JRJGkf7BN<1oEyo^C2Z={aG0eF^kB7A{k4Opij)fh=APUWG|&82VaN-_4Xu;Tuc`a)hU|YaWF3HSXi~Q@j*j?m#!dgOM4#f5{Ij4twf>;e)oLGIK@>?aMCAbLJGjMkdOC}Qx!(Gi-h|vlaYc9A^bV}C5pM&`TIS{b)riu$PL&T%K7F-@0`=wb(&<<LRmN07#YpK(>G;t9@h%M!dCv{u3X(Hq7aYh5wz0VNUDWtwPi1oClHbHW?&WiIS4UPfBL_f%YDw!0w>}y<aB=_uETP$P796<#8qa|h`0i!2vg<kahi{?EH|0;JDkH7)kQW)IB7*}*rT@}c4L(fC}jG~#d^RMSxV(;_$l#sNFm)VG|yKvW4R>xt@#3kRXTOiFa$4_)F!a+ea}f17EW6vh}&`2ZgyvQqB8AStM|Cgx&<pYEr%OrKZt6Vuk*zn;-JC+V^B-sxK7|(w_g5A%F<#-+R)w)tGifd1=Q}T&u9pFS0Mjtpb2f|9JHcOXF`n^>+9?(A3eQ~TpNYhY!SNyD6nDRx|{n)-)|MIdrcFHgy^*Rn_mv};LxxVH>{y44~UaRvap-W$JT>-@%zLr+@~6~30n<+BK!Wy#E(M~Qjry}@AQH70h2bFzO#LsI8S2)_ta%X4UaIi2X@Q6e~U}%Mg#bNob(JI6#I~sqDW+D7jL_HqXVn*3-iDYGB{~Yb5~Db?8Sk<dmUtsI)oMEs|iH?SN{I#QxM=C$&0dMrnVmlaoJzq$sEWOCZV<c$igil&rya}_4UMnr%OagAGLb6#CQrB@+crG=ec-|?O&9~FKH6*zNswHL*rI<jP8oz-UG|R!v3*VL<}W8bJ@{>ohv8x=y{Cq9JD{1=V;uEYqxIfbk2+|bdI#GASdoSm?ELG=x;t+yN?YIi-7;+g;4JTJ2|%6)S<Xvye(85Vry}HawQAD&3BZc<9KUh1B0{Qudj>wWhaQb=f>D^gQh?3fbtnSF2H3(s}bv!&ydzC<sTCWO$2YkXh?otcNwZ17U{31+aF)(_)aBN4~mP5R9u`YQK|GLV56rDr38^9&77rK<&)AgzRQAB)p$WU_|DPlz%MRmX~r1k7VoTaisM%ESV~{{^V`gTyC5o!DEAHXYlv&LSZbPH->;6fp#&V!=y0;&F<zZo${PmvC@6t5NI_-xN?1<9?3ss2Bu<ZK7!hG`rqwCMROoPN?F|g*rF50c<zALhO#lYPoXgG!2`Uz&K{4Flr5o)!QIj(M_;*ViqoNW#xroPaw5c}NX3(&T-^!kNd#PH;eCi`I`oTDfh*pM6?)l%|ZX2)y7Qw?Px~F;RH7#A3)oS3Vuam#f7+&O#^q=8+dyvO<kis^Dd6qE=2&*a<=o|8yCjb=Lv52r%1UlezBG!Y$sfPo8f528Sy5bbfUUyFd;H`~?N?9?lttXLj=E*fEujWsi+y9$p(KvvccQlE@rwY<h$y-%@Fde>M55YR+EkSKqS_~MUA>;g%$M8%$_vi+b0y-U07I>fC$*}ut{s5~-zta!->G7%35Q@T;gMgIE8&Bm9b7ImV6+S66?y0b*1eeky;ky+^bV*UP(=EfOm;renNefJN@l=}a_Y4QV&NJ8H_}0ncB6Gb0!P=i&hmH|mwzI$f+8Q6jYkwdq*ll@-@^_>JHsi7H$<eEhZPaoNS*nU~K+m);XR~eP7}_!~yA<z3rIN^_idj-xPKL^fWg%?DhuKbrSTBe-2^L(#K64s@&MT*E-E>m*>1b9m2u5^1A$0ROP`nZSgv&-Q1&K6MJq2>OS5*mi@R8G<!PT~>WV_1zmuox-)@YO)$J>I(zXDc*RQ(BtZz1XNY}TN0A_&gU0NIXe{h~OMvNuA`z|79nEh2R6935S{w&%wiQ)fVXT{WlYT0;O{jV*Y^**uwupUf6b3eC!^_xa<=oE;y&%Ex)Z$Li#R^~?CE^jHKcfObnW5}+cbiB_Lt4LCUoi9B1})|4ga9M-W-(zCy(`(j}(=xA+T6%?Bb&z=MF@jW+n=jU@1$cAoH<fY)4m;S@_AhE;YUNy`W11G4x@$(u#-!Fr}$X^i?s_kGEicFHT&cb0?yl9c=R`8nflq8!y$y^Ub7>}5QpyuT4;${P4q~?nwZ(8WRWAM}0jpBI6<F!GdnSFr$pxV3`mMSy5XYBt6-i?{5Zl|V_-k*dYkttcPAS7l2ODIdYV~wL+%P>!Iw1>xek(sk2zBd?W*(gYnjC6k9H6wH8VhT=D4XE#ItuHJpUhcB4FV?G(*tg~|nWf!{<_JrLEpOCc<#ikVLsn5?Pm{TypG&2P2(+pZ(24PG1%K;*mX5phxdsHzSt^E6^^UV6;eZn85B24wH*x+Nu(_u16;z?(1x=o6;gI9~`_>WjeecbI`^o}%3&PZY(XU>{$;Dy*s*QO}wg^apq@mBKgs<X>VMUMuaI_|~SVgHtP-V}s6y^a~>VKJb&hyLmj2ZH$Y<sOj;pgS9T5JVqsl|!Mk>1<(J>(-=y(b88=>Kx`9K%b9tN>G&A+Q6_3cIB=+@H4WoXGd{ppeNvFgbex3bt}elxvG5`-A91wS-WIT>vu1;II0iQTv{}8F(k|2{}=^l;X1HCV0KhZ|wJ4wI5Ea4wE>#8Xj=ZY-C4x(5uW61NHz@3wj}rjbutU#YU+nS-C+#MQ+bAahN3msg<z(Aim1`crkLm`gfqt4;piTC|yoh{+5s26u{b|{XKBokD|K~(b^wM5PRe0*W(d-)t@Vx^Bi3fo8`F>PQk#jK&#R3Tb7iq-IsH)v-E|I%j?_d{#uwdQvp;==~CJf5hdmc3p(kW|C1ucyUdLs?_(}^xSi#~=u+K^SWkVnSC@IVObB`K6NYg-<)F|lVE{3`G_82PP6=fR!0_~N7%~`*!zvT!ED62L>}@~F8mvV+4oErfFV-l8SGGOyr0yeN@!m7lY>a3`pg8#8WOyiYu#?g0Xb8mdeLZ|`6OOQqy02O-B3!f}0X4h#%?|a!K{1RCy-xRojbYq!8hl!|;JCymx?TP~#_mqe8wcJt*p{YX7i8!*G)H@RT}?;%A@eWaYE)fS)AAFdDyktL*^-FNod<W)1HRd$p=EJK>eO~pYur%Uaw@z?u-(Yy8%8G$q{26oSoC&nwoHnbzqkk8)%_~^g!gbMz0R*f_a)cbcH9-LuGqPc12fgCddIlmMdg|SSIE`B5)|d|*s2yeQF+jd@-Q2}SZS~W*iNd;cv@lQ1i0tMmuU3Oux5<CKM77^r)TE!vB|b6eG47u6RngFX0nab>;nx?B-P3H@H1C>!FZgFuvR34VAt^6Zua?Tn~FF+D^hV<NWi#OAxhZ2Bit>k)BmZ%+d9|*#t}-6oR&r&scr}#TkkRGhaqMB$IW#e4!CCw%5^9^d7@5EaehWO)1D;j>4}%gjvXiw8ZSMp+Ravjh!zZCaiXmfxjv=Z;Wo)T!g?*9n<YXomyZ=O$0C}cR~gOqCN_4?iK8hkYI|{j=m72=LMi^{G$r)3J?bI@zTyseMT^f{J#r;MPMM!pCojw0qFso}(?87jKn`)H8TCLPwBEOjX2~IRrI)q27a0l4J2HqnE|s#SQgt5an0gq<dRJsAttQi_!7){M7BiQ>Wp-uGk6<Ht8a?po&?wh^>-q&m$`Vy?lAOnh(5SfYDU|A;ywDJ=WENt!cIQ`GFR9aphb5HOKpGm}f<IRg)h5Ld;cMs*KP*vizLWXfgBq+P#QxVrZ+sgo%b+0W94xl@>w4-%V^Eh2Wsk#vqDbOeQl|A&M3ai7%H6cfpdVp00a0|Kc7b61cyE|VoRNR`kFTjy!nb<_<F#3JJ#VIU;F2znB{^Z$3ScR^0rVP4UNIgCBe21KT&(<FfV$i_La#(CJHxG2AkCFvaHuByw~Fy=ZM51KY2fXRW0w&n0Y-$k!Ct8kp}P#9MWXRF6R49E$j%8{`od_M)|~x)IxJDcy90}crYwj7KPyaP;R(NYpQl+N%X5s=JThnNnNd~~UB<%{0FVd^`$nymrg;K0P{*;W$P%s|5(v&WZT>7F7DXpmq`H?8;rE`YOF`YNySWbFLGdr(x&4;a+LrI;1nKWnE`$}4g_xq>dGDFSb5gWcrt?rW9H&gek{@b%o?aR1d3T~rr2tq3Pq229K`FjY0^`<XGZHn~ZW7~#BSghS;tbv(lLE>3h380WaVtR7Do+jLdNi-J8wA1b`A`>oac2yR`p3ls8`QO#y>FhCq;N)^dS^cv2MF*~@Kla$qBR=POLtPjhL@a62q}B$r~kFQ@|uRxsViG3{J0nTD(xY#K*;QS!s>6u_?B=MRQ73X!Kx7;uHSzopnVB~KY<hb#{PIhaGV1xw85$ZCb-3lcfOQ9nlYAxU;x<m+}uY#QA>NRFN`bg9TO;-g^2|Kp_kXbt1iv4s3-5Df%BI?E!kJ36eF_qSZ{{oXIGZEQj&+ASEhYo!O$^MDE<4FCjwWU)Ht}8r{SZ<J3yfl>H?#%<B^Vmr#B~j#6yD5(zSBlPZLc-yL*fXw-8g*9ILQ!LhjrK-G77`+hQ&Bcu~1Rq{Z-T7-zB+cMttHWe>idJ*CgP81^Kp6xInQWSs-4mftrj#YWkddOR4K{qV?j1y1_JtjBjOjue8(6-G$Q+T^-*(PW(O)B;9X4?6|+`9bvSfk^{<oV*vIl%n)QL_(FF_cq;A0$wi?UN3*H_HP}@!~@3$&Bd%8<FwEh@L6p`I~Kb~uv!~V4(6hl8uH_wOKh*0)!G=68?+mC<e;EiMt~B$ht~X+CP%)_b(@fW3T3}<?QAPoeJeBIu6d-5;JqpC1V}!swsLna>vKG%`4OXmvU)6bV6kx)i$*BLSQa~IC;h5Ut*M{-%)sk`T~vz?k7Oqm>9d7k^r`xtynJEz+61!q6~%euAx8O3m>NEOSRuSiw;?OoqSvlu@0|aa-_+1BmR^sywgl4iJAKq3wTb>PFKvj|l3;6-d=>;f7R1o+D*at7^-Lr_A8jVznnz!G`XcbS7$DPT8u?47oKo9F*YUxP+g-0fUm=fU6B&_C5X1AvL%ebyB1RgvIiMDtZp~a~<j6S>iW~l(2|*oQAr$*LQ|ufRy#_tL``O*=@*VpPe{S9{+!d?vrc-~;2s-p<L-KhqKgTEa8!-Za1~w-`ld{LDoIefPz82)MNz?~>4iL)$f?<Y&p12K+K?vO4COZC8T}PekZVRoYAT{c^4j4Z6s@yr&zej-kb1<_cFbUR~{(WMkl`O`NX}+Ved17kv4%U#OVwIe|0Xf;$9JEm@G6jKSZsOr2v_Bb*^%BrDvDjTAF7YEo3sF#*fn)WkwN{zz9}X8L(0Q)fK8vnbYD+CsFrtj0BFE_e$sT(reQO3O#Rnp4{oRmgMkBnnJ}Xtj0n$32#v6H;ghNpvJJj*Aj4!uMek*}N=f7kW+BPr%Tku%MSMN^jtlMBoe)8jPhgMr+lc$5X1O!E_Eg42F>HyiG8l==P8M-t31BYA3jT3hZl@JI3GH+m6;-soaYc*m9SlzCGiBE55{m}puUw!x_c#MaN9mk}`1cF!bbPLHJx<bq5axS~7`S=0Gp_~1VriTr#46f}xWJWMgh4@CvQYPG7KP_qrqp1oWk*6P^j7-BS7AH}|+TMf5b$1oSbC5H2+m3!m%Id`V<Cjo?a%2xu5lW7+aj(HH&AR~viti}Bz8}DKDw8M5DOw4_urZe>5&)P}+n5kKlbSo9TIItK66%?~e8U~o8wY$-f`uKMD4Rpo2mSdlX5p=DXQ2{=DKK2fMx}T?xxm`|8LP6~)HOM33WFTv>McwK+EFq4430gufMww-ff1zu70(<}$eU=f7bj_hJo_KMupTdgN=K#M%dDIf5pPjfWl4ByH~Dug*f&Rwwp=j;3JDH_7erCg_%`#6NOxA~HjKmBW<q^pZ2QUVGuqlxtVk8a2Ln<t^OWx}ZZ|N(L%YyHE0{z^2F~CYk~>A_sX@@fPAmbA4%qkYb*|EKDnz(FD2hgJ=usDRPKtjBC-yG(X#y<7YKG;vIodjf429t?c9^x*J(AUDJ_4%`clEMhm|X1-A}*g59B)<OCF)CRT+O=)JaIV`<j98SKdFEj%51|)lO>TNx`PUQ5a!xh1D)mb{kE5i02bVzPb}Rr@J>eNBgn0fixwwS{<KPIFVMvFq^eZ>6?J)Ym%(+v>@yRW+K+4*nXSoYjGjueVu9UE%-KTNWz%p>xt}upcLNOH!Oc$2jt5$Ja)Y%qxh25U=)bMYhjoms>B-l~Zch7ko`|%C!EJ&;0Dv;FdltkX|1Ulq{_(jH;C>F-17;`QGVVE@Uqdf8#l4&JqMg?^xm}gB=Wuq1^nwc4Y{Ik$jYS9?jRf2py0U8<G672~MNiU+?BzA#vxi5Lr6NbvZWB)L@ud}mg+6wiK?&r9F>@`0<%FU~<vu+sZJbb-7#zL0u+|BC`XP$3%8qzpy8eFLSI)2?GxgRjuq(oH1E-M~lgJ)E&~bE^)TXZJhUoOWRd*!0y?o1v0|Jm@%CwC)N7+$S7Yfj-L=xj`>zesAu0~Dhtkk<0S8#so3!E8^HO~n+Kqv>Z4L6O;sQ^s<!`;HKxhtPxNg&|2;RK44B5yq*M1V{qZ|Dtw<7CpoO-s!dyG3Vo2<v}6Sj2%<{bV|YvnR^}uk4FRPxwC=xk+rqlzV!7RCXx@)-rK)f=?<@YKY`$@FM&oXsY$76Ug26mpvL;A756fk|#Whwr2&15u)+GP*!5()Nw)7?(G>A+HS<g1=%JzhIuNHlw$VBeDxh(VVRu~lkW8%H}mW$-QRCm2OEhBY0{wj4ei%vT%G+1NIP6piKgLI?~>EbrQl!)iZYhbJ~eo_bkjMHHc&=hvawWPYSRBI_3Rc;UDuvzl>uBV>C4*ei3+gR)}{CbG>*&maNmC<J2!#B47_v+c0DhVAEKRemwB7OCV~XwbI)ZxXA^!*`ko~@aSbZWOFp#&|3=N@N71t%bn#&D<f-RvHdtWhJFel!?sMNDi9ITgzVl3OCO^?oYrX-r!tH#&wP~A_bxygJHpw4uhe~OkIi4c*Ew>Z#BG4&>=DP^)2mv!X!gz1`(Qp`n95{>w6p)jlEB*-=1zcII2`^3EVe^!MMEWa7U`MQ~PSh(Z$T)qa%TmFe5KU3PfNi{ebvT&?Z8Y|1Z&>l?dV&PQ1xMA+0v^+==eu1BK8PRCCz~cP2pAjHQ!{=Kl{{5MS5so`ltG|^crs8_O8%3RVH&>%tgLwm0~C}%Y&P3ejO+^UN&oFq<muLSev+9KK^ES?r3aNX&j02b_ODE!i~xmE)!7%eAOv=t-nG{Q0(iHmb9~|7ZmL&Q>OSA|$Yfq=!7MI?q?Wn+QzfO1kYI2H#(haM$MB6?&;!#T61Y(LtJN2#wr#cFS-Km5w|Eix4Be3qT$viW4>;%xmys9992>edTy2+TbHmrXJlV4CK1_uvH|YJ}#A`-`<y(OL%tK6SQFIbxzKv*x9QEcptJWkVfHy1NZ7)^xRnqBI9RHXu;abQpChfU;U0gHuJWnHW32ZdVBd0SMF^xwx7$)5g6}vMYxSPSZ#(c+$+&J-PU&fU{#j&H<Kn4uZ@6V5zr(A?);8wgb5Cr$Ml|L;2w5vS{0Bt~u5&E8L0Xmintiz15MxGu2*63)t<H&>SgRbiYpDQ4KfTn&;omcC-5%0*;V}RMJGLS@xONymgm-922%tnHxM&7rKJ_=j27mp+FOwktmO2V|}_un>}7hnSqqm+65{D+lY?geNK;Z8E8ZdCh7%3_nYJVR1miwDOVo~P%@Da(Vf$?qO=M74)A(qwZamZ*si8~Y^-9C{q2FXH2IZM=N#tH||uL1gbl!iy?uaYJ_o4kx)e$mK*KOgj^~X1<h=aRw6=*@u8n3U^X1GRL;SeFGvIsJER_?Tk^&v4x1|M?BaExS|8r=~@@ScjOtoKCsvf?`AfsjlV)=;jHBzRzuD}gRf55KjRu)Tt4ET0Qw+jbGJRc0I=<(;xeEZ-7c8A?yn6Ybb-FZ8nS(%pBb3_VbRS=p8(KX-V{q>MeCw=Ql;w54&gd!hG{ca1DuS~p=yn)K&tqchGp^)>#-<<EMYzWmQuQ7fTNM`w#Auky@^LD?Zs)|z()04JG=9B9RmIS?|)N0s0O_!kz#E=tM?~xeQLiNdgG(@gP@tLuaYl8L|ZQnFE14lPb^fTZ3WNbJ-lm+{NR#v-1re<XC0sJS)Do<`;KO<2taE2<cRgmx-fSt0kNffEn})pT~yAooypShWAUswKx>Ezjg^=F6XEXU!Jm0|86Up`E((dYl7yHx8*YgZY=GQi&)2EsXfi>N=&0K8;&av8lv5N1?3jWL|Fop{wC&MtodcGw!s}LnQ*!KONPJRzCIQ7VlApQbMm~Y$ujT*1T0kKR1~YpQrd8vb*-C9Mc(^dsh1UhOnl7*q4V>c5XGdNO<|DaBPg7S)M0WmcP0m$7coxS`IT|2vcJgr^Rq&*BII*X0C}3Il%xFx?ZOSKir^Ltbsk-@=JlHQ51{LTH3)O!sQ!ZJ4w8TqH3pesMY&P0c!)S1Ib$HxG?f_NZj2u*}9TNqFJy3GGVGOp|eml;?T1l?7;DXRr7GPzTr1NGIuH(c4)!DcAWp^^BZg%CrT-7oO^fm3&&ss+PN*v|;Y0$Re8$hn8dYF@472_QtIuG_c8fNWO*d#&)S0R!)x0$i$J7B|~BGO@9)Ef(Qhr30i+ZLLSN^WV9aFD{4;tD6!;sPKc<m$94_;d^H|Mbx~d_0kLi%lMTnEA@$E)=)`5krnz$>ZD#(KMSMpxx14bR>h(IK{J5ka3@$Z~O($<%;-orKToGC{^Pkz~f4QQUn}Iqc96MTEN$hO7~c`X8(|#hX>pw2M@?4#pGI=an^az!rrWJ5vmhfw#5r))m4DX_ToE}_V?~3J4SWj2*)i|hgM29k4<P+*!QcMo?SavjLKQsq(lq7>_J_&4JeBE?=RE&%$AMLaXmjS*R>hvp4KTDWwF_uv2xo0TMh+sa$tv(e^37<m=8)JezRQd?aOouhjCdYoX!^?`A6g9O%5|`pE&A!?J{_fp<=%%IK(&sg<E%t(dk0KzLJuP^Wu6SLEQ)A|MQq~eSwfCo8*=~>zUtuVSA;v?7L)sJ%da|R<-kB0w8jZlo>$;(5o_}Eq=;!7`I}28`YjLL*Dgk2mM9crQ5dyaF$P&wXQ&$fym>5I{2t&SAYCd_c#T&wU_Cp!<r1AD^#V%&13BJJw7iKQ|Ftn_QSU1PmWj_#<l&ygBzCF%*as^55Y*=@f5Y38OGt|VIn0NwDmVK7yoYyY7%2=(_!_vwADNJWlzZ?qjL+K7-1@Qp(g<!87L8xHbj3oY*e7-t0aTtaFDxen=f_Ts)()!>-rQn?r?!?m^uS$4H#P}0HM5{L?)v{QlIeA<nX9V`S+<dt8={@gKKUJeNt`w&m;n8P&QBkNk=O^XSebC9Teqn`}j(DjbRzAb}q9kc3$n*L{@#v-IRWhXBh(U70Fdv2*`i1+O%~drpeL?R`wo=#ITKS=S@z~pnahTD`;`hgn<2av@drQulvoF?s#FMHDVLr7(^W4Mm~c6&p<8~Z^c4Z2g*Ll-0>;Z{A^onrrwQWhv-BSc?Ft6Ypql!Exm=N$4Sfak|7FzCj?^<^#kq#t3aXZ3w6Co>vR76zv8fNRuKGo=)Cz5=|Iut*U?#GJ<gRa1yjt=kyE#3HPhe%?%>#>6&^Ed-4vQ$BQ5b0*mjf44$;g-+@Sq=+hcdmSs?%pSeJ7|R`dOryKT(&YBC0@gD8J6X)Ky0j5FG&Me{>n^}+Xig-gXsJ+<`ttN}Cy_!EvVYy&NOl1fg9>VVagBBdSE5;M1@p5Z{z)OzWas{-|2YP|Ge5s$#Dd(b^pU4(H?c*j6vi}N+QOQ$@=7WoYTmG-toLW-~ak51ZjeWHiscdtwqi3hKadNll&P4ACX6e@Xk3XS>L9ild^gY9dLi+!6STkxT_1#ks>5x*r1RXT}nqeC>tvzb!_1=7B;gG7Sv9ra%WQ@v5U|3XszILSvnMoa)GK+a8@c}&*4MAt-S4s()n(HyvIll{H_wljmQk76R?ZwtB)a07DMjXZ(l04dZqOcI0^#E))2HVHG0OjDV+LpztE6X1arDJuL;RB;;={)59C+bx(E?`XUqjKKa9cyb3DVyH6LSV9Q2W`O-9k`><Fw;aRw007JY5q~uNj}d?A{3gr}S?B1Of_w10bIGcaQe0g@DK!5op*Bh=Fa)qkpt#2$CMgLhoyYRU^k~Grf<ZK%7bru`y_N*~SGOIkn)8XKZ#XRyT>KooQ|fuX(%-6fk3t{>&6r)DmgLo?p&(vIb)(%x0)b%bi(7M%8!_s>;slfW+q7^g8?zIIcd@acgH7t@!4cI9fExq*E8J&n1C^tZVEv+wRsmB7VB0-G1juBtshGSF9@6XnT0h0pBULYm06S#`n$er^LuX9!(Yxd^wg|%!b1v%VkS@&|5bAEBjkbM!^$y<>irfoWN{44do}I6eZ*Cm2&fFD1MeTb}9>mQ(%Ph!);H3mWvX|)*TZ%IKmlBO*N$Pb*@7_<!!($KHin_V-lk#3G0|(a}?!4YXr}~~6p)yM=qreJE<MeP9zt3>Wn#Px*2YX<N2;v|qWqwy)zF#~0BkO->!Sa$LV2^d%)jjHZ*7Cj;ObD`j?Sq@fdk}K8<YauLW?nQ`>|2y$oN(diKLAa+Q0^ULcS(PY4k5Qp?@wyj<vfa^)Q66=`f5nVuUm&s7f)#^OHQk-x372*l1@ut$TW>Un!+S*;^RYVXfo;~wd~BWR(vo}XA-(|E@!I&Zjh)a6EAX+n6kvbVT0;SHuR24XTc@>LC$JSfq1l!bmw-k*S$8+Tca<J!si|u-XO@8k$iQ&X@|kYQ9KQ#4-&f>O+4ZdiqlCXX60Uoiv0m_6D5R&pI^_Ux(sSxeXJ25dH}4!QMf>eC#1RB;p1VOXTWS%)RrJ)&%PV90TAB3Nn=W1?78a#Qb+<8^!?l@dqArbG#le;<$^_tQky*Jx`SXjm?6o=s{7%-k9vkWmJR0f>tiq~_D9u`&TWi@HXzoBFCi6IbU;*C7o=Tm;URAtV8qF9|J31Y=|@)KQ@FWt5c^N4op>gPifF4I*2$MjiUC@8HpJw>JO?20QEVa9pmY~aQxP<8-9k`bVAd<1s$y9>98`F|2qMG&>^|I-XF>5FOHsIRs5?|nI9>)`m6jR?ZH5v^Jm2;&wsg*vCFp}b-^V7+-Sb_~=EMBRIBnAu_=YQ5u4&uH!1cFRiuasN?INd)H-2xYoZ2u1SMAB<!em3k#u#I$VQH?;vAyi)Y-{fp`enS(NFK3f*oiv6oR`{At*L+y070rgQ&Xuw)U)qaYT}Jxjwcv^7K{cMNda-vCCfpLzM~_s5P-xvVzBpvd#cV-UDufk=Q?bHT{MIbVLD%f%5OKw)|=TL*7?0Fq6T=en@g<1Q3b=PQ``j6K?41YKZS-Fw&ksM>((fV0_!(s7g!!{mCN=Q)L9Zdt94E%Tf!^SgY$=m!}q8^;2CJY62MIxg>i7fAW8#mN71vrPV#|j9*kbc3Mcjkg=5i?NPZMHNt_Q~UFXiWJlp1orzQn^%RhW3AvrHbL-nk3eBU13z#j`7Sb#NCptbb#8kTmZZBt#%EloN9l^9{iY~=i)?K#N#YkgP(PEnyTTCCc=a`@whf8qU80ozJovvC&+Q~n1)TI|D8L5)wmE3zP0ui|~H{IWA$dYM}Bb_W-P#{<9R7qo1osEExxQDHcP8xVu!ug9*};}@q*NQMMmgTQ`Tdl*#in*v*oT!h3!;tGb2D_ld;qJCRq-eS5LAr7U&9Phtt46JIWbt)*m|6wr)2{h(&S+k^W<43mC!2o|nO_aElIYZuV0(Y{|kF@BsisocV#YATugBk5F$yKEa>h%+OxPG&<yi6LqA)fHTx|NdJ?(CGkSVv_0h=P$4tTn;U`Dnj8utu$HnlfphPTy6`TN4X?S`O_u6e0RK<Ze=3m(fry&gIJ=LL<euJ$Fc>e2Zk3qH7uJtpr)^$AEH>1J`=0tTCBD2nwlk=K?;lsNxe1a=7Mp@ab4%!DqITpgGi#oJfmI)rg(B-byR_vFN*NKlh+*|2WS8BtZL-ch4zL2Q0%|W^!bt=*}&IH9oY-9|va=Z3$_~gs&CrExOh;7`3<R0>vEjzU^NPDUr*a)*QY~A9aBvC1q9lXnK~;oJxk~ZX%~94<-K#_5?T`E4%v+o>gHg&qnaR=-!0gF~Ol^&Hq}NK1*CRag_|1O_qF(;kw%aQv{0>zd(FOshI*`%7xt|%W?n?tV7je!Orbi?j*ru%et@a&S*#O7-hh5vP{_ITmKVuigpi3N*1cv6jt@#+w`Ku6JY<y$6g!qG48$bE18i?&&YDx82v&tZrGf<Vro`_^B?y_Ny8E8WzW1=K_gOKxW;7rQWL~!t~mbY5bN)KQsPG$+ji1w@IgvL6cKeL2WpIYSYV?Xc`U@`%L~c5l7<^_&F(6wtUv!b`|*~ws_m54NkS@PkQM?E>~9aSKShq^OSv!c@@5&8Niku8eXE*khHHFFYw7qt#>ArX%2d9?5UqAD_yy)O2Gzd@1RSbE@dfE^h~<o1y(XD)!6P^ktV%^nrfDgi(?vr9*ykmr{|BehnvKCNP;G|>+%B&^WgbQQMc^<HHZ|iV%f=`BHt#a<x8l3GCsNVb1&ZTu;Sdw6a_wN_z7TvF4w|x}=7N%lbK7WgGWqbAe7|HNKG>`uoFrFkeoAOgg&F(6^z}8`2ztGCevTqi!OXdequ4&TnF6y&e2q_+K>>jDvIVb_>QpJxU4S2H)&N)!`8Se<ntsp{G~f9~OL!NVV~1pZb?p5nBU=-?3;{baE6$cYcy;|<{%?21F?_*TV|5bxOmR765VPtArs`kOPb9thW+qAoDo&37KIoHC0{8bePR1P^Q*lu>wFUG81>>}OmZuUtypKJeDU&Qc=M4IcncaXf^jWInoXAam$LiM%kP1SN$K|$&)Skrd7}yFt{*bBJLvdMGQeBi7oBa}5-u3(bpHcUs*Ax?g7r)}(;}m00wFopST>n}k`EbM6ikA;%belvib9tAQxJH#G%z0Y}qRrXV@3c-KePFv4yh!#gD2oqzwV#k<W=#a`r$A_Tztz57Nn6K~hoPIVa3MDzF@)d@FRY(`<B0)(M>q`dcV*#I^0})aA(17RHOX)TTF`H<&1&zrQ+~9S{K%m-0`&gbi<t|v8`7*zidVm}=`+df<DziuDhFT1`P><D3p3x>I7x2Wm?-G{D!pHSAXEB{ol$QjBMYz2r5RRmqc9WIh03ktZ4CQ=4m-vdSyeTH=G5T@Xvcx%uMXl!9U6aRdOr8w4q(b<zC!|U)B|#9%7KFF(|vK7=N$>>&`dPA{M5XTCQOSS{$VC#tU-q!Y3}0$9}#=E&4%FreWffLoPTEHbP|qURQ!!wucJ-QP|I++0C#>0n+mBKOchLX!%S2b_11zW0y*-990D^oX^Mw!LBvi9Ivyg6^6v6zSeA=xZ%nSepPSS*<Q$OF7xoKzIWYY_-<qQ-L(a$K@K;pY`9-}L-SH#fAFEPe1QkbKj(Sf0K|-h%k#c-J&J}2&Lj4`K_Rja_g<I{Qv;u#|%|L+>*ksI>!~c>785xUaO|z+UHVsnjfvP)ZQQG?N@=+q|%f)iZEiz_DXCRkq1=b4wzqDO=$C1Ui0=m%j-7oJk0J@{q)iGQ7&^Kg+0sIub=L@YRm>vZ2j@^Y46u+7H$6|q4hrVVPyA26X8k8^|<BZ#bE$CE<b6wv%qZ|=4*kWLO`)oaHq=+MDHMGv_Px!zU9=5*vc__v_C2mk&uH|3@YMS?@wA@62EpB!vu|3>y`=49|iMnpt_Zmny3-iYgsQ`b3dp4kShy7ZnG!C?dsE39PE}_B3W!L$2aOVL`g`-WUj7q5yvuY71f<lAm$CMs^`<9vEhlzL?p-K|euGbL&bzLGFSYPmKF(c?dv_lYYLz%Ke&96#$B01n4BaMkCTxHsTbNk0n`4bN|EvZAM^c2bMC}9~ZsT;vkT{LKM;Eg^j+227Aeo8u=u%91C9j2X~S_J!a;dwWZ`S{9c(#h28dAn6ST4#m2V5{ZJ+T2xGEH&b7Hoph~lRn`BO07vqFjX3#fu>okD^wN9D`Ju46uM2(dXFLq7353E;zoatI;j5Sz0OFuU(r;EJMV1q|3v+)TfS$7&PO{G?oWcl`067h)n$LYt7+*3<?~wGro9tPbX<W_&A)*`%XG#9)97w#T`rx{-BO<6?IKjp_aLSL%V^vst&+%{&$ZT6C6WfaYx&bC^z&$Mj!XDqKL}QR`;_oLTWT6U-EWMo#FPf4OOrhDv<`6oKp~*PSjB_s3O;_Q7P9wT#*HQZy!f7TwfTuiSCDGijHkV@V!}lQm)>Yznm3TaxKjGIb_|93Vm|ct%#_eOpxP10K(9)#G2w&a#<tfU_>g1?6X(4Dch_b>r~s3K0e1?n(FK|hD4SrIyNTPADp+f8=%&^ow?GG1`S5bnJE8oD@$<xYIju@c5D;8XDLi}jXwAzZX~<pW{_Y8A&GYWwB<{Kl)Kld5PM*Vc%i{S;t+&*OIir)sf%4#nhoJx}>}N`!x3W3yI(M6aoJ!5-M?$W^ou~HVvcj8<oC`DaKTDk_Zxe-ra2+owS$8#{|9~C<mcRXhkPjf6<Ajgd0NI1dvhOg85gUq=E8IRoF^yeWuO>)MMcA&qFAV?i7Xg;NBn8)rvJ!h&F?S<)!@12jmBGc=u|EDpI|WOD(sZ-cg}_8RhXN*JfMKi)zpK@z<$l3)JY(w+U+rfGkTqee`~xk7_f>6@`rd+j3f4k2B*bsGq2jj+H@_fsm;@c&-NqwdKj9cr(>8s8W<0E(ah6Y=jr0fhIyMEv6;vY@dKK?)Txj<a!}A*uqzl;umkuFvy))s5hG~3H`5Y75=Ac76W9hUCo7y4XJ(661r7&FX%{R`}M^u{x8dHV2cxeLDjgnZWKY-DP{huDU{iB(meL~OXhySInsdApTJu92WvmY*7ec}vr8h8g5VhoFliff_cO4+z7cznlY*O8n)QF$3#0h5b8usGMo(Y*i?p^{&&mJE>W{pEk<?eu1I12D%NZd8#b;I2N&>8fE5UzYoyFTm-*1zQ=xlRba?^oSLFRXT{HKpI;CjA_>=m1cac<T(R65Q2oZTwOV9egk~yBXs?0!A=pAqIROmoC;6wG?k2PcV1eW^=~pN!>adKw!cWfY2!HC+Rp;N-3rc0Vbll`f-%MO4|3>YKgRneNIvfzxz5zQTVf<Sg}_p65yvDbgpZOwneHF0tnn)nMc+9Wz?+guw5(v2b8_2IoE>@=pN@Wk+cS>6qtxIN+mU4VdY&Z}(uaXPPB8C|3+x2jU5?^gL~q9h0XfBm(j-_8D4g6C#?fvHF1_S{EFK)eW#w;>9YA4qt#twXo3z!dazS-tY5rAenUum`_EZ_DFM62fP)CvZbICM1b{5K--o9O$8A@5LsN(?omaxFA2ZHwU1f-H5bA|lp^q@Lj&qLi)vq`7mO_X)KFMwVAdAzxamQo7`!5BVtNM6$?zW4NKQzPMwX(yk<psMDkB?3Ieae7Q&%kAA8+oA2z3xGA~dr{jKV{G#ALy#vaXfPCFZ!pov_ju0*6wwFpkj*I^KR=IgFDv0>T};}(RUocaY?eR&aw2AkWmn-64{((eh`{zJ05~I{&0D~%!G7$wuNP16JYyplItN{uX0XsDcGs^G)8`;kF^eMX^*nN0&0R{*$D!!KQ{K)X#!Fes3F_(4=mLKu)RfjE)HGhW5L=2`nh18U|EaIF%HZVgD8KZ^J=WVSPFU_kr4yxdLPizYW$trqP3s!@U}T4G?fDm;xTlpt?(SYTb+A}||7;2{PszB5J*YRQ9nN|~w5cqJa-6;nfnUiW8@rBfg8+KvXtsih|E@*WoWu<9>UUL>Bwef^1W}e`7wGUD*O#R1-m}#gEW$Y;8OeA|!9?cPs+5YALS_dZfU>j2zP?z3Q9S#sHbbvnIs5l+dH04;F3ia@!~m}!GliP|<XPDD49fIhOfV<~G*B2SH;0Ztnv`BF1+&x<TDjD|$+Wn8&4ltYOPbTC({C3vf6)oH4_a1zlQBxNL^LS9-$u%PH^7&Sp*4`3<KaMZ$>P;UBVWQPp(G08Ab4D&|E@CQUtmA!xG8SX=WnKN+c!)v;f0A}W<*DKf))h`kLTh`i!FqUaJmgwtII?BfE_>P!8QFSC?bV~GSZ{GmZ`~$yTfHe#_J0~-|FLg#^P-_o$wfc=m9=d;PF7Jn0IqTxCtf{ncpB;_!F4$Zj}XvK{Xgk6M7O;O@5a&5$k@dejQUqC>>eqAp>#{=Xv#m6yiX5aB3%o-3dzl7ayZEHTu~!1J*&*Eq<S}jZLqh?8^GF)ti`Nf9m7TL8~xybLT1DX9cO4>c)AyxWbvvs?W#)@c%;!_H1^iDem#3A0BlCXyL5O1GKeN96H2oa&{kgS~SbM4n7a(9u*pAH*(E(hOeN{Y|;oU5pr{qczl^|P8|ws^tax2oJ&JbOcGUJ)7A@?Pf&OzQXIos&dvD6-<(nds@Jhi;8=l|>MJXWnXeya>{S?|=P21D$gjBakucqq){{;Y7w%e4`*lDYs{?g&uuyqa5d#y09(gAv>p(~c1xU*vg85KjJN1+Pgss08!<*r%t!(enr*iOu>r?+K0s1yCPL$lJZ&P0SQ1#NBu@hKzjP#U~fy7Ohh&Kj4_yN9)+jNkq+Haq^+1xIwar^j|&J}G(9e;0I13i|(%oyN&>gEd|!XDxt3`6~;F3;^no)01#vd`Y~RsbLSXbAz~Sb4{{f&GmF`^E*wYD^Yp7DqcY!7cz_s#T&LLRTY}X)Us@POPgc$wBSteBO)TghT9QfnGZaO6cutRSfVU+cT2<oY%hFHMi~wrG$(X;oanvfd8RCBZ+%`@ogGe<GxE~k%!GK@w|{AS9Ir8%IwuU>yAXl4SKyFXXHvi@&3mYdh|ER^8q)OMM^;zq;hO9Xu_B(b2>quE3$jA!QKzr-D<cl%*M6+n{)(9^&w=_WDmi17@UWz=-~U`6z7=mHgXx)i{*!!S7nXH_+q0SqUWvZp?DlWl{VjFpbZ9+N0gg15qmP;N06pOC|YPFH@m}a6b8}}=h>}wgSKeMn6F3)X*jQ{Ra#rjOnNS#3fpLo!UQ~iczDL`vM52B84wkK$ui!npYGp<D;u#vT#Y6;qzmfoQS7m8PxT0ZhgY~l3aSN|z+@_NX7lgxgh6s$f~;rw|6CtoDHJ%S%nwqzV1cgeT!gwt28(||9Mh!84+`J(GEf#cS&56D5dicU`VK4YeD%E?bVAu;Hq>6UWd_5R3(Ez4R>tN*9Srf)p;duYCB_`=GEJU&(F3>POx~P%GIRy#&H-|F>2NF*m|ljs4+%ndOt0xFFMpyy2pGeD%QtW?>)nf;^LO?`n7*fnQf4}#s2Sx}mOMC4gFL4JRg$hVcRzzS2Oq$wkN9V|`<aAtlwvYW6z`E^9CS+(nTa6ze&58@UZ5r1@f8+Wc#CHP8Rmt+(;fJFsH3L(+)yE$gWC1ZDE~<rIpV>Lnc#|V00|LJ7fjU71`-0$Wf@=5NqE$VIS^scAht}*@o2JulVos2@u-~~nr-M?w9AIDk3*>^^do=7;u}Nmsyu?WN}0=(NnGo8lhTf_xys;lYR_59grcYHX$S99#rU9?K-NUJ1g>ZYQp-gs!g!R{jmq-h%l(%a$&DpLD+N_1Q{LXcCRen82ET|R1}%m^Ym}MHX2T9iN3zlon$o%`Kl#=ypU~jmXMNLpxyyUw_xM)=gdo6)xRR;n41<Uj+y80Z8i@qj{I}oa7)@I|`d|O$PlQ<}JI!X(<h^a!V#GZv@VkJfL*=f#T-A<sUq{}Mfi8v2m5anRka1q{J-QIWz;*8fS8nlZ_6@!m=QKJ!m7H?4<fR>NHy=!wfrMcJnrCl#%8Pm{-qnD^R-P$Yv#n0X5e;ZMDn$~u$Oa%P_eb3ccSqcV^m4!+Y^kj-xm~6g{m?Pl<J?l2w~OEcIsykSjE|u%FSp~UIWa{XB0IlzQ=`wa-Y5O7A<8Lhz*@$Gzshk=KX}rG9c%Q4k2)>>eI|CCB_L^3AB{4UnO8n^a*bP<`n}iNbT2rX(uF@V2yWN&u*CSsMmb$?BN=@(e-T5C9jSevDE1@(j<+J}G5grS5mQ!51639WgP+bD;rxT?%j`)0IhkS6xfzyE0Yymuh8a;=2`E$A8SH?;1+wHofB=(kjErYn4$N7Ka1DKL&t*zgR-I;p)$?PN{f32*XW<G9kf>H)TDUAFl^&IHY$*`}2DlS<>p1H|5!P;0&_w~`%To_^l(I~z8*AND{`Qq?3=z;FzeK55@d-X};c9yzxME0O_8QtA&gyX8xyQlmz()KhRhAd+PrQCngw*-0A0!<*p&YHZCgXWj`%iGv!&abxe;v9?g?Lf5gJojyI@uhU+U@QC;~=wJT&DO6UBXONj0ar{#!o}uz1iZ!ez&c+_h3M+G>Ikm_WPQoo0e!LdI)b)ZoJdY=1m2Qevq>d821yR1^`%B!~KUuWbNlO5B9?}yYF>s)8sETPx^DWc(M9Lh(2QyfgIZ!K0ea4WJL^^-<?25G4M*rsk?V&PGc+Mwh-PyI*Y*h^$D!2hEuN`>aMTFsl1y3L8c*#qECAcRick17`<ibciL^`?f$?s?vxBp@$|jD(Gv+FAOUKMlDm^j+DWg2x?zGOShU8CUU7hJ)Oc_?;PDM&W}dj>Pr%&)TbR^*)&P_pWxPBooa6-|+w@r8_A~=^G1%fU5gRmR_pqp3XP~I6-v2m{ajM9D=THn|U9C5#Pt&BzV6V(K;28+^@1pB;4L1taWEP%DndgO^;hcm1&A{!qlvb+UQb8hVm}ce4*Mbs%;MvJkn!`j#s*5`Abh$Asml%%KK4cx5+6%&lYTm$xsUV-wEI5TEMzkv6@w?__^=%15U}4F{8Z*O=7z%^=!!BGB8BW42kdYX`1$FF>-pM4+=bBR~A@E`D;8i1xs_6xbc{B)7kVlxR5jV60X?WSx*aC$lAJGywIoo!J4(Xti5dI^@H7BI~hM^Qar^FOvxZ^?|Yh;mWv4Z{KhN{y&n_NK@+bA*oWHYfceiql<D!QEW1xVJ343)cSf!!9){xj}MyDB${60wHJph<i1ZmTaEU|Hp!CtO&l1tSmF5#2lkQo94#q|p1u3H0E1r~adtIFK$fS2_Z&v+?>Hy~rpQNl5^=EvL4ph1j~tSOn+t0kuhzxnTwEeC!j@PzrSw?6*0C4WJ9J7r(9g2h^NiW{g@00%{dPpV1JuOpgcoEgthYZh1~SBZ>pfy0{8>n87m?bw??Rh!;UFZBNIyJLkSXpsg_6k{=V|1QOvhZ|UWw7N6VYkb7k_2dMJBVtP$-X$*W$@$>*VjZF$bw@Fw0nkEh?5en>c5I^*ET@{sS>-)Sz3WKZh?k%rb-22|>#TDJPd|rG}J=fZj6}|N#L1N&uS8u%>&Uc#c!)_2)UABj{U6TP*!$-P<;MNKxLKfksg8ico3-p?R*axj0Gp&;tpny(>4|TC^DDQP4|D`eq<~@p^8nn<_qZWT+q5ta$Xn*U1$@DsZ&M$YkR-lS##<bBr3T`lqI~g6z_2VjXoKQFt7gVx06DE1h0|UBBY;vSJKrS_NtpnRYL+_%h1<!L?*?iV4_ithn6U#y*%x3Jj%6AU&LJM#+61;0f8`E0`MJGaV1l5JCmaDq4nvCG@8T&KL+Ut2^4s?B`sz+7&kwbK9+w0vf^^8EpoOT;n^+_Um5=DPB7xr$3nfa3m>hKrjdX_Dbr14%<H~wg5pZG2cU)^jCnyhK0DA8UB#?>`n-+>M{NN{_24H?{okU(8KXODR{!II;G$hW~Dvt(;OGw(JdiwBG1IQF)i2xlA=$z2l1x9x?<2c<@!l)eIh=FH<N7pmaDZ5Li!-HZ1Hyl2$O8C^(8Oq@30F~k*!O*mZ#55$P&wtS*W$=~3sWMg*Sc7ZpxSNSx&o)^5UCaayv_G>Qvdlb0avXq1yllQxWs1oT^Gi>spWy5;+dAf|SIFMqH!T>m%q@)!zn}9xIg%Wk->rliM2)&GkJ~H3gd=S9DFJ><;TV0!IbhQ`jmB1%tzzyI){8~~>Ga(D!P?qJy>8R+Vb1gJJqH$JtQ*(}slK`8+cI#LNV{S0_0ZZmKAWl~)s2%gc(ZXQ}LG4fag{Rb*Bn?P4K_ch@7VoWBb;0M1ajDq0^1v=$v#=p=mfYkUdb6MbsN0V<qBEy9gUN&Pu?qU<)M<uP=^*Lhw+X~KEd&1@vsD<O7ALG+B-k7y|KrkxzK?^)chE4;ds6ju5N4efGW&rOya%{}w3#9J%<O)|ruVw2s07$N=yU*8+{o(PO9#x4AxAE9zU{neGYChq_}Y9v6O|r}b{^AsmnQRxixN*jY)LD0zZoPASsh!%$XoC88_QLL6O>VCgZ{YkoI{<WKDUwCNghb9q&p<>&FdDG$TcP8=pu!Ody)8+jnmE@`V>lP5+%fY`0DF`Lcx7Os>&OFrE#OLzcs#QFUxRu5fGKT5h7NT4X%{k>k+4npQebOc9{QhP}QfVL3}?&9+Y|J>6(mx80Htu>y0H7pl-I{Z2PbX$?Ova7OEeEHAM>sn@7|r)lqMGPWW9je8yxsLFCkU$t~U64^}~<yn#jNs$u)$m1%*)E-ZZz`RY1Uhza|NBc5W;<@&OVV06C<y@57GQj!S)plY11_OTUKkDwl!W7)z5{E%?eDQ^PhAsg5-@gn5Hty0%bEkuqYX?T^@$Rbm`TAz{<+<ug@2&|sI^Z%ON+n50LDuo*gFPU#uYA{y?;Ce+xLq>H%*A&#+X;tsmo}e-of`cMF>YgZp!=P-n7iGihVl)lEpqlV7=$Nk<=nJ`|jqSMib#JooNkUJziumOYt+EK_&5B6)(S+%--uxF6{X0e6T9SQ-JtX-{3AsXwhX;_w%I*8}D(V~M+<0)-m_Yb`Z#@b1V;KF2ZU1h5C*y_Q!`%;{Ef|`Da%L7c#N8+HKt!}dmq)-;5}Ur7zf!iHa~C-LTCRap(Ej2Nuc+$H=s9V<By~vz?l)=qonDB;!HEk~Ds_i{<`}3Kx)6n=NnRP`>2P7OOL?(n`7q>vIYMON4eftlb~+v0^>q0$nA-5%zzl%l!ZPHuk_o8=i45wfh_k9ZHI`U7SOntvCNY~dIVib75?C`3C1Wn?qz=J`w!rZV$d&La`SO4)Ff$B`E_LdSePH|uQ|dEIki(T6i<+rzMV}WtU7bjz-S-LB@kAeo#XwQ$$)wQ){8>UAW4EuK?+YARHA@?jeW37sU21ch-<?KcK2m<ukfxo#ZKpzK0_p{}7%y$>%I2^rbyePn9ldpq;~_0Uq7!Uz``XxhME)uuE?^3&dP-ntYKlupkc;W)Qd4MK*290R!<2}QJphz<U4~yV$=N)k{e1MVj6WrEYtO{wVRiE=+Ze61a4|pG#T?Tjw}P=`CLSiT3+*0xcX|kv?Y|RKhl1y=u<`i{U59bs!lPr?f$0}icN(AML6rTLDA2nF!3le(1Uu!e*bx-Y!vLy$-Yv1@e3J^YNJ?=X&ttW#fl0qsp%l{N2BzWZu+@esN34PuBU<(`*H@J7;)B7am9rLN>Y*VIocn5ydap7`U$M)r0`6NDDI&qC)P871YM+c8GaWomvS((<ec~dM*=WQ?RbHsR>=ZVWcGu3eCRaHG$Jh~C2Y6_4jNB1qC&NWo3e66nIz`p8oT>=mT$=PaLp6`a8q9kG__#0Gm5=X7@F%NX%rcX2e1h1}BEI@$P^!{4XGSzRsQjIYTc>gExU+q{pq=hMf2DXan{MQ8x>Oo=ZsVxvD}~UDEnIhWCc%_q&|F|megksrtJ?HD*A@2XDIv3{0%SEykiN%x4>P)NK*Zh*+)=vvr{W9%_mvd(8LpJOJ~zfbodo9qFq?&D3x>zRqJJ){kd{anGY2Myxd?s>mNhzLLu!~*L!G!UL1k&KH}Sw4bXhD;)^`%;8s0mR&HfbDL>{yMIyO-*HeGr)CfO8<-g=m7UbG<>^1rM6tlb{7#kl5*nT-UJV*TywfJ>ZO;&(<Mj|kSbBBL8u=>w3c$`H@)Mgl77biJfY{%wpmtHm|^m5hnqFu63U>I@OMXbl~$EdhlR2gDykBk-m9dMLdz1F7hBV2a>zzb0W%?|MqBDzQHv3v|T#uR*A`FwlF~%(url)b!+>6dPcrU6$9acl4A&avvN*2r19gYwU#))grN}u&J`2AlSUMzRmhe?h{Fd?s$Tb!sQKt316g{nL8h#1VvZ&VLdBhvZ#dle_eVFst5nQVUXPr@ufiWa(Id8@=`IO6LiIrU)cPc<k=|+QNJ+^hLu6NxWP<99_hpND8ew&&$UP;j#$tZDdpns?pX}F>uPA}K{@&a$u%hWu>14dVS>{l7&_rw`8-HX-Gt3#2Ts-d^%RQ7ZnC2bWt6TS{KN~P<jtKkXnkbfZl8C&f{?vI{q-cTB-GwPMP~#aUPNv_+CeqFk(xWPY0X1EBb6xWjUSn-Wf{?=BeG(^V{tMpuLzqL*CA|chJ|7DfE-!46qzPHB?*$+F{f?9i==47E+{Rsw|k)>KQWTcE<T$>+=yiG$INbrsVfDuySHdEqt0Ic>y85F+tuX%G@vY8uNfPcyA5|Ycyf40X}@bVDT*+dC29X>t+mA*=hNyav-U^>YTNy_97O5qOArfRB}sN5pyPtnT?&ai*a5INM$^B{OSk!p8)R}U?Sn<LLcaFho|MJL3Oo<94YFn!iYwpo(axWxF9eaiQ2wLVv6pYYVR}C64tcVySR3Rzc6g`n)BwT7==zK}LbTNNi9kQ<yD`!z?RVP@=ZzKjV8OlsGcM$OF<Wa4ike&w)a}Y+|Bb^)tSmVgv4H7G8E>zR$p*l2PS%6EdHrf;5e_S9PzH#!n5#==WkwwjuZhFH`X>@v7htbn3}rb2{Y^iNXt6=%>d?l}2-PHLb6<mJjd?HCB?bCQ1uWKZw+Adsu!_?}zTv(}c;bGoRwJC;eyrrFY~5yFFe*kfO9NCMo~G#FX}z-kcTY_4F>H3O_2*LIwoW&D5y0yxOlHYxG`$fHzvNiVoN9JX7lvM{7mGhf1h?+>%hn5wH=bKSvx6YCdtEvp*loGIs2c<Le2{cbz0g8!(dShxo5U_Q%NuDZ9c7x3B&b0WhpCA|bNO4%K#4sHuVq25h{%-M<{qjBxCxjL+*0qD(yo*lS!Bn;?ul#1N!P&rvgT5-oah6{4A`sc)I(N>ISGN&;dp##_`%-?YW4m<eU5r~@n%jevxI0awfWaoE3sV&nJ#otch@)q@2eSwhhtix#09X((fIsR^gSs#Hf6)gi3K84w4SYdr$X~AyQ_(q81%sZwb+PkI$*<`pwexxVxf6ol(Iw>P)^3en!QY8Bi0<$l(pQ|yrRhfCFBN9iph95^YTM>ow`!Vp&qxTs{?qAPE>F(1qA$)XFszoDSt0Ti8imi+HtK+mYw<s+j(@=_IkIVkyT1(akK$d*J>QkIm7q!!CSI~2mHREk_K2DI!_O3xDIbwp{jnnjD|p3hY5u!%iQkGJLiSL&vXl*S~)O)R3s<=mQ>WH%iB`m6}VQs(6BkssAtWBOnFRxxJc7JsJ^S?+k28Ef?W7s>|I}ShSh=O%~N<1|31ml+A3vyDE#m3PzP@<EZl1`=k#2^?*fsxy$873brYd}j?-xDNlcuV6BMm<9#|LCbydSdFe$AxTF#UcBgIJ<V1_z|awv5qiWR84nE04|hg6nxRZ~eLCEo+#|8AH!w$i|Wp$V72pb-a3p=<KSN>?i!f^S>4>8AtAt?NW%kH*w}Dz=#E5=3dC`H;9`3AevIdcN&u4oOyj8<022G+E}=fPWN2Y3MbPx_NDeKR*mm@#X5-=xu{>7CwYNkOh00)@8v!hVX<m55RjE{KKjV5q7ugV2B{6kYt@&2O|#RB+0tk50X)oxt5V(+O&tv9DnMkyD`rfjp1az7yt?s3%MWe(|$5@Add|dpKUtA87FC187iPZ+`-~{X{1s6P8<UMgmVzGzlyotb%MPslmRsyb20PDVWFs^P4&2tvBidsULeJ3ypt5A85QQ<{9j@rerC_JQbjC<4;go2w70ryjF)u9JqE;gL~o-<x%zRf7m*n(`#1(H6y&ibR3OvLSuX{{%gOt+utm+rLM+r19^r+)hL`g+BZ5BmZs$~_Og%@U7BKMjo3(L=5sMWwkeBbB0k%qLsT5&vctIw@HMMC?vEyA^DvyE$jUTYke#Eg}ejP%={4u`fm@PnTGz!oNM1|HxQUR*xV;+rmKOl%<SK7MI5)h^LmXUXV8Shb0(DU<!GAM5?k6%*EyE3ZiGBh>23nWy*;NRO2vU!XbmwM&UKch=?EKloGNURlJsJB-dlj)DWzF#C2*evxYo8f&O%a%SZQw)#Ki@K0~XD?zSY$1tXO!7n<G=-p`SkUo{lDyr<&jr9@muVf4lo;BiaYVsWJ2T4+vEl|0oyC}cg)W+C*$tyJ40A=|#XFXo1SQv>pP3|~xy>>{!8Cq?l)~zy%mi$VyIgo`u@|KcokDsv5?FU1H$dvI0s?2{`s;gW$K}20@s4ZG4MEbI?g7OmBg_NIb&ipnJKfc9uB{HQM9Juk(sh@%N-P7|4sd<0D03ixpvl!nufEE*u03#wpT_Zp)sU}A5oOP(D(ah)qA@i*o|Z4Wf8);|c}jX%&3GP1tOM@V6=d$O+ZoDwZ|9Lq54Yac7luK8*rJX)FQBviRIgo{qk~gTC&REIL`FKV5@mHvx_1)g{J-i;;$8I@8ZocJn>>mo&?!lrNGf{P04EkiDUzmOk*xg*YC(CfU)HWSYoh!&e^=RnIqWSS;HBemv@HH=Q+$h<cC>6X><MqT?q^Vlel7KgP3ZKz9RNJ(TLn|bBh-+MWol(*4^Az=>QK7k=%Gjd)9IpeycGL~<&*-XvDuTAM%<Hs!T3fmF49<jF4n=R$ishbCt>#kr8&k)Ona)DKzDz6he^&cAt@~NrFEp;Si}pg>_ne`RC1aB(r^)6L!OQUGDxi&Yc4R+0){^pE<=E!)Lh`cEif3t@DZFy^+y4mkE+A#qh-QLP!;V;J#&`b5x6@!23jV|AKF*aSs2oBi|cg_SKW<Rl(@2k(hYHSAt@uDhlGp4c;3kQhXHVuPIz@&Dg9skXW)1%7hr~)!i%Oj*r>M_&tpYl4qH6WTO#xnsv_$hqTrHR2?5;mR~+s-dmhff6uS{%W)TOJZZFw$H*{wpgJr&K3u_IHaO@FVt18>^^^NTMy$IQR+%oV4qAz5=0$S{cG{Z%32?Ix1%f89At`TRc^;Whl3X(q3#rmDlYvI#kiI{dkKY6-{Qk)Nxr6*qtoP@-R=hn13GFYG4@58Fv<6cvCXbEPWSRFfe9l``uivC?S8ff+0cBqmtOr80;kV<OZ^y|}bc35c534*^joEe|Og<XicCR1Sp*NTX!<!qS8f4cQzEo7<uW+}E3OkDqdaxg6Ss`Ln*w0^Sxr=^HnI=Y#qn@(`x*Eh?<AAOCF<KbAoEJ-eQy^%uQPoo+%BDr6Hbvi2qf#Ftzb_o-xEC*8-9<Pr@wLEHO>C70cQ;w3d&q-bxyr&ZRCevPD8>=?jdBHGoBN~MuD^uL3=2uiv_-}?6)B+iefolOh6%wH@+G8wv&tZwS=@!i8hnox?sj#9uB4xZRp{01{nD<?=%pPnSHtOyeGo6qN?_pwD3MYwK+aFIGL*}s$-QsEi+Z@ED9A2v!`cjI@;#v<hQTU^fzMJ3d3_;#%lOgda_Dh$_kCT=~-acodh>%u%%dp%k%43zvo$2nj<T(acO88Fp9<A`fcKU^G=6fC#Ksdv;hw8!_F@V;8Dohg}z9=Fhps*t2M+`}PE$WM(%LHPYvc!h~PP~S%;-GJX;*zo69`2NXi&68;HVI@)L*J<)?WF(drGq>woqhm02nv#Mpp<9pOoQkn1oh)iU(p(tJQAxh_3$7}eyYX!D#`F?g`GmT&gErQE|j1q^c768Rau8h!%6IvFSDL0R&QGZSa?mL6=vEE--ECK^6V`pMq4>)Usm_ZLh!5n^>omGJrtEC`**DqLVgl$4^9TPGxmNa7V(a4e2}-dRtw&{X{4z0fN-SI`D@G|G^d}TkIg$@n{Lu?;CAw4Y!F`LODBQOeayphWBB>HeCj~NFP?6nl;%|%hdyrr3bR`WaCUp|f&4j3UpbZXQ>sW|<4yq`vFQK>b;=+0zeX>Gk<C@|l^$K`V<rWPbuwOa=BAXS4(TRmFcj7nvSwNK)}=ZEjE3e|`hWB#Tzo7_TBle2dwd#Zr&zs9Pd_iFmu~?`O`fCbs~*gN6$57L6QPfz@wq3R89gRj&>h&`96LK87Lk7ZYMH*nVt-XL>p28`lRt=wh6I@hHMJ~4IAhoNP^<?fxx8q<k2R>C+C`zx+g{=DFBFrPwZ*DVfA$m6r^OZO^XZ>1-eX1-S-r(4Y9v-Z_zQ^wJYfV@RcX&-H$n**w5)JS4&j(3HM8Rh>_9yGtJXjEfKHDO@=Q%@*)i|zotf;_O_5`#<<<hX6EP2_3E)Xb1Ygv$gRkU-dZVcs5^o+e^Gm4U7<256I@{ctX>U)zYx5jw2c!eSTQn9XAk7+12GDVXeD8pv{T@55kvMtE#qdL=4VLQoH=J&tN3br+fXmV`qYJ_z&n_C+mqRb7f}dq75T7?@@CEcdM@p1&k~dT^^<HUm0uChu@Gf>hzd26mm;2~M)=17m24XifCPmJOe|VE{1EoMcD&^i+2e?t=*4J$}!RXRJK!IIVR>F>}a<c6e)<}&c3sz*mzJw-O!^d=cGG41V__>{w(TM{B(54<1Y8DymBMTrs$p;}|mTC9OaxN)OIc|Be5c`!VNOJ%3`(nV&<c=!Xt`HKy%ZZADgYrzeb7##S9z={y)Hc8}iXY#>@Znom76;%NZtsy5&ti5MrAN>9GeaN3t}Z7__4uj{o;M4DICZ1N{~?VeQ93|mp1!F%hpQU>uuqdo6Bjhk?9#Khe(O3TgE^dkyL$+^R-rO`>lvIv&K&Y(^~#a1YtD!a&6h6h8N-MTEuuhiq8y+`{q2Y0vFwU@$B*K&2kQN3kDaa5nh@{d@~sG&XKAKHOwMy55_u}rBwzL@CL_3h-1x(&X5+MQR#BI|T~Ot-;EPx7)sBf^in*c#t3Ai-O#!Z``uG9+&J^9mcy^y2lht*|YRAiQXOtnn4AKDN8+0!)ZyrXzVH?l}^Kpo=(@wPK+Yjf2^%Laj++r#YPxyPL6yA}Tu)7Nn%lsbjzF}SANfsAkWK}BcV3~G3C0vsDSqLJ+cwlMXKSiO#sIXVzs@Lar0H`b8%;yT}|IZR{Dy5t&XES1BqxyPAY&0UT66BFxC*{7V921l=YBy<=v|jSdg#j|~f%d);o>@Dh6yWUyjW%GA-f#xKZ5+*Cby53ld%<eA2@e{wyKnw}viAOyc$e0Af-IB0qJZX0RW2T~4?E%@Bw8%8V~RWA!bHiI!TD{B4+!u)SI>`>liN&U?l!l7=H)Le&m*?-j+0bVUk?UJ3A4>R2=X*-HxA!mVotH~iM^~|COyyTdq^gqt{BggIvxE=wubMLX;n9v)%Z0azf_1Iwc=yfPCqV;c|t-m4?CM%Mg9Eazfu2^;S{~U+(lhLH>yq0?>ng%DKwP8ZTNZmx|8)b&lf6x<NWk_`YZapoV`uj>oHqK|MP@`)#p7@)O8dmJclp#LmL%S^?uN@aq65ZI;N2N5Gh!FBtbu>=7rSO-5Csb?uflOklx_WuNMqe(>;XEz*)c@!@Km_Rb_B@vxjVRdSkw5mb#N#&f)1;%>K~s6og=e)>MqHVSpsguo&%ewqBp+km%~$4H_b|MODfsV}^ZfKN~+uy$16u{W$-C#V-0peYbyLb`}bnz;OZ%2Fk)mYswbXdJUq)>fQUIKiqoVx-`C~#oy}y_VDR5bs2nj|FnJ9MIx?PI3mGI@Dt+}CVT@fJaiRgAj-+2GVBOmqoaJxjt<lFkFGS&Yn#mwzA~;|Val!41bmAjvN-j?)vj5oB>~l))uRTi9v@24PRMD5&h6dt<+;7cB^3P$)q2bH3s{p#l)iUuA{zWZ#Dk(c^>%_5k{?|l@-$&>kfr@@SsSVGIuJAD9ez$BftZ!bAcWv%wubl<??*+>8itm<BStA1tT?&ovzyti1VTmy0S`yMK(Z}QHGKYli4Gwc3bfHuK6qjA*MYyT#4p*w3KnMkVdqxrOBb(Y05OYI>yw1}gf~B`Bg4mt7Ckmw#3D#`f;`On=+$#q|4Lu*#nn62<`r1a-uczkVr1@OIuL5xXl^Y-Q&BFe+d;Y~M{pcPK*8ZW|5?*A!z=pa>+R+-#G=J|4!Nbf0WF2Y2Jf5#F*rV<r@(%+s8t%_BOu8th8(8F=E=BsmfVg0qDuxWNl#0k8mCWNm5l&66a|HGBmd@~;9G$4t=4e;6bY?tSTXmWMGDcIv2qzHTZss)3@!%^`e_M6{S1=IoUAU5W$D&BoIBgtBc|kv7AkYI2H9HsW5r6Qwl=t#TulrdtAo*i-_Qt_Z2i?}EULjcitphlyhX`_*S`)3Ex6WJ>DDHWyhcicj`3@Z5>eE0VZ)s{tz)$e0ydzE;>1YN`Q2<oP@GO>if%GN^tQ+ZdFR6k&uZQr^a-f|`nwWFA@)7>L3;d#TOuKCf}!D-u6^)7zNu01yUX#L1>S{!UL2y)gk|tI2(kFXi3y6iz%rw<ZRcc58LX2IWjK7+Th=m=^Cnmsm7Dt)mLVD&waiq^?54k)2_=KrC3f+Y_J}lJYhu34L0^8=4(Zg8*?jD1ZWopBqbqJ0kWr8IOru%77GE`(2DvI^W4LeCdL8DF-0!8R`eNwp17?_>F3fND^}+fm?O-e<)5i>Wm%`wW?YiKYWIQug&;6SW?PZG8shTuMS%5@k$vA6$(9rcxNiol??#l}MRy;PB5-u2~Su7!b>-7#6Bm|#4BR#X3cbN7F*4A$u%<w=pL{~R4Q><p<&u`34E%Zk)8}Ht9uI=~+2ns5fxcvZ$tC#<~Zx>vkh38E)Y@uT{p6)o`Hwdi656ZOmW47Klo(m>zM^_2+n5T4j&{hkn%d<|}o+Hc_-#!^bZSYe?slCoY4!Lav(ZZ8k3p87;2Psy6^=fgEw&Vf(pjhWi{8BQnFMcunH^V3m!mE0kB?s^|pUk6#te>jFR7%l2m8J;i6@!c4%C@1mO>9J=z@B~?F0V53HZnL+a80e$Aq~E+_Om6C_M6#%lRB@`tYjG%oz?z^q7oAf2Gxkif$P};7!<jcNsW5co{I=zpPk2Uw3d_S4$}rqofn;WJ{ih4M#Ldc2_vMBwdx1)=SJ{!T&TIfV^75tyxy##M+2S)tIk?#*zxFRb9rx^(STyzqj|%B@Zf$C-~Lcs`)hZFPa2%g?Qqn8qQZ}!L}&UD_6VfWV_jUKfz<47$)Bm?SG_mI(RT3YY`rMS=5W6Ji7NN#ov6(@bREpV%f07(ga_^)6}U$IBT}f~(TAGT)^-6^fcT*x06EdAmk5bBjqzd91iMh%!QDR%%)NJBOV`n9yP?LrJnlm>E&u4Qtn<a~b@y=z26gSVOW`7wb)7_H(_+3txP``02R9FLy-Dt_I-g0DccDD~j1_=WV&6+3Ko)B_KoumlFKg|?c!**Uhcgk9?jfT&JNh74c{efTU6^osL{%1j+XwYgtK)P!FBclAAkDV$LrPZnkHV_%6R+ZPixJHoZq{#Y779i|KsFA`8Xob%VrG&>gZN4K(eS59aW+NMghW{VodVL~h2WHR`p)Go$@1(*eGzk0-bn_mkIKycKTZ1(tUQQ&A~8KcNlX8buSH2n@7Q`pf$6<UWOB^4TaeTBmb2_WntW!@H)muzfFJp1_K&M8ala<{Ypam<Z;r-`dvj&?15bg%Jy5jar^#_lQgFNn$Bd;4Q4oBaSdWK`;T9XfqU_H=iS5AQR_$t1?aNzm8zWp*xMuw_ZEiSr8jt3M8#e$q@Il_JCLhORU*OHb*-xG&e^wXPvrE3wn>lMK55eaE+)F6eW4Q1=W(S~HA2TSEDUYTC?|8hS!7Tg&qnb&UD7W&!L@N9Nbl6BBs5ch9Kw6(9*~98V^Bn$~5j*e&%=U1%^velO(NJWwbFTK}M7ff8l1YX-lh_YQ@4*(6*Kz%J%9>vbFXBo7O}<l4pFYjaz1~h9H2WpsVR#I>bg$OXD~+S5T4$J_u<oXjQhOZ<Q&zC>H_m|{l-=U~>RSIoWrZ}>5SxLBt92_#FeRM$nK5*sjc4QAkND*@=6^mx(M$1KN9djLdPAiz)&17LVGres9B7V#nDs_lhji9FTlMm&Q!WEnoORpipsO@|E{S0v6G{@wC6SzI9zcv<O)dPjnW{^)xTEZlkicZ|EIVeK5L_~XzoZIWFpkiR4{>nu)Lk$-%}0y_k?G1KW6@`r;}R#Ek|k(okqJ3~A|VF4)@J+etCIsFo!dz<gFW6W_V|vLP%!>tnOxXF_MO;s+~`)731DpG>JAB?6cuB~`4_vY%k<wix*g?xVmzX3KFEhXVVvxUoHn}%M-N3g(;yv1H{lQt8D`M2vMG4bIhqHV&<zz|$B)>6Q)${xyaQFMFT^>dSh&z!kO-zLyzrNC=(#z>JNWQmgs9#^H=XXt>O_C{Rv38^{dnQfrY!|p1<Su!-UjHSC(Q(F<B>}6esZS}>~<+ZR;!L7jfhkF`J4zwyusmYpJ{<7-;kxX>t*=7u@Hpp{BC#5EWS>>sL=rGN~vQi)OEY6_pMzANB*>>v?qD6!&G<MmYP$Y@L!-)5Jv!a*PJ#}gSfZpMWDfYGxx_dGw&D+)lL%Mrtd{V8Pb|%(+-k0U7tyAL54z@P`ROA-UF@8f?OBY%~)>U<A%L~e&nL?mXnR|d5WLNi9?iO3M^IIz2!?i8%@e(toXvzV7RRVU-fBT3?8x&5XwH?B)7oR8M6*6D4G3rGK{ID8S60p{oPa!h1Y`%lD|ytCznUx5qjT6k2$B__EPj(h2tt*H!E^^IJeysYr}{g^jnia_&B^+z}1-7;E<C~{JPJo6dV;ls+4f?%)nU4(=pP4rQD*tooz^PPGK~&lc+NX{Rj9sO1=fYcEz<tqcV^NVRNsF>!3!BY;I}P11AGMg2fh|+tu^4=$hj}IW&^;^ShbgvgH!80Uo7b9FnW)E715s%P#(V*Ll^G-M6Q=ij(=2$z71!PLB2X=8Ep3R?Q?r)WLEey7M6bacD6X`d7n{I@?Rj!S}$LfcCc?83LJMOVkQp&^sKfn_2|<pEdQqKxSCakOIN#$IdNCwA_vFsZVxH9q#pW?LmF?zL_MVfOL>eg|PPQ`!^Jv8ztYeXP0<-_u|dsB$+@Rxz^2D6+FinU;db~nL(}un7+NaUXV6y8vQmy4S*XZ2belFcH@aWw<+)X{{5EtnlZ#Y8qH3knf?4hf#I%fUViOYf;h;~PCUdIH;kIO+sLs}D)SJ>&5p^ed~l3uRy`-o3KMUC<sL&(5F)@)uyB|vVc|W#gc*qfM~AcJCAajfZ22qsiqomh5sY<ZhXZ20Cq<46VYJ^|BqV}@AM_el7~D2S%F6liQRU%ijT{v|otw71{UH&{S6%NO&cNXE;+_%V|BrUQs3I=$D=#=p%7MgTq)|@38ZGLP<@vR5)B-_*NIly)ur4JyNKZsyKo7St{-w*_b4h#t{WHCGH6aqqm>dT&!6nI~#nPdk8W3?IFIMf9vSyseeo3QzUkg%o#@J=9W7V;4*@Kb3Q2mP~824+e&Hw`QS003l{g7J5`rvX~_!Qe|I3%gH71BtdYzOk9-||H?oS+sRV$7d#1~UL=8`VAkAlQPT6QadX<;w*8$fngQVV<O!E=3yA>F~atOsg+|2FG}!<%WR{tXy0yBRk{$!fEVpjA(}P_jdU~k4*ZI?+jZL1_Nz1D@-~gv`83)c0wt{m#(ELr?WlB2Rx;01VDX!bXMECLcN`lD!v~H8)Gk<*PRL=zopJ9LjuXBO#$2~=a~IB|LKqjXF)qyxpLU^a{TZ0SkY8gy{E{sv@;IIJ%<89yd^g^rLz^eW|)-BR|#lf!%kokfl+fL;xyUT^zp^cJ;$yq$ZD$@r5nsQq35{qXS&-rX+)!`xrWQgLYIk+4ppPy9vhI8l{yR~|AFGE4r!w;Vfls?Qd{R~n85SfOXaa^I)7#*UK|GEoXrAqLbKB`pQbD`<g%~dQ=$yve7xRL`Dl)`qO38!Eh%&tJW$mmZ|DP=S?al5*hOn-G-IC)#2t?~>2@!X5ml{E;*)220WimPR+7dEI@@N-OZXeVsDk3SpQ2$a7*=tLj?aAs)xP%JwKBhc_zn;ny4m8VT12c~vKBkV5%uF8?MJVWjDacrA^yOpB~CHqHEn!mIRO|pj3p3k1LGr@LGfS@29m<8Eju8f^}do9c5By0u(ZK?c9iT2neZHvY{OHK0MTf;vUAOxcPpE@g%{v>A{L?t^ezqMkXDaFW=r!n)que4M$y-UVL6(Ok!f?2?&I)+U_=M9{=3KTcH%#!r6{v3@+M!D-k>f3*gfjqp8lTD<1l-h>xQ=Lvo&$K{-X{TUs?J#fk=eKAc92iIHwakisn!+JIlR$qmRby>YkEKF(QR*-FM0V?dTuQ66pk;gG{Dcy(NI#{SY>!7!lKs8s?Ay%Z{(uMX19<?-%l*b3#JwVpa3^aXMH==+Ko<hI3nVLRyW#?}4zU@K)O|e3uIrp{|Ik9?uzGgE59$sNr{%O{w`_CF%6YTz}9slr4>lXrU2b4Ba>P{#Zi5FOD`#qeI%JRrO?E_sdv20pqXaijXCh1Ahrwm@y@t+DYuEWSeavGkf0=(+cxSC~pZR4R}!4vKY(B3Q26>e)v5dSbk$amU{IjK|1A)%JnNe+&E=*x(;XWL(7n9L`->*8DI6Be$`|;eD_t%x!t;0aZHnmxoC4M9h;Bm7KRE!LE)&v5~i~zWTA)Ju77^H>IYlRgVYG~;D5(wzN$H|Es{lqsf>oFQ2=7^*lr_n;Sx!eN2d7cJ|nKaB8FRPFCtV^(R4(cz8UJ|h}_#c$n;9?w`NCfR#ZMGxph0|s&5YKif`M)SDqP5=gm;pUu2#La{s~M2P-eML!M|$d1>3L2tj0>ATH<=>u&YX9sx@~o{~y2FX!ey_hf!&b^oO|6J1erghm0Ku^&66j-ei(Hv;KaF0{8WVha)>?BbsSI{Qe^l|K77U>!^Z7)0nJUK(4?(XTsMUI~{>FUl_w3qSde>3zo_Fkh?Qq=qflYBFXZsihSj;PM3mu3FwAi9k<<vq;z<yVR%XM8n29SioVD#NoR{^u2l3k1*4$E9}6yHiMq~GqWr75wOKl>ANx?-pX?bcv{K(%C-V-8s>*wgi&(ck`D&c31aX&jp|Y5`i7?d@%)ccPd-sOsP(JwCM~*BxZjSFUzl2Ycp=7=Q~b^C27*^O<~QIM0L&wolRX&s*T!hDwK1BVbDU_uQrq83Gl6)d52oYZqjKNXuFT3C+#-N}^eePmg)lh)%@p_Li<&CPD`e!pC(FNULK_B+HVM&4;s2buazu3>O4Six0|;vDc<J<{{Kb2CQrQ%XPFBSrserqzb7TH0cPWI05S(JX6A`p&m8CiW6sG7gr*o56F^N;ML2!{ANgch~5yPgCULZ<2UWZ){y<M`ri<_0npEyUr6G_DqBi*O-=MZ|U<&%%9zl1gcpCJ}!2c*Y3!e;-dDz`SfSKdBB@M+h;cDqz<SK7lX(DYlBwT4{kRwAS?G8#p-CzQVRL?o7{_Z*4&oHqzt+2?Q;@$A$2#5i7MYU3iPGOO(0&ycV-6IJ0U9feM7=C_xuxwZ=ekyqc0M{%{X8G}BcV$pGM{*<0s!jQAHLr!byjC#;fYNJ)`;yY$C(nAH}F(Ylf$rfo=G{8pkZ+LfyG|zY)OL4GxP4!7glKN0FBVtJYRdWHChBCmN!(OW4y#~>(#Tpk}gMXJ;hTxdhx$3=qv4h~Wk3@@P)S_VeL_(~RlW~{iwXnMO<@MtULWBgxpg4N=y@X`@JA=^@?E~A6PcIGtEFN)NS8i}OvVQ7}t_mzMw8NJ--Ho;@z8Z`d{8Z@rKDeK<j4zjkssFZXB^?Qa^$yhJL}_6ZdawA`YZ{|CiUjNFYOF?^kNu<?m<$d;kMUdIrU}3tCq=GEQR=}cEx<Dd44WDIudy`}F?sMNqlz{xCMxaa*%HB|?W*x1Z}0@fXO{T8GouR;?<Jy*Jr5~Zb(F?G(#s%TTOX~TopCx3RoOuI2fW-Gm-^!c+XwYG@%y~@9h3KQyKmgRToWu6mymQxTViwl6k$+~%tqe)Eq{mWMg1km_lJj3G@j#-hMVWf%+W@g2@=NF<ZWLoS-K%siv5hTO!70kpv>bKRHKknPq_IkwO{HOgAB*|9TOXJE{D~qmF?FYn*bjlx(3wp^nrw)TvhZg$HUzS;_3>1D$M}`Qe)&5F_yGTiMDL}cOS*FG!J#v<b8Ou+(pD~5vvf<&mk@MBialh?VF)6QqY2W*^e@|R#sa{N|b2ycf=pQT(K>V(?L{@H00HM_%)OwP8-PAfR*^7k7r%N2V0oC%PP24SxXG-!YBssq)HIBn;sN=cm`spP^90OT10aR&_B`#!wkRHVO*$~`~QHobu2rB+n|=j2E7gj98Y7AA66Sgp5;z2bqM>*K5DvAFnMn>qVk0KzW(1drc)Lo!b)TkxNG>ZKh}U^7*WXMb=AL|2Se{;>E;HS%Czek!RKkdjPmZqp2|{;Y0w*6C0;8jLv$7Nuu`RjQK~{?Ou|c^4g)4xt}b}tWBR5hPR}WvgN@e>UMa*N?;IH}N~!^yR>JVP;}d(sSi$JwWQ*>hPfA`mvMLEGs|=+!n&kr%o@t~8eRD0c!c3$;I9lp{Hag9=JUxBUj*2JUigpDilME14sS{^@Ee1pTii?f+Un2V(MXt~NTxIX*XszPaC~q*`{PBcK2Ha-^+m8re1=q!`fyaYf`iffbDOf3b+WHZ~w`@ls1lZ@jFga2ZJ!BZ_P&z8|5}uLZ>MrXCauFSHD4u2u*V>xad`7Emr4ZIvgZ;bt1V~o--wQ~4r0Al=cCLg%B2o0~7+xbbx<DwIQ7mz2GD~3El+j@Ax05z%B1dg=?U02C0Y!2To@I~f{@~;afuf`~qZKnSPGu?LS0o~*-jc9gjGF?1(B<u5@IIO7C-UwddYBE1e^M(04~pKo^p&Czw6F*>V~;bG?sX%Ow==R<PZH6h2xwny^zJ!w%&a<}AXWVkSzc)?wv=JcxE_|Dai{z&-ium-WJLGQVXp>yfDa?J=pmfV6e%eFaR}3IvU1uojkl<s3m78ev7}2)cn&FpZ-F=PLDU9^>9bc_Z$;u!B(`jWiZ~D(-u;>qz3L;cfI9L5gwofrp8o+FOCA}(6O85-uAT-(t@9$yo#kW#Zc%`Wy>_8csEA`V7m2$$VCbfi52rZFwlKV9%Fe5MXyCsxm-qbP?cIXrm^{OHt@7u0A$maG(o<Xh;VCF*WNkE~{ma;~EgY582#8K0tLU$UoXmZcFqC0&y2vMbtQr+=v=SeC?~l&!CbN)3q<mCLf^x-)^PbgRm7#oq|DL52&m&AOu09ZxS+c4h!-cPX>3kG}cAnk<CTYuT_`5%Yz8ZCb3e4Q!WoWJ<MfO$?9hr&^2!{4y&46zySka;p*)q<A8zeH3!BJUG_RRZDD?F+>+Ftq|EB3;-(M9l3lz!d4v0gBS+Uam-Ld|G5Z%6|SzXyQRg=t+~6e)bCdOoI`DC8b+wDZ86jqax|n4cbnl%7QSiEjbc_A3UUeX@LR1nf2=V*Rbb)z}LnX4T!FdOc<-Uz7cJ5Y$ubn1d(L^E@UgZ1_{bXQwXH+J*7y#^g4@R_J$D>;O&#X}sjJbP#9|IM_!iFge3A4P?Fvn}kFgswU%OKk?-T<g8;I@i5YTHuUZ&<D@rCLd^){cFo{jQ_g&4){K9UJ9s;?DkzX82E6vpjM4r5Jm=2n7iQPlBU!wBKM<E1ICWDitHzbO#Zvw19a?I}TAA<sOHJ)I%}d(hbo}4X*Qo$**s=fJ_=hG>Qxv&)C5&W7r44V5<wY5sR;y~>Kaf*);XH+sCvR<o){;tGaWWJKsW1{7A{E?ZcifrDWac8jJ}e?U>@a(okENK}lE&<2e7uhI!wZ`pFW<Rte^Z7a*2=z4(D@801pDWoh6@oDV}IEBEWv`R>+bu3pBW(TXrC6ARrBC20dQGxkw%0(h|C`hV&!D}rGMbPO0}8h4C@%Q<lnp|z<kN5udFeMpI|Qpf2I3EYY4Au*>Hu{x1aCoue&eKjz#QV!<#ge15P6U5?fQz6AkDnsx_O%vGbsCi)92BD=T~k+OKJhdm$*c*;ESU`XtX18kMna$WM63wl~uq?afyMe>s@k5V7Oly8eP1onZ=%ug|B6YZgw?*^Wk&qB0X6+gyW0FKO8v*M_^;{+<Lj)!jmCRp-FY>(Df`V)lhIT@}?}nJ<R3--#xduEunAi*1*@c2~o|FPQF{0`UL;AbJ!=C4Z#kW1UDvx@s=x*o~Ry4h=jw1>V6jC>qgl3qDk=EnPbFfuQqjbk`#?v5cU~LAml|?b8u~O&qY}11zZ@bB*t~Wa7yqs1L7Ww{AWjSZn-f1E$*^pbvy2dvI0o0JjUGP0GQ4@SuotR)<c;4R6hKEC&+=QM|NQCj2Cd{mF+vW)iMBW)^nCSE@Q`buav7{h`J@6SOAKzql#3gTgvZK8hA&sH&anY07eG(^m7CG<ZF*!B{($(FwD4Xu?u~5EIS4Qdy*{ryOwUuRHVe^~>Bya>UfjqJOYYgf3;P3!rKNQ|L-8-$xCvO31$KU~Nw1Vgbb~{$-Fy;U&z1L;;}{RtXuvq(Nv2&+0IO(+5GV4h2+S(gWA*3%xR@6dIZ}PW$EbY<ms8RCYEw_B<{2QO5~_iC(j7#RWCPYcN6wY;u1eh96G^s;`bogZtYNt7rf>3pJEKeOwLH@e74Hknz?<DZv&7p`@W(Y!|7{%75Y6>{<QZRbIP`pP8=_-WMVqfe^onb8GzFmQ`oSj7*Vnx<(7Sz{>*NyJR?8Nyg&48<cWwAG%2n44YO!qhxD9hl~F9xV=X|Fp0}{{8BdcYo@Gz#7L+1{PTVkjpC1>z>0ori&oX<eYMUv&#{uI)qn;GI#0ActupfSe0B|C0oEtVas^$QquGkJ#ls|hV7FW%xF%TcJ{z$aL}KBj+O<mzqcY5r89-4)Qi&elg_!cv%qfvSTn{U5iBN|aVhp01YdqNc%5&ZFfc4AEpX7t|Ux)DQs$euSC~7&b!82dEdlQ-js(G+%R?QW*)$AIU(k28XGx{^*vkZZWdr-G;f25B0S}1_!IvbnKJ)$sum2Go3Ft@$&=q(Xv^X@@a-7R|zbY=W5W+S4n=gY0Cx>!y)1|!m)E&MR*KtbY*5%oNRlK3l0p3DwN%ouQ_$x&<*50ZmHwKpu}i;}rCAjI>#E{dNQkN8QVJU;^cSf#msGs640IgUHk$J|XXhB4D(Jz)W17)(_;fJ^DOCtkw&qP=eN<0y^-q@&C_f>>dF<+3hjFPC_sI^|~5&Vt;Splyy-xAkt%mNaqvM?B~4%9s5E$NK^ek}eg{b0|7kbCKHqPwwGRZZ;3!3j*=7L<0I+)zgMgmTz*7O^gOxxaQTBovNZL5a04L9K@p0j8G^`HtPpge)&*^8$GoxHj3T;at(uEl-p|bM+_H%ZwzRSIDma$hGIZAwWx{At@pr(PfJ?)SwA1r(!9k0w5fe7jwZGg?FZ|1E1d)$ZGhmuB@y|$)+m|6orE@0>(_DKjVZz05pk__IHWK%YP{W_$BzE@fdgK9`twdLnQKVxgJS<jBds&~=!R4_EBgOFScc##`Aaq#mO|BIY_%m;^j-|i(?1HgJIZ_^lTviMl(se67Ayo`S{qCFGa9p(Ye)u$U7J{&=npCUL1VCT)1l#`WGI6<>eqkpMwDf5gdFeZ!CQ93u#(uxjQ)Mp7W_O%W6hSeiZXwMp^axocgUz9o`V+gk9X)mHzNGvgJ<<EtMuw|E}0KX;Hd(m2`!o9HlMcxx}*|e{HSWCLu+PSVJmj|-(!Edr5O{Hl0lIozNuV?!)(xrO8)5%EcECypRqfXyze-2SendBun6Hr9$z3xQauvo`amEEnW5&XN5hM_-S6*33@WKhE9k54URYMoIR|h3jZmY$$&*Z)8xbPXJ|2M~dQjIClsX8qy)n>6OYsdw5&W1cvpAHIt)ufOeQ~rxm$aMHUy<-a$FhAdf1@^;MVyoYp?7DG&EgaM<2J&+pck5@&*ZA?TkbaZYeU^CTkcr5TpIJA(fgI5=bR8a*cg)`DQv1Tjbv8CluJL!XUQ5~r@(z6K2y(FR?jqoLty}^Zrv!|k|q`Qhl&b@Ai)Dh;{Q|uTA;^m^En_H-xBm3Myj@+qr#el5YM}``uUF$6;tN2%RP#EjCJ0%?8u_cLVbinLhpWS<mh$!>hL`I5k!mlP?x1g(ye=s^KDu0Qsf6w{jmHb+1P-kvOyUz$$I<-Is1)WQ>RkdruU(+K!pX#5$>!B+3X);44hO90Zpc4riKM8mM-56nbu6ry23YrRRv0>g+7s#6pbNPlg(~SNq%bo$luP7^x)Uw;E%F{bhMup{L|yM9?Rd@kQeD2MW~!5I5cqI;z!=Z_iEe^*>1)0s{7H{6PiNn)4w+Jb0;i#(d5MLqY);9K4E);^SbbQEAxee*z(htmO{G8*@t9BAt8Vlc!lksh9CHQk!?q~IUvH*(~cLUC_OxJ1fR%mstqA{2TtqEcTtdClNjc^lBgr!*k+m(^!k!mO<32AC-`~GVa`}(MeE|il&$RR5a`0J++;TPd*@42%f?E#eu}r@3R5~SGBav(>>=GRmOAf)tDd>Jo#EnfqJEbP1y3zh6rD)95j!pbn`l`5oVe+aXq*jZT|hm?+_I*S(l0+{*or29P?xqARYtA|ed*@CF#8kq{FuuRNj%Ro3Lo=MF`^B29P4SD*@@>MRxkIOMjJ|{zj^pEXI>rH&O6h?mR?y=B2rZKZvc{DVp+ufbnz->S2{8k+=Pj;_nmQoMvSBb_t?rsIto85(N-P$##4rJA5=TmHJ^=Ucfok2B<h(-!x)u*)jGOQ<BUb}RaBJM6jmXKKD?tE^-!?v<HoQ_%NxcFEXxb+ofdK-cIYacnRB9vg@>Ga00oRB+*#>Mt~Up)dMA>G02Z@0n70uqR>S0K+iM3cwDzoEGsn7g3!o^!*bOU15yukOC7ALZR?;&g<r)D`0P@Z<vWka375xhuQs<(ZlyhNR39@l26G9!7yF1Lw?`pFM`JCupklIXb0zu#LkCIPQ)$5r?!!E|<!H7}_1~TR@c0bh^qWRxn1BCN-(X4$Zoy&!30<_1zx`20SlfMk)_I(dTM|sz!K|tU-juTW+CXbjTaLY1pKMN|M``~}6D+q4YT<ag%q?bL_AehyeMxmCK)ZTgAp6k}CLiQXIzkeY{KH)IKuQqd~m0eXyPLKRZ53>(0Y_#p2wU#cLD&L9VJj1Jqw8Fbhz!38>-;gInY#pG!TZTwPw&td-Q}wyvYs~f%Ns6nOZ&MGFE~>!=3O?K-KymZJgvnQ&;^6LXwH-5%J*Poi>_FF;Jg+{4+Co_f7TRZSrtqTp09fPq4^=4}Iecpi%fx_j)BSIWkry2=Ums|o*rSsqL&-tB4dyu~|GA@EKsX{N=^^yZOr4oCWL0*DeRP0JOg3$(kIYG7A(Z=%{)K^avZFMc&*8ata|+VgEKI)S{*ppv*_}T6Eq%1$yBpRWk9Ag@)VQj0m#{`u2&X$ECviJVJ(kYnv%4m8dCoB1h5)=Z&VW2PoN0oIJJ^S1MT59a2pTG$U1>wZxJdJ%CfvWpbbbLfzK$qLyv6t}Zt}ByB~XMf75L-!c6E45bzpyXCvY+pPHNhUP(60<J#^&C#u!LFg1wwD3TDTCMV<5*v&|v<PS<eQqD0Io-bqY$0CeKi@A?NfS8i%*t9-%mYN6fakRcWKo8<=1^^F~*TIH6h*K0_vLLR_zOef~xQm|0It2CFe!QI3`_wn~mVKeGp&t$(GziCAk(!qFPxcdejB%hDsQy%w~DNUMxTaq!{93|-Vx-$b;?8HGs_}&WOP*%uQzSQqthhvYsw4D8<p|Fd+OSN{Ak#G2?J!3I_qVz_#6|uPUQ;hr#c3#?k*=`${I?rxC|ILwqH?!cA`Dj`W-7-3pJ6j})Jb>BdR^eWg$~0nlxol&zIaJ1}@CF}Shn+#x$_Bloyg*|0cmW2ZmDdSUOAZI38?X>y%OvEaK$Ot_Sr~pjEFV}J%mj+bz76vW=G|J1GoAjhSU{fDEBxPe5|DQh$xSlDD$L;usOkwjX3>UHkT0nzvlGk?VvWydRulYe8W(x{sE&C2aShmoxTZtQe5eF_xMpmBCOY$@T6*G*g8B_41|Kw5)N%T<B&4LV2phj_)wlh=k~)o!7j$ySZnE0|BPF{6HD{{gXNf)9jUk|0N&R(aW4mLc1RbLXmSUgn@)(;>QGGN$(Jvv2*u|r{yQh&LuMpueoXSe&_s0%f@=@X@$Ecm_$+_J=+ejAYa}S#~wX#nx#wq-9`)~Nid0-c7&oIoNWBT_|>;S_wM>ESPlY7vfI2Q>C_We>^z!VR{%9V)MpVfrRJ2&Twn0?K>&+_5~0*ndsyKLuv16e!1@JOcvFpYfQ7<9lTud=|J71h}L*!2UIa(jB!<lr=eN~VW8tACC<?UJw;28D~a*k4bnI9iW2HPz;EDpW6C4KJw%ni3sGz!U_YSOy8r%*&)*K5g2mdo3wRMz#Bq8G?n3<#$5oFMH8O&BExlfetPrI3^9nBXv=leaVx{N|@?bR_f<q+pU<*X=g*ccQRQ+A0<aevV|Xa#Ipi75`>@*u!jJbp4Qe`V}d|ViJQ+-9pBa(X&0RN)z($zbF3NKZR0FbLn=MNE62(pF@D2%;d=oSbrJYaI;=3z+zVxi062_0yzXW{LgN$I-Q6gOd0z#SJNWS0@pyh1ZL{yij!?;w?CQ+s1r#yUsWCf8ureBu(9{0C<qLyh>vEFUHjQlfa6^KW+(~88>fM>$r}(MJO4u=oUqry*e!WLlNWD}lJ^o@600}0xNRpvRu>3-Tsva)Elzf!jB%Tt88TtI@&p1v`e(gr+cIfM1wRxIz&(cZ=c-xsWne>a5th5_hwX-K;$2>sVZ%i5uVNV)nI*oEk(^!WcHn8lZ7KMwyj^9(T<wEoNOIVI6pZTqxd^KpRSP)4m5$~z4-ed1M?HDGpH-rn#xD_7WPF|eJulMlWq24ilQt2Vkh%Dy4kzD09>F3mDMv&{1=$EzU<^v~L?bi~2XrUIEaw$&K3$3gZw&#l(F!daA=RY%3ti3r3<3Ikzg=V6)8PQIqT1i&as0cav%jZepbG3W8-=;uR(vFJBX0MTf41naVoWtsjs#lE=%5H#f({v}*Y<0^d#+khJzhJyof1(ml;bE<K_hd;cFvQX;5x3}58P_;Vmw)@wh~g}T>Y^9Xp3=U{F#r9|Lls&SQ89sRk3#KC(u~n<&}#bFtRzmFPH-S#IL||f$kID}2^2zfA`|8uQ_(=<YgTjF3ucu8qsgTCh*Rx(Xl$m&h03|-2vIEFuu`dllAQplsOY)&_PIspcgUWSweES$j2$}!GGe6xOH~#hy+0TfGSZ;cw|(oNs6lTanP>*so!7plfhgmK+^aetU38VwgIc`PGB@dfrc@U0=@HchxB*THTYgctP$4i!#YU3?hBbZ19<8K}y3-Qrm;Mcg2>C|r=ZBXq$7t%6u=N---<@y;V{c9Naoo*N5-O%s$N_3OCCb`;*@+0;{o}0fWSC#-mBG<0Wr}~X!!B7`Ko)-jq15m5PO-3u$H4oI)L{r4QsA=a!hl(~Vp^jln!5o}pOh0WaHyLP`QCYO5$#MFH=D1T7rdILQLii?9{I0d$zRDluc*vK<FR=Lc9&GvuIQIR0EiF&^^mQEw&ni7vDE3{$z^gbji!{iXT(`>R`QHgwHD=SW1p#hc{H&-MSIPk{+7nzvQ8Pmc|kbpmi*}9WHGsy6s#4?r2F<2BIbjMd}=9MzH?AlR%;$2G>L4s?v=(SyNz~U5uF`69K#_aPQNGZ$P{%4DZBo%(e+?;JoiYa%sGlo5gVB*#izB=Y`e$X5ISXm1yzL&Wx)w)#daGqk|JQtO&GIXinZoiJtc{QS`O@c=>~s-fl-vQ{HNBP5IIz=b!fC|mftcJ4xWF@sv9sB`C#F!{xib_=c&7?G)@<WMUwf$XNOa=xS}(GJRtXVm8N8NM+aIfu9K5Oi@LF)=q7TOgm{Q+ZB~RRa32)8^Q^8a5CWrkf8`ch{9I33cO0`Xumck^C&SES<8t5W$Bnpa=<lq`J?H;)|Nn$>|DMd*C-!BoxmjsO3Q5*cq+mLX)DfA-ttr7}>|wMj{78TKE5SI@v{L*b(1;U3gL)XKR*O)&k9wHc&M*)-ApC&Z-qcP!Tt)(DD`?#e`>g`*m?{;#s+Kx}<+k&Lk~Vy+>{dDp(fqkAh6W_7AM*qlrs{HFr(<c2yI+C1@0m1eRWA==T#AY$wqAD=jAg`fP+9*_fawR*H;pfF1Sgker%~tbyeILxIAC(ERb0;IaAFE+D-zx0O_~@l=p{L7*<rgC(Xja1JxcF73otaMW2LYFNxrf|zr0-^-n5;o#uxaO1Ue=eYya;__as6$`6}4vr^V$EByYD^sePndMCSBnGNi9qDf=zY9lRgq#NKZmuPwab`4qI|BH>aBG~z*~4c-Vccmp(?kG1V4H2pQ|8|WF?{de|Ystb-hz;5VTkdTp9B3=oPc<KJVZv<1{J+we5p%gNe4vzppu1DvYL{_rGoUwpb<5Y<co9))w)&zEi3)r-5&+qG?<K7Nd<~#9g;lAEsQn@{@D!l35mPI{5U2eRK3c#Hi!`yNxRak|i*uYiRu0*8L?z#>n0haqSi+*zfNv_p`S{i!aI{9s5PkUx%++_vHz1&Aq9g&FR_GK~XhvULA1yci%y`RIqba_2L^;_;rYxI^>*{%ZeSEZ#7T`#-2t_C^9Hu8CN_}fhU3=89VR~z*S;X(Z|CEO<?SbdZ2JU1z!LDRb7tkSkIEg<8|1zQF$Ox50DLbAlfZp>Jk-lMfj#iz?(Cz#lU2RJX1Hu9q)^np5~c>%(}EGI<&k1xM1f~?>aka6a4y-I|<@wlOp0Tm8gkpF}WA2i?>OS&0fds2SuNmGfXpK7gQ_LkuAX~bGe@fg#6mv}F<6LdDUtPqY<dj4O4cO}CFI9QI7xu7fFEUn3{SUjH>coci0?Ufk&cZ{vYFNHB}Nk_JpV52&m*R+8jc@*OKOe4-Hj78OqU@W))sAF**hyUODGR`;b;6o*XyoIUFXRR!^G*3p3b;6snq2s1SRhc>bv(udG$#z)MB~h(A+Dovq?E>{Z4)Cq6|A44-^|p0%KE4ZGimgp?Q=(q*cGsHcaBBvhG$;C?FZs%+wT?=d>7W5M*iDM44T2nJen@$Ahm%k1IJz6l7hYdq4tQb&a);(}RC6S*AFeDA!8Fj)$f}qjlLCT{w?hpxOmcXBkKu4)L2t-8tCfFWn#G^y5oVf*wyMA+ec6JW@*Fd?)CavELmJs!u&Ylx5O0qLbCf{N{=a_YXe7;A44Xb7Yosb1jX^@iu<b9$fp=RF3jv0uD<qi%^|4UHn>;2k*{izN?T^f%@aHBRZm^)M@W2g-R?gmY7U3YXNgPluLVhW=QEUwY7(7aQulyiE*US9NduBeS<siGK>>=~3=!!6#jRJ+KCJF#{(FwBHy$NI6#}MNNxl^Ra<5TjuZ+;!dN~qm+J8BTGDVlV|K){|OR57MeWK~N5h=-B<p_uOrN#J%A_Zw4t{#d|Jfz)62O?U8p0Qt@x=ej%$HjYw}cISCL|A0fXO=@t0NZ=P{5^>Kg0kB5F+IdivdHl~dR&IsT(ZNf?N2N|;Vw<&O4{Ceb`~+pyti1y8v=*KJ24aFIC~By>>mV!Q51ieX%yZxo?YCI-r`Dp<z!6=W7OWD*jpRX*39AD1R*vouuTdhT@GA^T4rt*Mv3a;Ej74W2b?xch9k}~<KzGNUY1XFo`P0sl3U<Zi%@7;558&-%aZ2OR-x%&MC_L{UKh<unb0to6;@uq%=f3#*wNxWAI;G)H;C34BHp2QcvTpSc?g7Rly@oBfojp@m&hRKXtUHv_1i~Rhe<yVV3H5Q?!yV3ogjDf@fw0tHfr6<b#c}vT@WL&4E4xB;G4J`y9f2HpDYpjPL>n9}1N#%(>Oiw?TL`PNJ+ZtuMb-d-&v@!4Q;mxUtab!{M6|!iGR`6dz{N(LdwbQyv9&~;|JN&RCJC=N^@b`?xE^RIgFd1&UneQtz|l`EBlG1JRq=Q0%8U+ZYp%0DiD)SHI5iw?eBYCzv_au3{15Ee>xk7YE40ln0pfKcwj9F%XE7OJoZ+{dTRAV9BDKc@1BKg#UjT;dtmfj6)G)X%1#BMbn&mc|*56w~42lz=c0Z(qmu%031&vFxd#~F5WpNk>gAXrr>XUu#qa{?6yk`mSj)5P}nFUV|vi$vg<q6ZcGBm(6Gt>yjMxII<s#?90)E!6`KT){k_TIb@PJjR<8+aHgl=0^!8bI(1JMuEOL94%$eiHp<W)RzExzwF|aVnxxi3eQt30rab;wuaQbDpADM7&W^9IaJ)Elo^x;yFKOA<Oe9;&k7$)nGx2<;@dmg(Non)q{k|rsk;l%%?BEaZ}^xRh7Jb9x$pUWyXz5siQV>R$~rQbVzCB<-`y8aZ74Jn+%-yg}1}R|3uB?Vmc~Sxm~Iz1y1&|yh^IDFW`r0yemI!R4x(6iQDix8`y8z@po-bp>nlV;JFMvZYVJ25)?3yFx$-PW{9si*OI-gVt4oJ#fb}4+O00#FT!vlK5h@oI4(r=Hk2&9Mme>okU_n3X(g%4XWFohZ^Q!+x*<&55eVfE?MJcjpPebVIqJ!JvSb569z_n%hjulHS{)q3H79J0QSYcTqR8fd?wyWO^Rwex=otDBL^So_6OG%QjWdjPrpXbHIFclD;$!dL1$W>?KHQUg>3au%u+KGjYzeg&-OO@)%YnxbTqI2djfFL6+;PPJAPZ~6;U&3?q`Y0d;5;s|3NDm0FCH^q2t22(TEEkdvHbPb6(l2C-SG{?S2E*LH~>Lyk?-HH_e=OYzf^s_N@^F~bQyLh_7;I&kJbwv2q_0x=@v2}?&oRgIazzuHpE%nd<ALc(XgPje?0`;alZ5s4s73*)AhsptSMy25J@Ch;!7=LMk(|!U7Hu;Q5$(KQ^K`|j+c_Ex7G1I+sM*+(!G}84F0V9OF#=>u5bF?VH2kV+6g=;94(7n;YFJ1?4MRT7Eiwe7y#zUD+un_ybxa0f5-OF9?Q5YvxixwLPZ4y@wzKH#>@|e!LCS573B}8@$32-nAi4s`xx_)WWi=z6ZL8Y?^>Mm|6#L9JQnb`Bh5H5np6xWP34>tmK|sEaqD)m7gR^eSBF$m>8rQO;R7y^PwH_a=&ub-gZ@hUp{o-ZVo!g!EFyaNT3d>+?(YZ!CNuV_e6cb^Pf@eqY&qcgTor=ne>l!i>6{zzYgW9yIvRv2z*)k9Zd#d%^S_JCcqAx>36l4RAtVrzwlwk=BS&_v(R=;Dx24j~`I*3>+!8~I+~M%cwl*VZ5jgnc{8ApKNWo4ZUNT*?_w)$L<Hdgp-1`@F8jOI)UZl#IpT_d44gI8rOgL_Zy;&;d|HLwUbAkPHU<Wm2Y#4c2qw-&n$mulh`zqd`0(A5$pB#8;v5Na`n}He&`laDZvXim!LBd(!{@&gyJ7%4Hb;`)v!hY0LARl=#UzpnD823e9*H-K#Q1V%#?`f>7V?If^wYHwg-q5VQNjdxP@7l1sXKT`wL8^=>Tr`R`&aHfW)LVW@&gr^)4Gr4&ntA_8AfRjF3SbRF?^q^_jk~Colr7N3Ak85xgkAO`{j19qgiA{;hI?V?Rt{qk33d-<^M#bN$379d5(<vKG0tazFF1)6S06O8#c-%i*)f?hUabXmTcW?Mt-6Z}tf?jMTSzgkOLk896_O!*wEUW|d3a+SGLGJ!5Q~1kFOd!sYpamJgCLrdC6uGR6$#mJ1naPO<<U+<$sRPjDEc$KFq%kjyfg@#nn>TO*#$`ha;rW|`*d^o%^UrLkf2m+?kZY#n=D`%WQ^1G@{vP!%`$Eb-jfstI+w*&oWY3DTP?J)ZHIZ|$$@EDq>_naKl@jMs}idWb>~4}6G}!JsC}-mC=u3l9cY*UQsg)|U!v_61PwKT`8Yib`p|@N6qivO=mp7H+3v)HXM&E@Q7F)O;KZZ%>vjTqE@MA;b_4+co@6+{s*@jTI18o#k)ddkMTmbMXq?{ynMOm*HwqT^K^UV6_w1zNw>cRO^7ciY-NQ!6)<hNJT3i=-q@{-uoOl0tc^Z*+z!OcVSq?px5V%HR8YJ;Jnd<W59HMZ`=LgNkyT}hLe7sJ-PeKw%f)z6R2xyQ}0TmVAw%i%&CX?qPcN#i`J<y<SYby-pEbS5PPOXj2g!8{f{uFwG5;=I`1x5caUVGK7H4euu-(d<sn_K#1aLpCk$WyKZMo7#{XpbLd*9WX&`d}4Un#tix<?QhgEnZgW^imYMJ$>I!D#%=wHt5coXM;kG8;2(*5QUcu&H5{Gb9Kw=0RhG$LuYfE53~4XGZixRMa5b`&xIT>(_5Lp2xvA&M|CRKu_Yel7UK;5NON%o%;0~mecoj(Ck8ggB#_{{Qkv<x<Nm8Nl^}SXaP&|{uaC`XJTZ)e{7@UU`YpzLf(sAeh?<?SAX*8pIP<f>;a<>Wd%uhA!5RrPWm6D#=#T&-AHs%rpG>0MOP!)fPTB_S{!+2d5>&478;w5AF+NBkEU%9Dj6EiR9oYPJf7c3IoC@R*X%&<icB~v?S0{lV>TFRgXIW%DC;XhArXm<2#bWDs*wmLAR*#zyr7CMS3r2{|=?}T!8(rS519?5TMvNpU?s)>z%a@y+)!SLDf5L3?h)@Q2HU5^Kj`FS00%Z#tU$5c+=L}JPp)Opqb6ajo05EPB015S<vjTC@e07vGobYb3P;^E~Ay!{{z_@OAYN(ZtWAu8WtZpH7OGw%^pvSC#YoVthCcis~Wi0osw!mdr`uo==p)iVg^&6rRWt4}s)+8L$G9@YWCmVkuJARsPJ6YMFy$MVIwoj-ll<Bz0a_+5*ebG|Dx6t`hA*?5zbj85|c}?2iIRzq0mbh(*&<J|Gu25Op_xN`LQJ3O)5#IbfLbDUCeFXH<ur8{ojQ6)lr!p4%nWUSQuJgq(>JkT7v`C+U5gZZ%aR$`h8-(rRnX7UQ0+%*U@NHv@+%m8myAdsU<YPZy!A{dARW9HXp}?`?xl~oY%e1dC+!X)PDt?Ldk`qluO&!y1@+Z0hlT45-9XXv<6Xu}g0rh^p-$cf2+G?L80EF7UBL5nH`Lt0_G7}t{XEB5VtcO?Y<>#Zn<^RgKSuSB#t0kbkHTtwF3uONyRo{vs!sA@CxeM^&TV_+a$bQl?)|v;Z&1D}<1@Bz@-MWTpwBz{kg=wh=)cL&gLcD|roiubav4(Y_WqMd>gUUWxdOs%PzYvKQQK@ljIM!5-saoeCrhRD{frwtQQFf{h`ToT-z8f_(eloS^(Q!lk?g0Nbl`MF_CM;dIU{)3VEL-g+`OZM=E3`+Vi!eqY42`f%C<{>yQ7$dK0ugyJ%(bRz<qMhAbga_LJ8MSwXuef4%dx34g9XWlr+`(wKS}1c8=5ii(p&C)vb7qyn#2hjSIEQ=&vOyEha(7m^(QopU`!^b!I<9vJwCsF<ub|YW%%m<y=6t6Jdz)Ha*hm;AanYKn+s43PfN!Nz%L<wZmWQ&j3N*auQ{2?3ZNiNVuI6PO##51f#b{m0!T#rdXDxWw2z2mz%?Rjq}Yw0eolg$59C=>R})_DAsL2hZFAlz;|ANp^Y_p)Cbu_n>If|M-6rUCbwXf?D-SMW8WL~bLN}(sxfQ07P(@Xar&zXY`CD6J<KMq;-l-6n8*(uo@+m1lT(mNze_kY-DFEFX=|O&Gt0R83(OiYGc3npVENByvW3f;oKgVT+*u<%)zQeh)3FOfs<ZM$zfarw4oTWS@NFSxEVm%;zaMByu6SCqq3coy7#P*6w+a-7YwiS747!{LUyjh59p`Hq~PryA|0?uH3_hRkQ(h&pFng>?Nz;U;jud+V84h(i8ZOF_)(y)7n44DlfsZ9&h(v1u4*vdlV?l9apS{cl;ER*$dmx3QN>fIpWnc(?|zUiV9hoakY<+vL9k+Fk^N*IADCV^`43;k=gs~59z?*w$j^4u*-<qeA>yTNb(;q-Unl!PRzI3LM{pRiTu0|olQ=6@)Vjoix4<dIEM#Dl0_W$pVpCh>X##Rsc0w|38@ci_4Yb!5O3@laYYKcRp#PwpS5{zC=jS_5xnTEfJuU<9hQhe8DQyA8{bqZx}V+g@(DtYo=CTh5@y122-VvPy`;kK__X?+oW4n1Wz(<j@)HyFYq81jSrvh41ui413<;Tmd$8Q^V3&m4Tttq1N{F4<`DTOEkAcHjWry3&$t<OV|XOQ0Z`{JmFeR^17DySqU8J5vJrsr+pI6r%x&w^~v{z1+KKi06kFt2L5bLjNI+6qnHtp0SpU{1UX9F9V)W|olEIucm{cf5Dh2xIp0SRlIiLs?a#{yV#k>Xm`qOCI0G8~#twYp7b-63zN%|A`a)?wO%fi>d=4o?B1QE@T+dm|jAWb!<_xAtDjGe2tFEu|42Xe>l0e>5AO~Iu@I0ph(=0yo9PZ(e7G~{;p<|SjYUU*c1;y&upEM(pTm)C7oGMO|C{r}7dwbcwnebozEW&LrJS#KduU&B>j&H<&Yl8x#^m{F{PDrL1MAl%-lpySk$nnJ959w4KT{ArC<?z3$r!r-mC>OI=a9wq^%Gsd6zcsK|((ilm@i9MDLDbR$ogI-MM9=$AG`(Xy8*{YOxmE$x^=ztaMf<e*NgP#?Qt970gdB(B+z;B)m_C_RKCjR9r@Eg^aIm1`jj4a78q;Z{LOkMHGGj^rea-p_d_xJZ-`Yp;e#C(>hA%5Q{xl5l$BFqW$DL&b?G~5T49DtJI3h)xnoE1(ULwP?i6INb!rh+6S<J8azX6O6Z+w0p=SQ_xndhHkN*TKEaVk6eUAoz#%4Xo%#*_pPxC6b)tsRBNZaPOv^4RWu+kj|yQ7yc(Wwn?twmOXgt5zThv6~Ak;)6I_m0DuW7Y<QOK*u_Lr>ma7F~PFiXCx{=W1K6>G5C*0eZrXzbvHkvn=AX)#$g6|IOEr{4roCm&>o2>`8QEbA?i-cfWRhJxHl>6j6ps7G>`G@7p+9*Vbn<lZB%1BzDJVZ;GxJ6pX$eImf~+;;L?Wk!^)pWSbIe@X8q*~mREpSx8Q%_M}H#>r?->Z==4&(So>Zqf#^e9JePkW)9X6cu<QBZ$0qV7dxY$TqP--i79xjV;9f}!O~?CCW_!(Pc&9RqON~B%^Q<s?c#u9`fn#iElruUuyEKd1DQG&z4h$G@V(7){{<Z!XTZLB&EMo~iNec8wPyQ$l!NftVF9@YdG2C38y|(YCiGw<snTGlfPn8!{hrvyd?3f$FP{+Wd0c9I+a#N*hic9=tz%A<WKUvG!LgKpT!&7gUsAcoy1f>6YEUV!|KP29RHw@V`J#htMGi8(Y+aENr`CmN_ZIRF<U_oe4+L5Kgch_%uaF4VVIwhA~jlF=w4kWmeNtu^@PuB(GedXLod1gK?1pKw~)s#%7nS2L8;c>ka_P~;k6om>!O(<aG6nseP2W_rztL;M5sF1I+^n|pY=Yc(_au|gHnjsQMcG-MVn=ajh{=)-+;i*G<#oK3K#KSd#F2+R2a{0CBmhS|Ebi&JYVy>Jr7y`ko@a9huz<OOXq`X)h{<@2qM4C<pJwhy#{dh$PGvXU934mvvjXsj+k?t~!e=CLo(tj+@BX!@DfbFV2Be?_Q)dhEpB9q%d$h|_2xvGqCp>Y@MU&|V8kYcC2h7Fvi#kG<ewbwB-m6eIf+0;CohYR;jZO2+%I_>Tdq}L|H#y$rvl@f{B78(agKQ=-wko+YE6!>$}J?%>`Pck}Xqa}fl`i0u9)Irz`&=3=Yvbm5&Qm}w62wg9UrvvlI7I=N~R+;bQIB11Uc<RyYO0aE@VR5+1yQK|9;q-;jVktvAv{676q_8Oqb+WAK_P6qEeqb#x#q5d8IyKT|SXyd4+OC_e`OW=WU>Lr{)m*SvbB_s2!ouW8al55NxP;GbAG*~OqeuV-4r9<4uB47#EDTd$zn?vxmHiR~QlW^)j>@OfnFUCuaM19^2W`Dv_~-`<)wBWV;2&vBhxqSZToHFya)IIZxbJDv)h6HEd+H+>i^sYG07d-Ug-tAWH<^odKFF*Ut!fOy-ed%vmsu0?deBwzztJJ{di&9!RvGKL!x&Ew99PVOi_Mn-{b9)_vPwr3O~^$act#b?jNt3Mz45=pRa#8=WiYgXe$V9~2z&2uii*HKiE&hC5t(kQ-l22z_HS0|hoGOER>C5))Tnk*|DIcyN|q}$|1f6=bG8v^6N@CofRcEFo&W}3Etg|a+Yys8QT=8&ji-%IE`F{#XKNlOfdR%;f@mX*9F!`sb&1`z9tS3>XOm#m+IcUpvn!gpk(?7x4yAZW3|be@hfzkyygUrkwWnB1E_|dDI%+=?f~6n(%Gi6_3Am8bOM=gXL5oPoNQb`gx=Y0^OOMBFw>Au{GtY(Zf%$bw#M20k@0tp=0>v|+Qf4!$g%`BQii?8Uw!ecKN|TI4Z{LmOPB1^I-&E}+8Ni>-OoHMkhm(HBF~}EBFKpYKnkI?8Yzp7Moxm_$_~%`0y9t!O`J{ZvK3h0%+{M`lz57;gmR&rWe#<JE5DV`%g^`OT{t53to42ARSEL&hrpY~d+YLxo*5`RG@q$34G~GEvLY`N3Upj}70#)bJdU=5hA7>r!Vpwel3d>nwMy3267)Lg7x(yk*)QjJXbAqyc$7U#*`<2c~{4woPzA{bClKDkl+lWEosmKoVCrtpyI0w10JsNxHq@?iB{jDy1QY2ESECGdgpKZyZM|oIm^M-r=B5TgRQ>RMxXRWKacg(4x6rZb(V-2t~Td!(2<DyVqCYKVxvE?94&~b$VRJKqXYaf{fyN+UK_)0y;!Md<!-$|U0V}+F@`6#76U0U1|h)sR7;RZ441B2{LIg>WjS)IB(0mI{HNRjghb*`<<CL8IWi!uk9O}hMSf^1N82rFKP_|nH`tr4pbOm|hgrkr>AO$&D8Q0nzzlJK#$sc6J8oek<cqS>`9xMaEbE}uox%3Z-D(F0MS+c#6Gq!`RUB4CVovslZ|wbQgPb1LxE=o93f6#kPRphHCmw^asMnsC%JE4ZX{Bd~mo=Z3OrtRm5h0P2H{P<^G_cf_IPmS3~uaY7P7zPBtK0`$T$W5%U6yx%xji9?%KL@WFAzv-#+9gSmMDkCQ_X3xu+sC~=44}+=!N@E~eg;VK=RDR41Zk<#}ZpAZZOM|g+g+(|!6ahbqp|iS|jPfJ{c;l1zip+XMSEojBEEEHLH2f2_GdYO28_RZPl#Rf`{0eah9gs;o;|koS!?BHhWfuYO^F-l&>D-Ag(9F6*fbo`X6;v;bpV%X0nf_@8HI}qqKzB-_E8lX6YRML_Ex!6Br=ypo8k+GjmcDh38avuihrFC~`Ubu#u;YdD%eqE#vG>jSVjh4acDk;!q)&FFk~ejOgT@v;j|<Z6QZ3a2R1LefcR)Rf|BXh$xV^6}gym;5u$f)J&(lU}$kh{#p6_FtvZJV0Y$!Ak(TGKpn^%u$GXAJA5}xNt4yxe2oXdnZ=3L%(6K=S{<1xtl#1+WwimPXECR*{9X2<)Gc84PMYQTY9E?fHEW%l@`kxS?Ce15VdqX-#0zwh>pbT5Ej3q83@WklQ;Nj`WIf68r$$7vfm>SusiX-9QaVa7xQKBf4wRGTGWP0~*UwoXvvEr<$>3zB~pIZ6tBsF#iIP91K_Tn2sf4n}{)B(11<^J@s;Cjj|(Kuq=?!Euv0Z-|>OMh8cfCs%J6a54H!2{&l&I;5a(KClz|_p<75mqUo^^>jh~1v_7+jatKE``x!%6xkVY>Lgbu2Cq_mVs)x(d_K}GMNEm}NJG@gizy7Wr`moTz$I1K7haq6yRs4c4*RZtm**ZXZBcWI7x^cfBpv1g2->;>P?0Buc~(y2uq;I&(*bEkBx{cCc3xe%kDen~5oIp^AXe4R!|8$nlF!O%a=Bl_%;H<yEj?%ttFV({ThWcXJw25&j$qAC1RA}}hrn_<#McefgrIoRRK4dV3XbY*q6-AMj=(WP02(xDuo6hsBWN7;7ws5Nz|f(TmQ4E8qwE#C)kbYnD2ZVvb6(<4Bj1!6Ph|=a9qBQo43^9<ag<t&vK74RKai|hzuDy6m`rZJ<Z<uI^%YiqMh;Ry#Hm1&jFUXo_z;9J*Ms5+pHCa#WJPeNGY^)`3YeovwX%Pbj}~*Pgs?EwHj<Gl+kD$^xfkxd1`UlZElQ|l^`7mqS=iDZ%t+`kGIW`jLU4;)pVA<KLL2xOUKJ)t@GqEL<msV6=cCzN>)iBK;Znwj&T6j?O8xu5octcXmy-K3!R6=t6p{au&`SSjxM1i%0iq@>qd$$|-Q4rUL5aAqi)6R!guawJ#{U|G?YFtPm_NmzujA+txC?3{LS`bslI_NJYZb?U`5?kfVu&`40OToYiOph3Jy8ioo9-@0L!UF#x`Cov|2B&jA+hH&^Je7XyKV!eYJ(As@txZJI5&U$efZZZL~O!^{urj=&!Vi<`lpR4rtqXypH}{Euwyb<XI#p`EQYffhz!Hmkq;*b(Zl$(G^sv}C9O%er5r!pwtwRZ67ye-^*YXQ+jbb-bWJdsHPH080*kMP;bSY>^mIaLDeF~Vf+RQm-3m(}F{rY^-B|j>++F{BSe&9%u*M~smb^2ZaawU2{i;=<f>^6Q%Q-!Q;1T$=8kRRV@1qnw67}6AstMju8~IFI+gdw5ojERAI$aT6wg3&S@}UYUt5L4dX<2!@%#$p0LtDi`I)C5r7RLiH&V6TH`h0>l*pb?<25|J9NsVt=Ot|wHii(+}gvkMoG%rwg(rz@BhqZ=%lUZ#Ikaiq^NSc@tmyYndP+*Jq$?yaD09n*g?LQ+P!{8!^^CVA{7<YhV9!ngd8P80Q@*NIVPL-z99No+>#FP8`adBU7WB|~6o09CbKL$FUSIWP!8)kxoy8eM8jN@*8tx*Fg%B(S}P8B@`6u)k62IpNI=#9e8%6O>|>@W*MXzykrbiq(QYEYb*fFnSOar?l!a{-xCufK%=7IC-r{6m(m86}iMPb+Xl;FXfK%Q_O&!$8l;`u|=Q<5{y_+zaFx+L|xhRnlMtl*E2#<8syLe1)O?V}K12zumR<yBSz5^eRDd%UtWYw%?fe!+CLJ`yrtGPdhJG_8^+<b?NSk?-ol1bSQ&BHQFi{9x1Kj8HC{FwGOBPYXZa5jXa>-ny?kiX?eAXc&wfWTKC>%yyi6sC8&<s9I%dexeox5YpuPplunj{{$L$Y?+zZ<uY*$57x#C}pO?RauvN2%@gX0NLRF!bf2_pC0{C?jGa)><evd3OM`!c>DM$-^Z@{-_VylOUn?lGNy&#m<x4{3QQZ_)J$s)|c5=z!Sq9;FE)DQpy3+dN6%2mlE@+_`LFuTX5{jD`r{vNr9q}+~$rFOpU%HhV%{LDWq>Di<_k(e;}DKN0fT*0J>^%Ae&80jw8s-QKTj`rz-SL?R&x{(Q{@nqbwL1&OlaUm96ihZydmfJbmXtnkPzfN|Uj)N;&pN`d3)h8w`nCq$m2hTNCfWo*fO;d~_^>hm`-BUtU>03%o1%tMPQVy~w2F?YWZaVp(l2LJ3H2Pfz>1YQ>o}TolGlC}#x;ja$*z3KL)NIg!6n4og`P29eN_eJ8CfRaE$|8jLs+2MdH5X=3BNm>>00Ck^dqI%@GHPLW9=dtGl3U}#r?ID>uqb4!W@&L@Yi`ndQp6U9@IMHx1>>O1Z#^C^x3pr%bg$w=l?Pz<?GU_<wQan;cY3x%S<p(H3E`zu`c3QIXtX+}w4)lgjr3|rY9$4~3GC63JUV>$cfzPhzQ_odq?EteX9}Li7$7VcKDB8@9OJ`yS=QUd_Yk{mN6-^X&@<tlolbiIQ{C=VLW5Gn2=ZqQEsj}ESX8wM&nc8RnlhmD_%RRKc@&EMuOkN1AXcXJ3Cwiuh?N6sk$|9&onCm7qB`qcB~Q4r7LEn$RW(|69sbygj-M|B+ZJY$-KKqfSdF?TJDcFUX7eWjSXGpnK{$g$XqC;yTrlw+0ruqUlJ0MhYrcXjDY_%9sC3SiIB0;}(^l7cX~E-PE{R4x4vc&wQyidVb;pk%T77nU9hRRAm$A~&NBhSRerkhfmHvgu#wkF^Eq}JD*e;y#!AVlfaZ+kYqKS940W?GdIzc7It|)cMgG+>~WO-#G4~8*W17Jc+u&$o!tG3*EMJj`+1NaPRN@SR;$kWH;@M~F9v<)K{>)X!09v;Q`L6LOodfb`J7tp3br{%S9+4x*-Dge~oo9g&u@>jo=(>gFippg2-)LS;cR$ZFR$zX}n&(ng@N}+m?I!Tt=Nj9nAe~h`by?aM4f=k3by2cQ5zz|>aU&PFbCZOzFaX0n_o;9@#NIoZD8SQVsq5`kdanLt)sbl-|RngDtKi!25(Xms!Q5qOvmV&25RpV@0b^q+J7q11hdG3aluMH?EoD;3Jxyd_Ni&J(;k8OUtQ&>xqI6U3_+M0X=76uBH948;W+Rhy=0Qi@JS+V63bPzO)6R6r@bN+JEn>ooSjOc_*CPe&V!_dL>X%}rL-%$w&OM{B=bO{dXEUQt2S}P{)h}W=}5E>AMmXX>5q=c-8;SMrS#o}HwIbBhOH-CubwQWU@#WcUbpZQB3h5OF)6gFNsXT(a!Vu{g>m;{WEaTgP5S<#iORFtprZ>ToF`z`1<;7aZ{{(%yxIp@XNoQ8P}4UcaGgVkkb;kM_Z(B}C$EN2eJ?}jZ#adE?lAI3iVB>-KtQ$!Y!k9-&RZd%%eit@&FJ3ixc%ZS?Flj39_^a>dF7}nwkY0OUKo$mMl%kp`Aj@E5qhppIeb^%>1eYbCjC$@zy0mCc%zjd^DlPE+;8GR3Pkorwn8ZCc;+e!I;FERqQo|_q?Fv4Qb>=sH8`HvuvAuE$86U|+;xlQehb`=r`<9b86lRa#z@?Ww-b!P-c=W>{SFBVDCj5BJ|y@?v?uh~Zj&7iG-&zol0X|Z;SjT<xtax{EpmVs*wZ<>*jdVGVG$X(2UQ_20kdp}o!g-hqZAS^mTiDI(@>}Q#e_S=J#fvQ;cS@5~H$UD}`v1=G0!qlNrM%Cs5(pe+$w#774^xfn0Lm(mg>)Ug|bl#ein)^6zNfivCE>y-Q4Gy?Hpsm6(EKboqdmjMxC)#@rPP}E82}eyGztxrDu5N#XtSNj*Btn8OIbLyL?zRSroMNk}P1jPXNp(q|S${f?5D6G9K`@Gfw7Hgv7J{dcr^0D8K*F|NUD%6dcJ;vaB2%<SVu@a?d6qU0tJ&wO28v72&`Voc*2mr&Ysc6}Wdqc;`OZqZ)Yn+hlo$bdKfW?+V^292dzb%NQ%T*yo)Fl#gx=lgGkE>W?V*2>k&N(8?*0}vnv9@gnXWwTVDRWxlYkEu5>oqdw5@dF`YEL<L9Hh1QMk=Qj}rO8z!#Khy@NbZbwSFe=Z4yncX`hu-4~gY+g>U;c7T3%l?59*H3yxRio=mO`9?$|{cbC;+<9cODZD*s#6Bal<bwNk|DWB<XW6?jEP1i{ER;kq>GrTS|A>lX_QhC~&re4Xy2(V2OC5&_tU(ce`p92JX!fDAO@+dUvd*S7jegW^tY{puSql6WI9rU}s?P9wI5xxk2!=C4SwcAyLx{W;crWWa2(0jg&<VlU+m&@|cP0%BO9`0Z4QA<p+k{z&Pa|bOi<U8kPJ8LvYK9&`!qna?+`5O5A<5}7Yl9skEBc<ROAQ6%Pdht)ar)_P!hET5o=~7MpY>`GB|_WOSosjp0mRtfWa%K?OqXD+ak4h_Ui1>BI4&_kWOvA1-PF5VXt4VQDi1Qth%nN@iX#IU*@KGjBJv+rvLy=!)!Z0TwRIT-fFvuf=|n040dN2a>8M)*S(ATUW>$%h{L28DRBIU}oV^DgSpA;)X5-!UId~ztbDS#t=Lle}o4=~yN<q*w`uU*EM!_eCd%;qwxd(EYPcYaA4?}F`>FTC2!s3X%?J=It3z*&yZm&}2+yGTfI$^#>vM-nKOZ11s#60TFvdB8pUPO``EE-@e_o4*ha$-*|k=e7T+(niQ8pQV?a5?DNNjM^1<*xYgKpxZ&z*P<nk!-qO4rh;R3nl3UP$S{<CqI(2k$VtuSycSq?0KAzO+D5!c_#|%`_{2BS})h~O<?!J@`d^@0#bupi*VP?t65#(+>$*Q%Mi-k57g#zJ&RG|(4W%3Hxut!OBV-!`sEfMZUiAdCFh1pK4A@4@+ll2DHuXV13QSxu?~&{nPa<;7n=xO5YKQlSNlztvX9mXvxf}C(8BKPM4~tcTWttUnuf1+xC0bWwOb!n$|E@(j^$D3JT#O36X86#n>g|u74!Fd4CeYk?hxr0ujbi$Pp?H9;rUPUeiBGJuvsxSMW6|it>0d(pR0?Hvga8V#2pxFwu+y1NAN<<ONCR=BytJe%nk)ZuZ&ry!yNxYt7~-*ntS0-)FDFLUv{>8%})uCCGt2}{SRWtR!exNkXWA|_;K2^aa3r(e<W6&1OMKH?@p+Ri<@Yf>W}N^I^b-bZW8=4x_MMD5OMI|x(aWcPAn)9P04r$d-sEGqoMCcOpyAhjho)L7h&?)xgC}5ACRwk)dCus%;;L25{a%X0I+`}M5?MX4qpKhsy0DTyOKaR&N%W=GE{x9OUT1FJmYdY$>s*W-8p2&LHuI<Qx{H5^mY+Yl}i*gACgqq2=`on0RtJ-oK@u&nhBAu>0kdXJAbIQxX_2I)7YO3wJ%|<tcjP=i6Zvr0>q+S0RzI{u;O}aXweiA)M2%9%GvitHbWuAGucV7;(|8lXynF1k?oNXhdMPlh-xJo(MOe#TW`hNgFGRdKgFgOf^7?j7^VFiXyH{yR?Cg<pS1S^f{p0st2I9nRRSwcTqI${zo95(m7YEH%{>u~*+ma#luvQ6aZcJtJyu=E$sbspc0-=J2K>)66SBv&siCVhoPx<K|2Lka4iq4)O-C}TA=i;#I;sOy?aNozuB1aJFvr=VN4Ts7)h)er?kxIxJLM~#4dMg^t^q2zuBukJgs^fOm$}PH->6^rf`r3S!_)`#2Cn0-1hq$UUF{#1{ZWWOo3qb)n^HPOj-duRtIookxLLO^F#Y4E1+e~*8jB$10U`WhVOobqJPj>5;#GZ!_D@&xnqCTLI+*1f_3N5#c+qmE9zqFY_>M5y@3Jo?kOy}mYOJhh0szO3%KO^MP2{7dHUX`3i7(&*8jP@$Db}oh(|9<r+4~y5q1}t{?xu~$ZWumXuw%zolhTyHK+og{UX+8sVFlLbr)BLYz%?D2`=>O|-_`6OD<ZS%M?O@s<yzi5rj%=|{--_uuKG-{)=b=vl#niBnJV^M;TnDog2AZBd;dcAv~Qb?#*GjDyue%kaUx9ubG@kXy61Pc)GMIAA~O*FJ(-}BiVKMJTrz#};&hq>gvihqQg|);)qytH$%WU^$W%%1s{#TC5B8vD?tIc?T+m2yHpz(2=>pamxds2JF;r<IL~&nfax2r?<X9@2`HUH~*kRRET#TcOB232d_nPzBu7QmjB{e8f@CWqKU4@}incm$FtEbZ~8DSAGNl`>KFeCi?LYJ_qd5EaE=Pd6LSl3ef0fz*5Kw5Sq2{m>eU<r)m7rCsuNMOck*S&pY5j#?fAlfbxZmfKDszQv2^Y;8VTn{tkM*a7JW|jkT(~aDJ12C*z7$6-V%592@&Cc!VDI^@t>qY=ZQAAppvgA6SvBl<Jkvm?N9i~5aP)zR#WjY`jL%A@iwz_a>bC<c_qA=2u!<<J7;kO?l{2yNui+ROU{X86OEE6<`aGV3EJ>)Q%#KmalktUJnyqtH|9JxEjIO;mcdk1<DNZwiK_P=eYcV}TB1cL?Ywp-VQ`le`=x9;rvYbq=AAX0q@%jACe6YR9sp*cFz=Yy7Y3Mf4hp7nQli^vu2OmFIbOZUQb0qkH)Ct|-{B>%ymWm<sf^!xZFgftBTe}!Dzv5l_R_<L0poRku&iPzfRH$6YCP;9plA+IFd9{$pDUK@TNAxnbr_sQ+TKVj{cvyPC1g-BsZ(*oYMoONV=UDRi)+VZ&0_rWLT<Se$e153LfndKqk$Z~{ScFgo;{o=#ueGn4R0g&osBRCtzy@}?h(u^6&nrH_e9PsiDae{FuRlHeUW}4ojrY<O(eEesV*!Q;=pLCMQkwwW0m@RpmxwW$+YbMMPYZjJ*poQ?fwIAKI|4SMEe>^!fQt!ryz-9@wIrJ6BlR9k`W*`E1_v*0``cg>hGB21y!vOTmOFKi_{_lOPcDZ&gAVeuM_vywUpV5};<wUkbrUCcTKsbz?LE`z|Dvn%f^^y6-F(%@x+zn`Rha?4kEF4j2I|XszOJGRH@c?`0e|>zFB=x-gZwIk3*TuV!4gT-VT~u9MgMlZW?u@JWK*6|T52f;iX+?RU(AF#oy9{(Xo(?rj{K(WsC)t0AjNX^s5k4}*)$tc}aKe&yaKRnxv6K}0x}1P{GDa%X)iHcrY)W9l<XV_XQUxPO#}i2vr^1vwMiPI=MkZ1?3eP|A%OGu*bqQ255$}1>SO>3eAC3iNa2f|QRz)>`K43E%K{C&^JN-;B2EDv!9YA*{J37gT&BDk*hB;+8r!YKXhqG!3zr{RYT^<B=Q}E#>3Ds$y`triv9Ir3e*>;4yr&{_RS%craS*k8f4a_kQh!nsv{SeW9Q%r>aIHiS$nHLwuKP7Fz4dxT>@^ok|Nn2RfK?ON?Bp3+PRJhB(MH%{HVf5Wv%eA9vp7}oL5oP8xIrT=W2P$jVI~4Tt?8Li@%ggw6ZB<u+JH~WmavMBFH&g0A0S!5VCdKM0L*CQ8r+)T}j$88b+_7aRRq`GgZBqmw8tTkgj<awhB|VKDZgyKS{a~K)XGxA%o2<oEGSxe@#Ygn+PM(ubtm&veh%GKFlM>96sw_T_%&?C-4I;-(kFvXeQQAu~?_iwx{JP*7M()^k!QW;R6M-4O=_}ej7L33kfC+UnzX^4xr&V;QQ{HVD6LItsJb`mkJN?SEG@)S3h<~q?_?Y<G7a&(|TW&wLnAF&HlDOD&d`GCFG4ya1sF(u*>qi(bELKmwJbxAxZI*TAe#Lwg3VOUx)EyCysW6b6MPfpPvS6{h3%kBN-i{_j1mK*>!K|!JnW`tgaWQxJ_hf5K?_EJnH5Yq1^j?QqE{UIVt*xpJS=c}~3!?JukLLhPr)l~QwZ=0Aj71j%-}nGtXd48$kylwjoMp%7kAB*@(&g+jtqztMt&j@JFjzckUNVP9E{An!xEC7OXUiMfwdH{JLLXj1M?DbW8QJPY9a}b_%E1j0Y*pk<&TL!rHz8$+LVCCOLN#`XhW*h%0Pax%l6`g^+$hJLq$zfH+)_?m`Um-fC+$zGv18{J_WPhNr-vF9rEdkO!3m{YX+&vz39^lw9n^>eAxEXM|ATp<zc@mlD^WEfGK1V+N3nOG{25BIYX<b5$_K$V%Yoyd0G88$+Xw3wg3eX@<32GTr5b`2BGfiXClO1xHvFW!1K}$DJ~O{nEWD)%UtAmQ;4<KN($2{i6p^aUjjMd&5l(-ip<(cbqlD?s)fM@lFik4W)G8ARXzvb#QT(J+e1C!h_Bc}TEMbNoappP2TWal6&KW^$z{4&iT@0&Zpw-RZB5#i=$MQmdlda=-(HM$vdS)<TFM<i=NZvbbS>E9WG@(i&3Xx(TurKwT7dNVuXN7(Ce<5wTxVl<V4TZaJ?Q9sHp%%^_MI&3*k-%!3dVdeskezmT<J5e)xxQx2!aIGKCwt=vVh)<>>ARGY0n}h@ctfVXK#H0kf44)BbOb#mnC%*`&CbK|AMg^~XU7^2DF9t7N?&&c4wyPfKqZu9ktNcQ9-^y0Z%s8!Kb1t5@H9HRo)_|2YAzZjayZhlq_g>zgk}!V2luS=<pWevu!ziB>;w^-ejGM^(5J5s&XOQ<t&#0X8no&cvDiPPzAOZ@lq#<VD@xRRZ!C`G?N?s4^o`fzQ<Y^BnKGnAWz!wV{M+Nd!Nu*5+5Ul!DFn8fvuO#Bn?U~6gAAZ4WVXJc6(6t7sJ<s|?)6=WwWW;a#Nq{1eb~eN(hjR3L~>^NGDAJ(g0>)bWPQu{n4OBc!g~LPk04J>6roV9{U)b!R*5+B-N`<cC`na^=!`mLtb7R@*~ERjmIcX0NZm{t@Z}}&MgvLr%&JR_Vj{aW6fX`Qg<xRN-mNhJRk}9>1{Vkqu#>}9{pC&s*NOaH>*zFd@^**a4-*M)aUvD9jl!ZffFvyZ{<8gBtBUFth6up`=-MFjCUuZ+3RkmwE`=a#n?ByY;m7?pN4{vff6l|-7F7}~NgH^1BgDvy(6KS-$rw0_xT6S+!j9Ts85M3H5LtG)_>eU`)MdV~51(B__-=n42y@3TI}IB%*Z9J)1&_?`O&_WapqIDU%9kBJd0rjH96O(dqg)RYo;u>2fJ2d}D=Le*fQUid>v^yQ28J|VY-^Ava^f1C6rUXV5mClW*J&})`(?~`j5@L7<CPIEx`SF`fK85lh8Lj;RYYpcOLNKl42l|}t}VTmEAGK*<)}nex2ZGSx~zGSbo#;zXrM9UQ+=o9jI7VovolgEcI8op;mW|%_v-cQMG)a_Hova<UIeR}@s8#q@cwppVdXthiueq7k^QXB=euRF6FI?`-&6KZ6hP03z#8A*P`{bFOCDrN?8o>=8m?n)$9NGYad{O{rV1pHR_V=Km%4dj>PH0*5=;eWKhs@Fh6b=rTy6b``jhZcICn{<({kU^Vp&OD-iz|{)O-Ll3r@&-G>`s`2b+;mN(VNvy%T#j%m)w!K-eD_3m)Oq@oZLogI2<@rY{3<MVZ1;+?^nnc>B?XPg!dBq{}0q(lOfa&4*h#R#<ytIv~HXJQH%O8@(!!rRZ)hmZBtGSO)s<%$R$R^i0NB%<syk-aZNQMLXz_U`#m}sK<I~5UnCAIQ?)Nr@-RDbemvb`#`4Z8h{uWbhnWvyIDA39Q6Iq!BC}i^bW-XI~=eFD~V>5)*%*X{Uf5%$>d1#UC400#4LS`0zgQtSm_-~MMt5s_r_WquyB0jL^s5Wq{H~f%MFr3@h!c0JB9SJh{r2861$|O_NBQM`qb?MAAgTRw@ZFnQ61#WmB%(`7AFsJ%IsCGW4{$pG!afv8!(Keu(CN~D4OFXr_Im)9NDK(p(Xq_Q=TwqC_Ii{%7b0Z=D$F$tLb@Lsn@Vy{q9I*CVE6X5ft@}^3HcWF$&>Q=Q~Q=`x#d9dNpHIEd`j>O9k9F=fJl^iYXocb^~{gazlYSXJ~3O1On3CCNz{@c->2hwhMr5XAK$spY}F1x1r44(&pH+sFydx(jnXbC^1)isfizA(ki#*T0XN}&BK+lK<RSM`i_6QSa?4=J+aVIrUpdV(<ru<xmee(4U`6yU3yr2p4F!<N>+;W-rvhF21PYf8U1q)CK(B#I(Nl$jfq%%4yluSP8p|S3~5$IK2IhUL)zKXuMwdr$V1ed=S9`6PE7&{JZ7acvalTaJh!iHIsMq9DJ!~>>qvw^Y^H}pS$Me5?@=DWsXrpxd!;EI-U{2ITL!@AE-4F`9q8(~wF8)u@p!|G=A;byOl?UeGc^*317AI>aZS<HyPa|3ov|5X|D)4fr{KFK_m0<nd%5+(vy9V#JEYo%TiEMXB>q@;I_gBDUL8=i?k0cL017UxgHSA9>5GK?Z^Ggv8?hfE`a0hEqWZ8DTgcp!E6X_EE`Sq>#I9kdbtraJhz9z>C?uBV-tjh`GW1(rPdjY;$>U8ja<)ZZ)_?P}4oLL}$NnTth$Nh92z_w~aDbHWmJWX5>gD#ZAXEDbGcbQ;(MHJr&7Y!7K?DH^KDPT@b=@5o?`D;fY;b@ElykT0HJ7vs)F>$sliLE;zI;gF;)Ty65}h1+PfV`FjFY#W&DNV?LeVn_!H2!Xcju&{@=xabAReF4@jN#=WaD^f=(8OCC}s<7Vy8Ht?7R+1(F(Zh+<q5>#4oc*VHB#2VnC`LL8yUIZkB|bN6d451-#vWm7sYp&5SWXS>;a_0JHsZsds)9HnecMjR6ydSud7a3l8Cy;Sp`FZV1foX}IKaUUThxTyyJXp-BUOfyZfE`J|!^%?dzsvgmy>Jbo)?P#Z-lm;^GHikT$Fr2^OR?JuXL$0`*VLi=7KStnecSDj0O7nL(G-)Kj^09ez5PcZwvK4Zrb;X{75e!igkFDlXePJ<e~<7)2aX4tBrsD2$Oq%JA_fG$aUWvIbHU(}RIes$?s1^pG_Z8(#fg9RAuWA44x6pto-FL`3ri`yz+U!YSWW!PPA>)$az4?Q6d({VGjJ9Yg1V37TS>i>Ft%<hi|9e#mWW%)$t$JVCYuXaoQtlkvtk!Obx2V$B`X{IT8K4J2E>k3j#7`im2zni;1txjTPkK-RakZ!kRX^|<ELtF^4Ijzy19~P+wd{0R#48c20%dui2Fds{#Bn~-2sSiscq@!&AoqWG8-swUSaN)w2=q9RzqbxdsdBh!>qE1euoO4`bZwA?W21p*C=^b7^ai0e?*V;!~6d7r-Yd^_juSq1=d%k@txq&0-I}7JCBr>FOJ~vyU9|}I@-Y;Z<l$CMv)7w{E@x?%ZCYm?gXGg?_jP@#iFFqr47-#n#dzWGPOYKd!pftm1hY52ruC9U>(h^;tRG8~z`Y*M+`^MF&W35HL6u^no0j?sTv*`~yI&ucLDt@(P=rSUYgZ2EjGUOa#<rLM&a#9d;ZMRI*gdGp2zRmll2db@)%MZAo)+Ch$+o4(7b?wABrELPz^gEGD#=*EeSg90|Cho7i3|9%JhnJqbuwq=ayErZdO}xZWP6LHk?#Ym{hQIYjcF7u)+b+~I+!)GbFc>G&2@_dGIB}tvI1R*SQm8ENX(a8Aq|?Or<10sAmnSGKSs(W93oJM7A(ICAi>)}kzgQnJojTP$|6r<H@?26(2=-;XDWDZxEoviBm25GJ2s5=;saqzU{i$-a9t+_I=L_r65IwCwf<^!Su>w+%{#462Cs@x>SqqNoZoFqzhh8dfvAKeXc%nM<42tkq7n?bMW*FaRRpI><@c1<RVYowkOwow2V=damx3y%>Zbu6cVg1J+Yjqh|(_S4tZY@zi#m{}4SUEQ>RMTCI^tW<SxNnf>DV<|N1F;47^r=`gy7SsX1i{kp^|5L?bxi1|SF;Gr5xc1U8m(V+D(K|C^uff7oC4PGF0hZxb!0NXzNd&T{XB-ZSVC`pkd@h{P=*;~&ot47I;@bx7u*-bftz9TBFy;}%*u7M^bOEQ-{Q}GBvqs?;?Ud|gOkRg$1ZqagG%4I3g=hh(*U6{?@SeaXFx3pueyQ|IHMy)twK<<Og!A!fz|1hnqgQ$5;j!GpAsUN8BB`q(u$aN_s%Uie#x8y17V|Y@94o=m1$)gZg~Erb09?t#vL%H=hs0=;YoIno{GND`Z{t}vl8+f&(jB~swpD9|C42(&;8nRm;KGaomS4N%7dW4ipWVO11Us*81jY2%I~EE?#NPfHWkZkDIRuhl<+!LAi~(CTR}Ndb7<Ot#~}WO+yTucpV!Kau(1i6=M_o!W-?Z>#nqVd&D&-n>H}c@VKZTF<d2h5bq-{ooZ-@bBc{>$-oZKHA^205pM~*2b)2@97?BPL{1~3jS{{7>ow0Bq7YA|t<@Ah`KP&+UK=qZe(W13C9wifx)xLxBVL;dfp2ESSbT^ogJ1!_3{v=i+<cM=#x-Pu2_%z@w@{$Zf5mqJyD%{}4-gpCaCCKxuy=sItNVRp#_dqXk8tD<<HQ=J7AQ(iYHUozEUB19VbjIjwbhgC;NgM5jM4j?HRZqJzK&ty?^QW124z+5QyN&o5@Z6WA#<k1CVy!4^d_^5qBXAYjFopv1#;}bP>%tGZz;~%|R~Tn|<cWq?Wis2=Cbz*M$<@4xx7?IOw8=c<nG<U`D=t<G-}^i-0qN@&_IdI*gk0(lqrD^ImGD;(3PBs_i#hIaY8ACO$5e(RWRaSJs~7v&bTFG+@oE9pkHJ9rlfy1H0wvy`<-sFrISXXYAMg&qfEq+C3D|PX-mULvj+F|RV_kmQtA!dZl8&rGeP7>%H;j{K>`02<xIqz>VJH#2iSL-rZ!?pB<cmw8Db-2KhDyv}a88oJ8bpb60_R4n4B;g#uI@JG0ysnX(@8AkEKQcz?88??390rR_9WS)T4P^nxAR9+VI#tbmvvq>TF7ud>M*rnMBXY%I$OBV?PKA*8I(j=B|XHOPUb7BunoATtB4Q|G@13fdS=2QVN81I#w=9EA28UTD!8FLjK=5VwC23Q25vvl5l`%bOAd{V;embX*K!Zx@L$Q`+41zzDlX;br|_yl_pKp>lVvK@Ae{y{4iLbtL4jzvRiiD}*fdGohgA^nsxBh#`a?ZmuLL1d=uSKSAA|^VvqHmlY%qB1I>Ce`=X*f-IqJ?b;0vRsTa0tteh##G1@|U`!3h+hdLh?)_%Nb0km=XbgghdB#06HPgKZ>09`gESS68n?IiYbZz8KABSAqwkjxlD%^zXzb`n{wxT_J6A3&Z-DZa7fqaU6X*?`6witFf}aV62+G3)yBDi8!gY4rte3a?uYEa1_!Di~}miJMp|5DRvZ_>Y$!g^u(YG04s4kd;ARyZ4(a?Y@v4`w*)0oKS6f8{DL6icVV4}Fy{R%5PNh%4brsyIcdz;c!V8CQS8no4!$N%(dK40V9N9HntOgjQ%Ik)ovwKlCB?{oWdcdwyxsU!x<6t!JS?CIKh5Cm{71hFw*dU!3h$+fEbutBK~z6jTxjRTg!m(|F*Y>_K;@_vYI7bZoAmy43`?h1xY01hBkx{cjb3hvK1o_d)_mmbR*Z~DGo)(IF&Wnch}a_X%jCW2VGSv0BKm!(@j%W3T_rKB_KtB^aab~)qBErVTD7WMHrvEw#@+1k>l4Ml%N+6t)rw2~oDlc3kTyqrxuhG{ks$s?e(keiH1Ym(Sr3aSM(veN;6Q|8xegZrlcf4ia^dPplO&OI!^vb2WIndHR2EE-t)lJ48p=?s60K#WxUrWobbSWE{g986-Ymi@2A5{Fh`odGb7#VRR_T_}Xt{c1{3RdJjA?0gT>oXw0?Qv5Q9Vxvv_=C;RszYY1xfLHAK<ePIs~b;)P3)O!GkmpW8;@QXYA2qin&?q`vzOkCQ#s%%+Hpp<0FMoRovoCKU{XG_w2m_f5!}7^$iQO!4A$XE!A0(mxiLq0=d-Eq^e$)+z;8e>XO}pVFbd7QhO#V<3@ZgZozaW3wMFVZIG2U&J{x#L!m98vn#!d9I?z$=jx{p)Yyzo@WutpzIWABi=_Y9%w?P-rzj=8wHc$Y|4bgtS%aw_#4eF))xfS^3-hkJ%o_*AMWFlkyO?P_2OYAif`-J{A&J6mQ^|-GpCJ^PZ9Z2Br8xYXS;WfAXQp13b0aJ`xcmiLb%u&h>Zz7^fcqwr)iX(d?hn%$?*t~yKhmzGgI5fFn#+w*bVg!=OXpSXQb~ry2Ul!SdDf;uUl430Z{*!$cQx@6)t{O$Es}Oo<WJjIT-ku6QGGPTB5$>;*rd3RxBbt||C%t)JRUb)-&B-r@Os3re9~h(VcJ97!Z)#hc){spR-Mu#8?OD9SvyWqoDES~EXZY8W5KlXmYcOQyl>zLh&i({d=_FwQs4}xF=E7CPh)o+j*d)$c8a!7b&5ti#@O^8UMnfaS-!sx!KoOtOx@VMP)C@W9uD-*BjBC#po+bTRbDe$2TM}fsm&sFUK0z`iGFOlN{RDcQdmKDLGKL-yP(4_@%NWjM3P;2UkV^?8p@}wInIjbdMEkxfw>s#RqO~bQGe+H{cqcTUU>GXwy42u;{H?pV~7GSBl{&4O!a=OJ()zs{vdG_igQJyq1FpFo(_%YMU2y8<93eiNoN=p;-=s4qeZV#d)eT`MdxgyON9h2!_E0q(Nb@Ab;=9vPnL9*7nnH-I<Kw^VcU0>u6M2t2w+%NT3Aq2*Ai~mrGLG!ZmHlbqIa_&2mfsd2F(>LaJSm9bjh-3EY*aEDWHiDF=XX)(yyuU!pn=Y=EJ=}^7FIhqDnKwGRnd5VgbR#0hbT9U{b_Rd2)~1WzhZ>R04Xytd+Dq0n_$u46A-@FgqjlxTbsFclX2Oj>^)<Bd6_4yj3QlGp4|*+;*q<FXYSIZ?F(;D62LyJ(0g_<O7~J1e9N8=qJTtKB!V;n*?b6>q+PF=)xAT33m;x&Q_yz$3}{o$jq}r;o8^YMyz7vC{Ji&_W+kc8q1wUEFQ%CQ}VNC;QPi@ssT85$O3|Whj>4$`Fhh(`^^|;7*zCD-1UP`VE$qf?Hg@5NYrN-_*=*qUE{V=Nho%L*2IsXe+erq=d(_b{`ivKDZvo)@wv<_ARJu%{;`)WB65y`B*xC1zsVrNDmq?6sofb{4%wV2>S<h1$OQu;(~Op{H_)(F1&F>D3ZAfM_*~kgrvvnr;2_eYP4E1>1WaO>7|6j&+|$>^g@fpm6nO8EqZmC@v0bOiS8@tk?df;8<ZDc)E(irQg{hK`2o*K$Qe-4SXdvUMOruI>GrZ)gA!LbMt{uV{NSTsA9ESKJ1;5}s!LNYgY#~MaCT`I2YrJn2TwaYGaW)AHD6;rCz%6rQ%AF~6m9#V{KPXmtGo-p@V#Hx$;wOA{Z{upI;5^%p6VsFX6pCEzmeqFtI>E%zPqVv{EpJ1*OfDO*9M^7GXKWQ*M!UK0u)taesNraZ#@y)QP}*kA3Dt5-N=j@TIt0S{gZ=&xv!F?x+((0|pdw@?BY-q(%31Iv4K(e-5CmRN&}~vTQN!OGHNX6eu(C0!N0anyw`5?^7!cn~UbJmH)PmLLKXfR*6Jsr^ZRW0CC}aNjT)~yE2HV+(`O$WlIIQ-Af}TS^=?`RJo2|IdfB51T2k<uhw2?FIPk}w7qePwi7}kh2_=Yg8Ba>~2rW%0+$0?YKw<mPs;L(V>%o#6nclY;yB7%w#GU?mX?>VR)FwFbPG5G?Jc4tB#eFtwO*G0>+n8ob@m&J9-LF)E3=`b`E?y(upw0d$~;1B%7<8gQrk-c@&$}cg4SfepUn#y*N%-4DBTO-P;U(&zp8S#X4e!xTmJ4E$UhkxtEGHuNwAbeTMK4|fAykseh{Wy1esRVLoIAeSl`<9&lw%^-zXM#hHt!20k*|DWA@O_AWgJ4xoOP~05vfe>W=Suq%VqVvZ^Z`I&23}dAZ$voj5=2urh#z9L#{viY(?V5;Rcn!CWtJy8jYKv6rbT%;U-7_RY-#rSeiYY$vsb!pZ-A2=?Xl=V$W`@S@f}YR#V;NpNRQ4{?kM||U_N)B8Shb*tXkvLa?R|0CF?acIC3uVMk||5W@VUdj~vbxVxy)zR(`)a1&;7BF!D><v;n4&#eBdIV<kQzJS1{fjNsP<S~RUctO4sNwTp=>qyIs5i9cTQ6DvMSPTOV`tRcB6fxVc1CJLDf(n)s!(ib>(bhoe)^0=`j4&Bj6JXFfB|L`or!XhW3gkkdL&O_laqsWI?cdw|*mql`;?jtsq`Jl8YQxYyRhSIkUzk#bug*?|+H=)E7dz5d+cC(sm6FF|u<0r>3c{sb#R0Lg0^i=B+ud@yEuNML7AN-j)g!{DC%m15R0RWra7uB<m<VYAuf?7opT0lU=^2l|MP;(^l(F`cgUIcc<co}F1OSg&hmeTSryeS|utz05A2f;KFM>YN9=8v+7`gLdeXRUiYy65({Ra>#(SQ4FVn~yAWs)c)L0|&a0r3|fkJ>4>3#TWRZ)az|f=*#H{hEu0rnNL6!byOv+1t@0X<lKTo3VZqs@6-<PkER%U`Z@Tmr)d=A+4HzgHvF{pv-zBr>`}qSv}RcL$A7unu8wy8kChyuGBJUAz@}E0xHWwt)sMFF#;WN*oQW^;#vKxnB6z8pScudDlPIA4NQf1N`N8nCsUZ@rp21(rfRF2}kRY_mtD4FeMc+U^-wop=SiB9stLV;s0g$Uu5`nJDZF=U@T*~E0y~XhZ{<kX00UNBUnb?n3-w^vcjN6m^c3!st1V%mbT9_p-{)L(%lEV^&qfr5)Q{F3<O8E~GP&u8E*TKC*-ND@`L#64Mmw7bnPqRp~2N;)N`F(F?T$(h*!qdoP1rb?}$GR8)-SBNry!pw`D$I$vtv9{(18F1|WMSz<zlMY64jx%_fzPTGD{gVN?DNB%v3%7WZI-m^<Ja17WG!@YwYeu6TqNi(9<R&_yO2#EAbqvPAi3o!l}cjDx@jG&+SrZ}L)!LmYekk#fm(*wtI-BkcQ7!S-8bl6LPaLB1_DViwUo?yZ>suH#v-9a{~I?7cEhdF1lE$ebzWlc9q;H7f!*dl#V4hfR7U$)xM@FKf3r`@aLOU~og+#s#hT<(I<7pLX)S>^Hj9czpD{;UNP$=9rOf7!5u3ibIvfOsrddbKlhWJbO!Oza3hOuI)0c9`U8I+DSqc?^9nhJbesEI-FD6(6ZSf|yxA<7pjbTlbw=yl=k2zw6{1|fR2f@g<H#4`Z^I#UACkG-l7u<-$F+*Lu)CpecIaY($R|I;SC`6htn<!7%>BJA10~xvV1ESSMm&j;U5-+)?To;~u%W(&!ROj$_*R7aLA$WD>(x&nGf<%fOMo*ka3G&QOqEg67`w(C6@@h;?gg+ueB5(!w&SV?;C-ew$2?{&vBw1VVs@+2OOAp(a<`<zDl0CR@6;h5*V@~zqJ1xa}w&Sxm+_}6NZ$*Vd-QNBl@o^aT6U*qc9_ok51%o)@;;`gNj1l|`2u{!Wfm2}L#A@aJ)!oQP1<&%B%)shIpv8HpVE^1u@`LIU1RKaFt#o{aOQv%f_KJV)!=h=N!R3tcG+$wTAP*-+$@|2!TzIQxr1V_!CRNkzf4&H<@doD|qP7PgMVc7i(~p%K{7QJO+${{2tfg!BUDUL*Dn(fk9e50dm*o=e!Fr>Oj#>jYR;Y9~#$n<=6I0P;g3N%m;@s-qWr#C%wZ6eJl9jF!Dh=2fYuZVgMJcTQZO5|kLtxO$^qm#zk4X-?OQ|QV6nFVM(!{5$IclIG(*^^F?c^aOO7@->-e}ev;R7OgS$z_I2f?arzH3A`PKR%d@M~J#jzrKkNy$~?in;uXOv&=|JTOVq(66IE&e<F`?th#=Fz*?uf3LLTq@Z-Ok{*K_`|yqlQ^R&=Fj&d{148y4U5VHxc=%?J3NjLHr;yq}@ON4B7V1{bsl#zU+|EV-*F<9v^^QE#!pKOQ_am4lfq6&7zj)vSGKp%ijc;ihe&$t|a)7{WAZ=(R-t#nWuJ(+;TfbaI=l`4QtwXB{_TbxZ(4erw5?#M>^~9hfTq7#5ck{_7ODt}ipX|A{%!TxOpJvF9;SSASZJhd<P=cBSmJVd`AAFdUV9_4KGM5NdksxFJim9R)Z5(Fq2`M^y)_DET9PW0A49@wRGwr8$w@{PNPB9RDJYFg8_o6QN++t>gdKBYBa1{em0=eHysb;t6jzrUoV8Qd&A&|)RR!Eik^qJGf`e4R*@_atmGY5j}llg%QtATR=zJY5mzI3VadbA1dnlk%Bj$u3@YxzJ_x&D_(vIWzDs9#RT`B_Hc6Q<j<m4}sn10Qt-YA~yFXWlbhAcackd>^n!+WM!s%=2M9087WI0Jas+m=pg&LP#JfynQln4VpB^FSyYmgczoPP7DY%mO{XsH&x4T7KhS*px|^Kgj6Y^jfiR@gNwb~O`-%UG7>}*-61ZZ-l#g;8k-wb@s@XaO=7S(>H_PH>!-Sx?<KAs>!*nYN4{<HGHcWDdxB$q&!Y{h;{8iM!zHd%ma9elVyFo?B+)=NR2-*F4_b+kqp+&zQB!sr8Ms=OJcY0|%50VRJ0s+LLh0HSKkh{=td%EoS|=W5DSOKa-M=RtD+Rv<)jA@p)kj#{biJGNkkV!Q5j#ps8{_J&009cl!G9LTHWihhdwY3w-2W9li3J5eGAE_nYacYe%JAZm$(d!p{0{~;-^<$3$=Gc+x^hk;Y=FBSiCS$h*6-ohO!c{_@fz~);R;GE(YbZR0Z4we%YPNR9XKA-)`wZYja_-Cins$}4(VxNrIMy=-TwcVh^NB)eI6=WNYXUg@j&>B!*h)bpM9u1B1@p^(|b4`+TOxx7`xFqq@Tck5QzXFP*!%}Ok4lH)=01TsfSy^ji9zV0!_5&v{%rDWz=%0`F0PFR0s#Z$yvInOHQfduSnb~udF}G3#cXMK1unLjkP;if1ThYI;AL%ib|EZ-C(b51;ahe0$)5Cd2Vcl<Dj`KU``pvRm|He7py>&#B>qPW$TG3bQud;%rmq)ku|zdbn|jZgNN57z>f{f=`)(VLEe!(bF>l@veJ_M`9AhhcKU(U5VLG=OSMO<D<TeZSml{e9Yeo?Z-K&AOA~S+3NqfraB|>l&bq8Q;0F(BMXYu_a9rS`g|q65w_4<JwZeYt)a0GZ$EM<Zwo){WnlU=aJal{`C<e3vy#~s+4N#DZs&mz5QB%*L(Q}sR#3Px^N<9U2aA-?ptM-uEAQmf#gdvSbekMg|A6`!+r|nu59AJf|b9<3c!yf8?%&^W2j59Wrh1eA7%Vn9)BO;=$5Q=1|+~PE%6>kuGn7Vz>XMA-!@%hd0kf^0n+GVvj1dP%i={S)lRQ|hvygZ!~sh-y33_$-99M8>A7(c<O==m*#ZlxE$2_kj^Aiz+xF|F+vjRMT-bkXg_cc~SSclAmnJi%Wu5aAtfMWb^_(9tW%h6$df=8Wy7V9S*QEXaCXtUmje6`Wh)mJyk)_m}9Syt3Nt31$_sa-x2=m`2W%fj!IUfhM-Mf)RM!`9^Q5Bi(?@Vru7<xc9dt*0A$!%%JQuOUp>l?f$USq11M{xGrwX-SP1%HJvda24|H8rd;|J>+UQ|{hrH)_Ba{(mYRirZ2k|Xk;kaHd6%AF2OV3m+N=fmy+V9QTVA89ufa7Y@}jt3FOH<o_QCjIwE&6!g8uWS!(6U|b2Z9Y+T@v{Z9UK%6a4XEQBF*1LY=-bmxjYp=JbCEOlBJDJ4dL$J3$@Y*2!iyn#avhlv*jL>M#E)GyZ0quu4cI>jND<7k9KhNT`S>IC;W?4a<)pK*aUmcO)lDmmV23V_y)Kp&iqiDJRnMu^$Sf#NL&qP&cFSsEUtl9!jZwk|29PZR;&|BQ~V+ccFi!DMBT>>{E&axlO`Tv0LVwQUKHutKtzLG$L?gy{{ZiOE?$Pxy?lhMgPrW`g?RUf?^hJ*DyyH*y>?2+oHftM~ud)5=ai1Ge~)v2n6);KZWyZQDu0UQltYAIJz3l&aifUxj}7t);Qqnz?A8Sp+@VaqS~fze2*f9_+``VJzk>z)pSyy>~0hT)sql+!58yIgtuZ7S+{>pL-d6-BSjy2-(-rIc^uPwj&mg#RiDKO+tR`k`e=Xxzz;O-N>Nw+2!RQ|@%v`vr`2e^)a~-+hzQ5sZ$YfshKGB6)_ZisW#8o31kF$EvOone@Yzka4l;EWDm39@Rkm<|r%<$rzWVrIvu{;W5BTTtmcXk=K%hR~7i&yRxnlS(<t-yBxA5<w!_n3E-UQi{Q2Gg4LRj^1VgV;s(FDgy6G4K$J1AaFG21WGV3|W;o=7d9Wi$^pCH(xwp_FARQ9!1V+RaFlPFLOb>{h^n;)(L^;bcXNMWs-t*ExT&O6f7=P<UfdEA$53KmOee2hDh9LF_<@4G?Bz$%vacalKWSh>T_U+(#5p847N!Wh3zte#{`VBX5<vT|yse>v-WkfsI3wD?Z!6n6eXb7*J#&Jq3<ZavPX%OuY&FL(NmB>MtI;P{$PQ+ITu5pQ0~?45m((&%is1`PgN13|Tl0Nk{q3H*F{&`io9>iG(d1o3l3i$UZ=zfXAks7jA{00WWs(6b%u{Qq#(zgjChvUjPE&xqK;S;x*qva*#!D08j;rn&ViBt!M5A&A;KUwxEQN7o9@}58Z7X1xcyA&wT@Kr$9^-?9!rcaarafp>2?yN`Cv%zW%>vNmW#RKb!Z4EzVV{n3(}*Pbat^^%3;V6cky_7|bIshd1%v==FEPecTwzVu(+thXRP-v0eA3GmW&Il21eGYh_vp>Rf4Jr`s6|4FKKE7l?<j+G?vgo_3$k|M*L)yvFf{94|%VdzR%{-}#wG<lHi)Q?N$!Kel2KA*2{sVy8`Il!xyK?QO>L9I^=-wZOaL#97e)JL%ykE7umL{qIWI=Ij_&v*5%$Q$AC4!xE|&Bqij-bWURCPTfALe3cz!nD5S1T!Pvs_DaNOA6zH}_2R+NW#+u@_S<PQC4gD7f?Elf2kWk?`;zvSoV9e2VPIixr0D3P9q(-cP+B9wp817L83YU5odKVG9=;ZEldd0=_MgI)GD_19UceYupxxQ0lq&u&;&^p|b!M!)Q66t>fx93b{aagJd<i;inXsZwB7>wum)d&CZA>>^;N_5#+o&EO-UFK#=na#z-A&@r+@RK%UF}5AvB4}@%3|$W@O&x$z@vpF{Igssx^Mz8<hA6I;lzl{w+g5UTIWMYqH*UZEmf-I0Yq-;^8*2Q9_%Q?BmGh(W4x0F?*`GKCktVdGWh)l&^=?A?5LXJ<{;LyO>juv@5i98T3b6geh~h#I+Lt2(YsScfGHr(FY@Bwz{NOFIJ;Sr=4!EvKyp-zd<d1l+v@fIQ;!izvTdK!C+s}*2)j&iMqBL!GSvFJ44>#X?rl=L5u&UAzFld0_+vg@)pqpk%2o0}=l{|FsL~INJmc!qu%bJCKx5FQ&q2G}K(#u)HpV`K@k40JjfBfc-jvTbiHq~MEMGDmR~%MOx|+e}k&rQh`l@!sy>_|jSXOu3oF@)LRRWmo*qDLOkl?q!AR9%E4vdKR=PZ2;wio`!Vp&5kt6uww<s{__#0Cf61p2}na-fa%J<E(wr(!B!5I^S$2%Kz?#jXDwAzh5YvXz=QJfw1oZ&|TZH*Qn~ZXnMq#8DdT%TMK^%;x@}WV|Mi*X$*{HqlU)tZ)S`)p@>uK}FaL+*S1{=MMYFg>2Ar<i6%xik56CW17ayo22j!rArb82)M-_f3k`>&4QFdB;>ualQ4j@JzPDcU{hMaU>yH<2&S;*A6LwUAne<9>}t;Ms5<L3I16?eG|jAn{uEX&bd%EUXs+zyA~WWhk>Sovm%W&Nc3-x7VIW*oe?2e9s9xlJXC4l*VGnOcHihOY0}v9At%!AsuLP~APNxmiCXaIFj5sV>K@2_fa)}1kC7Q*MZ@6RsJrqren26=N31+Ons|$Zoi*>~6w_@}e+(gT)(XTGMzL4Sqg0GD`7yE5e72AV+2V}09=m|Gmz7-9Iy>yit&TMwUcUk>IP+E4Cpp#p8Z;@m;T0lJ*v1n7m^_2iTb(<GITtufl4k|S|lGI~9M^@I|H*`MngzIP}Aop$(Cfo<;d<2|46_>t$ATMr1Qset6bK>VL1wHY4!QXjMcglQ3zXN8TI&-pa&4&lEX;;QR3{w`J9~I~*{u;uvIAN{AoM*B@jDsIJ2WdS9)M4)-;x>Vy{l>+!khw^msS&6TUW>amq5r;UU7#Mo9NNomvvhdOIO0v>-Xd*|O#>_2($jeg8sX#5<XqHSp<K`NBBZMh4~Y4{FsANETOE<T@!+J~(dyg$$(%ZX%8h6gthL@zj6u~DZ-g1iBJ?^c!e!j1nOFs?+WLo8XM}hXtqAjS+9f>Y(%u{;(eKk^!+Vco7^PVmxR--Y-X^O#7w{nwb%uy_zMr;>tyqy%v$tR>7g~hMPFf%RZZg{tFR4{FGffTdDEc!jN1mPwBBebw%NSu%LLjZ7z~iL@blR%}W8~wBNVd@SOuO%e2Fqu|AGLY5yn`oQd)VyBL-gjFK18mC5WYfB_YfOM)0V<3oAr^IlcX}5IS-&o-&({&cC8)t>jm=EFtHUwu0Nkt!ASr2%!h9C>WM%Dp{$~@SbhIqEgXobyZn_Gey`6%A=ea}HwP%))4m`pf9+W6U1isK$39H?0<6_qjlyodgPIk>_RY9*)J=-9@+kJ_Ov;AlqXZT=a1IIe{E}lMw0AF!<?q^Bxo`Ag*Hn40aJ?#Zu9r@`7u3B)pQ_~PmwUf&o+Jk!pO%cpR`95O-uuRIN(Xwy7A7pJ>25Sak-o1Cut7F8ReWkSEHcHbaABQX*R1v6-&hzJH<<^i?C-!blYyUnKm=I48hGxi4+Apl-I^~ft}EtihK!VHlfXH$H(KHZj5IfmagC(?Gf-&92y*Rl0`DfaHjQV)3b}2?6@k?N9d}<l=7v8v`=dl~=j`$@MtETeJtVYqq7pc(hALgVV{1s6<Dp^R=3+)_Oo{|JO5ESsyHy2+I^xKEf?F<lu}?$;eVD!wS`ANkPx$P<Zq5>^;7#+Ctv_Q$=1;}0rqw{>GU?G_XaTffI(kLz9~|8bW~F70jr@+8IjebC?HpUuH2fAs0<o(xj?Ta>S9Y42Bd7)%xBQC!0k5vd592>3pjnIL@j&Irf1l{qaf*&cwvn7=&SkF=<9@l#yHkEhI<OC@LHTQR5>4+S84*$VQqwLvCGs;G)vT$0JzqMsVPOxQlgWC5k{eJ^b$%H!TV+&tQX`lu`%HCi_Q7wzXnRVMiXnQCNZlni?3~5OM9lq)?6?UY(-LnqmgY;9;(8d@WP^h%Of$SnyO{b#INeV~u^7vt4;8|-9$GgMdaV-DWfTGl98A?e;)$opOB*4S?A03Bh~G}glzpl;%_4r8{Se|kB(|I&@*VBqJq>41*rqZSrkQ4-l{%oGMYt_q|Nb<gN+3q>3nPzpL)6?XTWKtdE=I%cQ*Un<Q?`yG+}4JA31gZyZCz(k(mv03VUB-~p0|o-A9U(P(ENBmTt@$-Ejkr^QnG0@*9e&ne@Ld;B0z1JC}qo$5XAmVIC;Z~D!1gKTla#{5m$`!+zllYw_Z)lQ3Brgw>ms7>QSJX0}t1(60w1-FDMT?q#WC!j?8W0qvPCU)$(<(`8!blLZJZ_2<OcJjeK$qFaeWB+i?$tRB<|yV_R5b-e98_@%ra{5?rl=zagzuot2`0=Qu8sGP`>w$*5pNP2!%e=Q8XG1-6&6ZJv3g3qSqttHNPQh(9s{Q3UvbjAo3}q?EFR6=rl#m7ufp+sb)K;0du^Tm7NTJCR!qRL@qaYJ&@(Zhj)y)TAV(A|_Nmn^z)mEgoWlBWhrbga~<H^ID=s#ie;4ts~r%Gfw+N1`k7U5lp`}1f#Bn3p=$p^>409-6ya0<@Uu@ZSwT(%u8yI_jAfqSH25{pc`gM)i#P<mOEi^QWzKw15t?D$u<I<Z4X2~YnbPl;ncZHky;>-{mM8a<U%6p{MQnw1#fNOKC8@oHtVD%l)23Ho)GeKqhG88=JdtC59M%vYGa`(;7^b_)8}#~%$E%q9@rz}#N!kwq^nZ~|0Nm)<IB)qpVp9Sh4Pkmf8lu&dRNz&x6Ku7jp|-Jf(g#Iz@WzzlPbtc!cB_PKGkU)X)zgFKZ?_kPHbY;QB4=TWXpT$D%M{-d+{+1(0-M_WsXT+gKWTx>@>xLBJ|uMDiv%+m{J=x$epHl;|iSZxT&rA<#?hF$PM1*dcdP;w(D+x+4tHnk+&U^J{1}Z>FY4_@}Z;0=+;0QPMQy;*M>K`ACZ$F1Rs`(>IZIwlg)DToWVKQ#2l`~%X6762ZVChO`JU?$VjZ_Tu~Emts$i8#CQiNbVvDfkGIq=uHaiPLeq{5dmvBL%B7|pWAuR#41;erIlfB+i7cE@&Jag-|CgR}kjT0^5CaCM*vIDCX|^Bgh1>RRlw>fbG96Y1HO;d*DcY?1gC?I$!wt4H7Wdp!z%NsY8(IzrE(Nz%6Kv#L%mW3+XoIy+u^)lDIw=Es;Sxz0|Af^W8;~Ph<&yU}Ogn;RTEO_X=eS_BYEt1BP8BoaY$-19-8wc&109s~lWzt8h6fox+$L}zI2L!@*uNMSr5aylrq3F=SpR2amsX;Ym(s-fG6Y{xn&g_kQAx`_Ouqe^3FN}{R{Pu9EKX=u2zX+_iy!q*2lX`eKxsxkmF5}70=x3pPLt)QK`*eppYF(#)S~NDK7b+GaZ%IxVEgWL4R!9;-D>;?qic0U&EMX81C5OP;pK7;>Sa;Z&&T?y+KC^tH@Z$(#DM4`J}cm#t&>~rLL=Bt44&_)?1q$2#1sE_jTJ7@u6AfPq7vWy8Mk*$Q8J!3mA_{`-|4;lL-rfga5(4hiy0t0KVXZN?u17_f`^MaT;{~-=#0tCfYc;1n1^Du($6n@DM=5uyJ&&iFe>p}jWe~`f4G^6o8Lc=oLy-!ellBCjIp$NdKeSm*u-V-`ZowqD_rYf$m0?`h?_6R3tWeoDq3r>74jdBgQs`S{Us2nvgkh}EjClXAaBZO#GR_I^^M=j&NqqxLcY_f^!?o@zYLDwsg@1UGte=vC5ay<ZAUQhy49=r%S!+vDU>B~ica4zM-DrYZz-risR5olG2^1bw*^`cDCY4o|K!$XBnjQo)^<RWUm<$nVk`40^&vWNwbp=PF!3~sgmasq;<eyphsiNd=?<P`M?Ts>obTO=|GAwZl!YMF1tiT!wTFN;cD+wBnR|4#OTD@iDPx~7y~8FF+^Kgg0F$rjtbzoCtc5?4irCAE+=LVm@TwoHd~SrN=y_F~-9?JiD$>q^UV9?yI$!$+v+pp|qXWgxDOqhSPFmP11~DG-cBj~xR_V))xYm<NcdJ9O4l#|MkJ|o7d?2&8x3+ZCArViwYLZ@qaHH4WFT*0yz+07zRY`q`p?V{JifgMV@#8X@+OvqfTI&^lQAdkuu>PC3e_~~^L>5X6h_NP*rCV1eE_47e#hCyUd2<^9CVvC`!yEZeq-gejg%nwPzoSt8-z<OL!JlMfsYo^UUA3#{Z1UZWjJw@!jUao(A!o*M{WPz95@P>6+X`*>YRZeNSx9rTHM{sDZKg~Mz5WSb<L-^b0ICBi^l<Q)75GR{T}SrJ))8!EztIeSA%@=o*{HE`A><OmANcl0QDW%CWyrAm=?R`Ze03gLG&-2<VxFke8Dkt(6OTQHfOSMa8I>xXkx|)&T!`y=O){g~Hr&%Gkeb%*FZIHoO^;d}2~%jVT;}?t&QX4{K+UG$ud?8<lWnoU=CJ?cLm88kGOCR~y0vO=hK~Y@J9Qqp&Tk-o#!AQ~&KNjN995aYT`=SHtmFv(Vj5fVt!P5HL}lS$9^4&hSmVIP5QcxQNw~XO_dvMU2UX%7Gx25#*__TSLoV>tSUj_>^%5gE{-a&y#e%zzFS}5P27PgqVqs-RE0dnhN6#PkS0|YxaQ4NUexHktWToMHIFyB3Ky?uXqt6u+8Mn>z6(I(E-XT8BOOa6K^s&fashDo65%)}znQ&XHH&PJLL`_~>Q46M!M>+3|vpXy66Yj;^Q|#3Gg*Eg_6%2iHwnUix%IK_3^rk7>%GZL*gf*Y`%%QR#HM*uPgAS#WN1>(fcJLu|lR=JL5|d?9cBDk{@f3z8I>amliU0rr9rLkV^Y6%k00Ewx2I-h7Vws&fvBYQl0ssI200dcD","encoding":"xz-base85-v1","uncompressed_bytes":674921,"uncompressed_sha256":"dec479ff3b495daca4d957b2a2696bd8f858468cadb1144d59fe18641eab41c3"},"review":{"N":333397547809852074420537264,"census_rotations":8192,"distinct_epoch_specific_pairs":5231,"good_pair_checks":5422,"measured_online_envelope_bytes":236744704,"online_bound_bytes":236978176,"organizer_report_sha256":"5f556011f3224d8dae7c393e654a616fe8da38c2a760cca31d67664be57004a2","procedure_peak_bytes":236978176,"production_runs":24},"schema":2}
+```
+<!-- ENDLT -->
+
+## Appendix V. Lossless inherited historical archive
+
+The complete 38 source, registration and log blocks, R.1 through R.4 text, Q per-seed records and explicitly indexed inherited support sections remain byte for byte in the original archive below. The verifier extracts their original text and checks every hash. Historical 15-column observations retain their original values; they are not current 14-column measurements. H7 source/record bytes and the P8 derivation remain unchanged. Only H7 verifier/current-resource bindings and Appendix U change.
+
+<!-- HISTORICAL-ARCHIVE -->
+```json
+{"data":"{Wp48S^xk9=GL@E0stWa5&!@IBe;hw<Bi?#{saI$h|O>~43YGgaW|I5D#E=7fcosqfyTiArv_Ct+i7Vy8#+R6o8a&ZTuZ)jgIlhcNbxwSaU{$&qh&G35-rN%4?Y`!x_9W2rurc$m(bNmTjZci;<l*w+x0!D{WDfsDM?wUm7xm$YbQ^|nxu#y#<FNYo%gXH2Dg283IQkl6Ne60BlzA^qlNrx?+#^?>3ZGfQ;uD?Lg^%6L>7BjeM2aYGy>8gSwpxaDo}}E$0xfGR7vl3aIu_!l8<B0^&Pz-^Lx%9mmTg_fhYmcI`aICqEV;(8w3G~PX!8Hm;U&^4V#uf&QJ=zt#v56zs?W%P`=JJBVg|!*f6Kcub1`UZJmUNN9C}Nb0$uT`ZD88-EYde2`79hczr_q9)qc&mXyAvY=PQyXY(#ef1DnO!0~HDi?o;+)S`4z!fWHn@)q8k=7Wm=C!zyAvl8+CTnNv(Zbq%%U@(WO>;3S`_kzLPb-K<XScHgusAFEEt$eIPMCz%j)aNvJ`#I8|kh7X3@a)ZpA&h}Xv^}VRQSMEMtm5`L_B^l`h#FD~#rG+Xz@H!-7Cx68+;UKS2anM(66cXSVUvK~3lG`RX<z=L#v!OS;qOQ<?w&4M>OXxWvplTgN3rPv)YDTF=@Sh#G?2$dJRgmOj!=e$o(jt*z_GF^kf$}Zo8z84%g_rYRz?^AKr8KpgA;}3k+kni%^Z*3^JmT%D_1d(U#SE*{kEel!t`HMhS@I&e(FQhXBtYjjqYzjK_Wnrx>I3fKogML<FPtLW_=Zn-G%l201d&qWcF*@QSd0{e`aQ2PvW87X+&82G@w@Pm-Z@dwt%h90Sw%fwpWkPw#&=8V%U-K^NTX#inOBQ)^ZLq6Q2COduBm#S%}XPV@R1S!38>^@FVNo#Z#!1P5>fml?hH4BvtZ%P7t9}5jnWQ8M}<+0KPtxI4`i8<HjB_7~axn&vVUi5X;<--bY!@1eS|{!8Ne6BZGB^rg0sBu1Fb<RS;C6Zlb%hh%jUbVq}7BIf<l}Rp_x@Z{8xnB)DaN7`i0#KM>n%9)w|9muVqv{li)HWS?emow8HKko0c|5W{`s${f|9r~8n0u~=LzNVe0uqEU!voi5@2ykH`_;Yvu($oC)L3@!jr@AJZjP`Nw_FN<sM=P2^xmvKv%$GSabUj8=>d9p&XUzGmU|2m^yj#FjGc@6$(0RqPrh87+V-({>itIAG2U<FQ;s6rDNM^NS!en-0$dRcNA_d-$&=g{4yz5<GW5#!_<<4vvkvx(+2?bu3HVZiy80+i4Q1sYSNsw^Aq1C!h`!#>?EXpb#X1-)~qnxM}%1e~IeWSC<ZBHWqFf*3<6c%umO@Lv;Oma4%I$w;O_vHsv?p6<-5SjDl?+%HBsxJiGVE*jW4TwrA$;&{r1%JPi9ZjDLb0W-h13N?Ji+}yrC$dm>yr@co~!MO3}XC?#sxOc^($MEYA?=;KNJ?V5LOtS$iX<J5fv0_zkK_cfQy$7}aTdpIQw%R(34$!0Qd8@{cxcvb0lkd>TnCgqo!rcY{DrAz3bL1`{EuttxLohAF>?8|7?H0#Rm*{~U$z=>%{WV4^<hv`ZKaWUp{$-1*ceT+hRSW!rW~vg=Sah(A1{Q)k&l?Q_5-3uL`4{6H_8kkc3&8<CkdCA^YrZGulfx<8`gWC%b_eNwl<G=cd~GF>9UD%mh#ugh>^?gQM#|ph$CEHH+wB5LJ*ll&DQ1Ye%p|D^D48|l@SnGApd3!+s0C!M9s5xqSlhOn(GL$xK{d(1oYO3lw9X&dIdRU>oA74!EeV*e>ar_U!h%G(-nT~Pz}a5IXp)CBD{p{Y^3Jx;x3!X>cIZS`fr>a4NmEYd1^C6X4x|U^9%sIzs?_Cg^6jIll}x6uIomFyRFIGuZiM|gMh!Ji9%D`^PBQ_d;`|oiFu3;>mYp!68}6rR&4HsLhOkXh=@h#;1V54(r4`{H@a}+5cU>OL80&}682bnLyr5;a9X};rY7eajR4)z4K4V39P=o}70un#eN{>(0u;<5U&6zfI_H7*5`g^la#rKh!7j;4_-zu1e9nx&(e!&Vky##W_QohLVr>qB&Ej(^^;xRXELd0&V2rNrwu$g-zZ-?GW3i<w3z$+G!quH2=Z2YV-k%lVORqrX4U~j^T>ZbhqOB_OAl$_B3P?6%?ks_NofHAMM(_!{|S6)2&`R*wMWWNqxTkn<fJmR>ITb(ztW6jotGxE(>Oi$9erieUxp^%|WJ7_EqQ#_}oszmcje92gA1#FevRtN0+w77q&YL!8)Yg8_8e31_adU$4Ch43g^(_=5}Swmnx-j*l%vKKL9OJIduc0y%6`?HFIXof9^72H(KWO0@ETw)t6+o{EW3l`OK2@o8H0Z<IRPyW_fV6PVoHOVhjY3vLyZ|#I9S=#`IZ*(|@zXis<cJ@^oEF+;kJ03I-yv>=VZmAI<$5xOqnP>>abrQ2J4}r*C>5f0#cAk@f!TqEI0yxh$?qFnO^&nNZoR!K1DG{IKwS4slS87j<g%8c0lSF*_LR(!jub@_WAdnqtXwTu2F}&^Vbhk?Eb52g|R{m8fuCeIjEX>yb2?~*x#TPIlpj)4@KO@H{%2DE6B>5-ABj$+NQM%Dw_8dd=+nwNN%pJ5=&P0MeVG@=$`HAJP2aW=)Iw<=R!DJOuIdU-*bv<s-R|tFk1v%D&q~heRgY>Obvyv`mJWwVI0dcb{b!%gp6I(RWEJ{zd+Ycdw#d0RY!MycbrO`-ux9a3C36xjI{o}WaVeQ3}Er)Q|gQgK=C5|jPk|G_+LzUD0a_R=I5((R^-v65>vL9*#EBYB^XAOC50Qbix0V{3N-gVV4U$5OK&w3I}X8JB)y$uL}Bz^&4A{@btmORCCg)VQ%rI<1ji#{rS#;2P7$78yZ?c;GSp9FAyaT}~^U_f=AXeNn{df=NZGyK(TN626Eo+T=Ia(KZV8ZU~4H!L`-3M(AWZm7I1Lla9Tr*;XvU6}8>%m!Re6ryxCOid`9U0@^Ghav4qjV5MccV27|DyGtcs_I<D6bnrpliRe(iZOOaVjLk5DPTpgm8IdHijGZ<K4(-)_J>Nhy5kc3FbY-b{t-_o?(2^wPb;~`7L0kE?G`KfZ{!y!mXf$c?sd_bxWY?o+-=L0#|!pEv6Z@IB((q33Kw#|kfFR?Q)woyyBvb?%LPc?_WO6KzGFKPJtn6I=l%SpZ@5iMFJAjyR;_FBy}ZL+)JyCuCm<IsWnP^9D(zeGcoG5Y^p9|x+csl24ImkCR&|{BTVV0E7F3Mg_(s^QpO3mh!Psolm5bW|T;NA=`vj#J9XG9=>my$*C5r)FLhCSzPd6eD_u=$8L0b6N!g@*Of-zk^ov%^L4=7nei{}~%KzUxK@gUzd+qT0~alC7^$y(GgD{%jzsC`JE;bi`9{*`2&Xb6f+@;caT<!$vjp8q)uEH^oDiJeg+t&NU#;oVQbZoLaOCHdg6pEaY5o>UMc3MLqnmT2WRS+&og+Yc`H4^E8fl2B8kOAMm8HOs4?BXJ7-`jc7Crk4!I+Tm<`dGNvvZ>Q}+eyo<uG};&e6tlm)e_No4uhN<|DTNW-73nlnzxG9;u!{{}YEcnzA~Y+I`gz%6Q2A=H6&dY#e{A~*?=2f151%_Q##qerhbM;|UUTJS6U+T`C3&b$ettS6v3>+mg;*02^llJFLCwg)<_^JModzOOqDiQ^edQ)Y7q7QgmRVigSqHV=>Di?|(lHO;Lva~Y=$<na6>!X1deK|<`1WY%&#&>x;Y{mZ+%D}7!9ZJP5X4_SQ;z?L88!84As%IJS+vyLOtIiy*6}s@<2<`?D)NAj+r*lwM_t$;H^>WZEH-A(9dE44-;VCWLSFCHp<apayvB<cQLh)?dl)lUx1|yVe#hN^7dxb~SXmT|>_GkC696|x0BS+wX%pyBvC%v#G<g&G%&+@)KOn$;@nSBBFj&>+a9!d<Bc2q~d3>_eX)){XI);x7c>I3uC9D3NsOP5~a)6BLa_v@D(X6;ft*qRGzeiJ|%)$AXWFI>@aFUcNTIR5!mV*;~cL46K9}8zd5(u~?4u|1W#X<)UHN#&TZ*J7!v>h`7*0TWMygJsOs|^M+4K^IrH;Ik#^_x{XO87(|`%J-?>*x13+U#)Wa|e4MHrgXK)W`iDtxT;#YiaScN5Ix8d9={i<)H;XyaEY6wwL=MO-PwJEv--{5Z{6XgE1trTu@T&V=*rNNGfaOvh|KZPD;o3Bl2uVWN)`Bjis&vJRM7vY!B3oA+_yNa(}i&n_gYF)qtXz<SD3s_m1<}%T%Yo7rHK(?{4}nko(#7Y$iLKgHdBUj+|H~?@xm?Didc`n{gil1Wxl>;z(A(*9!a+@K8hC8iWIA?xGuL$AagwU@oN)*Ae#3N<ui1hL!YbQDn!t2-*>_+8UgDdC=@5bwVG}QZWr2?Pdb9Uvr+v22H53GXX7Y>*`&W2H%)vkh>%b2FfnVY7K%z3&&fQQak0}fXN%2m$aAV&C%;$0SdM^fCl><T#Q7=F^Cq=0s7G8F-0(h!lx$(1)RwFlBcFIiLtqc<BKRol6_cCztUXaA!_Rwr+<wDVdKrWuUK@+r*rfP&fjn3E6xy!Mn6)PERBK6jKE6NQknIw<Kv@J<>wL4w+a+ovulW$m_$KA!tdY@DuGh#imAx8FUE~_#lGBiHyt=i2(unZWsVdR&D4G?P%H{}Sn*E$)&OWAWc~$^w7fmAc1g_9kr#~arZWq6!y+-$e|`&4c~jLaY7x1@!xuO|eMm(mq$$=}ed8nhxO2#V-nxX}(s)&{=Xp+dkpH`oF?5VdQ+&-weybDc+mVRIuE{7&q0O!>hhpDRHR?un)GOgSwVr23qb<s$Z>e)x3{)`#I}{}M3d>4?TLAR?8toq+HEjDZV6L5xpuK3xA`O6*{D1245=0EMpIPqvbwQ<lTb}{%JLw(3SAdm0VV0AP(}fITm0_g<|7}A5&61NvC%8ASLYs&*nV93?0B0LY8mQ^Ph<-YK{>Y^2@q;|zNnRB1CgqLDS3cqkTaYhbdc=y}@pC^)c>-*X46O2iRif-ecQFMblw*t=-l(D>l3V1~QBySNCYOJIFhUqAQhp3*cCul;3Ef@n9K!(Ci5LQ3t)s%fAH{bDMWoZGsd~f^XEP|*yswcxUvpVRig?^_39_>rSe^wE_Q7{Hb}dBAF&jW2xS;n;w+|>7Skan@P;w6zvnnDtE)svu5bkuIx{pAtPY-_LWYjBkRI@taLBh^qQTvLO9w>Ba(?2<J0vs5Le9!7dR%<1As(czpZz=g+ufZ$~glK*7LiM9}mz^nAZI8Eju6~3aWO<Wx<Wl5?z)(qxZ|u^+kRxSQ_JXez-{R$xftZkjJDrI`Cp*!OBNpVNX88dYt#Ix@XtXBcV~Cc-njQc@ct?@^#A3MTDQRY5py-Tgo{+Cpx6WRxsUZjM2&5$*_i`m9ea2j;ym9~vuIFoh;;>cleJ+Ks9~9I<AFekt>XQqhE1<g9XXRyAD~A={X`CAQsMmnf>^}7?yTP*dt`O*}#yfnp<Qfjld93jHWjUpZB9bqer)A&Qztc?n>abvekoR=bu;3-RHrYYJLk^lWIqcq_j}nD8JFt>D7aC($cFb8@Uas5r9$Y(QNN>%fvLyB|2KmdS9w`7?<8d(-u-+9?@(`K|Y|R_xLM(=wc+b14faw4NO5oNcdx|$&i}LO<G_^xTMA+6<;Sb!?*5VNtsj3_%%G&%8=?bAyB(Ky@tm>6i{g`nD_qZ;-hhH`iu2AZJ1oLmXIsr(U?M>$RVk4icJ&X-i(9Cq=#8Ts&c-?3BN*WQU{r#hj_;tLu@#nEKGgLFt(n4C90-rFdyXw-I+K}-0@CC@XhZOf5ly4mAGemk^UoZO=OAQ2{i<a=0TD$ygEDMilR&k7{+=_<2Ze+CoaCR}217kVpo_Br;N=?<PtEQg5&O#Qh*-EIldNJu-UAanl54^{)B|yr3p*K#aoEmTvA|p?-JbqE2A!qt!9s`q_ANBo+@Y3+XcR!b<i@3Wn^2=|eCZT4`;)K8kJmbW9|FIkK6c`gYTOdt8hvvRlPcfWS@K(XwbMP6K)F0pDK5k(go>bLx<Des<wba43<pjJ4#U!Y9EuAlIF(Km?xa}_1)piyxqX+<Pozk4Y?eZ6RS<Ka+`J|n;iyF^6NMxV6{AxXElQ04}=@=Tk0QT^deTSSe;cM{gCA|qI3SYKrk>Eju&(onN!GgMaT9(8x=UGxPY5K@;q8{CxE%xEUf!D@3G62BW5#C%}^M(Y|$9*6@B)^s-%5$1-d0Pjcz)63{l+360A*)gZ>B(1^#uVTYFI@4RW_8oH{?Nn@M1W1c-nqX{TfMkYe1MCDc3nyQC^>!rrUu#zXVnwm_mI!ou|CJ)w_n80-rM+xxCAU9(8Q38U8{RXiHU0Zu$%A5ia+!|E=N{oEqey2FlTOuga&}BlN|ljIEdb9ERqqkV?P|OGZA;uJ=#D6MYsy*FOt@R)&ucXEA#JDl~@!j${u}*>sX<yyG(mQkK>tEkz{4Ag5W%TNYZmA2hUrC&Lx}^uop0X`5OiX%H!xecx2g#^kQE#Ze#fReUxXhk%L;D|A49!MZCOm6?vmWPF(N?*k}IM?1g%lsm$#4lQ~qj^%LG093wj07f8pZw}2L<KsN;pXdn=yQQvC1wIAhkJN-CYau^w++PgRsyc7qHA=9Zb<MSdiUaJIdRCD$TWD9)4u8^RgzTft@bOyVxO8i&;y-l$S7nZtH!{D|!xg)cgJN!V@9DRS4FAFQH?nH*(-sAH8kF4<KPB-<-uU#Spj=z@zW_%4qN8_T<Fa7P}!VCHduVePX#)}u<#UoG?!kYCW(z6q5(W)U-Z#~Q<qr4+qvTe78WpnF%vBUn_C<pYZsAEk7`%9+m@<)Q15txlCkc+5i&gP9!awJg0a<Aog`{+}gt4kAr3EdoW2Q*4oG5UqxN`H5H_~OgY$GP@I&(UN4x#Op&MoQ)-+-K9%h9#3gW><d`SDNkr`xjkiarb}dce_Ofwa#Xw0lZcK0i*uty_fA==azwMj9BZZseEkBc(4uwE&Em~Q7>3j6){JAIs{GJS91>*V%G;4@k`*5(~3(McA`LvUrwR8{Esym<lQNr?{{6|{eO(j4UN|G#=^hKFd(CAHx4J=ytq{$jrCfQNpZK<+T-bOwuFv&X^DH&i#AKbhAERKD00_|ME-zLD%`)TuHVK-ltG6v1Y}R$tci;^d01+`OHf^Yzal*9AJ!@ei#n!N^Xp^|MEr*U9g+Z=?OC8%kO?~x8-#pE387EuGvqY{mI`tH-uX|@yUq%c41PO%43O!k6iMQA=weA{CJvHxLM?*}@<V=^L7~6ia`qd_e`Sz#w<W{PmHP<-bbSS0rB_;6>R4k^$^j1jc1f!&;lL_vtto@qS!(#zOshm^EGV4vFR2#wGe(p~Bp_V9wxW+i`XDt)m$Xmns$4BF;RAE4xjLsHZFbz`*8lBdl}J%HMyDF-cljV4gBz`%p4|yUCEE_|<t?r4sFLbPWBrum25F3uX?~>tZFlNoGmcFg*f0rO!q2$=Dz;KqtH31tN7aI8aJ^b&AHUk}8GPMc&iH?r2XApO9b_R?b-`W_=ZXMT$WHZ{)9k)>gEyv9Vo!FbTNQzi#OHd@_o;=ij!PSL$J*Fk@)nr=t7_W)a`B9Xr}Z|$)v0uzmOn-__=Wn@M)lYP3ndj45VBt;-@F&8_$TDA&~@P{2NDkDq}qxKv$M@sKu5NR#o?`Vxqx4Uf(;qf+lhT0Ns6=Ha{^3+7|;Y$FFKqT&lnW78Y-U|Nf`*YMf>aD&B~mwPDvmZG`e1SmbCLINFD+SF<hJSfWUcIf9xJ!o^jyEr=$T7bUY!ssq)#3@7Dc4#vWs5!|^+{rH99zt2C*NDB6Lv>=inTxW+rO%YI9ULfMyM(c(Fc7B}7~3qAop9diY*D!zQ5#EBJzmMx#GFp3S}PGHo~{#FX4hvUQ;I=sy46Z}456(vR*r4{zb1SsWaM@{MN5e&KJ$7ZQO9hB#~c$sOn`We7@?vOr^FT=oHb9b=lGeTwbx&<JQ*7KJ2uq`-Y?{u0a8^Ovv_VXqXkXNyVpU|qj=>5qqsY8$*5Dj=7$K7mG;8dMc#(yt&jb@|;9$*>XcBzic5730hLni&-LTPZ10S$I3HPJx_WfrCbps$OqJ^piIBoI0L>2&HW@F;H28Wkwi(10_nNr-kH0za6=T)P4b;Bo`kX*<YK3WT_4Dt&s@9&76h@3_U5rxn^A6HjXFk@j)+&v;)zD0xygEL&Elas&CMl7)$XQ0CA&@4c=I2$zo<jhX4yZl7H-Yeqn2+>A-ebL9g*CJuT?^Gj&@tD?=lQ`v#M{bC0+YV0)-pQZa~K!$DX$gFesW#VJ<4Oo;+dLB47FOu;sJ;tOs?gruMZVx<32nlgxO>0U!fu1K8*1$v^rXe`E9o?H?YnWaJpTzumWEg2e<>D25@F2v}jJ5wj$diR2^tB<bJ49^*Jjwz;xtCMXr5yq+VcuU!zOm8F2Pf(RR8r5S;AgzMTIn7;6RZH!`C*jZ6$>^*7zX9#(j=;`N;!NA?u)s%O+HS|TwsyQtIm`;oRG1JT!gACrl9!8e;Hj1<rVG?sMbh9gX25Bh==!%uCn8?s!I;m0G6?b*B2|Jz-oHJbc*W_z%}1>7}KumzwIUeOH#>-u!-n0LlfjQH*lMsBYlBGekOR@=APjIO_Yr1FHyP{r$UStQ{(7t?iO9}FC3ijrRL8AKLLs?El!qXB~N)SA)c|{7<|NnMM(Y2k;DxucHXINRz#cWBk_&C2emyWfs{;D?kTBA7(#+CL)ebqH6Uw@Ivh)BS}(8P9P8R&Xu?4vAc0;UacQStbluBn><0&d$<0S>S)BNzsjzf=V(q#q$m0R&)1Vz6?--C$bo#~m@iRBNW^z3n<WJL9D~6uJd3)p@rJtu%*zz>_xNBrTM=Z{un%^yr<+nBedfbJM$nO|(|C_ESU=x_vN@1b5mGP*RnrT-K&actDp4!<T<OJCm+VCplF2=d;C$+cd^F}2(rwi{qRp)CrKqoMK-ri-XY#VAn4^WD<@_+Gziw<oEkDyAti8%gssviGQI{u6J+efLi6B=WAyzJndL0Jd0$pZ?Cl4}rp;E?g)k?&zY&R&~`0hiSI5<9H!1vcZqV|mHrtPdTuEn9H`>%eT5oN_DB1!_C~k&GPeC|i*`hd@QD6cMzHg3p<vy-}CfNab|qu;nZWcI^u7w2J&^8L-zwdK$<u39!aeaN?vYx~fC0q#~zt^h*$Y9_@$xAPw57>6=`S2X*cT3uJxB7Dj}FiO|@LZ(~CZ)~F-xsO*+_caYzNQI3Uc_I+VlHorWwwWDm{xy2P=i5bTgm=8spqMpm2PXZ$~v23zHsN~@1=40cWY>AxSv^(AW;?i=I8I&bRkAdpVY6nT;?1x|F-%P;I(==7q8XMLdXypb*R-8_$%_(AL6Jbf|2q%{NdL#eSR^Lm<zvuahI_jeESebr3dR>FwwXOFc;NmPJNh%`$M*CN?hKsOT(ifUllvz+(^BUuhL?O6)2Idgk08&*9Z7<9a&Qf7~!n&2u2_u(AO*rF@Di}CRS)*mj$K6E)gg#uaCVA&pUFIXdwh54hqlCyT>>=7q`4$CnWAXwHqZy_LcU0LAgzhypmIWkH9a41a|Ld*s-WW*f5fs9F(0(IZH;dM<MG|T`HvJ}J&Uh<zo4hwVz7Tg&(s%Q%8~{Uw_tdp9?fYP)VDf{3#AyZUs0cwGq4K}d3&=P(kV)w9&MRHsw1DdWDdQ;@&lFZyJh&L)m|BLp7sj4%i^&<PuOc+qaUi(BSHkIq0vPc?lTel&ZSreIdk?M=MT-5dPd0BTk@OyvLoLq#FNee7Qexlw==2CeryfW5T9_qHczw!?zJ<dnX<i*0bTN+=e?TQ(F}G$=eE@Y)M_3cd+P0xq5r6-Ya-(M4{VsvI6~A@zl&hTH>o=x0XRae{tzmTeAQUI@kY-9zXd}BaVcOIfCHGs55g2#@(q)kpghDDyHB#BF&MvEoEYP4PSp!qcMDKt&w2g0J5D>Lux|k=5e6Z<0s1+c)MBGuX?Sq>0SLy0aIn1z}pgKPDf#X3vTh1@;I;E;LfqbPGn(1E23-z?N@2wygdH#)`bE)S<j^gSD5;NLYx=sHB*$+<qO@6>Ns}MuiA1!tPW&a4k<_bMA*GtYx@VniCi(s1|D7k2!wJrB{T95Q+yOT54W&8I!el>IhcDTAe;~_~M9;-DjPm;~b60{Kkd~5A|3iJ(5S6GA&v#NAd&n_VTuU)NyDUD=|_^)>r#efxB{Z(>Q$F<SxwE{-l2`2}NfKp~iOEEdyxo%6&jbhYw|H3d0YsranN%S>gX0^cqWdX#X-Ef@uy?ap7s^`J?yoS3gtpryz?>Kx!&nw;vN6hzv#5TCV8;53%x@JcqH?)R;8em}IY>3NRqbB`zRob0V&ssbV(V@M1bY`z8ytEgq5`g-DJ>xMTRI%4+r`?P^J8Q`)ByzFETj91b>>f)?JOr0lVji<JY=J6nXHhJTzoYg^pT;6i*a3(gy7;$hJxd4)H%SK3OSPdho=thqGEtSXvlN=$n6C}1HXy8ew0#?_1lA{uyWnY!Y@KE<9I2@{Xqzo=&k`Qdz%1AgJq*}fd6gx}qMtywsSYXyoP|&S&4U^(bo~TCq!~kiRo@$wViIXlEH2O{A4Bs+i7ZXbJv2(soxAGdyyjzufo>^1fb6<!`H1s1RJsWz`3zDE#kMAEm4}rHeiW?^jsXX09-t#POSv7{&qD7adC91d4E)g@Iv4-G^Oy$)5ys6Bsg6S>Cp%Z}*J6NFN+E9H;z;wi1q)|2mSuppZ7IDT%ZlLpI2R~w3xExl7RW!@wU#Hjs-4+2oe}?6)x)X<QzuoXA$!%lkS(~G>^=kLriBf9BvkcnmqBNP<w`}KrM6r?pafGY-Ixb_GTpr%V{mr6f~FvU4}(FQ-W4#(CqJ@2G*5M)%TEFD5W^1q=mt&`c{$FFDd_Y!^8U=%>kfhsG$Pd*rNUX-X?7*I?eZSCb<QES^b&O9Y%N`KeG%sqJvD~m!$bSYuj`}9*gSF$ON!?P$vJdZ320W-Z?Q-f8z}K|w$ms*U=pPc@-+?QdkC13dLh4y+8|=<#Ef&cCIMb|+E$gEz)|ayOms6gJb^;*iHot`mL#ghEUP~G<!+13Wa^X8`z}Y0g2ljM_|eo0Z19;wWr^w1OhZ4_YHx60^^Hke*m|{k$d*52Pe>$?7PDdGAQPW`5_#i8&3pQT7pq{e-E!R?L0Y?(yD;b0@+FpU3i*mG#~xNwNV7;}UoObo5yB}dUdxEyRte&rn$1fjhm}URnwdZd`2U7IG-Upqj?83VR52m9*n)c-D#=NpV2`=!o;rDg%k(fX<;U6rH3rGqi>?D8eR!<&e>m92Y_$_^At?%hwgtX0@;%0cqBJEN&KbwlOazMr-2GvF0xFboMNIc;6jS_?p55d4Soru(n=XsEttms3S_DC6W1bG!uQ)(OQ+n@+<Na!^36p2#Iq%lTI;u&rMyDJ2J;1VEu0-{G*xz>?gCDLI!dgVTj&v>q(ETFz4K|z^-$uvFqERABD#sDRg2-$u16SUVWHnheT^s2>@7kO=3OqP$!5iFZ^dv$&mTJde!1j=?Gk2Zw+ANsJ(=$gO^ePUTZ8w}%@g^2sNKTO_K2qr|q8BL}t&CK6V=b1zA%~iXd%69Z=oBeEsXy<;0Fyxl51XcAh~}=J8-E3;02JhQ4s^o$$G?oAR=iQ#_)^H%2J#}SzrE{Q4g!xKDG2!&kzRiOzsc*h&M^~}yL6uXG}=u^E;++9va#jx*>{>)<q#{To}Rv#lJ|r)YUv|zdeh5%T6M!z%KS%&kG_!<Vm$t5QaKYL8x{Pw83h3|v!|M_Y)Dlj=iiQcr4#=b>hpqlym~0<bo+I5`_FMUbdWMe=uhgqJwUz{bTI3-$~tESaV!Xm;IJ<qecqOuT{)QE?AK^ki}Z~EehThqbic;GL*u%cjg~o34Uy+%(Ib?%nz+rneRzU3Tq;!_x6MR4UU4Z&0wK3!Yfk|$j4@+WvYxKXEw_!K2~hgqAUHC)s`#6heI#`0eK)UjSJjJ`do?bXL}3c9Vc8Q4;)Aq3LBb+sF+isT^XZjInP;LkD&9kxvcR4AL4^Tkr|()Bstn&5|3T&Kf{6!#{WM;0qwx7rm8*iEd58zCIfNjUNfuo|FCx`uiq#Hczlbwi7Qh{+o?|2G$q^;U18P`=YrX7(f4R0U>-C5Enj|{I+4E`m(V%sPfvuRUWLZFHQ3B#8LL2}?tjCF6aD$dfY|hHq=RX^Q)rcs2%X%2YRxYVgGr;kuNbRm@7o_9ZH8Va~4qsBlRU8X8{#xv*4Go1$)YkC7_TFu%FG$Da4;XVRRThJSS$lm0g_D_;GBC3}L|r9nE*#k9fQ<`gMjVHC>cYyWZCler37tNPB^TB%*$xz%NHfPl-Q^K_Y5#Xsw*Y)p(ai2ah!|>4_trMJjf%ravoh|dEm(m}C6O`T;nItIWTs>cLONBkWllTClG5`Uo8e<sW9%QNBa1=VTq}!9&c2e@K2GBNgRA($kuh9|)7w)EtVFeQ*UD2g`LXFiGA^Okjhf6013!~W7!Td*vU<9WgzOiCsT8aY84m?qIO^NzX5>R0PTokMFLdwJYwuZ(U?&rd)*y`(M#b`iXSO3eM0<E9Omy7!s|}Hb60lki#4-mYxwFm<w4C9)fog<`;5^=ll18NpQ%V#%kquf+B`lfqCk2pV@@S^;C*b@`G%{23?FV_e+$mrzC#?{?Cz@S1jo~ARb=2-}Y|o9e0q@7{@y{YnsQYuJX~~SrnPbu*#^7q`WMkZd2(>$t&Gntw7n^?=ViJP$`S0XBQyZMcJ%!ehlvr8OvG<o%rh@g`K9-Yj5<bOdaLdAA>}StXQ(G3{I^_fIbIB&J#Mc}>35hJ5L1V(}5x%abxD~79lmF_#aAP5`(ZaCQ9}CZMW&aL#&drFpK?e`6s3Rx9FjL?;T6r;bP=z^sL*K{2$YHQ4hbw^fM)3E5{_;R*pcMEvxqm%a_zjul!nAUuB)yXNJUiJ2rxraeU+lwaN%pgF^W97_O)n&rWLF>X@ocj#`#on(5|I9)VEI0&w6~*Bb>%;m1*rMTsWJ_8kb6A6#Wc|jvWR!jO4xBisQR!tgH>@j&-Yv_^+ha48veO9<ofz&h8eOuZ1u&b{a`>80Fzs5q_vT{GAKBR525;~p%Y=(pfN$!hC2YK9@MD?FXNiNQ%80ZXHj(X=b4mwHVj4hB={<WTt}rWQqMKkMX=g2{qy_7Z_>UahU{JhU`-b5O4M}R6;Da`9$xZ`08zHknLbW%kBs320x$AwMAdisjvMmH5hO;7J}=MTzDRLvTOr(X!K{`GTg55>dYRYxPQXHf(~$yVZZu>Fqs}dW<*i^H4E>lhENSxLf|Boiio^pW5V8TI;o%b2eN0H_;P?o~z|kVBQ+t<+SGUs=`BH8deN!u%q!eyR02g2t9YovoSolJ7HpkoA&6xq}EbNtRiNT?BQht5cK_2u+=u@=;d*idix`neCZT;AwYF@*ntF^g45xU_C8Uur!y{~r7-3{bD{?@0Z8Dk#XMKp!;xIyQBOG()F#JJ*Q)BL4s)i|&ipwvh*KVujAB}VpnLgaO8V73^Q?_j1B8e!ixN~I1Xy^7^aSH`HYo4FbsBkG*p?KHFvwop15Q0!Lxbq^4RVgGqv6yg4qJ&C&=13~=xEItKnBkx17qfl{(-ocHhZudJfPB-Y)eM@kL7xe4m!)+QFpZ?-*mU@NZ?RRO6>@(<@*^p3rwoaMsJ|ydX1P!Pee3cj~w@61C;Xs+c5o&iCj_crA6!QjWl6E-}T+RK2Ox^bNLpEx%K-Nlv?+uQ{1AkAeLjl^!Rl?LcXmc%XTkJvXd}%o5X_|rjZEpewEq$igB|JV>Ua9<JCko+)`oA>MlcEy0DpbEuIYsq@QLruU+05%QDcmFyiu7U6+w5iulW=9?J%0e7Xqp4HC=`}%f-@BsJ)|IeEfr`vSWk@#gH;D2GPfgCZ}rM$gd0Db7|OW9h<~D^SP1p43M&O$r?N8MjNno=<`0C#*7(H>=#M(IR>paS>}s=71Xi5Ql(9?$w_Uhu=Pv7rP@BYW47Z;n01h?!qty3If?;%l0jKr*88g4^Bn9uK>4i=?@0rjGKk6?0UzN^NjlHvA_hVMma+@CD<z{9TCbqCIucpR?i8;9~K(-yUkJ00++Y#i-BhN|zsh>nV;kYZ<S>$fSjT5@SW3nNcgsf@$AjJ%UoABaI=&ES*!Hh^)3<cDjhpwd7=23r0ot({LbN_&k@Y_ic{!P3r{r$c<)8eweqMV@lLa3zB%VG(XQ^R;g;jFBsh4~O=v_;HTlS3Vl%I3XcPlWsR#ngcthE-Y%X*L|g9r?U{)Ew5}>71j|uVKtzS!>MI>jw9D<@$L+8D5qstk)JQ#`ZN-`X64Yg4X6~35c(;0qC<&%hRsdD$-uPY=t*u-Hs|19+>bMo5_tpE4TLeu1<5EV?x5}CBQ6^#F+Eu1RExaD*3HTtC8@6snt3|3|)dJL!VUIcgq(!F6(x#G#Dg14ZmI^Z?iS$ymT=emiIqNd^>1|5EX(44YBR_FjgECjQHO|?QAH~os2T;)y!IPz*C#lz87jN(F97m?ZLp;@L*zDSrljrqNO>BdI0hPT68YHHEsOIc!6HzH@^6R<TweR1S^{c(U}bqWUmvmvM%37ku-WP_KOJ>_?q;fgyW`=Ia$1761wccmWXlMiH=o=E*Om|?W7RUL^olz?N`l_IHuo2BN1W}-ZOqOW+WJV&8VMTN4k*P;`xb;bBs^3ai3v-MC>;bYOUHRya3m&5fN1PSysU)1(}mRq76edd1pSZJHAmqD960}LIl<mBJ>eijf4VNMe9BBxwv_C)fRLhTOxC~Bc-~!XRkL5j{jAxDam)`nwje*CtO(aYg{xBZIY1UO*H)5H;l^t-R^Z(Ji;Vt*8-Tm2q!Yc3{f2BsNOFJb~?kp=)=i|#c>wr`qmICOwAhYY<L0w5xt^6@FUVabeGP|Vp@gK642GwN*RS+x`k%0lT2fCqOEsIFLn-wsxkeVMl3D=Dx_dfiTm)sW#4u6V0kKif;faG;okR@!Gk?7hFNwzOX%}H<ESj=kP~TEohT9BSMOWJ(gKMcE@#&30oE6`lX{TGGI$JZtAkR4%YY}DtpbbKyMF;0Ldts6%5?-d`%&()2N+Y>af-9(vOU`ug$yOy<e_XG!f#Ujxl8T||GY0OD7I}x9#xY=2tPYadN$e?@s$?Sjy&w+NHu@z^N(j8Kt!B8Z}lY2B=oI!)9I2^n<+WEVfi9vc(V~mdawPSKVxiI_m5>8*UQ_d;s8KcOv*U~+<^*~rL&>(Yl?k1=UbLfAhI!JH*%Bkch&1Wt;^@NB}wG>W;4UDXBFc)X{TtQZy7WwR;bTDbExYeiQlf8t<2**wOb?~_Gcf#rtND*DIK}+z&cgGWT7=lEJ0|#mYr^1b6BXTZ7G84)I0-KKbFJ8`*Q(1S<O{BI+;ZfS8m98SpMy;s0VmNlyW&33d-L7^F!P|eWF#9iq%C56!_5v1G3O^Zv48HQ%ycm)Dk322Nf=cHvFo_7!5+4r*k+6x32(9<KLWOXkw)+yWdF>CCn%bTNO1WBlVpz2GmE^PT0@Nj!1yN9RXA`H6b4T&Hcbc)$E)SI6($}7MDE$O1h@C&=KV4HGbV2+PxAY0fI?@jPZ&15U$f9JGSQ$h4qX7tBHm1d55}UGl6Z1)+H#-I>=Lfpx|t40V=tu2OL~-t!bhxvC$vOD?*8K5zL3)S#D?+=1ZfMx<9{SLnUdcM=Jb?rC(3Grurh==q$rW&MiF_{sAF7>tC;KW8*-m`Ioi*FD)9H-K@TQ4mGitPX@m2_qzWdPxCT?){*t0!Z!A(Kc%UHu$FCII!O)<(;k^tj7z^MXZ#k<X-(WGJq?pW3<FviD=0ICl7jjF0v9*?U(AVTXRfOqM2y2xB&r&B!UlpaI>I%q_f2pe9xRK<VCgZmZb+6;d8@Pcx9$`YdrT$Z+7om&8zUifTFoz#m%!F&-)V3B{8G%h^XP5E$O@nWgfC%fybHgQ($Z0>g5ZBoIniJ?X><fdYJ~|~vknbtCUcl(UQUUq@=)eBLijl<PI3?8Qw$-pjU&;FQ#}&hWL}p~#1}8+$IybdzULF}e{U{@GWkf3mOY(TXI;Y=Jcd5MNFL8OfsRY+lx%9~@|Ws>2N%K4;UKCn_|0O(m%k70%i%snDfOW+Shsi;F?Cl;3y>0n5j3eGFE7!SKcfU9-(XDz1L5QbEqylrfh;kh|BuJ{F{^&o1ild`HN()CdG@{R1J7%R20YlT`c@JG8{$n@W?8J`CB~_wp(SP+qWA@$7|#Q3<ox@q032afz4H^J!)ECU$9M9+Usx)md%3!xQ2l_%>W~(Z1bLlrF>vuo8<koBI^DS-DDbq+-6~S}86R(SSQ^t=iSq6A@@!CTYfy96<j&Inp1}Q@-WNsZr~cA+*m!fPyP!sm!{LP6!MGXb(m=RLDQa*ibyBSR3g<il+miZ}-_&t8q8tQXry-r5POVs1KXep|ZyU=1c2wlA=lfCcf8d&>E4qmW2q)***FUKyaXn8rmw8ehh(5EmuxR{5?6C|Ru@9M3q1u&we-bgvjI?Nex4z5#VK6o~Ih<14i+C1;BL9vnam+SjE(Fu=b~ajG*hN#9LS+b_oX#)#%3OKS-OG@iq;LeN1D&c8l_Qh#&A|A5??-P1(=68;W!cc4GX?xpZ8aj)1aoAW0ej-p-T9gt0A>LZikYe0ZYO(KRb)-CRBmuZ6tICO_QPiL5X6z7f@aW2%j;S+@hT9Pu!5DH+=>p4gNlf*u${RJASP61<WPa+=N|J*AgwZE9***f1=Y@(c-gAg@G%4MfcEGKAR`9mO{;uIoF`(1y39@9icf2@3I}B4!Eh2D%*Rzj<J<*1R^>As^+GhFt$b$Ht4t@m!-FY$p0^wDcE9mH6)rFjv}lT<VEDY<{`&ITxvFT%y5+y;1W3&E>Q46rt9~Q8SgkE72*V4~#`l~X1z^j+rEa<<1-xGuKLZFdc(P$e?mQELtSdb?^0%FciL$bx$EH_k6ck3#)>}ZK1CoT1g&hB&3Mw(Q{V*j(<%APkYbvcgPzeW0*-yhybk_6*&HkyfwySl3;nkF6+UX7c9{SBQJpD|4Js~Dk1}I=2K96Dc+B?!*X}g?=ArWxC9GWdi>Qo?C3Dl0Mm++D+@dQZ^AkA1e-i8F|3l5X{2g6O_TsC8g_>?fSKl9N*BsG!<o1)@VVB^lw!W9~Jdqmo9x@!1ZPZj$(6D<k7u*^IAq%tQ<uh6oj3T^nQwZzZ3DF9XSl+9wD)efU@(HV`^Z^q6=R=>eK5SjZyk+EUI*ICw@^QnyV2K+y8IhD3R*pdPHVN<e$r*yX)gShRBuA$FZVOtiz5T0}j{Ild-trM*0A8*uXvq=5aQ%GYs-85hWb(23UG}i(8lfFo)vSFF!yt|306Y+JI-pKSEh1h5p5KwTQU9TY*B~g^A7KFBYpf!Pb$sdd&d70(XLSjiA6;mrz3OUw*VGC3vy<MzRNt~oeKT>+j#gs0Wjp3OU<8JEM{G!pbw%(uQ_4+8i%t;IOFUc?|(gM6mridCUL%YP3GlhnVsa75MG)nD)@hPLu8AFmlz0HJ3fNy0Ua{fw3c}R-y=f@!`-bfH9WW&3-)jzIy3FM$ABBo0@(YX{!fo=W(!hPC10UgSj^&;_$n`(k8=)0#7=QVwGh>il+6N;y2wz4IzEVBSuFYz69=fbcY3*3x6Y5dh|AG<k0^D%If5VOF=v+qSbGC2x<o?|+JX3juG2<!2?kqnXPeLb5J);c7jJ$>0zj*Xr+*^;42)eMb@jOM%pInX1e7yKuI001KE9b*>QQ)Wb7Rh63%LBZSM0wluR%fNOy<lgx<AFou|^K-MnEGIQbREk&vzYR4W%eTLVUp?zh?J*Y{8_xxk>q~BE0SRWW^c)Z%_F5Zn84`n2`C-y6j#ntR=e0tlMqSC;*Jq|SteV9jytuPCxZ+6tN%O;@x-JDwE`OxNnhB4De73~rSXH{)pw*$kOM{qN^2ZeGjAcq>+d1X(h_Gv!!c5ek7yiF+tL}K;%jmF);OMEgdDM$Z>*0wULa_7lQ2i2B%>fF-l2IoP3G_`{4|ehYW(zg})vp<+PleIQ;+s?%-KHf4>L;=RqY1>4RkNVsX66X$0%<BnR&r^9v~7l}k-L742P2<|J*mcc2n4fBp+YosY(6jo&ve>Rl(>>Hgu$i#eE>_6M<dz!V$`DJFJk2i{#Yyy#0vPO&&_sxtu19Qv@TYByC0+E!%Z&3&%1Z)m<iA2XcUm!`o3{pb;SfXQ*u3|NY@q<7JAe!H%D{Qkjqj|oI{scm>9b+=M`F6J31tBs#(2qUdLbO=zV8xB~4|%(1u>FDO6kOmlNF=8?kGM&tHVJQlUJsvR)Z(v}a&(8p5AJmI4hESLOde0seIM<nASxf?{5Gu#FkG?bI_He1d)L?9uVX^sj)bXF0UOisJplPmeWaG{$ETe=GZO!2`h1#zTOr@-%(4VjU9HZP5$BM$)%LAiYnyRjBNu123`l#}*^gWgUbgP~md$Ml?ep-Qnx1T#GI~(t49)Kt93VDpc3CVj|9=9F4dSt=d>wc^3PIr6lPQ*JsV2%kvo+iiscoKg_%(rgE@J%BNmRa@wrx^OI7wcyU0Q?kb6G^mBiOa8s$_whJ=RBB?~v=P}O=+9Pt4rF%;$q6JQ7jXwMINz))5PjczFR2#_OsLUdXv!lvaf#<p5L;xAq<2?FO`&cXCU$?Rz*Fy`_KU~Zd3-eI8Y!I8FS88fqntWJl><1hzGy92E>rO*$FNkot0_u`96)>`ZC`{>)VxI6hI*G@4{<upBJ?^K|1CcE~FA(VbJUWYiffh!`vU?{8zoB@Y-r>hYMct2GWC|(`wh<KX^rGdgBAL!Yx`3r$X4^K%edY7G{R(g^0C}R8wcYvd`|5JGIh}(Ux~jbK&%?4mAo3NZ&i6%i!0)?*g|nm3RfePArnNS_lkJQ_d#u`;XRT%_FNxb`ZjgxZsu&L@jIj*4&V|JzdVRi{MMx0-QO2Oa96j@gk9<9h(zC-Dcc^8y!1>3#ry1X~aOrr#p=xwDT`(B3k6gpKu@qNP7BE!p4#`^&y}##yzRWR?cW!qP9YM7pk~$o3<uZD0z&xnMy@t<9pO7W~-cS$M9-V!ofgP=l*{}IAEhP-Um#-N5ZPdxC@B6#V6_ioAk2<5IO_kkUg483>+T~WAJro#+H0R#t6<hsJljyP}kY@b2YmeUfL1JwoCpb-E0dSu@)>S%N9G!^%mie{GFfe#su+tWlkD2r-j%Z~ZO##Py3ij4Y&WUrksT8w1S7fndCH|)ju{spK=dOR2mbaI`ye$#oiWm59Z1mpzNCIYHBVgF8==2{sl8S?VhU-5T$`2D>;I<4})s0l1uMUH_L@&rEiaVDlqfKb`bM(40Zp&ACTY%j!G4`8>FZu;uxNom_dXWYwq)9=4@4N?uEGvS-v6$5at5FMMadG-g1)Xq%OJ=bgQ;?!@!G=pJQl6qVPwjpfRTFnfB<-wu6=d1Mk&nlKfdRyz-m)aTtlnD*HkGbp9!YBTHY9)ftDgLVLKgF<1~>2Bc{LMadIjBu@X}$*Xa7fHS7pqykpjmqml^9yj2gz=<ICB@v7pSL!k3k3y29ie=%}OoK+S9(d+>^{{SOkNXHgR8GPD6p4nxTBS3q<hd~W-z6p`2xi@fnUPl4NX5LDQmlgyP#DOuqw3>ycct`H0nJ*6DzcKnZe#SU=>+DWO4Mpx23nnMNQ!vW&3B45gZ-48)A3|f&MW($$3;Z6#s%~)D!(o40xSAy?sGYVOjD9lS<YvdXX($QDFBn0g9>J#s_97_X1vz~<G|NEuD+aP@!$>5^DF$Qo3VU}j{gk{Rwe-BESxLrVJ?1yjZ>^aD7BDx2)0}EEPEt^D&y^Ny_yPrL8G#t2j1*ua!j=V?$`gnG26!X4oC{JVcH0Yabv(T*}+l4rEFwcu|lE_X56k+Xb#Fdgox9E^CM?Zvg2R)Gsa&eV3Ph1}w{dL(=t^<-<w^i1E6Jls{MY?MQ6g}tg9;YD_T(jF=W~nKdGsD4}ydl{#3xEEoH-%1q>Q6wx6!=bK#Mf+p){X}x-shm@dUe(~nu5KfSn2B-Yc0qG&5&k=2L5@jae8yT8h7DZx_g4+l&+4#-l2r|Dd-=sM@DHv)u;(`Sitla>Nw_<BL{VM3$!d7)RW#)_78!QeT^LS9d@c=y@7ukCJ1&_qZ;8kgC_v~tN^<gIi*9HgAEzO(70d{r&J<^-=ARe%Biy&M?h5F-Ow`&m_7U+jc-4W<SQH*y?1?^WCNTEZuhxhq(Z30+i@QG4Hl|PE^GGmk!M(rF@B?Y&jA;pR3K>YKNwU8W^PCp)mQ(ZnL&t9hVMSejB#7C$=S~@B_(Zh`wn;<cRJT)xY(uJRr7%<P5HVxOPnKo{q3^Fy!024@9d_<0=)fXfK@+elw-=ny1ZEuTwtCr_-exYs-lb%0J;x74fg*+>R;u9QB?F=b4ek9IAq_8%2wYN-C`@D7nj0pjCZa*tAq4L#NO#tuozbV%*`tkw{qz(WCEz%s0PHRrRPljgi1P=8)GW9JLanhIFDKosj-(j#}f%gOEGGPMkW(PryYxDkMqKmwE3~CCeiv1ZWGQ_8(<n|W_8tP#<Skl?)I$NM0kM8C&QeEAXSC^LUAzI!C9wOO!N*0HG0ox!il7yvGW2D;fWZ7<nlr^X0`**@<K(xgToY6BC*HviaUwYZ_Q$OMcPoPRQNVXg5=)l3E*64hrsh}*xj*Kg2Ld&Bww<nz?+I%9&=Oyo~5QJjNye?XR<2_=9xJV11fZrdvtmaAdIh&#CMtlLH~xo%6Q4Os`+3oJWE{dg~<Qh|7l)ALGbqGH{DzDXs3SlCI{9rcdVnQoRv=ZyCWQ5lgejtx7xJ^oARL^|KU%yBksUV6?0f?s*YN>S;5o{2d1~#??pFWEU(W`iee4s`Sc3-PT;>^E7{MIvKl`{yf+HP=St`|PK0i9q;)(Z4-xA*M{aG_QY&F_2h-E}!C#*e?%MG3YVIWFt}gT^gg~4+t<i*hNs65+N73B(dJdf`LES>A0u7-tIvNI5|6hvf3NJ^AFxrT3=!eb6$g{4|lq*mNGnSh*S7X+i8Iy7A0Vv4WP2ql&38Ck4y~m_OPJC*9GIDQ8D14*cv1pc3Inf;ds6pVcFAC9>A5b*7U+}D*u6tQmP2WaWPL#mQs(ABUxD~qK(Z{-B4ANSlpwl|p<XN~=tOHx>D%zL8Mj@~RgOd+V-ZeG~9t}cck<qbWax=jE7}W@>6}=;pFhx1?grx;%)g1&EBB0JwOx&I%0M9HEJ;;y|s^#9s?4EcI{k;b^Bvt{8ZI$|h`LwmkSB^0tEv$OvcjOUp(qzqxH3;C4{`j?~AEQ#59GW_UNY=p%mbPUcFZ%sA;47o9?E?FMaKha5^cvsu_o}n-o;C2>3OLD>h;&Inv`c}_DmrUVH*tizQ%4AKKW!L}t+lRKV(;MYA!Cpn-{Bhci-`{e8`DL+H`1jXBjA^V<e$piS3Ph4*7u^BX)9gg*|JT|>n_nC#vPMzOXO|j<+D(}rh|G9<+DSkBCT&iSK(la1(nEeUvv!1L;Mys36BE1ZEOa+EXN~qxjmDI?EL*=zTILYR&??b_-`9zIgNZe%|7nPDQv&Yfv2yY!Jg9udMC5xa)P^)GuiV@4hYUvmc{g9VXq<QIo{84VG$XOUEWXO&!kX~grpSwz|S(3%3jy$NLb5#hpeD*8^CQ@>yXJXKKOdy!Pj%fD23W_IxVwy$)y{)y3-Hj)geM`gFvIg2x*`|Dz4wkUY2m>O;KwP@em9a;S6jC>3u~QS-3-5N|VBH<!_yCQavkHCOO>G^41pR{=bUzGNJmKx4a|CVPP_1Ap`J8NzsYKkxY=pS4n2ovg0@l{@^8c2FREV46?2EQa=gMY&zUQV*p@nI|s~3IacR>@p*Msj19zrzsLrctdDf;BuUr9*6?X&^Vn1!Xw^nA=ZMFK+1PVLoCnCcv`hM2u$LFboLp3qT(5H&`!fmkUUA9Foy5KZa+(0G%K^h`;=m{pWtZZOLq6Jl*WTGx(Sn(BrlP|hAk5czf^~Eef}1Bx<CiADp$z>^ShZd1@VkNQzn2m{SjFw4(>t);$nWfI!L|az-Jq;qKd3@Hl1E<&L~$3JfIJ&EfNbO2fRT8qEiC4QZc^Ra-vM47)Z|G|a4$aV)ffms56wEXr(;rFRUbjeOppm^&q-f`LPzHXzrZ`dKO9KiF}IGzMJ5&H#}w=vb?dwB8!y;uiYtU@$4?asaKY<r8lM%kZCEugA2Ocwqfk;7Y3OpUA6uU-Etbdk>Ffiaq@$!FZPJWK);x2QB5~4CUb$6U{$ypFtl<<8PSG}i;c(EAVwj&Hj1SxoDc_3Vfx{7%NF=H+NQgV#*Rp4s230|sg}0N@J>Ie!L4t}x;^Xb*u#snss6B5VcMb;k7RlQOThrCITEAcKPvjv9EJQvBxwt239rMsm$xT)<SP1YbE3%hZCxI@6aaXES=QCMyP3lp4;r<)uhSc}79aVf787~+Izj!#bJ>rXza`1S9$Y$s6)(!8C99<esvjrH~d$XK5_G67TUl+rlBzesp;uLyTs!<F+49$P>h*TzHDQ>c!X1+~E1xzg%<swdUgoWz@{~0K0()7AC-~rh4*zVLYIE?Z#barI+Am7ux#?zRc#Q}sjx*AsehU@ElpTyKSi>R*K_#3d%(;G_8Z$IyK(l+Yd`W2~H2ae^o46u`w&>}5bflKaOupaz4-os+D+oce-Gu0PF@L2qfZ>cM8nP-x9`FV{$jdRA_({aQ_x_<GbwVzZ<81;*t9>crEzt`#`f7+FZtYaR9^ID0@^%!Rc7A9olU`wY0`!>@EsLZ^1fH==YD@hqFof<-zF-ON5GlP$vOh6xd!{dM!#=TU$_bq^Q(49>5dgZb}?n&eroV0a#CZc{g0+;A*5EApIJ0a+L(a`;0`7UBKbwrc!>qe-Od$~%o9IL9dChGt?Yf1+~y|Z#^Wf}SQ{K^1orZ4F_mvZ2!R=pkQP104rL&wqXlStg@P&CK*enLgbNBl(jLjC9ja|n6gOlb10QB3oBCu4fi0`41YH+Yx{;9z2`!b-&5B5x#Bs_^?7*cMA!A*_8x^8f%+O0cCM<)D2O7j$tneg$TRKuZ=^R==KZMQPb!5v`zH)PF&#YH_deg;>ia3<;t**QD?;b-v0vqkD11gi;Q#+S_uv1>sjXP3q;&{T62ZoVr>yLqZk3hM!8G@`upIrpY4qMb^!fCZkHs_up9llbW`Cak2=|f1r2VMZ3}|<&S9v$?ermRPFAToq>O}al`fUv?bjR{?Bc?<0(*gG2lrWhaVAmpmpj_>MpY_OD3&m0+`*=lJls$!s7wR1l6B|wc?z;Fj_`aT-V;Scq+(O>i~>(78?h$G$Mqa0+a>Ty>Zrp)Jy_p$?L4N5Z{dOHFBzCC@~4H@?s1PD&f74HKJnLX6-!Vm1%tn#UbL3U7cr*HDfOJl4=PnHAFBhNJR?d`}>AyO+F&C7RCJ;pW>MjL+2TL;W-4w@tH3nt-*fz7Pe>sS7{C=Lo2Z9?9|S<suskXOeRH~G+~xoL?;01P2pTtg!Ppq;w`gQPpJK!TvB7+Wdu{m$?ko|4xSM9t0q)_uO3B}{cM1o8muFfr^Df;`34Qe9%SN$@aKXtUYDauX$yApNASylw0^aMx{N2Z6F?%lRAfRwp4C`NWm|FkP{tQJyCxxxX{|ZTpH-%5UJ5m3;BZ?-Her9RX3pIi=+IOM1$R^H+mX#XZKO0BY)LsDW*epVpi%-*sv$z7#b`6${>M(nPJ|;R9o<l@<c3Ny{KmH&Y9%L1;cKMN5wiEPa7*NUb>nS`V#5EFDp;i5k+YI3*(oTg|Nb>eWN*^zTITV0CEn$w?*+3Lnn@wT6m^Wij|^9#@NDQT6L*QyGRVw@Ggeb8F%KrtLq)34qZomR`V<F9Jyu$te=Hn(;cTs)h?FhSsI={_XcMobY3awgl)OQa5Y@qQ53L+Aic+wi1^FwGhLjg*>%Z6qsDsD%+L)k>p6jCYs8kee%?%&(NhDt4>_TJDf6zse{2RXfah6*#QwfiG?Z0Q(NOEmiun`yW64yK*r?3+%iz!OwcyMKQi4E=p$Zz>SHq?@X-B#@C7hDBzj|LJrS}SqjjduYu{Euds#c7IFo+NWgYG%<~1S2iEJ#7>qkeoI=LaJbEdN+ST^$PU^O`TC;xVFmd-;jR26f{BbMFD@y@m9m`B#;j2L;JM#d?RM@>QJOpy<b#Yn9XEt-y)bbHh7d%5aJ~1x;&VB8xQ-SnK`-?Z9eS(E%-6e!qk>fUWuMhw_s0`b^mpV$qmb+GYl@rxLz}zF!H{?dBHu=^6nu3lGZxDV~O{F6Qv<kZXF1h6vCVIa&Yd&u{6A8_K(HMI2V>`gQ<WR{?46`N}q&LZs-&&-((apDwy5okOli{v$cm*r?g&ZsSqAZv~*<x8UC0EMCsw+QZMy#J_UtR1!q3wUBjDaD&lxRo|qC6(1DDE2M_}AvmU8(FP!9e{CgKNlP1T*Wo)sshSX|2(w(QtT2`#95_f+4##n%6H@cH{xwL~DhKdWqTPW>{e*T>C#rxAEsSlXxq;7a4D&Z>8Ro+$(7ZPt_TRWn(b4f@QKdHi8NIy6|NliDsn``dKJ`bE!P;HZ?bwz`6J^+NVcMuYD5J_eWMX7Eif&GR9P?#v}`3)3OmBaC@2&>h972?N<c<9fBCT^y1y->d>kt7`!nT-7D9-@dvn*EkAScCCwppF5by7>y1WdPUye2pJjiB)0B?2%Ku@NaJR_#Hb?dYH5!`ql@0nqH#@9wI){3LM|-cB3V|UIb9OkPfMRblJeLlis|MaVn6IsSY)d`NQ*JXn9bsfMU(_u?PlvM*_LuoLa{2(;XzN!+bta&2K*^Bf!%34PHb2NecpTV8TY<v&S_$wG1P#a~Rs-rCjy97jAmp2~e&rHWE9>rCk-*(j9KmTrI`^ml^s85a<qljLPq4k@+;ICwnfkl$0Cyq}F5s?TelX(Lz@f3M0A|al_Scj&yB@cFeKmea^jOli&;0zroRs9Uc$5n9#T5j3-y8<&u{IU;7Te(ZAqhJv3tOH%luGyYc}#6GqoQ&e!k)%v*1bMK^z<xF<cc9&us=`7PbE#l7n!F9eXRIx$ooGpMwyQTC!BbdId%^VnzY7IZNYRPxLA2#R+v$3}JF6G|PHX%`r%F%QytMh7tJWSjCztPaX3HNMfkAKsEpbt*rNu?RZ7cd0pzK^tN)9uPtnT=$VCGI%qF(?QRng{m9UbeMs}9zZ{63uJQQIk*zlIOlJk`wk9l1fCzmC#?+s!LCqb?x&`$vDTpSo6%0s2eI{Fd&^mq?7U3LxFD^OBzF$J^m|c`2|EAEpYRV8a10<7Y7gsHCM!+%LQoIT8>d`$;WVKv=Rd1#qJqaQepb`-csM|@0--#CybD~c=-*;?nPE_ngcVziNks%d_6;2*V4-+zJM6pK5Y)nsOsfH*nw^nsJlTd6oK_g594Yb$A_~3vVAR@3E~SpV<ZnKxEv7ZsL!}OLd|Cy_7nh^5%9<mW<j-|axa9^ll|~0S>xGN9r8*|c`^SU^@l&ozkbv#6(3ymLY8f6v%p=zYSWk5$e@gDsO{0Vf$8?9B($=C*_9i2=s$SB7v_p4Qo{*3L*ec@6^#%Fv(r$rd3(SXF6jSqX0(F)-oLZcYKrJ>9wR_Cs=)BU|Ce^A@l24k{x#^{rqQSCG@4|VsZT>N;vM`X*X$4F4=l|242XR;YO!>3JP*ve^#*=^dwpzjtIlMz^EuYxsa3a3oQ#=GvL+a<oJ{gsbfd`p%3W^8*H#?}ePPLu{)m@=HX;G$d;s=)9=3M76%^2bS(UoCrWf4{ZP;V;wKWU(nA*c?#%%q+ADOqdu;o4Pi)M!l&-k`55ZQlsQ5sOF8+pmcGKOIK<-7s{!WL+~s2x_-Kb7g|KXJpa;{l2qahbGPhaA%)lm0pijL4O+zQW}&&<WW|D_E+6mhAGRiKJ+A++6|5oH;!8xE$k+pQ%tBBjQM77M&USoNp$YnCC&tmYgV5c{U++Vgo@8_12<sub+lU=kgqT&kJ+?PNa5$v>d7}*Jj+d5SXzaca$p<57r@3TW2T*Lk4$L5fUQk-#L$yFzgb!un-lPO;Okwob2IujARrhAAxh=)jJ4eHEYJB?9tO6#fSHwz`?R<;?6Hq6w|Yx=Y0a_Mqp%hcx-XA>S4C!)x$dK9gIU)qL4fh<trwv9eYz$zx$)!Hvt>qDc(+kHp8LD&dW~Ug7aj@D?7h10ynXp;SqO9K&(F|S(~Y`u&nN0v0od@WbojwePIC&I1jnrWkw;Ld$y?o}uQ{)SjXLLdckXYBTH-4PjZoi9OF1>fleK-*2~IeYU?P#r;Hyvw-%;oDsx8=*l*PW|TEUx3Sk&)$JejcJzet!Z81AmwG^{4~*tlZIGl;rcu8PPHgXP9CiK>p=Dx3=5>pskoa(Vl}2VAA1AwD~rO0ozmki*p;x<xbc@<Uf9+9=L^E`ER&fH2bWp)F&vDvTCg=sVP)aVdv(Aj^suT{kk#YLGTn0%s<B;`!lGYJ6kT)M&+BYkC{tgezl&D}1;7J}(9ZtxN!o-Dz1l!~9pLUhYS4ha+P6UTorTxrVS<?*uFH4{`tpMlGq|P5`F2@(*zEqoZ9>uXVu(2%B%XQEH52d<W4Q9_=PWp;8hj<E5Hw&PI2Q;(EB13~HD=dc<V_(P`T8gAtYqwZobs!KDR-1=JR;rpW^7Av(-d_#DLdPjwTo%iT>bLhz2G01A)^xtdg;-FJ>5TNk#Ej53Q@KkIHMwU6v)pUcV1XvO2%%`S3Z&i)h{BI@=!xt#cu8M~hb2jr7ddGCa)cXiH^Zdal@^m%~R%BmvABh$m;2!ks0*pc8(pkdSm;1AUozQqJ#wyc^YgjYS@QXSb(*N)pX&jd1=!UZ~C(uFVoTq;+$Ak8ndbtYelVk4y^swsI3PvbET!xyONz>;+%y|9E#G3*lP=yP&8t-6@5%Zbq``r2c2O#sekRXZoy=3Q)5(a=hf6j^<}`V@`d85kQn<$@AdFqrMem`%oTao|=J+Uq=~o6IqMAR<7#XgvRNN@|P|jmdfk-gKiQLxke;8!3|HCR$shG|Cx+--xl6RfX46hSmxW)%#Gj^-{((Le@qpZe?xxA-T~Q8@>s}N4`>C7O!;;ri<3v!6=t#I_IE2fLO;v^KcoAV!c#Uq5U{O!O7wp!|w!JBC*+-$?;AoZE6roQO8Zs00+c84;X!Nb##Y4o77cT$;Gx-B7n>c&?Z<Lm(=H<m!my(GB2uv)i+-IpKh8s4MKv47UCpI)B+!n!Yuvnteb7`RDyacC<-C3B6@b1@m2Q*W_HJy3i5MR8fY_fO1d48Sm!<f$k6Ku0ch>T9yk>|P+}?~5gWTqRh!~)Yq&slTP3yfzl}StYNLOH?AyrtJ5}l5al{ySyusN7IRhY3x(OL!!XbY#F9d-iB}9)4y=E@sN=pcwgYY>F?8~aC_0|`-sN#TiOz;WA)*Glx<?9HFE}gM)+sl%9k!c&|ur<;}nVQ^4=B5~-YA;{`a)UueP%NME^Xa5{;z86jq8)voP8SoVxS|Pm=dAE9a?5rC^LwkDWnuVn_*Uc_(|jMuP_<pn(}N<-Gh2mcuJjaB#rz`=e7#>7S#Lo>G}5}!W6bYBC^^w;wW;0T)yR6=oTLTN6`@Cdss&J%lHofjrd;cq^ckm~%`C7a$6U}LVzZgmMvcApV&>p%gM+%kRqC+qh<`?swit@E9qU}_Ow%B1oD9w%<!PA#A_LH5D|-PdiKpcdNmT1d0&C0IsS&nF9b)lnMyquSr8QPc3CtAm-o*#e6XfrmfJC;wDs!b>q<C%SsJ;X@;dS2SEjro~3CP|e{}|8rfFjhk!{vB;FA7*Zd4e*9GmXv4!zVFKqFK$+8YJi=hI(GVjiK{$=_Z5Eq6@M{C>*zR>698tmiS1I)qMMCJddQc3`kM6UxUTb3ci_R#sF2J<{yKr<lMGtvadCly65Cy)2K2m&KM00;uzc_Bb&ow55a2|6@AgpW05!8MhL3RGmllRLOzNz-bOFH&Y8tn2N)yASy^?AV<-4@ASd;}eE@zm6-;ub7qV*<<s;27D7@tbji7Er6kr%lG`?g9Gc+h6Jr5KRXhYLy&RsO6k2t8!Cx2;sbof`SSP?Nr75Y2W!-{ugoUQnpl%Z)TH3bNEw?q(8OKvZ$X&1RNbnmxM5|L^#+5fKe7!3#+JMw2ay5D=fMg%hHTI$J^k&uoewLH#V;afP9NhI($gr8`(EHI~(`dL*9B<%<=nV>n2GzrL43VTF>(wr4TKpsPh{|z&38s>LjQnEd{9}$0SGLMB0k6)=`TPH!A`)Gv_?l_<Rv$sB~s=%bG^$3hw`Kln#=7j>}TVi#%Loy6{?QcgnlP*PY_@?+NR$w*u5e5%12bo@~_gQi~W@`}GCATn?AJ{~`2|Y)pLizid=-{586=ZDPx@bR_aCpkCeV*h6N^|u;*!@D`&gNYDNGWgFt&l<r5phO?(#ah<S#vpHC1a)ER-_RdD2msptQIjYyky|EAgU#WmQ#@%jYGcw0gp0+s*{AGo6%|p+zF6S(++`(8h(r(8}}0e?21C@O>muE8g0j|HT3Gc5i-`6AQX;&#(Dl_1^o8KAvKf`<+D{<)(KyjcHsZP`gvPAip42LRK811EmExt60#z?OF*muH?|{!6TdKWpy$0uT}eu*x7OdE5zyvKzXsgz<okxEbTR8LEBiTN(NT$B7p4<AeVBDBjY>v?EPWZ?h9iT&<;J;bJn`n7*<cA>G!%qYoW)ryehk?x-_NKcO`=%ivOH%GBn;_pO6rs6t+V`TrNdb^&1Z~If*HN|^HwLG=@8(^=uSaq1&t`F(zUX0#g|h2jNit<o<l~A=yfUR3-V#i1=#EE=2SiXb}cF3W-rD>QINoer>R?o<e=-PLPzV3_^N(NMX>H@;O)V-bK67wveeVy?o93%M;giyrh404+Zid)T`wOO_SY?jGP3ta`1Xa5Y<yMbX3owDe#~~%7^<v2rBir{isd2=pQ->!Qq%=7>NRC<nsfYo6jn0OKn*-K!_y(hTebXqHRX=Q!ZS*~Svx0mzMX$m0x&_rkcjYFm<AZGL9Yhfkj)jBxlN<@_y#BsNpFjkhAzj$E6Be_oKmH|;F=E!0m#JQ?_@wi<ET%R!d}Nfhsm^Mv3H%wa3Yc-5~#^&BzuF*0zBjxv!!4n!7shOW+1D@4Y1$1-*Aron6TxnwNTSA)&>Xb3b|vtrdg;nxqOcaD~<97EIF>y1fT(veYVJTBp3f!=>Zn}hubeTI(w26rZDl_lF0>6Tt`$>e?k2+ykOb5cZxy*cR*kpo#}c>@aj!FjD|i!awVdd{wUS%rQDdNIe(nqAk*Vf!*U@ht~abF*>?c$EH76byAETNhywy->;RZUJGqoNPy8NvzGRJjFyG(%%xx>^Xwv&ews_Fv*Cn)Jy%dg$c_0Mo=AJx<;a-{iITK2Ymt1Mt<_Tvu23O|?Bdd~S#|Dt?;3ijL7YjGX>@;3vViN)j;6UEaB;siXJNko&5MWKc&UDt~5+sDnOLBQqA$@J-3+#cOYG6b|GXN)iEa~<n!3=zKnO3+*kH3c>jtCc9voJOL-G}*MMK|VX!u8eyzEX%sYmU1zJ|-F%nmn%`Lm_RXJ1bn=M9$1T(~?5v*BN#;qF!65Y{r!r!^uZoC0R))D}5sL&A0X#-wj9Mm9u}f90d}327L*GV0r~P!=d~o$km|vBL(zhzHzg^j0`*Wcefinau&nRI7{cd*Gv0ngrAf|g1D#{<&v-QEtGRuvDMJAe(B_rX9@GLi{mPBWfcyqnYvDynWoaopW1gzpZTciOW7HdweCBYwJqJx)MZw_<7N6=gRWIR^<!^ZU6o+eB^CH2E9s$>-BpW79crW3mh+-~k5OJr^}K<QKE27q)ID|j5>({&J`5|n0kd=O;C{>uPNR0l`-Ess-owrY3lg?GcSi}{`rehJ$GS`O??S}EJxZ{2mhv~t^!GivP&;v#9_ru8vRF(C9k}96lZ7I|W_qmOjRzC==|c*`-{A>dV;&vQ#VjwC;o{7LD%Ob9@DgHCLESFznWQ2V@WG0W5g=3~L{FlbdT#3sms+IxpT$95Pt+Q9trY`yMTr(Q8>q;dZOwI^+Ied`Lld^<?maJ0op78g2oYLsWgGSe#j%)j+EZ1WeI+tNraku$I(Yk963W_LY3|0!jnh#M?3(`i*8TaYCk6x&rI9g?gUtn3{mAkmWP)v!^Z0^NcF|D04o&BC3zTUJq`LcoYfkwnv4b3K8dvdvfPC%+mT#K=BuzZ9%r&k;Z?(VKc+t*9Xzwn+A;EmFl}#Ok?8`vaxCc&hZ0x$aSv_nT`*7)FjBTB+tZww+t7C&AT$a&y8KM`}xFwDv14te(a8wm3feY5ah$Mc!n`vFGX}IGwuj)C`bIo*58Nqrn8L8m`6E2BEc<uvZ8eY04?=W(0Xu5}`v=@`s(4&pRKbv0IG;|lCONJ+(%x3nAj$sA1xkl&;&)LFW7|#bx8yfT;ex5u7r!c4>&KRnCWai@4A=*jlm|z+;=gt@{*Q+ARL@)_~-u7==0mSRFn_?j6M$s<@lU8Cxs~A_&V+Vk8RZ&u*I~}-SH67CVYtP1+;p^H4{FC-o<EX;8f+6_h7mZ5m7_PmB0sL)#Ai7`Uv*-jS*cP0<C96^0gu5x$Y0tnx(6m8Y{Lz$t&Yxc5e?sv<ke7(XNDFl6EH|~+{`VD2`oscpj>9NNQ}N^w;OgoIHo*u=Wo$L@mswB`bX*}$rO}0DdV@)N6;eE=gInCGjUNQ>21gQ#vXO=$K41HP)}f=$=#E4uoi&I3yO`{0`I%~8|H2v;aCHd)JOmT!%zmZCV)uY2@c%9wd?@_gEwU5+xsAVv5`p7{GOXG#$zZ3DV-9Yg3_rA9Mj^L8r-pZv%is*`Z7Zl^0jwma%1Kf=5RadVWyfJU!4H^p$YG|@GPCePIb<so&GF(dzy-P|Ba3EQuYMxUSxzHNujA{|2o^=pcyyc{gNww2;C}KYYe6p^9u?RqryX#V@7fSq(0*0(MmL<#vD*lc^xm}aW&(tc)=9oA*0!lfBS!Z&-<9~+2OUdsn&$7<?<P22<wMYxn2}I}^uame!IXutAL2XTZu*JPViNs(xld)gR_)V3j9GdiJUeH2`4h54lE%K;C*nv}AM18QnM;pawbx}xj;W2G(`cXNZ&rH{9gY%fHl{-51QW}UGXS61Ps64A?{H5sDukB$FHj66)u~d#jZXDH2CjGJ-3RfA45v~6VU0w0#SvvGzq0lB?@3DKhG0`YmRQ%1q@w5k%~;PZ%(Jq3?Kz}Nvpr+bOPT$=@&)YYCucr?C6ABOUQwZdi%7Lt+8tb0#4}96s=hqLd$mum;Sd=b{k8N(@-ZL}lvdy&1Ta9^`fxHHom}%-!_EEy2otlmGtXCXcg`_1y9$t>`YyRT>lTmH*?IF3aWo$K>6`3Xg&(4VW=(F%L7ES`^mMy0>b&zYsZsV_8f6n$*ng~p=xrF9TT^mrGVaLsL%HI|&M~hfGPHCog$pvbtf~?#r4p7gj=ErtSEzld<Crv_`B%Q0g-@Y{L+K@>NH(yqN63j;pl5Y{?2uO<d~^6NV9Iaim@^53E-zcTw7^z97{D~aXNx{We|L&s^LWrB;&?eHP1h)ygpOy*ZO3rdsz298xFu;)?!xymR2kxBiGVs~I~hYNWQs%+P`*ndbjQh9E2|koJ&@u+=;_ErXb)m_=@ssfSRwuriWrI~2~V7oRb(P8%bA}obZg|^eS@|hTCZamtn1$a$Ea|*;f`=3BxOQq=As;qN9QEV(34WE<Am&KplBbyJTBeUczoT#`q|33)O>R<RL=^K*4Eb6u}<|Gyob_SqjAvJ%@i|8SvSj}57nwthEhEJ&xldV{%(vzR@R_dB+2Ehp*esp8M*3|;`Kc&9+lYTNm;OzU%d<WCqP8|;2<Ah2J^v^{V7O%QDq9DX=@3>S~9w1p#Lc+wC4(WZYEFH=(H(L^3<OAGo`b_qaZs;6unG<Hp5eC#)oC>d4|_Xs~50WdWH$a8U&7^JU4rGTkA-u6M!k|PzAirS9LhLhmOlcC<cFIP)%-;aD3D67^v5#z*CRzb{{_Ff=i7i?S^hH6*i3!%}zz{-Nnc279GjB`u;F=Ir*FaVtM;d_(R`X4_F8zyLv?}xa5Pcfo(eEQ<3BB&0eC(B0a)V5i^yS`$X`na{Fwfq_k4R-W9a}^YZ??HSH-Kl6j(V%gsv2gSVlCx4obCj=)`>_!G82&LY07m0Ud}^IkXrs56#@?%_m{=Y-p6)S}WJ1Bc=)v)Z;S%353US1b`w<H^?Y%rZdV4xq88|BfqM3PW#in`)!hud%Zcu@kjM!op~q!!Tn(h@u$`x1Hw#5O_`!4mW3`pD@b({E1h}iFZ^^<NSlEut_9@DiTL3!~H0*g2n$fei&{%v!4!<R-0YPtWb5)_K|M4GoY;?=4!FWp568FN@+rj`vOFspalwR(#U?Ia9wWf`5e3N&!UPe*?x|DM|JqaW4vYAj2=x8v&tFW9)svbS__v|cM-M_3Y@N0+eXwKDJxX%0hPZ<{eTJA6G;2L5EKCgEPGS_tcfq@yA)*Y$HArTXYM0iV7H3xAx7=xl%0=brif&9f<WLTq%-Kyk%UH5MdXjNdC{}CCDQ7_2JKB#BD?G_?W^tmVWig8e8%X|>+>x=RDZjuZGd>7yp}&BKGe;2yZgW`nSte}o>7#BmkHgC&Y4Gi-_tpcP~a;H6}^m96Pg36x+m?De|#7I@v0FHOGo~t?d3Mba@5;$9l~{{D;YlAedF80!9Iblb@i3-#qRl<*T+%fu}GA$Qm7g(d3LiDFQ^($&)Qn7UH}1i!1}9STdz_^zcIX1fhL4JCA0Q~RAhWCHR1@6*kj{Gms)L5s$)tpxmy~D%5a*M2IAsJjjpv`pCExxf`meGD?^-9hF5P4m8Ic!16~M(efYmXJoeyl17DV<o4=hVW+Fra)29d;6ETQ;Tu`mdJo-Qw7JCk*<kth;c~Q9e>WG$93|#C;y5fy2eE2kwi8S05+%pZm*Q$G0Vv<e+T&{GKvYPL84p8m_$~G8}MD^at<Sy(7z5!1)eocCazB7`_c7_CKW%fr0hf5@E<{Ca*TxFTYs&NOmzVQ~JyAa<oVShjpk*lSfsF77#J%d)fojSou8!_FuckD4<M*Mm){1px{Z^nnI^3Rk>Qthe`+IdHgxgrbjbRLV(eqXVju;6TVS$!g6w6>mvh;ea+yAl$DHQWHtrwwF2sKZa~zHn?8TgOox<fx^a#JXLl{$w7+Wx!o)H%zuVzq*zD##@NwXP{`;==0=m;9(5UU^&H=Z=jA{NTnE%KI!Q(4U|Rc5muZBX~Pa_ka)2xnXwZ%?t7v_)1n?81%JK-dDRz}XV3%5E4--kkbaSHXh3cWmZRyNZt$9XrxVUc+FN6tM}glmu^g&#0=Fw-riR+W|7Np+T@Jv{CicUgN@TU`Psf$S3^!MS6=?yeu~et)0ivqbc0|cwI{TLp-Bu1)982jeJY0agqv^Ituo$M?UpiRTz~X%O9Pi5Y+^qQe<u=REg0^DQ-=@}eK6$Cnlv`<BwkJ3y6P&1x0Z|iB%}kR2lOMijnK02HS6-95MZ6Ubb<+S#!x5$ue!N*J%#%iAfl4Ao4ai8u^I}hk<T+W0nomU3qeU^Rk&vM@Q1ld^-cFnyX%mHwWv7A5I=v~Q*_2vhpgL28D#wW#i1VE~CtrisI4G<$xblW!rl%poFsX^y$rGuhx!^2xK-aO@kUk){C>K_;ZjnivtQ<5+2l%=oxO_UtRKH{0_y>YrtP|(i`bwHKaCWK+MGh4>(zQ51KSNWs7=i<%V(1Z(!-64wh|&U&0FHkuI_J}$)gGi6#|6D=NKFkfnm<CnR~x^m${tPufq(VmX8f7NiK;AzmZ%!I)+YOh`!C_XMQ1hE3pxEY`HjQQ!DZ;(`{6|o;tHX`QM$1%wI<dhrH=gX%Ws<#-_@Efa{W?f@i&!axuTg^!udetr)72C6ASi)Fb`3Cu=alLOFcSHU*VX+p6`9oNy7ggj^tiIB<U2P6(ILb$nq#+>I7q!U=`t#q}HB>UZ834=6id7CynXu2U+OTS}LWrHy^`$ZU8SS55}NTG82|4Y}Z_1zF;I<W|{y;)?~`izMejvoSR9cjSV4caO!2g{|*#BOQceX;x;3cKw%V_Oh>^|%Ga1A3oa3j2OlUhK#NelrsD6jhCHCHZGO$_Vk%-D-?Gxtf4nRMC!Gnq2?C~-VdN~PGl)~DM{LI0G351Omq;vy^O}BkBgu^;cUR@&=;c`e6!oPuc6^ks6eh=R*kt3IjSOJ%hp_5?Cq46j0=QfXpB|a)Z|`>JR46zj){W;Qirdb^0zJd0k{`m!nQps5L-$cPF5{h9LLf_6(mNM5CO1Oy?iDl0c~2>^Ohw{Ow|-l>LB<bfyg33sTl0jV7MxrQSHYMu;?|_PaK5_=WI;6TA}IIISkq4b^K${u2A)0_N0@})+F|AsP0=U4H}$2;k4=*y<Tcm2qfc<<=G@@L$->^t+PBO$_r8x3Jg&SY=V*cGAdS|tQ_7wls+{AA&9&OWcrSJ>&oE=WFN~P=w(GC-5kY9d?A3v*fTp=B(|XEQujvdrjQkuK?iBmP;B6dCRx6Ei_cTr@(a)4kLirv9BN=o<)2n5d`LNhyry(8#`{=eyN4QXE^O?l(I37mcBW=dm)1R%v&mcT>!%yb8x?l7E(<Go0V9x9?!`58FYQPy6${M)u@xpF#OF@*l_oOOjg{_?lB#?mfo1(eRr-u$%T>#gqT}neWPN+R!LKmC6cPe!|T~9#?k40+9205j0fO#N<{=4+1CYb%qty;S;Bw+nSk@&4VO4A>e)?NH_7qfQ^GLNtp2?xxMdOOaglu!1z2IP7rvUcCcJ(eKV-GJ~oga>knx|#bpen%b_OqD%1W~kJoW;Crdq1aeKdqx{ZDxyD^xlICxJQl>am0tXiin%Q2@V5FMLGlOGbXIorsJBa@<_e-K!?3}^0hV-J;=xWZc+33?!amrfy1C2)p`4dk<U&+@=c_*57;|g`s1IYyP6?I$gCoN`0r|kY2dA|GxkOrL5<+2M<R{JNGo!D<^$A5BYeWlRr`d;R9y>uU?tUyCsPX6Cz{yFH&C-oK+T1C&+U1fmhj>YMY)Of?hct#xH%y&U$LNpk6wD=DdNyWI$IQ;GAanvs=;-&>y+0BI34}jduy9*B6ZASN4P-t9ZC!)3SuPK|v4hP-ia-kAA)M`^e_IDARf+EEb|di6bYJT(>f``xDEo%MWUk}x`O&oZWb4)utI>2_ZJ|B>am3ndgxpP3@&SAgXHoU12WR}@r8YULq7Yq^v>GyF3b=2Gg)f<Sly0K8Calp6pqO9C9&jcC*=#%A-{Y0?%pup65nZ9qh$z1JzoeCcEoa6?x$&>HCs+Nz^%CtZ*pUI1H&uj@V(bN@T$!p;(o@P=pr#99y>untJ8)YR?n~r*&ME(dMdU8au4Cm~DFZzvxd2(kbnzB9091WNW`CA@t}S$Glc_MgE@ZNIZs2`3X;sCwXcX|ptK1o!uQ%RPvvTMRs`3JkZG*ChCIB@1qHI)kB`>_7qeU)HBkPPsgTF1$>>}hE$beK@4w{7ztC0`&_s6|#H76f@Jjh3KRWaJJ8cql$f=ym!U?M`dzXxX%0Lvo~e0>O)1h97|yT})%VC0I)*vTjuFLrPV&sd}E68;;~>5O*XY1dI6M(tcZpt8opVtuKTY|X|l23V)FIbu)0WrMfv4WF$;8IbTUp_Uq>8+MIWcF|?f4n=R-aCsaHr%fL4ztBOSeGX593WSP9N?*>p#`_Dtb;3o1^RCCEpX!~mLVEaJY+(_n#IdQ?C~-s^nzfaNXM6vdE<FfIg_x=-Ie`53-!-9Ee%*K&wE5pN@SaxHhKkv_rDlbgyF7%d2no`|X7ZD>Eu)w>m>VPeGPExE+kw6sYSOS<V}jt3)Yf>W2ODXrq-pzHmt@6OgPX9A_3)qu5ef#y)LhCIo5Y7KxjKFC0y4D>7DeQw6E!lb>871>xu)3Sh7-k-S^cwfA^-dj7!c1ORtmSpe|pQ(Ori^hbB+SMxRasxyCV6}Gp<SQqYwbeFTv;oQ_%Gbb#!zO|6eCT$Ci$g7pcxdI?hJ`e!=D8QJ2u`K@N~#A`h4i%6i<Ba%v;C99K&>g~AHqENGI?3#%w%`1Xux4l4~C&wm>3+IuX80N9dBI!SPtcE}I;5I7jVrN5*=W;OBmbwU-V0e}D&R32o40+47w%uIOgR=FB>{j9FAKcI}m_AH*J_lx0Dgd*TKiKGkF@Ul2h|3<Be8`~hh306kXjQM72RIi;g<XJ&h?j!0fm7s}~m1g+{h5`NiJ{3g7G#>IB<1hm9{QFuA1@Wy9ro1+$VXDAd6~{3d<*&ek=dpy1b#rp}E5cW;1?93>)jzKMX!I5~tP@!60(o%DBsDrJ!HyPQGxVJAn=v}uB~hE7A=B3EkU6Ch910$U-73p3WmraDMg<D|IKq9OoM(ogIZpm+^>1l6OpTtWNR62>oFI-UvNGKi^o+QNl$GzVn8X|UY6g?JpLVXe44%yyo+RQni1N$VSKzoGUtnfx!qS>me%#34zO-X4Usy0raCHAT)yxod75g(jGn}|-7-BT?8)2^#_A>H8!`D*M?feGI5>h;Fe2YRM^j~<;ZKC|cVw$Ho$uN_v(mKi}?`h-Y8CF6sAt)QN^1a>^8|5SDnzw1;>AE?Pp%zITM$L(2;Ld{d1<$v<OdTj*Z<CC4G=nIa?3yrHs3*x!T{LjdJZk!ts?Y?aTHDu|7mGsTF{=)bp`tc}A=VJq1OhT>cbb>o>a$}kG|j{xcnD?8WmlxferF20+AVp#(SO>-VX;oixcpWS4mq-j6wgZ75S@I{yiiPylM*M&&8B@{5Bbp(=sbw3L8@6IMoW>&B9JXMtJNdpdg}t;ovWmVo_^o@hV*4hCvPM@jWf^J85vn-+*dMwZY5DQR_xf+?4s3hiO5-wF=LM_4M#nX4?5m25cFgr)ngA6o#7)a^_CW<vP;T)L^AOhf2meB@AYZSP;k0zpe%}1Od`KRa$QRD`Mio4LUk6A0yJuW6w(Wmik&O9xMh-UP~u6Ez}PSUHQZkcAu6RH)H5z6`E&>nJ>I2K)Xj2xl&RRsSKN$-7^zeK&|DB!VI<3B0Y5Zij7wu9j|Dd*;>poAGb0vFl!Z7f8T5Y5@1Et+K>=6&!8ni%Nb?}#a{sA$0PffHR!fE9a0%nD#i^y$1#swCyl(!Qzw)J8pi#2=w7Ex2POuj##~_p}r=_1ttp8SYLo6fhRf7CpUb||?Cdx1DU?X&y)7KD~`LU9N=h@V7I*>ikwHKB;%SW=_xIXF<#0ZWCmZM?+9t|RxX+>YooEMFk$IL(4YR(_T#7I7_m`^xy<H-sbmsYsv&=&9$cilWD_b!^m$}y3>a18LU>ly4B)0R*1{E{oT=NX=`ZidTo+QiQ;JuM&uICRU|fIA*4Jg*SNK1+~wPk<)-lp$KR>1gKojFdEm-dUuVZb)5LUWCjsDGny_Hp=11h=XC2y9WZNQDS~_siYcTCRgI5aFC1hIu1~6IHeSykMzHE*%y1~JxKyyYHT-HN$xM?7d4+7_yjvVg=0vqHi9CL5kI{>1DvdgJc}d=xCUuKp!ts9s?5_I!FLb?7{Iv8H%C3he|lo8(Dv%8&VAvAL}5F+d@Es(A(pDRUKP#JjV<m^a{?^J<%*X!Q5#&?c{{to(Dn7)s7aH=oVmPLzr8#v@PaPr$uir+S3C`s3XcVvDu^7@1rL*)*}oG@8%1PLHI-mM5%b*fB>YFO-AXOSr_OL9n_OR4+>ixqy_j)~+sY$0g8!}PCMowx5$oFzLQt@5w^JkaJK+K};ji{%0V*N)dlrtk*8S#PoMA>s5j3FyzSon#NdyZ)$RlVS5*K&uyyaMuU)s0yW>}$SEfD&+Im#(E;DvoGkix5q!d7f${M#;M{qHJ3bd(S0A-wZ_vfw0bpaLSNa+NS$x%I|PnFJgm0geYU&Gf+ZR6yFX)@!h35TuUsYbq~SQ6Gg9y_B;t+tsA*5E{^qH-<<)L~$jbSnNS80^6hSMt`fc)OUX0056&i=LhNrsnUvg*x^vBDteh8i4YgYdpx-`=XnrjXul&(WAVLd!V_F8xk&!!0379*20>oFurn6A{_Ma+k{u|J>lTbvJ4_q}7>Ep>biyeg%X<}1hm<+vvssL|6bqy6zn>>zzn$^DnXm%_Xr9`J+Hi)JAG-zB@ok5kUE|PXzx*W4Q=$J{a3#9o3`>hX8MCSeCI_TvAmYQV?*XHykBBWLaEk@@l{*+IGGPDIh;(Ut3eG&Ur2*=;MpRyc_;5TU{I1vf>P1t+$X9ed*a56@WS~5By|pJy4~unK(IF@<x`>i&@ioU$)nx<f5uNv;Hxls^pX~i?>HueyY>?<7H?>tX*n+po_f64Jez3duHFHqOcotE_=nENALc{Kxy~d2E3AonD%MC@I*vs1e?zb+Fq})gaNaMFi<5Xr$LrdpGqkhiJmF4kScr7O$G}!(qe8t^;XmHxnj!IIlg1~Yw`dyIqqoaLiG1s>DzPx=%Lx((PS0&CG_S$Lgp-+XFaAuWG4XX=$__C~Lij*z1FTP(m7SE<Cs(U;4|1TWGA#9YRR6^7Wf&0FrY5ul-M{d<rt>>WX$0JN#ZM^MZN`+><<Va7oD7-G#3A8A++JK5atOH^*SgY-|gX}Ba7^pWqEZKEJNo8Sb&%CZ<;WL_$2jmQs`d6}Swf)q#O^0Q1vMT$CZ~2QYT^7qx>4X7X1sVX2liOXjC?!#zVhR4I%_y#y)#D9?I=|N(Dqhhz-nw5HlOU^Rpnd}sMs-2kaN`lB&C&#WofikLiW=2^Q&*2t2T}5@IR04rf|F#$y8J1hbyYu->`8kk&hKo5zcnA0mn`N+RPs>p`q|Bm;p>rNSKR<$g6jy9*|Dv+Vg=m1xvR0DJERK?;$}l0Z@PQ>%bf^2T*?SFvyW1tyRuA(r5Y1E9QIXQ5-+&@ndyw*!=+I^83f5ZN2Kuh1STT~5e1wkv?(eYy_1N)e;0{HdB@ZAUJZcGHgHhtQ0_1i^Tp;=k#m&hh1%YZ&KrhHqR`60g1aV~=v4guy{)GI#v4yf6f5{o-eAhV&m&0uwfiZE?!@mJcpCaJz$^SrVknmNC;5C3pKP3e+dcmyYh$?qJ*@|Sr%&ADGh;aXb5+i4{Fh>vKjY+KooWsF$k>q3S?VsBd!0)#J=1j_zv@CQu6I0fo1YhFk9vcjY8(s~tY#6U4gnN=VUq_INW;UH+<+;AUB07sz2RxL^-3k>!z`MfjKnRlw|=u&wvE1F|7q$DW$Y(>zF09iWI0YU9=lD7n`AZ8tj4=-ugReq&W|_gBwmd2AtVYxL^_*)h)b1kCyALAE|yW#HXUM!Ly}4dFo=9G*GNZaq-;mnYdb#Zl;Z~NbQa5$WXg}9l0&OIJHK^Cg^*KCLeCVK^S`5{XQ^_Fb2{?`6W!2Ai+oAd?#dTmnU2!jZc&qp&?064tBNG8R|^8J%VHi^qQZsrwk7ROo-ilRvIg{Z{Wcu;<X#49rT8P?%<%#`+~E@w*yrgzgtC%sK&@llront&uDQ1vspk_eyGNPh>q_=i?aGUY?YVsy)k)e1{Z+Bo1l9Sft85d_I<PC<2w|l5$|^%}GpnJtG^KO*S<)Z`1yrQ`YL?9_!%$L?p1F61C8<Xky>I-WDbYtMmxs~YPu>9LNT1YI{*ZUWQ~`XUL-SZbuL@@x(*vdhC<QeBU)j5ce$g1@$9SxHtM1IDCz*@_lw21Mi~YsKF(P^EQa(Tt2%n6n)*rDuL6V?ZasnasCkVHARjxJs&}$z5f$wVGjfLxG4CEvqpl191UjHoJ;k-L|{V=_MRH~K<6$~T2*r=wqx<JpWLZ$D=BV8c5LPfwQPLzosZRM5jqE7lJ6!|D*pRie>f})>}gv2J||KAm{H#)OPjMz&M3s#s;CyZ*u?Q$NA!tqmVz_Nek2f2>g&g%})@(5OVEm)ef{XddZa6y>*DHct)6e6)xcEm%W4c7_-w-RIx(d;(~)Y=HKq2J)>(Kc=f#3mprk7;@1ReC*7?|XffhzFuL$4AyOJc_^z-Ark6eAJKmx{y}DDB9TJbL}w%5z0c1S?_|1<uCJnPYif7@C-L7==F?>^qs0mTT?`qe;-6sLH%0L7|_wx)abY_klmAWk+=rXM*q&2^ZlMdAb*#WvU5n;rXeOq`wESsm6>}u_Ev6Z`ncjTf-oy_u#SYxB@DB}o}E2K13r+BH>>Vdp1s0+{c0_gZ8e0Skn9H6#oCdA^Thm?IKEZB@3cH4!oH2cW1g7NH2UGNnz6_lX830^=&WK|M7I67&5D??v`{wPRPHwz7`s;fInzcOmKPKVf}22S;-j6qtDgJwU%MMesrxsNiQo-v&Qfff>mdMKkAOlI$dpmy8eKkANhHBBtZU4i$m)NJ6^lr`j=gJ$Cbj+ex5g|>?eEaTUCT=eO`Z#Dn`3h*SFZ)OK&6)!Hov~NzX(Qdl!z|uun-b+ZKL{2n|uKP&BE}GI+7z^ECfs46H669Lyw8=X2Ve9mytqm)~7009&h9S_KEL}sWT4w`WTi`%Pw}A;C|i%1W%Fz@DUH4q@ekl`o5ov+e)}Z>r`gZAF$)g#6XUF+k0LQ-sTIs$e0vu+wW#c!`3LSX<cxhNYfMOg6oxV-w9SjUL&50L`{P>x3l-BbqwmPp0I9Gw)k-e(*{z*hG--f*V}Twtb8Vd`cy#Auqq$zBL3LE>Dj_PyQz>fkJ**8;zl9^LvJ$gsNmS2%LhO%lJCeK6@x485(XBAD}60pBu!fPLjSo4RnKcM2@wyLUF+j1dea^Yh8L3+4-5WQNyo(j#`BE>g|uQ^@YO-HqHhQyv1+X?62gUy`G5S^&>~(Yq#e?H6Z(BH40v9u-HnPF0nv2Sw@-jvuua;j?;Sc$t$P>P9;j*BypFP>W65s=72)+$DfqXOs;L$z4E&*qA`wSWY@8dMh@2xk%U5qjx6ifUxtBa8C4^(C26CK}!}r<K(#Qe2ve!0VZT;*j@{`p@Kr%(hKE`^!u#CTZK~{U!!do_M_!8CTXkSfC+6v;m?*>izbQ@11T?o;jdz!fz2@gbECWo9s^2caG`Vc4?{)tFu{vDPETRtISa?IUqXw%czd%dF5@WGInH@T$V*z*Tvma7A5-oQ2?Vz7a3cGeNCWTI}bo|jKl#f>Z6?ElUccUdY(gt3OH30Q~aZl&dl^E15&|4{(pfatzi(XT74l#fHg6Pux6fZg<pJTKEqY?N(@vd<Nz5L^1jz&bXq`DNY4mg&^V3<QUjd>8!p&rL7CPKvAdkJ8CGem!lOG!B5i*TE5{54OEnk1lm-IB3YxS1{MZ>)4Euw~o#%eTTp2WeXPBf(0~nmi|Ay;`1-jSEFO!$Tf9(Z=czaXXc07s}>XdVBo<-qey)L?;6=$oHQxE=CXf%JY$#D-yGwr^=2|ur?Vsqj9RNi$loY41D4MjI~^Hqcxhq1^<({-e2K#Z)wzZ6qA7+gnsPC)M#H`EQgE1dFA-!nZ*3L+uid5!HE0U?0r$Ps3*x2;Lxkn!J1R(7Q$_ftyIq}X53YlRr5G8Mq4BBwI#y&U9Te0mVdtepOGO+X3_Bv6%(pgKhIR2|h6HQs<E9GA*KVbOc#m%z;S)kYHLg=aTy0{fcb~87DAZBi;JsCa4C~sLv!(vHo?yh&2@&4^qgN&q-@jQbOqjsLot%*}7|@#274)84GKkLV(~$3h-SPk2=&gp=eqM`Fn+cXtHDfi-`Uy3{77@~yULI_~-ruCXODB)U--w59T+mvLYO=KDvQ?rwQ%m3=l{%Ep+c{#;1zN_o-ulxfnHO-ZR&&n$nI*o<oKTpQ5BLg6SFebf(|;zojAbiGP1eWBwLcf)tI$hFk9<n3j9=h<6PpfizZxB1=KjCdSTaMIJ0PE}ExQ6Xg5>jbrhwbhcUM3864n#Bxqk-hQr?nB-Hh+GiC2&mS}AXf#gI5aoh^Bo9OL3aUdP`s7+(FT9YDlO4f6hN5|&JL9VKh^4F=Ksc^Z-fjt!H7QwJ(o7y6iRhpq_(f$v#TRCxr<NwD$`XeH0v)m3iSdHP9bTA_qAW|zoW3H*=<s~#~^%MCHzIJFd7d-JB9eAO62NG^}W3wEzqO)T|WqJTQrf$o${u2SxIgH&Ein0<lXx)f%`hbzn`Sm!ahB#}HFs%emk-JS`XOUF(AgLdG;UU}#ieXyyBr81CGg5pXYaZau42Tu*wh2c2#^M(XAAjjr?V`Bz4*jD~UAS?IZ-g-Atd)^7|7;eR$?w!FQzRB6au8Gc>6z9L^8JC>*=?frxAS`g#!=;(^tK^@fGcwZx@pnB5RQ&&07;)iC)3^#lj<6iP#u(K+jEEy>lDZD{D`Pk@)dTUI4Oh~G8T8v7TgBX{?K%t$V9OMp+;Be?x!fpfqUO6Pn+(u=R3AVPJa}3k>1vm$5~ET?!{G!o+RKWapV61+ICuc;mKq0;6r-j}oTwbdEMDC8Yg@5#-?vH<2JA8eT-wHN60%B0t(<H{y~Z^X{Rvy$O+QV#u?XHTt752Oz?ZSnT;9rUj*GDF=es4xwy-+0i6#YFE%}xKIy4phFRDm8kX(Q<-GVt`p|2S#*En<_2kYdnOHSh8<cazvwTCMpL2ekY_+T7n$vg$VpA$jf|Ho3~7hi?A_k)!Jcjt>RtKh1gR;II`d7tAwB8YrPrKJh0QPRzpL#`3FrfhheM@O{cV{PyF@|y5JxW);(8Cs_-qo5-2Y6O=V8)j!LIP)Mw^OTAMA?6XW6?WKW6<X^n2|wR1i4?my-Of+$=kW$$E^kO&vt<zR6TB2(sKYUOVB%vS>%$I&1>Vj3)2p;kF%>8JnyLJ0FFIDqowg}i+f}tluXOv4^@U2)7&}-F#cT_=01Z{~1ln=%3rr@1W9^<utq5NMY$kbkF9^3VocCSDxoz1FN~x)%p9eZ|T0K2sU4le^*I;)n7R8)+n^^rI(>;Mj^f7$XNUL*MBo&>gH8AaYw%je~$Rvus)I3`|1dn$k><VLraKU5aRhu>lT)1c#8k2!R#C36*OSi0vyD|Kl$qncpr60uhEcX16SE~mPpH^#&wHSY;hcb2;1zkxf;LxdTY&i!oI|kb5?jr7FaG&D?Ub*LtlV?x!R1X?6&Gh-<nX@LQI0}$~QnH(Gsd(8O`)$Z_E}L}SEFLCtHHuyvsuH6MsoprfD3j8y0LfBiB>hFh@P&f<z>oxY1c6S%K##UkHcjqqTqnF!y1X9Z^OK1HhwFUUE2e+Q2H`^ze^TXWSiVKeVC8Eh-_82PC5^9}WaDMIFo@1XeG`xfncn-bN!q+h!#hD)T0~MrBc3X_sk+VozG>W!7w}?pPh2UG7Vgg~aV&X{fV{Egm$_ooz?ZB40uVWmV61P8spyE43zxbcDKTHM!FM+h6DUp9cw!*?@%t~pd%9X!y^0=O!C?+_g8Zv<gO6n1qJANBBRShXK)T1<PNbVZiafv5{jqsB7eN_yAF>7G*BR^tC|tuP{rApQaSVSd824Edz9U1FaK?bFi62v+eL~S0)ohh-=t#pBfz<qFcF)pA;w|im41%wf11MAl(!u2`K+516HKFB^&R6an_6~5`qIFELsUVLTOc}_6`pZ>GJMMVC7am!ERnF}br<>*|hu1G}5vbv(iHX%{%k2w1{ElGq!v=$4?wF<Vi!_@K&G1K}RGvb7yTey`8QZsIaZolhZ^xAcAg`sLlEive1$0)`AMB}-xuGfBaI4*9A|5T09bWiQT>Z&#0L*SrLkz9f7pw53`IPI=E0@SA!22*TV!`vSfKzmoy>Y?i^qm)Ir;oc?Pn|Tyl2(G^|JJ_7T%APV0NG~ujJUgZKB2zpvmYm7rtCS5V^@b<Rw|pd!;dbxAxgcN%5s$<gg*5FU0xFKOnTmz)Kfhao|4FRX&TAx_wW8jP%P}n<r6<M9o516Y*gFeVLOwgiC*3o?{=H1oyA?73aWiq=w{RV9|qF{Ca-uYr5ZEyK;0d)V%)K^ivy6bgV$<ZEHu_`h;pBK54e>9Sy^@debnMpmzoKomY@X71YQyX2hu*Ok>nOzVw>K88_S1eQ~ih~D{paEGFBD=*|t+U4^??$(1#>U^(3nFZ)w|aYCA0|&@#z7z$;7jd<`oU0+}4d_{P=0uU{I)R!e~~W+VdZa2|zlZo=kBYGiJ|n}WR|Z=%4`06qv)hiigQM4EI=$TW@+!6lK~JCsQ%`<vNSJ)lut@_NMgDKA<EjAQ)v!Ao=mmpI;^YUtL%Qv<0<G;X*Pec1sRkcAU@>y@77X~-~4Ak(s7CajogoqWklr4)I)l6C(X3Lgw)Do<wnwHB`M1WAwd^u}M{ju8+t1IQ4$HXfVvupJu;Kk5ZBJ}G|TugPz2^^9gf52ztULlo|9jRpl!Kjz0;Gx*dzw<wMzq0s{6XsEYel1Yk0$tSYWVp@C=0nM4v>v>F64W7>*F_oBG+xhgAq6iM8O71kvIV&f5Ds2?EW5?}PY&FQgLo425m)gk38*T|QOR!^=6gvYze!{N;9_^8AIs-4nlnJ_53HP8QqnnTb9wvGGi4qPV<750Vdyz$$_N}A(HkxRdOnN2AgdoNtHaqm@33u9!a^6+eE2x5kPyG2KZU1%1A-H8Rduldt9P4gehNIp;pFdQZ>gU@pG6Y0C&Q)bua;ZsjfCZis1Nj@^fW7;!s#jh7xiQO2RFr*rHorS=4_6ufB%WwiZ7^q@?8>!j+n?7z&UqW`iW{@L*Q`=Z*AaImHREk%s20XNwc*cXo1t#HqmL>2Sj2Z)EI=uAA-acUdDO-|1NQ{}@<gb`o^a{5NB3yqxN7?t(+1p~`n#8X5UVS;jzR`gOLwaTxhwL>Tk1uJ*GT_cCv+;zn#&VJRJY09auQ(tp?rZi)#j)CBq=H1j3c^oy$-sv+;qG=W-yaV!B~nkQk5t4L@GTOp{3KR1zhnn=m2LN|3ucjyilg{TTu~5xRvN0oW;*N8uU>?VXf$rX@pub>T~)u3}{|9Z-OiI+N|IlLZr713_l*DY5G$)`3chAr1C1>5>_~6Q62%|yCS1Mv`2Ge)VXmN9*tp46qU-F+~0?ttAnt5L83)Xiui-?XL}I|m*rAk*~x0;Mt2F!7Pz*8vR!f&Q*%Rhn9*zx!=Ik17;BlwHlZ1selgVJP7eRd@IgH>BOY@f5R{tEaJ$x~DwB5VQjTI??J;s>fBC=NRmULrMi~4uz&Su9*n4l^8sUrv;=|74H{IZC=g|Z(i)SQW8Z>lvw;Csyn|_{?X_mRwz2CIPS9;NK|I9fB`yEDgljnFF<<X6e<-=fxyt$*?5u<9?>vNqle35P$`j-xw$eFAmrxWZZKY!qAxu!>}1bwFVdZ*n+6hcO9aSC+3jc{E|PK4@lmw%`jbqEO2k%mRr0e_s_)Svm?k~>*^%2F3E;`?eqh>M>+rj*#hl6ofjTgih1BO+a{@$ZnY=2P)w5eA|vbNtm^r!Nsu!f@krtl522726SYBNG6rN}5JQ&;}3Dn{Y3vfRQe(KSDnq)u<DbpP{@X(CT17&Xy}I63Ct&m>IrWYe`;LnUH71_fzd6BO9RM@g?iqdRDhYbZ|c-zQ!9Zfw#2qUr&z^+Ln&iVP51*3zLEUWpywet{VN#jXr;7KYqBfHHXvFbxGj&LWD+Z4<<<izX}P7*q)2jgioVFSZp#U9OOfI`1Kq#kv`|;%33j}FsIeMA#)N=6c1>r8ekX4R3Iz=na@T88pGncXrPM{4*MqCq;WxOYfimjX%P?)i<$cv3vf*&S(ewwE`jqN?O4EaE})NP<Q;fBB1arI<I3y5{!sw~>4XgVVV=&;cgQ$wNoVT<NqJ|hK0f)iD-s2Qm=iqc33X>Hx(;VMf`5{kX|9VnlH{B0qKIF@K4Bi|REm;PJ)lw5N>q?=UMWwLaCrs|;W5fRY_A(74mOjiR<ts%rMkYh@{ex`XE-1Nh1+gobZ_HX>CHEkH?=n;988};<HX#oVkVgqm7N&CWo|mj(Q)sC<cg7CH+lAKftHiFf~(JwStrHsF5W4#XJxrzVn);M0t8Q(1ceuLQs?t)g1t*di9f?%78#W&{b5DHCX+@C^EOX0c`?_LWxkB*8EpOs(aB^&SZ+_zk?hqFf#sIXoOs<`cxprwInxK3G`_<V4Rovn4nCG%m&Sk~0m)uv1?S*IvV0CHfy1;1V25*y^5;-X;AFBwHgtG~FQ~`i!SxiGgrHf-jU#p0a!BDn%r(fKVl*a&3g&C<i_a1zjjNBir(r2+2b7T*!5%L~!4OK#x01th96uE-xR(W5Lu!065t&#<E3W<yzoas{O~sop^Z;mBp!=%kCjRYz$AtUg|GrdG+IH&_Q60u)BQ6_$%kBX7OZ3M-L)A(-{uw$o$M#QOzk1lFWgeq-FJVd`P<$ab;|W+7Lp?J$rvZ+|oSj(hEn2l@Ew#Ir2Ol4fp<|s6H&5eo2_EcnWR%%O+5Ktfm$bT`cSUa^Io40qX>#Q)1e`)Zk!wJ`8xV;jrIeU?dw!|-#s~?AFY8^d4pl=Ywl_@^J}?eO`q2R^NBEL$1tz<uSFKoZaCz4Ck+k9c8CI{{k>;26s|eS9y@iu6l)WK%81&bmX75Ww<NRfPL0e7fJn^kn`esip;q~ZYPoqyE9(?s3Hh~c1!pv*jkJ?t=lkxCW2+62@|LG2T(Uc$IFX4;+CGhhk<>4!>_|3FLl14P0%5FEM-ahaoaW}U3p7I#W3qQsduz!|~dYm^UC>`kuZ&r{0`b1jHpY80X%oqif#-4tZLg9yPjfsTKXeQLu9NC}@GxwKm^Bt-$M5BfDF`n-Z<re&S<MR}OT#GkodwvIaFd03=B?AK=SI81F@#Mu->C30h@k_)^?yo63%Uhh9=HsnHXdvd{D^;f=K=0Ap^Z>l=4tY@WLM6!Si=y-i49|ZLR;JcsE+-tz!<K5y=1V0d6P+ALoys|I)`^czR*7DTA4%1ab<2aGDnO-s3;b(OOHw3I_qz$dOd>wd4ir$ZZ}lc>MPq35Ns_ks05+8LF-I5DB;Nf2r_xRgVirT2w%2doaZty3DDafwlMP5|eo9^nnnsu&%-<)aG{5^J8X;S{P;`RpA-QwGV9fV^>IE(@Fy%~yITXt6VHu8HODQ{2%k_AJt*VcA5&izhEMW}Xy!sHCd1daQ-IhdZZvDDwp&oPCTcSDLBqYF{0(~sXm)u{s%q<_aEYCe09GPix5mbmL&j55bRv5+sk3IKU*N^3?#^4Wi_g><rqPMqipXWZPo(|3#ltt*ot7?cqE{q+XG!@Ab9qW4!2ls5Q=#P=1ZcQ?n|Lf%YxdqEHlGN1uIZqv+_a$H6dxnL*xV%+Ae4np#J!>G81%E{xZwF<uCK{6ke7A~=4D?-+r^A^};y%KKwY$Rar3cTqa7~w@3v*|fh0Hox^QT(??Y~Mxc{IyW>iK?U*um1n)a5^LtuwM9Z|%omI#|FjJSDrCYl`3JoT-dmQ?3lWf%Yc~N6mkNSd-+ynlcvtMT%fysv8yP*c5|kWkB^=)_<9t>I4$fQ$wG2q^R?mBSh@W94|KZ%#-7^AJ0K2f*_5eOM@>x6W896xvs~^vseYK1U!>!ss;NUx)H9A>+cesWOqr_P7?2lt5;Bp(A;(7PGbg_H7Zm|4<xFMh_cX4(-Px&j%LJCR!e#&qZM8*OT~fh6Ug9bJ#BRQ>M+)!1kUq_QwVqRkh~<=^)Jh#Mhakl4;ddpB1Ruz0BvUVPZ@!nvYeSlqW)J~F5J+yPG|Xd1|WTZR5ua6?E%<4yCArQplI4-MZ0ExQgf(|?tWn>+(qi@Jd-`TUR9>xfY6h2i%_@{Ku1gJ;em~sjs#pVL83#BL53Jt6vX9*pOITI^|tB2-8Qvmv@bnwj^Tk5d_TjaB6r(z{sO1C5*BpQTbvJD6J3oMO0#8|sh*^&i!JB?dhIVOlb5|?TH8N>^76IW+ZCQ+dfEqpT%<>5?ib@`2OEnQYxZ$Cwl?_(@uU(unsP|2wnVL5reyndUQMSly6&a??5Sdx3)v-K7Xyubdg>Gq^JjxRp~mHia5$zzBea^?wI@6P9%M_kyo^kiQnI?3RldRV7|P5s0iDX>Z78LSRU9T+A=Ms)J>7oj1AnF0W-53ND^JS+gLzLlvSL5^WloNuo_sW!bOe5;AG-$f?INS?q5=xB&VO<H&RPj&Nz9QeS%5D`{;WdkC(BkVbfkp4c;QD}ovKb(-&UY75;aPg8JfFLy)1=2$a9;9xKh%ti<Ctg@mKwm`p-bVgLzRThnKx+KwNcE#>NQ*7~AbZ<;C8g!e!{1s954&;$$2ezE#A-Pd-eN1MFbMZBz;0rtVt~6SCw-cGaTJxjj$PPiC-hO!PIDn^2}WSi2n4uawX6nJg=%)Y{0{9QRvhm+0hLy&$vWnb@~Ea9~%Yu9q{bN<TyR4o;~+GhG^kFPMHr0DHJ_ShD=~G+GI-qDGV<8a33*zScRQ!?XKnH?+xm;(3zdJhVJs;S_0kkB4he#3PnDgff}z-|cP4Oa03VuY-J12{)4iBFS0%nA=^S{n*|#Brq{^B`E+1+MbIr;bNF;+dsH{O&Q{d#q$<$iBLMFf6^Dlp8n_mDXSlPH`U0I<3K?-Ps?wrG@$SyhrZlca><Fq2;JDLj3mV<O7Nb`nRKFlSy|Hp{KC#Nxoc9jEB&Iy$nxWJUlw$}eeW{>AqTeVcI@dR$vm0nd;0%lbCHJdr7_j%!ABV1)IF6b*Vc1@`Z;v_cnJLWZv&xbZ_G+lsXT$xFy&8w!i<+RO5P}mHb(QSt7f!)hNbqEwgE5xX5Q2rl%_z#YVA-j%#6Ln8H(NK>af>{?JbOl-(rw9<YN{dht*Ve2~U2KJ#uk>rc8E#+)?#b;?C(w5g>tPNkVL0zwJAkAi)TW{3@Mq1D>&Ej!zj&E-J96{7C0{Zn!VPURIK!F8Xmv`8oybE|mvD$WLZsp;hRnzOQgGXsUaqByrb(Mz!J7mAH)IXPXGieBvvoGr9-rr4@oHD1);ePZxH$J<E9Jc$)f6?;@M)k*N(d9IC_89%9|^|Awa-^wLE<KgB(IDtuu7ng3Ja%uTDq994lnC1fo<fo+LWc_22P?e#$$Qzbq2ZDpbI|3Z`mGQFhAp{hfP<<=-kfTR-tCMJ56?@kK`l^dIGx5k#wUgox;Hpb*Ox^KVPVy4BcC6-PgerKkPfHF8!q#OxaFp10mmKz}TW*j{;j|y3YIc$DLy0}1(d?<k<hwyH<<uNfH?7;t%@69~}Ad`XDy*}kO)Pg#gEz>OFl{T(9s!W3Y4c*Ax{nAebRb*l-#qU5nA*plJjoI*a&o~Y*vX~6!$6}YxOrv<r7tSh2p)4zzHH-L@SPOX3qh*aB`+SJ_kmG4um8#300%qJ;@QQGm4e;CSwyPy!x|J4Rmpd&-d-ZCNgu$--UOgaPH81dphSw8rM_|0^D=(@up?>$T_DW7db}n#k$;YmIr~R+44KbdQSI<E7;`dw=i488oM#C_Li!kwCInppeC2TB>4pyLkxsR|uNrFmKB4<R8vO=w5)U!CrW3dIg0!&lCx|7>iO+h}<%I?IvJJ$ESzjM2Y<c*a;I=dH_rn}G2_T6lk@IH!9&6Hh=()I?Uh87q*+18E`p<jT|$<^svgZoj^bk@p1sz&BC7fRP1%^IyxC1ml)L~gqE(V#95BZ;_~FAJ3Dpaas@>4fCyNDw3kU#wPvUiA*|+W#0N$q~Y^Y72MsrjI+LPu#gVTG}GSB-Z%X%WGPv_qVL}vHOb&tj30X5tuA6Iy2eiIgR(pb`TM+kp<Vcz|l}Dltpxb#~<a_ZjTe^pdjpOtIW5PKZ@Mv*zFy;uW*^F$#Z|=B^8i9(-Ju+jkp*6oaY)ZdigQ1PYbD0GxQ<`=(2Evy>l8$X&umkw<f*}tWK#er<#!CJ`mn7DgN1<!H-4=`s2{S2hX5IPL0hM@18cs+u><{;`ei;54JlLAT2K+FTV`C5J1x&CfKnC$f{>!oCw0E4T=SF7w0wqNQFF4c)J$+%qAEcXg{TWXg8{;{hLz3qrR5yw;S5O^{k-yQ9lE@AqyXwu^&F|!eAQDC|^}#%&_3TsP5IJNE1(Wh(uPk!JY|N%>qZE^b1qy)mxR$fCPk1q)Huz;YM|je|@e~KC=sE*GIZE!X3`S7Qd%Efg}5JX>S#|47OzCmoSoatlUgo_?op0G3_j^$V>hgKte+D%Q?0|sX}8mOH|<MvFE^&CwUF^L3JX@Qf%Zb{%(`3fj+5mwY)Sh8qDTdoH8Lh({K~GO+INNVmJyERM?h%f1y=IMc!=3(<%z@J)(#~DLQ5RTN%cvC6?7Q=bTs}dNrY8Sb!l85)ATVQjxdvK3vfOJp!LV%q|1}KeJbgy^NCc3|}stjk=$;wk?&oo3RJ)I0(mZE45y25ekf!z{{hbp1rqVh&P6$Z|%(}?p+K7%a#U}+vWPl{=ULHZ2*)8Mv*PQAq6pGx`G+(xF1Stw6(SRx^HScTOdJHR@pMsSy;b~WR!^^^Kx{qh0maPj6tIa6f-Rp4wS8X(6w*J5DjkP;CwQBN?AZ7*{8pK%+7z3Z}uVo$TuD3dU@~ui3UJ7dH*)iLOZn+#5CQ^Q$TR*ahQJp@Y4<l*Q&3Z@PC(^gSm@AtV}F2p@+KT+xr3gA;3Ydd;?a0g1}3ot){hoC6b8Ro<4$L#uK8iVTw{$0O;^5?GwOO_ft}jhVwngr%EDgAdjKSkPJ@qR?(TKO%xrI9wf1B8$zv`|9p({<t0Cf81y$!kchIbrKutnS$?UXK0$+B2|4@j;9Rk!XZB`i&6b(oba>Wfq;5<WjNxt$bl8R{CMfvjiwBuzkB#O`>A}MsF{x6Rd|<cje@e#l<s1uG?MwiF1>-X|eeOZ|A%3WQ=_Fgeq``F&1TO^Y6k_u*o>GjSXCu!18F!WZtpe0NNAB%fl?H;t81#FLf7KVoX@2T9PmSVt;IM=Au-3TdoUtQ3vAA=HJs?qVCA4dwt8fJ)0BPJr8FQmd0Dz!6+B*!s>`oZkAk&LC=LPifFV85eK!Ne(VaFos$>Ra!?Z3l@7$JUcQPE2aWfD_N<SX~~C3+s2XZU}SK7E?rK+0g4f9Z4|+haEqlXVR|*C44GC?7{{Aaf_1&~1>_#f;V%AEv59cq`In!0p9KtEQL58<C4M;q3Pwyj1l+Y??8CQv>x+9hPJB0|X!HHCrO{A}IHT3>9^SqPY?m*FY&p;RI4sU@TS1Dm%@*w^Dpg$ykfu=o_7s&I)gCQ7+6Bb67@2J$K;?YLd5(S~W~ZTszY6J{+~om;)6oF{6q9-D`Lu1=B4Y8FIwYT4XkHY*DB0li?*@tY8IXB<qQNKd~75lCkQa_L#6XK!NAwt9y)dF|ktSzsFXl7zRUq2xGD9KxpLx@90|T*faqP$Pf2us|jIOfwaYzOy-f@s2l6LIyCiV(*`Y)6Xo4Ey;b6XOf&RVBx#q`gSFFN%r*WLuubcFP3(|TQTzbY$+NK#b*(c9Q+_HVT4O0*`Z#i!aSw0fA2>|1{^xL3IgHsxoh>cP0hszS+W26gb9yCXxy=eFYpZ3Ry~6;t>If#+J9KZ+d({1%IF8@6NK~A!q~>M>EdstVHG5>~f)Ukd6=SySnHqxe?kB?zMjwMe(+={=ZMo+yqj{zVUKPK%%JSwz$pTptC(<CEuXfNA;fUhxjWa7(1!wbr;?c#1Ij#y!#~h`m{{P%+L4v9^4B~VQsXr4Mc++`X7(vH4s@py<*3|g${7u9p1iX8Pm)1LA9h6XtqK|hZP$(ul3=_TkxcI{^E+;d|b?#R+7?pRvv1!Q<aiA&9DD$ud`?9r7eI)B=v=myJPR3{q;ReV2hX+%!I9Q^bv@D#o@?%w69*bKH2+a~EYYcIJ9RAJZwSHrxXVtXjE=W#x{_f8yB>Q-y=?&FF9geeMbF6#8&1iE1obM1rr)=WZM+orL?h(ftmhJkadgJ)7pV?GP6;!7Mnq%>oITm}8`(*kjVr-nNKv_|IR;ewjA03a^Dv##PaDra3S6c@Scsz<%J#GV5CZjbmB=E=FP_3SlHH~P0Y`r91wd%_8Mt>2UZgLZ6@30Rf)HD5cugtklb}((=JH}gu$<HaEvHj69Hz>@|mo+?;CPWq+8%1DEdS5fnBtty*QONswsndcfbyMx~tAA$7%KxSgeq3olD$%+uyI+UYtD43<QlPa7!X=vVrM&IvMe2|{08Fl$M|>c<<Q7%jZf%PIIHNj2g6L$)z0!BadxFe$pN?#}MPG<jHd?3su9og54=!z!8cfT&jWhN%uDsXOfr)8J>JADr*H0wArHgjQ0NF2|m_XP1v50G&v#IF!{52eC>cFrXQi-Q=t6uta54@@fZ$Kc~Plm4FKRSH7Yqn>K!~P&A6g+{Zl{FL{F4%sl_nf@W)NDu{beQ$l62ikip6@6|RGIDCXB_91(Y93~`%CuQ%F+n0efm}s``<;5?Vw!Yqze!ek&siF2ef-&R@L2cs&G|_X4OmTh*P@K4HM63yHPlEyk4_;3h&*kXePkDyyZ5DXP|C6>+)3ww}2INb3(Y3VV;_7+l5=g-tPtU^ebEl_*xd-8&#Uv??O+XYjyn9$SeK!DZIe}V6j#x<>G*uSIc;bDHS~GaVEYJ3+QiKdA1Y7F;*d67b!DTNKWWDHQTtP6HNjN(1bx(?HD6wR|`2pz1Sn4BpOWaKmolTx!-!r=Xp=*drX6aBz-XbHMbUCKEkxLs{l6o<>d|z&-;ta7SBq0{yXR?U_v;zn14N9rs^r6dgsYxiq{k<5t;W?as75_<iM*4_>>DBEi~TtMa@wP*Oy;!W|;j#p%KnGzo%mnS3+0{dzN~{)0o`0h8#30S-jK|aho|j@#zwm`Nb%PHRi+Av}v#231jLA^EC<}5uJ9G;Q3Hdo(%RgX}{h+PF&c5cgpdW-ss8j%?c#!USTOI0Q9(?;Y(g^L7(#K$f?0lE=9i?8DksVn(u9i)$Wo5LjV&ue>NU>krrzJ)%V)C7_7Igsi?BZxiW<BLl{_ES+!_M%WsTJ8aRPY6Pb>6aQmk9FB?V7jQ#|phD+pGP?@t1_Z=Ud_@7{Zl<zE~A|p9jJ_Cz74aJW62{AUE1RAHGbDxdOys>b|s$XJ24x8WKpa4cm>%3eS1js0HctD}cnhdaK!QXbQmm&_uX*%DsV`GCpX4^`~q4s~EU;0!<(#Y&h-xd&^zrTOd0@r}pN?KzfIWA-5P<*bH>`V())zXM6Id!&Z5<_hPzitq2vK;93y5aEO#BBF+Ds~vISS_LsA&z{8x2zgqQvAJp*(6J`)Sm)rcqKki6-tQz+9^sNdDUb}7)?2*KY8kR*(<{2@%HQh-;b)ix%)#49rLn7>2r;orKs5wn4TESwe1>yhQ1I*)b&+aIZ{T^o9f6eo3+HexvHHepJ>JEBSJK%6R?l@HrEVI!`d$Va%4zOc6bxJ?JNDAk9o;Sxt!GWP|h~@0?NcFG5n#ZD)aRwLQSp~YO#)Bjoj5@nnlYXfOEhNN2|r|S6gBWwrL6N5|%7IP_qBSMYsJ{i#IBg($QexR_(*Pi`WLEDt{?}qBqFr&Q_v!b;O5`F}pYt#(E_ciFamI+XhnbvZ-vnI~oXWYs`ss)=iPquXW-YFGI-|IWVp<VN7jkeuAwC>wFf@Z3yOun{A)Wlbs8mJ_AjJLf!<*D`zk}bCOw<M<k};sVvJ2!oJ*lbO8B^WvrP#e?Yt#So3;EHARxp@|)DMP_!V?Bw699fa}G7Nx$rjd=+?<Z)MnzRw-sfFE<S4kz-M-^&*YPX@DPn@3PyZv-O*OgdwbfwM8>0#x$nNKKu*=3dAz#){(O9>fweDZ4?v8^hLS@^*OWHto>ZJ*%DzvwXGcxJc^Uy&NQ9U$&{0Ux$vC!aaFQ<ZE=r{;9@bCr=}N@rvH#>xzOz%40FpVOaNu$x)sXT9fgU)3CfEtj23dS2Y&D8N0crKy!*j!14s}^LISSKA<8}4Rt73h%X<f#l*+fRKoX*&a~V3nE;Ibooyl)M^$%FE4F|jbP{FSfB7BJpN51+0TT8yKSSECSH_VAP*Z&!Zisvc<OQ#NZDyp0L?u9y-(uY%a>+~Uowp6rL(bjBPoGJ1I2y3fR(>7TMYXJrUG8hq7{u#20teuCSjlm+66x8rY=$l`uU@a*Zi6e>x8XfYihs3SqY}W!s!i<Pkm)9($8q1{%p+f%v2m$+nLJ!d}nqyY6zjaf`;po+G0ocu39ZmnyuAqlCp3sn3cH~*L+?lmJu=1Zh=X%TH<2GXg@HRtgsq%vt<t`ra-rdsNM-YGGZMzR>zMn}B9X>%C%@Z%TY{#a1C3!#C_?$51v-Mu0dC!#4tt*_eb0GhVLX^u%aZZ&o0t{){mkXa0C%u{X&xet|p1=cY6f9V&YQ0nJWMp>IQ&_c4o14XX4DU>L=%A9N<|gRL{3i+a2qugI(CwcNj%3YBokZawMSY>~r=b+Rn*L0KkX1G2gYow2Kn12IO}U#WzI#=R2I$XU#jFL4h}?bbnklaO<Yg77)g$SkAle89X2*yM(r$I;IlqW_)&SUYL)`r;{FtW2mA3wr-P_J`Y}n(I#SwG?OP!0i2r$m$Dh}WVgp7N%pzx3qoB9Y($EyJI;-9113SD^O_wFO^_BI-M==O=(J~pO5Qm=<hI@2g1a7I|*cf@!j)RaH$@~WF224i7IiYCs(1phmYrN36d?%ny#c8#_GS`$T0$PY@dV!y$_TER!~M9nD}l$1hyh=L7LXbgt5gR#QTh_3q~k9a3|Bdwk;+Yg&9E*RKUUq0ge=9JejyiGVr;vS=d2q7hb9V49e6G&q%-)z3hWnAeTTS+`ZS?N---c{EQ6I}Fd!thu4JHo|W=Qx^WD&fDsY>@ijNpD6cacDFRI^<y$%Z-KKu*z~l!tFl8oYgI%dOA!8i^fi8f0q;(?0t>0U@r`y_#|~^GN!!c<G(a&KX4>CE@$Ib-F<eg0zpzf<X)NdvOYFh_sx;HBDHE<1TGMq3Zd-x82UDkl!ns4ZNto_36i;?vfrk~-S?YJ>IGVs$qx{q2-Xm{;DAu$LYjLWRU6MZJBQsBi<}8=tMUpi!5JiTd3OdN(p))lWKQcS6r2Y9G>;fzrzga-GNU@C%Pa}r$CAaZe%1bg6n<zbB`m+)31d#|8Vj|2A}(bBue?OZ_IPm5#?@b1=%BaP>}v4RHlZQL6Hp-Tmzx&as{ZaQ$D-+o0o%JoP+-$(`2UHDOez~%5Z(69LJmLhvC9THk~!VYt-)YUh7L3AWmB&Yz>;M`GWM)H2F%vLlIcLfj8)-*aT`Dk87Z#)uI#<Z?DcHVI@3|7LYlre5K%+H4oDQ_-)~%sL?9aU5^Bj<)m+dpg!*k;U1(be)MtG4Iq)LR!h<wqjUs~V6#k2ISX}n^r*2F2A6Sp>SL9GkU&vt6CMAwejEsg$Bf^;8jn53WZP7^>AxUsF&wBSrmXEUkDx6+inJBc22(oLMcag%<vxggx=uWmqkyF&)w9R4A?LQVWS~-o)Q*;Yi>%NFvKOqtG3tG&LVsnWHslSGA*NT$rb7dc0+E4$mMD*rIKz4(Yi^g_MQiDFwY$24#35Jg$4hNlqu)X2^W66Jf{V0?&HVkNGwnPE;=*P=I8iL*$m#oH?vmYaj-FF(|TTh|x3Gz6AnPDsY<+xBPEsSkq)yXkoCa8NMJ=TGe`%7v2*tX~Q1wa_jQSu)<!4NTy6LN<A@$&W=QiKbgcrKbUNG<tDJeXFQoe9&MgfkDj2?okxxx8Sw0edI@%Wp0i;&ENEz@c?HIU9M;j2MU0*#{s!a1_9AOTh|CfKUeo2%lV{0`j<L;Q$4Jg2$0&CE?y6z{Tr@Lb6XHI3OHie)$UoMwv3qH2hn_;{{V}szgk5@O^eAuo_I9cW@a71`o=D!f48L#ug(ka()$}dehi*nDeR%0^c$I37&nmQ&SIcGErpi)<3a6I1Nye3piAby`C<O>K*E{gMZRcu`HJxG^O})kw(8J^J@xy`*whr*%ejo&Pies6|aoA$7^r57~G^MK;q3t_GaFN$qgAg-5-0hU;vz%i`vt9aNvy99?NfU#Mt9|73+=MAj%IwLTfDB8se^q;h*1gV<Lepm)xFY?-j6Tcv;)e_x6R7BCw7!Q*{o5hT=>U1%YYp4OHct${UA&A2*zuKb9s4oe4Vhz*B{Io6i|n6|>UyuD0BS=QI)P*s8|nT|{=yX~+WAsxT1=QVVflbqMwZmFjH40=+0T?F%={FbOOdMVF%<L4TAc5IC~IUAaId%ywxpAu&P2StpCnAAmA;0qlDoL#6PGu16(R3_JueXt3yqnvclq^#im^xufrw-f#H~SJDwld8TH{<06PfTVPuO@&tyZrzTXwJ?l-E9b!}a5OaLo!qKdM99*bhf%Qm2HA2*zoZzz#2RTME_)jT-)uV?x#o7hfw?Q<hfeXN-`;1WtM_^q+%hls!|8%Eyet?K7x*VcJ{)H|Q5-l8BRXVc(L#r1AJG>8#1*~+8yOsSdp`gw>qMlP`e3}oHCV*R*+k?R~hjQ{`n9l<vFdD~4_~BL}M1kp014PT2o55~v-iqowCAXJ>*Ipvkk#vq?L3o$CP^f>B+3W^P7TnHNd;`iw=?U0a`LFerC3{66%Ie42!>#m&MO=27bZ_IAb9=k$DPe?+#hH4rZ;mCQ_1dwDVI3RO1zwAQxL4klF6TZ)xu1zt#?rhRlQES{Y+3U(5~ZndglpN)*%jMHiz+){KeEV$5n~_cPSV9)R)-+7v8Pp<r&_;K<U}M7v4M&NarK1?GmtmSrKi{u&4T|<)yw-K2;`}%ZmCiuqDc#5e5q*6ntB23^=$xBeh0ZwP-|cycV_L(AJyC;Az!(MJ?0;{bf?0b;Bv?9=$$g%CJEfDT(e~a8g>vEe>75subu1)Xu=Sqx}t&q=9Ku=b$2$-{$a$jt+Wsk-GG|OB61DvGv35&g@&85TUK~7$o}r=9d|UL5pT)YBoaChr;qo6@upXGXFU{KRq4HC@*LPfWAQ4)Q<N`$AU-h<Ew$z%QGRFq_#_!f0(s$=n9o0#u({>YjkqOj#BwT{IsQAT76sh@qPgwSZ!X+7VY(G(ZK3`R*G=HnWCPKDg<b1Z$TD;i0Gsjsw8KNDS&9a<8p~5?RYcgba&edlk%7Ly-79Wha>2YAU6O05oM2hNc2rc>!pdCY-OPa3;$+^8P)s$5RdD7syVI3IAt>@TClOMM__FFJeL2$SdeUvKmo<xd=Y3yQ3oc|*1vwAg3i%WWMgdt=@H`=PG&X+GuR=;x8~uBkjaio=xhnSeuf$4m$o>%eX-hA|L-o3(L4SEmg>{n4_?4}JH{Ej&F5}$beduL@q30~b4V;YqPR9<&a0tvD;P2{OwhOokT!v1w*~ji&gs&=f^(H<_e^her(iMy7^E?4+Z4WFkB&XWt&wpH}Sx@Le9wB)QzW<|J=_N7<)Dk&{0|k@eF)dyG2l1pLMEOOjKhZB2Marmtc7XYj7~dl4h495OEeecue^A<Z>Wg300&rG^?0uKsYD5L~cR6N36VsFFKfC|sq3)B~Ca&Z%tRO570Sd?CCBS7(Z4*aWnWB3U3&WMx73bUw;>V$c?0IONJ3e7{p(m|w_^Z?UG_9_}A)KuLQqj)lKO=f)0zrnDbKg4~COcBCCu-IFJk){nr5Ww}7ntF-_I$&VrJ=cF4qGyqDCUiz?MC2ykHg5=5bii}241?}P|x>I6PrI7NGKk?6T3fni2WDvS079Oc%qIJIcz9ifQ5+uW9to}iJO!%SOfKM?p7&aW^893e8>#X24QF|gQQo0&m*1Ks6IsPH^F6;dg5p0bQSyBp#eKDs^@0F5u&*<-&I!23g!gsV4LS8%DIvH@)NZ}DMRL>UxnVlI43o{CV-@ct4L?<u(U_bJruwkUMnG|#9S6!`hz_zWUU9sW35R-lB5U>WV*MOvSJf1tH>BTXhyZ$%8jN^awa93&wzB)UJZn%BwV!3O~BOFXM0Z5>8jGMq?N&5IvE>fn#_a;KL^U}>wa)Qkf>!E5zx9{CzIu=0|8otG%sqj4C!@aC;}hT6fGj$fK=^GKhe})=SgjhPO~p2ddITe;wb5y8ld(;=Q6s3yK%I0!}u03q8<C(yTV9Ie*+Y7*r4))O9YKLAmU~?To@QF=Q2Cg2LCs={qzXNBi_c~n{~P2cxhi>mII}Ree6ZFfVlQuO%of1%mQ@0j`hLs7Tbam%uRUPmZOFyCZOr|y02PGeSP>1n8R0<pUb%-&t0`)ZcV(f*5^dbD{Xl=Ho_F9gu|)U)GMlmIJh#Ic>FBMX1i36S`%F>?Ax@NXDbW<v#l=<mw_k-b)e4lyg1A?g0R|Vix~D2dnb@sIyS*l{dK?3S#ZyG)FvRe!*8M6OfIOF{v1=?teQjU_jW0jx76|)5Yu1$z&c?XUO?LqI1!jrIIIyKHWePGL+n~DWtojxQ926Ay=m7!oJSkPei^xerX9him(6n9>tt;s@25-t8*SI4+yR_qRv#nDE@9MIfCE!aQEZSX+_HD6&#t*_=(ANcF7*;YcT6B_m|iR_tL?}b(Nb(!rB}xerC!D4{-HO&@u^)gl|r|iLT^7@B=2YRutq;jp?UX1HX)qzX(FyS_uY(4Lox20osYJS2?9lm{D2+c+(Hxq6L!0{Y^TdQtIh}v<dKmVPAuhg{Lonj{U``&&(3GE%XJoP$_nTP0NZYJ*FTt>#5#eD5^D`?vl+I(p{7#j3T0`%q(&3P=66{ZzdiO4tj8Tv9XVS*HHAwxT5o4?%x7MN2&~CGr9&k9g)a*qHal($nlsdkx{H@%@3*7CS3&!*f=SD*ACF(@Qt?J!M{9|^G17-|NqE(#_mJ0H9ji&f!z?6g7VCSd;yTgj-^7Dbq|;ZD5Rcm}<m3nJ#E#Ek?Lay*!Q@ki)+~fW-wi(&-i4fW4Q}5yzm|O{NG4^uS?>tWWtP!>8Lin){v~SQ%#YNIXHdkTt9i1(O6NytFn9gM=GphS#rj^?D68`*kiTyIIMbVLKA}OoUh$f^PV`{KXfItf_1is&bqUJ(ZRv_s`M_G<?wTf`P$V4_d8#cvPvl{YvzO9tRHc}_p>J&@Fme|zKcmXlCX^tWN8=JKIK}m$41(AFS@Cac7{KB8T<d|%@nW^JavVF7)<W;Eit9SHB(wZ`rXcxzamK|J6S0qng6*Qmb*;4B$jcU_@W|xQqoc_IWpZeXDNB3GesiKHKGi_ktO3m&MRK7@eoTbH<<YR)MW$UV5u|8YXJk}?%dc_Wf_xTHj&t6>8GkVfyelV^-Z4%-x5?L^u=beO<BWQN{?EU^xt~%{+<I5Ud{idK8Qk1lP>uEFk8&}vAZB}zSte1*qd#}vU4EtDn<3_z>m2@_3+FsLS9eSZJ)MyhC``NpF(p(#jblX1B!9RzgMnRls0LDF&t|=_l^(rBX(m^bcdVIcK{j<_iSznChWI+%?J(hoNx;0J9uO?C5f199MZybu(3ZZg`xtLR7(NC{S+XPla#Wof0wkkar05zGrMXBY|CBpVe0pZ_{=m)dBmyRHxZ<AmTXcj*@KMuHH42gGESM{w^Lm%gf-Rz)tkRdT#|mPN$z`#_=8oimL+0pc8ZblvtjSLx|NQsT4ucQ`k}fq~e64?s`IB}Z^{Y2kNrqXtiDKCz5*dQIY^YHP<TQWz=}Q3Hbk>c~rO#(PYEjb~N$3JYAXj){_^j)FU05kNy$!oxIKzXiG9H0{x%T!1%KFd_r=?db-}g%rv%eTHuCCd|xNYB2CVTD@{c#}sKd(19nk{eL!wpa!Jk!SlNO}+Q3AAE>hS0P<1rlJmCsMhJ0>30~#m$JnU?rHZp;o+h=XM*8U7dWrAK?CUWj{VdJLx!PT-*NLgPcl9JzEzo3>+D`MZf!c2!z;%8V;Zad_cghEdy@apnSoq=TCU1uZRzPc9gHJmS&99;?>F-B1eX{wtG#Q_L#pPPylx*fB9b7xy)>560mNl`f$BaCx26a>9|qxT>9zYb<#yD*CUlyytl>FmO5bGvcXeQKcA`f5AaRkeusRfRgxsI)1s*1KcOMV=nvVfRA2==0;<R)cDVF8O<}1;z~||fe+pc;7v(+;OkoSSBz?Bi31lF0*9V)2&;kbBCj1><`no;4>4-}jFx+obIgpq5oMo};garI>WgZRyyhw9)EcwAlBcRw3k%)i*buM-jrbMmXC5_4CTe5P2?abi9%lP3%-_hj)uX1b-sBurhD*4sQk5@SGs1qOCq-_z6G!cL*Pqe^`z*?^Jm?fv6l#2(y$eP^y9+xLK+`;!TsBZ#C8W=!-KwUu3Dp|-zo2HQ6N{nC4j2%QuRQMy)9S4wx?lCl1D;RMWu$oe_sM9>;G>+2LPAzD{9K0|)SFOm!u0kI<%8T~lag{TWUz$|rC}}O)Pg98!6G>^f93FQ8=cIq)^Nv}kPZQ5@P$9)gIszM(jX;Imh^K{DqwqGj0j&Ju$MW}@)Yq3gujJtUJsl^sQ;G_MegaP=QMEEWM}09nVfb1Pm(x_u^!HcY0fT7Cgca--ma5)4Gpx5>^Qa5cG+RoqB&Z<UQjr`6I0W`o2BQ$8D*Cf!O7;g}0VT5N0Ec*GP7@St4-;)W^9)wkE9X!|+|Sx58(Zi<h2PMc&@*gZe50yhXQztWGYAsLGNlOrt5$VD+81j~{f&yf3ysqzQRbIsk0qw3MV}l6x#7Y5-jGlPuOVT`64)n;@n{?a7H_r2ch`@?{Gtifbl`^&ijp!Ct7vJ@E(Almw-gy3?g>?p3fN;yp?DtaFNqF&t&|`&gCC><G+mtg_eFD7T*jrznsl)c^t&P@-5a>+qT4zF{d?f}QFCbG)(phdNemp2kZbWw33>Q+@hQ*gvr)4Dt$1TwbUrMogruP#_ub(O1^2<?r@RxCel&>5M(-pNFR2%4dr}yr{c0K$+L58~<(Mt^CDG)i*762MMdnUNuCq6d>dF1HL{@vTK?&#!{<W|6WNvir2lOQ&1UAdkPP_xOkW|FjqQ9u9hdkh5F=4pxTvQJk^D*u%DM7gQiOJTQ8kN9ZnCLiCwO-m(MjLG)p*lue$wa_-N1Z0^g3u5v#u*raQT}yIfEx+{x3EYFaBC^%@|{CKv)56b344H7O69+Q@DsL)HEonMUOn^&-}p5Er}{Xt>{DsodeNQ@%0n0ev+m9hEC>eKro)c)4<OCKU%UvFQ4bC`CwYJ=W`9q=N^%{{bL^&N+Y(kgrTx%VRJyN~H~a@6RhQ{9yk0*%>ucAy%@kJCxr^Iv<Pe-wufkWlq_VCPA_)!jW!py#`IGPq5<Zhy`oR5n)wuQ{6*j$Cj(DFEGJ`8}l#pn{qACK8<bz#yL(M5_8)KJihgy~esos5DSQh|VW~B#m3x@^Y@32euD3G`uf&lSdJE|dNWL6UMc>wSVfEwe@XDX?c`iIqw2|feotiYj@(RBi)k>^--tkWcOO0-<2Oj&_{I4vmUS$G!oke%!(jmx=>kvjP#sou1qCUrOUsf)bU(O$D6{W+2ACEMm9Vuv}~m=9>eo1RV&Vk{f1VV8VaKPz79i+d(%C`*Lp*+tM(7N3p|^TpMFawF)<n*~CgLqBFT@q;(VqDyJ|3H0s(3B_!vkq1|{(UkTQ5$pExL(njRo0zvZ{bj4OVy`u0-fDhM*9gGE*t_rpbCe28CWZAK&M82g)~kyRMSNjA=W4|&gk^%#4pe%Y3HSE3aB-KrI<k7;m%QFzd%UyEoCNBsyg#o@Fw4SHJLhZ-f|?Tv^t$p!cD?{+EH`JRH<T)pEd>kV<JH9g74JnspcK*zNq{L%TE4Tw-ezrcn;ftUE^8v8-sXhK-|TQBg^e3AoeU}#fiJ)&C~7c9ME3z?nU+!eH8&Yk7_md%pzSrn&H+n<z}KtO*j>SpC29zQ1GZ1&5JUO0jpgaDULM9UK-rz^ls)%4Vtn1_9R5U^h2HJZ8+wVQ*^yNKEM<w2+)$<bZhgy<95l-H*v0Plv2#Z<m@B5j=uMI5nMpx`i3q}vuWTaJl#%Gnv|lBC&ueC5#2#agEMApSxH%EcF%sCdfQx|Uut%Mv6(kNYMTi0RJiW|rdU9SZE4S%Db&{0-1%93c9^Qw=ax*$dGm(kyv)DnK#q%rZRT(fi(xOql67&ogFx1bsEnQFg{NSTIiBB@AeMl|2%?Zk^^Yl{1PNDu2oP^hYZ%}<5iP2HiaB(cF=U~>zA9JB>9q$t<bB|ugB_=>)gPYnE7)5j?1W!XNsxjkd*r5Z%MJmMLw$fWHQcr=1Of8Jo+7bxuFzV@}K-oT-gBfP37)I-VcThXzYoPm79GsVuAuh62axz3Eu$FCT$HqWCEGmqX(b4u34H5YA^oJv$6CbS*Rkxud{D1!3#MCs(PHek2&<=`S1#ulN=H;z`Iql48$00W49?&f*x+x78AC~Q!v!zvnot{N0{VyZaqz0GL;AvI6P1*ss^v*C_NeUvoyBBAsAmR3t`7Gj#)wSNnK%b@N()RcyH3D?#U@oDBByX7?w`7c2uPfnK*PR1cfsD?Bdj3dyU2tb>`CndG{FW<x9WS^P-szf?t^(zP$V2*J<$$FMe?7ysIt@Z)U2+PdqT0ps5$_L1Bo6<nTboYDGXu^qADB{6{N)Ru^Oh~bw-(1l*_=KSb1ylJ(m~ua3F~@c5ykLn$WU)eQ$<)LT>8SdNY_Z0pNyl8w}bSDz+z;-Z=zWg#_4#@)!@m(r{O?yIrynp<4r)iS-}Duv9`=MbVXjcfEG=Uf6zV@r8SH`Q17k<9Un76S__GeDpoji3xH0?QZsW@Mpwin>mr^yZo4*gbPjUzPL90A;LT57rKo>?76|bgYAvxg<ceU-M{B)e+Gykh-Kj2&m?nXF%h$NT&AH~9TlOMbliws>V|D<uq!?u*jU!%nrphck8a?!;NiYh11+5a}j<dLO2wUi^DvcNTPPd(b=U|lW4U^ca6>P8~9@#!l56QV;ngk(4ot8JRs|&GO%K|aO`oH2;!~LwQa~Gt@vURs<04-}2l4dW434St*8V<<#Ls;Ni?+_JU&w9^LHS`GuTMX|^B>9MJP3*#z1S7>*^X|>a0%99(Xha#2uIy68m98iu{*Q<UiC{HZdMTOCNdY9aRVB16)u;mPpmrYfd!U@AN4@(sna1IQ7J1or?yeP49Y6Zn;pu`h9rw-c9JKYUA6TvKQ@%tZ1C+|p3JU7^ds4Szrd^@OrkHlKri2k%=8>oR6M+=6`RvITeZ}?dp={>mHozNtZ)C77W{YO@`bbD{v2vr_(Ma;0`<r3%JFN$hT#<EmL|9>1F7*3K0?$mlAKBz;q^UiUWse+P`sXQ)TrsZNomc2Mjm{)N)ZY)encnnQMvdghtJI_|>@`Z?m{3=xzj-sARX6>kphBkJ#`QAZg9c8O0C0&b&mHaH(?SkfS-88Bve)+4jrI&3cVdT8)eE0o4q=_zT|e51XP6KkOh{}vNQB0NlnW>#oWKt1MNN-4(wko6?z10MXI1Vs8h5o~c{LDz-5wGO0cw1Bz&cF=IA1#MP(l(Z(1eQ!e9ymTI<3RXMw>N-na1vB&X1aI_kd5e8T4p{LG_Wcx7sepOLs-{Dhr507|eEE2@QiJOI*w(6KNJ~JR|_`xHi>SdxVTyY;=N>Kj7oME!>?;k{dJxN-2nx?E@-BNk!Uj&ztb+#7{c#eWi+cV0|eax%W~2(&0yt!@_#gc8{Um!9z#%e|(IgOpIC*40{8J^B;^9corf1OZUsPVj(&I#ypS0YtIH}l?a1}%Dh0<IgmU7*S_|UC}d|O#|ztvM-qET3#CsX1&T@N>@5*8ltA<$?z^`Q7*%pZrY5f8P32V-?3p6c-hqZJ_-3h43Ds40LwW9nY2TTZa?Rud+6&rPJoz84lM}wUgOps!p8C<#uGeo%#??UD0kDpu#P?{~D+^jZnSy^60{QZh0|ssQ+2#6$e%r?>1$W($1YkcGZPjHu%j11GFN;pZb`7uC^4F^o7dG+DJXAdnX1>tR=%>$s;I|&H`wBU;o|%mM(boY(>n_VlS-Dh;d=5Xu+iVXg&249zXN*;0;R<<Qk;ojYkpkq|g&NlZpqC$CmVlzzvz#m&mZGD%uiK@&k3Z81Hl4KcAcQb#-U3KM*KTp4dxhZsXGSBfQW67}LKv#yCyT*MqX0v0n4%Gk2v<9xsGQCxPDLFf?&})YvF+0iD*Cr)sJ7gaYRE=!VV5%rVr?8wZQz>iDjKmv8*GDMQB8<yTI}JBR&G=aRRQ59tKaewY2F6i@kclIGb<aF&t?KfZ*xiP$I5)$IHd}C9^-j1&E{i>B`@fX5L@eZA+hK4K}~tH$eTngjN^G;oKmKOJxp5bqbbU4N@?K7hpkj-X7q7@=8USW!?VcEN&@j2o5J3GvNU=H*j&o;5OfDCn~m*p+y(;q6Q2uB>q2<S_`URNsFDY$*1&e<%bn)T+;GXkicIgVZZ<;_)`NtSSIadEy_A~OXZo*`h$d3#TuuI*Ur-WJq<S3Mt<r2{PS5d67paBEBWFxmw$^ab!(kvQjQFdD)*|4|aXwTZ3E4gu%+Ej9&Y=BD-BTW!XF%0`cOAKNJ|Im%1P#LKRaz)Q?C4PXy;>;R2(OeLcSx@#a~a`SasbZ&-UW~WtxKo0f<*Q;T%R6Z4TDHdQWur(W#J1u42!wWcC%k-EaRoT>sQv#<Q8*oN2oN~jGq7wl4vl-%q9*q8#bqtRR}Y=;bA87HV(1mWC~ATivG1Wvrj!7sw`)j6wx`faYJo0{l}k*7KPZOtTdb_0`ip_6%;gulWM1clOA<ToyKjX2r$SCR0Z!G&qI5neNt^IN$e1n-Uke~0>cb*-)QNJ<_N%n4K2~0z!O=^bl-XN#6Ha%kF>mAe<*;yBB(?No3!F)X8^k?G;R4u^-Eq<f;RWP6wkA{ENa(mfd8yFsG&z|`XvgJ#JyNP7vv<O_)fS01qLhSb>S@;%d|>o!%PH)ClU!hL^M&3sL3pU>zf<tF)n}K532x2*wn|!uC-7S5E5}Ee*4l;{}*KRiD9z}B^x-NKxSOLo1a4HtN%#B@sd5gqYsjD6$VL>)-GEjT?jlM$Wc2$^T|8(K^d>zw@AgcaP)Bx+xo-iXBAt0W~ud0&<P!4`dN<wCjFkR0#-{KIp@gjp9yqVt<F{kg6G&&_&fz(*%@a?jr~>KI#wdB@qAUJeLyoaglh=Brkz+5{wZ~P!a$>j^;lXbFkJ`Lqa}1`h%2q?#>t=f)P?KI*1tu=E@lScCo4L+_-2<-N9sNJs24CCb*)Fzu&w%`<mZ<|QFE+&mza(Z`}uxdc|^Pymw?C)v%JY(MFkUGn}~r+2C90_xsino6?kFsdfrLg5V{;ykA<9koj3}8Oo2%Ht%Ko<SDQTo(L5ZOEG~Wj#-oz}@RKr3K1sw3O&+(aAHf?Bo^~yLC0QrCj8oGqK===<Y&zoyz_WZfPRV++g)B7B41DawtN9#p45&^h8>KguE!sij&2EogNgTxziro*7N^Q19eoPgC%1>WGE=pA=D+#eE^5^M8%!w1;J(%+2^q1yegp%@>4fd7`yYCvO(epn&k~|3_QRBRUhtH{H0c`o7C;2uv!cuaNE0w#v_&iB{2HMTHRmTimL4J%I;QKt}7%PKY+4#f9Lyu_JF?>P>B)~6feEBe$F<RC7kM`mY^_)gJwiwcVmhKEq!Ga2)H6v`@)i1zp^oF$GO%d;NR|SOWt(vA{B!Yd&);HtXqx9(v`5nAI<nQc}?E{;e&y&+H3}a2TiCONDrm~Jsh>wtx_DmGJuuGP?0!vf!B3;h$4vPo9zC@;*jTsRu4dkn<0J%c%ZeM4xEOmF@ur!>b5x8$Zndq)z|6O~jlJ#Rglz?PzFqO60#WPf1%tU-m@*fg`sS+-X-FP!3-|){;tmAb|`en<sNv0W7MyhOqkUXqad=|a#<Vl6O#D|iTalbZ^Pp1y!Nn#S%B-FnMcF@UWz2dT97U%=UEWgicHT(g3!Cw)R1i_KZ6(MKz7Hi=KLS(;_t@n|4O$minebfuV^9qvvp}+@LNoEdc-~y`S@J(XXkiVOga!c=LkdUL%|GUGjC>i2lje7j|sCr74c+?G|CQ_Bv=FVl$&?ih#a)kd5pw#{f)5{EpXu!50&Vu;DLw_}|)t+~poyin@*r37P6U#8EP?Wyt)+yv)23MAMnJp-0sAVNdVu=>6E%{LM!Hv@<4FsOEiD~MDb%M0DNWr?S^8|`nAW54uxZDvsemx=A$#i1JU6SaavCkH10KQ+~ZnW<v!<QF<zWS_Dz4cE5S?^Y>ZewqKjSQ{i<(+7MxPlSlVSu!ThT4`|+M43Ahlrl5Hugm$YsbSeq~DcJ+5UF!w$PPik9ci{LDqzQPdH9|lk&AN*hK5U;O&GfP$r3piL|OdnZ~zU);5c%fu;i%fUsk1n6h1uxN&^Ww#~Pbv^RO&_h`)bZ>TT8^d+|%$g|=kW@a))Xo5s%xucoNEi+lr05Z@xyiGKt*r4Jw#$#XKqK3XMzv*gzoeY2oVYMu}Rrk|Vd7ye~r<E8E-Z;mvd6K=|1ay>#{i@rndHGJSN-%@lsU^{?ap|qdUn(E6NLrr~@AapNz7(S?w>4p&fn&@6xya=9&}ihN^NCg5cDd*4iLhP+sssP`2)alqdo9WlSzRkSjS&JAr*@4OTF^s`B)ROGvaWxPc_;*XtcutLAi3LZh->1cfm`AE@h?jsmWZjH41N}ls=AKyS>Q@-CJ7q23(5+S6@<vH4HH6zTIITAhW`p~3d1ZODb*oh0-bscidny00dm2<w;bOylsJ&J_<%6{-1aqR`pnd=AAlQx!72==K~dd~JDVM??>DQgMOTK-9Moy2NmKug2ItKb;A^WlT_yFl0OKrj`pt-BC;Uagfjb;4PViPwK*kWNAYUcni)jwf<u4xWB5cOhuZlZa$rJZeDJT`(stGrw+c<%?_%Y2Uzkj4JTg3&=fctZ)Gy_697?3R?Q!>+zJb~gsq)`APc~L*4S^&UmA<Lb=m}at2(guf-2(I@%x9XC`yQ9itZ1`XkavCc~gc>9b?+Z6bG26l~G%+A+IZZ4wA`<T*g5oNrE*CumkkqNX1k>p(=Hidw#Zfy_c2G7e%l+Ip>fjNfO<g=}e#w({@CC-mH|ntL8^qAY@x|){8mCImE}t=xr;hKtN3Lp?-{nbI*mir{>7q{5`UNYYdKP&YFdWpqTmT={y{;6lQ`0sPMtZ~<KO{l@X;#o94Tm!7$`SSCmY)ocef*#b83~{Y^>6Nul@x{9c-n>Gk1Jw`WdpS{sn0d`x0^QE$1>Ob`3W{6zr{5NXsm~{`IEFKv+;(~F%#RSB21lSN5stC1Ew}VO>QEpEe`@Lhq@m=zkM;-Y-leyRsdh#L+dOk(IQz<*|*-g)fppTh5U$7(WYr#PTlw9RtrsLiogqEzWBp>mN7G4x`fUy1;5WqS?OM<Ehs~luAw74U@V@1(VG+VNxwZSEuhng-S6M6eocIZX1VXnP+cM{>;x9AGjDSZZA`wlQy&-1Zkk*&73k)T9F)uT&ov=i@NA$ZuSvzH)doO)546O={hkA@t0|Y<najCrbSICYML9X9cyh}zsB|2;h<NC{AcD~@NLGgxcd=KES1$!YhylD8SoF?iBNQu-?%**Q+jgLMYLGuY&j10Qd-7(58B^w%M4$HSW%NxRDkV#^<!EHnG*FHMprvv9zli1WAd%U><`i%<>N2j)K6n}A@~>34;UZJMP$5N`Pddkkt;}5pbLsSU=v<v$w7eLmYniyL${8T5dX*v#8*9dOBn72kV5@#b=Sp;6RA?8cE7C2+0bK$of%;E~G(W17Yb5zJOxH1Zjw}1PFg{oTfC3VT`oC9FhHLsYwumheqQ0h#q{jp?^yP<(eg@=i#KM&ZUO<!t6Kvj^Ntz^FkYLu}2oJgt^MoYLPkdGSyVfoDSjFJEd#RovdC<?>HR(7nU7O*Kn!(VdxN=u2S_@-~ySTg*da2@=sy(%InfJj{sIW@<`8hFL-7$NlSdD!$jZ0RPqOup<P=^yPXeC`JiV5an`!1q|^J?=<M(*F2R`3}Xlv90O(u;cA&mhX4&@z*Q>)FYhDvjq_2}qyOK^g>!N|G3I8@hsvxEkSZ_(Mx2hYnQr?G3Uli%T)1nAhtAiaWi|Q1%f3ZIJ_-k8Z6}Y)H1T%s$nMey=^PggjW<f`dLhE(cKOE0NH^s{FMp&spV$cxH+t$(D-LOg!94$=|zi;F}aT>XsEi6WN(e-!e8hm?52?aM5eH0FIFoAUmqITm0Z0@U$gJH_aPSWc&Y;Eiv?2D=eU{VU-gbid9Ye6BelKSijRWB(Zhf6|f)iLDy-L_k&7QMue^Fo?k{c4)BQk!?=B-NSC8D9nGh?u}yFe2KRRKLg3ngM{|`k-<XTN6LhC>hJRZPsX8G2s?k7Ba%Vy7r1!UV^l=FD9R@BNV2FCcj6Q$ka(YD}`SQ|-$_H$mxEM#Pj6{}8xqs?{N_!{g^{Vm)IH=|-4H<bpXU$wHI1G7m5=&s&>oe`$3ZHO%qF{bQAqc4$jZ3pyaXVO7c&&V;LnkbfGa&?CCbIZq<<^WB(6hx-MxL~lP^uckV9%2s#a?qTCF?S8r3(k_pcvT&egYc@+Jbg9_lmMNURooCr)mOjjdfcBb&Uc9JI`Dl4yF1Wv}_<x=c{eQTkqJrm@&N$Cv}5wTVmm!R+;%xr9TkHws&W^4p@2v7B&|nh=8_26$ogL3GLL#Try<ZJ#3E@d*q^R@2!^MhVT4?r@GAFinoJQc2uOKTV2Ob3^W!<=qP9ofaEUwi>%|Net=>$ToT4i3Iqv0ATJCr!10bYBZl;k4t-ZFsa4`%k?<8m(nr`lp&OlGP6bY9crl&f323fbnTBLHiBycUBCA`>X2=s6`h!P-Gt7QRidCs1_$#^Eqnc>MtxDw3)ZgqYGn>VH7USYxY8-){zpvE`!`2~_*E-~>7D46BmCFa!n`Q%3UkNgR*HNv^BRZdvpiB*T)-k=R(BB?8IxpFq=+fIL?$*ai6N_!xuB~4XReR=jHuGcEhVvnQq|&5fE9hT*bi;|61b91~#I)1O(?xBr8Ll&sMk5+-7P8&JgT3?QHI|^wM<L+mEUJxu4hO2CSoK3NcGY;6s(|JFXj(!zQ`yQ@W5P%H*wkPqLF^TZ7I*|B^WjtU7UvZ>Dzw;j(it6Lc5SLjEF=cR6BKcKi5dYh7ZDZwxTbmh6wMJ~y<<@gBK`9q`qU!Po1MKUU_JJK#3=G;c1bCWCGJ$hO#*ILf@^E->MXBhe)6!M2l?=xVY&MBk%h+C${9w*HJ_QrLz^{USW7un@baIZiKurOfA_t9jZm2W0a%LQU|tp-)#{ifLc#!}&sk@$tIF>^;lfspdHoKj40!9BBmQ6E9#yfN!l({{fqX;+{OK+sYiaZVLD?xc+cZjQ#}h_bn_8V{kLw3AKN<3GU~kQ}!q|8Ts~E9Y?=q-*Dzp8wQ!7~*S`rnG$>kb_3jKi^!b#i<;VDt)axer80Vvd7Ptj}GQayog>u51=^G=4ovF3W%F@CF1@G{4tJS<@VD{Dg)Gn&1nEjN1)ymFM)N3nzQJ~Mp2#QU+ulxG4`A>0R@NQ_-l)vv*>z0ZiL!e-EE*q{2d8jr#!VDsoI5X1sJbnJp|s7&PoMnby=?_`x$=hIookIW`ETkD!8@3W$Dwm1f<YAsNjx|37Z5Urayou1vWAO+Q;%*bO&XTc)7{yJnh#_z+$kS7I=k!?X!%LE725m^!*j7qU?cWTyuxa50KnG%TF7V3YKMk^4<B*f9sf|{hkquP1J3~XJA5W&Zr4V|{j1tfu-cPsN_1Uwg)GkMpj;Gn0CtuRSb4dKm{Z0DYtIRZD+q7s<(>5$igR9}jgCEoZsn2lhFiW#pDmMq|*c|nJhKqoKAUawf}F6!&MS&Tf91x`uPgm`N?R5M@aUBsMcl!n{y_;SWSN02;8L=o)zA@SXQyEf$Z@i4Fk-S*I+l$<`zkR7TnUj9^Vtq1~nGaF15f);V9**CT3t0TMDYHv@G2J1#Yb|P7mFT)|-9k16wC$|>H?Eg8q+{_0J-lY=$4BK*u^05+!!MX5=G|_6k2pF~Di-4`Q&Fqpxy7FSW_w!=yNTYa6cnwgf!7bR8HuP>Iuf|9ZAVUb14s8fD7aR&U<7!q!l#eA?b<vS705V>4X%M?flu%qkSso2Ra$5$Cra`bH!HRtEKHf=5mT@<P%{NLC?~Re2gc$)kZc^RB#uyEWZBQf*489Ua5>ktRmn%bh;x9go$5Az41{j@J&nqsgV}BaG{!RxgeW<n2FH{NKAV?GC>Fin|t&9X|+UK|H<M#Q#lED2^{ldw)f!t-MQf>2#B`*y3B+pN-La||JsTq7=$|-ew^)}!^=V97#X=}kG8eV`)H&$3jE^F75y*k5~&_a;DZ!sbN<7QQ-h<tB9I=zn2;n<n*3hvo*pKPMdW*dM!-l$}0Js#8+ozhfhx)$cLJ*KucF~l=C8f2|{>dLt9+6`r|_o=W2#E?I{!M3V*>nYEs&QH<8Xr`ZN>l5H?VI;SIEo>?i`1j~Z8a$33xLSFaJ@lWzKLovVU`&X1Gw^t76ES){;6))&1~d#@SF0eC{3U(0wGWAM8*v-ees<4xUl&$BAIifk1I*2%qF+ucnWYAYkp=8PM4w_r!Do<COcgBIa_<K1Y7tKp_=RQ-5P8N<__gwJVcu6FqN%k%aB>Mc^+Y2Q(*5~W$FN8el!5_Uw0-<U(G$Ty1wY86IhxoMHe;_sVCJ=oq9|<*;u+zCjgsRWJU%KMERa?jCQ9b^d$xD~^j326Zg^ge?X$!s8rA6&1*7~_RD^x`u856k{ppZ~Lm(%IuKVai`t@)Web75N!T*9od+8PGdtnD|$MsAH+Gh02uT&A&7DZlD>Db77a##=aGx6X9TgHq>0uo$A8lw{ix0`2>PI4JtTMvX2b~}cf<>eTj*`J!C{xE4-0*E`h?u#PHyJeLuINaDq>H-$8LNgY;(%0+NfGCaZ#HDq?P`y9p(o-s&fDAx(xrhR=J=-R8*G8uE33BNGysiSHQEGxOZ}sLEowQJpdX*7|p0kDW*>S>s)O(yhH##5n8d@`^=z_Y+OWubbayDM|N=}>MFKFweoWI7MJm`64j1RPRO=ZIo>xnFNHmJ!I$Nv#=#Rwh2EzZdqIviAK6w}BkFd?h_7oXhr-EiJ1F^!<XYefioX^s~(dp|k->_~)G5u7cq<4%fpC5z33BQ!loo<E$g6NBcU+ynj2A4&!Ns@a)1inMS<pOjn%j6YMtLzPC=qY>pdV7EA^jokXc5u<-dOq1rr{q?3Gt-`h71?4=_U~@+5OxT2}Z&;z%)S))FQ%c+^n*BA_^$PV5`N-0BHN2VO^9xuCN^^}6++gQ_k&(_utxHz~{rrGV(Be$@lX~frV$kx_*119djvd3ZeSr_%GDt$B8(jK%ev*RE$I^-$W8-BA#s}I-mzP2S6+*ZmE1Qyg-`i1)J7@BkEFG*M(By>2i;1~?e}VrnG}l4G(<l%I%~R1m3f1jQ2>p_vox;WvcV-Hvcznr_Ta!;l4?t^w$VhrsLPQxA+2B^gB7Xj_YY(PY6-<~p{LPn1-$+wJkETf*_l;D$Gg~#-L;%|n8&BOme5mS!hElpczozPYo7q4r(wa6J+AZl6b&Kt<4zTklam-Ta;bjtNA88%j>d_~ei0v5hxKxUnzD)KG)+)R1lR2$(ak&ucasDws>bPr?3a~f?L6DVar$G#^rAvWpxx5Id)O`dEm`5W?aT$Xce+nI6tqaVi4?dV>4zW`=gtF_@XWV5GM@M~Q*>Y*4Ia-PBQ9ai>Hr%Pa710fp$71iWSIa9x{hPqVg)c@v5FSwWOyIqSY-ee_7|j3$he-R*bF66L;==MZT^O!`8+R&%F;MveDAZ!)Tg3BU4~hQ&E1MvNaF~?niV6X+_pY^l3l+X~eVSHkJ62MyDErRaTDT;!_^j+a4&f3Xr2B2Q<J$d2f~@%#fh0EF&}<E+P$fT88}#_@MLlq40-&jMJIED@2fZD?Rw6Oy*goQtk>5S&v0hLS0^2b(9e8wGI3ZOxRP$$RY+cebHYZJ^%*l902~aTZY=fQQWE)(E)bv?mPL})uTT|^IWh`~nRz#Yv^$1iQb}fmmvfx7W)Kyafs_k}k>SlPye5hf)(1zh4&x*7>JKRA|+F2Cx+z6|5g4JTl6PXX8@Hhr%u((nAH8g;hZE}B8&EcZ}Oi7=v7iQM@At(cz&RQyPYE^V-#`E0nWX1>T6<*6fJkblom<o*t%8|p-gUVVW`4L#u)ZhvA<64(ry0#(TlDrRX(cl;VSEoxm&QC%(1*2%s9JF^228w!8ziO;q_2^Hn$Z4+^D(Ayr)T44_*z4sPm~xpI1BxQ&4(I}cy#R5V&G4OY%uO4V2vZ#EMhHhPE@^odG3Mp%K+4AP(ts$o(jtcJiloQeIUSZ-qQ0{U$m^f1;p8-GvYkw1rk0;{9lqUfd^M||D*VyWGtgh7UIBIicI;Xs<T)=5zX8~OFsAP`YB<R~$GSFZviI@l1G$sU=#4vkr(AhgN@*EUtAqC{iJ=@+{H!=#jLu?Q^-H<W*f(^&z&Or`b7Psj7q|ekhy2HYL)=Y0`j5DtF637^1%=O_B=oWEv`b@HD3V||CjQ)N9gOi>#^oxIni~9H6t+%sJD^G>4;UkLC_>Futn~X4-t0slPy6A3&JN6>i+*nk(t`s!wiiM_OTn~5#dRpBPy;o`_4srC%qtQul^|2?(nm0gnHM+)WHlcpR3ypWEa+3pE@gi(DNTfJl7LT3i-kO*s^dOn`jkTZdBw*`tz5lKdcz6=8Hg+s(cS!Ot@oh{7Otq%5Xcd+1vO7;JiSKfBZl}<<DLUGEOtmIwsco^oa)n4CJ3WKqJDX#tLR`~Z7zk~#ms0P*do@5LWQ7VOab~CHoh0L6S*F(HCCR=#&sXo3_>uR{sE9LU%3Wlh8sK78wz1UYEB!p{FU4q5BnOb(7eIA{U8gbs>Y@wlHij!BtRNI9z%xyT{znHx~H@2IjQplQnMntN&8=ZMu%0TKNocTe)ZA8`BFQTLBh_mqLEWUC>{OnkmY9=PL!250jk9K{t&5-3B~*dw9?&t6wpD6sS}R$x%X%MO)yz~s$`-(H@0erFxsY5)Yd8KnDh1aw49#A5Y`nOni|37PnZ4*DG#+by|c=TQU5e<@_T~)dE^2;9!-s2aTU&8I1TsIJlBkQWPb(w?_0m49z^zib&;%JsJ!&Y7oEeewV_k|O?Y|0q`wKd1n>^tHJD3Utm90K&dBG&(Ox2#T;R$}I&t2R!$}JFfpSns7Kr89b~|*JS*_#;YXD^q?JMV!UU$(EPCdnc<FqAMYnTnow`GV9GBsidCpk+0Dt&8*E9;~jg`lQzZb*f%U!#q<)ZlV=1zGOxf82cX<Ej6$-4^3fX~wbw{qB|rrYFpq2<wCk?0u?jRns7%%HC_PQL%9G8gW$7yQ1}%o4{?AO0=R9oSJdC?=_zT>>)!f1vpPu3nRifflej&K&G38H^@0w!G~(`aj_0%-=~fC7F6Rhj`(YOkyy#2KBKjlE^LASR^dGxn^F)ooW~m%1H+?kw{N=ypQ7FoJS%WI=^#WfKn>3~Hu~LY>Yq+0Te(+`M)CIf2p>9ni^LSqK+}*wRtm+${`mhlQilDq&NgL$D<mg{51={CZ1Bv=DA$6zVpVBqUjQs1Q%rsEMY$)bIS;D9Rvf0oQzrBd;@Im&z9z>%s6_s4lo(fNRcSF6p@!|D1ico1;UY0<p5wkFn$KnjaffFR1j3K(b{NExIV_^8#}k2`s#+NxntYpC<{JfZ=5RAB3T5-Y<l82WHx?ghGx@p<f;#-K=dIA}1fxG!YOWi;*}u>eNw`NxH{+Q$a*~-uX(y82W4<LFKaEILRhY_@yU{rwHQ?KxI1}-dD0+W7?I{$l#$Y@29xzrte2;c%>{~Sax<@Oq?hkzTB0e@sl4+2$ByUFW;^ZUH7LJ9uN^857mBQl1XAWr?w|GXknJFhlw3NT=LV)Iomvj-{$ZFotz`>^gQ0N|n5}T2M7OP!EL6mB%Zm4a{gi&!;mgR?#jnjy}`0NiWfR4}vejXUhYi56WJp`#De8|-0w{nCdG2C(hbodCtQZRrdxnJ7j_W?UkqF*K_*30gf<q;-AH~Qr{E{E3CcN5Fs;b15HbV|8?`u+wn)~HGCz}Iq@F0PU4V2A7SI>SsPh{em*U`0W2<pN`1cghW1$rAzPO_Qz$cIok~0x#NjSUDFvEf~kF`2?em?PN&XqT-?K*RxCdvVH}xEsPsoMOlX4G95Lz$!kaCYhvW15#v8Jr-q4D)Wmn!E8|2<*7SfFZ@w3UCMJvJOFu*8lJI3@!WxWKyfz*6!L{o7f6Eh$ruw-Hy{-Y;659$=Tx<Vr6MOtgD{_T2cNLdMq9TH!oTXEU96(E$F1BLab9G^oOdl){wl-Y;+3cw1`6k-$cj=h$fSf2M>zrhh_*yv3)SOU2HqQoPg%Ijleo0?KYc6>NP9*|$ExF5Np-xq<FWvdsd$PH>{cjoyVM1AHB~Xf1__bXaz0dxC+Hx)vw(e@bt-VCtsd6HJ(dz^E=9Ut&x!mk!jfWEb$4x3^BbB?vC7d;PV{yOgcI*Lh>Musb{Mw2oVF`|ho(L0Dn09wm<0uZd|D!nF%?KqX<AU{#V#VkVM&aZEv~D;DSb|`s8wY=OTTLK@YBY{JMiHdgm*HYMx$W=;%`oCmc|xH0Lw}3RO64Lb`F{bzdjM>&z!bA!sJjxf1mj|V>&xA8D51}4j}%f{r+JEfH2}6J-hR&CfLMasoa=}tv>4hhDnA4n79VKFJSe@}yi#;(A+G2N?1U^##BJnV1$r8lG}2pQ3|&IVV(2Ax>49L)LRoqVh#Thk`y|ej9p<i_SmmAg09195`M>lpOMo)n!$piu8^L!>kHx6RlZ($V4jsIyoQ~!%<bPQMOdx0b6U7>vOG7VqWea#+D;UXY{lAn4bU3Z%qBALMCvSTuL9jvjeQUdK+pta#`|*3}WHE~c^CCVP<}9)B-VOsqHhH|+rKf{4r<HZ0&BG|a>=}4ZtB<6m2n+HELY1hd60Z#*h2sBkQMOt0euB0z6m=CDa*{9MbOn4o)tVZYF0(JFOJB`E*lSP%>{m%)hLJlocPF-6rSSegiqJ|&cx*vScIs?I!eg#{BF6QQu%m$(g3}J$?Mr>uO9<dPYBH@vY*b5w)95ok4Ew-%FL4NZ{#?aI0AM{a*<bmDIc83cz7Ci!S9H#y6bxRXGl8bylyA$=))dt7kpBH4QdObSPnvtQ@^j{wTA~g!y^(1#8M}RA5-wWgnfo0y8qoNDUnC=sz@b_I9e_|vA9|}$OHlM+=W2`1bWv5!eTPsum!2}JBq6)wFrpxc7fj^inBgx2=2rp9V}9=fKMP9I7~Wn88-&Aty`^<`b~Y)(I=L}AoH{W9S=)=Fl(rHZfW1Q9%)gXvEfL_J3x^3+PxemNH}~vIm(324Q_3W-P6tRPAf-|}iL&B(ul-47x1%;<hUS)0|Gv(jhaD+z#5z-oZLK)sI*aKP*zZ5D)Y^F6Al;3Zj-Avj1qnt|kU0yv*y5T!Juhg=_3kyz=(D#<BqCM}eXW)*V($UaRdPAmQ8C!O_kDa)jv*xpiFyk&#bH+Q*P2sEV_c(}a*2jIr6Of2{Pewl{=r`liJGX3p80ANX^SY$s^9CTC9PP%9_aq5H}DNq?$obLJ<pxab>X-`ka#s-E&AopnQt11Z*NPOfRC`qrYi8q9!(Q?6tA4nAt234>9)iy7JpUtApqu#hdEBL>;zt)WgL6l-?wvru^1upD%`5j{iNUsI{(?t*FD(>%zi7~4V;i6F`4Xd`pfkxOU$sf&G-M;eYXf(t5mw&fza#;yKFW_8~o=%@#mE_N{FHnP+2Q6bkr_F`2enfu{_R^C;1CKmhG?!$j(todj;H?L`_xeg?W*rn+3;AaB^#OIOFOWljHHikBIR=>Y1C^>%6BiyW_F~($5f#En4<Z?a+?&R;uSsK0A2Q^z1)~iO+h(Jx6RhI4RTHhHAn>d3|%2zgc3^XJ%C_iw#ea4$k5~P#a#I{3NmyQXKJUWp=2XaCPAY9;o?kXH1o!iE@VbfO5*P?U9{tKO0msU;b!CYm|pq;Jn(3HQE*bS?HY=MjQ!=L5wto8Fxb)I{pm$SKW6q6K}A!L#2>?imU9+P0y``uxk%Rl+!YC5h5W0FN^|oh%~j=ts3lJoIG!i6q?l1!Vi~AW76$Tm&duwOLN+n-1?=;?h*wXUC17of#=j1(h?%oDxihkbObHux8(mR#-FK-$TOZ(FD)vO>5rZai=Xc3(v{Kulm;|ds64_t?WopNTFS-5<XA0}KoFFB$!mWc_XL5xJi6g>rPGSWf`=P8VB3R@YDT?IOxJKL&ws;PDb&5nrDpdRzDz<;v(W4}Lh=rm1F)L3UZGVUh?znt9#$$;`u>d$NMb-S@6hO+3Wyc>Qj)7Xh%n4jYmdaG`VPs#8gC33$n8q_?xoRo{SmO4sHD}RyhTi(*Lz`LUXG=QfQ4~Oq$>n1#yJk;`6Xl0+Pq+mnUo>3d|{rI-!9z`_`rHE+vb_%$NjgM8a`%u5Jzt-Ee*pyo799hWfKUaXnzZU2!~+2vCQkiLI*Ts4VqBvgRq^jQWdPN<^e)6G4R#3%Lsi{pqivPl6BH3>E{f4Em%)3wt-qz*Kd1+S6hU0;F<j}GpeGfj|;?^tTAiSwb5Cjkdze?M_^PF+Dno~Y3W`Jo0Y1<=UN>%Mp7RYg!l-FFP?r!d@c*JI#)uchmvL40yHMh<ihxJ#>diOI%HG`Jc89?(#twBSsBa`&`7&{+N2BNzWSd)>PBz7kd(payH0&PSNYAddcdL%JoeCaJkj42?IRy~m(HXTeA$;F=9-fwk2lEg0?HI0%Zm_m<96(E0dB`|jQ25koE+A~?3QJAkBCi6z4(vZykQF5d=#IO6bk7lRmnx~lZEQVKBTS96dB#FtD~@1&7Mg+{i0BWFDp7NToe(-JXpM8dlxK7cA<km@$Dm}zfXlNA3-jcq`jG@q2@g)HI5`=?800tVTfRbWVW~w?2QFi60R}n{qa1<d+0CvqHNc(wN+jP1V!lh3#3V{R!XTT$|Ox)I+Fw*jzWYOb<mm*AE~vJyO`0$mTh>Y{g+b>tXUTGgi1}OWJN=78T)HMbyDCRMY^t6^-GxFq*yK#Kd09sVzC~B%y&YVHtPH_%pfC6PuagXHiF~L2b+7LC^wc#@brZHrRPS_<vw@Bg{R${Juohfc;Z8miHIw`o7BxjQCYAb>PV%GFbZ_2?Tj5^7|{|bY}yGt=q|GlqyhdvkUYHlLaIZu%{TFVfa<UtzPzCEc@XDmWv}qrT3OyG!3&D&$P6wFtmQj8;1hMmj!W59SbZ|WJw#o}g=OJv7Vml{q4yGwZXc!3&mJ#2h==?KUI*(iET<ggT1G)*_WX?6G`(9CvaWE?5zwN$Z+pH*dsM1S9?q$TX;|SarIPB1UGOS@ovF2BTO3o59G+QSg6fv`1pDR&jFCL_A>6h=Kp#<;k^-ww7@CHLIGcQ_WkxwF9peq7=caE-Zag8epWlPOv?}&|L(rccyZvS9yTOwvmS5A&!ADcTZ(5N3{U?)dm|eu612ced<AQdLp<5Acd#+tM+G(x@i*Ec#1Z##V9)IWR0#vvXuR`wty;)BGK8t}1g#Eg2AuFKP{}&iLn$Lx?9IUNS(zLC!mxqyT@6wBka5=LV4mD0kEUKj0x^>(v#v8f6IF0<<Eq`*#ZlvN5^#JeLseq;BKEIsGprAsSLKP}t!;&Q!#<oMzncZhaBze#t+as2LaY|9eDJ-?M7^)-vC-(XKgz%-ceo)FrE4h!Htgzxmd;n3d^HZ2X-22+`6ZQt}y*<T+%ZV%DRGnJ<ok}<K-u8$5TO2?~pkmL#Zf@$8HpuTM)?@8GfVUK$5An@h^s>mdm5wC^bN@iJwD@(^!1k6Ch|_&1$U*lRZIVkK6p$#}m#j0fCp*U@VrXK#!xdV=g$Xo0?is+|Odt#D2jZ<Ua`)HXWErP=x5H=^8N@u94D@|<(}i1^(o?GDEnVg-EvYLMx2m{Lm?Jq7X3>b6J5{n;P{dMApY1<Jo<*<CX-hIYz3%E78+gwQ)W_Fq=&93i$k{vO@NL2RkRI^G;@lm*1Et}_K%AC0-BB3t!XkU;1`^fd9HC3|%>Fr`D>JPod)diOIyo?T5&FMHUMe4ZVJ;)LB9O8dA>k8D<gfH&;0LlPhAQC5wnM$wDZz_D7>AuZpDu~Dqr8AKQ23gYxtCCSIqaG|$|NZa7b`f3SAc$A;NJ#6Lcj32&-b5^FtEo_A7IEQ2Qfn(s*$#GT4*=gcR^0HK|3m@i_*HK^Gb4>HF_k>dPKuny=wfKml42PsTZ)8!izH1>hZ641J(%$ji}PFRxh9O?O^bkEA1snlt8ACMsfU3M#k;Qh|z(w_JB7J4x9ioIp;Gn+nwOiiV+ZyfgGDJAhSq$U<78UBzs=D^KVTBe&nPJx2Gl0yF~IY$u5>wyJl;fb*@Ph_G<rHuo|~{V<R(FoK-4XO;_~OVz{0KsN0ltlh}slx8;*~wM)Cl#e)dcBJ6(%VR*tgWe;kf*aclP?wQNGfI(;F$dTGouJ=R5mg)ZJAEIFZBO+!Gti#}yc$MBSuf(lMHL5rwWbRe_dvTXBvjq@NA?p$ExwN<^A<E=6(b1)fo#;r@WoMoYg+2z{6s$i03ntWji~0VBPod!GE`joyX$er}=WzC^c<Sy`aB7~2X3rjk0>vLW2hx8Gu`6t;>uSQj@!gJL4p@58?<Ayf@cyX0#seVnY>honCTUbi$=e8@J&ASiDJ;0zBB4#{x#v^>!iNShwvsGZG6byl6w+P1Mu$(Be$&bz5v4jFV=#A`V1?M6qI)hpd(F$+yJcR}Ik$guW!>||U9LW2G(=B*`<Q4dFBE*ST3oUgzi{quv*)-HBhk`t^UuQ8Q2)YXy&~d|f{zJ?G$FYOQ(BFblwI8Cp~v-kM4U#i=iD?yaDdWcC0y&+-UaE7RJ!jln_KL#A}$SH;&y83M)6&c`gS&j+Ieru=aZX*n=5oF@fUdtOafl^b3rZ=qi{~{-KzKu>zq`!N~kA<(sGLVUbiO&klwvFH^tc|JpR!dFPDgzjgCnHX&l7}(_Af!KBK`_5#HY)3AqSO2BL|8FVZo=nFyGMC276$7Oq9XEZfBIgMS47KVn}E)p1=#-fj($@61~XUo!I|<!X{@uu1wq1A!fBMa0JthsqSjl|mJ7*=f73^g1$HgDI*6XBVGWs}I-v7O84x`?UmJO2gVtqS!Qn@*kt?3L<f3+fxMjj1wBE7==D%{G7y@Vyvj|1owA|Sk>Z<esAL0IfjB>n0UQ1!BekD3{w2kAMsc382xFyXCyX07(NMY>Jw&jf=#O@mPYbGKf(g^Oc8_VdwtF4t~-~b>0}WO1U{qUUsW0g`6NJ#pJJTHplEy#B$>jmRgX|Rh6aYdjJJwi9$O8fYQ?<gNgM5<1Rnm?22+;3){Q~KEF2tnk1TYcdfeQQQ@XtUf)fFH0d@3|<H^`Io3t?R1Tl<%qG7qncjJfIyUo)s*dJE~!#OXFQ*kAekQg}3iKdxLE=tixLhqun;#D`ABcPpephwjG8pzNX3E<!g77S}H`5xQiJAJSm-$N=cU`h29z%K;5pGc}As3zv0Fdu^i>`j4lUo@%AOQqy+PQFHn0W$Em0DvAS!yyK~<U;i|-q=hq%!xK&mHH6%G^}Q^g3F!kLaFdpuz4Utrwx9s*)dbR+*^NL8BMN`NNy+pe&q35P%`Er9->Ar0k+agox?Nl$!xBOhsayxRxbSBl0OtILPRI}FtvA)Y&Y4@Ya~AaL(lDI3!A90%<C0YZrf&hv$VcduR<J*yE2aOGe@4S*<^e~lcwrvzwCQUW;!FwW8@}scoHub^P}^*dNOlU$i?MaC(ruDWlUp9oN$c&y)189KXZRjm1sp&<pP~Obx*C;;^D%s<ug-=BgH_eU%V-%`^Nl(M$=&i_rd*}fyDw~&Kr6ej}{7Hk3%pXN%w+xDbOcLmEw79nUvhtrXI`foeYieGtPwfNnY6gAeafV*BhC~^ERpAYf-9O|9aizMfxT$$;B<hG_$GG3E_NTI2D`)(eB*?j!17@_cn}i5200NyjBX^lIuG0@%s9wQWn2LY~8<~3{OM_5lvmekg<J~v(nCMb|4=xeVGBrB4JyPycEpS$wx`Ald2*P+^|`P9h<w*d#qTlj#!nDzoeaQ6Sk9YEwSPgi{=u4a)bczU!P2Sx%uC>V;zNQRx_$v-DF14eO~(;db)Y!A{|9xGFty<38)(t4bVmNvmcf(EpXKWEVFF{Gx?Bhe+1Y?N47{1k-WJkatjoo3NJQXB$>M4$;Y-g+8*<gM}*0rxV+v7>5Xi2Eo;)MTCzq32ZK*h#bftzi6eZ6vs!y#C*6mm8U#aQL;X^*h&TqKyx$R*+`9(Y72X4t&xFT0nGjH?CRMk4$}9cUR}!yWyB4(i(Xe<}1Mj3$hy$!9lEh3K7aX~5xH2jU17Xg7;?qI@|E}Ft4mXbk4IgeS#L5w6XvnAKT@ocxigpy=Ai<<L-{EKS2QrDD*ta-U)`b(P8;Q%q%wwKO^w$hSCGQ4T2KtGN*Nvjc{h2T`O2<IbD3Yyg21x0v^TIpl6#g89;NyiZ11F%&oNxPrW~M&u0><VK$}LSgR0bgc$R3}7Iv7=euQw_~mn~ZVF8hzp-uK1w$~emXwgvLpR=nH(eQ>s!Q5i$W{V}|7LlMF`bLb#!I(~3kEbVys0brTGHB>MW8f`x|=Ni1$e;5qM8LVb=OW7{XCW~T8(H7hB8=9YYm0t_eQabMO2qg*gky+YM)g4epPWYV<mh$)!9R$_Uzq?VJ?a0XoH#xAt@TM?=+-LVeubC5O5Xc_=lB`2ESVXyqBE83~cO#1izxzGdY@Pf0Ef_^Ofp#i?G=2b=&LhWxAx8&UJ6rl20Ze&-^j$riwhHq)VkZ<rD9FZzVPO!iq)l850Z5?5q?RG8dn$-i$}1GgX_^u;?wt;LvChbjn`}+<6EWqhwib5UWlP=dEKLW-Ey6=>fSg3t2w+8BdS1t{@({mRiNj;p!(qMRUY2^y;+?ZfZb^4C^sN9yG5lk*4cexWBc1f}jI=vOe%9aWQ)2xQ^SL+AhFvD%WxcDkmWb9us)atxt;2vw%zHjMY%btH5*_!BD}nSQF?vYWt3~dW8&_Yje$ZO#-2l@B*!ipSmA8YCF0gTdqD(YgQ7TqJX+U`XrbC?c#CunP5VJ<PJfOFxX<6XDmhKcL2FAX<F=b@E|Av9F>#@p;o|;b;(yOJ<*hC*$$kyf6Jh_e#8&<8A?Pe0|2>cbGQ}`Ap^&MES{=t>5oge0I4B?`kKd1rxk#u>3#IQc)%A4&uN7LiR2^D(cGy`{)X40g$L57J>?48k-2cA>oOnp2@#nMqhTXy~Gne+XlEK})+FjMe>FRS2x0w9av3i^;}-#d6(1*P3F2KeT$Rl5YIl-^a$_@Gm7%%yZ6<a%YPD2-hCg_as+*9D<Q);cCV4x8W)MELJe;D?gQ{j+fIQRMV+YTuy5Ps2+1!kop3+`|JsZKJFdY?V2zuWCdyA;n>0dF<(6kh1?qIk}(8QN2hcBi*LRt2#so$t@Oi(Y>QT*4Wr~8>i}49uD}(KE2A|%A!=fOP=tjJ=Vjt65RFoVlWl#RCq<)QrS$0mY(2)_YYD&*Y_c|n*ZNc9+Rz_=p_Ob6suC=d{c3Z6+t0%h3_I9ajT3<RaZhgBD-Zoer6?y^=xZX#_&`VqoZ#p35UpfcU6IJeIx>Q>W3k{<c0CsZUSDQY{|@F=Oayqa}><{df!hDLlMlSj?T86Y=08^m7eZ2WbQk8lW<Us)r(&nlhBzrhAE>)P-or2y3)moIt%}CQ>L1stq+;64^E1!_@p$y?b!=(7@+&MOY+dqcFl1L%O0C{1><bWS)G3o!{SXnX{c1Pd@J$Gf&{+Qg^0==O`Neao_`^y54?It-e=i_*avprqC)2FHokkFCFzVOhy{R#gEC#J!Hq_;=d#m9@@T-5`-T}=8`j%Mz|BIFSIM2{U&IUAyI<wa#^2zq7V9ZI2<FqXHiWwnZhUQLkd0rR6L8}$9y$7mnBAag?128PN$y?OxXc|#7YumxNeboP?da*tcbxCGEZIFdncuJ_Sa=pzD1<i6QrqZa91^|#@DD9-Eyn<cqrI+veOwb37nTJQpsqeN;M-;Rc_({-Rc@>ui6gZwXeLRSPSn9Cr#+n;9R9f8y-nMcwsP$o%M<mIZnBF#^nlR0Q9~cRsM5_ky<sRDQ65;$deKB&(Le`w*J0cT%|1*A@APEiAAui3+|D0~v1=%~mZBJU+*ju7x@NyTOJaNuCMVW$o>5|t0~}-xu@KWR#Qq0DZ2<mGCN|Mj0v)5UFJ$u(s`O=ldDe-X-sf~ge>foaC$uB{myA&$ZIVaSY8y7Qo{>h+CgtgB%9cNvu+j7V^-p&_h~xO0>-AlS)m#m`oy9Ch;VX8#fdM4r1xUhmgWY`}NocOl@3w^Ti7N!Ub(I7Zt{3?(vx(^aGp@Bvq$qHxbY$0N7-Z2-MWmq2x}eZ{3wv|KfAUA!hhJ8i;Mh3p7H%g_!Lca^>|r-I9iOJ5XY2kE<gnd$e)0`zeB^{6!2!|vstT1wuaxLdCABG@Nmg9%8vD!)iF$n$Br{TAn@wMmP=D#GU&Nc5Qq>eFM$Aw#qAK-4(*>Q-h?(l{{trq9cDLZ@dwLPrqK;h^&rEt-5%5P=V(J104>GGdsm)12o76|d%uLMFgnNOtekRnv5RyRNQ_s{4e@zE?*Nxv|)kYWau=UQN-M>Ykp#0X8;$@z->sdypYoTlITXLD#JqZXi_r7XpwMGuq>Q7oVEe)GV;jVxr3>NUXRJMn##Tp#4Ldq+7lN*}<?Uw@ht~~8OS@lp+h#vTT)l1l1!0OoWj6iJ5S^OVPDX^W96JlC-1p67dMy3gpk039G!nap3P*ttuYw0756_8m>pY(wYoC^A$jj&K!h1=USMQu)`on<OkH(-MBlAbs4){ttlH+ybS$pThUOtd8I8hwBuXzk=gr(w6v1=OLbj0~VB7Nv)Jg+yJ*@u+^x=7hvj<{Cs*51+x_hJ@ilu)!d-+X*OMIlF$I%#UF}1kMfpz$wBlON0BMoZhp<+`wuHF&aro1;?gy%_q=>Ja#GX8Em>}nR92-4{rp8r+@4MRCMlibr1lE<PkbRYybcNle|@tYoG2U00F%H1MZ0r=>N{uvBYQl0ssI200dcD","encoding":"xz-base85-v1","uncompressed_bytes":247022,"uncompressed_sha256":"e39d6ff58771f977f17b6efadc6760a9e7eefb2c947dd02e62a9f59ec8179731"}
+```
+<!-- ENDHISTORICAL -->
+
+## Appendix W. The P8 signed-search cell under the record-and-regenerate schedule (P8RR)
+
+**Claim, conditional on the premises of section 5.** Under the record-and-regenerate schedule below, the P8 computation has an analytical peak of at most **211,431,424 bytes**, 25,546,752 bytes below the physical 14-column online bound 236,978,176, so the online bound binds the procedure maximum (memory_log2_bytes 27.820178962416, projected scalar 84.513924993584). The premises are the inherited H6-D and R.6D determinism and the new H6-E (a0), (a), (b) and (d). H6-E(a0) reads the H6-D encoder figure only as a bound on the encoder's live clause objects, which on the experiment platform occupy at most 128,586,032 bytes allocator-rounded, 27,950,800 below it (section 6). The whole local encoder process exceeds the figure, so H6-D itself is not reproduced locally; the bound holds only if that figure is understated by less than 15.0 MiB. Appendix R.6D is unchanged; only its phase maximum is superseded. No historical run is reproduced.
+
+### 1. What the cell computes and what is consumed
+
+The published `stepk.py` builds the clause list of `F_hist` (model clauses, cardinality encodings, `fix_xor` pins, `fix` rows, one clause per nonempty block), serializes it as `p cnf V C` plus one line per clause, runs Kissat, writes `name`, `spec`, `sat`, `solve_s`, `build_s` and `rows`, and prints one line. `score.py` reads `name`, `spec` and `rows`; `sweep.py` reads `sat`, `rows` and the printed line. The rows depend only on the result line and on model values of word variables, all numbered at most T, the pool top when `sha256_model` returns (32,680 for the sweep topology).
+
+### 2. The schedule
+
+`p8rr_launch` runs in a working directory private to the run. It removes stale files of an interrupted run and then runs:
+
+- **E (record).** The historical encoder process runs the published `stepk.py` text byte for byte up to `t1 = time.time()`. Instead of a CNF file it writes a record: the greedy covers actually used, the model arguments, the clauses appended after `sha256_model` (cardinality, pins, rows, blocks), V, C, and the length and SHA-256 of the exact serializer output. It writes no DIMACS.
+- **R (regenerate into the solver).** `regen.py` runs the pinned `sdmodel.py` against stub PySAT modules: a write-only clause sink, a sequential identifier pool and the recorded covers. Pass 1 regenerates the whole stream into SHA-256 only and compares it with phase E; pass 2 writes the identical stream to Kissat's standard input. `p8rr_tool filter T` keeps Kissat's result line and the positive model values at most T.
+- **S (solver alone).** The launcher deletes the record as soon as `regen.py` exits 0; Kissat continues.
+- **D (decode).** `decode.py` rebuilds the identifier map with empty covers and writes stepk.py's output with stepk.py's keys in stepk.py's order, and prints stepk.py's line.
+
+The launcher accepts the run only if every phase exits as declared (solver 10 or 20). The same Kissat 4.0.1 binary receives the same formula bytes with the same options `-q --seed=101`, so under R.6D determinism it returns P8.
+
+### 3. Equivalence for every accepted input
+
+For every `stepk.py` spec with `"solver": "kissat"` that the procedure accepts, every greedy cover draw and every PySAT build: whenever phase R exits 0, the solver has received exactly the bytes the published serializer would have written, because phase E records the true clause list's digest, `sdmodel.py` never reads its CNF and allocates identifiers in a fixed call order, and pass 1 refuses any difference before Kissat receives a byte. The filter and decoder reproduce `sat` and `rows` exactly and refuse non-canonical solver output. The output equals stepk.py's apart from the two wall-clock fields; the only other differences are the pipe instead of a file and the full model not being stored. An accepted spec has formula literals that are nonzero integers below 2^31 in absolute value, and every `sha256_model` argument a bool, an int, a tuple or a set of mutually orderable values. Some specs that `stepk.py` runs are refused in phase E before any solver starts, for example `"with_state": "yes"` or `null`, or a `relax_steps` list that mixes integers and strings. The sweep specs are accepted. This is a universal transformation checked on fresh fixed-seed controls, not a historical reproduction.
+
+### 4. Memory, every term charged
+
+| Phase | Components (bytes) | Total |
+| --- | --- | ---: |
+| E | encoder G 156,536,832 + kernel 2,097,152 + launcher 4,194,304 + procedure code files 1,912,832 + record file 44,593,152 + recorder overhead 2,097,152 | **211,431,424** |
+| R | filter 1,048,576 + kernel 4,194,304 + key file 16,384 + launcher 4,194,304 + model file 200,704 + pipes 2,097,152 + procedure code files 1,912,832 + record file 44,593,152 + regenerator 33,554,432 + solver S 90,210,304 + solver pipe input 1,048,576 | 183,070,720 |
+| S | filter 1,048,576 + kernel 3,145,728 + key file 16,384 + launcher 4,194,304 + model file 200,704 + pipes 2,097,152 + procedure code files 1,912,832 + solver S 90,210,304 + solver pipe input 1,048,576 | 103,874,560 |
+| D | decoder 100,663,296 + kernel 2,097,152 + key file 16,384 + launcher 4,194,304 + model file 200,704 + output json 6,291,456 + procedure code files 1,912,832 | 115,376,128 |
+
+The launcher, its spec argument, the code files, retained files rounded to 4 KiB pages plus one page, two pipes of 1 MiB each (the capacity with 64 KiB pages) in phases R and S, and 1 MiB of kernel state per process are charged in every phase in which they exist. No release, cache or dead-buffer credit is taken.
+
+**Record bound, from H6-E(a0) and (a).** At the end of construction every clause of `F_hist` is a distinct CPython list of at least 56 + 8k bytes, and every literal that `sdmodel.apply` computes as `lit * (+-1)` outside CPython's small-int cache is a distinct int object of at least 26 bytes. Exact rational LP-dual certificates, checked by two programs, bound the model part below by 85,323,392 bytes for every cover draw: per instance whose literals avoid the cache, XOR 3,072, IF 5,288, MAJ 6,780 and ADD 12,308 bytes (2,528, 608, 608 and 5,632 instances); the 96 XOR and 128 ADD instances that touch W0..W3 are charged list bytes only (1,408 and 5,080); 1,812 unit clauses at 64 bytes. A recorded tail clause of k literals costs at most 1 + 5k bytes, at most 5/8 of its list, and by H6-E(a0) the tail's lists fit in G less the model part. Hence the record is at most 44,585,056 bytes for any PySAT build and any block count. **The record bound needs no premise about Kissat. The cell does:** phases R and S charge H6-D's Kissat figure and the H6-E(b) pipe allowances, and they are 28,360,704 and 107,556,864 bytes below phase E. With H6-E(c), four-byte literals give a cell of 202,526,720 bytes. Without the int-object clause of (a) the cell would be 242,135,040 bytes with five-byte literals, above the online bound, or 227,090,432 with four-byte literals, so that clause carries the margin.
+
+### 5. Premises
+
+- **H6-D (inherited, unchanged).** "Premise H6-D: the author's reported per-process maxima for its same-specification-and-seed re-run, interpreting KB as KiB, bound the corresponding phases of the historical P8-producing execution: Python encoder/driver at most 152,868 KiB and Kissat at most 88,096 KiB." Appendix W charges both figures unchanged as phase components, as R.6D does.
+- **R.6D determinism (inherited).** Kissat 4.0.1 run with the same binary, platform, input bytes, options and seed performs the same search and prints the same result and model (Appendix R.6D, section 3). That the schedule returns P8 rests on it.
+- **H6-E (new).**
+  - (a0) The 152,868 KiB encoder figure bounds the live clause objects of the historical encoder process at the end of construction: the list object and item array of every clause of `F_hist`, and the int objects outside -5..256 that its `sha256_model` clauses hold, with those objects resident and none swapped out or compressed. These are the only objects that the record bound (section 4) and the token bound (section 9) read; phase E charges the encoder at H6-D's figure itself. R.6D does not use this reading: it charges the figure as the encoder's phase while the encoder overlaps Kissat, never as a bound on live objects.
+  - (a) The historical encoder ran on a default 64-bit CPython 3: a list of k items occupies at least 56 + 8k bytes, an int object at least 26 bytes, only -5..256 are cached, and PySAT's `CNF` keeps each clause as that list or a copy holding the same int objects.
+  - (b) The measured allowances transfer to the historical platform: recorder overhead 2 MiB, regenerator 32 MiB, decoder 96 MiB, filter 1 MiB, launcher 4 MiB, 1 MiB of kernel state per process, 1 MiB for Kissat reading a pipe and 1 MiB per pipe. The regenerator, filter, decoder and launcher run beside the historical Kissat binary. Retained files are rounded to 4 KiB pages; with 64 KiB pages phase E is 212,373,504, 24,604,672 bytes below the bound.
+  - (d) The spec was shorter than 2 MiB. This is assumed, not derived: it follows from the spec's passage through one execve argument only on Linux with pages of at most 64 KiB (32 pages per argument; 128 KiB with 4 KiB pages) or on macOS (1 MiB for all arguments together). It bounds the launcher's argv copy, which is charged in every phase including E, the decoder's copies and the 6 MiB output charge.
+  - (c), used only for the 202,526,720-byte figure: Kissat 4.0.1 keeps at least one resident byte per declared variable.
+
+### 6. Local evidence on the H6-D encoder figure
+
+On the experiment platform (CPython 3.12.3, PySAT 1.9.dev17) the published construction of seven sweep-shaped fresh controls (0 to 5,430 blocks, four cover draws) was read at `t1`.
+
+**The live clause objects, which (a0) bounds.** `src/clause_objects.py` rebuilds each control in a fresh interpreter, binds the construction to the committed control by its serializer digest, clause and literal counts and covers, and sums the objects that (a0) names. Its receipt `results/clause-objects.json` (SHA-256 `9cfaaa6ea889d583de87de882bd9e8b4693fa00b57932f799b8fd1830e34dce7`) gives 112,089,896 bytes by object size and 124,873,616 allocator-rounded with no blocks (C0), 113,523,416 and 126,350,576 with 5,430 blocks (CB5430), and at most 115,410,388 and 128,586,032 under a forced alternative cover draw of the zero-block spec (D_draw3). Allocator-rounded, the largest is 27,950,800 bytes below G = 156,536,832. The tail's own int objects, which no bound reads, would add at most 4,714,880 bytes.
+
+**The whole process.** The recorder process, which runs the published `stepk.py` text, held 158,711,808 bytes of anonymous memory and 168,951,808 resident at `t1` with no blocks (C0), and 166,572,032 and 176,832,512 with 5,430 blocks (CB5430). Every whole-process value exceeds G, so H6-D's figure is not reproduced locally. Phase E rises 1.625 bytes per byte of G (G itself and 5/8 through the record bound), so the bound fails if G is understated by more than 15,720,448 bytes, about 15.0 MiB. Substituting a whole-process figure for G is a conservative stress test: it charges the encoder at that figure and lets the clause objects fill all of it, although they occupy at most 128,586,032 bytes. With the local resident figure the margin would be +5,373,952 for C0, −7,434,240 for CB5430 and −2,396,160 for D_draw3.
+
+### 7. Premise sensitivity
+
+| Premises | Peak | Margin to the online bound |
+| --- | ---: | --- |
+| H6-D, R.6D determinism, H6-E (a0), (a), (b), (d) | 211,431,424 | +25,546,752 |
+| the same plus (c) | 202,526,720 | +34,451,456 |
+| (a) without its int-object clause, plus (c) | 227,090,432 | +9,887,744 |
+| (a) without its int-object clause, no (c) | 242,135,040 | −5,156,864, fails |
+| no (a), or no (a0) (H6-D read only as R.6D reads it) | no record bound | cannot be shown; only R.6D's 246,812,672 is proved |
+| no (b) | phase E's own allowances total 8 MiB | could grow by 25,546,752 in E, 53,907,456 in R and 121,602,048 in D, but nothing is proved |
+| no (d) | launcher and phase D unbounded | with measured costs D reaches the bound near a 7.9 MiB spec |
+| G understated by x bytes | about 211,431,424 + 1.625x | fails above x = 15,720,448 |
+| G replaced by local whole-process anonymous / resident memory at `t1`, a conservative stress test (section 6) | C0 +22,016,000 / +5,373,952; CB337 +17,612,800 / +692,224; CB5430 +9,240,576 / −7,434,240, fails; D_draw3 +14,077,952 / −2,396,160, fails | |
+| Kissat above H6-D's figure by y bytes | R binds above y = 28,360,704 | fails above y = 53,907,456 |
+
+### 8. Evidence
+
+Eleven fresh fixed-seed controls ran with a local source build of Kissat 4.0.1 (official rel-4.0.1 tarball): 0 to 5,430 blocks, three forced cover draws, a feature control with `=`/`>=` cardinality, value rows, relaxed and exact steps, and small specs. Three are satisfiable with rows decoded (S_msg20, S_msg24, S_nopin), two unsatisfiable (S_unsat, X_features) and six stop undecided under their conflict budget with `s UNKNOWN` (C0, CB337, CB5430, D_draw1, D_draw2, D_draw3); only the three satisfiable controls exercise row decoding. In every control the solver read exactly the published serializer's bytes (an independent tap on its input), its standard output was byte-identical between file and pipe, and the decoded output equalled the published `stepk.py` output: the same keys in the same order and the same values, with the two wall-clock values set to 0.0. On C0 with the procedure's options and a 2,000,000-conflict budget, the quiet stdout was byte-identical between file and pipe and the verbose transcript agreed line for line (10,497,919 decisions, 261,821,810 propagations). In 24 file-against-pipe configurations (Kissat 4.0.1, Kissat sc2021, CaDiCaL 1.7.3, quiet and verbose) every result, model line, progress line and statistics counter agreed. On C0 with `--seed=101 --conflicts=100000` the build reports 622,491 decisions, 26,949,414 propagations and 4,532 restarts for both inputs, the counts R.6D records. Five local PySAT builds (1.9.dev17, 1.9.dev16, 1.9.dev7, 1.8.dev16, 1.9.dev2) give one cardinality output. Every truncation and single-byte corruption of a record is refused by two independent implementations; crash points, failure paths, ASan/UBSan and mutants are refused. The historical binary and platform remain unavailable.
+
+### 9. Operations
+
+The added recording, regeneration, filtering, decoding and launching are bounded by 2^54 word operations (2^42.59 target compressions): the measured CPU per formula token of every added process, times the largest token count H6-E(a0) allows (every token costs at least 8 bytes of clause list inside G), times 2, times 9.216*10^12 operations per CPU-second. N becomes 333397547827866472930019248; log2(N/C) stays 76.69374603..., so time_log2 remains 76.693746031168, and preprocessing remains 71.58497 rounded upward. The added work also lies inside A_C = 2^70.
