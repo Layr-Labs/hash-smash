@@ -4,21 +4,41 @@
   "target_profile": "sha256-r37-prefix-v1",
   "attack_class": "ordinary-collision",
   "rounds": 37,
+  "lane": "exploratory",
   "claim": {
-    "time_log2": 132,
+    "time_log2": 124.135,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 125,
+    "memory_log2_bytes": 146,
+    "preprocessing_log2": 0,
     "success_probability": 0.39,
     "nonuniform_advice_log2_bytes": 0
   },
   "restrictions": [
-    "Samples exactly 2^128 independent uniformly random 48-byte complete messages with replacement; each hashes to the full 256-bit output from the standard fixed IV using one padded 37-round compression.",
-    "Classical 256-bit probabilistic word RAM under collision-frontier-v5, C=2644; no random-oracle, output-balance, PRNG or differential heuristic.",
-    "Worst-case total work and peak memory upper bounds; no witness, executed full search, novelty, nominal-reference improvement or qualification is asserted."
+    "Messages are exactly 55 bytes, so each complete hash is one padded block (W13 = u<<8 | 0x80, W14 = 0, W15 = 440) and one 37-round compression (indices 0..36) with the standard IV and feed-forward.",
+    "2^104 groups of 2^24 messages; each group shares fresh uniform words W0..W12 and enumerates u = 0..2^24-1 in 2^16 bit-sliced batches of 256; N = 2^128 messages in one pass, no restart.",
+    "Each batch of 256 messages is one counted straight-line program of exactly 46384 operations (181.187500 per message): a bit-sliced circuit for rounds 13..34 and the low 16 bits of the E half of round 35, a delta-swap transpose to per-message key words, the per-message table step and batch control; every load and store is charged.",
+    "Collisions are detected on 144 digest bits fixed before round 36 (words c, d, g, h and the low half of f) in an uninitialised 2^140-slot table whose entries carry a per-run random tag; candidates are confirmed with two whole reference compressions, at most 2^113 + 2^40 + 1 of them; C = 2644 (collision-frontier-v5).",
+    "Classical 256-bit word RAM with 64 registers, three-address operations, immediate shift counts and register or small-immediate addresses; proof.md Section 12 gives bounds under other readings (2^124.215 with 32 registers; 2^124.935 if a store is also charged after every gate).",
+    "Score-critical heuristic H1 (grouped digests behave like independent uniform values for the collision events used); success 0.39 includes a 0.0033 allowance below the model value 0.3933.",
+    "Generic constant-factor improvement (single block, amortisation, early key, bit-slicing), not a structural weakness of SHA-256. Ideas from public notes by mitchuski (bit-sliced circuit, polarity-aware majority, delta-swap transpose) and jungjipdo (pre-last-round key words, tagged uninitialised table with a cap) are credited in proof.md Section 14. The nominal reference identifier is metadata, not a claimed improvement over a qualified baseline."
   ],
   "baseline_improved": "sha256-r37-nominal-v2",
+  "heuristics": [
+    {
+      "id": "H1-grouped-random-digests",
+      "statement": "For the N = 2^128 messages of the algorithm (2^104 groups, each with fresh uniform prefix words W0..W12 and the 24-bit field u of W13 enumerated), the probability that the 37-round SHA-256 digests contain no equal pair, plus the probabilities of event F2 in proof.md Section 9 (a colliding pair whose first member's entry was overwritten in its 140-bit slot before the second member's probe) and of more than 2^113 genuine false candidates (equal 144-bit key, different digest), exceeds the independent-uniform-model value 0.606654 by at most 0.0033.",
+      "role": "score-critical",
+      "scope": "Exactly the submitted grouped single-block message family, the 144-bit key on digest words c, d, f (bits 0..15), g, h, and the overwrite table indexed by key bits 4..143.",
+      "extrapolation": "From scaled analogues (18-bit masked events with N_t = 2^9 over digest words H2, H3, H5 bits 0..15, H6 and H7, organizer seeds, group sizes 32 and 512), in which N_t^2/2^w = N^2/2^256 = 1, to the full 256-bit event with N = 2^128 and group size 2^24.",
+      "evidence_ids": [
+        "experiment:s256-bs-spread",
+        "experiment:s256-bs-single-group",
+        "proof:256-290",
+        "proof:330-355"
+      ],
+      "limitations": "Masked projections are tested, not the full 256-bit event; H0, H1, H4 and the top half of H5 are not covered by the experiments because the circuit does not compute them. Organizer seeds are public. Finite frequencies support but do not prove the population bound. Garbage candidates and the run tag are bounded without H1. Same-u cross-group pairs provably collide with probability >= 2^-256; other pairs rely on H1."
+    }
+  ],
   "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  "experiment_manifest": "experiments/manifest.json"
 }
