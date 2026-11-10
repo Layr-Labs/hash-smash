@@ -9,10 +9,10 @@
   "certificate_manifest": "certificates/manifest.json",
   "experiment_manifest": "experiments/manifest.json",
   "claim": {
-    "time_log2": 37.22,
+    "time_log2": 36.3,
     "time_unit": "target-compressions",
     "memory_log2_bytes": 27.5,
-    "preprocessing_log2": 37.22,
+    "preprocessing_log2": 36.3,
     "success_probability": 1,
     "nonuniform_advice_log2_bytes": 9
   },
@@ -20,7 +20,7 @@
     "Target sha256-r31-prefix-v1 exactly: SHA-256 steps 0..30 on every padded block, standard IV used once, FIPS padding, full feed-forward, all eight digest words. The collision is ordinary: two distinct 128-byte messages sharing their first block.",
     "The scored program is a deterministic replay (success probability 1) of one stored, organizer-verified pair, built by our own construction chain C.",
     "C uses no published colliding pair, starting solution or first block. Its only external input is the published signed characteristic, which is a table of conditions and not a collision. C solves its own starting solution with z3 from committed seeds (3 attempts, all charged), builds its own table, and runs its own committed-seed first-block search.",
-    "Total time is the executed work of C: the z3 attempts at 25 and the synthetic checks at 17 primitive word operations per retired instruction (measured per-instruction prices, proof.md Section 14), our own code by explicit operation counts, the analysis programs that formulated R20 by operation bounds (Section 15.2), plus the 6.36-unit replay. That is 159,740,722,648 = 2^37.2169 units. The full source, including the price scripts, and the commitments are in the proof appendices.",
+    "Total time is the executed work of C. The z3 attempts are charged at 19 and the synthetic checks at 13 primitive word operations per retired instruction (measured per-instruction prices, proof.md Section 14). Search K is charged by the exact operation count of an explicit word-RAM program: every load and store is counted, and rotations are shifts and an OR. The program reproduces the executable's decisions on 71,670,492 trials of the committed run and reproduces the stored pair; its worst-path count per event is multiplied by the run's own counters (Section 16). Our other own code is charged by explicit operation counts, the analysis programs that formulated R20 by operation bounds (Section 15.2), plus the 6.36-unit replay. That is 84,509,728,547 = 2^36.2984 units. The full source, including the counting programs, and the commitments are in the proof appendices.",
     "Memory is a reported metric only. baseline_improved names the organizer reference and does not assert an improvement over any submitted score."
   ],
   "heuristics": [
@@ -31,37 +31,39 @@
       "scope": "The characteristic only. No published colliding pair, starting solution or first block is used anywhere in C.",
       "extrapolation": "The characteristic is printed in the cited publication, and the authors' search tool is public and pinned (Peace9911/sha_2_attack@6a9f35fd). Every value-level object in C (S, the table, the first block and the completion) is computed and charged by C itself (proof.md Sections 7-9).",
       "evidence_ids": [
-        "proof:290-301",
-        "proof:94-133",
-        "proof:162-213"
+        "proof:309-321",
+        "proof:102-141",
+        "proof:170-221"
       ],
-      "limitations": "The trail search is not executed or bounded by our own evidence in this filing. A charge of T units adds T to the 159,740,722,648-unit total; the total stays below 2^39.15 for T up to 2^38.71 and below 2^40.4 for T up to 2^40.23."
+      "limitations": "The trail search is not executed or bounded by our own evidence in this filing. A charge of T units adds T to the 84,509,728,547-unit total; the total stays below 2^39.15 for T up to 2^38.93 and below 2^40.4 for T up to 2^40.31."
     },
     {
       "id": "H2-op-accounting",
       "role": "score-critical",
-      "statement": "For our own code (proof.md Appendix B), the per-event charges of proof.md Section 9 bound the primitive word operations. Per trial: 1 compression + 32 ops. Per bitmap hit: 1 compression + 64. Per record: 400. Per V6 pass: 1600. Per completion iteration: 160. Per group: 1 unit. Per scanned word: 24. Per residue-scan candidate: 8. For the pre-construction analysis programs, the per-run operation bounds of proof.md Section 15.2, with floating-point operations at 400 and divisions at 1024.",
-      "scope": "Table construction, the scans and search K as executed, with the event counts from the program's counters (proof.md Section 8), and the pre-construction analysis runs listed in proof.md Section 15.1.",
-      "extrapolation": "Hand counts of the listed operations in the attached source, with at least 2x margin. Each trial is charged a full 31-step compression.",
+      "statement": "For our own code, the explicit operation counts of proof.md Sections 9 and 16 bound the primitive word operations. Search K: the counted program of Section 16 (Appendix C.6-C.7) performs the per-trial computation, hit processing, group set-up and table build of the executable that ran. It has 775 primitives per trial and 6,221 per pass of 8 trials, and per event 2,012 per bitmap hit, 292 per matched record and 2,734 per V6 pass. The charge multiplies these by the run's counters, adds the exact counts of the table build (288.0e9) and of the R20 pass (2,596,517), and bounds library calls and the main thread by 10^8 instructions at 1024. Other own code: yield checks at 24 per scanned word and 64 per table candidate, the V8 dump at 24 per scanned word, the residue scan at 8 per candidate, and the pre-construction analysis programs at the per-run operation bounds of Section 15.2, with floating-point operations at 400 and divisions at 1024.",
+      "scope": "Search K (the whole K process), the yield checks, the V8 dump, the residue scan and the pre-construction analysis runs listed in proof.md Section 15.1.",
+      "extrapolation": "For K: the program uses only collision-frontier-v5 primitives on values in their own 256-bit words. It counts every load and store, writes 32-bit rotations as two shifts and an OR (no native rotate), and needs at most 20 registers per trial plus 4 fixed ones. On 71,670,492 trials of the committed run (groups 0-3 in full and group 5920 up to n*), kcount.c compares the program with r31det3.c itself, which it includes unchanged. Every key and bitmap decision equals that of the executable's trial block, and every hit-processing counter equals that of process_hit. The table equals build_table's. The program reproduces the stored pair with the run's 2,829 E13 and 19 E15 draws. Separately, kprog.py checks the trial against the organizer reference core on 20,000 random blocks. Worst paths are charged: 18 binary-search steps and all 64 G16 candidates. For the other own code: hand counts of the listed operations in the attached source, with at least 2x margin.",
       "evidence_ids": [
-        "proof:239-281",
-        "proof:303-313",
-        "proof:495-511"
+        "proof:249-300",
+        "proof:322-346",
+        "proof:733-904",
+        "proof:2289-3260",
+        "proof:685-701"
       ],
-      "limitations": "Not an organizer-model instruction trace. The trial term dominates the own-code share."
+      "limitations": "K's charge is the operation count of a program that makes the same decisions, not the retired instructions of the executable. Priced per instruction, the executable gives 2^36.6392 with one 256-bit word per 128-bit register (proof.md Section 14.6) and 2^37.196 with each 32-bit lane in its own word. With every rotation and mask written as the organizer's reference core writes them (1035 per trial), the total would be 2^36.4913. With ten times the library bound, it would be 2^36.3057. Twice every K line would give 2^36.815. The pre-construction analysis dominates the other H2 lines."
     },
     {
       "id": "H3-instruction-price",
       "role": "score-critical",
-      "statement": "For the runs without an exact operation model, 25 primitive 256-bit word operations per retired AArch64 instruction bound the work of the z3 attempts, and 17 bound the work of the synthetic completion checks.",
+      "statement": "19 primitive 256-bit word operations per retired AArch64 instruction bound the work of the z3 attempts, and 13 bound the work of the synthetic completion checks. Search K is not charged by an instruction price in this filing (H2, proof.md Section 16); its executable-priced charge of our previous filing is kept as a cross-check (Section 14.6).",
       "scope": "The retired-instruction counts of proof.md Section 8 (macOS counters through /usr/bin/time -l): z3 attempts 1-3 (2,721,814,602,106 instructions) and three synthetic checks (3 x 500,284,109,323).",
-      "extrapolation": "Our per-form costing of AArch64 instructions (proof Appendix C.1) gives the same static profile for the z3 binary that ran and for the Linux build of the same version. Callgrind instruction counts of the Linux build on the same three committed models cover all of attempt 1, which repeated the macOS search step for step, and the first 28% and 39% of attempts 2 and 3; the worst of 23 intervals has a class price of 12.04 (5 per ordinary instruction, 400 per multiply or floating-point instruction, 1024 per divide). The charged price doubles it. The synthetic-check price doubles the class price 8.32 measured on the same source.",
+      "extrapolation": "Our per-form costing of AArch64 instructions (proof Appendix C.1) gives the same static profile for the z3 binary that ran and for the Linux build of the same version. Callgrind instruction counts of the Linux build on the same three committed models cover all of attempt 1, which repeated the macOS search step for step, and the first 28% and 39% of attempts 2 and 3. The charged z3 price doubles the worst per-form mean of 23 intervals (9.38). The synthetic-check price doubles the per-form mean 6.39 measured on the same source.",
       "evidence_ids": [
-        "proof:364-470",
-        "proof:314-327",
-        "proof:1330-1723"
+        "proof:403-658",
+        "proof:347-364",
+        "proof:1692-2288"
       ],
-      "limitations": "The dynamic mix is measured on the Linux build, not on the macOS binary that ran. At 256 operations per instruction the total would be 2^39.18; at four times the charged prices, 2^38.08."
+      "limitations": "The z3 and synthetic-check mixes are measured on Linux builds, not on the macOS binaries that ran. At four times both prices (76 and 52) the total would be 2^37.42; at 256 operations per instruction, 2^39.02; at the class prices of 50592e75 (25 and 17), 2^36.47."
     },
     {
       "id": "H4-memory",
@@ -70,7 +72,7 @@
       "scope": "All runs of C.",
       "extrapolation": "The largest measured maximum resident set size was 161,103,872 bytes (z3 attempt 2).",
       "evidence_ids": [
-        "proof:282-287"
+        "proof:301-306"
       ],
       "limitations": "Resident set size is the operating system's measure of touched pages."
     },
@@ -81,11 +83,11 @@
       "scope": "All computation on this target in our working directories and session records on 2026-10-06 and 2026-10-07, listed in proof.md Section 15.1.",
       "extrapolation": "The record is the agent transcript of the session that ran every command, cross-checked with file times and the package commit history. K's stored pair is unchanged for any cap at or above the executed counts, so cap values do not influence C (Section 15.4). The commitments are local, not notarised.",
       "evidence_ids": [
-        "proof:471-542",
-        "proof:330-342",
-        "proof:543-577"
+        "proof:659-732",
+        "proof:367-379",
+        "proof:905-939"
       ],
-      "limitations": "If a reviewer charged the excluded 2^40.625-trial search run anyway, the total would be 2^40.774."
+      "limitations": "If a reviewer charged the excluded 2^40.625-trial search run anyway, the total would be 2^40.716."
     }
   ]
 }
