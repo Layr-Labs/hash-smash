@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "fixed-witness-derivation",
+      "kind": "python-message-pairs-v1",
+      "scope": "Organizer-executed reconstruction of one committed SHA-256/32 witness from the embedded tuple record, retained #227 compact-table slices, and tail record, plus finite bit-exact checks and exact primitive-operation counting on organizer-generated inputs: (1) Swar7Counter: the replay's 7-lane 36-bit guard-bit SWAR C_32 evaluator (2,336 counted arithmetic/randomness operations per batch) and the 8-lane SWAR C_32 evaluator match scalar C_32 compressions, and the lazy extraction (14 batch operations for CV1[0] of seven lanes, then 14 per lane for CV1[1..7]) returns each lane's scalar chaining value; (2) Stage16Counter (new in this version): the 7-lane SWAR stage-16/17 kernel (W16 and c17 broadcast, four step-16 lane additions, E16 and A16 XOR-conformance tests, then for words with a stage-16 pass both step-17 SHA-256 steps and the E17 and A17 XOR-conformance tests gated by the stage-16 mask, guard-bit lane-zero tests, lane scan and extraction) matches scalar stage-16/17 tests bit-for-bit on organizer-seeded packed rows and constants (random rows, rows built to pass one or both stages, single-bit near misses at each stage, carry stress, zero padding lanes), on one full 2^14-row group per request, and on the certified pair's own row built from the literal step equations. The old retained table uses 26-bit buckets and 609,229,824 entries.",
+      "hypothesis": "The committed historic compact-table slices deterministically derive two distinct 128-byte messages with equal complete-message sha256-r32-prefix-v1 digests matching the committed expected digest; the replay's 7-lane 36-bit guard-bit SWAR C_32 evaluator produces bit-identical chaining values to 7 separate scalar C_32 evaluations on each organizer-generated input with exact counted arithmetic subtotals (rand_and_mask = 32, schedule = 512, rounds = 1,664, feedforward = 16, extract = 112; total = 2,336 operations, max_lane_bits <= 36), and the split lazy extraction (14 + 7 * 14 operations) returns the same chaining values; the 7-lane SWAR stage-16/17 kernel returns stage-16 and stage-17 pass-mask words and extracted E16, E16', A16, A16', E17, E17', A17, A17' identical to the scalar tests on every checked row, never passes a padding lane, passes the certified pair's row, performs only carry-free lane additions with every lane sum below 2^35, and executes exactly 14 counted operations per group, 4 loads and 13 lane operations per packed word, 6 loads and 116 lane operations per word with a stage-16 pass, 7 lane tests per word with a stage-17 pass and 16 operations per extracted stage-17 pass. This finite experiment checks one-record witness lineage and finite SWAR examples only; it makes no inference about the current 32-bit TAB2 cardinalities or completeness, Step-2/3 attack rates, search success probability, or full-run resource use.",
+      "program": "experiments/replay.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
