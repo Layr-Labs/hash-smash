@@ -110,7 +110,7 @@ R16SET = frozenset(R16)
 _sh = M
 for _v in R16: _sh &= ~(_v ^ R16[0]) & M
 SHARED = _sh                                                       # bits on which all row-16 words agree
-TK = 12                                                            # tested bits of the row-16 filter: the TK lowest shared bits
+TK = 10                                                            # tested bits of the row-16 filter: the TK lowest shared bits
 TBITS = [j for j in range(32) if (SHARED >> j) & 1][:TK]
 
 # ---- classes (proof.md Section 5): class i = {base ^ s : s subset of its mask, a0 in G, c7(a0) = c7_i}, 24,576 variants each ----
@@ -147,92 +147,139 @@ def rebuild(W, a0):
 
 # ---- the bit-sliced row-16 program (proof.md Section 7.2) ----
 # Bit L of every 256-bit plane belongs to lane L (one variant).  The program computes, for 256 variants of one batch, the TK tested bits of
-# E16x = KP + a0 + s0(W1), W1 = K1 - S0(a0) - MAJ(a0, a, b) - S1(E0) - CH(E0, e, f), E0 = a0 + HH (Lemma 4.1), and their AND with the
-# tested values.  Inputs: the planes of the bits of a0 that vary in the batch (A<j>), the class constants (C<j>, broadcast words), and the
-# per-first-block broadcast planes of HH, PP = a & b, QQ = a | b, EF = e ^ f, FF = f, K1 = A1 - g - K1, KP (7 x 32).  Constant bits of a0 are
-# folded.  Nodes: xor, and, or, not; equal nodes are shared.  The allocator gives an instruction list over 64 registers in which every
-# load, store and spill is one instruction; the list is the charge.
+# E16x = KP + a0z + s0(W1), ~W1 = K1 + S0(a0) + (a0z & AB) + S1(E0) + CH(E0, e, f), E0 = a0z + HH (Lemma 4.1, with A0_CONST = 0x380 absorbed into
+# HH, K1, KP and a0z = a0 & ~0x380), and their AND with the tested values.  Inputs: the planes of the bits of a0 that vary in the batch (A<j>),
+# and the per-first-block broadcast planes of HH, AB = a ^ b, EF = e ^ f, FF = f, K1 (5 x 32) and KP (bits 0..12, 13 planes; 173 in all).
+# Constant bits of a0 are folded; wires carry a polarity bit (0 or 1) so complementation is free until materialised.  The allocator gives a
+# spill-free instruction list over 64 registers in which every load, store and spill is one instruction; the list is the charge.
 ONES = (1 << 256) - 1
+A0_CONST = 0x380                                                    # bits 7..9 of a0 are 1 in all 786,432 variants across all 32 classes
 class Prog:
-    def __init__(s): s.nodes = [None, None]; s.cache = {}; s.inputs = {}
+    def __init__(s): s.nodes = [None]; s.cache = {}; s.inputs = {}
     def inp(s, name):
         if name not in s.inputs: s.nodes.append(('in', name)); s.inputs[name] = len(s.nodes) - 1
-        return s.inputs[name]
+        return (s.inputs[name], 0)
     def _mk(s, op, a, b=None):
         key = (op, a, b) if op == 'not' or b is None else (op,) + tuple(sorted((a, b)))
         if key not in s.cache: s.nodes.append(key); s.cache[key] = len(s.nodes) - 1
         return s.cache[key]
-    def not_(s, a):
-        if a < 2: return 1 - a
-        n = s.nodes[a]
-        return n[1] if n[0] == 'not' else s._mk('not', a)
+    def not_(s, a): return (a[0], a[1] ^ 1)
+    def _mat(s, a):
+        if a[0] == 0: return a[1]
+        return s._mk('not', a[0]) if a[1] else a[0]
     def xor(s, a, b):
-        if a == 0: return b
-        if b == 0: return a
-        if a == b: return 0
-        if a == 1: return s.not_(b)
-        if b == 1: return s.not_(a)
-        return s._mk('xor', a, b)
+        if a[0] == 0: return (b[0], b[1] ^ a[1])
+        if b[0] == 0: return (a[0], a[1] ^ b[1])
+        if a[0] == b[0]: return (0, a[1] ^ b[1])
+        return (s._mk('xor', a[0], b[0]), a[1] ^ b[1])
     def and_(s, a, b):
-        if a == 0 or b == 0: return 0
-        if a == 1: return b
-        if b == 1 or a == b: return a
-        return s._mk('and', a, b)
-    def or_(s, a, b):
-        if a == 1 or b == 1: return 1
-        if a == 0: return b
-        if b == 0 or a == b: return a
-        return s._mk('or', a, b)
-    def add(s, x, y, cin=0, n=32):
-        """ripple addition of two bit lists (LSB first), n result bits"""
-        out = []; c = cin
-        for j in range(n):
-            t = s.xor(x[j], y[j]); out.append(s.xor(t, c))
-            c = s.or_(s.and_(x[j], y[j]), s.and_(c, t))
-        return out
+        if a[0] == 0: return b if a[1] else (0, 0)
+        if b[0] == 0: return a if b[1] else (0, 0)
+        if a == b: return a
+        if a[0] == b[0] and a[1] != b[1]: return (0, 0)
+        if a[1] and b[1]: return (s._mk('or', a[0], b[0]), 1)
+        return (s._mk('and', s._mat(a), s._mat(b)), 0)
+    def or_(s, a, b): return s.not_(s.and_(s.not_(a), s.not_(b)))
+    def ha(s, x, y): return s.xor(x, y), s.and_(x, y)
+    def fa(s, x, y, z):
+        if x[0] == 0 and x[1] == 0: return s.ha(y, z)
+        if y[0] == 0 and y[1] == 0: return s.ha(x, z)
+        if z[0] == 0 and z[1] == 0: return s.ha(x, y)
+        if x[0] == 0 and x[1] == 1: return s.not_(s.xor(y, z)), s.or_(y, z)
+        if y[0] == 0 and y[1] == 1: return s.not_(s.xor(x, z)), s.or_(x, z)
+        if z[0] == 0 and z[1] == 1: return s.not_(s.xor(x, y)), s.or_(x, y)
+        if x[1] == y[1]: p, q, r = x, y, z
+        elif x[1] == z[1]: p, q, r = x, z, y
+        else: p, q, r = y, z, x
+        t = s.xor(p, q); u = s.xor(p, r) if p[1] == r[1] else s.xor((p[0], 0), (r[0], 0))
+        return s.xor(t, r), s.xor(p if p[1] == r[1] else q, s.and_(t, u))
+
+def reduce_col(p, col, nxt_col, last=False):
+    """Carry-save reduction of one bit column col to a single wire, pairing same-polarity wires and pushing carries to nxt_col."""
+    col = [x for x in col if not (x[0] == 0 and x[1] == 0)]
+    while sum(1 for x in col if x == (0, 1)) >= 2:
+        col.remove((0, 1)); col.remove((0, 1))
+        if nxt_col is not None: nxt_col.append((0, 1))
+    def pop_pair(arr):
+        for i in range(len(arr)):
+            for j in range(i + 1, len(arr)):
+                if arr[i][0] != 0 and arr[j][0] != 0 and arr[i][1] == arr[j][1]:
+                    y = arr.pop(j); x = arr.pop(i); return x, y
+        return arr.pop(0), arr.pop(0)
+    while len(col) > 1:
+        c1 = [x for x in col if x == (0, 1)]; vs = [x for x in col if x != (0, 1)]
+        if len(col) == 2:
+            a, b = col.pop(0), col.pop(0)
+            if last: col.append(p.xor(a, b)); break
+            sm, cy = p.ha(a, b); col.append(sm)
+            if nxt_col is not None: nxt_col.append(cy)
+        elif c1 and len(vs) >= 2:
+            col.remove((0, 1)); x, y = pop_pair(col)
+            if last and not col: col.append(p.xor(p.xor((0, 1), x), y)); break
+            sm, cy = p.fa((0, 1), x, y); col.append(sm)
+            if nxt_col is not None: nxt_col.append(cy)
+        elif not c1 and len(vs) % 2 == 0 and len(vs) >= 2:
+            x, y = pop_pair(col); sm, cy = p.ha(x, y); col.append(sm)
+            if nxt_col is not None: nxt_col.append(cy)
+        else:
+            a, b, c = col.pop(0), col.pop(0), col.pop(0)
+            if last and not col: col.append(p.xor(p.xor(a, b), c)); break
+            sm, cy = p.fa(a, b, c); col.append(sm)
+            if nxt_col is not None: nxt_col.append(cy)
+    return col[0] if col else (0, 0)
 
 def build_e16(cbits, nlane):
     """cbits[j]: 'L' (lane-varying bit of a0), 'C' (class constant, input), 0 or 1 (folded).  Returns (Prog, ok node)."""
     p = Prog()
-    a0 = [p.inp('A%d' % j) if cbits[j] == 'L' else p.inp('C%d' % j) if cbits[j] == 'C' else cbits[j] for j in range(32)]
-    bc = lambda nm: [p.inp('%s%d' % (nm, j)) for j in range(32)]
-    HH, PP, QQ, EF, FF, K1, KP = (bc(n) for n in ('HH', 'PP', 'QQ', 'EF', 'FF', 'K1', 'KP'))
-    rot = lambda w, r: [w[(j + r) % 32] for j in range(32)]
-    x3 = lambda u, v, w: [p.xor(p.xor(u[j], v[j]), w[j]) for j in range(32)]
-    E0 = p.add(a0, HH)
-    # bit-interleaved: at bit j the four operands of T = S0(a0) + MAJ + S1(E0) + CH, the three adders of T and the subtraction K1 - T
-    c = [0, 0, 0, 1]; T1 = []; W1 = []
-    def fa(x, y, ci):
-        t = p.xor(x, y); return p.xor(t, ci), p.or_(p.and_(x, y), p.and_(ci, t))
+    a0 = [p.inp('A%d' % j) if cbits[j] == 'L' else p.inp('C%d' % j) if cbits[j] == 'C' else (0, cbits[j]) for j in range(32)]
+    a0z = [(0, 0) if (A0_CONST >> j) & 1 else a0[j] for j in range(32)]
+    bc = lambda nm, n=32: [p.inp('%s%d' % (nm, j)) for j in range(n)]
+    HH, AB, EF, FF, K1 = (bc(nm) for nm in ('HH', 'AB', 'EF', 'FF', 'K1'))
+    hi = max(TBITS); n = hi + 1; KP = bc('KP', n)
+    ec = [[] for _ in range(32)]; E0 = [None] * 32; e0_idx = 0
+    def get_e0(m):
+        nonlocal e0_idx
+        while e0_idx <= m:
+            k = e0_idx; ec[k].extend([a0z[k], HH[k]])
+            E0[k] = reduce_col(p, ec[k], ec[k + 1] if k + 1 < 32 else None, last=(k == 31)); e0_idx += 1
+        return E0[m]
+    cols = [[] for _ in range(32)]; W1 = []; u = {}; ecols = [[] for _ in range(n)]; ok0 = (0, 1); ok1 = (0, 1); tset = set(TBITS)
+    def step_e16(k, s0w):
+        nonlocal ok0, ok1
+        ecols[k].extend([KP[k], a0z[k], s0w])
+        e = reduce_col(p, ecols[k], ecols[k + 1] if k + 1 < n else None, last=(k == hi))
+        if k in tset:
+            b = e if (R16[0] >> k) & 1 else p.not_(e)
+            if b[1] == 0: ok0 = p.and_(ok0, b)
+            else: ok1 = p.and_(ok1, b)
     for j in range(32):
-        sa = p.xor(p.xor(a0[(j + 2) % 32], a0[(j + 13) % 32]), a0[(j + 22) % 32])
-        mj = p.or_(PP[j], p.and_(a0[j], QQ[j]))
-        ss = p.xor(p.xor(E0[(j + 6) % 32], E0[(j + 11) % 32]), E0[(j + 25) % 32])
-        cv = p.xor(FF[j], p.and_(E0[j], EF[j]))
-        u, c[0] = fa(sa, mj, c[0]); v, c[1] = fa(ss, cv, c[1]); t, c[2] = fa(u, v, c[2])
-        w, c[3] = fa(K1[j], p.not_(t), c[3]); W1.append(w)
-    n = max(TBITS) + 1; d = [0, 0]; ok = 1
-    for j in range(n):
-        s0w = p.xor(p.xor(W1[(j + 7) % 32], W1[(j + 18) % 32]), W1[j + 3] if j + 3 < 32 else 0)
-        u, d[0] = fa(KP[j], a0[j], d[0]); e, d[1] = fa(u, s0w, d[1])
-        if j in TBITS: ok = p.and_(ok, e if (R16[0] >> j) & 1 else p.not_(e))
-    return p, ok
+        e0_j = get_e0(j); e0_6 = get_e0((j + 6) % 32); e0_11 = get_e0((j + 11) % 32); e0_25 = get_e0((j + 25) % 32)
+        ss = p.xor(p.xor(e0_6, e0_11), e0_25); cv = p.xor(FF[j], p.and_(e0_j, EF[j]))
+        sa = p.xor(p.xor(a0[(j + 2) % 32], a0[(j + 13) % 32]), a0[(j + 22) % 32]); mj = p.and_(a0z[j], AB[j])
+        cols[j].extend([K1[j], sa, mj, ss, cv])
+        nw1 = reduce_col(p, cols[j], cols[j + 1] if j + 1 < 32 else None, last=(j == 31)); W1.append(p.not_(nw1))
+        if 7 <= j <= 7 + min(hi, 13): k = j - 7; u[k] = p.xor(W1[k + 3], W1[k + 7])
+        elif 21 <= j <= 7 + hi: k = j - 7; u[k] = p.xor(p.xor(W1[k - 14], W1[k + 3]), W1[k + 7])
+        if 18 <= j <= 18 + min(hi, 13): k = j - 18; step_e16(k, p.xor(u.pop(k), W1[j]))
+    for k in range(14, hi + 1): step_e16(k, u.pop(k))
+    return p, p._mat(p.and_(ok0, ok1))
 
 def schedule(p, root, nreg=64):
     """Belady allocation of the nodes root depends on, in creation order: instruction list [(op, dst, src...)] with 'ld' (input or spill
     slot), 'st' (spill), 'xor', 'and', 'or', 'not', 'out'; returns (instructions, spill slots used)."""
+    if isinstance(root, tuple): root = p._mat(root)
     need = set(); st = [root]
     while st:
         x = st.pop()
-        if x < 2 or x in need: continue
+        if x < 1 or x in need: continue
         need.add(x); n = p.nodes[x]
         if n[0] != 'in': st.extend(n[1:] if n[0] != 'not' else n[1:2])
-    order = [x for x in range(2, len(p.nodes)) if x in need and p.nodes[x][0] != 'in']
+    order = [x for x in range(1, len(p.nodes)) if x in need and p.nodes[x][0] != 'in']
     uses = {}
     for t, x in enumerate(order):
         n = p.nodes[x]
         for o in (n[1:] if n[0] != 'not' else n[1:2]):
-            if o >= 2: uses.setdefault(o, []).append(t)
+            if o >= 1: uses.setdefault(o, []).append(t)
     uses.setdefault(root, []).append(len(order))
     ptr = {x: 0 for x in uses}
     def nxt(x):
@@ -241,7 +288,7 @@ def schedule(p, root, nreg=64):
     reg = {}; free = list(range(nreg)); inmem = set(x for x in need if p.nodes[x][0] == 'in'); slots = {}; ins = []; maxslot = 0
     def evict(t, keep):
         nonlocal maxslot
-        v = max((x for x in reg if x not in keep), key=nxt)
+        v = max((x for x in reg if x not in keep), key=lambda x: (x in inmem, nxt(x)))
         if nxt(v) < (1 << 40) and v not in inmem:
             if v not in slots: slots[v] = len(slots); maxslot = max(maxslot, len(slots))
             ins.append(('st', ('S', slots[v]), reg[v])); inmem.add(v)
@@ -256,18 +303,15 @@ def schedule(p, root, nreg=64):
     CONST = {0: 'Z', 1: 'O'}
     for t, x in enumerate(order):
         n = p.nodes[x]; ops = n[1:] if n[0] != 'not' else n[1:2]
-        keep = set(o for o in ops if o >= 2)
-        rs = []
+        keep = set(o for o in ops if o >= 1)
+        rs = [CONST[o] if o < 1 else load(o, t, keep) for o in ops]
         for o in ops:
-            if o < 2: rs.append(CONST[o])
-            else: rs.append(load(o, t, keep))
-        for o in ops:
-            if o >= 2: ptr[o] += 1
-        dead = [o for o in ops if o >= 2 and nxt(o) >= (1 << 40) and o in reg]
+            if o >= 1: ptr[o] += 1
+        dead = [o for o in ops if o >= 1 and nxt(o) >= (1 << 40) and o in reg]
         if dead: r = reg.pop(dead[0]); [free.append(reg.pop(d)) for d in dead[1:] if d in reg]
         else: r = getreg(t, keep)
         ins.append((n[0], r) + tuple(rs)); reg[x] = r
-    ins.append(('out', reg[root] if root >= 2 else CONST[root]))
+    ins.append(('out', reg[root] if root >= 1 else CONST[root]))
     return ins, maxslot
 
 def run_prog(ins, inputs):
@@ -318,22 +362,25 @@ def w7test(m, c7, a):
     return m.br(d == T7)
 
 def fb_scalars(m, cv):
-    """per first block: HH, PP, QQ, EF, FF, K1, KP of the program (Lemma 4.1) and A1-independent words"""
+    """per first block: HH, AB, EF, FF, K1, KP of the program (Lemma 4.1, with A0_CONST = 0x380 absorbed) and A1-independent words"""
     a, b, c, d, e, f, g, h = cv
-    hh = m.and_(m.sub(m.sub(d, S0m(m, a)), MAJm(m, a, b, c)), M)
-    kw0 = m.and_(m.sub(m.sub(m.sub(m.sub(m.sub(hh, d), h), S1m(m, e)), CHm(m, e, f, g)), K[0]), M)
-    sc = dict(HH=hh, PP=m.and_(a, b), QQ=m.or_(a, b), EF=m.xor(e, f), FF=f, K1=m.and_(m.sub(KK1, g), M), KP=m.and_(m.add(KKP, kw0), M))
-    return sc
-KK1 = (SAx[1] - K[1]) & M                                          # K1 = A1 - g - K1
-KKP = (C16 + s1(PMX[14]) + PMX[9]) & M                            # KP = C16 + s1(W14) + W9 + (W0 - a0)
+    hh0 = m.sub(m.sub(d, S0m(m, a)), MAJm(m, a, b, c))
+    kw0 = m.and_(m.sub(m.sub(m.sub(m.sub(m.sub(hh0, d), h), S1m(m, e)), CHm(m, e, f, g)), K[0]), M)
+    ab = m.xor(a, b)
+    k1 = m.xor(m.and_(m.sub(m.sub(KK1, g), m.or_(m.and_(a, b), m.and_(ab, A0_CONST))), M), M)
+    return dict(HH=m.and_(m.add(hh0, A0_CONST), M), AB=ab, EF=m.xor(e, f), FF=f, K1=k1, KP=m.and_(m.add(KKP, kw0), M))
+KK1 = (SAx[1] - K[1]) & M                                          # K1 = ~(A1 - g - K1 - (a & b) - (0x380 & (a ^ b)))
+KKP = (C16 + s1(PMX[14]) + PMX[9] + A0_CONST) & M                  # KP = C16 + s1(W14) + W9 + (W0 - a0) + 0x380
 PLANE_OPS = 4                                                       # one broadcast plane: shift, and, negate, store
+KP_BITS = max(TBITS) + 1                                            # KP is only needed on bits 0..12
 
 def broadcast(m, sc):
-    """the 7 x 32 broadcast planes (plane j = 0 - ((x >> j) & 1)); 4 operations each"""
-    out = {}
+    """the 5 x 32 + 13 = 173 broadcast planes (plane j = 0 - ((x >> j) & 1)); 4 operations each (692 operations)"""
+    out = {}; nplanes = 0
     for nm, v in sc.items():
-        for j in range(32): out['%s%d' % (nm, j)] = ONES if (v >> j) & 1 else 0
-    m.ops += PLANE_OPS * 32 * len(sc); return out
+        nb = KP_BITS if nm == 'KP' else 32; nplanes += nb
+        for j in range(nb): out['%s%d' % (nm, j)] = ONES if (v >> j) & 1 else 0
+    m.ops += PLANE_OPS * nplanes; return out
 
 def lane_value(m, planes, L, cmask, base):
     """a0 of lane L from the stored planes of the varying bits: per bit one shift, and, shift-left, or (4), plus the class base (1)"""
@@ -348,12 +395,13 @@ def first_lane(m, ok):
     m.ops += 32; return (ok & -ok).bit_length() - 1
 
 def scalar_e16(m, sc, a0):
-    """E16x of one variant (Lemma 4.1): E0, S0(a0), MAJ, S1(E0), CH, W1, s0(W1), E16x"""
-    e0 = m.and_(m.add(a0, sc['HH']), M)
-    mj = m.or_(sc['PP'], m.and_(a0, sc['QQ']))
+    """E16x of one variant (Lemma 4.1): az = a0 & ~0x380, E0, S0(a0), MAJ, S1(E0), CH, ~W1, s0(W1), E16x"""
+    az = m.and_(a0, ~A0_CONST & M)
+    e0 = m.and_(m.add(az, sc['HH']), M)
+    mj = m.and_(az, sc['AB'])
     ch = m.xor(sc['FF'], m.and_(e0, sc['EF']))
-    w1 = m.and_(m.sub(m.sub(m.sub(m.sub(sc['K1'], S0m(m, a0)), mj), S1m(m, e0)), ch), M)
-    return m.and_(m.add(m.add(sc['KP'], a0), s0m(m, w1)), M)
+    nw1 = m.and_(m.add(m.add(m.add(m.add(sc['K1'], S0m(m, a0)), mj), S1m(m, e0)), ch), M)
+    return m.and_(m.add(m.add(sc['KP'], az), s0m(m, m.xor(nw1, M))), M)
 
 def r16test(m, e):
     """E16x in the 160-word row-16 set: binary search in the sorted table (8 steps of load, compare-and-branch, shift: 5 each) + 2"""
