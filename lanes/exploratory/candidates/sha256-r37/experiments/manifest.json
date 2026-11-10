@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "r-bs-fullwidth-equivalence",
+      "kind": "python-message-pairs-v1",
+      "scope": "Per trial: 256 seeded groups (13 uniform prefix words each) and 256 seeded 24-bit indices u, one message per lane; one batch of the compiled bit-sliced circuit (proof Section 3) on all 256 lanes. Four lanes' five key words (raw state words a, b, e, f entering round R-2 and e[0:16] entering round R-1) are checked against the program's scalar reference (abort on mismatch). Returns two lanes whose digest word h agrees on its low 12 bits. In trial 0 the counted batch program of proof Appendix A is regenerated, register-allocated over 58 registers and executed by a counting VM (circuit, setup, zero-aware transpose, 256 table sinks) on one full-scale batch; all 256 key words (polarity applied in the check) and all 256 transposed addresses (the key XOR the public polarity constant) must equal the scalar reference and the total must equal the charged ledger, else the experiment aborts.",
+      "hypothesis": "Every returned pair agrees on the 12 masked digest bits when the organizer recomputes both digests; the counted program's execution reproduces the charged per-batch total. Reported counts are untrusted observations.",
+      "program": "experiments/grouped_search_phys.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000000000000000000000000000000000000000000000000000000000fff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "r-bs-full-width",
+      "kind": "python-message-pairs-v1",
+      "scope": "The grouped search at scale: per trial 256 seeded groups x 2 indices u in {0, 1} (512 messages, N_t^2/2^18 = 1), digests by the compiled bit-sliced circuit, scaled key = low 18 bits of digest word h, table a dict keyed on the scaled key (the slot is the key, so the full-width sparse set's different-key discard cannot arise), messages processed group-major then u ascending, lanes of a batch shared between trials. First match of two distinct messages ends the trial. Trial 0 also runs the counted-program witness described for r-bs-fullwidth-equivalence.",
+      "hypothesis": "Every returned pair is two distinct 55-byte messages whose complete reduced digests agree on the low 18 bits of word h. The success count is compared descriptively with the uniform-model value 0.3931 per trial.",
+      "program": "experiments/grouped_search_phys.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000000000000000000000000000000000000000000000000003ffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "r-bs-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "As r-bs-full-width with 16 seeded groups x 32 indices u = 0..31 per trial.",
+      "hypothesis": "As r-bs-full-width.",
+      "program": "experiments/grouped_search_phys.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000000000000000000000000000000000000000000000000003ffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "r-bs-single-group",
+      "kind": "python-message-pairs-v1",
+      "scope": "As r-bs-full-width with a single seeded group x 512 indices u = 0..511 per trial (strongest within-group structure: all messages share rounds 0..12).",
+      "hypothesis": "As r-bs-full-width.",
+      "program": "experiments/grouped_search_phys.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000000000000000000000000000000000000000000000000003ffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "r-bs-high-z",
+      "kind": "python-message-pairs-v1",
+      "scope": "As r-bs-full-width with 4 seeded groups x 128 indices u = v << 17, v = 0..127 (the varying bits at the top of the 24-bit index, i.e. in W13 bits 25..31).",
+      "hypothesis": "As r-bs-full-width.",
+      "program": "experiments/grouped_search_phys.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000000000000000000000000000000000000000000000000003ffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
