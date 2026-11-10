@@ -1,0 +1,25 @@
+{
+ "schema_version": 1,
+ "experiments": [
+  {
+   "id": "a0-sfs-r37",
+   "kind": "python-message-pairs-v1",
+   "scope": "Validity of the variant dense parts, support for H2 and H4 (proof.md Sections 4.3, 7 and 13.2-13.3). experiments/spec6core.py rebuilds S, L* and the 222 classes from their descriptors; trials 0..127 each use class (7 t mod 222) (128 distinct classes), choose (from SHAKE-256 of the seed) a variant a0 of it and l among the 28 elements of L* whose row 16 can hold, and build a 37-step semi-free-start collision whose second-block state uses the variant (rows 16..21 by proposals with each row's fixed x-bits of E imposed, restarting from row 16 after 2^11 proposals at a row; row 22 by W22 proposals with its x-cells and two-bit conditions imposed, W7 drawn exactly from F7, W6 = W22 - s1(W20) - W15 - s0(W7) accepted iff in F6; rows 22..36 with the variant's W8; W0..W5 by the inverse expansion; CV1 by inverting steps 7..0). A trial returns CV1||M1 and CV1||M1' (96 bytes each) iff: the Step-2 equations of (CV1, a0) give exactly W0..W13 of both members, the two 37-step outputs are equal, M1 != M1', every cell of rows -4..36 (W6/W7 XOR cells excepted) and every printed two-bit condition of rows 8..36 holds, a0 is in G and in its class, and W8 differs from the published one. In addition, for trials 0..15 the constructed chaining value is fed to the counted online program restricted to the class of a0 (W7 DAG, W6 DAG groups, lane scan, packed u, presence word, row-16 probe, rows 16..36), which must find exactly the constructed pair (observation detected_by_counted_program). Trials 128..255 return no pair by design.",
+   "hypothesis": "Returned pairs: about 128 (a trial can fail only by exhausting its proposal budget). Full collisions of the complete target: 0 (these are semi-free-start collisions from CV1, not from the IV; anyone can verify them offline with the 37-step compression). This tests that A0-variants of S (proof.md Lemmas 4.2, 4.3), including the variants of the classes added in this filing, are valid dense parts that reach full 37-step semi-free-start collisions through every cell of rows 16..36 with their own W8 (Lemma 7.1). It does not estimate q3. Observations (participant numbers): class_index, variant_index, l, checks_passed, restarts, proposals_row16, proposals_tail. detected_by_counted_program = 1 for all returned pairs of trials 0..15.",
+   "program": "experiments/spec6core.py",
+   "event": {
+    "kind": "full-collision"
+   }
+  },
+  {
+   "id": "a0-online-r37",
+   "kind": "python-message-pairs-v1",
+   "scope": "H1, H3, H5 (proof.md Sections 5, 8, 9 and 13.3). The same program; trials 0..7 each run the counted online program (proof.md Section 8) on seed-drawn first blocks (two uniform words from SHAKE-256 of the seed per first block; real 37-step compressions) until a first block has a passing class (at most 64 first blocks), processing at most six passing classes of it: the W7 test of all 222 classes, the branch-specialised W6 programs of every group of four batches, the lane scan, u = W0 + s0(W1), the presence word and the row-16 probe of every good pair, rows 17..36 for every row-16 pass. Every lane of the first group of the last passing class is checked against the scalar W6 definition, every good pair against the Step-2 equations (W7x = c7 - A_{-1} in F7, W6x in F6), and up to 12 good pairs against every cell of rows -4..15 for all 32 elements of L*. A trial returns the complete 128-byte messages M0||M1 and M0||M1' (l = 13) of its first good pair iff all checks passed. Trials 8..255 return no pair by design.",
+   "hypothesis": "Full collisions: 0 (rows 16..36 are not expected to hold). Mismatches of every kind: 0. Returned pairs: those trials whose first passing first block had a W6 pass in its first six passing classes. Observations (participant numbers): first_blocks, w7_classes, classes_processed, good_pairs, row16_pairs, counted_ops, lane_mismatches, filter_mismatches, cell_mismatches, pairs_cell_checked. This tests the correctness of the counted branch-specialised filter (H5), the per-variant Step-2 equations and the validity of good pairs through row 15 (Lemma 4.3) on organizer-seeded first blocks (H1); it does not test q3.",
+   "program": "experiments/spec6core.py",
+   "event": {
+    "kind": "full-collision"
+   }
+  }
+ ]
+}
