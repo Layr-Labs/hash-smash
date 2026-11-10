@@ -1,24 +1,137 @@
 {
-  "schema_version": 3,
-  "submission_state": "ready",
-  "target_profile": "sha256-r37-prefix-v1",
-  "attack_class": "ordinary-collision",
-  "rounds": 37,
-  "claim": {
-    "time_log2": 132,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 136,
-    "preprocessing_log2": 125,
-    "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 0
+ "schema_version": 3,
+ "submission_state": "ready",
+ "target_profile": "sha256-r37-prefix-v1",
+ "attack_class": "ordinary-collision",
+ "rounds": 37,
+ "lane": "exploratory",
+ "baseline_improved": "sha256-r37-nominal-v2",
+ "certificate_manifest": "certificates/manifest.json",
+ "experiment_manifest": "experiments/manifest.json",
+ "claim": {
+  "time_log2": 58.98394,
+  "time_unit": "target-compressions",
+  "memory_log2_bytes": 33,
+  "preprocessing_log2": 42.03369,
+  "success_probability": 0.39,
+  "nonuniform_advice_log2_bytes": 13
+ },
+ "restrictions": [
+  "Target sha256-r37-prefix-v1 exactly: SHA-256 steps 0..36 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words. Output: two distinct complete 128-byte messages M0||M1 and M0||M1' (common first block; FIPS padding appends the same third block) with equal digests; every output is verified with the target before it is returned.",
+  "Algorithm: the two-block attack of Li, Zhang, Li, Liu, Qian and Zhu (IACR ePrint 2026/1120) on the characteristic, S and variant family that its charged procedures construct: the signed rows 6..15 returned by the metered search A_C (seed 4 of eight), S and the pair returned by the Step-1 solve A_S on the instance generated from those cells (published data is never used in its place), and the family G of A0-variants of S, its 1,067 classes of at least 3,456 variants (4,378,186), L* (44 elements) and the row-16 data computed from S by gscan, grp, lscan, stats (proof.md Sections 3-6, 11.2, Appendix G); the cells of rows 16..24 of Tables 15 and 16 are advice. Packed good-pair stage of 0db0eeb6; the eight value bits of E18, E19 not imposed (ffbe30bb); R16x. Per first block: bit-sliced W7 test of the classes, W6 tests of the reps of passing classes, packed row-16 address, two chunk tables and an exact test, rows 16..21 by cells, rows 22..36 replayed with the eight registers compared (Sections 6-9).",
+  "Cost: fixed caps N_FB = 3,720,517,587,736,805 first blocks (2^51.72442; each one target compression plus 2,223 counted operations) and V_MAX = 1,489,165,979,804,742,916,402 counted data-dependent operations (halt when exceeded), with A_C = 91,298,997,556 (32,381.45 CPU-seconds: eight kissat seeds of the 37-step dense model run to the finish of seed 4, whose model is used, plus setup, at 2^21.427 units per CPU-second), A_S = 12,339,615,049 (4,376.55 CPU-seconds of the Step-1 solve that returned S), PRE = 90 CPU-seconds (gscan, grp, lscan, stats and the tables), DEV = 2^42 (development): 2^58.983936 target compressions on every run (Section 11), claimed 58.98394. Every target compression is charged one unit; every executed load, store, logic operation, shift, addition (address additions included), comparison and branch is one primitive, the plane programs counted by an algebra with static constants and inversion flags (Section 9.1).",
+  "Success probability at least 0.39 (0.3900000021) under H1 (independent uniform chaining values of the first blocks), H2 (q3 >= 2^-70.34 for the exact end event of rows 22..36 with the four row-18/19 value patterns and R16x accepted jointly: the lower of two preregistered sets of 64 seeds of an estimator written for this family, proof.md Section 7.4, Appendix F) and H3 (average of further successes in the same first block at most 2^-7.5; q3 <= 2^-70.21 for H3 only, Appendix H.4) and H7, by a per-first-block Bonferroni bound and independence across first blocks; Chebyshev bounds the work-cap overflow (cap slack 2^-12, squared) below 0.00814700. No expected-work bound and no independence-of-conditions model is used.",
+  "Memory: 2^33 bytes (8,589,934,592), a declared bound (H6) over all phases and every development run (proof.md Appendix H.2; the largest development aggregate is 2^32.70 bytes): online tables, code and constants 12,676,416 bytes = 2^23.60 (computed); the construction of the characteristic (generator, translation, STP CNF dump, kissat; largest peak the STP dump, 500,424,704 bytes = 2^28.899); the construction of S (instance generator 70,828 KB, kissat 64,168 KB under prlimit --as=379625062); gscan, grp (344,284 KB), lscan (132,988 KB) under prlimit --as=536870912; the completion of a pair in the organizer's 128 MB sandbox. baseline_improved names the organizer reference and does not assert an improvement. The per-first-block counts of the ledger are exact expectations or stated bounds on them (Section 11.1).",
+  "Nothing else in the claim is heuristic: the operation counts and the ledger (proof.md Sections 9, 11, Appendix B), the exactness of the filters F6, F7, of the classes (derived from c7, Lemma 5.3) and of the row-16 test (Section 13.2, Appendix A), the success arithmetic (Section 10, Appendix C) and the cap are computed or checked exhaustively; the premises are H1, H2, H3, H4, H5, H6 and H7 in claim.heuristics; the cells of rows 16..24 are advice (Section 3.5)."
+ ],
+ "heuristics": [
+  {
+   "evidence_ids": [
+    "proof:215-223",
+    "proof:616-627",
+    "proof:639-644",
+    "proof:2747-2776",
+    "proof:2777-2791",
+    "experiment:h1-cv1-filters-nonce"
+   ],
+   "extrapolation": "Measured by 7319bba with the attack's own filters on real first blocks in C (2^21 and 2^23 first blocks of the published family: passing classes 7,400,134 and 29,545,568 against 7,388,160 and 29,552,640 expected; good pairs ratio 1.0034 and 1.0011; the filters F6, F7 and the laws of Lemma 5.1 are those of this family) and by this filing's own run of the counted program on 28,500 real first blocks (6 runs, all 1,067 classes): passing classes per first block 17.07 against the exact 16.93, good pairs 4635.8 against the exact 4,647.7, mean counted operations 403,457 against the ledger's 402,383 (proof.md Section 13.3). The attack applies the same rates to its 2^51.7 first blocks; the organizer experiments a0-online-r37 and h1-cv1-filters-nonce run the program and the two filters on real chaining values.",
+   "id": "H1-uniform-chaining-values",
+   "limitations": "Per-first-block counts are overdispersed (the class tests of one first block are correlated); only their expectations and the independence across first blocks are used.",
+   "role": "score-critical",
+   "scope": "The expected numbers of passing classes, good pairs, survivors and row-16 passes per first block; the expected operation count of the counted program; the law of the second-block words that defines q3; independence across first blocks (proof.md Section 10). Not the validity of any output: every output is verified with the target.",
+   "statement": "Our theory: the first blocks M0 are fresh uniform 512-bit strings; their chaining values CV1 = F_37(IV, M0) behave as independent uniform 256-bit values; in particular x = A_{-1} is uniform on 2^32 and independent of cb = C6 - A_{-2}, which is uniform on 2^32. Consequences used: each of the 1,067 classes passes the W7 test with probability p7 = |F7|/2^32 exactly, each variant of a passing class then passes F6 with probability p6 = |F6|/2^32 exactly, and given both, W0..W5 are uniform and independent of (W6, W7) (proof.md Lemma 5.1); hence the expected number of good pairs per first block is g = 4,378,186 p7 p6 = 4647.70, the expected counts of the ledger, and the independence of distinct first blocks."
   },
-  "restrictions": [
-    "Samples exactly 2^128 independent uniformly random 48-byte complete messages with replacement; each hashes to the full 256-bit output from the standard fixed IV using one padded 37-round compression.",
-    "Classical 256-bit probabilistic word RAM under collision-frontier-v5, C=2644; no random-oracle, output-balance, PRNG or differential heuristic.",
-    "Worst-case total work and peak memory upper bounds; no witness, executed full search, novelty, nominal-reference improvement or qualification is asserted."
-  ],
-  "baseline_improved": "sha256-r37-nominal-v2",
-  "certificate_manifest": "certificates/manifest.json",
-  "lane": "exploratory",
-  "heuristics": []
+  {
+   "evidence_ids": [
+    "proof:299-385",
+    "proof:318-324",
+    "proof:325-341",
+    "proof:342-354",
+    "proof:355-361",
+    "proof:362-385",
+    "proof:897-903",
+    "proof:2721-2746",
+    "proof:2747-2776",
+    "experiment:a0-sfs-r37"
+   ],
+   "extrapolation": "Lemma 7.1: rows 16..21 have exactly the same probability for every variant; a variant enters rows >= 23 only through W8. The estimator (exact row 16, exact importance weights at rows 17..21, (W6, W7) uniform on F6 x F7, W8 drawn uniformly from the 4,378,186 variants, the exact event on every tail proposal; Appendix F) was preregistered (PREREG_s4.md, sha256 51c64a83...81300, before any listed seed ran): S1 (64 seeds) mean 2^-70.2581, relative sd 0.0914, bound 2^-70.2979; S2 (64 seeds) mean 2^-70.2885, relative sd 0.1160, bound 2^-70.3394; z = 1.15; declared 2^-70.34 (published pair: 2^-70.16). The same source compiled for the published pair reproduces the filed output of seed 9201 bit for bit. Forty hits of the estimator, each rebuilt to a chaining value and W0..W15, are all real 37-step semi-free-start collisions (40 of 40). The estimator source, the preregistration, the analysis program and the 144 per-seed estimates are printed in Appendix F, so the study replays from the proof; a0-sfs-r37 builds real 37-step semi-free-start collisions with the same end event. The R16x relaxation and the four value patterns of rows 18 and 19 are part of the carrier; the estimator accepts exactly what the program accepts. Here the examined law is the studied law (every variant of every passing class, no weighting).",
+   "id": "H2-variant-step3-probability",
+   "limitations": "Student coverage of the mean of 64 replicates (one per seed) per set: relative sd 0.09 and 0.12, skewness 0.31 and 0.15, and the percentile bootstrap agrees with Student to 0.002 bit (Appendix H.4). The tail draws (W6, W7) uniformly from F6 x F7 by Lemma 5.1; the row-16 stage equals the exact counts of stats.c.",
+   "role": "score-critical",
+   "scope": "The expected number of successes E[X] = N_FB g 44 q3 and hence N_FB (proof.md Sections 7 and 10). The good pairs and the later rows are those of 7319bba; this filing changes how the good pairs are found, not which pairs are good, and which pairs count as a success: (from ffbe30bb) the value patterns of rows 18 and 19 and (R16x) rows 16 and 17.",
+   "statement": "For a good pair, q3 = the average over the 4,378,186 variants of the 1,067 classes (each equally likely, as examined here) and the 44 elements of L* of Pr[rows 16..21 of both members follow every cell and every printed two-bit condition closing at rows 16..21 (corrected reading A15[29] = A17[29]), the eight value bits E18[1,5,10,11,18,28,29] and E19[29] of Table 15 not imposed, and (R16x) E16[23] = 0 and E16[24] = E17[24] not imposed, and rows 22..36 replayed on the raw schedule words end with the eight registers of the two members equal: exactly the checks of experiments/lowm.py step3b] satisfies q3_used = 2^-70.34 <= q3 <= 2^-70.21, where 2^-70.34 is the lower of the two 99 percent Student lower bounds (2^-70.2979 and 2^-70.3394), rounded down to two decimals of log2, of two preregistered sets of 64 seeds of a sequential Monte-Carlo estimator written for this family (proof.md Section 7.4, Appendix F), and 2^-70.21 is the larger of the two 99 percent upper Student bounds (Appendix H.4)."
+  },
+  {
+   "evidence_ids": [
+    "proof:521-536",
+    "proof:616-627",
+    "proof:2721-2746",
+    "proof:2747-2776",
+    "experiment:h3-cowpass-nonce"
+   ],
+   "extrapolation": "(a) 7319bba's replay of 19,620,436 distinct Step-3 successes of the SMC for the published pair: 0 further successes among the other 31 elements of L* (rule-of-three 95 percent bound 2^-22.65 per success); the accepted patterns raise the chance of passing rows 18 and 19 by about 4 and R16x the chance of the path by about 1.6, so about 2^-19.8 there, far below 2^-11. (b) With q3 <= 2^-70.21 (H2, the exact event; Appendix H.4), the expected number of further successes among other good pairs is at most rho x N_good x 44 x q3 with N_good <= 4,378,186 (all variants of the family): 2^35 x 2^22.06 x 2^5.46 x 2^-70.21 = 2^-7.69, so delta <= 2^-11 + 2^-7.69 = 2^-7.55 < 2^-7.5; the measured factor at the row-16 level over 2^21 and 2^23 real first blocks of the published family is 0.98 and 1.00. The organizer experiment h3-cowpass-nonce counts the first blocks in which several variants of one class pass F6 together. The sensitivity of the claim to delta is in Appendix H.5.",
+   "id": "H3-first-block-dependence",
+   "limitations": "rho = 2^35 is the allowance over the measured row-16 factor (0.98 and 1.00) for rows >= 17 of distinct good pairs of one first block; delta <= 2^-7.55 against the declared 2^-7.5.",
+   "role": "score-critical",
+   "scope": "The per-first-block Bonferroni bound Pr[X_f >= 1] >= (1 - 2^-8.5) E[X_f] (proof.md Section 10). The good pairs of a first block and their dependence structure are those of 7319bba; this filing changes the order in which they are processed, not the set.",
+   "statement": "For every trial t = (first block, variant, l), the expected number of other successful trials of the same first block given that t succeeds is at most 2^-7.5: E[X_f - 1 | A_t] <= 2^-7.5. Equivalently: (a) the expected number of other l in L* succeeding with the same variant is at most 2^-11, and (b) for other good pairs t' of the same first block, Pr[t' succeeds | t succeeds, t' good] <= 2^35 Pr[t' succeeds | t' good]."
+  },
+  {
+   "evidence_ids": [
+    "proof:567-581",
+    "proof:537-581",
+    "proof:1340-1543",
+    "proof:2796-2818",
+    "proof:2710-2720",
+    "proof:2747-2776",
+    "experiment:a0-sfs-r37"
+   ],
+   "extrapolation": "proof.md Section 11.2, Appendices G, H.3 and L. The runs are complete and their records are in the appendices: P_C seed 4 SATISFIABLE after 4,039.31 s user + 1.42 s system, all eight seeds completed, models verified against the CNF; P_S SATISFIABLE after 2,187.92 s + 0.17 s, model verified (all 373,031 clauses), decoded into a pair that collides on the real 37-step compression with every signed cell of rows -4..36 equal to the characteristic; P_F measured 75.48 CPU-seconds. The program uses nothing but these outputs and the advice: no published S, pair or family is used in their place. Kissat is deterministic for the fixed binary, input and options, so each run repeats; hashes, solver outputs and CPU-seconds are in Appendix L. Sensitivity (Appendix H.5): the claim moves by under 0.0001 bit if A_C (about 190 times larger) or A_S (about 1,400 times larger) is 2^44 units; DEV = 2^42 covers the 2^40.2 units of development 3.4 times (Section 13.4).",
+   "id": "H4-advice-allowances",
+   "limitations": "The CPU-seconds are those of our runs on the cloud machine, at the price of 6eeefb64 (2^21.427 units per CPU-second). The advice rows 16..24 are published input.",
+   "role": "supporting",
+   "scope": "The preprocessing part of the ledger (2^42.03368) and the advice (below 2^13 bytes).",
+   "statement": "The characteristic, S and the family the attack uses are the outputs of three charged procedures, with the measured CPU-seconds of their runs at the price of 6eeefb64 (2^21.427 units per CPU-second): P_C, the metered search of the 37-step dense model (kissat seed 4 of eight; A_C = 91,298,997,556 units = 2^36.41, charged as eight seeds to the finish of seed 4 plus setup, 32,381.45 CPU-seconds), P_S, the Step-1 solve on the SAT instance generated from the signed cells of that characteristic (A_S = 12,339,615,049 units = 2^33.52, two processes at the winner's 2,188.09 s plus 0.37 s of generation), and P_F, the programs gscan.c, grp.c, lscan.c, stats.c and the tables (PRE = 90 CPU-seconds); all development computation at DEV = 2^42. The cells of rows 16..24 are advice, below 2^13 bytes, an input of P_C."
+  },
+  {
+   "evidence_ids": [
+    "proof:437-520",
+    "proof:651-683",
+    "proof:628-638",
+    "proof:639-644",
+    "experiment:a0-online-r37"
+   ],
+   "extrapolation": "The program is experiments/lowm.py (the plane programs assert their counts at every execution; process_cv counts every scalar item where it executes). It is exact against the scalar definitions: every lane of every class-test plane and every pass plane equals the F7 or F6 test of its definition (213,400 and 198,624 lanes in selftest, and every lane of every processed class in a0-online-r37 and in the 300 trials of Section 13.2), the sets of good pairs equal the brute-force sets, the address u equals W0 + s0(W1) from the step equations, the exact row-16 test equals the generic row check on random and near-miss values, and the table stage never rejects a member. The counted operations per first block over 28,500 real first blocks are 1.003 times the ledger's expectation (proof.md Section 13.3).",
+   "id": "H5-bit-sliced-pricing-and-memory",
+   "limitations": "The static constants and inversion flags of the plane algebra are compile-time facts of the text; the register argument counts live planes. The code size is bounded by 8192 primitives of at most 8 bytes. A branch on a register is one primitive, as in the earlier filings. The ceiling of the group count and the survivor scan are charged at their worst case (below 0.2 percent of the data-dependent work), and the class test recomputes the planes of -x for each of its five batches and is charged so.",
+   "role": "score-critical",
+   "scope": "The class-test, W6, scan, gather, group, probe and survivor terms of the ledger (essentially all of the data-dependent operations per first block), the fixed terms, the memory figure and the preprocessing bound.",
+   "statement": "Under collision-frontier-v5 a word-RAM program of 256-bit primitives in which every executed load, store, logic operation, shift, addition, comparison, branch and jump is one primitive is charged by the primitives it executes. The W7 class test (166 primitives for 256 classes, five batches for the 1,067 classes) and the W6 test of a batch of 256 reps (446 primitives) are straight-line plane programs whose counts do not depend on the data, produced by a plane algebra in which static constants fold and complemented planes carry an inversion flag at no cost, and in which a NOT is paid when an AND or OR meets unequal flags; two batches are processed together bit by bit with at most 20 live planes each (64 registers, no spill). The group of four members is 31 primitives, the probe of a lane 11 or 12, the survivor scan 11 plus 7 per set bit, the exact row-16 test 34, with the scalar and control items of proof.md Section 9. All tables, the code (bounded by 2^16 bytes) and the constants occupy 12,676,416 bytes = 2^23.60. The classes are base | s for s in 262 lists (derived from c7 by Lemma 5.3 and checked for all 4,378,186 variants); there is no cube sharing."
+  },
+  {
+   "evidence_ids": [
+    "proof:653-677",
+    "proof:2675-2709",
+    "proof:2796-2818"
+   ],
+   "extrapolation": "Measured peaks (resident set, one thread, cloud machine; Appendix H.2): gen37.py 97,816 KB, translation to SMT2 97,712 KB, STP 2.4.1 CNF dump 488,696 KB = 500,424,704 bytes (2^28.899), kissat 4.0.4 seed 4 on the characteristic instance 81,652 KB under prlimit --as=379625062 (2^28.5); the pair instance generator 70,828 KB and kissat 64,168 KB under prlimit --as=379625062; gscan 1,912 KB, grp 344,284 KB, lscan 132,988 KB under prlimit --as=536870912, stats 1,656 KB; online 12,676,416 bytes. The q3 study of Section 7.4 ran 4 processes at a time in one cgroup (MemoryMax 402,653,184 bytes, no swap): aggregate peak 338,391,040 bytes = 2^28.33, driver included (Appendix H.2).",
+   "id": "H6-characteristic-search-memory",
+   "limitations": "The largest peak of one phase is the STP dump, 2^28.899 bytes; the largest aggregate of a development run is 2^32.70 bytes (the Python counted-program checks).",
+   "role": "score-critical",
+   "scope": "The memory term of the score. The time ledger is unchanged.",
+   "statement": "Declared bound: the peak memory of the whole procedure, the construction of the characteristic (the generation of the SAT instance of the 37-step dense model, its CNF dump and the solver search, charged as A_C), the construction of S (the generation of the pair instance and its solver search, charged as A_S), the preprocessing (gscan, grp, lscan, stats and the tables), the online program and development, is at most 2^33 = 8,589,934,592 bytes (the construction phases ran under address-space caps of at most 2^29 bytes; the aggregates of the development runs are in Appendix H.2), so memory_log2_bytes = 33 and the score is time_log2 + 13. The online tables, code and constants take 12,676,416 bytes = 2^23.60."
+  },
+  {
+   "evidence_ids": [
+    "proof:521-536",
+    "proof:854-877"
+   ],
+   "extrapolation": "Every allowance is an explicit term of the floor equation: the Chebyshev cap-failure bound Pcap (priced in proof.md Section 10 from the exact vmax_fb and vbar of the ledger; the computed bound is 2^-6.94), the repeated-first-block allowance 2^-60, and the H3 dependence discount as the divisor (1 - 2^-8.5). Appendix C computes mu0 and the bound with 60-digit decimals and asserts the bound > 0.39; lowm.py ledger() iterates Pcap and N_FB to a fixed point and asserts the same.",
+   "id": "H7-exact-success-floor",
+   "limitations": "The 0.39 floor is the organizer's success requirement; the equation makes the success arithmetic exact.",
+   "role": "supporting",
+   "scope": "N_FB (the cap) in the ledger.",
+   "statement": "The cap target is mu0 = 0.50914839, the smallest 8-decimal number strictly above -ln(0.61 - Pcap - 2^-60) / (1 - 2^-8.5) with Pcap = 0.00814700 the assumed bound of the Chebyshev work-cap failure probability. With E[X] >= mu0 the success bound of proof.md Section 10, 1 - exp(-(1 - 2^-8.5) mu0) - Pcap - 2^-60, is >= 0.39000000 with no further padding."
+  }
+ ]
 }
