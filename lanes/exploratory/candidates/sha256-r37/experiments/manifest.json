@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "r37-keyed-batch-mask-a",
+      "kind": "python-message-pairs-v1",
+      "scope": "Exact sha256-r37 target; 55-byte single-block messages with 21 zero bytes and 34 seed-derived bytes, 256 messages per trial (one batch of the counted program). Trial 0 builds the circuit, allocates 60 registers, executes the straight-line batch program instruction by instruction in a VM, reports the executed operation count, and compares all 256 stored key words with an independent scalar sha256-r37 through the explicit inverse key map (and the forward map). Every trial evaluates the same gate list directly, decodes each key to a full 256-bit digest with the inverse key map, and returns the first pair of distinct messages whose decoded digests agree on 16 masked bits (bits 0 and 17 of every digest word). The organizer recomputes both digests with the trusted reference.",
+      "hypothesis": "The bit-sliced key circuit, the transpose and the inverse key map compute the exact sha256-r37 digest of every lane, so every returned pair satisfies the masked digest event when checked by the organizer. No randomness premise about SHA-256 is tested or needed; the success frequency (about 0.39 per trial for 256 messages and a 16-bit mask) is reported only as a sanity check.",
+      "program": "experiments/r37_keyed_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0002000100020001000200010002000100020001000200010002000100020001",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "r37-keyed-batch-mask-b",
+      "kind": "python-message-pairs-v1",
+      "scope": "Same program and message family as r37-keyed-batch-mask-a with a different 16-bit mask (bits 9 and 30 of every digest word), so that the high bits of each digest word, which depend on long carry chains in the circuit and on the rotations in the inverse key map, are also checked on organizer-returned pairs.",
+      "hypothesis": "As for r37-keyed-batch-mask-a: every returned pair satisfies the masked digest event under the trusted reference digest; the frequency is a sanity check only.",
+      "program": "experiments/r37_keyed_bitslice.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "4000020040000200400002004000020040000200400002004000020040000200",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
