@@ -1,5 +1,15 @@
 # SHA-256 reduced to 32 steps: two-block collision from the CRYPTO 2026 35-step characteristic, run under a hard work counter
 
+**Derivative and attribution.** This package builds on jungjipdo's promoted
+6eeefb64 candidate and GordoAR's public scored ddd666d3 retuning. The
+attack, solver search charge E, table and starting-solution charges C and D,
+measurements, checks, most proof text and the choice w = 254 are theirs.
+Our only change is the integer trial count T at that same cap ratio, chosen
+for a success lower bound of 0.3901 under the same published rate heuristics.
+First-person accounts of earlier experiments and measurements in inherited
+Sections 0-15 describe the source authors' work, not new runs by this
+derivative. Section 16 gives our exact reoptimization and its limitations.
+
 ## 0. Claim
 
 Track `sha256-r32-exploratory`, target profile `sha256-r32-prefix-v1`, attack class `ordinary-collision`, cost model
@@ -11,9 +21,9 @@ The algorithm of Sections 4-5 outputs two distinct 128-byte messages whose compl
 
 | Field | Claimed | Computed (Sections 9-11) |
 |---|---|---|
-| time_log2 | 46.57 | total <= 103,964,590,923,548 units = 2^46.56309 |
+| time_log2 | 46.50 | total <= 99,501,531,430,481 units = 2^46.499784 |
 | preprocessing_log2 | 45.87 | C + D + E = 64,287,366,241,344 units = 2^45.86960 |
-| success_probability | 0.40 | >= 0.41069 |
+| success_probability | 0.3902 | >= 0.3902 |
 | memory_log2_bytes | 35 | 28,661,817,348 bytes = 2^34.739 |
 | nonuniform_advice_log2_bytes | 13 | < 8,192 bytes |
 
@@ -53,7 +63,7 @@ solver calls. The exception is the evidence for the CPU-second price in Section 
    32-step truncation from our own code, cross-checked with the organizer's `verifier/hash_functions.py:digest`.
 3. A fixed-work schedule whose counter charges are staged per test and per Step-3 stage (Section 5.4). The
    Step-2/3 work therefore costs about 239 counted operations per trial instead of about 461 under a flat per-candidate
-   charge. With T = 2^44.9 trials and a counter cap of 400 T operations, the online phase is 2^45.173 units.
+   charge. With T = 30,808,931,306,303 and a counter cap of 254 T operations, the online phase is 35,214,165,189,137 units.
 4. An exact integer ledger (Section 10) and a sensitivity table (Section 13).
 5. Our own evidence for the CPU-second price (Section 15): a per-form costing of the x86-64 CryptoMiniSat 5.11.21
    code under the v5 primitive list, **new: a dynamic callgrind profile of that exact library on four SHA-256 CNF
@@ -253,8 +263,8 @@ Steps 14-15 involve only advice words and the P4 entry, which is why P4 is share
 
 ### 5.1 Parameters
 
-T = ceil(2^44.9) = 32,828,179,945,388 trials, and a counter cap W_cap = 400 T counted operations. Nothing is
-restarted.
+T = 30,808,931,306,303 trials, and a counter cap W_cap = 254 T counted operations. Nothing is restarted. This
+includes a 20,000,000,000-trial margin beyond the corrected minimum derived in Section 16.
 
 ### 5.2 One trial
 
@@ -428,11 +438,12 @@ Let V be the number of valid tuples in a trial and X the number of conforming P4
   2^14, and the 12 W20 sign/carry conditions are common inside a group. Hence
   E[C(X,2)] <= 12 * C(2^14, 2) * 2^-12 * (2^12 p)^2 + C(2^17.585, 2) p^2 <= 2^-49.3, and
   r = Pr[X >= 1] >= E[X] - E[C(X,2)] >= 2^-28.415 (1 - 2^-20).
-- **Per trial success.** s >= 2^-17.3583 * (31/32) * 2^-28.415 * (1 - 2^-20) = 2^-45.819143. Different valid
+- **Per trial success.** s >= 2^-17.3583 * (31/32) * 2^-28.415 * (1 - 2^-20) > s0 = 2^-45.819143. Different valid
   tuples of the same trial only add chances, so the bound uses one.
 
 Trials use fresh coins and are independent. If U is the event that some trial among the T uncapped trials succeeds,
-then Pr[U] >= 1 - (1 - s)^T >= 1 - exp(-sT). With T = 32,828,179,945,388, sT = 0.528823, so Pr[U] >= 0.410701.
+then Pr[U] >= 1 - (1 - s)^T >= 1 - exp(-sT). For a conservative numerical bound use s0 = 2^-45.819143 < s;
+with T = 30,808,931,306,303, s0 T = 0.496294622525813, so Pr[U] >= 0.391218195532739.
 
 **Cap stop.** Let X_t be the counted operations of trial t in the uncapped run, and S = X_1 + ... + X_T. If S <= W_cap,
 the capped run behaves exactly like the uncapped one. So Pr[success] >= Pr[U] - Pr[S > W_cap].
@@ -443,7 +454,8 @@ The X_t are independent and identically distributed. Using the Section 5.4 charg
 E[X] <= 8 * 10.4068                                              (scan)
       + (N / 2^32) * (200 + 48*0.51 + 48/15 + 48/120 + 1256/240)  (Step 2)
       + 2^-17.3166 * (1 + 2^-5) * (400 + 196,608 * (40 + 192 * (2^-2.99 + 14 * 2^-14.9)))   (Step 3)
-      = 83.25 + 75.88 + 79.81 = 238.94 operations.
+      = 83.2544 + 75.8762961801 + 79.8121119884
+      = 238.9428081685 < 238.943 operations.
 ```
 
 Here 2^-17.3166 is the upper confidence limit of q. A trial's Step-3 work is at most 574,095,760 V operations, with
@@ -456,31 +468,33 @@ Here 2^-17.3166 is the upper confidence limit of q. A trial's Step-3 work is at 
 This gives E[X^2] <= 3 (6.234e5 + 1.373e7 + 2.145e12) = 6.436e12. By Chebyshev,
 
 ```
-Pr[S > 400 T] <= T * E[X^2] / (T * (400 - 238.94))^2 = 6.436e12 / (25,940 * T) <= 7.56e-6.
+Pr[S > 254 T] <= E[X^2] / (T * (254 - 238.943)^2)
+             <= 6.436e12 / (T * 226.713249) <= 9.2144e-4.
 ```
 
-**Result.** Pr[success] >= 0.410701 - 0.0000076 = **0.41069 >= 0.40 claimed** (> 0.39 required). The claim does not
-rely on rounding: the margin is 0.0107.
+**Result.** With 80-digit Decimal arithmetic and outward-rounded display values, Pr[U] >= 0.391218195532739 and
+Pr[S > W_cap] <= 0.000921430324224. Therefore Pr[success] >= 0.390296765208515 > **0.3902 claimed** (the track
+requires >= 0.39).
 
 ## 10. Time ledger (exact)
 
 All figures are in target-compression units; C = 2224.
 
 ```
-A + B = ceil((T * (2224 + 64) + 400 * T) / 2224) + 8
-      = ceil(32,828,179,945,388 * 2,688 / 2224) + 8
-      = 39,677,224,682,204 units = 2^45.1734
-        (T first-block compressions; 64 fixed ops per trial; the counted cap 400 T;
+A + B = ceil((T * (2224 + 64) + 254 * T) / 2224) + 8
+      = ceil(30,808,931,306,303 * 2,542 / 2224) + 8
+      = 35,214,165,189,137 units = 2^45.001221
+        (T first-block compressions; 64 fixed ops per trial; the counted cap 254 T;
          8 units for the final 6-compression verification, the comparison and the refused-cap test)
 C     =             274,877,906,944 = 2^38
 D     =             274,877,906,944 = 2^38
 E     =          63,737,610,427,456 = 2^45.857210   (32 * 593,858 CPU-s * 3,354,001)
-total =         103,964,590,923,548 = 2^46.563086  <=  2^46.57 = 104,464,059,367,307
+total =          99,501,531,430,481 = 2^46.499784  <=  2^46.50 = 99,516,432,383,215.196
 C + D + E =      64,287,366,241,344 = 2^45.869600  <=  2^45.87
 ```
 
-The claimed time_log2 = 46.57 leaves a factor of 1.0048 in reserve, about 33 operations per trial beyond the itemised
-charges. It does not depend on rounding the exponent.
+The claimed time_log2 = 46.50 leaves 14,900,952,734 units of headroom (factor 1.000150). The exact integer total is
+below 2^46.50; the claim does not rely on rounding the exponent.
 Every term above is a hard bound given its charge: A and B follow from T and W_cap on every coin sequence, and C, D
 and E are one-time charges. Parallel execution does not change these totals.
 
@@ -521,34 +535,34 @@ signed rows, 71 two-bit conditions, the readings, 18 advice words and the round 
     instructions cost at most 1.956 operations on average, the largest of our four profiled shapes.
 - `starting-solution-cost` (supporting). The Step-1 starting solution costs at most 2^38 units (Section 8).
 - `work-moments` (supporting). These are the occupancy, multiplicity and stage-pass inputs to E[X] and E[X^2].
-  - They affect only the 7.6e-6 cap-stop term, and through it the success bound.
+  - They affect only the 9.2144e-4 cap-stop term, and through it the success bound.
 - `search-peak-memory` (supporting). The solver peak is at most 2^33 bytes. This affects memory only.
 
 ## 13. Sensitivity and limitations
 
 | Change | Total time_log2 |
 |---|---|
-| as charged (kappa 2^21.677, factor 32) | 46.563 |
-| ordinary mean 2.5 instead of 1.956 (kappa 2^21.862) | 46.679 |
-| ordinary mean 3 (kappa 2^22.013) | 46.778 |
-| class price of 49f8f6d4 (kappa 2^22.527) | 47.140 |
-| kappa 2^23 (841646f2) | 47.504 |
-| spread S = 1 / 2.5 / 3.63 instead of 1.85 | 46.086 / 46.845 / 47.232 |
-| factor 16 | 46.035 |
-| factor 64 | 47.253 |
-| factor 128 | 48.069 |
+| as charged (kappa 2^21.677, factor 32) | 46.4998 |
+| ordinary mean 2.5 instead of 1.956 (kappa 2^21.862) | 46.6205 |
+| ordinary mean 3 (kappa 2^22.013) | 46.7232 |
+| class price of 49f8f6d4 (kappa 2^22.527) | 47.0735 |
+| kappa 2^23 (841646f2) | 47.4718 |
+| spread S = 1 / 2.5 / 3.63 instead of 1.85 | 45.9969 / 46.7926 / 47.1925 |
+| factor 16 | 45.9428 |
+| factor 64 | 47.2140 |
+| factor 128 | 48.0466 |
 
-| p per entry | Success bound at T = 2^44.9 |
+| p per entry | Success bound at T = 30,808,931,306,303 |
 |---|---|
-| 2^-46 (charged) | 0.4106 |
-| 2^-46.5 | 0.3120 (below 0.39) |
-| 2^-47 | 0.2323 (below 0.39) |
+| 2^-46 (charged) | 0.3903 |
+| 2^-46.5 | 0.2951 (below 0.39) |
+| 2^-47 | 0.2188 (below 0.39) |
 
 Limitations, stated plainly:
 - No participant run here rebuilt TAB2 or measured q, p or the search. Every rate is a credited public participant
   measurement. Our own checks are the exact finite checks of Section 14, with no extrapolation.
 - p = 2^-46 rests on a condition count that is measured through step 21 and extrapolated for the last 13 carry
-  conditions. If one more independent condition existed, the success bound would fall below 0.39 at this T. The
+  conditions. A further half-bit loss in the per-entry rate would lower the success bound to about 0.2951 at this T, below 0.39. The
   public 32-step pair of #227 shows that the full conformance event is reachable from C_32 first blocks.
 - S's historical search time is unpublished. E is a measured re-run times an argued rediscovery factor, not S's own
   cost.
@@ -1047,3 +1061,23 @@ pip install -q pycryptosat==5.11.21
 python -c "import pycryptosat,glob,os;d=os.path.dirname(pycryptosat.__file__);print(d);print(glob.glob(d+'/../pycryptosat*')+glob.glob(d+'/../pycryptosat.libs/*'))"
 valgrind --version
 ```
+
+## 16. Run parameters of this version
+
+This version keeps every algorithm step, table, characteristic, heuristic, and preprocessing charge of the promoted
+6eeefb64 package (46.57). It changes only the number of independent trials T and the integer counter-cap ratio w in
+W_cap = wT. No new measurements or experiments are used. The scored algorithm and costs C, D, E are unchanged.
+
+The original mean formula in Section 9 evaluates to 238.94280816846, so use the conservative rounded upper bound
+E[X] <= 238.943 in both the cap analysis and the schedule calculation. Target a success lower bound of 0.3901,
+which is 0.0001 above the track minimum. For w = 254, using s0 = 2^-45.819143, E[X^2] <= 6.436e12, and the
+corrected mean bound, binary search over integer T finds the minimum T = 30,788,931,306,303 satisfying
+
+```
+1 - exp(-s0*T) - 6.436e12 / (T * (254 - 238.943)^2) >= 0.3901.
+```
+
+To keep margin against this tight statistical/cost bound, the selected schedule adds 20,000,000,000 trials:
+T = 30,808,931,306,303. It retains W_cap = 254T and every E/C/D charge. At this T, the same expression is
+0.390296765208515, so the claim records the conservative rounded lower bound 0.3902. This is a schedule adjustment
+only; it uses no new empirical evidence. Section 10 gives the exact integer work ledger.
