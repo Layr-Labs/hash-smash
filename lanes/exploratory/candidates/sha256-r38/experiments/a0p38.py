@@ -110,8 +110,9 @@ R16SET = frozenset(R16)
 _sh = M
 for _v in R16: _sh &= ~(_v ^ R16[0]) & M
 SHARED = _sh                                                       # bits on which all row-16 words agree
-TK = 12                                                            # tested bits of the row-16 filter: the TK lowest shared bits
+TK = 8                                                             # tested bits of the row-16 filter: the TK lowest shared bits (bits 1, 3..9)
 TBITS = [j for j in range(32) if (SHARED >> j) & 1][:TK]
+G1_VALS = (0x10, 0x20, 0x30)                                       # the 3 values of a0 & 0x30 in every class (one 256-lane sub-batch each)
 
 # ---- classes (proof.md Section 5): class i = {base ^ s : s subset of its mask, a0 in G, c7(a0) = c7_i}, 24,576 variants each ----
 def dep(t, mask):
@@ -122,15 +123,16 @@ def dep(t, mask):
         if (t >> j) & 1: r |= b
         mask ^= b; j += 1
     return r
+_MEM = {}
 def members(ci, count, start=0):
-    """the members number start..start+count-1 of class ci in the canonical order (increasing t of base ^ dep(t, mask))"""
-    c7, base, mk = CLASSES[ci]; out = []; t = 0; k = 0
-    while len(out) < count and t < (1 << bin(mk).count('1')):
-        a0 = base ^ dep(t, mk); t += 1
-        if in_G(a0) and c7of(a0) == c7:
-            if k >= start: out.append(a0)
-            k += 1
-    return out
+    """the members number start..start+count-1 of class ci in batch order (32 high-part values y, 3 g1 values, 256 low-part lanes)"""
+    if ci not in _MEM:
+        c7, base, mk = CLASSES[ci]; mlk = mk & 0x1fffcf; mhi = mk & 0xffe00000; c_lo = base & ~mk & 0x1fffff; blo = base & 0x1fffcf; bhi = base & 0xffe00000
+        lanes = [x & mlk for t in range(1 << bin(mlk).count('1')) if in_G(bhi | 0x10 | (x := blo ^ dep(t, mlk))) and c7of(bhi | 0x10 | x) == c7]
+        l0 = c_lo | 0x10 | lanes[0]
+        hi = [y for t in range(1 << bin(mhi).count('1')) if in_G((y := bhi ^ dep(t, mhi)) | l0) and c7of(y | l0) == c7]
+        _MEM[ci] = [c_lo | y | g1 | l for y in hi for g1 in G1_VALS for l in lanes]
+    return _MEM[ci][start:start + count]
 
 def rebuild(W, a0):
     """A success of the estimator (member-x words W[7..22] with W7 in F7, rows 16..22 sampled) and its variant a0 -> (cv, Mx, My):
@@ -146,93 +148,174 @@ def rebuild(W, a0):
     return cv, wx, wy
 
 # ---- the bit-sliced row-16 program (proof.md Section 7.2) ----
-# Bit L of every 256-bit plane belongs to lane L (one variant).  The program computes, for 256 variants of one batch, the TK tested bits of
-# E16x = KP + a0 + s0(W1), W1 = K1 - S0(a0) - MAJ(a0, a, b) - S1(E0) - CH(E0, e, f), E0 = a0 + HH (Lemma 4.1), and their AND with the
-# tested values.  Inputs: the planes of the bits of a0 that vary in the batch (A<j>), the class constants (C<j>, broadcast words), and the
-# per-first-block broadcast planes of HH, PP = a & b, QQ = a | b, EF = e ^ f, FF = f, K1 = A1 - g - K1, KP (7 x 32).  Constant bits of a0 are
-# folded.  Nodes: xor, and, or, not; equal nodes are shared.  The allocator gives an instruction list over 64 registers in which every
-# load, store and spill is one instruction; the list is the charge.
+# Bit L of every 256-bit plane belongs to lane L (one variant).  Within each class ci and high-part value y (bits 21..31), the 768 variants split
+# into 3 sub-batches of 256 lanes by g1 = a0 & 0x30 in (0x10, 0x20, 0x30), sharing the same 256 low-part values on mlk = mk & 0x1fffcf.
+# The invariant low part c_lo = base & ~mk & 0x1fffff is absorbed once per class into HH[0..20], KP[0..9] and K1[0..4]; the high part y is
+# absorbed once per y-group into HH[21..31] and K1[5..27] (including the S0(c_lo | y) bits on columns >= 5 that depend only on c_lo | y).
+# The program computes the TK = 8 tested bits of E16x (up to HI_BIT = 9, needing W1[0..27] and KP[0..9]) over 64 registers with 0 spills.
 ONES = (1 << 256) - 1
+HI_BIT = max(TBITS)                                                 # 9: highest bit of E16x tested by the stage-3a filter
+W1_BITS = HI_BIT + 19                                               # 28: highest bit of W1 needed by s0(W1) on bits 0..HI_BIT is HI_BIT + 18 = 27
+KP_BITS = HI_BIT + 1                                                # 10: KP is only needed on bits 0..HI_BIT
+A0_ADD = 0x400                                                      # 2^10 from a0[10] + 2*a0[11] = 2^10 + a0[11]*2^10 (c_lo includes 0x380)
+AB_MASK = 0xb6c7e                                                   # the 13 bits of (mk & 0x1fffff) across all 32 classes
 class Prog:
-    def __init__(s): s.nodes = [None, None]; s.cache = {}; s.inputs = {}
+    def __init__(s): s.nodes = [None]; s.cache = {}; s.inputs = {}
     def inp(s, name):
         if name not in s.inputs: s.nodes.append(('in', name)); s.inputs[name] = len(s.nodes) - 1
-        return s.inputs[name]
+        return (s.inputs[name], 0)
     def _mk(s, op, a, b=None):
         key = (op, a, b) if op == 'not' or b is None else (op,) + tuple(sorted((a, b)))
         if key not in s.cache: s.nodes.append(key); s.cache[key] = len(s.nodes) - 1
         return s.cache[key]
-    def not_(s, a):
-        if a < 2: return 1 - a
-        n = s.nodes[a]
-        return n[1] if n[0] == 'not' else s._mk('not', a)
+    def not_(s, a): return (a[0], a[1] ^ 1)
+    def _mat(s, a):
+        if a[0] == 0: return a[1]
+        return s._mk('not', a[0]) if a[1] else a[0]
     def xor(s, a, b):
-        if a == 0: return b
-        if b == 0: return a
-        if a == b: return 0
-        if a == 1: return s.not_(b)
-        if b == 1: return s.not_(a)
-        return s._mk('xor', a, b)
+        if a[0] == 0: return (b[0], b[1] ^ a[1])
+        if b[0] == 0: return (a[0], a[1] ^ b[1])
+        if a[0] == b[0]: return (0, a[1] ^ b[1])
+        return (s._mk('xor', a[0], b[0]), a[1] ^ b[1])
     def and_(s, a, b):
-        if a == 0 or b == 0: return 0
-        if a == 1: return b
-        if b == 1 or a == b: return a
-        return s._mk('and', a, b)
-    def or_(s, a, b):
-        if a == 1 or b == 1: return 1
-        if a == 0: return b
-        if b == 0 or a == b: return a
-        return s._mk('or', a, b)
-    def add(s, x, y, cin=0, n=32):
-        """ripple addition of two bit lists (LSB first), n result bits"""
-        out = []; c = cin
-        for j in range(n):
-            t = s.xor(x[j], y[j]); out.append(s.xor(t, c))
-            c = s.or_(s.and_(x[j], y[j]), s.and_(c, t))
-        return out
+        if a[0] == 0: return b if a[1] else (0, 0)
+        if b[0] == 0: return a if b[1] else (0, 0)
+        if a == b: return a
+        if a[0] == b[0] and a[1] != b[1]: return (0, 0)
+        if a[1] and b[1]: return (s._mk('or', a[0], b[0]), 1)
+        return (s._mk('and', s._mat(a), s._mat(b)), 0)
+    def or_(s, a, b): return s.not_(s.and_(s.not_(a), s.not_(b)))
+    def ha(s, x, y):
+        sm = s.xor(x, y)
+        if x[0] != 0 and y[0] != 0 and x[1] != y[1]:
+            pos = y if x[1] else x
+            return sm, (s._mk('and', sm[0], pos[0]), 0)
+        return sm, s.and_(x, y)
+    def fa(s, x, y, z):
+        if x[0] == 0 and x[1] == 0: return s.ha(y, z)
+        if y[0] == 0 and y[1] == 0: return s.ha(x, z)
+        if z[0] == 0 and z[1] == 0: return s.ha(x, y)
+        if x[0] == 0 and x[1] == 1: return s.not_(s.xor(y, z)), s.or_(y, z)
+        if y[0] == 0 and y[1] == 1: return s.not_(s.xor(x, z)), s.or_(x, z)
+        if z[0] == 0 and z[1] == 1: return s.not_(s.xor(x, y)), s.or_(x, y)
+        if x[1] == y[1]: p, q, r = x, y, z
+        elif x[1] == z[1]: p, q, r = x, z, y
+        else: p, q, r = y, z, x
+        t = s.xor(p, q); u = s.xor(p, r) if p[1] == r[1] else s.xor((p[0], 0), (r[0], 0))
+        return s.xor(t, r), s.xor(p if p[1] == r[1] else q, s.and_(t, u))
 
-def build_e16(cbits, nlane):
-    """cbits[j]: 'L' (lane-varying bit of a0), 'C' (class constant, input), 0 or 1 (folded).  Returns (Prog, ok node)."""
-    p = Prog()
-    a0 = [p.inp('A%d' % j) if cbits[j] == 'L' else p.inp('C%d' % j) if cbits[j] == 'C' else cbits[j] for j in range(32)]
-    bc = lambda nm: [p.inp('%s%d' % (nm, j)) for j in range(32)]
-    HH, PP, QQ, EF, FF, K1, KP = (bc(n) for n in ('HH', 'PP', 'QQ', 'EF', 'FF', 'K1', 'KP'))
-    rot = lambda w, r: [w[(j + r) % 32] for j in range(32)]
-    x3 = lambda u, v, w: [p.xor(p.xor(u[j], v[j]), w[j]) for j in range(32)]
-    E0 = p.add(a0, HH)
-    # bit-interleaved: at bit j the four operands of T = S0(a0) + MAJ + S1(E0) + CH, the three adders of T and the subtraction K1 - T
-    c = [0, 0, 0, 1]; T1 = []; W1 = []
-    def fa(x, y, ci):
-        t = p.xor(x, y); return p.xor(t, ci), p.or_(p.and_(x, y), p.and_(ci, t))
-    for j in range(32):
-        sa = p.xor(p.xor(a0[(j + 2) % 32], a0[(j + 13) % 32]), a0[(j + 22) % 32])
-        mj = p.or_(PP[j], p.and_(a0[j], QQ[j]))
-        ss = p.xor(p.xor(E0[(j + 6) % 32], E0[(j + 11) % 32]), E0[(j + 25) % 32])
-        cv = p.xor(FF[j], p.and_(E0[j], EF[j]))
-        u, c[0] = fa(sa, mj, c[0]); v, c[1] = fa(ss, cv, c[1]); t, c[2] = fa(u, v, c[2])
-        w, c[3] = fa(K1[j], p.not_(t), c[3]); W1.append(w)
-    n = max(TBITS) + 1; d = [0, 0]; ok = 1
-    for j in range(n):
-        s0w = p.xor(p.xor(W1[(j + 7) % 32], W1[(j + 18) % 32]), W1[j + 3] if j + 3 < 32 else 0)
-        u, d[0] = fa(KP[j], a0[j], d[0]); e, d[1] = fa(u, s0w, d[1])
-        if j in TBITS: ok = p.and_(ok, e if (R16[0] >> j) & 1 else p.not_(e))
-    return p, ok
+def xor3(p, a, b, c):
+    for x, y, z in ((a, b, c), (a, c, b), (b, c, a)):
+        if x[0] and y[0] and ('xor', min(x[0], y[0]), max(x[0], y[0])) in p.cache: return p.xor(p.xor(x, y), z)
+    return p.xor(p.xor(a, b), c)
+
+def reduce_col(p, col, nxt_col, last=False):
+    """Carry-save reduction of one bit column col to a single wire, pairing same-polarity wires and pushing carries to nxt_col."""
+    col = [x for x in col if not (x[0] == 0 and x[1] == 0)]
+    while sum(1 for x in col if x == (0, 1)) >= 2:
+        col.remove((0, 1)); col.remove((0, 1))
+        if nxt_col is not None: nxt_col.append((0, 1))
+    def pop_pair(arr):
+        for i in range(len(arr)):
+            for j in range(i + 1, len(arr)):
+                if arr[i][0] != 0 and arr[j][0] != 0 and arr[i][1] == arr[j][1]:
+                    y = arr.pop(j); x = arr.pop(i); return x, y
+        return arr.pop(0), arr.pop(0)
+    while len(col) > 1:
+        c1 = [x for x in col if x == (0, 1)]; vs = [x for x in col if x != (0, 1)]
+        if len(col) == 2:
+            a, b = col.pop(0), col.pop(0)
+            if last: col.append(p.xor(a, b)); break
+            sm, cy = p.ha(a, b); col.append(sm)
+            if nxt_col is not None: nxt_col.append(cy)
+        elif c1 and len(vs) >= 2:
+            col.remove((0, 1)); x, y = pop_pair(col)
+            if last and not col: col.append(xor3(p, (0, 1), x, y)); break
+            sm, cy = p.fa((0, 1), x, y); col.append(sm)
+            if nxt_col is not None: nxt_col.append(cy)
+        elif not c1 and len(vs) % 2 == 0 and len(vs) >= 2:
+            x, y = pop_pair(col); sm, cy = p.ha(x, y); col.append(sm)
+            if nxt_col is not None: nxt_col.append(cy)
+        else:
+            a, b, c = col.pop(0), col.pop(0), col.pop(0)
+            if last and not col: col.append(xor3(p, a, b, c)); break
+            sm, cy = p.fa(a, b, c); col.append(sm)
+            if nxt_col is not None: nxt_col.append(cy)
+    return col[0] if col else (0, 0)
+
+def s0_cols_y(ci):
+    """columns j in 5..W1_BITS-1 (except 18, absorbed in class_planes) where all three bits of S0(a0)[j] lie outside (mk & 0x1fffcf) | 0x30"""
+    mk = CLASSES[ci][2]; m2 = (mk & 0x1fffcf) | 0x30
+    return [j for j in range(5, W1_BITS) if j != 18 and not any((m2 >> ((j + r) % 32)) & 1 for r in (2, 13, 22))]
+
+def s0_mask_y(ci): return sum(1 << j for j in s0_cols_y(ci))
+
+def cbits(ci, g1=0x10):
+    """per-(class, g1) program inputs: 'L' on (mk & 0x1fffcf) | (mk & 0xffe00000), correlated planes on 11, 16, 22, 28, g1 on 4..5, base elsewhere"""
+    c7, base, mk = CLASSES[ci]; mlk = mk & 0x1fffcf; mhi = mk & 0xffe00000
+    cb = ['L' if ((mlk | mhi) >> j) & 1 else ((g1 >> j) & 1 if j in (4, 5) else (base >> j) & 1) for j in range(32)]
+    cb[11] = ('A10', 1); cb[22] = ('A21', 0); cb[28] = ('A27', 1 if (ci % 16) in (0, 2, 4, 6) else 0)
+    if (ci % 16) in (8, 9, 10, 11): cb[16] = ('A1', 1)
+    return cb
+
+def build_e16(ci, g1=0x10):
+    """row-16 filter DAG for class ci and sub-batch g1 in (0x10, 0x20, 0x30).  Returns (Prog, ok node)."""
+    cb = cbits(ci, g1); p = Prog()
+    def a0_wire(c, j):
+        if c == 'L': return p.inp('A%d' % j)
+        if isinstance(c, tuple): w = p.inp(c[0]); return p.not_(w) if c[1] else w
+        return (0, c)
+    a0 = [a0_wire(cb[j], j) for j in range(32)]
+    mk = CLASSES[ci][2]; rem_mask = (mk & 0x1fffcf) | 0x30
+    a0z = [a0[j] if (rem_mask >> j) & 1 else (0, 0) for j in range(32)]
+    a0e = list(a0z); a0e[10] = a0[11]; a0e[11] = (0, 0)
+    bc = lambda nm, n=32: [p.inp('%s%d' % (nm, j)) for j in range(n)]
+    HH = bc('HH', 32); EF, FF, K1 = (bc(nm, W1_BITS) for nm in ('EF', 'FF', 'K1'))
+    AB = [p.inp('AB%d' % j) if (AB_MASK >> j) & 1 else (0, 0) for j in range(W1_BITS)]
+    KP = bc('KP', KP_BITS)
+    ec = [[] for _ in range(32)]; E0 = [None] * 32; e0_idx = 0
+    def get_e0(m):
+        nonlocal e0_idx
+        while e0_idx <= m:
+            k = e0_idx; ec[k].extend([a0e[k], HH[k]])
+            E0[k] = reduce_col(p, ec[k], ec[k + 1] if k + 1 < 32 else None, last=(k == 31)); e0_idx += 1
+        return E0[m]
+    cols = [[] for _ in range(W1_BITS)]; W1 = []; u = {}; ecols = [[] for _ in range(KP_BITS)]
+    ok0 = (0, 1); ok1 = (0, 1); tset = set(TBITS); s0z = set(s0_cols_y(ci)) | {18}; ch_bits = 1 if (mk >> 1) & 1 else 2
+    def step_e16(k, s0w):
+        nonlocal ok0, ok1
+        ecols[k].extend([KP[k], a0e[k], s0w])
+        e = reduce_col(p, ecols[k], ecols[k + 1] if k + 1 < KP_BITS else None, last=(k == HI_BIT))
+        if k in tset:
+            b = e if (R16[0] >> k) & 1 else p.not_(e)
+            if b[1] == 0: ok0 = p.and_(ok0, b)
+            else: ok1 = p.and_(ok1, b)
+    for j in range(W1_BITS):
+        e0_j = get_e0(j); e0_6 = get_e0((j + 6) % 32); e0_11 = get_e0((j + 11) % 32); e0_25 = get_e0((j + 25) % 32)
+        ss = xor3(p, e0_6, e0_11, e0_25); cv = (0, 0) if j < ch_bits else p.xor(FF[j], p.and_(e0_j, EF[j]))
+        sa = (0, 0) if j in s0z else xor3(p, a0[(j + 2) % 32], a0[(j + 13) % 32], a0[(j + 22) % 32]); mj = p.and_(a0z[j], AB[j])
+        cols[j].extend([K1[j], sa, mj, ss, cv])
+        nw1 = reduce_col(p, cols[j], cols[j + 1] if j + 1 < W1_BITS else None, last=(j == W1_BITS - 1)); W1.append(p.not_(nw1))
+        if 7 <= j <= 7 + HI_BIT: k = j - 7; u[k] = p.xor(W1[k + 3], W1[k + 7])
+        if 18 <= j <= 18 + HI_BIT: k = j - 18; step_e16(k, p.xor(u.pop(k), W1[j]))
+    return p, p._mat(p.and_(ok0, ok1))
 
 def schedule(p, root, nreg=64):
     """Belady allocation of the nodes root depends on, in creation order: instruction list [(op, dst, src...)] with 'ld' (input or spill
     slot), 'st' (spill), 'xor', 'and', 'or', 'not', 'out'; returns (instructions, spill slots used)."""
+    if isinstance(root, tuple): root = p._mat(root)
     need = set(); st = [root]
     while st:
         x = st.pop()
-        if x < 2 or x in need: continue
+        if x < 1 or x in need: continue
         need.add(x); n = p.nodes[x]
         if n[0] != 'in': st.extend(n[1:] if n[0] != 'not' else n[1:2])
-    order = [x for x in range(2, len(p.nodes)) if x in need and p.nodes[x][0] != 'in']
+    order = [x for x in range(1, len(p.nodes)) if x in need and p.nodes[x][0] != 'in']
     uses = {}
     for t, x in enumerate(order):
         n = p.nodes[x]
         for o in (n[1:] if n[0] != 'not' else n[1:2]):
-            if o >= 2: uses.setdefault(o, []).append(t)
+            if o >= 1: uses.setdefault(o, []).append(t)
     uses.setdefault(root, []).append(len(order))
     ptr = {x: 0 for x in uses}
     def nxt(x):
@@ -241,7 +324,7 @@ def schedule(p, root, nreg=64):
     reg = {}; free = list(range(nreg)); inmem = set(x for x in need if p.nodes[x][0] == 'in'); slots = {}; ins = []; maxslot = 0
     def evict(t, keep):
         nonlocal maxslot
-        v = max((x for x in reg if x not in keep), key=nxt)
+        v = max((x for x in reg if x not in keep), key=lambda x: (x in inmem, nxt(x)))
         if nxt(v) < (1 << 40) and v not in inmem:
             if v not in slots: slots[v] = len(slots); maxslot = max(maxslot, len(slots))
             ins.append(('st', ('S', slots[v]), reg[v])); inmem.add(v)
@@ -256,18 +339,15 @@ def schedule(p, root, nreg=64):
     CONST = {0: 'Z', 1: 'O'}
     for t, x in enumerate(order):
         n = p.nodes[x]; ops = n[1:] if n[0] != 'not' else n[1:2]
-        keep = set(o for o in ops if o >= 2)
-        rs = []
+        keep = set(o for o in ops if o >= 1)
+        rs = [CONST[o] if o < 1 else load(o, t, keep) for o in ops]
         for o in ops:
-            if o < 2: rs.append(CONST[o])
-            else: rs.append(load(o, t, keep))
-        for o in ops:
-            if o >= 2: ptr[o] += 1
-        dead = [o for o in ops if o >= 2 and nxt(o) >= (1 << 40) and o in reg]
+            if o >= 1: ptr[o] += 1
+        dead = [o for o in ops if o >= 1 and nxt(o) >= (1 << 40) and o in reg]
         if dead: r = reg.pop(dead[0]); [free.append(reg.pop(d)) for d in dead[1:] if d in reg]
         else: r = getreg(t, keep)
         ins.append((n[0], r) + tuple(rs)); reg[x] = r
-    ins.append(('out', reg[root] if root >= 2 else CONST[root]))
+    ins.append(('out', reg[root] if root >= 1 else CONST[root]))
     return ins, maxslot
 
 def run_prog(ins, inputs):
@@ -287,8 +367,8 @@ def run_prog(ins, inputs):
 # ---- counted scalar routines (proof.md Section 7.1) ----
 # Machine: 256-bit word RAM; every executed primitive counts 1 (add, sub, and, or, xor, not, shl, shr, ld, st, li, rand), a compare-and-branch
 # counts 2, one target compression counts 1 unit.  32-bit values are reduced with one AND where the program needs a masked value.  The
-# routines below are written with the counting primitives of Mach and executed; broadcast, lane_value, first_lane, r16test, step_m and deep add
-# itemised declared counts (stated in their docstrings) instead of counting each primitive (the `calibrate` command).
+# routines below are written with the counting primitives of Mach and executed; broadcast, class_planes, y_planes, first_lane, r16test, step_m
+# and deep add itemised declared counts (stated in their docstrings) instead of counting each primitive (the `calibrate` command).
 class Mach:
     def __init__(s): s.ops = 0; s.units = 0
     def op(s, v, n=1): s.ops += n; return v
@@ -318,42 +398,44 @@ def w7test(m, c7, a):
     return m.br(d == T7)
 
 def fb_scalars(m, cv):
-    """per first block: HH, PP, QQ, EF, FF, K1, KP of the program (Lemma 4.1) and A1-independent words"""
+    """per first block: HH, AB, EF, FF, K1, KP of the program (Lemma 4.1, with A0_ADD = 0x400 absorbed; 36 operations)"""
     a, b, c, d, e, f, g, h = cv
-    hh = m.and_(m.sub(m.sub(d, S0m(m, a)), MAJm(m, a, b, c)), M)
-    kw0 = m.and_(m.sub(m.sub(m.sub(m.sub(m.sub(hh, d), h), S1m(m, e)), CHm(m, e, f, g)), K[0]), M)
-    sc = dict(HH=hh, PP=m.and_(a, b), QQ=m.or_(a, b), EF=m.xor(e, f), FF=f, K1=m.and_(m.sub(KK1, g), M), KP=m.and_(m.add(KKP, kw0), M))
-    return sc
-KK1 = (SAx[1] - K[1]) & M                                          # K1 = A1 - g - K1
-KKP = (C16 + s1(PMX[14]) + PMX[9]) & M                            # KP = C16 + s1(W14) + W9 + (W0 - a0)
+    ab = m.xor(a, b); anb = m.and_(a, b)
+    sm = m.add(S0m(m, a), m.or_(anb, m.and_(c, ab)))
+    hh = m.and_(m.sub(m.add(d, A0_ADD), sm), M)
+    kp = m.and_(m.sub(m.sub(m.sub(m.sub(KKP0, sm), h), S1m(m, e)), CHm(m, e, f, g)), M)
+    k1 = m.and_(m.add(m.add(KK1_N, g), anb), M)
+    return dict(HH=hh, AB=ab, EF=m.xor(e, f), FF=f, K1=k1, KP=kp)
+KK1 = (SAx[1] - K[1]) & M; KK1_N = (~KK1) & M                       # K1 = ~KK1 + g + (a & b)
+KKP = (C16 + s1(PMX[14]) + PMX[9] + A0_ADD) & M; KKP0 = (KKP - K[0]) & M
 PLANE_OPS = 4                                                       # one broadcast plane: shift, and, negate, store
 
 def broadcast(m, sc):
-    """the 7 x 32 broadcast planes (plane j = 0 - ((x >> j) & 1)); 4 operations each"""
-    out = {}
-    for nm, v in sc.items():
-        for j in range(32): out['%s%d' % (nm, j)] = ONES if (v >> j) & 1 else 0
-    m.ops += PLANE_OPS * 32 * len(sc); return out
+    """per-first-block broadcast planes independent of class: 13 AB + 27 EF[1..27] + 27 FF[1..27] = 67 planes; 4 ops each (268 operations)"""
+    out = {}; nplanes = 0
+    for j in range(W1_BITS):
+        if (AB_MASK >> j) & 1: out['AB%d' % j] = ONES if (sc['AB'] >> j) & 1 else 0; nplanes += 1
+        if j >= 1:
+            out['EF%d' % j] = ONES if (sc['EF'] >> j) & 1 else 0; nplanes += 1
+            out['FF%d' % j] = ONES if (sc['FF'] >> j) & 1 else 0; nplanes += 1
+    m.ops += PLANE_OPS * nplanes; return out
 
-def lane_value(m, planes, L, cmask, base):
-    """a0 of lane L from the stored planes of the varying bits: per bit one shift, and, shift-left, or (4), plus the class base (1)"""
-    v = base
-    for j in range(32):
-        if (cmask >> j) & 1:
-            v |= ((planes[j] >> L) & 1) << j
-    m.ops += 4 * bin(cmask).count('1') + 1; return v
+def lane_value(m, lanes, L, b0):
+    """a0 of lane L from the 256-word low-part table of the class (one load) ORed with the sub-batch constant b0 = c_lo | y | g1 (2 ops)"""
+    return m.or_(m.ld(lanes[L]), b0)
 
 def first_lane(m, ok):
     """lowest set lane of a nonzero 256-bit word: binary search, 8 steps of (and, compare-and-branch, shift) = 32 operations"""
     m.ops += 32; return (ok & -ok).bit_length() - 1
 
 def scalar_e16(m, sc, a0):
-    """E16x of one variant (Lemma 4.1): E0, S0(a0), MAJ, S1(E0), CH, W1, s0(W1), E16x"""
-    e0 = m.and_(m.add(a0, sc['HH']), M)
-    mj = m.or_(sc['PP'], m.and_(a0, sc['QQ']))
+    """E16x of one variant (Lemma 4.1): ae = a0 - 0x400, E0, S0(a0), MAJ, S1(E0), CH, ~W1, s0(W1), E16x; 38 operations"""
+    ae = m.sub(a0, A0_ADD)
+    e0 = m.and_(m.add(ae, sc['HH']), M)
+    mj = m.and_(a0, sc['AB'])
     ch = m.xor(sc['FF'], m.and_(e0, sc['EF']))
-    w1 = m.and_(m.sub(m.sub(m.sub(m.sub(sc['K1'], S0m(m, a0)), mj), S1m(m, e0)), ch), M)
-    return m.and_(m.add(m.add(sc['KP'], a0), s0m(m, w1)), M)
+    nw1 = m.add(m.add(m.add(m.add(sc['K1'], S0m(m, a0)), mj), S1m(m, e0)), ch)
+    return m.and_(m.add(m.add(sc['KP'], ae), s0m(m, m.xor(nw1, M))), M)
 
 def r16test(m, e):
     """E16x in the 160-word row-16 set: binary search in the sorted table (8 steps of load, compare-and-branch, shift: 5 each) + 2"""
@@ -385,43 +467,71 @@ def deep(m, cv, a0):
     return all(tx[k][i] == ty[k][i] for k in (0, 1) for i in range(34, 38))
 
 # ---- the online algorithm on one first block (proof.md Section 6) ----
-def cbits(ci):
-    """per-class program inputs: 'L' (a plane) on the class's own mask bits, elsewhere the class's base bit as a constant"""
-    c7, base, mk = CLASSES[ci]
-    return ['L' if (mk >> j) & 1 else (base >> j) & 1 for j in range(32)]
 _PROG = {}
-def program(ci=0):
-    """the row-16 plane program of class ci (one per distinct mask and base bits outside it; constants folded)"""
-    key = tuple(cbits(ci))
+def program(ci=0, g1=0x10):
+    """the row-16 plane program of class ci and sub-batch g1 in (0x10, 0x20, 0x30)"""
+    key = (ci, g1)
     if key not in _PROG:
-        p, ok = build_e16(list(key), 256); _PROG[key] = schedule(p, ok)[0]
+        p, ok = build_e16(ci, g1); _PROG[key] = schedule(p, ok)[0]
     return _PROG[key]
-BATCH_CTL = 6          # per batch: ok test (compare-and-branch 2) and pointer advance, compare and branch (4)
-CLASS_CTL = 3 + 4      # per passing class: setup 3 (batch pointer, end pointer, class constants) and end of class (work counter, cap test) 4
+BATCH_CTL = 6          # per sub-batch: ok test (compare-and-branch 2) and sub-batch pointer advance, compare and branch (4)
+Y_CTL = 4              # per y-group: advance y pointer, compare and branch
+CLASS_CTL = 3 + 4      # per passing class: setup 3 (y pointer, end pointer, class constants) and end of class (work counter, cap test) 4
 LANE_CTL = 3           # per passing lane: clear the lane (xor) and the loop test (compare-and-branch)
 FB_FIXED = 30 + 5      # per first block: two random words and their 16 fields (30), counter, cap test and hit-list test (5)
 W7_LOOP = 4            # per class: load c7, advance the class pointer, compare and branch
 
-def batch_planes(mem):
-    """the stored planes of a batch: plane j = bits j of the 256 variants (lane L = variant L)"""
-    return {j: sum(((x >> j) & 1) << L for L, x in enumerate(mem)) for j in range(32)}
+_CLS = {}
+def class_info(ci):
+    """precomputed tables of class ci: (c_lo, hi[32], lanes[256], low-part lane planes, per-y high-part planes)"""
+    if ci not in _CLS:
+        c7, base, mk = CLASSES[ci]; mlk = mk & 0x1fffcf; mhi = mk & 0xffe00000; c_lo = base & ~mk & 0x1fffff; blo = base & 0x1fffcf; bhi = base & 0xffe00000
+        lanes = [x & mlk for t in range(1 << bin(mlk).count('1')) if in_G(bhi | 0x10 | (x := blo ^ dep(t, mlk))) and c7of(bhi | 0x10 | x) == c7]
+        l0 = c_lo | 0x10 | lanes[0]
+        hi = [y for t in range(1 << bin(mhi).count('1')) if in_G((y := bhi ^ dep(t, mhi)) | l0) and c7of(y | l0) == c7]
+        cb = cbits(ci, 0x10)
+        lplanes = {'A%d' % j: sum(((x >> j) & 1) << L for L, x in enumerate(lanes)) for j in range(21) if cb[j] == 'L'}
+        yplanes = [{'A%d' % j: (ONES if (y >> j) & 1 else 0) for j in range(21, 32) if cb[j] == 'L'} for y in hi]
+        _CLS[ci] = (c_lo, hi, lanes, lplanes, yplanes)
+    return _CLS[ci]
 
-def process_batch(m, ins, inp, planes, ci, cv, sc, found):
-    """one batch of one passing class: the plane program, then every passing lane in scalar form; row-16 passes go to the deep check"""
-    mk = CLASSES[ci][2]
-    for j in range(32):
-        if (mk >> j) & 1: inp['A%d' % j] = planes[j]
+def class_planes(m, inp, sc, ci):
+    """per-passing-class setup: absorb c_lo into HH[0..20], KP[0..9] and K1[0..4] (including S0[18], MAJ_lo and CH[0..ch_bits-1]); 12 scalar + 36 planes = 156 ops"""
+    c_lo, hi, lanes, lplanes, _ = class_info(ci); inp.update(lplanes)
+    c7, base, mk = CLASSES[ci]
+    hh_lo = m.and_(m.add(sc['HH'], c_lo), M)
+    kp_lo = m.and_(m.add(sc['KP'], c_lo), M)
+    s0_18 = (((base >> 31) & 1) ^ 1) << 18
+    ch_mask = 1 if (mk >> 1) & 1 else 3
+    ch_lo = m.and_(m.xor(sc['FF'], m.and_(hh_lo, sc['EF'])), ch_mask)
+    k1_lo = m.and_(m.add(m.add(m.add(sc['K1'], s0_18), m.and_(c_lo, sc['AB'])), ch_lo), M)
+    for j in range(21): inp['HH%d' % j] = ONES if (hh_lo >> j) & 1 else 0
+    for j in range(KP_BITS): inp['KP%d' % j] = ONES if (kp_lo >> j) & 1 else 0
+    for j in range(5): inp['K1%d' % j] = ONES if (k1_lo >> j) & 1 else 0
+    m.ops += PLANE_OPS * (21 + KP_BITS + 5); return hh_lo, k1_lo
+
+def y_planes(m, inp, sc, ci, hh_lo, k1_lo, y, ypl):
+    """per-y setup (once per 3 sub-batches = 768 lanes): absorb y into HH[21..31] and K1[5..27] (including S0(c_lo | y) on s0_cols_y); 16 scalar + 34 planes = 152 ops"""
+    inp.update(ypl); c_lo = class_info(ci)[0]
+    hh_y = m.and_(m.add(hh_lo, y), M)
+    cy = m.or_(c_lo, y); s0_term = m.and_(S0m(m, cy), s0_mask_y(ci))
+    k1_y = m.and_(m.add(m.add(k1_lo, m.and_(y, sc['AB'])), s0_term), M)
+    for j in range(21, 32): inp['HH%d' % j] = ONES if (hh_y >> j) & 1 else 0
+    for j in range(5, W1_BITS): inp['K1%d' % j] = ONES if (k1_y >> j) & 1 else 0
+    m.ops += PLANE_OPS * (11 + (W1_BITS - 5))
+
+def process_batch(m, ins, inp, lanes, b0, cv, sc, found):
+    """one (y, g1) sub-batch of one passing class: the plane program, then every passing lane in scalar form; row-16 passes go to the deep check"""
     ok, n = run_prog(ins, inp); m.ops += n + BATCH_CTL
     while ok:
         L = first_lane(m, ok); ok &= ok - 1; m.ops += LANE_CTL
-        a0 = lane_value(m, planes, L, mk, CLASSES[ci][1] & ~mk & M)
+        a0 = lane_value(m, lanes, L, b0)
         e = scalar_e16(m, sc, a0)
         if r16test(m, e) and deep(m, cv, a0): found.append(a0)
     return found
 
-def process_fb(m, cv, batches_of, check=None):
-    """one first block with chaining value cv: the W7 tests of all classes; for each passing class all its batches (batches_of(ci) yields
-    the member lists).  Returns the accepted variants found.  check(ci, mem, ok-plane-recomputation) may verify lanes."""
+def process_fb(m, cv):
+    """one first block with chaining value cv: the W7 tests of all classes; for each passing class all 32 y-groups x 3 g1 sub-batches."""
     m.ops += FB_FIXED
     hits = []
     for ci, (c7, base, mk) in enumerate(CLASSES):
@@ -431,9 +541,13 @@ def process_fb(m, cv, batches_of, check=None):
     if not hits: return found, hits
     sc = fb_scalars(m, cv); inp = broadcast(m, sc)
     for ci in hits:
-        m.ops += CLASS_CTL; ins = program(ci)
-        for mem in batches_of(ci):
-            process_batch(m, ins, inp, batch_planes(mem), ci, cv, sc, found)
+        m.ops += CLASS_CTL; c_lo, hi, lanes, lplanes, yplanes = class_info(ci)
+        hh_lo, k1_lo = class_planes(m, inp, sc, ci)
+        progs = [program(ci, g1) for g1 in G1_VALS]
+        for yi, y in enumerate(hi):
+            m.ops += Y_CTL; y_planes(m, inp, sc, ci, hh_lo, k1_lo, y, yplanes[yi])
+            for gi, g1 in enumerate(G1_VALS):
+                process_batch(m, progs[gi], inp, lanes, c_lo | y | g1, cv, sc, found)
     return found, hits
 
 # ---- organizer experiments (proof.md Section 13).  Randomness: SHAKE-256 of (experiment id | trial seed) ----
@@ -614,28 +728,28 @@ def online_experiment(req):
             cv = compress(IV, M0); m = Mach()
             hits = [ci for ci, (c7, b, mk) in enumerate(CLASSES) if inF7((c7 - cv[0]) & M)]
             if hits: break
-        bad = 0; lanes = 0; passed = 0
+        bad = 0; lanes_n = 0; passed = 0
         if hits:
-            ci = hits[0]; mem = members(ci, 512)
-            sc = fb_scalars(m, cv); inp = broadcast(m, sc); ins = program(ci); mk = CLASSES[ci][2]
+            ci = hits[0]; c_lo, hi, lanes, lplanes, yplanes = class_info(ci)
+            sc = fb_scalars(m, cv); inp = broadcast(m, sc)
+            hh_lo, k1_lo = class_planes(m, inp, sc, ci)
+            y_planes(m, inp, sc, ci, hh_lo, k1_lo, hi[0], yplanes[0])
             for b in range(2):
-                bm = mem[256 * b:256 * b + 256]; planes = batch_planes(bm)
-                for j in range(32):
-                    if (mk >> j) & 1: inp['A%d' % j] = planes[j]
-                ok, n = run_prog(ins, inp)
-                for L, a0 in enumerate(bm):
+                g1 = G1_VALS[b]; ok, n = run_prog(program(ci, g1), inp); b0 = c_lo | hi[0] | g1
+                for L in range(256):
+                    a0 = lane_value(Mach(), lanes, L, b0)
                     wx = words(cv, a0)[0]; e = trace(cv, wx, 17)[1][16]
                     want = all(((e >> j) & 1) == ((R16[0] >> j) & 1) for j in TBITS)
-                    bad += want != bool((ok >> L) & 1) or wx[7] != (CLASSES[ci][0] - cv[0]) & M or not inF7(wx[7]); lanes += 1; passed += want
+                    bad += want != bool((ok >> L) & 1) or wx[7] != (CLASSES[ci][0] - cv[0]) & M or not inF7(wx[7]); lanes_n += 1; passed += want
             if not bad:
-                wx, wy = words(cv, mem[0])
+                wx, wy = words(cv, c_lo | hi[0] | G1_VALS[0] | lanes[0])
                 rec['message_a_hex'] = struct.pack('>32I', *(M0 + wx)).hex(); rec['message_b_hex'] = struct.pack('>32I', *(M0 + wy)).hex()
         if tr['trial'] == 0:                                               # positive lanes: the batch of the semi-free-start pair's variant
-            ci = class_of(A0S); mem = members(ci, 256)
-            if A0S not in mem: mem[17] = A0S
+            ci = class_of(A0S); c_lo, hi, lanes, lplanes, yplanes = class_info(ci); yi = hi.index(A0S & 0xffe00000); g1 = A0S & 0x30
             m2 = Mach(); sc2 = fb_scalars(m2, PCV); inp2 = broadcast(m2, sc2); fnd = []
-            process_batch(m2, program(ci), inp2, batch_planes(mem), ci, PCV, sc2, fnd); bad += A0S not in fnd
-        rec['observations'] = dict(uncond_first_blocks=UNCOND_FB, uncond_class_passes=un, first_blocks=k + 1, passing_classes=len(hits), lanes=lanes, stage3a_passes=passed, mismatches=bad)
+            hh_lo, k1_lo = class_planes(m2, inp2, sc2, ci); y_planes(m2, inp2, sc2, ci, hh_lo, k1_lo, hi[yi], yplanes[yi])
+            process_batch(m2, program(ci, g1), inp2, lanes, c_lo | hi[yi] | g1, PCV, sc2, fnd); bad += A0S not in fnd
+        rec['observations'] = dict(uncond_first_blocks=UNCOND_FB, uncond_class_passes=un, first_blocks=k + 1, passing_classes=len(hits), lanes=lanes_n, stage3a_passes=passed, mismatches=bad)
         out.append(rec)
     return dict(schema_version=1, trials=out)
 
@@ -645,13 +759,17 @@ def calibrate():
     rr = random.Random(9); m = Mach(); cv = [rr.getrandbits(32) for _ in range(8)]
     w7 = []
     for _ in range(200): m = Mach(); w7test(m, rr.getrandbits(32), rr.getrandbits(32)); w7.append(m.ops)
-    m = Mach(); sc = fb_scalars(m, cv); n_sc = m.ops; m = Mach(); broadcast(m, sc); n_bc = m.ops
-    m = Mach(); a0 = members(0, 1)[0]; lane_value(m, {j: 0 for j in range(32)}, 0, max((c[2] for c in CLASSES), key=lambda x: bin(x).count('1')), 0); n_lv = m.ops
+    m = Mach(); sc = fb_scalars(m, cv); n_sc = m.ops; m = Mach(); inp = broadcast(m, sc); n_bc = m.ops
+    m = Mach(); hh_lo, k1_lo = class_planes(m, inp, sc, 0); n_cp = m.ops
+    c_lo, hi, lanes, lplanes, yplanes = class_info(0)
+    m = Mach(); y_planes(m, inp, sc, 0, hh_lo, k1_lo, hi[0], yplanes[0]); n_yp = m.ops
+    m = Mach(); a0 = members(0, 1)[0]; lane_value(m, lanes, 0, c_lo | hi[0] | 0x10); n_lv = m.ops
     m = Mach(); scalar_e16(m, sc, a0); n_e16 = m.ops
     m = Mach(); deep(m, PCV, A0S); n_deep = m.ops
-    progs = [len(program(ci)) - 1 for ci in range(len(CLASSES))]
-    return dict(prog=progs, w7=max(w7), fb_fixed=FB_FIXED, w7_loop=W7_LOOP, scalars=n_sc, planes=n_bc, batch_ctl=BATCH_CTL,
-                class_ctl=CLASS_CTL, lane=32 + LANE_CTL + n_lv + n_e16 + 42, deep=n_deep, tk=TK, classes=len(CLASSES), class_size=CLASS_SIZE)
+    progs = [[len(program(ci, g1)) - 1 for g1 in G1_VALS] for ci in range(len(CLASSES))]
+    return dict(prog=progs, w7=max(w7), fb_fixed=FB_FIXED, w7_loop=W7_LOOP, scalars=n_sc, planes=n_bc, class_ctl=CLASS_CTL,
+                class_planes=n_cp, y_planes=n_yp, y_ctl=Y_CTL, batch_ctl=BATCH_CTL, lane=32 + LANE_CTL + n_lv + n_e16 + 42,
+                deep=n_deep, tk=TK, classes=len(CLASSES), class_size=CLASS_SIZE)
 
 def selftest():
     import random
@@ -675,14 +793,14 @@ def selftest():
         bad += any(((wy[i] - wx[i]) & M) != DWT[i] for i in range(16))
     chk('3 Lemma 4.1: E16x formula, W7 = c7 - A_-1, rows 11..15 and the word differences on 20 chaining values', bad == 0)
     from collections import Counter
-    cnt = [(len(p) - 1, Counter(i[0] for i in p)) for p in (program(ci) for ci in range(len(CLASSES)))]
-    chk('4 row-16 programs (one per class): instructions mean / max, loads, spill stores', True, '%.2f / %d (loads %d..%d, stores %d..%d)' % (
+    cnt = [(len(p) - 1, Counter(i[0] for i in p)) for ci in range(len(CLASSES)) for p in (program(ci, g1) for g1 in G1_VALS)]
+    chk('4 row-16 programs (96 (class, g1) pairs): instructions mean / max, loads, spill stores', True, '%.2f / %d (loads %d..%d, stores %d..%d)' % (
         sum(n for n, _ in cnt) / len(cnt), max(n for n, _ in cnt), min(c['ld'] for _, c in cnt), max(c['ld'] for _, c in cnt), min(c['st'] for _, c in cnt), max(c['st'] for _, c in cnt)))
     r = online_experiment(dict(experiment_id='a0p-online-r38', trials=[dict(trial=t, seed='%064x' % t) for t in range(2)]))
     chk('  program against the definition on 2 x 512 lanes of real first blocks', all(t['observations']['mismatches'] == 0 for t in r['trials']), str([t['observations'] for t in r['trials']]))
-    ci = class_of(A0S); mem = members(ci, 256); found = []
-    if A0S not in mem: mem[17] = A0S
-    m = Mach(); sc = fb_scalars(m, PCV); inp = broadcast(m, sc); process_batch(m, program(ci), inp, batch_planes(mem), ci, PCV, sc, found)
+    ci = class_of(A0S); c_lo, hi, lanes, lplanes, yplanes = class_info(ci); yi = hi.index(A0S & 0xffe00000); g1 = A0S & 0x30; found = []
+    m = Mach(); sc = fb_scalars(m, PCV); inp = broadcast(m, sc); hh_lo, k1_lo = class_planes(m, inp, sc, ci); y_planes(m, inp, sc, ci, hh_lo, k1_lo, hi[yi], yplanes[yi])
+    process_batch(m, program(ci, g1), inp, lanes, c_lo | hi[yi] | g1, PCV, sc, found)
     chk('5 the counted program finds the semi-free-start pair in its batch', A0S in found, '(%d operations)' % m.ops)
     z, pairs, bad = smc_replicate(Shake('selftest'), vsample())
     chk('6 replicate: estimate, accepted pairs rebuilt and verified, failed rebuilds 0', bad == 0, '(log2 %s, %d pairs)' % (None if z is None else round(z, 3), len(pairs)))
