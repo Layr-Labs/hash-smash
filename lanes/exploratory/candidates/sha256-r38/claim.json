@@ -9,7 +9,7 @@
   "certificate_manifest": "certificates/manifest.json",
   "experiment_manifest": "experiments/manifest.json",
   "claim": {
-    "time_log2": 87.14808,
+    "time_log2": 86.07561,
     "time_unit": "target-compressions",
     "memory_log2_bytes": 28.1,
     "preprocessing_log2": 78.09276,
@@ -18,10 +18,10 @@
   },
   "restrictions": [
     "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; outputs two distinct 128-byte messages M0 || M1, M0 || M1' with equal digests.",
-    "Construction: the memory-efficient A0-variant attack (design of 2d1c4fc2 and fb176310 on ePrint 2026/1120 / 2026/1080; per-class row-16 programs as in 08be594), our implementation experiments/a0p38.py, with our characteristic P8 and the accepted event rows 16..22 (row 19 on signed differences) plus a direct output comparison.",
-    "Cost: exact ledger ledger_a0p.py: N_FB = 1,510,856,422,634,357,630,235,398 first blocks, 32 classes of 24,576 variants (786,432 in all), per-class row-16 programs of 1,438 to 1,482 instructions (mean 1462.25) per 256 variants, executed counts; T x 2728 = 467765448296261394038709429793; claimed 87.14808.",
+    "Construction: the memory-efficient A0-variant attack (design of 2d1c4fc2 and fb176310 on ePrint 2026/1120 / 2026/1080; per-class row-16 programs as in 08be594 and 08e2e0d3), our 2-stage low/high-factored E0/Y1 hoisting, polarity-aligned algebraic-invariant-folded carry-save and spill-free schedule implementation in experiments/a0p38.py, with the characteristic P8 and the accepted event rows 16..22 (row 19 on signed differences) plus a direct output comparison.",
+    "Cost: exact ledger ledger_a0p.py: N_FB = 1,510,856,422,764,013,283,333,044 first blocks, 32 classes of 24,576 variants (786,432 in all), 96 Stage-1 (554..607, mean 573.104, once per (class, g1)) and 96 Stage-2 (500..510, mean 506.750 per batch of 256 variants, 0 spills) row-16 programs, TK = 8 tested bits, executed counts; T x 2728 = 222424726795474190891065051043; claimed 86.07561.",
     "Success probability at least 0.39 under H1, H2 (q3_model 2^-97.0000), H3, by Bonferroni per first block, independent first blocks and Chebyshev caps.",
-    "Memory 2^28.10 bytes (online 3,659,904 bytes; the preprocessing peak)."
+    "Memory 2^28.10 bytes (online 5,581,600 bytes; the preprocessing peak)."
   ],
   "heuristics": [
     {
@@ -29,11 +29,11 @@
       "role": "score-critical",
       "statement": "For M0 uniform on {0,1}^512 (two fresh random words per first block), CV1 = F_38(IV, M0) behaves as a uniform 256-bit value for the events of one fixed variant (W7, W16..W22 and E16x distributed as in Lemma 5.1).",
       "scope": "g, the per-first-block success probability and the expected work.",
-      "extrapolation": "The premise of the A0-variant lineage. Organizer evidence: a0p-online-r38 draws 64 unconditional first blocks per active trial and counts the W7 passes of all 32 classes (our validation: 5,693 passes in 2,560 blocks against 5,480 expected); it then runs the counted program on real first blocks.",
+      "extrapolation": "The premise of the A0-variant lineage. Organizer evidence: a0p-online-r38 draws 64 unconditional first blocks per active trial and counts the W7 passes of all 32 classes (our validation: 5,514 passes in 2,560 blocks against 5,480 expected); it then runs the counted program on real first blocks.",
       "limitations": "A premise about the first-block compression.",
       "evidence_ids": [
         "proof:186-191",
-        "proof:373-394"
+        "proof:380-401"
       ]
     },
     {
@@ -44,8 +44,8 @@
       "extrapolation": "40 multilevel-splitting runs (seeds 4001..4040) with the variants of the selected classes: mean 2^-96.1821, one-sided 99% Student bound 2^-96.5603, bootstrap 2^-96.5278, 188,796 verified collisions (two stalled runs counted as 0); an independent Python implementation (the organizer replica, a lower-bound event restricted to four row-19 patterns and 512 sampled variants): 480 development replicates, mean 2^-96.2059; organizer replica a0p-q3-r38 with a frozen pass rule.",
       "limitations": "Participant-run Monte Carlo with a heavy-tailed middle stage; the replica tests a reduced version.",
       "evidence_ids": [
-        "proof:257-311",
-        "proof:373-394"
+        "proof:263-317",
+        "proof:380-401"
       ]
     },
     {
@@ -53,33 +53,35 @@
       "role": "score-critical",
       "statement": "The average over successes of the expected number of other row-16 passes of the same first block is at most 2^-5.1.",
       "scope": "The Bonferroni factor of a first block.",
-      "extrapolation": "750 rebuilt successes: 6 other row-16 passes among 153,649,152 evaluated variants of the passing classes; 99% Poisson limit 2^-5.69.",
-      "limitations": "Measured on rebuilt estimator successes.",
+      "extrapolation": "750 rebuilt successes (and a second evenly-spaced sample of 750 across all 40 runs): 6 other row-16 passes and 0 further accepted pairs among 153,649,152 evaluated variants of the passing classes; 99% Poisson limit 2^-5.69, charged 2^-5.1. Organizer evidence: a0p-online-r38 Trial 0 runs the full 32-class online program process_fb on the semi-free-start witness PCV (6 passing classes, 147,456 evaluated variants: A0S found with 0 other row-16 passes in 405,576 operations), and a0p-q3-r38 Trial 10 runs process_fb across all 32 classes on the fresh organizer-seeded collision CV1 (re-finding the collision variant with 0 other accepted pairs).",
+      "limitations": "Measured on rebuilt estimator successes and checked per request on PCV and organizer-seeded collisions.",
       "evidence_ids": [
-        "proof:257-311"
+        "proof:263-317",
+        "proof:380-401"
       ]
     },
     {
       "id": "H4-allowances",
       "role": "score-critical",
-      "statement": "The computation spent on the characteristic search, S and the class data, and all development is at most A_C + A_S + DEV = 2^78 + 2^74 + 2^70 target compressions.",
-      "scope": "The allowance term (negligible against T).",
-      "extrapolation": "One 10-core machine, less than 2^22 core-seconds in all (participant accounting); the envelope holds for any machine running ten cores for a full year at up to 2^30 target compressions per core-second (2^58.3 < 2^70).",
-      "limitations": "Envelope independent of the measured rate; with A_C = 2^84 the ledger gives time_log2 = 87.29999 (+0.15191).",
+      "statement": "The charged precomputation from the < 2^14-byte advice is PRE = 8,858,632,192 operations (2^21.63 target compressions), and the computation spent on the characteristic search, S, the class descriptors, and all development is at most A_C + A_S + DEV = 2^78 + 2^74 + 2^70 target compressions.",
+      "scope": "The preprocessing and allowance terms (negligible against T).",
+      "extrapolation": "Organizer evidence: a0p-online-r38 Trial 0 clears the caches and replays from scratch in < 0.45 s on 1 CPU core the full charged preprocessing (reconstructing all 32 classes = 786,432 variants in G, 69,120 batch plane words, and compiling/scheduling all 96 Stage-1 + 96 Stage-2 row-16 programs = 103,666 instructions with 0 spills, PRE = 8,858,632,192 ops) and verifies the advice (S and the 160 row-16 words GL of P8). For the offline search and development behind the advice: one 10-core machine, less than 2^22 core-seconds in all (participant accounting); the rate-independent envelope holds for any machine running ten cores for a full year at up to 2^30 target compressions per core-second (2^58.3 < DEV = 2^70).",
+      "limitations": "Offline search and development are bounded by a conservative rate-independent envelope rather than re-running the SAT/search sweep live; with A_C = 2^84 the ledger gives time_log2 = 86.37840 (+0.30279).",
       "evidence_ids": [
-        "proof:312-344"
+        "proof:318-379",
+        "proof:380-401"
       ]
     },
     {
       "id": "H5-bitsliced-planes",
       "role": "score-critical",
-      "statement": "One instruction on a 256-bit plane costs one word operation (the 256-bit word RAM of the cost model); each class's row-16 program is charged at its executed instruction count, loads and stores included (expected work at the mean over the classes, the work cap at the maximum).",
+      "statement": "One instruction on a 256-bit plane costs one word operation (the 256-bit word RAM of the cost model); each (class, g1) pair's Stage-1 and Stage-2 row-16 programs are charged at their executed instruction counts, loads and stores included (expected work at the mean over the 96 batches of the 32 classes, the work cap at the most expensive class).",
       "scope": "The dominant work term.",
       "extrapolation": "Executed instruction by instruction and compared with the scalar definition on sampled batches (selftest, a0p-online-r38).",
       "limitations": "Full-scale execution is infeasible.",
       "evidence_ids": [
-        "proof:217-237",
-        "proof:373-394"
+        "proof:217-239",
+        "proof:380-401"
       ]
     }
   ]
