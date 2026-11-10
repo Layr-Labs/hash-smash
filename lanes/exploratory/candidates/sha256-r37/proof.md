@@ -1,369 +1,527 @@
-# A distribution-free complete-message baseline for SHA-256 r37
+# SHA-256 r37: bit-sliced grouped birthday search with a pre-last-round key
 
-## Claim and scope
+Lane: exploratory. Target: `sha256-r37-prefix-v1`. Attack class: ordinary
+collision. Cost model `collision-frontier-v5`, C = 2644: one 37-round target
+compression costs 1 unit; every other 256-bit RAM word operation costs 1/2644.
 
-This package specifies a classical randomized algorithm for the exact
-`sha256-r37-prefix-v1` target in the exploratory lane. Its worst-case total
-charged time is less than `2^132` target-compression units, its peak memory is
-less than `2^136` bytes, its preprocessing is less than `2^125` such time units,
-and its probability of returning distinct complete messages with equal full
-256-bit digests exceeds `0.39`. The probability is over fresh independent
-algorithmic coins for the fixed target; no property resembling a random oracle,
-balance, differential independence, or pseudorandomness of SHA-256 is assumed.
-The claim reports conservative upper bounds, not measured work or an executed
-collision search. No collision witness or empirical evidence is asserted.
+## 0. Claim, summary and credit
 
-The required `baseline_improved` value `sha256-r37-nominal-v2` identifies an
-organizer nominal reference, not an established attack. This construction does
-not claim to beat that reference's display value of 128. `ready` requests review;
-it is not qualification, a trusted score, or human acceptance.
+* Output: two distinct 55-byte messages whose complete 37-round SHA-256
+  digests agree on all 256 bits (Section 6, unconditional).
+* Time: at most 2^124.9467 units in every run (Section 8), under the fixed
+  register-bank convention of Section 2 with one placement charged per gate
+  result. Claimed `time_log2: 124.947`.
+* Success: at least 0.3905 under one heuristic, H1 (Sections 7, 11). Claimed
+  0.39.
+* Memory below 2^146 bytes (reported only); preprocessing under 2^9 units
+  (program generation, inside T); advice zero (Section 9).
 
-All arithmetic in the algorithm below fits a 256-bit RAM word except that a
-message block occupies two words and each retained record occupies three.
-Large integers used only in the mathematical analysis need not be computed by
-the algorithm. The selected target compression is the cost model's priced
-primitive: standard SHA-256 schedule and constants, indices 0 through 36
-inclusive, and the standard wordwise feed-forward. Other operations, including
-its input/output marshaling, are charged separately at `1/C`, with `C = 2644`.
+This is a generic birthday attack. N = NB * 2^32 messages, NB =
+78856234692123534151746250567 (N = 0.99531 * 2^128), are hashed and their
+digests looked up in an uninitialised table. Three exact constant-factor
+savings make each message cost 320 word operations instead of one compression:
+(i) messages are evaluated 256 at a time as bit planes, so the 37-round
+compression is a straight-line Boolean circuit; (ii) messages come in groups
+that share their first 13 message words, so rounds 0-12 and seven schedule
+words are computed once per group and only rounds 13-35 run per message;
+(iii) the table key is the 160 digest bits that are fixed before the last
+round, so round 36 and the T2 half of round 35 are never computed. No
+cryptanalytic weakness of SHA-256 is claimed. `baseline_improved` names the
+nominal reference `sha256-r37-nominal-v2` (display value 128, not a baseline
+or a bound). The track's displayed current best, 132, is the organizer-
+authored unconditional merge-sort candidate shipped in the repository at
+f46ab58 in this candidate directory.
 
-## Complete messages and their hashes
+Credit. The grouped partial-evaluation birthday search, the never-initialised
+sparse-set table and the F1/F2/F3 failure analysis under H1 are jaazinn's
+(blake3-r2, 0a5b7ae8). The 256-message bit-plane evaluation and the delta-swap
+transpose are may93182's (sha3-256-r6, 11c46f4d); the bit-sliced grouped
+search and the transpose-into-sparse-set program are
+winglock's (sha3-256-r6, 377eebd5), whose SPARSE listing and transpose counts
+we reuse verbatim. The fixed register-bank convention is zeeshan8281's
+(sha3-256-r6, d2f84741/cbf7998d, #178) as adopted in our 02d6a703. Computing
+only the digest bits the key needs is ercumentyildirim's last-round projection
+(c7fa1a56). The 55-byte single-block message domain for this track and the
+uninitialised-table candidate cap are jungjipdo's (sha256-r37, f0065dce).
+None of them has reviewed this package; the SHA-256 circuit, the polarity-aware
+adder, the pre-last-round key, the counted program and any errors are ours.
 
-Put `n = 2^128`. In each of exactly n trials obtain two fresh independent uniform
-256-bit random words U and R, and set `V = R AND (2^128 - 1)`. The complete
-message is the 48-byte string `BE32(U) || BE16(V)`, where BEk denotes exactly k
-bytes in big-endian order. Thus messages are iid uniform on a domain D of size
-`d = 2^384`. All have original bit length 384, which satisfies the profile's
-length limit. Repeated sampled inputs are allowed and are not counted as
-collisions merely because their digests agree.
+## 1. Target, messages, groups and the key
 
-The sole padded block, viewed as two 256-bit big-endian words, is exactly
+The target hashes a byte string with the standard SHA-256 IV, FIPS 180-4
+padding, rounds 0..36 of the standard schedule and constants on every block,
+feed-forward, and the full big-endian 256-bit digest. A 55-byte message pads
+to exactly one block: W[0..13] carry the 55 message bytes and the byte 0x80,
+W[14] = 0, W[15] = 440. Its digest is therefore the feed-forward output of a
+single reduced compression on that block from the IV.
 
+**Groups.** A group g has a prefix P_g of 13 uniform 32-bit words
+W[0..12] (416 fresh coins). The message m(g, z), for z in {0, .., 2^24 - 1},
+is
+
+    m(g, z) = BE32(W[0]) || ... || BE32(W[12]) || BE24(z)      (55 bytes),
+
+so W[13] = (z << 8) | 0x80. Distinct (g, z) with distinct prefixes give
+distinct messages. Groups are processed in batches of 256 (one group per bit
+position of every 256-bit word). N = NB * 256 * 2^24 messages: NB batches,
+each 2^24 z-steps of 256 messages. The processing order (batch, z, lane) is
+fixed in advance and never depends on a digest.
+
+**Key.** Write the digest words as (A, B, Cw, D, E, F, G, H) and the state
+entering round t as (a_t, ..., h_t), so (a_0, ..., h_0) = IV and
+(a_37, ..., h_37) is the state after round 36. After 37 rounds, Cw = a_35 +
+IV[2], D = a_34 + IV[3], F = e_36 + IV[5], G = e_35 + IV[6], H = e_34 + IV[7].
+These five digest words, 160 bits, depend only on rounds 0..35, and e_36 needs
+only the T1 half of round 35. The table key of a message is K = these 160 bits
+placed in bits 96..255 of a 256-bit word (bits 0..95 zero): H in bits
+96..127, G in 128..159, F in 160..191, D in 192..223, Cw in 224..255, each
+word with its bit 0 lowest. Equal digests give equal keys; equal keys are
+checked by recomputing both full digests (Section 5.3).
+
+## 2. Machine model and register-bank convention
+
+Primitives (each 1/2644): 256-bit load, store; add/sub mod 2^256; AND, OR,
+XOR, NOT; shift/rotate; compare; conditional branch; RAND (fresh uniform
+256-bit word). A compare plus its branch is 2; a jump is 1; writing a
+constant is 1. Instruction fetch is not charged; program text counts as
+memory. The algorithm never reads memory it has not written, except the
+sparse-set array S, whose garbage is never trusted (Section 5.4). A scalar
+compression (verification only) costs 1 unit plus at most 300 operations for
+block writes, reads and control.
+
+**Convention.** The bank is the machine's named-operand register file: a
+fixed set of at most 2048 words (Lemma 2.1), independent of N, that the
+primitive operations address by name, as the cost model's primitives
+address their operands. It is the convention of zeeshan8281's #178 (Yukon
+d2f8474, 126.902), used by may93182's 11c46f4d (126.995), ercumentyildirim's
+c7fa1a5 (126.92) and our 02d6a703 (125.58) on sha3-256-r6, each of which
+reached `plausible_not_refuted`; that acceptance is reported from the public
+board, not verifiable from this packet. If a judge instead prices every
+operand as a main-memory load and every result as a store, the same program
+gives the memory-to-memory row of Section 8, 125.88, which we state as the
+explicit fallback bound; it is still below the 132 candidate. Each gate is one operation reading its
+named bank operands, plus one placement (bank store) per gate result. The
+key rows after the transpose, the sparse-set arrays S, DK, DI, the prefix
+planes PL and all counters are main memory or registers: every load and
+store to them is charged, exactly as in winglock's listing.
+
+**Lemma 2.1 (bank size).** The per-step program (Section 3) reads 1,130
+group words (32 prefix planes and 1,098 results of the group-plane gates),
+24 z planes, and defines 35,865 gate results. An exact liveness scan of the
+generated straight-line program (each result live from its definition to
+its last use; the 160 key planes to the transpose) gives at most 560
+simultaneously live step results. With the 1,154 input words and one NOT
+temporary, at most 1,715 words are ever resident; we allocate 2048.
+Allocation is static (fixed when the program is written).
+
+Sensitivity to the convention is in Section 8.
+
+## 3. The bit-sliced circuit
+
+A signal is a public constant bit, a *group plane* (a word that differs per
+lane but not per z, computed once per batch), a *z plane* (0 or all-ones,
+the same in every lane, set per step), or a *step value* (a stored word s
+with a public flag phi; the true plane is s XOR phi*all-ones). Rules applied
+once when the program is written:
+
+* XOR with a constant and NOT flip the flag (no instruction). Rotations
+  and shifts of a 32-bit word are index renamings of its 32 planes (SHR
+  brings in constant-0 planes).
+* XOR of two stored signals: one XOR, flags added mod 2.
+* AND: with constant 1 the identity, with 0 the constant 0; flags (0,0):
+  one AND; (1,1): one OR with flag 1 (De Morgan); mixed: one NOT, one AND.
+  OR is AND of the complements.
+* Group-plane gates whose operands are all group planes or constants are
+  evaluated once per batch (Section 5.1); a gate with a z-plane or
+  step-value operand is a per-step gate.
+
+**Adder (polarity-aware).** For a 32-bit modular add of two words the bits
+run from 0 upward with carry c (c_0 = 0; the carry out of bit 31 is dropped).
+With x, y, c all stored, choose x as the operand whose flag differs from the
+other two (two of three flags always agree); then p = y XOR c, sum = x XOR p
+and
+
+    carry = (y AND c) OR (p AND x)                 if flag(x) = flag(y),
+    carry = (y OR c) XOR (p AND xbar)              otherwise,
+
+where xbar is the stored word of x. The second identity is
+maj(x,y,c) = (y AND c) XOR (x AND (y XOR c)) with x = NOT xbar, using
+(y AND c) XOR (y XOR c) = y OR c. Both forms are 5 operations and never
+materialise a NOT. When one operand bit is a constant k: sum = x XOR c
+(flag flipped if k = 1), carry = x AND c (k = 0) or x OR c (k = 1), 2
+operations, plus one NOT when the flags of x and c differ. When c_0 = 0 the
+bit-0 carry is x AND y.
+
+**Round t** (T1 = h + S1(e) + Ch(e,f,g) + (K_t + W_t), T2 = S0(a) + Maj(a,b,c),
+e' = d + T1, a' = T1 + T2): S0, S1 are two XORs per bit; sigma0, sigma1 are
+two XORs per bit except where SHR supplies a zero (one XOR). Ch(e,f,g) is
+g XOR (e AND (f XOR g)) when flag(e) = flag(f XOR g) and f XOR (ebar AND
+(f XOR g)) otherwise: 3 operations, no NOT. Maj(a,b,c) uses whichever of
+b XOR ((a XOR b) AND (b XOR c)), a XOR ((a XOR b) AND (a XOR c)),
+c XOR ((a XOR c) AND (b XOR c)) has equal flags at the AND, reusing the
+previous round's a XOR b as this round's b XOR c when it is the operand
+needed: 3 or 4 operations, no NOT. K_t + W_t is a constant add (2 per bit).
+The schedule word W_t = sigma1(W_{t-2}) + W_{t-7} + sigma0(W_{t-15}) +
+W_{t-16} is built lazily; W[16..19], W[21], W[23], W[25] and their K sums
+depend only on the prefix and are group planes.
+
+**Per-step gate counts (256 messages).** The generator (Appendix A) was run
+locally on 256 random prefixes and random z, and its 160 key planes were
+checked against the reference digest words Cw, D, F, G, H of all 256
+messages (0 mismatches, every run; the shipped experiment program repeats
+this check on four lanes per trial, and the organizer recomputes every
+returned pair). Counts are independent of the data.
+
+| Block | Gates | Block | Gates | Block | Gates |
+|---|---:|---|---:|---|---:|
+| round 13 | 434 | round 22 | 1436 | round 30 | 1458 |
+| round 14 | 1188 | round 23 | 1365 | W31 | 383 |
+| round 15 | 1273 | W24 | 371 | round 31 | 1436 |
+| round 16 | 1390 | round 24 | 1429 | W32 | 391 |
+| round 17 | 1404 | round 25 | 1366 | round 32 | 1444 |
+| round 18 | 1382 | W26 | 366 | W33 | 398 |
+| round 19 | 1356 | round 26 | 1418 | round 33 | 1419 |
+| W20 | 232 | W27 | 232 | W34 | 397 |
+| round 20 | 1435 | round 27 | 1446 | round 34 | 1437 |
+| round 21 | 1363 | W28 | 581 | W35 | 598 |
+| W22 | 259 | round 28 | 1447 | round 35 (T1, e only) | 923 |
+| | | W29 | 328 | feed-forward (5 words) | 371 |
+| | | round 29 | 1425 | | |
+| | | W30 | 284 | | |
+
+Total **35,865** gates: 20,197 XOR, 8,660 AND, 4,132 OR, 2,876 NOT, plus
+88 fix-up NOTs for key planes stored with flag 1. Round 13 is cheap because
+its T1 adds a z-dependent word to group planes and its T2 is a group plane.
+Group-plane gates evaluated per batch: 23,625.
+
+## 4. Batches, z-steps and the transpose
+
+Batch beta (0 <= beta < NB) holds groups 256 beta + p, p = 0..255, in lane
+p. Its 416 prefix planes PL[beta][i] (i = 32w + bit) are fresh RAND words
+stored once (Section 5.1): bit p of PL[beta][32w + i] is bit i of W[w] of
+group 256 beta + p. Independent uniform words give independent uniform
+prefixes. Step t of a batch sets z = t (t = 0..2^24 - 1): the 24 z planes
+are Z[i] = 0 - ((t >> i) AND 1) for i = 0..23, formed by 3 operations and a
+placement each.
+
+After the per-step gates, the 160 key planes are rows 96..255 of a 256 x 256
+bit matrix whose rows 0..95 are zero. The delta-swap transpose (may93182,
+winglock's listing) turns rows into the 256 key words K_p (bits 96..255 of
+K_p are the key of lane p). Phase 1 works inside 32-row blocks (stages 1, 2,
+4, 8, 16); the three blocks of rows 0..95 are zero and are skipped, so phase 1
+is 5 constant moves plus 5 blocks of (32 loads, 5 stages x 16 swaps x 6
+operations, 32 stores) = 2,725 operations. Phase 2 (stages 32, 64, 128) is 3
+constant moves plus 32 x (8 loads, 3 stages x 4 swaps x 6) = 2,563
+operations and leaves each finished key in a register, from which SPARSE
+(Section 5.4) consumes it directly. (The zero rows could shorten phase 2 too;
+we charge it in full.)
+
+## 5. Algorithm
+
+Registers: step counter t, batch counter beta, running id IDM, table size n,
+bases PL, SB (S), DK, DI, constants ONE, K24 = 2^24, candidate counter v.
+Main memory: PL (416 words per batch), S (2^140 words, never initialised),
+DK and DI (N words each), the bank, and the output.
+
+### 5.1 Batch setup (once per batch, 2^24 steps)
+
+1. Draw 416 RAND words; store each at PL + 416 beta + i and place it in the
+   bank as the prefix plane (416 x (1 + 2 + 1) = 1,664 operations with
+   address adds).
+2. Evaluate the 23,625 group-plane gates (2 operations each: 47,250),
+   producing the 1,098 group words the step program reads (the state
+   entering round 13, the Maj reuse plane, the group schedule words with
+   their K sums, and the partial sums of round 13's T1).
+3. Set t = 0, IDM = beta * 2^32 (ids are beta * 2^32 + p * 2^24 + z, below
+   2^128 since NB < 2^96).
+
+Charged setup: fewer than 2^16 operations per batch (48,914 + control),
+i.e. 2^16 / 2^24 = 2^-8 per step and 2^-16 per message.
+
+### 5.2 Per z-step program (straight-line, fully unrolled)
+
+    (a) form Z[0..23] from t                       24 x 4 = 96
+    (b) the 35,865 per-step gates, 2 each         71,730
+        88 key fix-up NOTs, 2 each                   176
+    (c) transpose phase 1 (5 blocks)               2,725
+    (d) transpose phase 2 feeding SPARSE           2,563
+        256 x SPARSE(K_p, p), worst path 17 each   4,352
+    (e) t = t + ONE ; c = (t < K24) ; branch           3   (next step or next batch)
+    total per step (256 messages)                 81,645
+
+That is 318.93 operations per message; with setup (2^-16) we charge **320**.
+IDM is set to beta * 2^32 + z at (a) (one add) and advanced by K24 per lane
+inside SPARSE, as in winglock's listing; those operations are inside the
+counts above (the extra add is within the spare).
+
+### 5.3 Verification and halting
+
+On MATCH (equal 256-bit key words, Section 5.4): load DI[i] (2). Decode both
+ids into (beta, p, z) (at most 20 operations). Read the two prefixes: for
+each, 13 words from the bits p of PL[beta][0..415] (416 x (load, shift, AND,
+OR, shift) = 2,080 each; charged 4,200 for both). Rebuild the two 55-byte
+messages (at most 60). If the messages are equal (only in event F3), halt
+with failure. Evaluate both with two scalar reference compressions (2 units
++ 600). Compare the full digests (at most 20). If equal, output the pair and
+halt. Otherwise (a false candidate: same key, different digests) increment
+v; if v = V = 2^100 halt with failure; else discard the current message
+(no insertion) and continue the step. One candidate costs at most 2 units
+plus 5,000 operations, charged 4 units.
+
+### 5.4 Sparse set (jaazinn's Briggs-Torczon structure, winglock's listing)
+
+S has 2^140 words and is never initialised. Slot h is *valid* iff S[h] < n
+and DK[S[h]] >> 116 = h. Keys are inserted only into invalid slots, which
+the insertion makes valid; entries are never rewritten. So a valid slot
+holds exactly the first inserted key whose bits 116..255 are h.
+
+    SPARSE(K, p):
+    h = K SHR 116 ; a = h + SB ; i = LOAD [a] ; c = (i < n) ; if !c goto INSERT
+    e = i + DK ; k2 = LOAD [e] ; u = k2 SHR 116 ; c = (u == h) ; if !c goto INSERT
+    c = (k2 == K) ; if c goto MATCH ; IDM = IDM + K24 ; goto NEXT    ; different key: discard
+    INSERT: e = n + DK ; STORE [e] = K ; e = n + DI ; STORE [e] = IDM ;
+            STORE [a] = n ; n = n + ONE ; IDM = IDM + K24
+    NEXT:
+
+Path lengths: empty slot then insert 12; stale pointer then insert 17 (the
+worst); occupied by a different key 14; match 12, after which verification
+runs. Bits 116..255 of K are the top 140 key bits (Cw, D, F, G and the top 12
+bits of H); bits 0..95 of every key word are zero, so K SHR 116 never aliases
+across different keys' low bits.
+
+### 5.5 Run
+
+for beta = 0..NB-1: setup; for t = 0..2^24-1: step. Then halt with failure.
+There is no restart, no parallel work omitted, and no uncharged loop.
+
+## 6. Every output is a collision (unconditional)
+
+An output is produced only after both messages were rebuilt from their ids,
+found distinct, and both full 37-round digests were recomputed by the
+reference compression and found equal. Bit slicing changes how a digest is
+computed, not its value; Appendix A's check and the organizer-executed
+experiments (Section 10) confirm the circuit, but correctness of outputs
+does not rely on them.
+
+## 7. Success probability
+
+The run halts at the first successful verification. Failure events:
+
+* **F3**: two groups have equal prefixes. Pr[F3] <= (NB*256)^2/2 * 2^-416 <
+  2^207 * 2^-416 = 2^-209. Without F3 all N messages are distinct.
+* **F1**: no two of the N messages have equal digests.
+* **F2**: some colliding pair (a, b), a processed before b, has a's slot
+  held when a arrives by an earlier message c with the same top 140 key bits
+  and a different digest (c has either a different key, so a is discarded,
+  or the same 160-bit key, so a is a false candidate and discarded).
+* **F4**: the false-candidate counter reaches V = 2^100.
+
+**Lemma 7.1.** If none of F1-F4 occurs, the run outputs a collision. Take a
+colliding pair (a, b), a first, and suppose no earlier collision was output.
+When a arrives, its slot is invalid (a is inserted) or valid and holding the
+first key with a's top 140 bits, which belongs to an earlier message c; by
+not-F2, c's digest equals a's, so c's key equals a's: MATCH, c != a (not F3,
+distinct (g, z)), digests equal: output. If a was inserted, when b arrives
+its slot is valid (entries are never rewritten) and holds a's key (the first
+key with those top bits, else a would have matched or been discarded, which
+not-F2 excludes): MATCH, output. F4 cannot halt the run before that under
+not-F4.
+
+**Heuristic H1 (declared; equivalent text in claim.json).** For the events
+F1, F2 and F4, the N digests of the grouped message set {m(g, z)}
+(independent uniform prefixes P_g, all z in {0,1}^24, processed in the
+fixed order of Section 4) behave like N independent uniform 256-bit values:
+Pr[F1] <= exp(-N(N-1)/2^257), Pr[F2] <= N^3/6 * 2^-396, and the number Y of
+pairs with equal keys and different digests has E[Y] <= N^2/2^161 and
+Var[Y] <= N^2/2^161.
+
+Under H1, with N = NB * 2^32 and x = N(N-1)/2^257:
+
+* Pr[F1] <= exp(-x). Since N > 0.995305 * 2^128, x >= 0.495316 and
+  exp(-x) <= 0.609378.
+* Pr[F2] <= N^3/6 * 2^-396 < 2^-14.5; we use 2^-13.
+* Pr[F4] <= Var[Y]/(V - E[Y])^2 < 2^95/2^198 = 2^-103 (Chebyshev;
+  E[Y] < 2^95).
+* Pr[F3] < 2^-209.
+
+NB is the smallest batch count for which 1 - exp(-N(N-1)/2^257) - 2^-13 -
+2^-209 - 2^-100 - 2^-61 >= 0.3905 (the last term is spare); the script in
+Appendix B checks this with 60-digit arithmetic. So Pr[success] >= 0.3905
+under H1, claimed **0.39**.
+
+**Rigorous partial support (jaazinn's argument, in aggregate form).** For
+two groups g != g', let q(v) = sum over z of Pr[digest of m(g, z) = v] over
+the uniform prefix. The two groups' prefixes are independent, so the
+expected number of colliding pairs between them is sum over v of q(v)^2 >=
+(sum over v of q(v))^2 / 2^256 = 2^48 / 2^256 by Cauchy-Schwarz: the 2^48
+cross pairs of two groups collide 2^-256 times each on average. Within-group
+pairs are a 2^-104 fraction of all pairs. The expected number of colliding
+pairs is therefore at least (1 - 2^-104) N(N-1)/2^257 > 0.4953 without any
+heuristic. H1 is
+needed for the second-moment behaviour behind Pr[F1], for F2 and for Y.
+Within a group, rounds 0..12 and the state entering round 13 are identical
+for all 2^24 messages, and the messages differ only in W[13]; 23 further
+rounds with the full schedule follow. This is a stronger structure than
+independent sampling, and is the reason H1 is a heuristic.
+
+## 8. Total charged time (worst case, every run)
+
+| Phase | Count | Units each | Bound |
+|---|---|---|---:|
+| Steps | NB * 2^24 | 81,645/2644 (320 x 256/2644 charged) | N * 320/2644 |
+| Batch setup | NB | <= 2^16/2644 | inside the 320 |
+| False candidates | <= 2^100 | 4 | 2^102 |
+| Final verification and output | 1 | 4 | 4 |
+
+    T <= N * 320/2644 + 2^102 + 4,   N = 78856234692123534151746250567 * 2^32.
+
+log2(N * 320/2644) = 124.94663; the other terms add a relative 2^-22.95
+(1.9e-7 bits). **log2 T <= 124.94664 < 124.947**, the claimed `time_log2`.
+The script in Appendix B verifies T < 2^124.947 by exact integer arithmetic:
+with T = T_num/2644, T_num = N*320 + (2^102 + 4)*2644, it checks
+T_num^100000 < 2644^100000 * 2^12494700.
+The spare inside 320 absorbs c <= 319.99 per message against 318.93
+itemised plus 2^-16 setup. Every failed step, every discarded message, every
+table load, store, compare and branch, every bank read and placement, every
+candidate verification and the final output are included. There is no
+other precomputation, no stored collision, no parameter search and no
+repetition.
+
+Sensitivity (only the circuit charge varies; transposes and SPARSE as above):
+
+| Convention for the same circuit | per message | log2 T |
+|---|---:|---:|
+| fixed bank, gates only, no placement (not claimed) | 179 | 124.10 |
+| **fixed bank, one placement per result (claimed)** | **320** | **124.947** |
+| winglock 377eebd charge (+1 per direct access, 64 registers), estimated | ~258 | ~124.63 |
+| memory-to-memory, every operand loaded, every result stored | 600 | 125.85 |
+
+The third row is an estimate from winglock's 1.32 ratio on Keccak and is not
+claimed. jungjipdo's f0065dce (r37) and 325d628d (r38) charge a 7-lane SWAR
+compression per message (about 125.4); the saving here comes from bit planes,
+shared group work and the pre-last-round key, not from a different model.
+
+## 9. Memory, preprocessing, advice
+
+S: 2^140 words = 2^145 bytes. DK and DI: N words each, under 2^133 bytes
+each. PL: 416 NB words < 2^110 bytes. Bank (2048 words), registers, key
+rows, and program text (about 90k straight-line instructions, under 8 MB):
+under 2^24 bytes. Total under 2^145.01 bytes: `memory_log2_bytes: 146`.
+Messages are never stored; they are rebuilt from (beta, p, z) and PL.
+
+Preprocessing: generating the fixed straight-line program once (about 90k
+instructions from the generator rules, under 2^20 operations = 2^8.6 units)
+and loading constants. Declared `preprocessing_log2: 9`; it is inside the
+spare of T. Batch setup is charged inside T (Section 5.1). Advice: zero.
+
+## 10. Experiments and H1 evidence
+
+Five `python-message-pairs-v1` experiments, declared for organizer
+execution, share one stdlib program,
+`experiments/grouped_search.py`. It compiles the Section 3 circuit (the same
+generator rules as Appendix A) once, and runs it on 256 lanes exactly as the
+algorithm does; in every search trial the messages are the family of Section
+1 and the lookup mirrors Sections 5.2-5.4 on a scaled key.
+
+* `r-bs-fullwidth-equivalence` (12-bit mask on digest word H): one batch of
+  256 groups from the trial seed, one z-step; four lanes are checked in full
+  against the program's scalar reference (abort on mismatch); returns two
+  lanes whose key words agree on the masked bits. A mechanical cross-check
+  of the circuit; the organizer's recomputation on the real target is the
+  evidence.
+* Four scaled searches with N_t = 512 messages per trial and an 18-bit key
+  (the low 18 bits of H; N_t^2/2^18 = 1, against N^2/2^256 = 0.9906 at full
+  scale), returning the first match: `r-bs-full-width` (256 groups x 2 z,
+  one batch), `r-bs-spread` (16 x 32), `r-bs-single-group` (1 x 512,
+  strongest within-group structure) and `r-bs-high-z` (4 x 128 with the
+  varying z bits at 17..23). The uniform model gives success 1 - prod(1 - i/2^18, i < 512) = 0.3931
+  per trial (100.6 +- 7.8 per 256 trials). Several trials
+  share one 256-lane batch, each owning its own lanes; bitwise operations
+  never mix lanes.
+
+Local runs, all reported: our dev harness with our own seeds (256 trials per
+layout) gave 101, 99, 106 and 113 successes; the organizer's own Docker executor
+run locally with the public seed (`hashsmash-public-seed-v1`, two runs each,
+byte-identical output) gave 109, 80, 103 and 98, and 256/256 on the
+equivalence check. Every returned pair was re-checked by the runner.
+A pre-registered larger run with our seeds (8,192 trials per layout, run
+once after the 256-trial runs, every pair re-verified with the reference
+digest, no bad pair) gave 3181, 3174, 3245 and 3212 against the model's
+3222 +- 44 (largest deviation -1.1 sigma).
+
+Numeric observations in the output (gate counts, fix-ups) are untrusted.
+The experiments test the circuit and the scaled birthday law on the real
+reduced-round target; they cannot certify the full-width second moment, F2
+or the 0.0005 allowance.
+
+## 11. Heuristics (complete list)
+
+H1 only (Section 7, equivalent text in claim.json), score-critical, used only for
+the success probability. Correctness of every output and all resource bounds
+are unconditional.
+
+## 12. Limitations
+
+* H1 is unproved; within a group the state entering round 13 is shared by
+  2^24 messages. No evidence of a departure from the uniform model was found
+  in the scaled runs, and no full-width inference is drawn from them.
+* The register-bank convention is a modelling choice (Section 2); Section 8
+  gives the bound under other readings.
+* The organizer seeds are public; scaled runs resolve the success frequency
+  to about +-0.03 at 256 trials.
+* Memory is far above the organizer baseline's and is reported, not scored.
+
+## 13. Prior work
+
+jaazinn 0a5b7ae8; may93182 11c46f4d; winglock 377eebd5; zeeshan8281
+d2f84741 and cbf7998d; ercumentyildirim c7fa1a56; jungjipdo f0065dce/325d628d; our
+02d6a703; van Oorschot and Wiener (parallel collision search, 1999) for the
+generic context; the organizer-authored sha256-r37 merge-sort candidate at
+f46ab58 (132).
+
+## Appendix A. The circuit generator
+
+`experiments/grouped_search.py` contains the generator used for every count
+in this proof: a symbolic 37-round SHA-256 over signals (constant, group
+plane, z plane, step value with flag) with the rules of Section 3, lazy
+schedule, the pre-last-round key projection, and emission of a straight-line
+program over 256-bit words. Run on random prefixes and z it (i) counts gates
+by type and (ii) evaluates the emitted program on 256 lanes and compares the
+five key words of every lane with its scalar reference (our local runs, 0
+mismatches at 38 and 37 rounds; in the shipped program four lanes per
+trial); counts as in Section 3.
+
+## Appendix B. Certificate script
+
+`cert.py` (stdlib `decimal` at 60 digits and exact integers; listed in
+full below): (1) finds NB as the least batch count with success bound
+1 - exp(-N(N-1)/2^257) - 2^-13 - 2^-209 - 2^-100 - 2^-61 >= 0.3905 and
+prints it (78856234692123534151746250567, N = 0.995306 * 2^128, bound
+0.3905000...); (2) forms T_num = N*320 + (2^102 + 4)*2644 and checks
+T_num^100000 < 2644^100000 * 2^12494700, i.e. T < 2^124.947, by exact
+integer comparison (True), and prints log2 T = 124.94663.
+
+```python
+import sys
+from decimal import Decimal, getcontext
+getcontext().prec = 60
+R = int(sys.argv[1]) if len(sys.argv) > 1 else 38
+OPS, C, CLAIM5 = {38: (335, 2728, 12496800), 37: (320, 2644, 12494700)}[R]
+TWO = Decimal(2)
+def success_bound(NB):
+    N = Decimal(NB) * TWO**32
+    x = N * (N - 1) / TWO**257
+    return 1 - (-x).exp() - TWO**-13 - TWO**-209 - TWO**-100 - TWO**-61
+lo, hi = 1, 2**96
+while lo < hi:
+    mid = (lo + hi) // 2
+    if success_bound(mid) >= Decimal("0.3905"): hi = mid
+    else: lo = mid + 1
+NB = lo; N = NB * 2**32
+print("NB", NB, "N/2^128", Decimal(N) / TWO**128, "bound", success_bound(NB))
+T_num = N * OPS + (2**102 + 4) * C            # T = T_num / C
+print("log2 T =", (Decimal(T_num) / C).ln() / TWO.ln())
+print("T < 2^%.5f :" % (CLAIM5 / 1e5), T_num ** 100000 < (C ** 100000) << CLAIM5)
 ```
-B0 = U
-B1 = (V << 128) OR (1 << 127) OR 384.
-```
-
-Indeed, the message uses bytes 0 through 47; byte 48 is 0x80, bytes 49 through
-55 are zero, and bytes 56 through 63 encode the original bit length 384 in
-64-bit big-endian form. There is no omitted extra padding block. Each digest
-computation begins anew at the standard fixed SHA-256 IV, executes the first
-37 rounds of this block, adds each working word to its incoming chaining word
-modulo `2^32`, and serializes all eight resulting words in standard order.
-Denote this complete-message function by h and its 256-bit digest word by Y.
-No chaining state is chosen by the algorithm and no output bit is discarded.
-
-For clarity, the eight incoming 32-bit IV words are
-`6a09e667 bb67ae85 3c6ef372 a54ff53a 510e527f 9b05688c 1f83d9ab 5be0cd19`.
-Compression expands the usual schedule only as needed through index 36, uses
-the original-index constants, and performs the usual feed-forward after round
-36. The trusted profile defines this primitive; calling it once on the stated
-padded block computes h, not a compression-only collision relation.
-
-## Algorithm, data structures, and stopping rule
-
-Use two arrays A and B, each of n records. A record is three separate 256-bit
-words `(Y,U,V)`; the upper 128 bits of V are zero. There is no implicit nonce
-recovery algorithm, hash table, pointer per record, or stored list of trial
-seeds. Initialize both arrays to zero, counting this work. Sample all n messages,
-compute h once for each, and write their records into A. Discard R after forming
-V. No rejection sampling, deduplication, or early trial stopping occurs.
-
-Sort A by its entire unsigned 256-bit Y key with bottom-up two-buffer merge
-sort. At width w, initially 1, merge each consecutive pair of runs of exactly w
-records from the source into the destination, then exchange the buffer roles
-and double w. Stop after width n/2. Since n is a power of two, every pair is
-full and there are exactly 128 passes. Copy all three record words on every
-emission. Compare full digest keys and choose the left run on equality. This
-sorting procedure has a distribution-independent work bound even when every
-digest or every message is the same.
-
-The following is inert algorithmic pseudocode, not an experiment program.
-Indices in this description count records; the implementation maintains word
-pointers with stride 3, and computes `3*x` as `(x << 1) + x` when needed.
-
-```
-for t = 0,...,n-1:
-    U = RANDOM256(); R = RANDOM256(); V = R AND (2^128-1)
-    form (B0,B1) as above; Y = COMPRESS37_WITH_FEEDFORWARD(IV,B0,B1)
-    A[t] = (Y,U,V)
-src = A; dst = B; w = 1
-while w < n:
-    for l = 0,2*w,4*w,...,n-2*w:
-        i = l; j = l+w; left_end = l+w; right_end = l+2*w
-        for k = l,...,right_end-1:
-            if i == left_end: p = j; j = j+1
-            else if j == right_end: p = i; i = i+1
-            else if src[i].Y <= src[j].Y: p = i; i = i+1
-            else: p = j; j = j+1
-            dst[k] = src[p]   # all three words
-    exchange(src,dst); w = w+w
-for k = 1,...,n-1:
-    if src[k-1].Y == src[k].Y:
-        if (src[k-1].U != src[k].U) OR (src[k-1].V != src[k].V):
-            reconstruct both 48-byte messages
-            recompute their complete hashes from the fixed IV
-            return the messages if they are distinct and both hashes agree
-            otherwise return FAILURE
-return FAILURE
-```
-
-The final check uses two additional selected compressions at most; it never
-retries failed verifications. In the exact computation model this check cannot
-fail after a true table match. No restart or success amplification is used.
-Failures from samples containing no distinct-input collision return FAILURE
-after the bounded scan; their entire work is included in the claim.
-
-Merge correctness follows by induction on w: one-record runs are sorted;
-choosing the smaller unconsumed front key preserves order and emits every
-record exactly once. All equal digest keys are therefore consecutive in the
-final array. If any equal-key run contains two different messages, some adjacent
-records in that run have different messages: otherwise transitivity of equality
-would make the whole run one repeated message. Consequently the adjacent scan
-finds a distinct-input collision whenever one exists among the samples, even
-if other records are repeated copies of an input. Conversely the final explicit
-check prevents returning anything other than two distinct complete target inputs
-with equal full digests. Returning the same sampled input twice is not success.
-
-## Distribution-free success bound
-
-Fix h throughout. For each 256-bit digest y define
-`p_y = |{m in D : h(m)=y}| / d`. Applying a fixed deterministic function to iid
-inputs produces iid outputs with this distribution, which need not be uniform.
-There are `M = 2^256` possible output labels, including those with empty fibers.
-For `2 <= n <= M`, the probability that all outputs differ is
-`n! e_n(p_1,...,p_M)`, where e_n is the elementary symmetric polynomial of degree
-n: each unordered set of n distinct output labels has n! possible orders.
-
-Here is a full justification that this probability is maximized by the uniform
-output distribution. Holding the other coordinates fixed, e_n has the form
-`A + (a+b) B + a*b E` in any two selected coordinates, with `E >= 0`.
-Replacing a and b by their average preserves their sum and cannot decrease e_n.
-On the compact probability simplex choose a maximizer of e_n which minimizes
-the sum of squares of its coordinates among all maximizers. If two coordinates
-differ, averaging them either increases e_n, contradicting maximality, or
-preserves it while strictly decreasing the sum of squares, contradicting the
-choice of maximizer. Hence that maximizer is uniform. This also covers zero
-coordinates and distributions with fewer than n nonempty fibers.
-
-It follows, for this fixed target and without an output-distribution hypothesis,
-that
-
-```
-Pr[no repeated output] <= n! choose(M,n) / M^n
-                       = product(i=0,...,n-1) (1-i/M)
-                       <= exp(-n(n-1)/(2*M)).
-```
-
-The last inequality follows by multiplying `1-z <= exp(-z)` for `0 <= z < 1`.
-For example, `log(1-z) <= -z` follows by integrating `1/(1-z) >= 1` from 0 to z.
-No independence among pairwise collision events was used.
-
-Let E_out be the event of any repeated output and E_in the event of any repeated
-input. Each of the `choose(n,2)` input pairs is equal with probability `1/d`,
-so the union bound gives `Pr[E_in] <= n(n-1)/(2*d)`. On `E_out` outside `E_in`
-there is a collision of distinct messages and the scan succeeds. This is a
-sufficient success event, not a claim that input repetition always prevents
-success. Therefore
-
-```
-Pr[success] >= 1 - exp(-n(n-1)/(2*M)) - n(n-1)/(2*d).
-```
-
-For the actual chosen parameters,
-
-```
-x = n(n-1)/(2*M) = 1/2 - 2^-129 > 499/1000,
-n(n-1)/(2*d) = 2^-129 - 2^-257 < 2^-129.
-```
-
-A rational check avoids relying on rounded floating-point exponentials:
-
-```
-exp(x) > 1 + 499/1000 + (499/1000)^2/2 + (499/1000)^3/6
-       = 9865254499/6000000000,
-exp(-x) < 6000000000/9865254499 < 609/1000.
-```
-
-The final comparison is verified by
-`6000000000000 < 609*9865254499 = 6007939989891`.
-Also `2^-129 < 1/1000`. Thus success is strictly greater than
-`391/1000 - 2^-129 > 390/1000 = 0.39`. The bound applies to every fixed function
-on these messages with a 256-bit output, including the exact reduced SHA-256
-profile. It neither extrapolates from smaller rounds nor assumes a cryptanalytic
-property of the fixed target. The ideal independent random-word primitive is
-part of collision-frontier-v5, not an assumption that a finite deterministic
-seed expansion supplies the full attack's coins.
-
-## Complete operation ledger
-
-One target compression costs 1 and every ordinary 256-bit primitive costs
-`1/2644`. Count total work on one processor; parallel latency is irrelevant.
-All bounds below hold on every random tape. There is no expected-time tail,
-uncharged offline search, advice generation, or unbounded restart loop.
-
-For explicit lowering, a simple scalar assignment, one-operation arithmetic
-assignment, comparison-and-branch, or one direct array word load/store with a
-base-plus-offset address uses at most eight primitive operations. This allowance
-covers up to two operand loads, one arithmetic/address/comparison operation and
-one result store or branch, plus up to four instruction fetches if these are
-charged. More complex expressions are split into these elementary statements;
-copying a three-word record uses six elementary loads/stores. Registers, if
-spilled, fit the same convention. All loops below are iterative; no recursion
-stack or multiword comparison routine is needed. A branch back can use a fixed
-true condition. Loop tests, increments, moves and branches are charged.
-
-Initialization: zero the `6*n` array words in a pointer loop. A word takes at
-most four elementary statements (store, pointer increment, comparison and
-branch), or 32 primitives. The bound `256*n` therefore covers all array clearing,
-including its end tests and initial pointers for n >= 2. Load/initialize the
-fixed program, constants and scratch area within an additional `2^24` primitives.
-This initialization is counted as preprocessing, even though the two large
-arrays could instead have been written lazily.
-
-Sampling and hashing: allow 128 elementary statements, or 1024 ordinary
-primitives per trial, besides the one priced compression. This covers the two
-random words (each draw including destination storage fits the allowance), mask,
-padded-block formation, loading the fixed IV, compression argument setup,
-full digest packing, record stores and loop control. More explicitly, forming
-the mask and padded block needs at most 12 statements; initializing and
-marshaling the eight IV words and two block words at most 24; packing the eight
-32-bit output words by load/shift/OR at most 32; random draws, masking, three
-record stores, pointer operations and loop control at most 32. Their sum is
-100, below 128. The standard schedule, 37 rounds and feed-forward are in the
-priced compression primitive, not additional free hash computations.
-
-Sorting: at most 256 ordinary primitives per emitted record per pass, with an
-additional fixed overhead of at most `2^24` primitives for all pass boundaries
-and final verification together. The following expansion establishes the per
-record bound instead of treating comparison sorting as a unit-cost black box:
-
-| Emission work in a word-pointer implementation | Elementary statements, at most |
-| --- | ---: |
-| Left/right exhaustion tests, two front-key loads, key comparison/branch | 5 |
-| Choose source pointer and advance that run by three words | 2 |
-| Load and store the three fields using offsets 0, 1 and 2 | 6 |
-| Advance destination, output loop control, dispatch/back branches | 7 |
-| Reserved spill/address temporaries beyond those already counted | 4 |
-| Total per emission before pair setup | 24 |
-
-Use pointer endpoints so each exhaustion test is one comparison/branch.
-A pair's setup/advance requires at most 16 elementary statements: deriving
-run span from w with shift/add, setting two source pointers and two endpoints,
-the destination pointer/end, and advancing/testing the next pair. Each pair
-emits at least two records, so this adds at most eight elementary statements
-per emission. The combined maximum is `(24+8)*8 = 256` primitives per record.
-Nonzero constant offsets in the six field moves use at most four underlying
-operations even when address construction and moves are charged. There are
-exactly `128*n` emissions across all passes. For the 128 outer passes, fewer
-than 32 elementary statements each suffice to exchange pointers and update/test
-w; these fit amply within the stated fixed overhead. No bucket distribution or
-expected lookup cost is assumed.
-
-Scanning: charge 256 ordinary primitives per adjacent pair, rounded to `256*n`.
-The worst case has two digest loads, comparison/branch, four message-word loads,
-two word comparisons, their Boolean combination, and loop/address control,
-within 32 elementary statements. This includes repeated-input matches that are
-skipped. On the first distinct pair only, reconstruct the two blocks, reload IVs,
-recompute two complete hashes, compare both full digests and messages, and write
-the output (96 bytes in at most four output words). Its ordinary work fits the
-fixed `2^24` sort/verification overhead above, and its two compressions are
-counted separately. No verification is repeatedly performed per identical input.
-
-The combined conservative ledger is consequently
-
-| Category | Selected compressions | Ordinary primitives, upper bound |
-| --- | ---: | ---: |
-| Preprocessing, including both arrays | 0 | `256*n + 2^24` |
-| All n random messages and complete hashes | n | `1024*n` |
-| All 128 merge passes | 0 | `32768*n` |
-| Complete adjacency scan | 0 | `256*n` |
-| Pass boundaries, final verification and output | 2 | `2^24` |
-| Total | `n+2` | `34304*n + 2^25` |
-
-This includes `2*n` independent random words, even though half of each R is
-discarded. Random generation is streamed; no random tape is stored separately.
-All unsuccessful trials are among the n paid trials. There is no preprocessing
-that finds a collision for later inclusion in the code.
-
-Thus the worst-case charged total is
-
-```
-T <= n+2 + (34304*n + 2^25)/2644
-   = (36948*n + 2^25 + 5288)/2644
-   < 16*n = 2^132.
-```
-
-For the strict inequality, `16*2644 - 36948 = 5356` and
-`2^25 + 5288 < 5356*2^128`. The claim `time_log2 = 132` is therefore rounded
-up conservatively. It is not merely the birthday sample exponent 128.
-Preprocessing separately obeys
-
-```
-P <= (256*n + 2^24)/2644 < n/8 = 2^125,
-```
-
-because `2644/8 - 256 = 74.5` and `2^24 < 74.5*2^128`.
-Preprocessing is already included in T; it is not added again to the score.
-
-## Peak memory, code, and advice
-
-Each record occupies 96 bytes. Two n-record buffers use exactly `192*n` bytes;
-this includes retained complete messages (in reconstructible two-word form),
-the full digest and the unused upper half of V. Each table is initialized and
-fully charged above. No third table, sorting permutation, per-record pointer,
-auxiliary lookup structure, or retained random tape is used.
-
-Reserve an additional `2^20` bytes for code, public constants, counters, stack,
-compression state/schedule, temporary record fields and output. This comfortably
-admits a direct bounded-loop implementation of the above pseudocode and SHA-256:
-at most 4096 instructions, each encoded in at most four 256-bit words, use
-`2^19` bytes; fewer than 4096 additional 256-bit words of constants, schedule,
-register spill slots and I/O use `2^17` bytes. The code needs no unrolled n-sized
-program: only the sample loop, three merge loops, scan and constant-round hash
-routine. A 37-word schedule, eight IV words, the first 37 public round constants
-and fixed masks fit these static bounds. Reading/initializing this storage is
-included in the fixed preprocessing allowance. Code storage is counted even
-though execution of the selected compression is priced as one unit.
-
-Peak live storage is at most `192*n + 2^20 < 256*n = 2^136` bytes. Array bases,
-endpoints and byte addresses, including fixed storage, are below `2^137` and
-fit within a 256-bit word. The largest loop count is n and products by 2 or 3
-are exact without overflow; no multiplication instruction is needed. The
-resource model permits this theoretical RAM size; feasibility on existing
-hardware is not asserted.
-
-The program is uniform and uses only the public fixed profile constants and
-fixed numerical parameters stated here, all charged as code/constants. There
-is zero target-dependent nonuniform advice and no precomputed collision. Since
-the schema requires a nonnegative logarithmic advice bound, the claim's
-`nonuniform_advice_log2_bytes = 0` means an upper bound of one byte, which covers
-zero bytes; it does not assign a logarithm to zero or hide the code. No legacy
-`data_log2` field is used.
-
-## Evidence and source context
-
-The entire success and resource argument is given above. The empty certificate
-manifest asserts no supplied witness. No experiment is declared or required by
-this analysis, and none of the bounds relies on sampled toy behavior, benchmark
-timing, a seeded PRNG, or executing the infeasible full search. `heuristics: []`
-means there are no premises beyond the specified RAM/random-word/target model
-and the mathematical arguments here; advisory or official reviewers may still
-identify mistakes in those arguments.
-
-Primary sources consulted for scope and conceptual context:
-
-- NIST, FIPS 180-4, Sections 5.1.1, 5.3.3 and 6.2.2, for standard SHA-256 padding,
-  initialization, schedule and feed-forward. The organizer profile, not the
-  unmodified 64-round standard, fixes the prefix reduction to 37 rounds.
-  Source: `https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf`.
-- Mihir Bellare and Tadayoshi Kohno, *Hash Function Balance and Its Impact on
-  Birthday Attacks*, full version, May 2004, Figure 1 and Sections 3-4, distinguish
-  fixed functions, iid sampled inputs and trivial repeated-input matches from
-  distinct-input collisions. Source:
-  `https://homes.cs.washington.edu/~yoshi/papers/Hash/balance.pdf`.
-
-Those citations supply context rather than a missing proof step or a claimed
-attack on this round count. The symmetric-polynomial maximization, distinct-input
-correction and target-specific operation ledger needed to assess this package
-are supplied directly here. No historical candidate's score or qualification is
-transferred to this package.
+Output (R = 37): NB 78856234692123534151746250567, N/2^128 0.9953056...,
+bound 0.3905000..., log2 T = 124.94663, `T < 2^124.94700 : True`.

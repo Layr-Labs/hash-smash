@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "r-bs-fullwidth-equivalence",
+      "kind": "python-message-pairs-v1",
+      "scope": "Per trial: 256 seeded groups (13 uniform 32-bit prefix words each) and one seeded 24-bit z, one batch of the compiled bit-sliced circuit (group setup G, one z-step F, proof Section 3). Four lanes' five key digest words (c, d, f, g, h) are checked against the embedded scalar reduced-round SHA-256; the program aborts on a mismatch. Returns two lanes whose key words agree on the low 12 bits of digest word h. A mechanical cross-check, not a full-width equivalence test.",
+      "hypothesis": "Every returned pair is two distinct 55-byte messages whose complete reduced-round digests agree on the 12 masked bits when the organizer recomputes both digests. Reported gate counts are untrusted observations.",
+      "program": "experiments/grouped_search.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "0000000000000000000000000000000000000000000000000000000000000fff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "r-bs-full-width",
+      "kind": "python-message-pairs-v1",
+      "scope": "The grouped search (proof Section 5) at scale: N_t = 512 messages per trial as 256 groups x 2 z-values (z = 0, 1), one full 256-lane batch per trial, digests computed by the bit-sliced evaluator itself, an 18-bit scaled key (low 18 bits of digest word h; N_t^2/2^18 = 1 = N^2/2^256), messages processed in the algorithm's order (batch, z-step, lane), first match of two distinct messages halts the trial.",
+      "hypothesis": "Every returned pair is two distinct 55-byte messages whose complete reduced-round digests agree on the 18 masked bits. The success count is compared descriptively with the independent-uniform model value 1 - exp(-512*511/2^19) = 0.3931 (proof Section 10); no full-width probability is inferred.",
+      "program": "experiments/grouped_search.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000000000000000000000000000000000000000000000000003ffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "r-bs-spread",
+      "kind": "python-message-pairs-v1",
+      "scope": "As r-bs-full-width with 16 groups x 32 z-values (z = 0..31) per trial; 16 trials share one 256-lane batch, each owning its own 16 lanes (bitwise operations never mix lanes).",
+      "hypothesis": "Every returned pair is two distinct 55-byte messages whose complete reduced-round digests agree on the 18 masked bits. Descriptive comparison with the model value 0.3931.",
+      "program": "experiments/grouped_search.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000000000000000000000000000000000000000000000000003ffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "r-bs-single-group",
+      "kind": "python-message-pairs-v1",
+      "scope": "As r-bs-full-width with a single group x 512 z-values (z = 0..511) per trial, the strongest within-group structure; 256 trials share one batch, one lane each.",
+      "hypothesis": "Every returned pair is two distinct 55-byte messages whose complete reduced-round digests agree on the 18 masked bits. Descriptive comparison with the model value 0.3931.",
+      "program": "experiments/grouped_search.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000000000000000000000000000000000000000000000000003ffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "r-bs-high-z",
+      "kind": "python-message-pairs-v1",
+      "scope": "As r-bs-full-width with 4 groups x 128 z-values per trial, the varying z bits at positions 17..23 (z = v << 17, v = 0..127); 64 trials share one batch, four lanes each.",
+      "hypothesis": "Every returned pair is two distinct 55-byte messages whose complete reduced-round digests agree on the 18 masked bits. Descriptive comparison with the model value 0.3931.",
+      "program": "experiments/grouped_search.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "000000000000000000000000000000000000000000000000000000000003ffff",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ]
+}
