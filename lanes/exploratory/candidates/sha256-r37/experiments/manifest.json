@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "experiments": [
+    {
+      "id": "a0-sfs-r37",
+      "kind": "python-message-pairs-v1",
+      "scope": "Constructibility and acceptance (proof.md Sections 4.3, 7, 13.2 and Appendix D): it supports H2 only by showing that variants reach full 37-step semi-free-start collisions, including collisions outside the printed cells of rows 22..36, and that the counted program accepts them; it estimates no probability and does not test the table of the whole family. experiments/xtab.py rebuilds S, L* and the 222 embedded classes from their descriptors; trial t < 128 uses class (7 t mod 222), a variant a0 of it and l (patterns 0..3: among the 28 elements of L* whose row 16 can hold with E16[23] = 0; patterns 4..7, R16x: any of the 32; all from SHAKE-256 of the seed). Rows 16..21 are built by proposals with each row's fixed x-bits of E imposed (rows 16, 17: E16[23] = 0 and E17[24] = E16[24] for patterns 0..3, E16[23] = 1 and E17[24] != E16[24] for patterns 4..7 (R16x, proof.md Section 7.8); rows 18, 19: the eight value bits of pattern t mod 8, proof.md B.1 and Section 7.8; restart after 2^11 proposals at a row). Then W22 is drawn uniformly from the 75 x 2^17 words with s1(W22 + dW22) - s1(W22) = 0x4fff9f30 (a proposal law only; no cell of rows 22..36 is imposed), W7 exactly from F7, W6 = W22 - s1(W20) - W15 - s0(W7) must be in F6, rows 22..36 are computed with the variant's W8, and the proposal is ACCEPTED IFF THE TWO 37-STEP OUTPUTS ARE EQUAL (the success event of the counted program). W0..W5 follow by the inverse expansion and CV1 by inverting steps 7..0. A trial returns CV1||M1 and CV1||M1' (96 bytes each) iff the Step-2 equations give exactly W0..W13 of both members, the outputs are equal, M1 != M1', every cell of rows -4..21 (W6/W7 XOR cells excepted) and every two-bit condition of rows 8..21 holds, a0 is in G and its class, and W8 differs from the published one. For trials 0..15 the chaining value is fed to the counted online program (table restricted to the class of a0, THETA = 1), which must find exactly the constructed pair. Trials 128..255 return no pair by design.",
+      "hypothesis": "Returned pairs: about 128 (a trial can fail only by exhausting its proposal budget). Full collisions of the complete target: 0 (these are semi-free-start collisions from CV1, not from the IV; anyone can verify them offline with the 37-step compression). This tests that A0-variants of S (proof.md Lemmas 4.2, 4.3) are valid dense parts that reach full 37-step semi-free-start collisions through every cell of rows 16..21 with their own W8 (Lemma 7.1), that collisions outside the printed cells of rows 22..36 exist and are accepted, and that the counted program of this filing (table restricted to one class, acceptance by equal outputs) finds exactly the constructed pair. It does not estimate q3. Observations (participant numbers): class_index, variant_index, l, pattern, checks_passed, restarts, proposals_row16, proposals_tail (W22 proposals inside the 75 x 2^17 set), cells_22_36. Under this proposal law about 2 in 5 returned pairs have cells_22_36 = 1 (the cell event is 2^22 of the 75 x 2^17 words, before the later rows) and about 3 in 5 have cells_22_36 = 0: collisions that the base's acceptance rejected. detected_by_counted_program = 1 and counted_ops (operations counted for that detection) for all returned pairs of trials 0..15. Each pattern t mod 8 (the four value patterns of rows 18 and 19, each with the two variants E16[23] = 0 and E16[23] = 1 of rows 16 and 17) is constructed in about 16 of the 128 trials, and the counted program, whose rows 16..19 accept the eight patterns and whose acceptance is equal outputs, finds each constructed pair, including those with cells_22_36 = 0.",
+      "program": "experiments/xtab.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    },
+    {
+      "id": "a0-online-r37",
+      "kind": "python-message-pairs-v1",
+      "scope": "Functional exactness only: H5 and Lemma 8.1 (proof.md Sections 8, 9 and 13.2); a consistency check, not a test, of H1, and not a test of the table of the whole family. The same program with the table restricted to the 222 embedded classes and THETA = 8 (the online program is the same for every THETA); trials 0..7 each run the counted online program (proof.md Section 8.3) on seed-drawn first blocks (two uniform words from SHAKE-256 of the seed per first block; real 37-step compressions) until a first block has a record with kept fibres (at most 64 first blocks): the table read at x = A_{-1} (the record is built from the definition: the variants of every passing class grouped by equal W6 value, fibres of at least THETA kept), the fibre test of every batch, the scan of the pass plane, the segments of the passing fibres, u = W0 + s0(W1) in packed groups, the direct row-16 mask lookup of every lane, rows 17..36 for every row-16 pass. Every lane of every pass plane is checked against the scalar F6 test of its fibre value, the set of good variants of the record against the brute-force definition over all variants of the passing classes, and up to 12 good pairs against every cell of rows -4..15 for all 32 elements of L*. A trial returns the complete 128-byte messages M0||M1 and M0||M1' (l = 13) of its first good pair iff all checks passed. Trials 8..255 return no pair by design.",
+      "hypothesis": "Full collisions: 0 (rows 16..36 are not expected to hold). Mismatches of every kind: 0. Returned pairs: those trials whose first record with kept fibres had a good pair (a record can have kept fibres and no passing fibre, in which case no pair is returned). Observations (participant numbers): first_blocks, records_with_fibres, fibres, passing_fibres, good_pairs, row16_pairs, counted_ops, lane_mismatches, filter_mismatches, cell_mismatches, pairs_cell_checked. This tests the correctness of the counted fibre filter (H5, Lemma 8.1), the per-variant Step-2 equations and the validity of good pairs through row 15 (Lemma 4.3) on organizer-seeded first blocks; it tests neither q3 nor table statistics; H1, H3: a1-cv-r37, a3-*.",
+      "program": "experiments/xtab.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    },
+    {
+      "id": "a1-cv-r37",
+      "kind": "python-message-pairs-v1",
+      "scope": "H1 at the organizer's scale (proof.md Section 13.6): 256 trials x 24 first blocks = 6,144 real first blocks. Each first block is the padded block of a seed-drawn 55-byte message, so its 37-step chaining value CV1 = F_37(IV, block) is the organizer's own digest of that message (x = A_{-1} = digest word 0, A_{-2} = word 1, cb = C6 - A_{-2}). A trial returns the first pair of its 24 messages (i < j, ordered by j, then i) whose digests agree on the top four bits of words 0 and 1; the organizer checks that event on its own digests. Observations per trial: the first blocks with x in C7S[0] - F7 and in C7S[1] - F7 (the W7 filter of two classes), with cb in F6 (the W6 filter at phi = 0), and the passing classes of 222 over the first 8 first blocks.",
+      "hypothesis": "Under H1 (independent uniform chaining values) a trial returns a pair with probability exactly 1 - prod_{i=1..23} (1 - i/256) = 0.67134, independently of the other trials: successes ~ Binomial(256, 0.67134), mean 171.9, sd 7.5. Observations (participant numbers): f7_class0 and f7_class1 each ~ Binomial(6144, p7 = 2^-5.97763), mean 97.5; f6_cb ~ Binomial(6144, p6 = 2^-3.90197), mean 411.0; passing_classes has mean exactly 2048 x 222 p7 = 7,214.9 (overdispersed: the classes are correlated). Scale: 6,144 first blocks against the 2^51.78 of the attack; this tests the law of x, A_{-2} and of the two filter inputs on real 37-step chaining values, not 256-bit independence.",
+      "program": "experiments/xtab.py",
+      "event": {
+        "kind": "digest-xor-mask",
+        "mask_hex": "f0000000f0000000000000000000000000000000000000000000000000000000",
+        "expected_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "a3-dep-r37",
+      "kind": "python-message-pairs-v1",
+      "scope": "H3 given a success (proof.md Section 13.6): trial t < 32 constructs, as a0-sfs-r37 does, a 37-step semi-free-start collision for a variant a0 of class (7t + 3) mod 64 and an element l of L* (rows 16..21 cell by cell with pattern t mod 8, equal outputs) on a chaining value cv: a success of the counted program on cv. It then examines (a) the other l of the same variant whose row 16 holds, through rows 17..36, and (b) at most 2,048 other good pairs of the same cv over the classes c < 64 (W7 in F7 and W6 in F6; passing classes in index order, members in order, a0 excluded): u = W0 + s0(W1), its row-16 mask, and rows 17..36 of every row-16 pass. The trial returns (cv||M1, cv||M1') of the success iff at least one other (good pair, l) passes row 16. Trials 32..255 return no pair.",
+      "hypothesis": "If the other good pairs of a first block that holds a success behave like those of any first block, each examined good pair passes row 16 for on average p16 = 2,097,152 / 2^32 = 2^-11.0 elements of L*, as in the matched control a3-ctl-r37: about 32 (1 - exp(-2048 p16)) = 20.2 returned pairs, and about as many as a3-ctl-r37 returns. Full collisions: 0 (semi-free-start pairs). Observations: constructed, own_l_in_mask (the success's own l is in the looked-up mask), same_variant_l_row16, same_variant_l_row17, same_variant_l_successes (part a; 7319bba's replay found no further success), good_pairs, row16, row17, row18_21, successes (part b; expected row16 total 2048 x 32 x p16 = 32.0 when every trial reaches 2,048 pairs; row18_21 and successes about 0). Scale: rows 16 and 17 of about 2^16 other good pairs; the full event of distinct pairs cannot be observed jointly.",
+      "program": "experiments/xtab.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    },
+    {
+      "id": "a3-ctl-r37",
+      "kind": "python-message-pairs-v1",
+      "scope": "Matched control for a3-dep-r37 (proof.md Section 13.6): trial t < 32 builds a chaining value on which a good pair of a variant a0 of the same class (7t + 3) mod 64 exists by construction (x = c7 - W7 with W7 uniform on F7; cb = W6 - phi(a0, x) with W6 uniform on F6; the other six words uniform), with no success imposed, and examines at most 2,048 other good pairs exactly as part (b) of a3-dep-r37. It returns (cv, cv with its words reversed) iff at least one (good pair, l) passes row 16: an indicator, not a collision. Trials 32..255 return no pair.",
+      "hypothesis": "About 32 (1 - exp(-2048 p16)) = 20.2 returned pairs, p16 = 2^-11.0; full collisions 0. Observations: good_pairs, row16 (expected total 32.0), row17, row18_21, successes. The difference between a3-dep-r37 and this control is the conditioning on a success.",
+      "program": "experiments/xtab.py",
+      "event": {
+        "kind": "full-collision"
+      }
+    }
+  ]
+}
