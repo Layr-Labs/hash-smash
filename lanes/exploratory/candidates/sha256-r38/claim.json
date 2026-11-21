@@ -1,86 +1,280 @@
 {
+  "attack_class": "ordinary-collision",
+  "baseline_improved": "sha256-r38-nominal-v2",
+  "certificate_manifest": "certificates/manifest.json",
+  "claim": {
+    "memory_log2_bytes": 21.0,
+    "nonuniform_advice_log2_bytes": 17,
+    "preprocessing_log2": 61.58497,
+    "success_probability": 0.39,
+    "time_log2": 79.75224,
+    "time_unit": "target-compressions"
+  },
+  "heuristics": [
+    {
+      "evidence_ids": [
+        "proof:53-59",
+        "proof:60-63",
+        "proof:110-135",
+        "proof:136-141",
+        "proof:189-204",
+        "proof:435-490",
+        "proof:491-502",
+        "proof:1880-1893",
+        "proof:1894-1897"
+      ],
+      "extrapolation": "Historical 15-column scans and inherited panels support H1 uniformity. Current u14t4 C=3, L=1 controls (Appendix X13) and 3-seed native witness_u14_c3l1.c (Appendix ZU.4) verify deterministic retention E(8174,C=3,L=1)=499,621 and zero recovery mismatches.",
+      "id": "H1-uniform-chaining-values",
+      "limitations": "A premise about the 38-step first-block compression; the experiments use deterministic seed expansion and reduced sizes; full-scale runs cover seven chaining values.",
+      "role": "score-critical",
+      "scope": "Expected per_a0 = 1.6252417201...; claws/a0 = 160*499,621/2^32. Supports H1 postfilter law, Bernstein cap (Lemma 3), and fixed-table independence within each epoch u in 0..2^32-1.",
+      "statement": "The first blocks M0 are fresh uniform 512-bit strings and cv = F_38(IV, M0) behave as independent uniform 256-bit values. For every a0, F(a0) and h(a0) are independent and uniform, y = R16H[0] - r - F(a0) probes with probability 16/8192 = 2^-9, a probe makes 20 reads (1 per head), claws/a0 = 160*499,621/2^32, a1 = u - h(a0) is uniform given claw, C1 passes at 1/8, and given each deterministic epoch table T(u) (u in 0..2^32-1), first-block works W_j and success indicators 1_{X(u,cv_j)>=1} are independent across j=1..K."
+    },
+    {
+      "evidence_ids": [
+        "proof:92-109",
+        "proof:110-135",
+        "proof:435-490"
+      ],
+      "extrapolation": "Two complete single-lane u14t4 tables (E_HI and E_LO), 8 class-kept chaining values each, 1,225 good pairs and zero reference mismatches give pooled mean 841.992653 (se 0.089315). The largest stated per-table one-sided 99% endpoint is 842.361097.",
+      "id": "H3B-step3b-mean",
+      "limitations": "Declared table-transfer premise. Evidence contains 1,225 pairs on two complete tables; it does not prove the expectation for every table or every chaining value, and no independence of call count and cost is claimed.",
+      "role": "score-critical",
+      "scope": "Step-3b term of per-claw expectation (1.83802337...), hence per_a0 1.6252417..., wbar 29,398.054... and Lemma 3. Exact 3014 path remains in vmax.",
+      "statement": "For each fixed epoch table T, with a fresh class-kept chaining value CV drawn under H1, let G_T(CV) be the number of step3b calls and S_T(CV) their total counted stopped-path work. H3B asserts E[S_T(CV) | T] <= 842.361097 E[G_T(CV) | T]. The charged source implements early stopping before later trace rows are constructed."
+    },
+    {
+      "evidence_ids": [
+        "proof:136-141",
+        "proof:60-63",
+        "proof:53-59",
+        "proof:189-204",
+        "proof:344-384",
+        "proof:491-502"
+      ],
+      "extrapolation": "The inherited exhaustive N12/G counts and real-word controls remain in Sections 3.7/6 and the historical archive. All 5,422 isolated native-pair checks agree with the retained predicates. The restriction retains the stated H1/H7 transfer premises.",
+      "id": "H1-P1-postfilter-law",
+      "limitations": "F7's per-chaining-value spread makes few-chaining-value measurements of the good-pair rate noisy; the expectation over a uniform chaining value is what the bound uses.",
+      "role": "score-critical",
+      "scope": "q_pf(SEL, class) = 2^-14.1520 in N_CV and post-filter chain term of per-claw cost (1.83802337...).",
+      "statement": "For the claws the u-table procedure finds, Pr[C1 and C2 and G and F7] = q_pf = 57,726,359,870,197 x 287,309,824 / 2^90 = 2^-16.1877, the rate enumerated exhaustively over all 2^32 words (P(C1) = 1/8, |C1 and C2| = 53,096,854, the W9 G count 57,726,359,870,197, |F7| = 287,309,824); the stage rates 1/8, 2^-6.3379, 2^-12.2857 set the mean post-filter cost. In this filing C1 is decided inside the bucket test (Lemma B''), so the procedure processes the C1-claws (one eighth of the claws) and the rates P(C2 | C1) = 8 x 53,096,854 / 2^32 and P(C2 G | C1) set the remaining chain cost; the good-pair set is unchanged (Lemma C1). With the window (Section 3.7) the G rate is the exact count over SEL, P(G | C1 C2, SEL) = 2,051,404,269,120 / (2^20 x 53,096,854) = 0.0368453386, and F7 stays at |F7|/2^32: q_pf(SEL) = 2^-15.0022. With the kept class of chaining values (H9) F7 is at the class's rate: q_pf(SEL, class) = 2^-14.1520 at F7R = 0.1205926."
+    },
+    {
+      "evidence_ids": [
+        "proof:142-153",
+        "proof:158-161",
+        "proof:237-240",
+        "proof:491-502",
+        "proof:1539-1571",
+        "proof:1894-1897"
+      ],
+      "extrapolation": "Registered P1/base q3 and paired runs, diagnostics and lower bounds remain in Section 9 and historical P/Q. Because Section 7 runs deterministically over all N_E=2^32 values of ustart (full cycle), the deterministic product bound withdraws Lemma T and a-bar <= 2^10*q3r (1 - 2^-25 retained conservatively).",
+      "id": "H2-P1-q3-transfer",
+      "limitations": "Participant-run sequential Monte Carlo with a heavy-tailed middle stage; the deep rows (about 2^-71 per good pair) are represented through the declared transfer premises; premises (a) and (b) transfer beyond the measured P1 components (sensitivity of (a): up to about 0.37 bit of time_log2 if the gain were absent); the u-table's retention weighting of u is covered by H7.",
+      "role": "score-critical",
+      "scope": "q3r, hence N_CV and the full attack cost; deterministic full-cycle ustart withdraws Lemma T and a-bar.",
+      "statement": "A good pair of the u-table procedure is accepted by step 3b with probability q3r >= q3_P1 x 2^32 / 160 = 2^-71.4010, where q3_P1 = 2^-96.0791 = q3_model x 2^D_LB on W9 = [9*2^26, 10*2^26). Every a0 in SEL lies in W9, its claws' a1 are uniform (H1), and its u = W1 is retained from fixed R*=8174 under H7. Under Section 7's deterministic full-cycle ustart product bound, no per-table Lemma T or a-bar upper bound is required."
+    },
+    {
+      "evidence_ids": [
+        "proof:158-161",
+        "proof:237-240",
+        "proof:241-248",
+        "proof:491-502",
+        "proof:1539-1571"
+      ],
+      "extrapolation": "The inherited registered estimator, confidence interpretation and limitations remain in Section 9 and historical P/Q/R. No finite current check validates a probability near 2^-96.",
+      "id": "H2b-smc-estimator-validity",
+      "limitations": "Participant-run tool, not executed by the organizer; heavy-tailed middle stage (some ratio seeds die, counted as 0); the estimator is validated on known answers and on its own reproductions, not on an independent implementation.",
+      "role": "score-critical",
+      "scope": "q3_model and D_LB, hence q3r, N_CV and the attack term (the same scope as H2-P1).",
+      "statement": "The sequential Monte Carlo estimator traillab (the lineage's own C tool, not shipped), with which q3_model and the paired difference D_LB were measured, estimates the accepted-event rate of the stated model without material bias. It replays every sample on real 38-step compressions of both members (0 replay mismatches required), treats rows 16..21 as the importance-split prefix (8,192 particles, 256 proposals per row; the row-16 stage is exact with weight 160/2^32) and counts EXACT (zero output difference after step 37) in the window rows 22..37. Its per-seed values, combined by the registered one-sided rules, give conservative bounds for the true rate."
+    },
+    {
+      "evidence_ids": [
+        "proof:142-153",
+        "proof:154-157",
+        "proof:491-502",
+        "proof:1894-1897"
+      ],
+      "extrapolation": "Registered 24-CV panel in Section 8 and Appendix V section support-8. Under deterministic full-cycle ustart (Section 7), linearity of expectation across all 2^32 tables means only the (u, cv)-averaged bound E[X(X-1)] <= 2^-7.5 E[X] is required.",
+      "id": "H3-P1-within-cv-dependence",
+      "limitations": "Not testable at the acceptance probability; components only. The 24-CV panel was not stratified by the cv0 class, and the marginal class-rate measurements (F7R, MSG_CLS on an independent pool) do not by themselves establish a factorial-moment inequality, so the class-conditioned transfer is declared, not measured.",
+      "role": "score-critical",
+      "scope": "The Bonferroni factor is the constant 1 - 2^-8.5 = 0.99723786413599... per chaining value: E[J(J-1)]/2 <= 2^-8.5 E[J], and with E[J]=NA*ca_lo*q_pf*q3r=2^-65.24 the absolute loss is 2^-73.74. The factor multiplies E[J] once and carries no E[J] inside the correction. The tighter evaluation recorded in Appendix V section support-8 (2^-61.8) is not charged because it needs a bound on E[K(K-1)]/E[K] that the premise does not supply: K = 2^20 with probability about 2^5.99/2^20 and K = 0 otherwise keeps E[K] and gives E[J(J-1)]/E[J] = q3r(2^20-1), far above 2^-61.8 and still below the declared 2^-7.5. An earlier revision wrote 1 - 2^-8.5*E[J]; that is invalid and withdrawn.",
+      "statement": "Group independence within a chaining value (the form of H5-group-independence of the accepted 44870635): good pairs of one chaining value that share no endpoint (a0 or u) are independent trials of the accepted event, each with probability q3r; good pairs sharing an endpoint form a group counted once. Consequence used: for a uniform chaining value and any table, J (accepted good pairs among all claws of the chaining value) has E[J(J-1)] <= 2^-7.5 E[J]. This filing applies the same premise to the kept-CV class ((cv0 >> 24) & 63 == 12): the class conditions only cv[0], the panel below is drawn from uniform chaining values (so about 1/64 of its CVs are in-class), and the transfer of the second-moment bound to the class-conditioned law is part of this declared premise."
+    },
+    {
+      "evidence_ids": [
+        "proof:173-176",
+        "proof:241-248",
+        "proof:491-502",
+        "proof:1539-1571"
+      ],
+      "extrapolation": "Historical R.1-R.4 retain the P8 search record. The lineage charged A_C=2^78; this filing charges A_C=2^60 under the stated allowance premise. Failed and repeated derivations remain charged.",
+      "id": "H4a-allowance-characteristic-search",
+      "limitations": "Participant accounting of a computation not re-run here; the published 38-step attack's dense-part search has no log. Missing: the dense-part search has no log and nothing was organizer-replayed. Logged support (proof R.2): 38 solver runs, 230,183 listed seconds (2^49.47 target compressions), and the author's development bound below 2^21 core-seconds (2^52.65), 2^7.35 below A_C=2^60.",
+      "role": "score-critical",
+      "scope": "Active price term ALLOW = 3*2^60*C = 9,435,509,593,702,435,651,584 (0.3397% of N).",
+      "statement": "The total computation spent to obtain the characteristic P8 of 1a695f0b (its signed-difference SAT sweep, coupling checks and estimators; failed and repeated runs included; and any unlogged derivation of the dense rows it rests on) is at most A_C = 2^60 target compressions (a declared allowance premise, not a proved historical bound)."
+    },
+    {
+      "evidence_ids": [
+        "proof:173-176",
+        "proof:241-248",
+        "proof:491-502",
+        "proof:1539-1571"
+      ],
+      "extrapolation": "The inherited Step-1 SAT procedure, solver and exact repeated computation remain in Section 11 and historical R.5. Its full cost remains inside A_S=2^60.",
+      "id": "H4b-allowance-step1-solve",
+      "limitations": "Participant accounting. Exact named-run cap: 16 single-thread Kissat runs x 12 hours = 691,200 CPU-seconds = 2^51.05240 target compressions at the filing rate, 8.94760 bits below A_S=2^60. The complete historical execution log is unavailable.",
+      "role": "supporting",
+      "scope": "Active allowance term.",
+      "statement": "S (the dense part of P8's semi-free-start pair) is obtained at a total cost of at most A_S = 2^60 target compressions (declared allowance premise)."
+    },
+    {
+      "evidence_ids": [
+        "proof:173-176",
+        "proof:385-434",
+        "proof:435-490",
+        "proof:491-502",
+        "proof:1539-1571",
+        "proof:1906-1918"
+      ],
+      "extrapolation": "Inherited development plus u14t4 census/recovery runs remain well below DEV = 2^60.",
+      "id": "H4c-development-charge",
+      "limitations": "Participant accounting.",
+      "role": "supporting",
+      "scope": "Active allowance term.",
+      "statement": "All development computation of this package and of the lineage it builds on (exhaustive passes, C ports, the q3 and ratio studies, the table-law counts, checks, failed runs and reruns), whether or not the procedure reads its output, is at most DEV = 2^60 target compressions, charged in full (declared allowance premise)."
+    },
+    {
+      "evidence_ids": [
+        "proof:36-42",
+        "proof:47-52",
+        "proof:53-59",
+        "proof:60-63",
+        "proof:92-109",
+        "proof:110-135",
+        "proof:189-204",
+        "proof:581-1538",
+        "proof:1880-1893"
+      ],
+      "extrapolation": "Section 4 and Appendix U list prices. Exact register/walk controls, the isolated actual ledger, independent rational reconstruction, 18 restriction/ledger source mutants and six isolated method mutants bind changed terms. Observations are participant evidence.",
+      "id": "H5prime-pricing",
+      "limitations": "Prices are the cost model's unit prices applied to an explicit straight-line count; the 256-bit word tests rely on the absence of carries between lanes and between the u part and the field of a lane, proved in Lemmas B' and B'' and checked on every lane class.",
+      "role": "score-critical",
+      "scope": "The whole time bound.",
+      "statement": "Under collision-frontier-v5, C=2728. Section 4 prices the epoch build (73,037,716,327), class test, setup 70, 215-op 16-register bitsliced front end (lim=8), probe rate 16/8192 = 2^-9, 20 reads/probe, 5-op read ((d+WBL)&MT3W)==0, 0-op walk (L=1), 9-op unpack+prefilter (3/16 survivors), 50-op algebraic u-recovery+6-op exact C1, postfilter segments 13/22/24, and step3b mean 842.361097 (max 3014 in vmax). Counted scan ops 90,257 <= itemised charge 90,257 verified in Appendix X13."
+    },
+    {
+      "evidence_ids": [
+        "proof:162-172",
+        "proof:189-204",
+        "proof:581-1538",
+        "proof:1874-1877",
+        "proof:1878-1918",
+        "proof:1898-1905",
+        "proof:1906-1918"
+      ],
+      "extrapolation": "Following 18a46c42's disclosed retained-data memory convention (preprocessing charged via A_C=A_S=DEV=2^60), standalone zero-libc ELF witness_u14_c3l1.c allocates the entire 2,031,648 B retained arena (1,572,896 B table + 327,680 B uniform LUTs + 131,072 B full 2^17 B advice buffer), builds all 2^32 entries, verifies rec_mismatches=0, touches every byte, and measures VmHWM = 2,024 KiB = 2,072,576 B across three ustart seeds, leaving 24,576 B strictly under the charged 2,097,152 B image.",
+      "id": "H6-memory-figure",
+      "limitations": "Retained-data convention per collision-frontier-v5 (matching 18a46c42; prior Phase E/R schedules are historical in Appendix V/ZT). Native measurement binds the standalone ELF implementation on one Linux kernel.",
+      "role": "score-critical",
+      "scope": "memory_log2_bytes = 21.00000 (log2(2,097,152) = 21 exact), nonuniform_advice_log2_bytes = 17 (10,163 B raw / < 16 KiB expanded itemized advice with WT retired), and scalar 80.75224 (= 79.75224 + 21.00000 - 20).",
+      "statement": "Retained online image is 2^19 * 3 + 32 pad = 1,572,896 B table plus 524,256 B allowance (327,680 B uniform LUTs, full 131,072 B = 2^17 B advice buffer covering 10,163 B raw itemized advice, and 65,504 B runtime/ELF headroom) = 2,097,152 B = 2.00 MiB exact (memory_log2_bytes = 21.00000). Native zero-libc witness witness_u14_c3l1.c measures max VmHWM = 2,072,576 B across all three ustart seeds."
+    },
+    {
+      "evidence_ids": [
+        "proof:26-35",
+        "proof:43-46",
+        "proof:142-153",
+        "proof:189-204",
+        "proof:237-240",
+        "proof:385-434",
+        "proof:491-502",
+        "proof:1894-1897"
+      ],
+      "extrapolation": "Fixed R*=8174 and exact C=3, L=1 retention count E(8174,C=3,L=1)=499,621 verified identically across three ustart seeds over all 2^32 words in witness_u14_c3l1.c. Section 7 iterates deterministically through all N_E=2^32 ustart values.",
+      "id": "H7-utable-retention-law",
+      "limitations": "Declared strengthening of average-over-alignments H7 to fixed R*=8174; finite checks verify E=499,621 and zero u14t4 recovery mismatches but do not prove rows 22..37.",
+      "role": "score-critical",
+      "scope": "Deterministic full-cycle success expectation across all u in 0..2^32-1 uses exact E=499,621 on both success and cost sides.",
+      "statement": "The construction fixes r = R* = 8174 and runs deterministically through every epoch table T(u) for u in 0 .. 2^32 - 1. Every table retains exact count E(8174, C=3, L=1) = 499,621. Premise: at R*=8174, averaged uniformly over all 2^32 values of u and uniform chaining values, good-pair acceptance is independent of coverage class and retention."
+    },
+    {
+      "evidence_ids": [
+        "proof:60-63",
+        "proof:142-153",
+        "proof:158-161",
+        "proof:344-384",
+        "proof:491-502",
+        "proof:1539-1571",
+        "proof:385-434",
+        "proof:1737-1761",
+        "proof:1790-1850"
+      ],
+      "extrapolation": "Unique seeds 101..168, counted once: 1,700,000,000 pairs per side, SEL profile 257,983 and W9 profile 258,427. Point log2 ratio -0.0024808069401957883, SE 0.004014896826580175, one-sided 99% lower bound -0.011820853637039925, charged at -0.011821 (six decimals, still below the exact bound). This updates only the message-side input of H8; it does not establish rows 22..37 state invariance.",
+      "id": "H8-window-state-invariance",
+      "limitations": "Rows 22..37 of the state part are not directly measurable at the claimed probability; H8 is the premise covering exactly that gap, supported by the exact message-side counts, the shallow-row panels and the unchanged registration, not by a measurement of the deep event. If it failed, the bound would move with the state part on the selected good pairs.",
+      "role": "score-critical",
+      "scope": "Retained identically from published base 74ec8ef: pooled S217 message-side bound MSG_LO = -0.011821.",
+      "statement": "Given the message-difference profile of a good pair, the inherited H8 state part is unchanged between SEL and W9. The measured message part is charged at 2^-0.011821 (no Lemma T / a-bar upper bound needed under Section 7 full-cycle ustart)."
+    },
+    {
+      "evidence_ids": [
+        "proof:64-67",
+        "proof:136-141",
+        "proof:142-153",
+        "proof:491-502",
+        "proof:1539-1571",
+        "proof:385-434"
+      ],
+      "extrapolation": "The class F7 rate 0.1205926 (upper 0.1206112) and message factor 2^-0.0225 were measured on pools independent of the class selection, with a second pool for F7R and MSG_CLS, so both factors are post-selection-independent measurements; the class is a 2^-6 cv0 condition with three charged operations per first block. The rows 17..21 panels are in Appendix T; the 64-class search, rates, paired evidence and bounds remain in Section 3.8 and Appendix V. Finite controls do not establish rows 16..37 invariance.",
+      "id": "H9-cv0-class-invariance",
+      "limitations": "Rows 16..37 of the state part are not directly measurable at the claimed probability; H9 covers that gap, supported by the independent-pool class rates, the balanced 64-class search and the shallow-row panels rather than by a measurement of the deep event. The F7 rate is the one-sided 99% bound of the exhaustive-density Rao-Blackwell estimator, 0.1206019 +- 0.0000031 over 3.21e7 X-samples, whose exact control (equal-weight mean over the 256 byte-classes) returns 0.066894531 against 0.06689453125.",
+      "role": "score-critical",
+      "scope": "Inherited historical sensitivity/comparison only: q_pf and q3r in N_CV and the step-3b cost term: the class raises q_pf by 0.1205926 / 0.0668945 = 2^0.8413 and, after the charged message factor and the class test (3 operations per first block), gives time_log2 76.7653 (without the class: 77.5450; 8116a55c: 77.1297).",
+      "statement": "Only first blocks whose chaining value is in the class ((cv0 >> 24) & 63) == 12 are kept (2^-6 of them; proof.md Section 3.8). (a) Under H1 a kept chaining value has cv[0] uniform in the class and its other words uniform; for the claws of a kept chaining value C1, C2 and G pass at the rates of H1-P1 (they do not read the chaining value), and F7 passes at the class average of the F7 rate over the good-pair law of q, charged at F7R = 0.1205926 and the step-3b cost at the upper bound 0.1206112, the two one-sided 99% bounds of the class rate from the exhaustive-density estimator (per-top-byte F7 density enumerated over all 2^32 words, reproducing |F7| = 287,309,824; the class average over cv[0] computed in closed form per G-conditioned q so only the q distribution is sampled; 3.21e7 X-samples give 0.1206019 +- 0.0000031, and the equal-weight mean over the 256 byte-classes returns 0.066894531 against 0.06689453125); the earlier 2^20-q interval [0.11987, 0.12135] is superseded and not used. (b) Given the message-difference profile of a good pair (both members' W16..W37), the state part of acceptance is the same for good pairs with cv[0] uniform in the class as for those with cv[0] uniform (the law of H2-P1 and H8). The message part is measured and charged: the class's good pairs are accepted with probability at least 2^-0.0225 x 2^MSG_LO q3r = 2^-0.0344 q3r, (no Lemma T or a-bar upper form needed under Section 7 full-cycle ustart). The rates used (F7R and MSG_CLS) were measured on a second pool independent of the class selection."
+    },
+    {
+      "evidence_ids": [
+        "proof:177-180",
+        "proof:581-1538",
+        "proof:1539-1571",
+        "proof:1906-1918"
+      ],
+      "extrapolation": "Hashes detect changed bytes. Fresh local runs of the shipped program selftest and of the embedded witness are reported in Appendix U/X13, and their outputs are reproducible from the package text.",
+      "id": "H-historical-execution-integrity",
+      "limitations": "No organizer execution exists for this package, so participant run claims are not trusted execution evidence; no finite replay estimates the deep success event.",
+      "role": "supporting",
+      "scope": "The evidentiary standing of every inherited participant record (P8 search, H7 panels, q3 estimators, witness runs); it bounds what the retained hashes prove and therefore the strength of the exploratory case.",
+      "statement": "SHA-256 commitments in this package preserve the bytes of the historical records they name; they do not authenticate that the named executions occurred with the stated inputs or resources, and several historical seeds, formulas, binaries and platforms are unavailable."
+    },
+    {
+      "id": "H9F7-GoForceX-exhaustive-density-bounds",
+      "role": "score-critical",
+      "statement": "The class-12 F7 rate has one-sided 99% lower bound 0.1205926 and upper bound 0.1206112 under the unchanged H9 law.",
+      "scope": "F7R and F7R_HI only; hence q_pf, stopped-path expected work, N_CV and the final time ledger.",
+      "limitations": "Inherited public-parent participant measurement; the estimator is not organizer-executed here and H9's deep conditional-state transfer remains a premise.",
+      "extrapolation": "Directly inherited from GoForceX submission 6c6ee7a2; its exhaustive-density estimator enumerates per-top-byte F7 density and samples only the G-conditioned q distribution.",
+      "evidence_ids": [
+        "proof:64-67"
+      ]
+    }
+  ],
+  "lane": "exploratory",
+  "restrictions": [
+    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words. Output: two distinct 128-byte messages M0||M1 and M0||M1' (common first block) with equal digests; step 3b accepts only if A34..A37, E34..E37 match (Lemma 1, Section 1).",
+    "Algebraic Carry-Bootstrap u-Compression (u14t4) & Single-Lane Geometry (COV_RES=3, L=1, Appendix ZU.1): cover (P(u) - 8174) mod 8192 < 3 (1,572,864 words), store 1 lane/row x 2^19 rows x 3 bytes + 32 B pad = 1,572,896 B with [u14:14][u_top4:4][0:1][res:4][0:1]. Exact 32-bit recovery from (Y, u14, u_top4) verified on all 499,621 retained entries (0 mismatches).",
+    "Deterministic full-cycle ustart (NE=2^32): iterate deterministically over all N_E = 2^32 = 4,294,967,296 epochs ustart in 0..2^32-1, each executing K = 21,997,772,926,617 first blocks (N_CV = N_E*K = 94,479,715,304,654,222,917,632) with zero epoch-mixture gap and zero Lemma T dependency.",
+    "Exact u14t4 C=3, L=1 ledger (x13_u14.py, Appendix A & ZU.2): GBS=215, reads/probe=20.0, READC1=5, walk=0 (WT & H1W retired), per_a0=1.62524172..., wbar=29,398.054..., build=73,037,716,327, vmax=66,022,444,807, V_CV=2,777,522,430,009,911,350,212,353,845, V_MAX=2,777,522,743,704,514,349,202,595,637, ALLOW=9,435,509,593,702,435,651,584, OVER=73,037,716,327, FIN=17,968, N=2,777,532,179,214,108,124,675,981,516, time_log2=79.75224 rounded upward (exact 79.75223426...).",
+    "Retained-data memory bound per collision-frontier-v5 (matching 18a46c42, Section 10 & Appendix ZU.3-ZU.4): A_C=A_S=DEV=2^60 preprocessing charged in time; online image = 1,572,896 B table + 327,680 B uniform LUTs + 131,072 B advice buffer (covering 10,163 B raw itemized advice inside 2^17 B) + 65,504 B ELF/stack allowance = 2,097,152 B exact (memory_log2_bytes = 21.00000; witness_u14_c3l1.c max VmHWM = 2,072,576 B across 3 ustart seeds). Organizer scalar = 80.75224.",
+    "Declared exploratory assumptions: inherited H1-P1, H2-P1, H2b, H3-P1, H3B, H4a-H4c, strengthened fixed-alignment H7 (E=499,621), H8 (MSG_LO=-0.011821), H9 (MSG_CLS=-0.0225), and exhaustive-density F7 bounds remain explicitly declared exploratory premises (Appendix Y)."
+  ],
+  "rounds": 38,
   "schema_version": 3,
   "submission_state": "ready",
   "target_profile": "sha256-r38-prefix-v1",
-  "attack_class": "ordinary-collision",
-  "rounds": 38,
-  "lane": "exploratory",
-  "baseline_improved": "sha256-r38-nominal-v2",
-  "certificate_manifest": "certificates/manifest.json",
-  "experiment_manifest": "experiments/manifest.json",
-  "claim": {
-    "time_log2": 87.14808,
-    "time_unit": "target-compressions",
-    "memory_log2_bytes": 28.1,
-    "preprocessing_log2": 78.09276,
-    "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 14
-  },
-  "restrictions": [
-    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; outputs two distinct 128-byte messages M0 || M1, M0 || M1' with equal digests.",
-    "Construction: the memory-efficient A0-variant attack (design of 2d1c4fc2 and fb176310 on ePrint 2026/1120 / 2026/1080; per-class row-16 programs as in 08be594), our implementation experiments/a0p38.py, with our characteristic P8 and the accepted event rows 16..22 (row 19 on signed differences) plus a direct output comparison.",
-    "Cost: exact ledger ledger_a0p.py: N_FB = 1,510,856,422,634,357,630,235,398 first blocks, 32 classes of 24,576 variants (786,432 in all), per-class row-16 programs of 1,438 to 1,482 instructions (mean 1462.25) per 256 variants, executed counts; T x 2728 = 467765448296261394038709429793; claimed 87.14808.",
-    "Success probability at least 0.39 under H1, H2 (q3_model 2^-97.0000), H3, by Bonferroni per first block, independent first blocks and Chebyshev caps.",
-    "Memory 2^28.10 bytes (online 3,659,904 bytes; the preprocessing peak)."
-  ],
-  "heuristics": [
-    {
-      "id": "H1-single-trial-chaining-value",
-      "role": "score-critical",
-      "statement": "For M0 uniform on {0,1}^512 (two fresh random words per first block), CV1 = F_38(IV, M0) behaves as a uniform 256-bit value for the events of one fixed variant (W7, W16..W22 and E16x distributed as in Lemma 5.1).",
-      "scope": "g, the per-first-block success probability and the expected work.",
-      "extrapolation": "The premise of the A0-variant lineage. Organizer evidence: a0p-online-r38 draws 64 unconditional first blocks per active trial and counts the W7 passes of all 32 classes (our validation: 5,693 passes in 2,560 blocks against 5,480 expected); it then runs the counted program on real first blocks.",
-      "limitations": "A premise about the first-block compression.",
-      "evidence_ids": [
-        "proof:186-191",
-        "proof:373-394"
-      ]
-    },
-    {
-      "id": "H2-q3-accepted-event",
-      "role": "score-critical",
-      "statement": "The average over the 786,432 selected variants (32 classes) of Pr[the pair is in the accepted event (rows 16..22 with row 19 on signed differences, equal outputs) | good pair] is at least q3_model = 2^-97.0000.",
-      "scope": "N_FB and the whole attack term.",
-      "extrapolation": "40 multilevel-splitting runs (seeds 4001..4040) with the variants of the selected classes: mean 2^-96.1821, one-sided 99% Student bound 2^-96.5603, bootstrap 2^-96.5278, 188,796 verified collisions (two stalled runs counted as 0); an independent Python implementation (the organizer replica, a lower-bound event restricted to four row-19 patterns and 512 sampled variants): 480 development replicates, mean 2^-96.2059; organizer replica a0p-q3-r38 with a frozen pass rule.",
-      "limitations": "Participant-run Monte Carlo with a heavy-tailed middle stage; the replica tests a reduced version.",
-      "evidence_ids": [
-        "proof:257-311",
-        "proof:373-394"
-      ]
-    },
-    {
-      "id": "H3-pairs-in-first-block",
-      "role": "score-critical",
-      "statement": "The average over successes of the expected number of other row-16 passes of the same first block is at most 2^-5.1.",
-      "scope": "The Bonferroni factor of a first block.",
-      "extrapolation": "750 rebuilt successes: 6 other row-16 passes among 153,649,152 evaluated variants of the passing classes; 99% Poisson limit 2^-5.69.",
-      "limitations": "Measured on rebuilt estimator successes.",
-      "evidence_ids": [
-        "proof:257-311"
-      ]
-    },
-    {
-      "id": "H4-allowances",
-      "role": "score-critical",
-      "statement": "The computation spent on the characteristic search, S and the class data, and all development is at most A_C + A_S + DEV = 2^78 + 2^74 + 2^70 target compressions.",
-      "scope": "The allowance term (negligible against T).",
-      "extrapolation": "One 10-core machine, less than 2^22 core-seconds in all (participant accounting); the envelope holds for any machine running ten cores for a full year at up to 2^30 target compressions per core-second (2^58.3 < 2^70).",
-      "limitations": "Envelope independent of the measured rate; with A_C = 2^84 the ledger gives time_log2 = 87.29999 (+0.15191).",
-      "evidence_ids": [
-        "proof:312-344"
-      ]
-    },
-    {
-      "id": "H5-bitsliced-planes",
-      "role": "score-critical",
-      "statement": "One instruction on a 256-bit plane costs one word operation (the 256-bit word RAM of the cost model); each class's row-16 program is charged at its executed instruction count, loads and stores included (expected work at the mean over the classes, the work cap at the maximum).",
-      "scope": "The dominant work term.",
-      "extrapolation": "Executed instruction by instruction and compared with the scalar definition on sampled batches (selftest, a0p-online-r38).",
-      "limitations": "Full-scale execution is infeasible.",
-      "evidence_ids": [
-        "proof:217-237",
-        "proof:373-394"
-      ]
-    }
-  ]
+  "experiment_manifest": "experiments/manifest.json"
 }
