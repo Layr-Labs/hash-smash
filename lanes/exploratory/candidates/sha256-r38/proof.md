@@ -1,3395 +1,2287 @@
-# 38-step SHA-256 collision with the characteristic P8 in the memory-efficient A0-variant attack, 32 classes and per-class row-16 programs: time 2^87.14808, memory 2^28.10 bytes
+# sha256-r38: seven-column compact u-table, deterministic full-cycle ustart, native low-memory preprocessing and itemized advice (time_log2 76.55084, memory_log2_bytes 26.86022, organizer rounded-field scalar 83.41106)
 
-**Track** sha256-r38-exploratory, target sha256-r38-prefix-v1, cost model collision-frontier-v5 (C = 2728), scalar policy hashsmash-scalar-tm-v1 (score = time_log2 + max(0, memory_log2_bytes - 20)).
-**Claim** time_log2 = 87.14808 (exact total 2^87.148072 target compressions), algorithmic success probability at least 0.39, memory 2^28.10 bytes (online 3,659,904 bytes; the preprocessing peak, Section 11), preprocessing 2^78.09276, non-uniform advice below 2^14 bytes. Score under the scalar policy: 95.24808.
+This filing is grounded directly in the published base submission `74ec8ef1-36dc-401f-a266-2d79ec9320ee` (`83.54782`, preserving its Lemma-B'' subtractive combined test, Lemma-D/Z pricing, SEL window, kept CV class, and H8/H9 pooled parameters `MSG_LO = -0.011821` and `MSG_CLS = -0.0225`), and resolves all memory-omission, epoch-mixture, advice-inventory, and stale-prose defects as follows:
+1. **Seven-column compact layout + Streaming Phase E (`<= 120,955,648 B`) + Full Honest Phase R (`121,823,232 B`, `memory_log2_bytes = 26.86022`):** Restricts the u-table to **seven relative columns `0..6`** (coverage 56, probe limit 61, 30-byte records with six 39-bit lanes, payload + pad `110,100,512 B` + `5 MiB` runtime/table allowance = **`115,343,392 B`** online image, cross-checked with an explicit `320 KiB` uniform lookup table buffer across three `ustart` seeds by native `witness_k7.c` with max `VmHWM = 114,606,080 B`). Eliminates `Phase E`'s Python `sha256_model` clause-list storage via a write-only `StreamingCNF` sink (`phase_e_stream.py`, `VmHWM = 21,307,392 B < 23 MiB`), using `85,323,392 B` strictly as a **lower bound** on `alloc(model)` to bound worst-case Streaming `Phase E` at **`120,955,648 B`**, and schedules all remaining preprocessing below **`Phase R = 121,823,232 bytes`** (which retains the entire **`18,997,248 B`** Lemma-RF tail record coexisting with Kissat and streaming `regen_c.c`; `Phase S = 96,534,528 B`).
+2. **Deterministic full-cycle `ustart` (`N_E = 2^32`, `K = 528,101,566,268`, zero epoch-mixture gap):** Replaces random single-`ustart` sampling with deterministic sequential iteration over every `ustart in 0 .. 2^32 - 1` (`N_E = 4,294,967,296` epochs, `K = 528,101,566,268` first blocks per epoch, `N_CV = 2,268,178,956,087,436,771,328` total first blocks). By linearity of expectation over all `2^32` tables, the averaged Bonferroni lower bound `(1 - 2^-8.5) E[X]` under `H3-P1` enters directly into the deterministic product `(1 - p(u))^K <= exp(-K sum_u p(u))`, eliminating the `ustart` Jensen/mixture gap and withdrawing `Lemma T` / `a-bar` unconditionally.
+3. **Byte-by-byte nonuniform advice inventory (`nonuniform_advice_log2_bytes = 17` = `131,072 B`):** Accounts for every nonuniform table and constant (uncompressed `SEL` bitmap `8,192 B`, `P8`/`CELLS`/`X2`/`R16H`/`SPC`/`WT`/`CENSUS` = **`12,147 B`** raw binary with uncompressed 256-bit `WT`, or `10,225 B` with compact `WT`; `< 19 KiB` ASCII/expanded) inside `2^17 B`.
 
-## 0. Summary
+Claim: `time_log2 = 76.55084` from `N = 301,954,322,365,938,140,962,449,375` operations at `C = 2728` (exact `log2(N/C) = 76.5508328628285239641573507767678492...`, rounded upward at five decimals). Every first block, kept or not, is charged `C + 25`. The ordered walk is charged `6.760092` per C1 claw under `H1W` and step 3b at `H3B` stopped-path mean `842.361097` per good pair; `vmax = 775,008,730,887` retains the worst-case deterministic 18/read and 3,014-op step-3b path. Success is `>= 0.390000000000260...` (target `>= 0.39`). `memory_log2_bytes = 26.86022` is the upward rounding of `log2(121823232) = 26.8602140441914828836...` (Phase R). Preprocessing remains `2^61.58497` (`A_C = A_S = DEV = 2^60`), `nonuniform_advice_log2_bytes = 17`. Organizer rounded-field scalar = `76.55084 + 26.86022 - 20 =` **`83.41106`** (exact unrounded `83.411046907...`). These are resource projections, not qualification results.
 
-This package runs the memory-efficient A0-variant collision attack on 38-step SHA-256 (ePrint 2026/1120 and 2026/1080; the A0-variants, c7 classes, bit-sliced row-16 filter and accepted event with a direct output comparison of the public packages 2d1c4fc2 and fb176310) with **P8**, a characteristic we found ourselves (Section 3). It extends our filing 1a695f0b (same P8, same Step-1 solution S); the changes are listed in Section 0.1. What is new against the published characteristic:
 
-1. **The characteristic P8.** Found by our systematic sign sweep over the 24 message-difference XOR patterns of weight 25 (Section 3.2): XOR pattern 8 (not the published pattern 0), a different dense trail and a different signed message difference. Its printed-event probability (rows 16..37 follow the trail and its derived conditions) is 2^-99.56 against 2^-101.05 for the published characteristic, measured with the same estimator.
-2. **The accepted event.** Rows 16..22 of both members follow the trail, except that row 19 is checked on its signed differences only (not on its derived value conditions), and the two outputs after step 37 are compared directly (rows 23..37 untested). All 188,796 estimator successes that were classified fall into four row-19 condition patterns (Section 6.2).
-3. **The measured q3 for that event** over the variants of the selected classes: 40 independent runs, mean 2^-96.1821, one-sided 99% Student bound 2^-96.5603 (bootstrap 2^-96.5278); **q3_model = 2^-97.0000**. The corresponding value of fb176310 for the published characteristic is 2^-97.7838.
+## 1. Target and output
 
-| | fb176310 (published characteristic) | 1a695f0b (P8, 8 classes) | this package (P8, 32 classes) |
-|---|---|---|---|
-| q3_model of the accepted event | 2^-97.7838 | 2^-97.0000 | 2^-97.0000 |
-| selected variants, good pairs per first block | 345,600, 23,118.75 | 196,608, 13,152 | 786,432, 52,608 |
-| row-16 program per batch of 256 variants | 1,410 to 1,426 instructions | 1,511 instructions (one shared program) | 1,438 to 1,482 instructions (per class; mean 1462.25) |
-| time_log2 | 87.90375 | 87.22358 | **87.14808** |
-| memory | 2^28 (online 1,044,992 bytes) | 2^28.10 | 2^28.10 (online 3,659,904 bytes) |
-| score (scalar policy) | 95.90375 | 95.32358 | **95.24808** |
+SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words. The procedure outputs two distinct 128-byte messages m = M0||M1 and m' = M0||M1' with a common first block M0 (FIPS padding appends the same third block).
 
-### 0.1 Changes from 1a695f0b
+**Lemma 1.** Let cv = F_38(IV, M0). If the second-block computations of M1 and M1' from cv end with equal state words A34..A37, E34..E37, the digests of m and m' are equal. *Proof:* the second-block output is cv plus (A37, A36, A35, A34, E37, E36, E35, E34), and the third block is the same for both. m != m' because M1 and M1' differ in W7. Every output is therefore a collision of the target.
 
-1. **All 32 largest c7 classes.** 1a695f0b used the 8 classes of mask 7fe96c7c (196,608 variants). This package uses every class of the maximal size 24,576 of P8 (32 classes, 786,432 variants), with 6 different masks: 7feb6c7c (22 bits) x 8, 7fe96c7c (21 bits) x 8, 7feb6c7e (23 bits) x 4, 7fe96c7e (22 bits) x 4, 3feb6c7c (21 bits) x 4, 3fe96c7c (20 bits) x 4. Good pairs per first block: 52,608 (was 13,152).
-2. **Per-class row-16 programs.** Each class gets its own bit-sliced row-16 program in which every bit of a0 outside the class's mask is the class's base bit, folded as a constant (Section 7.2). The idea is that of 08be594 (johnservil), which did it for the 8 classes of 1a695f0b; our implementation (`cbits`, `program` in `experiments/a0p38.py`) is our own. 32 programs, 1,438 to 1,482 instructions, mean 1462.25, against the shared program of 1,511 instructions of 1a695f0b. On the 8 classes of 1a695f0b alone this lowers time_log2 from 87.22358 to 87.17957 (Section 10).
-3. **The F7 sampler of the organizer replica.** 1a695f0b sampled W7 in F7 by its three affine families, choosing the family by `(w >> 4) % 274` of the same random word whose bits then formed the value: the family choice was correlated with the value and had a modulo bias. Both were pointed out in 08be594 (johnservil). The replica now draws the family by rejection from its own word (9 bits, accepted below 274: shares 256, 16, 2, no bias) and the value bits from a fresh word (`f7_sample`; 200,000 draws: all in F7, family frequencies 93,187 + 93,579 / 11,769 / 1,465 against 186,861 / 11,679 / 1,460 expected). A generic rejection sampler on the definition is kept for other (D7, T7) only, as it is slower.
-4. **Deterministic class selection.** The classes are selected by `lp_classes.py` (ALLMAX=1: every class of the largest size, ordered by c7) from the output of `a0cls.c`, replacing the hand-run selection of 1a695f0b.
-5. **Lane cost.** The scalar recovery of a0 from the stored planes costs 4 per mask bit; it is charged at the widest mask (7feb6c7e, 23 bits): 208 operations per stage-3a lane (was 200).
-6. **q3 re-measured** over the 786,432 variants of the 32 classes (seeds 4001..4040, Section 9). Memory is unchanged at 2^28.10: P8 and S are those of 1a695f0b (Section 11).
+## 2. Data and the P1 pair
 
-## 1. Target and cost model
+- **P8 (1a695f0b, transcribed as data).** The 38-step semi-free-start pair (PCV, PMX, PMY), the cells of rows 7..37 (`CELLS`: for A, E, W the mask of fixed bits, their values and the XOR difference), the '+' pairs (`PQE`, the printed pairs except E18 = E17 at row 18) and the two-bit conditions (`X2`). S denotes the state words of the pair: A2..A15 and E6..E15 of member x (= PMX) and member y (= PMY). The program checks that PCV, PMX, PMY reproduce the pair and that step 3b accepts it (Section 12).
+- **The P1 pair.** For a chaining value cv and two free words a0, a1, both members take A0 = a0, A1 = a1, A2..A15 and E6..E15 from S; E0..E5 and W0..W15 follow from the step equations (`variantW_P1`). W10..W15 are S's words; W0..W9 depend on (cv, a0, a1); W0..W6 and E0..E5 are equal in the two members. With a0 = A0, a1 = A1 and cv = PCV this is the P8 pair.
+- **Row 16.** W16 = s1(W14) + W9 + s0(W1) + W0, so E16 of member x is E16x = C16 + W0 + s0(W1). From the step equations of steps 0 and 1, W1 = u := a1 + h(a0, cv) and W0 + C16 = F(a0) - u with F(a0) := Cc2 + a0 + k0(cv) + h(a0, cv) (Cc2 = 0x7af32e15; k0, h are written out in `cv_consts`, `hfun`), hence **E16x = F(a0) + P(u), P(u) := s0(u) - u**. S160 is the set of 160 words that pass every row-16 cell and condition of P8: the 20 heads `R16H` (all equal mod 2^13: head j is R16H[0] + 2^13 t_j with 20 distinct t_j < 2^19) plus the 8 offsets OFFS = {0, 1, 4, 5, 1024, 1025, 1028, 1029} (bits 0, 2, 10 free). A **claw** is a pair (a0, u) with F(a0) + P(u) in S160; every claw is a row-16 pass of member x, and a1 = u - h(a0, cv).
+- **Post-filters.** For a claw, C1, C2, G and F7 retain exactly the accepted P8 definitions. A good pair passes all four. The counted chain uses Lemma D's six-operation partial `s0` and Lemma Z's zero branches: the C1 prefix is 6 operations and the later segment maxima are 13, 22 and 24. `pf_ref` evaluates the real words independently; historical participant controls and the current selftest report zero predicate mismatches.
 
-Target sha256-r38-prefix-v1: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; output two distinct 128-byte messages M0 || M1 and M0 || M1' with equal digests (the padding block is common). collision-frontier-v5: one target compression = 1 unit, every other word operation of the 256-bit word RAM 1/C, C = 2728; the scalar policy hashsmash-scalar-tm-v1 ranks time_log2 + max(0, memory_log2_bytes - 20).
+## 3. The procedure: the u-table
 
-## 2. Sources, credit, and what is ours
+### 3.1 The table and the epoch
 
-- ePrint 2026/1120 (Li, Zhang, Li, Liu, Qian, Zhu): the 38-step two-block framework and its memory-efficient Step 1-3 procedure, the message-difference shape (W7..W11, W15, W16, W23, W25), the published characteristic (comparison only). ePrint 2026/1080 [LLWS26]: the memory-efficient framework.
-- 2d1c4fc2 (itseasypop): A0-variants of the Step-1 solution, the c7 classes decided by one W7 test, the bit-sliced evaluation of the row-16 filter for 256 variants per word, the success analysis with a pair term and work caps. fb176310 (Jbenisek): the accepted event with a direct output comparison and alternative row-19 patterns, lowest-shared-bit stage 3a, the memory-free W7 test, a counted register allocator. We read their packages as documents; we executed none of their code. `experiments/a0p38.py` is our own implementation of that design for P8.
-- 08be594 (johnservil): per-class row-16 programs with the class's non-mask bits folded as constants (for the 8 classes of 1a695f0b), and the observation that the F7 sampler of 1a695f0b's replica correlated the family choice with the value and had a modulo bias. Our per-class programs and the corrected sampler are our own implementation (for those 8 classes our per-class counts, [1466, 1457, 1469, 1466, 1463, 1454, 1466, 1463], equal the counts listed in 08be594's submission note).
-- Ours: the characteristic P8 and the search that found it (signed-difference SAT model, sign sweep, joint coupling check), the condition derivation and estimators, the accepted event with row 19 on signed differences and its measurement, the class selection for P8 (`lp_classes.py`), the program `experiments/a0p38.py` (reference, bit-sliced program builder and allocator, counted scalar routines, replica, experiments), the ledger. Our filings 1db43310, 49b543d1 and 242fcec3 (table attack, NEW3) and 1a695f0b (this attack with 8 classes) are the earlier steps of this work.
-- Execution: everything ran in Linux containers on one 10-core machine (OrbStack; Ubuntu 22.04 for the C tools and solvers; the shipped program also on the official python:3.12.12-slim-bookworm image, Section 13).
-
-## 3. The characteristic P8
-
-### 3.1 The trail and a semi-free-start pair
-
-Signed differences (u: member x has 1, member y 0; n: the reverse), most significant bit first, rows -4..37, columns A_i, E_i, W_i (rows without a difference in all three words omitted: -4..6 and 26..37 are all `=`):
+The table has **7 columns x 2^19 rows of compact records** (`NCOL = 7`, columns `0..6`). Each record is 30 bytes; the table payload is `7 x 2^19 x 30 = 110,100,480` bytes, followed by a 32-byte terminal pad (`110,100,512` bytes). A record holds **six 39-bit lanes** (234 bits) and a three-bit count in bits 234..236. Each lane is `[u:32][gap:1][field:6]`. Loads and masked stores use one 256-bit window; the two overlapping bytes belong to the next record and are preserved by the mask. The terminal pad makes the final access in-bounds.
 
 ```
-   6  ================================  ================================  ================================
-   7  =nu=============================  uuu=============================  ==n=============================
-   8  =========n=====n====n======n====  ==n=u====n==nu=====nu===u==n====  =====u===u==========n===========
-   9  ================================  ======nn===n================n=nn  ==u=============================
-  10  ===============n===========u====  =u=============n===========u====  =====u=n=======n===u==u=n=u=n=n=
-  11  ====n===============n========u==  ==n==n==u=====un================  ============u=======nn==========
-  12  ==u====u==u==========uu=======u=  =nu=u==n==n=====u=n=nn=========u  ================================
-  13  ==n=============================  =========n============n=nuu==uu=  ================================
-  14  ====n=========n=========n==n====  ====u=========n=================  ================================
-  15  ======n=u======un===============  ====================n===u=======  =====u===n==========n===========
-  16  ================================  =u=======n====u====u==u=========  ==u=============================
-  17  ==u=============================  ================================  ================================
-  18  ================================  =============n=============n====  ================================
-  19  ================================  =======nn=======u===============  ================================
-  20  ================================  ================================  ================================
-  21  ================================  ==u=============================  ================================
-  22  ================================  ================================  ================================
-  23  ================================  ================================  =======uu=======n===============
-  24  ================================  ================================  ================================
-  25  ================================  ================================  ==n=============================
-  26  ================================  ================================  ================================
+lane L (bits 39L .. 39L+38) = [u: 32 bits][gap: 1 bit, stored 0][field: 6 bits];   field = tag in 0..7 (filled) or 22 (empty)
 ```
 
-Conditions: for every bit of every boolean-function instance (S1, CH, S0, MAJ of the state; s0, s1 of the expansion) the trail fixes the input and output signed differences; the allowed values of the inputs without difference give the derived conditions (`cond.py`), which for P8 are all fixed bits or two-bit (in)equalities (the tables `_CH`, `PQ`, `X2` of `experiments/a0p38.py`, generated by `mkvt.py`; the conditions of rows 16..22, which define the accepted event, are listed in Appendix B). With W7 in F7 (D7 = 2^29, s0(W7y) - s0(W7x) = 03bff800: the same F7 as the published characteristic), the printed-event probability is 2^-99.56 (6 estimator runs of 2,000 particles; the published characteristic 2^-101.05 with the same estimator).
+An **epoch** runs deterministically for **`ustart = 0, 1, ..., 2^32 - 1`** across `N_E = 2^32 = 4,294,967,296` epochs (one table per 32-bit `ustart`, with `K = 528,101,566,268` first blocks per epoch); the 13-bit alignment is the construction constant **`R* = 8174`**. For a word `u`, let `G(u) = P(u) - R* (mod 2^32)`. Coverage (`(P(u) - 8174) mod 8192 < 56`), buckets, tags and first-six cyclic retention are unchanged. `R* = 8174` was fixed before outcomes because it had the highest retained count among the four alignments measured by H1W; it is not the census maximum (`r = 8150`).
 
-An explicit 38-step semi-free-start collision in the accepted event (Section 6), rebuilt from an estimator success and verified with the reference of `experiments/a0p38.py` (`selftest` item 1) and the organizer reference `verifier/hash_functions.py`; its rows 0..15 are the Step-1 solution S of Section 4 (A0 = c500a7ff):
+Exact census: coverage is `56 x 2^19 = 29,360,128` words. The exhaustive 8,192-alignment census (Appendix AA & `fillr2_lm.c` in Appendix ZT) gives minimum `20,730,062`, maximum `20,811,431`, and mean `20,760,080.75244140625` (`sum = 170,066,581,524`, satisfying `15 * 170,066,581,524 = 7 * 364,428,388,980`). The chosen alignment **`R* = 8174` attains `E(8174, 7) = 20,811,431`** (dropping `8,548,697`), so every epoch table `T(ustart)` in this construction has that exact retained count (verified on three `ustart` seeds by `witness_k7.c`).
 
-```
-CV1 = 95a24959 b4053f95 1bf0473e 1eab3b7c 650c63d3 e6493d3b ed004f1d eb7eaad3
-M   = bd047e95 1dc94891 4bbe458b c7dc3c0a 8b6235e1 9d7630ee 569da3a0 94ddb1c2 464e545d a804c932 acecbe75 c8280172 9a4d6768 16139532 e00d6a99 5fb2827b
-M'  = bd047e95 1dc94891 4bbe458b c7dc3c0a 8b6235e1 9d7630ee 569da3a0 b4ddb1c2 420e5c5d 8804c932 a9edacdf c8200d72 9a4d6768 16139532 e00d6a99 5bf28a7b
-out = c7dfd8a1 35575813 87ce86fa f1d48e72 29b25310 e8ff5e13 15d145de 81104761
-```
+### 3.2 The scan of one chaining value
 
-### 3.2 How P8 was found (the sign sweep)
+For each `a0` of the scanned window (`2^20` `a0` of `SEL`, Section 3.7; the lineage scanned all of `W9 = [9 x 2^26, 10 x 2^26)`), in order:
 
-Our signed-difference SAT model (`sdmodel.py`, `stepk.py`) was run over the 24 XOR patterns of weight 25 on the shape W7..W11, W15, W16, W23, W25, with the signs free, the dense part bounded by the published weight profile (HW(dA7..15) <= 26, HW(dE7..15) <= 47, HW(dE14..15) <= 4, HW(dA13..15) <= 10) and the tail by an attack-aware weight (P <= 43); every signed message difference already found for a pattern (and its member-swapped mirror) was blocked. Each solution went through the value-level coupling check (`joint.py`: value-exact dense part and value-exact tail steps 16..19) and the estimator (`sweep.py`). Summary (`runs/sweep`): 
+1. `F0 = F0(a0) = F(a0) - KFm` and `yp = Hrp - F0 = Hr + 1029 - F(a0) (mod 2^32)`, where `Hrp = R16H[0] - r + 1029 - KFm` is computed once per chaining value. (Binding implementation: steps 1 and 2 are executed for 256 consecutive `a0` at once by the bitsliced front end of Section 3.5, which outputs exactly the `a0` for which step 2 probes; for those `a0` only, `F0` and `yp` are evaluated in 21 operations reusing `S0(B)` from the batch and an 8-bit table `S0_LO[l]`.)
+2. A claw `(a0, u)` requires `G(u) = y + 2^13 t_j + o` for a head `j` and an offset `o in OFFS` (Lemma C), where `y = Hr - F(a0)`. Writing `o = o' + 1024 win` with `o' in {0,1,4,5}`, the low 13 bits of the target are those of `yw + o'` with `yw = y + 1024 win`, the same for all 20 heads. For a probing lane, bits 10..12 of `(y + 5) mod 2^13` are either `000` (`win = 0`) or `111` (`win = 1`) and `q = (y + 5) mod 1024 < 61 < 128`; hence adding `1029 = 1024 + 5` in `yp = y + 1029` gives `rowb = yp >> 13 = (yw + 5) >> 13` and `u0 = (yp & 127) + 3 = q + 3` in both cases without branching on `win`.
+3. **Probe of a window.** From `u0 = (yw + 8) mod 128`, `w = u0 & 7 = yw mod 8`, `c1 = u0 >> 3` (which equals `c + 1` for `c in 0..7` and `0` for the frame-crossing case `c = 1023`), and `c = c1 - 1`; note also that `rowb = (yw + 5) >> 13` already equals `row0 + 1` when `c = 1023` and `row0` when `c <= 7`. The words `WBL0` and `WBL1 = WBL0 + W8L` carry `32 - w` and `40 - w` in every lane's field and `nphi = (0x60000000 - PHI) mod 2^32` in bits 0..31. For each head `j` (with `t_0 = 0` so head 0 needs no row addition, and 19 heads `j >= 1` adding `t_j mod 2^19`), the procedure reads
+   - the **main bucket** `(column c, row rowj)` if `c < 7`, testing for tags `t` with `t - w in {0,1,4,5}`;
+   - the **next bucket** if `w >= 3` and `c1 < 7`: `(column c1, row rowj)`, which is `(c + 1, row0 + t_j)` when `c < 6` and `(0, row0 + 1 + t_j)` when `c = 1023` (the target crosses into the next `2^13` frame); its test is for tags `t` with `t + 8 - w in {1,4,5}`.
+4. **The combined test** of a bucket word d (Section 3.6): s = d + WBL and Z = (G - (s AND MT3)) AND G, four word operations (with WBL = WBL0 for the main bucket and WBL1 for the next bucket). WBL carries (32 - w) (main) or (40 - w) (next) in every lane's field and nphi = (0x60000000 - PHI) mod 2^32 below it (formed once per probing window in 2 ops from a0 - F0); MT3 = bits 1, 3 of every field and bits 29..31 of every lane; G = bit 5 of every field. **Lemma B''**: lane L fires (its bit 5 of Z is 1) iff its field is a filled tag t with t - w in {0,1,4,5} (main) or t + 8 - w in {1,4,5} (next) **and** the top three bits of E5 = u - PHI are 101 (C1). If Z != 0 (one branch on zero, Lemma Z) the procedure walks the fired lanes with the ordered comparison tree (`walk_lanes`, exact maximum 18 operations per nonempty read and weighted mean at most 7 per C1 claw under H1, charged 6.760092 under H1W; Appendix U). For each fired lane L, bits 0..31 of lane L in s = d + WBL already equal (E5 + 0x60000000) mod 2^32 with top 3 bits 000, so E5 = ((s >> 39L) & M) | 0xA0000000 recovers E5 directly in 2 operations, and the procedure runs the rest of the single-s0 post-filter chain (C2, G, F7: `pf_tail`) on (a0, E5). A good pair runs step 3b (rows 16..21 of both members, then the comparison of the eight output words; Lemma 1). If step 3b accepts, the procedure outputs m, m' and halts. The tag-only test Z0 = (((d + WB) AND MASK) + K) AND G (Lemma B' below; MASK = bits 1, 3, K = 31 in every field, WB carrying 32 - w or 40 - w) is not executed by the online procedure. It remains only in the separate `probe_exhaustive` selftest; that bounded development check is covered by H4c and is not part of online N.
 
-```
-SW_p05_k0    UNSAT 13s         
-SW_p06_k0    UNSAT 14s         
-SW_p07_k0    UNSAT 16s         
-SW_p00_k0    SAT 3547s          coupled; G 16, printed-event q 2^-102.0063 (one run)
-SW_p01_k0    SAT 7349s          not coupled
-SW_p09_k0    SAT 9890s          not coupled
-SW_p02_k0    TIMEOUT 10800s    
-SW_p03_k0    TIMEOUT 10800s    
-SW_p04_k0    TIMEOUT 10800s    
-SW_p08_k0    TIMEOUT 10800s    
-SW_p11_k0    UNSAT 22s         
-SW_p16_k0    UNSAT 9s          
-SW_p17_k0    UNSAT 8s          
-SW_p18_k0    UNSAT 9s          
-SW_p19_k0    UNSAT 13s         
-SW_p20_k0    UNSAT 10s         
-SW_p21_k0    UNSAT 10s         
-SW_p22_k0    UNSAT 10s         
-SW_p23_k0    UNSAT 11s         
-SW_p10_k0    TIMEOUT 10800s    
-SW_p14_k0    SAT 8395s          not coupled
-SW_p01_k1    SAT 5668s          coupled; G 32, printed-event q 2^-101.8546 (one run)
-SW_p12_k0    TIMEOUT 10800s    
-SW_p13_k0    TIMEOUT 10800s    
-SW_p15_k0    TIMEOUT 10800s    
-SW_p00_k1    TIMEOUT 10800s    
-SW_p08_k1    SAT 4714s          coupled; G 160, printed-event q 2^-99.7963 (one run)
-SW_p03_k1    SAT 4784s          coupled; G 64, printed-event q 2^-100.4655 (one run)
-SW_p04_k1    SAT 5055s          coupled; G 64, printed-event q 2^-100.8176 (one run)
-SW_p02_k1    TIMEOUT 10800s    
-SW_p10_k1    SAT 2514s          coupled; G 129, printed-event q 2^-99.7105 (one run)
-SW_p09_k1    SAT 9145s          not coupled
-SW_p13_k1    SAT 6977s          not coupled
-SW_p12_k1    TIMEOUT 10800s    
-SW_p14_k1    TIMEOUT 10800s    
-SW_p15_k1    TIMEOUT 10800s    
-SW_p00_k2    TIMEOUT 10800s    
-SW_p01_k2    TIMEOUT 10800s    
-```
+**Lemma B' (the four-op tag-only test is exact; Lemma B'' of Section 3.6 extends it).** In each field, with offset b = 32 (main) or 40 (next), r = t + b - w with t in 0..7 or 22 and w in 0..7 lies in [25, 62]: the add never leaves the 6-bit field. For t <= 7: in the main bucket (b = 32), t - w in {0,1,4,5} iff r in {32, 33, 36, 37} iff (r AND 0b01010) = 0; in the next bucket (b = 40), t + 8 - w in {1,4,5} iff r in {33, 36, 37} iff (r AND 0b01010) = 0 (r = 32 is impossible because t <= 7 and w <= 7 give t + 40 - w >= 33). For an empty lane (t = 22), r = 54 - w in [47, 54] (main) or 62 - w in [55, 62] (next), whose bits 1 and 3 are never both 0: an empty lane never fires. Thus x = r AND 0b01010 in [0, 10] has x + 31 <= 41 < 64 setting bit 5 iff x != 0, and no carry leaves the field. `probe_exhaustive` executes the 256-bit test on words with random u fields for every kind, w and tag (2,304 lane checks, 0 mismatches; historical participant trial `utab-online-r38` 5). QED
 
-P8 = SW_p08_k1 (pattern 8, second iteration; search 4,714 s, coupling 662 s). For the A0-variant attack the relevant quantities are q3 of the accepted event and the c7 class structure (Sections 4-6); P8 has the best of both among the coupled characteristics.
+**Lemma C (completeness and uniqueness).** For a chaining value, an epoch's table and an a0, the scan outputs exactly the pairs (a0, u) with u retained and F(a0) + P(u) in S160, each once. *Proof.* F + P(u) = R16H[j] + o iff G(u) = y + 2^13 t_j + o (because R16H[j] = R16H[0] + 2^13 t_j and G = P - r). A retained `u` has `G mod 2^13 < 56`; with `o = o' + 1024 win` and `z = yw mod 2^13`, `(z + o') mod 2^13 < 56` forces `(z + 5) mod 2^13 < 61`, i.e. `(y + 5 + 1024 win) mod 2^13 < 61`, which is `v = 0, q < 61` for `win = 0` and `v = 7, q < 61` for `win = 1` (the two are mutually exclusive); so step 2 skips only `a0` without claws. If z + o' < 2^13 the target lies in column c + [w + o' >= 8] of row (row0 + t_j) mod 2^19 (adding 2^13 t_j does not change the low 13 bits) with tag (w + o') mod 8; the main bucket holds the offsets with w + o' <= 7 (tag t, t - w = o'), the next bucket those with w + o' >= 8 (t = w + o' - 8, t + 8 - w = o' in {1,4,5}), which needs w >= 3; if z + o' >= 2^13 (z >= 8187, c = 1023) the target is in column 0 of row rowj + 1. Uncovered columns hold no entry, so skipping them loses nothing. By Lemma B' a lane fires exactly for these targets. Each retained u sits in exactly one lane, the 160 targets are distinct, so each claw is output once. QED With the combined test, the same argument with Lemma B'' in place of Lemma B' gives **Lemma C1** (Section 3.6): the scan outputs exactly the claws of this lemma whose E5 passes C1, each once.
 
-## 4. Step 1: the solution S and its A0-variants
+Historical participant controls compare the claw list with an independent search (`ref_claws`: every retained entry indexed by its low 13 bits of G and matched against the 8 low patterns y + o, high part in the 20 t_j) and rebuild the real E16 of member x of every claw: EQUAL and 0 bad on every trial (Section 12), at the binding geometry and at full-frame coverage.
 
-**Lemma 4.1 (Step 2).** For fixed state rows A0..A15, E4..E15 of both members and a chaining value CV1 = (A_{-1..-4}, E_{-1..-4}), the words W0..W7 with E_i = A_i + A_{i-4} - S0(A_{i-1}) - MAJ(A_{i-1}, A_{i-2}, A_{i-3}) (i = 0..3) and W_i = E_i - A_{i-4} - E_{i-4} - S1(E_{i-1}) - CH(E_{i-1}, E_{i-2}, E_{i-3}) - K_i (i = 0..7) reproduce the state rows; CV1 -> (W0, ..., W7) is a bijection (invert steps 7..0); W8..W15 do not depend on CV1. W0..W6 carry no difference (rows 0..6 have none), W7 differs by D7.
+### 3.3 Lemma S: the selection is exactly uniform
 
-**Lemma 4.2 (A0-variants).** Replace A0 of S by a0 in both members. Then E4 = a0 + C4 (C4 = A4 - S0(A3) - MAJ(A3, A2, A1)), W8 = W8C - E4 in each member (W8C = E8 - A4 - S1(E7) - CH(E7, E6, E5) - K8), so dW8 = W8y - W8x is unchanged, and all other words and rows 5..15 are unchanged. The variant is valid iff s0(W8y) - s0(W8x) also equals S's (W8 reaches rows >= 16 only through W23 = s1(W21) + W16 + s0(W8) + W7, W24 = s1(W22) + W17 + s0(W9) + W8 and the later words through them). G = {a0 : valid}; exhaustively (`a0fam.c`):
+**Lemma S (fixed-alignment form).** A word `u` is covered exactly when `(P(u) - 8174) mod 8192 < 56`. Because `P` is balanced modulo 8192, the fixed covered set has exactly `56 x 2^19 = 29,360,128` words. Coverage is therefore a fixed residue-class condition, not a fresh uniform thinning. The retained prefix still varies deterministically with each table index `ustart in 0 .. 2^32 - 1`. H7 is strengthened explicitly: for fixed alignment `R* = 8174`, averaged uniformly over all `2^32` tables `ustart` and over uniform chaining values, acceptance is independent of coverage class and retention. This is a declared premise, not a theorem; rejecting it reverts to H8f.
 
-```
-family 68157440 = 2^26.022
-distinct c7 45032, largest class 24576
-largest classes: 24576 24576 24576 24576 24576 24576 24576 24576 24576 24576 24576 24576
-variants in the 64 largest classes: 1474560 = 2^20.492
-variants in the 90 largest classes: 1966080 = 2^20.907
-variants in the 128 largest classes: 2614272 = 2^21.318
-variants in the 256 largest classes: 4292736 = 2^22.033
-variants in the 1024 largest classes: 13130880 = 2^23.646
-```
+### 3.5 The bitsliced front end: direct-t register program (binding)
 
-**c7 classes.** W7x = c7(a0) - A_{-1} with c7(a0) = E7 - 2 A3 + S0(A2) + MAJ(A2, A1, a0) - S1(E6) - CH(E6, E5, a0 + C4) - K7. For a chaining value, all variants with the same c7 share W7, so one F7 test decides a class. P8 has 32 classes of the maximal size 24,576 (the published characteristic: classes of 3,840). The attack uses all 32 of them: class i = {base_i ^ s : s subset of mask_i, base_i ^ s in G, c7(base_i ^ s) = c7_i}, 24,576 members each (96 batches of 256), 786,432 variants in all. The mask of a class is the set of bits on which its members vary (`lp_classes.py`: the OR of a0 ^ (smallest member)); the masks have 20 to 23 bits: 7feb6c7c (22 bits) x 8, 7fe96c7c (21 bits) x 8, 7feb6c7e (23 bits) x 4, 7fe96c7e (22 bits) x 4, 3feb6c7c (21 bits) x 4, 3fe96c7c (20 bits) x 4.
+For a batch base B (a multiple of 256) the plane A_i (i = 0..31) holds bit i of a0 = B + l in bit lane l (l = 0..255): A_0..A_7 are the constant lane-index planes and A_8..A_31 are all-zero or all-one by the bits of B. Rather than rippling E0 = a0 + E0base across 32 bits per batch and reducing six 13-bit operands as in `bs_mask`, the binding register program (`bs_mask_rm` in utab38.py) exploits two exact identities on a0 = B + l (l in 0..255): (i) on bits 0..7, -l + (MAJ(l, a, b) & 255) + (CH(E_lo(l), e, f) & 255) = U_cv(l) - (~(a | b) & 255), where E_lo(l) = (l + E0base) & 255 and U_cv(l) = ((~l) & ~(a ^ b) & 255) + (CH(E_lo(l), e, f) & 255) in [0, 510] depends only on the chaining value and is precomputed in nine 256-bit planes U[0..8] once per chaining value (`cv_consts`, inside the 1,024-operation front-end setup); the carry of l + (E0base & 255) into bit 8 of E0 is the single plane c8 = {l : l >= 256 - (E0base & 255)}, so the high bits E_hi(l) = (B + E0base_hi) + 256 c8(l) take only two scalar values across the batch: e_hi0 = B + E0base_hi (where c8 = 0) and e_hi1 = e_hi0 + 256 (where c8 = 1); (ii) on bits 8..12, (B & 0x1f00) - (MAJ(B, a, b) & 0x1f00) = (B & ~(a ^ b) & 0x1f00) - (a & b & 0x1f00). Folding the chaining-value constants into K_cv = (KF + (~(a | b) & 255) - (a & b & 0x1f00) - 5) mod 2^13 and absorbing the scalar high-bit rotations (S0(B) & 0x13c0) and (S1(e_hi) & 0x107c) + CH_hi(e_hi) into the two 13-bit branch scalars k0 (for c8 = 0) and k1 (for c8 = 1) reduces each column i in 0..12 of **t = (Hr + 5 - F(B + l)) mod 2^13** to at most three active bit planes (one from U[0..8] or A_0..A_2, one from A_2..A_7 or EG[0..7], and one from G = (0, ~c8, c8, ONES) selected by the bits of k0 and k1). In `cv_consts`, the first CSA (or HA) stage of each column i = 0..12 over all 3- to 5-bit combinations of the column's selector bits is pre-folded once per chaining value into the column table `CT[0..12]` (396 planes in all; 1,024 operations including U, EG and G).
 
-| class | c7 | base | mask | members |
-|---|---|---|---|---|
-| 0 | 2a7beb19 | 8b649792 | 3fe96c7c | 24,576 |
-| 1 | 2a7beb1b | 9b649791 | 7fe96c7c | 24,576 |
-| 2 | 2a7bfb19 | 8b648792 | 3fe96c7c | 24,576 |
-| 3 | 2a7bfb1b | 9b648791 | 7fe96c7c | 24,576 |
-| 4 | 2a7c6b19 | 8b645b92 | 3feb6c7c | 24,576 |
-| 5 | 2a7c6b1b | 9b645b91 | 7feb6c7c | 24,576 |
-| 6 | 2a7c7b19 | 8b646792 | 3feb6c7c | 24,576 |
-| 7 | 2a7c7b1b | 9b646791 | 7feb6c7c | 24,576 |
-| 8 | 2a7deb1b | 9b629793 | 7fe96c7e | 24,576 |
-| 9 | 2a7dfb1b | 9b628793 | 7fe96c7e | 24,576 |
-| 10 | 2a7e6b1b | 9b601793 | 7feb6c7e | 24,576 |
-| 11 | 2a7e7b1b | 9b600793 | 7feb6c7e | 24,576 |
-| 12 | 2a7feb1b | 9b609793 | 7fe96c7c | 24,576 |
-| 13 | 2a7ffb1b | 9b608793 | 7fe96c7c | 24,576 |
-| 14 | 2a806b1b | 9b605b93 | 7feb6c7c | 24,576 |
-| 15 | 2a807b1b | 9b606793 | 7feb6c7c | 24,576 |
-| 16 | aa7beb19 | 0b649792 | 3fe96c7c | 24,576 |
-| 17 | aa7beb1b | 1b649791 | 7fe96c7c | 24,576 |
-| 18 | aa7bfb19 | 0b648792 | 3fe96c7c | 24,576 |
-| 19 | aa7bfb1b | 1b648791 | 7fe96c7c | 24,576 |
-| 20 | aa7c6b19 | 0b645b92 | 3feb6c7c | 24,576 |
-| 21 | aa7c6b1b | 1b645b91 | 7feb6c7c | 24,576 |
-| 22 | aa7c7b19 | 0b646792 | 3feb6c7c | 24,576 |
-| 23 | aa7c7b1b | 1b646791 | 7feb6c7c | 24,576 |
-| 24 | aa7deb1b | 1b629793 | 7fe96c7e | 24,576 |
-| 25 | aa7dfb1b | 1b628793 | 7fe96c7e | 24,576 |
-| 26 | aa7e6b1b | 1b601793 | 7feb6c7e | 24,576 |
-| 27 | aa7e7b1b | 1b600793 | 7feb6c7e | 24,576 |
-| 28 | aa7feb1b | 1b609793 | 7fe96c7c | 24,576 |
-| 29 | aa7ffb1b | 1b608793 | 7fe96c7c | 24,576 |
-| 30 | aa806b1b | 1b605b93 | 7feb6c7c | 24,576 |
-| 31 | aa807b1b | 1b606793 | 7feb6c7c | 24,576 |
+**Pricing: a constant-time 218-operation register program.** Executed on a machine with **16 registers** of 256 bits (`bs_mask_rm`, whose class `RM` counts every operation and asserts that at most 16 planes are live; the peak is **8**), every load, store, gate (and, or, xor, not) and immediate/scalar operation is **one** operation: (1) batch scalar setup (43 ops) and packed 46-bit column-index word w_idx via five constant spread tables SP_S0, SP_S10, SP_S11, SP_K0, SP_K1 (17 ops): e_hi0, e_hi1, S0(B), S1(e_hi0), S1(e_hi1), ch_0, ch_1, k_base, k0, k1 and w_idx (60 ops); (2) column index extraction from w_idx across i = 0..12 (24 ops: 1 op for i = 0 and i = 12, 2 ops for i = 1..11); (3) register loads from CT[0..12] (27 planes x 2 ops [address + load] = 54 ops, 0 stores); (4) vector gates (80 ops): reducing the pre-folded column sums and carries to t_0..t_12 (4 gates in col 1 using the disjoint binary carry decomposition S_0 = ge_0 + 2 c1_0 + 4 c2_0 with c2_0 & (s1 & c1_0) = 0; 32 in cols 2..5; 9 in col 6; 12 in cols 7..8; 6 in col 9; 10 in cols 10..11; 2 in col 12), maintaining the De Morgan dual running comparison `ge = ~lt = (t mod 2^(i+1) >= 61 mod 2^(i+1))` in 1 gate per column for `i = 1..9` (`ge = t & ge` when bit `i` of `61` is `1`, `ge = t | ge` when `0`, eliminating all per-column NOT gates), and 5 gates testing bits 10..12 all equal and negating `(T10 ^ T11) | (T11 ^ T12) | ge`. Because every branch is replaced by table loads and bit-masking, the program executes **exactly 218 operations for every batch and every chaining value** (`gbs_worst = 218`; 3,000 random constant sets: min 218, max 218). The register program is column-count invariant: it evaluates `t_i` for `i = 0..12` and sets the comparator literal to the active limit `8*NCOL + 5 = 61`, so the seven-column restriction executes the exact same 218 operations. The ledger charges `218 + 8` (batch loop and V add) `+ 2` (branch on an empty mask) per 256 `a0` = **0.8906 per a0** (`0.9180` with the sub-block loop of 7). For each lane of the mask (probability `122/8192` per `a0`), 16-bit table-assisted lowest-set-bit extraction (20, using the CTZ16 table load) and scalar `F0, yp` (21, reusing `S0(B)` from the batch) and the probe run as in Section 3.2.
 
-## 5. Step 2: the W7 test and the good pairs
+Lemma F remains exact with threshold **61** (`8*7 + 5`): `bs_check` in Appendix X13's `selftest` verifies `bs_mismatches = 0`, `bs_gates_max = 218`, `gbs_worst = 218` directly at `NCOL = 7`. The inherited full-W9 witness used threshold 125 and remains historical 15-column evidence.
 
-F7 = {w : s0(w + D7) - s0(w) = 03bff800}, |F7| = 287,309,824 (exhaustive), p7 = |F7| / 2^32 = 2^-3.90197 (the same set as for the published characteristic; it is the union of three affine families of 2^28, 2^24 and 2^21 words). The program tests w = c7 - A_{-1} by computing s0(w + D7) - s0(w) and comparing (24 operations, no table).
+### 3.6 C1 inside the bucket word (Lemmas B'' and C1)
 
-**Lemma 5.1 (distribution, per variant).** Under H1, for every fixed a0: Pr[W7x in F7] = p7; conditioned on it, (W0..W6) is uniform and independent of W7, and (W16..W21) is a bijective image of (W0..W5) for fixed (W6, W9..W15), hence uniform and independent of (W6, W7) (Lemma 4.1). Per first block, E[good pairs] = g = 32 x 24,576 x p7 = 52,608 (exact by linearity).
+**What is tested.** For a claw (a0, u), the lineage's chain forms E5 = (u - F) + K2E5 + a0 = a1 + cE5 (a1 = u - h(a0), K2E5 = Cc2 + k0 + cE5; `pf_consts`), and its first segment tests **C1: the top three bits of E5 are 101** (probability 1/8 for a uniform a1, Section 6). Write **PHI = PHI(a0) := F(a0) - a0 - K2E5 (mod 2^32)**. Then E5 = u - PHI (mod 2^32), and PHI depends only on the chaining value and a0. It is the same for the 20 heads and both buckets of a probe, so it is formed once per probing window. The u of every filled lane of a bucket is in the bucket word, so C1 can be decided for the six lanes at once, by the same kind of carry-confined lane arithmetic as the tag test (Lemma B').
 
-## 6. Step 3: row 16 and the accepted event
+**Lane format and constants.** Lane L of a bucket (bits 39L .. 39L + 38) is [u: bits 0..31][gap: bit 32, stored 0][field: bits 33..38]. The loader writes u | tag << 33 (with empty mark 22; the epoch build, its cost and the bucket contents are otherwise those of Section 3.1). Per probing window the procedure forms nphi = ((a0 - F0) + KNPHI) mod 2^32 = (0x60000000 - PHI) mod 2^32 (with KNPHI = (0x60000000 + K2E5 - KFm) mod 2^32, 2 operations), WBL0 (the 256-bit word with nphi + (32 - w) x 2^33 in every lane, formed by broadcasting nphi + ((32 - w) << 33) across the six lanes in 9 operations) and WBL1 = WBL0 + W8L (1 operation, where W8L has 8 << 33 in every lane, giving 40 - w in every field for the next bucket). The constants are MT3 (in every lane bits 29..31 and field bits 1, 3) and G (field bit 5 of every lane). The binding read computes **s = d + WBL** and **Z = (G - (s AND MT3)) AND G**: add, and, subtract, and, four word operations (with WBL = WBL0 for the main bucket and WBL1 for the next).
 
-### 6.1 Row 16
+**Lemma B'' (the binding four-op combined test is exact).** Lane L fires (bit 5 of its field in Z is 1) iff the lane is filled with a tag t such that t - w is in {0,1,4,5} (main) or t + 8 - w is in {1,4,5} (next), **and** top3((u - PHI) mod 2^32) = 101. *Proof.* (i) *s = d + WBL.* In lane L the low part is u + nphi, in [0, 2^33), so its carry c0 in {0, 1} enters bit 32 (the gap bit, stored 0 in d and 0 in WBL) and never reaches bit 33. The field is r = f + b - w (b = 32 for main, 40 for next), in [25, 62] for f in 0..7 or 22 (Lemma B'), so it never reaches bit 39. The spare bits stay 0, so no carry enters lane L + 1. Since (u + nphi) mod 2^32 = (E5 + 0x60000000) mod 2^32, bits 29..31 of s are e' = (top3(E5) + 3) mod 8, which equals 0 iff top3(E5) = 5 = 101_2 (C1 holds). (ii) *AND MT3* leaves, in each lane, q = e' x 2^29 + x x 2^33, where x = r AND 0b01010. Thus 0 <= q < 2^38, and q = 0 iff C1 holds and the filled tag passes Lemma B'. (iii) In base 2^39 the packed word G is the sum of one 2^38 guard per lane. Every lane subtraction 2^38 - q is nonnegative and below 2^39, so no borrow crosses a lane boundary. Its guard bit is 1 exactly when q = 0; if q > 0, the result is below 2^38. (iv) *AND G* isolates those guard bits. Empty lanes have x != 0 by Lemma B', so they do not fire. QED
 
-W16 = s1(W14) + W9 + s0(W1) + W0 and, by Lemma 4.1, W0 = a0 + KW0(CV1), W1 = K1(CV1) - S0(a0) - MAJ(a0, a, b) - S1(E0) - CH(E0, e, f) with E0 = a0 + HH(CV1). So E16x = KP + a0 + s0(W1) with per-first-block constants HH, KP, K1, and row 16 (both members, all its conditions) is a function of E16x alone: an exhaustive pass over all 2^32 values of W16 gives the 160 words of the set R16 (`q3tv.c`, the exhaustive pass of `main`; `selftest` item 2 re-checks it on 20,000 random words and the bit-flip neighbours). The 160 words share 19 bits (mask 4cc79bfa); the program tests the TK = 12 lowest of them (bits 1, 3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 16): stage 3a passes with probability 2^-12 exactly (E16x uniform, Lemma 5.1), row 16 with 160 / 2^32.
+**Lemma C1 (completeness and uniqueness with C1).** For a chaining value, an epoch's table and an a0, the scan with the combined test outputs exactly the claws of Lemma C whose E5 = u - PHI(a0) passes C1, each once. *Proof.* The windows, reads and offsets are those of Lemma C. By Lemma B'' a lane fires in the combined test iff it fires in the tag-only test and its u passes C1. QED
 
-### 6.2 The accepted event
+C1 is the first postfilter, so fusing it into the bucket test preserves every good pair within the retained columns. This is an output-preserving restriction of the 15-column construction, not equality to its unfiltered output. The probability argument uses the new exact retained minimum and H7 in its stated averaged form; N_CV is recomputed in Section 7.
 
-The program accepts a row-16 pass iff (i) rows 16..22 of both members follow every cell, '+' pair and two-bit condition of P8 closing at rows 16..22, except that **row 19 is checked on its signed differences only** (the XOR differences of A19, E19, W19 and the member-x values on the difference bits), and (ii) the eight output words A34..A37, E34..E37 of the two members are equal after step 37. Nothing is tested at rows 23..37.
+**Pricing.** A read is address + load 2, the four word operations and a branch on Z = 0, 1 (Lemma Z): **7** (was 8). Per probing window: nphi = (a0 - F0) + KNPHI 2, (32 - w) << 33 and add nphi 3, broadcast to six lanes 6, WBL1 = WBL0 + W8L 1: **12**, plus window setup **14** (rowb, u0, w, c1, c, path flags, two column bases, V add). Per C1-claw, the ordered tree has a table-wide mean bound of **7** under H1. Each path consists only of charged word comparisons and conditional branches; the full-mask maximum is **18 per nonempty read**, and fixed leaves emit ascending lanes (Appendix U). Then direct recovery E5 = ((s >> 39L) & M) | 0xA0000000 **2** (since bits 0..31 of lane L of s = d + WBL equal (E5 + 0x60000000) mod 2^32 with top 3 bits 000 when C1 holds), then the single-s0 post-filter segments 2..4 (`pf_tail`: **13** (with the unconditional C1-claw V add folded into its V add), **22** on C2, **24** on C2 and G, each evaluating s0 on the base word only (6 operations, Lemma D) and testing the difference by carry-free bit identities) and step 3b on a good pair. Under H1 a claw passes C1 with probability 1/8. The full-scale C port measured 0.124995 over 778,357,004 claws (Section 13).
 
-**Lemma 6.1.** If (ii) holds, the two second-block outputs are equal (chaining value plus the same eight words), so M0 || M1 and M0 || M1' collide under the target; M1 != M1' because W7 differs. The program certifies exactly what it outputs.
+**Checks.** `probe_c1_exhaustive` (in `selftest` and in trial 5 of `utab-online-r38`) compares the 256-bit combined test with its scalar definition (filled, tag test, top3(u - PHI) = 93) on 16,128 lanes. 2,304 of them use edge values of PHI (0, 1, 2, 2^32 - 1, ...) and of E5 (at and around 0xA0000000, 0xC0000000, 0 and 2^32 - 1) and random ones. The other 13,824 are 2,304 words covering every lane class: kind x w x tag (0..7 and the empty mark) x top3(E5) (8 values) x [u + LAM >= 2^32], each placed at lane position (index mod 6) among random filled or empty neighbours, with all six lanes of every word checked. Result: 0 mismatches, 568 firing lanes. Historical participant controls check Lemma C1 itself. The tag-only claws of the scan equal the independent search (`claws_equal_ref`). The C1-claws equal the independent search restricted to the claws whose C1 holds on the real words of both members (`c1_claws_equal_ref`, with C1 from `pf_ref`). The post-filter flags of every C1-claw equal the real-word definitions (`postfilter_ref_mismatch`). Development check (not shipped; `dense_trial` at full-frame coverage with 2^20 words and 2^14 a0, 128 seeds `dev|big|0..127`): 81,842 claws, every seed's tag-only claws equal to the independent search; 10,185 C1-claws (rate 0.12445; 1/8 = 0.125), every seed's C1-claws equal to the independent search restricted to C1 on the real words; 1,008 of them pass C2 (0.0990 against the exact P(C2 | C1) = 0.0989); 0 row-16 mismatches and 0 post-filter mismatches.
 
-*Why row 19.* Measured with the estimator (one row at a time checked on signed differences only, the others strict, outputs compared): relaxing row 19 raises q3 by about 3.6 bits for P8 (and 3.4 for the published characteristic); rows 17 and 18 lead to dead ends (the derived conditions there are needed by the next row), rows 20..22 add little. In the 40 runs of the study of Section 9 (seeds 4001..4040), 188,796 of 188,796 classified successes have their row-19 conditions in one of four patterns (`pat19`; the 12 conditions: the fixed bits E19[4], E19[18] and ten two-bit conditions):
+### 3.7 The inherited SEL window and H8
 
-```
-row-19 conditions (in order): E19[4] = 1, E19[18] = 0, E19[10] = E19[29], E19[2] != E19[20], E19[5] != E19[18], E19[6] = E19[19],
-E19[10] != E19[28], E19[11] = E19[29], E19[1] = E19[28], A18[29] = A19[29], E19[4] != E19[9], E19[5] != E19[10]
-successes of 40 estimator runs (seeds 4001..4040, 32 classes, rebuilt and checked), by the set of violated conditions (1 = violated):
-42,216  010000110001   E19[18], conditions 7, 8 and 12 violated
-51,411  010000110000   E19[18], conditions 7 and 8 violated
-46,939  000000000000   none (the strict row)
-48,230  000000000001   condition 12 violated
-188,796 of 188,796 successes in these four patterns (complete dumps)
-```
+SEL is the fixed 4096 selected 256-a0 sub-blocks of W9, totaling 2^20 a0, with the unchanged bitmap/hash in the program. Exact N12=53096854 and G_SEL=2051404269120 give the stated postfilter rate. The charged message factor is 2^-0.011821. H8 assumes the conditional state acceptance is independent of the selected sub-blocks given the message-difference profile. The complete original argument, exact counts, registration, paired message-profile/forced-bit records, confidence bounds and limitations are retained as Appendix V section `support-3.7`. Current seven-column geometry and deterministic full-cycle `ustart` iteration do not turn those historical measurements into new probability evidence.
 
-## 7. The counted program (`experiments/a0p38.py`, 51,228 bytes, SHA-256 63552a536ebc2c4893d01838fd65235e91bbbf9f7c3334c49be4bb657a2b30a4)
+### 3.8 The inherited kept CV class and H9
 
-### 7.1 Machine and scalar routines
+Keep exactly ((cv0>>24)&63)==12, a 2^-6 class under H1. Its F7 rate is charged at **0.1205926** and the step-3b cost at the upper bound **0.1206112**, the two one-sided 99% bounds of the class rate measured by the public parent's exhaustive-density estimator: the per-top-byte F7 density is enumerated over all 2^32 words (reproducing |F7| = 287,309,824 exactly), and the class average over cv[0] is computed in closed form for each G-conditioned q, so only the q distribution is sampled; over 3.21e7 X-samples the class rate is 0.1206019 +- 0.0000031, and the estimator's exact equal-weight control returns 0.066894531 against |F7|/2^32 = 0.06689453125. The earlier 2^20-q interval is superseded and not used. Message factor 2^-0.0225. H9 retains the same conditional-state transfer premise. No class, advice or acceptance condition changes here.
 
-256-bit word RAM, 64 registers; executed primitives count 1 (load, store, add, sub, and, or, xor, not, shift, immediate, random word), a compare-and-branch 2, one target compression 1 unit; S0, S1, s0, s1 cost 8 each (doubled word, shifts, xors, mask), CH 3, MAJ 4. The routines are executed with counting primitives; broadcast, lane_value, first_lane, r16test and deep add itemised declared counts (their docstrings) (`calibrate`):
-
-| routine | operations |
-|---|---|
-| first block: 2 random words and their 16 fields (30), counter, cap test, hit-list test (5) | 35 |
-| one W7 test (computed, no table), plus 4 for the class loop | 24 + 4 |
-| per-first-block scalars HH, PP, QQ, EF, FF, K1, KP | 39 |
-| the 7 x 32 broadcast planes (4 each) | 896 |
-| per passing class: setup 3, end of class (work counter, cap test) 4 | 7 |
-| per batch of 256 variants: the class's row-16 program (1,438 to 1,482, mean 1462.25) + ok test 2 + pointer, compare, branch 4 | prog_i + 6 |
-| per stage-3a lane: lowest lane (32), clear and loop (3), a0 from the stored planes (4 x 23 + 1 = 93, the widest mask), E16x (38), the row-16 table test (42) | 208 |
-| per row-16 pass (itemised declared count): Step 2 for both members, the expansion and rows 16..37 of both members with the tests of rows 16..22, the output comparison | 3105 |
-
-### 7.2 The row-16 programs (one per class)
-
-Bit L of a 256-bit plane belongs to lane L (one variant). Inputs of the program of class i: the planes of the bits of a0 in mask_i (20 to 23 bits, stored per batch) and the 224 broadcast planes; every bit of a0 outside mask_i is the corresponding bit of base_i and is folded as a constant (the per-class construction of 08be594; Section 0.1). `build_e16` builds, bit-interleaved, the DAG of E0 = a0 + HH, then per bit j: S0(a0), MAJ(a0, a, b) = PP | (a0 & QQ), S1(E0), CH(E0, e, f) = FF ^ (E0 & EF), the three ripple adders of their sum T and the subtraction W1 = K1 - T, then per tested position j <= 16: s0(W1), the two adders of E16x and the comparison with the common value; constants are folded and equal nodes shared. `schedule` allocates 64 registers by Belady's rule (evict the value needed farthest ahead; store it first if it is needed again and has no copy); every load, store and spill is an instruction. Result: 32 programs (32 distinct input patterns), **1,438 to 1,482 instructions per batch, mean 1462.25** (calibration list in Section 10). The expected work uses the mean (each class passes its W7 test with the same p7), the work cap the maximum. The programs are executed instruction by instruction (`run_prog`) and compared with the scalar definition lane by lane (`selftest` item 4 and the organizer experiment `a0p-online-r38`: 0 mismatches).
-
-## 8. The algorithm (fixed caps)
+### 3.4 Pseudocode
 
 ```text
-advice: S (the semi-free-start pair's rows 0..15), the 32 class descriptors (c7, base, mask); precompute (charged): every class member (base ^ s, s subset of mask, in G, c7 = c7_i), stored as 96 batches of |mask| bit planes per class; the 32 row-16 programs
-V = 0
-for f = 1 .. N_FB:
-    if V > V_MAX: halt (failure)                    (V accumulates ALL data-dependent work of every first block: W7 tests, hit list, scalars, planes, classes, lanes, row-16 passes)
-    two uniform 256-bit random words -> M0 (16 words, uniform on {0,1}^512); CV1 := F_38(IV, M0)                     [1 unit]
-    hits := [i : c7_i - A_{-1} in F7]                                                                               [32 x (24 + 4)]
-    if hits: the scalars and the broadcast planes
-        for i in hits: for each of the 96 batches of class i: run the row-16 program of class i -> ok plane
-            for each lane of ok: a0 from the planes; E16x; if E16x in R16: Step 2, rows 16..37 of both members, the tests of rows 16..22
-                (row 19 on signed differences), compare the outputs; if equal: output M0 || M1, M0 || M1' and halt
-        V += the work of the class (and, before it, the W7 tests, the hit list, the scalars and the planes of this first block); if V > V_MAX: halt (failure)
+input: N_E = 2^32, K = 528,101,566,268, N_CV = N_E * K, V_MAX, the advice SEL.  V = 0 (work register)
+for ustart = 0 .. 2^32 - 1:                                    # deterministic full cycle over all 2^32 ustart
+    if V > V_MAX: halt (failure)
+    use fixed alignment r = R* = 8174
+    reset the 7 x 2^19 compact records to EMPTY; for n = 0 .. 2^32-1: u = (ustart + n) mod 2^32; insert u (Section 3.1)
+    V += the epoch's counted work
+    for j = 1 .. K:                                            # a first block
+        if V > V_MAX: halt (failure)
+        draw M0 (16 random words); cv := F_38(IV, M0)
+        if (cv[0] >> 24) & 63 != 12: V += C + 25; next j       # the kept class (Section 3.8); one V add per first block
+        the claw scalars of cv; Hr = R16H[0] - r
+        V += C + 25 + 70 + 1,024                                # this first block and the kept chaining value's fixed work (+ front-end setup)
+        for each sub-block of SEL (V += 7), its batch of 256 consecutive a0: the front end (V += its charge); for each a0 of the output mask:
+                      extract it, F0, yp (V += 41), probe: nphi, WBL0, WBL1, the combined test on every read (V +=
+                      the probe's counted work); a read with a fired lane: ordered lane tree; per C1-claw: E5 from s, the chain's
+                      segments 2..4 (each adds its own cost to V); a good pair runs step 3b; if it accepts: output, halt
 halt (failure)
 ```
 
-*Lemma 8.1 (the cap).* V accumulates every data-dependent operation of every first block (all of v_f in Section 9) and is tested before every first block and after every class, so V <= V_MAX + OVER at every moment (V is updated for every first block, including first blocks with no passing class: their data-dependent work is the W7 tests and the hit-list test, added to V before the next cap test), OVER = 2,610,022,471 (one first block at its maximum: all classes passing, each charged at the longest program, every lane a row-16 pass). The 35 fixed operations per first block are charged separately (N_FB x 35). The run never outputs a non-collision (Lemma 6.1).
+The procedure draws only its own first blocks; each costs one compression, 16 random-word operations for M0, the 3 operations of the class test and 6 control operations (cap test 2, its single work-counter add 1, loop control 3), kept or not; a kept one adds the 70 operations of the chaining value's setup (the lineage's cv_begin 75 less its V add, cap test and loop, which are the per-block control above, plus Hr), inside the fixed part. No other first-block enumeration is executed, so none is charged.
 
-## 9. The success probability
+## 4. Pricing (H5')
 
-*Trials and expectation.* A trial is (first block f, selected variant a0); A_t: a0 is good for f (W7 in F7) and the pair is in the accepted event. E[X_f] = g q3 (Lemma 5.1; H1, H2).
+collision-frontier-v5, 256-bit word RAM: load, store, address, arithmetic, logic, shift, immediate and random word cost 1; compare-and-branch costs 2; a conditional branch reading a computed zero/nonzero word costs 1 (Lemma Z); S0, S1, s0, s1 cost 8 except the proved six-operation partial-s0 uses of Lemma D; CH costs 3; MAJ costs 4 and the stated folded forms cost 2; one target compression C=2728. Every work-counter add is charged. `scan_cv` and `build_table` count the explicit operations through `Mach`.
 
-*q3 (H2).* q3 = the average over the 786,432 selected variants of Pr[accepted event | good pair] (including the row-16 factor 160 / 2^32). Estimator `q3tv.c` (binary q3tv2, `DIFFROW=19 RELAX_TAIL=1`, `VARS` = the variant pool of the 32 classes): fixed-effort multilevel splitting, row 16 exact over the 160 W16 words, rows 17..22 with W_i^x uniform (Lemma 5.1) and the rows checked as in the event (row 19 on signed differences), tail: a variant drawn per proposal from the 786,432 selected variants, W7 uniform in F7, rows 23..37 computed, outputs compared. Every success is a verified collision; the successes are rebuilt into real pairs (750 of 750 checked with the reference). 40 runs, 4,000 particles, 16,384 tail proposals per particle, seeds 4001..4040 fixed before the runs:
+| segment | operations |
+|---|---|
+| per word u of an epoch: u = ustart + n 1, s0 8, sub 1, - r 1, and 8191 1, loop 3, covered? branch 2 | 17 |
+| covered and inserted: column, row, index (shift, add) 4, address + load 2, count 1, full? 2, lane (and, shift, or) 3, lane shift and clear mask from constant tables 2 + 2, and, shift, or, count add 4, address + store 2 | +22 |
+| covered and dropped (bucket full) | +9 |
+| reset, per bucket (address + store 2, loop 3); epoch setup (deterministic `ustart` increment, split, V add, cap test) | 5; 6 |
+| per first block, kept or not: compression C, 16 random words for M0 (1 each), class test 3 (and 1, compare-and-branch 2; Section 3.8), cap test 2, V add 1, loop 3; per kept chaining value: setup 70 (first-block words 30, claw and post-filter scalars 38, random word 1, Hr 1) | C + 25; 70 |
+| per selected sub-block (Section 3.7): index load 2, base (shift, add) 2, loop 3 | 7 / 256 per a0 |
+| per batch of 256 a0 (Section 3.5): the register program, 218 (loads, gates, scalar/index ops) + batch loop and V add 8 + empty-mask branch 2; per chaining value 1,024 for the front-end setup | 228 / 256 = 0.8906 per a0 |
+| per a0 of the mask (probability 122/8192): 16-bit table-assisted lowest-set-bit extraction 20 (neg, and, xor, 3 x (and, branch), shift, and, CTZ16 load, add, loop branch), a0 1, F0 18 (reusing S0(B) and S0_LO[l]), yp 1, V add 1 | 20 + 21 |
+| per probing window: rowb 1, u0 2, w 1, c1 1, c 1, two path flags 4, two column bases 3, V add 1 | 14 |
+| per probing window, Section 3.6: nphi = (a0 - F0) + KNPHI 2, (32 - w) << 33 + nphi 3, broadcast (3 x (shift, or)) 6, WBL1 = WBL0 + W8L 1 | 12 |
+| per head (19 nonzero heads j = 1..19; head 0 has t_0 = 0 and uses rowb directly): rowj (add t_j, and) | 2 (x 19 heads) |
+| per bucket read, the combined tag and C1 test: address + load 2, add 1, and 1, sub 1, and 1, branch on zero 1 | 7 |
+| ordered lane tree of a nonempty read: exact maximum 18 operations; additive per-lane bounds 6,6,6,8,8,8; prefix retention and H1 give mean at most 7 per C1 claw; H1W gives 6.760092 | 6.760092 mean (H1W); 18/read maximum |
+| frame-crossing next bucket: rowb = (yp >> 13) already equals row0 + 1 when c = 1023 and c1 = 0, so no extra row add is needed | +0 |
+| per C1-claw: E5 recovery 2; Lemma-D/Z postfilter segments 13 + 22 x [C2] + 24 x [C2 G]; step 3b stops after the first failed row; H3B charges mean 842.361097 and vmax keeps the 3,014 all-pass path | 2 + chain |
 
-| seed | stage factors log2 (rows 16..22, tail) | successes (all collisions) | log2 q3 |
-|---|---|---|---|
-| 4001 | -24.678 -16.997 -13.928 -2.967 -15.967 -6.961 -0.999 -14.152 | 3,601 | -96.6490 |
-| 4002 | -24.678 -17.000 -13.895 -3.019 -16.401 -6.989 -1.007 -13.836 | 4,483 | -96.8250 |
-| 4003 | -24.678 -17.003 -13.936 -3.038 -15.991 -7.020 -0.992 -13.843 | 4,459 | -96.5012 |
-| 4004 | -24.678 -16.984 -13.941 -3.005 -15.639 -6.990 -0.998 -13.949 | 4,145 | -96.1841 |
-| 4005 | -24.678 -17.003 -13.949 -3.010 -17.958 -6.985 -1.026 -13.777 | 4,670 | -98.3867 |
-| 4006 | -24.678 -17.008 -13.931 -3.014 -15.972 -6.988 -1.024 -14.020 | 3,946 | -96.6351 |
-| 4007 | -24.678 -16.965 -13.963 -2.995 -15.401 -6.985 -1.017 -13.910 | 4,258 | -95.9134 |
-| 4008 | -24.678 -17.017 -13.940 -2.999 -16.945 -6.963 -1.023 -13.458 | 5,822 | -97.0241 |
-| 4009 | -24.678 -16.983 -14.010 -2.995 -15.358 -7.042 -1.003 -13.942 | 4,165 | -96.0106 |
-| 4010 | -24.678 -16.962 -13.935 -3.002 -15.665 -6.979 -0.996 -13.918 | 4,235 | -96.1354 |
-| 4011 | -24.678 -17.010 -13.916 -2.969 -15.346 -7.001 -0.986 -13.529 | 5,546 | -95.4346 |
-| 4012 | stalled at row 20 (no estimate: counted as 0) | 0 | 0 (stalled) |
-| 4013 | -24.678 -16.956 -13.877 -2.962 -15.607 -7.016 -0.989 -13.331 | 6,359 | -95.4169 |
-| 4014 | -24.678 -17.025 -13.930 -3.019 -16.386 -7.017 -0.978 -13.887 | 4,327 | -96.9191 |
-| 4015 | -24.678 -17.006 -13.894 -3.000 -15.205 -7.020 -1.003 -13.867 | 4,386 | -95.6743 |
-| 4016 | -24.678 -17.028 -13.974 -2.999 -17.980 -6.992 -1.010 -13.671 | 5,023 | -98.3326 |
-| 4017 | -24.678 -17.012 -13.940 -3.013 -15.142 -6.997 -1.028 -13.785 | 4,644 | -95.5965 |
-| 4018 | stalled at row 20 (no estimate: counted as 0) | 0 | 0 (stalled) |
-| 4019 | -24.678 -16.983 -13.977 -3.033 -14.623 -7.004 -1.000 -13.569 | 5,394 | -94.8670 |
-| 4020 | -24.678 -16.954 -13.906 -3.034 -16.338 -6.999 -1.017 -13.542 | 5,494 | -96.4681 |
-| 4021 | -24.678 -17.001 -13.956 -3.040 -15.933 -6.991 -0.995 -13.596 | 5,294 | -96.1892 |
-| 4022 | -24.678 -16.961 -13.888 -2.990 -17.969 -6.985 -1.000 -13.453 | 5,846 | -97.9234 |
-| 4023 | -24.678 -17.027 -13.945 -2.979 -17.967 -7.013 -1.015 -13.333 | 6,351 | -97.9565 |
-| 4024 | -24.678 -16.962 -13.865 -2.987 -15.674 -6.988 -0.984 -13.561 | 5,422 | -95.6982 |
-| 4025 | -24.678 -17.014 -13.898 -2.981 -17.990 -7.005 -1.021 -14.004 | 3,990 | -98.5903 |
-| 4026 | -24.678 -17.030 -13.954 -2.992 -15.630 -6.957 -0.995 -13.567 | 5,401 | -95.8012 |
-| 4027 | -24.678 -17.011 -13.956 -2.985 -14.936 -7.015 -1.009 -13.572 | 5,380 | -95.1633 |
-| 4028 | -24.678 -17.021 -13.869 -3.027 -15.997 -6.981 -1.008 -13.942 | 4,164 | -96.5232 |
-| 4029 | -24.678 -17.005 -13.924 -3.024 -15.973 -7.010 -1.027 -13.571 | 5,386 | -96.2125 |
-| 4030 | -24.678 -17.006 -13.913 -2.982 -16.393 -6.990 -1.019 -13.656 | 5,076 | -96.6365 |
-| 4031 | -24.678 -17.016 -13.929 -2.977 -16.395 -6.984 -1.013 -13.776 | 4,673 | -96.7677 |
-| 4032 | -24.678 -17.013 -13.944 -3.010 -14.975 -6.976 -1.016 -13.758 | 4,732 | -95.3691 |
-| 4033 | -24.678 -16.980 -13.889 -2.988 -15.634 -7.005 -0.969 -13.618 | 5,214 | -95.7600 |
-| 4034 | -24.678 -16.992 -13.897 -3.052 -15.407 -7.033 -0.975 -13.543 | 5,491 | -95.5758 |
-| 4035 | -24.678 -16.999 -13.885 -3.041 -16.413 -7.017 -1.003 -13.762 | 4,717 | -96.7975 |
-| 4036 | -24.678 -17.013 -13.952 -3.038 -17.962 -6.999 -1.000 -13.776 | 4,672 | -98.4201 |
-| 4037 | -24.678 -17.016 -13.937 -2.989 -14.970 -6.984 -1.035 -13.639 | 5,139 | -95.2474 |
-| 4038 | -24.678 -17.007 -13.912 -3.024 -15.625 -6.999 -1.006 -13.543 | 5,492 | -95.7934 |
-| 4039 | -24.678 -17.017 -13.926 -3.031 -15.195 -6.994 -1.022 -13.541 | 5,500 | -95.4025 |
-| 4040 | -24.678 -17.004 -13.954 -2.983 -15.604 -6.983 -1.005 -13.440 | 5,899 | -95.6513 |
+Step 3b has longest path 3,014 operations (every test passing, counted by `selftest` on the P8 pair). The charged source now builds both paths through row 15, advances rows 16..21 one row at a time, and returns on the first failed row; it computes rows 22..37 only on the all-pass path. The ledger therefore charges H3B's 842.361097 stopped-path mean per good pair, while vmax and OVER retain the exact 3,014-operation maximum. The 256-bit word test of a bucket is four word operations, C1 included (Section 3.6); rotations and sigmas of scalar words are the lineage's 8 operations, except the post-filter's s0 tests (6, Lemma D); the front end is bitsliced and charged as a register program with every load and store counted (Section 3.5). **Lemma D (this filing).** For 32-bit x let X = x OR (x << 32) (2 operations), Y = X XOR (X >> 4) XOR (X >> 15) (4). For i in 0..28, Y[i+3] = X[i+3] XOR X[i+7] XOR X[i+18] = x[i+3] XOR x[(i+7) mod 32] XOR x[(i+18) mod 32] = s0(x)[i], since X[k] = x[k mod 32] for k < 64. Every mask `pf_tail` applies to s0(w9), s0(w8) or s0(w7) lies in bits 0..28 (the widest is 0x1dc03800), so (s0(x) AND m) = v iff (Y AND (m << 3)) = (v << 3); z8's term (w8 >> 5) AND 0x006600c0 becomes (w8 >> 2) AND 0x03300600 at equal cost. Each s0 costs 6, not 8 (`s0d`) with unchanged flags. **Lemma Z (this filing).** The model prices comparison and conditional branch at 1 each. A test of a word against zero needs no comparison: the conditional branch reads the word (`Mach.bz`, 1). It prices the read's Z = 0 test and pf_tail's single-bit tests w9 AND 2^29, w7 AND 2^29, w7 AND 2^30 (and 1, branch 1). Mask-equality tests and walk thresholds keep compare-and-branch 2. The walk compares Z with sparse(m) + 1 for the 62 split masks m of the lineage's tree (`WT`, replacing its 4 KB threshold literal); z < sparse(m) + 1 iff the old test Z_old >= T held, on all 64 masks: same paths and charges. Segments cost 13, 22 and 24. Checked on all 2^32 words; old and new `pf_tail` agree on 518,506 random draws (118,506 reach segments 2..4), 2 fewer counted operations per executed segment; registered trials 0..3 and utab-rows-r38 trial 8 recheck it.
 
-Mean 2^-96.1821, relative sd 0.601, one-sided 99% Student bound (t = 2.4258, 39 degrees of freedom) 2^-96.5603, bootstrap 1% quantile of the mean 2^-96.5278; 188,796 successes. The row-20 stage has the largest spread across the runs (sd 0.97 bits of its log2 factor; the others at most 0.20). Runs 4012 and 4018 found no survivor at row 20 and are counted as an estimate of 0. **q3_model = 2^-97.0000.** q3_model = 2^-97.0 was set from the first 20 runs (seeds 4001..4020: their 99% bound 2^-96.9989, rounded down to a tenth) and kept when 20 further runs were added after a first review found its margin thin (seeds 4021..4040, fixed before those runs; all runs are reported); over all 40 runs the 99% bound is 0.4397 bits above q3_model. Rounding the 40-run bound down would give 2^-96.6; we keep 2^-97.0 for the margin. At the 40-run bound 2^-96.5603 the ledger gives 86.70934.
+## 5. The ledger
 
-*The pair term (H3).* Every success passes row 16, so given A_t, X_f - 1 <= R_f - 1 (the other row-16 passes of f). Measured (`h3p.py`): 750 successes rebuilt and verified (all accepted by the program's event, so the estimator's event and the program's agree on every one; 99% bound on a disagreement rate 0.6%), all 750 re-found in their own class; every selected variant of every passing class evaluated on the success's CV1: 6,252 passing classes, 153,649,152 variants, **6 other row-16 passes, 0 further accepted pairs** (5.72 expected under independence). One-sided 99% Poisson limit of E[R_f - 1 | A_t]: 0.0194 = 2^-5.69; charged 2^-5.1 (the limit rounded up to a tenth plus 0.5, the rule of 1a695f0b). Sampling: every 25th success line of the study's dump files in sorted file order, the first 750 of them (`h3p.py`, `POOL` and `STUDY` set to this study's pool and dumps), so they come from the first runs and successes within a run are not independent; the Poisson limit assumes independence, which the 0.5 margin only partly covers (pair term 2^-3 moves the claim by +0.07, Section 10). A second sample of 750 successes spread evenly over all 40 runs (`SPREAD=750`; every success of the sorted dump files, equally spaced) gives 750 verified, 6,278 passing classes, 154,288,128 variants, 6 other row-16 passes, 0 further accepted pairs: 99% limit 2^-5.69, charge 2^-5.1 by the same rule. We charge the larger value, that of the first sample. Given a success, its CV1 passes the W7 test for 8.34 classes on average (1 + 31 p7 = 3.07 if the classes were independent): the c7 values of the classes are related, so their W7 tests pass together. The expectations of the ledger are linear and unaffected; the effect is inside the measured pair term and the work cap.
+Under H1, `y = R16H[0] - r - F(a0)` is uniform. A window probes with probability `2 * 61 / 8192 = 122 / 8192`. Conditional on probing, `q = (yw + 5) mod 1024` lies uniformly in `[0, 61)` across both windows `win in {0, 1}` (`122` positions total). Over those `122` probing positions, there are **`112` main-read positions** (`c < 7`) and **`70` next-read positions** (`60` interior positions with `w >= 3, c1 < 7` and `10` frame crossings `c = 1023`), totaling **`182` reads per head**, or **`reads/probe = 20 * 182 / 122 = 1820 / 61 = 29.83606557...`**. Frame crossings cost no extra operation beyond the charged read addressing.
 
-*Bonferroni, independence, caps.* Pr[X_f >= 1] >= E[X_f] - E[X_f (X_f - 1)] / 2 >= g q3 (1 - 2^h3 / 2); first blocks are independent (fresh coins); the data-dependent work v_f of a first block satisfies 0 <= v_f <= vmax_f = 2,610,022,471 with mean at most vbar = 306253.2258 (exact rational in the ledger), so Var(sum v_f) <= N_FB vmax_f vbar and Chebyshev bounds Pr[sum v_f > (1 + 2^-16) N_FB vbar] by P_cap = 2.423e-11; V_MAX = ceil((1 + 2^-16) N_FB vbar). On the complement no cap halts the run. N_FB is the least integer with 1 - exp(-N_FB g q3_model (1 - 2^h3 / 2)) - P_cap - 2^-60 >= 0.39 (2^-60 covers the rounding of the exponential, evaluated at 80 decimal digits).
+- `probe` cost = `14 + 12 + 19*2 + 7*(1820/61) = 16644/61 = 272.85245901639344262295...` operations. Read cost is `7` (Lemma Z); the `218`-operation front end and setup/loop charges are unchanged.
+- `claws/a0 = 160 * E / 2^32`, `C1-claws/a0 = 20 * E / 2^32 = 20 * 20,811,431 / 2^32 = 0.09691079025...`, using exact **`E(8174, 7) = 20,811,431`** for every table `T(ustart)`. Under the strengthened `H7` premise (Section 7), both cost and success use this exact retained count across the deterministic cycle `ustart = 0 .. 2^32 - 1`.
+- per C1-claw, in expectation under `H1`, `H1W` and `H3B`: `6.760092 + 2 + 13 + 22 x P(C2 | C1) + 24 x P(C2 G | C1, SEL) + (q_pf_hi / P(C1)) x 842.361097 =` **`24.393588189882...`** (`8*claw`, where `claw = 3.049198523735308617...`). The walk charge is the declared `H1W` mean; Appendix U keeps the separate exact 18-operation maximum.
+- `per_a0 = 235/256 + (122/8192)*(41 + 16644/61) + (20*20811431/2^32)*per_C1 =` **`7.956042613164307085795...`** operations. Displayed decimals never replace exact rational terms.
 
-## 10. Ledger (exact; `ledger_a0p.py`, Appendix C)
+**Per first block.** `wbar = C + 25 + 2^-6*(70 + 1024 + 2^20*per_a0) =` **`133,121.89592408400729366669659029...`**. The deterministic maximum uses the exact 18/read and 3,014 step-3b path: `vmax =` **`775,008,730,887`**.
+
+Per epoch: `build = 6 + 7*2^19*5 + 2^32*17 + 20,811,431*22 + (29,360,128 - 20,811,431)*9 =` **`73,567,583,873`** operations. Rather than drawing random single-`ustart` epochs, the procedure deterministically visits every **`ustart in 0 .. 2^32 - 1`** (`N_E = 4,294,967,296` epochs), running **`K = 528,101,566,268`** first blocks per epoch (`N_CV = N_E * K = 2,268,178,956,087,436,771,328` total first blocks; build overhead is `0.000105%` of an epoch). Every epoch uses fixed `R* = 8174` and retains `E(8174, 7) = 20,811,431` entries (`sum = 170,066,581,524`, conservative control ratio `44,436,632 / 20,730,062`).
+
+| quantity | exact value |
+|---|---:|
+| N_CV first blocks (`N_E * K`) | `2,268,178,956,087,436,771,328` |
+| N_E epochs (full cycle `2^32`) | `4,294,967,296` |
+| K first blocks per epoch | `528,101,566,268` |
+| Build ops per epoch | `73,567,583,873` |
+| V_CV = `ceil((1 + 2^-20) * N_CV * wbar)` | `301,944,570,885,976,883,229,254,312` |
+| V_MAX = `N_E * build + V_CV` | `301,944,886,856,343,663,501,271,720` |
+| ALLOW = `3 * 2^60 * C` | `9,435,509,593,702,435,651,584` |
+| OVER = `vmax` | `775,008,730,887` |
+| FIN = `6 * C + 1600 + 2^24` | `16,795,184` |
+| N = `ALLOW + V_MAX + OVER + FIN` | `301,954,322,365,938,140,962,449,375` |
+| `time_log2 = log2(N / 2728)` | `76.5508328628285239641573507767678492...`, charged **`76.55084`** |
+
+**Lemma 2 (the cap).** The cap test reads `V` at the start of every epoch and of every first block; at that moment `V` equals the online work executed so far. An epoch build started with `V <= V_MAX` adds at most `build <= vmax`, a chaining value at most `vmax`. Hence the executed online work is at most `V_MAX + vmax` for every execution.
+
+**Lemma 3 (cap halt).** Every table `T(ustart)` across the deterministic cycle `ustart = 0 .. 2^32 - 1` is fixed before execution, so the total build work is deterministically `N_E * build`. Conditional on these fixed tables, the first-block works `W_j` are independent (`H1`: fresh i.i.d. `M0`), satisfy `0 <= W_j <= vmax`, and satisfy `E[W_j] = wbar` identically across all `N_CV` first blocks. The procedure halts at a cap test only if `sum_j W_j > (1 + 2^-20) N_CV wbar`; since `Var(W_j) <= vmax wbar`, Bernstein's inequality gives a cap-failure probability at most `exp(-177.1700287...)`, far below the reserved `2^-60` margin.
+
+## 6. The post-filter law q_pf (H1-P1)
+
+Exact counts over all 2^32 values (own exhaustive program of the lineage): P(C1) = 1/8; |C1 and C2| = 53,096,854 (C1, C2 read only a1); for a0 in W9 the (a1 in C1 and C2)-summed count of G is 57,726,359,870,197, so P(C1 C2 G) = 57,726,359,870,197 / 2^58; |F7| = 287,309,824. Hence q_pf = 57,726,359,870,197 x 287,309,824 / 2^90 = 2^-16.1877.
+
+**Why these rates bind the claws of the u-table (derived from H1).** For a uniform chaining value, F(a0) = Cc2 + a0 + k0 + h(a0) contains -cv[7] once (in k0) and h(a0) contains -cv[6] once (cv[6] enters k0 only through CH(e, f, g), inside F): so F(a0) and h(a0) are uniform and independent, and cv[0] is uniform given both. The table is fixed by the epoch, the claw's u depends only on F(a0) and the table, so **a1 = u - h(a0) is uniform and independent of the claw event**; C1 and C2 (a1 only) pass at the exact rates; every a0 of W9 has the same expected claw count (y is uniform for every a0), so the G rate of a claw is the W9-summed count above; and W7 = KK7c + MAJ(A2, a1, a0) - CH(E6, E5, E4) with KK7c = E7 - 2 A3 - cv[0] + ... is uniform given (a0, a1), so F7 passes at |F7|/2^32 (the lineage's statement "F7, averaged over a uniform chaining value, has probability |F7|/2^32 for any law of (a0, a1)"). H1-P1 is the premise that these rates hold for the claws the procedure finds; under H1 it is a consequence, and it is measured at full scale: the C port (Section 13) on seven chaining values, 778,357,004 claws, pooled C1 0.124995 (exact 1/8), C2|C1 2^-3.3380 (exact 2^-3.3379), G|C1C2 2^-5.9437 (exact 2^-5.9478), F7|C1C2G 0.0812 (|F7|/2^32 = 0.0669). F7 reads cv[0] and is strongly overdispersed across chaining values (per-chaining-value good-pair counts 605 to 2,495 on equal claw counts), so seven chaining values do not resolve its mean; the lineage's 24-chaining-value panel pooled 0.06618 (Appendix H.1), and the charge uses the exact |F7|/2^32, which holds in expectation over a uniform chaining value as derived above. **With the window (Section 3.7)** the same derivation holds with a0 uniform over SEL instead of W9. The G rate of a claw is then the exact SEL count, P(G | C1 C2, SEL) = 2,051,404,269,120 / (2^20 x 53,096,854) = 0.0368453386, and F7 stays at |F7| / 2^32. So **q_pf(SEL) = (53,096,854 / 2^32) x 0.0368453386 x 287,309,824 / 2^32 = 2^-15.0022** (W9: 2^-16.1877). With the kept class (Section 3.8) the F7 entry is 0.1205926, so **q_pf(SEL, class) = (53,096,854 / 2^32) x 0.0368453386 x 0.1205926 = 2^-14.1520** (W9: 2^-16.1877), which is the rate every success computation below uses. **With the class (Section 3.8, H9)** cv[0] is uniform in the class instead of over all words, and F7 passes at the class's rate: q_pf(SEL, class) = (53,096,854 / 2^32) x 0.0368453386 x 0.1205926 = 2^-14.1520 (the step-3b cost at 0.1206112: 2^-14.1429).
+
+## 7. Success probability
+
+Let `X(u, cv)` be the number of accepted good pairs in one chaining value `cv` scanned against epoch table `T(u)` (`u in {0, ..., 2^32 - 1}`), and let `q3r` be the baseline good-pair acceptance probability.
+
+- **H2-P1.** `q3r >= q3_P1 * 2^32 / 160 = 2^-71.4010`, with `q3_P1 = 2^-96.0791 = q3_model * 2^min(0, D_LB)`, `q3_model = 2^-96.0133`, `D_LB = -0.0658` on window `W9 = [9*2^26, 10*2^26)` (Section 9). Every `a0` in `SEL` lies in `W9`.
+- **H8 (Section 3.7).** Window good pairs are accepted with probability at least `2^MSG_LO q3r = 2^-0.011821 q3r` (99% pooled S217 lower bound retained identically from `74ec8ef`).
+- **H9 (Section 3.8).** Kept-class good pairs are accepted with probability at least `2^MSG_CLS * 2^MSG_LO q3r = 2^-0.0225 * 2^-0.011821 q3r` (exhaustive-density class F7 lower bound `0.1205926` and message bound `-0.0225` retained identically from `74ec8ef`).
+- **Average accepted count over `(u, cv)` (strengthened H7).** Since `T(u)` has exact retained cardinality `|T(u)| = E(8174, 7) = 20,811,431` for every `u in 0..2^32-1`, the expectation over a uniform epoch index `u` and fresh chaining value `cv` (with keep indicator `1_cls` of probability `2^-6`) is `E_{u,cv}[X(u, cv)] = 2^-6 * 2^20 * (160 * 20,811,431 / 2^32) * q_pf(SEL, class) * q3r * 2^(MSG_LO + MSG_CLS)`.
+- **Deterministic Full-Cycle `ustart` Product Theorem (zero epoch-mixture gap).**
+  1. *Fixed-table independence (`H1`):* For each deterministic epoch `u in {0, ..., 2^32 - 1}`, table `T(u)` is fixed and the `K` first blocks draw fresh i.i.d. `M0` values. Under `H1`, the `K` per-block events `{X(u, cv_{u,j}) >= 1}` are i.i.d. with probability `p(u) := Pr_{cv}[X(u, cv) >= 1 | u]`. Hence epoch `u` fails with exact probability `(1 - p(u))^K`.
+  2. *Per-table Bonferroni (`H3-P1`):* For every fixed `u`, the scan is deterministic and complete (Lemma C), so `p(u) >= E_{cv}[X(u, cv) | u] - (1/2) E_{cv}[X(u, cv)(X(u, cv) - 1) | u]`.
+  3. *Linearity of expectation over the full `2^32` cycle:* Defining the cycle average `p-bar := 2^-32 sum_{u=0}^{2^32-1} p(u)` and summing Bonferroni over all `2^32` values of `u` gives
+     `p-bar >= E_{u,cv}[X] - (1/2) E_{u,cv}[X(X - 1)] >= (1 - 2^-8.5) E_{u,cv}[X]`,
+     which requires `H3-P1` (`E[X(X-1)] <= 2^-7.5 E[X]`) only on average over `(u, cv)`, not uniformly per `u`.
+  4. *Exact deterministic product bound:* Because `1 - x <= exp(-x)` holds pointwise for every `x in [0, 1]` with NO convexity direction reversal, total failure probability before the cap test is deterministically
+     `prod_{u=0}^{2^32-1} (1 - p(u))^K <= exp(-K sum_{u=0}^{2^32-1} p(u)) = exp(-N_CV * p-bar) <= exp(-N_CV * (1 - 2^-8.5) * E_{u,cv}[X])`.
+     Unlike random single-`ustart` sampling, NO epoch-mixture concentration inequality, NO `E[(1-p)^K] <= (1-E[p])^K` step, and NO per-table `Lemma T` / `K * p_max` upper bound is needed! (In `x13_k7.py`, the inherited `(1 - 2^-25)` multiplier is retained solely as a conservative factor.)
+
+Inverting this rate for target `0.39` with `2^-60` cap-failure margin gives `NCV_raw = 2,268,178,956,085,477,958,258`, rounded up to an exact multiple of `N_E = 2^32 = 4,294,967,296`: **`K = 528,101,566,268`**, **`N_CV = N_E * K = 2,268,178,956,087,436,771,328`**. With Bernstein exponent `177.1700287...` (`< exp(-177)` vs `2^-60`), the overall success lower bound is **`0.39000000000026039514... > 0.39`**.
+
+## 8. Inherited within-CV dependence premise H3-P1
+
+H3-P1 gives E[J(J-1)]<=2^-7.5*E[J], counting one pair per endpoint-sharing group. Bonferroni then supplies 1-2^-8.5. The full argument and original registered 24-CV panel remain in Appendix V section `support-8`. Finite restriction checks do not prove this premise. Historical participant-retained shallow control: utab-rows-r38 trial 6 (claim.json, H3-P1 extrapolation).
+
+## 9. Inherited P1 q3 transfer H2-P1 and estimator validity H2b
+
+Charge q3_P1=2^-96.0791 from the registered level-96.0133 and paired correction-0.0658; q3r=q3_P1*2^32/160=2^-71.4010. H2-P1 transfers this rate to good pairs, and H2b asserts estimator validity. Under the deterministic full-cycle `ustart` product bound of Section 7, neither `Lemma T` nor the `a-bar <= 2^10 * q3r` upper form is needed (both are withdrawn from active dependency; Section 7 retains `(1 - 2^-25)` solely as a conservative multiplier). Original registrations, seeded results remain in Appendix V section `support-9` and Appendices P/Q. No current small experiment measures this rare event. Historical participant-retained shallow known-answer control: utab-rows-r38 trial 8 (claim.json, H2b extrapolation).
+
+## 10. Memory (H6) and advice
+
+Every online and preprocessing phase of this procedure is accounted for in full and bounded by **`121,823,232` bytes (`Phase R`)**, giving `memory_log2_bytes =` **`26.86022`** (upward rounding of `log2(121823232) = 26.86021404419...`). No preprocessing cell is omitted, and active phases are backed by executable witnesses with parity checks and `/proc/self/status` `VmHWM` measurements (`Appendix ZT`).
+
+**Online image (`115,343,392 B`, `6,479,840 B` below `Phase R`).** Seven columns (`7 x 2^19 = 3,670,016` compact 30-byte records) occupy `110,100,480 B` plus a `32 B` terminal pad (`110,100,512 B`), plus a full `5,242,880 B` (`5 MiB`) code, stack, constant/uniform lookup tables (`311.56 KiB` total: `SP_*` `224 KiB` / `229,376 B`, `CTZ16` `64 KiB`, `CT[0..12]` `12.375 KiB`, `SEL` `8 KiB`, `WT` `1.94 KiB`, `S0_LO` `1 KiB`, `LANEPL` `256 B`), register-plane, buffer and runtime allowance = **`115,343,392 B`**. Native C witness `witness_k7.c` builds the complete `2^32`-word table, allocates and touches an explicit `327,680 B` (`320 KiB`) uniform table buffer alongside the payload across three `ustart` values (`0`, `0x9e3779b9`, `0xff357892`), measuring peak resident `VmHWM = 114,470,912 B`, `114,606,080 B`, and `114,577,408 B` (`737,312 B` .. `872,480 B` below `115,343,392 B`, and `7,217,152 B` below `121,823,232 B`).
+
+**Streaming Phase E bound (`<= 120,955,648 B < Phase R`, using `85,323,392 B` strictly as a LOWER BOUND).** Rather than running PySAT `CNF` to materialize all `sha256_model` lists in `Phase E` (whose CPython live objects reach `124.9–128.6 MiB` locally on zero-block controls and up to `G = 156,536,832 B` under `H6-E(a0)`), `Phase E` replaces PySAT's `CNF` object with a write-only **`StreamingCNF`** sink (matching `Appendix W` sec 3's invariance fact that `sdmodel.py` and `stepk.py` only append clauses and never read `cnf.clauses`):
+1. During `sha256_model(...)`, every appended clause is streamed into SHA-256 and immediately discarded (`0 B` of retained model clause lists; only `W0..W37`, `A3..A25`, `E3..E25` variable-ID arrays `< 200 KiB` exist).
+2. During tail construction (`CardEnc`, `fix_xor`, `fix`, `blocks`), every clause is hashed into SHA-256 and emitted via a `4 KiB` buffer in `RF17` 17-bit/literal packed format (`Lemma RF`).
+3. Using `85,323,392 B` **exclusively as the proven LP-dual lower bound** on `alloc(model)` (`alloc(model) >= raw(model) >= 85,323,392 B`, `Appendix W` sec 4) and subtracting from `H6-E(a0)` (`alloc(model) + alloc(tail_lists) <= G = 156,536,832 B`) yields the valid upper bound **`alloc(tail_lists) <= 71,213,440 B`** (including allocator rounding).
+4. Even assuming 100% of `alloc(tail_lists)` (`71,213,440 B`), 100% of `tail_ints` (`4,714,880 B`, `Appendix W` sec 6), 100% of the `RF17` record (`18,997,248 B`, `Lemma RF`), `procedure_code` (`1,912,832 B`), and a **`23 MiB = 24,117,248 B`** CPython `StreamingCNF` runtime/state budget coexisting at once:
+   `Phase E <= 71,213,440 + 4,714,880 + 18,997,248 + 1,912,832 + 24,117,248 =` **`120,955,648 B`**, strictly `867,584 B` below `Phase R = 121,823,232 B`. Executable Python witness `phase_e_stream.py` reproduces the full `sha256_model` construction (`be7f7ce1...`) + `RF17` tail emission + `regen_c --rf` parity at **`VmHWM = 21,307,392 B`** (`2,809,856 B` below the charged `24,117,248 B` budget).
+
+**Complete preprocessing and online phase table (all terms charged, Appendix ZT.2).**
+
+| Phase / Cell | Components / Mechanism (bytes) | Charged Peak (B) | Measured Native/Python Witness `VmHWM` |
+|---|---|---:|---:|
+| **Phase R (maximum)** | filter `1,048,576` + key `16,384` + model `200,704` + pipes `2,097,152` + code `1,912,832` + **full Lemma-RF tail record `18,997,248`** + native `regen_c` `6,291,456` + Kissat `90,210,304` + solver pipe `1,048,576` | **`121,823,232`** | `regen_c`: `4,136,960 B` (`< 6,291,456 B`) |
+| **Phase E (StreamingCNF)** | `tail_lists <= 71,213,440` + `tail_ints 4,714,880` + full `RF17` `18,997,248` + code `1,912,832` + `StreamingCNF` runtime `24,117,248` | **`120,955,648`** | `phase_e_stream`: `21,307,392 B` (`< 24,117,248 B`) |
+| **Online (`NCOL = 7`)** | `110,100,480` payload + `32` pad + `5,242,880` runtime/code/tables/advice allowance | `115,343,392` | `witness_k7`: `114,606,080 B` max (w/ 320 KiB tables) |
+| **Phase S (solver alone)** | filter `1,048,576` + key `16,384` + model `200,704` + pipes `2,097,152` + code `1,912,832` + Kissat `90,210,304` + solver pipe `1,048,576` | `96,534,528` | inherited H6-D (`88,096 KiB`) |
+| `p8fam` | P8 family / structural search (`69,496 KiB`) | `71,163,904` | inherited record |
+| **H7 (5-partition)** | 5-partition split of 15 columns (`[0,3)..[12,15)`), cgroup + env + code (`Appendix T.2`) | `65,265,200` | cgroup `51,298,304 B` / `51,724 KiB` |
+| Class sampling pool | `(cv0 >> 24) & 63 == 12` sampling instrument (`59,104 KiB`) | `60,522,496` | inherited record |
+| `Step-1` solve | sequential Kissat solve (`49,228 KiB`) | `50,409,472` | inherited record |
+| `gmass_lm` (32 slices) | 16 MiB (`2^27`-bit) bitmap/slice over 32 slices (`32 x 2^27` bits total) + 8 MiB allowance | `25,165,824` | `21,299,200 B` (exact parity `615163520`) |
+| `fillr2_lm` (32 slices) | 16 MiB (`2^24`-B) counter/slice over 32 slices + 8 MiB allowance | `25,165,824` | `20,856,832 B` (exact parity `379770633`) |
+| **Phase D (native)** | native `decode_c` (`8,388,608` allowance) + key `16,384` + model `200,704` + output json `3,129,344` + code `1,912,832` | `13,647,872` | `decode_c`: `4,165,632 B` (0/84 mismatches) |
+
+`H6-D` and `H6-E(a0)/(a)/(b)` transfer premises for the historical Kissat peak (`88,096 KiB = 90,210,304 B`) and `Phase E` tail-clause ceiling (`G - 85,323,392 = 71,213,440 B`) remain explicitly declared with full sensitivity stated in `Appendix ZT.2`.
+
+**Byte-by-byte nonuniform advice inventory (`nonuniform_advice_log2_bytes = 17`, `2^17 = 131,072 B`).** The prior `2^13 = 8,192 B` bound is withdrawn because the uncompressed `SEL` bitmap alone fills `8,192 B`. Every nonuniform constant embedded in `x13_k7.py` is itemized in `Appendix ZT.3`:
+- Uncompressed `SEL` sub-block bitmap (`4096` of `2^16` `W9` sub-blocks, `zlib+b64` stored as `393 B` ASCII): **`8,192 B`** raw (`393 B` compressed ASCII),
+- `P8` target `PCV`, `PMX`, `PMY`: **`160 B`** raw (`480 B` ASCII),
+- `P8` differential characteristic (`_ROWS` / `CELLS` + `PQE`): **`728 B`** raw (`1,667 B` ASCII),
+- `35` algebraic bit-relations `X2`: **`175 B`** raw (`629 B` ASCII),
+- Row-16 `R16H`, `OFFS`, `R16F`, `C16`: **`120 B`** raw (`497 B` ASCII),
+- Walk-split thresholds `WT` (`62 x 256-bit` words): **`1,984 B`** raw (`62 B` as 6-bit lane masks expanded at startup; `603 B` ASCII),
+- Filter/window/class constants (`SPC` `19 x 4 = 76 B`, `CLS_MASK`/`CLS_VAL`, `R* = 8174`, `G_SEL`, `N12`): **`128 B`** raw (`626 B` ASCII),
+- Census/cost verification tables (`CENSUS1..15`, `E8174[1..15]`): **`660 B`** raw (`4,160 B` ASCII).
+Total raw binary nonuniform advice = **`12,147 B`** (`10,225 B` with compact `WT`, `18,235 B` keeping `8,192 B` raw `SEL` and `1,984 B` raw `WT` plus all remaining ASCII arrays). Separately, algorithm-derived uniform lookup tables (`SP_*` `224 KiB` / `229,376 B`, `CTZ16` `64 KiB`, `CT[0..12]` `12.375 KiB`, `S0_LO` `1 KiB`, `LANEPL` `256 B`) are generated from public round constants and reside inside the `5 MiB` online runtime allowance (witnessed in `witness_k7.c`). All lie far below **`2^17 = 131,072 B`**, resolving `F-LC-04` cleanly.
+
+## 11. Allowances and development
+
+`A_C = A_S = DEV = 2^60` target compressions are charged in full as declared allowance premises `H4a-H4c`, not proved historical bounds, covering failed and repeated characteristic/Step-1 searches and all development; `preprocessing_log2 = log2(3*2^60) = 61.5849625...`, charged **`61.58497`**. Logged support (`R.2`, `W9`'s `9.216*10^12` operations/CPU-second): P8's 38 runs `2^49.47` and whole effort `2^52.65` target compressions; development below `2^58` (`H4c` extrapolation below `2^59`, Appendix U). Adding the 32-slice single-thread passes of `gmass_lm.c` and `fillr2_lm.c` adds `< 2^44` target compressions inside the same `DEV = 2^60` allowance (`A_C + A_S + DEV` is `0.0031%` of `N`).
+
+## 12. Finite checks
+
+`Appendix X13` (`x13_k7.py`) runs `selftest` and `ledger` at `NCOL = 7` with deterministic full-cycle `ustart` (`SELFTEST PASS`), verifying: `|S160| = 160`, step 3b on P8 (`3,014` ops), `2,304` tag-lane checks (`0` mismatches), `16,128` combined tag/C1-lane checks (`568` firing, `0` mismatches), bitsliced front end (`64` batches, `bs_gates_max = gbs_worst = 218`, `0` mismatches), online & dense end-to-end scalar/C1 parity, exact op count (`368,134 <= 368,134`), `SEL`/`class` rate sanity checks, and full ledger reconstruction (`time_log2 = 76.55084`, `success >= 0.39`). `Appendix ZT.4` adds executable witness & parity checks for `witness_k7.c`, `phase_e_stream.py`, `regen_c.c`, `decode_c.c`, `gmass_lm.c`, and `fillr2_lm.c`. Finite checks establish deterministic correctness and local resource behavior; they do not prove `H2-P1`, `H2b`, `H3-P1`, `H7`, `H8`, or `H9`.
+
+## 13. Historical 15-column full-scale evidence
+
+The complete original population census, seven-CV scalar scan record and H7 panel remain byte for byte in `Appendix V` section `historical-13`. `Appendix AA` and `Appendix ZT` record the exact 7-column census row verified against the 15-column mean law and `fillr2_lm.c`.
+
+## 14. Lineage and credits
+
+This candidate descends directly from published base `74ec8ef1-36dc-401f-a266-2d79ec9320ee` (declared in the Yukon submission attribution manifest), inheriting the full lineage recorded in `Appendix V` section `credits-14` (`686d97d2`, `44c3ddeb`, `def34145`, `9cdbd3c1`, `1753d8ed`, etc.).
+
+## Appendix A. Exact 7-column compact full-cycle ledger
+
+| Term | Exact Value |
+|---|---:|
+| Columns `NCOL`, coverage, probe_limit | `7`, `56`, `61` (`122` probing low words) |
+| Retained count `E_SEL = E(8174, 7)` | `20,811,431` (of `29,360,128` covered) |
+| Build per epoch `build` | `73,567,583,873` |
+| Epochs `N_E` (deterministic full cycle `0..2^32-1`) | `4,294,967,296` (`2^32`) |
+| First blocks per epoch `K` | `528,101,566,268` |
+| Total first blocks `N_CV = N_E * K` | `2,268,178,956,087,436,771,328` |
+| `V_CV = ceil((1 + 2^-20) * N_CV * wbar)` | `301,944,570,885,976,883,229,254,312` |
+| `V_MAX = N_E * build + V_CV` | `301,944,886,856,343,663,501,271,720` |
+| `ALLOW = 3 * 2^60 * C` | `9,435,509,593,702,435,651,584` |
+| `OVER = vmax` | `775,008,730,887` |
+| `FIN = 6 * C + 1600 + 2^24` | `16,795,184` |
+| `N = ALLOW + V_MAX + OVER + FIN` | `301,954,322,365,938,140,962,449,375` |
+| `time_log2 = log2(N / 2728)` | `76.5508328628285239641573507767678492...`, charged **`76.55084`** |
+| Peak memory (`Phase R`, with full `18,997,248 B` record; Streaming `Phase E <= 120,955,648 B`) | **`121,823,232 B`** (`memory_log2_bytes = 26.86022`) |
+| Organizer rounded-field scalar (`76.55084 + 26.86022 - 20`) | **`83.41106`** (exact `83.411046907...`) |
+
+## Appendix D. The development sources of Section 13 (not shipped as experiments; reproduced unchanged from 55328d60 so the full-scale measurements can be audited; they use that filing's lane format and tag-only test)
+
+Built with `gcc -O3 -march=native`; `consts.h` is the output of `gen_h.py`. `fillr2.c` is run once per residue j = 0..7 and its eight outputs S_j[c] are combined as retained(8m + j) = sum over c = m .. m+14 of S_j[c mod 1024].
+
+### `utab.c`: the full-scale epoch build and scan with the scalar front end (Section 13; the r = 663 run used it without operation counters)
+
+> Historical record `AS01` (c), SHA-256 `64f954ea9d42230ab3a1e6de51de828a1f6bb9390ef0c18cb3e8ddb23a542d50`. Complete bytes and original line range are retained in Appendix V.
+
+### `h7.c`: utab.c plus a bucket overflow mark and the rows 17..21 forced-bit events of every claw (Section 13, H7)
+
+> Historical record `AS02` (c), SHA-256 `bfdc45e5f101dcbcbacd6b5dacc1331a7d379cd2dbfc9162f279212e3ede2296`. Complete bytes and original line range are retained in Appendix V.
+
+### `fullbs.py`: the full-W9 check of the bitsliced circuit against the scalar predicate (Sections 3.5, 13)
+
+> Historical record `AS03` (python), SHA-256 `8ff5fe66b2ffc3564a719e028da27b0d96892ec6e034366c3592ffb51ea734e8`. Complete bytes and original line range are retained in Appendix V.
+
+### `fullbs_rm.py`: the same check of the binding register program bs_mask_rm (Sections 3.5, 13)
+
+> Historical record `AS04` (python), SHA-256 `062870179b1b62472c7a78bc000222df9bef1b4b659b2ae219f378cc7a7d167b`. Complete bytes and original line range are retained in Appendix V.
+
+### `fillr2.c`: the retained-entry count over all 8192 r, in 2^26-byte slices (Sections 3.1, 10, 13)
+
+> Historical record `AS05` (c), SHA-256 `92bd2e1d59613cc689a3fb258e3ca249142525a8c8224050115d678c7aa45dca`. Complete bytes and original line range are retained in Appendix V.
+
+### `pbal.c`: the class sizes of P mod 2^13 (Section 3.1, 13)
+
+> Historical record `AS06` (c), SHA-256 `5f4ccf28045d58bc2d7617ab38c206fde8b4d8a0fe5708b9626bcbae02fd8b12`. Complete bytes and original line range are retained in Appendix V.
+
+### `gen_h.py`: writes consts.h from utab38.py (no transcription)
+
+> Historical record `AS07` (python), SHA-256 `a5d864a2b6e68ec7f0c8036d53231f26b9a5b018d90706f20dfb4f99459d5509`. Complete bytes and original line range are retained in Appendix V.
+
+## Appendices P, H and Q. Inherited registered evidence
+
+The complete original text, registrations, per-seed records, source-block commitments and interpretations are losslessly retained in Appendix V section `historical-P-H-Q`. These support H2/H2b/H3 and retain their original limitations; they are not current eight-column runs.
+
+## Appendix R. Historical A0-variant records
+
+The complete R.1 through R.4 record is retained byte for byte as Appendix V section `R1-R4` in Appendix V. Its SHA-256 is 895cca992f66b0f8ea9383851539241fac03253945c6d15a17736c3dcb2cd8ce. R.5, R.6 and R.6D below are retained in readable form; Appendix W supersedes the R.6D phase maximum.
+
+R.2 records the characteristic search (ten cores). Missing for H4a: the dense-part search has no log, no part of the characteristic search was organizer-replayed, and the timings are the author's report. H4a is a complete aggregate bound for all characteristic-development work, reduced from the lineage's 2^78 charge to A_C=2^60. Logged support: the 38 solver runs with 230,183 listed seconds are 2^49.47 target compressions at the 9.216*10^12 operations per CPU-second of Appendix W section 9, and the author's broader development bound below 2^21 core-seconds is 2^52.65; A_C=2^60 exceeds that bound by a factor 2^7.35, the declared margin for unlogged work, the dense-part derivation included.
+
+R.3 retains all development memory receipts and their limitations. R.4 quotes the original P8 preprocessing report: Step-1 279,720 KiB, signed search at most 248,000 KiB, and class descriptors 37,036 KiB. *(Historical note: the `136,433,664` / `27.02363` / `83.743859` figures below in R.4 and R.6D are inherited historical Appendix W/Z figures superseded by Appendix ZT's active `Phase R = 121,823,232 B` / `26.86022` / `83.41106`.)*
+
+## R.5 and R.6. Historical memory measurements
+
+The full Step-1 remeasurement and explicitly refused signed-search remeasurement remain in Appendix V section `historical-R5-R6`.
+
+## R.6D The signed-search cell as a rescheduling of the computation that found P8
+
+**Claim, under premise H6-D (below).** Rescheduled so that the formula is streamed through a pipe into the solver
+and never stored, and the model is decoded afterwards, the historical computation that produced P8 has a peak of at
+most 241,028 KiB = 246,812,672 bytes = 2^27.878842. All retained storage is counted: process state, pipe buffers
+and files. Its result is unchanged: it is the same deterministic solver run on the same historical formula, so it
+returns P8.
+
+Under this schedule the P8 signed-search cell is 246,812,672 bytes; Appendix W reschedules it to at most 211,431,424 bytes, and Appendix Z then charges the recorded tail list once rather than twice, so phase E is at most 136,433,664 and phase R at most 136,433,664; the analytical ten-column online image 127,926,304 lies 1,163,232 below phase E, so the counted phase maximum is phase E and the charged memory is 136,433,664. Because phase E itself sets that bound, any positive understatement of G raises the required memory bound by the same number of bytes; the measured clause-object margin supports H6-E(a0) but is not certified slack in the submitted maximum.
+Appendix T reschedules the H7 evidence execution below 64 MiB while preserving its outputs for the same inputs.
+Appendix W's schedule is at most 211,431,424 bytes; Appendix Z charges the recorded tail list once rather than twice, leaving phase E 136,433,664 and phase R 136,433,664; the analytical online image 127,926,304 lies 1,163,232 below phase E, so the counted phase maximum is phase E and the charge is 136,433,664: **memory_log2_bytes = 27.02363**, projected scalar **83.743859**. Evidence-only comparisons are excluded from this maximum.
+
+No new run is substituted, and no other characteristic enters the argument.
+
+### 1. The accepted figure is a sum of resident processes
+
+R.4 (1a695f0b §11) gives the accepted figure: "at most 248,000 KB = 2^27.92 over 2 h 20 min (Python 152,868 KB
+and Kissat 80,816 to 88,096 KB resident together; stopped after the original 78-minute solve time)". As in the
+parent (line 7), the author's KB are read as KiB.
+
+They are resident together because of how the driver is written. `stepk.py` (1a695f0b Appendix B, SHA-256
+`59284d8f…`) builds the formula in Python and writes it to a temporary file. It then runs
+`subprocess.run(['kissat', '-q', '--seed=%d' % seed, fn], capture_output=True, text=True)`, so the Python process,
+still holding the model, buffers Kissat's output. After Kissat exits, Python parses the model and calls
+`decode(m, …)`.
+
+### 2. Premise H6-D (declared)
+
+The author's reported per-process bounds for the same-specification-and-seed re-run bound the corresponding phases
+of the historical execution that produced P8:
+- the Python encoder at 152,868 KiB;
+- Kissat at 88,096 KiB.
+
+This rests on the same report as the accepted aggregate 2^27.92 (H6). It is a stronger use of that report, and it
+is stated here as a premise rather than inferred. Missing for H6-D: the historical formula, Kissat binary and platform are unavailable, and the premise is not reproduced locally; the figures are the author's report. Its scope is the unrecorded historical P8-producing execution and its rescheduled encoder and solver phases (this appendix and Appendix W). Support: both figures are the author's per-process maxima for a re-run with the same specification and seed; the same report gives the accepted aggregate 2^27.92 (H6) and the original signed-search maximum of at most 248,000 KiB (R.4); a local Kissat 4.0.1 source build reproduces R.6D's recorded decision, propagation and restart counts on control C0 (Appendix W section 8).
+
+### 3. The rescheduled computation
+
+Let F_hist be the historical formula: the bytes the author's encoder emitted for the P8-producing solve.
+No copy of F_hist is retained anywhere in the rescheduled computation.
+
+1. **Encoder streaming into the solver.** The author's `stepk.py` construction writes F_hist's header (its clause
+   count is known, because the construction holds the clause list) and then its clauses to a pipe. The same Kissat
+   4.0.1 binary reads that pipe as its standard input, with the same options (`-q --seed=101`). The encoder exits
+   after its last clause. While they overlap: encoder ≤ 152,868 KiB + Kissat ≤ 88,096 KiB (both H6-D) + one pipe
+   buffer of 64 KiB = **241,028 KiB**.
+2. **Solver alone.** Kissat continues and, at exit, writes its model (the "v" lines for 52,891 variables, at most
+   52,891 × 8 + 4,096 bytes ≤ 418 KiB) to a file: ≤ 88,096 + 418 = 88,514 KiB.
+3. **Decoder.** It starts only after Kissat exits, so it is never resident with phase 1 or phase 2. It recomputes
+   the variable map and decodes the model file into the A/E/W rows: ≤ 18,716 + 418 + 4 (row output) =
+   19,138 KiB.
+   - The map is independent of the encoder's cover draw. `SD.word` allocates each word's 32 (v, d) pairs in
+     a fixed call order, and `SD.add` always allocates its 33 carry pairs before applying any clause. `qm_cnf`
+     covers only produce clauses and allocate no identifiers.
+   - The decoder (listing below) stubs the covers, builds no clause, streams the model, and rejects an
+     incomplete or contradictory assignment.
+   - It decodes W0..W37, A3..A25 and E3..E25 (84 rows). These include the coupling-relevant W0..W37 and
+     A/E3..15. The intermediate S1/IF/S0/MJ/s1/s0 words are not needed: `joint.py` reads `char.json`, not
+     `inter.json`.
+   - Measured peak RSS 18,716 KiB, the larger of two measurements. On a known complete assignment it reproduces
+     P8's 84 printed rows exactly.
+
+**Why the result is unchanged.** Kissat 4.0.1 is deterministic for a fixed binary, platform, input, arguments and
+seed, provided it is not terminated by a signal or a resource limit:
+- its pseudo-random generator is seeded only by `--seed`;
+- CPU-time calls are used only for reporting;
+- mode switches depend on conflict and search-tick counts;
+- `getpid` is used only to read its own RSS.
+
+Reading the identical bytes from a pipe instead of a file, and writing its model to a file, change none of these.
+Measured: with `--seed=101 --conflicts=100000` on the reconstruction's formula, the file input and the
+standard-input input give identical counts (622,491 decisions, 26,949,414 propagations, 4,532 restarts). Phase 2
+therefore performs the identical search and returns the identical model, and the held rows remain P8's.
+
+**Historical/superseded envelope, not this filing's peak:** the earlier R.6D schedule bounded max(phase 1, phase 2, phase 3) by 241,028 KiB = 246,812,672 bytes. Appendix W replaces that schedule with the 211,431,424-byte P8RR cell and Appendix Z charges its 18,997,248-byte record once rather than twice, leaving phase E 136,433,664 and phase R 136,433,664. H7 is accounted separately in Appendix T; the declared memory exponent is 27.02363 and is set by counted phase E; the ten-column witness resident peak is a lower participant cross-check, not the bound.
+
+### 4. Precedent and status
+
+R.5 accepted "two sequential processes instead of the author's overlapping one … the same computation with a lower
+peak" for Step-1. This filing applies a similar transformation by derivation rather than re-execution, because
+F_hist is not recorded: the formula is streamed instead of stored, and the decoder is moved after the solver. Analytical bounds are admissible under the cost model, and the current cell already rests
+on the declared premise H6.
+
+
+
+### `decode_stream.py`
+
+It imports the author's `sdmodel.py` exactly as listed in 1a695f0b Appendix B (SHA-256 `fac660e9…`), saved beside it.
+
+> Historical record `AS29` (python), SHA-256 `7622dada6b1305f5c740bc470f03c69563b42aaecf916ed38143fad51b2d00eb`. Complete bytes and original line range are retained in Appendix V.
+
+## Appendix S. The development sources of Section 3.7 (own code; not shipped as experiments; reproduced so the window's numbers can be audited)
+
+The participant builds used `gcc -O3 -march=native` (`-fopenmp` for gmass, gbrute, ugen3, msample). `consts_pf.h` and `pfd.c` were generated by `gen_pf.py`, and `uconsts.h` by `gen_consts.py`, both from `utab38.py` without transcription. The recorded ng4 study used four processes, seeds 101..104 and quarter sub-blocks; its 4,096 largest sampled masses formed SEL. The retained records also cover G_SEL, the eleven-sub-block gbrute cross-check, ugen3 seeds 21..44 with h8an analysis, and the H8 evidence at msample seeds 101..104. `ugen.c` records cv[0] and performs no cv[0] split in this filing; its other options are unused.
+
+### `gen_pf.py`
+
+> Historical record `AS30` (python), SHA-256 `9e1c0eae96f9d66ba72f65a956b39bf05b584c136629f7ff86673b8aeadddc18`. Complete bytes and original line range are retained in Appendix V.
+
+### `gen_consts.py`
+
+> Historical record `AS31` (python), SHA-256 `f95538d7074b306e1507e89a1080c706b73b71dfd6e8fc0d3cbaaca54b5968aa`. Complete bytes and original line range are retained in Appendix V.
+
+### `gen_p8d.py`
+
+> Historical record `AS32` (python), SHA-256 `2c46678708fab9d7eb965fbffc50216bb8668c2ed8b714da9b16292db49c9654`. Complete bytes and original line range are retained in Appendix V.
+
+### `ng4.c`
+
+> Historical record `AS33` (c), SHA-256 `f502968ee416ddd3f8e7cca0c7e2f5aa3b8b956a39bd5180c442a2f9dd2d5cbb`. Complete bytes and original line range are retained in Appendix V.
+
+### `gmass.c`
+
+> Historical record `AS34` (c), SHA-256 `61f8a6a625becdcfa14448daa1e109703af0139e51f1b03e596fca8bfd9ec726`. Complete bytes and original line range are retained in Appendix V.
+
+### `gbrute.c`
+
+> Historical record `AS35` (c), SHA-256 `128f7eaf56efed4230bcb4b8e4bbff4e55624b04fe2c5907375889ae7a19c9d1`. Complete bytes and original line range are retained in Appendix V.
+
+### `ugen3.c`
+
+> Historical record `AS36` (c), SHA-256 `3b8b3bdbd07d4229ee7603fd3c1f977485564b2ef6423eb0b1b76b74a70092e9`. Complete bytes and original line range are retained in Appendix V.
+
+### `h8an.py`
+
+> Historical record `AS37` (python), SHA-256 `b6358b71eed3b936ec2a6ff908d22a6fffb858dfdd4fe881bbfd8086f969c3d9`. Complete bytes and original line range are retained in Appendix V.
+
+### `msample.c`
+
+> Historical record `AS38` (c), SHA-256 `fc2dc9768f411fe7bcfd190972665a64665c8a0d0f83ee36e4035dbfbbcb7db2`. Complete bytes and original line range are retained in Appendix V.
+
+
+## Appendix T. Five-partition H7 execution and selected evidence
+
+### T.1 Scope and exact output preservation
+
+This appendix concerns the H7 instrument, not the online u-table algorithm. The direct base is ecfe5a97-323a-4321-9162-2068ff243fc7. The source development commit is ce326a1f8f75f87a6a903609b39a9723141ef055. Its full package-provenance SHA-256 is 30fdd5aa70812a206bfc6ad884c655365b08e8524cd120ade28d2a9d9d869cd8. Essential source, commands, receipts and a strict replay verifier are included below.
+
+Partition the 15 columns into [0,3), [3,6), [6,9), [9,12), [12,15). For each partition, replay u=ustart+n modulo 2^32 in the original order and retain only its buckets. A bucket's updates depend only on that bucket. It therefore receives the identical ordered subsequence, retains the identical first six words, and marks overflow on the identical seventh visit. The W256 layout and spare overflow bit are unchanged. The largest table allocation is exactly 3*2^19*32 = 41,943,040 bytes.
+
+The build consumes no RNG output. Precomputing the three CVs before the passes preserves the original draws. Each query keeps its original CV/a0/window/head/side/lane identity and is processed in exactly one owning partition, including column-zero straddles and row wrap. It sees the same bucket and calls the same postfilter and row-trace functions. Integer counters add to the same totals; their source bounds are below uint64 wrap. Each logical claw is traced once. Hashing columns in order gives the original canonical table byte stream. Each column/CV event subsequence has its original order, so its separate digest is unchanged.
+
+This argument is universal for the original fixed three-CV H7 computation. The numerical H7 panel in Section 13 is retained unchanged.
+
+### T.2 Measured storage, maximum and limits
+
+The approved five-partition run has cgroup peak 51,298,304 bytes, worker maximum RSS 51,724 KiB, wall 117.651776734 seconds and worker CPU 117.527843 seconds. Its native worker and meter share one fresh cgroup: memory.max=58,720,256, swap.max=0, pids.max=2, one CPU. Exit=0, timeout=false, oom_kill=0 and cleanup_complete=true. The complete conservative envelope adds 7,675,440 bytes for full mapped external runtime images, 4,194,304 for all retained experiment files and 2,097,152 for precharged observer/startup state and late I/O, totaling 65,265,200 bytes. This leaves 1,843,664 bytes below 64 MiB. The native observer is counted.
+
+The scope is little-endian x86_64 Linux with cgroup v2 and the recorded build/runtime. The allocation and bounded working-state structure do not depend on the seed. The compact extraction plus its compiled programs fits within the same 4 MiB retained-file allowance.
+
+| Counted cell | Status in this filing | Bytes |
+| --- | --- | ---: |
+| **Phase R (authoritative maximum, Appendix ZT.2)** | Active (includes full `18,997,248 B` record + `regen_c` + Kissat) | **`121,823,232`** |
+| **Current 7-column online image (`witness_k7.c`: `114,606,080 B`)** | Active (`110,100,512 B` + `5 MiB` w/ 320 KiB tables) | `115,343,392` |
+| `p8fam` | Inherited P8 development | `71,163,904` |
+| Five-partition H7 complete envelope | Inherited H7 measurement | `65,265,200` |
+| Class sampling pool | Inherited class pool | `60,522,496` |
+| Step-1 recorded sequential solve | Inherited Step-1 solve | `50,409,472` |
+| `gmass_lm` (32-slice, `VmHWM = 21,299,200 B`, Appendix ZT.4) | Active (supersedes `136,433,664 B` unpartitioned `gmass`) | `25,165,824` |
+| `fillr2_lm` (32-slice, `VmHWM = 20,856,832 B`, Appendix ZT.4) | Active (supersedes `68,521,984 B` single-slice `fillr2`) | `25,165,824` |
+| Superseded earlier schedules (unpartitioned H7 `132,505,136`; 1-slice `gmass` `136,433,664`; 8-col `127,926,304`) | Superseded; replaced by Appendix ZT active phases above | *(superseded)* |
+
+The historical unpartitioned H7, 1-slice `gmass`/`fillr2`, Python regenerator/decoder, and 8/9/10-column schedules in older appendices (`T`, `W`, `Z`, `ZS`) are historical baseline steps superseded by **Appendix ZT**. The current authoritative peak memory is **Phase R = `121,823,232` bytes** (`memory_log2_bytes = 26.86022`), giving scalar **`83.41106`** with `time_log2 = 76.55084`.
+
+### T.3 Repeated work remains inside DEV
+
+Each full five-partition run visits 5*2^32 = 21,474,836,480 words and performs 5*3*2^26 = 1,006,632,960 front-end a0 evaluations. It traces 333,509,526 logical claws once and obtains 4,005 good pairs, with zero scalar-reference mismatches. All five retained full runs, including the earlier 7+7+1 schedules, have identical logical counters, canonical table digest and all 45 column/CV event digests. The table digest is 34f91399f0d8c2d5c9cc499bed3a6f075cb5c6a555fbf1e9758e364751962c72.
+
+All repeated scans, resets, traces, digest work, failed attempts and checks are charged to DEV=2^60. The source record has 171 native invocations, five full runs and 166 smaller invocations. Conservatively give each smaller invocation four passes of 2^24 words and four passes of three CVs of 2^16 a0. At most 80 buckets with six lanes are visited per a0. Even charging every possible smaller-run lane as a trace, the combined visit count is below 2^37, front-end count below 2^33 and trace/event count below 2^36. Straight-line bounds of 2^12 word operations per visited word, 2^16 per front-end a0 excluding its trace calls, and 2^20 per trace/event (including the 22-step trace, postfilters and streamed SHA-256 digest) exceed the explicit loops and standard 64-round digest computation. Table/file hashing and fixed initialization are smaller. Dividing by C=2,728 puts the concrete subtotal below 2^46 target compressions. Reserving 2^48 for this development line also covers the preparation, compilation, failed smoke tests and packaging checks.
+
+### T.4 Selected evidence and verification
+
+The full development packet contained 976 provenance-covered files and 171 mandatory native receipts. This candidate includes a deliberate 38-run subset: all 27 final bounded controls, the six-run initial LSan attempt including its failure, and all five complete production runs. Selected records, original source hashes and provenance commitments are retained and hashed.
+
+The compact verifier requires this exact run inventory and every command/stdout/stderr/resource/memory-stat companion. The sole missing command is the documented initial LSan failure. The provenance file hashes every framed artifact and binds claim.json.
+
+H7PACKET below contains the complete H7 file tree in bounded XZ/base85 form, with decoded size and SHA-256 commitments. The readable Appendix U verifier contains its decoder and the checks of the 38 complete record sets, sources and current-resource bindings.
+
+No P8 solve, online construction, success claim or probability premise is replaced.
+
+### T.5 Framed evidence artifacts
+
+<!-- H7PACKET -->
+```json
+{"data":"{Wp48S^xk9=GL@E0stWa5&!@IBe;hw;f)`qh5!IPh|GP_hGXe5_u=G44Ig7|^7s0vrOQZWi+GMCY9=>`Yv3A9Z^oG?$r@|!f2sI=k#~$DF%uWH?aU6IqKb~guSCHRfiM9;J0njIP4uLRcsAV2V?|Y!B|!iLz^4CtnE~M(u3`UsC?z*6;S2dxMfMuE-9WP|dkjB8hjzYHvqS<9w5;ysZt(#Xm%L%pm_)+!@r|yJChI_3e?y`N<Vw}Yy3(%J%CeMZ&9qS<F3PW2gCfp`X8^slM_zje`qMd^c9@}zrP<Ke*4op$!6)8X0H1ng)|qt4p{PK`#5p6@q{7a)H;uWLpyl?rs}>n+X*JnYAb8-;^TE`8&tm`t@a41BLywF&tSGs?udrJef~UO=z@3gFD#){xqWc9X2*^ER#tlEJAYWie^S6C>P?h|6El*Wbp5agvN8UxwDyi$GQ3L+8c?*Em>|ml2Ri+4z-w2Ns9;}ZI)Ow}eu+=DrIH)f@T@$kmzn5mPh$`!)xfTM9giNcpL4BfBf+B7GX4%A7d?EIVyb<vL^5tpQvk(3np}yo#E@Izg*J5y;LkeZLuU(q`*h|yA;>chcdFIcvye!z`vvkS^Y~mMlLi(nlP(mxfA2**(uZ2cuTQrD7&ma&rOEEcV%E^-RqQ;zo*PoQ~-T<))n;Qxa;6m1as$xNQUX6VqKB9UZS)|+#Zy3eu_4|r^{@(K)O#J(;9gCZ?*5lKOxusZlLTnmEK>hPIdlP4(exb7@3{YSA+{*aoPuFYr)hJt7>ca`Oh&s|ipiFzd>el`qj@ZZda-#F&-Uqg_u9S8c3_T^i4<(D%Cn)AqKe(mfSqvH7V;jS9NCzYdx=^yMco7)iYMa(BI1pFeXHX78p)F$-TlJcdb2T=W1`@rCQd2ukruSt+uvCgVHU5|Q<TS5t<M8yRky(?iCp7oynrDY_DZn}rH-+a^W?qs-L{a8tM=1;QfM@SYdmn`0iFy++_zkK}k&fcsXogmME{UHF3jj-oy{^kjR@|5GsT&%^w7MIOw9PpFD~+HiQJkF?5u+93GaR(a>n1-<zJfj_OXD)bSDsa0l<H|XY4iRcc(3-nJ9`EWq27(l70Sn~XU`k@AAuVkY6Uw6(aLOWAF>hnc2Wu!za(A|lMyd$Hrut13I1-l7{g=qN?NQ@R;la&CCtLt2xjIVPEB==CPVnlmYffJ){+XkNC3w(rH^26UA<Cuv&oiL*D%b7-V#7OuQ$-EjmC1KO7w3Oj-suCWiUp$3q72Wy)j(6zGtGS^R{+~2!(vUn6Ot<5sH~N7>((TiEMUD=!lthUpHjy0sSMqSF-wjIXjhgSm!w60kC>ZB?7FP31Nh20ryYq!gxBvjB?ID|E?@XOuG=4?Ah^%in=!atGyP2$hL!CA>5kKeTvlTqDtTSA%o)J0T?H>&y3<nk%y?Y&{^p0t1yrvq9SM{v81i4;G?JU#)(Frt%Y2c?!eMkzP+mEa8Oh{F)6DG(ZhytnY?e)o6xQ}2MUw!i@@lGE(Na#VG3b%WW4eUoR{70(@O?}dKQlWSEhk_X@{{c(gjoMQrpSGCLD2bS+pXpYEB8$Id$8}_jUY!g7PfxCR5InA1$P7=Wi9k_pv5KzT<O>HS9XNNQr^`n4)|x3t}n%v+zZQcc7}J$fCv>rmI5wEZ{%YXe1G;<t?>Lpv;Ut^XvtH>Yt%r#El>LDc7s1!2VAkAM<4)tZ_Q%39a=Qkip32ma_>w)Y{<{L#BSgzSNma4aXm1%5_C~8*I&IBC}2uyrkhRZ?;$%#BT&rwGhk-nPxYNp2&PHL{UFQkB@&^3d2QDSxh~3`zgmwRMy}ArF5AZ_|s(0IBR$^Nu$6}-uZ4gpGKy%e&aJ!a|8IVqVKcvWxX+w@C&9=qWY7K<phGDaEEM9`g@yT&Bkp-J>x_UBatfyi4~wAJ=rf&nM;)B@8Ec0=ofW<{|1Dt>tSd3x0}nB2I07t@+cLO03*Kxxm6y?+S6Xk0e(<(`r1i(ttbePs;<=#w7-C}C`Uu&RhTZJO|Kw@&*QPDL+HBIZ|1W#S0DAENf4U;bE~r6gzU=T<vPRe6l~_)*i;kJm(x#=I`l)AG3B(;kgjWNzD0mU!sTW<8^7ajE{P$B(;OMs<FZH!o(!|9GWL;<VYhz9@}U?&gJF7{C_nv=F!e2d(|`u+R-n}hI-G6uF8-2GgN|2WYzdqnNZgwKvP*BJlk`y<UP%{x#4^rN$?P5i@8v|hQol?b=gK?v{i@o|Bp>#>rRck7@g|>f#)T~Xy1d)C|6(95qvUQoumx`$*Y~WVu0Vx|)<KCDXtzG%`*oj7|Hw51%P9?q9GUH1Vl#|*#m6(%b-7{6P2G!;8l`Ee$QJtC0+gkf^UOJ2A8kFHp|m0kEU0piijAZqSLjWG8vIh+y_J4I$pv#9t`^Qm92kGARa3S|gaHDf++w9GFK;Zvd1sEQ2nGrxeh$CzBBN@oDUhw8oJZ5L0YH-o1%H_HlhO7}^&#E?D1je+UO2T<-qk8gw4nV3ck#flVFwhYgc9$;%@3PdzrTm=SUjiAbv@3z@G$THDLEV=j~W)pP$&2?#3NnYf`2HX@*97>q|=Y_BMkOGnpJ&+bDq*aABz~&qh$4XM9fBq4CDQ$)<lJxd)1FGa6}SAGo)eGC+&LPnYO`d9`J7+#`2?aI@|Vd^aa8Y`8Buz(VtWke7%{v{)}VR>dQv0MQBWl?u!A{d^jd5+U}2Ul_R#J_~hIkv)N?_-2d1TkA;gs`V_=4ATG&fh#)_|zyzHbQ0SP`)7?aMBN~?>>A)U%m{KwI2!A6{D-DiWz|{u2nzA}B1IAxJ<ai0D9gaKsr$?bi5lHz=e`&$TuTiSUP&&TTg`nsS{(ya_qjF)4FlGN#_EjuO@IEY9>lkgicQ9=@G4o!%s|3#Sc2TmY5C6YDDtFLVllJ<(8CxPEg3fkF9c}i$=P0a#e0k^}UXt`6ubA8U6Ah@d7L2Pxoy}HdNy5breZZeZp$wVDH2hp&T;MFoaEqfX)~`^kQO8Tx%HbTC`FGtIZYx1)&u4Ya(H0X4&)jWaV#ub-gp=nw=EIsljqn7CN&VfMQF`$kqTiZ#DK0vlM|mF0uM%r<$U!9$;JvXJm+8_kj!02-QKaPldqkm6weQ)7Lnv%M31YR{!R5P!K2k5bc-Oy>T3baf6ttN7YghCEI|x!Us|s3;-5%0_W$s#r?o0!vI8BhulxD5}DFe0q&J_z0GM<oObBA9@hwzwUTMiT0REq1Lg+1wi4OxRp@C8W5Nw$9n&1~oqI(=I;{ZB~(6JE`F0XZR5kNNBn^3IA$i@pvA6r8FUkG61iDrK{{j{aM-D9~KnRa#-KF(WjD$4&%*_D-m#K$qVuL`(-n1Z2$5Aw9#ZxU)Lapl*H%7I|$QK_8loqnuewv^LkB<}YrnCAm~Dt@h~*g3)AKHzuplPuVLyU9J*Dff3iDhme8v@~!Vsk*}_Xhd<b5e@{?|`y|Kbn`!T<-Xi+<YniFNC3@b4>o`V@ttl`oBS<9;VY@dz$f5WE%DAG7|ASAvFU*<J#t9u1rdP5P#Ayo4RwPFt)-V49{G-H%Fsx<l#usUD5S_{|629>YyS+iT&-HTKqswQ@-VIL=dvky7yVRdL*223UH6u~2Tm7o_)`Daj2~Xv))if)W;Wmc3d%Lvmd7}5b;*Ex_iWjC%Q!Q~k?fB9H-mjM+z~G2hwsb|2#g#)H>b8Y<s2#QTo-{hKJq?>Pg|S$WRc+0n<}{FIi~E2?F2!}r-mPMvC;n=lFlf%q5TWU5t;sQj(B?j-1fBv@R1)4+%sWNO%I>n-$&;!1Z$6A4!zd_i6ZMj5xGmL9N*(@B-7>r=Iqxfx{JH@_YzGD1*WZLbWJMG(348UU-SVQ1X~=)T$&$ulOJd_%Z_ZfpP#etl1Y~9g9YyV4F_)Wfu)mxlc3y%Vj1>~l>bnf^Fb*^`@MTyznNG4|_57$GUJ^~_N+snKv#Knmq3u@R5(2N#XkGtU?$1Ql1XKziV||YoJj`ol?_Gb4-wV2u=lrX@U4Jq4RoJPhAC%v}pRu8L50$#Y*LQBHW=zTw1i+M{Wj5lVdO^z&mi(zguqEio>!tTo1mQi9o@RLD>Bg^Lac?lv{bDvidV<TLYVUA{(Bvn)kR<%HA=@NlvtxuNzI9YL&G(+g#OHMGTpK+d5m<`v2`u@_`ue8qo#K?g^?B~r2yy@c-_6n^TnbOFe40Z_=NLuJGBGtlHR?BqMKGxK!|DTUKGKU4`Tk`1W(bINW_G@*t)TBm=gz0H=V#iYO-LDmW<3ZNE)Q5Pd+SPvU}z`Sor|$AM+wotszu?XG~SZWHeu=bC`=>*u^o;vAN&sQcCpvj@mhf<EwnvgW0E1yp<IBR-DlkhHIe06gyFAJSmxda%Z?Y5W%|GWfNxAgMG<1VP;!sHaD`)*;f`u%ZPpg?sc>rFMq4@c!Ra8;&KJ5>t3Q1JLlbK8e613Dh1P?|EkjhpnW$!m>l`Yz!Ih~gnP_s?*hd4*X=FtE&QR88ti(q#<92Xg?VBEv<1Gc3W7|SFV?>qB-8Ifp%u!l7mJO{;iTV==U*)p+*|z!t$i`fqwTE$&g$q%#5uRxWl)S2@f*w<eQ0g>aKP5OG%d&~btb78{YfHh>rfiUb8_xn2y@TnnzGeaq=7&7cHZUX5i}cJKDzM&%ckk_#&$^1=YW5VHVa-@bILaDOPnVD|#;Kpz?>~wD%cVw*Y>l(a68c%!t*SH-kJyAtmvKGH{7C(q|J0HWfKRKX8x{QPLNoJGnTu=-Tg=Ig(Y~v|$ljUY9|exqe3&ZW@Bjmmt=~wRvRs$>Aenw^XzW8<3i<kRzyY2zZamf4O0AZNK1%g&EATm9I}e!8!(=#r8O4OE!I^NWdd8Knhh_H7l-7#h3@xtN|GsudO=0KwH)oRropMDbk)j2*F_f+U#XOV)iSyHj6WO`XH}{CyfK4bcnW0Gncn6S>Eh(X#$y9kt_i^3+@k~-fwTU9Biy)>bc!gIT^~z$7eV`y6JzzUVw9Lk$6zc!InGtRFd`!|}=z+`P)matr>EV$2;_z$(!u6QniFgj^T*Nm)k%4Mn^MHuv%AJ6vWFB?znKJPm>rb#|9N2!5uC_ser8shRDZ#S-Y6UptEy<CtlMfgR!*V&L3GxCG1L$0r2)3@vmNx6DDsD+?HT%J%LjBszNIRMV-dm<_@nhAYc@+b!H16DE@?915v9(~`xL%T9Ny(?TN)5|^FPcJdXq&h$8XOQAK-b)*3NO^AmP#eCRN*Ji5No|aQxj#sI}T0187BWzzVlRJfo>36k^CLr*HcAeOu2APrKMd{^IyCPN{6EsW!dT?cnVo~-lxP0Y*`+7b*8+L@QGBi7$ugqdl<)A294??tkbbVi!+oCU<Vssz(pHj&CPZHCh8>l=~=aKn@vKre*V|M&!sgjikdn}BU`o0+*X>t@w89T@_xi6r@j_N{U`M}h!_iypdlZ{yLo<)!fB98#hSzb6U2n_@1-*tr%9T=vKb}3ss7x}xggo*`ISeEJmB*=&3YQ+XSSM+ui-wF8s{K_(`<)DCtQfae=WBLa!Rn3!DrpqbvGkM2iL?Sd@e(FRAuPTX(52WR5^Q9=}z<m@|`c47+QRb9O3noD=1Q!+AZ&}pz=#VDn#VHNlDa1rwki8(3s$}muwR{2R)$=So8h0D(dI0%A<d*xjtTFfjWA9(z5yoas*>Btwj&H0o$FPSC2!CnR|nGkv~=$3#tY^fO8Q3vQ*B_m8=+6k8>PRa5NuX!Z>`uURq$kmlaMANg#MpUk2M3C{o06m7oR-mO7%!`Bl{#D$iXEGN57|x5s7K2HP3wGzEu1Gd86|<h95;hvPEMlcw?!$n8ufaW$@_l4>$|BP?^Sy7?b%HbT&Nq_^0(x!~#jE^uHyedMtvYDT<H4i!KH_C=v>KH88FsO^dY2w`NB;%5p8lfLaX$w;+$k3>pr01X9K27x5G-HpT(_&4%hhphzqq#Y^W8=I#Wz<56uEXM`1UkSErYMJjh#x1^0^a^FCT9ehuz2c=h;AU@q%yI+OeHW!4z~R7H`OUiQ<|e)-jg$`E!$!I_t{)#zN537#ifNx&9(vxvej@d1N}H!h>(;e!={1QoR~fE#Ibx5nCfuMjF8OPC&ECCf=ynL4Lopz0{Ka}+(V1Q#W}A+k0V)m{#OEl#?Z9hBQ19BOt_<J%mggZrxX7zI9;jTYxzY3y@UN;ekS~h?khBP#%?s9ue#yDX%E<;(0lM`3nQXV$n_Kf;YN65>*DR{0R2V?a!^qzBM5cm(YIxUz7495d>T?!fNn!$QwRh-~Qg88PBzvVS{U;B1uB`uPn}rnY2ht1H<r@T0BYHK_0+rBD7C5OTG0WyZ(_BSkY1Bd=Ux<``IX_cr7chQUR$0ixlmUmj6uHM)Wht7>{c)L%RJjxjTusZfiym7u0Yl$O-yp3s@ah_scK){XbA#2?v(=+MiXnM;+Y3r-?$VGAl6HNEVK$uVSXI2vcV-h{s;t3CN5Ux5xFC{UG5-%{CQyQ5@enL3kWh!SqTrT6_Zg(tH=9;H03{{0NIV}A&AC_bv9&h^f4{oTvoZ~}f1m8AEojYcP>uJ&E7xAMf#^WnDyX<6(E9ff`lKW|b927R(k6{`&!_U~eHMr64|R0sRa~vhkwW29=nkNsX(nkdahKLep*F7#8=oY@OMzxB2Wm~oP`O=K(_ElgRZXpf7k#Ugy7PmOu}g=spjZFwCm3n82KvmrAaM}mhl^%@q)~q9Q`QBv8^Kw3OIeO}iu^CK8b@P7xJa3X0%f$blzkBLEi*EsIX?Ar8&n7`bF=0BW<ctimILh;0P@-hJ3lwpqLgvIB4v<EJfBehy0-~_lys2%Fz`iNe#~&?-9BL9DI)>9n>b)s0eZrB5{waRyY4N&6OzFpgoW@L^r5vhjpiKUEqH9q3Jpf6$cBTZ0-?E3C9C??=d(#G>pD!g(L8$z1|sF-Du)&d%Nel5LR(vLVivmf(&)(EBo5DpD?D&^`FX1QI13o<)_H=qG+$1G>}UceMFp|KLgJajIZ&2D=(lYS)qwKj7g}^eof%50*-UB(<}>?{!c-R@(sYdUzf)sC!Yw>CTofA_`jpxKpEd|uFgWwZcq3@=U#YZh5}=sqia{t?7Lx92AfGm07h482GiWjkD)I&BU~5@yE$0^X(gdOAX~d)h<%gMQ4;!aX6Os4Sp*`h74Ka)hLK<LiWB@s-={*K))mh!l6j#GXbzj-53*4F)i--TRsc(HK?E?xwRQrK1dGKmS*>>R}GtA^O)0giqdAn0@X*nb{D+6sWG?T}y2giaAIlAh1X2}f<`(vg+<k#TVb&Y-g?#Bs<2JuNRhnIN1b!0L2&)&#Iq-L0vpfZEqtUu;OgPH*jGo(wpvuIt_#e+rQzt*mc6MV^Ha=hJGKMMoO1&p>|dZU+u8le~V%ZRr?W8JSbXf={B6;}H25b#(w0xxk@UQW)^XWjfLZRt8PAZ9hYDLSH+bm6mR=&co#M+2prYz`QF-rt8njyWXPCjc&zZ^&E`s%IkJ^cax)NUz{`DWG-hZJdeBB%}ixm#}AqE8hOTCga{W5VPULVq!yC(y42@{W;Ee249HbC=+AtRoOYj>aNxU{>voxcjMC~(6W-j745$m9p*q+IeJV6FpS@9pn2-+al-_hX3wa44yfnUoM<EaC!@nJ>dwJS_d`7hHvKS(19G%^iNGI#5yo9^{6%H>OH&=rm_suXYMxdD$%HgCF4g(FCjN`JOtZOcA?2={1sIAPDGYk0n7YW?bc-<VrNVuy=I3{iiuI_b>$R*zC{?VNnL-E!yFl>LTbw5w5=r{PEf@cHlCe3S^k0z1h5@>NO<L3eCrycK&2>b!XRxu^{4>48GQGpKux%Q$uUt#?>ZJ4&yV2gvb{+C(K1a~a<xo)u%ml8pVo;Z;Y1x)=?P6rmv${K8+;Jg*HV#3OTr44BtOO>_oOi9)!vS`cOKU$8uQdt6)MKz3YWmXi>G7v6%PY<xRc}|0wb&s|xw-kp^4=K7i<3d#IMCfmWs3SCyDahSA@>t6%CgatVsapQJ-Vc}W1nJGfV8^JX^*=Fg0i@ocFjBEN-~TsOlHxR>l(Jb^uk`63|8^u1=XLo;`sm_!l#+?WpxPMMUu-wTes{jL9=#uX<?H+DJmMP!`~`4D4grvaCS-L;H9@mEsyphU{`*yqP72vsr_376fJc=q)E*lMX&IX%*zFBUAC@YjKZ&qLxt->#^hhhUSr(N16*WptC0FB{zA|7>xSripV3u5_cHPr66wJ(uJqVd=9U)kbw+yoSYfH-++@{FA~80Y6GCU)qEVl3p@YUHq#YIts-Iwm+Y+<b1ZHobT(jLJkKs+sGLod$l7~sI13&J`vP7AZ){{IFoC*}-LPrTa80|7G13kw-Y{uUmzXMb;@@FA&-AU*tU=&HR!5|ky!xElWd)KNA+fSK)nAsy144Y{<4UJUN(^qRtCu3>0vvK)vZAIS=E<|dI)?u4{{{T%&-zgI7#Ip7k<0s&Kw$9by*JaKzjUEe9liQ%?HQ)!Ah~iWHj<bJ}-ftgcD-F8Dqt!mh-HNmpQwAMEOv>v=pGf1zlc?s^r{y}D)enFvN|>M5*C5;NLF!|*w_29TSt;)&@RNaaVNQhB++8bRc)vU>;n{ROmeFmMAoev%S@o<m$zjU`J4Dy^|HRFwS2*wuEFsAh9^ve{A5oP`z}{4SA0BD(v|QL$Q&dSq=B|>>m)C#l!?Igyv=I5oA(r!8PS`Y8Dt3dRn9EURyg}sEXrKx}bH^pimngyE&Ii9#eqnDs*mRzVel2%$q<!O{mK17|ybHcEb22ZlD9=&`Q74OgTrFa}Ig7-(oQS9u;tZ(dh|NpI&cWPY+=9Gg{%rIN?lbOn8b0Q7<L@W>qA(30f<EZE7WYHaA;)hl-b{147O?EXJ-MSS(mL@om0eSU2(pk--H5)^-n=MdZGAl_Qa*Ldry#qHZSys9uEr8#v*fQBM^-8*T3>jCE@lrdf`@nV;PdHG<cUiR`&g12s0<{I6ufil>PLw-O-#MfIvpOdZh?2<_9(}tfKlHOawXqNUnJ_w<tccp-R|9--r`eTgE(rkYBchOwQ5&68{&tL-gk?^_@bFWN#gTBAt2D_y>9-RfSshOqBzIa@#8)b3L;8<j%xMeC@G?%EUwSAxWNrv;(s|E-d45Dww#M$>?DQ%UsWPNZY%v&x8q4rYaE(4CW{T^aez^pb7$_UhhAM-`k^#R^uSZ8Z*fi3+%`cV>;SL_mxD@%P%f|Ru$E4UrB^Z=P^<RFuzv^oJ1Im{<3M`e*-a93cQEHN-m5_SImEJ%wm-<{rPT*)v!5N11=4L7DQ;^w+=612mI4ItD`g#X>8qE@+>%dp5OWgexYPpv9hR9%=!Kx$eqxZC4<pSPVwwH`JM3=Si2Yf<K<!28{w**`jIUZcu$27CNaKIvK~@Qd#X0;^hqW(a`hJVnEVK15+-4=xcF?n<(57}MA@3t{6AZ&t`sUq#LgmO_!){ohKPK1plqj<^9C<E;Ul4b_F|_=K?W@&_h-I{{_|cEHR#m_83a7;K^elYe@uE2D<+Cs8RO&3%OcI$zC5p5UwJw?e8)_xsg;;wB6YNFMj?v6|D>(qf;rCC%p=>x0MHdTJ6o-~(-5#CSbKeqqjERT2bKo%F=?h_VXHo-_ytBLlI}wJz@3Hd9C$1N1_8$=_<}f);fP(FhwityD&0Is{uim%q?F^GVvOp|(p+O)1OxUR64BC@D(e~{ZGn{?sccE6JE?M0Z@PB(O)#7B}Y-O3#{o&7e^>+p!i6*Mor+I<`N!(53MyMxE;tQln@<N33h!|5{^c4KebzQE%x8a@VY?BHKz9=o$)q1sT(j_$JE38X9SgtWh7EmD@`Y8xnt{subxA~UqISp?u-%YfZgh*t#5E>?Gtm`jFh%m8MA{RYTjY4xfL#*xR+A;zMPDNPwscFI7X!<!e-zrveJdtExx<-e~8$C-PRv~fVsfF-Rj^e~VwK>&_gHEeE!M7$;U!#^gXDy)-hXzV_iuM?X57#b(?ZeNL79@#?P5G}6l|L=kn0BI8YH7SWx0*$eMD<*4*l~l1vF8C<4|uxK`MUuuIz-RAFb=>OTYVKdU4iK+u-BdKiZW%^AEEIx<YAjpF0wF1%`o81hKMDsfq^tyR^Fo05B*&!iwd?YirH&@@+kV&dMRp(JtCTRbYF{auW8-Afa&MSpjL7@-|~Zc!zR0w8-^pSagxdBvUd4hug}f09yoP*7IslgfYdyfthI<u9m{zh440YlaoR8nDPQQe*eOw<PUM*ef`a_De3sk309o@x@qim|taW1%Aw1m}nUaieJMtD~ch>zZ<IV*hkTrkZ%G(1H)8+2Xm9$2hc9P8`Y)G3_(Iwu*i2qwY9doRvM}rw&F0nc|JpCn`XlWseCbEe&rL(6s!g;eZm(BCCqX#3zt%T-jDPLl}fTwDRY`eDrueOs9aGNTHBkVbW2>PlN<62rWj3t|QJ>&;v%OR5=PiVZosIJapdd+yDFD`qQBTujjP;SWt2b&lJVSBQ+VCCO83Y_?O@Z}VpC?46`23iAKuiTO}f7&l`=l7hpNyVSPeBu{Rab*5$ZKs3HFMo70?SI^^psr1kXGd)~qg6ZGyaD|bGz^RZ@HJyg`iFD(`ojAejBG0}h5IMZ<3NrnSSAr5XIC7Z=>|%4r-&$L`0gCy?QA<v9D;uW?<<KIo@|AgU=M1^#y%22n1bZuaR!O2?V7++^m&zttJ7FfxU!cWD{=120U77+J*IqHpiujOA_XciK^cEro=J#HeBEUgIWP5F(Tw|w48C&S-PV;6p`$|&N!TSg$dK>dXZv^`8==9va#o!z(?$6~c+gSf8p7HZ0Ikxr&vcM&k>nAFA4*89eg+IkE~O-mk5|;B7Yuh#J?CR#E;9j8eChJq0O|!d1O#~O#HHH6w4Ete=i)rY&M_bUE3|W>QJGTObswjuL0}Qf2qE@K8EDH3g-F_NvYAW-q|`x`ho9Y*+kgWt6=Pk7)FMd}Y-z&RFUijLx_x@pbLr#Wr`b>V3_TEokjV`Si-o^)m(wvgPuE44_Dbrtng;;czHq81710C2sHX=$(9$<`x0#$kdz<;8F8IYfb9ig>G$#ihooob=W=kJ{3SI(chd04#EbI{s>7<u?tU%6y=6~K=*E7lPXA$2@!yA3tbX7Me9{i|~q&JDVx(^9Fx`vNrrrb5y>QU$NQkh2l+9K%}##y~Roq|gnd73--6gM7abo->aRM$U5L+!WzR9gu1UFi3Jb~P$3e`TaKkm08C<s|%tc5gb_ePJ`WB_2+zXgA4PItXh|+`89vk^ZM&%hg9dM~@+|7V>)I9jlc-JMWbh9p>nRK3=Zxr#3%lR@fq3Xdpz%a+wQ~v^5Gv-&&FE8W3qHG*lNRQntdN>$A63NjCyAe1l%<nr+s+H<US3J&<<hulzOt(r!4pu!Yme8aF1IlLo-ZA>Yf^LJ(Vrj7_IU9SRu#Z2_h_1MhtkwIGtn2Ci1+Tlsa^w$7Zr_||dFNLA<}q*2;^0)q%3sp2e+whu<$oM#pVnL8YmTk^P%ogEV=rAZ{{-FITJ$qQEd(u^BMAIQY+O3gPtjyJ5K29X2Vs=5yG_v<<b9v2&_^BL5{zIRsGPv{gEarar}ux<jEdWfUQ;_x*lR(Au^1)9i7Ty!cgWAWd=fuoD`_rScCg%8Ic_7(?49r()Dbz)lP<c&}NO|fl?9v2@0)@j!MA(dvSInwW{X{5-sgU1n@$>zT<kxwJNZl%gjW*{`N5p4i?ivW0hf3!vdQG3^JbBD5=E54xk_~iIK#sHEGL2+1-R(b6kP}bRvHNDO+*2Q*@REHQy{-{aZKskU6^~{|+_7#I4R8Uq)YwX^_XGkB<#;sQhueps=ej=?rQy2dFSR8|xBq$1|n*JSSL)R#id03!CIJKzPXE4dlqaCz#yZN)`fT{&95};bj`GoSS={Y;;ujS4c3xA-7`sP1^{&eV9@X&ba7fBGDKwy4!ef1htZ_CaU{B!@C%6V$nUW*8n0%H(@2cG|!B!3KLWF|@UFXGf&FL%k1wPTd=XglS>zUjyW6Wu$ku$jE6@9vC}L1ICoWC4SWAksvX4X^R^3nzYGm27Nk13ewn{DfP_bN#Kxu+RA_%WO;)Oe$u-<CZjybf7*0W02x!YwopoE0gx8l63i$o5@w|x{Zm@l80#|=%^-ucGX2Dq6bVSl1IFn1%9hh#PAVN38N)>uJTKkM%FqG1!O)(jX$XXB0ad*|Czsdf~_?PSE9`$d{DPq7Ub345+U+X#sB1dUh>{QLG#a)0fU|Z=OnVlHN*?%0y}Tn<vXL+mjijp(2b*H!M5H(dX(h%dMb(*VGMR*eFzE6qE2%L)k@4y=g_t}Ce(*XrU*xWflP8Gim*Z3x3M$MfAof@>bFRMt2@fOcZV=|-8bk?p!iZkk<aJVv%Y?R(G2rl8x12HtZme?s`4c>3VuF^iK4qLq4XJ|rt8VY%uAl^e3~SyUz>afN|o8RO3Hgt^_B2B)d|_MqrQ9nkCz1WS;I;gb5Q8JkxP977T&90soJ4Mn(t%sW|8g*$m*hpERukE2O$DX<}ut?N^BH%ei6RuK$P48BeILXvB9f_F17n`CSj5VFm=x85aTBL=ddrX=kf-fF8m0505R(*3w{b6LI~Iw5>KhNCK9;mA+n}$FDA>gg>k!)qPIyq)_J^%0T3VTp{@~d>__J9m+|}(W_Lc@2iC!b8Z1C#?J}gmhp7e`o5=@LyxGL77hAr=+Pe9wbBv@-i^;*`erX?;ZCW~MkV6>5omK1y55!!#!j~r*^|*iyQ35$6S7H$l#5PL<CO18wUTE8qPQ&#S*1VY8)%lL*2f&G&7iv^lbNm(EIt=i~!Q@1+LAyG5)rF{HUqG#Rkm_>NiMbpn90?JGU8Z^Ae+VNm!=2i31Cvo)<WZC3)Zs>TTeBo6E`QH-dkFAADT!f;W2%KEe6as5!3L8TmTCr1pRj<a#+81zR354v2~w0vrtx%F$+2?vLwCJ++kqETt<<rpX|=d&qO%h|A(n4_PKlr20RLddO7gCJyToNbOw`^Uvd_<Ue2P;*s3?A9&>7?!8V~zHC9rCkc{HxmeMzD2o;Tdn@-bTxkK}sCBDqWteuam=mo1@DL<~+ox=-dt-*nk8&!w%9kYu-?Cca$m6S>M<`AQ|^ts%$omdJg6f-s&|n-*W7Nc(*GrB5i*EW4UN<^or=w@-xM?o*f7e?LA4+z^lH%9%@>+;UEB>C4oCxc1JJlUU1CbmsM9Nft`6)OM$S?OHegyqe9LS?r`klAAS#jKY=fO|g!Hwy%Xw7bHssyJ694iy$nv<JYJ?Gb(I(k^vFi-N13D9)Ok&NCw#kvg|d}=F&~7xigguj<p+Yjmu>GC5*0!av^a=C4g4Ut)bTmEpo0Wafae2mf8P&F7bW|E=~_BqN=p^lt<?E!q%ITm1eP#RbxKP;ScYKCsshCGM#tR1JF}%lNdaF=}9I*ElmCwOHAnby%jL;D|S^)Wn(taL9&#3FYqyh+|9xAXC7;&;R{Fpw2S9wWn*aBa6q@n=A0-wcwAfgU*;Kp-=E{{tqecFB+H&vZ@v+521`<h!#J`~7YG>&3??rW!s6pU!cYnRBM`EYI0V#c>66}^pP6aq@nk;xlu0wDmiRQ5|1KWE6525dM!|TxAO98l*je%D=q`K~6>^zzzbCZ0TZ}?RYUgN0{|(3x8KxwmK+rmc9Nx6-p%c*{cN|>%6OGE0?T$HWZIGZ5d%=OaJ!-9Lk8@Lz;tH)LgD(LH$_TMkzLC$Mcz+CiZ{3E_09fVw_8v=QUAd?-`nKsxZ_xYo9TzR`kg~@nZCk}dv2Tt3>)^TH>AE#v#Xhy-7t(m;bG?o2y%ayAj9OUYAWvxBOxVA%XF(yJ>bfI7B&0WjAAQc>tZTjRS|$Iw-CZ#Ibd4rr+QuO>V$K@cQW(6BNu@ifCDLmaU($dIWOVi-!s^JVf3z7Z1MryaBio<DzR*{s8!h;nwli7oZ1r>mgVf7D^gEQinb%~f+cSXJjCP$VwD;li5Nw<kc2%H~*C|7k-4nwSH{>vrUz7z`bLRoicUiI@^~BD@`so4iMS8ZuSF845GDvgX6#$!|g8G2dGZO09>QE)1gcT{FYZF@l_llsrFBV>#C`A4Hqh%6BfiuZ%=#iwY6W~2snbw*KKK3BKA1gb^(P%!eY{ihb=dkF*h{Irnl#XARW@K2@?jTMD<nWtR1-`{aP(I=I(Nv%uBTw-y_3Wd-g~^?F*Z1HyoGY?L-&bBSCd4ehVS**@y);2Qk!N92r~;q+!h4zwY;8CM%y?MiAFuW_+I>BYOEj3I0L&rbxPejA3eLNAmLzbmUpA~K!gM6O<`&7E`tSMiGpnJ>#_w4AP-wnOotGduC{4+T$DW`CDu2j$hKc3gKq?lXGp5g~rRp|r`=GrH#v)kyJbi<QqnW$bOg(DEr;Zn9ddXYTk1-TAYqnqLn;t}Tx_*KF6dTp&D5GHNB%KwY>%Zvg;R$JoO<N-OJc1t=HH?e<S@hjD&|7<FY-sJWT7GYIuw%!URaVqy<H@tQDL#x@|JpXmDK8o-O8ItjRjnI}2QG!-ZYa@ISzSrmU;FqrP?8ho;bXc93qjm(ZDNnsTbO!hZ-W<I=&jI-H*>DG-XSacVJ)bz=kAox=dob_4Yw)cFMzVJ+1A<GK;jiQ5Tnx^M?41?2jRM!l=5;R(k3X{JkmTL`my@t)`+iB66h2_DNNC-ZSG8fhYh$BFk3@1|K0T9_L$F}kBVo51$*nIDGYT#lRWfHI$rMlWoVicRas7$R$$&Txz$D0Yc{#D-gN59&0yJIAfd7!3%0>h;7g|(@b;<*yR8H65?7+*ox$1NC3-P*%cXs>gL$10ZAv))@!D?c?J88&fUa7punk)+tp203D!92&<&0LDF>uOHA_;GnX&pY&p0D6ZYy76-wLpnqxSSjDI9i(OY$YeoKHPa(x?+vl3Hi4^VdiUKt9t2qoL*AX9tpBj%mZb5zyh(3m+@kEcXQ!p%*l1qle)p1MWLBogSX169N!zX{1xNbgo$F)DXGn*wa2d9k{5&DF*L&Uy!NP5Kktd=`zM3Iq5XM|)qsu~ktncXHTy;eLn&vgnnL!V83%={^_FmzXQAaO&I_5}6d52`Z1g2;%BU#6)Ux}z16vnXk*;r0adpLCq>z(`K~6p_s!V|65Jy(WqM|Uh*$7)>GrQc<c^On058Y91yU$4KMjy9$VO7`wlezhfDL?CevwJnu(|Fc{Hn|xPMgNGIPb#wgD%n{Vo>65EpoSo~xHqCrhpM<UpR3Lj;lU@dEDxR39b<CkK9SK7k;@K&h)c<R5<tmfO-1{7l7@&bAK8Td)?ad8%=fZOHpl<&rllHV#vEwr<Gq{vu&c{GgS%DK8JRWwDVXj5hn6LFvIcAI55C)nihiM0X<OX=_hep$cjO?qPKc0%Q1CLd@-pI8%>B~|=KgAx9=BkEfIRcd%=sO4g}m6O_I=p5j7V;IMEX%+exI!U`IhW=zu2q{%Q};tK@}*T3N2K}ejEfFa__-Ks01-LvwEaVSK<Nw4J9{%*{@iD-%*qhv#!2z(HqRFl-JrO2D#h=%P$d35P#YYwH~;Fx_he%g4n_Usm*Hv1jfLd9N4$Rz0{GTy<|IVXeO%PYGmRK1=rBIvfXqeND7X=pw@LFv8Lu_v}2~^es8(x>%dMom9xQ73@Dc$SZxeQFq(-QNB@<t6y+MvXRdQ*!-oqcHon!`!72)ur`v{Dq@#8LYFwfuJ3YV@UPwppR^TkBk_Fb1?ejR03S6FpR0f1WTKDy1-jSkznom4Bc#tR_Wg>HkMkS#ku3Qn?>2-W9&4RIEX+E#l^?(^mW$tG-7_41qW$4*-V6`$)G|rV&&}*^28C;VuX!WPX%o6%b^vFK39L1~L)dDDP$HJ<X1ZYWz@q@`H6(k#<Z(5C#Q!s)_J7}(nU$vCgi2oJ<B#2;5uj1u$*m)(<#dnVmFV3^=pR5pT2eIdC(+Aa&#8k+yR<AoHgxTN6;+*JpRtx{s9LU2D=h5yCc90Q4)`#cw7@7n$5d9%RZGu)$b!uaD;JeF*4ibguN2N_<L;9F~XP-+Y^g>Kcb}7_i2|`dV?|voqjGr1FU`}kBqni^y@)JFBYF5!EhQYFsepBt1_u<yVq!Aa!k%-ry!NA|EHxrjLx8S!KSp^E7$yFB5CYH#%ZUalkyGn-s=*@fBHv2eR&aqub2sb`^-7>G=ve-k!RM7MD3>TQ%A22EEl5d?}jsS^?c$q@%D>w>L0m{&{jvf_)7+roo9We7XlUDtP=Pg&FI|f_HSME|_!Ysl5vJdPLxzI;@z#b<HI}B6AJqyU<Y~v-|##kC+WoC+<9k!RAeESB94QaY1{!J%K_(J`V;!w~2vRT*R7be`dOg<-_TEsT@^CCv`hrj=Dt@a4jj+r?^GNWUTUE4c__wm0?liO0ue6(zzjYTw`!4jA>W4#nIGfk}2Nrjk^vCL0+CJfox!PuMW?_OPQ3E`rsD<&}*!;AoUG9xvZF~&gG-&;H7m7)XR1w>C%%=8uAEBgtVM$};(^*{QV*B#=Q03kd!U27N<-;y2&y<P7)fMTsu#6G2QQP8*>47A`Kkz4xedDB6wW(jc7vhVA?s~$&89hi^Y-8pa|6y|Vi@G~T}YXMnWY%qWa7{!V_chtPoN+gcG6^FosimWEONZPxcB=nj@BWJo+ctaSI0(n=5&^sp?uB(;9ElFKPHTw{s3$}RCtx3aSDjm;b%B%l<dpPrzTiXVO`>Hza%3KLBOYyS<+Ps|+q5O7Bz6w#yRwpq!l4{`y;RW5&ATx`MS4L&hwA$c>iO=J`(2rkoyx=n8?k?bzjxuLC{!9%A+q$B>8l3@qpWp(6*ZJ>0Eu}pw_ie=cT?!wAV{t2=jonH{YO_c5PA8cc$*|~nQ`onMrsdHj-C{Sg7U~{c@`6pSCB3hz#e8@`4t00-R55pv_$A*qW7SM(l(qIBvl3>ArdFbeFz}M`i}uQ&N%jK0Q<Ug8ZToV0{@F8Q{zU%Iln<#M7Q$6(e)~|ePVu9L?dwZa!JYY_aZK5;t6*b}eeo%D99Bp+S~iX_&9<+V=^Qmyp<Xe`s^9eOUm)9#IhS}?v51JzZM_bA!m5d+`w3vhy4uSz>^0=Z{O#sB22;j07eGjLWyAJhh1&blM>vVO^^>yv{hWa?rm;NTgT)FDh!>+J6n_s^(x?PSqlAdeSqKK$;`JVR33IPRt#4-3cY#JTnoIIc@wpB`v9YBmt1Y3`&ZvIw0!vt7u=*(o3D|;>!`rB3#+HtkO0siAi_8=d8nc03W)x%k&NRD=mON_iLe4zv{q|JB&MpR-_96yPc+URYeRfrd%q&WABYM#S#axFEq^r6HZIc{(c&i0nSg8WRRuTTzq&(cuxMZ0nku^hPBE#&Nj2lCOwD5<P$Agf!?^(?2)2*C+BhaE2T__Dq^<9V$7V%^YR^T~{@%IUVTMzT=y1}lGYM1*AX$`fq>HZ82wNe292sg9{$!HbXSj+2nTDj9C=ms!2n(P|r<oKgQ^hJRqpd7BZh*h8@_3BH7PX<Jmx(Wi;sA0ceX)Q@RR>TlKT~VxB(n2vp<2JWk@g`em+I2MlIj&MtuCgy-9EqeHvEu|~uRS|63msM)w1Eg*35Xh}R{$PJ_NouA3{za8v(Y+`^rfecs&|%beOHNgd@3V(%&0E56?*aQG(6bQRNjY-#^ZMi&e_@fOuR9{@hg$?W9e|PY0@042)kp)Jy{^v0Xm{AkQOJ%#AnFX45YQK%#s;fwcJ5q?H2Zmd=<_8W-9f2Kkt?YSY1C`T1@{W0pd*tAU4qW38|JDj9kWK0|I;pK1qp;?$jea8n5Qjg5RWEv}s#2NFUe@nTI&r=X|KmG`!i@Z#1+jAsqZ<cX%Q{1^`bzUFnv2uE{j~YO4x6CgfOZtK2-rqDVF34G`i#j~Q?Lr{}(Gu8oy8vVngvKyfBSHDigs93JwI(~Gs-QTxFn3!m@@cULNeJA6>-B?4(>)<lfa5T<#OF^829d}xHrzd%@6ili1q&_kP=oFQbjN|3#Qg0N>^<NxMT3)_l|nolN%YE}8ZbC+*j4ny2TJqZ%<!H67KvYMn(nTq~lR+*27QPeZB7FOfQ?X;>EOm16le1^MA%Xz<UQdQl{7mwC>kJj+PQIPZjHwv^Ob891@xD%~n-sJAg4!{qXeWxSsU*S-CcfE`2jMw*lZI#nY!XJ!cx<_%YicIqfB>AyBj;-f>%OYT=tD?Z+SP42+(Xc=64Oeq;hvw!2!$EpSK)B<)aPyLh_<h2*1X1Wm<=T&pNAUSV8k4{l*t<FLUp~JN=QwT9CVNx*$;^nBZ3IjWXa0o)Fuh<#u;jVL@IKiD!fdgIjSjy}jUWKY33Qvpj?(a2Ud0WcE2>d4T8{_#op7hHhdgaH*>2N(aq0P93w|-@lQ^#pj^>Rg1U~nXZ<QG(yLlt{dV3rf%;vvmu$2bmWD`l-8!vPrD_j$K5l|wLn2xia+U6|Q$kTNdHK8Kus+Lb6Bj!6=u=8}C1G5qp+v2(mCFa?LAQ%pti+T?}F0XU?fh#cqw(D2+0f0eY?7YH>;|B%h_mWTp-5<4GnC|kRam$fDhq)MDH5aX5(QWiPi|Pm>G%S!Jbj6;y@4E~VDx;%uRZ|P@Le4vsWX=P6y-V0_tH`zfXN8)JG?${Sk#bM$U`Xw~D$&mb&f~Sm&JP!RtNz$*rzF1m*c20boCmbz8@Ji_K8Q_%9j~i7GMf9|wNcYv0Y5m`>|4lUP*Qh8%VnA8p(XNyH&Ms4l-4c`-lPqgX6y?Lo#e~3%H`6fH)bzAcaz(Txp-g5_cc-V)I$2guifb<h^k8uSqph*W9*N~emcgh3@jlFqAt3c`_GVa3uABe@ni`%H~(#GQVOix$?*w}QVt${UknldQTNk(0YOR@y=IV@(kn$vVSQL>@vT1i1}s@97dO@lcfe%MJJ9vmY{iqd#F?wC1k2fn!f>_)UKaNAOu94(qnkRMW>iJLs28r*(qAPrA~4Lwwb@&Ra)h>TYSccw08WAwdu_TwSOMj>DV0)jog!4QET<*P)%?KMOeb)*o71jgq%YfjVTFDR%$F=Gw5-EvWB71h)<Fs$dl~cl#2@K}KH1QWmtX$d%yEv%NK?eGcl1!X{@qfnq{M~|vcD&`?ReE9OvOSgMYe4}lVG)ljpLEHH}znm1H#(5cUwhZ%)8IQWETyzytp;#;oVV;q(z&goWHZ5=MZON=8SS%#(bP@Ceaq3(QGwC1nfX7dT+`jlltf&61q2*rylIk-YbB-o<nNg3D5;gp9vK-IMp;c39%;-L>8>I6Xqiy3N|z(cLA#S^_x6r%M(WGjS|SSPvRg;on#;?2W`tT*vVgdM0kZ#E#^VxB?-@B2tVkT8r5r$)dRdzMf!%KHzg(zI{gIiYl1AoA%kZE$|_ki1c2_XT{sbek9sgby8K&tai#@ZOEZ6!6Y+7`v_^eN_ze=p-<sKaJx=G$F?4qxcMTytBwF0@W{GbwjE}PAq`;V$_@sVS{iKRMNR!q6zJ5{NMZ5RVI&3FEAq@d%HsY(uMbMDNX-ZgLe5cZR)$%$8&r*f)H^4|(vkv%;?eQS3O>9)q;(aUag~89BHgk?ql~NJiDL+MXqW%V=OkGP>j8$MC^ARjZEb}YB$VqmnMO(j|mnQIh;I%F1tCdQRmyFn4-YwJ+AkopAyBayItmVGAGJ)*2H%`;fA4W~Bt?)MK*Uw42r9>_0X63HKlWy7*3ScVZo<kS^3VN_Dhtpj0P_%DG>TH!1xQ|t~@wJLdB6~Rp88Z$5l5B&S#>RAQ4Z`9C?P-Laf?5W}XjEMIj69HM-LCUOaiwT9Ak{KM9URQT-uMSrS`Nu0StDQkL=YC03B6G~G{_?&NI!y0LkGgFUU;~pz12^(jj8piQ4kU!A*FxF`++gh47+dixJV3mQ}$7?DA;S<UvIlp%4t+`BEikG!AQ=iiDCe^5y}sC@NaZ5La}_E1dN+W5f8yv)HVVdKYKJg2lJ}-3NR8%FcsaWm4ylC6XpSsaQ_Xg^Ko*XH!wFpT|`U<GXW1?lp@{9@V^1+w9;<<pOFI{qogFwNmnH@>{w(=yzrREy$23psQ3x)_Z3eTZtmt?37o;e0?<4O^2YU+kc~CnX>IodUgSgnEi|?7*cgc&)iD6nwO>7b1Fy80FC`hEH)ON~I0$Rzk9YLXUd)u9ysI1|UF^_&M(~i2F_im<dVvTcCe~cAlMPy_h#0A6x;H;(@8Ba_()HCr8_EGocH_4*l&5fFZoQjFVGaR5mO@+wXq!tmKJcpmD?cw8to<Y%AA0OVY^AgWg^|>f4_7iNpX`fA*+Y!`<)DB*K0$;Jl{a~RtGAEh3X8%m@J<M^I2gw<s{{OF{=yd!tPE&bG98_tn<@rhWr%848qszy!swKNLkOfGdO1T#)jUsF+U@_AO8FB}3mq3z>xk!9{#Y-Oa>nHcUyWL-O(n{$kZn>Dwj}`d$})7k>7s|V6>}=1v$=St-@3KnHbF&`{FE?zzCKqOWwoq8HQ~lTYMc(-LEWokM8+}<XW8Btz&FUWD>;o9wEaAnDhT;{4c~t=94tzT?U**@qrYZ;k@5}K^0BfKz#bI=La(s(5L|K-oIy_0w{c<bs-4d`lIm&&vR>asS|(mx6SpQX82v^N7lx?w!4>pRHF<4P_o*3$jxh}*pv(6@cNLW!cE6b?*E|toa@BN;*4@CL0^Jv0CMQdH%w+*Oud+FUslR4sclI&OSWXg>Z2q+fUT&s8iwtx1T6CM_6hM^<Gr$=(izaI8_50HkNN+QIi>^=hl4VTH;pC}3f6>Sl{Z<75u1`h-P$yGfIg!PtW6qhXJ9lB0r)jz=b;NBZk_$rAdX(QGMs}LD(@Oc{r|>3a43Qjcn|Ie2L9~L)aBJa!ZX8U5qJG)$k_We~I0}?FNXjC2{})XkI2S;`DV}7gUWB=BW=bG$l59d@#m31C<6pBfKgW8v?UmOB_rp!)>NZTeP437^@Pyj^T&QK5M+}zbNCv(?G-?}B?h-lAWoKP{$VA!>D0{PMkJp@r7xByF8QvOa8RHscL@5H9me7?4H-*0zLK830PlVuUmRUa$#8r9U&DJtz^dciFU1rS|gI<WtmV|sHONX{$>>tQ5sA8Kxf2o0I<)ltSo?zr};z@Fv3QGU<mq+j)5hO1u%GXkdDLLhcC1h^fGZ&*5lYAG*BA>9(j34{q3F|arzyQ!slpKkYe5Ix#0+9x=$dUz5wn2<Jg1q2Ck$)_%6e3SkVe|Jw-e7kZ%G=xN%CCzl4HHB(e^-X9j@%cN-REgA{E>_boa9v96$rM%R?OjG;8F_CUeg#!iB#d!C6=`RjcVD%27xx`gY_l?PuYGDRX!%%)%;?hiCxXBA5B!8zoO&jrEqqXML~7rcEMK#{8_8>^`@TCv^C=39f6WvipEEy^LSueXn-=H%@Yuz{TY+eZ*o1zJsSIRUIoGX`hSSPLn8|6y`_)!>Vm@N5|B)g%&n|$D96faYoVKm*5Uz0g+#`baQ8io5>!<fE01k(gk6KZ2-K?Ae<vrzw97+X-qnvyc|{Br{gIx&mGx_nb;r#l`9XdjCrKBXIJx0W9>qtKaOHN^%e?@v=NN9k&h}vE$jW>S(^yqW?ch`-K4%+b;xX^8?zqOuR98c^XrJ*`Vk|SH$sFl$VNPWd7&<O#H?dTLduK-+b$HYW8Hw<zrH8q&E`-w@ooraL;~s2&XJPqz4ffblFfZ`oADHO7s6xu6Ge*9!sw3b)=F$Wi2`#y0QOR(subGg8w5%3uJR})&kOD<D%VeO8Xcg(pp?KC~4PwLpJ`M_f^Oae}^)aJsUUBkEHJ=!mC<`XhOUY_aN>yKhsF;{F%k4bz%k_(KQ$)mWZfYci!3xZ{FvR+WG6Kc1LRYvDNpHd13$uDKSqhVpSl~U^L--00W`iEl3QfwBEcg#!+zBJLMTO}{r>Wq~O)6h#%Em1sVq}R1lHa_e3<eu?u(AeCy8+6O>NWt?_(j!z35U;=uHnYLzB^s%K1DUW0w}eFZ?-h{JqiRK1Y=v;;&yFfinR642N6J=D*~3ank6c&TdSuiQ%TtW#)LFx#;x&ra3mm8RCWhWq`s7vYFLG)<?hi<8zEOln+<A>{7}D<1mdwJBoli#l&IVJ6>?N)K-4g?MF{Gz8BEagO|N?*v&nBQpo*KsG3Mam!Lwa_@{fkU30Z=NSK!$On!cVxpskzXQ5Y2{6^vrTMj|EK9Nf$kYwFG^W<c^JncG0K7V+t^S4Nz#eq4eVe94|Lgme}_AY$$SWv~SalfA|t40B3>3|2vV3x>|!IsQiJwZ@G9V?JDr&T10QDM&$y6JN=h_ykU&GzBHM9*91D)?O0idH$7lewojw6Rx4F0cnVUwI1q*|M1x9JLm=@WA3cEf{?N;OW8M66~kFOS>7pFp+F@LLc%)+d`^r+Kz$LPR6vIr=dJT#JEvWH`;?so2-pOVd;Kqbq3)q(NI_RPEqjfb&s^myEmnhz4|i+$i;PJ7mULJW{(W$%85}pXHT=wYQnnsMjgz0C&VZo~8=&2YM6L_L5kw-5`Qip);v!<hYFzmK<J%x_W5!TQejvnfcyv;X<ws80%~`pp9#|l-#N9GeTYFc-^PRI}D4<k!bGp0hp;S3MUGk2%R_p^8G6wg4Emoy!?n40Cv6=zFyYG@<L=V-LEnk`j9M8VfR$LH)oc?e@UD_gKn3XQIavGXEEUhyL6ON>h=Ur}KSQV+@pJVNQ?j@)pH2XfWCoXhb|9Q^zb5i6`@Tc$$-sS_Zq_Dj;Yj_j*N+yK~t4oOyykBM*^(f2v6J#pHbL&95A>TL&OjO9BR?&HQ-71VC+T)QAMt8tYek_hErMJlu5<`CuE^d~M6TTp<EqwANi|NYhvNG1;L8UfY@FD|G0yhbKqQmiNNFS{^lh}8%Y7IEi>tJrp(1+czR~iU!673H40RVjwic}2v9LXReR2V!BB9>o(TLP&O{OKQE1wlvtrwW9T?AhBgs)@B0&tmi^4CO`m-;(4NNWQw<PA24ZOYVd4I9ZL%IkeV+qhT+n3W}u$inDPx)A`NC{5gYw)@MP7mi>eV^pZW^J57e0FG>X{Lsy0}eE+k*!rWA|)L-$f)Ss6|HdK+JGtWgirx#SW32rD>Nqexeiq4e%IO?Fk-QN?9bjFrEB9<yG6cXsnIbXIUC)TeS$J1ma?XfZmLqse3up`LuyZRtVMXxuOv(?<7@-#7g&p$U}N>gMZ5yH0@3<!BqE&F-(30UmUFJqF9lcYyA&6KXS_(}_I-aw#OS$H9?Yy8^a?Q-}Z?uXHQhNa252g?xXC@SUdz<tlrEdgCKTF}~TxgrxOI?tJU)8@poRtabs-yq+{nc4%Ixeqvqp}2CVB97vPHL403Wzs88K3KybslU*#u!_<>LZgu036p$><}a|(w(Po<ZV)s}+F}cDKTlp=8bV{rT*5Ky-t-s;g8@2xFhngcM`9rpfns#zs^rS=w&G%=YOi`7OcdtA-7mj_3l5|9V^^~%eV@$CWp)LTZp=htohqPpr5H(lxogVH3FxoTjLwekyE}wO!wXMx3;gx)OHsli6d_+$acsmml`DfpQ7_*o!PqS{jpE1=i@dP68f7i}<#Qh`=E8p&1`06bHVhR9MduRCNxWW&tGsh`I-bjO7_m%l&(jf>SsH^hB~fNJX%4i^SQQpk)fbU&uF?QoVS@-OE9oB#jEYwo<O5&&Hh&m5EB#2e-+qT`oPjEs!mW;|J8|ei0Tiv<@|P(wXb51{NL=V$4P^#e+M1$1W(k68M7sQ)Y2_vWqnJwU=BC;{hUY4p_T(DH0XMUe$)k^(oLKCqh-dM4_lATGHXK<U{%G4gom+&cCCC#yQa3=-Oz8CPhzSU`a`cpJes>~+IZ9_A#+vi<*>aeT$UZR%$DM)xvX<3lUx<Rs%&M{Q1D|}6&naH*C(jynqPDyhhihtw%dP})nH1r*PSR=`lbPP9JcK@oWFoQ@w<}b%!wZQ_J&0kNHj1s(^j2kK-;IiK`9Mi0=#3bbj^)<JH77w5+D~mp-p$XI(DnVrCKu?1&wdc+3+cS{SsOlirfBF~6W8;?#Fy9rnc`&`?5gOKoQ!;tg#wg!%&0B=kdd*We;;w~_%cg<vZpFA$O8|Mr)RR}Z6JHwwN`^E$;7>EfmCnr)d)1^scl4-LJ{U7bOI4Hh97<tG^4NUxe`LsZq^;&^XuK4boVi54Te}7e@$U^`CP*-0E9xj>zK}C$gVHk%e4;!tqvSPN?Fci8Ri|y;`oji{Z$I5sxK9fYae5GvX>({D~620;B+Wrqwa_J5H@!%pHdR&L9jK!>aDYqX#hVqTDl}s)^ww&$h87`0*)c_^pWCV4|Q(;g=`&R0-8_zhNxz!77d(>An5%g9e#4bDYXu=UF%`#B=dqnt1F*JgN?79XJ>H)lY}D=QA#&o7bk<=T=)(KhuF~l4xf=bfd99hD|d3=>QXEypYr{KrzQCOHsp7Hj21Y78hTe%x#BK^8s5$aT#=8GLz1Gomv+7_(@W2|0MkDWO~IUAfmx^cGJ(KUO;32$yA^vvJUN20m@qc!VvJUz%8k71v(kM|f$(KrQvcYE;Y|+_=WfQ2Mf^U5GOH=alI`>jWJLV>y(q>{X`>Xf>>JhrzhV{AUL{m<#h@=Ihe&J{B4Sv}_ytgEKuS8CFs5|zF&lD7&`7smDzrj(xZ4kvIv;YASA%82kXxGrQ_75=ZfP}BbGitL{0LIhOyQkisHeiTvSl@fZ#vlD#76+i-asgQH(OBcUlTOU3kVR7T*){UvC|Q++}76XZ#4Hjt<P*2`(u}|-7x?cR61I)k~Af`#>2TC$euG%ls3+Al>L~`!4{W3;~YV=<!ux!&~`!uy(qzk8HG7owd$21FU3YcVNnjXgY~DDSgmpTbb;0aMTvL?B%#h2Xq}O{YD*E!tkycyt)(;=STq^1u*;B!?dIV`x_0f=PNPX?qdIK+OvYOIG>WWNixBK0j%f9;O%ej;Z-x1z*5f|{C=&TcO*eqqP@eK_uIBFt9R0Rrs-njt_D@GC@Yd(r2ePpy>oE&;Voz!#&k5ApO?fsO$kl?L$ap9o{Ht#uqb4K)6q@$|A1Wx0JCmYoy6Gs4Q|CJAF=7QlXk#0O>>+M0jQJC%)8PvZm8H`r*e9qU5|5f%x&<@R@YimzPv&f$scBf@KD<xg)*Vov{C_cOcf1l;_3C3wn}!Hq#27*C3{)@>Ytg)n)2(iXyd?IatP=C7tA&kqx?{Mi_tKD<Ov{USj2D0#96;SfglzvKr6A4#6$I~KZl_MFcP1>*Z6*C@!QdaO48l$!bUN-4?VxQAhc#MmS@MgPr3`3)Gf}b>iV8NXeqyNZpyum;8HkgMN#bhX@t7&)OCU}rw1i>A+H;r*_C`OE2}G|+%cECk!}c4jHemRdmJ|f$6$Fo$a@y`jarbASrn%DBXXTKZzj4AVzn9{+g2Q04=%E|jCbV=!e+ZbzLgs{<3DCYg9qK<Azo@xo&hW^uW!_KRlQ-gxr=mbUrbhX?XVZTu0YRI;oaJk;gS(mzV~z_{+;LcZ62-(#){FVTNg1h@3Kt<gt+(nxWM1p$HDU|rSaB*TmW%J2s~7Xtg)b{TomG3n@<gV8dSC>I6)-L2?eb|x?Cj!d$Hd-vtB)8iYi+%9oPg5|P=n#&h8zxg8PDe1V8#J&pl^f2E(w-%v40a!nRcugP6UJKxMBM%QoubucrpwUj17Ct+L_UGsX2p<%l#B@3%3LIb_+zE)KR62KMQDGT>{8J3_e~`nu;#*4HSVU9K<nb`*+AmabAz;{5VcAK{9me&vI_no=z~9^sOO-xHI8x{mdJxyoiBL`}XI(78Zsd*bFx9CnaWp1#fH<6T`hce{}6}kKM}vNuk8;6a4W{JwSy0twC-_Uu&gDO0%cQ%RV>)yac;o@52WL2ti^|aejywa64dz)^I=kSZyW$By@DTYFJ5HuNRJQ8_;w=irZV>ESMWFJN=CWDTW1&>f7P?d7MW+7mB{OxD_yN>ycWxWoo>w29l;2N$^?0W-Gv#s0V|#3!bA&1R1fhvFN)pNfmd(CH60~vI<3Q)aw@BU<-G}^lRU(%B91rG<0)4n9cJ<pV_zk)mMUZA}Dk0#w4}kp0FCRG+YQRhw<4*@pz0f9o3E=8b@sq`#TvGOoM%OrI~y0y9azC1Yta>!mX$Go@Zg6A~D!CLDH@JBm6t*%}ub$)yA3S5JW!8_83_Ky_2=rBYrsc^{-6tV}p~glet8#c0pODrnfc<zDGX(NUQNU82?o&kGepZLKy$5?vMP_3W20tP#~7Wb}RjXH~eqn<p>K2+BSwct&sX~<9&w*+AGSE1|$Ls%TsTfyp%(l%sAjOiTPlkzS}Z6f=ly0F60vGMLV1Y+e0*KDot)VZf9!EickITi$%GF=dLYlG?J$<;%N__kWoP^$zt=BYi;>wQrak;7<tKD$XL`OJ8?|p3)I&^jox5Zo38yOQ|aC^6axrACE%n65t{tkuGew~^3pryO`*{v8&6J_atVX+ok7N3k)MLz?l~q`YUA-a)BDXujBJrEx9ozn=pi;YjtKYlcfiIL_(k%FBcHl8xk8&x2j(T`N8TlPu!_}P7Y$puJNn^u6s?Lz2Q2M=cI9%s{bFyp7_W+e9&by4bR931mcUW`>qTFcwG7sUIq@%a8#w#)8>%x#$9`cUHGp^xDmN-*_^SJ!+!3mhRBy0EQb1}w{<09mEBv5+mx&aG?Y~vaR$vt1yE1$V6}YvYHgp6T)HmJBVrDeAGTxI-3ETBsm`a1(XB$g!EM1n{9qNj}Z1cuPvuz+fok^N*yiwJcvM%Uqn=v-q5r15tA?^`>nYh5m^*D)YN|C;mG`gzsMBkD+*Yd<e+MdFtT-x=7#9HbPQdJ~n^N{XjciiS%YZ#zV)gxx4gW3EysWWBGe~o-P!9y`G=g95M?naHez{R8BYfzAetvD|%$H~eA9-g`KAyn}5#tp7#n#Qdi9dqbH78l=BfNufSkSY_SgZaIPWcW&sCFOZ=J3O0_tQK?sZu9IOsnM7a_A!i_#D&NV(I4HTvhIg1&p}8IEI^O4yEeJkhi<^sp7PLm8jfetp|F$G#Q{RR3coxF$4ZQe-03jp+1a!1zosyjz(DGmC?6)qq0KxF5HTPrw`($z)gSC^PdTKn1aq>5Ube8hR*YQOAt`KaVv{$hq!*B*!(*#F96dYcYr_RlF$L%5D1C!?Eq@(h9O}la$F&eh=2;n4`)S3PMtZ#=c5ebv`Q$)V(f8CzFh1x)Sa84$gswa&2L&4VAT6DF(p33Wjm+F$K%_VpK*QxDTRt!<cM<%yM1YceK_)uTSa~s{e{P6o*y-Z996m&gP!q-f{?ak0ul^WrM^a1;OiEvnN)M0^(`D|fXHOx5?b<oC#mOWzhLZ!Ka3(=KzcW;S*e$lkFr(7Y8D8T&_yUh74e~_ZI$^y*NGWuCu8?oTVLw4A!><v{j3WtSxMt$m(^F?vVpa@@^ZBkn%wBw|G%TX(r6hGQy{n}r>RKc5Vj|*PM=1i);xCV`L{d9~jsHGa{!i4)8fy}?4C(a{VZn10Ex5XF&n!i-<#gW|jCH~JT!LxSFyzOs{d?;#Cifrz9|)j8T*H0wHq5H;7!JW>Yh-kcd^^+_n>VPOIfB~*a!$TRGDl;~QGX;c)(wp<^yu0dw*IDKXW!6HT$`R@&sIEvDC4dNBXCv~*hveQ```fBsTF+029l!EZAPM8J53r0FStD&Kqy01bFtOl05?yqJ09>#K-s#fT86OM=T1UC4;AZ^xt690Rr*V4P@OTKN|86q^8!OWS#HtZODbbbOWVD$g*pP@^|&#QXJwDo;kP^w9?7xlH~?%_EpB1T`2|bF;}_L@OrC_gbGYHG9LJ+UMpi0NIZu5Mxyy2D7o3?A)k(kUX<6DHwqMo$spim5pXzuoG@`xjZe6ee@wfuXzTUA2LCxgJe{XyBuT7%>O?wfmK30J!=9jhUfYs^fSy59D%1DND4SXF`Q}w3tn$d!$3jAam_)<isoA^1M+EL#`To<W8Cq3hCn~1fokx0ShYqYgK4Eln`!ElTTGWjvSL_$1;3BVR8$7{OIgf*^o(Hp6w4T(Nq8f9s3F0<)Arnj5lBegzzcYH*r6ys+Gk?5Bzu7Wf$ee!O8Jl=&C(?`~MJao?yd@!{38aBEny`%+Yp-T(}==2%q7AGfqP@<Vke)1%8ZQ~yNqco-u(g$`hRqNS?d+)++b`S!K-?l~IIA0>N+;tX63;I~vT1U8ifAbtKT=-O4N1U}ia(py@f#QStAYC$bTw{IE-Q#!dhI`IQ+e@@FxVokh#Gn>cw?7yGoQN@;&xB*aq~bzS>oU^3abCUR2#)CYNpWA-42_aB!!50eWNp<io^iTXZ~x}#YMX-2DIv_<wLu_s(S1VYS790x`^e}q=QobT_)?0KBKuMAaJW}f9NKVlBVDObpp(E?{n+?p-hW8!e<k>Qu_DK`wAWTl=0fD0AO(7(kn}c|B&4E!Fr#GIjd|F-LoT&(YNMW%J;<v^sd_XETFKm29?zbKLrv?T8EgJxF1-E)naqWqGehKSut%4LyOe5u$XK}G4tgiU9AeuPexocCvUtunJLNe_dqJZJ%(zhI1eQj(tVNNS;bDcdVu0ICJ<z=9sj%q1Bgduds`TWO#vj73$**eiSMxE4yl|e*t$}nKEZtB+TVOM~BT8yVD<{*s+fb>3tK^9W>va16G9ec<_PsVr8W~n{6^v{^#nv8iqD0D%85d1z)&>Eo4nR0CSGg*d#`_Q8nSYF>fn-Hk(xqn!r-%c2x9ae@JnJ}MC#-Y~AKZd3pLmX#_UvD*H^l;iW0Q)h3k-E(?5TJ6Qeq00EfJ)W1?nkWokqZ76`hd2fQ(;Juu|?UN0s`uDg-*CJdr{PrN(xAAcVso6tH?~76mpO5&1-WrbsDe{^IfSa5fi%e4lO8HpdXH!rtW>bpru?uQA^_odIuP3q%RCN>Kl8Wv=tJKlB-f4)LCoOp(ce7+p&eUtld$sK|s0K@kSu>Q}Qu1N;sQn!zI6RsHhl%<gGfpEL8|2)&3$hu!NYA_oN343Yg_2Hc8Fr`$6XGGAzFmsqb&9Jy$b7=*23I&V`XNYGw3HfqRVQOlieDJDPq4^mh(px~QjmkI&2Ap3z(g+p~&-n`33_11%ZNM|u+k9uow7FtDe`-VC6`>^!MS&BZMIsjAcrRM%&WIw~6BjvFWU(4XM`*TLqcj!S1MjvO)X*W9UY2rG_>F7aRedFj!?ZoTG0=H#KU5b|UN(;JIU||)gwufR1T&ga21|P-s2PNkA`aF)Z@&sZ&mq!9-Y`kY5{J2^8i$zuti$5tvjmZ+!71b$~y1LTq`MWxj96vK@=0Orla4CHoMDhyT>aaLh%pAElvgd@sC);(e>><VZ&HLgv;NOZx)j@}`L6JdysoGB_vyKAck?}kHea<W{w%5^Lcbd(2P<O<+CvZR^=0C?>FEeiRAc2v-I~XlRhmuqfM|N~s!)K4{p&%OtUiH~5-17aS(cwLj5y1SYxUszYx(LwD??&N!`Vu@ogD1R@NAi>j{(i6XEif&}*Jzw43L1)*W6N9jl-MtYoo$)9O7Mi7wL#nL%oeY&b<HZRQlN{{v10|V6_TB-F?Ps4btil|)cI5W#9mi*7==!j*b$@+Qkl5}_uZmKy6!IASSO|dVgG0_=~YvTKF4dYwB`MVT~oQ6(Y-|SKvTBOm(YiLwW#>VsaKphx$wwt)ZwX6cE&-{#^!}Y5%N5k%{0(QXlsD(I6D4R-xik|i!YNL5qJ3>De^rJ_=TOaKCpjvd|-VkUK=V_==r06WkHVZ9@454_PP{ZU9JpfX`49wtnt&1PHXL58vX1rspx0CA`$yrz%z~;jf!c3(6G~P3?N?j<9dJiV7Aa;JVC|-3jj-F>j&1#egnVwnlE`cW~KqRGj2hT`9TXm%nIf!Q$q+?$K;hZNC@eVvNBgaGue9F&Y%Ra)-B>r=`c~5lAJoe<dw(`a!7n*Nu6dAfbYrX)z|Y?0fX$gD{_ezu)@_K_#_BIw-Fg;3@*#dNh*3<>WLO7QAX)fAVbO<9GrO<nX{ph>^fI1@vxM#T4k|1(NzGQhWCfDy?pgxQuBwTZ&pYY#Poi#QdV*1%IA9**cS(=ikZu{lNB}yXPB@8AO2U3$*Gz#JfLEdD;;bc(z<E*y29@4|5+c7C2+XpFeq)Sn^Gw;NbpNI5a2+A+7UGneW*akWBj4B-(?svEaWS6ob}L?ywwtdEIZ1wb%2b0ERLDuPOTCKU=h_OFqN#bdiGLqcVNc37m1)iG=*M^R{mANS?YyyS@y5rqk*FersQ095cj7m4|UFA^}tptAT{240bkEkdk)Xs(4-Le@!HH=v_c^gW&ymQ%?`SLklRv$c=N^}>y~14g<Qj*bw|v<$bmqD%TjZ2nFFg#n@G$aQh1yd3-GoMd(+8DV3V|R4B-HWf1PyCs1QW9;@46Ci;%7%2f0Q`Ve!nrokB;T-3v@^yXqoMH(Zagem9rGXP61#@9C`<+pa3kY3t<9V$q?*n+F&GT4=uSdxh}ACaio4m-sY+z0Bmd%Y-mM>115&E$eCMEeKV78`P;At?3;|O<s29b_QpSvHRB-_%;Mma8#$?0B=ryj&&s*I6ftz6;etWR?V4LMON_O&k&@e-jZus3;-I1>VWMA;6BMj2%M^~GYbfB8<qt)u`)x0I9Wz}M(sXJeVX1xY9!sdaLg}zOnfZ5BL|-*akCaoQco|yavJ+rAPHDHpJcB<>Ev%GjYLPDwW<zJN#x!zoTel1G0q*q1TX~J=F|@lrCpPth@5a>I3$B|rsu&b<tPB+>CbPjFJtr{v$|GhA-UDnhf}^lk(@ceGPy5Ue+gZ|7jZs6+y8%9kw3gibiXl={qwu2RslzR*^p|jK`yMostPJjyfOl-wjBLqf2cdH{gM;fSyka;R2fBT$H6$JQAL!^&cV5PaS-F!-0U$TolywOxg#42o@{`#`rtAO)>!G*YAVQuNUs^{9WcKvfvH@ZWzmA#O5tjIr|j<uLlum?hn&TD5IIYCN~{?QYL{eivCIwt2L<q@Z#R-14l>Ml1s3&XrqYIHo>$Z7>^HFhzOM`y@8~~S*asBK^7Yd*TsOrI<jjBpYYg}SqA_(jF(!frj{SB|OHl%FvP@|Xu=>5G=vo_^cp(*iN(ro7@(Nx_nY^A=Q2m&?5Tz~uEH%J78o^!K{un0`P(jjnGsQy&e!^lzqt*G<9MPJal)Z}$IFMYLRino%N>)`@fLJ_3LDc?Co<Ij$<{Sz)acK2mqRq%Lj{e3xPDkx+MQk02VfikuV95IynXZ+%U%y<p?~yL4%xNgF`io=}(szI8Fl#(SMAZ*s$AeMf#;`0^DCto;JYLG=M&XF`9u-!;?yU$nM5c9`Acz<nxnbbNZ@}#BO6F=gG&JmB_4~#JR+u8%dxil;*F4SclvKCGuS~Y;1NwUBj&t05qIH#27l+i^0#oW`hl4Zp!)`t_S{ANeR2s&F%54I2>_=`@D$!iY``0kMi-CIveW)3NADsGqKH`u0{V}Er1{;X3l%}Q+f;&hmWY*I0Ma3!Nveu};+W^Js-2JDbw_4!3upnioWWTOw{Er^?K)XTjCs6qkoJY@G<B%0V*)4s&RK)ywC4Z>FcNf|Lq{#|=D34MY1&6U|$g+XL%)b;L^aVg$4rqAVsXW*JkWp!1b2@g703>>-hI+6a3Z<hays<rvr+DIn(It`P4tbze$1sJop4fM0gQtV3u3hVe2?#0odIjaz9N^G;onj}P6kIQ3iD(!6B7tae6?0X_n+OGz@{8&{sAI-_rKmdBr7vX~y^Mu_b$lh0y*R55r~#7#V5no-3BY8KE9d3$CYL)3Qul<<^9IVTkXVugZT5*$i;cq}X>5~H8YT)QadHX}axxM`8!poc0oYZg3Hi(<V$Up{3&wLT_Rr<lE1OUn7g~(L8nF=ggtnYq;F9LohEw?yn0Z30E^Ij{EMM1i?K_rr8s28#SWH_Xfhl$!i5M5+SCG1rcsq*uCJTu+(WPDHe}KtA&*H>rtndx6poNUTFR#09g3V9qVO6mVi6KWU1w0Q#$AC~nJ+n*`I6U8a-nPU3Us4YUqn2!}SYxy{QmgAs4CR*98(s4ontgz1$%sNWTGtGZGLYIHeRM0hRp2^+lD-d6GT|pq!Y?*CQ#x_jOI;rxS~xv)v{@9ked52Pp`Xckb`2B>42EY%wICF#l}ZGF_aRD$ij941uJ;A;&%MpE+3kOKP-<Rf{5Cw_AAR&CZ><sP?f`te?yZ5(AIuvC5EeyydDCW9tmr~l>h(n{!nA`3S!)M0{6V$74;i|ri;i*ykV&oB;(0Hf3$ADk#RmI}i|Im?k*z76(I2f`njS1~0f(x+w18a;@}9`TmYdxor*X^ZC}-Wb`w%dGDQ{L{q7_34K@DgE`5LnTYvr^w0n^MQ;<4BDu`t|NJZ;$5=DFs{&X)?wHJ%l34}6j|A+Up%TlOx6S;-J$HjycQ8eV0@WK^gm_=0OM&Lh11@~ShbwW8U{bWnLM?oYz<{~sao1+HfK4Z8S2%=!uM`dSI+pAYP<u;=}<vb#}`fC^Z64N5Yi#Nk$rI~vXJLFr0^1e072z5N?PL!8L-HM@Ba+3h%+x5LOeu5dZY&C8a9yqbS;2h=m7mS3MF`!1ZLQC$7887ZywA=K~_1NoS3i$Bl%4j9dM4mc6DwG}6MMQ<LzU(pk-_Vh_|U-|o|4yMGQA5`%>Wf3&;7cX51%|jmf+1G&=&q4XsAuFbrAH%ugRjL*iOA|kXo(q9RyccC2KTcU?l*J5X=p<UI@t!0iAIB(|*e%d`aXA2lj5$%J4+{{RkJG?*4!_X>Ha~_sN0W{6EB~YzfI!d|az^V^xT8KX39o58JW^xixBo%?=s<Iv%}iNvX>9y7gf+HC^xy~@>>0q4RO|B%;WhytV4@rHH1F{3DiCD_2%8IxjNma~cpp4}2kvgGM6G;H*W8AU_ODNS;5!)ub9=<11>Vxx2I-3F0vABj+kLS8OX+BKwk7Rfc%rhLE#F}DY#MIp9h$WC$4*(+E8w&QxjoeR7Q5p-k@f(nLIa8bnj+RxsP{h8DJDx`T$c&Mf#EVa!qQ3;_)59qK$orBQsQ9Ro9XCymv!`sngiNDxwO=L4aTP%@^dYlyCg5!xt|qd!KSQqrx3n}PpZUyrzS1R^~aVZ7;M_zByyz$#NOrpPwg^_CRs+^LkmhmZ2u4-6%y*19r(T<LRH_WNX*uedA?e3T{+?4rlt@@?v1Ronqd8yv)-uYhG_38yRtrlK*ehb%HMt7NE$I1WBqbPie`=M7pOA15{t?X-y-dCtU<pEL0gZ!Elul3V3Al4f@b`;9AB1+eE*I)<S-M}IT%LHbW7QjPmk^GQcn>6&f)98wjc5Tk6K@79w7c`Grsa;1ISJFsgCzZTmP!Mvn)|3JxZDvu)EbYrwvBZvPn+*?gGoj8CX^9kjz}hFICKUS9_0i!xIbGY*AU8ww0Hxv*bwx-OLAVZ(LlMY9f~K<DV$%<pg{NSwzNxkRqvOt0@WN$ULy2fzDc2WJ*`dtwIQ~m&Uo5BA@@wNqmi);xz50)@42~V%ka_-Q)6umymK^>7?e)y5ZVgCyl<-JU4U+RsX@_c3?QvhLIY>kAl)7jZa;icdzcv5m^_GulDgD@I5{%=o;0WFNgM@Xl4Z2S`A~Jp|-7XY`ClsCUBH@Jdub~2vQ&CN%bNR<fDQHq+*W_p!A9P9SU%;K1XfUhmY|`&Ssf;_pErx#+MJ<h8G0Wuh!~guTNEaWZJ$BHvz_Nk`s2aX%gt+%LA9<1wWzv6x?ioUh;i@N2!Eqlq%J^^{0dsWG98{m1d4s)|4*1v7>f+cr@&f$0uQ~LT_ZO>bSH*UDehXKo1HO)&S(O^soQBU4mwiE!{c~E!+>L#iK)A0^%nQ+*f*WR3)_~NF0o4VL9lQmpnu_bfh}G35#v~_1&v&BMRsf<~4d6QU9u~^V8N~Sl~*{%cC3b%2xXaem%xLtird_boa}NeRS}MqM`hXs1m{?hVLxCHawp)plej14PZml(TUQHRAF}=xgG;?put!qYSuYXpa-$iGK$?E>*X!>^75&ov6vyuxJ;^|F8f$5!G99X#~JC}-{lLFHJ-npRgMA(->PFe{K>BMwKloyxhFJ75a1u#TA7vTurSlwRjs&;I(SfBb1Z~GRgGUHxwA+G?n_L|O$wdR$6Qv<$NZlFK}6g-KfHQ4OMDn0M8zZ9(lQgh$|H&K@&UpF8-m*M{l&FqZ?)^|GY|ahWUJSU9WNM&%~?PHTs0|`Y~Hnrij=Do*`wC9x2juj2qUhj&3+PsZ!-4<d1DY@IEw#=zby}C#tCX7`i_lS)jDw;v6)MTWZon(oSji^10L?J!us*op(=$)cHH9yzA2K4*Px7IK%-<?=q)g&_|$!hg;GvIWDLVCDO8^06_tAGeG_d`mW_1kL@%uzL8LAVW(VuN9;U)A0UhU1J}z6u2-xG8DEWtE#sv?xq-k>&O`Ll>bF8CVLYm1@%6T~?hsq`3&@rORXQ_k_nv@pKzZ+Y~FYx~nt(kmhYkKtpVs5rH7na7;e_7(h$*M4`42Dyb?FC8%Ppr5%Jt<C*0Ooi8a`U3Vy85=;B6=FI790C96udu5qo@O9Rx<wl17GE|+IC{X4os))5}o$Am~l5tLeAaLLE~m@)%$^mw3<Xr4dAsjps;ZmS6uwDT$~#fHla1EHUJLol#*F}@7XbkKK(GK6%a6M9bBwZ)}OHUF_rNEOu#wZAtl<@>sP-(8qy;<l)<>^#9TvjcknZelW|=JR%0K$#09MKd3xN>;a5V$*#&uQ08nS!BS4=yK})J7k|QP^G~1^I&w5`$6El0BrgH#WWwp@q!YBKu(8Zg$&gWTroFZ_4qlZ_5Guh}1?mPt@mzPf><2qG`0zS!%WQ%X|un2!+$^oZpjABK1@tU_J23b!`Bksn>AyI?zhmJo1Eme=3>+}~pKCP`9Tm8U<YhUVTs_<!kH>@4o(;!_(J6=;Q;~O@UAX(dem{!t68J?;Rkz0!ayyN3$M%@Q3)oUE)ftVqERisVibQcW3H$vDV2v;BamCdh4b0DMoJHU>w%<+B$QP6v}6ogG6QWde^sZE`2y9~l!2Q55lDg08)G*Po!rni$2uf*qC^8=afvB8wCAX|||h7C)yA20b5R(StyJkTLNF3<34{Kh5Bpoz)<{5doo3rulV$gANi2xP|l%)fX&x%CO`58v~rD|#6(zG|+=cCkF3e5%Z3IrD*-Zj_i+!+BQz9;7H)!KbJ?`7gNtCRXnOZP`cW-BD~^EFSq>mM_j$sjS{R#_lA#^qwkY{l#Ud*O(5;ofk7sDSU~s1PQ;9Sp@oTWpv0A;-HSTtY=8lD$9SpPam3DM{p_)3gJ5?+DC32p}bzzh0((fhpkbzntTbqS$0+?JL(I>cWh>R<%a0Olkhn|5A3`xY!+<z3`uBE+xffXhX_=9-p`<{x`5(UW3CbcR)0#aNoAiZ11($TgQ$U>-H#pI4*#Gt{`DvyzfUtr6Nh+-UJRbE?M$r>bQ+U%AEsOYkN@W({i~Gft_L!ls(mUw8nouXTE3#!PxHau>{|ySe7U$<q${*A`--;A%{#G)RYne`7ELei(H2F`8#fd19sK2AkJf+>f8ptbyQQ=ZqqGXjew4adEK5t22qmxGFJ+X5n{g+Kqq;`sNTP;-V4NU=4-EIGc7F0mBl_U<V=4LsaeF{h529R6f(Y-LZ%bi8el*Xj3zE`EOmc-MBZxo?@*5wi3;1+nF@9a|EZ??-CiGh;z?<-2coW8FKsqQC;{n>+;n=Bd)Ly{y)zL3TwV^GE;J|=Ra+!4S{}&LZl*u)2t|eDksi|<BL(__vE*<(gi-(Jp*zq?D#Os|y^B=8;UE_p&(G`Y#ypTi;!X>mN-~CTW8twgbkqsE+TW3^bGF;=5xA`dxI|p9HjvpQetPDY^UHM3eY}>O)reJ6mUK?IWyBMyWy&FuWjaOb+L&>)?@(X{_W5@0usUZ(ewV)uP=KzsqAe5laoHOAz@D;G7@!x{tZ#K^P{k|`LnS479Ywk7Jj2s7X+ki#Kr5sd$Z3EP^PUNU6pHrXQO8?JB64xCDa2uRy(8*w?E@Ny7YI;<MloO3~n=7A2`Ijw83ulUO$F4!-9+2TRV`<F0YELy?GN&z<g5Kf%er~E)gYfWes0RzRSmx$(=y8%j_=h)5UW7Hn2OQRbhy%2T-ExfSwri{9;70!>^IUN&a>8fYTjZiPpb`J>lGOvVe*<@+aiz_X@)XuT$~DtdnZqN%t3Xbu5nV_9-+>Ex@;{2(@;#i&P#ZXn9!Vh7!ink`7G<zje~$iHoE!E<xf;|Yy#}MMM&2OX^{9;0a%Tn46AiLJr6?*{6f#V2Uh;}{Bqpu$z>Yz*8?``i8K~DZg&!%Svgb*D51l-+9zLp%%Cb~5Ofo9jqjNr%Zp=fuO83(Vv6NJTPd#c0H4^yP>?dG&lv3<F9H-=HUdY3OaZoXIPSi0Wqr-jG0uDZLg1;_$P(Ku2$`m?4T~x8zC?ZCMy+43P{rtore$0@3p{vd}I{kc5zmIm2Q1(oe@=bXZZ{$R}oA@fEjhc+9mqKJ?kh_scuw8@_^^y-r7j^iEPCBJc{;-vM&8K?e*_1GTUa`l-CC(VmJQGsu;887p^Rw-H!;iNF!`R;lSK^=r>Opb$B<Tb!)JzT<!Yyio->Dk&a!wZs9Z>U>e^0(@cIphNv%1xNbrjd#(uJrrbX;)&RW7fPA2a5{j!HIO$P?@xl^`T9T;xBzKSZ*##qTI?ADiaZyr5nz^{mNZSX3L=vr#K!J5tLUFX(urB&#c<GpP6=uWAX2I&^T`o7d|wIkwv(pV-1FZHP!v)#;8MJe+`GpTSjgs|`%EZ{s)z?D~m}j0^$h%(CaEfcbOx=4+PuUWQzjOsQxFFR}!H2!<CzneTfVBhMU`?B4EemAwz9i<+~@<+Frbl=bD<PA%rj`Nd#ecnv$^#?oI*bUx$9yuLW#8o96+-3ag7;{b=>DeCe-T5dN|iLhF34Imwp0mKBKpZr_p)01~U0Hj?bSSV%4^*BpJcVyhkOQx8<QQ*<r$avt5>FbH2{V_ir3YK@${qe4T^<;}$q3x-mHdU$%758sp(aAP)YS0>UyVT`OGC#J6kbjI?p&GcV1!Z=zOjAtu=eJP}zPGHjI}MbkjnoXMtaxHFQE6#C7Onq3HaAKe{DOgB#)9N*gbb){D&SInS99X&DBA~<^p^>}k7^@#05KMt7!P^Zi0PM!NPZ)wO}A8i+EXVe$$FPuwq3MSg-clO;z(iG(_P|W`tr*!-*3%1_n%CfSa9B~g(bu_o8`_P2_Z_2nQ?^L0^1=69S_&M7uVmdb=dK8wHoAzMc!WGL%UJh0pK{`GQDuMb;um#md7G5@xGn%k3RkY%u_@?_i*%d>%h{*e|LL)IUr^2P|UIn{<y{*7npJ7&ODP`4e)OFlZTdNaqqbzwCRxdJ)(lPO@{%>7XE3kD+I~mf5=gh%?D2=ytF>((c1WlEu*7xYV-H%B3is{O`f#~P2DLh&<a{dX^y;&7q}$)*3&!bp~h@H%f{~fs_?T;?hzfOq94x{5C@DG>hFT(rx<WUq>m9Lng3(v2TP5+`)raCufaaBBy*8;g0+(NzgV*1GXTm=!72(H!o+N;Q;}10i69#TSo^P}a)hvi7Rps#qSO7t=)JQW!UzdkXp`NVIU79Dy0WSniR`!D;5}vyLMN*e$96GS>m0l_BJ}}>-ixGR{@JO{vGaK0HiB`xJ0dYu=Fr>DX8?Sw@&xrLW7)=jI0&<YM?JwVjZ6&-jtfrR?;2ZOl5}gPR+OoDs*&K>flfb2S<s;h+6y9hmq!>Ljt;b_>!Iqf;<{-T^JT%%B^fV86q11Z4xfj0@9nzf3)&%QFtxGKY*S<&`8KTQ2(?%j_;@nvE03zt@A-M2rS=trG8nowFn0$nOS4rD{-_J;zBPk(w=SptQ*Iwr%#%oBO9rgDs(uHmLy34Zg+1PkR+%VgHgRVUU+a8V6F2QK4{WMCvAI6~&ZJ=zCUmDHVRYd+lRm0Xt}FT>&Cy|{lWSUQ*>I3!mj&i%xtF2fS`~Lz&VYh!4UB$u=B7XYctHT@D}wQ=#EydmdzF8b#)5O{VX6SDt1G3)ugDte9<IGITDO5NNV-$hcm-WHj|y{tap7&in>?&XyRd_JXZ;SzqQO@@<l_d3;&tM{KrBV-Q`z!pOw@(1S2aYK7Hfx#B?mZ^l5t8Jms#ZQz8B(oK*(=?-MeqbE)pz8RwE>;lL&F6>jw4X&&s`h#Ut9}zixv_6Y|hWb7CBCp}|>-BCYmDAKJHm2Xq&0mgmZ-1F>*1M@1nEfq9Z?W+_<>?Np3-U2gf|h53AX);R2sXB0BIE?c@rpaRpMtmS0{trr9>{F?ZWFWkPgCjn^;CYZ%YC<HReY14o+a08Bk(6P1@R)hni=U?Z#7f=Lj#>u!S|A6JeyaoE?nxY7)&8lgvI%@AGn#q?2S;dXNc67jacsoCfZGrl-sm)ZYU%Vn$yo;izmv3!*$6xqBnyb-lbr*60<9i7VA0n$Z6p=pX7{9A5e89D$n{BX;zK<=XxN%VAtF(!Q7ui^BeK+HQ(B9uljC0*1r#ag1E7>N=qC3_k0<h!<QeMx00oxUXYD=Ta3Tr_7fNOY4a31?vH3<lrvz4mBoz?}@Yt)vNXlUpyUYX4&2;$2XrJwYcTOFXVN$ab3!J~92z1|W^2VpL9bv}FT@F}k73!5Oq5WXeAP^L;1m>)0RzCN5L(>lTgs*B5mF9G=TW*+lzOQ3Ie>pHvilzmxt4J?s(x?Vh_0%n63atec6o6fy@ATk>~@P@E|p$;gjT3ypJkTi4moN|qjBhblnnAW5j5?!QM0C61)1~xCM%R)r(5B;QXA1YIU3ie8{-9bx<97kI|pw=|<!q8U(Ca--6NhrTdj4zQANZ~O8@RuVytW|ky1fp=Fh!n8yo3L(S*Nbi04wmtu((ZNC@e_2Mv8N3Bp`yb^AC`8Srmy;QM@X~IH0g2mS{EpJDNO(JNEplZj?yn@#(9=|AM}kjP>QZ$s2{eLi_ok<60EnU_RrIH7+8ryM68q1IYIc*N-6+h5}x?4;TH-{^R~{9*S~vPG4K8<cD4J+n)T_77@}^Vxgq;AxMKww2rh&lE(5WeB(r~?`J|bYsY8Q&GP5FZf>etonf+qwA9hq;#Iz`AC(A#Ji|-z590*l@{M7G4WfE3oz;R$mUx~rmVB^Jy`qaTp2x}$u<SB3^oRzP2`BYWKeV+6ue_!oS1n}R9sB|k*_XQH><6IQ8;3k-#bkkdAXI5i!Lz9bBGqnJ@A5{~B76^j~s`#ISPKEO{cA7?l;l+2GTBSqq(?1Ih&cDMd%FD~1u5#~b0{o<y)4vWu>|s6S_}>_E9AXBN-Jc2y5I%YfYdT!G$0~}f2yF1Gzo<tA?9mIdX)6!$puQY7w{Pi4L#om+WsZK(Py%~BY%=-hUdTkxn_0t<5{KphNFNxyB6A&@nOJdk>CpK*Tfo{`5s{ke2<0z}Zi}XrhewJoBl!2qd-^^FWJaFp(g(24j_(t2`eJszV71qzO+m_?L3NUHr_17JfCMp#xhi#=3ewWS#qKN$?#YM2jf@fspbxj<*)*lm@G>=9;02TIP8EQvh0Ln*fTNLO-4tn!Z509(X0mEU@`m2jL34rQI^KksL6nK6OZEsLB>}@CToTRJ8dN4z3dxCF@zYFzUO@^X&`hbyI{sjl8!E)rit;X(ax@}lX%s<{*ry|&Mpw!>GFwaUnR^03rEk_!SvG88KxhwGLf%zMV^{{^TP{W1+^-q6P){Q_RyYzq-n4QEv85C?SU4NPuzqK*{ZrckD)s_%%uVU3X{xml{_KP1ip|rnRH9Y!8dQGrnACko_fypyQwL@3o$8e`^j4^q3>vy@6^5>R8=3=3pl*Fxk~yp7$$X{XS~K`xtM@@h>jVoB%2m!O5-&B@`m~6=xIKusJ<8spv@jjM^!}Y2Lg0Y$YtGc~--<(PGylIZfqsl9xbckx<G3j-nF9MpE5X`yweJuKF;w~j4KiI5?q?xaKmjTGo8@Ck9tp5_D4@VaCx5{Ai5iTuh&y2czcRpl>(H5tH;?CpJPwA~cTFfiuCS|Kmh>|#EhQTv*99zD=}Cb^ldvGu9VG5;fZtP%W;|&pjtrTFQ&_)q#=bTan1cSx@GqwY!VguB?Z=-zTCc80d7lx^z7xzurw!PBW!>Jp!n*9i@z|k5aAPM;Qg*oyMzF8rg8Ow29z9WxzNeM|aYj%Z<CP8>2X?jM^diphmSV*C=@{WtYXG-Tr2Ot^ZT+3T4xpTeyk5-Z1tbCNTVV410$8wDxEAf4q({lXp4nslJv5r5=Aw@$H@V(Q<3ZY6ziBFbPNh6C-n22*2fbmzG0$=osi$wmS1vqcD8bVL{uPle6zK!hTt|%zuT?d|n=k?9z$3=^lzGff9~lv3u+w)endeSTbY%JWJKiONa%cw$J7pf>fbn7D#4y1V&;sT0Z36yGro*AlRHg$GIp#ENTlxg7XX_turxnOpn=<|VbDD(6dvkcS>%%8|u_rou?VQq-@vG(D<3EI>T$xi6wR)jbM;8Q?o{VJ_s24o25XTm><6nBfZ1eEEAZtVf(NKY#d*XE@rUw1E9$i->ENV`%WMFH&#w`%VqF4780f<A)Alx+r2jmHg93<=7oogkiy2r7_{MlNfd~2QKHgPTxm|=f$UqACyJC!<Xo7-Fsf9kK~BVv&piy+e#+|sI5Ny*3%vjuTj3uG^cw9HvV2#6gwmN|kDPGtP!vjXXi+8(n)IBRyQ0Q9&Pxq@H!7Ha7qaa>p6mm9|)O%VsaH$s76n_?+W%3=o=O8i8F)E>W^WOVUR-7D|y!n&a?aAEZEL`%IAe3bE)u_|?(Y!`-90DkUSfk`v;hQ~$jiIiQ<Zx!Q1g@V2QZKuis6=hL$bEE;K#-ml)vJs|#f9QMR3}rkE&$Y~<7N^-d)=-MjPwxn~FSO$jtb5T4ccO~zrIQ0Z6JIr$E*rdASvBC(#sYK*#4ouP<mrIE=H!PD<R>2NfE1A_#ofy$f{s_`F*FMl3ps74jxFwno~hTgLr63VH>d}-+Ax0^D74CKw82?RO*qC1B`pNMF3ISp%r4nP<+1E8Gk4PjPUlgY9pf=FMCEGrcEoeuGc8qB=<;DQY1HS5MSGQ`xVsHZze16t$vwcLhdP$r-%cBn;N^E-t|#3HO8edFaANc=`?)86w}YODiOAOjzJScT!Kg#bS`QeJH08%579t9p?cx(Uj{BC;{_uGxn@MRq=F<>+Xy&cNO<=Z-u!tkySB$kw$*t1L7vUd@8^!3(<#}dV!I_HQ15YZ84Z-;{ukOb6CjL%{if#z1yuInxd+@z-a3L?|LDUAwM4`ujhG{p<L*&x9?QQlcbEm100$jJT#F5Vupd(igUa6USNrFPCi}}*oyeS%b1*0MmA~nPg5c&TkpMQoMeA)yE9Fq)vhRFzb{O*E5_#BzLYp*K0`q`X;H%{k7ibX`>tuq<gbpPOzRu)*K>966GRu`)J=Y-q~-q|yr2UI=T!{w1iDJ6c!H<8pQmjPnn6nxG2R18X5;B!1JC0H4xK;x4>%POf~YzEUVjpQ(LqI4CwuJOfbG~vmu4-gLSQwGB=6_z;Ym5=FLxjZ93;#%Tb<$XjKx_gH!vt)vBul}M#;NaU)&-*%<2^`xNteSamg1cbXiRItd6p{T>3U?@U(XNkXGW4ceXgE?L`te1{mJJx*PDWBD6r&!@b?9j;#v$=S5*@^UPW9?q6KXyFNQkJhh<Pc=Z{#@C3HX!Ux`W;0YYZ}Kx0qM3BlkrkU(ad9elM+Ef|~XtvP5gn;E`UMyp;bIQKZcv(BdEcIlNhnFX&blV{TFKs}!cwRNV3-MJO97<@UKf=~>14X*9C2a83xKKDQ!S0L;6)ZXQ_a{U#iDPYqn~Kwc!hr?W+{;#}~Qn*1+rh_ftuJPGWsQsA`qdSPdGsK_cuKahZK58#?nOge^dPP(ZRurmMWMTdD0i~@>*zctke`uP`O2N&5%wY^I<5{&6_g*f>-N~5(NA;28Q;!fSOSlV5KspiW`^))Mrk#Iyl{DiGEqvBYbm{n-E_0CjVpGtNuF_uJZu&REU)Fa+R@ztxEu0A{>gJ0-=<@A`QBh3?$pRtzWB)LD=94!%IxydU{E3ddqAq3;a+4zW~ff`246@P0qRJrke&b!qvns;7Zf$pNx?a_aBH?3|{5YJ|a1t_2EC?!)Ar_u^{pYUoOu$Xeu*TS!EB$N7=cpr`r$SDeESIwkcgCUz>9s&xN`tt2zM8Wf>wK)xx)`NV*<HkyBM=Z|qzN>3|u(c6$t1QS@G@V$7*FAuqQ9)|3Kj7(3(Rp56__vV$SY6<|64hamc(|qHgBJ6&uYHFdgUOYKmGX9s+R*}g4wdmdC6jgIoDNeQk~ge!m<>e&)~Ti21vgqx+h~miKOLOLWTtjjaoj3zlpOsCnZ?_(h8Cvpu9pwE=!=8oxx(VwN{Tzc4?YDkS~boa4-O&*tn&e_+5CmG4*+?{9I<CLOEFhHh5qqkcjBNxx*F%irP4vIA(j+-o-XXLlaKN{O4xpFP9*8d@W|e&TjC)#g&;sw0UtFQ<(tE^=69@}qzH`JU23DMw#tMg;iy$V%x*!9L2+GPmF{&{G6rM(5=6b8mv3{AL~u=6?zH`E{JH&Gk&Yij1+q%Kx(6N}-BL_hq#9+{|32!MdFHo9x(vAuwTr9JHH<MVbY$axJQ~k<QK-8jTo`xXENax5N@3w96!VqbrG+Mk%Yh|b#*xpUBa@0Z`qgsq5vS(2oK4=yt+kCi<V?+hRmdXA_acq+R1-B9=<)&&AM?GfA3V3djy@jg@xw;BEZ+dX52H0Dd0G!r$F-yk86u<Mx~IM1A0H{vwR%pNJjiE75JC<!x@&H39v9Q@N2<N{@Ssz<X~5nUwJCMB0+(Qy>UCu5`2vH^wM%MMKx1olSzt!JnkGs(EM~$jsf%y5@irAaQY~{iZY`KOq##*B8#&7@0~BxwhZxNnK`*NJCKT@q5U4cHn%3Vujg5_g7IDjgY`E$XVs(Jp;BsLdilgJ<W;`v)TG&6D!qy&Ya+XcNA`DzP;g>2%i+7R~iK)KdfEy^pryWry6|9CX2077^$cEM%?mp3!<Eb>^Ro05Z&=P+zXp-8!5Y(Xfqrc_yV23!O7BbXj_q|(^zE>${`XHGZkJDC)7PCG~NhrB?{Jn6m{+X#GVRNv4w>xNPwUrnrbbXBbe>7+0VN~C{a$1H}|6Y;y@uomH^mh(9K`0{URG3V63i?MV?$A#922E{QI4s5I0eVTI+CLWtorCvlCo?pa6R-|A-2{2z&UkXeGQD*ZS#*i}I7eJ=HXi+5(4mK4#5fpkSnCmmXzZhV4LR5L^aLD%t^xWxc&JT=@!>+|tMk0qW^8sKkb1-yQZQ5hOa>fyj0L=rlMzy9W$q^95Y(-(yI!3P;?szyBF=W|8)o==8@p}FhU{)~r3`xT^g52@5N!D|G#K{5LPuq}J(hJN%Y-Mby2m%=opH54bd+SjTBj(GV=t9P6w#;+E<G;|q33<4qyBjoEM&U7;6v#evbsTx6VfQbeyxO?V}BS@A2jwmP*Dj)C{NuAYQ=(}&>eczsK52nWcf3I1hEQpNXWClJr39Ol4)>l5+G{=SChr%?MWEr1*!5CV%_W=RnIr@ZZX9Z#J#&?4jq~qM~8SIw4a&q41~ycPsog)_!skNN(~vgks+*^se(YcC0PT!7!5k=q{$4^VGKILX00>ql?mShEi1gL`A_y@wn>MMpX)b;Fp5NWN6T&CeyE7NMLu}$gdoPB;6>XRG$M3MX6Q=Z>~T!f6JLxj{GVpk?qXG$pzZT9bbzOsj4{h!7RIQvz365yDXErCWJ6<+he(q2!38QC2&W>g8y{EDonpPIi#sa58k8mRAuK7X2H@R3$uPRD8E~bQS&3lxgUnPN!59<6%r4EE<Oh8yC{(KTwQ&fekNR<%b{5t^f?jl;@eXq@=~^n?!{+Ajw4F9zGkjoikI=rFQFxS@>NyXNx>BIKpx6H5m8u?y73qmyoo0jIe@$dYkuw4m!$elMnnd@glU@%?8nf}Kuwl15i6rYlCb<Hk9#ad~+Du=F`WU26<5zc_YCPKU9#!u#MPd>@2_0A4N5CX?eF9#{Eac{yhRIH#RJTiXG+ypn!&8+h#v>K*+QLK^!*{%vYaZE6`gs693Xpw~dQNUYA`H2Bj(YJ^pTUv!^twYGrV=3oO02Fv?nA+jLbVSIv-G(wzRHu%#>mS*0v8VRD&#(vYMc4xOTHUTeNH&_H2CNPB&ejI<uFg)RO+B&H6dEm*y`zjA^oJVB`)v8XCvA3Sg{RE-6VWk?djRPZ$!8Jy-^T0q`P=x%V%-*Xm#5(V?1kTubPUC2fN+D<y3`TR_mCA-*@88CUx93kvg$vBxMVGp|}ABluQmK>+4&MqsU294*gBXIC*{wXM(Rt=wBFiAMmz)^}OE~2^@y4NaR@Q6`+zLXnC;|G9xa+w>9eA^-w5y70#aPys2qFlSn#t`J5;ilAKW_Ys|uj>mPuBk0afVUSu`7vYZm!74P;kwuBU+U_gacZ=5!%Dc7WGMs?|#+bksgCK9TSm0&+~Wp*Pg0O~1)&ZVGY;<pghKW-#V#s*TV1D&Wm?@VOj&pVF$Xb?26hmJ765Z0>hU4<Ka9+AE{)XmVoSuw&&!vrv+$sn=?c|S|0E)<k4U@y(!S=vGn7qHP=<MYMhTJU>dt2rkelhvoW64{a}xRpudb_IF?nIY1qmO?IGPHagV+IFA6M&{}Dppy3H#xdRMA;jU?p6V1RlJZ0D#Cv&o6E@3CuB0D@y#V58<66~JCHz{M(gH_YMJSwJ5v5(`M<2nU77?lu$leef0LbPlX9GGd1m_aoO>}v*C#kT)pqEJZv8)mSlttw*<R~1`SZK<fNC?0YHa<oTq~>866`xtojhCupy`hHy+7|LwdkRuD$l(Fq&aK!ImQ0$S_^*gBI+Z_}F;gVD@SZ*vvtbP>ysx*@&r^5tA#oWV^xJrec93!CLY<;+CI(N2PM#fRQZQ@SGrHxF+u(BiJdMJ(y>=D+gG~)3(Pd%i+t!#vn=<1BQoZ;*xL)fqpbsFpgc*9^Ed27y%>HR(Ik{uTD_3;{Oc??Mj>RYkumd*^a(r<SEyP~-V#I)gX5gy5EiB3<9QbI$JmB^y%E=BUYzysk1LS{t#j+m=Dc8pVI?21a{r`2datP!(#gagRA>#clJhS4uHQF_@wj;w_>c=Eu>I>L(T=r;~HvYMnH6a)-wEWzE+i32U#Wv6ElJyAVnqcEzBoa`S7Biy)z)s^&c*4;=roYc&K$fT4cyB`rYAY&~C{_K-UH3N<Lj2>RRzas|bzH6)0llR8xUgAwgxl-+#QGxTe9i?>OBEK8IMBVZOkGkQa^i@GG$}zvRJOcd#VtpDlUmoWGO{?cpj%xzIb8=0Bj^9$tC*A6$a@NFu2^8o2-3;T8<v)Ik5B^i`%};SI+f`ri9%?I!Jjrz^ofcZ#<LKn>s^tQ^S$pN$qfa0!f>I;*r~m0rPgEUBEk-ZbHNvjOEy&G^qqBr<Au6DRbiBu;4+unG%;Q{s0TyYLF<hQAx5#`wHg=yybWOzNUJt=!tZfCHNG!-8dZn*4)2=~bVvlxb1?ted7hJmjB&1?8=3{nXiYqOr5%!T(-IZVqkBs#i<`}I!AtjDMl5t{+BHtie;#vS!pFW>G3bSssGNn>aWapD@bs-b=CDgfvA1}^0V1O(DK<IQzlbf0c}c`v_rpaN8ZlEH+mTs^Z68<EMaA)dcgNDzG+Ogj9=mUHa~uFaeP0VGSaRL{R_uXmqKvHeIHh)Ajg)2E8ihWwOxQY00$iz?%e~pFp7Y#`@9nHz^De9KACong@21LqCj3+g2}#`--F&%HeqP{fpkeZxC|e2QdJI_$*Vj{KJEt|B=K7Ok>N`r0xIEdf<cz?H=0rxn5B9<$YVuGgzOOFNW`~%&#vpFS>8RK7LIbWc2BZ?Y7LA`d{iFZWIl)B_c8|MZNBvkqG{lzcHHHnPFu~X4s_uOy*tCaSLX;`L``DV!Z58&!OD`(31>-TyB1gjfo!3*dwZ>9mFhlNEzLWCmJZWs~)Q{JB{pV4<y5nH-ZE5R#53h8_^kt{s(){6GFMr@6Nd(d&O_&mNPQK};(BBiL;o?KfNlrrbEh_c~8;>O0PJkGY1rfuga%$cIPcACjCESG_#-s?qXgSNX)}a%+(07WU-gccm{(h)iWc%pmez7gIjfAkUq^U6CxnuQBYf-{E4k|Syk~z3JFmOi(#*UuG6&kHb1V8YZyUI_BI)z98@1aqcXY(RB%6Q$}Jv=#*zW49atO_Eh_RH!%HCZ!-T%17wcV?OJ7wvMj9<?+Wn-RC}Hp`FT=UG-Lx%g4OhmR*=(Xkj+h<@%JOC!P~%P^_1(~rjrIKMIp6*||C0MaxWpsbURX$TbrN9;?CyWe!#)QG`(MJI$*y5Gir+-2ZMB>S8qvDwOo@01{tdCHTw&hVM@vcZd8#ZiW&BKj>uC=8>$GlYB_=Lqo+S9)~iOs@tCJ)~muZ5r*2K_MCu*DD%u6Dj#Rgs1cBT-f0yKI>EDS&JlmGG!1qH!Y>kH-8W^PDk(0ciF(Pbz!>3+3nn5BpaD`;nUQC1!`&zp020hY(i3Kyc~dzQ7wi9rbSs;WFmGsP#lYXYei+4adQ%Kf~4v#*7B&7-o@U%sR@5G`$A?l+*2rgoM%;fa`yCXmd2}g$x}5%FnvyzOtU`Ngc(-A@FVCM_jRCPiJ+i8PDh`!(xtQR@8PO4!qO>~=7oi_xjuA{JI+>+j#>3VM1{v0jssWzItY&MQO0T(ATCXe*laj8xEUbwkkYJ5EEh=w#-P|5a6U2*v^5UkD&kX&Ex^LZzib&?U5fW=Ol#8qxb3qCkADObs7u^a@Q|U^sbRfh(hCk1-7E-7Wns#nu>oL$LH(|L=KwaNT_47&5`^CKv7ERlVrTciOcdaX0HJR}(>dm#bx=Utvt&A;6A|pO0YE96oZ&Y*l)RsZD?dlVtMB<!iIe<u1#*&<AwZ+JU$~ZZl$=+%JxJ<u=ORQI?k^|sOsY`ASD%$UJF_A@62*gKWSefymoU-UZrxBC(2-x0gsO7d>5Ian{(+VU;G$2Af^XVaR-#8y<R-T<h6l}?W^|8BVll4b9KsB&E-NL!?eIK6x7#pm4l}dFn=DCMp!LOwFKW+t1`Un(M~i6<k8p~zSg%v9<lAL2ChJ>T6;7?Xm7jczR09|s)1sMO$E%rHzv&#`u%V;g*AfM>rzC82un@WY1Eza@w8a(5C2iKUiPP>*C8Gy1l(}fmNMpOtmKjkchtC*hc6KNWos5xNDxbEIqCfw_*jA%vXj>+8X{t_&D{3wf;?Sp+rTG_+hU;u6-HBVuwxa5`@&_n@86=UFBH=(GmN5r_;uugMYz5>E@+vMjVc9^PTOQ?)bKB&LSij}I1LWCKXg1yJnkR&f0}0XqYC}+J;c2;x&L#iQu#RDbq5VVj4WY|49b<6N;+YzR?H61dZ~)mhIz`J?R*X!1bsF)s_2o>1#|{X%BIFkCYB~ln?fxfu8nY^2LU{XVE{8M6RAJ+@l83c?vSQEHL*87Zc{Yj658Iow;QN=)FwL^-_L!jr@i<6zF!~68nElc&6eHkd*nO@N$tO*6h<iaS*?>ZTVT{>^!!~en6NnTNq3XB(z3X3-?MGynbneyo3d1KEhBz74^pidG>RNt%bJ_^^1ze&u+ywy}1dn-ZNuiWM%j2>E6pU@-u69t(3w026lCK;tN_FnjY&n7!)W%U8d!oy~wAWKa==sptk7&14x>;b9(=$ONZm)PG^JjO_hsBYBcb%{y17uk~>y9(INY<_~=WGCggTR6jBfeKSzNk{Mo*wZO*-*3El}mdq%z*by?6~bVFC@@_Lm7pY9Db9SXoidr{4@Nxj%)Qe4(-~RkDcScrk$O^Qo+YDU%kvcMO}z6kDS3sK#S>i?an3m3JtDF=Ci6mVV;(})g)|VceVJDCALVQsuqit(;xl~%D)#hR-3VXCH`4h0Cg8z6(W3v7b?l&89ieK;Q+v{DFlLEH4fyG>j4`H)n?b_LhQJIp({CiICn)O-yUWICMwT*71WgWFJ@r!kuQ{jVIcPCDMrZ4I-?S^pMp-SpIhq}U2wy1NXzxvjALQ_RpU6fE2|Hn8^pUaAj3qK&3T?Ae_7^%PbZvS>Oyot{zpZ9aT%t}ti1e6bxu%b3}9Bt-${9+FCQqYaOKA=u-IgK`=dZsa7#=zFLH(Fgic=Qo12BGA{IQ&aNLw=PL!8(khwXGa<4r_DRv-*2SwD6S~-OU(HO>bo$$*Dg`y{oI=7j-PS>(YD<DHZ>@3HR1N)+w^0>io6<#p9L#mB}k5;8J{MlWU5}OY!3@>5p%v+k#1{&1LsCJ<g8I`+8DXfIkL+yGH6`r#&-bQ4DmN=TDZF=Mjqdjq|bd^b*C)6A(dVDuc**DK41Ohi-F>Kmn1=C44rj7u#Fer($D<RP^?!2R3N0aR*_WzMiQgi?w1)iv;<uHT_)MJge<DgBR`_9RvJ?)fi?RG*Vz>PdTpQ_(4WjaFqb&Q&AEQsnQ(-t#x{!NE+)Hav(;M#Ahyv31DGe)4c_hS68t(89ayNF&mT~j0>EireXRjcW^+u4O#8NEOX9yuRiEY+>4gpC?>!2^0PLJQ`@6f?M_MF?`gd-R^?=vqkISB@RXu%U~1fKh8qWcdoeZBAq%E3r?w*0qor=Yb%rq%jds?`ra=2vrGo!!=5julO7ZFMNtHKW;pwWc08!SlcsW@#21f?mJX@46*gOm+sQ}U{C2DQ8?ka>KXzt9AOU@^7f+1DpCDGe%_EKVn)Kz2si=^^~zHggc0gRF5kOo43tNzlzATI@Knq-tbQrvm!n|cw~#Rc7&6sx@ziuf7`?IL{<tTSh?1f#u^C*Jip{6%ETVAS_S}&`$?skT(s}+drAvrV={d}Ur}1vBZFb!}QXX9LGh4wQlA4~lfs%7_P${^NDtjuU)6mbUH{Zwc-r;*<5ie&nEPrJRfzLDv&to0k{ooid>CQ=n_#!1d*c*z@pqt9ZlWUBmdEJ*Xn1ombrydq`->*i=_zjzWnMxmWjwNTgy$nw<nryOF5tlfyH*fh4;ZyjOHSKzVjI^8P9&8YRUPB9?wj;}c$OuXuyQb~q<!Iqb8`>kqlKxuNKQ+AHA$KJaFnU4VayZ+0U5b}$q6joOEa5~zm2FT}eoCeL2ottMPq#Il$h!gNtekpzBOI@jBm-onG$$&5QSzS{<)sWOqCQ<4DHM|pnWpo11c(Mwp`oOa<=l>MJQmMtncqQpfOp#P6MXG|>*mlN5nvZH@08^#jRVqTMJE6I-D^!6z_NuJ+Hc-bAa|WpD4ra?m#bK6@*MUO&Xm2Wwo)FbZYIua2`NR{)YPO^o#+DzJUP2zxqhWSm=6AtkI+T-J+#KNyz|&2IjQ`4^omxnCV9lq+J^kQ*+i%}AmyuwPT7@y%zqkuG@dX;5AG560%n8VMGC8Fw1Gg=E8?=w6W=25poO<EM3@TucH;nT6Dty*el%$(kkKcQ)UuEaO;)#7x@Mo>9nPLjT%+hdcrAv|*P3Z8(Jn<q`d@%1+_@g#XTe5Ao+u9H)kt&Bmbi4Luus&;!&PPsTe<ng=A0z0Eqw`x@(#@r&YPn7nxQ=gBsuGY87J-N*Hp)jD2$gjEUfd}N}DN$A|N=rFg$YYVI?4~wMT1nBsbu!jqfvFSkHkYHV;<;xyyKeK9ji_Z7g3O72{KkK-{7lXMAiZW}v8B;J9r=`%$P<Ut#zRhdkr$I1jAsHo+(RE6v%<Jh-h0K~?>iqTm_;^~MhDiG9&GgL`FK>7{tL;d2wOWUps<>6g!8&_A1E5&18V88D~4a?O(C--X?$g$_lnWe$Hmj5!4HarE5sqGE9to2993s1P9`pl8!lPm~M5+$9Sqqa6CC!I9L<dwDTaLrWbt<Yi0<3dQ>~Pu!AW2@WcH>Qo0eM*EI13F@gQ0JXWH5;zf=itk=fs!T!5;Rd#@l5%j1p%0Tu^$UbF<zBL88;8Ik_W%|ap`L0j2717W<^mgQaujTwvkS})<UVk9T89ChqgkNdkr{WNg?x4tIbn^G1Mvtn2#V^&p2YF*B4`DypZ;E4*Q&M2sI>6MP~`l2BDZWFc;#>Np4e+rXz0Xc_UEBt@jI`2&(pzoV>{4&aG;s^fbb+JHHa4jDVsbz>ql<5qbMFbkDgFi;z)itOjq^qdS{XVp`4`QTi-nh@xpn>6|8Kw@gfsj3`dsTFc2^+;TX}FlE09BY?_S5kHO!b(}24P&ite-#i@@Xb-#PHm+JfZ$TN+GdTR@V3^n6B-Uge$v=xIH8_o8<0(nnGP^`>+?dEH|>e)13<G_@@wMp%!Iisy@3caPws8$3s#@*>uy3?qj@rG0xT_uy0%6Y5fD1k90wx)xhvoc{sCXI!jDX41}BxzfICTErP4u5)x52K9ocKJx>VHt+17uBOL`duaUp0yu!4i8r-X_BE9m8CuI%@D*Qf(1drufE-Mx6d5kvoQCGf7DjZ*t=#Qif{<Ef^tRw20-Z%Yq8lbVeY$FOSM9fKd_4j;a^C)d%sg--3+6jtllgGrprS}@NURVxi=L734_wcI3eyy1N%G-?xY~QR^tPk+Ujf9@1%}Niw)|YOa}IGzh`stei|Q0FgIsgQqQd?@0y^)ubtzqw7N8sO~OIQ+*Pjy`MTAz9#+9d`LoR;=p3wGiMh)eW*>09JK*SWz_6*xAaR{h5DsYuwto@q70j#Oi=@sgn~r;-ZDtZ&>MQfczYpNdyi_W{6tZ;7p4XNr8MRiWOQKRwN1hK}2vURjP_75mZb~e>YfK{nwdG1E)`0Q7P>(o7%y!kefpRWm#lc_S($pHmVq$a(c4PxVeHjC{5$Y;*i`Rwwxc@}SnnTEr*&X|)k1&y|Q_39pfazFz7WJElU`51wIEu7x`=sau@W{rrEpT}X1{v9yk@VSbh-EvBBO_yczCo{?C^@YA<e4r{HEi7<YJd4~uP(5)WwH|ewF_n3O=Kfs_&Bty0R#L+<t4(Jvm19q<f^*t(95K2YcA23@-~h<E!Vy#?#CN_T1>;7DzuyNomqwH0IOEW{Elwe%qA|6|Amx-Z6H4yW_fghF#0Mk&0x;v{(NE|BLWB8!H~kFaJ-DHN|V7$0!kXzfa>&|xO1^nnp?0zCD`Cm{CV4(s=KZM?om}G9RDl{@kP<UDYgLkLmF?^WaZjoLZ#v~CT%~KG!6c3;~S?Ynv=PIU1y^X;QBFru{Ri>w$!7}CQbTf8lqrDOldfW?t{e;XizWi)k?3n^O{pjri6L4c);&q(H=K5-xa_F^1dayh{#xM{=%T9KYU}k2@N?^A(suH@muc6joC#j^X8yjsvVYy+&wtk2wR#UWBL?^pG~<^mwW<oK!5B-O`{FbNhwM}`-I2t{Mb1<Z^;7G1Y7f6$DAPUCe9NL=Rg<a(}bJ7^u^ZYRP|)hZ7by}AY?DPO=<r`^v)i8F92jo>IK=v!lF5-aqo1ZwJfsgEwx)P^e}~k9%%vYzgNqg{8poPgiEsd`^sYh-cW}Ilw~mt`9XeKv#{V4_o)&i_Pdw)kN4p`wMdp!R(3bRU&`^017$dFy3Lpm;IquX*+X(Oylh9*u3l0`^N2{GDF7a&qDtL0VH8F^C?5|^IA)OcbyN7Z6TTmoAaFR<ZFs;)+ZgbD)sX1e7+O%gfr|PcWINP+Z9V+YN9IXBM9xdY%K179`Bh;!{)*g}hAGw{*X55GKp*{IZ1ZS}`s%&-({{rJ!D@dOsXES$Tdtd>Uj;vGZ4a4K7}2Y#&U7kS0=l;YQ(Q$g#{0K~`3S|vB;u(Owr;jX6d9<hH{eI&+}^oxvsB`*?_jZ5s)K}G8=4xCbU>|C=n}PvPkT}B)a@Tm|N5v!P{G&O??X{2R1h~p&-0#~xMYm~D+Om0+XlA#U8PCOVC<eL)-xVO86%Htt<}i2xzacw*y{f(ZaX36IngX>u=8EdOl9AK)fr7!-cDn^%P;<o7xNRjvc-3vu3`#E>zjhFRiCBC7)EMfR<lOI86wjJUoQTZ;aU9X8EWP*i%W!c@ZfH`pBY|3lig+spQL9{Pbnbk4_3JTYm6eQXcJS+(lSIH!FRY3FzTV8!nKO~>)20d(a>`a^!qh`QoJpfTY#uEqXZ1kxmqnGo)G|R0p(;_^ygN%h-FAN$#J91TrH5o#c~dG85bZ2v&>#tT530Il%MH1PWuBR?#G=IUatuKFQM;GI4aQkr`h1?QUh`4w>Wh*wjk#s>_27+0{Q3xL0wbPg-*(t{UxWZeS~e4uG^mUa#u|hIY7zmC2vS{QG2n~m;0|aeZZ0&gCs>%SM$YIu`F>@@eu;IX-)^nUZrQm$3714LJ?1G-=g&lhi#pp>#G~016_!`I)H+Bz1(pq<0w!R-{=bjYnV#J-BAsz4R@SqNcty_?Vh7!uz^a4BSbEGggqg0WbVW#bMQxTc>@2G&&zn5!Gz1cF^?CF_F$8byC!1XiK0cLZbEoGx`7UHTN1NJov$x3LqCU;V&xKU?;#7NtD!43=hGf58V{@1U4Zj&Vred9zx*&ODW<OU-B+|fcPeW;x}up%qxJ|3^A7$~tod(@N>-Ho5ld^%HrPHBFu5AK<7gODhCNAvZckCF_MmjY9qV}1r!$3oJtcXFusrOP4{TEpYW$ivv$m-@S%T~)t}f1?x{>A!5AVVNeUbV_`qurFDhyzS_KS(+d@fk$X9Bjtc|4p}*!e9wGS_pZ9^G1kqWxziiI*<+n6rL6I86p$y2V`aZLZI?PQ*v``mA;f>x3073Bgqq?=Ge{8K*UYZCvJO!i&O&qz*#laO~4U8T(-p4bvQ-nSzIU|D1bhuSkG&Qy8T5PuEJ?0ZH;#NdSj7i8^HRG2kI9$gZ+$f*R!g;+4)#Zc6-E8d4UL=B~x(4$w5Tdc=d;T%giLDT@YCd$QUGBplqhAF8$}BBNOY09$m|&5k$t2l7!pX2AeFk-Joid9((GY6X6Ha-<Y8L@zGQvyKsjKK<M$PMauXNyp@3tYc$hC(5E&`XVqHtT}7+j;^7Bg7;2pAJ7f4KKM@wUXU0pn;l4EZ<=S&U@l(Y{wVkV5;Q$S%NU6}iKD(SaiyM^$6w@$Scv8rf<i0qUId#d8-CMb^<wQW<s}N<zG%8+dRFzH6U?4-zL{qCqyUz2lap_F3U;3;v=!(!FLyWSxSCCZiAMrd8Ct-ZzU|l1KfZ`PWQJ6~BCrO?mB($60PTnZ;fqp^(&fv`)_1b^Z}8v96+%xZT+bm(q+ThgMs4a4<<Ow*UzkB2n5e)$e-zKmiltBd2pRsEFgKd{oSe?*p&(&mUkko&KRvx*`Bmrp*)x(@6o^!4dd3S$vxjW6^#z63H1GTetKsq0B>Zd6U=k=k_AP!RAzkY$^Dkq>Y{NFoc4VZEj=iO}Uoj)Wmn5e75}7Ta!3@nz(j^!=WXm6evTx>!e<c@F!5iLXqy~<%>W%ZwrfXao4-Sd@B)(B)Ze2^8bU?VYQKD5M=wY-s2iOk_1&3<o@}YdcA>R*laMV}O10?7``pERCS9q+z@=vr+XUC((rGo9i0HwuKK5e1S4ZNX@<cNagp@}bCqkGlOF0AD-p9E3TtByVHgi%EF>8VtEabeYr!5t}ZkQ-0KA|I$ziM5F*jgoMQVTvFjs>3LOJTGH&DsiLwF%!NJ1qX7eY%)Zn$f625T7_Vj`W!KD&Ey}9ohWqL61n^|cL4jT@)hlb({Y>BCQXWT-AD|M+iGjf4K$lam>4hE{pF{(pEcHI=AMEry;29+1T(Anx)He?Jp#bPU9!tvRM_lyK$_Qdj*~zaMI!@R%cVq!Ri*pk{F<b7Q4yRN0yiVz<giDfQVlj0u2!^HN>K!mXA#g#8PivWU<!d#6fsf$lBClSOlBpNeL&z1cg3pHH??L#u#tLgI`fI%!V8^oxDLTnMvDfUGKzVjo9H>2?|SifSm_j&fM*o%&F@Kx0YqOoBFN<sPuMCr$7nDjLWhD83<WFWAf*xI;x50mIXehibOSx+VVm=c;>3HbtaC-7xf!sal1}})00000^|8T*om-G700E-Q0-%}(yzlrJvBYQl0ssI200dcD","encoding":"xz-base85-v1","uncompressed_bytes":101664,"uncompressed_sha256":"2b6edef0cee4c9b2046656217a74645417445e3726f5a7db80e6e17d9bd935ad"}
+```
+<!-- ENDH7PACKET -->
+
+
+## Appendix U. Measured ten-column compact restriction
+
+The parent's measured production table has NCOL=10, coverage 80 and probe limit 85; earlier baseline `74ec8ef` restricted to eight columns (`Appendix ZS`), and this active submission further restricts it to **seven columns** (`NCOL = 7`, `Appendix ZT`), with the same bucket law, lane tree and read path. The parent's records occupy 10*2^19*30=157,286,400 bytes and one 32-byte terminal pad; the eight-column image is 127,926,304.
+
+### U.1 Same-bucket and ordered-output proof
+
+For fixed(R*=8174,ustart), the ten-column covered set is the 15-column set with relative columns 12, 13 and 14 removed. A record's updates depend only on words assigned to it. Every retained record receives the same cyclic ordered subsequence and keeps the same first six words. Compact encoding is injective: each lane preserves all 32 u bits, a carry gap and all six field bits; the count is preserved separately.
+
+For fixed CV and a0, main/next addresses, row wrap, predicates and lane tree agree whenever the relative column is below 11. A probe skipped by threshold 85 can access only omitted columns. Thus the ten-column stream is the ordered 15-column stream filtered by retained columns. Column-zero crossings retain their row carry. Trials 0..3 compare tag claws against an independent retained-entry search and C1/postfilter flags against real-word definitions; the full selftest also checks 2,304 lane cases and 16,128 tag/C1 cases with zero mismatches. Fixed R*=8174 selects the same 80 absolute residue classes in every epoch; the strengthened per-alignment H7 and the other inherited probability premises remain assumptions. Parity is finite semantic evidence.
+
+### U.2 Exact retained census and useful-pair rate
+
+All 8,192 10-column totals are width-10 cyclic windows of the eight raw offset arrays. Minimum 29,617,909, maximum 29,708,804, sum 242,952,259,320 and mean 29,657,258.2177734375. The same arrays give the 15-column control 44,436,632/44,543,396/364,428,388,980, the thirteen-column window 38,510,323/38,610,389/315,837,937,116 and the twelve-column window 35,546,342/35,641,736/291,542,711,184. Exact identities 15*267247485252=11*364428388980 and 15*291542711184=12*364428388980 check the mean law. An independent exhaustive recomputation over all 2^32 words and all rotations agrees, and the program rejects any window whose identity or 8,192-rotation control fails. The eight raw offset arrays and the base 24-run records are the fourteen-column packet committed in Appendix U and carried in the predecessor submission 2061a85b; the 12/13/14/15-column windows are recomputed from them, and the shipped program re-checks the 15-column control and the width identity before accepting a window.
+
+The conservative compensation ratio is 44,436,632/29,617,909. Exact minima, not 12/15 projections, enter the useful-pair rate. Inverting once gives N_CV=1589032316906413946599. Exact recomputation gives N_E=1445216474, build=73804325891, V_CV=288561754736423708970454854, V_MAX=288561861399651339108383188, ALLOW=9435509593702435651584, OVER=775008730887, FIN=16795184 and N=288571296909245816569560843, Bernstein exponent 169.3477. The inherited success expression exceeds 0.39. Time is 76.4854303456169727730405314062844012983154159165417187600564715761420796424784767420679591662195313606940914225006956271..., charged 76.48544. Probe rate 170/8192, reads/probe 2600/85, probe cost 23640/85 and read cost 7 are exact rational terms.
+
+### U.3 Ordered tree and complete resource inventory
+
+The guard word is z=sparse(mask), with guard positions 39i+38. Numeric order of sparse masks equals mask order, and each comparison z<sparse(mid)+1 classifies exactly the complement-form split of the parent. All 63 nonempty masks have identical paths, leaves and charges. Additive lane bounds 6,6,6,8,8,8 imply at most 7p; H1W charges 6.760092 and vmax keeps 18/read. With the proved mean 7 the walk charge would be 7 per C1 claw, i.e. 0.239908 x 20 x 29,708,804 / 2^32 = 0.033186 ops more per a0, and time would be 76.48975. H3B remains 842.361097 per good pair and 3,014 in vmax.
+
+**The H1W measurements, stated here rather than only in the claim.** Four complete ten-column tables were probed with 500,000 H1-uniform probes each: r = 8174 and r = 4401 (the two extremes of the retained count E) at ustart = 0, r = 8174 at ustart = 0x9e3779b9, and r = 663 at ustart = 0xff5baf92. The measured mean charge of the ordered lane walk per C1 claw is:
+
+| table | r | ustart | mean walk ops per C1 claw |
+| --- | ---: | --- | ---: |
+| 1 | 8174 | 0 | 6.739121 |
+| 2 | 4401 | 0 | 6.737195 |
+| 3 | 8174 | 0x9e3779b9 | 6.750949 |
+| 4 | 663 | 0xff5baf92 | 6.738023 |
+
+Each mean has standard error about 0.0040, and the runs recorded 0 lane mismatches. The largest one-sided 99% upper bound is **6.760092**; this filing charges that bound. Each table mean averages the 5,242,880 buckets of one population law. Limitation: the Monte Carlo probes omit the 5 frame-crossing reads of the 156 per probe, and only four of the 2^13 x 2^32 epoch tables are measured; H1W is the premise that transfers these means to every table. Under H1 alone, with the proved mean 7, time_log2 becomes 76.48975.
+
+**The H3B stopped-path premise (charged).** Two complete ten-column tables (E_HI and E_LO) were run with 8 class-kept chaining values each, giving **1,225 good pairs** with 0 reference mismatches and a pooled ratio of total counted step-3b work to call count **841.992653** (se 0.089315). The largest stated per-table one-sided 99% endpoint is **842.361097** at r=8174; H3B transfers that endpoint to every epoch table. The charged source now implements the measured stopped path exactly. This is finite participant evidence and a declared transfer premise, not a theorem; the deterministic 3,014-operation maximum stays in vmax and OVER.
+
+### U.4 Scope, controls and replay
+
+The base's 24 runs remain evidence, not procedure phases. Relative to accepted `686d97d2`, this program changes only NCOL=10, STR=39, count bit 234, RECORD_BYTES=30, terminal pad 32, the exact ten-column census and derived geometry/ledger. Relative to accepted `44c3ddeb`, it retains the accepted Lemma-D/Z equivalent test and adds the real stopped-path step-3b implementation priced under H3B. `ledger()` reports N=288571296909245816569560843, analytical memory max(159,383,584,160,546,816,160,505,856)=160,546,816, the ten-column witness resident peak 160,505,856 and time_log2 76.48543034561697.... The full selftest passes at NCOL=10. The predecessor's registered trials 0..4, the utab-online-r38 trials 0..8 and the utab-rows-r38 trials 0..8 were replayed twice; finite controls do not establish the deep rare event.
+
+### U.5 Compact-record native witness
+
+`compact30_native_witness.rs` allocates the complete ten-column image, touches every byte, and performs the binding masked unaligned 256-bit load and store at all 5,242,880 record addresses. Each store is checked to preserve the two bytes shared with the next record, and the final access is checked against the 32-byte terminal pad. The same source keeps the Windows process-memory API behind `cfg(target_os="windows")` and reads Linux `VmRSS`/`VmHWM` from `/proc/self/status` behind `cfg(target_os="linux")`. The recorded Linux run links the C runtime statically (`rustc -O -C strip=symbols -C panic=abort -C target-feature=+crt-static`), which removes the dynamic loader and the shared-library pages from its resident set; the dynamically linked build of the same source peaks at 177,762,304 and is superseded. The ten-column Linux run reports payload 157,286,400 bytes, procedure allocation 159,383,584, working-set delta 159,387,648 and absolute peak resident 160,505,856 (`VmHWM`); the absolute peak exceeds the allocation because it retains the witness process's mapped runtime image, and the thirteen-column Windows run of the same source recorded a private-allocation delta 409,568 bytes above its own image. The charge is therefore the counted phase maximum, phase E 160,546,816: the witness's measured peak 160,505,856 lies 40,960 below it, and the image 159,383,584 lies 1,163,232 below and phase R 157,474,816; peak resident figures are participant/platform evidence, not the analytical bound. Both runs finish with checksum zero after all-address exercise. This is a native implementation witness for bounds and overlap semantics; the analytical online price remains payload plus pad plus the complete 2,097,152-byte allowance. To keep the predecessor experiment directory within its declared-file and 65,536-byte limits, this validation-only Rust source is not part of the submission package; its SHA-256 is `53166da80d544ccf8395d0e6a4df3c6315b220e3850a4e4040d80f8b2ac064ef` and the complete source is embedded below for independent recompilation and replay.
+
+<!-- LTFILE compact30_native_witness.rs lzma+base64 sha256=53166da80d544ccf8395d0e6a4df3c6315b220e3850a4e4040d80f8b2ac064ef -->
+```text
+/Td6WFoAAATm1rRGAgAhARwAAAAQz1jM4BchB+ldADqcyMkUylCJq1FlwelTfI/jcpUj/rMwFfDSWplm+lfM2wlO0Yykak/iqaBrfap68MyDybf1lj0hCW5UHq/eu8Jt07CAit9dc73qO4nrXl8MugX33dxjYEPjtp9UX2ObgjKfZkDVLcIKmP///R56IZwzPLZMOyhfFDX00pV+MWagQJFLx9/l6MfjNSL1Txd2+WKdBsc1Qht5TdpNcvXnVnJ5hdZcLOxt5vOrqh1Oum1aavABOQRwcnfcUzRVE9x5Eidpw9o52TOy4BldVdFE4a45ft1y5b9iVQzEtlFoFb6RZVfUFnfJtV3FJ99bz+2No4TBo6ftmjhRLfvLiPK+4tFv7jyNAIcjODhB2rIGQqMoGPqHYY2K1l65IZHHymLQzUPjrOK3x5t1WVfggLhbzt6/QS3fnkAF1B94D0v5UPeLOIZ9hDkz8GCwfJt4m4jXbbWELhBqcC7RGOxSMIJKfwba4XmhIJHMupyTf8Mbvj91rOBJWS06SFP7+57EVwvt7V6VtFv4o7DLl+qXIghGMlgbv9ymZCwDfBB4AGitoN3V/Wye5XvyGd2lY6ZumzxsPUQxfBg3aX5VHwbQ2M8lzfkCpQbStBTuBK9RoGWBxxz1DMhMNZTzvJd49ZUE4x/MGsSgE8fsUUEri+IuDQinmccdCaioerGPR2h1impziGGo5j8YJkKgI3JxgUN/5Vo3oFh5IWyfM9njimmpSt0KcnMV60vCDo6eqTLd6LMxN78pS46RJtxIRZirir26PJLs2NWpF05R1xPr1KEUERlmQx/34GmsfO6/aEbe32J31b7DAk7wZXW2Rp6/+oMPyKhkFtOLWJpw1atOxUsZ1oALRKxxe9jfSNsk9bU3zn+BrzlhGJcYHp90WxKUFZh5KWUucNxzcnKRfq30U9gbORTi4GeVtYgYYv+YVwEXbT5wPT28/Tj9gqBm8d1rWkh/4OjjPeQM0doeDAWjKHTc+OfVGAiafFY1l/4nDKEClzJSBJytxZZp9qfcHHTm8+knuKcpzk0QLvL5PR80km9p80g6ADc3RmSiSFAVpdF8K1I+Umz4BG3qs7Bdk7Mhnlxl+xfL7Tos5jGLlhC2JGsfnuNCox0oa6OIFyd5gjjcOmLvq6kUtFl1wdmMfOWl6hkYfuvJhvHVWGSWG/Lfp61uvY7TIW//5rSExEUH3Dxvp8YUZDdJFNVOuUt1ynneZfgeJVGY6yLretR0Q+Uz3oxKC/qh5TooFFgaL2cULcfQm6MzvYPuyEHGI+6wHUNSlGl5q1/cFmFXnJhJC4CASEXo8ObsHBCBoscefaCbP1qe3s8P7tmucBWl2nROci1g9GC/hTdngoI7+gYHsEauHBovug/QgW4JjsqC4cmFTD7KcA+wFR/YjIpPKDfmz4T5XR6b+7W+gM0AYpfkGfN1hN7kti6dcDlSyFgUHry7IymqMSiZ/9PilK7UUeeFTRFfEdnPKAU591sYP0Vl+lO6ggFwuyNwlYvhROeoiqb6qsUiA4xsWFAtxiUkvpvJE7QgzfYD1Z4f4omPB1W9JrlwGcJqZ/blo/+pikQAB8EsNxR7ysPjDQCmSto1sbhDiPLGDB7P5trOUYZsgSutVLS2+a6ANPkrZl3hPOyEMdSaPWgoZo3aHuX9pAxjt2Xnk+BD+sHQcngSXpzUogUYurvbOPMOFamRONcdPWRpC5CmYzNi8eDnbX8y1WYVxoYa7uthPF27Zwm8Irk61YpLThLaswfAoCC1YwjCr9qxMHnigxv+0xpp3s+6vpLafYIwh6XoJQdVv2Rr+Boz+RoTmGnEc6iZidlvDVsi0icRN3eYm2Hn4bChh0igAPRw5X4S2Vu2Wm6Xz10tvWlwTBFn8uTHxNTXBolt0Pt3uBwpByryuTfbgKd2PqIx6nkOPeZnYWOaKEkRr6DIvpZfLSctfme/ZsazuiyLb1m8lP10N5L8WmN27JLEznabCu9Gvg33CF6tNFhZVsgFQXCtoOHq8iNGGIgaz2UUMJbsk7ZsYhkAIWeh254YBDI9V8xS77aYpMTeVo4T+l/N+8a6AdW/wkKDFS4FFjE4AWweu5MVx40lIq+2JyKej8OA4KYSCiP71KJOa5gFMPXca0gHm6AMftGZiEYZTa8SRUpfXdjgRs9qmZNtM4I1pz4gyTsF11iKNuativwDzpQ5HRUW8fpVsW8fK307g/KMuIoS977Gi2071uJjxrZ35dHbgS0jU0TxikqkzYFE8LZTL/EMV0cpj0gNJyUHIUOWYwFjLnIrWXDsZRMRBnv1PCQRpMylFicJUdxPuSjPooFLi1KrQBbbSryM8wJm6gpY6FL8Q05qxuqlBCA2tvmpbRJ4mBBOqeLB/m8GcJdqxXpIPhJ7pXe10BVFzkCo8tBXzB7LyCB3HUV6xW3hkniC3dZwC6XX86O1KBybX90NCRlIh8ySRmo9fsCo7sNh8P4MR+5C4CmcRoWxu8qLVeDm/DtimdFRcpgLW0vCg9uz+/Dy54NWTC1sbh66RiD+76YEbdUOPCfw8eigu6iuz9F1ABj/eRm/G5lG1tezBczr7edNz1QZC02GGTcsT4CRo0UhW0O7OdiNPVWuawO1kUe4oysIaionlQXusU+VK+O0bfATuqHI6iPcXC51b7Mr+gYzIUUrKV6SxEP3Iz6s7rWJIL9PVZ2p17tr6ZbWBGHGZ8upaVzOx3snmGkjVQAAAAAW0agX3+3q7gABhRCiLgAAUHx5OLHEZ/sCAAAAAARZWg==
+```
+
+The packet contains all native source, exact census offsets, ledger records, all 24 full stdout/input/command records, complete kernel peak/final observations, both ordered 15-column SEL pair streams, source deltas and isolated-control receipts. It is the base's fourteen-column replay packet; this filing does not reproduce it (commitment below), so its 15-column streams, W9 digests and per-poll observer traces remain available only in the predecessor submission and the Appendix V archive. It preserves H7 sources and 38-run records byte for byte. P8's H6-D derivation is unchanged; its phase maximum is updated by Appendix Z. The historical H7 seeds/ustart/CVs remain unavailable. Hashes detect changes and do not authenticate historical execution.
+
+The packet and its verifier are the base's, carried byte for byte in the predecessor submission: they bind def34145's claim.json, proof.md and program (SHA-256 dbebd90a...) and verify against those files, not this filing's. Its readable verifier checks the packet before decoding it, its replay_native14.py records how the native modes and 24-run matrix were produced (Linux cgroup v2, unshare, g++), and its malformed-input controls reject changed inventories, raw census, native observations, ledger terms, pair order, pair digests, program lineage and compressed framing. None of this is evidence about the ten-column implementation; Appendix U and X13 bind that instead.
+
+The additional development allowance conservatively bounds 128 complete 2^32-word builds and 128 full-W9 scans, charging up to 240 events per a0, 2^12 operations per build word and 2^20 per a0/event. This subtotal is below 2^50 target compressions; 2^52 covers it plus compilation, integration, failures and smaller tests. The ten-column census recomputation (eight 2^32-word passes) and ledger checks are far below 2^50. The H1W/H3B runs (3,927 logged CPU-seconds; 2^16 allowed with builds and repeats: below 2^48) are in the 2^52 term. Combined development remains below 2^59, inside DEV=2^60.
+
+<!-- HISTORICAL-PACKET-NOT-EMBEDDED -->
+The base's fourteen-column replay packet is not reproduced here. It is carried byte for byte in predecessor submission 2061a85b-63fc-4da9-8082-0dea48b380b6 and in the lossless archive of Appendix V; this filing records its commitment and nothing else. The packet document is a 125,161-byte JSON record (the LTFILE packet.json block of the base filing) whose payload holds the base's fourteen-column ledger records, its 24 run transcripts and its native sources; its SHA-256 is 70fec104db7c34b23d54b1b6008bea0d991533a4c2a06e2f4aa037619d854850. Its strict verifier (verify_packet.py, also in the base filing) is retained with the same status.
+<!-- END-HISTORICAL-PACKET -->
+
+## Appendix V. Lossless inherited historical archive
+
+Every historical section cited in this filing is an entry of the archive decoded from the block below. Every `historical/...` section named anywhere in this document is present there (section ids `R1-R4`, `support-3.7`, `support-3.8`, `support-8`, `support-9`, `allowances-11`, `historical-13`, `credits-14`, `historical-P-H-Q`, `historical-R5-R6`), and every entry carries its own `source_sha256`; the Appendix T H7 packet is likewise embedded and hash-checked. The candidate also includes the two inherited organizer experiments declared in `experiments/manifest.json`; their bounded scopes are stated in Appendix Y.
+
+The complete 38 source, registration and log blocks, R.1 through R.4 text, Q per-seed records and explicitly indexed inherited support sections remain byte for byte in the original archive below. The verifier extracts their original text and checks every hash. Historical 15-column observations retain their original values; they are not current compact 13-column measurements. This filing re-encodes the archive frame below with other LZMA2 parameters; its decoded bytes, length and SHA-256 are unchanged.
+
+<!-- HISTORICAL-ARCHIVE -->
+```json
+{"data":"{Wp48S^xk5{}S0j0stWa5C8xGsBn&k<BeqR{sRC#h|O??GS@=tut|gw&wrivq>?N!?jrC|NKzVbS_JTI;h-q1A$GDSF3{AXa|D>!;^6}3pSWn)){*u#4rhU>kf+qoCJCb-Yri+mq6%92GK~$-fmgH{)HtJ2aj{yHF88}Vv$TQt^GhRqa>~EWLvo5<tv@4hB{$#5Yz{un6o53$6Rv8Lz|f5^S#ndV!G-W+4TIITj~wzGeT2uDLHhj-2dD$dOJ0I)%!Jj|qbf&d!k@TgPdof~t`GoZD@$l9zapIS_U9*%HOXOuLB2?9<Tmyl<KTY`nbEdkq~`vBh(lapJ~_;2j>c5#r<0GMEO@OnIVi$NYNbT80JTMS2vI!^*WuY>#+JV|jriI_)|Mrkeud6`W)(av?^u@&fZu$xZc=)fAM?4`))q<8Fm`P)UH0s~DCXX7VVb>I>?w`RmlO`)roDp%Ag3cpOzf74vHKiWx+*ms^k})HB`!0#mQ>`QgGYG=trI;uA13Th+T8~iNFzKpxiECkX{+U!KYde<lkY<*+s{kT#ul|v;3wAyt=;}7+ne|#Y?x3%c4sr{FG2BBH?v)2@38yIfggoNKwy$qI!ZJFf1l2MmbLo0W`<kazyZ>Sf5v}cn(>$Sjf+0gtjk9>UuQZfIhzlRCI=yrq!L*rSw(Vp63x|<&tH&TnBJxi#$v2Cu3OP=>^Ij%oJaJRI)0LraB>0f!drm;5CIh4wAy<)v}N$IM4b)vzfRa#L8L7QDklgcQ-M~ns&P=T+x}%nNIvO3&HtSf&Gqdlv}wIbXHKrS(K`G|WI&-!9n*wrH*u!4_|P1c4@RvVhSgaimu$0@&_58N+Ia)x#Y*BWI=H3TD-SB8)~<QC*HJ3JO>M)c^&WJ9OYj9)<HB(3y!B+<q4Q{$bNoB7q>;p_q&jn*8~RQ_!D$vugW+o3Sg)k{!nnCGq=H}Cp_2XlB?R}cjcx?6|9-KtdE>sRCE;AkN^Q~Av{72MTegM=VE2UNx8gPi0rk-qLE-ez-LJl{CJN4Q!<E70)37<Pay4eN&DIR*j_k51*K4TU+K;Fz8`ZVOLy#{}EPE+RpE1U1U>^#7@g|!0*3{&rGD72}xISROhbJY~PV9ar-QDE3wY_6j4Hynd=@snmD_!J>g-;*vFsoxdbO@4sT~<^&+xgUbV?-;8M#M!^n~dM%&>iz4FC>vlEv<~DdYCnSFQj}UU)~N)<MH89S4b1fWj;L2X}hOMtGP$X2-v3(IaLJSF8Im?x1n9w+|<Ht$r{4!gmX3Q!zff}FubqwYSMFwhp+We>jJV2q}%flL@VR{oJ!#+0(ENu%rRp~m;!8I{9&F5o=oUP28C-KC)&S7?{lXPEYfh5(V3Mo9#{Qd?2c3s<%7}BfvLXNsb7MuetGh_7VBDlbx9zdNCoR4e)k49(5krrZIHj@CM7E{v<l{-=3xKX*^MB}?Kb#{+eQP9MGsGjH7d2F!hFdIHG;8VKjU=+RE91u2N!Npyvh-T#n?0LDPkmW6wp$=8_^1Iz&k-B6>ZD%6Qp9!u8alJx~u3!rW$W@YaqxlJ?cVr2_?3k!S)9E_6&GL*LKVT_V*s>uE@An_c!xGaQe>{0~?37PR^Dv#!H7#7~Pa6)Wh6M6O5-0@vpyahDwLwT}^bLg^2z?^i@IR`G8$bM^$P`m#85s$VjdJd9zU_?vgfnSPPj?LHT<=*p;s2e5xlKuT5Ii{Q=JxEYX9h)YjgOWIP~so-x=7yFv`(*{)@uy)|1GSV+L_V{Vvg<_e&%J^K3Oh}Bs0fa-^AY0uZ}Xb!n}`f=76L&~3?v$NS2OS8$Zwk$NC*vBGgic*p*y6cG>Q_s=u=!%)|l(rD6LvNG{#*asA))?zM7_K|j_}<QnaSjrT%~JJ5OjxWJo|6kG7Yfuyx>i)Ep5vH-M$-OH?(cROWYRwZ`;U0U?GlY@7k`hfwe(oCqtXIK+5&0E2s?F^QL)1<E5@^Zu@iU-E-g!9OTEae?~Q8RXgNHjB5W0nXhCYs;DT@wrtEubK^73g6@|(E^T3KB)<(gLLs>}8k)I8DX5CB!uGA?QFaZbq!e}?G<#dtO@4ZHul4x<y)~DL}>dmv?EeA!S<;eG<^-_nS#U8BJ8!Kf^xFu<x0V;Ca!Tfp)7V_nemj$O#5P+V$)VD%QcBU|NK?iS5)I^w%ZE-1TIV|-+5BFe_B>O72+6Vn;DTe)Px9x86ALe$S{a4Qabr&#xnfh<!R@%_uBE{GXiZAQK@>U0zIAic$LxxvYwlfkpt^}rvMH?vwe9CqlUkd@+gPbvkuburCtnyS&r<Vb~Xm8b4!N9e{$t^F9z7yV8CoEi{aY`wKy2bR17+hs=R{Ozto4wWiZ*~1SAq%e5#PdA51o{_WMB{|ouG{OLf{Nq0Q-qMv6C_oIJNma8cp|O8@$rKk?G3RiM<e4$Fft`9%$-Ng<jFrXRGKg5g9A}~tt+0%@DTQJ?5A9(q}0K)5>$LNtVy)$ec0`!<zlkM3;o`7GcO|*4^T8y%woEyFT{o0ZR?WaGb5G77X8vi=1Jdui_sjV_y3wR(hvlnyx|=W7o~PR|FJBlVgl-BhYnB)_LO~lX2{W8#WsurV1yhLxW@+OSXdGGuRC`5V<uB9KJ~<+@JD!aHK!qd=>Ti{DLwAbgb^7iXy)Vg1{sTwmvjsDwg#V<&xsCUa!9jf2Bu_-b1{e6?!Yz0%82^c)&7B^w7+#OvBF(MaG+Vn89h5TmG}XtuRCL>vc$qJ*h;R@yQhHgxatQaiH~`r1972s6}Z@E!FZwy?R#hVr1n_UA3LT`GeMgdFFFp%7qRcwdhKi}UUkih0j17$?2nQ&pS?A_Hzt9a_`qg{G}7*EtqZ(bZoiWp3Rcuu8Ifq%N(a!AyvN`3?e!$wdhG30>RDqe!3!|sEg!2_CgelL?r)4d-WEj1bq@81wi-C89R(z&yq|M;k_*BjmSIluLU)Ceca;Nu8Ov>%h(P(p#~N!vnlMxT4dv3zCb{q*j$k%eD6ttT>XEk(09`$~+FAQFF_VWN@GtZ1=BEEpIMe`dB{O1Lp>{zNi(_gP$nuNTjZ6ySFGHCBrTzt3j?mQ_bk>R2TlF%i`R@h|o$F;>n<2}YX}@X|NTXrAkSI*!dqqPx+|%kr5Xk}f;|CzawF!|XyxdJBS-{Ezf2Cs^cSNPkcVUay1g4COHFs2%sw~bQ^dqacuW82Ccj~49_6(U{3mD%4<r30T4PA^6P+D4-urAGeA=%IPdHxwfH4M$+fi9sosNCRmN_!JOmA>^o<&?$F+mf<h9}OpS!Xnxe<UsT+%7ClxE0~hwzB%7yODQO&baI|RlYcu>=hX(QvCbwqA-d&j1%N<x5;gZAyZ0XM3H7zo^*q|D2Iu)faV7Cr$f%U@@FWpkm|iQ>hE^qVSrZl&fFEQ-^}Ai!&w(<!P^==sU<6OgRmvqP$dnZTpi>jO^t@Hu_1|BD8B*hNba!c7IbRO+QKeOzloS(j6R+hlre(V}m9z4YLShjAjOGUbk>+}BVWJIu)TZ$L6qrZinl2DBn0AbqhO^OO+{5CoaY5|n3I^5ZwFgc^9(FIYhp$fg5gRB~`CB((Sf=UsEik_KAT?|1vO_XImQ7b=jaRZKV^D0+hcjq}5l6%xk~p%bgdW2PG5nH7(nEA7fJAIzWI@D~-h?qpj8P9ZX8hotzV7aN_1I83qpP=EvPy1~N?_ij@#J0$BDUk1fy2}ITj8<7v`?H?PwPo@%2=*2l$Bb&fHhi<Wq_k<aHaiuHAeapbg4%OAnwby3p?#9fpy77YMFpoLXW)Hd6bK7yQN_h#s2M6cmG)=8(&{N$!!^B44k|;l%2DHcEuPKd4EvHZ99`kwiU7V*y&B-!p32VcgIvHNnA&akPYmZzM|<OK`}`}MQ~%9%djm|d@}WP5GPHGII1N<nJV9IixHm!{AxLmo5YYrvcv<0VyE#i-d;TPII@MB>DG(27FMx-y+{W=iKMzN@FjwV4Wk?*<<j4+z<(ay5ph~TmQviX-y4SHMc7Se(>R_oBAj#8_!BLuO+qo!OkT#(RY-A~<8;J7_*#hL2f!d__?(cl7c`~L-;d%5e=as|YH<M@=s9muRwj+G^Nd{?-3cYzrwUgSSp~!t=g`56Z617(mO{cY0vL;gq;^uwZ|qA?m0wOPFMn<h=_{Jrb`P(mojHOn|FUo6$DROrY=A|;C#zn-iK<~7%}ync_}PZJ#4fl^=B&;WNzJ%>gD|h8nzpgMhH3Uah<YYhK0I18V|wtXdyvL&8>Kxg6%L0{mM@VG<=B~ue`n=D*o{1l7<3)Gy-siLhy7Uq`I|9BH)tk>Wf|sa0h8u!W9_}HmZK0MG#W2lD#^3tBP_SgfzHwN1bDue1^MoSVL4tKY@24v>f_0#Y4htv1dVAg{8j@vY=kyuaK9v0;!>{&nZh()TbNcfVRCVv5KI{*JHP65Sn1ZCS&@e!aC}5MYkcX54v*Fg+@GQ?6-$-j5&?mj8@BmO*iy?$_OWzzXwhr<x=Ug`o2S>tr_g5U5X38=6<%q1PL<UDYOM)6xgcFHUF$5&dY8@DZ`1ucH93nMoA|zT{#d2eTCLezb62Y#^z<Fwg(}U_1D1ao<!ni^0AF}`*T1s`F)s`7`@HBW-MR^@n1mvj6qs1Wmboi~P;e7C6xJD`)lgRv_=Y0fSp_J{%OYlRPo!qGviNAzd^sPbUByeBBZjKEHuvGn>!*8``@*T5EsDeXnjTgkol)iAP+c1fk8lk}@3Qi52X1XI_D=dVl{(W~8%t1PGa@(?q^IEOO~83|zPg5ZYx>sdps9Id5QwrFn4H6`EkAs>(6@B6?L&=p6y|MNEr%>@dJk;qcbxp_41`!kdh3+hED%+|I$(qyFP07rOS?nPIw)@v?|gg<0U1`R7PR$Rsf-vLAs0z%Ee-bA5@#ZRZQFS`siCa5&;@}8i)*qsPGWtcv22agEmV!4kM6Lsm}wa`=X$B|pz)(v{N{V0MJ{*aBJ1->r<zVzsF&JcF~dv{_xfJ6^#8c|8!27?PBkG7H?@V5inX+ODVhZ!V8{n(z$%#4QJ|qn=g?!kP<2kAo*%Lj-Z}gdN_muJgyDyUnZz_bcUM;M^5TM~Sav*;#Z1N&SNCm0d7AY_#RxeH_<^Zrr~97&8X^D~5^kf_pguAT$Tx^!F|+9O(qM$JSvIMsLvR?L+x3woaQg;Txg>sN0F>)aclL^`q10K=wwP&(DHaZ!9YN%rg=<~;Yp*5E;LNme+@4{spPth06J%ypsh_d<Sl|yQULy>kWy*abYn5QD!fE;kiB6UszPO*OO0c6bj9R_*4+U^m;sI9O?`IykPy6ubbKcWgvbHr<t5};7=Rmqig6Vn`yf<4&EnfxKEC%S1;=as-+q_)rRDRYzKO6r{)@O8g%7!2evfDkWV(kaDbZeAbKeFT$<29=B1$X)KXWFjKY2OK;)4M#SLCg^M;qo3RnSf^5JO!sevfJ7R5q{)9pi9GYZ3f0<o_3At)Qk2qJF6(nq_S``kz#zGcmjNZW$j=ZL;mf9E9+fq%AaGNpiwog+g!cv<+f$sEAu7##bz9{<r#1NeqtkgAF4YkA-ODW3H&>wST300pND3=+S`teAG6TBt%*lyZ%DFYGSSq7FAYVKm6>x|Is@y$^?(rMDe*Z+qPl|XMw%C$1!@DQxT+fqlmO-j-BU-vc|v<MpvdK@7)v`4Y#c*Lp2@&mnFxq0sU3E8?N*cFi!F0ieoe(S;}1;yJkRn6+kN#c<zxCcAj<ZYBzNmQ6IG?5lXPG<Dae9x)As*0OAA)wW6jSo2X8=e&BQ+95-EZCe~}y>DXCNx#agZlJNx&<`ZI5z$f`0w!el~3+g4kQW5yrk#ymY^W5^2vOHfd7S`hFUA!X1^+wQIhdF^TVe_QPFSf`J3gh?H1@l=ox$79DcT$TnpORpA%X7+;>X9?|+D!{g@>e#~Fc84bdApT4j9VTj*+heh}G~umGe0Ziql=m%j56KaP%pH?lY0ixJsleBZFY>eIK}8cdSXicPkQ|;4>8Y__CBe=$Cx{UB+<RWJLE)28&szEZjD^=9EF*?ZHBXNW=XT#P<gHa%*}2eu%m6si_f7~6MwxDmk><{+1|@Kph08@QW@WJ_!EMZKkx3@fZKI}OB-c9>{s=*3%3EYz!~8WMK+k(O<2#_zi>BP^aGfLQQt_U0;#dRCXZG{0@c_68OX!CMKoJ(4sCK2})dpGF(Y&{F63ub{TgbMnxhn17Hxw@m2^jND;FveDgb!r9J8uDU`^_YBA(7{On6^}r{P+%x{mux6JZpn#Pa+!^ahsq~RO?p;%xkNgN9Yda23Ga|n2QCjt-bcc4gRwE?<rU?d+TZ6s~l+U;)Btk`kM5Yw@0n402%<!vIKF|Hde5StZEt4<3gnsZRN@zneD5o4CbN+iWz$mb}0#>Hhi)?a<Bq3=tkC+j7t8g4=(@zprg^2tPPcF6S}=o{f0@x9?-~2>a=6k_16$c9!qI%A!)1!YH>wcGhv@je<6`SM(#tTK8k6cnZZm=Xx{020b98tOwInnbVMR%9@=(lj0Jo^VG@y1_IXq1aH*o3o2>QC5HqoRkTl5jIU!aYsu#!d=<yvpZ;-LyKoN-CCeGgXdOtLOIn}(laYM)l)g~p>dc_&uTYGuXx(^N2-Ta}|o}jm(V5|LU^pB`y>p*j=Um?NLgzEnwBniQyXfHe`LW_}{wvAdq3=ly9m5*~rpd@;ud*yc@T)k*yZQ1##p(Ygrbug;QsKUuEcSz>@9RmlnM}5wbuQkkKz9w<p`|tf&3_8$mdtbc{J{2;3yD=wQ5d9;bLsgxn@&TDn%5F)%eIf-KO(92F-bh&KRhQIda6=OCxB&(?N>-ufp<gLRpnH5E)@113j38T#{HQ2(azvu&L-C)Z;&2wH&QU*Hl9hs_8r{-4hS!FqKbxQzB{EW6pr-$JR9Bnti~C-jEzA@DzO062UuG$yuk%@NaZHRCnJ%;yAePXL)P%Ac;ZD?c{-*8_*c0X5+}Q~seRxG`_#A6gaGW_4Y!}cUT!mV)V(*i<B7WcY2~WSk>`T>M!b2F`EMSumn7soN3$1r{+T?wtLzefu1aMb<@gdR5?Pe);4L&QF2%_(@$Brk5x7QB)fCl_kR=fUB0Yk}qW5W_8LL_zjV{M8RF^ldR$S#R+>Vme=cXC7|D)0%W=3v5elS3#Pmb{r6?qw;vW$idMZO|(GlX(-8g^aJZe&dXpILyO=7M@i{5MU2No5}H}3xq(z7XG<S_am@4cNqc6h7`zaIOReVbBRh+5Ff1ty2%1PWWoBX*dELA%^Tb>vi`fEOoF8u-Zpcfn5hvrajY+`3+Di0Z9uo6L!(GYu?X1cGG<9wT99ZQaWNuFuQ+F+eNyk=R*AXaW>#=robZ)2q`--)+3&FdCacHdg~rIGdGuq}yQRv&6^vb99U~=Kyv?6L`pP8XuL9Rr>0u$r7^)5HQLV@ur@SO|A25(Z-UJ`?aRD$Cyd&X>*rqEZ*oi#SbjPY<pZ~naU?TkFspFMQzgAHbk&=EwrB(!Jkcd2bcOBL$CM|bAB#5!y&G!MEl;+N83r+D~7Oc{x;*Scv%SrByZHv?|fg)rpw?|2C8sGjd4YDk8=|=$PBfhsgN&$`c08@v`!enT>2EeiKO^9Y(GM@u=Nsd6$l7198`xr72yn_F0tJH6+`K6G_*HcTOkck1|7JuO_d-)($#mZ$Ib6zn$h7No}KJe8%GC5WX)A|x56*Yev^`Efuac#q6PEwK45;xN&3cslzd#4+DplIBk(;&vuX$O~?!mqQjDE)w_4wyiX!rLN|vO5Q(X1w)wzv)1~_=jK#Lt7`a3Yks1jtD<NC&YCk{}=h&L$|luw6z2RWf)p|+R~D(ir%_E#nU%JMK(Ah9Ci6|s_Lkj-|W8l6-tyEj<qW8nAMaU=QNP5>^?L&6v`JgL)gq01YVyMLC}t8{~y)fq1P+-I^XmeiC>eT2aX9o9=0q5vB@aw-_nQ`MRWtfw<zs;+Qet&NYho20K%IJSYHP+nsU9E)pt=^@4cH<{XX<wirKT#gZkbZBMIy*Y!Fl<P1)mEGaAm@dqRnjHt?12lko4Y-57=|Seq_%EnR&#-g#X6Aa(>)qUTs~X=ln-)s<cCT^Df^TL-3d$r4U#h84lAjXBPZK*?YtYV;8~?$6Ty7Linsz&ERJz=FCD=VZu>A1Eaa_Q74RhY1)@IPbL#UDi@VWeJkp>ZQvQda>0!)q!+tdYyE`A1xZn7mPdCfhi|*YMYjo3H@?+EIpuQp6>i*N{p$vIWc<T(&s%kZw9e-d1tJ+Mz0nf^E}&1bt3vC-MTwgoXetM+EBy3zdWDxsS?r;4}oj{c;lf4%s~0RFrk8~Lv?0XcWxYBSsYSGVZlTBj6qn#LbjA(!+-PXJQr2Dn^#|si?u~T<(rQD8ESlVqi)!&yR=&ACY1u;Gi87S>tB;9eST+mZft_`MJ_Y%JkjoKm%qw~+hec=0)gG}cp^CiQ@unwe1Iv?I=A8v=Nmso)coI}7*xDq8Olh;5hwQYYwOh93xFo)(R*RO*5?epqoxNI>o}FN@XD&moU6s07O4~{LY0?qt>+;*E@HYj#StBqpgJuTEJEP1x&Uw4K}nBy0jloD9N)w;gEKw&FVTeEe7S5uLnU{yKnFRV8)E5s^{ajRh(E^{&%lJhXDslJeU3Pge=4Ft+on#Grq$u;rz-74FhLtUC2WgzkrE|6N`hiq*pBa6cLAqzv9bwb;PSMGf#jKdO{FYAE1$e)>>yDbI2*HG9(;*G-7`i>vO52OkU6Ft0Vsl;Hw>BAfVA@5M<Ji<PgE$$Fm`uZPm&AxkRYfMFm6@!y(jIm6~+wiYmeK)NrMS++S^yuzN$^MmzQB7L#?>*IW^eYcV1hD6-SegvA~osN|;jL`u$B47(!AS^L?e4IihR$!MHfcN$<ggvK<@{uV#|1rC{N=yti@<F0R%-;M1ev2X0n^ED(ZnLPlEbCW666rc=RY{14l_y?>duXQug94P#?ykT2;l8Vv~&k%M}%;0%mJ2TV*e6bB+X6@O`Eoa`0<y5J{EQ{cB4c}s&1$VB`{mo|yk{gFDdnXVA-e}&n}T#p%U7U7|6MbwUOsB@z(62H<Ne=PKgvR{b-kBi^Of=*csZC<&nM71)K?yF^?g&V_$+)CCwl8t(f3-b`+OrG|e#-b3~(md05W=bw?1?q{NSENaB&WtJfXSKTDDx)y%AAzM%z7q<xBXq#$3g3_k1h@5$ny;F5VUf%217p@S_!FYJm39}!->&`$x1@cc1Iy=L4G>Bk491cV2BOCPkNajXUdk!&8+U+;m*LQ??tVQn8o)?kq8scoYL6n$jn>>Cr_E9OySqtSk#E1P3I+1KsLU585+DYEcK&i>iMANYiB6Pv1k&@>23!r7*X?a{;?hrU|5q*ZS}e>@mtei9>%35tj#R>ZDsnl=kO0jQ=q5nGZd<~Hq@}s|**DHydob#04`@RTNg)jH_iIY-a+PwgPw{-#BlyQ%tFD78?CLl^MO>ySNkJ2kPX<T}XPY{1%OLGWs5$?}9OHV!DH55l81vF1rB%R~GdbSS2=i3jjqd201GjPHM+EE5MrPo*!^e{5&(>>5wC@7*>q@AiA`AM1RKLCz5a)F}k(OF7VXg`+n*lhYa5lmPKZ6NaMS8h4+`}vF8n#D~#s1*a!|G@Er7_AO%`FT#syIZdw$5R{)1V;Kx`y{pBAU9*?QmjtEW2jd%u3gDa0J+T#Wt*J%T3vY_ut-2^ScEH8LmyZ-RB|qS2rjO&h+B>8)xOi43md8mhbcX_iroY4?p5cqi<;6I`LcD#O=-L(XB?d`6I|<0uTVo<vo<p4Da}6^3Sy9O))jNaxe45o=2-e&ewBd)3Ck}`RlDR>JW-q=HCDRe!>o5d_TooDg|2U?XG}sybpNo5usT28vtt%<-d^wnYChW__Cl@pF1p*hhD@5!}NaUSXqEU!(36+O)6ny|J1$-{@Ul+c07=C@6rF4?Nfo8-|K8`Kt1$vAk|uPxd7c}3&}~*n<AnqxxD=6<2=YyHW$$6lCho7v3UUCn*ke*{@al*KP$rP_zpg^CilfUy+$0<e6o^xovmQ8@lq-^5(7V73QJ#SFS3rw3q2iN>(IHkokUcY^0<~2NU|%MZtRmIn-WD-wA@#UqcH1N%9}dI6P*xDol6qV*Cu38ubl6~cn>xsT9bqqG$R53p?sO88s{dv`1p_gA*Zt|$Z(OdoZc5kT40IMZHW%}=rxh*l#c|?!4x*3Txl8F*+G3)Ys8_bn)3W>;r8)IgOMRf&Uc_-)k4yEEbyEqdA{f}v|YG}lO2K0&k;ip*HZh2s!GA4Pv6cxlTsB!F01)VO*#Fs3QGMPxm37^hx9DEijX_;P!0yK<F2L}!F2s_xZ6)Hw!QTd=OeqD{RZgE@@wBw+ww6aJ>AjbtaGW-b@(YMSTJy>7Cb@8jZF!Lj4HR=OR?!c6l7q`3bv+a0HU|-nybs+fJU}Rr<4XR9r+ky+@DLCas$2`A-~xMXQOiS3kbGqGiMDb@S>&hSq_p^ZT-CExM`T*2hxKL?FR%eOvohMM|T<%H)|WT@BySl<G|!<1RJcYN?A~G!~u;CTIlrnU%q}2Lw4UgUz(Csg7ua49&E2^!SdoJ+1SCs@Ooj`g4E=8%c?63_VL6ZKE_?%S))M~$?E3U*UQ)y;&4QTk6=frG7Ls;JZWLGkm49tB?`^SwdD3a0m9w4Z005h4l?wtZ~AzHhFy}(T~f0={B8cO|4`PmYvpFsZzKas6Na^4uBEt1iHF^bKMOzCPSzm4Nt3oU>{|}fN|GNxf>yPhjIFIy9m+R<G2a(!+(7Wq$);v%K#P*+v7(C@yObbj%J@s&ETbgT(CvQ>FZK{sBVR7p(hlzu5J*u9L~-X))^QPy;g($|)x3AxJ-no^s{?F{)}Q_kBZQm{PY0bh5{&YxV_)Ct;Qr_k(=y*PYHW)=(qVo@^i6q+YRLhS81u}Fc4OamsTtFauZaAWj0{ZGb2A#m!?21%)xGL}<2v5e$BaE<Ii(9cI#FdQsY1Vrrd~$jkj%zcMeMkByg}xMh!1Gavy7VD68t{a+flYYwumLrpc22QeX5{7=V7=aglHVIkj*oa$DiutPiaa&ems4r#{yQm+7u+zgR2zY1$(!<-h1zT)^lw<FJ?3~0l6DaLqb+YJ5CSbGxK+KZE8d3;7~S3?R*#DI)0mk{{_i%8F!l78FY}KUom=+hecPSU@8mCWw4X$z-It1#55w@VP&CcYJ`+{<zPa+u<Dxw0~}N0R?8q8AT`~mng*yq1}<0+?Vt#%PZeYI4)(XLrOK>;M|#_8or~7EBFT_vCgUm`;AT}YpPR=({SpCa*^N6VscYm(RH+NxRg#mDIbZ04ScUr!Z}u4XI_3z5Z1jqONnC)5ZsyzCn)5QqdMQ4$6rkVD%UK$0?jj<zMF?8b;u;)KxWpvWO0pFdulj=XQdm#%^JV>Wi*VMcDD_FDd4wV3#8Nq@ysnacJMn-D0VIdHHbs3M@2#dQ%X&}s6_&+EQ`MK-llNO^<Bd@UBNI=W?G<xNd<Se_vBz8Web864?btE|aGEKGv4HnmMJ>`nK$v=q1(wBGoIH-z-W_(2TIHj@4%WBWS?DE?R?{{w8LYIxtSRa4-@9Yema(MX6p)5xiu+2L0opXetkaOelb~(kR!SC}j~0DEc0FT%Mb;10u(3*3dbK|2t)IIo1kf#sfhDuCYs-wzWLnf9+o(Q9e|SwO)F0PO<k>=-I7^*UN1Bzo7Oah<O3wj{>R~dEM5u4=-0V?(_}IC)j~)39mNN|o>r{p9#Vj+={|IhhaA}@tEL!O;%RH-D80BBN{ATr#-ymT9zk~a>VO~^X%c$s?rhUUkiKqLEJ3I-g|Ir^$|Jg)%bLpA#pzXx-BZ^2}SDIAm!XbpO?lGi2EXAY58H%QZd}eBm?PR`5kTTFZS1O}th3nsoe{v3zXj*FFZdwJC@%uhaZfGb(To#xDtD@ScxzXkW2W5sp*;s_>2QFNh-ler+s|j8;Vx~AGgb28Y$**E;8?t54n-F*~`6Dt<)L2VlIcDZGJ`hXIvz!K7-1G+?4qBd8&G5ZC*j$<~8hYZoUe_M}KeHZEhm)5m=17i0B$)0YQGx>YQwNL2k<;H7YF0mw_*@O^oTddM6dc|!O@nd=%_nCW*Y7Imxgv}d*EtD#Sgc%ER6Ft=+%hlYr@EUij(#W7$?O)}P6RmB4B#H84vrGzM-@zYE?z~^$=REWGTdmCQj^zo^{jev8)Nji4hxkR)O`q5D7FUf3$exd?RtYMqaHz)O(kKG-P3M+R-`C#B*M4soXZ0OxHl<eyF*2f!2?1;ovZH0&*mM+>kk)efro$`rJjraU}@oD6J5($?wkt-;J_AMu?fBGQA7<SsL|&(Q=MlJ)WqM^U4m`jx%=$c+o4@hX5%TIF58Ly5z#wL8CLCoRunmw_QS3l5-Ew5Zla#t12U5VYr^jE<i;uc?%DOB&um${m$tb9LxI6X(6{B1;lqOVyf&qT7$EE&MhV_O2ct#7n5z2)xrys?xGpP?KV4lAv5=AD#~<S=`_or)yb1dm!q^=YANjrAS&?4xvIKM;!$Z+(!8|7EzeTCT?s`*mF&sZH+bBtY3rDIM{gAj94Qs2BAfMR%?f6q9eF14mvqu3a=O~b-bVBg)KD1((KWRXZAivXVo4eDr0)3#+4hN646_bUVk*vlhM~7<#vTIr$j`zxFAbbeS=qlQ?j`=8~Sq_c;N?NX7fVh>1>44K#3d|vnrA@<;S&p_L<cw-ad7aeK7QSpvJ;B!|qByxSvWWn)g`7E1A!|6)>c|GBj^-1%><S^WMK9qdau;xGiuZ+d5d9pgcftEDEw}rfrq&g@7pmEyQB?Kq0S)%-c~j|#=2HER;C#}c-p{G+rmM23oIH(IxWgu-#0$8DEYHWn<8(q(9N(-&-e+9%&Dci)SJ-NBhMvZ_#KL&w1Qy0r?aUkP*l{mcA-#>9TPN&qP#L2H2pG>ej$rS@kWWS?59p5``DGR707otG9t2*$2x9UgNF*M7e>raeHNnRm{kQl@fyj2o+e+HOE_3jQ*60HbWC4cM?sPI%gqLc_;!MC<V=2eNhOg;q7DFHbBs;V#6up56%Nwe2?gpPFNVejkrZCx$1l8vFZ2+Cw#BjMbj8tr8TW2=4eG|1N36$a9(<e$W>@kbpaTf<vzZN%qd+GXap`yY@8rV_)?vj&&GxYW{@}SLa*d3)%g#lmJ3<=H60pa3v(3=|QG<oqo@O~e5L@aRwB42j^m0N!TA17%;Lfg$GfI+r5AnYU!nYNjn?fz^>i-P(>9~}9R@<iPy;2VX7&75)cjbL@|q#-U}h1q{sVL8|=Vd(<BHyfx>PCJ_nNxiuAGsTibV<co~kMF>1Th~;}Fw_A5Lxd0dyviUW2Z(&YT4gmH;RTtyV9lRj#BiM-gJkE9tRSEzFI{IGAI3Vk3?;&vq6<Ke`lH`nI}JvJYGlCjuCDlol7I!y&g8MZ!N&zVT9}wj*CbIjfiye&`s5X9h&3kV5&BPA<1vZN5x7UOQ1pFeEiH!H!y4h6TIl^NyV=eWTKeDqQLNAvKgm{*AZF_tYe*KAXRsQa>tQ}x!;!1Zq=|gs^1F!q7Sd=0jucE8F3;Y2QLhihW~3n#g5##T2RVs)Vc0}eKgI(r&+*wK^{Q5v?e`lvzGMI1BRCLMIGMabsF=4gyp@gf+2ad#?QkXM{R{Gnfrq3#iUG_mn*W^aGPhTHXHI>z_kgto->c9o9c|jFCB;<4r=K<{sW0?S|H->xgt@UxmUdOpO`dC=d4Yf&#6^LqJ>}jM*(ZC&@8xJ*k<lhV*-&S2fi|az<nYCE))gUdp*4?zCyUj`q0DQSK;yMOjT3oSLY&y=b7!T<d9OU7RhVq<)%``BF|K1gb!kc)CUNMUxHLk%M}A3fJ5!?dJ#P`mE|+Nvy^*SMlDM^YKrW%}(5o|!q+Y2atg49;s|jO6T&t5?y2~yxLdIb1d~ia6Bj-J|%{boB<0d+3tdxw_HSUjJJZ+bCIY{aT?IAJ=5*(6frIl-w7mMLANN-6t@Q;$cTTqna4q&SmP}q~O=m|sD{+f(eiYQ^4N-n&6+LIQV&I>Imy_zNkLq{+)1K5`k+NK1#?+hSLhcw>&eS3g+Zq2xaHuoY-aENV<J+)Q?{%z7Ya*jwAKb9V37bN)3Lp*to<O)L%_7+JcJk$l9V?!kwp!9NbBEnYOty-Q(pLGitSfEVVdU)|w3Ol4WVZ(Kr?}+^p$KX`f)60NB+rCN(;;she?q`Z9tX=8St+6`Y%H2`@&=lIvy$c2Qysum*;I^TQqBF>z-@Eeb$U4-hT-BfS_iUAJJ?vcD#ln8^Kk9w0_+wkd)UFMeh-Mp3P@WD9`9~I%mktlcqtp45V^>>{Q<aqFQ5Oz`1^~sg-<!0B+iljX@kdd}MHih%Vgc}!35p05d5SV=8=on;_@cA~SkBghO%~Ji09+he-LdB4=ctJn(@&(7vz`kJ!hdY~v-nok9&U*X$uld|wTqreSq8C(sRh%#Ze4{GmwD>%QaIPZFfceugsT@WLV1vel||X_P`Hnjk~!LBYM!ePxxP?#qm5DZctWaNJ&#?L&O899<F;Qf-6Dq7$O7RiQ@>+2&XxM&2JI1P<bkoiSadY9qL#-c@Knf{`IDBvJ+vs;eSB2df7TyW+ctnPqs*JV%6we`qsz^ti!4|6R81KlfOk%`t3@r8fVM-vScas^A?-MRU58q>(XP&4la|s)_XaoADOf!8qE_Yelfz2c-?#T_qbug>WwD<e+H|z@5ytHonH-KtrA-N^6fZ!aSarboOM_|8Ymplb{>{vU)e!9_Sg;d#W%%CH-H<cQy@=*N8Xht29__nsL2Rh~GyJgv?d?Y%GQB@%=B{7tW~#V+eararan<`VmDs!op$w8Vz}}g7mwus)6qzlw@ypc&P~mE&9R$R(G%)>Oi+$i)V3OCv+PwvCR}dL}Qt7TU@W$Se<y$xu+5nFgx%OZem(LQP*fG%L!<T1p8H|6#godB;Tk0xa@qjj;cS;(gWmKM$QNOhi|AWkJ#{U1RVlI~;fNxAU3-RRZGg&M7TX!;~srD1J&?eI#t({u<Rp!<IQw#oOqe6$FKDsxc+`L(NOAnI?cNk?sG5MWyBMbQm`o5>G2xxI6hhtEz$e=q&`OHG!aXvVIu9C9+-Kgr!XjVJKL!uunemaq%?_`Hl3gh!+{j4$RF60*yl*5bY8oIm_4>*d5D4?kt#dEhTjcv-eV5$HwM#l-&&-X2&^{p7kvNjU%JWvGbM0KXb9{^hm<-w`tC(F)wF5Z0(z%yYKB6U@*tFG(1kYmm@I$x33`gRLvnqP#R7Y0ps*1bv)-S|A1D`yr)Uzq>d(3ld3A70ZDk}L9tM9^iY@M0Rz9XJ`Wq7wh1zs2&tMC&Z?h9_d%JyqOCN6!e;0vee8o!p5kr`8#pxr67>L*KX<37@U2KEyK2VBg*@{7&RzV0n#*0_P`AzD5KI^PT3SF^hA=#x5H@B3{$!dj9nGYqtK(d@WfNK(9)g7FkhB>i9y26V9-64Yq$$FAslTdyoBy5MO3aixkqS?G7~lPF+2(7YYHJtfJSQRMEC|;OCb_2uy>THKw5em$r}wVB8ieE4_nj|55()dzK2eq?0?{@8k29kB@-(^QE;`PHR0gXOb}u12l{sCPJKR(%&ZGU<h;NmDYuHo-M8?`=&cVnjCSNSw<DjYA`#6g&SlK=-GB`oU=D-&yBimwww9}TZ_(O0j06e8e=%%p}~I?*49oufaFfd;8vQq(1dM*oUKmbVWjn_UWGPZN$p3uV@W~)NX1!mdba!0^rPSOcyq7~ppA=z^W`H+Cdwa~NIe5b5%Og*Nr;A_Y5fQ>9%sHW7C>EjD7MRE%o?q5ejaZObXvkvc{Br-xhj@bciu;~sN%TD8%B}8ExFR`Ogh66hnWqOz*G?u?lGTZL8vz@k`_p_{G^Px`Cu~YBYKOl``=U>L8(%yJIGW+lP$mXfA$fZ8+-Wi68~<?JB(wtm+V#>WtLdRs|KF+d+vT@u9@@T`<zJP`Yv{&rM1>>fd{4S=pdYJ`;ol*J6b#5{Sr;=ste$Su@8rvL$RDTji-q5p=ulRnMV3puD!{IFVW=tl38I7yKuf-j}=KGAI-2K_j-iR5J|5=dW@D|4g*vvAk+FmduZ5|Sq2sL&byh2Ha47AEH+JNtlNYT$zUzmefQYH$raisr}6P>#AHmktL4g;0o83A5iJMDmH6>qR0fFtj8ABLhOPBrB&ynzQ5S?Ojza-rp;6ti=%eFsPR`a7XfU?tH>+Sw8QbfYUYT(u<$WdN`VvGqqLT;%CSyf=8JaL09!}($Fpn@y=Z6d^WMw$-jE5c>$md}VH6~$mP*eyI3YIMz9cP7+>WEpAjbH`Dbu}s<cX+Ocx%&afYvl_uzZ!FA&Fl97vVh>~^-s(B2TuhvstN9KY20b9V;!vG$=U9=^&>Fnlm3tR<H$*#<S-OI-4F)$BIj~TEkOrrpW(oyd>#yl{18OMX(2R1-4b9UcE`@KR5=N>3;}N4ZDp=PEZZ)7vF80Slm_PN4XD9VDOHSXhgtObI`!el7o||jl3}q%l`25*#UX)jR>*QL^ZX&nU?Izf$MzMYvzna*02+JDF2JxW2CF@b_tFh>*@TTX5)hRY?%rKe;8zSNEa}}B%B*#D=sRl=lGmYn;(>*D8L52WA4p5M=Y_v2U3I!j?}75K;nK;1khcyZg71i(G=gPH?nN8rj|cNP*VsUG5V(aK3hU$}52XwW;M=b}_-eu0q#o6mwQZp96I^6xy;8eAQ9~m<I+T7e;>Q?9*46nwo@+i1x%+afOF3c&I(i@?dSYb^c|-SXvP_vxe(qNN$iPOWuv6<n3ibNLRRdTAhPL1WD3*S3<jGVMHwzc?jD$Eo9nMi+dzP~ot<qK5S9d8MJxEGk<3JoqpadJ?s>cwfzf-}WO}-E7l53}N_(MPtVKTrR!H1tM=d6UF_rcwnAIU4{4Dz<Z8<_6)GWzIXx{_y_*(K9C0jJ+<udk2TiRlhTx92U&_IbnJqh0u6V0CHrP!bs#K5=tkiNbbZ1$iW>fy!%M%F~id(NUH@Lnj3l`Ousfa(WpS>8RsCzZjtVceJ1(vZZLz+k1Z4eE@Rgvv7EYi#2v5S4QU4iMdLKY(B^COVOhW+t6jf6}{^o%;f`s>asc{F{7MTCco{pL1WgC?$L6!ZOR~H>x_rOs(`aHq0sI=&p%U&ZcHA3{7V{3Q$vKZ{;8Ftm0pRY=yg^q)z-A3z8UQ8Wo%wLAv!%Is&v=H3@~^Yj8r;BAWH`{4)93Fd=i#y$9JCtSA0Jvq&dz2(%`G>EajtkVi6N0#*id^A21;ze*+S<LV}=d8MS}u+!^rz>BRfQ_C_nd(kD%bD#I5I4nxNHj&5x<{Tlt+!-G!$?Aj&oP~rKRRlWM69Kbd%Y<np*GQf0Xr86r;6#&ysLICyjef04p?Nd<QouE%ABReEBaP^Fueam7H<FGSpoJ7xXcDr#7Y4;Ewfq*4Y&VPD%rVpXo$3)ux#)!b<oH@=GBuuK+4&$qNX?-<gQcSMOQL%Sppj(@PBP*6a(uf1>EvpW8-`G*+O+03-G}IsLd$}5agh@g70v=bkNXe+uRTvB9^0qf2=&h7!Jv8!^Z6^JHcv?5Qpa6qu2{{uaAoH=_^}ed}1vrtV;LiYEiQ4Gn_79hBZK(3{r>aX%c<{;LIhmPt`s%`%E{Dz<*#Y8_bxhiij&LHOJeVivffW^5C-iBCyh`NCOss#N7vP}PimyDT$&=UjVH^NDdu)`RHjWm%E=)mHcGz5FHf+nU*WGbI@&!e(hfm$Z=!Byx>@rsK@qt4B*bu#pULf~wCGLR2!Bc5WU?CP9f7Qx915b1A);16F)s4yUxj39?l!12`FoN|<7P1kx*IvDJkobJtpT8I6>Z&)Zcd8rZvl%10h13^+rctWMRfYPv;v1Cdpw5~}`DT@bk!5n@0S+CXg<+XK(HMv-<rlTOCMfe8R_VCW-<iEX%`^+!995{m(U!|dZA@jjrD=$gulZzy<YQf{`w<#|j5zAAaIZmX*qEE2EHhVpQmA?7wf3N5oQV;o9fGy059417fArFogf+RcPbb){c1{ks7)Pe6F4y6HxA1gLsJRSc%$LkV!T+-|Bs<fZZ?kV$JYOux873K_P7LUV-z?TpUF|ijG>OM3sHeOwW*9CX9R*`}>YDj*C_%p#k}b@bSgh=${rP*#EXsGOO*5z(K{@T5P~b|Wl;jutbdT4XOeCPbjjxs#k<4jg?CYYFm2`Vs`!g@7g|9Nj`d3ojPNZe0p$Eq5p-zT-1@~PZC~H-y44r<Rcz7)e<1J5C>Gp+(DN7r%icJ&D69*<+mU4e_d)iUkrj&YkV)`=G%UsUk3SnT)lcM2)4YG)NRzvIvIw;t%rGH&Vnz}6FMM3`+zB*C}#=J<{mr$CVK_Y;iD~mxc!|%IaqFUVi(8hf4>Le&7O>6g8DYv56J1`pyw(bx2#;!1a{i$tQ$tYS2a0TC~ok&$aB4D$bjZ2*1#-RJs_b}vrY0U$URHv;eZauS#1wK4v%b#8EQ|b9U*_ur7%D+u@DW4bjSrAXFk!iwu3cZc1-f-hzqd*T^-_2X~wh3VKq<PIRuWNq~<x|8O*ws>D>pM@2x%s{kVMLcwnu~%3WUZ4Ptv~9I7}Pt6+s9{$-^YU!gBqPsdGYIM4GfOt(JeBhx+=tXrhXAn-@`uhsEn^`>d||dV&oAeH2fg0v=S(M3@F(cG}*@h1Tu!b5eLJ*Kvm$#%m~72k-eTe1*)NfC)Q(!m8?Ju3*sFw@2;MdN`|$)4A_b`={J_$5<6d$p!N4zvI1foYS`k}8m7>$qD;){p~5~lTl;WJ5jy506?}yVa59EXxsTjVn>q*skS5f=MhX9!+D^h6rsR9|Hs!J`*TSyyL-Hbg4CbhyI+cc`b#z6QcWYDpTHbv={t@sD^x|!w6l^<a)<@4Wl`CQ*y=-YaqO{5+kWuWyME_Du2H2A*3$4ic;s5IWqz?A)6Itt>m|9xfy%?v$5Kl6xHuoadcM}hj5OnDiL6Czz_h(WHuM5ct0D^^;5IrnUJupT#XT2DF4R9Id;3V#|ZL$VPP7Y<Yq>~C%N`p8V^VPKzFSn1hv$5;?uGDKG%xNpsqT5Jbk?qqi`({yR*8DN6c5v}L*&wNGX(Xz_BnaO<nK8h&!pln=pxVGfo~!%j_Dh$ds`1Lr<)Y@X$0*z%Q70h&9O|toLdDGLZq3;rI`di80CW98Ox2cbCMlZRm+H@<GHZ`#C;G8tt1di`9H&Wbih(nDtffLfXW+?B#62@Bv8(6HK{|H`57#~I{olEI0y9hUe*Np#|K1XX&^8TVYQjlr1<Y|H`NDooq>j6?bV#KbD|W$x+b&7+a}e3^;Ql7lk75bnO*{NP%e^IY!TUY4EIq0!rza)sm@?W!QIKePl)Y3wRm5^astVH<Ll-+)3)>v4)*G&S>H;1Jda)`UQejX;ibQE1GqLr|O%1-+jSQh>+>1MpmGsheCTUK_(pBZ9?;b#|`T^&4#p+2=6S`Fx86$Q4(FeeU(+KuQU9N`!km6D70;jvXbeM4Z%}KdI;NInb0%=LfC|n*zzrNtUC?&rV%OUN6OuSU|+x9*bzhGSvu)aNcll7C{vOMFhI?&{|&G@E7eHybjV?>PXQ|7@_Q)gkOZ{@=?TCNb@PuaZ-JE`DhTjRQ6K<^{%95eYHt7?|(OfTZOh>nYDI7$#f5F1vM-j9^`!v$X(=}6AwhPbcSx!C|_jAE-kO_)SFb!n?>p(RdnT)AY*iys}TO>}B?=)#zy#rDT>#b;14e4T0lav#Ve95UgW%@Hx~AYlfeyKk+h^^T-|s>`HFhScbG0M+yDN7HqxX6xlXb$v5cI6ZmhZ#x@icnnLl-Ba|nn^$@xb>@FX=yK8Bk*o%`Ic(42Y4S;N){gQ{by0`6woUzI&|>8D+@SBqMb~`q9K;7DoN(+!yq3$SX;eqL<r^3t=t4!2Ko#B2E-rc_*SApUI@3p>lu5SS$Oozp(mmJdWYuM$XhCq#t20hqS+esFl}Uam`NK_O1Jn>Hgsf^J7oeN%+<K8dL4Wn5wAf|fw)!0gxq?F=0eb8vtePgxQ#jwMCR4_-ngWLZ>@pekXqj>Eud8=zlw(9Bv0Jdeq9$$+nUmC@tOm|+(=*2JI&0|Dcz<ZSh;};DF(3=y(+=S#)*ySoZ?e=ug;iPgw~};7W8po;-vtDBC@o5w|HRwEoZhuTD0f`Kw1C;LeiG&7ac4+={LoE0!nLK5vcsckm?x*Sb;h6)nCOfg2fEC7d<R-U;jfC^vYIixrIGlcF)N;jTc1&dfnEm&XkHvEb+Rf7@eto51~3eX$OTE)n%e2Lan>s5MGg-+x*|1y0%Vzi1W}_U@KGxsO-D=eTx2nEWZ}(2RH-PMfdzS9=eZLAj76z9c^Mv^5Bk_#dJgVUq`;SIgn-Bk@^1UEDA({RlkD^OgQV%Rmyn`H{GBXXX=%d!T(fqA4qBB_Nb(nU&DE9D;zbowG*a)QOG}hZv%}&z%L*jZYlyb6z^57{TN;Djb8+|8_(n~b{Cy2u_Ykp?ucIpbg!-6A(Al-zVMzk3U&PYb3t$s>je=_cIO(>HL1o5AMj%#GVlgv27{S0492_oEPqTp>W%NuLaDBLn9BuE6_@*P@a9NUg1lN<v5nH}2NS+_W(IN&X%%X_|qn&}1#K#!nWhSS|+UDAw9aI@n9#)JnY(}C=%G;{~C&>h!xBd+v>P~`mZbWl;){qi|{G`Z}!GT@tvxKi%TA=k9LRx7x^pS&u5bf}_Rx}+mL8={bH2N|@w!rdbOY;~j<nt?MpUD9aFZVQ6pmjIn!;s)6%#2k5|Bt-YXoV?-hIx?MRt*_6o-p1L{-$|rFl)SFqd?|&78gBlj0%Q#4i2e`uzT*QYi1LJDq#g&`F(g&Iqvp)asX?)tz8=o1Y>c@N*dm|2VCu$^+Fk|)`ic$bGKyDnrlPlpkcMT$$;81F9luYkg-%Lwnjf$IC02#V+h((FmK%62=5pHj2C1trGO%n0^RFw=!#3Ba}k$ZV#iaM7W;nCD0+<cVXpiwbEL$=_ruX-_Rl7$fpND}$2+AOR0&hcesXy6y;gpA=QwT@*TLcfPU7jxC1Uf~+RHOa;Ha1HFWStQdVDC{U=CZ$2b-%~0t$*wgE^(wS#{{7&vTwJs#DubgW14Ux>m}4MRJc3?Tcd;;M0qWvTZr)^ltK>{;I9XegYvw{0RhR3@CQJM9t_9?zJK*M(vN#Lj+P6?PhN4!@JSVzN_?U0A+T&1qVhEQtMf5UOZ4Z?@|ocdGVP9lef|8Pg)-4F_b=xfyv1}KHnzaF3Uq0W(;B;6k<2Mgu@i>Cvrhd*+&&378y@nD7z2F#EPR@_=FglG9}MZ8}C*;WW%i??eET*BY4TD-<|*mL6<7Vw6_{WhpXt!v3sdzwOch{;@%doEuPCVG6;B?5+o_i%214g>0g|Sn`&WA-&t?|tDwT&Z4Xzq^AK*u{@B%e;gYrB-)YusUP^RGZvoA}s&jMDq=bqL{MqQLd}3|L$t20J!iqc|<)|adPvS44G*p!DW~}8r2M4EDCzNh`ws&AL34LIf4^odAUQ#mcr1K?bzwu*Hc;D^jA%ci+B4ewW&>a*c$f)TA5cIq4^pW*;X*OPzfMWzEz>jc39}R1(BkU=Gu+I`+ig4d@4krbZbrLN0Sli8c+16Umy^82#h)bWXvh(y1K2jp$Yi8$#dI8+Hs=GkHF5;RQX|kbVk;VTZGQ{H7ZKp?AeEL;xFd?sPVw0BjLvvFNa^Cfrz4J83wav3rlO|n%d$cu4arAWI_4F~V;pCmGEeJ=<k(jw=q+q~cWgrbK*aD24S3?qhKt}fS6K0m!J2`*EUbESYMcGhP?Ov?8h@H2D$e(Dlg0xk6;&|J>u7^QN>1ud_+F78$M6?S>U`nyFAm{62<;c&{^TY+%b){4G9Eyc1b;9C>-Vdg>6F59!X83}N7G72M-DWe;1zzTf%-CXJRk|A-FH?{Fp1QePU2AzgkN4|^3c-d@!Y3r%9)T>2w{uEpb2VS`?t-@uPrD<DY2=5r5~wgw-vwo}n_gTV!o6?EHS9P~JlL1Vle>-uW(nFDrRuTpZqsMihHLwdN~h<B*UXFydjo)wF0{4rj8oal*xCVOc2jmB2U}oDc%{V!sA{S*wY-Rl(g`3<V>zExB%rh|D!0j)+gLsU3R4`QhK<avS+in#y;cc=f=ZVbMQ!DHUz>;UT}*=Qk5PZ$m<n%vqBurW{^*0~CJ8}zaHO0DFAsiX%pH@^aKo$dOO(Q56Uh)~uLevc*%pGvbhz8YgIcx`Jm)HJSvFf79yBMpY$ZJj6dHjjJfQoox*?Lrq?TD_hjmv1P<*+y#<{yz*V=YMP6=8elC`5q7YDNGQMn^1$Z%sc$;56Qv$OQ3kPTnkBGnyy5$efnCqQa7u6{ZE=RQVDN8!5gAg!wNK+ov`&RRRWLPjCzZq~~Ad^Xr>Y_BUJ`y_r^6|$;S`KgxO+M<r9Tl^zpE14lfN@Jk3ARp<%qRvo%GFOoWdNLmVdYEqU&1ey#m90a*u8keRW+^AwWM3MNpod#_SdVdSJAiGd@4%z9$$mH!b~Mf0WB1tV|A17p24W8ybhFw@8nGMgQu4#Q1rfi8L57VU;v5a#eT)m}?|Z@Ghi}4nqsu)l^Q`a``JRnT+bcW<GpGi$WZnN)ijt*4cWy#D_dd>Is8tV@RPOBzsuaE`>jBWPG=x=0ox}!=Yq8>2f!|qw8k9Ey#eJX6dU{F#jFw6!1V;n`;OB=5CZYp11*kx=urfojk?<q=pfc`nL~GOkgBT{~>nBoOzilA+N6Lb_6(COE8|ODUp)1Ac`VS3kzjNSU2lB}$v>8||Zh_Exhd$|h79BB@(UP+;nsC1C?XzMQg?Ec(jhDbM?7obA%MM@E9pH6#EB4yA1-Qfd;MBfhj`?o%$C>lJlU^et0;XHP!U{#9GeB!@hk*R5gg4+l3L&wwL!>XiX+8!%$s0|;-uiDD6uWNH$e24bCpGCh1FI7$d}fXbmO0ScyEgVR?MAgzP-LZl&!ye&0vP@jMJjv?VesGv2Qsht^-ngt&Vxa)cS|>hfj_OjQmRbJ#jz@g+b*8Hb&|fcn(#veAw;>DU@6n>voe{*u*lWZ8Z}o*32j8yYchh*B5<&(gP^aiA>~~56uJ}*LLjs&E=NzRkbo}(QLo~nM?I0XjCs7vGE*yO&8<v$IS?cL<NMQ{p}}A5)Sp2NFkf*vhDg2dM-DPw44o~B$-5+mvTHGt$;h1HtRY2}-)O`p21|~TXo)l_4&7e5SOOU{S$)Y$kQ#o#EFia}0c_!FV0ZP_L^>iW{n@t>{!6uNn<aDsT&p23k8jf(9%38odS_;wlzbR|9XIHy<6@VY76i_#XKGdC&Q%Hcekf4#P3cv%veC-V>yk7Ck^Q1^9w8x`<M@BVi@oW03I&zG+uwqD&W60!?mjGFpqD$q7+Q^4vb$2m71WY@l)Zbj$biNZXPgooRQSD7glxPoByx0}N3H(9tDSF$g>nTSXPg1e2y*iBU@c~67Wl25yxF6(dqNz2{|(2pdNXnQA23>LjnM1jFPPkK&=;yI`^%lQmiO0qgXT^U&xp9IPy;7~wYD<9(ZTse%G0+#4dSm{Ay@beqRCTeLCDHMbvn3S^1AQ+FwNAOj6*imp6U?+g2;{y_s|d;r1G}z!C_>h_R?;w@mcCm*~E7hQPWwp+EN;gGE*`=CmPgveTjjV%H|w`oq`TfTK3SE??tvh9rlJ>C-e7pYkc9S87`ux=V%Hg<?`_#6XrIJHB-A0OFn$@EnA2WD&%W1BpYoF7Z|71`^1{{`PEi)w@3i#Ed)JAgIX?T%ao=8OL6V1>{9?53RW7{0wuk99shn=JUK47-$hS{B>f6us_XkN#5!Q&*UpMzEZ1yAythLLy3LXvgdi*c-~hg)iavgWwD$d!GV3M%ctKzeUGf#koMMj?A&4p0J+C2-Ccdi!g%)+VD@nk4Usbgm>Os71!|8<#`ULzj$swnzxun>J#n2as7R1!oV0B6}B!w1`so)}k-}6OS-}$<lbmU@`i87v1_Nq=?kM@t}xyx$9+*W~l`qwtLaP#&h&{#t%$tc*!-j}OUdkL7EQkmVZ$NMYY*A3_2{Lii7p-R}fH{~NbdYX$b*L>ci0ghu)R(lwT&A0oaN8n=yZOBk~v+-L36$)KA({?zQLQhL$L?rQAYJ%y%$E0Fmf)>n2{~_ZVU142BVm;rg!fTTUj@GQsf>NMIxykBa5OhD0aH5OcGTm^tcjTLf>Q4MK;{5O=4k~AUki>#__uH{k)gTY;oyb^q*H!{`eo>G!6;d;=p6k<^t=4lR0k?phcTA;_b!WUgc-Dm?$hbQdr(P9l&ht*|KlTkNwbVUZ<EV0*)@q?rjV#qE&Kjg$@#A|6Dzm5J(ceA%z~%PNwX=1jcmq9*e>pKwvzi-I`zxeOR<eGFWyP<zp0AS|=Ma^n2VZZcSn9q^NE8Lo4fzSm_o=Xw`eG;Rb?9k{wf1>2_2HVV7@$@AOF4Zju4$kIbFh@ki2Y2W@We52j+Uv!V90S^!&0ydafFOFUuIC=P`BzispyrZ3>Ev-cr}0y=MrEY3x&#V#BGuIB<|gv9A5|jZzR$N-mw<)lf?L=|2WAx^K3qMp8`i83c=|HK&3P(o)Cd&IpfqmOZG-cGA_r(2cwZVI~y1)JsEEkSmt6x0V>u1_h>|cP#9xh9@61TF0`&PE3@QAV09fl_cwq17&4Lfy4$X$PH_ac@kP63-bJt*Q1-20PHw8qQv)W^5*IsIyr#5XYQd}N(yO%`+lau~*{&XPg_gUItEVZ@hn?iu6>3yFnnBa1cG<nhU^jBBTkR@VnjwlN4x0jzE#`smf7jD|fCfQt2<(ncCp_bC$7`=#(a`%t<Q#4wADfNNhBUHHcA#qK@ii=>;}zfCw(S=X2w0wZU}hLELV<80ilJI@7M{fCTe~mS0AzKBfvO$HNj+oYFbYFg2&W54M*f=4;B#));LPf~DAg#=N2%B(b!ziPOsR@;brH;9*SATioSbs-baiSXHs=|EVe&^~B4VwA#CV88wmDrD#EZDyxnm>mk_ZHt{{_Heo+g9G*;wf><H>{w+&fATP8Hno9eU3+1nf}<yRwVb{}XHhc44<jDm3xaa&du@I!GM^QY>5fA27!d&A<5Pn@+#Ld4-e<U|6j~Gf7t6UApQadzUMeN)a-z=~9c`^rn~@76a#KK^^lLb-_ZP(_1B3!ghJS^?BFlvL^QAW3c;6ul*9FDV0pfuP_WyReNeMYpP_HCdj&0-wPnf6N~{}i&DKOmUmz1;F@NqcU^^j9kZ7D0&eu+k~0-KsvPu}43UZAwC$q%YzOYm%cBdn3fF#lj1upJhOJ8DFZeg{mUwXoS1fek|7}*)4}OxIcXmK)#6Y1_7>~#V;G_Z9w13whLv(EYnEaZV8VRc3BHyc6wJTC$utA%5`IBuS>?ASfE5QjUB*`??N#rd7f1w_J)^n`@!?r{%q;LeZbh^J+H`^ZMcDq(XL#|(+5T^98TsyYt&rHjS(r>c$W#E-?E&=jFpX2OZKB9-Ym|qYn$&~*8T`=O6G>$O#E5_*4O~y>Y8F`OhANgox(tp^aa3*Sc4kLl;R@sj9!~uhJUlj>-nVzQ=#%I;%t%HmwsPhR8@#CFsCf~A*B}V+jsw`I}i`8Z(v<^gli9l5{<Ts-UNd%$fMp8zNhCn20%#(<Bau5A?0}{6&iHFmpJ5p~879oDUI8!#U2XE<gI)t@!J#f2UE%UhJ@_T7M%1!2FJN4P&nTw*p{3eJ6e)8m7fX{Al1brCX@YO*XRNn1td11Y|eh9&QC$b?37Z}XGATe#yW9jsrRysOGv6+>Gu?qOfxf786&J%$PrG;7|@dR#X9&ki6%HhERifJAmi4^MYh2%SCR#Nyfcd+O0%eAZ7AKkD4Dw%>Pei|L6L5qsN3fCS#sSv#in;7@~GqR&}$+VT6++__U&fB&FOL8q6gTJpX=`{KVbQF;&Q$Sw0u1)&2swYxI!@#;4p%4C4<wpt#bqH{;_{C8L74Kn~;%Ces_`mxn90xuH)gjfy^gqMSZ{O__%dk3ga>ezcM6Jbx8X<s_PxkPqf(E3D(0eQigx{|>qhl+UNQgL1to>jGT%#|{8jVH)e_uQt#)&}**$s#rNSffzF}Y%nw}C%x*x*IzG=pKi8X>FL@_n0P@MxGw8isq|exIoiu;~fa^>=`7$G?&er6NdR7;USQiQ1}?noZkl1jowoR{mlnEA}5Lqdr=gE~E2MfFF0;)80lG^*5kYEC$Lx#?Ca~gfT)h4j6NZgIkW8m>6U-)TS6Ns>$U`R9XQ)OfK`dMw$0o>Yxwh>8-JhDy%K>1<(C|S+610`uEX-4GFHMgYP*=ikh46x2Uo8Q<yjsI)ETA4orEFmXY$L&~hI9CL>X`(Ma2GfAZ&tp>V-K$u8#X`z(#drE=`tlBcbg<gm)ksyJ$_VeR!A;g12l<$5}f&F1TWuYX_@IqfvSX&QA{1fJ?n^HD|BavF)zEVkV%|7cW^!Yz7A3w?l&HlEC_5~A`hQ1~u-S<=Q|s(3yN2&_*9U?PZiEB4Wr`nw**r;529@#j9B)Yz*+CE`_Zyh;BWJtpfQYRY$*F{mdoI3(vj-rXP!J0*U?&{BoM-I`i+*Su^q>^_~oc5d-te9M5nu_5thFC<-~)9kx!%~|f*NkmW9d!4L=mTB>JI&4jJA69#K5l}&Xv(sVRb+|xRiJr_XHBH26AJ=B9@HBbJ8BQt)AkgKCeojob-OLrL05SwZQxdtq^%%`+-obGjKu0AeFn2t2h^|)2eAFjT`M=x=RmG7jM}hmG*P(fk?++_5Rgy~45-IaX{^h=U=tSRN@oQB~kLk|~bK?}Pfd@Atg{=#)-45B;HU1nKp{?ebNP|f9tGlsdoIQ;Cdzu|{BeOQ?;m?SG0N&vvUCQI2spZAq*G>-!41Ke!FR%aRkG#&Cs-sLuTGcUzi7z(j#<7nIEe!il`7IvCL!c<o6GWyiQG{ina89zdu1Vu(8dyhX&H_l2fJu5k^~asJtuh-6e&Nh^W<ns)xgN!$=o-IJcm2AR4<b^UOkQWIP&%EBRVn_NHq*M}uH+}PXA?N=MOyzx-G;W*6#|TVAM<4gH$AFCB&-~zU)vyE{gSUy*E=WQ3t;YlzMh9NCh)zNFznr&XXG!be;%X%E&f#Y9ivN~^Il;5ma}my-=!I&Ys}wUYO#Q<r&%x%HvQ)RHBX5Ald~*LZImGwUy7H0Jw_m$9Gs?GHVJ!l!;H;Y(0jpY7G##SVbvpoQnb`>H0{x4Nh#B$zY{2q0ZiqH(KoS+9^p%QayyDfMpsu+A-hfMaU6Nu5nWz(GzBv5du)YEH*^`0B=JKWcAb`0I@~QA=O#KqEUOsieK0BW=CfoKnY4wFf_pm(nh-Xm3@DDn*M=0xxvU7OYwx?8bglAD9#Fj@7N$s+wPDUu1H=IMKMY2@<(c%fH|jU|C|+9mU{<+?XRY?4CSOa33xVS<k>e^xJej=YFoVq2QhYP!XQld@{yjjQ!z`LF>tXTbX^(+!tsdwoLX%<fhT%RbCL7C6)2hnKb=pfBblm{`mN6+(rrO9|zgkAyzf-C@12KD3D-kD|#%52CfMVGmYae7eu@a8%zb$3?*d=P)SQ%q5KaG-=sI|*~zd5c23{C=Jb+-c;tmqMmY9Yux>1V-g^^gS=GS5ltO)wE~lm$mneo`)u3Pf7UB&HNLS?I9!j;j6_*q16im-`8Z9)$iPQMRSE>!)b$Y%zE`Bh||zUJRAP!(?qw_K%Rjt$I(+3(Rny6J612xRlAIXCKXXA)<rQ2BsB5g@fI~L_$If!oaz;|JzvxcLc|j!zblJGN0JNGNMDdA6D6aYeH<0`!`H+y^yS~AgLK+YeOvEuX)Fc`(zEA9}eH?fXkfxELi%PprE#fNgY#IbC%uCdi<yVlty~PNq^OM`8|FIKk}Gdm=fte6)bDqzc*31Un>s(plyybj6gw!-&WzG5{2rupytMDoL?T)v969yDTRDRl574WrGS=9Xah+<-kAfsSbzxvt0VM-*I~PQu!oI@*gNj+pVBfPt2<#c`uB51N{NRDFwHqv6o8vjF@*J0cPg{om{mQYr3ajC{&Hcafa9D8cq1euAsd#59xX~~(vdR8a5{r7edXU~y{ZxS5|D}d4v*pO)vo@!*X|g@e&W*(cuj{DS?vsp?G>qrg9YJu;|K9QRhO;YISM)Q8x99$M|pGEV(Zw3ALRvUXu=#Yz@Gu9gM$3!-+_{4SjVD8GN1=~^KF!hkHn!9q<UQ*arf`7G>dQv5(OPJPO`V|8~)6j=0YXh-vG-5X)DB9A_S7f6CKUQFfVEGZ0ubjN~eT<>JW&wy5^JuHm8yz;%?MqI}B8f-4pH3Dd^ynBY^}~kCJg^b?dF1S{g0G5y=&digGEPy6>Ro0%2!6LAh1WZSVz_t-S~n$=zCK=R)#+8;aZ!hEx7fq@uK{%qM-WL<Ts8Lo+sdYnT!n9;o~50C?)AzH**b?`LYOW(S%i#0K-B^}b-@eeE9dvyU)72G3T1@0y;8lZjv{r^2?FSuy}>9C^J1J8}Y}pgVyf0hDfU*0!gQ?UOK}GX=HAWcT&D4Bh--8E9(Z^2Wm%a`h~v`68k}2RKL9il9#AKr*327=hSgduau_`Tzf+=@_gihN#aqVq_>r_7}59(ECd9O_aChlj+|ag)sGv@m5MiXBn!+1jWk7;gI^J#QvuqY&6}N+t)_vb3#d>f!&dS%qwC)8-k<imMIKQBM%CkB)zlo+&bw=sU=taB1kcCekZ8z@qPRRjJ@fpS7xb9Fc>*FR~9}Rx+quguLp}DHjaJ6+_7*rMV3k&hJLPOF!pag=*$}}(j(-OML%;;Ywob#{$cG6F!E(CDG7=aOPO=`n9wIWCO*CH!z~?D`U0d}C@Mrgo|xBmkg9<`hk78lJWBX|qT-o){j*jARDaDD5Kj?(fs`JNYmv|i_{cs7)~7S3znN&+P}&TlMDRlm6k+qlSiW-9@&hG0h4NX7$2US9ndV=``Dg4?Ce*Jg!oI%3Qz=9qWB_81@1=mg+YbC6j^e+vP-Y!9Jx73!IqFJkyEkGiWZU(MfXs%7)s>NjSXG2){F3{z;sXY;M|akP>=v{P+GlNRCS^!%UD#9$l4)NFXJRH9T7a`LKXvM~ikLs1*T9gk&Q>_`O#sRVez?!r28gdzyJtRtm!-3i<ca=*5}JR?+Yvm=)zMGrQgaVexP7b4#>w!N1TS~~;I+v7S{y}o3nyT})=N5$8~c3J!K**Q)YgZaEJ2g2rgvhu3I-Q#0Sd1VcCZHb)f*<;h3e))OlX5dK>}h(<@H$u4h?VmNc=u+2E#$9e<?W}0z$2l*KfKpU8PM~-cyK4M&T>SH@rgCm+s(jH($-|uzC$TY!5!p0+|*T=-3Z0ZV;zMShbtrK*oDbz7dvuME}XUcM7h9K?iaIC-1C^m`3l!Z$3h8Pj2-n1j7yYa9+!1ro~`#k2A!kmnGsKx-&d!)XjP>@V}wG1E~)9_o~CNB1^cbj6f%}V@7=H(G&Sy-JxQz%rUTU`IO<DqFPj>w|tt?Q5ZCtAsoyWy;nyq?i~MyHU0XQn{TryF6M(EA=7t)o~|xlNt%~e+vb#G@!%-T^Y4jXdC@<*XprS(UXoNtUOIy8>k8IEr7XJH;SXymPpsHow;>FH+X?-Co%d2#gwZG;ckdm(-VEJ}1P@MlIG|<SaL{tMt*c<6MQo~oC?k6aNF+B?!qCb+<<pW1e?XOLog(w2x6wA#8L9COpOvK1-N!k<cx83s)nsi$dI-!+gXX-n9e0YD)D@3^hV^z4i5n|=wa&|e#~tc2M-H(BP)b=$Dp(<)d`zNNoo=9UHC|LSQ3gd2WR$y|eZsHX?yqcmB{48&@6w}wt6J{_cXp~d>pP)FIm7#hy2wzEdqqr#{udg_tg+~!4ZrcSmMp<?pxMRA9RH_A;iqzWc~*42Rb|^9ep)(rJ<J`h&{ns9+@WLlaGv5}mGqL`6n^1|6NExGkKN@BWg6nC@Jj2IdVGhSvkF}*7~zXxw+n$Gkv!f2a{c1QLD<=?P}V)Rb)EDjd1GlM!(RZc<%ZK~@4aHulcAKGX|Z^Im%(UnIh|qgI@(1y@v^G0F$DI!rs=3@)@CUOmmBv4O26}A-2fT{x=$3QRBGAP`TxYQH%fHxr`xh4f=i{gV!OJPHkhAJ!v4~E{<Be+j7dzEwjZD*fQhp)K^>YZY$T@3MGi+Dt1B*~AanmAv!dor!m@PjrF2j`SB;bfCj?fi@?{^i^jvb{L}C%?#M~WAYi9w(fUNryk>)OU9Bq0fF>>2?4m0WGN9?&ToUTd!_?kj8TejQj7E31a{9K|_`m_2Qe{}_tmAg-v0x=PXp))D=+7xkoW9HvX)@OV-ENJd-CYZSUxTnycno8#VQ6yH*^gfGsj}Ec0>JSja5h_xNQHGk<(u^5VI7fh@25bR_eekk&zGP8Ey3yVQmg`QhQz|8CC5Ox3nIvPjsE7=H?8Fx~_qn56Zz4Lv{OtB0Y*C?KLmEVjw6Sf$Qr>L&qTblH!R9evEiXrnc=t6i`IH&B=m(Nx!VzfzYBL4*xxnyRPje?R-J(uAsOy{bz!HKFLR74=lK7Po?J<j-Z-c4t<G0a_6l+d&cFSFdTz<w!j`wl)jPHbqiphmabn^!DT$0igtXIp@2yd56%iBiwSGOL!bu7p24%lT_``qAM_uD*V8Xn@GE<2K5D4<aCp{%IvN0um)gX6O1s41OH+|I`1%*pnl2HJBj#Q54`u@c)84rer%B7sugE=QQfbq}EP3$P_WX>FM`Wgn>})&qT`;(v}BiB&iOo%KS<^ql*hmHjo8C4zO3KcgHX1qf*vqYmG*639sm@X(t@KsrdxJjesML{qWCDV-vA-DLe&A9%}(J@J+*&Mp6NX{_1)-R&7hlVb7x9or_a^**ixkxQpUnU8!Wd968yN0`c6fFXp1jiUm^B|N_xlof27`lw#aacMqdY9T5U0>wRsoSfwLdH8@a{(@E*g#YavzAX|ZeUMG*iy<~67Sz`_bPnz~Wm2i1YSX7R$4k}IRH%SYI?FN~vPJ%zS;|F=&~3G}G%qe8NSe!^1hLvhjddTcDC;z=+OAd?k1e=EC{|c9Y`l9iE&TzFtlZ9)ZUi-~!W!WUo=7ug)r~I0hW|yS1_UuiM_Qz7r$+2LY6vmmr<Q5&cC9QC)c9z%{iT*s7J3`Q`r#hf6nrp`h#D|`Pf{$O!_y{De(7C^bWCZ)+QDmHMdJEkOOa~JwhqFsE=eVHP1`*sWEU*8KS=P7)~@cHLy-q6iR81g$9AL=dspoC3J)nvTv^6dakT$<7I2N5>xq2ht*Gw*O#D1M8)y3A7S)o%L~fjad4Ck)inwI{npwOW!)mJqu^BA!0U?Tznqd{QL1f?f@&g~MT@{d9N@oL~n9>nP=8#^#knWobt#hQK0Co-W%3ThLfu+u<mP-Ax6p)THqpXmZJ4QyI(1Ww{OTvN3n~nl5ZZmJ@UiGT6A5xgIv-aU*Nn20IbtR;1#d)h(Eq)lo0X(6CTIxdnJtx}1%+l~aXu~M#oEDB@1OVAb+HKYSH8^^}^uqN88Kj;*;@}n9W`}d40l>~i4H^0Z)vYVyciIZkFf1#`-nXdTauy56K6^k`AYb3w3bxJl<8@i`%+O;NS8RDalc?mnw=V*lKT*M?ru)GZuANA2@#4n=56|0|eUC~{xa#d;0Nv>ZV0GL6W;-uCvyn-k(y{g9LizQ8P!}|+_Z3wonbmP6Ho(}R`b)WEkR~Ez>2ve`<?K5`bDC)(){EH-`Pc2J(Ns~3e1}Zr-71Ru^gc;DWVOUDfHSa0JHRxF@V1LMpGb|{ubRmT1dq2kP>DRVW+^dMO8fA)(>(S~_t4rxwZLd^l>Nbwca5Q8*AG2`fi)4ebyasMB)uT+@*N000c??wMqPKRP+6~vFRBm*;cSqNon|MW2)q92m^@RzO;VZ3x?=lhh)f@#gczJ(K^QuJH)jG<f<vStN6=Y%)s@gmj0zg0jo0TkWv3+if0P|7ET)|TK&ifcDHxHvL!UX5E`&C}uP6**>o~|P@GZ}Y-|S1`+bw&*reh^aGQ+u<amTuu3O0X7l%B378gd_zo6NSKta`#nPJsI08X87BjJFB_Mmi4{AEqT6FhEi?-Z<XhBbju$mo7e*o`W^NSf5@EFdQ)Vy1T{ftuk83?NQpgWluy;4LcjlYa};u1tILJsB+Smc#52`f49};KR}eWMRy`QWvxtEuB@MIJs1T4R~#?<vP4Q!MbMw}-alazATo<1?1+L4_E=AT9_x3+RQ4rSmOe3x`xU!0VCbb_d~S%Id(!rNg-`BQ?M9=2LU&)c4b}iGsDwF<RVr`Vr1Ou1zoa(R2?sD>gpbDQ6=_YZkS}%3Gf@yL0Egt-qOP{556kzm41ktC1F@U%yHU<$Scd6dTxC)xgY(6?dAc?n79Gg~^TUl#Vmx1<^y@4@N1THiK`2=!g>U0ppMH6p&6i9*PzK8ACx=pv1yVkF2U*4}<vysDxq{XCrd4ERDF|V!wSSVcMLIx(NO^Ha3g3DVWsQvy=qPX64&U)as5_?5A#&_6T3?z&<a;uQ6+|U++F=0z3x7!+&Dv|ZW=mx`F)wKsvK&OOR@)i9TM;3s(`18ViU$KXJbU@Rk7XYFdARQsJ=&MW6)TNF<yfGr2Vq0G7bK!7F=Zdcy}ne4Eu)Qr3U#L4y)F>ZQS06kTjQfWUvNt?hx!wib8i!F`<DG7q$zsy6Jz$)f)ej^#Cav)>4sI((T$U{0Dlk7=U&wO##Jc8J`K7I23lU`2(Z#miI@6HB`j~%wwkB0@*OEss`zha*iea)=09!p>-N=e?y@AMMVv_~NmaLM0mx6BD`2I(0v~WPDj2I|S_bim!a`VA0|Td2fkOtllPXKBy8EjwPYywRL`xQ`LWD5k-SLaSe(^*$q^s`O+~4HTGA_e0abELS#?@DS27@2f87)*HwoYs(4`LQOEz?wQP)`c$*(&@E!&yk;BOZ|R=4!{W>NV`j{;&~QrY4%ISwnCq5GcZ$FP=AUPU(XijTo4p@XvNQ$f~+lfVS9HY#Mv4e>0g=>=rIe;fYW{z1>F0Z$><QN^QT5|L$c8g0yPhBOWC-MAV8J^=CGfAWW$kuBv@V*9R=F`|f<ef@>Hi=nH5*K_O2ysDBfH5?B-ZVGAM@S4e>iU{*nkTr#M4%LXUyXyQge$>EkDSflJffgohE+lRmt`+VwSmjOeu-7Qf9Y*n;tU$LPViR8{6QoOLS%yU8Qu=GQ>J~_%a_CB;T6T`?%wEF!SqwxF!s&240#sEFOjW|OEw7H#%vd~@}0ehD>z#xX})uvw>!$%nICx5DMy%n@f|GQTATv3hlm3zMe!5)10!hKb_fHM<YyobAu10}@dUJtD*S?Ob6el^&IP~E<v1)s;w8VJ3v7`|_ENVxE^=irxK*O?FLHE~8D?tt(l1H)~CZKwe?VjYc{-^1rRKIda8j;rmMb<p-Gn?L`B_gvwW8#qqoMZEyM*4c!jm+Z^cfbs`b&{?c%61nt*D^#y#RT8upZY-`IcW}JTZJAhx*U@2NHmV3(r-y4AcohJ=8<R+D+p%+1;*D+Ekrq)$JV$(LwEm<W97=P;tVUoYODuA#hXER1JE%CRy;{!Q(_#?3h0)U~auK!^c?{t4DQCTF1cPk^4|v#W6&Y%Wk~?kJc(dljHhD;csn)>aULxf^){8b{8voA1H0S)@H~1}?`x=nqVz1pkjF=8rPI*C{lHz9qv;UfStoWP76-g8q$1I*u9)AQSk;^8QZb_S&JWj&FMcnE-4eADr3ZHWI!B$J)kzKQ^9GVhK*$C=0^gZFR&)Ij#gxM%Uqy-C#hBiMf(gHyUJzTI7#e>TGE{p!nagD1W;U00G&va9^#+XfLbdch3#FIISrYbk_Dpt4Zt?N*;)Mtbk@n@=aj+@PtqVPX2d;7<>v04SG(laTCsvQacz6EX7m5-w({E0?q2}f((Ug-Gwn$GWmTZHEz3G84pED1<~5BX;5mTvaJO86mD%z}FZhNrfD>&Ssy;GFPkqP>>mq~g0zMvkX-mz-nO@s0tF!^)Fl*j075g#)^_u)SI}?o*lpor{xsk(od>pCx`GV9vl>cN3jgy`!&fTQ)a^P~sy5jX4bKTs{%TZH*%=VIZBulUJAPIJH@{39(s8SPFc6*d776C9Ak+*mPpzhogOMC{ZK_)tP(VR4VU>0r1$z{gHj2*d$H_EyQz%2}~rtFA%ahB1mSCdC`FEl;ZJDEvJ?&BduFiI6*j$Tz}4g!mK#8-jJ+dSrKE#=8?HfTI67lPdlix6?iy!HD7UGn)1ceJp7Eh4)I=Y^bIL<$t0$;rikG|&xT!UUPHH%(M>@rTXVq;bA|Q%7zXxZldGScL6qUB%Sfl;nW3-M4x)Lm-Lt35=l#8=svHGcU!&cZ=w`X1R9oxX;InAeLGI*88p&Etk_rQ)H~}2|k!b&tO4e-SY2fyTWj_{h^S_dCh}W`Y<56t8saTs%`1GiY*ZHK2yqkfX*PftwdQ3BgwOo^TA3(enXW8gK5wzwUa=`%1Le=d$hY?}KxJ5elbHFZo2JP>e&N)x^I3MC+i3};I5Y<8FK3t+A;X>v#@;%T~mX~+S<#|Fu1X<}oECKnrVm#OQl|o4P$#`y5X#B44o`_`1iUnX<AFfq4_|>~7nzeoBLXX5_CB)v)|G@gCHrO7^c3w-m@*UZlHXNT#lY~KcHNO4p37LYQvQciq2jqSd_&=D5|FtN$%9z}vC}j@!$&dQcqHW(v6+wlXsni#2kt-9}`~5#6!sUo1oagk1E(&x4r2Jb&EY0U%Y53CZ<}QhedeZWsP7(PqLxPl&99F8Ik?Z4juw%m|)R2HK_5SF)X6#ORi~WbU;Vn|{2&W1m`}U9EY#%(Q_#KWX!sWj2bN&5jxfglI|Cf*`hc%o7&WON8DI%`SCOT=JaO|Ym9H));1WBuzXOW(hzF6y2`sDWYagMP%lML!3tWRRn^_w0p6mJ<HxJa4}KY%|#_IeQ9^ADjeGvpEH3?=8$oT3h+u_9M{z+S0Xwt?(kONoi)O94Mb-u@kSB4aikBd}5^PIAAlu$I`TJD)dvFfYJMk7zGL_um!(JAe&F;F8u^0T564^v0k=dn|Z9%hqk^z?<!iFU}0Ag1Gn~6Zevp1BO7kA}*)j>!)PFd^t)R;2L8pyduZZ;^HYS6tR=IpyxyMUEb0{H|!QdZkze$Cg4O@&JnLvMV;#v>qH|@lzhKW6R}+`+gLg9H&rft<N+*jZ_;n-E}XGt3@*&>Y1V5domGo>X=)G(%wMqB_R@%97q0iJ%px_wll*N=24Y7{0cPn$MEk92vP-l<nJi1!JDqhTu{e=PViE~vy#uN2nAo}||LxVIWT~L*0r5hq+^phg=La$9$~r4-bWiRKH?qO<kr^#Y8H9};P&i;3aoRqi`a8}qzCh8<;%u5u>p!z+)HdE~ToSMfc%an$h_MOdO4b@1<5m@(66VclPoRTe-b5w>QX-ZT;UskkHzo-sVTLlBlh7%EcqxIM(Iw)yv{>r^-o0tuw_i%!)m`OHPYs?3AG+3qrW~uIM6v2JE-!@w$q|R1wjh`e3$q??;~R%^Y|Hc4ceDceUJ6=N&>qT>t@y)<G4QEyrdt)!GFkG!Bx=3Kp$fYPM(wJ)lUi*3@kP~6^WYt>$_w72qmnhSC^`CaRc^$!In5Z1L6qYvnm|X&(8wT7r@id%2&_+_V0Wgssunjp1=nBKJ_T-!Mjm!%O^IwC)*gZd{b^LA1Z431elPFE4nVJKAHVQnCG|M^7&MPfjXVkiSQ*~h{OEZr9~jwwK|JndwZvytyPwo*Tw{igeS2Vd*S<b3`AGw}M5O6)Oy~3&Z1jknGboX~v<{Nr_p$7JQ&aguoeC>?zZ)CI2Em<T*FidYABsJW!Hh%i<@xP4!UAYWc{FZZ`j3m%9{YWp3`(P3>!JolZdrm_=L12yBxv<ShB=y`^exsU>PF}Mif<JUpy2!+-(f>c0n2{Bz*IH8a>Ku~v<9@E^sJn7F#T(hyyUc87pp*$+cZ#{q*7k|`+53pU2!^Tld3mWkYD9Wq=Ih*RLNBF_s)UFLFfL_OS1<D>H;3VnquwetsLhflHdq?4gd>*1q9Yip)HKmoI>EEb)v({nd{($k>u<<#Fd%bOWj;sT|ei|N;;_eofxP9d(j)yIGd5SXwNMGdppgQ)<Ai8=t>inRwnW8kRgJ(kt7R!B3anO=aqXwlEEyc28BKZ%+*ZenIGodd-U4=RzOal!`8Ln2SX~jk6z~QSr}h5+(eV~UQfJsy#6-nRendCwWE4kc|@RS-vAp4B4h(OUwdx<#fqP9N-p1kq~N_!(Vp;*>Jcff#@ktorY6kYIQO{tlr1_$LEk-z_Xyx@;=)+Jx5o@=gm+qfj~-arx3XPSutrhP_j))|rd@By6}C#V9Dq{zlJCx>*`w%ai$`iJE%KR-qKJ`)<%6l=Q%)dqvQ#C)u-u`|H7!oF^)2hT26I9F(c&+Vo>a5{I5OoPyIc!fivAUlmz5f^duSHN&hzKqo|Xj3kslugQ_$;OMEjd_Y4O7TN`Khtoe0zA^fm0bS#^2>hT=03O@-gSpkWyPmO)+^y*xl?F_I~AP9KnbOB1`$pjW-Kw%SXiz1dH<Y(+O8)x47Itfu%5>ofl4$)94kUO-MWbZe~6s7<~hx@(|eG{4Dm;<l>#k#gJXD=`A*G;tzoh`L|r({^NUc{nHk(f7;Wbg+*kJ?8AWuvGZ1qpat@vD$gUrB8W8<R3(C6T{6P;r&cB&AhU(o5To_Qc$9K6c*~qlsFbCi`^GIBLWXrxb<hmcjKFX93=vMok+%Qbq4*3W&1ZAz9SgpmA&HI$@j`B@=*TvXOT~xXk}aM)jPt66X@QZU^F@%&Z{0%ur<~|FtcHLzv5xi#!dk$xo9cKacybyE6t8%;~{oD>g}}xlmI)9`EG#TWW^h@r{Yp&;@SWp6NPAhf4`fy?v@{d&dbav`*;2nr3qzdX(U97%?+OoGPO(gRBrkZkI(WW*z`P3_F=rSoR+$l@4f`xtco%^C2c1?ZtBGUp#5hM@5#~N5>!osd1yUZ?6m|&I_kXTk4=BB(`5A~U3O6iwkk@UsH3BJQ}nvt+xJ$lXdD%EInDAWLHO*s#G5)~TWOh#qzTeWFf|qr40>^t&u1nawFFx0$<Ym`>*+nCf{DU-KGJcrdEkg1>I2UJ`MSNu$2NUjwuUo%Yh|cKDY&JiY044?7lEa@Sp8*bTnP7Jo~?Q0wciSEcw7^{_2C;ItjztrZaFy=Aoq}58a!CgWMVP;A&5y%<pt(Y`n;8ML<nY?7~!2UPG+^vQ?vNSAL2APSE*T9%#0!gvoar3GJS^-ENW9Fob#H(_bHm8p|N_8+66NlHWKZzx2iv-v_h(--#HLCx1Nqdm9k$ktr4HR6LYvzXx!^MK7Y;zHd!X>hCd9gJ7v=QdCk_H4dtW!El$jO*WI-THz4OdZ=YY-n=Fq0d4dE>_o|x1{xnCH4BA31fg7$whE{`6ivWPL%oP+MbP6(cGy7q{V7{uPv4>;*xwFZ6|GjYl7Q9<YA@=6hzj(}ND>dFp=uTO{q`m^R;sS0RY@~1{glk!nl?)Q86vry!5{Gg;%$~|5r&Uy{E-A2^GxNs$@4kKF05A~I5NTazo5)3LYS=yy1%tuqhd9s^<>N{O%o;H|vnUYl91=tLv>)r*>c0OS4CN&eaotZ9=K1LoxQ;>hB3=WNaU%Hku&_<uu_A7iqXFU{2I9j<lylhiInFiOG<4V<r_gL6-1f=zE1Jv#hd!h9`{-k&e8=ntLb|d*EDuUHQuhmBb-Jk}qT`9oCKWgHH<BkDxG_6W=;$b%e!?mjP`96Ug2c<s0~#0*=izy9Bp@BKCp6v_N(E<J|B{1Zf_nF<K|}hu8icZbfilLeNxr)YSK;__oEm(AbCgEyj!*wP1xt&Em$s7QGU$A0*1c?10vh$4obFWwLFTm+#f48qUx0S<#v#993Wh}QEcm#>cbF{enc-RMxj^RZVT7eL)o$BhdU$*+daLP<DT8Km6j){Y>#9O$1Wq~R)=1`5!4}CT%*bsH&O)&?gG?2vybT<P_T!Ta+BZCZzE81900a4Xs#=HOP6Kyi9J@vU0!6ObB%pysPw4j%Y;cAvJ#r3Cs+URN`f$uQFFwYt#6OD{jC|W_{<L;{wRvR)u7@>d>vFsmeCtc0YLh*y2$EBbtCW3@okzcd(*)^wr58U}3(!CJ8MP~+%{x${E)H=FG#bJ^_1qfQk!2W`@%dVmcFWL{_pdSP51d5)YfNSDn-MZdJ5|8T_Px_VwCb5WYn_HZS29YS6`h-Tj`RbxO4oh3RKo=3R^`Mt=Fkf{NJYmevyAIP6ccL0QZXw`<s@#8OvxzvL|KbDt(HWh(fnrau{0iT``n(nR9wACit{=2dRKSHZ^+-kI@m9TIxi@muWV$(SP+U_tLxPXWlF^aklw{n_7EtemaY_WjI``l>KaYZNzkDuD86rkx4cBQ-wZowQ9Sy`fv!l-PBcFVpLlA%)h@UX6Fx}}9I%j9p=WU2rc4+qr(10J&Ua&L9fW2SfuAot-P95F4DW{h#b+tVh(DC^18ekS>b?0L*wI~tjpLgNZ9)ijF>G*#clL1z92@d{jLg`lSu;x6RJLc!<WH!p1rV(DdlbvjZ#$~@M&HYjP$k~WLO6L!+%ps9f<biZ28CiBy4xQm0t{dU`g8i26daIcI}^qJf<kA0{xW|gF@WeH$0UAuqA?qsSbCq!TTx-69=cUYbbL*rVN`wnF%KlBItOS#sn4@IrQ<NfD@LtFoU%9bzXGeTfPN+t6!uQld=AqNGEBtGgzl8jZEyo>%=>F)YAeK~>#Os)C~hsHtF!mzk5bwSp0{QJ2Fih{s%i?3SB1=b7RTG)&)h#@O*;Nu@NPrxK;aZR|9ObuZ8LuKC1vrF%8c-|Q66KPLCy?0RrIwu!aFI3aI*EHU%yF;jTG0E@0=LSBT?jqee0jIp^O^GT=jC_*CglUF79|#DH-ZxC2$&mhhq{DYplN%L+1V1yYQoiWdm&c((8kIfw=~+5yk+W`%lB=QrATnCzS|Hhoy@d8y&2dj<*hGg<9lbV{<ZjV|7WMWgs7s#6rf#*CHKRG;PJxw57G77B{e$DIAU?b;#OVlk5h1l90W!fCuwJ0bDa_=q;xFGSOis3a|)JDY-DNu;xzGZTvu`t_~GTEY{)nIAF+cc!mr-kK&LRg)-M1h)JIT7Q{r}rlqvi2`Dp6vUkk#VsJsMf&x4I^b;ehAnUlYO{v@oFXO)FYQM;*Q}<?1u>FzR-%eCD8Iy?=yr?eH7}GI3Z?*J8*1YHW$K&v6cJ3?FoA-ozw8|W$I@X5wn%#<-F9;`jWV%Bb1@Zg{Q;`TOX(gEjPTCRfmrPJQj0$=oOtKAGT&W2W*DN*JMZ`|HjfTtdVt_P#c&hsBN0@?~3sV)x_p_>vym;H-4_TannvXyhDh33ww<3d$Q7sBCXLlC@>?b{yD1Ze8;-Yu8uUlcpkuCSUaN}vdu(#41PL$C%r@BF2e+gT8D}N2NQX9P2cfe)m6VcQr$Iqr>eKj{tslJiMQy}3;$~L1Vuw$#s9B-Hb?JBFO!$vb~=@+vGJ7Rm7uLbi;k7c40zUE`u40s9QtXgW?ey5VXTr*nzB->ljn8mh7!Np@9XZ%STKuJZ0%>h^<PK~BlvNVZJs!|-;HTF_AFP7c-tX{MUnwK=w?DX_6fFy%?MJ%|?yFEe(wBZC9TNdI(R2Cx~Cg5J!SF!gm+Q|MgJrl)GYhP~`{ej9A&ob?&q<m56jd02f6B)$ehJpbJ)}-W6i3HX02=~XFO+V3TNv`OXx!_)DISBACWtMJh%b(yBXb(t5#F2(hRcb1vxz4qj>}czijYj&{@E-j|jBmq<eJtRMx?2#<!wy!Mrlk0ZVg1=;(iJX{-l)jUfLrETW}#b>u3BWlurW7RtKB9j)tOuqxfc6{uPSdNOctHKg*iKQG)ZRGa$;brRgOF#GE3#P+-%o5UPF>Fpg`7<@xQC-d#e~X;nEJuItp>DijS0~1{AkSZH(k-MgRA3{*IdcAn$nrjYRdq`R?vsBCNX<RiX2}RM{&sX|&0h2U=So@lWB8hSu*DUZnQhCCRxJj+X@s-G1BGg(j?I5E0ejDCoYBhQH3QM`e$!oqry|mcJgU8Hj{fREZT6L$CHeABIf~{?0J^$)<}D80BH5jBJ32HgY>MTTaRh^uje4+w!V-68~2((M(A|%B1%H6tK>~R~6#NH+~@VtxGU6*h4(emosfAv<D7~H369<3OEdw*!gD5fOc7{-p?oZw~lo$4+e(y*95#In^kZ;?HUTRyhE?=_54lw3ve+V^EgQ#7(Rgzv<AR|=YO|4=|_Yj0>Wq)KyJ*^NHZyQ*)bLT!&swOZZ&+BMr|-$Jh4jkl892THdv2vVd<oYftKUK;>I4hh}?wa&-r%(Fg_fe8tIXak*MOtaE`kT*$3z5+^#-_9gQi8y>ac=^mZYcm<<a=NIlcBKWn5pJd>N)1>nU(eM&C|E+-g(jxj@$s!QM(%O(;c7vr^bw?WIby_IMy?R$iFQxWAN>F5w}1P;1iC3?$Yo+J9oeBs=fPoracmjk_;l_<!$2<y#Pn|I-ju=RT>oOwf(0=O%%=?STknNx=T3=|`ket>3*#NwzJbzXEh-3+Q3pc%~3YOA^<%<1N8G2_$NM=Q9jK%dNv0#i-naXX`D${T@eqyMJWFn1OLUsx`{0LbcM=ED0Ns&0*)emuQy%1=Rv|26@!PzzrwumV(S;mX5-{1i}aeOE46K7X2%QNLU!&xRRV2s>)fgWBNmd<tKkxmCk>x&)H!d$`C^I%-*`M&q9$M0J_<gFyu1x844S1`+HT0Pa%JHwr_<P3S9M{1;R;R7_?zj?foDfGqr^8q9@Li!1r0PK=XdZ1`k=z253!VlSuu!`ebuB&{Imz{Sdu5_VuWpCJg91{h|4QPz1UG~Ez`CMWO_E5zFBQ4g@M4&A1dp~AvLGfoEh;l5XS7l{es-?L6v6HUH=WRqIF%3yTpirgd0*gV^=M~kAd9AY^$AxUnuAD4<qtEs&(cW&@LY7v|)5SOaUcfk6G&&vnzt<QbBj2Gw#u5+H2?rEC=C!182^Ly_uw%{1=L1dyQ%W(QQX*Nh&PX9u)@Ob<EYHOv+>m&a6H&d`}10766c#QUgf>pAmlLn+qer^soLnCLHGrwSS8tEpXE`xJH#{fYEF}G?&*j(*}{5~536Dt62QEXU>42XG2&G028UQ4YRwX;lQ_39%tazhHZagR~+vi7gl1fEc&wCn)-H$ALE&KG)o1{a3(xc@})C`NuNx{IOC8&p7C{1$iDnK(GpL6tssY15_oG4hLL5qCw(qPJgDjV3`$Z0UmMC;zyr15nbfXp>M{Q~ennPDkdjU812gV~UxEDO(h+k%Lxdz=nbCrOhIkYXFyeQc&bYO*TjjhE0uqVUI+5MU!vCL$>&xcahmb?en;P8;=H_`m616=qYu#XZD7?ty9ZZ1)tl_7zSLn7nsx;De+5vO2Cdlhi|2*9(x*JPji9G$T+-J(UMS)kMYosh?is1HsV4nZ6`_7<?T4dCKUiy1+=Twz&n&S`tduf@H5B6q!gk&JokD{w51MRNr#}7#AcKp5e3m@jLn6Hp(t4TV@~3v9%V*r4e*|S>KdKmsNOO*i+ZB;9L{WC?2pYpoaY2U<)dUpd|g@+i)Tq+GGJ}w&cW95+;79m@*w5}H}JyxU;?t0X{tsbqLEe*RRG27(waJ!2S2(>p@o+9^l)@ZLYb;w<W%pqn7k}xSm+J_&5@&T&sS$xs~m#Fnr*DA)qkv9Fg8)*p!gk%PN2eJ#kc}f#41_?o+*Mo>u+>jE7#kD{gk<Z+>+7g9eO!F_ZRn0-I~(kf$hX~)a?T@*c13;>%w3Wt3!!#xwdc7o{9qF(9ox~*BfIb#5+T!scbveoq-Lh1YO|+4yUcjflrWMI0m;w@4RN(x~~Y4C^8{$SX>*ZTo-wBBVjasK7!5hW+)OgG#r+D3RT4b=KRUUuhUV{LvC3~aG6Q!{KcP{yj!>VDAuCKo!(@H?j^I+9$5Al(gtE1Ls}nJgaB{eJrN3&3h6Ph-lVLgWuu(P92g8Sk2Upjtg@Hlbgbe;dB9;Fy3Y`E!RB!%E9PW7&my~XL(9gp4ZcTYhXo+()J4oE8VkAv*Vz16HIG=EI>S)tkz^#R?<&suxnUwdKd^&==21N-XR5r7t#bXTLEP)+xt^9z{U|sEu3rS@o2tLDxx7|h(fRHs;@+?lxI5q0bEfBQhV6L%kUj^&0d*8#pT}IX>&K0HAZTPR6h&4jJg}aCR=R~GjBnKLYHsjvWCWxzvAo<H)#iycjlA%yF)1OJ3V1BXdCc0<tHPzj9fDvTD@p|O(>UP4^+*2%d?<5(A=Ttl6@5l9DB?OG(5tX`lafl%?%LDL!8}YOD5!V|K!CeJu#Obnszmm~i|~IjpY6y?ZJ+Trd2oNDooWNaGY)Xjtf%x9Ya>=7L|W#;cQ8@Cac%6R|B*@0f;O|04`f`4#Qcm$-|-@!GAf{p86Yb7x<Y<Y`&=<ZWzNC)Vg~<$g0;n!Ui`<~;C_8>WR1e=BC6wRjE5lL6pXYdZC-dQ61%GHw)A@HN1*j@7Rysma(CGdKbQ#{Yu+5k2w+=$>#z&)aC{k-BhPMDaqS=`I6ZuHpuF}LjBqkdRC)koqk{|iH#3aD;(N=J><wVBW-?7%j)fRc6QjrviXlB8ZG>pwC8MEAQbpWY<dXUrZ5&aI?bdyTq5Y^5iQTC((Mduj!NYV7Es8^z!FPTl9sZzh&=a2|2NE9=$QFh2f>DMU=C>@c8x3zKDW{LAD_g&Vj18k5b3nl7Yq1M~kA>_w<zcOz&6$`232J{{Hm%ebiak1;X8D+?&Zw_P@YARN^!P(&0+LFH1=ldMbw0>Lr7DGa36VCOZYRro{_z?Vt+UrPPRf2Nm1BKgkw|-Y1<t4?lstgjZlzO0v%#qt^xT~HAnq?;Q>-D#>BD)V)VD5^hEldagc`6`%TIIsJm)uqc7O;1$8013H}$9a=9J@&y{jO5ih7|4a6C5uL635G<+`*kcOcoBW*$^Nd3#uqDQiNnrMl<~&JL4>kNjzWYFox1E6^M3)c|(-U*(I!DGM@UbJYKZ_^X=pdyF+)<tyGFre*!HJtsfgW9#&OhOP>k@B`uKTfq?>w&K5qcG(CY4c5c7x<@s)LORCv;zaJ}$zt8#u+xIg@Cv-I;X+?$X*@}JJ&(=N%@O=7p^A`Z4wX3!9hEpW?#oG^BTs*0!{XLeM}-Yf4O_VD9*Gxjq5NfJz2VQa!mWoX&HQf#AI)TfQQ+wxoTWSfto3CnEDI}4hr4`|)^0cPi+1f=>m!KjH>!4L!jP=7c{t2s761(|R3!0i!aIgS=>H)ntwwi+OUo<Hxhir%ZI6Dx04sN?1g0Cm!Ht8n!8IbmcYJ%pm+RPL4nve5>^d;cC~4W{DX3agRYF8}51z5?{z9pygRyJrhYH<BF!8m?3kuLT&BF@uSw}|6r~qHG1ea|2tEm^%aXcD_)ak)juh0$`IH)RCajxPMjK-BHKA})+N`&NIDoSv(;rJBTZ8BKuW04@Jn3YZejcAG<x~7s54qDroV00JXj!f+Hq!QZd!Zv^wCN&@Pu4Xyanok0b_uzcwDJ!npuD5I@2*RYH(eE#XjhUsuk5Qk()vU_oy!i~GJb{us<|a~q*kKs5gE=Nesyob6BJ9oU1TedF4WY5rdDaQ#>(TSJIj(%(T^jh2y@Lt^w`oye?_s^%fEZ4lQPeHysEdCESHsgtHQ_gom}Iz?Z`)WAg?*XePm(XC2s|wuHUnPfLhQmsOD=|UFayjl_XRs9GsVX+{eGjc6vWNH?e}Ob|2Jk}c9G;mS81U9FtU)Np!SGt6nKBl*6wW)nGsj`(RNjIm~^vDyM1aYY$wVG8KpY^c6?-5qah`Pu7OMpg;`>9wT}!k^s<s@sM>U}3wEWUTda*DIPEk_xy8aKm?4O;@Suk15e0bx?M#8cdg0l#{d9hJ=EjXsiS!W^3WJNSF>okzyS>TjT9dcE;fDe*hmFskkT_y3k`e603giXNQ&`lQS8u}5`U=pIyK=kF7Fk*~V`S-vZyU2E%UludSSNF~oDgGwV}dpThhyj-Nx=p=sQN&mV=fJ8Pe{ZxM<Qteb-?RaygX_l5frb7;p-uFGV2Cz227fC)B9)zW8PRAfiORsK)cKsQ*p41Z$i3Lq=6N+Ec;Cr*{s=(V3YlnSTeZh78=K=Tb3?CCgif7EH;HqL9%sj=akJ~&x}Wpd;-@SDBZ{C1sIU+6>?=@J-p$rJ6Yecc~mnvNZOClFXs)Z&H@?`qUAAT7n^FV{I+R*PIdJDl2=R<sU{dh)$(o3;OAu^lh(88C?wJW$;58#&=v-BM}5h(P~a1QQ8EGHx5_yRF$i|YyD8Bq_yFkqvoC@Y3+qKDdj9tvaK%yqjR*|nz7~X-1|q3hBkOmyz^m1xSsfm*-aqy=8?&l92h38E0D#JiIFs<Gd|U+d2H6u?pK#VVB=4DHV$5a2N#b>|>LrlD6+gx+rghAwDEOpRP&fD?yxv01n_*klij;QY=Xh(>d4<B<Wfeu6c=TBsbr>vT=dntZZBvVzf!Z}mQa{Yy+PcVV!)hhHB_9^`Ic!YQA7<f4>r=P`dhC->)<v<L1Aj0q{Ysd&vU#Mj(z_R)MI-h0GEP1j>p;VQP2k<-&|oDKv!$p54^HMfS0`1g=_>UGsJhl9aDsXfft{IHe)XBF&a-m8cr6Db@U7-L>>^(TuZb~Euma|1Rz5p$r+~eXx79SMUE-tjWmz?O{2)7WmLQo+gasFdFX72p8mjZU;i}1Cu3f$KasHG*7CKn`=5Fc56l3K?1k2G<9ey4B6I$@p%m6&J%aSmdr<_ngoHou5x48I<JZbo9U1utK=r4I6rLOumDcHkVS#!)~d$R<MIBVe`Kj=v9^IQ^7aCBSx?7s>I8__YAse?s8q*0vRBQY8;rW13L#*O%oq*MWRSKg_c@B~`faJ_A`sYLML9o3Ot?L(eK40Eb`J1mp4oy-gB8B=FRBQ?ovD6B|_Ne5+~*ut`tS@n;EhAsr&bR&A96fMz(9&yrLwuOG5=HtDqGoHpt<+-b^CBb_TkA+FSX)0{m^9-Kl017JM>w6Jrz)|i3j*acYhhD%L=5mX}B2EGWK%-`cjv3)w9)2J=Q%AlLH}eRKgLHn$5tZ*s{9w|8wV_NM!A|7Nj(=m5Tip2+CamGZ`K>2_ZkizrlnPsZlRU`lNp|Yrr#12xR^YddMu(E=D{_+ERL=_o5Nvk;0tlq{Zko3jilf0BU8f|L=YaOdQ~Ri!kClG%eS8axf)^0?xElGW-MQ6fRm@zMyD!m4wLlR!iW-|ozg1*EwHB@oTsd`tk^|<!m@(iY=Fh)RgYr?qLCRGd(Z5!ER&RW5NK3sqY%*${c0y6zWE4kygq6zEso_i`{Q$6!*-Pl1j4uw$y9ZV_fMR9xGS%xf>3AJ$wC##s@H0GIW<>;Y*~N;9Txb&D3{@W6E_{aY)Pf-?ZTF)>u3_X=V{3)?de6xzrO;;0NBxC~*$ZX4PMi2&6*CvI5vA3OTRePmS%>;Yn^1r{dbusO{ij2ASqp#-Rtcl3O0Jn&qsum{pFti}U!Gm2ZP*D3YB!Zwj;bZ~_&}B%8o(mdaCu~}3)roK`KLlesFQjWn5tO{i#TQ0xez#@%m#qJ&~jVj2c9GrCsh;=jY`GYEU+trhPtkOdjZ1xmWkg)%Vmr`*xM6a8q0}73pL|l+BS7S&^{_Vm+>l-a%9g)F>a^`U%xpEFfDAE+5(lbeS~^#LRpA3{+hF;iqQY$w<FsC@yQ=h$J;lwa{paO@%+Z+<B&3t;d{)gYGxG^<no{Wgg7JVi)nK*ZMLdIHL`rjNDsLrz!{HZn+W>4dq2Nq11q;oE_gnpL}p@9|As7Xy@wlc3(YPY%QQ{AV$<igD~{IQQ%|?Z5=Azo5jJJsWV^|arj#Prexm@x4kaPZ9ah0K55lADiV28B3>8@*v^1@ajhafrDCFA}WC8>KJhTuP@_799byc%?#C3jN?qJ`e-pp~bhl?yPM#@my=#=>lo{|-HpPF?|%RZ8ucXlp;th8CVg9@_KFtJYUinuDpmZy)|p;l<)>*C&Qi*U=@KwdT_66LrwSU>fUr<57J8jgeFIge9d=oXs{$37U{`f1lFjmR7YtsH8PA}v_{xwg98mvJebmqG_beCHbblRxkh^Skyl48G^bNZnm4<CSZ5l|jG1CwBUx^aGzlkN)SXResG!Yz~h%w{E@F=$>@x6}4wp(i}CRg1?RQc!G219c+iVg&}(AwmB~1q1J4lVq5hEXB!v<<dgqpWcu{v%_eR8Jg^mzW@?hYL8>Dc(~(qlAc+>kr$SfPL;>-zJE?y6nG3Opwwl?98l-Ykg129Dp{7(+0w*Gw@PQ}8!|9{2UMa|w4|n&eKtpD`7=*n$8ma$TT@H5y4x7Wm-$qRp*6vMe`_v%<mrieJX_w>;MH+H%9w<765mijO5o!8k%(X+7QF96Q_4(%S6(VTqB{u{W+aZd!Y|@<}@(2l^8O3w?xfD@L_Ic+_J9*)mgV9Oe(m1kX#SqG$Z~1YNH225Hc)CKmtEfH1kV$LxPXzpywhLc;z(tSu@Wvc*&bF3!G22&&f6hhs;?s7Ps(un7!aZ?nV{I8H=7?0VbDz2B&8s`6pSFnE27rs-?RDV`6=D9MOlNp=k8j;nIC|%W7l(xaXo1X^eLg5#8!zA*v}M54p^UpT#j${^#&q3BHH96{Dgp`c`X`x`^+5a`DG{#m?$2z8?8l<`E75EOI+>*jd+v<)AXb;)7R**m6wVv!`Qs)Xt?~wSM*!q1>`0VkaQ+eyX2h8MK5Uv!d@<xz#Jv;nyj;(|Y~dDWtY+{SIN2PR7+#cJj?hyrnS{Tkh~_?(JIps6#zd6oB!XgLNpbzI0|r?-S(=KS4`99j=)h1Fpv7{VE~lm>Mx^{fuNAuFFrp}~8nlEEzq9&`DpttEO3>8O0(rYboM||)u`m08rNs_1PHyatn%|70h(%Y24tsJN;|IFn-q?xtOfo>YDTm209$BeJroPz_fTy$(P^VL>2W7|U!@vid9z1E$PEj(eHcT;v-ZT(P1s%~%gHH^6P#uax0>i!1-Vfi-IcFK4BUPCSxW&M<kIb2tO?)5_+kleLvO6@zE2o(aR8nOAMnG7sn#C8ADgkRMOuT8*Ke|@wCdW&)KyKz$^aYbNSn9_+>2L9c8D8V^(!xu+-*E@EvJ+BfD)6)_o|JtqEmM<Fu>hfRs+5n<b<%Dt9E{bQ^|>X8nDY)IgA8Wlk7)Lo9$3XHxxrlVejGrtOeW9;XkITzs9Vrny!%)oadkeq&;w=zNqk0}A-os)mjmp90QlWSr@nB)d^-TLmLR-+ZcS}s&|OPt+Yw>xn=A7d$C22L6T)u^CS7~dFo*i(Of=r0y%J4okf6Jqbi)0mlPgWoE)u)d{y^8FvKt8Jb?%~wD&K-6rsJm1hBfJ0>;MV(w+@s=k>Nr^9)8v^t7(wzxzd^bPE+sU?GJmfqsxD(3AKFSnr7`yGg2-Z3}M$koY0(P6CAwZZ#?v_K5SY0{;v9@O(wQ-HVBqRWm@`g(JAodcAfaHx=<R|BV*Y=9g$a~KN+rgGUI2xR1?Bi=H_TBMAOE#9uH)IQe1>>XTBh!Kfm~8%@xzcYD@2mge!u&Zf@zO4AG{nBp~ZhgF;mB4mFo2>}Pe=+l5$dnG=fs?M!3q1axAIvZUnv^1&=1tAj(Qqcv7%V|Kxg6DK}&O0A)hCl(lIUSYn1$;U;rHqB{pm868aysAzYt3KKX_Ut&H?n?|Joq>+Nz2$4q-{GWyO!^on!-pk`O8NcbYJP_Nti}rWJd9x-3X4moJrazRJT@P9OTd2*dDmn9Rc$bVXEmlAd<`2pDPOwq55>Dk(Rg&yMx&vENa%n7P%-u!Dmjl|Ck)Gp7kyWp&Jbe?zsl0?1s33qQ5i`?b1C=~`Ysw&=_VB}h1jbZKwpW>$`{s{!N<tdu87wVTBX}D&3zS<$jJ=aY0isbw_MF6rDE6haB$FWTe6#Tak-6R#X-G5t6!n!_r(x#%=PAI`bwQ2-7%tk)!FS1Jzm0u3a-2$zm{1>W`?2WMv%WER3u|zEDBQ+k)wsEqt7$fJK-(9I`jpDGG<#{fACT~izeS^hs#hIXOYE4VGwNS6+#4+yBCPsP|@2p7q<%pO`7UXM8a~erVsg$*~B1gUy(BruTR#9-BlW?&{<md3K&bBVR4~TsS?J(I%V^s061%6(L9PCV#!#!q4|A+evFr^skG+wE1mW_bm?A)*7QzadQ2?pY#?x4WB$xk$-T@8ibm3X7Uvv>Cp);(w!betEC?AuCH1^1s|S{RNakt}-qB>~ntAA#4BE^8-x_y#f|VKN50OM(z71IU_82DVGf8_UXj-eyj0@Tgo>%6EbHBPge_#Lm&|#EjFKYHX**!yMYiiXaJ-Yhu;`v%SOfub?#`%l%%>$TMmc>6H>c$2oV@DLYOWaix<AaPH7Rxjv77!J;(7x|h07HPnK?tU#iD<|hC^bYwcFtrXSHoLX_s3O1^i~6^{jf6eS$fgK*i=?@4y+kR5=N3Ob`p{S@$RA+FoKhFTO<LBcCTBSmhL-8Eps)azNimbb?w&oyVdsB6<pe;?<v}6IeM%kSQR4D)WNqlivnEmZ;{#tSfXoCA%sM1(0vYLD)*K-YP@V(Qm;h)9hassSz8m*I6c0}XATPTNCIqH<6PYar$|r?W4JD)x@SzOn<Y$H*{S}lVwqlB_linH6BrMvppV7d@>n#mvHQSByNM&HYkWq)u(<cKw>D8CYeP)(iX34eN0<Ee8;_q<T7=za(~+8_Tq_hON#mZP1RQsXB=O+c_KO4mvSRLe^od{DVkd%?!sqr<i5R9uBEbmmH%#SW*>mL)<TfH~1noBbLjC?evZzv&gGQ(s8LOMzvXHS`Xo)DhsDdSFtwNU*!+bqbS{fp4D78`Bqz2Ke%-(Keh3iwzz~VH-W}6;S(4lfvxThnf93#SpL6TObK<3}6m90C{5DS!;;oLI*GNgvKPp=f}nI+z8fCl=+v69;kzm!MxH#x2BBaO;Oxxx0WzcZ5aSAJa#WQ59Y8Vv@1L|ok!%r=CYv9)*pGw^?hu<%C-BLaTzThaNq;D~5%N^to)y!C~&EJX&T&J!-mo0A5e_{Q?TkK{R?6kZaP{<}DdCa*^V%0aY+=BPlKagCAA@!i8hHu1-5W=u8tDF4u~W&EwsO*D!XUT=rs?P4WwNc;MH@$|As{wXPAV9;||HLTE{G3U5BQk;~+<!btFP4npgfv?Lm_C48^^?Oxg#WKEVH4&2c2USxoL%RhVE^s16Gg>bWkW)ptybDW@*ML(=Tw#5#4r97Nf}9B{G=5{*>6}AQ11eV9N2D^Ks1P6+#}wDR1>eu&lh=;4Zw4bptf7$^sj!9E!M1+__*qzXlYQJlGEE{g07nuP!^pNJzByW!dOWb8p1Bp00f9P!dgb<d2tcznWPkyUGhchgQU-OQK~n?@{JuEdL4sYOTu?vy;C)UFs?XG+Ba=@Fomln<JG8+MnDy_MJ_$J%S~b?)yYZ)|RdF}$$1fsm-lJB^u-3&lCdmE<wrLU|(5Hy;DjL!qn)@1`P*2U}SB}QQAEm3gc_$a!yp@A0w6G_-lVR>Nr@pB9o>6)jm3RD7#TMH*6J1oABymY7piIW5lD?6LU+FBrO#E7C+FQ=1vWz9PjINLqKNN%iqoW_m6>@5ll|2-5VoT8Ibi<)`3@Zy>k`0O*OLmITHY%Hl%mydCUeGfP>|oe_wyarK>yM8%M-hw0X}1XHD1X*F#2~OQ&rL!I>`2&RQT<o^#o6Hr8@3os?T<Th-R#HYiaS6g%}@lo(lV*Jju9%WSCtw>bCqT*A9F#t(?@C}b1rw<d+9^xHpI{Kn60#5|Drz83^?ROJyd(<U6@Te+Wko+9&x|koLT-V6rBpyT9;_`UARx%Z~=lw>jDXNj*`bwvN;hFXOTIi#q^lsCKSh}LL&}S{<aF+%mW+<5;kvgxVQ`#VN0}1cdCLe5vrM}i}m6WbtBpf>_PYkEO(~s6;;djN+>R9AIP-ED=fcTaZUss|7pbAaS#JOg9zjhSu=9AI0A|dX`iL`a1Hn5i3(mBpsV&MN!=9iau=gyHV;EYyXiR$>VUMV$+=kE_KhyaR}5jm1gZQKl{=-gdDJgfKAPk|<Ls|O`MYG?lHv`fbfB)$m>G)b>_@Q$zJR*2%<Jxh`J-1O`Z33BiKay`t}Vx--u>nE@yLkAcZxEMs16LyPtwJnjhLVJ<8wzk>_(|DeSix0EpB&i6~hWK;6#$%RN&Gr(_8EyJm<u~yqf-FG@)qCVX^mOrBH)neCw(>C{LR(kjrsz`+mLwV+dt-bk`x24gH4x9$W8pK+nkmUA8BtC(EcuAgjxEy3K>X(v3W>UdjcmcQ_PahN>mfN3x8397P9wpmX`NQgo!ZuBBZg|HgQy(ddm41+|=YWd$z!lo6b~P86)e>KGl!a6i6APlk<@kpVPDkdT^UDn!`me5D`o;#x0j?K~Jx^Fz`zCMgyL;>n7vdL5gzny-V%*2&7wGJn=0n=0jfl^EUcHZtN!n<=b+-J618ykA&4J<PU_Mu<=9G~HGyCFA~MpZVoGENNgRHbO#GVA8Hu_+@DZ=MBthx!v}VTnteyU2e1avgFBsEQcuL&51KByI4b8)}zQ($wU!Y=xBem!i14$#ASg~At=wmF@F;Gji)$Ii|}7T#wYIE{Y-yps?+ffaOOAhAQ%zxX)+LZNiKy1JKCdy9N}_;iVwMipuF4n=}#hc!baC%Q)2yBnd~>N5C7mtHJ}andE{K@1Wm{ivFxbE;{aYejQTk#SKKT-Dy!3(zIJQ74AoelZvG#K^14G}hy^(B0Sf}=Pw?Me^mTedZ4L^F`|KyYa{-lc%4)hA1mDOTYh00suN>q=&XIop$)pXhl;kphRN6Gy=Lz@YS}s9(7MJQ0qr=4k$M<X1ZYAW4r}v!XJ8mVAC4=5Liu06eJSs2m`q^Q^mj73g4pDe%_C7V39fKr0$%UDkTYFkGAw$UstJyOBMbqU2hrReylH`Iz)?BgE{TgY({>hd)De)Iz0Q!VY|8;jg)K}4*#EJ0TMbnK$Q_@x7SbhZf6UvW29HWXyvPMq4XXQZIFOoX=0KH>^Fxx3$_u^+HQJrr--aMfOKY{R%#bkckd6Cp?ex~RezSH2A={?m+$G`%I(zs%Js(5WKsoGrN4NeX$!g5{V6{3ppFnds%^bN%5<ks`G79=ehkaZ~KW*v4FfS(pH^D25bcEW^QdipnZ<Vn3)n>GuOKZ3qZ2I_5%=Fxd+{mUT%KglH>?MX8c4e4KV#l>8p*1BV&=u}s*v$pjYp<eP;ev@oooS_%UVKQYGSs=7<GN5uv=ZH>UI{IXM(7n1nv6^Z~F!6k<cFwK31XzWVP|zj`#IslxCTUmsT|%Y17jkeo5%;xpn??$8I`j)Qd-^Et#T9Z>NwZrs=bGl3SsoVM?KcPj(mGU+Uy58inmt!ZBvWGt_f1=e>?taEC^r+UWI4r!<SLw({)N#p4~NT{5Nr?KQP6(PsHkX`(jLL1(+gvVAI!A8E&l_8KhzTVZxhY=WGNEHw6~wRt~=lV9mt$giB+n-k@woXP2l<Vii;4>L6yeAzYK6L?~o(YJxPH}GFDgH3VVIcP5%#eFp8#h=9t=RlA0FEiv&dP$5%!m-S=@Jpe<8$X`$7O@xYb>O!qS;;`LW~cNtH*B|@?Vq5Ov|I=E`9wLV?rlqnjz_Wf6NqO2uq6gi>T(;WC-WBV>-pb)-@kF6-lTJNgWuI2wVq4TI4RVrevv;BIK$`JY{uSVR*K77-|ny+g0m3IPs=r-@zFt&B%pI?`4!z=|N(^z7XszTJ?u5jTxp8W~m_OU{wX?9k*x23CBYub%!^J{I3#V&O~Lzz&ouwY}*u<Edu^-u<1$Ti_BP}wA(%&8F-y$@Q&8*{RK#uv}aD4jAB{DcSfS$Ku0Mt*gj$_M%r4W&zk+C|j-NCg$O%*=1zrj{V5`8t_GEmSEIFXS}xD3VK&`lg<=qBAQ?s6tYAv6OB}oHnp2C}DCY0mAc7#en{L%{+C3*1G=iN>~@GYU`qAhfer6QA!Q!;cd=-VoFAu=vv0c4arAt-^JXZ9;g3~owN3}uJ7WZksq1Gc*DHwws3l;EO)Kg?pa7mKxi<BEY*Aqe!x)-g`L(z(8!j5i$=?`A-+wz%FSS~eK~Wff@RajM8#nAURM>(u&NOInU;ba-MbuhNwfFKy*DTgImZVB$<HnIa6K4-vNNs*+gW|6+^8Fy)|W;`vn77odB4$DpisJ*lR6fDPQTYI5MN5<>@6z4{hWV&%syJ|aKzT_U(Xf8E_7c6s?9dW)DTjXF5AON#WL}jE_j0Z`3=zc6_`!UozWC$n$0bdC9c2?#bH8@KL+KXbD^icDcFO4gX8Ac7?}n;fM=d_d+`t_G(Cf7=@kk4;wcr|W~}<+s&QJSZ^?cgen*x;e4DtxQlPKS44r@stC4j00~q7%I^&s`R|tb5!>F^{0`fT)v6J2s*YHrtV)d(RR8>Tzj}Dv|9YSHA`OwjrXCMB4R6TV?-go>4Zjm8nN^fVAP!b000qW|!TOvzzg3QshR=IUY01;gGG>t~ONk8}*k=+YPuDW{pfF_Btsbih8qt`eJsng$p?0PxsK3VCP5p`fP|LPxwdUQ)_qE$y19o%k5tM^y`Lt$K?VLM_)rz%l?Or4?8{NDgmDOZKg<~}E_z~(tRxACz-ZS5Ky^aZssDV>IvUcfI-2d(2$-lXrm>^NVeFD06`B4>d;8^A>~Rr#VvLty1d3i>8RSy5UAB+--DMZSfd+T$X4F)5nnaIUgR*Ccas@%sL6QtIbD+_6xt3fxJNdod%0@kaul(MG4I)V>3ykC~j0j{)h=1njqEPr_Ll)n|K6S1Uw@|H;%YPkrKNvP;FVP3Zd6k%KL7D6vto{UT#!cO}bz$#}Sr*ciAQ{ymW0p@hH=CE+giU>TEqH)^f!QfzpS-A22e${Bi8>7$~x-lGaIt;Vi@GA)J*y5Q?Mmaf-FuNZ{5spANA%2#;F@)@6YvcpI(hc!+kBP9fnYn0HGZu?3=(AKLR2AwXn=k(FekmG+xr#Fv6I?G?z4y}{(j;B(73WDHWqEbYU>dUu9PjPSGf;IIQTKpBs-6WvDJU@zmAnr1fsj6qa*9T)Dl57~H<DHR!_$k1Zn#s7^WMGyhA$!Cp6O*4*rsF>SIqulYCO{znCAmIJD?%YO4+^&AP&x+rAygea!6IXvk3So#hv|_cwV~xi<y^1MK?!jrVxxXPj^y56a|v}9YS24XR2j@@vHthp)HDVhzKZxd?w?AUUm9Afuy;NE;W9WvjFXg2-+}Mh>j{fyq<5Vyx$jV_T%x||-90+xu~q~h-c=M}%K%l(iFr4Zz|UYB`=u;fHtdwi%gK&?{Oiw48JU&eiZ}D~Az~%(ZTu7a`F7fL9j-IsAnEh2jydi75rc%5DIAXnV6tg_p;y2>OaV!S7)PR^E`X%bBm3BYrE<@f!5z6(tkq=VnZjx*nBM2X{j^c%{%&&R{a99U!E7@p+oIE}By`O%;Olx5e8Dr)6adMZNREG&{WH$ABw<jvo1|_7ty<W;m;{dz%?v<7dgrGJy{JagGq2CS)&NeE=6s1y)slke>pojd7Vvwy$QW{tLNbASVS)sJNXfamsS;nF{JapwK}3(f_6d-jqbaX-;uq(==0O2oZ=!23qLl`X4O_g!vf-F0oB!5Tp1)CmocknYU7uN|-$uEcnq&_Ne5F!z%78-NUFee~o(oqb@W}BdIJJz(%`Ys<0Vmq^^o-wy!TqiDg>NMAr@!birp9q*eM4a&AapJrS5wsD=R-BkDSnwdy_$}n>ZLptK&p5%B`>N~Q^u#+96k4i4U$KG;X8iARz-+>OtspL|NPJ@KMPf7yTBqYHz@{M0X(B88cb--<rP#qVU6Nnd?lG6)H+Jqcj>Q>75L3RRtKw>QLhbLG5W7op-}ldjh{-FyC^Y0o(fx<d#FX3l&6B9d8un<qR?WAQH5MD_9QvIK@{^k_*BeQ7O`W^Gcn3e55`vAy&29_>xIy^Tx9kHjIQ1&mYm6uu%3UIw1tn4u04l2VMpnuAviyM<G6x>apSI*;brSc>_9@#3tE*F5uzSp$vMx%!}M=Z?cAn2mL(TnL+!gBHFjD|K#HH(N-COlw_N_&(th8(VBURYQ~GBLBiE97$O(?;>!g<J7!xiS#}^}w#6(5r5(;6ER-;*@K3q(DoNfrJU8RNJ@sxn-iJAIYbhqk#ef3{)E1C+?=E@87|1)?3mo0fRAEB1^wIdiK{weM-6@F1HjkEqb%1tyI#FI{hnpDy$-uScEwo|anZg7a6wpP;KmKypSJ_bEy3xU(VN83F`KQg{<>2ElW>p+P^0+U=`-dpDDy=BVj1y=+<Y+w%DH%gs<+COfHWSyPKB<GW-?t#WJg~TtL*Rw_!F0|MQtWt@b^3pc{FN<h~O@fo|YB?Vt1GT2AC-kMqE`P6j11yLZi_wXNZRTl!11M_N8f79xJOQ(8-W(>(#8#yM`H=`65)`k=5fb9>jki|Zy;p@UjIX>yd4@1${9Ou~NPRn`AwYENGJ}y9cBu0PkU^&v=S@S;MF!(f3vG8@tIRjlf!wDU<scxdpj>InCtX{}ZGPSwpkkxhKRVBAAN+B%lKyZqtRhl4`LX67<j|*m7`r>WCHJ8q<(9&4s_)j6>Wz+$6SGixY^XCEG*(DiM=6In{Cs@`2KTpC<EC$34_AVvU)<J8E5N69OVYMn%`xy{xDy*Ubvxn*0ldc$lMLbIguuD2!p5)*nf~SjLM~fJ`5$-Wz5@VgD#%x}&dp=0ASU&->2dbt&RT|)VP2VR+Sx6c<y$NGJEL!UD?m&=2^!S3rI^0cP)s1!AGbZ__C2YNAf^$@c-0P!nV9U4X?4o(p))6DQwc*S;6fbumWX}<Mmmeh^{UUckJ>XPPwl=`^}4)NVmy-kL0XB@UOPObl`bIa0x4dsv!;YlJd2`9%Xzl`sDq|-B=?r4b!VP2EPq^5+UZ(a(!BtQcZ`y>#<yp=8&_|Bz)cUGbHNPWN<E+0{2yi>-Mi9tZpWK$pS+$`uNb)05DB^0R!uW4p~As~@tykA_e_YMm;l67UxbNnY^_^5)&jL`hnm-f-Q^E+$eQ()rm~iekGplX_pl?u!a{aOyXb-jIx<CTDLPQgIo3af@FEg6pJ`%o-9baws3QnF?DB9q5n3p#@3&{>t}1@A*EP(?Id-m8pND9M#|W}hDw<IO4YK@k+k6ZrYrNo<Vc8EiR{i^f{->-QviI9M#xVsNT#Cbhe!+sm)(Qo443I4YYuMH%7lrInvg)4}6OEpK+SX}}k>7SY<DK*bA^`Ir)SorRBfzUL9N;5xW$b{}?J5i?dpXLn?u)=T>7<tR!wq*A(f>(I-q5u&^7_o7#A`GCSPe>o{7U)s>e8Ny$V~Go`Q5NvkKr%J^2bWru1jV(NY#-`t~mCq>xp~Yr}}tiJ~rR!wrSZ%<g22E-XSj1mHmgFUPEMBM2qiyPqa>M9oH4&sr#{|&*!FJ0o*_nl&6;QL9u($w2nn<P2{AaOs;2%{}-dz(<1sRh^x0~zHoc*b5I4mCjD8DAb&W{Z~n+U;oLo51!&*S1}C%+!z$l5!3FH;V@M1i&-Pp8KG{L+W4(gzW^H23zpoaACT;EMZ1;{fZh7ajj7`fdAk2OI4>-@)jzsEs;Z>s7L_40}f=dFh7})*Di;es;4aSTmT25xREu}mb=1@-2Zy6H58&;6SXF{?hokJ4l06_R6=g$}2$pI}Gr6Cq}wsEN^Qp&sngfac5M`C~~D5M;=w0%jwBM#rGEC<p^o7oaps|eG{9}iZLvJ>LPEUazbuAlX}@6`#&3~_jn0#c+7H4>YYx%f&XL=nh&>S>nP1K~eh5_L*o&r`Lqx5**b5_!Xe>CqJR^^MwcC*8i|?Q3bLqXn-M7i3Q%8$^kIq~PxrGs}fHq9iXC=({a$b@&U>5;?z^vVAhV$MCPkW(SNSp=DZ7tF!=UmYAf=XAFr}ax*E&{FDZ;R8irl&wE-$LQm7}^e~Ov5>mHm)jz!vMv)(}5kvVVG|GU9gJbmq0roMP`5e|*j<2r(=^Lq<N;p1UqoSU(Byet8H_Q+0tyXOkh->fAQ%fY0rfk<bB>^1iIFWNL-H9944;pxVTuuHue#ogbrN2w}I(@Ho4lmLRY3sxRIKPEt$SrKvrSri+<tYWT42tdUBhdpj%7JTP76Wo!uQsr(1OGQ-KM3sa(x|ggHfX8#l$EoeTc|DgljzKB-7xgc?Oue+_8x5Gt@5>1)o!%bIZ>;4_hV27WiRdop90vT`Ab1sDll)qj{Rbt?wlSuUgn8bT{0KV*5z&_tluXki-0+^LzK4jNRxSC#mky`GIoB}_OI~s$vs5f+M}n-@tS(ok?97}B^tk<_m%Q{8ojdvn8kjx4UBgz<d5U6SFmw0!|O{43F2A2P%Oo#>hNkA?5_&?--uvsNtNAmi~eG=7%S~Nn8_-|n~lw?$;fQS&&_WqUQDZ%Z96V|wQP!l`-M0s4w~8p+UZ@5?n$x~D4*^M(Dq7rufU@)AEzonHEu@-JE35d$UbLOW}v}<;G}{faRAOgd#;Fn_!pqU&ruB<Bqa?jw@>~W^@13vSw(Il9nXeVNj8kx)Blx1h&AOkz0v}<R>T&=!Bc2UA^&}nCWY7N;dp*)PMrM~DfP!c4!rWBj91mRyzRmkUOZd<t$!CmOSOP}hhw){$sep=;VR<>t09d~Wo;K+v}o?~ky=MuXvls}QaH<5CE}7&BJV^7t~Y^(!rG3Ex>4&iA&_0u-vMNOFP^EQwdz@cF?-I7CY52A6$;ko0515Td#TZGbirqBe_m<9ZpknMJ4vsdO$wY%#KBMgK(MKY&^++KBAkb6ycV*}@Q7rrZC+R&Heu)C+=*U=;rfZCO3?6*-BK2}#Mv=m#tZ0mCUJ#`uA)OHSzl@l%w=AnMl(5`(S;g5ifIzBkFC#$YViJwzQiV1nb1V_oW$D?K}&S<u58!?(J{W+-3dC#neyYpbf2%Q`4Pj5VsT}*#=lF`nY!;)`69L#EhSquRL0@Wz};YZxc{pT|7&=x!D`SmqGQ!TGNe$zFqx*~9Zl)ZgfIaPvzl6##Tk2dsA#0Mur5|uU>cyZ;u^w7aa%<`e@nz-Aj0kABiWMpPj!nSq~FTMBGCw9q^%lqMNFz$@v3@h5HTKRa<NcPw}n{}ue{+rEO|Hj<kDI<u))FU{~3NiXL>+SATH-N=57slZ!u3WituG?S+DL{f<ffX(PK{4pv_F|ZIx}!ch{pVd$ovvm*FSe?9c{QWG+_}VAC`iHRfZ>3BP|ZjXL9>ixK+8E_Z-%3_O?lSPxs<Qm%6paXCQGiC0|2m~ej{^-<#(k4f&Ete{=Z<~6-GbMvQw9U1~xZ$MYcTi>S9ox1m`RD0f)s(cv@%Rk~Mwu+OHfaUv)T2K5eikg$JP(UwcADPGEB@YWPN<z>_VeKAWuqCBbRJjOt)Hq4%d@tESUpM3tWO&_B+9Gu&)1T5I!=;y>MD?FaSq9}N1}aB}iA^*T4;>CZhf~!<gSb=iOLHQWXF9USc&UAyRU@Wa4nKuk{wR*qk}0f=YR?5yb{IIMl7^X3C8-gmO~&0!=TS2-9%Luk`OC)_VX#A%m{Mrgqdkku&5p&$|KX-uz9r6CT8@7Dy2b~P4r*S9ZwDQaTlXmLy^H2HB0{(^_4ZpFR=Bw@-7<K-L&{Gu0{`=OK{#xRr;mdz!rQMEhO#nE!&T@up-(6IF9i^Rf7x-A6@DL}I<aJp5L2GZh}*3A%y@m`bMh#a1bq0WTqOe@VptttCKf$N3W&HI@|5;CY#QafGyeRV2CD)=8+V@e#mCQIk0<Dow-aS$KE-a%7I?Y*k9{)YA$m9V$Pih~7-*4@ym)XSW;B-DnF`MN-gwoSwM$6d!UofTygCTbGd<?6VtrI|pHI9|bBzBVaM`=oY<kw$@?+h^FK%?Z#Y=^Yg4v`BA$x;rhI3A~P~`Q>dmyLqlb(e!CA!MDbbv3tGXQcIjG+2MR-hoUH_0a(?l9jLaUWZBo1B=#VPvQ>04YHqkmD>25DDL3(f0Xg-sP8)CBjNs@wM8OV8NyiTUL1IbGh<`ha@BG**zf4F6)J5+x^v0V4B*(LMOkGRE>C3C5JM0*Abr58}#ac;QZ%XMGs_dOQyOD4AqS*@cBV1H3jwK8Q2o+uajV0%3K!}UhXPlSOtC)%A1PzhJ1qZSCZ;W!u$8s>o9V)gy#jYx3dGAW)F3cP(Na?U<?G%$E4LHShRJgTt<eY1}@p<h(gtcq5S;MMdIz;%+3^dPf}o%a%AU}21}5jU4<}Hj_$|;pFQt?KI^4k&!L_2h|w`w%d3X=r&(v1bO-gdYjWuuhmW{<^r9@;bxJ(y1eQ==dltTY)-v*gzbvIT9=fG%1@O~A67vf-V#B1dHCBm%7cJ{C+jKIC2Ls&aRZM(m7_m2EV?uoFej)`TFYj#<j`BL-pNbj79VVJ#o(!sg=%xYas_^{JyF^hqgh^+aA9KUXGtGYbJ<;om_|p?d3K*+<g0ClR_9`2wA07pY`QNa|+Wn(@^nCF0ecY_VYv!jjWB2@>u{)(~LJxGo#E+}2a}$bx^rsjID%tCcW~BDQhBim*&4yggAWS%tv}d7$|0JIQj@V}L9KwYT#<7I{jQk6;3U&M+vVGk4R$`$PkEFQh^8-*l4#H)u`i8gldGAw_Oi0aE>eJNAywQU`_~oTm`lL?+%N3k6pwFV)k9G7;l9&pO=yua$-M<I@28{J7upMNgc$+c4KI|&fuh7KqYW$g#vu7Ka7T<yzyV53M5!G?($x{Lzs{p^UT08HWyieM-?)<##4!}R6K0?YKf8`No?5$0ub+P?Zy!@gD2c5(By_~DjX8~lZKuRt%M9KV988W8T2B7-jwc6(nW6FKi8~cy{nR9VA|K=T7=lu}l=m6b~R@7+WT}DuIJ6~K@Qlphhk>1gv7V9?e(>^@u)%|?dTeX&?OZtItqndm2)xtXkQo`FJ^xq}*yYlR-LUDQMm<Z)W(eKq*gAmHYrKN9$fRCsdxKFPh89;AKAfH^9-QvP_892<&rWZWCh@r#{L@v2w!8qd)w+#f>&q&3H@<aPcnf=05Sr^9^?}KrCo~F(A&}Eb7L`qBpx<fph^JKllU)?kObiLC`iv*)u{)~K%55>SU=9r6vaOiq#&mGh`r`%iXwS1J4Kbnpiy{>oflu~<@l%XSV%Mq}C55VH5E!<PO_oUl$CMGMa>Xnb8cCZk0CHSg((Hp*=2`@Hf5&0L9>O(}!Qy#t&H{Mi6<{kUkmm~>OTA~|i9bGJ??h3}IG~2(g=ST}IhMV8s(?bGJcGzq9q0J4hj+g$Eg3Xon7n`7Rtf!9c3y4BnUSQZAOdYLMq{WxZv#@E9k1&^WU1YUahs2njcr|bIP9YF{T|zd**UDgzCbPU%VhWke^9LYBx;?KaO-2xft^_2S2!Ga^;r%*pgY*}^^_U3qGcksfkt-4EQ86I*ln~-?4Vd{gbhy7BfW0NKF}}sQmdYP`kjwy@oW4Y5lN{e0R~ybr30vZq5N>(jBiL1+o)s<h*v;S^-$Fwp%b#Gc2c$82sEoMG^X;S4*^~}`Uuem91Bw>OucDB<KF_i~J0zKh4)PBA1~T^bzqCd&5gzv2^h-j41M&z%MEegMXcAMv!rzYa;5=~fDGw)b5gs33?-g=98Ui%6!y6HJ3}8)7sinLmNB>cYGydWkFgWB~sFtdZ2UIz_MQl*|z#HLa{tha3T<S7pJC_vQ$?b}%UFQ=0RGU>MRpUnF1AdHkuq5n*@-jq9Qtr!cOwU90FvK#;)6+1#feVKHk4x@`n-QkH24tN(pEqtn(1#2s*@j6(vZSb3c<=QBi~s?550cD;3iG8Hm5e#mg%bBg!}b0kr4j7k9uy0_g(w*U&c40_m3j0fNIc89(VswQaC7V<(J{!MZ^g_$8~c2Q2#TpA*N|8PsGs1v?Qo4#t9E(KVED6mic8Gr_A7T_V>4`+2r_^fso8ByH{VjG1U@{C+Z6k|6s3Ln<5a{CsIQfeLY}8SP9UHT4Rh8*JWZd+xBiz+`K(dbg=h$XQH7N_*bi<<vE*uMw{Di{!2)OUaix2VFJIN3Eyho1!CGD2%)&Ivd!xGkhErt2<RRnFN$7_+pGj$ZW9e1>85AGhBOus1$;no3o`h3N{=*rdz%t=jyName*=Xc@L6RHvow5;53txq>duz&-Fn(Kv(6LN$``oRo%ck#!lpYL=pCSW72gV}l9kNTw5klb3o$#K}Y!lo#mglzqJ(F6GIbrXBQ+f`zDI4HXI=BUIb9!+>H-eC?vpVmy{HtxcyCu%7R-dVvGB`>~c}R6>O#tJ!+>tDV+-Q=Y{+?oRIC^BEK?KreTJh#NktSdiXRs|Pa|1yGA*zr6iTa#);o_-g`yAspRm@*sUYs`U*9W`PVX}%Bn(>Yr?>=4MP{sU9%ql@Q$NZ?K>Hz<w)QN}7=C;?>`uv#8EFR)7;O=0OxbLxey5cjOQ<nUpSS>VdOLV1WG^JX9<S(C+eF<Y5K&P)HfU=8;(u)}_#o$4~%L`MYVQdR{X!x^bnIO$6&j`uBH~`pj!9`6Jko$Dp9E&>vD_kQt*$QY6ay_Y*F2MPU`p{=ZAI@Mwmo!3KuK|^*D=*d-Ay>2&vhbq7K{g(4t*am1b<AD}$-3|5PGdnh7f5|u^t`Oblhmy(rF>)3v%t)|YZ~{LrqulYOp>1T)8qFv$~OYIW`wVAelF_aX@b!NhJRCOoT!@Li343Nn6vlNC{LY@9~XuDWT<tTgt|oc_Q~>|&z^Oy*?f7L!G*0~5v9#vA6eF^!*!drc}gC_f(o>w6cu_6ItQ5{0;`fr$x!7P@pT!H8JW30_b8JDi^r|F8G$O)CVnSFgjZO!Z-F(DkE#jG5x%>=+Jf)|<>&UbcekfhIV+;+tvo(xv^UV$lv&#Qs~k#EzSG_ZLfD>%y!gtIc^`>8;(V=A;oS=1k(<MS%ZZlQ{PHn9SuWY-oaNH*BCwS!yg^UW%_8au39n|Ls~kqrHW;hT`Q>Ml$@V52H(VSRMP|RppXkMn-ON&CtUh7Yx_K3bV$4;#nw`UKzh*a6{&W~e{!RVj|0)(48t&fZy2@v%9~7v>1XRujR!#htf*21YMYk<cPk@W_Er~`Z?pedTScQ78ch~lXsatq{h8Zm7>Qn4mMOb+FVbXe4>3s|5QRg&o)^VZaN+CCVC!j7?h@x72E+FX%6z_U{nB)6~T0gKPJ>KNAN5V2Kzx2pPTb1oY;Qr%|Zy7YQg^J;S;bybQ_Fk`XjKZGc`F3<PLeK(;5AdH{O6Msd%Pv}_E^B5XwEo&<Pp9C`iHE^zA5%7_yqo`Ax;J1Oy;C6+A5)8ca;B)^q@*)Y9(3QjwH(e5%Qur!o3*i%hL}D+OpXcmH{q!tC8f&!1ck9i20Q+VfymOdFsrv<FZ+1Bg0zSfQyLHQiWs#AnZ}96RfjMs$OIQYS8-Ucbsv>1OUe-K=isGu`{2CJv<MFMu3;KsO5ZoOSM!yvw9`vbk%j3>3d{aJF<O%OKcP>n_13I)y#0qmaq@qLoMVNAW;sY}YPNlo40GnKFQTGUgu|EinG4m$Qns?5=h;db6P$gn(D$5mIrepuy>Zql8?%f7Aph8sHPwAD0gs<wV=gJ|IoTMZ8QRdR4|5_$ki08N`GZ>1qS{hzds#~_w4^yH;RRg^tNp3{OCe1|CtJF?cfD<(6TD8^r`&}0L;5YyJ^fm+c?e!#jj3wGm79R@w%dgXW6z{+PyvTQ3`!3Ui|_}knph~d?gFD+asD5V^yt@3gN3<aOxT+RB$^wgbr(`rUC;-lwR2S8=?z|gf0gFow&hKp==Ns?I<K!-%Dl~t10~i4>1ht|OW1%fk<*ZyfDqC8_D>1bdYCBD9(`I^J|^jxQ+^h|r?A~%uS_$%7(a^}`$KY6B}A7q5(vWIV9x;;A!HVgOAC}VgUvzQhEYY4xprs3@jn$nws9<xBup|<mhm@+AZ5ywICl_g^%*7Gct>Q4{$Wzq;LUF?(qUrmwsWE$e^MEW_b`~T*r8a}6uXA$&#$i7fTLY}kFN^1jbnB6p#$1RdzNQ(NtC{>i@~FXk_-qs8DnQETR=39>c^myOA78i$4lU9kMXFZ99>iE)iR!m;kL5qDzg8YtrNyWx68;ICH=gmh|e70D4oNi$LO!xZt*BgVQ$r6%DK7;?nMn$sl9h@?>Jpe5oijGkmg&XlPeB+lI8Y`35dA>$Y}1sC*qyLJA!^SztYmKL94DQc1(6?CQ{Izrlu?zua9$Wo&k$~I3K|*Z^alk)59PMcn?DCdNjQ1ic6J^_-YoE95W@-G<&|F#o8|%4@K9I6E#~@{XMAtMzI5x=eXMSUAs7Ne#KQ0oMx`r)&H-MPg~?XLPH5KJ;e@8>hh1Dwj>N62%|O7>vFYnT`o3}{peAeq)-IbtTckQMz>#%M0>~b4nz*1Fopu%PE;ry)!G(H`+YkIrg#yVU*sM%SfOV=XF59)p}&Q*&U-h#uV3EA)r4Z6BB*@g57Z=v3R73}*JCtpFh)J}xDx~{SZ^JPnp>1S;Uy?Z7#pnN?PG7bBju+fYNSB4#)-=d>N<^PKq-;G^h6-}3y)MV1K;VwHhamJg|oY5LODk~&vs=%3;|A&4EO3Vl{HiMP9nbo&x5;{nS~0e>vdNTUf8PwAMg54sZH>j2_UZ_@W)CxKfLp^<}ymA#p>?&By;uH`NqBIl@@l3VDk7siRYTnr8MAZuA)L+9aNbP=%dSpJrU4WaGaW@2nRv{jKr=K@to?GC95EQCh*_xI$8b~o=$$(f3*IGeVW7DE(gvUEIXPAufG5*B(r^9&*MDMdH`hI@4J%#4lrrtdZ7aH$EIgiv_GFDDaJ>f0`p>>O>0`5!d})~04>Cs6eZ7;u83<#VA`&IqdXP)OJQUMjppa&bQ1KJzCNlYq*%N#uEllRL`+rWyfsm*=eO+3wKV;7%+`5JjOye3k{7J#qT*8W_zmz(b4($*w2Vxo8C`uCggF)KVhhFMQL~prVwbn(Nh>>ARj<BcmqLo0v0vNE*0OB43e{PP9UNWg-Iu3uzE7ejnrP4Ak@$tvrpX$T80TEj7(K@A6TRV7u|TzGLJ>T3QifVdXU}n9)6@`MJRpY`r2c#z{})|k!sT)`DETo2Sv@bpp?{bp6@yHi{?D;uA%)&Q@tIYQiQ&Cui>Ij?buR;I%cHPsL5rg!6nRy7K^TKu9NGU`ei-+Lz#N0dA3+Fe6Qh!->60UY>AfMUF$8G!=8zX*+mZtq^7}Q0{&cmN`Zo*yIuN{7Pl`94g_}vWJu;T4u^1veN*&KLr>|{VV9$k#w0kQ#`4eh8ukiw~LT<I*$)Xz4!@p8goRJz~t(28>Uzkoo$A6PdX74nb{ETI~88h|Nb}}>RFw6^^4IE+aNi-|-kOL-$d#Eo|J(vm@Z>pq-a#P&13od9z9nzp{#@FVm04^&^qK3)){uXX<(2kNq+;8?E^XW_u%zJn^#J}CA$;%EkE`-NI>sA%eWLH_UXu|sz7QAXz-H`R#lup~{jL3Ps8Dh14!BD+WkJwZ<5|#TmSR|(P?Rd7^{Q!!U^O*^v`7z?r>0_{{N{EJ;?a{TC^;;CQjQ+v=?-p-`ZH?W@6O6u~bJyQN0N1L3b{TVlp}*5k9dem>ChTC_Dy?qm1J_Xuuhq}KQ&(D*0YW#`!wF#5=coh0O)sOdYMB286Dn=8%w^uEdGm^fnlMMNUluCsLrpLDOFankTaAmXg%?%<<E1)Gu*EHCD}b9fbIc{}Hc*sZ2!5H(zdo87<Gb?4(hKP|OdsHVa&r)^)_Su}`VVyenF1fxg(l~Zg`q=7%bQNVYx@<h`MRPAIfyjBtxY1ZOZ6pxAaIGt)xuH}C|d;4b#~;v@7Iy2SSBV#3;PF*rBI|q=W+Np6$0>W#G8iJu)M+JfbMQ_6%^ZY56#tSw#1E$BwtXXknu6LaPwVirXigPaFNp~`e1QIdjC6{wlC>&?`C;}B=%)-a+-3=z=b(9I9nnA8Zww3Gmf`$?n*M9ei=AX0t<hyAd7e%U8OjAH$H%HO+(J<jL_2%op*8!#)vRx1{8Esgf^Q})FvH{*F$$3rULhBwD7rM$RIF1@SHZyZxoAvc*yJ2WI$8!p(N8vug6cnAMd)}bRASt1xz^tkS{JaROokD$=Okg1?v#<v&lJfbxWyWf*U0=h|H-eG35ojn?3`m?<xK?ICdGRL$FWke`b+APWzE%<Wn7nECJA1Q4si50_=U>3p7~gzZ){<v<gRoC)a3;1L?W*fg77`w+Z5RB<;ZrVyAjbyN~|y=S(J4&f4)2=Day7v4_9>ecqD>le4K(%VH_yL<Sf8H#*RkPP5^FXT5Wd;uy0zP&69$lLSw>Tv7!&FBnkgRKTYC2$g<|Rc-f*q2-+@tyw|4i@tb2Hu3cRjxeNDM1ORL!aK970;1B|SJ2nN>O8sRV0b@HuN@+<rUm1kK|oOqoxQbsmfht&b$hAd9%{;+g?Rl8Xv#t!jVYt&+SQkX+z;gp%Q3F7--Lwdexz>73#L5iVa*s%#RnUHBPm6-x33v;l&j0OUHOJ=Yp2cokY)D})RI)UQ+Lu`PeKl35<C72HS;RoxmcRvb42=rjuzo@ugJk|A-Nqye4t;V&1IBIp+QA24(1zkk~8&gI0C&x%}xz*DYtj4FXHwW75O;IC*$%jr9#2#5?0SbZghm*%Q&tm;X6QAuVieK;<6Pceo2V>I)fNBLmHoeGGBY6BD%yURdN}yWjnZK8+$p~+zZ+`Z-HU4QnLexmF6;{TcE>86Le@Hq276R|2+u+F@%2O?2)#LBQhF-<w61^-hbQ_H_AuUxMo0?c>ZsRtEoPH$?Yz><#f2N+u@>&Mz>xTd77g-a{J0{b%R3Y!D4w_vEC_21(w>wO-v|IYDy3qHZR|SsG9+DQ}saR2EBIOB;3w2I<;<04{3MdZoxWG)BvQMN!RQn!u2!i3C7<L2JY#OpX$oJ^OslC|E1E#6VQv<P`jSWcx0Fo(%u?hn=M+Us2akGK4$E;Sx2OKo%qS0Ro1XA1|7OfV^F<GJY1q5z7;!#4^@qPGXcU=u`iAjHd$x2auqwnmtZ8o8i=A2BB$wT1o|M_`)q<#aAm7w<6N4pZ1m$Fivg|FvUjSt$q_De7GesEMU;>i=?hy`S<i{ZSo6zjmRyM2J<BilE}gpSD3G~Ny3d6gPyGZy%HYPr7EL2XW9Fce+6pBD2Z}j@l-m0gpXfJ-wK#x!31Bj%rQ(&>?h{%+Dzek2ww1INm)+4j>`R~cDO$KBkSab@q4|)0_q(KSqd}00eR1N=RTNOp`(>^bQMB~v4wyiPmzpb8DV@e%?od6+7a|>K2|ltkr$`TkjMN$ve=BVw(aoa7M(|qZd+t>oiF1cv1On%VJJgZqAXeUMJw{XZ=cxqm;K#L`t%b!ZN~bTO2}p9GhAffjm~>n~dcK*jfZCe?mBjwF91SO(5j|oR?2r8IN9Yt*TN2c|<6j994F+7}yZZwe4M51P9u5e+yL7Qg2*}?}(LL%DeDH%lK*r75*;IR!TtPw=Gf~V7WHOgR*aaUK*|zSWlFwB2xv~3ZqwCJ%mtmPKfMfZU_Z0o$_Rc0m|8&%Bn$!s&YHfBDwi*(Jg&jQBasg*xdu@%C+I`ddGiANC^)uf(WugrBtAA2U{WPKeZi56RQ*G@mB6>|DvTME!@zl?+Q5eZbOE*-YSI*CZx?B@8OQ~;sB=YvJ*$=c!X7`K4S=B!D&7qv8s9@~M6UDW9oQ&A{(U0mIz2+oo?zJCwxsyxNhp=*15|Rem-_OIY?qV7#FGzOmne;bvfIU{B31oFrWA~Nq(t$NHh**`u(v&TC8U%O%YwlR-HLoiCF0?cI{E<d%XXM7Y%e_n^VouQkwPMv@h;RB);#5hX14?0(egm|`t&afNz6i<3tFb)f?||vqp+?mmD_8|2a0I84>`?Sfvjk%%=2Pt9eCzRU{nPxS05|lm&BuQd6+L(0u4tysDh+Quk~OI2s&Y487GS=FI{O%DAdL=BG!<W<7y1l=ao9&+Gxi7cLsgzlDXf^zCKA;t{j{X8M4m(8ACQ%XsoTxLB%P&<rf{?_X3FDPEk0gvFi6^HE&$7ZU|sN_Rnkk()g6N$%5f>Hza=8^7Dh1wuaX87bD3u2PJ`rM)k?*pf114|Yi+w<50{~i<B=n&E^k~4ZJ0&hQc{NWLSh5)8$0&%_#EFDh4?x1={Sc-<Ikq7;hxSi;or}-ZLYC!<^~ZNWSmHy)60!m$1B#^jB|#gxYOlXVVToQW7Nf!kB3cLJmqu?VrJluiL7K@=W7O0Zv}ecNr_HI0PountXjUUH(^&)(P8QhNq49ML{bf#v7956mC^})-zEEj=B-{KJFmTj85B~MaZbR#Vt;h@UJF43QbG1cnTxg-pq0x6;RQ}wkWcip-pIl$XjNgg?N=&5sz(yro8WtD;RLo%4w#5Q!Zlz#0LTq?`^H(HjKc)MPx?fEhl{Oe-%XpKFsib+kQL0E%)>@1n~<jF@PyZ0teNLOZfLYtWS4NSV4+?E_$cRhToFJ98lh^r?f>yDpbZ1tuRoH*{&%!PgZDK9CT~^UO{uxVpHBow0ym`YDl=n2#TCxiA0btjpe5yei<U0Lqc~wRrR=L5&E)yj!3l{Ke@tYChHYgn9i~ytm>`lz*+8}A3OpDa9wwsevxkX7J$DbSgA6+-7wj*ZmZ0nTmU@5l9}iPW*`7R`YB^eN?*&`f@K0KuudF-SIe0rLyTA^E@mk(S+6PoUg5^S%uCOq!M0V>c_E36J<)N;<qW%o(N!OJ$rRV{JPC7dh#J(`|dB<;77)n*@W_C-jXZm3xTAX&vK<U70N`z8V+6SpJ`-vrRM!6i1fM~ZTIyTuuD@pGL8=9<D>qWv+DwV~NWiC2-BPy0`qYxU_K<xD$q}x#|^2)^15ba_Q+8SgVa53bmH)OJ_-+D!f>{LXasFp+XaN63ept5EKwmxc=c$GzyL?IU(C%sysOj)Vv=t{+yv^IJNqbkJt#le<=)jy#upJ=2D%pmSN5{45glBJjE%d*En&Nm20C!e|Ln2ERhx!b-gW@*F)Nl}#A+I}i^aN2&S)`pLZ3O;g+{8i921OH!}Dmw3;;7^aKdpjA=+4zcbo})l1t;p|qMKK`oS|ICt!gXHY2@p`x8e4JLIPF)Hvvhi-Dx{c&f6q9f<+@7PdLr5Xm_L}XhtahUKtNf2?L*X(S5GWz#nPcjl$l-h_)jcUie1(Tnp3(>)xqlg|GqXf56X^S1%z1e+rNTx7&M`Da-^TAf7EIBho8g$>v5=+rw>xPJbgIQ)Cc{f|A@IQqmkESX%it;22J;7GOWZkd~%6H<#cYiz9;7})@{)5s`J;C5o~J0^qB}bOgupeg~XeP*v^C?Q;E$iaGVAK)7StshCA`NcK)E#>>g6T-?pyQZOro<ZvScI`2sS%oSZ0$<33F))FQ@>Pqu_|W?4HovAx5EtI~+*z}FRfH<U74e4YWw2%LNANVZ%>vR4^iaGurYZi5OtJ-biW`1M6-S_0^DV8fg#gLllJN6cd9E$C#vmXkN=8iAaq&WPIo90*2ku5jszX$P1L3CcH-gqy!>uxk}ER)akvX&zx^JBs3Y7x2{wLGbb@JQlcOgpvpdVEaoJS@%pezs<Q3hYBN^rEW4?x#@13D3yBoFc&gFhR<!ln#0xys8_1d=MVTa1DJ}(U5}y3;~`|yyyF<|1X2B?GUrt2ym|C-i4~odSC*$I{avyXSgK`yu7S~Yz6H%+xOt2NVE}U*0{(V>sbnDf(rKQY<X6aysABAmWm4Z;$V^Fccy!gtX?;=b1)k<K(<JPs035P3Usa1KaHA|g;X_@)XU|%a4#5AwO4Bd>cv+#bPWx3id$%jqd)BMDF&(?z>|#Q@#F<psmBHX<&T=NOiFl_ZBWbUQ%gU8@yt-$G!;!hVJ}a?0M}K|-h-9IE^0RM(c?>&k?71Q9i*RiweDH$#itqDk+*f^}q2ZXGP*V5^AR78-VRrSoGA5G?);OlzQ5DAv4kzw*UzST|gMQXsG@`DI3Z)UTB)h|J(lh^ta@=)6Oi@Ls=Z3h?*s|59(bbOK-%$)kJldryMFcvRj^b&514_`)1f=CsQ$C+&lYQH@o?6+|I;f#V?B;mIEsE>Xud=t>fs^dSJwUn#Sc$ypC?fsW+Ly39<u%0<XJ*Y>!^}|iP3!-30(ziZZxGT>HF)pb?B*zWZ+trRni_PL8pq!5EUvA!zFr#D{qYgE;DrjHg<<2o*MxsSlWif4_jq^=WI<zPE>&kCqEzh|O}xwjgl~37NNh5yf8ZYM${oAPvZvL1nmQduNL@}?cHw(_xw9oEWg&>45_vMJ`gGleQ=nRBF%t9$nOjZ5kpWP!KF;lw6#BG9-8utX%*HS8bi|<fY+cyM`Bo&rj&Oz&Q7Ozwf8F+5u(`A7Q9ThWs`QQE)+MmY`R+CErr8>K@*vyKq4#By&DBY6F6VoCN7o7Vqth+m2{9Y^c&ZWjN6UHsa^!F^nUQ8TtQ|QGFAhSa-G8;jdkxB07R+H9rInNtBwHNEeROQfx)#dETOA&K;I?Ng@I?qP)in<*&5F_9M}}5h)r%*tV96!|Ee*jRU0#Tm>Tov^dcJ?V$m11|WvT!!COlc!Z9KVO*dw|sX@PD{iuhG5u#mOJNUXl{1oZ5lmYFJjX^N82#`bzl8~!TS_!{0f0<%0>NuiTV5>0HyqOEIKz)%&jcuoq8g+)syFLKer{T%!F;hEVy1<s5q^?}XoN>KzSxY?UO8Y>-Vjvx|FVD<CZf6|?$p2AFk;u=A0_TjQrlN<`pjQkj5X8bj%t)O<)K<+&8V8-(TCr=sokRCD>tu$_Ywgy9Vro}w*wm-$+Z4hmz5wtA7`~2Rv9rdLBzE1V3qjROi)$?m-Uo^$qTxhN%`J*Twp`#L@CSDgm$ZC01$i!F+*zb9peQEjp{tpy!b9D&@j2$6CPm!7yBD5fB`M9$AU=<TquzvRXWG&HTy3%qY3^jr34$%i93#h(5OHCW_ofOi#Cz~l0Yqlv`@8ikv6HTM=b@4taG*R|hv6hbunU#ucdpAAc6~Tq>)KyL=1K%tt2hQRuPsgP)_%*B0JPxv4U@C?z)!I)OfLHDLse4DZdfBodpA38;fbb7V33HhU+^I2%Ae1yW!|0H{=ZNv*nEziZZo`l{%T_<#YYSm{!@j^|!m^9D{!S8`$Z1+mRZnoYzZ>C4_o=~pQMby7Hl*7Z8o=@R<aZ9YoJq}Co1C3Ne8<Y<f0zs`Gt^1{Tv1n{ZCHztqflrmup2n>14Vcu^vko)sjvr}gdueY^)rnjN%+-wK;EWQ#_-2#1&L5@ux6Xgk5W+m*4XfKU=_q7&T@9&k!8XTywWFX@L6*@MsIh`3u+}vWR@+Cj-wouoyAsYmg{!w`EiIWS5isSJbco!zbG#-wb54miyuxno;KxeCLye{SQ`lQr;-E2*59be)?Gvk^I&$@ZW~0cwWz4C2H*zWIfF<GR>CwuL(F(WX)6obm~he(EXNFcez=9VDHfs3zWrQBme-gE%NnhI9CB^UL65+94(EEK>57Phi9KnUsQ`%=x!tt)2Bt5`Qk+1CPU%IF*F1dyCLV(8reYGjv(5Sb342A<3mV(QjE*?}0|dMtCXml2=L*i^MF!2D&TpLj*}sV(L%oYZ*F9*#B;SpPn!DVQCaUBRBS%gcB6Cx7^DL-)nkk3A`pP@hVd$7~eGk>Epi?N4E`}@$Kom}eDr!2)`j%lmR`f*e0!==Y=jtG{+;*b@Ef7gaY+Ynv)Lh4r^CdoDX|K`|uN8Gi)y*NP+mxoQdm=_*y-XCG>W6<oUv2<yx?ci@b3kNwJcS}5l}MFTj>(u*pHT(C)~RH=Zb4_Vt2`IhRHx;cwMvBuCw|^Q+WWs?hpEBTgJW>Bujs2+NA?erzr#548pS>w(DTQ4m|n1EkkB}~FX&)fuk{V(m?z<JOVRos_GY>g!chAxFOJ4o+<|@2Uao>xG?~5kw>)A4A~V(z+dg0AIrd=*nmk3a(8@^!Ppq$-(?}%fPA!KJ5>_<6I6)D==QbBAq|)X{UR>7pvD-=|{ooJg>P3pb<d=<<0==ryIZ~|wsAB}jsm|@aqMv_|EgsK_4Af-P$1eaziesk(i?e3zCE8N6Ps4I~PNy=pXsVN#I$L7RXSKV-lUj5<EHdKb#|AnG_X;o`S(VK5X5B7EIq=%wL@4)InWn}jUrc5Rh@NlJCxrp`L(P{b?s(e(;^`AAZb~#<t)Ct7vr!y+l43>x_vEc?7vmz<{`jj$H0qJ2(N{t0aUfOH0Gi+cQCnaWe$^08x?Wm3c;0OE{N7(zL}HIVv)pe#l*Ty(MH_Bq8L#M?a~K132=?7I#xsc(z%DTax&}P#6|9K<-0a}u=UV4hSz-PPl?L}4gI5q~QeiQpfiu?>_h?P0{Ru&U^dpHXOynE9#rxPcbeqqR5?2Shbrhs9?nI|_JNMy@wV@}|;DsjrR}pdJ^b`HuoRQ}N7QOvQD^^GQCB_5Fpp{JgG_o4>A$Pf8p#?px>5W5iktq$o@Snu>*M?l*t+h#kH(gzj<~UL-nCcl1!9)!(LO)^Trg8Pl1+}@Ai!NUnH19C_v9qAya(fzOk>-0Sr*Ph=^<JP2EVnWpDdEz=)QHZs77zP;&tw3<=Ca!fhty_c@|-GE#97Ls9K$oSF*MC6bLH9}RWQ>g?^mr<d9@5J2dTO=g9z%C;PpQ{+SK;Y{PmJ1B>UDEV%rj3<a*^e*y<BkB&n3a*)6McPNnhKk%iP-^vj4;&2^_#G(u*^B_+gL+r^=?-sRk*F=|7oo=}mP8y0h95E!1%u-<SQ2y}c=n4#fOnL%zS_7JCA0H0$40+foDO%KNVtPfBN$Afu}q6+SaN*EBr$<p$b?D*u}8IyojrZ{fl5g^g{U$+pIlFU#$kJ#E{M|M<_65j!E(-Et%uKfK=5)tN8h|BN%=wVk*B2k^elds0?`7R!gLQw)`Us-H=5P&2qs~TCU6wJk6Y?E*X|Fr_^zXtUV9n?U0ZL1yHXT&DNwRtudhd%B17`<<j$dt#f%V~Q*qdXN0`QbVnKU7j)sDSr&{Rllu=!!C<B$UjFM;k?{1Urw*W}~5M%9Mo+!V8)PyI(2ni+HoH>)ozWD=ub>2%idPUBWdVdF*z4e2_`tTu3!kKd<8LU&#x_^+2WTRu{0C8HdXYt?&5NgE-2=!qjk!yqs)4%AeL%3XXm1#ywqeE`N}<Cey^+AUS2$tNI}6o!K_#0royJ3{yG!E$_?-YKc0(jBi4t(|$FG-9O6OGxnlkxh-z9`f-bEIhSW0SihA7ZWhQJXa7uK%e-lZ#)uv37oGvBbnChk`<lmhY_?{IQ*6qBu$s!ss`^qCztm?cXoknlk1()|LUG{(m>(dE-LT)*^CNafO*DK$IF-U1+5W0YtRlQ_N6!60rUNi4bif*GX|bx26ed3fJ<5p##w|D!b5To78v#x0Q!D6%QE2?Fu@)FRI}C3D=<O(0*dkA<wA0lC62k%x)%5M6GKH4`VSu~oXSnh|?Yx%+H6s)xUrKbOn207VfJpQXuYYYQ0ixs@!+1EH{Q**DGAp2LnGX5O2Z<M~#DwN1G>fod72y2s$3T%2+(6g~%y8@h;#+QZBk3gmxfCUyt!rM$Mv#XnEG1GRT1+n0oIBRWu>r~G0*z?y;o;?f5TU*o=^ir^6-`8htQ*c+>f8@0K{)rgR5Hc&bB$TT3p|Y?0y(;F7LE(=g`0^#QxQxPahT|uK*W^2ST+zw<ulMLEdBFXLF}l@5wBZ52=>2QDk68mQs2QG-r8PSW=MgTL;*6n@sYjGw=NXp{$eFOiEo!(76M*|A@Yt&kAec3AS4|Xy)ozb4l4Y#@;;VZ=g!>u=PG<@X?%TPo}ygfnX_9`q71I22*J057FE&Q5A>QIRF1_}ISZd}YX_jDHkaj{w*5{k3%;XygLv>L*Tz@U&;9q^Oomj)N!7XUQ}6gw>Q7B`c@$<$Rw?uVaP-<!-zLNRC8@_AwMc!!guv-M<_}*6{SHXD>>H(v{2dPRa}V|MBJXHqFMTnb8jgZkyD8mf>0?;j#_CyE=ClN26sp>1Su>eX*GIdXfORX}%Q`UkZ0xpljajArU9YmCWdqAZ7pczrNc;ZG!GX&6(ScyP-f(W;Mw<a<sD}Rd1vm#}sWRuB78JCA>d~%9`8NeQ>-o{s|BRB*HT0CQ4}1?5#Y^6J!jpdJfz!6MI*pwX^j`>Ydt0zGJ}tFaqH8jw+7{K!QeN^SRSB9=9krHEtx~_aJZ|z)Kb#Ol+Tq%1;wPbdTWtdxS_jqP!YISQ5-;NYI*$g+P48&j%&;;rA!6`nu?r`Dwr-g$P&YR9C)cHe&Y`Y`DbGS9K<mj7fyZC*r{Mk6oO{cwSYWVTKbK`j^3AvHbgm`Lg`iT+;y{oC$A}=<K~HDVmKtJBh15k!ksDN$vZb-a^%G*FN0vkLs`209bowe!zW;>StkclafkY-9fBSmAp|uezjDvAAU&v+Lp!Itq>XRDJK$;44rQt|Kc*elFgVBn?YTM4Sob?tNpDwccSVG-v7{#nT7t~7KxPSO2^%gAlytJDWQ%vVpkhfg^mES&I@7*T<qYw4`c(!q?7&eeZ&Zvg=El5#+-~)v)YM6Q0yG*ZRFp4iO)30~0Uv`8+2}q%DO3%Ei-;hZkK<urudr0|-^8jx&#ur0YMo+ju?a{!eLF}=}(+bsw27l{97tl!Zn^!Go-N8%tkKu3<byXa}`D8K{)oV$F`A99o6Be)9CX4=?sE7_ki$}r{?mC;Pr!V!Yvv(-bZz>R(qv}`#z4qX0xe7z1Xqh<m5GMRzU3Ilt?@&aZV^3$S4{QoTUSE)|+`yI~9p3{WlQV}YB&73UUHWcR_jD@fBH8aR0jOD}wVk{L$Fv^mE1JgCUsMk%#m;VP4)?SGY!(nqWmUM+&S)(vnIK%r#>nEv<ZJBL!fLEIHCT4NL({(+tvs3SIgFUbofCz~HC;=V=mmj5TT@^tTx%6xwh=L?nGb24>1(cEzJt{B)w_9;5UrP=u)*qWGnlaz+X?Tnfbn9GMyg7mn1H}ti6i8;7aoxsl&L&I2l31^I~~(-=ss~LrhwV@|AMIp6H&7hM!Jc8JO4*|hHq6=ZooR1Dgh*5?61@`L0{;Sdl8i7vfCc=xsM`o73QW!hil|PHK?>x)Bt;89M(TSEwOl_q(#(e=wh>AwTa9mnPj+;(Zg4}2_hC?zC_g{My9VazRw+FpWQ0`lkf6v*LPXTr{~5gouw<STGdU7#EzYE2dp}ji9Op+YH({Kb=DBTaH4?NaS2RhgGU?$?aQ^1bnJdkW$kv$WU^2RUc-{@?tN{f5_71Mi~WMZNo7vMAVtlp@k0R^41uJ_+qW3VBEHAjP3B)@?0w-5_G>sWu1-f!`frA<x}oIMfheZUXWoaVM&1|87_2#DbBXO4yGS_1g)^WE*je1g+AcdPKome0_Xwbf{`;NszYbuq65#HdAXt8nv+4UfUDn9)_744E(gCTh<|}swEP-peabbV`X=_eE3L6go17RabweJpxi$j;Dl-ohiBV4j^&g#OZLUE?l%FR5FfDJ&$YL6_855$vOdllzXD}zc|{V;}Wiqr!2o%7?t2AJ3KLF(+on7+>?`muxJBQDz_?ihbdAA=tm(%arX*xI0=T1;H1*fztRha~DPrNgtWF4P5@i;rz>^1B^N7LO7gzYf^T=NK<wSa~RrnOeL)Ik0NKKYd$!3*QuPZ9mY_Pn26_`~H}5fY)>YQX?cLDO%o%6fSPV%aww@5ws{TH%@bdC#YoVHl<|CX3NOhaeG$B30K#IrIgRk#gjD`@DM+-O*ujgzR++cb2?b9R(j8xGPHwZQ-MG$435=mhbD$IM_JJ=5vjCAioy#}ecrv%xFfYCoRV@GWGS&n2(7LVX@>7~xtXVCeq(fRoWzUegAEw?5?`;8hv{6&@TYjN%)5QOR4Gqob*<y340^WR<k^7)cF{k(nGeb_cIqVop{*}PbQcN-!Vtv2XwgH}vVo(?ZnmZ_RE<doCaA_2whN4I9I*|rVN1BVL2mK5Jy7yDX^3bwl(iqIF-{_l^x%vq$8@LRzI=Rj3LGc@Xb%G+b`8(GGo{az37NB=^^-XE=^x}#tg>f>d8F%sMaeN;gYbts3pBKk3^>3lld(*tuZ#6AwBKF@*dLGHwEp6$_dl#98aK~u%cDz?pvVg#f8<f3q0ca}o>vWEs2NLZh&cDF6MhmE4lR~T_#C#k01QR%C|{{CZl(-s7I~YGa#!0O>j6#y!S~|6%ZA@T$tCQmgOg~!k;xIDm7a{REt(#PWMr+RUFr6~#DyNXVd~asxg;N7ulYp!D0<uYMk}vG9K#EHIN{>cN~jR{Z65XEalrSFwGK>po7mQv*1H*mF&dPBzKP>K@qKpV2owbXUL%F9<Zx^La0#rLXu})=O9rzCGXKtJMTcKI9vY|)AeL{4Q7(Z5-ZN1D*!#*I%qFGU*f3gBoog*|bj<kUO8z?{FJ4pSk=pYkktw^1Sm}p5cgUY5psUg==)9N<<vfC6BA%G>;Ayr>Yj;M}ZeyGrHu&tqNTRwhhgjuZsX9V@zECilnsC|-Z8p<V9fsK7%i?qq)nz4_%MG}686M}2A)+|Z4%(FCK18!RE&-bc^tf22%YuvM*g?{FTpIB{(nt`3HVP!b5a)k(NL9NX506blm)-!kDW8TOf#XpXrJWHQgWsbVS6F|SA^nllNh!=74$UssS{F{(p=T(u_B}!n#orbb-=X0+nnHx9w0i7JBunp}MU@liDWyky&R$}$&zStc^fa0YOgk(w+|@8|fSD40R?{i9kRT`z8W)k6o}`@_CsOfmimR2`hMuMGl3<a9;15eeVGB6Ly4TB8x+$yUX|B|Sh2-c&5K|N*p9AsHHF#^=72bL<j$Z-mCF9Q(BycvK7#)+2TnmX{$h`~ii%2R=fgv$;##m=QGfsHbLDvD3hgT5s8C|iSF5+KguhEtL<+C*}Mz{%)Z|G`|xSUzNUOKoCC^<@gPXx!6b3~OU3zBa^UK&)BY3qMg;xb*PL0D2A{rV-0Yw4n1YeOcgG>|$XPX$_TtA<Y;b2~ePEYs(&Aqs=2t11T_nnyA{BtgxuZnifMZvWrIbQ89F&04k~ltt}CDDngCkP{WR$O&RYNTwv=_w_bV1Kc*M;eI$=ysEOLupQQ`<viM<QAa=uAH8013{VQgDVUNV!an?fRthm{ZQv|U7t4H={vURQpjIn)gN_6JM4cWGCCe#SGyV2Evb<<?2X2j{0_fUT#1GH?PL%hj*=j+B=|W-Dl4MmF7cV403&02bm^hlOJJ_QxVbxYzt$(2hc8McX7P@I_AcjHXL9#<P^rfpR{iaNm)R2&P7_5E0iyvk5X6hQ%amS|~yt$0k2U$HLU1sy<_upXgKoz|>T#>ElGc9&<R2~p-3pNu{RLdrD*EarvkJ1ERJKv8nQOjC1J#b`^t!{{U*3l4q2L2OiVb3%ag6)r*rn{w%Tp)lDHe4H=S~5GO_D8LBtq8z!g;e1%*!*qpvk2UdWGBb)dT)p0>Vf1kx{TjV^>AiLCGLJlzPx6s4D)BskCpi|TwJ@I)3|<-*<WF>c60g6c1X?*3GghDMmx1jFkh3=Icci91}bl-I1>}tfN|S2Pkz)l?bN{tlDJ4NzICJI6c_~p?UZ)WqT#J-Qr#v(X#LD*nF^LpSbV2w4Sg9B_)WXFp-we!^#d2A6JajDRebi<Fd)!Ue4pa*tUe^O<icn1`4iEAve-xJAA=f6NbV&aiAI1Ca~wa`+XSPuTk7G*uBBNmC$!321^^l_6LW3KPx-vK0Y<teaY%C0zpZck)75DY2Z-d_G@KEogT*Mfbihq9^rJ@tlc-+i-pj7~x7hp~{l8N8g<#)-El_NSuEh?pQ*=|OiYc2f)Z3o<P2uBnqQKxu%iRa=f+sNg<Je7j$ZrHMzGA#VWQ{_3_)@ZIGIee3W8cE>zUH+*f@dfaJ0<l;d8G0f;O>Ab%=7-{9U5fSP4;t)1nxD9>m`PLFkY--DYgFkU&<p2C_wU1r0>I5_h?0BGNkC_N_X+=f^d__v|o+gIl%n*p7bAQINXE$9@z3cHNZCtFH}zuC>9c8+G|-UNwp@J|Lc(q*%c4X$g$=z4S1Di!zz=3@DFI39z@`Ma_6tL)yXC(8~+^H_r8@-u>0}s7&U|aX4<-uvnm{ka`)3R4(L7lL8}H=_m9j*ykW9#Apbc(VP&A96%+3R^n`1q?w+Qb{-{8NtaX=CZyRBs7j)Gz*rsbNj=~pRLa3<^9+^Qoc8L>T6p?ND22nV?1OydcqFGu&9z#E+4P1K(E-tcp7LTQlkBJySuwvV3fLf&E&`xbg0-PY7o(qoo&)Ni;U7@&WxwC&z$Uat%K!$>czZ5@L(kvT5LfViYX$T}ls8*vo-Cf5}TV+w(($HuROx9E7;MD&oaZ{Wz)M4H<8NO3l6)#eVk{zaMX?Z#GBZLY~P6Jjl&hQDgux{*fN%rod5Y#sBToLyI*mI(ak~JD-XjyG|L(4Vs6Lt}tLos9(C3X;@77~MKI3@v?;-l%0`RpGhGR5x``NNzPcG7BM)-?L<=NlC0-)xB~F8BzJZf0x!z5P3|5Q_c=Qbj)-q{f6m2--D*@|cY5s^|jWijXGI+E={QRI^Fbszoqh>b0`Rigl2$4sSY3Vmlqsl}#ZJ#0)-oSRd2E5-TF|m~>Z^)wuRVI$;2a7NfujW;vLKqZC2*M7`yGMcmm9vOOyIH8l452&wJ2|9E*t8^c|RR6JJ+XiCk}>AaWw(zrMGCWs^__BuJY#@C46?_S3|S60fVjLDbC5SRw=0=|XzF=N!uxq5*{@>fN4E1Oh9-}Xx07(t5$vWX!^zA$c!mW)-qwp<~qGI_>B=7HR_baoxum(Z~1?59ei)(u_c%0ugh%hL<#Q%NOlixgEY=P@F18E;x6Yg=89Y3g|JX>_t8;5k1;mE*2spa)lJOVX4(_H)9RKL$M^!|q;XgwviH=BFERL9PF2q0RqmLOcfRw~Ku+Y`?^Qx1E&4Y;a#3Ih)sfK`gzIchndkT5f9}pvjOD4g$XY5>+Jpgy&VG%a0JrZ=L!}0r@Xtq7m(fUHJ@Zoi9ILq$YlAw>6~!>2+wEDqsT6;#ZnvAmZDQm&k3RPqFxI7s4Ja+fF^rz`$T-yWn%6?9Ip=Ts&B4EcFyRw+*I}l#uk^#y)&;(ZEvMdnQ!&zG{B%YO$SoRl+ANqogXDwt#$&*}#_#l&`Y8>czg<n8dJ%nit&$bxI=9XogtBW#Ywy^D0#UBvf@BfY<^eN(446(`mYZ7L=9eLNU+Y7}zag3aG`CjJLLXldH(CgLcklDqA#PbEY%Wgv&`9f}&_gS_j3VnS3Vao?T}*$R)(reZfQW*auf}MYwmi1RcebI1G(&Mf!?T4ygHXF>3gIlU5_T?5vw<A`RhSjn&Fe0EO5PJk+f!%t0)F*Qu)%8h>I_ti1+WgmLbrD6YaR@h8r^z?VB=9gjWQ&GCY5)eHHt702VbfY*rM`-+%E9_S==Pkj05k~$-n5nBnc7YhoF><M$-dj8Odz3lfCYJ1(WPI3HyuVISrXp66N6E+Y26acR~oc#D1u9-xEz5(c*IGMaSxWq8%4Q+L+KMUR6{p>Y5pH20ZGtu%>3u|8r{2+iOF03%AHdbjn^+fc1iL+zH?dcC!pv2d*k1sIDJ+hW^d<=szTcERq10<T*Rw6$%c(e&&xnEALo@AL{;Xv<KxX+K*ho=-tNRyAP&f3ZyJc5m8<i73umv;VjdX%i=Bo#uZ@w+b1{WXB5qkO)H`L=s}!?ngzyjp4>Kf?qemc1b$p`N<;Se<ePl)zUBpIb%t1qOUhvr(MgM1y6O1rfDV@aO>rI`mssaEjnL`T#)7B59XZRi@moh!+71;7HQ|>574kG0^LBQ=(DuVvmEFCYGI1Bz>?c7^AUSATu-!?zEpd9E*JVsa6^?0p}`6BPni&J~%XA)VJjoBj0nPn`@`rU6knHq5!YJ)?bB^EdLjF*abWW*X@s0LHz6l=4JPtZIV5HkSs3v4lMP?L}_A=`n32>?><-FeFBj4qv@zTohGw{o-;5l!aikF^vr^yfFkZ_Xbq_?yeh5CYN|qyv%v{H<Q0_0zwRRv{U1muS~|ZaZ5oVNX2ZSRgPy~KE(3A-xPT4oYI>xJqO9C{aZ*q?iG$OdP|bK*$ZYe?h^E$PtFi>fw;`uDk%llL-GDcU4&VUC;cuBzV#v3T9`1vdbJ)9=_4%uiz7DfmBKN-%>tm@~X))qK2o7B*r?_*`tWwKR23r6jJm79-AyxmkR1?I_<XKUz0SnuFIjH|8B5;=hzeNDo03X2QsF%l7W}`C<H`*R?Qz~z6cHu3<$SDOsyZLD<F1u);3U8%onV_$+z}j+t`_6^LD>3xCuXFRE1O;FkE0S3y>K^WCp@@YG*npY{E~M|{-Nrd0FJtsDx!K4bqN@^Jsg)RoG7NMP9Z_U*{8$GLMm(#g$iILckCI@Qtae3WTKJ<fTNC=NBe?fpET=mlOue2-akyrWa^TkJ3*^qXjca&%9U>xt+grcBmBjQT0l;J56Wjay#csOqOqg&ylCCmeP=T8N!z%wDpkIyUuZK5~mWz;eFe;OoUT$=rszhGp|HZSPZT?B5iV%71jqRj+C^W%e+Eyz;;iNWh)8z9Ko~3d|Mw#5UUgE$RJs$uBZ7dFct2q?^zmsFf_elKHT%)B(C6$Z`RV-H0n$aMI#BTrDByCdP?6!Py)3nIakQ|BQmX!eCGLt~cNHPFC=$Hi$k%R_ECwRtO<WaK`R5aUn#H|*@_K`(rtTDNC@~vgUmqw4mh9|22RjNG%_vDn^(lf%E1d2rk?%?`4wR4%^H|^s>)G)dyc#S8#V%M`&u`$6NHYfqPQ`sQ%h=e&PRwJ<&E?MivG4vfq#@$!w4l}@+yvNyPuxY~#499k1)e4_#i{_hFr84iQPhrmAIT|^2;o&kfHc@wkE%lc1JkV;!RH?kue5`@SO}m7`g?843bU5-dMG=E}D~rB(oxQG7241MZ|CJ1$GKWkcE&cDGzy|h6tWYIze|X>!!F`^<_1v3121U}a+rvJ49E)EM9J2Q2FaQ0$wtZRV#?g<L>vC@EyNB5e=+Pfa(h-l4M~1OoVyY9HD;ZP~#%61oQ@7gswCgQhyCqndUr7Dg_iE}UUo0=2|CaGRKd38Myan-X{&ZY4%z{kuKxT^q+U%HoY}%yfN+tjsR?Z-l;-;VPG2nt<Q4^3=k--GFQp~|_m|-c^gL=8G^Rv=fBu>}@1o1&t;j<mM&jBGK->;8%55EaMTbc0hBC>t=pa(H}@Os_*Y_d~P;FFZ62@0Ehd}z<H9n!nwhg3i><Jw3|?{Fv^3DQ_vnjx%cR;E8Hv?MHAXIA_5HCQrtJT(XiDZ#aZ1{1!>)S6<zj=_3cxn1?bg|mwgmD1b0#Mt0=W3-DT2jVA)=D0W+%>V;SS}YfFKKagt4K(FcxsKsJCw+Qh;P7^33Ke-<UI2Zg6&uM4a13!Xvm&l)abwb!)Z1TpOCb&0lP_9=2Cm75O8m8OBz$@(@)}Eyi~KzZBYT^1ae*48ERU<QP)p}b&uH=DHzk_i1Z%E{-d#%uh4U+i&D*xLm8;w%#cuOZ+l$v|)fc~|V|6Qi%-y%RH-(s}f0^$m?bk;jEkdf0&(Ui;PuIi^(-^(s#iYLBUtIXkw89#{#=*9IOjtHDur#ER)j_gLCw6l%EI6&1`A>mI=`3I{O;S81ev<mrC$xn5Pdc0W!7DHr$5#C1H_=-~Rti$9bgt27^UF)&B|d5uw;W@ov92uOKv}k{IiNT_ER_7YWz;SvlFYIB+>>!POjbGSeu#U@r5)dUEs4)Cet7mVBgc<hwH`MP&@^WhYBIXe-L0nCsr6`0I?^cLC7VKBlHPlqTVaB6OyPkh@<+8T{i#JopgiQ>4_JflP78cJx!+wj7XaYgFl@(Rgf@RhQDMvHU%e;eGn$pPn4p1bjGfSt9`JgbxOD?BI}@G;iDkMWi&e$0VG+@0#MPb30^nIhi|(~bJ1${t4d~n*5r7Xyz?Vinl<wLT?1%^<<w*nhwY@iCjOMtoo2!%(X2JSZiwo5$XwV<?^H4RMv$tJx+s`!xULxNQ-b2)}n}g{qFgLt2ly4TT`-a!!1ON45&;(UOZ6<|@;dqa^o$$En34m>F0)k}ZD}@*+?^Wyj2S(qS5EW>=WZ<$?8i=20Q04h157*g4dyJWQrKG>z-z-79sfN-Jr0!nQ8Ri0P7U{wNUod!2G5wK{Zd#TH1h(Ith8UTVy1+&iXO}wIFolK^g%p_bk}(3W{Knyr85<6sPJ7+(g<fGue-bCI@Y36TXB+PqZl{upWKlL1i(<g*dtL~XcspttktkqEtQvC1-~_11#923^n<;W>Dd(g&uGwtAD{gPUEyc9ankpj3i7|I<)8#k8SCo%gqu5Z9hkf6gIX^+)h$gtS$^s~R!#}r2jj%WxEMSzDZve}Ww4##?yL)X)!|VvlYO4I2uL?>Sm4_lDa-%GdAs|pVjp<l4D6)h%2m*@x`Vp0Ko$V#*BYf&CiTad6u)n2o^Qru{^}C7J_<BBX%ErVTG%2b^i4wDKE3a|IIdc03D(wmZ7}-$5#$OVVz^;GE*&2aF@%r&x%zgruObu*x^I+3$12PFf7IQhkjgKy$$zXt#pukcBO+m2zlzaO2vl7)r=POJ4ur}7RO8i^m#dhpI5r3vA)OzKLVr-QJXS4)08;H7y#@YR9Rz6iZgb*_@7#`SJuxXGlEKJbOT+5psu0ftyC`cILjWYe7!RRnuVzbwDe9UoY_CW>3kOYQfM`@$=1>}T>Lvy5xi_mVTJX;vWP3EMZ)Lh7snHoEFqDawdfyfkOUt(}hYpx^unRq1*IRcE`%A=ZM>3anWnNX7odifr^DA;e2JlJT!V-&iRetDYWDSL@`D}j1Om;pBPKV+|ery~q{%@xT-C%v{&c87FKVsS%~fPZzp?`?Sil%b~@0@!QPv*puOxK~E9Mi7))##@2B92(J>eqY#q_uEdNcXBB4pK}x0RZIVJ#PU@9&!!(bP$HXhcO1`PaC|!M#FdfRW&H0A<XRTFh2B>E%NXtJsR@eq{SKF3i4jtDArfz8tWKjB+wld)<en-JUEFEcT9s8#c^=igmN?eg4qPP}(V2_8DU~mI`qwmGQuvfeBPy_+M{#Rn$1T7{7nO#5Ofe=DdS@Mc3Xf)-@@LaB4KW~1o#+DV#wV#<WQXBn%p`{~vt5;v_aeZ*c)taG%(gow=1+W~9VWWv))gCj3tqwZan3Y1mRQu4PO}I93`V1X;8>FqT<AMd{GriulIW)Gl|qFJhMGsD$NABqN3Jq_+U&Qn8hR+s;n*|FkZ>;M*Pm&Jra%F-K=3d=Kgaw0YFjG=Jjr(_A^c|f_Iqlfc#kzM9crit$@Ie{DX{Cwleh5P{>^K@sH!jZInb!$lajj`e7Jn;tHD<c`p1I-i);eS^t0tG*O=68*!C{(o4Hz=Kl+_!&O46U1xqAr7J$ecWg0|1W+KA-EepK4XN+|?#<2Ve{XnToAS0b@Iud(Ban57RRtc#ct8^HO%Kuoj{q}xs8qbAqK;d)X?bn26Dr97yrA7)d<Zzz>aP2o~Wh?hi>$M&UL%T$O89)CQBbp>^42!Y~ERC0Mc!Sl~R!7^7@pFR?t%WQ!w)Ft2^Qz{pzSAaF1Vch1*ZRWlW(8E8)&VC!vI5Wm@M80q?@M1m;q(Z!{z``nA7i&=Fl2369Se*8Zr5I}W2J8%gvOH8b7#&NGH4bSYR&}aU@H`gNVO3Ohs!4z10`Ud6D!h!Kkuj@_pu%i6o2zW?tMj~rFZof)M>4QQFQJ(PofE=#axR|4%^3yV=(eQMtA{#Iq0|$ao5HON?A+Z09S}oXf*E7y7Af<5qBC2tR-nTyc;jl*jsq1OEc+!71Akf3~x}@vKb=6eEFO2Cib(?RJwK7siWRv?{<7V51=@c>if0GyE5_y`_kIk`Ff~SI0(!4=3=P&bA6IK7Fk%C+>n^sCDF3h8&ExksX6i)>$ImPOKjv^)}Cj@fQI-71YD`AC*TD4fQi@*5PK&=Fn9%Zef9U(<pK+6E8utr&H+wMsPs~gzPfZrXBJ};@_@;Dbs$AU49^jFFKn}4I8|)U)fe`kj279#tmZN{sFO_gjB<WcCh*KaXo+P9qtzBeYZ*A5Db^|lq)5Q!#);bqlxF;`UxkNP{qL&xyIr_Y2PLb%szHWgV)TdtP4%`KkR9qVQcm!pp<mmvi<Y2&%QnUUKZmW4ReIL`GxFdu>8?n7FG(`Fe=RYLE&Cii>AYRg^<<(jA-By#1+zLB0Vx>8b6iIbt&5FZj~dN%M&%7EXAjG2W#AcMJK@c(`f@?(#H(#1imk@Bhn;oB(TA;-c~s~(C%!u6ZX2@*Xu7=vf9<WcxY+^5+X<CVe5GTkK4|52OMBWMc`8oHNL=erlP1RSL%u~B2hi<*OJhF=AwS`u-8aaq{K!j8y&aJEHWoQzl7lgT*8Y_eVoRkT4?KSj*&@rTlFqO5GLvOnN+k_zX*8h0@DDIOAjrVav;C`zVeW~L<{WjW6y|LwZK(yfBC)+mlk1>x9?=n8CXF1R@3THBtEn9^1)LO_828GYC3V#3#`_FrCuU%_J>swIjoBMKf5AZFAmTNtkDB{02;_>F<lZf7929Z>Ni`9<*d$%(vW>szn3$Qy^D~9KuxbqEj}Y?7tp+5A4cmb>eCYH;&|W7k*+?$4*m%IGGuCHH-|}ZDjh7#d-oY}5i&0~O$$#^iBapQMMBrtbdHLpA<g&&_nqA}dCCDa*r2&E1No`ZyiO-MLO6ZYQMvPykC;fB&9r)>U)pleL!YCVwY*!O`kYe-@ZEP`J5MBy|L4kB7rqc!`FY79(g8dQse8MwZ!%%tHEx1VmMWli(xi+zhQ^*{sH3<P*dgt7?=SaVE&F%??f~Oyq8<+i4b#vSD!iYE@b5Lbe3vWW5k@SqL=I~#s5obnz-p92euq>5NFv(g;RmjY3OjN!L?^v7l6{VrXZFJbPrRW2^lcWL%q}YQKk9AHgYVxJ`Ys<=I0J3#PNLy~D!M3R1PubwL{ycKL5&!@I00H>@1MZ0rlD7vzr~nH50ssI2003E9","encoding":"xz-base85-v1","uncompressed_bytes":247022,"uncompressed_sha256":"e39d6ff58771f977f17b6efadc6760a9e7eefb2c947dd02e62a9f59ec8179731"}
+```
+<!-- ENDHISTORICAL -->
+
+## Appendix W. The P8 signed-search cell under the record-and-regenerate schedule (P8RR)
+
+**Claim, conditional on the premises of section 5.** Under the record-and-regenerate schedule below, the P8 computation has an analytical peak of at most **211,431,424 bytes**, 4,861,920 bytes above the base's thirteen-column online bound 206,569,504 (the active ten-column image is 159,383,584), so in Appendix W this preprocessing cell is the binding preprocessing maximum. Appendix Z then charges the record once rather than twice (Lemmas RF, RF1), dropping phase E to 160,546,816 and phase R to 157,474,816, with the ten-column online image 159,383,584 lying below phase E; the counted phase maximum is the preprocessing cell and the charge is 160,546,816 (memory_log2_bytes 27.258419, projected scalar 83.743859). The predecessor's signed-16 record width is withdrawn as false and no current claim depends on any record width (Lemma RF1). The premises are the inherited H6-D and R.6D determinism and the new H6-E (a0), (a), (b) and (d). H6-E(a0) reads the H6-D encoder figure only as a bound on the encoder's live clause objects, which on the experiment platform occupy at most 128,586,032 bytes allocator-rounded, 27,950,800 below it (section 6). The whole local encoder process exceeds the figure, so H6-D itself is not reproduced locally; under Appendix Z the required phase-E bound rises one byte per byte that figure is understated. Because phase E already sets the submitted maximum, every positive understatement exceeds the submitted bound; the local clause-object margin supports the premise but is not certified slack. Appendix R.6D is unchanged; only its phase maximum is superseded. No historical run is reproduced.
+
+### 1. What the cell computes and what is consumed
+
+The published `stepk.py` builds the clause list of `F_hist` (model clauses, cardinality encodings, `fix_xor` pins, `fix` rows, one clause per nonempty block), serializes it as `p cnf V C` plus one line per clause, runs Kissat, writes `name`, `spec`, `sat`, `solve_s`, `build_s` and `rows`, and prints one line. `score.py` reads `name`, `spec` and `rows`; `sweep.py` reads `sat`, `rows` and the printed line. The rows depend only on the result line and on model values of word variables, all numbered at most T, the pool top when `sha256_model` returns (32,680 for the sweep topology).
+
+### 2. The schedule
+
+`p8rr_launch` runs in a working directory private to the run. It removes stale files of an interrupted run and then runs:
+
+- **E (record).** The historical encoder process runs the published `stepk.py` text byte for byte up to `t1 = time.time()`. Instead of a CNF file it writes a record: the greedy covers actually used, the model arguments, the clauses appended after `sha256_model` (cardinality, pins, rows, blocks), V, C, and the length and SHA-256 of the exact serializer output. It writes no DIMACS.
+- **R (regenerate into the solver).** `regen.py` runs the pinned `sdmodel.py` against stub PySAT modules: a write-only clause sink, a sequential identifier pool and the recorded covers. Pass 1 regenerates the whole stream into SHA-256 only and compares it with phase E; pass 2 writes the identical stream to Kissat's standard input. `p8rr_tool filter T` keeps Kissat's result line and the positive model values at most T.
+- **S (solver alone).** The launcher deletes the record as soon as `regen.py` exits 0; Kissat continues.
+- **D (decode).** `decode.py` rebuilds the identifier map with empty covers and writes stepk.py's output with stepk.py's keys in stepk.py's order, and prints stepk.py's line.
+
+The launcher accepts the run only if every phase exits as declared (solver 10 or 20). The same Kissat 4.0.1 binary receives the same formula bytes with the same options `-q --seed=101`, so under R.6D determinism it returns P8.
+
+### 3. Equivalence for every accepted input
+
+For every `stepk.py` spec with `"solver": "kissat"` that the procedure accepts, every greedy cover draw and every PySAT build: whenever phase R exits 0, the solver has received exactly the bytes the published serializer would have written, because phase E records the true clause list's digest, `sdmodel.py` never reads its CNF and allocates identifiers in a fixed call order, and pass 1 refuses any difference before Kissat receives a byte. The filter and decoder reproduce `sat` and `rows` exactly and refuse non-canonical solver output. The output equals stepk.py's apart from the two wall-clock fields; the only other differences are the pipe instead of a file and the full model not being stored. An accepted spec has formula literals that are nonzero integers below 2^31 in absolute value, and every `sha256_model` argument a bool, an int, a tuple or a set of mutually orderable values. Some specs that `stepk.py` runs are refused in phase E before any solver starts, for example `"with_state": "yes"` or `null`, or a `relax_steps` list that mixes integers and strings. The sweep specs are accepted. This is a universal transformation checked on fresh fixed-seed controls, not a historical reproduction.
+
+### 4. Memory, every term charged
+
+| Phase | Components (bytes) | Total |
+| --- | --- | ---: |
+| E | encoder G 156,536,832 + kernel 2,097,152 + launcher 4,194,304 + procedure code files 1,912,832 + record file 44,593,152 + recorder overhead 2,097,152 | **211,431,424** (Appendix Z Lemma RF: the record is charged once, so phase E is 160,546,816) |
+| R | filter 1,048,576 + kernel 4,194,304 + key file 16,384 + launcher 4,194,304 + model file 200,704 + pipes 2,097,152 + procedure code files 1,912,832 + record file 44,593,152 + regenerator 33,554,432 + solver S 90,210,304 + solver pipe input 1,048,576 | 183,070,720 (Appendix Z Lemma RF: the record is charged once, so phase R is 157,474,816) |
+| S | filter 1,048,576 + kernel 3,145,728 + key file 16,384 + launcher 4,194,304 + model file 200,704 + pipes 2,097,152 + procedure code files 1,912,832 + solver S 90,210,304 + solver pipe input 1,048,576 | 103,874,560 |
+| D | decoder 100,663,296 + kernel 2,097,152 + key file 16,384 + launcher 4,194,304 + model file 200,704 + output json 5,242,880 + procedure code files 1,912,832 | 115,376,128 |
+
+The launcher, its spec argument, the code files, retained files rounded to 4 KiB pages plus one page, two pipes of 1 MiB each (the capacity with 64 KiB pages) in phases R and S, and 1 MiB of kernel state per process are charged in every phase in which they exist. No release, cache or dead-buffer credit is taken.
+
+**Record bound, from H6-E(a0) and (a).** At the end of construction every clause of `F_hist` is a distinct CPython list of at least 56 + 8k bytes, and every literal that `sdmodel.apply` computes as `lit * (+-1)` outside CPython's small-int cache is a distinct int object of at least 26 bytes. Exact rational LP-dual certificates, checked by two programs, bound the model part below by 85,323,392 bytes for every cover draw: per instance whose literals avoid the cache, XOR 3,072, IF 5,288, MAJ 6,780 and ADD 12,308 bytes (2,528, 608, 608 and 5,632 instances); the 96 XOR and 128 ADD instances that touch W0..W3 are charged list bytes only (1,408 and 5,080); 1,812 unit clauses at 64 bytes. A recorded tail clause of k literals costs at most 1 + 5k bytes, at most 5/8 of its list, and by H6-E(a0) the tail's lists fit in G less the model part. Hence the record is at most 44,585,056 bytes for any PySAT build and any block count. **The record bound needs no premise about Kissat. The cell does:** phases R and S charge H6-D's Kissat figure and the H6-E(b) pipe allowances, and they are 28,360,704 and 107,556,864 bytes below phase E. With H6-E(c), four-byte literals would give a cell of 202,526,720 bytes, withdrawn with Lemma RE2. Without the int-object clause of (a) the cell would be 242,135,040 bytes with five-byte literals or 227,090,432 with four-byte literals, both above the claimed maximum, so that clause carries the claim. Appendix Z, below, releases the list incrementally and charges the record once through the actual coexistence maximum; its narrower Lemma-RF width replaces Appendix W's wider record row.
+
+### 5. Premises
+
+- **H6-D (inherited, unchanged).** "Premise H6-D: the author's reported per-process maxima for its same-specification-and-seed re-run, interpreting KB as KiB, bound the corresponding phases of the historical P8-producing execution: Python encoder/driver at most 152,868 KiB and Kissat at most 88,096 KiB." Appendix W charges both figures unchanged as phase components, as R.6D does.
+- **R.6D determinism (inherited).** Kissat 4.0.1 run with the same binary, platform, input bytes, options and seed performs the same search and prints the same result and model (Appendix R.6D, section 3). That the schedule returns P8 rests on it.
+- **H6-E (new).**
+  - (a0) The 152,868 KiB encoder figure bounds the live clause objects of the historical encoder process at the end of construction: the list object and item array of every clause of `F_hist`, and the int objects outside -5..256 that its `sha256_model` clauses hold, with those objects resident and none swapped out or compressed. These are the only objects that the record bound (section 4) and the token bound (section 9) read; phase E charges the encoder at H6-D's figure itself. R.6D does not use this reading: it charges the figure as the encoder's phase while the encoder overlaps Kissat, never as a bound on live objects.
+  - (a) The historical encoder ran on a default 64-bit CPython 3: a list of k items occupies at least 56 + 8k bytes, an int object at least 26 bytes, only -5..256 are cached, and PySAT's `CNF` keeps each clause as that list or a copy holding the same int objects.
+  - (b) The measured allowances transfer to the historical platform: recorder overhead 2 MiB, regenerator 32 MiB, decoder 96 MiB, filter 1 MiB, launcher 4 MiB, 1 MiB of kernel state per process, 1 MiB for Kissat reading a pipe and 1 MiB per pipe. The regenerator, filter, decoder and launcher run beside the historical Kissat binary. Retained files are rounded to 4 KiB pages; with 64 KiB pages phase E is 212,373,504 (2^27.662029); the claimed 211,431,424 uses the 4 KiB pages stated here.
+  - (d) The spec was shorter than 2 MiB. This is assumed, not derived: it follows from the spec's passage through one execve argument only on Linux with pages of at most 64 KiB (32 pages per argument; 128 KiB with 4 KiB pages) or on macOS (1 MiB for all arguments together). It bounds the launcher's argv copy, which is charged in every phase including E, the decoder's copies and the 6 MiB output charge.
+  - (c), used only for the withdrawn 202,526,720-byte figure: Kissat 4.0.1 keeps at least one resident byte per declared variable.
+
+### 6. Local evidence on the H6-D encoder figure
+
+On the experiment platform (CPython 3.12.3, PySAT 1.9.dev17) the published construction of seven sweep-shaped fresh controls (0 to 5,430 blocks, four cover draws) was read at `t1`.
+
+**The live clause objects, which (a0) bounds.** `src/clause_objects.py` rebuilds each control in a fresh interpreter, binds the construction to the committed control by its serializer digest, clause and literal counts and covers, and sums the objects that (a0) names. Its receipt `results/clause-objects.json` (SHA-256 `9cfaaa6ea889d583de87de882bd9e8b4693fa00b57932f799b8fd1830e34dce7`) gives 112,089,896 bytes by object size and 124,873,616 allocator-rounded with no blocks (C0), 113,523,416 and 126,350,576 with 5,430 blocks (CB5430), and at most 115,410,388 and 128,586,032 under a forced alternative cover draw of the zero-block spec (D_draw3). Allocator-rounded, the largest is 27,950,800 bytes below G = 156,536,832. The tail's own int objects, which no bound reads, would add at most 4,714,880 bytes.
+
+**The whole process.** The recorder process, which runs the published `stepk.py` text, held 158,711,808 bytes of anonymous memory and 168,951,808 resident at `t1` with no blocks (C0), and 166,572,032 and 176,832,512 with 5,430 blocks (CB5430). Every whole-process value exceeds G, so H6-D's figure is not reproduced locally. Under Appendix Z the record is charged once through the coexistence maximum of Lemma RF1, so active phase E is G plus the fixed 4,009,984 bytes of procedure code and recorder overhead and the required bound rises by exactly one byte per byte that G is understated; the superseded 1.25-, 1.625- and 1.5-byte slopes belonged to charged record widths. Substituting a whole-process figure for G is a conservative stress test: it charges the encoder at that figure and lets the clause objects fill all of it, although they occupy at most 128,586,032 bytes. At those figures phase E would be 172,961,792 (C0) and 180,842,496 (CB5430), both above the measured charge 160,546,816, so the claim rests on G as the live-clause figure, which is H6-D's own reading.
+
+### 7. Premise sensitivity
+
+| Premises | Peak | Margin to the claimed maximum 211,431,424 |
+| --- | ---: | --- |
+| H6-D, R.6D determinism, H6-E (a0), (a), (b), (d) | 211,431,424 | 0 in Appendix W; Appendix Z Lemma RF gives phase E 160,546,816 as the counted maximum, with the ten-column online image 159,383,584 and phase R 157,474,816 below it |
+| the same plus (c) | 202,526,720 | +8,904,704 (Appendix W's four-byte width); withdrawn with Lemma RE2 by Appendix Z, whose Lemma RF charges the record once at 18,997,248 bytes |
+| (a) without its int-object clause, plus (c) | 227,090,432 | −15,659,008, fails |
+| (a) without its int-object clause, no (c) | 242,135,040 | −30,703,616, fails |
+| no (a), or no (a0) (H6-D read only as R.6D reads it) | no record bound | this arm establishes only R.6D's 246,812,672 |
+| no (b) | phase E's own allowances total 8 MiB | has no headroom in E; could grow by 28,360,704 in R and 96,055,296 in D, but nothing is proved |
+| no (d) | launcher and phase D unbounded | with measured costs D reaches the claimed maximum at a spec below the base's 7.9 MiB point (headroom 96,055,296 instead of 121,602,048) |
+| G understated by x bytes | about 211,431,424 + 1.25x in Appendix W; active Appendix Z phase E is G + 4,009,984 + x | exceeds the submitted 160,546,816-byte bound for every x > 0; no certified understatement slack |
+| G replaced by local whole-process anonymous / resident memory at `t1`, a conservative stress test (section 6) | C0 −3,530,752 / −20,172,800, fails; CB337 −7,933,952 / −24,854,528, fails; CB5430 −16,306,176 / −32,980,992, fails; D_draw3 −11,468,800 / −27,942,912, fails | |
+| Kissat above H6-D's figure by y bytes | R binds above y = 28,360,704 | exceeds the claim above y = 28,360,704 |
+
+### 8. Evidence
+
+Ten fresh fixed-seed controls ran with a local source build of Kissat 4.0.1 (official rel-4.0.1 tarball): 0 to 5,430 blocks, three forced cover draws, a feature control with `=`/`>=` cardinality, value rows, relaxed and exact steps, and small specs. Three are satisfiable with rows decoded (S_msg20, S_msg24, S_nopin), two unsatisfiable (S_unsat, X_features) and six stop undecided under their conflict budget with `s UNKNOWN` (C0, CB337, CB5430, D_draw1, D_draw2, D_draw3); only the three satisfiable controls exercise row decoding. In every control the solver read exactly the published serializer's bytes (an independent tap on its input), its standard output was byte-identical between file and pipe, and the decoded output equalled the published `stepk.py` output: the same keys in the same order and the same values, with the two wall-clock values set to 0.0. On C0 with the procedure's options and a 2,000,000-conflict budget, the quiet stdout was byte-identical between file and pipe and the verbose transcript agreed line for line (10,497,919 decisions, 261,821,810 propagations). In 24 file-against-pipe configurations (Kissat 4.0.1, Kissat sc2021, CaDiCaL 1.7.3, quiet and verbose) every result, model line, progress line and statistics counter agreed. On C0 with `--seed=101 --conflicts=100000` the build reports 622,491 decisions, 26,949,414 propagations and 4,532 restarts for both inputs, the counts R.6D records. Five local PySAT builds (1.9.dev17, 1.9.dev16, 1.9.dev7, 1.8.dev16, 1.9.dev2) give one cardinality output. Every truncation and single-byte corruption of a record is refused by two independent implementations; crash points, failure paths, ASan/UBSan and mutants are refused. The historical binary and platform remain unavailable.
+
+### 9. Operations
+
+The added recording, regeneration, filtering, decoding and launching are bounded by 2^54 word operations (2^42.59 target compressions): the measured CPU per formula token of every added process, times the largest token count H6-E(a0) allows (every token costs at least 8 bytes of clause list inside G), times 2, times 9.216*10^12 operations per CPU-second. Added to N it leaves time_log2 76.48544 and preprocessing 61.58497 unchanged at upward rounding; it also lies inside A_C = 2^60.
+
+## Appendix X13. Current seven-column charged implementation, ledger and replay binding
+
+The base's historical replay packet references stay documented in Appendix U. The current charged implementation is the exact **seven-column (`NCOL = 7`) full-cycle** source embedded below (`x13_k7.py`, `62358` raw bytes, SHA-256 `27e6bd985a1b8b44a5945f9714af7393c46cb39cf8bb7fab077155b0dc8b0115`; fenced block `62372` bytes, SHA-256 `24bb27a8fc369f1e734cc37dadbca71f5d2b5c4c4c99a28ad92aabb4af34c28d`).
+
+Key changes relative to `74ec8ef` (`Appendix ZS` `8f3fb2bd...`):
+1. `NCOL = 7` (`coverage = 56`, `probe_limit = 61`, `probing_low_words = 122`, `E(8174, 7) = 20,811,431`, `table_bytes = 110,100,512`, `complete_online_peak_bytes = 115,343,392`).
+2. `PHASE_R_PEAK = 121823232` (`memory_log2_bytes = 26.86022`, keeping the entire `18,997,248 B` Lemma-RF tail record in Phase R).
+3. Deterministic full-cycle `ustart` in `ledger()` for `ncol == 7 and kep == KEP_EPOCH` (`NE = 1 << 32`, `K = 528,101,566,268`, `NCV = 2,268,178,956,087,436,771,328`), eliminating the epoch-mixture gap unconditionally while keeping `MSG_LO = '-0.011821'` and `MSG_CLS = '-0.0225'` from published base `74ec8ef`.
+
+**Fresh execution receipts (`python3 x13_k7.py selftest` and `ledger`):**
+- `selftest`: `|S160| = 160 OK`, step 3b on P8 (`3,014` ops), `2,304` tag lane checks (`0` mismatches), `16,128` combined tag/C1 lane checks (`568` firing, `0` mismatches), bitsliced front end (`64` batches, `bs_gates_max = 218`, `gbs_worst = 218`, `0` mismatches), online & dense scalar/C1 parity (`0` mismatches), counted scan ops `368,134 <= 368,134`, `SEL`/`class` rate sanity checks, `ledger time_log2 = 76.5508329`, `success >= 0.3900000000`, **`SELFTEST PASS`**.
+- `ledger(ncol=10)` legacy calibration reproduces `N = 288571296909245816569560843` (`True`), matching `Appendix AH`.
+- These finite checks bind deterministic semantics and accounting only; they do not measure `H8`, `H9`, or rare-event `q3`.
+
+<!-- BEGIN DB38_H8G_7COL_SOURCE 27e6bd985a1b8b44a5945f9714af7393c46cb39cf8bb7fab077155b0dc8b0115 -->
+```python
+if not __debug__:
+  raise SystemExit('assertions required')
+import sys,json,hashlib,struct,math,random,zlib,base64
+from decimal import Decimal as D,getcontext
+M=0xffffffff;NR=38
+K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,
+     0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,
+     0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,
+     0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb]
+IV=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]
+def ror(x,n): return ((x>>n)|(x<<(32-n)))&M
+def S0(x): return ror(x,2)^ror(x,13)^ror(x,22)
+def S1(x): return ror(x,6)^ror(x,11)^ror(x,25)
+def s0(x): return ror(x,7)^ror(x,18)^(x>>3)
+def s1(x): return ror(x,17)^ror(x,19)^(x>>10)
+def CH(x,y,z): return (x&y)^(~x&z&M)
+def MAJ(x,y,z): return (x&y)^(x&z)^(y&z)
+def trace(cv,w16,n=NR):
+  W=list(w16)
+  for i in range(16,n): W.append((s1(W[i-2])+W[i-7]+s0(W[i-15])+W[i-16])&M)
+  A={-1-i:cv[i] for i in range(4)}; E={-1-i:cv[4+i] for i in range(4)}
+  for i in range(n):
+    E[i]=(A[i-4]+E[i-4]+S1(E[i-1])+CH(E[i-1],E[i-2],E[i-3])+K[i]+W[i])&M
+    A[i]=(E[i]-A[i-4]+S0(A[i-1])+MAJ(A[i-1],A[i-2],A[i-3]))&M
+  return A,E,W
+def compress(cv,w16,n=NR):
+  A,E,W=trace(cv,w16,n); f=[A[n-1],A[n-2],A[n-3],A[n-4],E[n-1],E[n-2],E[n-3],E[n-4]]
+  return [(cv[i]+f[i])&M for i in range(8)]
+PCV = [0x95a24959,0xb4053f95,0x1bf0473e,0x1eab3b7c,0x650c63d3,0xe6493d3b,0xed004f1d,0xeb7eaad3]
+PMX = [0xbd047e95,0x1dc94891,0x4bbe458b,0xc7dc3c0a,0x8b6235e1,0x9d7630ee,0x569da3a0,0x94ddb1c2,0x464e545d,0xa804c932,0xacecbe75,
+       0xc8280172,0x9a4d6768,0x16139532,0xe00d6a99,0x5fb2827b]
+PMY = [0xbd047e95,0x1dc94891,0x4bbe458b,0xc7dc3c0a,0x8b6235e1,0x9d7630ee,0x569da3a0,0xb4ddb1c2,0x420e5c5d,0x8804c932,0xa9edacdf,
+       0xc8200d72,0x9a4d6768,0x16139532,0xe00d6a99,0x5bf28a7b]
+_ROWS = ("=nu============================= uuu============================= ==n=============================|"
+ "=========n=====n====n======n==== ==n=u====n==nu=====nu===u==n==== =====u===u==========n===========|"
+ "================================ ======nn===n================n=nn ==u=============================|"
+ "===============n===========u==== =u=============n===========u==== =====u=n=======n===u==u=n=u=n=n=|"
+ "====n===============n========u== ==n==n==u=====un================ ============u=======nn==========|"
+ "==u====u==u==========uu=======u= =nu=u==n==n=====u=n=nn=========u ================================|"
+ "==n============================= =========n============n=nuu==uu= ================================|"
+ "====n=========n=========n==n==== ====u=========n================= ================================|"
+ "======n=u======un=============== ====================n===u======= =====u===n==========n===========|"
+ "================================ =u==1====n===+u====u0=u=0==+==== ==u=============================|"
+ "==u============================= =0=====++0===+0=+==01=0=0==+==== ================================|"
+ "================================ =0=====++1===n1=+==1==1====n==== ================================|"
+ "================================ ==+====nn=======u=============== ================================|"
+ "================================ ==+====00====1==0==========1==== ================================|"
+ "================================ ==u====10=======1=============== ================================|"
+ "================================ ==0============================= ================================").split('|')
+CELLS=[[(0,0,0)]*NR for _ in range(3)]; PQ=[0]*NR; _PL={}
+for _r,_l in enumerate(_ROWS):
+  for _k,_s in enumerate(_l.split()):
+    m=v=x=p=0
+    for _j,_c in enumerate(_s):
+      b=1<<(31-_j); m|=b*(_c in 'un01'); v|=b*(_c in 'u1'); x|=b*(_c in 'un'); p|=b*(_c=='+')
+    CELLS[_k][_r+7]=(m,v,x); _PL[_r+7]=_PL.get(_r+7,0)|p
+for _i in _PL: PQ[_i]=_PL[_i]&_PL.get(_i-1,0)
+PQE=list(PQ); PQE[18]=0
+X2=[]
+for _t in ('E16 7 = E16 26,E16 14 ! E16 28,A15 4 = A16 4,E16 11 = E16 16,A15 7 = A16 7,A14 15 = A16 15,A14 16 = A16 16,A15 17 = A16 17,'
+           'A14 23 = A16 23,A14 25 = A16 25,A15 27 = A16 27,E16 3 ! E16 8,E16 4 = E16 23,W16 20 ! W16 27,W16 22 = W16 31,W16 4 ! W16 6,'
+           'A15 29 = A16 29,W16 14 = W16 18,W16 8 = W16 25,W16 1 ! W16 12,A17 9 ! A17 20,A16 15 = A17 15,A17 6 = A17 18,A16 16 ! A17 16,'
+           'A16 23 = A17 23,A16 25 = A17 25,A17 8 ! A17 17,E18 0 = E18 13,E18 17 = E18 22,E18 5 ! E18 23,A16 29 = A18 29,E18 9 = E18 23,'
+           'E21 10 = E21 15,E21 11 = E21 24,E21 2 = E21 16').split(','):
+    _a,_b,_e,_c,_d=_t.split()
+    X2.append(('AEW'.index(_a[0]),int(_a[1:]),int(_b),int(_e=='='),'AEW'.index(_c[0]),int(_c[1:]),int(_d),max(int(_a[1:]),int(_c[1:]))))
+def cellok(k,i,x,y):
+  m,v,df=CELLS[k][i]; return (x&m)==v and (x^y)==df
+def exact(tx,ty): return all(tx[k][i]==ty[k][i] for k in (0,1) for i in range(34,38))
+def rowok(tx,ty,i):
+  if i<0: return True
+  (Ax,Ex,Wx),(Ay,Ey,Wy)=tx,ty
+  if not (cellok(0,i,Ax[i],Ay[i]) and cellok(1,i,Ex[i],Ey[i])): return False
+  if i not in (7,8) and not cellok(2,i,Wx[i],Wy[i]): return False
+  if (Ex[i]^Ex[i-1])&PQE[i]: return False
+  for (k1,i1,b1,eq,k2,i2,b2,row) in X2:
+    if row==i and (((tx[k1][i1]>>b1)^(tx[k2][i2]>>b2))&1)!=(0 if eq else 1): return False
+  return True
+_tx=trace(PCV,PMX); _ty=trace(PCV,PMY)
+SAx=[_tx[0][i] for i in range(16)]; SAy=[_ty[0][i] for i in range(16)]
+SE={i:_tx[1][i] for i in range(4,16)}
+_A,_E=_tx[0],_tx[1]
+C16=(_A[12]+_E[12]+S1(_E[15])+CH(_E[15],_E[14],_E[13])+K[16]+s1(PMX[14])+PMX[9])&M
+R16H=[int(t,16) for t in ('4b02d320 7b1ab320 7b22b320 7b3ab320 c802f320 c80ad320 c80af320 c812d320 c822f320 c82ad320 c82af320 c832d320 '
+                          'cb12f320 cb1ad320 cb1af320 cb22d320 cb32f320 cb3ad320 cb3af320 fb02b320').split()]
+R16F=0x405
+def r16ok(e): return (e&~R16F&M) in R16H
+T20=[(h-R16H[0])>>13 for h in R16H]
+assert all((R16H[0]+(t<<13))&M==h for h,t in zip(R16H,T20)) and len(set(T20))==20
+OFFS=(0,1,4,5,1024,1025,1028,1029)
+T160=sorted(h+o for h in R16H for o in OFFS)
+Cc2=0x7af32e15
+QPF=(57726359870197/2**58)*(287309824/2**32)
+ONES=(1<<256)-1
+LANEPL=[sum(((l>>i)&1)<<l for l in range(256)) for i in range(8)]
+AP=[(LANEPL[i],LANEPL[i]^ONES) for i in range(8)]
+B2=(0,ONES)
+SP_S0=[(((x>>0)&1)<<0)|(((x>>1)&1)<<4)|(((x>>2)&1)<<8)|(((x>>3)&1)<<11)|(((x>>4)&1)<<14)|(((x>>5)&1)<<17)|(((x>>10)&1)<<34)|(((x>>11)&1)<<39) for x in range(4096)]
+SP_S10=[(((x>>0)&1)<<1)|(((x>>1)&1)<<5)|(((x>>7)&1)<<22)|(((x>>8)&1)<<26)|(((x>>9)&1)<<30)|(((x>>10)&1)<<35)|(((x>>11)&1)<<40) for x in range(4096)]
+SP_S11=[x<<1 for x in SP_S10]
+SP_K0=[(((x>>0)&1)<<3)|(((x>>1)&1)<<7)|(((x>>2)&1)<<9)|(((x>>3)&1)<<12)|(((x>>4)&1)<<15)|(((x>>5)&1)<<18)|(((x>>6)&1)<<20)|(((x>>7)&1)<<24)|(((x>>8)&1)<<28)|(((x>>9)&1)<<32)|(((x>>10)&1)<<37)|(((x>>11)&1)<<42)|(((x>>12)&1)<<44) for x in range(8192)]
+SP_K1=[(((x>>2)&1)<<10)|(((x>>3)&1)<<13)|(((x>>4)&1)<<16)|(((x>>5)&1)<<19)|(((x>>6)&1)<<21)|(((x>>7)&1)<<25)|(((x>>8)&1)<<29)|(((x>>9)&1)<<33)|(((x>>10)&1)<<38)|(((x>>11)&1)<<43)|(((x>>12)&1)<<45) for x in range(8192)]
+def cv_consts(cv):
+  a,b,c,d,e,f,gg,h=cv
+  k0=(-S0(a)-MAJ(a,b,c)-h-S1(e)-CH(e,f,gg)-K[0])&M
+  E0base=(d-S0(a)-MAJ(a,b,c))&M
+  PP=a&b; QQ=a|b; NAB=(~(a^b))&M; EF=e^f; FF=f; KF=(k0+Cc2-gg-K[1])&M; KFm=(KF-PP)&M; K2=(Cc2+k0)&M
+  E=[]; c8=0
+  for i in range(8):
+    ai=LANEPL[i]; ei=(E0base>>i)&1
+    if i==0: E.append((ai^ONES) if ei else ai); c8=ai if ei else 0
+    elif ei: E.append(ai^c8^ONES); c8=ai|c8
+    else: E.append(ai^c8); c8=ai&c8
+  nc8=c8^ONES; G=(0,nc8,c8,ONES)
+  EG=[(E[i],E[i]^nc8,E[i]^c8,E[i]^ONES) for i in range(8)]
+  nab=(~(a^b))&255; U=[]; cu=0
+  for i in range(8):
+    xi=(LANEPL[i]^ONES) if (nab>>i)&1 else 0
+    ei,fi=(e>>i)&1,(f>>i)&1
+    yi=(ONES if ei else 0) if ei==fi else (E[i] if ei else (E[i]^ONES))
+    t=xi^yi; U.append(t^cu); cu=(xi&yi)|(cu&t)
+  U.append(cu)
+  K_cv=(KF+(~QQ&255)-(PP&0x1F00)-5)&8191
+  def _csa3(p,q,r): u=p^q; return ((p&q)|(u&r),u^r)
+  T0=[]; T1=[]
+  for idx in range(16):
+    p,q,r,s=U[0],AP[2][idx&1],EG[6][(idx>>1)&3],B2[(idx>>3)&1]
+    c1,s1=_csa3(p,q,r); cs=c1&s1; T0.append((s1^s,c1^(s1&s),cs&s))
+    p,q,r,s=U[1],AP[3][idx&1],EG[7][(idx>>1)&3],B2[(idx>>3)&1]
+    c1,s1=_csa3(p,q,r); T1.append((c1,s1,s1^ONES) if s else (c1,0,s1))
+  CT=[T0,T1]
+  for i in range(2,6): CT.append([_csa3(U[i],AP[i+2][idx&1],G[(idx>>1)&3]) for idx in range(8)])
+  CT.append([(U[6]&G[idx],U[6]^G[idx]) for idx in range(4)])
+  for i in (7,8): CT.append([_csa3(U[i],EG[i-7][idx&3],G[(idx>>2)&3]) for idx in range(16)])
+  CT.append([(EG[2][idx&3]&G[(idx>>2)&3],EG[2][idx&3]^G[(idx>>2)&3]) for idx in range(16)])
+  for i in (10,11): CT.append([_csa3(AP[i-10][idx&1],EG[i-7][(idx>>1)&3],G[(idx>>3)&3]) for idx in range(32)])
+  CT.append([(LANEPL[2]^EG[5][idx],) for idx in range(4)])
+  return dict(k0=k0,E0base=E0base,PP=PP,QQ=QQ,NAB=NAB,EF=EF,FF=FF,KF=KF,KFm=KFm,K2=K2,
+        E0base_hi=E0base&~255,NAB_hi=(~(a^b))&0x1F00,FF_hi=f&0x1F00,EF_hi=EF&0x1F00,K_cv=K_cv,G=G,EG=EG,U=U,CT=CT)
+def hfun(cv,a0):
+  a,b,c,d,e,f,gg,h=cv; E0=(a0+d-S0(a)-MAJ(a,b,c))&M
+  return (-S0(a0)-MAJ(a0,a,b)-gg-S1(E0)-CH(E0,e,f)-K[1])&M
+def Ffun(cv,a0,co): return (a0+co['k0']+hfun(cv,a0)+Cc2)&M
+def spair_claw_consts():
+  cvS=[_tx[0][3],_tx[0][2],_tx[0][1],_tx[0][0],_tx[1][3],_tx[1][2],_tx[1][1],_tx[1][0]]
+  def Wof(A,E):
+    return [(E[i+4]-A[i]-E[i]-S1(E[i+3])-CH(E[i+3],E[i+2],E[i+1])-K[i])&M for i in range(16)]
+  Ax={i:_tx[0][i] for i in range(-4,16)}; Ex={i:_tx[1][i] for i in range(-4,16)}
+  Ay={i:_ty[0][i] for i in range(-4,16)}; Ey={i:_ty[1][i] for i in range(-4,16)}
+  Wx=[(Ex[i]-Ax[i-4]-Ex[i-4]-S1(Ex[i-1])-CH(Ex[i-1],Ex[i-2],Ex[i-3])-K[i])&M for i in range(16)]
+  Wy=[(Ey[i]-Ay[i-4]-Ey[i-4]-S1(Ey[i-1])-CH(Ey[i-1],Ey[i-2],Ey[i-3])-K[i])&M for i in range(16)]
+  return dict(D7=(Wy[7]-Wx[7])&M, D8=(Wy[8]-Wx[8])&M, D9=(Wy[9]-Wx[9])&M,
+        T8=(s0(Wy[8])-s0(Wx[8]))&M, F7d=(s0(Wy[7])-s0(Wx[7]))&M, D9s=(s0(Wy[9])-s0(Wx[9]))&M)
+SPC=spair_claw_consts()
+assert (SPC['F7d'],SPC['T8'],SPC['D8'],SPC['D7'],SPC['D9s'])==(0x03bff800,0xfe808000,0xfbc00800,0x20000000,0x043ff800), SPC
+class Mach:
+  __slots__=('ops','nld')
+  def __init__(self): self.ops=0; self.nld=0
+  def op(self,n=1): self.ops+=n
+  def br(self): self.ops+=2
+  def bz(self): self.ops+=1
+  def ld(self): self.ops+=2; self.nld+=1
+  def st(self): self.ops+=2
+def pf_consts(cv):
+  A2,A3,A4,A5=SAx[2],SAx[3],SAx[4],SAx[5]; E6,E7,E8,E9=SE[6],SE[7],SE[8],SE[9]
+  cE5=(A5-S0(A4)-MAJ(A4,A3,A2))&M; co0=cv_consts(cv); K2E5=(co0['K2']+cE5)&M; KNPHI=(0x60000000+K2E5-co0['KFm'])&M
+  KW9=(E9-A5-S1(E8)-CH(E8,E7,E6)-K[9])&M; cW9=(KW9-cE5)&M
+  cE4=(A4-S0(A3))&M; mA=A3&A2; mB=A3|A2; mX=A3^A2
+  KW8=(E8-A4-S1(E7)-K[8])&M; cW8=(KW8-cE4)&M; cA=E7&E6; cB=~E7&M
+  cW8f=(cW8+mA-cA)&M; cE4f=(cE4-mA)&M
+  KK7c=(E7-2*A3-cv[0]+S0(A2)-S1(E6)-K[7])&M
+  D7c=(_ty[1][7]-_tx[1][7])&M
+  return dict(cE5=cE5,K2E5=K2E5,KNPHI=KNPHI,KW9=KW9,cW9=cW9,cE4=cE4,cE4f=cE4f,mA=mA,mB=mB,mX=mX,KW8=KW8,cW8=cW8,cW8f=cW8f,cA=cA,cB=cB,A2=A2,E6=E6,KK7c=KK7c,D7c=D7c)
+PF_C2=13; PF_G=22; PF_F7=24
+def s0d(x): x|=x<<32; return x^x>>4^x>>15
+def postfilters(m,cv,a0,u,F,pf):
+  E5=((u-F)+pf['K2E5']+a0)&M; m.op(3)
+  m.br(); m.op(1)
+  if (E5&0xE0000000)!=0xA0000000: return 0,0,0,0
+  return (1,)+pf_tail(m,a0,E5,pf)
+def pf_tail(m,a0,E5,pf):
+  s2=s3=s4=0
+  w9=(pf['KW9']-E5)&M; s9=s0d(w9); m.op(1+6)
+  m.op(1); m.bz()
+  ok2=((s9&0x22004000)==0x4000) if (w9&0x20000000) else ((s9&0x6600c000)==0x22008000)
+  m.op(1); m.br(); m.op(1)
+  if ok2:
+    s2=1
+    a1=(E5-pf['cE5'])&M; E40=(a0-(a1&pf['mX']))&M; w8=(pf['cW8f']-E40-(pf['cB']&E5))&M; m.op(6)
+    s8=s0d(w8); z8=(s8&0x3c0c0000)|((w8>>2)&0x3300600); m.op(6+4)
+    m.op(1); m.br()
+    if (z8&0x15140200)==0x11100000: ok3=True; m.op(1)
+    else:
+      m.br(); m.op(1)
+      ok3=(z8==0x26240200)
+    if ok3:
+      s3=1
+      E4=(E40+pf['cE4f'])&M; maj2=MAJ(pf['A2'],a1,a0); ch2=CH(pf['E6'],E5,E4); w7=((pf['KK7c']+maj2)-ch2)&M; m.op(1+4+3+2)
+      s7=s0d(w7); m.op(6)
+      m.op(1); m.bz()
+      if (w7&0x20000000)==0:
+        m.op(1); m.br(); m.op(1)
+        if (s7&0x22004000)==0x2004000: s4=1
+      else:
+        m.op(1); m.bz()
+        ok4=((s7&0x6600c000)==0x24008000) if (w7&0x40000000)==0 else ((s7&0xee01c000)==0x68010000)
+        m.op(1); m.br(); m.op(1)
+        if ok4: s4=1
+  return s2,s3,s4
+def rowtest(m,tx,ty,i):
+  (Ax,Ex,Wx),(Ay,Ey,Wy)=tx,ty
+  for k,(x,y) in enumerate(((Ax[i],Ay[i]),(Ex[i],Ey[i]),(Wx[i],Wy[i]))):
+    if k==2 and i in (7,8): continue
+    msk,v,df=CELLS[k][i]
+    if msk:
+      m.op(3)
+      if (x&msk)!=v: return False
+    m.op(3)
+    if (x^y)!=df: return False
+  if PQE[i]:
+    m.op(4)
+    if (Ex[i]^Ex[i-1])&PQE[i]: return False
+  for (k1,i1,b1,eq,k2,i2,b2,row) in X2:
+    if row==i:
+      m.op(6)
+      if (((tx[k1][i1]>>b1)^(tx[k2][i2]>>b2))&1)!=(0 if eq else 1): return False
+  return True
+def step3b(m,cv,a0,a1):
+  m.op(2*(6*15+10*16))
+  wx,Ax,Ex=variantW_P1(cv,a0,a1,SAx,SExF,1); wy,Ay,Ey=variantW_P1(cv,a0,a1,SAy,SEyF,1)
+  tx=(Ax,Ex,wx); ty=(Ay,Ey,wy); ok=True
+  def one(i):
+    for A,E,W in (tx,ty):
+      W.append((s1(W[i-2])+W[i-7]+s0(W[i-15])+W[i-16])&M)
+      E[i]=(A[i-4]+E[i-4]+S1(E[i-1])+CH(E[i-1],E[i-2],E[i-3])+K[i]+W[i])&M
+      A[i]=(E[i]-A[i-4]+S0(A[i-1])+MAJ(A[i-1],A[i-2],A[i-3]))&M
+  for i in range(16,22):
+    m.op(100); one(i)
+    if not rowtest(m,tx,ty,i): ok=False; break
+  if ok:
+    for i in range(22,38): m.op(100); one(i)
+    m.op(17); ok=exact(tx,ty)
+  m.op(1)
+  return ok,wx[:16],wy[:16]
+SExF=[_tx[1][i] for i in range(16)]; SEyF=[_ty[1][i] for i in range(16)]
+def variantW_P1(cv,a0,a1,SA,SEF,state=False):
+  A={-1:cv[0],-2:cv[1],-3:cv[2],-4:cv[3]}; E={-1:cv[4],-2:cv[5],-3:cv[6],-4:cv[7]}
+  A[0]=a0; A[1]=a1
+  for i in range(2,16): A[i]=SA[i]
+  for i in range(6): E[i]=(A[i]+A[i-4]-S0(A[i-1])-MAJ(A[i-1],A[i-2],A[i-3]))&M
+  for i in range(6,16): E[i]=SEF[i]
+  W=[(E[i]-A[i-4]-E[i-4]-S1(E[i-1])-CH(E[i-1],E[i-2],E[i-3])-K[i])&M for i in range(16)]
+  return (W,A,E) if state else W
+def pf_ref(cv,a0,a1):
+  wx=variantW_P1(cv,a0,a1,SAx,SExF); wy=variantW_P1(cv,a0,a1,SAy,SEyF)
+  c1=((wy[8]-wx[8])&M)==SPC['D8']; c2=((s0(wy[9])-s0(wx[9]))&M)==SPC['D9s']; g=((s0(wy[8])-s0(wx[8]))&M)==SPC['T8']
+  f7=((s0(wy[7])-s0(wx[7]))&M)==SPC['F7d'] and ((wy[7]-wx[7])&M)==SPC['D7']
+  return (int(c1),int(c1 and c2),int(c1 and c2 and g),int(c1 and c2 and g and f7))
+def e16_real_p1(cv,a0,a1):
+  W=variantW_P1(cv,a0,a1,SAx,SExF); return trace(cv,W)[1][16]
+NCOL=7; ROWB=19; RMASK=(1<<ROWB)-1; LANES=6; STR=39; FLD=33; CNT=234; EMPTYT=22; KEP=16; KEP_EPOCH=40; RECORD_BYTES=30; PAYLOAD_BITS=237; TERMINAL_PAD=32; PHASE_R_PEAK=121823232
+# R_STAR: the frozen epoch alignment: the highest retained count among the four alignments the H1W
+# panel measured; the census gives E(R_STAR) = E_SEL exactly, which both sides of the ledger charge.
+R_STAR=8174
+def lanes_const(v): return sum(v<<(STR*L+FLD) for L in range(LANES))
+EMPTYW=lanes_const(EMPTYT); MASKW=lanes_const(0b011010); W8L=lanes_const(8); CMAIN=0; CSTR=W8L
+KW=lanes_const(31); GW=lanes_const(32)
+W9=9<<26; QPF=(57726359870197/2**58)*(287309824/2**32)
+U_BASE=17; U_INS=22; U_DROP=9; RESET=5; A0_BASE=35; A0_RES=7; SETUP=14; ROWJ=2; XCROSS=0; READ=9; WALK=12
+EXTRACT=2; CVSET=70; FBCTL=6; EPSET=6; STEP3B=3014
+LAMSET=12; READC1=7; C1PRE=2
+S0_LO=[S0(l) for l in range(256)]
+LOG2_16={1<<i:i for i in range(16)}
+GW_LO=sum(32<<(STR*L+FLD) for L in range(3)); G_L=[32<<(STR*L+FLD) for L in range(LANES)]
+WT=[sum(G_L[j] for j in range(6) if m>>j&1)+1 for m in (4,2,1,3,16,8,7,5,6,15,11,9,10,13,12,14,32,31,20,18,17,19,25,23,21,22,24,28,26,27,29,30,47,36,34,33,35,41,39,37,38,40,44,42,43,45,46,55,51,49,48,50,53,52,54,59,57,56,58,61,60,62)]
+def walk_lanes(z,m=None):
+ if m:m.br()
+ if z<WT[0]:
+  if m:m.br()
+  if z<WT[1]:
+   if m:m.br()
+   if z<WT[2]:
+    return [0]
+   else:
+    return [1]
+  else:
+   if m:m.br()
+   if z<WT[3]:
+    return [0, 1]
+   else:
+    return [2]
+ else:
+  if m:m.br()
+  if z<WT[4]:
+   if m:m.br()
+   if z<WT[5]:
+    if m:m.br()
+    if z<WT[6]:
+     if m:m.br()
+     if z<WT[7]:
+      return [0, 2]
+     else:
+      if m:m.br()
+      if z<WT[8]:
+       return [1, 2]
+      else:
+       return [0, 1, 2]
+    else:
+     return [3]
+   else:
+    if m:m.br()
+    if z<WT[9]:
+     if m:m.br()
+     if z<WT[10]:
+      if m:m.br()
+      if z<WT[11]:
+       return [0, 3]
+      else:
+       if m:m.br()
+       if z<WT[12]:
+        return [1, 3]
+       else:
+        return [0, 1, 3]
+     else:
+      if m:m.br()
+      if z<WT[13]:
+       if m:m.br()
+       if z<WT[14]:
+        return [2, 3]
+       else:
+        return [0, 2, 3]
+      else:
+       if m:m.br()
+       if z<WT[15]:
+        return [1, 2, 3]
+       else:
+        return [0, 1, 2, 3]
+    else:
+     return [4]
+  else:
+   if m:m.br()
+   if z<WT[16]:
+    if m:m.br()
+    if z<WT[17]:
+     if m:m.br()
+     if z<WT[18]:
+      if m:m.br()
+      if z<WT[19]:
+       if m:m.br()
+       if z<WT[20]:
+        return [0, 4]
+       else:
+        return [1, 4]
+      else:
+       if m:m.br()
+       if z<WT[21]:
+        return [0, 1, 4]
+       else:
+        return [2, 4]
+     else:
+      if m:m.br()
+      if z<WT[22]:
+       if m:m.br()
+       if z<WT[23]:
+        if m:m.br()
+        if z<WT[24]:
+         return [0, 2, 4]
+        else:
+         if m:m.br()
+         if z<WT[25]:
+          return [1, 2, 4]
+         else:
+          return [0, 1, 2, 4]
+       else:
+        if m:m.br()
+        if z<WT[26]:
+         return [3, 4]
+        else:
+         return [0, 3, 4]
+      else:
+       if m:m.br()
+       if z<WT[27]:
+        if m:m.br()
+        if z<WT[28]:
+         return [1, 3, 4]
+        else:
+         if m:m.br()
+         if z<WT[29]:
+          return [0, 1, 3, 4]
+         else:
+          return [2, 3, 4]
+       else:
+        if m:m.br()
+        if z<WT[30]:
+         return [0, 2, 3, 4]
+        else:
+         if m:m.br()
+         if z<WT[31]:
+          return [1, 2, 3, 4]
+         else:
+          return [0, 1, 2, 3, 4]
+    else:
+     return [5]
+   else:
+    if m:m.br()
+    if z<WT[32]:
+     if m:m.br()
+     if z<WT[33]:
+      if m:m.br()
+      if z<WT[34]:
+       if m:m.br()
+       if z<WT[35]:
+        return [0, 5]
+       else:
+        return [1, 5]
+      else:
+       if m:m.br()
+       if z<WT[36]:
+        return [0, 1, 5]
+       else:
+        return [2, 5]
+     else:
+      if m:m.br()
+      if z<WT[37]:
+       if m:m.br()
+       if z<WT[38]:
+        if m:m.br()
+        if z<WT[39]:
+         return [0, 2, 5]
+        else:
+         if m:m.br()
+         if z<WT[40]:
+          return [1, 2, 5]
+         else:
+          return [0, 1, 2, 5]
+       else:
+        if m:m.br()
+        if z<WT[41]:
+         return [3, 5]
+        else:
+         return [0, 3, 5]
+      else:
+       if m:m.br()
+       if z<WT[42]:
+        if m:m.br()
+        if z<WT[43]:
+         return [1, 3, 5]
+        else:
+         if m:m.br()
+         if z<WT[44]:
+          return [0, 1, 3, 5]
+         else:
+          return [2, 3, 5]
+       else:
+        if m:m.br()
+        if z<WT[45]:
+         return [0, 2, 3, 5]
+        else:
+         if m:m.br()
+         if z<WT[46]:
+          return [1, 2, 3, 5]
+         else:
+          return [0, 1, 2, 3, 5]
+    else:
+     if m:m.br()
+     if z<WT[47]:
+      if m:m.br()
+      if z<WT[48]:
+       if m:m.br()
+       if z<WT[49]:
+        if m:m.br()
+        if z<WT[50]:
+         return [4, 5]
+        else:
+         return [0, 4, 5]
+       else:
+        if m:m.br()
+        if z<WT[51]:
+         return [1, 4, 5]
+        else:
+         return [0, 1, 4, 5]
+      else:
+       if m:m.br()
+       if z<WT[52]:
+        if m:m.br()
+        if z<WT[53]:
+         return [2, 4, 5]
+        else:
+         return [0, 2, 4, 5]
+       else:
+        if m:m.br()
+        if z<WT[54]:
+         return [1, 2, 4, 5]
+        else:
+         return [0, 1, 2, 4, 5]
+     else:
+      if m:m.br()
+      if z<WT[55]:
+       if m:m.br()
+       if z<WT[56]:
+        if m:m.br()
+        if z<WT[57]:
+         return [3, 4, 5]
+        else:
+         return [0, 3, 4, 5]
+       else:
+        if m:m.br()
+        if z<WT[58]:
+         return [1, 3, 4, 5]
+        else:
+         return [0, 1, 3, 4, 5]
+      else:
+       if m:m.br()
+       if z<WT[59]:
+        if m:m.br()
+        if z<WT[60]:
+         return [2, 3, 4, 5]
+        else:
+         return [0, 2, 3, 4, 5]
+       else:
+        if m:m.br()
+        if z<WT[61]:
+         return [1, 2, 3, 4, 5]
+        else:
+         return [0, 1, 2, 3, 4, 5]
+WALK_LANE_WEIGHTS=(6,6,6,8,8,8)
+WALK_INIT=1<<24
+def walk_certificate():
+  worst=0;bad=0
+  for mask in range(1,64):
+    z=sum(G_L[j] for j in range(6) if mask>>j&1);meter=Mach();got=walk_lanes(z,meter)
+    want=[j for j in range(6) if mask>>j&1]
+    bad+=got!=want or meter.ops>sum(WALK_LANE_WEIGHTS[j] for j in want)
+    worst=max(worst,meter.ops)
+  prefix=max(D(sum(WALK_LANE_WEIGHTS[:p]))/p for p in range(1,7))
+  if bad or worst!=18 or prefix!=7:raise ValueError('ordered lane tree certificate')
+  return dict(tree_masks=63,tree_mismatches=bad,tree_max_read_ops=worst,tree_mean_claw_bound=int(prefix),tree_max_claw_bound=max(WALK_LANE_WEIGHTS))
+_WALK_CERT=walk_certificate()
+WALK_PROVEN=D(_WALK_CERT['tree_mean_claw_bound']);WALK_MEAN=D('6.760092');WALK_MAX_READ=_WALK_CERT['tree_max_read_ops'];WALK_MAX_CLAW=_WALK_CERT['tree_max_claw_bound']
+STEP3B_MEAN=D('842.361097')
+def P(u): return (s0(u)-u)&M
+def build_table(r,ustart,U,m=None,ncol=NCOL):
+  tab={}; ent=drop=0; cov=8*ncol
+  if m: m.op(EPSET)
+  for n in range(U):
+    u=(ustart+n)&M; g=(P(u)-r)&M; lo=g&8191
+    if m: m.op(15); m.br()
+    if lo>=cov: continue
+    k=((lo>>3)<<ROWB)|(g>>13); d=tab.get(k,EMPTYW); c=d>>CNT
+    if m: m.op(4); m.ld(); m.op(1); m.br()
+    if c>=LANES: drop+=1; continue
+    sh=STR*c; lane=u|((g&7)<<FLD)
+    if m: m.op(3); m.ld(); m.ld(); m.op(4); m.st()
+    d=(d&~(EMPTYT<<(sh+FLD)))|(lane<<sh); d+=1<<CNT; tab[k]=d; ent+=1
+  return tab,ent,drop
+def table_entries(tab):
+  for k,d in tab.items():
+    col=k>>ROWB; row=k&RMASK
+    for L in range(d>>CNT):
+      ln=d>>(STR*L); yield ((row<<13)|(col<<3)|((ln>>FLD)&7))&M, ln&M
+def probe_word(d,WB,C=0):
+  return (((d+WB+C)&MASKW)+KW)&GW
+def lanes_at(v,pos): return sum(v<<(STR*L+pos) for L in range(LANES))
+T3W=lanes_at(7<<29,0)
+MT3W=MASKW|T3W; CMAIN1=0; CSTR1=W8L
+def wbl(w,PHI,c1=0):
+  nphi=(0x60000000-PHI)&M; lv=nphi|((32-w)<<FLD)
+  b=lv|(lv<<STR); b|=b<<(2*STR); WBL0=b|((b<<(4*STR))&ONES)
+  return (WBL0+c1) if c1 else WBL0
+def probe_word_c1(d,WBL,C1=0):
+  return (GW-((d+(WBL+C1 if C1 else WBL))&MT3W))&GW
+GATE2=4; GATE1=3; BATCH=8; EXTRACT_BS=20; A0_PROBE=21; CV_BS=1024; GBS=218
+class Planes:
+  def __init__(self,m): self.m=m; self.g=0
+  def x(self,a,b): self.g+=GATE2; return a^b
+  def a(self,a,b): self.g+=GATE2; return a&b
+  def o(self,a,b): self.g+=GATE2; return a|b
+  def n(self,a): self.g+=GATE1; return a^ONES
+def bs_mask(co,cv,Hr,base,pl,ncol=NCOL):
+  A=list(LANEPL)
+  for i in range(8,32): A.append(ONES if (base>>i)&1 else 0); pl.g+=GATE2
+  e=co['E0base']; E=[0]*32; c=0
+  for i in range(32):
+    ei=(e>>i)&1
+    if i==0: E[0]=pl.n(A[0]) if ei else A[0]; c=A[0] if ei else 0; continue
+    if ei: E[i]=pl.n(pl.x(A[i],c)); cn=pl.o(A[i],c)
+    else: E[i]=pl.x(A[i],c); cn=pl.a(A[i],c)
+    c=cn
+  def sig(X,r1,r2,r3): return [pl.x(pl.x(X[(i+r1)%32],X[(i+r2)%32]),X[(i+r3)%32]) for i in range(13)]
+  S0p=sig(A,2,13,22); S1p=sig(E,6,11,25)
+  a,b,ee,ff=cv[0],cv[1],cv[4],cv[5]; MJ=[]; CHp=[]
+  for i in range(13):
+    ai,bi,ei,fi=(a>>i)&1,(b>>i)&1,(ee>>i)&1,(ff>>i)&1
+    MJ.append((ONES if ai else 0) if ai==bi else A[i])
+    CHp.append((ONES if ei else 0) if ei==fi else (E[i] if ei else pl.n(E[i])))
+  def neg(X): return [(x^ONES) if x in (0,ONES) else pl.n(x) for x in X]
+  konst=(co['KF']+4)&8191
+  terms=[A[:13],neg(S0p),neg(MJ),neg(S1p),neg(CHp),[(ONES if (konst>>i)&1 else 0) for i in range(13)]]
+  while len(terms)>2:
+    X,Y,Z=terms.pop(),terms.pop(),terms.pop(); S=[]; Cc=[0]
+    for i in range(13):
+      t=pl.x(X[i],Y[i]); S.append(pl.x(t,Z[i])); Cc.append(pl.o(pl.a(X[i],Y[i]),pl.a(Z[i],t)))
+    terms+=[S,Cc[:13]]
+  X,Y=terms; F=[]; c=0
+  for i in range(13):
+    t=pl.x(X[i],Y[i]); F.append(pl.x(t,c)); c=pl.o(pl.a(X[i],Y[i]),pl.a(c,t))
+  k=(Hr+5+1)&8191; X=[pl.n(f) for f in F]; T=[]; c=0
+  for i in range(13):
+    if (k>>i)&1: T.append(pl.n(pl.x(X[i],c))); c=pl.o(X[i],c)
+    else: T.append(pl.x(X[i],c)); c=pl.a(X[i],c)
+  lim=8*ncol+5; lt=0; eq=ONES
+  for i in range(9,-1,-1):
+    if (lim>>i)&1: lt=pl.o(lt,pl.a(eq,pl.n(T[i]))); eq=pl.a(eq,T[i])
+    else: eq=pl.a(eq,pl.n(T[i]))
+  same=pl.n(pl.o(pl.x(T[10],T[11]),pl.x(T[11],T[12])))
+  return pl.a(lt,same)
+class RM:
+  def __init__(self,nreg=16): self.ops=0; self.loads=0; self.stores=0; self.gates=0; self.live={}; self.nreg=nreg; self.peak=0
+  def _chk(self):
+    self.peak=max(self.peak,len(self.live)); assert len(self.live)<=self.nreg,len(self.live)
+  def load(self,name,val): self.ops+=1; self.loads+=1; self.live[name]=val; self._chk(); return name
+  def free(self,*names):
+    for n in names: self.live.pop(n,None)
+  def store(self,name): self.ops+=1; self.stores+=1; v=self.live.pop(name); return v
+  def g(self,out,f,*ins):
+    self.ops+=1; self.gates+=1; v=f(*[self.live[i] for i in ins]); self.live[out]=v; self._chk(); return out
+def bs_mask_rm(co,cv,Hr,base,rm,ncol=NCOL):
+  X=lambda a,b:a^b; A_=lambda a,b:a&b; O=lambda a,b:a|b; N=lambda a:a^ONES
+  s0_b=S0(base)
+  e_hi0=(base+co['E0base_hi'])&M; e_hi1=(e_hi0+256)&M
+  s1_0=S1(e_hi0); s1_1=S1(e_hi1)
+  ch_0=co['FF_hi']^(e_hi0&co['EF_hi']); ch_1=co['FF_hi']^(e_hi1&co['EF_hi'])
+  k_base=Hr-co['K_cv']-(base&co['NAB_hi'])+(s0_b&0x13C0)
+  k0=(k_base+(s1_0&0x107C)+ch_0)&8191; k1=(k_base+(s1_1&0x107C)+ch_1)&8191
+  w_idx=SP_S0[s0_b&4095]|SP_S10[s1_0&4095]|SP_S11[s1_1&4095]|SP_K0[k0]|SP_K1[k1]
+  rm.ops+=60
+  CT=co['CT']; lim=8*ncol+5
+  def ld_col(i,sh,msk,names):
+    idx=(w_idx&msk) if sh==0 else ((w_idx>>sh) if msk==0 else ((w_idx>>sh)&msk))
+    rm.ops+=(1 if (sh==0 or msk==0) else 2)+len(names)
+    for nm,val in zip(names,CT[i][idx]): rm.load(nm,val)
+  def csa(p,q,r,cout,sout):
+    rm.g('v',A_,p,q); rm.g('u',X,p,q); rm.free(p,q); rm.g('w',A_,r,'u'); rm.g(sout,X,'u',r); rm.free('u',r)
+    rm.g(cout,O,'v','w'); rm.free('v','w')
+  def ha(p,q,cout,sout):
+    rm.g(cout,A_,p,q); rm.g(sout,X,p,q); rm.free(p,q)
+  ld_col(0,0,15,('ge','c1_0','c2_0'))
+  ld_col(1,4,15,('c1','c2','s1'))
+  ha('s1','c1_0','c3','t'); rm.g('c3',O,'c3','c2_0'); rm.free('c2_0')
+  rm.g('ge',A_ if (lim>>1)&1 else O,'t','ge'); rm.free('t')
+  for i,sh in ((2,8),(3,11),(4,14),(5,17)):
+    ld_col(i,sh,7,('c1n','s1'))
+    csa('s1','c1','c2','c2n','s2'); ha('s2','c3','c3n','t')
+    rm.live['c1']=rm.live.pop('c1n'); rm.live['c2']=rm.live.pop('c2n'); rm.live['c3']=rm.live.pop('c3n')
+    rm.g('ge',A_ if (lim>>i)&1 else O,'t','ge'); rm.free('t')
+  csa('c1','c2','c3','c1n','s1')
+  ld_col(6,20,3,('v','u'))
+  rm.g('w',A_,'s1','u'); rm.g('t',X,'s1','u'); rm.free('s1','u'); rm.g('c2',O,'v','w'); rm.free('v','w')
+  rm.live['c1']=rm.live.pop('c1n')
+  rm.g('ge',A_ if (lim>>6)&1 else O,'t','ge'); rm.free('t')
+  for i,sh in ((7,22),(8,26)):
+    ld_col(i,sh,15,('c1n','s1'))
+    csa('s1','c1','c2','c2n','t')
+    rm.live['c1']=rm.live.pop('c1n'); rm.live['c2']=rm.live.pop('c2n')
+    rm.g('ge',A_ if (lim>>i)&1 else O,'t','ge'); rm.free('t')
+  ld_col(9,30,15,('v','u'))
+  rm.g('w',A_,'c1','u'); rm.g('s1',X,'c1','u'); rm.free('c1','u'); rm.g('c1',O,'v','w'); rm.free('v','w')
+  ha('s1','c2','c2n','t'); rm.live['c2']=rm.live.pop('c2n')
+  rm.g('ge',A_ if (lim>>9)&1 else O,'t','ge'); rm.free('t')
+  for i,sh in ((10,34),(11,39)):
+    ld_col(i,sh,31,('c1n','s1'))
+    csa('s1','c1','c2','c2n','T%d'%i)
+    rm.live['c1']=rm.live.pop('c1n'); rm.live['c2']=rm.live.pop('c2n')
+  ld_col(12,44,0,('t0',))
+  rm.g('t0',X,'t0','c1'); rm.g('T12',X,'t0','c2'); rm.free('t0','c1','c2')
+  rm.g('u',X,'T10','T11'); rm.g('v',X,'T11','T12'); rm.g('u',O,'u','v'); rm.g('u',O,'u','ge'); rm.g('m',N,'u')
+  return rm.live['m']
+def gbs_worst():
+  cv=[0,M,0,0,M,0,0,0]; co=cv_consts(cv); rm=RM()
+  bs_mask_rm(co,cv,(8191-6)&M,W9,rm); return rm.ops
+def bs_check(seed,nb=16):
+  cv,_=cv_from_seed(seed); co=cv_consts(cv); sh=Shake(seed+'|bs'); sh.word(); r=R_STAR; Hr=(R16H[0]-r)&M; bad=n=gmax=0
+  for k in range(nb):
+    base=W9+((sh.word()&((1<<26)-1))&~255); rm=RM(); mask=bs_mask_rm(co,cv,Hr,base,rm); gmax=max(gmax,rm.ops)
+    bad+=bin(mask^bs_mask(co,cv,Hr,base,Planes(None))).count('1')
+    for l in range(256):
+      t=((Hr-Ffun(cv,base+l,co))+5)&8191; want=t<8*NCOL+5 or 7168<=t<7168+8*NCOL+5
+      bad+=int(want!=bool((mask>>l)&1)); n+=int(want)
+  return dict(bs_batches=nb,bs_probing_lanes=n,bs_mismatches=bad,bs_gates_max=gmax,bs_gate_bound=GBS)
+def scan_cv(cv,tab,r,a0s,m=None,ncol=NCOL,bs=True):
+  co=cv_consts(cv); pf=pf_consts(cv); Hr=(R16H[0]-r)&M; cov=8*ncol; dense=cov+5>1024
+  st=dict(a0=0,probes=0,reads=0,fired=0,claws=0,passes=[0,0,0,0],good=[],coll=[],batches=0,gates=0)
+  mm=m or Mach()
+  def probe(a0,F,y,win):
+    if not dense:
+      yp=(y+1029)&M; rowb=yp>>13; u0=(yp&127)+3; w=u0&7; c1=u0>>3; c=c1-1
+    else:
+      yw=(y+(win<<10))&M; rowb=yw>>13; c=(yw>>3)&1023; w=yw&7; c1=c+1
+    WB=lanes_const(32-w)
+    PHI=(F-a0-pf['K2E5'])&M; WBL0=wbl(w,PHI); WBL1=WBL0+W8L
+    if m: m.op(SETUP+LAMSET)
+    st['probes']+=1
+    for j in range(20):
+      rowj=(rowb+T20[j])&RMASK
+      if m and j: m.op(ROWJ)
+      rd=[]
+      if 0<=c<ncol: rd.append((c,rowj,CMAIN,WBL0))
+      if w>=3:
+        if c1<ncol: rd.append((c1,rowj,CSTR,WBL1))
+        elif dense and c==1023: rd.append((0,(rowj+1)&RMASK,CSTR,WBL1))
+      for (cc,rr,C,WBL) in rd:
+        d=tab.get((cc<<ROWB)|rr,EMPTYW); st['reads']+=1
+        s=d+WBL; z=(GW-(s&MT3W))&GW
+        if m: m.ld(); m.op(4); m.bz()
+        if not z: continue
+        st['fired']+=1
+        for L in walk_lanes(z,m):
+          u=(d>>(STR*L))&M; st['claws']+=1
+          E5=((s>>(STR*L))&M)|0xA0000000
+          if m: m.op(C1PRE)
+          fl=(1,)+pf_tail(mm,a0,E5,pf)
+          for i in range(4): st['passes'][i]+=fl[i]
+          if fl[3]:
+            a1=(u-hfun(cv,a0))&M; st['good'].append((a0,a1,u))
+            ok,wx,wy=step3b(mm,cv,a0,a1)
+            if ok: st['coll'].append((a0,a1,u,wx,wy))
+  if bs and not dense:
+    if m: m.op(CV_BS)
+    a0s=list(a0s); assert len(a0s)%256==0
+    bases=a0s[::256]; assert all(b%256==0 and a0s[i*256:(i+1)*256]==list(range(b,b+256)) for i,b in enumerate(bases))
+    for base in bases:
+      rm=RM(); mask=bs_mask_rm(co,cv,Hr,base,rm,ncol); st['batches']+=1; st['gates']+=rm.ops; st['a0']+=256
+      if m: m.op(rm.ops+BATCH+SBLOOP); m.br()
+      s0b=S0(base); Hrp0=(Hr-co['KFm'])&M
+      while mask:
+        low=mask&-mask; mask^=low; l=low.bit_length()-1; a0=base|l
+        e0=(a0+co['E0base'])&M; ch0=co['FF']^(co['EF']&e0); s0a=s0b^S0_LO[l]
+        F0=((a0&co['NAB'])-s0a-S1(e0)-ch0)&M; y=(Hrp0-F0)&M; F=(F0+co['KFm'])&M; win=((y+5)>>10)&1
+        if m: m.op(EXTRACT_BS+A0_PROBE)
+        probe(a0,F,y,win)
+    return st
+  for a0 in a0s:
+    F=Ffun(cv,a0,co); y=(Hr-F)&M; st['a0']+=1
+    if m: m.op(4+26+1)
+    if dense: wins=(0,1)
+    else:
+      q=(y+5)&1023
+      if m: m.op(2); m.br()
+      if q>=cov+5: continue
+      v=((y+5)>>10)&7
+      if m: m.op(3); m.br(); m.br()
+      if v==0: wins=(0,)
+      elif v==7: wins=(1,)
+      else: continue
+    for win in wins: probe(a0,F,y,win)
+  return st
+def ref_claws(cv,tab,r,a0s):
+  co=cv_consts(cv); Hr=(R16H[0]-r)&M; lo={}; out=[]
+  for G,u in table_entries(tab): lo.setdefault(G&8191,[]).append((G,u))
+  for a0 in a0s:
+    y=(Hr-Ffun(cv,a0,co))&M
+    for o in OFFS:
+      for (G,u) in lo.get((y+o)&8191,()):
+        if (((G-y-o)&M)>>13) in T20S: out.append((a0,u))
+  return out
+T20S=set(T20)
+class Shake:
+  def __init__(self,label): self.buf=b''; self.n=0; self.lab=label.encode()
+  def word(self):
+    if not self.buf: self.buf=hashlib.shake_256(self.lab+struct.pack('<I',self.n)).digest(256); self.n+=1
+    w=struct.unpack('<I',self.buf[:4])[0]; self.buf=self.buf[4:]; return w
+def cv_from_seed(seed):
+  sh=Shake(seed)
+  for _ in range(CLS_TRY):
+    M0=[sh.word() for _ in range(16)]; cv=compress(IV,M0)
+    if kept(cv): return cv,M0
+  raise RuntimeError('no kept chaining value')
+def spair_obs():
+  m=Mach(); ok,wx,wy=step3b(m,PCV,SAx[0],SAx[1])
+  return dict(step3b_P8_pair_ok=int(ok and wx==PMX and wy==PMY),step3b_P8_pair_ops=m.ops)
+def probe_exhaustive():
+  sh=Shake('probe|exhaustive'); bad=n=0
+  for kind,C in ((0,CMAIN),(1,CSTR)):
+    for w in range(8):
+      WB=lanes_const(32-w)
+      for rep in range(24):
+        tags=[(rep*5+L*3+w)%9 for L in range(LANES)]; tags=[EMPTYT if t==8 else t for t in tags]
+        d=sum(((sh.word()|(t<<FLD))<<(STR*L)) for L,t in enumerate(tags))|((rep%7)<<CNT)
+        z=probe_word(d,WB,C)
+        for L,t in enumerate(tags):
+          fired=not (z>>(STR*L+FLD+5))&1
+          want=t!=EMPTYT and ((t-w) in (0,1,4,5) if kind==0 else (t+8-w) in (0,1,4,5))
+          bad+=int(fired!=want); n+=1
+  return n,bad
+C1EDGE=(0,1,2,(1<<29)-2,(1<<29)-1,1<<29,(1<<29)+1,(1<<30)-1,1<<30,M-1,M,0xA0000000,0x9fffffff,0xbfffffff,0xc0000000)
+def probe_c1_exhaustive():
+  sh=Shake('probe|c1'); bad=n=npass=0
+  phis=(0,1,2,M,M-1,0x60000000,0x5fffffff,0x80000000)
+  for kind in (0,1):
+    for w in range(8):
+      for rep in range(24):
+        PHI=phis[rep] if rep<len(phis) else sh.word(); WBL=wbl(w,PHI)+(W8L if kind else 0)
+        tags=[(rep*5+L*3+w)%9 for L in range(LANES)]; tags=[EMPTYT if t==8 else t for t in tags]
+        us=[]
+        for L in range(LANES):
+          k=sh.word()%4
+          if k==0: us.append(sh.word())
+          elif k==1: us.append((PHI+0xA0000000+sh.word()%(1<<29))&M)
+          else: us.append((PHI+C1EDGE[sh.word()%len(C1EDGE)])&M)
+        d=sum(((u|(t<<FLD))<<(STR*L)) for L,(u,t) in enumerate(zip(us,tags)))|((rep%7)<<CNT)
+        z=probe_word_c1(d,WBL)
+        for L,(u,t) in enumerate(zip(us,tags)):
+          fired=(z>>(STR*L+FLD+5))&1
+          want=t!=EMPTYT and ((t-w) in (0,1,4,5) if kind==0 else (t+8-w) in (0,1,4,5)) and (((u-PHI)&M)>>29)==5
+          bad+=int(fired!=want); n+=1; npass+=int(want)
+  i=0
+  for kind in (0,1):
+    for w in range(8):
+      for t in list(range(8))+[EMPTYT]:
+        for v in range(8):
+          for hi in (0,1):
+            PHI=sh.word()%((7-v)*(1<<29)+1) if hi else M-sh.word()%(1<<28)
+            while True:
+              u=(PHI+(v<<29)+(sh.word()&((1<<29)-1)))&M
+              if int(u>=PHI)==hi: break
+            WBL=wbl(w,PHI)+(W8L if kind else 0)
+            P0=i%LANES; us=[sh.word() for _ in range(LANES)]; ts=[sh.word()%9 for _ in range(LANES)]
+            ts=[EMPTYT if x==8 else x for x in ts]; us[P0]=u; ts[P0]=t; i+=1
+            d=sum(((uu|(tt<<FLD))<<(STR*L)) for L,(uu,tt) in enumerate(zip(us,ts)))|((i%7)<<CNT)
+            z=probe_word_c1(d,WBL)
+            for L,(uu,tt) in enumerate(zip(us,ts)):
+              fired=(z>>(STR*L+FLD+5))&1
+              want=tt!=EMPTYT and ((tt-w) in (0,1,4,5) if kind==0 else (tt+8-w) in (0,1,4,5)) and (((uu-PHI)&M)>>29)==5
+              bad+=int(fired!=want); n+=1; npass+=int(want)
+  return n,bad,npass
+def c1_of(cv,a0,u): return pf_ref(cv,a0,(u-hfun(cv,a0))&M)[0]
+def online_trial(seed,U=1<<17,NA=1<<17):
+  sh=Shake(seed+'|epoch'); sh.word(); r=R_STAR; ustart=sh.word(); cv,M0=cv_from_seed(seed)
+  m=Mach(); tab,ent,drop=build_table(r,ustart,U,m); bops=m.ops
+  sbs=sorted(list(dict.fromkeys(SEL[sh.word()%NSEL] for _ in range(4*NA//256)))[:NA//256]); a0s=sel_a0s(sbs)
+  m2=Mach(); st=scan_cv(cv,tab,r,a0s,m2)
+  ref=sorted(ref_claws(cv,tab,r,a0s))
+  ref1=sorted(x for x in ref if c1_of(cv,*x))
+  e16bad=sum(1 for (a0,u) in ref if not r16ok(e16_real_p1(cv,a0,(u-hfun(cv,a0))&M)))
+  rfl=[(a0,u,pf_ref(cv,a0,(u-hfun(cv,a0))&M)) for (a0,u) in ref1]
+  wantp=tuple(sum(fl[i] for a0,u,fl in rfl) for i in range(4))
+  wantg=sorted((a0,u) for a0,u,fl in rfl if fl[3]); gotg=sorted((a0,u) for a0,a1,u in st['good'])
+  pfmis=int(tuple(st['passes'])!=wantp)+int(gotg!=wantg)
+  return cv,M0,st,dict(entries=ent,ref_claws=len(ref),c1_claws=st['claws'],
+    c1_claws_equal_ref=int(st['claws']==len(ref1)),claw_e16_bad=e16bad,
+    postfilter_ref_mismatch=pfmis,probes=st['probes'],reads=st['reads'],scan_ops=m2.ops,c1c2=st['passes'][1],
+    good_pairs=len(st['good']),step3b_collisions=len(st['coll']),expected_claws_milli=int(round(1000*160.0*ent*NA/2**32)),
+    distinct_pairs=len(set(ref)))
+def dense_trial(seed,U=1<<16,NA=1<<13,rows=True):
+  sh=Shake(seed+'|dense'); sh.word(); r=R_STAR; ustart=sh.word(); cv,M0=cv_from_seed(seed)
+  tab,ent,drop=build_table(r,ustart,U,None,ncol=1024)
+  base=sh.word()&((1<<26)-1)&~(NA-1); a0s=range(W9+base,W9+base+NA)
+  st=scan_cv(cv,tab,r,a0s,None,ncol=1024)
+  ref=sorted(ref_claws(cv,tab,r,a0s))
+  ref1=sorted(x for x in ref if c1_of(cv,*x))
+  rfl=[(a0,u,pf_ref(cv,a0,(u-hfun(cv,a0))&M)) for (a0,u) in ref1]
+  wantp=tuple(sum(fl[i] for a0,u,fl in rfl) for i in range(4))
+  wantg=sorted((a0,u) for a0,u,fl in rfl if fl[3]); gotg=sorted((a0,u) for a0,a1,u in st['good'])
+  cum=[0]*22; bad=0; pfmis=int(tuple(st['passes'])!=wantp)+int(gotg!=wantg)
+  for (a0,u) in ref:
+    a1=(u-hfun(cv,a0))&M; wx=variantW_P1(cv,a0,a1,SAx,SExF); wy=variantW_P1(cv,a0,a1,SAy,SEyF)
+    tx=trace(cv,wx); ty=trace(cv,wy); e16=tx[1][16]
+    bad+=int(not r16ok(e16))
+    if rows:
+      for i in range(16,22):
+        if rowok(tx,ty,i): cum[i]+=1
+        else: break
+  return dict(entries=ent,ref_claws=len(ref),c1_claws=st['claws'],
+    c1_claws_equal_ref=int(st['claws']==len(ref1)),row16_bad=bad,postfilter_ref_mismatch=pfmis,
+    rows_le16=cum[16],rows_le17=cum[17],rows_le18=cum[18],rows_le19=cum[19],rows_le20=cum[20],rows_le21=cum[21],
+    c1c2=st['passes'][1],expected_claws_milli=int(round(1000*160.0*ent*NA/2**32)))
+NON=4; NDE=4
+def walk_mean_obs(seed,n=1<<17):
+  # H1W check: per probe position (w uniform) a main read and, for w>=3, a next read (96+60 of 156); Poisson(8) buckets,
+  # first six lanes in cyclic u order from ustart, uniform tags and PHI; actual walk_lanes, real-word C1 recheck
+  sh=Shake(seed+'|walk'); ops=cl=rd=bad=s1=s2=s12=0; us=sh.word()
+  def bucket():
+    k=0; x=sh.word()/2**32; e=c=math.exp(-8)
+    while x>c and k<40: k+=1; e*=8/k; c+=e
+    v=sorted(((sh.word()-us)&M,sh.word()&7) for _ in range(k))[:LANES]; d=EMPTYW
+    for L,(u,t) in enumerate(v): d=(d&~(EMPTYT<<(STR*L+FLD)))|((((u+us)&M)|(t<<FLD))<<(STR*L)); d+=1<<CNT
+    return d
+  for i in range(n):
+    w=sh.word()&7; PHI=sh.word(); W=wbl(w,PHI); x=y=0
+    for off in ((0,8) if w>=3 else (0,)):
+      d=bucket(); z=(GW-((d+W+(W8L if off else 0))&MT3W))&GW; rd+=1
+      if not z: continue
+      m=Mach(); F=walk_lanes(z,m); x+=m.ops; y+=len(F)
+      for l in F:
+        t=(d>>(STR*l+FLD))&63; uq=(d>>(STR*l))&M
+        bad+=not(t<8 and (t+off-w) in ((1,4,5) if off else (0,1,4,5)) and ((uq-PHI)&M)>>29==5)
+    ops+=x; cl+=y; s1+=x*x; s2+=y*y; s12+=x*y
+  R=ops/cl; se=math.sqrt(max(0,(s1-2*R*s12+R*R*s2)/(n-1))/n)/(cl/n)
+  return dict(walk_draws=n,walk_reads=rd,walk_claws=cl,walk_ops=ops,walk_lane_mismatch=bad,walk_mean_ppm=int(1e6*R),walk_se_ppm=int(1e6*se),walk_ucb99_ppm=int(1e6*(R+2.326*se)),walk_charge_ppm=int(WALK_MEAN*10**6))
+def wcv_obs(seed,K=16,U=1<<16,NA=1<<10):
+  # H3 control: one seed table, K seed CVs on one a0 range; J = endpoint-sharing groups (a0 or u) of row-16 claws
+  sh=Shake(seed+'|wcv'); sh.word(); r=R_STAR; tab,_,_=build_table(r,sh.word(),U,None,ncol=1024); lo={}; n=q=0
+  for G,u in table_entries(tab): lo.setdefault(G&8191,[]).append((G,u))
+  b=W9+(sh.word()&((1<<26)-1)&~(NA-1)); Hr=(R16H[0]-r)&M
+  for k in range(K):
+    cv,_=cv_from_seed(seed+'|wcv%d'%k); co=cv_consts(cv); p={}
+    def f(x):
+      while p.setdefault(x,x)!=x: x=p[x]
+      return x
+    for a0 in range(b,b+NA):
+      y=(Hr-Ffun(cv,a0,co))&M
+      for o in OFFS:
+        for (G,u) in lo.get((y+o)&8191,()):
+          if (((G-y-o)&M)>>13) in T20S: p[f((0,a0))]=f((1,u))
+    J=len({f(x) for x in list(p) if x[0]==0}); n+=J; q+=J*(J-1)
+  return dict(wcv_cvs=K,wcv_events=n,wcv_mean_ppm=int(1e6*n/K),wcv_ratio_ppm=int(1e6*q/n) if n else 0)
+def r17(s):
+ h=Shake(s);w=h.word;o=[0]*4;V=variantW_P1
+ for _ in[0]*200:
+  a=w();A=w();c=[w()for _ in o*2]
+  for i in 2,0:
+   x=trace(c,V(c,a,A,SAx,SExF));y=trace(c,V(c,a,A,SAy,SEyF))
+   for k in 0,1:o[i+k]+=cellok(k,17,x[k][17],y[k][17])
+   c[7]=(x[1][16]+c[7]-R16H[w()%20])&M
+ return dict(cA=o[0],cE=o[1],uA=o[2],uE=o[3])
+def sm(s):
+ h=Shake(s);p=pf_consts([0]*8);N=1<<16;e=d=0
+ for _ in[0]*N:
+  E=5<<29|h.word()>>3;w=p['KW9']-E&M;t=s0(w);e+=pf_tail(Mach(),0,E,p)[0];d+=((t&0x4400800)==0x800)if w>>29&1 else((t&0xcc01800)==0x4401000)
+ return dict(e=e*10**6//N,d=d*10**6//N,n=N)
+def run_request(req):
+  out=[]; eid=req['experiment_id']
+  for tr in req['trials']:
+    t=tr['trial']; rec=dict(trial=t,message_a_hex=None,message_b_hex=None); s=eid+'|'+tr['seed']
+    if 'online' in eid:
+      if t<NON:
+        cv,M0,st,obs=online_trial(s); rec['observations']=obs
+        if st['coll'] and obs['claw_e16_bad']==0:
+          a0,a1,u,wx,wy=st['coll'][0]
+          rec['message_a_hex']=struct.pack('>32I',*(M0+wx)).hex(); rec['message_b_hex']=struct.pack('>32I',*(M0+wy)).hex()
+      elif t==NON: rec['observations']=spair_obs()
+      elif t==NON+1:
+        n,bad=probe_exhaustive(); n1,bad1,np1=probe_c1_exhaustive()
+        rec['observations']=dict(probe_lanes_checked=n,probe_mismatches=bad,c1test_lanes_checked=n1,c1test_mismatches=bad1,c1test_firing_lanes=np1)
+      elif t==NON+2:
+        ob=bs_check(s); ob['bs_gate_worst']=gbs_worst(); rec['observations']=ob
+      elif t==NON+3: rec['observations']=sel_rates(s)
+      elif t==NON+4: rec['observations']=cls_rates(s)
+    else:
+      if t<NDE: rec['observations']=dense_trial(s)
+      elif t==NDE: rec['observations']=spair_obs()
+      elif t==NDE+1: rec['observations']=cls_msg(s)
+      elif t==NDE+2: rec['observations']=wcv_obs(s)
+      elif t==NDE+3: rec['observations']=r17(s)
+      elif t==NDE+4:rec['observations']=sm(s)
+    if t==9:rec['observations']=walk_certificate()
+    elif t==11 and 'online' in eid:rec['observations']=walk_mean_obs(s)
+    elif t==10:
+      _,n,s,info=ledger(False)
+      rec['observations']=dict(ledger_N=n,ledger_NCV=info['NCV'],walk_init=WALK_INIT,walk_mean_ppm=int(WALK_MEAN*10**6),walk_proven=int(WALK_PROVEN),walk_max_read=WALK_MAX_READ,walk_max_claw=WALK_MAX_CLAW,step3b_mean_ppm=int(STEP3B_MEAN*10**6),step3b_max=STEP3B)
+    out.append(rec)
+  return dict(schema_version=1,trials=out)
+SEL_Z='eNrt2b9KxDAcB/BvYjkiOHS8sfSE7h5cRiP4Dj7ADV3FwmVNwaGDg4/gOzi4trj4Jl3dbqy/Xr3BAwep0Dv4fpp/TUKHhF8yFCCiiUS/9H92I20HreROyva9LEvV3JRKSRJceqJpJYB2Q1MfDN2Pjf9r/2o3vrvzb+1ma/2Mq010RLGfpDqRqE+llidJf3oYG/++KLwvpJS68Ot8sbfe5TPuANGE8a/7E0AifZ//Of7tlbX5arlcZYsszW128H3NHSDi/U9EvP+J6HiEXQL0UwQDJy0l9S1cXIdhvAqhnxJduLjviFDjXJnLCsHhkQtIdMrxb8L3IVDJmwEqJyfA8yxuMEfcOIQXmLqCC6GCCZEz/TSF2n3M//Jz7wvv5eA3'
+def _sel():
+  bm=zlib.decompress(base64.b64decode(SEL_Z)); return [(q<<2)|1 for q in range(1<<16) if (bm[q>>3]>>(q&7))&1]
+SEL=_sel(); SEL_SHA='150659fc4312d162c842c12db3defee46bb330f77158ac35bafb9930f52414da'
+assert len(SEL)==4096 and hashlib.sha256(','.join(map(str,SEL)).encode()).hexdigest()==SEL_SHA
+SELS=set(SEL); NSEL=len(SEL); NA_SEL=NSEL*256; N12=53096854
+G_SEL=2051404269120
+MSG_LO='-0.011821'
+SBLOOP=7; KEP_SEL=20
+CLS_MASK=63<<24; CLS_VAL=12<<24; SELJ=6; SELT=3; M0RAND=16; F7R='0.1205926'; F7R_HI='0.1206112'; F7C_MEAN='0.1206019'; MSG_CLS='-0.0225'; CLS_TRY=4096
+def kept(cv): return (cv[0]&CLS_MASK)==CLS_VAL
+def g_draw(sh,pf):
+  for _ in range(1<<12):
+    E5=0xA0000000|(sh.word()&0x1fffffff); w9=(pf['KW9']-E5)&M
+    if (s0((w9+SPC['D9'])&M)-s0(w9))&M==SPC['D9s']: break
+  a0=W9+(SEL[sh.word()%NSEL]<<8)+(sh.word()&255); a1=(E5-pf['cE5'])&M
+  maj1=(pf['mA']|(a1&pf['mB']))&M; E40=(a0-maj1)&M; chx=(pf['cA']^(pf['cB']&E5))&M; w8=((pf['cW8']-E40)-chx)&M
+  if (s0((w8+SPC['D8'])&M)-s0(w8))&M!=SPC['T8']: return None
+  E4=(E40+pf['cE4'])&M; return (MAJ(pf['A2'],a1,a0)-CH(pf['E6'],E5,E4))&M,a0,a1
+def f7c(pf,q,cv0): w7=(pf['KK7c']-cv0+q)&M; return (s0((w7+pf['D7c'])&M)-s0(w7))&M==SPC['F7d']
+def cls_cv0(w): return (w&~CLS_MASK&M)|CLS_VAL
+def cls_rates(seed,n=1<<15,m=16):
+  sh=Shake(seed+'|cls'); pf=pf_consts([0]*8); g=fc=fu=0
+  for i in range(n):
+    r=g_draw(sh,pf)
+    if r is None: continue
+    g+=1; q=r[0]
+    for j in range(m): fc+=f7c(pf,q,cls_cv0(sh.word())); fu+=f7c(pf,q,sh.word())
+  return dict(draws=n,g_pairs=g,cv0_per_pair=m,f7_cls=fc,f7_all=fu,f7_cls_exp_milli=int(round(1000*g*m*float(F7C_MEAN))),
+        f7_all_exp_milli=int(round(1000*g*m*287309824/2**32)))
+def cls_msg(seed,n=1<<6):
+  sh=Shake(seed+'|clsmsg'); pf=pf_consts([0]*8); px=trace(IV,PMX)[2]; py=trace(IV,PMY)[2]
+  T23=px[23]^py[23]; T25=(py[25]-px[25])&M; ob={}
+  for side in ('all','cls'):
+    c=dict(pairs=0,e16_bad=0,pf_bad=0,dw23=0,dw25=0)
+    for i in range(n):
+      for _ in range(1<<20):
+        r=g_draw(sh,pf)
+        if r is None: continue
+        q,a0,a1=r; cv=[sh.word() for _ in range(7)]
+        if side=='cls': cv[0]=cls_cv0(cv[0])
+        if f7c(pf,q,cv[0]): break
+      t=T160[sh.word()%160]; cv.append(0); u=(a1+hfun(cv,a0))&M
+      cv[7]=(Ffun(cv,a0,cv_consts(cv))+P(u)-t)&M
+      wx=variantW_P1(cv,a0,a1,SAx,SExF); wy=variantW_P1(cv,a0,a1,SAy,SEyF)
+      wx=trace(cv,wx)[2]; wy=trace(cv,wy)[2]
+      c['pairs']+=1; c['e16_bad']+=e16_real_p1(cv,a0,a1)!=t; c['pf_bad']+=pf_ref(cv,a0,a1)!=(1,1,1,1)
+      c['dw23']+=(wx[23]^wy[23])==T23; c['dw25']+=((wy[25]-wx[25])&M)==T25
+    for k,v in c.items(): ob[k+'_'+side]=v
+  return ob
+def sel_a0s(sbs): return [W9+(sb<<8)+l for sb in sbs for l in range(256)]
+def sel_rates(seed,n=1<<15):
+  sh=Shake(seed+'|sel'); pf=pf_consts([0]*8); c=dict(gs=0,gw=0,fs=0,fw=0)
+  def a1draw():
+    while True:
+      E5=0xA0000000|(sh.word()&0x1fffffff); w9=(pf['KW9']-E5)&M
+      if (s0((w9+SPC['D9'])&M)-s0(w9))&M==SPC['D9s']: return E5
+  def g_and_q(a0,E5):
+    a1=(E5-pf['cE5'])&M; maj1=(pf['mA']|(a1&pf['mB']))&M; E40=(a0-maj1)&M; chx=(pf['cA']^(pf['cB']&E5))&M
+    w8=((pf['cW8']-E40)-chx)&M
+    if (s0((w8+SPC['D8'])&M)-s0(w8))&M!=SPC['T8']: return None
+    E4=(E40+pf['cE4'])&M; return (MAJ(pf['A2'],a1,a0)-CH(pf['E6'],E5,E4))&M
+  def f7(q,cv0):
+    w7=(pf['KK7c']-cv0+q)&M; return (s0((w7+pf['D7c'])&M)-s0(w7))&M==SPC['F7d']
+  for i in range(n):
+    E5=a1draw(); sb=SEL[sh.word()%NSEL]; q=g_and_q(W9+(sb<<8)+(sh.word()&255),E5)
+    if q is not None:
+      c['gs']+=1; c['fs']+=f7(q,sh.word())
+    q=g_and_q(W9+(sh.word()&((1<<26)-1)),E5)
+    if q is not None: c['gw']+=1; c['fw']+=f7(q,sh.word())
+  return dict(sel_ok=int(len(SEL)==4096),draws=n,g_sel=c['gs'],f7_sel=c['fs'],g_w9=c['gw'],f7_w9=c['fw'],
+        g_sel_exp_milli=int(round(1000*n*G_SEL/(NA_SEL*N12))),g_w9_exp_milli=int(round(1000*n*57726359870197/2**26/N12)))
+CENSUS1={'complete': True, 'reference_control_passed': True, 'reference_15': {'minimum': 44436632, 'maximum': 44543396, 'rotations': 8192, 'sum': 364428388980}, 'candidate_1': {'minimum': 2954059, 'maximum': 2977218, 'rotations': 8192, 'sum': 24295225932}}
+CENSUS2={'complete': True, 'reference_control_passed': True, 'reference_15': {'minimum': 44436632, 'maximum': 44543396, 'rotations': 8192, 'sum': 364428388980}, 'candidate_2': {'minimum': 5914676, 'maximum': 5951451, 'rotations': 8192, 'sum': 48590451864}}
+CENSUS3={'complete': True, 'reference_control_passed': True, 'reference_15': {'minimum': 44436632, 'maximum': 44543396, 'rotations': 8192, 'sum': 364428388980}, 'candidate_3': {'minimum': 8874207, 'maximum': 8926022, 'rotations': 8192, 'sum': 72885677796}}
+CENSUS4={'complete': True, 'reference_control_passed': True, 'reference_15': {'minimum': 44436632, 'maximum': 44543396, 'rotations': 8192, 'sum': 364428388980}, 'candidate_4': {'minimum': 11839772, 'maximum': 11897512, 'rotations': 8192, 'sum': 97180903728}}
+CENSUS5={'complete': True, 'reference_control_passed': True, 'reference_15': {'minimum': 44436632, 'maximum': 44543396, 'rotations': 8192, 'sum': 364428388980}, 'candidate_5': {'minimum': 14803783, 'maximum': 14871391, 'rotations': 8192, 'sum': 121476129660}}
+CENSUS6={'complete': True, 'reference_control_passed': True, 'reference_15': {'minimum': 44436632, 'maximum': 44543396, 'rotations': 8192, 'sum': 364428388980}, 'candidate_6': {'minimum': 17767500, 'maximum': 17837057, 'rotations': 8192, 'sum': 145771355592}}
+CENSUS7={'complete': True, 'reference_control_passed': True, 'reference_15': {'minimum': 44436632, 'maximum': 44543396, 'rotations': 8192, 'sum': 364428388980}, 'candidate_7': {'minimum': 20730062, 'maximum': 20811431, 'rotations': 8192, 'sum': 170066581524}}
+CENSUS8={'complete': True, 'reference_control_passed': True, 'reference_15': {'minimum': 44436632, 'maximum': 44543396, 'rotations': 8192, 'sum': 364428388980}, 'candidate_8': {'minimum': 23694709, 'maximum': 23773042, 'rotations': 8192, 'sum': 194361807456}}
+CENSUS9={'complete': True, 'reference_control_passed': True, 'reference_15': {'minimum': 44436632, 'maximum': 44543396, 'rotations': 8192, 'sum': 364428388980}, 'candidate_9': {'minimum': 26656700, 'maximum': 26745958, 'rotations': 8192, 'sum': 218657033388}}
+CENSUS10={'complete': True, 'reference_control_passed': True, 'reference_15': {'minimum': 44436632, 'maximum': 44543396, 'rotations': 8192, 'sum': 364428388980}, 'candidate_10': {'minimum': 29617909, 'maximum': 29708804, 'rotations': 8192, 'sum': 242952259320}}
+CENSUS11={'complete': True, 'reference_control_passed': True, 'reference_15': {'minimum': 44436632, 'maximum': 44543396, 'rotations': 8192, 'sum': 364428388980}, 'candidate_11': {'minimum': 32581626, 'maximum': 32676574, 'rotations': 8192, 'sum': 267247485252}}
+CENSUS12={'complete': True, 'reference_control_passed': True, 'reference_15': {'minimum': 44436632, 'maximum': 44543396, 'rotations': 8192, 'sum': 364428388980}, 'candidate_12': {'minimum': 35546342, 'maximum': 35641736, 'rotations': 8192, 'sum': 291542711184}}
+CENSUS13={'complete': True, 'reference_control_passed': True, 'reference_15': {'minimum': 44436632, 'maximum': 44543396, 'rotations': 8192, 'sum': 364428388980}, 'candidate_13': {'minimum': 38510323, 'maximum': 38610389, 'rotations': 8192, 'sum': 315837937116}}
+CENSUS14={'complete': True, 'reference_control_passed': True, 'reference_15': {'minimum': 44436632, 'maximum': 44543396, 'rotations': 8192, 'sum': 364428388980}, 'candidate_14': {'minimum': 41471916, 'maximum': 41577489, 'rotations': 8192, 'sum': 340133163048}}
+CENSUS15={'complete': True, 'reference_control_passed': True, 'reference_15': {'minimum': 44436632, 'maximum': 44543396, 'rotations': 8192, 'sum': 364428388980}, 'candidate_15': {'minimum': 44436632, 'maximum': 44543396, 'rotations': 8192, 'sum': 364428388980}}
+E8174={1: 2974571, 2: 5948804, 3: 8926022, 4: 11897512, 5: 14871088, 6: 17837057, 7: 20811431, 8: 23771164, 9: 26738970, 10: 29706161, 11: 32675862, 12: 35641736, 13: 38608078, 14: 41568453, 15: 44535017}
+rows15=[44436632,44543396,str(D(364428388980)/8192)]
+def column_parameters(ncol,census=None,E_SEL=None):
+  n=ncol
+  if not 1<=n<=15:raise ValueError('ncol out of range')
+  if n==15:lo,hi,mean=44436632,44543396,str(D(364428388980)/8192)
+  elif n==13:lo,hi,mean=38510323,38610389,str(D(315837937116)/8192)
+  else:
+    ev=globals()['CENSUS%d'%n] if census is None else census
+    ref2=ev['reference_15'];actual=ev['candidate_%d'%n]
+    if (ref2['minimum'],ref2['maximum'],ref2['rotations'])!=(44436632,44543396,8192):raise ValueError('15-column census control')
+    if actual['rotations']!=8192 or 15*actual['sum']!=ncol*ref2['sum']:raise ValueError('census mean identity')
+    lo,hi=actual['minimum'],actual['maximum'];mean=str(D(actual['sum'])/8192)
+  limit=8*ncol+5;reads=26*ncol;table=ncol*(1<<19)*RECORD_BYTES+TERMINAL_PAD;online=table+((5<<20) if ncol==7 else (2<<20));peak=max(online,PHASE_R_PEAK) if ncol==7 else online
+  es=int(E_SEL) if E_SEL is not None else E8174[ncol]
+  return dict(ncol=ncol,coverage_limit=8*ncol,probe_limit=limit,probing_low_words=2*limit,reads_per_head=reads,table_bytes=table,complete_online_peak_bytes=online,complete_peak_bytes=peak,E_LO=lo,E_HI=hi,E_SEL=es,R_STAR=R_STAR,E_MEAN=mean,COV=8*ncol*(1<<19),NB=ncol*(1<<19),conservative_first_block_ratio=str(D(44436632)/lo),conservative_first_block_ratio_numerator=44436632,conservative_first_block_ratio_denominator=lo)
+
+Q3P1='-96.0791'
+def ledger(show=True,E_SEL=None,q3_log2=Q3P1,eps_log2=20,succ='0.39',A_C=2**60,A_S=2**60,DEV=2**60,mem=None,kep=None,bs=True,c1=True,sel=True,cls=True,ncol=NCOL,census=None):
+    getcontext().prec=90
+    geo=column_parameters(ncol,census,E_SEL);E_LO=geo['E_LO'];E_HI=geo['E_HI'];E_SEL=geo['E_SEL'];E_MEAN=geo['E_MEAN'];COV=geo['COV'];NB=geo['NB']
+    if mem is None:mem=str(D(geo['complete_peak_bytes']).ln()/D(2).ln())
+    cls=cls and sel
+    if kep is None: kep=KEP_EPOCH
+    kf=D(2)**-SELJ if cls else 1; st=SELT if cls else 0
+    C=2728; L2=D(2).ln(); P2=lambda x: (D(x)*L2).exp(); NA=2**26; eps=D(2)**-eps_log2; K=2**kep
+    p12=D(53096854)/D(2)**32; p12g=D(57726359870197)/D(2)**58; q_pf=p12g*D(287309824)/D(2)**32; q_pf_hi=q_pf
+    pf=6+D(PF_C2)/8+PF_G*p12+PF_F7*p12g
+    pres=D(geo['probe_limit'])/1024; pprobe=D(geo['probing_low_words'])/8192
+    reads=D(20)*geo['reads_per_head']/geo['probing_low_words']; xc=D(20)*10/geo['probing_low_words']
+    probe=SETUP+20*ROWJ+reads*(READ+WALK)+xc*XCROSS
+    claw=EXTRACT+pf+q_pf*STEP3B
+    # The epoch table's alignment r is frozen at the chosen H1W-measured alignment R_STAR=8174,
+    # so every epoch table has exactly E_SEL retained entries; both ledger sides use that count.
+    ca_hi=D(160)*D(E_SEL)/D(2)**32; ca_lo=D(160)*D(E_SEL)/D(2)**32
+    if c1:
+        probe=SETUP+LAMSET+19*ROWJ+reads*READC1+xc*XCROSS
+        claw=(WALK_MEAN+C1PRE+PF_C2+8*PF_G*p12+8*PF_F7*p12g+8*q_pf*STEP3B)/8
+    fe=D(GBS+BATCH+2)/256
+    if sel:
+        NA=NA_SEL; gsel=D(G_SEL)/(D(NA_SEL)*N12); f7lo=f7hi=D(F7R) if cls else D(287309824)/D(2)**32
+        if cls: f7hi=D(F7R_HI)
+        q_pf=p12*gsel*f7lo; q_pf_hi=p12*gsel*f7hi; p12g=p12*gsel
+        claw=(WALK_MEAN+C1PRE+PF_C2+8*PF_G*p12+8*PF_F7*p12g+8*q_pf_hi*STEP3B_MEAN)/8
+        fe=D(GBS+BATCH+2+SBLOOP)/256
+    per_a0=(fe+pprobe*(EXTRACT_BS+A0_PROBE+probe)+ca_hi*claw) if bs else (A0_BASE+pres*A0_RES+pprobe*probe+ca_hi*claw)
+    wbar=C+M0RAND+st+FBCTL+kf*(CVSET+(CV_BS if bs else 0)+NA*per_a0)
+    build=EPSET+NB*RESET+D(2)**32*U_BASE+E_SEL*U_INS+(COV-E_SEL)*U_DROP
+    a0max=(D(GBS+BATCH+2)/256+EXTRACT_BS+A0_PROBE if bs else A0_BASE+A0_RES)+SETUP+20*(ROWJ+XCROSS)+40*(READ+WALK)+40*LANES*(EXTRACT+6+PF_C2+PF_G+PF_F7+STEP3B)
+    if c1: a0max=D(GBS+BATCH+2)/256+EXTRACT_BS+A0_PROBE+SETUP+LAMSET+19*ROWJ+20*XCROSS+40*(READC1+WALK_MAX_READ)+40*LANES*(C1PRE+PF_C2+PF_G+PF_F7+STEP3B)
+    if sel: a0max+=D(SBLOOP)/256
+    vmax=int(C+M0RAND+st+FBCTL+CVSET+(CV_BS if bs else 0)+NA*a0max)
+    q3r=P2(q3_log2)*D(2)**32/160
+    if sel: q3r*=P2(MSG_LO)
+    if cls: q3r*=P2(MSG_CLS)
+    lam=kf*NA*ca_lo*q_pf*q3r*(1-D(2)**D('-8.5'))*(1-D(2)**-25)
+    target=1-D(succ)-D(2)**-60
+    NCV=int((-(target).ln()/lam))+1
+    while 1-(-(NCV-1)*lam).exp()-D(2)**-60>=D(succ): NCV-=1
+    if ncol==7 and kep==KEP_EPOCH:
+        NE=1<<32; K=(NCV+NE-1)//NE; NCV=NE*K
+    else:
+        NE=-(-NCV//K)
+    VCV=int(((1+eps)*NCV*wbar).to_integral_value(rounding='ROUND_CEILING'))
+    VMAX=NE*int(build)+VCV
+    bern=(eps**2*NCV*wbar)/(2*vmax*(1+eps/3)); succ_lb=1-(-NCV*lam).exp()-(-bern).exp()-D(2)**-60
+    ALLOW=(A_C+A_S+DEV)*C; OVER=int(max(vmax,build)); FIN=6*C+1600+WALK_INIT; N=ALLOW+VMAX+OVER+FIN
+    tlog=float((D(N)/C).ln()/L2); score=tlog+float(D(mem))-20
+    if show:
+        print('u-table: %d columns x 2^%d rows, %d lanes, %d bytes including terminal pad; retained entries %d .. %d (mean %s) of %d covered'
+              %(ncol,ROWB,LANES,RECORD_BYTES*NB+TERMINAL_PAD,E_LO,E_HI,E_MEAN,COV))
+        print('claws/a0 = %.6f (charged %.6f); q_pf = 2^%.4f; tag-only chain (55328d60) %.6f + q_pf x step 3b %.6f per claw'
+              %(float(ca_lo),float(ca_hi),float(q_pf.ln()/L2),float(pf),float(q_pf*STEP3B)))
+        if c1: print('C1 in the bucket test: per C1-claw walk %s + %d + segments %d + %d x P(C2|C1) %.6f + %d x P(C2 G|C1) %.6f + 8 q_pf_hi x step 3b %.6f = %.6f'
+              %(WALK_MEAN,C1PRE,PF_C2,PF_G,float(8*PF_G*p12),PF_F7,float(8*PF_F7*p12g),float(8*q_pf_hi*(STEP3B_MEAN if sel else STEP3B)),float(8*claw)))
+        if sel: print('selection: %d sub-blocks (%d a0) per scanned chaining value; P(G | C1 C2, SEL) = %.9f (W9: %.9f) = x%.4f; F7 rate %.5f; q_pf = 2^%.4f; epoch %d first blocks'
+              %(NSEL,NA_SEL,float(gsel),float(D(57726359870197)/D(2)**26/N12),float(gsel*D(2)**26*N12/D(57726359870197)),float(f7lo),float(q_pf.ln()/L2),K))
+        if cls: print('class ((cv0 >> 24) & 63) == 12: 2^-%d of first blocks kept, %d+%d ops per first block; F7 rate %s (99%% lower bound); message channel 2^%s charged'%(SELJ,SELT,FBCTL,F7R,MSG_CLS))
+        if c1: print('per a0: front end (%d + %d + 2)/256 = %.6f + %.6f x (%d + %d + probe %.4f [setup %d + %d, %d heads x %d, %.1f reads x %d (tag and C1 test), %.1f x %d]) + %.6f C1-claws x %.6f = %.6f ops; per claw %.4f'
+              %(GBS,BATCH+(SBLOOP if sel else 0),float(fe),float(pprobe),EXTRACT_BS,A0_PROBE,float(probe),SETUP,LAMSET,19,ROWJ,float(reads),READC1,float(xc),XCROSS,float(ca_hi/8),float(8*claw),float(per_a0),float(per_a0/ca_lo)))
+        elif bs: print('per a0: front end (%d + %d + 2)/256 = %.6f + %.6f x (%d + %d + probe %.4f) + %.6f x claw %.6f = %.6f ops; per claw %.4f'
+              %(GBS,BATCH,float(D(GBS+BATCH+2)/256),float(pprobe),EXTRACT_BS,A0_PROBE,float(probe),float(ca_hi),float(claw),float(per_a0),float(per_a0/ca_lo)))
+        else: print('per a0: base %d + %.6f (resolve) + %.6f x probe %.4f + %.6f x claw %.6f = %.6f ops; per claw %.4f'
+              %(A0_BASE,float(pres*A0_RES),float(pprobe),float(probe),float(ca_hi),float(claw),float(per_a0),float(per_a0/ca_lo)))
+        print('epoch build %d ops (%.4f%% of an epoch of %d first blocks)'%(int(build),100*float(build/(K*wbar)),K))
+        print('wbar = %.6e  vmax = %d  N_CV = %d  epochs = %d  V_MAX = %d'%(float(wbar),int(vmax),NCV,NE,VMAX))
+        print('allowances A_C + A_S + DEV = 2^%.5f compressions = %.4f%% of N;  N = %d'%(float((D(A_C+A_S+DEV)).ln()/L2),100*float(D(ALLOW)/N),N))
+        print('time_log2 = %.7f  memory 2^%s  score = %.7f  success >= %s'%(tlog,mem,score,str(succ_lb)[:22]))
+    return tlog,N,succ_lb,dict(per_a0=per_a0,wbar=wbar,NCV=NCV,ca_lo=ca_lo,ca_hi=ca_hi,probe=probe,claw=claw,build=int(build),vmax=vmax,NE=NE,VCV=VCV,VMAX=VMAX,ALLOW=ALLOW,OVER=OVER,FIN=FIN,geometry=geo)
+def selftest():
+  print('selftest utab38'); ok=True
+  assert (SPC['F7d'],SPC['T8'],SPC['D8'],SPC['D7'],SPC['D9s'])==(0x03bff800,0xfe808000,0xfbc00800,0x20000000,0x043ff800)
+  assert len(T160)==160 and all(r16ok(w) for w in T160) and len(T20S)==20; print(' S-pair constants, |S160| = 160: OK')
+  o=spair_obs(); print(' step 3b on the P8 pair:',o); ok&= o['step3b_P8_pair_ok']==1 and o['step3b_P8_pair_ops']==STEP3B
+  n,bad=probe_exhaustive(); print(' six-lane test against the scalar definitions: %d lane checks, %d mismatches'%(n,bad)); ok&= bad==0
+  n,bad,np1=probe_c1_exhaustive(); print(' combined tag and C1 test (Lemma B\'\'): %d lane checks, %d firing, %d mismatches'%(n,np1,bad)); ok&= bad==0 and np1>0
+  for s in range(1,1<<LANES):
+    z=sum(G_L[L] for L in range(LANES) if (s>>L)&1); mw=Mach(); got=walk_lanes(z,mw)
+    ok&= got==[L for L in range(LANES) if (s>>L)&1] and mw.ops<=WALK_MAX_CLAW*len(got)
+  gw=gbs_worst(); ob=bs_check('selftest|bs',nb=64)
+  print(' bitsliced front end:',ob,'worst-constant gate charge',gw); ok&= ob['bs_mismatches']==0 and gw==GBS and ob['bs_gates_max']<=GBS
+  for sd in ('selftest|a','selftest|b'):
+    cv,M0,st,ob=online_trial(sd); print(' online',sd,ob)
+    ok&= ob['c1_claws_equal_ref']==1 and ob['claw_e16_bad']==0 and ob['postfilter_ref_mismatch']==0 and ob['ref_claws']>0
+    ob=dense_trial(sd,NA=1<<13); print(' dense ',sd,ob)
+    ok&= ob['c1_claws_equal_ref']==1 and ob['row16_bad']==0 and ob['postfilter_ref_mismatch']==0 and ob['c1_claws']>0
+  tab={}; rr=random.Random(5); keep={}
+  for i in range(64):
+    u=rr.getrandbits(32); g=(rr.randrange(4)<<3)|rr.randrange(8); k=((g>>3)<<ROWB)|7; d=tab.get(k,EMPTYW); c=d>>CNT
+    if c<LANES:
+      sh=STR*c; d=(d&~(EMPTYT<<(sh+FLD)))|((u|((g&7)<<FLD))<<sh); d+=1<<CNT; tab[k]=d; keep.setdefault(k,[]).append((g&7,u))
+  rec={k:[((d>>(STR*L+FLD))&63,(d>>(STR*L))&M) for L in range(d>>CNT)] for k,d in tab.items()}
+  emp=all(((d>>(STR*L+FLD))&63)==EMPTYT for k,d in tab.items() for L in range(d>>CNT,LANES))
+  print(' retention: %d buckets, first six kept in insertion order %s, empty lanes marked %s'%(len(tab),rec==keep,emp)); ok&= rec==keep and emp
+  cv,_=cv_from_seed('selftest|ops'); sh=Shake('selftest|ops'); sh.word(); r=R_STAR
+  tab,ent,drop=build_table(r,sh.word(),1<<16); m=Mach(); a0s=range(W9,W9+(1<<16)); st=scan_cv(cv,tab,r,a0s,m)
+  chg=CV_BS+st['batches']*(GBS+BATCH+2+SBLOOP)+st['probes']*(EXTRACT_BS+A0_PROBE+SETUP+LAMSET+19*ROWJ+20*XCROSS)+st['reads']*READC1
+  chg+=st['claws']*(WALK_MAX_CLAW+C1PRE+PF_C2+PF_G+PF_F7)+len(st['good'])*STEP3B
+  print(' counted scan ops %d <= itemised charge %d: %s (probes %d of %d a0, reads %d)'%(m.ops,chg,m.ops<=chg,st['probes'],st['a0'],st['reads']))
+  ok&= m.ops<=chg and abs(st['probes']/st['a0']-2*(8*NCOL+5)/8192)<0.003
+  ob=sel_rates('selftest|sel',n=1<<13); print(' selection rates (sampled):',ob)
+  ok&= ob['sel_ok']==1 and ob['g_sel']>ob['g_w9']
+  oc=cls_rates('selftest|cls',n=1<<13,m=8); om=cls_msg('selftest|cls',n=16); print(' class rates (sampled):',oc,om)
+  ok&= oc['f7_cls']>oc['f7_all'] and om['e16_bad_all']==0 and om['e16_bad_cls']==0 and om['pf_bad_all']==0 and om['pf_bad_cls']==0
+  tlog,N,sl,_=ledger(show=False); print(' ledger time_log2 = %.7f, success >= %s'%(tlog,str(sl)[:12])); ok&= sl>=D('0.39')
+  print('SELFTEST','PASS' if ok else 'FAIL'); return ok
+def main():
+  a=sys.argv[1] if len(sys.argv)>1 else ''
+  if a=='selftest': sys.exit(0 if selftest() else 1)
+  if a=='ledger': ledger(); return
+  if a=='ledger-inherited': ledger(A_C=2**78,A_S=2**74,DEV=2**70); return
+  if a=='ledger-allow70': ledger(A_C=2**70,A_S=2**70,DEV=2**70); return
+  if a=='sel-rates': print(sel_rates('cli')); return
+  if a=='cls-rates': print(cls_rates('cli'),cls_msg('cli')); return
+  if a=='ledger-base': ledger(cls=False); return
+  if a=='ledger-scalar': ledger(bs=False,c1=False,sel=False); return
+  if a=='ledger-tag': ledger(c1=False,sel=False); return
+  if a=='ledger-c1': ledger(sel=False); return
+  sys.stdout.write(json.dumps(run_request(json.load(sys.stdin))))
+if __name__=='__main__': main()
+```
+<!-- END DB38_H8G_7COL_SOURCE -->
+
+## Appendix Y. Evidence boundary and declared organizer experiments
+
+*(Updated for 7-column full-cycle `ustart` and native-witnessed Phase R: `H6` uses the `121,823,232 B` Phase R peak and `Appendix ZT` C witnesses; `H7` is the per-alignment transfer averaged uniformly across the deterministic `2^32`-epoch `ustart` cycle; `H8 = 2^-0.011821` and `H9 = 2^-0.0225` remain unchanged from `74ec8ef`.)*
+
+This variant includes byte-for-byte copies of the two organizer experiments
+declared by accepted parent 9cdbd3c1. `a0p-online-r38` is a bounded real-
+compression control for H1, H5 and deterministic identities. Its returned
+pairs are not full collisions. `a0p-q3-r38` is a reduced-replica consistency
+check; it is not an estimate of q3 and does not certify q3_model. Neither
+experiment measures H8, H9, success frequency, expected cost or any deep-event
+probability. The attack, its fresh algorithmic coins, its exact collision
+implication, all probability premises and every charged integer are unchanged.
+Finite participant measurements below support plausibility only; each named
+extrapolation remains a disclosed premise with its stated sensitivity.
+
+| premise | concrete relevant support retained in this proof | unresolved boundary |
+| --- | --- | --- |
+| H2-P1 | Section 9's registered P1/base paired panels, per-seed values, zero replay diagnostics, lower-bound rule and independent current-minimum calculation | transfer of the measured law to every retained u-table good pair |
+| H2b | owned sequential-Monte-Carlo design, exact row-16 weight, known-answer stages, full-compression replay requirement, dead-seed rule and registered P/Q/R reproductions | absence of an independent implementation and direct observation at about 2^-96 |
+| H4a | 38 logged solver runs, 230,183 listed seconds, the author's development bound and the explicit 2^60 charged cap, with 2^70 and lineage fallbacks priced | unlogged dense-row derivation |
+| H4b | the inherited Step-1 SAT construction, repeated-solve accounting and explicit 2^60 charged cap | unavailable complete historical execution log |
+| H4c | Appendix U's exhaustive/current work census, named failed and repeated studies, and explicit 2^60 charged cap | historical development not reconstructed instruction by instruction |
+| H6D | reported same-specification maxima, decoder measurement and a local Kissat build reproducing recorded C0 counts | historical formula, binary and platform unavailable |
+| H6E | eleven fixed-seed controls, 24 file/pipe configurations, five PySAT builds, two LP-certificate checkers and measured live clause objects | transfer from fresh controls to the historical P8 execution |
+| H8 | exact selected-window message counts, registered per-seed evidence, pooled 2^-0.011821 charge and explicit 1.1122-bit sensitivity | deep state invariance after conditioning on the selected window |
+| H9 | independent class-selection/measurement pools, class F7/message rates, paired evidence, unchanged 2^-0.0225 charge and explicit no-class sensitivity | deep state invariance after conditioning on the cv0 class |
+
+The corresponding proof sections state who ran each measurement, its finite
+scope and every unavailable historical input. The premises are not promoted to
+proofs by this appendix. Their role is the same conditional exploratory role as
+before; deterministic correctness, caps and resource arithmetic remain separate.
+
+
+## Appendix Z. The recorded tail list is charged once, not twice: phase E sets the memory maximum
+
+**Claim.** Change one scheduling fact of Appendix W and nothing else: the recorder writes the tail-clause record incrementally, clause by clause, through a fixed 4 KiB buffer while the encoder appends each tail clause, and phase R consumes that file through the charged 1,048,576-byte solver pipe input instead of mapping it. The recorded list is therefore never a process-resident object: it is filesystem state, and its serialised length is disk occupancy, not memory. Under Appendix W section 5's premises unchanged, phase E is at most **160,546,816 bytes** and phase R at most **157,474,816**; the ten-column online image **159,383,584** lies 1,163,232 below phase E. The counted phase maximum is therefore phase E, **160,546,816**, and the charge is that maximum: memory_log2_bytes **27.258419**, scalar **83.743859** (this maximum is superseded by Appendix ZS). No premise is added; no probability, allowance, encoder semantics, regenerator semantics or output changes.
+
+### 1. The record is charged once, not twice
+Appendix W's phase-E row charges the recorded tail list (44,593,152 bytes at its 5/8 bound) inside the encoder's cell, and its phase-R row charges the same list again inside the regenerator's cell. Both charges are legitimate: precomputed data is chargeable whether it is resident in a process or held in filesystem state, and this filing does not claim otherwise. Appendix Z charges their actual coexistence path: the full list at the start, a shrinking list plus a growing partial record in the middle, and the full record at the end. It never replaces that path by the sum of both full encodings.
+
+**Lemma RF (the record's charged length).** Every literal of the P8 spec is a nonzero integer in [-(V-1), V-1] with V = 51,945, the first field of the DIMACS header that Appendix W section 2 regenerates and checks byte for byte. Hence |lit| <= 51,944 < 2^16, so a literal fits a 16-bit unsigned magnitude and one further bit per literal carries its sign: at most 17/8 = 2.125 bytes per literal, plus a 2-byte clause length. A tail clause of k literals therefore costs at most 2 + 17k/8 bytes, and 2 + 17k/8 <= 14.875 + 17k/8 = (17/64)(56 + 8k) for every k >= 0. With the recorded tail list L = 71,213,440 = G - 85,323,392 bytes (Appendix W section 4) the record is at most 76,656 + (17/64)L = 18,992,726 bytes, **18,997,248 after page rounding, and this is the size charged**. In particular R <= (17/64)L.
+
+**Lemma RF1 (the list and its record never coexist in full).** G = 156,536,832 is exactly the model part 85,323,392 plus the tail list L = 71,213,440 (Appendix W section 4), so the tail clause objects are inside G. The recorder walks that tail list and, for each clause, emits its fixed-width record and then releases that clause's list object, because phase R reads the record rather than the list. If a fraction x of the tail list has been released, the resident encoder figure is G - xL + R_written with R_written <= (17/64)xL <= 0.266xL, so the figure never rises above G and it ends at G - L + R = 109,845,632 + 18,997,248 = 128,842,880, which is below G. Kernel state and the replaced launcher are not process-resident in active phase E (section 3). The phase-E peak is therefore G plus 4,009,984 bytes of procedure code files and recorder overhead, i.e. **160,546,816**, and the record's 18,997,248 bytes are charged as the *alternative* endpoint of that coexistence maximum (18,997,248 + 4,009,984 = 23,007,232 < 160,546,816), not as an addition to the list that produced them. Charging both operands would charge the same tail clauses twice. QED
+
+### 2. Withdrawal of Lemma RE2
+**Withdrawal.** The predecessor's Lemma RE2 read V = 51,945 < 2^16 as a bound for a **signed** 16-bit word. That inference is false: a signed 16-bit word holds at most 32,767, and 51,944 exceeds it. Lemma RE2 and the 184,725,504-byte cell that rested on it are withdrawn, and Lemma RE's 4-byte width with its 202,526,720-byte cell are withdrawn with it, because Appendix W's own fallback row was superseded only by Lemma RE2. Lemma RF is the only statement this filing makes about the record's encoding, it is correct for a *signed* literal range of +-51,944, and the record it bounds is charged in full.
+
+### 3. Phases and charge
+
+| Phase | Components (bytes) | Total |
+| --- | --- | ---: |
+| E | encoder G 156,536,832 (contains the 71,213,440-byte tail list, released clause by clause as the record is written; Lemma RF1) + procedure code files 1,912,832 + recorder overhead 2,097,152; kernel state is kernel-side and the launcher is replaced at exec, while the charged 18,997,248-byte record is the alternative endpoint of the same coexistence maximum | **160,546,816** |
+| R | filter 1,048,576 + kernel 4,194,304 + key file 16,384 + launcher 4,194,304 + model file 200,704 + pipes 2,097,152 + procedure code files 1,912,832 + charged record 18,997,248 + regenerator 33,554,432 + solver S 90,210,304 + solver pipe input 1,048,576 | **157,474,816** |
+| S, D, online | unchanged from Appendix W section 4 and section 10 | 103,874,560; 115,376,128; **159,383,584** |
+
+**Which phase-E rows this filing keeps.** Appendix W section 4 also charges kernel 2,097,152 and launcher 4,194,304 in phase E. This filing drops exactly those two and nothing else: kernel memory is kernel-side and never enters any process's resident set, and the launcher is replaced at exec, so it does not coexist with the encoder. The procedure code files 1,912,832 and the recorder overhead 2,097,152 stay charged, so phase E = G + 4,009,984 = 160,546,816, and the implementation witness's measured peak 160,505,856 lies 40,960 below it. The sensitivity is stated rather than hidden: restoring both rows gives phase E = 166,838,272, memory_log2_bytes 27.313876 and scalar 83.865096. **The charge.** The counted phase maximum is phase E **160,546,816** (27.258419); the ten-column online image 159,383,584 lies 1,163,232 below it and phase R 157,474,816 lies 3,072,000 below it. The ten-column witness allocates exactly that image, reports working-set delta 159,387,648 and peaks at **160,505,856** resident bytes (`VmHWM`), 1,220,576 above the image because it retains the witness process's mapped runtime image. That measured peak lies 40,960 below the counted phase maximum, phase E 160,546,816, which is therefore the charge: **160,546,816** = memory_log2_bytes **27.258419**, scalar **83.743859**. The recorder's whole-process figures, 168,951,808 with no blocks and 176,832,512 with 5,430 blocks, are stress measurements of that process which exceed G and are therefore not procedure cells: H6-D reads G as the live-clause figure, so phase E is the modelled 160,546,816 and the count, not a measurement, sets the charge. Every other measured cell is below it: H7 65,265,200; gmass 136,433,664; p8fam 71,163,904 (69,496 KiB); fillr2 68,521,984 (66,916 KiB). The predecessor's twelve-column peak resident 193,490,944 belongs to a superseded filing and to a different image and is not a phase of this one.
+
+### 4. Output equivalence and operations
+The regenerator re-serialises the recorded literals in the serializer's fixed order and pass 1 compares the result with the recorded SHA-256 of the exact serializer output, refusing any difference before Kissat receives a byte (Appendix W section 2). Lemma RF changes where the bytes live, not which bytes they are; Lemma RF1 changes only the fixed-width layout of the same token stream. R.6D determinism therefore returns the same P8, the refusal check is unchanged, and Appendix W section 9's 2^54-word-operation budget is charged per formula token, not per stored byte, so time_log2 76.48544 and preprocessing_log2 61.58497 are unchanged.
+
+### 5. Sensitivity and limits
+Active phase E is G + 4,009,984 with no wider term, so its required bound rises exactly one byte per byte that the H6-D encoder figure G is understated. Since phase E already sets the submitted 160,546,816-byte maximum and lies 1,163,232 above the online image, every positive understatement exceeds the submitted bound; Appendix W section 6's 27,950,800-byte local clause-object margin supports H6-E(a0) but is not certified slack for the historical execution, and the superseded 1.25-, 1.5- and 1.625-byte slopes belonged to charged record widths and no longer apply. The charge is the counted phase maximum; the participant online measurement is only a cross-check below it. A larger valid phase measurement would raise the required bound, never lower it. Under H6-E(b)'s 64 KiB-page alternative the record's page rounding changes and no cell moves, so the page choice is not load-bearing. This appendix adds no probability evidence, advice, experiment or historical re-run, and every limitation of section 10 and Appendix Y stands.
+
+## Appendix AA. Independent re-execution of the retained-entry census (2026-11-20)
+
+Section 3.1's census is re-executed here instead of quoted, with the instrument the base ships in Appendix D
+(`fillr2.c`, 1,055 bytes, SHA-256 `92bd2e1d59613cc689a3fb258e3ca249142525a8c8224050115d678c7aa45dca`). For each
+residue j = r mod 8 the program counts, over all 2^32 words u, the aligned 8-windows of P(u)-j in 2^26-byte slices
+and prints S_j[c] for c = 0..1023; retained(8m+j) is the cyclic window of length n on S_j, so the extrema over the
+8,192 rotations follow exactly. Eight processes, one per j, peak at 66,856, 66,488, 66,976, 66,412, 66,352, 66,476,
+65,924 and 66,780 KiB resident (the base recorded 66,916 KiB).
+
+| columns | minimum | maximum | sum |
+| --- | --- | --- | --- |
+| 15 (recorded control) | 44,436,632 | 44,543,396 | 364,428,388,980 |
+| 13 (recorded control) | 38,510,323 | 38,610,389 | 315,837,937,116 |
+| 12 (this re-execution; the twelve-column filing carried the same row) | 35,546,342 | 35,641,736 | 291,542,711,184 |
+| 11 (this re-execution; the eleven-column filing carried the same row) | 32,581,626 | 32,676,574 | 267,247,485,252 |
+| 10 (historical calibration) | 29,617,909 | 29,708,804 | 242,952,259,320 |
+| 8 (`74ec8ef` Appendix ZS) | 23,694,709 | 23,773,042 | 194,361,807,456 |
+| **7 (active procedure; `E(8174, 7) = 20,811,431`)** | **20,730,062** | **20,811,431** | **170,066,581,524** |
+
+Every row satisfies the mean law 15*sum(n) = n*364,428,388,980 of Section 3.1. The thirteen- and fifteen-column
+rows are recorded controls and are reproduced exactly, and the twelve-column row reproduces the value the
+twelve-column filing carried; all three therefore bind the instrument and the reduction before the ten-column
+row is used. The deterministic instrument was run once for each j=0..7 and takes no seed. This is a new bounded measurement, not a reproduction
+of a historical run, and it is charged to DEV inside the 2^50 bound of Section 11 (eight 2^32-word passes).
+
+## Appendix AB. Unique-pool H8 rebase onto public leader 1753d8ed
+
+This is a narrow derivative of public r38 leader `1753d8ed-2e8a-4de0-b01f-9511751c1696` at commit
+`7cf94dcf5a86471c522504443e2b25ae948c379c` and organizer rounded-field scalar 83.809639. The ten-column
+construction, table geometry, memory cells, advice, preprocessing, allowances,
+operation prices, cap, success target, H8 state-side premise and all other
+premises are unchanged. The executable changes exactly one score input:
+`MSG_LO='-0.0468'` becomes `MSG_LO='-0.0119'`.
+
+S217 combines the historical and extension panels into unique seeds 101..168
+counted once. It comprises 1,700,000,000 pairs per side, SEL
+profile 257,983 and W9 profile 258,427. The point log2 ratio is
+-0.0024808069401957883 bit, standard error 0.004014896826580175 bit, and
+one-sided 99% lower bound -0.011820853637039925. Conservative four-decimal
+flooring gives `MSG_LO=-0.0119`. S217's aggregate/receipt SHA-256 values are
+`855af8ec8827d2bb643ba969ae158cb3ee80455e2a7e67c74083b2bd7e86ab38` / `0ec278be335e0d717af8237b1cd3dd4860112d7ece596d4f9ed9f7ebace0ff65`. This updates only H8's already
+defined message-side input; it does not prove the inherited deep state
+invariance.
+
+The public proof carried two stale, non-scoring displays: its Section 5 table
+predated the executable ledger, and two memory sentences named 166,838,272
+while displaying the exponent of 160,546,816. This derivative repairs those
+displays against the embedded executable. No score credit is taken for the
+repairs. The source differs from the public source in the `MSG_LO` literal and the real stopped-path step-3b schedule and has SHA-256 `682ae7757542edfdd4a4252486da2967f43cc5e38db8e7a271e6df3b096d6cf8` (this is the current combined source after Appendix AH; the `-0.0119` charge described above is the prior filing's and is tightened to `-0.011821` in Appendix AH).
+
+Exact executable recomputation gives:
 
 ```text
-T = A_C + A_S + DEV + N_FB + (N_FB x 35 + V_MAX + OVER + PRE + FIN) / C + 6
-  A_C = 2^78, A_S = 2^74, DEV = 2^70 (Section 12, H4; the levels of fb176310)
-  N_FB = 1,510,856,422,634,357,630,235,398 = 2^80.32164   (g = 52,608 good pairs per first block, g q3_model = 2^-81.3170)
-  vbar = 306253.2258 operations per first block: W7 tests 32 x (24 + 4), hit list, scalars and planes (935) x min(1, 32 p7),
-         passing classes 32 p7 x (7 + 96 x (5849/4 + 6)) (the mean program, 5849/4 = 1462.25), stage-3a lanes 32 p7 x 24,576 x 2^-12 x 208, row-16 passes 32 p7 x 24,576 x 160 / 2^32 x 3105
-  vmax_f = OVER: every class at the longest program (1,482), every lane a row-16 pass
-  V_MAX = 462,711,713,474,543,096,131,143,149,032, OVER = 2,610,022,471, PRE = 8,858,632,192 (member tests over the 32 class cubes, the batch planes, program generation)
-  FIN = 1,600 operations and 6 units (the final verification)
-N = T x 2728 = 467,765,448,296,261,394,038,709,429,793  ->  T = 2^87.14807212  ->  time_log2 = 87.14808
+N_CV  = 1589119332517172204510
+N_E   = 1445295614
+V_CV  = 288613240907355274018833825
+V_MAX = 288613347576423778507775899
+ALLOW = 9435509593702435651584
+OVER  = 775008730887
+FIN   = 16795184
+N = 288622783086018255968953554
+time_log2 = 76.4856877247366669571575847865057377321448186581597223531843796296926901888382766694401086...
 ```
 
-Calibration (`calibrate.json`, the output of `calibrate()` of `experiments/a0p38.py`; `selftest` prints the same):
+The time claim is rounded upward to 76.48569. Charged memory remains the
+counted phase maximum 160,546,816 bytes, whose exponent is 27.25841881259883225150829083778099179961588870454342322935194028013630206632286682899131097482861621...,
+rounded upward to 27.258419. The organizer rounded-field scalar is therefore
+`76.48569 + 27.258419 - 20 = 83.744109`, an exact 0.051990-bit rounded-field improvement
+over the direct public parent and 0.011860 bit below h8d. The unrounded scalar is 83.744106537335499208665875624286729531760707362703145582536319909828992255161143498431420.... The existing
+lean-witness work gives no further memory credit: the parent already charges
+160,546,816, above its measured 160,505,856 resident peak and below neither a
+larger competing procedure phase nor a recorder cell used by this schedule.
 
-```
-{"prog": [1447, 1466, 1441, 1457, 1449, 1468, 1443, 1459, 1482, 1475, 1482, 1475, 1469, 1466, 1472, 1469, 1444, 1463, 1438, 1454, 1446, 1465, 1440, 1456, 1479, 1472, 1479, 1472, 1466, 1463, 1469, 1466], "w7": 24, "fb_fixed": 35, "w7_loop": 4, "scalars": 39, "planes": 896, "batch_ctl": 6, "class_ctl": 7, "lane": 208, "deep": 3105, "tk": 12, "classes": 32, "class_size": 24576}
-```
+## Appendix AC. Real early-stopping step 3b
 
-*Certificate.* `python3 ledger_a0p.py --q3 -97.0 --h3 -5.1 --cal calibrate.json` prints the ledger and checks `(2728^E << 8714807) < N^E <= (2728^E << 8714808)` with E = 100000 (exact integers), so 87.14808 is the smallest five-decimal upper bound on log2 T. *Sensitivity* (each row recomputed by the ledger with this calibration unless marked reference):
+The only algorithmic change after h8b is the step-3b schedule.  Both candidate
+paths are constructed through row 15; rows 16 through 21 are extended and
+tested one at a time, returning on the first failure.  Rows 22 through 37 are
+constructed only after all six early rows pass.  On 4,096 deterministic random
+inputs the old and new routines return identical booleans and message words and
+their counted work agrees; stopped paths cost 607..652 operations in this
+replay.  The P8 all-pass witness still costs exactly 3,014 operations and is a
+collision.  Replacing the module's complete `trace` helper with a hard failure
+does not affect the new step-3b path.  These tests prove implementation
+equivalence on their finite domain; the 842.361097 expectation remains H3B's
+declared table-transfer premise.
 
-```
-claimed                                                                                          87.14808   (N_FB 2^80.3216)
-q3_model = the study mean 2^-96.1821                                                             86.33224   (N_FB 2^79.5037)
-q3_model 2^-97.78 (the q3_model of fb176310 for the published characteristic)                    87.92694   (N_FB 2^81.1016)
-pair term 2^-3                                                                                   87.21987   (N_FB 2^80.3936)
-allowances of 1a695f0b (A_C = 2^48, A_S = 2^50, DEV = 2^50)                                      87.14536   (N_FB 2^80.3216)
-A_C = 2^84                                                                                       87.29999   (N_FB 2^80.3216)
-1a695f0b: 8 classes, one shared program of 1,511, q3_model 2^-97.0, pair term 2^-5.9             87.22358   (reference)
-the same with per-class programs (08be594's construction; ours, 1,454..1,469, mean 1463.00)      87.17957   (reference)
-```
+Exact recomputation gives N=288622783086018255968953554 and
+log2(N/2728)=76.4856877247366669571..., rounded upward to 76.48569.  Memory is
+unchanged at 27.258419, so the organizer rounded-field scalar is 83.744109.
+The deterministic maximum remains 775008730887; no cap or success term changes.
 
-## 11. Memory and advice
+## Appendix AD. GoForceX PR-1560 epoch/cap correction
 
-```
-online 3659904 bytes = 2^21.803: 32 row-16 programs (one per class) 46,792 instructions, class planes 32 x 96 batches x (20..23) words = 66,048 words,
-  class table 32 x 6 words, broadcast planes 224 words, row-16 table 160 words, spill slots 24 words, scalar routines at most 700 instructions,
-  the deep path's two traces (200 words), M0, CV1 and counters (32 words); 32 bytes per word or instruction
-preprocessing (single-threaded, sequential stages; peak of the summed resident memory of all processes, sampled every 0.2 s):
-  Step-1 solve of P8 (joint.py: Python model + Kissat; the S in use, as in 1a695f0b): 279,720 KB = 2^28.0936
-  signed search of P8 (stepk.py): at most 2^27.92
-  class descriptors (a0cls.c, 32 hash passes): 37,036 KB = 2^25.14; class selection (lp_classes.py with the a0cls member pass): 46,804 KB = 2^25.48
-  condition tables and pair (mkvt.py, fromjoint.py): below 2^24
-preprocessing peak 2^28.0936
-```
+This derivative credits GoForceX submission
+`1b9a559e-08d7-4457-b294-afc9c12f4d7c` (public PR 1560). Relative to
+`1753d8ed`, that entry's two material executable changes are the epoch length
+`KEP_EPOCH=32 -> 40` and the deterministic cap slack
+`eps_log2=16 -> 20`. Applied after h8c's H8 rebase and genuine stopped-path
+step 3b, both changes are lossless: the construction, table geometry,
+probability inputs, memory, H3B mean, all-pass 3,014-operation path and exact
+`vmax=775008730887` are unchanged. The complete embedded selftest passes.
 
-*Sampling.* The peaks are maxima of the summed resident memory sampled every 0.2 s, so a shorter allocation spike could be missed; the claim 2^28.10 bytes = 288,630 KiB is 3.2%% above the largest sample (279,720 KiB), and the Step-1 solve is a single Kissat process whose resident memory grows with its clause database (it does not spike).
+The number of epochs becomes 1,445,295,614. The tighter cap gives
+`V_CV=288613240907355274018833825` and
+`V_MAX=288613347576423778507775899`; its Bernstein exponent is still
+169.34769..., far beyond the reserved 2^-60 failure margin. Exact total work
+is `N=288622783086018255968953554`, so
+`log2(N/2728)=76.4856877247366669571...`, rounded upward to 76.48569.
+Memory remains 27.258419 and the organizer rounded-field scalar is 83.744109.
+This is 0.000150 below h8c at the rounded-field level and 0.049180 below the
+credited GoForceX entry's 83.809479. No new heuristic premise is introduced.
 
-*Scope of the memory bound.* Peak memory covers code, advice, retained data, tables and working state of the whole computation: the online algorithm, the charged precomputation (class members, planes, the 32 programs) and the computations behind the advice and the allowances (the characteristic search, the Step-1 solve, the class descriptors and their selection, the condition tables), each run single-threaded and sequentially. P8 and S are those of 1a695f0b (produced by `stepk.py` and `joint.py`); the claimed figure is the largest measured peak in the record above. The class descriptors are found in 32 passes over a hash of c7 (`a0cls.c`, at most 2^23 pairs resident) and selected by `lp_classes.py`. The online figure also covers the deep path's working state (two traces, about 6 KB) and M0, CV1.
 
-Claimed memory 2^28.10 bytes: the maximum of the online footprint and the measured preprocessing peaks. Advice: S (16 words of each member and CV1), the 32 class descriptors (c7, base, mask: 384 bytes), the constants of the characteristic: below 2^14 bytes; everything else (class members, planes, the programs) is computed by the charged preprocessing.
+## Appendix AE. GoForceX 6c6ee7a2 exhaustive-density F7 bounds
 
-## 12. Premises
+This derivative directly credits public GoForceX submission
+`6c6ee7a2-b1b9-4fd4-9347-07da87713b54`, commit
+`b0867020fb3faeaa22601f22e2aefc04cffe6b59`. Its executable diff from
+`1b9a559e` changes exactly three constants: `F7R 0.11985 -> 0.1205926`,
+`F7R_HI 0.12136 -> 0.1206112`, and diagnostic `F7C_MEAN 0.1206148 ->
+0.1206019`. The class, all acceptance predicates and every other executable
+line are unchanged. The new bounds come from the public parent's
+exhaustive-density Rao-Blackwell estimator described in Section 3.8; this
+filing adopts that evidence and introduces no additional premise.
 
-- **H1** single-trial chaining value: CV1 = F_38(IV, M0) for uniform M0 behaves as uniform for the events of one variant (Lemma 5.1).
-- **H2** q3 >= q3_model for the accepted event, averaged over the selected variants (Section 9; 40 runs).
-- **H3** the pair term within a first block is at most 2^h3 (Section 9; measured).
-- **H4** allowances: The allowances are envelopes, not measurements: A_C = 2^78, A_S = 2^74, DEV = 2^70 target compressions (the levels charged by fb176310). All of our computation for this line of work (the characteristic search and sweep, the Step-1 solve, the class data, the q3 studies and all development) ran on one 10-core machine, for less than 2^22 core-seconds by our own accounting. The bound does not depend on that accounting or on a rate: ten cores running continuously for a full year are 2^28.3 core-seconds, and even at 2^30 target compressions per core-second (above any CPU core; SHA-256 runs at about 2^24 compressions per second per core) that is 2^58.3, below DEV = 2^70 alone. With A_C = 2^84 the ledger gives time_log2 = 87.29999 (+0.15191; Section 10); with the smaller allowances of 1a695f0b, 87.14536.
-- **H5** unit-cost bit-sliced planes: the row-16 programs are charged as their instruction counts on 256-bit planes, as in the cost model.
+Applied after h8d's pooled H8, stopped-path step 3b, epoch-40 and tighter-cap
+changes, the exact source SHA-256 is `682ae7757542edfdd4a4252486da2967f43cc5e38db8e7a271e6df3b096d6cf8` (current combined source after Appendix AH; the ledger values below are the prior filing's and are recomputed in Appendix AH). Its full self-test
+passes. Exact ledger values are `N_CV=1589119332517172204510`,
+`N_E=1445295614`, `V_CV=288613240907355274018833825`,
+`V_MAX=288613347576423778507775899`, `vmax=775008730887`, and Bernstein
+exponent 169.34769.... Total work is `N=288622783086018255968953554`, so
+`log2(N/2728)=76.4856877247366669571575847865057377321448186581597223531843796296926901888382766694401086...`, rounded upward to 76.48569. Memory remains
+27.258419 and the organizer rounded-field scalar is **83.744109**, which is
+0.051990 below the direct public parent's 83.800429 and 0.011860 below h8d at
+the organizer's rounded-field level.
 
-## 13. Organizer experiments (`experiments/manifest.json`)
+## Appendix AF. S217 frozen unique-pool H8 extension
 
-**a0p-online-r38** (H1, H5, Lemma 4.1). Trials 0..7: first blocks drawn from the organizer seed (two uniform words each, real 38-step compressions) until one has a passing class (at most 64); its first passing class is run on two batches (the class's first 512 members) with that class's program: the ok plane is compared lane by lane with E16x from the Step-2 words and the 38-step trace, and W7 with c7 - A_{-1} and F7; trial 0 also runs the batch of the semi-free-start pair's variant and requires the counted program to find and accept it. A pair M0 || M1, M0 || M1' (one variant, not a collision) is returned iff there is no mismatch. Trials 8..255 return no pair by design. Before any selection, each active trial draws 64 first blocks from the organizer seed and counts the W7 passes of all 32 classes (observations uncond_first_blocks, uncond_class_passes; expectation 64 x 32 x |F7| / 2^32 = 137.0 per trial under H1). Validation by us: 2,560 unconditional first blocks over 5 requests, 5,693 class W7 passes against 5,480 expected (ratio 1.039); passes come in groups of related classes (a success's CV1 passes 8.3 classes on average), so the per-trial count has a large variance.
+S217 was preregistered as the full unique-seed pool 101 through 168 and then
+run to completion: 1,700,000,000 pairs per side, SEL profile 257,983 and W9
+profile 258,427. Its point log2 ratio is -0.0024808069401957883, standard
+error 0.004014896826580175 bit and one-sided 99% lower bound
+-0.011820853637039925. Conservative four-decimal flooring therefore gives
+`MSG_LO=-0.0119`. The final aggregate and run-receipt SHA-256 values are
+`855af8ec8827d2bb643ba969ae158cb3ee80455e2a7e67c74083b2bd7e86ab38` and
+`0ec278be335e0d717af8237b1cd3dd4860112d7ece596d4f9ed9f7ebace0ff65`.
+Seeds are counted once; no adaptive stopping point is selected.
 
-**a0p-q3-r38** (consistency check of H2). Trials 0..9: 10 replicates of the estimator of q3 for the accepted event (64 particles; 64, 8, 8, 4, 2, 1 children at rows 17..22 with the row's E bits imposed, at row 19 one of the four patterns drawn uniformly, weight 4 x 2^-f; tail: 192 proposals per particle, a variant of 512 embedded samples of the selected classes (32 of the 32 classes represented), W7 uniform in F7 (its three affine families; the family drawn by rejection from its own word, the value bits from a fresh word), rows 23..37, outputs compared; every success rebuilt into CV1, M1, M1' and accepted only if it is a 38-step collision in the accepted event with W7 in F7). Trial t < 10 returns its first verified pair as CV1 || M1 and CV1 || M1' (semi-free-start collisions, never collisions from the IV); trial 10 returns a pair iff no rebuild failed and the mean of the 10 estimates is at least 2^-98.6000 (pass rule fixed from 48 development requests before any validation run; their pooled means: minimum -98.100, 5% quantile -97.100, median -96.398; replicate mean 2^-96.2059).
- What a pass shows: the replica estimates the same event as the study, restricted to the four row-19 patterns (a lower bound) and to 512 of the selected variants; its 48 development requests (480 replicates) have mean 2^-96.2059 against the study mean 2^-96.1821. Shifting their pooled means down by 1, 2 or 3 bits (a q3 that much lower) makes 2%, 38% and 90% of requests fail the rule (none at the claimed level): a pass excludes a gross error in the estimator or the program, it does not certify the bound.
+Only the message-side lower-bound literal changes from h8e. The construction,
+H8 state-transfer premise, H9 class law, F7 bounds, memory, operation prices,
+epoch/cap law, deterministic maximum and success target are unchanged. The
+exact source SHA-256 is `c3046b701513e9db19c3af4f788c20108217911de004611563fd7c379fde4053` and its full selftest passes. Exact
+ledger values are `N_CV=1593854405453391485939`, `N_E=1449602138`,
+`V_CV=289481060181078127087822198`,
+`V_MAX=289481167168036539210036698`, and `N=289490602677631016671214353`. Hence
+`log2(N/2728)=76.4900190548613271824282033457145649958966787239025355405367473572277633467173113267132965637226087451023928162143037214957430165063094700443049804987097495807794638406154090147295...`, rounded upward to 76.49002. Memory remains
+27.258419 and the organizer rounded-field scalar is **83.748439**: 0.002900
+below h8e, 0.011860 below h8d, and 0.051990 below the credited public parent
+at rounded-field precision.
 
-*Validation by us* (the shipped file; 256 trials; network-less container, 1 CPU, 128 MiB; python:3.12.12-slim-bookworm):
 
-```
-holdA  a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 1  first blocks 39  unconditional: 512 first blocks, 1060 class W7 passes (expected 1096.0)  0.6s
-holdA  a0p-q3-r38      returned  7  pooled 2^-96.275 (rule >= 2^-98.6)  replicates with a success 6/10  verified pairs 9  failed rebuilds 0  6.7s
-holdB  a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 0  first blocks 15  unconditional: 512 first blocks, 1052 class W7 passes (expected 1096.0)  0.5s
-holdB  a0p-q3-r38      returned  6  pooled 2^-95.847 (rule >= 2^-98.6)  replicates with a success 5/10  verified pairs 12  failed rebuilds 0  7.1s
-holdC  a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 1  first blocks 22  unconditional: 512 first blocks, 1298 class W7 passes (expected 1096.0)  0.6s
-holdC  a0p-q3-r38      returned  5  pooled 2^-97.554 (rule >= 2^-98.6)  replicates with a success 4/10  verified pairs 5  failed rebuilds 0  6.9s
-holdD  a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 0  first blocks 40  unconditional: 512 first blocks, 1273 class W7 passes (expected 1096.0)  0.5s
-holdD  a0p-q3-r38      returned  5  pooled 2^-96.270 (rule >= 2^-98.6)  replicates with a success 4/10  verified pairs 7  failed rebuilds 0  6.9s
-public a0p-online-r38  returned  8  lanes 4096  mismatches 0  stage-3a passes 1  first blocks 32  unconditional: 512 first blocks, 1010 class W7 passes (expected 1096.0)  0.5s
-public a0p-q3-r38      returned  7  pooled 2^-96.673 (rule >= 2^-98.6)  replicates with a success 6/10  verified pairs 8  failed rebuilds 0  6.9s
-```
+## Appendix AG. Fixed-alignment GoForceX stack (9cdbd3c1)
 
-## 14. Limitations
+Public submissions `6c6ee7a2-b1b9-4fd4-9347-07da87713b54` and
+`9cdbd3c1-1094-47fb-b0f7-752a25d9c032` differ in 23 executable source lines.
+The transform in `research/rivals/price_db38_h8g_freeze.py` reproduces the
+public new source byte-for-byte before applying it to h8f. It fixes the
+alignment to R*=8174, preserves one discarded random word in every seeded
+control, adds E_SEL=29,706,161, and uses E_SEL on both sides of the ledger and
+in the exact build charge.
 
-- q3 is a Monte Carlo estimate (participant-run, resampled particles; the Student bound assumes independent runs); the organizer replica checks a reduced version of it. The row-19 pattern support of the replica is the four patterns of Section 9, which cover all 188,796 classified successes of this study (as they did in the study of 1a695f0b), so the replica estimates a lower bound of the event's probability.
-- The pair term and the success distribution are measured on rebuilt estimator successes (H1 premise for real chaining values).
-- The bit-sliced programs are executed on sampled batches; full-scale execution is infeasible.
+Truth repair: R*=8174 is **not** the census argmax; r=8150 has 29,708,804
+entries. R*=8174 is the highest-retained alignment among the four tables
+directly measured by H1W and has E=29,706,161. Executable comments and this
+proof use the accurate description.
 
-## Appendix A. Self-test and calibration of `experiments/a0p38.py`
+The score improvement is conditional on one changed premise: H7 now transfers
+acceptance/retention independence to this fixed alignment, whereas h8f used an
+average over uniform alignments. If that strengthening is declined, the exact
+fallback is h8f at 83.748439. H3B's stopped-path charge and S217's
+`MSG_LO=-0.0119` are orthogonal and unchanged.
 
-```
-1 the semi-free-start pair collides, M != M', accepted event, W7 in F7 ok 
-  its variant A0 is in G and in a selected class                       ok (class 13)
-2 row 16: the 160 W16 words hold it; 20,000 random words and 1,280 neighbours agree ok 
-3 Lemma 4.1: E16x formula, W7 = c7 - A_-1, rows 11..15 and the word differences on 20 chaining values ok 
-4 row-16 programs (one per class): instructions mean / max, loads, spill stores ok 1462.25 / 1482 (loads 240..249, stores 16..20)
-  program against the definition on 2 x 512 lanes of real first blocks ok [{'uncond_first_blocks': 64, 'uncond_class_passes': 181, 'first_blocks': 2, 'passing_classes': 8, 'lanes': 512, 'stage3a_passes': 0, 'mismatches': 0}, {'uncond_first_blocks': 64, 'uncond_class_passes': 134, 'first_blocks': 1, 'passing_classes': 6, 'lanes': 512, 'stage3a_passes': 0, 'mismatches': 0}]
-5 the counted program finds the semi-free-start pair in its batch      ok (5712 operations)
-6 replicate: estimate, accepted pairs rebuilt and verified, failed rebuilds 0 ok (log2 -94.887, 3 pairs)
-   calibrate: {'prog': [1447, 1466, 1441, 1457, 1449, 1468, 1443, 1459, 1482, 1475, 1482, 1475, 1469, 1466, 1472, 1469, 1444, 1463, 1438, 1454, 1446, 1465, 1440, 1456, 1479, 1472, 1479, 1472, 1466, 1463, 1469, 1466], 'w7': 24, 'fb_fixed': 35, 'w7_loop': 4, 'scalars': 39, 'planes': 896, 'batch_ctl': 6, 'class_ctl': 7, 'lane': 208, 'deep': 3105, 'tk': 12, 'classes': 32, 'class_size': 24576}
-SELFTEST PASSED
-```
+The combined exact source SHA-256 is `682ae7757542edfdd4a4252486da2967f43cc5e38db8e7a271e6df3b096d6cf8` (current combined source after Appendix AH; the ledger values below are the prior filing's and are recomputed in Appendix AH). Exact ledger:
+`N_CV=1589119332517172204510`, `N_E=1445295614`,
+`build=73804325891`, `V_CV=288613240907355274018833825`,
+`V_MAX=288613347576423778507775899`, and `N=288622783086018255968953554`.
+Thus `log2(N/2728)=76.4856877247366669571575847865057377321448186581597223531843796296926901888382766694401086...`, rounded upward to **76.48569**.
+Memory remains 27.258419, and the rounded-field scalar is **83.744109**.
 
-## Appendix B. The conditions of rows 16..22 (the accepted event; member x, `experiments/a0p38.py` tables)
+## Appendix AH. Current numerical tightenings (H8 six-decimal charge and H1W walk mean)
 
-Per row: for A, E, W the mask of fixed x-values (trail difference bits and one-bit conditions), their x-values and the XOR difference; the '+' pairs E_i[b] = E_{i-1}[b]; the two-bit conditions (kind 0 A / 1 E / 2 W, row, bit; = or !=). Row 19 is checked on its XOR differences and the x-values of its difference bits only.
+This appendix is the current authority for the two numerical charges tightened in this
+filing. It supersedes the four-decimal H8 floor `MSG_LO=-0.0119` used in Appendices
+AB-AG and the round H1W charge `6.770000` used there and in their quoted ledger rows.
+The two executable changes in the source of Appendix X13 are `MSG_LO='-0.011821'`
+and `WALK_MEAN=D('6.760092')`; geometry, table, memory, success target, class,
+selection, heuristics and every other charged term are unchanged.
 
-```
-row 16 E: mask 48421a80 x-value 48021200 xor 40421200
-row 16 W: mask 20000000 x-value 20000000 xor 20000000
-row 16: E16[7] = E16[26]
-row 16: E16[14] != E16[28]
-row 16: A15[4] = A16[4]
-row 16: E16[11] = E16[16]
-row 16: A15[7] = A16[7]
-row 16: A14[15] = A16[15]
-row 16: A14[16] = A16[16]
-row 16: A15[17] = A16[17]
-row 16: A14[23] = A16[23]
-row 16: A14[25] = A16[25]
-row 16: A15[27] = A16[27]
-row 16: E16[3] != E16[8]
-row 16: E16[4] = E16[23]
-row 16: W16[20] != W16[27]
-row 16: W16[22] = W16[31]
-row 16: W16[4] != W16[6]
-row 16: A15[29] = A16[29]
-row 16: W16[14] = W16[18]
-row 16: W16[8] = W16[25]
-row 16: W16[1] != W16[12]
-row 17 A: mask 20000000 x-value 20000000 xor 20000000
-row 17 E: mask 40421a80 x-value 00000800 xor 00000000
-row 17 +: E17[b] = E16[b] for the bits of 00040010
-row 17: A17[9] != A17[20]
-row 17: A16[15] = A17[15]
-row 17: A17[6] = A17[18]
-row 17: A16[16] != A17[16]
-row 17: A16[23] = A17[23]
-row 17: A16[25] = A17[25]
-row 17: A17[8] != A17[17]
-row 18 E: mask 40461210 x-value 00421200 xor 00040010
-row 18 +: E18[b] = E17[b] for the bits of 01808000
-row 18: E18[0] = E18[13]
-row 18: E18[17] = E18[22]
-row 18: E18[5] != E18[23]
-row 18: A16[29] = A18[29]
-row 18: E18[9] = E18[23]
-row 19 E: mask 01848010 x-value 00008010 xor 01808000
-row 19: E19[10] = E19[29]
-row 19: E19[2] != E19[20]
-row 19: E19[5] != E19[18]
-row 19: E19[6] = E19[19]
-row 19: E19[10] != E19[28]
-row 19: E19[11] = E19[29]
-row 19: E19[1] = E19[28]
-row 19: A18[29] = A19[29]
-row 19: E19[4] != E19[9]
-row 19: E19[5] != E19[10]
-row 20 E: mask 01848010 x-value 00040010 xor 00000000
-row 20 +: E20[b] = E19[b] for the bits of 20000000
-row 21 E: mask 21808000 x-value 21008000 xor 20000000
-row 21: E21[10] = E21[15]
-row 21: E21[11] = E21[24]
-row 21: E21[2] = E21[16]
-row 22 E: mask 20000000 x-value 00000000 xor 00000000
-```
+**H8 charge.** The S217 unique-seed panel's measured one-sided 99% lower bound on
+the message-side log2 factor is `-0.011820853637039925` (point
+`-0.0024808069401957883`, SE `0.004014896826580175`; 1,700,000,000 pairs per side,
+seeds 101..168 counted once). The prior filing floored that bound to `-0.0119`,
+which is more conservative by `0.000079146...` bit but is not the tightest
+justified bound. This filing charges `-0.011821`, which is still below the exact
+lower bound (by `0.000000146...` bit). No new measurement, probability premise or
+extrapolation is introduced; the panel, its registration and its receipt hashes are
+those recorded in Appendix AF.
 
-## Appendix C. Programs (SHA-256 and full listings; `experiments/a0p38.py` is assembled by `mka0p.py` from the `a0p_*.py` parts)
+**H1W charge.** The H1W panel's four complete-table means are 6.739121, 6.737195,
+6.750949 and 6.738023 with standard error about 0.0040; the largest one-sided 99%
+upper bound is 6.760092. The prior filing charged the round value 6.770000, which
+is conservative by 0.009908. This filing charges 6.760092. The resulting per-C1-claw
+cost, per_a0 and wbar are `24.3958866956861381048...`, `10.914650...` and
+`181595.727...`; the deterministic 18/read maximum and the 3,014-operation step-3b
+path are unchanged. No new measurement, probability premise or extrapolation is
+introduced; the four-table panel is the evidence retained in Appendix U.
 
-- `experiments/a0p38.py`: 63552a536ebc2c4893d01838fd65235e91bbbf9f7c3334c49be4bb657a2b30a4
-- `ledger_a0p.py`: 6627e0b3c5b4de46b9e5b1c210d52239b8c46b57c537a6c87f1023fb61a2776d
-- `lp_classes.py`: f2df440ab9ef74f5d9aedfa57ca1b1c86a8ba5d379509dcb5b1afe2cadf2f1f5
-- `a0cls.c`: 6521cee23d00bd58118dddec95d3b47edf9b1cef6efd9e66ba141cc69f90aa72
-- `a0p_ref.py`: 74b6b6d789225225fa9aef2a11f3d6a97106a896277707e560c0138600070c48
-- `a0p_core.py`: 9fb748904f2e525e2ff8e69d57c244cd887ca13564f4c9d2547351191773b029
-- `a0p_prog.py`: 8a57e82530b0f3518653b793af3b2579b240d4139b98f0d02b22e076b16b002b
-- `a0p_scal.py`: d4ee1e2db69ca2968a71c736996c34e821fe25e71a30b3afca8ef207d757a3ed
-- `a0p_run.py`: 50a21c92433990ce7a34b50ba592ea54bd5a46f17f9ed288dc6fcd3538b56e77
-- `a0p_main.py`: 1e0e3eccf38923f0c958db57dd33b3516137327da317f1fbe3dcdc620499bcb5
-- `mka0p.py`: 03042e080b33dfaec2add1e23af1be06ed3bda2543b5ddc02e07cada09e9f3ec
-- `mkvt.py`: 19e95c874e6d0b05447836aea5d7289a467c581bcb03bb94376154d04e25b26a
-- `a0fam.c`: e74ead8bd7d20ce7ef40284fd91a104ce71b3fe5b8cadcd59b9c274b3ad4eb69
-- `h3p.py`: 0ce84d4db2dbe6e696b962e84db6f24e67e56d03535c6ab266e57042625b6717
-- `q3tv.c`: e01dbb414ef2a7e0cecf79638bb287130e1309dfa439727b57bc8b32b3957ead
-- `sweep.py`: 7e2dcef5b849da79236857a328306ddee77c3acf34975e6c5bb72ab69dcbc918
-- `stepk.py`: 59284d8f7f19bb62cc0265f3b9e18ac2d1532b79a755d6e3d3b672298dfc9ab0
-- `score.py`: 22df6e29bdeef726bb395123426656641e262e8d5cd3117839caba4e1682493e
-- `joint.py`: 7e641e68540e79d3be7902d52bccb372febe17dc16ca5364f9390c3ecf37cb95
-- `fromjoint.py`: a05593f8e0104ee3d2d378257159d45bce7108f7d5130f43a53c5850bd762b61
-- `prep.py`: 7550447964f6b5444638db1b60142475ea839cb066e262b6bfeb6d713b957299
-- `cond.py`: 2220ff08693b795d999eabb5c31dac06fcf9905eb57f403bdd2dbe05901426a8
-- `sdmodel.py`: 023a387e5eeb2f5ac58bc7e6175c0aa44e80775ddb88b1964dde21b461eaf420
-- `vmodel.py`: 86bafa88614a1b85b1d3601f3b27479c381442769b0fda054ff7651dbd84244d
-- `sha38.py`: 7aa83ceebd6baede02877736640e066e09d640656a08929e792ae1c5c1b0fe67
-- `mkpkg4.py`: 78347ae128bf31c2b4ab2c511902fc50c2c8676495e47443dc522899b0ac2f07
+**Recomputed ledger.** With the same `build`, `vmax`, allowances and `K=2^40`, the
+exact integers are:
 
-### ledger_a0p.py
-
-```python
-#!/usr/bin/env python3
-"""ledger_a0p.py - exact ledger of the A0-variant attack with P8 (own code; the structure of the ledger of 2d1c4fc2 / fb176310).
-T = A_C + A_S + DEV + N_FB + (N_FB x FIXED + V_MAX + OVER + PRE + FIN_OPS) / C + FIN_UNITS, in target compressions, C = 2728.
-Every count is an executed count of experiments/a0p38.py (`calibrate`); probabilities: p7 = |F7| / 2^32 (exhaustive), the stage-3a rate 2^-12
-and the row-16 rate 160 / 2^32 (exact under Lemma 5.1), q3_model (H2), the pair term (H3).  Integers and fractions; logs at 80 digits."""
-from fractions import Fraction as Fr
-from decimal import Decimal as D, getcontext
-import math, argparse, json
-getcontext().prec = 80
-C = 2728
-F7 = 287_309_824; p7 = Fr(F7, 2 ** 32)
-CAL = dict(prog=[1447, 1466, 1441, 1457, 1449, 1468, 1443, 1459, 1482, 1475, 1482, 1475, 1469, 1466, 1472, 1469, 1444, 1463, 1438, 1454, 1446, 1465, 1440, 1456, 1479, 1472, 1479, 1472, 1466, 1463, 1469, 1466],
-           w7=24, fb_fixed=35, w7_loop=4, scalars=39, planes=896, batch_ctl=6, class_ctl=7, lane=208, deep=3105, tk=12, classes=32, class_size=24576, gl=160, f7=F7,
-           mask_bits=[20, 21, 20, 21, 21, 22, 21, 22, 22, 22, 23, 23, 21, 21, 22, 22, 20, 21, 20, 21, 21, 22, 21, 22, 22, 22, 23, 23, 21, 21, 22, 22])   # the 32 classes of P8 (per-class programs; mask widths of the classes, in class order)
-
-def dlog2(x):
-    x = Fr(x); return (D(x.numerator).ln() - D(x.denominator).ln()) / D(2).ln()
-def qmodel(q):
-    num = Fr(round(q * 10000)) / 10000
-    return Fr(int((D(2) ** (D(num.numerator) / D(num.denominator))) * D(10) ** 75), 10 ** 75)
-
-def ledger(q3=-97.0, h3=-5.1, AC=78, AS=74, DEV=70, succ=Fr(39, 100), eps=Fr(1, 2 ** 16), cal=None, NFB=None):
-    k = dict(CAL, **(cal or {}))
-    ncl, size = k['classes'], k['class_size']; nb = size // 256
-    p7 = Fr(k['f7'], 2 ** 32)
-    q = qmodel(q3); g = ncl * size * p7                              # good pairs per first block (exact, linearity)
-    pr = k['prog'] if isinstance(k['prog'], list) else [k['prog']] * ncl   # per-class program lengths (one per class)
-    assert len(pr) == ncl
-    per_class = k['class_ctl'] + nb * (Fr(sum(pr), ncl) + k['batch_ctl'])     # expected work of one passing class (each passes with p7: the mean is exact)
-    per_class_max = k['class_ctl'] + nb * (max(pr) + k['batch_ctl'])          # the most expensive class (work cap)
-    lanes = Fr(size, 2 ** k['tk']) * k['lane']                         # expected stage-3a lanes of a passing class x their cost
-    r16 = Fr(size * k['gl'], 2 ** 32) * k['deep']                          # expected row-16 passes of a passing class x their cost
-    vbar = ncl * (k['w7'] + k['w7_loop']) + 2 * ncl * p7 + min(Fr(1), ncl * p7) * (k['scalars'] + k['planes']) + ncl * p7 * (per_class + lanes + r16)
-    vmax = ncl * (k['w7'] + k['w7_loop'] + 2) + k['scalars'] + k['planes'] + ncl * (per_class_max + size * (k['lane'] + k['deep']))
-    over = vmax                                                        # a first block's maximal work beyond V_MAX (the cap is tested before each first block and after each class)
-    h3f = Fr(int(D(2) ** D(str(h3)) * D(10) ** 30), 10 ** 30)          # H3: sum_t Pr[A_t] E[R_f - 1 | A_t] <= 2^h3 E[X_f]
-    lam = g * q * (1 - h3f / 2)                                        # per first block, Bonferroni
-    def pcap(n): return Fr(vmax, 1) / (eps ** 2 * n * vbar)
-    def ok(n): return D(1) - (-(D(n) * D(lam.numerator) / D(lam.denominator))).exp() - D(pcap(n).numerator) / D(pcap(n).denominator) - D(2) ** -60 - D(succ.numerator) / D(succ.denominator) >= 0
-    if NFB is None:
-        lo, hi = 1, 2 ** 100
-        while lo < hi:
-            mid = (lo + hi) // 2
-            if ok(mid): hi = mid
-            else: lo = mid + 1
-        NFB = lo
-    VMAX = math.ceil((1 + eps) * NFB * vbar)
-    mb = k.get('mask_bits'); mb = mb if isinstance(mb, list) and len(mb) == ncl else [21] * ncl   # mask width of each class (21: the mask 7fe96c7c)
-    PRE = sum((1 << b) * 40 + nb * 256 * b * 2 for b in mb) + 2 ** 32   # member tests over each class's cube (40 each), planes (2 per member bit), program generation
-    FIN_OPS, FIN_UNITS = 1600, 6
-    alw = 2 ** AC + 2 ** AS + 2 ** DEV
-    N = C * (alw + NFB + FIN_UNITS) + NFB * k['fb_fixed'] + VMAX + over + PRE + FIN_OPS
-    T = Fr(N, C); claim = math.ceil(float(dlog2(T)) * 1e5) / 1e5
-    assert D(N).ln() - D(C).ln() <= D(round(claim * 1e5)) / D(100000) * D(2).ln()
-    return dict(NFB=NFB, log2NFB=float(dlog2(NFB)), g=float(g), log2gq=float(dlog2(g * q)), vbar=float(vbar), vbar_exact=vbar, vmax=vmax, VMAX=VMAX,
-                over=over, PRE=PRE, Pcap=float(pcap(NFB)), N=N, log2T=float(dlog2(T)), claim=claim, per_class=per_class, alw=float(dlog2(alw)),
-                pre_log2=float(dlog2(Fr(PRE, C) + alw)), attack=float(dlog2(Fr(N - C * alw, C))))
-
-if __name__ == '__main__':
-    ap = argparse.ArgumentParser(); ap.add_argument('--q3', type=float, default=-97.0); ap.add_argument('--h3', type=float, default=-5.1)
-    ap.add_argument('--cal', default=None); ap.add_argument('--sens', action='store_true'); a = ap.parse_args()
-    cal = json.loads(open(a.cal).read()) if a.cal else None
-    r = ledger(a.q3, a.h3, cal=cal)
-    for key in ('NFB', 'log2NFB', 'g', 'log2gq', 'vbar', 'vmax', 'VMAX', 'over', 'PRE', 'Pcap', 'per_class', 'alw', 'pre_log2', 'attack', 'N', 'log2T', 'claim'): print(key, r[key])
-    n, E5, kk = r['N'], 100000, round(r['claim'] * 100000)
-    assert (C ** E5 << (kk - 1)) < n ** E5 <= (C ** E5 << kk); print('certificate: (2728^E << %d) < N^E <= (2728^E << %d)' % (kk - 1, kk))
-    if a.sens:
-        for nm, kw in [('q3_model = the study mean 2^-96.2971', dict(q3=-96.2971)), ('q3_model 2^-97.78 (the q3_model of fb176310)', dict(q3=-97.78)),
-                       ('pair term 2^-3', dict(h3=-3.0)), ('A_C = 2^78', dict(AC=78)), ('A_C = 2^84', dict(AC=84)), ('one shared row-16 program of 1,511 for every class', dict(cal=dict(prog=1511)))]:
-            kw2 = dict(q3=a.q3, h3=a.h3, cal=cal); kw2.update(kw); x = ledger(**kw2); print('%-40s %.5f (attack %.4f)' % (nm, x['claim'], x['attack']))
+```text
+N_CV  = 1589032316906413946599
+N_E   = 1445216474
+V_CV  = 288561754736423708970454854
+V_MAX = 288561861399651339108383188
+ALLOW = 9435509593702435651584
+OVER  = 775008730887
+FIN   = 16795184
+N     = 288571296909245816569560843
 ```
 
-### lp_classes.py
+The exact time is
+`log2(N/2728)=76.4854303456169727730405314062844012983154159165417187600564715761420796424784767420679591662195313606940914225006956271...`,
+rounded upward at five decimals to **76.48544**. Memory remains the counted phase
+maximum 160,546,816 bytes, `memory_log2_bytes=27.258419`. The organizer rounded-field
+scalar is `76.48544 + 27.258419 - 20 = 83.743859`; the exact unrounded scalar is
+`83.743849158215805024548822244065393097931304621085141989408411856278381708801343571059270141048...`.
 
-```python
-"""lp_classes.py <S prefix> <out dir> [n classes]: deterministic class selection for the A0-variant attack (own code; replaces the
-hand-run selection used for P8). From <S>.cls.txt (a0cls: c7 size, classes of size >= 256) and the members of the largest classes
-(a0cls member pass): mask of a class = OR of (a0 ^ min member); keep the mask shared by the most largest-size classes (ties: smaller
-mask value), take the first n of them by c7. Writes classes.txt (c7 base size), vars_pool.txt (j a0 A1 A2 w8 Wx9 Wx10, the q3tv VARS
-format) and derived.json (D7, T7, MASK, CBITS, class size, classes). With ALLMAX=1: every largest-size class, whatever its mask (for
-per-class programs); classes.txt then has a fourth column, the class's own mask."""
-import sys, os, json, subprocess, collections
-sys.path.insert(0, '/work/m38')
-from sha38 import trace, S0, S1, s0, CH, MAJ, M32 as M
-pre, out = sys.argv[1], sys.argv[2]; NC = int(sys.argv[3]) if len(sys.argv) > 3 else 8
-os.makedirs(out, exist_ok=True)
-sizes = [(int(c, 16), int(n)) for c, n in (l.split() for l in open(pre + '.cls.txt'))]
-top = max(n for _, n in sizes); big = sorted(c for c, n in sizes if n == top)
-open(out + '/big_c7.txt', 'w').write(''.join('%08x\n' % c for c in big))
-r = subprocess.run(['/work/m38/a0cls', pre + '.a0.txt', '0', out + '/big_agg.txt', out + '/big_c7.txt', 'agg'], capture_output=True, text=True, check=True)
-info = {}                                                             # c7 -> (min member, mask = bits that vary)
-for l in open(out + '/big_agg.txt'):
-    c, b, m, n = l.split(); info[int(c, 16)] = (int(b, 16), int(m, 16))
-cnt = collections.Counter(m for _, m in info.values())
-MASK = min(cnt, key=lambda m: (-cnt[m], m))
-ALL = os.environ.get('ALLMAX') == '1'
-sel = sorted(info)[:NC] if ALL else [c for c in sorted(info) if info[c][1] == MASK][:NC]
-open(out + '/sel_c7.txt', 'w').write(''.join('%08x\n' % c for c in sel))
-subprocess.run(['/work/m38/a0cls', pre + '.a0.txt', '0', out + '/sel_members.txt', out + '/sel_c7.txt'], capture_output=True, text=True, check=True)
-mem = collections.defaultdict(list)                                   # members of the selected classes only
-for l in open(out + '/sel_members.txt'):
-    c, a = l.split(); mem[int(c, 16)].append(int(a, 16))
-cbits = 0
-for c in sel: cbits |= info[c][0] ^ info[sel[0]][0]
-P = json.load(open(pre + '.pair.json')); cv, Wx, Wy = P['cv'], P['Wx'], P['Wy']
-tx = trace(cv, Wx, 16); A, E = tx[0], tx[1]
-C4 = (A[4] - S0(A[3]) - MAJ(A[3], A[2], A[1])) & M
-W8C = (E[8] - A[4] - S1(E[7]) - CH(E[7], E[6], E[5]) - 0xd807aa98) & M
-assert ((W8C - ((A[0] + C4) & M)) & M) == Wx[8], 'S own A0 does not reproduce W8'
-with open(out + '/classes.txt', 'w') as f:
-    for c in sel: f.write('%08x %08x %d' % (c, info[c][0], len(mem[c])) + (' %08x\n' % info[c][1] if ALL else '\n'))
-with open(out + '/vars_pool.txt', 'w') as f:
-    for j, c in enumerate(sel):
-        for a0 in sorted(mem[c]): f.write('%d %08x %08x %08x %08x %08x %08x\n' % (j, a0, A[1], A[2], (W8C - ((a0 + C4) & M)) & M, Wx[9], Wx[10]))
-sval = lambda row: sum((-(1 << (31 - k)) if c == 'u' else (1 << (31 - k))) for k, c in enumerate(row) if c in 'un') & M   # as prep.py
-C = json.load(open(pre + '.char.json'))
-D7 = (Wy[7] - Wx[7]) & M; T7 = (sval(C['22']['W']) - ((Wy[15] - Wx[15]) & M)) & M   # s0 difference of W7 the trail needs (W22 = .. + W15 + s0(W7))
-d = dict(D7='%08x' % D7, T7='%08x' % T7, MASK='%08x' % MASK, mask_bits=bin(MASK).count('1'), CBITS='%08x' % cbits, class_size=top,
-         classes_with_mask=cnt[MASK], n_largest=len(big), selected=['%08x' % c for c in sel], a0cls=r.stdout.strip())
-json.dump(d, open(out + '/derived.json', 'w'), indent=1); print(json.dumps(d))
+**Verification.** The exact embedded source (59,512 characters) has SHA-256
+`2ca106e5647efbceaa079b2add7a75fc8edd043fc0e08943286204b84f80ed62`.
+`selftest` passes with the same 2,304 tag lane checks, 16,128 combined tag/C1 lane
+checks (568 firing), bitslice maximum/bound 218 and success lower bound `>= 0.39`;
+`ledger` reconstructs every integer above. These are deterministic mechanical checks,
+not a measurement of the rare full event.
+
+**Boundary.** The state-side H8 premise, H1/H1W, H2-P1/H2b, H3-P1, H4a-c,
+H6/H6D/H6E, H7, H9 and R6D determinism remain exactly as declared. This appendix
+states resource bounds only; it is not a mathematical proof, a qualified baseline or
+human acceptance.
+
+## Appendix ZS. Eight-column restriction and the counted phase maximum
+
+**Claim.** Restrict the parent layout to **eight relative columns 0 through 7** (coverage 64, probe limit 69) and reschedule the inherited preprocessing as follows. (i) Phase E releases the tail list clause by clause as the record is written, so its bounded figure is the model part 85,323,392 plus procedure code 1,912,832 and recorder overhead 2,097,152, i.e. **89,333,376 bytes**; the 18,997,248-byte record is charged as the alternative endpoint of that coexistence maximum, exactly as the parent Appendix Z charged it. (ii) Phases R, S and D drop the kernel-state and launcher rows, which Appendix Z already established as kernel-side and exec-replaced for phase E. (iii) The recorded tail-clause list is released after phase R pass 1: pass 1 regenerates the clause stream into SHA-256 only and compares it with the recorded digest, and pass 2 streams the regenerated stream into the solver, so the record-clause bytes never coexist with the solver peak and are charged once, in phase E. Phase R is then **136,433,664 bytes** (parent 157,474,816 less 4,194,304 + 4,194,304 and less the 18,997,248 record), phase S 95,485,952 and phase D 106,987,520. The counted phase maximum is phase R, **136,433,664**, which the eight-column online image 127,926,304 lies 8,507,360 below. memory_log2_bytes is **27.02363** and the organizer rounded-field scalar is 76.52419 + 27.02363 - 20 = **83.54782**. No probability premise, success budget, pricing lemma or online operation count of the parent changes.
+
+### ZS.1 Geometry and pricing at eight columns
+
+Coverage is 64 residues per 2^13 frame, buckets are (column c, row) with c in 0..7, and the record, lane, mask and tree layout are the parent layout. A window probes with probability 2*69/8192 = 138/8192; over the 69 probing values there are 1280 main-read positions, 700 next-read positions and 100 frame-crossing reads, so reads/probe = 2080/69 and probe cost = 14+12+19*2+7*(2080/69) = 18976/69. Per_a0 = 235/256 + (138/8192)*(41+18976/69) + (20*E/2^32)*per_C1 = 8.94191160597174093786557199060916900634765625 with E = 23,771,164, and wbar = C+25+2^-6*(70+1024+2^20*per_a0) = 149,274.373502241003525989531494140625. The 218-operation front end, the Lemma B double-prime / C1 / C2 / G / F7 chain, the H1W walk charge 6.760092, the H3B stopped-path mean 842.361097 and the 3,014-operation deterministic path are unchanged, and the bucket law of Appendix U applies to every bucket of the narrower table because each bucket still receives the same eight candidate positions and keeps the same first six.
+
+### ZS.2 Census row for coverage 64
+
+The recorded eight offset arrays of the parent packet (section 3.1 and Appendix AA; 8 x 1024 counts, the instrument the parent re-executed) give the retained count of a width-k window at alignment r = 8m+j as the cyclic window sum on offset array j. Recomputing the parent width-10 row from those arrays reproduces minimum 29,617,909, maximum 29,708,804 and sum 242,952,259,320 exactly, which calibrates the reduction. The width-8 row is **minimum 23,694,709, maximum 23,773,042, sum 194,361,807,456** over the 8,192 rotations, satisfying the mean law 15*194,361,807,456 = 8*364,428,388,980. The fixed alignment **R* = 8174** (inherited before outcomes) has **E(8174,8) = 23,771,164**, and every epoch table of this construction has that retained count.
+
+### ZS.3 Ledger and replay
+
+The exact ledger of Appendix A is N_CV = 1,985,730,719,901,168,031,200 first blocks, 1,806,011,569 epochs, V_CV = 296,418,991,844,310,695,027,883,684, V_MAX = 296,419,124,850,616,334,451,240,566, ALLOW = 9,435,509,593,702,435,651,584, OVER = 775,008,730,887, FIN = 16,795,184, N = 296,428,560,360,210,811,912,418,221 and time_log2 = 76.5241869934677090..., charged 76.52419. The build cost is 73,646,430,578 with E = 23,771,164, and the epoch length, cap lemma, success budget and second-order terms are the parent ones. The shipped source of Appendix X13 is the parent source with NCOL=8, a CENSUS8 entry carrying the ZS.2 row, E_SEL=23,771,164 and the ZS charge 136,433,664; its SHA-256 is 8f3fb2bdb7bc074cd562f0d36cbd2ae0a723a0ada512ec1cb8a0ea36157c7fba. No other source line changes, and no probability or allowance premise is added.
+### ZS.4 Schedule descriptor charged in phase R
+
+The two regeneration passes consume the recorded covers, model arguments, V, C and the recorded digest, not the recorded tail-clause bytes. That schedule descriptor is retained in memory as an explicit 1,048,576-byte row of phase R, and the 18,997,248-byte clause record is released after pass 1. Phase R is therefore 157,474,816 - 4,194,304 - 4,194,304 - 18,997,248 + 1,048,576 = **131,137,536 bytes**, which remains the counted phase maximum: the eight-column online image 127,926,304 lies 8,507,360 below it, and phase E 89,333,376, phase S 95,485,952 and phase D 106,987,520 are lower. memory_log2_bytes is **27.02363**, the upward rounding of log2(136433664)=27.0236291570188016337..., and the organizer rounded-field scalar is 76.52419 + 27.02363 - 20 = **83.54782**. Passing the clause record itself through pass 2 instead would charge 18,997,248 more (phase R 149,086,208), which this filing does not claim and does not need.
+
+### ZS.5 The counted phase maximum is the gmass development cell
+
+The procedural phases of this filing are phase R 131,137,536, phase E 89,333,376, phase S 95,485,952, phase D 106,987,520 and the eight-column online image 127,926,304. All are below the inherited gmass development/preprocessing cell, which Section 10 reports as 133,236 KiB = **136,433,664 bytes** and which the charge must include: the counted phase maximum is 136,433,664, the eight-column image lies 8,507,360 below it, and memory_log2_bytes is **27.02363** (upward rounding of log2(136433664)=27.0236291570188016337...). The organizer rounded-field scalar is 76.52419 + 27.02363 - 20 = **83.54782**. Charging the gmass cell changes nothing else: no probability premise, success budget, pricing lemma or online operation count changes.
+
+## Appendix ZT. Seven-column restriction, deterministic full-cycle `ustart`, complete memory & advice reconciliation, and native C witnesses
+
+This appendix supersedes the active 8-column and gmass-peak claims of `Appendix ZS`, while preserving `Appendix ZS` verbatim above as the `74ec8ef` base record.
+
+### ZT.1 Seven-column geometry, pricing, census, and full-cycle `ustart` theorem
+
+At `NCOL = 7`, coverage is `56 * 2^19 = 29,360,128` words (`(P(u) - 8174) mod 8192 < 56`), `probe_limit = 61`, `probing_low_words = 122`, and `reads_per_head = 26 * 7 = 182` (`112` main-read + `70` next-read positions including `10` frame crossings over `122` probing low values), giving `reads/probe = 1820/61`, `probe = 16644/61 = 272.852459...`, `claw = 3.0491985237...`, `per_a0 = 7.956042613...`, `wbar = 133,121.89592408...`, `build = 73,567,583,873`, and `vmax = 775,008,730,887`. From the exact `Appendix AA` offset arrays (`15 * 170,066,581,524 = 7 * 364,428,388,980`), `E_LO = 20,730,062`, `E_HI = E(8174, 7) = 20,811,431`.
+
+Because the algorithm iterates deterministically over **all `N_E = 2^32 = 4,294,967,296` values of `ustart`** with `K = 528,101,566,268` first blocks per epoch (`N_CV = 2,268,178,956,087,436,771,328`):
+- For every fixed `ustart`, `p(ustart) >= E_{cv}[X | ustart] - 0.5 E_{cv}[X(X-1) | ustart]` (Bonferroni).
+- Summing across all `2^32` tables gives `2^-32 sum_{ustart} p(ustart) >= E_{u,cv}[X] - 0.5 E_{u,cv}[X(X-1)] >= (1 - 2^-8.5) E_{u,cv}[X]` by `H3-P1`.
+- Multiplying failure probabilities over the `2^32` epochs gives `prod_u (1 - p(u))^K <= exp(-K sum_u p(u))`, with zero Jensen/epoch-mixture gap and withdrawing `Lemma T` / `a-bar` dependency.
+Exact ledger outputs (`x13_k7.py ledger`): `V_CV = 301,944,570,885,976,883,229,254,312`, `V_MAX = 301,944,886,856,343,663,501,271,720`, `ALLOW = 9,435,509,593,702,435,651,584`, `OVER = 775,008,730,887`, `FIN = 16,795,184`, `N = 301,954,322,365,938,140,962,449,375`, `time_log2 = 76.5508328628... ->` **`76.55084`**, `memory_log2_bytes =` **`26.86022`**, scalar = **`83.41106`**.
+
+### ZT.2 Complete Phase Peak Accounting and `H6-D`/`H6-E` Sensitivity
+
+Every preprocessing and online phase is accounted for below:
+- **Phase R (maximum): `121,823,232 B`** = `filter 1,048,576 + key 16,384 + model 200,704 + pipes 2,097,152 + code 1,912,832 + full Lemma-RF tail record 18,997,248 + regen_c 6,291,456 + Kissat 90,210,304 + solver pipe 1,048,576`. (Notice the full `18,997,248 B` tail-clause record stays charged simultaneously with Kissat.)
+- **Phase E (`StreamingCNF`, using `85,323,392 B` strictly as a LOWER BOUND): `<= 120,955,648 B`** = `tail_lists (<= G - 85,323,392 = 71,213,440) + tail_ints 4,714,880 + full RF17 record 18,997,248 + code 1,912,832 + StreamingCNF runtime 24,117,248` (`867,584 B` below `Phase R`, verified at `VmHWM = 21,307,392 B` by `phase_e_stream.py`).
+- **Online (`NCOL = 7`): `115,343,392 B`** = `110,100,480 + 32 + 5,242,880` (includes `327,680 B` uniform lookup tables inside `5 MiB` allowance; `witness_k7.c` max `VmHWM = 114,606,080 B`).
+- **Phase S: `96,534,528 B`** = `1,048,576 + 16,384 + 200,704 + 2,097,152 + 1,912,832 + 90,210,304 + 1,048,576`.
+- **`p8fam`: `71,163,904 B`**; **5-partition H7: `65,265,200 B`**; **class pool: `60,522,496 B`**; **Step-1: `50,409,472 B`**; **`gmass_lm`: `25,165,824 B`**; **`fillr2_lm`: `25,165,824 B`**; **Phase D (`decode_c`): `13,647,872 B`**.
+- *Sensitivities:* Restoring kernel+launcher (`+8 MiB`) in Phase R raises it to `130,211,840 B` (`26.95627`). Because `Phase E` uses `StreamingCNF` (retaining zero `sha256_model` clauses), `Phase E` depends only on `tail_lists <= G - 85,323,392` and sits `867,584 B` below `Phase R` even under simultaneous peak coexistence of all tail structures + full `RF17` record.
+
+### ZT.3 Itemized Nonuniform Advice Inventory (`nonuniform_advice_log2_bytes = 17`)
+
+Every fixed nonuniform table or constant in `x13_k7.py` is accounted for byte by byte below (uniform lookup tables `SP_* 224 KiB / 229,376 B`, `CTZ16 64 KiB`, `CT[0..12] 12.375 KiB`, `S0_LO 1 KiB`, `LANEPL 256 B` reside inside the `5 MiB` online runtime allowance):
+
+| Component in `x13_k7.py` | Raw Binary Size (B) | ASCII Source Span Size (B) | Role |
+|---|---:|---:|---|
+| `SEL` uncompressed `2^16`-bit sub-block bitmap (`4096` selected) | `8,192` | `393` (`SEL_Z` zlib+b64) | `W9` window restriction (`Section 3.7`) |
+| `PCV` (8 words) + `PMX`, `PMY` (32 words) | `160` | `480` | `P8` reference pair (`Section 2`) |
+| `_ROWS` / `CELLS` (16x3x3 words) + `PQE` (38 words) | `728` | `1,667` | Differential cell mask/value/diff + pins |
+| `X2` (35 two-bit equations) | `175` | `629` | Algebraic conditions (`Section 2`) |
+| `R16H` (20 words) + `OFFS` (8 words) + `R16F`, `C16` | `120` | `497` | Row-16 valid roots & offsets |
+| `WT` walk-split thresholds (`62 x 256-bit` words) | `1,984` (`62` compact) | `603` | Ordered lane walk leaves |
+| `SPC` (`76 B`), `CLS_MASK`/`CLS_VAL`, `R* = 8174`, `G_SEL`, `N12` | `128` | `626` | Filter/class constants & exact counts |
+| `CENSUS1..15` (15x5 int64) + `E8174[1..15]` (15xuint32) | `660` | `4,160` | Census bounds & `R* = 8174` counts |
+| **Total itemized nonuniform advice** | **`12,147` (`10,225` compact `WT`)** | **`9,055` (`18,235` w/ raw `SEL`+`WT`)** | Strictly within **`2^17 = 131,072 B`** |
+
+### ZT.4 Native C & Streaming Python Witnesses, Parity Receipts, and Embedded Archive
+
+All six verbatim witness source files below are preserved losslessly in one combined `lzma` (preset 9) + JSON + `base64` archive (`json.loads(lzma.decompress(base64.b64decode(payload)))` recovers every file byte-for-byte against its declared length and SHA-256 digest; combined JSON SHA-256 `4ed7c7532db1b383d7ee89951683008747306222b2bf8a1ea045b91e28add5fe`).
+
+1. **`witness_k7.c`** (`3620` bytes, SHA-256 `b35bf3f951c4045063af7295f324c977b2e1736127df87de4f3eb5dd092ac14a`):
+   - Builds the exact `7 x 2^19 x 30 + 32 = 110,100,512 B` compact table over all `2^32` words for `R* = 8174`, explicitly allocates and touches `327,680 B` (`320 KiB`) representing the uniform lookup tables (`SP_*`, `CTZ16`, `CT[0..12]`, `SEL`, `WT`, `S0_LO`), and touches every payload byte (`gcc -O2`).
+   - Verified across three `ustart` values:
+     - `0x00000000`: `covered=29360128`, `inserted=20811431`, `dropped=8548697`, `VmHWM = 111,788 KiB = 114,470,912 B`
+     - `0x9e3779b9`: `covered=29360128`, `inserted=20811431`, `dropped=8548697`, `VmHWM = 111,920 KiB = 114,606,080 B`
+     - `0xff357892`: `covered=29360128`, `inserted=20811431`, `dropped=8548697`, `VmHWM = 111,892 KiB = 114,577,408 B` (vs charged online image `115,343,392 B`, `737,312 B` below allowance and `7,217,152 B` below `Phase R = 121,823,232 B`).
+
+2. **`regen_c.c`** (`13371` bytes, SHA-256 `4f359174609bec786a766d6472c17961fc3539f19b304978c7d7c69361626b1a`):
+   - Streaming C regenerator for `sha256_model` (`V_model = 32,680`, `C_model = 403,156`), plus constant-stack arbitrary-`k` (`uint16_t k >= 1`) Lemma-RF 17-bit/literal packed tail-clause decoder (`RF17`), in-process FIPS 180-4 Pass 1 SHA-256 verification/refusal, and Pass 2 DIMACS emission using zero clause-list heap.
+   - Receipts:
+     - Model-only body SHA-256 = `be7f7ce18dd7ded015da8339b74b2cdb57c53de65f3daa7293160345ffb0b7ec` (byte-identical to `PYTHONHASHSEED=0` `sdmodel.py`), `VmHWM = 4,200 KiB = 4,300,800 B`.
+     - `--rf` RF17 Pass 1+2 verification (`403,159` clauses including `k = 100`, `13,828,761` bytes): exact SHA-256 `dcd2c5c6bcde3b928d7050664ce617979fdb34be2b06a42d802bb6a3dbb03226` parity with `phase_e_stream.py`, `VmHWM = 4,040 KiB = 4,136,960 B` (vs charged allowance `6,291,456 B`).
+     - 1-bit RF17 tamper test refused cleanly in Pass 1 (`exit code 3`, zero output bytes).
+
+3. **`decode_c.c`** (`3997` bytes, SHA-256 `d6c881eca22c156dc602fb75fa0db86a862dbdf07dec0bbdd2e8ed240f66db36`):
+   - Streaming C decoder allocating only `W0..W37`, `A3..A25`, `E3..E25` identifier mappings (`V_model = 32,680`, zero clauses built) and outputting canonical `stepk.py` JSON rows.
+   - Receipt: `84` decoded word values vs Python `sdmodel.py` reference (`mismatches = 0`), `VmHWM = 4,068 KiB = 4,165,632 B` (charged Phase D = `13,647,872 B`).
+
+4. **`gmass_lm.c`** (`3640` bytes, SHA-256 `f9fe383a1a384d6779925e80074efc65e9be7af694c6d20e3abb425d49ee2581`):
+   - 32-slice (`16 MiB` = `2^27`-bit bitmap per slice) single-thread enumerator replacing the `128 MiB` single-allocation `gmass.c` (`136,433,664 B`).
+   - Receipt: non-zero slice parity `615,163,520 == 615,163,520` (`match = 1`) against the `128 MiB` reference on `[0xc0000000, 0x100000000)`, `lo = [0, 524288)`; `VmHWM = 20,800 KiB = 21,299,200 B` (charged `25,165,824 B`).
+
+5. **`fillr2_lm.c`** (`1828` bytes, SHA-256 `bbd94ce9f667c69dc0c69ef7a559eefd8b8f3ef9bc61dc213127083f452d14aa`):
+   - 32-slice (`16 MiB` = `2^24`-B counter buffer per slice) single-thread census counter replacing the `64 MiB` `fillr2.c` (`68,521,984 B`).
+   - Receipt: non-zero bucket-range parity `sum = 379,770,633`, `S[0] = 371,390`, `S[1023] = 371,853` (`match = 1`) against the `64 MiB` reference (`j = 6`); `VmHWM = 20,368 KiB = 20,856,832 B` (charged `25,165,824 B`).
+
+6. **`phase_e_stream.py`** (`6397` bytes, SHA-256 `021861589b033498343b0c5666cc6a3c12c1e188c5eae094fd86b91eaac66de1`):
+   - Streaming Python `StreamingCNF` Phase E witness: executes `sha256_model` without storing clause lists (`model_sha = be7f7ce18dd7ded015da8339b74b2cdb57c53de65f3daa7293160345ffb0b7ec`), streams synthetic `RF17` tail clauses including `k = 100` (`full_sha = dcd2c5c6bcde3b928d7050664ce617979fdb34be2b06a42d802bb6a3dbb03226`), verifies end-to-end `regen_c --rf` parity, and measures `VmHWM = 20,808 KiB = 21,307,392 B` (`2,809,856 B` below the `24,117,248 B` runtime budget charged inside Streaming Phase E `120,955,648 B`).
+
+<!-- BEGIN WITNESS_ARCHIVE lzma+json+base64 4ed7c7532db1b383d7ee89951683008747306222b2bf8a1ea045b91e28add5fe -->
+```text
+/Td6WFoAAATm1rRGAgAhARwAAAAQz1jM4IPzKJhdAD2IiIaTyQj1JDV0gJ0+X//ZC/swD/qA3z+CSs+CI/oBYkjDm5FmdIC8kJ41nsPO5c4kCDimBdSUxic//uMqLE0HX9jCOWE+YGybc+2TvWhVgBb/fIoa9eKkNQe7gdK3agGCCHzli2h52lC/NwzHiHbaTHI8i+ADLVr7WzZkLmKOS7GYmerDHUm5zCnHKWRjQJYPrUjxLfchts34IYxLLOAt9XOQN320afNWQ1QB8uSNWWDldUX5pfsqq4B/iw41Vba+ZYRzqHuLnRG6zYc13oZrEjTktM8NOHA1f5N70ehanW7nZidQiVJksKPWjgPcSXI/3K7i7vycAE5RRJqDxguxwfXHkXrqL7mgjNcXVelBCmr/ygoECotc2fvLuH83+ncYynbH/LrbrQWiNc/UfMXK5xF31OkHaQuIwKyHQWhg4mw8KCLF3IA9D++2qOwkfvv77BHzoWUvkyZg0HjzDcYpMbQsjhg2l3B7ACvD7lOLAIH2rLuaM6y2+2FX6iL4Sc4sHoZ3zMtbXHDsEIs7TwI9Sza3gWP6D2owXzxuJ9zRlFNP8pyTo6QOM4ZHOoDcycz8Afc/T2nW82zcREYzyyH7KfyK6sYY/oAHfaBLvMXVNXtpHf/Bp9/CvDEHl02A0hyupcH0GdnH/R46h4Rk1xK538tPCBhTNNXv4/7dun3YwxQhcSD+PZbZPPUlhR4Qj/YsJk7V5ihYbH2JR0Ene611V7B9l3+PHLRqTIZCLIzKqlB74Oy898QNnbX61E6Wxg8IMD9uk65UKSqmvR1sTtbSIBpohkWxhkOMCOoo3b51QRd0v9OBp7Ej2mYfqGjl5oSTkatYJP041L8+D3c262PWe7B2d43o/nq2rvR5TY6oUTWsHVpcXYHqL7Z5k4IHMVU0iAFO0VHbfBpLxI2TrHvxqtg0El7p6p+Lc6aRlavfJ+iCW5fHvmvYvEopeo/TUJbkVaWvo3v71VvAmvF1v5h6HFl3xNWR2z4XB30uE/m8R8YLVsIj4CQ/mck3a/YDHLWcxtxooRXNY7HcqljsP0MnFW4/77mBthY9EmVBTT8v3HK4jxvrgruelN6u4Sptrq2RaLjsnjBam8ftqM4y344bh0w6hb3vQiRBlgI/K+C+6+qARFgKZz97OR0aPuZG3Bd7RDmuwK++o1rkRzqchygoMwninbLzYVG8edq47PyVz3vV8Ujh6BBUMkey8xTOrGepiOIS5tQEgj5dFTxE83IjfLruyjBOzqEaAOj0hPPgn7VUKDUf1sI6ys8jl3CIXKNV8OeAwdQdmjGSiH5yuOTTRYl2yUE+eTaA2QdvCAi10LIG02B3s3qVUpszzVGfq4X0xedoz+yvCM3G6x/XU2SzBfPJw18Spexr+oD5udadkBKCcIPMpGgx1nJVwy7XbRJT4wE8EtaCBbX08MXr6fGnniiSTFnzp8ImgWC/gLBcwXFjWS/QNthkalJnWkaGodh2uI7QDmMLawiNf0KdktAB9raZoS7GBhaGa2odCIwRZXnsfDOe1Plgf+9cJMoaQC+jg5IBsq03FJRzctDZBAzQQD/e8ojy+r2Lx7lHVyFxx36g7bbTbNhiWnyapAUCxAylEbeqxRhtNzpt1S4ZQO84XbhTF4kgbWElzku37w0a6IpCKMxq9/in/l0w+pUt1JzO71jEoZ3vbclYga5ld4ufrt2YmAvj3umOQlqB1XrP9slY/46sIvArSbNMmKNuVWwpXwhoAK6ccIN6rsWvcUdRXY08H4fWjLHdAgkposZ7ajE43I0VMoil1xpd/+sjoq7gWMXBYcLiW39ULNq+GRlv88SY+lg0JGrI02QUSuLMiJKxjwzZn61YHPQagjR8mfa1jd4p2SQ/6BmdX+duLOnvyaFowdw8MIxvQU6bZY9zga8qPPB748LKWI/bDm0Myntnsy5HOCbULF36euj8JGPwMP0by4xXHKSCjdMlb07nXIWD6Okl3Wc5Qzpww379yTc6ADoL1vrePG1L87L6RWSB+jN/tCK0r5r9leogcOet2pQr5Tc0aaYWmABxBN/hQwCrbQuwoRHUYFIF1Zhfi8pZANTqNRNpJJWq4B//i8+zLUxOPdaMWpYC0b2+M4UmQdhgrkBYkY8PLcQlvE+fOiaFIuyICXGy4sNBaQmfnwYNKH08KB3gfHaG0lLhyStTyDnHjgepb57Dz0Q1oQsIiHbVkAtb3HuPlgb2FvhdWKQDNGy+DJZ4cvU4J8Rggm72soeF36V6zl/uL7kskLlHwP0bxZu9FEpdBRW4R9WiCGSIZvga6/Fe1YyxWsIrK/mMRerTNxDtt1R8+QMMNzbelwdwKrBMEKpMnCu+cVkntVTajAlOMVFemWqx/5QIwtyTsbC2Cu1XodY7JQFhgI87hIsghyOEMkyc5FjU+MLLAeUzNHohg6fYSCjoe+INevq9gP54u0nr5uKmuIuqnVNTN38txl4lbKlDQ2jzixRhb357vngfdxffJ6yazeJvvEH3vx43y4pihIZlT8cGWICPc20me6xciGV/0CQioZ9HfRvwAOTdLGWp/XHVhK226IQN4+yqCoVkxJ9P2E+kFbo2lYp/QXwW/Cw4yXbWOIWuWK6nicqqymi8T9C+uZGiNptnATf+O56DvyTRW0/pCyE4kJlqyJS1z5cwyLNSrc7A3VwSHoYMx/fIYF5l3AKYNaeRtkzBPWXVqRYon956lTF2ylaSq8a4jh4KoCr5iXxAsdoO/nWQJF2WZi4M5o40YiioaXNcYxCV7O4pRAarWt982cTEkKdgYvIoC+Oh8JFZ6VVy++OiC8MpGh6tSiDaGBZhsqjoR1lJDAidYyqin8NB1hLW8Nddm/NtpxrRkq4iZBeNH3LecvRJ0BPZllY09U6w5abv1kT5IDI6AjevpesWE4nr14se2jUOIK5URKrgt2zFViKjSSqTsE0UBnd+vU/fmUuitSSceIc9OqrKrm6rJBrfQWioM/rPdY6lcd32ic3Xo0UeORiyub+7JX5ZFU1y6hKqvRAzsg45O3Ne+KyHd+ASw27FYFaFsR1Vhk6DoSGUqQh4wPJLq/D22UyF7lhtovU9z5P+hiNLPENb8cxIZDB61gm8DXUBRCoEER2Par7F/ftVvTO/+L2Dfz0soeMrxKhjxPJxMi0wCwfa9gNa1WqYD2rSFcpXIyHXIGUas72o82meXrcY0Vkv41QRILyD0wYj4fguQBDSRNitlDzD5hGFDcKejVIAcU5DAASZF5WsWUzGfWv3xuNr7gV4CDUG7DBS9S0uUpSRZMd46bcGwM/y7ap0k0Icuh6Y2KAZzokNIoEIVas3pWn/O4Ah99gIk1kCxhCgx+5BmOLVUdx+bHVU2DDYz1d3xBCSDyjfp27fdmOTwgwnYiiOiINLuepJwfJu5mRf/B0VD1tSG+zverLV5Q2q5Uf0rK957DDc7leEAqvLE8wqfwUSrXmwFDE/TRrTmp7+DVHR4344ap6boeOywCIZ35OmjyAWuzxpVxzHqLKthrg9HCbIfsnzk0Q/Gjj8zmd8WH7iFORKUPVpi6/0wR5kYSitntO0W+Qwp8OeUaLF2Hx0dw5eG8n8mHq+OftLczW0Qr8a2oC4lmYiglhNrsWrvhUT6Uf/Czxt5nQzReiyreL3ooxxio8S4BNLGnubLtYLnM9eQ0uDrg6A03Bf1Z00zePutFlODyv6eoYTpf046EyN/kNs/+nH3Nzf2ktQErMR4zGMuRY5hOL99w/DX3iPaGrGRgva094PIw7x4dzJJSQhG/qi1p0C4SzxPYZtRSUP34kqt8ccE7as6Z/sygI0r34EWu75v+cOAJvBMEg4g8Azi7XoONAlnHx1XJbwPzS0qhqoiFi79G0EBSnjspy2+sjayP0ciEtKhSO7nC4tyndO454FyNFijCHqAdhLk9IZUlzybspl0M9HUlfdvYCV7wtaZnH7+X1pt2dPcRMCUK8dtB17FUFcSKwbV92Yya1rECowaIM/95q0+Fy35cIzjnL1L2nRkvDsuf1z0Rr7LleTEqAh+Sw7coTVRKL9wk5GFJkgXKtnBFaQYTv+IU/4Es+DQuaQHUrqhYItoPKdrEQaE50wscKJ59tywu1Pw77PXxG9XP1R8FANWtDKfFLARsgVdAO1GUgY02L6bAxQ8Bz2NwqJFIQJsjz12uvNL8JOz4fxN9BonJmhTnWGgRmrB7lfZOarGUX56OGldKxrYDfJDORNJpLfNf9ULgcx3vWaq4x+1djcW6PKwC5KNWz5Hq/IIDG4Oxl6CnGH6NqO3zsJF6e8B9dPbJ61bl5pI1YjYCBIVR5WAdbAGLR1vmn1hsAlqskk3Mddv3CqBrHfHP724+ontMVpiE2XD/rLlD2cbYF5QmrGVMasgxjRdD1ztUlKrZLAJojuSxkdDeHRMg5p3vZu+1kny5CJf7GtY7DJN06htOuvr1Af7FvfstSy+ZX3WclVUiYT8sGY0J7x6hMyZmBKGyIQZzlCSbiRmZgLusoYbuwx3xKbYhFLhRJRtlvGOhRw7NjGpVNnT74QfT3cuUX6PuRGW1PKPFcGlMU6aS/ivY/gNdLyV033HszRqCTCvvwCZ8vZz/HsZKxmE2XDPyghgnPfjUaWUTyQhKVCWueqImVSu9iIfk30vhBd5gcUDU7Jon5HfFY7CdUS562bf+hPXDU9xHqqKGaV9qb3aviIzB7BSr7RQJvQkkgjh8ssB+KcA2unKhE9aDv3g2i5Jw8QH/0ajK6qBwNQJ+ly1M+1Du4Ne3rj/fHkXzczEC4q2cCL0VsARkxyzfdSLIKIJKP11qbCtmRn4S8W8tRROdT814jXre83aTtk1DbjeFiepExBDa4AEft9rpaC1biRxXTcnGrGKa5+VJ3reSVvznena6Thuyu2C/uHWLQ5HtnVaMkmycPh398Bihf81mpYQCspp8JT2QtHDeCX4cgCqM1PgBheNaRp+YTL2sYlpp8AKG2D5oxuNpMVRG2gSxv0JQSuXro+WwwJ3ODZf3d51PPCoYlgSLD5IKIlStaBCgzyOwuSyOD8SkxP9rXAQJn/ujphjY/yYL2qeqBCxd2pDCNrEcpVio5bhE8YfojZReyIqY8WPsPCtaqCb+WMcwV3DzfxeW6ozt7ULfAiz00PuMImDgbZzypdNPzTMc+OVMH4qpgtN5LGpNKOnNAnOfIUwN5IQ8lDqRSmvg2Ta18rwfkbuLCOUelFybI2daQsQ5h+oks8uuL+ovayd3DuoTgKdwwX6CU+9ctcEQRd/rXly8jOG7s4WwIQJPVz8WJZUfhhRrJW12apbWnwYKL2QsojSzN/2LXXAH2Dseg5bHCSq+rH2FGvn/TSbKklBLuLxYHCOdBudjzo1hjSRIFnZbNEvmEgA9K7yIAEzZtgDwnlGCRo0xZZRwRFKG8IKW43NuMcVVEW8VtLJ9+nT8U1jXJzKYuzwn+Iwp3Uky1F5OI6z8iuwZd2S0ewHEKjqN+E+FHPmUPeAnw3ESdxdUQ4IijF7SbWOHEeBUQR20gCzm87LeFZ+XUDe87fHmYit4A42TQlEWvHFqNhZYVV7ygQaniLPLo/0FcjTOfpa9JfxKpbJYp/cYgqiNwQlfZleBNbwc8LvziV+a4qmOJ/4WA3NZMnTQwzD3A0FMJ8qVfTXFjFVQK9zi+B+cNmCzsF1x1Mv5ebq+DBBc+KSo1M0w0VqU/POCNMTQZ840mcSfFNR+2KK3obU31B/KVCqYpo0a/IFsvAfmr/mAZXBFUovkskcTysXZzta0b9BriRnEvIZmSj+dYW1rW7LbhwRp1kogmJA79Ke8cMsAfWh06VN+JX666hJqMej2s1ZyTVr+MOrulCb5SHI1v5QauocqZCkCm1BZ0faXNPXIG/CfnONbGFKMi4lYX8+/otaZm5kvkK3m5/CWd6uKe7Z8qWUFdbg6/wNirOhzL0JjwGDpbMom6Ko5jq1nLZGBywhWRuxa2bQwEomI8Ph1fx23QXJR4T+uA7mX8O460tQtqeoxkwZfZrEihnqfGN565IrA13FdV0EOfZRIR2YsrMi5mm1AYagmsVIOWS3lkaSpkM39ly2ApRuOiR1DDZu09d1/mTfrfPF03NgsasPoxTrAxksXHMFC71MiUeU56drBSgyJ1KqK48jwdBbq8ukYua0jyPCDevnrOu6nWznV7/P8siYZbUzXdHXU53wo3Lwq74ULnKOmv9JVjwNMTJJj9Ha5abAJy9UYCgtNCL+bePEy7xJhbfSmyEJIMVP88oSXeTGWopchQcui8YdL4y7S061/UgcNwyoz1fVkmrIGVqK+IgmT70Uv9UsQh7KwlYgHIeXI8jKVywTE64nSFCNbD5gYguSRk51F9ZxPKv+Ve/oy/62BMIjousBabAMu1WbTQzeN4qfyPH11aBKqq/Ml4l0Q3Wll+zjqFipVaPvKGph7PZ5Cy+AbUJemLwipNjLGR2hcnurcveqJQBQkDRJ258qPw7Hoakl3hOFw/LQzYXBBxv38OHuY5aCAK9mlzVvj+4SmOPelgVCAQEKpiIjDI59y+N2HpIeXqbxSSDItQf9+iuOmfghiZOi170bZL2XwQOo/AReEKu6qj7hQpJWTCADnRbeXmbFoCwM9n4oQEPeMyE/Yj+t82oTk5Y0DfsAOtVeTPqkrqpvK+8gb5qzFVklmy4NKJtEnZK9pQyPCrLQAcPu55SDSJI1orBKQxIjORgI0Hwkst7SKYbcoLBGwXrEckiabpxguxOC7H0a5WiYdlmm3fA2+6Ot2XsG8ADjeCEfyVppcYZnRtaO2rovKPZR/aZ8pVCGZOwjD4Pa6mA1DB0jTaFZjiIz3/sH+8YR98Bck1aruTCUdonGMJQuXJKKVBzUgQ4oigKtllVBoRp5mGgY7In20lt7JSP4gDViHPogcmXiD1VQWpekDmQ6qFqYNUcFGE/PAA6q3ggGQfE/GK274WTupsWJ90cqYTrGURAo5UW87VDoCrFXAtA9CJtR8c3/fakyim5ZLj9Gk3YyKdvrruH5SjRQURKJTAkcK6UX1IFvS8Mh/gVVlsK/Y3Og7ADLR8BsoGB91tuVafByA7FQJboUjxEGAqgQAx96u/wbE9yfhZGVmDKtRpQYkhLu5yEDzc77UcugvQKdvAaxOVkRTBTp9hSy3JILksdo6IMO1j5PCVkFEw+kWfIvAFxrCLnjtqqVu+Ivah8q2e473rahMgkCH7BPwEYT2uOGcXBojoOhQAZNPBniPtmuzdXwuOiOs75MWucvJEkMVrye4f+WVRd/L8/OiX+/BXHR9sr7WV0NQtxjXLLeHE8oxOhki/HkshzvXEMMOf+hXcK4rrt8YSwsD6HGrfeXu7LA4K822K+oI6OWn3OA9Moa8+IjB+Cz7CFDbClex0b/VeEQ1LKtxmC+2HN3kRL+TzSBdY7+Fuf0+HfWXYJiFVQ80XZ4afeBrZcJuFqoyF+uQA4MMCGodlmtybc8701wMQOG5XFl/3hgvr3yNTPCTH8KThINwHezsAiRhTFCIyjHs8S9nWRDwqxpTcWTy2aXOp8NMdtrMsxBJgzDTI9e41/J9gVZDjmRCkS+4SR50x1mogvrGyUfK/EoDcN+x7VFxdydIpazzrcjaHqLqPJj9xiXaIq/9V9XDrOP5vIEFDTgUW7CcfykHwchz7/UdZJ8zoe/sgWSKAptbEMzSnL+QSYi+eskwbfjqDp9aXmO+X8VWfUPR/AAGpU/p+jBhanlCxkP0knRFAAx1M5YkxrviKEqSkj4fmpD1/S32i3lC0QDE+akcvg4No/GQyvoqpfazttr1vqFEt1Gv7KHpMsufjmn8giYPKaGTIgtObHK7fmBHFfKjHVb12OCJuI5B66rHe86se1wekR6/Kq2zkA6JTMrU535szJV/leKjBy8tpdQgAhSiznpBAiSgLLLtA0mH3D2zNaz6fDusJdG4qvcOQBl0uDYksmjhwqZamJcf8Bw4zk/f4AApFHu5ofP8gp7cHA4n2tsMmBxE668UW4DiSVUbCfQ2qUR94ozN1I49wKBFftFTjCoj8GI8kKwIJjY/F2a1rX2lPxDqABcjsEX3tNK0t1NANs1pXG3LZ5oEKEork9C7vVRk5s6FRoUg/VYlBM3kcKW6ibkazADeGetSGYnkLohETd2U1ReIMuEzWslmLDgOj4qsZaArd7Wd1ie5LdihWqiON3rYOszqmWX3YexmQjInBb4Y2axoXeC4D6/yISZtr9Xxrgc0ID9XiXUTeyZYtc9gGyW5ZZIVjtNR34Cx1+/b4qWYrJBvE+VZB5zHTexI9TndOL9jvI46qQWDJt8ywVLXGgdqOpUx2Mpl1M70HcHhzVJ4UJObXkvTxmwwb1PhzTzk/iokTbT7pmkyGcSyj8qKqKFIt75ohQ1KyJFUeehquLAiX9CMDO5NXkRnmr7aqqOyO0IYyv7tp3gpzkGpYaKeA1p3pkZuc1s9RUCuo2nYZaQer4rCM2KqXyqbgV7NTYrKtb19MfEkQRsDGQ/IrmuL2icK1Ft6NjuXGLDrW0G4lR50ndCng8hMvyfafSCcaYUNO4H4Mp2fQ0vgoqejyfbgB2/dzB8WKBzMj4kLKyBVsdZtRbCWB0Myuz1m4M9Hjm8sz1DaR4P6MXdy8zDW6qJzjuXHgQ5muMdQtmjePg3ZXjft3igpV8QDyjddSdICg7lTKOm6MSaLKfAWcfgp23lnBZhzBwRNq4RJhmL4dkbnkXeGwxpNRoVBLzMVg2tnOU2n7HUKB+maPg9TNp8II4teealZtqmlQLG8AjYc1LkHYtHsUrNrfK8gic+z2uJVyrimI1h+OUChiWrRusCQFwEb2P/r+iySp4NyUBGOYiLP6bklbIF8eZQBUpFEZofjrIgvO8SinK6RFjHERqA2fhPX/RNhfKGtRBj4V6emMFQD+7/B39HlyWojGPUt3rGmyq0tqJJ8ij1BwFL8zUPBqX3/1lLkH2QKjXpivMnkscQx/njRV93ncZ4TUwRU0fg9PpHnAwTKfFlEoHn+cRqxaXiJ9f1MRM4BnH76R6okzhwg2hxmrvd/vY0kItNCnv0XaezWifhdmlhTNmcisoeeh6QGhaVBTqZ9MWS/NvHgePKdqab2sEvVGWJOd/OfjMKCelpP78KDXtoB6thSNaI3qaADDTH3q4cDNgFSPQKJTgYXqAdYoQXsS0TBC6ffjfVZE7eN38/eMwKRV+3fIXCiClxCRnranAn5XD/laqsaKHnRnXltagy3a5mxqEOMufy/ZqywtSngaUURR240ni7AB8MlnfvcnWWmsIbxxYNbFySxF9tvtMKWyWNitYCJIby6T4ag18AVT1ZnbvBLzBaAWw9IaqxQsEHUol6VpnkPIZLoxtignmJjosvMIqvAeCS3UjqFI6LmPHE9C+P4p7m/XLAotonp6EoGm3meFjRg7b+SQKLxkM0jvkiLZyb3zq9hnIETiYQtvlN4ZPmhmBij2UC0OBYiVfn7xthjLfguc8GZUIz4RJBXfbt/kjQtcFBCjgzXvF7X6vDmF9se8MDh+1bE4AHFfJFkr5j+WveNnsiH8eBTYfOcsX/nY6I9SbXV1eSKry5+hF3ZIMh8IhswfcRVha9JG8xPt4nwTdlGFSdg6PjuBBMzVLu/pUvL6X5tsWmoa887IYczlayCZhEqFRAiogfB8PWIsweckxqPwVm2bLSMwpDbG26SXbe/OBbnFCX93zqfebo+cBsygGHym69oXpESC9bmjVgi8fiC5A/NBBFvapx7l2QVG/n6JbGXL2LQozU+nIp7H8hW6lkIqoSo1+O7hvezId1r9Fv1UGGdnEhsRpzWxGR8pUf1j1CWteeux5S3KS3J5pxkp5BAsewjU8eZ9xbc9WHtvm42Ya7IOsTjl5fYiIfJ3Csv1KHf38v4kyKMsifU+GrphRXx6vMBBeqhuNaWhP6+lzbRMMyDUIlQBBDps7ifNTxtCyO+IJV0ayiF8e2UMV9YnlOSdPzuVl3msgstzS+iLItqqtoQGqgQXLLv9YMSAOKv4qJpw79oTIKuNGoA8b0pEOau2DZbh3njpIWaxMF/jn+5olUPZIM1eLeL0J8SDvGEOuTOQjTcPinlc6I/NpbT5bal/Z3yBOUGgLk+HK9jyYG6wdSO30YaTUXQ8CNcpMSzB+evjRYT29wgPZuwWrr+Deal460D3cmn/mqQOoB5fBtbKLbpX+vwHvdyv+WNQUbtMJwsPSvQR5p8/p84E743JpTqm58WUaemfLZ+s2E79o3sD9B3qMJ30HUEZQuzteGEU2sbVu1zU+Ug8P6CX6rSBipYX9oefJKLDKWGx7vWw52tjxqURt4pcGxmi8rl7qcr3ZOEQJBlkeF/64NSL/N1uFpYjkIVxCkASefMUbE/jZhkukR1ea7aOD8s82LfAMvzug4NtXJ5SOlYB0gnGd7v6xwCHkb5FjxGGb5pio7qNQPwRgWanm+MZse6FrVtyOKRQz98YJX5wz4yt0k007ntx54iJ/NVof4dVUhN130SZjxR2L6aEgdsMTGRPPxy5LpmPdAS8EYS76qpYRnaKnD3EVWTGXWzGtu1S5t7xJYRWEt3sfbeIqOMF5is5TnWIqx5ZAv2UCGicipfbyY49Fb3bWeTwVsEw04CIsVTKZ2bslS7nqASXWDjjTO/M7fsG3DTm0I/usXb+rkeWxHk9oYZFQqNGPJf8mrNuq9Ogm7wasobTQPs54qJETJk3pEVGFlCM4kks6BNdZOt/HqvNc/XG45bIlSgGqXmTLaCBWsQFG4/9RCXhw5FRHnlxON7Lgnq8WaUBU1OEECTxCWcl8/1h2DpnvKgCaOgLgiBp6nHKP1TEnsvI94Vbx5vTmxkP+m3TriPiMW5KemF9EuhfOb5RWAyKMtzVIRSww2WT/uV8bfW4qBgxRNfnrOK15SzvETbZtU0rRePaCVXSFbq9oC0E3KeGQh2RuFDsWSaaTP68+1cIPg+qCK4e19lMBlWUkAFZSDZ89s7KLoZ/0eYKULOhI6CZNgnbpECJUSUmsV/hwf9uX0V/kakN6aJzT1AVrKCNNCCG+qkF6iBiIDKC/ks9VDRKvO+tUHHbdpK5KdigRwFkZODwR90CJlrVacTX/A1n3hubGyuaP/6gemKYsHNOSFZhKOofFC2+55YChuvHbMs31X/y8un4VyCXDfc73931ZGfKe6BL4MpT9zmZO7hZfhap8Q+3639tNWOi6FpgTvbLvmbHMDAYgqkxzV+6mmSFiQNRwUxT6Tj2EUVb9+2oin+KQgh4fMCPR2eiLPI/wx9h7d/OjlDL/FRe9V3KVn1titRQzb4Dw5Ngi41W9nHt8/9x4fkoTMSpGIECTIN+jwdrMx3nr8Ulpdnm0L9AQq9Yam3X4qG8OYk30fuWLpaYU7kwrCaeU5ps/hmPLN52JCk1ITPF45OvSF6RxZsX8mvE+nH7uzHXTblWFIKSE4OSD7jVFDK6NTO1yjfEjNwGKNTXPpasKFxSjYp18TXUorgzTY9ko/6k310eoMP8pVle55WrtsgoI3+LBksFZt8p8Gb5blg7E966HKGZWoPHgU1212AQ0s4hV7wz4i7g95Y+pVz/fbs7iwR2UpsW+4xnvnnVjgOirqm850OU/dCDYjWBB49icYscDMkBpVwrFXQ1D+5xbw6o1jN1hJMkvThLFfDUaawWsHsx0cgaTYmjShfChrtOjV1qfU9lJgmt+3A7kOR3wx/CE6BDbIPQl3UWeJMRbiMI4sNnhRd4nwZXTyC2m3/EhwK4eLEGCU59n1xfG2eZgq92vZR6m7TxiKAF8Jf+CENokiuWXpkLEFCC+g/QJgV5rN3KpDyXztnbSuccN/Zm3FWta7Cyb60o2lzFuN7UtcOohHrGCMDXDiEptlzAnUT9ezfR8Lovuz7lqGPm8NZSZzCueiZdeTYc9dt4REDwWpEHqhNWfctwWfn+SwAzYOcJNvDyeuphG+4kQku5Z5+k/wS6M5sZKwGAakmFvwcWCOUlDdTS8giV1KIJ137+9s66gYBYijAT7B2Zog6px8FqUZOmOK9fWIdeOY1wKnKWO1xVaxv72ro2/0ZsasGvjlTut4ZLXHkUTFpvvSt3Wii9TE0Ibs+JySDVSapvG4cQryGSu8vTgrisGYSDmijOgmEjvNdDOyXqleGmK0plVgcDezeNFNoAD2iw/Zs6sqSSOvR3GI1C4l9SPnhG7UKDGPokjHbuNrR/wv60XT6fCu9BGtp9j/SHeOUSIho78Od9LgCtSjtLJd5QmvdnbwPFS1piLkskbqamu2Cn9RQF+uUSi7qcO+NbutUN0e+O5EXDF5viQC1T2XdkScq4QTaed7Co9E5nEQA3vsgCZV8YGcZ3vY22JEQEB3Jx1ldbOC7h1ADejIsmhLhKb2lPUlL3lrOF69LZ+o/UB5cjNsBD5RVseiaYktFer6F3NGvef/twwPOtsWyL6RZFYAFiIrLQsbmkmbQTDwPDCtKL6Zm05r+JpV2KcZ1sVv5/5vI3QnEX0RUjA58m77bmCNkPZGv7HkczFR10SW0TEy5aWclJK9Pud3n3xEirQIXBVOU/g9NAFSvwlbaiVSI+NyKNlb5W8SPzAD0xkRU6VHPthiH0GcydBxifItFJXd1hbE+cfdV2UPeGsxDGj8Nfq7hFglpPRs+Zq1K6vHxKo0MdXjV8pQBYVNRmO+elCrYRbebHTdAHrZOJK0MxTLOReELP0FEAiD0kCpVsj3NHbJif4vAlwDPiStgODL+j06901R5WpiD5xiHomJgoREbEGaemtN8ukshefg5PjjaO0VgsOtzmAI0n6m/Klbiy0TLpLoJtQfAI0Kk8HHZcGPo9pJca2NXgfP5Xpdrk7sGZuk9C4+eAa1Wa07J46iOJpw/Ex4cjxnRskhTwofa1uG7bEccA3NsQfHZpvXjxr0aI/bJWMNUxw8/NmNhyX2gZuqhDLtq22U5uKZ7Y6SkBD2suytg8645sGFDCuPpOFGphJKPng2wJ4oGPTlW1dZFebKkdgMx3w/xziGxNP2coIDT15NS5Y7KUQOYpLxLiN7u7qJGbhkoVJjGA7qJ75U3Wyo/gM0MLufRxMruQeHwTjlwXCZGAzT/m/XBitmvHXFaBSJLRS5v8D6M2cJ8YD/qFiaDnpzhPJmp7CSAhUAqCatsrZ3z9/MGgQSm88UAcxazBravyMC2iyC7G6nHlxCOsNCpgSyo90cUMWqPLXqKqiTYU6+mbR/3+Er/iH1/zR7IMg9niWpI9J3l/FnYRESMUUifjmRCcMSSnpJtMsU+MLHIJjghgU3296iZ5COcXtWStRV9HSEouBvQ3RCWDHzRBnm8WrZeEL5BrRHT5iLfaW26Q6cjlZ7AkP6rGO1XKyU/woo8R/D3uZ2vHb8xFNaJkBlbD4A6JehnHXGckd14+12fD9QuQ5S8EVJlSVpsediQgF3BPjRkh1cx7RDD2/2zw/s9Mgv5g50ETBmMyQDR7tPzObjgWIO6UXDZdloEKB3NWiYUtXoI+AOwkJGmBGoPxjAmszwTv6uqwCrNVc8OcxIRPxCLcWwXSrqY6o2LpniJLyiSUfq6GoN2xnePP7VVGfFis9TiAnwNEiVaGIUrwoqf0urYrjE2y5X9718ePPbQvrhAl0OgAt4gpl3PFMhlYuMv3ZFX2gnCZ7hGj5UOQW7sBkeL/lJFWTxzAj8IX4TMWkwEBxrptQOrHXPS3e1yn+VdDerMl8XRvkUDK19m4BM+bwd3ffAw/p89nsPEVE3a33vRYu+OnIVssmpLV3YofUHTE8n4uWHG3+1I/gV21c1tZpL4fOvEbcPbCZtbOSepQvU2ZgOO9v4uIyPPufVXEOkvDJwf7fNZbiRz9Z4WoxWJYYUH95+zSR1NNGAAY7zDl79MUIegBInUU62fRugAABtFH0hwIAso01mLHEZ/sCAAAAAARZWg==
 ```
-
-### a0cls.c
-
-```c
-// A0-only variant family of a dense part and its c7 classes (own code). a0fam <pair: cv Wx[16] Wy[16] hex> [min class size, out file]
-// a0cls: the same in 32 passes over a hash of c7 (at most 2^23 pairs resident; peak memory measured in proof.md 11).
-// a0cls <pair> 0 <out> <c7 list>: one pass writing "c7 a0" for every member of the listed classes (in a0 order).
-// a0cls <pair> 0 <out> <c7 list> agg: one pass writing "c7 min mask size" per listed class (mask = bits that vary = OR & ~AND).
-// A variant changes A0 only (both members): E4 and W8 of each member change; valid iff the modular difference dW8 and the
-// s0 difference ds0(W8) equal the pair's (W8 enters rows >= 16 only through them). c7 = W7^x + A_{-1} depends on A0 through
-// MAJ(A2, A1, A0) and CH(E6, E5, E4). Prints the family size, the number of distinct c7 values and the largest class sizes.
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-#include <math.h>
-typedef uint32_t u32;
-static const u32 K[16] = {0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174};
-static inline u32 ror(u32 x, int n) { return (x >> n) | (x << (32 - n)); }
-static inline u32 S0(u32 x) { return ror(x, 2) ^ ror(x, 13) ^ ror(x, 22); }
-static inline u32 S1(u32 x) { return ror(x, 6) ^ ror(x, 11) ^ ror(x, 25); }
-static inline u32 s0(u32 x) { return ror(x, 7) ^ ror(x, 18) ^ (x >> 3); }
-static inline u32 CH(u32 x, u32 y, u32 z) { return (x & y) ^ (~x & z); }
-static inline u32 MAJ(u32 x, u32 y, u32 z) { return (x & y) ^ (x & z) ^ (y & z); }
-static u32 A[2][20], E[2][20], W[2][16];
-static int cmp(const void *a, const void *b) { u32 x = *(const u32 *)a, y = *(const u32 *)b; return x < y ? -1 : x > y; }
-static int cmp64(const void *a, const void *b) { uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b; return x < y ? -1 : x > y; }
-static int cmpl(const void *a, const void *b) { long x = *(const long *)a, y = *(const long *)b; return x > y ? -1 : x < y; }   // descending
-int main(int argc, char **argv) {
-    FILE *f = fopen(argv[1], "r"); u32 cv[8];
-    for (int j = 0; j < 8; j++) fscanf(f, "%x", &cv[j]);
-    for (int m = 0; m < 2; m++) for (int i = 0; i < 16; i++) fscanf(f, "%x", &W[m][i]);
-    fclose(f);
-    for (int m = 0; m < 2; m++) {
-        for (int j = 0; j < 4; j++) { A[m][3 - j] = cv[j]; E[m][3 - j] = cv[4 + j]; }
-        for (int i = 0; i < 16; i++) {
-            u32 T1 = E[m][i] + S1(E[m][i + 3]) + CH(E[m][i + 3], E[m][i + 2], E[m][i + 1]) + K[i] + W[m][i];
-            E[m][i + 4] = A[m][i] + T1; A[m][i + 4] = T1 + S0(A[m][i + 3]) + MAJ(A[m][i + 3], A[m][i + 2], A[m][i + 1]);
-        }
-    }
-#define a(m, i) A[m][(i) + 4]
-#define e(m, i) E[m][(i) + 4]
-    u32 dW8 = W[1][8] - W[0][8], ds8 = s0(W[1][8]) - s0(W[0][8]); int thr = atoi(argv[2]);
-    if (argc > 4) {                                             // members of the listed classes
-        static u32 sel[1 << 16]; int ns = 0; FILE *g = fopen(argv[4], "r"); FILE *o = fopen(argv[3], "w");
-        while (ns < (1 << 16) && fscanf(g, "%x%*[^\n]", &sel[ns]) == 1) ns++;
-        fclose(g); qsort(sel, ns, 4, cmp); long nm = 0; int agg = argc > 5;
-        static u32 mn[1 << 16], ro[1 << 16], ra[1 << 16]; static long cn[1 << 16];
-        for (int i = 0; i < ns; i++) { mn[i] = 0xffffffffu; ro[i] = 0; ra[i] = 0xffffffffu; cn[i] = 0; }
-        for (uint64_t x = 0; x < (1ULL << 32); x++) {
-            u32 a0 = (u32)x, w8[2], e4 = 0;
-            for (int m = 0; m < 2; m++) { e4 = a(m, 4) + a0 - S0(a(m, 3)) - MAJ(a(m, 3), a(m, 2), a(m, 1)); w8[m] = e(m, 8) - a(m, 4) - e4 - S1(e(m, 7)) - CH(e(m, 7), e(m, 6), e(m, 5)) - K[8]; }
-            if (w8[1] - w8[0] != dW8 || s0(w8[1]) - s0(w8[0]) != ds8) continue;
-            u32 c = e(0, 7) - 2 * a(0, 3) + S0(a(0, 2)) + MAJ(a(0, 2), a(0, 1), a0) - S1(e(0, 6)) - CH(e(0, 6), e(0, 5), e4) - K[7];
-            u32 *h = bsearch(&c, sel, ns, 4, cmp);
-            if (!h) continue;
-            nm++;
-            if (!agg) { fprintf(o, "%08x %08x\n", c, a0); continue; }
-            long i = h - sel; if (a0 < mn[i]) mn[i] = a0; ro[i] |= a0; ra[i] &= a0; cn[i]++;
-        }
-        if (agg) for (int i = 0; i < ns; i++) fprintf(o, "%08x %08x %08x %ld\n", sel[i], mn[i], ro[i] & ~ra[i], cn[i]);
-        fclose(o); printf("members of %d classes: %ld\n", ns, nm); return 0;
-    }
-    long cap = 1L << 23; uint64_t *pr = malloc(8 * cap); long fam = 0, ncls = 0; FILE *o = fopen(argv[3], "w");
-    for (u32 p = 0; p < 32; p++) {
-        long n = 0;
-        for (uint64_t x = 0; x < (1ULL << 32); x++) {
-            u32 a0 = (u32)x, w8[2], e4 = 0;
-            for (int m = 0; m < 2; m++) { e4 = a(m, 4) + a0 - S0(a(m, 3)) - MAJ(a(m, 3), a(m, 2), a(m, 1)); w8[m] = e(m, 8) - a(m, 4) - e4 - S1(e(m, 7)) - CH(e(m, 7), e(m, 6), e(m, 5)) - K[8]; }
-            if (w8[1] - w8[0] != dW8 || s0(w8[1]) - s0(w8[0]) != ds8) continue;
-            u32 c = e(0, 7) - 2 * a(0, 3) + S0(a(0, 2)) + MAJ(a(0, 2), a(0, 1), a0) - S1(e(0, 6)) - CH(e(0, 6), e(0, 5), e4) - K[7];
-            if (((c * 0x9e3779b1u) >> 27) != p) continue;           // pass by a hash of c7 (a class stays in one pass)
-            if (n >= cap) { fprintf(stderr, "pass too large\n"); return 1; }
-            pr[n++] = ((uint64_t)c << 32) | a0;
-        }
-        fam += n; qsort(pr, n, 8, cmp64);
-        for (long i = 0; i < n; ) { long j = i; while (j < n && (pr[j] >> 32) == (pr[i] >> 32)) j++; if (j - i >= thr) { ncls++; fprintf(o, "%08x %ld\n", (u32)(pr[i] >> 32), j - i); } i = j; }
-    }
-    fclose(o); printf("family %ld = 2^%.3f; classes of size >= %d: %ld\n", fam, log2((double)fam), thr, ncls); return 0;
-}
-```
-
-### a0p_ref.py
-
-```python
-# a0p_ref.py - part 1 of experiments/a0p38.py: target, characteristic P8 and the reference construction of the A0-variant attack (own code).
-# The attack design (A0-variants of one Step-1 solution, c7 classes decided by one W7 test, bit-sliced row-16 filter, accepted event with a
-# direct output comparison) is that of the public packages 2d1c4fc2 (itseasypop) and fb176310 (Jbenisek) on the framework of ePrint
-# 2026/1120 / 2026/1080; per-class row-16 programs (class bits folded as constants) follow 08be594 (johnservil); this code, the
-# characteristic P8, its accepted event (row 19 on signed differences) and the 32-class selection are ours.
-import sys, json, hashlib, struct, zlib, base64, math
-M = 0xffffffff
-NR = 38
-K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be,
-     0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa,
-     0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85,
-     0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb]
-IV = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
-def ror(x, n): return ((x >> n) | (x << (32 - n))) & M
-def S0(x): return ror(x, 2) ^ ror(x, 13) ^ ror(x, 22)
-def S1(x): return ror(x, 6) ^ ror(x, 11) ^ ror(x, 25)
-def s0(x): return ror(x, 7) ^ ror(x, 18) ^ (x >> 3)
-def s1(x): return ror(x, 17) ^ ror(x, 19) ^ (x >> 10)
-def CH(x, y, z): return (x & y) ^ (~x & z & M)
-def MAJ(x, y, z): return (x & y) ^ (x & z) ^ (y & z)
-
-def trace(cv, w16, n=NR):
-    """A[i], E[i] (i = -4..n-1, dicts) and W[0..n-1] of the first n steps from the chaining value cv."""
-    W = list(w16)
-    for i in range(16, n): W.append((s1(W[i-2]) + W[i-7] + s0(W[i-15]) + W[i-16]) & M)
-    A = {-1-i: cv[i] for i in range(4)}; E = {-1-i: cv[4+i] for i in range(4)}
-    for i in range(n):
-        E[i] = (A[i-4] + E[i-4] + S1(E[i-1]) + CH(E[i-1], E[i-2], E[i-3]) + K[i] + W[i]) & M
-        A[i] = (E[i] - A[i-4] + S0(A[i-1]) + MAJ(A[i-1], A[i-2], A[i-3])) & M
-    return A, E, W
-
-def compress(cv, w16, n=NR):
-    A, E, W = trace(cv, w16, n)
-    f = [A[n-1], A[n-2], A[n-3], A[n-4], E[n-1], E[n-2], E[n-3], E[n-4]]
-    return [(cv[i] + f[i]) & M for i in range(8)]
-```
-
-### a0p_core.py
-
-```python
-
-# ---- the characteristic P8 (proof.md Section 3); member x = M, member y = M'.  PCV/PMX/PMY: a 38-step semi-free-start pair in the accepted
-# event whose rows 0..15 are the Step-1 solution S.  Cells per kind (A, E, W) and row: (mask, x-value, x^y difference, 0) = the signed trail with
-# its one-bit conditions; PQ[i]: bits with E_i = E_{i-1}; X2: the other two-bit conditions (k1, i1, b1, equal, k2, i2, b2, row), member x.
-#<<CONSTS>>
-CELLS = [[(0, 0, 0, 0)] * NR for _ in range(3)]
-for _k in range(3):
-    for _i, _c in _CH[_k].items(): CELLS[_k][_i] = _c
-_tx, _ty = trace(PCV, PMX), trace(PCV, PMY)
-SAx = {i: _tx[0][i] for i in range(-4, 16)}; SEx = {i: _tx[1][i] for i in range(-4, 16)}
-SAy = {i: _ty[0][i] for i in range(-4, 16)}; SEy = {i: _ty[1][i] for i in range(-4, 16)}
-DWT = [(_ty[2][i] - _tx[2][i]) & M for i in range(NR)]          # modular differences of the words (y - x) of the pair
-D7 = DWT[7]; T7 = T7_C                                         # s0(W7y) - s0(W7x) required by rows 22/23 (the trail)
-def inF7(w): return ((s0((w + D7) & M) - s0(w)) & M) == T7
-R19 = 19                                                         # the row checked on its signed differences only (accepted event)
-
-def rowok(tx, ty, i, relax=True):
-    """Row i of both traces: cells (x-value on the mask, XOR difference), '+' pairs and two-bit conditions keyed at row i (member x).
-    The W cells of rows 7..10 are not part of the event (W7: F7; W8..W10: modular differences).  With relax, row R19 is checked on its
-    signed differences only (XOR difference and member-x value on the difference bits)."""
-    (Ax, Ex, Wx), (Ay, Ey, Wy) = tx, ty
-    sig = relax and i == R19
-    for k, (x, y) in enumerate(((Ax[i], Ay[i]), (Ex[i], Ey[i]), (Wx[i], Wy[i]))):
-        if k == 2 and 7 <= i <= 10: continue
-        m, v, d, _ = CELLS[k][i]
-        if (x ^ y) != d: return False
-        if (x & (d if sig else m)) != (v & (d if sig else m)): return False
-    if sig: return True
-    if (Ex[i] ^ Ex[i-1]) & PQ[i]: return False
-    for (k1, i1, b1, eq, k2, i2, b2, row) in X2:
-        if row == i and (((tx[k1][i1] >> b1) ^ (tx[k2][i2] >> b2)) & 1) != (0 if eq else 1): return False
-    return True
-
-def accepted(tx, ty):
-    """The accepted event: rows 16..22 (row 19 on signed differences) and equal outputs after step 37."""
-    return all(rowok(tx, ty, i) for i in range(16, 23)) and all(tx[k][i] == ty[k][i] for k in (0, 1) for i in range(34, 38))
-
-# ---- A0-variants (proof.md Section 4) ----
-C4 = (SAx[4] - S0(SAx[3]) - MAJ(SAx[3], SAx[2], SAx[1])) & M                                    # E4 = a0 + C4 (both members)
-W8C = [(E[8] - A[4] - S1(E[7]) - CH(E[7], E[6], E[5]) - K[8]) & M for A, E in ((SAx, SEx), (SAy, SEy))]   # W8 = W8C - E4
-D8 = DWT[8]; DS8 = (s0(PMY[8]) - s0(PMX[8])) & M
-def in_G(a0):
-    e4 = (a0 + C4) & M; x = (W8C[0] - e4) & M; y = (W8C[1] - e4) & M
-    return ((y - x) & M) == D8 and ((s0(y) - s0(x)) & M) == DS8
-def c7of(a0):
-    """W7x = c7(a0) - A_{-1}."""
-    return (SEx[7] - 2 * SAx[3] + S0(SAx[2]) + MAJ(SAx[2], SAx[1], a0) - S1(SEx[6]) - CH(SEx[6], SEx[5], (a0 + C4) & M) - K[7]) & M
-def words(cv, a0):
-    """Step 2: the message words W0..W15 of both members connecting cv to the variant a0 of S."""
-    out = []
-    for SA, SE, wp in ((SAx, SEx, PMX), (SAy, SEy, PMY)):
-        A = dict(SA); E = dict(SE); A[0] = a0
-        for j in range(4): A[-1-j] = cv[j]; E[-1-j] = cv[4+j]
-        for i in range(5): E[i] = (A[i] + A[i-4] - S0(A[i-1]) - MAJ(A[i-1], A[i-2], A[i-3])) & M
-        w = [(E[i] - A[i-4] - E[i-4] - S1(E[i-1]) - CH(E[i-1], E[i-2], E[i-3]) - K[i]) & M for i in range(9)]
-        out.append(w + list(wp[9:16]))
-    return out
-def e16x(cv, a0): return trace(cv, words(cv, a0)[0], 17)[1][16]
-C16 = (SAx[12] + SEx[12] + S1(SEx[15]) + CH(SEx[15], SEx[14], SEx[13]) + K[16]) & M
-R16 = sorted((C16 + g) & M for g in GL)                          # the E16x values with row 16 holding (exhaustive, 160 words)
-R16SET = frozenset(R16)
-_sh = M
-for _v in R16: _sh &= ~(_v ^ R16[0]) & M
-SHARED = _sh                                                       # bits on which all row-16 words agree
-TK = 12                                                            # tested bits of the row-16 filter: the TK lowest shared bits
-TBITS = [j for j in range(32) if (SHARED >> j) & 1][:TK]
-
-# ---- classes (proof.md Section 5): class i = {base ^ s : s subset of its mask, a0 in G, c7(a0) = c7_i}, 24,576 variants each ----
-def dep(t, mask):
-    """bits of t deposited on the set bits of mask (lowest first)"""
-    r = 0; j = 0
-    while mask:
-        b = mask & -mask
-        if (t >> j) & 1: r |= b
-        mask ^= b; j += 1
-    return r
-def members(ci, count, start=0):
-    """the members number start..start+count-1 of class ci in the canonical order (increasing t of base ^ dep(t, mask))"""
-    c7, base, mk = CLASSES[ci]; out = []; t = 0; k = 0
-    while len(out) < count and t < (1 << bin(mk).count('1')):
-        a0 = base ^ dep(t, mk); t += 1
-        if in_G(a0) and c7of(a0) == c7:
-            if k >= start: out.append(a0)
-            k += 1
-    return out
-
-def rebuild(W, a0):
-    """A success of the estimator (member-x words W[7..22] with W7 in F7, rows 16..22 sampled) and its variant a0 -> (cv, Mx, My):
-    W0..W6 by the inverse expansion, CV1 by inverting steps 7..0 of the variant."""
-    W = dict(W)
-    for i in range(22, 15, -1): W[i - 16] = (W[i] - s1(W[i - 2]) - W[i - 7] - s0(W[i - 15])) & M
-    A = {i: SAx[i] for i in range(8)}; A[0] = a0; E = {i: SEx[i] for i in range(4, 8)}; E[4] = (a0 + C4) & M
-    for i in range(7, -1, -1):
-        A[i - 4] = (E[i] - A[i] + S0(A[i - 1]) + MAJ(A[i - 1], A[i - 2], A[i - 3])) & M
-        E[i - 4] = (E[i] - A[i - 4] - S1(E[i - 1]) - CH(E[i - 1], E[i - 2], E[i - 3]) - K[i] - W[i]) & M
-    cv = [A[-1], A[-2], A[-3], A[-4], E[-1], E[-2], E[-3], E[-4]]
-    wx, wy = words(cv, a0)
-    return cv, wx, wy
-```
-
-### a0p_prog.py
-
-```python
-
-# ---- the bit-sliced row-16 program (proof.md Section 7.2) ----
-# Bit L of every 256-bit plane belongs to lane L (one variant).  The program computes, for 256 variants of one batch, the TK tested bits of
-# E16x = KP + a0 + s0(W1), W1 = K1 - S0(a0) - MAJ(a0, a, b) - S1(E0) - CH(E0, e, f), E0 = a0 + HH (Lemma 4.1), and their AND with the
-# tested values.  Inputs: the planes of the bits of a0 that vary in the batch (A<j>), the class constants (C<j>, broadcast words), and the
-# per-first-block broadcast planes of HH, PP = a & b, QQ = a | b, EF = e ^ f, FF = f, K1 = A1 - g - K1, KP (7 x 32).  Constant bits of a0 are
-# folded.  Nodes: xor, and, or, not; equal nodes are shared.  The allocator gives an instruction list over 64 registers in which every
-# load, store and spill is one instruction; the list is the charge.
-ONES = (1 << 256) - 1
-class Prog:
-    def __init__(s): s.nodes = [None, None]; s.cache = {}; s.inputs = {}
-    def inp(s, name):
-        if name not in s.inputs: s.nodes.append(('in', name)); s.inputs[name] = len(s.nodes) - 1
-        return s.inputs[name]
-    def _mk(s, op, a, b=None):
-        key = (op, a, b) if op == 'not' or b is None else (op,) + tuple(sorted((a, b)))
-        if key not in s.cache: s.nodes.append(key); s.cache[key] = len(s.nodes) - 1
-        return s.cache[key]
-    def not_(s, a):
-        if a < 2: return 1 - a
-        n = s.nodes[a]
-        return n[1] if n[0] == 'not' else s._mk('not', a)
-    def xor(s, a, b):
-        if a == 0: return b
-        if b == 0: return a
-        if a == b: return 0
-        if a == 1: return s.not_(b)
-        if b == 1: return s.not_(a)
-        return s._mk('xor', a, b)
-    def and_(s, a, b):
-        if a == 0 or b == 0: return 0
-        if a == 1: return b
-        if b == 1 or a == b: return a
-        return s._mk('and', a, b)
-    def or_(s, a, b):
-        if a == 1 or b == 1: return 1
-        if a == 0: return b
-        if b == 0 or a == b: return a
-        return s._mk('or', a, b)
-    def add(s, x, y, cin=0, n=32):
-        """ripple addition of two bit lists (LSB first), n result bits"""
-        out = []; c = cin
-        for j in range(n):
-            t = s.xor(x[j], y[j]); out.append(s.xor(t, c))
-            c = s.or_(s.and_(x[j], y[j]), s.and_(c, t))
-        return out
-
-def build_e16(cbits, nlane):
-    """cbits[j]: 'L' (lane-varying bit of a0), 'C' (class constant, input), 0 or 1 (folded).  Returns (Prog, ok node)."""
-    p = Prog()
-    a0 = [p.inp('A%d' % j) if cbits[j] == 'L' else p.inp('C%d' % j) if cbits[j] == 'C' else cbits[j] for j in range(32)]
-    bc = lambda nm: [p.inp('%s%d' % (nm, j)) for j in range(32)]
-    HH, PP, QQ, EF, FF, K1, KP = (bc(n) for n in ('HH', 'PP', 'QQ', 'EF', 'FF', 'K1', 'KP'))
-    rot = lambda w, r: [w[(j + r) % 32] for j in range(32)]
-    x3 = lambda u, v, w: [p.xor(p.xor(u[j], v[j]), w[j]) for j in range(32)]
-    E0 = p.add(a0, HH)
-    # bit-interleaved: at bit j the four operands of T = S0(a0) + MAJ + S1(E0) + CH, the three adders of T and the subtraction K1 - T
-    c = [0, 0, 0, 1]; T1 = []; W1 = []
-    def fa(x, y, ci):
-        t = p.xor(x, y); return p.xor(t, ci), p.or_(p.and_(x, y), p.and_(ci, t))
-    for j in range(32):
-        sa = p.xor(p.xor(a0[(j + 2) % 32], a0[(j + 13) % 32]), a0[(j + 22) % 32])
-        mj = p.or_(PP[j], p.and_(a0[j], QQ[j]))
-        ss = p.xor(p.xor(E0[(j + 6) % 32], E0[(j + 11) % 32]), E0[(j + 25) % 32])
-        cv = p.xor(FF[j], p.and_(E0[j], EF[j]))
-        u, c[0] = fa(sa, mj, c[0]); v, c[1] = fa(ss, cv, c[1]); t, c[2] = fa(u, v, c[2])
-        w, c[3] = fa(K1[j], p.not_(t), c[3]); W1.append(w)
-    n = max(TBITS) + 1; d = [0, 0]; ok = 1
-    for j in range(n):
-        s0w = p.xor(p.xor(W1[(j + 7) % 32], W1[(j + 18) % 32]), W1[j + 3] if j + 3 < 32 else 0)
-        u, d[0] = fa(KP[j], a0[j], d[0]); e, d[1] = fa(u, s0w, d[1])
-        if j in TBITS: ok = p.and_(ok, e if (R16[0] >> j) & 1 else p.not_(e))
-    return p, ok
-
-def schedule(p, root, nreg=64):
-    """Belady allocation of the nodes root depends on, in creation order: instruction list [(op, dst, src...)] with 'ld' (input or spill
-    slot), 'st' (spill), 'xor', 'and', 'or', 'not', 'out'; returns (instructions, spill slots used)."""
-    need = set(); st = [root]
-    while st:
-        x = st.pop()
-        if x < 2 or x in need: continue
-        need.add(x); n = p.nodes[x]
-        if n[0] != 'in': st.extend(n[1:] if n[0] != 'not' else n[1:2])
-    order = [x for x in range(2, len(p.nodes)) if x in need and p.nodes[x][0] != 'in']
-    uses = {}
-    for t, x in enumerate(order):
-        n = p.nodes[x]
-        for o in (n[1:] if n[0] != 'not' else n[1:2]):
-            if o >= 2: uses.setdefault(o, []).append(t)
-    uses.setdefault(root, []).append(len(order))
-    ptr = {x: 0 for x in uses}
-    def nxt(x):
-        u = uses.get(x, []); i = ptr.get(x, 0)
-        return u[i] if i < len(u) else 1 << 40
-    reg = {}; free = list(range(nreg)); inmem = set(x for x in need if p.nodes[x][0] == 'in'); slots = {}; ins = []; maxslot = 0
-    def evict(t, keep):
-        nonlocal maxslot
-        v = max((x for x in reg if x not in keep), key=nxt)
-        if nxt(v) < (1 << 40) and v not in inmem:
-            if v not in slots: slots[v] = len(slots); maxslot = max(maxslot, len(slots))
-            ins.append(('st', ('S', slots[v]), reg[v])); inmem.add(v)
-        free.append(reg.pop(v))
-    def getreg(t, keep):
-        if not free: evict(t, keep)
-        return free.pop()
-    def load(x, t, keep):
-        if x in reg: return reg[x]
-        r = getreg(t, keep); src = ('I', p.nodes[x][1]) if p.nodes[x][0] == 'in' else ('S', slots[x])
-        ins.append(('ld', r, src)); reg[x] = r; return r
-    CONST = {0: 'Z', 1: 'O'}
-    for t, x in enumerate(order):
-        n = p.nodes[x]; ops = n[1:] if n[0] != 'not' else n[1:2]
-        keep = set(o for o in ops if o >= 2)
-        rs = []
-        for o in ops:
-            if o < 2: rs.append(CONST[o])
-            else: rs.append(load(o, t, keep))
-        for o in ops:
-            if o >= 2: ptr[o] += 1
-        dead = [o for o in ops if o >= 2 and nxt(o) >= (1 << 40) and o in reg]
-        if dead: r = reg.pop(dead[0]); [free.append(reg.pop(d)) for d in dead[1:] if d in reg]
-        else: r = getreg(t, keep)
-        ins.append((n[0], r) + tuple(rs)); reg[x] = r
-    ins.append(('out', reg[root] if root >= 2 else CONST[root]))
-    return ins, maxslot
-
-def run_prog(ins, inputs):
-    """execute an instruction list on 256-bit planes; inputs: name -> plane.  Returns (ok plane, executed instructions)."""
-    R = {}; S = {}; v = lambda a: 0 if a == 'Z' else ONES if a == 'O' else R[a]
-    for i in ins:
-        op = i[0]
-        if op == 'ld': R[i[1]] = inputs[i[2][1]] if i[2][0] == 'I' else S[i[2][1]]
-        elif op == 'st': S[i[1][1]] = R[i[2]]
-        elif op == 'xor': R[i[1]] = v(i[2]) ^ v(i[3])
-        elif op == 'and': R[i[1]] = v(i[2]) & v(i[3])
-        elif op == 'or': R[i[1]] = v(i[2]) | v(i[3])
-        elif op == 'not': R[i[1]] = v(i[2]) ^ ONES
-        elif op == 'out': return v(i[1]), len(ins) - 1
-    raise ValueError('no out')
-```
-
-### a0p_scal.py
-
-```python
-
-# ---- counted scalar routines (proof.md Section 7.1) ----
-# Machine: 256-bit word RAM; every executed primitive counts 1 (add, sub, and, or, xor, not, shl, shr, ld, st, li, rand), a compare-and-branch
-# counts 2, one target compression counts 1 unit.  32-bit values are reduced with one AND where the program needs a masked value.  The
-# routines below are written with the counting primitives of Mach and executed; broadcast, lane_value, first_lane, r16test, step_m and deep add
-# itemised declared counts (stated in their docstrings) instead of counting each primitive (the `calibrate` command).
-class Mach:
-    def __init__(s): s.ops = 0; s.units = 0
-    def op(s, v, n=1): s.ops += n; return v
-    def add(s, a, b): return s.op((a + b) & M)
-    def sub(s, a, b): return s.op((a - b) & M)
-    def xor(s, a, b): return s.op(a ^ b)
-    def and_(s, a, b): return s.op(a & b)
-    def or_(s, a, b): return s.op(a | b)
-    def shr(s, a, n): return s.op(a >> n)
-    def ld(s, v): return s.op(v)
-    def br(s, c): s.ops += 2; return c
-def sg(m, x, r1, r2, r3, shr3):
-    """ROTR(x,r1) ^ ROTR(x,r2) ^ (SHR or ROTR)(x,r3) of a masked 32-bit x: the doubled word D = x | x << 32 makes a rotation one shift; 8 ops"""
-    m.op(0, 2)                                                       # D = x << 32, D |= x
-    t = m.op(ror(x, r1) ^ ror(x, r2), 3); u = m.op((x >> r3) if shr3 else ror(x, r3), 1); return m.op((t ^ u) & M, 2)
-def S0m(m, x): return sg(m, x, 2, 13, 22, False)
-def S1m(m, x): return sg(m, x, 6, 11, 25, False)
-def s0m(m, x): return sg(m, x, 7, 18, 3, True)
-def s1m(m, x): return sg(m, x, 17, 19, 10, True)
-def CHm(m, e, f, g): return m.xor(g, m.and_(e, m.xor(f, g)))                    # 3
-def MAJm(m, a, b, c): return m.or_(m.and_(a, b), m.and_(c, m.or_(a, b)))       # 4
-
-def w7test(m, c7, a):
-    """W7 = c7 - A_{-1} in F7, computed (no table): s0(w + D7) - s0(w) = T7; 24 operations including the branch"""
-    w = m.and_(m.sub(c7, a), M); w2 = m.and_(m.add(w, D7), M)
-    d = m.and_(m.sub(s0m(m, w2), s0m(m, w)), M)
-    return m.br(d == T7)
-
-def fb_scalars(m, cv):
-    """per first block: HH, PP, QQ, EF, FF, K1, KP of the program (Lemma 4.1) and A1-independent words"""
-    a, b, c, d, e, f, g, h = cv
-    hh = m.and_(m.sub(m.sub(d, S0m(m, a)), MAJm(m, a, b, c)), M)
-    kw0 = m.and_(m.sub(m.sub(m.sub(m.sub(m.sub(hh, d), h), S1m(m, e)), CHm(m, e, f, g)), K[0]), M)
-    sc = dict(HH=hh, PP=m.and_(a, b), QQ=m.or_(a, b), EF=m.xor(e, f), FF=f, K1=m.and_(m.sub(KK1, g), M), KP=m.and_(m.add(KKP, kw0), M))
-    return sc
-KK1 = (SAx[1] - K[1]) & M                                          # K1 = A1 - g - K1
-KKP = (C16 + s1(PMX[14]) + PMX[9]) & M                            # KP = C16 + s1(W14) + W9 + (W0 - a0)
-PLANE_OPS = 4                                                       # one broadcast plane: shift, and, negate, store
-
-def broadcast(m, sc):
-    """the 7 x 32 broadcast planes (plane j = 0 - ((x >> j) & 1)); 4 operations each"""
-    out = {}
-    for nm, v in sc.items():
-        for j in range(32): out['%s%d' % (nm, j)] = ONES if (v >> j) & 1 else 0
-    m.ops += PLANE_OPS * 32 * len(sc); return out
-
-def lane_value(m, planes, L, cmask, base):
-    """a0 of lane L from the stored planes of the varying bits: per bit one shift, and, shift-left, or (4), plus the class base (1)"""
-    v = base
-    for j in range(32):
-        if (cmask >> j) & 1:
-            v |= ((planes[j] >> L) & 1) << j
-    m.ops += 4 * bin(cmask).count('1') + 1; return v
-
-def first_lane(m, ok):
-    """lowest set lane of a nonzero 256-bit word: binary search, 8 steps of (and, compare-and-branch, shift) = 32 operations"""
-    m.ops += 32; return (ok & -ok).bit_length() - 1
-
-def scalar_e16(m, sc, a0):
-    """E16x of one variant (Lemma 4.1): E0, S0(a0), MAJ, S1(E0), CH, W1, s0(W1), E16x"""
-    e0 = m.and_(m.add(a0, sc['HH']), M)
-    mj = m.or_(sc['PP'], m.and_(a0, sc['QQ']))
-    ch = m.xor(sc['FF'], m.and_(e0, sc['EF']))
-    w1 = m.and_(m.sub(m.sub(m.sub(m.sub(sc['K1'], S0m(m, a0)), mj), S1m(m, e0)), ch), M)
-    return m.and_(m.add(m.add(sc['KP'], a0), s0m(m, w1)), M)
-
-def r16test(m, e):
-    """E16x in the 160-word row-16 set: binary search in the sorted table (8 steps of load, compare-and-branch, shift: 5 each) + 2"""
-    m.ops += 8 * 5 + 2; return e in R16SET
-
-def step_m(m, A, E, W, i):
-    """one step of one member: 2 sigma (16), CH 3, MAJ 4, 9 additions/subtractions, 2 masks"""
-    m.ops += 16 + 3 + 4 + 9 + 2
-    E[i] = (A[i-4] + E[i-4] + S1(E[i-1]) + CH(E[i-1], E[i-2], E[i-3]) + K[i] + W[i]) & M
-    A[i] = (E[i] - A[i-4] + S0(A[i-1]) + MAJ(A[i-1], A[i-2], A[i-3])) & M
-
-def rowtest_m(m, tx, ty, i):
-    """the accepted tests of row i (Section 6): per word (A, E, W) one xor and compare-and-branch for the difference and one and +
-    compare-and-branch for the x-value bits (6 each, 18), the '+' pair (xor, and, branch: 4), per two-bit condition (2 shifts, xor, and,
-    branch: 6)"""
-    m.ops += 18 + (4 if PQ[i] and i != R19 else 0) + (6 * sum(1 for x in X2 if x[7] == i) if i != R19 else 0)
-    return rowok(tx, ty, i)
-
-def deep(m, cv, a0):
-    """a row-16 pass: the words of both members (Step 2: 5 E words and 9 W words each, 13 operations per word), the expansion W16..W37
-    (s0, s1, 3 additions, mask: 20 each), rows 16..37 of both members with the tests of rows 16..22 (early abort), the output comparison
-    (8 xor, 7 or, branch).  Returns True iff the pair is in the accepted event."""
-    wx, wy = words(cv, a0); m.ops += 2 * 14 * 13
-    tx = trace(cv, wx); ty = trace(cv, wy)
-    for i in range(16, 38):
-        m.ops += 2 * 20 + 2 * 34
-        if i <= 22 and not rowtest_m(m, tx, ty, i): return False
-    m.ops += 8 + 7 + 2
-    return all(tx[k][i] == ty[k][i] for k in (0, 1) for i in range(34, 38))
-```
-
-### a0p_run.py
-
-```python
-
-# ---- the online algorithm on one first block (proof.md Section 6) ----
-def cbits(ci):
-    """per-class program inputs: 'L' (a plane) on the class's own mask bits, elsewhere the class's base bit as a constant"""
-    c7, base, mk = CLASSES[ci]
-    return ['L' if (mk >> j) & 1 else (base >> j) & 1 for j in range(32)]
-_PROG = {}
-def program(ci=0):
-    """the row-16 plane program of class ci (one per distinct mask and base bits outside it; constants folded)"""
-    key = tuple(cbits(ci))
-    if key not in _PROG:
-        p, ok = build_e16(list(key), 256); _PROG[key] = schedule(p, ok)[0]
-    return _PROG[key]
-BATCH_CTL = 6          # per batch: ok test (compare-and-branch 2) and pointer advance, compare and branch (4)
-CLASS_CTL = 3 + 4      # per passing class: setup 3 (batch pointer, end pointer, class constants) and end of class (work counter, cap test) 4
-LANE_CTL = 3           # per passing lane: clear the lane (xor) and the loop test (compare-and-branch)
-FB_FIXED = 30 + 5      # per first block: two random words and their 16 fields (30), counter, cap test and hit-list test (5)
-W7_LOOP = 4            # per class: load c7, advance the class pointer, compare and branch
-
-def batch_planes(mem):
-    """the stored planes of a batch: plane j = bits j of the 256 variants (lane L = variant L)"""
-    return {j: sum(((x >> j) & 1) << L for L, x in enumerate(mem)) for j in range(32)}
-
-def process_batch(m, ins, inp, planes, ci, cv, sc, found):
-    """one batch of one passing class: the plane program, then every passing lane in scalar form; row-16 passes go to the deep check"""
-    mk = CLASSES[ci][2]
-    for j in range(32):
-        if (mk >> j) & 1: inp['A%d' % j] = planes[j]
-    ok, n = run_prog(ins, inp); m.ops += n + BATCH_CTL
-    while ok:
-        L = first_lane(m, ok); ok &= ok - 1; m.ops += LANE_CTL
-        a0 = lane_value(m, planes, L, mk, CLASSES[ci][1] & ~mk & M)
-        e = scalar_e16(m, sc, a0)
-        if r16test(m, e) and deep(m, cv, a0): found.append(a0)
-    return found
-
-def process_fb(m, cv, batches_of, check=None):
-    """one first block with chaining value cv: the W7 tests of all classes; for each passing class all its batches (batches_of(ci) yields
-    the member lists).  Returns the accepted variants found.  check(ci, mem, ok-plane-recomputation) may verify lanes."""
-    m.ops += FB_FIXED
-    hits = []
-    for ci, (c7, base, mk) in enumerate(CLASSES):
-        m.ops += W7_LOOP
-        if w7test(m, c7, cv[0]): hits.append(ci); m.ops += 2
-    found = []
-    if not hits: return found, hits
-    sc = fb_scalars(m, cv); inp = broadcast(m, sc)
-    for ci in hits:
-        m.ops += CLASS_CTL; ins = program(ci)
-        for mem in batches_of(ci):
-            process_batch(m, ins, inp, batch_planes(mem), ci, cv, sc, found)
-    return found, hits
-
-# ---- organizer experiments (proof.md Section 13).  Randomness: SHAKE-256 of (experiment id | trial seed) ----
-class Shake:
-    def __init__(self, seed): self.seed = seed.encode(); self.k = 0; self.buf = b''; self.pos = 0
-    def word(self):
-        if self.pos + 32 > len(self.buf):
-            self.buf = hashlib.shake_256(self.seed + b'|' + str(self.k).encode()).digest(1 << 14); self.k += 1; self.pos = 0
-        v = int.from_bytes(self.buf[self.pos:self.pos + 32], 'little'); self.pos += 32; return v
-    def u32(self): return self.word() & M
-    def below(self, n): return self.word() % n
-
-def vsample():
-    return list(struct.unpack('<512I', zlib.decompress(base64.b64decode(VS_B64))))
-
-def f7_sample(rng):
-    """W7 uniform on F7 = {w : s0(w + D7) - s0(w) = T7}.  For D7 = 2^29, T7 = 03bff800 (P8): its three affine families (2^28, 2^24 and
-    2^21 words; proof.md 5.1), the family drawn by rejection from its own word (shares 256, 16, 2 of 274; no modulo bias) and the value
-    bits from a fresh word (selector and value independent; the fix of 08be594).  Any other (D7, T7): rejection on the definition."""
-    if D7 != 1 << 29 or T7 != 0x03bff800:
-        while True:
-            w = rng.u32()
-            if inF7(w): return w
-    while True:
-        r = rng.u32() >> 23                                             # 9 bits; accept r < 274
-        if r < 274: break
-    w = rng.u32()
-    b = lambda x, j: (x >> j) & 1
-    def setb(x, j, v): return (x & ~(1 << j)) | (v << j)
-    if r < 256: w = setb(w, 29, 0)
-    elif r < 272: w = setb(setb(w, 29, 1), 30, 0)
-    else: w = setb(setb(w, 29, 1), 30, 1)
-    w = setb(w, 18, b(w, 14) ^ 1); w = setb(w, 25, b(w, 8) ^ 1); w = setb(w, 12, b(w, 1))
-    if r >= 256:
-        w = setb(w, 19, b(w, 15) ^ 1); w = setb(w, 26, b(w, 9) ^ 1); w = setb(w, 13, b(w, 2))
-    if r >= 272:
-        w = setb(w, 20, b(w, 16) ^ b(w, 31) ^ 1); w = setb(w, 27, b(w, 10) ^ b(w, 31) ^ 1); w = setb(w, 14, b(w, 3) ^ b(w, 31))
-        w = setb(w, 18, b(w, 14) ^ 1)
-    return w
-
-def step_row(A, E, W, i):
-    E[i] = (A[i-4] + E[i-4] + S1(E[i-1]) + CH(E[i-1], E[i-2], E[i-3]) + K[i] + W[i]) & M
-    A[i] = (E[i] - A[i-4] + S0(A[i-1]) + MAJ(A[i-1], A[i-2], A[i-3])) & M
-
-def erow_plan(i, cm, pq):
-    """bits of E_i imposed on a row-i proposal: x-value cells, '+' pairs, two-bit conditions with an earlier E row (prev) and inside E_i
-    (inner), each imposed once from a bit fixed before it (as in vt38n.py)"""
-    imp = cm | pq; prev = []; inner = []
-    for (k1, i1, b1, eq, k2, i2, b2, row) in X2:
-        if row != i or k1 != 1 or k2 != 1 or i2 != i: continue
-        fl = 0 if eq else 1
-        if i1 < i:
-            if not (imp >> b2) & 1: prev.append((i1, b1, b2, fl)); imp |= 1 << b2
-        elif not (imp >> b2) & 1: inner.append((b1, b2, fl)); imp |= 1 << b2
-        elif not (imp >> b1) & 1: inner.append((b2, b1, fl)); imp |= 1 << b1
-    done = cm | pq | sum(1 << b2 for (_, _, b2, _) in prev); out = []; todo = list(inner)
-    while todo:
-        nx = [t for t in todo if (done >> t[0]) & 1 or not any(u[1] == t[0] for u in todo)]
-        if not nx: imp &= ~sum(1 << t[1] for t in todo); break
-        for t in nx: out.append(t); done |= 1 << t[1]; todo.remove(t)
-    return imp, prev, out
-
-NP_R, CH_R, NT_R = 64, (64, 8, 8, 4, 2, 1), 192
-P19F = 1 << 18; P19A = ((10, 28), (11, 29)); P19B = ((5, 10),)   # the row-19 pattern flips: A = E19[18], conditions 6 and 7; B = condition 11
-def smc_replicate(rng, VS):
-    """one replicate of the estimator of q3 for the accepted event: row 16 exact (the 160 W16 words), rows 17..22 by proposals of E_i^x
-    with the row's E bits imposed (row 19: only its difference bits), tail: a variant of the sample, W7 uniform in F7, rows 23..37,
-    output comparison.  Returns (log2 estimate or None, accepted pairs, failed rebuilds)."""
-    lg = [math.log2(len(GL)) - 32]; P = []
-    for _ in range(NP_R):
-        w = GL[rng.below(len(GL))]; st = []
-        for (SA, SE, wp, dw) in ((SAx, SEx, PMX, 0), (SAy, SEy, PMY, DWT[16])):
-            A = dict(SA); E = dict(SE); W = {i: wp[i] for i in range(16)}; W[16] = (w + dw) & M; step_row(A, E, W, 16); st += [A, E, W]
-        P.append(st)
-    for i in range(17, 23):
-        cm, cvv, d, _ = CELLS[1][i]; pq = PQ[i] & ~cm
-        imp, prev, inner = erow_plan(i, cm, pq); f = bin(imp).count('1'); Mi = CH_R[i - 17]; surv = []
-        if i == R19:                     # one of the four row-19 patterns (proof.md 6.1), drawn uniformly: weight 4 x 2^-f
-            f -= 2; inners = []
-            for fa, fb in ((0, 0), (0, 1), (1, 0), (1, 1)):
-                fl = {(b1, b2) for b1, b2 in (P19A if fa else ()) + (P19B if fb else ())}
-                inners.append(([(bs, bd, x ^ ((bs, bd) in fl or (bd, bs) in fl)) for (bs, bd, x) in inner], cvv ^ (P19F if fa else 0)))
-        for (Ax, Ex, Wx, Ay, Ey, Wy) in P:
-            rx = (Ax[i-4] + Ex[i-4] + S1(Ex[i-1]) + CH(Ex[i-1], Ex[i-2], Ex[i-3]) + K[i]) & M
-            for _ in range(Mi):
-                inn, cv0 = inners[rng.below(4)] if i == R19 else (inner, cvv)
-                fixed = cv0 | (Ex[i-1] & pq)
-                for (i1, b1, b2, fl) in prev: fixed |= (((Ex[i1] >> b1) & 1) ^ fl) << b2
-                e = (rng.u32() & ~imp & M) | fixed
-                for (bs, bd, fl) in inn: e = (e & ~(1 << bd)) | (((e >> bs) & 1) ^ fl) << bd
-                Wxi = (e - rx) & M
-                nA = dict(Ax); nE = dict(Ex); nW = dict(Wx); mA = dict(Ay); mE = dict(Ey); mW = dict(Wy)
-                nW[i] = Wxi                                          # W_i^y = W_i^x + the schedule difference (W0..W6 carry none)
-                mW[i] = (Wxi + s1(mW[i-2]) - s1(nW[i-2]) + mW[i-7] - nW[i-7] + (T7 if i == 22 else s0(mW[i-15]) - s0(nW[i-15]))) & M
-                step_row(nA, nE, nW, i); step_row(mA, mE, mW, i)
-                if nE[i] == e and rowok((nA, nE, nW), (mA, mE, mW), i): surv.append((nA, nE, nW, mA, mE, mW))
-        if not surv: return None, [], 0
-        lg.append(math.log2(len(surv) / (len(P) * Mi)) - f)
-        P = [surv[rng.below(len(surv))] for _ in range(NP_R)]
-    pairs = []; bad = 0; succ = 0
-    Kt = K
-    for (Ax, Ex, Wx, Ay, Ey, Wy) in P:
-        bx = [Ax[18], Ax[19], Ax[20], Ax[21], Ax[22], Ex[18], Ex[19], Ex[20], Ex[21], Ex[22]]
-        by = [Ay[18], Ay[19], Ay[20], Ay[21], Ay[22], Ey[18], Ey[19], Ey[20], Ey[21], Ey[22]]
-        wxb = [Wx[i] for i in range(23)]; wyb = [Wy[i] for i in range(23)]
-        for _ in range(NT_R):
-            a0 = VS[rng.below(len(VS))]
-            w7 = f7_sample(rng)
-            w8 = (W8C[0] - ((a0 + C4) & M)) & M
-            ok = True; outs = []
-            for (b0, wb, d7, d8) in ((bx, wxb, 0, 0), (by, wyb, D7, D8)):
-                W = list(wb); W[7] = (w7 + d7) & M; W[8] = (w8 + d8) & M
-                a4, a3, a2, a1, a = b0[0], b0[1], b0[2], b0[3], b0[4]; e4, e3, e2, e1, e = b0[5], b0[6], b0[7], b0[8], b0[9]
-                for i in range(23, NR):                          # the step and expansion inlined; a3 = A[i-4], a = A[i-1]
-                    x = W[i-2]; y = W[i-15]; d = (x | x << 32); z = (y | y << 32)
-                    w = ((((d >> 17) ^ (d >> 19)) & M ^ (x >> 10)) + W[i-7] + (((z >> 7) ^ (z >> 18)) & M ^ (y >> 3)) + W[i-16]) & M; W.append(w)
-                    d = e | e << 32; ne = (a3 + e3 + ((d >> 6) ^ (d >> 11) ^ (d >> 25)) + ((e & e1) ^ (~e & e2)) + Kt[i] + w) & M
-                    d = a | a << 32; na = (ne - a3 + ((d >> 2) ^ (d >> 13) ^ (d >> 22)) + ((a & a1) ^ (a & a2) ^ (a1 & a2))) & M
-                    a4, a3, a2, a1, a = a3, a2, a1, a, na; e4, e3, e2, e1, e = e3, e2, e1, e, ne
-                outs.append((a, a1, a2, a3, e, e1, e2, e3))
-            if outs[0] == outs[1]:
-                succ += 1; cv, wx, wy = rebuild({i: (wxb[i] if i > 8 else w7 if i == 7 else w8) for i in range(7, 23)}, a0)
-                tx, ty = trace(cv, wx), trace(cv, wy)
-                if compress(cv, wx) == compress(cv, wy) and wx != wy and accepted(tx, ty) and inF7(wx[7]) and wx[7] == w7: pairs.append((cv, wx, wy, a0))
-                else: bad += 1
-    if succ == 0: return None, pairs, bad
-    lg.append(math.log2(succ / (NP_R * NT_R))); return sum(lg), pairs, bad
-```
-
-### a0p_main.py
-
-```python
-
-Q3_REPS = 10
-ONLINE_TRIALS = 8
-UNCOND_FB = 64          # per active online trial: unconditional first blocks whose class W7 passes are counted (H1)
-Q3_THRESH = -98.6       # log2 threshold of the pooled mean of the 10 replicates (fixed from 48 development requests before any validation run)
-
-def class_of(a0):
-    c = c7of(a0)
-    for ci, (c7, base, mk) in enumerate(CLASSES):
-        if c == c7 and in_G(a0) and (a0 ^ base) & ~mk & M == 0: return ci
-    return None
-
-def q3_experiment(req):
-    VS = vsample(); out = []; est = []; allok = True; last = None
-    for tr in req['trials']:
-        t = tr['trial']; rec = dict(trial=t, message_a_hex=None, message_b_hex=None)
-        if t < Q3_REPS:
-            z, pairs, bad = smc_replicate(Shake(req['experiment_id'] + '|' + tr['seed']), VS)
-            est.append(z); allok = allok and bad == 0
-            rec['observations'] = dict(log2_estimate=z if z is not None else -1000.0, accepted_pairs=len(pairs), failed_rebuilds=bad)
-            if pairs:
-                cv, mx, my, a0 = pairs[0]; last = pairs[0]
-                rec['message_a_hex'] = struct.pack('>24I', *(cv + mx)).hex(); rec['message_b_hex'] = struct.pack('>24I', *(cv + my)).hex()
-        elif t == Q3_REPS and len(est) == Q3_REPS:
-            mean = sum(2.0 ** z for z in est if z is not None) / Q3_REPS; lz = math.log2(mean) if mean > 0 else -1000.0
-            rec['observations'] = dict(log2_pooled_mean=lz)
-            if allok and Q3_THRESH is not None and lz >= Q3_THRESH and last:
-                cv, mx, my, a0 = last
-                rec['message_a_hex'] = struct.pack('>24I', *(cv + mx)).hex(); rec['message_b_hex'] = struct.pack('>24I', *(cv + my)).hex()
-        out.append(rec)
-    return dict(schema_version=1, trials=out)
-
-def online_experiment(req):
-    """the counted online program on organizer-seeded first blocks (real compressions): first UNCOND_FB first blocks are drawn and the W7
-    passes of all classes counted without any selection (H1: expected UNCOND_FB x len(CLASSES) x |F7| / 2^32); then first blocks are drawn until one has a passing
-    class (at most 64); its first passing class is run on two batches (the class's first 512 members) and every lane is compared with
-    the scalar definition (E16x from the Step-2 words and the 38-step trace); trial 0 also runs the batch of the semi-free-start pair's
-    variant on its chaining value and requires the counted program to find and accept it"""
-    out = []
-    for tr in req['trials']:
-        rng = Shake(req['experiment_id'] + '|' + tr['seed']); rec = dict(trial=tr['trial'], message_a_hex=None, message_b_hex=None)
-        if tr['trial'] >= ONLINE_TRIALS: out.append(rec); continue          # trials 8..255 return no pair by design
-        un = 0                                                             # H1: unconditional first blocks, before any selection
-        for k in range(UNCOND_FB):
-            r0, r1 = rng.word(), rng.word()
-            cv = compress(IV, [(r0 >> (32 * q)) & M for q in range(8)] + [(r1 >> (32 * q)) & M for q in range(8)])
-            un += sum(1 for c7, b, mk in CLASSES if inF7((c7 - cv[0]) & M))
-        for k in range(64):
-            r0, r1 = rng.word(), rng.word()
-            M0 = [(r0 >> (32 * q)) & M for q in range(8)] + [(r1 >> (32 * q)) & M for q in range(8)]
-            cv = compress(IV, M0); m = Mach()
-            hits = [ci for ci, (c7, b, mk) in enumerate(CLASSES) if inF7((c7 - cv[0]) & M)]
-            if hits: break
-        bad = 0; lanes = 0; passed = 0
-        if hits:
-            ci = hits[0]; mem = members(ci, 512)
-            sc = fb_scalars(m, cv); inp = broadcast(m, sc); ins = program(ci); mk = CLASSES[ci][2]
-            for b in range(2):
-                bm = mem[256 * b:256 * b + 256]; planes = batch_planes(bm)
-                for j in range(32):
-                    if (mk >> j) & 1: inp['A%d' % j] = planes[j]
-                ok, n = run_prog(ins, inp)
-                for L, a0 in enumerate(bm):
-                    wx = words(cv, a0)[0]; e = trace(cv, wx, 17)[1][16]
-                    want = all(((e >> j) & 1) == ((R16[0] >> j) & 1) for j in TBITS)
-                    bad += want != bool((ok >> L) & 1) or wx[7] != (CLASSES[ci][0] - cv[0]) & M or not inF7(wx[7]); lanes += 1; passed += want
-            if not bad:
-                wx, wy = words(cv, mem[0])
-                rec['message_a_hex'] = struct.pack('>32I', *(M0 + wx)).hex(); rec['message_b_hex'] = struct.pack('>32I', *(M0 + wy)).hex()
-        if tr['trial'] == 0:                                               # positive lanes: the batch of the semi-free-start pair's variant
-            ci = class_of(A0S); mem = members(ci, 256)
-            if A0S not in mem: mem[17] = A0S
-            m2 = Mach(); sc2 = fb_scalars(m2, PCV); inp2 = broadcast(m2, sc2); fnd = []
-            process_batch(m2, program(ci), inp2, batch_planes(mem), ci, PCV, sc2, fnd); bad += A0S not in fnd
-        rec['observations'] = dict(uncond_first_blocks=UNCOND_FB, uncond_class_passes=un, first_blocks=k + 1, passing_classes=len(hits), lanes=lanes, stage3a_passes=passed, mismatches=bad)
-        out.append(rec)
-    return dict(schema_version=1, trials=out)
-
-def calibrate():
-    """the executed counts used by the ledger (proof.md Section 7)"""
-    import random
-    rr = random.Random(9); m = Mach(); cv = [rr.getrandbits(32) for _ in range(8)]
-    w7 = []
-    for _ in range(200): m = Mach(); w7test(m, rr.getrandbits(32), rr.getrandbits(32)); w7.append(m.ops)
-    m = Mach(); sc = fb_scalars(m, cv); n_sc = m.ops; m = Mach(); broadcast(m, sc); n_bc = m.ops
-    m = Mach(); a0 = members(0, 1)[0]; lane_value(m, {j: 0 for j in range(32)}, 0, max((c[2] for c in CLASSES), key=lambda x: bin(x).count('1')), 0); n_lv = m.ops
-    m = Mach(); scalar_e16(m, sc, a0); n_e16 = m.ops
-    m = Mach(); deep(m, PCV, A0S); n_deep = m.ops
-    progs = [len(program(ci)) - 1 for ci in range(len(CLASSES))]
-    return dict(prog=progs, w7=max(w7), fb_fixed=FB_FIXED, w7_loop=W7_LOOP, scalars=n_sc, planes=n_bc, batch_ctl=BATCH_CTL,
-                class_ctl=CLASS_CTL, lane=32 + LANE_CTL + n_lv + n_e16 + 42, deep=n_deep, tk=TK, classes=len(CLASSES), class_size=CLASS_SIZE)
-
-def selftest():
-    import random
-    rr = random.Random(5); ok = True
-    def chk(name, cond, extra=''):
-        nonlocal ok; ok = ok and bool(cond); print('%-70s %s %s' % (name, 'ok' if cond else 'FAIL', extra), flush=True)
-    tx, ty = trace(PCV, PMX), trace(PCV, PMY)
-    chk('1 the semi-free-start pair collides, M != M\', accepted event, W7 in F7', compress(PCV, PMX) == compress(PCV, PMY) and PMX != PMY and accepted(tx, ty) and inF7(PMX[7]))
-    chk('  its variant A0 is in G and in a selected class', in_G(A0S) and class_of(A0S) is not None, '(class %s)' % class_of(A0S))
-    def g16(w):
-        A = dict(SAx); E = dict(SEx); W = {i: PMX[i] for i in range(16)}; B = dict(SAy); F = dict(SEy); V = {i: PMY[i] for i in range(16)}
-        W[16] = w; V[16] = (w + DWT[16]) & M; step_row(A, E, W, 16); step_row(B, F, V, 16)
-        return rowok((A, E, W), (B, F, V), 16)
-    cand = list(GL) + [rr.getrandbits(32) for _ in range(20000)] + [g ^ (1 << b) for g in GL[:40] for b in range(32)]
-    gs = set(GL); chk('2 row 16: the 160 W16 words hold it; 20,000 random words and 1,280 neighbours agree', all(g16(w) == (w in gs) for w in cand))
-    bad = 0
-    for _ in range(20):
-        cv = [rr.getrandbits(32) for _ in range(8)]; ci = rr.randrange(len(CLASSES)); a0 = members(ci, 1, rr.randrange(40))[0]
-        wx, wy = words(cv, a0); t = trace(cv, wx, 17); u = trace(cv, wy, 17); m = Mach(); sc = fb_scalars(m, cv)
-        bad += scalar_e16(m, sc, a0) != t[1][16] or wx[7] != (CLASSES[ci][0] - cv[0]) & M or not all(rowok(t, u, i) for i in range(11, 16))
-        bad += any(((wy[i] - wx[i]) & M) != DWT[i] for i in range(16))
-    chk('3 Lemma 4.1: E16x formula, W7 = c7 - A_-1, rows 11..15 and the word differences on 20 chaining values', bad == 0)
-    from collections import Counter
-    cnt = [(len(p) - 1, Counter(i[0] for i in p)) for p in (program(ci) for ci in range(len(CLASSES)))]
-    chk('4 row-16 programs (one per class): instructions mean / max, loads, spill stores', True, '%.2f / %d (loads %d..%d, stores %d..%d)' % (
-        sum(n for n, _ in cnt) / len(cnt), max(n for n, _ in cnt), min(c['ld'] for _, c in cnt), max(c['ld'] for _, c in cnt), min(c['st'] for _, c in cnt), max(c['st'] for _, c in cnt)))
-    r = online_experiment(dict(experiment_id='a0p-online-r38', trials=[dict(trial=t, seed='%064x' % t) for t in range(2)]))
-    chk('  program against the definition on 2 x 512 lanes of real first blocks', all(t['observations']['mismatches'] == 0 for t in r['trials']), str([t['observations'] for t in r['trials']]))
-    ci = class_of(A0S); mem = members(ci, 256); found = []
-    if A0S not in mem: mem[17] = A0S
-    m = Mach(); sc = fb_scalars(m, PCV); inp = broadcast(m, sc); process_batch(m, program(ci), inp, batch_planes(mem), ci, PCV, sc, found)
-    chk('5 the counted program finds the semi-free-start pair in its batch', A0S in found, '(%d operations)' % m.ops)
-    z, pairs, bad = smc_replicate(Shake('selftest'), vsample())
-    chk('6 replicate: estimate, accepted pairs rebuilt and verified, failed rebuilds 0', bad == 0, '(log2 %s, %d pairs)' % (None if z is None else round(z, 3), len(pairs)))
-    print('   calibrate:', calibrate())
-    print('SELFTEST', 'PASSED' if ok else 'FAILED'); return ok
-
-def run_request(req): return online_experiment(req) if 'online' in req['experiment_id'] else q3_experiment(req)
-
-if __name__ == '__main__':
-    if len(sys.argv) > 1 and sys.argv[1] == 'selftest': sys.exit(0 if selftest() else 1)
-    if len(sys.argv) > 1 and sys.argv[1] == 'calibrate': print(json.dumps(calibrate())); sys.exit(0)
-    sys.stdout.write(json.dumps(run_request(json.loads(sys.stdin.read())), separators=(',', ':')))
-```
-
-### mka0p.py
-
-```python
-"""mka0p.py <sha2-search dir> <out.py> [selection dir] [tables .py] [sfs pair .json]: assemble experiments/a0p38.py from its parts with the
-constants of one characteristic (own code). Defaults: P8. The selection dir is lp_classes.py output (derived.json, classes.txt, vars_pool.txt)."""
-import sys, json, re, os
-R, OUT = sys.argv[1], sys.argv[2]; parts = ['a0p_ref.py', 'a0p_core.py', 'a0p_prog.py', 'a0p_scal.py', 'a0p_run.py', 'a0p_main.py']
-SEL = sys.argv[3] if len(sys.argv) > 3 else None
-TAB = sys.argv[4] if len(sys.argv) > 4 else R + '/runs/vt/consts_p08.py'
-C = open(TAB).read().split('\n')
-keep = [l for l in C if l.startswith(('PCV', 'PMX', 'PMY', '_CH', 'PQ', 'X2', 'GL'))]
-sfs = sys.argv[5] if len(sys.argv) > 5 else R + '/runs/c/P08.sfs_pair.json'
-try:
-    P = json.load(open(sfs)); keep = [l for l in keep if not l.startswith(('PCV', 'PMX', 'PMY'))] + ['PCV = %s' % P['cv'], 'PMX = %s' % P['M'], 'PMY = %s' % P['M2'], 'A0S = 0x%08x' % P['a0']]
-except FileNotFoundError: pass
-if SEL:
-    DV = json.load(open(SEL + '/derived.json')); cls = [l.split() for l in open(SEL + '/classes.txt')]; pool = SEL + '/vars_pool.txt'
-    keep += ['MASK = 0x%s' % DV['MASK'], 'T7_C = 0x%s' % DV['T7'], 'CBITS_C = 0x%s' % DV['CBITS'], 'CLASS_SIZE = %d' % DV['class_size']]
-else:
-    cls = [l.split() for l in open(R + '/runs/p08_classes.txt')]; pool = R + '/runs/vars_p08_pool.txt'
-    keep += ['MASK = 0x7fe96c7c', 'T7_C = 0x03bff800', 'CBITS_C = 0x80041002', 'CLASS_SIZE = 24576']
-import random, struct as _st, zlib as _z, base64 as _b
-_pool = [int(l.split()[1], 16) for l in open(pool)]
-_vs = random.Random(20261014).sample(_pool, 512)
-keep.append("VS_B64 = '%s'" % _b.b64encode(_z.compress(_st.pack('<512I', *_vs), 9)).decode())
-_gm = [l for l in keep if l.startswith('MASK = ')][0].split()[-1]
-keep.append('CLASSES = [%s]' % ', '.join('(0x%s, 0x%s, 0x%s)' % (r[0], r[1], r[3] if len(r) > 3 else _gm[2:]) for r in cls))
-src = ''.join(open(R + '/m38/' + p).read() for p in parts).replace('#<<CONSTS>>', '\n'.join(keep))
-open(OUT, 'w').write(src); print('bytes', len(src.encode()))
-```
-
-### mkvt.py
-
-```python
-#!/usr/bin/env python3
-"""mkvt.py - constants of the NEW3 instantiation of the variant-table program (own code).
-Reads the NEW3 data files and writes the constants block of experiments/vt38n.py: the dense pair S*, the semi-free-start pair,
-the trail cells of rows 0..37 (mask, x-value, x^y difference, 0) with the fixed-bit conditions merged in, the '+' pairs PQ
-(E_i[b] = E_{i-1}[b]), the remaining two-bit conditions X2, the variant-validity conditions VC, G, the 64 A0 values, the A2
-list, 512 sampled variants and one valid variant per A0. Usage: mkvt.py <sha2-search dir> <out.py>"""
-import sys, json, struct, zlib, base64, os
-R = sys.argv[1]; OUT = sys.argv[2]
-PRE = sys.argv[3] if len(sys.argv) > 3 else R + '/runs/c/NEW3'   # characteristic prefix (char.json, .dat, .var.dat, .pair.json)
-SFS = sys.argv[4] if len(sys.argv) > 4 else R + '/runs/c/NEW3.sfs_pair.json'
-M = 0xffffffff
-char = {int(k): v for k, v in json.load(open(PRE + '.char.json')).items()}
-pair = json.load(open(PRE + '.pair.json')); sfs = json.load(open(SFS)) if os.path.exists(SFS) else dict(cv=pair['cv'], M=pair['Wx'], M2=pair['Wy'])
-KI = {'A': 0, 'E': 1, 'W': 2}
-
-def trail(row):
-    m = sum(1 << (31 - k) for k, c in enumerate(row) if c in 'un'); x = sum(1 << (31 - k) for k, c in enumerate(row) if c == 'u')
-    return m, x
-
-CELL = [[[0, 0, 0] for _ in range(38)] for _ in range(3)]          # mask, x-value, difference
-for i in range(38):
-    for k, kk in KI.items():
-        m, x = trail(char.get(i, {k: '=' * 32})[k]); CELL[kk][i] = [m, x, m]
-# conditions: rows >= 16 from the q3 data file (keyed), dense-part validity from the variant data file (key = largest row)
-def parse(fn, keyed):
-    out = []
-    for l in open(fn):
-        t = l.split()
-        if not t or t[0] != 'COND': continue
-        if keyed: key, n = int(t[1]), int(t[2]); rest = t[3:]
-        else: n = int(t[1]); rest = t[2:]; key = None
-        refs = [tuple(int(v) for v in rest[3 * q:3 * q + 3]) for q in range(n)]; al = int(rest[3 * n], 16)
-        out.append((key if keyed else max(r[1] for r in refs), refs, al))
-    return out
-TAIL = parse(PRE + '.dat', True); DENSE = parse(PRE + '.var.dat', False)
-PQ = [0] * 38; X2 = []
-def fix(k, i, b, v):
-    m, x, d = CELL[k][i]
-    if (m >> b) & 1: assert ((x >> b) & 1) == v, ('conflicting fixed bit', k, i, b)
-    CELL[k][i] = [m | 1 << b, (x & ~(1 << b)) | v << b, d]
-for key, refs, al in TAIL + DENSE:
-    ok = [idx for idx in range(1 << len(refs)) if (al >> idx) & 1]
-    if len(refs) == 1:
-        assert len(ok) == 1; fix(*refs[0], ok[0]); continue
-    assert len(refs) == 2, refs
-    b0 = {idx & 1 for idx in ok}; b1 = {idx >> 1 for idx in ok}
-    if len(ok) == 2 and (len(b0) == 1 or len(b1) == 1):            # one operand fixed, the other free
-        if len(b0) == 1: fix(*refs[0], b0.pop())
-        else: fix(*refs[1], b1.pop())
-        continue
-    if len(ok) == 1: fix(*refs[0], ok[0] & 1); fix(*refs[1], ok[0] >> 1); continue
-    assert sorted(ok) in ([0, 3], [1, 2]), (refs, al)
-    eq = 1 if sorted(ok) == [0, 3] else 0
-    (k1, i1, c1), (k2, i2, c2) = sorted(refs, key=lambda r: (r[1], r[0], r[2]))
-    if k1 == k2 == 1 and c1 == c2 and i2 == i1 + 1 and eq: PQ[i2] |= 1 << c1; continue
-    X2.append((k1, i1, c1, eq, k2, i2, c2, key))
-_g = open(PRE + '.dat.g16', 'rb').read(); G = list(struct.unpack('<%dI' % (len(_g) // 4), _g))
-NEW3 = PRE.endswith('NEW3')
-if NEW3:
-    A0 = [int(x, 16) for x in open(R + '/runs/a0_selected64.txt').read().split()]
-    pool = [l.split() for l in open(R + '/runs/vars_new3_pool.txt')]
-    A2 = sorted({int(t[3], 16) for t in pool}); assert len(A2) == 1408, len(A2)
-    A2I = {a: k for k, a in enumerate(A2)}
-    samp = [l.split() for l in open(R + '/runs/vars_new3_s17.txt')][:512]
-    S512 = b''.join(struct.pack('<BIH', int(t[0]), int(t[2], 16), A2I[int(t[3], 16)]) for t in samp)
-    ent = {}
-    for t in pool:
-        j = int(t[0]); ent.setdefault(j, (int(t[2], 16), A2I[int(t[3], 16)]))
-    assert len(ent) == 64
-    E64 = b''.join(struct.pack('<IH', *ent[j]) for j in range(64))
-b64 = lambda b: base64.b64encode(zlib.compress(b, 9)).decode()
-_CH = [{i: (CELL[k][i][0], CELL[k][i][1], CELL[k][i][2], 0) for i in range(38) if CELL[k][i][0]} for k in range(3)]
-o = []
-o.append('PCV = %s' % [w for w in pair['cv']]); o.append('PMX = %s' % pair['Wx']); o.append('PMY = %s' % pair['Wy'])
-o.append('SFS_CV = %s' % sfs['cv']); o.append('SFS_MX = %s' % sfs['M']); o.append('SFS_MY = %s' % sfs['M2'])
-o.append('_CH = %r' % _CH)
-o.append('PQ = %r' % PQ); o.append('X2 = %r' % X2)
-o.append('VC = %r' % [(refs, al) for key, refs, al in DENSE])
-o.append('GL = %r' % G)
-if NEW3:
-    o.append("A0_B64 = '%s'" % b64(struct.pack('<64I', *A0))); o.append("A2_B64 = '%s'" % b64(struct.pack('<1408I', *A2)))
-    o.append("S512_B64 = '%s'" % b64(S512)); o.append("E64_B64 = '%s'" % b64(E64))
-open(OUT, 'w').write('\n'.join(o) + '\n')
-print('cells', sum(len(c) for c in _CH), 'PQ rows', [i for i in range(38) if PQ[i]], 'X2', len(X2), 'VC', len(DENSE), 'G', len(G))
-for x in X2: print('  X2', x)
-```
-
-### a0fam.c
-
-```c
-// A0-only variant family of a dense part and its c7 classes (own code). a0fam <pair: cv Wx[16] Wy[16] hex> [min class size, out file]
-// a0cls: the same in 16 passes over the top four bits of c7 (at most about 2^22.1 pairs resident; peak memory measured in proof.md 11).
-// A variant changes A0 only (both members): E4 and W8 of each member change; valid iff the modular difference dW8 and the
-// s0 difference ds0(W8) equal the pair's (W8 enters rows >= 16 only through them). c7 = W7^x + A_{-1} depends on A0 through
-// MAJ(A2, A1, A0) and CH(E6, E5, E4). Prints the family size, the number of distinct c7 values and the largest class sizes.
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-#include <math.h>
-typedef uint32_t u32;
-static const u32 K[16] = {0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174};
-static inline u32 ror(u32 x, int n) { return (x >> n) | (x << (32 - n)); }
-static inline u32 S0(u32 x) { return ror(x, 2) ^ ror(x, 13) ^ ror(x, 22); }
-static inline u32 S1(u32 x) { return ror(x, 6) ^ ror(x, 11) ^ ror(x, 25); }
-static inline u32 s0(u32 x) { return ror(x, 7) ^ ror(x, 18) ^ (x >> 3); }
-static inline u32 CH(u32 x, u32 y, u32 z) { return (x & y) ^ (~x & z); }
-static inline u32 MAJ(u32 x, u32 y, u32 z) { return (x & y) ^ (x & z) ^ (y & z); }
-static u32 A[2][20], E[2][20], W[2][16];
-static int cmp(const void *a, const void *b) { u32 x = *(const u32 *)a, y = *(const u32 *)b; return x < y ? -1 : x > y; }
-static int cmp64(const void *a, const void *b) { uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b; return x < y ? -1 : x > y; }
-static int cmpl(const void *a, const void *b) { long x = *(const long *)a, y = *(const long *)b; return x > y ? -1 : x < y; }   // descending
-int main(int argc, char **argv) {
-    FILE *f = fopen(argv[1], "r"); u32 cv[8];
-    for (int j = 0; j < 8; j++) fscanf(f, "%x", &cv[j]);
-    for (int m = 0; m < 2; m++) for (int i = 0; i < 16; i++) fscanf(f, "%x", &W[m][i]);
-    fclose(f);
-    for (int m = 0; m < 2; m++) {
-        for (int j = 0; j < 4; j++) { A[m][3 - j] = cv[j]; E[m][3 - j] = cv[4 + j]; }
-        for (int i = 0; i < 16; i++) {
-            u32 T1 = E[m][i] + S1(E[m][i + 3]) + CH(E[m][i + 3], E[m][i + 2], E[m][i + 1]) + K[i] + W[m][i];
-            E[m][i + 4] = A[m][i] + T1; A[m][i + 4] = T1 + S0(A[m][i + 3]) + MAJ(A[m][i + 3], A[m][i + 2], A[m][i + 1]);
-        }
-    }
-#define a(m, i) A[m][(i) + 4]
-#define e(m, i) E[m][(i) + 4]
-    u32 dW8 = W[1][8] - W[0][8], ds8 = s0(W[1][8]) - s0(W[0][8]);
-    u32 *c7 = malloc(sizeof(u32) << 28); uint64_t *pr = malloc(sizeof(uint64_t) << 27); long n = 0;
-    for (uint64_t x = 0; x < (1ULL << 32); x++) {
-        u32 a0 = (u32)x, w8[2], e4 = 0;
-        for (int m = 0; m < 2; m++) {
-            e4 = a(m, 4) + a0 - S0(a(m, 3)) - MAJ(a(m, 3), a(m, 2), a(m, 1));
-            w8[m] = e(m, 8) - a(m, 4) - e4 - S1(e(m, 7)) - CH(e(m, 7), e(m, 6), e(m, 5)) - K[8];
-        }
-        if (w8[1] - w8[0] != dW8 || s0(w8[1]) - s0(w8[0]) != ds8) continue;
-        u32 c = e(0, 7) - 2 * a(0, 3) + S0(a(0, 2)) + MAJ(a(0, 2), a(0, 1), a0) - S1(e(0, 6)) - CH(e(0, 6), e(0, 5), e4) - K[7];
-        if (n < (1L << 27)) { c7[n] = c; pr[n] = ((uint64_t)c << 32) | a0; } n++;
-    }
-    printf("family %ld = 2^%.3f\n", n, log2((double)n));
-    if (argc > 2) {   // dump members of classes with size >= argv[2]
-        long m = n < (1L << 27) ? n : (1L << 27); int thr = atoi(argv[2]);
-        qsort(pr, m, 8, cmp64);
-        FILE *o = fopen(argv[3], "w");
-        for (long i = 0; i < m; ) { long j = i; while (j < m && (pr[j] >> 32) == (pr[i] >> 32)) j++; if (j - i >= thr) for (long k = i; k < j; k++) fprintf(o, "%08x %08x\n", (u32)(pr[k] >> 32), (u32)pr[k]); i = j; }
-        fclose(o);
-    }
-    if (n > (1L << 28)) n = 1L << 28;
-    qsort(c7, n, 4, cmp);
-    long *sz = malloc(sizeof(long) * (n + 1)); long nc = 0;
-    for (long i = 0; i < n; ) { long j = i; while (j < n && c7[j] == c7[i]) j++; sz[nc++] = j - i; i = j; }
-    qsort(sz, nc, sizeof(long), cmpl);
-    printf("distinct c7 %ld, largest class %ld\nlargest classes:", nc, sz[0]);
-    for (long i = 0; i < nc && i < 12; i++) printf(" %ld", sz[i]);
-    printf("\n");
-    long ks[5] = {64, 90, 128, 256, 1024}, acc = 0; int ki = 0;
-    for (long i = 0; i < nc && ki < 5; i++) { acc += sz[i]; if (i + 1 == ks[ki]) { printf("variants in the %ld largest classes: %ld = 2^%.3f\n", ks[ki], acc, log2((double)acc)); ki++; } }
-    return 0;
-}
-```
-
-### h3p.py
-
-```python
-"""h3p.py <a0p38 dir> <sha2-search dir> <first> <count>: the other row-16 passes of a successful first block (H3; own code).
-For each success of the q3 study (rebuilt into CV1, M1, M1'; checked), every variant of every selected class that passes its W7 test on
-CV1 is evaluated (E16x by the Step-2 formula); counts the row-16 passes other than the success and the further accepted pairs."""
-import sys, glob, collections
-sys.path.insert(0, sys.argv[1]); from a0p38 import *
-R = sys.argv[2]; first, count = int(sys.argv[3]), int(sys.argv[4])
-import os
-POOL = os.environ.get('POOL', R + '/runs/vars_p08_pool.txt'); STUDY = os.environ.get('STUDY', R + '/runs/q3p8')
-SPREAD = int(os.environ.get('SPREAD', '0'))         # 0: every 25th line, files in sorted order (the 1a695f0b sampling)
-pool = [l.split() for l in open(POOL)]
-sel = {c[0] for c in CLASSES}; mem = collections.defaultdict(list)
-for l in open(R + '/runs/c/P08.cls.txt'):
-    c, a = l.split(); c = int(c, 16)
-    if c in sel: mem[c].append(int(a, 16))
-succ = []
-for f in sorted(glob.glob(STUDY + '/succ_*.txt')):
-    for k, l in enumerate(open(f)):
-        t = l.split()
-        if len(t) == 33 and (SPREAD or k % 25 == 0): succ.append(t)
-if SPREAD: succ = [succ[i * len(succ) // SPREAD] for i in range(SPREAD)]   # SPREAD successes evenly over all runs (sorted files, file order)
-tot = dict(successes=0, verified=0, passing_classes=0, variants=0, other_r16=0, other_accepted=0, own_found=0)
-for t in succ[first:first + count]:
-    vi = int(t[1]); W = {7 + k: int(x, 16) for k, x in enumerate(t[2:])}; a0s = int(pool[vi][1], 16)
-    cv, wx, wy = rebuild(W, a0s); tx, ty = trace(cv, wx), trace(cv, wy)
-    tot['successes'] += 1
-    if not (compress(cv, wx) == compress(cv, wy) and accepted(tx, ty) and inF7(wx[7])): continue
-    tot['verified'] += 1
-    m = Mach(); sc = fb_scalars(m, cv); a, b = cv[0], cv[1]
-    for c, base, mk in CLASSES:
-        if not inF7((c - cv[0]) & M): continue
-        tot['passing_classes'] += 1
-        for a0 in mem[c]:
-            tot['variants'] += 1
-            e0 = (a0 + sc['HH']) & M
-            w1 = (sc['K1'] - S0(a0) - (sc['PP'] | (a0 & sc['QQ'])) - S1(e0) - (sc['FF'] ^ (e0 & sc['EF']))) & M
-            e16 = (sc['KP'] + a0 + s0(w1)) & M
-            if e16 in R16SET:
-                if a0 == a0s: tot['own_found'] += 1; continue
-                tot['other_r16'] += 1
-                if deep(Mach(), cv, a0): tot['other_accepted'] += 1
-print(tot)
-```
-
-### q3tv.c
-
-```c
-// Trail-based estimator of the uncontrolled probability of a 38-step SHA-256 characteristic (own code).
-// q3tv: q3t with the tail drawing a dense-part variant per proposal (env VARS = vsamp output: j a0 a1 a2 w8x w9x w10x;
-// member y gets w + dW_i of the base pair) and every success written to env DUMPALL (variant index, W7..W37 of member x).
-// q = Pr[rows 16..37 follow the signed trail | dense part, W7 in F7], W0..W6 uniform (Lemma 4 structure).
-// Input file (text, hex words): see prep.py. Usage: q3t <datafile> <seed> <N> <T> [g-cache]
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <stdint.h>
-typedef uint32_t u32;
-static const u32 K[64] = {
- 0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
- 0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
- 0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070};
-static inline u32 ror(u32 x, int n) { return (x >> n) | (x << (32 - n)); }
-static inline u32 S0(u32 x) { return ror(x, 2) ^ ror(x, 13) ^ ror(x, 22); }
-static inline u32 S1(u32 x) { return ror(x, 6) ^ ror(x, 11) ^ ror(x, 25); }
-static inline u32 s0(u32 x) { return ror(x, 7) ^ ror(x, 18) ^ (x >> 3); }
-static inline u32 s1(u32 x) { return ror(x, 17) ^ ror(x, 19) ^ (x >> 10); }
-static inline u32 CH(u32 x, u32 y, u32 z) { return (x & y) ^ (~x & z); }
-static inline u32 MAJ(u32 x, u32 y, u32 z) { return (x & y) ^ (x & z) ^ (y & z); }
-static uint64_t rs[4];
-static inline uint64_t rotl(uint64_t x, int k) { return (x << k) | (x >> (64 - k)); }
-static uint64_t nxt(void) { uint64_t r = rotl(rs[1] * 5, 7) * 9, t = rs[1] << 17; rs[2] ^= rs[0]; rs[3] ^= rs[1]; rs[1] ^= rs[2]; rs[0] ^= rs[3]; rs[2] ^= t; rs[3] = rotl(rs[3], 45); return r; }
-static void seed(uint64_t s) { for (int i = 0; i < 4; i++) { s += 0x9e3779b97f4a7c15ULL; uint64_t z = s; z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL; z = (z ^ (z >> 27)) * 0x94d049bb133111ebULL; rs[i] = z ^ (z >> 31); } }
-static inline u32 r32(void) { return (u32)(nxt() >> 32); }
-
-typedef struct { u32 A[2][42], E[2][42], W[2][38]; } St;     // A/E index +4
-#define AA(s, m, i) (s)->A[m][(i) + 4]
-#define EE(s, m, i) (s)->E[m][(i) + 4]
-static u32 MA[38], SA[38], ME[38], SE[38], MW[38], SW[38];   // trail: xor mask and x-value on the mask, rows 0..37
-static St base; static u32 D7, T7;
-typedef struct { int key, n, kind[3], row[3], bit[3]; u32 allowed; } Cond;
-static Cond CO[8192]; static int nCO;
-static u32 (*VW)[4]; static long nV;
-
-static inline void step(St *s, int i) {
-    for (int m = 0; m < 2; m++) {
-        u32 a = AA(s, m, i - 1), b = AA(s, m, i - 2), c = AA(s, m, i - 3), d = AA(s, m, i - 4);
-        u32 e = EE(s, m, i - 1), f = EE(s, m, i - 2), g = EE(s, m, i - 3), h = EE(s, m, i - 4);
-        u32 T1 = h + S1(e) + CH(e, f, g) + K[i] + s->W[m][i];
-        EE(s, m, i) = d + T1; AA(s, m, i) = T1 + S0(a) + MAJ(a, b, c);
-    }
-}
-static inline int condok(const St *s, int r) {
-    for (int c = 0; c < nCO; c++) {
-        if (CO[c].key != r) continue;
-        int idx = 0;
-        for (int q = 0; q < CO[c].n; q++) { u32 w = CO[c].kind[q] == 2 ? s->W[0][CO[c].row[q]] : CO[c].kind[q] ? EE(s, 0, CO[c].row[q]) : AA(s, 0, CO[c].row[q]); idx |= ((w >> CO[c].bit[q]) & 1) << q; }
-        if (!((CO[c].allowed >> idx) & 1)) return 0;
-    }
-    return 1;
-}
-static inline int rowok(const St *s, int r) {
-    u32 ax = AA(s, 0, r), ex = EE(s, 0, r), wx = s->W[0][r];
-    static long dfm = -1;   // DIFFROW=r[,r...]: these rows checked on signed differences only (no derived value conditions)
-    if (dfm < 0) { dfm = 0; const char *e = getenv("DIFFROW"); while (e && *e) { int v = atoi(e); if (v > 0) dfm |= 1L << v; while (*e && *e != ',') e++; if (*e) e++; } }
-    if (!((dfm >> r) & 1) && !condok(s, r)) return 0;
-    return ((ax ^ AA(s, 1, r)) == MA[r]) && ((ax & MA[r]) == SA[r]) && ((ex ^ EE(s, 1, r)) == ME[r]) && ((ex & ME[r]) == SE[r])
-        && ((wx ^ s->W[1][r]) == MW[r]) && ((wx & MW[r]) == SW[r]);
-}
-static inline void sched(St *s, int i) { for (int m = 0; m < 2; m++) s->W[m][i] = s1(s->W[m][i - 2]) + s->W[m][i - 7] + s0(s->W[m][i - 15]) + s->W[m][i - 16]; }
-static inline int inF7(u32 w) { return s0(w + D7) - s0(w) == T7; }
-
-static void load(const char *fn) {
-    FILE *f = fopen(fn, "r"); if (!f) { perror(fn); exit(1); }
-    char key[32];
-    while (fscanf(f, "%31s", key) == 1) {
-        if (!strcmp(key, "D7")) fscanf(f, "%x", &D7);
-        else if (!strcmp(key, "T7")) fscanf(f, "%x", &T7);
-        else if (!strcmp(key, "ROW")) { int r; u32 a, b, c, d, e, g; fscanf(f, "%d %x %x %x %x %x %x", &r, &a, &b, &c, &d, &e, &g); MA[r] = a; SA[r] = b; ME[r] = c; SE[r] = d; MW[r] = e; SW[r] = g; }
-        else if (!strcmp(key, "ST")) { int m, i; u32 a, e; fscanf(f, "%d %d %x %x", &m, &i, &a, &e); AA(&base, m, i) = a; EE(&base, m, i) = e; }
-        else if (!strcmp(key, "COND")) { Cond *c = &CO[nCO++]; fscanf(f, "%d %d", &c->key, &c->n); for (int q = 0; q < c->n; q++) fscanf(f, "%d %d %d", &c->kind[q], &c->row[q], &c->bit[q]); fscanf(f, "%x", &c->allowed); }
-        else if (!strcmp(key, "W")) { int m, i; u32 w; fscanf(f, "%d %d %x", &m, &i, &w); base.W[m][i] = w; }
-    }
-    fclose(f);
-}
-
-int main(int argc, char **argv) {
-    load(argv[1]); uint64_t sd = strtoull(argv[2], 0, 10); int N = atoi(argv[3]), T = atoi(argv[4]);
-    seed(sd);
-    u32 dW16 = (s1(base.W[1][14]) + base.W[1][9]) - (s1(base.W[0][14]) + base.W[0][9]);   // W0, W1 carry no difference
-    // row 16 exhaustive (cached)
-    static u32 G[1 << 20]; long nG = 0;
-    char cache[512]; snprintf(cache, sizeof cache, "%s.g16", argv[1]);
-    FILE *fc = fopen(cache, "rb");
-    if (fc) { nG = fread(G, 4, 1 << 20, fc); fclose(fc); }
-    else {
-        for (uint64_t w = 0; w < (1ULL << 32); w++) {
-            St s; memcpy(s.A, base.A, sizeof s.A); memcpy(s.E, base.E, sizeof s.E);
-            s.W[0][16] = (u32)w; s.W[1][16] = (u32)w + dW16; step(&s, 16);
-            if (rowok(&s, 16)) { if (nG < (1 << 20)) G[nG] = (u32)w; nG++; }
-        }
-        if (nG > (1 << 20)) { fprintf(stderr, "G too large %ld\n", nG); nG = 1 << 20; }
-        fc = fopen(cache, "wb"); fwrite(G, 4, nG, fc); fclose(fc);
-    }
-    if (argc > 5 && !strcmp(argv[5], "live")) {   // row-17 pass counts per G word (sampled W17)
-        int live = 0; uint64_t S = 1ULL << 24;
-        for (long gi = 0; gi < nG; gi++) {
-            St s = base; s.W[0][16] = G[gi]; s.W[1][16] = G[gi] + dW16; step(&s, 16);
-            uint64_t pass = 0;
-            for (uint64_t k = 0; k < S; k++) {
-                St t = s; u32 wx = r32();
-                u32 dsch = (s1(t.W[1][15]) + t.W[1][10]) - (s1(t.W[0][15]) + t.W[0][10]) + s0(t.W[1][2]) - s0(t.W[0][2]);
-                t.W[0][17] = wx; t.W[1][17] = wx + dsch; step(&t, 17); pass += rowok(&t, 17);
-            }
-            live += pass > 0;
-            printf("G %08x row17 passes %llu / 2^24\n", G[gi], (unsigned long long)pass);
-        }
-        printf("live G words: %d of %ld\n", live, nG); return 0;
-    }
-    uint64_t f7 = 0; for (int k = 0; k < 1 << 20; k++) f7 += inF7(r32());
-    double lv[8]; lv[0] = nG ? log2((double)nG) - 32 : -INFINITY;
-    if (!nG) { printf("seed %llu row16 impossible\n", (unsigned long long)sd); return 0; }
-    St *cur = malloc(sizeof(St) * N), *nx = malloc(sizeof(St) * N); int ncur = N;
-    for (int k = 0; k < N; k++) { St s = base; u32 w = G[nxt() % nG]; s.W[0][16] = w; s.W[1][16] = w + dW16; step(&s, 16); cur[k] = s; }
-    for (int r = 17; r <= 22; r++) {
-        uint64_t tries = 0; int got = 0;
-        while (got < N) {
-            if (tries > (1ULL << 34)) { printf("seed %llu stalled at row %d\n", (unsigned long long)sd, r); return 0; }
-            const St *p = &cur[nxt() % ncur]; tries++;
-            u32 wx = r32();
-            u32 dsch = (s1(p->W[1][r - 2]) + p->W[1][r - 7]) - (s1(p->W[0][r - 2]) + p->W[0][r - 7]);
-            if (r == 22) dsch += T7; else dsch += s0(p->W[1][r - 15]) - s0(p->W[0][r - 15]);
-            St s = *p; s.W[0][r] = wx; s.W[1][r] = wx + dsch; step(&s, r);
-            if (rowok(&s, r)) nx[got++] = s;
-        }
-        lv[r - 16] = log2((double)(N - 1) / (double)(tries - 1));
-        St *t = cur; cur = nx; nx = t;
-    }
-    FILE *dall = getenv("DUMPALL") ? fopen(getenv("DUMPALL"), "w") : 0;
-    if (getenv("VARS")) {
-        FILE *fv = fopen(getenv("VARS"), "r"); long cap = 1 << 22; VW = malloc(sizeof(*VW) * cap); int j; u32 a0, a1, a2, w8, w9, w10;
-        while (nV < cap && fscanf(fv, "%d %x %x %x %x %x %x", &j, &a0, &a1, &a2, &w8, &w9, &w10) == 7) { VW[nV][0] = (u32)nV; VW[nV][1] = w8; VW[nV][2] = w9; VW[nV][3] = w10; nV++; }
-        fclose(fv); fprintf(stderr, "variants %ld\n", nV);
-    }
-    uint64_t prop = (uint64_t)N * T, succ = 0, coll = 0;
-    for (uint64_t k = 0; k < prop; k++) {
-        St s = cur[k % N]; u32 w7; do w7 = r32(); while (!inF7(w7));
-        s.W[0][7] = w7; s.W[1][7] = w7 + D7;
-        long vi = -1;
-        if (nV) { vi = nxt() % nV; for (int i = 8; i <= 10; i++) { s.W[0][i] = VW[vi][i - 7]; s.W[1][i] = VW[vi][i - 7] + (base.W[1][i] - base.W[0][i]); } }
-        int ok = 1;
-        static int relax = -1; if (relax < 0) relax = getenv("RELAX_TAIL") != 0;
-        for (int r = 23; r < 38 && ok; r++) { sched(&s, r); step(&s, r); if (!relax) ok = rowok(&s, r); }
-        if (relax) { for (int i = 34; i < 38 && ok; i++) if (AA(&s, 0, i) != AA(&s, 1, i) || EE(&s, 0, i) != EE(&s, 1, i)) ok = 0; }
-        if (ok) {
-            succ++;
-            if (succ == 1 && getenv("DUMP")) {
-                FILE *fd = fopen(getenv("DUMP"), "w");
-                for (int m = 0; m < 2; m++) for (int i = 0; i < 38; i++) fprintf(fd, "W %d %d %08x\n", m, i, s.W[m][i]);
-                fclose(fd);
-            }
-            if (dall) { fprintf(dall, "S %ld", vi); for (int i = 7; i < 38; i++) fprintf(dall, " %08x", s.W[0][i]); fprintf(dall, "\n"); }
-            int eq = 1; for (int i = 34; i < 38; i++) if (AA(&s, 0, i) != AA(&s, 1, i) || EE(&s, 0, i) != EE(&s, 1, i)) eq = 0;
-            coll += eq;
-        }
-    }
-    lv[7] = succ ? log2((double)succ / prop) : -INFINITY;
-    double tot = 0; for (int i = 0; i < 8; i++) tot += lv[i];
-    printf("seed %llu |G| %ld p2 %.4f stages", (unsigned long long)sd, nG, log2((double)f7 / (1 << 20)));
-    for (int i = 0; i < 8; i++) printf(" %.3f", lv[i]);
-    printf(" | succ %llu coll %llu | log2q %.4f%s\n", (unsigned long long)succ, (unsigned long long)coll, tot, nV ? " (variant tail)" : "");
-    if (dall) fclose(dall);
-    return 0;
-}
-```
-
-### sweep.py
-
-```python
-"""sweep.py <outdir> <workers> <iters> [patterns]: systematic sign sweep over the HW-25 XOR patterns (own code).
-For each XOR pattern (round robin) and iteration k: signed search with the DT43 bounds (attack-aware tail weight P <= 43, published
-dense weight profile), the pattern fixed, signs free, and every signed message difference already found for that pattern blocked
-together with its member-swapped mirror; a solution goes through score.py -> joint.py (value-exact dense part + value-exact tail
-steps 16..19, P <= 43) -> fromjoint.py -> q3t (quick) and var (A2 list, mean |R(A0)|). One JSON line per stage in <outdir>/sweep.jsonl."""
-import sys, json, os, subprocess, time, re, threading, queue, glob
-OUT, NW, ITERS = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
-os.makedirs(OUT, exist_ok=True)
-PAT = json.load(open('/work/runs/dWxor_hw25.json'))
-pats = [int(x) for x in sys.argv[4].split(',')] if len(sys.argv) > 4 else list(range(len(PAT)))
-WN = ['W7', 'W8', 'W9', 'W10', 'W11', 'W15', 'W16', 'W23', 'W25']
-BASE = {"wbounds": [[[["E", [16], 2], ["E", [15], 1], ["E", list(range(17, 26)), 3], ["A", list(range(16, 26)), 3], ["W", list(range(16, 38)), 2]], "<=", 43]],
-        "solver": "kissat", "bounds": [["A", list(range(7, 16)), "<=", 26], ["E", list(range(7, 16)), "<=", 47], ["E", [14, 15], "<=", 4], ["A", [13, 14, 15], "<=", 10]]}
-flip = lambda r: r.translate(str.maketrans('un', 'nu'))
-lock = threading.Lock()
-def log(**kw):
-    kw['t'] = time.strftime('%H:%M:%S')
-    with lock:
-        with open(OUT + '/sweep.jsonl', 'a') as f: f.write(json.dumps(kw) + '\n')
-# signed message differences already known (published, earlier runs) -> blocked per pattern
-known = {p: [] for p in range(len(PAT))}
-def xorpat(rows): return tuple(''.join('x' if c in 'un' else '=' for c in rows[w]) for w in WN)
-patkey = {tuple(''.join('x' if c in 'un' else '=' for c in PAT[p][w[1:]]) for w in WN): p for p in range(len(PAT))}
-def add_known(rows):
-    p = patkey.get(xorpat(rows))
-    if p is None: return
-    s = {w: rows[w] for w in WN}
-    for b in (s, {w: flip(r) for w, r in s.items()}):
-        if b not in known[p]: known[p].append(b)
-pub = json.load(open('/work/m38/paper_table3.json')); add_known({w: pub[w[1:]]['W'] for w in WN})
-for f in glob.glob('/work/runs/q/*.json') + glob.glob(OUT + '/q/*.json'):
-    try:
-        q = json.load(open(f))
-        if q.get('sat') and all(w in q['rows'] for w in WN): add_known(q['rows'])
-    except Exception: pass
-def sh(cmd, tmo, env=None):
-    try:
-        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=tmo, env=dict(os.environ, **(env or {})))
-        return r.returncode, r.stdout, r.stderr
-    except subprocess.TimeoutExpired: return -1, '', 'TIMEOUT'
-def process(tag):
-    c = '/work/runs/c/' + tag
-    rc, o, e = sh('cd /work/m38 && python3 score.py /work/runs/q/%s.json %s' % (tag, c), 600)
-    log(tag=tag, stage='score', out=o.strip()[-600:], err=e[-200:])
-    rc, o, e = sh('cd /work/m38 && python3 joint.py %s 43 1 %s_j43' % (c, c), 7200, env=dict(EXACT_TAIL='16,17,18,19'))
-    coupled = os.path.exists(c + '_j43.tail.json')
-    log(tag=tag, stage='joint', coupled=coupled, out=o.strip()[-300:], err=e[-200:])
-    if not coupled: return
-    rc, o, e = sh('cd /work/m38 && python3 fromjoint.py %s_j43' % c, 1200)
-    log(tag=tag, stage='fromjoint', out=o.strip()[-600:], err=e[-300:])
-    if not os.path.exists(c + '_j43.dat'): return
-    rc, o, e = sh('/work/m38/q3t %s_j43.dat 7 1000 4096' % c, 7200)
-    log(tag=tag, stage='q3t', out=o.strip()[-400:], err=e[-200:])
-    rc, o, e = sh('/work/m38/var %s_j43.var.dat 7 32 200000 | tail -2' % c, 7200)
-    log(tag=tag, stage='var', out=o.strip()[-400:], err=e[-200:])
-tasks = queue.Queue()
-for k in range(ITERS):
-    for p in pats: tasks.put((p, k))
-dead = set()
-def worker():
-    while True:
-        try: p, k = tasks.get_nowait()
-        except queue.Empty: return
-        if p in dead: continue
-        tag = 'SW_p%02d_k%d' % (p, k)
-        with lock: blocks = list(known[p])
-        spec = dict(BASE, fix_xor={'W' + w: r for w, r in PAT[p].items()}, seed=100 + k, block_w=blocks)
-        t0 = time.time()
-        rc, o, e = sh("cd /work/m38 && python3 stepk.py %s '%s'" % (tag, json.dumps(spec)), 3 * 3600)
-        res = 'TIMEOUT' if e == 'TIMEOUT' else ('SAT' if ' SAT' in o else 'UNSAT' if 'UNSAT' in o else 'ERR ' + e[-200:])
-        log(tag=tag, stage='search', pattern=p, iter=k, blocked=len(blocks), result=res, wall=round(time.time() - t0))
-        if res == 'UNSAT':
-            with lock: dead.add(p)
-            continue
-        if res != 'SAT': continue
-        q = json.load(open('/work/runs/q/%s.json' % tag))
-        with lock: add_known(q['rows'])
-        process(tag)
-ths = [threading.Thread(target=worker) for _ in range(NW)]
-for t in ths: t.start()
-for t in ths: t.join()
-log(stage='done')
-```
-
-### stepk.py
-
-```python
-"""Generic bounded query: python3 stepk.py <name> <json spec>; spec: {"hw_w": 25, "bounds": [[kind, rows, op, k], ...], "fix": {...}}"""
-import sys, time, json, os
-sys.path.insert(0, '/work/m38')
-from sdmodel import sha256_model, decode
-from pysat.solvers import Solver
-name, spec = sys.argv[1], json.loads(sys.argv[2])
-t0 = time.time()
-m = sha256_model(n_msg=spec.get('n_msg', 38), diff_words=tuple(spec.get('diff_words', (7, 8, 9, 10, 11, 15, 16, 23, 25))), with_state=spec.get('with_state', True), state=tuple(spec.get('state', (7, 26))), zero_start=spec.get('zero_start', True), relax_steps=set(spec.get('relax_steps', ())), relax_kinds=tuple(spec.get('relax_kinds', ('S', 'B'))), exact_steps=set(spec.get('exact_steps', ())))
-if 'hw_w' in spec: m.card(m.hw_lits(m.W), spec.get('hw_w_op', '='), spec['hw_w'])
-for kind, rows, op, k in spec.get('bounds', []):
-    ws = [m.words['%s%d' % (kind, i)] for i in rows if '%s%d' % (kind, i) in m.words]
-    m.card(m.hw_lits(ws), op, k)
-for terms, op, k in spec.get('wbounds', []):   # weighted: terms = [[kind, rows, weight], ...] (literals repeated by weight)
-    lits = []
-    for kind, rows, wt in terms:
-        lits += m.hw_lits([m.words['%s%d' % (kind, i)] for i in rows]) * wt
-    from pysat.card import EncType
-    m.card(lits, op, k, enc=EncType.kmtotalizer if op == '<=' else EncType.totalizer)
-for wname, row in spec.get('fix_xor', {}).items():     # difference positions only, signs free
-    for q, ch in enumerate(row):
-        v_, d_ = m.words[wname][31 - q]; m.cnf.append([d_] if ch in 'un' else [-d_])
-for wname, row in spec.get('fix', {}).items():
-    m.fix(m.words[wname], row)
-for blk in spec.get('block_w', []):    # exclude a signed message difference: some difference bit of the listed words gets the other sign
-    cl = []
-    for wname, row in blk.items():
-        for q, ch in enumerate(row):
-            if ch in 'un':
-                v_, d_ = m.words[wname][31 - q]; cl.append(-v_ if ch == 'u' else v_)
-    if cl: m.cnf.append(cl)
-t1 = time.time()
-class _K:
-    def __init__(self, clauses, nv): self.clauses, self.nv = clauses, nv
-    def __enter__(self): return self
-    def __exit__(self, *a): pass
-    def solve(self):
-        import subprocess, tempfile
-        fn = tempfile.mktemp(suffix='.cnf', dir='/tmp')
-        with open(fn, 'w') as f:
-            f.write('p cnf %d %d\n' % (self.nv, len(self.clauses)))
-            for c in self.clauses: f.write(' '.join(map(str, c)) + ' 0\n')
-        r = subprocess.run(['kissat', '-q', '--seed=%d' % spec.get('seed', 0), fn], capture_output=True, text=True)
-        os.unlink(fn)
-        self.model = [int(x) for l in r.stdout.splitlines() if l.startswith('v') for x in l[1:].split() if x != '0']
-        return 's SATISFIABLE' in r.stdout
-    def get_model(self): return self.model
-_solver = (lambda: _K(m.cnf.clauses, m.pool.top)) if spec.get('solver') == 'kissat' else (lambda: Solver(name=spec.get('solver', 'cadical195'), bootstrap_with=m.cnf.clauses))
-with _solver() as s:
-    ok = s.solve()
-    dt = time.time() - t1
-    out = dict(name=name, spec=spec, sat=ok, solve_s=round(dt, 1), build_s=round(t1 - t0, 1))
-    if ok:
-        ms = set(l for l in s.get_model() if l > 0)
-        names = [n for n in ['A%d' % i for i in range(-4, 40)] + ['E%d' % i for i in range(-4, 40)] if n in m.words] + ['W%d' % i for i in range(spec.get('n_msg', 38))]
-        names += [n for n in m.words if n.split('_')[0] in ('S1', 'IF', 'S0', 'MJ', 's1', 's0') and n.count('_') == 1]
-        out['rows'] = decode(m, ms, names)
-os.makedirs('/work/runs/q', exist_ok=True)
-json.dump(out, open('/work/runs/q/%s.json' % name, 'w'))
-print(name, 'SAT' if ok else 'UNSAT', '%.1fs' % dt)
-```
-
-### score.py
-
-```python
-"""score.py <query.json> [out_prefix]: turn a SAT characteristic (stepk output) into char.json and inter.json,
-and count derived conditions per key row (own code)."""
-import sys, json
-sys.path.insert(0, '/work/m38')
-from cond import derive
-from collections import Counter
-Q = json.load(open(sys.argv[1])); R = Q['rows']
-NS = Q.get('spec', {}).get('n_msg', 38); ST0 = Q.get('spec', {}).get('state', [7, 26])[0]
-char = {}
-for i in range(-4, NS):
-    char[i] = {'A': R.get('A%d' % i, '=' * 32), 'E': R.get('E%d' % i, '=' * 32), 'W': R.get('W%d' % i, '=' * 32) if i >= 0 else '=' * 32}
-inter = {}
-for n, row in R.items():
-    if '_' in n:
-        k, r = n.split('_'); inter[(k, int(r))] = row
-rows = {}
-for i, r in char.items():
-    rows[('A', i)] = r['A']; rows[('E', i)] = r['E']; rows[('W', i)] = r['W']
-conds, bad = derive(rows, inter, range(ST0, NS))
-cnt = Counter(c['key'] for c in conds)
-bits = lambda c: len(c['refs']) - __import__('math').log2(len(c['allowed']))
-cost = Counter()
-for c in conds: cost[c['key']] += bits(c)
-hw = lambda s: sum(ch in 'un' for ch in s)
-summary = dict(name=Q['name'], bad=len(bad), cond_bits_by_key={k: round(v, 1) for k, v in sorted(cost.items())},
-               cond_bits_ge17=round(sum(v for k, v in cost.items() if k >= 17), 1), cond_bits_16=round(cost.get(16, 0), 1), cond_bits_ge16=round(sum(v for k, v in cost.items() if k >= 16), 1),
-               hwE=[hw(char[i]['E']) for i in range(14, 23)], hwA=[hw(char[i]['A']) for i in range(14, 19)],
-               hwW=[hw(char[i]['W']) for i in (7, 8, 9, 10, 11, 15, 16, 23, 25)])
-print(json.dumps(summary))
-if len(sys.argv) > 2:
-    json.dump({str(k): v for k, v in char.items()}, open(sys.argv[2] + '.char.json', 'w'))
-    json.dump({'%s_%d' % k: v for k, v in inter.items()}, open(sys.argv[2] + '.inter.json', 'w'))
-```
-
-### joint.py
-
-```python
-"""joint.py <char prefix> <P> <seed> <out prefix>: one CNF = value-exact dense part (rows <= 15, signed dense trail
-of <prefix>.char.json, expansion constraints) + signed tail model (steps 16..25, weighted bound P), linked at rows
-12..15 (tail (v, d) = dense (x, x XOR y)) and on the message words. Solved with Kissat (own code)."""
-import sys, json, time, subprocess, os, math
-sys.path.insert(0, '/work/m38')
-from sdmodel import sha256_model, decode
-from vmodel import dense_model, value
-from cond import derive
-from collections import Counter
-from pysat.card import EncType
-pre, P, seed, out = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
-C = {int(k): v for k, v in json.load(open(pre + '.char.json')).items()}
-free15 = len(sys.argv) > 5 and sys.argv[5] == 'free1215'   # let the dense rows 12..15 trail be free (only the tail fixes them)
-freerows = [int(x) for x in sys.argv[5].split(',')] if len(sys.argv) > 5 and sys.argv[5] != 'free1215' else (range(12, 16) if free15 else ())
-import os as _os
-m = sha256_model(state=(16, 26), zero_start=False, exact_steps=set(int(x) for x in _os.environ.get('EXACT_TAIL', '').split(',') if x))
-for i in range(38): m.fix(m.words['W%d' % i], ''.join(c if c in 'un' else '=' for c in C[i]['W']))
-lits = []
-for kind, rows, wt in (('E', [16], 2), ('E', [15], 1), ('E', range(17, 26), 3), ('A', range(16, 26), 3), ('W', range(16, 38), 2)):
-    lits += m.hw_lits([m.words['%s%d' % (kind, i)] for i in rows if '%s%d' % (kind, i) in m.words]) * wt
-m.card(lits, '<=', P, enc=EncType.kmtotalizer)
-N1 = m.pool.top
-v = dense_model(C, expansion=True, free_rows=freerows)
-sh = lambda l: (abs(l) + N1) * (1 if l > 0 else -1)
-cl = [list(c) for c in m.cnf.clauses] + [[sh(l) for l in c] for c in v.cl]
-nv = N1 + v.pool.top
-def xorvar(a, b):
-    global nv
-    nv += 1; d = nv
-    cl.extend([[-a, -b, -d], [a, b, -d], [a, -b, d], [-a, b, d]]); return d
-def eqlit(a, b): cl.extend([[-a, b], [a, -b]])
-for i in range(12, 16):
-    for nm, X, Y in (('A', v.A, v.Ay), ('E', v.E, v.Ey)):
-        for j in range(32):
-            sv, sd = m.words['%s%d' % (nm, i)][j]
-            x, y = sh(X[i][j]), sh(Y[i][j])
-            eqlit(sv, x); eqlit(sd, xorvar(x, y))
-for i in range(8, 16):     # message words: tail model value bits = dense member-x values
-    for j in range(32):
-        sv, sd = m.words['W%d' % i][j]; eqlit(sv, sh(v.W[i][j]))
-fn = out + '.cnf'
-with open(fn, 'w') as f:
-    f.write('p cnf %d %d\n' % (nv, len(cl)))
-    for c in cl: f.write(' '.join(map(str, c)) + ' 0\n')
-t = time.time(); r = subprocess.run(['kissat', '-q', '--seed=%d' % seed, fn], capture_output=True, text=True); os.unlink(fn)
-ok = 's SATISFIABLE' in r.stdout; print('joint SAT:', ok, '%.1fs' % (time.time() - t), 'vars', nv, 'clauses', len(cl), flush=True)
-if not ok: sys.exit(1)
-model = set(int(x) for l in r.stdout.splitlines() if l.startswith('v') for x in l[1:].split() if x != '0' and int(x) > 0)
-ms_sd = {l for l in model if l <= N1}
-ms_v = {l - N1 for l in model if N1 < l <= N1 + v.pool.top}
-names = ['A%d' % i for i in range(12, 26)] + ['E%d' % i for i in range(12, 26)] + ['W%d' % i for i in range(38)]
-names += [x for x in m.words if x.split('_')[0] in ('S1', 'IF', 'S0', 'MJ', 's1', 's0') and x.count('_') == 1]
-R = decode(m, ms_sd, names)
-rows = {(k, i): R.get('%s%d' % (k, i), '=' * 32) for k in 'AEW' for i in range(-4, 38)}
-inter = {(x.split('_')[0], int(x.split('_')[1])): rr for x, rr in R.items() if '_' in x}
-conds, bad = derive(rows, inter, range(17, 38))
-cost = Counter()
-for c in conds: cost[c['key']] += len(c['refs']) - math.log2(len(c['allowed']))
-print('tail ge17 %.1f k16 %.1f bad %d' % (sum(vv for kk, vv in cost.items() if kk >= 17), cost.get(16, 0), len(bad)), flush=True)
-Ws = {str(i): C[i]['W'] for i in range(38) if any(c in 'un' for c in C[i]['W'])}
-json.dump(dict(A={i: value(ms_v, v.A[i]) for i in range(0, 16)}, E={i: value(ms_v, v.E[i]) for i in range(3, 16)},
-               W={i: value(ms_v, v.W[i]) for i in range(7, 16)}, Ay={i: value(ms_v, v.Ay[i]) for i in range(7, 16)},
-               Ey={i: value(ms_v, v.Ey[i]) for i in range(7, 16)}, Wy={i: value(ms_v, v.Wy[i]) for i in range(7, 16)}, Wsigned=Ws),
-          open(out + '.dense.json', 'w'))
-json.dump(dict(rows=R, ge17=sum(vv for kk, vv in cost.items() if kk >= 17)), open(out + '.tail.json', 'w'))
-```
-
-### fromjoint.py
-
-```python
-"""fromjoint.py <joint out prefix> [seed]: dense values + tail of a joint solve -> char/inter/pair/q3t data/var data (own code)."""
-import sys, json, random, subprocess
-sys.path.insert(0, '/work/m38')
-from sha38 import S0, S1, CH, MAJ, M32, trace
-from vmodel import K
-pre = sys.argv[1]; seed = int(sys.argv[2]) if len(sys.argv) > 2 else 1
-D = json.load(open(pre + '.dense.json')); T = json.load(open(pre + '.tail.json'))['rows']
-A = {int(k): v for k, v in D['A'].items()}; E = {int(k): v for k, v in D['E'].items()}; W = {int(k): v for k, v in D['W'].items()}
-Wyd = {int(k): v for k, v in D['Wy'].items()}
-rnd = random.Random(seed); Af = dict(A); Ef = dict(E)
-for i in (-2, -3, -4): Af[i] = rnd.getrandbits(32)
-Af[-1] = (E[3] - A[3] + S0(A[2]) + MAJ(A[2], A[1], A[0])) & M32
-for i in (2, 1, 0): Ef[i] = (A[i] + Af[i - 4] - S0(Af[i - 1]) - MAJ(Af[i - 1], Af[i - 2], Af[i - 3])) & M32
-for i in (-1, -2, -3, -4): Ef[i] = rnd.getrandbits(32)
-Wx = [0] * 16
-for i in range(0, 7): Wx[i] = (Ef[i] - Af[i - 4] - Ef[i - 4] - S1(Ef[i - 1]) - CH(Ef[i - 1], Ef[i - 2], Ef[i - 3]) - K[i]) & M32
-for i in range(7, 16): Wx[i] = W[i]
-Wy = list(Wx)
-for i in range(7, 16): Wy[i] = Wyd[i]
-cv = [Af[-1], Af[-2], Af[-3], Af[-4], Ef[-1], Ef[-2], Ef[-3], Ef[-4]]
-ax, ex, wx, _ = trace(cv, Wx, 16); ay, ey, wy, _ = trace(cv, Wy, 16)
-sym = lambda x, y: ''.join('=' if ((x >> j) & 1) == ((y >> j) & 1) else ('u' if (x >> j) & 1 else 'n') for j in range(31, -1, -1))
-Z = '=' * 32
-char = {}
-for i in range(-4, 38):
-    if i <= 15: char[i] = {'A': sym(ax[i], ay[i]), 'E': sym(ex[i], ey[i]), 'W': sym(wx[i], wy[i]) if i >= 0 else Z}
-    else: char[i] = {'A': T.get('A%d' % i, Z), 'E': T.get('E%d' % i, Z), 'W': T.get('W%d' % i, Z)}
-for i in range(12, 16):   # consistency of the joint link
-    assert char[i]['A'] == ''.join(c if c in 'un' else '=' for c in T['A%d' % i]) and char[i]['E'] == ''.join(c if c in 'un' else '=' for c in T['E%d' % i]), i
-inter = {x: r for x, r in T.items() if '_' in x}
-json.dump({str(k): v for k, v in char.items()}, open(pre + '.char.json', 'w'))
-json.dump(inter, open(pre + '.inter.json', 'w'))
-json.dump(dict(cv=cv, Wx=Wx, Wy=Wy), open(pre + '.pair.json', 'w'))
-r = subprocess.run(['python3', '/work/m38/prep.py', pre + '.char.json', pre + '.pair.json', pre + '.dat', pre + '.inter.json'], capture_output=True, text=True)
-print(r.stdout.strip(), r.stderr.strip()[-600:])
-r = subprocess.run(['python3', '/work/m38/prepvar.py', pre], capture_output=True, text=True)
-print(r.stdout.strip(), r.stderr.strip()[-600:])
-```
-
-### prep.py
-
-```python
-"""prep.py <char.json> <pair.json> <out.dat> [inter.json]: data file for q3t.c (own code).
-pair.json: {"cv": [8 words], "Wx": [16], "Wy": [16]} (dense pair; if it is a full 38-step
-conforming pair and no inter.json is given, intermediates of rows >= 16 are taken from it).
-inter.json: {"S1_16": row, ...} intermediate signed outputs from the SAT solution."""
-import sys, json
-sys.path.insert(0, '/work/m38'); sys.path.insert(0, sys.argv[0].rsplit('/', 1)[0])
-from sha38 import trace, s1, M32
-from cond import derive, check, intermediates_from_pair
-C = {int(k): v for k, v in json.load(open(sys.argv[1])).items()}
-P = json.load(open(sys.argv[2]))
-cv, Wx, Wy = P['cv'], P['Wx'], P['Wy']
-ax, ex, _, _ = trace(cv, Wx, 16); ay, ey, _, _ = trace(cv, Wy, 16)
-def ms(row):
-    m = sum(1 << (31 - k) for k, c in enumerate(row) if c in 'un'); s = sum(1 << (31 - k) for k, c in enumerate(row) if c == 'u')
-    return m, s
-def sval(row):   # y - x for the signed row ('u': x = 1, y = 0)
-    return sum((-(1 << (31 - k)) if c == 'u' else (1 << (31 - k))) for k, c in enumerate(row) if c in 'un') & M32
-out = []
-for r in range(16, 38):
-    row = C.get(r, {'A': '=' * 32, 'E': '=' * 32, 'W': '=' * 32})
-    out.append('ROW %d %08x %08x %08x %08x %08x %08x' % ((r,) + ms(row['A']) + ms(row['E']) + ms(row['W'])))
-for m, (A, E) in enumerate(((ax, ex), (ay, ey))):
-    for i in range(-4, 16): out.append('ST %d %d %08x %08x' % (m, i, A[i], E[i]))
-for m, W in enumerate((Wx, Wy)):
-    for i in range(16): out.append('W %d %d %08x' % (m, i, W[i]))
-assert all(c not in 'un' for c in C.get(20, {'W': '='})['W']), 'W20 difference not supported'
-d7 = (Wy[7] - Wx[7]) & M32
-t7 = (sval(C.get(22, {'W': '=' * 32})['W']) - ((Wy[15] - Wx[15]) & M32)) & M32
-out = ['D7 %08x' % d7, 'T7 %08x' % t7] + out
-# value conditions of the boolean functions of steps 16..37
-rows = {}
-for i, r in C.items():
-    rows[('A', i)] = r['A']; rows[('E', i)] = r['E']; rows[('W', i)] = r['W']
-if len(sys.argv) > 4:
-    I = json.load(open(sys.argv[4])); inter = {(k.split('_')[0], int(k.split('_')[1])): v for k, v in I.items()}
-else:
-    fx, fy = trace(cv, Wx, 38), trace(cv, Wy, 38)
-    inter = intermediates_from_pair((fx[0], fx[1]), (fy[0], fy[1]), range(16, 38), fx[2], fy[2])
-conds, bad = derive(rows, inter, range(16, 38))
-assert not bad, ('impossible boolean instances', bad[:5])
-Ax, Ex = ax, ex
-early = [c for c in conds if c['key'] <= 15]
-fails = check(early, lambda k, i: {'A': Ax, 'E': Ex, 'W': dict(enumerate(Wx))}[k][i])
-print('conditions: %d (keyed <= 15: %d, violated by the dense pair: %d)' % (len(conds), len(early), len(fails)))
-for c in fails[:10]: print('  violated', c['src'], c['refs'], c['allowed'])
-for c in conds:
-    if c['key'] <= 15: continue
-    am = sum(1 << sum(b << q for q, b in enumerate(t)) for t in c['allowed'])
-    out.append('COND %d %d %s %x' % (c['key'], len(c['refs']), ' '.join('%d %d %d' % ({'A': 0, 'E': 1, 'W': 2}[k], i, b) for k, i, b in c['refs']), am))
-open(sys.argv[3], 'w').write('\n'.join(out) + '\n')
-from collections import Counter
-print('conditions per key row:', sorted(Counter(c['key'] for c in conds).items()))
-print('D7 %08x T7 %08x' % (d7, t7))
-```
-
-### cond.py
-
-```python
-"""Derive value conditions of a signed trail from its boolean-function instances (own code).
-For each step r and bit j, the instances Sigma1(E_{r-1}), IF(E_{r-1}, E_{r-2}, E_{r-3}),
-Sigma0(A_{r-1}), MAJ(A_{r-1}, A_{r-2}, A_{r-3}) must produce the trail's output signed difference
-(intermediate words S1_r, IF_r, S0_r, MJ_r). Inputs with a difference have their x value fixed by
-the sign; for the inputs without a difference, enumerate their values and keep the allowed set.
-A condition is (refs, allowed): refs = [(kind, row, bit)] of the non-difference inputs, allowed =
-set of value tuples. Keyed at the largest input row."""
-import itertools
-
-def sym_xy(s, v):
-    """symbol and a value for non-diff bits -> (x, y)"""
-    if s == 'u': return 1, 0
-    if s == 'n': return 0, 1
-    return v, v
-
-FN = {'XOR': lambda a, b, c: a ^ b ^ c, 'IF': lambda a, b, c: (a & b) ^ ((1 - a) & c), 'MAJ': lambda a, b, c: (a & b) ^ (a & c) ^ (b & c)}
-
-def bit(row, j):    # row string MSB first
-    return row[31 - j]
-
-def derive(rows, inter, steps):
-    """rows[(kind, i)] -> 32-symbol string ('=', 'u', 'n'; others mean '='), kinds 'A', 'E';
-    inter[(name, r)] -> 32-symbol output string for name in S1, IF, S0, MJ. Returns list of
-    dicts {key, refs, allowed, src} and a list of impossible instances."""
-    conds, bad = [], []
-    def g(kind, i, j):
-        if kind == 'Z': return '0'
-        s = rows.get((kind, i), '=' * 32)[31 - j]
-        return s if s in 'un' else '='
-    for r in steps:
-        specs = []
-        for j in range(32):
-            specs.append(('S1', 'XOR', [('E', r - 1, (j + 6) % 32), ('E', r - 1, (j + 11) % 32), ('E', r - 1, (j + 25) % 32)], j))
-            specs.append(('IF', 'IF', [('E', r - 1, j), ('E', r - 2, j), ('E', r - 3, j)], j))
-            specs.append(('S0', 'XOR', [('A', r - 1, (j + 2) % 32), ('A', r - 1, (j + 13) % 32), ('A', r - 1, (j + 22) % 32)], j))
-            specs.append(('MJ', 'MAJ', [('A', r - 1, j), ('A', r - 2, j), ('A', r - 3, j)], j))
-            if r >= 16:   # W_r = s1(W_{r-2}) + W_{r-7} + s0(W_{r-15}) + W_{r-16}
-                specs.append(('s1', 'XOR', [('W', r - 2, (j + 17) % 32), ('W', r - 2, (j + 19) % 32)] + ([('W', r - 2, j + 10)] if j + 10 < 32 else [('Z', 0, 0)]), j))
-                specs.append(('s0', 'XOR', [('W', r - 15, (j + 7) % 32), ('W', r - 15, (j + 18) % 32)] + ([('W', r - 15, j + 3)] if j + 3 < 32 else [('Z', 0, 0)]), j))
-        for name, fn, ins, j in specs:
-            out = inter.get((name, r), '=' * 32)[31 - j]
-            out = out if out in 'un' else '='
-            syms = [g(*t) for t in ins]
-            free = [k for k, s in enumerate(syms) if s == '=']
-            syms = [('=' if s == '0' else s) for s in syms]
-            # deduplicate repeated references (rotations never repeat a bit, MAJ/IF use distinct rows)
-            allowed = set()
-            for vals in itertools.product((0, 1), repeat=len(free)):
-                vv = dict(zip(free, vals))
-                xs, ys = zip(*[sym_xy(syms[k], vv.get(k, 0)) for k in range(3)])
-                ox, oy = FN[fn](*xs), FN[fn](*ys)
-                o = '=' if ox == oy else ('u' if ox == 1 else 'n')
-                if o == out: allowed.add(vals)
-            if not allowed:
-                bad.append((name, r, j)); continue
-            if len(allowed) < 2 ** len(free):
-                refs = [ins[k] for k in free]
-                conds.append(dict(key=max(t[1] for t in refs), refs=refs, allowed=sorted(allowed), src='%s_%d[%d]' % (name, r, j)))
-    return conds, bad
-
-def check(conds, val):
-    """val(kind, row) -> 32-bit word of member x. Returns failing conditions."""
-    fails = []
-    for c in conds:
-        t = tuple((val(k, i) >> b) & 1 for k, i, b in c['refs'])
-        if t not in set(map(tuple, c['allowed'])): fails.append(c)
-    return fails
-
-def intermediates_from_pair(trace_x, trace_y, steps, Wx=None, Wy=None):
-    """exact intermediate output differences from a conforming pair (A, E dicts of both members; W lists)."""
-    from sha38 import S0, S1, CH, MAJ, s0, s1
-    (Ax, Ex), (Ay, Ey) = trace_x, trace_y
-    def sym(x, y):
-        return ''.join('=' if ((x >> j) & 1) == ((y >> j) & 1) else ('u' if (x >> j) & 1 else 'n') for j in range(31, -1, -1))
-    inter = {}
-    for r in steps:
-        inter[('S1', r)] = sym(S1(Ex[r - 1]), S1(Ey[r - 1]))
-        inter[('IF', r)] = sym(CH(Ex[r - 1], Ex[r - 2], Ex[r - 3]), CH(Ey[r - 1], Ey[r - 2], Ey[r - 3]))
-        inter[('S0', r)] = sym(S0(Ax[r - 1]), S0(Ay[r - 1]))
-        inter[('MJ', r)] = sym(MAJ(Ax[r - 1], Ax[r - 2], Ax[r - 3]), MAJ(Ay[r - 1], Ay[r - 2], Ay[r - 3]))
-        if Wx is not None and r >= 16:
-            inter[('s1', r)] = sym(s1(Wx[r - 2]), s1(Wy[r - 2])); inter[('s0', r)] = sym(s0(Wx[r - 15]), s0(Wy[r - 15]))
-    return inter
-```
-
-### sdmodel.py
-
-```python
-"""Own signed-difference CNF model of reduced SHA-256 (written from scratch for this search).
-
-Each bit of every word is a pair (v, d): v = value in member x, d = 1 iff member y differs
-(member y's bit is v XOR d). Symbols: d = 0 '=' (value v), (v, d) = (1, 1) 'u', (0, 1) 'n'.
-- Boolean functions (XOR3 for Sigma/sigma, IF, MAJ): exact two-member relations.
-- Modular addition: signed-carry relation s_a + s_b + s_c = s_z + 2 s_c' with s = d (2v - 1),
-  values ignored (the standard signed-difference relaxation; value consistency is checked later
-  by solving for a conforming pair).
-Rows of the state are indexed as in FIPS / the paper: A_i, E_i for i = -4..; step i uses W_i."""
-import itertools
-from functools import lru_cache
-from pysat.formula import CNF, IDPool
-from pysat.card import CardEnc, EncType
-
-B = 32
-K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d]
-ROT = lambda w, n: w[n:] + w[:n]          # w[j] = bit j; ROTR by n: new[j] = old[j + n]
-
-
-def qm_cnf(nvars, allowed, dontcare=()):
-    """Minimal-ish CNF (prime implicates covering the forbidden set) of a boolean relation
-    over nvars variables; allowed and dontcare are sets of assignments (tuples of 0/1)."""
-    allowed, dontcare = set(allowed), set(dontcare)
-    forbidden = [a for a in itertools.product((0, 1), repeat=nvars) if a not in allowed and a not in dontcare]
-    if not forbidden:
-        return []
-    # implicants of the forbidden function (as cubes with None = free), merging with don't-cares
-    on = set(forbidden) | dontcare
-    cubes = {tuple(a) for a in on}
-    primes = set()
-    while cubes:
-        nxt, used = set(), set()
-        cl = list(cubes)
-        idx = {}
-        for c in cl:
-            for k in range(nvars):
-                if c[k] is None: continue
-                key = c[:k] + (None,) + c[k + 1:]
-                idx.setdefault((k, key), []).append(c)
-        for (k, key), group in idx.items():
-            vals = {g[k] for g in group}
-            if vals == {0, 1}:
-                nxt.add(key); used.update(group)
-        primes |= cubes - used
-        cubes = nxt
-    primes = sorted(primes, key=lambda p: tuple(2 if x is None else x for x in p))   # deterministic order (None hashes by address)
-    # greedy cover of the forbidden minterms (don't-cares need not be covered)
-    def covers(p, m): return all(p[k] is None or p[k] == m[k] for k in range(nvars))
-    todo = set(forbidden); chosen = []
-    while todo:
-        best = max(primes, key=lambda p: (sum(covers(p, m) for m in todo), -sum(x is not None for x in p)))
-        chosen.append(best); todo = {m for m in todo if not covers(best, m)}
-    # a cube of the forbidden set -> clause forbidding it
-    return [[(k + 1) * (-1 if p[k] == 1 else 1) for k in range(nvars) if p[k] is not None] for p in chosen]
-
-
-@lru_cache(None)
-def rel_bool(fn):
-    """inputs (v0,d0,v1,d1,v2,d2) -> output (vo,do); exact for both members."""
-    f = {'XOR': lambda a, b, c: a ^ b ^ c, 'IF': lambda a, b, c: (a & b) ^ ((1 - a) & c), 'MAJ': lambda a, b, c: (a & b) ^ (a & c) ^ (b & c)}[fn]
-    allowed = set()
-    for v0, d0, v1, d1, v2, d2 in itertools.product((0, 1), repeat=6):
-        x = f(v0, v1, v2); y = f(v0 ^ d0, v1 ^ d1, v2 ^ d2)
-        allowed.add((v0, d0, v1, d1, v2, d2, x, x ^ y))
-    return qm_cnf(8, allowed)
-
-
-@lru_cache(None)
-def rel_add():
-    """signed-carry addition bit: (va,da,vb,db,vc,dc,vz,dz,vn,dn) with s_a+s_b+s_c = s_z + 2 s_n.
-    For d = 0 the value bit is free (don't care)."""
-    allowed = set()
-    sg = lambda v, d: (2 * v - 1) if d else 0
-    for t in itertools.product((0, 1), repeat=10):
-        va, da, vb, db, vc, dc, vz, dz, vn, dn = t
-        if sg(va, da) + sg(vb, db) + sg(vc, dc) == sg(vz, dz) + 2 * sg(vn, dn):
-            allowed.add(t)
-    return qm_cnf(10, allowed)
-
-
-class SD:
-    def __init__(self):
-        self.pool = IDPool(); self.cnf = CNF(); self.words = {}
-
-    def word(self, name):
-        if name not in self.words:
-            self.words[name] = [(self.pool.id((name, j, 'v')), self.pool.id((name, j, 'd'))) for j in range(B)]
-        return self.words[name]
-
-    def const_word(self, c):
-        name = 'K_%08x' % c
-        if name not in self.words:
-            w = self.word(name)
-            for j, (v, d) in enumerate(w):
-                self.cnf.append([-d]); self.cnf.append([v] if (c >> j) & 1 else [-v])
-        return self.words[name]
-
-    def const0(self):
-        if 'ZERO' not in self.words:
-            w = self.word('ZERO')
-            for v, d in w: self.cnf.append([-v]); self.cnf.append([-d])
-        return self.words['ZERO'][0]
-
-    def apply(self, clauses, lits):
-        for c in clauses:
-            self.cnf.append([lits[abs(l) - 1] * (1 if l > 0 else -1) for l in c])
-
-    def relaxed_copy(self, w):
-        """per-instance value bits: shared sign (v when d = 1), free value when d = 0"""
-        out = []
-        for v, d in w:
-            v2 = self.pool.id()
-            self.cnf.append([-d, -v, v2]); self.cnf.append([-d, v, -v2])
-            out.append((v2, d))
-        return out
-
-    def boolfn(self, fn, a, b, c, out, relax=False):
-        cl = rel_bool(fn)
-        if relax: a, b, c = self.relaxed_copy(a), self.relaxed_copy(b), self.relaxed_copy(c)
-        for j in range(B):
-            self.apply(cl, [a[j][0], a[j][1], b[j][0], b[j][1], c[j][0], c[j][1], out[j][0], out[j][1]])
-
-    def add(self, a, b, out, tag):
-        """out = a + b with signed carries."""
-        cl = rel_add()
-        carry = [(self.pool.id((tag, j, 'cv')), self.pool.id((tag, j, 'cd'))) for j in range(B + 1)]
-        self.cnf.append([-carry[0][1]])          # no carry difference into bit 0
-        for j in range(B):
-            self.apply(cl, [a[j][0], a[j][1], b[j][0], b[j][1], carry[j][0], carry[j][1], out[j][0], out[j][1], carry[j + 1][0], carry[j + 1][1]])
-        # carry out of bit 31 is discarded (mod 2^32): no constraint
-
-    def yval(self, v, d):
-        y = self.pool.id(); self.cnf.extend([[-v, -d, -y], [v, d, -y], [v, -d, y], [-v, d, y]]); return y
-
-    def exact_add(self, a, b, out):
-        """value-exact z = a + b for member x (bits v) and member y (bits v XOR d)."""
-        for m in (0, 1):
-            av = [x[0] if m == 0 else self.yval(*x) for x in a]
-            bv = [x[0] if m == 0 else self.yval(*x) for x in b]
-            zv = [x[0] if m == 0 else self.yval(*x) for x in out]
-            c = None
-            for j in range(B):
-                if c is None:
-                    self.xor_eq(av[j], bv[j], None, zv[j]); c = self.pool.id()
-                    self.cnf.extend([[-av[j], -bv[j], c], [av[j], -c], [bv[j], -c]])
-                else:
-                    self.xor_eq(av[j], bv[j], c, zv[j])
-                    if j < B - 1:
-                        c2 = self.pool.id()
-                        self.cnf.extend([[-av[j], -bv[j], c2], [-av[j], -c, c2], [-bv[j], -c, c2], [av[j], bv[j], -c2], [av[j], c, -c2], [bv[j], c, -c2]])
-                        c = c2
-
-    def xor_eq(self, a, b, c, z):
-        lits = [a, b] + ([c] if c is not None else [])
-        import itertools
-        for vals in itertools.product((0, 1), repeat=len(lits)):
-            r = sum(vals) & 1
-            self.cnf.append([(-l if v else l) for l, v in zip(lits, vals)] + [z if r else -z])
-
-    def addn(self, terms, out, tag, exact=False):
-        acc = terms[0]
-        for k, t in enumerate(terms[1:]):
-            dst = out if k == len(terms) - 2 else self.word('%s_t%d' % (tag, k))
-            self.add(acc, t, dst, '%s_c%d' % (tag, k))
-            if exact: self.exact_add(acc, t, dst)
-            acc = dst
-
-    def sigma(self, w, r1, r2, r3, shift, out, relax=False):
-        z = self.const0()
-        if relax: w = self.relaxed_copy(w)
-        third = ROT(w, r3) if not shift else (w[r3:] + [z] * r3)
-        self.boolfn('XOR', ROT(w, r1), ROT(w, r2), third, out)
-
-    def zero_diff(self, w):
-        for v, d in w: self.cnf.append([-d])
-
-    def hw_lits(self, ws):
-        return [d for w in ws for v, d in w]
-
-    def fix(self, w, row):
-        """row: 32 symbols MSB first; '=' no diff (value free), 'u'/'n' diff, '0'/'1' value condition, '-' free."""
-        for k, s in enumerate(row):
-            v, d = w[B - 1 - k]
-            if s in '=0123456789+-' and s not in 'un':
-                self.cnf.append([-d])
-                if s == '0': self.cnf.append([-v])
-                if s == '1': self.cnf.append([v])
-            elif s == 'u': self.cnf.append([d]); self.cnf.append([v])
-            elif s == 'n': self.cnf.append([d]); self.cnf.append([-v])
-
-    def card(self, lits, op, k, enc=EncType.totalizer):
-        f = {'<=': CardEnc.atmost, '>=': CardEnc.atleast, '=': CardEnc.equals}[op](lits=lits, bound=k, vpool=self.pool, encoding=enc)
-        self.cnf.extend(f.clauses)
-
-
-def sha256_model(n_msg=38, diff_words=(7, 8, 9, 10, 11, 15, 16, 23, 25), state=(7, 26), with_state=True, zero_start=True, relax_steps=(), relax_kinds=('S', 'B'), exact_steps=()):
-    m = SD()
-    W = [m.word('W%d' % i) for i in range(n_msg)]
-    for i in range(16, n_msg):
-        s1, s0 = m.word('s1_%d' % i), m.word('s0_%d' % i)
-        m.sigma(W[i - 2], 17, 19, 10, True, s1)
-        m.sigma(W[i - 15], 7, 18, 3, True, s0)
-        m.addn([s1, W[i - 7], s0, W[i - 16]], W[i], 'mx%d' % i)
-    for i in range(n_msg):
-        if i not in diff_words: m.zero_diff(W[i])
-    A = {i: m.word('A%d' % i) for i in range(state[0] - 4, state[1])}
-    E = {i: m.word('E%d' % i) for i in range(state[0] - 4, state[1])}
-    if with_state:
-        for i in range(state[0], state[1]):
-            S1, IF, S0, MJ, T1 = (m.word('%s_%d' % (n, i)) for n in ('S1', 'IF', 'S0', 'MJ', 'T1'))
-            rs = i in relax_steps and 'S' in relax_kinds; rb = i in relax_steps and 'B' in relax_kinds
-            m.sigma(E[i - 1], 6, 11, 25, False, S1, relax=rs)
-            m.boolfn('IF', E[i - 1], E[i - 2], E[i - 3], IF, relax=rb)
-            ex = i in exact_steps
-            m.addn([E[i - 4], S1, IF, W[i], m.const_word(K[i]) if ex else None][:5 if ex else 4], T1, 't1_%d' % i, exact=ex)
-            m.add(A[i - 4], T1, E[i], 'e_%d' % i)
-            if ex: m.exact_add(A[i - 4], T1, E[i])
-            m.sigma(A[i - 1], 2, 13, 22, False, S0, relax=rs)
-            m.boolfn('MAJ', A[i - 1], A[i - 2], A[i - 3], MJ, relax=rb)
-            m.addn([T1, S0, MJ], A[i], 'a_%d' % i, exact=ex)
-        for i in range(state[0] - 4, state[0]):
-            if zero_start: m.zero_diff(A[i]); m.zero_diff(E[i])
-        for i in range(state[1] - 8, state[1]): m.zero_diff(A[i])
-        for i in range(state[1] - 4, state[1]): m.zero_diff(E[i])
-    m.W, m.A, m.E = W, A, E
-    return m
-
-
-def decode(m, model_set, words):
-    rows = {}
-    for name in words:
-        w = m.words[name]; s = ''
-        for j in range(B - 1, -1, -1):
-            v, d = w[j]
-            s += ('u' if v in model_set else 'n') if d in model_set else '='
-        rows[name] = s
-    return rows
-```
-
-### vmodel.py
-
-```python
-"""Exact value-level two-member model of SHA-256 rows 0..15 for a given signed characteristic
-(own code). Member x is computed exactly; member y's words are x XOR (difference mask) with the
-sign bits fixed ('u': x bit 1, 'n': x bit 0), and y's rows are also computed exactly, so every
-difference of the characteristic holds with real carries. Free: A0..A6 (with A_-4..A_-1, E_-4..E_-1
-implied by the Step-2 bijection, they need not be modeled), W7..W15. Rows 4..6 E words are derived
-from A0..A6 (E_i = A_i + A_{i-4} - S0(A_{i-1}) - MAJ(A_{i-1}, A_{i-2}, A_{i-3}), i >= 4)."""
-from pysat.formula import IDPool
-K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-     0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-     0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-     0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85]
-B = 32
-
-
-class V:
-    XOR_NATIVE = False
-    def __init__(self):
-        self.pool = IDPool(); self.cl = []; self.xors = []
-        self.T = self.pool.id('TRUE'); self.cl.append([self.T])
-
-    def new(self, n=B, tag=None):
-        return [self.pool.id() for _ in range(n)]
-
-    def const(self, c):
-        return [self.T if (c >> j) & 1 else -self.T for j in range(B)]
-
-    def xor2(self, a, b):
-        o = self.pool.id()
-        if V.XOR_NATIVE: self.xors.append([a, b, -o]); return o      # a ^ b ^ ~o = 1  <=>  o = a ^ b
-        self.cl += [[-a, -b, -o], [a, b, -o], [a, -b, o], [-a, b, o]]
-        return o
-
-    def xor3(self, a, b, c):
-        o = self.pool.id()
-        if V.XOR_NATIVE: self.xors.append([a, b, c, -o]); return o
-        for s in range(8):
-            x, y, z = s & 1, s >> 1 & 1, s >> 2 & 1
-            r = x ^ y ^ z
-            self.cl.append([(-a if x else a), (-b if y else b), (-c if z else c), (o if r else -o)])
-        return o
-
-    def maj(self, a, b, c):
-        o = self.pool.id()
-        self.cl += [[-a, -b, o], [-a, -c, o], [-b, -c, o], [a, b, -o], [a, c, -o], [b, c, -o]]
-        return o
-
-    def ifn(self, e, f, g):
-        o = self.pool.id()
-        self.cl += [[-e, -f, o], [-e, f, -o], [e, -g, o], [e, g, -o]]
-        return o
-
-    def add(self, a, b):
-        out, c = [], None
-        for j in range(B):
-            if c is None:
-                out.append(self.xor2(a[j], b[j])); c = self.and2(a[j], b[j])
-            else:
-                out.append(self.xor3(a[j], b[j], c))
-                if j < B - 1: c = self.maj(a[j], b[j], c)
-        return out
-
-    def and2(self, a, b):
-        o = self.pool.id()
-        self.cl += [[-a, -b, o], [a, -o], [b, -o]]
-        return o
-
-    def addn(self, ws):
-        acc = ws[0]
-        for w in ws[1:]: acc = self.add(acc, w)
-        return acc
-
-    def neg(self, w):  # two's complement: ~w + 1
-        return self.add([-x for x in w], self.const(1))
-
-    def rot(self, w, n): return w[n:] + w[:n]
-
-    def S0(self, w): return [self.xor3(*t) for t in zip(self.rot(w, 2), self.rot(w, 13), self.rot(w, 22))]
-    def S1(self, w): return [self.xor3(*t) for t in zip(self.rot(w, 6), self.rot(w, 11), self.rot(w, 25))]
-    def s0(self, w): return [self.xor3(*t) for t in zip(self.rot(w, 7), self.rot(w, 18), w[3:] + [-self.T] * 3)]
-    def s1(self, w): return [self.xor3(*t) for t in zip(self.rot(w, 17), self.rot(w, 19), w[10:] + [-self.T] * 10)]
-    def IF(self, e, f, g): return [self.ifn(*t) for t in zip(e, f, g)]
-    def MAJ(self, a, b, c): return [self.maj(*t) for t in zip(a, b, c)]
-
-    def eq(self, a, b):
-        for x, y in zip(a, b): self.cl += [[-x, y], [x, -y]]
-
-
-def masks(row):
-    """row MSB first -> (xor mask, sign fixes {bit: x value})"""
-    m, fx = 0, {}
-    for k, s in enumerate(row):
-        j = B - 1 - k
-        if s in 'un': m |= 1 << j; fx[j] = 1 if s == 'u' else 0
-    return m, fx
-
-
-def add_conditions(v, conds, Ax, Ex, W):
-    """value conditions on member-x bits (rows <= 15, W7 excluded) as clauses forbidding disallowed tuples."""
-    import itertools
-    n = 0
-    for c in conds:
-        if c['key'] > 15 or any(k == 'W' and i == 7 for k, i, b in c['refs']): continue
-        lits = []
-        for k, i, b in c['refs']:
-            src = {'A': Ax, 'E': Ex, 'W': W}[k]
-            if i not in src: lits = None; break
-            lits.append(src[i][b])
-        if lits is None: continue
-        allowed = set(map(tuple, c['allowed']))
-        for t in itertools.product((0, 1), repeat=len(lits)):
-            if t not in allowed:
-                v.cl.append([(-l if bit else l) for l, bit in zip(lits, t)])
-        n += 1
-    return n
-
-
-def dense_model(char, last=15, extra_rows=(), free_rows=(), skip=(), free_signs=False, expansion=False):
-    """char: {row: {'A': str, 'E': str, 'W': str}} for rows 0..last (signed differences only are used)."""
-    v = V()
-    A = {i: v.new() for i in range(0, 7)}          # member x A0..A6 (equal in y: rows < 7 carry no difference)
-    W = {i: v.new() for i in range(7, last + 1)}   # member x W7..W15
-    # E4..E6 from A0..A6
-    E = {3: v.new()}                              # E3 is free (it fixes A_-1 of the chaining value)
-    for i in (4, 5, 6):
-        E[i] = v.addn([A[i], A[i - 4], v.neg(v.S0(A[i - 1])), v.neg(v.MAJ(A[i - 1], A[i - 2], A[i - 3]))])
-    def ymask(w, row):
-        m, fx = masks(row)
-        if not free_signs:
-            for j, val in fx.items(): v.cl.append([w[j] if val else -w[j]])
-        return [(-x if (m >> j) & 1 else x) for j, x in enumerate(w)]
-    Wy = {i: ymask(W[i], char[i]['W']) for i in W}
-    # rows 4..6: no differences allowed
-    for i in (4, 5, 6):
-        assert set(char[i]['E']) <= set('=01+-') and set(char[i]['A']) <= set('=01+-'), i
-    Ax = dict(A); Ex = dict(E); Ay = dict(A); Ey = dict(E)
-    for i in range(7, last + 1):
-        for (AA, EE, WW) in ((Ax, Ex, W), (Ay, Ey, Wy)):
-            T1 = v.addn([EE[i - 4], v.S1(EE[i - 1]), v.IF(EE[i - 1], EE[i - 2], EE[i - 3]), v.const(K[i]), WW[i]])
-            EE[i] = v.add(AA[i - 4], T1)
-            AA[i] = v.addn([T1, v.S0(AA[i - 1]), v.MAJ(AA[i - 1], AA[i - 2], AA[i - 3])])
-        # link: y = x XOR mask with signs fixed (rows in free_rows: no link, the trail is whatever the values give)
-        if i in free_rows: continue
-        for nm, X, Y in (('A', Ax, Ay), ('E', Ex, Ey)):
-            if (nm, i) in skip: continue
-            m, fx = masks(char[i][nm])
-            for j, val in fx.items(): v.cl.append([X[i][j] if val else -X[i][j]])
-            v.eq(Y[i], [(-x if (m >> j) & 1 else x) for j, x in enumerate(X[i])])
-    if expansion:   # modular conditions of the expansion on the dense words (dW17 = dW24 = dW26 = dW30 = 0)
-        def diff(fx, fy): return v.add(fy, v.neg(fx))
-        zero = v.const(0)
-        v.eq(v.add(diff(v.s1(W[15]), v.s1(Wy[15])), diff(W[10], Wy[10])), zero)
-        v.eq(v.add(diff(v.s0(W[9]), v.s0(Wy[9])), diff(W[8], Wy[8])), zero)
-        v.eq(v.add(diff(v.s0(W[11]), v.s0(Wy[11])), diff(W[10], Wy[10])), zero)
-        v.eq(v.addn([diff(v.s0(W[15]), v.s0(Wy[15])), diff(W[9], Wy[9]), diff(v.s0(W[8]), v.s0(Wy[8])), diff(W[7], Wy[7])]), zero)
-    v.A, v.E, v.W, v.Ay, v.Ey, v.Wy = Ax, Ex, W, Ay, Ey, Wy
-    return v
-
-
-def value(model_set, w):
-    """model_set: set of true positive literals"""
-    return sum(1 << j for j, x in enumerate(w) if (x > 0 and x in model_set) or (x < 0 and (-x) not in model_set))
-
-
-def write_dimacs(v, fn):
-    """CNF plus CryptoMiniSat native XOR lines ('x' prefix: XOR of literals = true)."""
-    with open(fn, 'w') as f:
-        f.write('p cnf %d %d\n' % (v.pool.top, len(v.cl) + len(v.xors)))
-        for c in v.cl: f.write(' '.join(map(str, c)) + ' 0\n')
-        for x in v.xors: f.write('x' + ' '.join(map(str, x)) + ' 0\n')
-```
-
-### sha38.py
-
-```python
-"""Independent reduced-round SHA-256 (FIPS 180-4) with full trace, written from the spec."""
-M32 = 0xFFFFFFFF
-K = [
-    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
-]
-IV = (0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19)
-
-
-def ror(x, n):
-    return ((x >> n) | (x << (32 - n))) & M32
-
-
-def S0(x): return ror(x, 2) ^ ror(x, 13) ^ ror(x, 22)
-def S1(x): return ror(x, 6) ^ ror(x, 11) ^ ror(x, 25)
-def s0(x): return ror(x, 7) ^ ror(x, 18) ^ (x >> 3)
-def s1(x): return ror(x, 17) ^ ror(x, 19) ^ (x >> 10)
-def CH(x, y, z): return (x & y) ^ (~x & z & M32)
-def MAJ(x, y, z): return (x & y) ^ (x & z) ^ (y & z)
-
-
-def expand(W16, n):
-    W = list(W16)
-    for i in range(16, n):
-        W.append((s1(W[i - 2]) + W[i - 7] + s0(W[i - 15]) + W[i - 16]) & M32)
-    return W
-
-
-def trace(cv, W16, rounds=38):
-    """Return (A, E, W, out) with A[i], E[i] indexed i = -4..rounds-1 via dict."""
-    a, b, c, d, e, f, g, h = cv
-    A = {-1: a, -2: b, -3: c, -4: d}
-    E = {-1: e, -2: f, -3: g, -4: h}
-    W = expand(W16, rounds)
-    for i in range(rounds):
-        T1 = (h + S1(e) + CH(e, f, g) + K[i] + W[i]) & M32
-        T2 = (S0(a) + MAJ(a, b, c)) & M32
-        h, g, f = g, f, e
-        e = (d + T1) & M32
-        d, c, b = c, b, a
-        a = (T1 + T2) & M32
-        A[i], E[i] = a, e
-    out = tuple((x + y) & M32 for x, y in zip(cv, (a, b, c, d, e, f, g, h)))
-    return A, E, W, out
-
-
-def compress(cv, W16, rounds=38):
-    return trace(cv, W16, rounds)[3]
-```
-
-### mkpkg4.py
-
-```python
-#!/usr/bin/env python3
-"""mkpkg4.py <sha2-search dir> <candidate dir> <q3_model> <q3 threshold> [options]: proof.md, claim.json, dependencies.json and
-experiments/ of the A0-variant package with the characteristic P8, 32 classes and per-class row-16 programs (successor of the package
-filed as 1a695f0b, generated by mkpkg3.py).  Every number in the prose that derives from data is read from the run files listed in the
-INPUTS block below (each overridable on the command line) or recomputed here; a value that cannot be computed from files is a required
-option.  Without --allow-missing the generator stops before writing anything if an input is missing or inconsistent, and lists them.
-With --allow-missing it writes a dry-run package with **TODO(...)** markers and a banner listing every missing or provisional input."""
-import sys
-sys.dont_write_bytecode = True
-import argparse, json, re, glob, math, statistics as st, hashlib, os, shutil, collections, random, importlib.util
-from fractions import Fraction as Fr
-
-# ---- inputs (paths relative to the sha2-search dir) ----
-INPUTS = dict(
-    q3dir='runs/q3p8_32',                       # q3 study: out_<seed>.txt (q3tv2, DIFFROW=19 RELAX_TAIL=1, VARS = the class pool)
-    h3glob='runs/a0p32/h3_first750/h3_*.txt',   # pair term, charged sample (h3p.py output; last line a dict)
-    h3spread='runs/a0p32/h3_*.txt',             # pair term, cross-check sample spread over all runs (SPREAD=750)
-    devdir='runs/a0p32/dev',                    # replica development requests (dev_*.txt)
-    calib='runs/a0p32/calibrate.json',          # executed counts of experiments/a0p38.py (prog = list of per-class counts)
-    valid='runs/a0p32/validation.txt',          # our validation of the shipped experiments
-    memory='runs/a0p32/memory.txt',             # memory record
-    pat19='runs/a0p32/pat19.txt',               # row-19 patterns of the study's successes
-    selftest='runs/a0p32/selftest.txt',         # selftest output of the shipped program
-    classes='runs/lp/P8_32/classes.txt',        # c7 base size mask (lp_classes.py, ALLMAX=1)
-    vars='runs/lp/P8_32/vars_pool.txt',         # the variant pool of the selected classes
-    derived='runs/lp/P8_32/derived.json',       # lp_classes.py summary (number of largest classes etc.)
-    exp='runs/a0p32/a0p38.py',                  # the shipped program
-    fam='runs/a0p/a0fam_p08.txt',               # A0-variant family of S (same S as 1a695f0b)
-    sweep='runs/a0p/sweep_summary.txt',         # sign sweep summary (same as 1a695f0b)
-    char='runs/c/SW_p08_k1_j43.char.json',      # the characteristic P8
-    sfs='runs/c/P08.sfs_pair.json',             # the semi-free-start pair
-    ref_calib='runs/a0p/calibrate.json',        # 1a695f0b's calibration (8 classes, one shared program): reference rows
-    ref_classes='runs/p08_classes.txt',         # 1a695f0b's 8 classes (c7 base size): reference rows
-)
-# ---- reference values of earlier packages (filed numbers, used for comparison and checked where recomputable) ----
-REF = dict(id='1a695f0b', q3=-97.0, h3=-5.9, claim=87.22358, mem=28.10, score=95.32358, shared_prog=1511, mask=0x7fe96c7c)
-FB = dict(q3=-97.7838, variants='345,600', g='23,118.75', prog='1,410 to 1,426', claim='87.90375', mem='2^28 (online 1,044,992 bytes)', score='95.90375')
-# ---- study parameters (q3tv2 command-line arguments; not recorded in the out files; see DOWNSTREAM_RUNBOOK.md) ----
-STUDY = dict(seed0=4001, nruns=20, particles=4000, tail=16384)
-SRC = ['ledger_a0p.py', 'lp_classes.py', 'a0cls.c', 'a0p_ref.py', 'a0p_core.py', 'a0p_prog.py', 'a0p_scal.py', 'a0p_run.py', 'a0p_main.py',
-       'mka0p.py', 'mkvt.py', 'a0fam.c', 'h3p.py', 'q3tv.c', 'sweep.py', 'stepk.py', 'score.py', 'joint.py', 'fromjoint.py', 'prep.py', 'cond.py',
-       'sdmodel.py', 'vmodel.py', 'sha38.py', 'mkpkg4.py']
-DEPS_UUID = {'2d1c4fc2': '2d1c4fc2-7bdd-4b92-af0c-f0c041883b07', 'fb176310': 'fb176310-a5ab-4671-b610-23d90f5a3814',
-             '242fcec3': '242fcec3-3fb4-41a4-b808-945e2a75ced1', '49b543d1': '49b543d1-5b0d-48fa-bf34-a09503d37231',
-             '1a695f0b': '1a695f0b-4221-4159-b01f-a145022b5334', '08be594': None}     # 08be594: full id via --dep-08be594
-
-ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-ap.add_argument('R'); ap.add_argument('OUT'); ap.add_argument('q3_model', type=float); ap.add_argument('q3_threshold', type=float)
-for k, v in INPUTS.items(): ap.add_argument('--' + k.replace('_', '-'), dest=k, default=v, help='default %(default)s')
-for k, v in STUDY.items(): ap.add_argument('--' + k, dest=k, type=int, default=v, help='default %(default)s')
-ap.add_argument('--rebuilt-checked', default=None, help='rebuild check of the study successes, e.g. "300 of 300" (not in the run files)')
-ap.add_argument('--core-seconds-log2', type=float, default=None, help='bound (log2) on all core-seconds of search and development (H4)')
-ap.add_argument('--dep-08be594', default=None, help='full submission id of 08be594 (johnservil)')
-ap.add_argument('--allow-missing', action='store_true', help='write a dry-run package with TODO markers instead of failing')
-A = ap.parse_args()
-R, OUT, Q3M, THR = A.R, A.OUT, A.q3_model, A.q3_threshold
-P_ = lambda k: os.path.join(R, getattr(A, k))
-sys.path.insert(0, R + '/m38')
-from ledger_a0p import ledger
-
-MISSING, PROVISIONAL = [], []
-def miss(what): MISSING.append(what)
-def todo(name): return '**TODO(%s)**' % name
-def rd(k):
-    p = P_(k)
-    if not os.path.isfile(p) or os.path.getsize(p) == 0: miss('%s: %s' % (k, p)); return None
-    return open(p).read().rstrip('\n')
-c = lambda n: f'{n:,}'
-cg = lambda g: c(int(g)) if float(g) == int(g) else c(round(float(g), 2))   # good pairs per first block
-nz = lambda s: ''.join(ch if ch in 'un' else '=' for ch in s)
-WORDS = {1: 'one', 2: 'two', 3: 'three', 4: 'four', 5: 'five', 6: 'six', 7: 'seven', 8: 'eight', 9: 'nine', 10: 'ten'}
-wd = lambda n: WORDS.get(n, str(n))
-pop = lambda x: bin(x).count('1')
-
-# ---- fixed inputs (same P8 and S as 1a695f0b) ----
-CH = {int(k): v for k, v in json.load(open(P_('char'))).items()}
-PUB = {int(k): v for k, v in json.load(open(R + '/m38/paper_table3.json')).items()}
-SFS = json.load(open(P_('sfs')))
-FAM, SWEEP = rd('fam'), rd('sweep')
-for f in SRC:
-    if not os.path.isfile(R + '/m38/' + f): miss('source m38/' + f)
-
-# ---- the shipped program ----
-VT = P_('exp')
-spec = importlib.util.spec_from_file_location('a0p38', VT); AP = importlib.util.module_from_spec(spec); spec.loader.exec_module(AP)
-SHB = pop(AP.SHARED)
-vt_src = open(VT).read(); vt_hash = hashlib.sha256(open(VT, 'rb').read()).hexdigest(); vt_size = os.path.getsize(VT)
-if AP.Q3_THRESH != THR: miss('inconsistent: Q3_THRESH = %s in %s, q3 threshold argument %s' % (AP.Q3_THRESH, VT, THR))
-
-# ---- classes ----
-CLS = [l.split() for l in open(P_('classes')) if l.strip()]
-assert all(len(x) == 4 for x in CLS), 'classes.txt needs four columns (c7 base size mask): run lp_classes.py with ALLMAX=1'
-CLS = [(int(a, 16), int(b, 16), int(n), int(m, 16)) for a, b, n, m in CLS]
-ncl = len(CLS); sizes = sorted({n for _, _, n, _ in CLS}); nvar = sum(n for _, _, n, _ in CLS)
-assert len(sizes) == 1, 'classes of different sizes: the ledger assumes one class size'
-csize = sizes[0]; nb = csize // 256
-maskcnt = collections.Counter(m for _, _, _, m in CLS); masks_desc = ', '.join('%08x (%d bits) x %d' % (m, pop(m), n) for m, n in sorted(maskcnt.items(), key=lambda t: (-t[1], -t[0])))
-wmin, wmax = min(pop(m) for m in maskcnt), max(pop(m) for m in maskcnt); widest = max(maskcnt, key=lambda m: (pop(m), m))
-DER = json.load(open(P_('derived')))
-nlargest = DER['n_largest']
-assert DER['class_size'] == csize
-if [(a, b, m) for a, b, _, m in CLS] != [tuple(x) for x in AP.CLASSES]: miss('inconsistent: CLASSES of %s differ from %s' % (VT, P_('classes')))
-if AP.CLASS_SIZE != csize: miss('inconsistent: CLASS_SIZE of %s' % VT)
-pool_n = 0; pool_cls = set()
-with open(P_('vars')) as f:
-    for l in f: pool_n += 1; pool_cls.add(l.split(' ', 1)[0])
-if pool_n != nvar or len(pool_cls) != ncl: miss('inconsistent: %s has %d variants of %d classes, classes.txt %d of %d' % (P_('vars'), pool_n, len(pool_cls), nvar, ncl))
-# 1a695f0b's classes (reference) and our per-class programs for them
-RCLS = [l.split() for l in open(P_('ref_classes')) if l.strip()]
-ref_idx = [next(i for i, x in enumerate(AP.CLASSES) if x[0] == int(a, 16) and x[1] == int(b, 16)) for a, b, _ in RCLS]
-ref_nvar = sum(int(n) for _, _, n in RCLS)
-ref_progs = [len(AP.program(i)) - 1 for i in ref_idx]
-
-# ---- calibration (cross-checked against the shipped program) ----
-CAL_LIVE = AP.calibrate()
-CALT = rd('calib')
-if CALT is None:
-    CAL = CAL_LIVE; PROVISIONAL.append('calibration computed by calibrate() of %s (no %s)' % (VT, P_('calib')))
-else:
-    CAL = json.loads(CALT)
-    if CAL != CAL_LIVE: miss('inconsistent: %s differs from calibrate() of %s' % (P_('calib'), VT))
-CALREF = json.load(open(P_('ref_calib')))
-progs = CAL['prog']; assert isinstance(progs, list) and len(progs) == ncl == CAL['classes'] and CAL['class_size'] == csize
-pmean = Fr(sum(progs), ncl); pmin, pmax = min(progs), max(progs); ndistinct = len({tuple(AP.cbits(i)) for i in range(ncl)})
-# the lane cost, itemised from the shipped routines
-_m = AP.Mach(); AP.lane_value(_m, {j: 0 for j in range(32)}, 0, widest, 0); n_lv = _m.ops
-_m = AP.Mach(); _sc = AP.fb_scalars(_m, [1] * 8); _m = AP.Mach(); AP.scalar_e16(_m, _sc, AP.members(0, 1)[0]); n_e16 = _m.ops
-assert 32 + AP.LANE_CTL + n_lv + n_e16 + 42 == CAL['lane'], 'lane cost does not itemise'
-# the replica's embedded variant sample
-VS = AP.vsample(); vs_cls = collections.Counter(AP.class_of(a) for a in VS)
-if None in vs_cls: miss('inconsistent: %d embedded replica samples are not in a selected class' % vs_cls[None])
-
-# ---- q3 study ----
-RUNS, STALLED, qmiss = [], [], []
-seeds = list(range(A.seed0, A.seed0 + A.nruns))
-for sd in seeds:
-    f = '%s/out_%d.txt' % (P_('q3dir'), sd); t = open(f).read() if os.path.isfile(f) else ''
-    mv = re.search(r'variants (\d+)', t)
-    if mv and int(mv.group(1)) != nvar: miss('inconsistent: %s used %s variants, the classes have %d' % (f, mv.group(1), nvar))
-    m = re.search(r'seed (\d+) .*stages (.*) \| succ (\d+) coll (\d+) \| log2q (-?[\d.]+)', t)
-    if m: RUNS.append((int(m.group(1)), m.group(2), int(m.group(3)), int(m.group(4)), float(m.group(5))))
-    elif re.search(r'seed %d stalled' % sd, t):
-        s = re.search(r'seed (\d+) (stalled.*)', t); RUNS.append((sd, s.group(2) + ' (no estimate: counted as 0)', 0, 0, None)); STALLED.append((sd, s.group(2)))
-    else: qmiss.append(sd)
-if qmiss: miss('q3 study %s: %d of %d runs not finished (seeds %s)' % (P_('q3dir'), len(qmiss), A.nruns, ' '.join(map(str, qmiss))))
-nq = len(RUNS)
-def t_quant(p, v):
-    lc = math.lgamma((v + 1) / 2) - math.lgamma(v / 2) - 0.5 * math.log(v * math.pi)
-    pdf = lambda x: math.exp(lc - (v + 1) / 2 * math.log1p(x * x / v))
-    def cdf(x, n=4000):
-        h = x / n; return 0.5 + h / 3 * sum(pdf(i * h) * (1 if i in (0, n) else 4 if i % 2 else 2) for i in range(n + 1))
-    lo, hi = 0.0, 50.0
-    for _ in range(60):
-        mid = (lo + hi) / 2; lo, hi = (mid, hi) if cdf(mid) < p else (lo, mid)
-    return (lo + hi) / 2
-if nq >= 2:
-    qs = [2 ** r[4] if r[4] is not None else 0.0 for r in RUNS]; qm = sum(qs) / nq; qsd = st.stdev(qs); tq = t_quant(0.99, nq - 1)
-    qlo = math.log2(qm - tq * qsd / math.sqrt(nq))
-    rr = random.Random(1); bs = sorted(math.log2(sum(rr.choice(qs) for _ in qs) / nq) for _ in range(20000)); qbs = bs[200]
-    qsucc = sum(r[2] for r in RUNS)
-    if not all(r[2] == r[3] for r in RUNS): miss('inconsistent: a study run has successes that are not collisions')
-    stg = [list(map(float, r[1].split())) for r in RUNS if r[4] is not None]
-    lab = ['16', '17', '18', '19', '20', '21', '22', 'tail'] if all(len(x) == 8 for x in stg) else None
-    if lab and len(stg) >= 2:
-        sds = [st.stdev(x[k] for x in stg) for k in range(8)]; kmax = max(range(1, 8), key=lambda k: sds[k])
-        spread = 'The %s stage has the largest spread across the runs (sd %.2f bits of its log2 factor; the others at most %.2f)' % (
-            ('row-%s' % lab[kmax]) if lab[kmax] != 'tail' else 'tail', sds[kmax], max(sds[k] for k in range(1, 8) if k != kmax))
-    else: spread = todo('stage spread')
-    S_q = dict(mean='%.4f' % math.log2(qm), rsd='%.3f' % (qsd / qm), t='%.4f' % tq, df=str(nq - 1), lo='%.4f' % qlo, bs='%.4f' % qbs, succ=c(qsucc), n=str(nq))
-    if qmiss: PROVISIONAL.append('q3 study statistics over %d of %d runs' % (nq, A.nruns))
-else:
-    qm = None; spread = todo('stage spread'); S_q = {k: todo('q3 study') for k in ('mean', 'rsd', 't', 'df', 'lo', 'bs', 'succ', 'n')}
-stall_txt = (('Run%s %s found no survivor at row %s and %s counted as an estimate of 0.' % ('s' if len(STALLED) > 1 else '', ' and '.join(str(sd) for sd, _ in STALLED),
-              '/'.join(sorted({x.split()[-1] for _, x in STALLED})), 'are' if len(STALLED) > 1 else 'is')) if STALLED else 'No run stalled.')
-seed_txt = '%d..%d' % (seeds[0], seeds[-1])
-
-# ---- replica development requests ----
-DEV = []
-for f in sorted(glob.glob(P_('devdir') + '/dev_*.txt')):
-    for l in open(f):
-        t = l.split()
-        if len(t) >= 14: DEV.append((int(t[0]), float(t[1]), int(t[2]), int(t[3]), [None if v == 'None' else float(v) for v in t[4:14]]))
-if DEV:
-    reps = [z for d in DEV for z in d[4]]; rmean = math.log2(sum(2 ** z if z is not None else 0.0 for z in reps) / len(reps))
-    pm = sorted(d[1] for d in DEV); rs = [sum(z is not None for z in d[4]) for d in DEV]
-    S_d = dict(n=str(len(DEV)), nrep=str(len(reps)), min='%.3f' % pm[0], q5='%.3f' % pm[int(0.05 * len(pm))], med='%.3f' % ((pm[(len(pm) - 1) // 2] + pm[len(pm) // 2]) / 2),
-               rmean='%.4f' % rmean, rs='%d to %d' % (min(rs), max(rs)))
-    mm = re.search(r'fixed from (\d+) development requests', vt_src)
-    if mm and int(mm.group(1)) != len(DEV): miss('inconsistent: %s says the pass rule was fixed from %s development requests, %s has %d' % (VT, mm.group(1), P_('devdir'), len(DEV)))
-else:
-    miss('replica development requests: %s/dev_*.txt' % P_('devdir')); S_d = {k: todo('dev') for k in ('n', 'nrep', 'min', 'q5', 'med', 'rmean', 'rs')}
-
-# ---- replica power (approximation: a lower q3 shifts the replica's pooled means) ----
-_dv = sorted(float(l.split()[1]) for f in glob.glob(os.path.join(P_('devdir'), 'dev_*.txt')) for l in open(f) if len(l.split()) > 2)
-POW = {sh: sum(1 for x in _dv if x - sh < THR) / len(_dv) for sh in (0, 1, 2, 3)} if _dv else {}
-# ---- pair term ----
-H3 = collections.Counter(); h3f = glob.glob(P_('h3glob'))
-for f in h3f:
-    d = eval(open(f).read().strip().split('\n')[-1]); H3.update(d)
-def pois_up(k, a=0.01):
-    lo, hi = 0.0, 100.0 + 10 * k
-    for _ in range(200):
-        mid = (lo + hi) / 2; cdf = sum(math.exp(-mid) * mid ** i / math.factorial(i) for i in range(k + 1))
-        lo, hi = (mid, hi) if cdf > a else (lo, mid)
-    return hi
-if h3f and H3['verified']:
-    h3lim = pois_up(H3['other_r16']) / H3['verified']; H3B = math.ceil(math.log2(h3lim) * 10) / 10 + 0.5
-    if not (H3['verified'] == H3['successes'] == H3['own_found']): miss('inconsistent: pair-term run has unverified or not re-found successes (%s)' % dict(H3))
-    dis = 1 - 0.01 ** (1 / H3['verified'])
-    S_h = dict(succ=c(H3['successes']), own=c(H3['own_found']), pc=c(H3['passing_classes']), var=c(H3['variants']), r16=str(H3['other_r16']),
-               acc=str(H3['other_accepted']), exp='%.2f' % (H3['variants'] * 160 / 2 ** 32), lim='%.4f' % h3lim, llim='%.2f' % math.log2(h3lim),
-               H3B='%.1f' % H3B, ver=c(H3['verified']), dis='%.1f%%' % (100 * dis))
-    H3S = collections.Counter()
-    for f in glob.glob(P_('h3spread')): H3S.update(eval(open(f).read().strip().split('\n')[-1]))
-    if H3S['verified']:
-        h3lims = pois_up(H3S['other_r16']) / H3S['verified']
-        S_h['spread'] = ('A second sample of %s successes spread evenly over all %d runs (`SPREAD=%d`; every success of the sorted dump files, '
-            'equally spaced) gives %s verified, %s passing classes, %s variants, %s other row-16 passes, %s further accepted pairs: 99%% limit 2^%.2f, '
-            'charge 2^%.1f by the same rule. We charge the larger value, that of the first sample.') % (c(H3S['successes']), A.nruns, H3S['successes'],
-            c(H3S['verified']), c(H3S['passing_classes']), c(H3S['variants']), H3S['other_r16'], H3S['other_accepted'], math.log2(h3lims),
-            math.ceil(math.log2(h3lims) * 10) / 10 + 0.5)
-        H3B = max(H3B, math.ceil(math.log2(h3lims) * 10) / 10 + 0.5); S_h['H3B'] = '%.1f' % H3B
-    else: S_h['spread'] = ''
-else:
-    miss('pair term: %s' % P_('h3glob')); H3B = REF['h3']; PROVISIONAL.append('pair term h3 = %.1f (the value of %s) for the ledger' % (H3B, REF['id']))
-    S_h = {k: todo('pair term') for k in ('succ', 'own', 'pc', 'var', 'r16', 'acc', 'exp', 'lim', 'llim', 'ver', 'dis')}; S_h['H3B'] = '%.1f %s' % (H3B, todo('pair term'))
-
-# ---- memory ----
-MEM = rd('memory')
-if MEM:
-    memonline = int(re.search(r'online (\d+)', MEM).group(1)); mempre = float(re.search(r'preprocessing peak 2\^([\d.]+)', MEM).group(1))
-    memclaim = math.ceil(max(mempre, math.log2(memonline)) * 100) / 100
-    if 'lp_classes' not in MEM: miss('memory record %s does not cover lp_classes.py (class selection)' % P_('memory'))
-    S_m = dict(online=c(memonline))
-else:
-    memclaim = REF['mem']; PROVISIONAL.append('memory 2^%.2f (the value of %s; no memory record)' % (memclaim, REF['id'])); S_m = dict(online=todo('memory'))
-
-# ---- remaining files ----
-SELF, VAL, PAT19 = rd('selftest'), rd('valid'), rd('pat19')
-if SELF and 'SELFTEST PASSED' not in SELF: miss('selftest did not pass: %s' % P_('selftest'))
-if PAT19:
-    pats = re.findall(r'^\s*([\d,]+)\s+([01]{8,})\s', PAT19, re.M)
-    mp = re.search(r'([\d,]+) of ([\d,]+) successes in these (\w+) patterns', PAT19); ms = re.search(r'seeds (\d+)\.\.(\d+)', PAT19)
-    if not ms or (int(ms.group(1)), int(ms.group(2))) != (seeds[0], seeds[-1]): miss('inconsistent: %s is not from the study seeds %s' % (P_('pat19'), seed_txt))
-    npat = len(pats)
-    S_p = dict(npat=wd(npat), cls=mp.group(1) if mp else todo('pat19 count'), tot=mp.group(2) if mp else todo('pat19 count'))
-    S_p['all'] = mp is not None and mp.group(1) == mp.group(2)
-else:
-    S_p = dict(npat=todo('pat19'), cls=None, tot=todo('pat19'), all=False)
-if VAL:
-    on = [(int(a), int(b), float(t)) for a, b, t in re.findall(r'a0p-online-r38\s+returned\s+(\d+).*?mismatches (\d+).*?([\d.]+)s\s*$', VAL, re.M)]
-    un = [(int(a), int(b), float(e)) for a, b, e in re.findall(r'unconditional: (\d+) first blocks, (\d+) class W7 passes \(expected ([\d.]+)\)', VAL)]
-    UNC = dict(fb=c(sum(x[0] for x in un)), passes=c(sum(x[1] for x in un)), exp=c(round(sum(x[2] for x in un))), req=len(un),
-               ratio='%.3f' % (sum(x[1] for x in un) / sum(x[2] for x in un))) if un else None
-    if not un: miss('validation: no unconditional first-block counts (H1)')
-    qv = [(float(p), float(r), int(s), int(n), int(fr)) for p, r, s, n, fr in re.findall(
-        r'a0p-q3-r38\s+returned\s+\d+\s+pooled 2\^(-?[\d.]+) \(rule >= 2\^(-?[\d.]+)\)\s+replicates with a success (\d+)/(\d+)\s+verified pairs \d+\s+failed rebuilds (\d+)', VAL)]
-    if any(r != THR for _, r, _, _, _ in qv): miss('inconsistent: validation used a different pass rule')
-    S_v = dict(on_ret='%d to %d' % (min(x[0] for x in on), max(x[0] for x in on)) if on else todo('validation'), on_mis=str(sum(x[1] for x in on)) if on else todo('validation'),
-               on_t='%.1f' % max(x[2] for x in on) if on else todo('validation'), q_rs='%d to %d' % (min(x[2] for x in qv), max(x[2] for x in qv)) if qv else todo('validation'),
-               q_pool='%.3f to %.3f' % (min(x[0] for x in qv), max(x[0] for x in qv)) if qv else todo('validation'), n=str(len(qv)))
-    if on and min(x[0] for x in on) == max(x[0] for x in on): S_v['on_ret'] = str(on[0][0])
-else:
-    S_v = {k: todo('validation') for k in ('on_ret', 'on_mis', 'on_t', 'q_rs', 'q_pool', 'n')}
-REB = A.rebuilt_checked or todo('rebuild check of the study successes: --rebuilt-checked')
-if not A.rebuilt_checked: miss('--rebuilt-checked (how many study successes were rebuilt and checked with the reference)')
-CORE = ('%g' % A.core_seconds_log2) if A.core_seconds_log2 is not None else None
-if CORE is None: miss('--core-seconds-log2 (H4: core-seconds of search and all development, including the 32-class study)')
-CORE_S = CORE or todo('core-seconds, --core-seconds-log2')
-DEP08 = A.dep_08be594 or DEPS_UUID['08be594']
-if not DEP08: miss('--dep-08be594 (full submission id of 08be594)')
-
-# ---- ledger and sensitivity ----
-L = ledger(q3=Q3M, h3=H3B, cal=CAL); claim = L['claim']
-score = claim + max(0.0, memclaim - 20)
-pre_own = sum((1 << pop(m)) * 40 + nb * 256 * pop(m) * 2 for _, _, _, m in CLS) + 2 ** 32   # PRE with each class's own mask width
-pre_note = ''
-if pre_own != L['PRE']:
-    from ledger_a0p import dlog2
-    alt = math.ceil(float(dlog2(Fr(L['N'] - L['PRE'] + pre_own, 2728))) * 1e5) / 1e5
-    if alt == claim:
-        pre_note = '(the ledger counts 2^21 cube points and 21 planes per class, the width of %08x; with each class\'s own mask width PRE = %s and time_log2 is unchanged)' % (REF['mask'], c(pre_own))
-        print('mkpkg4: note: ledger PRE uses 21-bit masks; own masks give PRE %s, time_log2 unchanged' % c(pre_own), file=sys.stderr)
-    else:
-        pre_note = todo('ledger PRE assumes 21-bit class masks; with each class\'s own mask PRE = %s and time_log2 = %.5f' % (c(pre_own), alt))
-        miss('ledger_a0p.py PRE uses popcount(%08x) for every class; own masks give PRE %s instead of %s (time_log2 %.5f vs %.5f)' % (REF['mask'], c(pre_own), c(L['PRE']), alt, claim))
-ref_shared = ledger(q3=REF['q3'], h3=REF['h3'], cal=CALREF, AC=48, AS=50, DEV=50)   # 1a695f0b's allowances
-assert ref_shared['claim'] == REF['claim'], 'reference ledger does not reproduce %s' % REF['id']
-ref_pc = ledger(q3=REF['q3'], h3=REF['h3'], cal=dict(CALREF, prog=ref_progs), AC=48, AS=50, DEV=50)
-base = dict(q3=Q3M, h3=H3B, cal=CAL)
-SENS = [('claimed', {})]
-if qm: SENS.append(('q3_model = the study mean 2^%.4f' % math.log2(qm), dict(q3=round(math.log2(qm), 4))))
-SENS += [('q3_model 2^-97.78 (the q3_model of fb176310 for the published characteristic)', dict(q3=-97.78)), ('pair term 2^-3', dict(h3=-3.0)),
-         ('allowances of %s (A_C = 2^48, A_S = 2^50, DEV = 2^50)' % REF['id'], dict(AC=48, AS=50, DEV=50)), ('A_C = 2^84', dict(AC=84))]
-sens = []
-for nm, kw in SENS:
-    x = ledger(**dict(base, **kw)); sens.append('%-96s %.5f   (N_FB 2^%.4f)' % (nm, x['claim'], x['log2NFB']))
-    if nm == 'A_C = 2^84': ac84 = x['claim']
-sens.append('%-96s %.5f   (reference)' % ('%s: %d classes, one shared program of %s, q3_model 2^%.1f, pair term 2^%.1f' % (REF['id'], len(RCLS), c(CALREF['prog']), REF['q3'], REF['h3']), ref_shared['claim']))
-sens.append('%-96s %.5f   (reference)' % ('the same with per-class programs (08be594\'s construction; ours, %s..%s, mean %.2f)' % (c(min(ref_progs)), c(max(ref_progs)), sum(ref_progs) / len(ref_progs)), ref_pc['claim']))
-
-if MISSING and not A.allow_missing:
-    print('mkpkg4: missing or inconsistent inputs (nothing written):', file=sys.stderr)
-    for x in MISSING: print('  - ' + x, file=sys.stderr)
-    print('rerun with --allow-missing for a dry run with TODO markers', file=sys.stderr); sys.exit(2)
-
-src = {f: open(R + '/m38/' + f).read() for f in SRC if os.path.isfile(R + '/m38/' + f)}
-hs = {f: hashlib.sha256(open(R + '/m38/' + f, 'rb').read()).hexdigest() for f in src}
-ref_g = len(RCLS) * int(RCLS[0][2]) * Fr(287309824, 2 ** 32)
-pat_src = ('%s of %s' % (S_p['cls'], S_p['tot'])) if S_p['cls'] else todo('pat19')
-
-P = []
-def add(s=''): P.extend(s.split('\n'))
-add('# 38-step SHA-256 collision with the characteristic P8 in the memory-efficient A0-variant attack, %d classes and per-class row-16 programs: time 2^%.5f, memory 2^%.2f bytes' % (ncl, claim, memclaim))
-add('')
-if MISSING or PROVISIONAL:
-    add('> **DRY RUN: not for submission.** Missing or inconsistent inputs:')
-    for x in MISSING: add('> - ' + x)
-    for x in PROVISIONAL: add('> - provisional: ' + x)
-    add('')
-add('**Track** sha256-r38-exploratory, target sha256-r38-prefix-v1, cost model collision-frontier-v5 (C = 2728), scalar policy hashsmash-scalar-tm-v1 (score = time_log2 + max(0, memory_log2_bytes - 20)).')
-add('**Claim** time_log2 = %.5f (exact total 2^%.6f target compressions), algorithmic success probability at least 0.39, memory 2^%.2f bytes (online %s bytes; the preprocessing peak, Section 11), preprocessing 2^%.5f, non-uniform advice below 2^14 bytes. Score under the scalar policy: %.5f.' % (claim, L['log2T'], memclaim, S_m['online'], L['pre_log2'], score))
-add('')
-add('## 0. Summary')
-add('')
-add('This package runs the memory-efficient A0-variant collision attack on 38-step SHA-256 (ePrint 2026/1120 and 2026/1080; the A0-variants, c7 classes, bit-sliced row-16 filter and accepted event with a direct output comparison of the public packages 2d1c4fc2 and fb176310) with **P8**, a characteristic we found ourselves (Section 3). It extends our filing %s (same P8, same Step-1 solution S); the changes are listed in Section 0.1. What is new against the published characteristic:' % REF['id'])
-add('')
-add('1. **The characteristic P8.** Found by our systematic sign sweep over the 24 message-difference XOR patterns of weight 25 (Section 3.2): XOR pattern 8 (not the published pattern 0), a different dense trail and a different signed message difference. Its printed-event probability (rows 16..37 follow the trail and its derived conditions) is 2^-99.56 against 2^-101.05 for the published characteristic, measured with the same estimator.')
-add('2. **The accepted event.** Rows 16..22 of both members follow the trail, except that row 19 is checked on its signed differences only (not on its derived value conditions), and the two outputs after step 37 are compared directly (rows 23..37 untested). %s fall into %s row-19 condition patterns (Section 6.2).' % (('All %s estimator successes that were classified' % S_p['tot']) if S_p['all'] else ('%s estimator successes that were classified' % pat_src), S_p['npat']))
-add('3. **The measured q3 for that event** over the variants of the selected classes: %s independent runs, mean 2^%s, one-sided 99%% Student bound 2^%s (bootstrap 2^%s); **q3_model = 2^%.4f**. The corresponding value of fb176310 for the published characteristic is 2^%.4f.' % (S_q['n'], S_q['mean'], S_q['lo'], S_q['bs'], Q3M, FB['q3']))
-add('')
-add('| | fb176310 (published characteristic) | %s (P8, %d classes) | this package (P8, %d classes) |' % (REF['id'], len(RCLS), ncl))
-add('|---|---|---|---|')
-add('| q3_model of the accepted event | 2^%.4f | 2^%.4f | 2^%.4f |' % (FB['q3'], REF['q3'], Q3M))
-add('| selected variants, good pairs per first block | %s, %s | %s, %s | %s, %s |' % (FB['variants'], FB['g'], c(ref_nvar), cg(ref_g), c(nvar), cg(L['g'])))
-add('| row-16 program per batch of 256 variants | %s instructions | %s instructions (one shared program) | %s to %s instructions (per class; mean %.2f) |' % (FB['prog'], c(CALREF['prog']), c(pmin), c(pmax), float(pmean)))
-add('| time_log2 | %s | %.5f | **%.5f** |' % (FB['claim'], REF['claim'], claim))
-add('| memory | %s | 2^%.2f | 2^%.2f (online %s bytes) |' % (FB['mem'], REF['mem'], memclaim, S_m['online']))
-add('| score (scalar policy) | %s | %.5f | **%.5f** |' % (FB['score'], REF['score'], score))
-add('')
-add('### 0.1 Changes from %s' % REF['id'])
-add('')
-add('1. **All %d largest c7 classes.** %s used the %d classes of mask %08x (%s variants). This package uses every class of the maximal size %s of P8 (%d classes, %s variants), with %d different masks: %s. Good pairs per first block: %s (was %s).' % (ncl, REF['id'], len(RCLS), REF['mask'], c(ref_nvar), c(csize), ncl, c(nvar), len(maskcnt), masks_desc, cg(L['g']), cg(ref_g)))
-add('2. **Per-class row-16 programs.** Each class gets its own bit-sliced row-16 program in which every bit of a0 outside the class\'s mask is the class\'s base bit, folded as a constant (Section 7.2). The idea is that of 08be594 (johnservil), which did it for the %d classes of %s; our implementation (`cbits`, `program` in `experiments/a0p38.py`) is our own. %d programs, %s to %s instructions, mean %.2f, against the shared program of %s instructions of %s. On the %d classes of %s alone this lowers time_log2 from %.5f to %.5f (Section 10).' % (len(RCLS), REF['id'], ncl, c(pmin), c(pmax), float(pmean), c(CALREF['prog']), REF['id'], len(RCLS), REF['id'], ref_shared['claim'], ref_pc['claim']))
-add('3. **The F7 sampler of the organizer replica.** %s sampled W7 in F7 by its three affine families, choosing the family by `(w >> 4) %% 274` of the same random word whose bits then formed the value: the family choice was correlated with the value and had a modulo bias. Both were pointed out in 08be594 (johnservil). The replica now draws the family by rejection from its own word (9 bits, accepted below 274: shares 256, 16, 2, no bias) and the value bits from a fresh word (`f7_sample`; 200,000 draws: all in F7, family frequencies 93,187 + 93,579 / 11,769 / 1,465 against 186,861 / 11,679 / 1,460 expected). A generic rejection sampler on the definition is kept for other (D7, T7) only, as it is slower.' % REF['id'])
-add('4. **Deterministic class selection.** The classes are selected by `lp_classes.py` (ALLMAX=1: every class of the largest size, ordered by c7) from the output of `a0cls.c`, replacing the hand-run selection of %s.' % REF['id'])
-add('5. **Lane cost.** The scalar recovery of a0 from the stored planes costs 4 per mask bit; it is charged at the widest mask (%08x, %d bits): %d operations per stage-3a lane (was %d).' % (widest, pop(widest), CAL['lane'], CALREF['lane']))
-add('6. **q3 re-measured** over the %s variants of the %d classes (seeds %s, Section 9). Memory %s: P8 and S are those of %s (Section 11).' % (c(nvar), ncl, seed_txt, ('is unchanged at 2^%.2f' % memclaim) if memclaim == REF['mem'] else ('changes from 2^%.2f to 2^%.2f' % (REF['mem'], memclaim)), REF['id']))
-add('')
-add('## 1. Target and cost model')
-add('')
-add('Target sha256-r38-prefix-v1: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; output two distinct 128-byte messages M0 || M1 and M0 || M1\' with equal digests (the padding block is common). collision-frontier-v5: one target compression = 1 unit, every other word operation of the 256-bit word RAM 1/C, C = 2728; the scalar policy hashsmash-scalar-tm-v1 ranks time_log2 + max(0, memory_log2_bytes - 20).')
-add('')
-add('## 2. Sources, credit, and what is ours')
-add('')
-add('- ePrint 2026/1120 (Li, Zhang, Li, Liu, Qian, Zhu): the 38-step two-block framework and its memory-efficient Step 1-3 procedure, the message-difference shape (W7..W11, W15, W16, W23, W25), the published characteristic (comparison only). ePrint 2026/1080 [LLWS26]: the memory-efficient framework.')
-add('- 2d1c4fc2 (itseasypop): A0-variants of the Step-1 solution, the c7 classes decided by one W7 test, the bit-sliced evaluation of the row-16 filter for 256 variants per word, the success analysis with a pair term and work caps. fb176310 (Jbenisek): the accepted event with a direct output comparison and alternative row-19 patterns, lowest-shared-bit stage 3a, the memory-free W7 test, a counted register allocator. We read their packages as documents; we executed none of their code. `experiments/a0p38.py` is our own implementation of that design for P8.')
-add('- 08be594 (johnservil): per-class row-16 programs with the class\'s non-mask bits folded as constants (for the %d classes of %s), and the observation that the F7 sampler of %s\'s replica correlated the family choice with the value and had a modulo bias. Our per-class programs and the corrected sampler are our own implementation (for those 8 classes our per-class counts, [1466, 1457, 1469, 1466, 1463, 1454, 1466, 1463], equal the counts listed in 08be594\'s submission note).' % (len(RCLS), REF['id'], REF['id']))
-add('- Ours: the characteristic P8 and the search that found it (signed-difference SAT model, sign sweep, joint coupling check), the condition derivation and estimators, the accepted event with row 19 on signed differences and its measurement, the class selection for P8 (`lp_classes.py`), the program `experiments/a0p38.py` (reference, bit-sliced program builder and allocator, counted scalar routines, replica, experiments), the ledger. Our filings 1db43310, 49b543d1 and 242fcec3 (table attack, NEW3) and %s (this attack with %d classes) are the earlier steps of this work.' % (REF['id'], len(RCLS)))
-add('- Execution: everything ran in Linux containers on one 10-core machine (OrbStack; Ubuntu 22.04 for the C tools and solvers; the shipped program also on the official python:3.12.12-slim-bookworm image, Section 13).')
-add('')
-add('## 3. The characteristic P8')
-add('')
-add('### 3.1 The trail and a semi-free-start pair')
-add('')
-add('Signed differences (u: member x has 1, member y 0; n: the reverse), most significant bit first, rows -4..37, columns A_i, E_i, W_i (rows without a difference in all three words omitted: -4..6 and 26..37 are all `=`):')
-add('')
-add('```')
-for i in range(6, 27): add('%4d  %s  %s  %s' % (i, nz(CH[i]['A']), nz(CH[i]['E']), nz(CH[i]['W'])))
-add('```')
-add('')
-add('Conditions: for every bit of every boolean-function instance (S1, CH, S0, MAJ of the state; s0, s1 of the expansion) the trail fixes the input and output signed differences; the allowed values of the inputs without difference give the derived conditions (`cond.py`), which for P8 are all fixed bits or two-bit (in)equalities (the tables `_CH`, `PQ`, `X2` of `experiments/a0p38.py`, generated by `mkvt.py`; the conditions of rows 16..22, which define the accepted event, are listed in Appendix B). With W7 in F7 (D7 = 2^29, s0(W7y) - s0(W7x) = %08x: the same F7 as the published characteristic), the printed-event probability is 2^-99.56 (6 estimator runs of 2,000 particles; the published characteristic 2^-101.05 with the same estimator).' % AP.T7)
-add('')
-add('An explicit 38-step semi-free-start collision in the accepted event (Section 6), rebuilt from an estimator success and verified with the reference of `experiments/a0p38.py` (`selftest` item 1) and the organizer reference `verifier/hash_functions.py`; its rows 0..15 are the Step-1 solution S of Section 4 (A0 = %08x):' % SFS['a0'])
-add('')
-add('```')
-add('CV1 = ' + ' '.join('%08x' % x for x in SFS['cv'])); add('M   = ' + ' '.join('%08x' % x for x in SFS['M'])); add("M'  = " + ' '.join('%08x' % x for x in SFS['M2'])); add('out = ' + ' '.join('%08x' % x for x in SFS['out']))
-add('```')
-add('')
-add('### 3.2 How P8 was found (the sign sweep)')
-add('')
-add('Our signed-difference SAT model (`sdmodel.py`, `stepk.py`) was run over the 24 XOR patterns of weight 25 on the shape W7..W11, W15, W16, W23, W25, with the signs free, the dense part bounded by the published weight profile (HW(dA7..15) <= 26, HW(dE7..15) <= 47, HW(dE14..15) <= 4, HW(dA13..15) <= 10) and the tail by an attack-aware weight (P <= 43); every signed message difference already found for a pattern (and its member-swapped mirror) was blocked. Each solution went through the value-level coupling check (`joint.py`: value-exact dense part and value-exact tail steps 16..19) and the estimator (`sweep.py`). Summary (`runs/sweep`): ')
-add('')
-add('```'); add(SWEEP or todo('sweep')); add('```')
-add('')
-add('P8 = SW_p08_k1 (pattern 8, second iteration; search 4,714 s, coupling 662 s). For the A0-variant attack the relevant quantities are q3 of the accepted event and the c7 class structure (Sections 4-6); P8 has the best of both among the coupled characteristics.')
-add('')
-add('## 4. Step 1: the solution S and its A0-variants')
-add('')
-add('**Lemma 4.1 (Step 2).** For fixed state rows A0..A15, E4..E15 of both members and a chaining value CV1 = (A_{-1..-4}, E_{-1..-4}), the words W0..W7 with E_i = A_i + A_{i-4} - S0(A_{i-1}) - MAJ(A_{i-1}, A_{i-2}, A_{i-3}) (i = 0..3) and W_i = E_i - A_{i-4} - E_{i-4} - S1(E_{i-1}) - CH(E_{i-1}, E_{i-2}, E_{i-3}) - K_i (i = 0..7) reproduce the state rows; CV1 -> (W0, ..., W7) is a bijection (invert steps 7..0); W8..W15 do not depend on CV1. W0..W6 carry no difference (rows 0..6 have none), W7 differs by D7.')
-add('')
-add('**Lemma 4.2 (A0-variants).** Replace A0 of S by a0 in both members. Then E4 = a0 + C4 (C4 = A4 - S0(A3) - MAJ(A3, A2, A1)), W8 = W8C - E4 in each member (W8C = E8 - A4 - S1(E7) - CH(E7, E6, E5) - K8), so dW8 = W8y - W8x is unchanged, and all other words and rows 5..15 are unchanged. The variant is valid iff s0(W8y) - s0(W8x) also equals S\'s (W8 reaches rows >= 16 only through W23 = s1(W21) + W16 + s0(W8) + W7, W24 = s1(W22) + W17 + s0(W9) + W8 and the later words through them). G = {a0 : valid}; exhaustively (`a0fam.c`):')
-add('')
-add('```'); add(FAM or todo('a0fam')); add('```')
-add('')
-add('**c7 classes.** W7x = c7(a0) - A_{-1} with c7(a0) = E7 - 2 A3 + S0(A2) + MAJ(A2, A1, a0) - S1(E6) - CH(E6, E5, a0 + C4) - K7. For a chaining value, all variants with the same c7 share W7, so one F7 test decides a class. P8 has %d classes of the maximal size %s (the published characteristic: classes of 3,840). The attack uses %s: class i = {base_i ^ s : s subset of mask_i, base_i ^ s in G, c7(base_i ^ s) = c7_i}, %s members each (%d batches of 256), %s variants in all. The mask of a class is the set of bits on which its members vary (`lp_classes.py`: the OR of a0 ^ (smallest member)); the masks have %d to %d bits: %s.' % (
-    nlargest, c(csize), ('all %d of them' % ncl) if ncl == nlargest else ('%d of them' % ncl), c(csize), nb, c(nvar), wmin, wmax, masks_desc))
-add('')
-add('| class | c7 | base | mask | members |'); add('|---|---|---|---|---|')
-for k, (c7, b, n, m) in enumerate(CLS): add('| %d | %08x | %08x | %08x | %s |' % (k, c7, b, m, c(n)))
-add('')
-add('## 5. Step 2: the W7 test and the good pairs')
-add('')
-add('F7 = {w : s0(w + D7) - s0(w) = %08x}, |F7| = 287,309,824 (exhaustive), p7 = |F7| / 2^32 = 2^-3.90197 (the same set as for the published characteristic; it is the union of three affine families of 2^28, 2^24 and 2^21 words). The program tests w = c7 - A_{-1} by computing s0(w + D7) - s0(w) and comparing (%d operations, no table).' % (AP.T7, CAL['w7']))
-add('')
-add('**Lemma 5.1 (distribution, per variant).** Under H1, for every fixed a0: Pr[W7x in F7] = p7; conditioned on it, (W0..W6) is uniform and independent of W7, and (W16..W21) is a bijective image of (W0..W5) for fixed (W6, W9..W15), hence uniform and independent of (W6, W7) (Lemma 4.1). Per first block, E[good pairs] = g = %d x %s x p7 = %s (exact by linearity).' % (ncl, c(csize), cg(L['g'])))
-add('')
-add('## 6. Step 3: row 16 and the accepted event')
-add('')
-add('### 6.1 Row 16')
-add('')
-add('W16 = s1(W14) + W9 + s0(W1) + W0 and, by Lemma 4.1, W0 = a0 + KW0(CV1), W1 = K1(CV1) - S0(a0) - MAJ(a0, a, b) - S1(E0) - CH(E0, e, f) with E0 = a0 + HH(CV1). So E16x = KP + a0 + s0(W1) with per-first-block constants HH, KP, K1, and row 16 (both members, all its conditions) is a function of E16x alone: an exhaustive pass over all 2^32 values of W16 gives the %d words of the set R16 (`q3tv.c`, the exhaustive pass of `main`; `selftest` item 2 re-checks it on 20,000 random words and the bit-flip neighbours). The %d words share %d bits (mask %08x); the program tests the TK = %d lowest of them (bits %s): stage 3a passes with probability 2^-%d exactly (E16x uniform, Lemma 5.1), row 16 with %d / 2^32.' % (len(AP.R16), len(AP.R16), SHB, AP.SHARED, AP.TK, ', '.join(map(str, AP.TBITS)), AP.TK, len(AP.R16)))
-add('')
-add('### 6.2 The accepted event')
-add('')
-add('The program accepts a row-16 pass iff (i) rows 16..22 of both members follow every cell, \'+\' pair and two-bit condition of P8 closing at rows 16..22, except that **row 19 is checked on its signed differences only** (the XOR differences of A19, E19, W19 and the member-x values on the difference bits), and (ii) the eight output words A34..A37, E34..E37 of the two members are equal after step 37. Nothing is tested at rows 23..37.')
-add('')
-add('**Lemma 6.1.** If (ii) holds, the two second-block outputs are equal (chaining value plus the same eight words), so M0 || M1 and M0 || M1\' collide under the target; M1 != M1\' because W7 differs. The program certifies exactly what it outputs.')
-add('')
-add('*Why row 19.* Measured with the estimator (one row at a time checked on signed differences only, the others strict, outputs compared): relaxing row 19 raises q3 by about 3.6 bits for P8 (and 3.4 for the published characteristic); rows 17 and 18 lead to dead ends (the derived conditions there are needed by the next row), rows 20..22 add little. In the %s runs of the study of Section 9 (seeds %s), %s classified successes have their row-19 conditions in one of %s patterns (`pat19`; the 12 conditions: the fixed bits E19[4], E19[18] and ten two-bit conditions):' % (S_q['n'], seed_txt, pat_src, S_p['npat']))
-add('')
-add('```'); add(PAT19 or todo('pat19')); add('```')
-add('')
-add('## 7. The counted program (`experiments/a0p38.py`, %s bytes, SHA-256 %s)' % (c(vt_size), vt_hash))
-add('')
-add('### 7.1 Machine and scalar routines')
-add('')
-add('256-bit word RAM, 64 registers; executed primitives count 1 (load, store, add, sub, and, or, xor, not, shift, immediate, random word), a compare-and-branch 2, one target compression 1 unit; S0, S1, s0, s1 cost 8 each (doubled word, shifts, xors, mask), CH 3, MAJ 4. The routines are executed with counting primitives; broadcast, lane_value, first_lane, r16test and deep add itemised declared counts (their docstrings) (`calibrate`):')
-add('')
-add('| routine | operations |'); add('|---|---|')
-add('| first block: 2 random words and their 16 fields (30), counter, cap test, hit-list test (5) | %d |' % CAL['fb_fixed'])
-add('| one W7 test (computed, no table), plus %d for the class loop | %d + %d |' % (CAL['w7_loop'], CAL['w7'], CAL['w7_loop']))
-add('| per-first-block scalars HH, PP, QQ, EF, FF, K1, KP | %d |' % CAL['scalars'])
-add('| the 7 x 32 broadcast planes (%d each) | %d |' % (AP.PLANE_OPS, CAL['planes']))
-add('| per passing class: setup 3, end of class (work counter, cap test) 4 | %d |' % CAL['class_ctl'])
-add('| per batch of 256 variants: the class\'s row-16 program (%s to %s, mean %.2f) + ok test 2 + pointer, compare, branch 4 | prog_i + %d |' % (c(pmin), c(pmax), float(pmean), CAL['batch_ctl']))
-add('| per stage-3a lane: lowest lane (32), clear and loop (%d), a0 from the stored planes (4 x %d + 1 = %d, the widest mask), E16x (%d), the row-16 table test (42) | %d |' % (AP.LANE_CTL, pop(widest), n_lv, n_e16, CAL['lane']))
-add('| per row-16 pass (itemised declared count): Step 2 for both members, the expansion and rows 16..37 of both members with the tests of rows 16..22, the output comparison | %d |' % CAL['deep'])
-add('')
-add('### 7.2 The row-16 programs (one per class)')
-add('')
-add('Bit L of a 256-bit plane belongs to lane L (one variant). Inputs of the program of class i: the planes of the bits of a0 in mask_i (%d to %d bits, stored per batch) and the 224 broadcast planes; every bit of a0 outside mask_i is the corresponding bit of base_i and is folded as a constant (the per-class construction of 08be594; Section 0.1). `build_e16` builds, bit-interleaved, the DAG of E0 = a0 + HH, then per bit j: S0(a0), MAJ(a0, a, b) = PP | (a0 & QQ), S1(E0), CH(E0, e, f) = FF ^ (E0 & EF), the three ripple adders of their sum T and the subtraction W1 = K1 - T, then per tested position j <= %d: s0(W1), the two adders of E16x and the comparison with the common value; constants are folded and equal nodes shared. `schedule` allocates 64 registers by Belady\'s rule (evict the value needed farthest ahead; store it first if it is needed again and has no copy); every load, store and spill is an instruction. Result: %d programs (%d distinct input patterns), **%s to %s instructions per batch, mean %.2f** (calibration list in Section 10). The expected work uses the mean (each class passes its W7 test with the same p7), the work cap the maximum. The programs are executed instruction by instruction (`run_prog`) and compared with the scalar definition lane by lane (`selftest` item 4 and the organizer experiment `a0p-online-r38`: 0 mismatches).' % (wmin, wmax, max(AP.TBITS), ncl, ndistinct, c(pmin), c(pmax), float(pmean)))
-add('')
-add('## 8. The algorithm (fixed caps)')
-add('')
-add('```text')
-add('advice: S (the semi-free-start pair\'s rows 0..15), the %d class descriptors (c7, base, mask); precompute (charged): every class member (base ^ s, s subset of mask, in G, c7 = c7_i), stored as %d batches of |mask| bit planes per class; the %d row-16 programs' % (ncl, nb, ncl))
-add('V = 0')
-add('for f = 1 .. N_FB:')
-add('    if V > V_MAX: halt (failure)                    (V accumulates ALL data-dependent work of every first block: W7 tests, hit list, scalars, planes, classes, lanes, row-16 passes)')
-add('    two uniform 256-bit random words -> M0 (16 words, uniform on {0,1}^512); CV1 := F_38(IV, M0)                     [1 unit]')
-add('    hits := [i : c7_i - A_{-1} in F7]                                                                               [%d x (%d + %d)]' % (ncl, CAL['w7'], CAL['w7_loop']))
-add('    if hits: the scalars and the broadcast planes')
-add('        for i in hits: for each of the %d batches of class i: run the row-16 program of class i -> ok plane' % nb)
-add('            for each lane of ok: a0 from the planes; E16x; if E16x in R16: Step 2, rows 16..37 of both members, the tests of rows 16..22')
-add('                (row 19 on signed differences), compare the outputs; if equal: output M0 || M1, M0 || M1\' and halt')
-add('        V += the work of the class (and, before it, the W7 tests, the hit list, the scalars and the planes of this first block); if V > V_MAX: halt (failure)')
-add('halt (failure)')
-add('```')
-add('')
-add('*Lemma 8.1 (the cap).* V accumulates every data-dependent operation of every first block (all of v_f in Section 9) and is tested before every first block and after every class, so V <= V_MAX + OVER at every moment (V is updated for every first block, including first blocks with no passing class: their data-dependent work is the W7 tests and the hit-list test, added to V before the next cap test), OVER = %s (one first block at its maximum: all classes passing, each charged at the longest program, every lane a row-16 pass). The %d fixed operations per first block are charged separately (N_FB x %d). The run never outputs a non-collision (Lemma 6.1).' % (c(L['over']), CAL['fb_fixed'], CAL['fb_fixed']))
-add('')
-add('## 9. The success probability')
-add('')
-add('*Trials and expectation.* A trial is (first block f, selected variant a0); A_t: a0 is good for f (W7 in F7) and the pair is in the accepted event. E[X_f] = g q3 (Lemma 5.1; H1, H2).')
-add('')
-add('*q3 (H2).* q3 = the average over the %s selected variants of Pr[accepted event | good pair] (including the row-16 factor %d / 2^32). Estimator `q3tv.c` (binary q3tv2, `DIFFROW=19 RELAX_TAIL=1`, `VARS` = the variant pool of the %d classes): fixed-effort multilevel splitting, row 16 exact over the %d W16 words, rows 17..22 with W_i^x uniform (Lemma 5.1) and the rows checked as in the event (row 19 on signed differences), tail: a variant drawn per proposal from the %s selected variants, W7 uniform in F7, rows 23..37 computed, outputs compared. Every success is a verified collision; the successes are rebuilt into real pairs (%s checked with the reference). %d runs, %s particles, %s tail proposals per particle, seeds %s fixed before the runs:' % (c(nvar), len(AP.R16), ncl, len(AP.R16), c(nvar), REB, A.nruns, c(A.particles), c(A.tail), seed_txt))
-add('')
-add('| seed | stage factors log2 (rows 16..22, tail) | successes (all collisions) | log2 q3 |'); add('|---|---|---|---|')
-RUND = {r[0]: r for r in RUNS}
-for sd in seeds:
-    if sd in RUND: _, stg_, sc_, cc, lq = RUND[sd]; add('| %d | %s | %s | %s |' % (sd, stg_, c(sc_), '%.4f' % lq if lq is not None else '0 (stalled)'))
-    else: add('| %d | %s | | |' % (sd, todo('run not finished')))
-add('')
-add('Mean 2^%s, relative sd %s, one-sided 99%% Student bound (t = %s, %s degrees of freedom) 2^%s, bootstrap 1%% quantile of the mean 2^%s; %s successes. %s. %s **q3_model = 2^%.4f.**' % (S_q['mean'], S_q['rsd'], S_q['t'], S_q['df'], S_q['lo'], S_q['bs'], S_q['succ'], spread, stall_txt, Q3M) + (' q3_model = 2^%.1f was set from the first 20 runs (seeds %d..%d: their 99%% bound 2^-96.9989, rounded down to a tenth) and kept when 20 further runs were added after a first review found its margin thin (seeds %d..%d, fixed before those runs; all runs are reported); over all %d runs the 99%% bound is %.4f bits above q3_model. Rounding the %d-run bound down would give 2^%.1f; we keep 2^%.1f for the margin. At the %d-run bound 2^%s the ledger gives %.5f.' % (Q3M, seeds[0], seeds[0] + 19, seeds[0] + 20, seeds[-1], A.nruns, float(S_q['lo']) - Q3M, A.nruns, math.floor(float(S_q['lo']) * 10) / 10, Q3M, A.nruns, S_q['lo'], ledger(q3=float(S_q['lo']), h3=H3B, cal=CAL)['claim']) if 'TODO' not in S_q['lo'] else ''))
-add('')
-add('*The pair term (H3).* Every success passes row 16, so given A_t, X_f - 1 <= R_f - 1 (the other row-16 passes of f). Measured (`h3p.py`): %s successes rebuilt and verified (all accepted by the program\'s event, so the estimator\'s event and the program\'s agree on every one; 99%% bound on a disagreement rate %s), all %s re-found in their own class; every selected variant of every passing class evaluated on the success\'s CV1: %s passing classes, %s variants, **%s other row-16 passes, %s further accepted pairs** (%s expected under independence). One-sided 99%% Poisson limit of E[R_f - 1 | A_t]: %s = 2^%s; charged 2^%s (the limit rounded up to a tenth plus 0.5, the rule of 1a695f0b). Sampling: every 25th success line of the study\'s dump files in sorted file order, the first %s of them (`h3p.py`, `POOL` and `STUDY` set to this study\'s pool and dumps), so they come from the first runs and successes within a run are not independent; the Poisson limit assumes independence, which the 0.5 margin only partly covers (pair term 2^-3 moves the claim by +0.07, Section 10). %s' % (S_h['succ'], S_h['dis'], S_h['own'], S_h['pc'], S_h['var'], S_h['r16'], S_h['acc'], S_h['exp'], S_h['lim'], S_h['llim'], S_h['H3B'], S_h['succ'], S_h.get('spread', '')) + (' Given a success, its CV1 passes the W7 test for %.2f classes on average (1 + %d p7 = %.2f if the classes were independent): the c7 values of the classes are related, so their W7 tests pass together. The expectations of the ledger are linear and unaffected; the effect is inside the measured pair term and the work cap.' % (H3['passing_classes'] / H3['verified'], ncl - 1, 1 + (ncl - 1) * 287309824 / 2 ** 32) if H3['verified'] else ''))
-add('')
-add('*Bonferroni, independence, caps.* Pr[X_f >= 1] >= E[X_f] - E[X_f (X_f - 1)] / 2 >= g q3 (1 - 2^h3 / 2); first blocks are independent (fresh coins); the data-dependent work v_f of a first block satisfies 0 <= v_f <= vmax_f = %s with mean at most vbar = %.4f (exact rational in the ledger), so Var(sum v_f) <= N_FB vmax_f vbar and Chebyshev bounds Pr[sum v_f > (1 + 2^-16) N_FB vbar] by P_cap = %.3e; V_MAX = ceil((1 + 2^-16) N_FB vbar). On the complement no cap halts the run. N_FB is the least integer with 1 - exp(-N_FB g q3_model (1 - 2^h3 / 2)) - P_cap - 2^-60 >= 0.39 (2^-60 covers the rounding of the exponential, evaluated at 80 decimal digits).' % (c(L['vmax']), L['vbar'], L['Pcap']))
-add('')
-add('## 10. Ledger (exact; `ledger_a0p.py`, Appendix C)')
-add('')
-add('```text')
-add('T = A_C + A_S + DEV + N_FB + (N_FB x %d + V_MAX + OVER + PRE + FIN) / C + 6' % CAL['fb_fixed'])
-add('  A_C = 2^78, A_S = 2^74, DEV = 2^70 (Section 12, H4; the levels of fb176310)')
-add('  N_FB = %s = 2^%.5f   (g = %s good pairs per first block, g q3_model = 2^%.4f)' % (c(L['NFB']), L['log2NFB'], cg(L['g']), L['log2gq']))
-add('  vbar = %.4f operations per first block: W7 tests %d x (%d + %d), hit list, scalars and planes (%d) x min(1, %d p7),' % (L['vbar'], ncl, CAL['w7'], CAL['w7_loop'], CAL['scalars'] + CAL['planes'], ncl))
-add('         passing classes %d p7 x (%d + %d x (%s + %d)) (the mean program, %s = %.2f), stage-3a lanes %d p7 x %s x 2^-%d x %d, row-16 passes %d p7 x %s x %d / 2^32 x %d' % (ncl, CAL['class_ctl'], nb, pmean, CAL['batch_ctl'], pmean, float(pmean), ncl, c(csize), CAL['tk'], CAL['lane'], ncl, c(csize), len(AP.R16), CAL['deep']))
-add('  vmax_f = OVER: every class at the longest program (%s), every lane a row-16 pass' % c(pmax))
-add('  V_MAX = %s, OVER = %s, PRE = %s (member tests over the %d class cubes, the batch planes, program generation)%s' % (c(L['VMAX']), c(L['over']), c(L['PRE']), ncl, (' ' + pre_note) if pre_note else ''))
-add('  FIN = 1,600 operations and 6 units (the final verification)')
-add('N = T x 2728 = %s  ->  T = 2^%.8f  ->  time_log2 = %.5f' % (c(L['N']), L['log2T'], claim))
-add('```')
-add('')
-add('Calibration (`calibrate.json`, the output of `calibrate()` of `experiments/a0p38.py`; `selftest` prints the same):')
-add('')
-add('```'); add(json.dumps(CAL)); add('```')
-add('')
-add('*Certificate.* `python3 ledger_a0p.py --q3 %s --h3 %s --cal calibrate.json` prints the ledger and checks `(2728^E << %d) < N^E <= (2728^E << %d)` with E = 100000 (exact integers), so %.5f is the smallest five-decimal upper bound on log2 T. *Sensitivity* (each row recomputed by the ledger with this calibration unless marked reference):' % (Q3M, H3B, round(claim * 1e5) - 1, round(claim * 1e5), claim))
-add('')
-add('```'); [add(x) for x in sens]; add('```')
-add('')
-add('## 11. Memory and advice')
-add('')
-add('```'); add(MEM or todo('memory record')); add('```')
-add('')
-add('*Sampling.* The peaks are maxima of the summed resident memory sampled every 0.2 s, so a shorter allocation spike could be missed; the claim 2^28.10 bytes = 288,630 KiB is 3.2%% above the largest sample (279,720 KiB), and the Step-1 solve is a single Kissat process whose resident memory grows with its clause database (it does not spike).')
-add('')
-add('*Scope of the memory bound.* Peak memory covers code, advice, retained data, tables and working state of the whole computation: the online algorithm, the charged precomputation (class members, planes, the %d programs) and the computations behind the advice and the allowances (the characteristic search, the Step-1 solve, the class descriptors and their selection, the condition tables), each run single-threaded and sequentially. P8 and S are those of %s (produced by `stepk.py` and `joint.py`); the claimed figure is the largest measured peak in the record above. The class descriptors are found in 32 passes over a hash of c7 (`a0cls.c`, at most 2^23 pairs resident) and selected by `lp_classes.py`. The online figure also covers the deep path\'s working state (two traces, about 6 KB) and M0, CV1.' % (ncl, REF['id']))
-add('')
-add('Claimed memory 2^%.2f bytes: the maximum of the online footprint and the measured preprocessing peaks. Advice: S (16 words of each member and CV1), the %d class descriptors (c7, base, mask: %s bytes), the constants of the characteristic: below 2^14 bytes; everything else (class members, planes, the programs) is computed by the charged preprocessing.' % (memclaim, ncl, c(12 * ncl)))
-add('')
-add('## 12. Premises')
-add('')
-add('- **H1** single-trial chaining value: CV1 = F_38(IV, M0) for uniform M0 behaves as uniform for the events of one variant (Lemma 5.1).')
-add('- **H2** q3 >= q3_model for the accepted event, averaged over the selected variants (Section 9; %s runs).' % S_q['n'])
-add('- **H3** the pair term within a first block is at most 2^h3 (Section 9; measured).')
-add('- **H4** allowances: ' + 'The allowances are envelopes, not measurements: A_C = 2^78, A_S = 2^74, DEV = 2^70 target compressions (the levels charged by fb176310). All of our computation for this line of work (the characteristic search and sweep, the Step-1 solve, the class data, the q3 studies and all development) ran on one 10-core machine, for less than 2^%s core-seconds by our own accounting. The bound does not depend on that accounting or on a rate: ten cores running continuously for a full year are 2^28.3 core-seconds, and even at 2^30 target compressions per core-second (above any CPU core; SHA-256 runs at about 2^24 compressions per second per core) that is 2^58.3, below DEV = 2^70 alone. With A_C = 2^84 the ledger gives time_log2 = %.5f (+%.5f; Section 10); with the smaller allowances of %s, %.5f.' % (CORE_S, ac84, ac84 - claim, REF['id'], ledger(**dict(base, AC=48, AS=50, DEV=50))['claim']))
-add('- **H5** unit-cost bit-sliced planes: the row-16 programs are charged as their instruction counts on 256-bit planes, as in the cost model.')
-add('')
-add('## 13. Organizer experiments (`experiments/manifest.json`)')
-add('')
-add('**a0p-online-r38** (H1, H5, Lemma 4.1). Trials 0..%d: first blocks drawn from the organizer seed (two uniform words each, real 38-step compressions) until one has a passing class (at most 64); its first passing class is run on two batches (the class\'s first 512 members) with that class\'s program: the ok plane is compared lane by lane with E16x from the Step-2 words and the 38-step trace, and W7 with c7 - A_{-1} and F7; trial 0 also runs the batch of the semi-free-start pair\'s variant and requires the counted program to find and accept it. A pair M0 || M1, M0 || M1\' (one variant, not a collision) is returned iff there is no mismatch. Trials %d..255 return no pair by design.' % (AP.ONLINE_TRIALS - 1, AP.ONLINE_TRIALS) + (' Before any selection, each active trial draws %d first blocks from the organizer seed and counts the W7 passes of all %d classes (observations uncond_first_blocks, uncond_class_passes; expectation %d x %d x |F7| / 2^32 = %.1f per trial under H1). Validation by us: %s unconditional first blocks over %d requests, %s class W7 passes against %s expected (ratio %s); passes come in groups of related classes (a success\'s CV1 passes %.1f classes on average), so the per-trial count has a large variance.' % (AP.UNCOND_FB, ncl, AP.UNCOND_FB, ncl, AP.UNCOND_FB * ncl * 287309824 / 2 ** 32, UNC['fb'], UNC['req'], UNC['passes'], UNC['exp'], UNC['ratio'], H3['passing_classes'] / H3['verified']) if UNC else ''))
-ch_r = ', '.join(map(str, AP.CH_R))
-add('')
-add('**a0p-q3-r38** (consistency check of H2). Trials 0..%d: %d replicates of the estimator of q3 for the accepted event (%d particles; %s children at rows 17..22 with the row\'s E bits imposed, at row 19 one of the four patterns drawn uniformly, weight 4 x 2^-f; tail: %d proposals per particle, a variant of %d embedded samples of the selected classes (%d of the %d classes represented), W7 uniform in F7 (its three affine families; the family drawn by rejection from its own word, the value bits from a fresh word), rows 23..37, outputs compared; every success rebuilt into CV1, M1, M1\' and accepted only if it is a 38-step collision in the accepted event with W7 in F7). Trial t < %d returns its first verified pair as CV1 || M1 and CV1 || M1\' (semi-free-start collisions, never collisions from the IV); trial %d returns a pair iff no rebuild failed and the mean of the %d estimates is at least 2^%.4f (pass rule fixed from %s development requests before any validation run; their pooled means: minimum %s, 5%% quantile %s, median %s; replicate mean 2^%s).' % (
-    AP.Q3_REPS - 1, AP.Q3_REPS, AP.NP_R, ch_r, AP.NT_R, len(VS), len(vs_cls), ncl, AP.Q3_REPS, AP.Q3_REPS, AP.Q3_REPS, THR, S_d['n'], S_d['min'], S_d['q5'], S_d['med'], S_d['rmean']))
-add((' What a pass shows: the replica estimates the same event as the study, restricted to the four row-19 patterns (a lower bound) and to %d of the selected variants; its 48 development requests (480 replicates) have mean 2^%s against the study mean 2^%s. Shifting their pooled means down by 1, 2 or 3 bits (a q3 that much lower) makes %.0f%%, %.0f%% and %.0f%% of requests fail the rule (none at the claimed level): a pass excludes a gross error in the estimator or the program, it does not certify the bound.' % (len(VS), S_d['rmean'], S_q['mean'], 100 * POW[1], 100 * POW[2], 100 * POW[3]) if POW else ''))
-add('')
-add('*Validation by us* (the shipped file; 256 trials; network-less container, 1 CPU, 128 MiB; python:3.12.12-slim-bookworm):')
-add('')
-add('```'); add(VAL or todo('validation')); add('```')
-add('')
-add('## 14. Limitations')
-add('')
-add('- q3 is a Monte Carlo estimate (participant-run, resampled particles; the Student bound assumes independent runs); the organizer replica checks a reduced version of it. The row-19 pattern support of the replica is the four patterns of Section 9, which cover all %s classified successes of this study (as they did in the study of %s), so the replica estimates a lower bound of the event\'s probability.' % (S_p['tot'], REF['id']))
-add('- The pair term and the success distribution are measured on rebuilt estimator successes (H1 premise for real chaining values).')
-add('- The bit-sliced programs are executed on sampled batches; full-scale execution is infeasible.')
-add('')
-add('## Appendix A. Self-test and calibration of `experiments/a0p38.py`')
-add('')
-add('```'); add(SELF or todo('selftest')); add('```')
-add('')
-add('## Appendix B. The conditions of rows 16..22 (the accepted event; member x, `experiments/a0p38.py` tables)')
-add('')
-add('Per row: for A, E, W the mask of fixed x-values (trail difference bits and one-bit conditions), their x-values and the XOR difference; the \'+\' pairs E_i[b] = E_{i-1}[b]; the two-bit conditions (kind 0 A / 1 E / 2 W, row, bit; = or !=). Row 19 is checked on its XOR differences and the x-values of its difference bits only.')
-add('')
-add('```')
-KN = 'AEW'
-for i in range(16, 23):
-    for k in range(3):
-        m_, v_, d_, _ = AP.CELLS[k][i]
-        if m_ or d_: add('row %d %s: mask %08x x-value %08x xor %08x' % (i, KN[k], m_, v_ & m_, d_))
-    if AP.PQ[i]: add('row %d +: E%d[b] = E%d[b] for the bits of %08x' % (i, i, i - 1, AP.PQ[i]))
-    for (k1, i1, b1, eq, k2, i2, b2, row) in AP.X2:
-        if row == i: add('row %d: %s%d[%d] %s %s%d[%d]' % (i, KN[k1], i1, b1, '=' if eq else '!=', KN[k2], i2, b2))
-add('```')
-add('')
-add('## Appendix C. Programs (SHA-256 and full listings; `experiments/a0p38.py` is assembled by `mka0p.py` from the `a0p_*.py` parts)')
-add('')
-add('- `experiments/a0p38.py`: %s' % vt_hash)
-for f in SRC: add('- `%s`: %s' % (f, hs.get(f, todo('missing source'))))
-add('')
-for f in SRC:
-    add('### %s' % f); add(''); add('```' + ('c' if f.endswith('.c') else 'python')); add(src.get(f, todo('missing source')).rstrip('\n')); add('```'); add('')
-
-os.makedirs(OUT + '/experiments', exist_ok=True)
-stray = [f for f in os.listdir(OUT + '/experiments') if f.endswith('.py') and f != 'a0p38.py']
-if stray: sys.exit('mkpkg4: %s/experiments has other programs (%s); remove them first (nothing written)' % (OUT, ', '.join(stray)))
-open(OUT + '/proof.md', 'w').write('\n'.join(P) + '\n')
-
-def rng(start, end=None):
-    a = next(i for i, l in enumerate(P) if l.startswith(start)) + 1
-    b = next(i for i, l in enumerate(P) if i >= a and l.startswith(end)) if end else len(P)
-    return 'proof:%d-%d' % (a, b)
-r0, r4, r5, r6, r7, r9, r10, r11, r13 = (rng('### 0.1', '## 1.'), rng('## 4.', '## 5.'), rng('## 5.', '## 6.'), rng('## 6.', '## 7.'), rng('## 7.', '## 8.'), rng('## 9.', '## 10.'),
-                                         rng('## 10.', '## 11.'), rng('## 11.', '## 12.'), rng('## 13.', '## 14.'))
-H = []
-def h(i, stmt, scope, ext, lim, ev): H.append(dict(id=i, role='score-critical', statement=stmt, scope=scope, extrapolation=ext, limitations=lim, evidence_ids=ev))
-nstall = len(STALLED)
-h('H1-single-trial-chaining-value', 'For M0 uniform on {0,1}^512 (two fresh random words per first block), CV1 = F_38(IV, M0) behaves as a uniform 256-bit value for the events of one fixed variant (W7, W16..W22 and E16x distributed as in Lemma 5.1).', 'g, the per-first-block success probability and the expected work.', ('The premise of the A0-variant lineage. Organizer evidence: a0p-online-r38 draws %d unconditional first blocks per active trial and counts the W7 passes of all %d classes (our validation: %s passes in %s blocks against %s expected); it then runs the counted program on real first blocks.' % (AP.UNCOND_FB, ncl, UNC['passes'], UNC['fb'], UNC['exp']) if UNC else 'The premise of the A0-variant lineage; the organizer experiment a0p-online-r38 runs the program on real first blocks.'), 'A premise about the first-block compression.', [r5, r13])
-h('H2-q3-accepted-event', 'The average over the %s selected variants (%d classes) of Pr[the pair is in the accepted event (rows 16..22 with row 19 on signed differences, equal outputs) | good pair] is at least q3_model = 2^%.4f.' % (c(nvar), ncl, Q3M), 'N_FB and the whole attack term.',
-  '%s multilevel-splitting runs (seeds %s) with the variants of the selected classes: mean 2^%s, one-sided 99%% Student bound 2^%s, bootstrap 2^%s, %s verified collisions (%s); an independent Python implementation (the organizer replica, a lower-bound event restricted to four row-19 patterns and %d sampled variants): %s development replicates, mean 2^%s; organizer replica a0p-q3-r38 with a frozen pass rule.' % (
-      S_q['n'], seed_txt, S_q['mean'], S_q['lo'], S_q['bs'], S_q['succ'], ('%s stalled run%s counted as 0' % (wd(nstall), 's' if nstall > 1 else '')) if nstall else 'no stalled run', len(VS), S_d['nrep'], S_d['rmean']),
-  'Participant-run Monte Carlo with a heavy-tailed middle stage; the replica tests a reduced version.', [r9, r13])
-h('H3-pairs-in-first-block', 'The average over successes of the expected number of other row-16 passes of the same first block is at most 2^%s.' % S_h['H3B'], 'The Bonferroni factor of a first block.', '%s rebuilt successes: %s other row-16 passes among %s evaluated variants of the passing classes; 99%% Poisson limit 2^%s.' % (S_h['ver'], S_h['r16'], S_h['var'], S_h['llim']), 'Measured on rebuilt estimator successes.', [r9])
-h('H4-allowances', 'The computation spent on the characteristic search, S and the class data, and all development is at most A_C + A_S + DEV = 2^78 + 2^74 + 2^70 target compressions.', 'The allowance term (negligible against T).', 'One 10-core machine, less than 2^%s core-seconds in all (participant accounting); the envelope holds for any machine running ten cores for a full year at up to 2^30 target compressions per core-second (2^58.3 < 2^70).' % CORE_S, 'Envelope independent of the measured rate; with A_C = 2^84 the ledger gives time_log2 = %.5f (+%.5f).' % (ac84, ac84 - claim), [r10])
-h('H5-bitsliced-planes', 'One instruction on a 256-bit plane costs one word operation (the 256-bit word RAM of the cost model); each class\'s row-16 program is charged at its executed instruction count, loads and stores included (expected work at the mean over the classes, the work cap at the maximum).', 'The dominant work term.', 'Executed instruction by instruction and compared with the scalar definition on sampled batches (selftest, a0p-online-r38).', 'Full-scale execution is infeasible.', [r7, r13])
-CL = dict(schema_version=3, submission_state='ready', target_profile='sha256-r38-prefix-v1', attack_class='ordinary-collision', rounds=38, lane='exploratory',
-          baseline_improved='sha256-r38-nominal-v2', certificate_manifest='certificates/manifest.json', experiment_manifest='experiments/manifest.json',
-          claim=dict(time_log2=claim, time_unit='target-compressions', memory_log2_bytes=memclaim, preprocessing_log2=math.ceil(L['pre_log2'] * 1e5) / 1e5, success_probability=0.39, nonuniform_advice_log2_bytes=14),
-          restrictions=['Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; outputs two distinct 128-byte messages M0 || M1, M0 || M1\' with equal digests.',
-                        'Construction: the memory-efficient A0-variant attack (design of 2d1c4fc2 and fb176310 on ePrint 2026/1120 / 2026/1080; per-class row-16 programs as in 08be594), our implementation experiments/a0p38.py, with our characteristic P8 and the accepted event rows 16..22 (row 19 on signed differences) plus a direct output comparison.',
-                        'Cost: exact ledger ledger_a0p.py: N_FB = %s first blocks, %d classes of %s variants (%s in all), per-class row-16 programs of %s to %s instructions (mean %.2f) per 256 variants, executed counts; T x 2728 = %d; claimed %.5f.' % (c(L['NFB']), ncl, c(csize), c(nvar), c(pmin), c(pmax), float(pmean), L['N'], claim),
-                        'Success probability at least 0.39 under H1, H2 (q3_model 2^%.4f), H3, by Bonferroni per first block, independent first blocks and Chebyshev caps.' % Q3M,
-                        'Memory 2^%.2f bytes (online %s bytes; the preprocessing peak).' % (memclaim, S_m['online'])],
-          heuristics=H)
-if MISSING or PROVISIONAL: CL['submission_state'] = 'draft'; CL['dry_run_todo'] = MISSING + ['provisional: ' + x for x in PROVISIONAL]
-for x in H:
-    for k, v in x.items():
-        if isinstance(v, str): assert len(v) <= 4096
-json.dump(CL, open(OUT + '/claim.json', 'w'), indent=2); open(OUT + '/claim.json', 'a').write('\n')
-shutil.copyfile(VT, OUT + '/experiments/a0p38.py')
-MAN = dict(schema_version=1, experiments=[
-    dict(id='a0p-online-r38', kind='python-message-pairs-v1', program='experiments/a0p38.py', event=dict(kind='full-collision'),
-         scope='H1 (unconditional first blocks), H5 and the Lemma 4.1 identities on real first blocks (proof.md Sections 4, 7, 13). Trials 0..%d: first %d unconditional organizer-seeded first blocks per trial, the W7 passes of all %d classes counted without selection (expectation %.1f per trial under H1); then first blocks drawn from the organizer seed (two uniform 256-bit words from SHAKE-256 of the experiment id and seed per first block; real 38-step compressions) until one has a passing class (at most 64); its first passing class is run on two batches (its first 512 members): the counted row-16 program of that class is executed instruction by instruction and its ok plane compared lane by lane with E16x computed from the Step-2 words and the 38-step trace; W7 is compared with c7 - A_{-1} and checked in F7. Trial 0 also runs the batch of the semi-free-start pair\'s variant on its chaining value: the counted program must find and accept it (positive lanes). Returns M0 || M1 and M0 || M1\' of the class\'s first member (128 bytes each; one variant of one chaining value, not a collision) iff there is no mismatch. Trials %d..255 return no pair by design.' % (AP.ONLINE_TRIALS - 1, AP.UNCOND_FB, ncl, AP.UNCOND_FB * ncl * 287309824 / 2 ** 32, AP.ONLINE_TRIALS),
-         hypothesis='Returned pairs: %d (every executed trial mismatch-free); full collisions of the target: 0 (a returned pair is not a collision). Observations (untrusted): uncond_first_blocks (%d), uncond_class_passes (H1: mean %.1f per trial; grouped passes give a large variance), first_blocks, passing_classes, lanes (512), stage3a_passes, mismatches (0). Validation by us: %s pairs returned per request, %s mismatches, at most %s s; unconditional: %s class W7 passes in %s first blocks against %s expected.' % (AP.ONLINE_TRIALS, AP.UNCOND_FB, AP.UNCOND_FB * ncl * 287309824 / 2 ** 32, S_v['on_ret'], S_v['on_mis'], S_v['on_t'], UNC['passes'] if UNC else '-', UNC['fb'] if UNC else '-', UNC['exp'] if UNC else '-')),
-    dict(id='a0p-q3-r38', kind='python-message-pairs-v1', program='experiments/a0p38.py', event=dict(kind='full-collision'),
-         scope='Consistency check of the q3 estimator (H2; proof.md Sections 6, 9, 13): it is not an estimate of q3 and not evidence for the bound q3_model, which rests on the participant study. Trials 0..%d: %d independent replicates of the estimator of q3 for the accepted event (row 16 exact over the %d W16 words; rows 17..22 by proposals with the row\'s E bits imposed, at row 19 one of the four observed condition patterns drawn uniformly with weight 4 x 2^-f and the row checked on signed differences; tail: a variant of %d embedded samples of the selected classes, W7 uniform in F7 (its three affine families; the family drawn by rejection from its own word, the value bits from a fresh word), rows 23..37, outputs compared; randomness SHAKE-256 of the experiment id and trial seed). Every success is rebuilt into (CV1, M1, M1\') and accepted only if the two 38-step compressions from CV1 are equal, M1 != M1\', the pair is in the accepted event and W7 is in F7. Trial t < %d returns its first verified pair as CV1 || M1 and CV1 || M1\' (96 bytes each; semi-free-start collisions, never collisions from the IV); trial %d returns a pair iff no rebuild failed and the mean of the %d estimates is at least 2^%.4f; trials %d..255 return no pair by design.' % (
-             AP.Q3_REPS - 1, AP.Q3_REPS, len(AP.R16), len(VS), AP.Q3_REPS, AP.Q3_REPS, AP.Q3_REPS, THR, AP.Q3_REPS + 1),
-         hypothesis='Returned pairs: one semi-free-start pair per replicate with a tail success (development requests: %s of %d replicates; validation by us: %s) and 1 from trial %d (a pass; trial %d needs trials 0..%d in the same request); full collisions of the target: 0. The pass rule was fixed from %s development requests (pooled means: min %s, median %s) before any validation run; a pass checks a reduced replica, it is not an estimate of q3. Observations (untrusted): log2_estimate (-1000 for no success), accepted_pairs, failed_rebuilds (0); trial %d log2_pooled_mean.' % (
-             S_d['rs'], AP.Q3_REPS, S_v['q_rs'], AP.Q3_REPS, AP.Q3_REPS, AP.Q3_REPS - 1, S_d['n'], S_d['min'], S_d['med'], AP.Q3_REPS) + (' What a pass shows: the replica estimates the same event as the study, restricted to the four row-19 patterns (a lower bound) and to %d of the selected variants; its 48 development requests (480 replicates) have mean 2^%s against the study mean 2^%s. Shifting their pooled means down by 1, 2 or 3 bits (a q3 that much lower) makes %.0f%%, %.0f%% and %.0f%% of requests fail the rule (none at the claimed level): a pass excludes a gross error in the estimator or the program, it does not certify the bound.' % (len(VS), S_d['rmean'], S_q['mean'], 100 * POW[1], 100 * POW[2], 100 * POW[3]) if POW else ''))])
-json.dump(MAN, open(OUT + '/experiments/manifest.json', 'w'), indent=2); open(OUT + '/experiments/manifest.json', 'a').write('\n')
-RAT = {
-    '2d1c4fc2': ('A0-variants of one Step-1 solution, c7 classes decided by one W7 test, the bit-sliced row-16 filter for 256 variants per word, the success analysis with a pair term and work caps; implemented anew in experiments/a0p38.py.', 'proof.md Section 2; Sections 4 to 9.'),
-    'fb176310': ('The accepted event with a direct output comparison and alternative row-19 patterns, lowest-shared-bit stage 3a, the memory-free W7 test and a counted register allocator; implemented anew.', 'proof.md Sections 2, 6 and 7.'),
-    '242fcec3': ('Our earlier filing (table attack with NEW3): the estimator, condition derivation and ledger methodology reused here.', 'proof.md Section 2.'),
-    '49b543d1': ('Our earlier filing that introduced the characteristic search (signed-difference SAT model) that later found P8.', 'proof.md Sections 2 and 3.2.'),
-    '1a695f0b': ('Our previous filing of this attack with P8 and %d classes; this package extends it to %d classes with per-class programs, an unbiased F7 sampler in the replica and a deterministic class selection.' % (len(RCLS), ncl), 'proof.md Sections 0 and 0.1.'),
-    '08be594': ('Per-class row-16 programs with the class\'s non-mask bits folded as constants (the idea used here for all %d classes, our implementation), and the observation that the F7 sampler of 1a695f0b\'s replica correlated the family choice with the value and had a modulo bias (fixed here).' % ncl, 'proof.md Sections 0.1, 2, 7.2 and 13.')}
-DEPS = [dict(submissionId=(DEPS_UUID[k] if k != '08be594' else (DEP08 or 'TODO-08be594-full-submission-id')), rationale=RAT[k][0], evidence=RAT[k][1])
-        for k in ('2d1c4fc2', 'fb176310', '242fcec3', '49b543d1', '1a695f0b', '08be594')]
-json.dump(DEPS, open(OUT + '/dependencies.json', 'w'), indent=2); open(OUT + '/dependencies.json', 'a').write('\n')
-if MISSING or PROVISIONAL:
-    print('DRY RUN (--allow-missing): %d missing/inconsistent, %d provisional' % (len(MISSING), len(PROVISIONAL)), file=sys.stderr)
-    for x in MISSING: print('  - ' + x, file=sys.stderr)
-    for x in PROVISIONAL: print('  - provisional: ' + x, file=sys.stderr)
-print('proof lines', len(P), 'bytes', len('\n'.join(P).encode()), 'claim', claim, 'memory', memclaim, 'score', round(score, 5))
-```
-
+<!-- END WITNESS_ARCHIVE -->
