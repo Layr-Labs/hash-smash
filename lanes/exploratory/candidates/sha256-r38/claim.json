@@ -9,77 +9,120 @@
   "certificate_manifest": "certificates/manifest.json",
   "experiment_manifest": "experiments/manifest.json",
   "claim": {
-    "time_log2": 87.14808,
+    "time_log2": 57.56,
     "time_unit": "target-compressions",
-    "memory_log2_bytes": 28.1,
-    "preprocessing_log2": 78.09276,
+    "memory_log2_bytes": 29.9,
+    "preprocessing_log2": 56.9478,
     "success_probability": 0.39,
-    "nonuniform_advice_log2_bytes": 14
+    "nonuniform_advice_log2_bytes": 12
   },
   "restrictions": [
-    "Target sha256-r38-prefix-v1 exactly: SHA-256 steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; outputs two distinct 128-byte messages M0 || M1, M0 || M1' with equal digests.",
-    "Construction: the memory-efficient A0-variant attack (design of 2d1c4fc2 and fb176310 on ePrint 2026/1120 / 2026/1080; per-class row-16 programs as in 08be594), our implementation experiments/a0p38.py, with our characteristic P8 and the accepted event rows 16..22 (row 19 on signed differences) plus a direct output comparison.",
-    "Cost: exact ledger ledger_a0p.py: N_FB = 1,510,856,422,634,357,630,235,398 first blocks, 32 classes of 24,576 variants (786,432 in all), per-class row-16 programs of 1,438 to 1,482 instructions (mean 1462.25) per 256 variants, executed counts; T x 2728 = 467765448296261394038709429793; claimed 87.14808.",
-    "Success probability at least 0.39 under H1, H2 (q3_model 2^-97.0000), H3, by Bonferroni per first block, independent first blocks and Chebyshev caps.",
-    "Memory 2^28.10 bytes (online 3,659,904 bytes; the preprocessing peak)."
+    "Attack of O. Goldzweig, 'A Collision for 38-Step SHA-256', Cryptology ePrint Archive 2026/2913: his characteristic, core and Algorithm 1, filed with credit to him; he is not a co-author of this submission.",
+    "Target sha256-r38-prefix-v1 exactly: steps 0..37 on every padded block, the standard IV once, FIPS 180-4 padding, feed-forward, all eight digest words; outputs two distinct 128-byte messages M0 || M1 and M0 || M1' whose compressions from H = F38(IV, M0) are compared before output.",
+    "Configuration: the published variant only (A2 = 42747b1a), its 2^21 lower candidates scanned through a bitmap over the 512 blocks of V7; the upper-pair table of P2, stated by the C program of proof.md Appendix A (normative; experiments/p2slice.py is an independent Python port checked against it), deterministic, built in full: N = 780,584,493 live entries, layout 862,970,080 bytes.",
+    "Advice (P1, below 2^12 bytes): the core and the variant, outputs of the paper's core search, whose values are read from the paper's published pair; the tables P2, P3 are computed by the procedure.",
+    "Time: expected work of N_FB = 2^53.2139 first blocks (mu = 0.55) plus the core search, the A14 scan, two passes of P2 and an allowance of 10x the core search, all at R = 2^26 compressions per vCPU-second (the scan by its operation count); total 2^57.5547, claimed 57.56.",
+    "Success probability at least 0.39 under H1..H4 (Poisson, 1 - e^-0.55 = 0.4231), with the rates of our table and the tail measured.",
+    "Memory 2^29.9 bytes: the online tables (955,244,768 bytes); the precomputation runs one process at a time (P2 peak 946,856,160 bytes; SAT processes by H7)."
   ],
   "heuristics": [
     {
-      "id": "H1-single-trial-chaining-value",
+      "id": "H1-uniform-chaining-value",
       "role": "score-critical",
-      "statement": "For M0 uniform on {0,1}^512 (two fresh random words per first block), CV1 = F_38(IV, M0) behaves as a uniform 256-bit value for the events of one fixed variant (W7, W16..W22 and E16x distributed as in Lemma 5.1).",
-      "scope": "g, the per-first-block success probability and the expected work.",
-      "extrapolation": "The premise of the A0-variant lineage. Organizer evidence: a0p-online-r38 draws 64 unconditional first blocks per active trial and counts the W7 passes of all 32 classes (our validation: 5,693 passes in 2,560 blocks against 5,480 expected); it then runs the counted program on real first blocks.",
-      "limitations": "A premise about the first-block compression.",
+      "statement": "For M0 drawn uniformly by the procedure's coins, H = F38(IV, M0) behaves as a uniform 256-bit value for the events of the attack: the selection W7 in V7 (probability |V7|/2^32 = 2^-18 per lower candidate, hence 8 lower solutions per first block for the published variant), the key C16 = W9 + s0(W1) + W0 (uniform), and the free words W2..W6 (uniform and independent of the selection).",
+      "scope": "Every first block of the online phase; the lower-solution rate, the match rate and the laws of W17..W22 used in Lemma 6.1 and in the tail.",
+      "extrapolation": "The standard premise of two-block attacks. The paper's GPU run on real chaining values: 2^47.0 first blocks and 1.52e16 lower solutions (108.0 per first block, rounded inputs, against 108.39 predicted for its 32-variant configuration); its step-18 rate over the run 1.5929e-5 against 1.5925e-5 counted. The map H -> W0..W7 is a bijection for fixed A0..A7 (Section 2; check-2913 trial 8 inverts it 64 times).",
+      "limitations": "A premise about the 38-step compression of uniform first blocks; we did not test it on real chaining values ourselves.",
       "evidence_ids": [
-        "proof:186-191",
-        "proof:373-394"
+        "proof:36-44",
+        "proof:121-142",
+        "proof:263-263",
+        "proof:295-296",
+        "experiment:check-2913"
       ]
     },
     {
-      "id": "H2-q3-accepted-event",
+      "id": "H2-rates-of-our-table",
       "role": "score-critical",
-      "statement": "The average over the 786,432 selected variants (32 classes) of Pr[the pair is in the accepted event (rows 16..22 with row 19 on signed differences, equal outputs) | good pair] is at least q3_model = 2^-97.0000.",
-      "scope": "N_FB and the whole attack term.",
-      "extrapolation": "40 multilevel-splitting runs (seeds 4001..4040) with the variants of the selected classes: mean 2^-96.1821, one-sided 99% Student bound 2^-96.5603, bootstrap 2^-96.5278, 188,796 verified collisions (two stalled runs counted as 0); an independent Python implementation (the organizer replica, a lower-bound event restricted to four row-19 patterns and 512 sampled variants): 480 development replicates, mean 2^-96.2059; organizer replica a0p-q3-r38 with a frozen pass rule.",
-      "limitations": "Participant-run Monte Carlo with a heavy-tailed middle stage; the replica tests a reduced version.",
+      "statement": "The table built by P2 has N = 780,584,493 live entries (0.181744 matches per lower solution, exact given Lemma 6.1). Its mean step-18 rate per live entry is 8.4705e-5 +- 1.30e-7 and step 19 given step 18 is 0.015631 +- 0.000012 (pass-weighted); with Lemma 6.1 they give 1.5395e-5 step-18 passes per lower solution for every variant.",
+      "scope": "The match count, the step-18 count and the step-19 factor of p1.",
+      "extrapolation": "Measured on our table: exact step-18 counts (every E17 with minimal carries, full affine walks) on the 190,447 live entries selected by ((mix3 >> 40) & 4095) == 0, standard deviation 5.65e-5 over entries; step 19 from 32 reservoir E17 x 32 uniform W18 per sampled entry, flat across step-18 deciles (0.01556 to 0.01566). The minimal-carry restriction loses nothing measurable: exact minimal-E17 over modular Monte Carlo = 0.9995 on 5,216 entries; kpi finds every A16-minimal brute-force key on 64 pairs. Lemma 6.1: the key is uniform via W0, W17 uniform given the key via W2, E18 uniform via W3 (H1). The organizer experiment p2slice runs an independent Python port of P2 on two A14 values against the stored C build.",
+      "limitations": "Sample estimates (1/4096 of the live entries) with the stated standard errors; step 19 is a Monte Carlo estimate; the uniformity steps of Lemma 6.1 rest on H1.",
       "evidence_ids": [
-        "proof:257-311",
-        "proof:373-394"
+        "proof:88-116",
+        "proof:121-142",
+        "proof:264-268",
+        "proof:314-334",
+        "experiment:p2slice"
       ]
     },
     {
-      "id": "H3-pairs-in-first-block",
+      "id": "H3-tail-after-step-19",
       "role": "score-critical",
-      "statement": "The average over successes of the expected number of other row-16 passes of the same first block is at most 2^-5.1.",
-      "scope": "The Bonferroni factor of a first block.",
-      "extrapolation": "750 rebuilt successes: 6 other row-16 passes among 153,649,152 evaluated variants of the passing classes; 99% Poisson limit 2^-5.69.",
-      "limitations": "Measured on rebuilt estimator successes.",
+      "statement": "For the published variant (tau = 6002033f), a pair passing step 19 collides with probability 2^-35.0897 +- 0.0139 bit.",
+      "scope": "The final factor of p1 = 2^-57.0764.",
+      "extrapolation": "Measured, not transferred: 13,949 states drawn as the attack reaches step 19 (entry in proportion to its measured step-18 rate, W7 from V7, W8 from the four row-23 values, W9 from the variant, W17 and W18 conditioned on steps 18 and 19), each state's tail a nested unbiased mean over the four layers of free words W19..W22. The joint rates of steps 22/23 with rows 25/26 equal the products of the marginals to 0.015 bit, so the constants through which the variant enters W23 and W24 do not shift the rate. The paper's own estimator gives 2^-35.0889 +- 0.0371 on our states, and the paper states 2^-35.082. Rows 25 and 26 are exact counts (check-2913 trials 3, 4).",
+      "limitations": "An estimate rather than a count; the entries were drawn from a pool of 5 upper pairs with step-18 rates measured on that pool, so the state sample represents that pool, not provably the whole table.",
       "evidence_ids": [
-        "proof:257-311"
+        "proof:47-61",
+        "proof:145-168",
+        "proof:269-274",
+        "proof:337-338",
+        "experiment:check-2913"
       ]
     },
     {
-      "id": "H4-allowances",
+      "id": "H4-poisson-success",
       "role": "score-critical",
-      "statement": "The computation spent on the characteristic search, S and the class data, and all development is at most A_C + A_S + DEV = 2^78 + 2^74 + 2^70 target compressions.",
-      "scope": "The allowance term (negligible against T).",
-      "extrapolation": "One 10-core machine, less than 2^22 core-seconds in all (participant accounting); the envelope holds for any machine running ten cores for a full year at up to 2^30 target compressions per core-second (2^58.3 < 2^70).",
-      "limitations": "Envelope independent of the measured rate; with A_C = 2^84 the ledger gives time_log2 = 87.29999 (+0.15191).",
+      "statement": "With N_FB = 2^53.2139 first blocks, the expected number of collisions found is mu = 0.55 and Pr[at least one] >= 1 - e^-0.55 = 0.4231 >= 0.39.",
+      "scope": "The success probability 0.39 of the full budget.",
+      "extrapolation": "First blocks are independent and the advice and tables are fixed, so successes in different first blocks are independent; only successes within one first block can cluster, and those differ in A0, A1 (hence W0..W3) while the tail depends on the free words W4..W6. Successes are rare (2^-57.06 per lower solution). The paper's depth counts agree with the rate model. The threshold needs mu >= 0.4943, a 10% margin on p1.",
+      "limitations": "Poisson approximation within one first block, not proved. With only the second-moment bound and pairwise non-positive correlation, mu = 0.64 is needed: time_log2 +0.0789.",
       "evidence_ids": [
-        "proof:312-344"
+        "proof:171-177",
+        "proof:219-230",
+        "proof:275-278"
       ]
     },
     {
-      "id": "H5-bitsliced-planes",
+      "id": "H5-precomputation-and-rate",
       "role": "score-critical",
-      "statement": "One instruction on a 256-bit plane costs one word operation (the 256-bit word RAM of the cost model); each class's row-16 program is charged at its executed instruction count, loads and stores included (expected work at the mean over the classes, the work cap at the maximum).",
-      "scope": "The dominant work term.",
-      "extrapolation": "Executed instruction by instruction and compared with the scalar definition on sampled batches (selftest, a0p-online-r38).",
-      "limitations": "Full-scale execution is infeasible.",
+      "statement": "The computation that produced the core took 52,300 vCPU-hours, as the paper reports; one pass of P2 takes 42,924 CPU-seconds (our measurement, charged twice for two passes), and the A14 scan 3.74 CPU-seconds (charged by its operation count, 2^32 x 256 word operations); one vCPU-second performs at most R = 2^26 target compressions' worth of word-RAM work.",
+      "scope": "The core-search and table terms of the preprocessing (and, through H6, the allowance).",
+      "extrapolation": "The paper's statements (52,300 vCPU-hours on Arm machines, about US$290); the user and system time of our 8 chunk processes. Instruction-throughput bound: at most 8 instructions per cycle at 4 GHz on at most 512 bits gives 2^24.5 compressions per vCPU-second (2^23.0 for an Arm Neoverse core); R = 2^26 leaves a factor 2.8 to 8, and a CDCL solver runs well below the issue width.",
+      "limitations": "The core search's cost is one realized run; the expected cost of a fresh core search is not established. The procedure uses the produced core and variant as advice and charges the realized cost of the search that produced them. At R = 2^30 time_log2 is 60.9942.",
       "evidence_ids": [
-        "proof:217-237",
-        "proof:373-394"
+        "proof:92-116",
+        "proof:193-216",
+        "proof:279-281",
+        "proof:314-334"
+      ]
+    },
+    {
+      "id": "H6-allowance-unreported-search",
+      "role": "score-critical",
+      "statement": "The computation the paper does not report (the characteristic search, the skeleton search and screening, earlier cores, development) is at most 10 times the core search, 523,000 vCPU-hours.",
+      "scope": "The allowance term 2^56.8102, the largest term of the ledger.",
+      "extrapolation": "The paper generates skeletons by a SAT model of both executions and screens them by the step-17 entries of the cores obtained from them, and reports only the final core search. Measured part: generating a skeleton costs at most 0.75 CPU-s and 14.6 MB (Kissat on the two-execution model of steps 11..20, worst of 20 seeds), and one CaDiCaL instance enumerates 25,278 distinct skeletons in 587 CPU-s, so skeleton generation is negligible against the allowance. The allowance covers the screening (cores obtained from discarded skeletons), which is unreported; it admits ten core searches of the reported size.",
+      "limitations": "The screening work is not measured. Sensitivity: allowance 0 gives 56.2440, 1x gives 56.4432, 100x gives 60.2264, 100x at R = 2^30 gives 64.1516.",
+      "evidence_ids": [
+        "proof:92-116",
+        "proof:219-230",
+        "proof:282-286",
+        "proof:341-345"
+      ]
+    },
+    {
+      "id": "H7-sat-search-memory",
+      "role": "score-critical",
+      "statement": "Each process of the paper's core search and of the unreported searches (P4) used at most 2^29.9 bytes, so the sequential precomputation stays within the memory claim.",
+      "scope": "The memory claim 2^29.9 bytes (scope of the peak, Section 8).",
+      "extrapolation": "In our skeleton study every process peaked at or below 568 MB = 2^29.1 bytes (the largest an enumeration holding 120,000 blocking clauses); stage-2 completion of the paper's published skeleton peaked at 11 to 36 MB and a SAT stand-in for stage 3 at 38 to 139 MB; an earlier Kissat solve on a 38-step characteristic peaked at 2^26.08 bytes; the paper's stage 3 is a bit-serial depth-first search with negligible memory.",
+      "limitations": "The paper's CaDiCaL with an external propagator was not reproduced, and the paper does not report the memory of its SAT runs.",
+      "evidence_ids": [
+        "proof:233-259",
+        "proof:287-290",
+        "proof:341-345"
       ]
     }
   ]
