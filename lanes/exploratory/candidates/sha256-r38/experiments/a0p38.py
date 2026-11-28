@@ -320,9 +320,11 @@ def w7test(m, c7, a):
 def fb_scalars(m, cv):
     """per first block: HH, PP, QQ, EF, FF, K1, KP of the program (Lemma 4.1) and A1-independent words"""
     a, b, c, d, e, f, g, h = cv
-    hh = m.and_(m.sub(m.sub(d, S0m(m, a)), MAJm(m, a, b, c)), M)
+    pp = m.and_(a, b); qq = m.or_(a, b)
+    mj = m.or_(pp, m.and_(c, qq))
+    hh = m.and_(m.sub(m.sub(d, S0m(m, a)), mj), M)
     kw0 = m.and_(m.sub(m.sub(m.sub(m.sub(m.sub(hh, d), h), S1m(m, e)), CHm(m, e, f, g)), K[0]), M)
-    sc = dict(HH=hh, PP=m.and_(a, b), QQ=m.or_(a, b), EF=m.xor(e, f), FF=f, K1=m.and_(m.sub(KK1, g), M), KP=m.and_(m.add(KKP, kw0), M))
+    sc = dict(HH=hh, PP=pp, QQ=qq, EF=m.xor(e, f), FF=f, K1=m.and_(m.sub(KK1, g), M), KP=m.and_(m.add(KKP, kw0), M))
     return sc
 KK1 = (SAx[1] - K[1]) & M                                          # K1 = A1 - g - K1
 KKP = (C16 + s1(PMX[14]) + PMX[9]) & M                            # KP = C16 + s1(W14) + W9 + (W0 - a0)
@@ -379,7 +381,9 @@ def deep(m, cv, a0):
     wx, wy = words(cv, a0); m.ops += 2 * 14 * 13
     tx = trace(cv, wx); ty = trace(cv, wy)
     for i in range(16, 38):
-        m.ops += 2 * 20 + 2 * 34
+        # Carry A[i-1]^A[i-2] for each member.  With the fixed initial
+        # A14^A13 value, MAJ(a,b,c) = b ^ ((a^b)&(b^c)) costs 3 ops.
+        m.ops += 2 * 20 + 2 * 33
         if i <= 22 and not rowtest_m(m, tx, ty, i): return False
     m.ops += 8 + 7 + 2
     return all(tx[k][i] == ty[k][i] for k in (0, 1) for i in range(34, 38))
